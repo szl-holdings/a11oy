@@ -13,6 +13,11 @@ from pydantic import BaseModel
 
 
 SCHEMA_VERSION = "szl.source-deploy-attestation/v2"
+PRODUCT_SOURCE_SCHEMA = "szl.product-source/v1"
+PRODUCT_SOURCE_ROUTE = "/.well-known/source.json"
+# Doctrine v11 LOCKED kernel pin. This is the doctrine lock, NOT the Space deploy SHA.
+DOCTRINE_KERNEL_PIN = "c7c0ba17"
+FORBIDDEN_FIRST_PAINT = frozenset({"LIVE", "RUNNING", "PASS"})
 _SHA40 = re.compile(r"^[0-9a-f]{40}$")
 _SHA256 = re.compile(r"^(?:sha256:)?[0-9a-f]{64}$")
 
@@ -212,11 +217,71 @@ def measure_hf_revision(space_id: str, force: bool = False) -> Dict[str, object]
     }
 
 
+def _honest_git_sha() -> tuple[str, str]:
+    """Identity is /api/a11oy/v1/honest git_sha (SZL_GIT_SHA), not the kernel pin."""
+    raw = str(os.environ.get("SZL_GIT_SHA") or "").strip()
+    if raw:
+        return raw, "env:SZL_GIT_SHA"
+    return "unknown", "UNKNOWN"
+
+
+def build_product_source() -> Dict[str, Any]:
+    """Honest product source declaration for GET /.well-known/source.json.
+
+    Signer ABSENT / UNSIGNED-honest. certified, proven_trust, and
+    publication_eligible stay false. First paint is OBSERVED — never
+    LIVE/RUNNING/PASS. This surface does not mint DSSE as product signer.
+    """
+    git_sha, git_sha_source = _honest_git_sha()
+    first_paint = "OBSERVED"
+    status = "UNSIGNED-honest"
+    if first_paint in FORBIDDEN_FIRST_PAINT or status in FORBIDDEN_FIRST_PAINT:
+        raise RuntimeError("refusing LIVE/RUNNING/PASS first paint on product source.json")
+    return {
+        "schema": PRODUCT_SOURCE_SCHEMA,
+        "path": PRODUCT_SOURCE_ROUTE,
+        "origin": "https://a-11-oy.com",
+        "repository": "szl-holdings/a11oy",
+        "repository_url": "https://github.com/szl-holdings/a11oy",
+        "identity": "/api/a11oy/v1/honest git_sha",
+        "git_sha": git_sha,
+        "git_sha_source": git_sha_source,
+        "doctrine": "v11",
+        "doctrine_lock": {
+            "doctrine": "v11",
+            "state": "LOCKED",
+            "commit": DOCTRINE_KERNEL_PIN,
+            "note": (
+                "Doctrine v11 LOCKED kernel pin. This is the doctrine lock, "
+                "NOT the Space deploy SHA."
+            ),
+        },
+        "signer": "ABSENT",
+        "signer_honesty": "UNSIGNED-honest",
+        "certified": False,
+        "proven_trust": False,
+        "publication_eligible": False,
+        "first_paint": first_paint,
+        "status": status,
+        "receipt_minted": False,
+        "dsse": None,
+        "limits": [
+            "First paint is OBSERVED / UNSIGNED-honest; this surface does not stamp LIVE, RUNNING, or PASS.",
+            "Signer is ABSENT. This is not a product-signer DSSE.",
+            "git_sha is the honest identity from /api/a11oy/v1/honest, not the doctrine kernel pin.",
+            "Doctrine v11 LOCKED kernel pin c7c0ba17 is the doctrine lock, not the Space deploy SHA.",
+            "certified, proven_trust, and publication_eligible remain false.",
+        ],
+    }
+
+
 def register(app, space_id: str, source: Dict[str, object], alignment_state: str) -> Dict[str, object]:
     # Freeze once at process registration: repeated GETs are byte-stable. The v1
-    # route and shape remain intact; v2 is additive and typed.
+    # route and shape remain intact; v2 is additive and typed. Product
+    # /.well-known/source.json is additive and does not replace szl-source.json.
     payload_v1 = build_attestation(space_id, source, alignment_state)
     payload_v2 = build_attestation_v2(space_id, source, alignment_state)
+    payload_product = build_product_source()
 
     async def source_attestation(refresh: int = 0):  # noqa: ANN202
         headers = {
@@ -241,8 +306,12 @@ def register(app, space_id: str, source: Dict[str, object], alignment_state: str
     async def source_attestation_v2():  # noqa: ANN202
         return JSONResponse(payload_v2, headers={"Cache-Control": "no-store"})
 
+    async def product_source():  # noqa: ANN202
+        return JSONResponse(payload_product, headers={"Cache-Control": "no-store"})
+
     route = "/.well-known/szl-source.json"
     route_v2 = "/.well-known/szl-source-v2.json"
+    route_product = PRODUCT_SOURCE_ROUTE
     existing = list(app.router.routes)
     app.add_api_route(
         route,
@@ -257,12 +326,27 @@ def register(app, space_id: str, source: Dict[str, object], alignment_state: str
         include_in_schema=True,
         response_model=SourceDeployAttestation,
     )
+    app.add_api_route(
+        route_product,
+        product_source,
+        methods=["GET"],
+        include_in_schema=True,
+    )
     added = list(app.router.routes[len(existing):])
     app.router.routes[:] = added + existing
-    return {"ok": True, "route": route, "route_v2": route_v2, "space": space_id, "position": 0}
+    return {
+        "ok": True,
+        "route": route,
+        "route_v2": route_v2,
+        "route_product": route_product,
+        "space": space_id,
+        "position": 0,
+    }
 
 
 __all__ = [
-    "SCHEMA_VERSION", "SourceDeployAttestation", "build_attestation", "build_attestation_v2",
-    "measure_hf_revision", "register",
+    "SCHEMA_VERSION", "PRODUCT_SOURCE_SCHEMA", "PRODUCT_SOURCE_ROUTE",
+    "DOCTRINE_KERNEL_PIN", "SourceDeployAttestation", "build_attestation",
+    "build_attestation_v2", "build_product_source", "measure_hf_revision",
+    "register",
 ]

@@ -83,3 +83,67 @@ def test_v1_shape_remains_backward_compatible(monkeypatch):
     assert set(result["claims"]) == {
         "github_parity", "reproducible_build", "build_provenance",
     }
+
+
+def test_product_source_json_is_unsigned_honest_and_never_live(monkeypatch):
+    _clear(monkeypatch)
+    sha = "1d1d8ace2be629fea9171f05774312c13137400a"
+    monkeypatch.setenv("SZL_GIT_SHA", sha)
+    payload = source.build_product_source()
+    assert payload["schema"] == source.PRODUCT_SOURCE_SCHEMA
+    assert payload["path"] == "/.well-known/source.json"
+    assert payload["git_sha"] == sha
+    assert payload["git_sha_source"] == "env:SZL_GIT_SHA"
+    assert payload["identity"] == "/api/a11oy/v1/honest git_sha"
+    assert payload["doctrine"] == "v11"
+    assert payload["doctrine_lock"]["commit"] == source.DOCTRINE_KERNEL_PIN
+    assert payload["doctrine_lock"]["commit"] == "c7c0ba17"
+    assert payload["signer"] == "ABSENT"
+    assert payload["signer_honesty"] == "UNSIGNED-honest"
+    assert payload["certified"] is False
+    assert payload["proven_trust"] is False
+    assert payload["publication_eligible"] is False
+    assert payload["receipt_minted"] is False
+    assert payload["dsse"] is None
+    assert payload["first_paint"] == "OBSERVED"
+    assert payload["status"] == "UNSIGNED-honest"
+    for forbidden in ("LIVE", "RUNNING", "PASS"):
+        assert payload["first_paint"] != forbidden
+        assert payload["status"] != forbidden
+
+
+def test_product_source_json_matches_be_hardening_kernel_pin():
+    from szl_be_hardening import DOCTRINE_LOCK
+
+    assert source.DOCTRINE_KERNEL_PIN == DOCTRINE_LOCK["commit"]
+    assert DOCTRINE_LOCK["commit"] == "c7c0ba17"
+
+
+def test_product_source_route_is_registered_and_exact(monkeypatch):
+    pytest.importorskip("fastapi")
+    pytest.importorskip("starlette.testclient")
+    from fastapi import FastAPI
+    from starlette.testclient import TestClient
+
+    _clear(monkeypatch)
+    monkeypatch.setenv("SZL_GIT_SHA", "1d1d8ace2be629fea9171f05774312c13137400a")
+    app = FastAPI()
+    result = source.register(
+        app,
+        "SZLHOLDINGS/a11oy",
+        {"repository": "szl-holdings/a11oy"},
+        "UNKNOWN",
+    )
+    assert result["route_product"] == "/.well-known/source.json"
+    client = TestClient(app)
+    response = client.get("/.well-known/source.json")
+    assert response.status_code == 200
+    assert response.headers.get("cache-control") == "no-store"
+    body = response.json()
+    assert body["git_sha"] == "1d1d8ace2be629fea9171f05774312c13137400a"
+    assert body["signer"] == "ABSENT"
+    assert body["certified"] is False
+    assert body["first_paint"] == "OBSERVED"
+    # Existing attestation routes stay intact.
+    assert client.get("/.well-known/szl-source.json").status_code == 200
+    assert client.get("/.well-known/szl-source-v2.json").status_code == 200

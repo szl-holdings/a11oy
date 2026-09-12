@@ -47,13 +47,17 @@ async def _a11oy_frontier_version(request: Request):
     import os as _os
     from szl_release_identity import release_identity as _release_identity
 
+    from szl_release_identity import hf_space_sha_readback as _hf_space_sha_readback
+
     identity = _release_identity()
     release_tag = identity.get("release_tag")
     release_assets_ready = bool(release_tag)
+    space_sha = _hf_space_sha_readback()
     return _FJSON({
         **identity,
         "git_sha": _os.getenv("SZL_GIT_SHA") or "UNKNOWN",
-        "hf_space_sha": _os.getenv("SZL_HF_SHA") or "UNKNOWN",
+        "hf_space_sha": space_sha.get("sha") or "UNKNOWN",
+        "hf_space_sha_readback": space_sha,
         "build_time": _os.getenv("SZL_BUILD_TIME") or "UNKNOWN",
         "doctrine": _DOCTRINE, "kernel_commit": _KERNEL,
         "p6_status": "SIGNED_OFF", "p6_grader_score": "14/14",
@@ -166,13 +170,29 @@ async def _a11oy_frontier_agent_loop(request: Request):
     except Exception as _ke:
         gate = {"decision": "allow_fallback", "note": str(_ke)[:100]}
     
-    # Success receipt
+    # Success receipt — mint onto the public Khipu DAG (operator POST only).
     receipt_payload = _json.dumps(
         {"session_id": session_id, "action": action, "lambda": lambda_score,
          "status": "ALLOWED", "ts": _NOW()}, sort_keys=True
     ).encode()
     digest = hashlib.sha256(receipt_payload).hexdigest()
-    
+    minted = None
+    emit = getattr(request.app.state, "szl_emit_signed_receipt", None)
+    if callable(emit):
+        try:
+            minted = emit({
+                "schema": "szl.a11oy.agent-loop/v1",
+                "actor": "operator",
+                "intent": "measured-agent-loop",
+                "session_id": session_id,
+                "action": str(action)[:256],
+                "action_lambda": lambda_score,
+                "status": "ALLOWED",
+                "digest": digest,
+            }, request)
+        except Exception as _mint_exc:
+            minted = {"signed": False, "error": type(_mint_exc).__name__}
+
     return _FJSON({
         "status": "ALLOWED",
         "session_id": session_id,
@@ -181,6 +201,12 @@ async def _a11oy_frontier_agent_loop(request: Request):
         "threshold": _LAMBDA_THRESHOLD,
         "gate": gate,
         "receipt": {"digest": digest, "payloadType": "application/vnd.szl.agent.loop+json"},
+        "public_ledger": {
+            "minted": bool(isinstance(minted, dict) and minted.get("digest")),
+            "digest": minted.get("digest") if isinstance(minted, dict) else None,
+            "signed": bool(isinstance(minted, dict) and minted.get("signed")),
+            "index": minted.get("index") if isinstance(minted, dict) else None,
+        },
         "doctrine": _DOCTRINE, "kernel_commit": _KERNEL,
         "lambda_status": _LAMBDA_STATUS,
         "frontier": "lambda_cone_enforcement_v1",

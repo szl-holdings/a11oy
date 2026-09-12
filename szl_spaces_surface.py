@@ -4,9 +4,9 @@
 """szl_spaces_surface.py — console "Spaces" surface (health API + tiles + nav).
 
 ADDITIVE, self-contained, SHARED across a11oy + killinchu. The console companion to
-the canonical handoff module: a LIVE health view of the public KEEP-6 Hub estate plus a
-clean tiles page and ONE idempotent nav item, following the additive-injector pattern
-(a11oy_nav_wireup.py / killinchu_nav_wireup.py).
+the canonical handoff module: a health view of the public KEEP-5 FLOCK doors plus a
+clean tiles page, Unify flock ledger, and ONE idempotent nav item, following the
+additive-injector pattern (a11oy_nav_wireup.py / killinchu_nav_wireup.py).
 
 ROUTES (additive, inserted at the FRONT of the router so they beat the SPA + Node-proxy
 catch-alls — same route-to-front idiom as a11oy_hf_assets.py):
@@ -24,10 +24,15 @@ catch-alls — same route-to-front idiom as a11oy_hf_assets.py):
   GET/HEAD /spaces                 -> a clean tiles page (one card per Space: honest
         title, live status dot fed by /health, destination on product/proof/Hub,
         and a separate huggingface.co repository link).
-        Folded Spaces render as a destination ledger, not live Hub probes.
-        No upstream app executes inside the a11oy or Killinchu origin. Pure inline
-        markup, 0 browser CDN. Status dots are filled by a tiny inline fetch of the
-        SAME-ORIGIN /health JSON (our own server-side-probed endpoint).
+        Folded and Unify Spaces render as a destination ledger, not live Hub probes.
+        First paint is pending/CHECKING — never LIVE/RUNNING/PASS. No upstream app
+        executes inside the a11oy or Killinchu origin. Pure inline markup, 0 browser
+        CDN. Status dots are filled by a tiny inline fetch of the SAME-ORIGIN /health
+        JSON (our own server-side-probed endpoint).
+
+  GET/HEAD /unify and /a11oy/unify -> Unify flock ledger. Four stragglers sink into
+        a11oy /console. Not a Hub Space. Do not create SZLHOLDINGS/unify. winner=null,
+        proven_trust=false. Never LIVE/RUNNING/PASS.
 
 NAV: a BaseHTTPMiddleware injector adds ONE nav item "Spaces" -> /spaces into the
 console left-nav (before <div class="side-foot">, with nav-group / nav-item fallbacks).
@@ -51,6 +56,8 @@ Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 import sys
 import time
 from html import escape as html_escape
@@ -63,27 +70,26 @@ SPACE_TILE_ORIGIN_MODE = "canonical-isolated-hf/v1"
 PRODUCT = "https://a-11-oy.com"
 PROOF = "https://a11oy.net"
 
-# Public Hub KEEP set — MEASURED 2026-08-30 unauthenticated author-list.
-# Application KEEP is these 6. README is a profile card, not an application Space.
-# Atlas keep-7 (18:05Z) is a prior snapshot and is not rewritten here.
-# Folded Spaces are PAUSED+PRIVATE and are not health-probed here. Destinations
-# are existing product and proof paths. RECORD: https://a11oy.net/spaces.json.
+# Public Hub KEEP set — FLOCK five doors. README is a profile card, not an
+# application Space. Atlas keep-7 (18:05Z) and KEEP-6 (2026-08-30) are prior
+# snapshots and are not rewritten here as live claims. Folded and Unify Spaces
+# are destination ledger only and are not health-probed here. Destinations are
+# existing product and proof paths. RECORD: https://a11oy.net/spaces.json.
 # /verify is not cloned. Occupancy stays UNAVAILABLE. pause+private, never delete.
+# Hub write is off in-repo. Do not create Space SZLHOLDINGS/unify.
 SPACES: list[dict[str, str]] = [
     {"name": "a11oy", "slug": "a11oy", "title": "a11oy — Command Center", "sdk": "docker",
-     "action": "KEEP", "dest": PRODUCT},
-    {"name": "killinchu", "slug": "killinchu", "title": "killinchu — Andean Drone Intelligence", "sdk": "docker",
+     "action": "KEEP", "dest": PRODUCT + "/console"},
+    {"name": "killinchu", "slug": "killinchu", "title": "killinchu — Counter-UAS", "sdk": "docker",
      "action": "KEEP", "dest": "https://szlholdings-killinchu.hf.space/elite"},
     {"name": "immune", "slug": "immune", "title": "IMMUNE — Verifiable AI Defense Matrix", "sdk": "docker",
      "action": "KEEP", "dest": PRODUCT + "/immune"},
-    {"name": "szl-khipu", "slug": "szl-khipu", "title": "szl-khipu", "sdk": "docker",
-     "action": "KEEP", "dest": PRODUCT + "/khipu"},
-    {"name": "szl-atelier", "slug": "szl-atelier", "title": "SZL Atelier — forty-model walk", "sdk": "static",
-     "action": "KEEP", "dest": PROOF + "/atelier/"},
-    {"name": "governed-receipt-verifier", "slug": "governed-receipt-verifier", "title": "Governed Receipt Verifier", "sdk": "static",
-     "action": "KEEP", "dest": PROOF + "/record/"},
+    {"name": "lyte", "slug": "lyte", "title": "LYTE lattice", "sdk": "docker",
+     "action": "KEEP", "dest": PRODUCT + "/lyte"},
+    {"name": "vertical-services", "slug": "vertical-services", "title": "Vertical Services", "sdk": "docker",
+     "action": "KEEP", "dest": PRODUCT + "/spaces#verticals"},
 ]
-KEEP_TARGET = 6
+KEEP_TARGET = 5
 
 FOLD_SPACES: list[dict[str, str]] = [
     {"name": "llm-router-live", "slug": "llm-router-live", "title": "SZL LLM Router", "sdk": "docker",
@@ -104,23 +110,17 @@ FOLD_SPACES: list[dict[str, str]] = [
     {"name": "cosmos", "slug": "cosmos", "title": "SZL Cosmos", "sdk": "docker",
      "action": "FOLD", "sink": "product", "dest": PRODUCT + "/living-anatomy",
      "why": "Unmapped RUNNING Space. Bind as anatomy, not a third map."},
-    {"name": "szl-model-inference-lab", "slug": "szl-model-inference-lab", "title": "SZL Model Inference Lab", "sdk": "docker",
-     "action": "FOLD", "sink": "product", "dest": PRODUCT + "/console",
-     "why": "Lab is not a flagship. Command Center is /console."},
     {"name": "khipu-lab", "slug": "khipu-lab", "title": "khipu-lab", "sdk": "docker",
      "action": "FOLD", "sink": "product", "dest": PRODUCT + "/khipu",
      "why": "Duplicate knot lab. KHIPU already lives on product /khipu. RECORD on a11oy.net/khipu/."},
     {"name": "nexus", "slug": "nexus", "title": "nexus", "sdk": "docker",
      "action": "FOLD", "sink": "product", "dest": PRODUCT + "/nexus",
      "why": "Analog workstation is an a11oy package (AO-2026-08-29-003), not a flagship. Bound at /nexus."},
-    {"name": "szl-command-lab", "slug": "szl-command-lab", "title": "szl-command-lab", "sdk": "docker",
-     "action": "FOLD", "sink": "product", "dest": PRODUCT + "/console",
-     "why": "Command already has a body. Lab is a fork."},
     {"name": "szl-sovereign-os", "slug": "szl-sovereign-os", "title": "szl-sovereign-os", "sdk": "docker",
      "action": "FOLD", "sink": "product", "dest": PRODUCT,
      "why": "This OS is the operator kernel. Hub rehost is a hologram."},
     {"name": "immune-lattice", "slug": "immune-lattice", "title": "immune-lattice", "sdk": "docker",
-     "action": "FOLD", "sink": "product", "dest": PRODUCT + "/immune",
+     "action": "FOLD", "sink": "immune", "dest": PRODUCT + "/immune",
      "why": "Lattice is not a sibling of IMMUNE. One admission surface."},
     {"name": "a11oy-factory", "slug": "a11oy-factory", "title": "a11oy-factory", "sdk": "docker",
      "action": "FOLD", "sink": "product", "dest": PRODUCT,
@@ -135,13 +135,13 @@ FOLD_SPACES: list[dict[str, str]] = [
      "action": "FOLD", "sink": "product", "dest": PRODUCT,
      "why": "Static hologram. Paper quotes already MEASURED. No order routing."},
     {"name": "terra-assurance", "slug": "terra-assurance", "title": "terra-assurance", "sdk": "docker",
-     "action": "FOLD", "sink": "product", "dest": PRODUCT,
-     "why": "Unmapped docker. Not a flagship. Occupancy stays UNAVAILABLE."},
+     "action": "FOLD", "sink": "vertical-services", "dest": PRODUCT + "/spaces#verticals",
+     "why": "Unmapped docker. Not a flagship. Occupancy stays UNAVAILABLE. Folds with terra into vertical-services."},
     {"name": "ayllu", "slug": "ayllu", "title": "ayllu", "sdk": "docker",
      "action": "FOLD", "sink": "proof", "dest": PROOF + "/ayllu/",
      "why": "Counsel showcase already lives on the proof origin. Does not run the council."},
     {"name": "counsel", "slug": "counsel", "title": "counsel", "sdk": "docker",
-     "action": "FOLD", "sink": "proof", "dest": PROOF + "/ayllu/",
+     "action": "FOLD", "sink": "ayllu", "dest": PROOF + "/ayllu/",
      "why": "Duplicate of ayllu. One lab URL."},
     {"name": "experiments", "slug": "experiments", "title": "experiments", "sdk": "docker",
      "action": "FOLD", "sink": "proof", "dest": PROOF + "/experiments/",
@@ -204,7 +204,45 @@ FOLD_SPACES: list[dict[str, str]] = [
      "action": "FOLD", "sink": "product", "dest": PRODUCT,
      "honesty": "Occupancy UNAVAILABLE",
      "why": "Public-records underwriting is not a flagship. Occupancy stays UNAVAILABLE. Hub Space PAUSED+PRIVATE."},
+    {"name": "sentra", "slug": "sentra", "title": "sentra", "sdk": "docker",
+     "action": "FOLD", "sink": "vertical-services", "dest": PRODUCT + "/spaces#verticals",
+     "why": "SENTRA is a vertical, not a flagship. Folds into vertical-services."},
+    {"name": "finance", "slug": "finance", "title": "finance", "sdk": "docker",
+     "action": "FOLD", "sink": "vertical-services", "dest": PRODUCT + "/spaces#verticals",
+     "why": "Finance is a vertical, not a flagship. Folds into vertical-services."},
+    {"name": "terra", "slug": "terra", "title": "terra", "sdk": "docker",
+     "action": "FOLD", "sink": "vertical-services", "dest": PRODUCT + "/spaces#verticals",
+     "honesty": "Occupancy UNAVAILABLE",
+     "why": "Terra is a vertical, not a flagship. Folds into vertical-services."},
+    {"name": "szl-khipu", "slug": "szl-khipu", "title": "szl-khipu", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT + "/khipu",
+     "why": "Not a FLOCK door. Evaluate on product /khipu. RECORD on a11oy.net/khipu/."},
+    {"name": "szl-atelier", "slug": "szl-atelier", "title": "SZL Atelier — forty-model walk", "sdk": "static",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/atelier/",
+     "why": "Not a FLOCK door. Proof origin already walks forty models at /atelier/."},
+    {"name": "governed-receipt-verifier", "slug": "governed-receipt-verifier", "title": "Governed Receipt Verifier", "sdk": "static",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/record/",
+     "why": "Not a FLOCK door. Interactive /verify stays on product. Proof holds the RECORD index only."},
 ]
+# Four stragglers sink into a11oy /console. Destination ledger only. Not KEEP.
+UNIFY_SPACES: list[dict[str, str]] = [
+    {"name": "szl-command-lab", "slug": "szl-command-lab", "title": "szl-command-lab", "sdk": "docker",
+     "action": "UNIFY", "sink": "a11oy", "dest": PRODUCT + "/console",
+     "why": "Command already has a body. Lab is a fork. Unify into a11oy /console."},
+    {"name": "szl-model-inference-lab", "slug": "szl-model-inference-lab", "title": "SZL Model Inference Lab", "sdk": "docker",
+     "action": "UNIFY", "sink": "a11oy", "dest": PRODUCT + "/console",
+     "why": "Lab is not a flagship. Command Center is /console."},
+    {"name": "szl-frontier", "slug": "szl-frontier", "title": "szl-frontier", "sdk": "docker",
+     "action": "UNIFY", "sink": "a11oy", "dest": PRODUCT + "/console",
+     "why": "Frontier is not a fifth door. Unify into a11oy."},
+    {"name": "szl-constellation", "slug": "szl-constellation", "title": "szl-constellation", "sdk": "docker",
+     "action": "UNIFY", "sink": "a11oy", "dest": PRODUCT + "/console",
+     "why": "Constellation is not a fifth door. Unify into a11oy."},
+]
+UNIFY_TARGET = 4
+FLOCK_FOLD_SLUGS = (
+    "immune-lattice", "counsel", "ayllu", "sentra", "finance", "terra", "david-leads",
+)
 ARCHIVE_SPACES: list[dict[str, str]] = [
     {"name": "second-brain", "slug": "second-brain", "title": "second-brain", "sdk": "docker",
      "action": "ARCHIVE", "dest": "",
@@ -214,6 +252,8 @@ _SPACE_BY_NAME = {sp["name"]: sp for sp in SPACES}
 _SPACE_BY_SLUG = {sp["slug"]: sp for sp in SPACES}
 _FOLD_BY_NAME = {sp["name"]: sp for sp in FOLD_SPACES}
 _FOLD_BY_SLUG = {sp["slug"]: sp for sp in FOLD_SPACES}
+_UNIFY_BY_NAME = {sp["name"]: sp for sp in UNIFY_SPACES}
+_UNIFY_BY_SLUG = {sp["slug"]: sp for sp in UNIFY_SPACES}
 # Product Spaces retained as metadata for consumers that distinguish flagship hosts.
 _OWN_HOST = {"a11oy", "killinchu"}
 
@@ -227,7 +267,7 @@ _DOCTRINE = {
 
 _PROBE_TIMEOUT = 2.0
 _HF_API_TIMEOUT = 2.0
-_HEALTH_CACHE_TTL = 20.0  # seconds — keep the tiles page snappy without re-probing 6x.
+_HEALTH_CACHE_TTL = 20.0  # seconds — keep the tiles page snappy without re-probing 5x.
 _HEALTH_CACHE: dict[str, Any] = {"ts": 0.0, "payload": None}
 _RUNNING_STAGES = {"RUNNING"}
 _HF_LIST_URL = f"https://huggingface.co/api/spaces?author={_ORG}&limit=1000&full=true"
@@ -239,9 +279,10 @@ _CONTRACT_CIRCUITS: dict[str, dict[str, Any]] = {}
 
 
 def _space_record(identifier: str) -> dict[str, str]:
-    """Resolve KEEP or FOLD identifiers; fail closed for unknown names."""
+    """Resolve KEEP, FOLD, or UNIFY identifiers; fail closed for unknown names."""
     record = (_SPACE_BY_NAME.get(identifier) or _SPACE_BY_SLUG.get(identifier)
-              or _FOLD_BY_NAME.get(identifier) or _FOLD_BY_SLUG.get(identifier))
+              or _FOLD_BY_NAME.get(identifier) or _FOLD_BY_SLUG.get(identifier)
+              or _UNIFY_BY_NAME.get(identifier) or _UNIFY_BY_SLUG.get(identifier))
     if record is None:
         raise ValueError("unknown Space identifier: %s" % identifier)
     return record
@@ -454,7 +495,7 @@ async def _probe_inventory(client: Any) -> dict[str, Any]:
             }
         if name != "README":
             observed.add(name)
-    expected = set(_SPACE_BY_NAME)  # public KEEP 6, not folded/private
+    expected = set(_SPACE_BY_NAME)  # public KEEP 5, not folded/unify/private
     missing = sorted(expected - observed)
     unexpected = sorted(observed - expected)
     return {
@@ -684,7 +725,7 @@ def _aggregate_health_state(spaces: list[dict[str, Any]]) -> str:
 
 
 async def spaces_health() -> dict[str, Any]:
-    """Aggregate honest health for the public KEEP-6 Hub estate (short TTL cache)."""
+    """Aggregate honest health for the public KEEP-5 FLOCK doors (short TTL cache)."""
     now = time.monotonic()
     if _HEALTH_CACHE["payload"] is not None and (now - _HEALTH_CACHE["ts"]) < _HEALTH_CACHE_TTL:
         cached = _HEALTH_CACHE["payload"]
@@ -719,7 +760,7 @@ async def spaces_health() -> dict[str, Any]:
             "state": "Fresh: LIVE only when every app is reachable and HF reports RUNNING; otherwise DEGRADED or UNAVAILABLE. TTL reuse is CACHED with cached_state.",
             "space_state": "LIVE requires app_reachable:true plus HF stage RUNNING and every configured exact API contract LIVE; partial evidence is DEGRADED",
             "contract_state": "Anatomy and SDA validate exact stable JSON markers on their public dependency routes; a root-page 200 cannot override a failed contract",
-            "inventory": "LIVE only when the public KEEP-6 application set exactly equals the unauthenticated Hub API set; folded Spaces are PAUSED+PRIVATE and are not in this set; README is a special organization surface, not an application Space",
+            "inventory": "LIVE only when the public KEEP-5 FLOCK door set exactly equals the unauthenticated Hub API set; folded and Unify Spaces are destination-ledger only and are not in this set; README is a special organization surface, not an application Space",
             "custom_domain": "HF API provider state; PENDING remains DEGRADED even when a separate edge currently routes traffic",
             "stage": "HF API runtime.stage (https://huggingface.co/api/spaces/SZLHOLDINGS/<name>)",
             "app_reachable": "REAL server-side HEAD/GET probe of the canonical Space app",
@@ -736,10 +777,138 @@ async def spaces_health() -> dict[str, Any]:
     return payload
 
 
+def _destination_ledger_card(sp: dict[str, str], kind: str) -> str:
+    """Render a FOLD/UNIFY destination-ledger card. No live Hub probe, no RUNNING."""
+    name = sp["name"]
+    title = html_escape(sp["title"])
+    dest = html_escape(sp["dest"], quote=True)
+    honesty = html_escape(sp.get("honesty") or ("%s · PAUSED · PRIVATE" % kind))
+    why = html_escape(sp.get("why") or "")
+    sink = html_escape(sp.get("sink") or "")
+    attr = "data-fold" if kind == "FOLD" else "data-unify"
+    return (
+        '<article class="sp-card sp-fold" %s="%s">'
+        '<header class="sp-head"><h2 class="sp-title">%s</h2></header>'
+        '<div class="sp-kind">%s &middot; %s &middot; %s &rarr; %s</div>'
+        '<div class="sp-honesty">%s</div>'
+        '<div class="sp-stage">%s</div>'
+        '<div class="sp-links">'
+        '<a class="sp-open" href="%s" rel="noopener">Open destination &#8599;</a>'
+        '<a class="sp-hf" href="%s" rel="noopener" target="_blank">Hub (private) &#8599;</a>'
+        '</div></article>'
+        % (attr, html_escape(name, quote=True), title, html_escape(name),
+           html_escape(sp["sdk"]), kind, sink, honesty, why, dest, hf_repo_url(name))
+    )
+
+
+def unify_ledger() -> dict[str, Any]:
+    """Static Unify flock ledger. No Hub probe. winner is null. proven_trust is false."""
+    fold_rows = [_FOLD_BY_SLUG[slug] for slug in FLOCK_FOLD_SLUGS]
+    payload = {
+        "schema": "szl.unify-flock/v1",
+        "state": "BIND",
+        "winner": None,
+        "proven_trust": False,
+        "certified": False,
+        "hub_write": False,
+        "hub_space_created": False,
+        "keep": [{"slug": sp["slug"], "act": "KEEP", "dest": sp["dest"]} for sp in SPACES],
+        "fold": [
+            {"slug": sp["slug"], "act": "FOLD", "into": sp.get("sink") or sp["dest"]}
+            for sp in fold_rows
+        ],
+        "unify": [
+            {"slug": sp["slug"], "act": "UNIFY", "into": sp.get("sink") or "a11oy"}
+            for sp in UNIFY_SPACES
+        ],
+        "doctrine": _DOCTRINE,
+        "note": (
+            "Product tab on a-11-oy.com. GitHub is source. Hub is the registry. "
+            "a11oy.net is RECORD. Never LIVE/RUNNING/PASS. pause+private, never delete. "
+            "Do not create Space SZLHOLDINGS/unify."
+        ),
+    }
+    blob = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+    payload["digest"] = hashlib.sha256(blob).hexdigest()[:16]
+    payload["digest_alg"] = "sha256-16"
+    return payload
+
+
+def _unify_page(ns: str = "a11oy") -> bytes:
+    """Unify flock ledger page. First paint never LIVE/RUNNING/PASS."""
+    ledger = unify_ledger()
+    digest = html_escape(str(ledger.get("digest") or "unsigned"))
+
+    def _rows(items: list[dict[str, str]], dest_key: str) -> str:
+        out = []
+        for row in items:
+            out.append(
+                "<tr><td>%s</td><td>%s</td><td>%s</td></tr>"
+                % (html_escape(row["slug"]), html_escape(row["act"]),
+                   html_escape(str(row.get(dest_key) or "")))
+            )
+        return "".join(out)
+
+    html = (
+        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<title>Unify flock &middot; SZL Holdings</title>'
+        '<style>'
+        ':root{color-scheme:dark}'
+        '*{box-sizing:border-box}'
+        'body{margin:0;background:#0b0f14;color:#cdd6e0;'
+        'font:15px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}'
+        '.sp-wrap{max-width:1100px;margin:0 auto;padding:2rem 1.25rem;min-width:0}'
+        'h1{color:#e7eef6;font-size:1.6rem;margin:0 0 .25rem}'
+        'h2{color:#e7eef6;font-size:1.15rem;margin:1.8rem 0 .35rem}'
+        '.sp-sub,.sp-foot{color:#8a96a3;overflow-wrap:anywhere}'
+        '.sp-bind{color:#c9a23a;font-size:.86rem;margin:.2rem 0 .8rem}'
+        'table{width:100%;border-collapse:collapse;min-width:0}'
+        'th,td{text-align:left;padding:.45rem .5rem;border-bottom:1px solid #1d2632;'
+        'overflow-wrap:anywhere}'
+        'th{color:#9fb0c0;font-size:.78rem;letter-spacing:.04em}'
+        'a{color:#d4a444}'
+        '.sp-nav a{margin-right:.8rem}'
+        '</style></head>'
+        '<body><main class="sp-wrap">'
+        '<h1>Unify flock</h1>'
+        '<p class="sp-bind">BIND &middot; not certified &middot; digest ' + digest +
+        ' &middot; winner=null &middot; proven_trust=false</p>'
+        '<p class="sp-sub"><strong>Product tab on a-11-oy.com.</strong> GitHub is source. '
+        'Hub is the registry. a11oy.net is RECORD. Never LIVE/RUNNING/PASS. '
+        'pause+private, never delete. Do not create Space SZLHOLDINGS/unify.</p>'
+        '<p class="sp-nav">Nav: <a href="/lyte">/lyte</a> &middot; '
+        '<a href="/spaces">/spaces</a> &middot; <a href="/console">/console</a></p>'
+        '<h2>KEEP</h2>'
+        '<table><thead><tr><th>slug</th><th>act</th><th>dest</th></tr></thead><tbody>'
+        + _rows(ledger["keep"], "dest") +
+        '</tbody></table>'
+        '<h2>FOLD</h2>'
+        '<table><thead><tr><th>slug</th><th>act</th><th>into</th></tr></thead><tbody>'
+        + _rows(ledger["fold"], "into") +
+        '</tbody></table>'
+        '<h2>UNIFY stragglers</h2>'
+        '<p class="sp-sub">Four Spaces sink into a11oy /console. Destination ledger only. '
+        'Not live-probed. Not a fifth door.</p>'
+        '<table><thead><tr><th>slug</th><th>act</th><th>into</th></tr></thead><tbody>'
+        + _rows(ledger["unify"], "into") +
+        '</tbody></table>'
+        '<p class="sp-foot">&Lambda; = Conjecture 1 &middot; Doctrine v11 &middot; Never a11oy.com'
+        ' &middot; ns=' + html_escape(ns) + '</p>'
+        '</main></body></html>'
+    )
+    lower = html.lower()
+    # First paint is the static document. Forbid LIVE/RUNNING/PASS except the
+    # explicit honesty prohibition already in the copy.
+    assert "never live/running/pass" in lower
+    return html.encode("utf-8")
+
+
 # ---------------------------------------------------------------------------
 # Tiles page — pure inline markup, 0 CDN. Status dots are filled by a tiny inline
 # fetch of the SAME-ORIGIN /api/<ns>/v1/spaces/health (our own server-side-probed
 # endpoint, not a CDN). Cards are pre-rendered so the page is useful even with JS off.
+# First paint is pending/CHECKING — never LIVE/RUNNING/PASS.
 # ---------------------------------------------------------------------------
 def _tiles_page(ns: str) -> bytes:
     cards = []
@@ -758,7 +927,7 @@ def _tiles_page(ns: str) -> bytes:
             '<h2 class="sp-title">%s</h2></header>'
             '<div class="sp-kind">%s &middot; %s &middot; KEEP</div>'
             '%s'
-            '<div class="sp-stage" data-stage="%s">stage: <span>checking&hellip;</span></div>'
+            '<div class="sp-stage" data-stage="%s">stage: <span>pending</span></div>'
             '<div class="sp-links">'
             '<a class="sp-open" href="%s" rel="noopener">%s &#8599;</a>'
             '<a class="sp-hf" href="%s" rel="noopener" target="_blank">View Hub repository &#8599;</a>'
@@ -766,26 +935,8 @@ def _tiles_page(ns: str) -> bytes:
             % (slug, slug, title, name, sp["sdk"], honesty_html, slug,
                html_escape(primary, quote=True), primary_label, hf_repo_url(name))
         )
-    fold_cards = []
-    for sp in FOLD_SPACES:
-        name = sp["name"]
-        title = sp["title"]
-        dest = html_escape(sp["dest"], quote=True)
-        honesty = html_escape(sp.get("honesty") or "FOLD · PAUSED · PRIVATE")
-        why = html_escape(sp.get("why") or "")
-        fold_cards.append(
-            '<article class="sp-card sp-fold" data-fold="%s">'
-            '<header class="sp-head"><h2 class="sp-title">%s</h2></header>'
-            '<div class="sp-kind">%s &middot; %s &middot; FOLD &rarr; %s</div>'
-            '<div class="sp-honesty">%s</div>'
-            '<div class="sp-stage">%s</div>'
-            '<div class="sp-links">'
-            '<a class="sp-open" href="%s" rel="noopener">Open destination &#8599;</a>'
-            '<a class="sp-hf" href="%s" rel="noopener" target="_blank">Hub (private) &#8599;</a>'
-            '</div></article>'
-            % (name, title, name, sp["sdk"], html_escape(sp.get("sink") or ""),
-               honesty, why, dest, hf_repo_url(name))
-        )
+    fold_cards = [_destination_ledger_card(sp, "FOLD") for sp in FOLD_SPACES]
+    unify_cards = [_destination_ledger_card(sp, "UNIFY") for sp in UNIFY_SPACES]
     html = (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
@@ -831,24 +982,30 @@ def _tiles_page(ns: str) -> bytes:
         '</style></head>'
         '<body><main class="sp-wrap">'
         '<h1 class="sp-h1">Hugging Face Spaces</h1>'
-        f'<p class="sp-sub">Public Hub cut is {len(SPACES)} KEEP (MEASURED). '
-        'Folded Spaces are PAUSED+PRIVATE and open on existing '
-        '<code>a-11-oy.com</code> and <code>a11oy.net</code> paths. Health probes the public 6 only. '
+        f'<p class="sp-sub">Public Hub cut is {len(SPACES)} KEEP FLOCK doors. '
+        'Folded and Unify Spaces are destination ledger only and open on existing '
+        '<code>a-11-oy.com</code> and <code>a11oy.net</code> paths. Health probes the public 5 only. '
+        'First paint is CHECKING/pending — never LIVE/RUNNING/PASS. '
         'Legacy <code>/spaces/<slug></code> links are no-store 307 handoffs to those destinations. '
         'RECORD: <a href="https://a11oy.net/spaces.json" rel="noopener">a11oy.net/spaces.json</a>. '
-        '/verify is not cloned.</p>'
+        '/verify is not cloned. Do not create Space SZLHOLDINGS/unify.</p>'
         '<p class="sp-health">Estate health: '
         '<strong id="sp-estate-health" class="checking" aria-live="polite">CHECKING</strong></p>'
         '<div class="sp-grid">' + "".join(cards) + '</div>'
-        '<h2 class="sp-h2">Folded · PAUSED + PRIVATE</h2>'
+        '<h2 class="sp-h2" id="verticals">Folded · PAUSED + PRIVATE</h2>'
         f'<p class="sp-sub">{len(FOLD_SPACES)} Spaces folded into product and proof destinations. '
         'Not public Hub. Reachability of a destination is never quality. '
+        'sentra, finance, terra fold into vertical-services. '
         'second-brain is ARCHIVE / HISTORICAL.</p>'
         '<div class="sp-grid">' + "".join(fold_cards) + '</div>'
+        '<h2 class="sp-h2">Unify stragglers &rarr; a11oy</h2>'
+        f'<p class="sp-sub">{len(UNIFY_SPACES)} Spaces sink into <a href="/unify">/unify</a> '
+        'and a11oy /console. Destination ledger only. Not live-probed.</p>'
+        '<div class="sp-grid">' + "".join(unify_cards) + '</div>'
         '<p class="sp-foot">Status dot & stage on KEEP tiles are filled from the same-origin '
         '<code>/api/' + ns + '/v1/spaces/health</code> endpoint (real server-side probe '
         '+ HF API). Honest: a grey/amber dot means starting or unknown, never a faked up. '
-        'Folded tiles are not live-probed.</p>'
+        'Folded and Unify tiles are not live-probed. winner=null. proven_trust=false.</p>'
         '</main>'
         '<script>'
         '(function(){'
@@ -925,7 +1082,7 @@ def _make_injector():
                     return resp
                 # The /spaces tiles page IS our own page; don't inject the sidebar nav
                 # into it (it has no console sidebar). Cheap guard — also keeps it idempotent.
-                if p == "/spaces" or p.startswith("/spaces/"):
+                if p == "/spaces" or p.startswith("/spaces/") or p in ("/unify", "/a11oy/unify"):
                     return resp
 
                 body = b""
@@ -960,8 +1117,9 @@ def _make_injector():
 
 def register(app, ns: str = "a11oy") -> str:
     """ADDITIVE: mount GET /api/<ns>/v1/spaces/health + GET/HEAD /spaces (rich tiles)
-    at the FRONT of the router (beat the SPA + Node-proxy catch-alls), and attach the
-    idempotent 'Spaces' nav injector. try/except-guarded by the caller."""
+    + GET/HEAD /unify and /a11oy/unify at the FRONT of the router (beat the SPA +
+    Node-proxy catch-alls), and attach the idempotent 'Spaces' nav injector.
+    try/except-guarded by the caller. Does not create a Hub Space."""
     try:
         from starlette.responses import Response, JSONResponse as _JSON
     except Exception as e:  # pragma: no cover
@@ -969,6 +1127,7 @@ def register(app, ns: str = "a11oy") -> str:
 
     n_before = len(app.router.routes)
     tiles = _tiles_page(ns)
+    unify = _unify_page(ns)
 
     async def _health(request):
         payload = await spaces_health()
@@ -980,12 +1139,20 @@ def register(app, ns: str = "a11oy") -> str:
             return Response(content=b"", status_code=200, media_type="text/html", headers=headers)
         return Response(content=tiles, status_code=200, media_type="text/html", headers=headers)
 
+    async def _unify(request):
+        headers = {"Cache-Control": "no-store"}
+        if request.method.upper() == "HEAD":
+            return Response(content=b"", status_code=200, media_type="text/html", headers=headers)
+        return Response(content=unify, status_code=200, media_type="text/html", headers=headers)
+
     from starlette.routing import Route
     routes = [
         Route("/api/%s/v1/spaces/health" % ns, _health, methods=["GET"]),
         # The rich tiles page OWNS /spaces (wins over szl_spaces_proxy's fallback index
         # because this module is registered SECOND and front-inserts after it).
         Route("/spaces", _tiles, methods=["GET", "HEAD"]),
+        Route("/unify", _unify, methods=["GET", "HEAD"]),
+        Route("/a11oy/unify", _unify, methods=["GET", "HEAD"]),
     ]
     for r in routes:
         app.router.routes.append(r)
@@ -997,9 +1164,9 @@ def register(app, ns: str = "a11oy") -> str:
     app.add_middleware(_make_injector())
 
     print("[%s] Spaces surface registered: /api/%s/v1/spaces/health + /spaces (tiles, "
-          "%d spaces) + nav injector [moved %d routes to front]"
+          "%d KEEP) + GET /unify + GET /a11oy/unify + nav injector [moved %d routes to front]"
           % (ns, ns, len(SPACES), len(new)), file=sys.stderr)
-    return "ok: %d spaces, health + tiles + nav, %d routes" % (len(SPACES), len(new))
+    return "ok: %d spaces, health + tiles + unify + nav, %d routes" % (len(SPACES), len(new))
 
 
 # ---------------------------------------------------------------------------
@@ -1013,19 +1180,34 @@ if __name__ == "__main__":
     with open(__file__, "r", encoding="utf-8") as _fh:
         _ast.parse(_fh.read())
 
-    assert len(SPACES) == KEEP_TARGET == 6 and "README" not in _SPACE_BY_NAME, len(SPACES)
-    assert "szl-khipu" in _SPACE_BY_NAME and "szl-atelier" in _SPACE_BY_NAME
-    assert "governed-receipt-verifier" in _SPACE_BY_NAME
+    assert len(SPACES) == KEEP_TARGET == 5 and "README" not in _SPACE_BY_NAME, len(SPACES)
+    assert [sp["slug"] for sp in SPACES] == [
+        "a11oy", "killinchu", "immune", "lyte", "vertical-services",
+    ]
+    assert "szl-khipu" in _FOLD_BY_NAME and "szl-atelier" in _FOLD_BY_NAME
+    assert "governed-receipt-verifier" in _FOLD_BY_NAME
     assert "david-leads" in _FOLD_BY_NAME and "anatomy" in _FOLD_BY_NAME
     assert "szl-real-estate" in _FOLD_BY_NAME
-    assert "szl-khipu" not in _FOLD_BY_NAME
-    assert "governed-receipt-verifier" not in _FOLD_BY_NAME
+    assert "sentra" in _FOLD_BY_NAME and "finance" in _FOLD_BY_NAME and "terra" in _FOLD_BY_NAME
+    assert "szl-khipu" not in _SPACE_BY_NAME
+    assert "governed-receipt-verifier" not in _SPACE_BY_NAME
+    assert canonical_url("a11oy") == PRODUCT + "/console"
     assert canonical_url("nexus") == PRODUCT + "/nexus"
     assert canonical_url("szl-khipu") == PRODUCT + "/khipu"
     assert canonical_url("governed-receipt-verifier") == PROOF + "/record/"
+    assert canonical_url("szl-command-lab") == PRODUCT + "/console"
+    assert canonical_url("szl-frontier") == PRODUCT + "/console"
     assert "governed-agent-bench" in _FOLD_BY_NAME
     assert "governed-agent-bench" not in _SPACE_BY_NAME
-    assert len(FOLD_SPACES) >= 37
+    assert len(UNIFY_SPACES) == UNIFY_TARGET == 4
+    assert [sp["slug"] for sp in UNIFY_SPACES] == [
+        "szl-command-lab", "szl-model-inference-lab", "szl-frontier", "szl-constellation",
+    ]
+    assert "szl-command-lab" not in _FOLD_BY_NAME
+    ledger = unify_ledger()
+    assert ledger["winner"] is None and ledger["proven_trust"] is False
+    assert ledger["certified"] is False and ledger["hub_space_created"] is False
+    assert ledger["state"] == "BIND"
     tp = _tiles_page("a11oy")
     for sp in SPACES:
         assert sp["name"].encode() in tp, "tiles missing %s" % sp["name"]
@@ -1036,10 +1218,19 @@ if __name__ == "__main__":
     assert b"/api/a11oy/v1/spaces/health" in tp, "tiles must fetch the health endpoint"
     assert b"http://" not in tp, "tiles must be 0 CDN (no http://)"
     assert b'href="/spaces/' not in tp, "tiles must not execute an app under this origin"
-    assert b"Public Hub cut is 6 KEEP" in tp
+    assert b"Public Hub cut is 5 KEEP" in tp
+    assert b"stage: <span>pending</span>" in tp
+    assert b">CHECKING</strong>" in tp
     assert b"/verify is not cloned" in tp
     assert b"a11oy.net/spaces.json" in tp
     assert b"data-fold=\"cosmos\"" in tp
+    assert b"data-unify=\"szl-frontier\"" in tp
+    assert b'id="verticals"' in tp
+    up = _unify_page("a11oy")
+    assert b"Unify flock" in up and b"szl-constellation" in up
+    assert b"winner=null" in up and b"proven_trust=false" in up
+    assert b"Never LIVE/RUNNING/PASS" in up
+    assert b"SZLHOLDINGS/unify" in up
     # Repository anchors are navigation only; no browser asset is loaded from HF.
     assert tp.count(b"https://huggingface.co/spaces/SZLHOLDINGS/") >= len(SPACES)
     assert b'<script src="https://' not in tp and b'<link href="https://' not in tp
@@ -1098,7 +1289,7 @@ if __name__ == "__main__":
         _self_mod._urllib_probe = _orig_probe
         _HEALTH_CACHE["ts"] = 0.0
         _HEALTH_CACHE["payload"] = None
-    assert h["count"] == 6, h["count"]
+    assert h["count"] == 5, h["count"]
     assert h["state"] == "UNAVAILABLE", h["state"]
     assert health_response.headers["cache-control"] == "no-store"
     for s in h["spaces"]:
@@ -1113,6 +1304,14 @@ if __name__ == "__main__":
     assert t.headers["cache-control"] == "no-store"
     for sp in SPACES:
         assert sp["name"] in t.text, "tiles page missing %s" % sp["name"]
+    assert "pending" in t.text and ">CHECKING<" in t.text
+    u = c.get("/unify")
+    u2 = c.get("/a11oy/unify")
+    assert u.status_code == 200 and u2.status_code == 200
+    assert u.headers["cache-control"] == "no-store"
+    assert "szl-command-lab" in u.text and "UNIFY" in u.text
+    assert "winner=null" in u.text
+    assert c.head("/unify").status_code == 200
 
     # nav injects exactly once + idempotent + removes nothing
     p1 = c.get("/console").text
@@ -1125,6 +1324,8 @@ if __name__ == "__main__":
     assert p1 == p2, "second console render must be byte-identical (idempotent)"
     # the tiles page itself must NOT be nav-injected (it has no console sidebar)
     assert 'data-nav-spaces="hf1"' not in c.get("/spaces").text, "/spaces must not be nav-injected"
+    assert 'data-nav-spaces="hf1"' not in c.get("/unify").text, "/unify must not be nav-injected"
 
-    print("szl_spaces_surface: ALL OK (6 KEEP destinations; honest degrade; "
-          "tiles 0-CDN + no-store; nav idempotent + additive; /spaces not self-injected)")
+    print("szl_spaces_surface: ALL OK (5 KEEP FLOCK doors; 4 UNIFY stragglers; "
+          "honest degrade; tiles 0-CDN + no-store; nav idempotent + additive; "
+          "/spaces and /unify not self-injected)")

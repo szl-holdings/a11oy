@@ -25,13 +25,16 @@ from typing import Any
 from huggingface_hub import HfApi
 
 SOURCE_REPOSITORY = "szl-holdings/lyte-services"
-SOURCE_REVISION = "dd17d9f524b76c8f0e260d7ec1e084cc079dfc43"
+SOURCE_REVISION = "9ce4e6b5f36fe0b094a07308abe3665cd2a210c1"
 EXPECTED_VERSION = "4.0.0"
 HF_REPOSITORY = "SZLHOLDINGS/lyte"
 ORIGIN = "https://szlholdings-lyte.hf.space"
 SOURCE_VARIABLE = "LYTE_SOURCE_REVISION"
 RECEIPT_PATH = Path("hf-lyte-enterprise-receipt.json")
+FAILED_MANIFEST_PATH = Path("hf-lyte-enterprise-manifest.failed.json")
 CONTRACT_PATH = Path(__file__).resolve().with_name("lyte_enterprise_live_contract.py")
+DEFAULT_COMMAND_TIMEOUT_S = 600
+PHASE_JOURNAL: list[dict[str, Any]] = []
 
 CONTROLLER_REPOSITORY = "szl-holdings/.github"
 CONTROLLER_REVISION = "c889276e51e7d954c4bba8b216f86fc7577721fa"
@@ -70,12 +73,34 @@ def token_from_env() -> tuple[str, str]:
     raise RuntimeError("no Hugging Face write token available to canonical writer")
 
 
-def run_checked(command: list[str], *, cwd: Path | None = None) -> None:
-    result = subprocess.run(command, cwd=cwd, check=False)
+def journal(phase: str, **extra: Any) -> None:
+    PHASE_JOURNAL.append({"ts": utc_now(), "phase": phase, **extra})
+
+
+def run_bounded(
+    command: list[str],
+    *,
+    cwd: Path | None = None,
+    timeout: int = DEFAULT_COMMAND_TIMEOUT_S,
+) -> None:
+    journal("run_bounded", argv=command[:6], timeout=timeout)
+    try:
+        result = subprocess.run(command, cwd=cwd, check=False, timeout=timeout)
+    except subprocess.TimeoutExpired as exc:
+        journal("run_bounded_timeout", argv=command[:6], timeout=timeout)
+        raise RuntimeError(
+            f"command timed out after {timeout}s: " + " ".join(command[:5])
+        ) from exc
     if result.returncode:
+        journal("run_bounded_fail", argv=command[:6], returncode=result.returncode)
         raise RuntimeError(
             f"command failed with exit {result.returncode}: " + " ".join(command[:5])
         )
+    journal("run_bounded_ok", argv=command[:6])
+
+
+def run_checked(command: list[str], *, cwd: Path | None = None) -> None:
+    run_bounded(command, cwd=cwd)
 
 
 def checkout_exact_source(destination: Path) -> None:
@@ -261,14 +286,24 @@ def main() -> int:
             checkout_exact_source(source)
             fetch_pinned_controller(controller)
             # Verify source and controller bytes before any runtime configuration write.
+            # Do not reorder configuration vs deploy until the image-marker strategy is reviewed.
             receipt["configuration"] = ensure_runtime_configuration(api)
-            deploy_with_controller(source, controller, manifest)
-            receipt["deployment_manifest"] = json.loads(manifest.read_text(encoding="utf-8"))
+            try:
+                deploy_with_controller(source, controller, manifest)
+                receipt["deployment_manifest"] = json.loads(manifest.read_text(encoding="utf-8"))
+            except Exception:
+                if manifest.exists():
+                    FAILED_MANIFEST_PATH.write_bytes(manifest.read_bytes())
+                    receipt["retained_manifest"] = str(FAILED_MANIFEST_PATH.resolve())
+                    journal("manifest_retained", path=receipt["retained_manifest"])
+                raise
         receipt["verification"] = verify_contract()
         receipt["complete"] = receipt["verification"]["complete"]
     except Exception as exc:
         receipt["error"] = f"{type(exc).__name__}: {exc}"
+        journal("error", error=receipt["error"])
     finally:
+        receipt["phase_journal"] = list(PHASE_JOURNAL)
         receipt["finished_at"] = utc_now()
         RECEIPT_PATH.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         print(json.dumps(receipt, indent=2, sort_keys=True))

@@ -821,7 +821,6 @@ except Exception as _szl_oh_e:  # pragma: no cover
     print(f"[a11oy] Organ-health proxy NOT registered: {_szl_oh_e!r}; existing routes unaffected", file=__import__("sys").stderr)
 
 # FIVE-ORGAN FAIL-CLOSED KERNEL (2026-08-29): GET/POST /api/a11oy/v1/organs/integrity
-# + GET/POST /api/a11oy/v1/kernel/probe. Empty JSON {} is UNKNOWN, not LIVE.
 # + Evidence Bay at /organs/integrity. Stdlib SHA-256. Energy UNAVAILABLE.
 # Λ = Conjecture 1 OPEN. proven_trust false. Front-moved so exact routes beat SPA.
 try:
@@ -8210,15 +8209,20 @@ async def a11oy_mcp_call_inline(request: Request):
 async def a11oy_version():
     """Founder inspection: what build is live, when was it deployed, provenance."""
     import os as _szlv_os
-    from szl_release_identity import release_identity as _release_identity
+    from szl_release_identity import (
+        hf_space_sha_readback as _hf_space_sha_readback,
+        release_identity as _release_identity,
+    )
 
     _identity = _release_identity()
     _release_tag = _identity.get("release_tag")
     _release_assets_ready = bool(_release_tag)
+    _space_sha = _hf_space_sha_readback()
     return {
         **_identity,
         "git_sha": _szlv_os.getenv("SZL_GIT_SHA") or "UNKNOWN",
-        "hf_space_sha": _szlv_os.getenv("SZL_HF_SHA") or "UNKNOWN",
+        "hf_space_sha": _space_sha.get("sha") or "UNKNOWN",
+        "hf_space_sha_readback": _space_sha,
         "build_time": _szlv_os.getenv("SZL_BUILD_TIME") or "UNKNOWN",
         "doctrine": "v11",
         "kernel_commit": "c7c0ba17",
@@ -10028,28 +10032,63 @@ except Exception as _r3d_e:  # pragma: no cover — guarded; never take down the
           file=sys.stderr)
 
 
+def _public_khipu_nodes(limit: int = 32) -> list[dict]:
+    """Read-only view of the operator Khipu DAG. GET never mints."""
+    dag = getattr(app.state, "szl_khipu_dag", None)
+    if dag is None:
+        return []
+    try:
+        nodes = list(dag.recent(max(1, min(int(limit), 64))))
+    except Exception:
+        return []
+    out = []
+    for node in nodes:
+        receipt = node.get("receipt") if isinstance(node, dict) else None
+        if not isinstance(receipt, dict):
+            receipt = {}
+        out.append({
+            "index": node.get("index"),
+            "digest": node.get("digest"),
+            "signed": bool(node.get("signed")),
+            "keyid": node.get("keyid"),
+            "schema": receipt.get("schema") or receipt.get("intent") or receipt.get("op"),
+            "actor": receipt.get("actor"),
+            "ts_utc": node.get("ts_utc") or receipt.get("ts_utc"),
+        })
+    return out
+
+
 @app.get("/api/a11oy/v1/ledger")
 async def a11oy_ledger_v2() -> JSONResponse:
-    """Operational receipt ledger. Empty is live-empty, never a SAMPLE chain."""
+    """Operational receipt ledger. Empty is live-empty, never a SAMPLE chain.
+
+    GET is forbidden from minting. Operator POSTs (agent loop, khipu/sign)
+    append to the Khipu DAG; this route only reads it. Series-A SAMPLE
+    rows stay on GET /api/a11oy/v2/command-log.
+    """
     observed_at = _gov_now_iso()
     if observed_at.endswith("+00:00"):
         observed_at = observed_at[:-6] + "Z"
+    receipts = _public_khipu_nodes()
+    signed_any = any(item.get("signed") for item in receipts)
     return JSONResponse({
-        "count": 0,
+        "count": len(receipts),
         "state": "live",
         "data_kind": "live",
         "operational": True,
         "hash_algorithm": "sha256-hex",
         "structure_verified": True,
         "chain_verified": True,
-        "signed": False,
-        "signature_state": "UNSIGNED",
-        "receipt_minted": False,
+        "signed": signed_any,
+        "signature_state": "SIGNED" if signed_any else "UNSIGNED",
+        "receipt_minted": bool(receipts),
         "observed_at": observed_at,
-        "honesty": ("Live operational ledger. Zero receipts means none have been "
-                    "minted in this process; this is not the deterministic SAMPLE "
-                    "chain (see GET /api/a11oy/v2/command-log)."),
-        "receipts": [],
+        "book": "public_operator_khipu",
+        "honesty": ("Live operational ledger read from the in-process Khipu DAG. "
+                    "GET never mints. Zero receipts means none have been minted "
+                    "in this process; this is not the deterministic SAMPLE chain "
+                    "(see GET /api/a11oy/v2/command-log)."),
+        "receipts": receipts,
     })
 
 
@@ -16311,16 +16350,17 @@ except Exception as _szlfac_e:  # pragma: no cover
 
 
 # ============================================================================
-# SPACES ON a-11-oy.com (Dev2+3) — surface all 11 live HF Spaces same-origin.
+# SPACES ON a-11-oy.com (Dev2+3) — FLOCK five doors + fold/unify ledger.
 # (1) szl_spaces_proxy: reverse-proxy each Space under /spaces/<name> (server-side
 #     fetch, honest 502 on flap, allowlist only, a11oy/killinchu skipped as self/own-
 #     host). (2) szl_spaces_surface: /api/<ns>/v1/spaces/health (REAL probe + HF-API
-#     stage), /spaces tiles page, + ONE idempotent "Spaces" nav item. Both SHARED &
-#     byte-identical in a11oy + killinchu. No new subdomains. 0 runtime CDN (server-
-#     side fetch — same justification as a11oy_hf_assets.py). Additive, idempotent,
-#     try/except-guarded; each register() front-inserts its routes so they beat the
-#     SPA + Node-proxy catch-alls. Doctrine v11: locked=8 @ c7c0ba17; Λ=Conjecture 1;
-#     Khipu=Conjecture 2; honest 502/unknown beats a fake 200; no codenames; no key.
+#     stage), GET /spaces tiles page, GET /unify and GET /a11oy/unify flock ledger,
+#     + ONE idempotent "Spaces" nav item. Do not create Space SZLHOLDINGS/unify.
+#     Both SHARED & byte-identical in a11oy + killinchu. No new subdomains. 0 runtime
+#     CDN. Additive, idempotent, try/except-guarded; each register() front-inserts
+#     its routes so they beat the SPA + Node-proxy catch-alls. Doctrine v11:
+#     locked=8 @ c7c0ba17; Λ=Conjecture 1; Khipu=Conjecture 2; honest 502/unknown
+#     beats a fake 200; first paint never LIVE/RUNNING/PASS; no key.
 # Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ============================================================================
@@ -16340,7 +16380,26 @@ try:
     except Exception:
         import szl_spaces_surface as _szl_spaces_surface
     _szl_spaces_surface_status = _szl_spaces_surface.register(app, ns="a11oy")
-    print(f"[a11oy] Spaces surface registered: {_szl_spaces_surface_status}", file=__import__("sys").stderr)
+    # GET /unify and GET /a11oy/unify are front-inserted by register() above.
+    # Re-assert them here so serve.py itself names the Unify flock aliases.
+    from starlette.routing import Route as _UnifyRoute
+    from starlette.responses import Response as _UnifyResponse
+    _unify_html = _szl_spaces_surface._unify_page("a11oy")
+
+    async def _unify_flock(request):
+        headers = {"Cache-Control": "no-store"}
+        if request.method.upper() == "HEAD":
+            return _UnifyResponse(content=b"", status_code=200, media_type="text/html", headers=headers)
+        return _UnifyResponse(content=_unify_html, status_code=200, media_type="text/html", headers=headers)
+
+    _existing_paths = {getattr(_r, "path", None) for _r in app.router.routes}
+    for _upath in ("/unify", "/a11oy/unify"):
+        if _upath not in _existing_paths:
+            app.router.routes.insert(0, _UnifyRoute(_upath, _unify_flock, methods=["GET", "HEAD"]))
+    print(
+        f"[a11oy] Spaces surface registered: {_szl_spaces_surface_status}; GET /unify GET /a11oy/unify",
+        file=__import__("sys").stderr,
+    )
 except Exception as _szl_ss_e:  # pragma: no cover
     print(f"[a11oy] Spaces surface NOT registered: {_szl_ss_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 # ============================================================================
