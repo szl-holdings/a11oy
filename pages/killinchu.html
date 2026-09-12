@@ -4,6 +4,7 @@
      Does not hand canonical to huggingface.co. -->
 <html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>a11oy · Killinchu</title>
+<link rel="canonical" href="https://a-11-oy.com/killinchu"/>
 <style>
 :root{--bg:#0a0a0a;--s1:#111;--ink:#f4f1ea;--dim:#c8c5bc;--mute:#7a776f;--rule:#2a2a2a}
 *{box-sizing:border-box;margin:0;padding:0}html,body{background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,sans-serif}
@@ -15,27 +16,73 @@ a{color:var(--ink)}
 </style></head>
 <body>
 <main>
-<p><span class="chip" id="st">PROBING</span><span class="chip">ON ORIGIN</span></p>
+<p><span class="chip" id="st">TWIN UNAVAILABLE</span><span class="chip">ON ORIGIN</span></p>
 <h1>Killinchu</h1>
 <p>Eyes and decision. Not the trigger. Effectors stay SIMULATED. This page stays on a-11-oy.com so the product origin does not hand canonical to Hugging Face.</p>
-<p>Twin Space runtime is reported honestly. If the Space is down, this page stays up.</p>
-<p id="detail" class="chip">…</p>
+<p>Twin Space runtime is reported from A11oy's same-origin, server-observed Space inventory. If the Space or the observation is unavailable, this page stays up and fails closed.</p>
+<p id="detail" class="chip">Awaiting observed Space inventory; no runtime claim made.</p>
 <p><a href="/command-v2#defense">Command · Defense</a> · <a href="/hatun-mcp">Hatun</a></p>
 </main>
 <script>
-const ORIGIN = (location.hostname.endsWith('a-11-oy.com')||location.hostname.includes('hf.space')) ? '' : 'https://a-11-oy.com';
+const INVENTORY_PATH='/api/a11oy/v1/spaces/health';
+const EXPECTED_NAME='killinchu';
+const EXPECTED_URL='https://szlholdings-killinchu.hf.space';
+const ALLOWED_STATES=new Set(['LIVE','DEGRADED','UNAVAILABLE']);
+const ALLOWED_SNAPSHOT_STATES=new Set(['LIVE','DEGRADED','UNAVAILABLE','CACHED']);
+const REQUIRED_CONTRACTS=new Set(['api_health','healthz']);
+function unavailable(detail){
+  document.getElementById('st').textContent='TWIN UNAVAILABLE';
+  document.getElementById('detail').textContent=detail;
+}
 async function boot(){
   const el=document.getElementById('st');
   const d=document.getElementById('detail');
   try{
-    const r=await fetch(ORIGIN+'/healthz',{headers:{accept:'application/json'}});
+    const r=await fetch(INVENTORY_PATH,{headers:{accept:'application/json'},cache:'no-store',credentials:'omit'});
+    if(!r.ok)throw new Error('inventory transport unavailable');
     const j=await r.json();
-    const sig=(j.signer&&j.signer.status)||'UNKNOWN';
-    el.textContent='ORIGIN '+ (j.status||r.status);
-    d.textContent='healthz signer '+sig+' · doctrine '+(j.doctrine||'v11');
-  }catch(e){
-    el.textContent='ORIGIN DEGRADED';
-    d.textContent=String(e);
+    if(!j||!Array.isArray(j.spaces))throw new Error('inventory schema unavailable');
+    const snapshotRaw=typeof j.state==='string'?j.state.toUpperCase():'UNAVAILABLE';
+    const snapshotState=ALLOWED_SNAPSHOT_STATES.has(snapshotRaw)?snapshotRaw:'UNAVAILABLE';
+    const observedAt=typeof j.fetchedAt==='string'&&
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(j.fetchedAt)&&
+      Number.isFinite(Date.parse(j.fetchedAt))?j.fetchedAt:null;
+    if(!observedAt)throw new Error('inventory observation time unavailable');
+    const observationAgeMs=Date.now()-Date.parse(observedAt);
+    if(observationAgeMs < -30000||observationAgeMs > 60000){
+      throw new Error('inventory observation stale');
+    }
+    const twin=j.spaces.find(function(row){
+      return row&&typeof row==='object'&&
+        (row.name===EXPECTED_NAME||row.slug===EXPECTED_NAME)&&
+        row.url===EXPECTED_URL;
+    });
+    if(!twin)throw new Error('exact twin observation unavailable');
+    const rawState=typeof twin.state==='string'?twin.state.toUpperCase():'UNAVAILABLE';
+    const state=ALLOWED_STATES.has(rawState)?rawState:'UNAVAILABLE';
+    const stage=typeof twin.stage==='string'?twin.stage.toUpperCase():'UNKNOWN';
+    const appStatus=Number.isInteger(twin.app_status)?twin.app_status:null;
+    const contracts=Array.isArray(twin.contracts)?twin.contracts:[];
+    const contractIds=new Set(contracts.map(function(item){return item&&item.id;}));
+    const contractsLive=contracts.length===REQUIRED_CONTRACTS.size&&
+      contractIds.size===REQUIRED_CONTRACTS.size&&
+      contracts.every(function(item){
+        return item&&REQUIRED_CONTRACTS.has(item.id)&&item.state==='LIVE';
+      });
+    const freshSnapshot=snapshotState==='LIVE'||snapshotState==='DEGRADED';
+    const live=freshSnapshot&&state==='LIVE'&&stage==='RUNNING'&&
+      twin.app_reachable===true&&appStatus===200&&twin.contract_state==='LIVE'&&contractsLive;
+    const displayState=live?'LIVE':snapshotState==='CACHED'?'CACHED':
+      (snapshotState==='UNAVAILABLE'||state==='UNAVAILABLE')?'UNAVAILABLE':'DEGRADED';
+    const cachedRaw=typeof j.cached_state==='string'?j.cached_state.toUpperCase():'UNAVAILABLE';
+    const cachedState=ALLOWED_STATES.has(cachedRaw)?cachedRaw:'UNAVAILABLE';
+    const cachedDetail=snapshotState==='CACHED'?' (prior '+cachedState+')':'';
+    el.textContent='TWIN '+displayState;
+    d.textContent='snapshot '+snapshotState+cachedDetail+' · stage '+stage+
+      ' · app '+(appStatus===null?'unavailable':String(appStatus))+
+      ' · contracts '+(contractsLive?'observed':'unavailable')+' · observed '+observedAt;
+  }catch(_error){
+    unavailable('Space inventory unavailable; no runtime claim made.');
   }
 }
 boot();

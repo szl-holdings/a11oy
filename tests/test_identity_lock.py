@@ -272,23 +272,92 @@ def test_landing_does_not_imply_killinchu_live():
     assert "huggingface.co/spaces/SZLHOLDINGS/killinchu" in html
 
 
-def test_killinchu_path_bridge_labels_runtime_unavailable():
+def test_killinchu_status_page_stays_on_origin_and_fails_closed():
     from starlette.testclient import TestClient
 
     import serve
 
     client = TestClient(serve.app, raise_server_exceptions=False)
-    response = client.get("/killinchu", follow_redirects=False)
-    assert response.status_code == 307
-    location = response.headers.get("location") or ""
-    assert location.startswith("https://huggingface.co/spaces/SZLHOLDINGS/killinchu")
-    assert "szlholdings-killinchu.hf.space" not in location
-    assert response.headers.get("X-SZL-Route-State") == "UNAVAILABLE_RUNTIME"
-    hub = response.headers.get("X-SZL-Killinchu-Hub") or ""
-    assert hub.startswith("https://huggingface.co/spaces/SZLHOLDINGS/killinchu")
-    link = response.headers.get("Link") or ""
-    assert "rel=\"alternate\"" in link
-    assert "rel=\"canonical\"" not in link.lower()
+    for path in ("/killinchu", "/killinchu/"):
+        response = client.get(path, follow_redirects=False)
+        assert response.status_code == 200, path
+        assert "Killinchu" in response.text
+        assert 'rel="canonical" href="https://a-11-oy.com/killinchu"' in response.text
+        assert "/api/a11oy/v1/spaces/health" in response.text
+        assert "https://szlholdings-killinchu.hf.space" in response.text
+        assert "credentials:'omit'" in response.text
+        assert "cache:'no-store'" in response.text
+        assert "TWIN UNAVAILABLE" in response.text
+        assert "huggingface.co/spaces/" not in response.text
+        head = client.head(path, follow_redirects=False)
+        assert head.status_code == 200, path
+        assert head.content == b""
+        for method in ("post", "put", "patch", "delete"):
+            denied = getattr(client, method)(path, follow_redirects=False)
+            assert denied.status_code == 405, (method, path)
+            assert "location" not in denied.headers, (method, path)
+        options = client.options(path, follow_redirects=False)
+        assert options.status_code == 200, path
+        assert options.headers.get("allow") == "GET, HEAD, OPTIONS", path
+        assert "location" not in options.headers, path
+
+
+def test_killinchu_inventory_requires_both_semantic_health_contracts():
+    import szl_spaces_surface as surface
+
+    assert surface._CONTRACT_REQUIRED_KEEP_SLUGS == frozenset({"killinchu"})
+    contracts = surface.SPACE_API_CONTRACTS["killinchu"]
+    assert [(item["id"], item["url"], item["expected"]) for item in contracts] == [
+        (
+            "api_health",
+            "https://szlholdings-killinchu.hf.space/api/health",
+            {"status": "ok", "service": "killinchu", "doctrine": "v11"},
+        ),
+        (
+            "healthz",
+            "https://szlholdings-killinchu.hf.space/healthz",
+            {"status": "ok", "organ": "killinchu", "doctrine": "v11"},
+        ),
+    ]
+    root_only = {
+        "slug": "killinchu",
+        "app_reachable": True,
+        "app_status": 200,
+        "stage": "RUNNING",
+    }
+    assert surface._space_health_state(root_only) == "DEGRADED"
+
+
+def test_killinchu_unknown_deep_links_collapse_to_on_origin_status():
+    from starlette.testclient import TestClient
+
+    import serve
+
+    client = TestClient(serve.app, raise_server_exceptions=False)
+    for method in ("get", "head"):
+        response = getattr(client, method)(
+            "/killinchu/mission/alpha?source=operator",
+            follow_redirects=False,
+        )
+        assert response.status_code == 307, method
+        assert response.headers.get("location") == "/killinchu"
+        assert response.headers.get("X-SZL-Route-State") == "ON_ORIGIN_STATUS"
+        assert "X-SZL-Killinchu-Requested-Path" not in response.headers
+        assert response.headers.get("Link") == '<https://a-11-oy.com/killinchu>; rel="canonical"'
+        assert "huggingface" not in (response.headers.get("location") or "").lower()
+        assert "huggingface" not in (response.headers.get("link") or "").lower()
+    for method in ("post", "put", "patch", "delete"):
+        response = getattr(client, method)(
+            "/killinchu/mission/alpha", follow_redirects=False
+        )
+        assert response.status_code == 405, method
+        assert "location" not in response.headers, method
+    options = client.options(
+        "/killinchu/mission/alpha", follow_redirects=False
+    )
+    assert options.status_code == 200
+    assert options.headers.get("allow") == "GET, HEAD, OPTIONS"
+    assert "location" not in options.headers
 
 
 def test_empty_observability_dag_is_unavailable_not_a_live_zero():
@@ -611,4 +680,3 @@ def test_ayni_lock_does_not_drift():
     assert '@app.api_route("/sitemap.xml", methods=["GET", "HEAD"])' in serve
     assert "the app, not Cloudflare" in serve
     assert "HEAD 405 is the app" in serve or "Same HEAD 405" in serve
-

@@ -13662,47 +13662,29 @@ async def _elite_redirect() -> Response:
 app.add_api_route("/elite", _elite_redirect, methods=["GET"], include_in_schema=False)
 
 
-# /killinchu — path bridge, honestly labelled. Without an explicit route this path
-# falls through to the A11OY SPA shell and returns a misleading HTTP 200. Keep the
-# bridge server-side so it works without JavaScript at every mobile viewport, and
-# preserve subpaths/query strings.
-#
-# HONESTY (identity-lock): the killinchu Space RUNTIME is not up — a request to
-# szlholdings-killinchu.hf.space times out / errors, so redirecting a visitor there
-# implies a live product that is not serving. The bridge therefore targets the
-# Hugging Face HUB page for the Space (which is always readable and states the
-# runtime's own state), stamps X-SZL-Route-State: UNAVAILABLE_RUNTIME, and links
-# the hub as rel="alternate" — NEVER rel="canonical" (this app does not hand its
-# canonical to a third-party host; product canonical stays on a-11-oy.com).
-_KILLINCHU_HUB = "https://huggingface.co/spaces/SZLHOLDINGS/killinchu"
-_KILLINCHU_RUNTIME_STATE = "UNAVAILABLE_RUNTIME"
+# /killinchu and /killinchu/ are owned by a11oy_command_center and serve the
+# reviewed on-origin status page. Deep links used to redirect to a stale HF Hub
+# outage page, contradicting the on-origin owner and the current observed Space.
+# Collapse unknown deep links to the canonical on-origin page. Runtime state is
+# derived in that page from /api/a11oy/v1/spaces/health; this redirect itself makes
+# no LIVE claim and never hands product canonical to a third-party host.
+_KILLINCHU_CANONICAL_PATH = "/killinchu"
+_KILLINCHU_CANONICAL_URL = "https://a-11-oy.com/killinchu"
+_KILLINCHU_ROUTE_STATE = "ON_ORIGIN_STATUS"
 
 
 async def _killinchu_redirect(request: Request, full_path: str = "") -> Response:
-    # Deep links cannot be honoured while the runtime is down (no runtime = no
-    # subpath), so every /killinchu/* request lands on the hub page and the
-    # requested subpath is echoed in a header instead of being faked upstream.
-    response = _PTG_Redirect(url=_KILLINCHU_HUB, status_code=307)
-    response.headers["X-SZL-Route-State"] = _KILLINCHU_RUNTIME_STATE
-    response.headers["X-SZL-Killinchu-Hub"] = _KILLINCHU_HUB
-    if full_path:
-        response.headers["X-SZL-Killinchu-Requested-Path"] = f"/{full_path}"
-    response.headers["Link"] = f'<{_KILLINCHU_HUB}>; rel="alternate"'
+    del request, full_path
+    response = _PTG_Redirect(url=_KILLINCHU_CANONICAL_PATH, status_code=307)
+    response.headers["X-SZL-Route-State"] = _KILLINCHU_ROUTE_STATE
+    response.headers["Link"] = f'<{_KILLINCHU_CANONICAL_URL}>; rel="canonical"'
     return response
 
-
-for _killinchu_path in ("/killinchu", "/killinchu/"):
-    app.add_api_route(
-        _killinchu_path,
-        _killinchu_redirect,
-        methods=["GET"],
-        include_in_schema=False,
-    )
 
 app.add_api_route(
     "/killinchu/{full_path:path}",
     _killinchu_redirect,
-    methods=["GET"],
+    methods=["GET", "HEAD"],
     include_in_schema=False,
 )
 

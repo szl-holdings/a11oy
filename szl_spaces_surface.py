@@ -320,10 +320,16 @@ def proxy_url(name: str) -> str:
     return canonical_url(name)
 
 
-# Exact public contracts for the two API-bearing Spaces audited in this repair.
+# Exact public contracts for API-bearing Spaces audited in this repair.
 # These are deliberately route-level probes: a 200 root page is not evidence that
 # the API consumed by the Space is registered or compatible.
 SPACE_API_CONTRACTS: dict[str, tuple[dict[str, Any], ...]] = {
+    "killinchu": (
+        {"id": "api_health", "url": hf_url("killinchu") + "/api/health",
+         "expected": {"status": "ok", "service": "killinchu", "doctrine": "v11"}},
+        {"id": "healthz", "url": hf_url("killinchu") + "/healthz",
+         "expected": {"status": "ok", "organ": "killinchu", "doctrine": "v11"}},
+    ),
     "anatomy": (
         {"id": "manifest", "url": hf_url("anatomy") + "/api/anatomy/v1/manifest",
          "expected": {"schema": "szl.anatomy-manifest/v1"}},
@@ -344,6 +350,7 @@ SPACE_API_CONTRACTS: dict[str, tuple[dict[str, Any], ...]] = {
          "expected": {"ok": True}},
     ),
 }
+_CONTRACT_REQUIRED_KEEP_SLUGS = frozenset({"killinchu"})
 
 
 def _resolve_client() -> Any:
@@ -691,6 +698,9 @@ async def _probe_one(client: Any, sp: dict[str, str]) -> dict[str, Any]:
             else "UNAVAILABLE" if live_count == 0
             else "DEGRADED"
         )
+    elif slug in _CONTRACT_REQUIRED_KEEP_SLUGS:
+        result["contracts"] = []
+        result["contract_state"] = "UNAVAILABLE"
 
     result["state"] = _space_health_state(result)
     return result
@@ -700,7 +710,12 @@ def _space_health_state(space: dict[str, Any]) -> str:
     """Derive one conservative, user-facing state from observed row evidence."""
     reachable = bool(space.get("app_reachable"))
     stage = str(space.get("stage") or "unknown").upper()
-    contract_state = str(space.get("contract_state") or "LIVE").upper()
+    default_contract_state = (
+        "UNAVAILABLE"
+        if str(space.get("slug") or "") in _CONTRACT_REQUIRED_KEEP_SLUGS
+        else "LIVE"
+    )
+    contract_state = str(space.get("contract_state") or default_contract_state).upper()
     custom_domain_state = str(
         (space.get("custom_domain") or {}).get("state") or "LIVE"
     ).upper()
@@ -759,7 +774,7 @@ async def spaces_health() -> dict[str, Any]:
         "labels": {
             "state": "Fresh: LIVE only when every app is reachable and HF reports RUNNING; otherwise DEGRADED or UNAVAILABLE. TTL reuse is CACHED with cached_state.",
             "space_state": "LIVE requires app_reachable:true plus HF stage RUNNING and every configured exact API contract LIVE; partial evidence is DEGRADED",
-            "contract_state": "Anatomy and SDA validate exact stable JSON markers on their public dependency routes; a root-page 200 cannot override a failed contract",
+            "contract_state": "Killinchu, Anatomy, and SDA validate exact stable JSON markers on their public dependency routes; a root-page 200 cannot override a failed contract",
             "inventory": "LIVE only when the public KEEP-5 FLOCK door set exactly equals the unauthenticated Hub API set; folded and Unify Spaces are destination-ledger only and are not in this set; README is a special organization surface, not an application Space",
             "custom_domain": "HF API provider state; PENDING remains DEGRADED even when a separate edge currently routes traffic",
             "stage": "HF API runtime.stage (https://huggingface.co/api/spaces/SZLHOLDINGS/<name>)",
