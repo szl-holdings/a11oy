@@ -50,6 +50,17 @@ class DecisionIntegritySurfaceTests(unittest.TestCase):
                 for item in result["formulas"]:
                     self.assertEqual(item["authority"], "NONE")
 
+    def test_empty_json_evaluate_is_unknown_not_admit(self) -> None:
+        result = surface.evaluate_case("terra", {})
+        self.assertEqual(result["state"], "UNKNOWN")
+        self.assertEqual(result["decision"], "UNKNOWN")
+        self.assertEqual(result["honesty"], "UNKNOWN")
+        self.assertEqual(result["formulas"], [])
+        self.assertFalse(result.get("admit"))
+        self.assertNotEqual(result["state"], "AWAITING_APPROVAL")
+        self.assertEqual(result["status"], "ROADMAP")
+        self.assertFalse(result["runtime_claimed"])
+
     def test_vessels_denies_licensed_ais(self) -> None:
         packed = surface.load_vertical("vessels")
         deny = next(item for item in packed["cases"] if item["eval_id"] == "VESSELS-E-DENY-AIS")

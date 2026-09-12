@@ -78,8 +78,12 @@ def test_v2_is_additive_source_derived_and_mobile_safe() -> None:
         "/api/a11oy/v1/signing-status",
         "/api/hatun/evidence",
         "/api/build-info",
+        "/api/a11oy/v1/kernel/probe",
     ):
         assert endpoint in html
+    assert 'label:"Kernel"' in html
+    assert "Probe empty JSON" in html
+    assert "DSSE mint is not the product signer" in html
 
 
 def test_v2_owns_one_reviewed_nonduplicative_navigation_shell() -> None:

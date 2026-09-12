@@ -216,7 +216,61 @@ def _hits_prohibited(proposed: str, phrase: str) -> bool:
     return False
 
 
+BIND_FIELDS = (
+    "graph",
+    "sources",
+    "evidence",
+    "proposed_action",
+    "allowed_actions",
+    "case_id",
+)
+
+
+def empty_kernel_bind(payload: dict[str, Any] | None) -> bool:
+    """True when the caller supplied no decision graph or case material."""
+    if not payload:
+        return True
+    return not any(payload.get(key) for key in BIND_FIELDS)
+
+
 def evaluate(payload: dict[str, Any]) -> dict[str, Any]:
+    if empty_kernel_bind(payload):
+        return {
+            "schema": SCHEMA,
+            "kernel_version": VERSION,
+            "engine": "python",
+            "state": "UNKNOWN",
+            "decision": "UNKNOWN",
+            "honesty": "UNKNOWN",
+            "reason_codes": ["EMPTY_KERNEL_BIND"],
+            "formulas": [],
+            "admit": False,
+            "locked_8": False,
+            "certified_production_ready": False,
+            "receipt": {
+                "schema": "szl.governed-receipt/v8",
+                "kernel": VERSION,
+                "vertical_id": payload.get("vertical_id") if isinstance(payload, dict) else None,
+                "case_id": None,
+                "proposed_action": None,
+                "state": "UNKNOWN",
+                "reason_codes": ["EMPTY_KERNEL_BIND"],
+                "formula_authority": "NONE",
+                "model_grants_authority": False,
+                "formula_grants_authority": False,
+                "market_signal_grants_authority": False,
+                "limitations": [
+                    "Empty kernel bind. UNKNOWN, not locked-8, not LIVE, not ADMIT.",
+                    "Formulas do not grant authority.",
+                ],
+            },
+            "policy": {
+                "default_effect": "DENY",
+                "model_grants_authority": False,
+                "formula_grants_authority": False,
+                "market_signal_grants_authority": False,
+            },
+        }
     graph = payload.get("graph") or {"nodes": [], "edges": []}
     sources = payload.get("sources") or []
     evidence = payload.get("evidence") or []
