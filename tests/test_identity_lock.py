@@ -288,7 +288,8 @@ def test_killinchu_status_page_stays_on_origin_and_fails_closed():
         assert "credentials:'omit'" in response.text
         assert "cache:'no-store'" in response.text
         assert "TWIN UNAVAILABLE" in response.text
-        assert "huggingface.co/spaces/" not in response.text
+        # Explicit navigation is not a redirect or a canonical identity change.
+        _assert_killinchu_navigation_boundary(response.text, response.headers)
         head = client.head(path, follow_redirects=False)
         assert head.status_code == 200, path
         assert head.content == b""
@@ -680,3 +681,106 @@ def test_ayni_lock_does_not_drift():
     assert '@app.api_route("/sitemap.xml", methods=["GET", "HEAD"])' in serve
     assert "the app, not Cloudflare" in serve
     assert "HEAD 405 is the app" in serve or "Same HEAD 405" in serve
+
+
+_KILLINCHU_CANONICAL = "https://a-11-oy.com/killinchu"
+_KILLINCHU_NAVIGATION = (
+    "https://szlholdings-killinchu.hf.space/elite",
+    "https://huggingface.co/spaces/SZLHOLDINGS/killinchu",
+)
+
+
+def _assert_killinchu_navigation_boundary(html, headers):
+    """Allow explicit showcase anchors, never automatic handoff or HF assets."""
+    from html.parser import HTMLParser
+    from urllib.parse import urlsplit
+
+    class Document(HTMLParser):
+        def __init__(self):
+            super().__init__(convert_charrefs=True)
+            self.tags = []
+
+        def handle_starttag(self, tag, attrs):
+            names = [name for name, _value in attrs]
+            assert len(names) == len(set(names)), "ambiguous duplicate attributes"
+            self.tags.append((tag, dict(attrs)))
+
+    document = Document()
+    document.feed(html)
+    document.close()
+    normalized_headers = {key.lower(): value for key, value in headers.items()}
+    assert "location" not in normalized_headers, "status page must not redirect"
+    assert "refresh" not in normalized_headers, "status page must not refresh away"
+    link_header = normalized_headers.get("link", "").lower()
+    assert "huggingface.co" not in link_header and "hf.space" not in link_header
+    canonicals = [
+        attrs.get("href") for tag, attrs in document.tags
+        if tag == "link" and "canonical" in (attrs.get("rel") or "").lower().split()
+    ]
+    assert canonicals == [_KILLINCHU_CANONICAL], "one product-owned canonical"
+    navigation = []
+    for tag, attrs in document.tags:
+        assert tag not in {"iframe", "object", "embed", "base"}, tag
+        assert not (tag == "meta" and
+                    (attrs.get("http-equiv") or "").lower() == "refresh")
+        for key in ("href", "src", "data", "poster"):
+            value = attrs.get(key) or ""
+            hostname = (urlsplit(value).hostname or "").lower()
+            if hostname in {"huggingface.co", "hf.co", "hf.space"} or hostname.endswith(".hf.space"):
+                assert tag == "a" and key == "href", "HF is navigation, not an embedded runtime"
+                assert value in _KILLINCHU_NAVIGATION, "unexpected showcase destination"
+                assert {"noopener", "noreferrer"}.issubset((attrs.get("rel") or "").split())
+                assert not {"onclick", "hidden", "inert"}.intersection(attrs)
+                navigation.append(value)
+    assert navigation == list(_KILLINCHU_NAVIGATION), "both explicit launch anchors required"
+
+
+def _killinchu_navigation_fixture():
+    return (
+        '<link href="' + _KILLINCHU_CANONICAL + '" rel="canonical">'
+        + ''.join('<a rel="external noopener noreferrer" href="' + url + '">Open</a>'
+                  for url in _KILLINCHU_NAVIGATION)
+    )
+
+
+def test_killinchu_navigation_boundary_accepts_explicit_anchors_without_javascript():
+    _assert_killinchu_navigation_boundary(_killinchu_navigation_fixture(), {})
+
+
+@pytest.mark.parametrize("mutation", [
+    "wrong-canonical", "duplicate-canonical", "meta-refresh", "embedded-script",
+    "embedded-frame", "wrong-space", "missing-rel", "duplicate-href", "hidden-link",
+])
+def test_killinchu_navigation_boundary_rejects_identity_and_embedding_regressions(mutation):
+    html = _killinchu_navigation_fixture()
+    hub = _KILLINCHU_NAVIGATION[1]
+    if mutation == "wrong-canonical":
+        html = html.replace(_KILLINCHU_CANONICAL, hub)
+    elif mutation == "duplicate-canonical":
+        html += '<link rel="canonical" href="' + hub + '">'
+    elif mutation == "meta-refresh":
+        html += '<META HTTP-EQUIV="Refresh" content="0;url=' + hub + '">'
+    elif mutation == "embedded-script":
+        html += '<script src="' + hub + '/script.js"></script>'
+    elif mutation == "embedded-frame":
+        html += '<iframe src="' + _KILLINCHU_NAVIGATION[0] + '"></iframe>'
+    elif mutation == "wrong-space":
+        html = html.replace(hub, hub + '-replacement')
+    elif mutation == "missing-rel":
+        html = html.replace('external noopener noreferrer', 'external', 1)
+    elif mutation == "duplicate-href":
+        html = html.replace('<a ', '<a href="https://example.invalid" ', 1)
+    elif mutation == "hidden-link":
+        html = html.replace('<a ', '<a hidden ', 1)
+    with pytest.raises(AssertionError):
+        _assert_killinchu_navigation_boundary(html, {})
+
+
+@pytest.mark.parametrize("headers", [
+    {"Location": _KILLINCHU_NAVIGATION[0]},
+    {"Refresh": "0;url=" + _KILLINCHU_NAVIGATION[1]},
+    {"Link": '<' + _KILLINCHU_NAVIGATION[1] + '>; rel="canonical"'},
+])
+def test_killinchu_navigation_boundary_rejects_header_handoffs(headers):
+    with pytest.raises(AssertionError):
+        _assert_killinchu_navigation_boundary(_killinchu_navigation_fixture(), headers)
