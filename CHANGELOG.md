@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - explicit governed SZL Router consumer
+- `POST /api/a11oy/v1/govern/infer` accepts `effort: szl-router` after the
+  existing governance gates. The services adapter verifies the pinned source,
+  completion hash receipt, request binding, and provider attempt. Gateway errors
+  and refusals return without fallback; default engine selection is unchanged.
+  Configuration admission, unsigned integrity, and unavailable energy remain
+  distinct from live inference and deployment evidence. See
+  [the operator runbook](docs/SZL_ROUTER_INTEGRATION.md).
+
 ### Fixed - landing source has one kernel writer
 - `a11oy_landing.html` no longer paints `#nv-kernel` as `locked-8`, adds
   `.is-live`, or writes `read live · N/3 endpoints`. Those fields stay with
