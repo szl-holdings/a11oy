@@ -4,12 +4,14 @@
 
 Taxonomy home: services/ (runtime health, identity, and observability posture).
 
-The four read-only endpoints deliberately answer different questions:
+The read-only endpoints deliberately answer different questions:
 
 * ``/api/livez`` proves only that this Python process can answer a request.
 * ``/api/readyz`` re-walks the configured Khipu chain and folds in the existing
   boot-preflight signal.  Missing or non-durable chain state fails closed.
 * ``/api/build-info`` emits only observable, allowlisted build metadata.
+* ``/.well-known/source.json`` discloses git_sha, doctrine v11 LOCKED, signer
+  ABSENT, and certified/proven_trust/publication_eligible=false. JSON only.
 * ``/api/<ns>/v1/otel/status`` separates in-process propagation, exporter
   configuration, and fresh collector delivery evidence.
 
@@ -137,6 +139,33 @@ def _build_identity() -> dict[str, Any]:
             "version": "OBSERVED" if version else "UNKNOWN",
             "working_tree": "OBSERVED" if dirty is not None else "UNKNOWN",
         },
+    }
+
+
+_SOURCE_BOUND_ENV = frozenset({"env:SZL_GIT_SHA", "env:A11OY_GIT_SHA"})
+
+
+def _source_disclosure(ns: str, build_identity: dict[str, Any]) -> dict[str, Any]:
+    """Unsigned well-known source facts. GET never mints DSSE or stamps LIVE."""
+    revision = str(build_identity.get("revision") or "")
+    revision_source = str(build_identity.get("revision_source") or "")
+    source_bound = bool(re.fullmatch(r"[0-9a-f]{40}", revision)) and revision_source in _SOURCE_BOUND_ENV
+    return {
+        "schema": "szl.well-known.source/v1",
+        "organ": ns,
+        "git_sha": revision if source_bound else "UNKNOWN",
+        "git_sha_source": revision_source if source_bound else "UNKNOWN",
+        "doctrine": "v11",
+        "doctrine_state": "LOCKED",
+        "signer": "ABSENT",
+        "certified": False,
+        "proven_trust": False,
+        "publication_eligible": False,
+        "receipt_minted": False,
+        "note": (
+            "Disclosure only. Doctrine v11 LOCKED is a source constant. "
+            "signer ABSENT. Not a production certificate. Not DSSE."
+        ),
     }
 
 
@@ -494,6 +523,11 @@ def register(app: Any, ns: str = "a11oy") -> dict[str, Any]:
             }
         )
 
+    @app.get("/.well-known/source.json", tags=["runtime"], include_in_schema=True)
+    async def _well_known_source():
+        """Honest source disclosure. JSON only. Never SPA HTML. Never a LIVE stamp."""
+        return _no_store_json(_source_disclosure(ns, build_identity))
+
     @app.get(f"/api/{ns}/v1/otel/status", tags=["runtime"], include_in_schema=True)
     async def _otel_status():
         return _no_store_json(_otel_posture(app))
@@ -532,6 +566,7 @@ def register(app: Any, ns: str = "a11oy") -> dict[str, Any]:
             "/api/livez",
             "/api/readyz",
             "/api/build-info",
+            "/.well-known/source.json",
             f"/api/{ns}/v1/otel/status",
             "/static/landing-honest-bind.js",
         ],

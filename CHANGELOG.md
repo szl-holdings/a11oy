@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - honest `/.well-known/source.json` runtime route
+- FastAPI serves `GET /.well-known/source.json` as JSON: observed `git_sha` or
+  UNKNOWN, doctrine v11 LOCKED, signer ABSENT, `certified` false,
+  `proven_trust` false, `publication_eligible` false. Soft-404 still refuses
+  SPA HTML on undeclared well-known paths. GET never mints DSSE. Not LIVE.
+
 ### Changed - five-space operator cited as a Bound package
 - `/five-space` is cited in Bound packages (`#bound`) and the footer, same class
   as `/lyte`. Console surface strip lists the bind. Primary nav unchanged. Not a

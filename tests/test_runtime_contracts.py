@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Focused fail-closed tests for szl_runtime_contracts."""
 
+import json
 import time
 
 from fastapi import FastAPI
@@ -63,6 +64,7 @@ def test_registration_is_idempotent_and_routes_beat_existing_spa_catchall():
         "/api/livez",
         "/api/readyz",
         "/api/build-info",
+        "/.well-known/source.json",
         "/api/a11oy/v1/otel/status",
     ):
         response = client.get(path)
@@ -193,6 +195,42 @@ def test_build_info_uses_hf_deployment_sha(monkeypatch):
     assert body["build"]["revision"] == sha
     assert body["build"]["revision_source"] == "env:SZL_GIT_SHA"
     assert body["build"]["field_evidence"]["revision"] == "OBSERVED"
+
+
+def test_well_known_source_json_beats_spa_and_stays_unsigned(monkeypatch):
+    for name in contracts._ENV_SHA_NAMES:
+        monkeypatch.delenv(name, raising=False)
+    sha = "d" * 40
+    monkeypatch.setenv("SZL_GIT_SHA", sha)
+    client = TestClient(_app_with_catchall())
+    response = client.get("/.well-known/source.json")
+    body = response.json()
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/json")
+    assert "<html" not in response.text.lower()
+    assert body["git_sha"] == sha
+    assert body["doctrine"] == "v11"
+    assert body["doctrine_state"] == "LOCKED"
+    assert body["signer"] == "ABSENT"
+    assert body["certified"] is False
+    assert body["proven_trust"] is False
+    assert body["publication_eligible"] is False
+    assert body["receipt_minted"] is False
+    assert "dsse" not in body
+    assert "LIVE" not in json.dumps(body)
+
+
+def test_well_known_source_json_unknown_sha_is_not_locked_eight(monkeypatch):
+    for name in contracts._ENV_SHA_NAMES:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(contracts, "_safe_git", lambda _args: None)
+    body = TestClient(_app_with_catchall()).get("/.well-known/source.json").json()
+    assert body["git_sha"] == "UNKNOWN"
+    assert body["signer"] == "ABSENT"
+    assert body["certified"] is False
+    assert body["publication_eligible"] is False
+    assert "locked-8" not in json.dumps(body).lower()
+    assert body.get("locked_formula_count") is None
 
 
 def test_build_info_is_captured_once_and_get_never_spawns_git(monkeypatch):
