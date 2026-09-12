@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - empty kernel bind stays UNKNOWN
+- `GET/POST /api/a11oy/v1/kernel/probe` with empty JSON `{}` returns
+  decision UNKNOWN / honesty UNKNOWN. It does not paint locked-8, LIVE,
+  or ADMIT. `halt_drone` is BLOCKED. DSSE mint-available is not the
+  product signer.
+- Empty `GET/POST /api/a11oy/v1/organs/integrity` is the same UNKNOWN
+  bind. The fail-closed silhouette demo requires `silhouette=true` or an
+  explicit tamper flag. Anatomy v5 classifies UNKNOWN as UNAVAILABLE,
+  never a fabricated LIVE.
+- Packet 8 `evaluate({})` is UNKNOWN, not AWAITING_APPROVAL and not
+  F1/F4 ADMIT. Command v2 gains a Kernel room that POSTs `{}`.
+
 ### Changed - five-space operator cited as a Bound package
 - `/five-space` is cited in Bound packages (`#bound`) and the footer, same class
   as `/lyte`. Console surface strip lists the bind. Primary nav unchanged. Not a

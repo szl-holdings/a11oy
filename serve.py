@@ -821,6 +821,7 @@ except Exception as _szl_oh_e:  # pragma: no cover
     print(f"[a11oy] Organ-health proxy NOT registered: {_szl_oh_e!r}; existing routes unaffected", file=__import__("sys").stderr)
 
 # FIVE-ORGAN FAIL-CLOSED KERNEL (2026-08-29): GET/POST /api/a11oy/v1/organs/integrity
+# + GET/POST /api/a11oy/v1/kernel/probe. Empty JSON {} is UNKNOWN, not LIVE.
 # + Evidence Bay at /organs/integrity. Stdlib SHA-256. Energy UNAVAILABLE.
 # Λ = Conjecture 1 OPEN. proven_trust false. Front-moved so exact routes beat SPA.
 try:

@@ -153,6 +153,8 @@
       if(name==='wireD')return declared||'UNAVAILABLE';
       if(name==='integrity'){
         const ev=data?.body||data||{};
+        const verdict=String(ev.verdict||ev.decision||data?.decision||ev.honesty||data?.honesty||'');
+        if(verdict==='UNKNOWN')return 'UNAVAILABLE';
         if(ev.blocked===true)return 'DEGRADED';
         if(Number(ev.live_count)===5 && String(ev.verdict||'')==='ADVISORY_BODY')return 'LIVE';
         if(Array.isArray(ev.organs)&&ev.organs.length)return 'OBSERVED';

@@ -293,10 +293,11 @@ async function run(flags, label){
     try{
       const ctl = new AbortController();
       const t = setTimeout(() => ctl.abort(), 4000);
+      const apiBody = Object.values(flags).some(Boolean) ? flags : {silhouette: true};
       const r = await fetch(url, {
-        method: Object.values(flags).some(Boolean) ? "POST" : "GET",
+        method: "POST",
         headers: {"content-type":"application/json"},
-        body: Object.values(flags).some(Boolean) ? JSON.stringify(flags) : undefined,
+        body: JSON.stringify(apiBody),
         signal: ctl.signal, cache:"no-store"
       });
       clearTimeout(t);
