@@ -30,7 +30,7 @@ from __future__ import annotations
 import html
 import sys
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit, urlunsplit
 
 from szl_spaces_surface import FOLD_SPACES as _FOLD_SPACES
 from szl_spaces_surface import SPACES as _CANONICAL_SPACES
@@ -137,19 +137,19 @@ def _canonical_target(name: str, subpath: str = "", query: str = "") -> str:
     record = _SPACE_BY_SLUG.get(name)
     if record is None or name not in HANDOFF_SPACES:
         raise ValueError("unknown Space identifier: %s" % name)
-    dest = _destination_url(name)
-    if "#" in dest:
-        # dest already carries a fragment; do not append a path onto #atlas/#verticals
-        if query:
-            return dest + ("&" if "?" in dest else "?") + quote(query, safe="=&;%:+,/?@-._~")
-        return dest
-    target = dest.rstrip("/")
-    if subpath:
-        encoded_path = quote(subpath.lstrip("/"), safe="/:@!$&'()*+,;=-._~")
-        target += "/" + encoded_path
+    dest = urlsplit(_destination_url(name))
+    # Fragment destinations are existing document anchors, not path-prefix apps.
+    # Keep the anchor last: appending ?query after # would silently lose the
+    # request query and change which element the browser navigates to.
+    path = dest.path if dest.fragment else dest.path.rstrip("/")
+    if subpath and not dest.fragment:
+        path += "/" + quote(subpath.lstrip("/"), safe="/:@!$&'()*+,;=-._~")
+    merged_query = dest.query
     if query:
-        target += "?" + quote(query, safe="=&;%:+,/?@-._~")
-    return target
+        encoded_query = quote(query, safe="=&;%:+,/?@-._~")
+        merged_query += ("&" if merged_query else "") + encoded_query
+    return urlunsplit((dest.scheme, dest.netloc, path, merged_query, dest.fragment))
+
 
 
 def _raw_query(request: Any) -> str | None:
