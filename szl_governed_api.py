@@ -627,8 +627,7 @@ def register(app, ns: str = "a11oy", *, public_pem: str | None = None):  # pragm
         prompt = (body or {}).get("prompt", "")
         if not prompt:
             return JSONResponse({"error": "missing 'prompt'"}, status_code=400)
-        result = govern_infer(
-            prompt,
+        kwargs = dict(
             vertical=body.get("vertical", "general"),
             declared=body.get("declared", "PUBLIC"),
             severity=float(body.get("severity", 0.0)),
@@ -636,6 +635,12 @@ def register(app, ns: str = "a11oy", *, public_pem: str | None = None):  # pragm
             request_id=request.headers.get("X-Request-ID"),
             request_origin=str(request.base_url),
         )
+        if body.get("effort") == "szl-router":
+            # Gateway HTTP is synchronous; keep the serving event loop available.
+            from starlette.concurrency import run_in_threadpool
+            result = await run_in_threadpool(govern_infer, prompt, **kwargs)
+        else:
+            result = govern_infer(prompt, **kwargs)
         status = 200
         if body.get("effort") == "szl-router" and result.get("decision") == "allow":
             status = (result.get("generation") or {}).get("http_status", 503)

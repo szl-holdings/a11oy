@@ -137,9 +137,17 @@ def _source(client, base, revision, headers):
     status, value, _ = _read(client, "GET", base + "/api/source", headers=headers)
     receipt = value.get("receipt")
     body = {key: item for key, item in value.items() if key != "receipt"}
+    files = value.get("controlled_files")
+    expected_files = {"router_control/app.py", "router_control/static/index.html",
+                      "router_control/static/app.js", "router_control/static/styles.css"}
     if (status != 200 or value.get("schema") != "szl.router-source/v1"
             or value.get("repository") != "szl-holdings/szl-router"
             or value.get("revision") != revision or not isinstance(receipt, dict)
+            or not isinstance(files, dict) or set(files) != expected_files
+            or any(not isinstance(item, str) or not _HEX.fullmatch(item)
+                   for item in files.values())
+            or any(value.get(key) is not False for key in
+                   ("default_egress", "secret_output", "arbitrary_url_routing"))
             or receipt.get("algorithm") != "sha256"
             or receipt.get("digest") != _digest(body)):
         raise RouterContractError("ROUTER_SOURCE_BINDING_INVALID")

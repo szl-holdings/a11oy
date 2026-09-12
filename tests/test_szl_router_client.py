@@ -13,6 +13,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import threading
 from types import SimpleNamespace
 
 from fastapi import FastAPI, Request
@@ -52,7 +53,7 @@ def wired(monkeypatch):
         monkeypatch.setenv(name, value)
     state = {
         "requests": [], "providers": [], "status": 200, "source_revision": PIN,
-        "mutate": None, "response_mode": None,
+        "mutate": None, "source_mutate": None, "response_mode": None,
         "completion": {"id": "chat-isolated", "object": "chat.completion", "model": "fixture-model",
                        "choices": [{"index": 0, "message": {"role": "assistant", "content": "Public fixture answer."},
                                     "finish_reason": "stop"}]},
@@ -86,7 +87,10 @@ def wired(monkeypatch):
         @gateway.get("/api/source")
         def source():
             body = {"schema": "szl.router-source/v1", "repository": "szl-holdings/szl-router",
-                    "revision": PIN, "controlled_files": {"router_control/app.py": "a" * 64}}
+                    "revision": PIN, "controlled_files": {name: "a" * 64 for name in (
+                        "router_control/app.py", "router_control/static/index.html",
+                        "router_control/static/app.js", "router_control/static/styles.css")},
+                    "default_egress": False, "secret_output": False, "arbitrary_url_routing": False}
             return {**body, "receipt": {"algorithm": "sha256", "digest": digest(body)}}
 
         @gateway.get("/readyz/inference")
@@ -124,6 +128,9 @@ def wired(monkeypatch):
         value = response.json()
         if req.url.path == "/api/source" and state["source_revision"] != PIN:
             value["revision"] = state["source_revision"]
+            value["receipt"]["digest"] = digest({k: v for k, v in value.items() if k != "receipt"})
+        if req.url.path == "/api/source" and state["source_mutate"]:
+            state["source_mutate"](value)
             value["receipt"]["digest"] = digest({k: v for k, v in value.items() if k != "receipt"})
         if req.method == "POST" and state["mutate"]:
             state["mutate"](value)
@@ -168,6 +175,18 @@ def test_partial_configuration_never_calls_gateway(wired, monkeypatch, key):
 
 def test_source_mismatch_prevents_provider_call(wired):
     wired["source_revision"] = "b" * 40
+    assert run()["error"] == "ROUTER_SOURCE_BINDING_INVALID"
+    assert wired["providers"] == []
+
+
+@pytest.mark.parametrize("mutation", [
+    lambda value: value["controlled_files"].pop("router_control/app.py"),
+    lambda value: value["controlled_files"].update({"router_control/app.py": "not-a-digest"}),
+    lambda value: value.update(secret_output=True),
+    lambda value: value.pop("arbitrary_url_routing"),
+])
+def test_source_contract_cannot_admit_missing_or_changed_guarantees(wired, mutation):
+    wired["source_mutate"] = mutation
     assert run()["error"] == "ROUTER_SOURCE_BINDING_INVALID"
     assert wired["providers"] == []
 
@@ -314,3 +333,33 @@ def test_endpoint_preserves_failed_gateway_status(wired, governed):
             "prompt": "Explain a public example.", "effort": "szl-router"})
     assert response.status_code == 502, response.json()
     assert response.json()["generation"]["failure"]["attempts"][0]["status_code"] == 403
+
+
+def test_http_consumer_executes_gateway_off_serving_event_loop(wired, governed, monkeypatch):
+    app = FastAPI()
+    threads = {}
+
+    @app.middleware("http")
+    async def observe_serving_thread(request, call_next):
+        threads["serving"] = threading.get_ident()
+        return await call_next(request)
+
+    complete = adapter.complete
+
+    def observe_consumer_thread(*args, **kwargs):
+        threads["consumer"] = threading.get_ident()
+        return complete(*args, **kwargs)
+
+    monkeypatch.setattr(adapter, "complete", observe_consumer_thread)
+    governed.register(app)
+    with TestClient(app) as client:
+        response = client.post("/api/a11oy/v1/govern/infer",
+                               headers={"X-Request-ID": "http-consumer-123"},
+                               json={"prompt": "Explain a public example.", "effort": "szl-router"})
+    assert response.status_code == 200, response.json()
+    result = response.json()
+    assert result["decision"] == "allow"
+    assert result["generation"]["state"] == "COMPLETED"
+    assert result["generation"]["request_id"] == "http-consumer-123"
+    assert len(wired["providers"]) == 1
+    assert threads["consumer"] != threads["serving"]

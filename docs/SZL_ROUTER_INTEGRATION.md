@@ -30,6 +30,11 @@ header contract is incompatible and fails admission. Gateway source is checked
 before and after the completion. `/readyz/inference` admits configuration only;
 it is never treated as a successful inference. The request ID is forwarded in
 `X-Request-ID` and the normalized `user` field so the receipt digest binds it.
+The client requires all four controlled-file digests and the source contract's
+disabled-by-default egress and secret-output guarantees. These digest claims are
+not independently compared with Git file contents at request time. Synchronous
+gateway transport runs in the serving thread pool so it does not block the
+application event loop.
 
 Only PUBLIC and INTERNAL data admitted by A11oy's existing sensitivity classifier
 may traverse this remote gateway. Restricted/secret or unknown classifications
