@@ -41,6 +41,7 @@ def test_source_owned_publisher_is_exact_reviewable_and_non_destructive() -> Non
     assert {
         "token_from_env", "checkout_exact_source", "fetch_pinned_controller",
         "ensure_runtime_configuration", "deploy_with_controller", "verify_contract", "main",
+        "run_checked", "run_bounded", "journal",
     }.issubset(function_names(PUBLISHER))
     for fragment in (
         'SOURCE_REPOSITORY = "szl-holdings/lyte-services"',
