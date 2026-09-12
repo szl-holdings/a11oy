@@ -131,3 +131,51 @@ test("malformed, missing, or transport-unavailable evidence fails closed", async
     );
   }
 });
+
+// Navigation is separate from runtime readiness: a failed observation must not
+// strand visitors on the status page or require JavaScript to discover the app.
+function assertShowcaseLinks(documentHtml) {
+  const staticHtml = documentHtml.split(/<script\b/i, 1)[0];
+  const nav = staticHtml.match(/<nav\b[^>]*aria-label="Killinchu showcase"[^>]*>([\s\S]*?)<\/nav>/i);
+  assert.ok(nav, "Showcase navigation must exist before JavaScript executes");
+  const anchors = [...nav[1].matchAll(/<a\b([^>]*)>([^<]+)<\/a>/gi)];
+  assert.equal(anchors.length, 2, "Keep exactly the runtime and its existing Space");
+  assert.deepEqual(anchors.map((match) => {
+    assert.doesNotMatch(match[1], /\b(?:hidden|inert|onclick|style)\s*(?:=|$)/i);
+    assert.match(match[1], /rel="external noopener noreferrer"/);
+    const href = match[1].match(/\bhref="([^"]+)"/);
+    assert.ok(href, "Each launch control must be a real anchor");
+    return [href[1], match[2].trim()];
+  }), [
+    ["https://szlholdings-killinchu.hf.space/elite", "Open interactive Killinchu demo"],
+    ["https://huggingface.co/spaces/SZLHOLDINGS/killinchu", "View Hugging Face Space"],
+  ]);
+}
+
+test("showcase launch controls are fixed-origin anchors without JavaScript", () => {
+  assertShowcaseLinks(html);
+});
+
+test("showcase contract rejects a removed or replaced runtime destination", () => {
+  assert.throws(() => assertShowcaseLinks(html.replace(
+    "https://szlholdings-killinchu.hf.space/elite", "https://example.invalid/elite",
+  )));
+  assert.throws(() => assertShowcaseLinks(html.replace(
+    /<nav\b[^>]*aria-label="Killinchu showcase"[^>]*>[\s\S]*?<\/nav>/i, "",
+  )));
+});
+
+test("showcase links preserve product canonical and do not redirect automatically", () => {
+  assert.match(html, /<link rel="canonical" href="https:\/\/a-11-oy\.com\/killinchu"\/>/);
+  assert.doesNotMatch(html, /http-equiv=["']refresh["']/i);
+  assert.doesNotMatch(source, /\blocation\.(?:assign|replace|href)\b/);
+  assert.match(html, /min-height:44px/);
+  assert.match(html, /\.showcase-actions a:focus-visible/);
+});
+
+test("failed runtime observation leaves the showcase controls available", async () => {
+  const result = await render(livePayload(), false);
+  assert.equal(result.nodes.st.textContent, "TWIN UNAVAILABLE");
+  assertShowcaseLinks(html);
+  assert.doesNotMatch(source, /showcase-actions|querySelector|innerHTML/);
+});

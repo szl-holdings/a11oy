@@ -13,12 +13,21 @@ main{max-width:720px;margin:0 auto;padding:48px 24px}
 h1{font-weight:500;font-size:36px;letter-spacing:-.03em;margin:16px 0}
 p{color:var(--dim);max-width:60ch;margin:12px 0}
 a{color:var(--ink)}
+.showcase-actions{display:flex;flex-wrap:wrap;gap:12px;margin:20px 0}
+.showcase-actions a{display:inline-flex;align-items:center;min-height:44px;max-width:100%;padding:12px 16px;border:1px solid var(--dim);border-radius:6px;text-decoration:none;overflow-wrap:anywhere}
+.showcase-actions a:hover{text-decoration:underline}
+.showcase-actions a:focus-visible{outline:3px solid currentColor;outline-offset:4px}
 </style>  <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
 </head>
 <body>
 <main>
 <p><span class="chip" id="st">TWIN UNAVAILABLE</span><span class="chip">ON ORIGIN</span></p>
 <h1>Killinchu</h1>
+<nav class="showcase-actions" aria-label="Killinchu showcase">
+<a href="https://szlholdings-killinchu.hf.space/elite" rel="external noopener noreferrer">Open interactive Killinchu demo</a>
+<a href="https://huggingface.co/spaces/SZLHOLDINGS/killinchu" rel="external noopener noreferrer">View Hugging Face Space</a>
+</nav>
+<p>Interactive showcase hosted on Hugging Face. Runtime availability is reported separately below.</p>
 <p>Eyes and decision. Not the trigger. Effectors stay SIMULATED. This page stays on a-11-oy.com so the product origin does not hand canonical to Hugging Face.</p>
 <p>Twin Space runtime is reported from A11oy's same-origin, server-observed Space inventory. If the Space or the observation is unavailable, this page stays up and fails closed.</p>
 <p id="detail" class="chip">Awaiting observed Space inventory; no runtime claim made.</p>
