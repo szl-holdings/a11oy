@@ -135,9 +135,10 @@ def run_checked(
     """
     observation = run_bounded(command, cwd=cwd or Path.cwd(), timeout=timeout)
     if not observation["passed"]:
+        head = Path(command[0]).name if command else "argv"
         raise RuntimeError(
             f"command failed with {observation['reason_code']} "
-            f"exit {observation['exit_code']}: " + " ".join(command[:5])
+            f"exit {observation['exit_code']}: {head}"
         )
     return observation
 

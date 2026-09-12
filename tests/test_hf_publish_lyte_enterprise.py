@@ -258,12 +258,13 @@ def test_run_checked_adapter_bounds_real_children() -> None:
     assert ok["passed"] is True
     assert ok["raw_output_recorded"] is False
     assert "stdout" not in ok or "captured_sha256" in ok["streams"]["stdout"]
-    with pytest.raises(RuntimeError) as failed:
-        module.run_checked(
-            [sys.executable, "-c", 'print("private-token"); raise SystemExit(2)'],
-            cwd=Path.cwd(),
-        )
-    assert "private-token" not in str(failed.value)
+    with tempfile.TemporaryDirectory() as td:
+        script = Path(td) / "child.py"
+        script.write_text('print("private-token")\nraise SystemExit(2)\n', encoding="utf-8")
+        with pytest.raises(RuntimeError) as failed:
+            module.run_checked([sys.executable, str(script)], cwd=Path(td))
+        assert "private-token" not in str(failed.value)
+        assert "NONZERO_EXIT_UNCLASSIFIED" in str(failed.value)
     with pytest.raises(RuntimeError) as timed:
         module.run_checked(
             [sys.executable, "-c", "import time; time.sleep(20)"],
@@ -271,4 +272,4 @@ def test_run_checked_adapter_bounds_real_children() -> None:
             timeout=0.15,
         )
     assert "TIMEOUT" in str(timed.value)
-    assert timed.value.__cause__ is None or "private-token" not in str(timed.value)
+    assert "private-token" not in str(timed.value)
