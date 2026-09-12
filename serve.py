@@ -16310,16 +16310,17 @@ except Exception as _szlfac_e:  # pragma: no cover
 
 
 # ============================================================================
-# SPACES ON a-11-oy.com (Dev2+3) — surface all 11 live HF Spaces same-origin.
+# SPACES ON a-11-oy.com (Dev2+3) — FLOCK five doors + fold/unify ledger.
 # (1) szl_spaces_proxy: reverse-proxy each Space under /spaces/<name> (server-side
 #     fetch, honest 502 on flap, allowlist only, a11oy/killinchu skipped as self/own-
 #     host). (2) szl_spaces_surface: /api/<ns>/v1/spaces/health (REAL probe + HF-API
-#     stage), /spaces tiles page, + ONE idempotent "Spaces" nav item. Both SHARED &
-#     byte-identical in a11oy + killinchu. No new subdomains. 0 runtime CDN (server-
-#     side fetch — same justification as a11oy_hf_assets.py). Additive, idempotent,
-#     try/except-guarded; each register() front-inserts its routes so they beat the
-#     SPA + Node-proxy catch-alls. Doctrine v11: locked=8 @ c7c0ba17; Λ=Conjecture 1;
-#     Khipu=Conjecture 2; honest 502/unknown beats a fake 200; no codenames; no key.
+#     stage), GET /spaces tiles page, GET /unify and GET /a11oy/unify flock ledger,
+#     + ONE idempotent "Spaces" nav item. Do not create Space SZLHOLDINGS/unify.
+#     Both SHARED & byte-identical in a11oy + killinchu. No new subdomains. 0 runtime
+#     CDN. Additive, idempotent, try/except-guarded; each register() front-inserts
+#     its routes so they beat the SPA + Node-proxy catch-alls. Doctrine v11:
+#     locked=8 @ c7c0ba17; Λ=Conjecture 1; Khipu=Conjecture 2; honest 502/unknown
+#     beats a fake 200; first paint never LIVE/RUNNING/PASS; no key.
 # Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ============================================================================
@@ -16339,7 +16340,26 @@ try:
     except Exception:
         import szl_spaces_surface as _szl_spaces_surface
     _szl_spaces_surface_status = _szl_spaces_surface.register(app, ns="a11oy")
-    print(f"[a11oy] Spaces surface registered: {_szl_spaces_surface_status}", file=__import__("sys").stderr)
+    # GET /unify and GET /a11oy/unify are front-inserted by register() above.
+    # Re-assert them here so serve.py itself names the Unify flock aliases.
+    from starlette.routing import Route as _UnifyRoute
+    from starlette.responses import Response as _UnifyResponse
+    _unify_html = _szl_spaces_surface._unify_page("a11oy")
+
+    async def _unify_flock(request):
+        headers = {"Cache-Control": "no-store"}
+        if request.method.upper() == "HEAD":
+            return _UnifyResponse(content=b"", status_code=200, media_type="text/html", headers=headers)
+        return _UnifyResponse(content=_unify_html, status_code=200, media_type="text/html", headers=headers)
+
+    _existing_paths = {getattr(_r, "path", None) for _r in app.router.routes}
+    for _upath in ("/unify", "/a11oy/unify"):
+        if _upath not in _existing_paths:
+            app.router.routes.insert(0, _UnifyRoute(_upath, _unify_flock, methods=["GET", "HEAD"]))
+    print(
+        f"[a11oy] Spaces surface registered: {_szl_spaces_surface_status}; GET /unify GET /a11oy/unify",
+        file=__import__("sys").stderr,
+    )
 except Exception as _szl_ss_e:  # pragma: no cover
     print(f"[a11oy] Spaces surface NOT registered: {_szl_ss_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 # ============================================================================

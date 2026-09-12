@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Unify flock ledger on /unify
+- GET `/unify` and GET `/a11oy/unify` are the product Unify flock tab. KEEP is
+  the five FLOCK doors. Four stragglers sink into a11oy `/console`. First paint
+  never LIVE/RUNNING/PASS. winner=null. proven_trust=false. Does not create
+  Space SZLHOLDINGS/unify. Hub write stays off in-repo.
+
+### Changed - Spaces KEEP is five FLOCK doors
+- `/spaces` tiles KEEP=live dots for a11oy, killinchu, immune, lyte, and
+  vertical-services. FOLD and UNIFY rows are destination ledger only. Health
+  still degrades honestly. RECORD remains a11oy.net/spaces.json.
+
 ### Changed - five-space operator cited as a Bound package
 - `/five-space` is cited in Bound packages (`#bound`) and the footer, same class
   as `/lyte`. Console surface strip lists the bind. Primary nav unchanged. Not a

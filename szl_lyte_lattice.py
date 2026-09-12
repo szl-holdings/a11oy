@@ -72,7 +72,7 @@ _FLOCK_KEEP = [
     {"slug": "killinchu", "dest": "https://szlholdings-killinchu.hf.space/elite", "why": "Counter-UAS."},
     {"slug": "immune", "dest": "https://a-11-oy.com/immune", "why": "SENTRA / YAWAR. Fold lattice here."},
     {"slug": "lyte", "dest": "https://a-11-oy.com/lyte", "why": "Admitted observability cell."},
-    {"slug": "vertical-services", "dest": "https://a-11-oy.com/spaces", "why": "Five engines, one runtime."},
+    {"slug": "vertical-services", "dest": "https://a-11-oy.com/spaces#verticals", "why": "Five engines, one runtime."},
 ]
 _FLOCK_FOLD = [
     {"slug": "immune-lattice", "into": "immune"},
@@ -238,6 +238,7 @@ def unify_status() -> Dict[str, Any]:
         "bind": _BIND,
         "certified": False,
         "proven_trust": False,
+        "winner": None,
         "hub_write": False,
         "source": {"repo": _SOURCE, "sha": _SOURCE_SHA},
         "product": {"url": "https://a-11-oy.com/unify", "certified": False},
@@ -269,7 +270,7 @@ def unify_page() -> str:
         "th,td{text-align:left;padding:.35rem .4rem;border-bottom:1px solid rgba(201,183,135,.15);color:#9a9a9a}"
         "th{color:#c9b787;font-size:10px;letter-spacing:.06em;text-transform:uppercase}"
         ".lede{color:#9a9a9a;max-width:72ch;line-height:1.55}</style></head><body><div class='wrap'>"
-        f"<p>BIND · not certified · digest {s['digest'][:16]}</p>"
+        f"<p>BIND · not certified · digest {s['digest'][:16]} · winner=null · proven_trust=false</p>"
         "<h1>Unify flock</h1>"
         "<p class='lede'><b>Product tab on a-11-oy.com.</b> GitHub is source. Hub is the registry. "
         "a11oy.net is RECORD. Never LIVE/RUNNING/PASS. pause+private, never delete.</p>"
@@ -334,6 +335,7 @@ def _selftest() -> Dict[str, Any]:
     assert len(s["waves"]) == 3
     u = unify_status()
     assert u["state"] == "BIND" and u["hub_write"] is False
+    assert u["winner"] is None and u["proven_trust"] is False
     assert len(u["keep"]) == 5 and len(u["unify_stragglers"]) == 4
     return {"ok": True, "state": s["state"], "sha": s["source"]["sha"], "frontiers": 28, "unify": "BIND"}
 
