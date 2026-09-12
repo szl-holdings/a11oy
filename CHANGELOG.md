@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - landing source has one kernel writer
+- `a11oy_landing.html` no longer paints `#nv-kernel` as `locked-8`, adds
+  `.is-live`, or writes `read live · N/3 endpoints`. Those fields stay with
+  `/static/landing-honest-bind.js`. Surfaces / spectrum / policy / digest /
+  verdict remain in the inline instrument. HTTP success is not readiness.
+  Does not stamp LIVE. Λ = Conjecture 1.
+
 ### Added - Unify flock ledger on /unify
 - GET `/unify` and GET `/a11oy/unify` are the product Unify flock tab. KEEP is
   the five FLOCK doors. Four stragglers sink into a11oy `/console`. First paint
