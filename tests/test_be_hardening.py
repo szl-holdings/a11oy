@@ -188,6 +188,25 @@ def test_honest_footer_exact_lock(client):
     assert body["locked_formula_count"] == 8
     assert body["locked_formula_ids"] == lock["locked_formula_ids"]
     assert body["footer"] == "Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1"
+    assert "huggingface_hub_version" in body
+    assert isinstance(body["huggingface_hub_version"], str)
+    assert body["huggingface_hub_version"]
+
+
+def test_huggingface_hub_version_helper_unavailable_without_module(monkeypatch):
+    import sys
+    monkeypatch.setitem(sys.modules, "huggingface_hub", None)
+    assert H.huggingface_hub_version() == "UNAVAILABLE"
+
+
+def test_huggingface_hub_version_helper_does_not_invent_pin(monkeypatch):
+    import sys
+    import types
+    fake = types.ModuleType("huggingface_hub")
+    fake.__version__ = "9.9.9-test"
+    monkeypatch.setitem(sys.modules, "huggingface_hub", fake)
+    assert H.huggingface_hub_version() == "9.9.9-test"
+    assert H.huggingface_hub_version() != "1.31.0"
 
 
 # ---- 2: rate limiting (RATE_LIMIT_PER_MIN/min/IP on the data surface) -------
