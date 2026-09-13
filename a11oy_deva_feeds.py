@@ -672,7 +672,6 @@ def feed_openrouter_models(limit: int = 24) -> dict[str, Any]:
 
     return _cached_fetch(_variant_cache_key("openrouter_models", limit=limit),
                          url, ttl=900, parser=parse)
-
 def feed_arxiv_frontier(limit: int = 24) -> dict[str, Any]:
     limit = _bounded_limit(limit, 24, 100)
     """FRONTIER — live arXiv AI research feed (keyless Atom API).
@@ -1079,7 +1078,7 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
         return JSONResponse({"tab": "pulse",
                              "hpd": _readiness_public_source(hpd),
                              "dob": _readiness_public_source(dob),
-                             "rates": rates, "doctrine": DOCTRINE})
+                             "rates": _readiness_public_source(rates), "doctrine": DOCTRINE})
 
     @app.get(base + "/re/distress", include_in_schema=False)
     async def _re_distress(limit: Annotated[int, Query(ge=1, le=1000)] = 300):
@@ -1099,7 +1098,7 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
         )
         sec = values[0]
         subs = dict(zip(reits.keys(), values[1:]))
-        return JSONResponse({"tab": "ownership", "sec_fts": sec, "reits": subs, "doctrine": DOCTRINE})
+        return JSONResponse({"tab": "ownership", "sec_fts": _readiness_public_source(sec), "reits": subs, "doctrine": DOCTRINE})
 
     @app.get(base + "/re/deal", include_in_schema=False)
     async def _re_deal(
@@ -1110,7 +1109,7 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
         rrows = ((rates.get("value") or {}).get("items") or [])
         rate_pct = rrows[0]["rate"] if rrows else 4.0
         fc = await _run_blocking(dom_forecast, violations, class_c, rate_pct)
-        return JSONResponse({"tab": "deal", "rates": rates, "forecast": fc, "doctrine": DOCTRINE})
+        return JSONResponse({"tab": "deal", "rates": _readiness_public_source(rates), "forecast": fc, "doctrine": DOCTRINE})
 
     @app.get(base + "/re/brokeredge", include_in_schema=False)
     async def _re_brokeredge():
