@@ -12,6 +12,7 @@ name: Estate release train
       - tests/test_estate_pr_concurrency.py
       - tests/test_estate_release_train.py
       - tests/test_estate_repair_dispatch.py
+      - tests/test_estate_repair_plan_authority.py
       - .github/workflows/estate-release-train.yml
       - .github/workflows/hf-sync.yml
   workflow_run:
@@ -32,6 +33,12 @@ name: Estate release train
         required: false
         type: boolean
         default: false
+
+      vertical_plan_json:
+        description: Complete approved plan JSON with expected_source_revision bound to exact A11oy main; not a production-readiness certificate.
+        required: false
+        type: string
+        default: ""
 
 permissions:
   actions: write
@@ -80,6 +87,7 @@ jobs:
           python -m py_compile scripts/estate_repair_dispatch.py
           python tests/test_estate_release_train.py
           python tests/test_estate_repair_dispatch.py
+          python tests/test_estate_repair_plan_authority.py
           python tests/test_hf_public_inventory.py
           python tests/test_estate_pr_concurrency.py
           python -m json.tool config/estate-release-train.v1.json >/dev/null
@@ -116,40 +124,47 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           EXPECTED_SHA: ${{ steps.initial.outputs.expected_sha }}
           VERTICAL_REQUESTED: ${{ inputs.publish_vertical_flagships }}
+          VERTICAL_PLAN_JSON: ${{ inputs.vertical_plan_json }}
         run: |
           set -euo pipefail
           current="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
           python scripts/estate_repair_dispatch.py \
             --repair true \
+            --plan-from-env \
             --vertical-requested "${VERTICAL_REQUESTED:-false}" \
             --expected-sha "$EXPECTED_SHA" \
             --current-sha "$current" \
             --repo "$GITHUB_REPOSITORY" \
             --github-output "$GITHUB_OUTPUT" \
             > "$RUNNER_TEMP/estate-repair-dispatch.json"
-          decision="$(python -c 'import json; print(json.load(open("'"$RUNNER_TEMP"'/estate-repair-dispatch.json"))["reason"])')"
-          echo "Repair planner reason: $decision"
-          test "$current" = "$EXPECTED_SHA"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
 
-          gh workflow view hf-sync.yml --repo "$GITHUB_REPOSITORY" >/dev/null
-          if python -c 'import json; raise SystemExit(0 if json.load(open("'"$RUNNER_TEMP"'/estate-repair-dispatch.json"))["dispatch"] else 1)'; then
-            if python -c 'import json; raise SystemExit(0 if json.load(open("'"$RUNNER_TEMP"'/estate-repair-dispatch.json"))["vertical_flagships"] else 1)'; then
-              gh workflow run hf-sync.yml --repo "$GITHUB_REPOSITORY" --ref main \
-                -f publish_vertical_flagships=true
-            else
-              gh workflow run hf-sync.yml --repo "$GITHUB_REPOSITORY" --ref main
-            fi
-          else
-            echo "Canonical writer dispatch skipped: $decision"
-          fi
-
-          if gh workflow view repair-cloudflare-product-edge.yml \
-            --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh workflow run repair-cloudflare-product-edge.yml \
-              --repo "$GITHUB_REPOSITORY" --ref main
-          fi
-
-          echo "Canonical writer planning complete for exact main $EXPECTED_SHA."
+          receipt = json.loads(
+              (Path(os.environ["RUNNER_TEMP"]) / "estate-repair-dispatch.json").read_text()
+          )
+          print("Repair planner reason:", receipt["reason"])
+          command = receipt["hf_sync_command"]
+          if receipt["dispatch"] is True and command is not None:
+              # Execute only the planner's fixed gh argv, never shell-evaluate input.
+              subprocess.run(command, check=True)
+              repo = os.environ["GITHUB_REPOSITORY"]
+              edge = "repair-cloudflare-product-edge.yml"
+              available = subprocess.run(
+                  ["gh", "workflow", "view", edge, "--repo", repo],
+                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+              )
+              if available.returncode == 0:
+                  subprocess.run(
+                      ["gh", "workflow", "run", edge, "--repo", repo, "--ref", "main"],
+                      check=True,
+                  )
+          else:
+              print("Canonical writer dispatch skipped; no HF or edge writer requested.")
+          PY
 
       - name: Reobserve after an explicit repair dispatch
         if: >-
@@ -250,6 +265,7 @@ jobs:
           path: |
             ${{ env.REPORT }}
             reports/hf-public-inventory-preflight.json
+            ${{ runner.temp }}/estate-repair-dispatch.json
           if-no-files-found: error
           retention-days: 180
 

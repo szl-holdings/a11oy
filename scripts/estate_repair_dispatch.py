@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import re
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -23,31 +25,72 @@ def _flag(value: Any) -> bool:
     return False
 
 
-def load_plan(path: Path | None) -> dict[str, Any] | None:
-    if path is None:
-        return None
-    if not path.is_file():
-        return None
+SHA40 = re.compile(r"[0-9a-f]{40}")
+MAX_PLAN_BYTES = 65_535
+
+
+def _sha(value: Any) -> bool:
+    return isinstance(value, str) and SHA40.fullmatch(value) is not None
+
+
+def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate plan key")
+        result[key] = value
+    return result
+
+
+def _reject_constant(value: str) -> None:
+    raise ValueError("non-JSON constant in plan")
+
+
+def parse_plan(text: str) -> dict[str, Any] | None:
+    """Bounded operator input, never executable text or an approval signature."""
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+        if len(text.encode("utf-8")) > MAX_PLAN_BYTES:
+            return None
+        value = json.loads(
+            text, object_pairs_hook=_unique_object, parse_constant=_reject_constant
+        )
+    except (ValueError, RecursionError):
         return None
     return value if isinstance(value, dict) else None
 
 
-def plan_is_complete_and_approved(plan: Mapping[str, Any] | None) -> bool:
-    if not isinstance(plan, Mapping):
-        return False
-    if plan.get("complete") is not True:
-        return False
-    if plan.get("approved") is not True:
-        return False
-    expected = plan.get("expected_source_revision")
-    if expected is not None and not (
-        isinstance(expected, str) and len(expected) == 40
-    ):
-        return False
-    return True
+def load_plan(path: Path | None) -> dict[str, Any] | None:
+    if path is None:
+        return None
+    try:
+        if not path.is_file():
+            return None
+        with path.open("rb") as handle:
+            data = handle.read(MAX_PLAN_BYTES + 1)
+        if len(data) > MAX_PLAN_BYTES:
+            return None
+        return parse_plan(data.decode("utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def plan_is_complete_and_approved(
+    plan: Mapping[str, Any] | None, *, expected_sha: str | None = None
+) -> bool:
+    """Require an operator-declared plan for this exact source, not a boolean alone.
+
+    GitHub's workflow-dispatch permissions remain the caller authority. These
+    fields do not independently authenticate an approver or certify readiness.
+    The downstream writer rechecks the same plan against its actual checkout.
+    """
+    return bool(
+        isinstance(plan, Mapping)
+        and plan.get("complete") is True
+        and plan.get("approved") is True
+        and _sha(expected_sha)
+        and _sha(plan.get("expected_source_revision"))
+        and plan.get("expected_source_revision") == expected_sha
+    )
 
 
 def plan_repair_dispatch(
@@ -100,7 +143,18 @@ def plan_repair_dispatch(
             "reason": "SOURCE_MOVED_BEFORE_DISPATCH",
             "production_authorization": False,
         }
-    if plan is not None and not plan_is_complete_and_approved(plan):
+    if not _sha(current_sha) or not _sha(expected_sha):
+        return {
+            "dispatch": False,
+            "product_scope": False,
+            "vertical_flagships": False,
+            "vertical_state": "NOT_REQUESTED",
+            "reason": "SOURCE_REVISION_UNAVAILABLE_OR_INVALID",
+            "production_authorization": False,
+        }
+    if vertical_on and not plan_is_complete_and_approved(
+        plan, expected_sha=expected_sha
+    ):
         return {
             "dispatch": True,
             "product_scope": True,
@@ -109,20 +163,26 @@ def plan_repair_dispatch(
             "reason": "VERTICAL_PLAN_INCOMPLETE_OR_UNAPPROVED",
             "production_authorization": False,
         }
-    vertical_authorized = vertical_on
+    # Forward only the admitted source contract, never arbitrary plan fields.
+    # This binds a queued hf-sync invocation even if main moves after dispatch.
+    approved_plan = (
+        {"complete": True, "approved": True, "expected_source_revision": expected_sha}
+        if vertical_on else None
+    )
     return {
         "dispatch": True,
         "product_scope": True,
-        "vertical_flagships": vertical_authorized,
-        "vertical_state": "REQUESTED" if vertical_authorized else "NOT_REQUESTED",
-        "reason": "PRODUCT_AND_VERTICAL" if vertical_authorized else "PRODUCT_ONLY",
+        "vertical_flagships": vertical_on,
+        "vertical_state": "REQUESTED" if vertical_on else "NOT_REQUESTED",
+        "reason": "PRODUCT_AND_VERTICAL" if vertical_on else "PRODUCT_ONLY",
+        "approved_plan": approved_plan,
         "production_authorization": False,
     }
 
 
 def hf_sync_command(decision: Mapping[str, Any], *, repo: str) -> list[str] | None:
     """Exact gh invocation. Missing dispatch yields None, not a guessed write."""
-    if not decision.get("dispatch"):
+    if decision.get("dispatch") is not True:
         return None
     command = [
         "gh",
@@ -135,7 +195,14 @@ def hf_sync_command(decision: Mapping[str, Any], *, repo: str) -> list[str] | No
         "main",
     ]
     if decision.get("vertical_flagships") is True:
-        command.extend(["-f", "publish_vertical_flagships=true"])
+        plan = decision.get("approved_plan")
+        revision = plan.get("expected_source_revision") if isinstance(plan, Mapping) else None
+        if not plan_is_complete_and_approved(plan, expected_sha=revision):
+            raise ValueError("vertical command requires the admitted source-bound plan")
+        command.extend([
+            "-f", "publish_vertical_flagships=true",
+            "-f", "vertical_plan_json=" + json.dumps(plan, sort_keys=True),
+        ])
     return command
 
 
@@ -145,7 +212,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--vertical-requested", default="false")
     parser.add_argument("--expected-sha", default="")
     parser.add_argument("--current-sha", default="")
-    parser.add_argument("--plan", type=Path, default=None)
+    plan_input = parser.add_mutually_exclusive_group()
+    plan_input.add_argument("--plan", type=Path, default=None)
+    plan_input.add_argument("--plan-from-env", action="store_true")
+    parser.add_argument("--require-vertical", action="store_true")
     parser.add_argument("--duplicate-dispatch", default="false")
     parser.add_argument("--github-output", type=Path, default=None)
     parser.add_argument("--repo", default="szl-holdings/a11oy")
@@ -155,7 +225,8 @@ def main(argv: list[str] | None = None) -> int:
         vertical_requested=args.vertical_requested,
         current_sha=args.current_sha or None,
         expected_sha=args.expected_sha or None,
-        plan=load_plan(args.plan),
+        plan=(parse_plan(os.environ.get("VERTICAL_PLAN_JSON", ""))
+              if args.plan_from_env else load_plan(args.plan)),
         duplicate_dispatch=args.duplicate_dispatch,
     )
     command = hf_sync_command(decision, repo=args.repo)
@@ -177,7 +248,8 @@ def main(argv: list[str] | None = None) -> int:
         args.github_output.parent.mkdir(parents=True, exist_ok=True)
         with args.github_output.open("a", encoding="utf-8") as handle:
             handle.write("\n".join(lines) + "\n")
-    return 0
+    # A denial is still printed/persisted, but the publisher gate must fail.
+    return 2 if args.require_vertical and not decision["vertical_flagships"] else 0
 
 
 if __name__ == "__main__":

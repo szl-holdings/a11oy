@@ -32,7 +32,7 @@ class RepairDispatchContractTests(unittest.TestCase):
         text = ESTATE.read_text(encoding="utf-8")
         self.assertIn("publish_vertical_flagships", text)
         self.assertIn("default: false", text)
-        self.assertIn("-f publish_vertical_flagships=true", text)
+        self.assertIn("VERTICAL_PLAN_JSON: ${{ inputs.vertical_plan_json }}", text)
         self.assertIn("estate_repair_dispatch.py", text)
 
     def test_product_only_repair_does_not_forward_vertical_flag(self) -> None:
@@ -89,7 +89,7 @@ class RepairDispatchContractTests(unittest.TestCase):
                 )
                 self.assertIs(decision["production_authorization"], False)
 
-    def test_explicit_vertical_input_without_plan_file_is_the_authorization(self) -> None:
+    def test_explicit_vertical_input_without_plan_file_is_not_authorization(self) -> None:
         decision = dispatch.plan_repair_dispatch(
             repair=True,
             vertical_requested="true",
@@ -97,8 +97,8 @@ class RepairDispatchContractTests(unittest.TestCase):
             expected_sha=SHA,
             plan=None,
         )
-        self.assertTrue(decision["vertical_flagships"])
-        self.assertEqual(decision["vertical_state"], "REQUESTED")
+        self.assertFalse(decision["vertical_flagships"])
+        self.assertEqual(decision["vertical_state"], "NOT_REQUESTED")
 
     def test_source_moved_before_dispatch_refuses_writer(self) -> None:
         decision = dispatch.plan_repair_dispatch(
