@@ -78,8 +78,12 @@ def test_v2_is_additive_source_derived_and_mobile_safe() -> None:
         "/api/a11oy/v1/signing-status",
         "/api/hatun/evidence",
         "/api/build-info",
+        "/api/a11oy/v1/kernel/probe",
     ):
         assert endpoint in html
+    assert 'label:"Kernel"' in html
+    assert "Probe empty JSON" in html
+    assert "DSSE mint is not the product signer" in html
 
 
 def test_v2_owns_one_reviewed_nonduplicative_navigation_shell() -> None:
@@ -126,6 +130,26 @@ def test_module_uses_reviewed_spa_and_does_not_steal_console() -> None:
     assert '"status": "UNAVAILABLE" if required else "NOT_FOUND"' in src
     assert "status_code=503 if required else 404" in src
     assert "does not steal /console" in src
+
+
+def test_killinchu_page_binds_exact_same_origin_inventory_fail_closed() -> None:
+    html = (ROOT / "pages" / "killinchu.html").read_text(encoding="utf-8")
+    assert 'rel="canonical" href="https://a-11-oy.com/killinchu"' in html
+    assert "'/api/a11oy/v1/spaces/health'" in html
+    assert "'https://szlholdings-killinchu.hf.space'" in html
+    assert "row.url===EXPECTED_URL" in html
+    assert "freshSnapshot" in html
+    assert "state==='LIVE'" in html
+    assert "stage==='RUNNING'" in html
+    assert "twin.app_reachable===true" in html
+    assert "appStatus===200" in html
+    assert "twin.contract_state==='LIVE'" in html
+    assert "contractsLive" in html
+    assert "cache:'no-store'" in html
+    assert "credentials:'omit'" in html
+    assert "TWIN UNAVAILABLE" in html
+    assert "String(e)" not in html
+    assert "ORIGIN+'/healthz'" not in html
 
 
 def test_serve_imports_and_calls_register() -> None:

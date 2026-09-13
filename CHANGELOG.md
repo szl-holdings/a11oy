@@ -9,6 +9,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - DEV-A readiness source wrappers
+- Treasury rates on real-estate pulse/deal and SEC full-text on ownership
+  use the existing public-source normalizer. Cold failures remain
+  `UNAVAILABLE` with an observation clock; cached values retain their
+  original source timestamp. The `SIMULATED` forecast and its fallback
+  are unchanged. Registered-route fixtures cover cold, cached, and live inputs.
+  Source repair is not a claim that deployment or estate alignment passed.
+
+### Added - explicit governed SZL Router consumer
+- `POST /api/a11oy/v1/govern/infer` accepts `effort: szl-router` after the
+  existing governance gates. The services adapter verifies the pinned source,
+  completion hash receipt, request binding, and provider attempt. Gateway errors
+  and refusals return without fallback; default engine selection is unchanged.
+  Configuration admission, unsigned integrity, and unavailable energy remain
+  distinct from live inference and deployment evidence. See
+  [the operator runbook](docs/SZL_ROUTER_INTEGRATION.md).
+
+### Fixed - landing source has one kernel writer
+- `a11oy_landing.html` no longer paints `#nv-kernel` as `locked-8`, adds
+  `.is-live`, or writes `read live · N/3 endpoints`. Those fields stay with
+  `/static/landing-honest-bind.js`. Surfaces / spectrum / policy / digest /
+  verdict remain in the inline instrument. HTTP success is not readiness.
+  Does not stamp LIVE. Λ = Conjecture 1.
+
+### Added - Unify flock ledger on /unify
+- GET `/unify` and GET `/a11oy/unify` are the product Unify flock tab. KEEP is
+  the five FLOCK doors. Four stragglers sink into a11oy `/console`. First paint
+  never LIVE/RUNNING/PASS. winner=null. proven_trust=false. Does not create
+  Space SZLHOLDINGS/unify. Hub write stays off in-repo.
+
+### Changed - Spaces KEEP is five FLOCK doors
+- `/spaces` tiles KEEP=live dots for a11oy, killinchu, immune, lyte, and
+  vertical-services. FOLD and UNIFY rows are destination ledger only. Health
+  still degrades honestly. RECORD remains a11oy.net/spaces.json.
+
 ### Changed - five-space operator cited as a Bound package
 - `/five-space` is cited in Bound packages (`#bound`) and the footer, same class
   as `/lyte`. Console surface strip lists the bind. Primary nav unchanged. Not a

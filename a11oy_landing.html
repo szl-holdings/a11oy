@@ -1666,13 +1666,10 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
 })();
 </script>
 
-<!-- ============ HERO INSTRUMENT PANEL — live read, honest by default ============
-  Three read-only GETs against this origin. Every row starts as UNAVAILABLE in the
-  static HTML and is only replaced by a value this request actually returned; a
-  failed read leaves UNAVAILABLE standing. No value is cached, guessed or derived.
-  SIGNED is written only when the attestation API reports signature.signed === true
-  AND signature.verified === true. Otherwise HASH-LINKED (a real statement digest
-  exists) or UNAVAILABLE. Λ stays "Conjecture 1 · not a theorem". Never green.
+<!-- ============ HERO INSTRUMENT PANEL — honest by default ============
+  Surfaces / spectrum / policy / digest / verdict stay here. Kernel count,
+  #nv-state, and .is-live are owned by /static/landing-honest-bind.js.
+  HTTP success is not readiness. Never green. Λ = Conjecture 1.
 =============================================================================== -->
 <script>
 (function(){
@@ -1702,8 +1699,7 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
 
   Promise.all([soft(EP_HEALTH), soft(EP_SURFACES), soft(EP_ATTEST), soft(EP_HONEST)]).then(function(res){
     var health = res[0], surf = res[1], att = res[2], honest = res[3];
-    var answered = 0, i;
-    for(i = 0; i < res.length; i++) if(res[i]) answered++;
+    var i;
 
     // --- service (healthz) ---
     if(health){
@@ -1724,20 +1720,9 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
     if(!doctrine && att && att.statement && att.statement.predicate) doctrine = str(att.statement.predicate.doctrine);
     if(!doctrine && health) doctrine = str(health.doctrine);
     if(doctrine) txt("nv-doctrine", doctrineState ? (doctrine + " " + doctrineState) : doctrine);
-    var lockedN = null;
-    if(honest){
-      var rawCount = null;
-      if(honest.doctrine_lock && honest.doctrine_lock.locked_formula_count != null){
-        rawCount = honest.doctrine_lock.locked_formula_count;
-      } else if(honest.locked_formula_count != null){
-        rawCount = honest.locked_formula_count;
-      }
-      if(typeof rawCount === "number" && isFinite(rawCount)) lockedN = rawCount;
-    }
-    if(lockedN === 8) txt("nv-kernel", "locked-8");
-    else if(lockedN !== null) txt("nv-kernel", String(lockedN) + " locked");
+    // Kernel count is the packaged binder's job. Do not paint locked-8 here.
 
-    // --- kernel pin: locked formula count from /honest, never a git SHA ---
+    // --- statement digest from attest, never a git SHA ---
     if(att && att.statement && att.statement.subject && att.statement.subject.length){
       var d0 = att.statement.subject[0] && att.statement.subject[0].digest;
       if(d0 && str(d0.sha256)) {
@@ -1800,18 +1785,7 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
     if(signedOk) stamp = "SIGNED";
     else if(digest) stamp = "HASH-LINKED";
     txt("nv-verdict", stamp);
-
-    // --- header state ---
-    if(answered === 0){
-      txt("nv-state", "UNAVAILABLE — no endpoint answered");
-    }else{
-      panel.classList.add("is-live");
-      txt("nv-state", answered === 3 ? "read live · 3/3 endpoints" : ("read live · " + answered + "/3 endpoints"));
-      var st = $("nv-state");
-      if(st && !st.querySelector("i")){ var ic = document.createElement("i"); st.insertBefore(ic, st.firstChild); }
-    }
-  }, function(){
-    txt("nv-state", "UNAVAILABLE — no endpoint answered");
+    // #nv-state and .is-live stay with landing-honest-bind.js.
   });
 })();
 </script>

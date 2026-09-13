@@ -401,6 +401,88 @@ def envelope(ev: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+TAMPER_FLAGS = (
+    "zero_heart",
+    "leak_canal",
+    "tamper_chain",
+    "fabricate_joule",
+    "break_skeleton",
+    "willay_fire",
+)
+
+
+def unknown_bind(surface: str = "szl-kernel-probe") -> dict[str, Any]:
+    """Empty kernel bind. UNKNOWN, not locked-8, not LIVE, not ADMIT."""
+    body = {
+        "decision": "UNKNOWN",
+        "honesty": "UNKNOWN",
+        "status": "UNKNOWN",
+        "state": "UNKNOWN",
+        "verdict": "UNKNOWN",
+        "bind": "empty",
+        "admit": False,
+        "live": False,
+        "live_count": None,
+        "blocked": False,
+        "locked_8": False,
+        "locked_proven_as_probe_decision": False,
+        "locked_proven_catalog": list(LOCKED_EIGHT),
+        "locked_proven_catalog_label": "REPORTED source pin — not a probe decision",
+        "organs": [],
+        "certified_production_ready": False,
+        "proven_trust": False,
+        "signer": "UNSIGNED-honest",
+        "dsse_mint_available_is_not_product_signer": True,
+        "halt_drone": "BLOCKED",
+        "effectors": "NEVER_COMMANDED",
+        "lambda": "Conjecture 1",
+        "energy": "UNAVAILABLE",
+        "reason": (
+            "Empty kernel bind. No organ measurements supplied. "
+            "UNKNOWN, not locked-8, not LIVE, not ADMIT."
+        ),
+        "kernel_commit": KERNEL_COMMIT,
+        "doctrine": DOCTRINE,
+        "checked_at": _now(),
+    }
+    payload = json.dumps(body, sort_keys=True, separators=(",", ":"), default=str)
+    return {
+        "ok": True,
+        "surface": surface,
+        "decision": "UNKNOWN",
+        "honesty": "UNKNOWN",
+        "status": "UNKNOWN",
+        "state": "UNKNOWN",
+        "admit": False,
+        "live": False,
+        "locked_8": False,
+        "certified_production_ready": False,
+        "proven_trust": False,
+        "signer": "UNSIGNED-honest",
+        "dsse_mint_available_is_not_product_signer": True,
+        "halt_drone": "BLOCKED",
+        "effectors": "NEVER_COMMANDED",
+        "lambda": "Conjecture 1",
+        "receipt_sha256": _sha256_hex(payload),
+        "signing": "STRUCTURAL-ONLY — no key on this surface; tamper-EVIDENT hash, not a signature",
+        "body": body,
+    }
+
+
+def wants_silhouette(src: Mapping[str, Any] | None) -> bool:
+    """True only when the caller opts into the fail-closed silhouette demo."""
+    flags = parse_flags(src)
+    if flags.get("silhouette"):
+        return True
+    return any(flags.get(name) for name in TAMPER_FLAGS)
+
+
+def anatomy_kwargs(src: Mapping[str, Any] | None) -> dict[str, Any]:
+    flags = parse_flags(src)
+    flags.pop("silhouette", None)
+    return flags
+
+
 def parse_flags(src: Mapping[str, Any] | None) -> dict[str, Any]:
     src = src or {}
 
@@ -430,6 +512,7 @@ def parse_flags(src: Mapping[str, Any] | None) -> dict[str, Any]:
         "fabricate_joule": flag("fabricate_joule"),
         "break_skeleton": flag("break_skeleton"),
         "willay_fire": flag("willay_fire"),
+        "silhouette": flag("silhouette"),
         "seed": seed_i,
     }
 
@@ -474,7 +557,17 @@ def selftest() -> dict[str, Any]:
     assert l["blocked"] is True
     assert l["organs"][0]["status"] == "DOWN"
 
-    return {"ok": True, "cases": 7, "healthy_head": healthy["chain_head"]}
+    unknown = unknown_bind()
+    assert unknown["decision"] == "UNKNOWN"
+    assert unknown["honesty"] == "UNKNOWN"
+    assert unknown["live"] is False
+    assert unknown["locked_8"] is False
+    assert unknown["admit"] is False
+    assert unknown["body"]["organs"] == []
+    assert wants_silhouette({}) is False
+    assert wants_silhouette({"silhouette": True}) is True
+
+    return {"ok": True, "cases": 8, "healthy_head": healthy["chain_head"]}
 
 
 def _json_bytes(obj: Any, status: int = 200) -> tuple[int, bytes, str]:
@@ -507,12 +600,21 @@ class Handler(BaseHTTPRequestHandler):
             self._send(*_json_bytes({"ok": True, "energy": "UNAVAILABLE", "proven_trust": False}))
             return
         if path in {
+            "/api/a11oy/v1/kernel/probe",
+            "/api/kernel/probe",
+            "/kernel/probe",
+        }:
+            self._send(*_json_bytes(unknown_bind("szl-kernel-probe")))
+            return
+        if path in {
             "/api/organs/integrity",
             "/api/a11oy/v1/organs/integrity",
             "/v1/organs/integrity",
         }:
-            flags = parse_flags(qs)
-            body = envelope(evaluate_anatomy(**flags))
+            if not wants_silhouette(qs):
+                self._send(*_json_bytes(unknown_bind("szl-organ-integrity")))
+                return
+            body = envelope(evaluate_anatomy(**anatomy_kwargs(qs)))
             self._send(*_json_bytes(body))
             return
         if path in {"/", "/index.html", "/organs/integrity"}:
@@ -524,11 +626,17 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/") or "/"
-        if path not in {
+        probe_paths = {
+            "/api/a11oy/v1/kernel/probe",
+            "/api/kernel/probe",
+            "/kernel/probe",
+        }
+        integrity_paths = {
             "/api/organs/integrity",
             "/api/a11oy/v1/organs/integrity",
             "/v1/organs/integrity",
-        }:
+        }
+        if path not in probe_paths | integrity_paths:
             self._send(*_json_bytes({"ok": False, "error": "not found"}, 404))
             return
         length = int(self.headers.get("Content-Length") or 0)
@@ -539,8 +647,12 @@ class Handler(BaseHTTPRequestHandler):
             data = {}
         if not isinstance(data, dict):
             data = {}
-        flags = parse_flags(data)
-        body = envelope(evaluate_anatomy(**flags))
+        if path in probe_paths or not wants_silhouette(data):
+            self._send(*_json_bytes(unknown_bind(
+                "szl-kernel-probe" if path in probe_paths else "szl-organ-integrity"
+            )))
+            return
+        body = envelope(evaluate_anatomy(**anatomy_kwargs(data)))
         self._send(*_json_bytes(body))
 
     def _send(self, status: int, raw: bytes, ctype: str) -> None:

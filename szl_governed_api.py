@@ -309,7 +309,8 @@ def _with_pb_reference(energy: dict) -> dict:
 
 def govern_infer(prompt: str, *, vertical: str = "general",
                  declared: str = "PUBLIC", severity: float = 0.0,
-                 effort: str | None = None) -> dict:
+                 effort: str | None = None, request_id: str | None = None,
+                 request_origin: str = "") -> dict:
     """The product. Governance-first, answer only if allowed, honest energy + receipt.
 
     `effort` (optional, e.g. "fast"/"frontier") is a tier hint: a "frontier"/T2 turn
@@ -332,12 +333,27 @@ def govern_infer(prompt: str, *, vertical: str = "general",
     cb = _conformal_blocks(g, prompt)
 
     # 2) MEASURE the turn — joules MEASURED only, outside the model call window edges.
-    j_before, ev_before = _meter_snapshot()
+    gateway_requested = effort == "szl-router"
+    j_before, ev_before = (None, {}) if gateway_requested else _meter_snapshot()
 
     answer = None
     gen_meta: dict = {}
     served_by = None
-    if decision == "allow":
+    if decision == "allow" and gateway_requested:
+        import szl_router_client
+        # The existing governance result supplies the sensitivity floor. The
+        # remote gateway cannot establish an air-gap, even if its provider says so.
+        sensitivity = (g.get("route") or {}).get("sensitivity", {}).get("class")
+        if not isinstance(declared, str) or declared.upper() not in {"PUBLIC", "INTERNAL"}:
+            sensitivity = None
+        gen_meta = szl_router_client.complete(
+            prompt, classification=sensitivity, request_id=request_id,
+            request_origin=request_origin,
+        )
+        answer = gen_meta.get("answer")
+        if gen_meta.get("state") in {"COMPLETED", "REFUSED"}:
+            served_by = "szl-router:" + gen_meta["receipt"]["provider_id"]
+    elif decision == "allow":
         eng = _pick_engine(effort)
         # Optional remote-provider fallback for a GLM/frontier turn: only when the
         # user explicitly requested frontier effort, the GLM engine is NOT live
@@ -381,7 +397,7 @@ def govern_infer(prompt: str, *, vertical: str = "general",
             finally:
                 _inflight_dec(eng["name"])
 
-    j_after, ev_after = _meter_snapshot()
+    j_after, ev_after = (None, {}) if gateway_requested else _meter_snapshot()
 
     # 3) Honest joule join. MEASURED requires:
     #    (a) the engine that SERVED has a fresh+live meter, AND
@@ -423,6 +439,14 @@ def govern_infer(prompt: str, *, vertical: str = "general",
                   "Receipt records the verdict.",
         "deny":   "A deny-by-default safety gate fired. No answer returned. Receipt records the denial.",
     }.get(decision, "Unrecognized decision.")
+    if gateway_requested and decision == "allow":
+        honesty = (
+            "Governance allowed this request. Gateway state: "
+            + gen_meta.get("state", "UNAVAILABLE")
+            + ". Gateway receipts provide unsigned SHA-256 integrity only; "
+            "source reads bind the configured revision, not model weights or "
+            "independently witnessed inference. Joules UNAVAILABLE."
+        )
 
     # ── UNIFIED LEDGER WIRE-UP ──────────────────────────────────────────────
     # After the DSSE/Khipu receipt is built, record THIS governed turn into the
@@ -603,15 +627,27 @@ def register(app, ns: str = "a11oy", *, public_pem: str | None = None):  # pragm
         prompt = (body or {}).get("prompt", "")
         if not prompt:
             return JSONResponse({"error": "missing 'prompt'"}, status_code=400)
-        return JSONResponse(govern_infer(
-            prompt,
+        kwargs = dict(
             vertical=body.get("vertical", "general"),
             declared=body.get("declared", "PUBLIC"),
             severity=float(body.get("severity", 0.0)),
             effort=body.get("effort"),
-        ))
+            request_id=request.headers.get("X-Request-ID"),
+            request_origin=str(request.base_url),
+        )
+        if body.get("effort") == "szl-router":
+            # Gateway HTTP is synchronous; keep the serving event loop available.
+            from starlette.concurrency import run_in_threadpool
+            result = await run_in_threadpool(govern_infer, prompt, **kwargs)
+        else:
+            result = govern_infer(prompt, **kwargs)
+        status = 200
+        if body.get("effort") == "szl-router" and result.get("decision") == "allow":
+            status = (result.get("generation") or {}).get("http_status", 503)
+        return JSONResponse(result, status_code=status)
 
     async def _health(request=None):
+        import szl_router_client
         jb, ev = _meter_snapshot()
         engines = []
         for e in MESH:
@@ -624,6 +660,7 @@ def register(app, ns: str = "a11oy", *, public_pem: str | None = None):  # pragm
         return JSONResponse({
             "product": "a11oy Governed Agent Change Management",
             "governance": _avf is not None and hasattr(_avf, "governed_turn"),
+            "router_gateway": szl_router_client.configuration_status(),
             "mesh": engines,
             "engines_live": sum(1 for e in engines if e["live"]),
             "engines_total": len(engines),
