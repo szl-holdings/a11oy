@@ -7,10 +7,13 @@ name: Estate release train
       - config/estate-release-train.v1.json
       - scripts/verify_estate_release_train.py
       - scripts/hf_public_inventory.py
+      - scripts/estate_repair_dispatch.py
       - tests/test_hf_public_inventory.py
       - tests/test_estate_pr_concurrency.py
       - tests/test_estate_release_train.py
+      - tests/test_estate_repair_dispatch.py
       - .github/workflows/estate-release-train.yml
+      - .github/workflows/hf-sync.yml
   workflow_run:
     workflows:
       - Sync and Relock Canonical Hugging Face Space
@@ -22,6 +25,11 @@ name: Estate release train
       repair:
         description: Dispatch the existing canonical HF and product-edge writers before final verification
         required: true
+        type: boolean
+        default: false
+      publish_vertical_flagships:
+        description: Forward an authorized complete vertical flagship plan to hf-sync. Default false. Incomplete or unapproved plans stay NOT_REQUESTED and never become whole-estate PASS.
+        required: false
         type: boolean
         default: false
 
@@ -69,7 +77,9 @@ jobs:
         run: |
           set -euo pipefail
           python -m py_compile scripts/verify_estate_release_train.py
+          python -m py_compile scripts/estate_repair_dispatch.py
           python tests/test_estate_release_train.py
+          python tests/test_estate_repair_dispatch.py
           python tests/test_hf_public_inventory.py
           python tests/test_estate_pr_concurrency.py
           python -m json.tool config/estate-release-train.v1.json >/dev/null
@@ -105,13 +115,33 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           EXPECTED_SHA: ${{ steps.initial.outputs.expected_sha }}
+          VERTICAL_REQUESTED: ${{ inputs.publish_vertical_flagships }}
         run: |
           set -euo pipefail
           current="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+          python scripts/estate_repair_dispatch.py \
+            --repair true \
+            --vertical-requested "${VERTICAL_REQUESTED:-false}" \
+            --expected-sha "$EXPECTED_SHA" \
+            --current-sha "$current" \
+            --repo "$GITHUB_REPOSITORY" \
+            --github-output "$GITHUB_OUTPUT" \
+            > "$RUNNER_TEMP/estate-repair-dispatch.json"
+          decision="$(python -c 'import json; print(json.load(open("'"$RUNNER_TEMP"'/estate-repair-dispatch.json"))["reason"])')"
+          echo "Repair planner reason: $decision"
           test "$current" = "$EXPECTED_SHA"
 
           gh workflow view hf-sync.yml --repo "$GITHUB_REPOSITORY" >/dev/null
-          gh workflow run hf-sync.yml --repo "$GITHUB_REPOSITORY" --ref main
+          if python -c 'import json; raise SystemExit(0 if json.load(open("'"$RUNNER_TEMP"'/estate-repair-dispatch.json"))["dispatch"] else 1)'; then
+            if python -c 'import json; raise SystemExit(0 if json.load(open("'"$RUNNER_TEMP"'/estate-repair-dispatch.json"))["vertical_flagships"] else 1)'; then
+              gh workflow run hf-sync.yml --repo "$GITHUB_REPOSITORY" --ref main \
+                -f publish_vertical_flagships=true
+            else
+              gh workflow run hf-sync.yml --repo "$GITHUB_REPOSITORY" --ref main
+            fi
+          else
+            echo "Canonical writer dispatch skipped: $decision"
+          fi
 
           if gh workflow view repair-cloudflare-product-edge.yml \
             --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
@@ -119,7 +149,7 @@ jobs:
               --repo "$GITHUB_REPOSITORY" --ref main
           fi
 
-          echo "Canonical writer dispatches accepted for exact main $EXPECTED_SHA."
+          echo "Canonical writer planning complete for exact main $EXPECTED_SHA."
 
       - name: Reobserve after an explicit repair dispatch
         if: >-
