@@ -19,7 +19,7 @@ on:
       - 'scripts/test_model_pretraining_browser.py'
       - 'scripts/verify_model_pretraining_live.py'
       - 'scripts/prepare_hf_inventory_refresh.py'
-      - 'tests/test_hf_inventory_refresh_branch.py'
+      - 'tests/test_hf_inventory_refresh*.py'
       - '.github/workflows/hf-ecosystem-drift.yml'
       - 'routers/data/hf-tooling-20260910.json'
       - 'routers/frontier_reads.py'
@@ -46,7 +46,7 @@ on:
       - 'scripts/test_model_pretraining_browser.py'
       - 'scripts/verify_model_pretraining_live.py'
       - 'scripts/prepare_hf_inventory_refresh.py'
-      - 'tests/test_hf_inventory_refresh_branch.py'
+      - 'tests/test_hf_inventory_refresh*.py'
       - '.github/workflows/hf-ecosystem-drift.yml'
       - 'routers/data/hf-tooling-20260910.json'
       - 'routers/frontier_reads.py'
@@ -92,7 +92,7 @@ jobs:
         run: |
           python scripts/build_model_pretraining_projection.py --check
           python -m unittest discover -s tests -p 'test_model_pretraining*.py' -v
-          python -m unittest discover -s tests -p 'test_hf_inventory_refresh_branch.py' -v
+          python -m unittest discover -s tests -p 'test_hf_inventory_refresh*.py' -v
           node --test tests/model-pretraining.test.mjs
       - name: Verify the canonical image already includes all new runtime files
         run: |

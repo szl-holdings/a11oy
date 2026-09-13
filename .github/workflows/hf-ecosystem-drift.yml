@@ -153,7 +153,7 @@ jobs:
       - name: Install the existing projection import closure
         run: python -m pip install 'fastapi==0.141.1' 'starlette==1.6.0'
       - name: Verify offline admission controls
-        run: python -B -m unittest discover -s tests -p 'test_hf_inventory_refresh_branch.py' -v
+        run: python -B -m unittest discover -s tests -p 'test_hf_inventory_refresh*.py' -v
       - name: Prepare a bounded source review branch from this collector run
         env:
           GH_TOKEN: ${{ github.token }}
