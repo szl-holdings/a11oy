@@ -11,7 +11,9 @@ on:
       - 'docs/huggingface-ecosystem-manifest.json'
       - 'a11oy_model_intel.py'
       - 'pages/model-pretraining.*'
-      - 'tests/test_model_pretraining.py'
+      - 'console/assets/szl-flow.*'
+      - 'console/assets/szl-spectral-v2.css'
+      - 'tests/test_model_pretraining*.py'
       - 'tests/model-pretraining.test.mjs'
       - 'scripts/build_model_pretraining_projection.py'
       - 'scripts/test_model_pretraining_browser.py'
@@ -32,7 +34,9 @@ on:
       - 'docs/huggingface-ecosystem-manifest.json'
       - 'a11oy_model_intel.py'
       - 'pages/model-pretraining.*'
-      - 'tests/test_model_pretraining.py'
+      - 'console/assets/szl-flow.*'
+      - 'console/assets/szl-spectral-v2.css'
+      - 'tests/test_model_pretraining*.py'
       - 'tests/model-pretraining.test.mjs'
       - 'scripts/build_model_pretraining_projection.py'
       - 'scripts/test_model_pretraining_browser.py'
@@ -74,7 +78,7 @@ jobs:
       - name: Check generated model projection, Python API and browser boundary
         run: |
           python scripts/build_model_pretraining_projection.py --check
-          python -m unittest discover -s tests -p 'test_model_pretraining.py' -v
+          python -m unittest discover -s tests -p 'test_model_pretraining*.py' -v
           node --test tests/model-pretraining.test.mjs
       - name: Verify the canonical image already includes all new runtime files
         run: |
