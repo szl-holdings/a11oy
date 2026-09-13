@@ -100,8 +100,10 @@ def run_bounded(
     journal("run_bounded_ok", argv=command[:6])
 
 
-def run_checked(command: list[str], *, cwd: Path | None = None) -> None:
-    run_bounded(command, cwd=cwd)
+def run_checked(
+    command: list[str], *, cwd: Path | None = None, timeout: int = DEFAULT_COMMAND_TIMEOUT_S,
+) -> None:
+    run_bounded(command, cwd=cwd, timeout=timeout)
 
 
 def checkout_exact_source(destination: Path) -> None:
