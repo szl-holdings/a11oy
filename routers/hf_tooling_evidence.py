@@ -211,8 +211,15 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
         owned = all(getattr(getattr(route, "endpoint", None), "__module__", None) == __name__
                     and getattr(route, "methods", set()) == {"GET", "HEAD"} for route in existing)
         if complete and owned:
+            from routers.model_pretraining import register as register_model_pretraining
+            register_model_pretraining(app)
             return {"ok": True, "state": "READ_ONLY", "alreadyRegistered": True, "effectors": []}
         raise RuntimeError("HF_TOOLING_ROUTE_COLLISION")
+
+    # The existing HF-tooling route group owns this read-only model subview.
+    # It derives from the existing manifest and catalog; it cannot start training.
+    from routers.model_pretraining import register as register_model_pretraining
+    register_model_pretraining(app)
 
     def send(request: Request, body: bytes, media_type: str, *, status: int = 200,
              headers: dict[str, str] | None = None) -> Response:
