@@ -6,6 +6,15 @@ on:
   pull_request:
     paths:
       - 'routers/hf_tooling_evidence.py'
+      - 'routers/model_pretraining.py'
+      - 'routers/data/model-pretraining-snapshot.json'
+      - 'docs/huggingface-ecosystem-manifest.json'
+      - 'a11oy_model_intel.py'
+      - 'pages/model-pretraining.*'
+      - 'tests/test_model_pretraining.py'
+      - 'tests/model-pretraining.test.mjs'
+      - 'scripts/build_model_pretraining_projection.py'
+      - 'scripts/test_model_pretraining_browser.py'
       - 'routers/data/hf-tooling-20260910.json'
       - 'routers/frontier_reads.py'
       - 'routers/frontier_now_web/index.html'
@@ -18,6 +27,15 @@ on:
     branches: [main]
     paths:
       - 'routers/hf_tooling_evidence.py'
+      - 'routers/model_pretraining.py'
+      - 'routers/data/model-pretraining-snapshot.json'
+      - 'docs/huggingface-ecosystem-manifest.json'
+      - 'a11oy_model_intel.py'
+      - 'pages/model-pretraining.*'
+      - 'tests/test_model_pretraining.py'
+      - 'tests/model-pretraining.test.mjs'
+      - 'scripts/build_model_pretraining_projection.py'
+      - 'scripts/test_model_pretraining_browser.py'
       - 'routers/data/hf-tooling-20260910.json'
       - 'routers/frontier_reads.py'
       - 'routers/frontier_now_web/index.html'
@@ -53,6 +71,11 @@ jobs:
           'uvicorn==0.52.4' 'playwright==1.62.0'
       - name: Verify archive, current-process metadata and production registration seam
         run: python -m unittest discover -s tests -p 'test_hf_tooling_evidence.py' -v
+      - name: Check generated model projection, Python API and browser boundary
+        run: |
+          python scripts/build_model_pretraining_projection.py --check
+          python -m unittest discover -s tests -p 'test_model_pretraining.py' -v
+          node --test tests/model-pretraining.test.mjs
       - name: Verify the canonical image already includes all new runtime files
         run: |
           python - <<'PY'
@@ -66,12 +89,16 @@ jobs:
       - name: Install the pinned test browser
         run: python -m playwright install --with-deps chromium
       - name: Exercise the real Python API and responsive view
-        run: python scripts/test_hf_tooling_browser.py
+        run: |
+          python scripts/test_hf_tooling_browser.py
+          python scripts/test_model_pretraining_browser.py
       - name: Retain browser evidence and viewport captures
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: hf-tooling-product-${{ github.run_id }}-${{ github.run_attempt }}
-          path: artifacts/hf-tooling-product/
+          path: |
+            artifacts/hf-tooling-product/
+            artifacts/model-pretraining/
           if-no-files-found: warn
           retention-days: 30
