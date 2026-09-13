@@ -340,6 +340,26 @@ def probe_source(origin: str, paths: Sequence[str]) -> dict[str, Any]:
     }
 
 
+def _is_provider_injected_script(src: str) -> bool:
+    """Identify only the known Cloudflare Web Analytics beacon injection.
+
+    The apex is served through Cloudflare, while the canonical Hugging Face Space
+    is not. Cloudflare may therefore append its own external analytics beacon to
+    otherwise byte-equivalent product HTML. That provider-owned script is not an
+    SZL product asset and must not create product/Space semantic drift. The
+    allowlist is deliberately narrow: any other external script remains part of
+    the semantic contract and will continue to fail parity.
+    """
+    parsed = urllib.parse.urlsplit(src)
+    return bool(
+        parsed.scheme == "https"
+        and parsed.netloc == "static.cloudflareinsights.com"
+        and parsed.path.startswith("/beacon.min.js/")
+        and not parsed.query
+        and not parsed.fragment
+    )
+
+
 class SemanticHTML(HTMLParser):
     """Collect stable public-experience markers instead of volatile page bytes."""
 
@@ -349,6 +369,7 @@ class SemanticHTML(HTMLParser):
         self.in_title = False
         self.markers: dict[str, str] = {}
         self.scripts: set[str] = set()
+        self.provider_scripts: set[str] = set()
         self.styles: set[str] = set()
         self.links: set[str] = set()
 
@@ -360,7 +381,11 @@ class SemanticHTML(HTMLParser):
             if key.startswith("data-szl-"):
                 self.markers[key] = value
         if tag == "script" and values.get("src"):
-            self.scripts.add(values["src"])
+            src = values["src"]
+            if _is_provider_injected_script(src):
+                self.provider_scripts.add(src)
+            else:
+                self.scripts.add(src)
         if tag == "link" and values.get("href"):
             rel = values.get("rel", "")
             if "stylesheet" in rel:
@@ -386,7 +411,11 @@ class SemanticHTML(HTMLParser):
             "styles": sorted(self.styles),
             "internal_links": sorted(self.links),
         }
-        return {**stable, "semantic_sha256": canonical_sha256(stable)}
+        return {
+            **stable,
+            "provider_scripts": sorted(self.provider_scripts),
+            "semantic_sha256": canonical_sha256(stable),
+        }
 
 
 def semantic_html(origin: str) -> dict[str, Any]:

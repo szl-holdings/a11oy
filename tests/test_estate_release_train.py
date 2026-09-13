@@ -62,6 +62,55 @@ class EstateReleaseTrainTests(unittest.TestCase):
             changed.result()["semantic_sha256"],
         )
 
+    def test_semantic_html_excludes_only_known_cloudflare_beacon(self) -> None:
+        baseline = release.SemanticHTML()
+        baseline.feed(
+            '<html data-szl-public-experience-v3="true"><head>'
+            '<title>A11oy</title><script src="/app.js"></script>'
+            '</head><body><a href="/trust">Trust</a></body></html>'
+        )
+        beacon = (
+            "https://static.cloudflareinsights.com/"
+            "beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495"
+        )
+        apex = release.SemanticHTML()
+        apex.feed(
+            '<html data-szl-public-experience-v3="true"><head>'
+            '<title>A11oy</title><script src="/app.js"></script>'
+            f'<script src="{beacon}"></script>'
+            '</head><body><a href="/trust">Trust</a></body></html>'
+        )
+        self.assertEqual(
+            baseline.result()["semantic_sha256"],
+            apex.result()["semantic_sha256"],
+        )
+        self.assertEqual(apex.result()["provider_scripts"], [beacon])
+        self.assertEqual(baseline.result()["provider_scripts"], [])
+
+        unknown_external = release.SemanticHTML()
+        unknown_external.feed(
+            '<html data-szl-public-experience-v3="true"><head>'
+            '<title>A11oy</title><script src="/app.js"></script>'
+            '<script src="https://example.com/beacon.min.js/v1"></script>'
+            '</head><body><a href="/trust">Trust</a></body></html>'
+        )
+        self.assertNotEqual(
+            baseline.result()["semantic_sha256"],
+            unknown_external.result()["semantic_sha256"],
+        )
+
+        cloudflare_other_path = release.SemanticHTML()
+        cloudflare_other_path.feed(
+            '<html data-szl-public-experience-v3="true"><head>'
+            '<title>A11oy</title><script src="/app.js"></script>'
+            '<script src="https://static.cloudflareinsights.com/other.js"></script>'
+            '</head><body><a href="/trust">Trust</a></body></html>'
+        )
+        self.assertNotEqual(
+            baseline.result()["semantic_sha256"],
+            cloudflare_other_path.result()["semantic_sha256"],
+        )
+
     def test_inspect_component_requires_source_running_root_and_exact_witness(self) -> None:
         sha = "c" * 40
         component = {
