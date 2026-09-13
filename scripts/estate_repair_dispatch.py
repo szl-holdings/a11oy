@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 from pathlib import Path
@@ -27,6 +28,7 @@ def _flag(value: Any) -> bool:
 
 SHA40 = re.compile(r"[0-9a-f]{40}")
 MAX_PLAN_BYTES = 65_535
+REPO_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9_.-]+")
 
 
 def _sha(value: Any) -> bool:
@@ -46,13 +48,25 @@ def _reject_constant(value: str) -> None:
     raise ValueError("non-JSON constant in plan")
 
 
+def _finite_float(text: str) -> float:
+    # parse_constant handles NaN/Infinity tokens, not valid JSON exponents
+    # that overflow Python's float, including values nested in extra fields.
+    value = float(text)
+    if not math.isfinite(value):
+        raise ValueError("non-finite plan number")
+    return value
+
+
 def parse_plan(text: str) -> dict[str, Any] | None:
     """Bounded operator input, never executable text or an approval signature."""
+    if not isinstance(text, str):
+        return None
     try:
         if len(text.encode("utf-8")) > MAX_PLAN_BYTES:
             return None
         value = json.loads(
-            text, object_pairs_hook=_unique_object, parse_constant=_reject_constant
+            text, object_pairs_hook=_unique_object, parse_constant=_reject_constant,
+            parse_float=_finite_float
         )
     except (ValueError, RecursionError):
         return None
@@ -157,6 +171,7 @@ def plan_repair_dispatch(
     ):
         return {
             "dispatch": True,
+            "expected_source_revision": expected_sha,
             "product_scope": True,
             "vertical_flagships": False,
             "vertical_state": "NOT_REQUESTED",
@@ -171,6 +186,7 @@ def plan_repair_dispatch(
     )
     return {
         "dispatch": True,
+        "expected_source_revision": expected_sha,
         "product_scope": True,
         "vertical_flagships": vertical_on,
         "vertical_state": "REQUESTED" if vertical_on else "NOT_REQUESTED",
@@ -181,9 +197,41 @@ def plan_repair_dispatch(
 
 
 def hf_sync_command(decision: Mapping[str, Any], *, repo: str) -> list[str] | None:
-    """Exact gh invocation. Missing dispatch yields None, not a guessed write."""
-    if decision.get("dispatch") is not True:
+    """Revalidate the decision before constructing fixed, data-only gh argv.
+
+    This is consistency checking, not approval authentication. The downstream
+    exact-main and source-plan gates remain authoritative for vertical writes.
+    In particular, a substituted plan must not validate against its own SHA.
+    """
+    if not isinstance(decision, Mapping) or decision.get("dispatch") is not True:
         return None
+    revision = decision.get("expected_source_revision")
+    vertical = decision.get("vertical_flagships")
+    reason = decision.get("reason")
+    if (
+        not _sha(revision)
+        or decision.get("product_scope") is not True
+        or type(vertical) is not bool
+        or decision.get("production_authorization") is not False
+        or decision.get("vertical_state") != ("REQUESTED" if vertical else "NOT_REQUESTED")
+        or not isinstance(reason, str)
+        or reason not in (
+            {"PRODUCT_AND_VERTICAL"} if vertical else
+            {"PRODUCT_ONLY", "VERTICAL_PLAN_INCOMPLETE_OR_UNAPPROVED"}
+        )
+    ):
+        raise ValueError("incomplete or contradictory dispatch decision")
+    # gh accepts host/URL repository forms. This public-GitHub controller does
+    # not: never let supplied data select another credential destination.
+    if (
+        not isinstance(repo, str)
+        or REPO_NAME.fullmatch(repo) is None
+        or repo.split("/", 1)[1] in {".", ".."}
+    ):
+        raise ValueError("dispatch repository must be canonical owner/name")
+    plan = decision.get("approved_plan")
+    if not vertical and plan is not None:
+        raise ValueError("product-only decision must not carry a vertical plan")
     command = [
         "gh",
         "workflow",
@@ -194,14 +242,18 @@ def hf_sync_command(decision: Mapping[str, Any], *, repo: str) -> list[str] | No
         "--ref",
         "main",
     ]
-    if decision.get("vertical_flagships") is True:
-        plan = decision.get("approved_plan")
-        revision = plan.get("expected_source_revision") if isinstance(plan, Mapping) else None
+    if vertical:
         if not plan_is_complete_and_approved(plan, expected_sha=revision):
             raise ValueError("vertical command requires the admitted source-bound plan")
+        # Project again at this boundary, even for callers other than the
+        # planner. Never serialize arbitrary operator notes into argv/logs.
+        public_plan = {
+            "complete": True, "approved": True,
+            "expected_source_revision": revision,
+        }
         command.extend([
             "-f", "publish_vertical_flagships=true",
-            "-f", "vertical_plan_json=" + json.dumps(plan, sort_keys=True),
+            "-f", "vertical_plan_json=" + json.dumps(public_plan, sort_keys=True),
         ])
     return command
 
