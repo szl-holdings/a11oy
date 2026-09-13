@@ -109,7 +109,7 @@ FOLD_SPACES: list[dict[str, str]] = [
      "why": "Hologram sprawl. One atlas. Fold into anatomy."},
     {"name": "cosmos", "slug": "cosmos", "title": "SZL Cosmos", "sdk": "docker",
      "action": "FOLD", "sink": "product", "dest": PRODUCT + "/living-anatomy",
-     "why": "Unmapped RUNNING Space. Bind as anatomy, not a third map."},
+     "why": "Plan: bind as anatomy, not a third map. Provider runtime is not observed here."},
     {"name": "khipu-lab", "slug": "khipu-lab", "title": "khipu-lab", "sdk": "docker",
      "action": "FOLD", "sink": "product", "dest": PRODUCT + "/khipu",
      "why": "Duplicate knot lab. KHIPU already lives on product /khipu. RECORD on a11oy.net/khipu/."},
@@ -183,7 +183,7 @@ FOLD_SPACES: list[dict[str, str]] = [
     {"name": "szl-estate-live", "slug": "szl-estate-live", "title": "Khipu Loom — Governed AI Estate", "sdk": "static",
      "action": "FOLD", "sink": "proof", "dest": PROOF + "/estate/",
      "why": "Estate snapshot already exists on the proof origin."},
-    {"name": "szl-forge-lab", "slug": "szl-forge-lab", "title": "SZL Forge Lab", "sdk": "static",
+    {"name": "szl-forge-lab", "slug": "szl-forge-lab", "title": "SZL Forge Lab — forty-model walk", "sdk": "static",
      "action": "FOLD", "sink": "proof", "dest": PROOF + "/atelier/",
      "honesty": "SNAPSHOT — not a trainer, not Serve Studio",
      "why": "Cuts belong next to the forty-model walk, not as a sibling Space."},
@@ -196,14 +196,14 @@ FOLD_SPACES: list[dict[str, str]] = [
     {"name": "david-leads", "slug": "david-leads", "title": "David Leads — Sovereign Insurance Intelligence", "sdk": "docker",
      "action": "FOLD", "sink": "product", "dest": PRODUCT,
      "honesty": "PII/leads stay private",
-     "why": "Insurance vertical is not a flagship. Hub Space is PAUSED+PRIVATE. pause+private, never delete."},
+     "why": "Insurance vertical is not a flagship. Planned disposition: pause and make private, never delete. Provider state is not observed here."},
     {"name": "anatomy", "slug": "anatomy", "title": "SZL Living Anatomy", "sdk": "docker",
      "action": "FOLD", "sink": "product", "dest": PRODUCT + "/anatomy-v5",
-     "why": "Living map already on product /anatomy-v5 and /living-anatomy. Hub Space re-privatized. Not a second origin."},
+     "why": "Plan: use product /anatomy-v5 and /living-anatomy, not a second origin. Provider visibility is not observed here."},
     {"name": "szl-real-estate", "slug": "szl-real-estate", "title": "SZL Real Estate — public-records underwriting", "sdk": "docker",
      "action": "FOLD", "sink": "product", "dest": PRODUCT,
      "honesty": "Occupancy UNAVAILABLE",
-     "why": "Public-records underwriting is not a flagship. Occupancy stays UNAVAILABLE. Hub Space PAUSED+PRIVATE."},
+     "why": "Public-records underwriting is not a flagship. Occupancy stays UNAVAILABLE. Planned disposition: pause and make private; provider state is not observed here."},
     {"name": "sentra", "slug": "sentra", "title": "sentra", "sdk": "docker",
      "action": "FOLD", "sink": "vertical-services", "dest": PRODUCT + "/spaces#verticals",
      "why": "SENTRA is a vertical, not a flagship. Folds into vertical-services."},
@@ -793,11 +793,20 @@ async def spaces_health() -> dict[str, Any]:
 
 
 def _destination_ledger_card(sp: dict[str, str], kind: str) -> str:
-    """Render a FOLD/UNIFY destination-ledger card. No live Hub probe, no RUNNING."""
+    """Render a consolidation PLAN; this function has no provider observation.
+
+    A declared FOLD/UNIFY action is not a successful mutation. Keep destination
+    navigation usable without implying that a Space is private, paused or live.
+    Scope notes cannot suppress the explicit unobserved-provider label.
+    """
+    if kind not in {"FOLD", "UNIFY"}:
+        raise ValueError("destination ledger kind must be FOLD or UNIFY")
     name = sp["name"]
     title = html_escape(sp["title"])
     dest = html_escape(sp["dest"], quote=True)
-    honesty = html_escape(sp.get("honesty") or ("%s · PAUSED · PRIVATE" % kind))
+    honesty = html_escape("%s · PLANNED · provider state UNOBSERVED" % kind)
+    if sp.get("honesty"):
+        honesty += " · Scope note: " + html_escape(sp["honesty"])
     why = html_escape(sp.get("why") or "")
     sink = html_escape(sp.get("sink") or "")
     attr = "data-fold" if kind == "FOLD" else "data-unify"
@@ -806,10 +815,10 @@ def _destination_ledger_card(sp: dict[str, str], kind: str) -> str:
         '<header class="sp-head"><h2 class="sp-title">%s</h2></header>'
         '<div class="sp-kind">%s &middot; %s &middot; %s &rarr; %s</div>'
         '<div class="sp-honesty">%s</div>'
-        '<div class="sp-stage">%s</div>'
+        '<div class="sp-stage">Plan rationale: %s</div>'
         '<div class="sp-links">'
         '<a class="sp-open" href="%s" rel="noopener">Open destination &#8599;</a>'
-        '<a class="sp-hf" href="%s" rel="noopener" target="_blank">Hub (private) &#8599;</a>'
+        '<a class="sp-hf" href="%s" rel="noopener" target="_blank">View Hub repository &#8599;</a>'
         '</div></article>'
         % (attr, html_escape(name, quote=True), title, html_escape(name),
            html_escape(sp["sdk"]), kind, sink, honesty, why, dest, hf_repo_url(name))
@@ -839,7 +848,7 @@ def unify_ledger() -> dict[str, Any]:
         "doctrine": _DOCTRINE,
         "note": (
             "Product tab on a-11-oy.com. GitHub is source. Hub is the registry. "
-            "a11oy.net is RECORD. Never LIVE/RUNNING/PASS. pause+private, never delete. "
+            "a11oy.net is RECORD. Never LIVE/RUNNING/PASS. This is a consolidation plan, not a provider observation. Planned disposition: pause+private, never delete. "
             "Do not create Space SZLHOLDINGS/unify."
         ),
     }
@@ -891,7 +900,7 @@ def _unify_page(ns: str = "a11oy") -> bytes:
         ' &middot; winner=null &middot; proven_trust=false</p>'
         '<p class="sp-sub"><strong>Product tab on a-11-oy.com.</strong> GitHub is source. '
         'Hub is the registry. a11oy.net is RECORD. Never LIVE/RUNNING/PASS. '
-        'pause+private, never delete. Do not create Space SZLHOLDINGS/unify.</p>'
+        'Planned disposition: pause+private, never delete. Provider state UNOBSERVED. Do not create Space SZLHOLDINGS/unify.</p>'
         '<p class="sp-nav">Nav: <a href="/lyte">/lyte</a> &middot; '
         '<a href="/spaces">/spaces</a> &middot; <a href="/console">/console</a></p>'
         '<h2>KEEP</h2>'
@@ -903,7 +912,7 @@ def _unify_page(ns: str = "a11oy") -> bytes:
         + _rows(ledger["fold"], "into") +
         '</tbody></table>'
         '<h2>UNIFY stragglers</h2>'
-        '<p class="sp-sub">Four Spaces sink into a11oy /console. Destination ledger only. '
+        '<p class="sp-sub">Four Spaces are planned to fold into a11oy /console. Destination ledger only. '
         'Not live-probed. Not a fifth door.</p>'
         '<table><thead><tr><th>slug</th><th>act</th><th>into</th></tr></thead><tbody>'
         + _rows(ledger["unify"], "into") +
@@ -1007,14 +1016,14 @@ def _tiles_page(ns: str) -> bytes:
         '<p class="sp-health">Estate health: '
         '<strong id="sp-estate-health" class="checking" aria-live="polite">CHECKING</strong></p>'
         '<div class="sp-grid">' + "".join(cards) + '</div>'
-        '<h2 class="sp-h2" id="verticals">Folded · PAUSED + PRIVATE</h2>'
-        f'<p class="sp-sub">{len(FOLD_SPACES)} Spaces folded into product and proof destinations. '
-        'Not public Hub. Reachability of a destination is never quality. '
+        '<h2 class="sp-h2" id="verticals">Fold plan · provider state UNOBSERVED</h2>'
+        f'<p class="sp-sub">{len(FOLD_SPACES)} planned folds into product and proof destinations. '
+        'Current Hub visibility and runtime are not observed by this ledger. Reachability of a destination is never quality. '
         'sentra, finance, terra fold into vertical-services. '
         'second-brain is ARCHIVE / HISTORICAL.</p>'
         '<div class="sp-grid">' + "".join(fold_cards) + '</div>'
         '<h2 class="sp-h2">Unify stragglers &rarr; a11oy</h2>'
-        f'<p class="sp-sub">{len(UNIFY_SPACES)} Spaces sink into <a href="/unify">/unify</a> '
+        f'<p class="sp-sub">{len(UNIFY_SPACES)} Spaces are planned to fold into <a href="/unify">/unify</a> '
         'and a11oy /console. Destination ledger only. Not live-probed.</p>'
         '<div class="sp-grid">' + "".join(unify_cards) + '</div>'
         '<p class="sp-foot">Status dot & stage on KEEP tiles are filled from the same-origin '
