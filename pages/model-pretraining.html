@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>Model preparation · A11oy</title>
+<meta name="description" content="Source-first model preparation. Inspect the recorded Hub inventory and unresolved checks before training.">
+<link rel="stylesheet" href="/frontier-tooling/models/assets/view.css">
+<script type="module" src="/frontier-tooling/models/assets/view.js"></script>
+</head>
+<body>
+<a class="skip" href="#workspace">Skip to model inventory</a>
+<header><a href="/">A11oy</a><nav aria-label="Product"><a href="/atelier">Atelier</a><a href="/frontier-tooling">Tooling evidence</a></nav></header>
+<main id="workspace">
+<p class="eyebrow">GitHub → Hugging Face → product → proof</p>
+<h1>Source before training.</h1>
+<p class="lede">One recorded inventory. Different artifact types. No training or model loading from this view.</p>
+<div class="metrics" aria-label="Inventory overview"><div><span>Recorded model-type entries</span><strong id="total">—</strong></div><div><span>Declared source pointers</span><strong id="sources">—</strong></div><div><span>Training authority</span><strong>None</strong></div></div>
+<p id="status" role="status" aria-live="polite">Loading the packaged public inventory…</p>
+<section class="toolbar" aria-label="Filter inventory"><label>Find an artifact<input id="search" type="search" maxlength="256" placeholder="ReceiptAgent, Khipu, kernel…" disabled></label><label>Inspection category<select id="category" disabled><option value="ALL">All categories</option></select></label><button id="reload" type="button">Reload snapshot</button></section>
+<p id="shown" class="muted" aria-live="polite"></p>
+<div id="models" class="cards" aria-label="Model records"></div>
+<details id="evidence"><summary>Inventory scope and known bounds</summary><dl><dt>Snapshot observed</dt><dd id="observed">Unavailable</dd><dt>Source manifest SHA-256 · build-derived</dt><dd id="manifest-hash">Unavailable</dd><dt>Product source reported</dt><dd id="product-source">Unavailable</dd></dl><ul id="bounds"></ul><p class="muted">The source digest is recorded by the build; the full manifest is not re-hashed by each request. Hashes identify content; they are not signatures or evidence that model weights were evaluated. Metadata categories are inspection hints. This view does not certify GitHub–Hub parity.</p></details>
+</main><footer>Read-only model preparation · Existing model, training and publication controls remain authoritative.</footer>
+</body></html>
