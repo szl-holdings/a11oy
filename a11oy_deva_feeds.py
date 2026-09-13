@@ -673,7 +673,6 @@ def feed_openrouter_models(limit: int = 24) -> dict[str, Any]:
     return _cached_fetch(_variant_cache_key("openrouter_models", limit=limit),
                          url, ttl=900, parser=parse)
 
-
 def feed_arxiv_frontier(limit: int = 24) -> dict[str, Any]:
     limit = _bounded_limit(limit, 24, 100)
     """FRONTIER — live arXiv AI research feed (keyless Atom API).
