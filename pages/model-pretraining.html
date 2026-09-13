@@ -7,6 +7,7 @@
 <meta name="description" content="Source-first model preparation. Inspect the recorded Hub inventory and unresolved checks before training.">
 <link rel="stylesheet" href="/frontier-tooling/models/assets/view.css">
 <script type="module" src="/frontier-tooling/models/assets/view.js"></script>
+  <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
 </head>
 <body>
 <a class="skip" href="#workspace">Skip to model inventory</a>
@@ -22,4 +23,5 @@
 <div id="models" class="cards" aria-label="Model records"></div>
 <details id="evidence"><summary>Inventory scope and known bounds</summary><dl><dt>Snapshot observed</dt><dd id="observed">Unavailable</dd><dt>Source manifest SHA-256 · build-derived</dt><dd id="manifest-hash">Unavailable</dd><dt>Product source reported</dt><dd id="product-source">Unavailable</dd></dl><ul id="bounds"></ul><p class="muted">The source digest is recorded by the build; the full manifest is not re-hashed by each request. Hashes identify content; they are not signatures or evidence that model weights were evaluated. Metadata categories are inspection hints. This view does not certify GitHub–Hub parity.</p></details>
 </main><footer>Read-only model preparation · Existing model, training and publication controls remain authoritative.</footer>
+  <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
 </body></html>

@@ -16,6 +16,7 @@ import time
 
 import uvicorn
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from playwright.sync_api import expect, sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -37,6 +38,8 @@ def main() -> None:
     expected = len(view.parse_manifest(snapshot)['inventory']['models'])
     app = FastAPI()
     tooling.register(app)
+    # Match the existing image/serve asset mount; do not copy or mock the shell.
+    app.mount("/assets", StaticFiles(directory=ROOT / "console" / "assets"), name="assets")
     listener = socket.socket()
     listener.bind(('127.0.0.1', 0)); listener.listen(128)
     port = listener.getsockname()[1]
@@ -62,7 +65,22 @@ def main() -> None:
                                                   reduced_motion='reduce')
                     page = context.new_page()
                     page.on('pageerror', lambda error: errors.append(str(error)))
+                    assets = {}
+                    page.on('response', lambda response, assets=assets: assets.update(
+                        {response.url.split('/')[-1]: response.status})
+                        if '/assets/szl-' in response.url else None)
                     page.goto(f'http://127.0.0.1:{port}/frontier-tooling/models')
+                    expect(page.locator('.szl-flow-rail')).to_be_visible()
+                    check(all(assets.get(name) == 200 for name in
+                        ('szl-flow.js', 'szl-flow.css', 'szl-spectral-v2.css')),
+                        'Existing flow-shell assets did not load')
+                    check(page.locator('.szl-flow-link').count() == 5, 'Journey links missing')
+                    if width <= 820:
+                        toggle = page.get_by_role('button', name='Open journey navigation')
+                        toggle.focus(); page.keyboard.press('Enter')
+                        expect(toggle).to_have_attribute('aria-expanded', 'true')
+                        page.keyboard.press('Escape')
+                        expect(toggle).to_have_attribute('aria-expanded', 'false')
                     expect(page.locator('#total')).to_have_text(str(expected))
                     expect(page.locator('#models .card')).to_have_count(expected)
                     expect(page.locator('#status')).to_contain_text('alignment is not certified')
@@ -98,7 +116,8 @@ def main() -> None:
                     observations.append({'width':width,'height':height,'recordedEntries':expected,
                         'realPythonProjection':True,'keyboardDetails':True,'searchAndCategory':True,
                         'failedRefreshClearsRows':True,'horizontalOverflow':False,
-                        'reducedMotionMode':True,'forcedColorsLayout':True})
+                        'reducedMotionMode':True,'forcedColorsLayout':True,
+                        'sharedFlowShell':True,'sharedAssetStatus':assets})
                     context.close()
                 browser_version = browser.version
             finally:
@@ -111,7 +130,9 @@ def main() -> None:
                   'observations':observations,'pageErrors':errors,
                   'fileSha256':{name:hashlib.sha256((ROOT/name).read_bytes()).hexdigest() for name in (
                       'routers/hf_tooling_evidence.py','routers/model_pretraining.py',
-                      'pages/model-pretraining.html','pages/model-pretraining.css','pages/model-pretraining.js')}}
+                      'pages/model-pretraining.html','pages/model-pretraining.css','pages/model-pretraining.js',
+                      'console/assets/szl-flow.js','console/assets/szl-flow.css',
+                      'console/assets/szl-spectral-v2.css')}}
         (output/'browser-report.json').write_text(json.dumps(report,indent=2)+'\n')
         print(json.dumps(report,sort_keys=True))
     finally:
