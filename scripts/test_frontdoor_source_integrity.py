@@ -719,46 +719,88 @@ class IntegrityGuardSelfTest(unittest.TestCase):
                 (root / validator.WORKFLOW_PATH).write_text(workflow, encoding="utf-8")
                 self.assertNotEqual(validator.validate(root), [])
 
+    def test_current_workflow_protected_base_matches_reviewed_action_pin(self) -> None:
+        # Exercise the actual committed workflow, not just the copied fixture.
+        # The lifecycle validator separately owns the post-deployment job.
+        workflow = (HERE.parent / validator.WORKFLOW_PATH).read_text(encoding="utf-8")
+        self.assertIn("lifecycle: post-deployment-repository-parity/v1", workflow)
+        self.assertEqual(validator._validate_parity_jobs(workflow), [])
 
+    def test_both_current_jobs_keep_the_exact_reviewed_hardener(self) -> None:
+        expected = "step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1"
+        self.assertEqual(validator.HARDEN_RUNNER_ACTION, expected)
+        workflow = (HERE.parent / validator.WORKFLOW_PATH).read_text(encoding="utf-8")
+        for job_name in (validator.BASELINE_JOB, validator.CANDIDATE_JOB):
+            with self.subTest(job=job_name):
+                block = validator._job_block(workflow, job_name)
+                self.assertIsNotNone(block)
+                steps = validator._step_blocks(block)
+                self.assertEqual(len(steps), 6)
+                self.assertEqual(validator._step_level_values(steps[0], "uses"), [expected])
+                self.assertEqual(validator._nested_mapping(steps[0], "with"), {"egress-policy": "audit"})
 
-class CommittedHardenRunnerPinTests(unittest.TestCase):
-    """Bind fixture coverage to the admitted workflow, never infer its expected pin."""
-
-    def test_independent_expected_hardener_is_exact(self) -> None:
-        self.assertEqual(
-            validator.HARDEN_RUNNER_ACTION,
-            "step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1",
+    def test_unreviewed_or_mutable_runner_identity_is_rejected(self) -> None:
+        approved = "step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1"
+        replacements = (
+            "step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920",
+            "step-security/harden-runner@v2",
+            "step-security/harden-runner@v2.21.1",
+            "step-security/harden-runner@main",
+            "step-security/harden-runner@" + "0" * 40,
+            "attacker/harden-runner@e14015d583714f6e62063499dc959a02595150a1",
         )
+        self.assertEqual(VALID_WORKFLOW.count(approved), 2)
+        for replacement in replacements:
+            for occurrence in (0, 1):
+                with self.subTest(identity=replacement, occurrence=occurrence):
+                    parts = VALID_WORKFLOW.split(approved)
+                    workflow = (
+                        parts[0] + (replacement if occurrence == 0 else approved)
+                        + parts[1] + (replacement if occurrence == 1 else approved)
+                        + parts[2]
+                    )
+                    self.assertEqual(workflow.count(approved), 1)
+                    temp, root = self.make_fixture()
+                    with temp:
+                        (root / validator.WORKFLOW_PATH).write_text(workflow, encoding="utf-8")
+                        errors = validator.validate(root)
+                        label = "protected-base" if occurrence == 0 else "candidate"
+                        self.assertIn(f"{label} step 1 uses is not canonical", errors)
 
-    def test_actual_checked_in_source_passes_integrity(self) -> None:
-        self.assertEqual(validator.validate(HERE.parent), [])
-
-    def _reject_hardener(self, replacement: str, count: int = -1) -> None:
-        temp, root = IntegrityGuardSelfTest().make_fixture()
+    def test_missing_hardener_cannot_be_replaced_by_a_comment(self) -> None:
+        step = (
+            "      - name: Harden runner\n"
+            "        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1\n"
+            "        with:\n"
+            "          egress-policy: audit\n"
+        )
+        self.assertEqual(VALID_WORKFLOW.count(step), 2)
+        temp, root = self.make_fixture()
         with temp:
-            approved = "step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1"
-            self.assertEqual(VALID_WORKFLOW.count(approved), 2)
-            changed = VALID_WORKFLOW.replace(approved, replacement, count)
-            self.assertNotEqual(changed, VALID_WORKFLOW)
-            (root / validator.WORKFLOW_PATH).write_text(changed, encoding="utf-8")
-            self.assertTrue(validator.validate(root))
+            workflow = VALID_WORKFLOW.replace(step, "# " + step.replace("\n", "\n# ") + "\n", 1)
+            (root / validator.WORKFLOW_PATH).write_text(workflow, encoding="utf-8")
+            self.assertIn("protected-base job must contain only the six canonical proof steps", validator.validate(root))
 
-    def test_retired_hardener_is_rejected(self) -> None:
-        self._reject_hardener(
-            "step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920"
-        )
+    def test_extra_hardener_is_not_an_accepted_seventh_step(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            workflow = VALID_WORKFLOW.replace(
+                "    steps:\n",
+                "    steps:\n      - name: Extra hardener\n"
+                "        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1\n",
+                1,
+            )
+            (root / validator.WORKFLOW_PATH).write_text(workflow, encoding="utf-8")
+            self.assertIn("protected-base job must contain only the six canonical proof steps", validator.validate(root))
 
-    def test_mixed_job_hardener_is_rejected(self) -> None:
-        self._reject_hardener(
-            "step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920", 1
-        )
-
-    def test_other_full_revision_is_rejected(self) -> None:
-        self._reject_hardener("step-security/harden-runner@" + "0" * 40)
-
-    def test_moving_version_tag_is_rejected(self) -> None:
-        self._reject_hardener("step-security/harden-runner@v2.21.1")
-
+    def test_rollforward_does_not_allow_extra_hardener_inputs(self) -> None:
+        for setting in ("disable-telemetry: true", "disable-sudo: true", "egress-policy: block"):
+            with self.subTest(setting=setting):
+                temp, root = self.make_fixture()
+                with temp:
+                    workflow = VALID_WORKFLOW.replace("          egress-policy: audit\n", "          egress-policy: audit\n          " + setting + "\n", 1)
+                    (root / validator.WORKFLOW_PATH).write_text(workflow, encoding="utf-8")
+                    self.assertIn("protected-base step 1 with inputs are not canonical", validator.validate(root))
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
