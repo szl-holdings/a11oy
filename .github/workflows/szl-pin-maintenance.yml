@@ -1,0 +1,209 @@
+name: Scoped source pin maintenance
+on:
+  push:
+    branches: [szl/hf-integrity-pin-e14015d-20260914]
+    paths: [.github/workflows/szl-pin-maintenance.yml]
+permissions:
+  contents: read
+jobs:
+  prepare:
+    if: github.repository == 'szl-holdings/a11oy' && github.ref == 'refs/heads/szl/hf-integrity-pin-e14015d-20260914' && github.run_attempt == '1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1
+        with:
+          egress-policy: audit
+      - name: Checkout branch source without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+      - name: Exact baseline edits and real source tests
+        shell: bash
+        run: |
+          python - <<'PY'
+          import ast
+          import hashlib
+          import importlib.util
+          import json
+          from pathlib import Path
+          import subprocess
+          import sys
+          
+          BASE = '7bb46fd93da77431bd31b7d35b0b341fe240d2e4'
+          OLD = 'bf7454d06d71f1098171f2acdf0cd4708d7b5920'
+          NEW = 'e14015d583714f6e62063499dc959a02595150a1'
+          PINS = {
+              'scripts/validate_frontdoor_source_integrity.py': '19ca18bb30b054421c9efe1b311233ef065d929d',
+              'scripts/test_frontdoor_source_integrity.py': 'a72e06f3b60f3a057bd7fcd46460a05e58ebf6f2',
+              '.github/workflows/hf-module-drift.yml': '8990589171bf702a9df291f28de64ddd1b7f32c3',
+          }
+          OUT = Path('pin-repair-evidence')
+          
+          def require(value, message):
+              if not value:
+                  raise RuntimeError(message)
+          
+          def git(*args):
+              return subprocess.check_output(['git', *args], text=True).strip()
+          
+          def blob(raw):
+              return hashlib.sha1(b'blob ' + str(len(raw)).encode() + b'\0' + raw).hexdigest()
+          
+          require(git('rev-parse', 'HEAD^') == BASE, 'maintenance parent changed')
+          require(git('diff', '--name-only', 'HEAD^', 'HEAD') == '.github/workflows/szl-pin-maintenance.yml', 'unexpected seed diff')
+          OUT.mkdir()
+          raw = {}
+          for path, expected in PINS.items():
+              value = Path(path).read_bytes()
+              require(blob(value) == expected, 'baseline blob mismatch: ' + path)
+              raw[path] = value
+          
+          # Preserve the actual predecessor failure before changing its independent pin.
+          spec = importlib.util.spec_from_file_location('before_guard', 'scripts/validate_frontdoor_source_integrity.py')
+          require(spec is not None and spec.loader is not None, 'validator import unavailable')
+          guard = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(guard)
+          before = guard.validate(Path.cwd())
+          (OUT / 'before.json').write_text(json.dumps({'base': BASE, 'errors': before}, indent=2) + '\n')
+          require(bool(before), 'expected checked-in integrity regression is no longer present')
+          
+          addition = '''\n\nclass CommittedHardenRunnerPinTests(unittest.TestCase):
+              """Bind fixture coverage to the admitted workflow, never infer its expected pin."""
+          
+              def test_independent_expected_hardener_is_exact(self) -> None:
+                  self.assertEqual(
+                      validator.HARDEN_RUNNER_ACTION,
+                      "step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1",
+                  )
+          
+              def test_actual_checked_in_source_passes_integrity(self) -> None:
+                  self.assertEqual(validator.validate(HERE.parent), [])
+          
+              def _reject_hardener(self, replacement: str, count: int = -1) -> None:
+                  temp, root = IntegrityGuardSelfTest().make_fixture()
+                  with temp:
+                      approved = "step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1"
+                      self.assertEqual(VALID_WORKFLOW.count(approved), 2)
+                      changed = VALID_WORKFLOW.replace(approved, replacement, count)
+                      self.assertNotEqual(changed, VALID_WORKFLOW)
+                      (root / validator.WORKFLOW_PATH).write_text(changed, encoding="utf-8")
+                      self.assertTrue(validator.validate(root))
+          
+              def test_retired_hardener_is_rejected(self) -> None:
+                  self._reject_hardener(
+                      "step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920"
+                  )
+          
+              def test_mixed_job_hardener_is_rejected(self) -> None:
+                  self._reject_hardener(
+                      "step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920", 1
+                  )
+          
+              def test_other_full_revision_is_rejected(self) -> None:
+                  self._reject_hardener("step-security/harden-runner@" + "0" * 40)
+          
+              def test_moving_version_tag_is_rejected(self) -> None:
+                  self._reject_hardener("step-security/harden-runner@v2.21.1")
+          '''
+          
+          for path, count in [(list(PINS)[0], 1), (list(PINS)[1], 2)]:
+              text = raw[path].decode('utf-8')
+              require(text.count(OLD) == count, 'unexpected pin occurrences: ' + path)
+              changed = text.replace(OLD, NEW)
+              if path.endswith('test_frontdoor_source_integrity.py'):
+                  marker = 'if __name__ == "__main__":'
+                  require(changed.count(marker) == 1, 'test entrypoint changed')
+                  changed = changed.replace(marker, addition + '\n\n' + marker, 1)
+              ast.parse(changed)
+              Path(path).write_bytes(changed.encode('utf-8'))
+          
+          # Exercise the real source and all retained self-tests, including the six new tests.
+          for mode, flags in [('normal', []), ('optimized', ['-O'])]:
+              command = [sys.executable, *flags, 'scripts/test_frontdoor_source_integrity.py', '-v']
+              result = subprocess.run(command, capture_output=True, text=True, timeout=90)
+              (OUT / (mode + '.log')).write_text(result.stdout + result.stderr, encoding='utf-8')
+              require(result.returncode == 0, mode + ' regression suite failed; evidence retained')
+          result = subprocess.run([sys.executable, 'scripts/validate_frontdoor_source_integrity.py'], capture_output=True, text=True, timeout=30)
+          (OUT / 'actual-source.log').write_text(result.stdout + result.stderr, encoding='utf-8')
+          require(result.returncode == 0, 'actual committed-source integrity remains broken')
+          subprocess.run(['git', 'diff', '--check'], check=True)
+          changed_paths = git('diff', '--name-only').splitlines()
+          require(set(changed_paths) == set(list(PINS)[:2]), 'unexpected edited path')
+          require(Path('.github/workflows/hf-module-drift.yml').read_bytes() == raw['.github/workflows/hf-module-drift.yml'], 'runtime workflow altered')
+          manifest = {'base': BASE, 'maintenance_head': git('rev-parse', 'HEAD'), 'status': 'SOURCE_TESTS_PASSED_NOT_ADMITTED', 'files': {}}
+          for path in changed_paths:
+              contents = Path(path).read_bytes()
+              destination = OUT / path
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              destination.write_bytes(contents)
+              manifest['files'][path] = {'blob': blob(contents), 'sha256': hashlib.sha256(contents).hexdigest(), 'bytes': len(contents)}
+          (OUT / 'repair.patch').write_text(subprocess.check_output(['git', 'diff', '--', *changed_paths], text=True), encoding='utf-8')
+          (OUT / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps(manifest, sort_keys=True))
+          PY
+      - name: Create only tested content blobs, never a branch or main update
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import base64
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import urllib.request
+          
+          ROOT = 'https://api.github.com/repos/szl-holdings/a11oy'
+          OUT = Path('pin-repair-evidence')
+          manifest = json.loads((OUT / 'manifest.json').read_text())
+          expected = {'scripts/validate_frontdoor_source_integrity.py', 'scripts/test_frontdoor_source_integrity.py'}
+          if set(manifest['files']) != expected or manifest['status'] != 'SOURCE_TESTS_PASSED_NOT_ADMITTED':
+              raise RuntimeError('unqualified blob set')
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, *args, **kwargs):
+                  raise RuntimeError('redirect refused')
+          opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+          headers = {'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'Content-Type': 'application/json'}
+          request = urllib.request.Request(ROOT + '/git/ref/heads/main', headers=headers, method='GET')
+          with opener.open(request, timeout=20) as response:
+              state = json.loads(response.read(65537))
+          if state['object']['sha'] != manifest['base']:
+              raise RuntimeError('main moved before blob preparation; no ref changed')
+          results = {}
+          for path in sorted(expected):
+              raw = (OUT / path).read_bytes()
+              sha = hashlib.sha1(b'blob ' + str(len(raw)).encode() + b'\0' + raw).hexdigest()
+              if sha != manifest['files'][path]['blob'] or hashlib.sha256(raw).hexdigest() != manifest['files'][path]['sha256']:
+                  raise RuntimeError('prepared bytes moved')
+              (OUT / 'blob-write-state.json').write_text(json.dumps({'state': 'ATTEMPTING_BLOB_ONLY', 'path': path, 'completed': results}, indent=2) + '\n')
+              payload = json.dumps({'encoding': 'base64', 'content': base64.b64encode(raw).decode('ascii')}).encode()
+              request = urllib.request.Request(ROOT + '/git/blobs', data=payload, headers=headers, method='POST')
+              with opener.open(request, timeout=20) as response:
+                  if response.status != 201:
+                      raise RuntimeError('blob creation not confirmed')
+                  result = json.loads(response.read(65537))
+              if result['sha'] != sha:
+                  raise RuntimeError('remote blob identity mismatch')
+              results[path] = sha
+          (OUT / 'blob-write-state.json').write_text(json.dumps({'state': 'BLOBS_CREATED_NO_REF_MUTATION', 'blobs': results}, indent=2) + '\n')
+          print(json.dumps({'state': 'BLOBS_CREATED_NO_REF_MUTATION', 'blobs': results}, sort_keys=True))
+          PY
+      - name: Retain exact changes and test evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: source-pin-maintenance-${{ github.run_id }}-${{ github.run_attempt }}
+          path: pin-repair-evidence/
+          if-no-files-found: error
+          retention-days: 30
