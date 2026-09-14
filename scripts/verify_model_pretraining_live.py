@@ -8,6 +8,7 @@ No provider credentials, cookie jar, redirects, or model calls are used.
 from __future__ import annotations
 
 import argparse
+import ast
 from collections import Counter
 from datetime import datetime, timezone
 import hashlib
@@ -169,6 +170,106 @@ def validate_catalog(value: Any, manifest_raw: bytes, projection_raw: bytes, exp
             and all(type(n) is int for n in value['categoryCounts'].values()), 'category counts differ')
 
 
+def safe_source_pointer(value: Any) -> str | None:
+    """Match the existing product URL boundary without importing its network code."""
+    if not isinstance(value, str) or len(value) > 1024 or any(ord(c) <= 32 or ord(c) == 127 for c in value):
+        return None
+    try:
+        parsed = urlsplit(value)
+        parts = parsed.path.split('/')
+        if (parsed.scheme != 'https' or parsed.netloc != 'github.com'
+                or parsed.query or parsed.fragment or len(parts) < 3
+                or parts[1] != 'szl-holdings'
+                or any(not re.fullmatch(r'[A-Za-z0-9._-]+', part) or part in ('.', '..')
+                       for part in parts[2:])):
+            return None
+        return value
+    except ValueError:
+        return None
+
+
+def declared_source_pointers(raw: bytes) -> dict[str, tuple[str, str | None]]:
+    """Read only literal SERIES_A_CARDS declarations from the selected checkout.
+
+    No import, eval, exec, attribute lookup or function call is evaluated. The
+    only supported interpolation is the existing literal _FORGE prefix. A source
+    refactor outside this grammar requires review, not a network/import fallback.
+    Duplicate cards retain the product's AMBIGUOUS state, even with equal URLs.
+    """
+    require(type(raw) is bytes and 0 < len(raw) <= LIMIT, 'catalog source size/type')
+    try:
+        tree = ast.parse(raw.decode('utf-8'))
+        require(sum(1 for _ in ast.walk(tree)) <= 100000, 'catalog AST size')
+        assigned = {}
+        for node in tree.body:
+            targets = node.targets if isinstance(node, ast.Assign) else (
+                [node.target] if isinstance(node, (ast.AnnAssign, ast.AugAssign)) else [])
+            for target in targets:
+                if isinstance(target, ast.Name) and target.id in {'_FORGE', 'SERIES_A_CARDS'}:
+                    require(not isinstance(node, ast.AugAssign) and target.id not in assigned,
+                            'ambiguous catalog declaration')
+                    assigned[target.id] = node.value
+        require(set(assigned) == {'_FORGE', 'SERIES_A_CARDS'}, 'catalog declarations unavailable')
+        forge = ast.literal_eval(assigned['_FORGE'])
+        require(safe_source_pointer(forge) is not None, 'invalid Forge source prefix')
+        def literal(node):
+            if isinstance(node, ast.JoinedStr):
+                result = []
+                for part in node.values:
+                    if isinstance(part, ast.Constant) and type(part.value) is str:
+                        result.append(part.value)
+                    else:
+                        require(isinstance(part, ast.FormattedValue) and isinstance(part.value, ast.Name)
+                                and part.value.id == '_FORGE' and part.conversion == -1
+                                and part.format_spec is None, 'unsupported catalog interpolation')
+                        result.append(forge)
+                return ''.join(result)
+            if isinstance(node, ast.Dict):
+                keys = [literal(key) for key in node.keys]
+                require(all(type(key) is str for key in keys) and len(set(keys)) == len(keys),
+                        'duplicate or invalid catalog field')
+                return dict(zip(keys, (literal(value) for value in node.values)))
+            if isinstance(node, (ast.List, ast.Tuple)):
+                return [literal(item) for item in node.elts]
+            return ast.literal_eval(node)
+        require(isinstance(assigned['SERIES_A_CARDS'], ast.Tuple), 'catalog must be a tuple')
+        cards = literal(assigned['SERIES_A_CARDS'])
+        require(len(cards) <= 2000 and all(type(card) is dict for card in cards), 'invalid source cards')
+        grouped = {}
+        for card in cards:
+            if card.get('hub_kind') == 'model' and isinstance(card.get('hub_id'), str):
+                grouped.setdefault(card['hub_id'], []).append(safe_source_pointer(card.get('github')))
+        return {identity: ('AMBIGUOUS', None) if len(urls) > 1 else (
+                    ('DECLARED_POINTER_ONLY', urls[0]) if urls[0] is not None else
+                    ('NOT_RESOLVED_BY_THIS_CATALOG', None))
+                for identity, urls in grouped.items()}
+    except (SyntaxError, ValueError, TypeError, UnicodeError, RecursionError, OverflowError) as exc:
+        raise VerificationError('unsupported or invalid source catalog') from exc
+
+
+def validate_source_pointers(value: Any, pointers: dict[str, tuple[str, str | None]]) -> None:
+    """Bind each returned declaration to its actual source, not merely a safe URL.
+
+    This verifies catalog correspondence only, never source ownership, executable
+    training code, weight lineage, license rights or model qualification.
+    """
+    require(type(value) is dict and type(value.get('models')) is list,
+            'model source rows unavailable')
+    require(value.get('sourcePointerCatalogState') == 'EXISTING_SERIES_A_CATALOG_SUBSET',
+            'runtime source catalog unavailable')
+    seen, linked = set(), 0
+    for row in value['models']:
+        require(type(row) is dict and type(row.get('id')) is str and row['id'] not in seen,
+                'invalid/duplicate source row')
+        seen.add(row['id'])
+        expected = pointers.get(row['id'], ('NOT_RESOLVED_BY_THIS_CATALOG', None))
+        require((row.get('sourceState'), row.get('sourceUrl')) == expected,
+                'source pointer differs from selected catalog: ' + row['id'])
+        linked += int(expected[0] == 'DECLARED_POINTER_ONLY')
+    require(type(value.get('sourcePointersDeclared')) is int and value['sourcePointersDeclared'] == linked,
+            'source-bound pointer count differs')
+
+
 def validate_asset(path: str, status: int, media: str, body: bytes, expected: bytes) -> None:
     require(path in ASSETS and type(status) is int and status == 200, 'asset status/path')
     require(media.split(';', 1)[0].strip().lower() in ASSETS[path][1], 'asset media type')
@@ -185,6 +286,8 @@ def probe(root: Path, origin: str, expected: str, *, fetch=None) -> dict[str, An
     require(type(expected) is str and SHA.fullmatch(expected) is not None, 'exact source required')
     manifest = (root / 'docs/huggingface-ecosystem-manifest.json').read_bytes()
     projection = (root / 'routers/data/model-pretraining-snapshot.json').read_bytes()
+    catalog_raw = (root / 'a11oy_model_intel.py').read_bytes()
+    pointers = declared_source_pointers(catalog_raw)
     deadline = time.monotonic() + 180
     opener = request.build_opener(request.ProxyHandler({}), NoRedirect())
     def get(path, method='GET'):
@@ -213,6 +316,7 @@ def probe(root: Path, origin: str, expected: str, *, fetch=None) -> dict[str, An
             and api_media.split(';',1)[0].strip().lower() == 'application/json', 'model API HEAD differs')
     data = api(API)
     validate_catalog(data, manifest, projection, expected, datetime.now(timezone.utc))
+    validate_source_pointers(data, pointers)
     observations = {}
     for path, (filename, _) in ASSETS.items():
         head, head_media, head_body = getter(path, 'HEAD')
@@ -225,7 +329,8 @@ def probe(root: Path, origin: str, expected: str, *, fetch=None) -> dict[str, An
     return {'state':'PASS_SELECTED_SOURCE_AND_DELIVERY', 'origin':origin, 'sourceRevision':expected,
         'inventoryObservedAt':data['observedAt'], 'inventoryFreshness':data['snapshotFreshness'],
         'recordedModelCount':data['returned'], 'declaredSourcePointers':data['sourcePointersDeclared'],
-        'projectionSha256':sha256(projection), 'assets':observations,
+        'projectionSha256':sha256(projection), 'sourcePointerCatalogSha256':sha256(catalog_raw),
+        'sourcePointerCorrespondence':'DECLARATIONS_MATCH_NOT_LINEAGE_VERIFIED', 'assets':observations,
         'modelLineageVerified':False, 'wholeEstateAligned':False, 'trainingAllowed':False,
         'browserRenderingVerified':False, 'runtimeIdentity':'REPORTED_SOURCE_MATCH_AND_SERVED_ASSET_BYTES'}
 

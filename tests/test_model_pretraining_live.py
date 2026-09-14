@@ -15,6 +15,8 @@ SPEC.loader.exec_module(M)
 SHA = 'a'*40
 STAMP = '2026-09-13T12:00:00Z'
 NOW = datetime(2026,9,13,13,tzinfo=timezone.utc)
+# Synthetic declaration-only source for transport fixtures, not production lineage.
+CATALOG = b"_FORGE = 'https://github.com/szl-holdings/szl-forge'\nSERIES_A_CARDS = ({'hub_kind':'model','hub_id':'SZLHOLDINGS/test','github':f'{_FORGE}'},)\n"
 
 
 def raw(value):
@@ -38,6 +40,7 @@ def fixture():
             'manifestDigestState':'BUILD_DERIVED_SOURCE_DIGEST_NOT_REHASHED_AT_RUNTIME',
             'productSourceRevisionReported':SHA,'observedAt':STAMP,'snapshotFreshness':'SNAPSHOT_NOT_LIVE',
             'inventoryScope':{'visibility':'public-only','authenticated':False,'privateAssetsIncluded':False},
+            'sourcePointerCatalogState':'EXISTING_SERIES_A_CATALOG_SUBSET',
             'returned':1,'sourcePointersDeclared':1,'categoryCounts':{'ADAPTER_HINT':1},'models':[row]}
     data.update(dict.fromkeys(('trainingAllowed','sourceAlignmentVerified','wholeOrganizationInventoryVerified',
                               'productSourceIndependentlyAttested'),False))
@@ -175,6 +178,7 @@ class TransportTests(unittest.TestCase):
 class SequenceTests(unittest.TestCase):
     def setup_source(self, root):
         d,m,p=fixture()
+        (root/'a11oy_model_intel.py').write_bytes(CATALOG)
         d['snapshotFreshness']='STALE_SNAPSHOT'
         (root/'docs').mkdir(); (root/'docs/huggingface-ecosystem-manifest.json').write_bytes(m)
         (root/'routers/data').mkdir(parents=True); (root/'routers/data/model-pretraining-snapshot.json').write_bytes(p)
