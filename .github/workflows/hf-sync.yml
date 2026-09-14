@@ -185,12 +185,12 @@ jobs:
   publish-vertical-flagships:
     name: Publish and live-verify six domain-native flagship Spaces
     # Other-Space execute is not product promote. Skip on push until plan complete=true.
-    # Manual dispatch may opt in. A failure here must not paint canonical a11oy red.
+    # Explicit opt-in includes this publisher in the requested run completion.
+    # Product-only pushes still skip it; canonical product evidence stays separate.
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_vertical_flagships }}
     needs: deploy
     runs-on: ubuntu-latest
     timeout-minutes: 50
-    continue-on-error: true
     env:
       HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
       HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
@@ -268,8 +268,17 @@ jobs:
           "huggingface_hub==1.31.0"
 
       - name: Publish and verify the v4 vertical estate
+        id: vertical_publish
         if: ${{ steps.exact_main_owner.outputs.publish == 'true' && steps.vertical_plan.outputs.vertical_flagships == 'true' }}
         run: python scripts/hf_publish_vertical_flagships_v4.py
+
+      - name: Enforce complete explicitly requested vertical publication
+        if: always()
+        env:
+          EXACT_MAIN_PUBLISH: ${{ steps.exact_main_owner.outputs.publish }}
+          VERTICAL_PLAN_PUBLISH: ${{ steps.vertical_plan.outputs.vertical_flagships }}
+          VERTICAL_PUBLISH_OUTCOME: ${{ steps.vertical_publish.outcome }}
+        run: python scripts/estate_child_completion.py
 
       - name: Upload immutable vertical publication receipt
         if: ${{ always() && steps.exact_main_owner.outputs.publish == 'true' && steps.vertical_plan.outputs.vertical_flagships == 'true' }}
