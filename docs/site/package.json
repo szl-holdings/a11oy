@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@vscode/markdown-it-katex": "^1.1.2",
-    "katex": "^0.18.5"
+    "katex": "^0.18.7"
   },
   "overrides": {
     "vite": "^6.4.2",
