@@ -192,6 +192,16 @@ def collect(root: Path, expected: str, image_id: str, *, fetch: Fetch | None = N
         status, headers, body = read(path, 'GET', 'asset')
         expected_bytes = source_bytes(root, filename)
         report['observations'][-1]['expectedSha256'] = V.sha256(expected_bytes)
+        if path in {'/frontier-tooling/models', '/frontier-tooling/models/'} and body != expected_bytes:
+            # Failure diagnostics preserve byte equality as the actual gate.
+            # Only source locations and hashes are recorded, never response text.
+            diagnostic_spec = importlib.util.spec_from_file_location(
+                'model_html_source_delta', ROOT / 'scripts/model_pretraining_html_diagnostics.py')
+            if diagnostic_spec is None or diagnostic_spec.loader is None:
+                raise RuntimeError('HTML source diagnostics unavailable')
+            diagnostic = importlib.util.module_from_spec(diagnostic_spec)
+            diagnostic_spec.loader.exec_module(diagnostic)
+            report['observations'][-1]['sourceDelta'] = diagnostic.describe_delta(root, expected_bytes, body)
         V.validate_asset(path, status, headers.get('content-type', ''), body, expected_bytes)
         if path.startswith('/frontier-tooling/models'):
             feature_headers(headers, page=path in {'/frontier-tooling/models', '/frontier-tooling/models/'})
