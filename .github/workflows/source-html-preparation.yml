@@ -1,0 +1,94 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Prepare reviewed HTML ownership source
+on:
+  push:
+    branches: [work/html-owner-preparation-20260914-v1]
+permissions:
+  contents: read
+concurrency:
+  group: source-html-ownership-preparation
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: >-
+      github.ref == 'refs/heads/work/html-owner-preparation-20260914-v1' &&
+      (github.repository == 'szl-holdings/a11oy' || github.repository == 'szl-holdings/killinchu')
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    outputs:
+      source_digest: ${{ steps.fingerprint.outputs.digest }}
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+      - name: Install the existing focused HTTP-test closure
+        run: python -m pip install 'fastapi==0.141.1' 'starlette==1.6.0' 'httpx==0.28.1'
+      - name: Exercise source guard controls without write credentials
+        run: python -B -m unittest discover -s .szl-source-prep -p 'test_prepare.py' -v
+      - name: Prepare exact source changes locally
+        run: python -B .szl-source-prep/prepare.py prepare
+      - name: Exercise actual middleware composition and legacy controls
+        run: python -B -m unittest discover -s tests -p '*response_ownership.py' -v
+      - name: Bind the exact tested file set
+        id: fingerprint
+        run: |
+          python - <<'PY'
+          import hashlib,json,os,pathlib
+          value=json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'html-source-proposal.json').read_text())
+          if value['state'] != 'LOCAL_SOURCE_PREPARED_NOT_PUBLISHED':
+              raise RuntimeError('Preparation is not complete')
+          digest=hashlib.sha256(json.dumps(value['files'],sort_keys=True,separators=(',', ':')).encode()).hexdigest()
+          with open(os.environ['GITHUB_OUTPUT'],'a') as stream:
+              stream.write('digest='+digest+'\n')
+          PY
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: source-preparation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/html-source-proposal.json
+          if-no-files-found: error
+          retention-days: 30
+  propose:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+      - name: Reconstruct the same direct source changes without importing application code
+        run: python -B .szl-source-prep/prepare.py prepare
+      - name: Create only a new review branch from the original source parent
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_FILE_SET_DIGEST: ${{ needs.prepare.outputs.source_digest }}
+        run: python -B .szl-source-prep/prepare.py publish
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: source-review-proposal-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/html-source-proposal.json
+          if-no-files-found: error
+          retention-days: 90
