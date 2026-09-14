@@ -42,7 +42,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1
         with:
           egress-policy: audit
       - name: Checkout exact protected base verifier
@@ -101,7 +101,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1
         with:
           egress-policy: audit
       - name: Checkout exact protected-base verifier
@@ -553,7 +553,7 @@ class IntegrityGuardSelfTest(unittest.TestCase):
             VALID_WORKFLOW.replace(
                 "    steps:\n",
                 "    steps:\n      - uses: &action "
-                "step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920\n",
+                "step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1\n",
                 1,
             ),
             VALID_WORKFLOW.replace(
@@ -718,6 +718,47 @@ class IntegrityGuardSelfTest(unittest.TestCase):
             with temp:
                 (root / validator.WORKFLOW_PATH).write_text(workflow, encoding="utf-8")
                 self.assertNotEqual(validator.validate(root), [])
+
+
+
+class CommittedHardenRunnerPinTests(unittest.TestCase):
+    """Bind fixture coverage to the admitted workflow, never infer its expected pin."""
+
+    def test_independent_expected_hardener_is_exact(self) -> None:
+        self.assertEqual(
+            validator.HARDEN_RUNNER_ACTION,
+            "step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1",
+        )
+
+    def test_actual_checked_in_source_passes_integrity(self) -> None:
+        self.assertEqual(validator.validate(HERE.parent), [])
+
+    def _reject_hardener(self, replacement: str, count: int = -1) -> None:
+        temp, root = IntegrityGuardSelfTest().make_fixture()
+        with temp:
+            approved = "step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1"
+            self.assertEqual(VALID_WORKFLOW.count(approved), 2)
+            changed = VALID_WORKFLOW.replace(approved, replacement, count)
+            self.assertNotEqual(changed, VALID_WORKFLOW)
+            (root / validator.WORKFLOW_PATH).write_text(changed, encoding="utf-8")
+            self.assertTrue(validator.validate(root))
+
+    def test_retired_hardener_is_rejected(self) -> None:
+        self._reject_hardener(
+            "step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920"
+        )
+
+    def test_mixed_job_hardener_is_rejected(self) -> None:
+        self._reject_hardener(
+            "step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920", 1
+        )
+
+    def test_other_full_revision_is_rejected(self) -> None:
+        self._reject_hardener("step-security/harden-runner@" + "0" * 40)
+
+    def test_moving_version_tag_is_rejected(self) -> None:
+        self._reject_hardener("step-security/harden-runner@v2.21.1")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
