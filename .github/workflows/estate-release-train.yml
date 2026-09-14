@@ -15,6 +15,7 @@ name: Estate release train
       - tests/test_estate_release_train.py
       - tests/test_estate_repair_dispatch.py
       - tests/test_estate_repair_plan_authority.py
+      - tests/test_estate_lyte_failure_evidence.py
       - .github/workflows/estate-release-train.yml
       - .github/workflows/hf-sync.yml
   workflow_run:
@@ -92,6 +93,7 @@ jobs:
           python tests/test_estate_release_train.py
           python tests/test_estate_repair_dispatch.py
           python tests/test_estate_repair_plan_authority.py
+          python tests/test_estate_lyte_failure_evidence.py
           python tests/test_hf_public_inventory.py
           python tests/test_estate_pr_concurrency.py
           python tests/test_estate_child_completion.py
