@@ -1,7 +1,8 @@
 """Execute the real CLI and workflow run blocks with a recording, offline gh.
 
 The tests never contact GitHub/HF, dispatch production, or need credentials.
-They prove source-bound plan admission, not full publication/readiness.
+They prove source-bound plan admission and the child-completion integration,
+not live publication/readiness. Every test uses its own checkout and journals.
 """
 from __future__ import annotations
 
@@ -137,6 +138,76 @@ class SourcePlanTests(unittest.TestCase):
             self.assertEqual(json.loads(result.stdout)["vertical_state"], "NOT_REQUESTED")
 
 
+# A protocol fixture, not a stand-in for the native dispatcher/barrier. Unknown
+# commands fail; every command is logged; no network or credentials are available.
+FAKE_GH = r'''
+import json
+import os
+from pathlib import Path
+import sys
+
+args = sys.argv[1:]
+with Path(os.environ["GH_LOG"]).open("a") as stream:
+    stream.write(json.dumps(args) + "\n")
+repo = "szl-holdings/a11oy"
+repo_id = 1225834126
+source = os.environ["FAKE_CURRENT_SHA"]
+workflows = {1001: "hf-sync.yml", 1002: "repair-cloudflare-product-edge.yml"}
+vertical_job = "Publish and live-verify six domain-native flagship Spaces"
+vertical_gate = "Enforce complete explicitly requested vertical publication"
+
+if args == ["api", f"repos/{repo}/git/ref/heads/main", "--jq", ".object.sha"]:
+    print(source)
+elif args == ["workflow", "view", workflows[1002], "--repo", repo]:
+    print("fixture: existing canonical workflow")
+elif args[:2] == ["workflow", "run"]:
+    if len(args) < 7 or args[2] not in workflows.values():
+        sys.exit(64)
+    if args[3:7] != ["--repo", repo, "--ref", "main"]:
+        sys.exit(64)
+    if args[2] == os.environ.get("FAKE_FAIL_WORKFLOW"):
+        sys.exit(7)
+    if os.environ.get("FAKE_DISPATCH_NO_URL") != "true":
+        run_id = next(key for key, value in workflows.items() if value == args[2])
+        print(f"https://github.com/{repo}/actions/runs/{run_id}")
+elif args[:5] == ["api", "--hostname", "github.com", "--method", "GET"] and len(args) == 6:
+    endpoint = args[5]
+    if endpoint == f"repos/{repo}/git/ref/heads/main":
+        print(json.dumps({"object": {"sha": source}}))
+    else:
+        match = next((run_id for run_id in workflows
+                      if endpoint in {f"repos/{repo}/actions/runs/{run_id}",
+                                      f"repos/{repo}/actions/runs/{run_id}/attempts/1/jobs?per_page=100&page=1"}), None)
+        if match is None:
+            sys.exit(64)
+        identity = {"run_id": match, "head_sha": os.environ.get("FAKE_CHILD_SOURCE", source),
+                    "run_attempt": 1, "status": "completed"}
+        if endpoint.endswith(f"/runs/{match}"):
+            result = {**identity, "id": match, "repository": {"id": repo_id, "full_name": repo},
+                      "head_repository": {"id": repo_id, "full_name": repo},
+                      "event": "workflow_dispatch", "head_branch": "main",
+                      "path": ".github/workflows/" + workflows[match],
+                      "conclusion": os.environ.get("FAKE_RUN_CONCLUSION", "success")}
+        else:
+            names = (["Prove exact live source, runtime, routes, and singleton state",
+                      "Probe and ingest exact post-deploy readiness verdict", vertical_job]
+                     if match == 1001 else ["Repair and verify product edge"])
+            jobs = [{**identity, "id": match * 10 + index, "name": name,
+                     "conclusion": "success", "steps": []}
+                    for index, name in enumerate(names)]
+            if match == 1001:
+                jobs[-1]["conclusion"] = (
+                    os.environ.get("FAKE_JOB_CONCLUSION", "success")
+                    if os.environ["VERTICAL_REQUESTED"] == "true" else "skipped")
+                jobs[-1]["steps"] = [{"name": vertical_gate, "status": "completed",
+                                      "conclusion": os.environ.get("FAKE_GATE_CONCLUSION", "success")}]
+            result = {"total_count": len(jobs), "jobs": jobs}
+        print(json.dumps(result))
+else:
+    sys.exit(64)
+'''
+
+
 class ExecutedWorkflowTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
@@ -146,22 +217,21 @@ class ExecutedWorkflowTests(unittest.TestCase):
         binary.mkdir()
         (binary / "python").symlink_to(sys.executable)
         gh = binary / "gh"
-        gh.write_text(
-            f"#!{sys.executable}\n" +
-            "import json, os, sys\nfrom pathlib import Path\n"
-            "args = sys.argv[1:]\n"
-            "with Path(os.environ['GH_LOG']).open('a') as f: f.write(json.dumps(args)+'\\n')\n"
-            "if args[:1] == ['api']: print(os.environ['FAKE_CURRENT_SHA'])\n"
-            "if args[:3] == ['workflow','run',os.environ.get('FAKE_FAIL_WORKFLOW')]: sys.exit(7)\n",
-            encoding="utf-8",
-        )
+        gh.write_text(f"#!{sys.executable}\n" + FAKE_GH, encoding="utf-8")
         gh.chmod(0o700)
+        # Run the actual source in an isolated miniature checkout so exclusive
+        # journals never pollute the repository or collide across test methods.
+        scripts = self.directory / "scripts"
+        scripts.mkdir()
+        for name in ("estate_repair_dispatch.py", "estate_child_completion.py"):
+            shutil.copy2(ROOT / "scripts" / name, scripts / name)
+        (self.directory / "reports").mkdir()
         self.env = {
             "PATH": str(binary) + os.pathsep + os.defpath,
             "HOME": str(self.directory), "RUNNER_TEMP": str(self.directory),
             "GITHUB_OUTPUT": str(self.directory / "out"), "GITHUB_SHA": SHA,
-            "GITHUB_REPOSITORY": "szl-holdings/a11oy", "EXPECTED_SHA": SHA,
-            "VERTICAL_REQUESTED": "true", "VERTICAL_PLAN_JSON": "",
+            "GITHUB_REPOSITORY": "szl-holdings/a11oy", "GITHUB_RUN_ID": "900",
+            "EXPECTED_SHA": SHA, "VERTICAL_REQUESTED": "true", "VERTICAL_PLAN_JSON": "",
             "FAKE_CURRENT_SHA": SHA, "GH_LOG": str(self.directory / "gh.jsonl"),
         }
         if sys.flags.optimize:
@@ -171,9 +241,9 @@ class ExecutedWorkflowTests(unittest.TestCase):
         bash = shutil.which("bash")
         if bash is None:
             self.fail("these Ubuntu workflow integration tests require bash")
-        return subprocess.run([bash, "-c", run_block(path, name)], cwd=ROOT,
+        return subprocess.run([bash, "-c", run_block(path, name)], cwd=self.directory,
                               env=self.env, capture_output=True, text=True,
-                              timeout=10, check=False)
+                              timeout=15, check=False)
 
     def calls(self) -> list[list[str]]:
         path = Path(self.env["GH_LOG"])
@@ -182,20 +252,34 @@ class ExecutedWorkflowTests(unittest.TestCase):
     def writers(self) -> list[list[str]]:
         return [args for args in self.calls() if args[:2] == ["workflow", "run"]]
 
+    def records(self, child: str) -> list[dict]:
+        path = self.directory / "reports" / f"estate-child-{child}.jsonl"
+        return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
+
     def test_caller_wires_input_as_data_and_preserves_manual_repair_gate(self) -> None:
         block = step(ESTATE, CALLER)
         self.assertIn("VERTICAL_PLAN_JSON: ${{ inputs.vertical_plan_json }}", block)
         self.assertIn("--plan-from-env", run_block(ESTATE, CALLER))
         self.assertNotIn("${{ inputs.", run_block(ESTATE, CALLER))
         for predicate in ("github.event_name == 'workflow_dispatch'", "inputs.repair == true",
-                          "steps.initial.outputs.state != 'ALIGNED'"):
+                          "steps.initial.outputs.state != 'ALIGNED'",
+                          "inputs.publish_vertical_flagships == true"):
             self.assertIn(predicate, block)
 
     def test_missing_plan_executes_product_only(self) -> None:
+        self.env["VERTICAL_REQUESTED"] = "false"
         result = self.execute(ESTATE, CALLER)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual([args[2] for args in self.writers()], ["hf-sync.yml", "repair-cloudflare-product-edge.yml"])
         self.assertNotIn("publish_vertical_flagships=true", self.writers()[0])
+        for child in ("hf", "edge"):
+            self.assertEqual(self.records(child)[-1]["state"], "CHILD_COMPLETION_VERIFIED")
+
+    def test_explicit_vertical_without_plan_fails_before_any_writer(self) -> None:
+        result = self.execute(ESTATE, CALLER)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.writers(), [])
+        self.assertEqual(self.records("hf"), [])
 
     def test_approved_plan_reaches_actual_downstream_cli(self) -> None:
         self.env["VERTICAL_PLAN_JSON"] = json.dumps(PLAN)
@@ -203,6 +287,12 @@ class ExecutedWorkflowTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         args = self.writers()[0]
         self.assertIn("publish_vertical_flagships=true", args)
+        for child, run_id in (("hf", 1001), ("edge", 1002)):
+            records = self.records(child)
+            self.assertEqual([record["state"] for record in records],
+                             ["UNKNOWN_AFTER_ATTEMPT", "DISPATCH_BOUND", "CHILD_COMPLETION_VERIFIED"])
+            self.assertEqual(records[-1]["run_id"], run_id)
+            self.assertEqual(records[-1]["source_revision"], SHA)
         forwarded = next(arg.split("=", 1)[1] for arg in args if arg.startswith("vertical_plan_json="))
         self.env["VERTICAL_PLAN_JSON"] = forwarded
         result = self.execute(HF_SYNC, GATE)
@@ -215,20 +305,21 @@ class ExecutedWorkflowTests(unittest.TestCase):
             with self.subTest(plan=text):
                 self.env["VERTICAL_PLAN_JSON"] = text
                 result = self.execute(ESTATE, CALLER)
-                self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertTrue(all("publish_vertical_flagships=true" not in args for args in self.writers()))
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(self.writers(), [])
+                self.assertEqual(self.records("hf"), [])
 
     def test_source_movement_prevents_both_writers(self) -> None:
         self.env["VERTICAL_PLAN_JSON"] = json.dumps(PLAN)
         self.env["FAKE_CURRENT_SHA"] = OTHER
         result = self.execute(ESTATE, CALLER)
-        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotEqual(result.returncode, 0)
         self.assertEqual(self.writers(), [])
 
     def test_invalid_equal_sources_cannot_dispatch_edge_independently(self) -> None:
         self.env["EXPECTED_SHA"] = self.env["FAKE_CURRENT_SHA"] = "not-a-sha"
         result = self.execute(ESTATE, CALLER)
-        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotEqual(result.returncode, 0)
         self.assertEqual(self.writers(), [])
 
     def test_plan_text_is_not_shell_code_or_raw_receipt_content(self) -> None:
@@ -238,6 +329,7 @@ class ExecutedWorkflowTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertFalse(marker.exists())
         self.assertNotIn("touch", (self.directory / "estate-repair-dispatch.json").read_text())
+        self.assertNotIn("touch", json.dumps(self.records("hf")))
 
     def test_queued_main_movement_is_denied_by_actual_writer_gate(self) -> None:
         self.env["VERTICAL_PLAN_JSON"] = json.dumps(PLAN)
@@ -257,10 +349,52 @@ class ExecutedWorkflowTests(unittest.TestCase):
                 self.assertEqual(self.writers(), [])
 
     def test_failed_hf_dispatch_does_not_retry_or_dispatch_edge(self) -> None:
+        self.env["VERTICAL_PLAN_JSON"] = json.dumps(PLAN)
         self.env["FAKE_FAIL_WORKFLOW"] = "hf-sync.yml"
         result = self.execute(ESTATE, CALLER)
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual([args[2] for args in self.writers()], ["hf-sync.yml"])
+        self.assertEqual(self.records("hf")[-1]["state"], "UNKNOWN_AFTER_ATTEMPT")
+
+    def test_missing_dispatch_url_stops_without_resend(self) -> None:
+        self.env["VERTICAL_PLAN_JSON"] = json.dumps(PLAN)
+        self.env["FAKE_DISPATCH_NO_URL"] = "true"
+        result = self.execute(ESTATE, CALLER)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual([args[2] for args in self.writers()], ["hf-sync.yml"])
+        self.assertEqual(self.records("hf")[-1]["state"], "UNKNOWN_AFTER_ATTEMPT")
+
+    def test_green_run_cannot_hide_failed_vertical_job(self) -> None:
+        self.env["VERTICAL_PLAN_JSON"] = json.dumps(PLAN)
+        self.env["FAKE_JOB_CONCLUSION"] = "failure"
+        result = self.execute(ESTATE, CALLER)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.records("hf")[-1]["state"], "HOLD")
+        self.assertEqual(self.records("hf")[-1]["run"]["conclusion"], "success")
+        self.assertNotIn("CHILD_COMPLETION_VERIFIED", json.dumps(self.records("hf")))
+
+    def test_green_job_cannot_hide_skipped_receipt_gate(self) -> None:
+        self.env["VERTICAL_PLAN_JSON"] = json.dumps(PLAN)
+        self.env["FAKE_GATE_CONCLUSION"] = "skipped"
+        result = self.execute(ESTATE, CALLER)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.records("hf")[-1]["state"], "HOLD")
+
+    def test_wrong_child_source_stays_hold(self) -> None:
+        self.env["VERTICAL_PLAN_JSON"] = json.dumps(PLAN)
+        self.env["FAKE_CHILD_SOURCE"] = OTHER
+        result = self.execute(ESTATE, CALLER)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.records("hf")[-1]["state"], "HOLD")
+
+    def test_repeated_run_block_does_not_dispatch_twice(self) -> None:
+        self.env["VERTICAL_PLAN_JSON"] = json.dumps(PLAN)
+        first = self.execute(ESTATE, CALLER)
+        self.assertEqual(first.returncode, 0, first.stderr)
+        before = self.writers()
+        second = self.execute(ESTATE, CALLER)
+        self.assertNotEqual(second.returncode, 0)
+        self.assertEqual(self.writers(), before)
 
     def test_writer_publication_requires_plan_and_exact_main_outputs(self) -> None:
         gate = step(HF_SYNC, GATE)
