@@ -94,6 +94,26 @@ def make_fetch(*, seconds: float = 120) -> Fetch:
     return fetch
 
 
+def container_source_revision(payload: Any, expected: str) -> None:
+    """Verify the local image's build-argument identity, not the HF env profile.
+
+    Dockerfile binds REVISION to A11OY_GIT_SHA and the smoke workflow checks the
+    OCI revision label before starting this exact image. The runtime prioritizes
+    A11OY_GIT_SHA over SZL_GIT_SHA. Keep this fixed local profile separate from
+    the public-HF verifier; never rewrite a response to impersonate its origin.
+    """
+    V.require(type(expected) is str and V.SHA.fullmatch(expected) is not None,
+              'container source identity invalid')
+    V.require(type(payload) is dict and payload.get('status') == 'OBSERVED',
+              'container build-info unavailable')
+    V.require(payload.get('receipt_minted') is False, 'container build-info authority')
+    build = payload.get('build')
+    V.require(type(build) is dict and build.get('state') == 'OBSERVED'
+              and build.get('revision') == expected
+              and build.get('revision_source') == 'env:A11OY_GIT_SHA',
+              'container image source witness differs')
+
+
 def collect(root: Path, expected: str, image_id: str, *, fetch: Fetch | None = None) -> dict[str, Any]:
     """Run every selected contract and retain failures without storing bodies.
 
@@ -107,6 +127,7 @@ def collect(root: Path, expected: str, image_id: str, *, fetch: Fetch | None = N
         'observedAt': datetime.now(timezone.utc).isoformat(),
         'scope': 'LOCAL_FULL_CONTAINER_INTEGRATION', 'origin': ORIGIN,
         'sourceRevision': expected, 'workflowObservedImageId': image_id,
+        'sourceIdentityProfile': 'DOCKER_REVISION_ENV_A11OY_GIT_SHA',
         'state': 'FAIL_CONTAINER_FEATURE_CONTRACT', 'checks': [], 'observations': [],
         'productionDeploymentVerified': False, 'wholeEstateAligned': False,
         'browserRenderingVerified': False, 'probeModelInferenceRequested': False,
@@ -144,7 +165,7 @@ def collect(root: Path, expected: str, image_id: str, *, fetch: Fetch | None = N
         return V.strict_json(body)
 
     def source(phase: str) -> None:
-        V.source_revision(json_response('/api/build-info', phase), expected)
+        container_source_revision(json_response('/api/build-info', phase), expected)
 
     def api() -> None:
         value = json_response(V.API, 'catalog')

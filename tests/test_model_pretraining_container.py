@@ -31,6 +31,12 @@ class ProbeTests(unittest.TestCase):
                 modify_source(root)
             def fetch(path, method):
                 status, media, body = original(path, method)
+                if path == '/api/build-info':
+                    # This fixture represents the Docker build-arg profile,
+                    # not the separately tested public HF env profile.
+                    build_info = json.loads(body)
+                    build_info['build']['revision_source'] = 'env:A11OY_GIT_SHA'
+                    body = base.raw(build_info)
                 value = (status, {'content-type': media, 'x-content-type-options':'nosniff',
                                  'cache-control':'no-store', 'content-security-policy':POLICY}, body)
                 return change(path, method, value) if change else value
@@ -173,6 +179,88 @@ class ProbeTests(unittest.TestCase):
             root=Path(directory); target=Path(other)/'data'; target.write_text('external')
             (root/'linked').symlink_to(target)
             with self.assertRaises(M.V.VerificationError): M.source_bytes(root,'linked')
+
+
+class ContainerSourceTests(unittest.TestCase):
+    def payload(self):
+        return {'status': 'OBSERVED', 'receipt_minted': False,
+                'build': {'state': 'OBSERVED', 'revision': base.SHA,
+                          'revision_source': 'env:A11OY_GIT_SHA'}}
+
+    def test_exact_image_origin_passes_without_mutating_observation(self):
+        value = self.payload()
+        before = base.raw(value)
+        M.container_source_revision(value, base.SHA)
+        self.assertEqual(base.raw(value), before)
+
+    def test_public_hf_verifier_is_not_weakened_for_local_image(self):
+        with self.assertRaises(M.V.VerificationError):
+            M.V.source_revision(self.payload(), base.SHA)
+
+    def test_wrong_or_missing_origins_fail_even_with_equal_revision(self):
+        for origin in ('env:SZL_GIT_SHA', 'env:GITHUB_SHA', 'git:HEAD',
+                       'env:A11OY_GIT_SHA ', 'ENV:A11OY_GIT_SHA', '', None, True):
+            value = self.payload()
+            value['build']['revision_source'] = origin
+            with self.subTest(origin=origin), self.assertRaises(M.V.VerificationError):
+                M.container_source_revision(value, base.SHA)
+
+    def test_non_observed_or_malformed_build_fails(self):
+        for build in (None, [], {}, {'state': 'UNKNOWN', 'revision': base.SHA,
+                                    'revision_source': 'env:A11OY_GIT_SHA'}):
+            value = self.payload()
+            value['build'] = build
+            with self.subTest(build=build), self.assertRaises(M.V.VerificationError):
+                M.container_source_revision(value, base.SHA)
+
+    def test_revision_drift_and_malformed_expected_source_fail(self):
+        value = self.payload()
+        for expected in ('c'*40, 'main', '', None, True, 'A'*40, 'a'*41):
+            with self.subTest(expected=expected), self.assertRaises(M.V.VerificationError):
+                M.container_source_revision(value, expected)
+
+    def test_read_cannot_mint_receipt_or_use_false_like_value(self):
+        for minted in (True, None, 0, 'false'):
+            value = self.payload()
+            value['receipt_minted'] = minted
+            with self.subTest(minted=minted), self.assertRaises(M.V.VerificationError):
+                M.container_source_revision(value, base.SHA)
+
+    def test_outer_status_and_shape_are_required(self):
+        for value in (None, [], {}, {**self.payload(), 'status': 'UNKNOWN'}):
+            with self.subTest(value=value), self.assertRaises(M.V.VerificationError):
+                M.container_source_revision(value, base.SHA)
+
+    def test_wrong_origin_fails_both_observations_in_real_collector(self):
+        def change(path, method, value):
+            if path == '/api/build-info':
+                body = json.loads(value[2])
+                body['build']['revision_source'] = 'env:SZL_GIT_SHA'
+                return value[0], value[1], base.raw(body)
+            return value
+        report = ProbeTests().run_probe(change)
+        self.assertEqual(report['failedChecks'], ['source before', 'source after'])
+        self.assertEqual(report['state'], 'FAIL_CONTAINER_FEATURE_CONTRACT')
+        self.assertEqual(report['sourceIdentityProfile'], 'DOCKER_REVISION_ENV_A11OY_GIT_SHA')
+
+    def test_deployed_runtime_and_image_still_declare_this_profile(self):
+        # Parse the actual runtime's one pure lookup function, not serve.py.
+        # No app, model, provider, shell, or startup hook is imported or invoked.
+        import ast
+        import os
+        import re
+        from typing import Optional
+        runtime = ast.parse((ROOT/'szl_runtime_contracts.py').read_text())
+        selected = [node for node in runtime.body if
+                    (isinstance(node, ast.Assign) and any(isinstance(target, ast.Name)
+                     and target.id == '_ENV_SHA_NAMES' for target in node.targets)) or
+                    (isinstance(node, ast.FunctionDef) and node.name == '_safe_env_sha')]
+        self.assertEqual(len(selected), 2)
+        namespace = {'os': os, '_SHA_RE': re.compile(r'[a-f0-9]{40}\Z'), 'Optional': Optional}
+        exec(compile(ast.Module(body=selected, type_ignores=[]), 'source-env-contract', 'exec'), namespace)
+        with patch.dict(os.environ, {'A11OY_GIT_SHA': base.SHA, 'SZL_GIT_SHA': 'c'*40}, clear=True):
+            self.assertEqual(namespace['_safe_env_sha'](), (base.SHA, 'env:A11OY_GIT_SHA'))
+        self.assertIn('A11OY_GIT_SHA=${REVISION}', (ROOT/'Dockerfile').read_text())
 
 
 class TransportTests(unittest.TestCase):
