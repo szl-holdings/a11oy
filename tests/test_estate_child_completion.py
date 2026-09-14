@@ -163,7 +163,7 @@ class CompletionTests(unittest.TestCase):
     def test_wait_accepts_only_after_full_validation(self):
         with tempfile.TemporaryDirectory() as temp:
             path=Path(temp)/"journal.jsonl"
-            with patch.object(gate, "api", side_effect=[run(), {"object": {"sha": SOURCE}}]), patch.object(gate, "child_jobs", return_value=jobs()):
+            with patch.object(gate, "api", side_effect=[run(), run(), {"object": {"sha": SOURCE}}, run(), {"object": {"sha": SOURCE}}]), patch.object(gate, "child_jobs", return_value=jobs()):
                 gate.wait_for_children([(child(),path)])
             self.assertEqual(json.loads(path.read_text())["state"], "CHILD_COMPLETION_VERIFIED")
 
@@ -225,6 +225,192 @@ class CompletionTests(unittest.TestCase):
         self.assertIn("python tests/test_estate_child_completion.py",parent)
         self.assertNotIn("subprocess.run(command, check=True)",parent)
         self.assertIn("inputs.publish_vertical_flagships == true",parent)
+
+
+def edge_jobs(run_id=RUN):
+    """Names come from the existing canonical edge workflow, not the validator."""
+    names = ["Prove bounded routes, reversible DNS cutover, and Worker behavior",
+             "Deploy, cut over exact DNS proxy state, and prove the public edge"]
+    return [{"id": i + 11, "name": name, "run_id": run_id, "head_sha": SOURCE,
+             "run_attempt": 1, "status": "completed", "conclusion": "success",
+             "steps": [{"name": "Enforce proved live edge", "status": "completed",
+                        "conclusion": "success"}] if i else []}
+            for i, name in enumerate(names)]
+
+
+class CompletionReadbackTests(unittest.TestCase):
+    def test_actual_edge_writer_and_gate_are_accepted(self):
+        gate.validate_jobs(edge_jobs(), child(False, "repair-cloudflare-product-edge.yml"))
+
+    def test_edge_contract_success_cannot_replace_missing_or_skipped_writer(self):
+        edge = child(False, "repair-cloudflare-product-edge.yml")
+        skipped = edge_jobs(); skipped[1]["conclusion"] = "skipped"
+        for rows in (edge_jobs()[:1], skipped):
+            with self.subTest(rows=rows), self.assertRaises(RuntimeError):
+                gate.validate_jobs(rows, edge)
+
+    def test_edge_enforcement_step_must_actually_execute_once(self):
+        for steps in ([], [{"name": "Enforce proved live edge", "status": "completed",
+                           "conclusion": "skipped"}],
+                      [{"name": "Enforce proved live edge", "status": "completed",
+                        "conclusion": "failure"}],
+                      [{"name": "Enforce proved live edge", "status": "completed",
+                        "conclusion": "success"}] * 2):
+            rows = edge_jobs(); rows[1]["steps"] = steps
+            with self.subTest(steps=steps), self.assertRaises(RuntimeError):
+                gate.validate_jobs(rows, child(False, "repair-cloudflare-product-edge.yml"))
+
+    def test_rerun_during_job_collection_cannot_be_first_attempt_completion(self):
+        count = 0
+        def observe(suffix):
+            nonlocal count
+            if suffix == "git/ref/heads/main":
+                return {"object": {"sha": SOURCE}}
+            count += 1
+            return run() if count == 1 else {**run(), "run_attempt": 2}
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "j"
+            with patch.object(gate, "api", side_effect=observe), patch.object(gate, "child_jobs", return_value=jobs()):
+                with self.assertRaises(RuntimeError):
+                    gate.wait_for_children([(child(), path)])
+            self.assertNotIn("CHILD_COMPLETION_VERIFIED", path.read_text())
+            self.assertEqual(json.loads(path.read_text().splitlines()[-1])["state"], "HOLD")
+
+    def test_completed_child_is_rechecked_after_the_slowest_sibling(self):
+        second = {**child(False, "repair-cloudflare-product-edge.yml"), "run_id": 5678}
+        edge_run = {**run(), "id": 5678, "path": ".github/workflows/repair-cloudflare-product-edge.yml"}
+        edge_seen = False
+        def observe(suffix):
+            nonlocal edge_seen
+            if suffix == "git/ref/heads/main":
+                return {"object": {"sha": SOURCE}}
+            if suffix == "actions/runs/5678":
+                edge_seen = True
+                return edge_run
+            return {**run(), "run_attempt": 2} if edge_seen else run()
+        with tempfile.TemporaryDirectory() as temp:
+            pairs = [(child(), Path(temp) / "hf"), (second, Path(temp) / "edge")]
+            with patch.object(gate, "api", side_effect=observe), patch.object(
+                gate, "child_jobs", side_effect=lambda item: jobs() if item["run_id"] == RUN else edge_jobs(5678)
+            ):
+                with self.assertRaises(RuntimeError):
+                    gate.wait_for_children(pairs)
+            for _, path in pairs:
+                self.assertNotIn("CHILD_COMPLETION_VERIFIED", path.read_text())
+
+    def test_failed_sibling_does_not_leave_an_earlier_completion_claim(self):
+        second = {**child(False, "repair-cloudflare-product-edge.yml"), "run_id": 5678}
+        edge_run = {**run(), "id": 5678, "path": ".github/workflows/repair-cloudflare-product-edge.yml"}
+        failed = edge_jobs(5678); failed[1]["conclusion"] = "failure"
+        def observe(suffix):
+            if suffix == "git/ref/heads/main":
+                return {"object": {"sha": SOURCE}}
+            return edge_run if suffix == "actions/runs/5678" else run()
+        with tempfile.TemporaryDirectory() as temp:
+            pairs = [(child(), Path(temp) / "hf"), (second, Path(temp) / "edge")]
+            with patch.object(gate, "api", side_effect=observe), patch.object(
+                gate, "child_jobs", side_effect=lambda item: jobs() if item["run_id"] == RUN else failed
+            ), self.assertRaises(RuntimeError):
+                gate.wait_for_children(pairs)
+            for _, path in pairs:
+                self.assertNotIn("CHILD_COMPLETION_VERIFIED", path.read_text())
+                self.assertEqual(json.loads(path.read_text().splitlines()[-1])["state"], "HOLD")
+
+    def test_final_source_movement_keeps_the_join_incomplete(self):
+        reads = 0
+        def observe(suffix):
+            nonlocal reads
+            if suffix != "git/ref/heads/main":
+                return run()
+            reads += 1
+            return {"object": {"sha": SOURCE if reads == 1 else "c" * 40}}
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "j"
+            with patch.object(gate, "api", side_effect=observe), patch.object(gate, "child_jobs", return_value=jobs()):
+                with self.assertRaises(RuntimeError):
+                    gate.wait_for_children([(child(), path)])
+            self.assertNotIn("CHILD_COMPLETION_VERIFIED", path.read_text())
+
+    def test_nonterminal_final_readback_is_not_completion(self):
+        count = 0
+        def observe(suffix):
+            nonlocal count
+            if suffix == "git/ref/heads/main":
+                return {"object": {"sha": SOURCE}}
+            count += 1
+            return run() if count < 3 else {**run(), "status": "in_progress", "conclusion": None}
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "j"
+            with patch.object(gate, "api", side_effect=observe), patch.object(gate, "child_jobs", return_value=jobs()):
+                with self.assertRaises(RuntimeError):
+                    gate.wait_for_children([(child(), path)])
+            self.assertNotIn("CHILD_COMPLETION_VERIFIED", path.read_text())
+
+    def test_final_transport_failure_is_not_stale_completion(self):
+        count = 0
+        def observe(suffix):
+            nonlocal count
+            if suffix == "git/ref/heads/main":
+                return {"object": {"sha": SOURCE}}
+            count += 1
+            if count >= 3:
+                raise OSError("synthetic unavailable readback")
+            return run()
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "j"
+            with patch.object(gate, "api", side_effect=observe), patch.object(gate, "child_jobs", return_value=jobs()):
+                with self.assertRaises(OSError):
+                    gate.wait_for_children([(child(), path)])
+            self.assertEqual(json.loads(path.read_text().splitlines()[-1])["state"], "HOLD")
+
+    def test_timeout_records_hold_without_cancelling_or_redispatching(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "j"
+            with patch.object(gate.time, "monotonic", side_effect=[0, 2]), patch.object(gate, "cli") as execute:
+                with self.assertRaises(RuntimeError):
+                    gate.wait_for_children([(child(), path)], seconds=1)
+            execute.assert_not_called()
+            self.assertEqual(json.loads(path.read_text().splitlines()[-1])["state"], "HOLD")
+
+    def test_duplicate_child_identity_is_rejected_before_reads(self):
+        with tempfile.TemporaryDirectory() as temp:
+            for pairs in ([(child(), Path(temp) / "a"), (child(), Path(temp) / "b")],
+                          [(child(), Path(temp) / "a"),
+                           ({**child(False, "repair-cloudflare-product-edge.yml"), "run_id": 5678}, Path(temp) / "a")]):
+                with self.subTest(pairs=pairs), patch.object(gate, "api") as observe, self.assertRaises(RuntimeError):
+                    gate.wait_for_children(pairs)
+                observe.assert_not_called()
+
+    def test_two_children_complete_only_after_both_final_readbacks(self):
+        second = {**child(False, "repair-cloudflare-product-edge.yml"), "run_id": 5678}
+        counts = {RUN: 0, 5678: 0}
+        edge_run = {**run(), "id": 5678, "path": ".github/workflows/repair-cloudflare-product-edge.yml"}
+        with tempfile.TemporaryDirectory() as temp:
+            pairs = [(child(), Path(temp) / "hf"), (second, Path(temp) / "edge")]
+            def observe(suffix):
+                # Completion journals must not exist before all observations pass.
+                self.assertFalse(any(path.exists() for _, path in pairs))
+                if suffix == "git/ref/heads/main":
+                    return {"object": {"sha": SOURCE}}
+                identity = int(suffix.rsplit("/", 1)[-1]); counts[identity] += 1
+                return run() if identity == RUN else edge_run
+            with patch.object(gate, "api", side_effect=observe), patch.object(
+                gate, "child_jobs", side_effect=lambda item: jobs() if item["run_id"] == RUN else edge_jobs(5678)
+            ):
+                gate.wait_for_children(pairs)
+            self.assertEqual(counts, {RUN: 3, 5678: 3})
+            for item, path in pairs:
+                value = json.loads(path.read_text())
+                self.assertEqual(value["state"], "CHILD_COMPLETION_VERIFIED")
+                self.assertEqual(value["run"]["id"], item["run_id"])
+                self.assertIs(value["production_authorization"], False)
+
+    def test_invalid_wait_bounds_are_rejected_before_reads(self):
+        for bound in (True, False, 0, 3601, 1.5, float("nan")):
+            with self.subTest(bound=bound), tempfile.TemporaryDirectory() as temp, patch.object(gate, "api") as observe:
+                with self.assertRaises(RuntimeError):
+                    gate.wait_for_children([(child(), Path(temp) / "j")], seconds=bound)
+                observe.assert_not_called()
 
 
 if __name__ == "__main__":

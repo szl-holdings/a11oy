@@ -23,6 +23,8 @@ REPOSITORY_ID = 1225834126
 WORKFLOWS = {"hf-sync.yml", "repair-cloudflare-product-edge.yml"}
 VERTICAL_JOB = "Publish and live-verify six domain-native flagship Spaces"
 VERTICAL_GATE = "Enforce complete explicitly requested vertical publication"
+EDGE_JOB = "Deploy, cut over exact DNS proxy state, and prove the public edge"
+EDGE_GATE = "Enforce proved live edge"
 MAX_BYTES = 8 * 1024 * 1024
 
 
@@ -180,6 +182,16 @@ def validate_jobs(jobs: list[dict], child: dict) -> None:
             matched = [job for job in jobs if job.get("name") == name]
             require(len(matched) == 1 and matched[0]["conclusion"] == "success",
                     "canonical product completion job missing/skipped")
+    if child["workflow"] == "repair-cloudflare-product-edge.yml":
+        # The contract-test job can pass while the requested writer is skipped.
+        # Require the actual canonical repair and its exit-code enforcement.
+        required = [job for job in jobs if job.get("name") == EDGE_JOB]
+        require(len(required) == 1 and required[0]["conclusion"] == "success",
+                "canonical edge repair job missing/skipped")
+        steps = [step for step in required[0].get("steps", []) if step.get("name") == EDGE_GATE]
+        require(len(steps) == 1 and steps[0].get("status") == "completed"
+                and steps[0].get("conclusion") == "success",
+                "canonical edge terminal gate was not executed successfully")
     if child["vertical_requested"]:
         required = [job for job in jobs if job.get("name") == VERTICAL_JOB]
         require(len(required) == 1 and required[0]["conclusion"] == "success",
@@ -204,30 +216,80 @@ def child_jobs(child: dict) -> list[dict]:
 
 
 def wait_for_children(children: list[tuple[dict, Path]], *, seconds: int = 3600) -> None:
-    require(bool(children) and 1 <= seconds <= 3600, "invalid child wait bound")
+    """Join exact first-attempt children; recheck the whole set before returning.
+
+    These bounded sequential reads are not an atomic GitHub lease. Re-reading
+    runs after job enumeration and again after the slowest sibling catches an
+    observed rerun or source change, without inventing fresh execution evidence.
+    Neither an earlier green child nor successful edge tests can finish a repair.
+    """
+    require(bool(children) and type(seconds) is int and 1 <= seconds <= 3600,
+            "invalid child wait bound")
+    require(len(children) <= len(WORKFLOWS), "unexpected child count")
+    run_ids = [child.get("run_id") for child, _ in children]
+    workflows = [child.get("workflow") for child, _ in children]
+    paths = [path.resolve() for _, path in children]
+    require(all(type(value) is int and value > 0 for value in run_ids)
+            and len(set(run_ids)) == len(run_ids)
+            and all(workflow in WORKFLOWS for workflow in workflows)
+            and len(set(workflows)) == len(workflows)
+            and len(set(paths)) == len(paths), "duplicate or invalid child identity")
+    source = children[0][0].get("source_revision")
+    require(sha40(source) and all(child.get("source_revision") == source
+                                 for child, _ in children), "child source set mismatch")
     deadline = time.monotonic() + seconds
     remaining = list(children)
-    while remaining:
+    observations = {}
+
+    def within_deadline() -> None:
         require(time.monotonic() < deadline, "child completion deadline; repair remains HOLD")
-        for child, path in list(remaining):
-            run = None
-            try:
+
+    try:
+        while remaining:
+            within_deadline()
+            for child, path in list(remaining):
+                within_deadline()
                 run = api(f"actions/runs/{child['run_id']}")
+                observations[child["run_id"]] = {"run": run}
                 status = validate_run(run, child)
                 if status != "completed":
                     continue
                 jobs = child_jobs(child)
+                observations[child["run_id"]]["jobs"] = jobs
                 validate_jobs(jobs, child)
-                require(api("git/ref/heads/main").get("object", {}).get("sha")
-                        == child["source_revision"], "source moved during child execution")
-                journal(path, {**child, "state": "CHILD_COMPLETION_VERIFIED",
-                               "run": run, "jobs": jobs})
+                # An attempt can change while the paginated job collection is read.
+                readback = api(f"actions/runs/{child['run_id']}")
+                observations[child["run_id"]]["run"] = readback
+                require(validate_run(readback, child) == "completed",
+                        "child changed during job observation")
+                require(api("git/ref/heads/main").get("object", {}).get("sha") == source,
+                        "source moved during child execution")
+                observations[child["run_id"]] = {"run": readback, "jobs": jobs}
                 remaining.remove((child, path))
-            except Exception:
-                journal(path, {**child, "state": "HOLD", "run": run})
-                raise
-        if remaining:
-            time.sleep(min(20, max(0, deadline - time.monotonic())))
+            if remaining:
+                time.sleep(min(20, max(0, deadline - time.monotonic())))
+
+        # Do not retain a completed child's stale green state while another runs.
+        # Delay every completion record until the entire requested set validates.
+        for child, _ in children:
+            within_deadline()
+            readback = api(f"actions/runs/{child['run_id']}")
+            observations[child["run_id"]]["run"] = readback
+            require(validate_run(readback, child) == "completed",
+                    "child changed before complete-set readback")
+        require(api("git/ref/heads/main").get("object", {}).get("sha") == source,
+                "source moved before complete-set readback")
+        within_deadline()
+        for child, path in children:
+            journal(path, {**child, "state": "CHILD_COMPLETION_VERIFIED",
+                           **observations[child["run_id"]]})
+    except Exception:
+        # Partial observations and timeouts never become a successful return.
+        # Do not redispatch, cancel children, or overwrite the attempt journal.
+        for child, path in children:
+            journal(path, {**child, "state": "HOLD",
+                           "run": observations.get(child["run_id"], {}).get("run")})
+        raise
 
 
 def verify_vertical(value: dict, source: str, run_id: int) -> None:

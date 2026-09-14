@@ -11,6 +11,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -191,7 +192,9 @@ elif args[:5] == ["api", "--hostname", "github.com", "--method", "GET"] and len(
         else:
             names = (["Prove exact live source, runtime, routes, and singleton state",
                       "Probe and ingest exact post-deploy readiness verdict", vertical_job]
-                     if match == 1001 else ["Repair and verify product edge"])
+                     if match == 1001 else [
+                         "Prove bounded routes, reversible DNS cutover, and Worker behavior",
+                         "Deploy, cut over exact DNS proxy state, and prove the public edge"])
             jobs = [{**identity, "id": match * 10 + index, "name": name,
                      "conclusion": "success", "steps": []}
                     for index, name in enumerate(names)]
@@ -201,6 +204,10 @@ elif args[:5] == ["api", "--hostname", "github.com", "--method", "GET"] and len(
                     if os.environ["VERTICAL_REQUESTED"] == "true" else "skipped")
                 jobs[-1]["steps"] = [{"name": vertical_gate, "status": "completed",
                                       "conclusion": os.environ.get("FAKE_GATE_CONCLUSION", "success")}]
+            else:
+                jobs[-1]["conclusion"] = os.environ.get("FAKE_EDGE_JOB_CONCLUSION", "success")
+                jobs[-1]["steps"] = [{"name": "Enforce proved live edge", "status": "completed",
+                                      "conclusion": os.environ.get("FAKE_EDGE_GATE_CONCLUSION", "success")}]
             result = {"total_count": len(jobs), "jobs": jobs}
         print(json.dumps(result))
 else:
@@ -217,7 +224,8 @@ class ExecutedWorkflowTests(unittest.TestCase):
         binary.mkdir()
         (binary / "python").symlink_to(sys.executable)
         gh = binary / "gh"
-        gh.write_text(f"#!{sys.executable}\n" + FAKE_GH, encoding="utf-8")
+        # The stdlib-only recorder does not need ambient site-startup hooks.
+        gh.write_text(f"#!{sys.executable} -S\n" + FAKE_GH, encoding="utf-8")
         gh.chmod(0o700)
         # Run the actual source in an isolated miniature checkout so exclusive
         # journals never pollute the repository or collide across test methods.
@@ -241,9 +249,22 @@ class ExecutedWorkflowTests(unittest.TestCase):
         bash = shutil.which("bash")
         if bash is None:
             self.fail("these Ubuntu workflow integration tests require bash")
-        return subprocess.run([bash, "-c", run_block(path, name)], cwd=self.directory,
-                              env=self.env, capture_output=True, text=True,
-                              timeout=15, check=False)
+        command = [bash, "-c", run_block(path, name)]
+        # The literal block starts child Python/gh processes. Reap our isolated
+        # process group on timeout instead of leaving a fixture waiter running.
+        process = subprocess.Popen(command, cwd=self.directory, env=self.env,
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                   text=True, start_new_session=True)
+        try:
+            stdout, stderr = process.communicate(timeout=15)
+        except subprocess.TimeoutExpired:
+            if os.name == "posix":
+                os.killpg(process.pid, signal.SIGKILL)
+            else:
+                process.kill()
+            process.communicate()
+            raise
+        return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
 
     def calls(self) -> list[list[str]]:
         path = Path(self.env["GH_LOG"])
@@ -407,6 +428,34 @@ class ExecutedWorkflowTests(unittest.TestCase):
         for path in (ESTATE, HF_SYNC):
             self.assertIn('        default: ""', path.read_text())
             self.assertIn('        default: false', path.read_text())
+
+    def test_skipped_edge_writer_cannot_finish_product_repair(self) -> None:
+        self.env["VERTICAL_REQUESTED"] = "false"
+        self.env["FAKE_EDGE_JOB_CONCLUSION"] = "skipped"
+        result = self.execute(ESTATE, CALLER)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(len(self.writers()), 2)
+        for name in ("hf", "edge"):
+            self.assertEqual(self.records(name)[-1]["state"], "HOLD")
+            self.assertNotIn("CHILD_COMPLETION_VERIFIED", json.dumps(self.records(name)))
+
+    def test_skipped_edge_enforcement_cannot_finish_product_repair(self) -> None:
+        self.env["VERTICAL_REQUESTED"] = "false"
+        self.env["FAKE_EDGE_GATE_CONCLUSION"] = "skipped"
+        result = self.execute(ESTATE, CALLER)
+        self.assertNotEqual(result.returncode, 0)
+        for name in ("hf", "edge"):
+            self.assertNotIn("CHILD_COMPLETION_VERIFIED", json.dumps(self.records(name)))
+
+    def test_failed_edge_dispatch_does_not_certify_the_started_hf_child(self) -> None:
+        self.env["VERTICAL_PLAN_JSON"] = json.dumps(PLAN)
+        self.env["FAKE_FAIL_WORKFLOW"] = "repair-cloudflare-product-edge.yml"
+        result = self.execute(ESTATE, CALLER)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual([args[2] for args in self.writers()], ["hf-sync.yml", "repair-cloudflare-product-edge.yml"])
+        self.assertEqual(self.records("edge")[-1]["state"], "UNKNOWN_AFTER_ATTEMPT")
+        for name in ("hf", "edge"):
+            self.assertNotIn("CHILD_COMPLETION_VERIFIED", json.dumps(self.records(name)))
 
 
 if __name__ == "__main__":
