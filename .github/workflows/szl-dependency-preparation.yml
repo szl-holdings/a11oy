@@ -1,0 +1,189 @@
+name: Scoped dependency source preparation
+on:
+  push:
+    branches: [szl/prepare-root-dependencies-20260914]
+    paths: [.github/workflows/szl-dependency-preparation.yml]
+permissions:
+  contents: read
+jobs:
+  prepare:
+    if: github.repository == 'szl-holdings/a11oy' && github.ref == 'refs/heads/szl/prepare-root-dependencies-20260914' && github.run_attempt == '1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1
+        with:
+          egress-policy: audit
+      - name: Checkout exact source without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Existing operational pnpm version
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
+        with:
+          version: 10.33.3
+      - name: Existing operational Node major
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22'
+      - name: Python for bounded source preparation
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+      - name: Reproduce mismatch, regenerate declared lock and verify frozen installation
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+          import tempfile
+          
+          BASE = 'd201e0ffd15bef9894776fc79c64480cd098dae1'
+          PINS = {
+              'package.json': 'f087b8953afb2e9b4d5a280d0e1a91c02eed2765',
+              'pnpm-workspace.yaml': 'dd8ae893a41ccd8e57d6c62bc99e8d1a504b5bb0',
+              'pnpm-lock.yaml': '4312ab9e24fdbab77ffb5849af7774e004f22ca3',
+              '.github/workflows/operational.yml': 'dd7c8b934ed86932378c267907ed82734c7cd2f8',
+              'tests/dependency-overrides.test.mjs': '1763f78183714d84db2c19a6852951338e1a26df',
+          }
+          OUT = Path('dependency-preparation-evidence')
+          OUT.mkdir()
+          def require(ok, message):
+              if not ok:
+                  raise RuntimeError(message)
+          def blob(raw):
+              return hashlib.sha1(b'blob ' + str(len(raw)).encode() + b'\0' + raw).hexdigest()
+          def git(*args):
+              return subprocess.check_output(['git', *args], text=True).strip()
+          require(git('rev-parse', 'HEAD^') == BASE, 'preparation parent moved')
+          before = {}
+          for path, expected in PINS.items():
+              data = Path(path).read_bytes()
+              require(blob(data) == expected, 'unexpected source identity: ' + path)
+              before[path] = data
+          manifest = {'base': BASE, 'preparation_head': git('rev-parse', 'HEAD'), 'status': 'INCOMPLETE', 'commands': [], 'files': {}}
+          (OUT / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+          with tempfile.TemporaryDirectory(prefix='szl-pnpm-home-') as home:
+              config = Path(home) / 'npmrc'
+              config.write_text('registry=https://registry.npmjs.org/\n')
+              env = {'PATH': os.environ['PATH'], 'HOME': home, 'CI': 'true', 'SHELL': '/bin/bash',
+                     'NPM_CONFIG_USERCONFIG': str(config), 'NPM_CONFIG_REGISTRY': 'https://registry.npmjs.org/'}
+              def run(label, command, timeout=300, expected_success=True):
+                  with (OUT / (label + '.log')).open('wb') as output:
+                      result = subprocess.run(command, stdout=output, stderr=subprocess.STDOUT, env=env, timeout=timeout, check=False)
+                  raw = (OUT / (label + '.log')).read_bytes()
+                  require(len(raw) <= 4 * 1024 * 1024, 'log bound exceeded')
+                  manifest['commands'].append({'label': label, 'command': command, 'exit_code': result.returncode, 'log_sha256': hashlib.sha256(raw).hexdigest()})
+                  (OUT / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+                  if expected_success:
+                      require(result.returncode == 0, label + ' failed; retained exact log')
+                  return result.returncode, raw
+              _, version = run('pnpm-version', ['pnpm', '--version'], 30)
+              require(version.strip() == b'10.33.3', 'pnpm version mismatch')
+              run('node-version', ['node', '--version'], 30)
+              code, log = run('before-frozen', ['pnpm', 'install', '--lockfile-only', '--frozen-lockfile', '--ignore-scripts', '--ignore-pnpmfile'], expected_success=False)
+              require(code != 0 and b'ERR_PNPM_LOCKFILE_CONFIG_MISMATCH' in log, 'expected predecessor failure not observed')
+              require(Path('pnpm-lock.yaml').read_bytes() == before['pnpm-lock.yaml'], 'failed preflight changed lock')
+              workspace = before['pnpm-workspace.yaml'].decode()
+              for old, new in [('  js-yaml@<4.3.1: 4.3.1', '  js-yaml@<4.3.2: 4.3.2'), ('  browserslist@<=4.28.6: 4.28.7', '  browserslist: 4.28.8')]:
+                  require(workspace.count(old) == 1, 'workspace policy anchor drift')
+                  workspace = workspace.replace(old, new, 1)
+              Path('pnpm-workspace.yaml').write_text(workspace, encoding='utf-8')
+              workflow = before['.github/workflows/operational.yml'].decode()
+              anchor = "      - 'pnpm-workspace.yaml'\n"
+              require(workflow.count(anchor) == 2, 'native path selector drift')
+              workflow = workflow.replace(anchor, anchor + "      - 'tests/dependency-overrides.test.mjs'\n")
+              anchor = '      - name: Verify live tracked Hugging Face ecosystem manifest\n'
+              require(workflow.count(anchor) == 1, 'native test seam drift')
+              workflow = workflow.replace(anchor, '      - name: Verify declared and resolved dependency security overrides\n        run: node --test tests/dependency-overrides.test.mjs\n' + anchor, 1)
+              Path('.github/workflows/operational.yml').write_text(workflow, encoding='utf-8')
+              run('regenerate-lock', ['pnpm', 'install', '--lockfile-only', '--no-frozen-lockfile', '--ignore-scripts', '--ignore-pnpmfile', '--registry=https://registry.npmjs.org/'])
+              generated = Path('pnpm-lock.yaml').read_bytes()
+              require(generated != before['pnpm-lock.yaml'], 'lock regeneration produced no change')
+              run('after-frozen', ['pnpm', 'install', '--frozen-lockfile', '--ignore-scripts', '--ignore-pnpmfile', '--registry=https://registry.npmjs.org/'])
+              require(Path('pnpm-lock.yaml').read_bytes() == generated, 'frozen install changed generated lock')
+              run('native-regressions', ['node', '--test', 'tests/dependency-overrides.test.mjs'], 60)
+              # Prove the new actual-source check rejects the original three-file mismatch.
+              Path('pnpm-workspace.yaml').write_bytes(before['pnpm-workspace.yaml'])
+              Path('pnpm-lock.yaml').write_bytes(before['pnpm-lock.yaml'])
+              try:
+                  code, log = run('predecessor-regression', ['node', '--test', 'tests/dependency-overrides.test.mjs'], 60, expected_success=False)
+                  require(code != 0 and b'workspace policy differs' in log, 'new source regression failed to detect predecessor')
+              finally:
+                  Path('pnpm-workspace.yaml').write_text(workspace, encoding='utf-8')
+                  Path('pnpm-lock.yaml').write_bytes(generated)
+              run('final-regressions', ['node', '--test', 'tests/dependency-overrides.test.mjs'], 60)
+          expected_changes = {'pnpm-workspace.yaml', 'pnpm-lock.yaml', '.github/workflows/operational.yml'}
+          require(set(git('diff', '--name-only').splitlines()) == expected_changes, 'unexpected tracked modification')
+          require(Path('package.json').read_bytes() == before['package.json'], 'admitted manifest changed')
+          subprocess.run(['git', 'diff', '--check'], check=True)
+          for path in sorted(expected_changes | {'tests/dependency-overrides.test.mjs'}):
+              data = Path(path).read_bytes()
+              require(len(data) <= 2 * 1024 * 1024, 'source file size bound')
+              target = OUT / 'files' / path
+              target.parent.mkdir(parents=True, exist_ok=True)
+              target.write_bytes(data)
+              manifest['files'][path] = {'blob': blob(data), 'sha256': hashlib.sha256(data).hexdigest(), 'bytes': len(data)}
+          (OUT / 'tracked-repair.patch').write_text(subprocess.check_output(['git', 'diff'], text=True), encoding='utf-8')
+          manifest['status'] = 'FROZEN_INSTALL_AND_SOURCE_REGRESSIONS_PASSED_NOT_ADMITTED'
+          (OUT / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps(manifest, sort_keys=True))
+          PY
+      - name: Store verified content blobs only; never update any ref or invoke a publisher
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import base64
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import urllib.request
+          out = Path('dependency-preparation-evidence')
+          manifest = json.loads((out / 'manifest.json').read_text())
+          allowed = {'pnpm-workspace.yaml', 'pnpm-lock.yaml', '.github/workflows/operational.yml', 'tests/dependency-overrides.test.mjs'}
+          if set(manifest['files']) != allowed or manifest['status'] != 'FROZEN_INSTALL_AND_SOURCE_REGRESSIONS_PASSED_NOT_ADMITTED':
+              raise RuntimeError('unqualified output')
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, *args, **kwargs):
+                  raise RuntimeError('redirect denied')
+          opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+          headers = {'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'Content-Type': 'application/json'}
+          completed = {}
+          for path in sorted(allowed):
+              raw = (out / 'files' / path).read_bytes()
+              sha = hashlib.sha1(b'blob ' + str(len(raw)).encode() + b'\0' + raw).hexdigest()
+              if sha != manifest['files'][path]['blob'] or hashlib.sha256(raw).hexdigest() != manifest['files'][path]['sha256']:
+                  raise RuntimeError('tested file bytes moved')
+              (out / 'blob-state.json').write_text(json.dumps({'state': 'ATTEMPTING_CONTENT_BLOB_ONLY', 'path': path, 'completed': completed}, indent=2) + '\n')
+              body = json.dumps({'encoding': 'base64', 'content': base64.b64encode(raw).decode('ascii')}).encode()
+              request = urllib.request.Request('https://api.github.com/repos/szl-holdings/a11oy/git/blobs', data=body, headers=headers, method='POST')
+              with opener.open(request, timeout=20) as response:
+                  if response.status != 201:
+                      raise RuntimeError('blob response not confirmed')
+                  result = json.loads(response.read(65537))
+              if result['sha'] != sha:
+                  raise RuntimeError('remote blob identity differs')
+              completed[path] = sha
+          (out / 'blob-state.json').write_text(json.dumps({'state': 'BLOBS_CREATED_NO_REF_MUTATION', 'blobs': completed}, indent=2) + '\n')
+          print(json.dumps(completed, sort_keys=True))
+          PY
+      - name: Retain preparation and failure evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: dependency-source-preparation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: dependency-preparation-evidence/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
