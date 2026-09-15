@@ -36,3 +36,15 @@ fixtures. It is included in both Python versions of the existing finance CI.
 Provider smoke observations, browser evidence, source admission and live HF
 publication evidence remain separate obligations. Passing tests does not make
 credentials configured, data entitled, a model calibrated, or real money usable.
+
+## Legacy alias closure
+
+The pre-existing `/v1/markets/macro` and `/api/a11oy/v1/markets/macro` routes
+now delegate to the same canonical FRED reader and owner-access check. The
+legacy summary cannot anonymously fetch FRED with a server-held key or report
+aggregate success when a child is unavailable. Credentialed results use
+private/no-store responses; token-bearing query strings do not grant access.
+Legacy and canonical routers are registered idempotently ahead of SPA fallbacks
+on both flat and grouped FastAPI releases. Existing company/debt compatibility
+representations are unchanged; their legacy period/representation semantics
+are not substituted for the stricter canonical finance observation contracts.

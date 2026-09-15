@@ -18,9 +18,9 @@ NEVER fabricates a number (it reports the source status instead):
         Keyless.  https://api.fiscaldata.treasury.gov/.../v2/accounting/od/debt_to_penny
 
   GET /api/a11oy/v1/markets/macro?series_id=GDP
-        FRED economic series (St. Louis Fed) — GDP / CPI / unemployment.  Needs a
-        FREE key (SZL_FRED_API_KEY).  No key -> honest READY (path wired, NO faked
-        numbers).  With key -> live CONNECTED observations.
+        FRED economic series (St. Louis Fed) — GDP / CPI / unemployment.
+        Owner-authenticated compatibility view of the canonical private FRED
+        reader. Both an API key and X-SZL-Finance-Read-Token are required.
 
 Leader features adapted (made ours): Palantir Foundry's ontology-driven BI — every
 figure carries its source, concept (XBRL tag / Treasury field / FRED series), and
@@ -33,7 +33,7 @@ import os
 import time
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import JSONResponse
 
 try:
@@ -191,49 +191,36 @@ def _debt():
     }
 
 
-def _macro(series_id):
-    series = "".join(ch for ch in str(series_id) if ch.isalnum()) or "GDP"
-    key = os.environ.get("SZL_FRED_API_KEY")
-    base = "https://api.stlouisfed.org/fred/series/observations"
-    if not key:
-        return {
-            "ok": False, "live": False, "state": "ROADMAP",
-            "source": "FRED economic series (St. Louis Fed)",
-            "source_label": "live from Fed (free key required)",
-            "source_url": "https://fred.stlouisfed.org/series/" + series,
-            "series_id": series, "observations": [],
-            "note": "FRED path wired; set free key SZL_FRED_API_KEY to activate live data "
-                    "(https://fred.stlouisfed.org/docs/api/api_key.html). No numbers fabricated.",
-            "fetched_at": _now(),
-        }
-    ck = f"markets:macro:{series}"
-    cached = _cached(ck, 1800)
-    if cached:
-        return cached
-    url = (f"{base}?series_id={series}&file_type=json&api_key={key}"
-           "&sort_order=desc&limit=12")
-    st, raw = http_json(url, timeout=_TIMEOUT)
-    if st == 200 and isinstance(raw, dict):
-        obs = [{"date": o.get("date"), "value": o.get("value")}
-               for o in (raw.get("observations") or [])[:12]]
-        body = {
-            "ok": True, "live": True, "state": "MEASURED",
-            "source": f"FRED /series/observations {series}",
-            "source_label": "live from Fed",
-            "source_url": "https://fred.stlouisfed.org/series/" + series,
-            "series_id": series, "observations": obs,
-            "note": "Live FRED observations (free key).",
-            "fetched_at": _now(),
-        }
-        return _put(ck, body)
-    return {
-        "ok": False, "live": False, "state": "SAMPLE",
-        "source": f"FRED /series/observations {series}",
-        "source_label": "live from Fed", "source_url": base,
-        "series_id": series, "observations": [],
-        "note": f"FRED key present but provider returned HTTP {st}; no numbers fabricated.",
-        "fetched_at": _now(),
-    }
+def _macro(series_id, access_token=None):
+    """Compatibility view of the one canonical private FRED reader.
+
+    The legacy route must not become a credential/entitlement bypass merely
+    because it predates /finance. No independent FRED HTTP client or cache.
+    """
+    import importlib
+    canonical_routes = importlib.import_module("verticals.puriq-markets.runtime.routes")
+    canonical_transport = importlib.import_module("verticals.puriq-markets.runtime.transport")
+    try:
+        observation = canonical_routes.CLIENT.observe(
+            "fred-series", {"series_id": series_id}, access_token=access_token,
+        )
+    except canonical_transport.FinanceError as exc:
+        return {"ok": False, "live": False, "state": "UNAVAILABLE",
+                "error": exc.code, "source": "FRED private read",
+                "source_label": "Canonical owner-authenticated FRED reader",
+                "series_id": None, "observations": [], "execution_enabled": False,
+                "note": "Use the canonical owner read credential; it is never accepted in a URL.",
+                "fetched_at": _now()}
+    data = observation.get("data") or {}
+    return {"ok": observation["ok"], "live": False, "state": observation["state"],
+            "error": observation.get("error"), "source": "FRED private read",
+            "source_label": "Canonical owner-authenticated FRED reader",
+            "series_id": data.get("series_id", series_id),
+            "as_of": data.get("as_of"), "observations": data.get("items", []),
+            "source_revision": observation["source_revision"],
+            "provenance": observation.get("provenance"),
+            "execution_enabled": False, "fetched_at": observation.get("retrieved_at"),
+            "note": "Historical observations at the explicit reported as-of date; not live executable quotes."}
 
 
 # ── FastAPI router (ADDITIVE; registered before the SPA catch-all) ──────────
@@ -254,47 +241,42 @@ def markets_debt():
 
 @router.get("/api/a11oy/v1/markets/macro")
 @router.get("/v1/markets/macro")
-def markets_macro(series_id: str = "GDP"):
-    return JSONResponse(_macro(series_id))
+def markets_macro(request: Request, series_id: str = "GDP"):
+    body = _macro(series_id, request.headers.get("X-SZL-Finance-Read-Token"))
+    status = 200 if body["ok"] else 403 if body.get("error") == "PRIVATE_SOURCE_ACCESS_REQUIRED" else 422 if body.get("error") == "INVALID_PARAMETERS" else 503
+    return JSONResponse(body, status_code=status, headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"})
 
 
 @router.get("/api/a11oy/v1/markets/summary")
 @router.get("/v1/markets/summary")
-def markets_summary(cik: str = "320193", series_id: str = "GDP"):
-    """One cross-asset surface: a real filer's SEC financials + live national debt
-    + a Fed macro series — Bloomberg-style macro context, ontology-labelled."""
+def markets_summary(request: Request, cik: str = "320193", series_id: str = "GDP"):
+    """Compatibility summary; partial failure is not aggregate success."""
+    company, debt = _company(cik), _debt()
+    macro = _macro(series_id, request.headers.get("X-SZL-Finance-Read-Token"))
+    complete = all(row.get("ok") is True for row in (company, debt, macro))
     return JSONResponse({
-        "ok": True,
+        "ok": complete, "state": "SNAPSHOTS_AVAILABLE" if complete else "DEGRADED",
         "doctrine": {"locked": 8, "lambda": "Conjecture 1", "bft": "Conjecture 2"},
-        "advisory": "informational — not investment advice; public data only",
-        "company": _company(cik),
-        "national_debt": _debt(),
-        "macro": _macro(series_id),
-        "fetched_at": _now(),
-    })
+        "advisory": "informational, not investment advice; FRED requires owner-authenticated access",
+        "company": company, "national_debt": debt, "macro": macro,
+        "execution_enabled": False, "fetched_at": _now(),
+    }, headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"})
 
 
 def register(app: FastAPI, ns: str = "a11oy") -> str:
-    """Attach the markets router. ADDITIVE — registered BEFORE the SPA catch-all +
-    Node proxy so /api/a11oy/v1/markets/* resolves LOCALLY. Touches no existing route."""
+    """Register once, ahead of SPA fallbacks, with flat or grouped routers."""
+    if getattr(app.state, "szl_legacy_markets_registered", False):
+        return "a11oy markets already mounted"
+    before = {id(route) for route in app.router.routes}
     app.include_router(router)
-    # Canonical PURIQ data adapters are assembled with the existing market service.
+    added = [route for route in app.router.routes if id(route) not in before]
+    if not added:
+        raise RuntimeError("legacy market router registration produced no route objects")
+    app.router.routes[:] = added + [route for route in app.router.routes if id(route) in before]
     import importlib
-    # The existing compiled vertical uses a hyphenated directory name.
     importlib.import_module("verticals.puriq-markets.runtime.routes").register(app)
-    # Front-move our routes ahead of any pre-existing SPA catch-all so the
-    # /v1/... + /api/a11oy/v1/... forms match before the HTML fallback.
-    try:
-        ours, others = [], []
-        for r in app.router.routes:
-            path = getattr(r, "path", "")
-            (ours if "/markets/" in path else others).append(r)
-        if ours:
-            app.router.routes[:] = ours + others
-    except Exception:  # pragma: no cover — never break boot
-        pass
-    return ("a11oy.v1.markets mounted: GET /api/a11oy/v1/markets/{company,debt,macro,summary} "
-            "(SEC EDGAR companyfacts + Treasury debt-to-penny + FRED; live, honest fallback)")
+    app.state.szl_legacy_markets_registered = True
+    return "a11oy market compatibility routes and canonical finance sources mounted; no execution"
 
 
 def attach(app: FastAPI) -> str:
