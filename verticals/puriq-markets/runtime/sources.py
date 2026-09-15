@@ -512,7 +512,11 @@ def normalize(source: str, payload: Any, p: dict, now: float) -> dict:
         for row in rows(series[0].get("data"), 1000):
             row = obj(row)
             output.append({"year": text(row.get("year"), 4), "period": text(row.get("period"), 8),
-                "period_name": text(row.get("periodName"), 100), "value": number(row.get("value")),
+                "period_name": text(row.get("periodName"), 100),
+                # BLS explicitly documents '-' as missing CPI data in its API.
+                # Preserve the marker and footnote; never substitute zero or impute.
+                "value": None if row.get("value") == "-" else number(row.get("value")),
+                "missing_value_marker": "-" if row.get("value") == "-" else None,
                 "is_annual_average": row.get("period") == "M13",
                 "footnotes": [{k: text(obj(n).get(k), 2000) for k in ("code", "text")} for n in rows(row.get("footnotes", []), 100)]})
         return catalogue(output, series_id=p["series_id"], vintage="LATEST_PROVIDER_RESPONSE; release vintage not established")
