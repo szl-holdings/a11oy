@@ -33,6 +33,7 @@ on:
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
+      - 'tests/dependency-overrides.test.mjs'
       - 'packages/**/package.json'
       - 'packages/**/package-lock.json'
       - '.github/workflows/huggingface.yml'
@@ -65,6 +66,7 @@ on:
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
+      - 'tests/dependency-overrides.test.mjs'
       - 'packages/**/package.json'
       - 'packages/**/package-lock.json'
       - '.github/workflows/huggingface.yml'
@@ -102,6 +104,8 @@ jobs:
           node-version: '22'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Verify declared and resolved dependency security overrides
+        run: node --test tests/dependency-overrides.test.mjs
       - name: Verify live tracked Hugging Face ecosystem manifest
         if: github.event_name != 'pull_request'
         run: pnpm hf:ecosystem:audit
