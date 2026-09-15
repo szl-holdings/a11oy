@@ -1,0 +1,94 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Finance source contracts
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, feat/finance-market-data-20260915]
+  workflow_dispatch: {}
+permissions:
+  contents: read
+concurrency:
+  group: finance-source-contracts-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  contracts:
+    name: Finance source contract (${{ matrix.python }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.12', '3.13']
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install exact API dependencies from the existing Docker contract
+        run: >-
+          python -m pip install --disable-pip-version-check --no-cache-dir
+          fastapi==0.141.1 starlette==1.6.0 httpx==0.28.1
+          huggingface_hub==1.31.0 pytest==9.0.2
+      - name: Run network-free source, route, cache, security and generated-Space contracts
+        env:
+          SZL_SOURCE_REVISION: ${{ github.sha }}
+        run: |
+          python -m pip check
+          python -m compileall -q verticals/puriq-markets/runtime scripts/hf_finance_read_proxy.py
+          python -m pytest tests/test_finance_source_contracts.py tests/test_finance_route_registration.py tests/test_finance_bls_missing.py tests/test_finance_release_boundaries.py tests/test_finance_legacy_access.py -q --junitxml=finance-contracts.xml
+      - name: Retain exact checked-in source and test evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: finance-contracts-${{ matrix.python }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            finance-contracts.xml
+            verticals/puriq-markets/runtime/
+            a11oy_markets.py
+            Dockerfile
+            scripts/hf_finance_read_proxy.py
+            scripts/hf_publish_vertical_flagships_v4_impl.py
+            tests/test_finance_source_contracts.py
+            tests/test_finance_route_registration.py
+            tests/test_finance_bls_missing.py
+            tests/test_finance_release_boundaries.py
+            tests/test_finance_legacy_access.py
+          if-no-files-found: error
+          retention-days: 30
+  public-observation:
+    name: Public source observation (not a release gate)
+    needs: contracts
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref != 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+      - name: Probe only public read endpoints and preserve unavailable sources
+        env:
+          SZL_SOURCE_REVISION: ${{ github.sha }}
+          SZL_SEC_USER_AGENT: ${{ vars.SZL_SEC_USER_AGENT }}
+        run: python scripts/finance_source_smoke.py
+      - name: Retain public-source observations and explicit exclusions
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: finance-public-observation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: finance-source-evidence/
+          if-no-files-found: error
+          retention-days: 30

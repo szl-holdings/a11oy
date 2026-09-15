@@ -67,7 +67,7 @@ def test_overlay_and_immutable_base_compile() -> None:
     assert "eval(" not in overlay
 
 
-def test_overlay_changes_only_sentra_contract_and_templates() -> None:
+def test_overlay_changes_only_declared_sentra_and_finance_contracts() -> None:
     base = load_base()
     overlay = load_overlay()
     base_rows = by_slug(base)
@@ -76,10 +76,26 @@ def test_overlay_changes_only_sentra_contract_and_templates() -> None:
     assert set(base_rows) == set(overlay_rows) == {
         "terra", "sentra", "counsel", "finance", "vessels", "lyte"
     }
-    for slug in set(base_rows) - {"sentra"}:
+    for slug in set(base_rows) - {"sentra", "finance"}:
         assert overlay_rows[slug] == base_rows[slug]
+    for slug in set(base_rows) - {"sentra"}:
         assert overlay.DOMAIN_CSS[slug] == base.DOMAIN_CSS[slug]
         assert overlay.DOMAIN_HTML[slug] == base.DOMAIN_HTML[slug]
+
+    # Finance changes only two explicit bindings; all other metadata and visual
+    # templates stay equal to the immutable renderer. This is not a wildcard
+    # exception for finance changes or permission for another publisher.
+    assert overlay_rows["finance"] == {
+        **base_rows["finance"],
+        "source": "https://github.com/szl-holdings/a11oy/tree/main/verticals/puriq-markets",
+        "upstream": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/finance/overview",
+    }
+    assert overlay.APP.startswith(base.APP)
+    addition = overlay.APP[len(base.APP):]
+    assert 'if CFG.get("slug") == "finance":' in addition
+    assert 'CANONICAL_REVISION_MISMATCH' in addition
+    assert 'USE_PRIVATE_CANONICAL_SOURCE_ENDPOINT' in addition
+    assert overlay.DOCKER == base.DOCKER
 
     assert overlay_rows["sentra"] != base_rows["sentra"]
     assert overlay.DOMAIN_CSS["sentra"] != base.DOMAIN_CSS["sentra"]
