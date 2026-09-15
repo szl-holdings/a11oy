@@ -42,7 +42,7 @@ jobs:
         run: |
           python -m pip check
           python -m compileall -q verticals/puriq-markets/runtime scripts/hf_finance_read_proxy.py
-          python -m pytest tests/test_finance_source_contracts.py tests/test_finance_route_registration.py tests/test_finance_bls_missing.py -q --junitxml=finance-contracts.xml
+          python -m pytest tests/test_finance_source_contracts.py tests/test_finance_route_registration.py tests/test_finance_bls_missing.py tests/test_finance_release_boundaries.py -q --junitxml=finance-contracts.xml
       - name: Retain exact checked-in source and test evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -58,6 +58,7 @@ jobs:
             tests/test_finance_source_contracts.py
             tests/test_finance_route_registration.py
             tests/test_finance_bls_missing.py
+            tests/test_finance_release_boundaries.py
           if-no-files-found: error
           retention-days: 30
   public-observation:

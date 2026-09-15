@@ -8,69 +8,129 @@ Only canonical JSON read endpoints are proxied; source semantics remain intact.
 FINANCE_PROXY = r'''
 # Public finance projection. Core normalization remains in szl-holdings/a11oy.
 if CFG.get("slug") == "finance":
+    import math as _finance_math
     import re as _finance_re
+    import time as _finance_time
     from fastapi import Request as _FinanceRequest
     from urllib.parse import urlencode as _finance_urlencode
     _FINANCE_ORIGIN = "https://szlholdings-a11oy.hf.space"
     _FINANCE_PREFIX = "/api/a11oy/v1/finance/"
 
+    def _finance_unavailable(code, status=503):
+        return {"ok":False,"state":"UNAVAILABLE","error":code,"execution_enabled":False},status
+
+    def _finance_json(raw):
+        def pairs(items):
+            out={}
+            for key,value in items:
+                if key in out:
+                    raise ValueError("duplicate key")
+                out[key]=value
+            return out
+        def finite(value):
+            number=float(value)
+            if not _finance_math.isfinite(number):
+                raise ValueError("nonfinite number")
+            return number
+        def invalid(value):
+            raise ValueError("nonfinite literal")
+        return json.loads(raw,object_pairs_hook=pairs,parse_float=finite,parse_constant=invalid)
+
+    def _finance_identity(body,expected,source=None):
+        if not isinstance(body,dict) or body.get("schema")!=expected or body.get("execution_enabled") is not False:
+            return "CANONICAL_SCHEMA_INVALID"
+        revision=CFG.get("source_revision","")
+        if not _finance_re.fullmatch(r"[0-9a-f]{40}",revision) or body.get("source_revision")!=revision:
+            return "CANONICAL_REVISION_MISMATCH"
+        if source is not None and body.get("source")!=source:
+            return "CANONICAL_SOURCE_IDENTITY_MISMATCH"
+        return None
+
     def _finance_get(kind, query=None):
         if not _finance_re.fullmatch(r"providers|overview|observations/[a-z][a-z-]{0,79}", kind):
-            return {"ok":False,"state":"UNAVAILABLE","error":"ROUTE_DENIED"}, 404
+            return _finance_unavailable("ROUTE_DENIED",404)
         if kind.startswith(("observations/alpaca-", "observations/fred-")):
-            return {"ok":False,"state":"UNAVAILABLE","error":"USE_PRIVATE_CANONICAL_SOURCE_ENDPOINT"}, 403
+            return _finance_unavailable("USE_PRIVATE_CANONICAL_SOURCE_ENDPOINT",403)
         target = _FINANCE_ORIGIN + _FINANCE_PREFIX + kind
         pairs = list(query or [])
         allowed_parameters={"limit","offset","token_id","interval","fidelity","cursor","series_ticker","ticker","depth","product","granularity","end","count","cik","series_id"}
         if any(k not in allowed_parameters for k,v in pairs):
-            return {"ok":False,"state":"UNAVAILABLE","error":"INVALID_PARAMETERS"},422
+            return _finance_unavailable("INVALID_PARAMETERS",422)
         if len(pairs)>8 or len({k for k,v in pairs}) != len(pairs) or any(len(k)>32 or len(v)>2048 for k,v in pairs):
-            return {"ok":False,"state":"UNAVAILABLE","error":"INVALID_PARAMETERS"}, 422
+            return _finance_unavailable("INVALID_PARAMETERS",422)
         if pairs:
             target += "?" + _finance_urlencode(pairs)
         try:
-            # No caller auth header/cookie forwarded. Never follow an upstream redirect.
-            with httpx.Client(timeout=15,follow_redirects=False,trust_env=False) as client:
-                with client.stream("GET",target,headers={"Accept":"application/json","User-Agent":"SZL-Finance-Projection/1.0"}) as response:
-                    if response.status_code not in (200,403,404,422,503) or "json" not in response.headers.get("content-type",""):
-                        return {"ok":False,"state":"UNAVAILABLE","error":"CANONICAL_SOURCE_UNAVAILABLE"},503
+            deadline=_finance_time.monotonic()+12
+            # No caller auth/cookies, environment proxy, redirect or decompression.
+            with httpx.Client(timeout=5,follow_redirects=False,trust_env=False) as client:
+                with client.stream("GET",target,headers={"Accept":"application/json","Accept-Encoding":"identity","User-Agent":"SZL-Finance-Projection/1.1"}) as response:
+                    mime=response.headers.get("content-type","").split(";",1)[0].strip().lower()
+                    if response.status_code not in (200,403,404,422,503) or not (mime=="application/json" or mime.startswith("application/") and mime.endswith("+json")):
+                        return _finance_unavailable("CANONICAL_SOURCE_UNAVAILABLE")
+                    if response.headers.get("content-encoding","identity").lower() not in ("","identity"):
+                        return _finance_unavailable("CANONICAL_ENCODING_DENIED")
+                    declared=response.headers.get("content-length")
+                    if declared is not None and (not declared.isdigit() or int(declared)>4_000_000):
+                        return _finance_unavailable("CANONICAL_RESPONSE_TOO_LARGE")
                     chunks=[]
                     size=0
                     for chunk in response.iter_bytes():
+                        if _finance_time.monotonic()>deadline:
+                            return _finance_unavailable("CANONICAL_RESPONSE_DEADLINE")
                         size+=len(chunk)
                         if size>4_000_000:
-                            return {"ok":False,"state":"UNAVAILABLE","error":"CANONICAL_RESPONSE_TOO_LARGE"},503
+                            return _finance_unavailable("CANONICAL_RESPONSE_TOO_LARGE")
                         chunks.append(chunk)
-                    body=json.loads(b"".join(chunks))
+                    if _finance_time.monotonic()>deadline:
+                        return _finance_unavailable("CANONICAL_RESPONSE_DEADLINE")
+                    try:
+                        body=_finance_json(b"".join(chunks))
+                    except (ValueError,UnicodeError,RecursionError):
+                        return _finance_unavailable("CANONICAL_SCHEMA_INVALID")
                     if not isinstance(body,dict):
-                        return {"ok":False,"state":"UNAVAILABLE","error":"CANONICAL_SCHEMA_INVALID"},503
-                    if response.status_code==200:
-                        expected="szl.finance.providers/v1" if kind=="providers" else "szl.finance.overview/v1" if kind=="overview" else "szl.finance.observation/v1"
-                        if body.get("schema")!=expected or body.get("execution_enabled") is not False:
-                            return {"ok":False,"state":"UNAVAILABLE","error":"CANONICAL_SCHEMA_INVALID"},503
-                        if kind.startswith("observations/") and body.get("source")!=kind.split("/",1)[1]:
-                            return {"ok":False,"state":"UNAVAILABLE","error":"CANONICAL_SOURCE_IDENTITY_MISMATCH"},503
-                        expected_revision=CFG.get("source_revision","")
-                        if not _finance_re.fullmatch(r"[0-9a-f]{40}",expected_revision) or body.get("source_revision")!=expected_revision:
-                            return {"ok":False,"state":"UNAVAILABLE","error":"CANONICAL_REVISION_MISMATCH"},503
+                        return _finance_unavailable("CANONICAL_SCHEMA_INVALID")
+                    # Request errors carry no source evidence. Never relay arbitrary
+                    # bodies, data, credentials, HTML, or upstream exception strings.
+                    if response.status_code in (403,404,422):
+                        allowed_errors={"UNKNOWN_SOURCE","INVALID_PARAMETERS","DUPLICATE_QUERY_PARAMETER","PRIVATE_SOURCE_ACCESS_REQUIRED"}
+                        error=body.get("error")
+                        return _finance_unavailable(error if error in allowed_errors else "CANONICAL_REQUEST_DENIED",response.status_code)
+                    expected="szl.finance.providers/v1" if kind=="providers" else "szl.finance.overview/v1" if kind=="overview" else "szl.finance.observation/v1"
+                    source=kind.split("/",1)[1] if kind.startswith("observations/") else None
+                    error=_finance_identity(body,expected,source)
+                    if error:
+                        return _finance_unavailable(error)
+                    # Failure status is not an escape hatch for stale or misbound data.
+                    if response.status_code==503 and (source is None or body.get("ok") is not False or body.get("state") not in ("STALE","UNAVAILABLE")):
+                        return _finance_unavailable("CANONICAL_SCHEMA_INVALID")
+                    if kind=="overview" and "data" in body:
+                        if not isinstance(body["data"],dict) or len(body["data"])>8:
+                            return _finance_unavailable("CANONICAL_SCHEMA_INVALID")
+                        for child_source,child in body["data"].items():
+                            if child_source not in {"polymarket-markets","kalshi-markets","coinbase-ticker","treasury-rates"}:
+                                return _finance_unavailable("CANONICAL_SOURCE_IDENTITY_MISMATCH")
+                            error=_finance_identity(child,"szl.finance.observation/v1",child_source)
+                            if error:
+                                return _finance_unavailable(error)
                     return body,response.status_code
         except Exception:
-            return {"ok":False,"state":"UNAVAILABLE","error":"CANONICAL_SOURCE_UNAVAILABLE"},503
+            return _finance_unavailable("CANONICAL_SOURCE_UNAVAILABLE")
 
     @app.get("/api/finance/providers")
     def finance_provider_projection():
         body,code=_finance_get("providers")
-        return JSONResponse(body,status_code=code,headers={"Cache-Control":"private, no-store"})
+        return JSONResponse(body,status_code=code,headers={"Cache-Control":"private, no-store","X-Content-Type-Options":"nosniff"})
 
     @app.get("/api/finance/overview")
     def finance_overview_projection():
         body,code=_finance_get("overview")
-        return JSONResponse(body,status_code=code,headers={"Cache-Control":"private, no-store"})
+        return JSONResponse(body,status_code=code,headers={"Cache-Control":"private, no-store","X-Content-Type-Options":"nosniff"})
 
     @app.get("/api/finance/observations/{source}")
     def finance_observation_projection(source:str,request:_FinanceRequest):
         body,code=_finance_get("observations/"+source,request.query_params.multi_items())
-        return JSONResponse(body,status_code=code,headers={"Cache-Control":"private, no-store"})
+        return JSONResponse(body,status_code=code,headers={"Cache-Control":"private, no-store","X-Content-Type-Options":"nosniff"})
 
     # Existing /api/live resolves this function at call time. An HTTP 200 alone
     # must never turn a partially unavailable finance overview into LIVE.

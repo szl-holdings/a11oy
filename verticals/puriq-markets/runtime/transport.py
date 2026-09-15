@@ -24,7 +24,8 @@ import time
 from typing import Any, Callable, Mapping
 from urllib.parse import urlsplit
 
-VERSION = "1.0.0"
+VERSION = "1.0.1"
+PROVIDER_WAIT_SECONDS = 0.25
 ALLOWED_HOSTS = frozenset({
     "gamma-api.polymarket.com", "clob.polymarket.com", "external-api.kalshi.com",
     "api.exchange.coinbase.com", "data.sec.gov", "api.fiscaldata.treasury.gov",
@@ -213,7 +214,21 @@ class FinanceClient:
             self._record(source, out)
             return out
         key = digest([source, dict(plan.parameters), plan.partition])
-        with self._provider_locks[plan.provider]:
+        lock = self._provider_locks[plan.provider]
+        if not lock.acquire(timeout=PROVIDER_WAIT_SECONDS):
+            with self._guard:
+                old = self._cache.get(key)
+            now = self.clock()
+            if old is not None and self.monotonic() < old[0]:
+                result = deepcopy(old[1])
+                result.update(state="CACHED", served_at=stamp(now),
+                              retrieval_age_seconds=max(0.0, now - result["retrieved_at_epoch"]))
+            else:
+                result = self._failure(source, now, "PROVIDER_BUSY", old)
+                result["retry_after_seconds"] = 1.0
+            self._record(source, result)
+            return result
+        try:
             now = self.clock()
             with self._guard:
                 old = self._cache.get(key)
@@ -266,6 +281,8 @@ class FinanceClient:
                 result["retry_after_seconds"] = exc.retry_after
             self._record(source, result)
             return result
+        finally:
+            lock.release()
 
     def _record(self, source: str, result: dict) -> None:
         with self._guard:
@@ -273,10 +290,10 @@ class FinanceClient:
                 "served_at": result.get("served_at"), "error": result.get("error"),
                 "retrieved_at": result.get("retrieved_at")}
 
-    @staticmethod
-    def _unavailable(source: str, now: float, code: str) -> dict:
+    def _unavailable(self, source: str, now: float, code: str) -> dict:
         return {"schema": "szl.finance.observation/v1", "source": source,
                 "state": "UNAVAILABLE", "ok": False, "truth_label": "UNAVAILABLE",
+                "source_revision": source_revision(self.environ),
                 "data": None, "provenance": None, "retrieved_at": None,
                 "served_at": stamp(now), "error": code, "execution_enabled": False}
 
