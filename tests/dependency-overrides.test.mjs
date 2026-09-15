@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Source consistency and known js-yaml advisory regressions, not a security scan.
 import assert from 'node:assert/strict';
-import { readFileSync, statSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import * as yaml from 'js-yaml';
 
@@ -9,8 +9,9 @@ const root = new URL('../', import.meta.url);
 const decoder = new TextDecoder('utf-8', { fatal: true });
 function source(name) {
   const path = new URL(name, root);
-  assert.ok(statSync(path).size <= 2 * 1024 * 1024, 'bounded source file required');
-  return decoder.decode(readFileSync(path));
+  const bytes = readFileSync(path);
+  assert.ok(bytes.byteLength <= 2 * 1024 * 1024, 'bounded source file required');
+  return decoder.decode(bytes);
 }
 function mapping(value) {
   assert.ok(value !== null && typeof value === 'object' && !Array.isArray(value));
