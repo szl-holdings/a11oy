@@ -278,6 +278,10 @@ def register(app: FastAPI, ns: str = "a11oy") -> str:
     """Attach the markets router. ADDITIVE — registered BEFORE the SPA catch-all +
     Node proxy so /api/a11oy/v1/markets/* resolves LOCALLY. Touches no existing route."""
     app.include_router(router)
+    # Canonical PURIQ data adapters are assembled with the existing market service.
+    import importlib
+    # The existing compiled vertical uses a hyphenated directory name.
+    importlib.import_module("verticals.puriq-markets.runtime.routes").register(app)
     # Front-move our routes ahead of any pre-existing SPA catch-all so the
     # /v1/... + /api/a11oy/v1/... forms match before the HTML fallback.
     try:

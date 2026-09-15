@@ -69,6 +69,25 @@ _BASE.DOMAIN_CSS["sentra"] = r''':root{--bg:#030506;--panel:rgba(7,12,15,.92);--
 _BASE.DOMAIN_HTML = dict(getattr(_BASE, "DOMAIN_HTML", {}))
 _BASE.DOMAIN_HTML["sentra"] = '''<div class="domain"><section class="panel verification" aria-label="Illustrative receipt verification graph"><span class="illus">Illustrative — schematic, not live data</span><span class="path x1"></span><span class="path x2"></span><span class="path x3"></span><div class="node n1">RECEIPT</div><div class="node n2">SIGNATURE</div><div class="node n3">DIGEST</div><div class="node n4">CHAIN</div></section><aside class="panel queue"><span class="illus">Illustrative — schematic, not live data</span><div class="mono">VERIFICATION EVIDENCE QUEUE</div><div class="incident"><span class="sev">CONTRACT</span><span>The live upstream describes the public verifier and its supported checks; it does not claim a receipt verdict.</span></div><div class="incident"><span class="sev">VERDICT</span><span>PASS requires an actual caller-supplied receipt and successful signature, payload-digest, and hash-chain checks.</span></div><div class="incident"><span class="sev">SCOPE</span><span>This read-only surface performs no admission or approval. Immune engine migration remains UNVERIFIED until its contracts and runtime parity are proven.</span></div></aside></div>'''
 
+# Finance is a thin read-only projection of its canonical source-owned API.
+# The immutable base renderer remains byte-identical; no second publisher exists.
+_finance_spec = importlib.util.spec_from_file_location(
+    "szl_finance_read_projection", Path(__file__).with_name("hf_finance_read_proxy.py")
+)
+if _finance_spec is None or _finance_spec.loader is None:
+    raise RuntimeError("finance read projection is unavailable")
+_finance_module = importlib.util.module_from_spec(_finance_spec)
+_finance_spec.loader.exec_module(_finance_module)
+_BASE.APP = _finance_module.augment(_BASE.APP)
+_BASE.FLAGSHIPS = tuple(
+    {
+        **row,
+        "source": "https://github.com/szl-holdings/a11oy/tree/main/verticals/puriq-markets",
+        "upstream": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/finance/overview",
+    } if row.get("slug") == "finance" else row
+    for row in _BASE.FLAGSHIPS
+)
+
 # Export the complete base API after applying the overlay. Function objects keep
 # the base module globals, which are synchronized again before public calls that
 # depend on mutable module contracts.
