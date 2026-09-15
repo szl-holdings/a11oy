@@ -60,9 +60,19 @@ def finance_overview():
 
 
 def register(app):
-    """Idempotent route registration ahead of SPA fallbacks."""
-    if not any(getattr(route, "path", None) == PREFIX + "/providers" for route in app.router.routes):
-        app.include_router(router)
-    ours = [route for route in app.router.routes if getattr(route, "path", "").startswith(PREFIX + "/")]
-    app.router.routes[:] = ours + [route for route in app.router.routes if route not in ours]
+    """Register once, preserving include-router dependencies and route ordering.
+
+    Newer FastAPI versions store included routers as grouped route objects with
+    no ``path`` attribute. Identify only the objects added by this include call,
+    rather than assuming FastAPI flattens every APIRoute into the parent list.
+    """
+    if getattr(app.state, "szl_finance_routes_registered", False):
+        return "finance source adapters already mounted (read-only)"
+    before = {id(route) for route in app.router.routes}
+    app.include_router(router)
+    added = [route for route in app.router.routes if id(route) not in before]
+    if not added:
+        raise RuntimeError("finance router registration produced no route objects")
+    app.router.routes[:] = added + [route for route in app.router.routes if id(route) in before]
+    app.state.szl_finance_routes_registered = True
     return "finance source adapters mounted (read-only)"
