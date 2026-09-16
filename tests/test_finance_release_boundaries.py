@@ -201,3 +201,68 @@ def test_provider_lock_released_after_unexpected_internal_exception():
     with pytest.raises(RuntimeError, match="synthetic internal bug"):
         c.observe("coinbase-ticker")
     assert not c._provider_locks["coinbase"].locked()
+
+
+@pytest.mark.parametrize("alias", ["SZL_GIT_SHA", "SZL_SOURCE_REVISION", "A11OY_GIT_SHA"])
+def test_each_supported_runtime_identity_convention_is_source_bound(alias):
+    env = {alias: REVISION}
+    c = transport.FinanceClient(fetch=lambda p: b'{"price":"100","bid":"99","ask":"101"}',
+        environ=env, clock=lambda: NOW, monotonic=lambda: NOW)
+    assert c.registry()["source_revision"] == REVISION
+    body = c.observe("coinbase-ticker")
+    assert body["source_revision"] == REVISION
+    assert body["provenance"]["runtime_reported_source_revision"] == REVISION
+
+
+def test_actual_docker_identity_convention_flows_through_generated_projection(projection):
+    docker = (Path(__file__).resolve().parents[1] / "Dockerfile").read_text()
+    assert "ARG SZL_GIT_SHA=unknown" in docker
+    assert "ENV SZL_GIT_SHA=${SZL_GIT_SHA}" in docker
+    env = {"SZL_GIT_SHA": REVISION, "A11OY_GIT_SHA": ""}
+    c = transport.FinanceClient(fetch=lambda p: b'{"price":"100","bid":"99","ask":"101"}',
+        environ=env, clock=lambda: NOW, monotonic=lambda: NOW)
+    http, state = projection
+    state.update(status=200, body=c.observe("coinbase-ticker"))
+    result = http.get("/api/finance/observations/coinbase-ticker")
+    assert result.status_code == 200 and result.json() == state["body"]
+
+
+@pytest.mark.parametrize("conflicting_alias", ["SZL_SOURCE_REVISION", "A11OY_GIT_SHA"])
+def test_conflicting_runtime_alias_never_selects_a_convenient_identity(conflicting_alias):
+    env = {"SZL_GIT_SHA": REVISION, conflicting_alias: "2" * 40}
+    assert transport.source_revision(env) == "UNBOUND"
+
+
+@pytest.mark.parametrize("invalid", ["0" * 40, "unknown", "main", "A" * 40, "1" * 39,
+    "1" * 41, None, False, 123])
+def test_invalid_alias_is_not_ignored_when_canonical_identity_is_valid(invalid):
+    assert transport.source_revision({"SZL_GIT_SHA": REVISION, "A11OY_GIT_SHA": invalid}) == "UNBOUND"
+
+
+@pytest.mark.parametrize("env", [{}, {"SZL_GIT_SHA": "unknown"}, {"SZL_GIT_SHA": "0" * 40},
+    {"SZL_GIT_SHA": " ", "A11OY_GIT_SHA": ""}, {"GITHUB_SHA": REVISION}])
+def test_unbound_or_unrelated_workflow_identity_cannot_qualify_the_runtime(env):
+    assert transport.source_revision(env) == "UNBOUND"
+
+
+def test_agreeing_aliases_resolve_without_rewriting_the_identity():
+    assert transport.source_revision({"SZL_GIT_SHA": REVISION,
+        "SZL_SOURCE_REVISION": " " + REVISION + " ", "A11OY_GIT_SHA": REVISION}) == REVISION
+
+
+def test_conflicting_identity_is_refused_by_actual_generated_projection(projection):
+    env = {"SZL_GIT_SHA": REVISION, "A11OY_GIT_SHA": "2" * 40}
+    c = transport.FinanceClient(fetch=lambda p: b'{"price":"100","bid":"99","ask":"101"}',
+        environ=env, clock=lambda: NOW, monotonic=lambda: NOW)
+    http, state = projection
+    state.update(status=200, body=c.observe("coinbase-ticker"))
+    result = http.get("/api/finance/observations/coinbase-ticker")
+    assert result.status_code == 503
+    assert result.json()["error"] == "CANONICAL_REVISION_MISMATCH"
+    assert "data" not in result.json()
+
+
+def test_unavailable_observation_uses_canonical_identity_convention():
+    c = transport.FinanceClient(fetch=lambda p: b"broken", environ={"SZL_GIT_SHA": REVISION}, clock=lambda: NOW)
+    result = c.observe("coinbase-ticker")
+    assert result["state"] == "UNAVAILABLE" and result["source_revision"] == REVISION

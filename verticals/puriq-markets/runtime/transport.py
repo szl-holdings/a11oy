@@ -51,8 +51,25 @@ def digest(value: Any) -> str:
 
 
 def source_revision(env: Mapping[str, str]) -> str:
-    value = env.get("SZL_SOURCE_REVISION", "") or env.get("A11OY_GIT_SHA", "")
-    return value if re.fullmatch(r"[0-9a-f]{40}", value) else "UNBOUND"
+    """Resolve the canonical runtime convention without hiding conflicting aliases.
+
+    SZL_GIT_SHA is the existing production build-info convention. The two
+    earlier finance aliases remain supported only when every supplied identity
+    is a full, non-placeholder SHA and all agree. This is reported process
+    identity, not a verified signature or publication receipt.
+    """
+    observed: set[str] = set()
+    for name in ("SZL_GIT_SHA", "SZL_SOURCE_REVISION", "A11OY_GIT_SHA"):
+        value = env.get(name, "")
+        if not isinstance(value, str):
+            return "UNBOUND"
+        value = value.strip()
+        if not value:
+            continue
+        if re.fullmatch(r"[0-9a-f]{40}", value) is None or value == "0" * 40:
+            return "UNBOUND"
+        observed.add(value)
+    return next(iter(observed)) if len(observed) == 1 else "UNBOUND"
 
 
 def stamp(now: float) -> str:
