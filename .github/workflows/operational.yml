@@ -33,6 +33,7 @@ on:
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
+      - 'tests/dependency-overrides.test.mjs'
       - 'packages/**/package.json'
       - 'packages/**/package-lock.json'
       - '.github/workflows/huggingface.yml'
@@ -65,6 +66,7 @@ on:
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
+      - 'tests/dependency-overrides.test.mjs'
       - 'packages/**/package.json'
       - 'packages/**/package-lock.json'
       - '.github/workflows/huggingface.yml'
@@ -93,7 +95,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v4
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v4
         with:
           version: 10.33.3
       - name: Setup Node.js
@@ -102,6 +104,8 @@ jobs:
           node-version: '22'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Verify declared and resolved dependency security overrides
+        run: node --test tests/dependency-overrides.test.mjs
       - name: Verify live tracked Hugging Face ecosystem manifest
         if: github.event_name != 'pull_request'
         run: pnpm hf:ecosystem:audit
@@ -133,7 +137,7 @@ jobs:
           persist-credentials: false
           submodules: recursive
       - name: Setup pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v4
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v4
         with:
           version: 10.26.1
       - name: Setup Node.js

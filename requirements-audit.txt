@@ -23,7 +23,7 @@ cryptography==50.0.1
 lmdb==2.3.0
 slowapi==0.1.10
 defusedxml==0.7.1
-numpy==2.5.2
+numpy==2.5.3
 
 # --- Optional local-LLM path, installed ONLY when A11OY_REQUIRE_LOCAL_LLM=1 ---
 # Pulls diskcache>=5.6.1 transitively. diskcache 5.6.3 carries CVE-2025-69872
