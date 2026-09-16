@@ -19,9 +19,12 @@ NOW = 1789430400
 
 
 def observation():
-    return {"schema": "szl.finance.observation/v1", "source": "coinbase-ticker",
-        "execution_enabled": False, "source_revision": REVISION, "ok": False,
-        "state": "STALE", "data": {"price": "100"}, "error": "UPSTREAM_HTTP_503"}
+    c = transport.FinanceClient(fetch=lambda p: b'{"price":"100","bid":"99","ask":"101"}',
+        environ={"SZL_SOURCE_REVISION": REVISION}, clock=lambda: NOW, monotonic=lambda: NOW)
+    body = c.observe("coinbase-ticker")
+    body.update(ok=False, state="STALE", error="UPSTREAM_HTTP_503",
+                served_at=transport.stamp(NOW + 40), retrieval_age_seconds=40)
+    return body
 
 
 @pytest.fixture
@@ -146,8 +149,13 @@ def test_request_errors_do_not_leak_arbitrary_upstream_body(projection, status):
 
 def test_overview_nested_stale_data_cannot_mix_runtime_revisions(projection):
     http, state = projection
+    c = transport.FinanceClient(environ={"SZL_SOURCE_REVISION": REVISION}, clock=lambda: NOW)
+    children = {source: c._unavailable(source, NOW, "UPSTREAM_HTTP_503")
+        for source in ("polymarket-markets", "kalshi-markets", "treasury-rates")}
+    children["coinbase-ticker"] = observation()
     state.update(status=200, body={"schema": "szl.finance.overview/v1", "source_revision": REVISION,
-        "execution_enabled": False, "ok": False, "state": "DEGRADED", "data": {"coinbase-ticker": observation()}})
+        "execution_enabled": False, "ok": False, "state": "DEGRADED", "data": children,
+        "sources_requested": 4, "sources_available": 0, "event_equivalence": "NOT_ESTABLISHED"})
     body = http.get("/api/finance/overview").json()
     assert body["data"]["coinbase-ticker"]["state"] == "STALE"
     state["body"]["data"]["coinbase-ticker"]["source_revision"] = "2" * 40

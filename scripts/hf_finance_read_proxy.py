@@ -8,6 +8,7 @@ Only canonical JSON read endpoints are proxied; source semantics remain intact.
 FINANCE_PROXY = r'''
 # Public finance projection. Core normalization remains in szl-holdings/a11oy.
 if CFG.get("slug") == "finance":
+    import hashlib as _finance_hashlib
     import math as _finance_math
     import re as _finance_re
     import time as _finance_time
@@ -15,6 +16,8 @@ if CFG.get("slug") == "finance":
     from urllib.parse import urlencode as _finance_urlencode
     _FINANCE_ORIGIN = "https://szlholdings-a11oy.hf.space"
     _FINANCE_PREFIX = "/api/a11oy/v1/finance/"
+    _FINANCE_OVERVIEW_SOURCES = frozenset((
+        "polymarket-markets", "kalshi-markets", "coinbase-ticker", "treasury-rates"))
 
     def _finance_unavailable(code, status=503):
         return {"ok":False,"state":"UNAVAILABLE","error":code,"execution_enabled":False},status
@@ -45,6 +48,87 @@ if CFG.get("slug") == "finance":
         if source is not None and body.get("source")!=source:
             return "CANONICAL_SOURCE_IDENTITY_MISMATCH"
         return None
+
+    class _FinanceBoundaryError(ValueError):
+        pass
+
+    def _finance_digest(value):
+        return _finance_hashlib.sha256(json.dumps(value, sort_keys=True,
+            separators=(",", ":"), ensure_ascii=False, allow_nan=False).encode()).hexdigest()
+
+    def _finance_check_identity(body, schema):
+        error = _finance_identity(body, schema)
+        if error:
+            raise _FinanceBoundaryError(error)
+        if CFG.get("source_revision") == "0" * 40:
+            raise _FinanceBoundaryError("CANONICAL_REVISION_MISMATCH")
+
+    def _finance_check_observation(body, source, status):
+        _finance_check_identity(body, "szl.finance.observation/v1")
+        if body.get("source") != source:
+            raise _FinanceBoundaryError("CANONICAL_SOURCE_IDENTITY_MISMATCH")
+        state = body.get("state")
+        if not ((status == 200 and body.get("ok") is True and state in ("SNAPSHOT", "CACHED"))
+                or (status == 503 and body.get("ok") is False and state in ("STALE", "UNAVAILABLE"))):
+            raise _FinanceBoundaryError("CANONICAL_STATUS_MISMATCH")
+        if state == "UNAVAILABLE":
+            if (body.get("data") is not None or body.get("provenance") is not None
+                    or body.get("retrieved_at") is not None or body.get("truth_label") != "UNAVAILABLE"):
+                raise _FinanceBoundaryError("CANONICAL_SCHEMA_INVALID")
+        else:
+            proof = body.get("provenance")
+            if (not isinstance(proof, dict) or not isinstance(body.get("data"), dict)
+                    or proof.get("source") != source
+                    or proof.get("runtime_reported_source_revision") != body["source_revision"]
+                    or proof.get("retrieved_at") != body.get("retrieved_at")
+                    or not isinstance(proof.get("retrieved_at"), str)
+                    or proof.get("signed") is not False or body.get("truth_label") != "REPORTED"):
+                raise _FinanceBoundaryError("CANONICAL_PROVENANCE_MISMATCH")
+            if any(not isinstance(proof.get(k), str) or not _finance_re.fullmatch(r"[0-9a-f]{64}", proof[k])
+                   for k in ("source_bytes_sha256", "normalized_data_sha256", "observation_id")):
+                raise _FinanceBoundaryError("CANONICAL_PROVENANCE_MISMATCH")
+            unsigned = {k:v for k,v in proof.items() if k != "observation_id"}
+            if (proof["normalized_data_sha256"] != _finance_digest(body["data"])
+                    or proof["observation_id"] != _finance_digest(unsigned)):
+                raise _FinanceBoundaryError("CANONICAL_PROVENANCE_MISMATCH")
+        if state in ("STALE", "UNAVAILABLE"):
+            error = body.get("error")
+            if not isinstance(error, str) or not _finance_re.fullmatch(r"[A-Z][A-Z0-9_]{0,95}", error):
+                raise _FinanceBoundaryError("CANONICAL_SCHEMA_INVALID")
+
+    def _finance_validate(body, kind, status):
+        if kind.startswith("observations/"):
+            _finance_check_observation(body, kind.split("/", 1)[1], status)
+            return
+        if status != 200:
+            raise _FinanceBoundaryError("CANONICAL_SOURCE_UNAVAILABLE")
+        schema = "szl.finance.providers/v1" if kind == "providers" else "szl.finance.overview/v1"
+        _finance_check_identity(body, schema)
+        if kind == "providers":
+            if (body.get("read_only") is not True or body.get("canonical_repository") != "szl-holdings/a11oy"
+                    or not isinstance(body.get("sources"), list) or len(body["sources"]) > 64):
+                raise _FinanceBoundaryError("CANONICAL_SCHEMA_INVALID")
+            seen = set()
+            for item in body["sources"]:
+                source = item.get("id") if isinstance(item, dict) else None
+                if (not isinstance(source, str) or not _finance_re.fullmatch(r"[a-z][a-z-]{0,79}", source)
+                        or source in seen):
+                    raise _FinanceBoundaryError("CANONICAL_SCHEMA_INVALID")
+                seen.add(source)
+            return
+        data = body.get("data")
+        if (not isinstance(data, dict) or set(data) != _FINANCE_OVERVIEW_SOURCES
+                or type(body.get("sources_requested")) is not int or body["sources_requested"] != len(data)
+                or type(body.get("sources_available")) is not int
+                or body.get("event_equivalence") != "NOT_ESTABLISHED"):
+            raise _FinanceBoundaryError("CANONICAL_SCHEMA_INVALID")
+        for source, child in data.items():
+            _finance_check_observation(child, source, 200 if isinstance(child,dict) and child.get("ok") is True else 503)
+        count = sum(child["ok"] is True for child in data.values())
+        success = count == len(data)
+        if (body["sources_available"] != count or body.get("ok") is not success
+                or body.get("state") != ("SNAPSHOTS_AVAILABLE" if success else "DEGRADED")):
+            raise _FinanceBoundaryError("CANONICAL_STATUS_MISMATCH")
 
     def _finance_get(kind, query=None):
         if not _finance_re.fullmatch(r"providers|overview|observations/[a-z][a-z-]{0,79}", kind):
@@ -113,6 +197,12 @@ if CFG.get("slug") == "finance":
                             error=_finance_identity(child,"szl.finance.observation/v1",child_source)
                             if error:
                                 return _finance_unavailable(error)
+                    # Nested payload/digest/coverage checks apply equally to success and stale data.
+                    # This proves internal consistency, not source authenticity or predictive skill.
+                    try:
+                        _finance_validate(body, kind, response.status_code)
+                    except _FinanceBoundaryError as exc:
+                        return _finance_unavailable(str(exc))
                     return body,response.status_code
         except Exception:
             return _finance_unavailable("CANONICAL_SOURCE_UNAVAILABLE")

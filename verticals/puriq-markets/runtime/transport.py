@@ -176,20 +176,33 @@ class FinanceClient:
             "polymarket", "kalshi", "coinbase", "sec", "treasury", "bls", "fred", "alpaca")}
         self._next: dict[str, float] = {}
         self._last: dict[str, dict] = {}
+        self._last_cache_expiry: dict[str, float] = {}
 
     def registry(self) -> dict:
         from .sources import SOURCES
         with self._guard:
             observations = deepcopy(self._last)
+            expiries = dict(self._last_cache_expiry)
+            tick = self.monotonic()
+
+        def observed_state(source: str) -> str:
+            state = observations.get(source, {}).get("state", "NOT_PROBED")
+            if state in ("SNAPSHOT", "CACHED") and tick >= expiries.get(source, float("-inf")):
+                return "EXPIRED"
+            return state
+
         return {"schema": "szl.finance.providers/v1", "read_only": True,
                 "execution_enabled": False, "canonical_repository": "szl-holdings/a11oy",
                 "source_revision": source_revision(self.environ),
+                "status_as_of": stamp(self.clock()),
+                "observation_scope": "LAST_REQUEST_ONLY_NOT_ALL_INSTRUMENTS",
+                "freshness_note": "Registry expiry concerns retrieval TTL, not exchange-price freshness.",
                 "vertical": "verticals/puriq-markets", "adapter_version": VERSION,
                 "sources": [{"id": source, **spec,
                     "configuration": "PRESENT" if all(self.environ.get(k, "").strip()
                          for k in spec["required_environment"]) else "MISSING",
                     "last_attempt": observations.get(source),
-                    "observed_connection": observations.get(source, {}).get("state", "NOT_PROBED")}
+                    "observed_connection": observed_state(source)}
                     for source, spec in SOURCES.items()]}
 
     def observe(self, source: str, parameters: Mapping[str, str] | None = None,
@@ -226,7 +239,7 @@ class FinanceClient:
             else:
                 result = self._failure(source, now, "PROVIDER_BUSY", old)
                 result["retry_after_seconds"] = 1.0
-            self._record(source, result)
+            self._record(source, result, expires_at=old[0] if result["ok"] else None)
             return result
         try:
             now = self.clock()
@@ -238,7 +251,7 @@ class FinanceClient:
                     result = deepcopy(old[1])
                     result.update(state="CACHED", served_at=stamp(now))
                     result["retrieval_age_seconds"] = max(0.0, now - result["retrieved_at_epoch"])
-                    self._record(source, result)
+                    self._record(source, result, expires_at=old[0])
                     return result
                 next_allowed = self._next.get(plan.provider, 0.0)
                 if tick < next_allowed:
@@ -247,6 +260,7 @@ class FinanceClient:
                     self._record(source, result)
                     return result
                 self._next[plan.provider] = tick + plan.min_interval
+            expires_at = None
             try:
                 raw = self.fetch(plan)
                 if len(raw) > plan.max_bytes:
@@ -270,7 +284,8 @@ class FinanceClient:
                           "freshness_note": "Retrieval TTL is not exchange-price freshness or execution eligibility.",
                           "data": data, "provenance": proof, "execution_enabled": False}
                 with self._guard:
-                    self._cache[key] = (self.monotonic() + plan.ttl, deepcopy(result))
+                    expires_at = self.monotonic() + plan.ttl
+                    self._cache[key] = (expires_at, deepcopy(result))
                     self._cache.move_to_end(key)
                     while len(self._cache) > self.capacity:
                         self._cache.popitem(last=False)
@@ -279,16 +294,20 @@ class FinanceClient:
                     self._next[plan.provider] = max(self._next[plan.provider], self.monotonic() + exc.retry_after)
                 result = self._failure(source, self.clock(), exc.code, old)
                 result["retry_after_seconds"] = exc.retry_after
-            self._record(source, result)
+            self._record(source, result, expires_at=expires_at)
             return result
         finally:
             lock.release()
 
-    def _record(self, source: str, result: dict) -> None:
+    def _record(self, source: str, result: dict, *, expires_at: float | None = None) -> None:
         with self._guard:
             self._last[source] = {"state": result["state"], "ok": result["ok"],
                 "served_at": result.get("served_at"), "error": result.get("error"),
                 "retrieved_at": result.get("retrieved_at")}
+            if expires_at is not None:
+                self._last_cache_expiry[source] = expires_at
+            else:
+                self._last_cache_expiry.pop(source, None)
 
     def _unavailable(self, source: str, now: float, code: str) -> dict:
         return {"schema": "szl.finance.observation/v1", "source": source,

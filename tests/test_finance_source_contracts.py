@@ -501,7 +501,12 @@ def test_generated_finance_projection_preserves_canonical_data_and_no_secret_for
     assert len(called) == 1
     assert http.get("/api/finance/observations/coinbase-ticker?product=X&product=Y").status_code == 422
     assert http.post("/api/finance/overview").status_code == 405
-    payload = {"schema": "szl.finance.overview/v1", "ok": False, "state": "DEGRADED", "execution_enabled": False, "source_revision": "1" * 40}
+    def partial_fetch(plan):
+        if plan.source == "kalshi-markets":
+            raise transport.FinanceError("UPSTREAM_HTTP_503")
+        return network_fixture(plan)
+    monkeypatch.setattr(routes, "CLIENT", client(fetch=partial_fetch))
+    payload = json.loads(routes.finance_overview().body)
     result = http.get("/api/live").json()
     assert result["status"] == "UNAVAILABLE" and result["data"]["state"] == "DEGRADED"
     payload["source_revision"] = "2" * 40
@@ -536,3 +541,189 @@ def test_polymarket_old_source_timestamp_is_not_fresh_just_because_retrieved_now
     raw["timestamp"] = str((NOW + 60) * 1000)
     with pytest.raises(transport.FinanceError, match="PROVIDER_CLOCK_AHEAD"):
         sources.normalize(p.source, raw, p.parameters, NOW)
+
+# Source/projection regressions found during the production-readiness review.
+# Fixtures execute the real generated application; no provider request is made.
+@pytest.fixture
+def production_projection(tmp_path, monkeypatch):
+    root = Path(__file__).resolve().parents[1]
+    proxy = load_module("finance_projection_boundary", root / "scripts/hf_finance_read_proxy.py")
+    generator = load_module("flagship_boundary_base", root / "scripts/_hf_publish_vertical_flagships_v4_impl_base.py")
+    cfg = {"slug": "finance", "title": "PURIQ", "upstream": "unused",
+           "hf_repository": "SZLHOLDINGS/finance", "source_revision": "1" * 40}
+    for filename, value in (("config.json", json.dumps(cfg)), ("index.html", "fixture"), ("panels.html", "fixture")):
+        (tmp_path / filename).write_text(value)
+    monkeypatch.chdir(tmp_path)
+    namespace = {"__name__": "generated_finance_boundary"}
+    exec(compile(proxy.augment(generator.APP), "finance_boundary_app", "exec"), namespace)
+    state = {"status": 200, "body": client().observe("coinbase-ticker"), "calls": [],
+             "headers": {"content-type": "application/json"}}
+    class Response:
+        def __init__(self):
+            self.status_code, self.headers = state["status"], state["headers"]
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def iter_bytes(self):
+            value = state["body"]
+            yield value if isinstance(value, bytes) else json.dumps(value).encode()
+    class Client:
+        def __init__(self, **kwargs):
+            assert kwargs["follow_redirects"] is False and kwargs["trust_env"] is False
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def stream(self, method, target, headers):
+            state["calls"].append((method, target, headers))
+            return Response()
+    from types import SimpleNamespace
+    namespace["httpx"] = SimpleNamespace(Client=Client)
+    state["http"] = TestClient(namespace["app"])
+    state["namespace"] = namespace
+    return state
+
+
+def test_failure_envelope_is_bound_to_runtime_source_even_without_cached_data():
+    c = client(fetch=lambda p: (_ for _ in ()).throw(transport.FinanceError("UPSTREAM_HTTP_503")))
+    body = c.observe("coinbase-ticker")
+    assert body.get("source_revision") == ENV["SZL_SOURCE_REVISION"]
+    assert body["data"] is None and body["provenance"] is None
+
+
+def test_provider_registry_expires_without_new_reads_and_preserves_last_attempt():
+    now = [NOW]
+    c = client(clock=lambda: now[0])
+    observed = c.observe("coinbase-ticker")
+    before = next(x for x in c.registry()["sources"] if x["id"] == "coinbase-ticker")
+    now[0] += observed["cache_ttl_seconds"]
+    after = next(x for x in c.registry()["sources"] if x["id"] == "coinbase-ticker")
+    assert after["observed_connection"] == "EXPIRED"
+    assert after["last_attempt"] == before["last_attempt"]
+
+
+def test_cache_hit_does_not_extend_registry_freshness():
+    now = [NOW]
+    c = client(clock=lambda: now[0])
+    first = c.observe("coinbase-ticker")
+    now[0] += first["cache_ttl_seconds"] - 1
+    assert c.observe("coinbase-ticker")["state"] == "CACHED"
+    now[0] += 1
+    row = next(x for x in c.registry()["sources"] if x["id"] == "coinbase-ticker")
+    assert row["observed_connection"] == "EXPIRED"
+
+
+@pytest.mark.parametrize("field,value", [("source_revision", "2"*40), ("execution_enabled", True),
+    ("source", "polymarket-book"), ("schema", "untrusted/v9")])
+def test_error_status_cannot_bypass_projection_identity(production_projection, field, value):
+    p = production_projection
+    p["status"] = 503
+    p["body"].update(state="STALE", ok=False, error="UPSTREAM_HTTP_503")
+    p["body"][field] = value
+    reply = p["http"].get("/api/finance/observations/coinbase-ticker")
+    assert reply.status_code == 503
+    assert reply.json().get("data") is None
+    assert reply.json()["state"] == "UNAVAILABLE"
+
+
+@pytest.mark.parametrize("status", [200, 503])
+@pytest.mark.parametrize("malformation", ["duplicate", "nan", "infinity", "overflow"])
+def test_projection_rejects_ambiguous_nonfinite_json(production_projection, status, malformation):
+    p = production_projection
+    p["status"] = status
+    if status == 503:
+        p["body"].update(state="STALE", ok=False, error="UPSTREAM_HTTP_503")
+    raw = json.dumps(p["body"])
+    addition = {"duplicate": '"source": "coinbase-ticker"', "nan": '"extra": NaN',
+                "infinity": '"extra": Infinity', "overflow": '"extra": 1e9999'}[malformation]
+    p["body"] = (raw[:-1] + ", " + addition + "}").encode()
+    reply = p["http"].get("/api/finance/observations/coinbase-ticker")
+    assert reply.status_code == 503 and reply.json().get("data") is None
+    assert reply.json()["state"] == "UNAVAILABLE"
+
+
+@pytest.mark.parametrize("status", [200, 503])
+@pytest.mark.parametrize("part", ["data", "proof_revision", "proof_source", "proof_id", "retrieved_at"])
+def test_projection_verifies_nested_provenance_not_just_top_revision(production_projection, status, part):
+    p = production_projection
+    p["status"] = status
+    if status == 503:
+        p["body"].update(state="STALE", ok=False, error="UPSTREAM_HTTP_503")
+    if part == "data": p["body"]["data"]["price"] = "1234567"
+    elif part == "proof_revision": p["body"]["provenance"]["runtime_reported_source_revision"] = "2" * 40
+    elif part == "proof_source": p["body"]["provenance"]["source"] = "kalshi-book"
+    elif part == "proof_id": p["body"]["provenance"]["observation_id"] = "0" * 64
+    else: p["body"]["retrieved_at"] = "2020-01-01T00:00:00Z"
+    reply = p["http"].get("/api/finance/observations/coinbase-ticker")
+    assert reply.status_code == 503 and reply.json().get("data") is None
+
+
+def test_matching_stale_observation_preserves_original_evidence(production_projection):
+    p = production_projection
+    p["status"] = 503
+    p["body"].update(state="STALE", ok=False, error="UPSTREAM_HTTP_503")
+    original = deepcopy(p["body"])
+    reply = p["http"].get("/api/finance/observations/coinbase-ticker")
+    assert reply.status_code == 503 and reply.json() == original
+
+
+@pytest.mark.parametrize("status", [403, 404, 422])
+def test_projection_does_not_reflect_upstream_error_payloads(production_projection, status):
+    p = production_projection
+    p["status"] = status
+    p["body"] = {"ok": False, "error": "credential-from-untrusted-error", "data": "hidden-payload"}
+    reply = p["http"].get("/api/finance/observations/coinbase-ticker")
+    assert reply.status_code == status
+    assert "credential-from-untrusted-error" not in reply.text and "hidden-payload" not in reply.text
+
+
+def test_bound_unavailable_observation_is_preserved(production_projection):
+    p = production_projection
+    p["status"] = 503
+    p["body"] = client(fetch=lambda _: (_ for _ in ()).throw(transport.FinanceError("UPSTREAM_HTTP_503"))).observe("coinbase-ticker")
+    reply = p["http"].get("/api/finance/observations/coinbase-ticker")
+    assert reply.status_code == 503 and reply.json() == p["body"]
+    assert reply.json().get("source_revision") == "1" * 40
+
+
+@pytest.mark.parametrize("status,ok,state", [(200, False, "STALE"), (503, True, "SNAPSHOT")])
+def test_projection_rejects_http_semantic_mismatch(production_projection, status, ok, state):
+    p = production_projection
+    p["status"] = status
+    p["body"].update(ok=ok, state=state)
+    reply = p["http"].get("/api/finance/observations/coinbase-ticker")
+    assert reply.status_code == 503 and reply.json().get("data") is None
+
+
+def test_overview_rejects_an_inconsistent_nested_revision(production_projection, monkeypatch):
+    p = production_projection
+    monkeypatch.setattr(routes, "CLIENT", client())
+    p["body"] = json.loads(routes.finance_overview().body)
+    p["body"]["data"]["coinbase-ticker"]["source_revision"] = "2" * 40
+    reply = p["http"].get("/api/finance/overview")
+    assert reply.status_code == 503 and reply.json().get("data") is None
+
+
+def test_valid_overview_is_preserved(production_projection, monkeypatch):
+    p = production_projection
+    monkeypatch.setattr(routes, "CLIENT", client())
+    p["body"] = json.loads(routes.finance_overview().body)
+    reply = p["http"].get("/api/finance/overview")
+    assert reply.status_code == 200 and reply.json() == p["body"]
+
+
+def test_degraded_overview_with_bound_unavailable_child_is_preserved(production_projection, monkeypatch):
+    p = production_projection
+    def fetch(plan):
+        if plan.source == "coinbase-ticker":
+            raise transport.FinanceError("UPSTREAM_HTTP_503")
+        return network_fixture(plan)
+    monkeypatch.setattr(routes, "CLIENT", client(fetch=fetch))
+    p["body"] = json.loads(routes.finance_overview().body)
+    reply = p["http"].get("/api/finance/overview")
+    assert reply.status_code == 200 and reply.json() == p["body"]
+    assert reply.json()["ok"] is False
+
+
+def test_projection_does_not_accept_non_json_mime_containing_json(production_projection):
+    p = production_projection
+    p["headers"] = {"content-type": "text/not-json"}
+    reply = p["http"].get("/api/finance/observations/coinbase-ticker")
+    assert reply.status_code == 503 and reply.json().get("data") is None
