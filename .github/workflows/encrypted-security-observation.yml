@@ -47,3 +47,12 @@ jobs:
           path: security-observation/
           if-no-files-found: error
           retention-days: 7
+      - name: Retain two unchanged already-public frontend source files
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: public-frontend-source-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            web/five-space.html
+            pages/command-center.html
+          if-no-files-found: error
+          retention-days: 7
