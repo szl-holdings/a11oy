@@ -43,7 +43,7 @@ jobs:
         run: |
           python -m pip check
           python -m compileall -q verticals/puriq-markets/runtime scripts/hf_finance_read_proxy.py scripts/hf_flagship_runtime_contract.py scripts/materialize_finance_runtime.py tests/smoke_generated_finance_runtime.py
-          python -m pytest tests/test_finance_source_contracts.py tests/test_finance_route_registration.py tests/test_finance_bls_missing.py tests/test_finance_release_boundaries.py tests/test_finance_legacy_access.py tests/test_finance_emitted_runtime.py -q --junitxml=finance-contracts.xml
+          python -m pytest tests/test_finance_source_contracts.py tests/test_finance_route_registration.py tests/test_finance_bls_missing.py tests/test_finance_release_boundaries.py tests/test_finance_legacy_access.py tests/test_finance_emitted_runtime.py tests/test_hf_publish_vertical_flagships_v4.py -q --junitxml=finance-contracts.xml
       - name: Materialize and build the actual generated Finance application
         if: matrix.python == '3.12'
         shell: bash
@@ -100,6 +100,7 @@ jobs:
             scripts/materialize_finance_runtime.py
             scripts/_hf_publish_vertical_flagships_v4_impl_base.py
             tests/test_finance_emitted_runtime.py
+            tests/test_hf_publish_vertical_flagships_v4.py
             tests/smoke_generated_finance_runtime.py
             verticals/puriq-markets/runtime/
             a11oy_markets.py

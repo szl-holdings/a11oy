@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 import ast
+import hashlib
 import importlib.util
 import shutil
 import sys
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 
 import pytest
 
@@ -20,6 +21,18 @@ SYNC_WORKFLOW = Path(".github/workflows/hf-sync.yml")
 PUBLIC_VERIFY = Path("szl_public_verify.py")
 TERRA_BUNDLE = Path("deployments/vertical-forge/terra")
 SOURCE_REVISION = "c24ef61716f173e48d95dad61408d9fa065f0204"
+# Explicit reviewed exception to the immutable renderer's historical runtime.
+# Independent pins prevent changing both a producer and a mutable alias from
+# silently qualifying arbitrary image/dependency changes. The baseline is
+# PURIQ 91717976275b685bef5f6ba9caa40b43fc1efff5; these are generated-file hashes,
+# not a signature or a fresh vulnerability-database clearance.
+REVIEWED_DOCKER_SHA256 = "7184015f0d0c58f58a67ade27d71e40a6b2f7ca1d6af670794d2dc9da4cc516e"
+REVIEWED_REQUIREMENTS_SHA256 = "a68dadf1194259c52c37c9fa52bde3ecd48ffc1c69bf1addfe8cfe43442cd351"
+
+
+def assert_reviewed_runtime(module) -> None:
+    assert hashlib.sha256(module.DOCKER.encode("utf-8")).hexdigest() == REVIEWED_DOCKER_SHA256
+    assert hashlib.sha256(module.REQ.encode("utf-8")).hexdigest() == REVIEWED_REQUIREMENTS_SHA256
 
 
 def source(path: Path = SCRIPT) -> str:
@@ -95,7 +108,9 @@ def test_overlay_changes_only_declared_sentra_and_finance_contracts() -> None:
     assert 'if CFG.get("slug") == "finance":' in addition
     assert 'CANONICAL_REVISION_MISMATCH' in addition
     assert 'USE_PRIVATE_CANONICAL_SOURCE_ENDPOINT' in addition
-    assert overlay.DOCKER == base.DOCKER
+    # Only the independently pinned, reviewed runtime change is admitted.
+    # The immutable base, metadata and visual isolation checks above remain.
+    assert_reviewed_runtime(overlay)
 
     assert overlay_rows["sentra"] != base_rows["sentra"]
     assert overlay.DOMAIN_CSS["sentra"] != base.DOMAIN_CSS["sentra"]
@@ -352,3 +367,25 @@ def test_archived_vertical_repositories_remain_out_of_source_links() -> None:
     assert "https://github.com/szl-holdings/szl-fleet-overlay" not in rendered
     assert "a11oy/tree/main/verticals/counsel" in rendered
     assert "a11oy/tree/main/verticals/vessels" in rendered
+
+
+@pytest.mark.parametrize("field,old,new", [
+    ("DOCKER", "USER szl", "USER root"),
+    ("DOCKER", "sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf",
+     "sha256:" + "0" * 64),
+    ("DOCKER", "--no-server-header", "--reload"),
+    ("DOCKER", "EXPOSE 7860", "RUN echo unreviewed\nEXPOSE 7860"),
+    ("REQ", "fastapi==0.141.1", "fastapi==0.116.1"),
+    ("REQ", "starlette==1.6.0", "starlette"),
+    ("REQ", "pip==26.2.1", "pip==25.0.1"),
+    ("REQ", "websockets==17.1", "websockets==17.1\nundeclared-fixture==1.0"),
+])
+def test_runtime_exception_rejects_unreviewed_mutations(field, old, new) -> None:
+    overlay = load_overlay()
+    assert_reviewed_runtime(overlay)
+    candidate = SimpleNamespace(DOCKER=overlay.DOCKER, REQ=overlay.REQ)
+    original = getattr(candidate, field)
+    assert old in original
+    setattr(candidate, field, original.replace(old, new, 1))
+    with pytest.raises(AssertionError):
+        assert_reviewed_runtime(candidate)
