@@ -171,7 +171,7 @@ function nav(){
 }
 $(".menu").onclick = () => {
   const m=$(".mob"); m.classList.toggle("open");
-  if(!m.dataset.ready){ m.innerHTML=[...document.querySelectorAll("nav.desk a")].map(a=>a.outerHTML).join(""); m.dataset.ready="1"; }
+  if(!m.dataset.ready){ m.replaceChildren(...[...document.querySelectorAll("nav.desk a")].map(a=>a.cloneNode(true))); m.dataset.ready="1"; }
 };
 
 function home(){
@@ -208,9 +208,26 @@ function consolePage(){
     <div class="card" id="lake"></div>
   </div>`;
 }
+// Receipt fields remain untrusted even when read from this browser's storage.
+function lakeText(tag, value, klass){
+  const node=document.createElement(tag);
+  if(klass) node.className=klass;
+  node.textContent=value==null?"UNAVAILABLE":String(value);
+  return node;
+}
 function renderLake(){
-  const r=loadLake();
-  $("#lake").innerHTML = r.length? `<p class="kicker">${r.length} receipts</p>`+r.slice().reverse().map(x=>`<div style="border-top:1px solid var(--border);padding:.75rem 0"><div>${x.action} ${badge(x.decision)}</div><div class="mono muted">${shortHash(x.hash)}</div></div>`).join("") : `<p class="muted">Empty lake. Submit an allowed act.</p>`;
+  const r=loadLake(), lake=$("#lake"); lake.replaceChildren();
+  if(!r.length){ lake.append(lakeText("p", "Empty lake. Submit an allowed act.", "muted")); return; }
+  lake.append(lakeText("p", `${r.length} receipts`, "kicker"));
+  r.slice().reverse().forEach(x=>{
+    const row=document.createElement("div");
+    row.style.cssText="border-top:1px solid var(--border);padding:.75rem 0";
+    const label=lakeText("div", String(x.action)+" ");
+    const verdict=lakeText("span", x.decision, "badge");
+    if(["ALLOW","DENY","BLOCKED"].includes(x.decision)) verdict.classList.add(x.decision);
+    label.append(verdict);
+    row.append(label,lakeText("div",shortHash(String(x.hash)),"mono muted"));lake.append(row);
+  });
 }
 function censusPage(){
   return `<p class="kicker">Estate</p><h1>Location is not quality.</h1>
@@ -293,7 +310,7 @@ function bindZk(){
   document.querySelectorAll(".zk-tab").forEach(b=>b.onclick=()=>{
     document.querySelectorAll(".zk-tab").forEach(x=>x.classList.remove("active"));
     b.classList.add("active");
-    if(b.dataset.z==="snark"){ root.innerHTML=snarkUI(); $("#rsat").onclick=()=>{ const o=rangeCircuit(Number($("#age").value), Number($("#th").value)); $("#rstate").innerHTML = (o.sat?'<span class="ok">CIRCUIT SAT</span>':'<span class="no">CIRCUIT UNSAT</span>')+" · verifier sees T="+$("#th").value+", x=hidden"; }; }
+    if(b.dataset.z==="snark"){ root.innerHTML=snarkUI(); $("#rsat").onclick=()=>{ const o=rangeCircuit(Number($("#age").value), Number($("#th").value)); const verdict=lakeText("span",o.sat?"CIRCUIT SAT":"CIRCUIT UNSAT",o.sat?"ok":"no"); $("#rstate").replaceChildren(verdict, document.createTextNode(" · verifier sees T="+$("#th").value+", x=hidden")); }; }
     else bindZk();
   });
   const next=$("#znext"), st=$("#pstate"), vs=$("#vstate");
@@ -311,11 +328,21 @@ function bindZk(){
   };
 }
 
-const PAGES = { home, console:consolePage, census:censusPage, invest:investPage, build:buildPage, zk:zkPage };
+// Explicit dispatch: URL fragments cannot select inherited object methods.
+function pageMarkup(id){
+  switch(id){
+    case "console": return consolePage();
+    case "census": return censusPage();
+    case "invest": return investPage();
+    case "build": return buildPage();
+    case "zk": return zkPage();
+    default: return home();
+  }
+}
 function render(){
   nav();
   const id = page();
-  $("#main").innerHTML = (PAGES[id]||home)();
+  $("#main").innerHTML = pageMarkup(id);
   if(id==="console"){
     renderLake();
     $("#submit").onclick=async()=>{
