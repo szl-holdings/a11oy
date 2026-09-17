@@ -6,6 +6,8 @@ on:
   push:
     branches: [main, feat/finance-market-data-20260915]
   workflow_dispatch: {}
+  merge_group:
+    types: [checks_requested]
 permissions:
   contents: read
 concurrency:
@@ -15,7 +17,7 @@ jobs:
   contracts:
     name: Finance source contract (${{ matrix.python }})
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -31,18 +33,54 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: ${{ matrix.python }}
-      - name: Install exact API dependencies from the existing Docker contract
-        run: >-
-          python -m pip install --disable-pip-version-check --no-cache-dir
-          fastapi==0.141.1 starlette==1.6.0 httpx==0.28.1
-          huggingface_hub==1.31.0 pytest==9.0.2
+      - name: Install the emitted runtime contract and isolated test dependencies
+        run: |
+          python scripts/hf_flagship_runtime_contract.py > finance-runtime.txt
+          python -m pip install --disable-pip-version-check --no-cache-dir --only-binary=:all: -r finance-runtime.txt -c finance-runtime.txt huggingface_hub==1.31.0 pytest==9.0.2
       - name: Run network-free source, route, cache, security and generated-Space contracts
         env:
           SZL_SOURCE_REVISION: ${{ github.sha }}
         run: |
           python -m pip check
-          python -m compileall -q verticals/puriq-markets/runtime scripts/hf_finance_read_proxy.py
-          python -m pytest tests/test_finance_source_contracts.py tests/test_finance_route_registration.py tests/test_finance_bls_missing.py tests/test_finance_release_boundaries.py tests/test_finance_legacy_access.py -q --junitxml=finance-contracts.xml
+          python -m compileall -q verticals/puriq-markets/runtime scripts/hf_finance_read_proxy.py scripts/hf_flagship_runtime_contract.py scripts/materialize_finance_runtime.py tests/smoke_generated_finance_runtime.py
+          python -m pytest tests/test_finance_source_contracts.py tests/test_finance_route_registration.py tests/test_finance_bls_missing.py tests/test_finance_release_boundaries.py tests/test_finance_legacy_access.py tests/test_finance_emitted_runtime.py -q --junitxml=finance-contracts.xml
+      - name: Materialize and build the actual generated Finance application
+        if: matrix.python == '3.12'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/materialize_finance_runtime.py --output finance-generated --source-revision "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID"
+          docker build --file finance-generated/Dockerfile --tag szl-finance-generated:qualification finance-generated
+          docker image inspect szl-finance-generated:qualification > finance-generated-image.json
+      - name: Verify the generated runtime without external network or credentials
+        if: matrix.python == '3.12'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cid="$(docker run --detach --network none --read-only --cap-drop ALL --security-opt no-new-privileges szl-finance-generated:qualification)"
+          trap 'docker logs "$cid" > finance-generated-container.log 2>&1 || true; docker rm --force "$cid" >/dev/null 2>&1 || true' EXIT
+          for attempt in $(seq 1 40); do
+            if docker exec "$cid" python -c 'import urllib.request; urllib.request.urlopen("http://127.0.0.1:7860/healthz", timeout=2).read(1024)' >/dev/null 2>&1; then
+              break
+            fi
+            if [ "$attempt" -eq 40 ]; then
+              echo '::error::Generated Finance application failed to start'
+              exit 1
+            fi
+            sleep 1
+          done
+          docker exec -i "$cid" python - < tests/smoke_generated_finance_runtime.py > finance-generated-runtime.json
+          docker exec "$cid" python -m pip freeze --all > finance-container-requirements.txt
+      - name: Audit the actual generated image dependencies
+        if: matrix.python == '3.12'
+        shell: bash
+        run: |
+          set -euo pipefail
+          audit_env="$(mktemp -d)"
+          python -m venv "$audit_env"
+          "$audit_env/bin/python" -m pip install --disable-pip-version-check --no-cache-dir 'pip-audit==2.10.1'
+          "$audit_env/bin/python" -m pip freeze --all > finance-auditor-environment.txt
+          "$audit_env/bin/python" -m pip_audit --strict --no-deps --disable-pip --progress-spinner off --requirement finance-container-requirements.txt --format json --output finance-generated-dependency-audit.json
       - name: Retain exact checked-in source and test evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -50,6 +88,19 @@ jobs:
           name: finance-contracts-${{ matrix.python }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             finance-contracts.xml
+            finance-runtime.txt
+            finance-generated/
+            finance-generated-image.json
+            finance-generated-runtime.json
+            finance-generated-container.log
+            finance-container-requirements.txt
+            finance-auditor-environment.txt
+            finance-generated-dependency-audit.json
+            scripts/hf_flagship_runtime_contract.py
+            scripts/materialize_finance_runtime.py
+            scripts/_hf_publish_vertical_flagships_v4_impl_base.py
+            tests/test_finance_emitted_runtime.py
+            tests/smoke_generated_finance_runtime.py
             verticals/puriq-markets/runtime/
             a11oy_markets.py
             Dockerfile
