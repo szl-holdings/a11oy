@@ -98,6 +98,16 @@ _runtime_module = importlib.util.module_from_spec(_runtime_spec)
 _runtime_spec.loader.exec_module(_runtime_module)
 _runtime_module.apply_runtime_contract(_BASE)
 
+# Finance UI consumes only the validated same-origin read projection.
+_workspace_spec = importlib.util.spec_from_file_location(
+    "szl_finance_workspace", Path(__file__).with_name("hf_finance_workspace.py")
+)
+if _workspace_spec is None or _workspace_spec.loader is None:
+    raise RuntimeError("finance workspace contract is unavailable")
+_workspace_module = importlib.util.module_from_spec(_workspace_spec)
+_workspace_spec.loader.exec_module(_workspace_module)
+_workspace_module.apply_workspace(_BASE)
+
 # Export the complete base API after applying the overlay. Function objects keep
 # the base module globals, which are synchronized again before public calls that
 # depend on mutable module contracts.

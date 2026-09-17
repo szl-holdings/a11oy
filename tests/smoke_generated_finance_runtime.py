@@ -32,7 +32,7 @@ def main():
     if not locked:
         raise RuntimeError("empty emitted version lock")
     routes = {}
-    expected = {"/": 200, "/panels": 200, "/healthz": 200, "/readyz": 200,
+    expected = {"/": 200, "/panels": 200, "/research": 200, "/api/live": 503, "/healthz": 200, "/readyz": 200,
                 "/api/finance/observations/alpaca-quotes": 403,
                 "/api/finance/observations/fred-series": 403,
                 "/api/finance/overview": 503, "/orders": 404, "/wallet": 404}

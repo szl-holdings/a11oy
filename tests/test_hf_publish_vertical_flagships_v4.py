@@ -91,11 +91,19 @@ def test_overlay_changes_only_declared_sentra_and_finance_contracts() -> None:
     }
     for slug in set(base_rows) - {"sentra", "finance"}:
         assert overlay_rows[slug] == base_rows[slug]
-    for slug in set(base_rows) - {"sentra"}:
+    for slug in set(base_rows) - {"sentra", "finance"}:
         assert overlay.DOMAIN_CSS[slug] == base.DOMAIN_CSS[slug]
         assert overlay.DOMAIN_HTML[slug] == base.DOMAIN_HTML[slug]
 
-    # Finance changes only two explicit bindings; all other metadata and visual
+    # Finance has one exact reviewed presentation addition; every other
+    # product remains byte-identical except the existing Sentra overlay.
+    workspace = load_module("szl_finance_workspace_contract", Path("scripts/hf_finance_workspace.py"))
+    assert hashlib.sha256(workspace.HTML.encode()).hexdigest() == "97679b8d1d2032fb05f621d22b7072bcf9d1ad65858febc28974c042676a1529"
+    assert hashlib.sha256(workspace.CSS.encode()).hexdigest() == "297b06de7d7d06911470b309e9480f722e2fedb0f5d7ae18698f6e264ef4f9f2"
+    assert overlay.DOMAIN_HTML["finance"] == workspace.HTML
+    assert overlay.DOMAIN_CSS["finance"] == base.DOMAIN_CSS["finance"] + workspace.CSS
+
+    # Finance changes only two explicit bindings; other metadata and sibling visual
     # templates stay equal to the immutable renderer. This is not a wildcard
     # exception for finance changes or permission for another publisher.
     assert overlay_rows["finance"] == {

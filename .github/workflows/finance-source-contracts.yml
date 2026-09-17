@@ -43,7 +43,7 @@ jobs:
         run: |
           python -m pip check
           python -m compileall -q verticals/puriq-markets/runtime scripts/hf_finance_read_proxy.py scripts/hf_flagship_runtime_contract.py scripts/materialize_finance_runtime.py tests/smoke_generated_finance_runtime.py
-          python -m pytest tests/test_finance_source_contracts.py tests/test_finance_route_registration.py tests/test_finance_bls_missing.py tests/test_finance_release_boundaries.py tests/test_finance_legacy_access.py tests/test_finance_emitted_runtime.py tests/test_hf_publish_vertical_flagships_v4.py -q --junitxml=finance-contracts.xml
+          python -m pytest tests/test_finance_source_contracts.py tests/test_finance_route_registration.py tests/test_finance_bls_missing.py tests/test_finance_release_boundaries.py tests/test_finance_legacy_access.py tests/test_finance_emitted_runtime.py tests/test_hf_publish_vertical_flagships_v4.py tests/test_finance_workspace.py -q --junitxml=finance-contracts.xml
       - name: Materialize and build the actual generated Finance application
         if: matrix.python == '3.12'
         shell: bash
@@ -81,6 +81,26 @@ jobs:
           "$audit_env/bin/python" -m pip install --disable-pip-version-check --no-cache-dir 'pip-audit==2.10.1'
           "$audit_env/bin/python" -m pip freeze --all > finance-auditor-environment.txt
           "$audit_env/bin/python" -m pip_audit --strict --no-deps --disable-pip --progress-spinner off --requirement finance-container-requirements.txt --format json --output finance-generated-dependency-audit.json
+      - name: Exercise generated Finance workspace in Chromium with explicit synthetic sources
+        if: matrix.python == '3.12'
+        shell: bash
+        run: |
+          set -euo pipefail
+          browser_env="$(mktemp -d)"
+          python -m venv "$browser_env"
+          "$browser_env/bin/python" -m pip install --disable-pip-version-check --no-cache-dir 'playwright==1.57.0' 'huggingface_hub==1.31.0'
+          "$browser_env/bin/python" -m playwright install --with-deps chromium
+          network="finance-browser-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          docker network create --internal "$network"
+          cid=""
+          trap 'if [ -n "$cid" ]; then docker logs "$cid" > finance-browser-container.log 2>&1 || true; docker rm --force "$cid" >/dev/null 2>&1 || true; fi; docker network rm "$network" >/dev/null 2>&1 || true' EXIT
+          cid="$(docker run --detach --network "$network" --read-only --cap-drop ALL --security-opt no-new-privileges -p 127.0.0.1:17860:7860 szl-finance-generated:qualification)"
+          for attempt in $(seq 1 40); do
+            if curl --fail --silent --max-time 2 http://127.0.0.1:17860/healthz >/dev/null; then break; fi
+            if [ "$attempt" -eq 40 ]; then echo '::error::Browser target failed to start'; exit 1; fi
+            sleep 1
+          done
+          "$browser_env/bin/python" tests/browser_finance_workspace.py --url http://127.0.0.1:17860 --output finance-workspace-browser
       - name: Retain exact checked-in source and test evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -89,6 +109,11 @@ jobs:
           path: |
             finance-contracts.xml
             finance-runtime.txt
+            finance-workspace-browser/
+            finance-browser-container.log
+            scripts/hf_finance_workspace.py
+            tests/test_finance_workspace.py
+            tests/browser_finance_workspace.py
             finance-generated/
             finance-generated-image.json
             finance-generated-runtime.json

@@ -207,6 +207,10 @@ if CFG.get("slug") == "finance":
         except Exception:
             return _finance_unavailable("CANONICAL_SOURCE_UNAVAILABLE")
 
+    @app.get("/research", response_class=HTMLResponse)
+    def finance_research_workspace():
+        return HTMLResponse(INDEX, headers={"Cache-Control":"private, no-store", "X-Content-Type-Options":"nosniff"})
+
     @app.get("/api/finance/providers")
     def finance_provider_projection():
         body,code=_finance_get("providers")
@@ -222,14 +226,19 @@ if CFG.get("slug") == "finance":
         body,code=_finance_get("observations/"+source,request.query_params.multi_items())
         return JSONResponse(body,status_code=code,headers={"Cache-Control":"private, no-store","X-Content-Type-Options":"nosniff"})
 
-    # Existing /api/live resolves this function at call time. An HTTP 200 alone
-    # must never turn a partially unavailable finance overview into LIVE.
+    # The existing landing-page reader must use the same source validation as
+    # the explicit finance routes. HTTP 200 alone is never a LIVE-data claim.
     def probe():
-        body,code=_finance_get("overview")
-        ok=code==200 and body.get("ok") is True
-        return {"status":"SNAPSHOT" if ok else "UNAVAILABLE", "http_status":code,
-                "source":_FINANCE_ORIGIN+_FINANCE_PREFIX+"overview", "data":body,
-                "execution_enabled":False}
+        started = _finance_time.monotonic()
+        body, status = _finance_get("overview")
+        accepted = status == 200 and body.get("ok") is True
+        return JSONResponse({"status": "SNAPSHOT" if accepted else "UNAVAILABLE",
+            "http_status": status, "latency_ms": round((_finance_time.monotonic()-started)*1000, 1),
+            "source": _FINANCE_ORIGIN + _FINANCE_PREFIX + "overview", "data": body,
+            "execution_enabled": False, "live_provider_verified": False},
+            status_code=200 if accepted else 503,
+            headers={"Cache-Control":"private, no-store", "X-Content-Type-Options":"nosniff"})
+
 '''
 
 
