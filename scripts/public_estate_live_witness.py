@@ -403,32 +403,68 @@ def apply_source_repository_policy(
 
     result = dict(fields)
     if surface.get("source_repository_policy") == "lyte-source-bound-build":
+        # Contract: lyte-services@9ce4e6b5f36fe0b094a07308abe3665cd2a210c1,
+        # lyte/api/routes_health.py. This is v2, not the retired generic shell.
+        # Validating producer claims here is not independent HF/source proof.
+        repository = "szl-holdings/lyte-services"
         require(surface.get("id") == "lyte", "Lyte source policy surface mismatch")
         require(
-            surface.get("deployment_source_repository") == "szl-holdings/lyte-services"
-            and payload.get("source_repository") == "szl-holdings/lyte-services"
-            and result.get("source_repository") == "szl-holdings/lyte-services",
+            surface.get("deployment_source_repository") == repository
+            and payload.get("source_repository") == repository
+            and result.get("source_repository") == repository,
             "Lyte source repository mismatch",
         )
-        require(payload.get("schema") == "szl.build-info/v1", "Lyte build schema mismatch")
+        require(
+            surface.get("hf_repository") == "SZLHOLDINGS/lyte"
+            and surface.get("hf_revision_policy") == "provider-observed"
+            and surface.get("revision_policy") == "exact-default-branch"
+            and surface.get("default_branch") == "main",
+            "Lyte source policy requires canonical provider and default branch",
+        )
+        require(payload.get("schema") == "szl.lyte-build/v2", "Lyte build schema mismatch")
         require(payload.get("service") == "lyte-signal-lattice", "Lyte service mismatch")
         build = payload.get("build")
         binding = payload.get("source_binding")
         require(isinstance(build, dict), "Lyte source policy requires build object")
         require(isinstance(binding, dict), "Lyte source policy requires source binding")
-        revision = str(build.get("revision", "")).lower()
-        require(bool(SHA40.fullmatch(revision)), "Lyte source revision is invalid")
-        require(build.get("state") == "OBSERVED", "Lyte source revision is not observed")
-        require(binding.get("bindings_agree") is True, "Lyte source bindings disagree")
-        evidence = require_string_list(binding.get("evidence_sources"), "Lyte evidence_sources")
-        trusted = {"env:LYTE_SOURCE_REVISION", "env:SZL_SOURCE_REVISION", "repository-file", "container-file"}
+        revision = build.get("revision")
         require(
-            "env:LYTE_SOURCE_REVISION" in evidence and set(evidence) <= trusted,
+            isinstance(revision, str) and bool(SHA40.fullmatch(revision)),
+            "Lyte source revision is invalid",
+        )
+        require(build.get("state") == "OBSERVED", "Lyte source revision is not observed")
+        require(
+            build.get("repository") == repository
+            and payload.get("runtime_repository") == repository
+            and binding.get("product_repository") == repository
+            and binding.get("hub_surface") == "SZLHOLDINGS/lyte",
+            "Lyte source repository bindings disagree",
+        )
+        require(
+            payload.get("source_revision") == revision
+            and payload.get("runtime_source_revision") == revision
+            and binding.get("product_revision") == revision
+            and result.get("source_revision") == revision,
+            "Lyte source revisions disagree",
+        )
+        require(binding.get("bindings_agree") is True, "Lyte source bindings disagree")
+        require(
+            binding.get("invalid_sources") == []
+            and type(binding.get("distinct_revision_count")) is int
+            and binding["distinct_revision_count"] == 1,
+            "Lyte source binding contains invalid or ambiguous evidence",
+        )
+        evidence = require_string_list(binding.get("evidence_sources"), "Lyte evidence_sources")
+        trusted = {"LYTE_SOURCE_REVISION", "SOURCE_REVISION", "GITHUB_SHA", "source_revision.txt"}
+        require(
+            evidence == binding["evidence_sources"]
+            and "LYTE_SOURCE_REVISION" in evidence and set(evidence) <= trusted,
             "Lyte source binding has an untrusted origin",
         )
         require(
-            result.get("source_revision") in (None, "", revision),
-            "Lyte source revisions disagree",
+            payload.get("effectors_enabled") is False
+            and payload.get("human_approval_required") is True,
+            "Lyte public effectors or approval boundary mismatch",
         )
         result["source_revision"] = revision
         result["source_repository_evidence"] = "LYTE_RUNTIME_AGREEING_SOURCE_BINDINGS"
