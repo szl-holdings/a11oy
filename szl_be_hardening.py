@@ -96,6 +96,22 @@ DOCTRINE_LOCK = {
 }
 DOCTRINE_FOOTER = "Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1"
 
+
+def huggingface_hub_version() -> str:
+    """Installed-module readback. The Dockerfile pin is not this field.
+
+    Missing import or empty __version__ is UNAVAILABLE. Never copies 1.31.0
+    from audit/source pins into the live payload.
+    """
+    try:
+        import huggingface_hub as _hub
+    except Exception:
+        return "UNAVAILABLE"
+    version = getattr(_hub, "__version__", None)
+    if isinstance(version, str) and version.strip():
+        return version.strip()
+    return "UNAVAILABLE"
+
 _GENESIS = "0" * 64
 # DEMO-FLOOR RATE-LIMIT FIX (2026-06-17): the per-IP limiter previously capped
 # EVERYTHING at 60/min, including the human-facing HTML showcase pages (/, /frontier,
@@ -791,6 +807,7 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
             "locked_formula_count": DOCTRINE_LOCK.get("locked_formula_count"),
             "locked_formula_ids": list(DOCTRINE_LOCK.get("locked_formula_ids") or []),
             "footer": DOCTRINE_FOOTER,
+            "huggingface_hub_version": huggingface_hub_version(),
             "honest_labels": {
                 "lambda": "Λ-Aggregator Uniqueness is Conjecture 1 — NOT a theorem.",
                 "khipu_signatures": "Chain integrity is SHA3-256 hash-chain verified; "
