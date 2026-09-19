@@ -73,6 +73,7 @@ Routes (registered additively, BEFORE the SPA catch-all):
 """
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import os
@@ -816,6 +817,8 @@ def signature_status(envelope: dict[str, Any]) -> dict[str, Any]:
         "note": None,
     }
     if not envelope.get("signatures"):
+        if envelope.get("read_only"):
+            out["status"] = "UNSIGNED-READ-ONLY"
         out["note"] = (envelope.get("honesty")
                        or "no signature present; no signature fabricated")
         return out
@@ -1167,11 +1170,25 @@ def verify(statement: Any, *, envelope: dict[str, Any] | None = None,
 # Manifest — statement + envelope + rekor + verdict in one read.
 # --------------------------------------------------------------------------- #
 def build_manifest(*, ns: str = "a11oy", require_transparency: bool | None = None,
-                   submitter: Any = None, opener: Any = None) -> dict[str, Any]:
-    """Build, sign, structure-for-Rekor and self-verify in one pure read."""
+                   submitter: Any = None, opener: Any = None,
+                   read_only: bool = True) -> dict[str, Any]:
+    """Inspect by default; signing/submission requires an explicit write caller."""
     statement = build_statement(ns=ns, opener=opener)
-    envelope = sign_statement(statement)
-    rekor = rekor_submit(envelope, submitter=submitter)
+    if read_only:
+        envelope = {
+            "payloadType": PAYLOAD_TYPE,
+            "payload": base64.b64encode(canonical_json(statement)).decode("ascii"),
+            "signatures": [], "signed": False, "read_only": True,
+            "_statement_digest_sha256": digest_hex(statement),
+            "honesty": "Read-only inspection; no signing attempted, regardless of key availability.",
+        }
+        rekor = {"status": REKOR_NOT_ATTEMPTED, "attempted": False,
+                 "reachable": None, "log_index": None, "entry_uuid": None,
+                 "inclusion_proof": None, "label": "STRUCTURAL-ONLY",
+                 "note": "Read-only inspection; no transparency-log submission attempted."}
+    else:
+        envelope = sign_statement(statement)
+        rekor = rekor_submit(envelope, submitter=submitter)
     verdict = verify(statement, envelope=envelope, rekor=rekor,
                      require_transparency=require_transparency)
     return {
@@ -1204,8 +1221,8 @@ def build_manifest(*, ns: str = "a11oy", require_transparency: bool | None = Non
 def lake_receipt(manifest: dict[str, Any]) -> dict[str, Any]:
     """Append an attestation receipt to the szl-lake ledger, IF configured.
 
-    Opt-in on ``SZL_LAKE_DIR`` so a plain read never writes to disk. Guarded:
-    a lake failure is reported, never raised into the request.
+    Explicit write callers only, opt-in on ``SZL_LAKE_DIR``. Read handlers must
+    not call this function. A lake failure is reported, never fabricated away.
     """
     if not (os.environ.get(LAKE_DIR_ENV) or "").strip():
         return {"appended": False, "status": "NOT_CONFIGURED",
@@ -1227,9 +1244,11 @@ def lake_receipt(manifest: dict[str, Any]) -> dict[str, Any]:
     try:
         import szl_lake_store
 
-        store = szl_lake_store.LakeStore()
+        store = szl_lake_store.get_default_ledger()
         res = store.append(receipt)
-        return {"appended": bool(res.get("accepted")), "status": "APPENDED",
+        status = ("APPENDED" if res.get("accepted") else
+                  "DUPLICATE" if res.get("duplicate") else "REJECTED")
+        return {"appended": bool(res.get("accepted")), "status": status,
                 "receipt_id": res.get("receipt_id"),
                 "chain_index": res.get("chain_index"),
                 "chain_head": res.get("chain_head")}
@@ -1272,10 +1291,11 @@ def register(app, ns: str = "a11oy") -> str:
         return _truthy(raw)
 
     async def _h_manifest(request):
-        """GET manifest — build + sign + structure-for-Rekor + self-verify."""
+        """GET manifest: inspect without signing, submission, or ledger writes."""
         try:
-            man = build_manifest(ns=ns, require_transparency=_require_flag(request))
-            man["lake"] = lake_receipt(man)
+            man = build_manifest(ns=ns, require_transparency=_require_flag(request),
+                                 read_only=True)
+            man["lake"] = {"appended": False, "status": "READ_ONLY"}
             return JSONResponse(man)
         except Exception as exc:  # never 500 into the console
             return JSONResponse({
@@ -1297,8 +1317,7 @@ def register(app, ns: str = "a11oy") -> str:
             require = _require_flag(request)
             if body is None:
                 statement = build_statement(ns=ns)
-                envelope = sign_statement(statement)
-                out = verify(statement, envelope=envelope, require_transparency=require)
+                out = verify(statement, require_transparency=require)
                 out["source"] = "freshly built statement (no body supplied)"
                 return JSONResponse(out)
             statement, envelope, err = _statement_from(body)
