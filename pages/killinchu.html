@@ -40,17 +40,30 @@ const EXPECTED_URL='https://szlholdings-killinchu.hf.space';
 const ALLOWED_STATES=new Set(['LIVE','DEGRADED','UNAVAILABLE']);
 const ALLOWED_SNAPSHOT_STATES=new Set(['LIVE','DEGRADED','UNAVAILABLE','CACHED']);
 const REQUIRED_CONTRACTS=new Set(['api_health','healthz']);
+const MAX_OBSERVATION_AGE_MS=60000;
+const REFRESH_DELAY_MS=30000;
+const REQUEST_TIMEOUT_MS=10000;
+let expiryTimer=null;
+let refreshTimer=null;
+let activeRequest=null;
+let requestEpoch=0;
 function unavailable(detail){
   document.getElementById('st').textContent='TWIN UNAVAILABLE';
   document.getElementById('detail').textContent=detail;
 }
-async function boot(){
+function expireObservation(detail){
+  clearTimeout(expiryTimer);
+  expiryTimer=null;
+  unavailable(detail);
+}
+async function observe(signal,epoch){
   const el=document.getElementById('st');
   const d=document.getElementById('detail');
   try{
-    const r=await fetch(INVENTORY_PATH,{headers:{accept:'application/json'},cache:'no-store',credentials:'omit'});
+    const r=await fetch(INVENTORY_PATH,{headers:{accept:'application/json'},cache:'no-store',credentials:'omit',signal});
     if(!r.ok)throw new Error('inventory transport unavailable');
     const j=await r.json();
+    if(signal.aborted||epoch!==requestEpoch||document.hidden)return;
     if(!j||!Array.isArray(j.spaces))throw new Error('inventory schema unavailable');
     const snapshotRaw=typeof j.state==='string'?j.state.toUpperCase():'UNAVAILABLE';
     const snapshotState=ALLOWED_SNAPSHOT_STATES.has(snapshotRaw)?snapshotRaw:'UNAVAILABLE';
@@ -59,7 +72,7 @@ async function boot(){
       Number.isFinite(Date.parse(j.fetchedAt))?j.fetchedAt:null;
     if(!observedAt)throw new Error('inventory observation time unavailable');
     const observationAgeMs=Date.now()-Date.parse(observedAt);
-    if(observationAgeMs < -30000||observationAgeMs > 60000){
+    if(observationAgeMs < -30000||observationAgeMs >= MAX_OBSERVATION_AGE_MS){
       throw new Error('inventory observation stale');
     }
     const twin=j.spaces.find(function(row){
@@ -91,10 +104,54 @@ async function boot(){
     d.textContent='snapshot '+snapshotState+cachedDetail+' · stage '+stage+
       ' · app '+(appStatus===null?'unavailable':String(appStatus))+
       ' · contracts '+(contractsLive?'observed':'unavailable')+' · observed '+observedAt;
+    clearTimeout(expiryTimer);
+    expiryTimer=setTimeout(function(){
+      expireObservation('Space observation expired; awaiting a fresh observation.');
+    },Math.min(MAX_OBSERVATION_AGE_MS,MAX_OBSERVATION_AGE_MS-observationAgeMs));
   }catch(_error){
-    unavailable('Space inventory unavailable; no runtime claim made.');
+    if(epoch===requestEpoch&&!document.hidden){
+      expireObservation('Space inventory unavailable; no runtime claim made.');
+    }
   }
 }
+function boot(){
+  if(activeRequest)return activeRequest.promise;
+  if(document.hidden)return Promise.resolve();
+  clearTimeout(refreshTimer);
+  const epoch=++requestEpoch;
+  const controller=new AbortController();
+  const request={controller,promise:null,timeout:null};
+  activeRequest=request;
+  request.timeout=setTimeout(function(){
+    controller.abort();
+    if(epoch===requestEpoch){
+      expireObservation('Space inventory request timed out; no runtime claim made.');
+    }
+  },REQUEST_TIMEOUT_MS);
+  request.promise=observe(controller.signal,epoch).finally(function(){
+    clearTimeout(request.timeout);
+    if(activeRequest===request){
+      activeRequest=null;
+      if(!document.hidden)refreshTimer=setTimeout(boot,REFRESH_DELAY_MS);
+    }
+  });
+  return request.promise;
+}
+function resumeObservation(){
+  clearTimeout(refreshTimer);
+  ++requestEpoch;
+  if(activeRequest){
+    clearTimeout(activeRequest.timeout);
+    activeRequest.controller.abort();
+    activeRequest=null;
+  }
+  expireObservation('Awaiting a fresh Space observation; no runtime claim made.');
+  if(!document.hidden)boot();
+}
+document.addEventListener('visibilitychange',resumeObservation);
+window.addEventListener('pageshow',function(event){
+  if(event.persisted)resumeObservation();
+});
 boot();
 </script>
   <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
