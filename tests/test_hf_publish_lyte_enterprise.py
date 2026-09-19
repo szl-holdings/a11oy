@@ -74,6 +74,29 @@ def test_source_owned_publisher_is_exact_reviewable_and_non_destructive() -> Non
             "/static/lyte/styles.css", "/static/lyte/app.js"} <= set(smoke)
 
 
+def test_lyte_writer_uses_release_guard_runner() -> None:
+    """#2117 follow-up: the writer must call the guard, not a local subprocess.run."""
+    source = PUBLISHER.read_text(encoding="utf-8")
+    ast.parse(source)
+    assert "from szl_release_guard import run_bounded as guard_run_bounded" in source
+    assert "guard_run_bounded(command, cwd=workdir, timeout=float(timeout))" in source
+    assert "subprocess.run" not in source
+    assert "subprocess.check_output" not in source
+    assert "subprocess.Popen" not in source
+    assert "import subprocess" not in source
+    assert 'destination / ".git" / "HEAD"' in source
+    assert '"execution_authority": "NONE"' in source
+    assert '"release_guard_runner": "szl_release_guard.run_bounded"' in source
+    tree = ast.parse(source)
+    imported = False
+    for node in tree.body:
+        if isinstance(node, ast.ImportFrom) and node.module == "szl_release_guard":
+            names = {alias.name for alias in node.names}
+            assert "run_bounded" in names
+            imported = True
+    assert imported, "publisher must import run_bounded from szl_release_guard"
+
+
 def test_lyte_live_admission_requires_business_observability_and_non_authority() -> None:
     source = CONTRACT.read_text(encoding="utf-8")
     ast.parse(source)
