@@ -47,28 +47,72 @@ function livePayload() {
   };
 }
 
-async function render(payload, responseOk = true) {
+async function render(payload, responseOk = true, fetchReply = null) {
   const nodes = {
     st: {textContent: "TWIN UNAVAILABLE"},
     detail: {textContent: "Awaiting inventory"},
   };
   let request;
+  let now=Date.now();
+  let timerId=0;
+  const timers=new Map();
+  const listeners=new Map();
+  const requests=[];
+  class Clock extends Date {
+    static now(){return now;}
+  }
+  const document={
+    hidden:false,
+    getElementById:(id)=>nodes[id],
+    addEventListener:(name,fn)=>listeners.set(name,fn),
+  };
   const context = {
     Array,
-    Date,
+    Date:Clock,
     Error,
     Number,
+    Promise,
+    AbortController,
     Set,
-    document: {getElementById: (id) => nodes[id]},
+    document,
+    window:{addEventListener:(name,fn)=>listeners.set(name,fn)},
+    setTimeout:(fn,delay)=>{
+      const id=++timerId;
+      timers.set(id,{fn,at:now+delay});
+      return id;
+    },
+    clearTimeout:(id)=>timers.delete(id),
     fetch: async (url, options) => {
       request = {url, options};
+      requests.push(request);
+      if(fetchReply)return fetchReply(requests.length,options.signal);
       return {ok: responseOk, json: async () => payload};
     },
   };
   vm.createContext(context);
   vm.runInContext(source, context);
   await context.boot();
-  return {nodes, request};
+  return {
+    nodes,request,requests,
+    boot:()=>context.boot(),
+    async advance(ms){
+      now+=ms;
+      for(let pass=0;pass<100;pass++){
+        const due=[...timers].filter(([,timer])=>timer.at<=now).sort((a,b)=>a[1].at-b[1].at);
+        if(!due.length)break;
+        const [id,timer]=due[0];
+        timers.delete(id);
+        timer.fn();
+        for(let n=0;n<8;n++)await Promise.resolve();
+        if(pass===99)throw new Error('timer loop did not settle');
+      }
+    },
+    visibility(hidden){
+      document.hidden=hidden;
+      listeners.get('visibilitychange')();
+    },
+    restore(){listeners.get('pageshow')({persisted:true});},
+  };
 }
 
 test("fresh exact Space and both health contracts are required for LIVE", async () => {
@@ -78,9 +122,10 @@ test("fresh exact Space and both health contracts are required for LIVE", async 
   assert.match(result.nodes.detail.textContent, /observed \d{4}-\d{2}-\d{2}T/);
   assert.equal(result.request.url, "/api/a11oy/v1/spaces/health");
   assert.deepEqual(
-    JSON.parse(JSON.stringify(result.request.options)),
+    JSON.parse(JSON.stringify({...result.request.options,signal:undefined})),
     {headers: {accept: "application/json"}, cache: "no-store", credentials: "omit"},
   );
+  assert.ok(result.request.options.signal instanceof AbortSignal);
 });
 
 test("cached observation never renders LIVE", async () => {
@@ -178,4 +223,51 @@ test("failed runtime observation leaves the showcase controls available", async 
   assert.equal(result.nodes.st.textContent, "TWIN UNAVAILABLE");
   assertShowcaseLinks(html);
   assert.doesNotMatch(source, /showcase-actions|querySelector|innerHTML/);
+});
+
+test('an observed LIVE claim expires while the page remains open',async()=>{
+  const result=await render(livePayload());
+  assert.equal(result.nodes.st.textContent,'TWIN LIVE');
+  await result.advance(30000);
+  assert.equal(result.requests.length,2);
+  await result.advance(31000);
+  assert.equal(result.nodes.st.textContent,'TWIN UNAVAILABLE');
+});
+
+test('a stalled refresh has one bounded request and cannot retain LIVE',async()=>{
+  const payload=livePayload();
+  const result=await render(payload,true,(count,signal)=>{
+    if(count===1)return {ok:true,json:async()=>payload};
+    return new Promise((resolve,reject)=>signal.addEventListener('abort',()=>reject(new Error('aborted')),{once:true}));
+  });
+  await result.advance(30000);
+  result.boot();
+  result.boot();
+  assert.equal(result.requests.length,2);
+  await result.advance(10000);
+  assert.equal(result.requests[1].options.signal.aborted,true);
+  assert.equal(result.nodes.st.textContent,'TWIN UNAVAILABLE');
+});
+
+test('a hidden or restored page clears the claim before revalidation',async()=>{
+  const payload=livePayload();
+  let complete;
+  const result=await render(payload,true,(count)=>{
+    if(count===1)return {ok:true,json:async()=>payload};
+    return new Promise(resolve=>{complete=resolve;});
+  });
+  result.visibility(true);
+  assert.equal(result.nodes.st.textContent,'TWIN UNAVAILABLE');
+  await result.advance(61000);
+  result.visibility(false);
+  assert.equal(result.nodes.st.textContent,'TWIN UNAVAILABLE');
+  assert.equal(result.requests.length,2);
+  const staleComplete=complete;
+  result.restore();
+  assert.equal(result.requests[1].options.signal.aborted,true);
+  assert.equal(result.nodes.st.textContent,'TWIN UNAVAILABLE');
+  const freshTime=new Date(Date.parse(payload.fetchedAt)+61000).toISOString().replace(/\.\d{3}Z$/,'Z');
+  staleComplete({ok:true,json:async()=>({...payload,fetchedAt:freshTime})});
+  for(let n=0;n<8;n++)await Promise.resolve();
+  assert.equal(result.nodes.st.textContent,'TWIN UNAVAILABLE');
 });
