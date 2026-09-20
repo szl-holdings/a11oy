@@ -22,14 +22,16 @@ Do not pin a sixth Hub Space for this file.
 
 ```bash
 printf '%s' '{"intent":"pin retrieval state for the Mooncake KV fabric","kernel":null}' | python3 payloads/lambda_gate.py
-# expect ok=true decision=ADMIT honesty=MEASURED kernel=retrieval
+# expect ok=true decision=ADMIT honesty=SOFTWARE kernel=retrieval
 
 printf '%s' '{"intent":"claim FedRAMP and proven theorem","kernel":null}' | python3 payloads/lambda_gate.py
-# expect decision=BLOCKED
+# expect decision=BLOCKED honesty=SOFTWARE
 ```
 
 Missing interpreter, invalid JSON, or crash -> honesty=UNAVAILABLE and no admit.
 An LLM must not decide ADMIT/BLOCKED. This file is the gate.
+`score_axes()` is a hardcoded analog. Do not label it MEASURED.
+Use `payloads/yuyay_jev.py` for Yuyay-13 measurement.
 
 ## YUYAY-JEV (replacement measurement organ)
 
