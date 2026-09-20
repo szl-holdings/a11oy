@@ -71,6 +71,22 @@ def gate(lam: float) -> str:
     return "ADMIT" if lam >= LAMBDA_BOUND else "BLOCKED"
 
 
+def lambda_from_x(x: Any) -> float | None:
+    """WGM of a Yuyay-13 System One vector. None if the vector is not usable."""
+    if not isinstance(x, (list, tuple)) or len(x) != 13:
+        return None
+    vals: list[float] = []
+    for item in x:
+        try:
+            vals.append(clamp01(float(item)))
+        except (TypeError, ValueError):
+            return None
+    if any(v <= 0.0 for v in vals):
+        return 0.0
+    log = sum(math.log(max(v, 1e-12)) for v in vals)
+    return min(TRUST_CEILING, math.exp(log / 13.0))
+
+
 def route_kernel(intent: str) -> str:
     t = intent.lower()
     if re.search(r"(lean|theorem|proof|conjecture|formula)", t):
@@ -159,7 +175,14 @@ def main() -> None:
     axes["energy"] = 0.5
     if blocked:
         axes["authority"] = min(axes["authority"], 0.42)
-    lam = lambda_of(axes, energy_available=False)
+    x = data.get("x")
+    lam_x = lambda_from_x(x)
+    if lam_x is not None:
+        lam = lam_x
+        lambda_input = "yuyay13.systemone.v1"
+    else:
+        lam = lambda_of(axes, energy_available=False)
+        lambda_input = "score_axes.software"
     decision = "BLOCKED" if blocked or gate(lam) == "BLOCKED" else "ADMIT"
     text = reason if blocked else (
         f"Python payload {PAYLOAD} admitted via {kernel}. "
@@ -199,6 +222,8 @@ def main() -> None:
                 "conjecture_1": "OPEN",
                 "proven_trust": False,
                 "jev_allow_alone": False,
+                "lambda_input": lambda_input,
+                "x": [clamp01(float(v)) for v in x] if lam_x is not None else None,
                 "axes": axes,
                 "kernel": kernel,
                 "policy": {"blocked": blocked, "reason": reason},
