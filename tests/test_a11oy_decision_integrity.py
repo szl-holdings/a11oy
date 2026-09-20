@@ -38,6 +38,10 @@ class DecisionIntegritySurfaceTests(unittest.TestCase):
             cat["desks"]["public_lists"],
             "https://a11oy.net/vessels/public-lists-world.json",
         )
+        self.assertEqual(
+            cat["desks"]["joint_freshness"],
+            "https://a11oy.net/vessels/joint-freshness.json",
+        )
         vessels = next(item for item in cat["verticals"] if item["id"] == "vessels")
         self.assertEqual(vessels["ais_standards_honesty"], "CITATION_ONLY")
         self.assertEqual(vessels["ais_lattice_honesty"], "CITATION_ONLY")
@@ -46,6 +50,7 @@ class DecisionIntegritySurfaceTests(unittest.TestCase):
         self.assertEqual(vessels["public_lists_honesty"], "CITATION_ONLY")
         self.assertEqual(vessels["public_lists_digest"], surface.PUBLIC_LISTS_DIGEST)
         self.assertEqual(vessels["public_list_authority_classes"], 7)
+        self.assertEqual(vessels["joint_freshness_digest"], surface.JOINT_FRESHNESS_DIGEST)
         self.assertFalse(vessels["licensed_ais_admitted"])
         self.assertEqual(vessels["vessels_e03_licensed_ais_tpr"], "OUTSTANDING")
 
@@ -180,6 +185,24 @@ class DecisionIntegritySurfaceTests(unittest.TestCase):
         self.assertEqual(echo["typed_judgment"]["result"], "SAMPLE_TEXT_MISS")
         self.assertTrue(echo["typed_judgment"]["miss_is_not_clearance"])
         self.assertTrue(echo["typed_judgment"]["not_e01"])
+        joint = echo["joint_freshness"]
+        self.assertEqual(joint["digest"], surface.JOINT_FRESHNESS_DIGEST)
+        self.assertTrue(joint["winner_not_picked"])
+        self.assertTrue(joint["does_not_run_the_kernel"])
+        self.assertEqual(joint["negative_evidence"]["result"], "SAMPLE_TEXT_MISS")
+        self.assertTrue(joint["negative_evidence"]["miss_is_not_clearance"])
+        self.assertFalse(joint["negative_evidence"]["is_clearance"])
+        self.assertTrue(joint["negative_evidence"]["not_typesafe_jev_call"])
+        self.assertIn("APAC-official-joint", joint["coverage_holes"])
+        self.assertIn("KR-MOFA-vessel", joint["coverage_holes"])
+        disagree_ids = {row["id"] for row in joint["disagreements"]}
+        self.assertIn("UK-FCDO-vs-OFSI", disagree_ids)
+        class_ids = {row["id"] for row in joint["classes"]}
+        self.assertEqual(len(class_ids), 7)
+        kr = next(row for row in joint["classes"] if row["id"] == "KR-MOFA-vessel")
+        self.assertTrue(kr["hole"])
+        self.assertEqual(kr["maps_to"], "VESSELS-E-ABSTAIN")
+        self.assertEqual(joint["proof"], "https://a11oy.net/vessels/joint-freshness.json")
         clock_ids = {row["id"] for row in echo["clocks"]}
         self.assertIn("OFAC_SDN_CSV", clock_ids)
         self.assertIn("MARINETRAFFIC", clock_ids)
@@ -206,6 +229,8 @@ class DecisionIntegritySurfaceTests(unittest.TestCase):
         self.assertIn("a11oy.net/vessels/public-lists-world.json", text)
         self.assertIn("public_lists", text)
         self.assertIn("70fd1918", text)
+        self.assertIn("joint_freshness", text)
+        self.assertIn("1cb5b117", text)
         for path in ("/terra", "/aegis", "/puriq-markets", "/counsel", "/vessels"):
             self.assertIn(path, text)
 
