@@ -1,0 +1,61 @@
+name: Anatomy Ledger
+
+on:
+  pull_request:
+    paths:
+      - "anatomy-ledger/**"
+      - "docs/sovereign-control-plane-audit.json"
+      - "docs/SOVEREIGN_CONTROL_PLANE_AUDIT.md"
+      - "docs/THREAD_EXECUTION_LEDGER.md"
+      - ".github/workflows/anatomy-ledger.yml"
+  push:
+    branches: [main]
+    paths:
+      - "anatomy-ledger/**"
+      - "docs/sovereign-control-plane-audit.json"
+      - "docs/SOVEREIGN_CONTROL_PLANE_AUDIT.md"
+      - "docs/THREAD_EXECUTION_LEDGER.md"
+      - ".github/workflows/anatomy-ledger.yml"
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install locked OPA
+        env:
+          OPA_URL: "https://github.com/open-policy-agent/opa/releases/download/v1.20.2/opa_linux_amd64_static"
+          OPA_SHA256: "69da5179ee403d10fa11bab6cfb4ffb0d23dba5f9b682fa977db772a1da5670f"
+        run: |
+          curl --fail --location --silent --show-error "$OPA_URL" --output opa
+          echo "$OPA_SHA256  opa" | sha256sum --check -
+          chmod 0755 opa
+          sudo mv opa /usr/local/bin/opa
+          opa version
+
+      - name: Verify policies, ledger, JSON, and tests
+        run: make -C anatomy-ledger verify
+
+      - name: Package Anatomy Ledger
+        run: make -C anatomy-ledger package
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: anatomy-ledger
+          path: |
+            anatomy-ledger/dist/anatomy-ledger.tar.gz
+            anatomy-ledger/dist/anatomy-ledger.tar.gz.sha256
+          if-no-files-found: error
+
+      - name: Generate signed SLSA provenance
+        if: github.event_name != 'pull_request'
+        uses: actions/attest@v4
+        with:
+          subject-path: anatomy-ledger/dist/anatomy-ledger.tar.gz
