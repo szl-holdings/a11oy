@@ -179,12 +179,46 @@ def catalog() -> dict[str, Any]:
     }
 
 
+_CASE_MATERIAL = (
+    "graph",
+    "sources",
+    "evidence",
+    "proposed_action",
+    "allowed_actions",
+)
+
+
+def _has_case_material(payload: dict[str, Any]) -> bool:
+    return any(payload.get(key) for key in _CASE_MATERIAL)
+
+
+def resolve_eval_payload(vertical_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """Accept inner kernel binds, frozen wrappers, or eval_id / case_id lookups."""
+    body = dict(payload)
+    inner = body.get("payload")
+    if isinstance(inner, dict) and _has_case_material(inner):
+        resolved = dict(inner)
+        resolved.setdefault("vertical_id", vertical_id)
+        return resolved
+    if not _has_case_material(body):
+        key = body.get("eval_id") or body.get("case_id")
+        if key:
+            packed = load_vertical(vertical_id)
+            for case in packed["cases"]:
+                if key in {case.get("eval_id"), case.get("case_id")}:
+                    seed = case.get("payload") if isinstance(case.get("payload"), dict) else case
+                    resolved = dict(seed)
+                    resolved.setdefault("vertical_id", vertical_id)
+                    return resolved
+    body.setdefault("vertical_id", vertical_id)
+    return body
+
+
 def evaluate_case(vertical_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     if vertical_id not in VERTICAL_IDS:
         return {"ok": False, "error": "unknown vertical", "verticals": list(VERTICAL_IDS)}
     kernel = _load_kernel()
-    body = dict(payload)
-    body.setdefault("vertical_id", vertical_id)
+    body = resolve_eval_payload(vertical_id, payload)
     result = kernel.evaluate(body)
     result["ok"] = True
     result["status"] = STATUS
