@@ -9,11 +9,11 @@ BIND of [a11oy](https://github.com/szl-holdings/a11oy). Not a second flagship.
 | Runtime twin | Hugging Face Space `SZLHOLDINGS/a11oy` |
 | Doctrine | v11 LOCKED |
 | Kernel | `c7c0ba17` |
-| Λ uniqueness | Conjecture 1 — not a theorem |
+| Lambda uniqueness | Conjecture 1 - not a theorem |
 | Trust ceiling | 0.97 |
 | Energy | UNAVAILABLE unless a live NVML/RAPL meter exists |
 | Signer | UNSIGNED-honest unless persistent key verifies |
-| Invariant | receipts.in ≡ receipts.out |
+| Invariant | receipts.in == receipts.out |
 
 `a11oy.net` is static proof. Do not host this payload there.
 Do not pin a sixth Hub Space for this file.
@@ -28,5 +28,17 @@ printf '%s' '{"intent":"claim FedRAMP and proven theorem","kernel":null}' | pyth
 # expect decision=BLOCKED
 ```
 
-Missing interpreter, invalid JSON, or crash → honesty=UNAVAILABLE and no admit.
+Missing interpreter, invalid JSON, or crash -> honesty=UNAVAILABLE and no admit.
 An LLM must not decide ADMIT/BLOCKED. This file is the gate.
+
+## YUYAY-JEV (replacement measurement organ)
+
+`lambda_gate.py` `score_axes()` is a hardcoded SOFTWARE analog (0.84-0.95). The Yuyay-13 bind lives next to it:
+
+- `payloads/yuyay_jev.py` - TypeSafe Jev measurement. Missing key -> UNAVAILABLE.
+- `payloads/khipu_organs.py` - sentra, amaru, a11oy, killinchu. n=4 t=3.
+- `payloads/yuyay_khipu_gate.py` - compose. Khipu decides ADMIT/BLOCKED.
+- `payloads/hf_align.py` - GitHub canonical <-> Hugging Face `SZLHOLDINGS`.
+- See `payloads/YUYAY_JEV.md`.
+
+Jev is not organ 5 and never ALLOW-alone.
