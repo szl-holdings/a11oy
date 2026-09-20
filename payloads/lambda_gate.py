@@ -103,6 +103,8 @@ def policy_check(intent: str) -> tuple[bool, str | None]:
 
 
 def score_axes(intent: str, blocked: bool) -> dict[str, float]:
+    # SOFTWARE analog. Hardcoded 5-axis silhouette. Never MEASURED.
+    # Replacement measurement organ: payloads/yuyay_jev.py + yuyay_khipu_gate.py.
     length = min(1.0, len(intent.strip()) / 240.0)
     return {
         "honesty": 0.88 if blocked else 0.84,
@@ -192,7 +194,11 @@ def main() -> None:
                 "lambda_status": "CONJECTURE",
                 "energy": "UNAVAILABLE",
                 "signer": "UNSIGNED-honest",
-                "honesty": "MEASURED",
+                "honesty": "SOFTWARE",
+                "successor": "yuyay_khipu_gate",
+                "conjecture_1": "OPEN",
+                "proven_trust": False,
+                "jev_allow_alone": False,
                 "axes": axes,
                 "kernel": kernel,
                 "policy": {"blocked": blocked, "reason": reason},

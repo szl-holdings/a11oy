@@ -42,7 +42,7 @@ KEEP = (
     ("szl-holdings/killinchu", "SZLHOLDINGS/killinchu", "LIVE", "field COP"),
     ("szl-holdings/szl-router", "SZLHOLDINGS/llm-router-live", "LIVE", "inference"),
     ("szl-holdings/szl-khipu", "SZLHOLDINGS/szl-khipu", "LIVE", "lambda kernel"),
-    ("szl-holdings/khipu-consensus", None, "REPORTED", "BFT tally - no HF twin"),
+    ("szl-holdings/khipu-consensus", None, "REPORTED", "BFT tally - no HF Space named khipu-constellation; kernel twin is SZLHOLDINGS/szl-khipu"),
     ("szl-holdings/szl-atelier", "SZLHOLDINGS/szl-atelier", "LIVE", "card walker"),
     ("szl-holdings/immune", "SZLHOLDINGS/immune", "LIVE", "admit / seal"),
     ("szl-holdings/david-leads", "SZLHOLDINGS/david-leads", "LIVE", "broker research"),

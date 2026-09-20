@@ -13,6 +13,18 @@ from yuyay_jev import LAMBDA_BOUND, YUYAY_FLOORS
 
 KHIPU_N, KHIPU_THRESHOLD = 4, 3
 ORGANS = ("sentra", "amaru", "a11oy", "killinchu")
+WITNESS_KEYIDS = {
+    "sentra": "gate-cosign",
+    "amaru": "memory-cosign",
+    "a11oy": "a11oy-cosign",
+    "killinchu": "killinchu-cosign",
+}
+ORGAN_PEMS = {
+    "sentra": "SZL_SENTRA_COSIGN_PEM",
+    "amaru": "SZL_AMARU_COSIGN_PEM",
+    "a11oy": "SZL_A11OY_COSIGN_PEM",
+    "killinchu": "SZL_KILLINCHU_COSIGN_PEM",
+}
 PAYLOAD_TYPE = "application/vnd.szl.khipu.organ-verdict+json"
 POLICY_DENY = (
     "second flagship",
@@ -93,6 +105,8 @@ def vote_organs(
     ]
     for v in votes:
         v["signer"] = "UNSIGNED-honest"
+        v["keyid"] = WITNESS_KEYIDS[v["organ"]]
+        v["pem_env"] = ORGAN_PEMS[v["organ"]]
         v["payload_type"] = PAYLOAD_TYPE
         v["job"] = ORGAN_JOBS[v["organ"]]
         v["jev_allow_alone"] = False
