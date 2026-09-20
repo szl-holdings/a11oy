@@ -40,6 +40,20 @@ forbid(
     !resource.allowedEffects.contains(context.intendedEffect)
 };
 
+forbid(
+    principal is A11oy::WorkloadIdentity,
+    action in [
+        A11oy::Action::"WriteResource",
+        A11oy::Action::"DeployArtifact",
+        A11oy::Action::"ApproveDecision",
+        A11oy::Action::"SignReceipt",
+        A11oy::Action::"AdministerPolicy"
+    ],
+    resource is A11oy::ProtectedResource
+) when {
+    context.networkZone == "untrusted"
+};
+
 permit(
     principal is A11oy::WorkloadIdentity,
     action in [
