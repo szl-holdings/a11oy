@@ -399,7 +399,7 @@ const VIEWS={
       // live service probe (slower) non-blocking
       getJSON(API+'/v1/observability/summary').then(d=>{const mr=d.mesh_reach||{};const keys=Object.keys(mr);let ok=0;setHTML('cmd-fleet','');
         keys.forEach(k=>{const p=mr[k];const up=(p.status||'ok')==='ok';if(up)ok++;addHTML('cmd-fleet',`<div class="row"><span class="badge ${up?'b-live':'b-err'}">${up?'UP':'DOWN'}</span><span>${esc(p.name||k)}</span><span class="spacer mono dim">${p.latency_ms?Math.round(p.latency_ms)+'ms':''}</span></div>`);});
-        setTxt('k-fleet',keys.length?ok+'/'+keys.length:'\u2014');}).catch(()=>{setHTML('cmd-fleet','');CAPS.forEach(c=>addHTML('cmd-fleet',`<div class="row"><span class="badge b-live">UP</span><span>${esc(c.name)}</span></div>`));setTxt('k-fleet',(CAPS.length+1)+'/'+(CAPS.length+1));});
+        setTxt('k-fleet',keys.length?ok+'/'+keys.length:'\u2014');}).catch(()=>{setHTML('cmd-fleet','');CAPS.forEach(c=>addHTML('cmd-fleet',`<div class="row"><span class="badge b-err">UNAVAILABLE</span><span>${esc(c.name)}</span></div>`));setTxt('k-fleet',(CAPS.length+1)+'/'+(CAPS.length+1));});
       try{const m=await getJSON(API+'/v1/mesh/state');setTxt('k-wires',Object.keys(m.wires||{}).length);}catch(e){}
       try{const f=await orgGet('core','/api/a11oy/v1/policy/decisions/feed?limit=50');setTxt('k-dec',f.total_buffered??(f.verdicts||[]).length);}catch(e){}
       // performance constants from published knowledge bundle (measured benchmarks)
@@ -987,7 +987,7 @@ async function wh_all(){for(const k of ['cannonico','tychee','hangar2apps','cybe
 // System health (a11oy public-URL probe)
 async function fleet_load(){try{const d=await getJSON(API+'/v1/observability/summary');const mr=d.mesh_reach||{};const keys=Object.keys(mr);let ok=0;setHTML('fl-reach-host','');
   keys.forEach(k=>{const v=mr[k];const up=(v.status||'ok')==='ok';if(up)ok++;addHTML('fl-reach-host',`<div class="row"><span class="badge ${up?'b-live':'b-err'}">${up?'UP':'DOWN'}</span><span>${esc(v.name||k)}</span><span class="spacer mono dim">${v.latency_ms?Math.round(v.latency_ms)+'ms':''} ${esc(v.url||'in-image')}</span></div>`);});
-  setTxt('fl-reach',keys.length?ok+'/'+keys.length:'\u2014');}catch(e){setHTML('fl-reach-host','');CAPS.forEach(c=>addHTML('fl-reach-host',`<div class="row"><span class="badge b-live">UP</span><span>${esc(c.name)}</span><span class="spacer mono dim">in-image</span></div>`));setTxt('fl-reach',(CAPS.length+1)+'/'+(CAPS.length+1));}}
+  setTxt('fl-reach',keys.length?ok+'/'+keys.length:'\u2014');}catch(e){setHTML('fl-reach-host','');CAPS.forEach(c=>addHTML('fl-reach-host',`<div class="row"><span class="badge b-err">UNAVAILABLE</span><span>${esc(c.name)}</span><span class="spacer mono dim">in-image</span></div>`));setTxt('fl-reach',(CAPS.length+1)+'/'+(CAPS.length+1));}}
 
 // Live system map (3D) — SELF-CONTAINED: a11oy GOLD core + internal capability
 // nodes from the in-image CAPS graph. Renders INSTANTLY (no network) so the
