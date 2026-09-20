@@ -125,6 +125,20 @@ class DecisionIntegritySurfaceTests(unittest.TestCase):
         self.assertTrue((surface.PAGES_DIR / "demo.html").is_file())
         self.assertTrue((surface.PAGES_DIR / "evaluations.html").is_file())
 
+    def test_evaluate_resolves_wrapper_and_eval_id(self) -> None:
+        packed = surface.load_vertical("vessels")
+        abstain = next(item for item in packed["cases"] if item["eval_id"] == "VESSELS-E-ABSTAIN")
+        wrapped = surface.evaluate_case("vessels", abstain)
+        self.assertEqual(wrapped["state"], "ABSTAINED")
+        by_id = surface.evaluate_case("vessels", {"eval_id": "VESSELS-E-ABSTAIN"})
+        self.assertEqual(by_id["state"], "ABSTAINED")
+        by_case = surface.evaluate_case("vessels", {"case_id": "vessels-stale-list"})
+        self.assertEqual(by_case["state"], "ABSTAINED")
+        deny = surface.evaluate_case("vessels", {"eval_id": "VESSELS-E-DENY-AIS"})
+        self.assertEqual(deny["state"], "DENIED")
+        empty = surface.evaluate_case("vessels", {})
+        self.assertEqual(empty["state"], "UNKNOWN")
+
 
 if __name__ == "__main__":
     unittest.main()
