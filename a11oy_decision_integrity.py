@@ -98,6 +98,64 @@ def _vessels_ais_standards_echo(pack: dict[str, Any] | None = None) -> dict[str,
     }
 
 
+AIS_LATTICE_DIGEST = "f931b48544bcf70b1ca0d1c03b38b6c8e9dbf1933adfb8128316324e82eeb457"
+AIS_LATTICE_PROOF = "https://a11oy.net/vessels/ais-lattice.json"
+AIS_LATTICE_HTML = "https://a11oy.net/vessels/lattice/"
+
+
+def _vessels_ais_lattice_pack() -> dict[str, Any] | None:
+    path = VERTICALS_DIR / "vessels" / "ais_lattice.json"
+    if not path.is_file():
+        return None
+    packed = _read_json(path)
+    return packed if isinstance(packed, dict) else None
+
+
+def _vessels_ais_lattice_echo(pack: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Citation echo only. Does not classify radio. Not the Packet 8 kernel."""
+    lattice = pack if isinstance(pack, dict) else _vessels_ais_lattice_pack() or {}
+    types = lattice.get("message_types") or []
+    refused = [
+        row.get("id")
+        for row in (lattice.get("open_source_codecs_refused") or [])
+        if isinstance(row, dict) and row.get("id")
+    ]
+    lists = [
+        {
+            "id": row.get("id"),
+            "url": row.get("url"),
+            "http": row.get("http"),
+            "bytes": row.get("bytes"),
+            "last_modified": row.get("last_modified"),
+            "class": row.get("class", "MEASURED"),
+        }
+        for row in (lattice.get("public_lists_measured") or [])
+        if isinstance(row, dict) and row.get("id")
+    ]
+    return {
+        "honesty": "CITATION_ONLY",
+        "licensed_ais_admitted": False,
+        "licensed_ais_queries": 0,
+        "ais_transmit": False,
+        "vhf_data_link_occupied": False,
+        "ais_equipment_class": "NONE",
+        "production_ready": False,
+        "stamps_live": False,
+        "vessels_e03_licensed_ais_tpr": lattice.get("vessels_e03_licensed_ais_tpr", "OUTSTANDING"),
+        "digest": lattice.get("digest") or AIS_LATTICE_DIGEST,
+        "message_types": len(types) if isinstance(types, list) else 0,
+        "codecs_refused": refused,
+        "public_lists": lists,
+        "fail_closed_eval": "VESSELS-E-DENY-AIS",
+        "proof": AIS_LATTICE_PROOF,
+        "html": AIS_LATTICE_HTML,
+        "note": (
+            "Types are authority classes. Cite admitted. Live query DENIED. "
+            "Lattice classify is not the Packet 8 kernel."
+        ),
+    }
+
+
 def load_vertical(vertical_id: str) -> dict[str, Any]:
     folder = VERTICALS_DIR / vertical_id
     manifest = _read_json(folder / "vertical_manifest.json")
@@ -122,6 +180,9 @@ def load_vertical(vertical_id: str) -> dict[str, Any]:
         standards = _vessels_ais_standards_pack()
         if standards is not None:
             packed["ais_standards"] = standards
+        lattice = _vessels_ais_lattice_pack()
+        if lattice is not None:
+            packed["ais_lattice"] = lattice
     return packed
 
 
@@ -159,6 +220,9 @@ def catalog() -> dict[str, Any]:
                 **(
                     {
                         "ais_standards_honesty": "CITATION_ONLY",
+                        "ais_lattice_honesty": "CITATION_ONLY",
+                        "ais_lattice_digest": AIS_LATTICE_DIGEST,
+                        "ais_lattice_message_types": 27,
                         "licensed_ais_admitted": False,
                         "vessels_e03_licensed_ais_tpr": "OUTSTANDING",
                     }
@@ -174,6 +238,8 @@ def catalog() -> dict[str, Any]:
             "evaluations": "/evaluations",
             "vessels": "/vessels",
             "ais_standards": "https://a11oy.net/vessels/ais-standards.json",
+            "ais_lattice": "https://a11oy.net/vessels/ais-lattice.json",
+            "ais_lattice_html": "https://a11oy.net/vessels/lattice/",
             "proof": "https://a11oy.net/decision/",
         },
     }
@@ -228,6 +294,7 @@ def evaluate_case(vertical_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     if vertical_id == "vessels":
         result["licensed_ais_admitted"] = False
         result["ais_standards"] = _vessels_ais_standards_echo()
+        result["ais_lattice"] = _vessels_ais_lattice_echo()
     return result
 
 
@@ -293,6 +360,8 @@ def register(app, ns: str = "a11oy") -> dict[str, Any]:
         if packed.get("ais_standards") is not None:
             body["licensed_ais_admitted"] = False
             body["ais_standards"] = packed["ais_standards"]
+        if packed.get("ais_lattice") is not None:
+            body["ais_lattice"] = packed["ais_lattice"]
         return _json(body)
 
     async def _evaluate(request):
