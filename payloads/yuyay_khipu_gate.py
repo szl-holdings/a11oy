@@ -18,7 +18,16 @@ if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 
 from khipu_organs import tally, vote_organs  # noqa: E402
+from observer_jobs import attach as attach_jobs  # noqa: E402
 from yuyay_jev import canon, fail, measure, sha256_hex  # noqa: E402
+
+try:
+    from khipu.pem_sign import sign_votes  # noqa: E402
+except Exception:  # pragma: no cover - path fallback
+    try:
+        from pem_sign import sign_votes  # type: ignore  # noqa: E402
+    except Exception:
+        sign_votes = None  # type: ignore
 
 
 def gate(req: dict[str, Any]) -> dict[str, Any]:
@@ -38,8 +47,11 @@ def gate(req: dict[str, Any]) -> dict[str, Any]:
         surface=surface,
         engage_admissible=engage,
     )
+    if sign_votes is not None:
+        organs = sign_votes(organs, intent=intent, lambda_=float(measurement["lambda"]))
     knot = tally(organs)
     decision = "ADMIT" if knot["decision"] == "canonical" else "BLOCKED"
+    jobs = attach_jobs(intent=intent, surface=surface, engage_admissible=engage)
     body = {
         **measurement,
         "payload": "yuyay_khipu_gate",
@@ -51,9 +63,13 @@ def gate(req: dict[str, Any]) -> dict[str, Any]:
         "khipu_n": knot["n"],
         "khipu_threshold": knot["threshold"],
         "jev_allow_alone": False,
+        "observer_domain": jobs["observer_domain"],
+        "jobs": jobs,
         "field": {
-            "engage_admissible": engage,
+            "engage_admissible": 0.0,
             "track_id": req.get("track_id") or req.get("trackId"),
+            "geo_job": jobs.get("geo_job"),
+            "public_effector": False,
         }
         if surface == "field"
         else None,
