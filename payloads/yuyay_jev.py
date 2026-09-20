@@ -61,7 +61,7 @@ HITS: dict[str, tuple[str, ...]] = {
     "sourceTransparency": ("anonymous authority", "hide source"),
     "reproducibility": ("hidden step", "irreproduc"),
     "licenseHygiene": ("pirat", "copy as original"),
-    "scopeDiscipline": ("second flagship", "hologram", "new product name", "metamap", "bo11y sku"),
+    "scopeDiscipline": ("second flagship", "hologram", "new product name", "cloned product name"),
     "claimCalibration": ("lambda proven", "ato", "fedramp", "proven trust"),
     "evalAwareness": ("conjecture 1 closed", "theorem lambda", "trust 1.0"),
     "deceptionKeywords": ("deceive", "jailbreak", "spoof", "social-engineer"),
@@ -226,6 +226,8 @@ def measure(req: dict[str, Any]) -> dict[str, Any]:
         pack_id = pack.get("pack_id")
         pack_hash = sha256_hex(canon(pack))
         honesty = "LIVE"
+    pem = os.environ.get("SZL_COSIGN_PRIVATE_PEM", "").strip()
+    signer = "PEM-present-use-khipu-consensus" if pem else "UNSIGNED-honest"
     body = {
         "ok": True,
         "payload": PAYLOAD,
@@ -247,7 +249,7 @@ def measure(req: dict[str, Any]) -> dict[str, Any]:
         "pack_hash": pack_hash,
         "state_hash": sha256_hex(canon(state)),
         "energy": "UNAVAILABLE",
-        "signer": "UNSIGNED-honest",
+        "signer": signer,
         "honesty": honesty or "LIVE",
         "organ": "a11oy",
         "role": "measurement",
