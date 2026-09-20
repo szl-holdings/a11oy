@@ -31,7 +31,10 @@ printf '%s' '{"intent":"claim FedRAMP and proven theorem","kernel":null}' | pyth
 Missing interpreter, invalid JSON, or crash -> honesty=UNAVAILABLE and no admit.
 An LLM must not decide ADMIT/BLOCKED. This file is the gate.
 `score_axes()` is a hardcoded analog. Do not label it MEASURED.
+Pass `x` (13 floats, Yuyay-13 order) to compute Λ from the System One vector instead of the 5-axis silhouette. That path is still SOFTWARE unless TypeSafe Jev actually ran.
 Use `payloads/yuyay_jev.py` for Yuyay-13 measurement.
+Use `payloads/typesafe_bind.py` for the TypeSafe contract receipt (missing key = UNAVAILABLE).
+Use `payloads/evaluate_surface.py` for the Command / COP envelope.
 
 ## YUYAY-JEV (replacement measurement organ)
 
