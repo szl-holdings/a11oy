@@ -1,0 +1,44 @@
+{
+  "A11oy": {
+    "commonTypes": {},
+    "entityTypes": {
+      "WorkloadIdentity": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "kind": {"type": "String"},
+            "tenantId": {"type": "String"},
+            "assurance": {"type": "Long"},
+            "roles": {"type": "Set", "element": {"type": "String"}},
+            "disabled": {"type": "Boolean"}
+          }
+        }
+      },
+      "ProtectedResource": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "kind": {"type": "String"},
+            "tenantId": {"type": "String"},
+            "classification": {"type": "Long"},
+            "requiredAssurance": {"type": "Long"},
+            "maxRisk": {"type": "Long"},
+            "allowedPurposes": {"type": "Set", "element": {"type": "String"}},
+            "allowedEffects": {"type": "Set", "element": {"type": "String"}},
+            "requiresApproval": {"type": "Boolean"}
+          }
+        }
+      }
+    },
+    "actions": {
+      "ReadResource": {"appliesTo": {"principalTypes": ["WorkloadIdentity"], "resourceTypes": ["ProtectedResource"]}},
+      "InvokeTool": {"appliesTo": {"principalTypes": ["WorkloadIdentity"], "resourceTypes": ["ProtectedResource"]}},
+      "WriteResource": {"appliesTo": {"principalTypes": ["WorkloadIdentity"], "resourceTypes": ["ProtectedResource"]}},
+      "DeployArtifact": {"appliesTo": {"principalTypes": ["WorkloadIdentity"], "resourceTypes": ["ProtectedResource"]}},
+      "ApproveDecision": {"appliesTo": {"principalTypes": ["WorkloadIdentity"], "resourceTypes": ["ProtectedResource"]}},
+      "SignReceipt": {"appliesTo": {"principalTypes": ["WorkloadIdentity"], "resourceTypes": ["ProtectedResource"]}},
+      "ExportEvidence": {"appliesTo": {"principalTypes": ["WorkloadIdentity"], "resourceTypes": ["ProtectedResource"]}},
+      "AdministerPolicy": {"appliesTo": {"principalTypes": ["WorkloadIdentity"], "resourceTypes": ["ProtectedResource"]}}
+    }
+  }
+}

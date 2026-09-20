@@ -1,0 +1,23 @@
+{
+  "principals": {
+    "agent:operator-01": {
+      "kind": "agent",
+      "tenantId": "szl",
+      "assurance": 3,
+      "roles": ["operator"],
+      "disabled": false
+    }
+  },
+  "resources": {
+    "deployment:production": {
+      "kind": "deployment",
+      "tenantId": "szl",
+      "classification": 3,
+      "requiredAssurance": 3,
+      "maxRisk": 400,
+      "allowedPurposes": ["release-approved-artifact"],
+      "allowedEffects": ["deploy"],
+      "requiresApproval": true
+    }
+  }
+}
