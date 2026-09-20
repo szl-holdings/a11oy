@@ -71,6 +71,8 @@ HITS: dict[str, tuple[str, ...]] = {
 PACK_PATH = Path(__file__).resolve().parent.parent / "packs" / "yuyay13.questions.json"
 if not PACK_PATH.exists():
     PACK_PATH = Path(__file__).resolve().parent / "packs" / "yuyay13.questions.json"
+VECTOR_DIM = 13
+VECTOR_KIND = "yuyay13.systemone.v1"
 
 
 def clamp01(n: Any) -> float:
@@ -105,6 +107,52 @@ def djb2(s: str) -> int:
     for ch in s:
         h = ((h << 5) + h + ord(ch)) & 0xFFFFFFFF
     return h
+
+
+def as_vector(axes: dict[str, float]) -> list[float]:
+    if len(YUYAY_AXES) != VECTOR_DIM:
+        raise RuntimeError("YUYAY_AXES dim drift")
+    return [clamp01(axes.get(axis, 0.0)) for axis in YUYAY_AXES]
+
+
+def floor_misses(axes: dict[str, float]) -> list[str]:
+    return [
+        axis
+        for axis, floor in YUYAY_FLOORS.items()
+        if clamp01(axes.get(axis, 0.0)) < floor - 1e-9
+    ]
+
+
+def compose_vector(
+    axes: dict[str, float], *, model: str, pack_hash: str, state_hash: str
+) -> dict[str, Any]:
+    x = as_vector(axes)
+    miss = floor_misses(axes)
+    lam = wgm(x)
+    return {
+        "kind": VECTOR_KIND,
+        "dim": VECTOR_DIM,
+        "axes": list(YUYAY_AXES),
+        "x": [round(v, 12) for v in x],
+        "lambda": lam,
+        "lambda_bound": LAMBDA_BOUND,
+        "trust_ceiling": TRUST_CEILING,
+        "floors_ok": not miss,
+        "floor_misses": miss,
+        "axioms": list(LOCKED_EIGHT),
+        "conjecture_1": "OPEN",
+        "proven_trust": False,
+        "jev_allow_alone": False,
+        "model": model,
+        "pack_hash": pack_hash,
+        "state_hash": state_hash,
+        "vector_hash": sha256_hex(
+            (
+                f"{VECTOR_KIND}|{','.join(f'{v:.12f}' for v in x)}|"
+                f"{model}|{pack_hash}|{state_hash}"
+            ).encode()
+        ),
+    }
 
 
 def software_measure(intent: str) -> dict[str, float]:
@@ -228,6 +276,8 @@ def measure(req: dict[str, Any]) -> dict[str, Any]:
         honesty = "LIVE"
     pem = os.environ.get("SZL_COSIGN_PRIVATE_PEM", "").strip()
     signer = "PEM-present-use-khipu-consensus" if pem else "UNSIGNED-honest"
+    state_hash = sha256_hex(canon(state))
+    vector = compose_vector(axes, model=str(model), pack_hash=str(pack_hash), state_hash=state_hash)
     body = {
         "ok": True,
         "payload": PAYLOAD,
@@ -242,12 +292,16 @@ def measure(req: dict[str, Any]) -> dict[str, Any]:
         "conjecture_1": "OPEN",
         "proven_trust": False,
         "axes": axes,
+        "x": vector["x"],
+        "vector": vector,
         "floors": dict(YUYAY_FLOORS),
+        "floors_ok": vector["floors_ok"],
+        "floor_misses": vector["floor_misses"],
         "locked_eight": list(LOCKED_EIGHT),
         "model": model,
         "pack_id": pack_id,
         "pack_hash": pack_hash,
-        "state_hash": sha256_hex(canon(state)),
+        "state_hash": state_hash,
         "energy": "UNAVAILABLE",
         "signer": signer,
         "honesty": honesty or "LIVE",
