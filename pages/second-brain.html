@@ -24,12 +24,13 @@ button{background:transparent;color:var(--teal);border:1px solid var(--line);pad
 <header>
 <p class="sub">a-11-oy.com / command / brain</p>
 <h1>Second Brain</h1>
-<p>Kernel formulas from /api/a11oy/v1/honest. Locked-proven is exactly 8. Capabilities from /api/a11oy/v1/brain/capabilities. Retrieve is handle-or-ABSTAIN against the live product brain and the public corpus <a href="https://huggingface.co/datasets/SZLHOLDINGS/szl-second-brain-inrepo">SZLHOLDINGS/szl-second-brain-inrepo</a>. Product <code>/brain</code> is Hickok Dual-Stream and is not this page. Proof fold: <a href="https://a11oy.net/estate/thread-ops/">a11oy.net/estate/thread-ops/</a>. Lambda is Conjecture 1. certified_production_ready false.</p>
+<p>Kernel formulas from /api/a11oy/v1/honest. Locked-proven is exactly 8. Capabilities from /api/a11oy/v1/brain/capabilities. Retrieve is handle-or-ABSTAIN against the live product brain and the public corpus <a href="https://huggingface.co/datasets/SZLHOLDINGS/szl-second-brain-inrepo">SZLHOLDINGS/szl-second-brain-inrepo</a>. Membrane is SOW_SIGNED | STAFF_ASSIGNED | EXCEPTION_RAISED | INVOICE_ISSUED. A miss abstains. Overlay on incumbent PSA — do not replace. Product <code>/brain</code> is Hickok Dual-Stream and is not this page. Proof fold: <a href="https://a11oy.net/estate/thread-ops/">a11oy.net/estate/thread-ops/</a>. Lambda is Conjecture 1. certified_production_ready false.</p>
 <p><a href="/command">Elite Console</a> / <a href="/command/constellation">Constellation</a> / <a href="/command/anatomy">Anatomy</a> / <a href="/api/a11oy/v1/formulas/selftest">Formulas selftest</a> / <a href="/brain">Hickok /brain</a></p>
 </header>
 <main>
 <canvas id="brain" width="1100" height="320" aria-label="Second brain"></canvas>
 <div class="row" id="chips"></div>
+<div class="row" id="membrane" aria-label="SOW membrane stations"></div>
 <label for="q">Retrieve (same-origin). A miss abstains. Nothing is invented LIVE.</label>
 <input id="q" type="text" value="second brain fold" autocomplete="off"/>
 <button id="go" type="button">Retrieve or abstain</button>
@@ -38,6 +39,20 @@ button{background:transparent;color:var(--teal);border:1px solid var(--line);pad
 </main>
 <script>
 const LOCKED=["F1","F4","F7","F11","F12","F18","F19","F22"];
+const STATIONS=["SOW","STAFF","EXCEPTION","INVOICE"];
+const MISS={
+  SOW:"no signed scope handle",
+  STAFF:"no roster handle",
+  EXCEPTION:"no verified trigger fact",
+  INVOICE:"no billed-vs-promised handle"
+};
+function emptyMembrane(){
+  const membrane={};
+  STATIONS.forEach(function(id){
+    membrane[id]={state:"ABSTAIN",reason:MISS[id],handle:null};
+  });
+  return membrane;
+}
 async function load(url){
   try{const r=await fetch(url,{cache:"no-store"});if(!r.ok)return {ok:false,status:r.status};return {ok:true,status:r.status,json:await r.json().catch(function(){return null})};}
   catch(e){return {ok:false};}
@@ -45,20 +60,32 @@ async function load(url){
 function chip(box, text){
   box.appendChild(Object.assign(document.createElement("span"),{className:"chip",textContent:text}));
 }
+function paintMembrane(box, membrane){
+  box.textContent="";
+  STATIONS.forEach(function(id){
+    const row=membrane[id]||{state:"ABSTAIN",reason:MISS[id]};
+    chip(box, id+" · "+(row.state||"ABSTAIN"));
+  });
+}
 (async function(){
   const honest=await load("/api/a11oy/v1/honest");
   const brain=await load("/api/a11oy/v1/brain/capabilities");
   const formulas=await load("/api/a11oy/v1/formulas/selftest");
+  const mem=await load("/api/a11oy/v1/brain/membrane");
   const box=document.getElementById("chips");
   const ids=(honest.json&&honest.json.locked_formula_ids)||LOCKED;
   const count=honest.json&&honest.json.locked_formula_count;
+  const membrane=(mem.json&&mem.json.membrane)||emptyMembrane();
   chip(box,"honest · "+(honest.ok?"MEASURED":"UNAVAILABLE"));
   chip(box,"brain · "+(brain.ok?"MEASURED":"UNAVAILABLE"));
   chip(box,"formulas · "+(formulas.ok?"MEASURED":"UNAVAILABLE"));
   chip(box,"locked_formula_count · "+(count===8?"8":"UNAVAILABLE"));
   chip(box,"corpus · SZLHOLDINGS/szl-second-brain-inrepo");
   chip(box,"minting · DENY");
+  chip(box,"china_oss · REPORTED");
+  chip(box,"hickok · DO NOT TOUCH");
   ids.forEach(function(id){chip(box,id);});
+  paintMembrane(document.getElementById("membrane"), membrane);
   window.__probe={
     locked_formula_count:count||null,
     locked_formula_ids:ids,
@@ -68,7 +95,12 @@ function chip(box, text){
     source:"szl-holdings/szl-formulas + szl-second-brain",
     public_corpus:"https://huggingface.co/datasets/SZLHOLDINGS/szl-second-brain-inrepo",
     proof_fold:"https://a11oy.net/estate/thread-ops/",
-    hickok_untouched:true
+    hickok_untouched:true,
+    membrane:membrane,
+    miss:"ABSTAIN",
+    overlay:"incumbent PSA — do not replace",
+    china_oss:"REPORTED",
+    certified_production_ready:false
   };
   document.getElementById("raw").textContent=JSON.stringify(window.__probe,null,2);
 })();
@@ -76,13 +108,20 @@ async function retrieve(){
   const q=(document.getElementById("q").value||"").trim()||"second brain fold";
   const unc=await load("/api/a11oy/v1/brain/uncertainty?k=3&q="+encodeURIComponent(q));
   const ans=await load("/api/a11oy/v1/brain/answer?q="+encodeURIComponent(q));
+  const mem=await load("/api/a11oy/v1/brain/membrane");
   const uj=unc.json||{};
   const aj=ans.json||{};
+  const membrane=(mem.json&&mem.json.membrane)||emptyMembrane();
+  paintMembrane(document.getElementById("membrane"), membrane);
   const out={
     query:q,
     uncertainty:{ok:unc.ok,label:uj.label||null,verdict:uj.verdict||null,abstain_recommended:uj.abstain_recommended,results_retrieved:uj.results_retrieved,uncertainty:uj.uncertainty},
     handles:(uj.top_results||[]).map(function(r){return {id:r.id||null,title:r.title||null,score:r.score||null};}),
     answer:{ok:ans.ok,label:aj.label||null,governed_verdict:aj.governed_verdict||null,answer:aj.answer===null?"ABSTAIN":aj.answer,reason:aj.governed_verdict_reason||null},
+    membrane:membrane,
+    miss:"ABSTAIN",
+    overlay:"incumbent PSA — do not replace",
+    china_oss:"REPORTED",
     contract:"handle or ABSTAIN — a miss is a miss",
     certified_production_ready:false
   };
