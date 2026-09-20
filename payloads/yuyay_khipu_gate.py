@@ -20,6 +20,7 @@ if str(HERE) not in sys.path:
 from khipu_organs import tally, vote_organs  # noqa: E402
 from observer_jobs import attach as attach_jobs  # noqa: E402
 from yuyay_jev import canon, fail, measure, sha256_hex  # noqa: E402
+from yuyay_vector import compose_vector  # noqa: E402
 
 try:
     from khipu.pem_sign import sign_votes  # noqa: E402
@@ -52,9 +53,19 @@ def gate(req: dict[str, Any]) -> dict[str, Any]:
     knot = tally(organs)
     decision = "ADMIT" if knot["decision"] == "canonical" else "BLOCKED"
     jobs = attach_jobs(intent=intent, surface=surface, engage_admissible=engage)
+    vector = compose_vector(
+        measurement.get("axes") or {},
+        model=str(measurement.get("model") or "software-jev"),
+        pack_hash=str(measurement.get("pack_hash") or "SOFTWARE"),
+        state_hash=str(measurement.get("state_hash") or ""),
+    )
     body = {
         **measurement,
         "payload": "yuyay_khipu_gate",
+        "x": vector["x"],
+        "vector": vector,
+        "floors_ok": vector["floors_ok"],
+        "floor_misses": vector["floor_misses"],
         "surface": surface,
         "decision": decision,
         "khipu": knot["decision"],
