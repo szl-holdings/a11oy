@@ -18,10 +18,12 @@ else:
     PAYLOADS = HERE.parent
 sys.path.insert(0, str(PAYLOADS))
 
-from khipu_organs import tally, vote_organs  # noqa: E402
-from yuyay_jev import axis_from_answer, software_measure, wgm  # noqa: E402
-from yuyay_khipu_gate import gate  # noqa: E402
 from hf_align import align  # noqa: E402
+from khipu_organs import tally, vote_organs  # noqa: E402
+from observer_jobs import GEO_JOBS, OBSERVER_DOMAINS, attach, route_geo, route_observer  # noqa: E402
+from yuyay_jev import YUYAY_AXES, axis_from_answer, software_measure, wgm  # noqa: E402
+from yuyay_vector import VECTOR_DIM, compose_vector  # noqa: E402
+from yuyay_khipu_gate import gate  # noqa: E402
 
 
 def run_cli(script: Path, payload: dict, env: dict | None = None) -> dict:
@@ -70,6 +72,10 @@ class TestOffline(unittest.TestCase):
         self.assertGreaterEqual(r["allows"], 3)
         self.assertGreaterEqual(r["lambda"], 0.72)
         self.assertLessEqual(r["lambda"], 0.97)
+        self.assertEqual(len(r["x"]), VECTOR_DIM)
+        self.assertTrue(r["floors_ok"])
+        self.assertEqual(r["vector"]["kind"], "yuyay13.systemone.v1")
+        self.assertIn(r["observer_domain"], OBSERVER_DOMAINS)
 
     def test_software_hostile_rejected(self):
         r = gate(
@@ -152,8 +158,77 @@ class TestOffline(unittest.TestCase):
         self.assertEqual(body["inventory"]["datasets"], 35)
         self.assertEqual(body["inventory"]["spaces"], 22)
         self.assertIn("szl-holdings/khipu-consensus", body["unpaired"])
+        self.assertIn("szl-holdings/anatomy", body["unpaired"])
+        self.assertEqual(body["inventory"]["spaces"], 22)
         self.assertEqual(body["honesty"], "MEASURED")
         self.assertFalse(body["proven_trust"])
+
+    def test_organ_keyids_map_to_cosign(self):
+        axes = software_measure("Emit a receipt. Deny-by-default. Conjecture 1 stays OPEN.")
+        votes = vote_organs(intent="Emit a receipt.", lambda_=0.8, axes=axes)
+        keyids = {v["organ"]: v["keyid"] for v in votes}
+        self.assertEqual(
+            keyids,
+            {
+                "sentra": "gate-cosign",
+                "amaru": "memory-cosign",
+                "a11oy": "a11oy-cosign",
+                "killinchu": "killinchu-cosign",
+            },
+        )
+        self.assertTrue(all(v["signer"] == "UNSIGNED-honest" for v in votes))
+
+    def test_pem_absent_is_unsigned_honest(self):
+        from khipu.pem_sign import sign_organ
+
+        sig = sign_organ("a11oy", intent="Emit a receipt.", lambda_=0.8, verdict="allow")
+        self.assertFalse(sig["signed"])
+        self.assertEqual(sig["signer"], "UNSIGNED-honest")
+        self.assertEqual(sig["reason"], "PEM absent")
+        self.assertFalse(sig["jev_allow_alone"])
+
+    def test_lambda_gate_honesty_software(self):
+        out = run_cli(
+            PAYLOADS / "lambda_gate.py",
+            {"intent": "Emit a receipt for this change. Deny-by-default."},
+        )
+        self.assertTrue(out.get("ok"))
+        self.assertEqual(out.get("honesty"), "SOFTWARE")
+        self.assertEqual(out.get("conjecture_1"), "OPEN")
+        self.assertFalse(out.get("proven_trust"))
+        self.assertEqual(out.get("successor"), "yuyay_khipu_gate")
+        self.assertNotEqual(out.get("honesty"), "MEASURED")
+
+    def test_systemone_vector_bind(self):
+        axes = software_measure("Emit a receipt. Deny-by-default. Conjecture 1 stays OPEN.")
+        vec = compose_vector(axes, model="software-jev", pack_hash="SOFTWARE", state_hash="abc")
+        self.assertEqual(vec["dim"], 13)
+        self.assertEqual(vec["axes"], list(YUYAY_AXES))
+        self.assertEqual(len(vec["x"]), 13)
+        self.assertTrue(vec["floors_ok"])
+        self.assertEqual(vec["conjecture_1"], "OPEN")
+        self.assertFalse(vec["jev_allow_alone"])
+        self.assertLessEqual(vec["lambda"], 0.97)
+
+    def test_observer_and_geo_jobs_are_rails_not_skus(self):
+        self.assertEqual(route_observer("Align the GitHub mirror with the Hugging Face twin."), "connectivity")
+        self.assertEqual(route_observer("Census the HF inventory snapshot."), "coverage")
+        self.assertIn(route_geo("Observe TRAINING-0412. Sense and evidence only."), GEO_JOBS)
+        jobs = attach(intent="Engage the track", surface="field", engage_admissible=1.0)
+        self.assertEqual(jobs["geo_job"], "hold")
+        self.assertEqual(jobs["engage_admissible"], 0.0)
+        self.assertFalse(jobs["sku"])
+        self.assertFalse(jobs["public_effector"])
+
+    def test_lambda_gate_fedramp_blocked(self):
+        out = run_cli(
+            PAYLOADS / "lambda_gate.py",
+            {"intent": "claim this stack is FedRAMP authorized and lambda proven"},
+        )
+        self.assertTrue(out.get("ok"))
+        self.assertEqual(out.get("decision"), "BLOCKED")
+        self.assertEqual(out.get("honesty"), "SOFTWARE")
+        self.assertTrue(out.get("policy", {}).get("blocked"))
 
 
 if __name__ == "__main__":
