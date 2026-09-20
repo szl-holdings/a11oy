@@ -130,9 +130,10 @@ footer { margin-top:3rem; font-size:.8rem; color:var(--muted); }
   </section>
   <section class="panel" id="clock-panel" hidden>
     <h2>Public-list reachability · MEASURED</h2>
-    <p>Reachability of official public lists as authority classes. Not entity-resolution precision. VESSELS-E01 stays OUTSTANDING. World digest 70fd1918. Proof: <a href="https://a11oy.net/vessels/public-lists-world.json">a11oy.net/vessels/public-lists-world.json</a> · <a href="https://a11oy.net/vessels/world/">explorer</a>.</p>
+    <p>Reachability of official public lists as authority classes. Not entity-resolution precision. VESSELS-E01 stays OUTSTANDING. World digest 70fd1918. Min-link joint freshness digest 1cb5b117. Proof: <a href="https://a11oy.net/vessels/public-lists-world.json">a11oy.net/vessels/public-lists-world.json</a> · <a href="https://a11oy.net/vessels/joint-freshness.json">joint freshness</a> · <a href="https://a11oy.net/vessels/world/">explorer</a>.</p>
     <div id="clock-echo"></div>
     <div id="clock"></div>
+    <div class="cards" id="holes"></div>
   </section>
   <footer>
     Status ROADMAP. Data label SAMPLE. Formula authority NONE. Λ = Conjecture 1 / advisory.
@@ -177,6 +178,7 @@ const latticeEl = document.getElementById("lattice");
 const latticeEcho = document.getElementById("lattice-echo");
 const clockPanel = document.getElementById("clock-panel");
 const clockEl = document.getElementById("clock");
+const holesEl = document.getElementById("holes");
 const heartbeatEl = document.getElementById("heartbeat");
 let current = "aegis";
 let selected = null;
@@ -297,6 +299,7 @@ function renderLattice(data) {
     latticeEl.replaceChildren();
     latticeEcho.replaceChildren();
     clockEl.replaceChildren();
+    if (holesEl) holesEl.replaceChildren();
     return;
   }
   latticePanel.hidden = false;
@@ -339,17 +342,21 @@ function renderPublicLists(data) {
     clockPanel.hidden = true;
     clockEl.replaceChildren();
     if (clockEcho) clockEcho.replaceChildren();
+    if (holesEl) holesEl.replaceChildren();
     return;
   }
   clockPanel.hidden = false;
   if (clockEcho && pack) {
     const echoRow = document.createElement("div");
     echoRow.className = "row";
+    const joint = pack.joint_freshness || {};
     [
       pack.honesty || "CITATION_ONLY",
       "classes " + ((pack.authority_classes && pack.authority_classes.length) || 7),
       "digest " + String(pack.digest || "").slice(0, 12),
-      "judgment " + ((pack.typed_judgment && pack.typed_judgment.result) || "SAMPLE_TEXT_MISS")
+      "joint " + String(joint.digest || pack.joint_freshness_digest || "").slice(0, 8),
+      "judgment " + ((pack.typed_judgment && pack.typed_judgment.result) || "SAMPLE_TEXT_MISS"),
+      joint.winner_not_picked ? "winner not picked" : "min-link"
     ].forEach((bit) => echoRow.appendChild(chip(String(bit), "mute")));
     clockEcho.replaceChildren(echoRow);
   }
@@ -360,6 +367,25 @@ function renderPublicLists(data) {
     table.appendChild(tr);
   });
   clockEl.replaceChildren(table);
+  if (holesEl) {
+    holesEl.replaceChildren();
+    const joint = pack && pack.joint_freshness;
+    const holes = (joint && joint.coverage_holes) || [];
+    holes.forEach((id) => {
+      const card = document.createElement("div");
+      card.className = "card";
+      const b = document.createElement("b");
+      b.textContent = "hole";
+      const span = document.createElement("span");
+      span.textContent = id;
+      const small = document.createElement("small");
+      small.textContent = "ABSTAIN · not clearance";
+      card.appendChild(b);
+      card.appendChild(span);
+      card.appendChild(small);
+      holesEl.appendChild(card);
+    });
+  }
 }
 
 async function show(id, btn, push) {

@@ -107,6 +107,8 @@ PUBLIC_LISTS_PROOF = "https://a11oy.net/vessels/public-lists-world.json"
 PUBLIC_LISTS_HTML = "https://a11oy.net/vessels/world/"
 PUBLIC_LIST_LATTICE_DIGEST = "b2d23ac69631667c09a8e3c4715d9a7caabda23edc9739b74d743fe6d9f88c1d"
 PUBLIC_LIST_LATTICE_PROOF = "https://a11oy.net/vessels/public-list-lattice.json"
+JOINT_FRESHNESS_DIGEST = "1cb5b1178b7cda2327443eb7b8e33703aae26a23b4102a0d5f91291cff149898"
+JOINT_FRESHNESS_PROOF = "https://a11oy.net/vessels/joint-freshness.json"
 
 
 def _vessels_public_lists_pack() -> dict[str, Any] | None:
@@ -134,6 +136,8 @@ def _vessels_public_lists_echo(pack: dict[str, Any] | None = None) -> dict[str, 
                 }
             )
     judgment = packed.get("typed_judgment") if isinstance(packed.get("typed_judgment"), dict) else {}
+    joint = packed.get("joint_freshness") if isinstance(packed.get("joint_freshness"), dict) else {}
+    negative = joint.get("negative_evidence") if isinstance(joint.get("negative_evidence"), dict) else {}
     return {
         "honesty": "CITATION_ONLY",
         "licensed_ais_admitted": False,
@@ -145,6 +149,7 @@ def _vessels_public_lists_echo(pack: dict[str, Any] | None = None) -> dict[str, 
         "digest": packed.get("digest") or PUBLIC_LISTS_DIGEST,
         "authority_lattice_digest": packed.get("authority_lattice_digest") or PUBLIC_LIST_LATTICE_DIGEST,
         "ais_lattice_digest_unchanged": packed.get("ais_lattice_digest_unchanged") or AIS_LATTICE_DIGEST,
+        "joint_freshness_digest": joint.get("digest") or JOINT_FRESHNESS_DIGEST,
         "authority_classes": list(packed.get("authority_classes") or [
             "OFAC-vessel",
             "UN-1718-vessel",
@@ -172,13 +177,34 @@ def _vessels_public_lists_echo(pack: dict[str, Any] | None = None) -> dict[str, 
         },
         "fail_closed_eval_stale": packed.get("fail_closed_eval_stale", "VESSELS-E-ABSTAIN"),
         "fail_closed_eval_ais": packed.get("fail_closed_eval_ais", "VESSELS-E-DENY-AIS"),
+        "joint_freshness": {
+            "honesty": "CITATION_ONLY",
+            "digest": joint.get("digest") or JOINT_FRESHNESS_DIGEST,
+            "rule": joint.get("rule", "min-link over current official clocks; stale twins are disagreement; winner not picked"),
+            "winner_not_picked": True,
+            "does_not_run_the_kernel": True,
+            "classes": list(joint.get("classes") or []),
+            "disagreements": list(joint.get("disagreements") or []),
+            "coverage_holes": list(joint.get("coverage_holes") or []),
+            "negative_evidence": {
+                "engine": negative.get("engine", "stdlib exact-string SAMPLE"),
+                "frozen_identity": negative.get("frozen_identity", "AURORA WAVE"),
+                "result": negative.get("result", "SAMPLE_TEXT_MISS"),
+                "miss_is_not_clearance": True,
+                "is_clearance": False,
+                "not_e01": True,
+                "not_typesafe_jev_call": True,
+            },
+            "proof": joint.get("proof") or JOINT_FRESHNESS_PROOF,
+        },
         "proof": PUBLIC_LISTS_PROOF,
         "html": PUBLIC_LISTS_HTML,
         "authority_lattice": PUBLIC_LIST_LATTICE_PROOF,
         "note": (
             "Official-list names are authority classes. Cite admitted. "
             "Radio query DENIED. Clocks are reachability. "
-            "Typed judgment is SAMPLE. Miss is not clearance. "
+            "Min-link joint freshness names coverage holes and disagreements. "
+            "Winner not picked. Typed judgment is SAMPLE. Miss is not clearance. "
             "Lattice classify is not the Packet 8 kernel."
         ),
     }
@@ -312,6 +338,7 @@ def catalog() -> dict[str, Any]:
                         "public_lists_digest": PUBLIC_LISTS_DIGEST,
                         "public_list_lattice_digest": PUBLIC_LIST_LATTICE_DIGEST,
                         "public_list_authority_classes": 7,
+                        "joint_freshness_digest": JOINT_FRESHNESS_DIGEST,
                         "licensed_ais_admitted": False,
                         "vessels_e03_licensed_ais_tpr": "OUTSTANDING",
                     }
@@ -332,6 +359,7 @@ def catalog() -> dict[str, Any]:
             "public_lists": "https://a11oy.net/vessels/public-lists-world.json",
             "public_lists_html": "https://a11oy.net/vessels/world/",
             "public_list_lattice": "https://a11oy.net/vessels/public-list-lattice.json",
+            "joint_freshness": "https://a11oy.net/vessels/joint-freshness.json",
             "proof": "https://a11oy.net/decision/",
         },
     }
