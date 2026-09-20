@@ -34,11 +34,18 @@ class DecisionIntegritySurfaceTests(unittest.TestCase):
             cat["desks"]["ais_lattice"],
             "https://a11oy.net/vessels/ais-lattice.json",
         )
+        self.assertEqual(
+            cat["desks"]["public_lists"],
+            "https://a11oy.net/vessels/public-lists-world.json",
+        )
         vessels = next(item for item in cat["verticals"] if item["id"] == "vessels")
         self.assertEqual(vessels["ais_standards_honesty"], "CITATION_ONLY")
         self.assertEqual(vessels["ais_lattice_honesty"], "CITATION_ONLY")
         self.assertEqual(vessels["ais_lattice_digest"], surface.AIS_LATTICE_DIGEST)
         self.assertEqual(vessels["ais_lattice_message_types"], 27)
+        self.assertEqual(vessels["public_lists_honesty"], "CITATION_ONLY")
+        self.assertEqual(vessels["public_lists_digest"], surface.PUBLIC_LISTS_DIGEST)
+        self.assertEqual(vessels["public_list_authority_classes"], 7)
         self.assertFalse(vessels["licensed_ais_admitted"])
         self.assertEqual(vessels["vessels_e03_licensed_ais_tpr"], "OUTSTANDING")
 
@@ -102,6 +109,7 @@ class DecisionIntegritySurfaceTests(unittest.TestCase):
         terra = surface.evaluate_case("terra", terra_cases[0].get("payload") or terra_cases[0])
         self.assertNotIn("ais_standards", terra)
         self.assertNotIn("ais_lattice", terra)
+        self.assertNotIn("public_lists", terra)
 
     def test_vessels_ais_lattice_citation_only(self) -> None:
         packed = surface.load_vertical("vessels")
@@ -116,7 +124,8 @@ class DecisionIntegritySurfaceTests(unittest.TestCase):
         self.assertEqual(pack.get("vessels_e03_licensed_ais_tpr"), "OUTSTANDING")
         refused = {row.get("id") for row in pack.get("open_source_codecs_refused") or []}
         self.assertGreaterEqual(refused, {"pyais", "libais", "aiscat"})
-        self.assertNotIn("LIVE", json.dumps(pack))
+        self.assertFalse(pack.get("stamps_live"))
+        self.assertFalse(pack.get("production_ready"))
         deny = next(item for item in packed["cases"] if item["eval_id"] == "VESSELS-E-DENY-AIS")
         result = surface.evaluate_case("vessels", deny["payload"])
         echo = result["ais_lattice"]
@@ -137,6 +146,49 @@ class DecisionIntegritySurfaceTests(unittest.TestCase):
         empty = surface.evaluate_case("vessels", {})
         self.assertEqual(empty["state"], "UNKNOWN")
         self.assertEqual(empty["ais_lattice"]["honesty"], "CITATION_ONLY")
+        self.assertEqual(empty["public_lists"]["honesty"], "CITATION_ONLY")
+
+    def test_vessels_public_lists_citation_only(self) -> None:
+        packed = surface.load_vertical("vessels")
+        self.assertIn("public_lists", packed)
+        pack = packed["public_lists"]
+        self.assertEqual(pack.get("digest"), surface.PUBLIC_LISTS_DIGEST)
+        self.assertEqual(len(pack.get("authority_classes") or []), 7)
+        self.assertIn("OFAC-vessel", pack.get("authority_classes") or [])
+        self.assertFalse(pack.get("licensed_ais_admitted"))
+        self.assertEqual(pack.get("licensed_ais_queries"), 0)
+        self.assertFalse(pack.get("stamps_live"))
+        self.assertFalse(pack.get("production_ready"))
+        self.assertEqual(pack.get("vessels_e01"), "OUTSTANDING")
+        self.assertEqual(pack.get("ais_lattice_digest_unchanged"), surface.AIS_LATTICE_DIGEST)
+        deny = next(item for item in packed["cases"] if item["eval_id"] == "VESSELS-E-DENY-AIS")
+        result = surface.evaluate_case("vessels", deny["payload"])
+        echo = result["public_lists"]
+        self.assertEqual(echo["honesty"], "CITATION_ONLY")
+        self.assertEqual(echo["digest"], surface.PUBLIC_LISTS_DIGEST)
+        self.assertEqual(echo["authority_lattice_digest"], surface.PUBLIC_LIST_LATTICE_DIGEST)
+        self.assertEqual(len(echo["authority_classes"]), 7)
+        self.assertIn("UA-GUR-ship", echo["authority_classes"])
+        self.assertIn("REFUSED", echo["freshness_classes"])
+        self.assertEqual(echo["licensed_ais_queries"], 0)
+        self.assertFalse(echo["licensed_ais_admitted"])
+        self.assertFalse(echo["production_ready"])
+        self.assertFalse(echo["stamps_live"])
+        self.assertEqual(echo["fail_closed_eval_stale"], "VESSELS-E-ABSTAIN")
+        self.assertEqual(echo["fail_closed_eval_ais"], "VESSELS-E-DENY-AIS")
+        self.assertEqual(echo["proof"], "https://a11oy.net/vessels/public-lists-world.json")
+        self.assertEqual(echo["typed_judgment"]["result"], "SAMPLE_TEXT_MISS")
+        self.assertTrue(echo["typed_judgment"]["miss_is_not_clearance"])
+        self.assertTrue(echo["typed_judgment"]["not_e01"])
+        clock_ids = {row["id"] for row in echo["clocks"]}
+        self.assertIn("OFAC_SDN_CSV", clock_ids)
+        self.assertIn("MARINETRAFFIC", clock_ids)
+        empty = surface.evaluate_case("vessels", {})
+        self.assertEqual(empty["state"], "UNKNOWN")
+        self.assertEqual(empty["public_lists"]["honesty"], "CITATION_ONLY")
+        terra_cases = surface.load_vertical("terra")["cases"]
+        terra = surface.evaluate_case("terra", terra_cases[0].get("payload") or terra_cases[0])
+        self.assertNotIn("public_lists", terra)
 
     def test_page_exists(self) -> None:
         page = surface.PAGES_DIR / "decision.html"
@@ -151,6 +203,9 @@ class DecisionIntegritySurfaceTests(unittest.TestCase):
         self.assertIn("a11oy.net/vessels/ais-lattice.json", text)
         self.assertIn("ais_lattice", text)
         self.assertIn("f931b485", text)
+        self.assertIn("a11oy.net/vessels/public-lists-world.json", text)
+        self.assertIn("public_lists", text)
+        self.assertIn("70fd1918", text)
         for path in ("/terra", "/aegis", "/puriq-markets", "/counsel", "/vessels"):
             self.assertIn(path, text)
 

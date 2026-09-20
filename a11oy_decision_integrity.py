@@ -102,6 +102,88 @@ AIS_LATTICE_DIGEST = "f931b48544bcf70b1ca0d1c03b38b6c8e9dbf1933adfb8128316324e82
 AIS_LATTICE_PROOF = "https://a11oy.net/vessels/ais-lattice.json"
 AIS_LATTICE_HTML = "https://a11oy.net/vessels/lattice/"
 
+PUBLIC_LISTS_DIGEST = "70fd1918fb38791159cfa2c520dc989f32125e4e0de4104b59d0a26fa48e1cb5"
+PUBLIC_LISTS_PROOF = "https://a11oy.net/vessels/public-lists-world.json"
+PUBLIC_LISTS_HTML = "https://a11oy.net/vessels/world/"
+PUBLIC_LIST_LATTICE_DIGEST = "b2d23ac69631667c09a8e3c4715d9a7caabda23edc9739b74d743fe6d9f88c1d"
+PUBLIC_LIST_LATTICE_PROOF = "https://a11oy.net/vessels/public-list-lattice.json"
+
+
+def _vessels_public_lists_pack() -> dict[str, Any] | None:
+    path = VERTICALS_DIR / "vessels" / "public_lists.json"
+    if not path.is_file():
+        return None
+    packed = _read_json(path)
+    return packed if isinstance(packed, dict) else None
+
+
+def _vessels_public_lists_echo(pack: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Citation echo only. Does not resolve IMO/owner. Not the Packet 8 kernel."""
+    packed = pack if isinstance(pack, dict) else _vessels_public_lists_pack() or {}
+    clocks = []
+    for row in packed.get("clocks") or []:
+        if isinstance(row, dict) and row.get("id"):
+            clocks.append(
+                {
+                    "id": row.get("id"),
+                    "http": row.get("http"),
+                    "bytes": row.get("bytes"),
+                    "last_modified": row.get("last_modified"),
+                    "freshness": row.get("freshness"),
+                    "class": row.get("class", "MEASURED"),
+                }
+            )
+    judgment = packed.get("typed_judgment") if isinstance(packed.get("typed_judgment"), dict) else {}
+    return {
+        "honesty": "CITATION_ONLY",
+        "licensed_ais_admitted": False,
+        "licensed_ais_queries": 0,
+        "production_ready": False,
+        "stamps_live": False,
+        "vessels_e01": packed.get("vessels_e01", "OUTSTANDING"),
+        "vessels_e03": packed.get("vessels_e03", "OUTSTANDING"),
+        "digest": packed.get("digest") or PUBLIC_LISTS_DIGEST,
+        "authority_lattice_digest": packed.get("authority_lattice_digest") or PUBLIC_LIST_LATTICE_DIGEST,
+        "ais_lattice_digest_unchanged": packed.get("ais_lattice_digest_unchanged") or AIS_LATTICE_DIGEST,
+        "authority_classes": list(packed.get("authority_classes") or [
+            "OFAC-vessel",
+            "UN-1718-vessel",
+            "UK-specified-ship",
+            "UA-GUR-ship",
+            "KR-MOFA-vessel",
+            "IUU-RFMO",
+            "Paris-banned",
+        ]),
+        "freshness_classes": list(packed.get("freshness_classes") or [
+            "REACHABLE_FRESH",
+            "STALE_OR_THIN",
+            "PAGE_CITE",
+            "REPORTED",
+            "UNAVAILABLE",
+            "REFUSED",
+        ]),
+        "clocks": clocks,
+        "typed_judgment": {
+            "engine": judgment.get("engine", "stdlib exact-string SAMPLE"),
+            "frozen_identity": judgment.get("frozen_identity", "AURORA WAVE"),
+            "result": judgment.get("result", "SAMPLE_TEXT_MISS"),
+            "miss_is_not_clearance": True,
+            "not_e01": True,
+        },
+        "fail_closed_eval_stale": packed.get("fail_closed_eval_stale", "VESSELS-E-ABSTAIN"),
+        "fail_closed_eval_ais": packed.get("fail_closed_eval_ais", "VESSELS-E-DENY-AIS"),
+        "proof": PUBLIC_LISTS_PROOF,
+        "html": PUBLIC_LISTS_HTML,
+        "authority_lattice": PUBLIC_LIST_LATTICE_PROOF,
+        "note": (
+            "Official-list names are authority classes. Cite admitted. "
+            "Radio query DENIED. Clocks are reachability. "
+            "Typed judgment is SAMPLE. Miss is not clearance. "
+            "Lattice classify is not the Packet 8 kernel."
+        ),
+    }
+
+
 
 def _vessels_ais_lattice_pack() -> dict[str, Any] | None:
     path = VERTICALS_DIR / "vessels" / "ais_lattice.json"
@@ -183,6 +265,9 @@ def load_vertical(vertical_id: str) -> dict[str, Any]:
         lattice = _vessels_ais_lattice_pack()
         if lattice is not None:
             packed["ais_lattice"] = lattice
+        public_lists = _vessels_public_lists_pack()
+        if public_lists is not None:
+            packed["public_lists"] = public_lists
     return packed
 
 
@@ -223,6 +308,10 @@ def catalog() -> dict[str, Any]:
                         "ais_lattice_honesty": "CITATION_ONLY",
                         "ais_lattice_digest": AIS_LATTICE_DIGEST,
                         "ais_lattice_message_types": 27,
+                        "public_lists_honesty": "CITATION_ONLY",
+                        "public_lists_digest": PUBLIC_LISTS_DIGEST,
+                        "public_list_lattice_digest": PUBLIC_LIST_LATTICE_DIGEST,
+                        "public_list_authority_classes": 7,
                         "licensed_ais_admitted": False,
                         "vessels_e03_licensed_ais_tpr": "OUTSTANDING",
                     }
@@ -240,6 +329,9 @@ def catalog() -> dict[str, Any]:
             "ais_standards": "https://a11oy.net/vessels/ais-standards.json",
             "ais_lattice": "https://a11oy.net/vessels/ais-lattice.json",
             "ais_lattice_html": "https://a11oy.net/vessels/lattice/",
+            "public_lists": "https://a11oy.net/vessels/public-lists-world.json",
+            "public_lists_html": "https://a11oy.net/vessels/world/",
+            "public_list_lattice": "https://a11oy.net/vessels/public-list-lattice.json",
             "proof": "https://a11oy.net/decision/",
         },
     }
@@ -295,6 +387,7 @@ def evaluate_case(vertical_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         result["licensed_ais_admitted"] = False
         result["ais_standards"] = _vessels_ais_standards_echo()
         result["ais_lattice"] = _vessels_ais_lattice_echo()
+        result["public_lists"] = _vessels_public_lists_echo()
     return result
 
 
@@ -362,6 +455,8 @@ def register(app, ns: str = "a11oy") -> dict[str, Any]:
             body["ais_standards"] = packed["ais_standards"]
         if packed.get("ais_lattice") is not None:
             body["ais_lattice"] = packed["ais_lattice"]
+        if packed.get("public_lists") is not None:
+            body["public_lists"] = packed["public_lists"]
         return _json(body)
 
     async def _evaluate(request):
