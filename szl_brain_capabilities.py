@@ -21,6 +21,60 @@ ALLOWED_STATUSES = (
     "UNAVAILABLE",
 )
 
+STATION_IDS = ("SOW", "STAFF", "EXCEPTION", "INVOICE")
+
+_STATION_MISS = {
+    "SOW": "no signed scope handle",
+    "STAFF": "no roster handle",
+    "EXCEPTION": "no verified trigger fact",
+    "INVOICE": "no billed-vs-promised handle",
+}
+
+
+def empty_membrane() -> dict[str, dict[str, Any]]:
+    return {
+        station: {"state": "ABSTAIN", "reason": _STATION_MISS[station], "handle": None}
+        for station in STATION_IDS
+    }
+
+
+def retrieve_membrane(handles: dict[str, str] | None = None) -> dict[str, Any]:
+    """Admit a handle only when an id is supplied. Never invent one. Miss = ABSTAIN."""
+    membrane = empty_membrane()
+    for station, raw in dict(handles or {}).items():
+        if station not in membrane:
+            continue
+        hid = str(raw or "").strip()
+        if not hid:
+            continue
+        membrane[station] = {
+            "state": "HANDLE",
+            "reason": "handle admitted",
+            "handle": hid,
+        }
+    blocked_at = next(
+        (station for station in STATION_IDS if membrane[station]["state"] == "ABSTAIN"),
+        None,
+    )
+    admitted = [
+        station for station in STATION_IDS if membrane[station]["state"] == "HANDLE"
+    ]
+    return {
+        "schema": "szl.brain-membrane.v1",
+        "membrane": membrane,
+        "miss": "ABSTAIN",
+        "overlay": "incumbent PSA — do not replace",
+        "certified_production_ready": False,
+        "china_oss": "REPORTED",
+        "hickok_untouched": True,
+        "locked_formula_count": 8,
+        "admitted": admitted,
+        "blocked_at": blocked_at,
+        "overall": "ADMIT" if blocked_at is None else "ABSTAIN",
+        "proof_fold": "https://a11oy.net/estate/thread-ops/",
+        "lambda": "Conjecture 1",
+    }
+
 
 _RETRIEVAL_PILOT = {
     "status": "MEASURED_LOCAL_PILOT",
@@ -210,6 +264,7 @@ def build_manifest(
         counts[status] += 1
 
     route_failure = any(registered is False for registered in observed_runtime.values())
+    membrane = retrieve_membrane()
     contract = {
         "schema": "szl.brain-capabilities.v1",
         "namespace": ns,
@@ -259,6 +314,13 @@ def build_manifest(
             "research/brain-evidence-admission/evaluation-results.json",
             "research/brain-evidence-admission/evidence-manifest.json",
         ],
+        "membrane": membrane["membrane"],
+        "miss": membrane["miss"],
+        "overlay": membrane["overlay"],
+        "certified_production_ready": False,
+        "china_oss": "REPORTED",
+        "hickok_untouched": True,
+        "membrane_route": f"/api/{ns}/v1/brain/membrane",
     }
     return contract
 
@@ -293,6 +355,24 @@ def register(
     @app.api_route(base, methods=["GET", "HEAD"])
     def _brain_capabilities():
         return JSONResponse(build_manifest(ns, runtime_snapshot))
+
+    @app.api_route(f"/api/{ns}/v1/brain/membrane", methods=["GET", "HEAD"])
+    def _brain_membrane(
+        sow: str = "",
+        staff: str = "",
+        exception: str = "",
+        invoice: str = "",
+    ):
+        return JSONResponse(
+            retrieve_membrane(
+                {
+                    "SOW": sow,
+                    "STAFF": staff,
+                    "EXCEPTION": exception,
+                    "INVOICE": invoice,
+                }
+            )
+        )
 
     # FastAPI does not synthesize HEAD for GET routes. These explicit, bodyless
     # operational contracts let load balancers and independent verifiers probe
