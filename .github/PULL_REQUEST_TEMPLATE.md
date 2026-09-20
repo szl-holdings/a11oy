@@ -1,6 +1,6 @@
 <!--
-Thanks for opening a PR! Please fill in every section below.
-PRs missing the doctrine checklist or DCO sign-off will be blocked.
+Thanks for opening a PR. Fill in the sections below.
+DCO / Signed-off-by is not required. Solo-build. No co-signer gate.
 -->
 
 ## Summary
@@ -28,42 +28,25 @@ Fixes #<!-- issue number -->
 ## Doctrine pre-flight checklist
 
 <!-- REQUIRED if this PR touches packages/a11oy-core/ or packages/a11oy-connection/. -->
-<!-- Strike through items that genuinely do not apply and say why. -->
 
-- [ ] POVM completeness: `Σ E_i = I` within 1e-9 for all constructed POVMs
-- [ ] KS-18 2-regular cover preserved: every vector index appears in exactly 2 of 9 contexts
-- [ ] KS-18 unsatisfiability: exhaustive `{0,1}^18` search returns 0 satisfying assignments
-- [ ] Tetrad orthonormality: `⟨e_i, e_j⟩ = δ_ij` within 1e-9
-- [ ] Bohr complementarity floor: `σ_A · σ_B ≥ 0.25 − ε` on the worst-case conjugate pair
-- [ ] Fisher–Rao metric: zero, symmetry, triangle inequality, simplex closed form
-- [ ] `node doctrine-demo.mjs` against the rebuilt dist shows the expected verdict table
-
-If you skipped any item, explain why here:
-<!-- ... -->
+- [ ] POVM completeness
+- [ ] KS-18 2-regular cover preserved
+- [ ] KS-18 unsatisfiability
+- [ ] Tetrad orthonormality
+- [ ] Bohr complementarity floor
+- [ ] Fisher–Rao metric
+- [ ] doctrine-demo against rebuilt dist
 
 ## Tests
 
 - [ ] New behavior has a unit test
-- [ ] Bug fix has a regression test that failed on `main` and passes with this PR
-- [ ] `pnpm -F @a11oy/core test:doctrine` is green locally
-- [ ] `bash scripts/smoke-from-public-url.sh` is green locally (for release-affecting PRs)
+- [ ] Bug fix has a regression test
+- [ ] doctrine tests green locally where applicable
 
 ## Documentation
 
-- [ ] `CHANGELOG.md` updated under `## [Unreleased]`
-- [ ] Public docs (`docs/`, `README.md`) updated where behavior changed
-- [ ] Code comments updated where a non-obvious invariant changed
-
-## Backward compatibility
-
-- [ ] No public API change
-- [ ] Public API change — migration note added to `CHANGELOG.md`
-- [ ] UDS package layout change — `MANIFEST.json` and `OPERATOR-QUICKSTART.md` updated
-
-## DCO sign-off
-
-- [ ] Every commit in this PR has a `Signed-off-by:` trailer (use `git commit -s`)
+- [ ] CHANGELOG updated if user-visible
 
 ## Reviewer notes
 
-<!-- Anything reviewers should look at first, edge cases, deliberate non-goals, etc. -->
+<!-- Anything reviewers should look at first. -->
