@@ -61,9 +61,258 @@ function liveRouterStats(nowMs = Date.now()) {
 
 test("freshness prefers response observation time over an idle policy event", () => {
   const body = {
-    verdicts: [{ timestamp: "2026-06-05T23:32-40Z", decision: "deny" }],
+    verdicts: [{ timestamp: "2026-06-05T23:32:40Z", decision: "deny" }],
     fetchedAt: "2026-07-26T01:05:07Z",
   };
 
   assert.equal(findTimestamp(body)?.toISOString(), "2026-07-26T01:05:07.000Z");
+});
+
+test("freshness recognizes explicit snake- and camel-case observation clocks", () => {
+  for (const key of ["observed_at", "observedAt"]) {
+    const body = {
+      timestamp: "2026-06-05T23:32:40Z",
+      [key]: "2026-07-26T01:05:07Z",
+    };
+
+    assert.equal(findTimestamp(body)?.toISOString(), "2026-07-26T01:05:07.000Z");
+    assert.equal(evaluateFreshness(
+      "/api/a11oy/provenance",
+      { freshnessSLA: 60 },
+      body,
+      Date.parse("2026-07-26T01:06:00Z"),
+    ).freshOk, true);
+  }
+});
+
+test("freshness prefers nested source fetch time over a market event timestamp", () => {
+  const body = {
+    equities: {
+      SPY: {
+        value: { ts: 1784923200 },
+        freshness: { fetched_at: 1785027907.8332539 },
+      },
+    },
+  };
+
+  assert.equal(findTimestamp(body)?.getTime(), 1785027907833);
+});
+
+test("tab-matrix schema validates available and truthful unavailable wrappers", () => {
+  assert.equal(validateSchema("tab_matrix", {
+    matrix_available: true,
+    probe_verdict_available: false,
+    matrix: { tabs: [], endpoints: {} },
+  }).ok, true);
+
+  assert.equal(validateSchema("tab_matrix", {
+    matrix_available: false,
+    probe_verdict_available: false,
+    note: "tabs.json not bundled with this deploy",
+  }).ok, true);
+
+  assert.equal(validateSchema("tab_matrix", {
+    matrix_available: true,
+    probe_verdict_available: false,
+    matrix: { tabs: [] },
+  }).ok, false);
+
+  assert.equal(validateSchema("tab_matrix", {
+    matrix_available: true,
+    probe_verdict_available: false,
+    matrix: { tabs: null, endpoints: {} },
+  }).ok, false);
+
+  assert.equal(validateSchema("tab_matrix", {
+    matrix_available: true,
+    probe_verdict_available: false,
+    matrix: { tabs: [], endpoints: "broken" },
+  }).ok, false);
+
+  assert.equal(validateSchema("tab_matrix", {
+    matrix_available: false,
+    probe_verdict_available: false,
+  }).ok, false);
+});
+
+test("router-stats schema requires truthful live process-lifetime counters", () => {
+  const observed = liveRouterStats();
+  assert.equal(validateSchema("router_stats", observed).ok, true);
+  assert.equal(validateSchema("router_stats", { ...observed, state: "MODELED" }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...observed, data_kind: "modeled" }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...observed, throughput_state: "MODELED" }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...observed, counter_scope: "window" }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...observed, source: "szl_brain.TIERS" }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...observed, routes: [] }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...observed, servedThisWindow: -1 }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...observed, servedThisWindow: 0.5 }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...observed, servedThisWindow: 2 }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...observed, routingDecisionsSinceStart: -1 }).ok, false);
+});
+
+test("router counter evidence is inspected without weakening root labels", () => {
+  const spec = {
+    degradedRules: {
+      allowStatuses: [200],
+      allowLabels: ["live", "cached"],
+      liesIf: ["mock", "fabricated", "placeholder"],
+    },
+  };
+  assert.equal(evaluateEndpointLabels(200, spec, {
+    state: "LIVE",
+    mode: "live",
+    data_kind: "live",
+    throughput_state: "OBSERVED",
+  }).ok, true);
+  assert.equal(evaluateEndpointLabels(200, spec, {
+    state: "LIVE",
+    mode: "live",
+    data_kind: "live",
+    throughput_state: "MODELED",
+  }).ok, false);
+  assert.equal(evaluateEndpointLabels(200, spec, {
+    state: "OBSERVED",
+    throughput_state: "OBSERVED",
+  }).ok, false);
+});
+
+test("schema freshness metadata is not treated as runtime evidence", () => {
+  const labels = findEvidenceLabels({
+    requiredPathTypes: {
+      freshness: "object",
+      checked_at: "timestamp",
+    },
+  });
+  assert.deepEqual(labels, []);
+});
+
+test("scalar freshness captures canonical negative evidence labels only", () => {
+  for (const value of ["modeled", "degraded", "sample", "unknown"]) {
+    assert.deepEqual(findEvidenceLabels({ freshness: value }), [{
+      path: "freshness",
+      value,
+      normalized: value,
+    }]);
+  }
+  for (const metadataType of ["object", "string", "OBJECT", "STRING"]) {
+    assert.deepEqual(findEvidenceLabels({ freshness: metadataType }), []);
+  }
+});
+
+test("real freshness objects retain unknown and negative statuses", () => {
+  const labels = findEvidenceLabels({
+    freshness: {
+      status: "vendor-pending",
+      mode: "modeled",
+      state: "degraded",
+      label: "sample",
+    },
+  });
+  assert.deepEqual(labels.map(({ path, normalized }) => ({ path, normalized })), [
+    { path: "freshness.status", normalized: "vendor-pending" },
+    { path: "freshness.mode", normalized: "modeled" },
+    { path: "freshness.state", normalized: "degraded" },
+    { path: "freshness.label", normalized: "sample" },
+  ]);
+});
+
+test("explicit evidence-kind fields remain fail-closed for unknown values", () => {
+  assert.deepEqual(findEvidenceLabels({ payload: { data_kind: "vendor-pending" } }), [{
+    path: "payload.data_kind",
+    value: "vendor-pending",
+    normalized: "vendor-pending",
+  }]);
+});
+
+test("feed pulse freshness grades its current heartbeat clock", () => {
+  const spec = readinessMatrix.endpoints["/api/a11oy/v1/feeds/pulse"];
+  const nowMs = Date.parse("2026-09-01T05:30:00Z");
+  const body = {
+    probed_at: "2026-09-01T05:29:50Z",
+    items: [{
+      feed: "celestrak",
+      mode: "cached",
+      fetched_at: "2026-08-31T00:00:00Z",
+      source_url: "https://celestrak.org/",
+    }],
+  };
+
+  const currentHeartbeat = evaluateFreshness(
+    "/api/a11oy/v1/feeds/pulse",
+    spec,
+    body,
+    nowMs,
+  );
+  assert.equal(currentHeartbeat.freshOk, true);
+  assert.equal(currentHeartbeat.ageSec, 10);
+
+  const missingHeartbeat = evaluateFreshness(
+    "/api/a11oy/v1/feeds/pulse",
+    spec,
+    { items: body.items },
+    nowMs,
+  );
+  assert.equal(missingHeartbeat.freshOk, false);
+  assert.equal(missingHeartbeat.freshnessMissing, true);
+  assert.match(missingHeartbeat.freshnessReason, /probed_at/);
+});
+
+test("canonical unavailable freshness.status is not a doctrine lie", () => {
+  const spec = {
+    degradedRules: {
+      allowStatuses: [200],
+      allowLabels: ["live", "cached"],
+      liesIf: ["mock", "fabricated", "placeholder"],
+    },
+  };
+  const fetchedAt = "2026-09-19T23:37:19Z";
+  const canonical = {
+    hpd: {
+      value: null,
+      freshness: {
+        status: "UNAVAILABLE",
+        fetched_at: fetchedAt,
+        error: "HTTPStatusError 503",
+      },
+    },
+    rates: {
+      value: [{ pair: "EURUSD" }],
+      freshness: {
+        status: "live",
+        fetched_at: fetchedAt,
+        error: "",
+      },
+    },
+  };
+  assert.equal(evaluateEndpointLabels(200, spec, canonical).ok, true);
+
+  const missingError = {
+    hpd: {
+      value: null,
+      freshness: {
+        status: "UNAVAILABLE",
+        fetched_at: fetchedAt,
+      },
+    },
+  };
+  assert.equal(evaluateEndpointLabels(200, spec, missingError).ok, false);
+
+  const valueNotNull = {
+    hpd: {
+      value: [],
+      freshness: {
+        status: "UNAVAILABLE",
+        fetched_at: fetchedAt,
+        error: "HTTPStatusError 503",
+      },
+    },
+  };
+  assert.equal(evaluateEndpointLabels(200, spec, valueNotNull).ok, false);
+
+  const rootUnavailable = {
+    freshness: {
+      status: "UNAVAILABLE",
+    },
+  };
+  assert.equal(evaluateEndpointLabels(200, spec, rootUnavailable).ok, false);
 });
