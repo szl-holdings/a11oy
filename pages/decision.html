@@ -6,10 +6,10 @@
 <title>Decision Assurance — a11oy</title>
 <meta name="description" content="Packet 8 Decision Integrity Kernel on a-11-oy.com. Terra, Aegis, Puriq Markets, Counsel and Vessels at /terra /aegis /puriq-markets /counsel /vessels. Frozen demonstration cases. Formula authority NONE."/>
 <link rel="canonical" href="https://a-11-oy.com/decision"/>
-<!-- SPDX-License-Identifier: Apache-2.0 · © 2026 SZL Holdings · Doctrine v11 · 0 runtime CDN.
+<!-- SPDX-License-Identifier: Apache-2.0 · © 2026 SZL Holdings · Doctrine v11 · 0 runtime third-party scripts.
      GET /decision /terra /aegis /puriq-markets /counsel /vessels /demo /evaluations.
      Status ROADMAP. Formula authority NONE. Λ = Conjecture 1.
-     Licensed AIS CLOSED. Not legal advice. Not a trading bot. Not a Palantir clone. -->
+     Licensed AIS CLOSED. AIS lattice CITATION_ONLY. Not legal advice. Not a trading bot. Not a Palantir clone. -->
 <style>
 :root {
   --ink:#09090b; --ink-2:#121214; --ink-3:#1c1c20; --paper:#f2efe8; --paper-dim:#c8c2b4;
@@ -32,7 +32,7 @@ nav a.on, nav a:hover { color:var(--paper); }
 main { max-width:72rem; margin:0 auto; padding:2rem 1.25rem 6rem; }
 .kicker { font-family:var(--font-mono); font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--muted); }
 h1 { font-family:var(--font-display); font-weight:500; font-size:clamp(2rem,5vw,3.1rem); letter-spacing:-.03em; margin:.4rem 0 .6rem; }
-.lede { max-width:42rem; color:var(--paper-dim); line-height:1.55; }
+.lede { max-width:46rem; color:var(--paper-dim); line-height:1.55; }
 .row { display:flex; flex-wrap:wrap; gap:.5rem; margin:1.25rem 0 1.5rem; }
 .chip { display:inline-flex; align-items:center; min-height:32px; padding:0 .75rem; border-radius:999px; font-family:var(--font-mono); font-size:11px; background:var(--paper); color:var(--ink); }
 .chip.mute { background:transparent; color:var(--muted); box-shadow:0 0 0 1px var(--line); }
@@ -43,25 +43,31 @@ button.primary { background:var(--paper); color:var(--ink); border-color:var(--p
 button:disabled { opacity:.45; cursor:not-allowed; }
 .grid { display:grid; gap:.75rem; }
 @media (min-width:860px) { .grid.theatre { grid-template-columns:minmax(16rem,.72fr) minmax(0,1.28fr); } }
-.panel { background:var(--ink-2); border-radius:12px; padding:1.1rem 1.25rem; box-shadow:0 0 0 1px var(--line); }
+.panel { background:var(--ink-2); border-radius:12px; padding:1.1rem 1.25rem; box-shadow:0 0 0 1px var(--line); margin-top:.75rem; }
 h2 { font-family:var(--font-display); font-weight:500; font-size:1.2rem; margin:0 0 .4rem; }
 p { color:var(--paper-dim); line-height:1.5; }
 pre { background:var(--ink-3); border-radius:10px; padding:1rem; overflow:auto; white-space:pre-wrap; word-break:break-word; font-family:var(--font-mono); font-size:12px; color:var(--paper); }
 .DENIED { color:var(--deny); }
 .APPROVED { color:var(--ok); }
-.AWAITING_APPROVAL, .ABSTAINED, .ESCALATED { color:var(--wait); }
+.AWAITING_APPROVAL, .ABSTAINED, .ESCALATED, .UNKNOWN { color:var(--wait); }
 .cases { display:flex; flex-direction:column; gap:.4rem; margin:.8rem 0; }
 .cases button { width:100%; border-radius:10px; text-align:left; display:flex; flex-direction:column; align-items:flex-start; gap:.2rem; padding:.7rem 1rem; }
 .cases button small { color:var(--muted); font-family:var(--font-mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; }
-.rail { display:grid; grid-template-columns:repeat(3,1fr); gap:.4rem; margin:0 0 1rem; }
+.rail { display:grid; grid-template-columns:repeat(3,1fr); gap:.4rem; margin:0 0 1rem; padding:0; }
 .rail li { list-style:none; border-radius:10px; padding:.7rem .8rem; background:var(--ink-3); }
 .rail b { display:block; font-family:var(--font-mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
 .rail.on { box-shadow:0 0 0 1px var(--cord); }
 .rail.done b { color:var(--ok); }
-#ais-panel table { width:100%; border-collapse:collapse; font-size:12px; }
-#ais-panel td { padding:.35rem .4rem; border-top:1px solid var(--line); vertical-align:top; color:var(--paper-dim); }
-#ais-panel td:first-child { color:var(--paper); font-family:var(--font-mono); white-space:nowrap; }
+#ais-panel table, #lattice-panel table, #clock-panel table, #heartbeat table { width:100%; border-collapse:collapse; font-size:12px; }
+#ais-panel td, #lattice-panel td, #clock-panel td, #heartbeat td { padding:.35rem .4rem; border-top:1px solid var(--line); vertical-align:top; color:var(--paper-dim); word-break:break-word; }
+#ais-panel td:first-child, #lattice-panel td:first-child, #clock-panel td:first-child, #heartbeat td:first-child { color:var(--paper); font-family:var(--font-mono); }
+.cards { display:grid; gap:.4rem; grid-template-columns:repeat(auto-fill,minmax(14rem,1fr)); margin:.8rem 0; }
+.card { background:var(--ink-3); border-radius:10px; padding:.7rem .8rem; min-height:88px; }
+.card b { display:block; font-family:var(--font-mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+.card span { display:block; margin:.25rem 0; }
+.card small { color:var(--muted); font-family:var(--font-mono); font-size:11px; }
 footer { margin-top:3rem; font-size:.8rem; color:var(--muted); }
+@media (prefers-reduced-motion: reduce) { * { transition:none !important; animation:none !important; } }
 </style>
   <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
   <link rel="stylesheet" href="/assets/szl-holo-v2.css" data-szl-holo-asset="style-v2" />
@@ -83,8 +89,13 @@ footer { margin-top:3rem; font-size:.8rem; color:var(--muted); }
 <main>
   <div class="kicker">Packet 8 · Decision Integrity Kernel 8.0.0</div>
   <h1>Decision Assurance</h1>
-  <p class="lede">Turn a recommendation into an authorized, replayable outcome — or refuse it. Terra, Aegis, Puriq Markets, Counsel and Vessels run here on a-11-oy.com. Frozen demonstration cases. Fail-closed. Formulas do not grant authority. Licensed AIS stays CLOSED without a live key. No Hugging Face Space is required.</p>
+  <p class="lede">Turn a recommendation into an authorized, replayable outcome — or refuse it. Terra, Aegis, Puriq Markets, Counsel and Vessels run here on a-11-oy.com. Frozen demonstration cases. Fail-closed. Formulas do not grant authority. Licensed AIS stays CLOSED without a live key. AIS standards and the ITU-R M.1371 type lattice are CITATION_ONLY. No Hugging Face Space is required.</p>
   <div class="row" id="meta"></div>
+  <section class="panel" id="heartbeat-panel">
+    <h2>Origin heartbeat</h2>
+    <p>Product git_sha from /api/a11oy/v1/honest. Proof origin is a separate failure domain. Divergence is LAG, never green.</p>
+    <div id="heartbeat"></div>
+  </section>
   <div class="tabs" id="verticals"></div>
   <div class="grid theatre">
     <section class="panel">
@@ -103,7 +114,7 @@ footer { margin-top:3rem; font-size:.8rem; color:var(--muted); }
       <p>One primary action. Execute is not offered on this desk. The kernel evaluates and refuses. It does not stamp LIVE.</p>
       <p><button class="primary" id="primary" type="button" disabled>Select a frozen case</button></p>
       <h2>Receipt</h2>
-      <pre id="out">Select a frozen case. The kernel is fail-closed. Licensed AIS is CLOSED. AIS standards are CITATION_ONLY. No Hugging Face Space is required for this desk.</pre>
+      <pre id="out">Select a frozen case. The kernel is fail-closed. Licensed AIS is CLOSED. AIS standards are CITATION_ONLY. AIS lattice digest f931b485. No Hugging Face Space is required for this desk.</pre>
     </section>
   </div>
   <section class="panel" id="ais-panel" hidden>
@@ -111,13 +122,25 @@ footer { margin-top:3rem; font-size:.8rem; color:var(--muted); }
     <p>This desk is not Class A or Class B shipborne AIS equipment. It does not transmit. Licensed AIS stays CLOSED without a live key. Citing the instruments names the gate. It does not claim type approval, SOLAS V/19 carriage, AtoN service, or a licensed-AIS true-positive rate. VESSELS-E03 stays OUTSTANDING. Proof: <a href="https://a11oy.net/vessels/ais-standards.json">a11oy.net/vessels/ais-standards.json</a>.</p>
     <div id="ais"></div>
   </section>
+  <section class="panel" id="lattice-panel" hidden>
+    <h2>ITU-R M.1371 authority lattice · CITATION_ONLY</h2>
+    <p>Message types 1–27 are authority classes, not telemetry. Cite a type: admitted. Query a type on the radio or a paid feed: DENIED. Lattice classify is not the Packet 8 kernel. Digest f931b48544bcf70b1ca0d1c03b38b6c8e9dbf1933adfb8128316324e82eeb457. Proof: <a href="https://a11oy.net/vessels/ais-lattice.json">a11oy.net/vessels/ais-lattice.json</a> · <a href="https://a11oy.net/vessels/lattice/">explorer</a>.</p>
+    <div id="lattice-echo"></div>
+    <div class="cards" id="lattice"></div>
+  </section>
+  <section class="panel" id="clock-panel" hidden>
+    <h2>Public-list reachability · MEASURED</h2>
+    <p>Reachability of the public list. Not entity-resolution precision. VESSELS-E01 stays OUTSTANDING.</p>
+    <div id="clock"></div>
+  </section>
   <footer>
     Status ROADMAP. Data label SAMPLE. Formula authority NONE. Λ = Conjecture 1 / advisory.
-    Licensed AIS CLOSED. AIS standards CITATION_ONLY. Production ready false.
+    Licensed AIS CLOSED. AIS standards CITATION_ONLY. AIS lattice CITATION_ONLY. Production ready false.
     Not legal advice. Not investment advice. Not a trading bot. Not a Palantir clone.
     Canonical source: szl-holdings/a11oy/verticals.
     Proof: <a href="https://a11oy.net/decision/">a11oy.net/decision</a>.
     Vessels AIS: <a href="https://a11oy.net/vessels/ais-standards.json">a11oy.net/vessels/ais-standards.json</a>.
+    Lattice: <a href="https://a11oy.net/vessels/ais-lattice.json">a11oy.net/vessels/ais-lattice.json</a>.
     Product: a-11-oy.com. Never a11oy.com.
   </footer>
 </main>
@@ -130,6 +153,12 @@ const PATH_TO_VERTICAL = {
   "/counsel": "counsel",
   "/vessels": "vessels"
 };
+const BOUND_DIGESTS = {
+  "VESSELS-E-ABSTAIN": "ec8868f29dea05cd9fe94c74fd765a1914d6545c0f11db7f48c3752f9eb86458",
+  "VESSELS-E-AWAIT-01": "ae6e3fc7fdc6fb28e62040926d474848b729f31ef3fda7a4253575880638e5be",
+  "VESSELS-E-DENY-AIS": "0829bcbcd01154d383dca25ff996a8a4704e3183bbce00b393e0426a91bd9275"
+};
+const LATTICE_DIGEST = "f931b48544bcf70b1ca0d1c03b38b6c8e9dbf1933adfb8128316324e82eeb457";
 const meta = document.getElementById("meta");
 const tabs = document.getElementById("verticals");
 const casesEl = document.getElementById("cases");
@@ -141,6 +170,12 @@ const primary = document.getElementById("primary");
 const rail = document.getElementById("rail");
 const aisPanel = document.getElementById("ais-panel");
 const aisEl = document.getElementById("ais");
+const latticePanel = document.getElementById("lattice-panel");
+const latticeEl = document.getElementById("lattice");
+const latticeEcho = document.getElementById("lattice-echo");
+const clockPanel = document.getElementById("clock-panel");
+const clockEl = document.getElementById("clock");
+const heartbeatEl = document.getElementById("heartbeat");
 let current = "aegis";
 let selected = null;
 
@@ -150,6 +185,11 @@ function chip(text, cls) {
   if (cls === text) el.classList.add(cls);
   el.textContent = text;
   return el;
+}
+function cell(text) {
+  const td = document.createElement("td");
+  td.textContent = text == null ? "" : String(text);
+  return td;
 }
 function verticalFromLocation() {
   const path = (location.pathname || "").replace(/\/+$/, "") || "/decision";
@@ -175,15 +215,43 @@ function setRail(step) {
   });
 }
 
+async function bootHeartbeat() {
+  const table = document.createElement("table");
+  const rows = [
+    ["product honest", "UNAVAILABLE"],
+    ["doctrine lock", "UNAVAILABLE"],
+    ["signer", "UNAVAILABLE"]
+  ];
+  try {
+    const honest = await fetch("/api/a11oy/v1/honest").then((r) => r.json());
+    rows[0][1] = honest.git_sha || "UNAVAILABLE";
+    const lock = honest.doctrine_lock || {};
+    rows[1][1] = (lock.doctrine || "v11") + " " + (lock.state || "") + " Λ=" + (lock.lambda || "Conjecture 1");
+    rows[2][1] = "ABSENT / scheme UNAVAILABLE";
+  } catch (err) {
+    rows[0][1] = "UNAVAILABLE";
+  }
+  rows.forEach((pair) => {
+    const tr = document.createElement("tr");
+    tr.appendChild(cell(pair[0]));
+    tr.appendChild(cell(pair[1]));
+    table.appendChild(tr);
+  });
+  heartbeatEl.replaceChildren(table);
+}
+
 async function boot() {
   const cat = await fetch("/api/a11oy/v1/decision").then((r) => r.json());
+  const vessels = (cat.verticals || []).find((item) => item.id === "vessels") || {};
   meta.replaceChildren(
     chip(cat.status || "ROADMAP"),
     chip("formula authority NONE", "mute"),
     chip("licensed AIS CLOSED", "mute"),
     chip("AIS standards CITATION_ONLY", "mute"),
+    chip("AIS lattice CITATION_ONLY", "mute"),
     chip((cat.verticals || []).length + " desks", "mute")
   );
+  if (vessels.ais_lattice_digest) meta.appendChild(chip("lattice " + String(vessels.ais_lattice_digest).slice(0, 8), "mute"));
   tabs.replaceChildren();
   (cat.verticals || []).forEach((item) => {
     const b = document.createElement("button");
@@ -211,15 +279,64 @@ function renderAis(data) {
     const id = typeof row === "string" ? row : (row && row.id) || "";
     const title = typeof row === "string" ? "" : (row && row.title) || "";
     const bound = typeof row === "string" ? "CITATION_ONLY" : (row && row.bound) || "CITATION_ONLY";
-    const cells = [id, title, bound];
-    cells.forEach((text) => {
-      const td = document.createElement("td");
-      td.textContent = text;
-      tr.appendChild(td);
-    });
+    [id, title, bound].forEach((text) => tr.appendChild(cell(text)));
     table.appendChild(tr);
   });
   aisEl.replaceChildren(table);
+}
+
+function renderLattice(data) {
+  const pack = data && data.ais_lattice;
+  if (!pack) {
+    latticePanel.hidden = true;
+    clockPanel.hidden = true;
+    latticeEl.replaceChildren();
+    latticeEcho.replaceChildren();
+    clockEl.replaceChildren();
+    return;
+  }
+  latticePanel.hidden = false;
+  const echoBits = [
+    pack.honesty || "CITATION_ONLY",
+    "types " + ((pack.message_types && pack.message_types.length) || pack.message_types || 27),
+    "digest " + String(pack.digest || LATTICE_DIGEST).slice(0, 12),
+    "queries " + String(pack.licensed_ais_queries == null ? 0 : pack.licensed_ais_queries),
+    "E03 " + (pack.vessels_e03_licensed_ais_tpr || "OUTSTANDING")
+  ];
+  const echoRow = document.createElement("div");
+  echoRow.className = "row";
+  echoBits.forEach((bit) => echoRow.appendChild(chip(String(bit), "mute")));
+  latticeEcho.replaceChildren(echoRow);
+  latticeEl.replaceChildren();
+  const types = Array.isArray(pack.message_types) ? pack.message_types : [];
+  types.forEach((row) => {
+    const card = document.createElement("div");
+    card.className = "card";
+    const b = document.createElement("b");
+    b.textContent = "type " + (row.type || "");
+    const span = document.createElement("span");
+    span.textContent = row.name || "";
+    const small = document.createElement("small");
+    small.textContent = (row.cite || "ADMITTED") + " · query " + (row.live_query || "DENIED");
+    card.appendChild(b);
+    card.appendChild(span);
+    card.appendChild(small);
+    latticeEl.appendChild(card);
+  });
+  const lists = pack.public_lists_measured || pack.public_lists || [];
+  if (!lists.length) {
+    clockPanel.hidden = true;
+    clockEl.replaceChildren();
+    return;
+  }
+  clockPanel.hidden = false;
+  const table = document.createElement("table");
+  lists.forEach((row) => {
+    const tr = document.createElement("tr");
+    [row.id, row.http, row.bytes, row.last_modified, row.class || "MEASURED"].forEach((text) => tr.appendChild(cell(text)));
+    table.appendChild(tr);
+  });
+  clockEl.replaceChildren(table);
 }
 
 async function show(id, btn, push) {
@@ -231,10 +348,16 @@ async function show(id, btn, push) {
   vtitle.textContent = data.display_name || id;
   vwedge.textContent = data.wedge || "";
   renderAis(data);
+  renderLattice(data);
   casesEl.replaceChildren();
   (data.cases || []).forEach((item) => {
     const b = document.createElement("button");
-    b.innerHTML = "<span>" + (item.eval_id || item.case_id) + "</span><small>" + (item.expected_state || "") + "</small>";
+    const title = document.createElement("span");
+    title.textContent = item.eval_id || item.case_id || "";
+    const small = document.createElement("small");
+    small.textContent = item.expected_state || "";
+    b.appendChild(title);
+    b.appendChild(small);
     b.addEventListener("click", () => pick(item, b));
     casesEl.appendChild(b);
   });
@@ -260,15 +383,24 @@ async function run() {
   primary.textContent = "Evaluating…";
   setRail(1);
   out.textContent = "Evaluating " + (selected.eval_id || "") + "…";
+  const body = selected.payload || selected;
   const res = await fetch("/api/a11oy/v1/decision/" + encodeURIComponent(current) + "/evaluate", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(selected.payload || selected),
+    body: JSON.stringify(body)
   });
   const data = await res.json();
   const state = data.state || "UNKNOWN";
   status.replaceChildren(chip(state, state), chip((data.reason_codes || []).join(", ") || "no reason", "mute"));
-  if (data.receipt && data.receipt.digest) status.appendChild(chip("digest " + data.receipt.digest.slice(0, 12), "mute"));
+  const digest = data.receipt && data.receipt.digest;
+  if (digest) status.appendChild(chip("digest " + String(digest).slice(0, 12), "mute"));
+  const bound = selected.eval_id && BOUND_DIGESTS[selected.eval_id];
+  if (bound && digest) {
+    status.appendChild(chip(digest === bound ? "receipt MATCH" : "receipt MISMATCH", "mute"));
+  }
+  if (data.ais_lattice && data.ais_lattice.digest) {
+    status.appendChild(chip("lattice " + String(data.ais_lattice.digest).slice(0, 8), "mute"));
+  }
   out.textContent = JSON.stringify(data, null, 2);
   setRail(2);
   primary.disabled = false;
@@ -281,6 +413,7 @@ window.addEventListener("popstate", () => {
   const btn = tabs.querySelector('button[data-id="' + id + '"]');
   if (btn) show(id, btn, false);
 });
+bootHeartbeat().catch(() => { heartbeatEl.textContent = "UNAVAILABLE"; });
 boot().catch((err) => { out.textContent = String(err); });
 </script>
   <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
