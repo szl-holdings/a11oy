@@ -130,17 +130,19 @@ footer { margin-top:3rem; font-size:.8rem; color:var(--muted); }
   </section>
   <section class="panel" id="clock-panel" hidden>
     <h2>Public-list reachability · MEASURED</h2>
-    <p>Reachability of the public list. Not entity-resolution precision. VESSELS-E01 stays OUTSTANDING.</p>
+    <p>Reachability of official public lists as authority classes. Not entity-resolution precision. VESSELS-E01 stays OUTSTANDING. World digest 70fd1918. Proof: <a href="https://a11oy.net/vessels/public-lists-world.json">a11oy.net/vessels/public-lists-world.json</a> · <a href="https://a11oy.net/vessels/world/">explorer</a>.</p>
+    <div id="clock-echo"></div>
     <div id="clock"></div>
   </section>
   <footer>
     Status ROADMAP. Data label SAMPLE. Formula authority NONE. Λ = Conjecture 1 / advisory.
-    Licensed AIS CLOSED. AIS standards CITATION_ONLY. AIS lattice CITATION_ONLY. Production ready false.
+    Licensed AIS CLOSED. AIS standards CITATION_ONLY. AIS lattice CITATION_ONLY. Public-list clocks CITATION_ONLY. Production ready false.
     Not legal advice. Not investment advice. Not a trading bot. Not a Palantir clone.
     Canonical source: szl-holdings/a11oy/verticals.
     Proof: <a href="https://a11oy.net/decision/">a11oy.net/decision</a>.
     Vessels AIS: <a href="https://a11oy.net/vessels/ais-standards.json">a11oy.net/vessels/ais-standards.json</a>.
     Lattice: <a href="https://a11oy.net/vessels/ais-lattice.json">a11oy.net/vessels/ais-lattice.json</a>.
+    World clocks: <a href="https://a11oy.net/vessels/public-lists-world.json">a11oy.net/vessels/public-lists-world.json</a>.
     Product: a-11-oy.com. Never a11oy.com.
   </footer>
 </main>
@@ -249,9 +251,11 @@ async function boot() {
     chip("licensed AIS CLOSED", "mute"),
     chip("AIS standards CITATION_ONLY", "mute"),
     chip("AIS lattice CITATION_ONLY", "mute"),
+    chip("public-list clocks CITATION_ONLY", "mute"),
     chip((cat.verticals || []).length + " desks", "mute")
   );
   if (vessels.ais_lattice_digest) meta.appendChild(chip("lattice " + String(vessels.ais_lattice_digest).slice(0, 8), "mute"));
+  if (vessels.public_lists_digest) meta.appendChild(chip("world " + String(vessels.public_lists_digest).slice(0, 8), "mute"));
   tabs.replaceChildren();
   (cat.verticals || []).forEach((item) => {
     const b = document.createElement("button");
@@ -323,17 +327,36 @@ function renderLattice(data) {
     card.appendChild(small);
     latticeEl.appendChild(card);
   });
-  const lists = pack.public_lists_measured || pack.public_lists || [];
-  if (!lists.length) {
+  renderPublicLists(data);
+}
+
+function renderPublicLists(data) {
+  const pack = data && data.public_lists;
+  const ais = data && data.ais_lattice;
+  const lists = (pack && (pack.clocks || pack.lists)) || (ais && (ais.public_lists_measured || ais.public_lists)) || [];
+  const clockEcho = document.getElementById("clock-echo");
+  if (!pack && !lists.length) {
     clockPanel.hidden = true;
     clockEl.replaceChildren();
+    if (clockEcho) clockEcho.replaceChildren();
     return;
   }
   clockPanel.hidden = false;
+  if (clockEcho && pack) {
+    const echoRow = document.createElement("div");
+    echoRow.className = "row";
+    [
+      pack.honesty || "CITATION_ONLY",
+      "classes " + ((pack.authority_classes && pack.authority_classes.length) || 7),
+      "digest " + String(pack.digest || "").slice(0, 12),
+      "judgment " + ((pack.typed_judgment && pack.typed_judgment.result) || "SAMPLE_TEXT_MISS")
+    ].forEach((bit) => echoRow.appendChild(chip(String(bit), "mute")));
+    clockEcho.replaceChildren(echoRow);
+  }
   const table = document.createElement("table");
   lists.forEach((row) => {
     const tr = document.createElement("tr");
-    [row.id, row.http, row.bytes, row.last_modified, row.class || "MEASURED"].forEach((text) => tr.appendChild(cell(text)));
+    [row.id, row.http, row.bytes || row.freshness, row.last_modified || row.class || "MEASURED", row.freshness || row.class || "MEASURED"].forEach((text) => tr.appendChild(cell(text)));
     table.appendChild(tr);
   });
   clockEl.replaceChildren(table);
