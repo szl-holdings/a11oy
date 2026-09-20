@@ -1,0 +1,26 @@
+--- a/tools/readiness-harness/probe_runner.mjs
++++ b/tools/readiness-harness/probe_runner.mjs
+@@ -20,6 +20,7 @@
+ import { readFileSync, writeFileSync } from "node:fs";
+ import { dirname, join, resolve } from "node:path";
+ import { fileURLToPath } from "node:url";
++import { canonicalUnavailableStatus } from "./canonical_unavailable.mjs";
+
+ const HERE = dirname(fileURLToPath(import.meta.url));
+@@ -476,9 +477,16 @@
+     entry.normalized === "observed"
+     && /(^|\.)(throughput_state|counter_state)$/i.test(entry.path)
+   );
+   const disallowed = [
+     ...labels.filter(
+-      (entry) => !allowed.has(entry.normalized) && !supplementalObserved(entry),
++      (entry) =>
++        !allowed.has(entry.normalized)
++        && !supplementalObserved(entry)
++        && !canonicalUnavailableStatus(entry, body, {
++          valueAtPath,
++          isCanonicalUnavailableSource,
++        }),
+     ),
+     ...findEvidenceContradictions(spec, body),
+   ];
