@@ -9,7 +9,7 @@
 # Version floors chosen for Llama-3.1 + 4-bit QLoRA support. train_lora.py
 # imports these only on the REAL training path — --dry-run needs none of them.
 transformers>=5.17.0
-peft>=0.20.0
+peft>=0.21.0
 trl>=1.13.0
 datasets>=5.0.1
 accelerate>=1.15.0
