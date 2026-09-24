@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
 namespace A11oy {
 
   type IntentContext = {
@@ -33,13 +35,13 @@ namespace A11oy {
     requiresApproval: Bool,
   };
 
-  action ReadResource, InvokeTool, ExportEvidence appliesTo {
+  action ReadResource, ExportEvidence appliesTo {
     principal: WorkloadIdentity,
     resource: ProtectedResource,
     context: IntentContext
   };
 
-  action WriteResource, DeployArtifact, ApproveDecision, SignReceipt, AdministerPolicy appliesTo {
+  action InvokeTool, WriteResource, DeployArtifact, ApproveDecision, SignReceipt, AdministerPolicy appliesTo {
     principal: WorkloadIdentity,
     resource: ProtectedResource,
     context: IntentContext

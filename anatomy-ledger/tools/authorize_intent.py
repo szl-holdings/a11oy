@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
-"""Python PARC evaluator matching policy/cedar/intent-auth.cedar.
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+"""Strict, advisory Python evaluation of the Cedar intent contract.
 
-Cedar files remain the typed contract. This engine is the offline twin so
-intent decisions can be tested without a Cedar CLI binary.
-Forbids override permits. Missing permit is BLOCK.
-
-Accepts both:
-- inline principal/resource attributes (unit tests, bind_anatomy)
-- a separate entities store keyed by principal/resource id (CLI)
+This function does not execute Cedar or authenticate caller-supplied identities,
+attributes, approvals, or evidence. An ALLOW is a local policy assessment only.
 """
+
 from __future__ import annotations
 
 import argparse
 import json
+import re
 from typing import Any
 
-READ_ACTIONS = {"ReadResource", "InvokeTool", "ExportEvidence"}
+READ_ACTIONS = {"ReadResource", "ExportEvidence"}
 PRIVILEGED_ACTIONS = {
+    "InvokeTool",
     "WriteResource",
     "DeployArtifact",
     "ApproveDecision",
@@ -24,167 +24,243 @@ PRIVILEGED_ACTIONS = {
     "AdministerPolicy",
 }
 KNOWN_ACTIONS = READ_ACTIONS | PRIVILEGED_ACTIONS
+TRUSTED_ZONES = {"command-surface", "trusted-ci", "trusted"}
+SHA256_RE = re.compile(r"(?:sha256:)?[0-9a-fA-F]{64}\Z")
+MAX_LONG = 2**63 - 1
+PRINCIPAL_TYPE = "A11oy::WorkloadIdentity"
+RESOURCE_TYPE = "A11oy::ProtectedResource"
+PRINCIPAL_FIELDS = {
+    "kind": "nonempty",
+    "tenantId": "nonempty",
+    "assurance": "long",
+    "roles": "strings",
+    "disabled": "bool",
+}
+RESOURCE_FIELDS = {
+    "kind": "nonempty",
+    "tenantId": "nonempty",
+    "classification": "long",
+    "requiredAssurance": "long",
+    "maxRisk": "long",
+    "allowedPurposes": "strings",
+    "allowedEffects": "strings",
+    "requiresApproval": "bool",
+}
+CONTEXT_FIELDS = {
+    "requestId": "string",
+    "sessionId": "string",
+    "purpose": "nonempty",
+    "intendedEffect": "nonempty",
+    "riskScore": "long",
+    "humanApproval": "bool",
+    "mfa": "bool",
+    "networkZone": "nonempty",
+    "evidenceDigest": "string",
+    "traceId": "string",
+    "timestamp": "string",
+}
+
+
+def _nonempty(value: Any) -> bool:
+    return type(value) is str and bool(value.strip())
 
 
 def _id_of(node: Any) -> str:
-    if isinstance(node, dict):
-        return str(node.get("id") or "")
-    return str(node or "")
+    return (
+        node.get("id", "")
+        if isinstance(node, dict) and type(node.get("id")) is str
+        else ""
+    )
 
 
-def _attrs(entity: Any, store: dict[str, Any] | None = None) -> dict[str, Any]:
-    if not isinstance(entity, dict):
-        if store and entity in store:
-            found = store[entity]
-            return found if isinstance(found, dict) else {}
+def _validate_fields(
+    value: Any, fields: dict[str, str], name: str, deny: list[str]
+) -> bool:
+    start = len(deny)
+    if not isinstance(value, dict):
+        deny.append(f"{name} must be an object")
+        return False
+    for field, kind in fields.items():
+        item = value.get(field)
+        valid = {
+            "string": lambda: type(item) is str,
+            "nonempty": lambda: _nonempty(item),
+            "bool": lambda: type(item) is bool,
+            "long": lambda: type(item) is int and 0 <= item <= MAX_LONG,
+            "strings": lambda: (
+                type(item) is list and all(_nonempty(entry) for entry in item)
+            ),
+        }[kind]()
+        if not valid:
+            deny.append(f"{name}.{field} must be {kind}")
+    if set(value) - set(fields):
+        deny.append(f"{name} contains unknown attributes")
+    return len(deny) == start
+
+
+def _stores(entities: Any, deny: list[str]) -> tuple[dict, dict]:
+    if entities is None:
+        return {}, {}
+    if isinstance(entities, dict):
+        if set(entities) - {"principals", "resources"}:
+            deny.append("entities contains unknown collections")
+        principals, resources = (
+            entities.get("principals", {}),
+            entities.get("resources", {}),
+        )
+        if not isinstance(principals, dict) or not isinstance(resources, dict):
+            deny.append("entity collections must be objects")
+            return {}, {}
+        return principals, resources
+    if isinstance(entities, list):
+        stores: dict[str, dict] = {PRINCIPAL_TYPE: {}, RESOURCE_TYPE: {}}
+        for entity in entities:
+            uid = entity.get("uid") if isinstance(entity, dict) else None
+            if (
+                not isinstance(uid, dict)
+                or type(uid.get("type")) is not str
+                or uid.get("type") not in stores
+                or not _nonempty(uid.get("id"))
+            ):
+                deny.append("entities contains an invalid typed identity")
+                continue
+            store = stores[uid["type"]]
+            if uid["id"] in store:
+                deny.append("entities contains a duplicate identity")
+            if entity.get("parents") != []:
+                deny.append(
+                    "entity parents are not supported by this advisory evaluator"
+                )
+            store[uid["id"]] = entity.get("attrs")
+        return stores[PRINCIPAL_TYPE], stores[RESOURCE_TYPE]
+    deny.append("entities must be an object or Cedar entity list")
+    return {}, {}
+
+
+def _entity(
+    node: Any,
+    expected_type: str,
+    store: dict,
+    use_store: bool,
+    fields: dict[str, str],
+    name: str,
+    deny: list[str],
+) -> dict:
+    if not isinstance(node, dict):
+        deny.append(f"{name} must be a typed identity object")
         return {}
-    if "attrs" in entity and isinstance(entity["attrs"], dict):
-        merged = dict(entity["attrs"])
-        for key in ("tenantId", "assurance", "disabled", "requiredAssurance", "maxRisk", "allowedPurposes", "allowedEffects"):
-            if key in entity and key not in merged:
-                merged[key] = entity[key]
-        return merged
-    if store:
-        ident = _id_of(entity)
-        if ident in store and isinstance(store[ident], dict):
-            return store[ident]
-    return entity
+    if node.get("type") != expected_type or not _nonempty(node.get("id")):
+        deny.append(f"{name} has an unknown type or empty identity")
+    if use_store:
+        attrs = store.get(_id_of(node))
+        if attrs is None:
+            deny.append(f"unknown {name}")
+        if "attrs" in node and node["attrs"] != attrs:
+            deny.append(f"{name} inline attributes disagree with entity store")
+    else:
+        attrs = node.get("attrs")
+    if not _validate_fields(attrs, fields, name, deny):
+        return {}
+    for key in set(node) - {"id", "type", "attrs"}:
+        # Compatibility aliases may repeat attributes, but may never override them.
+        if (
+            key not in fields
+            or type(node[key]) is not type(attrs.get(key))
+            or node[key] != attrs.get(key)
+        ):
+            deny.append(f"{name}.{key} conflicts with its attributes")
+    return attrs
 
 
-def authorize(request: dict[str, Any], entities: dict[str, Any] | None = None) -> dict[str, Any]:
-    entities = entities or {}
-    principals = entities.get("principals") if isinstance(entities.get("principals"), dict) else {}
-    resources = entities.get("resources") if isinstance(entities.get("resources"), dict) else {}
-    principal = _attrs(request.get("principal") or {}, principals)
-    resource = _attrs(request.get("resource") or {}, resources)
-    context = request.get("context") if isinstance(request.get("context"), dict) else {}
-    action = _id_of(request.get("action"))
-
-    forbids: list[str] = []
-    if not principal:
-        forbids.append("unknown principal")
-    if not resource:
-        forbids.append("unknown resource")
-    if action not in KNOWN_ACTIONS:
-        forbids.append("unknown action")
-    if principal.get("disabled") is True:
-        forbids.append("principal is disabled")
-    if principal and resource and str(principal.get("tenantId", "")) != str(resource.get("tenantId", "")):
-        forbids.append("principal.tenantId != resource.tenantId")
-    try:
-        risk = int(context.get("riskScore", 0))
-    except (TypeError, ValueError):
-        risk = 0
-        forbids.append("riskScore is not an integer")
-    try:
-        max_risk = int(resource.get("maxRisk", 0)) if resource else 0
-    except (TypeError, ValueError):
-        max_risk = 0
-        forbids.append("maxRisk is not an integer")
-    if resource and risk > max_risk:
-        forbids.append("context.riskScore exceeds resource.maxRisk")
-
-    purposes = set(resource.get("allowedPurposes") or [])
-    effects = set(resource.get("allowedEffects") or [])
-    if resource and context.get("purpose") not in purposes:
-        forbids.append("purpose is not in resource.allowedPurposes")
-    if resource and context.get("intendedEffect") not in effects:
-        forbids.append("intendedEffect is not in resource.allowedEffects")
-    if action in PRIVILEGED_ACTIONS and str(context.get("networkZone") or "") == "untrusted":
-        forbids.append("privileged action from untrusted networkZone")
-
-    if forbids:
-        return {
-            "outcome": "BLOCK",
-            "reasons": ["cedar forbid matched"],
-            "deny": forbids,
-            "forbids": forbids,
-            "review": [],
-            "policy": "cedar.intent.v1",
-            "engine": "python-twin",
-            "evaluator": "python-parc",
-            "action": action,
-            "principal": _id_of(request.get("principal")),
-            "resource": _id_of(request.get("resource")),
-            "disclosure": "Default deny. This evaluator is not the Cedar CLI.",
-        }
-
-    try:
-        assurance = int(principal.get("assurance", 0))
-        required = int(resource.get("requiredAssurance", 0))
-    except (TypeError, ValueError):
-        return {
-            "outcome": "BLOCK",
-            "reasons": ["assurance fields are not integers"],
-            "deny": ["assurance fields are not integers"],
-            "forbids": [],
-            "review": [],
-            "policy": "cedar.intent.v1",
-            "engine": "python-twin",
-            "evaluator": "python-parc",
-            "action": action,
-            "principal": _id_of(request.get("principal")),
-            "resource": _id_of(request.get("resource")),
-            "disclosure": "Default deny. This evaluator is not the Cedar CLI.",
-        }
-
-    if assurance < required:
-        return {
-            "outcome": "BLOCK",
-            "reasons": ["no permit matched; cedar denies by default", "assurance below requiredAssurance"],
-            "deny": ["assurance below requiredAssurance"],
-            "forbids": [],
-            "review": [],
-            "policy": "cedar.intent.v1",
-            "engine": "python-twin",
-            "evaluator": "python-parc",
-            "action": action,
-            "principal": _id_of(request.get("principal")),
-            "resource": _id_of(request.get("resource")),
-            "disclosure": "Default deny. This evaluator is not the Cedar CLI.",
-        }
-
-    if action in PRIVILEGED_ACTIONS:
-        missing: list[str] = []
-        if not context.get("humanApproval"):
-            missing.append("humanApproval required")
-        if not context.get("mfa"):
-            missing.append("mfa required")
-        if not str(context.get("evidenceDigest") or ""):
-            missing.append("evidenceDigest required")
-        if missing:
-            return {
-                "outcome": "BLOCK",
-                "reasons": ["privileged permit did not match", *missing],
-                "deny": ["high-risk action missing approval, MFA, or evidenceDigest", *missing],
-                "forbids": [],
-                "review": [],
-                "policy": "cedar.intent.v1",
-                "engine": "python-twin",
-                "evaluator": "python-parc",
-                "action": action,
-                "principal": _id_of(request.get("principal")),
-                "resource": _id_of(request.get("resource")),
-                "disclosure": "Default deny. This evaluator is not the Cedar CLI.",
-            }
-
+def _result(request: dict, deny: list[str]) -> dict[str, Any]:
     return {
-        "outcome": "ALLOW",
-        "reasons": ["cedar permit matched"],
-        "deny": [],
-        "forbids": [],
+        "outcome": "BLOCK" if deny else "ALLOW",
+        "reasons": ["default deny: invalid input or policy condition failed"]
+        if deny
+        else ["local advisory policy conditions satisfied"],
+        "deny": deny,
+        "forbids": deny,
         "review": [],
         "policy": "cedar.intent.v1",
-        "engine": "python-twin",
+        "engine": "python-advisory",
         "evaluator": "python-parc",
-        "action": action,
+        "action": _id_of(request.get("action")),
         "principal": _id_of(request.get("principal")),
         "resource": _id_of(request.get("resource")),
-        "disclosure": "Default deny. This evaluator is not the Cedar CLI.",
+        "evaluationOnly": True,
+        "executable": False,
+        "policyEligible": not deny,
+        "cedarExecuted": False,
+        "identityAuthenticated": False,
+        "disclosure": "Python advisory evaluation only. Caller attributes and approvals are untrusted; no execution authority is granted.",
     }
 
 
-def evaluate(request: dict[str, Any], entities: dict[str, Any] | None = None) -> dict[str, Any]:
+def authorize(request: Any, entities: Any = None) -> dict[str, Any]:
+    deny: list[str] = []
+    if not isinstance(request, dict):
+        return _result({}, ["request must be an object"])
+    if set(request) - {"principal", "action", "resource", "context"}:
+        deny.append("request contains unknown fields")
+    principals, resources = _stores(entities, deny)
+    principal = _entity(
+        request.get("principal"),
+        PRINCIPAL_TYPE,
+        principals,
+        entities is not None,
+        PRINCIPAL_FIELDS,
+        "principal",
+        deny,
+    )
+    resource = _entity(
+        request.get("resource"),
+        RESOURCE_TYPE,
+        resources,
+        entities is not None,
+        RESOURCE_FIELDS,
+        "resource",
+        deny,
+    )
+    context = request.get("context")
+    _validate_fields(context, CONTEXT_FIELDS, "context", deny)
+    action_node = request.get("action")
+    action = _id_of(action_node)
+    if (
+        not isinstance(action_node, dict)
+        or action_node.get("type") != "A11oy::Action"
+        or set(action_node) != {"id", "type"}
+        or action not in KNOWN_ACTIONS
+    ):
+        deny.append("unknown action or action type")
+    if deny:
+        return _result(request, deny)
+    if principal["disabled"]:
+        deny.append("principal is disabled")
+    if principal["tenantId"] != resource["tenantId"]:
+        deny.append("principal.tenantId != resource.tenantId")
+    if context["riskScore"] > resource["maxRisk"]:
+        deny.append("context.riskScore exceeds resource.maxRisk")
+    if principal["assurance"] < resource["requiredAssurance"]:
+        deny.append("assurance below requiredAssurance")
+    if context["purpose"] not in resource["allowedPurposes"]:
+        deny.append("purpose is not in resource.allowedPurposes")
+    if context["intendedEffect"] not in resource["allowedEffects"]:
+        deny.append("intendedEffect is not in resource.allowedEffects")
+    if context["evidenceDigest"] and not SHA256_RE.fullmatch(context["evidenceDigest"]):
+        deny.append("evidenceDigest must be a SHA-256 digest")
+    if action in PRIVILEGED_ACTIONS or resource["requiresApproval"]:
+        if context["networkZone"] not in TRUSTED_ZONES:
+            deny.append("approval-required action from untrusted networkZone")
+        if context["humanApproval"] is not True:
+            deny.append("humanApproval required")
+        if context["mfa"] is not True:
+            deny.append("mfa required")
+        if not context["evidenceDigest"]:
+            deny.append("evidenceDigest required")
+    return _result(request, deny)
+
+
+def evaluate(request: Any, entities: Any = None) -> dict[str, Any]:
     return authorize(request, entities)
 
 
@@ -195,18 +271,13 @@ def main() -> None:
     parser.add_argument("--request")
     parser.add_argument("--entities")
     args = parser.parse_args()
-    if args.request:
-        with open(args.request, encoding="utf-8") as handle:
-            request = json.load(handle)
-        entities: dict[str, Any] = {}
-        if args.entities:
-            with open(args.entities, encoding="utf-8") as handle:
-                entities = json.load(handle)
-        json.dump(authorize(request, entities), sys.stdout, indent=2)
-        sys.stdout.write("\n")
-        return
-    payload = json.load(sys.stdin)
-    json.dump(authorize(payload), sys.stdout, indent=2)
+    with open(args.request, encoding="utf-8") if args.request else sys.stdin as handle:
+        request = json.load(handle)
+    entities = None
+    if args.entities:
+        with open(args.entities, encoding="utf-8") as handle:
+            entities = json.load(handle)
+    json.dump(authorize(request, entities), sys.stdout, indent=2)
     sys.stdout.write("\n")
 
 

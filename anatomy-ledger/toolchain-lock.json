@@ -1,4 +1,18 @@
 {
+  "cedar": {
+    "version": "4.13.0",
+    "release": "https://github.com/cedar-policy/cedar/releases/tag/cedar-policy-cli-v4.13.0",
+    "windows_amd64": {
+      "asset": "cedar-policy-cli-x86_64-pc-windows-msvc.zip",
+      "url": "https://github.com/cedar-policy/cedar/releases/download/cedar-policy-cli-v4.13.0/cedar-policy-cli-x86_64-pc-windows-msvc.zip",
+      "sha256": "93eb36eff9469f09a25293ec07349a7554187b61353bd05c193c59e99572a138"
+    },
+    "ci_linux_amd64": {
+      "asset": "cedar-policy-cli-x86_64-unknown-linux-gnu.tar.xz",
+      "url": "https://github.com/cedar-policy/cedar/releases/download/cedar-policy-cli-v4.13.0/cedar-policy-cli-x86_64-unknown-linux-gnu.tar.xz",
+      "sha256": "23d358ef38edad8ade629a09f6a7359ecbd1761c9ff82e9fd0a5c5bce36b8c79"
+    }
+  },
   "opa": {
     "version": "1.20.2",
     "release": "https://github.com/open-policy-agent/opa/releases/tag/v1.20.2",
@@ -7,6 +21,11 @@
       "url": "https://github.com/open-policy-agent/opa/releases/download/v1.20.2/opa_linux_amd64_static",
       "sha256": "69da5179ee403d10fa11bab6cfb4ffb0d23dba5f9b682fa977db772a1da5670f"
     },
-    "disclosure": "Checksum is the published GitHub asset digest for opa_linux_amd64_static v1.20.2. Workflow must sha256sum --check before execution."
+    "windows_amd64": {
+      "asset": "opa_windows_amd64.exe",
+      "url": "https://github.com/open-policy-agent/opa/releases/download/v1.20.2/opa_windows_amd64.exe",
+      "sha256": "e2f2e2b735ab98f316171ca47a6b352288cdeb5a616e31aa16335b8934748453"
+    },
+    "disclosure": "Checksums match published GitHub release asset digests. The installer verifies bytes before execution."
   }
 }

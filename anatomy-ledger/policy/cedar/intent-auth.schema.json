@@ -1,44 +1,214 @@
 {
   "A11oy": {
-    "commonTypes": {},
-    "entityTypes": {
-      "WorkloadIdentity": {
-        "shape": {
-          "type": "Record",
-          "attributes": {
-            "kind": {"type": "String"},
-            "tenantId": {"type": "String"},
-            "assurance": {"type": "Long"},
-            "roles": {"type": "Set", "element": {"type": "String"}},
-            "disabled": {"type": "Boolean"}
+    "commonTypes": {
+      "IntentContext": {
+        "type": "Record",
+        "attributes": {
+          "evidenceDigest": {
+            "type": "String"
+          },
+          "humanApproval": {
+            "type": "Bool"
+          },
+          "intendedEffect": {
+            "type": "String"
+          },
+          "mfa": {
+            "type": "Bool"
+          },
+          "networkZone": {
+            "type": "String"
+          },
+          "purpose": {
+            "type": "String"
+          },
+          "requestId": {
+            "type": "String"
+          },
+          "riskScore": {
+            "type": "Long"
+          },
+          "sessionId": {
+            "type": "String"
+          },
+          "timestamp": {
+            "type": "String"
+          },
+          "traceId": {
+            "type": "String"
           }
         }
-      },
+      }
+    },
+    "entityTypes": {
       "ProtectedResource": {
         "shape": {
           "type": "Record",
           "attributes": {
-            "kind": {"type": "String"},
-            "tenantId": {"type": "String"},
-            "classification": {"type": "Long"},
-            "requiredAssurance": {"type": "Long"},
-            "maxRisk": {"type": "Long"},
-            "allowedPurposes": {"type": "Set", "element": {"type": "String"}},
-            "allowedEffects": {"type": "Set", "element": {"type": "String"}},
-            "requiresApproval": {"type": "Boolean"}
+            "allowedEffects": {
+              "type": "Set",
+              "element": {
+                "type": "String"
+              }
+            },
+            "allowedPurposes": {
+              "type": "Set",
+              "element": {
+                "type": "String"
+              }
+            },
+            "classification": {
+              "type": "Long"
+            },
+            "kind": {
+              "type": "String"
+            },
+            "maxRisk": {
+              "type": "Long"
+            },
+            "requiredAssurance": {
+              "type": "Long"
+            },
+            "requiresApproval": {
+              "type": "Bool"
+            },
+            "tenantId": {
+              "type": "String"
+            }
+          }
+        }
+      },
+      "WorkloadIdentity": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "assurance": {
+              "type": "Long"
+            },
+            "disabled": {
+              "type": "Bool"
+            },
+            "kind": {
+              "type": "String"
+            },
+            "roles": {
+              "type": "Set",
+              "element": {
+                "type": "String"
+              }
+            },
+            "tenantId": {
+              "type": "String"
+            }
           }
         }
       }
     },
     "actions": {
-      "ReadResource": {"appliesTo": {"principalTypes": ["WorkloadIdentity"], "resourceTypes": ["ProtectedResource"]}},
-      "InvokeTool": {"appliesTo": {"principalTypes": ["WorkloadIdentity"], "resourceTypes": ["ProtectedResource"]}},
-      "WriteResource": {"appliesTo": {"principalTypes": ["WorkloadIdentity"], "resourceTypes": ["ProtectedResource"]}},
-      "DeployArtifact": {"appliesTo": {"principalTypes": ["WorkloadIdentity"], "resourceTypes": ["ProtectedResource"]}},
-      "ApproveDecision": {"appliesTo": {"principalTypes": ["WorkloadIdentity"], "resourceTypes": ["ProtectedResource"]}},
-      "SignReceipt": {"appliesTo": {"principalTypes": ["WorkloadIdentity"], "resourceTypes": ["ProtectedResource"]}},
-      "ExportEvidence": {"appliesTo": {"principalTypes": ["WorkloadIdentity"], "resourceTypes": ["ProtectedResource"]}},
-      "AdministerPolicy": {"appliesTo": {"principalTypes": ["WorkloadIdentity"], "resourceTypes": ["ProtectedResource"]}}
+      "AdministerPolicy": {
+        "appliesTo": {
+          "resourceTypes": [
+            "A11oy::ProtectedResource"
+          ],
+          "principalTypes": [
+            "A11oy::WorkloadIdentity"
+          ],
+          "context": {
+            "type": "A11oy::IntentContext"
+          }
+        }
+      },
+      "ApproveDecision": {
+        "appliesTo": {
+          "resourceTypes": [
+            "A11oy::ProtectedResource"
+          ],
+          "principalTypes": [
+            "A11oy::WorkloadIdentity"
+          ],
+          "context": {
+            "type": "A11oy::IntentContext"
+          }
+        }
+      },
+      "DeployArtifact": {
+        "appliesTo": {
+          "resourceTypes": [
+            "A11oy::ProtectedResource"
+          ],
+          "principalTypes": [
+            "A11oy::WorkloadIdentity"
+          ],
+          "context": {
+            "type": "A11oy::IntentContext"
+          }
+        }
+      },
+      "ExportEvidence": {
+        "appliesTo": {
+          "resourceTypes": [
+            "A11oy::ProtectedResource"
+          ],
+          "principalTypes": [
+            "A11oy::WorkloadIdentity"
+          ],
+          "context": {
+            "type": "A11oy::IntentContext"
+          }
+        }
+      },
+      "InvokeTool": {
+        "appliesTo": {
+          "resourceTypes": [
+            "A11oy::ProtectedResource"
+          ],
+          "principalTypes": [
+            "A11oy::WorkloadIdentity"
+          ],
+          "context": {
+            "type": "A11oy::IntentContext"
+          }
+        }
+      },
+      "ReadResource": {
+        "appliesTo": {
+          "resourceTypes": [
+            "A11oy::ProtectedResource"
+          ],
+          "principalTypes": [
+            "A11oy::WorkloadIdentity"
+          ],
+          "context": {
+            "type": "A11oy::IntentContext"
+          }
+        }
+      },
+      "SignReceipt": {
+        "appliesTo": {
+          "resourceTypes": [
+            "A11oy::ProtectedResource"
+          ],
+          "principalTypes": [
+            "A11oy::WorkloadIdentity"
+          ],
+          "context": {
+            "type": "A11oy::IntentContext"
+          }
+        }
+      },
+      "WriteResource": {
+        "appliesTo": {
+          "resourceTypes": [
+            "A11oy::ProtectedResource"
+          ],
+          "principalTypes": [
+            "A11oy::WorkloadIdentity"
+          ],
+          "context": {
+            "type": "A11oy::IntentContext"
+          }
+        }
+      }
     }
   }
 }
