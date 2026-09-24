@@ -2,55 +2,63 @@ name: Claim Compiler contract
 
 on:
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - "serve.py"
-      - "szl_claim_rupture_gate.py"
-      - "szl_public_claim_manifest.py"
-      - "schemas/evidenceos/claim-*.v1.schema.json"
-      - "schemas/evidenceos/public-claim-*.v1.schema.json"
-      - "scripts/check_public_claim_manifest.py"
-      - "scripts/verify_public_claim_github_job.py"
-      - "artifacts/evidenceos/manifests/**"
-      - "artifacts/evidenceos/receipts/**"
-      - "static/3d/surfaces/integritycontrol.js"
-      - "tests/test_claim_rupture_gate.py"
-      - "tests/test_claim_compiler_routes.py"
-      - "tests/test_integrity_control_surface.py"
-      - "tests/test_public_claim_manifest.py"
-      - ".github/requirements/ci-core.txt"
-      - ".github/requirements/ci-core.in"
-      - ".github/workflows/release.yml"
-      - ".github/workflows/claim-compiler.yml"
+    - serve.py
+    - szl_claim_rupture_gate.py
+    - szl_public_claim_manifest.py
+    - schemas/evidenceos/claim-*.v1.schema.json
+    - schemas/evidenceos/public-claim-*.v1.schema.json
+    - scripts/check_public_claim_manifest.py
+    - scripts/verify_public_claim_github_job.py
+    - artifacts/evidenceos/manifests/**
+    - artifacts/evidenceos/receipts/**
+    - static/3d/surfaces/integritycontrol.js
+    - tests/test_claim_rupture_gate.py
+    - tests/test_claim_compiler_routes.py
+    - tests/test_integrity_control_surface.py
+    - tests/test_public_claim_manifest.py
+    - .github/requirements/ci-core.txt
+    - .github/requirements/ci-core.in
+    - .github/workflows/release.yml
+    - .github/workflows/claim-compiler.yml
   pull_request:
-    branches: [main, agent/evidenceos-claim-wave36]
+    branches:
+    - main
+    - agent/evidenceos-claim-wave36
     paths:
-      - "serve.py"
-      - "szl_claim_rupture_gate.py"
-      - "szl_public_claim_manifest.py"
-      - "schemas/evidenceos/claim-*.v1.schema.json"
-      - "schemas/evidenceos/public-claim-*.v1.schema.json"
-      - "scripts/check_public_claim_manifest.py"
-      - "scripts/verify_public_claim_github_job.py"
-      - "artifacts/evidenceos/manifests/**"
-      - "artifacts/evidenceos/receipts/**"
-      - "static/3d/surfaces/integritycontrol.js"
-      - "tests/test_claim_rupture_gate.py"
-      - "tests/test_claim_compiler_routes.py"
-      - "tests/test_integrity_control_surface.py"
-      - "tests/test_public_claim_manifest.py"
-      - ".github/requirements/ci-core.txt"
-      - ".github/requirements/ci-core.in"
-      - ".github/workflows/release.yml"
-      - ".github/workflows/claim-compiler.yml"
+    - serve.py
+    - szl_claim_rupture_gate.py
+    - szl_public_claim_manifest.py
+    - schemas/evidenceos/claim-*.v1.schema.json
+    - schemas/evidenceos/public-claim-*.v1.schema.json
+    - scripts/check_public_claim_manifest.py
+    - scripts/verify_public_claim_github_job.py
+    - artifacts/evidenceos/manifests/**
+    - artifacts/evidenceos/receipts/**
+    - static/3d/surfaces/integritycontrol.js
+    - tests/test_claim_rupture_gate.py
+    - tests/test_claim_compiler_routes.py
+    - tests/test_integrity_control_surface.py
+    - tests/test_public_claim_manifest.py
+    - .github/requirements/ci-core.txt
+    - .github/requirements/ci-core.in
+    - .github/workflows/release.yml
+    - .github/workflows/claim-compiler.yml
   workflow_dispatch: {}
-
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
+    - agent/evidenceos-claim-wave36
 permissions:
   contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   claim-compiler:

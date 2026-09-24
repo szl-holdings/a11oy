@@ -2,30 +2,36 @@ name: Public Hub inventory access contract
 
 on:
   pull_request:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - scripts/audit_huggingface_ecosystem.py
-      - scripts/test_audit_huggingface_ecosystem.py
-      - scripts/test_hf_gated_public_inventory.py
-      - scripts/test_hf_resolve_transport_schema_v2.py
-      - docs/huggingface-ecosystem-manifest.schema.json
-      - .github/workflows/hf-public-inventory-contract.yml
+    - scripts/audit_huggingface_ecosystem.py
+    - scripts/test_audit_huggingface_ecosystem.py
+    - scripts/test_hf_gated_public_inventory.py
+    - scripts/test_hf_resolve_transport_schema_v2.py
+    - docs/huggingface-ecosystem-manifest.schema.json
+    - .github/workflows/hf-public-inventory-contract.yml
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - scripts/audit_huggingface_ecosystem.py
-      - scripts/test_audit_huggingface_ecosystem.py
-      - scripts/test_hf_gated_public_inventory.py
-      - scripts/test_hf_resolve_transport_schema_v2.py
-      - docs/huggingface-ecosystem-manifest.schema.json
-      - .github/workflows/hf-public-inventory-contract.yml
-
+    - scripts/audit_huggingface_ecosystem.py
+    - scripts/test_audit_huggingface_ecosystem.py
+    - scripts/test_hf_gated_public_inventory.py
+    - scripts/test_hf_resolve_transport_schema_v2.py
+    - docs/huggingface-ecosystem-manifest.schema.json
+    - .github/workflows/hf-public-inventory-contract.yml
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 
 concurrency:
   group: public-inventory-contract-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   contract:

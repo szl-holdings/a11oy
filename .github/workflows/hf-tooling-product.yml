@@ -5,57 +5,60 @@ name: HF tooling product integration
 on:
   pull_request:
     paths:
-      - 'routers/hf_tooling_evidence.py'
-      - 'routers/model_pretraining.py'
-      - 'routers/data/model-pretraining-snapshot.json'
-      - 'docs/huggingface-ecosystem-manifest.json'
-      - 'a11oy_model_intel.py'
-      - 'pages/model-pretraining.*'
-      - 'console/assets/szl-flow.*'
-      - 'console/assets/szl-spectral-v2.css'
-      - 'tests/test_model_pretraining*.py'
-      - 'tests/model-pretraining.test.mjs'
-      - 'scripts/build_model_pretraining_projection.py'
-      - 'scripts/test_model_pretraining_browser.py'
-      - 'routers/data/hf-tooling-20260910.json'
-      - 'routers/frontier_reads.py'
-      - 'routers/frontier_now_web/index.html'
-      - 'routers/__init__.py'
-      - 'pages/hf-tooling.*'
-      - 'tests/test_hf_tooling_evidence.py'
-      - 'scripts/test_hf_tooling_browser.py'
-      - '.github/workflows/hf-tooling-product.yml'
+    - routers/hf_tooling_evidence.py
+    - routers/model_pretraining.py
+    - routers/data/model-pretraining-snapshot.json
+    - docs/huggingface-ecosystem-manifest.json
+    - a11oy_model_intel.py
+    - pages/model-pretraining.*
+    - console/assets/szl-flow.*
+    - console/assets/szl-spectral-v2.css
+    - tests/test_model_pretraining*.py
+    - tests/model-pretraining.test.mjs
+    - scripts/build_model_pretraining_projection.py
+    - scripts/test_model_pretraining_browser.py
+    - routers/data/hf-tooling-20260910.json
+    - routers/frontier_reads.py
+    - routers/frontier_now_web/index.html
+    - routers/__init__.py
+    - pages/hf-tooling.*
+    - tests/test_hf_tooling_evidence.py
+    - scripts/test_hf_tooling_browser.py
+    - .github/workflows/hf-tooling-product.yml
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - 'routers/hf_tooling_evidence.py'
-      - 'routers/model_pretraining.py'
-      - 'routers/data/model-pretraining-snapshot.json'
-      - 'docs/huggingface-ecosystem-manifest.json'
-      - 'a11oy_model_intel.py'
-      - 'pages/model-pretraining.*'
-      - 'console/assets/szl-flow.*'
-      - 'console/assets/szl-spectral-v2.css'
-      - 'tests/test_model_pretraining*.py'
-      - 'tests/model-pretraining.test.mjs'
-      - 'scripts/build_model_pretraining_projection.py'
-      - 'scripts/test_model_pretraining_browser.py'
-      - 'routers/data/hf-tooling-20260910.json'
-      - 'routers/frontier_reads.py'
-      - 'routers/frontier_now_web/index.html'
-      - 'routers/__init__.py'
-      - 'pages/hf-tooling.*'
-      - 'tests/test_hf_tooling_evidence.py'
-      - 'scripts/test_hf_tooling_browser.py'
-      - '.github/workflows/hf-tooling-product.yml'
-  workflow_dispatch:
-
+    - routers/hf_tooling_evidence.py
+    - routers/model_pretraining.py
+    - routers/data/model-pretraining-snapshot.json
+    - docs/huggingface-ecosystem-manifest.json
+    - a11oy_model_intel.py
+    - pages/model-pretraining.*
+    - console/assets/szl-flow.*
+    - console/assets/szl-spectral-v2.css
+    - tests/test_model_pretraining*.py
+    - tests/model-pretraining.test.mjs
+    - scripts/build_model_pretraining_projection.py
+    - scripts/test_model_pretraining_browser.py
+    - routers/data/hf-tooling-20260910.json
+    - routers/frontier_reads.py
+    - routers/frontier_now_web/index.html
+    - routers/__init__.py
+    - pages/hf-tooling.*
+    - tests/test_hf_tooling_evidence.py
+    - scripts/test_hf_tooling_browser.py
+    - .github/workflows/hf-tooling-product.yml
+  workflow_dispatch: null
+  merge_group:
+    types:
+    - checks_requested
 permissions:
   contents: read
 
 concurrency:
   group: hf-tooling-product-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   python-api-and-browser:

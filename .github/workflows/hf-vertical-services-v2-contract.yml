@@ -4,25 +4,31 @@ name: HF Vertical Services v2 contract
 # Source-neutral trusted retrigger after the deterministic doctrine repair.
 on:
   pull_request:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - scripts/hf_publish_vertical_flagships_v4.py
-      - scripts/hf_publish_vertical_flagships_v4_impl.py
-      - scripts/hf_publish_vertical_services.py
-      - deployments/vertical-forge/terra/**
-      - tests/test_hf_publish_vertical_flagships_v4.py
-      - .github/workflows/hf-vertical-services-v2-contract.yml
+    - scripts/hf_publish_vertical_flagships_v4.py
+    - scripts/hf_publish_vertical_flagships_v4_impl.py
+    - scripts/hf_publish_vertical_services.py
+    - deployments/vertical-forge/terra/**
+    - tests/test_hf_publish_vertical_flagships_v4.py
+    - .github/workflows/hf-vertical-services-v2-contract.yml
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - scripts/hf_publish_vertical_flagships_v4.py
-      - scripts/hf_publish_vertical_flagships_v4_impl.py
-      - scripts/hf_publish_vertical_services.py
-      - deployments/vertical-forge/terra/**
-      - tests/test_hf_publish_vertical_flagships_v4.py
-      - .github/workflows/hf-vertical-services-v2-contract.yml
-  workflow_dispatch:
-
+    - scripts/hf_publish_vertical_flagships_v4.py
+    - scripts/hf_publish_vertical_flagships_v4_impl.py
+    - scripts/hf_publish_vertical_services.py
+    - deployments/vertical-forge/terra/**
+    - tests/test_hf_publish_vertical_flagships_v4.py
+    - .github/workflows/hf-vertical-services-v2-contract.yml
+  workflow_dispatch: null
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 

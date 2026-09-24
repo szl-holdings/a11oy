@@ -2,38 +2,46 @@ name: EvidenceOS public-claim integrity
 
 on:
   schedule:
-    - cron: '17 9 * * *'
-  workflow_call:
+  - cron: 17 9 * * *
+  workflow_call: null
   pull_request:
-    branches: [main, agent/evidenceos-claim-wave36]
+    branches:
+    - main
+    - agent/evidenceos-claim-wave36
     paths:
-      - 'szl_public_claim_manifest.py'
-      - 'schemas/evidenceos/public-claim-*.v1.schema.json'
-      - 'scripts/check_public_claim_manifest.py'
-      - 'scripts/verify_public_claim_github_job.py'
-      - 'artifacts/evidenceos/manifests/**'
-      - 'artifacts/evidenceos/receipts/**'
-      - 'tests/test_public_claim_manifest.py'
-      - '.github/requirements/ci-core.txt'
-      - '.github/requirements/ci-core.in'
-      - '.github/workflows/release.yml'
-      - '.github/workflows/public-claim-integrity.yml'
+    - szl_public_claim_manifest.py
+    - schemas/evidenceos/public-claim-*.v1.schema.json
+    - scripts/check_public_claim_manifest.py
+    - scripts/verify_public_claim_github_job.py
+    - artifacts/evidenceos/manifests/**
+    - artifacts/evidenceos/receipts/**
+    - tests/test_public_claim_manifest.py
+    - .github/requirements/ci-core.txt
+    - .github/requirements/ci-core.in
+    - .github/workflows/release.yml
+    - .github/workflows/public-claim-integrity.yml
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - 'szl_public_claim_manifest.py'
-      - 'schemas/evidenceos/public-claim-*.v1.schema.json'
-      - 'scripts/check_public_claim_manifest.py'
-      - 'scripts/verify_public_claim_github_job.py'
-      - 'artifacts/evidenceos/manifests/**'
-      - 'artifacts/evidenceos/receipts/**'
-      - 'tests/test_public_claim_manifest.py'
-      - '.github/requirements/ci-core.txt'
-      - '.github/requirements/ci-core.in'
-      - '.github/workflows/release.yml'
-      - '.github/workflows/public-claim-integrity.yml'
-  workflow_dispatch:
-
+    - szl_public_claim_manifest.py
+    - schemas/evidenceos/public-claim-*.v1.schema.json
+    - scripts/check_public_claim_manifest.py
+    - scripts/verify_public_claim_github_job.py
+    - artifacts/evidenceos/manifests/**
+    - artifacts/evidenceos/receipts/**
+    - tests/test_public_claim_manifest.py
+    - .github/requirements/ci-core.txt
+    - .github/requirements/ci-core.in
+    - .github/workflows/release.yml
+    - .github/workflows/public-claim-integrity.yml
+  workflow_dispatch: null
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
+    - agent/evidenceos-claim-wave36
 permissions:
   contents: read
   actions: read

@@ -2,27 +2,33 @@ name: Spectral Fabric v2 Contract
 
 on:
   pull_request:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - "console/assets/szl-flow.js"
-      - "console/assets/szl-flow.css"
-      - "console/assets/szl-spectral-v2.css"
-      - "docs/frontend-theme-registry-v2.json"
-      - "docs/SZL_SPECTRAL_FABRIC_V2.md"
-      - "tests/test_spectral_fabric_v2.py"
-      - ".github/workflows/spectral-fabric-v2-contract.yml"
+    - console/assets/szl-flow.js
+    - console/assets/szl-flow.css
+    - console/assets/szl-spectral-v2.css
+    - docs/frontend-theme-registry-v2.json
+    - docs/SZL_SPECTRAL_FABRIC_V2.md
+    - tests/test_spectral_fabric_v2.py
+    - .github/workflows/spectral-fabric-v2-contract.yml
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - "console/assets/szl-flow.js"
-      - "console/assets/szl-flow.css"
-      - "console/assets/szl-spectral-v2.css"
-      - "docs/frontend-theme-registry-v2.json"
-      - "docs/SZL_SPECTRAL_FABRIC_V2.md"
-      - "tests/test_spectral_fabric_v2.py"
-      - ".github/workflows/spectral-fabric-v2-contract.yml"
-  workflow_dispatch:
-
+    - console/assets/szl-flow.js
+    - console/assets/szl-flow.css
+    - console/assets/szl-spectral-v2.css
+    - docs/frontend-theme-registry-v2.json
+    - docs/SZL_SPECTRAL_FABRIC_V2.md
+    - tests/test_spectral_fabric_v2.py
+    - .github/workflows/spectral-fabric-v2-contract.yml
+  workflow_dispatch: null
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 

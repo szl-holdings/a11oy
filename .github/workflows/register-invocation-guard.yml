@@ -29,33 +29,39 @@ name: Register-Invocation Guard
 
 on:
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - 'serve.py'
-      - 'wayra_serve.py'
-      - 'ayni_os_serve.py'
-      - 'kipu_qillqaq_serve.py'
-      - '.github/scripts/register_invocation.py'
-      - '.github/register-invocation-allowlist.txt'
-      - '**.py'
+    - serve.py
+    - wayra_serve.py
+    - ayni_os_serve.py
+    - kipu_qillqaq_serve.py
+    - .github/scripts/register_invocation.py
+    - .github/register-invocation-allowlist.txt
+    - '**.py'
   pull_request:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - 'serve.py'
-      - 'wayra_serve.py'
-      - 'ayni_os_serve.py'
-      - 'kipu_qillqaq_serve.py'
-      - '.github/scripts/register_invocation.py'
-      - '.github/register-invocation-allowlist.txt'
-      - '**.py'
-  workflow_dispatch:
-
+    - serve.py
+    - wayra_serve.py
+    - ayni_os_serve.py
+    - kipu_qillqaq_serve.py
+    - .github/scripts/register_invocation.py
+    - .github/register-invocation-allowlist.txt
+    - '**.py'
+  workflow_dispatch: null
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   unwired-register:

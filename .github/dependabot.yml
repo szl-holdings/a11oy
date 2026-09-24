@@ -18,10 +18,19 @@ updates:
       # reviewable PRs.
       actions:
         patterns:
-          - "*"
+        - '*'
         update-types:
-          - "minor"
-          - "patch"
+        - minor
+        - patch
+        exclude-patterns:
+        - torch*
+        - transformers
+        - accelerate
+        - vllm
+        - unsloth*
+        - openai
+    cooldown:
+      default-days: 3
 
   # Python pip dependencies
   - package-ecosystem: "pip"
@@ -37,10 +46,22 @@ updates:
     groups:
       python-deps:
         patterns:
-          - "*"
+        - '*'
         update-types:
-          - "minor"
-          - "patch"
+        - minor
+        - patch
+        exclude-patterns:
+        - torch*
+        - transformers
+        - accelerate
+        - vllm
+        - unsloth*
+        - openai
+    cooldown:
+      default-days: 7
+      semver-major-days: 21
+      semver-minor-days: 7
+      semver-patch-days: 3
 
   # Docker dependencies
   - package-ecosystem: "docker"
@@ -54,6 +75,22 @@ updates:
       - "dependencies"
       - "security"
     open-pull-requests-limit: 3
+    cooldown:
+      default-days: 3
+    groups:
+      szl-minor-patch:
+        patterns:
+        - '*'
+        update-types:
+        - minor
+        - patch
+        exclude-patterns:
+        - torch*
+        - transformers
+        - accelerate
+        - vllm
+        - unsloth*
+        - openai
 
   # npm / Node dependencies.
   # Security updates (Dependabot alerts -> auto-fix PRs) apply to every manifest
@@ -81,7 +118,19 @@ updates:
     groups:
       npm-deps:
         patterns:
-          - "*"
+        - '*'
         update-types:
-          - "minor"
-          - "patch"
+        - minor
+        - patch
+        exclude-patterns:
+        - torch*
+        - transformers
+        - accelerate
+        - vllm
+        - unsloth*
+        - openai
+    cooldown:
+      default-days: 7
+      semver-major-days: 21
+      semver-minor-days: 7
+      semver-patch-days: 3

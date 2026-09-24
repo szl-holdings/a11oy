@@ -2,9 +2,19 @@ name: Namespace Leak Check
 
 on:
   pull_request:
-    branches: [main, master]
-    types: [opened, synchronize, reopened]
-
+    branches:
+    - main
+    - master
+    types:
+    - opened
+    - synchronize
+    - reopened
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
+    - master
 permissions:
   contents: read
   pull-requests: read

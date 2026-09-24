@@ -2,24 +2,30 @@ name: DEV-A real-estate readiness HTTP boundary
 
 on:
   pull_request:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - 'a11oy_deva_feeds.py'
-      - 'a11oy_vertical_feeds.py'
-      - 'tests/test_deva_realestate_readiness_route_boundary.py'
-      - 'tests/test_deva_realestate_http_boundary.py'
-      - '.github/requirements/ci-core.txt'
-      - '.github/workflows/deva-readiness-boundary.yml'
+    - a11oy_deva_feeds.py
+    - a11oy_vertical_feeds.py
+    - tests/test_deva_realestate_readiness_route_boundary.py
+    - tests/test_deva_realestate_http_boundary.py
+    - .github/requirements/ci-core.txt
+    - .github/workflows/deva-readiness-boundary.yml
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - 'a11oy_deva_feeds.py'
-      - 'a11oy_vertical_feeds.py'
-      - 'tests/test_deva_realestate_readiness_route_boundary.py'
-      - 'tests/test_deva_realestate_http_boundary.py'
-      - '.github/requirements/ci-core.txt'
-      - '.github/workflows/deva-readiness-boundary.yml'
-
+    - a11oy_deva_feeds.py
+    - a11oy_vertical_feeds.py
+    - tests/test_deva_realestate_readiness_route_boundary.py
+    - tests/test_deva_realestate_http_boundary.py
+    - .github/requirements/ci-core.txt
+    - .github/workflows/deva-readiness-boundary.yml
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 

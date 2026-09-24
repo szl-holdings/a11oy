@@ -11,25 +11,31 @@ name: HF bucket self-test
 
 on:
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - szl_hf_bucket.py
-      - test_szl_hf_bucket.py
-      - .github/workflows/hf-bucket-selftest.yml
+    - szl_hf_bucket.py
+    - test_szl_hf_bucket.py
+    - .github/workflows/hf-bucket-selftest.yml
   pull_request:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - szl_hf_bucket.py
-      - test_szl_hf_bucket.py
-      - .github/workflows/hf-bucket-selftest.yml
-  workflow_dispatch:
-
+    - szl_hf_bucket.py
+    - test_szl_hf_bucket.py
+    - .github/workflows/hf-bucket-selftest.yml
+  workflow_dispatch: null
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   selftest:
