@@ -239,6 +239,8 @@ jobs:
         # The nested-static suite exercises the assembled app as well: the owning
         # path-converter route must return GET/HEAD 200 while missing scoped
         # assets and undeclared root files remain fail-closed JSON 404s.
+        # test_ledger_receipt_records: GET pcai/run never appends to the lake chain,
+        # and the overview counts receipt records, not signed receipts.
         run: >-
           pytest
           tests/test_demo_critical_routes.py
@@ -250,6 +252,7 @@ jobs:
           tests/test_khipu_console_panel.py
           tests/test_v4_agent_voters.py
           tests/test_identity_lock.py
+          tests/test_ledger_receipt_records.py
           test_canonical_domain.py
           -q
 

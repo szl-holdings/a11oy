@@ -296,6 +296,8 @@
     background:linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015))}
   .cstat .ck{font-family:var(--mono);font-size:var(--fs-5);font-weight:600;color:var(--proof);word-break:break-all;line-height:1.15}
   .cstat .cl{font-size:11.5px;color:var(--ghost);text-transform:uppercase;letter-spacing:1.1px;margin-top:6px}
+  .cstat .cl .stat-note{display:block;text-transform:none;letter-spacing:0;font-size:10.5px;line-height:1.5;opacity:.8;margin-top:4px}
+  .cstat .cl .stat-note:empty{display:none}
   .cstat .ck.ink{color:var(--ink);font-size:1.05rem}
 
   /* trust CTA */
@@ -1218,11 +1220,12 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
 <section class="band" id="chain" style="background:linear-gradient(180deg,rgba(10,16,30,0),rgba(10,16,30,0.55))">
   <div class="wrap">
     <p class="kick">One chain · live ledger <span id="chain-src"></span></p>
-    <h2>One ledger. Every decision. Replayable to the byte.</h2>
+    <h2>One ledger. Every receipt record. Replayable to the byte.</h2>
     <p class="intro">Every vertical emits into a single SHA3-256 hash-chain — append-only,
-      fsync-durable, replayable to a byte-identical root instead of trusting a dashboard.</p>
+      fsync-durable, replayable to a byte-identical root instead of trusting a dashboard.
+      Record count is not a decision count: legacy MODELED probe records are counted separately.</p>
     <div class="chainrow">
-      <div class="cstat"><div class="ck" id="chain-receipts">—</div><div class="cl">Receipt records · signer state separate</div></div>
+      <div class="cstat"><div class="ck" id="chain-receipts">—</div><div class="cl">Receipt records · signer state separate<span class="stat-note" id="chain-split"></span></div></div>
       <div class="cstat"><div class="ck ink mono" id="chain-alg">sha3_256</div><div class="cl">Chain algorithm</div></div>
       <div class="cstat"><div class="ck" id="chain-depth">—</div><div class="cl">Chain depth (a11oy)</div></div>
       <div class="cstat"><div class="ck ink mono" id="chain-head" style="font-size:.86rem">—</div><div class="cl">Last receipt id</div></div>
@@ -2010,6 +2013,17 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
     if(headId){ const h = String(headId); $("chain-head").textContent = h.length>14 ? (h.slice(0,10)+"…"+h.slice(-4)) : h; }
     else { $("chain-head").textContent = "N/A"; }
   }
+  // Split of the record count, measured server-side from stored envelopes. Omitted when the
+  // runtime does not report it; never derived from a signed:true flag.
+  function setChainSplit(dsseSigBytes, modeledProbe){
+    const el = $("chain-split");
+    if(!el) return;
+    const s = num(dsseSigBytes), p = num(modeledProbe);
+    const parts = [];
+    if(s!==null) parts.push(s.toLocaleString() + " store DSSE signature bytes (not verified here)");
+    if(p!==null) parts.push(p.toLocaleString() + " legacy MODELED GET probes");
+    el.textContent = parts.join(" · ");
+  }
 
   // ---- (A) try the ONE consolidated read (Dev 5) ----
   async function loadOverview(){
@@ -2025,8 +2039,12 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
       }
       const ts = o.thesis_stats || {};
       const ch = o.chain || {};
-      if(ts.signed_receipts !== undefined || ch.depth !== undefined){
-        setChain(num(ts.signed_receipts), ts.chain_alg || "sha3_256", num(ch.depth), ch.last_receipt);
+      // receipt_records = hash-chained record count. Older runtimes named the same number
+      // signed_receipts; read it only as a record count, never as a signature count.
+      const records = (ts.receipt_records !== undefined) ? ts.receipt_records : ts.signed_receipts;
+      if(records !== undefined || ch.depth !== undefined){
+        setChain(num(records), ts.chain_alg || "sha3_256", num(ch.depth), ch.last_receipt);
+        setChainSplit(ts.dsse_sig_bytes_records, ts.modeled_probe_records);
         $("chain-src").innerHTML = grayChip("REACHABLE · overview"); any = true;
       }
       if(o.org_lambda !== undefined && $("v-org")){ const v=fmtLam(o.org_lambda); $("v-org").textContent = v||"N/A"; lamChip("v-org-chip", num(o.org_lambda)); }
