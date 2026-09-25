@@ -60,6 +60,8 @@ def test_holographic_operations_surface_is_deployed_and_accessible() -> None:
     assert "A11oy Holographic Operations" in source
     assert "The estate, observed—not assumed." in source
     assert "/api/livez" in source
+    assert 'p.status==="PROCESS_ALIVE"' in source
+    assert 'p.status==="LIVE"' not in source
     assert "/api/build-info" in source
     assert "/api/a11oy/v1/brain/capabilities" in source
     assert "/api/a11oy/v1/readiness/tab-matrix?view=summary" in source

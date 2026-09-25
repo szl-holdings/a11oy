@@ -75,9 +75,11 @@ def test_livez_proves_process_only():
     response = client.get("/api/livez")
     assert response.status_code == 200
     body = response.json()
-    assert body["status"] == "LIVE"
+    assert body["status"] == "PROCESS_ALIVE"
+    assert body["status"] != "LIVE"
     assert body["process"]["pid"] > 0
     assert "dependency" not in body
+    assert body["production_ready"] is False
     assert body["receipt_minted"] is False
 
 

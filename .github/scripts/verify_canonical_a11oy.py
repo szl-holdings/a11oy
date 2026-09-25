@@ -632,8 +632,12 @@ def validate_route(
     evidence["schema"] = payload.get("schema")
     evidence["status"] = payload.get("status") or payload.get("overall_status")
     if name == "livez":
-        if payload.get("status") != "LIVE" or payload.get("receipt_minted") is not False:
-            raise RelockError("liveness route is not LIVE/read-only")
+        if (
+            payload.get("status") != "PROCESS_ALIVE"
+            or payload.get("receipt_minted") is not False
+            or payload.get("production_ready") is not False
+        ):
+            raise RelockError("liveness route is not process-only/read-only")
     elif name == "build_info":
         build = payload.get("build")
         runtime = payload.get("runtime")

@@ -161,15 +161,21 @@ def load_terra_forge_bundle() -> tuple[str, dict[str, Any]]:
     return _BASE.load_terra_forge_bundle()
 
 
+_base_html = _BASE.html
+
+
 def html(item: dict[str, Any]) -> str:
     _sync_contract()
-    page = _BASE.html(item)
+    page = _base_html(item)
     if _LIVEBAR_OPEN not in page:
         raise RuntimeError("flagship livebar still opens on HTTP LIVE")
     page = page.replace(_LIVEBAR_OPEN, _LIVEBAR_CLOSED, 1)
     if item.get("slug") == "sentra":
         page = page.replace('<html lang="en"', '<html lang="en" data-iris="closed"', 1)
     return page
+
+
+_BASE.html = html
 
 
 def readme(item: dict[str, Any]) -> str:

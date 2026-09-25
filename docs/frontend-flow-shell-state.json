@@ -1,5 +1,5 @@
 {
-  "examined_documents": 110,
+  "examined_documents": 113,
   "injected_documents": [
     "a11oy_landing.html",
     "cathedral_genius.html",
@@ -43,9 +43,12 @@
     "pages/graph-operations.html",
     "pages/harvest.html",
     "pages/hatun-mcp.html",
+    "pages/hf-tooling.html",
     "pages/hub.html",
+    "pages/killinchu.html",
     "pages/landing.html",
     "pages/mesh.html",
+    "pages/model-pretraining.html",
     "pages/observability.html",
     "pages/operator-pane.html",
     "pages/operator_organ.html",

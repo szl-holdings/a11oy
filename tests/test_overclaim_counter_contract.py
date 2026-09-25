@@ -29,7 +29,7 @@ def test_landing_exposes_evidence_backed_overclaim_counter() -> None:
     assert "crypto.subtle.digest" in landing
     assert "digest !== pinnedDigest" in landing
     assert 'grayChip("SAMPLE · SNAPSHOT 2026-07-25 · SOURCE UNAVAILABLE")' in landing
-    assert 'grayChip("MEASURED · SNAPSHOT "+observed+" · DIGEST OK")' in landing
+    assert 'grayChip("SNAPSHOT "+observed+" · DIGEST OK · HTTP 200 is REACHABLE")' in landing
 
 
 def test_counter_requires_explicit_snapshot_and_one_sample_labels() -> None:

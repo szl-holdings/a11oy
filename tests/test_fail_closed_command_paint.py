@@ -34,8 +34,8 @@ def paint_from_cycle(cycle: dict | None) -> str:
         return "UNAVAILABLE"
     if cycle.get("productionPromotion") is True:
         return "DENY"
-    if cycle.get("lambda") != "CONJECTURE_1" or cycle.get("lambdaNeverATheorem") is not True:
-        return "DENY"  # Lambda is Conjecture 1, never a theorem.
+    if cycle.get("lambda") != "CONJECTURE_1" or cycle.get("lambdaNeverATheorem") is not True:  # never a theorem
+        return "DENY"
     if cycle.get("authority") != "PROPOSAL_ONLY":
         return "DENY"
     if cycle.get("invariantsOk") is not True:
@@ -63,7 +63,7 @@ def _allow_cycle(**overrides: object) -> dict:
         "productionPromotion": False,
         "authority": "PROPOSAL_ONLY",
         "lambda": "CONJECTURE_1",
-        "lambdaNeverATheorem": True,
+        "lambdaNeverATheorem": True,  # never a theorem
     }
     body.update(overrides)
     return body
@@ -79,7 +79,6 @@ def test_deny_verdicts_and_promotion_cannot_paint_allow() -> None:
     for verdict in ("HARD_DENY", "LAMBDA_VETO", "DENY_DEFAULT", "ESCALATE"):
         assert paint_from_cycle(_allow_cycle(verdict=verdict)) == "DENY"
     assert paint_from_cycle(_allow_cycle(productionPromotion=True)) == "DENY"
-    # Inv2 window: Lambda is Conjecture 1, never a theorem.
     theorem_claim = _allow_cycle()
     theorem_claim["lambda"] = "THEOREM"
     theorem_claim["lambdaNeverATheorem"] = False  # never a theorem
@@ -164,6 +163,13 @@ def test_holographic_and_landing_catch_cannot_paint_live_or_measured() -> None:
     assert 'pulseState("health", "MEASURED"' not in landing
     assert 'pulseState("health", "LIVE"' not in landing
     assert '.catch(() => pulseState("health", "UNAVAILABLE"' in landing
+    assert 'liveChip("overview")' not in landing
+    assert 'liveChip("genome")' not in landing
+    assert 'grayChip("REACHABLE · overview")' in landing
+    assert "HTTP 200 is REACHABLE" in landing
+    assert "HTTP 200 is not MEASURED" in landing
+    assert 'state === "LIVE" || state === "REACHABLE"' not in landing
+    assert '"REACHABLE"' in landing.split("amberStates", 1)[1].split(";", 1)[0]
 
 
 def test_console_probe_catch_still_unavailable() -> None:
@@ -171,3 +177,4 @@ def test_console_probe_catch_still_unavailable() -> None:
         text = path.read_text(encoding="utf-8")
         assert 'badge b-live">UP' not in text, path
         assert 'b-err">UNAVAILABLE' in text, path
+        assert "status:'ok',latency_ms:0,http_code:200" not in text, path

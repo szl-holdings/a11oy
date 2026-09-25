@@ -164,9 +164,10 @@ def success_session(origin: str, source_sha: str) -> FakeSession:
     )
     payloads = {
         "livez": {
-            "status": "LIVE",
+            "status": "PROCESS_ALIVE",
             "process": {"pid": 1},
             "scope": "process liveness only",
+            "production_ready": False,
             "receipt_minted": False,
         },
         "build_info": {
