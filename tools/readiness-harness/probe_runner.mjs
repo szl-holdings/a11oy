@@ -20,6 +20,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { canonicalUnavailableStatus } from "./canonical_unavailable.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -478,7 +479,13 @@ function evaluateEndpointLabels(httpStatus, spec, body) {
   );
   const disallowed = [
     ...labels.filter(
-      (entry) => !allowed.has(entry.normalized) && !supplementalObserved(entry),
+      (entry) =>
+        !allowed.has(entry.normalized)
+        && !supplementalObserved(entry)
+        && !canonicalUnavailableStatus(entry, body, {
+          valueAtPath,
+          isCanonicalUnavailableSource,
+        }),
     ),
     ...findEvidenceContradictions(spec, body),
   ];

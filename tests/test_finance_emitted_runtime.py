@@ -158,6 +158,8 @@ def test_workflow_tests_the_emitted_lock_and_runs_generated_container():
     assert "fastapi==0.141.1 starlette==1.6.0" not in text
     assert "materialize_finance_runtime.py" in text
     assert "--network none --read-only" in text
+    assert "-p 127.0.0.1:17860:7860" in text
+    assert "docker network create --internal" not in text
     assert "tests/smoke_generated_finance_runtime.py" in text
     assert "pip_audit --strict" in text
     assert workflow["permissions"] == {"contents":"read"}

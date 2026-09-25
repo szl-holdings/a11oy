@@ -1378,6 +1378,33 @@ try:
 except Exception as _szl_fm_e:  # pragma: no cover
     print(f"[a11oy] Frontier manifest NOT registered: {_szl_fm_e!r}", file=__import__("sys").stderr)
 
+# Fail-closed advisory surfaces from #2205/#2260. They answer UNAVAILABLE/HOLD/BLOCKED.
+# None of these routes mint receipts, paint LIVE, or promote ALLOW.
+try:
+    import szl_dream_gate as _szl_dream_gate
+    _szl_dream_gate.register(app, ns="a11oy")
+    print("[a11oy] dream_gate registered: /api/a11oy/v1/dream/* (DREAM, never LIVE/ALLOW)", file=__import__("sys").stderr)
+except Exception as _szl_dg_e:  # pragma: no cover
+    print(f"[a11oy] szl_dream_gate NOT registered: {_szl_dg_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_frontier_gate as _szl_frontier_gate
+    _szl_frontier_gate.register(app, ns="a11oy")
+    print("[a11oy] frontier_gate registered: /api/a11oy/v1/frontier/status (advisory HOLD)", file=__import__("sys").stderr)
+except Exception as _szl_fg_e:  # pragma: no cover
+    print(f"[a11oy] szl_frontier_gate NOT registered: {_szl_fg_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_hf_scout as _szl_hf_scout
+    _szl_hf_scout.register(app, ns="a11oy")
+    print("[a11oy] hf_scout registered: /api/a11oy/v1/hf-scout/* (likes are not LIVE)", file=__import__("sys").stderr)
+except Exception as _szl_hs_e:  # pragma: no cover
+    print(f"[a11oy] szl_hf_scout NOT registered: {_szl_hs_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kernel_hold as _szl_kernel_hold
+    _szl_kernel_hold.register(app, ns="a11oy")
+    print("[a11oy] kernel_hold registered: /api/a11oy/v1/kernel/* (v1 missing, HOLD)", file=__import__("sys").stderr)
+except Exception as _szl_kh_e:  # pragma: no cover
+    print(f"[a11oy] szl_kernel_hold NOT registered: {_szl_kh_e!r}", file=__import__("sys").stderr)
+
 # zkML Proof-of-Inference ("Cryptographic Receipts") — GET /api/a11oy/v1/frontier/zkinfer
 # returns the CRYPTOGRAPHIC-PROOF trust branch of verifiable inference (counterpart to the
 # TEE branch, ccattest): literature-parameterized zkML proof-cost models (prover time / proof
