@@ -17,6 +17,10 @@ on:
       - 'tests/model-pretraining.test.mjs'
       - 'scripts/build_model_pretraining_projection.py'
       - 'scripts/test_model_pretraining_browser.py'
+      - 'scripts/verify_model_pretraining_live.py'
+      - 'scripts/prepare_hf_inventory_refresh.py'
+      - 'tests/test_hf_inventory_refresh*.py'
+      - '.github/workflows/hf-ecosystem-drift.yml'
       - 'routers/data/hf-tooling-20260910.json'
       - 'routers/frontier_reads.py'
       - 'routers/frontier_now_web/index.html'
@@ -40,6 +44,10 @@ on:
       - 'tests/model-pretraining.test.mjs'
       - 'scripts/build_model_pretraining_projection.py'
       - 'scripts/test_model_pretraining_browser.py'
+      - 'scripts/verify_model_pretraining_live.py'
+      - 'scripts/prepare_hf_inventory_refresh.py'
+      - 'tests/test_hf_inventory_refresh*.py'
+      - '.github/workflows/hf-ecosystem-drift.yml'
       - 'routers/data/hf-tooling-20260910.json'
       - 'routers/frontier_reads.py'
       - 'routers/frontier_now_web/index.html'
@@ -49,16 +57,21 @@ on:
       - 'scripts/test_hf_tooling_browser.py'
       - '.github/workflows/hf-tooling-product.yml'
   workflow_dispatch:
+  workflow_run:
+    workflows: ['Sync and Relock Canonical Hugging Face Space']
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: read
 
 concurrency:
-  group: hf-tooling-product-${{ github.ref }}
+  group: hf-tooling-product-${{ github.event_name }}-${{ github.event.workflow_run.id || github.ref }}
   cancel-in-progress: true
 
 jobs:
   python-api-and-browser:
+    if: github.event_name != 'workflow_run'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -79,6 +92,7 @@ jobs:
         run: |
           python scripts/build_model_pretraining_projection.py --check
           python -m unittest discover -s tests -p 'test_model_pretraining*.py' -v
+          python -m unittest discover -s tests -p 'test_hf_inventory_refresh*.py' -v
           node --test tests/model-pretraining.test.mjs
       - name: Verify the canonical image already includes all new runtime files
         run: |
@@ -106,3 +120,47 @@ jobs:
             artifacts/model-pretraining/
           if-no-files-found: warn
           retention-days: 30
+
+  published-model-readback:
+    name: Read back model preparation (${{ matrix.surface }})
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      github.repository == 'szl-holdings/a11oy'
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        surface: [canonical, product]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          # Execute trusted default-branch code, never a triggering run payload.
+          # A moved source fails the observer comparison before network access.
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+      - name: Check served source, API contract, and frontend bytes without credentials
+        env:
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+          SURFACE: ${{ matrix.surface }}
+        run: >-
+          python -B scripts/verify_model_pretraining_live.py
+          --surface "$SURFACE"
+          --expected-source "$SOURCE_SHA"
+          --output "artifacts/model-pretraining/live-$SURFACE.json"
+      - name: Preserve each origin result without aggregating it into estate readiness
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: model-live-${{ matrix.surface }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/model-pretraining/live-${{ matrix.surface }}.json
+          if-no-files-found: error
+          retention-days: 90

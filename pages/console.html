@@ -1860,7 +1860,7 @@ async function wh_all(){for(const k of ['cannonico','tychee','hangar2apps','cybe
 // System health (a11oy public-URL probe)
 async function fleet_load(){try{const d=await getJSON(API+'/v1/observability/summary');const mr=d.mesh_reach||{};const keys=Object.keys(mr);let ok=0;setHTML('fl-reach-host','');
   keys.forEach(k=>{const v=mr[k];const up=(v.status||'ok')==='ok';if(up)ok++;addHTML('fl-reach-host',`<div class="row"><span class="badge ${up?'b-live':'b-err'}">${up?'UP':'DOWN'}</span><span>${esc(v.name||k)}</span><span class="spacer mono dim">${v.latency_ms?Math.round(v.latency_ms)+'ms':''} ${esc(v.url||'in-image')}</span></div>`);});
-  setTxt('fl-reach',keys.length?ok+'/'+keys.length:'\u2014');}catch(e){setHTML('fl-reach-host','');CAPS.forEach(c=>addHTML('fl-reach-host',`<div class="row"><span class="badge b-live">UP</span><span>${esc(c.name)}</span><span class="spacer mono dim">in-image</span></div>`));setTxt('fl-reach',(CAPS.length+1)+'/'+(CAPS.length+1));}}
+  setTxt('fl-reach',keys.length?ok+'/'+keys.length:'\u2014');}catch(e){setHTML('fl-reach-host','');CAPS.forEach(c=>addHTML('fl-reach-host',`<div class="row"><span class="badge b-err">UNAVAILABLE</span><span>${esc(c.name)}</span><span class="spacer mono dim">in-image</span></div>`));setTxt('fl-reach',(CAPS.length+1)+'/'+(CAPS.length+1));}}
 
 // Live system map (3D) — SELF-CONTAINED: a11oy GOLD core + internal capability
 // nodes from the in-image CAPS graph. Renders INSTANTLY (no network) so the

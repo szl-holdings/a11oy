@@ -50,7 +50,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Derive image version and tags
         id: ver
@@ -90,7 +90,7 @@ jobs:
 
       - name: Build image (push on main + release; load on PR)
         id: build
-        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: Dockerfile
@@ -114,19 +114,35 @@ jobs:
 
       - name: Smoke test image (PR builds — loaded into local daemon)
         if: github.event_name == 'pull_request'
+        timeout-minutes: 12
         run: |
           TAG="${{ env.IMAGE }}:pr-${{ steps.ver.outputs.sha7 }}"
-          echo "=== boot container + probe /api/a11oy/healthz ==="
-          CID="$(docker run -d -e PORT=7860 -p 7860:7860 "${TAG}")"
+          IMAGE_REVISION="$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "${TAG}")"
+          test "${IMAGE_REVISION}" = "${GITHUB_SHA}"
+          IMAGE_ID="$(docker image inspect --format '{{.Id}}' "${TAG}")"
+          echo "=== boot exact-source container + probe health and model feature ==="
+          CID="$(docker run -d -e PORT=7860 -e SZL_GIT_SHA="${GITHUB_SHA}" -p 127.0.0.1:7860:7860 "${TAG}")"
           cleanup() { echo "--- container logs (tail) ---"; docker logs "${CID}" 2>&1 | tail -60 || true; docker rm -f "${CID}" >/dev/null 2>&1 || true; }
           trap cleanup EXIT
           ok=0
           for i in $(seq 1 120); do
-            code="$(curl -sS -o /tmp/a11oy_healthz.json -w '%{http_code}' "http://127.0.0.1:7860/api/a11oy/healthz" 2>/dev/null || true)"
+            code="$(curl --noproxy '*' --connect-timeout 2 --max-time 5 -sS -o /tmp/a11oy_healthz.json -w '%{http_code}' "http://127.0.0.1:7860/api/a11oy/healthz" 2>/dev/null || true)"
             if [ "${code}" = "200" ]; then ok=1; echo "healthz 200 after ${i}s:"; cat /tmp/a11oy_healthz.json; echo; break; fi
             sleep 1
           done
           if [ "${ok}" != "1" ]; then echo "::error::a11oy image failed /api/a11oy/healthz smoke after 120s"; exit 1; fi
+          python3 -B scripts/test_model_pretraining_container.py \
+            --expected-source "${GITHUB_SHA}" --image-id "${IMAGE_ID}" \
+            --output artifacts/model-pretraining-container/report.json
+
+      - name: Retain full-image model feature checks, including failures
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: model-pretraining-container-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/model-pretraining-container/
+          if-no-files-found: warn
+          retention-days: 30
 
       # FIX (Yachay, empire-reliability 2026-06-01): the SBOM step previously always
       # referenced the pushed main tag `:sha-<sha7>`. On pull_request builds the image
