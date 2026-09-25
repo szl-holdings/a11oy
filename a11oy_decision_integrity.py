@@ -98,6 +98,172 @@ def _vessels_ais_standards_echo(pack: dict[str, Any] | None = None) -> dict[str,
     }
 
 
+AIS_LATTICE_DIGEST = "f931b48544bcf70b1ca0d1c03b38b6c8e9dbf1933adfb8128316324e82eeb457"
+AIS_LATTICE_PROOF = "https://a11oy.net/vessels/ais-lattice.json"
+AIS_LATTICE_HTML = "https://a11oy.net/vessels/lattice/"
+
+PUBLIC_LISTS_DIGEST = "70fd1918fb38791159cfa2c520dc989f32125e4e0de4104b59d0a26fa48e1cb5"
+PUBLIC_LISTS_PROOF = "https://a11oy.net/vessels/public-lists-world.json"
+PUBLIC_LISTS_HTML = "https://a11oy.net/vessels/world/"
+PUBLIC_LIST_LATTICE_DIGEST = "b2d23ac69631667c09a8e3c4715d9a7caabda23edc9739b74d743fe6d9f88c1d"
+PUBLIC_LIST_LATTICE_PROOF = "https://a11oy.net/vessels/public-list-lattice.json"
+JOINT_FRESHNESS_DIGEST = "1cb5b1178b7cda2327443eb7b8e33703aae26a23b4102a0d5f91291cff149898"
+JOINT_FRESHNESS_PROOF = "https://a11oy.net/vessels/joint-freshness.json"
+
+
+def _vessels_public_lists_pack() -> dict[str, Any] | None:
+    path = VERTICALS_DIR / "vessels" / "public_lists.json"
+    if not path.is_file():
+        return None
+    packed = _read_json(path)
+    return packed if isinstance(packed, dict) else None
+
+
+def _vessels_public_lists_echo(pack: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Citation echo only. Does not resolve IMO/owner. Not the Packet 8 kernel."""
+    packed = pack if isinstance(pack, dict) else _vessels_public_lists_pack() or {}
+    clocks = []
+    for row in packed.get("clocks") or []:
+        if isinstance(row, dict) and row.get("id"):
+            clocks.append(
+                {
+                    "id": row.get("id"),
+                    "http": row.get("http"),
+                    "bytes": row.get("bytes"),
+                    "last_modified": row.get("last_modified"),
+                    "freshness": row.get("freshness"),
+                    "class": row.get("class", "MEASURED"),
+                }
+            )
+    judgment = packed.get("typed_judgment") if isinstance(packed.get("typed_judgment"), dict) else {}
+    joint = packed.get("joint_freshness") if isinstance(packed.get("joint_freshness"), dict) else {}
+    negative = joint.get("negative_evidence") if isinstance(joint.get("negative_evidence"), dict) else {}
+    return {
+        "honesty": "CITATION_ONLY",
+        "licensed_ais_admitted": False,
+        "licensed_ais_queries": 0,
+        "production_ready": False,
+        "stamps_live": False,
+        "vessels_e01": packed.get("vessels_e01", "OUTSTANDING"),
+        "vessels_e03": packed.get("vessels_e03", "OUTSTANDING"),
+        "digest": packed.get("digest") or PUBLIC_LISTS_DIGEST,
+        "authority_lattice_digest": packed.get("authority_lattice_digest") or PUBLIC_LIST_LATTICE_DIGEST,
+        "ais_lattice_digest_unchanged": packed.get("ais_lattice_digest_unchanged") or AIS_LATTICE_DIGEST,
+        "joint_freshness_digest": joint.get("digest") or JOINT_FRESHNESS_DIGEST,
+        "authority_classes": list(packed.get("authority_classes") or [
+            "OFAC-vessel",
+            "UN-1718-vessel",
+            "UK-specified-ship",
+            "UA-GUR-ship",
+            "KR-MOFA-vessel",
+            "IUU-RFMO",
+            "Paris-banned",
+        ]),
+        "freshness_classes": list(packed.get("freshness_classes") or [
+            "REACHABLE_FRESH",
+            "STALE_OR_THIN",
+            "PAGE_CITE",
+            "REPORTED",
+            "UNAVAILABLE",
+            "REFUSED",
+        ]),
+        "clocks": clocks,
+        "typed_judgment": {
+            "engine": judgment.get("engine", "stdlib exact-string SAMPLE"),
+            "frozen_identity": judgment.get("frozen_identity", "AURORA WAVE"),
+            "result": judgment.get("result", "SAMPLE_TEXT_MISS"),
+            "miss_is_not_clearance": True,
+            "not_e01": True,
+        },
+        "fail_closed_eval_stale": packed.get("fail_closed_eval_stale", "VESSELS-E-ABSTAIN"),
+        "fail_closed_eval_ais": packed.get("fail_closed_eval_ais", "VESSELS-E-DENY-AIS"),
+        "joint_freshness": {
+            "honesty": "CITATION_ONLY",
+            "digest": joint.get("digest") or JOINT_FRESHNESS_DIGEST,
+            "rule": joint.get("rule", "min-link over current official clocks; stale twins are disagreement; winner not picked"),
+            "winner_not_picked": True,
+            "does_not_run_the_kernel": True,
+            "classes": list(joint.get("classes") or []),
+            "disagreements": list(joint.get("disagreements") or []),
+            "coverage_holes": list(joint.get("coverage_holes") or []),
+            "negative_evidence": {
+                "engine": negative.get("engine", "stdlib exact-string SAMPLE"),
+                "frozen_identity": negative.get("frozen_identity", "AURORA WAVE"),
+                "result": negative.get("result", "SAMPLE_TEXT_MISS"),
+                "miss_is_not_clearance": True,
+                "is_clearance": False,
+                "not_e01": True,
+                "not_typesafe_jev_call": True,
+            },
+            "proof": joint.get("proof") or JOINT_FRESHNESS_PROOF,
+        },
+        "proof": PUBLIC_LISTS_PROOF,
+        "html": PUBLIC_LISTS_HTML,
+        "authority_lattice": PUBLIC_LIST_LATTICE_PROOF,
+        "note": (
+            "Official-list names are authority classes. Cite admitted. "
+            "Radio query DENIED. Clocks are reachability. "
+            "Min-link joint freshness names coverage holes and disagreements. "
+            "Winner not picked. Typed judgment is SAMPLE. Miss is not clearance. "
+            "Lattice classify is not the Packet 8 kernel."
+        ),
+    }
+
+
+
+def _vessels_ais_lattice_pack() -> dict[str, Any] | None:
+    path = VERTICALS_DIR / "vessels" / "ais_lattice.json"
+    if not path.is_file():
+        return None
+    packed = _read_json(path)
+    return packed if isinstance(packed, dict) else None
+
+
+def _vessels_ais_lattice_echo(pack: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Citation echo only. Does not classify radio. Not the Packet 8 kernel."""
+    lattice = pack if isinstance(pack, dict) else _vessels_ais_lattice_pack() or {}
+    types = lattice.get("message_types") or []
+    refused = [
+        row.get("id")
+        for row in (lattice.get("open_source_codecs_refused") or [])
+        if isinstance(row, dict) and row.get("id")
+    ]
+    lists = [
+        {
+            "id": row.get("id"),
+            "url": row.get("url"),
+            "http": row.get("http"),
+            "bytes": row.get("bytes"),
+            "last_modified": row.get("last_modified"),
+            "class": row.get("class", "MEASURED"),
+        }
+        for row in (lattice.get("public_lists_measured") or [])
+        if isinstance(row, dict) and row.get("id")
+    ]
+    return {
+        "honesty": "CITATION_ONLY",
+        "licensed_ais_admitted": False,
+        "licensed_ais_queries": 0,
+        "ais_transmit": False,
+        "vhf_data_link_occupied": False,
+        "ais_equipment_class": "NONE",
+        "production_ready": False,
+        "stamps_live": False,
+        "vessels_e03_licensed_ais_tpr": lattice.get("vessels_e03_licensed_ais_tpr", "OUTSTANDING"),
+        "digest": lattice.get("digest") or AIS_LATTICE_DIGEST,
+        "message_types": len(types) if isinstance(types, list) else 0,
+        "codecs_refused": refused,
+        "public_lists": lists,
+        "fail_closed_eval": "VESSELS-E-DENY-AIS",
+        "proof": AIS_LATTICE_PROOF,
+        "html": AIS_LATTICE_HTML,
+        "note": (
+            "Types are authority classes. Cite admitted. Live query DENIED. "
+            "Lattice classify is not the Packet 8 kernel."
+        ),
+    }
+
+
 def load_vertical(vertical_id: str) -> dict[str, Any]:
     folder = VERTICALS_DIR / vertical_id
     manifest = _read_json(folder / "vertical_manifest.json")
@@ -122,6 +288,12 @@ def load_vertical(vertical_id: str) -> dict[str, Any]:
         standards = _vessels_ais_standards_pack()
         if standards is not None:
             packed["ais_standards"] = standards
+        lattice = _vessels_ais_lattice_pack()
+        if lattice is not None:
+            packed["ais_lattice"] = lattice
+        public_lists = _vessels_public_lists_pack()
+        if public_lists is not None:
+            packed["public_lists"] = public_lists
     return packed
 
 
@@ -159,6 +331,14 @@ def catalog() -> dict[str, Any]:
                 **(
                     {
                         "ais_standards_honesty": "CITATION_ONLY",
+                        "ais_lattice_honesty": "CITATION_ONLY",
+                        "ais_lattice_digest": AIS_LATTICE_DIGEST,
+                        "ais_lattice_message_types": 27,
+                        "public_lists_honesty": "CITATION_ONLY",
+                        "public_lists_digest": PUBLIC_LISTS_DIGEST,
+                        "public_list_lattice_digest": PUBLIC_LIST_LATTICE_DIGEST,
+                        "public_list_authority_classes": 7,
+                        "joint_freshness_digest": JOINT_FRESHNESS_DIGEST,
                         "licensed_ais_admitted": False,
                         "vessels_e03_licensed_ais_tpr": "OUTSTANDING",
                     }
@@ -174,17 +354,57 @@ def catalog() -> dict[str, Any]:
             "evaluations": "/evaluations",
             "vessels": "/vessels",
             "ais_standards": "https://a11oy.net/vessels/ais-standards.json",
+            "ais_lattice": "https://a11oy.net/vessels/ais-lattice.json",
+            "ais_lattice_html": "https://a11oy.net/vessels/lattice/",
+            "public_lists": "https://a11oy.net/vessels/public-lists-world.json",
+            "public_lists_html": "https://a11oy.net/vessels/world/",
+            "public_list_lattice": "https://a11oy.net/vessels/public-list-lattice.json",
+            "joint_freshness": "https://a11oy.net/vessels/joint-freshness.json",
             "proof": "https://a11oy.net/decision/",
         },
     }
+
+
+_CASE_MATERIAL = (
+    "graph",
+    "sources",
+    "evidence",
+    "proposed_action",
+    "allowed_actions",
+)
+
+
+def _has_case_material(payload: dict[str, Any]) -> bool:
+    return any(payload.get(key) for key in _CASE_MATERIAL)
+
+
+def resolve_eval_payload(vertical_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """Accept inner kernel binds, frozen wrappers, or eval_id / case_id lookups."""
+    body = dict(payload)
+    inner = body.get("payload")
+    if isinstance(inner, dict) and _has_case_material(inner):
+        resolved = dict(inner)
+        resolved.setdefault("vertical_id", vertical_id)
+        return resolved
+    if not _has_case_material(body):
+        key = body.get("eval_id") or body.get("case_id")
+        if key:
+            packed = load_vertical(vertical_id)
+            for case in packed["cases"]:
+                if key in {case.get("eval_id"), case.get("case_id")}:
+                    seed = case.get("payload") if isinstance(case.get("payload"), dict) else case
+                    resolved = dict(seed)
+                    resolved.setdefault("vertical_id", vertical_id)
+                    return resolved
+    body.setdefault("vertical_id", vertical_id)
+    return body
 
 
 def evaluate_case(vertical_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     if vertical_id not in VERTICAL_IDS:
         return {"ok": False, "error": "unknown vertical", "verticals": list(VERTICAL_IDS)}
     kernel = _load_kernel()
-    body = dict(payload)
-    body.setdefault("vertical_id", vertical_id)
+    body = resolve_eval_payload(vertical_id, payload)
     result = kernel.evaluate(body)
     result["ok"] = True
     result["status"] = STATUS
@@ -194,6 +414,8 @@ def evaluate_case(vertical_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     if vertical_id == "vessels":
         result["licensed_ais_admitted"] = False
         result["ais_standards"] = _vessels_ais_standards_echo()
+        result["ais_lattice"] = _vessels_ais_lattice_echo()
+        result["public_lists"] = _vessels_public_lists_echo()
     return result
 
 
@@ -259,6 +481,10 @@ def register(app, ns: str = "a11oy") -> dict[str, Any]:
         if packed.get("ais_standards") is not None:
             body["licensed_ais_admitted"] = False
             body["ais_standards"] = packed["ais_standards"]
+        if packed.get("ais_lattice") is not None:
+            body["ais_lattice"] = packed["ais_lattice"]
+        if packed.get("public_lists") is not None:
+            body["public_lists"] = packed["public_lists"]
         return _json(body)
 
     async def _evaluate(request):

@@ -224,8 +224,10 @@ def test_public_ledger_get_does_not_mint_and_reads_khipu():
         assert before.status_code == 200
         start = before.json()
         assert start["honesty"].find("GET never mints") >= 0 or "never" in start["honesty"].lower()
+        assert start["receipt_minted"] is False
         again = client.get("/api/a11oy/v1/ledger")
         assert again.json()["count"] == start["count"]
+        assert again.json()["receipt_minted"] is False
 
         minted = client.post(
             "/api/a11oy/khipu/sign",
@@ -235,8 +237,9 @@ def test_public_ledger_get_does_not_mint_and_reads_khipu():
         after = client.get("/api/a11oy/v1/ledger")
         body = after.json()
         assert body["count"] >= 1
-        assert body["receipt_minted"] is True
+        assert body["receipt_minted"] is False
         assert body["signature_state"] in {"SIGNED", "UNSIGNED"}
         assert body["book"] == "public_operator_khipu"
         third = client.get("/api/a11oy/v1/ledger")
         assert third.json()["count"] == body["count"]
+        assert third.json()["receipt_minted"] is False
