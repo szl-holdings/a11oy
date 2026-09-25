@@ -1,0 +1,63 @@
+[
+  {
+    "uid": { "type": "A11oy::WorkloadIdentity", "id": "agent:operator-01" },
+    "attrs": {
+      "kind": "agent",
+      "tenantId": "szl",
+      "assurance": 3,
+      "roles": ["operator"],
+      "disabled": false
+    },
+    "parents": []
+  },
+  {
+    "uid": { "type": "A11oy::WorkloadIdentity", "id": "agent:reader-01" },
+    "attrs": {
+      "kind": "agent",
+      "tenantId": "szl",
+      "assurance": 2,
+      "roles": ["reader"],
+      "disabled": false
+    },
+    "parents": []
+  },
+  {
+    "uid": { "type": "A11oy::WorkloadIdentity", "id": "agent:disabled-01" },
+    "attrs": {
+      "kind": "agent",
+      "tenantId": "szl",
+      "assurance": 3,
+      "roles": ["operator"],
+      "disabled": true
+    },
+    "parents": []
+  },
+  {
+    "uid": { "type": "A11oy::ProtectedResource", "id": "deployment:production" },
+    "attrs": {
+      "kind": "deployment",
+      "tenantId": "szl",
+      "classification": 3,
+      "requiredAssurance": 2,
+      "maxRisk": 400,
+      "allowedPurposes": ["release-approved-artifact"],
+      "allowedEffects": ["deploy"],
+      "requiresApproval": true
+    },
+    "parents": []
+  },
+  {
+    "uid": { "type": "A11oy::ProtectedResource", "id": "ledger:anatomy" },
+    "attrs": {
+      "kind": "evidence",
+      "tenantId": "szl",
+      "classification": 2,
+      "requiredAssurance": 1,
+      "maxRisk": 400,
+      "allowedPurposes": ["inspect-evidence"],
+      "allowedEffects": ["read"],
+      "requiresApproval": false
+    },
+    "parents": []
+  }
+]

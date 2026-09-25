@@ -16770,6 +16770,14 @@ except Exception:
     pass
 
 
+# Provenance inspection is evaluation-only; GET and POST perform no governed writes.
+try:
+    import a11oy_anatomy_ledger as _anatomy_ledger_module
+    _anatomy_ledger_module.register(app)
+except Exception as _anatomy_ledger_error:
+    print(f"[a11oy] anatomy ledger unavailable: {_anatomy_ledger_error!r}", file=sys.stderr)
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "7860"))

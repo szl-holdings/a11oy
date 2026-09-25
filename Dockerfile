@@ -649,6 +649,8 @@ COPY szl_organ_integrity.py ./szl_organ_integrity.py
 # plus the `attest` holographic surface. Policy: ops/szl_chain_of_title.rego.
 COPY szl_attest.py ./szl_attest.py
 COPY ops/szl_chain_of_title.rego ./ops/szl_chain_of_title.rego
+COPY a11oy_anatomy_ledger.py ./a11oy_anatomy_ledger.py
+COPY anatomy-ledger/ ./anatomy-ledger/
 COPY static/3d/surfaces/attest.js ./static/3d/surfaces/attest.js
 
 COPY verticals/_kernel/a11oy_kernel.py ./verticals/_kernel/a11oy_kernel.py
