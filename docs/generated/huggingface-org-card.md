@@ -3,8 +3,8 @@
 
 This organization is the generated model, dataset, and runtime estate for [A11oy](https://a-11-oy.com). Canonical source and release evidence live in [GitHub](https://github.com/szl-holdings); public proof lives at [a11oy.net](https://a11oy.net).
 
-**Current public inventory:** 21 Spaces · 46 models · 35 datasets (`2026-09-10T03:20:41Z`).
-Measured Hub inventory is observational and is not the governed keep-list. Inventory-only / FOLD (not governed keepers): `SZLHOLDINGS/ayllu`, `SZLHOLDINGS/holographic-unify`, `SZLHOLDINGS/immune`, `SZLHOLDINGS/immune-lattice`, `SZLHOLDINGS/llm-router-live`, `SZLHOLDINGS/szl-atelier`, `SZLHOLDINGS/szl-khipu`, `SZLHOLDINGS/yarqa`. Canonical keep policy: `docs/series-a/hf-space-keep-list.yaml`.
+**Current public inventory:** 22 Spaces · 49 models · 35 datasets (`2026-09-25T15:51:24Z`).
+Measured Hub inventory is observational and is not the governed keep-list. Inventory-only / FOLD (not governed keepers): `SZLHOLDINGS/ayllu`, `SZLHOLDINGS/holographic-unify`, `SZLHOLDINGS/immune`, `SZLHOLDINGS/immune-lattice`, `SZLHOLDINGS/llm-router-live`, `SZLHOLDINGS/szl-atelier`, `SZLHOLDINGS/szl-constellation-staging`, `SZLHOLDINGS/szl-khipu`, `SZLHOLDINGS/yarqa`. Canonical keep policy: `docs/series-a/hf-space-keep-list.yaml`.
 
 ## Product bodies
 
@@ -18,5 +18,5 @@ Measured Hub inventory is observational and is not the governed keep-list. Inven
 
 A repository card is not a production certificate. Runtime, source revision, evidence freshness, and receipt state are verified separately. Λ remains Conjecture 1 and advisory only. No public model or formula may authorize consequential action.
 
-Alignment receipt: `f58d7b236ef21797da84bef4bc3e7eff84920f8195971e0e4924c1d81d888f37`.
+Alignment receipt: `fc3f8455b0dc7c193d53657de9528875a15a2a7019bc089102c0ac95685e810c`.
 <!-- END SZL PUBLIC ESTATE — GENERATED -->

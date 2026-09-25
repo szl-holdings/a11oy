@@ -40,7 +40,7 @@ CATEGORIES = {
 }
 HEADERS = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff",
            "Referrer-Policy": "no-referrer"}
-PAGE_HEADERS = {**HEADERS, "Content-Security-Policy": (
+PAGE_HEADERS = {**HEADERS, "Cache-Control": "no-store, no-transform", "Content-Security-Policy": (
     "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; "
     "img-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; "
     "frame-ancestors 'self' https://huggingface.co https://*.hf.space https://*.huggingface.co"
@@ -174,6 +174,10 @@ def category(tags: list[str]) -> str:
         return "KERNEL_OR_SOFTWARE_HINT"
     if lowered.intersection({"kernel", "kernels", "software"}):
         return "KERNEL_OR_SOFTWARE_HINT"
+    # Forge publishes code-only counterparts with these explicit markers.
+    # Keep this an inspection hint even when nominal checkpoint tags coexist.
+    if lowered.intersection({"model-blueprint", "not-trained"}):
+        return "RECIPE_OR_PLACEHOLDER_HINT"
     if "logistic-regression" in lowered:
         return "CLASSICAL_MODEL_HINT"
     if lowered.intersection({"no-weights", "curriculum-only", "roadmap", "alias"}):

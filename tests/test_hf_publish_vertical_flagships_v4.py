@@ -397,3 +397,26 @@ def test_runtime_exception_rejects_unreviewed_mutations(field, old, new) -> None
     setattr(candidate, field, original.replace(old, new, 1))
     with pytest.raises(AssertionError):
         assert_reviewed_runtime(candidate)
+
+
+def test_probe_http_success_is_reachable_not_measured() -> None:
+    module = load_overlay()
+    assert '"status":"LIVE" if r.is_success' not in module.APP
+    assert '"status":"REACHABLE" if r.is_success else "UNAVAILABLE"' in module.APP
+    assert '"honesty":"HTTP success is reachability, not MEASURED"' in module.APP
+    assert '"receipt_verified":False' in module.APP
+
+
+def test_livebar_and_sentra_iris_stay_closed_without_a_receipt() -> None:
+    module = load_overlay()
+    sentra = module.html(by_slug(module)["sentra"])
+    finance = module.html(by_slug(module)["finance"])
+    for page in (sentra, finance):
+        assert "j.status==='LIVE'?'is-live'" not in page
+        assert "j.status==='MEASURED'&&j.receipt_verified===true" in page
+        assert "root.dataset.iris=ok?'gated':'closed'" in page
+    assert 'data-iris="closed"' in sentra
+    assert "iris-aperture" in sentra
+    assert "html[data-iris=open] .iris-aperture{transform:scale(.42)}" in module.DOMAIN_CSS["sentra"]
+    assert "scale(1)" not in module.DOMAIN_CSS["sentra"]
+

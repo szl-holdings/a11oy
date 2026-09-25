@@ -168,7 +168,7 @@ def main() -> int:
         print(f"Ecosystem stage matrix is current: {output.relative_to(REPO_ROOT)}")
         return 0
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(rendered, encoding="utf-8")
+    output.write_text(rendered, encoding="utf-8", newline="\n")
     print(f"Wrote ecosystem stage matrix: {output.relative_to(REPO_ROOT)}")
     return 0
 
