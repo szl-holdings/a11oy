@@ -24,7 +24,7 @@ G = exp(Σ log x_i / n). Admit iff G ≥ 0.80 ∧ min > 0. dang ≔ (AM ≥ τ) 
 - ADMITTED — GM gate allowed (software, never a green VERIFIED pill)
 - MEASURED — NVML/RAPL counter only
 - MISMATCH — check ran and failed
-- BLOCKED — Λ treated as proven/theorem
+- BLOCKED — Λ treated as proven/theorem (Λ is Conjecture 1, never a theorem)
 - UNSIGNED-LOCAL — no signature
 - UNAVAILABLE — check could not run (missing hash, missing meter, no bundle)
 - CONJECTURE — Λ uniqueness stays open

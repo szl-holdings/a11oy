@@ -111,8 +111,16 @@ def test_overlay_changes_only_declared_sentra_and_finance_contracts() -> None:
         "source": "https://github.com/szl-holdings/a11oy/tree/main/verticals/puriq-markets",
         "upstream": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/finance/overview",
     }
-    assert overlay.APP.startswith(base.APP)
-    addition = overlay.APP[len(base.APP):]
+    # Shared livebar probe is REACHABLE on HTTP success. Restore the historical
+    # LIVE mapper only to prove the finance suffix is still the sole APP addition.
+    restored_app = overlay.APP.replace(
+        '{"status":"REACHABLE" if r.is_success else "UNAVAILABLE",'
+        '"honesty":"HTTP success is reachability, not MEASURED","receipt_verified":False,',
+        '{"status":"LIVE" if r.is_success else "UNAVAILABLE",',
+        1,
+    )
+    assert restored_app.startswith(base.APP)
+    addition = restored_app[len(base.APP):]
     assert 'if CFG.get("slug") == "finance":' in addition
     assert 'CANONICAL_REVISION_MISMATCH' in addition
     assert 'USE_PRIVATE_CANONICAL_SOURCE_ENDPOINT' in addition
