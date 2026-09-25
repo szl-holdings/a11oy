@@ -2,27 +2,33 @@ name: Private security posture contract
 
 on:
   pull_request:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - ".github/scripts/private_security_posture.py"
-      - ".github/workflows/private-security-posture.yml"
-      - ".github/workflows/private-security-posture-contract.yml"
-      - "tests/test_private_security_posture.py"
+    - .github/scripts/private_security_posture.py
+    - .github/workflows/private-security-posture.yml
+    - .github/workflows/private-security-posture-contract.yml
+    - tests/test_private_security_posture.py
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - ".github/scripts/private_security_posture.py"
-      - ".github/workflows/private-security-posture.yml"
-      - ".github/workflows/private-security-posture-contract.yml"
-      - "tests/test_private_security_posture.py"
+    - .github/scripts/private_security_posture.py
+    - .github/workflows/private-security-posture.yml
+    - .github/workflows/private-security-posture-contract.yml
+    - tests/test_private_security_posture.py
   workflow_dispatch: {}
-
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 
 concurrency:
   group: private-security-posture-contract-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   contract:

@@ -3,25 +3,28 @@ name: A11oy front-door truth and mobile contract
 on:
   pull_request:
     paths:
-      - a11oy_landing.html
-      - serve.py
-      - szl_runtime_contracts.py
-      - config/a11oy-frontdoor/PATCH_SPEC.json
-      - scripts/repair_a11oy_frontdoor.py
-      - scripts/check_a11oy_frontdoor_truth.py
-      - tests/test_a11oy_frontdoor_truth.py
-      - tests/test_runtime_contracts.py
-      - .github/workflows/a11oy-frontdoor-truth-mobile.yml
+    - a11oy_landing.html
+    - serve.py
+    - szl_runtime_contracts.py
+    - config/a11oy-frontdoor/PATCH_SPEC.json
+    - scripts/repair_a11oy_frontdoor.py
+    - scripts/check_a11oy_frontdoor_truth.py
+    - tests/test_a11oy_frontdoor_truth.py
+    - tests/test_runtime_contracts.py
+    - .github/workflows/a11oy-frontdoor-truth-mobile.yml
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - a11oy_landing.html
-      - serve.py
-      - szl_runtime_contracts.py
-      - scripts/check_a11oy_frontdoor_truth.py
-      - tests/test_a11oy_frontdoor_truth.py
-      - tests/test_runtime_contracts.py
-
+    - a11oy_landing.html
+    - serve.py
+    - szl_runtime_contracts.py
+    - scripts/check_a11oy_frontdoor_truth.py
+    - tests/test_a11oy_frontdoor_truth.py
+    - tests/test_runtime_contracts.py
+  merge_group:
+    types:
+    - checks_requested
 permissions:
   contents: read
 

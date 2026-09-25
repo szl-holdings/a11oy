@@ -6,20 +6,23 @@
 name: bounties-drift
 on:
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - "bounties/**"
-      - "szl_bounties.py"
-      - ".github/workflows/bounties-drift.yml"
+    - bounties/**
+    - szl_bounties.py
+    - .github/workflows/bounties-drift.yml
   pull_request:
     paths:
-      - "bounties/**"
-      - "szl_bounties.py"
-      - ".github/workflows/bounties-drift.yml"
+    - bounties/**
+    - szl_bounties.py
+    - .github/workflows/bounties-drift.yml
   schedule:
-    - cron: "37 6 * * 1"   # weekly drift sweep (Mon 06:37 UTC)
+  - cron: 37 6 * * 1
   workflow_dispatch: {}
-
+  merge_group:
+    types:
+    - checks_requested
 permissions:
   contents: read
 

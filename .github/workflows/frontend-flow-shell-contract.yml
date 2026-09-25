@@ -3,45 +3,48 @@ name: Frontend Flow Shell Contract
 on:
   pull_request:
     paths:
-      - "a11oy_landing.html"
-      - "govern_showcase.html"
-      - "cathedral_genius.html"
-      - "pages/**"
-      - "web/**"
-      - "console/**"
-      - "spaces/**"
-      - "docs/frontend-theme-registry-v1.json"
-      - "docs/frontend-flow-shell-state.json"
-      - "scripts/rollout_frontend_flow_shell.py"
-      - "tests/test_frontend_flow_shell.py"
-      - "tests/test_cloudflare_product_edge.py"
-      - "scripts/repair_cloudflare_product_edge.py"
-      - "cloudflare/**"
-      - ".github/workflows/repair-cloudflare-product-edge.yml"
-      - ".github/workflows/frontend-flow-shell-contract.yml"
-      - ".github/workflows/rollout-frontend-flow-shell.yml"
+    - a11oy_landing.html
+    - govern_showcase.html
+    - cathedral_genius.html
+    - pages/**
+    - web/**
+    - console/**
+    - spaces/**
+    - docs/frontend-theme-registry-v1.json
+    - docs/frontend-flow-shell-state.json
+    - scripts/rollout_frontend_flow_shell.py
+    - tests/test_frontend_flow_shell.py
+    - tests/test_cloudflare_product_edge.py
+    - scripts/repair_cloudflare_product_edge.py
+    - cloudflare/**
+    - .github/workflows/repair-cloudflare-product-edge.yml
+    - .github/workflows/frontend-flow-shell-contract.yml
+    - .github/workflows/rollout-frontend-flow-shell.yml
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - "a11oy_landing.html"
-      - "govern_showcase.html"
-      - "cathedral_genius.html"
-      - "pages/**"
-      - "web/**"
-      - "console/**"
-      - "spaces/**"
-      - "docs/frontend-theme-registry-v1.json"
-      - "docs/frontend-flow-shell-state.json"
-      - "scripts/rollout_frontend_flow_shell.py"
-      - "tests/test_frontend_flow_shell.py"
-      - "tests/test_cloudflare_product_edge.py"
-      - "scripts/repair_cloudflare_product_edge.py"
-      - "cloudflare/**"
-      - ".github/workflows/repair-cloudflare-product-edge.yml"
-      - ".github/workflows/frontend-flow-shell-contract.yml"
-      - ".github/workflows/rollout-frontend-flow-shell.yml"
-  workflow_dispatch:
-
+    - a11oy_landing.html
+    - govern_showcase.html
+    - cathedral_genius.html
+    - pages/**
+    - web/**
+    - console/**
+    - spaces/**
+    - docs/frontend-theme-registry-v1.json
+    - docs/frontend-flow-shell-state.json
+    - scripts/rollout_frontend_flow_shell.py
+    - tests/test_frontend_flow_shell.py
+    - tests/test_cloudflare_product_edge.py
+    - scripts/repair_cloudflare_product_edge.py
+    - cloudflare/**
+    - .github/workflows/repair-cloudflare-product-edge.yml
+    - .github/workflows/frontend-flow-shell-contract.yml
+    - .github/workflows/rollout-frontend-flow-shell.yml
+  workflow_dispatch: null
+  merge_group:
+    types:
+    - checks_requested
 permissions:
   contents: read
 

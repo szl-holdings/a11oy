@@ -61,13 +61,15 @@ on:
     workflows: ['Sync and Relock Canonical Hugging Face Space']
     types: [completed]
     branches: [main]
+  merge_group:
+    types: [checks_requested]
 
 permissions:
   contents: read
 
 concurrency:
   group: hf-tooling-product-${{ github.event_name }}-${{ github.event.workflow_run.id || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   python-api-and-browser:

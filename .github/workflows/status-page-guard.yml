@@ -29,19 +29,22 @@ name: Status Page Guard
 on:
   pull_request:
     paths:
-      - ".github/workflows/status-page.yml"
-      - ".github/workflows/status-page-guard.yml"
-      - "scripts/status-page-guard-checks.sh"
-      - "scripts/status-page-guard-checks.test.sh"
+    - .github/workflows/status-page.yml
+    - .github/workflows/status-page-guard.yml
+    - scripts/status-page-guard-checks.sh
+    - scripts/status-page-guard-checks.test.sh
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - ".github/workflows/status-page.yml"
-      - ".github/workflows/status-page-guard.yml"
-      - "scripts/status-page-guard-checks.sh"
-      - "scripts/status-page-guard-checks.test.sh"
-  workflow_dispatch:
-
+    - .github/workflows/status-page.yml
+    - .github/workflows/status-page-guard.yml
+    - scripts/status-page-guard-checks.sh
+    - scripts/status-page-guard-checks.test.sh
+  workflow_dispatch: null
+  merge_group:
+    types:
+    - checks_requested
 permissions:
   contents: read
 

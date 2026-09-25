@@ -26,25 +26,31 @@ name: Tau Eval Non-Triviality Guard
 
 on:
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - "szl_tau_eval.py"
-      - "scripts/check_tau_eval.py"
-      - ".github/workflows/tau-eval-guard.yml"
+    - szl_tau_eval.py
+    - scripts/check_tau_eval.py
+    - .github/workflows/tau-eval-guard.yml
   pull_request:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - "szl_tau_eval.py"
-      - "scripts/check_tau_eval.py"
-      - ".github/workflows/tau-eval-guard.yml"
-  workflow_dispatch:
-
+    - szl_tau_eval.py
+    - scripts/check_tau_eval.py
+    - .github/workflows/tau-eval-guard.yml
+  workflow_dispatch: null
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 
 concurrency:
   group: tau-eval-guard-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   self-test:

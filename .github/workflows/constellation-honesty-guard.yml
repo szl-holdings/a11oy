@@ -34,27 +34,33 @@ name: Constellation Honesty Guard
 
 on:
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - "pages/console.html"
-      - "tools/constellation-honesty/check_constellation_honesty.mjs"
-      - "tools/constellation-honesty/check_constellation_refresh.mjs"
-      - ".github/workflows/constellation-honesty-guard.yml"
+    - pages/console.html
+    - tools/constellation-honesty/check_constellation_honesty.mjs
+    - tools/constellation-honesty/check_constellation_refresh.mjs
+    - .github/workflows/constellation-honesty-guard.yml
   pull_request:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - "pages/console.html"
-      - "tools/constellation-honesty/check_constellation_honesty.mjs"
-      - "tools/constellation-honesty/check_constellation_refresh.mjs"
-      - ".github/workflows/constellation-honesty-guard.yml"
-  workflow_dispatch:
-
+    - pages/console.html
+    - tools/constellation-honesty/check_constellation_honesty.mjs
+    - tools/constellation-honesty/check_constellation_refresh.mjs
+    - .github/workflows/constellation-honesty-guard.yml
+  workflow_dispatch: null
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 
 concurrency:
   group: constellation-honesty-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   # Prove the validators still reject degenerate inputs before trusting them.

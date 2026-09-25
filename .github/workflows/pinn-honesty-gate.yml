@@ -9,29 +9,32 @@ name: PINN benchmark honesty gate
 on:
   pull_request:
     paths:
-      - 'benchmarks/pinn/results.json'
-      - 'benchmarks/pinn/honesty_guard.py'
-      - 'benchmarks/pinn/reproduce_szl_guard.py'
-      - 'benchmarks/pinn/run_bench.py'
-      - 'verifiable-ai/**'
-      - 'szl_pinn_nonlinear.py'
-      - 'szl_governed_ipinn.py'
-      - 'szl_pinn_inverse.py'
-      - '.github/workflows/pinn-honesty-gate.yml'
+    - benchmarks/pinn/results.json
+    - benchmarks/pinn/honesty_guard.py
+    - benchmarks/pinn/reproduce_szl_guard.py
+    - benchmarks/pinn/run_bench.py
+    - verifiable-ai/**
+    - szl_pinn_nonlinear.py
+    - szl_governed_ipinn.py
+    - szl_pinn_inverse.py
+    - .github/workflows/pinn-honesty-gate.yml
   push:
-    branches: [ main ]
+    branches:
+    - main
     paths:
-      - 'benchmarks/pinn/results.json'
-      - 'benchmarks/pinn/honesty_guard.py'
-      - 'benchmarks/pinn/reproduce_szl_guard.py'
-      - 'benchmarks/pinn/run_bench.py'
-      - 'verifiable-ai/**'
-      - 'szl_pinn_nonlinear.py'
-      - 'szl_governed_ipinn.py'
-      - 'szl_pinn_inverse.py'
-      - '.github/workflows/pinn-honesty-gate.yml'
+    - benchmarks/pinn/results.json
+    - benchmarks/pinn/honesty_guard.py
+    - benchmarks/pinn/reproduce_szl_guard.py
+    - benchmarks/pinn/run_bench.py
+    - verifiable-ai/**
+    - szl_pinn_nonlinear.py
+    - szl_governed_ipinn.py
+    - szl_pinn_inverse.py
+    - .github/workflows/pinn-honesty-gate.yml
   workflow_dispatch: {}
-
+  merge_group:
+    types:
+    - checks_requested
 permissions:
   contents: read
 

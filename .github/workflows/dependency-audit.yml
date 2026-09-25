@@ -12,21 +12,21 @@ name: Dependency Audit
 on:
   pull_request:
     paths:
-      - "requirements*.txt"
-      - "Dockerfile"
-      - "docs/DEPENDENCY_RISK_REGISTER.md"
-      - ".github/workflows/dependency-audit.yml"
+    - requirements*.txt
+    - Dockerfile
+    - docs/DEPENDENCY_RISK_REGISTER.md
+    - .github/workflows/dependency-audit.yml
   schedule:
-    # Weekly: catches newly-published CVEs and newly-available upstream fixes.
-    - cron: "17 6 * * 1"
-  workflow_dispatch:
-
-# Least privilege: this job only reads the tree.
+  - cron: 17 6 * * 1
+  workflow_dispatch: null
+  merge_group:
+    types:
+    - checks_requested
 permissions: read-all
 
 concurrency:
   group: dependency-audit-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   audit:

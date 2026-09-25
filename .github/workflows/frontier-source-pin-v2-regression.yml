@@ -2,10 +2,16 @@ name: Frontier source-pin protected regressions
 
 on:
   pull_request:
-    branches: [main]
+    branches:
+    - main
   push:
-    branches: [main]
-
+    branches:
+    - main
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 

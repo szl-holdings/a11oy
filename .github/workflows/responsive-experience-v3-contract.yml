@@ -3,23 +3,26 @@ name: Responsive Experience v3 Contract
 on:
   pull_request:
     paths:
-      - "console/assets/szl-responsive-v3.css"
-      - "console/assets/szl-hologram-v2.css"
-      - "docs/responsive-experience-v3.json"
-      - "scripts/bind_responsive_experience_v3.py"
-      - "tests/test_responsive_experience_v3.py"
-      - ".github/workflows/responsive-experience-v3-contract.yml"
+    - console/assets/szl-responsive-v3.css
+    - console/assets/szl-hologram-v2.css
+    - docs/responsive-experience-v3.json
+    - scripts/bind_responsive_experience_v3.py
+    - tests/test_responsive_experience_v3.py
+    - .github/workflows/responsive-experience-v3-contract.yml
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - "console/assets/szl-responsive-v3.css"
-      - "console/assets/szl-hologram-v2.css"
-      - "docs/responsive-experience-v3.json"
-      - "scripts/bind_responsive_experience_v3.py"
-      - "tests/test_responsive_experience_v3.py"
-      - ".github/workflows/responsive-experience-v3-contract.yml"
-  workflow_dispatch:
-
+    - console/assets/szl-responsive-v3.css
+    - console/assets/szl-hologram-v2.css
+    - docs/responsive-experience-v3.json
+    - scripts/bind_responsive_experience_v3.py
+    - tests/test_responsive_experience_v3.py
+    - .github/workflows/responsive-experience-v3-contract.yml
+  workflow_dispatch: null
+  merge_group:
+    types:
+    - checks_requested
 permissions:
   contents: read
 

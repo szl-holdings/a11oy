@@ -8,16 +8,20 @@ name: bundle-integrity-guard
 on:
   pull_request:
     paths:
-      - 'console/**'
-      - '.github/scripts/check_bundle_integrity.py'
-      - '.github/workflows/bundle-integrity-guard.yml'
+    - console/**
+    - .github/scripts/check_bundle_integrity.py
+    - .github/workflows/bundle-integrity-guard.yml
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - 'console/**'
-      - '.github/scripts/check_bundle_integrity.py'
-      - '.github/workflows/bundle-integrity-guard.yml'
+    - console/**
+    - .github/scripts/check_bundle_integrity.py
+    - .github/workflows/bundle-integrity-guard.yml
   workflow_dispatch: {}
+  merge_group:
+    types:
+    - checks_requested
 permissions:
   contents: read
 jobs:

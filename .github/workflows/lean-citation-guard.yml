@@ -25,37 +25,43 @@ name: lean citation guard
 
 on:
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - "gates_manifest.json"
-      - "docs/theorem-runtime-manifest.json"
-      - "corpus/formulas/a11oy__gates_manifest.json"
-      - "corpus/formulas/a11oy__docs__theorem-runtime-manifest.json"
-      - "packages/policy/src/gates/**"
-      - "scripts/check_lean_citations.py"
-      - "scripts/check_lean_citations.test.sh"
-      - ".github/workflows/lean-citation-guard.yml"
+    - gates_manifest.json
+    - docs/theorem-runtime-manifest.json
+    - corpus/formulas/a11oy__gates_manifest.json
+    - corpus/formulas/a11oy__docs__theorem-runtime-manifest.json
+    - packages/policy/src/gates/**
+    - scripts/check_lean_citations.py
+    - scripts/check_lean_citations.test.sh
+    - .github/workflows/lean-citation-guard.yml
   pull_request:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - "gates_manifest.json"
-      - "docs/theorem-runtime-manifest.json"
-      - "corpus/formulas/a11oy__gates_manifest.json"
-      - "corpus/formulas/a11oy__docs__theorem-runtime-manifest.json"
-      - "packages/policy/src/gates/**"
-      - "scripts/check_lean_citations.py"
-      - "scripts/check_lean_citations.test.sh"
-      - ".github/workflows/lean-citation-guard.yml"
+    - gates_manifest.json
+    - docs/theorem-runtime-manifest.json
+    - corpus/formulas/a11oy__gates_manifest.json
+    - corpus/formulas/a11oy__docs__theorem-runtime-manifest.json
+    - packages/policy/src/gates/**
+    - scripts/check_lean_citations.py
+    - scripts/check_lean_citations.test.sh
+    - .github/workflows/lean-citation-guard.yml
   schedule:
-    - cron: "23 7 * * 1"   # weekly sweep (Mon 07:23 UTC) — catches lutar-lean drift
+  - cron: 23 7 * * 1
   workflow_dispatch: {}
-
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   guard:

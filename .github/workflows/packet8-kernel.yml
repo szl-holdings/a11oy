@@ -3,15 +3,18 @@ name: Packet 8 Decision Integrity Kernel
 on:
   pull_request:
     paths:
-      - 'verticals/**'
-      - '.github/workflows/packet8-kernel.yml'
+    - verticals/**
+    - .github/workflows/packet8-kernel.yml
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - 'verticals/**'
-      - '.github/workflows/packet8-kernel.yml'
+    - verticals/**
+    - .github/workflows/packet8-kernel.yml
   workflow_dispatch: {}
-
+  merge_group:
+    types:
+    - checks_requested
 permissions:
   contents: read
 

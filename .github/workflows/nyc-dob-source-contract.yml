@@ -3,26 +3,32 @@ name: NYC DOB source contract
 
 on:
   pull_request:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - a11oy_vertical_feeds.py
-      - a11oy_deva_feeds.py
-      - tests/test_nyc_dob_recent_source.py
-      - .github/workflows/nyc-dob-source-contract.yml
+    - a11oy_vertical_feeds.py
+    - a11oy_deva_feeds.py
+    - tests/test_nyc_dob_recent_source.py
+    - .github/workflows/nyc-dob-source-contract.yml
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - a11oy_vertical_feeds.py
-      - a11oy_deva_feeds.py
-      - tests/test_nyc_dob_recent_source.py
-      - .github/workflows/nyc-dob-source-contract.yml
-
+    - a11oy_vertical_feeds.py
+    - a11oy_deva_feeds.py
+    - tests/test_nyc_dob_recent_source.py
+    - .github/workflows/nyc-dob-source-contract.yml
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 
 concurrency:
   group: nyc-dob-source-contract-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   source-contract:

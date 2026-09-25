@@ -10,29 +10,35 @@ name: Boot preflight self-test
 
 on:
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - szl_boot_preflight.py
-      - test_boot_preflight.py
-      - serve.py
-      - docs/RUNTIME_ENV.md
-      - .github/workflows/boot-preflight-selftest.yml
+    - szl_boot_preflight.py
+    - test_boot_preflight.py
+    - serve.py
+    - docs/RUNTIME_ENV.md
+    - .github/workflows/boot-preflight-selftest.yml
   pull_request:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - szl_boot_preflight.py
-      - test_boot_preflight.py
-      - serve.py
-      - docs/RUNTIME_ENV.md
-      - .github/workflows/boot-preflight-selftest.yml
-  workflow_dispatch:
-
+    - szl_boot_preflight.py
+    - test_boot_preflight.py
+    - serve.py
+    - docs/RUNTIME_ENV.md
+    - .github/workflows/boot-preflight-selftest.yml
+  workflow_dispatch: null
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   selftest:
