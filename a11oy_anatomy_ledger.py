@@ -58,7 +58,7 @@ def register(app):
 
     @router.post(PREFIX + "/{operation}")
     async def inspect_policy(operation: str, request: Request):
-        if operation not in {"authorize", "evaluate", "bind"}:
+        if operation not in {"authorize", "evaluate", "bind", "analyze", "replay"}:
             return json_response({"error": "unknown operation"}, 404)
         if (
             request.headers.get("content-type", "").split(";", 1)[0].strip()

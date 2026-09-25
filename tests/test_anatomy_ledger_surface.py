@@ -88,6 +88,59 @@ class AnatomySurfaceTests(unittest.TestCase):
             413,
         )
 
+    def test_decision_lab_and_replay_precede_spa(self):
+        service = registrar.load_service()
+        command = service.BIND.intent_from_command(
+            principal_id="agent:sample",
+            action="DeployArtifact",
+            resource_id="deploy:sample",
+            purpose="test",
+            intended_effect="deploy",
+            risk_score=10,
+            human_approval=True,
+            mfa=True,
+            evidence_digest=service.DIGEST,
+        )
+        response = self.client.post(
+            registrar.PREFIX + "/analyze",
+            json={
+                "command": command,
+                "statement": service.VALID_SLSA,
+                "verification": {"verified": True},
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result["schema"], "szl.anatomy.decision-lab.v1")
+        self.assertFalse(result["executable"])
+        replayed = self.client.post(
+            registrar.PREFIX + "/replay", json=result["replayCapsule"]
+        )
+        self.assertEqual(replayed.status_code, 200)
+        self.assertTrue(replayed.json()["valid"])
+        self.assertFalse(replayed.json()["executable"])
+        self.assertIn(
+            "analyze",
+            self.client.get(registrar.PREFIX + "/status").json()["capabilities"],
+        )
+
+    def test_decision_lab_rejects_invalid_and_cross_origin_inputs(self):
+        self.assertEqual(
+            self.client.post(
+                registrar.PREFIX + "/analyze", json={"command": []}
+            ).status_code,
+            422,
+        )
+        for operation in ("analyze", "replay"):
+            self.assertEqual(
+                self.client.post(
+                    registrar.PREFIX + "/" + operation,
+                    json={},
+                    headers={"Origin": "https://foreign.invalid"},
+                ).status_code,
+                403,
+            )
+
     def test_serving_files_in_deployment(self):
         dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
         self.assertIn("COPY a11oy_anatomy_ledger.py", dockerfile)

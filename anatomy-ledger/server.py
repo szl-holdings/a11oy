@@ -55,6 +55,7 @@ CEDAR = load("authorize_intent", BASE / "tools" / "authorize_intent.py")
 REGO = load("evaluate_supply_chain", BASE / "tools" / "evaluate_supply_chain.py")
 BIND = load("bind_anatomy", BASE / "tools" / "bind_anatomy.py")
 LEDGER_LIB = load("build_ledger", BASE / "tools" / "build_ledger.py")
+LAB = load("decision_lab", BASE / "tools" / "decision_lab.py")
 
 VALID_SLSA = {
     "_type": "https://in-toto.io/Statement/v1",
@@ -251,6 +252,16 @@ def status_snapshot() -> dict[str, Any]:
         "ledgerExists": LEDGER.is_file(),
         "evaluator": "python-advisory",
         "requestLimitBytes": MAX_REQUEST_BYTES,
+        "decisionLabPolicyDigest": LAB.POLICY_AT_LOAD["digest"],
+        "scenarioLimit": LAB.MAX_SCENARIOS,
+        "capabilities": [
+            "ledger",
+            "authorize",
+            "evaluate",
+            "bind",
+            "analyze",
+            "replay",
+        ],
         "disclosure": "Local inspection service. Health indicates HTTP availability only.",
     }
 
@@ -303,10 +314,14 @@ def evaluate_request(route: str, payload: Any) -> tuple[int, dict[str, Any]]:
     if not isinstance(payload, dict):
         return 400, {"error": "JSON object required", "evaluationOnly": True}
     route = route.rsplit("/", 1)[-1]
-    if route not in {"authorize", "evaluate", "bind"}:
+    if route not in {"authorize", "evaluate", "bind", "analyze", "replay"}:
         return 404, {"error": "unknown route", "evaluationOnly": True}
     try:
-        if route == "authorize":
+        if route == "analyze":
+            result = LAB.analyze(payload)
+        elif route == "replay":
+            result = LAB.replay(payload)
+        elif route == "authorize":
             request = payload.get("request", payload)
             if not isinstance(request, dict):
                 return 422, {
@@ -342,9 +357,11 @@ def evaluate_request(route: str, payload: Any) -> tuple[int, dict[str, Any]]:
                 command=command, statement=statement, verification=verification
             )
         return 200, {**result, "evaluationOnly": True, "executable": False}
-    except (ValueError, TypeError, KeyError, AttributeError, RecursionError):
+    except (ValueError, TypeError, KeyError, AttributeError, RecursionError) as exc:
         return 422, {
-            "error": "invalid evaluation input",
+            "error": str(exc)[:240]
+            if route in {"analyze", "replay"} and isinstance(exc, ValueError)
+            else "invalid evaluation input",
             "evaluationOnly": True,
             "executable": False,
         }
@@ -492,7 +509,13 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             path = self.validate_target()
-            if path not in {"/api/authorize", "/api/evaluate", "/api/bind"}:
+            if path not in {
+                "/api/authorize",
+                "/api/evaluate",
+                "/api/bind",
+                "/api/analyze",
+                "/api/replay",
+            }:
                 self.send_json(404, {"error": "unknown route", "evaluationOnly": True})
                 return
             self.send_json(*evaluate_request(path, self.read_json()))

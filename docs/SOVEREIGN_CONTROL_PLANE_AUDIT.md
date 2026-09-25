@@ -25,6 +25,11 @@ ledger CLI argument. Those behaviors are corrected in the current implementation
 - Internal snapshot-chain validation on ledger read. No signing or writes on GET.
 - Pinned policy-engine toolchains, portable validation, deterministic packaging,
   read-only PR checks, and a separate main-push-only attestation job.
+- Bounded independent counterfactual analysis using the actual advisory evaluator,
+  exact reason traces, explicit intent/evidence distinctions, and unsigned replay.
+  Replay checks input, result, and policy digests; it rejects runtime source drift.
+  Source hashes describe executed Python dependencies and separately labelled
+  reference policies. Matching hashes do not authenticate a capsule's author.
 
 ## Evidence that remains separate
 

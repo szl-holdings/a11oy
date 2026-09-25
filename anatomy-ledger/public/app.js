@@ -185,3 +185,212 @@ byId("run-checks").addEventListener("click", async () => {
   finally { button.disabled = false; }
 });
 refreshLedger();
+
+// Decision lab: transport the original JSON bytes; never round-trip request numbers.
+let latestCapsule = null;
+let uploadedCapsule = null;
+let labRevision = 0;
+let replayRevision = 0;
+function labJson(raw, limit) {
+  if (new TextEncoder().encode(raw).length > limit) throw new Error(`JSON exceeds the ${limit / 1024} KiB limit.`);
+  const tokens = raw.match(/"(?:\\.|[^"\\])*"|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g) || [];
+  for (const token of tokens) {
+    if (token.startsWith('"')) continue;
+    const number = Number(token);
+    if (!Number.isFinite(number) || Math.abs(number) > Number.MAX_SAFE_INTEGER) {
+      throw new Error("This browser view cannot represent that numeric value exactly. Use the API or CLI for full 64-bit integers; the input has not been rounded or submitted.");
+    }
+  }
+  const parsed = JSON.parse(raw);
+  if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") throw new Error("A JSON object is required.");
+  return parsed;
+}
+async function labRequest(route, raw) {
+  labJson(raw, route === "analyze" ? 128 * 1024 : 192 * 1024);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  try {
+    const response = await fetch(`${API}/${route}`, { method: "POST", body: raw, headers: { "Content-Type": "application/json" }, cache: "no-store", signal: controller.signal });
+    const text = await response.text();
+    const data = labJson(text, 1024 * 1024);
+    if (!response.ok) throw new Error(`HTTP ${response.status}: ${data.error || "Inspection failed"}`);
+    return { data, text };
+  } finally { clearTimeout(timer); }
+}
+function labElement(tag, text, className = "") {
+  const element = document.createElement(tag);
+  element.textContent = text;
+  element.className = className;
+  return element;
+}
+function labClear() {
+  labRevision += 1;
+  replayRevision += 1;
+  latestCapsule = null;
+  byId("lab-download").disabled = true;
+  byId("lab-replay-latest").disabled = true;
+  byId("lab-summary").hidden = true;
+  byId("lab-comparison").hidden = true;
+  byId("lab-placeholder").hidden = false;
+  byId("lab-error").hidden = true;
+  byId("lab-replay-report").hidden = true;
+}
+function labError(error) {
+  setText("lab-status", "INPUT / SERVICE ERROR");
+  setText("lab-error", error.name === "AbortError" ? "The local service did not respond within 10 seconds." : error.message);
+  byId("lab-error").hidden = false;
+}
+function showScenario(row, title) {
+  setText("scenario-dialog-title", title);
+  setText("scenario-dialog-summary", `Intent: ${row.intentOutcome}. Combined: ${row.combinedOutcome}. Execution remains disabled.`);
+  const changes = byId("scenario-changes");
+  changes.replaceChildren();
+  for (const change of row.changes || []) {
+    changes.append(labElement("p", `${change.path}: ${pretty(change.before)} → ${pretty(change.after)} (${change.kind})`, "digest"));
+  }
+  if (!changes.childNodes.length) changes.append(labElement("p", "Original input; no changed fields."));
+  const trace = byId("scenario-trace");
+  trace.replaceChildren();
+  for (const item of row.trace || []) {
+    const li = labElement("li", "");
+    li.append(labElement("strong", `${item.stage} · ${item.code}`), labElement("p", item.detail), labElement("small", `${item.source} · ${item.evaluator}`));
+    trace.append(li);
+  }
+  setText("scenario-json", pretty(row));
+  byId("scenario-dialog").showModal();
+}
+function renderAnalysis(data, rawText) {
+  if (data.executable !== false || data.evaluationOnly !== true || typeof data.replayCapsuleJson !== "string") throw new Error("Unexpected advisory response contract.");
+  labJson(data.replayCapsuleJson, 192 * 1024);
+  latestCapsule = data.replayCapsuleJson;
+  setText("lab-status", "ANALYSIS COMPLETE");
+  setText("lab-base-intent", data.base.intentOutcome);
+  setText("lab-base-combined", data.base.combinedOutcome);
+  setText("lab-scenario-count", String(data.scenarios.length));
+  setText("lab-result-context", "Intent ALLOW describes supplied policy attributes. Unverified evidence remains a separate constraint. Every result is advisory.");
+  setText("lab-input-digest", data.inputDigest);
+  setText("lab-policy-digest", data.policy.digest);
+  const files = byId("lab-policy-files");
+  files.replaceChildren();
+  for (const [name, hash] of Object.entries(data.policy.files)) {
+    const group = document.createElement("div");
+    group.append(labElement("dt", `${name} · ${data.policy.executedPython.includes(name) ? "executed Python" : "reference only"}`), labElement("dd", hash, "digest"));
+    files.append(group);
+  }
+  const rows = byId("lab-scenario-rows");
+  rows.replaceChildren();
+  for (const [index, row] of [data.base, ...data.scenarios].entries()) {
+    const title = index === 0 ? "Original request" : row.label;
+    const tr = document.createElement("tr");
+    tr.append(labElement("td", title));
+    for (const outcome of [row.intentOutcome, row.combinedOutcome]) {
+      const cell = document.createElement("td");
+      cell.append(labElement("span", outcome, `outcome ${["BLOCK", "REVIEW", "ALLOW"].includes(outcome) ? outcome : "UNKNOWN"}`));
+      tr.append(cell);
+    }
+    tr.append(labElement("td", (row.changes || []).map(change => `${change.path}: ${JSON.stringify(change.before)} → ${JSON.stringify(change.after)}`).join("; ") || "No changes", "digest"));
+    const cell = document.createElement("td");
+    const button = labElement("button", "Explain", "record-details");
+    button.type = "button";
+    button.setAttribute("aria-label", `Explain ${title}`);
+    button.addEventListener("click", () => showScenario(row, title));
+    cell.append(button); tr.append(cell); rows.append(tr);
+  }
+  setText("lab-disclosure", data.disclosure);
+  setText("lab-analysis-json", rawText);
+  byId("lab-placeholder").hidden = true;
+  byId("lab-summary").hidden = false;
+  byId("lab-comparison").hidden = false;
+  byId("lab-download").disabled = false;
+  byId("lab-replay-latest").disabled = false;
+}
+byId("close-scenario-dialog").addEventListener("click", () => byId("scenario-dialog").close());
+byId("lab-input").addEventListener("input", () => { labClear(); setText("lab-status", "INPUT CHANGED"); });
+byId("lab-use-inspector").addEventListener("click", () => { labClear(); byId("lab-input").value = byId("policy-input").value; setText("lab-status", "INPUT COPIED"); });
+byId("lab-load-sample").addEventListener("click", async () => {
+  labClear();
+  const revision = labRevision;
+  try {
+    const command = structuredClone(sampleIntent);
+    command.action.id = "DeployArtifact";
+    command.principal.id = "agent:SAMPLE-operator";
+    command.resource.id = "deployment:SAMPLE-only";
+    command.resource.attrs.kind = "deployment";
+    command.resource.attrs.allowedPurposes = ["sample-release-inspection"];
+    command.resource.attrs.allowedEffects = ["deploy"];
+    command.resource.attrs.requiresApproval = true;
+    command.context.purpose = "sample-release-inspection";
+    command.context.intendedEffect = "deploy";
+    command.context.mfa = true;
+    command.context.riskScore = 250;
+    const canonical = value => value && typeof value === "object" ? (Array.isArray(value) ? value.map(canonical) : Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])]))) : value;
+    const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(canonical(sampleStatement))));
+    if (revision !== labRevision) return;
+    command.context.evidenceDigest = Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, "0")).join("");
+    byId("lab-input").value = pretty({ command, statement: sampleStatement, verification: { verified: true } });
+    setText("lab-status", "SAMPLE LOADED");
+  } catch (error) { if (revision === labRevision) labError(error); }
+});
+byId("lab-form").addEventListener("submit", async event => {
+  event.preventDefault(); labClear();
+  const revision = labRevision;
+  const button = byId("lab-analyze"); button.disabled = true;
+  setText("lab-status", "ANALYZING");
+  try {
+    const raw = byId("lab-input").value;
+    const value = labJson(raw, 128 * 1024);
+    const body = Object.hasOwn(value, "command") ? raw : `{"command":${raw}}`;
+    const result = await labRequest("analyze", body);
+    if (revision === labRevision) renderAnalysis(result.data, result.text);
+  } catch (error) { if (revision === labRevision) labError(error); }
+  finally { button.disabled = false; }
+});
+byId("lab-download").addEventListener("click", () => {
+  if (!latestCapsule) return;
+  const url = URL.createObjectURL(new Blob([latestCapsule], { type: "application/json" }));
+  const link = document.createElement("a");
+  link.href = url; link.download = "anatomy-unsigned-replay.json";
+  document.body.append(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+byId("lab-capsule-file").addEventListener("change", async event => {
+  replayRevision += 1;
+  const revision = replayRevision;
+  byId("lab-replay-report").hidden = true;
+  uploadedCapsule = null; byId("lab-replay-file").disabled = true;
+  const file = event.target.files[0];
+  if (!file) return;
+  try {
+    if (file.size > 192 * 1024) throw new Error("Capsule exceeds 192 KiB.");
+    const raw = await file.text();
+    if (revision !== replayRevision) return;
+    labJson(raw, 192 * 1024);
+    uploadedCapsule = raw;
+    byId("lab-replay-file").disabled = false;
+    setText("lab-file-status", `${file.name} · loaded locally. Replay submits it to this service.`);
+  } catch (error) { if (revision === replayRevision) setText("lab-file-status", error.message); }
+});
+async function replayLab(raw, button) {
+  if (!raw) return;
+  const revision = ++replayRevision;
+  button.disabled = true;
+  byId("lab-replay-report").hidden = true;
+  try {
+    const { data, text } = await labRequest("replay", raw);
+    if (revision !== replayRevision) return;
+    if (data.executable !== false || data.authentic !== false) throw new Error("Unexpected replay trust boundary.");
+    setText("lab-replay-status", data.valid ? "REPRODUCIBLE · UNSIGNED" : "REPLAY DIFFERENCES DETECTED");
+    setText("lab-replay-message", data.valid ? "Inputs, policy, and computed result match. Authorship and authenticity remain unestablished." : "The capsule did not reproduce exactly. Inspect the differences below.");
+    const issues = byId("lab-replay-issues"); issues.replaceChildren();
+    for (const item of data.issues) issues.append(labElement("li", `${item.code}: ${item.detail}`));
+    const matches = byId("lab-replay-digests"); matches.replaceChildren();
+    for (const key of ["inputMatch", "policyMatch", "resultMatch"]) {
+      const group = document.createElement("div");
+      group.append(labElement("dt", key), labElement("dd", data[key] === true ? "Match" : data[key] === false ? "Mismatch" : "Not evaluated")); matches.append(group);
+    }
+    setText("lab-replay-json", text); byId("lab-replay-report").hidden = false;
+  } catch (error) { if (revision === replayRevision) labError(error); }
+  finally { button.disabled = button.id === "lab-replay-latest" ? !latestCapsule : !uploadedCapsule; }
+}
+byId("lab-replay-latest").addEventListener("click", event => replayLab(latestCapsule, event.currentTarget));
+byId("lab-replay-file").addEventListener("click", event => replayLab(uploadedCapsule, event.currentTarget));

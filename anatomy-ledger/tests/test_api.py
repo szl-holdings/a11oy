@@ -225,6 +225,57 @@ class ServerApiTests(unittest.TestCase):
         self.assertTrue(value["evaluationOnly"])
         self.assertFalse(value["executable"])
 
+    def test_decision_lab_roundtrip_is_read_only(self):
+        command = SERVER.BIND.intent_from_command(
+            principal_id="agent:sample",
+            action="DeployArtifact",
+            resource_id="deploy:sample",
+            purpose="test",
+            intended_effect="deploy",
+            risk_score=10,
+            human_approval=True,
+            mfa=True,
+            evidence_digest=SERVER.DIGEST,
+        )
+        before = (self.ledger_path.read_bytes(), self.ledger_path.stat().st_mtime_ns)
+        status, result = self.json_request(
+            "POST",
+            "/api/analyze",
+            {
+                "command": command,
+                "statement": SERVER.VALID_SLSA,
+                "verification": {"verified": True},
+            },
+        )
+        self.assertEqual(status, 200)
+        self.assertFalse(result["executable"])
+        self.assertFalse(result["base"]["result"]["evidence"]["verified"])
+        self.assertGreater(len(result["scenarios"]), 0)
+        status, replayed = self.json_request(
+            "POST", "/api/replay", result["replayCapsule"]
+        )
+        self.assertEqual(status, 200)
+        self.assertTrue(replayed["valid"], replayed)
+        self.assertFalse(replayed["executable"])
+        tampered = copy.deepcopy(result["replayCapsule"])
+        tampered["input"]["command"]["context"]["mfa"] = False
+        status, replayed = self.json_request("POST", "/api/replay", tampered)
+        self.assertEqual(status, 200)
+        self.assertFalse(replayed["valid"])
+        self.assertEqual(
+            before, (self.ledger_path.read_bytes(), self.ledger_path.stat().st_mtime_ns)
+        )
+
+    def test_decision_lab_invalid_inputs_fail_with_json(self):
+        for payload in ({}, {"command": []}, {"command": {}, "scenarios": [{}] * 17}):
+            status, result = self.json_request("POST", "/api/analyze", payload)
+            self.assertEqual(status, 422)
+            self.assertFalse(result["executable"])
+        status, result = self.json_request("POST", "/api/replay", {})
+        self.assertIn(status, (200, 422))
+        self.assertFalse(result.get("valid", False))
+        self.assertFalse(result["executable"])
+
     def test_nested_payload_shapes_return_json_errors(self):
         for route, payload in (
             ("authorize", {"request": []}),

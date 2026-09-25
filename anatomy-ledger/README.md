@@ -34,10 +34,41 @@ protected merge, canonical publisher, and fresh deployed-route readback.
 | `POST /api/authorize` | Strictly typed advisory intent inspection |
 | `POST /api/evaluate` | Structural evidence inspection; caller flags are untrusted |
 | `POST /api/bind` | Intent/evidence composition; never execution authority |
+| `POST /api/analyze` | Compare a request with bounded hypothetical changes |
+| `POST /api/replay` | Recompute an unsigned analysis and detect input/policy drift |
 
 POST accepts a JSON object (`Content-Type: application/json`) with a 256 KiB limit.
 No API accepts a local artifact path or invokes a verification subprocess on behalf
 of an unauthenticated caller. Reads and inspection requests do not write state.
+
+## Decision lab
+
+Open **Decision lab** in the dashboard, load the explicitly labelled sample, and
+run analysis. The original request and each scenario pass through the same actual
+Python advisory evaluators. The comparison shows intent and combined outcomes,
+changed attributes, and the exact evaluator reasons. Default scenarios vary
+approval, MFA, network zone, and risk; custom scenarios are bounded and allowlisted.
+The lab does not search for ways to evade controls or execute a resulting request.
+
+`POST /api/analyze` accepts `command` (the existing typed intent object), optional
+`statement` and untrusted `verification`, and optional `scenarios`. A scenario has
+an `id`, `label`, and a `changes` object whose keys are permitted dotted paths,
+such as `context.mfa`. Each scenario begins with the original request, so changes
+do not leak from one comparison into the next. A hypothetical approval or identity
+attribute is supplied data, not an authenticated approval or identity change.
+
+Download the replay capsule to save the full input and deterministic digests.
+Upload it later to recompute under the current evaluator. Replay compares the input,
+results, and policy fingerprint and reports differences; changed on-disk evaluator
+sources require a runtime restart before fresh analysis. Capsules are **UNSIGNED**:
+a matching replay establishes internal reproducibility only. Someone who controls
+the file can rewrite both its contents and hashes. The lab cannot establish who
+created a capsule or when it was created. Inspect capsule contents before sharing,
+because they include the submitted command and evidence statement.
+
+Online analysis uses the labelled Python advisory implementation. Native Cedar/OPA
+validation runs separately in required checks; the UI does not claim those engines
+ran on a browser request. Every scenario and replay retains `executable: false`.
 
 ## Build and inspect evidence
 

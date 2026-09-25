@@ -31,12 +31,11 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 def _load(name: str, path: pathlib.Path):
-    import importlib.util
+    from types import ModuleType
 
-    spec = importlib.util.spec_from_file_location(name, path)
-    module = importlib.util.module_from_spec(spec)
-    assert spec and spec.loader
-    spec.loader.exec_module(module)
+    module = ModuleType(name)
+    module.__file__ = str(path)
+    exec(compile(path.read_bytes(), str(path), "exec"), module.__dict__)
     return module
 
 
