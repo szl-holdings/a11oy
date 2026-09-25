@@ -34,6 +34,7 @@ RECEIPT_PATH = Path("hf-lyte-enterprise-receipt.json")
 FAILED_MANIFEST_PATH = Path("hf-lyte-enterprise-manifest.failed.json")
 CONTRACT_PATH = Path(__file__).resolve().with_name("lyte_enterprise_live_contract.py")
 DEFAULT_COMMAND_TIMEOUT_S = 600
+ATTEST_COMMAND_TIMEOUT_S = 2400
 PHASE_JOURNAL: list[dict[str, Any]] = []
 
 CONTROLLER_REPOSITORY = "szl-holdings/.github"
@@ -99,8 +100,10 @@ def run_bounded(
     journal("run_bounded_ok", argv=command[:6])
 
 
-def run_checked(command: list[str], *, cwd: Path | None = None) -> None:
-    run_bounded(command, cwd=cwd)
+def run_checked(
+    command: list[str], *, cwd: Path | None = None, timeout: int = DEFAULT_COMMAND_TIMEOUT_S,
+) -> None:
+    run_bounded(command, cwd=cwd, timeout=timeout)
 
 
 def checkout_exact_source(destination: Path) -> None:
@@ -250,7 +253,7 @@ def deploy_with_controller(source: Path, controller: Path, manifest: Path) -> No
     run_checked([
         sys.executable, str(controller), "--attest", "--manifest", str(manifest),
         "--hf-repo", HF_REPOSITORY, "--wait-running", "1200", "--smoke-retries", "24",
-    ])
+    ], timeout=ATTEST_COMMAND_TIMEOUT_S)
 
 
 def verify_contract() -> dict[str, Any]:

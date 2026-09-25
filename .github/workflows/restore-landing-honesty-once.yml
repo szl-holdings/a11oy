@@ -1,0 +1,41 @@
+name: restore-landing-honesty-once
+on:
+  push:
+    branches: [feat/honesty-first-paint-no-live-badge]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: restore-landing-honesty-once
+  cancel-in-progress: false
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/feat/honesty-first-paint-no-live-badge'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: feat/honesty-first-paint-no-live-badge
+          token: ${{ github.token }}
+      - name: Restore landing if placeholder
+        run: |
+          set -euo pipefail
+          SIZE=$(wc -c < pages/landing.html | tr -d ' ')
+          echo "pages/landing.html bytes=$SIZE"
+          if [ "$SIZE" -gt 1000 ]; then
+            echo "landing already full; skip"
+            exit 0
+          fi
+          git fetch origin main
+          git checkout origin/main -- pages/landing.html
+          python3 tools/apply_landing_honesty.py pages/landing.html
+          git config user.email "stephenlutar2@gmail.com"
+          git config user.name "Lutar, Stephen P."
+          git add pages/landing.html
+          if git diff --cached --quiet; then
+            echo "no landing delta"
+            exit 0
+          fi
+          git commit -m "fix(landing): restore full HTML with BIND first-paint"
+          git push origin feat/honesty-first-paint-no-live-badge

@@ -132,6 +132,26 @@ def test_module_uses_reviewed_spa_and_does_not_steal_console() -> None:
     assert "does not steal /console" in src
 
 
+def test_killinchu_page_binds_exact_same_origin_inventory_fail_closed() -> None:
+    html = (ROOT / "pages" / "killinchu.html").read_text(encoding="utf-8")
+    assert 'rel="canonical" href="https://a-11-oy.com/killinchu"' in html
+    assert "'/api/a11oy/v1/spaces/health'" in html
+    assert "'https://szlholdings-killinchu.hf.space'" in html
+    assert "row.url===EXPECTED_URL" in html
+    assert "freshSnapshot" in html
+    assert "state==='LIVE'" in html
+    assert "stage==='RUNNING'" in html
+    assert "twin.app_reachable===true" in html
+    assert "appStatus===200" in html
+    assert "twin.contract_state==='LIVE'" in html
+    assert "contractsLive" in html
+    assert "cache:'no-store'" in html
+    assert "credentials:'omit'" in html
+    assert "TWIN UNAVAILABLE" in html
+    assert "String(e)" not in html
+    assert "ORIGIN+'/healthz'" not in html
+
+
 def test_serve_imports_and_calls_register() -> None:
     src = SERVE.read_text(encoding="utf-8")
     assert src.count("import a11oy_command_center as _a11oy_command_center") == 1

@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - DEV-A readiness source wrappers
+- Treasury rates on real-estate pulse/deal and SEC full-text on ownership
+  use the existing public-source normalizer. Cold failures remain
+  `UNAVAILABLE` with an observation clock; cached values retain their
+  original source timestamp. The `SIMULATED` forecast and its fallback
+  are unchanged. Registered-route fixtures cover cold, cached, and live inputs.
+  Source repair is not a claim that deployment or estate alignment passed.
+
 ### Added - explicit governed SZL Router consumer
 - `POST /api/a11oy/v1/govern/infer` accepts `effort: szl-router` after the
   existing governance gates. The services adapter verifies the pinned source,

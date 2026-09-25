@@ -7,10 +7,17 @@ name: Estate release train
       - config/estate-release-train.v1.json
       - scripts/verify_estate_release_train.py
       - scripts/hf_public_inventory.py
+      - scripts/estate_repair_dispatch.py
+      - scripts/estate_child_completion.py
+      - tests/test_estate_child_completion.py
       - tests/test_hf_public_inventory.py
       - tests/test_estate_pr_concurrency.py
       - tests/test_estate_release_train.py
+      - tests/test_estate_repair_dispatch.py
+      - tests/test_estate_repair_plan_authority.py
+      - tests/test_estate_lyte_failure_evidence.py
       - .github/workflows/estate-release-train.yml
+      - .github/workflows/hf-sync.yml
   workflow_run:
     workflows:
       - Sync and Relock Canonical Hugging Face Space
@@ -24,6 +31,17 @@ name: Estate release train
         required: true
         type: boolean
         default: false
+      publish_vertical_flagships:
+        description: Forward an authorized complete vertical flagship plan to hf-sync. Default false. Incomplete or unapproved plans stay NOT_REQUESTED and never become whole-estate PASS.
+        required: false
+        type: boolean
+        default: false
+
+      vertical_plan_json:
+        description: Complete approved plan JSON with expected_source_revision bound to exact A11oy main; not a production-readiness certificate.
+        required: false
+        type: string
+        default: ""
 
 permissions:
   actions: write
@@ -46,7 +64,9 @@ jobs:
       github.event_name != 'workflow_run' ||
       github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-24.04
-    timeout-minutes: 55
+    # Explicit repair waits for canonical children (60m), then native parity (30m).
+    # Observation-only runs retain their original bound. No timeout is success.
+    timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && inputs.repair && 110 || 55 }}
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
@@ -69,9 +89,14 @@ jobs:
         run: |
           set -euo pipefail
           python -m py_compile scripts/verify_estate_release_train.py
+          python -m py_compile scripts/estate_repair_dispatch.py
           python tests/test_estate_release_train.py
+          python tests/test_estate_repair_dispatch.py
+          python tests/test_estate_repair_plan_authority.py
+          python tests/test_estate_lyte_failure_evidence.py
           python tests/test_hf_public_inventory.py
           python tests/test_estate_pr_concurrency.py
+          python tests/test_estate_child_completion.py
           python -m json.tool config/estate-release-train.v1.json >/dev/null
           git diff --check
 
@@ -80,10 +105,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_TOKEN: ${{ github.token }}
+          EXPLICIT_REPAIR: ${{ github.event_name == 'workflow_dispatch' && inputs.repair }}
         run: |
           set -euo pipefail
           wait_seconds=0
-          if [ "${{ github.event_name }}" != pull_request ]; then
+          if [ "${{ github.event_name }}" != pull_request ] && [ "${EXPLICIT_REPAIR}" != true ]; then
             wait_seconds=1200
           fi
           python scripts/verify_estate_release_train.py \
@@ -101,31 +127,68 @@ jobs:
         if: >-
           github.event_name == 'workflow_dispatch' &&
           inputs.repair == true &&
-          steps.initial.outputs.state != 'ALIGNED'
+          (steps.initial.outputs.state != 'ALIGNED' || inputs.publish_vertical_flagships == true)
         env:
           GH_TOKEN: ${{ github.token }}
           EXPECTED_SHA: ${{ steps.initial.outputs.expected_sha }}
+          VERTICAL_REQUESTED: ${{ inputs.publish_vertical_flagships }}
+          VERTICAL_PLAN_JSON: ${{ inputs.vertical_plan_json }}
         run: |
           set -euo pipefail
           current="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
-          test "$current" = "$EXPECTED_SHA"
+          python scripts/estate_repair_dispatch.py \
+            --repair true \
+            --plan-from-env \
+            --vertical-requested "${VERTICAL_REQUESTED:-false}" \
+            --expected-sha "$EXPECTED_SHA" \
+            --current-sha "$current" \
+            --repo "$GITHUB_REPOSITORY" \
+            --github-output "$GITHUB_OUTPUT" \
+            > "$RUNNER_TEMP/estate-repair-dispatch.json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+          from scripts.estate_child_completion import dispatch_child, wait_for_children, require
 
-          gh workflow view hf-sync.yml --repo "$GITHUB_REPOSITORY" >/dev/null
-          gh workflow run hf-sync.yml --repo "$GITHUB_REPOSITORY" --ref main
-
-          if gh workflow view repair-cloudflare-product-edge.yml \
-            --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh workflow run repair-cloudflare-product-edge.yml \
-              --repo "$GITHUB_REPOSITORY" --ref main
-          fi
-
-          echo "Canonical writer dispatches accepted for exact main $EXPECTED_SHA."
+          receipt = json.loads(
+              (Path(os.environ["RUNNER_TEMP"]) / "estate-repair-dispatch.json").read_text()
+          )
+          print("Repair planner reason:", receipt["reason"])
+          command = receipt["hf_sync_command"]
+          require(receipt["dispatch"] is True and command is not None,
+                  "Explicit repair denied; do not report completion from surface parity")
+          requested = os.environ.get("VERTICAL_REQUESTED", "false") == "true"
+          require(not requested or receipt.get("vertical_flagships") is True,
+                  "Explicit vertical plan was not admitted")
+          revision = receipt["expected_source_revision"]
+          children = []
+          if receipt["dispatch"] is True and command is not None:
+              # Execute only the planner's fixed gh argv, never shell-evaluate input.
+              child_path = Path("reports/estate-child-hf.jsonl")
+              children.append((dispatch_child(command, "hf-sync.yml", revision,
+                                              receipt["vertical_flagships"], child_path), child_path))
+              repo = os.environ["GITHUB_REPOSITORY"]
+              edge = "repair-cloudflare-product-edge.yml"
+              available = subprocess.run(
+                  ["gh", "workflow", "view", edge, "--repo", repo],
+                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+              )
+              if available.returncode == 0:
+                  child_path = Path("reports/estate-child-edge.jsonl")
+                  edge_command = ["gh", "workflow", "run", edge, "--repo", repo, "--ref", "main"]
+                  children.append((dispatch_child(edge_command, edge, revision, False, child_path), child_path))
+              wait_for_children(children)
+          else:
+              print("Canonical writer dispatch skipped; no HF or edge writer requested.")
+          PY
 
       - name: Reobserve after an explicit repair dispatch
         if: >-
           github.event_name == 'workflow_dispatch' &&
           inputs.repair == true &&
-          steps.initial.outputs.state != 'ALIGNED'
+          (steps.initial.outputs.state != 'ALIGNED' || inputs.publish_vertical_flagships == true)
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_TOKEN: ${{ github.token }}
@@ -220,6 +283,8 @@ jobs:
           path: |
             ${{ env.REPORT }}
             reports/hf-public-inventory-preflight.json
+            ${{ runner.temp }}/estate-repair-dispatch.json
+            reports/estate-child-*.jsonl
           if-no-files-found: error
           retention-days: 180
 

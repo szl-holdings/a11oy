@@ -277,15 +277,29 @@ def lyte_surface() -> dict:
 
 
 def lyte_payload() -> dict:
-    # Shape read from lyte-services@2131d2e space/server.py, not live evidence.
+    # Synthetic values in the producer's exact v2 identity shape; not live data.
+    # lyte-services@9ce4e6b5f36fe0b094a07308abe3665cd2a210c1
+    # lyte/api/routes_health.py blob b0e981fb04d616ae8fcc076a5f4ca0bd866418f5
+    repository = "szl-holdings/lyte-services"
+    revision = "d" * 40
     return {
-        "schema": "szl.build-info/v1",
+        "schema": "szl.lyte-build/v2",
         "service": "lyte-signal-lattice",
-        "source_repository": "szl-holdings/lyte-services",
-        "build": {"state": "OBSERVED", "revision": "d" * 40},
+        "source_repository": repository,
+        "source_revision": revision,
+        "runtime_repository": repository,
+        "runtime_source_revision": revision,
+        "effectors_enabled": False,
+        "human_approval_required": True,
+        "build": {"state": "OBSERVED", "revision": revision, "repository": repository},
         "source_binding": {
             "bindings_agree": True,
-            "evidence_sources": ["env:LYTE_SOURCE_REVISION", "container-file"],
+            "product_repository": repository,
+            "product_revision": revision,
+            "hub_surface": "SZLHOLDINGS/lyte",
+            "evidence_sources": ["LYTE_SOURCE_REVISION", "source_revision.txt"],
+            "invalid_sources": [],
+            "distinct_revision_count": 1,
         },
     }
 
@@ -428,3 +442,138 @@ def test_a11oy_runtime_shape_uses_observed_deployer_revision():
         witness.apply_source_repository_policy(
             witness.selected_build_fields(payload), payload, surface
         )
+
+
+@pytest.mark.parametrize("origins", [
+    ["LYTE_SOURCE_REVISION"],
+    ["LYTE_SOURCE_REVISION", "SOURCE_REVISION"],
+    ["GITHUB_SHA", "LYTE_SOURCE_REVISION", "SOURCE_REVISION", "source_revision.txt"],
+])
+def test_lyte_v2_literal_producer_origins_are_supported_without_alias_rewriting(origins):
+    payload = lyte_payload()
+    payload["source_binding"]["evidence_sources"] = origins
+    before = copy.deepcopy(payload)
+    fields = witness.apply_source_repository_policy(
+        witness.selected_build_fields(payload), payload, lyte_surface()
+    )
+    assert fields["source_revision"] == "d" * 40
+    assert payload == before
+    assert "hf_revision" not in fields
+
+
+@pytest.mark.parametrize("path,value", [
+    (("schema",), "szl.build-info/v1"),
+    (("schema",), "szl.lyte-build/v3"),
+    (("source_revision",), None),
+    (("source_revision",), "D" * 40),
+    (("runtime_repository",), "szl-holdings/a11oy"),
+    (("runtime_source_revision",), "e" * 40),
+    (("runtime_source_revision",), None),
+    (("build", "repository"), "szl-holdings/a11oy"),
+    (("build", "revision"), "D" * 40),
+    (("build", "revision"), "d" * 40 + "\n"),
+    (("build", "revision"), True),
+    (("source_binding", "product_repository"), "szl-holdings/a11oy"),
+    (("source_binding", "product_revision"), "e" * 40),
+    (("source_binding", "hub_surface"), "SZLHOLDINGS/other"),
+    (("source_binding", "invalid_sources"), ["GITHUB_SHA"]),
+    (("source_binding", "invalid_sources"), None),
+    (("source_binding", "invalid_sources"), ""),
+    (("source_binding", "distinct_revision_count"), 0),
+    (("source_binding", "distinct_revision_count"), 2),
+    (("source_binding", "distinct_revision_count"), True),
+    (("source_binding", "distinct_revision_count"), 1.0),
+    (("source_binding", "distinct_revision_count"), "1"),
+    (("source_binding", "evidence_sources"), ["env:LYTE_SOURCE_REVISION"]),
+    (("source_binding", "evidence_sources"), ["LYTE_SOURCE_REVISION", "container-file"]),
+    (("source_binding", "evidence_sources"), ["LYTE_SOURCE_REVISION", "LYTE_SOURCE_REVISION"]),
+    (("source_binding", "evidence_sources"), [" LYTE_SOURCE_REVISION"]),
+    (("source_binding", "evidence_sources"), ["LYTE_SOURCE_REVISION", 1]),
+    (("source_binding", "evidence_sources"), ["GITHUB_SHA"]),
+    (("source_binding", "evidence_sources"), ["source_revision.txt"]),
+    (("effectors_enabled",), True),
+    (("effectors_enabled",), 0),
+    (("effectors_enabled",), None),
+    (("human_approval_required",), False),
+    (("human_approval_required",), 1),
+])
+def test_lyte_v2_tuple_must_be_consistent_and_nonauthorizing(path, value):
+    payload = lyte_payload()
+    target = payload
+    for part in path[:-1]:
+        target = target[part]
+    target[path[-1]] = value
+    with pytest.raises(witness.ContractError):
+        witness.apply_source_repository_policy(
+            witness.selected_build_fields(payload), payload, lyte_surface()
+        )
+
+
+@pytest.mark.parametrize("key", [
+    "runtime_repository", "runtime_source_revision", "source_revision",
+    "effectors_enabled", "human_approval_required",
+])
+def test_lyte_v2_missing_identity_field_is_not_inferred(key):
+    payload = lyte_payload()
+    del payload[key]
+    with pytest.raises(witness.ContractError):
+        witness.apply_source_repository_policy(
+            witness.selected_build_fields(payload), payload, lyte_surface()
+        )
+
+
+@pytest.mark.parametrize("field,value", [
+    ("id", "finance"), ("hf_repository", "SZLHOLDINGS/other"),
+    ("revision_policy", "declared-commit"), ("hf_revision_policy", "runtime-declared"),
+    ("default_branch", "preview"),
+])
+def test_lyte_v2_policy_rechecks_surface_at_use(field, value):
+    surface = lyte_surface()
+    surface[field] = value
+    payload = lyte_payload()
+    with pytest.raises(witness.ContractError):
+        witness.apply_source_repository_policy(
+            witness.selected_build_fields(payload), payload, surface
+        )
+
+
+@pytest.mark.parametrize("proof", ["github", "hf"])
+def test_lyte_v2_valid_source_shape_never_substitutes_for_provider_proof(monkeypatch, proof):
+    import urllib.error
+
+    install_lyte_observations(monkeypatch, lyte_payload())
+
+    def unavailable(*args, **kwargs):
+        raise urllib.error.HTTPError("https://example.invalid", 500, "fixture", {}, None)
+
+    monkeypatch.setattr(witness, "github_default_tip" if proof == "github" else "hf_space_revision", unavailable)
+    row = witness.observe_surface(None, lyte_surface(), timeout=1, token=None)
+    assert row["verified"] is False
+    assert len(row["routes"]) == len(lyte_surface()["required_paths"])
+    expected = "source proof:" if proof == "github" else "Hugging Face proof:"
+    assert any(message.startswith(expected) for message in row["failures"])
+
+
+def test_lyte_v2_route_failure_is_not_hidden_by_valid_identity(monkeypatch):
+    install_lyte_observations(monkeypatch, lyte_payload())
+    original = witness.request_bytes
+
+    def read(opener, url, *, timeout, token=None):
+        value = original(opener, url, timeout=timeout, token=token)
+        if url.endswith("/readyz"):
+            return witness.HttpObservation(url, 503, value.content_type, value.body_sha256, value.body)
+        return value
+
+    monkeypatch.setattr(witness, "request_bytes", read)
+    row = witness.observe_surface(None, lyte_surface(), timeout=1, token=None)
+    assert row["verified"] is False
+    assert "/readyz: HTTP 503" in row["failures"]
+
+
+def test_lyte_v2_policy_does_not_mutate_selected_fields():
+    payload = lyte_payload()
+    fields = witness.selected_build_fields(payload)
+    before = copy.deepcopy(fields)
+    result = witness.apply_source_repository_policy(fields, payload, lyte_surface())
+    assert fields == before
+    assert result is not fields
