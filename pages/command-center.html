@@ -118,7 +118,7 @@ function paintFromCycle(cycle){
   if(!cycle) return "UNAVAILABLE";
   if(cycle.schema !== CYCLE_SCHEMA) return "UNAVAILABLE";
   if(cycle.productionPromotion === true) return "DENY";
-  if(cycle.lambda !== "CONJECTURE_1" || cycle.lambdaNeverATheorem !== true) return "DENY";
+  if(cycle.lambda !== "CONJECTURE_1" || cycle.lambdaNeverATheorem !== true) return "DENY"; // never a theorem
   if(cycle.authority !== "PROPOSAL_ONLY") return "DENY";
   if(cycle.invariantsOk !== true) return "DENY";
   if(cycle.shadow && cycle.shadow.executable === true) return "DENY";
