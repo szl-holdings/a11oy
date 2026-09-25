@@ -93,6 +93,45 @@ _LIVEBAR_CLOSED = (
     "if(root.dataset.domain==='sentra'){root.dataset.iris=ok?'gated':'closed';}"
 )
 
+# Finance is a thin read-only projection of its canonical source-owned API.
+# The immutable base renderer remains byte-identical; no second publisher exists.
+_finance_spec = importlib.util.spec_from_file_location(
+    "szl_finance_read_projection", Path(__file__).with_name("hf_finance_read_proxy.py")
+)
+if _finance_spec is None or _finance_spec.loader is None:
+    raise RuntimeError("finance read projection is unavailable")
+_finance_module = importlib.util.module_from_spec(_finance_spec)
+_finance_spec.loader.exec_module(_finance_module)
+_BASE.APP = _finance_module.augment(_BASE.APP)
+_BASE.FLAGSHIPS = tuple(
+    {
+        **row,
+        "source": "https://github.com/szl-holdings/a11oy/tree/main/verticals/puriq-markets",
+        "upstream": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/finance/overview",
+    } if row.get("slug") == "finance" else row
+    for row in _BASE.FLAGSHIPS
+)
+
+# Bind the emitted image and dependency lock, not only the CI environment.
+_runtime_spec = importlib.util.spec_from_file_location(
+    "szl_flagship_runtime_contract", Path(__file__).with_name("hf_flagship_runtime_contract.py")
+)
+if _runtime_spec is None or _runtime_spec.loader is None:
+    raise RuntimeError("flagship runtime contract is unavailable")
+_runtime_module = importlib.util.module_from_spec(_runtime_spec)
+_runtime_spec.loader.exec_module(_runtime_module)
+_runtime_module.apply_runtime_contract(_BASE)
+
+# Finance UI consumes only the validated same-origin read projection.
+_workspace_spec = importlib.util.spec_from_file_location(
+    "szl_finance_workspace", Path(__file__).with_name("hf_finance_workspace.py")
+)
+if _workspace_spec is None or _workspace_spec.loader is None:
+    raise RuntimeError("finance workspace contract is unavailable")
+_workspace_module = importlib.util.module_from_spec(_workspace_spec)
+_workspace_spec.loader.exec_module(_workspace_module)
+_workspace_module.apply_workspace(_BASE)
+
 # Export the complete base API after applying the overlay. Function objects keep
 # the base module globals, which are synchronized again before public calls that
 # depend on mutable module contracts.

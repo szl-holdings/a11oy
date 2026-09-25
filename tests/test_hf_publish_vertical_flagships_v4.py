@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 import ast
+import hashlib
 import importlib.util
 import shutil
 import sys
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 
 import pytest
 
@@ -20,6 +21,18 @@ SYNC_WORKFLOW = Path(".github/workflows/hf-sync.yml")
 PUBLIC_VERIFY = Path("szl_public_verify.py")
 TERRA_BUNDLE = Path("deployments/vertical-forge/terra")
 SOURCE_REVISION = "c24ef61716f173e48d95dad61408d9fa065f0204"
+# Explicit reviewed exception to the immutable renderer's historical runtime.
+# Independent pins prevent changing both a producer and a mutable alias from
+# silently qualifying arbitrary image/dependency changes. The baseline is
+# PURIQ 91717976275b685bef5f6ba9caa40b43fc1efff5; these are generated-file hashes,
+# not a signature or a fresh vulnerability-database clearance.
+REVIEWED_DOCKER_SHA256 = "7184015f0d0c58f58a67ade27d71e40a6b2f7ca1d6af670794d2dc9da4cc516e"
+REVIEWED_REQUIREMENTS_SHA256 = "a68dadf1194259c52c37c9fa52bde3ecd48ffc1c69bf1addfe8cfe43442cd351"
+
+
+def assert_reviewed_runtime(module) -> None:
+    assert hashlib.sha256(module.DOCKER.encode("utf-8")).hexdigest() == REVIEWED_DOCKER_SHA256
+    assert hashlib.sha256(module.REQ.encode("utf-8")).hexdigest() == REVIEWED_REQUIREMENTS_SHA256
 
 
 def source(path: Path = SCRIPT) -> str:
@@ -67,7 +80,7 @@ def test_overlay_and_immutable_base_compile() -> None:
     assert "eval(" not in overlay
 
 
-def test_overlay_changes_only_sentra_contract_and_templates() -> None:
+def test_overlay_changes_only_declared_sentra_and_finance_contracts() -> None:
     base = load_base()
     overlay = load_overlay()
     base_rows = by_slug(base)
@@ -76,10 +89,36 @@ def test_overlay_changes_only_sentra_contract_and_templates() -> None:
     assert set(base_rows) == set(overlay_rows) == {
         "terra", "sentra", "counsel", "finance", "vessels", "lyte"
     }
-    for slug in set(base_rows) - {"sentra"}:
+    for slug in set(base_rows) - {"sentra", "finance"}:
         assert overlay_rows[slug] == base_rows[slug]
+    for slug in set(base_rows) - {"sentra", "finance"}:
         assert overlay.DOMAIN_CSS[slug] == base.DOMAIN_CSS[slug]
         assert overlay.DOMAIN_HTML[slug] == base.DOMAIN_HTML[slug]
+
+    # Finance has one exact reviewed presentation addition; every other
+    # product remains byte-identical except the existing Sentra overlay.
+    workspace = load_module("szl_finance_workspace_contract", Path("scripts/hf_finance_workspace.py"))
+    assert hashlib.sha256(workspace.HTML.encode()).hexdigest() == "035d9c6042e5478c897f3d45bbaefc9733e640f4436b9b9934f6af049c0e3832"
+    assert hashlib.sha256(workspace.CSS.encode()).hexdigest() == "297b06de7d7d06911470b309e9480f722e2fedb0f5d7ae18698f6e264ef4f9f2"
+    assert overlay.DOMAIN_HTML["finance"] == workspace.HTML
+    assert overlay.DOMAIN_CSS["finance"] == base.DOMAIN_CSS["finance"] + workspace.CSS
+
+    # Finance changes only two explicit bindings; other metadata and sibling visual
+    # templates stay equal to the immutable renderer. This is not a wildcard
+    # exception for finance changes or permission for another publisher.
+    assert overlay_rows["finance"] == {
+        **base_rows["finance"],
+        "source": "https://github.com/szl-holdings/a11oy/tree/main/verticals/puriq-markets",
+        "upstream": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/finance/overview",
+    }
+    assert overlay.APP.startswith(base.APP)
+    addition = overlay.APP[len(base.APP):]
+    assert 'if CFG.get("slug") == "finance":' in addition
+    assert 'CANONICAL_REVISION_MISMATCH' in addition
+    assert 'USE_PRIVATE_CANONICAL_SOURCE_ENDPOINT' in addition
+    # Only the independently pinned, reviewed runtime change is admitted.
+    # The immutable base, metadata and visual isolation checks above remain.
+    assert_reviewed_runtime(overlay)
 
     assert overlay_rows["sentra"] != base_rows["sentra"]
     assert overlay.DOMAIN_CSS["sentra"] != base.DOMAIN_CSS["sentra"]
@@ -338,6 +377,28 @@ def test_archived_vertical_repositories_remain_out_of_source_links() -> None:
     assert "a11oy/tree/main/verticals/vessels" in rendered
 
 
+@pytest.mark.parametrize("field,old,new", [
+    ("DOCKER", "USER szl", "USER root"),
+    ("DOCKER", "sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf",
+     "sha256:" + "0" * 64),
+    ("DOCKER", "--no-server-header", "--reload"),
+    ("DOCKER", "EXPOSE 7860", "RUN echo unreviewed\nEXPOSE 7860"),
+    ("REQ", "fastapi==0.141.1", "fastapi==0.116.1"),
+    ("REQ", "starlette==1.6.0", "starlette"),
+    ("REQ", "pip==26.2.1", "pip==25.0.1"),
+    ("REQ", "websockets==17.1", "websockets==17.1\nundeclared-fixture==1.0"),
+])
+def test_runtime_exception_rejects_unreviewed_mutations(field, old, new) -> None:
+    overlay = load_overlay()
+    assert_reviewed_runtime(overlay)
+    candidate = SimpleNamespace(DOCKER=overlay.DOCKER, REQ=overlay.REQ)
+    original = getattr(candidate, field)
+    assert old in original
+    setattr(candidate, field, original.replace(old, new, 1))
+    with pytest.raises(AssertionError):
+        assert_reviewed_runtime(candidate)
+
+
 def test_probe_http_success_is_reachable_not_measured() -> None:
     module = load_overlay()
     assert '"status":"LIVE" if r.is_success' not in module.APP
@@ -358,3 +419,4 @@ def test_livebar_and_sentra_iris_stay_closed_without_a_receipt() -> None:
     assert "iris-aperture" in sentra
     assert "html[data-iris=open] .iris-aperture{transform:scale(.42)}" in module.DOMAIN_CSS["sentra"]
     assert "scale(1)" not in module.DOMAIN_CSS["sentra"]
+

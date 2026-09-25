@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - canonical Finance source workbench and advisory analytics
+- Sixteen bounded market-data adapters serve source-bound observations from
+  A11oy. The existing Finance Space projects only public canonical reads and
+  stateless v2 calculations; owner-only feeds require the canonical access gate.
+- Add `/api/a11oy/v1/finance/analytics/v2/{signals,quote,portfolio,receipts}`
+  and `/api/finance/v2` Space equivalents, composing the exact reviewed
+  vertical-services math component. Outputs are modeled, advisory and paper-only;
+  receipts are unsigned integrity evidence. Existing routes stay available.
+- The existing flagship publisher supports explicit Finance-only publication
+  after an exact-main canonical computation preflight. See
+  [release boundaries](docs/FINANCE_RELEASE_BOUNDARIES.md) for endpoint methods,
+  source binding, synthetic and provider lanes, and release verification.
+
 ### Fixed - DEV-A readiness source wrappers
 - Treasury rates on real-estate pulse/deal and SEC full-text on ownership
   use the existing public-source normalizer. Cold failures remain
