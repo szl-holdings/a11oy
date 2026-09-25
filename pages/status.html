@@ -36,7 +36,7 @@ footer{border-top:1px solid var(--line);color:var(--mut);font-size:11.5px;paddin
 </head><body>
 <header><span class="brand">a11oy</span><span class="tag">Brand Orchestration Layer · the one place to see everything</span></header>
 <nav><a href="/hub">Hub</a><a href="/a11oy.code">a11oy.code</a><a href="/docs">Docs</a><a href="/pricing">Pricing</a><a href="/api-keys">API Keys</a><a href="/sdk">SDK</a><a href="/status" class="active">Status</a><a href="/observability">Observability</a><a href="/security">Security</a><a href="/compliance">Compliance</a><a href="/cued-engagement">Cued Engagement</a><a href="/uds">UDS</a><a href="/counter-uas">Counter-UAS</a><a href="/evidence">Evidence</a><a href="/upgrades">Upgrades</a><a href="/audit">Audit</a><a href="/gap-report">Gap Report</a></nav>
-<main><h1>Status — live flagship feed</h1><p class="sub">Each flagship is probed through a11oy's <strong>same-origin organ-health proxy</strong>, which performs the real upstream health check server-side and reports honest up/down. A retired or unreachable backend honestly shows as 'unreachable' / a non-200 code — never a fabricated UP.</p>
+<main><h1>Status — live flagship feed</h1><p class="sub">Each flagship is probed through a11oy's <strong>same-origin organ-health proxy</strong>, which performs the real upstream health check server-side. HTTP 200 is <strong>REACHABLE</strong>. A retired or unreachable backend shows as UNAVAILABLE / a non-200 code — never UP, LIVE, or MEASURED.</p>
 <table><tr><th>Flagship</th><th>State</th><th>Latency</th></tr><tbody id="tb"></tbody></table><div class="note">Authoritative status will move to status.szlholdings.com with server-side synthetic probes (per the resilience layer). This client-side feed is the honest interim.</div><script>
 // HONEST role slugs only. The health probe targets a SAME-ORIGIN a11oy proxy
 // (/api/a11oy/v1/organ-health/<role>) that resolves each honest role to the real
@@ -61,15 +61,15 @@ FLAGS.forEach(([n,u,kind])=>{const tr=document.createElement('tr');
   // Same-origin proxy: server-side does the REAL upstream check and returns honest JSON.
   fetch(u,{cache:'no-store'}).then(r=>r.json().then(j=>{
     setL(j.latency_ms!=null?j.latency_ms:Math.round(performance.now()-t0));
-    if(j.up){setS('<span class="pill g">UP</span>');}
+    if(j.up){setS('<span class="pill a">REACHABLE</span>');}
     else if(j.status_code){setS('<span class="pill a">'+j.status_code+'</span>');}
-    else{setS('<span class="pill r">unreachable</span>');}
-  })).catch(()=>{setS('<span class="pill r">unreachable</span>');setL(Math.round(performance.now()-t0));});
+    else{setS('<span class="pill r">UNAVAILABLE</span>');}
+  })).catch(()=>{setS('<span class="pill r">UNAVAILABLE</span>');setL(Math.round(performance.now()-t0));});
  }else{
   // a11oy same-origin healthz / already-honest cross-origin probe.
   fetch(u,{mode:'cors',cache:'no-store'}).then(r=>{setL(Math.round(performance.now()-t0));
-    setS(r.ok?'<span class="pill g">UP</span>':'<span class="pill a">'+r.status+'</span>');})
-   .catch(()=>{setS('<span class="pill r">unreachable (CORS/down)</span>');setL(Math.round(performance.now()-t0));});
+    setS(r.ok?'<span class="pill a">REACHABLE</span>':'<span class="pill a">'+r.status+'</span>');})
+   .catch(()=>{setS('<span class="pill r">UNAVAILABLE</span>');setL(Math.round(performance.now()-t0));});
  }});
 </script>
 </main>

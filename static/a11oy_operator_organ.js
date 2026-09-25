@@ -205,7 +205,7 @@ async function loadTopology() {
     const r = await fetch('/operator-organ/topology.json', { cache: 'no-store', signal: AbortSignal.timeout(8000) });
     if (r.ok) {
       const j = await r.json();
-      if (j && Array.isArray(j.nodes) && j.nodes.length) { topo = j; dataMode = j.source === 'live' ? 'live' : 'cached'; }
+      if (j && Array.isArray(j.nodes) && j.nodes.length) { topo = j; dataMode = j.source === 'reachable' ? 'reachable' : (j.source === 'live' ? 'reachable' : 'cached'); }
     }
   } catch { dataMode = 'pending'; }
   setModeBadge();
@@ -236,7 +236,7 @@ async function pollHealth() {
 
 function setModeBadge() {
   const el = document.getElementById('opMode'); if (!el) return;
-  const map = { live: ['LIVE', '#5a8a6e'], cached: ['CACHED', '#c7a14a'], pending: ['PENDING', '#9a4a4a'] };
+  const map = { reachable: ['REACHABLE', '#c7a14a'], live: ['REACHABLE', '#c7a14a'], cached: ['CACHED', '#c7a14a'], pending: ['PENDING', '#9a4a4a'] };
   const [txt, col] = map[dataMode] || map.pending;
   el.textContent = txt; el.style.color = col;
 }
@@ -248,7 +248,7 @@ function renderHUD(alive) {
   const ul = document.getElementById('opList');
   if (ul) ul.innerHTML = topo.nodes.map(nd => {
     const st = nd.healthy === true ? 'up' : (nd.healthy === false ? 'down' : 'warn');
-    const tag = nd.healthy === true ? 'live' : (nd.healthy === false ? 'down' : 'unmeasured');
+    const tag = nd.honesty === 'REACHABLE' ? 'reachable' : (nd.healthy === true ? 'reachable' : (nd.healthy === false ? 'down' : 'unmeasured'));
     return `<div class="orow"><span class="od ${st}"></span>${nd.name}<span class="ot">${tag}</span></div>`;
   }).join('');
   setModeBadge();

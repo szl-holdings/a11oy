@@ -178,3 +178,39 @@ def test_console_probe_catch_still_unavailable() -> None:
         assert 'badge b-live">UP' not in text, path
         assert 'b-err">UNAVAILABLE' in text, path
         assert "status:'ok',latency_ms:0,http_code:200" not in text, path
+
+def test_status_page_http_success_is_reachable() -> None:
+    text = (ROOT / "pages" / "status.html").read_text(encoding="utf-8")
+    assert "pill g\">UP</span>" not in text
+    assert "pill a\">REACHABLE</span>" in text
+    assert "never UP, LIVE, or MEASURED" in text
+    assert "HTTP 200 is <strong>REACHABLE</strong>" in text
+
+
+def test_operator_organ_route_presence_is_reachable_not_healthy() -> None:
+    text = (ROOT / "a11oy_operator_organ.py").read_text(encoding="utf-8")
+    js = (ROOT / "static" / "a11oy_operator_organ.js").read_text(encoding="utf-8")
+    assert "healthy = True" not in text
+    assert '"honesty": "REACHABLE" if present else "UNAVAILABLE"' in text
+    assert '"source": "reachable" if any_reachable else "cached"' in text
+    assert '"healthy": True' not in text
+    assert "never LIVE or healthy=true" in text
+    assert "['LIVE', '#5a8a6e']" not in js
+    assert "['REACHABLE', '#c7a14a']" in js
+    assert "tag = nd.honesty === 'REACHABLE' ? 'reachable'" in js
+
+
+def test_holographic_overall_does_not_pass_on_process_liveness() -> None:
+    text = (ROOT / "console" / "3d" / "holographic.html").read_text(encoding="utf-8")
+    assert 'overall.dataset.state=all?"pass"' not in text
+    assert 'overall.dataset.state=all?"observed"' in text
+    assert "process liveness is not production-ready" in text
+    assert 'p.status==="PROCESS_ALIVE"' in text
+    assert "p.production_ready===false" in text
+
+
+def test_operator_pane_immune_demo_does_not_paint_allow() -> None:
+    text = OPERATOR.read_text(encoding="utf-8")
+    assert 'verdict: "ALLOW"' not in text
+    assert 'verdict: "ABSTAIN"' in text
+    assert "Admission is not ALLOW" in text

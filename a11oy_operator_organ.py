@@ -64,41 +64,36 @@ _CACHE: dict = {"topo": None, "ts": 0.0}
 def _build_topology(app) -> dict:
     """Build the topology with a best-effort in-process liveness signal.
 
-    We do NOT fabricate health. If we cannot determine liveness we leave
-    `healthy` = null (the viz renders it 'unmeasured', amber). If the process
-    itself is serving this route, the core orchestrator is by definition up.
+    We do NOT fabricate health. Route presence is REACHABLE, never healthy=true
+    and never LIVE. Missing routes stay honesty=UNAVAILABLE with healthy=null.
     """
     nodes = []
-    any_measured = False
+    any_reachable = False
     # Cheap, honest signal: which probe paths actually have a registered route.
     try:
         route_paths = {getattr(r, "path", None) for r in app.router.routes}
     except Exception:
         route_paths = set()
     for nd in _NODES:
-        healthy = None
         probe = nd.get("probe")
-        if probe:
-            # If the route is registered in THIS process, it is reachable here.
-            if probe in route_paths:
-                healthy = True
-                any_measured = True
-            else:
-                # route not in this image -> honestly unmeasured (null), not down
-                healthy = None
+        present = bool(probe) and probe in route_paths
+        if present:
+            any_reachable = True
         nodes.append({
             "id": nd["id"], "name": nd["name"], "role": nd["role"],
-            "pos": nd["pos"], "healthy": healthy,
+            "pos": nd["pos"], "healthy": None,
+            "honesty": "REACHABLE" if present else "UNAVAILABLE",
         })
     topo = {
-        "core": {"id": "operator", "name": "Operator Core", "role": "orchestrator", "healthy": True},
+        "core": {"id": "operator", "name": "Operator Core", "role": "orchestrator",
+                 "healthy": None, "honesty": "REACHABLE"},
         "nodes": nodes,
-        "source": "live" if any_measured else "cached",
+        "source": "reachable" if any_reachable else "cached",
         "doctrine": {"version": "v11", "locked_proven": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
                      "lambda": "Conjecture 1", "kernel": "c7c0ba17"},
         "generated": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "note": "Operator organ — ingested infra-viz capability. Health is best-effort "
-                "in-process route presence; unmeasured nodes are null (amber), never faked.",
+        "note": "Operator organ — ingested infra-viz capability. In-process route "
+                "presence is REACHABLE, never LIVE or healthy=true.",
     }
     return topo
 
