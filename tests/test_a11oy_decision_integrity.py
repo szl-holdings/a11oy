@@ -266,5 +266,24 @@ class DecisionIntegritySurfaceTests(unittest.TestCase):
         self.assertEqual(empty["state"], "UNKNOWN")
 
 
+    def test_vessels_advisory_jev_cannot_change_state(self) -> None:
+        deny = surface.evaluate_case("vessels", {"eval_id": "VESSELS-E-DENY-AIS"})
+        self.assertEqual(deny["state"], "DENIED")
+        echo = deny["public_lists"]["advisory_jev"]
+        self.assertEqual(echo["promotion"], "denied")
+        self.assertTrue(echo["miss_is_not_clearance"])
+        self.assertFalse(echo["is_clearance"])
+        self.assertTrue(echo["winner_not_picked"])
+        self.assertTrue(echo["does_not_run_the_kernel"])
+        self.assertTrue(echo["cannot_change_state"])
+        self.assertFalse(echo["licensed_ais_admitted"])
+        self.assertTrue(echo["not_e01"])
+        # SAMPLE path remains stdlib; Jev is a sidecar.
+        self.assertTrue(deny["public_lists"]["joint_freshness"]["negative_evidence"]["not_typesafe_jev_call"])
+        abstain = surface.evaluate_case("vessels", {"eval_id": "VESSELS-E-ABSTAIN"})
+        self.assertEqual(abstain["state"], "ABSTAINED")
+        self.assertEqual(abstain["public_lists"]["advisory_jev"]["promotion"], "denied")
+
+
 if __name__ == "__main__":
     unittest.main()

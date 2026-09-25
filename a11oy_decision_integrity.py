@@ -119,6 +119,35 @@ def _vessels_public_lists_pack() -> dict[str, Any] | None:
     return packed if isinstance(packed, dict) else None
 
 
+
+def _vessels_advisory_jev(identity: str = "AURORA WAVE", snippet: str = "") -> dict[str, Any]:
+    """Advisory TypeSafe/Jev sidecar. Cannot change Packet 8 state."""
+    try:
+        import szl_jev_gate as _jev
+        judged = _jev.judge_public_text(identity, snippet)
+    except Exception as exc:  # pragma: no cover
+        judged = {
+            "schema": "szl.jev_public_text/v1",
+            "source": "unavailable",
+            "reason": type(exc).__name__,
+            "promotion": "denied",
+            "is_clearance": False,
+            "miss_is_not_clearance": True,
+            "winner_not_picked": True,
+            "licensed_ais_admitted": False,
+            "not_e01": True,
+            "does_not_run_the_kernel": True,
+        }
+    judged["promotion"] = "denied"
+    judged["does_not_run_the_kernel"] = True
+    judged["cannot_change_state"] = True
+    judged["is_clearance"] = False
+    judged["miss_is_not_clearance"] = True
+    judged["winner_not_picked"] = True
+    judged["licensed_ais_admitted"] = False
+    return judged
+
+
 def _vessels_public_lists_echo(pack: dict[str, Any] | None = None) -> dict[str, Any]:
     """Citation echo only. Does not resolve IMO/owner. Not the Packet 8 kernel."""
     packed = pack if isinstance(pack, dict) else _vessels_public_lists_pack() or {}
@@ -205,7 +234,12 @@ def _vessels_public_lists_echo(pack: dict[str, Any] | None = None) -> dict[str, 
             "Radio query DENIED. Clocks are reachability. "
             "Min-link joint freshness names coverage holes and disagreements. "
             "Winner not picked. Typed judgment is SAMPLE. Miss is not clearance. "
+            "Advisory Jev cannot change Packet 8 state. "
             "Lattice classify is not the Packet 8 kernel."
+        ),
+        "advisory_jev": _vessels_advisory_jev(
+            str((judgment.get("frozen_identity") or "AURORA WAVE")),
+            "public-list clocks CITATION_ONLY; SAMPLE miss is not clearance",
         ),
     }
 

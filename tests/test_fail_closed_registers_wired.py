@@ -13,6 +13,7 @@ MODULES = (
     "szl_frontier_gate",
     "szl_hf_scout",
     "szl_kernel_hold",
+    "szl_jev_gate",
 )
 
 
