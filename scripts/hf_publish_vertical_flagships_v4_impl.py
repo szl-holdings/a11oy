@@ -34,6 +34,9 @@ def _load_base() -> ModuleType:
 
 
 _BASE = _load_base()
+# The immutable page renderer. The base main() calls its module-global html(),
+# which _sync_contract() rebinds to this overlay's reviewed html().
+_BASE_HTML = _BASE.html
 if getattr(_BASE, "TERRA_FORGE_MARKER", None) != 'data-szl-vertical-forge="0.2.2"':
     raise RuntimeError("immutable flagship base is not Terra forge 0.2.2")
 if getattr(_BASE, "TERRA_FORGE_GENERATOR", None) != "szl-vertical-forge/0.2.2":
@@ -150,6 +153,8 @@ def _sync_contract() -> None:
     _BASE.DOMAIN_CSS = dict(DOMAIN_CSS)
     _BASE.DOMAIN_HTML = dict(DOMAIN_HTML)
     _BASE.APP = APP
+    # Publish the same page bytes that html() returns, not the unpatched base.
+    _BASE.html = html
     _BASE.TERRA_FORGE_BUNDLE = TERRA_FORGE_BUNDLE
     _BASE.TERRA_FORGE_MARKER = TERRA_FORGE_MARKER
     _BASE.TERRA_FORGE_GENERATOR = TERRA_FORGE_GENERATOR
@@ -163,7 +168,7 @@ def load_terra_forge_bundle() -> tuple[str, dict[str, Any]]:
 
 def html(item: dict[str, Any]) -> str:
     _sync_contract()
-    page = _BASE.html(item)
+    page = _BASE_HTML(item)
     if _LIVEBAR_OPEN not in page:
         raise RuntimeError("flagship livebar still opens on HTTP LIVE")
     page = page.replace(_LIVEBAR_OPEN, _LIVEBAR_CLOSED, 1)

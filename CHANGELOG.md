@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - flagship publisher uploads the reviewed page bytes
+- The flagship publisher's `main()` now renders pages through the overlay
+  `html()`, so uploaded pages carry the closed REACHABLE/MEASURED livebar and
+  equal the emitted Finance bundle. The overlay contract test pins the single
+  reviewed probe substitution inside the immutable base application.
+
 ### Added - canonical Finance source workbench and advisory analytics
 - Sixteen bounded market-data adapters serve source-bound observations from
   A11oy. The existing Finance Space projects only public canonical reads and

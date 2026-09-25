@@ -30,6 +30,18 @@ REVIEWED_DOCKER_SHA256 = "7184015f0d0c58f58a67ade27d71e40a6b2f7ca1d6af670794d2dc
 REVIEWED_REQUIREMENTS_SHA256 = "a68dadf1194259c52c37c9fa52bde3ecd48ffc1c69bf1addfe8cfe43442cd351"
 
 
+BASE_PROBE_LIVE = (
+    '{"status":"LIVE" if r.is_success else "UNAVAILABLE","http_status":r.status_code,'
+    '"latency_ms":round((time.time()-started)*1000,1),"source":CFG["upstream"],"data":body}'
+)
+REVIEWED_PROBE_REACHABLE = (
+    '{"status":"REACHABLE" if r.is_success else "UNAVAILABLE",'
+    '"honesty":"HTTP success is reachability, not MEASURED","receipt_verified":False,'
+    '"http_status":r.status_code,"latency_ms":round((time.time()-started)*1000,1),'
+    '"source":CFG["upstream"],"data":body}'
+)
+
+
 def assert_reviewed_runtime(module) -> None:
     assert hashlib.sha256(module.DOCKER.encode("utf-8")).hexdigest() == REVIEWED_DOCKER_SHA256
     assert hashlib.sha256(module.REQ.encode("utf-8")).hexdigest() == REVIEWED_REQUIREMENTS_SHA256
@@ -111,8 +123,13 @@ def test_overlay_changes_only_declared_sentra_and_finance_contracts() -> None:
         "source": "https://github.com/szl-holdings/a11oy/tree/main/verticals/puriq-markets",
         "upstream": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/finance/overview",
     }
-    assert overlay.APP.startswith(base.APP)
-    addition = overlay.APP[len(base.APP):]
+    # The immutable base APP keeps every byte except the one reviewed probe
+    # honesty substitution (HTTP success is REACHABLE, never LIVE), pinned here
+    # independently of the overlay constants. Finance may only append after it.
+    assert base.APP.count(BASE_PROBE_LIVE) == 1
+    reviewed_base_app = base.APP.replace(BASE_PROBE_LIVE, REVIEWED_PROBE_REACHABLE, 1)
+    assert overlay.APP.startswith(reviewed_base_app)
+    addition = overlay.APP[len(reviewed_base_app):]
     assert 'if CFG.get("slug") == "finance":' in addition
     assert 'CANONICAL_REVISION_MISMATCH' in addition
     assert 'USE_PRIVATE_CANONICAL_SOURCE_ENDPOINT' in addition
@@ -419,4 +436,13 @@ def test_livebar_and_sentra_iris_stay_closed_without_a_receipt() -> None:
     assert "iris-aperture" in sentra
     assert "html[data-iris=open] .iris-aperture{transform:scale(.42)}" in module.DOMAIN_CSS["sentra"]
     assert "scale(1)" not in module.DOMAIN_CSS["sentra"]
+
+
+def test_publisher_main_renders_the_reviewed_page_for_every_flagship() -> None:
+    module = load_overlay()
+    module._sync_contract()
+    for item in module.FLAGSHIPS:
+        # The base main() resolves html() in the base module globals.
+        assert module._BASE.html(item) == module.html(item)
+        assert "j.status==='LIVE'?'is-live'" not in module._BASE.html(item)
 
