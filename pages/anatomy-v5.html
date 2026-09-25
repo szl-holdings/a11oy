@@ -156,7 +156,8 @@
         const verdict=String(ev.verdict||ev.decision||data?.decision||ev.honesty||data?.honesty||'');
         if(verdict==='UNKNOWN')return 'UNAVAILABLE';
         if(ev.blocked===true)return 'DEGRADED';
-        if(Number(ev.live_count)===5 && String(ev.verdict||'')==='ADVISORY_BODY')return 'LIVE';
+        if(Number(ev.live_count)===5 && String(ev.verdict||'')==='ADVISORY_BODY')return 'ADVISORY';
+        if(Number(ev.advisory_count)===5 && String(ev.verdict||'')==='ADVISORY_BODY')return 'ADVISORY';
         if(Array.isArray(ev.organs)&&ev.organs.length)return 'OBSERVED';
         return declared||'UNAVAILABLE';
       }
@@ -179,7 +180,7 @@
     function arrayAt(obj,keys){const value=valueAt(obj,keys);return Array.isArray(value)?value:[]}
     function paint(){
       document.getElementById('probe-badges').innerHTML=Object.entries(probes).map(([name,p])=>`<a class="badge ${stateClass(p.state)}" href="${esc(p.endpoint)}">${esc(name.toUpperCase())}: ${esc(p.state)}</a>`).join('');
-      document.querySelectorAll('.organ').forEach(el=>{const p=probes[el.dataset.probe];el.className=el.className.replace(/\s(live|cached|stalecache|modeled|snapshot|observed|available|degraded|unavailable|error)\b/g,'')+' '+stateClass(p?.state||'UNAVAILABLE')});
+      document.querySelectorAll('.organ').forEach(el=>{const p=probes[el.dataset.probe];el.className=el.className.replace(/\s(live|advisory|cached|stalecache|modeled|snapshot|observed|available|degraded|unavailable|error)\b/g,'')+' '+stateClass(p?.state||'UNAVAILABLE')});
       const atlas=probes.atlas?.data||{};const counts=atlas.counts||{};const formulas=probes.formulas?.data||{};const genome=probes.genome?.data||{};const router=probes.router?.data||{};const brain=probes.brain?.data||{};const spaces=probes.spaces?.data||{};
       const routes=arrayAt(router,['routes','tiers','data.routes']);const wiredRows=arrayAt(formulas,['wired','formulas','entries']);const genomeRows=arrayAt(genome,['entries','genome']);const spaceRows=arrayAt(spaces,['spaces','resources','results']);
       const surfacesLit=valueAt(brain,['lit.surfaces_lit','surfaces_lit.count','surfaces_lit','surface_count']);

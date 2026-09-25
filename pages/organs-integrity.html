@@ -211,31 +211,31 @@ async function evaluate(flags){
   const skelPass = rows.filter(r => r.ok).length;
   const skeletonDown = skelPass < rows.length;
   const organs = [
-    {id:"brain", name:"BRAIN", quechua:"YACHAY", formulas:["F1"], status: brainDown?"DOWN":"LIVE", honesty:"LIVE",
+    {id:"brain", name:"BRAIN", quechua:"YACHAY", formulas:["F1"], status: brainDown?"DOWN":"ADVISORY", honesty:"STRUCTURAL-ONLY",
       detail: brainDown ? `cross-canal leak ${leaked.toExponential(3)}` : "read-only cortex · canal-partition silhouette leak 0",
       metric: leaked},
-    {id:"heart", name:"HEART", quechua:"YUYAY", formulas:["F4","F11"], status: heartDown?"DOWN":"LIVE", honesty:"ADVISORY",
+    {id:"heart", name:"HEART", quechua:"YUYAY", formulas:["F4","F11"], status: heartDown?"DOWN":"ADVISORY", honesty:"ADVISORY",
       detail: heartDown ? `Λ ${lam.toFixed(4)} · zero-routed` : `Λ ${lam.toFixed(4)} · advisory · Conjecture 1 OPEN`,
       metric: lam},
-    {id:"circulatory", name:"CIRCULATORY", quechua:"YAWAR", formulas:["F7","F22"], status: chain.ok?"LIVE":"DOWN", honesty:"LIVE",
+    {id:"circulatory", name:"CIRCULATORY", quechua:"YAWAR", formulas:["F7","F22"], status: chain.ok?"ADVISORY":"DOWN", honesty:"STRUCTURAL-ONLY",
       detail: chain.ok ? `3-hop SHA-256 · head ${chain.head.slice(0,16)}` : `chain break at ${chain.break_at} · fail closed`,
       metric: chain.ok?0:1},
-    {id:"nervous", name:"NERVOUS", quechua:"OTel", formulas:["F12"], status: nervousDown?"DOWN":"LIVE", honesty:"UNAVAILABLE",
+    {id:"nervous", name:"NERVOUS", quechua:"OTel", formulas:["F12"], status: nervousDown?"DOWN":"ADVISORY", honesty:"UNAVAILABLE",
       detail: nervousDown ? "fabricated joule refused — energy stays UNAVAILABLE" : "energy UNAVAILABLE · never a fabricated joule",
       metric: nervousDown?1:0},
-    {id:"skeleton", name:"SKELETON", quechua:"Khipu", formulas:["F18","F19"], status: skeletonDown?"DOWN":"LIVE", honesty:"ADVISORY",
+    {id:"skeleton", name:"SKELETON", quechua:"Khipu", formulas:["F18","F19"], status: skeletonDown?"DOWN":"ADVISORY", honesty:"ADVISORY",
       detail: skeletonDown ? `locked-8 ${skelPass}/8 — a sorry cannot be painted green` : `locked-8 ${skelPass}/8 · CHECKED ≠ Lean PROVEN @ c7c0ba17`,
       metric: skelPass}
   ];
-  const live = organs.filter(o => o.status==="LIVE").length;
+  const advisory = organs.filter(o => o.status==="ADVISORY").length;
   const organDown = organs.some(o => o.status==="DOWN");
   const blocked = organDown || !!flags.willay_fire;
   let reason;
   if (flags.willay_fire) reason = "WILLAY conscience veto — governance bypass refused (tamper-EVIDENT, not tamper-proof)";
   else if (organDown) reason = `organ integrity FAIL · ${organs.filter(o=>o.status==="DOWN").map(o=>o.name).join(", ")} DOWN · fail closed`;
-  else reason = `organ integrity ${live}/5 LIVE · Λ advisory · energy UNAVAILABLE · Conjecture 1 OPEN`;
+  else reason = `organ integrity ${advisory}/5 ADVISORY · Λ advisory · energy UNAVAILABLE · Conjecture 1 OPEN`;
   const body = {
-    organs, live_count: live, blocked, verdict: blocked ? "BLOCKED" : "ADVISORY_BODY",
+    organs, live_count: 0, advisory_count: advisory, blocked, verdict: blocked ? "BLOCKED" : "ADVISORY_BODY",
     energy:"UNAVAILABLE", energy_j:null, lambda_advisory:true, conjecture_1:"OPEN",
     locked_proven:8, kernel_commit:"c7c0ba17", chain_head: chain.head, chain_ok: chain.ok,
     chain_alg:"SHA-256", proven_trust:false, reason, seed,
@@ -257,7 +257,7 @@ function render(env, label){
   hero.replaceChildren();
   hero.append(
     el("span", "k", `${label} · ${ev.chain_alg || "SHA-256"} · kernel ${ev.kernel_commit || "c7c0ba17"}`),
-    el("p", "statement", `${ev.live_count}/5 LIVE · ${ev.reason || ""}`),
+    el("p", "statement", `${ev.advisory_count||0}/5 ADVISORY · ${ev.reason || ""}`),
     el("span", `verdict ${blocked?"false":"ok"}`,
       `${blocked?"BLOCKED":"advisory body"} · energy UNAVAILABLE · Conjecture 1 OPEN`)
   );

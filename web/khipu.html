@@ -201,7 +201,7 @@ function greenlight(flags){
     {id:"energy",ok:flags.stamp_joule!==1,detail:flags.stamp_joule===1?"BLOCKED · fabricated joule · energy UNAVAILABLE":"energy UNAVAILABLE · never a fabricated joule"}
   ];
   const blocked=checks.some(c=>!c.ok);
-  return {dual:"Ari",painted:checks.filter(c=>!c.ok).length,blocked:blocked?1:0,greenlit:blocked?0:1,provenTrust:false,energy:"UNAVAILABLE",conjecture1:"OPEN",checks,reason:blocked?(checks.find(c=>!c.ok).detail):"GREEN-LIGHT · LIVE bound · proven_trust false · energy UNAVAILABLE",kind:"js-silhouette",...honesty};
+  return {dual:"Ari",painted:checks.filter(c=>!c.ok).length,blocked:blocked?1:0,greenlit:blocked?0:1,provenTrust:false,energy:"UNAVAILABLE",conjecture1:"OPEN",checks,reason:blocked?(checks.find(c=>!c.ok).detail):"GREEN-LIGHT · ADVISORY bound · proven_trust false · energy UNAVAILABLE",kind:"js-silhouette",...honesty};
 }
 async function runGL(flags){show("out-green", await prefer("/greenlight",flags,()=>greenlight(flags)))}
 document.getElementById("gl-run").onclick=()=>runGL({paint_sorry:0,claim_proven:0,stamp_joule:0});
@@ -213,9 +213,9 @@ function anatomyLocal(p){
     let down=false,detail=o.role;
     if(o.id==="heart"&&p.zero_heart){down=true;detail="DOWN · HEART/YUYAY zeroed"}
     if(p.fabricate_joule){down=true;detail="DOWN · fabricated joule · energy UNAVAILABLE"}
-    return {...o,status:down?"DOWN":"LIVE",detail};
+    return {...o,status:down?"DOWN":"ADVISORY",detail};
   });
-  return {dual:"Kay Pacha",blocked:organs.some(o=>o.status==="DOWN"),liveCount:organs.filter(o=>o.status==="LIVE").length,organs,energy:"UNAVAILABLE",conjecture1:"OPEN",reason:organs.some(o=>o.status==="DOWN")?"body BLOCKED":"body LIVE · proven_trust false · energy UNAVAILABLE",kind:"js-silhouette",...honesty};
+  return {dual:"Kay Pacha",blocked:organs.some(o=>o.status==="DOWN"),liveCount:0,advisoryCount:organs.filter(o=>o.status==="ADVISORY").length,organs,energy:"UNAVAILABLE",conjecture1:"OPEN",reason:organs.some(o=>o.status==="DOWN")?"body BLOCKED":"body ADVISORY · proven_trust false · energy UNAVAILABLE",kind:"js-silhouette",...honesty};
 }
 function paintOrgans(y){
   const organs=y.organs||[];

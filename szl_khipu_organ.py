@@ -289,7 +289,7 @@ def greenlight(
         "reason": (
             next(c["detail"] for c in checks if not c["ok"])
             if blocked
-            else "GREEN-LIGHT · LIVE bound · proven_trust false · energy UNAVAILABLE"
+            else "GREEN-LIGHT · ADVISORY bound · proven_trust false · energy UNAVAILABLE"
         ),
         **_honesty(),
     }
@@ -306,17 +306,18 @@ def anatomy(zero_heart: bool = False, fabricate_joule: bool = False) -> Dict[str
         if fabricate_joule:
             down = True
             detail = "DOWN · fabricated joule · energy UNAVAILABLE"
-        organs.append({**spec, "status": "DOWN" if down else "LIVE", "detail": detail})
+        organs.append({**spec, "status": "DOWN" if down else "ADVISORY", "detail": detail})
     blocked = any(o["status"] == "DOWN" for o in organs)
     return {
         "dual": "Kay Pacha",
         "blocked": blocked,
-        "liveCount": sum(1 for o in organs if o["status"] == "LIVE"),
+        "liveCount": 0,
+        "advisoryCount": sum(1 for o in organs if o["status"] == "ADVISORY"),
         "organs": organs,
         "reason": (
             "body BLOCKED"
             if blocked
-            else "body LIVE · proven_trust false · energy UNAVAILABLE"
+            else "body ADVISORY · proven_trust false · energy UNAVAILABLE"
         ),
         **_honesty(),
     }

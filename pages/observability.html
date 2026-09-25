@@ -359,7 +359,7 @@ async function loadSpans(){
       setV('spans','warn','UNAVAILABLE — 0 spans; empty DAG is not a live zero');
       document.getElementById('span-list').innerHTML='';
     }else{
-      setV('spans','ok',spans.length+' signed span(s) · depth '+(j.depth??'?')+' · chain '+(j.chain&&j.chain.ok?'verified ✓':'?'));
+      setV('spans','ok',spans.length+' span(s) · depth '+(j.depth??'?')+' · chain '+(j.chain&&j.chain.ok?'REACHABLE':'UNAVAILABLE'));
       document.getElementById('span-list').innerHTML=spans.map(s=>{
         const signed=!!s.signed;
         const sig=signed?'<span class="sig signed">DSSE signed</span>':'<span class="sig unsigned">unsigned · no key</span>';
@@ -368,7 +368,7 @@ async function loadSpans(){
           <span class="sdigest">${dg}…</span><span class="sts">${s.ts||''}</span></div>`;
       }).join('');
     }
-    setS('spans','ok','live ✓ · backend: '+(j.backend||'?'));
+    setS('spans','ok','REACHABLE · backend: '+(j.backend||'?'));
     setO('spans',fmt(j));
   }catch(e){ setS('spans','err','error'); setV('spans','err','ERROR'); setO('spans',String(e)); }
   finally{ if(btn)btn.disabled=false; }
