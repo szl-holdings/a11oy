@@ -303,6 +303,227 @@ def jev_status() -> dict[str, Any]:
     }
 
 
+
+
+def public_text_questions() -> dict[str, Any]:
+    """System One questions over official public-list text only.
+
+    Code still owns DENY / ABSTAIN / clearance. A Jev class pick is not E01.
+    """
+    return {
+        "authority_class": {
+            "type": "choice",
+            "instructions": (
+                "Which public-list authority class does `snippet.text` belong to? "
+                "Use only the supplied snippet. Do not use live AIS, radio, or world knowledge. "
+                "If the snippet is a commercial AIS map or a codec, choose REFUSED_AIS. "
+                "If nothing fits, choose NO_CLASS."
+            ),
+            "criteria": {
+                "OFAC-vessel": "US OFAC SDN / vessel or blocked person text.",
+                "UN-1718-vessel": "UN Security Council 1718 / DPRK vessel text.",
+                "UK-specified-ship": "UK FCDO or OFSI specified-ship text.",
+                "UA-GUR-ship": "Ukraine GUR public ship inventory text.",
+                "KR-MOFA-vessel": "Republic of Korea MOFA DPRK vessel notice.",
+                "IUU-RFMO": "IUU / RFMO fishing-vessel listing text.",
+                "Paris-banned": "Paris MoU banned-ship or detention text.",
+                "REFUSED_AIS": "Commercial AIS map, radio decode, or refused codec.",
+                "NO_CLASS": "Public text that does not fit a vessel authority class.",
+            },
+        },
+        "miss_is_clearance": {
+            "type": "noul",
+            "instructions": (
+                "Does a SAMPLE exact-string miss for `identity.name` on `snippet.text` "
+                "constitute a clearance, license, or authorization to proceed?"
+            ),
+            "criteria": {
+                "true": "A miss means the identity is cleared.",
+                "false": "A miss is not clearance. Entity resolution remains outstanding.",
+            },
+        },
+        "winner_rule": {
+            "type": "choice",
+            "instructions": (
+                "Two official clocks disagree on freshness in `disagreement`. "
+                "What should the control plane do?"
+            ),
+            "criteria": {
+                "ABSTAIN": "Do not pick a winner. Map to VESSELS-E-ABSTAIN.",
+                "PICK_FRESHER": "Silently use the fresher clock as sole source.",
+                "USE_COMPILATION": "Treat OpenSanctions or another compilation as official.",
+            },
+        },
+        "evidence_strength": {
+            "type": "score",
+            "instructions": "How strong is `snippet.text` as proof about `identity.name`?",
+            "criteria": [
+                "No snippet is present.",
+                "HTTP 200 / page cite only. Reachability is not a match.",
+                "Exact-string SAMPLE hit or miss on frozen identity text.",
+                "Independent official bulk list with bound entity resolution.",
+            ],
+        },
+    }
+
+
+def fallback_public_text(identity: str, snippet: str, disagreement: str) -> dict[str, Any]:
+    low_snip = (snippet or "").lower()
+    if any(token in low_snip for token in ("marinetraffic", "vesselfinder", "pyais", "libais", "aiscat", "aivdm")):
+        klass = "REFUSED_AIS"
+    elif "ofac" in low_snip or "sdn" in low_snip:
+        klass = "OFAC-vessel"
+    elif "1718" in low_snip or "un sc" in low_snip:
+        klass = "UN-1718-vessel"
+    elif "fcdo" in low_snip or "ofsi" in low_snip:
+        klass = "UK-specified-ship"
+    elif "gur" in low_snip:
+        klass = "UA-GUR-ship"
+    elif "mofa" in low_snip or "korea" in low_snip:
+        klass = "KR-MOFA-vessel"
+    elif "iuu" in low_snip or "rfmo" in low_snip:
+        klass = "IUU-RFMO"
+    elif "paris" in low_snip or "mou" in low_snip:
+        klass = "Paris-banned"
+    elif not (snippet or "").strip():
+        klass = "NO_CLASS"
+    else:
+        klass = "NO_CLASS"
+    return {
+        "authority_class": {
+            "type": "choice",
+            "choice": klass,
+            "probabilities": {klass: 0.84},
+            "confidence": 0.82,
+        },
+        "miss_is_clearance": {"type": "noul", "noul": 0.03},
+        "winner_rule": {
+            "type": "choice",
+            "choice": "ABSTAIN",
+            "probabilities": {"ABSTAIN": 0.9, "PICK_FRESHER": 0.05, "USE_COMPILATION": 0.05},
+            "confidence": 0.88,
+        },
+        "evidence_strength": {
+            "type": "score",
+            "score": 0.28 if snippet else 0.05,
+            "confidence": 0.70,
+            "legend": {
+                "0": "No snippet is present.",
+                "1": "HTTP 200 / page cite only. Reachability is not a match.",
+                "2": "Exact-string SAMPLE hit or miss on frozen identity text.",
+                "3": "Independent official bulk list with bound entity resolution.",
+            },
+        },
+    }
+
+
+def compose_public_text(identity: str, snippet: str, answers: Mapping[str, Any]) -> dict[str, Any]:
+    klass = str((answers.get("authority_class") or {}).get("choice") or "NO_CLASS")
+    miss_p = float((answers.get("miss_is_clearance") or {}).get("noul") or 0.0)
+    winner = str((answers.get("winner_rule") or {}).get("choice") or "ABSTAIN")
+    strength = float((answers.get("evidence_strength") or {}).get("score") or 0.0)
+    # Code owns these. Jev cannot clear, pick a winner, or open AIS.
+    if klass == "REFUSED_AIS":
+        maps_to = "VESSELS-E-DENY-AIS"
+        verdict = "DENIED"
+    elif miss_p >= 0.50:
+        maps_to = "VESSELS-E-ABSTAIN"
+        verdict = "BLOCKED"
+    elif winner != "ABSTAIN":
+        maps_to = "VESSELS-E-ABSTAIN"
+        verdict = "HOLD"
+    elif klass in {"KR-MOFA-vessel", "IUU-RFMO", "Paris-banned", "NO_CLASS"}:
+        maps_to = "VESSELS-E-ABSTAIN"
+        verdict = "HOLD"
+    else:
+        maps_to = "ADVISORY_ONLY"
+        verdict = "HOLD"
+    return {
+        "schema": "szl.jev_public_text/v1",
+        "engine": "typesafe.systemone",
+        "model": DEFAULT_MODEL,
+        "identity": identity,
+        "authority_class": klass,
+        "miss_is_clearance_noul": miss_p,
+        "miss_is_not_clearance": True,
+        "is_clearance": False,
+        "winner_rule_jev": winner,
+        "winner_not_picked": True,
+        "evidence_strength": strength,
+        "maps_to": maps_to,
+        "verdict": verdict,
+        "promotion": "denied",
+        "not_e01": True,
+        "not_e03": True,
+        "does_not_run_the_kernel": True,
+        "licensed_ais_admitted": False,
+        "formula_authority": "NONE",
+        "note": (
+            "Advisory System One over public text. SAMPLE miss is not clearance. "
+            "Disagreement does not pick a winner. Jev cannot open licensed AIS."
+        ),
+    }
+
+
+def judge_public_text(identity: str, snippet: str = "", disagreement: str = "") -> dict[str, Any]:
+    state = {
+        "identity": {"name": identity},
+        "snippet": {"text": snippet},
+        "disagreement": disagreement or "UK FCDO REACHABLE_FRESH vs UK OFSI STALE_OR_THIN",
+        "doctrine": {
+            "version": "v11",
+            "lambda": "Conjecture 1",
+            "licensed_ais": "CLOSED",
+            "miss_is_not_clearance": True,
+        },
+    }
+    status = engine_status()
+    if status["bound"]:
+        payload_state = dict(state)
+        live = call_jev_questions(payload_state, public_text_questions())
+        answers = live.get("answers") if live.get("ok") else None
+        source = "jev-latest" if answers else "software-fallback"
+        if not answers:
+            answers = fallback_public_text(identity, snippet, disagreement)
+    else:
+        answers = fallback_public_text(identity, snippet, disagreement)
+        source = "software-fallback"
+        live = {"ok": False, "reason": "TYPESAFE_API_KEY_UNBOUND", "engine": status}
+    composed = compose_public_text(identity, snippet, answers)
+    composed["source"] = source
+    composed["engine"] = status
+    composed["engine_reason"] = live.get("reason")
+    composed["answers"] = answers
+    return composed
+
+
+def call_jev_questions(state: Mapping[str, Any], qs: Mapping[str, Any]) -> dict[str, Any]:
+    status = engine_status()
+    if not status["bound"]:
+        return {"ok": False, "engine": status, "answers": None, "reason": "TYPESAFE_API_KEY_UNBOUND"}
+    payload = {"state": dict(state), "model": DEFAULT_MODEL, "questions": dict(qs)}
+    body = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        ENDPOINT,
+        data=body,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {os.environ['TYPESAFE_API_KEY'].strip()}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            parsed = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")[:400]
+        return {"ok": False, "engine": status, "answers": None, "reason": f"TYPESAFE_HTTP_{exc.code}", "detail": detail}
+    except Exception as exc:
+        return {"ok": False, "engine": status, "answers": None, "reason": "TYPESAFE_TRANSPORT", "detail": type(exc).__name__}
+    return {"ok": True, "engine": status, "answers": parsed.get("answers") or {}, "usage": parsed.get("usage"), "model": parsed.get("model")}
+
+
 def register(app: Any, ns: str = "a11oy") -> dict[str, Any]:
     report = {"ok": False, "registered": []}
     try:
@@ -320,8 +541,19 @@ def register(app: Any, ns: str = "a11oy") -> dict[str, Any]:
         data = payload or {}
         return JSONResponse(judge(str(data.get("claim") or data.get("text") or ""), str(data.get("evidence") or "")))
 
+    @app.post(f"{base}/public-text")
+    async def _public_text(payload: dict[str, Any] | None = None):
+        data = payload or {}
+        return JSONResponse(
+            judge_public_text(
+                str(data.get("identity") or data.get("name") or "AURORA WAVE"),
+                str(data.get("snippet") or data.get("text") or ""),
+                str(data.get("disagreement") or ""),
+            )
+        )
+
     report["ok"] = True
-    report["registered"] = [f"{base}/status", f"{base}/judge"]
+    report["registered"] = [f"{base}/status", f"{base}/judge", f"{base}/public-text"]
     return report
 
 
@@ -351,6 +583,25 @@ if __name__ == "__main__":
         check("unbound_call_fail_closed", live["ok"] is False and live["reason"] == "TYPESAFE_API_KEY_UNBOUND")
     else:
         check("bound_call_shape", "answers" in live)
+    pub = judge_public_text("AURORA WAVE", "OFAC SDN CSV REACHABLE_FRESH last-modified Fri, 18 Sep 2026")
+    check("public_text_not_clearance", pub["is_clearance"] is False and pub["miss_is_not_clearance"] is True)
+    check("public_text_winner_not_picked", pub["winner_not_picked"] is True)
+    check("public_text_no_ais", pub["licensed_ais_admitted"] is False)
+    refused = judge_public_text("AURORA WAVE", "MarineTraffic live AIS map via pyais")
+    check("public_text_refused_ais", refused["authority_class"] == "REFUSED_AIS" and refused["maps_to"] == "VESSELS-E-DENY-AIS")
+    fake_clear = compose_public_text(
+        "AURORA WAVE",
+        "empty",
+        {
+            "authority_class": {"choice": "OFAC-vessel", "confidence": 0.99},
+            "miss_is_clearance": {"noul": 0.99},
+            "winner_rule": {"choice": "PICK_FRESHER"},
+            "evidence_strength": {"score": 0.99},
+        },
+    )
+    check("jev_cannot_grant_clearance", fake_clear["is_clearance"] is False and fake_clear["verdict"] == "BLOCKED")
+    check("jev_cannot_pick_winner", fake_clear["winner_not_picked"] is True)
+
     failed = [n for n, ok in checks if not ok]
     print({"ok": not failed, "checks": len(checks), "failed": failed})
     raise SystemExit(1 if failed else 0)

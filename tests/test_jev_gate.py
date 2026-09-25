@@ -87,3 +87,34 @@ def test_register_without_fastapi_is_noop() -> None:
 
     report = g.register(_App())
     assert report["ok"] is False or "registered" in report
+
+
+def test_public_text_miss_is_not_clearance() -> None:
+    out = g.judge_public_text("AURORA WAVE", "OFAC SDN CSV REACHABLE_FRESH")
+    assert out["is_clearance"] is False
+    assert out["miss_is_not_clearance"] is True
+    assert out["winner_not_picked"] is True
+    assert out["promotion"] == "denied"
+    assert out["not_e01"] is True
+    assert out["licensed_ais_admitted"] is False
+
+
+def test_public_text_refused_ais_maps_to_deny() -> None:
+    out = g.judge_public_text("AURORA WAVE", "VesselFinder commercial AIS via libais")
+    assert out["authority_class"] == "REFUSED_AIS"
+    assert out["maps_to"] == "VESSELS-E-DENY-AIS"
+    assert out["verdict"] == "DENIED"
+    assert out["promotion"] == "denied"
+
+
+def test_jev_clearance_wish_is_blocked_by_code() -> None:
+    answers = {
+        "authority_class": {"choice": "OFAC-vessel", "confidence": 0.99},
+        "miss_is_clearance": {"noul": 0.99},
+        "winner_rule": {"choice": "USE_COMPILATION"},
+        "evidence_strength": {"score": 0.99},
+    }
+    out = g.compose_public_text("AURORA WAVE", "opensanctions maritime.csv", answers)
+    assert out["is_clearance"] is False
+    assert out["winner_not_picked"] is True
+    assert out["verdict"] == "BLOCKED"

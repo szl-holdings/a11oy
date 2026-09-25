@@ -1405,6 +1405,13 @@ try:
 except Exception as _szl_kh_e:  # pragma: no cover
     print(f"[a11oy] szl_kernel_hold NOT registered: {_szl_kh_e!r}", file=__import__("sys").stderr)
 
+try:
+    import szl_jev_gate as _szl_jev_gate
+    _szl_jev_gate.register(app, ns="a11oy")
+    print("[a11oy] jev_gate registered: /api/a11oy/v1/jev/* (advisory System One, never LIVE/ALLOW)", file=__import__("sys").stderr)
+except Exception as _szl_jg_e:  # pragma: no cover
+    print(f"[a11oy] szl_jev_gate NOT registered: {_szl_jg_e!r}", file=__import__("sys").stderr)
+
 # zkML Proof-of-Inference ("Cryptographic Receipts") — GET /api/a11oy/v1/frontier/zkinfer
 # returns the CRYPTOGRAPHIC-PROOF trust branch of verifiable inference (counterpart to the
 # TEE branch, ccattest): literature-parameterized zkML proof-cost models (prover time / proof
