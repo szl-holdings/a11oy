@@ -440,6 +440,10 @@ def test_lean_health_json_signer_is_absent_not_dsse_live():
         assert signer.get("status") != "DSSE-LIVE"
         assert signer.get("signing_available") is False
         assert signer.get("scheme") == "UNAVAILABLE"
+        dsse = body.get("dsse_live") or {}
+        if dsse:
+            assert dsse.get("status") != "DSSE-LIVE", path
+            assert dsse.get("signing_available") is False, path
 
     rollup = client.get("/api/a11oy/healthz").json()["rollup"]["signer"]
     assert "status" in rollup

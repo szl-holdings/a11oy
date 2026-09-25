@@ -48,6 +48,11 @@ def test_healthz_liveness(client):
     assert body["signer"]["status"] in ("ABSENT", "UNAVAILABLE")
     assert body["signer"]["status"] != "DSSE-LIVE"
     assert body["signer"]["signing_available"] is False
+    dsse = body.get("dsse_live") or {}
+    assert dsse.get("status") in ("ABSENT", "UNAVAILABLE")
+    assert dsse.get("status") != "DSSE-LIVE"
+    assert dsse.get("signing_available") is False
+    assert dsse.get("rollup") == "/api/a11oy/healthz"
 
 
 def test_healthz_head_matches_get(client):
