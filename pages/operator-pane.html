@@ -254,7 +254,7 @@
       const hits = threats.filter((t) => t[0].test(payload)).map((t) => t[1]);
       if (/consent["']?\s*:\s*0/.test(payload)) return { verdict: "DENY", reason: "Zero-pinned consent. Λ = 0." };
       if (hits.length) return { verdict: "DENY", reason: "Hukulla deny-by-default: " + hits.join(", ") };
-      return { verdict: "ALLOW", reason: "No threat signature. Admission is not a production certificate." };
+      return { verdict: "ABSTAIN", reason: "No threat signature. Admission is not ALLOW and not a production certificate." };
     }
 
     function runImmune(payload) {
