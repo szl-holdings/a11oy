@@ -149,6 +149,16 @@ ECDSA-P256-SHA256-signed receipt on a SHA-256 hash-linked Merkle DAG. Invariant
 **`receipts.in ≡ receipts.out`**. Real signatures when `SZL_COSIGN_PRIVATE_PEM` is present;
 **UNSIGNED + clearly labelled** when absent — never faked.
 
+The `szl_attest` manifest and verification GET routes are read-only exceptions
+to action receipt emission: they inspect current evidence without signing,
+Rekor submission, or ledger append. The manifest labels its envelope
+`UNSIGNED-READ-ONLY` and its ledger action `READ_ONLY`. An explicit write caller
+can opt into `build_manifest(read_only=False)` and `lake_receipt`; the latter
+uses the shared `szl_lake_store.get_default_ledger()` and distinguishes
+`APPENDED`, `DUPLICATE`, and `UNAVAILABLE`. These are source contracts, not a
+claim that a new version is deployed or that transparency proofs are independently
+verified. The existing canonical HF publisher remains the only release path.
+
 ### governance/ — doctrine gate + restraint / Λ (deny-by-default) `[EXISTS]`
 `a11oy_constitution.py` · `szl_governance_gateway.py` · `szl_restraint.py` /
 `szl_restraint_energy.py` · `szl_lambda_tripwire.py` · `a11oy_grc*.py` ·

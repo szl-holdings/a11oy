@@ -692,7 +692,7 @@ def main() -> int:
         return 1
     rendered = json.dumps(manifest, indent=2, sort_keys=False) + "\n"
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(rendered, encoding="utf-8")
+    output.write_text(rendered, encoding="utf-8", newline="\n")
     print(f"Wrote Hugging Face ecosystem manifest: {display_path(output)}")
     return 0
 

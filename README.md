@@ -153,6 +153,14 @@ The unified Khipu and energy ledgers use separate `/data/a11oy/*` paths.
 Check current signing and storage status at `GET /api/a11oy/v1/signing-status`
 and `GET /api/a11oy/v1/series-a/status` on the product origin.
 
+`GET /api/a11oy/v1/attest/manifest` and `GET /api/a11oy/v1/attest/verify`
+are read-only inspections: they do not sign, submit to Rekor, or append ledger
+receipts, even when those providers are configured. The manifest reports
+`UNSIGNED-READ-ONLY` and `lake.status=READ_ONLY`; requiring unavailable
+transparency evidence returns `UNKNOWN`. Explicit write callers can use the
+existing signing and receipt functions. Source tests cover this contract;
+deployment still requires the canonical publisher and live readback.
+
 ---
 
 ## Honest status

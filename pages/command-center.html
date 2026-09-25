@@ -44,7 +44,7 @@
     .badge.BLOCKED, .badge.DENY { color:var(--deny); border-color:rgba(226,92,92,.3); background:rgba(226,92,92,.1); }
     .badge.CONJECTURE { color:var(--conjecture); }
     .badge.MODELED, .badge.REPORTED, .badge.SOFTWARE { background:var(--panel-2); }
-    .badge.UNAVAILABLE { color:var(--signal); }
+    .badge.UNAVAILABLE, .badge.REACHABLE { color:var(--signal); }
     .btn { display:inline-flex; min-height:2.75rem; align-items:center; justify-content:center; gap:.5rem; padding:0 1rem; border-radius:6px; border:1px solid transparent; font-size:.875rem; font-weight:500; }
     .btn-p { background:var(--teal); color:var(--void); }
     .btn-g { background:transparent; color:var(--fg); border-color:var(--border); }
@@ -101,16 +101,60 @@
 <script>
 const P = (1n<<255n)-19n, N = P-1n, G = 2n;
 const GENESIS = "0".repeat(64);
+const CYCLE_URL = "https://szlholdings-szl-frontier.hf.space/frontier/ouroboros-cycle.v1.json";
+const CYCLE_SCHEMA = "szl.frontier.ouroboros-cycle.v1";
+let CYCLE_PAINT = "UNAVAILABLE";
 const CATALOG = [
-  {id:"inspect", title:"Inspect receipt chain", needs:false, d:"ALLOW", reason:"Read-only local verification."},
-  {id:"estate", title:"List public estate", needs:false, d:"ALLOW", reason:"Public inventory. Location only."},
-  {id:"score", title:"Score Lambda advisory", needs:false, d:"ALLOW", reason:"Advisory organ. Output labeled CONJECTURE."},
-  {id:"infer", title:"Governed inference", needs:true, d:"ALLOW", reason:"User-initiated. Static origin cannot spend a key — BLOCKED here."},
-  {id:"zk_prove", title:"Seal modeled ZK transcript", needs:true, d:"ALLOW", reason:"Public transcript only."},
+  {id:"inspect", title:"Inspect receipt chain", needs:false, d:"ALLOW", reason:"Read-only local verification. Cannot execute a write."},
+  {id:"estate", title:"List public estate", needs:false, d:"ALLOW", reason:"Public inventory. Location only. Cannot execute a write."},
+  {id:"score", title:"Score Lambda advisory", needs:false, d:"UNAVAILABLE", gate:"cycle", reason:"Advisory organ. Missing cycle receipt. Output labeled CONJECTURE."},
+  {id:"infer", title:"Governed inference", needs:true, d:"BLOCKED", gate:"cycle", reason:"Static origin cannot spend a key — BLOCKED here."},
+  {id:"zk_prove", title:"Seal modeled ZK transcript", needs:true, d:"UNAVAILABLE", gate:"cycle", reason:"Public transcript only. Missing cycle receipt."},
   {id:"claim_proven", title:"Declare Lambda proven", needs:false, d:"DENY", reason:"Lambda uniqueness is Conjecture 1."},
   {id:"exfiltrate", title:"Export signer material", needs:false, d:"DENY", reason:"No secret-value disclosure."},
   {id:"unsigned_deploy", title:"Unsigned production push", needs:false, d:"DENY", reason:"Unsigned deploy is outside authority."},
 ];
+function paintFromCycle(cycle){
+  if(!cycle) return "UNAVAILABLE";
+  if(cycle.schema !== CYCLE_SCHEMA) return "UNAVAILABLE";
+  if(cycle.productionPromotion === true) return "DENY";
+  if(cycle.lambda !== "CONJECTURE_1" || cycle.lambdaNeverATheorem !== true) return "DENY";
+  if(cycle.authority !== "PROPOSAL_ONLY") return "DENY";
+  if(cycle.invariantsOk !== true) return "DENY";
+  if(cycle.shadow && cycle.shadow.executable === true) return "DENY";
+  if(cycle.verdict === "ALLOW") return "ALLOW";
+  if(cycle.verdict==="HARD_DENY"||cycle.verdict==="LAMBDA_VETO"||cycle.verdict==="DENY_DEFAULT"||cycle.verdict==="ESCALATE") return "DENY";
+  return "UNAVAILABLE";
+}
+async function loadPublishedCycle(){
+  try{
+    const r = await fetch(CYCLE_URL, {method:"GET", cache:"no-store"});
+    if(!r.ok) return null;
+    const body = await r.json();
+    if(!body || typeof body !== "object") return null;
+    if(body.schema !== CYCLE_SCHEMA) return null;
+    return body;
+  }catch(_err){ return null; }
+}
+function applyCyclePaint(paint){
+  CYCLE_PAINT = paint || "UNAVAILABLE";
+  CATALOG.forEach(c => {
+    if(c.gate !== "cycle") return;
+    if(c.id === "infer"){
+      c.d = "BLOCKED";
+      c.reason = "Static origin cannot spend a key. Cycle ALLOW cannot execute inference here.";
+      return;
+    }
+    if(CYCLE_PAINT === "ALLOW"){ c.d = "ALLOW"; return; }
+    if(CYCLE_PAINT === "DENY"){
+      c.d = "DENY";
+      c.reason = "Cycle gate DENY. HARD_DENY / LAMBDA_VETO / DENY_DEFAULT cannot paint ALLOW.";
+      return;
+    }
+    c.d = "UNAVAILABLE";
+    c.reason = "Missing cycle JSON. Governed action stays UNAVAILABLE.";
+  });
+}
 const ESTATE = [
   ["a11oy","CORE","Product origin","VERIFIED_CURRENT","SOFTWARE","Python"],
   ["a11oy-net","CORE","Proof registry","VERIFIED_CURRENT","SOFTWARE","HTML"],
@@ -149,6 +193,7 @@ function evaluate(kind, prompt){
   const item=CATALOG.find(c=>c.id===kind); if(!item) return {decision:"DENY", reason:"Unknown. Deny by default."};
   if(item.d==="DENY") return {decision:"DENY", reason:item.reason};
   if(kind==="infer") return {decision:"BLOCKED", reason:"Static origin has no server key. Refused rather than guessed."};
+  if(item.gate==="cycle" && item.d!=="ALLOW") return {decision:item.d, reason:item.reason};
   if(kind==="zk_prove"){
     const t=(prompt||"").trim();
     if(!t) return {decision:"BLOCKED", reason:"Empty transcript."};
@@ -171,7 +216,7 @@ function nav(){
 }
 $(".menu").onclick = () => {
   const m=$(".mob"); m.classList.toggle("open");
-  if(!m.dataset.ready){ m.innerHTML=[...document.querySelectorAll("nav.desk a")].map(a=>a.outerHTML).join(""); m.dataset.ready="1"; }
+  if(!m.dataset.ready){ m.replaceChildren(...[...document.querySelectorAll("nav.desk a")].map(a=>a.cloneNode(true))); m.dataset.ready="1"; }
 };
 
 function home(){
@@ -179,6 +224,7 @@ function home(){
   <p class="kicker">Product origin · a-11-oy.com</p>
   <h1>Control before capability.</h1>
   <p class="muted" style="max-width:40rem">a11oy Command lives on this host. Deny by default. Hash-chained receipts. Λ is Conjecture 1 — never green. The operator runtime stays at /console. Proof stays on a11oy.net.</p>
+  <p class="muted mono" id="cycle-paint">Cycle paint ${CYCLE_PAINT}. Governed acts need a cycle receipt. HTTP 200 is not ALLOW.</p>
   <p style="margin-top:1.5rem;display:flex;gap:.75rem;flex-wrap:wrap">
     <a class="btn btn-p" href="/command/console">Open receipt lake</a>
     <a class="btn btn-g" href="/console">Operator console</a>
@@ -195,6 +241,7 @@ function consolePage(){
   const radios = CATALOG.map((c,i)=>`<label style="display:flex;gap:.6rem;min-height:2.75rem;align-items:center"><input type="radio" name="act" value="${c.id}" ${i===0?"checked":""}/> ${c.title} ${badge(c.d)}</label>`).join("");
   return `<p class="kicker">Receipt lake · local to this browser</p><h1>Act. Get a receipt. Or a denial.</h1>
   <p class="muted">This lake is MODELED in-browser. The operator runtime is <a href="/console">/console</a>.</p>
+  <p class="muted mono" id="cycle-paint">Cycle paint ${CYCLE_PAINT}. Score / infer / zk_prove are not static ALLOW.</p>
   <div class="grid g2" style="margin-top:1.5rem">
     <div class="card">
       ${radios}
@@ -208,9 +255,26 @@ function consolePage(){
     <div class="card" id="lake"></div>
   </div>`;
 }
+// Receipt fields remain untrusted even when read from this browser's storage.
+function lakeText(tag, value, klass){
+  const node=document.createElement(tag);
+  if(klass) node.className=klass;
+  node.textContent=value==null?"UNAVAILABLE":String(value);
+  return node;
+}
 function renderLake(){
-  const r=loadLake();
-  $("#lake").innerHTML = r.length? `<p class="kicker">${r.length} receipts</p>`+r.slice().reverse().map(x=>`<div style="border-top:1px solid var(--border);padding:.75rem 0"><div>${x.action} ${badge(x.decision)}</div><div class="mono muted">${shortHash(x.hash)}</div></div>`).join("") : `<p class="muted">Empty lake. Submit an allowed act.</p>`;
+  const r=loadLake(), lake=$("#lake"); lake.replaceChildren();
+  if(!r.length){ lake.append(lakeText("p", "Empty lake. Submit an allowed act.", "muted")); return; }
+  lake.append(lakeText("p", `${r.length} receipts`, "kicker"));
+  r.slice().reverse().forEach(x=>{
+    const row=document.createElement("div");
+    row.style.cssText="border-top:1px solid var(--border);padding:.75rem 0";
+    const label=lakeText("div", String(x.action)+" ");
+    const verdict=lakeText("span", x.decision, "badge");
+    if(["ALLOW","DENY","BLOCKED"].includes(x.decision)) verdict.classList.add(x.decision);
+    label.append(verdict);
+    row.append(label,lakeText("div",shortHash(String(x.hash)),"mono muted"));lake.append(row);
+  });
 }
 function censusPage(){
   return `<p class="kicker">Estate</p><h1>Location is not quality.</h1>
@@ -293,7 +357,7 @@ function bindZk(){
   document.querySelectorAll(".zk-tab").forEach(b=>b.onclick=()=>{
     document.querySelectorAll(".zk-tab").forEach(x=>x.classList.remove("active"));
     b.classList.add("active");
-    if(b.dataset.z==="snark"){ root.innerHTML=snarkUI(); $("#rsat").onclick=()=>{ const o=rangeCircuit(Number($("#age").value), Number($("#th").value)); $("#rstate").innerHTML = (o.sat?'<span class="ok">CIRCUIT SAT</span>':'<span class="no">CIRCUIT UNSAT</span>')+" · verifier sees T="+$("#th").value+", x=hidden"; }; }
+    if(b.dataset.z==="snark"){ root.innerHTML=snarkUI(); $("#rsat").onclick=()=>{ const o=rangeCircuit(Number($("#age").value), Number($("#th").value)); const verdict=lakeText("span",o.sat?"CIRCUIT SAT":"CIRCUIT UNSAT",o.sat?"ok":"no"); $("#rstate").replaceChildren(verdict, document.createTextNode(" · verifier sees T="+$("#th").value+", x=hidden")); }; }
     else bindZk();
   });
   const next=$("#znext"), st=$("#pstate"), vs=$("#vstate");
@@ -311,11 +375,21 @@ function bindZk(){
   };
 }
 
-const PAGES = { home, console:consolePage, census:censusPage, invest:investPage, build:buildPage, zk:zkPage };
+// Explicit dispatch: URL fragments cannot select inherited object methods.
+function pageMarkup(id){
+  switch(id){
+    case "console": return consolePage();
+    case "census": return censusPage();
+    case "invest": return investPage();
+    case "build": return buildPage();
+    case "zk": return zkPage();
+    default: return home();
+  }
+}
 function render(){
   nav();
   const id = page();
-  $("#main").innerHTML = (PAGES[id]||home)();
+  $("#main").innerHTML = pageMarkup(id);
   if(id==="console"){
     renderLake();
     $("#submit").onclick=async()=>{
@@ -336,6 +410,7 @@ function render(){
 window.addEventListener("hashchange", render);
 window.addEventListener("popstate", render);
 render();
+loadPublishedCycle().then(cycle => { applyCyclePaint(paintFromCycle(cycle)); render(); });
 </script>
   <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
   <script src="/assets/szl-holo-v2.js" defer data-szl-holo-asset="script-v2"></script>

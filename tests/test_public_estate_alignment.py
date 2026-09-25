@@ -68,6 +68,7 @@ class PublicEstateAlignmentTests(unittest.TestCase):
                 "SZLHOLDINGS/immune-lattice",
                 "SZLHOLDINGS/llm-router-live",
                 "SZLHOLDINGS/szl-atelier",
+                "SZLHOLDINGS/szl-constellation-staging",
                 "SZLHOLDINGS/szl-khipu",
                 "SZLHOLDINGS/yarqa",
             ],
@@ -322,6 +323,7 @@ class PublicEstateAlignmentTests(unittest.TestCase):
             self.assertIn("`SZLHOLDINGS/ayllu`", content)
             self.assertIn("`SZLHOLDINGS/immune`", content)
             self.assertIn("`SZLHOLDINGS/immune-lattice`", content)
+            self.assertIn("`SZLHOLDINGS/szl-constellation-staging`", content)
             self.assertIn("`SZLHOLDINGS/yarqa`", content)
 
     def test_product_front_door_names_canonical_origins(self) -> None:
