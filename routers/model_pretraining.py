@@ -174,6 +174,10 @@ def category(tags: list[str]) -> str:
         return "KERNEL_OR_SOFTWARE_HINT"
     if lowered.intersection({"kernel", "kernels", "software"}):
         return "KERNEL_OR_SOFTWARE_HINT"
+    # Forge publishes code-only counterparts with these explicit markers.
+    # Keep this an inspection hint even when nominal checkpoint tags coexist.
+    if lowered.intersection({"model-blueprint", "not-trained"}):
+        return "RECIPE_OR_PLACEHOLDER_HINT"
     if "logistic-regression" in lowered:
         return "CLASSICAL_MODEL_HINT"
     if lowered.intersection({"no-weights", "curriculum-only", "roadmap", "alias"}):
