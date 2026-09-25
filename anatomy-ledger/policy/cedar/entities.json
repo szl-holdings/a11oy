@@ -59,5 +59,30 @@
       "requiresApproval": false
     },
     "parents": []
+  },
+  {
+    "uid": { "type": "A11oy::WorkloadIdentity", "id": "agent:tenant-b-01" },
+    "attrs": {
+      "kind": "agent",
+      "tenantId": "other",
+      "assurance": 3,
+      "roles": ["operator"],
+      "disabled": false
+    },
+    "parents": []
+  },
+  {
+    "uid": { "type": "A11oy::ProtectedResource", "id": "deployment:other" },
+    "attrs": {
+      "kind": "deployment",
+      "tenantId": "other",
+      "classification": 3,
+      "requiredAssurance": 2,
+      "maxRisk": 400,
+      "allowedPurposes": ["release-approved-artifact"],
+      "allowedEffects": ["deploy"],
+      "requiresApproval": true
+    },
+    "parents": []
   }
 ]

@@ -168,6 +168,20 @@ def check(cedar):
         entity_update=lambda e: e[0]["attrs"].update(disabled="false"),
     )
 
+    def load_case(name, expected, filename):
+        cases.append(
+            (
+                name,
+                expected,
+                json.loads((POLICY / "requests" / filename).read_text()),
+                copy.deepcopy(entities),
+            )
+        )
+
+    load_case("read-allow-fixture", "ALLOW", "read-allow.json")
+    load_case("untrusted-block-fixture", "DENY", "untrusted-block.json")
+    load_case("cross-tenant-block-fixture", "DENY", "cross-tenant-block.json")
+
     spec = importlib.util.spec_from_file_location(
         "authorize_intent_check", ROOT / "tools" / "authorize_intent.py"
     )

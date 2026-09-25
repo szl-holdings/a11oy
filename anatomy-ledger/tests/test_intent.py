@@ -218,6 +218,24 @@ class IntentTests(unittest.TestCase):
         value["principal"]["id"] = "agent:unknown"
         self.assertBlocked(value, entities)
 
+    def test_cedar_read_allow_fixture(self):
+        entities = json.loads((ROOT / "policy/cedar/entities.json").read_text())
+        value = json.loads(
+            (ROOT / "policy/cedar/requests/read-allow.json").read_text()
+        )
+        result = AUTH.authorize(value, entities)
+        self.assertEqual(result["outcome"], "ALLOW", result)
+        self.assertIs(result["executable"], False)
+
+    def test_cedar_untrusted_and_cross_tenant_fixtures_block(self):
+        entities = json.loads((ROOT / "policy/cedar/entities.json").read_text())
+        for name in ("untrusted-block.json", "cross-tenant-block.json"):
+            with self.subTest(name=name):
+                value = json.loads(
+                    (ROOT / "policy/cedar/requests" / name).read_text()
+                )
+                self.assertBlocked(value, entities)
+
     def test_malformed_entity_store_denied(self):
         for entities in (
             "invalid",

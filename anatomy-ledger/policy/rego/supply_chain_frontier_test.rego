@@ -62,3 +62,17 @@ test_wrong_identity_reviews if {
 	result := decision with input as wrong
 	result.outcome == "REVIEW"
 }
+
+test_chain_of_title_source_is_not_verification if {
+	forged := json.patch(base, [{"op": "replace", "path": "/verification/source", "value": "chain-of-title"}])
+	result := decision with input as forged
+	result.outcome == "REVIEW"
+	not result.verified
+}
+
+test_envelope_and_flag_without_verifier_reviews if {
+	claimed := object.union(base, {"verification": {"verified": true, "envelopePresent": true, "source": "dsse-envelope"}})
+	result := decision with input as claimed
+	result.outcome == "REVIEW"
+	not result.verified
+}
