@@ -5,7 +5,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>a11oy operator pane · MEASURED</title>
+  <title>a11oy operator pane</title>
   <meta name="description" content="Same-origin operator pane on a-11-oy.com. Probes healthz, honest, ledger, mesh. Lambda = Conjecture 1. Does not replace /console or /command."/>
   <link rel="canonical" href="https://a-11-oy.com/operator-pane"/>
   <meta name="theme-color" content="#080c14"/>
@@ -85,7 +85,7 @@
     </div>
   </header>
   <main class="wrap">
-    <p class="kicker">MEASURED this session · Λ = Conjecture 1 · signer not assumed</p>
+    <p class="kicker">Probing this session · Λ = Conjecture 1 · HTTP 200 is REACHABLE, not MEASURED</p>
     <h1>Control before action. Evidence after.</h1>
     <p>This pane reads the product origin in the browser. A dead probe is UNAVAILABLE. Reachable HTTP is not a production certificate, not SIGNED, and not ATO.</p>
 
@@ -168,7 +168,10 @@
         const text = await r.text();
         let json = null;
         try { json = JSON.parse(text); } catch (_) {}
-        return { honesty: r.ok ? "MEASURED" : "UNAVAILABLE", ms, status: r.status, json, text: text.slice(0, 240) };
+        if (!r.ok || !json || typeof json !== "object") {
+          return { honesty: "UNAVAILABLE", ms, status: r.status, json, text: text.slice(0, 240) };
+        }
+        return { honesty: "REACHABLE", ms, status: r.status, json, text: text.slice(0, 240) };
       } catch (err) {
         return { honesty: "UNAVAILABLE", ms: Math.round(performance.now() - t0), status: 0, json: null, text: String(err) };
       }
@@ -221,7 +224,7 @@
       const n = honest.locked_formula_count || (honest.locked_formulas && honest.locked_formulas.length);
       document.getElementById("locked").textContent = n == null ? "UNAVAILABLE" : String(n);
       document.getElementById("ledger").textContent = ledger.count == null ? "UNAVAILABLE" : String(ledger.count);
-      const signer = (health.signer && (health.signer.status || health.signer.Status)) || (bag.healthz && bag.healthz.honesty === "MEASURED" ? "SEE BODY" : "UNAVAILABLE");
+      const signer = (health.signer && (health.signer.status || health.signer.Status)) || "UNAVAILABLE";
       document.getElementById("signer").textContent = String(signer);
     }
 

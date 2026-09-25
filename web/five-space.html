@@ -327,58 +327,85 @@ code{font-family:var(--mono);color:var(--teal);}
       });
     });
   }
+  // Untrusted form/storage values are text nodes, never HTML or selectors.
+  function textNode(tag, value, klass) {
+    var node = document.createElement(tag);
+    if (klass) node.className = klass;
+    node.textContent = value == null ? "UNAVAILABLE" : String(value);
+    return node;
+  }
   function renderLoop() {
     var el = document.getElementById("loopList");
+    el.replaceChildren();
     if (!state.ideas.length) { el.className = "empty"; el.textContent = "No ideas yet. Run a loop from Command."; return; }
     el.className = "";
-    el.innerHTML = state.ideas.slice().reverse().map(function (idea) {
-      return '<article class="item"><h3>' + idea.theme + ' · ' + idea.project + '</h3><p>' + idea.description + '</p><div class="meta">' + idea.risk + ' · SAMPLE · ' + idea.createdAt + '</div></article>';
-    }).join("");
+    state.ideas.slice().reverse().forEach(function (idea) {
+      var article = textNode("article", "", "item");
+      article.append(textNode("h3", idea.theme + " · " + idea.project),
+        textNode("p", idea.description),
+        textNode("div", idea.risk + " · SAMPLE · " + idea.createdAt, "meta"));
+      el.append(article);
+    });
   }
   function renderQueue() {
     var el = document.getElementById("queueList");
+    el.replaceChildren();
     if (!state.proposals.length) { el.className = "empty"; el.textContent = "Queue empty."; return; }
     el.className = "";
-    el.innerHTML = state.proposals.slice().reverse().map(function (p) {
-      var acts = "";
+    state.proposals.slice().reverse().forEach(function (p, index) {
+      var article = textNode("article", "", "item");
+      var meta = textNode("div", "", "meta");
+      meta.append(textNode("span", p.status, "pill"), document.createTextNode(" · SAMPLE · " + p.idea.project));
+      article.append(textNode("h3", p.idea.theme), textNode("p", p.idea.description), meta);
       if (p.status === "BLOCKED") {
-        acts = '<div class="chk"><input id="att-' + p.id + '" type="checkbox"/><label for="att-' + p.id + '">I attest this admit</label></div>' +
-          '<div class="row"><button class="btn" data-admit="' + p.id + '" type="button">Admit</button>' +
-          '<button class="btn ghost" data-refuse="' + p.id + '" type="button">Refuse</button></div>';
+        // Local numeric DOM IDs prevent storage values from changing attributes.
+        var attestation = textNode("div", "", "chk");
+        var box = document.createElement("input");
+        box.type = "checkbox"; box.id = "queue-attestation-" + index;
+        var label = textNode("label", "I attest this admit"); label.htmlFor = box.id;
+        attestation.append(box, label);
+        var actions = textNode("div", "", "row");
+        var admit = textNode("button", "Admit", "btn"); admit.type = "button";
+        var refuse = textNode("button", "Refuse", "btn ghost"); refuse.type = "button";
+        admit.addEventListener("click", function () {
+          if (!box.checked) { alert("Admit requires the attestation checkbox."); return; }
+          decide(p.id, "ADMITTED");
+        });
+        refuse.addEventListener("click", function () { decide(p.id, "REFUSED"); });
+        actions.append(admit, refuse); article.append(attestation, actions);
       }
-      return '<article class="item"><h3>' + p.idea.theme + '</h3><p>' + p.idea.description + '</p>' +
-        '<div class="meta"><span class="pill">' + p.status + '</span> · SAMPLE · ' + p.idea.project + '</div>' + acts + '</article>';
-    }).join("");
-    el.querySelectorAll("[data-admit]").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        var id = btn.getAttribute("data-admit");
-        var box = document.getElementById("att-" + id);
-        if (!box || !box.checked) { alert("Admit requires the attestation checkbox."); return; }
-        decide(id, "ADMITTED");
-      });
-    });
-    el.querySelectorAll("[data-refuse]").forEach(function (btn) {
-      btn.addEventListener("click", function () { decide(btn.getAttribute("data-refuse"), "REFUSED"); });
+      el.append(article);
     });
   }
   function memoryStale(rec) { return (Date.now() - new Date(rec.writtenAt).getTime()) / 3600000 >= rec.freshnessHours; }
   function renderMemory() {
     var el = document.getElementById("memList");
+    el.replaceChildren();
     if (!state.memory.length) { el.className = "empty"; el.textContent = "No memory records."; return; }
     el.className = "";
-    el.innerHTML = state.memory.slice().reverse().map(function (m) {
-      return '<article class="item"><h3>' + m.key + '</h3><p>' + m.body + '</p><div class="meta"><span class="pill">' + m.klass + '</span> · ' + (memoryStale(m) ? "STALE" : "FRESH") + ' · ' + m.writtenAt + '</div></article>';
-    }).join("");
+    state.memory.slice().reverse().forEach(function (m) {
+      var article = textNode("article", "", "item");
+      var meta = textNode("div", "", "meta");
+      meta.append(textNode("span", m.klass, "pill"),
+        document.createTextNode(" · " + (memoryStale(m) ? "STALE" : "FRESH") + " · " + m.writtenAt));
+      article.append(textNode("h3", m.key), textNode("p", m.body), meta); el.append(article);
+    });
   }
   function renderLedger() {
     document.getElementById("chainDepth").textContent = String(state.receipts.length);
     document.getElementById("chainHead").textContent = state.receipts.length ? state.receipts[state.receipts.length - 1].chainHash : GENESIS;
     verifyChain().then(function (ok) { document.getElementById("chainOk").textContent = ok ? "MEASURED intact (this browser)" : "BROKEN"; });
-    var body = document.getElementById("ledgerBody");
-    if (!state.receipts.length) { body.innerHTML = '<tr><td colspan="4">No receipts yet.</td></tr>'; return; }
-    body.innerHTML = state.receipts.slice().reverse().map(function (r) {
-      return '<tr><td>' + r.createdAt + '</td><td>' + r.kind + '</td><td>' + r.summary + '</td><td class="digest">' + r.chainHash.slice(0, 16) + '</td></tr>';
-    }).join("");
+    var body = document.getElementById("ledgerBody"); body.replaceChildren();
+    if (!state.receipts.length) {
+      var emptyRow = document.createElement("tr"), cell = textNode("td", "No receipts yet.");
+      cell.colSpan = 4; emptyRow.append(cell); body.append(emptyRow); return;
+    }
+    state.receipts.slice().reverse().forEach(function (r) {
+      var row = document.createElement("tr");
+      row.append(textNode("td", r.createdAt), textNode("td", r.kind), textNode("td", r.summary),
+        textNode("td", String(r.chainHash).slice(0, 16), "digest"));
+      body.append(row);
+    });
   }
   function renderAll() {
     renderEstate(); renderLoop(); renderQueue(); renderMemory(); renderLedger();
