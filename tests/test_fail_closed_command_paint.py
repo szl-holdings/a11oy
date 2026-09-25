@@ -34,8 +34,8 @@ def paint_from_cycle(cycle: dict | None) -> str:
         return "UNAVAILABLE"
     if cycle.get("productionPromotion") is True:
         return "DENY"
-    if cycle.get("lambda") != "CONJECTURE_1" or cycle.get("lambdaNeverATheorem") is not True:
-        return "DENY"  # Lambda is Conjecture 1, never a theorem.
+    if cycle.get("lambda") != "CONJECTURE_1" or cycle.get("lambdaNeverATheorem") is not True:  # never a theorem
+        return "DENY"
     if cycle.get("authority") != "PROPOSAL_ONLY":
         return "DENY"
     if cycle.get("invariantsOk") is not True:
@@ -63,7 +63,7 @@ def _allow_cycle(**overrides: object) -> dict:
         "productionPromotion": False,
         "authority": "PROPOSAL_ONLY",
         "lambda": "CONJECTURE_1",
-        "lambdaNeverATheorem": True,
+        "lambdaNeverATheorem": True,  # never a theorem
     }
     body.update(overrides)
     return body
@@ -79,7 +79,6 @@ def test_deny_verdicts_and_promotion_cannot_paint_allow() -> None:
     for verdict in ("HARD_DENY", "LAMBDA_VETO", "DENY_DEFAULT", "ESCALATE"):
         assert paint_from_cycle(_allow_cycle(verdict=verdict)) == "DENY"
     assert paint_from_cycle(_allow_cycle(productionPromotion=True)) == "DENY"
-    # Inv2 window: Lambda is Conjecture 1, never a theorem.
     theorem_claim = _allow_cycle()
     theorem_claim["lambda"] = "THEOREM"
     theorem_claim["lambdaNeverATheorem"] = False  # never a theorem
