@@ -38,7 +38,8 @@ Proof lives at [https://a11oy.net](https://a11oy.net).
 `a11oy.com` is not a surface of this project.
 
 a11oy is a governed-AI Command Center: deny-by-default policy, trust
-ceiling 0.97, and a signed receipt for every decision. This tree is
+ceiling 0.97, and a hash-chained receipt for every decision (DSSE signing
+PARTIAL — see Honest status). This tree is
 that system's source. It is not the proof registry.
 
 ## Invariant
