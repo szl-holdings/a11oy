@@ -164,6 +164,13 @@ def test_holographic_and_landing_catch_cannot_paint_live_or_measured() -> None:
     assert 'pulseState("health", "MEASURED"' not in landing
     assert 'pulseState("health", "LIVE"' not in landing
     assert '.catch(() => pulseState("health", "UNAVAILABLE"' in landing
+    assert 'liveChip("overview")' not in landing
+    assert 'liveChip("genome")' not in landing
+    assert 'grayChip("REACHABLE · overview")' in landing
+    assert "HTTP 200 is REACHABLE" in landing
+    assert "HTTP 200 is not MEASURED" in landing
+    assert 'state === "LIVE" || state === "REACHABLE"' not in landing
+    assert '"REACHABLE"' in landing.split("amberStates", 1)[1].split(";", 1)[0]
 
 
 def test_console_probe_catch_still_unavailable() -> None:
@@ -171,3 +178,4 @@ def test_console_probe_catch_still_unavailable() -> None:
         text = path.read_text(encoding="utf-8")
         assert 'badge b-live">UP' not in text, path
         assert 'b-err">UNAVAILABLE' in text, path
+        assert "status:'ok',latency_ms:0,http_code:200" not in text, path

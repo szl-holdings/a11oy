@@ -1001,7 +1001,7 @@ async function mesh_load(){
   // 2) annotate with live in-image probe (same-origin, no external dependency)
   try{const d=await getJSON(API+'/v1/observability/summary');const mr=d.mesh_reach||{};setHTML('mesh-host','');
     Object.keys(mr).forEach(k=>{const v=mr[k];addHTML('mesh-host',`<div class="row"><span class="badge ${(v.status==='ok')?'b-live':'b-err'}">${esc(v.status||'ok')}</span><span>${esc(v.name||k)}</span><span class="spacer mono dim">${v.latency_ms?Math.round(v.latency_ms)+'ms':''} \u00b7 ${esc(v.url||'in-image')}</span></div>`);});
-  }catch(e){setHTML('mesh-host','');CAPS.forEach(c=>addHTML('mesh-host',`<div class="row"><span class="badge b-live">ok</span><span>${esc(c.name)}</span><span class="spacer mono dim">in-image</span></div>`));}}
+  }catch(e){setHTML('mesh-host','');CAPS.forEach(c=>addHTML('mesh-host',`<div class="row"><span class="badge b-err">UNAVAILABLE</span><span>${esc(c.name)}</span><span class="spacer mono dim">in-image</span></div>`));}}
 
 // Trust score (a11oy /v1/lambda)
 async function lambda_load(){try{const d=await getJSON(API+'/v1/lambda');const L=d.lambda||0;setTxt('la-val',L.toFixed?L.toFixed(4):L);setTxt('la-floor',d.lambda_floor??'0.90');setTxt('la-pass',d.pass?'ALLOW':(d.pass===false?'DENY':'\u2014'));
@@ -1260,7 +1260,7 @@ async function organism_load(){
     const depth=(d.melt&&d.melt.metrics&&d.melt.metrics.dag_depth)||d.signed_spans||'\u2014';setTxt('org-spans',depth);
     setHTML('org-host','');Object.keys(mr).forEach(k=>{const v=mr[k];addHTML('org-host',`<div class="row"><span class="badge ${(v.status==='ok')?'b-live':'b-err'}">${esc(v.status||'ok')}</span><span>${esc(v.name||k)}</span><span class="spacer mono dim">${v.latency_ms?Math.round(v.latency_ms)+'ms':''} \u00b7 ${esc(v.url||'in-image')}</span></div>`);});
     setOut('org-raw',d);
-  }catch(e){setTxt('org-spans','\u2014');setHTML('org-host','');CAPS.forEach(c=>addHTML('org-host',`<div class="row"><span class="badge b-live">ok</span><span>${esc(c.name)}</span><span class="spacer mono dim">in-image capability</span></div>`));setOut('org-raw','in-image capability graph (self-contained)');}}
+  }catch(e){setTxt('org-spans','\u2014');setHTML('org-host','');CAPS.forEach(c=>addHTML('org-host',`<div class="row"><span class="badge b-err">UNAVAILABLE</span><span>${esc(c.name)}</span><span class="spacer mono dim">in-image capability</span></div>`));setOut('org-raw','UNAVAILABLE');}}
 
 // Receipt Chain \u2014 live hash-chain as a 3D DAG (operator command-log)
 async function chain_load(){

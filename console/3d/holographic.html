@@ -63,7 +63,7 @@
 (() => {
   "use strict";
   const contracts = [
-    {id:"livez",title:"Runtime liveness",url:"/api/livez",accept:p=>p && p.status==="LIVE",summary:p=>`status=${p.status ?? "UNKNOWN"}`},
+    {id:"livez",title:"Process liveness",url:"/api/livez",accept:p=>p && p.status==="PROCESS_ALIVE" && p.production_ready===false && p.receipt_minted===false,summary:p=>`status=${p.status ?? "UNKNOWN"}\nproduction_ready=${p.production_ready ?? "UNKNOWN"}\nscope=${p.scope ?? "UNKNOWN"}`},
     {id:"build",title:"Build identity",url:"/api/build-info",accept:p=>p && p.status==="OBSERVED" && p.build && p.build.state==="OBSERVED",summary:p=>`state=${p.build?.state ?? "UNKNOWN"}\nrevision=${p.build?.revision ?? "UNKNOWN"}`},
     {id:"brain",title:"Brain capabilities",url:"/api/a11oy/v1/brain/capabilities",accept:p=>p && p.schema==="szl.brain-capabilities.v1",summary:p=>`overall=${p.overall_status ?? "UNKNOWN"}\ncapabilities=${p.summary?.capabilities_total ?? "UNKNOWN"}\ntraining_claims=${p.summary?.ready_for_training_claims ?? false}`},
     {id:"readiness",title:"Readiness matrix",url:"/api/a11oy/v1/readiness/tab-matrix?view=summary",accept:p=>p && (p.view==="summary" || p.matrix_summary || p.available===true),summary:p=>`available=${p.available ?? "UNKNOWN"}\nview=${p.view ?? "UNKNOWN"}\nsummary=${JSON.stringify(p.matrix_summary ?? {},null,2)}`}

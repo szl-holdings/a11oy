@@ -20,7 +20,7 @@ COLLECTIONS = (
     "https://huggingface.co/collections/SZLHOLDINGS/szl-flagship-spaces-6a9315c15be8186d77796e62",
 )
 
-HONESTY = ("MEASURED", "REPORTED", "ROADMAP", "SOFTWARE", "UNAVAILABLE", "SIMULATED")
+HONESTY = ("REACHABLE", "MEASURED", "REPORTED", "ROADMAP", "SOFTWARE", "UNAVAILABLE", "SIMULATED")
 
 
 def test_nav_is_flagships_not_surface_sprawl() -> None:

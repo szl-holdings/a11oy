@@ -436,13 +436,14 @@ def register(app: Any, ns: str = "a11oy") -> dict[str, Any]:
     async def _livez():
         return _no_store_json(
             {
-                "status": "LIVE",
+                "status": "PROCESS_ALIVE",
                 "process": {
                     "pid": os.getpid(),
                     "uptime_s": round(time.monotonic() - _STARTED_MONOTONIC, 3),
                     "python_implementation": platform.python_implementation(),
                 },
                 "scope": "process liveness only; no dependency readiness asserted",
+                "production_ready": False,
                 "receipt_minted": False,
             }
         )

@@ -1119,10 +1119,10 @@ async function mesh_load(){
     if(!rows.length)throw new Error('empty');
     _meshState.rows=rows;_meshRender();
   }catch(e){
-    // honest fallback: in-image capability list (no fabricated latency — mark as in-image)
-    _meshState.rows=CAPS.map(c=>({id:c.id,name:c.name,status:'ok',latency_ms:0,http_code:200,url:'in-image',probed_path:'in-image'}));
-    _meshRender();
-    const host=el('mesh-host');if(host)host.insertAdjacentHTML('afterbegin','<div class="row mono dim">live probe unavailable — showing in-image capability list. <span style="cursor:pointer;color:#5fb3a3" onclick="mesh_load()">retry</span></div>');
+    _meshState.rows=[];
+    setTxt('mesh-up','\u2014');setTxt('mesh-p50','\u2014');setTxt('mesh-p100','\u2014');setTxt('mesh-health','\u2014');setTxt('mesh-tcount','UNAVAILABLE');
+    setHTML('mesh-host','');CAPS.forEach(c=>addHTML('mesh-host',`<div class="row"><span class="badge b-err">UNAVAILABLE</span><span>${esc(c.name)}</span><span class="spacer mono dim">in-image</span></div>`));
+    const host=el('mesh-host');if(host)host.insertAdjacentHTML('afterbegin','<div class="row mono dim">live probe UNAVAILABLE. <span style="cursor:pointer;color:#5fb3a3" onclick="mesh_load()">retry</span></div>');
   }}
 
 // Trust score (a11oy /v1/lambda)
@@ -1337,7 +1337,7 @@ async function organism_load(){
     const depth=(d.melt&&d.melt.metrics&&d.melt.metrics.dag_depth)||d.signed_spans||'\u2014';setTxt('org-spans',depth);
     setHTML('org-host','');Object.keys(mr).forEach(k=>{const v=mr[k];addHTML('org-host',`<div class="row"><span class="badge ${(v.status==='ok')?'b-live':'b-err'}">${esc(v.status||'ok')}</span><span>${esc(v.name||k)}</span><span class="spacer mono dim">${v.latency_ms?Math.round(v.latency_ms)+'ms':''} \u00b7 ${esc(v.url||'in-image')}</span></div>`);});
     setOut('org-raw',d);
-  }catch(e){setTxt('org-spans','\u2014');setHTML('org-host','');CAPS.forEach(c=>addHTML('org-host',`<div class="row"><span class="badge b-live">ok</span><span>${esc(c.name)}</span><span class="spacer mono dim">in-image capability</span></div>`));setOut('org-raw','in-image capability graph (self-contained)');}}
+  }catch(e){setTxt('org-spans','\u2014');setHTML('org-host','');CAPS.forEach(c=>addHTML('org-host',`<div class="row"><span class="badge b-err">UNAVAILABLE</span><span>${esc(c.name)}</span><span class="spacer mono dim">in-image capability</span></div>`));setOut('org-raw','UNAVAILABLE');}}
 
 // Receipt Chain \u2014 live hash-chain as a 3D DAG (operator command-log)
 async function chain_load(){

@@ -340,7 +340,7 @@
   @media(max-width:900px){.estate-grid{grid-template-columns:repeat(3,1fr)}}
   @media(max-width:520px){.estate-grid{grid-template-columns:repeat(2,1fr)}}
 
-  /* ---- honesty strip (MEASURED/REPORTED/UNKNOWN/CONJECTURE) ---- */
+  /* ---- honesty strip (REACHABLE/MEASURED/REPORTED/UNKNOWN/CONJECTURE) ---- */
   .honesty{border-top:1px solid var(--border);border-bottom:1px solid var(--border);
     background:linear-gradient(180deg,rgba(10,16,30,0.6),rgba(10,16,30,0.22))}
   .honesty .wrap{padding:48px 24px}
@@ -351,6 +351,7 @@
   .leg .lt{font-family:var(--mono);font-size:12.5px;font-weight:600;letter-spacing:.6px;margin-bottom:7px}
   .leg p{margin:0;color:var(--sub);font-size:.9rem;line-height:1.5}
   .leg.measured .lt{color:var(--proof)}     .leg.measured{border-color:rgba(255,255,255,0.35)}
+  .leg.reachable .lt{color:var(--lattice)}  .leg.reachable{border-color:rgba(255,255,255,0.28)}
   .leg.reported .lt{color:var(--lattice)}   .leg.reported{border-color:rgba(255,255,255,0.35)}
   .leg.roadmap .lt{color:var(--gold)}       .leg.roadmap{border-color:rgba(215,185,107,0.35)}
   .leg.software .lt{color:var(--lattice)}   .leg.software{border-color:rgba(255,255,255,0.28)}
@@ -910,9 +911,10 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
   <div class="wrap">
     <p class="kick">The honesty doctrine · v11 LOCKED</p>
     <h2 style="font-size:clamp(1.5rem,3vw,2.1rem);margin:0 0 10px">Every figure on this page is labelled — or it isn't shown.</h2>
-    <p class="intro" style="margin:0">We grade what we say. If a claim isn't MEASURED live this session, we tell you exactly what it is instead of dressing it up as proof.</p>
+    <p class="intro" style="margin:0">We grade what we say. HTTP 200 is REACHABLE. MEASURED requires a live exporter or receipt delta this session. Missing evidence is UNAVAILABLE.</p>
     <div class="legend">
-      <div class="leg measured"><div class="lt">MEASURED</div><p>Read live from a running endpoint this session — receipt count, advisory Λ posture, and chain depth. Shown with a live chip; a dead probe degrades to an honest offline chip. Signer state is disclosed separately only where an actual signer-status read is present. Never used for GPU joules without a live exporter delta.</p></div>
+      <div class="leg reachable"><div class="lt">REACHABLE</div><p>The source answered HTTP 200 this browser session. Reachability is not correctness, not LIVE, and not MEASURED. A dead probe degrades to UNAVAILABLE.</p></div>
+      <div class="leg measured"><div class="lt">MEASURED</div><p>A live exporter or receipt delta this session. HTTP 200 is not MEASURED. Joules stay SAMPLE/UNAVAILABLE without a meter. Signer state is disclosed separately only where an actual signer-status read is present.</p></div>
       <div class="leg reported"><div class="lt">REPORTED</div><p>Stated by a source we name — the locked-8 Lean kernel {F1,F4,F7,F11,F12,F18,F19,F22}, the 144-entry genome registry — cited here, not independently re-derived on this page.</p></div>
       <div class="leg roadmap"><div class="lt">ROADMAP</div><p>Future work or an empty Hub card. Not trained, not a product SKU, and not admitted as data. The ROADMAP collection exists so those cards are not sold as models.</p></div>
       <div class="leg software"><div class="lt">SOFTWARE</div><p>Shipped code — kernels, consoles, gates. Not LoRA-trained weights. Hub mirrors GitHub; a SOFTWARE card is not a model SKU.</p></div>
@@ -1822,7 +1824,7 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
   "use strict";
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  const liveChip  = (t) => '<span class="chip live" style="margin-left:6px"><span class="dot"></span>'+esc(t)+'</span>';
+  const liveChip  = (t) => '<span class="chip gray" style="margin-left:6px"><span class="dot"></span>'+esc(t)+'</span>';
   const downChip  = (t) => '<span class="chip down" style="margin-left:6px"><span class="dot"></span>'+esc(t)+'</span>';
   const grayChip  = (t) => '<span class="chip gray" style="margin-left:6px"><span class="dot"></span>'+esc(t)+'</span>';
 
@@ -1887,7 +1889,7 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
       countElement.classList.add("proof");
       $("hs-overclaim-time").textContent = correctionTime;
       $("hs-overclaim-sample").textContent = "n="+sampleSize;
-      $("hs-overclaims-chip").innerHTML = grayChip("MEASURED · SNAPSHOT "+observed+" · DIGEST OK");
+      $("hs-overclaims-chip").innerHTML = grayChip("SNAPSHOT "+observed+" · DIGEST OK · HTTP 200 is REACHABLE");
     } catch (_) {
       showUnavailableOverclaimMetrics();
     }
@@ -1941,8 +1943,8 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
   function markKillinchuReachable(){
     const chip = $("kc-runtime");
     if(chip){
-      chip.className = "chip live";
-      chip.innerHTML = '<span class="dot"></span>RUNTIME REACHABLE \u00b7 live read this visit';
+      chip.className = "chip gray";
+      chip.innerHTML = '<span class="dot"></span>RUNTIME REACHABLE \u00b7 HTTP 200 this visit';
     }
   }
   async function probeKillinchuRuntime(){
@@ -2015,17 +2017,17 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
       const o = await getJSON("/api/a11oy/v1/org/overview");
       if(!o || o.status === "UNAVAILABLE") return false;
       let any = false;
-      if(o.proof_tiers){ setTiers({ semantic:o.proof_tiers.semantic, evidence:o.proof_tiers.evidence, conjecture:o.proof_tiers.conjecture }); setCatalogNote((o.thesis_stats&&o.thesis_stats.locked_proven_count) || o.proof_tiers.locked); $("proof-src").innerHTML = liveChip("overview"); any = true; }
+      if(o.proof_tiers){ setTiers({ semantic:o.proof_tiers.semantic, evidence:o.proof_tiers.evidence, conjecture:o.proof_tiers.conjecture }); setCatalogNote((o.thesis_stats&&o.thesis_stats.locked_proven_count) || o.proof_tiers.locked); $("proof-src").innerHTML = grayChip("REACHABLE · overview"); any = true; }
       if(Array.isArray(o.verticals)){
         const vm = {};
         o.verticals.forEach(x => { if(x && x.name) vm[x.name] = num(x.lambda); });
-        setVerticals(vm); $("verticals-src").innerHTML = liveChip("overview"); any = true;
+        setVerticals(vm); $("verticals-src").innerHTML = grayChip("REACHABLE · overview"); any = true;
       }
       const ts = o.thesis_stats || {};
       const ch = o.chain || {};
       if(ts.signed_receipts !== undefined || ch.depth !== undefined){
         setChain(num(ts.signed_receipts), ts.chain_alg || "sha3_256", num(ch.depth), ch.last_receipt);
-        $("chain-src").innerHTML = liveChip("overview"); any = true;
+        $("chain-src").innerHTML = grayChip("REACHABLE · overview"); any = true;
       }
       if(o.org_lambda !== undefined && $("v-org")){ const v=fmtLam(o.org_lambda); $("v-org").textContent = v||"N/A"; lamChip("v-org-chip", num(o.org_lambda)); }
       return any;
@@ -2041,7 +2043,7 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
       setTiers({ semantic: tc["SEMANTIC-VERIFIED"],
                  evidence: tc["evidence-backed"], conjecture: tc["CONJECTURE"] });
       setCatalogNote(tc["LOCKED-PROVEN"]);
-      $("proof-src").innerHTML = liveChip("genome");
+      $("proof-src").innerHTML = grayChip("REACHABLE · genome");
     }catch(e){
       setTiers({}); $("proof-src").innerHTML = downChip("UNAVAILABLE");
     }
@@ -2052,7 +2054,7 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
       const v = d.verticals || {};
       setVerticals({ core:v.core, defense:v.defense });
       if($("v-org")){ const ov = fmtLam(d.lambda_org); $("v-org").textContent = ov || "N/A"; lamChip("v-org-chip", num(d.lambda_org)); }
-      if($("verticals-src")) $("verticals-src").innerHTML = liveChip("lambda/org");
+      if($("verticals-src")) $("verticals-src").innerHTML = grayChip("REACHABLE · lambda/org");
     }catch(e){
       setVerticals({});
       if($("v-org")) $("v-org").textContent = "N/A";
@@ -2074,8 +2076,8 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
   function pulseState(key, state, detail){
     const chip = $("pulse-"+key+"-state");
     const body = $("pulse-"+key+"-detail");
-    const amberStates = new Set(["CACHED","STALE_CACHE","SNAPSHOT","MODELED","OBSERVED","AVAILABLE","DEGRADED"]);
-    if(chip){ chip.textContent = state; chip.className = "data-state "+((state === "LIVE" || state === "REACHABLE") ? "live" : (amberStates.has(state) ? "amber" : "down")); }
+    const amberStates = new Set(["CACHED","STALE_CACHE","SNAPSHOT","MODELED","OBSERVED","AVAILABLE","DEGRADED","REACHABLE"]);
+    if(chip){ chip.textContent = state; chip.className = "data-state "+((state === "LIVE") ? "live" : (amberStates.has(state) ? "amber" : "down")); }
     if(body) body.textContent = detail;
   }
   async function pulseJSON(url){
