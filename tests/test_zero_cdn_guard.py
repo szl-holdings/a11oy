@@ -40,6 +40,7 @@ SERVED_GLOBS = [
     "web/five-space.html",
     "web/nexus.html",
     "web/estate-hologram.html",
+    "live_wires.html",
     "static-vendor/*.js",
     "static-vendor/*.css",
 ]
