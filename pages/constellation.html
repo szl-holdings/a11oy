@@ -97,15 +97,15 @@ const PROBES=[
 ["honest","/api/a11oy/v1/honest"],
 ["formulas","/api/a11oy/v1/formulas/selftest"]
 ];
-async function probe(url){try{const r=await fetch(url,{cache:"no-store"});return {ok:r.ok,status:r.status,body:r.ok?await r.json().catch(function(){return null}):null};}catch(e){return {ok:false,status:0,body:null};}}
+async function probe(url){try{const r=await fetch(url,{cache:"no-store"});if(!r.ok)return {ok:false,status:r.status,body:null};const body=await r.json().catch(function(){return null});return {ok:!!body&&typeof body==="object",status:r.status,body:body};}catch(e){return {ok:false,status:0,body:null};}}
 (async function(){
   const box=document.getElementById("probes");
   const raw={estates:ESTATES.length,locked:LOCKED,lambda:"Conjecture 1"};
   for (const [name,url] of PROBES){
     const p=await probe(url);
-    raw[name]=p.ok?"MEASURED":"UNAVAILABLE";
+    raw[name]=p.ok?"REACHABLE":"UNAVAILABLE";
     const s=document.createElement("span");s.className="chip";
-    s.textContent=name+" · "+(p.ok?"MEASURED":"UNAVAILABLE");
+    s.textContent=name+" · "+(p.ok?"REACHABLE":"UNAVAILABLE");
     box.appendChild(s);
     if(name==="honest" && p.body){
       raw.locked_formula_count=p.body.locked_formula_count;

@@ -1,0 +1,115 @@
+{
+  "_license": "SPDX-License-Identifier: Apache-2.0",
+  "_copyright": "(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "schema": "szl.space-catalog-admission-decision/v1",
+  "status": "PROPOSED_SOURCE_POLICY",
+  "decision_date": "2026-09-24",
+  "runtime_effect": "NONE",
+  "production_authorization": false,
+  "public_visibility_authorized": false,
+  "production_candidates": [
+    "a11oy",
+    "killinchu",
+    "immune",
+    "lyte",
+    "vertical-services"
+  ],
+  "additional_observed_public": [
+    {
+      "name": "ayllu",
+      "classification": "RESEARCH_STAGING_UNQUALIFIED",
+      "production_eligible": false
+    },
+    {
+      "name": "counsel",
+      "classification": "RESEARCH_STAGING_UNQUALIFIED",
+      "production_eligible": false
+    },
+    {
+      "name": "david-leads",
+      "classification": "VISIBILITY_REVIEW_REQUIRED",
+      "production_eligible": false
+    },
+    {
+      "name": "finance",
+      "classification": "RESEARCH_STAGING_UNQUALIFIED",
+      "production_eligible": false
+    },
+    {
+      "name": "holographic-unify",
+      "classification": "RESEARCH_STAGING_UNQUALIFIED",
+      "production_eligible": false
+    },
+    {
+      "name": "immune-lattice",
+      "classification": "RESEARCH_STAGING_UNQUALIFIED",
+      "production_eligible": false
+    },
+    {
+      "name": "llm-router-live",
+      "classification": "RESEARCH_STAGING_UNQUALIFIED",
+      "production_eligible": false
+    },
+    {
+      "name": "sentra",
+      "classification": "RESEARCH_STAGING_UNQUALIFIED",
+      "production_eligible": false
+    },
+    {
+      "name": "szl-atelier",
+      "classification": "RESEARCH_STAGING_UNQUALIFIED",
+      "production_eligible": false
+    },
+    {
+      "name": "szl-command-lab",
+      "classification": "RESEARCH_STAGING_UNQUALIFIED",
+      "production_eligible": false
+    },
+    {
+      "name": "szl-constellation",
+      "classification": "RESEARCH_STAGING_UNQUALIFIED",
+      "production_eligible": false
+    },
+    {
+      "name": "szl-frontier",
+      "classification": "RESEARCH_STAGING_UNQUALIFIED",
+      "production_eligible": false
+    },
+    {
+      "name": "szl-khipu",
+      "classification": "RESEARCH_STAGING_UNQUALIFIED",
+      "production_eligible": false
+    },
+    {
+      "name": "szl-model-inference-lab",
+      "classification": "RESEARCH_STAGING_UNQUALIFIED",
+      "production_eligible": false
+    },
+    {
+      "name": "terra",
+      "classification": "RESEARCH_STAGING_UNQUALIFIED",
+      "production_eligible": false
+    },
+    {
+      "name": "yarqa",
+      "classification": "RESEARCH_STAGING_UNQUALIFIED",
+      "production_eligible": false
+    }
+  ],
+  "unknown_space_policy": "REVIEW_REQUIRED",
+  "readiness_required": [
+    "admitted_source_revision",
+    "canonical_publisher_readback",
+    "deployed_source_binding",
+    "exact_api_contracts",
+    "authentication_and_data_review",
+    "witnessed_backend_request",
+    "required_receipt_verification"
+  ],
+  "limits": [
+    "This document does not change SPACES, FOLD_SPACES, UNIFY_SPACES or live health aggregation.",
+    "Research/staging is not approval to expose private or personal data; existing fold/private decisions remain.",
+    "No additional Space is promoted, restarted, archived, privatized or deleted by this decision.",
+    "Production candidates remain subject to live readiness, not this catalog label."
+  ]
+}

@@ -54,8 +54,14 @@ function emptyMembrane(){
   return membrane;
 }
 async function load(url){
-  try{const r=await fetch(url,{cache:"no-store"});if(!r.ok)return {ok:false,status:r.status};return {ok:true,status:r.status,json:await r.json().catch(function(){return null})};}
-  catch(e){return {ok:false};}
+  try{
+    const r=await fetch(url,{cache:"no-store"});
+    if(!r.ok)return {ok:false,status:r.status,json:null};
+    const json=await r.json().catch(function(){return null});
+    if(!json||typeof json!=="object")return {ok:false,status:r.status,json:null};
+    return {ok:true,status:r.status,json};
+  }
+  catch(e){return {ok:false,status:0,json:null};}
 }
 function chip(box, text){
   box.appendChild(Object.assign(document.createElement("span"),{className:"chip",textContent:text}));
@@ -76,9 +82,9 @@ function paintMembrane(box, membrane){
   const ids=(honest.json&&honest.json.locked_formula_ids)||LOCKED;
   const count=honest.json&&honest.json.locked_formula_count;
   const membrane=(mem.json&&mem.json.membrane)||emptyMembrane();
-  chip(box,"honest · "+(honest.ok?"MEASURED":"UNAVAILABLE"));
-  chip(box,"brain · "+(brain.ok?"MEASURED":"UNAVAILABLE"));
-  chip(box,"formulas · "+(formulas.ok?"MEASURED":"UNAVAILABLE"));
+  chip(box,"honest · "+(honest.ok?"REACHABLE":"UNAVAILABLE"));
+  chip(box,"brain · "+(brain.ok?"REACHABLE":"UNAVAILABLE"));
+  chip(box,"formulas · "+(formulas.ok?"REACHABLE":"UNAVAILABLE"));
   chip(box,"locked_formula_count · "+(count===8?"8":"UNAVAILABLE"));
   chip(box,"corpus · SZLHOLDINGS/szl-second-brain-inrepo");
   chip(box,"minting · DENY");
