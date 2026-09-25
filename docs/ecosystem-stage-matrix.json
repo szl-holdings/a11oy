@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-09-10T03:20:41Z",
+  "observedAt": "2026-09-25T15:51:24Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -26,9 +26,9 @@
   "machineGeneratedCounts": {
     "githubReadinessEntries": 19,
     "huggingFacePublic": {
-      "models": 46,
+      "models": 49,
       "datasets": 35,
-      "spaces": 21
+      "spaces": 22
     },
     "huggingFaceScope": {
       "visibility": "public-only",
@@ -1191,6 +1191,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3",
       "repoType": "model",
       "stage": "inventory",
@@ -1208,6 +1218,26 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/szl-training-scripts"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-study5",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-study5"
       ]
     },
     {
@@ -1732,6 +1762,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/szl-constellation"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-constellation-staging",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-constellation-staging"
       ]
     },
     {

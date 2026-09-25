@@ -10081,12 +10081,13 @@ async def a11oy_ledger_v2() -> JSONResponse:
         "chain_verified": True,
         "signed": signed_any,
         "signature_state": "SIGNED" if signed_any else "UNSIGNED",
-        "receipt_minted": bool(receipts),
+        "receipt_minted": False,
         "observed_at": observed_at,
         "book": "public_operator_khipu",
         "honesty": ("Live operational ledger read from the in-process Khipu DAG. "
-                    "GET never mints. Zero receipts means none have been minted "
-                    "in this process; this is not the deterministic SAMPLE chain "
+                    "GET never mints, so receipt_minted is always false on this "
+                    "route. count is the number of receipts already present in "
+                    "this process; this is not the deterministic SAMPLE chain "
                     "(see GET /api/a11oy/v2/command-log)."),
         "receipts": receipts,
     })
