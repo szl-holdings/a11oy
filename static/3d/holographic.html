@@ -156,6 +156,7 @@ footer{padding:6px 14px;border-top:1px solid var(--line);flex:0 0 auto;
  #intro .lbl{align-self:flex-start;font:9.5px ui-monospace,monospace;padding:2px 7px;border-radius:6px;
   border:1px solid var(--line);letter-spacing:.4px}
  #intro .lbl[data-state="live"]{color:var(--proof);border-color:#20323e}
+ #intro .lbl[data-state="reachable"]{color:var(--gold);border-color:#3a2f1a}
  #intro .lbl[data-state="degraded"]{color:var(--gold);border-color:#3a2f1a}
  #intro .card .go{margin-top:auto;font:11px ui-monospace,monospace;padding:7px 10px;border-radius:8px;
   border:1px solid var(--line);background:#0b1620;color:var(--cream);cursor:pointer;text-align:center;
@@ -993,7 +994,7 @@ window.addEventListener("hashchange", () => {
       const total = s.node_count ?? j.node_count;
       if (distinct == null) throw new Error("no distinct_artifacts field");
       setStat("brain-stat", Number(distinct).toLocaleString(), "distinct artifacts (harvested)");
-      setLabel("brain-lbl", "live", "LIVE");
+      setLabel("brain-lbl", "reachable", "REACHABLE");
       if (total != null) {
         const note = document.getElementById("brain-note");
         if (note) note.textContent =
@@ -1015,7 +1016,7 @@ window.addEventListener("hashchange", () => {
       const j = await r.json();
       const n = Array.isArray(j.surfaces) ? j.surfaces.length : SURFACES.length;
       setStat("estate-stat", String(n), "3D surfaces, each wired to a live backend");
-      setLabel("estate-lbl", "live", "LIVE");
+      setLabel("estate-lbl", "reachable", "REACHABLE");
     } catch (e) {
       // The shell manifest is authoritative and always present — honest count, labelled as
       // in-page (not a fresh server read).
