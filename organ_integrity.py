@@ -256,8 +256,8 @@ def evaluate_anatomy(
             "BRAIN",
             "YACHAY",
             ("F1",),
-            "DOWN" if brain_down else "LIVE",
-            "LIVE",
+            "DOWN" if brain_down else "ADVISORY",
+            "STRUCTURAL-ONLY",
             (
                 f"cross-canal leak {leaked:.3e} — YACHAY cannot reason across a broken partition"
                 if brain_down
@@ -273,7 +273,7 @@ def evaluate_anatomy(
             "HEART",
             "YUYAY",
             ("F4", "F11"),
-            "DOWN" if heart_down else "LIVE",
+            "DOWN" if heart_down else "ADVISORY",
             "ADVISORY",
             (
                 f"Λ {float(heart['value']):.4f} · {heart['reason']}"
@@ -287,8 +287,8 @@ def evaluate_anatomy(
             "CIRCULATORY",
             "YAWAR",
             ("F7", "F22"),
-            "DOWN" if yawar_down else "LIVE",
-            "LIVE",
+            "DOWN" if yawar_down else "ADVISORY",
+            "STRUCTURAL-ONLY",
             (
                 f"chain break at {chain['break_at']} — prev pointer does not walk. Fail closed."
                 if yawar_down
@@ -301,7 +301,7 @@ def evaluate_anatomy(
             "NERVOUS",
             "OTel",
             ("F12",),
-            "DOWN" if nervous_down else "LIVE",
+            "DOWN" if nervous_down else "ADVISORY",
             "UNAVAILABLE",
             (
                 "fabricated joule refused — energy stays UNAVAILABLE"
@@ -315,7 +315,7 @@ def evaluate_anatomy(
             "SKELETON",
             "Khipu",
             ("F18", "F19"),
-            "DOWN" if skeleton_down else "LIVE",
+            "DOWN" if skeleton_down else "ADVISORY",
             "ADVISORY",
             (
                 f"locked-8 silhouettes {skeleton_pass}/{len(rows)} — a sorry cannot be painted green"
@@ -329,7 +329,8 @@ def evaluate_anatomy(
         ),
     ]
 
-    live_count = sum(1 for o in organs if o["status"] == "LIVE")
+    advisory_count = sum(1 for o in organs if o["status"] == "ADVISORY")
+    live_count = 0
     organ_down = any(o["status"] == "DOWN" for o in organs)
     blocked = organ_down or bool(willay_fire)
     if willay_fire:
@@ -342,13 +343,14 @@ def evaluate_anatomy(
         reason = f"organ integrity FAIL · {down} DOWN · fail closed"
     else:
         reason = (
-            f"organ integrity {live_count}/5 LIVE · Λ advisory · "
+            f"organ integrity {advisory_count}/5 ADVISORY · Λ advisory · "
             "energy UNAVAILABLE · Conjecture 1 OPEN"
         )
 
     return {
         "organs": organs,
         "live_count": int(live_count),
+        "advisory_count": int(advisory_count),
         "blocked": bool(blocked),
         "verdict": "BLOCKED" if blocked else "ADVISORY_BODY",
         "willay": {
@@ -519,7 +521,9 @@ def parse_flags(src: Mapping[str, Any] | None) -> dict[str, Any]:
 
 def selftest() -> dict[str, Any]:
     healthy = evaluate_anatomy(seed=11)
-    assert healthy["live_count"] == 5, healthy["reason"]
+    assert healthy["advisory_count"] == 5, healthy["reason"]
+    assert healthy["live_count"] == 0, healthy["reason"]
+    assert all(o["status"] != "LIVE" for o in healthy["organs"])
     assert healthy["blocked"] is False
     assert healthy["energy"] == "UNAVAILABLE"
     assert healthy["energy_j"] is None
@@ -551,7 +555,8 @@ def selftest() -> dict[str, Any]:
     w = evaluate_anatomy(willay_fire=True, seed=11)
     assert w["blocked"] is True
     assert w["willay"]["refused"] is True
-    assert w["live_count"] == 5
+    assert w["live_count"] == 0
+    assert w["advisory_count"] == 5
 
     l = evaluate_anatomy(leak_canal=True, seed=11)
     assert l["blocked"] is True

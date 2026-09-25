@@ -80,7 +80,9 @@ def test_silhouette_opt_in_still_runs_fail_closed_demo() -> None:
     resp = client.post("/api/a11oy/v1/organs/integrity", json={"silhouette": True})
     assert resp.status_code == 200
     inner = resp.json()["body"]
-    assert inner["live_count"] == 5
+    assert inner["live_count"] == 0
+    assert inner["advisory_count"] == 5
+    assert all(o["status"] != "LIVE" for o in inner["organs"])
     assert inner["proven_trust"] is False
     assert inner["energy"] == "UNAVAILABLE"
 

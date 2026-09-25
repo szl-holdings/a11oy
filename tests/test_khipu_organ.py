@@ -63,6 +63,9 @@ def test_kernels_fail_closed() -> None:
     assert khipu.greenlight(claim_proven=1)["blocked"] == 1
     assert khipu.greenlight(stamp_joule=1)["blocked"] == 1
     assert khipu.anatomy()["blocked"] is False
+    assert khipu.anatomy()["liveCount"] == 0
+    assert khipu.anatomy()["advisoryCount"] == 5
+    assert "LIVE bound" not in khipu.greenlight()["reason"]
     assert khipu.anatomy(zero_heart=True)["blocked"] is True
     assert khipu.anatomy(fabricate_joule=True)["blocked"] is True
     assert khipu.prefix_witness()["hold"] == 1
