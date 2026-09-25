@@ -5,6 +5,9 @@
 The existing canonical writer deploys an already-existing Space through the
 same byte-pinned, Dockerfile-derived controller. Current Lyte 4 runtime checks
 live in an adjacent, pure verification module. No second writer is introduced.
+Process execution uses the #2117 szl_release_guard runner: POSIX process-group
+timeout, output cap, no shell. This module still owns mutation; the guard
+does not gain execution authority.
 """
 from __future__ import annotations
 
@@ -13,7 +16,6 @@ import hashlib
 import importlib.util
 import json
 import os
-import subprocess
 import sys
 import tempfile
 import time
@@ -23,6 +25,8 @@ from pathlib import Path
 from typing import Any
 
 from huggingface_hub import HfApi
+
+from szl_release_guard import run_bounded as guard_run_bounded
 
 SOURCE_REPOSITORY = "szl-holdings/lyte-services"
 SOURCE_REVISION = "9ce4e6b5f36fe0b094a07308abe3665cd2a210c1"
@@ -84,18 +88,30 @@ def run_bounded(
     cwd: Path | None = None,
     timeout: int = DEFAULT_COMMAND_TIMEOUT_S,
 ) -> None:
+    """Writer-facing wrapper over the #2117 POSIX bounded runner.
+
+    Public journal records reason codes and pass/fail only. Guard receipts
+    never include raw process output. A failed observation raises; it does
+    not mint a publication success.
+    """
     journal("run_bounded", argv=command[:6], timeout=timeout)
-    try:
-        result = subprocess.run(command, cwd=cwd, check=False, timeout=timeout)
-    except subprocess.TimeoutExpired as exc:
-        journal("run_bounded_timeout", argv=command[:6], timeout=timeout)
+    workdir = cwd if cwd is not None else Path.cwd()
+    observation = guard_run_bounded(command, cwd=workdir, timeout=float(timeout))
+    journal(
+        "run_bounded_observation",
+        reason_code=observation.get("reason_code"),
+        passed=observation.get("passed"),
+        exit_code=observation.get("exit_code"),
+        timed_out=observation.get("timed_out"),
+        output_limited=observation.get("output_limited"),
+        output_complete=observation.get("output_complete"),
+        execution_authority="NONE",
+    )
+    if observation.get("passed") is not True:
+        code = observation.get("reason_code") or "NONZERO_EXIT_UNCLASSIFIED"
+        journal("run_bounded_fail", argv=command[:6], reason_code=code)
         raise RuntimeError(
-            f"command timed out after {timeout}s: " + " ".join(command[:5])
-        ) from exc
-    if result.returncode:
-        journal("run_bounded_fail", argv=command[:6], returncode=result.returncode)
-        raise RuntimeError(
-            f"command failed with exit {result.returncode}: " + " ".join(command[:5])
+            f"command failed with {code}: " + " ".join(command[:5])
         )
     journal("run_bounded_ok", argv=command[:6])
 
@@ -119,9 +135,11 @@ def checkout_exact_source(destination: Path) -> None:
     run_checked([
         "git", "-C", str(destination), "checkout", "--quiet", "--detach", "FETCH_HEAD",
     ])
-    observed = subprocess.check_output(
-        ["git", "-C", str(destination), "rev-parse", "HEAD"], text=True,
-    ).strip()
+    # Guard runner does not return raw stdout. Detached HEAD is the SHA on disk.
+    head_path = destination / ".git" / "HEAD"
+    observed = head_path.read_text(encoding="utf-8").strip().lower()
+    if observed.startswith("ref:"):
+        raise RuntimeError("source checkout is not detached")
     if observed != SOURCE_REVISION:
         raise RuntimeError(
             f"source checkout mismatch: expected {SOURCE_REVISION}, observed {observed}"
@@ -280,6 +298,8 @@ def main() -> int:
         "token_source_name": token_source, "token_value_recorded": False,
         "secret_values_recorded": False, "sentra_signing_key_touched": False,
         "space_created": False, "delete_operations": 0, "complete": False,
+        "release_guard_runner": "szl_release_guard.run_bounded",
+        "execution_authority": "NONE",
     }
     try:
         api = HfApi(token=token)
