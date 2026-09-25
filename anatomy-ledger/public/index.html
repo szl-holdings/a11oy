@@ -1,0 +1,84 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0
+(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Anatomy Ledger · a11oy</title>
+  <link rel="stylesheet" href="./style.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <aside class="sidebar" aria-label="Navigation">
+    <a class="brand" href="#overview"><span class="brand-mark" aria-hidden="true">a</span><span>a11oy<span class="brand-sub">EVIDENCE WORKSPACE</span></span></a>
+    <div class="sidebar-label">ANATOMY</div>
+    <nav><a class="nav-link" href="#decision-lab"><span aria-hidden="true">⌁</span> Decision lab</a><a class="nav-link" href="#overview"><span aria-hidden="true">◈</span> Overview</a><a class="nav-link" href="#records"><span aria-hidden="true">≡</span> Evidence ledger</a><a class="nav-link" href="#policy"><span aria-hidden="true">⌘</span> Policy inspector</a><a class="nav-link" href="#checks"><span aria-hidden="true">◇</span> Software checks</a></nav>
+    <div class="sidebar-foot"><span class="small-tag">EVALUATION ONLY</span><p>Inspect evidence.<br>Make the limits visible.</p><small>No action execution.</small></div>
+  </aside>
+  <div class="workspace">
+    <header class="topbar"><div><span class="crumb">Workspace</span><span class="slash">/</span>Anatomy Ledger</div><span class="service-state" id="service-state">Connecting…</span></header>
+    <main id="overview">
+      <div class="page-heading"><div><div class="eyebrow">PROVENANCE / GOVERNANCE</div><h1>Follow the evidence.</h1><p class="lead">A readable record of what is present, what holds together, and what still needs verification.</p></div><button id="refresh" class="button secondary" type="button"><span aria-hidden="true">↻</span> Refresh ledger</button></div>
+      <div class="scope-note"><span class="scope-symbol" aria-hidden="true">i</span><p><strong>Inspection, with explicit boundaries.</strong> This workspace runs advisory Python evaluations. Stored claims and a consistent hash chain do not establish artifact authenticity or authorize execution.</p><span class="small-tag">LOCAL EVALUATION</span></div>
+      <div id="load-error" class="notice error" role="alert" hidden></div>
+      <section class="metrics" aria-label="Ledger summary">
+        <article class="metric"><span class="metric-label">Evidence records</span><strong id="record-count">—</strong><span id="record-hint">Waiting for ledger</span></article>
+        <article class="metric"><span class="metric-label">Hash chain</span><strong id="chain-status" class="word-metric">Unchecked</strong><span id="chain-hint">Recomputed on each read</span></article>
+        <article class="metric"><span class="metric-label">Cryptographic trust</span><strong class="word-metric">Unestablished</strong><span>No fresh verifier runs in this UI</span></article>
+        <article class="metric"><span class="metric-label">Action execution</span><strong class="word-metric">Disabled</strong><span>Every result is evaluation only</span></article>
+      </section>
+      <section class="panel records-panel" id="records" aria-labelledby="records-heading">
+        <div class="panel-heading"><div><div class="eyebrow">01 / EVIDENCE</div><h2 id="records-heading">The ledger</h2></div><span id="ledger-age" class="muted">No snapshot loaded</span></div>
+        <div class="toolbar"><label class="search-label"><span aria-hidden="true">⌕</span><input id="record-search" type="search" aria-label="Search records" placeholder="Search source, subject, or digest"></label><label class="filter-label"><span class="sr-only">Stored outcome</span><select id="outcome-filter"><option value="">All stored outcomes</option><option value="BLOCK">BLOCK</option><option value="REVIEW">REVIEW</option><option value="ALLOW">ALLOW</option></select></label></div>
+        <div class="table-wrap"><table><thead><tr><th>Source / subject</th><th>Stored policy outcome</th><th>Record hash</th><th><span class="sr-only">Details</span></th></tr></thead><tbody id="record-rows"></tbody></table></div>
+        <div id="empty-state" class="empty-state"><span class="empty-glyph" aria-hidden="true">◇</span><h3 id="empty-title">Waiting for evidence</h3><p id="empty-description">The service is loading the saved ledger.</p></div>
+        <footer class="panel-footer"><span id="record-summary">No records displayed</span><span>Stored outcomes are claims to inspect</span></footer>
+      </section>
+      <div class="lower-grid">
+        <section class="panel integrity-panel" aria-labelledby="integrity-heading"><div class="panel-heading"><div><div class="eyebrow">02 / CONSISTENCY</div><h2 id="integrity-heading">Chain inspection</h2></div><span class="line-symbol" aria-hidden="true">⌁</span></div><p>Record hashes, links, counts, and the root are recomputed from the loaded file. An external trust anchor is still required to establish authenticity.</p><dl class="facts"><div><dt>Chain root</dt><dd id="chain-root" class="digest">—</dd></div><div><dt>External anchor</dt><dd>Not established</dd></div><div><dt>Snapshot generated</dt><dd id="generated-at">—</dd></div><div><dt>Loaded from service</dt><dd id="loaded-at">—</dd></div></dl><div id="integrity-errors" class="notice error" hidden></div><p id="ledger-disclosure" class="fine-print"></p></section>
+        <section class="panel checks-panel" id="checks" aria-labelledby="checks-heading"><div class="panel-heading"><div><div class="eyebrow">03 / SOFTWARE QA</div><h2 id="checks-heading">Exercise the boundaries</h2></div><span class="small-tag">SAMPLE</span></div><p>Run synthetic regression cases for tenant boundaries, untrusted verification claims, and execution denial.</p><div class="checks-result" id="checks-result" role="status">Checks have not been run in this session.</div><button id="run-checks" class="button secondary" type="button">Run software checks <span aria-hidden="true">↗</span></button><p class="fine-print">Passing tests demonstrate the behavior of these local software cases. They do not establish native Cedar or OPA execution, production readiness, or deployment.</p><details id="checks-details" hidden><summary>Inspect test results</summary><pre id="checks-json"></pre></details></section>
+      </div>
+      <section class="panel policy-panel" id="policy" aria-labelledby="policy-heading"><div class="panel-heading"><div><div class="eyebrow">04 / POLICY INSPECTOR</div><h2 id="policy-heading">Inspect a decision</h2></div><span class="small-tag">ADVISORY</span></div><p class="policy-intro">Submit JSON to the running evaluator. Inputs are untrusted; <code>verified: true</code> is never accepted as proof. Nothing is signed, persisted, or executed.</p><form id="policy-form"><div class="inspector-grid"><div><div class="editor-toolbar"><label for="evaluation-mode">Evaluation</label><select id="evaluation-mode"><option value="authorize">Intent policy</option><option value="evaluate">Supply-chain evidence</option><option value="bind">Intent + evidence binding</option></select><button class="text-button" id="load-sample" type="button">Load SAMPLE</button></div><label class="sr-only" for="policy-input">JSON evaluation input</label><textarea id="policy-input" spellcheck="false" placeholder="Paste a JSON object or load a SAMPLE." required>{}</textarea><div class="editor-footer"><span>JSON · max 256 KiB</span><button id="evaluate-button" class="button primary" type="submit">Evaluate input <span aria-hidden="true">→</span></button></div></div><div class="result-pane"><div class="result-heading"><span>Evaluator response</span><span id="evaluation-status" class="small-tag">NOT RUN</span></div><pre id="evaluation-result" aria-live="polite">Submit an input to inspect the actual JSON response.</pre></div></div></form></section>
+      <section class="panel lab-panel" id="decision-lab" aria-labelledby="lab-heading">
+        <div class="panel-heading"><div><div class="eyebrow">05 / DECISION LAB</div><h2 id="lab-heading">See what changes a decision.</h2></div><span class="small-tag">EVALUATION ONLY</span></div>
+        <p class="policy-intro">Compare an intent with independent scenarios, inspect changed fields, and replay against the current policy. Scenario values are hypothetical inputs; changing an approval field does not obtain approval.</p>
+        <div class="lab-workbench">
+          <form id="lab-form" class="lab-editor">
+            <div class="lab-editor-heading"><label for="lab-input">Intent command · JSON</label><button id="lab-load-sample" class="text-button" type="button">Load SAMPLE intent</button></div>
+            <textarea id="lab-input" spellcheck="false" aria-describedby="lab-input-help" required>{}</textarea>
+            <p id="lab-input-help" class="lab-help">Paste an intent command, or an object with <code>command</code>, optional <code>statement</code>, and optional <code>scenarios</code>. Without scenarios, the service varies approval, MFA, network zone, and risk. Maximum 128 KiB. The browser rejects numbers outside its exact integer range; use the API or CLI for full 64-bit integers.</p>
+            <div class="lab-editor-actions"><button id="lab-use-inspector" class="text-button" type="button">Use inspector input</button><button id="lab-analyze" class="button primary" type="submit">Analyze scenarios <span aria-hidden="true">→</span></button></div>
+          </form>
+          <div class="lab-summary-pane">
+            <div class="result-heading"><span>Decision comparison</span><span id="lab-status" class="small-tag" role="status">NOT RUN</span></div>
+            <div id="lab-placeholder" class="lab-placeholder"><span class="empty-glyph" aria-hidden="true">⌁</span><h3>One intent. Visible differences.</h3><p>Load the SAMPLE or paste your input. Every scenario starts from the original command; the comparison shows what the running service actually returned.</p></div>
+            <div id="lab-summary" hidden>
+              <div class="lab-stat-grid"><div><span>Original intent</span><strong id="lab-base-intent">—</strong></div><div><span>Original combined result</span><strong id="lab-base-combined">—</strong></div><div><span>Scenarios evaluated</span><strong id="lab-scenario-count">—</strong></div><div><span>Execution</span><strong>Disabled</strong></div></div>
+              <p id="lab-result-context" class="lab-context"></p>
+              <dl class="lab-digests"><div><dt>Input fingerprint</dt><dd id="lab-input-digest" class="digest">—</dd></div><div><dt>Policy fingerprint</dt><dd id="lab-policy-digest" class="digest">—</dd></div></dl>
+              <details class="lab-policy-files"><summary>Inspect policy file fingerprints</summary><dl id="lab-policy-files"></dl></details>
+            </div>
+            <div id="lab-error" class="notice error" role="alert" hidden></div>
+          </div>
+        </div>
+        <div id="lab-comparison" hidden>
+          <div class="lab-section-heading"><h3>Original and scenarios</h3><span>Advisory outcomes · no execution</span></div>
+          <div class="table-wrap"><table class="scenario-table"><thead><tr><th>Scenario</th><th>Intent</th><th>Combined</th><th>Changed input fields</th><th><span class="sr-only">Explanation</span></th></tr></thead><tbody id="lab-scenario-rows"></tbody></table></div>
+          <p id="lab-disclosure" class="lab-disclosure"></p><details class="lab-raw"><summary>Inspect complete analysis JSON</summary><pre id="lab-analysis-json"></pre></details>
+        </div>
+        <div class="lab-replay">
+          <div class="lab-replay-heading"><div><div class="eyebrow">REPEAT THE EVALUATION</div><h3>Keep an unsigned replay capsule.</h3><p>A capsule carries the input and comparison fingerprints. A successful replay establishes reproducibility only; it does not authenticate its creator, approve an action, or verify an artifact.</p></div><button id="lab-download" class="button secondary" type="button" disabled>Download capsule <span aria-hidden="true">↓</span></button></div>
+          <div class="lab-replay-controls"><button id="lab-replay-latest" class="button secondary" type="button" disabled>Replay latest analysis</button><span class="replay-divider">or</span><label class="lab-file-label" for="lab-capsule-file">Upload capsule JSON<input id="lab-capsule-file" type="file" accept=".json,application/json" aria-describedby="lab-file-status"></label><button id="lab-replay-file" class="button secondary" type="button" disabled>Replay uploaded capsule</button></div>
+          <p id="lab-file-status" class="lab-file-status" role="status">No uploaded capsule. Files are limited to 192 KiB. Capsules contain your submitted data; inspect them before sharing.</p>
+          <div id="lab-replay-report" class="replay-report" hidden><div class="replay-report-heading"><strong id="lab-replay-status" role="status"></strong><span class="small-tag">UNSIGNED / UNTRUSTED</span></div><p id="lab-replay-message"></p><ul id="lab-replay-issues"></ul><dl id="lab-replay-digests" class="lab-digests"></dl><details><summary>Inspect replay response</summary><pre id="lab-replay-json"></pre></details></div>
+        </div>
+      </section>
+      <footer class="workspace-footer"><span>a11oy / Anatomy Ledger</span><span>Evidence before assertion.</span></footer>
+    </main>
+  </div>
+  <dialog id="record-dialog"><div class="dialog-heading"><h2>Stored record</h2><button id="close-dialog" class="button secondary" type="button">Close</button></div><p>These are stored claims. This view does not cryptographically verify the artifact.</p><pre id="record-json"></pre></dialog>
+  <dialog id="scenario-dialog" aria-labelledby="scenario-dialog-title"><div class="dialog-heading"><div><div class="eyebrow">ADVISORY EXPLANATION</div><h2 id="scenario-dialog-title">Scenario detail</h2></div><button id="close-scenario-dialog" class="button secondary" type="button">Close</button></div><p id="scenario-dialog-summary"></p><section aria-labelledby="scenario-changes-title"><h3 id="scenario-changes-title">Changed input fields</h3><div id="scenario-changes"></div></section><section aria-labelledby="scenario-trace-title"><h3 id="scenario-trace-title">Decision trace</h3><ol id="scenario-trace"></ol></section><details><summary>Inspect scenario JSON</summary><pre id="scenario-json"></pre></details></dialog>
+</body>
+</html>

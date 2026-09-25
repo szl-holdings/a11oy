@@ -64,10 +64,73 @@ _BASE.FLAGSHIPS = tuple(
 )
 
 _BASE.DOMAIN_CSS = dict(getattr(_BASE, "DOMAIN_CSS", {}))
-_BASE.DOMAIN_CSS["sentra"] = r''':root{--bg:#030506;--panel:rgba(7,12,15,.92);--muted:#8ca1a8;--accent:#54f0d1;--accent2:#ff5d73}.domain{margin-top:48px;display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,.8fr);gap:14px}.verification{min-height:410px;position:relative;overflow:hidden;background:radial-gradient(circle at 30% 30%,rgba(84,240,209,.08),transparent 35%),linear-gradient(rgba(84,240,209,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(84,240,209,.045) 1px,transparent 1px);background-size:auto,28px 28px,28px 28px}.node{position:absolute;inline-size:74px;block-size:74px;border:1px solid var(--accent);border-radius:50%;display:grid;place-items:center;background:#061014;font:800 9px ui-monospace,monospace;text-align:center}.n1{left:8%;top:18%}.n2{left:42%;top:10%}.n3{right:8%;top:38%;border-color:var(--accent2)}.n4{left:34%;bottom:9%}.path{position:absolute;block-size:1px;background:linear-gradient(90deg,var(--accent),var(--accent2));transform-origin:left center}.x1{left:16%;top:27%;inline-size:31%;transform:rotate(-8deg)}.x2{left:49%;top:20%;inline-size:37%;transform:rotate(25deg)}.x3{left:42%;top:65%;inline-size:42%;transform:rotate(-22deg)}.queue{display:grid;gap:8px}.incident{padding:12px;border:1px solid var(--line);display:grid;grid-template-columns:64px 1fr;gap:10px}.sev{font:900 10px ui-monospace,monospace;color:var(--accent2)}@media(max-width:850px){.domain{grid-template-columns:1fr}}'''
+_BASE.DOMAIN_CSS["sentra"] = r''':root{--bg:#030506;--panel:rgba(7,12,15,.92);--muted:#8ca1a8;--accent:#54f0d1;--accent2:#ff5d73}.domain{margin-top:48px;display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,.8fr);gap:14px}.verification{min-height:410px;position:relative;overflow:hidden;background:radial-gradient(circle at 30% 30%,rgba(84,240,209,.08),transparent 35%),linear-gradient(rgba(84,240,209,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(84,240,209,.045) 1px,transparent 1px);background-size:auto,28px 28px,28px 28px}.node{position:absolute;inline-size:74px;block-size:74px;border:1px solid var(--accent);border-radius:50%;display:grid;place-items:center;background:#061014;font:800 9px ui-monospace,monospace;text-align:center}.n1{left:8%;top:18%}.n2{left:42%;top:10%}.n3{right:8%;top:38%;border-color:var(--accent2)}.n4{left:34%;bottom:9%}.path{position:absolute;block-size:1px;background:linear-gradient(90deg,var(--accent),var(--accent2));transform-origin:left center}.x1{left:16%;top:27%;inline-size:31%;transform:rotate(-8deg)}.x2{left:49%;top:20%;inline-size:37%;transform:rotate(25deg)}.x3{left:42%;top:65%;inline-size:42%;transform:rotate(-22deg)}.iris{position:absolute;inset:22% 28%;display:grid;place-items:center;pointer-events:none}.iris-ring{inline-size:min(52%,240px);aspect-ratio:1;border-radius:50%;border:1px dashed rgba(84,240,209,.38);display:grid;place-items:center;background:repeating-conic-gradient(from 0deg,rgba(84,240,209,.12) 0 8deg,transparent 8deg 16deg)}.iris-aperture{inline-size:22%;aspect-ratio:1;border-radius:50%;background:#030506;border:2px solid var(--accent);transform:scale(.16);box-shadow:inset 0 0 16px rgba(84,240,209,.18)}.queue{display:grid;gap:8px}.incident{padding:12px;border:1px solid var(--line);display:grid;grid-template-columns:64px 1fr;gap:10px}.sev{font:900 10px ui-monospace,monospace;color:var(--accent2)}html[data-iris=gated] .iris-aperture{transform:scale(.42)}html[data-iris=open] .iris-aperture{transform:scale(.42)}@media(max-width:850px){.domain{grid-template-columns:1fr}}'''
 
 _BASE.DOMAIN_HTML = dict(getattr(_BASE, "DOMAIN_HTML", {}))
-_BASE.DOMAIN_HTML["sentra"] = '''<div class="domain"><section class="panel verification" aria-label="Illustrative receipt verification graph"><span class="illus">Illustrative — schematic, not live data</span><span class="path x1"></span><span class="path x2"></span><span class="path x3"></span><div class="node n1">RECEIPT</div><div class="node n2">SIGNATURE</div><div class="node n3">DIGEST</div><div class="node n4">CHAIN</div></section><aside class="panel queue"><span class="illus">Illustrative — schematic, not live data</span><div class="mono">VERIFICATION EVIDENCE QUEUE</div><div class="incident"><span class="sev">CONTRACT</span><span>The live upstream describes the public verifier and its supported checks; it does not claim a receipt verdict.</span></div><div class="incident"><span class="sev">VERDICT</span><span>PASS requires an actual caller-supplied receipt and successful signature, payload-digest, and hash-chain checks.</span></div><div class="incident"><span class="sev">SCOPE</span><span>This read-only surface performs no admission or approval. Immune engine migration remains UNVERIFIED until its contracts and runtime parity are proven.</span></div></aside></div>'''
+_BASE.DOMAIN_HTML["sentra"] = '''<div class="domain"><section class="panel verification" aria-label="Illustrative receipt verification graph"><span class="illus">Illustrative — schematic, not live data</span><span class="iris" aria-hidden="true"><span class="iris-ring"><span class="iris-aperture"></span></span></span><span class="path x1"></span><span class="path x2"></span><span class="path x3"></span><div class="node n1">RECEIPT</div><div class="node n2">SIGNATURE</div><div class="node n3">DIGEST</div><div class="node n4">CHAIN</div></section><aside class="panel queue"><span class="illus">Illustrative — schematic, not live data</span><div class="mono">VERIFICATION EVIDENCE QUEUE</div><div class="incident"><span class="sev">CONTRACT</span><span>The live upstream describes the public verifier and its supported checks; it does not claim a receipt verdict.</span></div><div class="incident"><span class="sev">VERDICT</span><span>PASS requires an actual caller-supplied receipt and successful signature, payload-digest, and hash-chain checks.</span></div><div class="incident"><span class="sev">SCOPE</span><span>This read-only surface performs no admission or approval. Immune engine migration remains UNVERIFIED until its contracts and runtime parity are proven.</span></div></aside></div>'''
+
+_PROBE_LIVE = (
+    '{"status":"LIVE" if r.is_success else "UNAVAILABLE","http_status":r.status_code,'
+    '"latency_ms":round((time.time()-started)*1000,1),"source":CFG["upstream"],"data":body}'
+)
+_PROBE_REACHABLE = (
+    '{"status":"REACHABLE" if r.is_success else "UNAVAILABLE",'
+    '"honesty":"HTTP success is reachability, not MEASURED","receipt_verified":False,'
+    '"http_status":r.status_code,"latency_ms":round((time.time()-started)*1000,1),'
+    '"source":CFG["upstream"],"data":body}'
+)
+_LIVEBAR_OPEN = (
+    "s.className='status '+(j.status==='LIVE'?'is-live':'');"
+    "s.children[1].textContent=j.status+' / '+(j.latency_ms??'-')+' ms';"
+)
+_LIVEBAR_CLOSED = (
+    "const ok=j.status==='MEASURED'&&j.receipt_verified===true;"
+    "s.className='status'+(ok?' is-live':'');"
+    "s.dataset.reachability=String(j.status||'UNAVAILABLE');"
+    "s.children[1].textContent=(ok?'MEASURED':(j.status==='REACHABLE'?'REACHABLE':'UNAVAILABLE'))"
+    "+' / '+(j.latency_ms??'-')+' ms';"
+    "const root=document.documentElement;"
+    "if(root.dataset.domain==='sentra'){root.dataset.iris=ok?'gated':'closed';}"
+)
+
+# Finance is a thin read-only projection of its canonical source-owned API.
+# The immutable base renderer remains byte-identical; no second publisher exists.
+_finance_spec = importlib.util.spec_from_file_location(
+    "szl_finance_read_projection", Path(__file__).with_name("hf_finance_read_proxy.py")
+)
+if _finance_spec is None or _finance_spec.loader is None:
+    raise RuntimeError("finance read projection is unavailable")
+_finance_module = importlib.util.module_from_spec(_finance_spec)
+_finance_spec.loader.exec_module(_finance_module)
+_BASE.APP = _finance_module.augment(_BASE.APP)
+_BASE.FLAGSHIPS = tuple(
+    {
+        **row,
+        "source": "https://github.com/szl-holdings/a11oy/tree/main/verticals/puriq-markets",
+        "upstream": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/finance/overview",
+    } if row.get("slug") == "finance" else row
+    for row in _BASE.FLAGSHIPS
+)
+
+# Bind the emitted image and dependency lock, not only the CI environment.
+_runtime_spec = importlib.util.spec_from_file_location(
+    "szl_flagship_runtime_contract", Path(__file__).with_name("hf_flagship_runtime_contract.py")
+)
+if _runtime_spec is None or _runtime_spec.loader is None:
+    raise RuntimeError("flagship runtime contract is unavailable")
+_runtime_module = importlib.util.module_from_spec(_runtime_spec)
+_runtime_spec.loader.exec_module(_runtime_module)
+_runtime_module.apply_runtime_contract(_BASE)
+
+# Finance UI consumes only the validated same-origin read projection.
+_workspace_spec = importlib.util.spec_from_file_location(
+    "szl_finance_workspace", Path(__file__).with_name("hf_finance_workspace.py")
+)
+if _workspace_spec is None or _workspace_spec.loader is None:
+    raise RuntimeError("finance workspace contract is unavailable")
+_workspace_module = importlib.util.module_from_spec(_workspace_spec)
+_workspace_spec.loader.exec_module(_workspace_module)
+_workspace_module.apply_workspace(_BASE)
 
 # Export the complete base API after applying the overlay. Function objects keep
 # the base module globals, which are synchronized again before public calls that
@@ -76,11 +139,17 @@ for _name in dir(_BASE):
     if not _name.startswith("_"):
         globals()[_name] = getattr(_BASE, _name)
 
+if _PROBE_LIVE not in APP:
+    raise RuntimeError("flagship APP probe contract is not the expected LIVE-on-success mapper")
+APP = APP.replace(_PROBE_LIVE, _PROBE_REACHABLE, 1)
+_BASE.APP = APP
+
 
 def _sync_contract() -> None:
     _BASE.FLAGSHIPS = tuple(FLAGSHIPS)
     _BASE.DOMAIN_CSS = dict(DOMAIN_CSS)
     _BASE.DOMAIN_HTML = dict(DOMAIN_HTML)
+    _BASE.APP = APP
     _BASE.TERRA_FORGE_BUNDLE = TERRA_FORGE_BUNDLE
     _BASE.TERRA_FORGE_MARKER = TERRA_FORGE_MARKER
     _BASE.TERRA_FORGE_GENERATOR = TERRA_FORGE_GENERATOR
@@ -94,7 +163,13 @@ def load_terra_forge_bundle() -> tuple[str, dict[str, Any]]:
 
 def html(item: dict[str, Any]) -> str:
     _sync_contract()
-    return _BASE.html(item)
+    page = _BASE.html(item)
+    if _LIVEBAR_OPEN not in page:
+        raise RuntimeError("flagship livebar still opens on HTTP LIVE")
+    page = page.replace(_LIVEBAR_OPEN, _LIVEBAR_CLOSED, 1)
+    if item.get("slug") == "sentra":
+        page = page.replace('<html lang="en"', '<html lang="en" data-iris="closed"', 1)
+    return page
 
 
 def readme(item: dict[str, Any]) -> str:

@@ -10081,12 +10081,13 @@ async def a11oy_ledger_v2() -> JSONResponse:
         "chain_verified": True,
         "signed": signed_any,
         "signature_state": "SIGNED" if signed_any else "UNSIGNED",
-        "receipt_minted": bool(receipts),
+        "receipt_minted": False,
         "observed_at": observed_at,
         "book": "public_operator_khipu",
         "honesty": ("Live operational ledger read from the in-process Khipu DAG. "
-                    "GET never mints. Zero receipts means none have been minted "
-                    "in this process; this is not the deterministic SAMPLE chain "
+                    "GET never mints, so receipt_minted is always false on this "
+                    "route. count is the number of receipts already present in "
+                    "this process; this is not the deterministic SAMPLE chain "
                     "(see GET /api/a11oy/v2/command-log)."),
         "receipts": receipts,
     })
@@ -13230,6 +13231,12 @@ try:
     class _OperatorWidgetInjector(_OPW_Base):
         async def dispatch(self, request, call_next):
             resp = await call_next(request)
+            # The response owner, not an incoming request, opts out of UI mutation.
+            from urllib.request import parse_http_list
+            if any(directive.strip().lower() == "no-transform"
+                   for field in resp.headers.getlist("cache-control")
+                   for directive in parse_http_list(field)):
+                return resp
             try:
                 ct = (resp.headers.get("content-type") or "").lower()
                 # Only touch full HTML documents (skip JSON/SSE/assets/etc).
@@ -16761,6 +16768,14 @@ try:
     _canon_head_mod.ensure_html_documents_accept_head(app)
 except Exception:
     pass
+
+
+# Provenance inspection is evaluation-only; GET and POST perform no governed writes.
+try:
+    import a11oy_anatomy_ledger as _anatomy_ledger_module
+    _anatomy_ledger_module.register(app)
+except Exception as _anatomy_ledger_error:
+    print(f"[a11oy] anatomy ledger unavailable: {_anatomy_ledger_error!r}", file=sys.stderr)
 
 
 if __name__ == "__main__":

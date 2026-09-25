@@ -200,12 +200,16 @@ def run_publisher(
     path: Path,
     *,
     source_revision_override: str | None = None,
+    finance_only: bool = False,
 ) -> tuple[int, str | None, tuple[str, ...] | None]:
     admitted: tuple[str, ...] | None = None
     try:
         module = load_module(name, path)
         if name == "szl_flagship_v4":
             admitted = constrain_public_flagships(module)
+            if finance_only:
+                module.FLAGSHIPS = tuple(row for row in module.FLAGSHIPS if row["slug"] == "finance")
+                admitted = ("finance",)
         if source_revision_override is not None:
             if SHA40.fullmatch(source_revision_override) is None:
                 raise RuntimeError("source revision override is not a full Git SHA")
@@ -279,6 +283,91 @@ def normalize_github_token_alias() -> str:
     return "unavailable"
 
 
+def finance_preflight() -> dict[str, Any]:
+    """Require the canonical backend component before writing its public view."""
+    revision = os.environ.get("GITHUB_SHA", "")
+    if SHA40.fullmatch(revision) is None or revision == "0" * 40:
+        raise RuntimeError("Finance requires a bound canonical source revision")
+    head = _github_json("/repos/szl-holdings/a11oy/commits/main")
+    if head.get("sha") != revision:
+        raise RuntimeError("Finance publisher source is no longer current main")
+    request = urllib.request.Request(
+        "https://szlholdings-a11oy.hf.space/api/a11oy/v1/finance/analytics/v2/signals/AAPL?origin=fixture",
+        headers={"Accept": "application/json", "Accept-Encoding": "identity"})
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            raise RuntimeError("canonical Finance redirect refused")
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+    with opener.open(request, timeout=15) as response:
+        if response.geturl() != request.full_url or response.status != 200:
+            raise RuntimeError("canonical Finance analytics preflight failed")
+        if response.headers.get("Content-Type", "").split(";", 1)[0].strip() != "application/json":
+            raise RuntimeError("canonical Finance preflight is not JSON")
+        raw = response.read(160_001)
+    if len(raw) > 160_000:
+        raise RuntimeError("canonical Finance preflight response too large")
+    def pairs(items):
+        out = {}
+        for key, value in items:
+            if key in out:
+                raise ValueError("duplicate preflight key")
+            out[key] = value
+        return out
+    body = json.loads(raw, object_pairs_hook=pairs)
+    projection = load_module("finance_preflight_contract", HERE / "hf_finance_read_proxy.py")
+    if (not isinstance(body, dict) or body.get("source_revision") != revision or body.get("component") != projection.COMPONENT
+            or body.get("schema") != "szl.finance.analytics/v2" or body.get("ok") is not True
+            or body.get("operation") != "signals" or body.get("state") != "COMPUTED"
+            or body.get("truth_label") != "MODELED"
+            or body.get("execution_enabled") is not False
+            or any(body.get(key) is not True for key in ("advisory_only", "paper_only", "not_financial_advice"))
+            or body.get("result", {}).get("symbol") != "AAPL"
+            or body.get("result", {}).get("data_origin") != "fixture"
+            or body.get("inputs", {}).get("asset", {}).get("origin") != "fixture"
+            or body.get("inputs", {}).get("asset", {}).get("truth_label") != "SYNTHETIC"):
+        raise RuntimeError("canonical Finance component is not bound to publisher source")
+    def digest(value):
+        import hashlib
+        return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":"),
+            ensure_ascii=False, allow_nan=False).encode()).hexdigest()
+    receipt = body.get("receipt")
+    if not isinstance(receipt, dict):
+        raise RuntimeError("canonical Finance receipt is absent")
+    receipt = dict(receipt)
+    claimed = receipt.pop("receipt_sha256", None)
+    if (claimed != digest(receipt) or receipt.get("payload_sha256") != digest({key:value for key,value in body.items() if key != "receipt"})
+            or receipt.get("source_revision") != revision or receipt.get("signed") is not False
+            or receipt.get("signing") != "UNSIGNED_HONEST" or receipt.get("authority") != "NONE"
+            or receipt.get("persistence") != "CALLER_HELD"
+            or receipt.get("component_revision") != projection.COMPONENT["revision"]
+            or receipt.get("component_sha256") != projection.COMPONENT["engine_sha256"]):
+        raise RuntimeError("canonical Finance computation receipt is invalid")
+    return {"source_revision": revision, "component": body["component"],
+            "fixture_preflight": True, "live_provider_verified": False}
+
+
+def publish_finance_only(space_guard_module) -> int:
+    """Existing writer, one explicit target; no sibling publisher or combined sync."""
+    try:
+        preflight = finance_preflight()
+        code, error, admitted = run_publisher("szl_flagship_v4", FLAGSHIP_IMPL, finance_only=True)
+        receipt = read_receipt(FLAGSHIP_RECEIPT) or {}
+        receipt.update(publication_scope="finance", canonical_preflight=preflight,
+            existing_space_guard=space_guard_module.guard_report(), generated_flagship_slugs=list(admitted or ()),
+            sibling_publications=0, secret_values_recorded=False, delete_operations=0)
+        receipt["complete"] = (receipt.get("complete") is True and code == 0 and admitted == ("finance",)
+            and len(receipt.get("rows", [])) == 1 and receipt["rows"][0].get("id") == "SZLHOLDINGS/finance")
+        if error:
+            receipt["entrypoint_error"] = error
+    except Exception as exc:
+        receipt = {"schema": "szl.hf-finance-publication/v1", "publication_scope": "finance",
+                   "complete": False, "error": type(exc).__name__, "detail": str(exc),
+                   "secret_values_recorded": False}
+    FLAGSHIP_RECEIPT.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(json.dumps(receipt, indent=2, sort_keys=True))
+    return 0 if receipt["complete"] else 1
+
+
 def main() -> int:
     # Load the helper by exact adjacent path. Several isolated contract tests
     # execute this entrypoint with importlib without adding ``scripts`` to
@@ -290,6 +379,11 @@ def main() -> int:
     space_guard_module.install_existing_space_guard()
 
     github_token_source = normalize_github_token_alias()
+    scope = os.environ.get("SZL_FLAGSHIP_SCOPE", "estate")
+    if scope not in ("estate", "finance"):
+        raise RuntimeError("unknown publication scope")
+    if scope == "finance":
+        return publish_finance_only(space_guard_module)
     flagship_code, flagship_error, admitted = run_publisher(
         "szl_flagship_v4",
         FLAGSHIP_IMPL,

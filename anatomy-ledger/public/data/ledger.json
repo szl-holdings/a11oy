@@ -1,0 +1,13 @@
+{
+  "schema": "szl.anatomy.ledger.v1",
+  "generatedAt": "2026-09-20T15:12:00Z",
+  "recordCount": 0,
+  "outcomes": {
+    "ALLOW": 0,
+    "REVIEW": 0,
+    "BLOCK": 0
+  },
+  "chainRoot": null,
+  "records": [],
+  "disclosure": "No genuine evidence had been ingested when this file was initialized."
+}

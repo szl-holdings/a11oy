@@ -2,15 +2,10 @@ name: Verify A11oy post-merge deployment 90d5981a
 
 on:
   pull_request:
-    types:
-    - opened
-    - synchronize
-    - reopened
+    types: [opened, synchronize, reopened]
     paths:
-    - .github/workflows/verify-postmerge-a11oy-90d5981a.yml
-  merge_group:
-    types:
-    - checks_requested
+      - .github/workflows/verify-postmerge-a11oy-90d5981a.yml
+
 permissions:
   contents: read
 

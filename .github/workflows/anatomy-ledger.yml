@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+name: Anatomy Ledger
+on:
+  pull_request:
+    paths: ["anatomy-ledger/**", "a11oy_anatomy_ledger.py", "tests/test_anatomy_ledger_surface.py", "serve.py", "Dockerfile", ".github/workflows/anatomy-ledger.yml"]
+  push:
+    branches: [main]
+    paths: ["anatomy-ledger/**", "a11oy_anatomy_ledger.py", "tests/test_anatomy_ledger_surface.py", "serve.py", "Dockerfile", ".github/workflows/anatomy-ledger.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Install checksum-pinned policy engines
+        run: |
+          python3 anatomy-ledger/tools/install_opa.py --output "$RUNNER_TEMP/opa"
+          python3 anatomy-ledger/tools/install_cedar.py --output "$RUNNER_TEMP/cedar"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      - name: Verify policies, ledger, JSON, and HTTP behavior
+        run: python3 anatomy-ledger/tools/verify.py --opa opa
+      - name: Install route test dependencies
+        run: python3 -m pip install fastapi==0.141.1 httpx==0.28.1
+      - name: Verify canonical application integration
+        run: python3 -m unittest discover -s tests -p test_anatomy_ledger_surface.py -v
+      - name: Package Anatomy Ledger
+        run: python3 anatomy-ledger/tools/package_release.py
+      - name: Upload package
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: anatomy-ledger
+          path: anatomy-ledger/dist/anatomy-ledger.tar.gz*
+          if-no-files-found: error
+
+  attest:
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: anatomy-ledger
+          path: dist
+      - name: Generate signed build provenance for the verified package
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3.0.0
+        with:
+          subject-path: dist/anatomy-ledger.tar.gz
