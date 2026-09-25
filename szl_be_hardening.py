@@ -679,7 +679,7 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
     @app.get("/healthz", tags=["health"])
     async def _healthz():
         live = {
-            "status": "UNKNOWN",
+            "status": "ABSENT",
             "signing_available": False,
             "scheme": "UNAVAILABLE",
             "mint": "POST /api/a11oy/khipu/sign",
@@ -688,13 +688,9 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
         }
         try:
             import szl_dsse as _dsse
-            avail = bool(_dsse.signing_available())
-            live.update({
-                "status": "DSSE-LIVE" if avail else "ABSENT",
-                "signing_available": avail,
-                "scheme": "DSSEv1 / ECDSA-P256" if avail else "UNAVAILABLE",
-                "public_key_fingerprint": _dsse.public_key_fingerprint(),
-            })
+            # Fingerprint only. This route never stamps DSSE-LIVE; signer stays
+            # ABSENT. Live signing is /api/a11oy/healthz rollup.signer.
+            live["public_key_fingerprint"] = _dsse.public_key_fingerprint()
         except Exception as exc:  # noqa: BLE001
             live["error"] = type(exc).__name__
         return {
