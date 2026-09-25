@@ -91,7 +91,7 @@ def inventory_only_spaces(contract: dict[str, Any]) -> list[str]:
             raise ContractError("inventory-only Space cannot be a governed keeper")
         if row.get("disposition") != "FOLD":
             raise ContractError("inventory-only Space must retain its FOLD disposition")
-        if row.get("policySource") != str(KEEP_POLICY.relative_to(ROOT)):
+        if row.get("policySource") != KEEP_POLICY.relative_to(ROOT).as_posix():
             raise ContractError("inventory-only Space must cite the canonical keep policy")
         ids.append(row.get("id"))
     return sorted(_unique(ids, "inventory-only Hub Spaces"), key=str.casefold)
@@ -212,7 +212,7 @@ def validate(contract: dict[str, Any], manifest: dict[str, Any]) -> dict[str, An
         "huggingFaceTopologyBindings": topology,
         "huggingFaceInventoryOnly": inventory_only,
         "governedKeepSet": governed_keep,
-        "governedKeepPolicySource": str(KEEP_POLICY.relative_to(ROOT)),
+        "governedKeepPolicySource": KEEP_POLICY.relative_to(ROOT).as_posix(),
         "keepPolicySha256": hashlib.sha256(KEEP_POLICY.read_bytes()).hexdigest(),
         "huggingFaceCounts": counts,
         "huggingFaceObservedAt": manifest.get("observedAt"),
@@ -363,7 +363,7 @@ def apply(check: bool) -> None:
                 drift.append(str(path.relative_to(ROOT)))
             continue
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(normalized, encoding="utf-8")
+        path.write_text(normalized, encoding="utf-8", newline="\n")
     if drift:
         raise ContractError(f"generated public-estate outputs are stale: {drift}")
 
