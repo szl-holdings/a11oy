@@ -40,7 +40,7 @@ CATEGORIES = {
 }
 HEADERS = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff",
            "Referrer-Policy": "no-referrer"}
-PAGE_HEADERS = {**HEADERS, "Content-Security-Policy": (
+PAGE_HEADERS = {**HEADERS, "Cache-Control": "no-store, no-transform", "Content-Security-Policy": (
     "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; "
     "img-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; "
     "frame-ancestors 'self' https://huggingface.co https://*.hf.space https://*.huggingface.co"

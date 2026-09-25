@@ -13231,6 +13231,12 @@ try:
     class _OperatorWidgetInjector(_OPW_Base):
         async def dispatch(self, request, call_next):
             resp = await call_next(request)
+            # The response owner, not an incoming request, opts out of UI mutation.
+            from urllib.request import parse_http_list
+            if any(directive.strip().lower() == "no-transform"
+                   for field in resp.headers.getlist("cache-control")
+                   for directive in parse_http_list(field)):
+                return resp
             try:
                 ct = (resp.headers.get("content-type") or "").lower()
                 # Only touch full HTML documents (skip JSON/SSE/assets/etc).
