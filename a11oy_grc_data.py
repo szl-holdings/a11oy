@@ -16,7 +16,8 @@ DOCTRINE / FRAMING (critical — never overclaim):
   * Coverage states are HONEST: COVERED (specific testable mechanism), PARTIAL (mechanism
     exists but incomplete), ROADMAP (planned, target version), NA (out of scope w/ reason).
   * Λ = Conjecture 1 (NOT a closed theorem); Khipu BFT = Conjecture 2; locked-proven = 8
-    @ c7c0ba17; trust never 100%. This surface adds NOTHING to the locked-8.
+    per lutar-lean #219 (5cfaf9a; kernel receipt UNREVIEWED); trust never 100%. This
+    surface adds NOTHING to the locked-8.
 
 SOURCES (cited; adopted, NOT reclaimed as SZL theorems):
   - ISO/IEC 42001:2023 (AI management system) — 38 controls / 9 objectives A.2–A.10.
@@ -54,7 +55,9 @@ HONEST_DISCLAIMER = (
     "published framework control text. a11oy ALIGNS WITH / MAPS TO these frameworks; it "
     "does NOT claim certification. No third-party certification has been obtained for any "
     "framework as of Doctrine " + DOCTRINE_VERSION + ". Gaps are shown honestly. "
-    "Λ = Conjecture 1; locked-proven = 8 @ " + KERNEL_COMMIT + "; trust never 100%."
+    "Λ = Conjecture 1; locked-proven = 8 per lutar-lean #219 (5cfaf9a; kernel receipt "
+    "UNREVIEWED); kernel_commit " + KERNEL_COMMIT + " is the doctrine v11 corpus pin and "
+    "predates the locked-8; trust never 100%."
 )
 
 # ───────────────────────────────────────────────────────────────────────────
@@ -139,7 +142,7 @@ COVERAGE_MATRIX: List[Dict[str, str]] = [
     {"control": "A.6.4", "framework": "ISO 42001", "title": "Data provenance",
      "mechanism": "Input hash + model version + lineage recorded in the receipt", "coverage": "COVERED"},
     {"control": "A.6.6", "framework": "ISO 42001", "title": "AI system verification",
-     "mechanism": "Output hash + Lean-verified formula path; locked-proven = 8 @ c7c0ba17", "coverage": "PARTIAL"},
+     "mechanism": "Output hash + Lean formula path; locked-proven = 8 per lutar-lean #219 (5cfaf9a); kernel receipt UNREVIEWED", "coverage": "PARTIAL"},
     {"control": "A.9.3", "framework": "ISO 42001", "title": "Human oversight (use)",
      "mechanism": "Human-override gate; irreversible actions require human confirmation", "coverage": "COVERED"},
     {"control": "A.9.4", "framework": "ISO 42001", "title": "Incident management",

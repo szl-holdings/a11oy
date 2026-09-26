@@ -9,8 +9,12 @@ Guards the invariants that make szl_attest worth signing:
   * ``energy_measured`` is EMPTY with no live joule meter — no fabricated joule;
   * the Statement DSSE-signs through szl_dsse (and reports UNSIGNED-NO-KEY
     honestly when no runtime cosign secret is present — never a fake signature);
-  * verify() returns PASSED on a valid Statement, FAILED on a tampered one, and
-    UNKNOWN when a REQUIRED Rekor inclusion proof cannot be obtained;
+  * the locked-8 kernel strand is UNREVIEWED (no Lean receipt bound; the pin
+    c7c0ba17 predates the locked-8), so the organ's own Statement carries
+    kernel_verified=false and FAILS the policy on that rule — never PASSED;
+  * verify() returns PASSED only on a Statement whose kernel strand is verified,
+    FAILED on a tampered one, and UNKNOWN when a REQUIRED Rekor inclusion proof
+    cannot be obtained;
   * no code path fabricates a Rekor entry, log index, or inclusion proof;
   * the in-process policy stays in lockstep with ops/szl_chain_of_title.rego;
   * both endpoints answer 200 through the REAL app (TestClient, no mocks) and
@@ -34,6 +38,17 @@ ROOT = Path(__file__).resolve().parents[1]
 REGO = ROOT / "ops" / "szl_chain_of_title.rego"
 
 
+def _kernel_bound(stmt):
+    """A copy of ``stmt`` as it would read with a bound Lean kernel receipt.
+
+    Only for exercising the PASSED / UNKNOWN branches of the policy. The
+    Statement the organ builds today carries kernel_verified=false.
+    """
+    out = json.loads(json.dumps(stmt))
+    out["predicate"]["provenance"]["kernel_verified"] = True
+    return out
+
+
 # --------------------------------------------------------------------------- #
 # Statement construction
 # --------------------------------------------------------------------------- #
@@ -54,6 +69,11 @@ def test_subject_binds_non_empty_locked8_kernel_commit():
     # the locked-8 is attested, never extended
     assert kernels[0]["annotations"]["locked_proven"] == list(A.LOCKED_8)
     assert len(A.LOCKED_8) == 8
+    # the pin predates the locked-8, so it is never presented as reviewed, and
+    # the subject itself says why
+    assert kernels[0]["annotations"]["pin_status"] == "UNREVIEWED"
+    assert kernels[0]["annotations"]["pin_note"] == A.KERNEL_UNREVIEWED_REASON
+    assert "5cfaf9a" in kernels[0]["annotations"]["pin_note"]
 
 
 def test_every_subject_carries_at_least_one_digest():
@@ -122,15 +142,23 @@ def test_configured_but_unreachable_meter_still_yields_no_joule(monkeypatch):
     assert "no joule fabricated" in disclosure["note"]
 
 
-def test_provenance_is_fully_disclosed_and_kernel_verification_is_real():
+def test_provenance_is_fully_disclosed_and_kernel_is_unreviewed():
     prov = A.build_statement()["predicate"]["provenance"]
     assert prov["provenance_coverage"] == 1.0
     assert prov["kernel_pin"] == "c7c0ba17"
-    # kernel_verified must come from an actual registry check, not a constant
-    checks = prov["kernel_verification"]["checks"]
-    assert set(checks) == {"registry_digest_verified", "locked8_covered",
+    kv = prov["kernel_verification"]
+    # constant agreement is reported under its own name, never as kernel_verified
+    checks = kv["lock_constants_checks"]
+    assert set(checks) == {"witness_lock_digests_agree", "locked8_covered",
                            "locked_set_not_inflated", "lambda_is_conjecture"}
-    assert prov["kernel_verified"] is all(checks.values())
+    assert kv["lock_constants_consistent"] is all(checks.values())
+    assert kv["lock_constants_consistent"] is True
+    # no Lean build / #print axioms receipt is bound: UNREVIEWED, not verified
+    assert prov["kernel_verified"] is False
+    assert kv["verified"] is False
+    assert kv["status"] == "UNREVIEWED"
+    assert kv["kernel_receipt"] is None
+    assert "#print axioms" in kv["reason"] and "5cfaf9a" in kv["reason"]
     # training config is READ from the committed trainer, not hard-coded here
     assert prov["training"]["source"] == "sovereign-weights/train_lora.py"
     assert prov["training"]["config"]["base_model"]
@@ -179,8 +207,16 @@ def test_statement_dsse_signs_or_reports_unsigned_honestly():
 # --------------------------------------------------------------------------- #
 # verify() — PASSED / FAILED / UNKNOWN
 # --------------------------------------------------------------------------- #
+def test_verify_fails_the_organs_own_statement_on_the_unreviewed_kernel():
+    """The kernel strand is UNREVIEWED, so the built Statement is never PASSED."""
+    out = A.verify(A.build_statement(), require_transparency=False)
+    assert out["verdict"] == "FAILED"
+    assert out["policy"]["failed"] == ["kernel_verified"]
+    assert "kernel_verified" in out["verdict_scope"]
+
+
 def test_verify_passed_on_a_valid_statement():
-    stmt = A.build_statement()
+    stmt = _kernel_bound(A.build_statement())
     out = A.verify(stmt, require_transparency=False)
     assert out["verdict"] == "PASSED"
     assert out["policy"]["policy"] == "PASSED"
@@ -207,7 +243,7 @@ def test_verify_passed_on_a_valid_statement():
     (lambda s: s.__setitem__("subject", []), "subject_binds_kernel_commit"),
 ])
 def test_verify_failed_on_a_tampered_statement(mutate, rule):
-    stmt = json.loads(json.dumps(A.build_statement()))
+    stmt = _kernel_bound(A.build_statement())
     mutate(stmt)
     out = A.verify(stmt, require_transparency=False)
     assert out["verdict"] == "FAILED", out["verdict_scope"]
@@ -217,7 +253,7 @@ def test_verify_failed_on_a_tampered_statement(mutate, rule):
 def test_verify_unknown_when_rekor_unreachable():
     """A REQUIRED transparency anchor that cannot be obtained is UNKNOWN — never
     a fabricated PASSED, and never silently downgraded to FAILED."""
-    stmt = A.build_statement()
+    stmt = _kernel_bound(A.build_statement())
     env = A.sign_statement(stmt)
     unreachable = {
         "status": "UNREACHABLE", "attempted": True, "reachable": False,
@@ -234,7 +270,7 @@ def test_verify_unknown_when_rekor_unreachable():
 
 
 def test_failed_beats_unknown_so_a_tamper_cannot_hide_behind_an_offline_log():
-    stmt = json.loads(json.dumps(A.build_statement()))
+    stmt = _kernel_bound(A.build_statement())
     stmt["predicate"]["provenance"]["kernel_verified"] = False
     out = A.verify(stmt, rekor={"status": "UNREACHABLE", "inclusion_proof": None,
                                 "log_index": None},
@@ -243,7 +279,7 @@ def test_failed_beats_unknown_so_a_tamper_cannot_hide_behind_an_offline_log():
 
 
 def test_verify_passed_with_transparency_only_from_a_real_inclusion_proof():
-    stmt = A.build_statement()
+    stmt = _kernel_bound(A.build_statement())
     env = A.sign_statement(stmt)
     recorded = {
         "status": "RECORDED", "attempted": True, "reachable": True,
@@ -274,7 +310,7 @@ def test_verify_unknown_when_log_answers_without_an_inclusion_proof():
 
 
 def test_signature_invalid_is_failed_not_unknown():
-    stmt = A.build_statement()
+    stmt = _kernel_bound(A.build_statement())
     env = dict(A.sign_statement(stmt))
     # a bogus signature on an otherwise valid statement must not pass
     env["signatures"] = [{"sig": "AAAA", "keyid": "szlholdings-cosign"}]
@@ -470,9 +506,55 @@ def test_attest_get_never_signs_submits_or_appends(monkeypatch, tmp_path, path):
         assert result["verification"]["signature"]["status"] == "UNSIGNED-READ-ONLY"
         assert result["rekor"]["attempted"] is False
         assert result["lake"] == {"appended": False, "status": "READ_ONLY"}
-    if "require_transparency=1" in path:
-        assert result["verdict"] == "UNKNOWN"
+    # the kernel strand is UNREVIEWED, and FAILED beats UNKNOWN
+    assert result["verdict"] == "FAILED"
+    assert "kernel_verified" in result["verdict_scope"]
     assert list(tmp_path.iterdir()) == []
+
+
+def test_attest_get_require_transparency_is_unknown_once_kernel_is_bound(
+        monkeypatch, tmp_path):
+    """The read-only envelope path still yields UNKNOWN, never PASSED.
+
+    No Lean receipt is bound today, so the kernel strand is simulated as bound
+    here. With it bound, GET ?require_transparency=1 must read UNKNOWN: the read
+    view never submits to Rekor, so no inclusion proof can exist.
+    """
+    from fastapi import FastAPI
+    from starlette.testclient import TestClient
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("GET must not sign, submit to Rekor, or append a receipt")
+
+    real = A.kernel_verification
+
+    def bound():
+        out = real()
+        out["verified"] = True
+        return out
+
+    monkeypatch.setattr(A, "kernel_verification", bound)
+    monkeypatch.setenv(A.LAKE_DIR_ENV, str(tmp_path))
+    monkeypatch.setenv(A.REKOR_ENABLE_ENV, "1")
+    monkeypatch.setattr(A, "sign_statement", forbidden)
+    monkeypatch.setattr(A, "rekor_submit", forbidden)
+    monkeypatch.setattr(A, "lake_receipt", forbidden)
+    app = FastAPI()
+    A.register(app)
+    with TestClient(app) as c:
+        result = c.get("/api/a11oy/v1/attest/manifest?require_transparency=1").json()
+    assert result["statement"]["predicate"]["provenance"]["kernel_verified"] is True
+    assert result["envelope"]["signed"] is False
+    assert result["verification"]["signature"]["status"] == "UNSIGNED-READ-ONLY"
+    assert result["rekor"]["attempted"] is False
+    assert result["verdict"] == "UNKNOWN"
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_selftest_passes():
+    """_selftest covers the organ's FAILED verdict and the envelope UNKNOWN path."""
+    man = A._selftest()
+    assert man["verdict"] == "FAILED"
 
 
 # --------------------------------------------------------------------------- #
@@ -511,6 +593,12 @@ def test_manifest_endpoint_200_and_honest(client):
     assert j["statement"]["predicateType"] == "https://szl.dev/chain-of-title/v1"
     assert j["statement"]["predicate"]["doctrine"] == "v11"
     assert j["verdict"] in ("PASSED", "FAILED", "UNKNOWN")
+    # no Lean receipt is bound, so the live manifest must not read PASSED
+    assert j["statement"]["predicate"]["provenance"]["kernel_verified"] is False
+    assert j["verdict"] == "FAILED"
+    kernel = next(s for s in j["statement"]["subject"] if s["name"] == "locked8_kernel")
+    assert kernel["annotations"]["pin_status"] == "UNREVIEWED"
+    assert kernel["annotations"]["pin_note"] == A.KERNEL_UNREVIEWED_REASON
     assert j["label"] in ("MODELED", "MEASURED")
     if j["rekor"]["status"] != "RECORDED":
         assert j["label"] == "MODELED"
@@ -527,7 +615,13 @@ def test_verify_endpoint_get_200(client):
 
 
 def test_verify_endpoint_post_passed_then_failed(client):
-    stmt = A.build_statement()
+    built = client.post("/api/a11oy/v1/attest/verify",
+                        json={"statement": A.build_statement()})
+    assert built.status_code == 200
+    assert built.json()["verdict"] == "FAILED"
+    assert built.json()["policy"]["failed"] == ["kernel_verified"]
+
+    stmt = _kernel_bound(A.build_statement())
     ok = client.post("/api/a11oy/v1/attest/verify", json={"statement": stmt})
     assert ok.status_code == 200
     assert ok.json()["verdict"] == "PASSED"
@@ -551,7 +645,7 @@ def test_verify_endpoint_post_accepts_a_dsse_envelope(client):
 
 def test_verify_endpoint_post_require_transparency_is_unknown(client):
     """No Rekor reachable from this runtime: a required anchor must read UNKNOWN."""
-    stmt = A.build_statement()
+    stmt = _kernel_bound(A.build_statement())
     r = client.post("/api/a11oy/v1/attest/verify?require_transparency=1",
                     json={"statement": stmt})
     assert r.status_code == 200

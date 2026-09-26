@@ -35,7 +35,7 @@
 // CITED PRIOR ART (SZL claims none of it as its own): in-toto Attestation Framework; SLSA v1.1
 //   Build L0-L3 + Verification Summary Attestation; Sigstore/cosign keyless + Rekor; DSSE;
 //   sigstore/model-transparency; EU Cloud Sovereignty Framework SEAL + HHI (the SEAL formula).
-// DOCTRINE v11: adds NOTHING to the locked-8 {F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17; introduces
+// DOCTRINE v11: adds NOTHING to the locked-8 {F1,F4,F7,F11,F12,F18,F19,F22} (lutar-lean #219); introduces
 //   no theorem; makes no consciousness claim. Degrades grey on 404/error.
 
 import { createShowcase } from "./_showcase.js";
@@ -394,18 +394,24 @@ function _buildOverlay() {
   sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
   sub.innerHTML =
     'The allodial claim is only worth what a <b>third party can check</b>. This surface reads the ' +
-    'estate\'s <b>in-toto v1 Statement</b>: its <b>subject</b> binds the locked-8 kernel ' +
-    '<b>gitCommit c7c0ba17</b> (and a sovereign-weights sha256 only when a real weights artifact ' +
+    'estate\'s <b>in-toto v1 Statement</b>: its <b>subject</b> binds the doctrine pin ' +
+    '<b>gitCommit c7c0ba17</b> — the doctrine v11 corpus pin, which predates the locked-8, so the ' +
+    'kernel strand reads <b>UNREVIEWED</b> — (and a sovereign-weights sha256 only when a real weights artifact ' +
     'is readable that request — the hollow grey ring is an <i>absent</i> subject, shown rather ' +
     'than invented); its <b>predicate</b> carries doctrine v11, the provenance strand ' +
-    '(corpus_sha, training config read verbatim from the committed trainer, kernel_verified ' +
-    're-checked against the digest-verified formula registry), <b>energy_measured[]</b> — empty ' +
+    '(corpus_sha, training config read verbatim from the committed trainer, kernel_verified — ' +
+    'false until a Lean build + #print axioms receipt is bound; the in-image lock constants are ' +
+    'only cross-checked), <b>energy_measured[]</b> — empty ' +
     'when no joule meter answered — and the <b>honesty_invariants</b> themselves, bound INTO the ' +
-    'signed predicate so the doctrine becomes checkable rather than asserted. It is DSSE-signed ' +
-    'with the estate cosign key and structured for cosign keyless + <b>Rekor</b>. The verdict is ' +
+    'predicate so the doctrine becomes checkable rather than asserted. This view is ' +
+    '<b>UNSIGNED-READ-ONLY</b>: the GET routes never sign the Statement or submit it to a log. DSSE ' +
+    'signing with the estate cosign key exists only as an in-process write call. It is structured ' +
+    'for cosign keyless + <b>Rekor</b>. The verdict is ' +
     'tri-state: <b>PASSED</b>, <b>FAILED</b>, or <b>UNKNOWN</b> when a required transparency-log ' +
     'inclusion proof cannot be obtained. A tampered Statement is FAILED — <b>FAILED beats ' +
-    'UNKNOWN</b>, so nothing hides behind an offline log. Strictly provenance/observability; adds ' +
+    'UNKNOWN</b>, so nothing hides behind an offline log. FAILED also means a policy rule does not ' +
+    'hold: the estate\'s own Statement fails the <b>kernel_verified</b> rule until a Lean receipt ' +
+    'is bound. Strictly provenance/observability; adds ' +
     'nothing to the locked-8. 0 runtime CDN.';
   host.appendChild(sub);
 
@@ -486,20 +492,23 @@ function _applyPlain() {
   pd.innerHTML =
     "<b>What this means:</b> think of a property <b>deed</b>. Saying “we own this outright” is a " +
     "claim; a deed is something a stranger can take to a registry and check. This surface is the " +
-    "deed for the software: a signed document that names exactly <i>what</i> is being claimed " +
-    "(the pinned proof kernel, and the model weights when a real weights file is there to point " +
+    "deed for the software: a document, built to be signed, that names exactly <i>what</i> is being claimed " +
+    "(the proof-kernel commit, and the model weights when a real weights file is there to point " +
     "at), <i>where it came from</i> (which corpus, which training settings, read out of the " +
     "actual training script rather than typed in by hand), and <i>which honesty rules the estate " +
-    "binds itself to</i> — those rules sit inside the signed document, so breaking one breaks the " +
-    "signature's claim. Then it tries to file that deed in a public append-only log (Rekor), the " +
-    "way you would record a deed at a county office. " +
+    "binds itself to</i> — those rules sit inside the document, so breaking one breaks its " +
+    "claim. It is built to be filed in a public append-only log (Rekor), the way you would " +
+    "record a deed at a county office. The copy shown here is unsigned and read-only: this page " +
+    "never signs it or files it. " +
     "<b>The important part is what happens when something is missing.</b> No weights file, so no " +
     "weights line on the deed — you see a hollow grey ring, not a made-up number. No power meter " +
     "answering, so the energy list reads <b>0 readings</b>, not an estimate dressed up as a " +
     "measurement. The public log unreachable, so the verdict reads <b>UNKNOWN</b> — not " +
     "“passed”. And if the document itself has been altered, the verdict is <b>FAILED</b>, which " +
-    "always wins over UNKNOWN, so a tamper can never hide behind an offline log. " +
-    "Right now it reads: <b>" + (S.verdict || "—") + "</b> — " + (S.scope || "no live snapshot") +
+    "always wins over UNKNOWN, so a tamper can never hide behind an offline log. FAILED also " +
+    "covers a rule that does not hold: the kernel line points at c7c0ba17, the corpus pin, which " +
+    "is older than the eight locked theorems, so the kernel check fails until a Lean receipt is " +
+    "bound. Right now it reads: <b>" + (S.verdict || "—") + "</b> — " + (S.scope || "no live snapshot") +
     ". Λ stays <b>Conjecture 1</b> — a conjecture, never a theorem; confidence never reaches 100%.";
 }
 

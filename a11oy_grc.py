@@ -22,7 +22,8 @@ SPA source is NOT edited, and the injector NEVER clobbers other devs' nav items.
 
 HONEST (Doctrine v11): a11oy ALIGNS WITH / MAPS TO frameworks — NEVER "certified" or
 "compliant". No third-party certification obtained. Gaps shown honestly. Λ = Conjecture 1;
-locked-proven = 8 @ c7c0ba17; trust never 100%; 0 runtime CDN. Adds NOTHING to the locked-8.
+locked-proven = 8 per lutar-lean #219 (5cfaf9a; kernel receipt UNREVIEWED); trust never
+100%; 0 runtime CDN. Adds NOTHING to the locked-8.
 """
 from __future__ import annotations
 
@@ -301,7 +302,7 @@ def _page_html(ns: str) -> str:
   <a href="https://airisk.mit.edu/" target="_blank" rel="noopener">MIT AI Risk Repository (Credo AI taxonomy)</a> ·
   <a href="https://artificialintelligenceact.eu/high-level-summary/" target="_blank" rel="noopener">EU AI Act</a>.</div>
 </div>
-<footer>Doctrine v11 · locked = 8 @ c7c0ba17 · Λ = Conjecture 1 · Khipu BFT = Conjecture 2 ·
+<footer>Doctrine v11 · locked = 8 per lutar-lean #219 (5cfaf9a; kernel receipt UNREVIEWED) · Λ = Conjecture 1 · Khipu BFT = Conjecture 2 ·
  <b>GRC ALIGNMENT — aligns with / maps to, NOT certified</b> · 0 runtime CDN · trust &lt; 100%.</footer>
 <script src="/static/shared/szl_label_engine.js" defer></script>
 <script src="/static/shared/szl_receipt_cosign.js" defer></script>

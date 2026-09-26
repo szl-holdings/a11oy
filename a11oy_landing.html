@@ -1120,8 +1120,12 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
     <div class="pillar">
       <div class="pk">03 · PROVES</div>
       <h3>It is formally backed</h3>
-      <p>8 locked, axiom-free Lean&nbsp;4 theorems back the kernel. The Λ trust gate is
-        <b>Conjecture&nbsp;1</b> — an advisory bound, never dressed up as a theorem.</p>
+      <p>8 locked Lean&nbsp;4 theorems back the kernel (no custom axioms per the source).
+        Their axiom footprint is not MEASURED here: no CI-bound <code>#print axioms</code>
+        receipt covers the current eight at a pinned SHA, and lutar-lean's self-reported
+        Lean&nbsp;4.13 ledger (<code>PuriqFormulaLean.lean</code>, 2026-06-05) predates
+        the 2026-06-10 F4/F7 proofs, so it covers at most 6 of the 8 formula ids.
+        The Λ trust gate is <b>Conjecture&nbsp;1</b> — an advisory bound, never dressed up as a theorem.</p>
     </div>
   </div>
 </section>

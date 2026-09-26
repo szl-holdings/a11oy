@@ -157,8 +157,16 @@ and `GET /api/a11oy/v1/series-a/status` on the product origin.
 `GET /api/a11oy/v1/attest/manifest` and `GET /api/a11oy/v1/attest/verify`
 are read-only inspections: they do not sign, submit to Rekor, or append ledger
 receipts, even when those providers are configured. The manifest reports
-`UNSIGNED-READ-ONLY` and `lake.status=READ_ONLY`; requiring unavailable
-transparency evidence returns `UNKNOWN`. Explicit write callers can use the
+`UNSIGNED-READ-ONLY` and `lake.status=READ_ONLY`. The locked-8 kernel strand
+reports `kernel_verified=false` (`UNREVIEWED`): no Lean build or `#print axioms`
+receipt is bound, and the pin `c7c0ba17` (2026-05-31) is the doctrine v11
+corpus pin. It predates every lutar-lean theorem for the eight formulas (added
+from 2026-06-01) and the locked-8 set itself, which is first declared
+(`locked_count_eight`) in lutar-lean `5cfaf9a` (#219). The manifest verdict
+is therefore `FAILED` on the `kernel_verified` rule: here FAILED means a policy
+rule does not hold, not that the statement was tampered with. For a statement
+that passes every policy rule, requiring unavailable transparency evidence
+returns `UNKNOWN`. Explicit write callers can use the
 existing signing and receipt functions. Source tests cover this contract;
 deployment still requires the canonical publisher and live readback.
 

@@ -39,8 +39,12 @@ WHAT MAKES IT SZL'S OWN (not a re-skin of the above)
      becomes a cryptographically bound, third-party-checkable claim:
      no_fabricated_measured · lambda_is_conjecture_not_theorem ·
      locked8_immutable · provenance_coverage 1.0.
-  2. The subject binds the **locked-8 kernel pin** (c7c0ba17) — the immutable
-     8-formula proof kernel — not just a container digest.
+  2. The subject binds a lutar-lean gitCommit for the locked-8 kernel, not just
+     a container digest. The pin it carries today (c7c0ba17) is the doctrine v11
+     corpus pin and predates the locked-8 set, which is first declared in
+     lutar-lean 5cfaf9a (#219, 2026-06-10). Until a Lean build +
+     ``#print axioms`` receipt is bound, the kernel strand reports
+     ``kernel_verified = false`` (UNREVIEWED) and the policy fails on that rule.
   3. The verdict is TRI-STATE by construction. A missing transparency log is
      UNKNOWN, never PASSED. A tampered statement is FAILED, never UNKNOWN.
   4. Optional szl-lake receipt-on-write, so the attestation act itself lands in
@@ -57,8 +61,11 @@ HONESTY (Doctrine v11 — binding)
     secret, ``szl_dsse`` emits an explicitly UNSIGNED envelope and this organ
     reports ``signature.status = "UNSIGNED-NO-KEY"``.
   * Λ = **Conjecture 1** — advisory, never a theorem, never green.
-  * locked-8 {F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17 — this organ adds
-    NOTHING to it and proves nothing new about it; it only ATTESTS the pin.
+  * locked-8 {F1,F4,F7,F11,F12,F18,F19,F22} per lutar-lean #219 — this organ
+    adds NOTHING to it and proves nothing new about it. In-request it only
+    checks that two in-image doctrine constants agree
+    (``lock_constants_consistent``). That is not a Lean check, so it never sets
+    ``kernel_verified``.
   * Surface label: MODELED. It would be MEASURED only for the transparency
     strand, and only when a real Rekor inclusion proof came back this request.
   * The seal formula is tier PROPOSED (EU CSF SEAL + HHI prior art), never
@@ -93,6 +100,18 @@ PAYLOAD_TYPE = "application/vnd.in-toto+json"
 
 DOCTRINE_VERSION = "v11"
 KERNEL_PIN = "c7c0ba17"
+# c7c0ba17 (lutar-lean, 2026-05-31) is the doctrine v11 corpus pin. No theorem
+# for any of the eight formulas exists at that commit: the f1_..f22_ theorems were
+# added from 2026-06-01 (1fe5ab1) and 2026-06-04 (e6de491, #185). The locked-8
+# set itself (locked_count_eight), with the non-vacuous F4/F7 proofs, is first
+# declared in 5cfaf9a (lutar-lean #219, 2026-06-10). Rebinding the kernel subject
+# to a locked-8 commit, and binding a Lean build + #print axioms receipt at it, is
+# an owner decision, so the kernel strand stays UNREVIEWED.
+KERNEL_STATUS_UNREVIEWED = "UNREVIEWED"
+KERNEL_UNREVIEWED_REASON = (
+    "no Lean build or #print axioms receipt is bound to this statement; the pin "
+    "c7c0ba17 is the doctrine v11 corpus pin and predates the locked-8 set, which "
+    "is first declared (locked_count_eight) in lutar-lean 5cfaf9a (#219, 2026-06-10)")
 LOCKED_8 = ("F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22")
 TRUST_CEILING = 0.97
 
@@ -250,18 +269,21 @@ def sovereign_weights_digest() -> dict[str, Any]:
 # Subject strand 2 — the locked-8 kernel commit.
 # --------------------------------------------------------------------------- #
 def locked8_kernel_commit() -> dict[str, Any]:
-    """The gitCommit the locked-8 proof kernel is pinned at.
+    """The lutar-lean gitCommit the kernel subject binds.
 
-    Doctrine v11 pins the locked-8 {F1,F4,F7,F11,F12,F18,F19,F22} at commit
-    prefix ``c7c0ba17``. That pin — not the rolling build commit — is what the
-    chain-of-title subject binds, because the pin is the immutable thing. The
-    build commit is recorded separately in the provenance strand.
+    The subject binds the doctrine pin, not the rolling build commit; the build
+    commit is recorded separately in the provenance strand. The pin in use,
+    ``c7c0ba17``, is the doctrine v11 corpus pin and predates the locked-8
+    {F1,F4,F7,F11,F12,F18,F19,F22}, so the pin is reported UNREVIEWED rather
+    than as the locked-8 kernel commit.
     """
     return {
         "gitCommit": KERNEL_PIN,
         "locked_proven": list(LOCKED_8),
         "locked_proven_count": len(LOCKED_8),
-        "source": "doctrine-v11 locked-kernel pin (immutable)",
+        "source": "doctrine-v11 corpus pin c7c0ba17 (predates the locked-8)",
+        "pin_status": KERNEL_STATUS_UNREVIEWED,
+        "pin_note": KERNEL_UNREVIEWED_REASON,
     }
 
 
@@ -404,8 +426,11 @@ def training_config() -> dict[str, Any]:
 #     KERNEL_COMMIT triple used by the constitution compliance gate.
 # Both are pure-Python doctrine constants present in every built image, so no
 # external asset can silently go missing at runtime. Agreement between the two
-# independent witnesses (equal recomputed lock digests) IS the integrity check —
-# drift in either one breaks it.
+# witnesses (equal recomputed lock digests) is a CONSISTENCY check of those
+# constants: drift in either one breaks it. It reads no Lean source, CI run or
+# git object, and both witnesses hard-code the same commit, so it cannot tell
+# whether that commit holds the locked-8. It is reported as
+# ``lock_constants_consistent`` and never as ``kernel_verified``.
 #
 # ``szl_formula_registry.receipt_basis()`` is deliberately NOT the authority here:
 # its own coverage_scope says it is a dispute-relevant maturity crosswalk and
@@ -419,7 +444,8 @@ def training_config() -> dict[str, Any]:
 CANONICAL_LOCK_WITNESSES = ("szl_be_hardening", "szl_brainconstitution")
 CANONICAL_LOCK_SOURCE = (
     "szl_be_hardening.DOCTRINE_LOCK (GET /api/a11oy/v1/honest locked_formula_count "
-    "+ locked_formula_ids; no-axiom theorem locked_count_eight @ c7c0ba17), "
+    "+ locked_formula_ids; theorem locked_count_eight per lutar-lean #219, first "
+    "in 5cfaf9a; #print axioms receipt UNREVIEWED), "
     "cross-witnessed by szl_brainconstitution.LOCKED_SET"
 )
 
@@ -532,32 +558,39 @@ def _dispute_crosswalk() -> dict[str, Any]:
 
 
 def kernel_verification() -> dict[str, Any]:
-    """Verify the locked-8 kernel claim against the CANONICAL locked-8 source.
+    """Report the locked-8 kernel strand without overstating it.
 
-    Real in-request verification (never a hard-coded True):
-      1. ``registry_digest_verified`` — at least two INDEPENDENT canonical
-         witnesses were read this request and their recomputed SHA-256 lock
-         digests are identical. Drift in either witness (an extra id, a changed
-         count, a moved kernel commit) diverges the digests → False.
-      2. ``locked8_covered`` — every doctrine locked-8 id is locked-proven by
-         EVERY witness, and each witness's declared count is exactly 8.
+    What IS checked this request is ``lock_constants_consistent``, the AND of:
+      1. ``witness_lock_digests_agree`` — at least two canonical in-image
+         witnesses were read and their recomputed SHA-256 lock digests are
+         identical. Drift in either witness (an extra id, a changed count, a
+         moved commit) diverges the digests → False.
+      2. ``locked8_covered`` — every doctrine locked-8 id is listed by EVERY
+         witness, and each witness's declared count is exactly 8.
       3. ``locked_set_not_inflated`` — no witness carries an id beyond the
          locked-8, and its declared count equals the size of its own set.
       4. ``lambda_is_conjecture`` — Λ is still Conjecture 1 in every witness (and
-         in the dispute crosswalk when readable). A promoted Λ invalidates the
-         kernel claim outright.
+         in the dispute crosswalk when readable).
 
-    Any failed check, or fewer than two readable witnesses, yields
-    ``verified: False`` with the reason recorded. There is no path to a
-    fabricated True.
+    Those checks compare hard-coded Python doctrine constants with each other.
+    They read no Lean source, no CI run and no git object, so they cannot show
+    that the pinned commit contains the locked-8 (and c7c0ba17 does not; see
+    ``KERNEL_UNREVIEWED_REASON``). ``verified`` — surfaced as
+    ``provenance.kernel_verified`` — therefore stays False with status
+    UNREVIEWED. It may only change once a Lean build + ``#print axioms``
+    receipt at a full 40-hex lutar-lean SHA is bound here; constants alone
+    never make it True.
     """
     out: dict[str, Any] = {
         "verified": False,
+        "status": KERNEL_STATUS_UNREVIEWED,
         "kernel_pin": KERNEL_PIN,
         "locked_proven": list(LOCKED_8),
-        "checks": {},
+        "kernel_receipt": None,
+        "lock_constants_consistent": False,
+        "lock_constants_checks": {},
         "registry": None,
-        "reason": None,
+        "reason": KERNEL_UNREVIEWED_REASON,
     }
     try:
         witnesses, errors = _canonical_lock_witnesses()
@@ -575,8 +608,8 @@ def kernel_verification() -> dict[str, Any]:
                 crosswalk.get("lambda_status") or "").startswith("CONJECTURE_1")
         checks = {
             # Two independent witnesses read, byte-identical on the lock.
-            "registry_digest_verified": len(witnesses) >= 2 and len(digests) == 1,
-            # Every witness proves the full locked-8; count exactly 8.
+            "witness_lock_digests_agree": len(witnesses) >= 2 and len(digests) == 1,
+            # Every witness lists the full locked-8; count exactly 8.
             "locked8_covered": bool(witnesses) and all(
                 set(LOCKED_8).issubset(set(w["locked_formula_ids"]))
                 and w["locked_formula_count"] == len(LOCKED_8)
@@ -588,7 +621,8 @@ def kernel_verification() -> dict[str, Any]:
                 for w in witnesses),
             "lambda_is_conjecture": lam_ok,
         }
-        out["checks"] = checks
+        out["lock_constants_checks"] = checks
+        out["lock_constants_consistent"] = all(checks.values())
         out["registry"] = {
             "canonical_source": CANONICAL_LOCK_SOURCE,
             "witnesses": witnesses,
@@ -597,21 +631,21 @@ def kernel_verification() -> dict[str, Any]:
             "agreed_lock_digest": digests[0] if len(digests) == 1 else None,
             "digest_algorithm": "sha256",
             "dispute_crosswalk": crosswalk,
-            "authority_note": ("locked-8 truth is read from the doctrine lock served by "
-                               "/api/a11oy/v1/honest, cross-witnessed by the brain "
-                               "constitution; the dispute-scoped formula crosswalk is "
+            "authority_note": ("locked-8 ids and count are read from the doctrine lock "
+                               "served by /api/a11oy/v1/honest, cross-witnessed by the "
+                               "brain constitution; both are in-image constants, not a "
+                               "Lean receipt; the dispute-scoped formula crosswalk is "
                                "corroboration only"),
         }
-        out["verified"] = all(checks.values())
-        if not out["verified"]:
+        if not out["lock_constants_consistent"]:
             failed = sorted(k for k, v in checks.items() if not v)
-            out["reason"] = "failed kernel checks: " + ", ".join(failed)
+            out["reason"] += "; lock constants also inconsistent: " + ", ".join(failed)
             if errors:
                 out["reason"] += " (" + "; ".join(errors) + ")"
         return out
     except Exception as exc:
-        out["reason"] = (f"kernel verification raised {type(exc).__name__} — "
-                         "not verified (no fabricated pass)")
+        out["reason"] += (f"; lock-constant check raised {type(exc).__name__} "
+                          "(not evaluated)")
         return out
 
 
@@ -696,6 +730,8 @@ def build_statement(*, ns: str = "a11oy", opener: Any = None) -> dict[str, Any]:
         "annotations": {
             "locked_proven": kernel["locked_proven"],
             "pin_source": kernel["source"],
+            "pin_status": kernel["pin_status"],
+            "pin_note": kernel["pin_note"],
         },
     }]
     if weights["sha256"]:
@@ -739,8 +775,8 @@ def build_statement(*, ns: str = "a11oy", opener: Any = None) -> dict[str, Any]:
                                        "is empty rather than invented"),
             "lambda_is_conjecture_not_theorem": ("Λ is Conjecture 1 — advisory, never "
                                                  "a theorem, never green"),
-            "locked8_immutable": ("locked-8 {F1,F4,F7,F11,F12,F18,F19,F22} @ "
-                                  f"{KERNEL_PIN}; this organ adds nothing to it"),
+            "locked8_immutable": ("locked-8 {F1,F4,F7,F11,F12,F18,F19,F22} per "
+                                  "lutar-lean #219; this organ adds nothing to it"),
             "provenance_coverage": ("1.0 — every provenance field disclosed, nulls "
                                     "included, none omitted"),
         },
@@ -1210,7 +1246,8 @@ def build_manifest(*, ns: str = "a11oy", require_transparency: bool | None = Non
             "binds what is actually readable this request and says so when a strand "
             "is absent: no weights digest without weights, no joule without a meter, "
             "no Rekor entry without a log answer. Λ stays Conjecture 1; the locked-8 "
-            "is attested, never extended; the SEAL score is tier PROPOSED."),
+            "is attested, never extended, and its kernel strand is UNREVIEWED until "
+            "a Lean receipt is bound; the SEAL score is tier PROPOSED."),
         "built_at": _now_iso(),
     }
 
@@ -1403,14 +1440,32 @@ def _selftest() -> dict[str, Any]:
         assert man["rekor"]["inclusion_proof"] is None
         assert man["rekor"]["log_index"] is None
         assert man["label"] == LABEL_MODELED
-    # policy passes on a well-formed statement, fails on a tampered one
-    assert evaluate_policy(stmt)["policy"] == VERDICT_PASSED, evaluate_policy(stmt)
-    bad = json.loads(json.dumps(stmt))
+    # the kernel strand is UNREVIEWED (no Lean receipt), so the organ's own
+    # statement fails the policy on exactly that rule — never a fabricated PASSED
+    prov = stmt["predicate"]["provenance"]
+    assert prov["kernel_verified"] is False
+    assert prov["kernel_verification"]["status"] == KERNEL_STATUS_UNREVIEWED
+    pol = evaluate_policy(stmt)
+    assert pol["policy"] == VERDICT_FAILED and pol["failed"] == ["kernel_verified"], pol
+    assert man["verdict"] == VERDICT_FAILED, man["verdict"]
+    # the policy itself: passes once kernel_verified is true, fails on a tamper
+    bound = json.loads(json.dumps(stmt))
+    bound["predicate"]["provenance"]["kernel_verified"] = True
+    assert evaluate_policy(bound)["policy"] == VERDICT_PASSED, evaluate_policy(bound)
+    bad = json.loads(json.dumps(bound))
     bad["predicate"]["honesty_invariants"]["locked8_immutable"] = False
     assert evaluate_policy(bad)["policy"] == VERDICT_FAILED
     assert verify(bad)["verdict"] == VERDICT_FAILED
-    # required transparency with no log => UNKNOWN, never PASSED
-    unk = verify(stmt, envelope=man["envelope"], require_transparency=True)
+    # through the manifest's own envelope: the organ's statement stays FAILED
+    # with transparency required (FAILED beats UNKNOWN)
+    own = verify(stmt, envelope=man["envelope"], require_transparency=True)
+    assert own["verdict"] == VERDICT_FAILED, own["verdict"]
+    # required transparency with no log => UNKNOWN, never PASSED. The bound copy
+    # rides in an envelope of the same read-only form, so the envelope path runs.
+    bound_env = dict(man["envelope"])
+    bound_env["payload"] = base64.b64encode(canonical_json(bound)).decode("ascii")
+    bound_env["_statement_digest_sha256"] = digest_hex(bound)
+    unk = verify(bound, envelope=bound_env, require_transparency=True)
     if man["rekor"]["status"] != REKOR_RECORDED:
         assert unk["verdict"] == VERDICT_UNKNOWN, unk["verdict"]
     # Λ never a theorem

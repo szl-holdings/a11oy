@@ -1744,11 +1744,12 @@ except Exception as _szl_attest_e:  # pragma: no cover
 
 # ── WAVE-32 DEV E: L6 CHAIN-OF-TITLE ATTESTATION (the allodial claim, made third-party
 # verifiable). GET /api/a11oy/v1/attest/manifest → an in-toto v1 Statement (subject binds the
-# locked-8 kernel gitCommit c7c0ba17, plus a sovereign-weights sha256 ONLY when a real weights
+# doctrine pin gitCommit c7c0ba17 — the doctrine v11 corpus pin, which predates the locked-8, so the
+# kernel strand is UNREVIEWED — plus a sovereign-weights sha256 ONLY when a real weights
 # artifact is readable this request; honest null otherwise), predicateType
 # "https://szl.dev/chain-of-title/v1", predicate = doctrine v11 + provenance (corpus_sha, training
-# cfg read from the committed trainer, kernel_verified re-checked against the digest-verified
-# formula registry, kernel_pin) + energy_measured[] (HONESTLY EMPTY with no live joule meter) +
+# cfg read from the committed trainer, kernel_verified false until a Lean build + #print axioms
+# receipt is bound, kernel_pin) + energy_measured[] (HONESTLY EMPTY with no live joule meter) +
 # honesty_invariants + the tier-PROPOSED SEAL formula; DSSE-signed via szl_dsse (UNSIGNED and
 # labelled so when no runtime cosign secret exists) and structured for cosign keyless / Rekor.
 # GET+POST /api/a11oy/v1/attest/verify → PASSED / FAILED honestly, UNKNOWN when a required Rekor

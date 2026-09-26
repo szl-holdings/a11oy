@@ -22,9 +22,9 @@
 #             is present, the verdict is UNKNOWN — NEVER a fabricated PASSED.
 #
 # Doctrine v11 (binding): no fabricated PASSED / MEASURED / Rekor entry; Λ is
-# Conjecture 1, never a theorem; the locked-8 {F1,F4,F7,F11,F12,F18,F19,F22} @
-# c7c0ba17 is immutable and this policy only ATTESTS the pin, never extends it;
-# provenance coverage must be fully disclosed at 1.0.
+# Conjecture 1, never a theorem; the locked-8 {F1,F4,F7,F11,F12,F18,F19,F22}
+# (lutar-lean #219) is immutable and this policy only ATTESTS it, never extends
+# it; provenance coverage must be fully disclosed at 1.0.
 #
 # Cited prior art (SZL claims none of it as its own):
 #   in-toto Attestation Framework  — https://github.com/in-toto/attestation
@@ -63,9 +63,14 @@ doctrine_is_v11 if {
 }
 
 # --------------------------------------------------------------------------- #
-# Rule 3 — the locked-8 kernel was actually verified when the Statement was
-# built (szl_attest re-checks the digest-verified formula registry). Must be
-# boolean true; a truthy string or a missing field does not pass.
+# Rule 3 — the locked-8 kernel was actually verified. Must be boolean true; a
+# truthy string or a missing field does not pass. szl_attest emits false
+# (kernel_verification.status UNREVIEWED) until a Lean build + #print axioms
+# receipt at a full lutar-lean SHA is bound to it: its in-image check
+# (lock_constants_consistent) compares doctrine constants only, and the pin
+# c7c0ba17 predates the locked-8 set (first declared in lutar-lean 5cfaf9a, #219).
+# A Statement built by szl_attest therefore FAILS this rule, and the verdict is
+# FAILED, not PASSED.
 # --------------------------------------------------------------------------- #
 kernel_verified if {
 	input.predicate.provenance.kernel_verified == true
