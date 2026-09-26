@@ -363,6 +363,10 @@ _PUBLIC_PAGE_ALIASES = (
     ("/codex/", None, "redirect", "/formulas"),
     ("/ouroboros", None, "redirect", "/formulas"),
     ("/ouroboros/", None, "redirect", "/formulas"),
+    ("/spectral", None, "redirect", "/static/3d/holographic.html"),
+    ("/spectral/", None, "redirect", "/static/3d/holographic.html"),
+    ("/controller", None, "redirect", "/api/a11oy/v1/honest"),
+    ("/controller/", None, "redirect", "/api/a11oy/v1/honest"),
 )
 
 

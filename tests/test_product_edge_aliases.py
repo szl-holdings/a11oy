@@ -56,3 +56,22 @@ def test_aliases_reach_live_targets():
     controller = client.get("/controller", follow_redirects=True)
     assert controller.status_code == 200
     assert controller.json()["organ"] == "a11oy"
+
+
+def test_assembled_app_aliases_beat_soft_404_guard():
+    # The synthetic app above has no soft-404 guard; the Space serves serve.app, which does.
+    import serve
+
+    client = TestClient(serve.app, follow_redirects=False)
+    for alias, target in (
+        ("/spectral", "/static/3d/holographic.html"),
+        ("/spectral/", "/static/3d/holographic.html"),
+        ("/controller", "/api/a11oy/v1/honest"),
+        ("/controller/", "/api/a11oy/v1/honest"),
+    ):
+        for method in ("GET", "HEAD"):
+            response = client.request(method, alias)
+            assert response.status_code == 302, (method, alias, response.status_code, response.text[:200])
+            assert response.headers["location"] == target, (method, alias)
+    assert client.get("/static/3d/holographic.html").status_code == 200
+    assert client.get("/api/a11oy/v1/honest").status_code == 200

@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - /spectral and /controller origin aliases
+- `GET`/`HEAD` `/spectral` and `/spectral/` return 302 to
+  `/static/3d/holographic.html`; `/controller` and `/controller/` return 302 to
+  `/api/a11oy/v1/honest`. The rows are in the origin alias table in
+  `a11oy_nav_wireup.py`. #2277 described them but merged only its test, and that
+  test sat at the repo root where no CI job collected it. The test now lives in
+  `tests/`, checks the assembled `serve.app` behind the soft-404 guard, and runs in
+  the demo-critical route guard job. The Cloudflare product-root worker is
+  unchanged. On 2026-09-26 it was not in the a-11-oy.com request path (live
+  responses carried no `x-szl-edge` header).
+
 ### Added - canonical Finance source workbench and advisory analytics
 - Sixteen bounded market-data adapters serve source-bound observations from
   A11oy. The existing Finance Space projects only public canonical reads and
