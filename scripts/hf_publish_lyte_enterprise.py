@@ -29,7 +29,7 @@ from huggingface_hub import HfApi
 from szl_release_guard import run_bounded as guard_run_bounded
 
 SOURCE_REPOSITORY = "szl-holdings/lyte-services"
-SOURCE_REVISION = "9ce4e6b5f36fe0b094a07308abe3665cd2a210c1"
+SOURCE_REVISION = "445c24c5a2ad314775af9a463a7d26acb910a5f1"
 EXPECTED_VERSION = "4.0.0"
 HF_REPOSITORY = "SZLHOLDINGS/lyte"
 ORIGIN = "https://szlholdings-lyte.hf.space"

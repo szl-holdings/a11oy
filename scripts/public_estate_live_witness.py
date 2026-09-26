@@ -403,7 +403,7 @@ def apply_source_repository_policy(
 
     result = dict(fields)
     if surface.get("source_repository_policy") == "lyte-source-bound-build":
-        # Contract: lyte-services@9ce4e6b5f36fe0b094a07308abe3665cd2a210c1,
+        # Contract: lyte-services@445c24c5a2ad314775af9a463a7d26acb910a5f1,
         # lyte/api/routes_health.py. This is v2, not the retired generic shell.
         # Validating producer claims here is not independent HF/source proof.
         repository = "szl-holdings/lyte-services"
