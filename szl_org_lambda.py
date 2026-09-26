@@ -345,8 +345,11 @@ def _genome_tiers() -> dict:
         key = (str(path), st.st_mtime_ns, st.st_size)
     except OSError:
         key = None
-    if key is not None and key in _GENOME_TIERS_CACHE:
-        return copy.deepcopy(_GENOME_TIERS_CACHE[key])
+    # One .get(), not "in" then [key]: /org/overview runs in the threadpool while
+    # /honest runs on the event loop, and a miss elsewhere clears the cache.
+    cached = _GENOME_TIERS_CACHE.get(key) if key is not None else None
+    if cached is not None:
+        return copy.deepcopy(cached)
     try:
         entries = json.loads(path.read_text(encoding="utf-8"))
     except Exception as e:  # noqa: BLE001 - honest degrade, never fabricate
