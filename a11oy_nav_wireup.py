@@ -347,6 +347,7 @@ _WEB_DIR_ALIASES = "/app/web"
 # /trust, /console already 200. Additive FileResponse / RedirectResponse, same
 # pattern as /restraint-bench. Idempotent.
 _PUBLIC_PAGE_ALIASES = (
+    ("/console/", None, "redirect", "/console"),
     ("/mesh", "mesh.html", "pages", "/console"),
     ("/evidence", None, "redirect", "/trust"),
     ("/arena", None, "redirect", "/console"),
@@ -534,6 +535,10 @@ if __name__ == "__main__":
     h2 = c.get("/console?operator=1").text  # second hit must be byte-identical (idempotent)
     public = c.get("/console").text
     assert "qa12-nav" not in public, "public /console must not splice 40+ estate items"
+    slash = c.get("/console/", follow_redirects=False)
+    loc = (slash.headers.get("location") or "")
+    assert slash.status_code in (301, 302, 307, 308), slash.status_code
+    assert loc.endswith("/console") or loc == "/console", loc
 
 
     # --- SPEC splice: exactly once, idempotent ---
