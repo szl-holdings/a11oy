@@ -109,6 +109,8 @@ def test_command_center_binds_cycle_and_refuses_static_governed_allow() -> None:
     assert '{id:"score", title:"Score Lambda advisory", needs:false, d:"ALLOW"' not in text
     assert '{id:"zk_prove", title:"Seal modeled ZK transcript", needs:true, d:"ALLOW"' not in text
     assert "applyCyclePaint(paintFromCycle(cycle))" in text
+    assert "ok?`MEASURED ${r.length} receipts" not in text
+    assert "HTTP 200 is REACHABLE, never MEASURED/ALLOW from r.ok." in text
 
 
 def test_operator_pane_does_not_paint_measured_on_http_200() -> None:
