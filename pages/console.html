@@ -3260,7 +3260,7 @@ async function a11oy_refresh(){
   try{
     const r=await fetch('/api/a11oy/code/rag/refresh',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
     const j=await r.json().catch(()=>({}));
-    setTxt('ck-refresh-note', r.ok?('refreshed \u00b7 '+((j.chunks!=null?j.chunks+' chunks':'')||'ok')):('HTTP '+r.status));
+    setTxt('ck-refresh-note', r.ok?('refreshed \u00b7 '+((j.chunks!=null?j.chunks+' chunks':'')||'ok')):(j.status==='BLOCKED'?'BLOCKED · operator credential required':('HTTP '+r.status)));
     await a11oy_corpus(); a11oy_seed_graph();
   }catch(e){ setTxt('ck-refresh-note','refresh unavailable: '+e.message); }
   if(btn)btn.disabled=false;

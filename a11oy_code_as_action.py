@@ -297,7 +297,9 @@ def run_cell(run_id: str, code: str, sign_fn=None, intensity: str = "full") -> d
     exec_result = None
     if verdict["allowed"]:
         kernel = gk.get_kernel(run_id, create=True)
-        exec_result = kernel.exec_cell(code)
+        exec_result = (kernel.exec_cell(code) if kernel is not None else
+                       {"ok": False, "stdout": "",
+                        "error": "kernel capacity reached (BLOCKED)"})
 
     seq = len(_STORE.get(run_id)["cells"]) if _STORE.get(run_id) else 0
     receipt = _emit_cell_receipt(run_id, seq, code, verdict, exec_result, sign_fn)
@@ -330,9 +332,15 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
     from starlette.routing import Route
     from starlette.responses import JSONResponse
 
+    import szl_operator_auth as _opauth
+
     base = "/api/%s/v1/agent/code" % ns
 
     async def _compose(request):
+        who = _opauth.principal(request)
+        if not who["two_person_attested"]:
+            return JSONResponse(_opauth.blocked_body("Code-as-action compose", True),
+                                status_code=401, headers={"WWW-Authenticate": "Bearer"})
         try:
             body = await request.json()
         except Exception:
@@ -349,6 +357,10 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         return JSONResponse({"run_id": run_id, "phase": "compose", "cell": cell})
 
     async def _revise(request):
+        who = _opauth.principal(request)
+        if not who["two_person_attested"]:
+            return JSONResponse(_opauth.blocked_body("Code-as-action revise", True),
+                                status_code=401, headers={"WWW-Authenticate": "Bearer"})
         try:
             body = await request.json()
         except Exception:

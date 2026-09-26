@@ -350,6 +350,7 @@ class GovernedKernel:
 # Process-wide registry of live kernels, one per run_id.
 # ---------------------------------------------------------------------------
 _KERNELS: dict[str, GovernedKernel] = {}
+MAX_KERNELS = max(1, int(os.environ.get("A11OY_MAX_KERNELS", "4")))
 _REG_LOCK = threading.Lock()
 
 
@@ -363,6 +364,8 @@ def get_kernel(run_id: str, create: bool = False,
     with _REG_LOCK:
         k = _KERNELS.get(run_id)
         if k is None and create:
+            if len(_KERNELS) >= MAX_KERNELS:
+                return None
             k = GovernedKernel(run_id, timeout_s=timeout_s, mem_mb=mem_mb)
             _KERNELS[run_id] = k
         return k

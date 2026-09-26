@@ -149,5 +149,20 @@ match it.
 
 ---
 
+## 9. `/api/a11oy/code/*` execution is operator-only (deny-by-default)
+
+Code execution (`/run`, `/kernel/{run_id}/exec`, `/api/a11oy/v1/agent/code/{compose,revise}`)
+needs **two** server-held secrets: `Authorization: Bearer <A11OY_CODE_ADMIN_KEY>` plus a
+distinct `X-A11oy-Second-Approver: <A11OY_CODE_SECOND_APPROVER_KEY>`. Tool calls, RAG
+writes, profiles and conversation history need the operator credential. Request bodies can
+never assert `two_person_attested`. With a secret unset, the matching role is held by nobody
+and the route answers `401 BLOCKED` — anonymous chat still streams, without tools.
+
+The sandboxed child runs as the server UID, so it could read `/proc/<pid>/environ`; that is
+why execution is not public. Container/microVM isolation stays ROADMAP.
+Resolver: `szl_operator_auth.py` (governance/). Tests: `tests/test_operator_auth_code_routes.py`.
+
+---
+
 *Signed-off-by: stephenlutar2-hash <stephenlutar2@gmail.com>*
 *Doctrine v11 LOCKED · 749/14/163.*
