@@ -207,6 +207,10 @@ def test_holographic_overall_does_not_pass_on_process_liveness() -> None:
     assert "process liveness is not production-ready" in text
     assert 'p.status==="PROCESS_ALIVE"' in text
     assert "p.production_ready===false" in text
+    assert 'def.id==="livez"' in text
+    assert 'pill.textContent=ok?"PROCESS_UP":"UNAVAILABLE"' in text
+    assert 'pill.textContent=ok?"LIVE"' not in text
+    assert "PROCESS_UP" in text
 
 
 def test_operator_pane_immune_demo_does_not_paint_allow() -> None:

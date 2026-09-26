@@ -86,6 +86,9 @@ def test_holographic_ops_accepts_process_alive_not_live() -> None:
     assert "p.production_ready===false" in text
     assert "p.receipt_minted===false" in text
     assert "Process liveness" in text
+    assert 'pill.textContent=ok?"LIVE"' not in text
+    assert 'pill.textContent=ok?"PROCESS_UP":"UNAVAILABLE"' in text
+    assert 'def.id==="livez"' in text
 
 
 def test_relock_requires_process_alive_not_live() -> None:
