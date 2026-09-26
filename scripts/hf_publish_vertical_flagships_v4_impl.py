@@ -84,13 +84,14 @@ _LIVEBAR_OPEN = (
     "s.children[1].textContent=j.status+' / '+(j.latency_ms??'-')+' ms';"
 )
 _LIVEBAR_CLOSED = (
-    "const ok=j.status==='MEASURED'&&j.receipt_verified===true;"
-    "s.className='status'+(ok?' is-live':'');"
-    "s.dataset.reachability=String(j.status||'UNAVAILABLE');"
-    "s.children[1].textContent=(ok?'MEASURED':(j.status==='REACHABLE'?'REACHABLE':'UNAVAILABLE'))"
+    "const verified=j.status==='MEASURED'&&j.receipt_verified===true;"
+    "const reachable=j.status==='REACHABLE'||j.status==='LIVE';"
+    "s.className='status';"
+    "s.dataset.reachability=reachable?'REACHABLE':'UNAVAILABLE';"
+    "s.children[1].textContent=(verified?'MEASURED':(reachable?'REACHABLE':'UNAVAILABLE'))"
     "+' / '+(j.latency_ms??'-')+' ms';"
     "const root=document.documentElement;"
-    "if(root.dataset.domain==='sentra'){root.dataset.iris=ok?'gated':'closed';}"
+    "if(root.dataset.domain==='sentra'){root.dataset.iris='closed';}"
 )
 
 # Finance is a thin read-only projection of its canonical source-owned API.

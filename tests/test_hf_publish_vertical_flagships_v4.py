@@ -419,10 +419,16 @@ def test_livebar_and_sentra_iris_stay_closed_without_a_receipt() -> None:
     module = load_overlay()
     sentra = module.html(by_slug(module)["sentra"])
     finance = module.html(by_slug(module)["finance"])
-    for page in (sentra, finance):
+    lyte = module.html(by_slug(module)["lyte"])
+    for page in (sentra, finance, lyte):
         assert "j.status==='LIVE'?'is-live'" not in page
+        assert "s.className='status'+(ok?' is-live':'')" not in page
+        assert "s.className='status';" in page
         assert "j.status==='MEASURED'&&j.receipt_verified===true" in page
-        assert "root.dataset.iris=ok?'gated':'closed'" in page
+        assert "j.status==='REACHABLE'||j.status==='LIVE'" in page
+        assert "root.dataset.iris=ok?'gated':'closed'" not in page
+        assert "root.dataset.iris='closed'" in page
+        assert "is-live" not in page[page.find("<script>"):]
     assert 'data-iris="closed"' in sentra
     assert "iris-aperture" in sentra
     assert "html[data-iris=open] .iris-aperture{transform:scale(.42)}" in module.DOMAIN_CSS["sentra"]
