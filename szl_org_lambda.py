@@ -525,7 +525,8 @@ def org_overview() -> dict:
                                        "does not count"),
             "modeled_probe_records": ("legacy MODELED GET /pcai/run probe records minted before "
                                       "the read path stopped writing; the chain is append-only "
-                                      "so they stay, counted separately — they are not decisions"),
+                                      "so they stay and are included in receipt_records, broken out "
+                                      "here — they are not decisions"),
             "slsa": "L1 honest · L2 build-attested (Rekor) · L3 ROADMAP — not claimed achieved",
             "lambda": "Λ = Conjecture 1 (advisory, gray); bounds min≤Λ≤max = SEMANTIC-VERIFIED",
             "organs": "import-reachability probe — 'live' means the backing module loads in-process",

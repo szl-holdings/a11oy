@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed - receipt-record count and read-only pcai/run
 - `GET /api/a11oy/v1/pcai/run` no longer appends a MODELED probe to the
   `szl.lake.receipt/v1` chain and reports `receipt_minted: false`. Records
-  already on the append-only chain stay and are counted separately.
+  already on the append-only chain stay: they are included in `receipt_records`
+  and broken out as `modeled_probe_records`.
 - `/api/a11oy/v1/org/overview` replaces `thesis_stats.signed_receipts` with
   `receipt_records` (hash-chained record count), `dsse_sig_bytes_records`
   (records whose DSSE envelope stores base64 signature bytes; counted, not

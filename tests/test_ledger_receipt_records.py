@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
+import szl_dsse
 import szl_lake_store
 import szl_org_lambda
 import szl_proof_carrying_infer
@@ -22,6 +23,10 @@ ROOT = Path(__file__).resolve().parents[1]
 _SIG_B64 = base64.b64encode(bytes(range(70))).decode("ascii")
 
 
+def _signing_disabled(*_args, **_kwargs):
+    raise RuntimeError("signing disabled in this test")
+
+
 def test_pcai_get_never_appends_to_lambda_ledger(monkeypatch):
     emitted = []
     monkeypatch.setattr(
@@ -29,15 +34,20 @@ def test_pcai_get_never_appends_to_lambda_ledger(monkeypatch):
         "emit",
         lambda *args, **kwargs: emitted.append((args, kwargs)),
     )
+    # The handler still runs the DSSE signer (a separate follow-up). Keep this test from signing
+    # on a machine that happens to hold a cosign key: _sign_statement then takes its UNSIGNED-LOCAL
+    # fallback.
+    monkeypatch.setattr(szl_dsse, "sign_payload", _signing_disabled)
 
     response = szl_proof_carrying_infer._h_pcai_run(
         SimpleNamespace(query_params={"seed": "42", "model": "szl-modeled-lm"})
     )
     body = json.loads(response.body)
 
-    assert body["label"] == "MODELED"
-    assert body["receipt_minted"] is False
     assert emitted == []
+    assert body["label"] == "MODELED"
+    assert body["dsse"]["signed"] is False
+    assert body["receipt_minted"] is False
 
 
 def _probe(ts):

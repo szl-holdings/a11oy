@@ -1223,7 +1223,8 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
     <h2>One ledger. Every receipt record. Replayable to the byte.</h2>
     <p class="intro">Every vertical emits into a single SHA3-256 hash-chain — append-only,
       fsync-durable, replayable to a byte-identical root instead of trusting a dashboard.
-      Record count is not a decision count: legacy MODELED probe records are counted separately.</p>
+      Record count is not a decision count: it includes legacy MODELED probe records, broken out
+      beneath the count when the runtime reports them.</p>
     <div class="chainrow">
       <div class="cstat"><div class="ck" id="chain-receipts">—</div><div class="cl">Receipt records · signer state separate<span class="stat-note" id="chain-split"></span></div></div>
       <div class="cstat"><div class="ck ink mono" id="chain-alg">sha3_256</div><div class="cl">Chain algorithm</div></div>
@@ -2020,8 +2021,8 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
     if(!el) return;
     const s = num(dsseSigBytes), p = num(modeledProbe);
     const parts = [];
-    if(s!==null) parts.push(s.toLocaleString() + " store DSSE signature bytes (not verified here)");
-    if(p!==null) parts.push(p.toLocaleString() + " legacy MODELED GET probes");
+    if(s!==null) parts.push(s.toLocaleString() + " records store DSSE signature bytes (not verified here)");
+    if(p!==null) parts.push(p.toLocaleString() + " records are legacy MODELED GET probes");
     el.textContent = parts.join(" · ");
   }
 
