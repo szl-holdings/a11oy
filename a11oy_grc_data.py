@@ -163,11 +163,11 @@ COVERAGE_MATRIX: List[Dict[str, str]] = [
      "mechanism": "Λ-score calibration feedback loop", "coverage": "ROADMAP"},
     # NIST 800-53 Rev 5
     {"control": "AU-2", "framework": "NIST 800-53r5", "title": "Event logging",
-     "mechanism": "DSSE-signed audit event per inference (verdict + rule ID)", "coverage": "COVERED"},
+     "mechanism": "Hash-chained audit event per inference (event fields vary by emitter); DSSE-signed only while the runtime signer is active", "coverage": "PARTIAL"},
     {"control": "AU-3", "framework": "NIST 800-53r5", "title": "Content of audit records",
      "mechanism": "Timestamp + input/output hash in every receipt", "coverage": "COVERED"},
     {"control": "AU-9", "framework": "NIST 800-53r5", "title": "Protection of audit information",
-     "mechanism": "Records sealed in DSSE envelopes signed by ECDSA-P256; tamper-detectable", "coverage": "COVERED"},
+     "mechanism": "Hash-chained receipt stores (SHA3-256 in the Khipu DAG and lake chain; SHA-256 in the governed brain-infer receipt chain) make a broken link detectable on replay; an unsigned chain has no external anchor, so a writer to the store could recompute it. Router-gateway receipts carry a per-request SHA-256 digest, not a chain. DSSE / ECDSA-P256 envelope only while the runtime signer is active (not every stored receipt is signed)", "coverage": "PARTIAL"},
     {"control": "CM-8", "framework": "NIST 800-53r5", "title": "System component inventory",
      "mechanism": "Model ID + version + digest recorded per inference", "coverage": "COVERED"},
     {"control": "RA-3", "framework": "NIST 800-53r5", "title": "Risk assessment",
@@ -176,7 +176,7 @@ COVERAGE_MATRIX: List[Dict[str, str]] = [
      "mechanism": "Input hash + classification-boundary gate", "coverage": "PARTIAL"},
     # EU AI Act
     {"control": "Article 12", "framework": "EU AI Act", "title": "Record-keeping / logging",
-     "mechanism": "Immutable DSSE receipt per inference satisfies automatic logging", "coverage": "COVERED"},
+     "mechanism": "Hash-chained receipt per inference provides automatic logging; DSSE signature only while the runtime signer is active", "coverage": "PARTIAL"},
     {"control": "Article 14", "framework": "EU AI Act", "title": "Human oversight",
      "mechanism": "Human-in-the-loop override gate; human-on-loop for SIMULATED effectors", "coverage": "COVERED"},
     {"control": "Article 9", "framework": "EU AI Act", "title": "Risk management system (High-Risk)",
@@ -337,8 +337,9 @@ def build_oscal() -> Dict[str, Any]:
                 "uuid": "a11oy-orchestrator",
                 "type": "software",
                 "title": "a11oy Governed AI Orchestrator",
-                "description": "Governed agentic-AI orchestration layer emitting a DSSE-signed "
-                               "receipt per inference. ALIGNS WITH the controls below; not certified.",
+                "description": "Governed agentic-AI orchestration layer emitting a hash-chained "
+                               "receipt per inference, DSSE-signed only while the runtime signer is active. "
+                               "ALIGNS WITH the controls below; not certified.",
                 "props": [
                     {"name": "doctrine", "ns": "https://szlholdings.ai/ns/oscal", "value": DOCTRINE_VERSION},
                     {"name": "kernel-commit", "ns": "https://szlholdings.ai/ns/oscal", "value": KERNEL_COMMIT},

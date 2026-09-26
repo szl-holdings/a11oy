@@ -3,7 +3,7 @@
     "uuid": "a11oy-comp-def-v11",
     "metadata": {
       "title": "a11oy Governed AI Orchestrator \u2014 OSCAL Component Definition",
-      "last-modified": "2026-06-14T06:40:15.254257+00:00",
+      "last-modified": "2026-09-26T11:42:34.929763+00:00",
       "version": "v11",
       "oscal-version": "1.1.2",
       "remarks": "Coverage assessments reflect a11oy's INTERNAL analysis of its mechanisms against published framework control text. a11oy ALIGNS WITH / MAPS TO these frameworks; it does NOT claim certification. No third-party certification has been obtained for any framework as of Doctrine v11. Gaps are shown honestly. \u039b = Conjecture 1; locked-proven = 8 @ c7c0ba17; trust never 100%."
@@ -13,7 +13,7 @@
         "uuid": "a11oy-orchestrator",
         "type": "software",
         "title": "a11oy Governed AI Orchestrator",
-        "description": "Governed agentic-AI orchestration layer emitting a DSSE-signed receipt per inference. ALIGNS WITH the controls below; not certified.",
+        "description": "Governed agentic-AI orchestration layer emitting a hash-chained receipt per inference, DSSE-signed only while the runtime signer is active. ALIGNS WITH the controls below; not certified.",
         "props": [
           {
             "name": "doctrine",
@@ -45,12 +45,12 @@
               {
                 "uuid": "ir-95efdfab",
                 "control-id": "au-2",
-                "description": "[COVERED] DSSE-signed audit event per inference (verdict + rule ID) (a11oy Event logging).",
+                "description": "[PARTIAL] Hash-chained audit event per inference (event fields vary by emitter); DSSE-signed only while the runtime signer is active (a11oy Event logging).",
                 "props": [
                   {
                     "name": "coverage",
                     "ns": "https://szlholdings.ai/ns/oscal",
-                    "value": "COVERED"
+                    "value": "PARTIAL"
                   }
                 ]
               },
@@ -69,12 +69,12 @@
               {
                 "uuid": "ir-a0f3ffcd",
                 "control-id": "au-9",
-                "description": "[COVERED] Records sealed in DSSE envelopes signed by ECDSA-P256; tamper-detectable (a11oy Protection of audit information).",
+                "description": "[PARTIAL] Hash-chained receipt stores (SHA3-256 in the Khipu DAG and lake chain; SHA-256 in the governed brain-infer receipt chain) make a broken link detectable on replay; an unsigned chain has no external anchor, so a writer to the store could recompute it. Router-gateway receipts carry a per-request SHA-256 digest, not a chain. DSSE / ECDSA-P256 envelope only while the runtime signer is active (not every stored receipt is signed) (a11oy Protection of audit information).",
                 "props": [
                   {
                     "name": "coverage",
                     "ns": "https://szlholdings.ai/ns/oscal",
-                    "value": "COVERED"
+                    "value": "PARTIAL"
                   }
                 ]
               },

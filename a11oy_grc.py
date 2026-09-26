@@ -250,8 +250,10 @@ def _page_html(ns: str) -> str:
   <p class="pp">Gates are published policy-as-code; the bundle is version-locked by a SHA-256
    digest that every DSSE receipt cites, so a receipt proves WHICH policy version made the
    decision. Each receipt field maps to specific control IDs (800-53 AU/CM/RA family,
-   EU AI Act Art. 12/14, ISO 42001 A.x). Receipts are ECDSA-P256/DSSE signed; re-verify at
-   <a href="/cosign.pub">/cosign.pub</a>.</p>
+   EU AI Act Art. 12/14, ISO 42001 A.x). Receipts are ECDSA-P256/DSSE signed only while the
+   runtime signer is active (live state is <code>rollup.signer</code> at
+   <a href="/api/a11oy/healthz">/api/a11oy/healthz</a>); the running signer's public key is
+   served at <a href="/cosign.pub">/cosign.pub</a>.</p>
   <div class="pp">policy bundle digest: <code>__DIGEST__</code></div>
   <details><summary style="cursor:pointer;color:var(--teal)">raw /grc/mapping (Λ→NIST, Rego, DSSE schema)</summary>
    <div class="out" id="raw-map">loading…</div></details>

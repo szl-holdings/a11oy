@@ -14,7 +14,8 @@ is a measurable reduction in attack surface, supply-chain exposure and long-term
 maintenance burden. The Restraint ladder (YAGNI → stdlib → native → installed-dep →
 one-line → minimal-viable) is exactly the secure-by-design "economy of mechanism /
 least functionality" principle applied before a diff is written, and every restraint
-decision is a signed DSSE receipt + Λ-scored. We therefore honestly map it to the
+decision emits a receipt (DSSE-signed only while the runtime signer is active) + Λ-scored.
+We therefore honestly map it to the
 supply-chain + maintainability + secure-engineering controls below.
 
 HONEST (Doctrine v11): a11oy ALIGNS WITH / MAPS TO these frameworks — NEVER "certified"
@@ -38,7 +39,8 @@ RESTRAINT_ENDPOINTS = "/api/a11oy/v1/restraint/{evaluate,bench,info}"
 HONEST = ("a11oy Restraint contributes a code-minimization / dependency-frugality control: "
           "every code diff descends a governed 6-rung frugality ladder (YAGNI, stdlib, native, "
           "installed dependency, one line, then minimal viable code) BEFORE it is written, and "
-          "each decision is a signed DSSE receipt + advisory Λ score. Less code and fewer "
+          "each decision emits a receipt (DSSE-signed only while the runtime signer is active) "
+          "+ advisory Λ score. Less code and fewer "
           "dependencies => smaller attack/maintenance surface. ALIGNS WITH / MAPS TO the controls "
           "below — NOT a certification. Numbers are MODELED/MEASURED, never overclaimed.")
 
@@ -58,8 +60,9 @@ RESTRAINT_MATRIX_ROWS: List[Dict[str, str]] = [
     {"control": "SA-8", "framework": "NIST 800-53r5",
      "title": "Security engineering principles (economy of mechanism)",
      "mechanism": "Restraint 6-rung frugality ladder runs before every diff; the agent emits the "
-                  "minimal viable code (fewest files, smallest surface); each decision is a signed "
-                  "DSSE receipt + Λ score (/api/a11oy/v1/restraint/evaluate)",
+                  "minimal viable code (fewest files, smallest surface); each decision emits a "
+                  "receipt + Λ score, DSSE-signed only while the runtime signer is active "
+                  "(/api/a11oy/v1/restraint/evaluate)",
      "coverage": "COVERED"},
     {"control": "CM-7", "framework": "NIST 800-53r5",
      "title": "Least functionality",
@@ -83,13 +86,15 @@ RESTRAINT_MATRIX_ROWS: List[Dict[str, str]] = [
      "title": "Manage residual / supply-chain risk (code & dependency frugality)",
      "mechanism": "Restraint reduces residual maintenance + supply-chain risk by minimising generated "
                   "code and new dependencies; the Auto-Review classifier consumes the restraint verdict "
-                  "as a governance signal (AR-006) and seals the rung into the signed verdict",
+                  "as a governance signal (AR-006) and seals the rung into the verdict receipt "
+                  "(DSSE-signed only while the runtime signer is active)",
      "coverage": "COVERED"},
     {"control": "A.6.2", "framework": "ISO 42001",
      "title": "AI system lifecycle — responsible design & development",
      "mechanism": "Frugality ladder is applied in the design/development phase of the AI code agent; "
-                  "deliberate simplifications are documented via restraint: ceiling comments and signed "
-                  "receipts, supporting responsible, auditable development",
+                  "deliberate simplifications are documented via restraint: ceiling comments and "
+                  "receipts (DSSE-signed only while the runtime signer is active), supporting "
+                  "responsible, auditable development",
      "coverage": "PARTIAL"},
 ]
 
