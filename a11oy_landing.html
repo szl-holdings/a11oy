@@ -866,7 +866,7 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
         </div>
         <div class="stat" id="overclaim-counter">
           <div class="k gray" id="hs-overclaims">—</div>
-          <div class="l">Overclaims caught by CI <span id="hs-overclaims-chip"><span class="chip gray" style="margin-left:6px"><span class="dot"></span>SAMPLE · SNAPSHOT 2026-07-25 · SOURCE UNAVAILABLE</span></span><br><span class="stat-note">Observed correction time (<span id="hs-overclaim-sample">source unavailable</span>): <span id="hs-overclaim-time">—</span> · <a href="https://github.com/szl-holdings/platform/blob/main/docs/OVERCLAIM_LEDGER.md">open ledger</a></span></div>
+          <div class="l">Overclaims caught by CI <span id="hs-overclaims-chip"><span class="chip gray" style="margin-left:6px"><span class="dot"></span>SAMPLE · STALE SNAPSHOT 2026-07-25 · SOURCE UNAVAILABLE</span></span><br><span class="stat-note">Observed correction time (<span id="hs-overclaim-sample">source unavailable</span>): <span id="hs-overclaim-time">—</span> · <a href="https://github.com/szl-holdings/platform/blob/main/docs/OVERCLAIM_LEDGER.md">open ledger</a></span></div>
         </div>
       </div>
     </div>
@@ -1853,7 +1853,7 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
     count.classList.add("gray");
     $("hs-overclaim-time").textContent = "—";
     $("hs-overclaim-sample").textContent = "source unavailable";
-    $("hs-overclaims-chip").innerHTML = grayChip("SAMPLE · SNAPSHOT 2026-07-25 · SOURCE UNAVAILABLE");
+    $("hs-overclaims-chip").innerHTML = grayChip("SAMPLE · STALE SNAPSHOT 2026-07-25 · SOURCE UNAVAILABLE");
   }
 
   async function loadOverclaimMetrics(){
