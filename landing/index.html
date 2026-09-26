@@ -159,12 +159,12 @@ async function runEvaluate() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + JSON.stringify(data));
-    const label = data.decision === 'allow' ? 'ALLOW ✓' : 'DENY ✗';
-    setStatus('ok', label + ' via ' + (data.gate || 'gate'));
-    setOutput('POLICY EVALUATE — ' + label, formatJson(data));
+    // HTTP 200 is REACHABLE, never MEASURED/ALLOW from r.ok.
+    setStatus('ok', 'REACHABLE');
+    setOutput('POLICY EVALUATE — REACHABLE', formatJson(data));
   } catch (err) {
-    setStatus('err', 'error');
-    setOutput('POLICY EVALUATE — ERROR', String(err));
+    setStatus('err', 'UNAVAILABLE');
+    setOutput('POLICY EVALUATE — UNAVAILABLE', String(err));
   } finally {
     disableButtons(false);
   }
@@ -178,11 +178,11 @@ async function showLedger() {
     const res = await fetch(API_BASE + '/v1/ledger?limit=10');
     const data = await res.json();
     if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + JSON.stringify(data));
-    setStatus('ok', 'ledger ✓ total ' + data.total);
-    setOutput('RECEIPT LEDGER — ' + data.count + ' of ' + data.total + ' receipts', formatJson(data));
+    setStatus('ok', 'REACHABLE');
+    setOutput('RECEIPT LEDGER — REACHABLE', formatJson(data));
   } catch (err) {
-    setStatus('err', 'error');
-    setOutput('RECEIPT LEDGER — ERROR', String(err));
+    setStatus('err', 'UNAVAILABLE');
+    setOutput('RECEIPT LEDGER — UNAVAILABLE', String(err));
   } finally {
     disableButtons(false);
   }
@@ -200,12 +200,11 @@ async function runVerify() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + JSON.stringify(data));
-    const label = data.valid ? 'VALID ✓' : 'INVALID ✗';
-    setStatus(data.valid ? 'ok' : 'err', label);
-    setOutput('VERIFY RECEIPT — ' + label, formatJson(data));
+    setStatus('ok', 'REACHABLE');
+    setOutput('VERIFY RECEIPT — REACHABLE', formatJson(data));
   } catch (err) {
-    setStatus('err', 'error');
-    setOutput('VERIFY RECEIPT — ERROR', String(err));
+    setStatus('err', 'UNAVAILABLE');
+    setOutput('VERIFY RECEIPT — UNAVAILABLE', String(err));
   } finally {
     disableButtons(false);
   }

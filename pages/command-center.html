@@ -129,7 +129,7 @@ function paintFromCycle(cycle){
 async function loadPublishedCycle(){
   try{
     const r = await fetch(CYCLE_URL, {method:"GET", cache:"no-store"});
-    if(!r.ok) return null;
+    if(!r.ok) return null; // HTTP 200 is REACHABLE, never MEASURED/ALLOW from r.ok.
     const body = await r.json();
     if(!body || typeof body !== "object") return null;
     if(body.schema !== CYCLE_SCHEMA) return null;
@@ -402,7 +402,7 @@ function render(){
     $("#verify").onclick=async()=>{
       const r=loadLake(); let prev=GENESIS, ok=true;
       for(const x of r){ const {hash, ...rest}=x; const h=await sha256Hex(JSON.stringify(rest)); if(h!==x.hash||x.prev!==prev) ok=false; prev=x.hash; }
-      $("#status").textContent=ok?`MEASURED ${r.length} receipts. Chain intact.`:"Chain broken.";
+      $("#status").textContent=ok?`SOFTWARE ${r.length} receipts. Local chain intact. Not MEASURED.`:"UNAVAILABLE";
     };
   }
   if(id==="zk") bindZk();
