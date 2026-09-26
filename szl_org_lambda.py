@@ -339,10 +339,29 @@ def _genome_tiers() -> dict:
     except Exception as e:  # noqa: BLE001 - honest degrade, never fabricate
         return {"status": "N/A", "reason": f"genome.json unparseable: {e!r}", "counts": {}}
     counts: dict[str, int] = {}
+    ids: dict[str, set] = {}
+    locked_rows: list = []  # (id, quadrant) per LOCKED-PROVEN row, in file order
     for e in entries:
-        t = (e or {}).get("tag", "untagged")
+        e = e or {}
+        t = e.get("tag", "untagged")
         counts[t] = counts.get(t, 0) + 1
-    return {"status": "OK", "total": len(entries), "counts": counts}
+        if e.get("id") is not None:
+            ids.setdefault(t, set()).add(str(e["id"]))
+        if t == "LOCKED-PROVEN":
+            locked_rows.append((str(e.get("id")), e.get("_quadrant")))
+    # A tag count is a ROW count: one id can appear in more than one quadrant, so
+    # distinct ids per tag are reported next to it and never merged into it.
+    return {"status": "OK", "total": len(entries), "counts": counts,
+            "distinct_ids": {t: len(s) for t, s in ids.items()},
+            "locked_rows": locked_rows}
+
+
+def _kernel_rows(genome: dict, kernel_ids) -> tuple:
+    """(rows, distinct kernel ids, quadrants) of the catalog LOCKED-PROVEN rows that
+    are kernel formulas. Shared by /org/overview and the /honest scopes legend."""
+    kset = set(kernel_ids or [])
+    rows = [(i, q) for i, q in genome.get("locked_rows", []) if i in kset]
+    return len(rows), len({i for i, _ in rows}), sorted({q for _, q in rows if q})
 
 
 def _decodes_to_sig_bytes(sig) -> bool:
@@ -472,6 +491,27 @@ def org_overview() -> dict:
     def _tier(name):
         return g.get(name, "N/A") if genome["status"] == "OK" else "N/A"
 
+    def _distinct(name):
+        if genome["status"] != "OK":
+            return "N/A"
+        return genome.get("distinct_ids", {}).get(name, "N/A")
+
+    # Catalog LOCKED-PROVEN is a ROW count. Say which of those rows are kernel
+    # formulas and in which quadrants they are listed, computed from genome.json.
+    if genome["status"] == "OK":
+        k_rows, k_ids, k_quads = _kernel_rows(genome, kernel_ids)
+        catalog_rows_note = (
+            f"genome catalog ROWS tagged LOCKED-PROVEN ({_tier('LOCKED-PROVEN')} rows, "
+            f"{_distinct('LOCKED-PROVEN')} distinct ids). {k_rows} of those rows are the "
+            f"{k_ids} kernel formulas, listed in {', '.join(k_quads) or 'N/A'}. Not the "
+            f"kernel count: the kernel locked-proven Lean baseline is "
+            f"locked_formula_count={kernel_count} from /api/a11oy/v1/honest "
+            f"(proof_tiers.locked)")
+    else:
+        catalog_rows_note = ("genome catalog rows tagged LOCKED-PROVEN: N/A (genome.json "
+                             "unavailable). Never the kernel count; kernel is "
+                             "/api/a11oy/v1/honest locked_formula_count")
+
     verticals = [
         {"name": k, "lambda": v,
          "status": ("pass" if isinstance(v, (int, float)) and v >= floor else "below-floor")}
@@ -485,7 +525,10 @@ def org_overview() -> dict:
             "dsse_sig_bytes_records": chain["dsse_sig_bytes"],  # store DSSE sig bytes; not verified
             "modeled_probe_records": chain["modeled_probe"],  # legacy GET pcai/run MODELED probes
             "chain_alg": "sha3_256",
-            "locked_proven_count": _tier("LOCKED-PROVEN"),
+            # Catalog rows, NOT the kernel. The estate-wide key locked_proven_count
+            # means the Lean-8 kernel everywhere else, so it is not used here.
+            "genome_locked_proven_rows": _tier("LOCKED-PROVEN"),
+            "genome_locked_proven_distinct_ids": _distinct("LOCKED-PROVEN"),
             "semantic_verified_count": _tier("SEMANTIC-VERIFIED"),
             "conjecture_count": _tier("CONJECTURE"),
         },
@@ -510,11 +553,11 @@ def org_overview() -> dict:
         },
         "slsa": "L1+L2",
         "honest_notes": {
-            "locked_proven_count": ("genome entries tagged LOCKED-PROVEN (catalog); the kernel "
-                                    "locked-proven Lean baseline remains 8 "
-                                    "{F1,F4,F7,F11,F12,F18,F19,F22} from /api/a11oy/v1/honest"),
+            "genome_locked_proven_rows": catalog_rows_note,
             "proof_tiers_locked": ("kernel locked-proven (Lean-8). genome_locked_proven is the "
-                                   "catalog tag, never the kernel chip, never green"),
+                                   "catalog tag ROW count (same value as "
+                                   "thesis_stats.genome_locked_proven_rows), never the kernel "
+                                   "chip, never green"),
             "receipt_records": ("count of receipt records on the szl.lake.receipt/v1 chain "
                                 "(SHA3-256 hash-chained, append-only). Hash-chaining is not "
                                 "signing. Honest N/A when the lake store is unreachable — "

@@ -532,6 +532,109 @@ def test_overview_splits_kernel_locked_from_genome_catalog():
     assert overview["genome_count"] == 144
 
 
+def _genome_locked_rows():
+    import json
+
+    entries = json.loads((ROOT / "data" / "genome.json").read_text(encoding="utf-8"))
+    return [e for e in entries if (e or {}).get("tag") == "LOCKED-PROVEN"]
+
+
+def test_overview_never_puts_catalog_rows_under_the_kernel_key():
+    """F7: estate-wide, locked_proven_count means the Lean-8 kernel. The org
+    overview must not reuse that name for the genome catalog row count."""
+    import szl_org_lambda as org
+
+    overview = org.org_overview()
+    kernel = overview["proof_tiers"]["locked"]
+    stats = overview["thesis_stats"]
+    notes = overview["honest_notes"]
+    if "locked_proven_count" in stats:
+        assert stats["locked_proven_count"] == kernel
+    assert "locked_proven_count" not in notes
+
+    rows = _genome_locked_rows()
+    assert stats["genome_locked_proven_rows"] == len(rows)
+    assert stats["genome_locked_proven_rows"] == overview["proof_tiers"]["genome_locked_proven"]
+    assert stats["genome_locked_proven_distinct_ids"] == len({str(e["id"]) for e in rows})
+    assert stats["genome_locked_proven_distinct_ids"] < stats["genome_locked_proven_rows"]
+    note = notes["genome_locked_proven_rows"]
+    assert "ROWS" in note and "distinct ids" in note and "Not the kernel count" in note
+
+
+def test_genome_catalog_lists_each_kernel_formula_in_q1_and_q2():
+    """Binds the landing text 'the rows list the 8 kernel formulas twice, in Q1
+    and Q2' to genome.json. If the catalog changes, update that text too."""
+    from collections import Counter
+
+    rows = _genome_locked_rows()
+    kernel_rows = [e for e in rows if e["id"] in _LOCKED8_IDS]
+    per_id = Counter(e["id"] for e in kernel_rows)
+    assert sorted(per_id) == sorted(_LOCKED8_IDS)
+    assert set(per_id.values()) == {2}
+    assert {e.get("_quadrant") for e in kernel_rows} == {"Q1", "Q2"}
+    landing = (ROOT / "a11oy_landing.html").read_text(encoding="utf-8")
+    assert "the 8 kernel formulas twice, in Q1 and Q2" in landing
+
+
+def test_landing_catalog_slot_never_falls_back_to_kernel():
+    landing_js = _script_bodies((ROOT / "a11oy_landing.html").read_text(encoding="utf-8"))
+    assert "|| o.proof_tiers.locked" not in landing_js
+    assert "thesis_stats.locked_proven_count" not in landing_js
+    calls = re.findall(r"setCatalogNote\(([^;]*)\);", landing_js)
+    assert calls, "setCatalogNote call sites missing"
+    for args in calls:
+        assert "proof_tiers.locked" not in args
+        assert "locked_formula_count" not in args
+    assert "setCatalogNote(o.proof_tiers.genome_locked_proven," in landing_js
+    assert 'id="pt-genome-locked-distinct"' in (ROOT / "a11oy_landing.html").read_text(
+        encoding="utf-8"
+    )
+
+
+def test_honest_carries_proof_scopes_legend():
+    """/honest (served by szl_be_hardening) names both scopes; catalog numbers
+    are read from genome.json, never the kernel slot."""
+    from starlette.testclient import TestClient
+
+    import serve
+
+    body = TestClient(serve.app, raise_server_exceptions=False).get(
+        "/api/a11oy/v1/honest"
+    ).json()
+    scopes = body["scopes"]
+    kernel = scopes["kernel"]
+    catalog = scopes["genome_catalog"]
+    assert kernel["is_kernel"] is True
+    assert kernel["count"] == body["locked_formula_count"] == 8
+    assert kernel["ids"] == _LOCKED8_IDS
+    assert kernel["lean"] == "locked_count_eight"
+    assert catalog["is_kernel"] is False
+    assert catalog["source"] == "/api/a11oy/v1/genome"
+    assert "tier_counts.LOCKED-PROVEN" in catalog["fields"]
+    rows = _genome_locked_rows()
+    assert catalog["status"] == "OK"
+    assert catalog["count"] == 144
+    assert catalog["locked_proven_rows"] == len(rows)
+    assert catalog["locked_proven_distinct_ids"] == len({str(e["id"]) for e in rows})
+    assert catalog["kernel_id_rows"] == 16
+    assert catalog["kernel_id_quadrants"] == ["Q1", "Q2"]
+
+
+def test_proof_scopes_degrades_to_na_without_genome(monkeypatch):
+    import szl_be_hardening as be
+    import szl_org_lambda as org
+
+    monkeypatch.setattr(
+        org, "_genome_tiers",
+        lambda: {"status": "N/A", "reason": "genome.json not present in image", "counts": {}},
+    )
+    catalog = be.proof_scopes()["genome_catalog"]
+    assert catalog["status"] == "N/A"
+    for key in ("count", "locked_proven_rows", "locked_proven_distinct_ids", "kernel_id_rows"):
+        assert catalog[key] == "N/A"
+    assert be.proof_scopes()["kernel"]["count"] == 8
+
+
 def _script_bodies(html: str) -> str:
     return "\n".join(re.findall(r"<script\b[^>]*>(.*?)</script>", html, flags=re.I | re.S))
 

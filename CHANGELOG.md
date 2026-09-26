@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - proof-scope keys: catalog rows never carry the kernel name
+- `GET /api/a11oy/v1/org/overview` no longer puts the genome catalog row count
+  under `thesis_stats.locked_proven_count`, the key every other producer uses
+  for the Lean-8 kernel. It is now `thesis_stats.genome_locked_proven_rows`,
+  next to `genome_locked_proven_distinct_ids`. Both are read from `genome.json`;
+  the rows include the kernel formulas listed in two quadrants. `proof_tiers`
+  is unchanged.
+- The home catalog note reads `proof_tiers.genome_locked_proven` only (the
+  kernel value can no longer fall into `#pt-genome-locked`), says "rows", and
+  shows the distinct-id count.
+- `/honest` adds a read-only `scopes` legend: kernel (`locked_formula_count`,
+  Lean `locked_count_eight`) and genome catalog (`/api/a11oy/v1/genome`, row
+  counts read from `genome.json`, N/A when unavailable). The kernel count stays
+  8. Λ stays Conjecture 1.
+
 ### Fixed - receipt-record count and read-only pcai/run
 - `GET /api/a11oy/v1/pcai/run` no longer appends a MODELED probe to the
   `szl.lake.receipt/v1` chain and reports `receipt_minted: false`. Records

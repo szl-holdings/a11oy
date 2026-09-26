@@ -1145,8 +1145,9 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
         parity (erasure tolerance), not "DSSE seal".</p>
       <p class="genome-note">Genome catalog tag LOCKED-PROVEN (a different count, from
         <code>/api/a11oy/v1/genome</code> <code>tier_counts</code>):
-        <span class="n" id="pt-genome-locked">—</span> of 144 catalog entries. Catalog tag,
-        not the kernel chip above.</p>
+        <span class="n" id="pt-genome-locked">—</span> of 144 catalog rows
+        (<span class="n" id="pt-genome-locked-distinct">—</span> distinct ids; the rows list
+        the 8 kernel formulas twice, in Q1 and Q2). Catalog row count, not the kernel chip above.</p>
     </div>
     <div class="tier semantic">
       <div class="tnum" id="pt-semantic">—</div>
@@ -1924,12 +1925,15 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
       $("pt-locked").textContent = (n === 8) ? "8" : "N/A";
     }catch(e){ $("pt-locked").textContent = "N/A"; }
   }
-  // Genome catalog tag count, rendered in its own slot so it can never be read
-  // as the kernel chip.
-  function setCatalogNote(n){
+  // Genome catalog tag ROW count, rendered in its own slot so it can never be
+  // read as the kernel chip. Rows can repeat an id across quadrants, so the
+  // distinct-id count is shown next to it (N/A when the source omits it).
+  function setCatalogNote(n, distinct){
     const el = $("pt-genome-locked");
     if(!el) return;
     el.textContent = (num(n)===null) ? "N/A" : String(n);
+    const d = $("pt-genome-locked-distinct");
+    if(d) d.textContent = (num(distinct)===null) ? "N/A" : String(distinct);
   }
 
   // ---- killinchu runtime honesty ------------------------------------------
@@ -2032,7 +2036,7 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
       const o = await getJSON("/api/a11oy/v1/org/overview");
       if(!o || o.status === "UNAVAILABLE") return false;
       let any = false;
-      if(o.proof_tiers){ setTiers({ semantic:o.proof_tiers.semantic, evidence:o.proof_tiers.evidence, conjecture:o.proof_tiers.conjecture }); setCatalogNote((o.thesis_stats&&o.thesis_stats.locked_proven_count) || o.proof_tiers.locked); $("proof-src").innerHTML = grayChip("REACHABLE · overview"); any = true; }
+      if(o.proof_tiers){ setTiers({ semantic:o.proof_tiers.semantic, evidence:o.proof_tiers.evidence, conjecture:o.proof_tiers.conjecture }); setCatalogNote(o.proof_tiers.genome_locked_proven, o.thesis_stats && o.thesis_stats.genome_locked_proven_distinct_ids); $("proof-src").innerHTML = grayChip("REACHABLE · overview"); any = true; }
       if(Array.isArray(o.verticals)){
         const vm = {};
         o.verticals.forEach(x => { if(x && x.name) vm[x.name] = num(x.lambda); });
@@ -2061,7 +2065,10 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
       const tc = g.tier_counts || {};
       setTiers({ semantic: tc["SEMANTIC-VERIFIED"],
                  evidence: tc["evidence-backed"], conjecture: tc["CONJECTURE"] });
-      setCatalogNote(tc["LOCKED-PROVEN"]);
+      const lpIds = Array.isArray(g.entries)
+        ? new Set(g.entries.filter(e => e && e.tag === "LOCKED-PROVEN" && e.id != null).map(e => String(e.id))).size
+        : null;
+      setCatalogNote(tc["LOCKED-PROVEN"], lpIds);
       $("proof-src").innerHTML = grayChip("REACHABLE · genome");
     }catch(e){
       setTiers({}); $("proof-src").innerHTML = downChip("UNAVAILABLE");
