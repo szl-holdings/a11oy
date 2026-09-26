@@ -102,7 +102,7 @@ def lambda_posture(claim: str | None) -> dict[str, Any]:
         return {
             "status": BLOCKED,
             "lambda": LAMBDA_POSTURE,
-            "detail": "Λ claim treats uniqueness as proven/theorem — fail closed",
+            "detail": "Λ claim treats uniqueness as proven/theorem — fail closed; uniqueness is Conjecture 1, never a theorem",
         }
     return {
         "status": CONJECTURE,
@@ -207,7 +207,7 @@ def selftest() -> dict[str, Any]:
         failed.append("hidden_weak_4dp")
     if admit((0.95, 0.92, 0.88, 0.90))["admit"] is not True:
         failed.append("nominal")
-    blocked = lambda_posture("Λ is a proven theorem")
+    blocked = lambda_posture("Λ is a proven theorem")  # negative fixture; uniqueness is Conjecture 1, never a theorem
     if blocked["status"] != BLOCKED:
         failed.append("lambda_block")
     role = typesafe_role()
