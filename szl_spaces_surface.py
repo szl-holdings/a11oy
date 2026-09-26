@@ -224,6 +224,23 @@ FOLD_SPACES: list[dict[str, str]] = [
      "action": "FOLD", "sink": "proof", "dest": PROOF + "/record/",
      "why": "Not a FLOCK door. Interactive /verify stays on product. Proof holds the RECORD index only."},
 ]
+# Dated observation, not a live probe: on 2026-09-25 the unauthenticated Hub API
+# (GET https://huggingface.co/api/spaces/SZLHOLDINGS/<name>) answered HTTP 401 for
+# these Spaces, so a stranger cannot open their Hub page. Their ledger cards keep
+# the product/proof destination and drop the Hub repository link.
+HUB_UNREADABLE_CHECKED = "2026-09-25"
+HUB_UNREADABLE = frozenset({
+    "a11oy-factory", "anatomy", "cosmos", "energy-attest-holo", "energy-attested-runs",
+    "evidence-studio", "experiments", "governed-agent-bench", "governed-norm-holo",
+    "governed-receipt-verifier", "guardrail-receipt", "hatun-mcp", "holographic",
+    "khipu-lab", "lambda-gate-holo", "lyte-lattice", "lyte-services", "nexus",
+    "receipt-chain-live", "sda", "szl-blocked-live", "szl-estate-live", "szl-experiments",
+    "szl-forge-lab", "szl-govsign-live", "szl-kernels-live", "szl-provctl-live",
+    "szl-quant-live", "szl-real-estate", "szl-sovereign-os", "terra-assurance",
+})
+for _sp in FOLD_SPACES:
+    if _sp["name"] in HUB_UNREADABLE:
+        _sp["hub_unreadable"] = HUB_UNREADABLE_CHECKED
 # Four stragglers sink into a11oy /console. Destination ledger only. Not KEEP.
 UNIFY_SPACES: list[dict[str, str]] = [
     {"name": "szl-command-lab", "slug": "szl-command-lab", "title": "szl-command-lab", "sdk": "docker",
@@ -810,6 +827,12 @@ def _destination_ledger_card(sp: dict[str, str], kind: str) -> str:
     why = html_escape(sp.get("why") or "")
     sink = html_escape(sp.get("sink") or "")
     attr = "data-fold" if kind == "FOLD" else "data-unify"
+    if sp.get("hub_unreadable"):
+        hub = ('<span class="sp-hf">Hub repository not publicly readable (checked %s); link removed</span>'
+               % html_escape(sp["hub_unreadable"]))
+    else:
+        hub = ('<a class="sp-hf" href="%s" rel="noopener" target="_blank">View Hub repository &#8599;</a>'
+               % hf_repo_url(name))
     return (
         '<article class="sp-card sp-fold" %s="%s">'
         '<header class="sp-head"><h2 class="sp-title">%s</h2></header>'
@@ -818,10 +841,10 @@ def _destination_ledger_card(sp: dict[str, str], kind: str) -> str:
         '<div class="sp-stage">Plan rationale: %s</div>'
         '<div class="sp-links">'
         '<a class="sp-open" href="%s" rel="noopener">Open destination &#8599;</a>'
-        '<a class="sp-hf" href="%s" rel="noopener" target="_blank">View Hub repository &#8599;</a>'
+        '%s'
         '</div></article>'
         % (attr, html_escape(name, quote=True), title, html_escape(name),
-           html_escape(sp["sdk"]), kind, sink, honesty, why, dest, hf_repo_url(name))
+           html_escape(sp["sdk"]), kind, sink, honesty, why, dest, hub)
     )
 
 
@@ -1018,7 +1041,10 @@ def _tiles_page(ns: str) -> bytes:
         '<div class="sp-grid">' + "".join(cards) + '</div>'
         '<h2 class="sp-h2" id="verticals">Fold plan · provider state UNOBSERVED</h2>'
         f'<p class="sp-sub">{len(FOLD_SPACES)} planned folds into product and proof destinations. '
-        'Current Hub visibility and runtime are not observed by this ledger. Reachability of a destination is never quality. '
+        'Current Hub visibility and runtime are not observed by this ledger. '
+        f'Hub repository links are omitted for the {len(HUB_UNREADABLE)} Spaces the unauthenticated Hub API '
+        f'answered HTTP 401 for on {HUB_UNREADABLE_CHECKED} (dated check, not a live probe). '
+        'Reachability of a destination is never quality. '
         'sentra, finance, terra fold into vertical-services. '
         'second-brain is ARCHIVE / HISTORICAL.</p>'
         '<div class="sp-grid">' + "".join(fold_cards) + '</div>'

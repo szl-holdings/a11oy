@@ -105,6 +105,14 @@ class CardTests(unittest.TestCase):
     def test_plan_rationale_is_labeled(self):
         self.assertIn("Plan rationale: Plan: bind as anatomy.", self.card(self.record, "FOLD"))
 
+    def test_unreadable_hub_repository_is_not_linked(self):
+        self.record["hub_unreadable"] = "2026-09-25"
+        doc = Document(self.card(self.record, "FOLD"))
+        self.assertEqual([a["href"] for t, a in doc.tags if t == "a"], [self.record["dest"]])
+        text = " ".join(doc.text)
+        self.assertIn("Hub repository not publicly readable (checked 2026-09-25); link removed", text)
+        self.assertIn("provider state UNOBSERVED", text)
+
     def test_runtime_claims_supplied_as_extra_fields_are_not_admitted(self):
         self.record.update(private="true", stage="PAUSED", state="LIVE")
         doc = Document(self.card(self.record, "FOLD"))
@@ -133,8 +141,19 @@ class FullSurfaceTests(unittest.TestCase):
                     with self.subTest(kind=kind, slug=record["slug"]):
                         doc = Document(s._destination_ledger_card(record, kind))
                         self.assertIn(kind + " · PLANNED · provider state UNOBSERVED", " ".join(doc.text))
+                        hub = [] if record["name"] in s.HUB_UNREADABLE else [s.hf_repo_url(record["name"])]
                         self.assertEqual([a["href"] for t, a in doc.tags if t == "a"],
-                                         [record["dest"], s.hf_repo_url(record["name"])])
+                                         [record["dest"]] + hub)
+
+    def test_tiles_page_links_no_unreadable_hub_repository(self):
+        s = self.surface
+        doc = Document(s._tiles_page("a11oy").decode("utf-8"))
+        links = [a["href"] for t, a in doc.tags if t == "a"]
+        for name in s.HUB_UNREADABLE:
+            with self.subTest(name=name):
+                self.assertNotIn("https://huggingface.co/spaces/SZLHOLDINGS/" + name, links)
+        self.assertEqual(" ".join(doc.text).count("Hub repository not publicly readable"),
+                         len(s.HUB_UNREADABLE))
 
     def test_complete_tiles_page_distinguishes_plan_from_provider_state(self):
         s = self.surface

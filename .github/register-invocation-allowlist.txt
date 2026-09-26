@@ -30,7 +30,7 @@ szl_gor_audit               # wired via a string-name dynamic register loop in s
 szl_governance_gateway      # wired via a string-name dynamic register loop in serve.py (dynamic import)
 szl_mission_ledger          # wired via a string-name dynamic register loop in serve.py (dynamic import)
 szl_sovereign_search        # wired via a string-name dynamic register loop in serve.py (dynamic import)
-a11oy_uds_portability_nav   # wired via a string-name dynamic nav-injection loop in serve.py (dynamic import)
+a11oy_uds_portability_nav   # intentionally NOT mounted (2026-09-25): its nav target /uds-portability is not served (szl_uds_portability.py is not COPY'd or registered)
 a11oy_khipu_demo_nav        # wired via a string-name dynamic nav-injection loop in serve.py (dynamic import)
 a11oy_quant_signals_nav     # wired via a string-name dynamic nav-injection loop in serve.py (dynamic import)
 a11oy_waqay_nav             # wired via a string-name dynamic nav-injection loop in serve.py (dynamic import)
@@ -53,7 +53,7 @@ szl_qhawaq                  # register()/helpers consumed by szl_nemo_agents (no
 szl_waqay                   # register()/helpers consumed by a11oy_org_rag, szl_nemo_agents, szl_yupay (not an entrypoint surface)
 szl_willay_gateway          # register()/helpers consumed by szl_nemo_agents, szl_waqay (not an entrypoint surface)
 szl_yupay                   # register()/helpers consumed by szl_nemo_agents, szl_uds_portability (not an entrypoint surface)
-szl_uds_portability         # register()/helpers consumed by szl_yupay; UDS portability nav is wired via a11oy_uds_portability_nav
+szl_uds_portability         # register()/helpers consumed by szl_yupay; not COPY'd or registered, so /uds-portability is not served and its nav injector a11oy_uds_portability_nav is un-mounted (2026-09-25)
 szl_scitt                   # SCITT register()/helpers consumed by szl_governed_api (governed-inference), which IS wired in serve.py
 szl_deepdive_gaps           # register() belongs to the organs/amaru sub-service entrypoint (organs/amaru/serve.py), not the a11oy root entrypoint
 szl_prod_hardening          # HTTP-hardening helpers consumed by szl_observability (which IS wired); not a standalone surface

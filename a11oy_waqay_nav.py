@@ -50,8 +50,8 @@ def _build_nav_block() -> bytes:
 def _build_rel_strip() -> bytes:
     """A small honest strip on the /waqay page linking back to related surfaces.
     Inline-styled (0 CDN)."""
-    rel = [("/willay", "WILLAY — Safety Gateway"), ("/restraint", "Restraint"),
-           ("/governance-gateway", "Governance Gateway"), ("/about/thesis", "Thesis / Yachay")]
+    rel = [("/willay", "WILLAY — Safety Gateway"), ("/restraint-bench", "Restraint"),
+           ("/governance-gateway", "Governance Gateway")]
     links = "".join(
         '<a href="%s" style="color:#39d8c8;text-decoration:none;margin:0 .55em;'
         'white-space:nowrap">%s</a>' % (p, l) for p, l in rel)

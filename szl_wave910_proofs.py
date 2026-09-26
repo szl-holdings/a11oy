@@ -479,7 +479,7 @@ CARDS: list[dict[str, Any]] = [
         "status": "PROVEN", "partial": False,
         "axioms": "'no_zero_eigenvalue' / 'nonsingular_of_strict_diag_dominant' / 'isUnit_det_of_strict_diag_dominant' depends on axioms: [propext, Classical.choice, Quot.sound]",
         "source": "Gershgorin circle theorem (1931); Mathlib Matrix.Spectrum",
-        "source_url": "https://leanprover-community.github.io/mathlib4_docs/Mathlib/LinearAlgebra/Matrix/Spectrum.html",
+        "source_url": "https://leanprover-community.github.io/mathlib4_docs/Mathlib/Analysis/Matrix/Spectrum.html",
         "lean_file": "Lutar/Wave9/Gershgorin.lean",
         "tab": "governance gate — matrix-health pre-flight (RUN before aggregating)",
         "benefit": "Real pre-aggregation safety gate: certifies the trust-weight matrix is invertible before a trust update, preventing a degenerate (collapsing) aggregation.",

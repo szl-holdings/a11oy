@@ -53,7 +53,7 @@ def _build_rel_strip() -> bytes:
     """A small honest strip on the /yupay page linking back to related surfaces.
     Inline-styled (0 CDN)."""
     rel = [("/waqay", "WAQAY — Sovereign Memory"), ("/willay", "WILLAY — Safety Gateway"),
-           ("/restraint", "Restraint"), ("/about/thesis", "Thesis / Yachay")]
+           ("/restraint-bench", "Restraint")]
     links = "".join(
         '<a href="%s" style="color:#39d8c8;text-decoration:none;margin:0 .55em;'
         'white-space:nowrap">%s</a>' % (p, l) for p, l in rel)

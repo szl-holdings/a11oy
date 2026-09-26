@@ -7884,7 +7884,8 @@ for _navmod, _navlabel in (
     ("a11oy_willay_nav", "WILLAY"),
     ("a11oy_waqay_nav", "WAQAY"),
     ("a11oy_yupay_nav", "YUPAY"),
-    ("a11oy_uds_portability_nav", "UDS Portability"),
+    # a11oy_uds_portability_nav is not mounted: its target /uds-portability is not
+    # served (szl_uds_portability.py is not COPY'd or registered), so the nav item 404'd.
     ("a11oy_khipu_demo_nav", "Khipu Demo"),
     ("a11oy_quant_signals_nav", "Quant Signals"),
 ):
