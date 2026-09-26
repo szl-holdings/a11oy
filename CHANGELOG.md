@@ -9,20 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed - proof-scope keys: catalog rows never carry the kernel name
-- `GET /api/a11oy/v1/org/overview` no longer puts the genome catalog row count
-  under `thesis_stats.locked_proven_count`, the key every other producer uses
-  for the Lean-8 kernel. It is now `thesis_stats.genome_locked_proven_rows`,
-  next to `genome_locked_proven_distinct_ids`. Both are read from `genome.json`;
-  the rows include the kernel formulas listed in two quadrants. `proof_tiers`
-  is unchanged.
+### Changed - org overview catalog key renamed (breaking JSON field)
+- Breaking: `GET /api/a11oy/v1/org/overview` drops
+  `thesis_stats.locked_proven_count` (schema id unchanged,
+  `szl.a11oy.org.overview/v1`). That key carried the genome catalog row count,
+  while every other producer uses it for the Lean-8 kernel. The same value is
+  now `thesis_stats.genome_locked_proven_rows`, next to
+  `genome_locked_proven_distinct_ids`. Both are read from `genome.json`; the
+  rows include the kernel formulas listed in two quadrants. `proof_tiers` is
+  unchanged. The only in-repo consumer, `a11oy_landing.html`, moves with it.
+
+### Fixed - proof scopes: catalog rows never carry the kernel name
 - The home catalog note reads `proof_tiers.genome_locked_proven` only (the
   kernel value can no longer fall into `#pt-genome-locked`), says "rows", and
   shows the distinct-id count.
+- The 3D frontier surface's ecosystem card (`static/3d/surfaces/frontier.js`)
+  no longer labels the genome LOCKED-PROVEN row count "locked-proven" or calls
+  it "machine-proven". It says "catalog rows tagged LOCKED-PROVEN (not the
+  kernel)" and shows the distinct ids in those rows.
+- The `/formulas/wired` genome badge says "genome LOCKED-PROVEN rows: N
+  (catalog, not the kernel)".
 - `/honest` adds a read-only `scopes` legend: kernel (`locked_formula_count`,
-  Lean `locked_count_eight`) and genome catalog (`/api/a11oy/v1/genome`, row
-  counts read from `genome.json`, N/A when unavailable). The kernel count stays
-  8. Λ stays Conjecture 1.
+  Lean `Lutar.Wave8.AxiomDisclosure.locked_count_eight`, as cited by the formula
+  registry) and genome catalog (`/api/a11oy/v1/genome`, row counts read from
+  `genome.json`, N/A when unavailable). The kernel count stays 8. Λ stays
+  Conjecture 1.
 
 ### Fixed - receipt-record count and read-only pcai/run
 - `GET /api/a11oy/v1/pcai/run` no longer appends a MODELED probe to the

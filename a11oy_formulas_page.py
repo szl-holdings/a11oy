@@ -220,7 +220,7 @@ document.querySelectorAll('.tryit').forEach(function(btn) {{
     var tc = d.tier_counts || d.tiers || {{}};
     var keys = Object.keys(tc);
     var lp = tc['LOCKED-PROVEN'];
-    gt.textContent = (typeof lp === 'number') ? ('genome LOCKED-PROVEN: ' + lp) : ('live (' + r.status + ')');
+    gt.textContent = (typeof lp === 'number') ? ('genome LOCKED-PROVEN rows: ' + lp + ' (catalog, not the kernel)') : ('live (' + r.status + ')');
     gt.className = 'badge';
     gout.textContent = keys.length
       ? keys.map(function(k) {{ return k + ': ' + tc[k]; }}).join('\\n')

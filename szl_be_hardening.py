@@ -144,59 +144,6 @@ def huggingface_hub_version() -> str:
         return version.strip()
     return "UNAVAILABLE"
 
-
-def proof_scopes() -> Dict[str, Any]:
-    """Read-only legend for the two proof counts people see (served on /honest).
-
-    kernel: the Lean locked-proven count from DOCTRINE_LOCK (Lean theorem
-    locked_count_eight in szl-holdings/lutar-lean Lutar/Wave11/AxiomDisclosure.lean).
-    genome_catalog: the genome registry served at
-    /api/a11oy/v1/genome. Its LOCKED-PROVEN figure is a ROW count, and one id can be
-    listed in more than one quadrant. Catalog numbers are read from genome.json
-    through szl_org_lambda (the same reader /org/overview uses) and are N/A when
-    that read is unavailable. None of them is written into this file.
-    """
-    kernel_ids = list(DOCTRINE_LOCK.get("locked_formula_ids") or [])
-    kernel = {
-        "count": DOCTRINE_LOCK.get("locked_formula_count"),
-        "ids": kernel_ids,
-        "fields": ["locked_formula_count", "locked_formula_ids"],
-        "lean": "locked_count_eight",
-        "lean_file": "szl-holdings/lutar-lean:Lutar/Wave11/AxiomDisclosure.lean",
-        "is_kernel": True,
-    }
-    catalog: Dict[str, Any] = {
-        "source": "/api/a11oy/v1/genome",
-        "fields": ["count", "tier_counts.LOCKED-PROVEN"],
-        "is_kernel": False,
-        "unit": "rows (one id can be listed in more than one quadrant), not distinct theorems",
-        "status": "N/A",
-        "count": "N/A",
-        "locked_proven_rows": "N/A",
-        "locked_proven_distinct_ids": "N/A",
-        "kernel_id_rows": "N/A",
-        "kernel_id_quadrants": [],
-    }
-    try:
-        from szl_org_lambda import _genome_tiers, _kernel_rows
-        g = _genome_tiers()
-    except Exception as exc:  # noqa: BLE001 - honest degrade, never fabricate
-        g = {"status": "N/A", "reason": f"genome reader unavailable: {exc!r}"}
-    if g.get("status") == "OK":
-        k_rows, _, k_quads = _kernel_rows(g, kernel_ids)
-        catalog.update({
-            "status": "OK",
-            "count": g.get("total", "N/A"),
-            "locked_proven_rows": g.get("counts", {}).get("LOCKED-PROVEN", "N/A"),
-            "locked_proven_distinct_ids": g.get("distinct_ids", {}).get("LOCKED-PROVEN", "N/A"),
-            "kernel_id_rows": k_rows,
-            "kernel_id_quadrants": k_quads,
-        })
-    else:
-        catalog["reason"] = g.get("reason", "genome catalog unavailable")
-    return {"kernel": kernel, "genome_catalog": catalog}
-
-
 _GENESIS = "0" * 64
 # DEMO-FLOOR RATE-LIMIT FIX (2026-06-17): the per-IP limiter previously capped
 # EVERYTHING at 60/min, including the human-facing HTML showcase pages (/, /frontier,
@@ -1238,3 +1185,58 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
     report["ok"] = True
     logger.info("hardening registered", extra={"trace_id": "boot", "span_id": "boot"})
     return report
+
+
+def proof_scopes() -> Dict[str, Any]:
+    """Read-only legend for the two proof counts people see (served on /honest).
+
+    kernel: the Lean locked-proven count from DOCTRINE_LOCK. The Lean pointer is the
+    one formula_registry/formula-registry.v1.json cites as
+    payload.formal_source.locked_count_theorem
+    (Lutar.Wave8.AxiomDisclosure.locked_count_eight in szl-holdings/lutar-lean).
+    genome_catalog: the genome registry served at
+    /api/a11oy/v1/genome. Its LOCKED-PROVEN figure is a ROW count, and one id can be
+    listed in more than one quadrant. Catalog numbers are read from genome.json
+    through szl_org_lambda (the same reader /org/overview uses) and are N/A when
+    that read is unavailable. None of them is written into this file.
+    """
+    kernel_ids = list(DOCTRINE_LOCK.get("locked_formula_ids") or [])
+    kernel = {
+        "count": DOCTRINE_LOCK.get("locked_formula_count"),
+        "ids": kernel_ids,
+        "fields": ["locked_formula_count", "locked_formula_ids"],
+        "lean": "locked_count_eight",
+        "lean_theorem": "Lutar.Wave8.AxiomDisclosure.locked_count_eight",
+        "lean_file": "szl-holdings/lutar-lean:Lutar/Wave8/AxiomDisclosure.lean",
+        "is_kernel": True,
+    }
+    catalog: Dict[str, Any] = {
+        "source": "/api/a11oy/v1/genome",
+        "fields": ["count", "tier_counts.LOCKED-PROVEN"],
+        "is_kernel": False,
+        "unit": "rows (one id can be listed in more than one quadrant), not distinct theorems",
+        "status": "N/A",
+        "count": "N/A",
+        "locked_proven_rows": "N/A",
+        "locked_proven_distinct_ids": "N/A",
+        "kernel_id_rows": "N/A",
+        "kernel_id_quadrants": [],
+    }
+    try:
+        from szl_org_lambda import _genome_tiers, _kernel_rows
+        g = _genome_tiers()
+    except Exception as exc:  # noqa: BLE001 - honest degrade, never fabricate
+        g = {"status": "N/A", "reason": f"genome reader unavailable: {exc!r}"}
+    if g.get("status") == "OK":
+        k_rows, _, k_quads = _kernel_rows(g, kernel_ids)
+        catalog.update({
+            "status": "OK",
+            "count": g.get("total", "N/A"),
+            "locked_proven_rows": g.get("counts", {}).get("LOCKED-PROVEN", "N/A"),
+            "locked_proven_distinct_ids": g.get("distinct_ids", {}).get("LOCKED-PROVEN", "N/A"),
+            "kernel_id_rows": k_rows,
+            "kernel_id_quadrants": k_quads,
+        })
+    else:
+        catalog["reason"] = g.get("reason", "genome catalog unavailable")
+    return {"kernel": kernel, "genome_catalog": catalog}

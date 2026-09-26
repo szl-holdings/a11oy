@@ -79,7 +79,7 @@ const S = {
   scale: { exps: null, state: "init" },
   conj: { count: null, first: null, state: "init" },
   pubs: { locked: null, lockedCount: null, expKernel: null, lambda: null, state: "init" },
-  eco: { count: null, tiers: null, state: "init" },
+  eco: { count: null, tiers: null, lpIds: null, state: "init" },
 };
 
 // =========================================================================================
@@ -406,7 +406,9 @@ function _onEn(j) { S.en.summary = j.summary || null; S.en.measured = j.measured
 function _onScale(j) { if (Array.isArray(j.exponents)) S.scale.exps = j.exponents; _updateScaling(); _paintScale(); }
 function _onConj(j) { S.conj.count = j.count != null ? j.count : (Array.isArray(j.conjectures) ? j.conjectures.length : null); S.conj.first = (Array.isArray(j.conjectures) && j.conjectures[0]) ? (j.conjectures[0].id || null) : null; _paintConj(); }
 function _onPubs(j) { const d = j.doctrine || j; S.pubs.locked = Array.isArray(d.locked_proven) ? d.locked_proven : null; S.pubs.lockedCount = d.locked_count != null ? d.locked_count : (S.pubs.locked ? S.pubs.locked.length : null); S.pubs.expKernel = d.experimental_kernel || null; S.pubs.lambda = d.lambda_status || null; _updatePubs(); _paintPubs(); }
-function _onEco(j) { S.eco.count = j.count != null ? j.count : null; S.eco.tiers = (j.tier_counts && typeof j.tier_counts === "object") ? j.tier_counts : null; _updateEco(); _paintEco(); }
+// /genome tier_counts count catalog ROWS, and one id can be listed in more than one quadrant, so
+// the LOCKED-PROVEN rows are shown next to their distinct ids and never as the Lean-8 kernel.
+function _onEco(j) { S.eco.count = j.count != null ? j.count : null; S.eco.tiers = (j.tier_counts && typeof j.tier_counts === "object") ? j.tier_counts : null; S.eco.lpIds = Array.isArray(j.entries) ? new Set(j.entries.filter((e) => e && e.tag === "LOCKED-PROVEN" && e.id != null).map((e) => String(e.id))).size : null; _updateEco(); _paintEco(); }
 
 // =========================================================================================
 // geometry updaters
@@ -524,7 +526,7 @@ function _buildOverlay() {
   _overlay.appendChild(_card("sovereign-compute", "#6fb1ff", _badges.sc, [["scmp-summary", "posture"], ["scmp-sovereign", "on our GPU?"], ["scmp-caps", "capabilities"]], "sovereign:true ONLY on a real local-GPU probe. Prime Intellect prime/OpenDiLoCo (Apache-2, Streaming DiLoCo arXiv:2501.18512) \u00b7 NVIDIA nvtrust H100 TEE \u00b7 vLLM. never faked green."));
   _overlay.appendChild(_card("conjecture", "#d7b96b", _badges.conj, [["conj-count", "open conjectures"], ["conj-first", "latest id"]], "Factory output is a set of OPEN conjectures \u2014 generated, NOT proven. Signatures attest timestamp + content, not truth. Conjecture 1 (unconditional \u039b uniqueness) remains OPEN."));
   _overlay.appendChild(_card("publications", "#9fd0ff", _badges.pubs, [["pubs-locked", "locked-proven"], ["pubs-lambda", "\u039b status"], ["pubs-kernel", "experimental kernel"]], "SZL corpus: 41 Zenodo DOIs, thesis v1\u2192v25 (Ouroboros \u2192 Lutar Invariant \u2192 GPD), ORCID 0009-0001-0110-4173. Locked-proven read live; \u039b = Conjecture 1 (unconditional machine-checked FALSE)."));
-  _overlay.appendChild(_card("ecosystem", "#3af4c8", _badges.eco, [["eco-count", "governed capabilities"], ["eco-proven", "locked-proven"], ["eco-mix", "honesty mix"]], "The investor/consumer headline: the live governed-capability genome (/genome). 5-tier honesty mix read VERBATIM \u2014 what is proven vs evidence-backed vs conjecture. The honest mix IS the diligence signal."));
+  _overlay.appendChild(_card("ecosystem", "#3af4c8", _badges.eco, [["eco-count", "genome catalog rows"], ["eco-proven", "catalog rows tagged LOCKED-PROVEN (not the kernel)"], ["eco-proven-ids", "distinct ids in those rows"], ["eco-mix", "rows per tag LP/SV/EB/CJ"]], "The investor/consumer headline: the live genome catalog (/genome). 5-tier honesty mix read VERBATIM. Every count here is catalog ROWS, and one id can be listed in more than one quadrant. LOCKED-PROVEN rows are a catalog tag, not the Lean-8 kernel (that is the publications card). The honest mix IS the diligence signal."));
 
   // fold the whole control + badge/card cluster into the collapsible showcase body
   // (the showcase provides the title bar + honesty legend; footnote moved to citations).
@@ -548,7 +550,7 @@ async function _enterLookingGlass(btn) {
 // Toggles a one-line human explanation under each organ card. Every explanation quotes the SAME
 // live value the technical KPI shows; nothing is invented and no honesty label is upgraded.
 function _plainText() {
-  const mix = S.eco.tiers ? `${S.eco.tiers["LOCKED-PROVEN"] || 0} machine-proven, ${S.eco.tiers["evidence-backed"] || 0} evidence-backed, ${S.eco.tiers["CONJECTURE"] || 0} still open of ${S.eco.count || "?"}` : "loading the live capability mix";
+  const mix = S.eco.tiers ? `${S.eco.tiers["LOCKED-PROVEN"] || 0} catalog rows tagged LOCKED-PROVEN (${S.eco.lpIds != null ? S.eco.lpIds : "N/A"} distinct ids; not the kernel), ${S.eco.tiers["evidence-backed"] || 0} evidence-backed, ${S.eco.tiers["CONJECTURE"] || 0} still open` : "loading the live catalog mix";
   return {
     entanglement: `Two linked qubits share ${fx(S.ent.entropy, 2)} bits of entanglement (concurrence ${fx(S.ent.concurrence, 2)}). Plain: a rigorous, textbook quantum-information measure computed live \u2014 not a claim, a calculation.`,
     neuroplasticity: `The learning rule strengthens a connection by ${fx(S.neu.dw, 3)} (${S.neu.kind || "\u2014"}); plasticity health ${S.neu.health != null ? fx(S.neu.health, 2) : "\u2014"}. Plain: how the agent keeps learning without forgetting.`,
@@ -558,7 +560,7 @@ function _plainText() {
     "sovereign-compute": `Running on: ${S.sc.summary || "\u2014"} (on our own GPU: ${S.sc.sovereign_any ? "yes" : "not yet \u2014 managed"}). Plain: we say \u201Con our GPU\u201D only when a real probe confirms it.`,
     conjecture: `${S.conj.count != null ? S.conj.count : "\u2014"} open conjecture(s) generated. Plain: machine-generated open problems \u2014 signed for timestamp, never claimed as proven.`,
     publications: `Locked-proven set: ${S.pubs.locked ? S.pubs.locked.join(", ") : "\u2014"}; \u039b = ${S.pubs.lambda || "Conjecture 1"}. Plain: 41 published papers (v1\u2192v25); only ${S.pubs.lockedCount != null ? S.pubs.lockedCount : "a few"} results are machine-proven \u2014 the rest are honestly labeled.`,
-    ecosystem: `${S.eco.count != null ? S.eco.count : "\u2014"} governed capabilities: ${mix}. Plain: the honest scorecard \u2014 what is proven vs evidence-backed vs still a conjecture. The mix itself is the diligence signal.`,
+    ecosystem: `${S.eco.count != null ? S.eco.count : "\u2014"} genome catalog rows: ${mix}. Plain: the honest scorecard of how each catalog row is tagged. The machine-proven kernel is the publications card's locked-proven set, not this row count. The mix itself is the diligence signal.`,
   };
 }
 function _applyPlain() {
@@ -630,7 +632,7 @@ function _paintEn() { const t = _tok(S.en.state); _set("en-jtoken", t || (S.en.j
 function _paintScale() { const t = _tok(S.scale.state); _set("sc-exps", t || (S.scale.exps ? S.scale.exps.slice(0, 4).map((e) => (e.exponent != null ? e.exponent : "?")).join(", ") + (S.scale.exps.length > 4 ? "\u2026" : "") : "\u2014")); }
 function _paintConj() { const t = _tok(S.conj.state); _set("conj-count", t || (S.conj.count != null ? String(S.conj.count) : "\u2014")); _set("conj-first", t || (S.conj.first ? String(S.conj.first).slice(0, 10) : "\u2014")); }
 function _paintPubs() { const t = _tok(S.pubs.state); _set("pubs-locked", t || (S.pubs.locked ? S.pubs.locked.join(",") : (S.pubs.lockedCount != null ? String(S.pubs.lockedCount) : "\u2014"))); _set("pubs-lambda", t || (S.pubs.lambda ? (S.pubs.lambda.length > 18 ? S.pubs.lambda.slice(0, 17) + "\u2026" : S.pubs.lambda) : "Conjecture 1")); _set("pubs-kernel", t || (S.pubs.expKernel || "\u2014")); if (_plain) _applyPlain(); }
-function _paintEco() { const t = _tok(S.eco.state); _set("eco-count", t || (S.eco.count != null ? String(S.eco.count) : "\u2014")); _set("eco-proven", t || (S.eco.tiers ? String(S.eco.tiers["LOCKED-PROVEN"] || 0) : "\u2014")); _set("eco-mix", t || (S.eco.tiers ? `${S.eco.tiers["LOCKED-PROVEN"] || 0}/${S.eco.tiers["SEMANTIC-VERIFIED"] || 0}/${S.eco.tiers["evidence-backed"] || 0}/${S.eco.tiers["CONJECTURE"] || 0}` : "\u2014")); if (_plain) _applyPlain(); }
+function _paintEco() { const t = _tok(S.eco.state); _set("eco-count", t || (S.eco.count != null ? String(S.eco.count) : "\u2014")); _set("eco-proven", t || (S.eco.tiers ? String(S.eco.tiers["LOCKED-PROVEN"] || 0) : "\u2014")); _set("eco-proven-ids", t || (S.eco.lpIds != null ? String(S.eco.lpIds) : (S.eco.tiers ? "N/A" : "\u2014"))); _set("eco-mix", t || (S.eco.tiers ? `${S.eco.tiers["LOCKED-PROVEN"] || 0}/${S.eco.tiers["SEMANTIC-VERIFIED"] || 0}/${S.eco.tiers["evidence-backed"] || 0}/${S.eco.tiers["CONJECTURE"] || 0}` : "\u2014")); if (_plain) _applyPlain(); }
 
 // =========================================================================================
 function unmount() {
@@ -649,7 +651,7 @@ function unmount() {
   S.en = { jtoken: null, carbon: null, jlabel: null, measured: null, total: null, state: "init" };
   S.scale = { exps: null, state: "init" }; S.conj = { count: null, first: null, state: "init" };
   S.pubs = { locked: null, lockedCount: null, expKernel: null, lambda: null, state: "init" };
-  S.eco = { count: null, tiers: null, state: "init" };
+  S.eco = { count: null, tiers: null, lpIds: null, state: "init" };
   _stage = _THREE = _ctx = null;
 }
 

@@ -502,8 +502,9 @@ def org_overview() -> dict:
         k_rows, k_ids, k_quads = _kernel_rows(genome, kernel_ids)
         catalog_rows_note = (
             f"genome catalog ROWS tagged LOCKED-PROVEN ({_tier('LOCKED-PROVEN')} rows, "
-            f"{_distinct('LOCKED-PROVEN')} distinct ids). {k_rows} of those rows are the "
-            f"{k_ids} kernel formulas, listed in {', '.join(k_quads) or 'N/A'}. Not the "
+            f"{_distinct('LOCKED-PROVEN')} distinct ids). {k_rows} of those rows list "
+            f"{k_ids} of the {kernel_count} kernel formulas, in "
+            f"{', '.join(k_quads) or 'N/A'}. Not the "
             f"kernel count: the kernel locked-proven Lean baseline is "
             f"locked_formula_count={kernel_count} from /api/a11oy/v1/honest "
             f"(proof_tiers.locked)")

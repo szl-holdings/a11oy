@@ -591,9 +591,38 @@ def test_landing_catalog_slot_never_falls_back_to_kernel():
     )
 
 
+def test_frontier_ecosystem_card_counts_catalog_rows_not_kernel():
+    """F7: the 3D frontier surface (loaded by static/3d/holographic.html) paints
+    /genome tier_counts['LOCKED-PROVEN'] into its ecosystem card. That figure is a
+    catalog ROW count. On this surface 'locked-proven' and 'machine-proven' name the
+    Lean-8 kernel (publications card), so the catalog figure never carries them."""
+    js = (ROOT / "static" / "3d" / "surfaces" / "frontier.js").read_text(encoding="utf-8")
+    labels = dict(re.findall(r'\["(eco-[a-z-]+)", "([^"]*)"\]', js))
+    assert labels["eco-count"] == "genome catalog rows"
+    assert labels["eco-proven"] == "catalog rows tagged LOCKED-PROVEN (not the kernel)"
+    assert labels["eco-proven-ids"] == "distinct ids in those rows"
+    catalog_lines = [ln for ln in js.splitlines() if 'tiers["LOCKED-PROVEN"]' in ln]
+    assert catalog_lines, "ecosystem card no longer reads tier_counts['LOCKED-PROVEN']"
+    for ln in catalog_lines:
+        assert "machine-proven" not in ln
+        assert "locked-proven" not in ln
+    mix = re.search(r"const mix = (.*)", js).group(1)
+    assert "catalog rows tagged LOCKED-PROVEN" in mix and "not the kernel" in mix
+    assert "S.eco.lpIds" in mix
+    on_eco = re.search(r"function _onEco\(j\) \{.*", js).group(0)
+    assert 'e.tag === "LOCKED-PROVEN"' in on_eco and "new Set(" in on_eco
+    paint_pubs = re.search(r"function _paintPubs\(\) \{.*", js).group(0)
+    assert "S.eco" not in paint_pubs
+
+    formulas = (ROOT / "a11oy_formulas_page.py").read_text(encoding="utf-8")
+    assert "'genome LOCKED-PROVEN rows: ' + lp + ' (catalog, not the kernel)'" in formulas
+
+
 def test_honest_carries_proof_scopes_legend():
     """/honest (served by szl_be_hardening) names both scopes; catalog numbers
     are read from genome.json, never the kernel slot."""
+    import json
+
     from starlette.testclient import TestClient
 
     import serve
@@ -608,6 +637,10 @@ def test_honest_carries_proof_scopes_legend():
     assert kernel["count"] == body["locked_formula_count"] == 8
     assert kernel["ids"] == _LOCKED8_IDS
     assert kernel["lean"] == "locked_count_eight"
+    registry = json.loads(
+        (ROOT / "formula_registry" / "formula-registry.v1.json").read_text(encoding="utf-8")
+    )
+    assert kernel["lean_theorem"] == registry["payload"]["formal_source"]["locked_count_theorem"]
     assert catalog["is_kernel"] is False
     assert catalog["source"] == "/api/a11oy/v1/genome"
     assert "tier_counts.LOCKED-PROVEN" in catalog["fields"]
