@@ -3033,7 +3033,7 @@
     "tag": "evidence-backed",
     "lean_ref": null,
     "powers": "Universal honesty anchor across all repos; gated by overclaim-guard in CI",
-    "notes": "DRIFT (count semantics): 749 = doctrine-claimed, 456 = source-declared (brand-bible insists on showing both, never blurring). Sorries: 163 doctrine-tracked vs 6 re-audited-root. Λ = Conjecture 1 (OPEN). Locked-proven set = exactly 8 {F1,F4,F7,F11,F12,F18,F19,F22}, machine-enforced by Lutar.Wave8.AxiomDisclosure.locked_count_eight. Experimental main corpus (~1323 decls/23 axioms) reported SEPARATELY, never folded into locked 8.",
+    "notes": "DRIFT (count semantics): 749 = doctrine-claimed, 456 = source-declared (brand-bible insists on showing both, never blurring). Sorries: 163 doctrine-tracked vs 6 re-audited-root. Λ = Conjecture 1 (OPEN). Locked-proven set = exactly 8 {F1,F4,F7,F11,F12,F18,F19,F22}, machine-enforced by Lutar.Wave8.AxiomDisclosure.locked_count_eight. Experimental main corpus reported SEPARATELY, never folded into locked 8: lutar-lean main 75a4a311 (committed 2026-09-25) measured 2026-09-25 with the canonical lean_numbers.py method (Lutar/ + Main.lean) = 2119 declarations / 34 axioms raw (33 unique) / 430 sorries raw (378 non-comment). This supersedes the main-corpus figure written 2026-06-30 (a11oy 3ba70272, #579).",
     "_quadrant": "Q4"
   },
   {

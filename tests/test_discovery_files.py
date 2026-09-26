@@ -24,6 +24,20 @@ def test_robots_and_sitemap_are_real_machine_readable_files() -> None:
     assert "<!doctype html>" not in sitemap.lower()
 
 
+def test_llms_txt_is_a_real_text_file_naming_both_origins() -> None:
+    llms = (ROOT / "console" / "llms.txt").read_text(encoding="utf-8")
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+
+    assert llms.startswith("# A11oy by SZL Holdings\n")
+    assert "https://a-11-oy.com/" in llms
+    assert "https://a11oy.net/" in llms
+    assert "https://a-11-oy.com/.well-known/security.txt" in llms
+    assert "security.szlholdings.com" not in llms
+    assert "docs.szlholdings.com" not in llms
+    assert "<!doctype html>" not in llms.lower()
+    assert "COPY console/ ./static/" in dockerfile
+
+
 def test_security_txt_is_canonical_and_copied_into_runtime_static_tree() -> None:
     security = (ROOT / ".well-known" / "security.txt").read_text(encoding="utf-8")
     dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")

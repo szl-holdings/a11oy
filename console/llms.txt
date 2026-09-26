@@ -1,0 +1,27 @@
+# A11oy by SZL Holdings
+
+> Product origin for A11oy. Dated evidence and RECORD pages live on the separate proof origin, a11oy.net.
+
+Origins:
+- Product origin (this host): https://a-11-oy.com/
+- Proof origin (RECORD; not product runtime): https://a11oy.net/
+- Proof origin machine index: https://a11oy.net/llms.txt
+
+Public paths on this origin:
+- Command console: https://a-11-oy.com/console
+- Docs index: https://a-11-oy.com/docs
+- API reference (Swagger UI): https://a-11-oy.com/api/docs
+- OpenAPI document: https://a-11-oy.com/api/a11oy/openapi.json
+- Hugging Face Spaces ledger: https://a-11-oy.com/spaces
+- Sitemap: https://a-11-oy.com/sitemap.xml
+- Security reporting (RFC 9116): https://a-11-oy.com/.well-known/security.txt
+
+Organization:
+- Product source: https://github.com/szl-holdings/a11oy
+- GitHub organization: https://github.com/szl-holdings
+- Hugging Face organization: https://huggingface.co/SZLHOLDINGS
+- Hugging Face Space: https://huggingface.co/spaces/SZLHOLDINGS/a11oy
+
+Truth boundary:
+- A link or an HTTP 200 does not prove capability, safety, quality, or uptime.
+- Lambda (Λ) uniqueness is Conjecture 1, not a theorem.

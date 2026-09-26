@@ -171,7 +171,7 @@ def _page_html(ns: str) -> str:
                 'Less code + fewer dependencies = smaller attack / maintenance surface. '
                 'Wired into Auto-Review as rule <code>AR-006-prefer-minimal-diff</code>. '
                 '<b>ALIGNS WITH / MAPS TO — NOT certified.</b> '
-                '<a href="/restraint">open Restraint →</a></p>')
+                '<a href="/restraint-bench">open Restraint →</a></p>')
         except Exception:
             _restraint_note = ""
     summ_html = " · ".join(

@@ -95,7 +95,17 @@ def _fallback_index() -> bytes:
         name = html.escape(record["name"])
         sdk = html.escape(record["sdk"])
         canonical = html.escape(_destination_url(record["slug"]), quote=True)
-        repository = html.escape(hf_repo_url(record["slug"]), quote=True)
+        if record.get("hub_unreadable"):
+            repository_html = (
+                '<small style="color:#7c8794">Hub repository not publicly readable '
+                '(checked %s); link removed</small>' % html.escape(record["hub_unreadable"])
+            )
+        else:
+            repository_html = (
+                '<a href="%s" rel="noopener" target="_blank" '
+                'style="color:#7c8794;text-decoration:none">View repository &#8599;</a>'
+                % html.escape(hf_repo_url(record["slug"]), quote=True)
+            )
         honesty_raw = record.get("honesty") or ""
         honesty = (
             ' <small style="color:#c9a23a">%s</small>' % html.escape(honesty_raw)
@@ -107,9 +117,8 @@ def _fallback_index() -> bytes:
             '<small style="color:#697787">%s &middot; %s</small>%s '
             '&middot; <a href="%s" rel="noopener" target="_blank" '
             'style="color:#d4a444;text-decoration:none">Open canonical app &#8599;</a> '
-            '&middot; <a href="%s" rel="noopener" target="_blank" '
-            'style="color:#7c8794;text-decoration:none">View repository &#8599;</a></li>'
-            % (title, name, sdk, honesty, canonical, repository)
+            '&middot; %s</li>'
+            % (title, name, sdk, honesty, canonical, repository_html)
         )
     return (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
