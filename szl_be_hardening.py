@@ -87,12 +87,44 @@ DOCTRINE_LOCK = {
     "commit": "c7c0ba17",
     "lambda": "Conjecture 1",
     "lambda_note": "Λ-Aggregator Uniqueness — Conjecture 1, NOT a closed theorem.",
-    # Locked-proven formulas = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17.
+    # Locked-proven formulas = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}. These
+    # theorems are NOT in lutar-lean at c7c0ba17 (2026-05-31). They are in
+    # Lutar/Puriq/Formulas/ProvedFormulas.lean, pinned here to lutar-lean 3a886349
+    # (main as checked 2026-09-25). That file was added 2026-06-04 (e6de491, #185)
+    # and last changed 2026-06-10 (5cfaf9a: non-vacuous F4/F7). It sits in the
+    # experimental scope that the 749/14/163 count excludes.
     # The count itself is the no-axiom theorem locked_count_eight (lutar-lean #219 +
     # platform #321, merged 2026-06-10). Surfaced here so /honest carries the canonical
     # locked-8 (count + IDs), not just 749/14/163 + Λ. Additive; never inflate.
     "locked_formula_count": 8,
     "locked_formula_ids": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
+    # How "sorries" is counted (additive labels). 163 is a raw text count that
+    # includes comments and docstrings; it is NOT the number of open proof holes.
+    # Reproduce: in a lutar-lean checkout at c7c0ba17 run
+    #   python .github/scripts/lean_numbers.py --repo-path .
+    # -> numbers.sorries_raw = 163, numbers.sorries_noncomment = 149.
+    "sorries_method": (
+        "lutar-lean .github/scripts/lean_numbers.py sorries_raw @ c7c0ba17 — "
+        "word-boundary 'sorry' text occurrences in Lutar/**+Main.lean, including "
+        "comments and docstrings; not a count of open proof obligations"
+    ),
+    # Same script, same commit: COMMENT_LINE_RE = ^\s*-- drops only lines that
+    # start with `--`, so /- -/ block and doc comments are still counted. 149 is
+    # therefore NOT the number of open proof holes either; the served label says so.
+    "sorries_noncomment": 149,
+    "sorries_noncomment_method": (
+        "same script and commit (lutar-lean .github/scripts/lean_numbers.py @ "
+        "c7c0ba17) — drops only lines whose first non-blank characters are `--`; "
+        "'sorry' text inside /- -/ block comments, /-- -/ doc comments and trailing "
+        "`--` comments after code is still counted; not a count of open proof "
+        "obligations"
+    ),
+    "locked_formula_source": (
+        "lutar-lean Lutar/Puriq/Formulas/ProvedFormulas.lean @ 3a886349 "
+        "(checked 2026-09-25; file added 2026-06-04 e6de491, last changed "
+        "2026-06-10 5cfaf9a; not present at c7c0ba17; experimental scope, "
+        "outside the 749/14/163 count)"
+    ),
 }
 DOCTRINE_FOOTER = "Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1"
 
@@ -903,7 +935,9 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
             "data_kind": "live" if (gm.get("present") or crosswalk is not None)
                          else "structural",
             "honesty": ("doctrine lock is the canonical locked-8 {F1,F4,F7,F11,F12,"
-                        "F18,F19,F22} @ c7c0ba17 (no-axiom theorem locked_count_eight). "
+                        "F18,F19,F22} (no-axiom theorem locked_count_eight); the "
+                        "theorems are in lutar-lean ProvedFormulas.lean @ 3a886349, "
+                        "not at c7c0ba17 (see doctrine_lock.locked_formula_source). "
                         "coverage is a MEASURED count of canonical crosswalk cells, "
                         "not certification; gates_manifest is summarised from disk when "
                         "present. Λ remains Conjecture 1."),
