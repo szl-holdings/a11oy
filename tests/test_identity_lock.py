@@ -596,6 +596,8 @@ def test_frontier_ecosystem_card_counts_catalog_rows_not_kernel():
     /genome tier_counts['LOCKED-PROVEN'] into its ecosystem card. That figure is a
     catalog ROW count. On this surface 'locked-proven' and 'machine-proven' name the
     Lean-8 kernel (publications card), so the catalog figure never carries them."""
+    import json
+
     js = (ROOT / "static" / "3d" / "surfaces" / "frontier.js").read_text(encoding="utf-8")
     labels = dict(re.findall(r'\["(eco-[a-z-]+)", "([^"]*)"\]', js))
     assert labels["eco-count"] == "genome catalog rows"
@@ -609,6 +611,18 @@ def test_frontier_ecosystem_card_counts_catalog_rows_not_kernel():
     mix = re.search(r"const mix = (.*)", js).group(1)
     assert "catalog rows tagged LOCKED-PROVEN" in mix and "not the kernel" in mix
     assert "S.eco.lpIds" in mix
+    # The sentence prefixes "<count> genome catalog rows:", so it names every tag
+    # genome.json carries and its parts add up to that total.
+    genome_tags = {(e or {}).get("tag") for e in json.loads(
+        (ROOT / "data" / "genome.json").read_text(encoding="utf-8"))}
+    for tag in genome_tags:
+        assert f'S.eco.tiers["{tag}"]' in mix, tag
+    # The card shows one count of ids (eco-proven-ids), so its footnote must not
+    # say that every count on it is rows.
+    footnote = re.search(r'_card\("ecosystem".*\]\], "([^"]*)"\)\);', js).group(1)
+    assert "Every count here" not in footnote
+    assert "every tier count here are catalog ROWS" in footnote
+    assert "the distinct-ids KPI counts ids, not rows" in footnote
     on_eco = re.search(r"function _onEco\(j\) \{.*", js).group(0)
     assert 'e.tag === "LOCKED-PROVEN"' in on_eco and "new Set(" in on_eco
     paint_pubs = re.search(r"function _paintPubs\(\) \{.*", js).group(0)
@@ -630,7 +644,9 @@ def test_honest_carries_proof_scopes_legend():
     body = TestClient(serve.app, raise_server_exceptions=False).get(
         "/api/a11oy/v1/honest"
     ).json()
-    scopes = body["scopes"]
+    # "scopes" means auth permissions elsewhere in this repo (gdw_auth).
+    assert "scopes" not in body
+    scopes = body["proof_scopes"]
     kernel = scopes["kernel"]
     catalog = scopes["genome_catalog"]
     assert kernel["is_kernel"] is True
@@ -666,6 +682,40 @@ def test_proof_scopes_degrades_to_na_without_genome(monkeypatch):
     for key in ("count", "locked_proven_rows", "locked_proven_distinct_ids", "kernel_id_rows"):
         assert catalog[key] == "N/A"
     assert be.proof_scopes()["kernel"]["count"] == 8
+
+
+def test_genome_tiers_cache_follows_the_file(tmp_path, monkeypatch):
+    """/honest reads the catalog on every request, so the parse is cached. The cache
+    must follow the file and must not hand out a shared, mutable summary."""
+    import json
+
+    import szl_org_lambda as org
+
+    genome = tmp_path / "genome.json"
+    genome.write_text(json.dumps([{"id": "F1", "tag": "LOCKED-PROVEN", "_quadrant": "Q1"}]),
+                      encoding="utf-8")
+    monkeypatch.setattr(org, "_GENOME_CANDIDATES", (genome,))
+    monkeypatch.setattr(org, "_GENOME_TIERS_CACHE", {})
+    first = org._genome_tiers()
+    assert first["counts"] == {"LOCKED-PROVEN": 1}
+    first["counts"]["LOCKED-PROVEN"] = 99
+    first["locked_rows"].clear()
+    again = org._genome_tiers()
+    assert again["counts"] == {"LOCKED-PROVEN": 1}
+    assert again["locked_rows"] == [("F1", "Q1")]
+
+    genome.write_text(json.dumps([
+        {"id": "F1", "tag": "LOCKED-PROVEN", "_quadrant": "Q1"},
+        {"id": "F1", "tag": "LOCKED-PROVEN", "_quadrant": "Q2"},
+        {"id": "X-1", "tag": "CONJECTURE"},
+    ]), encoding="utf-8")
+    changed = org._genome_tiers()
+    assert changed["total"] == 3
+    assert changed["counts"] == {"LOCKED-PROVEN": 2, "CONJECTURE": 1}
+    assert changed["distinct_ids"]["LOCKED-PROVEN"] == 1
+
+    genome.write_text("not json", encoding="utf-8")
+    assert org._genome_tiers()["status"] == "N/A"
 
 
 def _script_bodies(html: str) -> str:

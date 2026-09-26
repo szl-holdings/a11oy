@@ -26,14 +26,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The 3D frontier surface's ecosystem card (`static/3d/surfaces/frontier.js`)
   no longer labels the genome LOCKED-PROVEN row count "locked-proven" or calls
   it "machine-proven". It says "catalog rows tagged LOCKED-PROVEN (not the
-  kernel)" and shows the distinct ids in those rows.
+  kernel)" and shows the distinct ids in those rows. Its footnote says the
+  catalog total and tier counts are rows and the distinct-ids KPI counts ids,
+  and its plain-language line names all five tags, so the parts add up to the
+  catalog total.
 - The `/formulas/wired` genome badge says "genome LOCKED-PROVEN rows: N
   (catalog, not the kernel)".
-- `/honest` adds a read-only `scopes` legend: kernel (`locked_formula_count`,
-  Lean `Lutar.Wave8.AxiomDisclosure.locked_count_eight`, as cited by the formula
+- `/honest` adds a read-only `proof_scopes` legend: kernel
+  (`locked_formula_count`, Lean
+  `Lutar.Wave8.AxiomDisclosure.locked_count_eight`, as cited by the formula
   registry) and genome catalog (`/api/a11oy/v1/genome`, row counts read from
-  `genome.json`, N/A when unavailable). The kernel count stays 8. Λ stays
-  Conjecture 1.
+  `genome.json`, N/A when unavailable). The parsed `genome.json` summary is
+  cached until the file's path, mtime or size changes. The kernel count stays
+  8. Λ stays Conjecture 1.
 
 ### Fixed - receipt-record count and read-only pcai/run
 - `GET /api/a11oy/v1/pcai/run` no longer appends a MODELED probe to the

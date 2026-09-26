@@ -836,7 +836,8 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
             "locked_formula_ids": list(DOCTRINE_LOCK.get("locked_formula_ids") or []),
             # Kernel vs genome catalog legend (read-only). Catalog LOCKED-PROVEN is
             # a row count from /api/a11oy/v1/genome, never the kernel count above.
-            "scopes": proof_scopes(),
+            # Named proof_scopes because "scopes" means auth permissions in gdw_auth.
+            "proof_scopes": proof_scopes(),
             "footer": DOCTRINE_FOOTER,
             "huggingface_hub_version": huggingface_hub_version(),
             "honest_labels": {

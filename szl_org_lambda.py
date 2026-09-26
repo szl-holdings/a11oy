@@ -52,6 +52,7 @@ stdlib-only (+ the in-repo szl_lake_store). Apache-2.0 — SZL Holdings 2026.
 
 import base64
 import binascii
+import copy
 import json
 import math
 import os
@@ -327,6 +328,11 @@ def _kernel_locked() -> tuple:
         return 8, ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]
 
 
+# /honest calls _genome_tiers() on every request (proof_scopes), so the parsed summary
+# is kept until the file's path, mtime or size changes. Callers always get a copy.
+_GENOME_TIERS_CACHE: dict = {}
+
+
 def _genome_tiers() -> dict:
     """Tier entry-counts from data/genome.json (the same file /v1/genome serves), or an
     honest N/A when the file is absent/unparseable. These are GENOME-ENTRY counts per
@@ -334,6 +340,13 @@ def _genome_tiers() -> dict:
     path = next((p for p in _GENOME_CANDIDATES if p.is_file()), None)
     if path is None:
         return {"status": "N/A", "reason": "genome.json not present in image", "counts": {}}
+    try:
+        st = path.stat()
+        key = (str(path), st.st_mtime_ns, st.st_size)
+    except OSError:
+        key = None
+    if key is not None and key in _GENOME_TIERS_CACHE:
+        return copy.deepcopy(_GENOME_TIERS_CACHE[key])
     try:
         entries = json.loads(path.read_text(encoding="utf-8"))
     except Exception as e:  # noqa: BLE001 - honest degrade, never fabricate
@@ -351,14 +364,18 @@ def _genome_tiers() -> dict:
             locked_rows.append((str(e.get("id")), e.get("_quadrant")))
     # A tag count is a ROW count: one id can appear in more than one quadrant, so
     # distinct ids per tag are reported next to it and never merged into it.
-    return {"status": "OK", "total": len(entries), "counts": counts,
-            "distinct_ids": {t: len(s) for t, s in ids.items()},
-            "locked_rows": locked_rows}
+    summary = {"status": "OK", "total": len(entries), "counts": counts,
+               "distinct_ids": {t: len(s) for t, s in ids.items()},
+               "locked_rows": locked_rows}
+    if key is not None:
+        _GENOME_TIERS_CACHE.clear()
+        _GENOME_TIERS_CACHE[key] = summary
+    return copy.deepcopy(summary)
 
 
 def _kernel_rows(genome: dict, kernel_ids) -> tuple:
     """(rows, distinct kernel ids, quadrants) of the catalog LOCKED-PROVEN rows that
-    are kernel formulas. Shared by /org/overview and the /honest scopes legend."""
+    are kernel formulas. Shared by /org/overview and the /honest proof_scopes legend."""
     kset = set(kernel_ids or [])
     rows = [(i, q) for i, q in genome.get("locked_rows", []) if i in kset]
     return len(rows), len({i for i, _ in rows}), sorted({q for _, q in rows if q})
