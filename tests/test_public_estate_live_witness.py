@@ -278,7 +278,7 @@ def lyte_surface() -> dict:
 
 def lyte_payload() -> dict:
     # Synthetic values in the producer's exact v2 identity shape; not live data.
-    # lyte-services@9ce4e6b5f36fe0b094a07308abe3665cd2a210c1
+    # lyte-services@445c24c5a2ad314775af9a463a7d26acb910a5f1
     # lyte/api/routes_health.py blob b0e981fb04d616ae8fcc076a5f4ca0bd866418f5
     repository = "szl-holdings/lyte-services"
     revision = "d" * 40
