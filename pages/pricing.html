@@ -152,7 +152,7 @@ footer a{color:var(--muted)} footer a:hover{color:var(--text)}
     <p class="eyebrow">Pricing</p>
     <h1>Verifiable evidence for agentic AI,<br>priced honestly.</h1>
     <p>a11oy puts a policy gate in front of every AI agent action and seals each decision into a
-      signed, hash-chained receipt anyone can verify offline. Four tiers below. Prices are
+      hash-chained receipt anyone can verify offline, DSSE-signed only while the runtime signer is active. Four tiers below. Prices are
       <b>founder-set launch pricing</b> — early, simple, and subject to change as we learn.</p>
     <span class="tag">Founder-set launch pricing — every receipt verifiable, every claim checkable.</span>
   </section>
@@ -193,7 +193,7 @@ footer a{color:var(--muted)} footer a:hover{color:var(--text)}
       <div class="price">$15,000<small>flat · 30 days · launch pricing</small></div>
       <ul>
         <li>One integrated agent workflow, end to end</li>
-        <li>Signed receipts on every governed action</li>
+        <li>Hash-chained receipts on every governed action; DSSE signing only while the runtime signer is active</li>
         <li>External adversarial review of the receipt claim</li>
         <li>Measurable acceptance: chain verifies offline, zero unlogged decisions</li>
         <li>Fixed price, fixed scope, fixed calendar</li>
@@ -314,18 +314,25 @@ footer a{color:var(--muted)} footer a:hover{color:var(--text)}
       deliberately simple. We have no paying customers yet and we say so; our demand signals today are
       open-source downloads, not contracts. The pilot is a fixed-fee 30-day engagement with measurable
       acceptance criteria, because the first commercial evidence this company produces should itself be
-      verifiable. Usage we meter is counted against the same signed receipts you can verify — we count
+      verifiable. Usage we meter is counted against the same hash-chained receipts you can verify — we count
       out loud, never behind a hidden paywall.
     </div>
   </section>
 
   <!-- FAQ -->
   <section class="faq wrap">
-    <div class="q"><h3>Do I have to trust your numbers?</h3><p>No. Every decision ships a signed receipt
-      you can re-verify yourself, in your own browser, at <a href="/verify">/verify</a> — including
-      anything we meter for billing.</p></div>
+    <div class="q"><h3>Do I have to trust your numbers?</h3><p>Only partly, and here is where. A receipt carries a
+      DSSE signature only while the runtime signer is active; the live signer state is <code>rollup.signer</code> at
+      <a href="/api/a11oy/healthz">/api/a11oy/healthz</a>. An active signer does not mean every receipt is signed: the
+      Khipu receipt that the public <code>/api/a11oy/v1/govern/infer</code> endpoint returns carries no DSSE
+      signature. For a signed receipt, <a href="/verify">/verify</a> checks the
+      signature on our server. Receipts in the public lake are hash-chained, and you can recompute that chain yourself
+      from <a href="/api/lake/v1/receipts">/api/lake/v1/receipts</a>, but an unsigned chain has no external anchor:
+      whoever can write the store could recompute it too. /verify never returns PASS for an unsigned receipt, and a
+      stored receipt looked up by id comes back INCONCLUSIVE, because its chain check covers only receipts held in the
+      running process.</p></div>
     <div class="q"><h3>What happens in the 30-day pilot?</h3><p>We integrate one agent workflow with the
-      evidence plane: policy gates on every action, signed hash-chained receipts, 10 mapped controls with
+      evidence plane: policy gates on every action, hash-chained receipts (DSSE-signed only while the runtime signer is active), 10 mapped controls with
       evidence links, an auditor export, and an external adversarial review that tries to break the
       receipt claim. Acceptance is measurable, in writing, up front.</p></div>
     <div class="q"><h3>Can it run fully offline?</h3><p>Yes — the Enterprise tier deploys air-gapped on

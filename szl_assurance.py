@@ -197,14 +197,20 @@ ASSURANCE_MATRIX = [
             "Λ-gate per call (advisory, Conjecture 1): every inference call passes through "
             "the Λ gate (floor 0.90 advisory). Gates: threat-signature-scan, pii-egress-guard. "
             "OTel-GenAI spans for runtime observability: partial (ROADMAP for full OTel). "
-            "Signed refusal receipts for every denied call — continuous audit trail."
+            "Refusal receipt for every denied call, hash-chained into the Khipu DAG when it is "
+            "available; DSSE-signed only on paths that sign their Khipu receipts (not "
+            "/api/a11oy/v1/govern/infer) and only while the runtime signer is active — "
+            "continuous audit trail."
         ),
         "artifact_url": "/api/a11oy/v1/gates",
         "status": "LIVE",
         "status_detail": (
             "Λ gate per call: LIVE (advisory floor, Conjecture 1). "
             "Threat/PII gates: LIVE. "
-            "Signed denial receipts: LIVE. "
+            "Denial receipts: LIVE (hash-chained into the Khipu DAG when it is available; "
+            "DSSE-signed only on paths that sign their Khipu receipts, not "
+            "/api/a11oy/v1/govern/infer, "
+            "and only while the runtime signer is active). "
             "Full OTel-GenAI span export: ROADMAP."
         ),
         "honest_caveats": (
@@ -290,7 +296,9 @@ FIT_STATEMENT = {
         "Governance overlay: policy gates (Λ, threat-scan, PII-egress) on every AI inference call.",
         "Verifiable receipt emitter: DSSE-signed Khipu receipts per decision — buyer can re-verify offline.",
         "Honest assurance evidence: data labels, model card, TEVV artifacts per call.",
-        "Refusal explainer (WILLAY): signed, auditable refusals — not black-box boolean gates.",
+        "Refusal explainer (WILLAY): auditable refusals, hash-chained into the Khipu DAG when it is "
+        "available and DSSE-signed only while the runtime signer is active — not black-box "
+        "boolean gates.",
     ],
     "what_a11oy_is_not": [
         "NOT a replacement for Advana/WDP (the authoritative DoD financial data platform).",

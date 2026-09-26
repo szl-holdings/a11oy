@@ -427,8 +427,8 @@
         The Jan-2026 DoD memo restructuring Advana into WDP calls for
         <strong>agentic AI</strong> + <strong>enhanced auditability</strong>.
         a11oy is the governance + verifiable-provenance overlay that produces
-        the auditability evidence CDAO/RMF demands — one cryptographically
-        signed receipt per AI decision, buyer-verifiable offline.
+        the auditability evidence CDAO/RMF demands — one hash-chained
+        receipt per AI decision, buyer-verifiable offline, DSSE-signed only while the runtime signer is active.
       </p>
       <div class="hero-honest">
         <span class="hero-honest-icon">⚠</span>
@@ -439,8 +439,8 @@
         </span>
       </div>
       <div class="hero-chips">
-        <span class="chip chip-live">DSSE Signed Receipts · LIVE</span>
-        <span class="chip chip-live">WebCrypto Verify · LIVE</span>
+        <span class="chip chip-info" id="signer-chip" title="Runtime signer state from /api/a11oy/healthz rollup.signer. It does not mean every receipt is signed: the Khipu receipt that /api/a11oy/v1/govern/infer returns carries no DSSE signature.">DSSE signer · checking</span>
+        <span class="chip chip-info">WebCrypto verify · signed envelopes only</span>
         <span class="chip chip-live">Policy Gates · LIVE</span>
         <span class="chip chip-roadmap">ATO / IL5 / FedRAMP · ROADMAP</span>
         <span class="chip chip-info">a11oy = Overlay · NOT Replacement</span>
@@ -506,10 +506,11 @@
     <div class="section-head">
       <div class="section-letter">C</div>
       <div>
-        <div class="section-title">Live Proof: Run → Sign → Verify Yourself</div>
+        <div class="section-title">Live Proof: Run → Receipt → Verify Yourself</div>
         <div class="section-desc">
-          Run a governed inference → receive a DSSE-signed Khipu receipt →
-          verify the ECDSA-P256 signature in-browser via WebCrypto (zero server round-trip for verification).
+          Run a governed inference → receive a hash-chained Khipu receipt → if the response carries a signed
+          DSSE envelope, verify the ECDSA-P256 signature in-browser via WebCrypto (zero server round-trip for verification).
+          The Khipu receipt that <code>/api/a11oy/v1/govern/infer</code> returns carries no DSSE signature, so this demo reports UNSIGNED.
         </div>
       </div>
     </div>
@@ -518,9 +519,10 @@
       <div class="proof-header">
         <h3>Buyer-Verifiable Inference Receipt (BVIR)</h3>
         <p>
-          Calls <code>/api/a11oy/v1/govern/infer</code>, then verifies the DSSE signature
-          in-browser using <strong>WebCrypto API</strong> against <code>/cosign.pub</code>
-          (ECDSA-P256-SHA256). SHA-256 of decoded payload is recomputed and matched.
+          Calls <code>/api/a11oy/v1/govern/infer</code>. When the response carries a signed DSSE envelope,
+          it verifies the signature in-browser using <strong>WebCrypto API</strong> against <code>/cosign.pub</code>
+          (ECDSA-P256-SHA256) and recomputes the SHA-256 of the decoded payload. That endpoint returns its
+          Khipu receipt with no DSSE envelope, so there is no signature for this demo to check.
         </p>
         <div class="proof-moat">
           "Foundry / Unity Catalog show you lineage; a11oy gives you a signature you can verify offline."
@@ -529,7 +531,7 @@
       <div class="proof-body">
         <div class="btn-row">
           <button class="btn btn-primary" id="proof-run-btn" onclick="runProof()">
-            Run Governed Decision → Get Signed Receipt → Verify
+            Run Governed Decision → Get Receipt → Check Signature
           </button>
         </div>
         <div id="proof-status" class="status-line"></div>
@@ -554,8 +556,8 @@
         <div class="section-title">WILLAY — Signed Refusals for Defense</div>
         <div class="section-desc">
           An agent that can refuse — and prove why, signed.
-          Critical for agentic AI in defense: every denial is a
-          cryptographically-signed, auditable artifact.
+          Critical for agentic AI in defense: every denial is an auditable artifact,
+          hash-chained into the Khipu DAG when it is available and DSSE-signed only while the runtime signer is active.
         </div>
       </div>
     </div>
@@ -567,16 +569,20 @@
         <div class="willay-quote">
           "They hide the governor; we sign and show it."
           Black-box decision-intelligence agents cannot prove why they refused.
-          WILLAY produces a DSSE-signed denial receipt that any auditor can verify.
+          WILLAY produces a denial receipt an auditor can check: DSSE-signed only while the runtime signer is active,
+          and hash-chained into the Khipu DAG when it is available.
         </div>
         <p>
-          Every WILLAY denial embeds: the triggering gate name, the Λ advisory score
-          (Conjecture 1 label), the hash-chain link (prev→digest), and the timestamp —
-          all under ECDSA-P256 signature. The authorization package has a machine-verifiable
+          Every WILLAY denial receipt records the category of the classifier that fired and its reasons,
+          a confidence value capped below 1.0, the doctrine's Λ label (Conjecture 1; the receipt carries
+          no Λ score), and the timestamp. That payload is under an ECDSA-P256 signature only while the
+          runtime signer is active. The hash-chain link (prev→digest) is recorded alongside the envelope,
+          in the in-process Khipu DAG, when that DAG is available; it is not inside the signed payload.
+          The authorization package has a machine-verifiable
           TEVV artifact for every denied call, not just allowed ones.
         </p>
         <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px">
-          <span class="chip chip-live">Signed denial receipts · LIVE</span>
+          <span class="chip chip-info">Denial receipts · DSSE-signed only while the signer is active; hash-chained when the Khipu DAG is available</span>
           <span class="conj">Λ Conjecture 1 — advisory</span>
           <span class="chip chip-info">Auditor-verifiable offline</span>
         </div>
@@ -882,7 +888,7 @@ async function runProof() {
   var verified = false, verifyError = '', sigKeyid = '';
 
   if (!dsse.signed) {
-    verifyError = 'UNSIGNED envelope — private key not in runtime. Receipt chain still valid.';
+    verifyError = 'UNSIGNED — no signed DSSE envelope in this response.';
   } else if (!sigs.length) {
     verifyError = 'No signatures in envelope.';
   } else {
@@ -909,7 +915,7 @@ async function runProof() {
   if(verified){
     verdictHTML='<div class="verdict-banner verdict-ok">✓ VERIFIED — WebCrypto ECDSA-P256 signature valid <span class="chip chip-ok">keyid: '+escHTML(sigKeyid)+'</span></div>';
   } else if(!dsse.signed){
-    verdictHTML='<div class="verdict-banner verdict-dim">⚠ UNSIGNED — private key not in runtime; receipt chain still valid</div>';
+    verdictHTML='<div class="verdict-banner verdict-dim">⚠ UNSIGNED — no signed DSSE envelope in this response; the receipt chain is not checked here</div>';
   } else {
     verdictHTML='<div class="verdict-banner verdict-fail">✗ VERIFICATION FAILED — '+escHTML(verifyError)+'</div>';
   }
@@ -1017,10 +1023,26 @@ async function downloadEvidencePack() {
   }
 }
 
+/* ---- signer chip: bound to the runtime rollup, never hard-coded ---- */
+async function loadSignerChip() {
+  var chip = document.getElementById('signer-chip');
+  if (!chip) return;
+  var status = 'UNAVAILABLE';
+  try {
+    var r = await fetch('/api/a11oy/healthz', {cache: 'no-store'});
+    var j = r.ok ? await r.json() : null;
+    var s = j && j.rollup && j.rollup.signer && j.rollup.signer.status;
+    if (typeof s === 'string' && s) status = s;
+  } catch (e) { /* stays UNAVAILABLE */ }
+  chip.textContent = 'DSSE signer · ' + (status === 'DSSE-LIVE' ? 'LIVE (runtime)' : status);
+  chip.className = 'chip ' + (status === 'DSSE-LIVE' ? 'chip-live' : 'chip-dim');
+}
+
 /* ---- boot ---- */
 window.addEventListener('DOMContentLoaded', function() {
   loadMatrix();
   checkFit();
+  loadSignerChip();
 });
 </script>
 
