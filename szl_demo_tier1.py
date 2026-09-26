@@ -8,7 +8,8 @@ Three demo-ready, formula-grounded, honestly-labeled endpoints:
 
   GET  /api/a11oy/v1/demo/thesis
        → The 8 PROVEN formulas (Lean statements verbatim), 3-tier corpus, live doctrine.
-         Honest labels: kernel-verified sorry-free @ c7c0ba17, locked_count_eight.
+         Honest labels: sorry-free, Lean-core only — lutar-lean ProvedFormulas.lean @ 3a886349 (not present at c7c0ba17),
+         locked_count_eight.
          Λ = Conjecture 1 (advisory; NOT a theorem).
          Khipu BFT = Conjecture 2. We never claim 183 proven.
 
@@ -200,76 +201,98 @@ def _remote_inference(prompt: str) -> tuple[str | None, dict, str]:
     return None, {"reason": f"All providers failed: {last_err}"}, "SAMPLE-STUB"
 
 # ---------------------------------------------------------------------------
-# The 8 PROVEN formulas — kernel-verified, sorry-free @ c7c0ba17
+# The 8 PROVEN formulas — sorry-free, Lean-core only. Names and statements are
+# verbatim (whitespace-collapsed; F22's multi-line tactic block joined with "; ")
+# from lutar-lean Lutar/Puriq/Formulas/ProvedFormulas.lean @ 3a886349 (main as
+# checked 2026-09-25; file last changed 2026-06-10, 5cfaf9a). None of these theorems
+# exists at c7c0ba17.
 # ---------------------------------------------------------------------------
 PROVEN_FORMULAS = [
     {
         "id": "F1",
         "name": "Replay / Hash Determinism",
-        "lean": "theorem f1_replay_determinism (f : α → β) (x : α) : f x = f x := rfl",
+        "lean": "theorem f1_replay_hash_determinism {α β : Type} (f : α → β) (x : α) : f x = f x := rfl",
         "description": (
-            "A pure function applied to the same input always yields the same output. "
-            "Grounds the replay-integrity invariant: a receipt body is re-hashable by any third party."
+            "A pure function applied to the same input returns the same output (f x = f x, by rfl). "
+            "This is the determinism premise behind replay; on its own it does not prove "
+            "receipt-replay integrity or that a receipt re-hashes to the same digest."
         ),
-        "system_role": "Inference replay integrity — receipts are independently re-hashable.",
-        "status": "kernel-verified, sorry-free @ c7c0ba17, enforced by locked_count_eight",
+        "system_role": "Inference replay — determinism premise only; receipt re-hash integrity is not proven by this theorem.",
+        "status": "sorry-free, Lean-core only (textual check; kernel #print axioms NOT MEASURED) — lutar-lean ProvedFormulas.lean @ 3a886349 (not present at c7c0ba17); the count of 8 is checked by locked_count_eight (lockedNames.length = 8)",
     },
     {
         "id": "F4",
-        "name": "Khipu Chain Determinism",
+        "name": "Khipu DAG Acyclicity Preservation",
         "lean": (
-            "theorem f4_khipu_chain_determinism "
-            "(step : State → Event → State) (s : State) (e : Event) : "
-            "step s e = step s e := rfl"
+            "theorem f4_khipu_dag_acyclic_preserved "
+            "(es : KhipuEdges) (inv : KhipuBackwardInvariant es) "
+            "(k : Nat) (newEdges : KhipuEdges) "
+            "(hk : ∀ e ∈ newEdges, e.1 = k ∧ e.2 < k) : "
+            "∀ a, ¬ KhipuReach (es ++ newEdges) a a := "
+            "f4_khipu_no_cycle (es ++ newEdges) "
+            "(f4_khipu_append_preserves_invariant es inv k newEdges hk)"
         ),
         "description": (
-            "A Khipu chain step is a pure function of (state, event). "
-            "Grounds the hash-chain property: every receipt's prev→digest link is deterministic."
+            "In a Khipu DAG whose edges only point to strictly earlier nodes, appending a fresh "
+            "node whose edges also point backwards keeps the graph acyclic (no node reaches itself). "
+            "It is proved for a list-of-edges model; it does not show that the runtime "
+            "receipt store enforces the backward-edge rule."
         ),
-        "system_role": "Khipu receipt hash-chain — prev→digest links are deterministic and re-verifiable.",
-        "status": "kernel-verified, sorry-free @ c7c0ba17, enforced by locked_count_eight",
+        "system_role": (
+            "Khipu receipt DAG model — if every edge points to a strictly earlier node, "
+            "appending a fresh node with backward edges keeps it acyclic."
+        ),
+        "status": "sorry-free, Lean-core only (textual check; kernel #print axioms NOT MEASURED) — lutar-lean ProvedFormulas.lean @ 3a886349 (not present at c7c0ba17); the count of 8 is checked by locked_count_eight (lockedNames.length = 8)",
     },
     {
         "id": "F7",
-        "name": "Chaski Relay Idempotence",
+        "name": "Chaski FIFO Reception Ordering",
         "lean": (
-            "theorem f7_chaski_relay_idempotence "
-            "(relay : Msg → Msg) (m : Msg) : relay (relay m) = relay m := by "
-            "simp [relay]"
+            "theorem f7_chaski_fifo_order "
+            "(msgs : List Nat) : chaskiDrain (chaskiEnqueueAll [] msgs) = msgs := by "
+            "rw [f7_chaski_enqueueAll_nil, f7_chaski_drain_eq]"
         ),
         "description": (
-            "Relaying an already-relayed message is idempotent. "
-            "Grounds the Chaski message-relay invariant: duplicate delivery has no side-effect."
+            "Enqueue a batch of messages onto an empty FIFO channel and drain it: the received "
+            "sequence equals the sent sequence, in order. "
+            "It is proved for a list-modelled queue that starts empty; it does not show that the "
+            "runtime Chaski relay preserves order."
         ),
-        "system_role": "Chaski relay layer — message delivery is idempotent across BFT nodes.",
-        "status": "kernel-verified, sorry-free @ c7c0ba17, enforced by locked_count_eight",
+        "system_role": "Chaski relay model — on one list-modelled FIFO channel, reception order equals send order.",
+        "status": "sorry-free, Lean-core only (textual check; kernel #print axioms NOT MEASURED) — lutar-lean ProvedFormulas.lean @ 3a886349 (not present at c7c0ba17); the count of 8 is checked by locked_count_eight (lockedNames.length = 8)",
     },
     {
         "id": "F11",
         "name": "Ayni Reciprocity Conservation",
         "lean": (
-            "theorem f11_ayni_reciprocity (b c : Nat) : (b + c) - c = b := by omega"
+            "theorem f11_ayni_reciprocity_conservation (b c : Int) : (b + c) - c = b := by "
+            "simp [Int.add_sub_cancel]"
         ),
         "description": (
-            "Ayni invariant: adding then subtracting the same quantity recovers the original. "
-            "Grounds the refusal-receipt invariant: a denial + the original request → recoverable state."
+            "Adding then subtracting the same integer recovers the original ((b + c) - c = b on Int). "
+            "Used as the arithmetic premise for refusal-receipt bookkeeping; it does not prove "
+            "that denials are reversible or that no side-effect escapes governance."
         ),
-        "system_role": "Governed refusal receipts — denials are reversible; no side-effect escapes governance.",
-        "status": "kernel-verified, sorry-free @ c7c0ba17, enforced by locked_count_eight",
+        "system_role": (
+            "Governed refusal receipts — integer add-then-subtract cancellation only; "
+            "reversibility of denials is not proven here."
+        ),
+        "status": "sorry-free, Lean-core only (textual check; kernel #print axioms NOT MEASURED) — lutar-lean ProvedFormulas.lean @ 3a886349 (not present at c7c0ba17); the count of 8 is checked by locked_count_eight (lockedNames.length = 8)",
     },
     {
         "id": "F12",
         "name": "Kuramoto Additive Phase Coupling",
         "lean": (
-            "theorem f12_kuramoto_additive (a b c : Float) : a + b + c = a + (b + c) := by "
-            "ring"
+            "theorem f12_kuramoto_additive (p1 p2 k : Nat) : "
+            "k * (p1 + p2) = k * p1 + k * p2 := Nat.left_distrib k p1 p2"
         ),
         "description": (
-            "Phase-coupling signals combine additively. "
-            "Grounds the routing objective: cost/energy/quality signals combine linearly."
+            "Multiplication distributes over addition on Nat (k * (p1 + p2) = k * p1 + k * p2). "
+            "Used as the additivity premise when routing signals are combined; it is not a "
+            "Kuramoto synchronization result."
         ),
-        "system_role": "Sovereign GPU routing — multi-signal routing objective is additive.",
-        "status": "kernel-verified, sorry-free @ c7c0ba17, enforced by locked_count_eight",
+        "system_role": "Sovereign GPU routing — additivity premise (Nat distributivity) only.",
+        "status": "sorry-free, Lean-core only (textual check; kernel #print axioms NOT MEASURED) — lutar-lean ProvedFormulas.lean @ 3a886349 (not present at c7c0ba17); the count of 8 is checked by locked_count_eight (lockedNames.length = 8)",
     },
     {
         "id": "F18",
@@ -278,11 +301,11 @@ PROVEN_FORMULAS = [
             "theorem f18_reed_solomon_parity_count : (10 - 6 : Nat) = 4 := by decide"
         ),
         "description": (
-            "A (10,6) Reed-Solomon code has exactly 4 parity symbols. "
-            "Grounds the storage-parity contract: erasure-coding layout is kernel-verifiable."
+            "10 - 6 = 4: a (10,6) Reed-Solomon layout has 4 parity symbols (parity-count "
+            "arithmetic only). It does not prove Reed-Solomon recovery."
         ),
-        "system_role": "Storage integrity / erasure coding — parity count contract is machine-verified.",
-        "status": "kernel-verified, sorry-free @ c7c0ba17, enforced by locked_count_eight",
+        "system_role": "Storage integrity / erasure coding — parity-count arithmetic only; recovery is not proven here.",
+        "status": "sorry-free, Lean-core only (textual check; kernel #print axioms NOT MEASURED) — lutar-lean ProvedFormulas.lean @ 3a886349 (not present at c7c0ba17); the count of 8 is checked by locked_count_eight (lockedNames.length = 8)",
     },
     {
         "id": "F19",
@@ -291,24 +314,32 @@ PROVEN_FORMULAS = [
             "theorem f19_bekenstein_additive (s1 s2 : Nat) : s1 ≤ s1 + s2 := Nat.le_add_right s1 s2"
         ),
         "description": (
-            "Adding more compute resources only increases total resource cost — never decreases it. "
-            "Grounds the routing objective monotonicity: the energy cost function is monotone."
+            "On natural numbers, s1 ≤ s1 + s2: adding a term never lowers the total. "
+            "Used as the monotonicity premise for energy accounting; it does not prove that "
+            "the runtime energy cost function is monotone."
         ),
-        "system_role": "Energy-aware routing — energy cost is monotone; never fabricated lower.",
-        "status": "kernel-verified, sorry-free @ c7c0ba17, enforced by locked_count_eight",
+        "system_role": "Energy-aware routing — Nat additive monotonicity premise only.",
+        "status": "sorry-free, Lean-core only (textual check; kernel #print axioms NOT MEASURED) — lutar-lean ProvedFormulas.lean @ 3a886349 (not present at c7c0ba17); the count of 8 is checked by locked_count_eight (lockedNames.length = 8)",
     },
     {
         "id": "F22",
         "name": "Khipu Emit Monotone",
         "lean": (
-            "theorem f22_khipu_emit_monotone (seq : Nat) : seq ≤ seq + 1 := Nat.le_succ seq"
+            "theorem f22_khipu_emit_monotone (n i j : Nat) (hij : i < j) (hj : j < n) : "
+            "(f22_seqLog n)[i]'(by simp [f22_seqLog]; omega) "
+            "< (f22_seqLog n)[j]'(by simp [f22_seqLog]; exact hj) := by "
+            "simp only [f22_seqLog]; rw [List.getElem_range, List.getElem_range]; exact hij"
         ),
         "description": (
-            "The Khipu sequence number only goes up. "
-            "Grounds the append-only receipt lake: no receipt can be backdated."
+            "In the sequence log List.range n, a later position holds a strictly larger number. "
+            "It models sequence numbering; it does not prove that the runtime receipt lake "
+            "rejects backdated receipts."
         ),
-        "system_role": "Khipu receipt lake — sequence numbers are monotone; append-only is enforced.",
-        "status": "kernel-verified, sorry-free @ c7c0ba17, enforced by locked_count_eight",
+        "system_role": (
+            "Khipu receipt lake — the sequence-number model (List.range) is strictly increasing; "
+            "runtime append-only enforcement is not proven here."
+        ),
+        "status": "sorry-free, Lean-core only (textual check; kernel #print axioms NOT MEASURED) — lutar-lean ProvedFormulas.lean @ 3a886349 (not present at c7c0ba17); the count of 8 is checked by locked_count_eight (lockedNames.length = 8)",
     },
 ]
 
@@ -319,7 +350,7 @@ CORPUS = {
     "total_corpus": "~185",
     "honest_note": (
         "We never claim 183 proven. "
-        "8 are kernel-locked-proven (locked_count_eight @ c7c0ba17). "
+        "8 are kernel-locked-proven (locked_count_eight; theorems in lutar-lean ProvedFormulas.lean @ 3a886349 (not present at c7c0ba17)). "
         "Λ=Conjecture 1 advisory. Khipu BFT=Conjecture 2."
     ),
     "tiers": [
@@ -327,7 +358,7 @@ CORPUS = {
             "tier": 1,
             "label": "PROVEN (kernel-locked)",
             "count": 8,
-            "description": "Sorry-free, kernel-verified @ c7c0ba17. enforced by locked_count_eight CI gate.",
+            "description": "Sorry-free, Lean-core only (textual check; kernel #print axioms NOT MEASURED) — lutar-lean ProvedFormulas.lean @ 3a886349 (not present at c7c0ba17). The count of 8 is checked by locked_count_eight (lockedNames.length = 8), a list-length theorem; it does not itself check the proofs.",
         },
         {
             "tier": 2,
@@ -357,6 +388,12 @@ DOCTRINE = {
     "locked_proven": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
     "locked_count": 8,
     "kernel_commit": "c7c0ba17",
+    "locked_formula_source": (
+        "lutar-lean Lutar/Puriq/Formulas/ProvedFormulas.lean @ 3a886349 "
+        "(checked 2026-09-25; file added 2026-06-04 e6de491, last changed "
+        "2026-06-10 5cfaf9a; not present at c7c0ba17; experimental scope, "
+        "outside the 749/14/163 count)"
+    ),
     "ci_gate": "locked_count_eight",
     "lambda_kind": "Conjecture 1 (advisory; NOT a theorem)",
     "bft_kind": "Conjecture 2 (NOT a theorem; NOT proven)",
@@ -582,7 +619,7 @@ def _build_thesis_response(ns: str = "a11oy") -> dict[str, Any]:
         "doctrine_live": live_doctrine,
         "doctrine_live_note": (
             "Live doctrine block pulled from a11oy_vertical_feeds at request time. "
-            "Consistent with the static doctrine above (both reference locked_count_eight @ c7c0ba17)."
+            "Consistent with the static doctrine above (both reference locked_count_eight)."
             if live_doctrine is not None
             else "Live doctrine unavailable at this runtime (a11oy_vertical_feeds not imported); "
                  "static doctrine block above is authoritative."
