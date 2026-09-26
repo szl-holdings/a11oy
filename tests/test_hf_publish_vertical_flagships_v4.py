@@ -119,6 +119,12 @@ def test_overlay_changes_only_declared_sentra_and_finance_contracts() -> None:
         '{"status":"LIVE" if r.is_success else "UNAVAILABLE",',
         1,
     )
+    # /healthz is process-scoped with a computed `ok`; restore the historical
+    # constant handler for the same byte-identity proof.
+    assert overlay.APP.count(overlay._HEALTHZ_PROCESS_SCOPED) == 1
+    restored_app = restored_app.replace(
+        overlay._HEALTHZ_PROCESS_SCOPED, overlay._HEALTHZ_CONSTANT, 1
+    )
     assert restored_app.startswith(base.APP)
     addition = restored_app[len(base.APP):]
     assert 'if CFG.get("slug") == "finance":' in addition

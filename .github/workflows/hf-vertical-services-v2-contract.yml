@@ -12,6 +12,7 @@ on:
     - scripts/hf_publish_vertical_services.py
     - deployments/vertical-forge/terra/**
     - tests/test_hf_publish_vertical_flagships_v4.py
+    - tests/test_vertical_shell_healthz_process_scoped.py
     - .github/workflows/hf-vertical-services-v2-contract.yml
   push:
     branches:
@@ -22,6 +23,7 @@ on:
     - scripts/hf_publish_vertical_services.py
     - deployments/vertical-forge/terra/**
     - tests/test_hf_publish_vertical_flagships_v4.py
+    - tests/test_vertical_shell_healthz_process_scoped.py
     - .github/workflows/hf-vertical-services-v2-contract.yml
   workflow_dispatch: null
   merge_group:
@@ -64,4 +66,5 @@ jobs:
       - name: Prove exact source and operational-v2 contracts
         run: >-
           python -m pytest
-          tests/test_hf_publish_vertical_flagships_v4.py -q
+          tests/test_hf_publish_vertical_flagships_v4.py
+          tests/test_vertical_shell_healthz_process_scoped.py -q
