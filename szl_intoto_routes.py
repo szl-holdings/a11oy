@@ -179,16 +179,29 @@ def register(app, ns: str = "a11oy") -> dict:  # pragma: no cover
     # GET /api/a11oy/v1/verify/intoto
     # ------------------------------------------------------------------
     async def _verify_intoto_docs(request):
-        pub_key_url = "https://github.com/szl-holdings/.github/blob/main/cosign.pub"
+        # _khipu_intoto signs the envelope at request time via szl_dsse.sign_payload,
+        # i.e. with the runtime signer whose public half is served same-origin at
+        # /cosign.pub; the szl-holdings/.github org cosign.pub is a separately
+        # published key and is not assumed to be the same key.
+        pub_key_url = "/cosign.pub"
         return JSONResponse({
             "title": "SZL a11oy in-toto Verification Guide",
             "what_is_now_verifiable": {
                 "1_dsse_signature": {
                     "status": "LIVE",
                     "description": (
-                        "Every receipt is DSSE-signed with the SZL ECDSA P-256 keypair. "
-                        "payloadType is now 'application/vnd.in-toto+json'. "
-                        "Verifiable with standard cosign verify-blob."
+                        "Scope: the in-toto envelope served at /khipu/intoto/<receipt_id> "
+                        "(szl_intoto.build_intoto_envelope). It is DSSE-signed with "
+                        "ECDSA P-256 when the request is served, and only if the runtime "
+                        "signer is present (intoto_envelope.signed=true); otherwise it is "
+                        "UNSIGNED (signed=false). That signature is made at serve time and "
+                        "says nothing about how the underlying receipt was minted. Khipu "
+                        "hash-chain entries (/api/a11oy/v1/khipu/chain/<organ>) always "
+                        "carry signature DSSE_PLACEHOLDER and are unsigned, even while the "
+                        "runtime signer is present. Check signed=true before verifying. "
+                        "payloadType is 'application/vnd.in-toto+json'. "
+                        "The signature is ECDSA-P256-SHA256 over the DSSE PAE; verify a "
+                        "signed envelope against /cosign.pub."
                     ),
                     "command": (
                         "cosign verify-blob "
@@ -275,11 +288,18 @@ def register(app, ns: str = "a11oy") -> dict:  # pragma: no cover
             },
             "verify_offline_recipe": (
                 "szl-cookbook/verify-intoto-receipt.py — "
-                "Apache-2.0 offline verifier: verifies DSSE sig with cosign.pub, "
+                "Apache-2.0 offline verifier: verifies DSSE sig against the "
+                "szl-holdings/.github org key embedded in the script (a receipt "
+                "passes there only if that key's fingerprint equals /cosign.pub's), "
                 "checks in-toto Statement structure, checks Merkle inclusion proof. "
                 "NO network call required after downloading the receipt + proof."
             ),
             "public_key_url": pub_key_url,
+            "public_key_note": (
+                "Verify against this deployment's runtime key at /cosign.pub. The "
+                "szl-holdings/.github org cosign.pub is a separately published key; it "
+                "verifies these receipts only if its fingerprint equals /cosign.pub's."
+            ),
             "cosign_pub_endpoint": "/cosign.pub",
         })
 

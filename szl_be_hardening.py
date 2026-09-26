@@ -929,18 +929,36 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
                                 "git_sha": os.getenv("SZL_GIT_SHA", "unknown")}
         try:
             import szl_dsse as _dsse
+            signing = bool(_dsse.signing_available())
+            if signing:
+                key_honesty = (
+                    "public_key_pem is the runtime signer's public key, the key "
+                    "public_key_fingerprint_sha256 hashes; it verifies, offline, the "
+                    "szl_dsse signatures this runtime produces (ECDSA-P256-SHA256 over "
+                    "the DSSE PAE). signing_available reports the signer truthfully; "
+                    "never faked.")
+            else:
+                # active_public_key_pem() falls back when no persistent signer is
+                # loaded, so the PEM here is not a signer key.
+                key_honesty = (
+                    "signing_available is false: szl_dsse signs nothing in this "
+                    "runtime and labels its envelopes UNSIGNED. public_key_pem (the "
+                    "key public_key_fingerprint_sha256 hashes) is only a fallback "
+                    "verification key: a process-local shared-signer key that "
+                    "/cosign.pub also serves, or, when no shared signer key is "
+                    "loaded, the embedded szl-holdings/.github org key, and then "
+                    "/cosign.pub may return 503. Never faked.")
             info.update({
                 "data_kind": "live",
                 "algorithm": "ECDSA-P256-SHA256 over DSSE PAE (cosign-compatible)",
-                "signing_available": bool(_dsse.signing_available()),
+                "signing_available": signing,
                 "public_key_fingerprint_sha256": _dsse.public_key_fingerprint(),
-                "public_key_pem": _dsse.COSIGN_PUBLIC_PEM.strip(),
-                "private_key_source": ("runtime secret only "
-                                       "(SZL_COSIGN_PRIVATE_KEY_PEM); never committed"),
-                "honesty": ("the embedded public key verifies signatures offline "
-                            "(cosign verify-blob). Signing is REAL only when the cosign "
-                            "private-key secret is present in this runtime — "
-                            "signing_available reports that truthfully; never faked."),
+                "public_key_pem": _dsse.active_public_key_pem().strip(),
+                "private_key_source": ("runtime secret or mounted key file only "
+                                       "(SZL_COSIGN_PRIVATE_PEM first; other accepted "
+                                       "sources are listed in a11oy_signing_key and "
+                                       "szl_dsse.PRIVATE_KEY_ENV_VARS); never committed"),
+                "honesty": key_honesty,
             })
         except Exception as exc:
             info.update({
