@@ -7316,6 +7316,27 @@ async def _a11oy_pr_honest_v2():
             "locked_formula_ids": [
                 "F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22",
             ],
+            # Same labels as szl_be_hardening.DOCTRINE_LOCK (see there for the
+            # reproduce command and the 3a886349 pin).
+            "sorries_method": (
+                "lutar-lean .github/scripts/lean_numbers.py sorries_raw @ c7c0ba17 — "
+                "word-boundary 'sorry' text occurrences in Lutar/**+Main.lean, including "
+                "comments and docstrings; not a count of open proof obligations"
+            ),
+            "sorries_noncomment": 149,
+            "sorries_noncomment_method": (
+                "same script and commit (lutar-lean .github/scripts/lean_numbers.py @ "
+                "c7c0ba17) — drops only lines whose first non-blank characters are `--`; "
+                "'sorry' text inside /- -/ block comments, /-- -/ doc comments and trailing "
+                "`--` comments after code is still counted; not a count of open proof "
+                "obligations"
+            ),
+            "locked_formula_source": (
+                "lutar-lean Lutar/Puriq/Formulas/ProvedFormulas.lean @ 3a886349 "
+                "(checked 2026-09-25; file added 2026-06-04 e6de491, last changed "
+                "2026-06-10 5cfaf9a; not present at c7c0ba17; experimental scope, "
+                "outside the 749/14/163 count)"
+            ),
         }
     _locked_count = _honest_lock.get("locked_formula_count")
     _locked_ids = list(_honest_lock.get("locked_formula_ids") or [])
@@ -7323,8 +7344,12 @@ async def _a11oy_pr_honest_v2():
         "space": "a11oy",
         "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
+        "sorries_method": _honest_lock.get("sorries_method"),
+        "sorries_noncomment": _honest_lock.get("sorries_noncomment"),
+        "sorries_noncomment_method": _honest_lock.get("sorries_noncomment_method"),
         "locked_formula_count": _locked_count,
         "locked_formula_ids": _locked_ids,
+        "locked_formula_source": _honest_lock.get("locked_formula_source"),
         "doctrine_lock": _honest_lock,
         "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "kernel_commit": "c7c0ba17",

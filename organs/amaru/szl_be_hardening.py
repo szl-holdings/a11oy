@@ -87,6 +87,27 @@ DOCTRINE_LOCK = {
     "commit": "c7c0ba17",
     "lambda": "Conjecture 1",
     "lambda_note": "Λ-Aggregator Uniqueness — Conjecture 1, NOT a closed theorem.",
+    # How "sorries" is counted (additive labels). 163 is a raw text count that
+    # includes comments and docstrings; it is NOT the number of open proof holes.
+    # Reproduce: in a lutar-lean checkout at c7c0ba17 run
+    #   python .github/scripts/lean_numbers.py --repo-path .
+    # -> numbers.sorries_raw = 163, numbers.sorries_noncomment = 149.
+    "sorries_method": (
+        "lutar-lean .github/scripts/lean_numbers.py sorries_raw @ c7c0ba17 — "
+        "word-boundary 'sorry' text occurrences in Lutar/**+Main.lean, including "
+        "comments and docstrings; not a count of open proof obligations"
+    ),
+    # Same script, same commit: COMMENT_LINE_RE = ^\s*-- drops only lines that
+    # start with `--`, so /- -/ block and doc comments are still counted. 149 is
+    # therefore NOT the number of open proof holes either; the served label says so.
+    "sorries_noncomment": 149,
+    "sorries_noncomment_method": (
+        "same script and commit (lutar-lean .github/scripts/lean_numbers.py @ "
+        "c7c0ba17) — drops only lines whose first non-blank characters are `--`; "
+        "'sorry' text inside /- -/ block comments, /-- -/ doc comments and trailing "
+        "`--` comments after code is still counted; not a count of open proof "
+        "obligations"
+    ),
 }
 DOCTRINE_FOOTER = "Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1"
 

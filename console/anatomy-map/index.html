@@ -890,8 +890,8 @@
     <h2>SZL Agent Body v4 — proven formulas instilled in the organs</h2>
     <p class="vf-honest">
       <strong>Two honest tiers.</strong>
-      <span class="vf-tier-locked">8 LOCKED-proven (kernel-verified)</span> {F1, F4, F7, F11, F12, F18, F19, F22} @ c7c0ba17 —
-      locked kernel: 749 decl / 14 axioms / 163 sorries, sorry-free, Lean-core axioms only. <b>The locked count is EXACTLY 8 (was 5 until 2026-06-10; F4 Khipu DAG acyclicity, F7 Chaski FIFO ordering, F22 Khipu emit monotonicity upgraded to genuine proofs) and never inflated.</b>
+      <span class="vf-tier-locked">8 LOCKED-proven (kernel-verified)</span> {F1, F4, F7, F11, F12, F18, F19, F22} in lutar-lean ProvedFormulas.lean @ 3a886349 (not present at c7c0ba17) —
+      sorry-free, Lean-core axioms only. Separate Doctrine-v11 count @ c7c0ba17: 749 decl / 14 axioms / 163 raw sorry-text occurrences incl. comments (149 excluding lines that start with --). The <code>#print axioms</code> lines on the cards below are quoted, not re-run here: kernel output is NOT MEASURED. Card text is an informal paraphrase; the source line on each card says what the theorem there states. <b>The locked count is EXACTLY 8 (was 5 until 2026-06-10; F4 Khipu DAG acyclicity, F7 Chaski FIFO ordering, F22 Khipu emit monotonicity upgraded to genuine proofs) and never inflated.</b>
       <span class="vf-tier-exp">EXPERIMENTAL · CI-green on main</span> @ 044eb098 —
       experimental scope: 1323 decl / 23 axioms (22 unique) / 307 sorries; waves 5–18 (≈119 instilled cards, incl. CUT-2, CF-13/17 and the Wave13–18 packs — CF-22 DPO-KL-simplex, CF-23 binary Pinsker, CF-24 Aczél, CF-25 Λ scale-invariance, CF-26 abacus, CF-27 monDEQ, CF-28 recurrent-depth, CUT-1 forward fragment) are EXPERIMENTAL · CI-green, additive, never folded into the locked 8.
       SLSA L1 honest · product images (a11oy, killinchu) L2 build-attested (container provenance, Sigstore keyless) · L3 roadmap. No fabricated metrics · no AGI.
@@ -978,14 +978,14 @@
       <article class="vf-formula" data-fid="F18" data-maturity="LOCKED">
         <h4>F18 — Reed–Solomon RS(10,6) Recovery <span class="vf-chip">LOCKED · kernel-verified</span></h4>
         <p class="vf-plain">Erasure tolerance: data is recoverable IFF at least 6 of 10 shards survive — the resilience arithmetic for the receipt/payload encoding.</p>
-        <p class="vf-ax"><code>#print axioms: f18_* — [propext, Classical.choice, Quot.sound]</code></p>
-        <p class="vf-ref">lutar-lean @ c7c0ba17</p>
+        <p class="vf-ax"><code>#print axioms: f18_* — [propext, Classical.choice, Quot.sound] · quoted, kernel output NOT MEASURED here</code></p>
+        <p class="vf-ref">lutar-lean ProvedFormulas.lean @ 3a886349 (not present at c7c0ba17) · the theorems there state only (10 - 6 : Nat) = 4 and 6 ≤ 10 - e for e ≤ 4; recovery itself is not proven there</p>
       </article>
       <article class="vf-formula" data-fid="F1" data-maturity="LOCKED">
         <h4>F1 — Replay-Hash Determinism <span class="vf-chip">LOCKED · kernel-verified</span></h4>
         <p class="vf-plain">Replaying the SAME recorded log from the same initial state yields a BIT-IDENTICAL trace — no drift. Underpins the Khipu replay-hash gate.</p>
-        <p class="vf-ax"><code>#print axioms: f1_replay_fold_deterministic — [propext, Classical.choice, Quot.sound]</code></p>
-        <p class="vf-ref">lutar-lean PuriqFormulaLean.lean @ c7c0ba17</p>
+        <p class="vf-ax"><code>#print axioms: f1_replay_hash_determinism — proof is rfl; kernel output NOT MEASURED</code></p>
+        <p class="vf-ref">lutar-lean ProvedFormulas.lean @ 3a886349 (not present at c7c0ba17) · the theorem there states only f x = f x for a pure function (rfl), not bit-identical log replay · the earlier-cited f1_replay_fold_deterministic is in PuriqFormulaLean.lean, which lake build does not import</p>
       </article>
     </section>
     <section class="vf-organ" data-organ="RUWAY">
@@ -999,8 +999,8 @@
       <article class="vf-formula" data-fid="F11" data-maturity="LOCKED">
         <h4>F11 — Ayni Reciprocity Conservation <span class="vf-chip">LOCKED · kernel-verified</span></h4>
         <p class="vf-plain">Fold-replay of an append-only reciprocity log conserves the balance invariant (Axelrod–Hamilton tit-for-tat parity).</p>
-        <p class="vf-ax"><code>#print axioms: f11_ayni_reciprocity_conservation — [propext, Classical.choice, Quot.sound]</code></p>
-        <p class="vf-ref">lutar-lean PuriqFormulaLean.lean @ c7c0ba17</p>
+        <p class="vf-ax"><code>#print axioms: f11_ayni_reciprocity_conservation — [propext, Classical.choice, Quot.sound] · quoted, kernel output NOT MEASURED here</code></p>
+        <p class="vf-ref">lutar-lean ProvedFormulas.lean @ 3a886349 (not present at c7c0ba17) · the theorem there states only (b + c) - c = b on Int, not conservation over a replayed log</p>
       </article>
     </section>
     <section class="vf-organ" data-organ="CHAPAQ">
@@ -1044,8 +1044,8 @@
       <article class="vf-formula" data-fid="F1" data-maturity="LOCKED">
         <h4>F1 — Replay-Hash Determinism <span class="vf-chip">LOCKED · kernel-verified</span></h4>
         <p class="vf-plain">Replaying the SAME recorded log from the same initial state yields a BIT-IDENTICAL trace — no drift. Underpins the Khipu replay-hash gate.</p>
-        <p class="vf-ax"><code>#print axioms: f1_replay_fold_deterministic — [propext, Classical.choice, Quot.sound]</code></p>
-        <p class="vf-ref">lutar-lean PuriqFormulaLean.lean @ c7c0ba17</p>
+        <p class="vf-ax"><code>#print axioms: f1_replay_hash_determinism — proof is rfl; kernel output NOT MEASURED</code></p>
+        <p class="vf-ref">lutar-lean ProvedFormulas.lean @ 3a886349 (not present at c7c0ba17) · the theorem there states only f x = f x for a pure function (rfl), not bit-identical log replay · the earlier-cited f1_replay_fold_deterministic is in PuriqFormulaLean.lean, which lake build does not import</p>
       </article>
     </section>
     <section class="vf-organ" data-organ="HATUN">
@@ -1329,7 +1329,7 @@
     <!-- v5 (evolves v4) additive organs/overlays — wired by v5_organs.js, honest labels -->
     <button class="btn" id="btn-v5-willay" aria-expanded="false" aria-controls="v5panel" title="WILLAY conscience / immune-gate: 5 inspectable signed-refusal classifiers (trust ceiling 0.97) read live · tamper-EVIDENT not tamper-proof">⛨ conscience</button>
     <button class="btn" id="btn-v5-mesh" aria-expanded="false" aria-controls="v5panel" title="Sovereign Mesh (circulatory upgrade): live per-node up/DOWN from /govern/health · never a fabricated green light · VRAM-fusion ROADMAP">⬡ sovereign mesh</button>
-    <button class="btn" id="btn-v5-proofs" aria-expanded="false" aria-controls="v5panel" title="8 locked-proven → organ map: verbatim Lean statement + #print axioms, kernel-verified sorry-free @ c7c0ba17 · Λ=Conjecture 1">≣ proofs → organs</button>
+    <button class="btn" id="btn-v5-proofs" aria-expanded="false" aria-controls="v5panel" title="8 locked-proven → organ map: per formula an informal paraphrase (not the Lean statement), the theorem source and the quoted #print axioms line; theorems in lutar-lean ProvedFormulas.lean @ 3a886349 (not present at c7c0ba17) · Λ=Conjecture 1">≣ proofs → organs</button>
     <button class="btn" id="btn-v5-assurance" aria-expanded="false" aria-controls="v5panel" title="AI-Assurance overlay (WDP/CDAO): organ → assurance artifact with honest LIVE/PARTIAL/ROADMAP chips">⚖ assurance</button>
     <button class="btn" id="btn-v5-physics" aria-expanded="false" aria-controls="v5panel" title="yarqa CFD + thermal PINN physics-governed layer · MODELED (not measured), bounded error">∿ physics (v5)</button>
     <button class="btn" id="btn-v5-stack" aria-expanded="false" aria-controls="v5panel" title="GPU-Sovereign Stack (SUBSTRATE): the vertical compute anatomy — owned GPU fabric → runtime → sovereign mesh → open-weight model → native governance → buyer-verifiable receipts · honest posture on every layer, never a fabricated green light">▤ sovereign stack</button>

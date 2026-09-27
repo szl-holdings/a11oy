@@ -680,16 +680,10 @@ def run_pcai(seed: int, model: str) -> Dict[str, Any]:
 
     verify_commands = _verify_commands(seed, model, artifact_name, subject_digest)
 
-    # 9) forum ingest (additive, off the hot path, never raises)
-    try:
-        import szl_org_lambda as _ol
-        _ol.emit("a11oy", "pcai/run",
-                 {"seed": seed, "model": model, "lambda": lam["value"],
-                  "quote_digest": quote["quote_digest"], "signed": bool(dsse.get("signed")),
-                  "label": LABEL},
-                 decision="ALLOW" if lam["pass"] else "BLOCK")
-    except Exception:
-        pass
+    # 9) No ledger write. This flow is served by GET and is a deterministic MODELED probe, not a
+    #    decision: appending it to the szl.lake.receipt/v1 chain made every page poll mint a
+    #    record (and the record kept only a `signed` boolean, no envelope bytes). Read-only
+    #    routes never mint receipts — same contract as szl_attested_inference's GET.
 
     return {
         "label": LABEL,
@@ -736,6 +730,7 @@ def run_pcai(seed: int, model: str) -> Dict[str, Any]:
         ),
         "honest_note": HONEST_NOTE,
         "sources": SOURCES,
+        "receipt_minted": False,
         "ts": _now_iso(),
     }
 

@@ -193,6 +193,25 @@ def test_honest_footer_exact_lock(client):
     assert body["locked_formula_count"] == 8
     assert body["locked_formula_ids"] == lock["locked_formula_ids"]
     assert body["footer"] == "Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1"
+    # 163 is lean_numbers.py sorries_raw @ c7c0ba17 (text occurrences incl. comments);
+    # the same script gives sorries_noncomment = 149 at that commit.
+    assert lock["sorries_method"].startswith(
+        "lutar-lean .github/scripts/lean_numbers.py sorries_raw @ c7c0ba17")
+    assert "including comments and docstrings" in lock["sorries_method"]
+    assert "not a count of open proof obligations" in lock["sorries_method"]
+    assert lock["sorries_noncomment"] == 149
+    # 149 drops only `--` line comments; the served label must say so.
+    nc = lock["sorries_noncomment_method"]
+    assert "drops only lines whose first non-blank characters are `--`" in nc
+    assert "/- -/ block comments" in nc and "/-- -/ doc comments" in nc
+    assert "not a count of open proof obligations" in nc
+    # The locked-8 theorems are not in lutar-lean at c7c0ba17; the source is pinned
+    # to an immutable lutar-lean commit, never a moving branch.
+    src = lock["locked_formula_source"]
+    assert src.startswith("lutar-lean Lutar/Puriq/Formulas/ProvedFormulas.lean @ 3a886349")
+    assert "lutar-lean main" not in src
+    assert "not present at c7c0ba17" in src
+    assert "outside the 749/14/163 count" in src
     assert "huggingface_hub_version" in body
     assert isinstance(body["huggingface_hub_version"], str)
     assert body["huggingface_hub_version"]

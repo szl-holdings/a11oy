@@ -239,6 +239,8 @@ jobs:
         # The nested-static suite exercises the assembled app as well: the owning
         # path-converter route must return GET/HEAD 200 while missing scoped
         # assets and undeclared root files remain fail-closed JSON 404s.
+        # test_ledger_receipt_records: GET pcai/run never appends to the lake chain,
+        # and the overview counts receipt records, not signed receipts.
         # The runtime-verifying-key suite fails if a public key surface serves a
         # PEM that differs from its own fingerprint or from /cosign.pub, or if the
         # assurance matrix's /verify and signing claims drift from the served
@@ -254,6 +256,7 @@ jobs:
           tests/test_khipu_console_panel.py
           tests/test_v4_agent_voters.py
           tests/test_identity_lock.py
+          tests/test_ledger_receipt_records.py
           tests/test_runtime_verifying_key_surfaces.py
           test_canonical_domain.py
           -q
