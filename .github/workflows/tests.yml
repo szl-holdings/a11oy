@@ -257,6 +257,7 @@ jobs:
           tests/test_v4_agent_voters.py
           tests/test_identity_lock.py
           tests/test_ledger_receipt_records.py
+          tests/test_org_lambda_sample_inputs.py
           tests/test_runtime_verifying_key_surfaces.py
           test_canonical_domain.py
           -q
