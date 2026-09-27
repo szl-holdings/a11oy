@@ -46,7 +46,7 @@ WHEELCHK
 FROM python:3.14-slim@sha256:caaf356f40667c496d405780745b9ac25771c189a51dfcc42430d531ea09f8a2 AS llama-build-0
 RUN mkdir -p /wheels
 
-FROM llama-build-${A11OY_REQUIRE_LOCAL_LLM} AS llama-build
+FROM llama-build-${A11OY_REQUIRE_LOCAL_LLM:-1} AS llama-build
 
 # ---------------------------------------------------------------------------
 # RUNTIME IMAGE (the published a11oy Space / GHCR image).
