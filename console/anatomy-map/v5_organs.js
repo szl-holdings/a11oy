@@ -13,9 +13,11 @@
      3. Buyer-verifiable receipt in-scene — "Verify offline" reuses Tier-1
         WebCrypto ECDSA-P256 against /cosign.pub, plus a live ledger
         bloodstream counter (total_receipts + sha3_256 chain head).
-     4. 8 locked-proven → organ map (verbatim Lean statement + #print axioms,
-        "kernel-verified sorry-free @ c7c0ba17"). Λ = heart-gate, advisory,
-        Conjecture 1. Khipu BFT = Conjecture 2.
+     4. 8 locked-proven → organ map (per formula: an informal paraphrase,
+        which is NOT the Lean statement, the theorem source line, and the
+        quoted, not re-run, #print axioms line; the theorems are in lutar-lean
+        ProvedFormulas.lean @ 3a886349, not present at c7c0ba17). Λ = heart-gate,
+        advisory, Conjecture 1. Khipu BFT = Conjecture 2.
      5. AI-Assurance (WDP/CDAO) overlay — organ → assurance artifact with
         honest LIVE / PARTIAL / ROADMAP status chips.
      6. yarqa CFD + thermal-PINN physics layer — composed "physics-governed"
@@ -239,17 +241,20 @@
   });
 
   /* ===================================================================
-     4. 8 locked-proven → organ map (verbatim Lean + axioms)
+     4. 8 locked-proven → organ map (paraphrase + theorem source + quoted axioms)
      =================================================================== */
   function leanStatement(fid){
     var f=D.FORMULAS&&D.FORMULAS[fid]; if(!f) return fid;
-    return fid+'  '+(f.name||'')+'\n'+(f.latex||'')+'\n#print axioms: '+(f.axioms||'');
+    return fid+'  '+(f.name||'')+
+      '\nparaphrase (not the Lean statement): '+(f.latex||'')+
+      '\ntheorem source: '+(f.ref||'')+
+      '\n#print axioms (quoted, not re-run): '+(f.axioms||'');
   }
   function renderProofs(b){
     var M=D.LEAN_MAP||{}; var h='';
     h+='<div class="v5-card"><div class="v5-h">8 locked-proven → organs <span class="v5-chip locked">LOCKED</span></div>';
     h+='<div class="v5-sub">'+esc(M.verified_note||'')+' · exactly 8 {F1,F4,F7,F11,F12,F18,F19,F22}</div>';
-    h+='<p>Presentational map only — it does NOT change the locked set. Each statement below is kernel-verified sorry-free at '+esc(M.kernel_sha||'c7c0ba17')+'.</p></div>';
+    h+='<p>Presentational map only — it does NOT change the locked set. The theorems are in '+esc(M.source||'lutar-lean ProvedFormulas.lean @ 3a886349 (not present at c7c0ba17)')+'. The paraphrase line under each name is NOT the Lean statement, and several paraphrases claim more than the theorem; the “theorem source” line says what the file states. #print axioms lines are quoted, not re-run here (NOT MEASURED).</p></div>';
     (M.organs||[]).forEach(function(row){
       h+='<div class="v5-card"><div class="v5-h"><span style="color:'+esc(row.color)+'">'+esc(row.organ)+'</span> <span class="v5-chip locked">'+esc(row.formulas.join(' + '))+'</span></div>';
       h+='<p>'+esc(row.why)+'</p>';

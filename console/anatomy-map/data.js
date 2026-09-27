@@ -30,7 +30,7 @@
 
   /* ---- Maturity → chip styling ---- */
   const MATURITY = {
-    LOCKED:        { label: 'LOCKED · kernel-verified', color: '#ffd166', desc: 'Sorry-free, Lean-core axioms only [propext, Classical.choice, Quot.sound]. Frozen @ c7c0ba17.' },
+    LOCKED:        { label: 'LOCKED · kernel-verified', color: '#ffd166', desc: 'Sorry-free, Lean-core axioms only [propext, Classical.choice, Quot.sound] (quoted; kernel #print axioms NOT MEASURED in this repo). Theorems are in lutar-lean ProvedFormulas.lean @ 3a886349 (not present at c7c0ba17); 749/14/163 @ c7c0ba17 is a separate count.' },
     EXPERIMENTAL:  { label: 'EXPERIMENTAL · CI-green', color: '#5ad1ff', desc: 'Kernel-checked by CI on main @ 7885fd9. Additive — never folded into the locked 8.' },
     AXIOM_GATED:   { label: 'AXIOM-GATED (disclosed)', color: '#c9a0ff', desc: 'Sorry-free given one declared, cited idealization (axiom listed in #print axioms).' },
     CONDITIONAL:   { label: 'CONDITIONAL · axiom-free', color: '#9ef0c0', desc: 'A kernel-clean THEOREM proven CONDITIONAL on a stated stronger hypothesis (no new axiom). Honestly NOT an unconditional result.' },
@@ -39,51 +39,52 @@
 
   /* =====================================================================
      FORMULA LIBRARY — keyed by id. latex = ASCII-math the in-app renderer
-     converts to Unicode glyphs. axioms = verbatim #print axioms line.
+     converts to Unicode glyphs. axioms = the #print axioms line as quoted
+     upstream; it is not re-run here.
      ===================================================================== */
   const FORMULAS = {
     /* ---------- LOCKED PROVEN (exactly 8) ---------- */
     F1: { id:'F1', name:'Replay-Hash Determinism', maturity:'LOCKED',
       latex:'replay(s0, log) = trace  =>  replay(s0, log) = trace   (bit-identical)',
       plain:'Replaying the SAME recorded log from the same initial state yields a BIT-IDENTICAL trace — no drift. Underpins the Khipu replay-hash gate.',
-      axioms:'f1_replay_fold_deterministic — [propext, Classical.choice, Quot.sound]',
-      ref:'lutar-lean PuriqFormulaLean.lean @ c7c0ba17' },
+      axioms:'f1_replay_hash_determinism — proof is rfl; kernel output NOT MEASURED',
+      ref:'lutar-lean ProvedFormulas.lean @ 3a886349 (not present at c7c0ba17) · the theorem there states only f x = f x for a pure function (rfl), not bit-identical log replay · the earlier-cited f1_replay_fold_deterministic is in PuriqFormulaLean.lean, which lake build does not import' },
     F11:{ id:'F11', name:'Ayni Reciprocity Conservation', maturity:'LOCKED',
       latex:'fold(append_log) :  Sigma_in = Sigma_out   (tit-for-tat parity)',
       plain:'Fold-replay of an append-only reciprocity log conserves the balance invariant (Axelrod–Hamilton tit-for-tat parity).',
-      axioms:'f11_ayni_reciprocity_conservation — [propext, Classical.choice, Quot.sound]',
-      ref:'lutar-lean PuriqFormulaLean.lean @ c7c0ba17' },
+      axioms:'f11_ayni_reciprocity_conservation — [propext, Classical.choice, Quot.sound] · quoted, kernel output NOT MEASURED here',
+      ref:'lutar-lean ProvedFormulas.lean @ 3a886349 (not present at c7c0ba17) · the theorem there states only (b + c) - c = b on Int, not conservation over a replayed log' },
     F12:{ id:'F12', name:'Kuramoto Coupling Boundedness (additive fragment)', maturity:'LOCKED',
       latex:'| Sigma_i K_i(theta) |  <=  Sigma_i |K_i|   (bounded, additive)',
       plain:'The discretised reciprocity coupling stays bounded under additive superposition. HONESTY CAVEAT: additive scaffolding ONLY — NOT the full nonlinear Kuramoto synchronization.',
-      axioms:'f12_* — [propext, Classical.choice, Quot.sound]',
-      ref:'lutar-lean @ c7c0ba17 · caveat in Lean docstring' },
+      axioms:'f12_* — [propext, Classical.choice, Quot.sound] · quoted, kernel output NOT MEASURED here',
+      ref:'lutar-lean ProvedFormulas.lean @ 3a886349 (not present at c7c0ba17) · the theorem there states only k * (p1 + p2) = k * p1 + k * p2 on Nat, not the boundedness line above' },
     F18:{ id:'F18', name:'Reed–Solomon RS(10,6) Recovery', maturity:'LOCKED',
       latex:'recoverable(shards)  <=>  |surviving| >= 6   of 10',
       plain:'Erasure tolerance: data is recoverable IFF at least 6 of 10 shards survive — the resilience arithmetic for the receipt/payload encoding.',
-      axioms:'f18_* — [propext, Classical.choice, Quot.sound]',
-      ref:'lutar-lean @ c7c0ba17' },
+      axioms:'f18_* — [propext, Classical.choice, Quot.sound] · quoted, kernel output NOT MEASURED here',
+      ref:'lutar-lean ProvedFormulas.lean @ 3a886349 (not present at c7c0ba17) · the theorems there state only (10 - 6 : Nat) = 4 and 6 ≤ 10 - e for e ≤ 4; recovery itself is not proven there' },
     F19:{ id:'F19', name:'Bekenstein Additive Scaffolding', maturity:'LOCKED',
       latex:'Sigma_r S(region_r)  <=  S(total)   (additive, monotone)',
       plain:'Entropy budget is additive and monotone over a region partition (per-region ≤ total). HONESTY CAVEAT: monotone scaffolding ONLY — NOT the full Bekenstein bound S ≤ 2πkRE/(ℏc).',
-      axioms:'f19_* — [propext, Classical.choice, Quot.sound]',
-      ref:'lutar-lean @ c7c0ba17 · caveat in Lean docstring' },
+      axioms:'f19_* — [propext, Classical.choice, Quot.sound] · quoted, kernel output NOT MEASURED here',
+      ref:'lutar-lean ProvedFormulas.lean @ 3a886349 (not present at c7c0ba17) · the theorems there state only s1 ≤ s1 + s2 and s ≤ s + d on Nat, not the per-region sum line above' },
 
     F4: { id:'F4', name:'Khipu DAG Acyclicity Preservation', maturity:'LOCKED',
       latex:'acyclic(G)  =>  acyclic(append_fresh_node(G))   (no back-edge cycle)',
       plain:'Appending a fresh node to the Khipu receipt DAG preserves acyclicity — no receipt can ever cycle back on itself. Newly kernel-verified (joined the locked set 2026-06-10).',
-      axioms:'f4_khipu_dag_acyclic_preserved / f4_khipu_no_cycle / f4_khipu_reach_decreases / f4_khipu_append_preserves — no axioms (genuine, non-vacuous)',
-      ref:'lutar-lean ProvedFormulas.lean @ c7c0ba17 (lutar-lean #219 + platform #321)' },
+      axioms:'f4_khipu_dag_acyclic_preserved / f4_khipu_no_cycle / f4_khipu_reach_decreases / f4_khipu_append_preserves — no axioms (genuine, non-vacuous) · quoted, kernel output NOT MEASURED here',
+      ref:'lutar-lean ProvedFormulas.lean @ 3a886349 (not present at c7c0ba17) · the theorem there assumes every existing edge points to a strictly earlier node and every new edge runs from the fresh node k to a node below k; it is proved for a list-of-edges model, not the runtime receipt store (lutar-lean #219 + platform #321)' },
     F7: { id:'F7', name:'Chaski FIFO Reception Ordering', maturity:'LOCKED',
       latex:'drain(enqueue_batch(c, msgs))  =  msgs   (reception order = send order)',
       plain:'Messages drain from the Chaski channel in exactly the order sent — true FIFO, no reordering. Newly kernel-verified (joined the locked set 2026-06-10).',
-      axioms:'f7_chaski_fifo_order / f7_chaski_fifo_positional / f7_chaski_drain_eq — no axioms (genuine, non-vacuous)',
-      ref:'lutar-lean ProvedFormulas.lean @ c7c0ba17 (lutar-lean #219 + platform #321)' },
+      axioms:'f7_chaski_fifo_order / f7_chaski_fifo_positional / f7_chaski_drain_eq — no axioms (genuine, non-vacuous) · quoted, kernel output NOT MEASURED here',
+      ref:'lutar-lean ProvedFormulas.lean @ 3a886349 (not present at c7c0ba17) · the theorem there states chaskiDrain (chaskiEnqueueAll [] msgs) = msgs for a list-modelled queue that starts empty (lutar-lean #219 + platform #321)' },
     F22:{ id:'F22', name:'Khipu Emit Append-Only Monotonicity', maturity:'LOCKED',
       latex:'emit(ledger)  =>  index(ledger\') > index(ledger)   (strictly increasing)',
       plain:'Every Khipu emit strictly increases the ledger index — append-only, never rewrites history. Newly kernel-verified (joined the locked set 2026-06-10).',
-      axioms:'f22_khipu_emit_monotone / f22_emit_appends_length / f22_emit_strictly_greater — no axioms',
-      ref:'lutar-lean ProvedFormulas.lean @ c7c0ba17 (lutar-lean #219 + platform #321)' },
+      axioms:'f22_khipu_emit_monotone / f22_emit_appends_length / f22_emit_strictly_greater — no axioms · quoted, kernel output NOT MEASURED here',
+      ref:'lutar-lean ProvedFormulas.lean @ 3a886349 (not present at c7c0ba17) · the theorems there model the log as List.range n: an emit appends n, and a later position holds a strictly larger number; this is a list model, not the runtime ledger (lutar-lean #219 + platform #321)' },
 
     /* ---------- WAVE 8 (experimental, green on main @ 7885fd9) ---------- */
     M2: { id:'M2', name:'Hash-Chain Tamper-Evidence', maturity:'EXPERIMENTAL',
@@ -840,25 +841,27 @@
   /* =====================================================================
      v5 — 8 LOCKED-PROVEN → ORGAN MAP (additive, honest)
      The mapping is presentational only: it does NOT change the locked set,
-     which stays EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17.
-     Each entry shows the verbatim Lean statement (latex) + #print axioms.
+     which stays EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22} (theorems in lutar-lean
+     ProvedFormulas.lean @ 3a886349; not present at c7c0ba17).
+     Each entry shows an informal paraphrase (latex; NOT the Lean statement),
+     the theorem source (ref) and the quoted #print axioms line (not re-run).
      Λ is the heart-gate: ADVISORY, Conjecture 1, NEVER a theorem.
      Khipu BFT safety is Conjecture 2 (Wave23 conditional only).
      ===================================================================== */
   const LEAN_MAP = {
-    kernel_sha:'c7c0ba17',
-    verified_note:'kernel-verified sorry-free @ c7c0ba17',
+    source:'lutar-lean Lutar/Puriq/Formulas/ProvedFormulas.lean @ 3a886349 (not present at c7c0ba17)',
+    verified_note:'sorry-free, Lean-core only — lutar-lean ProvedFormulas.lean @ 3a886349 (not present at c7c0ba17)',
     organs:[
       { organ:'BRAIN',       organ_key:'amaru',  color:'#7c5cff', formulas:['F1'],
-        why:'F1 Replay-Hash Determinism underpins the read-only reasoning cortex: replaying a recorded log is bit-identical, so the thinking layer can never drift the record.' },
+        why:'F1 Replay-Hash Determinism is mapped to the read-only reasoning cortex. The theorem states only that a pure function gives the same output for the same input (f x = f x); it does not prove that a recorded log replays bit-identically.' },
       { organ:'HEART',       organ_key:'yuyay',  color:'#ff5d8f', formulas:['F4','F11'],
         why:'F4 (Khipu DAG acyclicity) + F11 (Ayni reciprocity conservation) sit at the beating gate. Λ is the heart-gate — ADVISORY, Conjecture 1, never a theorem.' },
       { organ:'CIRCULATORY', organ_key:'yawar',  color:'#ff3b5c', formulas:['F7','F22'],
-        why:'F7 (FIFO reception ordering — “Smart Routing”) + F22 (emit append-only monotonicity) keep the receipt bloodstream ordered and append-only.' },
+        why:'F7 (FIFO reception ordering — “Smart Routing”) + F22 (emit append-only monotonicity) are mapped to the receipt bloodstream. Both are proved on small list models, not on the runtime receipt bus.' },
       { organ:'NERVOUS',     organ_key:'vsp',    color:'#5ad1ff', formulas:['F12'],
-        why:'F12 Kuramoto coupling boundedness (additive fragment) bounds the nervous-system span coupling — additive scaffolding only, NOT full nonlinear sync.' },
+        why:'F12 Kuramoto additive fragment is mapped to the nervous-system span coupling. The theorem is Nat distributivity, k * (p1 + p2) = k * p1 + k * p2: additive scaffolding only, NOT a boundedness or nonlinear-sync result.' },
       { organ:'SKELETON',    organ_key:'hatun',  color:'#ffd166', formulas:['F18','F19'],
-        why:'F18 (RS(10,6) erasure recovery) + F19 (Bekenstein additive scaffolding) are the skeletal resilience + entropy-budget bones.' }
+        why:'F18 (RS(10,6) parity-count arithmetic, 10 − 6 = 4; recovery is NOT proven) + F19 (Bekenstein additive scaffolding, s1 ≤ s1 + s2 on Nat) are mapped to the skeletal resilience + entropy-budget bones.' }
     ],
     lambda:'Λ = heart-gate, ADVISORY = Conjecture 1. Unconditional uniqueness under A1–A5 is machine-checked FALSE; CUT-2 proves uniqueness only CONDITIONAL on slice-multiplicativity. Never a theorem.',
     khipu:'Khipu BFT safety = Conjecture 2. Wave23 proves agreement CONDITIONAL on n≥3f+1 + honest non-equivocation; unconditional safety stays Conjecture 2.'

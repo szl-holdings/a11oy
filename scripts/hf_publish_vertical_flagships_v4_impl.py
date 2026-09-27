@@ -79,6 +79,26 @@ _PROBE_REACHABLE = (
     '"http_status":r.status_code,"latency_ms":round((time.time()-started)*1000,1),'
     '"source":CFG["upstream"],"data":body}'
 )
+# /healthz stays HTTP 200 for orchestrators and the finance container smoke
+# (the a11oy /api/livez convention), but `ok` is no longer a constant: it is the
+# shell's own landing/panels integrity. Upstream state stays on /api/live.
+_HEALTHZ_CONSTANT = (
+    '@app.get("/healthz")\ndef healthz():\n'
+    '    return {"ok":True,"product":CFG["title"],"source":CFG["product_source"],'
+    '"public_experience":CFG["public_experience"],"domain":CFG["slug"]}\n'
+)
+_HEALTHZ_PROCESS_SCOPED = (
+    '@app.get("/healthz")\ndef healthz():\n'
+    '    integrity=local_integrity()\n'
+    '    return {"ok":integrity["ready"],"status":"PROCESS_ALIVE",'
+    '"scope":"process liveness plus local landing/panels integrity; '
+    'not upstream health, not production readiness",'
+    '"production_ready":False,'
+    '"integrity":{"state":integrity["state"],"checks":integrity["checks"]},'
+    '"readiness":"/readyz","upstream":"/api/live",'
+    '"product":CFG["title"],"source":CFG["product_source"],'
+    '"public_experience":CFG["public_experience"],"domain":CFG["slug"]}\n'
+)
 _LIVEBAR_OPEN = (
     "s.className='status '+(j.status==='LIVE'?'is-live':'');"
     "s.children[1].textContent=j.status+' / '+(j.latency_ms??'-')+' ms';"
@@ -143,6 +163,9 @@ for _name in dir(_BASE):
 if _PROBE_LIVE not in APP:
     raise RuntimeError("flagship APP probe contract is not the expected LIVE-on-success mapper")
 APP = APP.replace(_PROBE_LIVE, _PROBE_REACHABLE, 1)
+if APP.count(_HEALTHZ_CONSTANT) != 1:
+    raise RuntimeError("flagship APP healthz is not the expected unconditional ok:True handler")
+APP = APP.replace(_HEALTHZ_CONSTANT, _HEALTHZ_PROCESS_SCOPED, 1)
 _BASE.APP = APP
 
 

@@ -7,7 +7,7 @@ continues A11oy issue #2010 and changes neither the estate manifest nor transpor
 ## Producer and consumer
 
 Inspected producer: `szl-holdings/lyte-services` revision
-`9ce4e6b5f36fe0b094a07308abe3665cd2a210c1`, `lyte/api/routes_health.py`,
+`445c24c5a2ad314775af9a463a7d26acb910a5f1`, `lyte/api/routes_health.py`,
 Git blob `b0e981fb04d616ae8fcc076a5f4ca0bd866418f5`.
 It returns `szl.lyte-build/v2`, not the retired generic `szl.build-info/v1`
 shape. Its source names are literal `LYTE_SOURCE_REVISION`, `SOURCE_REVISION`,

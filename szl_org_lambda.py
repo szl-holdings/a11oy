@@ -52,6 +52,8 @@ The overview's genome tier counts are genome-ENTRY counts, NOT the locked-8 theo
 stdlib-only (+ the in-repo szl_lake_store). Apache-2.0 — SZL Holdings 2026.
 """
 
+import base64
+import binascii
 import json
 import math
 import os
@@ -407,33 +409,80 @@ def _genome_tiers() -> dict:
     return {"status": "OK", "total": len(entries), "counts": counts}
 
 
+def _decodes_to_sig_bytes(sig) -> bool:
+    """`sig` is strict standard base64 that decodes to non-empty bytes. Placeholder text such
+    as 'DSSE_PLACEHOLDER' is not base64 and fails here."""
+    if not isinstance(sig, str) or not sig:
+        return False
+    try:
+        return len(base64.b64decode(sig, validate=True)) > 0
+    except (binascii.Error, ValueError):
+        return False
+
+
+def _has_dsse_signature_bytes(receipt: dict) -> bool:
+    """True only when the stored receipt carries a DSSE envelope whose every signature entry
+    holds base64 signature bytes. A bare `signed: true` flag without bytes does not count.
+    This checks that bytes are stored; it does not verify them against a key."""
+    env = receipt.get("dsse") if isinstance(receipt, dict) else None
+    if not isinstance(env, dict):
+        return False
+    sigs = env.get("signatures")
+    if not isinstance(sigs, list) or not sigs:
+        return False
+    return all(isinstance(s, dict) and _decodes_to_sig_bytes(s.get("sig")) for s in sigs)
+
+
+def _is_modeled_probe(receipt: dict) -> bool:
+    """Legacy GET /pcai/run MODELED probe records (minted before the read path stopped writing)."""
+    if not isinstance(receipt, dict) or receipt.get("action") != "pcai/run":
+        return False
+    payload = receipt.get("payload")
+    return isinstance(payload, dict) and payload.get("label") == "MODELED"
+
+
 def _chain_stats() -> dict:
     """Depth + last receipt from the ONE szl.lake.receipt/v1 chain, or honest unreachable.
-    Never fabricates a count or a receipt when the lake store is down."""
+    Never fabricates a count or a receipt when the lake store is down.
+
+    depth counts hash-chained receipt RECORDS. dsse_sig_bytes counts records that store DSSE
+    signature bytes (not verified here); modeled_probe counts legacy MODELED GET probes. Both
+    are measured by a scan of the stored envelopes, never inferred from a flag."""
     if not _LAKE_OK:
         return {"status": "unreachable", "depth": "N/A", "chain_alg": "sha3_256",
+                "dsse_sig_bytes": "N/A", "modeled_probe": "N/A",
                 "last_receipt": None, "reason": "szl_lake_store unavailable"}
     try:
         led = _lake.get_default_ledger()
         h = led.health()
-        recent = led.query(limit=1)
+        envelopes = led.query(limit=0)
         last = None
-        if recent:
-            r = recent[0]
+        if envelopes:
+            r = envelopes[0]
             last = {
                 "receipt_id": r.get("receipt_id"), "organ": r.get("organ"),
                 "ts": r.get("ts"), "chain_index": r.get("chain_index"),
                 "chain_hash": r.get("chain_hash"),
             }
+        dsse_sig_bytes = modeled_probe = 0
+        for env in envelopes:
+            body = env.get("receipt") if isinstance(env, dict) else None
+            if _has_dsse_signature_bytes(body):
+                dsse_sig_bytes += 1
+            if _is_modeled_probe(body):
+                modeled_probe += 1
         return {
             "status": "OK",
             "depth": int(h.get("total_receipts", 0)),
             "chain_alg": h.get("chain_alg", "sha3_256"),
             "schema": h.get("schema"),
+            "dsse_sig_bytes": dsse_sig_bytes,
+            "modeled_probe": modeled_probe,
             "last_receipt": last,
         }
     except Exception as e:  # noqa: BLE001 - honest degrade
         return {"status": "unreachable", "depth": "N/A", "chain_alg": "sha3_256",
+                "dsse_sig_bytes": "N/A", "modeled_probe": "N/A",
                 "last_receipt": None, "reason": f"lake read failed: {e!r}"}
 
 
@@ -502,7 +551,9 @@ def org_overview() -> dict:
     return {
         "schema": "szl.a11oy.org.overview/v1",
         "thesis_stats": {
-            "signed_receipts": chain["depth"],            # receipt count on the ONE chain (N/A if down)
+            "receipt_records": chain["depth"],            # hash-chained records on the ONE chain (N/A if down)
+            "dsse_sig_bytes_records": chain["dsse_sig_bytes"],  # store DSSE sig bytes; not verified
+            "modeled_probe_records": chain["modeled_probe"],  # legacy GET pcai/run MODELED probes
             "chain_alg": "sha3_256",
             "locked_proven_count": _tier("LOCKED-PROVEN"),
             "semantic_verified_count": _tier("SEMANTIC-VERIFIED"),
@@ -534,9 +585,18 @@ def org_overview() -> dict:
                                     "{F1,F4,F7,F11,F12,F18,F19,F22} from /api/a11oy/v1/honest"),
             "proof_tiers_locked": ("kernel locked-proven (Lean-8). genome_locked_proven is the "
                                    "catalog tag, never the kernel chip, never green"),
-            "signed_receipts": ("count of receipts on the szl.lake.receipt/v1 chain "
-                                "(SHA3-256 hash-chained, append-only); honest N/A when the "
-                                "lake store is unreachable — never fabricated"),
+            "receipt_records": ("count of receipt records on the szl.lake.receipt/v1 chain "
+                                "(SHA3-256 hash-chained, append-only). Hash-chaining is not "
+                                "signing. Honest N/A when the lake store is unreachable — "
+                                "never fabricated"),
+            "dsse_sig_bytes_records": ("records whose stored DSSE envelope carries base64 "
+                                       "signature bytes; counted, not verified here, so this is "
+                                       "not a verified-signature count. A bare signed:true flag "
+                                       "does not count"),
+            "modeled_probe_records": ("legacy MODELED GET /pcai/run probe records minted before "
+                                      "the read path stopped writing; the chain is append-only "
+                                      "so they stay and are included in receipt_records, broken out "
+                                      "here — they are not decisions"),
             "slsa": "L1 honest · L2 build-attested (Rekor) · L3 ROADMAP — not claimed achieved",
             "lambda": "Λ = Conjecture 1 (advisory, gray); bounds min≤Λ≤max = SEMANTIC-VERIFIED",
             "organs": "import-reachability probe — 'live' means the backing module loads in-process",
