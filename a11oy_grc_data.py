@@ -135,7 +135,7 @@ COVERAGE_MATRIX: List[Dict[str, str]] = [
     {"control": "A.4.6", "framework": "ISO 42001", "title": "Human oversight & monitoring",
      "mechanism": "human_override_required Rego gate fires before irreversible actions / low Λ", "coverage": "COVERED"},
     {"control": "A.5.4", "framework": "ISO 42001", "title": "AI system risk management",
-     "mechanism": "13-axis Λ score computed per inference; sealed into the DSSE receipt", "coverage": "COVERED"},
+     "mechanism": "Λ is emitted on the YUYAY gate, attested-inference and governed-turn paths, but its values are keyword checks, caller-declared or a fixed 0.97 default (YUYAY), SHA-256-derived (attested inference), 0.97 minus fixed penalties for regex matches, classification signals and caller-supplied severity (governed turn) or default constants (org Λ); no measured, calibrated per-inference risk score yet", "coverage": "PARTIAL"},
     {"control": "A.6.4", "framework": "ISO 42001", "title": "Data provenance",
      "mechanism": "Input hash + model version + lineage recorded in the receipt", "coverage": "COVERED"},
     {"control": "A.6.6", "framework": "ISO 42001", "title": "AI system verification",
@@ -171,7 +171,7 @@ COVERAGE_MATRIX: List[Dict[str, str]] = [
     {"control": "CM-8", "framework": "NIST 800-53r5", "title": "System component inventory",
      "mechanism": "Model ID + version + digest recorded per inference", "coverage": "COVERED"},
     {"control": "RA-3", "framework": "NIST 800-53r5", "title": "Risk assessment",
-     "mechanism": "13-axis Λ trust score is the per-inference risk assessment", "coverage": "COVERED"},
+     "mechanism": "Λ is an advisory score whose values are keyword checks, caller-declared, a fixed 0.97 default, SHA-256-derived, 0.97 minus fixed regex/classification/severity penalties, or default constants; not a measured risk assessment", "coverage": "PARTIAL"},
     {"control": "SI-10", "framework": "NIST 800-53r5", "title": "Information input validation",
      "mechanism": "Input hash + classification-boundary gate", "coverage": "PARTIAL"},
     # EU AI Act

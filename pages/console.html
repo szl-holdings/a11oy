@@ -2653,10 +2653,12 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 <script>
 /* ============================================================================
    STATUS-EVERYWHERE (v2 console polish) — Vercel-style live status in the tab title
-   + favicon, driven by the REAL org posture endpoint /api/a11oy/v1/lambda/org.
-   The tab title shows the live org Λ and whether it clears the 0.90 floor; the
-   favicon is repainted to match (proof-teal pass / gold below-floor / gray when the
-   source is UNREACHABLE). HONEST by construction: on any fetch/parse failure the
+   + favicon, driven by the org posture endpoint /api/a11oy/v1/lambda/org.
+   The tab title shows the org Λ and whether it clears the 0.90 floor only when the
+   endpoint marks its inputs SUPPLIED; built-in default constants (inputs.class
+   SAMPLE) read "Λ SAMPLE". The favicon is repainted to match (proof-teal pass /
+   gold below-floor / gray when the source is UNREACHABLE or SAMPLE). HONEST by
+   construction: on any fetch/parse failure the
    title reads "Λ N/A" and the dot goes gray — never a fabricated score, never a
    faked green. Self-contained, no new deps, 0 runtime CDN; one 45s poll, GPU-light
    (a 32px canvas favicon). KANCHAY palette only: void / proof / lattice / gold. */
@@ -2684,10 +2686,13 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
     }catch(e){/* canvas unavailable — leave the static favicon, never crash */}
   }
   function apply(state){
-    /* state: {lambda:Number|null, pass:Boolean|null, unreachable:Boolean} */
+    /* state: {lambda:Number|null, pass:Boolean|null, sample:Boolean, unreachable:Boolean} */
     var color, prefix;
     if(state.unreachable || state.lambda==null){
       color=C.gray; prefix='Λ N/A';
+    } else if(state.sample){
+      /* inputs.class SAMPLE: built-in default constants, not a measured posture. */
+      color=C.gray; prefix='Λ SAMPLE';
     } else {
       var clears=(state.pass===true) || (state.pass==null && state.lambda>=FLOOR);
       color=clears?C.proof:C.gold;
@@ -2706,7 +2711,8 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
         if(to)clearTimeout(to);
         var lam=(d&&typeof d.lambda_org==='number')?d.lambda_org:null;
         var pass=(d&&typeof d.pass==='boolean')?d.pass:null;
-        apply({lambda:lam,pass:pass,unreachable:lam==null});
+        var sample=!(d&&d.inputs&&d.inputs.class==='SUPPLIED');
+        apply({lambda:lam,pass:pass,sample:sample,unreachable:lam==null});
       })
       .catch(function(){ if(to)clearTimeout(to); apply({lambda:null,pass:null,unreachable:true}); });
   }

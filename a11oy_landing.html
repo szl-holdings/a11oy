@@ -1965,12 +1965,24 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
     }
   }
 
-  function setVerticals(v){
+  function setVerticals(v, src){
     // Flagships only: a11oy command (core) and killinchu (defense).
     // Insurance / finance / real-estate are not products on this page.
+    // A posture is shown only when the API marks it SUPPLIED. Built-in default
+    // constants (source DEFAULT_CONSTANT) or a missing source render N/A.
+    // src === null means the source endpoint itself was unavailable.
+    const unavailable = (src === null);
+    src = src || {};
     [["core","v-core"],["defense","v-defense"]].forEach(([k,id])=>{
       const el = $(id);
       if(!el) return;
+      if(src[k] !== "SUPPLIED"){
+        el.textContent = "N/A";
+        const chip = $(id+"-chip");
+        if(chip) chip.innerHTML = unavailable ? downChip("N/A")
+          : grayChip(src[k] === "DEFAULT_CONSTANT" ? "NOT MEASURED · DEFAULT CONSTANT" : "NOT MEASURED");
+        return;
+      }
       const val = fmtLam(v[k]);
       el.textContent = (val===null) ? "N/A" : val;
       lamChip(id+"-chip", num(v[k]));
@@ -2034,9 +2046,9 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
       let any = false;
       if(o.proof_tiers){ setTiers({ semantic:o.proof_tiers.semantic, evidence:o.proof_tiers.evidence, conjecture:o.proof_tiers.conjecture }); setCatalogNote((o.thesis_stats&&o.thesis_stats.locked_proven_count) || o.proof_tiers.locked); $("proof-src").innerHTML = grayChip("REACHABLE · overview"); any = true; }
       if(Array.isArray(o.verticals)){
-        const vm = {};
-        o.verticals.forEach(x => { if(x && x.name) vm[x.name] = num(x.lambda); });
-        setVerticals(vm); $("verticals-src").innerHTML = grayChip("REACHABLE · overview"); any = true;
+        const vm = {}, vs = {};
+        o.verticals.forEach(x => { if(x && x.name){ vm[x.name] = num(x.lambda); vs[x.name] = x.source; } });
+        setVerticals(vm, vs); $("verticals-src").innerHTML = grayChip("REACHABLE · overview"); any = true;
       }
       const ts = o.thesis_stats || {};
       const ch = o.chain || {};
@@ -2071,11 +2083,17 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
     try{
       const d = await getJSON("/api/a11oy/v1/lambda/org");
       const v = d.verticals || {};
-      setVerticals({ core:v.core, defense:v.defense });
-      if($("v-org")){ const ov = fmtLam(d.lambda_org); $("v-org").textContent = ov || "N/A"; lamChip("v-org-chip", num(d.lambda_org)); }
+      setVerticals({ core:v.core, defense:v.defense }, d.verticals_source || {});
+      if($("v-org")){
+        const supplied = !!(d.inputs && d.inputs.class === "SUPPLIED");
+        const ov = supplied ? fmtLam(d.lambda_org) : null;
+        $("v-org").textContent = ov || "N/A";
+        if(supplied) lamChip("v-org-chip", num(d.lambda_org));
+        else if($("v-org-chip")) $("v-org-chip").innerHTML = grayChip("NOT MEASURED · DEFAULT CONSTANT");
+      }
       if($("verticals-src")) $("verticals-src").innerHTML = grayChip("REACHABLE · lambda/org");
     }catch(e){
-      setVerticals({});
+      setVerticals({}, null);
       if($("v-org")) $("v-org").textContent = "N/A";
       if($("v-org-chip")) $("v-org-chip").innerHTML = downChip("N/A");
       if($("verticals-src")) $("verticals-src").innerHTML = downChip("UNAVAILABLE");

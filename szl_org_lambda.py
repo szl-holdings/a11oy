@@ -25,7 +25,9 @@ What it provides
    SLSA level + the drift-check status. The min ≤ Λ ≤ max bound it satisfies is
    SEMANTIC-VERIFIED in Lean (Lutar/Bound.lean::Λ_le_max, ::min_le_Λ — 0 sorries, outside
    the locked-8). Λ unconditional uniqueness is **Conjecture 1** (machine-checked FALSE as
-   stated) — rendered gray, NEVER green.
+   stated) — rendered gray, NEVER green. The public route supplies no inputs, so its vertical
+   postures and six axes are built-in DEFAULT constants: the response is `inputs.class`
+   SAMPLE with `pass: null`, never a computed pass.
 
 3. INSURANCE vertical (David Leads fold-in). `POST /api/{ns}/v1/insurance/score` runs the
    David Leads 5-axis weighted-geomean lead scorer (a faithful port of
@@ -235,43 +237,89 @@ def _drift_axis() -> dict:
     }
 
 
-def org_lambda(vertical_scores: dict | None = None) -> dict:
+# Built-in postures. These are CONSTANTS, not measurements: no method, date or sample
+# size stands behind them. A response that uses any of them is class SAMPLE and carries
+# pass=None, so a constant is never reported as a computed pass.
+DEFAULT_VERTICAL_POSTURES = {
+    "core": 0.93, "defense": 0.92, "finance": 0.91, "realestate": 0.90,
+    "insurance": 0.91,
+}
+DEFAULT_AXIS_CONSTANTS = {
+    "calibration": 0.91, "reversibility": 0.92, "transparency": 0.93,
+    "fairness": 0.91, "containment": 0.92, "authority": 0.92,
+}
+SRC_DEFAULT = "DEFAULT_CONSTANT"
+SRC_SUPPLIED = "SUPPLIED"
+SRC_HEURISTIC = "HEURISTIC"
+
+
+def _clamp_score(v) -> float:
+    return min(1.0, max(1e-9, float(v)))
+
+
+def org_lambda(vertical_scores: dict | None = None,
+               axis_scores: dict | None = None) -> dict:
     """Compute the org-wide 13-axis weighted-geometric-mean Λ.
 
     Fed by: (a) each vertical's posture score, (b) the build's SLSA level, (c) the
     drift-check status. ADVISORY, canonical floor 0.90. The min≤Λ≤max bound is
-    SEMANTIC-VERIFIED in Lean; unconditional uniqueness is Conjecture 1 (gray, never green)."""
-    # Default per-vertical postures (advisory). 'insurance' is the David Leads fold-in.
-    verticals = {
-        "core": 0.93, "defense": 0.92, "finance": 0.91, "realestate": 0.90,
-        "insurance": 0.91,
-    }
+    SEMANTIC-VERIFIED in Lean; unconditional uniqueness is Conjecture 1 (gray, never green).
+
+    Every vertical and axis carries a source. Without caller-supplied values the inputs
+    are the DEFAULT_* constants above, so the result is class SAMPLE and pass is None."""
+    verticals = dict(DEFAULT_VERTICAL_POSTURES)
+    vsrc = {k: SRC_DEFAULT for k in verticals}
     if isinstance(vertical_scores, dict):
         for k, v in vertical_scores.items():
             try:
-                verticals[k] = min(1.0, max(1e-9, float(v)))
+                verticals[k] = _clamp_score(v)
+                vsrc[k] = SRC_SUPPLIED
             except Exception:
                 continue
     slsa = _read_slsa_axis()
     drift = _drift_axis()
     vmean = sum(verticals.values()) / len(verticals)
+    v_derived = SRC_SUPPLIED if all(s == SRC_SUPPLIED for s in vsrc.values()) else SRC_DEFAULT
 
-    # Map contributions onto the 13 canonical axes (honest, documented mapping).
-    axis_scores = {
+    # Map contributions onto the 13 canonical axes (documented mapping).
+    scores = {
         "soundness": vmean,
-        "calibration": 0.91,
+        "calibration": DEFAULT_AXIS_CONSTANTS["calibration"],
         "robustness": min(verticals.values()),     # robustness = the weakest vertical
         "provenance": drift["axis"],
         "consent": verticals.get("insurance", vmean),  # consent gate strongest in insurance (F12)
-        "reversibility": 0.92,
-        "transparency": 0.93,
-        "fairness": 0.91,
-        "containment": 0.92,
+        "reversibility": DEFAULT_AXIS_CONSTANTS["reversibility"],
+        "transparency": DEFAULT_AXIS_CONSTANTS["transparency"],
+        "fairness": DEFAULT_AXIS_CONSTANTS["fairness"],
+        "containment": DEFAULT_AXIS_CONSTANTS["containment"],
         "attestation": slsa["axis"],
         "freshness": 0.92 if _LAKE_OK else 0.88,
-        "authority": 0.92,
+        "authority": DEFAULT_AXIS_CONSTANTS["authority"],
         "auditability": drift["axis"],
     }
+    # provenance/auditability/freshness follow lake import-reachability and attestation
+    # follows the declared SLSA level: fixed mappings, not measurements.
+    asrc = {
+        "soundness": v_derived, "robustness": v_derived,
+        "consent": vsrc.get("insurance", v_derived),
+        "provenance": SRC_HEURISTIC, "auditability": SRC_HEURISTIC,
+        "freshness": SRC_HEURISTIC, "attestation": SRC_HEURISTIC,
+    }
+    for n in DEFAULT_AXIS_CONSTANTS:
+        asrc[n] = SRC_DEFAULT
+    if isinstance(axis_scores, dict):
+        for k, v in axis_scores.items():
+            if k not in scores:
+                continue
+            try:
+                scores[k] = _clamp_score(v)
+                asrc[k] = SRC_SUPPLIED
+            except Exception:
+                continue
+    axis_scores = scores
+    default_axes = [n for n in ORG_AXIS_NAMES if asrc[n] != SRC_SUPPLIED]
+    default_verticals = [k for k, s in vsrc.items() if s != SRC_SUPPLIED]
+    sample = bool(default_axes or default_verticals)
     axes = [axis_scores[n] for n in ORG_AXIS_NAMES]
     L = weighted_geomean(axes, ORG_AXIS_WEIGHTS)
     lo, hi = min(axes), max(axes)
@@ -280,12 +328,28 @@ def org_lambda(vertical_scores: dict | None = None) -> dict:
     return {
         "trust_axes": 13,
         "axes": [{"name": n, "score": round(axis_scores[n], 4),
-                  "weight": w} for n, w in zip(ORG_AXIS_NAMES, ORG_AXIS_WEIGHTS)],
+                  "weight": w, "source": asrc[n]}
+                 for n, w in zip(ORG_AXIS_NAMES, ORG_AXIS_WEIGHTS)],
         "lambda_org": round(L, 6),
         "lambda_floor": LAMBDA_FLOOR,
-        "pass": L >= LAMBDA_FLOOR,
+        # A constant is not a computed pass: pass is None whenever any input is a default.
+        "pass": None if sample else (L >= LAMBDA_FLOOR),
+        "inputs": {
+            "class": "SAMPLE" if sample else SRC_SUPPLIED,
+            "default_axes": default_axes,
+            "default_verticals": default_verticals,
+            "method": None,
+            "measured_at": None,
+            "n": None,
+            "note": ("NOT MEASURED: built-in default constants (DEFAULT_CONSTANT) and "
+                     "reachability heuristics (HEURISTIC); no method, date or sample size. "
+                     "pass is null until every axis and vertical is supplied."
+                     if sample else
+                     "All axes and verticals supplied by the caller; not independently measured here."),
+        },
         "aggregate": "13-axis weighted geometric mean (canonical, advisory)",
         "verticals": {k: round(v, 4) for k, v in verticals.items()},
+        "verticals_source": dict(vsrc),
         "slsa": slsa,
         "drift": drift,
         "bounds": {
@@ -472,9 +536,15 @@ def org_overview() -> dict:
     def _tier(name):
         return g.get(name, "N/A") if genome["status"] == "OK" else "N/A"
 
+    vsrc = lam.get("verticals_source", {})
+
+    def _vstatus(k, v):
+        if vsrc.get(k) != SRC_SUPPLIED:
+            return "NOT MEASURED"
+        return "pass" if isinstance(v, (int, float)) and v >= floor else "below-floor"
+
     verticals = [
-        {"name": k, "lambda": v,
-         "status": ("pass" if isinstance(v, (int, float)) and v >= floor else "below-floor")}
+        {"name": k, "lambda": v, "source": vsrc.get(k, SRC_DEFAULT), "status": _vstatus(k, v)}
         for k, v in verts.items()
     ]
 
