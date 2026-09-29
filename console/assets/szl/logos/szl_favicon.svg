@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="96 252 1008 588" role="img" aria-label="SZL">
+  <title>SZL</title>
+  <defs>
+    <linearGradient id="orbit" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#E9EEF6"/>
+      <stop offset="0.5" stop-color="#9AA7BD"/>
+      <stop offset="1" stop-color="#5C6B86"/>
+    </linearGradient>
+    <radialGradient id="node" cx="0.38" cy="0.34" r="0.75">
+      <stop offset="0" stop-color="#F0917E"/>
+      <stop offset="0.55" stop-color="#DF735F"/>
+      <stop offset="1" stop-color="#C4543F"/>
+    </radialGradient>
+  </defs>
+  <g transform="rotate(-22 657.0 502.0)"><ellipse cx="657.0" cy="502.0" rx="432" ry="196" fill="none" stroke="url(#orbit)" stroke-width="7" stroke-linecap="round" opacity="0.95"/></g>
+  <path d="M 500 402 C 476 374 344 374 334 416 C 324 458 396 480.0 409.0 502.0 C 476 526.0 512 540 476 582 C 464 620 358 626 310 606 " fill="none" stroke="#FFFFFF" stroke-width="70" stroke-linecap="butt" stroke-linejoin="round"/>
+  <g fill="#FFFFFF"><path d="M 534 372 L 732 372 L 732 444 L 636 568 L 732 568 L 732 632 L 534 632 L 534 560 L 630 436 L 534 436 Z"/><path d="M 762 372 L 830 372 L 830 568 L 1014 568 L 954 632 L 762 632 Z"/></g>
+  <circle cx="937.9" cy="264.3" r="33" fill="url(#node)"/>
+  <path d="M 657.0 678 L 694.0 766 L 675.0 766 L 657.0 710.3 L 639.0 766 L 620.0 766 Z" fill="url(#orbit)" opacity="0.96"/>
+</svg>
