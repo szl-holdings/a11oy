@@ -5,24 +5,28 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="icon" type="image/svg+xml" href="/assets/szl/logos/szl_favicon_square.svg"/>
+<link rel="stylesheet" href="/assets/szl/szl-design-system.css"/>
 <title>a11oy · Docs — build on the governed agentic platform</title>
 <style>
-:root{--bg:#0b0d12;--panel:#12151d;--ink:#e7ecf3;--mut:#8a93a6;--acc:#7cc4ff;--ok:#54d18c;--warn:#ffcf5c;--bad:#ff6b6b;--line:#222838;--mono:'SF Mono',ui-monospace,'JetBrains Mono',Menlo,Consolas,monospace}
+/* SZL KANCHAY founder tokens (kit 1.1.0, /assets/szl/) — dark operator surface. */
+:root{--panel:var(--surface);--ink:var(--text);--mut:var(--text-sub);--acc:var(--link);--ok:var(--color-success-light);--warn:var(--color-warning-light);--bad:var(--color-error-light);--line:var(--border);--mono:var(--font-mono)}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+.nav{position:static;display:block;height:auto;padding:0;background:none;border:0;backdrop-filter:none}
+body{margin:0;background:var(--bg);color:var(--ink);font:var(--text-base)/var(--leading-normal) var(--font-body)}
 a{color:var(--acc)}
 .wrap{max-width:1000px;margin:0 auto;padding:28px 20px 80px}
 .top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:16px}
 .brand{font-weight:700;letter-spacing:.5px}.tag{font-size:12px;color:var(--mut)}
-.nav a{margin-left:14px;font-size:13px;text-decoration:none;color:var(--mut)}.nav a:hover{color:var(--acc)}
+.nav a{margin-left:14px;font-size:13px;text-decoration:none;color:var(--mut)}.nav a:hover{color:var(--link-hover)}
 h1{font-size:26px;margin:24px 0 6px}.sub{color:var(--mut);margin:0 0 18px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin:14px 0}
 .card h3{margin:0 0 4px;font-size:17px}
-.path{font-family:var(--mono);font-size:12.5px;color:var(--acc);margin:6px 0}
-pre{width:100%;background:#0a0c11;color:var(--ink);border:1px solid var(--line);border-radius:8px;font-family:var(--mono);font-size:12.5px;padding:10px;overflow:auto;white-space:pre-wrap;word-break:break-word}
+.path{font-family:var(--mono);font-size:12.5px;color:var(--text);margin:6px 0}
+pre{width:100%;background:var(--bg-deep);color:var(--ink);border:1px solid var(--line);border-radius:8px;font-family:var(--mono);font-size:12.5px;padding:10px;overflow:auto;white-space:pre-wrap;word-break:break-word}
 .mut{color:var(--mut);font-size:13px}
-.honest{background:#0e1117;border:1px solid #2a2030;border-left:3px solid var(--warn);border-radius:10px;padding:14px 16px;margin:22px 0;font-size:13px}
-.honest b{color:var(--warn)} code{font-family:var(--mono);color:var(--acc);font-size:12.5px}
+.honest{background:var(--surface-alt);border:1px solid var(--border-subtle);border-left:3px solid var(--warn);border-radius:10px;padding:14px 16px;margin:22px 0;font-size:13px}
+.honest b{color:var(--warn)} code{font-family:var(--mono);color:var(--text);font-size:12.5px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 footer{margin-top:34px;border-top:1px solid var(--line);padding-top:14px;color:var(--mut);font-size:12px}
 </style>
