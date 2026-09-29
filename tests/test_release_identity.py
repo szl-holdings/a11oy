@@ -215,10 +215,13 @@ def test_live_version_route_uses_canonical_release_identity(monkeypatch):
     assert payload["verify"]["release_assets_status"] == "PENDING_RELEASE"
 
 
-def test_public_ledger_get_does_not_mint_and_reads_khipu():
+def test_public_ledger_get_does_not_mint_and_reads_khipu(monkeypatch):
     from fastapi.testclient import TestClient
     import serve
+    import szl_operator_auth as opauth
 
+    # /khipu/sign is an operator-only write (PROTECTED_ROUTES); the ledger GET stays public.
+    monkeypatch.setenv(opauth.OPERATOR_KEY_ENV, "test-operator-secret-not-real")
     with TestClient(serve.app) as client:
         before = client.get("/api/a11oy/v1/ledger")
         assert before.status_code == 200
@@ -229,9 +232,16 @@ def test_public_ledger_get_does_not_mint_and_reads_khipu():
         assert again.json()["count"] == start["count"]
         assert again.json()["receipt_minted"] is False
 
+        refused = client.post(
+            "/api/a11oy/khipu/sign",
+            json={"actor": "operator", "intent": "measured-agent-loop"},
+        )
+        assert refused.status_code == 401
+        assert client.get("/api/a11oy/v1/ledger").json()["count"] == start["count"]
         minted = client.post(
             "/api/a11oy/khipu/sign",
             json={"actor": "operator", "intent": "measured-agent-loop"},
+            headers={"Authorization": "Bearer test-operator-secret-not-real"},
         )
         assert minted.status_code == 200
         after = client.get("/api/a11oy/v1/ledger")

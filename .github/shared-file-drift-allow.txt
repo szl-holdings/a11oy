@@ -69,3 +69,6 @@ szl_connectors/oauth.py       # TEMP: coordinated public OAuth-scope separation
 szl_dsse.py                   # TEMP: coordinated content-address separation
 szl_ecosystem_routes.py  # pre-existing divergence between a11oy main and killinchu main (not introduced by audit wave 1); reconcile in a dedicated PR
 szl_warhacker_aliases.py  # pre-existing divergence between a11oy main and killinchu main (not introduced by audit wave 1); reconcile in a dedicated PR
+a11oy_code_engine.py      # TEMP: a11oy security PR #2321 (deny anonymous code execution; allow_exec chokepoint + operator refusal); port to killinchu, then remove
+szl_agentic_loop.py       # TEMP: a11oy security PR #2321 (MCP sign_receipt operator-only); port to killinchu, then remove
+szl_ken.py                # TEMP: a11oy security PR #2321 (/mcp/call two-person from headers, never the body); port to killinchu, then remove
