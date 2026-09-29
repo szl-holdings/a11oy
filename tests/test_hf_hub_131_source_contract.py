@@ -233,3 +233,27 @@ def test_historic_openai_audit_380_versus_runtime_243_is_synthetic_hold() -> Non
     runtime = _runtime_equality_pins(MODULE.runtime_install_text(ROOT))
     assert runtime["openai"] == "2.43.0"
     assert runtime["huggingface_hub"] == MODULE.HF_HUB_VERSION
+
+
+def test_audited_report_must_contain_every_runtime_pin(tmp_path: Path) -> None:
+    """A -r include the auditor skipped (or resolved to another version) fails closed."""
+    import json
+
+    root = _closure_tree(tmp_path, runtime=GOOD_RUNTIME, audit=GOOD_AUDIT, docker=GOOD_DOCKER)
+    complete = tmp_path / "complete.json"
+    complete.write_text(json.dumps({"dependencies": [
+        {"name": "uvicorn", "version": "0.52.4", "vulns": []},
+        {"name": "huggingface-hub", "version": "1.31.0", "vulns": []},
+        {"name": "openai", "version": "2.43.0", "vulns": []},
+        {"name": "sigstore", "version": "4.5.0", "vulns": []},
+    ], "fixes": []}), encoding="utf-8")
+    assert CLOSURE.check_audited(root, complete) == []
+
+    skipped = tmp_path / "skipped.json"
+    skipped.write_text(json.dumps({"dependencies": [
+        {"name": "sigstore", "version": "4.5.0", "vulns": []},
+        {"name": "openai", "version": "3.8.0", "vulns": []},
+    ], "fixes": []}), encoding="utf-8")
+    errors = CLOSURE.check_audited(root, skipped)
+    assert any("did not audit runtime pin huggingface-hub" in e for e in errors), errors
+    assert any("audited openai==3.8.0, runtime pins 2.43.0" in e for e in errors), errors

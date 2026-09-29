@@ -94,9 +94,48 @@ def check(root: Path) -> list[str]:
     return errors
 
 
+def check_audited(root: Path, audited_json: Path) -> list[str]:
+    """Prove pip-audit actually resolved every runtime pin at its exact version.
+
+    ``audited_json`` is ``pip-audit -f json`` output for requirements-audit.txt.
+    Without this, a ``-r`` include the auditor silently skipped would look green.
+    """
+    import json
+
+    pins, errors = runtime_pins((root / RUNTIME).read_text(encoding="utf-8"))
+    try:
+        report = json.loads(audited_json.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return [f"unreadable pip-audit report {audited_json}: {exc}"]
+    deps = report.get("dependencies", report) if isinstance(report, dict) else report
+    audited: dict[str, str] = {}
+    for dep in deps if isinstance(deps, list) else []:
+        if isinstance(dep, dict) and "name" in dep and "version" in dep:
+            audited[normalize(str(dep["name"]))] = str(dep["version"])
+    for name, version in sorted(pins.items()):
+        seen = audited.get(name)
+        if seen is None:
+            errors.append(f"pip-audit did not audit runtime pin {name}")
+        elif seen != version:
+            errors.append(f"pip-audit audited {name}=={seen}, runtime pins {version}")
+    return errors
+
+
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
+    audited_json = None
+    if len(args) >= 2 and args[0] == "--audited-json":
+        audited_json = Path(args[1])
+        args = args[2:]
     root = Path(args[0]) if args else Path(__file__).resolve().parents[1]
+    if audited_json is not None:
+        errors = check_audited(root, audited_json)
+        for error in errors:
+            print(f"::error::{error}")
+        if errors:
+            return 1
+        print(f"pip-audit resolved every {RUNTIME} pin at its exact version")
+        return 0
     errors = check(root)
     for error in errors:
         print(f"::error::{error}")

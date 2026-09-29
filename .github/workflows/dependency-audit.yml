@@ -98,6 +98,19 @@ jobs:
           fi
           echo "no unregistered known vulnerabilities"
 
+      - name: Prove pip-audit resolved every runtime pin at its exact version
+        shell: bash
+        run: |
+          set -euo pipefail
+          # A -r include the auditor skipped would otherwise look green. The JSON
+          # report lists every dependency pip-audit resolved; each runtime pin must
+          # be there at the pinned version.
+          python -m pip_audit -r requirements-audit.txt \
+            --progress-spinner off \
+            --ignore-vuln PYSEC-2026-2447 \
+            --format json --output "$RUNNER_TEMP/pip-audit.json"
+          python scripts/audit_closure_check.py --audited-json "$RUNNER_TEMP/pip-audit.json" .
+
       - name: Report full findings (informational, never masks the gate)
         if: always()
         shell: bash
