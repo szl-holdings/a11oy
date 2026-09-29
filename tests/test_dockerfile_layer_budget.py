@@ -11,12 +11,12 @@ ROOT = Path(__file__).resolve().parents[1]
 DOCKERFILE = ROOT / "Dockerfile"
 BUILD_WORKFLOW = ROOT / ".github" / "workflows" / "docker-build.yml"
 RUNTIME_LAYER_BUDGET = 110
-# Exact base 802d9b2 has 575 explicit COPY sources (the prior 565 pin was stale).
+# Exact base daccfcc has 576 explicit COPY sources (the prior 565 pin was stale).
 # This repair adds only vsp_otel/__init__.py and vsp_otel/middleware.py; no removals.
 # Preserve the explicit allowlist and unchanged layer budget, not a broad COPY.
-COPY_SOURCE_ALLOWLIST_COUNT = 577
+COPY_SOURCE_ALLOWLIST_COUNT = 578
 COPY_SOURCE_ALLOWLIST_SHA256 = (
-    "7a1d5f74d25a051598dc48341e42b844c079551c8e8b5c78f195ac21287587e7"
+    "3769876d67ec2319fcaf50eca94bc18ad7a4a2c25a33b90129e795c78bb8ef57"
 )
 
 
