@@ -857,12 +857,17 @@ def _resolve_harness(harness_profile_id: str, prompt: str, ns: str) -> dict:
 def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
                   untrusted_input: str = "", run_chain=None,
                   sandbox: bool = False, want_model: str = "",
-                  harness_profile_id: str = "") -> dict:
+                  harness_profile_id: str = "", allow_exec: bool = False) -> dict:
     """One fully-governed a11oy Code turn (chat | code | research).
     P1 retrieve -> P2 quarantine untrusted -> P3 tool_call -> P4 policy_check ->
     P5 kernel_check -> P6 emit (+sign). Same 6-receipt chain as the proven loop.
     For mode=code with sandbox=True, the EXEC happens between the gate and the emit
     so the receipt records the real run outcome.
+
+    Deny-by-default chokepoint: the sandbox runs ONLY when sandbox AND allow_exec
+    are both true. allow_exec is the caller's verified two-person principal (request
+    headers, never the body); without it the turn is labelled NOT_EXECUTED/BLOCKED
+    and no receipt claims execution.
 
     Wave G: OPTIONAL `harness_profile_id` attaches a governed behavior profile to
     THIS step (leader-fashion persona attach, but Λ-gated + provenanced + signed).
@@ -1048,20 +1053,44 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
     allowed = gate_allow and trust_pass
     decision = "ALLOW" if allowed else "DENY"
 
-    # ---- SANDBOX EXEC (only for code, only on ALLOW, between gate and emit) ----
+    # ---- SANDBOX EXEC (only for code, only on ALLOW, only with allow_exec) ----
     sandbox_result = None
+    executed = False
+    exec_withheld = bool(mode == "code" and sandbox and allowed and not allow_exec)
     if mode == "code" and sandbox:
-        if allowed:
+        if allowed and allow_exec:
             sandbox_result = _sandbox_exec(code_blob["code"], lang=code_blob["language"])
-        else:
-            sandbox_result = {"ok": False, "stdout": "", "stderr": "",
+            executed = (sandbox_result.get("execution_state") != "UNAVAILABLE"
+                        and sandbox_result.get("isolation") != "n/a")
+            sandbox_result["executed"] = executed
+        elif allowed:
+            sandbox_result = {"ok": False, "executed": False, "stdout": "", "stderr": "",
                               "exit": None, "blocked": True,
+                              "execution_state": "NOT_EXECUTED",
+                              "isolation": ("not executed — BLOCKED: sandbox execution needs the "
+                                            "operator credential plus a distinct second approver")}
+        else:
+            sandbox_result = {"ok": False, "executed": False, "stdout": "", "stderr": "",
+                              "exit": None, "blocked": True,
+                              "execution_state": "NOT_EXECUTED",
                               "isolation": "not executed — blocked at the gate (gate soundness)"}
+    if not (mode == "code" and sandbox):
+        execution_status = "NOT_REQUESTED"
+    elif executed:
+        execution_status = "EXECUTED"
+    elif exec_withheld:
+        execution_status = "NOT_EXECUTED — BLOCKED (operator two-person credential required)"
+    elif allowed:
+        execution_status = "NOT_EXECUTED — sandbox UNAVAILABLE on this host"
+    else:
+        execution_status = "NOT_EXECUTED — gate DENY"
 
     # ---- HOP 6: emit (+ sign the final receipt) -------------------------------
     if allowed:
-        if mode == "code" and sandbox:
+        if mode == "code" and sandbox and executed:
             effect = {"emitted": True, "effect": "code executed in governed sandbox; result on the receipt"}
+        elif mode == "code" and sandbox:
+            effect = {"emitted": True, "effect": "code emitted but NOT executed: %s" % execution_status}
         else:
             effect = {"emitted": True, "effect": ("answer emitted with citations" if mode == "research"
                                                   else "answer emitted")}
@@ -1079,6 +1108,7 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
         "gate_reasons": reasons, "chain_final_hash": prev_hash, "chain_depth": len(chain),
         "emitted": effect["emitted"], "issuer": ns,
         "sandbox_exit": (sandbox_result or {}).get("exit") if sandbox_result else None,
+        "executed": executed, "execution_status": execution_status,
         "issued_at": datetime.now(timezone.utc).isoformat(),
     }
     # Wave G: fold the OPTIONAL harness profile provenance into the SIGNED payload
@@ -1106,17 +1136,27 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
                         "payloadType": "application/vnd.szl.receipt+json"}
     _chain_receipt("emit", {"decision": decision, "emitted": effect["emitted"],
                             "signed": bool(envelope_sig.get("signed")),
-                            "sandbox_exit": (sandbox_result or {}).get("exit") if sandbox_result else None})
+                            "sandbox_exit": (sandbox_result or {}).get("exit") if sandbox_result else None,
+                            "executed": executed})
 
     run_chain.append({"run_id": run_id, "final_hash": prev_hash,
                       "prev_run_hash": prev_run_hash, "decision": decision})
 
     # plain-language summary
     if decision == "ALLOW":
-        if mode == "code" and sandbox:
+        if mode == "code" and sandbox and executed:
             summ = ("Allowed. The code passed the safety gate (severity %s, calibrated confidence %.2f) "
                     "and the advisory trust check (%.2f), then ran in the governed sandbox. "
                     "The run + result are on a signed, hash-chained receipt." % (severity, confidence, trust))
+        elif mode == "code" and sandbox and exec_withheld:
+            summ = ("Allowed by the safety gate (severity %s, calibrated confidence %.2f) and the "
+                    "advisory trust check (%.2f), but NOT executed: running code in the sandbox "
+                    "needs the operator credential plus a distinct second approver (BLOCKED). "
+                    "The code and a signed receipt are returned; nothing ran."
+                    % (severity, confidence, trust))
+        elif mode == "code" and sandbox:
+            summ = ("Allowed by the safety gate, but NOT executed: the sandbox isolation "
+                    "prerequisites are unavailable on this host. Nothing ran; the receipt says so.")
         else:
             summ = ("Allowed. After retrieving guidance, quarantining any untrusted input, calling the "
                     "policy tool and passing the safety + advisory trust checks (trust %.2f), the %s "
@@ -1131,6 +1171,7 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
         "summary": summ,
         "answer": answer, "code": code_blob, "research": research,
         "sandbox": sandbox_result,
+        "executed": executed, "execution_status": execution_status,
         "router": {"chosen": chosen, "scored": scored, "envelope": envelope,
                    "reason": route_reason, "roster_source": roster_src,
                    "plain": "Routing is stable to small changes (C20) and bracketed best..worst (W7-5)."},
@@ -1244,6 +1285,16 @@ def capabilities(ns: str) -> dict:
 # catch-all and BEFORE the generic /api/<ns>/{path} proxy), exactly like the
 # proven loop module. sign_fn/verify_fn = the HOST app's REAL signer/verifier.
 # ===========================================================================
+def _exec_permitted(request) -> bool:
+    """Caller's verified two-person principal from headers (never the body). A host
+    without the resolver module can never execute (deny-by-default)."""
+    try:
+        import szl_operator_auth as _opauth
+    except Exception:
+        return False
+    return _opauth.exec_permitted(request)
+
+
 def register(app, ns: str, sign_fn, verify_fn=None, signer_label: str = "in-image key"):
     from starlette.routing import Route
     from starlette.responses import JSONResponse
@@ -1263,7 +1314,8 @@ def register(app, ns: str, sign_fn, verify_fn=None, signer_label: str = "in-imag
         sandbox = bool(b.get("sandbox", mode == "code"))
         want_model = b.get("model") or b.get("want_model") or ""
         run = governed_turn(mode, prompt, sign_fn, ns, untrusted_input=untrusted,
-                            run_chain=_RUN_CHAIN, sandbox=sandbox, want_model=want_model)
+                            run_chain=_RUN_CHAIN, sandbox=sandbox, want_model=want_model,
+                            allow_exec=_exec_permitted(request))
         return JSONResponse(run)
 
     async def _chat(request):
@@ -1309,7 +1361,8 @@ def register(app, ns: str, sign_fn, verify_fn=None, signer_label: str = "in-imag
         })
 
     async def _run(request):
-        """POST /api/<ns>/v1/code/run {prompt|code} — governed code turn with sandbox exec."""
+        """POST /api/<ns>/v1/code/run {prompt|code} — governed code turn; the sandbox
+        runs only for a two-person-attested caller, otherwise NOT_EXECUTED/BLOCKED."""
         try:
             b = await request.json()
         except Exception:
@@ -1317,7 +1370,8 @@ def register(app, ns: str, sign_fn, verify_fn=None, signer_label: str = "in-imag
         prompt = b.get("prompt") or b.get("code") or b.get("message") or ""
         want_model = b.get("model") or ""
         run = governed_turn("code", prompt, sign_fn, ns, untrusted_input=(b.get("untrusted_input") or ""),
-                            run_chain=_RUN_CHAIN, sandbox=bool(b.get("sandbox", True)), want_model=want_model)
+                            run_chain=_RUN_CHAIN, sandbox=bool(b.get("sandbox", True)), want_model=want_model,
+                            allow_exec=_exec_permitted(request))
         return JSONResponse(run)
 
     async def _consensus_route(request):

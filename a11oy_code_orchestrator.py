@@ -648,7 +648,8 @@ PURIQ_BETA = float(os.environ.get("A11OY_PURIQ_BETA", "4.0"))
 DB_PATH = os.environ.get("A11OY_CODE_DB", "/app/data/a11oy_code.db")
 SANDBOX_DIR = Path(os.environ.get("A11OY_CODE_SANDBOX", "/app/data/sandbox"))
 MAX_MEDIA_WRITE_BYTES = 10 * 1024 * 1024
-ADMIN_KEY = os.environ.get("A11OY_CODE_ADMIN_KEY", "")  # gate for /v1/keys + system overrides
+# The operator credential (A11OY_CODE_ADMIN_KEY) is read per request by
+# szl_operator_auth, never snapshotted here, so a rotated secret takes effect at once.
 
 # Direct provider keys (optional). If present, preferred over HF router for that provider.
 PROVIDER_KEYS = {
@@ -702,6 +703,19 @@ def _principal_tool_runner(client, who: dict):
                                   two_person_attested=who["two_person_attested"],
                                   authorized=who["operator"])
     return _run
+
+
+def _principal_puriq(who: dict):
+    """PURIQ gate bound to the verified caller. The agent loop builds its own gate
+    context (it hard-codes authorized=True); this overrides authorization and
+    attestation with what the headers proved, so an anonymous turn can never mint an
+    allow=true decision receipt."""
+    def _decide(action, context):
+        ctx = dict(context or {})
+        ctx["authorized"] = bool(who.get("operator"))
+        ctx["two_person_attested"] = bool(who.get("two_person_attested"))
+        return puriq_decide(action, ctx)
+    return _decide
 
 
 # ---------------------------------------------------------------------------
@@ -1097,6 +1111,8 @@ STATE_CHANGING_TOOLS = {
     "shell_exec", "flagship_call", "drone_command",
     # NEW agentic state-changing tools (higher bar + 2-person Yuyay gate):
     "apply_patch", "app_command",
+    # run_tests spawns python3/pytest/node as the server UID — code execution.
+    "run_tests",
 }
 # Tools that must hard-fail if they would touch IP-HOLD / locked surfaces.
 HARD_DENY_PATTERNS = [
@@ -2034,19 +2050,26 @@ def _gate_context_for_tool(name: str, args: dict[str, Any], attested: bool,
     return context
 
 
+def _gate_stub(reason: str) -> dict[str, Any]:
+    """Deny-shaped gate for tool calls refused before PURIQ ran (no receipt minted)."""
+    return {"allow": False, "score": 0.0, "lambda": 0.0, "reason": reason}
+
+
 async def execute_tool(name: str, args: dict[str, Any], client: httpx.AsyncClient,
                        two_person_attested: bool = False,
                        authorized: bool = False) -> dict[str, Any]:
     """Run a tool after a PURIQ gate. Returns {ok, result|error, gate, khipu}."""
     if not authorized:
-        return {"ok": False, "status": "BLOCKED",
-                "error": f"tool '{name}' requires the operator credential; "
-                         "anonymous turns run without tools."}
+        reason = (f"tool '{name}' requires the operator credential; "
+                  "anonymous turns run without tools.")
+        return {"ok": False, "status": "BLOCKED", "error": reason,
+                "gate": _gate_stub(reason)}
     try:
         gate_context = _gate_context_for_tool(name, args, two_person_attested,
                                               authorized=authorized)
     except (TypeError, ValueError) as exc:
-        return {"ok": False, "error": f"invalid tool arguments: {exc}"}
+        reason = f"invalid tool arguments: {exc}"
+        return {"ok": False, "error": reason, "gate": _gate_stub(reason)}
     gate = puriq_decide(name, gate_context)
     if not gate["allow"]:
         return {"ok": False, "error": f"PURIQ gate denied: {gate['reason']}", "gate": gate}
@@ -3054,7 +3077,11 @@ async def agent_status() -> JSONResponse:
 @router.post("/agent/run")
 async def agent_run(request: Request) -> JSONResponse:
     """Run the governed FSM once and return the FULL machine-readable trace
-    (every step's state, Λ, gate decision, evidence, Khipu hash). Non-streaming."""
+    (every step's state, Λ, gate decision, evidence, Khipu hash). Non-streaming.
+    Operator-only: the FSM persists reflections and mints step receipts."""
+    who = _opauth.principal(request)
+    if not who["operator"]:
+        return _blocked("Agent run")
     if _agent is None:
         return JSONResponse({"ok": False, "error": "a11oy_agent_loop not importable"}, status_code=503)
     body, _err = await _safe_body(request)
@@ -3064,10 +3091,9 @@ async def agent_run(request: Request) -> JSONResponse:
     if not task:
         return JSONResponse({"ok": False, "error": "missing 'task'"}, status_code=400)
     client = _get_client()
-    who = _opauth.principal(request)
     result = await _agent.run_agent(
         task, history=body.get("history", []),
-        khipu_emit=khipu_emit, puriq_decide=puriq_decide,
+        khipu_emit=khipu_emit, puriq_decide=_principal_puriq(who),
         execute_tool=_principal_tool_runner(client, who),
         model_complete=agent_model_complete, rag_query=_agent_rag_query,
         two_person_attested=who["two_person_attested"])
@@ -3078,14 +3104,16 @@ async def agent_run(request: Request) -> JSONResponse:
 async def agent_stream(request: Request):
     """Stream the governed FSM step-by-step as SSE `agent_step` events, then a
     final `done` event. Same envelope the agentic /chat/stream emits, but a
-    dedicated agent surface for the UI."""
+    dedicated agent surface for the UI. Operator-only (same reason as /agent/run)."""
+    who = _opauth.principal(request)
+    if not who["operator"]:
+        return _blocked("Agent stream")
     if _agent is None:
         raise HTTPException(status_code=503, detail="a11oy_agent_loop not importable")
     body, _err = await _safe_body(request)
     if _err is not None:
         return _err
     task = body.get("task") or body.get("message", "")
-    who = _opauth.principal(request)
     two_person = who["two_person_attested"]
     history = body.get("history", [])
     client = _get_client()
@@ -3099,7 +3127,7 @@ async def agent_stream(request: Request):
         _q: list[tuple[str, dict]] = []
         result = await _agent.run_agent(
             task, history=history,
-            khipu_emit=khipu_emit, puriq_decide=puriq_decide,
+            khipu_emit=khipu_emit, puriq_decide=_principal_puriq(who),
             execute_tool=_principal_tool_runner(client, who),
             model_complete=agent_model_complete, rag_query=_agent_rag_query,
             two_person_attested=two_person,
@@ -3215,9 +3243,12 @@ async def kernel_exec(run_id: str, request: Request) -> JSONResponse:
                             status_code=503)
     kernel = _gk.get_kernel(run_id, create=True)
     if kernel is None:
-        return JSONResponse({"error": "kernel capacity reached; retry after an idle kernel is reaped",
-                             "status": "BLOCKED", "output": None, "receipt_hash": None,
-                             "rlimit_status": None}, status_code=429)
+        return JSONResponse({"error": (f"kernel capacity reached: all {_gk.MAX_KERNELS} kernel "
+                                       "slots are executing a cell right now (dead and idle "
+                                       "kernels are evicted first). Nothing was executed; retry "
+                                       "when a cell finishes."),
+                             "status": "BLOCKED", "executed": False, "output": None,
+                             "receipt_hash": None, "rlimit_status": None}, status_code=429)
     result = await asyncio.get_event_loop().run_in_executor(None, kernel.exec_cell, code)
 
     rlimit_status = {
@@ -3227,8 +3258,10 @@ async def kernel_exec(run_id: str, request: Request) -> JSONResponse:
         "wall_s": result.get("wall_s"),
         "limits": kernel.status().get("limits"),
     }
+    executed = result.get("executed", True) is not False
     output = {
         "ok": result.get("ok"),
+        "executed": executed,
         "stdout": result.get("stdout"),
         "stderr": result.get("stderr"),
         "new_or_changed": result.get("new_or_changed"),
@@ -3241,6 +3274,7 @@ async def kernel_exec(run_id: str, request: Request) -> JSONResponse:
     rec = khipu_emit("kernel.exec", {
         "run_id": run_id,
         "ok": result.get("ok"),
+        "executed": executed,
         "degraded": rlimit_status["degraded"],
         "timeout": rlimit_status["timeout"],
         "wall_s": result.get("wall_s"),
@@ -3394,12 +3428,24 @@ async def chat_stream(request: Request):
     body, _err = await _safe_body(request)
     if _err is not None:
         return _err
-    conv_id = body.get("conversation_id") or str(uuid.uuid4())
-    user_id = body.get("user_id", "founder")
+    who = _opauth.principal(request)
+    # Conversation memory is operator state: an anonymous turn gets a fresh id, never
+    # reads a stored conversation by a guessed id, and is never written to memory.
+    persist = bool(who["operator"])
+    if persist:
+        conv_id = body.get("conversation_id") or str(uuid.uuid4())
+        user_id = body.get("user_id", "founder")
+    else:
+        conv_id = str(uuid.uuid4())
+        user_id = None
+
+    def _remember(role: str, content: Any, **kw: Any) -> None:
+        if persist:
+            mem_add_message(conv_id, role, content, **kw)
+
     model = body.get("model") or "router-auto"
     # `tools` may be a bool, the string "auto"/"none", or omitted. Default: enabled.
     _tools_flag = body.get("tools", body.get("enable_tools", "auto"))
-    who = _opauth.principal(request)
     enable_tools = _tools_flag not in (False, "none", "off", None) and who["operator"]
     two_person = who["two_person_attested"]
     governance_tier = body.get("governance_tier", "standard")
@@ -3439,7 +3485,7 @@ async def chat_stream(request: Request):
     else:
         # Legacy singular-message contract: rebuild history from stored memory.
         user_msg = body.get("message", "")
-        prior = mem_get_conversation(conv_id)
+        prior = mem_get_conversation(conv_id) if persist else {"messages": []}
         history = [{"role": "system", "content": system_prompt}]
         for m in prior["messages"]:
             if m["role"] in ("user", "assistant"):
@@ -3449,8 +3495,9 @@ async def chat_stream(request: Request):
         else:
             history.append({"role": "user", "content": user_msg})
 
-    mem_upsert_conversation(conv_id, user_id, (user_msg or "conversation")[:60], system_prompt)
-    mem_add_message(conv_id, "user", user_msg if user_msg else "[multimodal]")
+    if persist:
+        mem_upsert_conversation(conv_id, user_id, (user_msg or "conversation")[:60], system_prompt)
+    _remember("user", user_msg if user_msg else "[multimodal]")
     _METRICS["requests_total"] += 1
 
     decision = route(history, model, governance_tier, body.get("budget"))
@@ -3494,7 +3541,7 @@ async def chat_stream(request: Request):
             try:
                 result = await _agent.run_agent(
                     user_msg, history=history,
-                    khipu_emit=khipu_emit, puriq_decide=puriq_decide,
+                    khipu_emit=khipu_emit, puriq_decide=_principal_puriq(who),
                     execute_tool=_principal_tool_runner(client, who),
                     model_complete=agent_model_complete, rag_query=_agent_rag_query,
                     two_person_attested=two_person, emit=_agent_emit)
@@ -3517,9 +3564,9 @@ async def chat_stream(request: Request):
             # finalize step wasn't the no-credential deterministic stub.
             _ag_local = _serve_local and not result.get("stub")
             _ag_model = _map_model_for_local(result.get("model")) if _ag_local else result.get("model")
-            mem_add_message(conv_id, "assistant", answer, model=_ag_model,
-                            tier=decision["tier"], latency_ms=latency_ms, cost_usd=0.0,
-                            yuyay13=y13, khipu_hash=result.get("khipu_hash"))
+            _remember("assistant", answer, model=_ag_model,
+                      tier=decision["tier"], latency_ms=latency_ms, cost_usd=0.0,
+                      yuyay13=y13, khipu_hash=result.get("khipu_hash"))
             yield sse("done", {"conversation_id": conv_id, "tier": decision["tier"],
                                "model": _ag_model, "license_class": decision["license_class"],
                                "latency_ms": latency_ms, "cost_usd": 0.0, "yuyay13": y13,
@@ -3556,9 +3603,9 @@ async def chat_stream(request: Request):
             rec = khipu_emit("chat.completion.stub", {
                 "conversation_id": conv_id, "model": decision["model"],
                 "tier": decision["tier"], "mode": "deterministic_stub", "yuyay13": y13})
-            mem_add_message(conv_id, "assistant", stub, model=decision["model"],
-                            tier=decision["tier"], latency_ms=latency_ms, cost_usd=0.0,
-                            yuyay13=y13, khipu_hash=rec["hash"])
+            _remember("assistant", stub, model=decision["model"],
+                      tier=decision["tier"], latency_ms=latency_ms, cost_usd=0.0,
+                      yuyay13=y13, khipu_hash=rec["hash"])
             yield sse("done", {"conversation_id": conv_id, "tier": decision["tier"],
                                "model": decision["model"], "license_class": decision["license_class"],
                                "latency_ms": latency_ms, "cost_usd": 0.0, "yuyay13": y13,
@@ -3644,9 +3691,9 @@ async def chat_stream(request: Request):
                 len(collected_text) / 4 / 1_000_000 * TIERS.get(decision["tier"], TIERS["T2"])["cost_out"], 6)
             rec = khipu_emit("chat.completion", {"conversation_id": conv_id, "model": served_model,
                                                  "tier": decision["tier"], "latency_ms": latency_ms, "yuyay13": y13})
-            mem_add_message(conv_id, "assistant", collected_text, model=served_model,
-                            tier=decision["tier"], latency_ms=latency_ms, cost_usd=cost,
-                            yuyay13=y13, khipu_hash=rec["hash"])
+            _remember("assistant", collected_text, model=served_model,
+                      tier=decision["tier"], latency_ms=latency_ms, cost_usd=cost,
+                      yuyay13=y13, khipu_hash=rec["hash"])
             _METRICS["tokens_out_total"] += len(collected_text) // 4
             yield sse("done", {"conversation_id": conv_id, "tier": decision["tier"],
                                "model": served_model, "license_class": decision["license_class"],

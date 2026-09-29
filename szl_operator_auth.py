@@ -12,8 +12,18 @@ Two server-held secrets, never request bodies, decide who may act:
   a distinct secret; ``two_person_attested`` is true only when both are present
   and verify.
 
+``two_person_attested`` means two distinct secrets arrived in ONE request. It is a
+two-person control only if custody of the two keys is actually split between two
+people; it is not cryptographic co-signing and does not identify who sent it.
+
 When a secret is not configured on the Space, the corresponding role cannot be
 held by anyone: execution routes answer an honest BLOCKED instead of running.
+
+Covered surfaces (see KNOWN_GOTCHAS.md section 9): the ``/api/a11oy/code/*`` router
+(run, kernel exec, tools, RAG writes, profiles, conversation history, agent run and
+stream, key issue), code-as-action compose/revise, the ReAct write routes, and every
+caller of ``a11oy_code_engine.governed_turn`` — the engine only reaches its sandbox
+when a caller passes ``allow_exec=True`` (see :func:`exec_permitted`).
 """
 import hmac
 import os
@@ -57,6 +67,14 @@ def principal_from_headers(headers: Mapping[str, str]) -> dict:
 
 def principal(request) -> dict:
     return principal_from_headers(request.headers)
+
+
+def exec_permitted(request) -> bool:
+    """True only for a two-person-attested caller; any resolver error denies."""
+    try:
+        return bool(principal(request)["two_person_attested"])
+    except Exception:
+        return False
 
 
 def blocked_body(action: str, needs_second_approver: bool = False) -> dict:

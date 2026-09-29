@@ -196,16 +196,26 @@ def _emit_cell_receipt(run_id: str, seq: int, code: str, verdict: dict,
     shared energy ledger via submit_external_job. DENIED cells mint an honest signed
     deny-receipt (no exec, no joule). Never fabricates a joule or a signature."""
     code_sha = _sha256(code)
-    executed = bool(exec_result and exec_result.get("ok") and verdict.get("allowed"))
+    # A result flagged executed=False (no kernel slot, evicted, spawn failed) means the
+    # worker never ran the cell: no success, no energy entry, and a label saying so.
+    ran = bool(exec_result is not None and exec_result.get("executed", True) is not False)
+    executed = bool(ran and exec_result.get("ok") and verdict.get("allowed"))
+    not_run_reason = ((exec_result or {}).get("error") or (exec_result or {}).get("stderr")
+                      or "no kernel available") if exec_result is not None and not ran else ""
 
+    if not verdict.get("allowed"):
+        energy_note = "no exec — denied at the gate"
+    elif not ran:
+        energy_note = "no exec — NOT executed (%s); no energy-ledger entry" % not_run_reason
+    else:
+        energy_note = "kernel runs on a CPU node (no NVML lung) — honest SAMPLE"
     energy = {"joules_measured": None, "joules_label": "SAMPLE", "ledger_seq": None,
-              "note": "no exec — denied at the gate" if not verdict.get("allowed")
-                      else "kernel runs on a CPU node (no NVML lung) — honest SAMPLE"}
+              "note": energy_note}
 
     # ENERGY: only for an ALLOWed cell that actually executed. The cell runs in the
     # persistent worker (a CPU node, not an inference lung) so joules are honest
     # SAMPLE unless a real fresh NVML exporter delta is present — never fabricated.
-    if verdict.get("allowed") and exec_result is not None:
+    if verdict.get("allowed") and ran:
         try:
             import szl_energy_operator as eo
             op = eo.get_operator()
@@ -256,12 +266,18 @@ def _emit_cell_receipt(run_id: str, seq: int, code: str, verdict: dict,
                   "stdout_sha256": _sha256(exec_result.get("stdout", "")),
                   "degraded": exec_result.get("degraded", False),
                   "isolation": exec_result.get("isolation")}
+                 if ran else
+                 {"ok": False, "executed": False,
+                  "isolation": "not executed — %s (BLOCKED)" % not_run_reason}
                  if exec_result is not None else
                  {"ok": False, "isolation": "not executed — blocked at the gate"}),
         "energy": energy,
         "khipu": khipu,
         "honest_label": ("DENIED before exec — signed deny-receipt only, nothing ran. "
                          "This is the governance working." if not verdict["allowed"]
+                         else "ALLOWED by the gate but NOT EXECUTED (BLOCKED: %s) — "
+                              "nothing ran, no energy-ledger entry." % not_run_reason
+                         if not ran
                          else "ALLOWED — ran in the governed persistent kernel; "
                               "signed receipt + shared-ledger energy entry."),
         "doctrine": "v11",
@@ -298,8 +314,9 @@ def run_cell(run_id: str, code: str, sign_fn=None, intensity: str = "full") -> d
     if verdict["allowed"]:
         kernel = gk.get_kernel(run_id, create=True)
         exec_result = (kernel.exec_cell(code) if kernel is not None else
-                       {"ok": False, "stdout": "",
-                        "error": "kernel capacity reached (BLOCKED)"})
+                       {"ok": False, "executed": False, "stdout": "",
+                        "error": ("kernel capacity reached — every kernel slot is "
+                                  "executing a cell")})
 
     seq = len(_STORE.get(run_id)["cells"]) if _STORE.get(run_id) else 0
     receipt = _emit_cell_receipt(run_id, seq, code, verdict, exec_result, sign_fn)

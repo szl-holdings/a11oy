@@ -62,6 +62,15 @@ except Exception:
     _APPROVAL_OK = False
     _approval_interrupt = None
 
+try:
+    import szl_operator_auth as _opauth
+except Exception:  # resolver absent: nobody may execute (deny-by-default)
+    _opauth = None
+
+
+def _exec_permitted(request) -> bool:
+    return bool(_opauth is not None and _opauth.exec_permitted(request))
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -206,10 +215,13 @@ def register(app, ns: str, sign_fn, verify_fn=None):
         harness_profile_id = str(b.get("harness_profile_id") or b.get("profile_id") or "").strip()
 
         # REAL governed run (P1-P6, signed DSSE receipt) via the engine.
+        # The body may ask for the sandbox; only the verified header principal
+        # (two distinct server-held secrets) lets the engine actually run it.
         run = _engine.governed_turn(mode, prompt, sign_fn, ns,
                                     untrusted_input=untrusted, run_chain=[],
                                     sandbox=sandbox, want_model=want_model,
-                                    harness_profile_id=harness_profile_id)
+                                    harness_profile_id=harness_profile_id,
+                                    allow_exec=_exec_permitted(request))
 
         # HumanApprovalGate — durable checkpoint on state-changing, gate-allowed steps.
         approval = None

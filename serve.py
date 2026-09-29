@@ -4230,7 +4230,8 @@ app.add_middleware(
     # routes, and every document route accepts HEAD, so the CORS preflight answer
     # must say so instead of implying HEAD is unsupported.
     allow_methods=["GET", "HEAD", "POST", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+    allow_headers=["Content-Type", "Authorization", "X-Requested-With",
+                   "X-A11oy-Second-Approver"],
 )
 
 # ===========================================================================

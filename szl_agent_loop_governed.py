@@ -153,6 +153,15 @@ except Exception:  # pragma: no cover — bridge missing → brain feed simply o
     _brainfeed = None  # type: ignore
     _BRAINFEED_OK = False
 
+try:
+    import szl_operator_auth as _opauth
+except Exception:  # resolver absent: nobody may execute (deny-by-default)
+    _opauth = None
+
+
+def _exec_permitted(request) -> bool:
+    return bool(_opauth is not None and _opauth.exec_permitted(request))
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -194,8 +203,13 @@ def run_loop(task: str,
              max_retries: int = 1,
              sandbox: Optional[bool] = None,
              consult_brain: bool = False,
-             allocate_energy: bool = False) -> dict:
+             allocate_energy: bool = False,
+             allow_exec: bool = False) -> dict:
     """Run ONE governed autonomous loop over a task.
+
+    allow_exec (default False) is forwarded to the engine: a planned code step reaches
+    the sandbox only when the caller passes the verified two-person principal;
+    otherwise the step is labelled NOT_EXECUTED/BLOCKED by the engine.
 
     Composes the REAL siloed pieces per planned step:
       (a) harness.apply (optional behavior profile) → (b) engine.governed_turn (act,
@@ -314,7 +328,8 @@ def run_loop(task: str,
                     step_mode, step_prompt, sign_fn, ns,
                     untrusted_input=step_untrusted,
                     run_chain=engine_chain, sandbox=step_sandbox,
-                    want_model=model_id, harness_profile_id=harness_profile_id or "")
+                    want_model=model_id, harness_profile_id=harness_profile_id or "",
+                    allow_exec=bool(allow_exec))
             except Exception as e:  # never raise into the request
                 run = {"ok": False, "error": "engine error: %s" % type(e).__name__,
                        "decision": "DENY", "gate": {"severity": "high"},
@@ -406,6 +421,8 @@ def run_loop(task: str,
                     "lambda": step_lambda,
                     "mode": step_mode,
                     "sandbox": step_sandbox,
+                    "executed": bool(run.get("executed")),
+                    "execution_status": run.get("execution_status"),
                     "signed": step_signed,
                     "signed_pae_sha256": step_sig.get("_pae_sha256"),
                     "answer_preview": (run.get("answer") or run.get("output") or "")[:200]
@@ -763,7 +780,8 @@ def register(app, ns: str = "a11oy", sign_fn: Optional[Callable[[dict], dict]] =
         result = run_loop(task, sign_fn, ns=ns, mode=mode, model_id=model_id,
                           harness_profile_id=harness_profile_id, eval_suite=eval_suite,
                           approval=approval, max_retries=max_retries, sandbox=sandbox,
-                          consult_brain=consult_brain, allocate_energy=allocate_energy)
+                          consult_brain=consult_brain, allocate_energy=allocate_energy,
+                          allow_exec=_exec_permitted(request))
         return JSONResponse(result, status_code=result.get("status_code", 200))
 
     async def _health(request):
