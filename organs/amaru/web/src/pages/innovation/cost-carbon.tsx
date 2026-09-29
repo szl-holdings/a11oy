@@ -110,7 +110,7 @@ export default function CostCarbonPage() {
         title="Sync Cost & Carbon Predictor"
         blurb="Before any sync runs, Forecaster estimates API call volume, rate-limit headroom, dollar cost, and energy/carbon footprint. Budget-gate policies block or warn based on these estimates."
         trailing={
-          <Link href="/innovation" className="flex items-center gap-1.5 text-[11px] text-[#c9b787] hover:underline">
+          <Link href="/innovation" className="flex items-center gap-1.5 text-[11px] text-link hover:underline">
             <ArrowLeft className="w-3 h-3" /> Innovation Brief
           </Link>
         }
@@ -145,18 +145,18 @@ export default function CostCarbonPage() {
                   key={m.id}
                   onClick={() => toggleMapping(m.id)}
                   className="flex items-center gap-3 w-full text-left px-3 py-2 rounded border transition-all text-[11px]"
-                  style={{ borderColor: isSelected ? '#c9b787' : 'rgba(255,255,255,0.06)', background: isSelected ? 'rgba(201,183,135,0.05)' : 'transparent' }}
+                  style={{ borderColor: isSelected ? 'var(--color-silver-300)' : 'var(--border-subtle)', background: isSelected ? 'color-mix(in srgb, var(--text) 5%, transparent)' : 'transparent' }}
                 >
-                  <span className={`w-3 h-3 rounded border shrink-0 ${isSelected ? 'border-[#c9b787] bg-[#c9b787]' : 'border-[rgba(255,255,255,0.2)]'}`} />
-                  <span className="font-mono text-[#f5f5f5] flex-1 truncate">{m.name}</span>
+                  <span className={`w-3 h-3 rounded border shrink-0 ${isSelected ? 'border-ink bg-ink' : 'border-line'}`} />
+                  <span className="font-mono text-ink flex-1 truncate">{m.name}</span>
                   {dest && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: dest.accent }} />}
-                  <span className="text-[#666] shrink-0">{dest?.category ?? '—'}</span>
+                  <span className="text-ink-sub shrink-0">{dest?.category ?? '—'}</span>
                 </button>
               );
             })}
           </div>
-          <div className="mt-3 pt-3 border-t border-[rgba(255,255,255,0.04)] flex justify-between items-center">
-            <span className="text-[11px] text-[#666]">{selectedMappingIds.length} selected</span>
+          <div className="mt-3 pt-3 border-t border-line-subtle flex justify-between items-center">
+            <span className="text-[11px] text-ink-sub">{selectedMappingIds.length} selected</span>
             <Button size="sm" onClick={runEstimates} isLoading={loading} disabled={!selectedMappingIds.length}>
               <TrendingUp className="w-3.5 h-3.5 mr-1.5" /> Run Forecaster
             </Button>
@@ -166,11 +166,11 @@ export default function CostCarbonPage() {
         <FabricCard title="BUDGET-GATE POLICIES">
           <div className="space-y-2 mb-4">
             {BUDGET_POLICIES.map((p) => (
-              <div key={p.id} className="flex items-start gap-2 p-2 rounded bg-[#0e0e0e] text-[11px]">
+              <div key={p.id} className="flex items-start gap-2 p-2 rounded bg-ground-deep text-[11px]">
                 <SeverityChip level={p.severity} />
                 <div>
-                  <div className="text-[#f5f5f5]">{p.name}</div>
-                  <div className="font-mono text-[#666] text-[10px]">{p.condition}</div>
+                  <div className="text-ink">{p.name}</div>
+                  <div className="font-mono text-ink-sub text-[10px]">{p.condition}</div>
                 </div>
               </div>
             ))}
@@ -182,11 +182,11 @@ export default function CostCarbonPage() {
                 const max = Math.max(...SPARKLINE_DATA, 1);
                 const pct = v / max;
                 return (
-                  <div key={i} className="flex-1 rounded-t transition-all" style={{ height: `${pct * 100}%`, background: i === SPARKLINE_DATA.length - 1 ? '#c9b787' : 'rgba(201,183,135,0.3)' }} title={`$${v.toFixed(2)}`} />
+                  <div key={i} className="flex-1 rounded-t transition-all" style={{ height: `${pct * 100}%`, background: i === SPARKLINE_DATA.length - 1 ? 'var(--color-silver-300)' : 'color-mix(in srgb, var(--text) 30%, transparent)' }} title={`$${v.toFixed(2)}`} />
                 );
               })}
             </div>
-            <div className="flex justify-between text-[10px] text-[#555] font-mono mt-1">
+            <div className="flex justify-between text-[10px] text-ink-sub font-mono mt-1">
               <span>-12 runs</span><span>now</span>
             </div>
           </div>
@@ -196,50 +196,50 @@ export default function CostCarbonPage() {
       {estimates.length > 0 && (
         <FabricCard title={`FORECAST RESULTS — ${estimates.length} SYNC${estimates.length !== 1 ? 'S' : ''}`} className="mb-6 animate-scale-in">
           {totals.blocked > 0 && (
-            <div className="mb-4 p-3 rounded flex items-center gap-2 text-[12px]" style={{ background: 'rgba(184,84,80,0.08)', border: '1px solid rgba(184,84,80,0.2)' }}>
-              <AlertTriangle className="w-4 h-4 text-[#b85450] shrink-0" />
-              <span className="text-[#b85450]">{totals.blocked} sync{totals.blocked !== 1 ? 's' : ''} blocked by budget-gate policy</span>
+            <div className="mb-4 p-3 rounded flex items-center gap-2 text-[12px]" style={{ background: 'color-mix(in srgb, var(--color-error) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--color-error) 20%, transparent)' }}>
+              <AlertTriangle className="w-4 h-4 text-ink-bad shrink-0" />
+              <span className="text-ink-bad">{totals.blocked} sync{totals.blocked !== 1 ? 's' : ''} blocked by budget-gate policy</span>
             </div>
           )}
           <div className="space-y-3">
             {estimates.map((est) => (
-              <div key={est.mappingId} className="p-4 rounded-lg" style={{ background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.04)' }}>
+              <div key={est.mappingId} className="p-4 rounded-lg" style={{ background: 'var(--bg-deep)', border: '1px solid var(--border-subtle)' }}>
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <div className="text-[#f5f5f5] text-sm font-medium">{est.mappingName}</div>
-                    <div className="text-[11px] text-[#666]">→ {est.destinationName}</div>
+                    <div className="text-ink text-sm font-medium">{est.mappingName}</div>
+                    <div className="text-[11px] text-ink-sub">→ {est.destinationName}</div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {est.budgetGateStatus === 'pass' ? <CheckCircle className="w-4 h-4 text-[#5a8a6e]" /> : est.budgetGateStatus === 'warn' ? <AlertTriangle className="w-4 h-4 text-[#d4a853]" /> : <AlertTriangle className="w-4 h-4 text-[#b85450]" />}
+                    {est.budgetGateStatus === 'pass' ? <CheckCircle className="w-4 h-4 text-ink-good" /> : est.budgetGateStatus === 'warn' ? <AlertTriangle className="w-4 h-4 text-ink-warn" /> : <AlertTriangle className="w-4 h-4 text-ink-bad" />}
                     <Badge variant={est.budgetGateStatus === 'pass' ? 'success' : est.budgetGateStatus === 'warn' ? 'partial' : 'failed'}>{est.budgetGateStatus}</Badge>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-                  <div className="text-center p-2 rounded" style={{ background: 'rgba(255,255,255,0.02)' }}>
-                    <Zap className="w-3.5 h-3.5 text-[#c9b787] mx-auto mb-1" />
-                    <div className="font-mono text-[#f5f5f5] text-sm">{est.apiCallsEstimated.toLocaleString()}</div>
+                  <div className="text-center p-2 rounded" style={{ background: 'color-mix(in srgb, var(--surface-raised) 50%, transparent)' }}>
+                    <Zap className="w-3.5 h-3.5 text-ink mx-auto mb-1" />
+                    <div className="font-mono text-ink text-sm">{est.apiCallsEstimated.toLocaleString()}</div>
                     <div className="label-mono mt-0.5">API calls</div>
                   </div>
-                  <div className="text-center p-2 rounded" style={{ background: 'rgba(255,255,255,0.02)' }}>
-                    <DollarSign className="w-3.5 h-3.5 text-[#5a8a6e] mx-auto mb-1" />
-                    <div className={`font-mono text-sm ${est.budgetGateStatus === 'block' ? 'text-[#b85450]' : est.budgetGateStatus === 'warn' ? 'text-[#d4a853]' : 'text-[#5a8a6e]'}`}>${est.estimatedCostUsd.toFixed(2)}</div>
+                  <div className="text-center p-2 rounded" style={{ background: 'color-mix(in srgb, var(--surface-raised) 50%, transparent)' }}>
+                    <DollarSign className="w-3.5 h-3.5 text-ink-good mx-auto mb-1" />
+                    <div className={`font-mono text-sm ${est.budgetGateStatus === 'block' ? 'text-ink-bad' : est.budgetGateStatus === 'warn' ? 'text-ink-warn' : 'text-ink-good'}`}>${est.estimatedCostUsd.toFixed(2)}</div>
                     <div className="label-mono mt-0.5">Est. cost</div>
                   </div>
-                  <div className="text-center p-2 rounded" style={{ background: 'rgba(255,255,255,0.02)' }}>
-                    <Zap className="w-3.5 h-3.5 text-[#78aac8] mx-auto mb-1" />
-                    <div className="font-mono text-[#f5f5f5] text-sm">{est.energyWh.toFixed(1)}</div>
+                  <div className="text-center p-2 rounded" style={{ background: 'color-mix(in srgb, var(--surface-raised) 50%, transparent)' }}>
+                    <Zap className="w-3.5 h-3.5 text-ink-sub mx-auto mb-1" />
+                    <div className="font-mono text-ink text-sm">{est.energyWh.toFixed(1)}</div>
                     <div className="label-mono mt-0.5">Wh energy</div>
                   </div>
-                  <div className="text-center p-2 rounded" style={{ background: 'rgba(255,255,255,0.02)' }}>
-                    <Leaf className="w-3.5 h-3.5 text-[#5a8a6e] mx-auto mb-1" />
-                    <div className="font-mono text-[#5a8a6e] text-sm">{est.carbonGramsCo2e.toFixed(1)}g</div>
+                  <div className="text-center p-2 rounded" style={{ background: 'color-mix(in srgb, var(--surface-raised) 50%, transparent)' }}>
+                    <Leaf className="w-3.5 h-3.5 text-ink-good mx-auto mb-1" />
+                    <div className="font-mono text-ink-good text-sm">{est.carbonGramsCo2e.toFixed(1)}g</div>
                     <div className="label-mono mt-0.5">CO₂e</div>
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <div className="flex items-center justify-between text-[10px] text-[#666]">
+                  <div className="flex items-center justify-between text-[10px] text-ink-sub">
                     <span>Rate-limit headroom</span>
                     <span className="font-mono">{est.rateLimitHeadroom}% of {est.rateLimitRpm} rpm</span>
                   </div>
@@ -247,22 +247,22 @@ export default function CostCarbonPage() {
                 </div>
 
                 {est.budgetGateReason && (
-                  <div className="mt-2 text-[11px] text-[#d4a853]">· {est.budgetGateReason}</div>
+                  <div className="mt-2 text-[11px] text-ink-warn">· {est.budgetGateReason}</div>
                 )}
               </div>
             ))}
           </div>
 
-          <div className="mt-4 pt-4 border-t border-[rgba(255,255,255,0.04)] grid grid-cols-4 gap-3 text-center">
-            <div><div className="label-mono">Total API</div><div className="font-mono text-[#c9b787]">{totals.apiCalls.toLocaleString()}</div></div>
-            <div><div className="label-mono">Total cost</div><div className="font-mono text-[#c9b787]">${totals.costUsd.toFixed(2)}</div></div>
-            <div><div className="label-mono">Total energy</div><div className="font-mono text-[#78aac8]">{totals.energyWh.toFixed(1)} Wh</div></div>
-            <div><div className="label-mono">Total CO₂e</div><div className="font-mono text-[#5a8a6e]">{totals.carbon.toFixed(1)} g</div></div>
+          <div className="mt-4 pt-4 border-t border-line-subtle grid grid-cols-4 gap-3 text-center">
+            <div><div className="label-mono">Total API</div><div className="font-mono text-ink">{totals.apiCalls.toLocaleString()}</div></div>
+            <div><div className="label-mono">Total cost</div><div className="font-mono text-ink">${totals.costUsd.toFixed(2)}</div></div>
+            <div><div className="label-mono">Total energy</div><div className="font-mono text-ink-sub">{totals.energyWh.toFixed(1)} Wh</div></div>
+            <div><div className="label-mono">Total CO₂e</div><div className="font-mono text-ink-good">{totals.carbon.toFixed(1)} g</div></div>
           </div>
         </FabricCard>
       )}
 
-      <div className="p-3 rounded-lg text-[11px] text-[#555]" style={{ border: '1px solid rgba(255,255,255,0.04)' }}>
+      <div className="p-3 rounded-lg text-[11px] text-ink-sub" style={{ border: '1px solid var(--border-subtle)' }}>
         Cost model: $0.02–$0.04 per 1k records · Energy: 0.8 Wh/1k records · Carbon: UK grid intensity 233 gCO₂e/kWh. All estimates are Forecaster-modeled; actual costs depend on destination API pricing. Budget gates are enforced by Sentinel policy evaluation.
       </div>
     </div>

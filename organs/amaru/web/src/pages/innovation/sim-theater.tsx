@@ -3,7 +3,8 @@ import { Link } from 'wouter';
 import { RELAY_MAPPINGS, RELAY_DESTINATIONS, AMARU_AGENTS } from '@/data/fabric';
 import { FabricHeader, FabricCard, FabricStat, SeverityChip } from '@/components/fabric/primitives';
 import { Badge, Button } from '@/components/ui';
-import { ArrowLeft, Play, Square, Zap, AlertTriangle, CheckCircle, XCircle, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Play, Square, Zap, AlertTriangle, CheckCircle, XCircle, RefreshCw, ChevronDown, ChevronUp, Hexagon } from 'lucide-react';
+import { wash, CATEGORY_TONES } from '@/lib/utils';
 
 type FailureInjection = 'none' | 'rate_limit' | 'schema_mismatch' | 'pii_flagged' | 'destination_5xx' | 'auth_expired';
 type EventType = 'info' | 'warn' | 'error' | 'success' | 'agent';
@@ -119,19 +120,19 @@ function buildSimEvents(mappingId: string, failure: FailureInjection): Omit<SimR
 }
 
 const EVENT_ICON: Record<EventType, React.ReactNode> = {
-  info: <span className="w-1.5 h-1.5 rounded-full bg-[#8a8a8a] inline-block" />,
-  warn: <AlertTriangle className="w-3 h-3 text-[#d4a853]" />,
-  error: <XCircle className="w-3 h-3 text-[#b85450]" />,
-  success: <CheckCircle className="w-3 h-3 text-[#5a8a6e]" />,
-  agent: <Zap className="w-3 h-3 text-[#c9b787]" />,
+  info: <span className="w-1.5 h-1.5 rounded-full bg-ink-ghost inline-block" />,
+  warn: <AlertTriangle className="w-3 h-3 text-ink-warn" />,
+  error: <XCircle className="w-3 h-3 text-ink-bad" />,
+  success: <CheckCircle className="w-3 h-3 text-ink-good" />,
+  agent: <Zap className="w-3 h-3 text-ink" />,
 };
 
 const EVENT_TEXT: Record<EventType, string> = {
-  info: 'text-[#8a8a8a]',
-  warn: 'text-[#d4a853]',
-  error: 'text-[#b85450]',
-  success: 'text-[#5a8a6e]',
-  agent: 'text-[#c9b787]',
+  info: 'text-ink-sub',
+  warn: 'text-ink-warn',
+  error: 'text-ink-bad',
+  success: 'text-ink-good',
+  agent: 'text-ink',
 };
 
 export default function SimTheaterPage() {
@@ -165,7 +166,7 @@ export default function SimTheaterPage() {
         title="Activation Simulation Theater"
         blurb="Replay any sync against a frozen state snapshot. Inject failures (rate limit, schema mismatch, PII flag, destination outage, auth expired) and watch the full agent coalition respond event by event."
         trailing={
-          <Link href="/innovation" className="flex items-center gap-1.5 text-[11px] text-[#c9b787] hover:underline">
+          <Link href="/innovation" className="flex items-center gap-1.5 text-[11px] text-link hover:underline">
             <ArrowLeft className="w-3 h-3" /> Innovation Brief
           </Link>
         }
@@ -203,11 +204,11 @@ export default function SimTheaterPage() {
                     key={f}
                     onClick={() => setSelectedFailure(f)}
                     className="flex items-center gap-3 w-full text-left px-3 py-2 rounded border transition-all text-[12px]"
-                    style={{ borderColor: selectedFailure === f ? '#c9b787' : 'rgba(255,255,255,0.06)', background: selectedFailure === f ? 'rgba(201,183,135,0.05)' : 'transparent' }}
+                    style={{ borderColor: selectedFailure === f ? 'var(--color-silver-300)' : 'var(--border-subtle)', background: selectedFailure === f ? 'color-mix(in srgb, var(--text) 5%, transparent)' : 'transparent' }}
                   >
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${f === 'none' ? 'bg-[#5a8a6e]' : 'bg-[#b85450]'}`} />
-                    <span className="text-[#f5f5f5] flex-1">{FAILURE_LABELS[f]}</span>
-                    {selectedFailure === f && <span className="text-[10px] font-mono text-[#c9b787]">selected</span>}
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${f === 'none' ? 'bg-success' : 'bg-error'}`} />
+                    <span className="text-ink flex-1">{FAILURE_LABELS[f]}</span>
+                    {selectedFailure === f && <span className="text-[10px] font-mono text-ink">selected</span>}
                   </button>
                 ))}
               </div>
@@ -223,18 +224,18 @@ export default function SimTheaterPage() {
         <FabricCard title="AGENT COALITION">
           <div className="space-y-2">
             {AMARU_AGENTS.map((agent) => {
-              const axisColor: Record<string, string> = { P: '#78aac8', K: '#5a8a6e', 'Φ': '#c9b787', C: '#d4a853' };
-              const color = axisColor[agent.lutarAxisAffinity] ?? '#8a8a8a';
+              const axisColor: Record<string, string> = { P: CATEGORY_TONES[0], K: CATEGORY_TONES[1], 'Φ': CATEGORY_TONES[2], C: CATEGORY_TONES[3] };
+              const color = axisColor[agent.lutarAxisAffinity] ?? 'var(--text-sub)';
               return (
-                <div key={agent.id} className="flex items-center gap-3 p-2 rounded text-[12px]" style={{ background: '#0e0e0e' }}>
-                  <div className="w-6 h-6 rounded flex items-center justify-center shrink-0" style={{ background: `${color}18` }}>
-                    <span style={{ color, fontSize: '0.7rem' }}>⬡</span>
+                <div key={agent.id} className="flex items-center gap-3 p-2 rounded text-[12px]" style={{ background: 'var(--bg-deep)' }}>
+                  <div className="w-6 h-6 rounded flex items-center justify-center shrink-0" style={{ background: wash(color, 9) }}>
+                    <Hexagon className="w-3 h-3" style={{ color }} aria-hidden="true" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-[#f5f5f5]">{agent.name}</div>
-                    <div className="text-[10px] text-[#666] truncate">{agent.role}</div>
+                    <div className="font-medium text-ink">{agent.name}</div>
+                    <div className="text-[10px] text-ink-sub truncate">{agent.role}</div>
                   </div>
-                  <span className="font-mono text-[10px]" style={{ color }}>{Math.round(agent.approvalRate * 100)}%</span>
+                  <span className="font-mono text-[10px] tabular-nums text-ink-sub">{Math.round(agent.approvalRate * 100)}%</span>
                 </div>
               );
             })}
@@ -244,7 +245,7 @@ export default function SimTheaterPage() {
 
       {runs.length > 0 && (
         <div className="space-y-3">
-          <div className="label-mono text-[#c9b787]">SIMULATION RUNS ({runs.length})</div>
+          <div className="label-mono text-ink">SIMULATION RUNS ({runs.length})</div>
           {runs.map((run) => {
             const mapping = RELAY_MAPPINGS.find((m) => m.id === run.mappingId);
             const isExpanded = expandedRunId === run.id;
@@ -253,28 +254,28 @@ export default function SimTheaterPage() {
                 <button className="w-full p-4 text-left" onClick={() => setExpandedRunId(isExpanded ? null : run.id)}>
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                      {run.outcome === 'success' ? <CheckCircle className="w-4 h-4 text-[#5a8a6e]" /> : run.outcome === 'degraded' ? <AlertTriangle className="w-4 h-4 text-[#d4a853]" /> : <XCircle className="w-4 h-4 text-[#b85450]" />}
+                      {run.outcome === 'success' ? <CheckCircle className="w-4 h-4 text-ink-good" /> : run.outcome === 'degraded' ? <AlertTriangle className="w-4 h-4 text-ink-warn" /> : <XCircle className="w-4 h-4 text-ink-bad" />}
                       <div>
-                        <div className="text-[#f5f5f5] text-sm">{mapping?.name ?? run.mappingId}</div>
-                        <div className="text-[11px] text-[#666]">{FAILURE_LABELS[run.failure]} · {run.recordsDelivered.toLocaleString()}/{run.recordsAttempted.toLocaleString()} records · {run.durationMs.toLocaleString()}ms</div>
+                        <div className="text-ink text-sm">{mapping?.name ?? run.mappingId}</div>
+                        <div className="text-[11px] text-ink-sub">{FAILURE_LABELS[run.failure]} · {run.recordsDelivered.toLocaleString()}/{run.recordsAttempted.toLocaleString()} records · {run.durationMs.toLocaleString()}ms</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant={run.outcome === 'success' ? 'success' : run.outcome === 'degraded' ? 'partial' : 'failed'}>{run.outcome}</Badge>
-                      {isExpanded ? <ChevronUp className="w-4 h-4 text-[#666]" /> : <ChevronDown className="w-4 h-4 text-[#666]" />}
+                      {isExpanded ? <ChevronUp className="w-4 h-4 text-ink-sub" /> : <ChevronDown className="w-4 h-4 text-ink-sub" />}
                     </div>
                   </div>
                 </button>
 
                 {isExpanded && (
-                  <div className="border-t border-[rgba(255,255,255,0.04)] p-4 animate-fade-in">
+                  <div className="border-t border-line-subtle p-4 animate-fade-in">
                     <div className="label-mono mb-3">EVENT TIMELINE</div>
                     <div className="space-y-1.5 font-mono text-[11px]">
                       {run.events.map((ev) => (
                         <div key={ev.id} className="flex items-start gap-2">
-                          <span className="text-[#444] shrink-0 tabular-nums w-14">+{ev.atMs}ms</span>
+                          <span className="text-ink-sub shrink-0 tabular-nums w-14">+{ev.atMs}ms</span>
                           <span className="shrink-0 mt-0.5">{EVENT_ICON[ev.type]}</span>
-                          {ev.agentId && <span className="text-[#c9b787] shrink-0 w-20">[{ev.agentId}]</span>}
+                          {ev.agentId && <span className="text-ink shrink-0 w-20">[{ev.agentId}]</span>}
                           <span className={EVENT_TEXT[ev.type]}>{ev.message.replace(/^[^:]+: /, '')}</span>
                         </div>
                       ))}
@@ -288,8 +289,8 @@ export default function SimTheaterPage() {
       )}
 
       {runs.length === 0 && (
-        <div className="text-center py-16 text-[#555]">
-          <Square className="w-8 h-8 mx-auto mb-3 text-[#333]" />
+        <div className="text-center py-16 text-ink-sub">
+          <Square className="w-8 h-8 mx-auto mb-3 text-ink-ghost" />
           <div className="text-sm">No runs yet. Select a sync, inject a failure (or not), and run the simulation.</div>
         </div>
       )}

@@ -239,16 +239,23 @@ def build_intoto_envelope(
 # ---------------------------------------------------------------------------
 
 def _load_public_pem() -> str | None:
-    """Load the SZL cosign public key PEM for Rekor verifier entry."""
+    """Load the public key PEM for the Rekor verifier entry.
+
+    Rekor checks the envelope signature against this key, and the envelope is
+    signed by szl_dsse.sign_payload with the active runtime signer, so send that
+    signer's public half. COSIGN_PUBLIC_PEM (the embedded org key) is only the
+    fallback for an szl_dsse copy without active_public_key_pem().
+    """
     try:
         try:
             from szl_substrate import szl_dsse as _dsse  # single source of truth (pkg)
         except Exception:
             import szl_dsse as _dsse  # local vendored fallback (byte-identical)
-        pem = getattr(_dsse, "COSIGN_PUBLIC_PEM", None)
+        active = getattr(_dsse, "active_public_key_pem", None)
+        pem = active() if callable(active) else getattr(_dsse, "COSIGN_PUBLIC_PEM", None)
         if pem and "BEGIN" in pem:
             return pem.strip()
-    except ImportError:
+    except Exception:  # never raise into attest_receipt; fall back below
         pass
     return os.environ.get("SZL_COSIGN_PUBLIC_PEM", "").strip() or None
 

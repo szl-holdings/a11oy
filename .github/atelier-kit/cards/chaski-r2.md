@@ -31,7 +31,7 @@ A lineage you can walk. R1 stays up. R2 is the next knot.
 | NVIDIA | Recipe rerun. |
 | Unsloth | r=8 rsLoRA attn-only packing=false lr=5e-5. R2 refinement. R1 stays up. |
 
-Nobody else ships this combination. That is the point of a one-of-one.
+No equivalent public combination was found among the leaders surveyed above (a snapshot, not an ecosystem-wide novelty claim).
 
 ## Intended use
 

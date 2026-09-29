@@ -2627,7 +2627,7 @@ def _d_H3(mode, host):
 
 
 def _d_H4(mode, host):
-    """H4 - Tamper-Proof Medical Record Chain (M2). sigma DAG + perspective grid."""
+    """H4 - Tamper-Evident Medical Record Chain (M2). sigma DAG + perspective grid."""
     tl = _Timeline(); chain = _KhipuChain()
     recs = [{"session": i, "patient": "sm-%03d" % i, "hr": 70 + i, "spo2": 98 - (i % 3)} for i in range(6)]
     tl.run("Record each screening session as a DSSE-signed receipt (M2)", lambda: {"records": len(recs)}, kind="setup")
@@ -2654,7 +2654,7 @@ def _d_H4(mode, host):
                       "cascade": (tamper_seq is not None and r["session"] > tamper_seq)} for r in recs],
            "edges": [{"s": "r%d" % i, "t": "r%d" % (i + 1)} for i in range(len(recs) - 1)],
            "break_at": verify.get("chain_break_at_seq")}
-    return _std_tail("hangar2apps", "H4", mode, "H4 - Tamper-Proof Medical Record Chain",
+    return _std_tail("hangar2apps", "H4", mode, "H4 - Tamper-Evident Medical Record Chain",
                      _LBL_REAL, decision, intact, headline, tl, catch, first_fail, sealed,
                      [_f_m2()],
                      "FULLY REAL M2 hash-chain over six medical-record receipts. Flipping one vital byte in session #3 "
@@ -3221,7 +3221,7 @@ _DEMO25 = {
             {"id": "H1", "title": "Vital-Sign Anomaly (CP1 Conformal)", "fn": _d_H1, "viz": "vital_band"},
             {"id": "H2", "title": "Clinical Tipping-Point Early Warning", "fn": _d_H2, "viz": "scatter_simplex"},
             {"id": "H3", "title": "PEGASUS Health-Record Summarization", "fn": _d_H3, "viz": "sankey_info"},
-            {"id": "H4", "title": "Tamper-Proof Medical Record Chain", "fn": _d_H4, "viz": "tamper_dag"},
+            {"id": "H4", "title": "Tamper-Evident Medical Record Chain", "fn": _d_H4, "viz": "tamper_dag"},
             {"id": "H5", "title": "Offline / Sovereign Edge Screening", "fn": _d_H5, "viz": "httpvfs_console"},
         ],
     },

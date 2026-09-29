@@ -15,6 +15,10 @@ MODEL_SIZE = "986047904"
 NEMO_REVISION = "810231a531188bb569e3faa17396386eb0a5e260"
 WHEEL = "llama_cpp_python-0.3.35-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl"
 WHEEL_SHA256 = "d172f3d3c8cdd194c3c47c71cb077ed6e61354a2d0f939ceeac0c8fd29999596"
+# The stage selector falls back to the fail-closed default (1) when the global
+# ARG reaches the FROM line empty or unset; an empty value would otherwise make
+# the reference "llama-build-" and fail the build before any log line.
+LLAMA_STAGE_SELECTOR = "FROM llama-build-${A11OY_REQUIRE_LOCAL_LLM:-1} AS llama-build"
 
 
 def test_dockerfile_uses_pinned_prebuilt_cpu_wheel_not_source_compile() -> None:
@@ -23,9 +27,31 @@ def test_dockerfile_uses_pinned_prebuilt_cpu_wheel_not_source_compile() -> None:
     assert WHEEL in text
     assert WHEEL_SHA256 in text
     assert "pip wheel --no-cache-dir --no-binary llama-cpp-python" not in text
-    builder = text.split("FROM llama-build-${A11OY_REQUIRE_LOCAL_LLM} AS llama-build", 1)[0]
+    assert text.count(LLAMA_STAGE_SELECTOR) == 1
+    builder = text.split(LLAMA_STAGE_SELECTOR, 1)[0]
     for forbidden in ("build-essential", "cmake", "ninja-build"):
         assert forbidden not in builder
+
+
+def test_llama_stage_selector_falls_back_to_fail_closed_default() -> None:
+    text = DOCKERFILE.read_text(encoding="utf-8")
+    from_lines = [
+        line.strip()
+        for line in text.splitlines()
+        if line.strip().upper().startswith("FROM LLAMA-BUILD-")
+    ]
+    assert from_lines == [LLAMA_STAGE_SELECTOR]
+    assert ":-1}" in from_lines[0]
+    # Both selectable stages must still exist, and the default stays fail-closed.
+    assert re.search(r"^FROM \S+ AS llama-build-1$", text, re.MULTILINE)
+    assert re.search(r"^FROM \S+ AS llama-build-0$", text, re.MULTILINE)
+    assert re.search(r"^ARG A11OY_REQUIRE_LOCAL_LLM=1$", text, re.MULTILINE)
+    # The stage selector reads the global ARG, which is the one declared before
+    # the first FROM; later per-stage redeclarations do not affect it.
+    global_scope = re.split(r"^FROM ", text, maxsplit=1, flags=re.MULTILINE)[0]
+    assert re.findall(
+        r"^ARG A11OY_REQUIRE_LOCAL_LLM(?:=.*)?$", global_scope, re.MULTILINE
+    ) == ["ARG A11OY_REQUIRE_LOCAL_LLM=1"]
 
 
 def test_dockerfile_fetches_only_exact_owned_khipu_q4_artifact() -> None:

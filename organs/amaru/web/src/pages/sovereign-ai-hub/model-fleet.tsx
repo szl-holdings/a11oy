@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { fetchHub } from './shared';
+import { DOMAIN_TONES } from '@/lib/utils';
 
 interface ModelCard {
   modelVersionId: string;
@@ -29,21 +30,13 @@ interface ModelCard {
   createdAt: string;
 }
 
-const PROVIDER_COLORS: Record<string, string> = {
-  vessels: '#06b6d4',
-  terra: '#10b981',
-  prism: '#8b5cf6',
-  aegis: '#ef4444',
-  szl: '#f59e0b',
-  lyte: '#6366f1',
-  sentra: '#ec4899',
-};
+const PROVIDER_COLORS = DOMAIN_TONES;
 
 const LIFECYCLE_COLORS: Record<string, string> = {
-  experimental: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  staging: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  production: 'bg-green-500/20 text-green-400 border-green-500/30',
-  deprecated: 'bg-red-500/20 text-red-400 border-red-500/30',
+  experimental: 'bg-warning/20 text-ink-warn border-warning/30',
+  staging: 'bg-info/20 text-ink-sub border-info/30',
+  production: 'bg-success/20 text-ink-good border-success/30',
+  deprecated: 'bg-error/20 text-ink-bad border-error/30',
 };
 
 export default function ModelFleetConsole() {
@@ -85,8 +78,8 @@ export default function ModelFleetConsole() {
           SOVEREIGN AI HUB · MODEL FLEET
         </p>
         <h1 className="text-2xl font-display font-bold tracking-tight flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center border border-indigo-500/30">
-            <Layers className="w-5 h-5 text-indigo-400" />
+          <div className="w-8 h-8 rounded-lg bg-wash/10 flex items-center justify-center border border-line">
+            <Layers className="w-5 h-5 text-ink" />
           </div>
           Model Fleet Console
         </h1>
@@ -97,10 +90,10 @@ export default function ModelFleetConsole() {
 
       {summary && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <StatCard label="Total Versions" value={summary.totalVersions} icon={<Layers className="w-4 h-4 text-indigo-400" />} />
-          <StatCard label="Production" value={summary.lifecycleCounts?.production ?? 0} icon={<CheckCircle2 className="w-4 h-4 text-green-400" />} />
-          <StatCard label="Staging" value={summary.lifecycleCounts?.staging ?? 0} icon={<Clock className="w-4 h-4 text-blue-400" />} />
-          <StatCard label="Experimental" value={summary.lifecycleCounts?.experimental ?? 0} icon={<Zap className="w-4 h-4 text-yellow-400" />} />
+          <StatCard label="Total Versions" value={summary.totalVersions} icon={<Layers className="w-4 h-4 text-ink" />} />
+          <StatCard label="Production" value={summary.lifecycleCounts?.production ?? 0} icon={<CheckCircle2 className="w-4 h-4 text-ink-good" />} />
+          <StatCard label="Staging" value={summary.lifecycleCounts?.staging ?? 0} icon={<Clock className="w-4 h-4 text-ink-sub" />} />
+          <StatCard label="Experimental" value={summary.lifecycleCounts?.experimental ?? 0} icon={<Zap className="w-4 h-4 text-ink-warn" />} />
         </div>
       )}
 
@@ -112,13 +105,13 @@ export default function ModelFleetConsole() {
             placeholder="Search models..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 bg-card border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            className="w-full pl-9 pr-3 py-2 bg-card border border-border rounded-md text-sm focus-visible:outline-none focus-visible:border-focus focus-visible:shadow-[var(--shadow-focus)]"
           />
         </div>
         <select
           value={filterDomain}
           onChange={(e) => setFilterDomain(e.target.value)}
-          className="bg-card border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+          className="bg-card border border-border rounded-md px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-focus focus-visible:shadow-[var(--shadow-focus)]"
         >
           <option value="">All Domains</option>
           {(summary?.domains ?? []).map((d) => (
@@ -128,7 +121,7 @@ export default function ModelFleetConsole() {
         <select
           value={filterLifecycle}
           onChange={(e) => setFilterLifecycle(e.target.value)}
-          className="bg-card border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+          className="bg-card border border-border rounded-md px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-focus focus-visible:shadow-[var(--shadow-focus)]"
         >
           <option value="">All Stages</option>
           <option value="experimental">Experimental</option>
@@ -171,11 +164,11 @@ function StatCard({ label, value, icon }: { label: string; value: number; icon: 
 }
 
 function ModelCardView({ model }: { model: ModelCard }) {
-  const domainColor = PROVIDER_COLORS[model.domain] ?? '#6366f1';
+  const domainColor = PROVIDER_COLORS[model.domain] ?? 'var(--color-silver-300)';
   const accuracy = model.testMetrics?.accuracy ?? model.testMetrics?.r2 ?? model.testMetrics?.auc;
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4 hover:border-primary/30 transition-colors">
+    <div className="rounded-lg border border-border bg-card p-4 hover:border-line transition-colors">
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2">
           <div
@@ -217,8 +210,8 @@ function ModelCardView({ model }: { model: ModelCard }) {
         </div>
         {model.isProduction && (
           <div className="flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3 text-green-400" />
-            <span className="text-xs text-green-400 font-mono">PROD</span>
+            <CheckCircle2 className="w-3 h-3 text-ink-good" />
+            <span className="text-xs text-ink-good font-mono">PROD</span>
           </div>
         )}
       </div>

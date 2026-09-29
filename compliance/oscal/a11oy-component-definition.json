@@ -3,7 +3,7 @@
     "uuid": "a11oy-comp-def-v11",
     "metadata": {
       "title": "a11oy Governed AI Orchestrator \u2014 OSCAL Component Definition",
-      "last-modified": "2026-06-14T06:40:15.254257+00:00",
+      "last-modified": "2026-09-26T03:14:23.051763+00:00",
       "version": "v11",
       "oscal-version": "1.1.2",
       "remarks": "Coverage assessments reflect a11oy's INTERNAL analysis of its mechanisms against published framework control text. a11oy ALIGNS WITH / MAPS TO these frameworks; it does NOT claim certification. No third-party certification has been obtained for any framework as of Doctrine v11. Gaps are shown honestly. \u039b = Conjecture 1; locked-proven = 8 @ c7c0ba17; trust never 100%."
@@ -93,12 +93,12 @@
               {
                 "uuid": "ir-76491072",
                 "control-id": "ra-3",
-                "description": "[COVERED] 13-axis \u039b trust score is the per-inference risk assessment (a11oy Risk assessment).",
+                "description": "[PARTIAL] \u039b is an advisory score whose values are keyword checks, caller-declared, a fixed 0.97 default, SHA-256-derived, 0.97 minus fixed regex/classification/severity penalties, or default constants; not a measured risk assessment (a11oy Risk assessment).",
                 "props": [
                   {
                     "name": "coverage",
                     "ns": "https://szlholdings.ai/ns/oscal",
-                    "value": "COVERED"
+                    "value": "PARTIAL"
                   }
                 ]
               },

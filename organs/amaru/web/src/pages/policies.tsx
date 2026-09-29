@@ -31,7 +31,7 @@ export default function PoliciesPage() {
         title="Policies"
         blurb="The registry Sentinel evaluates against every batch. Each rule is a condition, an enforcement action, a Lutar weight, and a recent-hit log — the spine never ships unless this registry says it can."
         trailing={
-          <Link href="/innovation/policy-dsl" className="flex items-center gap-1.5 text-[11px] font-mono text-[#c9b787] hover:underline">
+          <Link href="/innovation/policy-dsl" className="flex items-center gap-1.5 text-[11px] font-mono text-link hover:underline">
             <Code className="w-3.5 h-3.5" /> Policy DSL →
           </Link>
         }
@@ -45,15 +45,15 @@ export default function PoliciesPage() {
         <FabricStat label="DSL versions" value={dslVersions.length} tone={dslVersions.length > 0 ? 'good' : 'neutral'} sub={dslActiveRuleCount > 0 ? `${dslActiveRuleCount} active rules` : undefined} />
       </div>
       {dslVersions.length > 0 && (
-        <div className="mb-4 p-3 rounded text-[12px] flex items-center justify-between" style={{ background: 'rgba(201,183,135,0.04)', border: '1px solid rgba(201,183,135,0.15)' }}>
+        <div className="mb-4 p-3 rounded text-[12px] flex items-center justify-between" style={{ background: 'color-mix(in srgb, var(--text) 4%, transparent)', border: '1px solid color-mix(in srgb, var(--text) 15%, transparent)' }}>
           <div className="flex items-center gap-2">
-            <Code className="w-3.5 h-3.5 text-[#c9b787]" />
-            <span className="text-[#f5f5f5]">Latest DSL version</span>
-            <span className="font-mono text-[#c9b787]">v{dslVersions[0]!.version}</span>
-            <span className="text-[#666]">— {dslVersions[0]!.description}</span>
-            <span className="text-[#555] font-mono">({dslVersions[0]!.ruleCount} rules)</span>
+            <Code className="w-3.5 h-3.5 text-ink" />
+            <span className="text-ink">Latest DSL version</span>
+            <span className="font-mono text-ink">v{dslVersions[0]!.version}</span>
+            <span className="text-ink-sub">— {dslVersions[0]!.description}</span>
+            <span className="text-ink-sub font-mono">({dslVersions[0]!.ruleCount} rules)</span>
           </div>
-          <Link href="/innovation/policy-dsl" className="text-[11px] text-[#c9b787] hover:underline">Edit DSL →</Link>
+          <Link href="/innovation/policy-dsl" className="text-[11px] text-link hover:underline">Edit DSL →</Link>
         </div>
       )}
 
@@ -74,13 +74,13 @@ export default function PoliciesPage() {
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 <SeverityChip level={p.severity} />
                 <div className="min-w-0">
-                  <div className="text-sm text-[#f5f5f5] truncate">{p.name}</div>
-                  <div className="font-mono text-[11px] text-[#666] truncate">{p.condition}</div>
+                  <div className="text-sm text-ink truncate">{p.name}</div>
+                  <div className="font-mono text-[11px] text-ink-sub truncate">{p.condition}</div>
                 </div>
               </div>
               <div className="flex items-center gap-3 shrink-0">
                 <Badge variant={p.enforcement === 'block' || p.enforcement === 'rollback' ? 'failed' : p.enforcement === 'require_approval' ? 'partial' : 'default'}>{p.enforcement}</Badge>
-                <span className="text-[11px] text-[#8a8a8a] font-mono">{p.recentHits.length} hits</span>
+                <span className="text-[11px] text-ink-sub font-mono">{p.recentHits.length} hits</span>
                 <GovernanceDot state={p.governanceState} />
               </div>
             </div>
@@ -98,27 +98,27 @@ export default function PoliciesPage() {
               <FabricStat label="Recent hits" value={drawer.recentHits.length} />
             </div>
             <div className="conduit-card p-4">
-              <div className="label-mono mb-2 text-[#c9b787]">CONDITION</div>
-              <pre className="font-mono text-[11px] text-[#f5f5f5] bg-[#0a0a0a] p-3 rounded overflow-x-auto whitespace-pre-wrap">{drawer.condition}</pre>
+              <div className="label-mono mb-2 text-ink">CONDITION</div>
+              <pre className="font-mono text-[11px] text-ink bg-ground p-3 rounded overflow-x-auto whitespace-pre-wrap">{drawer.condition}</pre>
             </div>
             <div className="conduit-card p-4">
-              <div className="label-mono mb-2 text-[#c9b787]">SCOPE</div>
+              <div className="label-mono mb-2 text-ink">SCOPE</div>
               <div className="flex flex-wrap gap-1">
                 {drawer.scope.map((v) => <Badge key={v} variant="default">{v}</Badge>)}
               </div>
             </div>
             <div className="conduit-card p-4">
-              <div className="label-mono mb-2 text-[#c9b787]">RECENT HITS</div>
-              {drawer.recentHits.length === 0 && <div className="text-[12px] text-[#666]">No recent hits.</div>}
+              <div className="label-mono mb-2 text-ink">RECENT HITS</div>
+              {drawer.recentHits.length === 0 && <div className="text-[12px] text-ink-sub">No recent hits.</div>}
               <div className="space-y-2">
                 {drawer.recentHits.map((h, i) => (
-                  <div key={i} className="text-[11px] p-2 rounded bg-[#0e0e0e]">
+                  <div key={i} className="text-[11px] p-2 rounded bg-ground-deep">
                     <div className="flex items-center justify-between">
-                      <span className="font-mono text-[#8a8a8a]">{h.syncId}</span>
+                      <span className="font-mono text-ink-sub">{h.syncId}</span>
                       <Badge variant={h.outcome === 'block' ? 'failed' : h.outcome === 'rollback' ? 'failed' : h.outcome === 'require_approval' ? 'partial' : 'default'}>{h.outcome}</Badge>
                     </div>
-                    <div className="text-[#f5f5f5] mt-1">{h.summary}</div>
-                    <div className="text-[#666] mt-1">{new Date(h.atIso).toLocaleString()}</div>
+                    <div className="text-ink mt-1">{h.summary}</div>
+                    <div className="text-ink-sub mt-1">{new Date(h.atIso).toLocaleString()}</div>
                   </div>
                 ))}
               </div>

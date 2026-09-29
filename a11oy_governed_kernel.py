@@ -210,6 +210,12 @@ class GovernedKernel:
         self._cells_run = 0
         self._spawned_at: Optional[float] = None
         self._degraded = False
+        # Registry bookkeeping for capacity eviction. _state_lock makes "evict only
+        # while idle" and "never start a cell on an evicted kernel" one atomic check.
+        self._state_lock = threading.Lock()
+        self._busy = 0
+        self._evicted = False
+        self.last_used = time.time()
 
     # -- lifecycle --------------------------------------------------------
     def spawn(self) -> dict:
@@ -250,6 +256,23 @@ class GovernedKernel:
     def alive(self) -> bool:
         return bool(self._proc and self._proc.poll() is None)
 
+    def touch(self) -> None:
+        self.last_used = time.time()
+
+    def is_dead(self) -> bool:
+        """Spawned (or spawn attempted) and no longer running. A cold kernel that has
+        not run its first cell yet is not dead."""
+        return (self._spawned_at is not None or self._degraded) and not self.alive()
+
+    def try_evict(self) -> bool:
+        """Mark evicted iff no cell is running. The caller removes it from the
+        registry and kills the worker."""
+        with self._state_lock:
+            if self._busy:
+                return False
+            self._evicted = True
+            return True
+
     def kill(self) -> None:
         with self._lock:
             if self._proc:
@@ -265,13 +288,29 @@ class GovernedKernel:
         in a11oy_code_as_action BEFORE this is ever called; this method assumes the
         cell passed the gate. Enforces a per-cell wall-clock timeout; on breach the
         worker is killed and the run is DEGRADED (no fabricated success)."""
+        with self._state_lock:
+            if self._evicted:
+                return {"ok": False, "executed": False, "degraded": True,
+                        "stderr": ("kernel was evicted to free capacity before this cell "
+                                   "ran — NOT executed"),
+                        "isolation": ISOLATION_LABEL, "wall_s": 0.0}
+            self._busy += 1
+            self.last_used = time.time()
+        try:
+            return self._exec_cell(code)
+        finally:
+            with self._state_lock:
+                self._busy -= 1
+                self.last_used = time.time()
+
+    def _exec_cell(self, code: str) -> dict:
         if not self.alive():
             # cold or previously killed — (re)spawn a fresh namespace.
             self.spawn()
         if not self.alive():
             self._degraded = True
-            return {"ok": False, "degraded": True,
-                    "stderr": "kernel unavailable (spawn failed)",
+            return {"ok": False, "executed": False, "degraded": True,
+                    "stderr": "kernel unavailable (spawn failed) — NOT executed",
                     "isolation": ISOLATION_LABEL, "wall_s": 0.0}
 
         t0 = time.time()
@@ -350,6 +389,18 @@ class GovernedKernel:
 # Process-wide registry of live kernels, one per run_id.
 # ---------------------------------------------------------------------------
 _KERNELS: dict[str, GovernedKernel] = {}
+_DEFAULT_MAX_KERNELS = 4
+
+
+def _max_kernels_from_env() -> int:
+    try:
+        return max(1, int(str(os.environ.get("A11OY_MAX_KERNELS", "")).strip()
+                          or _DEFAULT_MAX_KERNELS))
+    except (TypeError, ValueError):
+        return _DEFAULT_MAX_KERNELS
+
+
+MAX_KERNELS = _max_kernels_from_env()
 _REG_LOCK = threading.Lock()
 
 
@@ -357,21 +408,50 @@ def new_run_id() -> str:
     return "gck_" + uuid.uuid4().hex[:16]
 
 
+def _free_slots_locked() -> list[GovernedKernel]:
+    """With _REG_LOCK held and the registry full: drop every idle dead kernel, then
+    (if still full) the least-recently-used idle kernel. A kernel mid-cell is never
+    evicted. Returns the evicted kernels so the caller kills them outside the lock."""
+    evicted: list[GovernedKernel] = []
+    for rid, k in list(_KERNELS.items()):
+        if k.is_dead() and k.try_evict():
+            evicted.append(_KERNELS.pop(rid))
+    if len(_KERNELS) >= MAX_KERNELS:
+        for rid, k in sorted(_KERNELS.items(), key=lambda kv: kv[1].last_used):
+            if k.try_evict():
+                evicted.append(_KERNELS.pop(rid))
+                break
+    return evicted
+
+
 def get_kernel(run_id: str, create: bool = False,
                timeout_s: int = DEFAULT_TIMEOUT_S,
                mem_mb: int = DEFAULT_MEM_MB) -> Optional[GovernedKernel]:
+    """Return the kernel for run_id (creating it when asked). At MAX_KERNELS, dead
+    and then least-recently-used idle kernels are evicted first; None means every
+    slot is executing a cell right now (the caller answers an honest 429)."""
+    evicted: list[GovernedKernel] = []
     with _REG_LOCK:
         k = _KERNELS.get(run_id)
-        if k is None and create:
-            k = GovernedKernel(run_id, timeout_s=timeout_s, mem_mb=mem_mb)
-            _KERNELS[run_id] = k
-        return k
+        if k is not None:
+            k.touch()
+        elif create:
+            if len(_KERNELS) >= MAX_KERNELS:
+                evicted = _free_slots_locked()
+            if len(_KERNELS) < MAX_KERNELS:
+                k = GovernedKernel(run_id, timeout_s=timeout_s, mem_mb=mem_mb)
+                _KERNELS[run_id] = k
+    for old in evicted:
+        old.kill()
+    return k
 
 
 def drop_kernel(run_id: str) -> None:
     with _REG_LOCK:
         k = _KERNELS.pop(run_id, None)
     if k:
+        with k._state_lock:
+            k._evicted = True  # a stale handle must not respawn an untracked worker
         k.kill()
 
 

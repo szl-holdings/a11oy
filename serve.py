@@ -1712,9 +1712,10 @@ except Exception as _szl_kv2_e:  # pragma: no cover
 # szl_public_verify lets ANY visitor (investor/auditor/skeptic) PASTE a DSSE/SZL
 # receipt (or a receipt id) at /verify and get an INDEPENDENT verdict computed by
 # POST /api/a11oy/v1/verify/receipt {envelope|receipt_id}. It runs three honest
-# checks: (1) ECDSA-P256 signature vs the PUBLISHED SZLHOLDINGS cosign.pub (reuses
-# szl_dsse.verify_envelope), (2) re-hash the payload and compare to the digest the
-# payload DECLARES about itself (payload_digest) — NOT the chain seal id (the old
+# checks: (1) ECDSA-P256 signature vs this deployment's runtime key (/cosign.pub),
+# then the retained szl_dsse keyring (szl_dsse.verify_envelope), (2) re-hash the
+# payload and compare to the digest the payload DECLARES about itself
+# (payload_digest) — NOT the chain seal id (the old
 # simultaneous VERIFIED+MISMATCH bug is NOT reintroduced), (3) walk/validate the
 # hash-chain to genesis (reuses szl_khipu_verify.verify_digest). Each check is
 # labelled VERIFIED / MISMATCH / UNSIGNED-LOCAL / UNAVAILABLE; nothing is fabricated;
@@ -4229,7 +4230,8 @@ app.add_middleware(
     # routes, and every document route accepts HEAD, so the CORS preflight answer
     # must say so instead of implying HEAD is unsupported.
     allow_methods=["GET", "HEAD", "POST", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+    allow_headers=["Content-Type", "Authorization", "X-Requested-With",
+                   "X-A11oy-Second-Approver"],
 )
 
 # ===========================================================================
@@ -7315,6 +7317,27 @@ async def _a11oy_pr_honest_v2():
             "locked_formula_ids": [
                 "F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22",
             ],
+            # Same labels as szl_be_hardening.DOCTRINE_LOCK (see there for the
+            # reproduce command and the 3a886349 pin).
+            "sorries_method": (
+                "lutar-lean .github/scripts/lean_numbers.py sorries_raw @ c7c0ba17 — "
+                "word-boundary 'sorry' text occurrences in Lutar/**+Main.lean, including "
+                "comments and docstrings; not a count of open proof obligations"
+            ),
+            "sorries_noncomment": 149,
+            "sorries_noncomment_method": (
+                "same script and commit (lutar-lean .github/scripts/lean_numbers.py @ "
+                "c7c0ba17) — drops only lines whose first non-blank characters are `--`; "
+                "'sorry' text inside /- -/ block comments, /-- -/ doc comments and trailing "
+                "`--` comments after code is still counted; not a count of open proof "
+                "obligations"
+            ),
+            "locked_formula_source": (
+                "lutar-lean Lutar/Puriq/Formulas/ProvedFormulas.lean @ 3a886349 "
+                "(checked 2026-09-25; file added 2026-06-04 e6de491, last changed "
+                "2026-06-10 5cfaf9a; not present at c7c0ba17; experimental scope, "
+                "outside the 749/14/163 count)"
+            ),
         }
     _locked_count = _honest_lock.get("locked_formula_count")
     _locked_ids = list(_honest_lock.get("locked_formula_ids") or [])
@@ -7322,8 +7345,12 @@ async def _a11oy_pr_honest_v2():
         "space": "a11oy",
         "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
+        "sorries_method": _honest_lock.get("sorries_method"),
+        "sorries_noncomment": _honest_lock.get("sorries_noncomment"),
+        "sorries_noncomment_method": _honest_lock.get("sorries_noncomment_method"),
         "locked_formula_count": _locked_count,
         "locked_formula_ids": _locked_ids,
+        "locked_formula_source": _honest_lock.get("locked_formula_source"),
         "doctrine_lock": _honest_lock,
         "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "kernel_commit": "c7c0ba17",
@@ -12941,13 +12968,14 @@ _LOCAL_ONLY_A11OY_PREFIXES = ("v1/warhacker/", "v1/observability/", "v1/sec/",
 async def _intoto_verify_guide(request: Request) -> Response:
     """in-toto verification guide: what is now verifiable vs roadmap."""
     from starlette.responses import JSONResponse as _JSONResponse
-    _pub_key_url = "https://github.com/szl-holdings/.github/blob/main/cosign.pub"
+    # Runtime signer's key, same-origin; the .github org key is a separate key.
+    _pub_key_url = "/cosign.pub"
     return _JSONResponse({
         "title": "SZL a11oy in-toto Verification Guide",
         "what_is_now_verifiable": {
             "1_dsse_signature": {
                 "status": "LIVE",
-                "description": "DSSE-signed with SZL ECDSA P-256 keypair. payloadType=application/vnd.in-toto+json. Verifiable with cosign verify-blob.",
+                "description": "Scope: the /khipu/intoto/<receipt_id> envelope. It is DSSE-signed (ECDSA P-256) at serve time only if the runtime signer is present (signed=true); otherwise UNSIGNED (signed=false). Khipu hash-chain entries always carry DSSE_PLACEHOLDER and are unsigned, even while the signer is present. payloadType=application/vnd.in-toto+json. The signature is ECDSA-P256-SHA256 over the DSSE PAE; verify a signed envelope against /cosign.pub.",
                 "command": "cosign verify-blob --key https://a-11-oy.com/cosign.pub --bundle <receipt.bundle.json> <statement.json>",
             },
             "2_intoto_statement_v1": {
@@ -12972,7 +13000,7 @@ async def _intoto_verify_guide(request: Request) -> Response:
             "slsa_l2_container": "ROADMAP: actions/attest-build-provenance in CI (~3 YAML lines).",
             "tee_attestation": "ROADMAP Phase II: AWS Nitro PCR-bound inference attestation.",
         },
-        "offline_verifier": "szl-cookbook/verify-intoto-receipt.py (Apache-2.0)",
+        "offline_verifier": "szl-cookbook/verify-intoto-receipt.py (Apache-2.0; checks the szl-holdings/.github org key embedded in it, so a receipt passes there only if that key's fingerprint equals /cosign.pub's)",
         "pr": "https://github.com/szl-holdings/a11oy/pull/567",
         "public_key_url": _pub_key_url,
     })
@@ -13029,7 +13057,7 @@ async def api_proxy(request: Request, path: str) -> Response:
         return JSONResponse({
             "title": "SZL a11oy in-toto Verification Guide",
             "what_is_now_verifiable": {
-                "1_dsse_signature": {"status": "LIVE", "description": "payloadType=application/vnd.in-toto+json, ECDSA-P256-SHA256 DSSE sig"},
+                "1_dsse_signature": {"status": "LIVE", "description": "Scope: the /khipu/intoto/<receipt_id> envelope. payloadType=application/vnd.in-toto+json, ECDSA-P256-SHA256 DSSE sig at serve time only if the runtime signer is present (signed=true), else UNSIGNED (signed=false). Khipu hash-chain entries always carry DSSE_PLACEHOLDER and are unsigned, even while the signer is present."},
                 "2_intoto_statement_v1": {"status": "LIVE", "description": "_type: https://in-toto.io/Statement/v1, predicateType: https://szl.holdings/khipu-governed-inference/v1", "endpoint": "/khipu/intoto/<receipt_id>"},
                 "3_hard_binding": {"status": "LIVE", "description": "subject.digest = SHA3-256(output). C2PA pattern."},
                 "4_merkle_log": {"status": "LIVE", "description": "RFC 6962 SHA3-256 self-hosted log.", "proof_endpoint": "/api/lake/v1/proof/<id>", "log_endpoint": "/api/lake/v1/log", "honest_label": "szl-lake-merkle (self-hosted) — NOT Sigstore Rekor"},
@@ -13039,9 +13067,9 @@ async def api_proxy(request: Request, path: str) -> Response:
                 "slsa_l2": "ROADMAP: actions/attest-build-provenance in CI",
                 "tee": "ROADMAP Phase II: AWS Nitro PCR",
             },
-            "offline_verifier": "szl-cookbook/verify-intoto-receipt.py (Apache-2.0)",
+            "offline_verifier": "szl-cookbook/verify-intoto-receipt.py (Apache-2.0; checks the szl-holdings/.github org key embedded in it, so a receipt passes there only if that key's fingerprint equals /cosign.pub's)",
             "pr": "https://github.com/szl-holdings/a11oy/pull/567",
-            "public_key_url": "https://github.com/szl-holdings/.github/blob/main/cosign.pub",
+            "public_key_url": "/cosign.pub",
             "_dev": "DEV2 in-toto attestation layer (szl_intoto.py)",
         })
 
@@ -15170,6 +15198,12 @@ except Exception:
 try:
     try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
         from szl_substrate import a11oy_code_engine as _a11oy_code  # single source of truth
+        import inspect as _code_inspect
+        # SECURITY: only a copy that carries the deny-by-default allow_exec
+        # chokepoint may serve /v1/code/*; an older shared copy would run the
+        # sandbox for any caller. Otherwise use the vendored copy.
+        if "allow_exec" not in _code_inspect.signature(_a11oy_code.governed_turn).parameters:
+            raise ImportError("szl_substrate a11oy_code_engine lacks allow_exec")
     except Exception:
         import a11oy_code_engine as _a11oy_code
     import sys as _code_sys
@@ -16811,6 +16845,21 @@ try:
     _anatomy_ledger_module.register(app)
 except Exception as _anatomy_ledger_error:
     print(f"[a11oy] anatomy ledger unavailable: {_anatomy_ledger_error!r}", file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
+# SECURITY (deny-by-default): every route that can execute code, dispatch an
+# agent or tool with side effects, sign a caller-supplied payload with the server
+# key, or write server state answers 401 BLOCKED without the operator Bearer
+# (A11OY_CODE_ADMIN_KEY) before any handler runs. The table lives in
+# szl_operator_auth.PROTECTED_ROUTES; GET/HEAD/OPTIONS are never gated. Installed
+# last so it is the innermost middleware (a refusal still carries CORS/security
+# headers). Deliberately NOT wrapped in try/except: if the resolver cannot load,
+# the app must not serve these routes at all.
+# ---------------------------------------------------------------------------
+import szl_operator_auth as _szl_operator_gate  # noqa: E402
+
+_szl_operator_gate.install_gate(app)
 
 
 if __name__ == "__main__":

@@ -106,25 +106,25 @@ function statusBadge(status: InvariantStatus) {
   switch (status) {
     case 'pass':
       return (
-        <Badge variant="outline" className="text-emerald-400 border-emerald-500/30 bg-emerald-500/10">
+        <Badge variant="outline" className="text-ink-good border-success/30 bg-success/10">
           <ShieldCheck className="w-3 h-3 mr-1" /> PASS
         </Badge>
       );
     case 'warn':
       return (
-        <Badge variant="outline" className="text-amber-400 border-amber-500/30 bg-amber-500/10">
+        <Badge variant="outline" className="text-ink-warn border-warning/30 bg-warning/10">
           <ShieldAlert className="w-3 h-3 mr-1" /> WARN
         </Badge>
       );
     case 'trip':
       return (
-        <Badge variant="outline" className="text-red-400 border-red-500/30 bg-red-500/10">
+        <Badge variant="outline" className="text-ink-bad border-error/30 bg-error/10">
           <AlertOctagon className="w-3 h-3 mr-1" /> TRIP
         </Badge>
       );
     case 'reserved':
       return (
-        <Badge variant="outline" className="text-white/40 border-white/10 bg-white/5">
+        <Badge variant="outline" className="text-ink-sub border-line bg-surface-raised">
           <ShieldQuestion className="w-3 h-3 mr-1" /> RESERVED
         </Badge>
       );
@@ -172,22 +172,22 @@ export default function ConduitOperationalCore() {
     typeof v === 'string' && v.length >= 8 ? v.slice(0, 8) : '—';
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-[#f5f5f5] p-6">
+    <div className="min-h-screen bg-ground text-ink p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <InfinityIcon className="w-5 h-5 text-[#c9b787]" />
-              <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-[#888]">
+              <InfinityIcon className="w-5 h-5 text-ink" />
+              <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-sub">
                 CONDUIT · ANDEAN-OUROBOROS OPERATIONAL CORE
               </span>
-              <Badge variant="outline" className="text-[#c9b787] border-[#c9b787]/30 bg-[#c9b787]/10 font-mono text-[10px]">
+              <Badge variant="outline" className="text-ink border-line bg-wash/10 font-mono text-[10px]">
                 LIVE
               </Badge>
             </div>
             <h1 className="text-3xl font-semibold tracking-tight">Operational Core</h1>
-            <p className="text-sm text-[#888] mt-1 max-w-2xl">
+            <p className="text-sm text-ink-sub mt-1 max-w-2xl">
               Single auditable surface for the live R0513 OVERWATCH panel, six inherited mechanisms,
               elevated formula pillars, DOI proof bindings, and v6 doctrine. Read-only.
               Halt authority belongs to HUKLLA.
@@ -198,7 +198,7 @@ export default function ConduitOperationalCore() {
             size="sm"
             onClick={() => q.refetch()}
             disabled={q.isFetching}
-            className="border-white/10"
+            className="border-line"
           >
             <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${q.isFetching ? 'animate-spin' : ''}`} />
             {q.isFetching ? 'Refreshing…' : 'Refresh'}
@@ -206,19 +206,19 @@ export default function ConduitOperationalCore() {
         </div>
 
         {/* B1 — Formula pillars */}
-        <Card className="bg-[#0e0e0e] border-white/5">
+        <Card className="bg-ground-deep border-line-subtle">
           <CardHeader>
-            <CardTitle className="text-sm font-mono uppercase tracking-wider text-[#888]">
+            <CardTitle className="text-sm font-mono uppercase tracking-wider text-ink-sub">
               B1 · Elevated Formula Pillars
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid sm:grid-cols-2 gap-3">
               {FORMULA_PILLARS.map((p) => (
-                <div key={p.id} className="border border-white/5 rounded-lg p-3 bg-black/30">
-                  <div className="text-xs text-[#c9b787] font-mono">{p.id}</div>
+                <div key={p.id} className="border border-line-subtle rounded-lg p-3 bg-ground/30">
+                  <div className="text-xs text-ink font-mono">{p.id}</div>
                   <div className="text-sm font-medium mt-1">{p.label}</div>
-                  <div className="text-[11px] font-mono text-[#888] mt-1 break-words">{p.expression}</div>
+                  <div className="text-[11px] font-mono text-ink-sub mt-1 break-words">{p.expression}</div>
                 </div>
               ))}
             </div>
@@ -226,20 +226,20 @@ export default function ConduitOperationalCore() {
         </Card>
 
         {/* B2 — Live R0513 OVERWATCH panel */}
-        <Card className="bg-[#0e0e0e] border-white/5">
+        <Card className="bg-ground-deep border-line-subtle">
           <CardHeader>
             <div className="flex items-start justify-between gap-3 flex-wrap">
               <div>
-                <CardTitle className="text-sm font-mono uppercase tracking-wider text-[#888]">
+                <CardTitle className="text-sm font-mono uppercase tracking-wider text-ink-sub">
                   B2 · R0513 Overwatch (live)
                 </CardTitle>
                 {snap && (
-                  <div className="flex items-center gap-3 mt-1 text-[11px] font-mono text-[#666]">
+                  <div className="flex items-center gap-3 mt-1 text-[11px] font-mono text-ink-sub">
                     <span>panel {snap.panel_version ?? '—'}</span>
                     <span>kernel {shortHash(snap.thesis_kernel_hash)}</span>
                     <span>brain {shortHash(snap.thesis_brain_hash)}</span>
                     {snap.read_only && (
-                      <Badge variant="outline" className="text-emerald-400 border-emerald-500/30 bg-emerald-500/10 text-[10px]">
+                      <Badge variant="outline" className="text-ink-good border-success/30 bg-success/10 text-[10px]">
                         READ-ONLY
                       </Badge>
                     )}
@@ -248,9 +248,9 @@ export default function ConduitOperationalCore() {
               </div>
               {snap && (
                 <div className="flex items-center gap-2 text-[11px] font-mono">
-                  <span className="text-emerald-400">{passCount} PASS</span>
-                  <span className="text-amber-400">{warnCount} WARN</span>
-                  <span className="text-red-400">{tripCount} TRIP</span>
+                  <span className="text-ink-good">{passCount} PASS</span>
+                  <span className="text-ink-warn">{warnCount} WARN</span>
+                  <span className="text-ink-bad">{tripCount} TRIP</span>
                 </div>
               )}
             </div>
@@ -259,12 +259,12 @@ export default function ConduitOperationalCore() {
             {q.isLoading && (
               <div className="space-y-2">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <Skeleton key={i} className="h-14 bg-white/5" />
+                  <Skeleton key={i} className="h-14 bg-surface-raised" />
                 ))}
               </div>
             )}
             {q.isError && (
-              <div className="text-sm text-red-400 font-mono p-3 border border-red-500/20 rounded-lg bg-red-500/5">
+              <div className="text-sm text-ink-bad font-mono p-3 border border-error/20 rounded-lg bg-error/5">
                 Overwatch unavailable: {q.error instanceof Error ? q.error.message : String(q.error)}
               </div>
             )}
@@ -275,15 +275,15 @@ export default function ConduitOperationalCore() {
                   return (
                     <div
                       key={inv.id}
-                      className="grid grid-cols-[auto_auto_1fr_auto_auto] items-center gap-3 px-3 py-2.5 rounded-lg border border-white/5 bg-black/30"
+                      className="grid grid-cols-[auto_auto_1fr_auto_auto] items-center gap-3 px-3 py-2.5 rounded-lg border border-line-subtle bg-ground/30"
                     >
-                      <Icon className="w-4 h-4 text-[#c9b787]" />
-                      <span className="text-xs font-mono text-[#888] w-6">{inv.id}</span>
+                      <Icon className="w-4 h-4 text-ink" />
+                      <span className="text-xs font-mono text-ink-sub w-6">{inv.id}</span>
                       <div>
                         <div className="text-sm">{inv.title}</div>
-                        <div className="text-[11px] text-[#666] mt-0.5">{inv.detail}</div>
+                        <div className="text-[11px] text-ink-sub mt-0.5">{inv.detail}</div>
                       </div>
-                      <div className="text-[11px] font-mono text-[#888] text-right">
+                      <div className="text-[11px] font-mono text-ink-sub text-right">
                         <div>val: {fmtValue(inv.value)}</div>
                         <div>thr: {fmtValue(inv.threshold)}</div>
                       </div>
@@ -300,22 +300,22 @@ export default function ConduitOperationalCore() {
         <AmaruTripwiresPanel />
 
         {/* B3 — Six inherited mechanisms */}
-        <Card className="bg-[#0e0e0e] border-white/5">
+        <Card className="bg-ground-deep border-line-subtle">
           <CardHeader>
-            <CardTitle className="text-sm font-mono uppercase tracking-wider text-[#888]">
+            <CardTitle className="text-sm font-mono uppercase tracking-wider text-ink-sub">
               B3 · Six Inherited Mechanisms
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid lg:grid-cols-2 gap-3">
               {MECHANISMS.map((m) => (
-                <div key={m.num} className="border border-white/5 rounded-lg p-3 bg-black/30">
+                <div key={m.num} className="border border-line-subtle rounded-lg p-3 bg-ground/30">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-xs font-mono text-[#c9b787]">{m.num}</span>
+                    <span className="text-xs font-mono text-ink">{m.num}</span>
                     <span className="text-sm font-medium">{m.title}</span>
                   </div>
-                  <div className="text-[11px] text-[#888] mt-1.5">
-                    <span className="text-[#666]">inherited as: </span>
+                  <div className="text-[11px] text-ink-sub mt-1.5">
+                    <span className="text-ink-sub">inherited as: </span>
                     {m.inherited_as}
                   </div>
                 </div>
@@ -325,9 +325,9 @@ export default function ConduitOperationalCore() {
         </Card>
 
         {/* B4 — DOI bindings */}
-        <Card className="bg-[#0e0e0e] border-white/5">
+        <Card className="bg-ground-deep border-line-subtle">
           <CardHeader>
-            <CardTitle className="text-sm font-mono uppercase tracking-wider text-[#888]">
+            <CardTitle className="text-sm font-mono uppercase tracking-wider text-ink-sub">
               B4 · DOI Proof Bindings
             </CardTitle>
           </CardHeader>
@@ -341,14 +341,14 @@ export default function ConduitOperationalCore() {
                     href={url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-3 px-3 py-2 rounded-lg border border-white/5 bg-black/30 hover:bg-black/50 transition-colors"
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg border border-line-subtle bg-ground/30 hover:bg-wash/7 transition-colors"
                   >
-                    <Badge variant="outline" className="text-[#c9b787] border-[#c9b787]/30 bg-[#c9b787]/10 font-mono text-[10px] shrink-0">
+                    <Badge variant="outline" className="text-ink border-line bg-wash/10 font-mono text-[10px] shrink-0">
                       {d.kind}
                     </Badge>
-                    <span className="text-[11px] font-mono text-[#888] shrink-0">{d.zenodo_id}</span>
+                    <span className="text-[11px] font-mono text-ink-sub shrink-0">{d.zenodo_id}</span>
                     <span className="text-sm flex-1">{d.title}</span>
-                    <ExternalLink className="w-3.5 h-3.5 text-[#666]" />
+                    <ExternalLink className="w-3.5 h-3.5 text-ink-sub" />
                   </a>
                 );
               })}
@@ -357,15 +357,15 @@ export default function ConduitOperationalCore() {
         </Card>
 
         {/* B5 — Doctrine */}
-        <Card className="bg-[#0e0e0e] border-white/5">
+        <Card className="bg-ground-deep border-line-subtle">
           <CardHeader>
-            <CardTitle className="text-sm font-mono uppercase tracking-wider text-[#888]">
+            <CardTitle className="text-sm font-mono uppercase tracking-wider text-ink-sub">
               B5 · Doctrine {DOCTRINE.version}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div>
-              <div className="text-[11px] font-mono uppercase tracking-wider text-[#666] mb-1.5">
+              <div className="text-[11px] font-mono uppercase tracking-wider text-ink-sub mb-1.5">
                 Author
               </div>
               <div className="text-sm">
@@ -375,24 +375,24 @@ export default function ConduitOperationalCore() {
                 href={AUTHOR.orcid_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[11px] font-mono text-[#c9b787] hover:underline inline-flex items-center gap-1 mt-0.5"
+                className="text-[11px] font-mono text-ink hover:underline inline-flex items-center gap-1 mt-0.5"
               >
                 ORCID {AUTHOR.orcid} <ExternalLink className="w-3 h-3" />
               </a>
             </div>
             <div>
-              <div className="text-[11px] font-mono uppercase tracking-wider text-[#666] mb-1.5">
+              <div className="text-[11px] font-mono uppercase tracking-wider text-ink-sub mb-1.5">
                 Byline rule
               </div>
-              <div className="text-sm text-[#bbb]">{DOCTRINE.byline_rule}</div>
+              <div className="text-sm text-ink-sub">{DOCTRINE.byline_rule}</div>
             </div>
             <div>
-              <div className="text-[11px] font-mono uppercase tracking-wider text-[#666] mb-1.5">
+              <div className="text-[11px] font-mono uppercase tracking-wider text-ink-sub mb-1.5">
                 Ban list
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {DOCTRINE.ban_list.map((t) => (
-                  <Badge key={t} variant="outline" className="text-red-400 border-red-500/30 bg-red-500/10 font-mono text-[10px]">
+                  <Badge key={t} variant="outline" className="text-ink-bad border-error/30 bg-error/10 font-mono text-[10px]">
                     <AlertOctagon className="w-3 h-3 mr-1" /> {t}
                   </Badge>
                 ))}
@@ -402,7 +402,7 @@ export default function ConduitOperationalCore() {
         </Card>
 
         {/* Footer parity stamp */}
-        <div className="flex items-center justify-center gap-2 text-[10px] font-mono text-[#444] py-4">
+        <div className="flex items-center justify-center gap-2 text-[10px] font-mono text-ink-sub py-4">
           <CheckCircle2 className="w-3 h-3" />
           <span>cross-product parity · A11oy /szl-ops · Vessels /operational-core · Conduit /operational-core</span>
         </div>

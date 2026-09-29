@@ -128,6 +128,29 @@ except Exception as _e:
     _PUBVERIFY_OK = False
     _PUBVERIFY_ERR = repr(_e)
 
+try:
+    import szl_operator_auth as _opauth
+except Exception:  # resolver absent: nobody may execute (deny-by-default)
+    _opauth = None
+
+
+def _exec_permitted(request) -> bool:
+    # A GET never executes code (read path); a POST needs the verified two-person
+    # principal from headers.
+    return bool(request.method == "POST" and _opauth is not None
+                and _opauth.exec_permitted(request))
+
+
+def _refused(request, action: str):
+    """401 BLOCKED before any model call, gate, sandbox or receipt for a caller
+    without the operator Bearer. A host without the resolver refuses everyone."""
+    if _opauth is None:
+        from starlette.responses import JSONResponse
+        return JSONResponse({"ok": False, "status": "BLOCKED",
+                             "error": "%s requires the operator credential." % action},
+                            status_code=401, headers={"WWW-Authenticate": "Bearer"})
+    return _opauth.operator_refusal(request, action)
+
 
 def _fallback_sign(obj: dict) -> dict:
     """Honest signer fallback: real szl_dsse in-Space, UNSIGNED-LOCAL locally.
@@ -172,10 +195,13 @@ def build_transcript(task: str = "",
                      ns: str = "a11oy",
                      mode: str = "research",
                      model_id: str = "",
-                     max_retries: int = 0) -> dict:
+                     max_retries: int = 0,
+                     allow_exec: bool = False) -> dict:
     """Produce a REAL composite transcript from ONE request by running the governed
     agent loop with the Brain feeds ON. Returns {ok, transcript, verify}. NEVER
-    raises into the caller; NEVER fabricates a run, an eval, a joule, or a signature."""
+    raises into the caller; NEVER fabricates a run, an eval, a joule, or a signature.
+    allow_exec (default False) is forwarded to run_loop; without it no code step
+    reaches the sandbox."""
     task = (task or DEFAULT_TASK).strip()
     ns = ns or "a11oy"
     signer = sign_fn if callable(sign_fn) else _fallback_sign
@@ -194,7 +220,8 @@ def build_transcript(task: str = "",
     try:
         run = _aloop.run_loop(task, signer, ns=ns, mode=(mode or "research"),
                               model_id=(model_id or ""), max_retries=max(0, int(max_retries)),
-                              consult_brain=True, allocate_energy=True)
+                              consult_brain=True, allocate_energy=True,
+                              allow_exec=bool(allow_exec))
     except Exception as e:  # never raise into the request
         return {
             "ok": False, "status_code": 200, "schema": SCHEMA,
@@ -521,6 +548,11 @@ def register(app, ns: str = "a11oy",
         # POST body optional; GET works too (default task) — a SINGLE public request.
         b: dict = {}
         if request.method == "POST":
+            # A POST runs the governed loop on a caller-chosen task; the GET read
+            # path (default task, never executes) stays public.
+            refused = _refused(request, "Transcript build")
+            if refused is not None:
+                return refused
             try:
                 b = await request.json()
             except Exception:
@@ -535,7 +567,8 @@ def register(app, ns: str = "a11oy",
         except Exception:
             max_retries = 0
         out = build_transcript(task, sign_fn=signer, ns=ns, mode=mode,
-                               model_id=model_id, max_retries=max_retries)
+                               model_id=model_id, max_retries=max_retries,
+                               allow_exec=_exec_permitted(request))
         return JSONResponse(out, status_code=out.get("status_code", 200),
                             headers={"x-szl-verify-verdict":
                                      str((out.get("verify") or {}).get("verdict", ""))})

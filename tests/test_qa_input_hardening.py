@@ -27,29 +27,52 @@ def client():
 
 
 # --- /api/a11oy/v1/mcp/call -------------------------------------------------
+# Operator-only (szl_operator_auth.PROTECTED_ROUTES): input hardening is exercised
+# with the operator Bearer; the anonymous refusal is asserted separately.
 
-def test_mcp_call_valid_tool_ok(client):
+_TEST_OPERATOR = "test-operator-secret-not-real"
+
+
+@pytest.fixture
+def mcp_client(client, monkeypatch):
+    import szl_operator_auth as opauth
+    monkeypatch.setenv(opauth.OPERATOR_KEY_ENV, _TEST_OPERATOR)
+    return TestClient(serve.app, headers={"Authorization": f"Bearer {_TEST_OPERATOR}"})
+
+
+def test_mcp_call_anonymous_is_refused_before_dispatch(client):
+    r = client.post("/api/a11oy/v1/mcp/call", json={"name": "khipu_sign"})
+    assert r.status_code == 401
+    assert r.json()["status"] == "BLOCKED"
+
+
+def test_mcp_call_valid_tool_ok(mcp_client):
+    client = mcp_client
     r = client.post("/api/a11oy/v1/mcp/call", json={"name": "lambda_score"})
     assert r.status_code == 200
     assert r.json()["status"] == "ok"
 
 
-def test_mcp_call_unknown_tool_404(client):
+def test_mcp_call_unknown_tool_404(mcp_client):
+    client = mcp_client
     r = client.post("/api/a11oy/v1/mcp/call", json={"name": "bogus"})
     assert r.status_code == 404
 
 
-def test_mcp_call_empty_body_is_400_not_500(client):
+def test_mcp_call_empty_body_is_400_not_500(mcp_client):
+    client = mcp_client
     r = client.post("/api/a11oy/v1/mcp/call", content=b"")
     assert r.status_code == 400
 
 
-def test_mcp_call_malformed_json_is_400_not_500(client):
+def test_mcp_call_malformed_json_is_400_not_500(mcp_client):
+    client = mcp_client
     r = client.post("/api/a11oy/v1/mcp/call", content=b"{not json")
     assert r.status_code == 400
 
 
-def test_mcp_call_array_body_is_400_not_500(client):
+def test_mcp_call_array_body_is_400_not_500(mcp_client):
+    client = mcp_client
     r = client.post("/api/a11oy/v1/mcp/call", json=[1, 2, 3])
     assert r.status_code == 400
 
