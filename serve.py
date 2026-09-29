@@ -8020,7 +8020,7 @@ except Exception as _elite_e:
 # AND registered as /v4/fleet for HF proxy stripping.  Both registered here.
 @app.get("/api/a11oy/v4/fleet")
 @app.get("/v4/fleet")
-async def api_a11oy_v4_fleet_early() -> JSONResponse:
+def api_a11oy_v4_fleet_early() -> JSONResponse:
     """Fleet status panel — live health of the SZL flagship Spaces.
     Registered before /api/a11oy/{path:path} proxy so route ordering wins.
     Peers are surfaced under generic capability labels — no internal codenames
@@ -14589,7 +14589,7 @@ async def api_health() -> JSONResponse:
 # Root cause: szl_v4_fleet.register() was dead code after uvicorn.run()
 @app.get("/api/a11oy/v4/fleet")
 @app.get("/v4/fleet")
-async def api_a11oy_v4_fleet() -> JSONResponse:
+def api_a11oy_v4_fleet() -> JSONResponse:
     """Fleet status panel — live health of the SZL flagship Spaces.
     Peers are surfaced under generic capability labels — no internal codenames
     or dead *.hf.space targets are ever user-visible."""
