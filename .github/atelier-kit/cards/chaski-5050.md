@@ -31,7 +31,7 @@ Curriculum as identity. The filename is the experiment.
 | NVIDIA | Recipe variant, published. |
 | Unsloth | r=16 rsLoRA attn+mlp packing=auto. Extra MLP rank so the courier is allowed to stop. |
 
-Nobody else ships this combination. That is the point of a one-of-one.
+No equivalent public combination was found among the leaders surveyed above (a snapshot, not an ecosystem-wide novelty claim).
 
 ## Intended use
 

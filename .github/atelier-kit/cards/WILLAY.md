@@ -31,7 +31,7 @@ A tiny speaker that refuses marketing. Trained on the honesty set, not a brand b
 | NVIDIA | System-prompt as weights. |
 | Unsloth | rsLoRA rank-8, attn+mlp, packing=false, max_seq=1024. Doctrine mouth. Loss-comparable SFT. |
 
-Nobody else ships this combination. That is the point of a one-of-one.
+No equivalent public combination was found among the leaders surveyed above (a snapshot, not an ecosystem-wide novelty claim).
 
 ## Intended use
 
@@ -39,7 +39,7 @@ Estate voice. Not a general assistant.
 
 ## Limitations
 
-- Adapter, not merged.
+- Adapter is canonical; a merged float32 checkpoint (`model.safetensors`, bound by an unsigned `merge_receipt.json`) also ships on the Hub ID.
 - Atelier MLP is a doctrine-mouth silhouette, not the 0.5B LoRA.
 
 ## Honesty

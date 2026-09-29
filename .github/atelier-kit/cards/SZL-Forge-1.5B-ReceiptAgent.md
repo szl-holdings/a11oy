@@ -31,7 +31,7 @@ An agent whose weights are physically incapable of being the actor. Authority li
 | NVIDIA | NIM agent runtime, minus the runtime — we refuse to let the weights call. |
 | Unsloth | receiptagent profile: packing=false so receipt-token loss is the point. |
 
-Nobody else ships this combination. That is the point of a one-of-one.
+No equivalent public combination was found among the leaders surveyed above (a snapshot, not an ecosystem-wide novelty claim).
 
 ## Intended use
 
