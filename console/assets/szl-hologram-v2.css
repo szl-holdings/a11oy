@@ -4,26 +4,30 @@
  * technical geometry, observability depth, modular agent cells, and premium
  * spatial precision. Local-only progressive enhancement; no copied assets.
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Colours are SZL KANCHAY founder tokens (kit 1.1.0, /assets/szl/): the stage is
+ * silver linework on the page's own ground. The layered import resolves the
+ * tokens without ever outranking a page's own rules.
  */
+@import url("/assets/szl/szl-design-system.css") layer(szl-kanchay);
 :root {
   --szl-holo-x: 50vw;
   --szl-holo-y: 34vh;
   --szl-holo-nx: 0;
   --szl-holo-ny: 0;
   --szl-holo-depth: 1;
-  --szl-holo-accent: var(--szl-flow-accent, #3af4c8);
-  --szl-holo-secondary: var(--szl-flow-secondary, #5b8dee);
-  --szl-holo-ink: var(--szl-flow-ink, #eef4fb);
+  --szl-holo-accent: var(--szl-flow-accent, var(--color-silver-300));
+  --szl-holo-secondary: var(--szl-flow-secondary, var(--color-silver-500));
+  --szl-holo-ink: var(--szl-flow-ink, var(--text));
   --szl-holo-grid: color-mix(in srgb, var(--szl-holo-accent) 13%, transparent);
   --szl-holo-line: color-mix(in srgb, var(--szl-holo-accent) 24%, transparent);
   --szl-holo-glow: color-mix(in srgb, var(--szl-holo-accent) 20%, transparent);
   --szl-holo-glow-2: color-mix(in srgb, var(--szl-holo-secondary) 16%, transparent);
-  --szl-holo-panel: color-mix(in srgb, #07101b 84%, transparent);
+  --szl-holo-panel: color-mix(in srgb, var(--surface) 84%, transparent);
 }
 
 html[data-szl-hologram-v2="true"] {
-  color-scheme: dark;
-  background: #05080d;
+  background: var(--bg-deep);
   scroll-behavior: smooth;
 }
 
@@ -56,7 +60,7 @@ html[data-szl-hologram-v2="true"] body {
     linear-gradient(var(--szl-holo-grid) 1px, transparent 1px),
     linear-gradient(90deg, var(--szl-holo-grid) 1px, transparent 1px);
   background-size: 62px 62px;
-  mask-image: radial-gradient(ellipse at var(--szl-holo-x) var(--szl-holo-y), #000 0 16%, transparent 63%);
+  mask-image: radial-gradient(ellipse at var(--szl-holo-x) var(--szl-holo-y), var(--color-ink) 0 16%, transparent 63%);
   transform: perspective(760px) rotateX(62deg) translate3d(calc(var(--szl-holo-nx) * -12px), calc(32% + var(--szl-holo-ny) * -9px), -80px);
   transform-origin: 50% 48%;
   opacity: .66;
@@ -92,7 +96,7 @@ html[data-szl-hologram-v2="true"] body {
 .szl-holo-v2-scan {
   inset: 0;
   background: repeating-linear-gradient(180deg, transparent 0 5px, color-mix(in srgb, var(--szl-holo-ink) 2.2%, transparent) 6px 7px);
-  mask-image: linear-gradient(transparent 0 8%, #000 22% 84%, transparent 96%);
+  mask-image: linear-gradient(transparent 0 8%, var(--color-ink) 22% 84%, transparent 96%);
   opacity: .28;
   animation: szl-holo-scan 13s linear infinite;
 }
@@ -116,7 +120,7 @@ html[data-szl-hologram-v2="true"] body {
   width: 13px;
   height: 13px;
   margin: -6.5px 0 0 -6.5px;
-  border: 1px solid color-mix(in srgb, var(--szl-holo-accent) 74%, white 12%);
+  border: 1px solid color-mix(in srgb, var(--szl-holo-accent) 74%, var(--color-white) 12%);
   border-radius: 50%;
   box-shadow: 0 0 0 9px color-mix(in srgb, var(--szl-holo-accent) 5%, transparent), 0 0 28px var(--szl-holo-accent);
   opacity: .82;
@@ -126,7 +130,7 @@ html[data-szl-hologram-v2="true"] body {
 /* Route instruments: one mechanics layer, deliberately different spatial languages. */
 html[data-szl-holo-theme="operator"] .szl-holo-v2-grid { background-size: 42px 42px; transform: perspective(680px) rotateX(68deg) translateY(38%); }
 html[data-szl-holo-theme="operator"] .szl-holo-v2-prism { clip-path: inset(12% 9% 18% 19% round 26px); }
-html[data-szl-holo-theme="atlas"] .szl-holo-v2-grid { background-size: 88px 56px; transform: rotate(-7deg) scale(1.18); mask-image: radial-gradient(circle at 48% 42%, #000, transparent 72%); }
+html[data-szl-holo-theme="atlas"] .szl-holo-v2-grid { background-size: 88px 56px; transform: rotate(-7deg) scale(1.18); mask-image: radial-gradient(circle at 48% 42%, var(--color-ink), transparent 72%); }
 html[data-szl-holo-theme="atlas"] .szl-holo-v2-orbit { border-radius: 44% 56% 62% 38%; transform: rotate(-12deg) scaleY(.63); }
 html[data-szl-holo-theme="anatomy"] .szl-holo-v2-grid { background-image: repeating-radial-gradient(ellipse at 50% 50%, transparent 0 42px, var(--szl-holo-grid) 43px 44px); transform: rotate(18deg) scale(1.25); }
 html[data-szl-holo-theme="anatomy"] .szl-holo-v2-prism { border-radius: 50%; filter: blur(7px); }
@@ -139,7 +143,7 @@ html[data-szl-holo-theme="decision"] .szl-holo-v2-prism { clip-path: polygon(50%
 html[data-szl-holo-theme="blueprint"] .szl-holo-v2-grid { background-size: 34px 34px; transform: rotate(-4deg) scale(1.08); }
 html[data-szl-holo-theme="market"] .szl-holo-v2-grid { background-image: repeating-linear-gradient(90deg, transparent 0 71px, var(--szl-holo-grid) 72px 73px), repeating-linear-gradient(0deg, transparent 0 43px, var(--szl-holo-grid) 44px 45px); transform: skewY(-4deg); }
 html[data-szl-holo-theme="counsel"] .szl-holo-v2-grid { background-size: 100% 52px, 220px 100%; transform: rotate(-1deg); }
-html[data-szl-holo-theme="forensic"] .szl-holo-v2-grid { background-size: 100% 32px, 168px 100%; transform: none; mask-image: linear-gradient(90deg, transparent, #000 10% 90%, transparent); }
+html[data-szl-holo-theme="forensic"] .szl-holo-v2-grid { background-size: 100% 32px, 168px 100%; transform: none; mask-image: linear-gradient(90deg, transparent, var(--color-ink) 10% 90%, transparent); }
 html[data-szl-holo-theme="voyage"] .szl-holo-v2-orbit { transform: scaleX(1.35) scaleY(.58) rotate(-11deg); }
 
 /* Existing product cards receive depth without losing their own component language. */
@@ -165,18 +169,18 @@ html[data-szl-hologram-v2="true"] [data-szl-holo-panel]::after {
   border: 1px solid transparent;
   border-radius: inherit;
   background: linear-gradient(125deg, var(--szl-holo-line), transparent 26% 72%, var(--szl-holo-glow-2)) border-box;
-  mask: linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0);
+  mask: linear-gradient(var(--color-ink) 0 0) padding-box, linear-gradient(var(--color-ink) 0 0);
   mask-composite: exclude;
   opacity: .62;
 }
 
 html[data-szl-hologram-v2="true"] [data-szl-holo-panel]:hover {
   border-color: color-mix(in srgb, var(--szl-holo-accent) 27%, transparent);
-  box-shadow: 0 20px 70px color-mix(in srgb, #000 68%, transparent), 0 0 42px var(--szl-holo-glow);
+  box-shadow: var(--shadow-lg), 0 0 42px var(--szl-holo-glow);
 }
 
 html[data-szl-hologram-v2="true"] :where(a, button, input, textarea, select, summary, [tabindex]):focus-visible {
-  outline: 3px solid var(--szl-holo-accent) !important;
+  outline: 3px solid var(--focus) !important;
   outline-offset: 4px !important;
 }
 

@@ -1,7 +1,9 @@
 /* SZL Spectral Fabric v2
    Original state-of-the-art presentation layer for the A11oy product estate.
    It preserves product-owned layouts and adds a shared holographic interaction field.
-   Local-only. No analytics. No runtime CDN. No fabricated operational state. */
+   Local-only. No analytics. No runtime CDN. No fabricated operational state.
+   Colours are SZL KANCHAY founder tokens (kit 1.1.0) through the Flow shell's
+   variables: silver linework on the page's ground, teal for focus only. */
 
 :root {
   --szl-spectral-pointer-x: 50%;
@@ -37,13 +39,12 @@
     repeating-radial-gradient(circle at 66% 38%, transparent 0 68px, var(--szl-spectral-line) 69px 70px),
     conic-gradient(from 12deg at 66% 38%, var(--szl-spectral-glow), transparent 17% 76%, var(--szl-spectral-glow-2));
   --szl-spectral-nodes:
-    radial-gradient(circle, color-mix(in srgb, var(--szl-flow-accent) 68%, white 8%) 0 1px, transparent 2px);
+    radial-gradient(circle, color-mix(in srgb, var(--szl-flow-accent) 68%, var(--color-white) 8%) 0 1px, transparent 2px);
   --szl-spectral-node-size: 96px 96px;
 }
 
 html[data-szl-spectral-v2="true"] {
-  color-scheme: dark;
-  accent-color: var(--szl-flow-accent);
+  accent-color: var(--focus);
   scroll-padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px));
 }
 
@@ -73,7 +74,7 @@ body[data-szl-spectral="product"] {
 .szl-spectral-mesh {
   background-image: var(--szl-spectral-mesh);
   background-size: var(--szl-spectral-grid-size) var(--szl-spectral-grid-size);
-  mask-image: radial-gradient(ellipse at var(--szl-spectral-pointer-x) var(--szl-spectral-pointer-y), #000 0 18%, rgba(0,0,0,.72) 40%, transparent 76%);
+  mask-image: radial-gradient(ellipse at var(--szl-spectral-pointer-x) var(--szl-spectral-pointer-y), var(--color-ink) 0 18%, color-mix(in srgb, var(--color-ink) 72%, transparent) 40%, transparent 76%);
   transform:
     perspective(980px)
     rotateX(calc(58deg + var(--szl-spectral-tilt-y)))
@@ -87,7 +88,7 @@ body[data-szl-spectral="product"] {
 .szl-spectral-orbit {
   inset: -8%;
   background: var(--szl-spectral-orbit);
-  mask-image: radial-gradient(circle at 66% 38%, #000 0 8%, rgba(0,0,0,.88) 31%, transparent 68%);
+  mask-image: radial-gradient(circle at 66% 38%, var(--color-ink) 0 8%, color-mix(in srgb, var(--color-ink) 88%, transparent) 31%, transparent 68%);
   transform:
     translate3d(var(--szl-spectral-orbit-shift-x), var(--szl-spectral-orbit-shift-y), 0)
     rotate(var(--szl-spectral-orbit-rotate));
@@ -102,7 +103,7 @@ body[data-szl-spectral="product"] {
   background-position:
     var(--szl-spectral-node-position-x)
     var(--szl-spectral-node-position-y);
-  mask-image: linear-gradient(115deg, transparent 4%, #000 28% 72%, transparent 96%);
+  mask-image: linear-gradient(115deg, transparent 4%, var(--color-ink) 28% 72%, transparent 96%);
   opacity: .34;
   transform: translate3d(0, var(--szl-spectral-node-shift-y), 0);
 }
@@ -138,7 +139,7 @@ body[data-szl-spectral="product"] {
       color-mix(in srgb, var(--szl-flow-secondary) 8%, transparent) 50.2%,
       transparent 56%
     );
-  mask-image: linear-gradient(90deg, transparent 3%, #000 20% 80%, transparent 97%);
+  mask-image: linear-gradient(90deg, transparent 3%, var(--color-ink) 20% 80%, transparent 97%);
   opacity: .32;
   transform: translate3d(0, -68%, 0);
   animation: szl-spectral-scan 13s cubic-bezier(.45,0,.2,1) infinite;
@@ -302,7 +303,7 @@ body[data-szl-theme="voyage"] {
     linear-gradient(118deg, color-mix(in srgb, var(--szl-flow-accent) 6%, transparent), transparent 34% 68%, color-mix(in srgb, var(--szl-flow-secondary) 7%, transparent)),
     color-mix(in srgb, var(--szl-flow-bg) 94%, transparent);
   box-shadow:
-    0 26px 86px rgba(0,0,0,.52),
+    var(--shadow-xl),
     0 0 0 1px color-mix(in srgb, var(--szl-flow-accent) 8%, transparent) inset,
     0 0 44px color-mix(in srgb, var(--szl-flow-accent) 8%, transparent);
   backdrop-filter: blur(24px) saturate(135%);
@@ -316,8 +317,8 @@ body[data-szl-theme="voyage"] {
   border-radius: inherit;
   pointer-events: none;
   background:
-    linear-gradient(105deg, transparent 4%, color-mix(in srgb, white 10%, transparent) 18%, transparent 31% 72%, color-mix(in srgb, var(--szl-flow-accent) 12%, transparent));
-  mask-image: linear-gradient(#000, transparent 54%);
+    linear-gradient(105deg, transparent 4%, color-mix(in srgb, var(--color-white) 10%, transparent) 18%, transparent 31% 72%, color-mix(in srgb, var(--szl-flow-accent) 12%, transparent));
+  mask-image: linear-gradient(var(--color-ink), transparent 54%);
   opacity: .72;
 }
 
@@ -337,8 +338,8 @@ body[data-szl-theme="voyage"] {
   display: block;
   max-width: 112px;
   overflow: hidden;
-  color: var(--szl-flow-accent);
-  font: 720 9px/1.15 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--szl-flow-sub);
+  font: 720 9px/1.15 var(--font-mono);
   letter-spacing: .11em;
   text-overflow: ellipsis;
   text-transform: uppercase;
@@ -350,7 +351,7 @@ body[data-szl-theme="voyage"] {
   max-width: 112px;
   overflow: hidden;
   color: var(--szl-flow-sub);
-  font: 560 8px/1.1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font: 560 8px/1.1 var(--font-mono);
   letter-spacing: .08em;
   text-overflow: ellipsis;
   text-transform: uppercase;
@@ -393,7 +394,7 @@ body[data-szl-theme="voyage"] {
   transition: transform .22s cubic-bezier(.2,.75,.2,1), box-shadow .22s ease, border-color .22s ease, filter .22s ease;
   box-shadow:
     0 0 0 1px var(--szl-card-line) inset,
-    0 16px 44px rgba(0,0,0,.12);
+    var(--shadow-sm);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -402,7 +403,7 @@ body[data-szl-theme="voyage"] {
     border-color: color-mix(in srgb, var(--szl-flow-accent) 36%, transparent);
     box-shadow:
       0 0 0 1px color-mix(in srgb, var(--szl-flow-accent) 28%, transparent) inset,
-      0 24px 66px rgba(0,0,0,.2),
+      var(--shadow-md),
       0 0 34px color-mix(in srgb, var(--szl-flow-accent) 6%, transparent);
     filter: saturate(1.04);
   }

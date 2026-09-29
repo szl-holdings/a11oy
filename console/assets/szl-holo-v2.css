@@ -4,29 +4,37 @@
  * product controls, fluid all-screen geometry, and bounded decoration.
  * No external assets, tracking, storage, network fetches, or copied design code.
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Colours and faces are SZL KANCHAY founder tokens (kit 1.1.0, vendored at
+ * /assets/szl/). Neutrals carry every surface, silver linework is the orbit
+ * motif, teal is focus only, and coral stays with the page's one moment. The
+ * runtime still stamps a per-surface palette on <html>; the pinned tokens
+ * below outrank it so every surface reads as the one founder system. The
+ * import is cascade-layered, so it resolves the tokens on pages that have not
+ * linked the design system yet and never outranks a page's own rules.
  */
+@import url("/assets/szl/szl-design-system.css") layer(szl-kanchay);
 
 :root {
-  color-scheme: dark;
-  --szl-holo-bg: #05080b;
-  --szl-holo-bg-deep: #020405;
-  --szl-holo-surface: #0b1116;
-  --szl-holo-surface-2: #111a21;
-  --szl-holo-ink: #f3f7f5;
-  --szl-holo-bone: #e8e2d6;
-  --szl-holo-muted: #9cabb1;
-  --szl-holo-faint: #65747a;
-  --szl-holo-accent: #55e7df;
-  --szl-holo-accent-2: #7ca9ff;
-  --szl-holo-signal: #d7b96b;
-  --szl-holo-danger: #ef746f;
-  --szl-holo-warning: #d6a85f;
-  --szl-holo-success: #65d9ae;
+  --szl-holo-bg: var(--bg);
+  --szl-holo-bg-deep: var(--bg-deep);
+  --szl-holo-surface: var(--surface);
+  --szl-holo-surface-2: var(--surface-raised);
+  --szl-holo-ink: var(--text);
+  --szl-holo-bone: var(--text-sub);
+  --szl-holo-muted: var(--text-sub);
+  --szl-holo-faint: var(--text-ghost);
+  --szl-holo-accent: var(--color-silver-300);
+  --szl-holo-accent-2: var(--color-silver-500);
+  --szl-holo-signal: var(--premium);
+  --szl-holo-danger: var(--color-error-light);
+  --szl-holo-warning: var(--color-warning-light);
+  --szl-holo-success: var(--color-success-light);
   --szl-holo-line: color-mix(in srgb, var(--szl-holo-accent) 22%, transparent);
   --szl-holo-line-soft: color-mix(in srgb, var(--szl-holo-ink) 10%, transparent);
   --szl-holo-glow: color-mix(in srgb, var(--szl-holo-accent) 10%, transparent);
   --szl-holo-glow-2: color-mix(in srgb, var(--szl-holo-accent-2) 7%, transparent);
-  --szl-holo-shadow: 0 22px 70px rgb(0 0 0 / .34);
+  --szl-holo-shadow: var(--shadow-lg);
   --szl-holo-radius-sm: 8px;
   --szl-holo-radius-md: 14px;
   --szl-holo-radius-lg: 22px;
@@ -41,8 +49,30 @@
   --szl-holo-rail-height: 68px;
   --szl-holo-z-ambient: -2;
   --szl-holo-z-rail: 2147482000;
-  --szl-holo-font: Inter, "SF Pro Display", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --szl-holo-mono: "SFMono-Regular", "Cascadia Code", "Roboto Mono", ui-monospace, Menlo, Consolas, monospace;
+  --szl-holo-font: var(--font-body);
+  --szl-holo-mono: var(--font-mono);
+}
+
+/* Status inks follow the surface: light-ground values from the founder scales. */
+[data-surface="light"] {
+  --szl-holo-danger: var(--color-yawar-600);
+  --szl-holo-warning: var(--color-hatun-800);
+  --szl-holo-success: var(--color-success-strong);
+}
+
+/* The runtime writes a per-surface palette as inline custom properties on
+   <html>. Pin every one of them to the founder tokens (an !important author
+   declaration outranks a normal inline one), so no vertical ships a second hue. */
+html[data-szl-holo="v2"],
+html[data-szl-holo-surface] {
+  --szl-holo-bg: var(--bg) !important;
+  --szl-holo-bg-deep: var(--bg-deep) !important;
+  --szl-holo-surface: var(--surface) !important;
+  --szl-holo-surface-2: var(--surface-raised) !important;
+  --szl-holo-ink: var(--text) !important;
+  --szl-holo-muted: var(--text-sub) !important;
+  --szl-holo-accent: var(--color-silver-300) !important;
+  --szl-holo-accent-2: var(--color-silver-500) !important;
 }
 
 html[data-szl-holo="v2"] {
@@ -85,29 +115,21 @@ html[data-szl-holo="v2"] :where(h1, h2, h3) {
 }
 html[data-szl-holo="v2"] :where(p, li) { text-wrap: pretty; }
 html[data-szl-holo="v2"] ::selection {
-  color: var(--szl-holo-bg);
-  background: var(--szl-holo-accent);
+  color: var(--szl-holo-ink);
+  background: color-mix(in srgb, var(--szl-holo-accent) 35%, transparent);
 }
 
 body.szl-hatun-gateway {
-  --szl-holo-bg: #060711;
-  --szl-holo-bg-deep: #02030a;
-  --szl-holo-surface: #0d1020;
-  --szl-holo-surface-2: #151a31;
-  --szl-holo-accent: #9e9bff;
-  --szl-holo-accent-2: #70dbff;
-  --szl-holo-signal: #e3b76e;
+  --szl-holo-accent: var(--color-silver-100);
+  --szl-holo-accent-2: var(--color-silver-300);
+  --szl-holo-signal: var(--premium);
 }
 
 html[data-szl-holo-surface="killinchu"],
 body.szl-killinchu-field {
-  --szl-holo-bg: #050a0c;
-  --szl-holo-bg-deep: #010405;
-  --szl-holo-surface: #0a1316;
-  --szl-holo-surface-2: #112025;
-  --szl-holo-accent: #68e8d8;
-  --szl-holo-accent-2: #8bc7ff;
-  --szl-holo-signal: #d9955b;
+  --szl-holo-accent: var(--color-silver-300);
+  --szl-holo-accent-2: var(--color-silver-100);
+  --szl-holo-signal: var(--premium);
 }
 
 /* Decoration is atmosphere, never telemetry. */
@@ -123,7 +145,7 @@ body.szl-killinchu-field {
     linear-gradient(90deg, transparent 49.8%, var(--szl-holo-line-soft) 50%, transparent 50.2%),
     linear-gradient(0deg, transparent 49.8%, var(--szl-holo-line-soft) 50%, transparent 50.2%);
   background-size: clamp(72px, 8vw, 124px) clamp(72px, 8vw, 124px);
-  mask-image: linear-gradient(to bottom, #000 0%, rgb(0 0 0 / .62) 48%, transparent 94%);
+  mask-image: linear-gradient(to bottom, var(--color-ink) 0%, color-mix(in srgb, var(--color-ink) 62%, transparent) 48%, transparent 94%);
 }
 
 #szl-holo-ambient::before,
@@ -170,7 +192,7 @@ body.szl-killinchu-field {
     max(clamp(14px, 2.7vw, 42px), env(safe-area-inset-left));
   border-bottom: 1px solid var(--szl-holo-line-soft);
   background: color-mix(in srgb, var(--szl-holo-bg-deep) 90%, transparent);
-  box-shadow: 0 12px 36px rgb(0 0 0 / .16);
+  box-shadow: var(--shadow-sm);
   backdrop-filter: blur(20px) saturate(116%);
   -webkit-backdrop-filter: blur(20px) saturate(116%);
 }
@@ -193,22 +215,13 @@ body.szl-killinchu-field {
   width: 26px;
   height: 26px;
   flex: 0 0 auto;
-  border: 1px solid var(--szl-holo-line);
-  border-radius: 7px;
-  background:
-    linear-gradient(135deg, transparent 44%, var(--szl-holo-accent) 45% 52%, transparent 53%),
-    color-mix(in srgb, var(--szl-holo-surface-2) 88%, transparent);
-  box-shadow: 0 0 20px var(--szl-holo-glow);
-  transform: rotate(45deg);
+  border: 0;
+  border-radius: 0;
+  background: url("/assets/szl/logos/szl_favicon.svg") center / contain no-repeat;
+  box-shadow: none;
+  transform: none;
 }
-.szl-holo-mark::after {
-  position: absolute;
-  inset: 8px;
-  border-radius: 50%;
-  background: var(--szl-holo-accent-2);
-  box-shadow: 0 0 10px var(--szl-holo-accent-2);
-  content: "";
-}
+.szl-holo-mark::after { content: none; }
 .szl-holo-copy { min-width: 0; display: grid; gap: 1px; }
 .szl-holo-eyebrow {
   color: var(--szl-holo-faint);
@@ -280,7 +293,7 @@ html[data-szl-holo="v2"] :where(main .card, main .panel, main .metric-card, main
   background:
     linear-gradient(145deg, color-mix(in srgb, var(--szl-holo-surface-2) 30%, transparent), transparent 48%),
     color-mix(in srgb, var(--szl-holo-surface) 95%, transparent);
-  box-shadow: 0 18px 58px rgb(0 0 0 / .22);
+  box-shadow: var(--shadow-md);
   backdrop-filter: blur(12px) saturate(108%);
   -webkit-backdrop-filter: blur(12px) saturate(108%);
 }
@@ -306,7 +319,7 @@ html[data-szl-holo="v2"] :where(main .card, main .panel, main .metric-card, main
 }
 .szl-holo-kicker,
 [data-szl-holo-kicker] {
-  color: var(--szl-holo-accent);
+  color: var(--szl-holo-muted);
   font: 750 .7rem/1.4 var(--szl-holo-mono);
   letter-spacing: .16em;
   text-transform: uppercase;
@@ -314,7 +327,7 @@ html[data-szl-holo="v2"] :where(main .card, main .panel, main .metric-card, main
 .szl-holo-title,
 [data-szl-holo-title] {
   color: var(--szl-holo-ink);
-  background: linear-gradient(112deg, var(--szl-holo-ink), var(--szl-holo-accent) 67%, var(--szl-holo-accent-2));
+  background: linear-gradient(112deg, var(--szl-holo-ink), var(--szl-holo-ink) 58%, var(--szl-holo-muted));
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -355,11 +368,11 @@ html[data-szl-holo="v2"] :where([data-state="UNAVAILABLE"], .state-unavailable, 
   left: 8px;
   z-index: calc(var(--szl-holo-z-rail) + 3);
   padding: 11px 14px;
-  border: 2px solid var(--szl-holo-accent);
+  border: 2px solid var(--focus);
   border-radius: var(--szl-holo-radius-sm);
-  color: var(--szl-holo-bg);
-  background: var(--szl-holo-accent);
-  font: 760 14px/1.2 var(--szl-holo-font);
+  color: var(--szl-holo-ink);
+  background: var(--szl-holo-surface);
+  font: var(--weight-bold) 14px/1.2 var(--szl-holo-font);
   text-decoration: none;
   transform: translateY(-160%);
   transition: transform .16s ease;
@@ -367,7 +380,7 @@ html[data-szl-holo="v2"] :where([data-state="UNAVAILABLE"], .state-unavailable, 
 .szl-holo-skip:focus { transform: translateY(0); }
 
 html[data-szl-holo="v2"] :where(a, button, input, textarea, select, summary, [tabindex]):focus-visible {
-  outline: 2px solid var(--szl-holo-accent) !important;
+  outline: 2px solid var(--focus) !important;
   outline-offset: 3px !important;
 }
 html[data-szl-holo="v2"] :where(button, .btn, .cta, a.button, input, select, textarea) { border-radius: 9px; }
@@ -396,7 +409,7 @@ html[data-szl-holo="v2"] .szl-hbar {
   overflow: visible !important;
   border-bottom: 1px solid var(--szl-holo-line-soft) !important;
   background: color-mix(in srgb, var(--szl-holo-bg-deep) 92%, transparent) !important;
-  box-shadow: 0 14px 38px rgb(0 0 0 / .18) !important;
+  box-shadow: var(--shadow-sm) !important;
   backdrop-filter: blur(20px) saturate(116%) !important;
   -webkit-backdrop-filter: blur(20px) saturate(116%) !important;
   text-transform: none !important;
@@ -544,7 +557,7 @@ html[data-szl-holo="v2"] .szl-overflow-menu {
   padding: 8px !important;
   border: 1px solid var(--szl-holo-line) !important;
   border-radius: 12px !important;
-  background: color-mix(in srgb, var(--szl-holo-bg) 97%, white 1%) !important;
+  background: color-mix(in srgb, var(--szl-holo-bg) 97%, var(--szl-holo-ink) 1%) !important;
   box-shadow: var(--szl-holo-shadow) !important;
 }
 html[data-szl-holo="v2"] .szl-overflow-menu .szl-estate-link {
@@ -656,8 +669,8 @@ html[data-szl-holo="v2"] .aow-panel {
   max-width: none !important;
   max-height: none !important;
   border-radius: 14px !important;
-  background: color-mix(in srgb, #0b121b 97%, transparent) !important;
-  box-shadow: 0 28px 90px rgb(0 0 0 / .58) !important;
+  background: color-mix(in srgb, var(--szl-holo-surface) 97%, transparent) !important;
+  box-shadow: var(--shadow-xl) !important;
 }
 html[data-szl-holo="v2"] .aow-qa-btn {
   min-height: 44px !important;
@@ -777,7 +790,7 @@ html[data-szl-holo="v2"] .szl-holo-scroll-button {
     max-height: none !important;
     transform: translateX(-105%) !important;
     transition: transform .2s ease !important;
-    box-shadow: 22px 0 80px rgb(0 0 0 / .54);
+    box-shadow: var(--shadow-xl);
   }
   html[data-szl-holo="v2"] .side.open { transform: translateX(0) !important; }
   html[data-szl-holo="v2"] .menu-btn {
@@ -816,7 +829,7 @@ html[data-szl-holo="v2"] .szl-holo-scroll-button {
     padding: 8px;
     border: 1px solid var(--szl-holo-line);
     border-radius: var(--szl-holo-radius-md);
-    background: color-mix(in srgb, var(--szl-holo-bg) 97%, white 1%);
+    background: color-mix(in srgb, var(--szl-holo-bg) 97%, var(--szl-holo-ink) 1%);
     box-shadow: var(--szl-holo-shadow);
   }
   .szl-holo-nav[data-open="true"] { display: flex; }
@@ -928,7 +941,7 @@ html[data-szl-holo="v2"] .szl-holo-scroll-button {
   .szl-holo-skip { color: Canvas; background: CanvasText; border-color: CanvasText; }
 }
 
-@supports not (color: color-mix(in srgb, black 50%, white)) {
+@supports not (color: color-mix(in srgb, currentColor 50%, transparent)) {
   .szl-holo-rail,
   .szl-holo-panel,
   [data-szl-holo-panel],
@@ -945,31 +958,31 @@ html[data-szl-holo="v2"] .szl-holo-scroll-button {
   .aow-root { display: none !important; }
   html[data-szl-holo="v2"],
   html[data-szl-holo="v2"] body {
-    color: #000 !important;
-    background: #fff !important;
+    color: var(--color-ink) !important;
+    background: var(--color-white) !important;
   }
   .szl-holo-panel,
   [data-szl-holo-panel] {
-    border: 1px solid #444;
-    color: #000;
-    background: #fff;
+    border: 1px solid var(--color-gray-600);
+    color: var(--color-ink);
+    background: var(--color-white);
     box-shadow: none;
   }
 }
 
 /* SZL FLUID ESTATE RAIL V4 */
 html[data-szl-holo-surface="a11oy"] {
-  --szl-holo-accent: #57ebff !important;
-  --szl-holo-accent-2: #31e6d1 !important;
-  --szl-holo-glow: rgb(87 235 255 / .12) !important;
-  --szl-holo-glow-2: rgb(49 230 209 / .08) !important;
-  --gold: #8fa5b8 !important;
-  --warn: #8fa5b8 !important;
+  --szl-holo-accent: var(--color-silver-300) !important;
+  --szl-holo-accent-2: var(--color-silver-500) !important;
+  --szl-holo-glow: color-mix(in srgb, var(--color-silver-300) 12%, transparent) !important;
+  --szl-holo-glow-2: color-mix(in srgb, var(--color-silver-500) 8%, transparent) !important;
+  --gold: var(--text-sub) !important;
+  --warn: var(--text-sub) !important;
 }
 html[data-szl-holo-surface="a11oy"] :where(.chip.roadmap, .badge.ROADMAP) {
-  color: #a2b3c4 !important;
-  border-color: rgb(87 235 255 / .18) !important;
-  background: rgb(87 235 255 / .035) !important;
+  color: var(--text-sub) !important;
+  border-color: var(--border-subtle) !important;
+  background: color-mix(in srgb, var(--text) 4%, transparent) !important;
 }
 html[data-szl-holo="v2"] .szl-contextual-scroll {
   overflow-x: auto !important;
@@ -979,7 +992,7 @@ html[data-szl-holo="v2"] .szl-contextual-scroll {
   scroll-behavior: smooth;
   scroll-snap-type: x proximity;
   scrollbar-width: thin;
-  scrollbar-color: rgb(87 235 255 / .32) transparent;
+  scrollbar-color: color-mix(in srgb, var(--color-silver-300) 40%, transparent) transparent;
   touch-action: pan-x;
   -webkit-overflow-scrolling: touch;
 }

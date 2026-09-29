@@ -514,8 +514,8 @@ textarea {
   }
 
   body {
-    background: #fff !important;
-    color: #000 !important;
+    background: var(--color-white) !important;
+    color: var(--color-ink) !important;
     font-size: 11pt;
   }
 
