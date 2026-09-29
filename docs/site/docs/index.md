@@ -6,7 +6,8 @@ hero:
   text: Governed AI, proven in Lean.
   tagline: A math-grounded, Quechua-rooted anatomy for agentic AI. Twelve organs, five flagships, one action-selection operator — every act gated, bounded, and receipted.
   image:
-    src: /img/szl-mark.svg
+    light: /kanchay/marks/szl-mark-ink.svg
+    dark: /kanchay/marks/szl-mark-gold.svg
     alt: SZL Holdings
   actions:
     - theme: brand

@@ -1,109 +1,240 @@
+/* SPDX-License-Identifier: Apache-2.0
+   (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 */
+
 /* ============================================================================
-   SZL Holdings documentation theme.
-   Math-grounded, Quechua-rooted, ZERO mysticism. Dark + light.
-   Color tokens: KANCHAY (the brand organ). The formal Kanchay token export is
-   in development in szl-holdings/szl-brand; until it publishes, these values
-   are the live SZL brand palette (deep navy #0B1F3A, cyan #00D4FF, warm sand
-   #F5F1E8 / #d97757) used across every SZL repo README and social preview.
-   Body type: Inter. Mono: JetBrains Mono.
+   SZL Holdings documentation theme on SZL Kanchay v1.0.0.
+   Math-grounded, Quechua-rooted, zero mysticism. Dark + light.
+
+   Tokens come from ../../public/kanchay/kanchay.css, vendored byte for byte
+   from szl-holdings/szl-brand (kanchay/) and linked from config.mjs `head`.
+   It carries every token (dark roles on :root, light roles under
+   [data-theme="light"]) and the local @font-face rules for Space Grotesk,
+   Inter and JetBrains Mono.
+
+   Theme switch: VitePress toggles `.dark` on <html>. The inline head script
+   `kanchay-theme-sync` (config.mjs) mirrors that class onto `data-theme`, so
+   each role below resolves to the exported dark or light value. No value is
+   restated here: this file holds no color or font literal, only var(--...)
+   tokens and color-mix() washes of them.
    ========================================================================== */
 
-:root {
-  /* --- KANCHAY brand tokens (placeholder = live brand palette) --- */
-  --szl-navy:       #0B1F3A;
-  --szl-navy-2:     #102a4e;
-  --szl-cyan:       #0094c6;   /* accessible cyan for light mode */
-  --szl-cyan-bright:#00D4FF;   /* brand cyan, used on dark */
-  --szl-sand:       #F5F1E8;
-  --szl-sand-2:     #e8e6dc;
-  --szl-clay:       #b9482f;   /* darkened clay for AA on light */
-  --szl-gold:       #B08940;
-  --szl-ink:        #141413;
-
-  --vp-font-family-base: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --vp-font-family-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-
-  /* Brand-aligned accent (cyan on navy) */
-  --vp-c-brand-1: var(--szl-cyan);
-  --vp-c-brand-2: #0a82b3;
-  --vp-c-brand-3: var(--szl-navy);
-  --vp-c-brand-soft: rgba(0, 148, 198, 0.14);
-
-  --vp-c-bg: #ffffff;
-  --vp-c-bg-alt: var(--szl-sand);
-  --vp-c-bg-soft: #faf9f5;
-
-  --vp-c-text-1: var(--szl-ink);
-  --vp-c-text-2: #4A4A4A;
-}
-
+/* --- VitePress variables -> Kanchay roles (both themes) --- */
+:root,
 .dark {
-  --vp-c-brand-1: var(--szl-cyan-bright);
-  --vp-c-brand-2: #5fe2ff;
-  --vp-c-brand-3: #062033;
-  --vp-c-brand-soft: rgba(0, 212, 255, 0.12);
+  /* Type */
+  --vp-font-family-base: var(--font-sans);
+  --vp-font-family-mono: var(--font-mono);
 
-  --vp-c-bg: #08111f;
-  --vp-c-bg-alt: var(--szl-navy);
-  --vp-c-bg-soft: #0d1d33;
+  /* Grounds: page, recessed (sidebar, inputs), raised (cards, tables, menus) */
+  --vp-c-bg: var(--color-a11oy-bg);
+  --vp-c-bg-alt: var(--color-a11oy-deep);
+  --vp-c-bg-elv: var(--color-a11oy-surface);
+  --vp-c-bg-soft: var(--color-a11oy-surface);
 
-  --vp-c-text-1: #eef3f8;
-  --vp-c-text-2: #9fb2c7;
+  /* Edges: control edges; dividers between regions (nav, sidebar, sections,
+     table cells). Card and code edges use --color-a11oy-border-subtle below. */
+  --vp-c-border: var(--color-control-border);
+  --vp-c-divider: var(--color-a11oy-border);
+  --vp-c-gutter: var(--color-a11oy-border);
+
+  /* Text */
+  --vp-c-text-1: var(--color-a11oy-text);
+  --vp-c-text-2: var(--color-a11oy-text-sub);
+  --vp-c-text-3: var(--color-a11oy-text-ghost);
+  --vp-c-neutral: var(--color-a11oy-text);
+  --vp-c-neutral-inverse: var(--color-a11oy-bg);
+
+  /* Neutral fills: hover and pressed */
+  --vp-c-default-1: var(--color-a11oy-border);
+  --vp-c-default-2: var(--color-a11oy-overlay);
+  --vp-c-default-3: var(--color-a11oy-overlay);
+  --vp-c-default-soft: color-mix(in srgb, var(--color-a11oy-overlay) 55%, transparent);
+
+  /* Brand = gold, the only accent: primary action, active nav, card titles */
+  --vp-c-brand-1: var(--color-a11oy-gold);
+  --vp-c-brand-2: var(--gold-bright);
+  --vp-c-brand-3: var(--color-a11oy-gold);
+  --vp-c-brand-soft: color-mix(in srgb, var(--color-a11oy-gold) 12%, transparent);
+
+  /* Callouts. Links and code inside tip / note / important blocks are teal
+     ink (proof); warning and danger keep their status inks. Washes are 10%
+     so the doubled code chip inside a block stays >= 5:1 in both themes. */
+  --vp-c-tip-1: var(--color-ink-signal);
+  --vp-c-tip-2: var(--color-a11oy-text);
+  --vp-c-tip-3: var(--teal);
+  --vp-c-tip-soft: color-mix(in srgb, var(--teal) 10%, transparent);
+  --vp-c-note-1: var(--color-ink-signal);
+  --vp-c-note-2: var(--color-a11oy-text);
+  --vp-c-note-3: var(--color-info);
+  --vp-c-note-soft: color-mix(in srgb, var(--color-info) 10%, transparent);
+  --vp-c-important-1: var(--color-ink-signal);
+  --vp-c-important-2: var(--color-a11oy-text);
+  --vp-c-important-3: var(--color-a11oy-gold);
+  --vp-c-important-soft: color-mix(in srgb, var(--color-a11oy-gold) 10%, transparent);
+  --vp-c-success-1: var(--color-success);
+  --vp-c-success-2: var(--color-a11oy-text);
+  --vp-c-success-3: var(--color-success);
+  --vp-c-success-soft: color-mix(in srgb, var(--color-success) 10%, transparent);
+  --vp-c-warning-1: var(--color-ink-caution);
+  --vp-c-warning-2: var(--color-a11oy-text);
+  --vp-c-warning-3: var(--color-warning);
+  --vp-c-warning-soft: color-mix(in srgb, var(--color-warning) 10%, transparent);
+  --vp-c-danger-1: var(--color-ink-danger);
+  --vp-c-danger-2: var(--color-a11oy-text);
+  --vp-c-danger-3: var(--color-error);
+  --vp-c-danger-soft: color-mix(in srgb, var(--color-error) 10%, transparent);
+  --vp-c-caution-1: var(--color-ink-danger);
+  --vp-c-caution-2: var(--color-a11oy-text);
+  --vp-c-caution-3: var(--color-error);
+  --vp-c-caution-soft: color-mix(in srgb, var(--color-error) 10%, transparent);
+
+  /* Code: inline code and code links are teal ink */
+  --vp-code-color: var(--color-ink-signal);
+  --vp-code-link-color: var(--color-ink-signal);
+  --vp-code-link-hover-color: var(--color-a11oy-text);
+  --vp-code-lang-color: var(--color-a11oy-text-sub);
+
+  /* Buttons: one gold fill (brand), secondary on overlay (alt) */
+  --vp-button-brand-border: transparent;
+  --vp-button-brand-text: var(--color-on-accent);
+  --vp-button-brand-bg: var(--color-a11oy-gold);
+  --vp-button-brand-hover-border: transparent;
+  --vp-button-brand-hover-text: var(--color-on-accent);
+  --vp-button-brand-hover-bg: var(--gold-bright);
+  --vp-button-brand-active-border: transparent;
+  --vp-button-brand-active-text: var(--color-on-accent);
+  --vp-button-brand-active-bg: var(--gold-bright);
+  --vp-button-alt-border: transparent;
+  --vp-button-alt-text: var(--color-a11oy-text);
+  --vp-button-alt-bg: var(--color-a11oy-overlay);
+  --vp-button-alt-hover-border: transparent;
+  --vp-button-alt-hover-text: var(--color-a11oy-text);
+  --vp-button-alt-hover-bg: color-mix(in srgb, var(--color-a11oy-overlay) 80%, transparent);
+  --vp-button-alt-active-border: transparent;
+  --vp-button-alt-active-text: var(--color-a11oy-text);
+  --vp-button-alt-active-bg: color-mix(in srgb, var(--color-a11oy-overlay) 80%, transparent);
+
+  /* Home hero: a light headline in text color, no gradient, no glow */
+  --vp-home-hero-name-color: var(--color-a11oy-text);
+  --vp-home-hero-name-background: transparent;
+  --vp-home-hero-image-background-image: none;
+  --vp-home-hero-image-filter: none;
+
+  /* Local search */
+  --vp-local-search-highlight-bg: color-mix(in srgb, var(--color-a11oy-gold) 22%, transparent);
+  --vp-local-search-highlight-text: var(--color-a11oy-text);
+
+  /* Depth: borders first; shadows only on what floats */
+  --vp-shadow-1: var(--shadow-sm);
+  --vp-shadow-2: var(--shadow-md);
+  --vp-shadow-3: var(--shadow-lg);
+  --vp-shadow-4: var(--shadow-lg);
+  --vp-shadow-5: var(--shadow-xl);
 }
 
-/* --- Hero --- */
+/* Code blocks: Shiki's github-light / github-dark syntax colors are tuned for
+   a white and a near-black well, so light sits on the raised surface and dark
+   on the recessed ground (the highest-contrast role in each theme). */
 :root {
-  --vp-home-hero-name-color: transparent;
-  --vp-home-hero-name-background: linear-gradient(120deg, var(--szl-cyan) 10%, var(--szl-navy) 90%);
+  --vp-code-block-bg: var(--color-a11oy-surface);
 }
 .dark {
-  --vp-home-hero-name-background: linear-gradient(120deg, var(--szl-cyan-bright) 10%, #6aa6d6 90%);
+  --vp-code-block-bg: var(--color-a11oy-deep);
 }
-:root {
-  --vp-home-hero-image-background-image: radial-gradient(circle at 50% 40%, rgba(0,148,198,0.18), transparent 70%);
-  --vp-home-hero-image-filter: blur(44px);
+@media (min-width: 640px) {
+  .vp-doc div[class*='language-'] {
+    border: var(--border-hairline) solid var(--color-a11oy-border-subtle);
+  }
 }
 
-/* --- Buttons --- */
-.VPButton.brand {
-  background-color: var(--szl-navy);
-  border-color: var(--szl-navy);
+/* --- Prose: links are teal ink (proof), not gold ---
+   VitePress colors content links from --vp-c-brand-1/-2; re-point them inside
+   .vp-doc only, so the chrome (nav, sidebar, buttons) keeps the gold brand. */
+.vp-doc {
+  --vp-c-brand-1: var(--color-ink-signal);
+  --vp-c-brand-2: var(--color-a11oy-text);
 }
-.dark .VPButton.brand {
-  background-color: var(--szl-cyan-bright);
-  border-color: var(--szl-cyan-bright);
-  color: var(--szl-navy);
+
+::selection {
+  background: color-mix(in srgb, var(--color-a11oy-gold) 22%, transparent);
+  color: var(--color-a11oy-text);
+}
+
+/* --- Focus: one teal ring on every interactive element --- */
+:is(a, button, summary, input, select, textarea, [tabindex]:not([tabindex='-1'])):focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* Skip link: gold fill with on-accent text while focused */
+.VPSkipLink {
+  --vp-c-brand-1: var(--color-on-accent);
+  --vp-c-bg: var(--color-a11oy-gold);
+}
+
+/* --- Headlines: Space Grotesk --- */
+.VPHero .heading .name,
+.VPHero .heading .text {
+  font-family: var(--font-display);
+  font-weight: 300;
+  letter-spacing: -0.035em;
+}
+/* The mark SVG declares 32x32; let it fill VitePress's hero image slot
+   (192 / 256 / 320px by breakpoint) instead of sitting at icon size. */
+.VPHero .image-container .image-src {
+  width: 100%;
+  height: auto;
+}
+.VPNavBar .VPNavBarTitle .title {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+.VPFeatures .item .VPFeature {
+  border-color: var(--color-a11oy-border-subtle);
+  border-radius: var(--radius-md);
+}
+.VPFeatures .VPFeature .title {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+  color: var(--color-a11oy-gold);
 }
 
 /* --- Typography rhythm --- */
-.vp-doc h1 { font-weight: 800; letter-spacing: -0.02em; }
-.vp-doc h2 { font-weight: 700; letter-spacing: -0.01em; border-top: 1px solid var(--vp-c-divider); padding-top: 1.6rem; }
-.vp-doc h3 { font-weight: 600; }
+.vp-doc h1,
+.vp-doc h2,
+.vp-doc h3 {
+  font-family: var(--font-display);
+  text-wrap: balance;
+}
+.vp-doc h1 { font-weight: 300; letter-spacing: -0.025em; }
+.vp-doc h2 { font-weight: 600; letter-spacing: -0.025em; border-top: var(--border-hairline) solid var(--vp-c-divider); padding-top: 1.6rem; }
+.vp-doc h3 { font-weight: 600; letter-spacing: -0.02em; }
 
 /* KaTeX display blocks: keep tidy, allow horizontal scroll on small screens */
 .vp-doc .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.4rem 0; }
 .vp-doc mjx-container, .vp-doc .katex { font-size: 1.04em; }
 
-/* --- Quechua etymology callout --- */
+/* --- Quechua etymology callout: a hairline panel, no colored edge --- */
 .quechua {
-  border-left: 3px solid var(--szl-gold);
-  background: var(--vp-c-bg-soft);
-  padding: 0.6rem 1rem;
-  border-radius: 0 8px 8px 0;
-  margin: 1.2rem 0;
+  border: var(--border-hairline) solid var(--color-a11oy-border-subtle);
+  background: var(--color-a11oy-surface);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  margin: var(--space-5) 0;
   font-size: 0.95rem;
 }
-.quechua strong { color: var(--vp-c-brand-1); }
+.quechua strong { color: var(--color-a11oy-gold); }
 
-/* --- Locked-number chips --- */
+/* --- Locked-number chips: contract values read as proof (teal ink) --- */
 .locked {
   display: inline-block;
-  font-family: var(--vp-font-family-mono);
+  font-family: var(--font-mono);
   font-size: 0.82em;
-  background: var(--vp-c-brand-soft);
-  color: var(--vp-c-brand-1);
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 6px;
+  font-variant-numeric: tabular-nums;
+  background: color-mix(in srgb, var(--teal) 10%, transparent);
+  color: var(--color-ink-signal);
+  border: var(--border-hairline) solid var(--teal-line);
+  border-radius: var(--radius-sm);
   padding: 0.05rem 0.45rem;
   white-space: nowrap;
 }
@@ -112,20 +243,20 @@
 .showcase-frame {
   width: 100%;
   aspect-ratio: 16 / 9;
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 12px;
+  border: var(--border-hairline) solid var(--color-a11oy-border-subtle);
+  border-radius: var(--radius-md);
   overflow: hidden;
-  background: var(--szl-navy);
+  background: var(--color-a11oy-deep);
   margin: 1.2rem 0;
 }
 .showcase-frame iframe { width: 100%; height: 100%; border: 0; display: block; }
 
-/* --- Status dots --- */
-.dot { display:inline-block; width:.6rem; height:.6rem; border-radius:50%; margin-right:.4rem; vertical-align:middle; }
-.dot.green  { background:#2ea043; }
-.dot.amber  { background:var(--szl-gold); }
-.dot.gray   { background:#8b949e; }
+/* --- Status dots (always beside a status word) --- */
+.dot { display: inline-block; width: .6rem; height: .6rem; border-radius: var(--radius-full); margin-right: .4rem; vertical-align: middle; }
+.dot.green { background: var(--color-success); }
+.dot.amber { background: var(--color-ink-caution); }
+.dot.gray  { background: var(--color-a11oy-text-ghost); }
 
-/* Tables breathe a little more */
-.vp-doc table { display: table; width: 100%; }
+/* Tables breathe a little more; digits line up */
+.vp-doc table { display: table; width: 100%; font-variant-numeric: tabular-nums; }
 .vp-doc tr:nth-child(2n) { background: var(--vp-c-bg-soft); }

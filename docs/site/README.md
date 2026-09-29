@@ -154,13 +154,14 @@ szl_docs_site/
 ├── package.json                 # scripts + deps
 ├── docs/
 │   ├── .vitepress/
-│   │   ├── config.mjs           # nav, sidebar, search, KaTeX, Mermaid, fonts
+│   │   ├── config.mjs           # nav, sidebar, search, KaTeX, Mermaid, kanchay.css link
 │   │   ├── theme/
-│   │   │   ├── index.js         # extends DefaultTheme
-│   │   │   └── custom.css       # Kanchay brand tokens (navy/cyan/sand/clay/gold/ink)
+│   │   │   ├── index.js         # extends DefaultTheme (without its bundled fonts)
+│   │   │   └── custom.css       # maps VitePress variables onto SZL Kanchay roles
 │   │   └── dist/                # build output (generated — do not edit by hand)
 │   ├── public/
-│   │   └── img/                 # logo + 3d/ screenshots
+│   │   ├── img/                 # images; szl-mark.svg (currentColor mark)
+│   │   └── kanchay/             # SZL Kanchay v1.0.0 export, vendored (never edit)
 │   ├── index.md                 # Home (hero, what is SZL, 5 flagships, CTAs)
 │   ├── quickstart.md
 │   ├── flagships/               # index + a11oy, amaru, sentra, killinchu, rosie
@@ -213,8 +214,10 @@ npm run docs:preview
    automatically. Add a language hint (` ```python `, ` ```ts `, ` ```bash `).
 6. **Images / screenshots:** drop files in `docs/public/img/` and reference them as
    `/img/yourfile.png` (the `public/` prefix is stripped at build).
-7. **Brand colors** live as CSS custom properties in `docs/.vitepress/theme/custom.css`
-   (Kanchay tokens). Adjust there to retheme globally.
+7. **Brand colors and fonts** come from the SZL Kanchay export vendored at `docs/public/kanchay/`
+   (tokens, local fonts, marks; see `SOURCE.json`). `docs/.vitepress/theme/custom.css` maps
+   VitePress variables onto Kanchay roles. To change a token, change `tokens.json` in
+   `szl-holdings/szl-brand` and copy the regenerated export in again; never edit vendored files.
 8. Run `npm run docs:build`, eyeball with `npm run docs:preview`, then deploy.
 
 ### Editing the LOCKED contract numbers
