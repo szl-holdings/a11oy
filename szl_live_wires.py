@@ -378,7 +378,7 @@ def register(app, ns: str) -> None:
 
 
 _EMBEDDED_HTML = """<!DOCTYPE html><html><head><meta charset=utf-8><title>Live Wires __FLAGSHIP__</title>
-<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script src="/vendor/three.min.js"></script>
 <script src="./live_wires_3d.js"></script></head>
 <body style="margin:0;background:#070b12;color:#cbd5e1;font-family:monospace">
 <div style="padding:8px">🧬 SZL Live 3D Wires — __FLAGSHIP__ cortex · 3DWPP v1 · Doctrine v11 749/14/163</div>
