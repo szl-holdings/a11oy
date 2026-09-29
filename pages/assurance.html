@@ -8,43 +8,39 @@
 <meta property="og:type" content="website"/>
 <meta property="og:url" content="https://a-11-oy.com/assurance"/>
 <meta property="og:title" content="a11oy — AI Assurance for WDP-era Agentic AI"/>
+<link rel="icon" href="/assets/szl/logos/szl_favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/szl/logos/szl_favicon_32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/assets/szl/logos/szl_favicon_180.png">
+<link rel="stylesheet" href="/assets/szl/szl-design-system.css">
 <style>
   /* =====================================================================
-     a11oy Assurance Surface — elite showcase aesthetic
-     Dark palette · Cabinet Grotesk / JetBrains Mono · honest-label chips
+     a11oy Assurance Surface: SZL KANCHAY founder direction, dark operator
+     Tokens and system font stacks come from /assets/szl/szl-design-system.css
+     (linked above). The aliases below keep this page's vocabulary; every one
+     resolves to a founder token. Status words carry meaning, never colour alone.
      ===================================================================== */
-  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;1,400&display=swap');
-
   :root {
-    --bg:          #0a0c0f;
-    --bg-panel:    #111318;
-    --bg-card:     #16191f;
-    --bg-deep:     #0d1015;
-    --border:      #2a2d35;
-    --border-hi:   #3d4250;
-    --text:        #e8eaf0;
-    --text-dim:    #8891a8;
-    --text-mute:   #4a5068;
-    --accent:      #6c8ef5;
-    --accent-hi:   #8aaaf8;
-    --green:       #4ade80;
-    --green-dark:  #052e12;
-    --green-mid:   #166534;
-    --amber:       #f59e0b;
-    --amber-dark:  #2d1e00;
-    --amber-mid:   #92400e;
-    --red:         #f87171;
-    --red-dark:    #2d0f0f;
-    --red-mid:     #991b1b;
-    --blue:        #60a5fa;
-    --blue-dark:   #0c1a33;
-    --blue-mid:    #1e3a8a;
-    --mono:        'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
-    --sans:        'Cabinet Grotesk', 'Inter', 'Segoe UI', system-ui, sans-serif;
-    --radius:      8px;
-    --radius-lg:   14px;
-    --shadow:      0 2px 12px rgba(0,0,0,0.5);
-    --shadow-lg:   0 4px 32px rgba(0,0,0,0.7);
+    --bg-panel:    var(--surface);
+    --bg-card:     var(--surface-alt);
+    --border-hi:   var(--border);
+    --text-dim:    var(--text-sub);
+    --text-mute:   var(--text-sub);
+    --green:       var(--color-success-light);
+    --green-dark:  color-mix(in srgb, var(--color-success) 14%, transparent);
+    --green-mid:   color-mix(in srgb, var(--color-success) 55%, transparent);
+    --amber:       var(--color-warning-light);
+    --amber-dark:  color-mix(in srgb, var(--color-warning) 12%, transparent);
+    --amber-mid:   color-mix(in srgb, var(--color-warning) 55%, transparent);
+    --red:         var(--color-error-light);
+    --red-dark:    color-mix(in srgb, var(--color-error) 14%, transparent);
+    --red-mid:     color-mix(in srgb, var(--color-error) 60%, transparent);
+    --blue:        var(--color-info-light);
+    --blue-dark:   color-mix(in srgb, var(--color-info) 14%, transparent);
+    --blue-mid:    color-mix(in srgb, var(--color-info) 55%, transparent);
+    --mono:        var(--font-mono);
+    --sans:        var(--font-body);
+    --radius:      var(--radius-md);
+    --shadow:      var(--shadow-md);
   }
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -53,10 +49,11 @@
     background: var(--bg);
     color: var(--text);
     font-family: var(--sans);
-    font-size: 15px;
-    line-height: 1.6;
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
     min-height: 100vh;
   }
+  code { font-family: var(--mono); }
 
   /* ---- header ---- */
   .site-header {
@@ -68,18 +65,21 @@
     background: var(--bg-panel);
     position: sticky; top: 0; z-index: 100;
   }
-  .logo-mark { width: 32px; height: 32px; flex-shrink: 0; }
-  .site-title { font-size: 16px; font-weight: 700; letter-spacing: -0.02em; }
+  .logo-mark { width: 32px; height: 32px; flex-shrink: 0; display: block; }
+  .site-title { font-family: var(--font-display); font-size: 16px; font-weight: 700; letter-spacing: var(--tracking-tight); }
   .site-tagline { font-size: 12px; color: var(--text-dim); }
-  .nav-links { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+  .nav-links { margin-left: auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .nav-back {
     font-size: 12px; color: var(--text-dim);
     text-decoration: none;
     border: 1px solid var(--border); border-radius: 6px;
     padding: 5px 12px;
-    transition: border-color .15s, color .15s;
+    transition: border-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
   }
-  .nav-back:hover { border-color: var(--accent); color: var(--accent-hi); }
+  .nav-back:hover { border-color: var(--text-ghost); color: var(--text); text-decoration: none; }
+  @media (pointer: coarse) {
+    .nav-back { display: inline-flex; align-items: center; min-height: var(--target-size-coarse); }
+  }
 
   /* ---- layout ---- */
   .page { max-width: 1040px; margin: 0 auto; padding: 56px 24px 100px; }
@@ -95,22 +95,26 @@
   }
   .hero::before {
     content: '';
-    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-    background: radial-gradient(ellipse 60% 40% at 70% 50%, rgba(108,142,245,0.06) 0%, transparent 70%);
+    position: absolute; top: -30%; right: -12%;
+    width: 70%; aspect-ratio: 1.9 / 1;
+    border: 1px solid color-mix(in srgb, var(--color-silver-300) 22%, transparent);
+    border-radius: var(--radius-full);
+    transform: rotate(-22deg);
     pointer-events: none;
   }
+  .hero > * { position: relative; }
   .hero-eyebrow {
-    font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
-    text-transform: uppercase; color: var(--accent);
-    background: var(--blue-dark); border: 1px solid var(--blue-mid);
+    font-size: 11px; font-weight: 700; letter-spacing: var(--tracking-caps);
+    text-transform: uppercase; color: var(--text-sub);
+    background: color-mix(in srgb, var(--text) 5%, transparent); border: 1px solid var(--border);
     border-radius: 4px; padding: 3px 10px; display: inline-block;
     margin-bottom: 20px;
   }
   .hero h1 {
-    font-size: 34px; font-weight: 800; letter-spacing: -0.03em;
+    font-family: var(--font-display);
+    font-size: 34px; font-weight: 700; letter-spacing: var(--tracking-tight);
     line-height: 1.15; margin-bottom: 16px; max-width: 680px;
   }
-  .hero h1 span.hl { color: var(--accent-hi); }
   .hero-sub {
     font-size: 16px; color: var(--text-dim);
     max-width: 640px; line-height: 1.6; margin-bottom: 28px;
@@ -118,7 +122,7 @@
   .hero-honest {
     background: var(--amber-dark); border: 1px solid var(--amber-mid);
     border-radius: var(--radius); padding: 12px 18px;
-    font-size: 13px; color: var(--amber);
+    font-size: 14px; color: var(--amber);
     display: inline-flex; align-items: flex-start; gap: 10px;
     max-width: 680px;
   }
@@ -133,29 +137,30 @@
   }
   .section-letter {
     width: 36px; height: 36px; flex-shrink: 0;
-    background: var(--blue-dark); border: 1px solid var(--blue-mid);
+    background: var(--bg-card); border: 1px solid var(--border);
     border-radius: 8px; display: flex; align-items: center; justify-content: center;
-    font-size: 13px; font-weight: 800; color: var(--accent); margin-top: 2px;
+    font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--text-sub); margin-top: 2px;
   }
-  .section-title { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 6px; }
+  .section-title { font-family: var(--font-display); font-size: 20px; font-weight: 700; letter-spacing: var(--tracking-tight); margin-bottom: 6px; }
   .section-desc { font-size: 14px; color: var(--text-dim); max-width: 640px; }
 
-  /* ---- chips / badges ---- */
+  /* ---- chips / badges (founder proof-status chip: a dot plus the word) ---- */
   .chip {
-    display: inline-block; border-radius: 4px;
+    display: inline-flex; align-items: center; gap: 6px; border-radius: 4px;
     padding: 2px 8px; font-size: 11px; font-weight: 700;
     letter-spacing: 0.05em; text-transform: uppercase;
     border: 1px solid transparent;
   }
+  .chip::before { width: 6px; height: 6px; }
   .chip-live     { background: var(--green-dark); border-color: var(--green-mid); color: var(--green); }
   .chip-roadmap  { background: var(--amber-dark); border-color: var(--amber-mid); color: var(--amber); }
-  .chip-sample   { background: #1a1a2e; border-color: #3d3d7a; color: #a0a8ff; }
-  .chip-measured { background: #051e24; border-color: #0e4a57; color: #67e8f9; }
-  .chip-modeled  { background: #1a0a2e; border-color: #5b2d8a; color: #d8b4fe; }
+  .chip-sample   { background: color-mix(in srgb, var(--text) 5%, transparent); border-color: var(--border); color: var(--text-sub); }
+  .chip-measured { background: var(--blue-dark); border-color: var(--blue-mid); color: var(--blue); }
+  .chip-modeled  { background: transparent; border-color: var(--border); border-style: dashed; color: var(--text-sub); }
   .chip-ok       { background: var(--green-dark); border-color: var(--green-mid); color: var(--green); }
   .chip-err      { background: var(--red-dark); border-color: var(--red-mid); color: var(--red); }
-  .chip-info     { background: var(--blue-dark); border-color: var(--blue-mid); color: var(--accent-hi); }
-  .chip-dim      { background: #1a1d24; border-color: var(--border); color: var(--text-dim); }
+  .chip-info     { background: var(--blue-dark); border-color: var(--blue-mid); color: var(--blue); }
+  .chip-dim      { background: var(--bg-card); border-color: var(--border); color: var(--text-dim); }
   .conj {
     display: inline-block; font-size: 10px; font-weight: 700;
     letter-spacing: 0.06em; text-transform: uppercase; border-radius: 4px;
@@ -180,8 +185,8 @@
     white-space: nowrap;
   }
   .matrix-table tbody tr {
-    border-bottom: 1px solid var(--border);
-    transition: background .12s;
+    border-bottom: 1px solid var(--border-subtle);
+    transition: background var(--duration-fast) var(--ease-standard);
   }
   .matrix-table tbody tr:last-child { border-bottom: none; }
   .matrix-table tbody tr:hover { background: var(--bg-card); }
@@ -195,12 +200,13 @@
   .matrix-table td.source-col { font-size: 11px; color: var(--text-mute); max-width: 200px; }
   .req-id-badge {
     display: inline-block; font-family: var(--mono); font-size: 10px;
-    font-weight: 600; color: var(--accent);
-    background: var(--blue-dark); border: 1px solid var(--blue-mid);
+    font-weight: 600; color: var(--text-sub);
+    background: var(--bg-card); border: 1px solid var(--border);
     border-radius: 3px; padding: 1px 5px; margin-right: 6px;
+    font-variant-numeric: tabular-nums lining-nums;
   }
-  .source-link { color: var(--text-mute); text-decoration: underline; font-size: 11px; }
-  .source-link:hover { color: var(--accent); }
+  .source-link { color: var(--link); text-decoration: underline; font-size: 11px; }
+  .source-link:hover { color: var(--link-hover); }
 
   /* loading state */
   .matrix-loading {
@@ -211,7 +217,7 @@
   }
   .spinner {
     display: inline-block; width: 14px; height: 14px;
-    border: 2px solid var(--border); border-top-color: var(--accent);
+    border: 2px solid var(--border); border-top-color: var(--text-sub);
     border-radius: 50%; animation: spin .7s linear infinite;
     vertical-align: middle; margin-right: 6px;
   }
@@ -230,44 +236,35 @@
     padding: 20px 24px;
     border-bottom: 1px solid var(--border);
   }
-  .proof-header h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .proof-header h3 { font-family: var(--font-display); font-size: 15px; font-weight: 700; margin-bottom: 4px; }
   .proof-header p { font-size: 13px; color: var(--text-dim); }
   .proof-moat {
     font-size: 12px; color: var(--text-mute);
     font-style: italic; margin-top: 8px;
-    border-left: 2px solid var(--blue-mid);
+    border-left: 2px solid var(--hairline);
     padding-left: 10px;
   }
   .proof-body { padding: 24px; }
   .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
-  .btn {
-    padding: 9px 20px; border-radius: var(--radius);
-    font-family: var(--sans); font-size: 13px; font-weight: 600;
-    cursor: pointer; border: 1px solid transparent;
-    transition: opacity .15s, transform .05s, background .15s;
-    outline: none;
-  }
-  .btn:active { transform: scale(0.97); }
-  .btn-primary { background: var(--blue-mid); border-color: #2563eb; color: #dbeafe; }
-  .btn-primary:hover { background: #1d4ed8; }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  /* Buttons are the founder .btn / .btn-primary / .btn-secondary; long labels may wrap. */
+  .btn-row .btn { white-space: normal; text-align: center; line-height: 1.3; }
 
   .output {
-    background: var(--bg-panel); border: 1px solid var(--border);
+    background: var(--bg-deep); border: 1px solid var(--border);
     border-radius: var(--radius); padding: 16px 20px;
     font-family: var(--mono); font-size: 12px; line-height: 1.7;
     white-space: pre-wrap; word-break: break-all;
     color: var(--text-dim); min-height: 56px;
-    transition: border-color .2s;
+    transition: border-color var(--duration-base) var(--ease-standard);
   }
-  .output.verified { border-color: var(--green-mid); }
-  .output.failed   { border-color: var(--red-mid); }
-  .output.loading  { border-color: var(--accent); animation: pulse 1s ease-in-out infinite; }
+  .output.verified { border-color: var(--color-success); }
+  .output.failed   { border-color: var(--color-error-light); }
+  .output.loading  { border-color: var(--text-ghost); animation: pulse 1s ease-in-out infinite; }
 
   .verdict-banner {
     border-radius: var(--radius); padding: 14px 20px;
     margin-bottom: 16px; font-size: 14px; font-weight: 700;
-    display: flex; align-items: center; gap: 12px;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
     border: 1px solid transparent;
   }
   .verdict-ok  { background: var(--green-dark); border-color: var(--green-mid); color: var(--green); }
@@ -278,8 +275,9 @@
   .hash-label { font-size: 11px; color: var(--text-dim); min-width: 100px; }
   .hash-val {
     font-family: var(--mono); font-size: 11px; color: var(--text);
-    background: var(--bg); border-radius: 4px; padding: 2px 6px;
+    background: var(--bg-deep); border-radius: 4px; padding: 2px 6px;
     border: 1px solid var(--border); word-break: break-all;
+    font-variant-numeric: tabular-nums lining-nums;
   }
   .hash-match   { border-color: var(--green-mid); color: var(--green); }
   .hash-mismatch{ border-color: var(--red-mid);   color: var(--red); }
@@ -298,28 +296,20 @@
   }
   .willay-icon {
     width: 56px; height: 56px; flex-shrink: 0;
-    background: var(--red-dark); border: 1px solid var(--red-mid);
+    background: var(--bg-card); border: 1px solid var(--border);
     border-radius: 12px; display: flex; align-items: center; justify-content: center;
-    font-size: 26px;
+    color: var(--text-sub);
   }
+  .willay-icon svg { width: 26px; height: 26px; display: block; }
   .willay-content { flex: 1; min-width: 220px; }
-  .willay-content h3 { font-size: 18px; font-weight: 800; margin-bottom: 8px; }
+  .willay-content h3 { font-family: var(--font-display); font-size: 18px; font-weight: 700; letter-spacing: var(--tracking-tight); margin-bottom: 8px; }
   .willay-content p  { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
   .willay-quote {
     font-size: 13px; color: var(--text-dim);
     font-style: italic;
-    border-left: 2px solid var(--red-mid);
+    border-left: 2px solid var(--hairline);
     padding-left: 12px; margin-bottom: 16px;
   }
-  .btn-willay {
-    display: inline-block;
-    background: var(--red-dark); border: 1px solid var(--red-mid);
-    color: var(--red); border-radius: var(--radius);
-    padding: 9px 20px; font-size: 13px; font-weight: 600;
-    text-decoration: none; cursor: pointer;
-    transition: background .15s;
-  }
-  .btn-willay:hover { background: #450a0a; }
 
   /* ---- fit diagram ---- */
   .fit-diagram {
@@ -329,26 +319,32 @@
     overflow: hidden;
   }
   .fit-diagram-inner { padding: 28px 32px; }
+  .fit-svg-overlay { fill: var(--surface-raised); stroke: var(--text-ghost); }
+  .fit-svg-record  { fill: var(--bg-deep); stroke: var(--border); }
+  .fit-svg-kicker  { fill: var(--text-sub); font-family: var(--mono); }
+  .fit-svg-name    { fill: var(--text); font-family: var(--font-display); }
+  .fit-svg-body    { fill: var(--text-sub); font-family: var(--sans); }
+  .fit-svg-arrow   { fill: var(--text-sub); font-family: var(--mono); }
   .fit-layer {
     border-radius: var(--radius); padding: 16px 22px;
     margin-bottom: 0;
   }
   .fit-layer-a11oy {
-    background: var(--blue-dark); border: 2px solid var(--blue-mid);
+    background: var(--surface-raised); border: 2px solid var(--text-ghost);
     margin-bottom: 6px;
   }
   .fit-layer-platform {
-    background: #131810; border: 2px solid #2a3a1a;
+    background: var(--bg-deep); border: 2px solid var(--border);
   }
   .fit-layer-label {
     font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
     text-transform: uppercase; margin-bottom: 4px;
   }
-  .fit-layer-label.a11oy-label { color: var(--accent-hi); }
-  .fit-layer-label.platform-label { color: #86efac; }
-  .fit-layer-name { font-size: 16px; font-weight: 800; }
+  .fit-layer-label.a11oy-label { color: var(--text-sub); }
+  .fit-layer-label.platform-label { color: var(--text-sub); }
+  .fit-layer-name { font-size: 16px; font-weight: 700; }
   .fit-layer-name.a11oy-name { color: var(--text); }
-  .fit-layer-name.platform-name { color: #86efac; }
+  .fit-layer-name.platform-name { color: var(--text); }
   .fit-layer-detail { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
   .fit-arrow {
     text-align: center; padding: 8px 0;
@@ -365,14 +361,14 @@
     border-radius: var(--radius); padding: 12px 14px;
     font-size: 13px;
   }
-  .fit-item-yes { border-left: 3px solid var(--green-mid); }
-  .fit-item-no  { border-left: 3px solid var(--red-mid); }
+  .fit-item-yes { border-left: 3px solid var(--color-success); }
+  .fit-item-no  { border-left: 3px solid var(--text-ghost); }
   .fit-item-label {
     font-size: 10px; font-weight: 700; letter-spacing: 0.07em;
     text-transform: uppercase; margin-bottom: 4px;
   }
   .fit-item-label.yes { color: var(--green); }
-  .fit-item-label.no  { color: var(--red); }
+  .fit-item-label.no  { color: var(--text-sub); }
 
   /* ---- footer ---- */
   .footer {
@@ -380,14 +376,17 @@
     color: var(--text-mute); font-size: 12px; text-align: center;
   }
 
-  a { color: var(--accent); text-decoration: none; }
-  a:hover { color: var(--accent-hi); text-decoration: underline; }
+  a { color: var(--link); text-decoration: none; }
+  a:hover { color: var(--link-hover); text-decoration: underline; }
 
   /* ---- responsive ---- */
   @media (max-width: 768px) {
+    .site-header { padding: 14px 16px; flex-wrap: wrap; }
     .hero { padding: 32px 24px 28px; }
     .hero h1 { font-size: 26px; }
     .page { padding: 32px 16px 80px; }
+    .willay-card { padding: 24px 20px; }
+    .fit-diagram-inner { padding: 20px 16px; }
     .matrix-table { font-size: 12px; }
     .matrix-table thead th { font-size: 10px; }
   }
@@ -399,11 +398,7 @@
 
 <!-- ===== HEADER ===== -->
 <header class="site-header">
-  <svg class="logo-mark" viewBox="0 0 32 32" fill="none" aria-label="a11oy">
-    <rect width="32" height="32" rx="7" fill="#1e3a8a"/>
-    <path d="M8 24 L16 8 L24 24" stroke="#6c8ef5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-    <circle cx="16" cy="16" r="2.5" fill="#8aaaf8"/>
-  </svg>
+  <img class="logo-mark" src="/assets/szl/logos/szl_favicon.svg" alt="" aria-hidden="true" width="32" height="32">
   <span class="site-title">a11oy</span>
   <span class="site-tagline" style="margin-left:8px">AI Assurance Overlay</span>
   <nav class="nav-links">
@@ -490,10 +485,10 @@
         Honest: integrity is COMPUTED, not asserted; signature is the demo key (NOT production cosign).
       </div>
       <div class="btn-row">
-        <button class="btn btn-primary" id="evidence-pack-btn" onclick="downloadEvidencePack()">
+        <button class="btn btn-secondary" id="evidence-pack-btn" onclick="downloadEvidencePack()">
           Download Evidence Pack
         </button>
-        <a class="btn" href="/api/a11oy/v1/assurance/evidence-pack" target="_blank">View JSON →</a>
+        <a class="btn btn-ghost" href="/api/a11oy/v1/assurance/evidence-pack" target="_blank">View JSON →</a>
       </div>
       <div id="evidence-pack-status" class="status-line"></div>
     </div>
@@ -561,7 +556,7 @@
     </div>
 
     <div class="willay-card">
-      <div class="willay-icon">⚡</div>
+      <div class="willay-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M6 18 18 6"/></svg></div>
       <div class="willay-content">
         <h3>What Makes a Signed Refusal Different</h3>
         <div class="willay-quote">
@@ -580,7 +575,7 @@
           <span class="conj">Λ Conjecture 1 — advisory</span>
           <span class="chip chip-info">Auditor-verifiable offline</span>
         </div>
-        <a href="/willay" class="btn-willay">Open WILLAY — Signed Refusals →</a>
+        <a href="/willay" class="btn btn-secondary">Open WILLAY — Signed Refusals →</a>
       </div>
     </div>
   </section>
@@ -606,19 +601,19 @@
         <!-- Stack diagram (SVG) -->
         <svg viewBox="0 0 640 200" width="100%" style="max-width:640px; display:block; margin:0 auto 28px;" aria-label="a11oy stack diagram">
           <!-- a11oy layer -->
-          <rect x="20" y="12" width="600" height="70" rx="10" fill="#0c1a33" stroke="#1e3a8a" stroke-width="1.5"/>
-          <text x="36" y="36" font-family="'JetBrains Mono', monospace" font-size="10" fill="#6c8ef5" font-weight="700" letter-spacing="1">GOVERNANCE + TRUST OVERLAY</text>
-          <text x="36" y="56" font-family="'Cabinet Grotesk', 'Inter', sans-serif" font-size="16" fill="#e8eaf0" font-weight="800">a11oy</text>
-          <text x="100" y="56" font-family="'Cabinet Grotesk', 'Inter', sans-serif" font-size="13" fill="#8891a8">signed receipts · policy gates · honest labels · WILLAY refusals</text>
-          <text x="36" y="73" font-family="'Cabinet Grotesk', 'Inter', sans-serif" font-size="11" fill="#4a5068">DSSE · ECDSA-P256 · WebCrypto-verifiable · Λ advisory (Conjecture 1)</text>
+          <rect class="fit-svg-overlay" x="20" y="12" width="600" height="70" rx="10" stroke-width="1.5"/>
+          <text class="fit-svg-kicker" x="36" y="36" font-size="10" font-weight="700" letter-spacing="1">GOVERNANCE + TRUST OVERLAY</text>
+          <text class="fit-svg-name" x="36" y="56" font-size="16" font-weight="700">a11oy</text>
+          <text class="fit-svg-body" x="100" y="56" font-size="13">signed receipts · policy gates · honest labels · WILLAY refusals</text>
+          <text class="fit-svg-body" x="36" y="73" font-size="11">DSSE · ECDSA-P256 · WebCrypto-verifiable · Λ advisory (Conjecture 1)</text>
           <!-- Arrow -->
-          <text x="280" y="103" font-family="monospace" font-size="12" fill="#4a5068" text-anchor="middle">sits on top of ↓</text>
+          <text class="fit-svg-arrow" x="280" y="103" font-size="12" text-anchor="middle">sits on top of ↓</text>
           <!-- Platform layer -->
-          <rect x="20" y="116" width="600" height="70" rx="10" fill="#0d1a0d" stroke="#2a3a1a" stroke-width="1.5"/>
-          <text x="36" y="136" font-family="'JetBrains Mono', monospace" font-size="10" fill="#86efac" font-weight="700" letter-spacing="1">SYSTEM OF RECORD</text>
-          <text x="36" y="158" font-family="'Cabinet Grotesk', 'Inter', sans-serif" font-size="14" fill="#86efac" font-weight="800">WDP / Advana</text>
-          <text x="150" y="158" font-family="'Cabinet Grotesk', 'Inter', sans-serif" font-size="13" fill="#8891a8"> · Palantir Foundry · Databricks Unity Catalog</text>
-          <text x="36" y="175" font-family="'Cabinet Grotesk', 'Inter', sans-serif" font-size="11" fill="#4a5068">data · ontology · lineage · column governance → stays authoritative</text>
+          <rect class="fit-svg-record" x="20" y="116" width="600" height="70" rx="10" stroke-width="1.5"/>
+          <text class="fit-svg-kicker" x="36" y="136" font-size="10" font-weight="700" letter-spacing="1">SYSTEM OF RECORD</text>
+          <text class="fit-svg-name" x="36" y="158" font-size="14" font-weight="700">WDP / Advana</text>
+          <text class="fit-svg-body" x="150" y="158" font-size="13"> · Palantir Foundry · Databricks Unity Catalog</text>
+          <text class="fit-svg-body" x="36" y="175" font-size="11">data · ontology · lineage · column governance → stays authoritative</text>
         </svg>
 
         <div class="fit-list">
@@ -657,7 +652,7 @@
         </div>
 
         <div style="margin-top:22px; background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:16px 20px; font-size:13px; color:var(--text-dim);">
-          <strong style="color:var(--accent-hi)">The WDP wedge:</strong>
+          <strong style="color:var(--text)">The WDP wedge:</strong>
           The Jan-2026 DoD memo explicitly calls for <em>agentic AI</em> + <em>enhanced auditability</em>
           toward a clean FY27/FY28 audit.
           Foundry shows data lineage. Unity Catalog shows column provenance.
