@@ -398,7 +398,7 @@ docs/papers/ouroboros-archive/docs/v15/ch10_knot_calculus.md
 docs/papers/ouroboros-archive/docs/sdk-innovation.md
 
 # 2026-09-29 SZL KANCHAY founder-direction rollout (draft PR; needs the founder's OK):
-# byte-identical vendored copy of szl-brand kanchay/ 1.1.0, sha256-pinned by its
+# byte-identical vendored copy of szl-brand kanchay/ 1.1.1, sha256-pinned by its
 # SOURCE.json. The one hit is a CSS line-height design-token name, not prose; editing
 # the bytes would break the vendor pin. (organs/amaru/web/public/szl/ is already
 # covered by the organs/amaru/ entry above.)

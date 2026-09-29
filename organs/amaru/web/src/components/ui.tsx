@@ -2,7 +2,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
 
-/* Founder KANCHAY v1.1.0 controls: .btn, .input/.select (szl-console.css), .badge + an
+/* Founder KANCHAY v1.1.1 controls: .btn, .input/.select (szl-console.css), .badge + an
    honest status word. Inside the operator shell the view's one coral moment is the sidebar's
    active-nav marker, so the default (primary) action is .btn-solid — a neutral solid defined
    in index.css — never .btn-primary. Focus: the founder teal ring (--shadow-focus). */
