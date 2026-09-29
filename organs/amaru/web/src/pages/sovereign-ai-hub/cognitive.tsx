@@ -16,16 +16,17 @@ import {
   BarChart3,
 } from 'lucide-react';
 import { fetchHub } from './shared';
+import { CATEGORY_TONES, wash } from '@/lib/utils';
 
 const COGNITIVE_PHASES = [
-  { name: 'Perceive', icon: Eye, color: '#06b6d4', description: 'Ingest and detect signals' },
-  { name: 'Orient', icon: Compass, color: '#8b5cf6', description: 'Contextualize with history' },
-  { name: 'Plan', icon: Target, color: '#f59e0b', description: 'Generate action options' },
-  { name: 'Execute', icon: Play, color: '#10b981', description: 'Take governed action' },
-  { name: 'Verify', icon: CheckCircle2, color: '#6366f1', description: 'Validate outcomes' },
-  { name: 'Reflect', icon: RefreshCcw, color: '#ec4899', description: 'Learn from results' },
-  { name: 'Update', icon: ArrowUpDown, color: '#14b8a6', description: 'Update self-model' },
-  { name: 'Adapt', icon: Sparkles, color: '#f97316', description: 'Evolve tradecraft' },
+  { name: 'Perceive', icon: Eye, color: CATEGORY_TONES[0], description: 'Ingest and detect signals' },
+  { name: 'Orient', icon: Compass, color: CATEGORY_TONES[1], description: 'Contextualize with history' },
+  { name: 'Plan', icon: Target, color: CATEGORY_TONES[2], description: 'Generate action options' },
+  { name: 'Execute', icon: Play, color: CATEGORY_TONES[3], description: 'Take governed action' },
+  { name: 'Verify', icon: CheckCircle2, color: CATEGORY_TONES[4], description: 'Validate outcomes' },
+  { name: 'Reflect', icon: RefreshCcw, color: CATEGORY_TONES[5], description: 'Learn from results' },
+  { name: 'Update', icon: ArrowUpDown, color: CATEGORY_TONES[0], description: 'Update self-model' },
+  { name: 'Adapt', icon: Sparkles, color: CATEGORY_TONES[1], description: 'Evolve tradecraft' },
 ];
 
 interface CognitiveTrace {
@@ -98,8 +99,8 @@ export default function CognitiveInsights() {
           SOVEREIGN AI HUB · COGNITIVE INSIGHTS
         </p>
         <h1 className="text-2xl font-display font-bold tracking-tight flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center border border-violet-500/30">
-            <Brain className="w-5 h-5 text-violet-400" />
+          <div className="w-8 h-8 rounded-lg bg-wash/10 flex items-center justify-center border border-line">
+            <Brain className="w-5 h-5 text-ink" />
           </div>
           Cognitive Insights
         </h1>
@@ -110,7 +111,7 @@ export default function CognitiveInsights() {
 
       <div className="rounded-lg border border-border bg-card p-4">
         <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
-          <Brain className="w-4 h-4 text-violet-400" />
+          <Brain className="w-4 h-4 text-ink" />
           8-Phase Cognitive Loop (OODA+)
         </h3>
         <div className="flex items-center gap-1 overflow-x-auto pb-2">
@@ -119,11 +120,11 @@ export default function CognitiveInsights() {
               <div className="flex flex-col items-center min-w-[90px]">
                 <div
                   className="w-10 h-10 rounded-full flex items-center justify-center border-2"
-                  style={{ borderColor: phase.color, backgroundColor: `${phase.color}15` }}
+                  style={{ borderColor: phase.color, backgroundColor: wash(phase.color, 8) }}
                 >
                   <phase.icon className="w-5 h-5" style={{ color: phase.color }} />
                 </div>
-                <p className="text-[10px] font-mono font-bold mt-1" style={{ color: phase.color }}>{phase.name}</p>
+                <p className="text-[10px] font-mono font-bold mt-1 text-ink">{phase.name}</p>
                 <p className="text-[9px] text-muted-foreground text-center">{phase.description}</p>
               </div>
               {i < COGNITIVE_PHASES.length - 1 && (
@@ -139,7 +140,7 @@ export default function CognitiveInsights() {
           <div key={m.label} className="rounded-lg border border-border bg-card p-3 text-center">
             <p className="text-[10px] font-mono text-muted-foreground uppercase mb-1">{m.label}</p>
             <p className="text-sm font-mono font-bold">{m.value}</p>
-            <p className={`text-[10px] ${m.trend === 'up' ? 'text-green-400' : m.trend === 'down' ? 'text-red-400' : 'text-muted-foreground'}`}>
+            <p className={`text-[10px] ${m.trend === 'up' ? 'text-ink-good' : m.trend === 'down' ? 'text-ink-bad' : 'text-muted-foreground'}`}>
               {m.trend === 'up' ? '↑' : m.trend === 'down' ? '↓' : '→'} {m.trend}
             </p>
           </div>
@@ -149,7 +150,7 @@ export default function CognitiveInsights() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="rounded-lg border border-border bg-card p-4">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-indigo-400" />
+            <BarChart3 className="w-4 h-4 text-ink" />
             Skill Utilization Heatmap
           </h3>
           <div className="space-y-2">
@@ -164,12 +165,12 @@ export default function CognitiveInsights() {
                       className="h-full rounded-full transition-all"
                       style={{
                         width: `${pct}%`,
-                        background: `linear-gradient(90deg, ${skill.avgConfidence > 0.9 ? '#10b981' : skill.avgConfidence > 0.85 ? '#6366f1' : '#f59e0b'}, ${skill.avgConfidence > 0.9 ? '#10b98180' : skill.avgConfidence > 0.85 ? '#6366f180' : '#f59e0b80'})`,
+                        background: skill.avgConfidence > 0.9 ? 'var(--color-success)' : skill.avgConfidence > 0.85 ? 'var(--color-silver-300)' : 'var(--color-warning)',
                       }}
                     />
                   </div>
                   <span className="text-[10px] font-mono text-muted-foreground w-12 text-right">{skill.invocations}</span>
-                  <span className="text-[10px] font-mono w-10 text-right" style={{ color: skill.avgConfidence > 0.9 ? '#10b981' : '#f59e0b' }}>
+                  <span className="text-[10px] font-mono w-10 text-right" style={{ color: skill.avgConfidence > 0.9 ? 'var(--ink-good)' : 'var(--ink-warn)' }}>
                     {(skill.avgConfidence * 100).toFixed(0)}%
                   </span>
                 </div>
@@ -180,20 +181,20 @@ export default function CognitiveInsights() {
 
         <div className="rounded-lg border border-border bg-card p-4">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-400" />
+            <AlertTriangle className="w-4 h-4 text-ink-warn" />
             Drift Detection Alerts
           </h3>
           <div className="space-y-2">
             {DRIFT_ALERTS.map((alert) => (
               <div key={alert.id} className={`p-3 rounded-md border ${
-                alert.severity === 'high' ? 'border-red-500/30 bg-red-500/5' :
-                alert.severity === 'medium' ? 'border-yellow-500/30 bg-yellow-500/5' :
+                alert.severity === 'high' ? 'border-error/30 bg-error/5' :
+                alert.severity === 'medium' ? 'border-warning/30 bg-warning/5' :
                 'border-border bg-background'
               }`}>
                 <div className="flex items-center justify-between mb-1">
                   <span className={`text-[10px] font-mono uppercase ${
-                    alert.severity === 'high' ? 'text-red-400' :
-                    alert.severity === 'medium' ? 'text-yellow-400' :
+                    alert.severity === 'high' ? 'text-ink-bad' :
+                    alert.severity === 'medium' ? 'text-ink-warn' :
                     'text-muted-foreground'
                   }`}>
                     {alert.type} · {alert.severity}
@@ -211,7 +212,7 @@ export default function CognitiveInsights() {
               <div className="space-y-1">
                 {traces.slice(0, 5).map((t) => (
                   <div key={t.id} className="text-[10px] p-2 rounded bg-background border border-border flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${t.status === 'completed' ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                    <div className={`w-2 h-2 rounded-full ${t.status === 'completed' ? 'bg-success' : 'bg-warning'}`} />
                     <span className="font-mono truncate flex-1">{t.objective}</span>
                     <span className="text-muted-foreground">{t.agentId}</span>
                   </div>

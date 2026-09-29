@@ -167,22 +167,22 @@ export default function ConvergentSync() {
     <div
       style={{
         minHeight: '100%',
-        background: '#0a0a0a',
-        color: '#eaeaea',
-        fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+        background: 'var(--bg)',
+        color: 'var(--text)',
+        fontFamily: 'var(--font-body)',
         padding: '28px clamp(16px, 4vw, 56px)',
       }}
       data-testid="page-convergent-sync"
     >
       <header style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
-        <LoopGlyph size={52} convergence={conv} spinning={running} color="#a0c4ff" />
+        <LoopGlyph size={52} convergence={conv} spinning={running} color="var(--color-silver-300)" />
         <div>
           <div
             style={{
               fontSize: 11,
               letterSpacing: '0.2em',
               textTransform: 'uppercase',
-              color: 'rgba(160,196,255,0.85)',
+              color: 'color-mix(in srgb, var(--text-sub) 85%, transparent)',
               marginBottom: 4,
             }}
           >
@@ -191,7 +191,7 @@ export default function ConvergentSync() {
           <h1 style={{ fontSize: 22, margin: 0, fontWeight: 500 }}>
             Idempotent passes until the diff is zero
           </h1>
-          <p style={{ margin: '6px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.55)', maxWidth: 720 }}>
+          <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--text-sub)', maxWidth: 720 }}>
             A sync isn't done when it ran — it's done when running it again wouldn't change
             anything. Entities that need extra passes are flagged. Entities that never
             converge become Sentra-investigation candidates.
@@ -202,13 +202,13 @@ export default function ConvergentSync() {
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(260px, 320px) 1fr', gap: 20 }}>
         <div
           style={{
-            background: 'rgba(255,255,255,0.02)',
-            border: '1px solid rgba(255,255,255,0.08)',
+            background: 'color-mix(in srgb, var(--surface-raised) 50%, transparent)',
+            border: '1px solid var(--border)',
             borderRadius: 6,
             padding: 16,
           }}
         >
-          <h2 style={{ fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)', margin: 0 }}>
+          <h2 style={{ fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--text-sub)', margin: 0 }}>
             Sync target
           </h2>
           <select
@@ -221,9 +221,9 @@ export default function ConvergentSync() {
               marginTop: 10,
               width: '100%',
               padding: '8px 10px',
-              background: 'rgba(255,255,255,0.04)',
-              color: '#eaeaea',
-              border: '1px solid rgba(255,255,255,0.14)',
+              background: 'var(--surface-raised)',
+              color: 'var(--text)',
+              border: '1px solid var(--border)',
               borderRadius: 4,
               fontSize: 13,
               fontFamily: 'inherit',
@@ -236,7 +236,7 @@ export default function ConvergentSync() {
             ))}
           </select>
 
-          <label style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', display: 'block', marginTop: 18 }}>
+          <label style={{ fontSize: 11, color: 'var(--text-sub)', display: 'block', marginTop: 18 }}>
             Max passes · {maxSteps}
             <input
               type="range"
@@ -251,7 +251,7 @@ export default function ConvergentSync() {
           <label
             style={{
               fontSize: 11,
-              color: 'rgba(255,255,255,0.7)',
+              color: 'var(--text-sub)',
               display: 'flex',
               alignItems: 'center',
               gap: 8,
@@ -269,14 +269,14 @@ export default function ConvergentSync() {
               Adaptive depth budget{' '}
               {adaptive ? (
                 trace ? (
-                  <span style={{ color: '#a0c4ff' }}>
+                  <span style={{ color: 'var(--text-sub)' }}>
                     · using {Math.min(maxSteps, Math.max(1, allocator.recommendedSteps))} of {maxSteps}
                   </span>
                 ) : (
-                  <span style={{ color: 'rgba(255,255,255,0.4)' }}>· needs prior run</span>
+                  <span style={{ color: 'var(--text-sub)' }}>· needs prior run</span>
                 )
               ) : (
-                <span style={{ color: 'rgba(255,255,255,0.4)' }}>· off</span>
+                <span style={{ color: 'var(--text-sub)' }}>· off</span>
               )}
             </span>
           </label>
@@ -290,8 +290,9 @@ export default function ConvergentSync() {
               marginTop: 18,
               width: '100%',
               padding: '10px 14px',
-              background: running ? 'rgba(160,196,255,0.18)' : '#a0c4ff',
-              color: running ? '#a0c4ff' : '#0a0a0a',
+              // Neutral solid (as .btn-solid): the shell's one coral moment is the active-nav marker.
+              background: running ? 'color-mix(in srgb, var(--text) 18%, transparent)' : 'var(--text)',
+              color: running ? 'var(--text)' : 'var(--bg)',
               border: 'none',
               borderRadius: 4,
               fontFamily: 'inherit',
@@ -308,18 +309,18 @@ export default function ConvergentSync() {
             style={{
               marginTop: 16,
               padding: 12,
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.08)',
+              background: 'color-mix(in srgb, var(--surface-raised) 50%, transparent)',
+              border: '1px solid var(--border)',
               borderRadius: 4,
               fontSize: 11,
-              color: 'rgba(255,255,255,0.7)',
+              color: 'var(--text-sub)',
               lineHeight: 1.5,
             }}
           >
-            <div style={{ color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 9, marginBottom: 6 }}>
+            <div style={{ color: 'var(--text-sub)', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 9, marginBottom: 6 }}>
               Allocator
             </div>
-            <div>recommends <span style={{ color: '#a0c4ff' }}>{allocator.recommendedSteps}</span> pass(es)</div>
+            <div>recommends <span style={{ color: 'var(--text-sub)' }}>{allocator.recommendedSteps}</span> pass(es)</div>
             <div>trajectory: {allocator.trajectory}</div>
           </div>
 
@@ -327,18 +328,18 @@ export default function ConvergentSync() {
             style={{
               marginTop: 14,
               padding: 12,
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.08)',
+              background: 'color-mix(in srgb, var(--surface-raised) 50%, transparent)',
+              border: '1px solid var(--border)',
               borderRadius: 4,
               fontSize: 11,
-              color: 'rgba(255,255,255,0.7)',
+              color: 'var(--text-sub)',
             }}
           >
-            <div style={{ color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 9, marginBottom: 6 }}>
+            <div style={{ color: 'var(--text-sub)', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 9, marginBottom: 6 }}>
               Summary
             </div>
-            <div>converged: <span style={{ color: '#7ed7c1' }}>{convergedCount}</span> / {rows.length}</div>
-            <div>stuck: <span style={{ color: stuckRows.length ? '#ff8c8c' : 'rgba(255,255,255,0.45)' }}>{stuckRows.length}</span></div>
+            <div>converged: <span style={{ color: 'var(--ink-good)' }}>{convergedCount}</span> / {rows.length}</div>
+            <div>stuck: <span style={{ color: stuckRows.length ? 'var(--ink-bad)' : 'var(--text-sub)' }}>{stuckRows.length}</span></div>
             {trace ? <div style={{ marginTop: 4 }}>final diff: {trace.finalState.diff.toFixed(2)}</div> : null}
           </div>
         </div>
@@ -346,15 +347,15 @@ export default function ConvergentSync() {
         <div style={{ display: 'grid', gap: 16 }}>
           <div
             style={{
-              background: 'rgba(255,255,255,0.02)',
-              border: '1px solid rgba(255,255,255,0.08)',
+              background: 'color-mix(in srgb, var(--surface-raised) 50%, transparent)',
+              border: '1px solid var(--border)',
               borderRadius: 6,
               padding: 16,
               maxHeight: 360,
               overflow: 'auto',
             }}
           >
-            <div style={{ fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)', marginBottom: 10 }}>
+            <div style={{ fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--text-sub)', marginBottom: 10 }}>
               Entity convergence ledger
             </div>
             <div style={{ display: 'grid', gap: 4 }}>
@@ -365,18 +366,18 @@ export default function ConvergentSync() {
                     display: 'grid',
                     gridTemplateColumns: '120px 70px 70px 70px 1fr',
                     fontSize: 11,
-                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                    fontFamily: 'var(--font-mono)',
                     padding: '4px 6px',
                     borderRadius: 3,
-                    background: r.converged ? 'rgba(126,215,193,0.06)' : !trace ? 'transparent' : 'rgba(255,140,140,0.06)',
-                    color: r.converged ? '#7ed7c1' : 'rgba(255,255,255,0.7)',
+                    background: r.converged ? 'color-mix(in srgb, var(--color-silver-300) 6%, transparent)' : !trace ? 'transparent' : 'color-mix(in srgb, var(--ink-bad) 6%, transparent)',
+                    color: r.converged ? 'var(--ink-good)' : 'var(--text-sub)',
                   }}
                 >
                   <span>{r.id}</span>
                   <span>src {r.source.toFixed(0)}</span>
                   <span>dst {r.dest.toFixed(0)}</span>
-                  <span>{r.converged ? `✓ p${r.passesToConverge}` : trace ? '✗ stuck' : '—'}</span>
-                  <span style={{ color: 'rgba(255,255,255,0.4)' }}>Δ {Math.abs(r.dest - r.source).toFixed(1)}</span>
+                  <span>{r.converged ? `✓ p${r.passesToConverge}` : trace ? '✕ stuck' : '—'}</span>
+                  <span style={{ color: 'var(--text-sub)' }}>Δ {Math.abs(r.dest - r.source).toFixed(1)}</span>
                 </div>
               ))}
             </div>
@@ -390,11 +391,11 @@ export default function ConvergentSync() {
           ) : (
             <div
               style={{
-                background: 'rgba(255,255,255,0.02)',
-                border: '1px dashed rgba(255,255,255,0.12)',
+                background: 'color-mix(in srgb, var(--surface-raised) 50%, transparent)',
+                border: '1px dashed var(--border)',
                 borderRadius: 6,
                 padding: 24,
-                color: 'rgba(255,255,255,0.45)',
+                color: 'var(--text-sub)',
                 fontSize: 13,
                 textAlign: 'center',
               }}

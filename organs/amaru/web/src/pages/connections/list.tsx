@@ -99,7 +99,7 @@ export default function ConnectionsList() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: dest?.color || '#ccc' }} />
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: dest?.color || 'var(--text-ghost)' }} />
                           {dest?.label || conn.destination}
                         </div>
                       </td>
@@ -114,7 +114,7 @@ export default function ConnectionsList() {
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Button variant="ghost" size="sm" onClick={() => handleTest(conn.id)} title="Test connection">
-                            <Activity className="w-4 h-4 text-muted-foreground hover:text-primary" />
+                            <Activity className="w-4 h-4 text-muted-foreground hover:text-ink" />
                           </Button>
                           <Button 
                             variant="ghost" 

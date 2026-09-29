@@ -71,7 +71,7 @@ export default function SourcesPage() {
 
       <div className="conduit-card overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="text-[10px] font-mono uppercase tracking-[0.15em] text-[#666] border-b border-[rgba(255,255,255,0.06)]">
+          <thead className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-sub border-b border-line-subtle">
             <tr>
               <th className="text-left px-4 py-3">Source</th>
               <th className="text-left px-4 py-3">Kind</th>
@@ -87,22 +87,22 @@ export default function SourcesPage() {
             {rows.map((s: RelaySource) => (
               <tr
                 key={s.id}
-                className="border-b border-[rgba(255,255,255,0.04)] hover:bg-[#1a1a1a] cursor-pointer transition-colors"
+                className="border-b border-line-subtle hover:bg-wash/7 cursor-pointer transition-colors"
                 onClick={() => setDrawerId(s.id)}
               >
                 <td className="px-4 py-3">
-                  <div className="font-mono text-[#f5f5f5]">{s.name}</div>
-                  <div className="text-[11px] text-[#666]">{s.owner}</div>
+                  <div className="font-mono text-ink">{s.name}</div>
+                  <div className="text-[11px] text-ink-sub">{s.owner}</div>
                 </td>
-                <td className="px-4 py-3 text-[#8a8a8a]">{s.kind.replace(/_/g, ' ')}</td>
-                <td className="px-4 py-3 text-right tabular-nums text-[#8a8a8a]">{s.tableCount}</td>
-                <td className="px-4 py-3 text-right tabular-nums text-[#8a8a8a]">{(s.rowCount / 1_000_000).toFixed(1)}M</td>
+                <td className="px-4 py-3 text-ink-sub">{s.kind.replace(/_/g, ' ')}</td>
+                <td className="px-4 py-3 text-right tabular-nums text-ink-sub">{s.tableCount}</td>
+                <td className="px-4 py-3 text-right tabular-nums text-ink-sub">{(s.rowCount / 1_000_000).toFixed(1)}M</td>
                 <td className="px-4 py-3">
-                  <div className="text-[12px] text-[#f5f5f5]">{s.freshnessTier.replace('_', ' ')}</div>
-                  <div className="text-[10px] text-[#666]">{s.freshnessLagSeconds < 60 ? `${s.freshnessLagSeconds}s` : `${Math.round(s.freshnessLagSeconds / 60)}m`} lag</div>
+                  <div className="text-[12px] text-ink">{s.freshnessTier.replace('_', ' ')}</div>
+                  <div className="text-[10px] text-ink-sub">{s.freshnessLagSeconds < 60 ? `${s.freshnessLagSeconds}s` : `${Math.round(s.freshnessLagSeconds / 60)}m`} lag</div>
                 </td>
                 <td className="px-4 py-3 w-32"><MicroBar value={s.qualityScore} max={100} tone={s.qualityScore >= 85 ? 'good' : s.qualityScore >= 70 ? 'warn' : 'bad'} /></td>
-                <td className="px-4 py-3">{s.piiDetected ? <Badge variant="partial">PII</Badge> : <span className="text-[#666] text-[12px]">—</span>}</td>
+                <td className="px-4 py-3">{s.piiDetected ? <Badge variant="partial">PII</Badge> : <span className="text-ink-sub text-[12px]">—</span>}</td>
                 <td className="px-4 py-3"><GovernanceDot state={s.governanceState} /></td>
               </tr>
             ))}
@@ -125,9 +125,9 @@ export default function SourcesPage() {
               <FabricStat label="Quality" value={drawer.qualityScore} tone={drawer.qualityScore >= 85 ? 'good' : 'warn'} />
             </div>
             <div className="conduit-card p-4">
-              <div className="label-mono mb-2 text-[#c9b787]">PII CLASSES DETECTED</div>
+              <div className="label-mono mb-2 text-ink">PII CLASSES DETECTED</div>
               {drawer.piiClassesDetected.length === 0 ? (
-                <div className="text-[12px] text-[#666]">None detected</div>
+                <div className="text-[12px] text-ink-sub">None detected</div>
               ) : (
                 <div className="flex flex-wrap gap-1">
                   {drawer.piiClassesDetected.map((c) => (
@@ -137,7 +137,7 @@ export default function SourcesPage() {
               )}
             </div>
             <div className="conduit-card p-4">
-              <div className="label-mono mb-2 text-[#c9b787]">VERTICAL COVERAGE</div>
+              <div className="label-mono mb-2 text-ink">VERTICAL COVERAGE</div>
               <div className="flex flex-wrap gap-1">
                 {drawer.verticalCoverage.map((v) => (
                   <Badge key={v} variant="default">{v}</Badge>
@@ -145,9 +145,9 @@ export default function SourcesPage() {
               </div>
             </div>
             <div className="conduit-card p-4">
-              <div className="label-mono mb-2 text-[#c9b787]">ANCHOR HASH</div>
-              <div className="font-mono text-[12px] text-[#8a8a8a] break-all">{drawer.anchorHash}</div>
-              <div className="text-[11px] text-[#666] mt-1">Last profiled {new Date(drawer.lastProfiledAt).toLocaleString()}</div>
+              <div className="label-mono mb-2 text-ink">ANCHOR HASH</div>
+              <div className="font-mono text-[12px] text-ink-sub break-all">{drawer.anchorHash}</div>
+              <div className="text-[11px] text-ink-sub mt-1">Last profiled {new Date(drawer.lastProfiledAt).toLocaleString()}</div>
             </div>
           </>
         )}

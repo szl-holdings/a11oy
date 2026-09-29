@@ -5,6 +5,7 @@ import { useInnovationStore } from '@/lib/innovation-store';
 import { FabricHeader, FabricCard, FabricStat, FabricDrawer, SeverityChip, GovernanceDot } from '@/components/fabric/primitives';
 import { Badge, Button } from '@/components/ui';
 import { ArrowLeft, AlertTriangle, CheckCircle, XCircle, GitBranch, Zap } from 'lucide-react';
+import { wash } from '@/lib/utils';
 
 type ProposalStatus = 'pending' | 'approved' | 'deferred' | 'blocked';
 
@@ -93,11 +94,11 @@ const SEEDED_PROPOSALS: DriftProposal[] = [
 ];
 
 const DRIFT_TYPE_BADGE: Record<DriftProposal['driftType'], string> = {
-  column_added: '#5a8a6e',
-  column_dropped: '#b85450',
-  type_changed: '#d4a853',
-  nullable_changed: '#78aac8',
-  table_dropped: '#b85450',
+  column_added: 'var(--color-success)',
+  column_dropped: 'var(--ink-bad)',
+  type_changed: 'var(--ink-warn)',
+  nullable_changed: 'var(--text-sub)',
+  table_dropped: 'var(--ink-bad)',
 };
 
 export default function DriftRepairPage() {
@@ -186,7 +187,7 @@ export default function DriftRepairPage() {
         title="Schema Drift Auto-Repair"
         blurb="Cartographer detects source schema changes. Mapper predicts impact across dependent mappings. Fixer proposes governed repair proposals — diff preview, blast radius, and one-click approval. No schema drift becomes a silent runtime failure."
         trailing={
-          <Link href="/innovation" className="flex items-center gap-1.5 text-[11px] text-[#c9b787] hover:underline">
+          <Link href="/innovation" className="flex items-center gap-1.5 text-[11px] text-link hover:underline">
             <ArrowLeft className="w-3 h-3" /> Innovation Brief
           </Link>
         }
@@ -204,7 +205,7 @@ export default function DriftRepairPage() {
           <button
             key={s}
             onClick={() => setFilter(s)}
-            className={`px-3 py-1 rounded-lg text-[11px] font-mono border transition-all ${filter === s ? 'border-[#c9b787] text-[#c9b787] bg-[rgba(201,183,135,0.08)]' : 'border-[rgba(255,255,255,0.08)] text-[#666] hover:border-[rgba(255,255,255,0.15)]'}`}
+            className={`px-3 py-1 rounded-lg text-[11px] font-mono border transition-all ${filter === s ? 'border-ink-sub text-ink bg-wash/8' : 'border-line text-ink-sub hover:border-line'}`}
           >
             {s || 'all'}
           </button>
@@ -221,20 +222,20 @@ export default function DriftRepairPage() {
                   <SeverityChip level={p.severity} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-mono text-[#f5f5f5] text-sm">{p.fieldName}</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded font-mono" style={{ background: `${DRIFT_TYPE_BADGE[p.driftType]}18`, color: DRIFT_TYPE_BADGE[p.driftType] }}>{p.driftType.replace(/_/g, ' ')}</span>
+                      <span className="font-mono text-ink text-sm">{p.fieldName}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded font-mono" style={{ background: wash(DRIFT_TYPE_BADGE[p.driftType], 9), color: DRIFT_TYPE_BADGE[p.driftType] }}>{p.driftType.replace(/_/g, ' ')}</span>
                     </div>
-                    <div className="text-[11px] text-[#8a8a8a]">{p.sourceName} · {mappingCount} mapping{mappingCount !== 1 ? 's' : ''} affected · {p.blastRadiusRecords.toLocaleString()} records at risk</div>
-                    <div className="font-mono text-[10px] text-[#555] mt-1 truncate">{p.oldValue} → {p.newValue}</div>
+                    <div className="text-[11px] text-ink-sub">{p.sourceName} · {mappingCount} mapping{mappingCount !== 1 ? 's' : ''} affected · {p.blastRadiusRecords.toLocaleString()} records at risk</div>
+                    <div className="font-mono text-[10px] text-ink-sub mt-1 truncate">{p.oldValue} → {p.newValue}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <Badge variant={p.status === 'approved' ? 'success' : p.status === 'blocked' ? 'failed' : p.status === 'deferred' ? 'paused' : 'partial'}>{p.status}</Badge>
                   {p.status === 'pending' && (
                     <div className="flex gap-1">
-                      <button onClick={(e) => { e.stopPropagation(); approve(p.id); }} className="text-[10px] px-2 py-0.5 rounded bg-[rgba(90,138,110,0.12)] text-[#5a8a6e] border border-[rgba(90,138,110,0.2)] hover:bg-[rgba(90,138,110,0.2)]">approve</button>
-                      <button onClick={(e) => { e.stopPropagation(); defer(p.id); }} className="text-[10px] px-2 py-0.5 rounded bg-[rgba(138,138,138,0.1)] text-[#8a8a8a] border border-[rgba(138,138,138,0.15)] hover:bg-[rgba(138,138,138,0.18)]">defer</button>
-                      <button onClick={(e) => { e.stopPropagation(); block(p.id); }} className="text-[10px] px-2 py-0.5 rounded bg-[rgba(184,84,80,0.1)] text-[#b85450] border border-[rgba(184,84,80,0.2)] hover:bg-[rgba(184,84,80,0.18)]">block</button>
+                      <button onClick={(e) => { e.stopPropagation(); approve(p.id); }} className="text-[10px] px-2 py-0.5 rounded bg-success/12 text-ink-good border border-success/20 hover:bg-success/20">approve</button>
+                      <button onClick={(e) => { e.stopPropagation(); defer(p.id); }} className="text-[10px] px-2 py-0.5 rounded bg-surface-raised/60 text-ink-sub border border-line-subtle hover:bg-wash/7">defer</button>
+                      <button onClick={(e) => { e.stopPropagation(); block(p.id); }} className="text-[10px] px-2 py-0.5 rounded bg-error/10 text-ink-bad border border-error/20 hover:bg-error/18">block</button>
                     </div>
                   )}
                 </div>
@@ -242,7 +243,7 @@ export default function DriftRepairPage() {
             </div>
           );
         })}
-        {visible.length === 0 && <div className="text-[13px] text-[#666] text-center py-8">No proposals matching filter.</div>}
+        {visible.length === 0 && <div className="text-[13px] text-ink-sub text-center py-8">No proposals matching filter.</div>}
       </div>
 
       <FabricCard title="AFFECTED MAPPINGS">
@@ -250,15 +251,15 @@ export default function DriftRepairPage() {
           {affectedMappings.slice(0, 8).map((m) => {
             const relatedProposals = proposals.filter((p) => p.affectedMappingIds.includes(m.id));
             return (
-              <div key={m.id} className="flex items-center justify-between text-[12px] p-2 rounded bg-[#0e0e0e]">
+              <div key={m.id} className="flex items-center justify-between text-[12px] p-2 rounded bg-ground-deep">
                 <div className="flex items-center gap-2 min-w-0">
-                  <GitBranch className="w-3.5 h-3.5 text-[#c9b787] shrink-0" />
-                  <span className="font-mono text-[#f5f5f5] truncate">{m.name}</span>
+                  <GitBranch className="w-3.5 h-3.5 text-ink shrink-0" />
+                  <span className="font-mono text-ink truncate">{m.name}</span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-[10px] text-[#666]">{relatedProposals.length} proposal{relatedProposals.length !== 1 ? 's' : ''}</span>
+                  <span className="text-[10px] text-ink-sub">{relatedProposals.length} proposal{relatedProposals.length !== 1 ? 's' : ''}</span>
                   <GovernanceDot state={m.governanceState} />
-                  <Link href="/mappings" className="text-[10px] text-[#c9b787] hover:underline">view →</Link>
+                  <Link href="/mappings" className="text-[10px] text-link hover:underline">view →</Link>
                 </div>
               </div>
             );
@@ -277,10 +278,10 @@ export default function DriftRepairPage() {
             </div>
 
             <div className="conduit-card p-4">
-              <div className="label-mono mb-2 text-[#c9b787]">DIFF PREVIEW</div>
-              <pre className="font-mono text-[11px] bg-[#0a0a0a] p-3 rounded overflow-x-auto whitespace-pre-wrap">
+              <div className="label-mono mb-2 text-ink">DIFF PREVIEW</div>
+              <pre className="font-mono text-[11px] bg-ground p-3 rounded overflow-x-auto whitespace-pre-wrap">
                 {drawer.diff.split('\n').map((line, i) => (
-                  <div key={i} className={line.startsWith('+') ? 'text-[#5a8a6e]' : line.startsWith('-') ? 'text-[#b85450]' : 'text-[#8a8a8a]'}>
+                  <div key={i} className={line.startsWith('+') ? 'text-ink-good' : line.startsWith('-') ? 'text-ink-bad' : 'text-ink-sub'}>
                     {line}
                   </div>
                 ))}
@@ -288,20 +289,20 @@ export default function DriftRepairPage() {
             </div>
 
             <div className="conduit-card p-4">
-              <div className="label-mono mb-2 text-[#c9b787]">PROPOSED FIX</div>
+              <div className="label-mono mb-2 text-ink">PROPOSED FIX</div>
               <div className="flex items-start gap-2">
-                <Zap className="w-3.5 h-3.5 text-[#c9b787] shrink-0 mt-0.5" />
-                <p className="text-[12px] text-[#f5f5f5] leading-relaxed">{drawer.proposedFix}</p>
+                <Zap className="w-3.5 h-3.5 text-ink shrink-0 mt-0.5" />
+                <p className="text-[12px] text-ink leading-relaxed">{drawer.proposedFix}</p>
               </div>
             </div>
 
             <div className="conduit-card p-4">
-              <div className="label-mono mb-2 text-[#c9b787]">AGENT COALITION</div>
+              <div className="label-mono mb-2 text-ink">AGENT COALITION</div>
               <div className="space-y-1.5 text-[11px]">
-                <div className="flex items-center gap-2"><span className="text-[#c9b787] w-24 font-mono">Cartographer</span><span className="text-[#8a8a8a]">Detected schema change on profiling pass</span></div>
-                <div className="flex items-center gap-2"><span className="text-[#c9b787] w-24 font-mono">Mapper</span><span className="text-[#8a8a8a]">Computed blast radius across {drawer.affectedMappingIds.length} mappings</span></div>
-                <div className="flex items-center gap-2"><span className="text-[#c9b787] w-24 font-mono">Fixer</span><span className="text-[#8a8a8a]">Proposed deterministic repair with confidence 0.87</span></div>
-                <div className="flex items-center gap-2"><span className="text-[#c9b787] w-24 font-mono">Sentinel</span><span className="text-[#8a8a8a]">Approval gate: {drawer.severity === 'critical' || drawer.severity === 'high' ? 'partner' : 'lead'} level required</span></div>
+                <div className="flex items-center gap-2"><span className="text-ink w-24 font-mono">Cartographer</span><span className="text-ink-sub">Detected schema change on profiling pass</span></div>
+                <div className="flex items-center gap-2"><span className="text-ink w-24 font-mono">Mapper</span><span className="text-ink-sub">Computed blast radius across {drawer.affectedMappingIds.length} mappings</span></div>
+                <div className="flex items-center gap-2"><span className="text-ink w-24 font-mono">Fixer</span><span className="text-ink-sub">Proposed deterministic repair with confidence 0.87</span></div>
+                <div className="flex items-center gap-2"><span className="text-ink w-24 font-mono">Sentinel</span><span className="text-ink-sub">Approval gate: {drawer.severity === 'critical' || drawer.severity === 'high' ? 'partner' : 'lead'} level required</span></div>
               </div>
             </div>
 
@@ -318,14 +319,14 @@ export default function DriftRepairPage() {
             )}
 
             {drawer.status !== 'pending' && (
-              <div className={`p-3 rounded text-[12px] ${drawer.status === 'approved' ? 'text-[#5a8a6e]' : 'text-[#b85450]'}`} style={{ background: drawer.status === 'approved' ? 'rgba(90,138,110,0.1)' : 'rgba(184,84,80,0.1)' }}>
+              <div className={`p-3 rounded text-[12px] ${drawer.status === 'approved' ? 'text-ink-good' : 'text-ink-bad'}`} style={{ background: drawer.status === 'approved' ? 'color-mix(in srgb, var(--color-success) 10%, transparent)' : 'color-mix(in srgb, var(--ink-bad) 10%, transparent)' }}>
                 {drawer.status === 'approved' ? <><CheckCircle className="w-4 h-4 inline mr-1" /> Repair approved — mapping updates applied</> : `Proposal ${drawer.status}`}
               </div>
             )}
 
             <div className="conduit-card p-3">
               <div className="label-mono mb-1">ANCHOR HASH</div>
-              <div className="font-mono text-[11px] text-[#555]">{drawer.anchorHash}</div>
+              <div className="font-mono text-[11px] text-ink-sub">{drawer.anchorHash}</div>
             </div>
           </>
         )}

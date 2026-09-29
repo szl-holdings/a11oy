@@ -1,3 +1,5 @@
+import { CATEGORY_TONES } from '@/lib/utils';
+
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '') ?? '/conduit';
 const API = `${BASE.startsWith('/conduit') ? '' : ''}`;
 
@@ -367,21 +369,21 @@ export const refreshAgiForecast = () =>
 
 // ─── Destination list ─────────────────────────────────────────────────────────
 export const DESTINATIONS = [
-  { id: 'salesforce', label: 'Salesforce', color: '#00A1E0' },
-  { id: 'hubspot', label: 'HubSpot', color: '#FF7A59' },
-  { id: 'slack', label: 'Slack', color: '#4A154B' },
-  { id: 'google_sheets', label: 'Google Sheets', color: '#34A853' },
-  { id: 'notion', label: 'Notion', color: '#000000' },
-  { id: 'airtable', label: 'Airtable', color: '#FCB400' },
-  { id: 'zendesk', label: 'Zendesk', color: '#03363D' },
-  { id: 'marketo', label: 'Marketo', color: '#5C4EFA' },
-  { id: 'intercom', label: 'Intercom', color: '#1F8DED' },
-  { id: 'pipedrive', label: 'Pipedrive', color: '#1A1A2E' },
-  { id: 'mailchimp', label: 'Mailchimp', color: '#FFE01B' },
-  { id: 'segment', label: 'Segment', color: '#52BD95' },
-  { id: 'webhook', label: 'Webhook', color: '#6366F1' },
-  { id: 'lambda_cloud', label: 'Lambda Cloud', color: '#6C3AED' },
-  { id: 'dstack', label: 'dstack', color: '#06B6D4' },
+  { id: 'salesforce', label: 'Salesforce', color: CATEGORY_TONES[0] },
+  { id: 'hubspot', label: 'HubSpot', color: CATEGORY_TONES[1] },
+  { id: 'slack', label: 'Slack', color: CATEGORY_TONES[2] },
+  { id: 'google_sheets', label: 'Google Sheets', color: CATEGORY_TONES[3] },
+  { id: 'notion', label: 'Notion', color: CATEGORY_TONES[4] },
+  { id: 'airtable', label: 'Airtable', color: CATEGORY_TONES[5] },
+  { id: 'zendesk', label: 'Zendesk', color: CATEGORY_TONES[0] },
+  { id: 'marketo', label: 'Marketo', color: CATEGORY_TONES[1] },
+  { id: 'intercom', label: 'Intercom', color: CATEGORY_TONES[2] },
+  { id: 'pipedrive', label: 'Pipedrive', color: CATEGORY_TONES[3] },
+  { id: 'mailchimp', label: 'Mailchimp', color: CATEGORY_TONES[4] },
+  { id: 'segment', label: 'Segment', color: CATEGORY_TONES[5] },
+  { id: 'webhook', label: 'Webhook', color: CATEGORY_TONES[0] },
+  { id: 'lambda_cloud', label: 'Lambda Cloud', color: CATEGORY_TONES[1] },
+  { id: 'dstack', label: 'dstack', color: CATEGORY_TONES[2] },
 ] as const;
 
 export type DestinationId = typeof DESTINATIONS[number]['id'];

@@ -39,7 +39,7 @@ function ApplyModal({ template, onClose }: { template: { id: string; name: strin
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ground/60 backdrop-blur-sm">
       <div className="conduit-card p-6 w-full max-w-md mx-4 space-y-4 animate-scale-in">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold font-display">Apply Template</h2>
@@ -56,7 +56,7 @@ function ApplyModal({ template, onClose }: { template: { id: string; name: strin
               type="text"
               value={name}
               onChange={e => setName(e.target.value)}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:border-focus focus-visible:shadow-[var(--shadow-focus)]"
               placeholder="Name this sync"
             />
           </div>
@@ -69,7 +69,7 @@ function ApplyModal({ template, onClose }: { template: { id: string; name: strin
               ))}
             </Select>
             {connections.length === 0 && (
-              <p className="text-xs text-muted-foreground mt-1">No connections yet. <a href="/connections/new" className="text-primary underline">Create one first.</a></p>
+              <p className="text-xs text-muted-foreground mt-1">No connections yet. <a href="/connections/new" className="text-ink underline">Create one first.</a></p>
             )}
           </div>
         </div>
@@ -119,8 +119,8 @@ export default function TemplatesList() {
                     className={cn("conduit-card p-5 flex flex-col gap-3 group animate-fade-in-up", `stagger-${Math.min(i + 1, 6)}`)}
                   >
                     <div className="flex items-start gap-3">
-                      <div className="w-9 h-9 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-                        <TemplateIcon icon={template.icon} className="w-4 h-4 text-primary" />
+                      <div className="w-9 h-9 rounded-md bg-wash/10 border border-line flex items-center justify-center shrink-0">
+                        <TemplateIcon icon={template.icon} className="w-4 h-4 text-ink" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-sm leading-tight">{template.name}</div>
@@ -138,6 +138,7 @@ export default function TemplatesList() {
                       <span className="text-xs text-muted-foreground">{template.mappingCount} field mappings</span>
                       <Button
                         size="sm"
+                        variant="outline"
                         onClick={() => setApplyTarget({ id: template.id, name: template.name })}
                         className="text-xs h-7"
                       >

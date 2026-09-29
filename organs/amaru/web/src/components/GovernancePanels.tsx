@@ -4,9 +4,9 @@ import {
 } from '@szl-holdings/szl-doctrine/panels';
 
 const THEME = makeDarkGoldTheme({
-  bg: '#0a0a0a',
-  cardBg: '#0e0e0e',
-  gold: '#c9b787',
+  bg: 'var(--bg)',
+  cardBg: 'var(--bg-deep)',
+  gold: 'var(--text-sub)',
 });
 
 export function ConduitGovernancePanels() {

@@ -117,7 +117,7 @@ export default function AudienceSqlPage() {
         title="Audience SQL Studio"
         blurb="Define activation audiences over models using SQL or visual presets. Live row-count preview before any data moves. PII gate overlay shows which fields are blocked. Destination compatibility matrix shows where this audience can land."
         trailing={
-          <Link href="/innovation" className="flex items-center gap-1.5 text-[11px] text-[#c9b787] hover:underline">
+          <Link href="/innovation" className="flex items-center gap-1.5 text-[11px] text-link hover:underline">
             <ArrowLeft className="w-3 h-3" /> Innovation Brief
           </Link>
         }
@@ -141,7 +141,7 @@ export default function AudienceSqlPage() {
               </div>
               <div className="flex flex-wrap gap-1 pb-1">
                 {PRESET_QUERIES.map((pq) => (
-                  <button key={pq.label} onClick={() => { setSql(pq.sql); setPreviewRun(null); }} className="text-[10px] font-mono px-2 py-0.5 rounded border border-[rgba(201,183,135,0.2)] text-[#c9b787] hover:bg-[rgba(201,183,135,0.08)] transition-colors">
+                  <button key={pq.label} onClick={() => { setSql(pq.sql); setPreviewRun(null); }} className="text-[10px] font-mono px-2 py-0.5 rounded border border-line-subtle text-ink hover:bg-wash/8 transition-colors">
                     {pq.label}
                   </button>
                 ))}
@@ -150,7 +150,7 @@ export default function AudienceSqlPage() {
                 value={sql}
                 onChange={(e) => { setSql(e.target.value); setPreviewRun(null); }}
                 rows={8}
-                className="w-full font-mono text-[12px] bg-[#0a0a0a] text-[#f5f5f5] border border-[rgba(255,255,255,0.08)] rounded-lg p-3 resize-y focus:outline-none focus:border-[#c9b787]"
+                className="w-full font-mono text-[12px] bg-ground text-ink border border-line rounded-lg p-3 resize-y focus-visible:outline-none focus-visible:border-focus focus-visible:shadow-[var(--shadow-focus)]"
                 spellCheck={false}
               />
               <div className="flex gap-2">
@@ -169,27 +169,27 @@ export default function AudienceSqlPage() {
               <div className="grid grid-cols-3 gap-3 mb-4">
                 <div className="conduit-stat p-3">
                   <div className="label-mono mb-1">Est. Rows</div>
-                  <div className="text-xl font-light text-[#c9b787] tabular-nums">{previewRun.rows.toLocaleString()}</div>
+                  <div className="text-xl font-semibold text-ink tabular-nums">{previewRun.rows.toLocaleString()}</div>
                 </div>
                 <div className="conduit-stat p-3">
                   <div className="label-mono mb-1">PII Gate</div>
-                  <div className={`text-sm font-medium flex items-center gap-1 mt-1 ${previewRun.piiResult === 'pass' ? 'text-[#5a8a6e]' : previewRun.piiResult === 'warn' ? 'text-[#d4a853]' : 'text-[#b85450]'}`}>
+                  <div className={`text-sm font-medium flex items-center gap-1 mt-1 ${previewRun.piiResult === 'pass' ? 'text-ink-good' : previewRun.piiResult === 'warn' ? 'text-ink-warn' : 'text-ink-bad'}`}>
                     {previewRun.piiResult === 'pass' ? <CheckCircle className="w-4 h-4" /> : previewRun.piiResult === 'warn' ? <AlertTriangle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
                     {previewRun.piiResult.toUpperCase()}
                   </div>
                 </div>
                 <div className="conduit-stat p-3">
                   <div className="label-mono mb-1">Dest Compat</div>
-                  <div className={`text-sm font-medium flex items-center gap-1 mt-1 ${previewRun.compat ? 'text-[#5a8a6e]' : 'text-[#b85450]'}`}>
+                  <div className={`text-sm font-medium flex items-center gap-1 mt-1 ${previewRun.compat ? 'text-ink-good' : 'text-ink-bad'}`}>
                     {previewRun.compat ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
                     {previewRun.compat ? 'Compatible' : 'Mismatch'}
                   </div>
                 </div>
               </div>
               {previewRun.piiResult !== 'pass' && (
-                <div className="mb-3 p-2 rounded text-[11px]" style={{ background: 'rgba(212,168,83,0.08)', border: '1px solid rgba(212,168,83,0.2)' }}>
-                  <Shield className="inline w-3 h-3 text-[#d4a853] mr-1" />
-                  <span className="text-[#d4a853]">PII warning:</span> <span className="text-[#8a8a8a]">model contains PII fields ({piiFields.map((f) => f.piiClass).join(', ')}) and destination {selectedDest?.piiAllowed ? 'allows PII with redaction' : 'does not permit PII'}. Sentinel will apply redaction transforms.</span>
+                <div className="mb-3 p-2 rounded text-[11px]" style={{ background: 'color-mix(in srgb, var(--color-warning) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--color-warning) 20%, transparent)' }}>
+                  <Shield className="inline w-3 h-3 text-ink-warn mr-1" />
+                  <span className="text-ink-warn">PII warning:</span> <span className="text-ink-sub">model contains PII fields ({piiFields.map((f) => f.piiClass).join(', ')}) and destination {selectedDest?.piiAllowed ? 'allows PII with redaction' : 'does not permit PII'}. Sentinel will apply redaction transforms.</span>
                 </div>
               )}
               {previewRun.compat && previewRun.piiResult !== 'block' && (
@@ -200,7 +200,7 @@ export default function AudienceSqlPage() {
                     placeholder="Audience name…"
                     className="flex-1 h-9 rounded-md border border-input bg-transparent px-3 text-sm"
                   />
-                  <Button size="sm" onClick={buildAudience}>Build audience →</Button>
+                  <Button size="sm" variant="outline" onClick={buildAudience}>Build audience →</Button>
                 </div>
               )}
             </FabricCard>
@@ -211,23 +211,23 @@ export default function AudienceSqlPage() {
           <FabricCard title="PII GATE OVERLAY">
             {selectedModel ? (
               <div className="space-y-2">
-                <div className="text-[11px] text-[#8a8a8a] mb-2">Fields in <span className="text-[#f5f5f5] font-mono">{selectedModel.name}</span> — {selectedModel.fieldCount} total</div>
+                <div className="text-[11px] text-ink-sub mb-2">Fields in <span className="text-ink font-mono">{selectedModel.name}</span> — {selectedModel.fieldCount} total</div>
                 {selectedModel.fields.map((f) => (
-                  <div key={f.name} className="flex items-center justify-between py-1 border-b border-[rgba(255,255,255,0.04)] last:border-0 text-[12px]">
+                  <div key={f.name} className="flex items-center justify-between py-1 border-b border-line-subtle last:border-0 text-[12px]">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${f.piiClass !== 'none' ? 'bg-[#d4a853]' : 'bg-[#5a8a6e]'}`} />
-                      <span className="font-mono text-[#f5f5f5] truncate">{f.name}</span>
-                      <span className="text-[#666]">{f.type}{f.nullable ? '?' : ''}</span>
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${f.piiClass !== 'none' ? 'bg-warning' : 'bg-success'}`} />
+                      <span className="font-mono text-ink truncate">{f.name}</span>
+                      <span className="text-ink-sub">{f.type}{f.nullable ? '?' : ''}</span>
                     </div>
                     {f.piiClass !== 'none' ? (
                       <Badge variant="partial">{f.piiClass}</Badge>
                     ) : (
-                      <span className="text-[10px] text-[#5a8a6e] font-mono">safe</span>
+                      <span className="text-[10px] text-ink-good font-mono">safe</span>
                     )}
                   </div>
                 ))}
               </div>
-            ) : <div className="text-[12px] text-[#666]">Select a model above.</div>}
+            ) : <div className="text-[12px] text-ink-sub">Select a model above.</div>}
           </FabricCard>
 
           <FabricCard title="DESTINATION COMPATIBILITY MATRIX">
@@ -235,13 +235,13 @@ export default function AudienceSqlPage() {
               {destCompatMatrix.map(({ dest, entityMatch, piiOk, compat }) => (
                 <div key={dest.id} className="flex items-center gap-3 text-[11px] py-1">
                   <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: dest.accent }} />
-                  <span className="text-[#f5f5f5] truncate w-36">{dest.name}</span>
+                  <span className="text-ink truncate w-36">{dest.name}</span>
                   <div className="flex-1">
                     <MicroBar value={dest.fieldContractStrength * 100} max={100} tone={compat ? 'good' : 'bad'} />
                   </div>
                   <div className="flex gap-1 shrink-0">
-                    <span className={`text-[10px] font-mono px-1 py-0.5 rounded ${entityMatch ? 'text-[#5a8a6e]' : 'text-[#b85450]'}`}>{entityMatch ? '✓ entity' : '✗ entity'}</span>
-                    <span className={`text-[10px] font-mono px-1 py-0.5 rounded ${piiOk ? 'text-[#5a8a6e]' : 'text-[#d4a853]'}`}>{piiOk ? '✓ pii' : '⚠ pii'}</span>
+                    <span className={`text-[10px] font-mono px-1 py-0.5 rounded ${entityMatch ? 'text-ink-good' : 'text-ink-bad'}`}>{entityMatch ? '✓ entity' : '✕ entity'}</span>
+                    <span className={`text-[10px] font-mono px-1 py-0.5 rounded ${piiOk ? 'text-ink-good' : 'text-ink-warn'}`}>{piiOk ? '✓ pii' : 'pii · review'}</span>
                   </div>
                   <GovernanceDot state={dest.governanceState} />
                 </div>
@@ -262,14 +262,14 @@ export default function AudienceSqlPage() {
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3 min-w-0">
                       <div>
-                        <div className="text-[#f5f5f5] text-[13px] font-medium">{aud.name}</div>
-                        <div className="text-[11px] text-[#666] font-mono">{model?.name ?? aud.modelId} → {dest?.name ?? aud.destinationId}</div>
+                        <div className="text-ink text-[13px] font-medium">{aud.name}</div>
+                        <div className="text-[11px] text-ink-sub font-mono">{model?.name ?? aud.modelId} → {dest?.name ?? aud.destinationId}</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
-                      <span className="font-mono tabular-nums text-[#c9b787] text-[12px]">{aud.estimatedRows.toLocaleString()} rows</span>
+                      <span className="font-mono tabular-nums text-ink text-[12px]">{aud.estimatedRows.toLocaleString()} rows</span>
                       <Badge variant={aud.piiGateResult === 'pass' ? 'success' : aud.piiGateResult === 'warn' ? 'partial' : 'failed'}>{aud.piiGateResult}</Badge>
-                      <ChevronRight className="w-4 h-4 text-[#666]" />
+                      <ChevronRight className="w-4 h-4 text-ink-sub" />
                     </div>
                   </div>
                 </button>
@@ -290,25 +290,25 @@ export default function AudienceSqlPage() {
                 <FabricStat label="PII gate" value={drawerAudience.piiGateResult.toUpperCase()} tone={drawerAudience.piiGateResult === 'pass' ? 'good' : drawerAudience.piiGateResult === 'warn' ? 'warn' : 'bad'} />
               </div>
               <div className="conduit-card p-4">
-                <div className="label-mono mb-2 text-[#c9b787]">SOURCE MODEL</div>
-                <div className="text-[12px] text-[#f5f5f5]">{model?.name ?? drawerAudience.modelId}</div>
-                <Link href="/models" className="text-[10px] text-[#c9b787] hover:underline mt-1 block">View in Models →</Link>
+                <div className="label-mono mb-2 text-ink">SOURCE MODEL</div>
+                <div className="text-[12px] text-ink">{model?.name ?? drawerAudience.modelId}</div>
+                <Link href="/models" className="text-[10px] text-link hover:underline mt-1 block">View in Models →</Link>
               </div>
               <div className="conduit-card p-4">
-                <div className="label-mono mb-2 text-[#c9b787]">DESTINATION</div>
+                <div className="label-mono mb-2 text-ink">DESTINATION</div>
                 <div className="flex items-center gap-2">
                   {dest && <span className="w-2 h-2 rounded-full" style={{ background: dest.accent }} />}
-                  <div className="text-[12px] text-[#f5f5f5]">{dest?.name ?? drawerAudience.destinationId}</div>
+                  <div className="text-[12px] text-ink">{dest?.name ?? drawerAudience.destinationId}</div>
                   <GovernanceDot state={dest?.governanceState ?? 'amber'} />
                 </div>
               </div>
               <div className="conduit-card p-4">
-                <div className="label-mono mb-2 text-[#c9b787]">SQL</div>
-                <pre className="font-mono text-[11px] text-[#f5f5f5] bg-[#0a0a0a] p-3 rounded overflow-x-auto whitespace-pre-wrap">{drawerAudience.sql}</pre>
+                <div className="label-mono mb-2 text-ink">SQL</div>
+                <pre className="font-mono text-[11px] text-ink bg-ground p-3 rounded overflow-x-auto whitespace-pre-wrap">{drawerAudience.sql}</pre>
               </div>
               <div className="conduit-card p-4">
-                <div className="label-mono mb-2 text-[#c9b787]">EVIDENCE REF</div>
-                <div className="font-mono text-[11px] text-[#8a8a8a]">evidence/{drawerAudience.id}</div>
+                <div className="label-mono mb-2 text-ink">EVIDENCE REF</div>
+                <div className="font-mono text-[11px] text-ink-sub">evidence/{drawerAudience.id}</div>
               </div>
             </>
           );
