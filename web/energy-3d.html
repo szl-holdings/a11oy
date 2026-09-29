@@ -16,24 +16,33 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<link rel="stylesheet" href="/assets/szl/szl-design-system.css" />
+<link rel="stylesheet" href="/assets/szl/szl-console.css" />
+<link rel="icon" type="image/svg+xml" href="/assets/szl/logos/szl_favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/szl/logos/szl_favicon_32.png" />
 <title>a11oy — 3D Holographic Energy View</title>
 <meta name="description" content="A live holographic view of the a11oy sovereign compute mesh: particle speed and edge flow bound to MEASURED watts/joules from the NVML meter. Down nodes shown dark; no fabricated energy." />
-<link rel="icon" href="/social-preview.svg" />
 <style>
   :root{
-    --bg:#00040f; --deep:#070b16; --surface:#10161f; --border:#22304a;
-    --teal:#39d8c8; --teal-soft:#39d8c833; --violet:#6a7bff; --gold:#cda64a;
-    --ink:#eaf1f7; --sub:#9fb2c9; --ghost:#64768f;
-    --ok:#39d8c8; --warn:#cda64a; --down:#e06a6a;
-    --sans:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
-    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
-  }
+  /* KANCHAY founder tokens (/assets/szl/szl-design-system.css + szl-console.css). Dark operator surface.
+     Legacy names kept as aliases; every value is a founder token. */
+  --teal:var(--text);
+  --violet:var(--ink-info);
+  --gold:var(--text-sub);
+  --ink:var(--text);
+  --sub:var(--text-sub);
+  --ghost:var(--text-sub);
+  --ok:var(--ink-good);
+  --down:var(--ink-bad);
+  --sans:var(--font-body);
+  --mono:var(--font-mono);
+}
   *{box-sizing:border-box}
   html,body{margin:0;padding:0;height:100%}
   body{
     background:
-      radial-gradient(1200px 800px at 70% -10%, #0d1830 0%, transparent 60%),
-      radial-gradient(900px 700px at 12% 8%, #0a1228 0%, transparent 55%),
+      radial-gradient(1200px 800px at 70% -10%, var(--surface) 0%, transparent 60%),
+      radial-gradient(900px 700px at 12% 8%, var(--surface-alt) 0%, transparent 55%),
       var(--bg);
     color:var(--ink); font-family:var(--sans); line-height:1.5;
     -webkit-font-smoothing:antialiased; overflow:hidden;
@@ -44,15 +53,15 @@
   /* ---- nav ---- */
   header.nav{position:fixed;top:0;left:0;right:0;z-index:40;
     backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-    background:linear-gradient(180deg,#00040fcc,#00040f66);
-    border-bottom:1px solid var(--border)}
+    background:linear-gradient(180deg,color-mix(in srgb,var(--bg-deep) 80%,transparent),color-mix(in srgb,var(--bg-deep) 40%,transparent));
+    border-bottom:1px solid var(--border);display:block;height:auto;padding-inline:0;gap:0;}
   .nav .wrap{display:flex;align-items:center;gap:18px;height:58px;max-width:1400px;margin:0 auto;padding:0 20px}
   .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.2px}
-  .brand .sub{color:var(--ghost);font-weight:500;font-size:11px;letter-spacing:2px;text-transform:uppercase}
+  .brand .sub{color:var(--ghost);font-weight:500;font-size:var(--text-xs);letter-spacing:2px;text-transform:uppercase}
   .nav nav{margin-left:auto;display:flex;gap:4px;align-items:center;flex-wrap:wrap}
-  .nav nav a{padding:7px 12px;border-radius:9px;color:var(--sub);font-size:13.5px;font-weight:500;transition:.15s}
-  .nav nav a:hover{color:var(--ink);background:#ffffff0e}
-  .nav nav a.cur{color:var(--teal);background:#39d8c812}
+  .nav nav a{padding:7px 12px;border-radius:9px;color:var(--sub);font-size:var(--text-sm);font-weight:500;transition:.15s}
+  .nav nav a:hover{color:var(--ink);background:color-mix(in srgb,var(--text) 5%,transparent)}
+  .nav nav a.cur{color:var(--text);background:color-mix(in srgb,var(--text) 7%,transparent);box-shadow:inset 0 -2px 0 var(--accent)}
 
   /* ---- stage ---- */
   #stage{position:fixed;inset:0;z-index:0}
@@ -61,34 +70,34 @@
   /* ---- HUD ---- */
   .hud{position:fixed;z-index:20;pointer-events:none}
   .panel{pointer-events:auto;border:1px solid var(--border);border-radius:14px;
-    background:linear-gradient(180deg,rgba(10,20,40,.82),rgba(7,11,22,.78));
+    background:linear-gradient(180deg,color-mix(in srgb,var(--surface-alt) 82%,transparent),color-mix(in srgb,var(--bg) 78%,transparent));
     backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-    box-shadow:0 18px 50px -22px #000}
+    box-shadow:0 18px 50px -22px var(--bg-deep)}
   /* top-left: title + global status */
   #hud-top{top:74px;left:18px;max-width:340px}
   #hud-top .panel{padding:16px 18px}
-  #hud-top .kick{color:var(--teal);font-weight:600;font-size:11px;letter-spacing:1.6px;text-transform:uppercase;margin:0 0 6px}
-  #hud-top h1{font-size:1.18rem;font-weight:740;letter-spacing:-.4px;margin:0 0 10px}
-  #hud-top p{margin:0;color:var(--sub);font-size:12.5px}
+  #hud-top .kick{color:var(--text-sub);font-weight:600;font-size:var(--text-xs);letter-spacing:1.6px;text-transform:uppercase;margin:0 0 6px}
+  #hud-top h1{font-size:var(--text-lg);font-weight:740;letter-spacing:-.4px;margin:0 0 10px}
+  #hud-top p{margin:0;color:var(--sub);font-size:var(--text-sm)}
   .statline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
   .totals{margin-top:12px;display:flex;gap:16px;flex-wrap:wrap}
-  .totals .t .k{font-family:var(--mono);font-size:1.2rem;font-weight:700;line-height:1.1}
+  .totals .t .k{font-family:var(--mono);font-size:var(--text-lg);font-weight:700;line-height:1.1}
   .totals .t .k.teal{color:var(--teal)}
-  .totals .t .l{font-size:10.5px;color:var(--ghost);text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+  .totals .t .l{font-size:var(--text-xs);color:var(--ghost);text-transform:uppercase;letter-spacing:1px;margin-top:2px}
 
   /* right: per-node cards */
   #hud-nodes{top:74px;right:18px;width:308px;max-height:calc(100vh - 96px);overflow:auto}
   #hud-nodes .panel{padding:14px 15px;margin-bottom:12px}
   .node-card{position:relative}
   .node-card .hd{display:flex;align-items:center;gap:9px}
-  .node-card .nm{font-weight:660;font-size:14px}
-  .node-card .role{font-family:var(--mono);font-size:10.5px;color:var(--ghost);
+  .node-card .nm{font-weight:660;font-size:var(--text-sm)}
+  .node-card .role{font-family:var(--mono);font-size:var(--text-xs);color:var(--ghost);
     text-transform:uppercase;letter-spacing:1px;margin-top:1px}
   .node-card .right{margin-left:auto}
   .node-card .vals{display:flex;gap:14px;margin-top:11px}
-  .node-card .v .k{font-family:var(--mono);font-size:1.02rem;font-weight:700;line-height:1.05}
-  .node-card .v .l{font-size:10px;color:var(--ghost);text-transform:uppercase;letter-spacing:.8px;margin-top:2px}
-  .node-card .bar{height:5px;border-radius:3px;background:#ffffff10;margin-top:11px;overflow:hidden}
+  .node-card .v .k{font-family:var(--mono);font-size:var(--text-base);font-weight:700;line-height:1.05}
+  .node-card .v .l{font-size:var(--text-xs);color:var(--ghost);text-transform:uppercase;letter-spacing:.8px;margin-top:2px}
+  .node-card .bar{height:5px;border-radius:3px;background:color-mix(in srgb,var(--text) 6%,transparent);margin-top:11px;overflow:hidden}
   .node-card .bar i{display:block;height:100%;width:0;border-radius:3px;
     background:linear-gradient(90deg,var(--teal),var(--violet));transition:width .6s ease}
   .node-card.down{opacity:.62}
@@ -97,24 +106,24 @@
 
   /* chips */
   .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;
-    font-size:11px;font-weight:600;font-family:var(--mono);border:1px solid var(--border);white-space:nowrap}
+    font-size:var(--text-xs);font-weight:600;font-family:var(--mono);border:1px solid var(--border);white-space:nowrap}
   .chip .dot{width:7px;height:7px;border-radius:50%}
-  .chip.measured{color:var(--ok);border-color:#39d8c855;background:#39d8c810}
+  .chip.measured{color:var(--ok);border-color:color-mix(in srgb,var(--ink-good) 33%,transparent);background:color-mix(in srgb,var(--ink-good) 6%,transparent)}
   .chip.measured .dot{background:var(--ok);box-shadow:0 0 8px var(--ok)}
-  .chip.unavailable{color:var(--gold);border-color:#cda64a55;background:#cda64a10}
+  .chip.unavailable{color:var(--ink-warn);border-color:color-mix(in srgb,var(--ink-warn) 33%,transparent);background:color-mix(in srgb,var(--ink-warn) 6%,transparent)}
   .chip.unavailable .dot{background:var(--gold)}
-  .chip.down{color:var(--down);border-color:#e06a6a55;background:#e06a6a10}
+  .chip.down{color:var(--down);border-color:color-mix(in srgb,var(--ink-bad) 33%,transparent);background:color-mix(in srgb,var(--color-error) 6%,transparent)}
   .chip.down .dot{background:var(--down)}
-  .chip.live{color:var(--ok);border-color:#39d8c855;background:#39d8c810}
+  .chip.live{color:var(--ok);border-color:color-mix(in srgb,var(--ink-good) 33%,transparent);background:color-mix(in srgb,var(--ink-good) 6%,transparent)}
   .chip.live .dot{background:var(--ok);box-shadow:0 0 8px var(--ok)}
   .chip.wait{color:var(--ghost)}
   .chip.wait .dot{background:var(--ghost)}
-  .chip.unknown{color:var(--sub);border-color:#9fb2c955;background:#9fb2c910}
+  .chip.unknown{color:var(--sub);border-color:var(--border);background:color-mix(in srgb,var(--text) 5%,transparent)}
   .chip.unknown .dot{background:var(--sub)}
 
   /* bottom strip: doctrine + legend */
   #hud-foot{bottom:14px;left:18px;right:18px;display:flex;gap:12px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap}
-  #hud-foot .panel{padding:10px 14px;font-size:11.5px;color:var(--ghost);max-width:760px}
+  #hud-foot .panel{padding:10px 14px;font-size:var(--text-xs);color:var(--ghost);max-width:760px}
   #hud-foot .legend{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
   #hud-foot .legend span{display:inline-flex;align-items:center;gap:6px;color:var(--sub)}
   #hud-foot .legend i{width:11px;height:11px;border-radius:3px;display:block}
@@ -122,7 +131,7 @@
   /* honest fallback (no WebGL) */
   #fallback{position:fixed;inset:0;z-index:10;display:none;align-items:center;justify-content:center;padding:24px}
   #fallback .panel{padding:28px;max-width:560px}
-  #fallback h2{margin:0 0 10px;font-size:1.3rem}
+  #fallback h2{margin:0 0 10px;font-size:var(--text-lg)}
   #fallback p{color:var(--sub);margin:0 0 16px}
   #fallback .fb-nodes{display:flex;flex-direction:column;gap:8px}
   #fallback .fb-node{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px}
@@ -145,13 +154,7 @@
 <header class="nav">
   <div class="wrap">
     <a class="brand" href="/" aria-label="a11oy home">
-      <svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#39d8c8"/><stop offset="1" stop-color="#6a7bff"/></linearGradient></defs>
-        <circle cx="16" cy="16" r="13" stroke="url(#lg)" stroke-width="2"/>
-        <circle cx="16" cy="16" r="5" fill="url(#lg)"/>
-        <path d="M16 3v8M16 21v8M3 16h8M21 16h8" stroke="url(#lg)" stroke-width="1.6" opacity=".7"/>
-      </svg>
+      <img src="/assets/szl/logos/szl_favicon.svg" width="28" height="28" alt="" aria-hidden="true"/>
       <span>a11oy<span class="sub" style="margin-left:8px">SZL Holdings</span></span>
     </a>
     <nav>
@@ -186,7 +189,7 @@
 </div>
 
 <div class="hud" id="hud-nodes" aria-live="polite">
-  <div class="panel"><div class="muted mono" style="font-size:12px">Querying /api/a11oy/v1/energy/mesh…</div></div>
+  <div class="panel"><div class="muted mono" style="font-size:var(--text-xs)">Querying /api/a11oy/v1/energy/mesh…</div></div>
 </div>
 
 <div class="hud" id="hud-foot">
@@ -197,9 +200,9 @@
     (Three.js, MIT) · Vizceral-style graph (Apache-2.0). © Stephen P. Lutar Jr. · Apache-2.0.
   </div>
   <div class="panel legend">
-    <span><i style="background:linear-gradient(90deg,#39d8c8,#6a7bff)"></i>energy flow ∝ draw</span>
-    <span><i style="background:#39d8c8;box-shadow:0 0 8px #39d8c8"></i>live node</span>
-    <span><i style="background:#2a3550"></i>down / dark</span>
+    <span><i style="background:linear-gradient(90deg,var(--color-yuyay-300),var(--color-info))"></i>energy flow ∝ draw</span>
+    <span><i style="background:var(--color-yuyay-300);box-shadow:0 0 8px var(--color-yuyay-300)"></i>live node</span>
+    <span><i style="background:var(--surface-raised)"></i>down / dark</span>
   </div>
 </div>
 

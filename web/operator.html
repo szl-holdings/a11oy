@@ -1,25 +1,31 @@
 <!doctype html>
 <!-- operator-shell — Unified Operator Shell · flagship: a11oy
      4-zone cockpit (Inbox · Map · Command Bar · Receipt Drawer · Footer).
-     Three.js r171 WebGL2 living scene. DESKTOP-FIRST (1280px+).
+     Three.js WebGL2 living scene (r160, vendored in-image at /hero/vendor3d; 0 runtime CDN). DESKTOP-FIRST (1280px+).
      Sign: Yachay <yachay@szlholdings.dev> — DCO · ADDITIVE · SPDX: Apache-2.0
      © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 -->
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="/assets/szl/szl-design-system.css" />
+<link rel="stylesheet" href="/assets/szl/szl-console.css" />
+<link rel="icon" type="image/svg+xml" href="/assets/szl/logos/szl_favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/szl/logos/szl_favicon_32.png" />
 <title>a11oy — Operator Shell</title>
 <style>/* operator-shell / shared / shell.css — 4-zone cockpit layout (DESKTOP-FIRST 1280px+)
- * Sign: Yachay <yachay@szlholdings.dev> — DCO · ADDITIVE · SPDX: Apache-2.0 */
+ * Sign: Yachay <yachay@szlholdings.dev> — DCO · ADDITIVE · SPDX: Apache-2.0
+ * KANCHAY founder tokens (/assets/szl/szl-design-system.css + szl-console.css). Dark operator surface.
+ * Legacy names kept as aliases; every value is a founder token. No coral in this view: the inbox
+ * primary action is a neutral solid, because several cards can each carry one. */
 :root{
-  --bg-base:#0a0e14;--bg-elevated:#11161e;--bg-card:#161c26;--accent-gold:#e3b04b;
-  --accent-emerald:#10b981;--accent-amber:#f59e0b;--accent-rose:#f43f5e;
-  --text-primary:#f1f5f9;--text-secondary:#94a3b8;--text-muted:#475569;
-  --border-subtle:#1e293b;--khipu-knot:#cd8a3d;--font-mono:ui-monospace,Menlo,monospace;
-  --font-display:ui-sans-serif,Inter,system-ui;--radius-card:12px;--shadow-deep:0 10px 40px -10px rgba(0,0,0,.6);
+  --bg-base:var(--bg);--bg-elevated:var(--surface-alt);--bg-card:var(--surface);
+  --accent-emerald:var(--ink-good);--accent-amber:var(--ink-warn);--accent-rose:var(--ink-bad);
+  --text-primary:var(--text);--text-secondary:var(--text-sub);--text-muted:var(--text-ghost);
+  --border-subtle:var(--border);--radius-card:var(--radius-lg);--shadow-deep:var(--shadow-lg);
 }
 *{box-sizing:border-box}
-html,body{margin:0;height:100%;background:var(--bg-base);color:var(--text-primary);font-family:var(--font-display)}
+html,body{margin:0;height:100%;background:var(--bg-base);color:var(--text-primary);font-family:var(--font-body)}
 .urgency-info,.verdict-pass{--u:var(--accent-emerald)}
 .urgency-warn,.verdict-warn{--u:var(--accent-amber)}
 .urgency-critical,.verdict-block{--u:var(--accent-rose)}
@@ -29,58 +35,64 @@ html,body{margin:0;height:100%;background:var(--bg-base);color:var(--text-primar
   grid-template-areas:"inbox map drawer" "footer footer footer";height:100vh;gap:1px;background:var(--border-subtle)}
 .zone{background:var(--bg-base);overflow:hidden;position:relative}
 .zone-inbox{grid-area:inbox;padding:14px;overflow-y:auto}
-.zone-map{grid-area:map;background:radial-gradient(circle at 50% 40%,#0d1420,var(--bg-base))}
+.zone-map{grid-area:map;background:radial-gradient(circle at 50% 40%,var(--color-space-800),var(--bg-base))}
 .zone-map canvas{width:100%;height:100%;display:block}
 .zone-drawer{grid-area:drawer;padding:14px;overflow-y:auto;perspective:600px}
 .zone-footer{grid-area:footer;background:var(--bg-elevated);display:flex;align-items:center;gap:18px;
-  padding:0 16px;font-family:var(--font-mono);font-size:12px;color:var(--text-secondary)}
+  padding:0 16px;font-family:var(--font-mono);font-size:var(--text-xs);color:var(--text-secondary)}
 
 /* Inbox */
-.zone-inbox h2{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted);margin:0 0 12px}
-.inbox-calm{color:var(--text-secondary);font-size:14px;line-height:1.6;padding:32px 8px;text-align:center;opacity:.8}
+.zone-inbox h2{font-size:var(--text-xs);letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--text-muted);margin:0 0 12px}
+.inbox-calm{color:var(--text-secondary);font-size:var(--text-sm);line-height:var(--leading-normal);padding:32px 8px;text-align:center}
 .inbox-card{background:var(--bg-card);border:1px solid var(--border-subtle);border-left:3px solid var(--u);
-  border-radius:var(--radius-card);padding:12px 14px;margin-bottom:10px;cursor:pointer;transition:transform .15s,box-shadow .15s;position:relative}
+  border-radius:var(--radius-card);padding:12px 14px;margin-bottom:10px;cursor:pointer;transition:transform var(--duration-fast),box-shadow var(--duration-fast);position:relative}
 .inbox-card:hover{transform:translateY(-3px) scale(1.01);box-shadow:var(--shadow-deep)}
 .inbox-card.flipped .ic-face{display:none}.inbox-card.flipped .ic-back{display:block}
-.ic-back{display:none}.ic-back pre{font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);white-space:pre-wrap;margin:0}
-.ic-dot{position:absolute;top:14px;right:14px;width:8px;height:8px;border-radius:50%;background:var(--u);box-shadow:0 0 8px var(--u)}
-.ic-title{font-weight:600;font-size:13px;margin-bottom:4px;padding-right:16px}
-.ic-sub{font-size:12px;color:var(--text-secondary);line-height:1.4;margin-bottom:10px}
+.ic-back{display:none}.ic-back pre{font-family:var(--font-mono);font-size:var(--text-xs);color:var(--text-secondary);white-space:pre-wrap;margin:0}
+.ic-dot{position:absolute;top:12px;right:14px;display:inline-flex;align-items:center;gap:6px;
+  font:600 var(--text-xs)/1 var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--u)}
+.ic-dot::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--u)}
+.ic-title{font-weight:600;font-size:var(--text-sm);margin-bottom:4px;padding-right:84px}
+.ic-sub{font-size:var(--text-xs);color:var(--text-secondary);line-height:1.4;margin-bottom:10px}
 .ic-acts{display:flex;gap:8px}
 .ic-act{background:transparent;border:1px solid var(--border-subtle);color:var(--text-secondary);
-  border-radius:7px;padding:5px 11px;font-size:12px;cursor:pointer;font-family:var(--font-mono)}
-.ic-act.primary{background:var(--accent-gold);color:#0a0e14;border-color:var(--accent-gold);font-weight:600}
-.ic-act:hover{border-color:var(--accent-gold)}
-.inbox-more{text-align:center;color:var(--text-muted);font-size:12px;font-family:var(--font-mono);padding:6px}
+  border-radius:7px;padding:5px 11px;font-size:var(--text-xs);cursor:pointer;font-family:var(--font-mono)}
+.ic-act.primary{background:var(--text);color:var(--bg);border-color:var(--text);font-weight:600}
+.ic-act:hover{border-color:var(--text-ghost);color:var(--text)}
+.ic-act.primary:hover{background:var(--text-sub);border-color:var(--text-sub);color:var(--bg)}
+.inbox-more{text-align:center;color:var(--text-muted);font-size:var(--text-xs);font-family:var(--font-mono);padding:6px}
 
 /* Command bar (Cmd-K) */
-.cmdk-overlay{position:fixed;inset:0;background:rgba(5,8,12,.6);backdrop-filter:blur(4px);z-index:1000;display:flex;justify-content:center;padding-top:14vh}
+.cmdk-overlay{position:fixed;inset:0;background:color-mix(in srgb,var(--bg-deep) 60%,transparent);backdrop-filter:blur(4px);z-index:1000;display:flex;justify-content:center;padding-top:14vh}
+.cmdk-overlay[hidden]{display:none}
 .cmdk-box{width:560px;max-width:92vw;height:fit-content;background:var(--bg-elevated);border:1px solid var(--border-subtle);
   border-radius:14px;box-shadow:var(--shadow-deep);overflow:hidden}
 .cmdk-input{width:100%;background:transparent;border:0;border-bottom:1px solid var(--border-subtle);
-  color:var(--text-primary);font-size:16px;padding:16px 18px;outline:none;font-family:var(--font-mono)}
+  color:var(--text-primary);font-size:var(--text-base);padding:16px 18px;outline:none;font-family:var(--font-mono)}
+.cmdk-input:focus-visible{box-shadow:inset 0 -2px 0 var(--focus)}
 .cmdk-list{max-height:46vh;overflow-y:auto;padding:6px}
-.cmdk-group{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);padding:8px 12px 4px}
+.cmdk-group{font-size:var(--text-xs);letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--text-secondary);padding:8px 12px 4px}
 .cmdk-row{display:flex;justify-content:space-between;padding:8px 12px;border-radius:8px;cursor:pointer}
 .cmdk-row.sel,.cmdk-row:hover{background:var(--bg-card)}
-.cmdk-cmd{font-family:var(--font-mono);font-size:13px;color:var(--accent-gold)}
-.cmdk-desc{font-size:12px;color:var(--text-secondary);margin-left:14px;text-align:right}
+.cmdk-cmd{font-family:var(--font-mono);font-size:var(--text-sm);color:var(--text-primary)}
+.cmdk-desc{font-size:var(--text-xs);color:var(--text-secondary);margin-left:14px;text-align:right}
 
 /* Receipt drawer (z-tunnel) */
-.zone-drawer h2{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted);margin:0 0 12px}
+.zone-drawer h2{font-size:var(--text-xs);letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--text-muted);margin:0 0 12px}
 .rcpt-chip{display:flex;align-items:center;gap:8px;background:var(--bg-card);border:1px solid var(--border-subtle);
   border-right:3px solid var(--u,var(--accent-emerald));border-radius:9px;padding:8px 10px;margin-bottom:8px;
-  font-family:var(--font-mono);font-size:11px;cursor:pointer;
+  font-family:var(--font-mono);font-size:var(--text-xs);cursor:pointer;
   transform:translateZ(calc(var(--z,0)*-6px)) scale(calc(1 - var(--z,0)*0.012));opacity:calc(1 - var(--z,0)*0.04);transition:transform .2s}
-.rcpt-chip:hover{transform:translateZ(20px) scale(1.03);border-color:var(--accent-gold)}
-.rc-time{color:var(--text-muted)}.rc-verb{color:var(--text-primary);flex:1}.rc-key{color:var(--text-secondary)}
-.rc-sig.ok{color:var(--accent-emerald)}.rc-sig.pend{color:var(--text-muted)}
-.drawer-idle{color:var(--text-muted);font-size:12px;padding:20px 4px;text-align:center}
+.rcpt-chip:hover{transform:translateZ(20px) scale(1.03);border-color:var(--text-ghost)}
+.rc-time{color:var(--text-secondary)}.rc-verb{color:var(--text-primary);flex:1}.rc-key{color:var(--text-secondary)}
+.rc-sig.ok{color:var(--accent-emerald)}.rc-sig.pend{color:var(--text-secondary)}
+.drawer-idle{color:var(--text-muted);font-size:var(--text-xs);padding:20px 4px;text-align:center}
 
 /* Footer */
-.ft-pill{width:10px;height:10px;border-radius:50%;margin-left:auto;box-shadow:0 0 8px currentColor}
-.ft-knot{color:var(--khipu-knot)}.ft-lean{color:var(--text-muted)}
-.ft-sov{color:var(--accent-gold);font-weight:600}.ft-sov.off{color:var(--accent-amber);opacity:.85}
+.ft-pill{display:inline-flex;align-items:center;gap:6px;margin-left:auto;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary)}
+.ft-pill::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--pill,var(--accent-emerald))}
+.ft-knot{color:var(--text-secondary)}.ft-lean{color:var(--text-secondary)}
+.ft-sov{color:var(--text-primary);font-weight:600}.ft-sov.off{color:var(--accent-amber)}
 .ft-doc{color:var(--text-secondary)}
 
 /* Tablet degrade (NOT a priority) */
@@ -100,15 +112,18 @@ html,body{margin:0;height:100%;background:var(--bg-base);color:var(--text-primar
     <canvas id="map"></canvas>
   </section>
   <section class="zone zone-drawer" aria-label="Receipts">
-    <h2>Receipts 🪢</h2>
+    <h2>Receipts</h2>
     <div id="drawer"></div>
   </section>
   <footer class="zone zone-footer" id="footer"></footer>
 </div>
 
+<script type="importmap">
+{ "imports": { "three": "/hero/vendor3d/three.module.min.js", "three/addons/": "/hero/vendor3d/" } }
+</script>
 <script type="module">
-import * as THREE from "https://esm.sh/three@0.171.0";
-import { OrbitControls } from "https://esm.sh/three@0.171.0/examples/jsm/controls/OrbitControls.js";
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/OrbitControls.js";
 /* =============================================================================
  * operator-shell / shared / scenes.js
  * Shared Three.js (r171+, WebGL2) living-scene modules for the Unified Operator
@@ -125,9 +140,12 @@ import { OrbitControls } from "https://esm.sh/three@0.171.0/examples/jsm/control
 
 
 
+/* Scene colours come from the founder tokens (szl-design-system.css), read at runtime. */
+const TK = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const TOKENS = {
-  bgBase: 0x0a0e14, emerald: 0x10b981, amber: 0xf59e0b, rose: 0xf43f5e,
-  gold: 0xe3b04b, knot: 0xcd8a3d, textMuted: 0x475569,
+  bgBase: TK("--bg"), emerald: TK("--color-success-light"), amber: TK("--color-warning-light"), rose: TK("--color-error-light"),
+  gold: TK("--color-silver-100"), knot: TK("--color-silver-300"), textMuted: TK("--text-ghost"),
+  light: TK("--color-white"), globe: TK("--color-space-600"), globeGlow: TK("--color-space-800"),
 };
 const VERDICT_COLOR = { pass: TOKENS.emerald, info: TOKENS.emerald, warn: TOKENS.amber, block: TOKENS.rose, ambiguous: TOKENS.amber, critical: TOKENS.rose };
 const col = (v) => new THREE.Color(VERDICT_COLOR[v] ?? TOKENS.textMuted);
@@ -141,8 +159,8 @@ function makeStage(canvas) {
   camera.position.set(0, 0, 60);
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true; controls.dampingFactor = 0.08;
-  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
-  const key = new THREE.PointLight(0xffffff, 1.1); key.position.set(30, 40, 60); scene.add(key);
+  scene.add(new THREE.AmbientLight(TOKENS.light, 0.55));
+  const key = new THREE.PointLight(TOKENS.light, 1.1); key.position.set(30, 40, 60); scene.add(key);
   function resize() {
     const w = canvas.clientWidth || canvas.parentElement.clientWidth, h = canvas.clientHeight || canvas.parentElement.clientHeight;
     renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
@@ -154,7 +172,7 @@ function makeStage(canvas) {
 /* ---- IDLE placeholder: shown honestly when a buffer is empty ------------- */
 function idleSprite(text) {
   const c = document.createElement("canvas"); c.width = 512; c.height = 64;
-  const x = c.getContext("2d"); x.fillStyle = "#475569"; x.font = "28px ui-monospace, monospace";
+  const x = c.getContext("2d"); x.fillStyle = TOKENS.textMuted; x.font = "28px " + TK("--font-mono");
   x.textAlign = "center"; x.fillText(text, 256, 40);
   const t = new THREE.CanvasTexture(c); const m = new THREE.SpriteMaterial({ map: t, transparent: true });
   const s = new THREE.Sprite(m); s.scale.set(40, 5, 1); return s;
@@ -314,7 +332,7 @@ function Cortex(stage) {
  * ====================================================================== */
 function CommandOrbit(stage) {
   const group = new THREE.Group(); stage.scene.add(group);
-  const globe = new THREE.Mesh(new THREE.SphereGeometry(10, 48, 48), new THREE.MeshStandardMaterial({ color: 0x123047, emissive: 0x0a1a28, emissiveIntensity: 0.4, wireframe: false }));
+  const globe = new THREE.Mesh(new THREE.SphereGeometry(10, 48, 48), new THREE.MeshStandardMaterial({ color: TOKENS.globe, emissive: TOKENS.globeGlow, emissiveIntensity: 0.4, wireframe: false }));
   const grid = new THREE.Mesh(new THREE.SphereGeometry(10.05, 24, 24), new THREE.MeshBasicMaterial({ color: TOKENS.emerald, wireframe: true, transparent: true, opacity: 0.12 }));
   group.add(globe); group.add(grid);
   let officers = [], tracks = [], idle = null;
@@ -349,7 +367,7 @@ function CommandOrbit(stage) {
 function textTex(text, color) {
   const c = document.createElement("canvas"); c.width = 256; c.height = 128;
   const x = c.getContext("2d"); x.clearRect(0, 0, 256, 128);
-  x.fillStyle = "#" + new THREE.Color(color).getHexString(); x.font = "bold 40px ui-monospace, monospace";
+  x.fillStyle = "#" + new THREE.Color(color).getHexString(); x.font = "bold 40px " + TK("--font-mono");
   x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(String(text), 128, 64);
   const t = new THREE.CanvasTexture(c); t.needsUpdate = true; return t;
 }
@@ -403,7 +421,7 @@ function renderInbox(el, items, onCommand) {
     const acts = (item.actions || []).map(a =>
       `<button class="ic-act${a.primary ? " primary" : ""}" data-cmd="${a.command.replace(/"/g, "&quot;")}" data-id="${item.id}">${a.label}</button>`).join("");
     card.innerHTML =
-      `<div class="ic-face"><div class="ic-dot"></div><div class="ic-title">${esc(t)}</div>` +
+      `<div class="ic-face"><div class="ic-dot">${esc(item.urgency || "info")}</div><div class="ic-title">${esc(t)}</div>` +
       `<div class="ic-sub">${esc(st)}</div><div class="ic-acts">${acts}</div></div>` +
       `<div class="ic-back"><pre>${esc(JSON.stringify(item.evidence || {}, null, 2))}</pre></div>`;
     card.addEventListener("click", e => { if (!e.target.classList.contains("ic-act")) card.classList.toggle("flipped"); });
@@ -474,7 +492,7 @@ function renderReceipts(el, receipts, onInspect) {
     chip.innerHTML = `<span class="rc-time">${(r.ts || "").slice(11, 19)}</span>` +
       `<span class="rc-verb">${esc(r.action_verb || "—")}</span>` +
       `<span class="rc-key">${esc((r.keyid || "").replace("szlholdings-", ""))}</span>` +
-      `<span class="rc-sig ${r.verify ? "ok" : "pend"}">${r.verify ? "✓" : "·"}</span>`;
+      `<span class="rc-sig ${r.verify ? "ok" : "pend"}">${r.verify ? "✓ verified" : "· pending"}</span>`;
     chip.addEventListener("click", () => onInspect(r));
     el.appendChild(chip);
   });
@@ -484,13 +502,13 @@ function renderReceipts(el, receipts, onInspect) {
 function renderFooter(el, { doctrine, counts, depth, leanSha, status, sovereign }) {
   const pill = { ok: "var(--accent-emerald)", warn: "var(--accent-amber)", down: "var(--accent-rose)" }[status] || "var(--accent-emerald)";
   const sov = sovereign === false
-    ? `<span class="ft-sov off" title="Local LLM offline — honest fallback">⚙️ Sovereign (LLM offline)</span>`
-    : `<span class="ft-sov" title="Runs entirely on the operator's hardware — no cloud API">⚙️ Sovereign</span>`;
-  el.innerHTML = `<span class="ft-knot">🪢 ${depth}</span>` +
+    ? `<span class="ft-sov off" title="Local LLM offline — honest fallback">Sovereign (LLM offline)</span>`
+    : `<span class="ft-sov" title="Runs entirely on the operator's hardware — no cloud API">Sovereign</span>`;
+  el.innerHTML = `<span class="ft-knot">Khipu ${depth}</span>` +
     sov +
-    `<span class="ft-doc">🪶 ${esc(doctrine)} LOCKED · ${esc(counts)}</span>` +
-    `<span class="ft-lean">⚖️ Lean ${esc(leanSha)}</span>` +
-    `<span class="ft-pill" style="background:${pill}"></span>`;
+    `<span class="ft-doc">${esc(doctrine)} LOCKED · ${esc(counts)}</span>` +
+    `<span class="ft-lean">Lean ${esc(leanSha)}</span>` +
+    `<span class="ft-pill" style="--pill:${pill}">${esc(status || "ok")}</span>`;
 }
 
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }

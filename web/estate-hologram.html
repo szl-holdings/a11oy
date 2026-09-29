@@ -23,42 +23,51 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/assets/szl/szl-design-system.css" />
+<link rel="stylesheet" href="/assets/szl/szl-console.css" />
+<link rel="icon" type="image/svg+xml" href="/assets/szl/logos/szl_favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/szl/logos/szl_favicon_32.png" />
 <title>SZL · Unified Estate Hologram</title>
 <style>
-  :root{--bg:#03060d;--panel:#0a1326;--ink:#cfe6ff;--mut:#86a4c9;--line:rgba(120,170,230,.18);
-        --ok:#46d39a;--warn:#ffcf5c;--bad:#ff6b6b;--accent:#7fd4ff;}
+  :root{
+  /* KANCHAY founder tokens (/assets/szl/szl-design-system.css + szl-console.css). Dark operator surface.
+     Legacy names kept as aliases; every value is a founder token. */
+  --ink:var(--text);
+  --mut:var(--text-sub);
+  --line:var(--border);
+  --ok:var(--ink-good);
+  --warn:var(--ink-warn);
+  --pg-accent:var(--color-silver-300);
+}
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
-    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+    font-family:var(--font-body);}
   header{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;
     align-items:center;gap:14px;flex-wrap:wrap;}
-  header h1{font-size:16px;margin:0;letter-spacing:.07em;font-weight:700;
-    background:linear-gradient(90deg,#7fd4ff,#aef6ff,#9af0cf);-webkit-background-clip:text;background-clip:text;color:transparent;}
-  header .sub{font-size:11px;color:var(--mut);}
+  header h1{font-size:var(--text-base);margin:0;letter-spacing:.07em;font-weight:700;
+    color:var(--text);}
+  header .sub{font-size:var(--text-xs);color:var(--mut);}
   .wrap{display:grid;grid-template-columns:1fr;gap:14px;padding:14px 18px;max-width:1400px;margin:0 auto;}
   .stage{height:70vh;min-height:460px;border:1px solid var(--line);border-radius:16px;overflow:hidden;
-    box-shadow:0 0 90px rgba(40,90,160,.18) inset, 0 0 40px rgba(40,90,160,.1);position:relative;}
+    box-shadow:0 0 90px color-mix(in srgb,var(--color-space-600) 45%,transparent) inset;position:relative;}
   .overlay{position:absolute;top:12px;right:14px;z-index:8;text-align:right;pointer-events:none;}
-  .overlay .lam{font-size:30px;font-weight:800;line-height:1;text-shadow:0 2px 12px rgba(0,0,0,.7);}
-  .overlay .lab{font-size:10px;color:var(--mut);}
+  .overlay .lam{font-size:var(--text-2xl);font-weight:800;line-height:1;text-shadow:0 2px 12px color-mix(in srgb,var(--bg-deep) 70%,transparent);}
+  .overlay .lab{font-size:var(--text-xs);color:var(--mut);}
   .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
-  .panel{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:rgba(10,19,38,.5);}
-  .panel h2{font-size:11px;margin:0 0 8px;letter-spacing:.06em;color:#bfe0ff;}
-  .btn{background:rgba(70,150,230,.16);border:1px solid rgba(120,180,240,.4);color:#cfe6ff;
-    border-radius:8px;padding:6px 12px;font:inherit;font-size:12px;cursor:pointer;}
-  .btn:hover{background:rgba(70,150,230,.3);}
-  .btn.hero{background:linear-gradient(90deg,rgba(70,150,230,.3),rgba(70,211,154,.25));font-weight:600;}
+  .panel{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:color-mix(in srgb,var(--surface-alt) 50%,transparent);}
+  .panel h2{font-size:var(--text-xs);margin:0 0 8px;letter-spacing:var(--tracking-caps);color:var(--text-sub);}
+  .btn{font-family:var(--font-mono);font-size:var(--text-xs);}
   .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
-  .mut{color:var(--mut);font-size:11px;}
-  a{color:#7fd4ff;}
-  .badge{display:inline-block;padding:1px 7px;border-radius:6px;font-size:10px;font-weight:600;
-    background:rgba(70,150,230,.18);border:1px solid rgba(120,180,240,.35);color:#bfe0ff;}
-  .badge.live{background:rgba(70,211,154,.16);border-color:rgba(70,211,154,.4);color:#9af0cf;}
-  .badge.sample{background:rgba(255,180,90,.16);border-color:rgba(255,190,110,.4);color:#ffd9a8;}
-  .stat{display:flex;justify-content:space-between;font-size:11px;padding:2px 0;border-bottom:1px solid rgba(120,170,230,.08);}
-  .axis{display:flex;justify-content:space-between;font-size:10px;padding:1px 0;}
-  .tape{font-size:10px;max-height:150px;overflow:auto;}
-  .tape .r{padding:3px 0;border-bottom:1px solid rgba(120,170,230,.08);}
+  .mut{color:var(--mut);font-size:var(--text-xs);}
+  a{color:var(--link);}
+  .badge{display:inline-block;padding:1px 7px;border-radius:6px;font-size:var(--text-xs);font-weight:600;
+    background:color-mix(in srgb,var(--text) 6%,transparent);border:1px solid var(--border);color:var(--text-sub);}
+  .badge.live{background:color-mix(in srgb,var(--color-success) 16%,transparent);border-color:color-mix(in srgb,var(--ink-good) 40%,transparent);color:var(--ink-good);}
+  .badge.sample{background:color-mix(in srgb,var(--color-warning) 16%,transparent);border-color:color-mix(in srgb,var(--ink-warn) 40%,transparent);color:var(--ink-warn);}
+  .stat{display:flex;justify-content:space-between;gap:0;font-size:var(--text-xs);padding:2px 0;background:none;border:0;border-bottom:1px solid var(--border-subtle);border-radius:0;}
+  .axis{display:flex;justify-content:space-between;font-size:var(--text-xs);padding:1px 0;}
+  .tape{font-size:var(--text-xs);max-height:150px;overflow:auto;}
+  .tape .r{padding:3px 0;border-bottom:1px solid var(--border-subtle);}
   .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;}
   @media(max-width:1000px){.grid{grid-template-columns:repeat(2,1fr);}}
   @media(max-width:560px){.grid{grid-template-columns:1fr;}}
@@ -87,15 +96,15 @@
   <div class="stage" style="position:relative">
     <div id="stage" style="position:absolute;inset:0"></div>
     <div class="overlay">
-      <div id="lamBig" class="lam" style="color:#9af0cf">Λ —</div>
+      <div id="lamBig" class="lam" style="color:var(--ink-good)">Λ —</div>
       <div class="lab">ESTATE Λ · Conjecture 1 (&lt;1.0) · trust &lt;100%</div>
     </div>
   </div>
 
   <div class="panel">
     <div class="row">
-      <button class="btn hero" id="signBtn">SIGN A CROSS-SURFACE DECISION → light-flow</button>
-      <button class="btn" id="autoBtn">▶ AUTO DECISION STREAM</button>
+      <button class="btn btn-primary" id="signBtn">SIGN A CROSS-SURFACE DECISION → light-flow</button>
+      <button class="btn btn-secondary" id="autoBtn">▶ AUTO DECISION STREAM</button>
       <span id="status" class="mut">loading the live estate…</span>
     </div>
   </div>
@@ -137,7 +146,7 @@
 (function () {
   var stageEl = document.getElementById("stage");
   if (!window.SZLHolo) {
-    stageEl.innerHTML = '<div style="padding:20px;color:#ffd9a8">SZLHolo kit failed to load.</div>';
+    stageEl.innerHTML = '<div style="padding:20px;color:var(--ink-warn)">SZLHolo kit failed to load.</div>';
     return;
   }
   var caps = window.SZLHolo.capabilities();
@@ -201,7 +210,7 @@
   var seq = ["d1","d2","d3","d4","d5"];
   function fireDecision(){
     seq.forEach(function(e,i){
-      setTimeout(function(){ scene.signPulse(e,{duration:900,color:"#aef6ff"}); }, i*260);
+      setTimeout(function(){ scene.signPulse(e,{duration:900,color:getComputedStyle(document.documentElement).getPropertyValue("--color-silver-100").trim()}); }, i*260);
     });
     addTapeRow();
   }
@@ -229,7 +238,7 @@
     var disp = Math.min(v, 0.999); // Λ < 1.0 always
     scene.setLambda(disp);                 // drive the trust-sphere + global Λ
     estateSphere.lambda = disp;
-    var col = window.SZLHolo.lambdaColor ? window.SZLHolo.lambdaColor(disp) : "#9af0cf";
+    var col = window.SZLHolo.lambdaColor ? window.SZLHolo.lambdaColor(disp) : "var(--ink-good)";
     var big = document.getElementById("lamBig");
     big.textContent = "Λ " + disp.toFixed(3); big.style.color = col;
     var locked = kb.locked8 || {};
@@ -245,7 +254,7 @@
     // trust axes
     var ax = (lam.axes||[]);
     document.getElementById("axes").innerHTML = ax.map(function(a){
-      var ac = window.SZLHolo.lambdaColor ? window.SZLHolo.lambdaColor(1-a.score) : "#9af0cf";
+      var ac = window.SZLHolo.lambdaColor ? window.SZLHolo.lambdaColor(1-a.score) : "var(--ink-good)";
       return '<div class="axis"><span>'+esc(a.name)+'</span><b style="color:'+ac+'">'+(+a.score).toFixed(2)+'</b></div>';
     }).join("") || '<span class="mut">no axes</span>';
     // RESTRAINT tile (R4): frugality rate + cumulative savings + energy saved (honest).
@@ -258,10 +267,10 @@
       if(rt && (rt.frugality_rate!=null || rt.cumulative_joules_saved!=null)){
         var fr=(typeof rt.frugality_rate==="number")?(rt.frugality_rate*100).toFixed(0)+"%":"—";
         rEl.innerHTML =
-          '<div class="stat"><span>frugality rate</span><b style="color:#9af0cf">'+fr+'</b></div>'+
+          '<div class="stat"><span>frugality rate</span><b style="color:var(--ink-good)">'+fr+'</b></div>'+
           '<div class="stat"><span>lines saved</span><b>'+esc(rt.cumulative_lines_saved!=null?rt.cumulative_lines_saved:"—")+'</b></div>'+
           '<div class="stat"><span>tokens saved</span><b>'+esc(rt.cumulative_tokens_saved!=null?Math.round(rt.cumulative_tokens_saved):"—")+'</b></div>'+
-          '<div class="stat"><span>joules saved</span><b style="color:#ffd479">'+esc(rt.cumulative_joules_saved!=null?Math.round(rt.cumulative_joules_saved)+" J":"—")+' <span class="badge '+((String(rt.joules_label).toUpperCase()==="MEASURED")?"live":"sample")+'">'+esc(String(rt.joules_label||"SAMPLE").toUpperCase())+'</span></b></div>'+
+          '<div class="stat"><span>joules saved</span><b style="color:var(--ink-warn)">'+esc(rt.cumulative_joules_saved!=null?Math.round(rt.cumulative_joules_saved)+" J":"—")+' <span class="badge '+((String(rt.joules_label).toUpperCase()==="MEASURED")?"live":"sample")+'">'+esc(String(rt.joules_label||"SAMPLE").toUpperCase())+'</span></b></div>'+
           '<div class="stat"><span>J/token</span><b>'+esc(rt.j_per_token!=null?(+rt.j_per_token).toFixed(4):"—")+' '+esc(String(rt.j_per_token_label||"SAMPLE").toUpperCase())+'</b></div>'+
           '<div class="mut" style="margin-top:6px">less code = fewer tokens = fewer joules. Joules MEASURED only on a live GPU probe, else SAMPLE. Adopts Ponytail (MIT); governed.</div>';
       } else {
@@ -305,7 +314,7 @@
   });
   getJSON("/api/a11oy/v1/constitution/ledger").then(function(ld){
     if(!ld) return;
-    tapeRows.unshift('<div class="r"><span class="dot" style="background:var(--accent)"></span>'+
+    tapeRows.unshift('<div class="r"><span class="dot" style="background:var(--pg-accent)"></span>'+
       'causal ledger <b>'+esc(ld.count||0)+' events</b> <span class="badge live">LIVE · '+esc(ld.status||"ACTIVE")+'</span></div>');
     document.getElementById("tape").innerHTML = tapeRows.join("");
   });

@@ -15,47 +15,61 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="stylesheet" href="/assets/szl/szl-design-system.css" />
+<link rel="stylesheet" href="/assets/szl/szl-console.css" />
+<link rel="icon" type="image/svg+xml" href="/assets/szl/logos/szl_favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/szl/logos/szl_favicon_32.png" />
 <title>a11oy · Determinacy — Local Data Determines Global Truth</title>
 <style>
   :root{
-    --bg:#0a0e14; --panel:#121823; --panel2:#0f141d; --line:#1f2a3a;
-    --ink:#e6edf3; --mut:#8b98a9; --acc:#5ad1c9; --acc2:#7aa2f7;
-    --ok:#3fb950; --warn:#d29922; --err:#f85149; --road:#a371f7;
-  }
+  /* KANCHAY founder tokens (/assets/szl/szl-design-system.css + szl-console.css). Dark operator surface.
+     Legacy names kept as aliases; every value is a founder token. */
+  --panel:var(--surface);
+  --panel2:var(--surface-alt);
+  --line:var(--border);
+  --ink:var(--text);
+  --mut:var(--text-sub);
+  --acc:var(--text);
+  --acc2:var(--link);
+  --ok:var(--ink-good);
+  --warn:var(--ink-warn);
+  --err:var(--ink-bad);
+  --road:var(--ink-info);
+}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);
-       font:14px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+       font:var(--text-base)/var(--leading-normal) var(--font-body)}
   header{padding:18px 22px;border-bottom:1px solid var(--line);
-         background:linear-gradient(180deg,#0d1320,#0a0e14)}
-  h1{margin:0;font-size:19px;letter-spacing:.3px}
-  .sub{color:var(--mut);font-size:12px;margin-top:4px;max-width:980px}
-  .nav{margin-top:10px;display:flex;gap:14px;flex-wrap:wrap;font-size:12px}
+         background:linear-gradient(180deg,var(--surface-alt),var(--bg))}
+  h1{margin:0;font-size:var(--text-lg);letter-spacing:.3px}
+  .sub{color:var(--mut);font-size:var(--text-xs);margin-top:4px;max-width:980px}
+  .nav{margin-top:10px;display:flex;gap:14px;flex-wrap:wrap;font-size:var(--text-xs);position:static;height:auto;padding-inline:0;background:none;-webkit-backdrop-filter:none;backdrop-filter:none;border-bottom:0;z-index:auto;}
   .nav a{color:var(--acc2);text-decoration:none}
   .nav a:hover{text-decoration:underline}
   .wrap{max-width:1080px;margin:0 auto;padding:22px}
   section{margin:0 0 26px}
-  .eyebrow{color:var(--acc);font-size:11px;letter-spacing:.16em;text-transform:uppercase;margin-bottom:6px}
-  h2{font-size:16px;letter-spacing:.3px;margin:0 0 10px;color:var(--ink)}
-  h3{font-size:14px;letter-spacing:.2px;margin:0 0 6px;color:var(--acc)}
+  .eyebrow{color:var(--acc);font-size:var(--text-xs);letter-spacing:.16em;text-transform:uppercase;margin-bottom:6px}
+  h2{font-size:var(--text-base);letter-spacing:.3px;margin:0 0 10px;color:var(--ink)}
+  h3{font-size:var(--text-sm);letter-spacing:.2px;margin:0 0 6px;color:var(--acc)}
   p{margin:0 0 12px}
-  .hook{font-size:26px;line-height:1.35;font-weight:700;letter-spacing:.3px;margin:6px 0 14px}
+  .hook{font-size:var(--text-xl);line-height:1.35;font-weight:700;letter-spacing:.3px;margin:6px 0 14px}
   .hook .em{color:var(--acc)}
-  .lede{font-size:15px;color:#cdd8e6}
+  .lede{font-size:var(--text-base);color:var(--text)}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:0 0 14px}
   .quote{border-left:3px solid var(--acc);background:var(--panel2);padding:12px 16px;
-         border-radius:0 8px 8px 0;color:#cdd8e6;margin:0 0 14px;font-style:normal}
-  .quote.big{font-size:16px;color:var(--ink)}
-  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;
+         border-radius:0 8px 8px 0;color:var(--text);margin:0 0 14px;font-style:normal}
+  .quote.big{font-size:var(--text-base);color:var(--ink)}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:var(--text-xs);
         border:1px solid var(--line);white-space:nowrap}
-  .pill.ok{color:var(--ok);border-color:#163a1f;background:#0e2113}
-  .pill.err{color:var(--err);border-color:#4a1c1c;background:#240f0f}
-  .pill.warn{color:var(--warn);border-color:#3a3015;background:#1f1a0a}
-  .pill.road{color:var(--road);border-color:#2e2147;background:#160f24}
-  .pill.acc{color:var(--acc);border-color:#13403c;background:#0a201e}
-  .pill.live{color:var(--ok);border-color:#163a1f;background:#0e2113}
-  .pill.illus{color:var(--warn);border-color:#3a3015;background:#1f1a0a}
+  .pill.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ink-good) 40%,transparent);background:color-mix(in srgb,var(--ink-good) 14%,transparent)}
+  .pill.err{color:var(--err);border-color:color-mix(in srgb,var(--ink-bad) 40%,transparent);background:color-mix(in srgb,var(--ink-bad) 14%,transparent)}
+  .pill.warn{color:var(--warn);border-color:color-mix(in srgb,var(--ink-warn) 40%,transparent);background:color-mix(in srgb,var(--ink-warn) 14%,transparent)}
+  .pill.road{color:var(--road);border-color:color-mix(in srgb,var(--ink-info) 40%,transparent);background:color-mix(in srgb,var(--ink-info) 14%,transparent)}
+  .pill.acc{color:var(--acc);border-color:var(--border);background:var(--surface-alt)}
+  .pill.live{color:var(--ok);border-color:color-mix(in srgb,var(--ink-good) 40%,transparent);background:color-mix(in srgb,var(--ink-good) 14%,transparent)}
+  .pill.illus{color:var(--warn);border-color:color-mix(in srgb,var(--ink-warn) 40%,transparent);background:color-mix(in srgb,var(--ink-warn) 14%,transparent)}
   a{color:var(--acc2)}
-  code{color:var(--acc2);font-size:12px}
+  code{color:var(--text);font-family:var(--font-mono);font-size:var(--text-xs)}
   .nolive{color:var(--warn)}
   /* viz */
   .vizgrid{display:grid;gap:16px;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)}
@@ -64,14 +78,14 @@
           border:1px solid var(--line);border-radius:10px;touch-action:none}
   .ctrls{display:flex;flex-direction:column;gap:12px}
   .ctrl{display:flex;flex-direction:column;gap:5px}
-  .ctrl label{color:var(--mut);font-size:12px;display:flex;justify-content:space-between}
+  .ctrl label{color:var(--mut);font-size:var(--text-xs);display:flex;justify-content:space-between}
   .ctrl label b{color:var(--ink)}
   input[type=range]{width:100%;accent-color:var(--acc)}
-  .readout{font-size:12.5px;color:#c4d0de;background:var(--panel2);
+  .readout{font-size:var(--text-sm);color:var(--text-sub);background:var(--panel2);
            border:1px solid var(--line);border-radius:8px;padding:10px 12px;line-height:1.7}
   .readout b{color:var(--ink)}
   .readout .conv{color:var(--ok)} .readout .div{color:var(--err)}
-  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--mut);margin-top:8px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:var(--text-xs);color:var(--mut);margin-top:8px}
   .legend .sw{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:middle;margin-right:5px}
   /* bridge */
   .bridge{display:grid;gap:14px;grid-template-columns:1fr 1fr}
@@ -80,26 +94,26 @@
   .col h3{margin-top:0}
   .step{display:flex;gap:10px;align-items:flex-start;margin:0 0 12px}
   .step .n{flex:0 0 22px;height:22px;border-radius:50%;display:flex;align-items:center;
-           justify-content:center;font-size:11px;background:var(--panel2);
+           justify-content:center;font-size:var(--text-xs);background:var(--panel2);
            border:1px solid var(--line);color:var(--acc)}
   .step .t{flex:1}
   .step .t b{color:var(--ink)}
-  .step .t span{color:#c4d0de}
-  .arrow{color:var(--mut);text-align:center;font-size:18px;margin:-4px 0 8px 32px}
-  .live-line{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px}
+  .step .t span{color:var(--text-sub)}
+  .arrow{color:var(--mut);text-align:center;font-size:var(--text-lg);margin:-4px 0 8px 32px}
+  .live-line{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:var(--text-xs)}
   .live-line .v{color:var(--ink);word-break:break-word}
-  .cite{color:var(--mut);font-size:11.5px;margin-top:10px;line-height:1.6}
+  .cite{color:var(--mut);font-size:var(--text-xs);margin-top:10px;line-height:1.6}
   .cite a{color:var(--acc2)}
   .btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
   .btn{display:inline-block;padding:8px 14px;border-radius:8px;border:1px solid var(--line);
-       background:var(--panel2);color:var(--acc2);text-decoration:none;font-size:12.5px}
+       background:var(--panel2);color:var(--acc2);text-decoration:none;font-size:var(--text-sm)}
   .btn:hover{border-color:var(--acc);text-decoration:none}
-  .btn.prime{border-color:#13403c;background:#0a201e;color:var(--acc)}
-  footer{color:var(--mut);font-size:11px;padding:18px 22px;border-top:1px solid var(--line);line-height:1.7}
-  .reflist{font-size:11.5px;color:var(--mut);line-height:1.7}
+  .btn.prime{border-color:var(--border);background:var(--surface-alt);color:var(--acc)}
+  footer{color:var(--mut);font-size:var(--text-xs);padding:18px 22px;border-top:1px solid var(--line);line-height:1.7}
+  .reflist{font-size:var(--text-xs);color:var(--mut);line-height:1.7}
   .reflist li{margin-bottom:5px}
   .reflist a{color:var(--acc2);word-break:break-all}
-  @media(max-width:640px){.hook{font-size:21px}.wrap{padding:16px}}
+  @media(max-width:640px){.hook{font-size:var(--text-lg)}.wrap{padding:16px}}
 </style>
   <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
   <link rel="stylesheet" href="/assets/szl-holo-v2.css" data-szl-holo-asset="style-v2" />
@@ -148,10 +162,10 @@
         <div>
           <canvas id="cv" width="640" height="420"></canvas>
           <div class="legend">
-            <span><span class="sw" style="background:#1f2a3a"></span>unit disk |z| &lt; 1 (series converges)</span>
-            <span><span class="sw" style="background:#5ad1c9"></span>chosen z</span>
-            <span><span class="sw" style="background:#7aa2f7"></span>partial sums S<sub>0</sub>…S<sub>N</sub> (real)</span>
-            <span><span class="sw" style="background:#3fb950"></span>global value 1/(1&minus;z)</span>
+            <span><span class="sw" style="background:color-mix(in srgb,var(--color-silver-500) 45%,transparent);border:1px solid var(--color-silver-300)"></span>unit disk |z| &lt; 1 (series converges)</span>
+            <span><span class="sw" style="background:var(--accent)"></span>chosen z</span>
+            <span><span class="sw" style="background:var(--color-info)"></span>partial sums S<sub>0</sub>…S<sub>N</sub> (real)</span>
+            <span><span class="sw" style="background:var(--ink-good)"></span>global value 1/(1&minus;z)</span>
           </div>
         </div>
         <div class="ctrls">
@@ -168,7 +182,7 @@
             <input type="range" id="imRange" min="-150" max="150" value="30"/>
           </div>
           <div class="readout" id="readout">computing…</div>
-          <p style="font-size:11.5px;color:var(--mut);margin:0">Tip: pick a <b>z</b> outside the disk — the
+          <p style="font-size:var(--text-xs);color:var(--mut);margin:0">Tip: pick a <b>z</b> outside the disk — the
           partial sums diverge (the series has nothing to say), but <code>1/(1&minus;z)</code> still returns the
           single value the global function is forced to take there. That value is not invented; it is
           <b>determined</b> by the local data through the structure.</p>
@@ -305,6 +319,8 @@
 
   var cv = document.getElementById('cv');
   var ctx = cv.getContext('2d');
+  // Canvas cannot read CSS variables: resolve the KANCHAY founder tokens at draw time.
+  var tk = function (n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); };
   var W = cv.width, H = cv.height;
   // complex-plane window: Re,Im in [-2.6, 2.6]; scale so the unit disk is generous.
   var SPAN = 2.6;
@@ -315,14 +331,14 @@
   function draw(z, N){
     ctx.clearRect(0, 0, W, H);
     // grid
-    ctx.strokeStyle = '#16202e'; ctx.lineWidth = 1;
+    ctx.strokeStyle = tk('--surface-raised'); ctx.lineWidth = 1;
     for(var g=-2; g<=2; g++){
       var px = toPx([g, 0]), py = toPx([0, g]);
       ctx.beginPath(); ctx.moveTo(px[0], 0); ctx.lineTo(px[0], H); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(0, py[1]); ctx.lineTo(W, py[1]); ctx.stroke();
     }
     // axes
-    ctx.strokeStyle = '#26344a'; ctx.lineWidth = 1.2;
+    ctx.strokeStyle = tk('--border'); ctx.lineWidth = 1.2;
     var o = toPx([0,0]);
     ctx.beginPath(); ctx.moveTo(0, o[1]); ctx.lineTo(W, o[1]); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(o[0], 0); ctx.lineTo(o[0], H); ctx.stroke();
@@ -330,13 +346,13 @@
     var c = toPx([0,0]);
     var rpx = (1 / (2*SPAN)) * W;
     ctx.beginPath(); ctx.arc(c[0], c[1], rpx, 0, Math.PI*2);
-    ctx.fillStyle = 'rgba(31,42,58,0.55)'; ctx.fill();
-    ctx.strokeStyle = '#334a5a'; ctx.lineWidth = 1.4; ctx.stroke();
+    ctx.globalAlpha = 0.45; ctx.fillStyle = tk('--color-silver-500'); ctx.fill(); ctx.globalAlpha = 1;
+    ctx.strokeStyle = tk('--color-silver-300'); ctx.lineWidth = 1.4; ctx.stroke();
     // pole at z = 1
     var pole = toPx([1,0]);
-    ctx.fillStyle = '#f85149';
+    ctx.fillStyle = tk('--ink-bad');
     ctx.beginPath(); ctx.arc(pole[0], pole[1], 4, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#f85149'; ctx.font = '11px ui-monospace,monospace';
+    ctx.fillStyle = tk('--ink-bad'); ctx.font = '12px ' + tk('--font-mono');
     ctx.fillText('pole z=1', pole[0]+7, pole[1]-6);
 
     // We plot, in the VALUE plane overlaid on the same axes, the trajectory of the
@@ -345,7 +361,7 @@
     var gv = globalValue(z);
 
     // partial-sum trajectory
-    ctx.strokeStyle = 'rgba(122,162,247,0.55)'; ctx.lineWidth = 1.4;
+    ctx.strokeStyle = tk('--color-info'); ctx.lineWidth = 1.4;
     ctx.beginPath();
     for(var i=0; i<sums.length; i++){
       var p = toPx(sums[i]);
@@ -354,20 +370,20 @@
     ctx.stroke();
     for(var j=0; j<sums.length; j++){
       var pp = toPx(sums[j]);
-      ctx.fillStyle = 'rgba(122,162,247,0.9)';
+      ctx.fillStyle = tk('--ink-info');
       ctx.beginPath(); ctx.arc(pp[0], pp[1], j===sums.length-1?3.4:1.8, 0, Math.PI*2); ctx.fill();
     }
     // chosen z marker
     var zp = toPx(z);
-    ctx.fillStyle = '#5ad1c9';
+    ctx.fillStyle = tk('--accent');
     ctx.beginPath(); ctx.arc(zp[0], zp[1], 4.5, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#5ad1c9'; ctx.fillText('z', zp[0]+7, zp[1]-6);
+    ctx.fillStyle = tk('--accent'); ctx.fillText('z', zp[0]+7, zp[1]-6);
     // global value marker
     if(gv){
       var gp = toPx(gv);
-      ctx.fillStyle = '#3fb950';
+      ctx.fillStyle = tk('--ink-good');
       ctx.beginPath(); ctx.arc(gp[0], gp[1], 4.5, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = '#3fb950'; ctx.fillText('1/(1-z)', gp[0]+7, gp[1]+14);
+      ctx.fillStyle = tk('--ink-good'); ctx.fillText('1/(1-z)', gp[0]+7, gp[1]+14);
     }
     return { sums: sums, gv: gv };
   }

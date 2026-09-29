@@ -3,34 +3,45 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link rel="stylesheet" href="/assets/szl/szl-design-system.css" />
+<link rel="stylesheet" href="/assets/szl/szl-console.css" />
+<link rel="icon" type="image/svg+xml" href="/assets/szl/logos/szl_favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/szl/logos/szl_favicon_32.png" />
 <title>a11oy — Fleet Health &amp; Governed C2 · SZL Holdings</title>
 <meta name="description" content="Live 3D fleet picture (real ADS-B mil air + AIS vessels) with subsystem health inferred from telemetry, Λ-gate hack/spoof detection, and a governed command console. Governance loop is real; effector link is a labeled command demonstration."/>
 <script src="/vendor/three.min.js"></script>
 <script src="/vendor/globe.gl.min.js"></script>
-<!-- SOVEREIGN: 0 runtime CDN. Fonts self-hosted in-image, served same-origin at
-     /vendor/fonts/*.woff2 (SAME pattern as the clean console). NO external font CDN. -->
-<style>
-@font-face{font-family:'Space Grotesk';font-style:normal;font-weight:300 700;font-display:swap;src:url('/vendor/fonts/SpaceGrotesk.woff2') format('woff2');}
-@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400 500;font-display:swap;src:url('/vendor/fonts/JetBrainsMono.woff2') format('woff2');}
-</style>
+<!-- SOVEREIGN: 0 runtime CDN. No webfonts: KANCHAY founder system-font stacks
+     (--font-body / --font-mono) from /assets/szl/szl-design-system.css. -->
 <style>
 :root{
-  --ground:#0a0a0a; --panel:#0e0e0e; --panel2:#080808; --rail:#0b0b0b;
-  --gold:#c9b787; --gold-bright:#d6c69a;
-  --teal:#5fb3a3; --teal-soft:rgba(95,179,163,0.10);
-  --cream:#f5f5f5; --paragraph:#9a9a9a; --muted:#888; --dim:#555;
-  --gold-line:rgba(201,183,135,0.15); --gold-soft:rgba(201,183,135,0.04);
-  --teal-line:rgba(95,179,163,0.22);
-  --live:#5a8a6e; --err:#b06a5a; --warn:#c9a05f;
-  --green:#39d98a; --yellow:#f5c451; --red:#ff6a5a; --blue:#5bc8ff;
-  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,monospace;
-  --display:'Space Grotesk',Georgia,serif;
+  /* KANCHAY founder tokens (/assets/szl/szl-design-system.css + szl-console.css). Dark operator surface.
+     Legacy names kept as aliases; every value is a founder token. */
+  --ground:var(--bg);
+  --panel:var(--surface);
+  --gold:var(--text-sub);
+  --teal:var(--text);
+  --teal-soft:color-mix(in srgb,var(--text) 6%,transparent);
+  --cream:var(--text);
+  --paragraph:var(--text-sub);
+  --muted:var(--text-sub);
+  --dim:var(--text-sub);
+  --gold-line:var(--border);
+  --gold-soft:color-mix(in srgb,var(--text) 6%,transparent);
+  --teal-line:var(--border);
+  --live:var(--ink-good);
+  --warn:var(--ink-warn);
+  --green:var(--ink-good);
+  --yellow:var(--ink-warn);
+  --red:var(--ink-bad);
+  --mono:var(--font-mono);
+  --display:var(--font-display);
 }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;background:var(--ground);color:var(--cream);font-family:var(--display);-webkit-font-smoothing:antialiased;}
 .mono{font-family:var(--mono);}
 a{color:inherit;text-decoration:none;}
-.topbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;padding:.5rem 1.1rem;background:rgba(10,10,10,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--gold-line);font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);}
+.topbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;padding:.5rem 1.1rem;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--gold-line);font-family:var(--mono);font-size:var(--text-xs);letter-spacing:.1em;text-transform:uppercase;color:var(--gold);}
 .topbar .sep{color:var(--dim);}
 .topbar .live{display:inline-flex;align-items:center;gap:.4rem;color:var(--cream);}
 .live-dot{width:6px;height:6px;border-radius:50%;background:var(--live);box-shadow:0 0 6px var(--live);animation:pulse 2.2s ease-in-out infinite;}
@@ -38,36 +49,36 @@ a{color:inherit;text-decoration:none;}
 .switcher{margin-left:auto;display:flex;align-items:center;gap:.3rem;}
 .flag{padding:.22rem .55rem;border-radius:6px;border:1px solid transparent;color:var(--muted);transition:.15s;}
 .flag:hover{color:var(--cream);border-color:var(--gold-line);background:var(--gold-soft);}
-.flag.active{color:var(--ground);background:var(--gold);border-color:var(--gold);font-weight:600;}
+.flag.active{color:var(--text);background:color-mix(in srgb,var(--text) 8%,transparent);border-color:var(--border);box-shadow:inset 0 -2px 0 var(--accent);font-weight:600;}
 .wrap{max-width:1320px;margin:0 auto;padding:1.6rem 1.4rem 4rem;}
-h1{font-size:1.7rem;font-weight:600;margin:.2rem 0 .3rem;letter-spacing:-.01em;}
-.badge{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--teal);border:1px solid var(--teal-line);background:var(--teal-soft);padding:.25rem .6rem;border-radius:5px;margin-left:.4rem;vertical-align:middle;}
-.lede{color:var(--paragraph);font-size:.95rem;line-height:1.65;max-width:1180px;margin:.6rem 0 1rem;}
+h1{font-size:var(--text-xl);font-weight:600;margin:.2rem 0 .3rem;letter-spacing:-.01em;}
+.badge{display:inline-block;font-family:var(--mono);font-size:var(--text-xs);letter-spacing:.08em;text-transform:uppercase;color:var(--teal);border:1px solid var(--teal-line);background:var(--teal-soft);padding:.25rem .6rem;border-radius:5px;margin-left:.4rem;vertical-align:middle;}
+.lede{color:var(--paragraph);font-size:var(--text-base);line-height:1.65;max-width:1180px;margin:.6rem 0 1rem;}
 .lede b{color:var(--cream);font-weight:600;}
-.econ{border:1px solid var(--gold-line);background:var(--gold-soft);border-radius:8px;padding:.7rem 1rem;margin:.4rem 0 1.2rem;font-family:var(--mono);font-size:12px;color:var(--paragraph);line-height:1.7;}
-.econ .k{color:var(--gold);text-transform:uppercase;letter-spacing:.08em;font-size:10px;}
+.econ{border:1px solid var(--gold-line);background:var(--gold-soft);border-radius:8px;padding:.7rem 1rem;margin:.4rem 0 1.2rem;font-family:var(--mono);font-size:var(--text-xs);color:var(--paragraph);line-height:1.7;}
+.econ .k{color:var(--gold);text-transform:uppercase;letter-spacing:.08em;font-size:var(--text-xs);}
 .econ .hi{color:var(--teal);}
 .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;margin:0 0 1.2rem;}
 .card{border:1px solid var(--gold-line);background:var(--panel);border-radius:8px;padding:.85rem 1rem;}
-.card .lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);}
-.card .big{font-size:1.5rem;font-weight:600;margin:.35rem 0 .15rem;color:var(--teal);}
-.card .sub{font-family:var(--mono);font-size:10.5px;color:var(--muted);}
+.card .lbl{font-family:var(--mono);font-size:var(--text-xs);letter-spacing:.1em;text-transform:uppercase;color:var(--dim);}
+.card .big{font-size:var(--text-xl);font-weight:600;margin:.35rem 0 .15rem;color:var(--teal);}
+.card .sub{font-family:var(--mono);font-size:var(--text-xs);color:var(--muted);}
 .grid2{display:grid;grid-template-columns:1.15fr .85fr;gap:1rem;}
 .panel{border:1px solid var(--gold-line);background:var(--panel);border-radius:10px;padding:1rem 1.1rem;}
-.panel h2{font-size:1.05rem;font-weight:600;margin:0 0 .2rem;display:flex;align-items:center;justify-content:space-between;}
-.panel h2 .meta{font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;}
-.globe3d{width:100%;height:480px;border:1px solid var(--gold-line);border-radius:8px;margin-top:.6rem;background:#05070c;overflow:hidden;}
-.legend{display:flex;gap:1rem;flex-wrap:wrap;font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:.5rem;}
+.panel h2{font-size:var(--text-base);font-weight:600;margin:0 0 .2rem;display:flex;align-items:center;justify-content:space-between;}
+.panel h2 .meta{font-family:var(--mono);font-size:var(--text-xs);color:var(--dim);text-transform:uppercase;letter-spacing:.06em;}
+.globe3d{width:100%;height:480px;border:1px solid var(--gold-line);border-radius:8px;margin-top:.6rem;background:var(--bg-deep);overflow:hidden;}
+.legend{display:flex;gap:1rem;flex-wrap:wrap;font-family:var(--mono);font-size:var(--text-xs);color:var(--muted);margin-top:.5rem;}
 .legend .d{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:.35rem;vertical-align:middle;}
-.assetbox{min-height:120px;border:1px dashed var(--gold-line);border-radius:8px;padding:.8rem 1rem;margin-top:.6rem;font-family:var(--mono);font-size:12px;color:var(--paragraph);line-height:1.7;}
-.simnote{border:1px solid var(--warn);background:rgba(201,160,95,.06);border-radius:8px;padding:.7rem .9rem;margin-top:.8rem;font-family:var(--mono);font-size:11px;color:#d8c39a;line-height:1.65;}
+.assetbox{min-height:120px;border:1px dashed var(--gold-line);border-radius:8px;padding:.8rem 1rem;margin-top:.6rem;font-family:var(--mono);font-size:var(--text-xs);color:var(--paragraph);line-height:1.7;}
+.simnote{border:1px solid var(--warn);background:color-mix(in srgb,var(--color-warning) 6%,transparent);border-radius:8px;padding:.7rem .9rem;margin-top:.8rem;font-family:var(--mono);font-size:var(--text-xs);color:var(--ink-warn);line-height:1.65;}
 .simnote b{color:var(--warn);}
 .cmdrow{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.7rem;}
-button{font-family:var(--mono);font-size:11.5px;color:var(--cream);background:#141414;border:1px solid var(--gold-line);border-radius:6px;padding:.5rem .8rem;cursor:pointer;transition:.15s;}
+button{font-family:var(--mono);font-size:var(--text-xs);color:var(--cream);background:var(--surface-alt);border:1px solid var(--gold-line);border-radius:6px;padding:.5rem .8rem;cursor:pointer;transition:.15s;}
 button:hover{border-color:var(--teal-line);background:var(--teal-soft);}
-select,input{font-family:var(--mono);font-size:11.5px;color:var(--cream);background:#0d0d0d;border:1px solid var(--gold-line);border-radius:6px;padding:.45rem .6rem;}
-.receipt{margin-top:.7rem;font-family:var(--mono);font-size:11px;color:var(--paragraph);white-space:pre-wrap;word-break:break-all;line-height:1.6;border-top:1px solid var(--gold-line);padding-top:.6rem;}
-.footnote{margin-top:1.6rem;font-family:var(--mono);font-size:10.5px;color:var(--muted);line-height:1.7;border-top:1px solid var(--gold-line);padding-top:.9rem;}
+select,input{font-family:var(--mono);font-size:var(--text-xs);color:var(--cream);background:var(--bg);border:1px solid var(--gold-line);border-radius:6px;padding:.45rem .6rem;}
+.receipt{display:block;margin-top:.7rem;font-family:var(--mono);font-size:var(--text-xs);color:var(--paragraph);white-space:pre-wrap;word-break:break-all;line-height:1.6;background:none;border:0;border-top:1px solid var(--gold-line);border-radius:0;padding:.6rem 0 0;}
+.footnote{margin-top:1.6rem;font-family:var(--mono);font-size:var(--text-xs);color:var(--muted);line-height:1.7;border-top:1px solid var(--gold-line);padding-top:.9rem;}
 .footnote b{color:var(--cream);}
 @media(max-width:980px){.cards{grid-template-columns:repeat(2,1fr);}.grid2{grid-template-columns:1fr;}}
 </style>
@@ -125,6 +136,8 @@ select,input{font-family:var(--mono);font-size:11.5px;color:var(--cream);backgro
   </div>
 </div>
 <script>
+// globe.gl / three.js cannot read CSS variables: resolve the KANCHAY founder tokens.
+const TK=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const KC="https://szlholdings-killinchu.hf.space/api/killinchu";
 const A="/api/a11oy";
 const $=id=>document.getElementById(id);
@@ -149,7 +162,7 @@ function inferShipHealth(v){
   if(v.cog!=null && (v.cog<0||v.cog>360))flags.push('invalid COG');
   return flags;
 }
-function healthColor(flags){return flags.length===0?'#39d98a':(flags.length===1?'#f5c451':'#ff6a5a');}
+function healthColor(flags){return flags.length===0?TK('--ink-good'):(flags.length===1?TK('--ink-warn'):TK('--ink-bad'));}
 
 let GLOBE=null, POINTS=[];
 async function load(){
@@ -185,12 +198,12 @@ function renderGlobe(){
   if(!GLOBE){
     GLOBE=Globe()(host)
       .globeImageUrl('/vendor/earth-night.jpg')
-      .backgroundColor('#05070c')
-      .showAtmosphere(true).atmosphereColor('#5fb3a3').atmosphereAltitude(0.12)
+      .backgroundColor(TK('--bg-deep'))
+      .showAtmosphere(true).atmosphereColor(TK('--color-silver-300')).atmosphereAltitude(0.12)
       .pointAltitude(d=>0.01+Math.min(d.alt/120000,0.18))
       .pointColor(d=>d.color)
       .pointRadius(d=>d.kind==='AIR'?0.32:0.26)
-      .pointLabel(d=>`<div style="font-family:monospace;font-size:11px;color:#f5f5f5;background:#0a0a0a;border:1px solid #c9b78733;padding:4px 7px;border-radius:5px">${esc(d.kind)} ${esc(d.id)}<br/>health: ${d.flags.length?esc(d.flags.join('; ')):'nominal (inferred)'}</div>`)
+      .pointLabel(d=>`<div style="font-family:var(--font-mono);font-size:var(--text-xs);color:var(--text);background:var(--bg);border:1px solid var(--border);padding:4px 7px;border-radius:5px">${esc(d.kind)} ${esc(d.id)}<br/>health: ${d.flags.length?esc(d.flags.join('; ')):'nominal (inferred)'}</div>`)
       .onPointClick(d=>selectAsset(d));
     try{GLOBE.controls().autoRotate=true;GLOBE.controls().autoRotateSpeed=0.35;}catch(e){}
     setTimeout(()=>{try{const w=host.clientWidth,h=host.clientHeight;GLOBE.width(w).height(h);}catch(e){}},120);
@@ -201,11 +214,11 @@ let SELECTED=null;
 function selectAsset(d){
   SELECTED=d;
   const r=d.raw;
-  let rows=[`<b style="color:#f5f5f5">${esc(d.kind)} — ${esc(d.id)}</b>`,
+  let rows=[`<b style="color:var(--text)">${esc(d.kind)} — ${esc(d.id)}</b>`,
     `position: ${(+r.lat).toFixed(3)}, ${(+r.lon).toFixed(3)}`];
   if(d.kind==='AIR'){rows.push(`alt_baro: ${r.alt_baro??'—'} ft · gs: ${r.gs??'—'} kt · track: ${r.track??'—'}° · squawk: ${r.squawk??'—'}`);}
   else{rows.push(`SOG: ${r.sog??'—'} kn · COG: ${r.cog??'—'}° · heading: ${r.heading??'—'}° · MMSI: ${r.mmsi??'—'}`);}
-  const col=d.flags.length?'#f5c451':'#39d98a';
+  const col=d.flags.length?'var(--ink-warn)':'var(--ink-good)';
   rows.push(`<span style="color:${col}">health (inferred from telemetry): ${d.flags.length?esc(d.flags.join('; ')):'nominal'}</span>`);
   $('assetbox').innerHTML=rows.join('<br/>');
 }

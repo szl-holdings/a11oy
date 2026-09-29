@@ -19,38 +19,48 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/assets/szl/szl-design-system.css" />
+<link rel="stylesheet" href="/assets/szl/szl-console.css" />
+<link rel="icon" type="image/svg+xml" href="/assets/szl/logos/szl_favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/szl/logos/szl_favicon_32.png" />
 <title>SZL · GPU-Quant Landscape</title>
 <style>
-  :root{--bg:#03060d;--panel:#0a1326;--ink:#cfe6ff;--mut:#86a4c9;--line:rgba(120,170,230,.18);
-        --ok:#46d39a;--warn:#ffcf5c;--bad:#ff6b6b;--accent:#7fd4ff;}
+  :root{
+  /* KANCHAY founder tokens (/assets/szl/szl-design-system.css + szl-console.css). Dark operator surface.
+     Legacy names kept as aliases; every value is a founder token. */
+  --ink:var(--text);
+  --mut:var(--text-sub);
+  --line:var(--border);
+  --ok:var(--ink-good);
+  --warn:var(--ink-warn);
+  --bad:var(--ink-bad);
+}
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
-    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+    font-family:var(--font-body);}
   header{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;
     align-items:center;gap:14px;flex-wrap:wrap;}
-  header h1{font-size:15px;margin:0;letter-spacing:.06em;font-weight:600;}
-  header .sub{font-size:11px;color:var(--mut);}
+  header h1{font-size:var(--text-base);margin:0;letter-spacing:.06em;font-weight:600;}
+  header .sub{font-size:var(--text-xs);color:var(--mut);}
   .wrap{display:grid;grid-template-columns:1fr;gap:14px;padding:16px 20px;max-width:1280px;margin:0 auto;}
   .stage{height:58vh;min-height:380px;border:1px solid var(--line);border-radius:14px;overflow:hidden;
-    box-shadow:0 0 60px rgba(40,90,160,.12) inset;}
+    box-shadow:0 0 60px color-mix(in srgb,var(--color-space-600) 40%,transparent) inset;}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
   .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
-  .panel{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:rgba(10,19,38,.5);}
-  .panel h2{font-size:12px;margin:0 0 8px;letter-spacing:.06em;color:#bfe0ff;}
-  .btn{background:rgba(70,150,230,.16);border:1px solid rgba(120,180,240,.4);color:#cfe6ff;
-    border-radius:8px;padding:6px 12px;font:inherit;font-size:12px;cursor:pointer;}
-  .btn:hover{background:rgba(70,150,230,.3);}
+  .panel{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:color-mix(in srgb,var(--surface-alt) 50%,transparent);}
+  .panel h2{font-size:var(--text-xs);margin:0 0 8px;letter-spacing:var(--tracking-caps);color:var(--text-sub);}
+  .btn{font-family:var(--font-mono);font-size:var(--text-xs);}
   .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
-  .mut{color:var(--mut);font-size:11px;}
-  a{color:#7fd4ff;}
-  .badge{display:inline-block;padding:1px 7px;border-radius:6px;font-size:10px;font-weight:600;
-    background:rgba(255,180,90,.16);border:1px solid rgba(255,190,110,.4);color:#ffd9a8;}
-  .badge.no{background:rgba(255,107,107,.15);border-color:rgba(255,120,120,.4);color:#ffb3b3;}
+  .mut{color:var(--mut);font-size:var(--text-xs);}
+  a{color:var(--link);}
+  .badge{display:inline-block;padding:1px 7px;border-radius:6px;font-size:var(--text-xs);font-weight:600;
+    background:color-mix(in srgb,var(--color-warning) 16%,transparent);border:1px solid color-mix(in srgb,var(--ink-warn) 40%,transparent);color:var(--ink-warn);}
+  .badge.no{background:color-mix(in srgb,var(--color-error) 15%,transparent);border-color:color-mix(in srgb,var(--ink-bad) 40%,transparent);color:var(--ink-bad);}
   .kbar{height:14px;margin:2px 0;border-radius:3px;position:relative;}
-  .big{font-size:22px;font-weight:700;}
-  pre{white-space:pre-wrap;word-break:break-word;font-size:10px;color:#9fc4ea;max-height:200px;overflow:auto;
-    background:rgba(3,8,18,.6);border:1px solid var(--line);border-radius:8px;padding:8px;}
-  .stat{display:flex;justify-content:space-between;font-size:11px;padding:2px 0;border-bottom:1px solid rgba(120,170,230,.08);}
+  .big{font-size:var(--text-lg);font-weight:700;}
+  pre{white-space:pre-wrap;word-break:break-word;font-size:var(--text-xs);color:var(--text-sub);font-family:var(--font-mono);max-height:200px;overflow:auto;
+    background:color-mix(in srgb,var(--bg) 60%,transparent);border:1px solid var(--line);border-radius:8px;padding:8px;}
+  .stat{display:flex;justify-content:space-between;gap:0;font-size:var(--text-xs);padding:2px 0;background:none;border:0;border-bottom:1px solid var(--border-subtle);border-radius:0;}
   @media(max-width:900px){.grid2,.grid3{grid-template-columns:1fr;}}
 </style>
   <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
@@ -80,8 +90,8 @@
 
   <div class="panel">
     <div class="row">
-      <button class="btn" id="rebalBtn">▶ HJB-KELLY REBALANCE</button>
-      <button class="btn" id="fractureBtn">SIMULATE FRACTURE (illustrative)</button>
+      <button class="btn btn-primary" id="rebalBtn">▶ HJB-KELLY REBALANCE</button>
+      <button class="btn btn-secondary" id="fractureBtn">SIMULATE FRACTURE (illustrative)</button>
       <span id="fstatus" class="mut">loading live quant signal…</span>
     </div>
   </div>
@@ -130,7 +140,7 @@
   var API = "/api/a11oy/v1/quant/";
   var stageEl = document.getElementById("stage");
   if (!window.SZLHolo) {
-    stageEl.innerHTML = '<div style="padding:20px;color:#ffd9a8">SZLHolo kit failed to load.</div>';
+    stageEl.innerHTML = '<div style="padding:20px;color:var(--ink-warn)">SZLHolo kit failed to load.</div>';
     return;
   }
   var caps = window.SZLHolo.capabilities();
@@ -145,7 +155,7 @@
 
   function getJSON(path){ return fetch(API+path).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}); }
   function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c];});}
-  function lamColor(l){ return window.SZLHolo.lambdaColor ? window.SZLHolo.lambdaColor(l) : "#7fd4ff"; }
+  function lamColor(l){ return window.SZLHolo.lambdaColor ? window.SZLHolo.lambdaColor(l) : "var(--text)"; }
 
   // ---- PCA: build the risk landscape from eigenvalues ----
   getJSON("pca").then(function(pc){
@@ -211,8 +221,8 @@
       ' · γ='+esc(kl.gamma)+' · σ-inflation '+esc(kl.sigma_eff_inflation)+'</div>' +
       kellyW.map(function(w,i){
         var pct = Math.abs(w)/maxw*100;
-        var col = w>=0 ? "linear-gradient(90deg,rgba(70,211,154,.25),rgba(70,211,154,.6))"
-                       : "linear-gradient(90deg,rgba(255,107,107,.25),rgba(255,107,107,.6))";
+        var col = w>=0 ? "linear-gradient(90deg,color-mix(in srgb,var(--ink-good) 25%,transparent),color-mix(in srgb,var(--ink-good) 60%,transparent))"
+                       : "linear-gradient(90deg,color-mix(in srgb,var(--ink-bad) 25%,transparent),color-mix(in srgb,var(--ink-bad) 60%,transparent))";
         return '<div class="kbar" data-i="'+i+'" style="width:'+pct.toFixed(0)+'%;background:'+col+'"></div>';
       }).join("");
     el.innerHTML += '<div class="mut" style="margin-top:6px">w* = (μ−r)/σ²  (TDA-augmented variance). Long = green, short = red.</div>';
@@ -225,7 +235,7 @@
       b.style.width = Math.max(4, Math.min(100, cur*(0.6+Math.random()*0.8))).toFixed(0)+"%";
     });
     // pulse the landscape to show capital re-flow
-    if(landscape.nodes.length>2){ scene.signPulse(0,{duration:1000,color:"#aef6ff"}); }
+    if(landscape.nodes.length>2){ scene.signPulse(0,{duration:1000,color:getComputedStyle(document.documentElement).getPropertyValue("--color-silver-100").trim()}); }
   });
   document.getElementById("fractureBtn").addEventListener("click", function(){
     var td = window.__SZL_TDA || {beta1_cur:23, fracture_score_f_t:0};

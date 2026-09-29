@@ -13,59 +13,73 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="stylesheet" href="/assets/szl/szl-design-system.css" />
+<link rel="stylesheet" href="/assets/szl/szl-console.css" />
+<link rel="icon" type="image/svg+xml" href="/assets/szl/logos/szl_favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/szl/logos/szl_favicon_32.png" />
 <title>a11oy · Defense Readiness</title>
 <style>
   :root{
-    --bg:#0a0e14; --panel:#121823; --panel2:#0f141d; --line:#1f2a3a;
-    --ink:#e6edf3; --mut:#8b98a9; --acc:#5ad1c9; --acc2:#7aa2f7;
-    --ok:#3fb950; --warn:#d29922; --err:#f85149; --road:#a371f7;
-  }
+  /* KANCHAY founder tokens (/assets/szl/szl-design-system.css + szl-console.css). Dark operator surface.
+     Legacy names kept as aliases; every value is a founder token. */
+  --panel:var(--surface);
+  --panel2:var(--surface-alt);
+  --line:var(--border);
+  --ink:var(--text);
+  --mut:var(--text-sub);
+  --acc:var(--text);
+  --acc2:var(--link);
+  --ok:var(--ink-good);
+  --warn:var(--ink-warn);
+  --err:var(--ink-bad);
+  --road:var(--ink-info);
+}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);
-       font:14px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+       font:var(--text-base)/var(--leading-normal) var(--font-body)}
   header{padding:18px 22px;border-bottom:1px solid var(--line);
-         background:linear-gradient(180deg,#0d1320,#0a0e14)}
-  h1{margin:0;font-size:19px;letter-spacing:.3px}
-  .sub{color:var(--mut);font-size:12px;margin-top:4px;max-width:980px}
-  .nav{margin-top:10px;display:flex;gap:14px;flex-wrap:wrap;font-size:12px}
+         background:linear-gradient(180deg,var(--surface-alt),var(--bg))}
+  h1{margin:0;font-size:var(--text-lg);letter-spacing:.3px}
+  .sub{color:var(--mut);font-size:var(--text-xs);margin-top:4px;max-width:980px}
+  .nav{margin-top:10px;display:flex;gap:14px;flex-wrap:wrap;font-size:var(--text-xs);position:static;height:auto;padding-inline:0;background:none;-webkit-backdrop-filter:none;backdrop-filter:none;border-bottom:0;z-index:auto;}
   .nav a{color:var(--acc2);text-decoration:none}
   .nav a:hover{text-decoration:underline}
   .wrap{max-width:1080px;margin:0 auto;padding:22px}
   section{margin:0 0 26px}
-  .eyebrow{color:var(--acc);font-size:11px;letter-spacing:.16em;text-transform:uppercase;margin-bottom:6px}
-  h2{font-size:16px;letter-spacing:.3px;margin:0 0 10px}
-  h3{font-size:14px;letter-spacing:.2px;margin:0 0 6px;color:var(--acc)}
+  .eyebrow{color:var(--acc);font-size:var(--text-xs);letter-spacing:.16em;text-transform:uppercase;margin-bottom:6px}
+  h2{font-size:var(--text-base);letter-spacing:.3px;margin:0 0 10px}
+  h3{font-size:var(--text-sm);letter-spacing:.2px;margin:0 0 6px;color:var(--acc)}
   p{margin:0 0 12px}
-  .lede{font-size:15px;color:#cdd8e6}
+  .lede{font-size:var(--text-base);color:var(--text)}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:0 0 14px}
-  .quote{border-left:3px solid var(--acc);background:var(--panel2);padding:12px 16px;border-radius:0 8px 8px 0;color:#cdd8e6;margin:0 0 14px}
-  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;border:1px solid var(--line);white-space:nowrap}
-  .pill.ok,.pill.live{color:var(--ok);border-color:#163a1f;background:#0e2113}
-  .pill.err{color:var(--err);border-color:#4a1c1c;background:#240f0f}
-  .pill.warn{color:var(--warn);border-color:#3a3015;background:#1f1a0a}
-  .pill.road{color:var(--road);border-color:#2e2147;background:#160f24}
-  .pill.acc{color:var(--acc);border-color:#13403c;background:#0a201e}
-  .pill.modeled{color:var(--warn);border-color:#3a3015;background:#1f1a0a}
+  .quote{border-left:3px solid var(--color-silver-500);background:var(--panel2);padding:12px 16px;border-radius:0 8px 8px 0;color:var(--text);margin:0 0 14px}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:var(--text-xs);border:1px solid var(--line);white-space:nowrap}
+  .pill.ok,.pill.live{color:var(--ok);border-color:color-mix(in srgb,var(--ink-good) 40%,transparent);background:color-mix(in srgb,var(--ink-good) 14%,transparent)}
+  .pill.err{color:var(--err);border-color:color-mix(in srgb,var(--ink-bad) 40%,transparent);background:color-mix(in srgb,var(--ink-bad) 14%,transparent)}
+  .pill.warn{color:var(--warn);border-color:color-mix(in srgb,var(--ink-warn) 40%,transparent);background:color-mix(in srgb,var(--ink-warn) 14%,transparent)}
+  .pill.road{color:var(--road);border-color:color-mix(in srgb,var(--ink-info) 40%,transparent);background:color-mix(in srgb,var(--ink-info) 14%,transparent)}
+  .pill.acc{color:var(--acc);border-color:var(--border);background:var(--surface-alt)}
+  .pill.modeled{color:var(--warn);border-color:color-mix(in srgb,var(--ink-warn) 40%,transparent);background:color-mix(in srgb,var(--ink-warn) 14%,transparent)}
   .grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(330px,1fr))}
   .path{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column}
   .path .head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:6px}
   .path h3{margin:2px 0 2px}
-  .path .org{color:var(--mut);font-size:11px;letter-spacing:.05em}
-  .path .body{color:#c4d0de;flex:1;margin-top:8px}
-  .path .fit{margin-top:10px;font-size:12.5px}
+  .path .org{color:var(--mut);font-size:var(--text-xs);letter-spacing:.05em}
+  .path .body{color:var(--text-sub);flex:1;margin-top:8px}
+  .path .fit{margin-top:10px;font-size:var(--text-sm)}
   .path .fit b{color:var(--ink)}
-  .path .surface{margin-top:10px;padding-top:10px;border-top:1px dotted #1a2435;font-size:12px}
-  .live-line{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px}
+  .path .surface{margin-top:10px;padding-top:10px;border-top:1px dotted var(--border);font-size:var(--text-xs)}
+  .live-line{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:var(--text-xs)}
   .live-line .v{color:var(--ink);word-break:break-word}
   .live-line .v a{color:var(--acc2)}
-  table{width:100%;border-collapse:collapse;font-size:12.5px;margin:6px 0}
-  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #1a2435;vertical-align:top}
+  table{width:100%;border-collapse:collapse;font-size:var(--text-sm);margin:6px 0}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
   th{color:var(--mut);font-weight:600}
   a{color:var(--acc2)}
-  code{color:var(--acc2);font-size:12px}
-  .cite{color:var(--mut);font-size:11.5px;margin-top:8px;line-height:1.6}
+  code{color:var(--text);font-family:var(--font-mono);font-size:var(--text-xs)}
+  .cite{color:var(--mut);font-size:var(--text-xs);margin-top:8px;line-height:1.6}
   .cite a{color:var(--acc2)}
-  footer{color:var(--mut);font-size:11px;padding:18px 22px;border-top:1px solid var(--line);line-height:1.7}
+  footer{color:var(--mut);font-size:var(--text-xs);padding:18px 22px;border-top:1px solid var(--line);line-height:1.7}
   @media(max-width:640px){.wrap{padding:16px}}
 </style>
   <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />

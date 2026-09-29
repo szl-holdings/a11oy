@@ -7,60 +7,72 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="/assets/szl/szl-design-system.css" />
+<link rel="stylesheet" href="/assets/szl/szl-console.css" />
+<link rel="icon" type="image/svg+xml" href="/assets/szl/logos/szl_favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/szl/logos/szl_favicon_32.png" />
 <title>a11oy — 38 Anchor Formulas · Live Gates</title>
 <style>
   :root{
-    --bg:#0a0e14; --panel:#121826; --panel2:#0e1420; --line:#1f2a3d;
-    --ink:#e6edf6; --mut:#8aa0bd; --acc:#5ad1c7; --accd:#2a9d94;
-    --allow:#36d399; --deny:#f06b6b; --advisory:#f2c14e; --tsonly:#7d8fb0;
-    --chip:#1a2436;
-  }
+  /* KANCHAY founder tokens (/assets/szl/szl-design-system.css + szl-console.css). Dark operator surface.
+     Legacy names kept as aliases; every value is a founder token. */
+  --panel:var(--surface);
+  --panel2:var(--surface-alt);
+  --line:var(--border);
+  --ink:var(--text);
+  --mut:var(--text-sub);
+  --allow:var(--ink-good);
+  --deny:var(--ink-bad);
+  --advisory:var(--ink-warn);
+  --tsonly:var(--ink-info);
+  --chip:var(--surface-alt);
+}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);
-    font:14px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial}
+    font:var(--text-base)/var(--leading-normal) var(--font-body)}
   header{padding:22px 26px;border-bottom:1px solid var(--line);
-    background:linear-gradient(180deg,#0e1521,#0a0e14)}
-  h1{margin:0 0 4px;font-size:20px;letter-spacing:.2px}
-  h1 .v{color:var(--acc)}
-  .sub{color:var(--mut);font-size:12.5px}
-  .sub code{color:#bcd; background:var(--chip); padding:1px 6px; border-radius:5px}
+    background:linear-gradient(180deg,var(--surface-alt),var(--bg))}
+  h1{margin:0 0 4px;font-size:var(--text-lg);letter-spacing:.2px}
+  h1 .v{color:var(--text-sub)}
+  .sub{color:var(--mut);font-size:var(--text-sm)}
+  .sub code{color:var(--text-sub); background:var(--chip); padding:1px 6px; border-radius:5px}
   .bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:14px 26px;
     border-bottom:1px solid var(--line);background:var(--panel2);position:sticky;top:0;z-index:5}
-  .bar label{color:var(--mut);font-size:12px;margin-right:4px}
+  .bar label{color:var(--mut);font-size:var(--text-xs);margin-right:4px}
   select,input[type=text]{background:var(--panel);color:var(--ink);border:1px solid var(--line);
     border-radius:8px;padding:7px 10px;font:inherit}
-  .counts{margin-left:auto;color:var(--mut);font-size:12.5px}
+  .counts{margin-left:auto;color:var(--mut);font-size:var(--text-sm)}
   .counts b{color:var(--ink)}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px;padding:20px 26px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 15px;
     display:flex;flex-direction:column;gap:9px;transition:border-color .15s, transform .05s}
-  .card:hover{border-color:#365073}
-  .card h3{margin:0;font-size:15px;display:flex;align-items:center;gap:8px}
-  .id{font-size:10.5px;color:#0a0e14;background:var(--acc);border-radius:5px;padding:1px 6px;font-weight:700}
+  .card:hover{border-color:var(--text-ghost)}
+  .card h3{margin:0;font-size:var(--text-base);display:flex;align-items:center;gap:8px}
+  .id{font-size:var(--text-xs);color:var(--text);background:var(--surface-raised);border-radius:5px;padding:1px 6px;font-weight:700;font-family:var(--font-mono)}
   .row{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
-  .chip{font-size:10.5px;border-radius:20px;padding:2px 9px;border:1px solid var(--line);background:var(--chip);color:var(--mut)}
-  .chip.axis{color:#bfe;border-color:#2a4} .chip.live{color:var(--allow);border-color:#2a6b50}
-  .chip.tsonly{color:var(--tsonly)} .chip.advisory{color:var(--advisory);border-color:#7a6420}
-  .chip.theorem{color:#9fd} .chip.axiom{color:#cda} .chip.conjectured{color:var(--advisory)} .chip.measured{color:#b9c}
-  .desc{color:var(--mut);font-size:12.5px;min-height:34px}
-  .lean{font-size:11px;color:#9fb3d6;font-family:ui-monospace,Menlo,monospace;word-break:break-all}
-  .btn{align-self:flex-start;background:var(--accd);color:#04110f;border:0;border-radius:8px;
-    padding:8px 14px;font-weight:700;cursor:pointer;font-size:12.5px}
-  .btn:hover{background:var(--acc)}
+  .chip{font-size:var(--text-xs);border-radius:20px;padding:2px 9px;border:1px solid var(--line);background:var(--chip);color:var(--mut)}
+  .chip.axis{color:var(--link);border-color:var(--border)} .chip.live{color:var(--allow);border-color:color-mix(in srgb,var(--ink-good) 40%,transparent)}
+  .chip.tsonly{color:var(--tsonly)} .chip.advisory{color:var(--advisory);border-color:var(--ink-warn)}
+  .chip.theorem{color:var(--ink-good)} .chip.axiom{color:var(--link)} .chip.conjectured{color:var(--advisory)} .chip.measured{color:var(--ink-info)}
+  .desc{color:var(--mut);font-size:var(--text-sm);min-height:34px}
+  .lean{font-size:var(--text-xs);color:var(--text-sub);font-family:var(--font-mono);word-break:break-all}
+  .btn{align-self:flex-start;background:var(--surface-raised);color:var(--text);border:1px solid var(--border);border-radius:8px;
+    padding:8px 14px;font-weight:700;cursor:pointer;font-size:var(--text-sm)}
+  .btn:hover{background:color-mix(in srgb,var(--text) 10%,var(--surface-raised))}
   .btn.ghost{background:transparent;color:var(--mut);border:1px solid var(--line);font-weight:500}
   .btn[disabled]{opacity:.4;cursor:not-allowed}
   .evalbox{border-top:1px dashed var(--line);padding-top:10px;margin-top:2px;display:none;flex-direction:column;gap:8px}
   .evalbox.open{display:flex}
-  .evalbox textarea{width:100%;min-height:88px;background:var(--panel2);color:#cfe;border:1px solid var(--line);
-    border-radius:8px;padding:9px;font:12px ui-monospace,Menlo,monospace;resize:vertical}
-  .verdict{border-radius:9px;padding:10px;font-size:12px;border:1px solid var(--line);background:var(--panel2)}
-  .verdict .v{font-weight:800;font-size:13px}
+  .evalbox textarea{width:100%;min-height:88px;background:var(--panel2);color:var(--text);border:1px solid var(--line);
+    border-radius:8px;padding:9px;font:var(--text-xs) var(--font-mono);resize:vertical}
+  .verdict{border-radius:9px;padding:10px;font-size:var(--text-xs);border:1px solid var(--line);background:var(--panel2)}
+  .verdict .v{font-weight:800;font-size:var(--text-sm)}
   .v.ALLOW{color:var(--allow)} .v.DENY{color:var(--deny)}
-  .verdict pre{margin:7px 0 0;white-space:pre-wrap;word-break:break-word;color:#aebfdc;font-size:11px;max-height:230px;overflow:auto}
-  .seal{display:inline-flex;align-items:center;gap:6px;font-size:11px;margin-top:6px}
+  .verdict pre{margin:7px 0 0;white-space:pre-wrap;word-break:break-word;color:var(--text-sub);font-size:var(--text-xs);max-height:230px;overflow:auto}
+  .seal{display:inline-flex;align-items:center;gap:6px;font-size:var(--text-xs);margin-top:6px}
   .seal.signed{color:var(--allow)} .seal.unsigned{color:var(--advisory)}
-  footer{padding:18px 26px;color:var(--mut);font-size:11.5px;border-top:1px solid var(--line)}
-  a{color:var(--acc)}
+  footer{padding:18px 26px;color:var(--mut);font-size:var(--text-xs);border-top:1px solid var(--line)}
+  a{color:var(--link)}
   .hidden{display:none !important}
 </style>
   <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
@@ -162,7 +174,7 @@ function card(f){
         `<span class="v ${j.verdict}">${j.verdict}</span> &nbsp;`+
         `<span class="chip">${esc(j.decision.formula)}</span> `+
         `<span class="chip">λ=${(j.decision.lambdaScore!==undefined?j.decision.lambdaScore.toFixed(4):"-")}</span>`+
-        `<div class="seal ${signed?'signed':'unsigned'}">${signed?'🔏':'⚠'} Khipu receipt — ${esc(sigTxt)}</div>`+
+        `<div class="seal ${signed?'signed':'unsigned'}"><span class="dot ${signed?'dot--ok':'dot--warn'}" aria-hidden="true"></span> Khipu receipt — ${esc(sigTxt)}</div>`+
         `<pre>${esc(JSON.stringify(j,null,2))}</pre>`;
     }catch(e){ out.innerHTML = '<span class="v DENY">network error: '+esc(e.message)+'</span>'; }
   };

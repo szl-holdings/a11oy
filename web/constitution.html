@@ -18,39 +18,50 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/assets/szl/szl-design-system.css" />
+<link rel="stylesheet" href="/assets/szl/szl-console.css" />
+<link rel="icon" type="image/svg+xml" href="/assets/szl/logos/szl_favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/szl/logos/szl_favicon_32.png" />
 <title>SZL · Constitutional Organism</title>
 <style>
-  :root{--bg:#03060d;--panel:#0a1326;--ink:#cfe6ff;--mut:#86a4c9;--line:rgba(120,170,230,.18);
-        --ok:#46d39a;--warn:#ffcf5c;--bad:#ff6b6b;--accent:#7fd4ff;}
+  :root{
+  /* KANCHAY founder tokens (/assets/szl/szl-design-system.css + szl-console.css). Dark operator surface.
+     Legacy names kept as aliases; every value is a founder token. */
+  --panel:var(--surface);
+  --ink:var(--text);
+  --mut:var(--text-sub);
+  --line:var(--border);
+  --ok:var(--ink-good);
+  --warn:var(--ink-warn);
+  --bad:var(--ink-bad);
+}
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
-    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+    font-family:var(--font-body);}
   header{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;
     align-items:center;gap:14px;flex-wrap:wrap;}
-  header h1{font-size:15px;margin:0;letter-spacing:.06em;font-weight:600;}
-  header .sub{font-size:11px;color:var(--mut);}
+  header h1{font-size:var(--text-base);margin:0;letter-spacing:.06em;font-weight:600;}
+  header .sub{font-size:var(--text-xs);color:var(--mut);}
   .wrap{display:grid;grid-template-columns:1fr;gap:14px;padding:16px 20px;max-width:1280px;margin:0 auto;}
   .stage{height:60vh;min-height:380px;border:1px solid var(--line);border-radius:14px;overflow:hidden;
-    box-shadow:0 0 60px rgba(40,90,160,.12) inset;}
+    box-shadow:0 0 60px color-mix(in srgb,var(--color-space-600) 40%,transparent) inset;}
   .grid2{display:grid;grid-template-columns:1.3fr 1fr;gap:14px;}
-  .panel{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:rgba(10,19,38,.5);}
-  .panel h2{font-size:12px;margin:0 0 8px;letter-spacing:.06em;color:#bfe0ff;}
-  .btn{background:rgba(70,150,230,.16);border:1px solid rgba(120,180,240,.4);color:#cfe6ff;
-    border-radius:8px;padding:6px 12px;font:inherit;font-size:12px;cursor:pointer;}
-  .btn:hover{background:rgba(70,150,230,.3);}
+  .panel{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:color-mix(in srgb,var(--surface-alt) 50%,transparent);}
+  .panel h2{font-size:var(--text-xs);margin:0 0 8px;letter-spacing:var(--tracking-caps);color:var(--text-sub);}
+  .btn{font-family:var(--font-mono);font-size:var(--text-xs);}
   .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
-  .mut{color:var(--mut);font-size:11px;}
-  a{color:#7fd4ff;}
-  .badge{display:inline-block;padding:1px 7px;border-radius:6px;font-size:10px;font-weight:600;
-    background:rgba(70,150,230,.18);border:1px solid rgba(120,180,240,.35);color:#bfe0ff;}
-  .badge.live{background:rgba(70,211,154,.16);border-color:rgba(70,211,154,.4);color:#9af0cf;}
-  .badge.roadmap{background:rgba(255,180,90,.16);border-color:rgba(255,190,110,.4);color:#ffd9a8;}
-  table{width:100%;border-collapse:collapse;font-size:11px;}
-  td,th{text-align:left;padding:3px 6px;border-bottom:1px solid rgba(120,170,230,.1);}
+  .mut{color:var(--mut);font-size:var(--text-xs);}
+  a{color:var(--link);}
+  .badge{display:inline-block;padding:1px 7px;border-radius:6px;font-size:var(--text-xs);font-weight:600;
+    background:color-mix(in srgb,var(--text) 6%,transparent);border:1px solid var(--border);color:var(--text-sub);}
+  .badge.live{background:color-mix(in srgb,var(--color-success) 16%,transparent);border-color:color-mix(in srgb,var(--ink-good) 40%,transparent);color:var(--ink-good);}
+  .badge.roadmap{background:color-mix(in srgb,var(--color-warning) 16%,transparent);border-color:color-mix(in srgb,var(--ink-warn) 40%,transparent);color:var(--ink-warn);}
+  table{width:100%;border-collapse:collapse;font-size:var(--text-xs);}
+  td,th{text-align:left;padding:3px 6px;border-bottom:1px solid var(--border-subtle);}
   th{color:var(--mut);font-weight:600;}
   .mem-block{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:8px;
-    background:rgba(10,19,38,.6);}
-  .mem-block .t{font-size:11px;color:#bfe0ff;}
+    background:color-mix(in srgb,var(--surface-alt) 60%,transparent);}
+  .mem-block .t{font-size:var(--text-xs);color:var(--text);}
   .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle;}
   @media(max-width:820px){.grid2{grid-template-columns:1fr;}}
 </style>
@@ -80,8 +91,8 @@
 
   <div class="panel">
     <div class="row">
-      <button class="btn" id="signBtn">EMIT CAUSAL EVENT → pulse</button>
-      <button class="btn" id="playBtn">▶ REPLAY LEDGER</button>
+      <button class="btn btn-primary" id="signBtn">EMIT CAUSAL EVENT → pulse</button>
+      <button class="btn btn-secondary" id="playBtn">▶ REPLAY LEDGER</button>
       <span id="status" class="mut">loading live constitutional state…</span>
     </div>
   </div>
@@ -120,7 +131,7 @@
   var API = "/api/a11oy/v1/constitution/";
   var stageEl = document.getElementById("stage");
   if (!window.SZLHolo) {
-    stageEl.innerHTML = '<div style="padding:20px;color:#ffd9a8">SZLHolo kit failed to load.</div>';
+    stageEl.innerHTML = '<div style="padding:20px;color:var(--ink-warn)">SZLHolo kit failed to load.</div>';
     return;
   }
   var caps = window.SZLHolo.capabilities();
@@ -152,7 +163,7 @@
   document.getElementById("signBtn").addEventListener("click", function () {
     // pulse a random pillar edge — represents a signed causal event being recorded
     var i = Math.floor(Math.random()*PILLARS.length);
-    scene.signPulse("ce"+i, { duration:1200, color:"#aef6ff" });
+    scene.signPulse("ce"+i, { duration:1200, color:getComputedStyle(document.documentElement).getPropertyValue("--color-silver-100").trim() });
   });
   var replaying=false;
   document.getElementById("playBtn").addEventListener("click", function () {

@@ -1,7 +1,7 @@
 <!doctype html>
 <!-- v4-fleet-panel — SZL Holdings · Canonical Fleet Status Panel
      Doctrine v11 LOCKED 749/14/163 · Λ = Conjecture 1 (NOT a theorem)
-     Visual: Khipu Gold #c8a84b · Space Grotesk + JetBrains Mono (HCI/UX PhD spec)
+     Visual: KANCHAY founder tokens (/assets/szl/) · system font stacks --font-body / --font-mono
      Sign: Yachay <yachay@szlholdings.ai>
      Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
      SPDX-License-Identifier: Apache-2.0
@@ -10,62 +10,44 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="/assets/szl/szl-design-system.css" />
+<link rel="stylesheet" href="/assets/szl/szl-console.css" />
+<link rel="icon" type="image/svg+xml" href="/assets/szl/logos/szl_favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/szl/logos/szl_favicon_32.png" />
 <title>Fleet Status — SZL Holdings V4</title>
-<!-- HCI/UX PhD Spec: Space Grotesk (panel headers, labels) + JetBrains Mono (data) -->
-<!-- SOVEREIGN: 0 runtime CDN. Fonts self-hosted in-image, served same-origin at
-     /vendor/fonts/*.woff2 (SAME pattern as the clean console). NO external font CDN. -->
-<style>
-@font-face{font-family:'Space Grotesk';font-style:normal;font-weight:300 700;font-display:swap;src:url('/vendor/fonts/SpaceGrotesk.woff2') format('woff2');}
-@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400 500;font-display:swap;src:url('/vendor/fonts/JetBrainsMono.woff2') format('woff2');}
-</style>
+<!-- Type: --font-display (panel headers, labels) + --font-mono (data), KANCHAY founder stacks -->
+<!-- SOVEREIGN: 0 runtime CDN. No webfonts: KANCHAY founder system-font stacks
+     (--font-body / --font-mono) from /assets/szl/szl-design-system.css. -->
 <style>
 :root{
-  /* === SZL Visual System — Khipu Gold #c8a84b (HCI/UX PhD spec 2026-06-02) === */
-  --bg:#0a0a0c;          /* Surface 0 — page background (near-black, cool tint) */
-  --bg-100:#111116;      /* Surface 1 — panel background */
-  --bg-200:#181820;      /* Surface 2 — card / elevated */
-  --bg-300:#1e1e28;      /* Surface 3 — hover / selected */
-  --bg-400:#252533;      /* Surface 4 — active / pressed */
-
-  /* Khipu Gold — SZL brand primary (Andean sovereign, "color of verified truth") */
-  --gold:#c8a84b;         /* PRIMARY — Khipu Gold */
-  --gold-hover:#b89340;   /* Hover state */
-  --gold-signal:#f0d080;  /* Signal Gold — high-contrast labels */
-  --gold-deep:#8b6f2e;    /* Deep Quipu — footer / tertiary */
-  --gold-shadow:rgba(200,168,75,.2);
-
-  /* Mission state colors (traffic-light standard — do NOT substitute gold) */
-  --em:#00e87a;           /* NOMINAL / PASS green */
-  --amb:#ffb700;          /* ELEVATED / WARNING amber */
-  --rose:#ff4444;         /* THREAT ACTIVE / FAIL red */
-  --blue:#4488ff;         /* DEGRADED / OFFLINE blue */
-
-  /* Text (warm white — not pure #fff, reduces eye fatigue on long shifts) */
-  --tx:#f0edd4;           /* Primary text */
-  --tx2:#a09880;          /* Secondary / muted */
-  --txm:#605850;          /* Tertiary / metadata */
-
-  /* Borders — gold-opacity for coherent dark surfaces */
-  --bdr:rgba(200,168,75,.12);
-  --bdr-med:rgba(200,168,75,.25);
-  --bdr-strong:rgba(200,168,75,.50);
-  --bdr-alert:#ffb700;
-
-  /* Typography — HCI/UX PhD spec */
-  --sans:"Space Grotesk","Inter",ui-sans-serif,system-ui,sans-serif;
-  --mono:"JetBrains Mono",ui-monospace,monospace;
+  /* KANCHAY founder tokens (/assets/szl/szl-design-system.css + szl-console.css). Dark operator surface.
+     Legacy names kept as aliases; every value is a founder token. */
+  --bg-100:var(--bg);
+  --bg-200:var(--surface);
+  --gold:var(--text-sub);
+  --em:var(--ink-good);
+  --amb:var(--ink-warn);
+  --rose:var(--ink-bad);
+  --blue:var(--ink-info);
+  --tx:var(--text);
+  --tx2:var(--text-sub);
+  --txm:var(--text-sub);
+  --bdr:var(--border-subtle);
+  --bdr-med:var(--border);
+  --sans:var(--font-body);
+  --mono:var(--font-mono);
 }
 *{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--sans);font-size:14px;line-height:1.5}
+html,body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--sans);font-size:var(--text-base);line-height:var(--leading-normal)}
 .wrap{max-width:1100px;margin:0 auto;padding:24px 20px}
 
 /* ── Doctrine banner (AC-4: required on every V4 page) ── */
 .doctrine-banner{
-  background:linear-gradient(135deg,rgba(200,168,75,.09),rgba(0,232,122,.05));
+  background:color-mix(in srgb,var(--text) 4%,transparent);
   border:1px solid var(--bdr-med);
   border-radius:6px;
   padding:11px 17px;margin-bottom:20px;
-  font-family:var(--mono);font-size:11px;
+  font-family:var(--mono);font-size:var(--text-xs);
   display:flex;flex-wrap:wrap;gap:10px;align-items:center;
   letter-spacing:0;
 }
@@ -77,30 +59,30 @@ html,body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--sans);
 
 /* ── Lambda Conjecture 1 banner (standalone, prominent) ── */
 .lambda-banner{
-  background:linear-gradient(135deg,rgba(255,183,0,.06),rgba(200,168,75,.04));
-  border:1px solid rgba(255,183,0,.35);
+  background:color-mix(in srgb,var(--ink-warn) 5%,transparent);
+  border:1px solid color-mix(in srgb,var(--ink-warn) 35%,transparent);
   border-radius:6px;
   padding:10px 17px;margin-bottom:18px;
-  font-family:var(--mono);font-size:12px;
+  font-family:var(--mono);font-size:var(--text-xs);
   display:flex;align-items:center;gap:10px;flex-wrap:wrap;
 }
-.lambda-symbol{font-size:20px;color:var(--amb);font-weight:700;line-height:1}
+.lambda-symbol{font-size:var(--text-lg);color:var(--amb);font-weight:700;line-height:1}
 .lambda-text{color:var(--tx)}
 .lambda-warn{color:var(--amb);font-weight:600}
 
 /* ── Section header ── */
 .sec-hdr{display:flex;align-items:baseline;gap:10px;margin-bottom:14px}
 .sec-hdr h2{
-  font-family:var(--sans);font-size:10px;font-weight:600;
+  font-family:var(--sans);font-size:var(--text-xs);font-weight:600;
   letter-spacing:.14em;text-transform:uppercase;color:var(--tx2);margin:0
 }
 .btn{
   background:transparent;border:1px solid var(--bdr);color:var(--tx2);
-  border-radius:4px;padding:4px 10px;font-size:11px;font-family:var(--mono);cursor:pointer;
+  border-radius:4px;padding:4px 10px;font-size:var(--text-xs);font-family:var(--mono);cursor:pointer;
   transition:border-color 200ms,color 200ms;
 }
 .btn:hover{border-color:var(--gold);color:var(--gold)}
-.ts{font-family:var(--mono);font-size:10px;color:var(--txm);margin-left:auto}
+.ts{font-family:var(--mono);font-size:var(--text-xs);color:var(--txm);margin-left:auto}
 
 /* ── Fleet status bar (top-level NOMINAL/DEGRADED/THREAT indicator) ── */
 .fleet-status-bar{
@@ -110,12 +92,12 @@ html,body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--sans);
   padding:10px 16px;margin-bottom:14px;
   display:flex;align-items:center;gap:16px;flex-wrap:wrap;
 }
-.fsb-label{font-family:var(--sans);font-size:13px;font-weight:700;letter-spacing:.04em}
+.fsb-label{font-family:var(--sans);font-size:var(--text-sm);font-weight:700;letter-spacing:.04em}
 .fsb-label.nominal{color:var(--em)}
 .fsb-label.degraded{color:var(--blue)}
 .fsb-label.threat{color:var(--rose)}
-.fsb-meta{font-family:var(--mono);font-size:11px;color:var(--tx2)}
-.fsb-clock{font-family:var(--mono);font-size:10px;color:var(--txm);margin-left:auto}
+.fsb-meta{font-family:var(--mono);font-size:var(--text-xs);color:var(--tx2)}
+.fsb-clock{font-family:var(--mono);font-size:var(--text-xs);color:var(--txm);margin-left:auto}
 
 /* ── 5-peer grid ── */
 .peers{display:grid;grid-template-columns:repeat(auto-fill,minmax(188px,1fr));gap:10px;margin-bottom:20px}
@@ -130,15 +112,15 @@ html,body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--sans);
   background:var(--sc,var(--em));border-radius:6px 6px 0 0;
 }
 .peer.ok{--sc:var(--em)}.peer.warn{--sc:var(--amb)}.peer.down{--sc:var(--rose)}.peer.pend{--sc:var(--txm)}
-.p-name{font-family:var(--mono);font-size:13px;font-weight:700;display:flex;align-items:center;gap:7px;margin-bottom:5px}
+.p-name{font-family:var(--mono);font-size:var(--text-sm);font-weight:700;display:flex;align-items:center;gap:7px;margin-bottom:5px}
 .p-dot{
   width:8px;height:8px;border-radius:50%;background:var(--sc,var(--txm));
   box-shadow:0 0 5px var(--sc,var(--txm));flex-shrink:0;
 }
-.p-q{font-size:10px;color:var(--gold);font-family:var(--sans);font-weight:600;margin-bottom:4px;letter-spacing:.06em}
-.p-doc{font-size:10px;color:var(--txm);font-family:var(--mono);margin-bottom:3px}
-.p-http{font-family:var(--mono);font-size:11px;color:var(--tx2)}
-.p-url{font-size:10px;color:var(--txm);font-family:var(--mono);margin-top:6px;word-break:break-all}
+.p-q{font-size:var(--text-xs);color:var(--gold);font-family:var(--sans);font-weight:600;margin-bottom:4px;letter-spacing:.06em}
+.p-doc{font-size:var(--text-xs);color:var(--txm);font-family:var(--mono);margin-bottom:3px}
+.p-http{font-family:var(--mono);font-size:var(--text-xs);color:var(--tx2)}
+.p-url{font-size:var(--text-xs);color:var(--txm);font-family:var(--mono);margin-top:6px;word-break:break-all}
 .p-url a{color:var(--txm);text-decoration:none}.p-url a:hover{color:var(--gold)}
 .ok-txt{color:var(--em)}.warn-txt{color:var(--amb)}.down-txt{color:var(--rose)}.pend-txt{color:var(--txm)}
 
@@ -152,52 +134,52 @@ html,body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--sans);
 }
 @media(max-width:580px){.lc{grid-template-columns:1fr}}
 .lc-lbl{
-  font-family:var(--sans);font-size:10px;font-weight:600;
+  font-family:var(--sans);font-size:var(--text-xs);font-weight:600;
   letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:4px;
 }
-.lc-val{font-family:var(--mono);font-size:14px;color:var(--tx)}
+.lc-val{font-family:var(--mono);font-size:var(--text-sm);color:var(--tx)}
 .lc-val.conj{color:var(--amb);font-weight:700}
 .lc-sha{
-  font-family:var(--mono);font-size:12px;color:var(--blue);
-  background:rgba(68,136,255,.08);border:1px solid rgba(68,136,255,.2);
+  font-family:var(--mono);font-size:var(--text-xs);color:var(--blue);
+  background:color-mix(in srgb,var(--color-info) 8%,transparent);border:1px solid color-mix(in srgb,var(--ink-info) 20%,transparent);
   padding:2px 7px;border-radius:4px;display:inline-block;
 }
-.lc-note{font-size:11px;color:var(--txm);margin-top:4px;line-height:1.4}
+.lc-note{font-size:var(--text-xs);color:var(--txm);margin-top:4px;line-height:1.4}
 
 /* ── Wire status chips ── */
 .wires{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
 .wc{
   background:var(--bg-200);border:1px solid var(--bdr);border-radius:20px;
-  padding:5px 12px;font-family:var(--mono);font-size:11px;display:flex;align-items:center;gap:6px;
+  padding:5px 12px;font-family:var(--mono);font-size:var(--text-xs);display:flex;align-items:center;gap:6px;
 }
 .wc-dot{width:7px;height:7px;border-radius:50%}
-.wc.live{border-color:rgba(0,232,122,.3)}.wc.live .wc-dot{background:var(--em);box-shadow:0 0 5px var(--em)}
+.wc.live{border-color:color-mix(in srgb,var(--ink-good) 30%,transparent)}.wc.live .wc-dot{background:var(--em);box-shadow:0 0 5px var(--em)}
 .wc.pend .wc-dot{background:var(--txm)}
 .wc-lbl{color:var(--tx2)}.wc.live .wc-lbl{color:var(--tx)}
 
 /* ── Section 889 ── */
-.s889{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:18px;font-family:var(--mono);font-size:10px;align-items:center}
-.vb{background:rgba(255,68,68,.08);border:1px solid rgba(255,68,68,.2);color:var(--rose);padding:3px 9px;border-radius:4px}
+.s889{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:18px;font-family:var(--mono);font-size:var(--text-xs);align-items:center}
+.vb{background:color-mix(in srgb,var(--color-error) 8%,transparent);border:1px solid color-mix(in srgb,var(--ink-bad) 20%,transparent);color:var(--rose);padding:3px 9px;border-radius:4px}
 .s889-lbl{color:var(--txm);margin-right:3px}
 
 /* ── Receipt chain (AC-3) ── */
 .rcpt-wrap{margin-top:16px}
-table.rcpt{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px}
+table.rcpt{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:var(--text-xs)}
 table.rcpt th{
-  text-align:left;padding:6px 10px;color:var(--tx2);font-family:var(--sans);font-size:10px;
+  text-align:left;padding:6px 10px;color:var(--tx2);font-family:var(--sans);font-size:var(--text-xs);
   font-weight:600;letter-spacing:.08em;text-transform:uppercase;
   border-bottom:1px solid var(--bdr-med);
 }
 table.rcpt td{padding:7px 10px;border-bottom:1px solid var(--bdr);color:var(--tx2);vertical-align:top}
-table.rcpt tr:hover td{background:rgba(30,30,40,.7)}
+table.rcpt tr:hover td{background:color-mix(in srgb,var(--surface) 70%,transparent)}
 .td-time{color:var(--txm);white-space:nowrap}
 .td-op{color:var(--tx)}
 .td-org{color:var(--gold)}
 .sig-ok{color:var(--em)}.sig-pend{color:var(--amb)}.sig-no{color:var(--txm)}
-.td-hash{font-size:10px;color:var(--txm);word-break:break-all}
-.rekor{color:var(--blue);text-decoration:none;font-size:10px}.rekor:hover{text-decoration:underline}
+.td-hash{font-size:var(--text-xs);color:var(--txm);word-break:break-all}
+.rekor{color:var(--link);text-decoration:none;font-size:var(--text-xs)}.rekor:hover{text-decoration:underline}
 .empty{
-  text-align:center;color:var(--txm);font-family:var(--mono);font-size:12px;
+  text-align:center;color:var(--txm);font-family:var(--mono);font-size:var(--text-xs);
   padding:28px;border:1px dashed var(--bdr);border-radius:6px;
 }
 
@@ -208,7 +190,7 @@ table.rcpt tr:hover td{background:rgba(30,30,40,.7)}
   border:1px solid var(--bdr);
   border-radius:6px;
   padding:10px 16px;
-  font-family:var(--mono);font-size:11px;color:var(--txm);
+  font-family:var(--mono);font-size:var(--text-xs);color:var(--txm);
   display:flex;gap:16px;flex-wrap:wrap;align-items:center;
 }
 .af-item{display:flex;gap:5px;align-items:center}
@@ -317,7 +299,7 @@ table.rcpt tr:hover td{background:rgba(30,30,40,.7)}
 
 <script>
 /* Fleet panel — V4 · Doctrine v11 LOCKED · Λ = Conjecture 1 (NOT a theorem)
-   Visual: Khipu Gold #c8a84b · Space Grotesk + JetBrains Mono (HCI/UX PhD spec)
+   Visual: KANCHAY founder tokens (/assets/szl/) · system font stacks --font-body / --font-mono
    Sign: Yachay <yachay@szlholdings.ai>
    Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai> */
 

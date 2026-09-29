@@ -3,45 +3,48 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link rel="stylesheet" href="/assets/szl/szl-design-system.css" />
+<link rel="stylesheet" href="/assets/szl/szl-console.css" />
+<link rel="icon" type="image/svg+xml" href="/assets/szl/logos/szl_favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/szl/logos/szl_favicon_32.png" />
 <title>SZL KHIPU — knot · hash · fail closed · a-11-oy.com</title>
 <meta name="description" content="Product organ for SZL KHIPU. Duals Ari=GreenLight and Kay Pacha=Anatomy. Original cuts only. CUDA UNAVAILABLE. Energy UNAVAILABLE. Conjecture 1 OPEN. proven_trust false."/>
 <style>
-:root{--bg:#05070d;--ink:#e8edf4;--muted:#8b96a6;--line:#1c2430;--gold:#e8c074;--proof:#3af4c8;--block:#c17a72;--panel:#0c1118}
-*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 ui-sans-serif,system-ui,sans-serif}
-body{min-height:100vh;background-image:linear-gradient(rgba(58,244,200,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(58,244,200,.04) 1px,transparent 1px);background-size:48px 48px}
-a{color:var(--proof)}button,input{font:inherit}button{cursor:pointer;background:transparent;color:var(--proof);border:1px solid #1a5c4e;padding:.45rem .8rem}
-button:hover{background:#0d2a24}button.warn{color:var(--gold);border-color:#5a4a28}button.bad{color:var(--block);border-color:#5a3430}
-.topbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;padding:.5rem 1.1rem;background:rgba(5,7,13,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);font:10.5px/1 ui-monospace,Menlo,monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--gold)}
-.topbar .sep{color:var(--muted)}
-.live{display:inline-flex;align-items:center;gap:.4rem;color:var(--ink);letter-spacing:.08em}
-.live-dot{width:6px;height:6px;border-radius:50%;background:var(--gold)}
-.live-dot.ready{background:var(--proof)}.live-dot.error{background:var(--block)}
+/* KANCHAY founder tokens (/assets/szl/szl-design-system.css + szl-console.css). Dark operator surface. */
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--text);font:var(--text-base)/var(--leading-normal) var(--font-body)}
+body{min-height:100vh}
+a{color:var(--link)}button,input{font:inherit}button{cursor:pointer;background:transparent;color:var(--text);border:1px solid var(--border);border-radius:var(--radius-md);padding:.45rem .8rem;font-size:var(--text-sm)}
+button:hover{background:color-mix(in srgb,var(--text) 7%,transparent)}button.warn{color:var(--ink-warn);border-color:color-mix(in srgb,var(--ink-warn) 45%,transparent)}button.bad{color:var(--ink-bad);border-color:color-mix(in srgb,var(--ink-bad) 45%,transparent)}
+.topbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;padding:.5rem 1.1rem;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--hairline);font:var(--text-xs)/1 var(--font-mono);letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--text-sub)}
+.topbar .sep{color:var(--text-ghost)}
+.live{display:inline-flex;align-items:center;gap:.4rem;color:var(--text);letter-spacing:.08em}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--color-warning)}
+.live-dot.ready{background:var(--color-success)}.live-dot.error{background:var(--color-error)}
 .switcher{margin-left:auto;display:flex;align-items:center;gap:.3rem;flex-wrap:wrap}
-.flag{padding:.22rem .55rem;border-radius:6px;border:1px solid transparent;color:var(--muted);text-decoration:none;text-transform:none;letter-spacing:0;font-size:11px}
-.flag:hover{color:var(--ink);border-color:var(--line)}
-.flag.active{color:var(--bg);background:var(--gold);border-color:var(--gold)}
+.flag{padding:.22rem .55rem;border-radius:6px;border:1px solid transparent;color:var(--text-sub);text-decoration:none;text-transform:none;letter-spacing:0;font-size:var(--text-xs)}
+.flag:hover{color:var(--text);border-color:var(--border)}
+.flag.active{color:var(--text);background:color-mix(in srgb,var(--text) 8%,transparent);border-color:var(--border);box-shadow:inset 0 -2px 0 var(--accent)}
 header,main,footer{max-width:980px;margin:0 auto;padding:1.4rem 1.2rem}
-.ey{font:11px/1 ui-monospace,Menlo,monospace;letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
-h1{font:500 2.3rem/1.1 Georgia,serif;letter-spacing:-.03em;margin:.4rem 0}
-h2{font:500 1.05rem/1.2 Georgia,serif;margin:0 0 .55rem}
-.lede{color:var(--muted);max-width:46rem}
-.chip{display:inline-block;border:1px solid var(--line);padding:.15rem .5rem;margin:.15rem;font:11px ui-monospace,Menlo,monospace;color:var(--muted)}
-.gold{color:var(--gold);border-color:#5a4a28}.livechip{color:var(--proof);border-color:#1a5c4e}
-.panel{border:1px solid var(--line);background:var(--panel);padding:1rem;margin:1rem 0}
+.ey{font:var(--text-xs)/1.4 var(--font-mono);letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--text-ghost)}
+h1{font:700 var(--text-3xl)/var(--leading-tight) var(--font-display);letter-spacing:var(--tracking-tight);margin:.4rem 0}
+h2{font:600 var(--text-lg)/var(--leading-snug) var(--font-display);letter-spacing:var(--tracking-tight);margin:0 0 .55rem}
+.lede{color:var(--text-sub);max-width:46rem}
+.chip{margin:.15rem}
+.panel{border:1px solid var(--border);background:var(--surface);border-radius:var(--radius-md);padding:1rem;margin:1rem 0}
 .axes{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.4rem}
 .orgs{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.5rem}
-.org{border:1px solid var(--line);padding:.55rem .7rem;font:12px/1.35 ui-monospace,Menlo,monospace}
-.org b{display:block;font:500 13px/1.2 Georgia,serif}
-.org.down{border-color:#5a3430;color:var(--block)}
-label{font:12px/1.3 ui-monospace,Menlo,monospace;color:var(--muted)}
-pre{font:12px/1.45 ui-monospace,Menlo,monospace;white-space:pre-wrap;word-break:break-word;margin:.6rem 0 0}
+.org{border:1px solid var(--border);border-radius:var(--radius-sm);padding:.55rem .7rem;font:var(--text-xs)/1.35 var(--font-mono);color:var(--text-sub)}
+.org b{display:block;font:600 var(--text-sm)/1.2 var(--font-display);color:var(--text)}
+.org.down{border-color:color-mix(in srgb,var(--ink-bad) 45%,transparent);color:var(--ink-bad)}
+label{font:var(--text-xs)/1.3 var(--font-mono);color:var(--text-sub)}
+pre{font:var(--text-xs)/var(--leading-mono) var(--font-mono);white-space:pre-wrap;word-break:break-word;margin:.6rem 0 0;color:var(--text)}
 .row{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin:.4rem 0}
-table{width:100%;border-collapse:collapse;font:12px/1.45 ui-monospace,Menlo,monospace}
-th,td{text-align:left;padding:.35rem 0;border-bottom:1px solid var(--line);color:var(--muted)}
-th{color:var(--gold);font-weight:500}
-.cut{color:var(--ink)}.not{color:var(--block)}
+table{width:100%;border-collapse:collapse;font:var(--text-xs)/1.45 var(--font-mono)}
+th,td{text-align:left;padding:.35rem 0;border-bottom:1px solid var(--border-subtle);color:var(--text-sub)}
+th{color:var(--text-sub);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.cut{color:var(--text)}.not{color:var(--ink-bad)}
 .links{display:flex;flex-wrap:wrap;gap:.45rem;margin:1rem 0 0}
-.links a{border:1px solid var(--line);padding:.35rem .7rem;text-decoration:none;font:12px ui-monospace,Menlo,monospace}
+.links a{border:1px solid var(--border);border-radius:var(--radius-sm);padding:.35rem .7rem;text-decoration:none;font:var(--text-xs)/1.4 var(--font-mono)}
 @media(max-width:760px){
   .topbar{position:static}
   .switcher{order:3;width:100%;margin-left:0}
@@ -70,12 +73,12 @@ th{color:var(--gold);font-weight:500}
   <div class="ey">a-11-oy.com/khipu · product organ · GET /khipu HTML is exact · /khipu/{hash} stays receipts</div>
   <h1>Knot the run. Hash the proof. Fail closed.</h1>
   <p class="lede">Product organ of SZL KHIPU. Duals <strong>Ari = GreenLight</strong> and <strong>Kay Pacha = Anatomy</strong>. Original cuts only — never a rehost of Qwen, Mixtral, SGLang, FlashAttention, SageAttention, FlexAttention, or vLLM. First paint is CONNECTING. Live NumPy is claimed only after <code>/api/a11oy/v1/khipu-organ/healthz</code> answers; otherwise this page is a JS silhouette. Two public origins only: a-11-oy.com and a11oy.net. Never a11oy.com.</p>
-  <span class="chip gold">Conjecture 1 OPEN</span>
-  <span class="chip">energy UNAVAILABLE</span>
+  <span class="chip chip-conjecture">Conjecture 1 OPEN</span>
+  <span class="chip chip-unavailable">energy UNAVAILABLE</span>
   <span class="chip">proven_trust false</span>
-  <span class="chip">CUDA UNAVAILABLE</span>
+  <span class="chip chip-unavailable">CUDA UNAVAILABLE</span>
   <span class="chip" id="runtimeChip">runtime CONNECTING</span>
-  <span class="chip livechip">locked-proven 8</span>
+  <span class="chip chip-proven">locked-proven 8</span>
   <nav class="links" aria-label="Origins">
     <a href="https://a11oy.net/khipu/">Proof RECORD · a11oy.net</a>
     <a href="https://github.com/szl-holdings/szl-khipu">GitHub</a>

@@ -1,5 +1,9 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/assets/szl/szl-design-system.css" />
+<link rel="stylesheet" href="/assets/szl/szl-console.css" />
+<link rel="icon" type="image/svg+xml" href="/assets/szl/logos/szl_favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/szl/logos/szl_favicon_32.png" />
 <title>DNS &amp; Subdomains — Pending Records · a11oy</title>
 <!-- SPDX-License-Identifier: Apache-2.0 · © 2026 SZL Holdings · Doctrine v11 · 0 runtime CDN.
      Honest, user-visible name: DNS & Subdomains. NEVER a codename. This is a STATIC
@@ -7,27 +11,27 @@
      NOT query live DNS and shows NO live metrics; statuses are hand-maintained and
      dated. Verify any record live with `dig <name>` before relying on it. -->
 <style>
-:root{--bg:#070b16;--panel:#101a2e;--panel2:#16223a;--ink:#e8eef7;--mut:#8aa0bd;--gold:#d8a23c;--acc:#5ad1c0;
---line:#243149;--grn:#3fb950;--amb:#e0c060;--red:#ff6b6b;}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(1200px 700px at 70% -10%,#14213b,var(--bg));
-color:var(--ink);font:15px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+:root{--panel:var(--surface);--panel2:var(--surface-alt);--ink:var(--text);--mut:var(--text-sub);--acc:var(--link);
+--line:var(--border);--grn:var(--ink-good);--amb:var(--ink-warn);--red:var(--ink-bad);}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(1200px 700px at 70% -10%,var(--color-space-700),var(--bg));
+color:var(--ink);font:var(--text-base)/var(--leading-normal) var(--font-body)}
 .wrap{max-width:1100px;margin:0 auto;padding:0 20px 80px}
-#banner{position:sticky;top:0;z-index:9;background:linear-gradient(90deg,rgba(216,162,60,.20),rgba(200,100,60,.16));
-border-bottom:1px solid rgba(232,192,116,.5);color:var(--amb);font:600 .80rem/1.4 ui-monospace,monospace;
+#banner{position:sticky;top:0;z-index:9;background:color-mix(in srgb,var(--color-warning) 16%,var(--bg));
+border-bottom:1px solid color-mix(in srgb,var(--ink-warn) 50%,transparent);color:var(--amb);font:600 var(--text-xs)/1.4 var(--font-mono);
 letter-spacing:.05em;text-transform:uppercase;padding:.6rem 1rem;display:flex;gap:.6rem;align-items:center}
-#banner .dot{width:.6rem;height:.6rem;border-radius:50%;background:var(--amb);box-shadow:0 0 8px var(--amb)}
-h1{font-size:25px;margin:22px 0 2px}h2{font-size:17px;margin:28px 0 10px;border-bottom:1px solid var(--line);padding-bottom:6px}
+#banner .dot{width:.6rem;height:.6rem;border-radius:50%;background:var(--amb);box-shadow:0 0 0 3px color-mix(in srgb,var(--amb) 22%,transparent)}
+h1{font-size:var(--text-xl);margin:22px 0 2px}h2{font-size:var(--text-lg);margin:28px 0 10px;border-bottom:1px solid var(--line);padding-bottom:6px}
 .sub{color:var(--mut);margin:0 0 14px;max-width:760px}a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:10px 0}
-table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:8px 8px;border-bottom:1px solid var(--line);vertical-align:top}
-th{color:var(--mut);font-weight:600}code{background:#0a1626;padding:1px 5px;border-radius:5px;color:var(--acc);font-size:12px}
-.b{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap}
-.green{background:#0f3a2e;color:#5ad1c0}.amber{background:#3a2f0f;color:#e0c060}.red{background:#3a0f14;color:#ff8a8a}.grey{background:#1b2740;color:#8aa0bd}
-.pill{font-size:11px;padding:1px 7px;border-radius:999px;border:1px solid var(--line);color:var(--mut)}
+table{width:100%;border-collapse:collapse;font-size:var(--text-sm)}th,td{text-align:left;padding:8px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--mut);font-weight:600}code{background:var(--bg-deep);padding:1px 5px;border-radius:5px;color:var(--ink);font-size:var(--text-xs)}
+.b{display:inline-block;padding:1px 8px;border-radius:999px;font:700 var(--text-xs)/1.5 var(--font-mono);white-space:nowrap}
+.green{background:color-mix(in srgb,var(--grn) 14%,transparent);color:var(--grn)}.amber{background:color-mix(in srgb,var(--amb) 14%,transparent);color:var(--amb)}.red{background:color-mix(in srgb,var(--red) 14%,transparent);color:var(--red)}.grey{background:color-mix(in srgb,var(--ink) 8%,transparent);color:var(--mut)}
+.pill{font-size:var(--text-xs);padding:1px 7px;border-radius:999px;border:1px solid var(--line);color:var(--mut)}
 ol{margin:6px 0 6px 18px;padding:0}ol li{margin:4px 0}
-.foot{margin-top:34px;color:var(--mut);font-size:12px;border-top:1px solid var(--line);padding-top:14px}
-.note{color:var(--mut);font-size:12px}
-.legend{display:flex;gap:14px;flex-wrap:wrap;margin:8px 0 2px;font-size:12px;color:var(--mut)}
+.foot{margin-top:34px;color:var(--mut);font-size:var(--text-xs);border-top:1px solid var(--line);padding-top:14px}
+.note{color:var(--mut);font-size:var(--text-sm)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin:8px 0 2px;font-size:var(--text-xs);color:var(--mut)}
 </style>  <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
   <link rel="stylesheet" href="/assets/szl-holo-v2.css" data-szl-holo-asset="style-v2" />
 </head><body>
