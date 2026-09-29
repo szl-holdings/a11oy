@@ -15,6 +15,7 @@ on:
     - requirements*.txt
     - Dockerfile
     - docs/DEPENDENCY_RISK_REGISTER.md
+    - scripts/audit_closure_check.py
     - .github/workflows/dependency-audit.yml
   schedule:
   - cron: 17 6 * * 1
@@ -44,28 +45,14 @@ jobs:
       - name: Install pip-audit
         run: python -m pip install --no-cache-dir pip-audit==2.9.0
 
-      - name: Assert audit closure has not drifted from the Dockerfile
+      - name: Assert the audit closure is the runtime install set
         shell: bash
         run: |
           set -euo pipefail
-          # Every ==pin in requirements-audit.txt that also appears in the Dockerfile
-          # must match exactly. Prevents the audit file silently going stale.
-          fail=0
-          while IFS= read -r line; do
-            case "$line" in \#*|"") continue ;; esac
-            pkg="${line%%==*}"
-            ver="${line##*==}"
-            # uvicorn is pinned as uvicorn[standard] in the Dockerfile
-            if grep -qE "\"${pkg}(\[[a-z]+\])?==" Dockerfile 2>/dev/null; then
-              dver=$(grep -oE "\"${pkg}(\[[a-z]+\])?==[0-9][^\"]*\"" Dockerfile | head -1 | sed 's/.*==//; s/"//')
-              if [ "$dver" != "$ver" ]; then
-                echo "::error::DRIFT ${pkg}: requirements-audit.txt=${ver} Dockerfile=${dver}"
-                fail=1
-              fi
-            fi
-          done < requirements-audit.txt
-          [ "$fail" -eq 0 ] || exit 1
-          echo "audit closure matches Dockerfile pins"
+          # requirements-runtime.txt is the single source of truth: the Dockerfile
+          # installs it with `pip install -r` and requirements-audit.txt includes it
+          # with `-r`. Fails closed if any runtime pin is re-listed in either file.
+          python scripts/audit_closure_check.py .
 
       - name: Verify the risk register is still in review window
         shell: bash

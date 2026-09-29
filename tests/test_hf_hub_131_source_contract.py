@@ -16,6 +16,15 @@ SPEC.loader.exec_module(MODULE)
 
 AUDIT_EQ = re.compile(r"^([A-Za-z0-9_.-]+)==([0-9][^#\s]*)$")
 DOCKER_EQ = re.compile(r'"([A-Za-z0-9_.-]+)(?:\[[a-z]+\])?==([0-9][^"]*)"')
+RUNTIME_EQ = re.compile(r"^([A-Za-z0-9_.-]+)(?:\[[a-z]+\])?==([0-9][^#\s]*)$")
+
+CLOSURE_SPEC = importlib.util.spec_from_file_location(
+    "audit_closure_check", ROOT / "scripts" / "audit_closure_check.py"
+)
+assert CLOSURE_SPEC and CLOSURE_SPEC.loader
+CLOSURE = importlib.util.module_from_spec(CLOSURE_SPEC)
+sys.modules[CLOSURE_SPEC.name] = CLOSURE
+CLOSURE_SPEC.loader.exec_module(CLOSURE)
 
 
 def overlapping_equality_pins(audit_text: str, docker_text: str) -> dict[str, tuple[str, str]]:
@@ -118,15 +127,100 @@ def test_synthetic_131_alignment_still_only_reaches_evaluation() -> None:
     assert result["automaticPromotionAuthorized"] is False
 
 
-def test_overlapping_audit_and_dockerfile_equality_pins_match() -> None:
-    pairs = overlapping_equality_pins(
-        (ROOT / "requirements-audit.txt").read_text(encoding="utf-8"),
-        (ROOT / "Dockerfile").read_text(encoding="utf-8"),
+def _runtime_equality_pins(text: str) -> dict[str, str]:
+    pins: dict[str, str] = {}
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        match = RUNTIME_EQ.fullmatch(stripped)
+        assert match is not None, f"runtime requirement is not an exact pin: {stripped!r}"
+        pins[match.group(1)] = match.group(2)
+    return pins
+
+
+def test_audit_closure_is_exactly_the_runtime_install_set() -> None:
+    """The audit closure includes the file the image installs; nothing is copied."""
+    runtime = _runtime_equality_pins(MODULE.runtime_install_text(ROOT))
+    audit_closure = MODULE._expand_includes(ROOT, "requirements-audit.txt")
+    audit_pins: dict[str, str] = {}
+    for line in audit_closure.splitlines():
+        match = RUNTIME_EQ.fullmatch(line.strip())
+        if match is not None:
+            audit_pins[match.group(1)] = match.group(2)
+    assert "huggingface_hub" in runtime
+    assert "openai" in runtime
+    assert {name: audit_pins.get(name) for name in runtime} == runtime
+    assert CLOSURE.check(ROOT) == []
+
+
+def test_dockerfile_carries_no_inline_runtime_pins() -> None:
+    docker_pins = {m.group(1) for m in DOCKER_EQ.finditer((ROOT / "Dockerfile").read_text(encoding="utf-8"))}
+    runtime = _runtime_equality_pins((ROOT / "requirements-runtime.txt").read_text(encoding="utf-8"))
+    assert docker_pins & set(runtime) == set()
+
+
+def _closure_tree(tmp_path: Path, *, runtime: str, audit: str, docker: str) -> Path:
+    (tmp_path / "requirements-runtime.txt").write_text(runtime, encoding="utf-8")
+    (tmp_path / "requirements-audit.txt").write_text(audit, encoding="utf-8")
+    (tmp_path / "Dockerfile").write_text(docker, encoding="utf-8")
+    return tmp_path
+
+
+GOOD_DOCKER = (
+    "FROM python:3.14-slim\n"
+    "COPY requirements-runtime.txt /tmp/requirements-runtime.txt\n"
+    "RUN pip install --no-cache-dir -r /tmp/requirements-runtime.txt\n"
+)
+GOOD_RUNTIME = "uvicorn[standard]==0.52.4\nhuggingface_hub==1.31.0\nopenai==2.43.0\n"
+GOOD_AUDIT = "-r requirements-runtime.txt\nsigstore==4.5.0\n"
+
+
+def test_closure_check_accepts_the_single_source_shape(tmp_path: Path) -> None:
+    root = _closure_tree(tmp_path, runtime=GOOD_RUNTIME, audit=GOOD_AUDIT, docker=GOOD_DOCKER)
+    assert CLOSURE.check(root) == []
+    assert MODULE.evaluate_repository(root)["aligned"] is True
+
+
+def test_closure_check_refuses_a_copied_audit_pin(tmp_path: Path) -> None:
+    """The #2306/#2307 failure: a bump lands in the audit file but not the image."""
+    root = _closure_tree(
+        tmp_path, runtime=GOOD_RUNTIME, audit=GOOD_AUDIT + "openai==3.8.0\n", docker=GOOD_DOCKER
     )
-    assert "huggingface_hub" in pairs
-    assert "openai" in pairs
-    drifted = {name: versions for name, versions in pairs.items() if versions[0] != versions[1]}
-    assert drifted == {}, drifted
+    errors = CLOSURE.check(root)
+    assert any("runtime pin openai is copied" in e for e in errors), errors
+
+
+def test_closure_check_refuses_an_inline_dockerfile_pin(tmp_path: Path) -> None:
+    """The #2315 failure: runtime pins edited inline in the Dockerfile RUN line."""
+    docker = GOOD_DOCKER + 'RUN pip install --no-cache-dir "huggingface_hub==1.32.0"\n'
+    root = _closure_tree(tmp_path, runtime=GOOD_RUNTIME, audit=GOOD_AUDIT, docker=docker)
+    errors = CLOSURE.check(root)
+    assert any("huggingface_hub is re-listed inline" in e for e in errors), errors
+
+
+def test_closure_check_refuses_missing_include_and_ranges(tmp_path: Path) -> None:
+    root = _closure_tree(
+        tmp_path,
+        runtime=GOOD_RUNTIME + "numpy>=2.5\n",
+        audit="sigstore==4.5.0\n",
+        docker=GOOD_DOCKER,
+    )
+    errors = CLOSURE.check(root)
+    assert any("must include '-r requirements-runtime.txt'" in e for e in errors), errors
+    assert any("'numpy>=2.5' is not an exact == pin" in e for e in errors), errors
+
+
+def test_closure_check_refuses_an_image_that_does_not_install_the_runtime_file(tmp_path: Path) -> None:
+    docker = "FROM python:3.14-slim\nCOPY requirements-runtime.txt /tmp/requirements-runtime.txt\n"
+    root = _closure_tree(tmp_path, runtime=GOOD_RUNTIME, audit=GOOD_AUDIT, docker=docker)
+    assert any("RUN pip install --no-cache-dir -r" in e for e in CLOSURE.check(root))
+    try:
+        MODULE.evaluate_repository(root)
+    except MODULE.ContractError:
+        pass
+    else:
+        raise AssertionError("an image that does not install the runtime file was evaluated as aligned")
 
 
 def test_historic_openai_audit_380_versus_runtime_243_is_synthetic_hold() -> None:
@@ -136,8 +230,6 @@ def test_historic_openai_audit_380_versus_runtime_243_is_synthetic_hold() -> Non
         'RUN pip install "openai==2.43.0"\n',
     )
     assert historic["openai"] == ("3.8.0", "2.43.0")
-    current = overlapping_equality_pins(
-        (ROOT / "requirements-audit.txt").read_text(encoding="utf-8"),
-        (ROOT / "Dockerfile").read_text(encoding="utf-8"),
-    )
-    assert current["openai"] == ("2.43.0", "2.43.0")
+    runtime = _runtime_equality_pins(MODULE.runtime_install_text(ROOT))
+    assert runtime["openai"] == "2.43.0"
+    assert runtime["huggingface_hub"] == MODULE.HF_HUB_VERSION
