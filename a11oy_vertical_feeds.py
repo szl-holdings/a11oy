@@ -1729,7 +1729,8 @@ def _readiness_public_source(entry: Any) -> Any:
 
     A last-good value keeps its REAL observation timestamp and is honestly
     relabeled cached (the refresh error stays visible); a source with no
-    observed value passes through UNAVAILABLE so the schema fails closed.
+    observed value uses the canonical UNAVAILABLE envelope. Unknown statuses
+    and contradictory absence claims stay visible to the strict consumer.
     Nothing is fabricated: no synthetic items, no invented timestamps.
     """
     if not isinstance(entry, dict):
@@ -1738,6 +1739,10 @@ def _readiness_public_source(entry: Any) -> Any:
     if not isinstance(freshness, dict):
         return entry
     status = str(freshness.get("status") or "").strip().lower()
+    if status not in _READINESS_PUBLIC_FRESHNESS | {"stale", "unavailable"}:
+        return entry
+    if status == "unavailable" and entry.get("value") is not None:
+        return entry
     if status in _READINESS_PUBLIC_FRESHNESS and freshness.get("fetched_at") is not None:
         return entry
     out = dict(entry)
@@ -1746,11 +1751,6 @@ def _readiness_public_source(entry: Any) -> Any:
         fresh["status"] = "UNAVAILABLE"
         out["freshness"] = fresh
         return out
-    if fresh.get("fetched_at") is None:
-        age_s = fresh.get("age_s")
-        if isinstance(age_s, (int, float)) and not isinstance(age_s, bool):
-            # Reconstruct the real observation instant from its measured age.
-            fresh["fetched_at"] = time.time() - max(0.0, float(age_s))
     if status not in _READINESS_PUBLIC_FRESHNESS:
         # Last-good value present: served from cache with its original clock.
         fresh["status"] = "cached"
@@ -1948,8 +1948,13 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
         kev, nvd = values[:2]
         gh = dict(zip(repos, values[2:2 + len(repos)]))
         ghev, hf = values[2 + len(repos):2 + len(repos) + 2]
-        return JSONResponse({"vertical": "cyber", "kev": kev, "nvd": nvd, "github": gh,
-                             "gh_events": ghev, "hf": hf,
+        return JSONResponse({"vertical": "cyber",
+                             "kev": _readiness_public_source(kev),
+                             "nvd": _readiness_public_source(nvd),
+                             "github": {repo: _readiness_public_source(entry)
+                                        for repo, entry in gh.items()},
+                             "gh_events": _readiness_public_source(ghev),
+                             "hf": _readiness_public_source(hf),
                              "sources_cited": cited_leaders("cyber"), "doctrine": DOCTRINE})
 
     # ---- REAL ESTATE ----
