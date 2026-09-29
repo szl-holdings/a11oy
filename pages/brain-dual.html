@@ -10,55 +10,60 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>a11oy — Brain · Dual-Stream Architecture (Hickok)</title>
+<link rel="icon" href="/assets/szl/logos/szl_favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/szl/logos/szl_favicon_32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/assets/szl/logos/szl_favicon_180.png">
+<link rel="stylesheet" href="/assets/szl/szl-design-system.css">
 <style>
   :root{
-    --bg:#06080d; --bg2:#0a0e16; --panel:#0e1420; --line:#1b2536;
-    --ink:#e9eff8; --mut:#8aa0bd; --faint:#5a6b86;
-    --dorsal:#5591c7;   /* action lane — blue */
-    --ventral:#a86fdf;  /* meaning lane — purple */
-    --gold:#e8af34;     /* A37 internal-feedback loop */
-    --accent:#5ad1c7;
+    /* SZL KANCHAY founder tokens; --accent (coral) is not redefined here */
+    --bg2:var(--bg-deep); --panel:var(--surface); --line:var(--border);
+    --ink:var(--text); --mut:var(--text-sub); --faint:var(--color-gray-300);
+    --dorsal:var(--color-info-light);   /* action lane */
+    --ventral:var(--color-gray-300);    /* meaning lane (no purple) */
+    --gold:var(--premium);              /* A37 internal-feedback loop: the page's one emphasised mechanism */
+    --node:var(--color-silver-300);     /* input node outline (silver linework) */
   }
   *{box-sizing:border-box}
   html,body{margin:0;height:100%}
   body{
-    background:radial-gradient(1200px 700px at 50% 0%, #0c1322 0%, var(--bg) 70%);
-    color:var(--ink); font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Inter,sans-serif;
+    background:radial-gradient(1200px 700px at 50% 0%, color-mix(in srgb,var(--color-space-700) 60%,var(--bg)) 0%, var(--bg) 70%);
+    color:var(--ink); font-family:var(--font-body);
     overflow:hidden; height:100vh; display:flex; flex-direction:column;
   }
   header{
     padding:14px 22px 10px; display:flex; align-items:baseline; gap:16px; flex-wrap:wrap;
     border-bottom:1px solid var(--line);
   }
-  header h1{font-size:18px; margin:0; letter-spacing:.2px}
-  header h1 b{color:var(--accent)}
+  header h1{font-size:18px; line-height:var(--leading-snug); margin:0; letter-spacing:var(--tracking-tight)}
+  header h1 b{color:var(--ink)}
   header .sub{font-size:12px; color:var(--mut)}
-  header code{background:#10192b; color:#bcd; padding:1px 6px; border-radius:5px; font-size:11px}
+  header code{background:var(--surface-alt); color:var(--mut); padding:1px 6px; border-radius:5px; font-size:11px}
   main{flex:1; position:relative; min-height:0}
   svg{width:100%; height:100%; display:block}
-  .legend{position:absolute; top:14px; left:18px; font-size:12px; line-height:1.7; background:rgba(10,14,22,.7);
+  .legend{position:absolute; top:14px; left:18px; font-size:12px; line-height:1.7; background:color-mix(in srgb,var(--surface-alt) 70%,transparent);
     border:1px solid var(--line); border-radius:10px; padding:10px 12px; backdrop-filter:blur(4px)}
   .legend .row{display:flex; align-items:center; gap:8px}
   .legend .dot{width:11px; height:11px; border-radius:50%}
   .panel{position:absolute; top:14px; right:18px; width:330px; max-height:calc(100% - 120px);
-    background:rgba(10,14,22,.82); border:1px solid var(--line); border-radius:12px; padding:12px 14px;
+    background:color-mix(in srgb,var(--surface-alt) 82%,transparent); border:1px solid var(--line); border-radius:12px; padding:12px 14px;
     overflow:auto; backdrop-filter:blur(6px)}
-  .panel h3{margin:0 0 8px; font-size:13px; color:var(--accent)}
+  .panel h3{margin:0 0 8px; font-size:13px; color:var(--ink)}
   .panel .hint{font-size:11px; color:var(--faint); margin-bottom:8px}
   .rcpt{border:1px solid var(--line); border-radius:8px; padding:7px 9px; margin-bottom:7px; font-size:11px}
   .rcpt .a{font-weight:600}
   .rcpt .meta{color:var(--mut); font-size:10px; margin-top:2px}
-  .rcpt .cite{color:var(--gold); font-size:10px; margin-top:2px; word-break:break-all}
+  .rcpt .cite{color:var(--mut); font-family:var(--font-mono); font-size:10px; margin-top:2px; word-break:break-all}
   .rcpt.dorsal{border-left:3px solid var(--dorsal)}
   .rcpt.ventral{border-left:3px solid var(--ventral)}
-  .rcpt.dual{border-left:3px solid #d05}
+  .rcpt.dual{border-left:3px solid var(--color-error-light)}
   .citestrip{font-size:11px; color:var(--mut); padding:8px 22px; border-top:1px solid var(--line);
     background:var(--bg2); line-height:1.5}
-  .citestrip a{color:var(--accent); text-decoration:none}
-  .citestrip a:hover{text-decoration:underline}
+  .citestrip a{color:var(--link); text-decoration:none}
+  .citestrip a:hover{color:var(--link-hover); text-decoration:underline}
   footer{font-size:11px; color:var(--faint); padding:7px 22px; border-top:1px solid var(--line);
     display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap}
-  footer .lock{color:var(--gold); font-weight:600}
+  footer .lock{color:var(--mut); font-weight:600}
   .node{cursor:pointer}
   .node:hover .nbox{stroke-width:2.5}
   .nlabel{font-size:13px; font-weight:600; fill:var(--ink)}
@@ -102,7 +107,7 @@
 
     <!-- input node -->
     <g class="node" data-node="input">
-      <rect class="nbox" x="40" y="250" width="150" height="60" rx="10" fill="#0e1726" stroke="var(--accent)"/>
+      <rect class="nbox" x="40" y="250" width="150" height="60" rx="10" fill="var(--panel)" stroke="var(--node)"/>
       <text class="nlabel" x="115" y="276" text-anchor="middle">Auditory input</text>
       <text class="nsub" x="115" y="294" text-anchor="middle">spectrotemporal (STG)</text>
     </g>
@@ -111,12 +116,12 @@
     <path id="pathD" d="M190 268 C 300 120, 420 120, 520 110" fill="none" stroke="var(--dorsal)" stroke-width="2.5" marker-end="url(#arrowD)"/>
     <path d="M650 110 C 760 110, 800 200, 820 250" fill="none" stroke="var(--dorsal)" stroke-width="2.5" marker-end="url(#arrowD)"/>
     <g class="node" data-node="spt">
-      <rect class="nbox" x="520" y="80" width="130" height="60" rx="10" fill="#0e1726" stroke="var(--dorsal)"/>
+      <rect class="nbox" x="520" y="80" width="130" height="60" rx="10" fill="var(--panel)" stroke="var(--dorsal)"/>
       <text class="nlabel" x="585" y="106" text-anchor="middle">Area Spt</text>
       <text class="nsub" x="585" y="124" text-anchor="middle">sensorimotor xlate</text>
     </g>
     <g class="node" data-node="dorsal">
-      <rect class="nbox" x="755" y="250" width="200" height="60" rx="10" fill="#0e1726" stroke="var(--dorsal)"/>
+      <rect class="nbox" x="755" y="250" width="200" height="60" rx="10" fill="var(--panel)" stroke="var(--dorsal)"/>
       <text class="nlabel" x="855" y="276" text-anchor="middle">Articulatory network</text>
       <text class="nsub" x="855" y="294" text-anchor="middle">/dorsal · motor plan</text>
     </g>
@@ -130,7 +135,7 @@
     <path id="pathV" d="M190 292 C 300 440, 420 440, 520 450" fill="none" stroke="var(--ventral)" stroke-width="2.5" marker-end="url(#arrowV)"/>
     <path d="M650 450 C 760 450, 800 360, 820 312" fill="none" stroke="var(--ventral)" stroke-width="2.5" marker-end="url(#arrowV)"/>
     <g class="node" data-node="ventral_mid">
-      <rect class="nbox" x="520" y="420" width="130" height="60" rx="10" fill="#0e1726" stroke="var(--ventral)"/>
+      <rect class="nbox" x="520" y="420" width="130" height="60" rx="10" fill="var(--panel)" stroke="var(--ventral)"/>
       <text class="nlabel" x="585" y="446" text-anchor="middle">Lexical-semantic</text>
       <text class="nsub" x="585" y="464" text-anchor="middle">post. MTG / ITS</text>
     </g>
@@ -138,7 +143,7 @@
       <rect class="nbox" x="755" y="250" width="200" height="60" rx="10" fill="transparent" stroke="none"/>
     </g>
     <g class="node" data-node="ventral_out">
-      <rect class="nbox" x="755" y="370" width="200" height="60" rx="10" fill="#0e1726" stroke="var(--ventral)"/>
+      <rect class="nbox" x="755" y="370" width="200" height="60" rx="10" fill="var(--panel)" stroke="var(--ventral)"/>
       <text class="nlabel" x="855" y="396" text-anchor="middle">Conceptual network</text>
       <text class="nsub" x="855" y="414" text-anchor="middle">/ventral · meaning</text>
     </g>
@@ -223,7 +228,7 @@
     var path = (r.stream==="ventral") ? pathV : pathD;
     if(!path || !path.getTotalLength) return;
     var len = path.getTotalLength();
-    var color = (r.stream==="ventral") ? "var(--ventral)" : (r.stream==="dorsal" ? "var(--dorsal)" : "#d05");
+    var color = (r.stream==="ventral") ? "var(--ventral)" : (r.stream==="dorsal" ? "var(--dorsal)" : "var(--color-error-light)");
     var c = document.createElementNS("http://www.w3.org/2000/svg","circle");
     c.setAttribute("r","5"); c.setAttribute("fill",color);
     tokensG.appendChild(c);

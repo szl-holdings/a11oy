@@ -10,43 +10,49 @@
      GET /decision /terra /aegis /puriq-markets /counsel /vessels /demo /evaluations.
      Status ROADMAP. Formula authority NONE. Λ = Conjecture 1.
      Licensed AIS CLOSED. AIS lattice CITATION_ONLY. Not legal advice. Not a trading bot. Not a Palantir clone. -->
+<link rel="icon" href="/assets/szl/logos/szl_favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/szl/logos/szl_favicon_32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/assets/szl/logos/szl_favicon_180.png">
+<link rel="stylesheet" href="/assets/szl/szl-design-system.css">
 <style>
 :root {
-  --ink:#09090b; --ink-2:#121214; --ink-3:#1c1c20; --paper:#f2efe8; --paper-dim:#c8c2b4;
-  --muted:#8a857a; --line:color-mix(in oklab, var(--paper) 12%, transparent);
-  --cord:#9a5a48; --ok:#7d9a7a; --deny:#d46a4c; --wait:#c9a15b;
-  --font-display:ui-serif, Georgia, "Times New Roman", serif;
-  --font-sans:ui-sans-serif, system-ui, sans-serif;
-  --font-mono:ui-monospace, "SF Mono", Menlo, monospace;
+  /* SZL KANCHAY founder tokens (fonts come from szl-design-system.css) */
+  --ink:var(--bg); --ink-2:var(--surface); --ink-3:var(--surface-alt); --paper:var(--text); --paper-dim:var(--text-sub);
+  --muted:var(--text-sub); --line:var(--border-subtle);
+  --cord:var(--text-ghost); --ok:var(--color-success-light); --deny:var(--color-error-light); --wait:var(--color-warning-light);
+  --font-sans:var(--font-body);
 }
 * { box-sizing:border-box; }
 html, body { margin:0; background:var(--ink); color:var(--paper); font-family:var(--font-sans); }
-a { color:var(--paper-dim); }
-a:hover { color:var(--paper); }
+a { color:var(--link); }
+a:hover { color:var(--link-hover); }
 header { position:sticky; top:0; z-index:20; background:color-mix(in oklab, var(--ink) 90%, transparent); border-bottom:1px solid var(--line); }
 .hdr { max-width:72rem; margin:0 auto; display:flex; align-items:center; justify-content:space-between; padding:0 1.25rem; min-height:52px; gap:1rem; }
-.brand { font-family:var(--font-display); font-size:1.1rem; color:var(--paper); text-decoration:none; }
+.brand { font-family:var(--font-display); font-weight:700; letter-spacing:var(--tracking-tight); font-size:1.1rem; color:var(--paper); text-decoration:none; }
 nav { display:flex; gap:.25rem; flex-wrap:wrap; }
 nav a { min-height:44px; display:flex; align-items:center; padding:0 .7rem; font-size:.85rem; color:var(--muted); text-decoration:none; }
 nav a.on, nav a:hover { color:var(--paper); }
 main { max-width:72rem; margin:0 auto; padding:2rem 1.25rem 6rem; }
 .kicker { font-family:var(--font-mono); font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--muted); }
-h1 { font-family:var(--font-display); font-weight:500; font-size:clamp(2rem,5vw,3.1rem); letter-spacing:-.03em; margin:.4rem 0 .6rem; }
+h1 { font-family:var(--font-display); font-weight:700; font-size:clamp(2rem,5vw,3.1rem); line-height:var(--leading-tight); letter-spacing:var(--tracking-tight); margin:.4rem 0 .6rem; }
 .lede { max-width:46rem; color:var(--paper-dim); line-height:1.55; }
 .row { display:flex; flex-wrap:wrap; gap:.5rem; margin:1.25rem 0 1.5rem; }
-.chip { display:inline-flex; align-items:center; min-height:32px; padding:0 .75rem; border-radius:999px; font-family:var(--font-mono); font-size:11px; background:var(--paper); color:var(--ink); }
+.chip { display:inline-flex; align-items:center; min-height:32px; padding:0 .75rem; border-radius:999px; font-family:var(--font-mono); font-size:11px; border:0; background:var(--surface-raised);color:var(--text);box-shadow:0 0 0 1px var(--border); }
+.chip::before { content:none; }
 .chip.mute { background:transparent; color:var(--muted); box-shadow:0 0 0 1px var(--line); }
 .tabs { display:flex; flex-wrap:wrap; gap:.4rem; margin:1.5rem 0 1rem; }
 button { cursor:pointer; font:inherit; color:var(--paper); background:var(--ink-2); border:1px solid var(--line); border-radius:999px; min-height:44px; padding:0 1rem; }
 button:hover, button:focus-visible, button.on { border-color:var(--cord); outline:none; }
-button.primary { background:var(--paper); color:var(--ink); border-color:var(--paper); }
+/* the desk's one primary action is this view's single coral moment */
+button.primary { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); font-weight:600; }
+button.primary:hover:not(:disabled) { background:var(--accent-hover); border-color:var(--accent-hover); }
 button:disabled { opacity:.45; cursor:not-allowed; }
 .grid { display:grid; gap:.75rem; }
 @media (min-width:860px) { .grid.theatre { grid-template-columns:minmax(16rem,.72fr) minmax(0,1.28fr); } }
 .panel { background:var(--ink-2); border-radius:12px; padding:1.1rem 1.25rem; box-shadow:0 0 0 1px var(--line); margin-top:.75rem; }
-h2 { font-family:var(--font-display); font-weight:500; font-size:1.2rem; margin:0 0 .4rem; }
+h2 { font-family:var(--font-display); font-weight:600; font-size:1.2rem; line-height:var(--leading-snug); margin:0 0 .4rem; }
 p { color:var(--paper-dim); line-height:1.5; }
-pre { background:var(--ink-3); border-radius:10px; padding:1rem; overflow:auto; white-space:pre-wrap; word-break:break-word; font-family:var(--font-mono); font-size:12px; color:var(--paper); }
+pre { background:var(--bg-deep); border-radius:10px; padding:1rem; overflow:auto; white-space:pre-wrap; word-break:break-word; font-family:var(--font-mono); font-size:12px; color:var(--paper); }
 .DENIED { color:var(--deny); }
 .APPROVED { color:var(--ok); }
 .AWAITING_APPROVAL, .ABSTAINED, .ESCALATED, .UNKNOWN { color:var(--wait); }

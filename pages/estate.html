@@ -7,23 +7,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Models + Kernels — SZL Holdings</title>
 <meta name="description" content="Public SZL models and kernels. Hub listing metadata is REPORTED. No invented evals. Lean-8 is /honest. Λ = Conjecture 1."/>
+<link rel="icon" href="/assets/szl/logos/szl_favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/szl/logos/szl_favicon_32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/assets/szl/logos/szl_favicon_180.png">
+<link rel="stylesheet" href="/assets/szl/szl-design-system.css">
 <link rel="stylesheet" href="/static/shared/szl_command_bar.css"/>
 <style>
-@font-face{font-family:'Space Grotesk';font-style:normal;font-weight:300 700;font-display:swap;src:url('/vendor/fonts/SpaceGrotesk.woff2') format('woff2');}
-@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400 500;font-display:swap;src:url('/vendor/fonts/JetBrainsMono.woff2') format('woff2');}
-html,body{margin:0;min-height:100%;background:var(--void,#080c14);color:var(--cream,#eef4fb);}
-body{font-family:var(--display);-webkit-font-smoothing:antialiased;}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);}
+body{font-family:var(--font-body);-webkit-font-smoothing:antialiased;}
 .szl-estate-page{max-width:1180px;margin:0 auto;padding:22px 18px 64px;}
-.szl-estate-lead h1{font-size:28px;margin:8px 0 6px;letter-spacing:.01em;}
-.szl-estate-lead p{margin:0 0 8px;color:var(--paragraph,#aebccf);max-width:62ch;line-height:1.5;}
+.szl-estate-lead h1{font-family:var(--font-display);font-size:28px;line-height:var(--leading-snug);margin:8px 0 6px;letter-spacing:var(--tracking-tight);}
+.szl-estate-lead p{margin:0 0 8px;color:var(--text-sub);max-width:62ch;line-height:1.5;}
 .szl-estate-loop{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0 22px;}
 .szl-estate-loop div{
-  padding:12px 14px;border-radius:8px;border:1px solid rgba(91,141,238,0.22);
-  background:rgba(14,22,38,0.55);
+  padding:12px 14px;border-radius:8px;border:1px solid var(--border-subtle);
+  background:color-mix(in srgb,var(--surface) 55%,transparent);
 }
-.szl-estate-loop b{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--proof,#3af4c8);margin-bottom:6px;}
-.szl-estate-loop span{font-size:13px;color:var(--paragraph,#aebccf);line-height:1.4;}
-.szl-honest-8{font-family:var(--mono);font-size:12px;color:var(--muted,#7d8aa0);}
+.szl-estate-loop b{display:block;font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-sub);margin-bottom:6px;}
+.szl-estate-loop span{font-size:13px;color:var(--text-sub);line-height:1.4;}
+.szl-honest-8{font-family:var(--font-mono);font-size:12px;color:var(--text-ghost);font-variant-numeric:tabular-nums lining-nums;}
 @media (max-width:720px){.szl-estate-loop{grid-template-columns:1fr;}}
 </style>
   <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
@@ -52,7 +54,7 @@ body{font-family:var(--display);-webkit-font-smoothing:antialiased;}
     var n=document.getElementById('szl-lean8');
     if(!n) return;
     n.textContent='Lean-8 kernel count: '+text+' (from /api/a11oy/v1/honest locked_formula_count; catalog LOCKED-PROVEN is not this number).';
-    n.style.color = live ? '#3af4c8' : '#7d8aa0';
+    n.style.color = live ? 'var(--color-success-light)' : 'var(--text-ghost)';
   }
   fetch('/api/a11oy/v1/honest',{cache:'no-store'}).then(function(r){
     if(!r.ok) throw new Error('http');

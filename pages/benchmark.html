@@ -3,27 +3,33 @@
 <title>a11oy · Verifiable-AI Benchmark — 3-way MEASURED PINN (SZL vs DeepXDE vs NVIDIA PhysicsNeMo)</title>
 <meta name="description" content="An honest, measured 3-way physics-informed-neural-network benchmark: SZL governed spectral (CPU) vs DeepXDE (GPU) vs NVIDIA PhysicsNeMo/Modulus (GPU). Every number carries its provenance label; the artifact passes the a11oy honesty gate in CI.">
 <!-- SPDX-License-Identifier: Apache-2.0 · © 2026 SZL Holdings · Doctrine v11 · Signed: Forge -->
+<link rel="icon" href="/assets/szl/logos/szl_favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/szl/logos/szl_favicon_32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/assets/szl/logos/szl_favicon_180.png">
+<link rel="stylesheet" href="/assets/szl/szl-design-system.css">
 <style>
-:root{--bg:#0a0b10;--panel:#12141d;--panel2:#171a25;--ink:#e8eaf0;--mut:#9aa0b4;--gold:#d9b35c;--line:#252938;--grn:#3fb950;--amb:#d29922;--red:#f85149;--blu:#5cc4bf;}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-a{color:var(--gold);text-decoration:none}a:hover{text-decoration:underline}
-header{border-bottom:1px solid var(--line);padding:14px 22px;display:flex;align-items:center;gap:14px;background:linear-gradient(180deg,#10121b,#0a0b10)}
-header .brand{font-weight:700;letter-spacing:.5px;color:var(--gold);font-size:18px}
+:root{--panel:var(--surface);--panel2:var(--surface-alt);--ink:var(--text);--mut:var(--text-sub);--line:var(--border);--grn:var(--color-success-light);--amb:var(--color-warning-light);--red:var(--color-error-light);--blu:var(--color-info-light);}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:var(--text-base)/var(--leading-normal) var(--font-body)}
+a{color:var(--link);text-decoration:none}a:hover{color:var(--link-hover);text-decoration:underline}
+header{border-bottom:1px solid var(--line);padding:14px 22px;display:flex;align-items:center;gap:14px;background:linear-gradient(180deg,var(--bg-deep),var(--bg))}
+header .brand{font-family:var(--font-display);font-weight:700;letter-spacing:var(--tracking-tight);color:var(--text);font-size:18px}
 header .tag{color:var(--mut);font-size:12px}
 nav{display:flex;flex-wrap:wrap;gap:8px;padding:10px 22px;border-bottom:1px solid var(--line);background:var(--panel)}
 nav a{font-size:12.5px;padding:4px 10px;border:1px solid var(--line);border-radius:999px;color:var(--mut)}
-nav a:hover{border-color:var(--gold);color:var(--gold);text-decoration:none}
-nav a.active{background:var(--gold);color:#0a0b10;border-color:var(--gold);font-weight:600}
+nav a:hover{border-color:var(--text-ghost);color:var(--text);text-decoration:none}
+nav a{position:relative}
+nav a.active{background:var(--surface-raised);color:var(--text);border-color:var(--text-ghost);font-weight:600}
+nav a.active::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:2px;border-radius:var(--radius-full);background:var(--accent)}
 main{max-width:1080px;margin:0 auto;padding:28px 22px 60px}
-h1{font-size:27px;margin:0 0 6px;color:#fff}h2{font-size:18px;margin:30px 0 10px;color:var(--gold)}
+h1{font-family:var(--font-display);font-size:27px;line-height:var(--leading-snug);letter-spacing:var(--tracking-tight);margin:0 0 6px;color:var(--text)}h2{font-size:18px;margin:30px 0 10px;color:var(--text)}
 .sub{color:var(--mut);margin:0 0 18px;font-size:13.5px}
-.hero{background:linear-gradient(180deg,#141826,#0e1119);border:1px solid var(--line);border-radius:14px;padding:22px 24px;margin:14px 0 8px}
-.hero .lede{font-size:15.5px;color:#d8dbe6;max-width:80ch}
+.hero{background:linear-gradient(180deg,var(--surface),var(--surface-alt));border:1px solid var(--line);border-radius:14px;padding:22px 24px;margin:14px 0 8px}
+.hero .lede{font-size:var(--text-base);color:var(--text-sub);max-width:80ch}
 .badges{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 2px}
 .badge{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;font-size:12.5px;font-weight:600;border:1px solid var(--line);background:var(--panel2)}
 .badge .dot{width:8px;height:8px;border-radius:50%}
-.badge.ok{border-color:rgba(63,185,80,.5);color:var(--grn)}.badge.ok .dot{background:var(--grn)}
-.badge.info{border-color:rgba(92,196,191,.5);color:var(--blu)}.badge.info .dot{background:var(--blu)}
+.badge.ok{border-color:color-mix(in srgb,var(--grn) 50%,transparent);color:var(--grn)}.badge.ok .dot{background:var(--grn)}
+.badge.info{border-color:color-mix(in srgb,var(--blu) 50%,transparent);color:var(--blu)}.badge.info .dot{background:var(--blu)}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:14px 0}
 .meta{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;margin:12px 0}
 .meta .m{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:11px 13px}
@@ -32,14 +38,14 @@ h1{font-size:27px;margin:0 0 6px;color:#fff}h2{font-size:18px;margin:30px 0 10px
 table{width:100%;border-collapse:collapse;margin:10px 0;font-size:13.5px}
 th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
 th{color:var(--mut);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px}
-td .fw{font-weight:600;color:#fff}td .mc{color:var(--mut);font-size:12px}
-.num{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+td .fw{font-weight:600;color:var(--text)}td .mc{color:var(--mut);font-size:12px}
+.num{font-family:var(--font-mono);font-size:13px;font-variant-numeric:tabular-nums lining-nums}
 .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:600}
-.g{background:rgba(63,185,80,.15);color:var(--grn)}.a{background:rgba(210,153,34,.15);color:var(--amb)}.r{background:rgba(248,81,73,.15);color:var(--red)}.n{background:#1c2030;color:var(--mut)}.b{background:rgba(92,196,191,.14);color:var(--blu)}
-.note{border-left:3px solid var(--gold);padding:9px 14px;background:rgba(217,179,92,.06);color:#d8dbe6;font-size:13px;margin:12px 0;border-radius:0 8px 8px 0}
-.warn{border-left:3px solid var(--amb);background:rgba(210,153,34,.07)}
-code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
-pre{background:#0d0f17;border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto;color:#cdd3e3}
+.g{background:color-mix(in srgb,var(--grn) 15%,transparent);color:var(--grn)}.a{background:color-mix(in srgb,var(--amb) 15%,transparent);color:var(--amb)}.r{background:color-mix(in srgb,var(--red) 15%,transparent);color:var(--red)}.n{background:var(--surface-raised);color:var(--mut)}.b{background:color-mix(in srgb,var(--blu) 14%,transparent);color:var(--blu)}
+.note{border-left:3px solid var(--border);padding:9px 14px;background:color-mix(in srgb,var(--text) 4%,transparent);color:var(--text-sub);font-size:13px;margin:12px 0;border-radius:0 8px 8px 0}
+.warn{border-left:3px solid var(--amb);background:color-mix(in srgb,var(--amb) 7%,transparent)}
+code,pre{font-family:var(--font-mono);font-size:12.5px;font-variant-numeric:tabular-nums lining-nums}
+pre{background:var(--bg-deep);border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto;color:var(--text)}
 footer{border-top:1px solid var(--line);color:var(--mut);font-size:11.5px;padding:18px 22px;line-height:1.7;margin-top:30px}
 .eq{color:var(--blu)}
 .small{font-size:12px;color:var(--mut)}
@@ -60,7 +66,7 @@ footer{border-top:1px solid var(--line);color:var(--mut);font-size:11.5px;paddin
   <b>DeepXDE</b> and <b>NVIDIA PhysicsNeMo / Modulus</b>. We publish the config, the seeds, the license
   of every dependency, and — most importantly — <b>where this suite does <i>not</i> let us claim
   victory.</b> That honesty is the moat.</p>
-  <p class="lede" style="margin-top:12px;color:#fff">SZL leads the field on the axis that decides real
+  <p class="lede" style="margin-top:12px;color:var(--text)">SZL leads the field on the axis that decides real
   deployments — <b>verifiable, deployable governed solving</b>. It is the <b>only</b> arm that actually
   ships in the product, the <b>only</b> one that is license-clean (Apache-2.0, not LGPL), the
   <b>only</b> one re-derived from source in CI on every commit, and it reaches <b>machine precision</b>
@@ -86,7 +92,7 @@ footer{border-top:1px solid var(--line);color:var(--mut);font-size:11.5px;paddin
     <code>/api/a11oy/v1/pinn/bench</code> — taller means more accurate. Gold = SZL governed spectral · muted = the neural PINNs.
     No heights are hard-coded; if the numbers change, the hologram changes.</p>
   </div>
-  <canvas id="holo" style="display:block;width:100%;height:420px;background:radial-gradient(circle at 50% 38%,#0e1322,#070810)"></canvas>
+  <canvas id="holo" style="display:block;width:100%;height:420px;background:radial-gradient(circle at 50% 38%,var(--surface-alt),var(--bg-deep))"></canvas>
   <div id="holoLegend" class="small" style="padding:9px 20px 16px;color:var(--mut)">Materialising the measured field…</div>
   <noscript><div class="note" style="margin:0 20px 16px">The 3D showcase needs JavaScript; the measured tables below are fully static and complete.</div></noscript>
 </section>
@@ -117,7 +123,7 @@ footer{border-top:1px solid var(--line);color:var(--mut);font-size:11.5px;paddin
   <p style="margin:0 0 10px">Content-provenance tools prove where a <i>file</i> came from. Governance platforms document a
   <i>process</i>. Evaluation suites <i>score</i> a model. None of them <b>break the build when a result
   overclaims.</b> a11oy does:</p>
-  <ul style="margin:0;color:#d8dbe6">
+  <ul style="margin:0;color:var(--text-sub)">
     <li>Every reported number is stamped <span class="pill g">MEASURED</span> / <span class="pill b">MODELED</span> /
       <span class="pill n">NOT-RUN</span> / <span class="pill n">NOT-MEASURED</span> / <span class="pill n">NOT-TESTED</span>.</li>
     <li>A <b>measured</b> number with no evidence, or a <b>not-run</b> arm carrying a value, fails the honesty gate — the artifact cannot ship.</li>
@@ -130,7 +136,7 @@ footer{border-top:1px solid var(--line);color:var(--mut);font-size:11.5px;paddin
   <p style="margin:0 0 10px">This page is public and so is everything behind it. Inspect the code that
   produces — and polices — these numbers on the public
   <a href="https://github.com/szl-holdings/a11oy">szl-holdings/a11oy</a> repository:</p>
-  <ul style="margin:0;color:#d8dbe6">
+  <ul style="margin:0;color:var(--text-sub)">
     <li>The measured artifact —
       <a href="https://github.com/szl-holdings/a11oy/blob/main/benchmarks/pinn/results.json"><code>benchmarks/pinn/results.json</code></a>,
       served read-only at <a href="/api/a11oy/v1/pinn/bench"><code>/api/a11oy/v1/pinn/bench</code></a> (this page renders it — no numbers are typed in).</li>
@@ -228,7 +234,7 @@ DeepXDE (LGPL-2.1) and NVIDIA PhysicsNeMo/Modulus (Apache-2.0) are benchmark-onl
     var out="";
     (d.problems||[]).forEach(function(p){
       var metric=p.metric||"rel_l2_vs_exact";
-      out+='<div class="card"><h3 style="margin:0 0 4px;color:#fff">'+esc(p.id)+'</h3>';
+      out+='<div class="card"><h3 style="margin:0 0 4px;color:var(--text)">'+esc(p.id)+'</h3>';
       out+='<p class="small" style="margin:0 0 2px"><span class="eq">'+esc(p.pde)+'</span></p>';
       out+='<p class="small" style="margin:0 0 8px">exact: '+esc(p.exact)+' · metric: <b>'+esc(metric)+'</b></p>';
       out+='<table><thead><tr><th>Framework</th><th>Method</th><th>'+esc(metric)+'</th><th>wall</th><th>seeds</th><th>device</th><th>label</th></tr></thead><tbody>';
@@ -253,7 +259,7 @@ DeepXDE (LGPL-2.1) and NVIDIA PhysicsNeMo/Modulus (Apache-2.0) are benchmark-onl
 
     var interp=d.interpretation||{};
     document.getElementById("interpretation").innerHTML=Object.keys(interp).map(function(k){
-      return '<p style="margin:6px 0"><b style="color:var(--gold)">'+esc(k)+':</b> '+esc(interp[k])+'</p>';}).join("");
+      return '<p style="margin:6px 0"><b style="color:var(--text)">'+esc(k)+':</b> '+esc(interp[k])+'</p>';}).join("");
     document.getElementById("scopeLimits").innerHTML="<b>Scope limits.</b> "+esc(d.scope_limits||"");
     document.getElementById("honesty").innerHTML="<b>Honesty.</b> "+esc(d.honesty||"");
     var rep2=d.reproduce||{};
@@ -271,23 +277,26 @@ DeepXDE (LGPL-2.1) and NVIDIA PhysicsNeMo/Modulus (Apache-2.0) are benchmark-onl
       if(v&&typeof v==="object") v=(v.median!=null?v.median:(v.min!=null?v.min:null));
       return (typeof v==="number")?v:null;
     }
-    var COL={szl:0xe6c169, deepxde:0x5cc4bf, modulus_physicsnemo:0x9fe870};
+    function tok(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim();}
+    function num(n){return new THREE.Color(tok(n)).getHex();}
+    // SZL = the one important measurement (--premium); the neural arms stay neutral/info.
+    var COL={szl:num('--premium'), deepxde:num('--color-gray-300'), modulus_physicsnemo:num('--color-info-light')};
     var NAME={szl:"SZL", deepxde:"DeepXDE", modulus_physicsnemo:"PhysicsNeMo"};
-    var scene=new THREE.Scene(); scene.fog=new THREE.FogExp2(0x070810,0.055);
+    var scene=new THREE.Scene(); scene.fog=new THREE.FogExp2(num('--bg-deep'),0.055);
     var W=canvas.clientWidth||900, Hh=canvas.clientHeight||420;
     var cam=new THREE.PerspectiveCamera(46, W/Hh, 0.1, 100);
     cam.position.set(6.6,5.4,8.6); cam.lookAt(0,1.7,0);
     var rnd=new THREE.WebGLRenderer({canvas:canvas,antialias:true,alpha:true});
     rnd.setPixelRatio(Math.min(window.devicePixelRatio||1,2)); rnd.setSize(W,Hh,false);
-    scene.add(new THREE.AmbientLight(0x8899bb,0.65));
-    var key=new THREE.PointLight(0xffffff,0.9); key.position.set(6,11,6); scene.add(key);
-    scene.add(new THREE.GridHelper(15,30,0x2a3350,0x161d30));
+    scene.add(new THREE.AmbientLight(num('--color-silver-300'),0.65));
+    var key=new THREE.PointLight(num('--color-white'),0.9); key.position.set(6,11,6); scene.add(key);
+    scene.add(new THREE.GridHelper(15,30,num('--border'),num('--surface-alt')));
     var group=new THREE.Group(); scene.add(group);
     var nP=probs.length, gap=3.0, barW=0.58, armGap=0.74;
     function label(text,color,scale){
       var c=document.createElement("canvas"); c.width=256; c.height=64;
-      var g=c.getContext("2d"); g.font="bold 30px -apple-system,Segoe UI,Roboto,sans-serif";
-      g.fillStyle=color||"#e8eaf0"; g.textAlign="center"; g.textBaseline="middle"; g.fillText(text,128,34);
+      var g=c.getContext("2d"); g.font="bold 30px "+tok('--font-body');
+      g.fillStyle=color||tok('--text'); g.textAlign="center"; g.textBaseline="middle"; g.fillText(text,128,34);
       var tex=new THREE.CanvasTexture(c); tex.minFilter=THREE.LinearFilter;
       var sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false}));
       sp.scale.set(scale||2.4,(scale||2.4)/4,1); return sp;
@@ -300,29 +309,29 @@ DeepXDE (LGPL-2.1) and NVIDIA PhysicsNeMo/Modulus (Apache-2.0) are benchmark-onl
         var h=(err!=null&&err>0)?Math.max(0.15,-Math.log(err)/Math.LN10):(err===0?16:0.15);
         h=h*0.42; if(h>7)h=7;
         var z=(ai-(arms.length-1)/2)*armGap;
-        var col=(COL[a.framework]!=null)?COL[a.framework]:0x8899bb, isSZL=(a.framework==="szl");
+        var col=(COL[a.framework]!=null)?COL[a.framework]:num('--color-silver-300'), isSZL=(a.framework==="szl");
         var geo=new THREE.BoxGeometry(barW,h,barW);
         var bar=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:col,emissive:col,emissiveIntensity:isSZL?0.55:0.28,metalness:0.3,roughness:0.35,transparent:true,opacity:isSZL?0.96:0.8}));
         bar.position.set(x0+z,h/2,0); group.add(bar);
         var wf=new THREE.LineSegments(new THREE.EdgesGeometry(geo),new THREE.LineBasicMaterial({color:col,transparent:true,opacity:0.55}));
         wf.position.copy(bar.position); group.add(wf);
       });
-      var pl=label(String(p.id||("problem "+(pi+1))).split("_")[0],"#d9b35c",2.7);
+      var pl=label(String(p.id||("problem "+(pi+1))).split("_")[0],tok('--text-sub'),2.7);
       pl.position.set(x0,-0.55,1.25); group.add(pl);
     });
     (function(){
       var arms0=(probs[0].arms||[]);
       arms0.forEach(function(a,ai){
         var z=(ai-(arms0.length-1)/2)*armGap;
-        var hex="#"+("000000"+((COL[a.framework]||0x8899bb)>>>0).toString(16)).slice(-6);
+        var hex="#"+new THREE.Color(COL[a.framework]!=null?COL[a.framework]:num('--color-silver-300')).getHexString();
         var sp=label(NAME[a.framework]||a.framework,hex,1.9);
         sp.position.set(((-(nP-1)/2)*gap)+z-3.2,0.45,0); group.add(sp);
       });
     })();
     var lg=document.getElementById("holoLegend");
     if(lg){
-      lg.innerHTML='<b style="color:#e6c169">■ SZL</b> governed spectral · '
-        +'<b style="color:#5cc4bf">■ DeepXDE</b> · <b style="color:#9fe870">■ PhysicsNeMo</b>'
+      lg.innerHTML='<b><span style="color:var(--premium)">■</span> SZL</b> governed spectral · '
+        +'<b><span style="color:var(--color-gray-300)">■</span> DeepXDE</b> · <b><span style="color:var(--color-info-light)">■</span> PhysicsNeMo</b>'
         +' &nbsp;·&nbsp; height = −log₁₀(error), taller = more accurate.'
         +(neuralDevice?(' &nbsp;·&nbsp; neural arms measured on our own <b>'+esc(neuralDevice)+'</b>.'):'')
         +' The Poisson tower is machine-precision <b>by construction</b> (disclosed above), not a general-accuracy claim.';

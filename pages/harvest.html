@@ -16,34 +16,38 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>a11oy · Allodial Harvest Console</title>
+<link rel="icon" href="/assets/szl/logos/szl_favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/szl/logos/szl_favicon_32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/assets/szl/logos/szl_favicon_180.png">
+<link rel="stylesheet" href="/assets/szl/szl-design-system.css">
 <style>
 /* ── design tokens ───────────────────────────────────────────── */
 :root{
-  --bg:#0a0b10; --panel:#12141d; --panel2:#171a26; --ink:#e8eaf0;
-  --mut:#9aa0b4; --line:#252938; --mono:'SF Mono',ui-monospace,'JetBrains Mono',Menlo,Consolas,monospace;
+  /* SZL KANCHAY founder tokens (szl-design-system.css); legacy names kept as aliases */
+  --panel:var(--surface); --panel2:var(--surface-alt); --ink:var(--text);
+  --mut:var(--text-sub); --line:var(--border); --mono:var(--font-mono);
 
-  /* posture colours */
-  --c-neg:#c94eff;   /* negative-price  – vivid purple */
-  --c-cur:#3fb950;   /* curtailed-renew  – green       */
-  --c-chp:#20808d;   /* cheap            – teal        */
-  --c-nor:#9aa0b4;   /* normal           – grey        */
-  --c-exp:#d29922;   /* expensive        – amber       */
+  /* posture colours: every posture is also named in words on the hero */
+  --c-neg:var(--color-success-light);   /* negative-price   */
+  --c-cur:var(--color-success-light);   /* curtailed-renew  */
+  --c-chp:var(--color-info-light);      /* cheap            */
+  --c-nor:var(--text-sub);              /* normal           */
+  --c-exp:var(--color-warning-light);   /* expensive        */
 
   /* semantic */
-  --ok:#3fb950; --warn:#d29922; --bad:#f85149;
-  --gold:#d9b35c;
+  --ok:var(--color-success-light); --warn:var(--color-warning-light); --bad:var(--color-error-light);
 
-  /* badges */
-  --badge-sample:#2a1f00;
-  --badge-sample-ink:#d29922;
-  --badge-measured:#0e2b0e;
-  --badge-measured-ink:#3fb950;
-  --badge-sovereign:#0e1e2b;
-  --badge-sovereign-ink:#7cc4ff;
-  --badge-half:#1c1620;
-  --badge-half-ink:#b090d0;
-  --badge-advisory:#231a00;
-  --badge-advisory-ink:#d9b35c;
+  /* badges (tinted grounds, status inks) */
+  --badge-sample:color-mix(in srgb,var(--color-warning-light) 14%,transparent);
+  --badge-sample-ink:var(--color-warning-light);
+  --badge-measured:color-mix(in srgb,var(--color-success-light) 14%,transparent);
+  --badge-measured-ink:var(--color-success-light);
+  --badge-sovereign:color-mix(in srgb,var(--color-info-light) 14%,transparent);
+  --badge-sovereign-ink:var(--color-info-light);
+  --badge-half:var(--surface-raised);
+  --badge-half-ink:var(--text-sub);
+  --badge-advisory:color-mix(in srgb,var(--color-warning-light) 12%,transparent);
+  --badge-advisory-ink:var(--color-warning-light);
 }
 
 /* ── reset & base ────────────────────────────────────────────── */
@@ -51,11 +55,11 @@
 html{scroll-behavior:smooth}
 body{
   background:var(--bg);color:var(--ink);
-  font:15px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  font:var(--text-base)/var(--leading-normal) var(--font-body);
   min-height:100vh;
 }
-a{color:var(--gold);text-decoration:none}
-a:hover{text-decoration:underline}
+a{color:var(--link);text-decoration:none}
+a:hover{color:var(--link-hover);text-decoration:underline}
 
 /* ── layout ──────────────────────────────────────────────────── */
 .wrap{max-width:1080px;margin:0 auto;padding:0 20px 80px}
@@ -65,10 +69,10 @@ header{
   border-bottom:1px solid var(--line);
   padding:14px 20px;
   display:flex;align-items:center;gap:14px;flex-wrap:wrap;
-  background:linear-gradient(180deg,#10121b,var(--bg));
+  background:linear-gradient(180deg,var(--bg-deep),var(--bg));
   position:sticky;top:0;z-index:100;backdrop-filter:blur(6px);
 }
-.brand{font-weight:700;letter-spacing:.5px;color:var(--gold);font-size:18px}
+.brand{font-family:var(--font-display);font-weight:700;letter-spacing:var(--tracking-tight);color:var(--text);font-size:18px}
 .brand span{font-weight:400;opacity:.6}
 .hdr-right{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .ts{font-size:12px;color:var(--mut);font-family:var(--mono)}
@@ -77,7 +81,7 @@ button.refresh{
   border-radius:8px;padding:5px 12px;font-size:12.5px;cursor:pointer;
   transition:border-color .15s,color .15s;
 }
-button.refresh:hover{border-color:var(--gold);color:var(--gold)}
+button.refresh:hover{border-color:var(--text-ghost);color:var(--text)}
 .tick{font-size:11px;color:var(--mut);font-family:var(--mono)}
 
 /* ── nav ─────────────────────────────────────────────────────── */
@@ -89,12 +93,15 @@ nav a{
   font-size:12px;padding:4px 10px;border:1px solid var(--line);
   border-radius:999px;color:var(--mut);transition:border-color .15s,color .15s;
 }
-nav a:hover{border-color:var(--gold);color:var(--gold);text-decoration:none}
-nav a.here{background:var(--gold);color:#0a0b10;border-color:var(--gold);font-weight:600}
+nav a{position:relative}
+nav a:hover{border-color:var(--text-ghost);color:var(--text);text-decoration:none}
+nav a.here{background:var(--surface-raised);color:var(--text);border-color:var(--text-ghost);font-weight:600}
+/* the current tab is this view's one coral moment: an accent underline */
+nav a.here::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:2px;border-radius:var(--radius-full);background:var(--accent)}
 
 /* ── section spacing ─────────────────────────────────────────── */
 section{margin-top:28px}
-h2{font-size:16px;font-weight:700;color:var(--gold);margin-bottom:12px;letter-spacing:.3px;text-transform:uppercase}
+h2{font-size:16px;font-weight:700;color:var(--text);margin-bottom:12px;letter-spacing:.3px;text-transform:uppercase}
 
 /* ── badges ──────────────────────────────────────────────────── */
 .badge{
@@ -107,9 +114,9 @@ h2{font-size:16px;font-weight:700;color:var(--gold);margin-bottom:12px;letter-sp
 .badge-sov      {background:var(--badge-sovereign);color:var(--badge-sovereign-ink)}
 .badge-half     {background:var(--badge-half);color:var(--badge-half-ink)}
 .badge-advisory {background:var(--badge-advisory);color:var(--badge-advisory-ink)}
-.badge-live     {background:rgba(63,185,80,.15);color:var(--ok)}
-.badge-down     {background:rgba(248,81,73,.15);color:var(--bad)}
-.badge-up       {background:rgba(63,185,80,.15);color:var(--ok)}
+.badge-live     {background:color-mix(in srgb,var(--ok) 15%,transparent);color:var(--ok)}
+.badge-down     {background:color-mix(in srgb,var(--bad) 15%,transparent);color:var(--bad)}
+.badge-up       {background:color-mix(in srgb,var(--ok) 15%,transparent);color:var(--ok)}
 
 /* ── status HERO ─────────────────────────────────────────────── */
 .hero{
@@ -121,14 +128,14 @@ h2{font-size:16px;font-weight:700;color:var(--gold);margin-bottom:12px;letter-sp
   content:'';position:absolute;inset:0;
   border-radius:16px;pointer-events:none;opacity:.08;
 }
-.hero.p-neg{border-color:var(--c-neg);background:linear-gradient(135deg,#180a22,#0a0b10)}
+.hero.p-neg{border-color:var(--c-neg);background:linear-gradient(135deg,color-mix(in srgb,var(--c-neg) 8%,var(--bg)),var(--bg))}
 .hero.p-neg::before{background:var(--c-neg)}
-.hero.p-cur{border-color:var(--c-cur);background:linear-gradient(135deg,#0d1f0f,#0a0b10)}
+.hero.p-cur{border-color:var(--c-cur);background:linear-gradient(135deg,color-mix(in srgb,var(--c-cur) 8%,var(--bg)),var(--bg))}
 .hero.p-cur::before{background:var(--c-cur)}
-.hero.p-chp{border-color:var(--c-chp);background:linear-gradient(135deg,#091a1d,#0a0b10)}
+.hero.p-chp{border-color:var(--c-chp);background:linear-gradient(135deg,color-mix(in srgb,var(--c-chp) 8%,var(--bg)),var(--bg))}
 .hero.p-chp::before{background:var(--c-chp)}
 .hero.p-nor{border-color:var(--line);background:var(--panel)}
-.hero.p-exp{border-color:var(--c-exp);background:linear-gradient(135deg,#1e1200,#0a0b10)}
+.hero.p-exp{border-color:var(--c-exp);background:linear-gradient(135deg,color-mix(in srgb,var(--c-exp) 8%,var(--bg)),var(--bg))}
 .hero.p-exp::before{background:var(--c-exp)}
 
 .hero-inner{display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap}
@@ -153,7 +160,7 @@ h2{font-size:16px;font-weight:700;color:var(--gold);margin-bottom:12px;letter-sp
 .hero-meta{display:flex;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap}
 .soak-hard{
   font-size:12px;font-weight:600;padding:3px 10px;border-radius:6px;
-  background:rgba(201,78,255,.12);color:var(--c-neg);border:1px solid rgba(201,78,255,.3);
+  background:color-mix(in srgb,var(--c-neg) 12%,transparent);color:var(--c-neg);border:1px solid color-mix(in srgb,var(--c-neg) 30%,transparent);
 }
 .wasted{font-size:13px;color:var(--mut)}
 .hero-loading{font-size:16px;color:var(--mut)}
@@ -165,10 +172,10 @@ h2{font-size:16px;font-weight:700;color:var(--gold);margin-bottom:12px;letter-sp
   border:1px solid var(--line);transition:border-color .4s,background .4s;
 }
 .sov-banner.sov{
-  background:rgba(124,196,255,.05);border-color:rgba(124,196,255,.3);
+  background:color-mix(in srgb,var(--color-info-light) 5%,transparent);border-color:color-mix(in srgb,var(--color-info-light) 30%,transparent);
 }
 .sov-banner.half{
-  background:rgba(176,144,208,.04);border-color:rgba(176,144,208,.3);
+  background:color-mix(in srgb,var(--text) 4%,transparent);border-color:var(--border);
 }
 .sov-banner.loading{background:var(--panel)}
 .sov-icon{font-size:22px;line-height:1}
@@ -222,11 +229,11 @@ h2{font-size:16px;font-weight:700;color:var(--gold);margin-bottom:12px;letter-sp
 .soak-admit{
   display:inline-flex;align-items:center;gap:6px;
   font-size:13px;font-weight:600;padding:4px 12px;border-radius:8px;
-  background:rgba(63,185,80,.1);color:var(--ok);border:1px solid rgba(63,185,80,.25);
+  background:color-mix(in srgb,var(--ok) 10%,transparent);color:var(--ok);border:1px solid color-mix(in srgb,var(--ok) 25%,transparent);
   margin-bottom:10px;
 }
 .soak-admit.deny{
-  background:rgba(248,81,73,.1);color:var(--bad);border-color:rgba(248,81,73,.25);
+  background:color-mix(in srgb,var(--bad) 10%,transparent);color:var(--bad);border-color:color-mix(in srgb,var(--bad) 25%,transparent);
 }
 
 /* ── receipt panel ───────────────────────────────────────────── */
@@ -243,8 +250,8 @@ h2{font-size:16px;font-weight:700;color:var(--gold);margin-bottom:12px;letter-sp
 .receipt-table td.val{font-family:var(--mono);font-weight:600}
 .joules-row .val{font-size:16px}
 .receipt-note{
-  margin-top:12px;padding:10px 14px;border-left:3px solid var(--gold);
-  background:rgba(217,179,92,.05);border-radius:0 8px 8px 0;
+  margin-top:12px;padding:10px 14px;border-left:3px solid var(--border);
+  background:color-mix(in srgb,var(--text) 4%,transparent);border-radius:0 8px 8px 0;
   font-size:12.5px;color:var(--mut);
 }
 
@@ -254,7 +261,7 @@ h2{font-size:16px;font-weight:700;color:var(--gold);margin-bottom:12px;letter-sp
   background:var(--panel2);border:1px solid var(--line);border-radius:10px;
   padding:12px;text-align:center;transition:border-color .2s;
 }
-.zone-card.best{border-color:var(--ok);background:rgba(63,185,80,.05)}
+.zone-card.best{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 5%,transparent)}
 .zone-name{font-size:12px;font-weight:600;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
 .zone-share{font-family:var(--mono);font-size:20px;font-weight:700;margin:4px 0}
 .zone-card.best .zone-share{color:var(--ok)}
@@ -263,7 +270,7 @@ h2{font-size:16px;font-weight:700;color:var(--gold);margin-bottom:12px;letter-sp
 /* ── lambda advisory ─────────────────────────────────────────── */
 .lambda-note{
   font-size:12px;padding:10px 14px;border-left:3px solid var(--badge-advisory-ink);
-  background:rgba(217,179,92,.04);border-radius:0 8px 8px 0;color:var(--mut);
+  background:color-mix(in srgb,var(--color-warning-light) 4%,transparent);border-radius:0 8px 8px 0;color:var(--mut);
   margin-top:14px;
 }
 
@@ -348,7 +355,7 @@ footer strong{color:var(--ink)}
   <!-- ────────────────────── SOVEREIGN BANNER ─────────────────── -->
   <section id="sec-sovereign" style="margin-top:14px">
     <div class="sov-banner loading" id="sov-banner">
-      <span class="sov-icon">⏳</span>
+      <span class="sov-icon" aria-hidden="true">◌</span>
       <div class="sov-text">
         <strong id="sov-title">Checking sovereignty…</strong>
         <p id="sov-desc">Reading /api/a11oy/v1/formula/sovereign</p>
@@ -576,14 +583,14 @@ function renderSovereign(d){
 
   if(isSov){
     banner.className="sov-banner sov";
-    q("sov-icon").textContent="⚡";
+    q("sov-icon").textContent="●";
     q("sov-title").innerHTML = '<span class="badge badge-sov">SOVEREIGN</span> — running on own metal';
     q("sov-desc").textContent = d.node_id
       ? `Node: ${d.node_id}. Compute fully local — no external routing. Data stays on-prem.`
       : "Compute fully local — no external routing. Data stays on-prem.";
   } else {
     banner.className="sov-banner half";
-    q("sov-icon").textContent="🔗";
+    q("sov-icon").textContent="◐";
     q("sov-title").innerHTML = '<span class="badge badge-half">HALF-STATE</span> — routed externally';
     q("sov-desc").textContent = "This request is handled via an external or managed node. Sovereignty not established. Joules will remain SAMPLE until a local sovereign GPU is active.";
   }
@@ -631,7 +638,7 @@ function renderFeeds(readings){
     const reachable = r ? r.reachable !== false : false;
     const dotCls = !r ? "loading" : reachable ? "live" : "down";
     const statusBadge = !r
-      ? `<span class="badge" style="background:#1c2030;color:var(--mut)">no data</span>`
+      ? `<span class="badge" style="background:var(--surface-raised);color:var(--mut)">no data</span>`
       : reachable
         ? `<span class="badge badge-live">LIVE</span>`
         : `<span class="badge badge-down">DOWN</span>`;
@@ -810,7 +817,7 @@ function renderBounds(cwrap, solve){
   const isSample = String(label).toUpperCase().indexOf("SAMPLE") !== -1;
   const statusBadge = bounded
     ? '<span class="badge badge-sov">PHYSICALLY BOUNDED</span>'
-    : '<span class="badge" style="background:var(--c-exp,#a33);color:#fff">NOT BOUNDED</span>';
+    : '<span class="badge badge-down">NOT BOUNDED</span>';
   const sampleBadge = isSample
     ? '<span class="badge badge-advisory" style="margin-left:6px">SAMPLE energy</span>'
     : '<span class="badge badge-sov" style="margin-left:6px">MEASURED energy</span>';
