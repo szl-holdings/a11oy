@@ -207,11 +207,11 @@ def success_session(origin: str, source_sha: str) -> FakeSession:
             "verdict_expected_base": origin,
             "verdict_summary": {
                 "endpoints": 5,
-                "ok": 4,
+                "ok": 5,
                 "skippedStateChanging": 0,
                 "lies": 0,
                 "unreachable": 0,
-                "throttled": 1,
+                "throttled": 0,
                 "p95_worst": 1806,
             },
         },
@@ -313,11 +313,38 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
         session = success_session(self.origin, self.source)
         readiness_url = self.origin + relock.ROUTES["readiness"]
         readiness = session.responses[("GET", readiness_url)]._payload
-        readiness["verdict_summary"]["ok"] = 3
+        readiness["verdict_summary"]["ok"] = 4
         readiness["verdict_summary"]["lies"] = 1
 
         with self.assertRaisesRegex(relock.RelockError, "doctrine lies"):
             relock.evaluate_once(FakeApi(self.source), session, self.contract)
+
+    def test_relock_rejects_unreachable_or_throttled_required_endpoints(self) -> None:
+        for unreachable, throttled in ((1, 0), (0, 1), (1, 1), (5, 0), (0, 5)):
+            with self.subTest(unreachable=unreachable, throttled=throttled):
+                session = success_session(self.origin, self.source)
+                readiness_url = self.origin + relock.ROUTES["readiness"]
+                readiness = session.responses[("GET", readiness_url)]._payload
+                readiness["verdict_summary"].update(
+                    ok=5 - unreachable - throttled,
+                    unreachable=unreachable,
+                    throttled=throttled,
+                )
+                with self.assertRaisesRegex(
+                    relock.RelockError,
+                    "unreachable required endpoints|throttled required endpoints",
+                ):
+                    relock.evaluate_once(FakeApi(self.source), session, self.contract)
+
+    def test_relock_allows_explicitly_skipped_state_changes_with_passing_reads(self) -> None:
+        session = success_session(self.origin, self.source)
+        readiness_url = self.origin + relock.ROUTES["readiness"]
+        readiness = session.responses[("GET", readiness_url)]._payload
+        readiness["verdict_summary"].update(ok=4, skippedStateChanging=1)
+
+        report = relock.evaluate_once(FakeApi(self.source), session, self.contract)
+
+        self.assertTrue(report["ok"])
 
     def test_reviewed_markers_are_bound_to_the_deployed_holographic_source(self) -> None:
         self.assertEqual(relock.ROUTES["holographic"], "/holographic")
