@@ -27,7 +27,7 @@ datasets: [SZLHOLDINGS/a11oy-verifiable-corpus, SZLHOLDINGS/szl-lake]
   Proof lives at https://a11oy.net
   Never a11oy.com
   receipts.in ≡ receipts.out
-  Canonical: lutar-lean@main kernel c7c0ba17
+  Canonical: lutar-lean Doctrine v11 count @ c7c0ba17 (not main); locked-8 in ProvedFormulas.lean @ 3a886349
   Honesty doctrine LOCKED. DCO + Conventional Commits.
 -->
 
@@ -60,8 +60,8 @@ is a failed verification, not a display error.
 | Source | this repository |
 | Doctrine | v11 LOCKED |
 | Λ | Conjecture 1 (OPEN — not a theorem) |
-| Kernel | `c7c0ba17` |
-| Formulas | locked-8 · never authority |
+| Kernel | `c7c0ba17` (Doctrine v11 count 749/14/163) |
+| Formulas | locked-8 (lutar-lean `ProvedFormulas.lean` @ `3a886349`, not present at `c7c0ba17`) · never authority |
 | Trust ceiling | 0.97 |
 | SLSA | L1 honest · L2 build-attested · L3 roadmap |
 | License | Apache-2.0 |
@@ -94,9 +94,9 @@ Archive: [Warhacker v1.0.0](https://github.com/szl-holdings/a11oy/releases/tag/v
 
 The trust math behind a11oy is pinned in **Lean 4** and checked by a proof machine:
 
-- **8 formulas locked-proven** at kernel `c7c0ba17` — receipt replay, DAG acyclicity, FIFO ordering, ledger conservation, Reed–Solomon recovery, and append-only monotonicity, among others.
+- **8 formulas locked-proven** in lutar-lean [`Lutar/Puriq/Formulas/ProvedFormulas.lean` @ `3a886349`](https://github.com/szl-holdings/lutar-lean/blob/3a8863491f688956f2fae7796e31404d6b21c8a6/Lutar/Puriq/Formulas/ProvedFormulas.lean) (file added 2026-06-04, last changed 2026-06-10; not present at `c7c0ba17`). What they state: pure-function replay determinism (F1, `f x = f x`), acyclicity kept when backward-pointing edges are appended to a Khipu DAG (F4), FIFO drain order on a list-modelled queue (F7), integer add-then-subtract cancellation (F11), `Nat` distributivity (F12), RS(10,6) parity-count arithmetic (F18, `10 − 6 = 4`), `Nat` additive monotonicity (F19), and strictly increasing indices in a `List.range` sequence log (F22). They do not prove receipt-replay integrity or Reed–Solomon recovery. The Doctrine v11 figure 749/14/163 @ `c7c0ba17` is a separate count: its 163 counts `sorry` text including comments, and the 149 variant drops only lines that start with `--`, so neither is a count of open proof holes.
 - **Λ unconditional uniqueness = Conjecture 1** — machine-checked false (we found a counterexample). Conditional uniqueness is proven axiom-free (Theorem U). We say both out loud.
-- **SLSA L1 honest · L2 build-attested · L3 roadmap**. No FedRAMP or ATO claimed.
+- **SLSA L1 honest · L2 build-attested · L3 roadmap**. No government authorization or accreditation is claimed.
 
 Full proof library: **[szl-holdings/lutar-lean](https://github.com/szl-holdings/lutar-lean)**
 
@@ -169,13 +169,13 @@ deployment still requires the canonical publisher and live readback.
 | Claim | Status |
 |---|---|
 | Signed receipts on every governed action | **PARTIAL — healthz signer ABSENT; HMAC placeholder; non_repudiation false** |
-| 8 formulas locked-proven (Lean 4) | **LOCKED · kernel c7c0ba17** |
+| 8 formulas locked-proven (Lean 4) | **LOCKED · lutar-lean `ProvedFormulas.lean` @ `3a886349` (not present at c7c0ba17)** |
 | Λ uniqueness | **Conjecture 1** (conditional Theorem U proven axiom-free) |
 | SLSA supply chain | **L1 honest · L2 build-attested · L3 roadmap** |
 | Apex `/console` on a-11-oy.com | **MEASURED reachable 2026-09-04 · Space front** |
 | HF custom domain `a-11-oy.com` | **READY** (provider row; not DSSE-LIVE) |
 | `www.a-11-oy.com` | **UNAVAILABLE** (TLS alert) |
-| FedRAMP / ATO | **ROADMAP** |
+| Government authorization / accreditation | **ROADMAP — none claimed** |
 | EXECUTION guard | **ROADMAP** |
 
 ---
@@ -259,7 +259,7 @@ to its captured run.
 ---
 
 <div align="center">
-<sub>SZL Holdings · a11oy · Doctrine v11 LOCKED · Λ = Conjecture 1 · SLSA L1 honest · L2 build-attested · L3 roadmap · Not affiliated with Defense Unicorns · No production ATO claimed · trust never 100%</sub>
+<sub>SZL Holdings · a11oy · Doctrine v11 LOCKED · Λ = Conjecture 1 · SLSA L1 honest · L2 build-attested · L3 roadmap · Not affiliated with Defense Unicorns · No production authorization claimed · trust never 100%</sub>
 </div>
 
 ---
@@ -268,13 +268,12 @@ to its captured run.
 
 One sovereign substrate, many organs — every decision carries a hash-chained, checkable receipt.
 
-**[◇ Holographic Estate — the showcase](https://szlholdings-holographic.hf.space)** ·
+**[◇ SZL Atlas — the estate map](https://huggingface.co/spaces/SZLHOLDINGS/szl-command-lab)** ·
 [🛡️ a11oy](https://huggingface.co/spaces/SZLHOLDINGS/a11oy) ·
-[🧬 IMMUNE](https://huggingface.co/spaces/SZLHOLDINGS/immune) ·
 [🦅 killinchu](https://huggingface.co/spaces/SZLHOLDINGS/killinchu) ·
-[🫀 anatomy](https://huggingface.co/spaces/SZLHOLDINGS/anatomy) ·
-[🌌 cosmos](https://huggingface.co/spaces/SZLHOLDINGS/cosmos) ·
-[🛰️ SDA](https://huggingface.co/spaces/SZLHOLDINGS/sda) ·
+[🔀 SZL Router](https://huggingface.co/spaces/SZLHOLDINGS/llm-router-live) ·
+[🪢 SZL Khipu](https://huggingface.co/spaces/SZLHOLDINGS/szl-khipu) ·
+[🧬 IMMUNE](https://huggingface.co/spaces/SZLHOLDINGS/immune) ·
 [🌊 yarqa](https://huggingface.co/spaces/SZLHOLDINGS/yarqa) ·
 [🤗 all Spaces](https://huggingface.co/SZLHOLDINGS)
 

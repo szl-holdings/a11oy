@@ -52,7 +52,10 @@ except Exception:  # pure-python import without FastAPI
 LOCKED8 = ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]
 KERNEL = "c7c0ba17"
 COSIGN_KEYID = "szlholdings-cosign"
-COSIGN_PUB_URL = "https://github.com/szl-holdings/.github/blob/main/cosign.pub"
+# Same-origin runtime key of the app serving the ledger. This file ships
+# byte-identical in a11oy and killinchu, and the two apps may sign with
+# different runtime keys, so build_ledger also names each app's key URL.
+COSIGN_PUB_URL = "/cosign.pub"
 LAMBDA_CAP = 0.999  # trust never 100% (G2/G7)
 
 A11OY_BASE = "https://szlholdings-a11oy.hf.space"
@@ -317,6 +320,13 @@ def build_ledger(ns: str) -> Dict[str, Any]:
         "scheme": "ECDSA-P256-SHA256 / cosign",
         "cosign_keyid": COSIGN_KEYID,
         "cosign_pub_url": COSIGN_PUB_URL,
+        "cosign_pub_scope": (
+            "cosign_pub_url is a same-origin path to the runtime public key of the "
+            "app serving this ledger. Verify each app's receipts against that app's "
+            "signer public_key_url. The szl-holdings/.github org cosign.pub verifies "
+            "a receipt only if it is the key that signed that receipt. This read "
+            "checks no signature and compares no fingerprint."
+        ),
         "a11oy_ledger": {
             "reachable": a_ledger is not None,
             "reported_count": a_ledger.get("count") if isinstance(a_ledger, dict) else None,
@@ -325,8 +335,10 @@ def build_ledger(ns: str) -> Dict[str, Any]:
             "reachable": k_ledger is not None,
             "reported_count": k_ledger.get("count") if isinstance(k_ledger, dict) else None,
         },
-        "a11oy_signer": {"keyid": a_keyid, "canonical": a_keyid == COSIGN_KEYID if a_keyid else None},
-        "killinchu_signer": {"keyid": k_keyid, "canonical": k_keyid == COSIGN_KEYID if k_keyid else None},
+        "a11oy_signer": {"keyid": a_keyid, "canonical": a_keyid == COSIGN_KEYID if a_keyid else None,
+                         "public_key_url": A11OY_BASE + "/cosign.pub"},
+        "killinchu_signer": {"keyid": k_keyid, "canonical": k_keyid == COSIGN_KEYID if k_keyid else None,
+                             "public_key_url": KILLINCHU_BASE + "/cosign.pub"},
         "cross_app_verify": {
             "killinchu_env_on_a11oy": "NOT_EVALUATED",
             "a11oy_env_on_killinchu": "NOT_EVALUATED",

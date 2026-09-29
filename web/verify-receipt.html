@@ -87,7 +87,7 @@
     <a href="/signature-is-not-proof">signature-is-not-proof</a>
     <a href="/determinacy">determinacy</a>
     <a href="/attest">attest</a>
-    <a href="https://github.com/szl-holdings/.github/blob/main/cosign.pub" target="_blank" rel="noopener">cosign.pub ↗</a>
+    <a href="/cosign.pub" title="Public key of this deployment's runtime signer">cosign.pub</a>
     <a href="https://a11oy.net" target="_blank" rel="noopener">proof · a11oy.net</a>
   </div>
 </header>
@@ -147,6 +147,9 @@
       Λ = <b>Conjecture 1</b>. Adds nothing to locked-8 (749/14/163 @ c7c0ba17).
       Trust ceiling never 100%. Rekor / SCITT / C2PA / OTS / OMS / ZK stay UNAVAILABLE until a bundle is present.
       Jev / TypeSafe scores may feed axes. They cannot grant ALLOW.
+      The server checks a signature against this deployment's runtime key at <a href="/cosign.pub">/cosign.pub</a> first, then against the other public keys it retains, which include the szl-holdings/.github org key.
+      VERIFIED means one of those keys verified the signature. In the raw verifier response, the signature check's signatures[] names which key (verified_by or verified_by_keyid).
+      /cosign.pub is published by this deployment itself, so it is not an independent trust anchor.
     </div>
   </section>
 </div>

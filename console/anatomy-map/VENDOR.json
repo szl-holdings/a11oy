@@ -18,5 +18,6 @@
     "style.css",
     "v5_organs.js"
   ],
-  "bundle_sha256": "c9731027f5a561ec6cc0e42dd9a7e929bf4e9016663a26069adce9f78ec1081b"
+  "bundle_sha256": "c9731027f5a561ec6cc0e42dd9a7e929bf4e9016663a26069adce9f78ec1081b",
+  "local_divergence": "app.js, data.js, index.html and v5_organs.js carry a11oy-local honesty edits (locked-8 source pinned to lutar-lean ProvedFormulas.lean @ 3a886349, sorry-count labels, theorem-scope caveats), so they are not byte-identical to upstream be265e88. bundle_sha256 was not recomputed for these edits. Carry the edits into szl-holdings/anatomy before the next re-vendor, or it will revert them."
 }

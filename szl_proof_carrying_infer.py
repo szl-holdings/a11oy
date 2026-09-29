@@ -119,9 +119,11 @@ PREDICATE_TYPE = "https://slsa.dev/provenance/v1"
 LAMBDA_FLOOR = 0.90
 TRUST_CEIL = 0.97  # Doctrine v11 trust ceiling — Λ never claims 100%
 
-# Published SZL cosign public key location (verifier fetches this; PUBLIC data).
-COSIGN_PUB_URL = "https://github.com/szl-holdings/.github/blob/main/cosign.pub"
-COSIGN_PUB_RAW = "https://raw.githubusercontent.com/szl-holdings/.github/main/cosign.pub"
+# Public key of the runtime signer that szl_dsse.sign_payload uses for PCAI
+# statements (verifier fetches this; PUBLIC data). The szl-holdings/.github org
+# cosign.pub is a separately published key and is not assumed to match it.
+COSIGN_PUB_URL = "https://a-11-oy.com/cosign.pub"
+COSIGN_PUB_RAW = "https://a-11-oy.com/cosign.pub"
 
 # Canonical 13 trust axes (mirror szl_org_lambda / szl_attested_inference).
 _AXIS_NAMES = [
@@ -594,7 +596,7 @@ def _verify_commands(seed: int, model: str, artifact_name: str, subject_digest: 
             "jq -r '.intoto_jsonl'  pcai.json           > pcai.intoto.jsonl       # DSSE line for slsa-verifier",
             "jq    '.bundle'        pcai.json           > pcai.bundle.json         # Sigstore-style bundle",
             "jq -r '.dsse.signatures[0].sig' pcai.json | base64 -d > pcai.statement.sig   # raw ECDSA sig (in-Space only)",
-            f"curl -s {COSIGN_PUB_RAW} > cosign.pub                               # published SZL cosign public key",
+            f"curl -s {COSIGN_PUB_RAW} > cosign.pub                               # runtime signer public key",
         ],
         "cosign_verify_blob": (
             "cosign verify-blob "
@@ -678,16 +680,10 @@ def run_pcai(seed: int, model: str) -> Dict[str, Any]:
 
     verify_commands = _verify_commands(seed, model, artifact_name, subject_digest)
 
-    # 9) forum ingest (additive, off the hot path, never raises)
-    try:
-        import szl_org_lambda as _ol
-        _ol.emit("a11oy", "pcai/run",
-                 {"seed": seed, "model": model, "lambda": lam["value"],
-                  "quote_digest": quote["quote_digest"], "signed": bool(dsse.get("signed")),
-                  "label": LABEL},
-                 decision="ALLOW" if lam["pass"] else "BLOCK")
-    except Exception:
-        pass
+    # 9) No ledger write. This flow is served by GET and is a deterministic MODELED probe, not a
+    #    decision: appending it to the szl.lake.receipt/v1 chain made every page poll mint a
+    #    record (and the record kept only a `signed` boolean, no envelope bytes). Read-only
+    #    routes never mint receipts — same contract as szl_attested_inference's GET.
 
     return {
         "label": LABEL,
@@ -734,6 +730,7 @@ def run_pcai(seed: int, model: str) -> Dict[str, Any]:
         ),
         "honest_note": HONEST_NOTE,
         "sources": SOURCES,
+        "receipt_minted": False,
         "ts": _now_iso(),
     }
 

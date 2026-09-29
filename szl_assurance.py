@@ -136,23 +136,37 @@ ASSURANCE_MATRIX = [
         "source": "NIST SP 800-53 Rev 5 — SI-7 (via DoD AI RMF Tailoring Guide)",
         "source_url": "https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final",
         "a11oy_artifact": (
-            "SHA3-256 hash-chained signed Khipu receipts (F4/F22): every inference decision "
-            "is hash-chained (prev→digest) and DSSE-signed (ECDSA-P256 over SHA-256). "
-            "Buyer can re-verify integrity offline with public key + WebCrypto. "
+            "SHA3-256 hash-chained Khipu receipts (F4/F22): every governed inference "
+            "decision appends a chain entry (prev→digest). The chain entry's signature "
+            "field is DSSE_PLACEHOLDER. A DSSE envelope over the governance statement "
+            "(ECDSA-P256-SHA256 over the DSSE PAE) is minted only on the credentialed "
+            "govern routes (POST /api/a11oy/v1/{vert,deva,devb}/<name>/govern), and is "
+            "signed only while the runtime signer is present. Buyer can recompute each "
+            "chain entry's digest offline and check a signed envelope against the public "
+            "key at /cosign.pub. "
             "F4 (Khipu chain determinism) and F22 (monotone sequence) are kernel-proven @ c7c0ba17."
         ),
         "artifact_url": "/api/a11oy/v1/govern/infer",
         "status": "LIVE",
         "status_detail": (
-            "Hash-chain: LIVE — every receipt carries prev_digest + digest (SHA-256). "
-            "DSSE signing: LIVE when SZL_COSIGN_PRIVATE_KEY_PEM secret is present. "
-            "Buyer-verifiable: LIVE via /verify page (WebCrypto, zero server round-trip for verify). "
+            "Hash-chain: LIVE — every chain entry carries prev + digest (SHA3-256). "
+            "DSSE signing: conditional — POST /api/a11oy/v1/govern/infer returns dsse=null "
+            "and a DSSE_PLACEHOLDER chain signature; the credentialed govern routes "
+            "sign their envelope only while a runtime signer key is loaded "
+            "(a11oy_signing_key or szl_dsse.PRIVATE_KEY_ENV_VARS); otherwise the "
+            "envelope is UNSIGNED, or, when the demo secret is set, signed with the "
+            "separately labelled demo-signing-key (/demo-cosign.pub), never presented "
+            "as the production key. "
+            "Buyer-verifiable: the /verify page sends a pasted envelope to the server-side "
+            "verifier (POST /api/a11oy/v1/verify/receipt); it does not verify in the browser. "
             "F4 + F22 kernel-proven @ c7c0ba17."
         ),
         "honest_caveats": (
-            "Hash function is SHA-256 (via Python 'hashlib'), not SHA3-256 in the current "
-            "receipt chain. DSSE uses ECDSA-P256-SHA256. Offline verify: WebCrypto in browser "
-            "or cosign verify-blob CLI."
+            "The Khipu chain behind /api/a11oy/v1/govern/infer hashes with SHA3-256 "
+            "(szl_khipu). A DSSE signature is ECDSA-P256-SHA256 over the DSSE PAE "
+            "(payloadType + payload), not over the bare payload. Offline verify: check "
+            "those PAE bytes against /cosign.pub with any ECDSA-P256 verifier; a cosign "
+            "verify-blob CLI round-trip is NOT MEASURED by this repo's tests."
         ),
     },
     {
@@ -166,16 +180,21 @@ ASSURANCE_MATRIX = [
         "source": "CDAO AI Assurance Framework / DoDI 5000.89 (T&E for AI)",
         "source_url": "https://dodcio.defense.gov/Portals/0/Documents/Library/AI-Assurance.pdf",
         "a11oy_artifact": (
-            "Signed DSSE receipt per governed decision: every allow/review/deny verdict "
-            "produces a cryptographically-signed Khipu receipt (szl_dsse.sign_khipu_receipt). "
+            "Receipt per governed decision: every allow/review/deny verdict appends a "
+            "hash-chained Khipu receipt. A DSSE envelope over the governance statement "
+            "(szl_dsse.sign_khipu_receipt) is minted only on the credentialed govern "
+            "routes, and is signed only while the runtime signer is present. "
             "The receipt encodes: decision, Λ score (advisory), gates fired/passed, "
             "chain hash, timestamp — a machine-verifiable TEVV artifact per inference call."
         ),
         "artifact_url": "/verify",
         "status": "LIVE",
         "status_detail": (
-            "Signed receipt per decision: LIVE. Each receipt is DSSE-signed and hash-chained. "
-            "Buyer can paste the receipt into /verify and get WebCrypto VERIFIED result. "
+            "Hash-chained receipt per decision: LIVE. DSSE signing is conditional (see SI7-1); "
+            "/api/a11oy/v1/govern/infer chain entries carry DSSE_PLACEHOLDER. "
+            "Buyer can paste a signed envelope into /verify; the server-side verifier "
+            "(POST /api/a11oy/v1/verify/receipt) labels the signature VERIFIED, MISMATCH, "
+            "UNSIGNED-LOCAL or UNAVAILABLE. "
             "Λ advisory score included in receipt (Conjecture 1 label)."
         ),
         "honest_caveats": (
@@ -223,17 +242,24 @@ ASSURANCE_MATRIX = [
         "source": "CDAO AI Assurance Framework / DoD AI Ethical Principles (Traceable)",
         "source_url": "https://dodcio.defense.gov/Portals/0/Documents/Library/AI-Principles-Recommendations-Final.pdf",
         "a11oy_artifact": (
-            "Buyer re-verifies signature offline via WebCrypto (/verify page) or "
-            "cosign verify-blob CLI. Public key at /cosign.pub (also: "
-            "github.com/szl-holdings/.github/cosign.pub). No server round-trip required "
-            "for verification — the math is the receipt."
+            "Buyer pastes a receipt at the /verify page, which sends it to the server-side "
+            "verifier (POST /api/a11oy/v1/verify/receipt). To verify without a server "
+            "round-trip, check the ECDSA-P256-SHA256 signature over the DSSE PAE offline "
+            "against the runtime signer's public key from /cosign.pub (the "
+            "github.com/szl-holdings/.github cosign.pub is a separately published key; it "
+            "verifies a receipt only if it is the key that signed that receipt) — the "
+            "math is the receipt."
         ),
         "artifact_url": "/verify",
         "status": "LIVE",
         "status_detail": (
-            "WebCrypto verify: LIVE — buyer pastes DSSE envelope, browser verifies ECDSA-P256. "
-            "cosign verify-blob CLI: LIVE — byte-for-byte equivalent (proven round-trip). "
-            "Public key is published and never rotated without notice. "
+            "/verify: LIVE — buyer pastes DSSE envelope, the server verifies ECDSA-P256 "
+            "and labels each check. "
+            "Offline: the signature covers the DSSE PAE bytes, so an ECDSA-P256 verifier "
+            "given those bytes and /cosign.pub can check it; a cosign verify-blob CLI "
+            "round-trip is NOT MEASURED by this repo's tests. "
+            "The runtime public key is served at /cosign.pub; key rotation notice is not "
+            "tracked here (NOT MEASURED). "
             "UNIQUE vs Foundry/Unity Catalog: lineage is viewable but NOT cryptographically "
             "buyer-verifiable. a11oy gives you a signature you can verify offline."
         ),
@@ -241,7 +267,10 @@ ASSURANCE_MATRIX = [
             "Independent verifiability applies to signed receipts only. Unsigned receipts "
             "(when private key is absent from runtime) carry an explicit UNSIGNED label — "
             "no fabricated signature ever. The hash chain is still valid and verifiable "
-            "even without the ECDSA signature."
+            "even without the ECDSA signature. The key at /cosign.pub is published by this "
+            "deployment itself; it is independently anchored only where a separately "
+            "published copy (such as the szl-holdings/.github org cosign.pub) has the same "
+            "fingerprint."
         ),
     },
     {
@@ -288,7 +317,9 @@ FIT_STATEMENT = {
     ),
     "what_a11oy_is": [
         "Governance overlay: policy gates (Λ, threat-scan, PII-egress) on every AI inference call.",
-        "Verifiable receipt emitter: DSSE-signed Khipu receipts per decision — buyer can re-verify offline.",
+        ("Verifiable receipt emitter: a hash-chained Khipu receipt per decision, and a "
+         "DSSE-signed envelope on the credentialed govern routes while the runtime "
+         "signer is present — buyer can re-verify offline."),
         "Honest assurance evidence: data labels, model card, TEVV artifacts per call.",
         "Refusal explainer (WILLAY): signed, auditable refusals — not black-box boolean gates.",
     ],
@@ -309,8 +340,11 @@ FIT_STATEMENT = {
     ),
     "unique_value": (
         "Foundry/Unity Catalog: lineage is viewable but NOT cryptographically buyer-verifiable. "
-        "a11oy: every governed decision produces a DSSE receipt signed with ECDSA-P256. "
-        "Buyer pastes the receipt into /verify — WebCrypto confirms or rejects in-browser. "
+        "a11oy: every governed decision appends a hash-chained receipt, and the credentialed "
+        "govern routes add a DSSE envelope signed with ECDSA-P256 while the runtime signer "
+        "is present. Buyer pastes a signed envelope into /verify — the server-side verifier "
+        "confirms or rejects it, and the signature can be re-checked offline against "
+        "/cosign.pub. "
         "No other inference governance layer offers this. The math is the receipt."
     ),
     "platform_diagram": {

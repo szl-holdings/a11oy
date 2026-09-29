@@ -41,7 +41,7 @@ if getattr(_BASE, "TERRA_FORGE_GENERATOR", None) != "szl-vertical-forge/0.2.2":
 
 _sentra = {
     "slug": "sentra",
-    "title": "Sentra",
+    "title": "CHAPAQ",
     "vertical": "ASSURANCE COMMAND",
     "short": "Public receipt verification and assurance evidence",
     "source": (

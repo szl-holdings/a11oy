@@ -144,6 +144,18 @@ def test_honest_footer_exact_lock(client):
     assert lock["commit"] == "c7c0ba17"
     assert lock["lambda"] == "Conjecture 1"
     assert body["footer"] == "Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1"
+    # 163 is lean_numbers.py sorries_raw @ c7c0ba17 (text occurrences incl. comments);
+    # the same script gives sorries_noncomment = 149 at that commit.
+    assert lock["sorries_method"].startswith(
+        "lutar-lean .github/scripts/lean_numbers.py sorries_raw @ c7c0ba17")
+    assert "including comments and docstrings" in lock["sorries_method"]
+    assert "not a count of open proof obligations" in lock["sorries_method"]
+    assert lock["sorries_noncomment"] == 149
+    # 149 drops only `--` line comments; the served label must say so.
+    nc = lock["sorries_noncomment_method"]
+    assert "drops only lines whose first non-blank characters are `--`" in nc
+    assert "/- -/ block comments" in nc and "/-- -/ doc comments" in nc
+    assert "not a count of open proof obligations" in nc
 
 
 # ---- 2: rate limiting (60/min/IP) ------------------------------------------

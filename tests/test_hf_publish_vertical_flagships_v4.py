@@ -144,7 +144,7 @@ def test_sentra_binds_to_read_only_public_receipt_verifier() -> None:
     sentra = by_slug(module)["sentra"]
     assert sentra == {
         "slug": "sentra",
-        "title": "Sentra",
+        "title": "CHAPAQ",
         "vertical": "ASSURANCE COMMAND",
         "short": "Public receipt verification and assurance evidence",
         "source": (

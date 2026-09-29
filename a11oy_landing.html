@@ -296,6 +296,8 @@
     background:linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015))}
   .cstat .ck{font-family:var(--mono);font-size:var(--fs-5);font-weight:600;color:var(--proof);word-break:break-all;line-height:1.15}
   .cstat .cl{font-size:11.5px;color:var(--ghost);text-transform:uppercase;letter-spacing:1.1px;margin-top:6px}
+  .cstat .cl .stat-note{display:block;text-transform:none;letter-spacing:0;font-size:10.5px;line-height:1.5;opacity:.8;margin-top:4px}
+  .cstat .cl .stat-note:empty{display:none}
   .cstat .ck.ink{color:var(--ink);font-size:1.05rem}
 
   /* trust CTA */
@@ -1218,11 +1220,13 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
 <section class="band" id="chain" style="background:linear-gradient(180deg,rgba(10,16,30,0),rgba(10,16,30,0.55))">
   <div class="wrap">
     <p class="kick">One chain · live ledger <span id="chain-src"></span></p>
-    <h2>One ledger. Every decision. Replayable to the byte.</h2>
+    <h2>One ledger. Every receipt record. Replayable to the byte.</h2>
     <p class="intro">Every vertical emits into a single SHA3-256 hash-chain — append-only,
-      fsync-durable, replayable to a byte-identical root instead of trusting a dashboard.</p>
+      fsync-durable, replayable to a byte-identical root instead of trusting a dashboard.
+      Record count is not a decision count: it includes legacy MODELED probe records, broken out
+      beneath the count when the runtime reports them.</p>
     <div class="chainrow">
-      <div class="cstat"><div class="ck" id="chain-receipts">—</div><div class="cl">Receipt records · signer state separate</div></div>
+      <div class="cstat"><div class="ck" id="chain-receipts">—</div><div class="cl">Receipt records · signer state separate<span class="stat-note" id="chain-split"></span></div></div>
       <div class="cstat"><div class="ck ink mono" id="chain-alg">sha3_256</div><div class="cl">Chain algorithm</div></div>
       <div class="cstat"><div class="ck" id="chain-depth">—</div><div class="cl">Chain depth (a11oy)</div></div>
       <div class="cstat"><div class="ck ink mono" id="chain-head" style="font-size:.86rem">—</div><div class="cl">Last receipt id</div></div>
@@ -1961,12 +1965,24 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
     }
   }
 
-  function setVerticals(v){
+  function setVerticals(v, src){
     // Flagships only: a11oy command (core) and killinchu (defense).
     // Insurance / finance / real-estate are not products on this page.
+    // A posture is shown only when the API marks it SUPPLIED. Built-in default
+    // constants (source DEFAULT_CONSTANT) or a missing source render N/A.
+    // src === null means the source endpoint itself was unavailable.
+    const unavailable = (src === null);
+    src = src || {};
     [["core","v-core"],["defense","v-defense"]].forEach(([k,id])=>{
       const el = $(id);
       if(!el) return;
+      if(src[k] !== "SUPPLIED"){
+        el.textContent = "N/A";
+        const chip = $(id+"-chip");
+        if(chip) chip.innerHTML = unavailable ? downChip("N/A")
+          : grayChip(src[k] === "DEFAULT_CONSTANT" ? "NOT MEASURED · DEFAULT CONSTANT" : "NOT MEASURED");
+        return;
+      }
       const val = fmtLam(v[k]);
       el.textContent = (val===null) ? "N/A" : val;
       lamChip(id+"-chip", num(v[k]));
@@ -2010,6 +2026,17 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
     if(headId){ const h = String(headId); $("chain-head").textContent = h.length>14 ? (h.slice(0,10)+"…"+h.slice(-4)) : h; }
     else { $("chain-head").textContent = "N/A"; }
   }
+  // Split of the record count, measured server-side from stored envelopes. Omitted when the
+  // runtime does not report it; never derived from a signed:true flag.
+  function setChainSplit(dsseSigBytes, modeledProbe){
+    const el = $("chain-split");
+    if(!el) return;
+    const s = num(dsseSigBytes), p = num(modeledProbe);
+    const parts = [];
+    if(s!==null) parts.push(s.toLocaleString() + " records store DSSE signature bytes (not verified here)");
+    if(p!==null) parts.push(p.toLocaleString() + " records are legacy MODELED GET probes");
+    el.textContent = parts.join(" · ");
+  }
 
   // ---- (A) try the ONE consolidated read (Dev 5) ----
   async function loadOverview(){
@@ -2019,14 +2046,18 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
       let any = false;
       if(o.proof_tiers){ setTiers({ semantic:o.proof_tiers.semantic, evidence:o.proof_tiers.evidence, conjecture:o.proof_tiers.conjecture }); setCatalogNote((o.thesis_stats&&o.thesis_stats.locked_proven_count) || o.proof_tiers.locked); $("proof-src").innerHTML = grayChip("REACHABLE · overview"); any = true; }
       if(Array.isArray(o.verticals)){
-        const vm = {};
-        o.verticals.forEach(x => { if(x && x.name) vm[x.name] = num(x.lambda); });
-        setVerticals(vm); $("verticals-src").innerHTML = grayChip("REACHABLE · overview"); any = true;
+        const vm = {}, vs = {};
+        o.verticals.forEach(x => { if(x && x.name){ vm[x.name] = num(x.lambda); vs[x.name] = x.source; } });
+        setVerticals(vm, vs); $("verticals-src").innerHTML = grayChip("REACHABLE · overview"); any = true;
       }
       const ts = o.thesis_stats || {};
       const ch = o.chain || {};
-      if(ts.signed_receipts !== undefined || ch.depth !== undefined){
-        setChain(num(ts.signed_receipts), ts.chain_alg || "sha3_256", num(ch.depth), ch.last_receipt);
+      // receipt_records = hash-chained record count. Older runtimes named the same number
+      // signed_receipts; read it only as a record count, never as a signature count.
+      const records = (ts.receipt_records !== undefined) ? ts.receipt_records : ts.signed_receipts;
+      if(records !== undefined || ch.depth !== undefined){
+        setChain(num(records), ts.chain_alg || "sha3_256", num(ch.depth), ch.last_receipt);
+        setChainSplit(ts.dsse_sig_bytes_records, ts.modeled_probe_records);
         $("chain-src").innerHTML = grayChip("REACHABLE · overview"); any = true;
       }
       if(o.org_lambda !== undefined && $("v-org")){ const v=fmtLam(o.org_lambda); $("v-org").textContent = v||"N/A"; lamChip("v-org-chip", num(o.org_lambda)); }
@@ -2052,11 +2083,17 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
     try{
       const d = await getJSON("/api/a11oy/v1/lambda/org");
       const v = d.verticals || {};
-      setVerticals({ core:v.core, defense:v.defense });
-      if($("v-org")){ const ov = fmtLam(d.lambda_org); $("v-org").textContent = ov || "N/A"; lamChip("v-org-chip", num(d.lambda_org)); }
+      setVerticals({ core:v.core, defense:v.defense }, d.verticals_source || {});
+      if($("v-org")){
+        const supplied = !!(d.inputs && d.inputs.class === "SUPPLIED");
+        const ov = supplied ? fmtLam(d.lambda_org) : null;
+        $("v-org").textContent = ov || "N/A";
+        if(supplied) lamChip("v-org-chip", num(d.lambda_org));
+        else if($("v-org-chip")) $("v-org-chip").innerHTML = grayChip("NOT MEASURED · DEFAULT CONSTANT");
+      }
       if($("verticals-src")) $("verticals-src").innerHTML = grayChip("REACHABLE · lambda/org");
     }catch(e){
-      setVerticals({});
+      setVerticals({}, null);
       if($("v-org")) $("v-org").textContent = "N/A";
       if($("v-org-chip")) $("v-org-chip").innerHTML = downChip("N/A");
       if($("verticals-src")) $("verticals-src").innerHTML = downChip("UNAVAILABLE");

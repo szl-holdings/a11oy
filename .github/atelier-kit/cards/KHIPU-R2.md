@@ -31,7 +31,7 @@ A public retrain whose only job is to improve one metric: honest abstain under a
 | NVIDIA | Recipe re-run with a new seed and a signed delta. |
 | Unsloth | khipu-r2 profile: packing=false, lr=1e-4, new receipt. Do not overwrite R1. |
 
-Nobody else ships this combination. That is the point of a one-of-one.
+No equivalent public combination was found among the leaders surveyed above (a snapshot, not an ecosystem-wide novelty claim).
 
 ## Intended use
 
