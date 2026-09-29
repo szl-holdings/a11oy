@@ -28,6 +28,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/OrbitControls.js';
 
+// SZL KANCHAY founder tokens (kit 1.1.0), resolved once from the design system the page
+// links: WebGL materials and canvas textures cannot read CSS variables. The scene is navy
+// ground, silver linework and neutral bodies; colour is kept for the status encodings the
+// HUD legend names in words (verdict and compute-fabric tier). Alpha is appended to a
+// token's 6-digit value as an 8-digit hex suffix.
+const _tok = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const _tokA = (n, a) => { const v = _tok(n); return /^#[0-9a-f]{6}$/i.test(v) ? v + Math.round(a * 255).toString(16).padStart(2, '0') : v; };
+
 /* ---------- reduced-motion + perf posture ---------------------------------- */
 const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const IS_TOUCH = window.matchMedia('(pointer: coarse)').matches;
@@ -36,7 +44,7 @@ const IS_TOUCH = window.matchMedia('(pointer: coarse)').matches;
 const CAPABILITIES = [
   {
     id: 'reasoning', title: 'Reasoning & Provenance',
-    color: 0x5cc4bf, angle: 0,
+    color: _tok('--color-silver-100'), angle: 0,
     plain: 'Grounded reasoning, memory/recall and provenance over a signed knowledge base — an internal a11oy function.',
     functions: [
       'grounded ask (cites its source, refuses to fabricate)',
@@ -52,7 +60,7 @@ const CAPABILITIES = [
   },
   {
     id: 'policy', title: 'Policy & Compliance',
-    color: 0xd7b96b, angle: 2.094,
+    color: _tok('--color-silver-300'), angle: 2.094,
     plain: 'Deny-by-default safety gates and full ALLOW/DENY verdicts with signed receipts — an internal a11oy function.',
     functions: [
       '8 deny-by-default safety gates',
@@ -67,7 +75,7 @@ const CAPABILITIES = [
   },
   {
     id: 'operator', title: 'Operator · Ask / Act / Approvals',
-    color: 0xe58e54, angle: 4.189,
+    color: _tok('--color-gray-300'), angle: 4.189,
     plain: 'The governed run loop: ask, act with approvals, and emit replayable signed receipts — an internal a11oy function.',
     functions: [
       'governed run loop P1–P6 (sign → gate → chain → memory → replay)',
@@ -151,7 +159,8 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.18;
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x070815, 0.0018);
+scene.background = new THREE.Color(_tok('--bg-deep'));
+scene.fog = new THREE.FogExp2(_tok('--bg-deep'), 0.0018);
 
 const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 6000);
 camera.position.set(0, 90, 380);
@@ -167,10 +176,10 @@ controls.autoRotateSpeed = 0.40;
 controls.target.set(0, 0, 0);
 
 /* ---------- lighting --------------------------------------------------------- */
-scene.add(new THREE.AmbientLight(0x33304a, 0.9));
-const keyLight = new THREE.PointLight(0xffe6a8, 2.6, 2000, 1.4); // the sun emits warm gold
+scene.add(new THREE.AmbientLight(_tok('--color-gray-600'), 0.9));
+const keyLight = new THREE.PointLight(_tok('--color-silver-100'), 2.6, 2000, 1.4); // the sun emits silver light
 scene.add(keyLight);
-const rim = new THREE.DirectionalLight(0x5c8fd1, 0.55); rim.position.set(-220, 130, -160); scene.add(rim);
+const rim = new THREE.DirectionalLight(_tok('--color-silver-300'), 0.55); rim.position.set(-220, 130, -160); scene.add(rim);
 
 /* ---------- deep star backdrop (depth, not data) ---------------------------- */
 const disposables = [];
@@ -186,7 +195,7 @@ const disposables = [];
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   g.setAttribute('size', new THREE.BufferAttribute(siz, 1));
   disposables.push(g);
-  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0x8a90c0, size: 1.5, sizeAttenuation: true, transparent: true, opacity: 0.55 })));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color: _tok('--color-silver-300'), size: 1.5, sizeAttenuation: true, transparent: true, opacity: 0.55 })));
 })();
 
 /* ---------- soft radial glow sprite texture (sovereign, procedural) --------- */
@@ -196,12 +205,12 @@ function glowTexture(inner, outer) {
   const g = ctx.createRadialGradient(s/2, s/2, 0, s/2, s/2, s/2);
   g.addColorStop(0.0, inner);
   g.addColorStop(0.35, outer);
-  g.addColorStop(1.0, 'rgba(0,0,0,0)');
+  g.addColorStop(1.0, _tokA('--bg-deep', 0));
   ctx.fillStyle = g; ctx.fillRect(0, 0, s, s);
   const tex = new THREE.CanvasTexture(c); tex.anisotropy = 2;
   return tex;
 }
-const GLOW_TEX = glowTexture('rgba(255,231,168,0.95)', 'rgba(216,154,46,0.35)');
+const GLOW_TEX = glowTexture(_tokA('--color-silver-100', 0.95), _tokA('--color-silver-300', 0.35));
 
 /* ---------- interactable registry ------------------------------------------- */
 const interactables = []; // meshes with userData.inspect + userData.focus
@@ -219,8 +228,8 @@ const sunCoreGeo = new THREE.IcosahedronGeometry(34, 5);
 const sunMat = new THREE.ShaderMaterial({
   uniforms: {
     uTime: { value: 0 },
-    uColorHot: { value: new THREE.Color(0xfff0c2) },
-    uColorCore: { value: new THREE.Color(0xd79a2e) },
+    uColorHot: { value: new THREE.Color(_tok('--color-silver-100')) },
+    uColorCore: { value: new THREE.Color(_tok('--color-silver-500')) },
     uPulse: { value: 0.0 }      // breathing, tied to live healthz
   },
   vertexShader: `
@@ -252,7 +261,7 @@ disposables.push(sunCoreGeo);
 const bloomSprites = [];
 [ {s: 150, o: 0.42}, {s: 250, o: 0.26}, {s: 400, o: 0.14} ].forEach(L => {
   const spr = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: GLOW_TEX, color: 0xffd98a, transparent: true, opacity: L.o,
+    map: GLOW_TEX, color: _tok('--color-silver-300'), transparent: true, opacity: L.o,
     blending: THREE.AdditiveBlending, depthWrite: false
   }));
   spr.scale.set(L.s, L.s, 1);
@@ -261,14 +270,14 @@ const bloomSprites = [];
 
 // inner translucent glow shell
 const sunGlowGeo = new THREE.SphereGeometry(48, 32, 32);
-const sunGlow = new THREE.Mesh(sunGlowGeo, new THREE.MeshBasicMaterial({ color: 0xffd98a, transparent: true, opacity: 0.10, side: THREE.BackSide }));
+const sunGlow = new THREE.Mesh(sunGlowGeo, new THREE.MeshBasicMaterial({ color: _tok('--color-silver-300'), transparent: true, opacity: 0.10, side: THREE.BackSide }));
 sunGroup.add(sunGlow); disposables.push(sunGlowGeo);
 
 // "brain" wireframe lattice (the orchestrating brain motif)
 const brainGeo = new THREE.IcosahedronGeometry(42, 2);
-const brainLattice = new THREE.Mesh(brainGeo, new THREE.MeshBasicMaterial({ color: 0xffe6a8, wireframe: true, transparent: true, opacity: 0.20 }));
+const brainLattice = new THREE.Mesh(brainGeo, new THREE.MeshBasicMaterial({ color: _tok('--color-silver-100'), wireframe: true, transparent: true, opacity: 0.20 }));
 sunGroup.add(brainLattice); disposables.push(brainGeo);
-sunGroup.add(makeLabel('a11oy', 0xffe6a8, 64));
+sunGroup.add(makeLabel('a11oy', _tok('--text'), 64));
 
 /* ---------- 3 internal capabilities orbiting the sun ------------------------ */
 const ORBIT_R = 158;
@@ -284,7 +293,7 @@ CAPABILITIES.forEach((cap) => {
   // soft glow halo per capability
   const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW_TEX, color: cap.color, transparent: true, opacity: 0.30, blending: THREE.AdditiveBlending, depthWrite: false }));
   halo.scale.set(70, 70, 1); grp.add(halo);
-  grp.add(makeLabel(cap.title.split(/[ &·]/)[0], cap.color, 30));
+  grp.add(makeLabel(cap.title.split(/[ &·]/)[0], _tok('--text-sub'), 30));
   scene.add(grp);
   const entry = { grp, mesh, cap, baseAngle: cap.angle };
   registerBody(mesh, cap, () => ({ target: grp.position.clone(), dist: 95 }));
@@ -301,9 +310,9 @@ const fabricGroup = new THREE.Group(); scene.add(fabricGroup);
 let fabricNodes = []; // {mesh, sovereign, reachable}
 const FABRIC_R = 240;
 function colorForNode(n){
-  if (!n.reachable) return 0x6b6f86;          // unreachable = grey
-  if (n.sovereign)  return 0x4fd18b;           // owned, live = teal/green
-  return 0x9b8cff;                              // reachable but hosted/non-sovereign = violet
+  if (!n.reachable) return _tok('--text-ghost');           // unreachable = grey
+  if (n.sovereign)  return _tok('--color-success-light');  // owned, live = success ink
+  return _tok('--color-silver-300');                       // reachable but hosted/non-sovereign = silver
 }
 function renderFabric(nodes){
   // dispose old
@@ -340,20 +349,20 @@ function renderFabric(nodes){
 const fieldGroup = new THREE.Group();
 fieldGroup.position.set(380, -50, -130);
 const fieldGeo = new THREE.OctahedronGeometry(20, 0);
-const fieldNode = new THREE.Mesh(fieldGeo, new THREE.MeshStandardMaterial({ color: 0x5c8fd1, emissive: 0x2c5f9e, emissiveIntensity: 0.65, roughness: 0.45, metalness: 0.3 }));
+const fieldNode = new THREE.Mesh(fieldGeo, new THREE.MeshStandardMaterial({ color: _tok('--color-silver-300'), emissive: _tok('--color-space-600'), emissiveIntensity: 0.65, roughness: 0.45, metalness: 0.3 }));
 fieldGroup.add(fieldNode); disposables.push(fieldGeo);
 const fieldRingGeo = new THREE.TorusGeometry(30, 0.8, 8, 80);
-const fieldRing = new THREE.Mesh(fieldRingGeo, new THREE.MeshBasicMaterial({ color: 0x5c8fd1, transparent: true, opacity: 0.4 }));
+const fieldRing = new THREE.Mesh(fieldRingGeo, new THREE.MeshBasicMaterial({ color: _tok('--color-silver-300'), transparent: true, opacity: 0.4 }));
 fieldRing.rotation.x = Math.PI / 2.4; fieldGroup.add(fieldRing); disposables.push(fieldRingGeo);
-const fieldHalo = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW_TEX, color: 0x5c8fd1, transparent: true, opacity: 0.28, blending: THREE.AdditiveBlending, depthWrite: false }));
+const fieldHalo = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW_TEX, color: _tok('--color-silver-300'), transparent: true, opacity: 0.28, blending: THREE.AdditiveBlending, depthWrite: false }));
 fieldHalo.scale.set(95, 95, 1); fieldGroup.add(fieldHalo);
-fieldGroup.add(makeLabel('killinchu', 0x8fb6e6, 40));
+fieldGroup.add(makeLabel('killinchu', _tok('--text-sub'), 40));
 scene.add(fieldGroup);
 registerBody(fieldNode, KILLINCHU, () => ({ target: fieldGroup.position.clone(), dist: 120 }));
 // Wire D — traceparent link sun ↔ field node (the substrate reaches the edge)
 const fieldWire = new THREE.Line(
   new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), fieldGroup.position.clone()]),
-  new THREE.LineBasicMaterial({ color: 0x9b8cff, transparent: true, opacity: 0.4 })
+  new THREE.LineBasicMaterial({ color: _tok('--color-silver-300'), transparent: true, opacity: 0.4 })
 );
 scene.add(fieldWire);
 
@@ -361,7 +370,7 @@ scene.add(fieldWire);
 const khipuGroup = new THREE.Group(); scene.add(khipuGroup);
 let receiptPoints = null, cordLines = null, receiptData = [];
 let cordPulse = 0; // 0..1 pulse spike when a new receipt streams in
-const VERDICT_COLOR = { allow: 0x4fd18b, advisory: 0xd7b96b, deny: 0xc0392b };
+const VERDICT_COLOR = { allow: _tok('--color-success-light'), advisory: _tok('--color-warning-light'), deny: _tok('--color-error') };
 function verdictOf(l){ return l >= 0.9 ? 'allow' : (l >= 0.5 ? 'advisory' : 'deny'); }
 
 // deterministic hash → unit sphere position (reproducible across reloads)
@@ -397,7 +406,7 @@ function renderConstellation(nodes, isNew){
   nodes.forEach((n,i)=>{
     const v = seededVec(n.id, 250); n._v = v; byId[n.id] = v;
     pos[i*3]=v.x; pos[i*3+1]=v.y; pos[i*3+2]=v.z;
-    const c = new THREE.Color(VERDICT_COLOR[verdictOf(n.lambda)] || 0x888888);
+    const c = new THREE.Color(VERDICT_COLOR[verdictOf(n.lambda)] || _tok('--text-ghost'));
     col[i*3]=c.r; col[i*3+1]=c.g; col[i*3+2]=c.b;
   });
   const g = new THREE.BufferGeometry();
@@ -410,7 +419,7 @@ function renderConstellation(nodes, isNew){
   nodes.forEach((n)=>{ if (n.prev && byId[n.prev]){ const a=byId[n.prev], b=n._v;
     const mid = a.clone().add(b).multiplyScalar(0.5).multiplyScalar(1.18);
     const curve = new THREE.QuadraticBezierCurve3(a, mid, b).getPoints(10);
-    const cc = new THREE.Color(VERDICT_COLOR[verdictOf(n.lambda)] || 0xc08f2f);
+    const cc = new THREE.Color(VERDICT_COLOR[verdictOf(n.lambda)] || _tok('--color-warning'));
     for (let k=0;k<curve.length-1;k++){
       linePos.push(curve[k].x,curve[k].y,curve[k].z, curve[k+1].x,curve[k+1].y,curve[k+1].z);
       lineCol.push(cc.r,cc.g,cc.b, cc.r,cc.g,cc.b);
@@ -428,10 +437,10 @@ function renderConstellation(nodes, isNew){
 function makeLabel(text, color, size){
   const c = document.createElement('canvas'); c.width = 256; c.height = 64;
   const ctx = c.getContext('2d');
-  ctx.font = '700 34px ui-monospace, Menlo, Consolas, monospace';
+  ctx.font = `700 34px ${_tok('--font-mono')}`;
   ctx.fillStyle = '#'+new THREE.Color(color).getHexString();
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.shadowColor = 'rgba(0,0,0,0.85)'; ctx.shadowBlur = 8;
+  ctx.shadowColor = _tokA('--bg-deep', 0.85); ctx.shadowBlur = 8;
   ctx.fillText(text, 128, 34);
   const tex = new THREE.CanvasTexture(c); tex.anisotropy = 4;
   const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
@@ -489,7 +498,7 @@ function openInspector(d){
   document.getElementById('insp-plain').textContent = d.plain;
   let html = '<div class="ih">Functions</div><ul>' + d.functions.map(f=>`<li>${esc(f)}</li>`).join('') + '</ul>';
   if (d.proof){ html += '<div class="ih">Proof support (honest)</div><ul>' + d.proof.map(p=>`<li class="proof">${esc(p)}</li>`).join('') + '</ul>'; }
-  if (d.url){ html += `<div class="ih">Live</div><ul><li><a href="${esc(d.url)}" target="_blank" rel="noopener" style="color:#7fe0db">${esc(d.url)} ↗</a></li></ul>`; }
+  if (d.url){ html += `<div class="ih">Live</div><ul><li><a href="${esc(d.url)}" target="_blank" rel="noopener" style="color:var(--link)">${esc(d.url)} ↗</a></li></ul>`; }
   document.getElementById('insp-body').innerHTML = html;
   insp.classList.add('show');
 }
