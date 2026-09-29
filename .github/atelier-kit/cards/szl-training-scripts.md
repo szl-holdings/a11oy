@@ -31,7 +31,7 @@ A Hub id you can pin in a receipt: 'trained by this repo at this SHA'.
 | NVIDIA | NeMo recipes. |
 | Unsloth | The scripts wrap Unsloth v2 profiles. Cut is unique knobs per organ, bound in the receipt. |
 
-Nobody else ships this combination. That is the point of a one-of-one.
+No equivalent public combination was found among the leaders surveyed above (a snapshot, not an ecosystem-wide novelty claim).
 
 ## Intended use
 

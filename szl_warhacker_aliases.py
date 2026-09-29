@@ -109,7 +109,10 @@ def register(app, space: str, build_sha: str = "unknown") -> dict[str, Any]:
                 {"error": "szl_dsse unavailable", "unblock": "ensure szl_dsse.py is vendored in this Space"},
                 status_code=503,
             )
-        pem = _dsse.COSIGN_PUBLIC_PEM.strip()
+        # Serve the key public_key_fingerprint() hashes (active_public_key_pem():
+        # the runtime signer's public half when one is loaded), so the PEM always
+        # matches its fingerprint; COSIGN_PUBLIC_PEM is only the embedded fallback.
+        pem = _dsse.active_public_key_pem().strip()
         return JSONResponse({
             "pem": pem,
             "fingerprint_sha256": _dsse.public_key_fingerprint(),
@@ -126,7 +129,7 @@ def register(app, space: str, build_sha: str = "unknown") -> dict[str, Any]:
     async def warhacker_pubkey_pem():  # noqa: ANN202
         if _dsse is None:
             return PlainTextResponse("szl_dsse unavailable", status_code=503)
-        return PlainTextResponse(_dsse.COSIGN_PUBLIC_PEM.strip() + "\n", media_type="application/x-pem-file")
+        return PlainTextResponse(_dsse.active_public_key_pem().strip() + "\n", media_type="application/x-pem-file")
 
     registered.append("/khipu/pubkey.pem")
 

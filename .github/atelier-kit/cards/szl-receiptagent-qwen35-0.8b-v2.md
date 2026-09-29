@@ -31,7 +31,7 @@ A receipt agent you can retrain between coffee and lunch, with the same doctrine
 | NVIDIA | Small NIM-shaped thing, without NIM. |
 | Unsloth | Poster organ: FastLanguageModel + adamw_8bit + receipted knobs on Qwen3.5-0.8B. |
 
-Nobody else ships this combination. That is the point of a one-of-one.
+No equivalent public combination was found among the leaders surveyed above (a snapshot, not an ecosystem-wide novelty claim).
 
 ## Intended use
 

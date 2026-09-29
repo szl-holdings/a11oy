@@ -241,6 +241,10 @@ jobs:
         # assets and undeclared root files remain fail-closed JSON 404s.
         # test_ledger_receipt_records: GET pcai/run never appends to the lake chain,
         # and the overview counts receipt records, not signed receipts.
+        # The runtime-verifying-key suite fails if a public key surface serves a
+        # PEM that differs from its own fingerprint or from /cosign.pub, or if the
+        # assurance matrix's /verify and signing claims drift from the served
+        # /verify page and the /govern/infer receipt shape.
         run: >-
           pytest
           tests/test_demo_critical_routes.py
@@ -254,6 +258,7 @@ jobs:
           tests/test_identity_lock.py
           tests/test_ledger_receipt_records.py
           tests/test_org_lambda_sample_inputs.py
+          tests/test_runtime_verifying_key_surfaces.py
           test_canonical_domain.py
           -q
 

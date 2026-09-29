@@ -1712,9 +1712,10 @@ except Exception as _szl_kv2_e:  # pragma: no cover
 # szl_public_verify lets ANY visitor (investor/auditor/skeptic) PASTE a DSSE/SZL
 # receipt (or a receipt id) at /verify and get an INDEPENDENT verdict computed by
 # POST /api/a11oy/v1/verify/receipt {envelope|receipt_id}. It runs three honest
-# checks: (1) ECDSA-P256 signature vs the PUBLISHED SZLHOLDINGS cosign.pub (reuses
-# szl_dsse.verify_envelope), (2) re-hash the payload and compare to the digest the
-# payload DECLARES about itself (payload_digest) — NOT the chain seal id (the old
+# checks: (1) ECDSA-P256 signature vs this deployment's runtime key (/cosign.pub),
+# then the retained szl_dsse keyring (szl_dsse.verify_envelope), (2) re-hash the
+# payload and compare to the digest the payload DECLARES about itself
+# (payload_digest) — NOT the chain seal id (the old
 # simultaneous VERIFIED+MISMATCH bug is NOT reintroduced), (3) walk/validate the
 # hash-chain to genesis (reuses szl_khipu_verify.verify_digest). Each check is
 # labelled VERIFIED / MISMATCH / UNSIGNED-LOCAL / UNAVAILABLE; nothing is fabricated;
@@ -12966,13 +12967,14 @@ _LOCAL_ONLY_A11OY_PREFIXES = ("v1/warhacker/", "v1/observability/", "v1/sec/",
 async def _intoto_verify_guide(request: Request) -> Response:
     """in-toto verification guide: what is now verifiable vs roadmap."""
     from starlette.responses import JSONResponse as _JSONResponse
-    _pub_key_url = "https://github.com/szl-holdings/.github/blob/main/cosign.pub"
+    # Runtime signer's key, same-origin; the .github org key is a separate key.
+    _pub_key_url = "/cosign.pub"
     return _JSONResponse({
         "title": "SZL a11oy in-toto Verification Guide",
         "what_is_now_verifiable": {
             "1_dsse_signature": {
                 "status": "LIVE",
-                "description": "DSSE-signed with SZL ECDSA P-256 keypair. payloadType=application/vnd.in-toto+json. Verifiable with cosign verify-blob.",
+                "description": "Scope: the /khipu/intoto/<receipt_id> envelope. It is DSSE-signed (ECDSA P-256) at serve time only if the runtime signer is present (signed=true); otherwise UNSIGNED (signed=false). Khipu hash-chain entries always carry DSSE_PLACEHOLDER and are unsigned, even while the signer is present. payloadType=application/vnd.in-toto+json. The signature is ECDSA-P256-SHA256 over the DSSE PAE; verify a signed envelope against /cosign.pub.",
                 "command": "cosign verify-blob --key https://a-11-oy.com/cosign.pub --bundle <receipt.bundle.json> <statement.json>",
             },
             "2_intoto_statement_v1": {
@@ -12997,7 +12999,7 @@ async def _intoto_verify_guide(request: Request) -> Response:
             "slsa_l2_container": "ROADMAP: actions/attest-build-provenance in CI (~3 YAML lines).",
             "tee_attestation": "ROADMAP Phase II: AWS Nitro PCR-bound inference attestation.",
         },
-        "offline_verifier": "szl-cookbook/verify-intoto-receipt.py (Apache-2.0)",
+        "offline_verifier": "szl-cookbook/verify-intoto-receipt.py (Apache-2.0; checks the szl-holdings/.github org key embedded in it, so a receipt passes there only if that key's fingerprint equals /cosign.pub's)",
         "pr": "https://github.com/szl-holdings/a11oy/pull/567",
         "public_key_url": _pub_key_url,
     })
@@ -13054,7 +13056,7 @@ async def api_proxy(request: Request, path: str) -> Response:
         return JSONResponse({
             "title": "SZL a11oy in-toto Verification Guide",
             "what_is_now_verifiable": {
-                "1_dsse_signature": {"status": "LIVE", "description": "payloadType=application/vnd.in-toto+json, ECDSA-P256-SHA256 DSSE sig"},
+                "1_dsse_signature": {"status": "LIVE", "description": "Scope: the /khipu/intoto/<receipt_id> envelope. payloadType=application/vnd.in-toto+json, ECDSA-P256-SHA256 DSSE sig at serve time only if the runtime signer is present (signed=true), else UNSIGNED (signed=false). Khipu hash-chain entries always carry DSSE_PLACEHOLDER and are unsigned, even while the signer is present."},
                 "2_intoto_statement_v1": {"status": "LIVE", "description": "_type: https://in-toto.io/Statement/v1, predicateType: https://szl.holdings/khipu-governed-inference/v1", "endpoint": "/khipu/intoto/<receipt_id>"},
                 "3_hard_binding": {"status": "LIVE", "description": "subject.digest = SHA3-256(output). C2PA pattern."},
                 "4_merkle_log": {"status": "LIVE", "description": "RFC 6962 SHA3-256 self-hosted log.", "proof_endpoint": "/api/lake/v1/proof/<id>", "log_endpoint": "/api/lake/v1/log", "honest_label": "szl-lake-merkle (self-hosted) — NOT Sigstore Rekor"},
@@ -13064,9 +13066,9 @@ async def api_proxy(request: Request, path: str) -> Response:
                 "slsa_l2": "ROADMAP: actions/attest-build-provenance in CI",
                 "tee": "ROADMAP Phase II: AWS Nitro PCR",
             },
-            "offline_verifier": "szl-cookbook/verify-intoto-receipt.py (Apache-2.0)",
+            "offline_verifier": "szl-cookbook/verify-intoto-receipt.py (Apache-2.0; checks the szl-holdings/.github org key embedded in it, so a receipt passes there only if that key's fingerprint equals /cosign.pub's)",
             "pr": "https://github.com/szl-holdings/a11oy/pull/567",
-            "public_key_url": "https://github.com/szl-holdings/.github/blob/main/cosign.pub",
+            "public_key_url": "/cosign.pub",
             "_dev": "DEV2 in-toto attestation layer (szl_intoto.py)",
         })
 

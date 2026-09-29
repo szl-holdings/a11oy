@@ -284,7 +284,7 @@ def register(app: FastAPI, gates_list: list[dict], gates_by_name: dict[str, dict
             "events": events,
             "events_count": len(events),
             "signing_available": signing_available,
-            "cosign_pub_url": "https://github.com/szl-holdings/.github/blob/main/cosign.pub",
+            "cosign_pub_url": "/cosign.pub",
             "payload_type": "application/vnd.szl.khipu+json",
             "verify_cmd": "cosign verify-blob --key cosign.pub --signature <sig> <payload>",
             "rekor_log_index": _rekor_log_index(),
