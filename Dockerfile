@@ -84,19 +84,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install Python dependencies
 # … (full rationale: docs/DOCKERFILE_NOTES.md §2)
-RUN pip install --no-cache-dir \
-    "fastapi==0.141.1" \
-    "uvicorn[standard]==0.53.0" \
-    "httpx==0.28.1" \
-    "starlette==1.6.0" \
-    "huggingface_hub==1.32.0" \
-    "openai==2.43.0" \
-    "python-multipart==0.0.32" \
-    "cryptography==50.0.1" \
-    "lmdb==2.3.0" \
-    "slowapi==0.1.10" \
-    "defusedxml==0.7.1" \
-    "numpy==2.5.3"
+# Pins live ONLY in requirements-runtime.txt (single source of truth; the audit
+# closure includes it with -r). Never re-list them inline here.
+COPY requirements-runtime.txt /tmp/requirements-runtime.txt
+RUN pip install --no-cache-dir -r /tmp/requirements-runtime.txt
 
 # Canonical non-generative Nemo witness: exact immutable source revision,
 # zero action authority, and import-time doctrine identity verification.
