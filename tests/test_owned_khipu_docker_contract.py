@@ -46,6 +46,12 @@ def test_llama_stage_selector_falls_back_to_fail_closed_default() -> None:
     assert re.search(r"^FROM \S+ AS llama-build-1$", text, re.MULTILINE)
     assert re.search(r"^FROM \S+ AS llama-build-0$", text, re.MULTILINE)
     assert re.search(r"^ARG A11OY_REQUIRE_LOCAL_LLM=1$", text, re.MULTILINE)
+    # The stage selector reads the global ARG, which is the one declared before
+    # the first FROM; later per-stage redeclarations do not affect it.
+    global_scope = re.split(r"^FROM ", text, maxsplit=1, flags=re.MULTILINE)[0]
+    assert re.findall(
+        r"^ARG A11OY_REQUIRE_LOCAL_LLM(?:=.*)?$", global_scope, re.MULTILINE
+    ) == ["ARG A11OY_REQUIRE_LOCAL_LLM=1"]
 
 
 def test_dockerfile_fetches_only_exact_owned_khipu_q4_artifact() -> None:
