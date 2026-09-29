@@ -131,6 +131,26 @@ jobs:
             sleep 1
           done
           if [ "${ok}" != "1" ]; then echo "::error::a11oy image failed /api/a11oy/healthz smoke after 120s"; exit 1; fi
+          python3 -B - <<'PY'
+          import json
+          import re
+          import urllib.request
+          parent = "00-0123456789abcdef0123456789abcdef-0123456789abcdef-00"
+          request = urllib.request.Request(
+              "http://127.0.0.1:7860/api/a11oy/v1/otel/status",
+              headers={"traceparent": parent},
+          )
+          with urllib.request.urlopen(request, timeout=10) as response:
+              body = json.load(response)
+              child = response.headers.get("traceparent", "")
+          assert re.fullmatch(r"00-[0-9a-f]{32}-[0-9a-f]{16}-00", child), child
+          assert child.split("-")[1] == parent.split("-")[1], child
+          assert child.split("-")[2] not in {"0" * 16, parent.split("-")[2]}, child
+          assert body["in_process"]["trace_propagation"] == "READY", body
+          assert body["exporter"]["delivery_asserted"] is False, body
+          assert body["receipt_minted"] is False, body
+          print("Packaged telemetry propagation verified; collector delivery is not asserted.")
+          PY
           python3 -B scripts/test_model_pretraining_container.py \
             --expected-source "${GITHUB_SHA}" --image-id "${IMAGE_ID}" \
             --output artifacts/model-pretraining-container/report.json
