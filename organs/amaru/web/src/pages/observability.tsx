@@ -63,18 +63,18 @@ export default function ObservabilityPage() {
       </div>
 
       <div className="conduit-card p-4 mb-6">
-        <div className="label-mono mb-3 text-[#c9b787]">SYNC RISK · TOP 6</div>
+        <div className="label-mono mb-3 text-ink">SYNC RISK · TOP 6</div>
         <div className="space-y-2">
           {risk.map((r) => (
-            <div key={r.syncId} className="flex items-center justify-between text-[12px] p-2 rounded bg-[#0e0e0e]">
+            <div key={r.syncId} className="flex items-center justify-between text-[12px] p-2 rounded bg-ground-deep">
               <div className="min-w-0 flex-1">
-                <div className="font-mono text-[#f5f5f5] truncate">{r.syncName}</div>
-                <div className="text-[10px] text-[#666] truncate">{r.drivers.join(' · ') || 'no recent issues'}</div>
+                <div className="font-mono text-ink truncate">{r.syncName}</div>
+                <div className="text-[10px] text-ink-sub truncate">{r.drivers.join(' · ') || 'no recent issues'}</div>
               </div>
               <div className="flex items-center gap-3 shrink-0">
                 <Badge variant={r.health === 'failing' ? 'failed' : r.health === 'degraded' ? 'partial' : 'success'}>{r.health}</Badge>
-                <div className="font-mono tabular-nums text-[#c9b787] w-10 text-right">{r.score}</div>
-                <div className="text-[10px] text-[#8a8a8a] w-44 text-right truncate">{generateRecommendedAction(r)}</div>
+                <div className="font-mono tabular-nums text-ink w-10 text-right">{r.score}</div>
+                <div className="text-[10px] text-ink-sub w-44 text-right truncate">{generateRecommendedAction(r)}</div>
               </div>
             </div>
           ))}
@@ -99,7 +99,7 @@ export default function ObservabilityPage() {
 
       <div className="conduit-card overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="text-[10px] font-mono uppercase tracking-[0.15em] text-[#666] border-b border-[rgba(255,255,255,0.06)]">
+          <thead className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-sub border-b border-line-subtle">
             <tr>
               <th className="text-left px-4 py-3">When</th>
               <th className="text-left px-4 py-3">Sync</th>
@@ -112,13 +112,13 @@ export default function ObservabilityPage() {
           </thead>
           <tbody>
             {rows.map((e) => (
-              <tr key={e.id} className="border-b border-[rgba(255,255,255,0.04)] hover:bg-[#1a1a1a] cursor-pointer transition-colors" onClick={() => setDrawerId(e.id)}>
-                <td className="px-4 py-2 font-mono text-[11px] text-[#666]">{new Date(e.atIso).toLocaleTimeString()}</td>
-                <td className="px-4 py-2 text-[12px] text-[#f5f5f5] truncate max-w-xs">{e.syncName}</td>
-                <td className="px-4 py-2 text-[11px] text-[#8a8a8a] font-mono">{e.type}</td>
-                <td className="px-4 py-2 text-[11px] text-[#c9b787]">{e.agentId ?? '—'}</td>
-                <td className="px-4 py-2 text-right tabular-nums text-[11px] text-[#8a8a8a]">{e.recordsAffected ? e.recordsAffected.toLocaleString() : '—'}</td>
-                <td className="px-4 py-2 text-right tabular-nums text-[11px] text-[#8a8a8a]">{e.latencyMs}ms</td>
+              <tr key={e.id} className="border-b border-line-subtle hover:bg-wash/7 cursor-pointer transition-colors" onClick={() => setDrawerId(e.id)}>
+                <td className="px-4 py-2 font-mono text-[11px] text-ink-sub">{new Date(e.atIso).toLocaleTimeString()}</td>
+                <td className="px-4 py-2 text-[12px] text-ink truncate max-w-xs">{e.syncName}</td>
+                <td className="px-4 py-2 text-[11px] text-ink-sub font-mono">{e.type}</td>
+                <td className="px-4 py-2 text-[11px] text-ink">{e.agentId ?? '—'}</td>
+                <td className="px-4 py-2 text-right tabular-nums text-[11px] text-ink-sub">{e.recordsAffected ? e.recordsAffected.toLocaleString() : '—'}</td>
+                <td className="px-4 py-2 text-right tabular-nums text-[11px] text-ink-sub">{e.latencyMs}ms</td>
                 <td className="px-4 py-2"><SeverityChip level={e.severity} /></td>
               </tr>
             ))}
@@ -136,13 +136,13 @@ export default function ObservabilityPage() {
               <FabricStat label="Severity" value={drawer.severity.toUpperCase()} tone={drawer.severity === 'critical' ? 'bad' : drawer.severity === 'high' ? 'warn' : 'neutral'} />
             </div>
             <div className="conduit-card p-4">
-              <div className="label-mono mb-2 text-[#c9b787]">STATE HASH</div>
-              <div className="font-mono text-[11px] text-[#8a8a8a] break-all">{drawer.stateHash}</div>
+              <div className="label-mono mb-2 text-ink">STATE HASH</div>
+              <div className="font-mono text-[11px] text-ink-sub break-all">{drawer.stateHash}</div>
             </div>
             {drawer.evidenceRef && (
               <div className="conduit-card p-4">
-                <div className="label-mono mb-2 text-[#c9b787]">EVIDENCE REF</div>
-                <div className="font-mono text-[11px] text-[#8a8a8a]">{drawer.evidenceRef}</div>
+                <div className="label-mono mb-2 text-ink">EVIDENCE REF</div>
+                <div className="font-mono text-[11px] text-ink-sub">{drawer.evidenceRef}</div>
               </div>
             )}
           </>

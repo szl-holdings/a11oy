@@ -88,10 +88,10 @@ function executeRun(
 
 function severityChip(sev: 'pass' | 'soft_fail' | 'hard_fail') {
   if (sev === 'pass')
-    return 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30';
+    return 'bg-success/10 text-ink-good border-success/30';
   if (sev === 'soft_fail')
-    return 'bg-amber-500/10 text-amber-300 border-amber-500/30';
-  return 'bg-rose-500/10 text-rose-300 border-rose-500/30';
+    return 'bg-warning/10 text-ink-warn border-warning/30';
+  return 'bg-error/10 text-ink-bad border-error/30';
 }
 
 function downloadJsonl(jsonl: string, name: string) {
@@ -195,9 +195,9 @@ export default function CodexLoop() {
           <button
             type="button"
             onClick={triggerRun}
-            className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            className="btn btn-solid"
           >
-            <PlayCircle className="h-4 w-4" />
+            <PlayCircle className="h-4 w-4" aria-hidden="true" />
             Run loop (both postures)
           </button>
         </div>
@@ -214,7 +214,7 @@ export default function CodexLoop() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <PostureCard
             title="Governance ON"
-            icon={<ShieldCheck className="h-4 w-4 text-emerald-400" />}
+            icon={<ShieldCheck className="h-4 w-4 text-ink-good" />}
             bundle={runs.on}
             selectedStep={selectedStep}
             onSelectStep={setSelectedStep}
@@ -222,7 +222,7 @@ export default function CodexLoop() {
           />
           <PostureCard
             title="Governance OFF"
-            icon={<ShieldOff className="h-4 w-4 text-amber-400" />}
+            icon={<ShieldOff className="h-4 w-4 text-ink-warn" />}
             bundle={runs.off}
             selectedStep={selectedStep}
             onSelectStep={setSelectedStep}
@@ -278,7 +278,7 @@ function PostureCard({
         <dt className="text-muted-foreground">status</dt>
         <dd
           className={
-            summary.status === 'ok' ? 'text-emerald-400' : 'text-rose-400'
+            summary.status === 'ok' ? 'text-ink-good' : 'text-ink-bad'
           }
         >
           {summary.status}
@@ -301,8 +301,8 @@ function PostureCard({
         <dd
           className={
             replayed.ok
-              ? 'flex items-center gap-1 text-emerald-400'
-              : 'flex items-center gap-1 text-rose-400'
+              ? 'flex items-center gap-1 text-ink-good'
+              : 'flex items-center gap-1 text-ink-bad'
           }
         >
           {replayed.ok ? (
@@ -333,7 +333,7 @@ function PostureCard({
                 key={event.step}
                 onClick={() => onSelectStep(event.step)}
                 className={`cursor-pointer border-t border-border/40 hover:bg-muted/30 ${
-                  selectedStep === event.step ? 'bg-primary/10' : ''
+                  selectedStep === event.step ? 'bg-wash/10' : ''
                 }`}
               >
                 <td className="px-2 py-1 font-mono">{event.step}</td>
@@ -447,10 +447,10 @@ function verifyChainLinkage(chain: CycleChainEntry[] | undefined): {
 }
 
 function terminationTone(status: string | undefined): string {
-  if (status === 'converged') return 'text-emerald-300 border-emerald-500/30';
-  if (status === 'halted_by_gate') return 'text-sky-300 border-sky-500/30';
+  if (status === 'converged') return 'text-ink-good border-success/30';
+  if (status === 'halted_by_gate') return 'text-ink-sub border-info/30';
   if (status === 'budget_exhausted' || status === 'halted_by_banach')
-    return 'text-amber-300 border-amber-500/30';
+    return 'text-ink-warn border-warning/30';
   return 'text-muted-foreground border-border';
 }
 
@@ -538,10 +538,10 @@ function LoopPropertiesPanel() {
   }));
 
   return (
-    <section className="rounded-lg border border-fuchsia-500/30 bg-fuchsia-500/[0.03] p-4">
+    <section className="rounded-lg border border-line bg-wash/3 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
-          <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-fuchsia-300">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-ink">
             <ScanEye className="h-3.5 w-3.5" /> Structured-graph loop properties
           </div>
           <h2 className="text-xl font-semibold tracking-tight">
@@ -563,7 +563,7 @@ function LoopPropertiesPanel() {
           type="button"
           onClick={probe}
           disabled={state === 'loading'}
-          className="flex items-center gap-2 rounded-md border border-fuchsia-500/40 bg-fuchsia-500/10 px-3 py-2 text-sm font-medium text-fuchsia-200 hover:bg-fuchsia-500/20 disabled:opacity-50"
+          className="flex items-center gap-2 rounded-md border border-line bg-wash/10 px-3 py-2 text-sm font-medium text-ink hover:bg-wash/20 disabled:opacity-50"
         >
           {state === 'loading' ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -583,16 +583,16 @@ function LoopPropertiesPanel() {
       )}
 
       {state === 'error' && (
-        <div className="mt-4 rounded border border-rose-500/30 bg-rose-500/5 p-4 text-xs text-rose-300">
+        <div className="mt-4 rounded border border-error/30 bg-error/5 p-4 text-xs text-ink-bad">
           Could not reach the live cycle endpoint ({errMsg}). No data is
           fabricated; try again when the a11oy origin is reachable.
         </div>
       )}
 
       {offState && (
-        <div className="mt-4 rounded border border-amber-500/30 bg-amber-500/5 p-4 text-xs text-amber-200">
+        <div className="mt-4 rounded border border-warning/30 bg-warning/5 p-4 text-xs text-ink-warn">
           <div className="font-medium">Governed cycle is OFF (honest empty-state).</div>
-          <p className="mt-1 text-amber-200/80">
+          <p className="mt-1 text-ink-warn">
             {resp?.note ??
               'The Ouroboros closed loop is disabled on this Space. Enable A11OY_OUROBOROS=1 (and A11OY_SGH=1 for the explicit node state machine) to populate these properties from live receipts.'}
           </p>
@@ -626,7 +626,7 @@ function LoopPropertiesPanel() {
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
           {/* (1) BOUNDED */}
           <PropertyCard
-            icon={<Gauge className="h-4 w-4 text-emerald-400" />}
+            icon={<Gauge className="h-4 w-4 text-ink-good" />}
             title="1 · Bounded"
           >
             <Row label="budget ceiling" value={`${resp?.budget ?? '—'} (hard ≤ 64)`} />
@@ -645,7 +645,7 @@ function LoopPropertiesPanel() {
 
           {/* (2) INSPECTABLE POLICY */}
           <PropertyCard
-            icon={<ShieldCheck className="h-4 w-4 text-sky-400" />}
+            icon={<ShieldCheck className="h-4 w-4 text-ink-sub" />}
             title="2 · Inspectable policy (Λ-gate)"
           >
             <Row
@@ -661,7 +661,7 @@ function LoopPropertiesPanel() {
                         #{t.iteration}
                       </td>
                       <td
-                        className={`px-2 py-0.5 font-mono ${t.decision === 'DENY' ? 'text-rose-300' : 'text-emerald-300'}`}
+                        className={`px-2 py-0.5 font-mono ${t.decision === 'DENY' ? 'text-ink-bad' : 'text-ink-good'}`}
                       >
                         {t.decision ?? '—'}
                       </td>
@@ -681,7 +681,7 @@ function LoopPropertiesPanel() {
 
           {/* (3) IMMUTABLE HISTORY */}
           <PropertyCard
-            icon={<Link2 className="h-4 w-4 text-violet-400" />}
+            icon={<Link2 className="h-4 w-4 text-ink" />}
             title="3 · Immutable history (hash-chained DAG)"
           >
             <Row
@@ -712,7 +712,7 @@ function LoopPropertiesPanel() {
 
           {/* (4) TERMINATION */}
           <PropertyCard
-            icon={<Flag className="h-4 w-4 text-amber-400" />}
+            icon={<Flag className="h-4 w-4 text-ink-warn" />}
             title="4 · Termination"
           >
             <div
@@ -730,7 +730,7 @@ function LoopPropertiesPanel() {
               {resp?.final_status_note ??
                 'Halts on the first honest status: converged / halted_by_gate / budget_exhausted / halted_by_banach.'}
             </p>
-            <p className="pt-1 text-[11px] text-fuchsia-300/80">
+            <p className="pt-1 text-[11px] text-ink-sub">
               Advisory (Conjecture 1) — bounded, always halts, but NOT claimed
               provably terminating.
             </p>
@@ -815,7 +815,7 @@ function ReceiptInspector({ bundle, step }: ReceiptInspectorProps) {
                   <span className="text-muted-foreground">{ev.kind}:</span>{' '}
                   {ev.ref}
                   {ev.mocked && (
-                    <span className="ml-1 text-amber-400">(mocked)</span>
+                    <span className="ml-1 text-ink-warn">(mocked)</span>
                   )}
                 </li>
               ))}

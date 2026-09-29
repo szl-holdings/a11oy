@@ -12,9 +12,10 @@ import {
   Activity,
   Zap,
 } from 'lucide-react';
+import { wash } from '@/lib/utils';
 
-const A11OY_GOLD = '#c9b787';
-const A11OY_GOLD_SUB = '#a89868';
+const A11OY_GOLD = 'var(--text)'; // legacy name: neutral section tone (icons, washes)
+const A11OY_GOLD_SUB = 'var(--text-sub)';
 
 const HUB_SECTIONS = [
   {
@@ -81,8 +82,8 @@ export default function SovereignAiHub() {
           COMMAND · SOVEREIGN AI HUB
         </p>
         <h1 className="text-2xl font-display font-bold tracking-tight flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[rgba(201,183,135,0.1)] flex items-center justify-center border border-[rgba(201,183,135,0.3)]">
-            <Shield className="w-5 h-5 text-[#c9b787]" />
+          <div className="w-8 h-8 rounded-lg bg-wash/10 flex items-center justify-center border border-line">
+            <Shield className="w-5 h-5 text-ink" />
           </div>
           Sovereign AI Hub
         </h1>
@@ -95,17 +96,17 @@ export default function SovereignAiHub() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div className="rounded-lg border border-border bg-card p-4 flex items-center gap-4">
-          <div className="w-10 h-10 rounded-lg bg-[rgba(201,183,135,0.08)] flex items-center justify-center">
-            <Activity className="w-5 h-5 text-[#c9b787]" />
+          <div className="w-10 h-10 rounded-lg bg-wash/8 flex items-center justify-center">
+            <Activity className="w-5 h-5 text-ink" />
           </div>
           <div>
             <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground">System Status</p>
-            <p className="text-lg font-mono font-bold text-[#c9b787]">OPERATIONAL</p>
+            <p className="text-lg font-mono font-bold text-ink">OPERATIONAL</p>
           </div>
         </div>
         <div className="rounded-lg border border-border bg-card p-4 flex items-center gap-4">
-          <div className="w-10 h-10 rounded-lg bg-[rgba(201,183,135,0.08)] flex items-center justify-center">
-            <Cpu className="w-5 h-5 text-[#c9b787]" />
+          <div className="w-10 h-10 rounded-lg bg-wash/8 flex items-center justify-center">
+            <Cpu className="w-5 h-5 text-ink" />
           </div>
           <div>
             <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground">AI Primitives</p>
@@ -113,8 +114,8 @@ export default function SovereignAiHub() {
           </div>
         </div>
         <div className="rounded-lg border border-border bg-card p-4 flex items-center gap-4">
-          <div className="w-10 h-10 rounded-lg bg-[rgba(201,183,135,0.08)] flex items-center justify-center">
-            <Zap className="w-5 h-5 text-[#c9b787]" />
+          <div className="w-10 h-10 rounded-lg bg-wash/8 flex items-center justify-center">
+            <Zap className="w-5 h-5 text-ink" />
           </div>
           <div>
             <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Governance</p>
@@ -126,13 +127,13 @@ export default function SovereignAiHub() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {HUB_SECTIONS.map((section) => (
           <Link key={section.key} href={section.href}>
-            <div className="group rounded-lg border border-border bg-card hover:bg-card/80 hover:border-primary/30 transition-all duration-200 p-5 cursor-pointer h-full flex flex-col">
+            <div className="group rounded-lg border border-border bg-card hover:bg-card/80 hover:border-line transition-all duration-200 p-5 cursor-pointer h-full flex flex-col">
               <div className="flex items-start justify-between mb-3">
                 <div
                   className="w-10 h-10 rounded-lg flex items-center justify-center border"
                   style={{
-                    backgroundColor: `${section.color}15`,
-                    borderColor: `${section.color}40`,
+                    backgroundColor: wash(section.color, 8),
+                    borderColor: wash(section.color, 25),
                   }}
                 >
                   <section.icon className="w-5 h-5" style={{ color: section.color }} />

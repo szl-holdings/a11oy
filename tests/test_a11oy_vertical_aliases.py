@@ -19,11 +19,27 @@ starlette_testclient = pytest.importorskip("starlette.testclient")
 TestClient = starlette_testclient.TestClient
 
 import serve  # noqa: E402
+import szl_operator_auth as opauth  # noqa: E402
+
+# Operator-only routes (szl_operator_auth.PROTECTED_ROUTES) answer 401 to an
+# anonymous caller and serve the operator Bearer. Test-only secret, not real.
+_TEST_OPERATOR = "test-operator-secret-not-real"
 
 
 @pytest.fixture(scope="module")
 def client():
     return TestClient(serve.app)
+
+
+def _call(client, monkeypatch, method, path, payload):
+    if method == "POST" and opauth.protected_action(method, path):
+        monkeypatch.setenv(opauth.OPERATOR_KEY_ENV, _TEST_OPERATOR)
+        anonymous = client.post(path, json=payload)
+        assert anonymous.status_code == 401, f"anonymous {path} must be refused"
+        assert anonymous.json()["status"] == "BLOCKED"
+        return client.post(path, json=payload,
+                           headers={"Authorization": f"Bearer {_TEST_OPERATOR}"})
+    return client.post(path, json=payload) if method == "POST" else client.get(path)
 
 
 FRIENDLY_ROUTES = [
@@ -43,8 +59,8 @@ FRIENDLY_ROUTES = [
 
 
 @pytest.mark.parametrize("method,path,payload", FRIENDLY_ROUTES)
-def test_friendly_vertical_route_is_live(client, method, path, payload):
-    response = client.post(path, json=payload) if method == "POST" else client.get(path)
+def test_friendly_vertical_route_is_live(client, monkeypatch, method, path, payload):
+    response = _call(client, monkeypatch, method, path, payload)
     assert response.status_code == 200, f"{method} {path} regressed to {response.status_code}"
     assert isinstance(response.json(), dict)
 
@@ -65,8 +81,8 @@ GOVERNED_CAPABILITY_ROUTES = [
 
 
 @pytest.mark.parametrize("method,path,payload", GOVERNED_CAPABILITY_ROUTES)
-def test_neutral_capability_route_is_governed(client, method, path, payload):
-    response = client.post(path, json=payload) if method == "POST" else client.get(path)
+def test_neutral_capability_route_is_governed(client, monkeypatch, method, path, payload):
+    response = _call(client, monkeypatch, method, path, payload)
     assert response.status_code == 200, f"{method} {path} regressed to {response.status_code}"
     body = response.json()
     assert body.get("status") == "REAL"

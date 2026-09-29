@@ -8,7 +8,7 @@ void registerWithA11oy({
   product: 'amaru',
   displayName: 'Amaru — The Andean Ouroboros',
   basePath: '/conduit/',
-  accentColor: '#c9b787',
+  accentColor: 'var(--accent)',
   capabilities: [
     { id: 'cycle_ledger', label: 'Cycle Ledger', governanceClass: 'observation' },
     { id: 'self_reflection', label: 'Self-Reflection Loop', governanceClass: 'recommendation' },

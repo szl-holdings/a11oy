@@ -43,6 +43,24 @@ except ImportError:
         def model_dump(self): return self.__dict__.copy()
     def Field(default=None, **kw): return default
 
+# Module-level so FastAPI resolves the (string) route annotation under
+# `from __future__ import annotations`.
+try:
+    from starlette.requests import Request
+except Exception:  # pragma: no cover — library import without starlette
+    Request = None  # type: ignore
+
+
+def _two_person_attested(request) -> bool:
+    """Two-person attestation comes from request headers via szl_operator_auth
+    (two distinct server-held secrets), never from the call body. A host without
+    the resolver can never attest (deny-by-default)."""
+    try:
+        import szl_operator_auth as _opauth
+        return bool(_opauth.principal(request)["two_person_attested"])
+    except Exception:
+        return False
+
 # ── Doctrine invariants ───────────────────────────────────────────────────────
 DOCTRINE = "v11"
 KERNEL_COMMIT = "c7c0ba17"
@@ -403,24 +421,25 @@ def make_ken_router(flagship, tools_manifest, dispatch_fn=None, khipu_store=None
         })
 
     @router.post(f"/api/{flagship}/v1/mcp/call")
-    async def _mcp_call(body: dict):
+    async def _mcp_call(body: dict, request: Request):
         tool_name = body.get("name", "")
         args = body.get("arguments", {})
         spec = next((t for t in tools_manifest if t.get("name") == tool_name), None)
         if spec is None:
             raise HTTPException(status_code=404, detail=f"Tool '{tool_name}' not found")
-        # Deny-by-default: a tool advertised requires_two_person:true MUST carry a
-        # two-person attestation in the call body, else it is refused (fail-closed).
-        # Honest: this enforces the manifest's stated control instead of advertising
-        # an unenforced gate. NOT a claim of cryptographic co-signing.
+        # Deny-by-default: a tool advertised requires_two_person:true is refused unless
+        # the request headers carry two distinct server-held secrets (operator Bearer +
+        # X-A11oy-Second-Approver). A body flag is never accepted. Two-person only if
+        # custody of the two keys is split; NOT a claim of cryptographic co-signing.
         if spec.get("requires_two_person"):
-            attested = bool(body.get("two_person_attested") or body.get("attestation"))
-            if not attested:
+            if not _two_person_attested(request):
                 return JSONResponse(status_code=403,
                     content={"error": "two_person_required",
                              "tool": tool_name,
-                             "reason": "State-changing tool requires a two-person attestation "
-                                       "(set two_person_attested:true with a second-operator attestation). Refused.",
+                             "reason": "State-changing tool requires a two-person attestation: "
+                                       "the operator Bearer credential plus a distinct "
+                                       "X-A11oy-Second-Approver header. A body flag is not "
+                                       "accepted. Refused.",
                              "doctrine": DOCTRINE})
         plan = {"action": "tool_call", "tool": tool_name, "args": args, "reasoning": "mcp-call"}
         dummy = init_state(f"mcp:{tool_name}", flagship, 1)

@@ -62,13 +62,15 @@ const LAYOUT: Record<StateName, [number, number, number]> = {
   HALT: [4.6, 0.8, 0],
 };
 
-// Restrained deep-dark palette (low-opacity glow, WCAG-friendly, not blinding).
-const COLOR: Record<StateName, number> = {
-  PLAN: 0x6ea8ff, // ice blue
-  EXECUTE: 0x8be0d0, // teal
-  VERIFY: 0x7cc7ff, // sky
-  RECOVER: 0xffb347, // amber (recovery/escalation)
-  HALT: 0xff5f8f, // fuchsia-rose (terminal)
+// Founder token per state. WebGL cannot read CSS variables, so the scene resolves
+// these names with getComputedStyle at mount (see `tone()` below). Neutral + silver
+// linework carry the machine; status inks mark verify / recover; nothing coral.
+const COLOR_TOKEN: Record<StateName, string> = {
+  PLAN: '--text-ghost', // intent, not yet action
+  EXECUTE: '--color-silver-300', // the action path (linework)
+  VERIFY: '--ink-good', // verification
+  RECOVER: '--color-warning', // recovery / escalation
+  HALT: '--text', // terminal
 };
 
 function prefersReducedMotion(): boolean {
@@ -150,6 +152,12 @@ export function HolographicLoopGraph({
         if (disposed || !el) return;
 
         const width = el.clientWidth || 640;
+        const css = getComputedStyle(el);
+        const tone = (token: string) => new THREE.Color(css.getPropertyValue(token).trim() || css.color);
+        const COLOR = Object.fromEntries(
+          STATES.map((st) => [st, tone(COLOR_TOKEN[st])]),
+        ) as Record<StateName, InstanceType<typeof THREE.Color>>;
+        const EDGE = tone('--border');
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(48, width / height, 0.1, 100);
         camera.position.set(0.5, 1.6, 13);
@@ -162,7 +170,7 @@ export function HolographicLoopGraph({
         });
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.setSize(width, height);
-        renderer.setClearColor(0x000000, 0); // deep-dark: page bg shows through
+        renderer.setClearColor(COLOR.PLAN, 0); // fully transparent: the page ground shows through
         el.appendChild(renderer.domElement);
         renderer.domElement.style.display = 'block';
         renderer.domElement.setAttribute('aria-hidden', 'true');
@@ -196,7 +204,7 @@ export function HolographicLoopGraph({
           timeUniforms.push(uTime);
           const mat = new THREE.ShaderMaterial({
             uniforms: {
-              uColor: { value: new THREE.Color(COLOR[state]) },
+              uColor: { value: COLOR[state].clone() },
               uTime,
               uVisited: { value: isVisited ? 1.0 : 0.0 },
             },
@@ -237,7 +245,7 @@ export function HolographicLoopGraph({
         function addEdge(
           a: [number, number, number],
           b: [number, number, number],
-          color: number,
+          color: InstanceType<typeof THREE.Color>,
           opacity: number,
         ) {
           const g = new THREE.BufferGeometry().setFromPoints([
@@ -253,14 +261,14 @@ export function HolographicLoopGraph({
           });
           group.add(new THREE.Line(g, m));
         }
-        for (const [a, b] of skeleton) addEdge(LAYOUT[a], LAYOUT[b], 0x3a4a6a, 0.22);
+        for (const [a, b] of skeleton) addEdge(LAYOUT[a], LAYOUT[b], EDGE, 0.22);
 
         // REAL traversed edges (from node_state_trace) — bright, on top.
         for (const t of transitions) {
           const from = (t.from === 'INIT' ? 'PLAN' : t.from) as StateName;
           const to = t.to as StateName;
           if (!LAYOUT[from] || !LAYOUT[to] || from === to) continue;
-          const col = to === 'HALT' && denied ? 0xff5f8f : COLOR[to] ?? 0x7cc7ff;
+          const col = to === 'HALT' && denied ? tone('--color-error') : COLOR[to] ?? COLOR.VERIFY;
           addEdge(LAYOUT[from], LAYOUT[to], col, 0.85);
         }
 
@@ -271,7 +279,7 @@ export function HolographicLoopGraph({
           const dot = new THREE.Mesh(
             new THREE.SphereGeometry(0.12, 8, 8),
             new THREE.MeshBasicMaterial({
-              color: 0x6ea8ff,
+              color: COLOR.PLAN,
               transparent: true,
               opacity: 0.5,
               blending: THREE.AdditiveBlending,
@@ -284,12 +292,12 @@ export function HolographicLoopGraph({
         // Terminal tint: a subtle plane behind HALT keyed to real final_status.
         const termColor =
           finalStatus === 'converged'
-            ? 0x2dd4a7
+            ? tone('--color-success')
             : finalStatus === 'halted_by_gate'
-              ? 0x7cc7ff
+              ? COLOR.VERIFY
               : finalStatus === 'budget_exhausted' || finalStatus === 'halted_by_banach'
-                ? 0xffb347
-                : 0x3a4a6a;
+                ? tone('--color-warning')
+                : EDGE;
         void chainVerified;
 
         const haloMat = new THREE.MeshBasicMaterial({
@@ -366,7 +374,7 @@ export function HolographicLoopGraph({
     return (
       <div
         style={{ height: Math.min(height, 120) }}
-        className="flex items-center justify-center rounded-md border border-dashed border-fuchsia-500/20 bg-black/30 px-4 text-center text-[11px] text-muted-foreground"
+        className="flex items-center justify-center rounded-md border border-dashed border-line-subtle bg-ground/30 px-4 text-center text-[11px] text-muted-foreground"
       >
         Holographic layer unavailable (no WebGL) — the real receipt data is shown
         in the property cards below. Nothing is fabricated.
@@ -376,7 +384,7 @@ export function HolographicLoopGraph({
 
   return (
     <div
-      className="relative overflow-hidden rounded-md border border-fuchsia-500/20 bg-[#05060a]"
+      className="relative overflow-hidden rounded-md border border-line-subtle bg-ground-deep"
       style={{ height }}
     >
       <div ref={mountRef} style={{ width: '100%', height: '100%' }} />
@@ -386,11 +394,11 @@ export function HolographicLoopGraph({
         className="pointer-events-none absolute inset-0"
         style={{
           backgroundImage:
-            'repeating-linear-gradient(0deg, rgba(124,199,255,0.05) 0px, rgba(124,199,255,0.05) 1px, transparent 1px, transparent 3px)',
+            'repeating-linear-gradient(0deg, color-mix(in srgb, var(--color-silver-300) 5%, transparent) 0px, color-mix(in srgb, var(--color-silver-300) 5%, transparent) 1px, transparent 1px, transparent 3px)',
           mixBlendMode: 'screen',
         }}
       />
-      <div className="pointer-events-none absolute bottom-1 right-2 font-mono text-[9px] uppercase tracking-widest text-fuchsia-300/50">
+      <div className="pointer-events-none absolute bottom-1 right-2 font-mono text-[9px] uppercase tracking-widest text-ink-sub">
         HOLO.SYS · real receipts · advisory
       </div>
     </div>

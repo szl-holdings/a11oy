@@ -998,7 +998,25 @@ def register(app, ns: str = "a11oy", sign_fn=None, verify_fn=None,
         except Exception:
             return {}
 
+    def _operator_blocked(request, action):
+        """None for an operator; else an honest 401 BLOCKED. These routes write runs,
+        checkpoints, reflections, memories and skills (deny-by-default)."""
+        try:
+            import szl_operator_auth as _opauth
+        except Exception:
+            _opauth = None
+        if _opauth is not None and _opauth.principal(request)["operator"]:
+            return None
+        body = (_opauth.blocked_body(action) if _opauth is not None else
+                {"ok": False, "status": "BLOCKED",
+                 "error": "%s requires the operator credential." % action})
+        body["reason"] = body["error"]
+        return JSONResponse(body, status_code=401, headers={"WWW-Authenticate": "Bearer"})
+
     async def _run(request):
+        blocked = _operator_blocked(request, "ReAct run")
+        if blocked is not None:
+            return blocked
         d = await _read_json(request)
         goal = (d.get("goal") or d.get("query") or "").strip()
         if not goal:
@@ -1011,6 +1029,9 @@ def register(app, ns: str = "a11oy", sign_fn=None, verify_fn=None,
         return JSONResponse(out)
 
     async def _resume(request):
+        blocked = _operator_blocked(request, "ReAct resume")
+        if blocked is not None:
+            return blocked
         d = await _read_json(request)
         run_id = (d.get("run_id") or request.query_params.get("run_id") or "").strip()
         if not run_id:
@@ -1028,6 +1049,9 @@ def register(app, ns: str = "a11oy", sign_fn=None, verify_fn=None,
         return JSONResponse(eng.checkpoints(run_id))
 
     async def _reflect(request):
+        blocked = _operator_blocked(request, "ReAct reflection writes")
+        if blocked is not None:
+            return blocked
         d = await _read_json(request)
         run_id = (d.get("run_id") or "").strip()
         text = (d.get("reflection") or d.get("text") or "").strip()
@@ -1036,6 +1060,9 @@ def register(app, ns: str = "a11oy", sign_fn=None, verify_fn=None,
         return JSONResponse(eng.reflect(run_id, text))
 
     async def _mem_add_ep(request):
+        blocked = _operator_blocked(request, "Memory writes")
+        if blocked is not None:
+            return blocked
         d = await _read_json(request)
         text = (d.get("text") or "").strip()
         if not text:
@@ -1070,6 +1097,9 @@ def register(app, ns: str = "a11oy", sign_fn=None, verify_fn=None,
                              "label": "EXPERIMENTAL"})
 
     async def _skill_admit_ep(request):
+        blocked = _operator_blocked(request, "Skill admission")
+        if blocked is not None:
+            return blocked
         d = await _read_json(request)
         name = (d.get("name") or "").strip()
         recipe = (d.get("recipe") or "").strip()

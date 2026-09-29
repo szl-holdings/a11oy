@@ -91,9 +91,9 @@ async function safeFetch<T>(url: string, init?: RequestInit): Promise<T | null> 
 
 function statusBadge(status: 'pass' | 'warn' | 'trip') {
   const palette: Record<typeof status, { bg: string; fg: string; label: string }> = {
-    pass: { bg: 'rgba(201,183,135,0.12)', fg: '#c9b787', label: 'PASS' },
-    warn: { bg: 'rgba(245,245,245,0.10)', fg: '#f5f5f5', label: 'WARN' },
-    trip: { bg: 'rgba(245,80,80,0.14)', fg: '#ff8a8a', label: 'TRIP' },
+    pass: { bg: 'color-mix(in srgb, var(--text) 12%, transparent)', fg: 'var(--text)', label: 'PASS' },
+    warn: { bg: 'var(--surface-raised)', fg: 'var(--text)', label: 'WARN' },
+    trip: { bg: 'color-mix(in srgb, var(--color-error) 14%, transparent)', fg: 'var(--ink-bad)', label: 'TRIP' },
   };
   const p = palette[status];
   return (
@@ -121,46 +121,46 @@ function ChakraCard({
   return (
     <div
       className="rounded-lg border p-4 flex flex-col gap-2"
-      style={{ backgroundColor: '#0f0f0f', borderColor: 'rgba(201,183,135,0.18)' }}
+      style={{ backgroundColor: 'var(--bg-deep)', borderColor: 'color-mix(in srgb, var(--text) 18%, transparent)' }}
     >
       <div className="flex items-center justify-between">
-        <div className="text-xs font-mono uppercase tracking-wide" style={{ color: '#c9b787' }}>
+        <div className="text-xs font-mono uppercase tracking-wide" style={{ color: 'var(--text)' }}>
           {CHAKRA_LABELS[name]}
         </div>
         {stub ? (
           <span
             className="text-[10px] font-mono px-2 py-0.5 rounded"
-            style={{ backgroundColor: 'rgba(245,245,245,0.08)', color: '#f5f5f5' }}
+            style={{ backgroundColor: 'var(--surface-raised)', color: 'var(--text)' }}
           >
             STUBBED · upstream not vendored
           </span>
         ) : evaluation ? (
           <span
             className="text-[10px] font-mono px-2 py-0.5 rounded"
-            style={{ backgroundColor: 'rgba(201,183,135,0.12)', color: '#c9b787' }}
+            style={{ backgroundColor: 'color-mix(in srgb, var(--text) 12%, transparent)', color: 'var(--text)' }}
           >
             {error ? 'ERROR' : 'OK'}
           </span>
         ) : (
-          <span className="text-[10px] font-mono" style={{ color: '#5e5e5e' }}>
+          <span className="text-[10px] font-mono" style={{ color: 'var(--text-sub)' }}>
             idle
           </span>
         )}
       </div>
       {error && (
-        <div className="text-xs font-mono" style={{ color: '#ff8a8a', whiteSpace: 'pre-wrap' }}>
+        <div className="text-xs font-mono" style={{ color: 'var(--ink-bad)', whiteSpace: 'pre-wrap' }}>
           {error}
         </div>
       )}
       {output && (
         <pre
           className="text-[11px] font-mono leading-snug overflow-auto rounded p-2"
-          style={{ backgroundColor: '#000', color: '#e6e6e6', maxHeight: 160 }}
+          style={{ backgroundColor: 'var(--bg)', color: 'var(--text)', maxHeight: 160 }}
         >
           {JSON.stringify(output, null, 2)}
         </pre>
       )}
-      <div className="text-[10px] font-mono" style={{ color: '#5e5e5e' }}>
+      <div className="text-[10px] font-mono" style={{ color: 'var(--text-sub)' }}>
         receipt seq: {seq ?? '—'}
         {evaluation?.tick_id ? `  ·  tick ${evaluation.tick_id}` : ''}
       </div>
@@ -178,7 +178,7 @@ function ChakanaWiringSvg() {
     <svg viewBox="0 0 560 460" className="w-full h-auto">
       <defs>
         <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-          <path d="M0,0 L0,6 L6,3 z" fill="#c9b787" />
+          <path d="M0,0 L0,6 L6,3 z" fill="var(--color-silver-300)" />
         </marker>
       </defs>
       {order.map((name, i) => {
@@ -189,8 +189,8 @@ function ChakanaWiringSvg() {
               cx={cx}
               cy={y}
               r={18}
-              fill="#0a0a0a"
-              stroke="#c9b787"
+              fill="var(--bg)"
+              stroke="var(--color-silver-300)"
               strokeOpacity={0.5}
               strokeWidth={1.5}
             />
@@ -198,18 +198,18 @@ function ChakanaWiringSvg() {
               x={cx}
               y={y + 4}
               textAnchor="middle"
-              fontFamily="monospace"
+              fontFamily="var(--font-mono)"
               fontSize="10"
-              fill="#c9b787"
+              fill="var(--text-sub)"
             >
               {i + 1}
             </text>
             <text
               x={cx + 28}
               y={y + 4}
-              fontFamily="monospace"
+              fontFamily="var(--font-mono)"
               fontSize="11"
-              fill="#e6e6e6"
+              fill="var(--text)"
             >
               {CHAKRA_LABELS[name]}
             </text>
@@ -219,7 +219,7 @@ function ChakanaWiringSvg() {
                 y1={y + 18}
                 x2={cx}
                 y2={y + dy - 18}
-                stroke="#c9b787"
+                stroke="var(--color-silver-300)"
                 strokeOpacity={0.4}
                 strokeWidth={1.2}
                 markerEnd="url(#arrow)"
@@ -232,7 +232,7 @@ function ChakanaWiringSvg() {
       <path
         d={`M ${cx - 18} ${top + (order.length - 1) * dy} C ${cx - 200} ${top + (order.length - 1) * dy + 40}, ${cx - 200} ${top - 40}, ${cx - 18} ${top}`}
         fill="none"
-        stroke="#c9b787"
+        stroke="var(--color-silver-300)"
         strokeOpacity={0.55}
         strokeWidth={1.5}
         strokeDasharray="4 4"
@@ -241,9 +241,9 @@ function ChakanaWiringSvg() {
       <text
         x={50}
         y={top + ((order.length - 1) * dy) / 2}
-        fontFamily="monospace"
+        fontFamily="var(--font-mono)"
         fontSize="10"
-        fill="#c9b787"
+        fill="var(--text-sub)"
         opacity={0.6}
       >
         ouroboros
@@ -365,8 +365,8 @@ export default function BrainPage() {
       <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Brain className="w-5 h-5" style={{ color: '#c9b787' }} />
-            <span className="text-xs font-mono" style={{ color: '#c9b787' }}>
+            <Brain className="w-5 h-5" style={{ color: 'var(--text)' }} />
+            <span className="text-xs font-mono" style={{ color: 'var(--text)' }}>
               AMARU BRAIN
             </span>
             <span
@@ -374,11 +374,11 @@ export default function BrainPage() {
               style={{
                 backgroundColor:
                   runtimeUp === null
-                    ? 'rgba(94,94,94,0.15)'
+                    ? 'color-mix(in srgb, var(--text-sub) 15%, transparent)'
                     : runtimeUp
-                      ? 'rgba(201,183,135,0.12)'
-                      : 'rgba(245,80,80,0.14)',
-                color: runtimeUp === null ? '#8a8a8a' : runtimeUp ? '#c9b787' : '#ff8a8a',
+                      ? 'color-mix(in srgb, var(--text) 12%, transparent)'
+                      : 'color-mix(in srgb, var(--ink-bad) 14%, transparent)',
+                color: runtimeUp === null ? 'var(--text-sub)' : runtimeUp ? 'var(--text)' : 'var(--ink-bad)',
               }}
             >
               {runtimeUp === null ? 'CHECKING' : runtimeUp ? 'RUNTIME UP' : 'RUNTIME DOWN'}
@@ -386,18 +386,18 @@ export default function BrainPage() {
             <span
               className="text-[10px] font-mono px-2 py-0.5 rounded"
               style={{
-                backgroundColor: sseOpen ? 'rgba(201,183,135,0.12)' : 'rgba(94,94,94,0.15)',
-                color: sseOpen ? '#c9b787' : '#8a8a8a',
+                backgroundColor: sseOpen ? 'color-mix(in srgb, var(--text) 12%, transparent)' : 'color-mix(in srgb, var(--text-sub) 15%, transparent)',
+                color: sseOpen ? 'var(--text)' : 'var(--text-sub)',
               }}
               title="Live SSE subscription to /amaru/events (amaru.chakra + amaru.scheduler)"
             >
               {sseOpen ? 'SSE LIVE' : 'POLL FALLBACK'}
             </span>
           </div>
-          <h1 className="text-2xl font-display font-semibold" style={{ color: '#e6e6e6' }}>
+          <h1 className="text-2xl font-display font-semibold" style={{ color: 'var(--text)' }}>
             7-chakra kernels · live runtime
           </h1>
-          <p className="text-sm mt-1" style={{ color: '#8a8a8a' }}>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-sub)' }}>
             Andean Ouroboros · root → crown · chakana wiring · huklla-10 tripwires
           </p>
         </div>
@@ -406,14 +406,14 @@ export default function BrainPage() {
           disabled={ticking || runtimeUp === false}
           className="px-4 py-2 rounded text-xs font-mono"
           style={{
-            backgroundColor: ticking ? 'rgba(201,183,135,0.06)' : 'rgba(201,183,135,0.14)',
-            color: '#c9b787',
-            border: '1px solid rgba(201,183,135,0.4)',
+            backgroundColor: ticking ? 'color-mix(in srgb, var(--text) 6%, transparent)' : 'color-mix(in srgb, var(--text) 14%, transparent)',
+            color: 'var(--text)',
+            border: '1px solid color-mix(in srgb, var(--text) 40%, transparent)',
             cursor: ticking || runtimeUp === false ? 'not-allowed' : 'pointer',
             opacity: runtimeUp === false ? 0.4 : 1,
           }}
         >
-          {ticking ? 'TICKING…' : '▷ FIRE SCHEDULER TICK'}
+          {ticking ? 'TICKING…' : 'FIRE SCHEDULER TICK'}
         </button>
       </div>
 
@@ -421,9 +421,9 @@ export default function BrainPage() {
         <div
           className="mb-6 rounded-lg border p-4 text-xs font-mono"
           style={{
-            backgroundColor: 'rgba(245,80,80,0.06)',
-            borderColor: 'rgba(245,80,80,0.25)',
-            color: '#ff8a8a',
+            backgroundColor: 'color-mix(in srgb, var(--color-error) 6%, transparent)',
+            borderColor: 'color-mix(in srgb, var(--color-error) 25%, transparent)',
+            color: 'var(--ink-bad)',
           }}
         >
           Amaru runtime is not reachable on <code>/amaru/*</code>. Start the
@@ -433,21 +433,21 @@ export default function BrainPage() {
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <div className="rounded-lg border p-3" style={{ backgroundColor: '#0f0f0f', borderColor: 'rgba(201,183,135,0.18)' }}>
-          <div className="text-[10px] font-mono uppercase" style={{ color: '#8a8a8a' }}>Scheduler ticks</div>
-          <div className="text-xl font-display font-semibold" style={{ color: '#c9b787' }}>{ticks}</div>
+        <div className="rounded-lg border p-3" style={{ backgroundColor: 'var(--bg-deep)', borderColor: 'color-mix(in srgb, var(--text) 18%, transparent)' }}>
+          <div className="text-[10px] font-mono uppercase" style={{ color: 'var(--text-sub)' }}>Scheduler ticks</div>
+          <div className="text-xl font-display font-semibold" style={{ color: 'var(--text)' }}>{ticks}</div>
         </div>
-        <div className="rounded-lg border p-3" style={{ backgroundColor: '#0f0f0f', borderColor: 'rgba(201,183,135,0.18)' }}>
-          <div className="text-[10px] font-mono uppercase" style={{ color: '#8a8a8a' }}>Receipts in chain</div>
-          <div className="text-xl font-display font-semibold" style={{ color: '#c9b787' }}>{headSeq}</div>
+        <div className="rounded-lg border p-3" style={{ backgroundColor: 'var(--bg-deep)', borderColor: 'color-mix(in srgb, var(--text) 18%, transparent)' }}>
+          <div className="text-[10px] font-mono uppercase" style={{ color: 'var(--text-sub)' }}>Receipts in chain</div>
+          <div className="text-xl font-display font-semibold" style={{ color: 'var(--text)' }}>{headSeq}</div>
         </div>
-        <div className="rounded-lg border p-3" style={{ backgroundColor: '#0f0f0f', borderColor: 'rgba(201,183,135,0.18)' }}>
-          <div className="text-[10px] font-mono uppercase" style={{ color: '#8a8a8a' }}>Yawar bus ok</div>
-          <div className="text-xl font-display font-semibold" style={{ color: '#c9b787' }}>{busOk}</div>
+        <div className="rounded-lg border p-3" style={{ backgroundColor: 'var(--bg-deep)', borderColor: 'color-mix(in srgb, var(--text) 18%, transparent)' }}>
+          <div className="text-[10px] font-mono uppercase" style={{ color: 'var(--text-sub)' }}>Yawar bus ok</div>
+          <div className="text-xl font-display font-semibold" style={{ color: 'var(--text)' }}>{busOk}</div>
         </div>
-        <div className="rounded-lg border p-3" style={{ backgroundColor: '#0f0f0f', borderColor: 'rgba(201,183,135,0.18)' }}>
-          <div className="text-[10px] font-mono uppercase" style={{ color: '#8a8a8a' }}>Tripwires</div>
-          <div className="text-xl font-display font-semibold" style={{ color: '#c9b787' }}>
+        <div className="rounded-lg border p-3" style={{ backgroundColor: 'var(--bg-deep)', borderColor: 'color-mix(in srgb, var(--text) 18%, transparent)' }}>
+          <div className="text-[10px] font-mono uppercase" style={{ color: 'var(--text-sub)' }}>Tripwires</div>
+          <div className="text-xl font-display font-semibold" style={{ color: 'var(--text)' }}>
             {tripwires
               ? `${tripwires.summary.pass}/${tripwires.summary.total}`
               : '—'}
@@ -468,21 +468,21 @@ export default function BrainPage() {
         <div className="flex flex-col gap-4">
           <div
             className="rounded-lg border p-3"
-            style={{ backgroundColor: '#0f0f0f', borderColor: 'rgba(201,183,135,0.18)' }}
+            style={{ backgroundColor: 'var(--bg-deep)', borderColor: 'color-mix(in srgb, var(--text) 18%, transparent)' }}
           >
-            <div className="text-xs font-mono uppercase tracking-wide mb-2" style={{ color: '#c9b787' }}>
+            <div className="text-xs font-mono uppercase tracking-wide mb-2" style={{ color: 'var(--text)' }}>
               Chakana wiring
             </div>
             <ChakanaWiringSvg />
           </div>
           <div
             className="rounded-lg border p-3"
-            style={{ backgroundColor: '#0f0f0f', borderColor: 'rgba(201,183,135,0.18)' }}
+            style={{ backgroundColor: 'var(--bg-deep)', borderColor: 'color-mix(in srgb, var(--text) 18%, transparent)' }}
           >
-            <div className="text-xs font-mono uppercase tracking-wide mb-2 flex items-center justify-between" style={{ color: '#c9b787' }}>
+            <div className="text-xs font-mono uppercase tracking-wide mb-2 flex items-center justify-between" style={{ color: 'var(--text)' }}>
               huklla-10 tripwires
               {tripwires && (
-                <span className="text-[10px]" style={{ color: '#8a8a8a' }}>
+                <span className="text-[10px]" style={{ color: 'var(--text-sub)' }}>
                   pass {tripwires.summary.pass} · warn {tripwires.summary.warn} · trip {tripwires.summary.trip}
                 </span>
               )}
@@ -492,15 +492,15 @@ export default function BrainPage() {
                 <div key={t.id} className="flex items-center justify-between gap-2 text-[11px]">
                   <div className="flex items-center gap-2 min-w-0">
                     {statusBadge(t.status)}
-                    <span className="font-mono truncate" style={{ color: '#e6e6e6' }}>{t.title}</span>
+                    <span className="font-mono truncate" style={{ color: 'var(--text)' }}>{t.title}</span>
                   </div>
-                  <span className="font-mono truncate text-right" style={{ color: '#8a8a8a' }}>
+                  <span className="font-mono truncate text-right" style={{ color: 'var(--text-sub)' }}>
                     {t.detail}
                   </span>
                 </div>
               ))}
               {!tripwires && (
-                <div className="text-[11px] font-mono" style={{ color: '#5e5e5e' }}>
+                <div className="text-[11px] font-mono" style={{ color: 'var(--text-sub)' }}>
                   No tripwire data yet.
                 </div>
               )}
@@ -510,11 +510,11 @@ export default function BrainPage() {
       </div>
 
       <div className="mt-6">
-        <div className="text-xs font-mono uppercase tracking-wide mb-2" style={{ color: '#c9b787' }}>
+        <div className="text-xs font-mono uppercase tracking-wide mb-2" style={{ color: 'var(--text)' }}>
           Recent scheduler ticks (newest first)
         </div>
         {tickHistory.length === 0 && (
-          <div className="text-[11px] font-mono" style={{ color: '#5e5e5e' }}>
+          <div className="text-[11px] font-mono" style={{ color: 'var(--text-sub)' }}>
             Fire a tick to extend the receipt chain.
           </div>
         )}
@@ -523,13 +523,13 @@ export default function BrainPage() {
             <div
               key={tick.tick_id}
               className="rounded-lg border p-3"
-              style={{ backgroundColor: '#0f0f0f', borderColor: 'rgba(201,183,135,0.18)' }}
+              style={{ backgroundColor: 'var(--bg-deep)', borderColor: 'color-mix(in srgb, var(--text) 18%, transparent)' }}
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-mono" style={{ color: '#c9b787' }}>
+                <span className="text-xs font-mono" style={{ color: 'var(--text)' }}>
                   tick #{tick.tick_id}
                 </span>
-                <span className="text-[10px] font-mono" style={{ color: '#8a8a8a' }}>
+                <span className="text-[10px] font-mono" style={{ color: 'var(--text-sub)' }}>
                   closure {tick.closure?.toFixed(3) ?? '—'} · receipts seq {tick.steps[0]?.receipt_seq}–{tick.steps.at(-1)?.receipt_seq}
                 </span>
               </div>
@@ -540,11 +540,11 @@ export default function BrainPage() {
                     className="text-[10px] font-mono px-2 py-0.5 rounded"
                     style={{
                       backgroundColor: s.error && !s.stubbed
-                        ? 'rgba(245,80,80,0.14)'
+                        ? 'color-mix(in srgb, var(--color-error) 14%, transparent)'
                         : s.stubbed
-                          ? 'rgba(245,245,245,0.08)'
-                          : 'rgba(201,183,135,0.12)',
-                      color: s.error && !s.stubbed ? '#ff8a8a' : s.stubbed ? '#f5f5f5' : '#c9b787',
+                          ? 'var(--surface-raised)'
+                          : 'color-mix(in srgb, var(--text) 12%, transparent)',
+                      color: s.error && !s.stubbed ? 'var(--ink-bad)' : s.stubbed ? 'var(--text)' : 'var(--text)',
                     }}
                   >
                     {s.chakra}#{s.receipt_seq}

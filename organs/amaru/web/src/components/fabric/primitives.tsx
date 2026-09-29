@@ -2,6 +2,21 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import type { GovernanceState, SeverityLevel } from '@/data/fabric/types';
 
+/* Founder KANCHAY v1.1.0 operator components (szl-console.css): .page-head, .stat +
+   .metric, .card, .toolbar, .scrim/.drawer, .sev, .dot, .meter, .spark, .heat.
+   Identity stays neutral; status pairs a status ink or mark with a word. The legacy
+   'gold' tone renders neutral (gold is reserved for premium moments). */
+
+type Tone = 'good' | 'warn' | 'bad' | 'gold';
+
+const DATA_TONE: Record<Tone | 'neutral', string | undefined> = {
+  good: 'good',
+  warn: 'warn',
+  bad: 'bad',
+  gold: undefined,
+  neutral: undefined,
+};
+
 export function FabricHeader({
   eyebrow,
   title,
@@ -14,11 +29,11 @@ export function FabricHeader({
   trailing?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-end justify-between gap-6 mb-6">
+    <div className="page-head">
       <div>
-        <div className="text-[10px] font-mono uppercase tracking-[0.3em] text-[#c9b787] mb-2">{eyebrow}</div>
-        <h1 className="text-3xl font-light tracking-tight text-[#f5f5f5]">{title}</h1>
-        <p className="mt-2 text-sm text-[#8a8a8a] max-w-3xl leading-relaxed">{blurb}</p>
+        <p className="eyebrow">{eyebrow}</p>
+        <h1 className="page-head__title">{title}</h1>
+        <p className="page-head__lead">{blurb}</p>
       </div>
       {trailing}
     </div>
@@ -34,47 +49,39 @@ export function FabricStat({
   label: string;
   value: React.ReactNode;
   sub?: string;
-  tone?: 'neutral' | 'good' | 'warn' | 'bad' | 'gold';
+  tone?: 'neutral' | Tone;
 }) {
-  const toneClass =
-    tone === 'good' ? 'text-[#5a8a6e]' : tone === 'warn' ? 'text-[#d4a853]' : tone === 'bad' ? 'text-[#b85450]' : tone === 'gold' ? 'text-[#c9b787]' : 'text-[#f5f5f5]';
   return (
-    <div className="conduit-stat p-4">
-      <div className="label-mono mb-2">{label}</div>
-      <div className={cn('text-2xl font-light tabular-nums', toneClass)}>{value}</div>
-      {sub && <div className="text-[11px] text-[#666] mt-1">{sub}</div>}
+    <div className="stat" data-tone={DATA_TONE[tone]}>
+      {/* labels/subs at 12px use --text-sub: founder --text-ghost is 4.27:1 on --surface */}
+      <div className="metric__label text-ink-sub">{label}</div>
+      <div className="metric__value">{value}</div>
+      {sub && <div className="stat__sub text-ink-sub">{sub}</div>}
     </div>
   );
 }
 
+const DOT: Record<GovernanceState, string> = {
+  green: 'dot--ok',
+  amber: 'dot--warn',
+  red: 'dot--err',
+};
+
 export function GovernanceDot({ state }: { state: GovernanceState }) {
-  const color = state === 'green' ? '#5a8a6e' : state === 'amber' ? '#d4a853' : '#b85450';
-  return (
-    <span
-      className="inline-block w-1.5 h-1.5 rounded-full"
-      title={state}
-      style={{ background: color, boxShadow: `0 0 6px ${color}55` }}
-    />
-  );
+  return <span className={cn('dot', DOT[state] ?? 'dot--err')} title={state} />;
 }
 
+const SEV: Record<SeverityLevel, { cls: string; label: string }> = {
+  critical: { cls: 'sev--critical', label: 'CRITICAL' },
+  high: { cls: 'sev--high', label: 'HIGH' },
+  medium: { cls: 'sev--medium', label: 'MED' },
+  low: { cls: 'sev--low text-ink-sub', label: 'LOW' },
+  info: { cls: 'sev--info', label: 'INFO' },
+};
+
 export function SeverityChip({ level }: { level: SeverityLevel }) {
-  const map: Record<SeverityLevel, { bg: string; fg: string; bd: string; label: string }> = {
-    critical: { bg: 'rgba(184,84,80,0.18)', fg: '#b85450', bd: 'rgba(184,84,80,0.3)', label: 'CRITICAL' },
-    high: { bg: 'rgba(212,168,83,0.16)', fg: '#d4a853', bd: 'rgba(212,168,83,0.3)', label: 'HIGH' },
-    medium: { bg: 'rgba(201,183,135,0.12)', fg: '#c9b787', bd: 'rgba(201,183,135,0.22)', label: 'MED' },
-    low: { bg: 'rgba(138,138,138,0.12)', fg: '#8a8a8a', bd: 'rgba(138,138,138,0.18)', label: 'LOW' },
-    info: { bg: 'rgba(120,170,200,0.12)', fg: '#78aac8', bd: 'rgba(120,170,200,0.2)', label: 'INFO' },
-  };
-  const t = map[level];
-  return (
-    <span
-      className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono tracking-wider font-medium"
-      style={{ background: t.bg, color: t.fg, border: `1px solid ${t.bd}` }}
-    >
-      {t.label}
-    </span>
-  );
+  const t = SEV[level];
+  return <span className={cn('sev', t.cls)}>{t.label}</span>;
 }
 
 export function FabricCard({
@@ -91,8 +98,8 @@ export function FabricCard({
   return (
     <div className={cn('conduit-card p-5', className)}>
       {(title || trailing) && (
-        <div className="flex items-center justify-between mb-4">
-          {title && <div className="label-mono text-[#c9b787]">{title}</div>}
+        <div className="flex items-center justify-between gap-3 mb-4">
+          {title && <div className="label-mono">{title}</div>}
           {trailing}
         </div>
       )}
@@ -102,11 +109,7 @@ export function FabricCard({
 }
 
 export function FabricToolbar({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex flex-wrap items-center gap-2 mb-4 p-3 rounded-lg border border-[rgba(255,255,255,0.06)]" style={{ background: '#0e0e0e' }}>
-      {children}
-    </div>
-  );
+  return <div className="toolbar">{children}</div>;
 }
 
 export function FabricDrawer({
@@ -122,43 +125,39 @@ export function FabricDrawer({
   subtitle?: string;
   children: React.ReactNode;
 }) {
+  const titleId = React.useId();
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex" role="dialog" aria-modal="true">
-      <button
-        className="flex-1 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
-        aria-label="Close"
-      />
-      <aside className="w-[480px] max-w-full overflow-y-auto border-l border-[rgba(255,255,255,0.06)] animate-slide-in-right" style={{ background: '#0e0e0e' }}>
-        <div className="sticky top-0 z-10 px-5 py-4 border-b border-[rgba(255,255,255,0.06)] flex items-start justify-between glass-panel">
+    <>
+      <button type="button" className="scrim border-0 p-0 cursor-pointer" onClick={onClose} aria-label="Close" />
+      <aside className="drawer" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+        <div className="drawer__head">
           <div>
-            <div className="label-mono text-[#c9b787]">DETAIL</div>
-            <h3 className="text-lg font-medium text-[#f5f5f5] mt-1">{title}</h3>
-            {subtitle && <div className="text-[12px] text-[#8a8a8a] mt-0.5">{subtitle}</div>}
+            <div className="label-mono">Detail</div>
+            <h3 id={titleId} className="drawer__title">{title}</h3>
+            {subtitle && <div className="drawer__sub text-ink-sub">{subtitle}</div>}
           </div>
-          <button onClick={onClose} className="text-[#8a8a8a] hover:text-[#f5f5f5] text-sm">
+          <button type="button" onClick={onClose} aria-label="Close detail" className="close-btn">
             ✕
           </button>
         </div>
-        <div className="p-5 space-y-4">{children}</div>
+        <div className="drawer__body">{children}</div>
       </aside>
-    </div>
+    </>
   );
 }
 
-export function MicroBar({ value, max, tone = 'gold' }: { value: number; max: number; tone?: 'gold' | 'good' | 'warn' | 'bad' }) {
+export function MicroBar({ value, max, tone = 'gold' }: { value: number; max: number; tone?: Tone }) {
   const pct = Math.max(0, Math.min(100, (value / Math.max(1, max)) * 100));
-  const color = tone === 'good' ? '#5a8a6e' : tone === 'warn' ? '#d4a853' : tone === 'bad' ? '#b85450' : '#c9b787';
   return (
-    <div className="w-full h-1.5 rounded-full overflow-hidden bg-[rgba(255,255,255,0.04)]">
-      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
+    <div className="meter" data-tone={DATA_TONE[tone]}>
+      <div className="meter__fill" style={{ inlineSize: `${pct}%` }} />
     </div>
   );
 }
 
-export function Sparkline({ values, width = 120, height = 28, tone = 'gold' }: { values: readonly number[]; width?: number; height?: number; tone?: 'gold' | 'good' | 'warn' | 'bad' }) {
-  if (values.length === 0) return <svg width={width} height={height} />;
+export function Sparkline({ values, width = 120, height = 28, tone = 'gold' }: { values: readonly number[]; width?: number; height?: number; tone?: Tone }) {
+  if (values.length === 0) return <svg width={width} height={height} aria-hidden="true" />;
   const min = Math.min(...values);
   const max = Math.max(...values);
   const range = max - min || 1;
@@ -170,23 +169,18 @@ export function Sparkline({ values, width = 120, height = 28, tone = 'gold' }: {
       return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
     })
     .join(' ');
-  const color = tone === 'good' ? '#5a8a6e' : tone === 'warn' ? '#d4a853' : tone === 'bad' ? '#b85450' : '#c9b787';
   return (
-    <svg width={width} height={height}>
-      <path d={path} fill="none" stroke={color} strokeWidth={1.5} />
+    <svg className="spark" data-tone={DATA_TONE[tone]} width={width} height={height} aria-hidden="true">
+      <path d={path} />
     </svg>
   );
 }
 
 export function HeatCell({ value, max }: { value: number; max: number }) {
   const intensity = Math.max(0, Math.min(1, value / Math.max(1, max)));
-  const bg = `rgba(184,84,80,${0.08 + intensity * 0.5})`;
+  const heat = `${Math.round((0.08 + intensity * 0.5) * 100)}%`;
   return (
-    <div
-      className="aspect-square rounded flex items-center justify-center text-[10px] font-mono tabular-nums text-[#f5f5f5]"
-      style={{ background: bg, border: '1px solid rgba(255,255,255,0.04)' }}
-      title={String(value)}
-    >
+    <div className="heat" style={{ '--heat': heat } as React.CSSProperties} title={String(value)}>
       {value > 0 ? value : ''}
     </div>
   );

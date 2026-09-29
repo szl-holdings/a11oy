@@ -4,13 +4,13 @@ interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: 'default' | 'secondary' | 'destructive' | 'outline';
 }
 
+/* Founder .badge: neutral pill; a status tone only tints it and always travels with a word. */
 export function Badge({ className = '', variant = 'default', ...props }: BadgeProps) {
-  const base = 'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors';
   const variants: Record<string, string> = {
-    default: 'border-transparent bg-primary text-primary-foreground',
-    secondary: 'border-transparent bg-secondary text-secondary-foreground',
-    destructive: 'border-transparent bg-destructive text-destructive-foreground',
-    outline: 'text-foreground',
+    default: '',
+    secondary: '',
+    destructive: 'conduit-badge-error',
+    outline: '', // callers set the tone (text-*/border-*/bg-*) themselves
   };
-  return <div className={`${base} ${variants[variant] || ''} ${className}`} {...props} />;
+  return <div className={`badge ${variants[variant] || ''} ${className}`} {...props} />;
 }

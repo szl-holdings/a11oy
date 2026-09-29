@@ -40,7 +40,7 @@ export default function ModelsPage() {
         title="Models"
         blurb="Composed entities the business actually uses. Each model is sourced, typed, scored, and replay-grade — its anchor hash is the witness the rest of the fabric trusts."
         trailing={
-          <Link href="/innovation/audience-sql" className="flex items-center gap-1.5 text-[11px] font-mono text-[#c9b787] hover:underline">
+          <Link href="/innovation/audience-sql" className="flex items-center gap-1.5 text-[11px] font-mono text-link hover:underline">
             <Zap className="w-3.5 h-3.5" /> Audience SQL Studio →
           </Link>
         }
@@ -60,9 +60,9 @@ export default function ModelsPage() {
             <option key={v} value={v}>{v}</option>
           ))}
         </Select>
-        <div className="flex items-center gap-2 text-[12px] text-[#8a8a8a]">
+        <div className="flex items-center gap-2 text-[12px] text-ink-sub">
           <span className="label-mono">readiness ≥</span>
-          <input type="range" min={0} max={100} step={5} value={readinessMin} onChange={(e) => setReadinessMin(Number(e.target.value))} className="accent-[#c9b787]" />
+          <input type="range" min={0} max={100} step={5} value={readinessMin} onChange={(e) => setReadinessMin(Number(e.target.value))} className="accent-ink" />
           <span className="font-mono tabular-nums w-8 text-right">{readinessMin}</span>
         </div>
         <Select value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)} className="max-w-xs">
@@ -82,15 +82,15 @@ export default function ModelsPage() {
           >
             <div className="flex items-start justify-between gap-2 mb-2">
               <div>
-                <div className="font-mono text-[#f5f5f5] text-sm">{m.name}</div>
-                <div className="text-[11px] text-[#666] mt-0.5">{m.entityType} · {m.fieldCount} fields</div>
+                <div className="font-mono text-ink text-sm">{m.name}</div>
+                <div className="text-[11px] text-ink-sub mt-0.5">{m.entityType} · {m.fieldCount} fields</div>
               </div>
               <GovernanceDot state={m.governanceState} />
             </div>
             <div className="space-y-1.5 mt-3">
-              <div className="flex items-center justify-between text-[11px] text-[#8a8a8a]"><span>readiness</span><span className="font-mono tabular-nums text-[#c9b787]">{m.activationReadiness}</span></div>
+              <div className="flex items-center justify-between text-[11px] text-ink-sub"><span>readiness</span><span className="font-mono tabular-nums text-ink">{m.activationReadiness}</span></div>
               <MicroBar value={m.activationReadiness} max={100} tone={m.activationReadiness >= 85 ? 'good' : m.activationReadiness >= 70 ? 'warn' : 'bad'} />
-              <div className="flex items-center justify-between text-[11px] text-[#8a8a8a]"><span>quality</span><span className="font-mono tabular-nums">{m.qualityScore}</span></div>
+              <div className="flex items-center justify-between text-[11px] text-ink-sub"><span>quality</span><span className="font-mono tabular-nums">{m.qualityScore}</span></div>
               <MicroBar value={m.qualityScore} max={100} tone={m.qualityScore >= 85 ? 'good' : 'warn'} />
             </div>
             <div className="flex items-center gap-1 mt-3">
@@ -116,17 +116,17 @@ export default function ModelsPage() {
               <FabricStat label="PII fields" value={drawer.piiFieldCount} tone={drawer.piiFieldCount > 4 ? 'warn' : 'neutral'} />
             </div>
             <div className="conduit-card p-4">
-              <div className="label-mono mb-2 text-[#c9b787]">SQL PREVIEW</div>
-              <pre className="font-mono text-[11px] text-[#f5f5f5] bg-[#0a0a0a] p-3 rounded overflow-x-auto">{drawer.sqlPreview}</pre>
+              <div className="label-mono mb-2 text-ink">SQL PREVIEW</div>
+              <pre className="font-mono text-[11px] text-ink bg-ground p-3 rounded overflow-x-auto">{drawer.sqlPreview}</pre>
             </div>
             <div className="conduit-card p-4">
-              <div className="label-mono mb-2 text-[#c9b787]">FIELDS</div>
+              <div className="label-mono mb-2 text-ink">FIELDS</div>
               <div className="space-y-1">
                 {drawer.fields.map((f) => (
-                  <div key={f.name} className="flex items-center justify-between text-[12px] py-1 border-b border-[rgba(255,255,255,0.04)] last:border-0">
+                  <div key={f.name} className="flex items-center justify-between text-[12px] py-1 border-b border-line-subtle last:border-0">
                     <div>
-                      <span className="font-mono text-[#f5f5f5]">{f.name}</span>
-                      <span className="text-[#666] ml-2">{f.type}{f.nullable ? '?' : ''}</span>
+                      <span className="font-mono text-ink">{f.name}</span>
+                      <span className="text-ink-sub ml-2">{f.type}{f.nullable ? '?' : ''}</span>
                     </div>
                     {f.piiClass !== 'none' && <Badge variant="partial">{f.piiClass}</Badge>}
                   </div>
@@ -135,19 +135,19 @@ export default function ModelsPage() {
             </div>
             {drawerMappings.length > 0 && (
               <div className="conduit-card p-4">
-                <div className="label-mono mb-2 text-[#c9b787]">DESTINATION MAPPINGS</div>
+                <div className="label-mono mb-2 text-ink">DESTINATION MAPPINGS</div>
                 <div className="space-y-2">
                   {drawerMappings.map((mp) => {
                     const dst = RELAY_DESTINATIONS.find((d) => d.id === mp.destinationId)!;
                     const ready = calculateActivationReadiness(drawer, dst, mp);
                     const risk = classifyPiiRisk(drawer, dst);
                     return (
-                      <div key={mp.id} className="flex items-center justify-between text-[12px] p-2 rounded bg-[#0e0e0e]">
+                      <div key={mp.id} className="flex items-center justify-between text-[12px] p-2 rounded bg-ground-deep">
                         <div>
-                          <div className="text-[#f5f5f5]">{dst.name}</div>
-                          <div className="text-[10px] text-[#666]">{ready.bandLabel} · pii {risk.tier}</div>
+                          <div className="text-ink">{dst.name}</div>
+                          <div className="text-[10px] text-ink-sub">{ready.bandLabel} · pii {risk.tier}</div>
                         </div>
-                        <span className="font-mono tabular-nums text-[#c9b787]">{ready.score}</span>
+                        <span className="font-mono tabular-nums text-ink">{ready.score}</span>
                       </div>
                     );
                   })}

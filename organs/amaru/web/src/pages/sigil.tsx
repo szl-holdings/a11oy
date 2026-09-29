@@ -72,25 +72,25 @@ export default function ConduitSigil() {
         return (
                 <div className="p-8 space-y-8 max-w-5xl mx-auto">
                         <div>
-                                <div className="text-[10px] font-mono uppercase tracking-[0.3em] text-[#c9b787] mb-2">
+                                <div className="text-[10px] font-mono uppercase tracking-[0.3em] text-ink mb-2">
                                         SIGIL · SZL Integrated Governance &amp; Invariant Layer
                                 </div>
-                                <h1 className="text-4xl font-light tracking-tight text-slate-100">Σ — pipeline trust envelope.</h1>
-                                <p className="mt-3 text-slate-400 max-w-2xl text-sm leading-relaxed">
+                                <h1 className="text-4xl font-semibold tracking-tight text-ink">Σ — pipeline trust envelope.</h1>
+                                <p className="mt-3 text-ink-sub max-w-2xl text-sm leading-relaxed">
                                         Amaru exposes runtime trust as four independent axes and a single composed scalar Σ. The composition is a
                                         weighted geometric mean over rational unit-fraction weights — bit-exact reproducible, monotone in every
                                         axis, and pinned to zero whenever any axis collapses.
                                 </p>
                         </div>
 
-                        <div className="rounded-lg border border-[rgba(201,183,135,0.2)] bg-[#0e0e0e] p-8 flex items-center gap-8 backdrop-blur">
-                                <Sigma className="h-12 w-12 text-[#c9b787]" />
+                        <div className="rounded-lg border border-line-subtle bg-ground-deep p-8 flex items-center gap-8 backdrop-blur">
+                                <Sigma className="h-12 w-12 text-ink" />
                                 <div>
-                                        <div className="text-7xl font-extralight tabular-nums text-slate-100">
+                                        <div className="text-7xl font-extralight tabular-nums text-ink">
                                                 {sigmaPct}
-                                                <span className="text-3xl text-slate-500">%</span>
+                                                <span className="text-3xl text-ink-sub">%</span>
                                         </div>
-                                        <div className="text-xs font-mono uppercase tracking-widest text-[#a89868] mt-1">
+                                        <div className="text-xs font-mono uppercase tracking-widest text-ink-sub mt-1">
                                                 {report ? `min ≤ Σ ≤ max · floor ${(report.proof.minAxis * 100).toFixed(1)}% · ceil ${(report.proof.maxAxis * 100).toFixed(1)}%` : 'composing…'}
                                         </div>
                                 </div>
@@ -100,12 +100,12 @@ export default function ConduitSigil() {
                                 {AXES.map(({ key, label, sym, blurb }) => {
                                         const v = axes[key];
                                         return (
-                                                <div key={key} className="rounded-lg border border-slate-800 bg-[#0e0e0e] p-5 backdrop-blur">
+                                                <div key={key} className="rounded-lg border border-line bg-ground-deep p-5 backdrop-blur">
                                                         <div className="flex items-center justify-between mb-2">
-                                                                <span className="font-medium text-slate-100">
-                                                                        {label} <span className="font-mono text-[#c9b787]/80">({sym})</span>
+                                                                <span className="font-medium text-ink">
+                                                                        {label} <span className="font-mono text-ink-sub">({sym})</span>
                                                                 </span>
-                                                                <span className="font-mono text-sm tabular-nums text-[#c9b787]">{(v * 100).toFixed(1)}%</span>
+                                                                <span className="font-mono text-sm tabular-nums text-ink">{(v * 100).toFixed(1)}%</span>
                                                         </div>
                                                         <input
                                                                 type="range"
@@ -118,19 +118,19 @@ export default function ConduitSigil() {
                                                                         setAxes(next);
                                                                         void compose(next);
                                                                 }}
-                                                                className="w-full accent-[#c9b787]"
+                                                                className="w-full accent-ink"
                                                         />
-                                                        <div className="mt-2 text-xs text-slate-500">{blurb}</div>
+                                                        <div className="mt-2 text-xs text-ink-sub">{blurb}</div>
                                                 </div>
                                         );
                                 })}
                         </div>
 
                         {report && (
-                                <div className="rounded-lg border border-slate-800 bg-[#0e0e0e] p-5 backdrop-blur">
-                                        <div className="text-[10px] font-mono uppercase tracking-widest text-[#a89868] mb-2">composition law</div>
-                                        <div className="font-mono text-sm break-all text-slate-100">{report.proof.formula}</div>
-                                        <div className="mt-2 text-xs text-slate-500">{report.proof.law}</div>
+                                <div className="rounded-lg border border-line bg-ground-deep p-5 backdrop-blur">
+                                        <div className="text-[10px] font-mono uppercase tracking-widest text-ink-sub mb-2">composition law</div>
+                                        <div className="font-mono text-sm break-all text-ink">{report.proof.formula}</div>
+                                        <div className="mt-2 text-xs text-ink-sub">{report.proof.law}</div>
                                 </div>
                         )}
 
@@ -139,7 +139,7 @@ export default function ConduitSigil() {
                                         type="button"
                                         onClick={() => { void anchorToA11oy(); }}
                                         disabled={anchored}
-                                        className="flex items-center gap-2 px-4 py-2 rounded-md bg-[rgba(201,183,135,0.08)] border border-[rgba(201,183,135,0.3)] text-[#c9b787] hover:bg-[rgba(201,183,135,0.16)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+                                        className="flex items-center gap-2 px-4 py-2 rounded-md bg-wash/8 border border-line text-ink hover:bg-wash/16 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
                                 >
                                         <Anchor className="w-4 h-4" />
                                         {anchored ? 'Anchored to A11oy ledger' : 'Anchor Σ to A11oy ledger'}

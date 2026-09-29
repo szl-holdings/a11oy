@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { fetchHub } from './shared';
+import { DOMAIN_TONES, wash } from '@/lib/utils';
 
 interface FusionAlert {
   id: string;
@@ -35,21 +36,14 @@ interface FusionStats {
 }
 
 const SEVERITY_COLORS: Record<string, string> = {
-  critical: 'border-red-500/30 bg-red-500/10 text-red-400',
-  high: 'border-orange-500/30 bg-orange-500/10 text-orange-400',
-  medium: 'border-yellow-500/30 bg-yellow-500/10 text-yellow-400',
-  low: 'border-blue-500/30 bg-blue-500/10 text-blue-400',
-  info: 'border-muted bg-muted/10 text-muted-foreground',
+  critical: 'border-error/30 bg-error/10 text-ink-bad',
+  high: 'border-warning/30 bg-warning/10 text-ink-warn',
+  medium: 'border-warning/30 bg-warning/10 text-ink-warn',
+  low: 'border-info/30 bg-info/10 text-ink-sub',
+  info: 'border-line-subtle bg-surface-raised/10 text-muted-foreground',
 };
 
-const DOMAIN_COLORS: Record<string, string> = {
-  vessels: '#06b6d4',
-  terra: '#10b981',
-  prism: '#8b5cf6',
-  aegis: '#ef4444',
-  szl: '#f59e0b',
-  sentra: '#ec4899',
-};
+const DOMAIN_COLORS = DOMAIN_TONES;
 
 export default function PraxisPlayground() {
   const [query, setQuery] = useState('');
@@ -90,8 +84,8 @@ export default function PraxisPlayground() {
           SOVEREIGN AI HUB · PRAXIS PLAYGROUND
         </p>
         <h1 className="text-2xl font-display font-bold tracking-tight flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-pink-500/10 flex items-center justify-center border border-pink-500/30">
-            <Sparkles className="w-5 h-5 text-pink-400" />
+          <div className="w-8 h-8 rounded-lg bg-wash/10 flex items-center justify-center border border-line">
+            <Sparkles className="w-5 h-5 text-ink" />
           </div>
           PRAXIS Playground
         </h1>
@@ -107,7 +101,7 @@ export default function PraxisPlayground() {
         </div>
         <div className="rounded-lg border border-border bg-card p-4">
           <p className="text-xs font-mono text-muted-foreground uppercase mb-1">Critical</p>
-          <p className="text-2xl font-mono font-bold text-red-400">{(fusionStats?.bySeverity as Record<string, number> | undefined)?.critical ?? 0}</p>
+          <p className="text-2xl font-mono font-bold text-ink-bad">{(fusionStats?.bySeverity as Record<string, number> | undefined)?.critical ?? 0}</p>
         </div>
         <div className="rounded-lg border border-border bg-card p-4">
           <p className="text-xs font-mono text-muted-foreground uppercase mb-1">Domains Active</p>
@@ -121,7 +115,7 @@ export default function PraxisPlayground() {
 
       <div className="rounded-lg border border-border bg-card p-4">
         <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-          <Search className="w-4 h-4 text-pink-400" />
+          <Search className="w-4 h-4 text-ink" />
           Intelligence Query
         </h3>
         <div className="flex gap-2">
@@ -130,7 +124,7 @@ export default function PraxisPlayground() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Query the fusion cortex... (e.g. 'vessels linked to sanctioned entities')"
-            className="flex-1 bg-background border border-border rounded-md px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            className="flex-1 bg-background border border-border rounded-md px-4 py-2 text-sm focus-visible:outline-none focus-visible:border-focus focus-visible:shadow-[var(--shadow-focus)]"
           />
           <Button
             variant="default"
@@ -142,7 +136,7 @@ export default function PraxisPlayground() {
           </Button>
         </div>
         {scanMutation.isSuccess && (
-          <div className="mt-3 p-3 rounded-md bg-green-500/10 border border-green-500/20 text-xs text-green-400">
+          <div className="mt-3 p-3 rounded-md bg-success/10 border border-success/20 text-xs text-ink-good">
             Fusion scan completed. Alerts updated below.
           </div>
         )}
@@ -151,7 +145,7 @@ export default function PraxisPlayground() {
       {fusionPatterns.length > 0 && (
         <div className="rounded-lg border border-border bg-card p-4">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <Network className="w-4 h-4 text-indigo-400" />
+            <Network className="w-4 h-4 text-ink" />
             Cross-Domain Patterns
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -167,7 +161,7 @@ export default function PraxisPlayground() {
                     <span
                       key={d}
                       className="text-[9px] font-mono px-1.5 py-0.5 rounded-full border"
-                      style={{ borderColor: `${DOMAIN_COLORS[d] ?? '#6b7280'}50`, color: DOMAIN_COLORS[d] ?? '#6b7280' }}
+                      style={{ borderColor: wash(DOMAIN_COLORS[d] ?? 'var(--text-sub)', 31), color: 'var(--text-sub)' }}
                     >
                       {d}
                     </span>
@@ -181,7 +175,7 @@ export default function PraxisPlayground() {
 
       <div className="rounded-lg border border-border bg-card p-4">
         <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-amber-400" />
+          <AlertCircle className="w-4 h-4 text-ink-warn" />
           Fusion Alert Feed
         </h3>
         {fusionAlerts.length === 0 ? (
@@ -205,7 +199,7 @@ export default function PraxisPlayground() {
                     <span
                       key={d}
                       className="text-[9px] font-mono px-1.5 py-0.5 rounded-full border"
-                      style={{ borderColor: `${DOMAIN_COLORS[d] ?? '#6b7280'}50`, color: DOMAIN_COLORS[d] ?? '#6b7280' }}
+                      style={{ borderColor: wash(DOMAIN_COLORS[d] ?? 'var(--text-sub)', 31), color: 'var(--text-sub)' }}
                     >
                       {d}
                     </span>
@@ -215,9 +209,9 @@ export default function PraxisPlayground() {
                   <div className="mt-2 pl-3 border-l-2 border-border space-y-1">
                     {alert.evidenceChain.slice(0, 3).map((e, i) => (
                       <div key={i} className="text-[10px]">
-                        <span className="font-mono" style={{ color: DOMAIN_COLORS[e.domain] ?? '#6b7280' }}>[{e.domain}]</span>{' '}
+                        <span className="font-mono text-ink-sub">[{e.domain}]</span>{' '}
                         <span className="text-muted-foreground">{e.fact}</span>{' '}
-                        <span className="text-muted-foreground/60">({(e.confidence * 100).toFixed(0)}%)</span>
+                        <span className="text-ink-sub">({(e.confidence * 100).toFixed(0)}%)</span>
                       </div>
                     ))}
                   </div>

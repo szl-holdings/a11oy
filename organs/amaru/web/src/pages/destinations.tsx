@@ -6,6 +6,7 @@ import { FabricHeader, FabricStat, FabricToolbar, FabricDrawer, GovernanceDot, M
 import { Input, Select, Badge } from '@/components/ui';
 import { useInnovationStore } from '@/lib/innovation-store';
 import { Search } from 'lucide-react';
+import { wash } from '@/lib/utils';
 
 export default function DestinationsPage() {
   const { discoveredDestinations } = useInnovationStore();
@@ -42,7 +43,7 @@ export default function DestinationsPage() {
         title="Destinations"
         blurb="Every system the spine writes into — CRM, support, marketing, collab, data, webhook, finance, logistics. Each one has a contract, a rate envelope, an auth state, and a health score derived from the last 50 deliveries."
         trailing={
-          <Link href="/innovation/destination-discovery" className="flex items-center gap-1.5 text-[11px] font-mono text-[#c9b787] hover:underline">
+          <Link href="/innovation/destination-discovery" className="flex items-center gap-1.5 text-[11px] font-mono text-link hover:underline">
             <Search className="w-3.5 h-3.5" /> Auto-Discovery →
           </Link>
         }
@@ -66,21 +67,21 @@ export default function DestinationsPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
         {rows.map((d) => (
-          <button key={d.id} onClick={() => setDrawerId(d.id)} className="conduit-card p-4 text-left" style={discoveredIds.has(d.id) ? { borderColor: 'rgba(201,183,135,0.25)' } : undefined}>
+          <button key={d.id} onClick={() => setDrawerId(d.id)} className="conduit-card p-4 text-left" style={discoveredIds.has(d.id) ? { borderColor: 'color-mix(in srgb, var(--text) 25%, transparent)' } : undefined}>
             <div className="flex items-start justify-between gap-2 mb-2">
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full" style={{ background: d.accent, boxShadow: `0 0 6px ${d.accent}55` }} />
+                <span className="w-2 h-2 rounded-full" style={{ background: d.accent, boxShadow: `0 0 6px ${wash(d.accent, 33)}` }} />
                 <div>
-                  <div className="text-[#f5f5f5] text-sm font-medium flex items-center gap-1.5">{d.name}{discoveredIds.has(d.id) && <Badge variant="active">discovered</Badge>}</div>
-                  <div className="text-[11px] text-[#666] mt-0.5">{d.category} · {d.rateLimitRpm} rpm</div>
+                  <div className="text-ink text-sm font-medium flex items-center gap-1.5">{d.name}{discoveredIds.has(d.id) && <Badge variant="active">discovered</Badge>}</div>
+                  <div className="text-[11px] text-ink-sub mt-0.5">{d.category} · {d.rateLimitRpm} rpm</div>
                 </div>
               </div>
               <GovernanceDot state={d.governanceState} />
             </div>
             <div className="mt-3 space-y-1.5">
-              <div className="flex items-center justify-between text-[11px] text-[#8a8a8a]"><span>health</span><span className="font-mono tabular-nums">{d.computedHealth}</span></div>
+              <div className="flex items-center justify-between text-[11px] text-ink-sub"><span>health</span><span className="font-mono tabular-nums">{d.computedHealth}</span></div>
               <MicroBar value={d.computedHealth} max={100} tone={d.computedHealth >= 85 ? 'good' : d.computedHealth >= 70 ? 'warn' : 'bad'} />
-              <div className="flex items-center justify-between text-[11px] text-[#8a8a8a]"><span>contract</span><span className="font-mono tabular-nums">{Math.round(d.fieldContractStrength * 100)}%</span></div>
+              <div className="flex items-center justify-between text-[11px] text-ink-sub"><span>contract</span><span className="font-mono tabular-nums">{Math.round(d.fieldContractStrength * 100)}%</span></div>
               <MicroBar value={d.fieldContractStrength * 100} max={100} tone="gold" />
             </div>
             <div className="flex items-center gap-1 mt-3 flex-wrap">
@@ -106,26 +107,26 @@ export default function DestinationsPage() {
               <FabricStat label="Observability" value={`${Math.round(drawer.observabilityCoverage * 100)}%`} />
             </div>
             <div className="conduit-card p-4">
-              <div className="label-mono mb-2 text-[#c9b787]">AUTH</div>
-              <div className="text-[12px] text-[#f5f5f5]">{drawer.authState.replace('_', ' ')}</div>
+              <div className="label-mono mb-2 text-ink">AUTH</div>
+              <div className="text-[12px] text-ink">{drawer.authState.replace('_', ' ')}</div>
               {drawer.authRotatesAt && (
-                <div className="text-[11px] text-[#8a8a8a] mt-1">Rotates {new Date(drawer.authRotatesAt).toLocaleDateString()}</div>
+                <div className="text-[11px] text-ink-sub mt-1">Rotates {new Date(drawer.authRotatesAt).toLocaleDateString()}</div>
               )}
             </div>
             <div className="conduit-card p-4">
-              <div className="label-mono mb-2 text-[#c9b787]">SUPPORTED OPERATIONS</div>
+              <div className="label-mono mb-2 text-ink">SUPPORTED OPERATIONS</div>
               <div className="flex gap-1 flex-wrap">
                 {drawer.supportedOps.map((o) => <Badge key={o} variant="default">{o}</Badge>)}
               </div>
             </div>
             <div className="conduit-card p-4">
-              <div className="label-mono mb-2 text-[#c9b787]">RECENT EVENTS</div>
+              <div className="label-mono mb-2 text-ink">RECENT EVENTS</div>
               <div className="space-y-1">
-                {drawerEvents.length === 0 && <div className="text-[12px] text-[#666]">No recent activity</div>}
+                {drawerEvents.length === 0 && <div className="text-[12px] text-ink-sub">No recent activity</div>}
                 {drawerEvents.map((e) => (
                   <div key={e.id} className="flex items-center justify-between text-[11px] py-1">
-                    <div className="font-mono text-[#8a8a8a]">{e.type}</div>
-                    <div className="text-[#666]">{new Date(e.atIso).toLocaleTimeString()}</div>
+                    <div className="font-mono text-ink-sub">{e.type}</div>
+                    <div className="text-ink-sub">{new Date(e.atIso).toLocaleTimeString()}</div>
                   </div>
                 ))}
               </div>

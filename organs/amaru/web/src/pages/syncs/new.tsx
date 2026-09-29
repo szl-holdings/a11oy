@@ -102,8 +102,8 @@ export default function SyncsNew() {
               </div>
             </div>
 
-            <div className="space-y-4 p-4 rounded-lg bg-primary/5 border border-primary/20">
-              <h3 className="font-medium text-sm text-primary uppercase tracking-wider">Destination</h3>
+            <div className="space-y-4 p-4 rounded-lg bg-wash/5 border border-line">
+              <h3 className="font-medium text-sm text-ink uppercase tracking-wider">Destination</h3>
               <div className="space-y-2">
                 <label className="text-sm">Connection</label>
                 <Select 

@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: Apache-2.0
+# a11oy RUNTIME PINS — the single source of truth for the image's primary Python deps.
+#
+# The Dockerfile installs THIS file (`pip install -r /tmp/requirements-runtime.txt`)
+# and requirements-audit.txt includes it with `-r`, so the vulnerability-audit
+# closure is, by construction, what the HF Space / GHCR image actually installs.
+# Do not re-list these pins in the Dockerfile or in requirements-audit.txt; the
+# Dependency Audit workflow fails closed on any duplicate.
+#
+# A bump here changes the shipped image. It is a runtime change and must pass the
+# image build and the runtime tests, not only the audit.
+#
+# Rationale for each dependency: docs/DOCKERFILE_NOTES.md §2.
+# huggingface_hub 1.31.0 is the admitted client (docs/CODEX_HF_HUB_131_RUNTIME_ALIGNMENT.md,
+# enforced by tests/test_hf_hub_131_source_contract.py). openai 3.x is not admitted.
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+httpx==0.28.1
+starlette==1.6.0
+huggingface_hub==1.31.0
+openai==2.43.0
+python-multipart==0.0.32
+cryptography==50.0.1
+lmdb==2.3.0
+slowapi==0.1.10
+defusedxml==0.7.1
+numpy==2.5.2

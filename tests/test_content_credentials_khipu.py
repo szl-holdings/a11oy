@@ -133,6 +133,7 @@ class ContentCredentialKhipuTests(unittest.TestCase):
                         args,
                         None,
                         two_person_attested=True,
+                        authorized=True,
                     )
                 )
 

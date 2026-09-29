@@ -74,13 +74,13 @@ export default function AgentsPage() {
         />
       </div>
       {mapperStats && (
-        <div className="mb-6 p-3 rounded text-[12px] flex items-center justify-between" style={{ background: 'rgba(201,183,135,0.04)', border: '1px solid rgba(201,183,135,0.15)' }}>
+        <div className="mb-6 p-3 rounded text-[12px] flex items-center justify-between" style={{ background: 'color-mix(in srgb, var(--text) 4%, transparent)', border: '1px solid color-mix(in srgb, var(--text) 15%, transparent)' }}>
           <div className="flex items-center gap-2">
-            <Settings className="w-3.5 h-3.5 text-[#c9b787]" />
-            <span className="text-[#f5f5f5]">Mapper calibration loop active</span>
-            <span className="text-[#666] font-mono">{mapperStats.accepted} accepted · {mapperStats.rejected} rejected · θ={mapperStats.threshold.toFixed(2)}</span>
+            <Settings className="w-3.5 h-3.5 text-ink" />
+            <span className="text-ink">Mapper calibration loop active</span>
+            <span className="text-ink-sub font-mono">{mapperStats.accepted} accepted · {mapperStats.rejected} rejected · θ={mapperStats.threshold.toFixed(2)}</span>
           </div>
-          <Link href="/innovation/mapper-accuracy" className="text-[11px] text-[#c9b787] hover:underline">View calibration →</Link>
+          <Link href="/innovation/mapper-accuracy" className="text-[11px] text-link hover:underline">View calibration →</Link>
         </div>
       )}
 
@@ -89,15 +89,15 @@ export default function AgentsPage() {
           <button key={a.id} onClick={() => setDrawerId(a.id)} className="conduit-card p-4 text-left">
             <div className="flex items-start justify-between mb-2">
               <div>
-                <div className="text-[#f5f5f5] text-base font-medium">{a.name} <span className="text-[#666] text-[12px] font-mono">/ {a.mythosName}</span></div>
-                <div className="text-[12px] text-[#8a8a8a] mt-1">{a.role}</div>
+                <div className="text-ink text-base font-medium">{a.name} <span className="text-ink-sub text-[12px] font-mono">/ {a.mythosName}</span></div>
+                <div className="text-[12px] text-ink-sub mt-1">{a.role}</div>
               </div>
               <Badge variant="active">Σ-axis {a.lutarAxisAffinity}</Badge>
             </div>
             <div className="grid grid-cols-3 gap-2 mt-3 text-[11px]">
-              <div><div className="label-mono">decisions</div><div className="font-mono tabular-nums text-[#f5f5f5]">{a.recentDecisionCount}</div></div>
-              <div><div className="label-mono">blocks</div><div className="font-mono tabular-nums text-[#d4a853]">{a.recentBlockCount}</div></div>
-              <div><div className="label-mono">approval</div><div className="font-mono tabular-nums text-[#5a8a6e]">{Math.round(a.approvalRate * 100)}%</div></div>
+              <div><div className="label-mono">decisions</div><div className="font-mono tabular-nums text-ink">{a.recentDecisionCount}</div></div>
+              <div><div className="label-mono">blocks</div><div className="font-mono tabular-nums text-ink-warn">{a.recentBlockCount}</div></div>
+              <div><div className="label-mono">approval</div><div className="font-mono tabular-nums text-ink-good">{Math.round(a.approvalRate * 100)}%</div></div>
             </div>
             <div className="mt-3"><MicroBar value={a.avgConfidence * 100} max={100} tone="gold" /></div>
           </button>
@@ -105,22 +105,22 @@ export default function AgentsPage() {
       </div>
 
       {run && (
-        <FabricCard title={`COALITION RUN · ${run.runId} · ${run.verdict.toUpperCase()}`} trailing={<span className="font-mono text-[12px] text-[#c9b787]">Σ {(run.sigma.sigma * 100).toFixed(1)}%</span>}>
+        <FabricCard title={`COALITION RUN · ${run.runId} · ${run.verdict.toUpperCase()}`} trailing={<span className="font-mono text-[12px] text-ink">Σ {(run.sigma.sigma * 100).toFixed(1)}%</span>}>
           <div className="grid grid-cols-4 gap-2 text-[11px] mb-3">
-            <div><div className="label-mono">P</div><div className="font-mono tabular-nums text-[#f5f5f5]">{(run.sigma.axes.P * 100).toFixed(0)}%</div></div>
-            <div><div className="label-mono">K</div><div className="font-mono tabular-nums text-[#f5f5f5]">{(run.sigma.axes.K * 100).toFixed(0)}%</div></div>
-            <div><div className="label-mono">Φ</div><div className="font-mono tabular-nums text-[#f5f5f5]">{(run.sigma.axes.phi * 100).toFixed(0)}%</div></div>
-            <div><div className="label-mono">C</div><div className="font-mono tabular-nums text-[#f5f5f5]">{(run.sigma.axes.C * 100).toFixed(0)}%</div></div>
+            <div><div className="label-mono">P</div><div className="font-mono tabular-nums text-ink">{(run.sigma.axes.P * 100).toFixed(0)}%</div></div>
+            <div><div className="label-mono">K</div><div className="font-mono tabular-nums text-ink">{(run.sigma.axes.K * 100).toFixed(0)}%</div></div>
+            <div><div className="label-mono">Φ</div><div className="font-mono tabular-nums text-ink">{(run.sigma.axes.phi * 100).toFixed(0)}%</div></div>
+            <div><div className="label-mono">C</div><div className="font-mono tabular-nums text-ink">{(run.sigma.axes.C * 100).toFixed(0)}%</div></div>
           </div>
           <div className="space-y-1.5">
             {run.events.map((e) => (
-              <div key={e.id} className="flex items-center justify-between text-[12px] py-1.5 px-2 rounded bg-[#0e0e0e]">
+              <div key={e.id} className="flex items-center justify-between text-[12px] py-1.5 px-2 rounded bg-ground-deep">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                   <SeverityChip level={e.severity} />
-                  <span className="font-mono text-[#c9b787] w-24">{e.type}</span>
-                  <span className="text-[#f5f5f5] truncate">{e.summary}</span>
+                  <span className="font-mono text-ink w-24">{e.type}</span>
+                  <span className="text-ink truncate">{e.summary}</span>
                 </div>
-                <span className="font-mono text-[10px] text-[#666] shrink-0 ml-2">{e.stateHash}</span>
+                <span className="font-mono text-[10px] text-ink-sub shrink-0 ml-2">{e.stateHash}</span>
               </div>
             ))}
           </div>
@@ -131,32 +131,32 @@ export default function AgentsPage() {
         {drawer && (
           <>
             <div className="conduit-card p-4">
-              <div className="label-mono mb-2 text-[#c9b787]">RESPONSIBILITIES</div>
-              <ul className="space-y-1 text-[12px] text-[#f5f5f5]">
+              <div className="label-mono mb-2 text-ink">RESPONSIBILITIES</div>
+              <ul className="space-y-1 text-[12px] text-ink">
                 {drawer.responsibilities.map((r, i) => <li key={i}>· {r}</li>)}
               </ul>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="conduit-card p-4">
-                <div className="label-mono mb-2 text-[#5a8a6e]">ALLOWED</div>
-                <ul className="space-y-1 text-[11px] text-[#8a8a8a]">{drawer.allowedActions.map((a, i) => <li key={i}>· {a}</li>)}</ul>
+                <div className="label-mono mb-2 text-ink-good">ALLOWED</div>
+                <ul className="space-y-1 text-[11px] text-ink-sub">{drawer.allowedActions.map((a, i) => <li key={i}>· {a}</li>)}</ul>
               </div>
               <div className="conduit-card p-4">
-                <div className="label-mono mb-2 text-[#b85450]">BLOCKED</div>
-                <ul className="space-y-1 text-[11px] text-[#8a8a8a]">{drawer.blockedActions.map((a, i) => <li key={i}>· {a}</li>)}</ul>
+                <div className="label-mono mb-2 text-ink-bad">BLOCKED</div>
+                <ul className="space-y-1 text-[11px] text-ink-sub">{drawer.blockedActions.map((a, i) => <li key={i}>· {a}</li>)}</ul>
               </div>
             </div>
             <div className="conduit-card p-4">
-              <div className="label-mono mb-2 text-[#c9b787]">GOVERNANCE LIMITS</div>
-              <ul className="space-y-1 text-[11px] text-[#d4a853]">
+              <div className="label-mono mb-2 text-ink">GOVERNANCE LIMITS</div>
+              <ul className="space-y-1 text-[11px] text-ink-warn">
                 {drawer.governanceLimits.map((g, i) => <li key={i}>· {g}</li>)}
               </ul>
             </div>
             <div className="conduit-card p-4">
-              <div className="label-mono mb-2 text-[#c9b787]">I/O CONTRACTS</div>
+              <div className="label-mono mb-2 text-ink">I/O CONTRACTS</div>
               <div className="text-[11px] space-y-1">
-                <div><span className="text-[#666]">in:</span> <span className="font-mono text-[#8a8a8a]">{drawer.inputs.join(', ')}</span></div>
-                <div><span className="text-[#666]">out:</span> <span className="font-mono text-[#8a8a8a]">{drawer.outputs.join(', ')}</span></div>
+                <div><span className="text-ink-sub">in:</span> <span className="font-mono text-ink-sub">{drawer.inputs.join(', ')}</span></div>
+                <div><span className="text-ink-sub">out:</span> <span className="font-mono text-ink-sub">{drawer.outputs.join(', ')}</span></div>
               </div>
             </div>
           </>
@@ -164,8 +164,8 @@ export default function AgentsPage() {
       </FabricDrawer>
 
       <div className="mt-8">
-        <div className="label-mono mb-3 text-[#c9b787]">CROSS-SPACE COMPOSITION · A11OY ATELIER</div>
-        <div className="text-[11px] text-[#8a8a8a] mb-3 max-w-[60ch] leading-relaxed">
+        <div className="label-mono mb-3 text-ink">CROSS-SPACE COMPOSITION · A11OY ATELIER</div>
+        <div className="text-[11px] text-ink-sub mb-3 max-w-[60ch] leading-relaxed">
           This Atelier Space runs inside Amaru under its own Constitution and emits proofs back to the public ledger. Telemetry from this embed feeds the governance-weighted leaderboard.
         </div>
         <AtelierEmbedFrame spaceSlug="cross-vertical-executive-brief" title="Cross-Vertical Executive Brief — composed" />

@@ -94,10 +94,40 @@ def evaluate_runtime_alignment(*, audit_text: str, docker_text: str) -> dict[str
     }
 
 
+RUNTIME_REQUIREMENTS = "requirements-runtime.txt"
+INCLUDE = re.compile(r"^-r\s+(\S+)\s*$")
+DOCKER_RUNTIME_INSTALL = re.compile(
+    r"^COPY\s+" + re.escape(RUNTIME_REQUIREMENTS) + r"\s+(\S+)\s*$.*?^RUN\s+pip install\s+--no-cache-dir\s+-r\s+\1\s*$",
+    re.MULTILINE | re.DOTALL,
+)
+
+
+def _expand_includes(root: Path, name: str, seen: frozenset[str] = frozenset()) -> str:
+    """Return a requirements file with its ``-r`` includes inlined (audit view)."""
+    if name in seen:
+        raise ContractError(f"requirements include cycle at {name!r}")
+    out: list[str] = []
+    for line in (root / name).read_text(encoding="utf-8").splitlines():
+        match = INCLUDE.fullmatch(line.strip())
+        if match is None:
+            out.append(line)
+        else:
+            out.append(_expand_includes(root, match.group(1), seen | {name}))
+    return "\n".join(out)
+
+
+def runtime_install_text(root: Path) -> str:
+    """The pins the image installs: requirements-runtime.txt, iff the Dockerfile installs it."""
+    docker_text = (root / "Dockerfile").read_text(encoding="utf-8")
+    if DOCKER_RUNTIME_INSTALL.search(docker_text) is None:
+        raise ContractError(f"Dockerfile does not install {RUNTIME_REQUIREMENTS} with pip install -r")
+    return (root / RUNTIME_REQUIREMENTS).read_text(encoding="utf-8")
+
+
 def evaluate_repository(root: Path) -> dict[str, object]:
     return evaluate_runtime_alignment(
-        audit_text=(root / "requirements-audit.txt").read_text(encoding="utf-8"),
-        docker_text=(root / "Dockerfile").read_text(encoding="utf-8"),
+        audit_text=_expand_includes(root, "requirements-audit.txt"),
+        docker_text=runtime_install_text(root),
     )
 
 

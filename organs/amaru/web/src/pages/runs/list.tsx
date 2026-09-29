@@ -23,10 +23,10 @@ function runStatusBadgeVariant(status: string) {
 }
 
 function RunStatusIcon({ status }: { status: string }) {
-  if (status === 'success') return <CheckCircle2 className="w-4 h-4 text-green-400" />;
-  if (status === 'failed') return <XCircle className="w-4 h-4 text-rose-400" />;
-  if (status === 'running') return <RefreshCw className="w-4 h-4 text-yellow-400 animate-spin" />;
-  if (status === 'partial') return <AlertCircle className="w-4 h-4 text-orange-400" />;
+  if (status === 'success') return <CheckCircle2 className="w-4 h-4 text-ink-good" />;
+  if (status === 'failed') return <XCircle className="w-4 h-4 text-ink-bad" />;
+  if (status === 'running') return <RefreshCw className="w-4 h-4 text-ink-warn animate-spin" />;
+  if (status === 'partial') return <AlertCircle className="w-4 h-4 text-ink-warn" />;
   return <Clock className="w-4 h-4 text-muted-foreground" />;
 }
 
@@ -74,7 +74,7 @@ export default function RunsList() {
             className={cn(
               "px-3 py-1 text-xs rounded-full border transition-colors font-medium",
               statusFilter === opt.value
-                ? "bg-primary/10 border-primary/30 text-primary"
+                ? "bg-wash/10 border-line text-ink"
                 : "border-border text-muted-foreground hover:border-border hover:text-foreground bg-card"
             )}
           >
@@ -101,7 +101,7 @@ export default function RunsList() {
         <div className="space-y-2">
           {runs.map((run, i) => (
             <Link key={run.id} href={`/runs/${run.id}`}>
-              <div className={cn("conduit-card p-4 flex items-center gap-4 cursor-pointer hover:border-primary/20 transition-colors group animate-fade-in-up", `stagger-${Math.min(i + 1, 6)}`)}>
+              <div className={cn("conduit-card p-4 flex items-center gap-4 cursor-pointer hover:border-line transition-colors group animate-fade-in-up", `stagger-${Math.min(i + 1, 6)}`)}>
                 <RunStatusIcon status={run.status} />
 
                 <div className="flex-1 min-w-0">
@@ -122,15 +122,15 @@ export default function RunsList() {
                   </div>
                   <div className="text-xs space-y-0.5">
                     <div className="text-muted-foreground">Written</div>
-                    <div className="font-mono font-medium text-green-400">{run.rowsWritten.toLocaleString()}</div>
+                    <div className="font-mono font-medium text-ink-good">{run.rowsWritten.toLocaleString()}</div>
                   </div>
                   {run.rowsFailed > 0 && (
                     <div className="text-xs space-y-0.5">
                       <div className="text-muted-foreground">Failed</div>
-                      <div className="font-mono font-medium text-rose-400">{run.rowsFailed.toLocaleString()}</div>
+                      <div className="font-mono font-medium text-ink-bad">{run.rowsFailed.toLocaleString()}</div>
                     </div>
                   )}
-                  <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                  <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-ink transition-colors" />
                 </div>
               </div>
             </Link>

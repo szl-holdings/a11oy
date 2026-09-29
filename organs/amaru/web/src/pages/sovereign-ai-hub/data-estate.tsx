@@ -13,6 +13,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { fetchHub } from './shared';
+import { DOMAIN_TONES, wash } from '@/lib/utils';
 
 interface ManagedDataset {
   datasetId: string;
@@ -53,15 +54,7 @@ interface FeatureSummary {
   computedFeatures: number;
 }
 
-const DOMAIN_COLORS: Record<string, string> = {
-  vessels: '#06b6d4',
-  terra: '#10b981',
-  prism: '#8b5cf6',
-  aegis: '#ef4444',
-  szl: '#f59e0b',
-  lyte: '#6366f1',
-  sentra: '#ec4899',
-};
+const DOMAIN_COLORS = DOMAIN_TONES;
 
 const DOMAIN_LABELS: Record<string, string> = {
   vessels: 'Maritime Intelligence',
@@ -120,8 +113,8 @@ export default function DataEstateCatalog() {
           SOVEREIGN AI HUB · DATA ESTATE
         </p>
         <h1 className="text-2xl font-display font-bold tracking-tight flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/30">
-            <Database className="w-5 h-5 text-emerald-400" />
+          <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center border border-success/30">
+            <Database className="w-5 h-5 text-ink-good" />
           </div>
           Data Estate Catalog
         </h1>
@@ -157,13 +150,13 @@ export default function DataEstateCatalog() {
             placeholder="Search datasets..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 bg-card border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            className="w-full pl-9 pr-3 py-2 bg-card border border-border rounded-md text-sm focus-visible:outline-none focus-visible:border-focus focus-visible:shadow-[var(--shadow-focus)]"
           />
         </div>
         <select
           value={filterDomain}
           onChange={(e) => setFilterDomain(e.target.value)}
-          className="bg-card border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+          className="bg-card border border-border rounded-md px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-focus focus-visible:shadow-[var(--shadow-focus)]"
         >
           <option value="">All Domains</option>
           {allDomains.map((d) => (
@@ -192,26 +185,26 @@ export default function DataEstateCatalog() {
       {featureCatalog && Object.keys(featureCatalog).length > 0 && (
         <div className="rounded-lg border border-border bg-card p-4">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <Layers className="w-4 h-4 text-indigo-400" />
+            <Layers className="w-4 h-4 text-ink" />
             Feature Store Catalog
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {Object.entries(featureCatalog).map(([domain, features]) => (
               <div key={domain} className="rounded-md border border-border bg-background p-3">
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: DOMAIN_COLORS[domain] ?? '#6b7280' }} />
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: DOMAIN_COLORS[domain] ?? 'var(--text-ghost)' }} />
                   <span className="text-xs font-semibold uppercase">{domain}</span>
                   <span className="text-[10px] font-mono text-muted-foreground ml-auto">{features.length} features</span>
                 </div>
                 <div className="space-y-1">
                   {features.slice(0, 5).map((f) => (
                     <div key={f.featureId} className="text-[10px] text-muted-foreground flex items-center gap-2">
-                      <span className="font-mono text-foreground/80">{f.name}</span>
-                      <span className="text-muted-foreground/60">({f.dataType})</span>
+                      <span className="font-mono text-ink-sub">{f.name}</span>
+                      <span className="text-ink-sub">({f.dataType})</span>
                     </div>
                   ))}
                   {features.length > 5 && (
-                    <p className="text-[10px] text-muted-foreground/50">+{features.length - 5} more</p>
+                    <p className="text-[10px] text-ink-sub">+{features.length - 5} more</p>
                   )}
                 </div>
               </div>
@@ -224,15 +217,15 @@ export default function DataEstateCatalog() {
 }
 
 function DatasetCard({ dataset }: { dataset: ManagedDataset }) {
-  const domainColor = DOMAIN_COLORS[dataset.domain] ?? '#6b7280';
+  const domainColor = DOMAIN_COLORS[dataset.domain] ?? 'var(--text-sub)';
   const quality = dataset.qualityReport;
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4 hover:border-primary/20 transition-colors">
+    <div className="rounded-lg border border-border bg-card p-4 hover:border-line transition-colors">
       <div className="flex items-start gap-4">
         <div
           className="w-10 h-10 rounded-lg flex items-center justify-center border shrink-0"
-          style={{ backgroundColor: `${domainColor}15`, borderColor: `${domainColor}40` }}
+          style={{ backgroundColor: wash(domainColor, 8), borderColor: wash(domainColor, 25) }}
         >
           <Database className="w-5 h-5" style={{ color: domainColor }} />
         </div>
@@ -241,10 +234,10 @@ function DatasetCard({ dataset }: { dataset: ManagedDataset }) {
             <h4 className="text-sm font-semibold truncate">{dataset.name}</h4>
             <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
               dataset.status === 'ready'
-                ? 'bg-green-500/10 text-green-400 border-green-500/30'
+                ? 'bg-success/10 text-ink-good border-success/30'
                 : dataset.status === 'failed'
-                  ? 'bg-red-500/10 text-red-400 border-red-500/30'
-                  : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30'
+                  ? 'bg-error/10 text-ink-bad border-error/30'
+                  : 'bg-warning/10 text-ink-warn border-warning/30'
             }`}>
               {dataset.status}
             </span>
@@ -255,7 +248,7 @@ function DatasetCard({ dataset }: { dataset: ManagedDataset }) {
           <div className="flex flex-wrap gap-4 text-xs">
             <div>
               <span className="text-muted-foreground">Domain: </span>
-              <span className="font-mono" style={{ color: domainColor }}>{dataset.domain}</span>
+              <span className="font-mono text-ink-sub">{dataset.domain}</span>
             </div>
             <div>
               <span className="text-muted-foreground">Records: </span>
@@ -276,7 +269,7 @@ function DatasetCard({ dataset }: { dataset: ManagedDataset }) {
             {quality && (
               <div>
                 <span className="text-muted-foreground">Quality: </span>
-                <span className={`font-mono ${quality.dataQualityScore >= 80 ? 'text-green-400' : quality.dataQualityScore >= 60 ? 'text-yellow-400' : 'text-red-400'}`}>
+                <span className={`font-mono ${quality.dataQualityScore >= 80 ? 'text-ink-good' : quality.dataQualityScore >= 60 ? 'text-ink-warn' : 'text-ink-bad'}`}>
                   {quality.dataQualityScore}/100
                 </span>
               </div>
@@ -285,7 +278,7 @@ function DatasetCard({ dataset }: { dataset: ManagedDataset }) {
           {quality && quality.issues.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
               {quality.issues.map((issue, i) => (
-                <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
+                <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-warning/10 text-ink-warn border border-warning/20">
                   {issue}
                 </span>
               ))}

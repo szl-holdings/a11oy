@@ -73,11 +73,11 @@ const SEED_MUTATIONS: DestinationMutation[] = [
 ];
 
 const KIND_BADGE: Record<MutationKind, string> = {
-  lead_lost: '#b85450',
-  deal_closed: '#5a8a6e',
-  ticket_resolved: '#78aac8',
-  subscription_cancelled: '#b85450',
-  opportunity_reopened: '#d4a853',
+  lead_lost: 'var(--ink-bad)',
+  deal_closed: 'var(--color-success)',
+  ticket_resolved: 'var(--color-info)',
+  subscription_cancelled: 'var(--ink-bad)',
+  opportunity_reopened: 'var(--ink-warn)',
 };
 
 export default function ClosedLoopPage() {
@@ -151,7 +151,7 @@ export default function ClosedLoopPage() {
         title="Reverse-Reverse ETL"
         blurb="When a destination mutates (CRM rep marks lead lost), Amaru captures that signal and feeds it back as an outcome, updating Forecaster's lift model and closing the activation learning loop."
         trailing={
-          <Link href="/innovation" className="flex items-center gap-1.5 text-[11px] text-[#c9b787] hover:underline">
+          <Link href="/innovation" className="flex items-center gap-1.5 text-[11px] text-link hover:underline">
             <ArrowLeft className="w-3 h-3" /> Innovation Brief
           </Link>
         }
@@ -187,11 +187,11 @@ export default function ClosedLoopPage() {
                     key={i}
                     onClick={() => setSelectedTemplate(i)}
                     className="flex items-center gap-3 w-full text-left px-3 py-2 rounded border transition-all text-[12px]"
-                    style={{ borderColor: selectedTemplate === i ? '#c9b787' : 'rgba(255,255,255,0.06)', background: selectedTemplate === i ? 'rgba(201,183,135,0.05)' : 'transparent' }}
+                    style={{ borderColor: selectedTemplate === i ? 'var(--color-silver-300)' : 'var(--border-subtle)', background: selectedTemplate === i ? 'color-mix(in srgb, var(--text) 5%, transparent)' : 'transparent' }}
                   >
                     <span className={`w-2 h-2 rounded-full shrink-0`} style={{ background: KIND_BADGE[tmpl.kind] }} />
-                    <span className="text-[#f5f5f5] flex-1">{tmpl.label}</span>
-                    <span className="font-mono text-[#555] text-[10px]">{tmpl.field} → {tmpl.newVal}</span>
+                    <span className="text-ink flex-1">{tmpl.label}</span>
+                    <span className="font-mono text-ink-sub text-[10px]">{tmpl.field} → {tmpl.newVal}</span>
                   </button>
                 ))}
               </div>
@@ -201,7 +201,7 @@ export default function ClosedLoopPage() {
               <Zap className="w-4 h-4 mr-2" /> Inject Mutation
             </Button>
 
-            <div className="p-3 rounded text-[11px] text-[#666]" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
+            <div className="p-3 rounded text-[11px] text-ink-sub" style={{ background: 'color-mix(in srgb, var(--surface-raised) 50%, transparent)', border: '1px solid var(--border-subtle)' }}>
               The Courier adapter polls the destination webhook endpoint. On mutation detection, Scribe emits a reverse-capture event. Forecaster recalibrates the lift estimate. Outcome record appears in the Outcomes surface within the same session.
             </div>
           </div>
@@ -210,28 +210,28 @@ export default function ClosedLoopPage() {
         <FabricCard title="MUTATION CAPTURE FEED">
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {mutations.map((mut) => (
-              <div key={mut.id} className="p-3 rounded text-[12px]" style={{ background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.04)' }}>
+              <div key={mut.id} className="p-3 rounded text-[12px]" style={{ background: 'var(--bg-deep)', border: '1px solid var(--border-subtle)' }}>
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full" style={{ background: KIND_BADGE[mut.kind] }} />
-                    <span className="font-mono text-[10px] text-[#c9b787]">{mut.kind.replace(/_/g, ' ')}</span>
+                    <span className="font-mono text-[10px] text-ink">{mut.kind.replace(/_/g, ' ')}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    {mut.status === 'ingested' && <CheckCircle className="w-3.5 h-3.5 text-[#5a8a6e]" />}
-                    {mut.status === 'processing' && <RefreshCw className="w-3.5 h-3.5 text-[#d4a853] animate-spin" />}
+                    {mut.status === 'ingested' && <CheckCircle className="w-3.5 h-3.5 text-ink-good" />}
+                    {mut.status === 'processing' && <RefreshCw className="w-3.5 h-3.5 text-ink-warn animate-spin" />}
                     <Badge variant={mut.status === 'ingested' ? 'success' : mut.status === 'processing' ? 'partial' : 'default'}>{mut.status}</Badge>
                   </div>
                 </div>
-                <div className="text-[#f5f5f5]">{mut.entityLabel}</div>
-                <div className="text-[11px] text-[#666] mt-0.5">
-                  <span className="text-[#8a8a8a]">{mut.destinationName}</span>
+                <div className="text-ink">{mut.entityLabel}</div>
+                <div className="text-[11px] text-ink-sub mt-0.5">
+                  <span className="text-ink-sub">{mut.destinationName}</span>
                   <span className="mx-1">·</span>
                   <span className="font-mono">{mut.fieldChanged}: </span>
-                  <span className="text-[#b85450]">{mut.oldValue}</span>
+                  <span className="text-ink-bad">{mut.oldValue}</span>
                   <ArrowRight className="w-3 h-3 inline mx-0.5" />
-                  <span className="text-[#5a8a6e]">{mut.newValue}</span>
+                  <span className="text-ink-good">{mut.newValue}</span>
                 </div>
-                {mut.outcomeRef && <div className="text-[10px] text-[#555] mt-1 font-mono">→ outcome {mut.outcomeRef}</div>}
+                {mut.outcomeRef && <div className="text-[10px] text-ink-sub mt-1 font-mono">→ outcome {mut.outcomeRef}</div>}
               </div>
             ))}
           </div>
@@ -243,16 +243,16 @@ export default function ClosedLoopPage() {
           {allOutcomes.slice(0, 8).map((o) => {
             const isNew = 'reverseMutationId' in o;
             return (
-              <div key={o.id} className="flex items-center justify-between text-[12px] p-2 rounded" style={{ background: isNew ? 'rgba(201,183,135,0.04)' : '#0e0e0e', border: `1px solid ${isNew ? 'rgba(201,183,135,0.15)' : 'rgba(255,255,255,0.04)'}` }}>
+              <div key={o.id} className="flex items-center justify-between text-[12px] p-2 rounded" style={{ background: isNew ? 'color-mix(in srgb, var(--text) 4%, transparent)' : 'var(--bg-deep)', border: `1px solid ${isNew ? 'color-mix(in srgb, var(--text) 15%, transparent)' : 'var(--border-subtle)'}` }}>
                 <div className="flex items-center gap-3 min-w-0">
-                  {isNew ? <RotateCcw className="w-3.5 h-3.5 text-[#c9b787] shrink-0" /> : <GovernanceDot state="green" />}
+                  {isNew ? <RotateCcw className="w-3.5 h-3.5 text-ink shrink-0" /> : <GovernanceDot state="green" />}
                   <div className="min-w-0">
-                    <div className="text-[#f5f5f5] truncate">{o.syncName}</div>
-                    <div className="text-[10px] text-[#666]">{o.predictedMetric} · {new Date(o.observedAtIso).toLocaleDateString()}</div>
+                    <div className="text-ink truncate">{o.syncName}</div>
+                    <div className="text-[10px] text-ink-sub">{o.predictedMetric} · {new Date(o.observedAtIso).toLocaleDateString()}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className={`font-mono tabular-nums ${o.liftPct >= 0 ? 'text-[#5a8a6e]' : 'text-[#b85450]'}`}>{(o.liftPct * 100).toFixed(1)}%</span>
+                  <span className={`font-mono tabular-nums ${o.liftPct >= 0 ? 'text-ink-good' : 'text-ink-bad'}`}>{(o.liftPct * 100).toFixed(1)}%</span>
                   {isNew && <Badge variant="active">new</Badge>}
                   {o.policyUpdateCandidate && <Badge variant="partial">policy</Badge>}
                 </div>
@@ -260,8 +260,8 @@ export default function ClosedLoopPage() {
             );
           })}
         </div>
-        <div className="mt-3 pt-3 border-t border-[rgba(255,255,255,0.04)]">
-          <Link href="/outcomes" className="text-[11px] text-[#c9b787] hover:underline">View full Outcomes surface →</Link>
+        <div className="mt-3 pt-3 border-t border-line-subtle">
+          <Link href="/outcomes" className="text-[11px] text-link hover:underline">View full Outcomes surface →</Link>
         </div>
       </FabricCard>
     </div>

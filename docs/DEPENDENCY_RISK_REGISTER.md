@@ -12,7 +12,7 @@ silently suppressed, and this file never claims a vulnerability is "fixed" when 
 is not.
 
 Last audited: **2026-08-30** · Tool: `pip-audit` against the real dependency
-closure (Dockerfile pins + `requirements.txt`).
+closure (`requirements-runtime.txt`, which the Dockerfile installs, + `requirements.txt`).
 
 ---
 
@@ -96,6 +96,6 @@ python -m pip install pip-audit
 python -m pip_audit -r requirements-audit.txt --progress-spinner off
 ```
 
-`requirements-audit.txt` is the consolidated closure (Dockerfile pins +
+`requirements-audit.txt` is the consolidated closure (`-r requirements-runtime.txt`, the file the Dockerfile installs, +
 `requirements.txt`) so the audit covers what actually ships, not just the
 partial `requirements.txt`. See `.github/workflows/dependency-audit.yml`.

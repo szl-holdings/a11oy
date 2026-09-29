@@ -27,10 +27,10 @@ function runStatusBadgeVariant(status: string) {
 }
 
 function StatusIcon({ status }: { status: string }) {
-  if (status === 'success') return <CheckCircle2 className="w-5 h-5 text-green-400" />;
-  if (status === 'failed') return <XCircle className="w-5 h-5 text-rose-400" />;
-  if (status === 'running') return <RefreshCw className="w-5 h-5 text-yellow-400 animate-spin" />;
-  if (status === 'partial') return <AlertCircle className="w-5 h-5 text-orange-400" />;
+  if (status === 'success') return <CheckCircle2 className="w-5 h-5 text-ink-good" />;
+  if (status === 'failed') return <XCircle className="w-5 h-5 text-ink-bad" />;
+  if (status === 'running') return <RefreshCw className="w-5 h-5 text-ink-warn animate-spin" />;
+  if (status === 'partial') return <AlertCircle className="w-5 h-5 text-ink-warn" />;
   return <Clock className="w-5 h-5 text-muted-foreground" />;
 }
 
@@ -103,8 +103,8 @@ export default function RunsDetail() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: 'Rows Read', value: run.rowsRead.toLocaleString(), color: 'text-foreground' },
-          { label: 'Rows Written', value: run.rowsWritten.toLocaleString(), color: 'text-green-400' },
-          { label: 'Rows Failed', value: run.rowsFailed.toLocaleString(), color: run.rowsFailed > 0 ? 'text-rose-400' : 'text-muted-foreground' },
+          { label: 'Rows Written', value: run.rowsWritten.toLocaleString(), color: 'text-ink-good' },
+          { label: 'Rows Failed', value: run.rowsFailed.toLocaleString(), color: run.rowsFailed > 0 ? 'text-ink-bad' : 'text-muted-foreground' },
           { label: 'Duration', value: formatDuration(run.durationMs), color: 'text-foreground' },
         ].map((stat) => (
           <div key={stat.label} className="conduit-stat p-4">
@@ -124,14 +124,14 @@ export default function RunsDetail() {
           <dd className="font-mono text-xs">{formatTime(run.finishedAt)}</dd>
           <dt className="text-muted-foreground">Success rate</dt>
           <dd className="font-mono">
-            <span className={cn(successRate >= 95 ? 'text-green-400' : successRate >= 80 ? 'text-yellow-400' : 'text-rose-400')}>
+            <span className={cn(successRate >= 95 ? 'text-ink-good' : successRate >= 80 ? 'text-ink-warn' : 'text-ink-bad')}>
               {successRate}%
             </span>
           </dd>
           {run.errorMessage && (
             <>
               <dt className="text-muted-foreground">Error</dt>
-              <dd className="text-rose-400 text-xs">{run.errorMessage}</dd>
+              <dd className="text-ink-bad text-xs">{run.errorMessage}</dd>
             </>
           )}
         </dl>
@@ -141,7 +141,7 @@ export default function RunsDetail() {
       {run.sampleErrors && run.sampleErrors.length > 0 && (
         <div className="conduit-card overflow-hidden">
           <div className="flex items-center gap-2 px-5 py-3 border-b border-border">
-            <Rows className="w-4 h-4 text-rose-400" />
+            <Rows className="w-4 h-4 text-ink-bad" />
             <h2 className="font-semibold text-sm">Failed Rows</h2>
             <span className="ml-auto text-xs text-muted-foreground">{run.rowsFailed} total</span>
           </div>
@@ -165,7 +165,7 @@ export default function RunsDetail() {
                         {JSON.stringify(row.sourceData).slice(0, 80)}…
                       </code>
                     </td>
-                    <td className="px-4 py-2 text-rose-400 text-xs max-w-sm">
+                    <td className="px-4 py-2 text-ink-bad text-xs max-w-sm">
                       <span className="truncate block">{row.errorMessage ?? '—'}</span>
                     </td>
                     <td className="px-4 py-2">
@@ -196,7 +196,7 @@ export default function RunsDetail() {
 
       {run.rowsFailed === 0 && run.status === 'success' && (
         <div className="conduit-card p-8 text-center">
-          <CheckCircle2 className="w-10 h-10 text-green-400 mx-auto mb-3" />
+          <CheckCircle2 className="w-10 h-10 text-ink-good mx-auto mb-3" />
           <p className="font-semibold">All rows synced successfully</p>
           <p className="text-sm text-muted-foreground mt-1">No errors to display.</p>
         </div>

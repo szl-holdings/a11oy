@@ -6,6 +6,7 @@ import { useInnovationStore } from '@/lib/innovation-store';
 import { FabricHeader, FabricCard, FabricStat, GovernanceDot, MicroBar } from '@/components/fabric/primitives';
 import { Badge, Button } from '@/components/ui';
 import { ArrowLeft, Search, CheckCircle, Zap, Database, ArrowRight } from 'lucide-react';
+import { CATEGORY_TONES, wash } from '@/lib/utils';
 
 type AdapterKind = 'crm' | 'support' | 'marketing' | 'data' | 'collab' | 'webhook' | 'erp';
 type ProbeStatus = 'idle' | 'probing' | 'done' | 'error';
@@ -33,7 +34,7 @@ function fnv1a(s: string): number {
 function hex8(n: number) { return n.toString(16).padStart(8, '0').slice(0, 8); }
 
 const ADAPTER_ACCENTS: Record<AdapterKind, string> = {
-  crm: '#3b82f6', support: '#10b981', marketing: '#f97316', data: '#06b6d4', collab: '#a855f7', webhook: '#6366f1', erp: '#f59e0b',
+  crm: CATEGORY_TONES[0], support: CATEGORY_TONES[1], marketing: CATEGORY_TONES[2], data: CATEGORY_TONES[4], collab: CATEGORY_TONES[3], webhook: CATEGORY_TONES[5], erp: CATEGORY_TONES[0],
 };
 
 const TEMPLATES: Record<AdapterKind, { ops: string[]; rpm: number; pii: boolean; entities: string[] }> = {
@@ -152,7 +153,7 @@ export default function DestinationDiscoveryPage() {
         title="Destination Contract Auto-Discovery"
         blurb="Register a new destination adapter and Cartographer probes its schema, supported operations, rate-limit semantics, and PII contract. A full RelayDestination record is synthesized automatically — no manual registration."
         trailing={
-          <Link href="/innovation" className="flex items-center gap-1.5 text-[11px] text-[#c9b787] hover:underline">
+          <Link href="/innovation" className="flex items-center gap-1.5 text-[11px] text-link hover:underline">
             <ArrowLeft className="w-3 h-3" /> Innovation Brief
           </Link>
         }
@@ -186,7 +187,7 @@ export default function DestinationDiscoveryPage() {
                     key={kind}
                     onClick={() => setAdapterKind(kind)}
                     className="px-2 py-1.5 rounded-lg text-[11px] font-mono border transition-all"
-                    style={{ borderColor: adapterKind === kind ? ADAPTER_ACCENTS[kind] : 'rgba(255,255,255,0.08)', color: adapterKind === kind ? ADAPTER_ACCENTS[kind] : '#666', background: adapterKind === kind ? `${ADAPTER_ACCENTS[kind]}10` : 'transparent' }}
+                    style={{ borderColor: adapterKind === kind ? ADAPTER_ACCENTS[kind] : 'var(--border)', color: adapterKind === kind ? 'var(--text)' : 'var(--text-sub)', background: adapterKind === kind ? wash(ADAPTER_ACCENTS[kind], 6) : 'transparent' }}
                   >
                     {kind}
                   </button>
@@ -199,13 +200,13 @@ export default function DestinationDiscoveryPage() {
             </Button>
 
             {probeLog.length > 0 && (
-              <div className="rounded-lg p-3 font-mono text-[11px] space-y-1 max-h-48 overflow-y-auto" style={{ background: '#080808', border: '1px solid rgba(255,255,255,0.04)' }}>
+              <div className="rounded-lg p-3 font-mono text-[11px] space-y-1 max-h-48 overflow-y-auto" style={{ background: 'var(--bg)', border: '1px solid var(--border-subtle)' }}>
                 {probeLog.map((line, i) => (
-                  <div key={i} className={i === probeLog.length - 1 && probeStatus === 'done' ? 'text-[#5a8a6e]' : probeStatus === 'probing' && i === probeLog.length - 1 ? 'text-[#c9b787]' : 'text-[#555]'}>
+                  <div key={i} className={i === probeLog.length - 1 && probeStatus === 'done' ? 'text-ink-good' : probeStatus === 'probing' && i === probeLog.length - 1 ? 'text-ink' : 'text-ink-sub'}>
                     {line}
                   </div>
                 ))}
-                {probeStatus === 'probing' && <div className="text-[#c9b787] animate-pulse">_</div>}
+                {probeStatus === 'probing' && <div className="text-ink animate-pulse">_</div>}
               </div>
             )}
           </div>
@@ -229,24 +230,24 @@ export default function DestinationDiscoveryPage() {
                   </div>
                   <div>
                     <div className="label-mono">RATE LIMIT</div>
-                    <div className="font-mono text-[#f5f5f5] mt-1">{disc.rpmCap} rpm</div>
+                    <div className="font-mono text-ink mt-1">{disc.rpmCap} rpm</div>
                   </div>
                   <div>
                     <div className="label-mono">AUTH</div>
-                    <div className="font-mono text-[#f5f5f5] mt-1">{disc.authMechanism}</div>
+                    <div className="font-mono text-ink mt-1">{disc.authMechanism}</div>
                   </div>
                   <div>
                     <div className="label-mono">PII CONTRACT</div>
-                    <div className={`mt-1 ${disc.piiAllowed ? 'text-[#d4a853]' : 'text-[#5a8a6e]'}`}>{disc.piiAllowed ? 'PII allowed (redaction)' : 'No PII'}</div>
+                    <div className={`mt-1 ${disc.piiAllowed ? 'text-ink-warn' : 'text-ink-good'}`}>{disc.piiAllowed ? 'PII allowed (redaction)' : 'No PII'}</div>
                   </div>
                 </div>
-                <div className="font-mono text-[10px] text-[#555] mb-3">ID: {disc.synthesized.id} · anchor: {disc.synthesized.anchorHash}</div>
+                <div className="font-mono text-[10px] text-ink-sub mb-3">ID: {disc.synthesized.id} · anchor: {disc.synthesized.anchorHash}</div>
                 {isRegistered ? (
-                  <div className="flex items-center gap-2 text-[12px] text-[#5a8a6e]">
+                  <div className="flex items-center gap-2 text-[12px] text-ink-good">
                     <CheckCircle className="w-4 h-4" /> Registered in destination catalog
                   </div>
                 ) : (
-                  <Button onClick={() => registerDestination(disc)} className="w-full">
+                  <Button variant="outline" onClick={() => registerDestination(disc)} className="w-full">
                     <Zap className="w-4 h-4 mr-1.5" /> Register Destination
                   </Button>
                 )}
@@ -256,8 +257,8 @@ export default function DestinationDiscoveryPage() {
 
           {discovered.length === 0 && (
             <div className="conduit-card p-6 text-center">
-              <Database className="w-8 h-8 mx-auto mb-3 text-[#333]" />
-              <div className="text-sm text-[#555]">No adapters probed yet. Enter a name and probe above.</div>
+              <Database className="w-8 h-8 mx-auto mb-3 text-ink-ghost" />
+              <div className="text-sm text-ink-sub">No adapters probed yet. Enter a name and probe above.</div>
             </div>
           )}
         </div>
@@ -268,11 +269,11 @@ export default function DestinationDiscoveryPage() {
           {allDestinations.map((d) => {
             const isNew = registeredIds.has(d.id);
             return (
-              <div key={d.id} className="flex items-center gap-3 p-2 rounded text-[12px]" style={{ background: isNew ? 'rgba(201,183,135,0.04)' : '#0e0e0e', border: `1px solid ${isNew ? 'rgba(201,183,135,0.15)' : 'rgba(255,255,255,0.04)'}` }}>
+              <div key={d.id} className="flex items-center gap-3 p-2 rounded text-[12px]" style={{ background: isNew ? 'color-mix(in srgb, var(--text) 4%, transparent)' : 'var(--bg-deep)', border: `1px solid ${isNew ? 'color-mix(in srgb, var(--text) 15%, transparent)' : 'var(--border-subtle)'}` }}>
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ background: d.accent }} />
                 <div className="flex-1 min-w-0">
-                  <div className="text-[#f5f5f5] truncate">{d.name}</div>
-                  <div className="text-[10px] text-[#666]">{d.category} · {d.rateLimitRpm} rpm</div>
+                  <div className="text-ink truncate">{d.name}</div>
+                  <div className="text-[10px] text-ink-sub">{d.category} · {d.rateLimitRpm} rpm</div>
                 </div>
                 <GovernanceDot state={d.governanceState} />
                 {isNew && <Badge variant="active">new</Badge>}
@@ -280,9 +281,9 @@ export default function DestinationDiscoveryPage() {
             );
           })}
         </div>
-        <div className="mt-3 pt-3 border-t border-[rgba(255,255,255,0.04)] flex items-center justify-between">
-          <span className="text-[11px] text-[#666]">{RELAY_DESTINATIONS.length + registeredIds.size} total destinations</span>
-          <Link href="/destinations" className="text-[11px] text-[#c9b787] hover:underline flex items-center gap-1">View Destinations surface <ArrowRight className="w-3 h-3" /></Link>
+        <div className="mt-3 pt-3 border-t border-line-subtle flex items-center justify-between">
+          <span className="text-[11px] text-ink-sub">{RELAY_DESTINATIONS.length + registeredIds.size} total destinations</span>
+          <Link href="/destinations" className="text-[11px] text-link hover:underline flex items-center gap-1">View Destinations surface <ArrowRight className="w-3 h-3" /></Link>
         </div>
       </FabricCard>
     </div>

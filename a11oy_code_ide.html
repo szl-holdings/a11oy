@@ -175,7 +175,7 @@ a{color:var(--acc2);text-decoration:none}
         <span>Output</span><div class="spacer"></div>
         <span id="runmeta" style="font-family:var(--mono)"></span>
       </div>
-      <pre id="output"><span class="lbl">Sandboxed runner ready.</span> Python runs in the Space's constrained sandbox (allow-listed binaries, no network, 30s, isolated dir). Press ▶ Run.</pre>
+      <pre id="output"><span class="lbl">Sandboxed runner — operator-only.</span> ▶ Run executes only with the operator credential plus a distinct second approver; anonymous runs answer BLOCKED and nothing executes. When authorized, Python runs in the Space's constrained sandbox (allow-listed binaries, no network, 30s, isolated dir).</pre>
     </div>
     <div class="receipt">
       <div class="cell"><span class="k">Λ signal</span><span class="v lam" id="r-lambda">—</span></div>
@@ -372,8 +372,13 @@ $("#run").addEventListener("click", async ()=>{
   try{
     const resp = await fetch(API+"/run", {method:"POST", headers:{"Content-Type":"application/json"},
       body:JSON.stringify({language:lang, code})});
-    const d = await resp.json();
+    const d = await resp.json().catch(()=>({}));
     let html="";
+    if(resp.status===401 || d.status==="BLOCKED"){
+      html='<span class="err">operator-only (BLOCKED) — nothing was executed.</span>\n<span class="lbl">'+esc(d.error||"Running code needs the operator credential plus a distinct second approver.")+'</span>';
+      $("#output").innerHTML = html; $("#runmeta").textContent = "not executed";
+      return;
+    }
     if(d.error && !d.stdout && !d.stderr){ html='<span class="err">'+esc(d.error)+'</span>'; }
     else{
       if(d.stdout) html += '<span class="ok">'+esc(d.stdout)+'</span>';
@@ -404,7 +409,7 @@ async function checkHealth(){
   }catch(e){ $("#statustext").textContent="health unreachable"; }
 }
 checkHealth();
-addMsg("bot", "Welcome to **a11oy.code** — a governed coding assistant. Pick a tier (FAST / HEART / PRIME / FRONTIER), ask me to write or explain code, then send any code block to the editor and **▶ Run** it in the sandbox. Every turn carries a PURIQ Λ-signal and a signed Khipu receipt.");
+addMsg("bot", "Welcome to **a11oy.code** — a governed coding assistant. Pick a tier (FAST / HEART / PRIME / FRONTIER), ask me to write or explain code, then send any code block to the editor. **▶ Run** is operator-only: it executes in the sandbox only with the operator credential plus a second approver, otherwise it answers BLOCKED. Every turn carries a PURIQ Λ-signal and a signed Khipu receipt.");
 </script>
 </body>
 </html>

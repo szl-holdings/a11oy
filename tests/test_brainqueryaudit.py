@@ -255,11 +255,16 @@ def test_routes_registered_before_catchalls():
             assert idx < proxy, f"{path} ({idx}) must precede the Node proxy ({proxy})"
 
 
-def test_endpoints_answer_without_500():
+def test_endpoints_answer_without_500(monkeypatch):
     pytest.importorskip("starlette.testclient")
     from fastapi.testclient import TestClient
     import serve
-    client = TestClient(serve.app)
+    import szl_operator_auth as opauth
+    # /brain/audit/record is an operator-only write (PROTECTED_ROUTES); reads stay public.
+    test_operator = "test-operator-secret-not-real"
+    monkeypatch.setenv(opauth.OPERATOR_KEY_ENV, test_operator)
+    assert TestClient(serve.app).post(RECORD).status_code == 401
+    client = TestClient(serve.app, headers={"Authorization": f"Bearer {test_operator}"})
 
     # info — static describe, never 500.
     ri = client.get(INFO)

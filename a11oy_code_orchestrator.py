@@ -47,6 +47,7 @@ import asyncio
 import base64
 import copy
 import hashlib
+import hmac
 import json
 import math
 import os
@@ -66,6 +67,8 @@ from typing import Any, AsyncGenerator, Optional
 import httpx
 from fastapi import APIRouter, Header, HTTPException, Request, UploadFile, File
 from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
+
+import szl_operator_auth as _opauth
 
 # ---------------------------------------------------------------------------
 # Additive agentic core (NEW shared modules). Guarded so a missing module can
@@ -645,7 +648,8 @@ PURIQ_BETA = float(os.environ.get("A11OY_PURIQ_BETA", "4.0"))
 DB_PATH = os.environ.get("A11OY_CODE_DB", "/app/data/a11oy_code.db")
 SANDBOX_DIR = Path(os.environ.get("A11OY_CODE_SANDBOX", "/app/data/sandbox"))
 MAX_MEDIA_WRITE_BYTES = 10 * 1024 * 1024
-ADMIN_KEY = os.environ.get("A11OY_CODE_ADMIN_KEY", "")  # gate for /v1/keys + system overrides
+# The operator credential (A11OY_CODE_ADMIN_KEY) is read per request by
+# szl_operator_auth, never snapshotted here, so a rotated secret takes effect at once.
 
 # Direct provider keys (optional). If present, preferred over HF router for that provider.
 PROVIDER_KEYS = {
@@ -681,6 +685,38 @@ APP_COMMAND_BASES = {
 }
 
 router = APIRouter(prefix="/api/a11oy/code", tags=["a11oy.code"])
+
+_RUN_ID_RE = re.compile(r"[A-Za-z0-9_-]{1,64}")
+
+
+def _blocked(action: str, needs_second_approver: bool = False) -> JSONResponse:
+    """Honest BLOCKED for an unauthenticated execution or write (deny-by-default)."""
+    return JSONResponse(_opauth.blocked_body(action, needs_second_approver),
+                        status_code=401, headers={"WWW-Authenticate": "Bearer"})
+
+
+def _principal_tool_runner(client, who: dict):
+    """Tool callable for the agent loop bound to the verified caller: the loop can
+    never widen authorization or attestation beyond what the headers proved."""
+    async def _run(name, args, **_kw):
+        return await execute_tool(name, args, client,
+                                  two_person_attested=who["two_person_attested"],
+                                  authorized=who["operator"])
+    return _run
+
+
+def _principal_puriq(who: dict):
+    """PURIQ gate bound to the verified caller. The agent loop builds its own gate
+    context (it hard-codes authorized=True); this overrides authorization and
+    attestation with what the headers proved, so an anonymous turn can never mint an
+    allow=true decision receipt."""
+    def _decide(action, context):
+        ctx = dict(context or {})
+        ctx["authorized"] = bool(who.get("operator"))
+        ctx["two_person_attested"] = bool(who.get("two_person_attested"))
+        return puriq_decide(action, ctx)
+    return _decide
+
 
 # ---------------------------------------------------------------------------
 # Seven-tier model table (mirrors A11OY_CODE_ROUTER_SPEC.md §3, by Yachay-extension)
@@ -1075,6 +1111,8 @@ STATE_CHANGING_TOOLS = {
     "shell_exec", "flagship_call", "drone_command",
     # NEW agentic state-changing tools (higher bar + 2-person Yuyay gate):
     "apply_patch", "app_command",
+    # run_tests spawns python3/pytest/node as the server UID — code execution.
+    "run_tests",
 }
 # Tools that must hard-fail if they would touch IP-HOLD / locked surfaces.
 HARD_DENY_PATTERNS = [
@@ -1095,7 +1133,7 @@ def _yuyay_score(action: str, context: dict[str, Any]) -> tuple[float, dict[str,
     sacred_base = 0.40 if context.get("alignment_fault") else 0.98
     # Structural / introspection base is sensitive to risk (proportionality etc.)
     struct_base = {"low": 0.97, "medium": 0.94, "high": 0.92, "critical": 0.91}.get(risk, 0.94)
-    authorized = bool(context.get("authorized", True))
+    authorized = bool(context.get("authorized", False))
     has_provenance = bool(context.get("has_provenance", True))
     license_ok = context.get("license_class", "GREEN") in ("GREEN", "AMBER")
     two_person = bool(context.get("two_person_attested", False))
@@ -1976,13 +2014,14 @@ def run_code(language: str, code: str) -> dict[str, Any]:
             pass
 
 
-def _gate_context_for_tool(name: str, args: dict[str, Any], attested: bool) -> dict[str, Any]:
+def _gate_context_for_tool(name: str, args: dict[str, Any], attested: bool,
+                           authorized: bool = False) -> dict[str, Any]:
     risk = "high" if name in STATE_CHANGING_TOOLS else "low"
     if name in ("drone_command",):
         risk = "critical"
     context = {
         "risk": risk,
-        "authorized": True,
+        "authorized": bool(authorized),
         "has_provenance": True,
         "license_class": "GREEN",
         "two_person_attested": attested,
@@ -2011,13 +2050,26 @@ def _gate_context_for_tool(name: str, args: dict[str, Any], attested: bool) -> d
     return context
 
 
+def _gate_stub(reason: str) -> dict[str, Any]:
+    """Deny-shaped gate for tool calls refused before PURIQ ran (no receipt minted)."""
+    return {"allow": False, "score": 0.0, "lambda": 0.0, "reason": reason}
+
+
 async def execute_tool(name: str, args: dict[str, Any], client: httpx.AsyncClient,
-                       two_person_attested: bool = False) -> dict[str, Any]:
+                       two_person_attested: bool = False,
+                       authorized: bool = False) -> dict[str, Any]:
     """Run a tool after a PURIQ gate. Returns {ok, result|error, gate, khipu}."""
+    if not authorized:
+        reason = (f"tool '{name}' requires the operator credential; "
+                  "anonymous turns run without tools.")
+        return {"ok": False, "status": "BLOCKED", "error": reason,
+                "gate": _gate_stub(reason)}
     try:
-        gate_context = _gate_context_for_tool(name, args, two_person_attested)
+        gate_context = _gate_context_for_tool(name, args, two_person_attested,
+                                              authorized=authorized)
     except (TypeError, ValueError) as exc:
-        return {"ok": False, "error": f"invalid tool arguments: {exc}"}
+        reason = f"invalid tool arguments: {exc}"
+        return {"ok": False, "error": reason, "gate": _gate_stub(reason)}
     gate = puriq_decide(name, gate_context)
     if not gate["allow"]:
         return {"ok": False, "error": f"PURIQ gate denied: {gate['reason']}", "gate": gate}
@@ -2897,6 +2949,8 @@ async def code_metrics() -> PlainTextResponse:
 async def rag_index(request: Request) -> JSONResponse:
     """Build/refresh the org graph + FTS5/vector index. Receipted. Honest error
     if a11oy_org_rag is unavailable or no GitHub credential is present."""
+    if not _opauth.principal(request)["operator"]:
+        return _blocked("RAG indexing")
     if _orgrag is None:
         return JSONResponse({"ok": False, "error": f"a11oy_org_rag not importable: {_ORGRAG_IMPORT_ERROR}"},
                             status_code=503)
@@ -2962,6 +3016,8 @@ async def rag_refresh(request: Request) -> JSONResponse:
     seven-category corpus on a receipted background tick — pulling live via the
     GitHub Contents/Trees API + the HF Spaces file API. ``{"background": false}``
     runs the full ingest synchronously (CLI/cron). Never claims a fake 'full'."""
+    if not _opauth.principal(request)["operator"]:
+        return _blocked("RAG refresh")
     if _orgrag is None:
         return JSONResponse({"ok": False, "error": f"a11oy_org_rag not importable: {_ORGRAG_IMPORT_ERROR}"},
                             status_code=503)
@@ -2979,9 +3035,11 @@ async def rag_refresh(request: Request) -> JSONResponse:
 
 
 @router.post("/rag/seed")
-async def rag_seed() -> JSONResponse:
+async def rag_seed(request: Request) -> JSONResponse:
     """Build ONLY the labeled SEED index synchronously (small real subset of each
     of the seven corpus categories). Honest error if no corpus file is reachable."""
+    if not _opauth.principal(request)["operator"]:
+        return _blocked("RAG seeding")
     if _orgrag is None:
         return JSONResponse({"ok": False, "error": "a11oy_org_rag not importable"}, status_code=503)
     out = await asyncio.get_event_loop().run_in_executor(
@@ -3019,7 +3077,11 @@ async def agent_status() -> JSONResponse:
 @router.post("/agent/run")
 async def agent_run(request: Request) -> JSONResponse:
     """Run the governed FSM once and return the FULL machine-readable trace
-    (every step's state, Λ, gate decision, evidence, Khipu hash). Non-streaming."""
+    (every step's state, Λ, gate decision, evidence, Khipu hash). Non-streaming.
+    Operator-only: the FSM persists reflections and mints step receipts."""
+    who = _opauth.principal(request)
+    if not who["operator"]:
+        return _blocked("Agent run")
     if _agent is None:
         return JSONResponse({"ok": False, "error": "a11oy_agent_loop not importable"}, status_code=503)
     body, _err = await _safe_body(request)
@@ -3031,10 +3093,10 @@ async def agent_run(request: Request) -> JSONResponse:
     client = _get_client()
     result = await _agent.run_agent(
         task, history=body.get("history", []),
-        khipu_emit=khipu_emit, puriq_decide=puriq_decide,
-        execute_tool=(lambda n, a, **kw: execute_tool(n, a, client, **kw)),
+        khipu_emit=khipu_emit, puriq_decide=_principal_puriq(who),
+        execute_tool=_principal_tool_runner(client, who),
         model_complete=agent_model_complete, rag_query=_agent_rag_query,
-        two_person_attested=bool(body.get("two_person_attested", False)))
+        two_person_attested=who["two_person_attested"])
     return JSONResponse(result)
 
 
@@ -3042,14 +3104,17 @@ async def agent_run(request: Request) -> JSONResponse:
 async def agent_stream(request: Request):
     """Stream the governed FSM step-by-step as SSE `agent_step` events, then a
     final `done` event. Same envelope the agentic /chat/stream emits, but a
-    dedicated agent surface for the UI."""
+    dedicated agent surface for the UI. Operator-only (same reason as /agent/run)."""
+    who = _opauth.principal(request)
+    if not who["operator"]:
+        return _blocked("Agent stream")
     if _agent is None:
         raise HTTPException(status_code=503, detail="a11oy_agent_loop not importable")
     body, _err = await _safe_body(request)
     if _err is not None:
         return _err
     task = body.get("task") or body.get("message", "")
-    two_person = bool(body.get("two_person_attested", False))
+    two_person = who["two_person_attested"]
     history = body.get("history", [])
     client = _get_client()
 
@@ -3062,8 +3127,8 @@ async def agent_stream(request: Request):
         _q: list[tuple[str, dict]] = []
         result = await _agent.run_agent(
             task, history=history,
-            khipu_emit=khipu_emit, puriq_decide=puriq_decide,
-            execute_tool=(lambda n, a, **kw: execute_tool(n, a, client, **kw)),
+            khipu_emit=khipu_emit, puriq_decide=_principal_puriq(who),
+            execute_tool=_principal_tool_runner(client, who),
             model_complete=agent_model_complete, rag_query=_agent_rag_query,
             two_person_attested=two_person,
             emit=lambda ev, d: _q.append((ev, d)))
@@ -3113,10 +3178,15 @@ async def code_run(request: Request) -> JSONResponse:
         return _err
     language = body.get("language", "python")
     code = body.get("code", "")
+    who = _opauth.principal(request)
+    if not who["two_person_attested"]:
+        return _blocked("Code execution", needs_second_approver=True)
     if not isinstance(code, str) or not code.strip():
         return JSONResponse({"error": "empty code", "boundary": RUN_BOUNDARY, "code": None})
     # Gate the run as a sandboxed exec action.
-    gate = puriq_decide("shell_exec", _gate_context_for_tool("shell_exec", {"run": language}, attested=True))
+    gate = puriq_decide("shell_exec", _gate_context_for_tool(
+        "shell_exec", {"run": language}, attested=who["two_person_attested"],
+        authorized=who["operator"]))
     if not gate["allow"]:
         _METRICS["gate_denied_total"] += 1
         return JSONResponse({"error": f"PURIQ gate denied: {gate['reason']}",
@@ -3140,6 +3210,13 @@ async def kernel_exec(run_id: str, request: Request) -> JSONResponse:
     the UNIFIED LEDGER (organ="a11oy-kernel") via szl_lake_ingest.record_receipt —
     fire-and-forget, never blocks/raises. Energy is honestly UNAVAILABLE (this Space
     has no NVML meter on the kernel path; joules are never fabricated)."""
+    who = _opauth.principal(request)
+    if not who["two_person_attested"]:
+        return _blocked("Kernel execution", needs_second_approver=True)
+    if not _RUN_ID_RE.fullmatch(run_id or ""):
+        return JSONResponse({"error": "run_id must match [A-Za-z0-9_-]{1,64}",
+                             "output": None, "receipt_hash": None, "rlimit_status": None},
+                            status_code=400)
     body, _err = await _safe_body(request)
     if _err is not None:
         return _err
@@ -3149,7 +3226,9 @@ async def kernel_exec(run_id: str, request: Request) -> JSONResponse:
                              "receipt_hash": None, "rlimit_status": None})
     # PURIQ-gate the cell as a sandboxed exec action (same bar as /run).
     gate = puriq_decide("shell_exec",
-                        _gate_context_for_tool("shell_exec", {"kernel": run_id}, attested=True))
+                        _gate_context_for_tool("shell_exec", {"kernel": run_id},
+                                               attested=who["two_person_attested"],
+                                               authorized=who["operator"]))
     if not gate["allow"]:
         _METRICS["gate_denied_total"] += 1
         return JSONResponse({"error": f"PURIQ gate denied: {gate['reason']}",
@@ -3163,6 +3242,13 @@ async def kernel_exec(run_id: str, request: Request) -> JSONResponse:
                              "output": None, "receipt_hash": None, "rlimit_status": None},
                             status_code=503)
     kernel = _gk.get_kernel(run_id, create=True)
+    if kernel is None:
+        return JSONResponse({"error": (f"kernel capacity reached: all {_gk.MAX_KERNELS} kernel "
+                                       "slots are executing a cell right now (dead and idle "
+                                       "kernels are evicted first). Nothing was executed; retry "
+                                       "when a cell finishes."),
+                             "status": "BLOCKED", "executed": False, "output": None,
+                             "receipt_hash": None, "rlimit_status": None}, status_code=429)
     result = await asyncio.get_event_loop().run_in_executor(None, kernel.exec_cell, code)
 
     rlimit_status = {
@@ -3172,8 +3258,10 @@ async def kernel_exec(run_id: str, request: Request) -> JSONResponse:
         "wall_s": result.get("wall_s"),
         "limits": kernel.status().get("limits"),
     }
+    executed = result.get("executed", True) is not False
     output = {
         "ok": result.get("ok"),
+        "executed": executed,
         "stdout": result.get("stdout"),
         "stderr": result.get("stderr"),
         "new_or_changed": result.get("new_or_changed"),
@@ -3186,6 +3274,7 @@ async def kernel_exec(run_id: str, request: Request) -> JSONResponse:
     rec = khipu_emit("kernel.exec", {
         "run_id": run_id,
         "ok": result.get("ok"),
+        "executed": executed,
         "degraded": rlimit_status["degraded"],
         "timeout": rlimit_status["timeout"],
         "wall_s": result.get("wall_s"),
@@ -3274,7 +3363,7 @@ def _check_api_key(authorization: Optional[str]) -> Optional[str]:
         return None
     key = authorization.split(" ", 1)[1].strip()
     _tok = _resolve_hf_token()
-    if _tok and key == _tok:
+    if _tok and hmac.compare_digest(key.encode("utf-8"), _tok.encode("utf-8")):
         return "internal"
     with closing(_db()) as c:
         row = c.execute("SELECT owner,active FROM api_keys WHERE key=?", (key,)).fetchone()
@@ -3339,13 +3428,26 @@ async def chat_stream(request: Request):
     body, _err = await _safe_body(request)
     if _err is not None:
         return _err
-    conv_id = body.get("conversation_id") or str(uuid.uuid4())
-    user_id = body.get("user_id", "founder")
+    who = _opauth.principal(request)
+    # Conversation memory is operator state: an anonymous turn gets a fresh id, never
+    # reads a stored conversation by a guessed id, and is never written to memory.
+    persist = bool(who["operator"])
+    if persist:
+        conv_id = body.get("conversation_id") or str(uuid.uuid4())
+        user_id = body.get("user_id", "founder")
+    else:
+        conv_id = str(uuid.uuid4())
+        user_id = None
+
+    def _remember(role: str, content: Any, **kw: Any) -> None:
+        if persist:
+            mem_add_message(conv_id, role, content, **kw)
+
     model = body.get("model") or "router-auto"
     # `tools` may be a bool, the string "auto"/"none", or omitted. Default: enabled.
     _tools_flag = body.get("tools", body.get("enable_tools", "auto"))
-    enable_tools = _tools_flag not in (False, "none", "off", None)
-    two_person = bool(body.get("two_person_attested", False))
+    enable_tools = _tools_flag not in (False, "none", "off", None) and who["operator"]
+    two_person = who["two_person_attested"]
     governance_tier = body.get("governance_tier", "standard")
     # Agentic mode: run the governed FSM (plan/retrieve/act/observe/verify/
     # reflect/finalize) instead of the single-shot tool loop. Default OFF so the
@@ -3383,7 +3485,7 @@ async def chat_stream(request: Request):
     else:
         # Legacy singular-message contract: rebuild history from stored memory.
         user_msg = body.get("message", "")
-        prior = mem_get_conversation(conv_id)
+        prior = mem_get_conversation(conv_id) if persist else {"messages": []}
         history = [{"role": "system", "content": system_prompt}]
         for m in prior["messages"]:
             if m["role"] in ("user", "assistant"):
@@ -3393,8 +3495,9 @@ async def chat_stream(request: Request):
         else:
             history.append({"role": "user", "content": user_msg})
 
-    mem_upsert_conversation(conv_id, user_id, (user_msg or "conversation")[:60], system_prompt)
-    mem_add_message(conv_id, "user", user_msg if user_msg else "[multimodal]")
+    if persist:
+        mem_upsert_conversation(conv_id, user_id, (user_msg or "conversation")[:60], system_prompt)
+    _remember("user", user_msg if user_msg else "[multimodal]")
     _METRICS["requests_total"] += 1
 
     decision = route(history, model, governance_tier, body.get("budget"))
@@ -3438,8 +3541,8 @@ async def chat_stream(request: Request):
             try:
                 result = await _agent.run_agent(
                     user_msg, history=history,
-                    khipu_emit=khipu_emit, puriq_decide=puriq_decide,
-                    execute_tool=(lambda n, a, **kw: execute_tool(n, a, client, **kw)),
+                    khipu_emit=khipu_emit, puriq_decide=_principal_puriq(who),
+                    execute_tool=_principal_tool_runner(client, who),
                     model_complete=agent_model_complete, rag_query=_agent_rag_query,
                     two_person_attested=two_person, emit=_agent_emit)
             except Exception as exc:
@@ -3461,9 +3564,9 @@ async def chat_stream(request: Request):
             # finalize step wasn't the no-credential deterministic stub.
             _ag_local = _serve_local and not result.get("stub")
             _ag_model = _map_model_for_local(result.get("model")) if _ag_local else result.get("model")
-            mem_add_message(conv_id, "assistant", answer, model=_ag_model,
-                            tier=decision["tier"], latency_ms=latency_ms, cost_usd=0.0,
-                            yuyay13=y13, khipu_hash=result.get("khipu_hash"))
+            _remember("assistant", answer, model=_ag_model,
+                      tier=decision["tier"], latency_ms=latency_ms, cost_usd=0.0,
+                      yuyay13=y13, khipu_hash=result.get("khipu_hash"))
             yield sse("done", {"conversation_id": conv_id, "tier": decision["tier"],
                                "model": _ag_model, "license_class": decision["license_class"],
                                "latency_ms": latency_ms, "cost_usd": 0.0, "yuyay13": y13,
@@ -3500,9 +3603,9 @@ async def chat_stream(request: Request):
             rec = khipu_emit("chat.completion.stub", {
                 "conversation_id": conv_id, "model": decision["model"],
                 "tier": decision["tier"], "mode": "deterministic_stub", "yuyay13": y13})
-            mem_add_message(conv_id, "assistant", stub, model=decision["model"],
-                            tier=decision["tier"], latency_ms=latency_ms, cost_usd=0.0,
-                            yuyay13=y13, khipu_hash=rec["hash"])
+            _remember("assistant", stub, model=decision["model"],
+                      tier=decision["tier"], latency_ms=latency_ms, cost_usd=0.0,
+                      yuyay13=y13, khipu_hash=rec["hash"])
             yield sse("done", {"conversation_id": conv_id, "tier": decision["tier"],
                                "model": decision["model"], "license_class": decision["license_class"],
                                "latency_ms": latency_ms, "cost_usd": 0.0, "yuyay13": y13,
@@ -3556,7 +3659,8 @@ async def chat_stream(request: Request):
                             fargs = {}
                         yield sse("tool_call", {"name": fn, "arguments": fargs})
                         _METRICS["tool_calls_total"] += 1
-                        res = await execute_tool(fn, fargs, client, two_person_attested=two_person)
+                        res = await execute_tool(fn, fargs, client, two_person_attested=two_person,
+                                                 authorized=who["operator"])
                         if not res["ok"]:
                             _METRICS["gate_denied_total"] += 1
                         yield sse("tool_result", {"name": fn, "ok": res["ok"],
@@ -3587,9 +3691,9 @@ async def chat_stream(request: Request):
                 len(collected_text) / 4 / 1_000_000 * TIERS.get(decision["tier"], TIERS["T2"])["cost_out"], 6)
             rec = khipu_emit("chat.completion", {"conversation_id": conv_id, "model": served_model,
                                                  "tier": decision["tier"], "latency_ms": latency_ms, "yuyay13": y13})
-            mem_add_message(conv_id, "assistant", collected_text, model=served_model,
-                            tier=decision["tier"], latency_ms=latency_ms, cost_usd=cost,
-                            yuyay13=y13, khipu_hash=rec["hash"])
+            _remember("assistant", collected_text, model=served_model,
+                      tier=decision["tier"], latency_ms=latency_ms, cost_usd=cost,
+                      yuyay13=y13, khipu_hash=rec["hash"])
             _METRICS["tokens_out_total"] += len(collected_text) // 4
             yield sse("done", {"conversation_id": conv_id, "tier": decision["tier"],
                                "model": served_model, "license_class": decision["license_class"],
@@ -3610,22 +3714,30 @@ async def chat_stream(request: Request):
 # ---- Memory endpoints ----
 
 @router.get("/conversations")
-async def list_convs(user_id: str = "founder") -> JSONResponse:
+async def list_convs(request: Request, user_id: str = "founder") -> JSONResponse:
+    if not _opauth.principal(request)["operator"]:
+        return _blocked("Conversation history")
     return JSONResponse({"conversations": mem_list_conversations(user_id)})
 
 
 @router.get("/conversations/{conv_id}")
-async def get_conv(conv_id: str) -> JSONResponse:
+async def get_conv(conv_id: str, request: Request) -> JSONResponse:
+    if not _opauth.principal(request)["operator"]:
+        return _blocked("Conversation history")
     return JSONResponse(mem_get_conversation(conv_id))
 
 
 @router.get("/profile/{user_id}")
-async def get_profile(user_id: str) -> JSONResponse:
+async def get_profile(user_id: str, request: Request) -> JSONResponse:
+    if not _opauth.principal(request)["operator"]:
+        return _blocked("Profile access")
     return JSONResponse(mem_get_profile(user_id))
 
 
 @router.post("/profile/{user_id}")
 async def set_profile(user_id: str, request: Request) -> JSONResponse:
+    if not _opauth.principal(request)["operator"]:
+        return _blocked("Profile writes")
     b, _err = await _safe_body(request)
     if _err is not None:
         return _err
@@ -3634,7 +3746,9 @@ async def set_profile(user_id: str, request: Request) -> JSONResponse:
 
 
 @router.get("/conversations/{conv_id}/export")
-async def export_conv(conv_id: str, fmt: str = "markdown"):
+async def export_conv(conv_id: str, request: Request, fmt: str = "markdown"):
+    if not _opauth.principal(request)["operator"]:
+        return _blocked("Conversation export")
     data = mem_get_conversation(conv_id)
     if fmt == "json":
         return JSONResponse(data)
@@ -3653,7 +3767,7 @@ async def export_conv(conv_id: str, fmt: str = "markdown"):
 
 @router.post("/v1/keys")
 async def issue_key(request: Request, authorization: Optional[str] = Header(None)) -> JSONResponse:
-    if not ADMIN_KEY or not authorization or authorization.split(" ")[-1] != ADMIN_KEY:
+    if not _opauth.secret_matches(_opauth.bearer_token(authorization), _opauth.OPERATOR_KEY_ENV):
         raise HTTPException(status_code=403, detail="admin key required (set A11OY_CODE_ADMIN_KEY).")
     b, _err = await _safe_body(request)
     if _err is not None:
