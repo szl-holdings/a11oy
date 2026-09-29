@@ -1,11 +1,12 @@
 import type { VerticalPlaybook } from './types';
+import { CATEGORY_TONES, DOMAIN_TONES } from '@/lib/utils';
 
 export const VERTICAL_PLAYBOOKS: readonly VerticalPlaybook[] = [
   {
     verticalId: 'terra',
     title: 'Terra — Real Estate Intelligence',
     route: '/terra/',
-    accent: '#16a34a',
+    accent: DOMAIN_TONES.terra,
     entries: [
       { trigger: 'inspection.fail', modelId: 'mdl-terra-inspection', destinationId: 'dst-collab-tasks', action: 'Open remediation task with photos', governanceState: 'green' },
       { trigger: 'avm.delta > 5%', modelId: 'mdl-terra-valuation', destinationId: 'dst-data-feature-store', action: 'Refresh portfolio valuation features', governanceState: 'green' },
@@ -17,7 +18,7 @@ export const VERTICAL_PLAYBOOKS: readonly VerticalPlaybook[] = [
     verticalId: 'vessels',
     title: 'Vessels — Maritime Intelligence',
     route: '/vessels/',
-    accent: '#0ea5e9',
+    accent: DOMAIN_TONES.vessels,
     entries: [
       { trigger: 'eta.changed', modelId: 'mdl-vessels-voyage', destinationId: 'dst-log-eta', action: 'Broadcast revised ETA', governanceState: 'green' },
       { trigger: 'port_call.arrived', modelId: 'mdl-vessels-port-call', destinationId: 'dst-log-port', action: 'Open berth assignment workflow', governanceState: 'green' },
@@ -29,7 +30,7 @@ export const VERTICAL_PLAYBOOKS: readonly VerticalPlaybook[] = [
     verticalId: 'counsel',
     title: 'Counsel — Legal Matter Command',
     route: '/counsel/',
-    accent: '#a855f7',
+    accent: CATEGORY_TONES[0],
     entries: [
       { trigger: 'deadline.7d_window', modelId: 'mdl-counsel-deadline', destinationId: 'dst-collab-tasks', action: 'Schedule responsible attorney prep', governanceState: 'green' },
       { trigger: 'conflict.review', modelId: 'mdl-counsel-conflict', destinationId: 'dst-collab-slate', action: 'Open conflicts review channel', governanceState: 'amber' },
@@ -41,7 +42,7 @@ export const VERTICAL_PLAYBOOKS: readonly VerticalPlaybook[] = [
     verticalId: 'carlota',
     title: 'Carlota Jo Consulting',
     route: '/carlota-jo/',
-    accent: '#f97316',
+    accent: CATEGORY_TONES[2],
     entries: [
       { trigger: 'engagement.stage=proposal', modelId: 'mdl-carlota-engagement', destinationId: 'dst-mkt-cadence', action: 'Trigger nurture cadence', governanceState: 'green' },
       { trigger: 'pulse.score<0.4', modelId: 'mdl-carlota-pulse', destinationId: 'dst-collab-slate', action: 'Notify partner channel', governanceState: 'amber' },
@@ -53,7 +54,7 @@ export const VERTICAL_PLAYBOOKS: readonly VerticalPlaybook[] = [
     verticalId: 'aegis',
     title: 'Aegis / Sentra — Cyber Resilience',
     route: '/sentra/',
-    accent: '#ef4444',
+    accent: DOMAIN_TONES.aegis,
     entries: [
       { trigger: 'incident.severity>=high', modelId: 'mdl-aegis-incident', destinationId: 'dst-wh-soc', action: 'Page SOC bridge', governanceState: 'green' },
       { trigger: 'vuln.exploited', modelId: 'mdl-aegis-vuln', destinationId: 'dst-collab-tasks', action: 'Open patching task', governanceState: 'green' },
@@ -65,7 +66,7 @@ export const VERTICAL_PLAYBOOKS: readonly VerticalPlaybook[] = [
     verticalId: 'lyte',
     title: 'Lyte — License Intelligence',
     route: '/lexicon/',
-    accent: '#facc15',
+    accent: DOMAIN_TONES.lyte,
     entries: [
       { trigger: 'churn.risk>0.7', modelId: 'mdl-lyte-churn-signal', destinationId: 'dst-crm-activate', action: 'Flag CSM for outreach', governanceState: 'green' },
       { trigger: 'invoice.past_due_14d', modelId: 'mdl-lyte-invoice', destinationId: 'dst-fin-coll', action: 'Trigger collections workflow', governanceState: 'amber' },

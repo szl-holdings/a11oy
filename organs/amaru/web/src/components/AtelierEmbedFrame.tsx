@@ -80,70 +80,69 @@ export function AtelierEmbedFrame({ spaceSlug, height = 380, title, tenantId }: 
 
   return (
     <div style={{
-      border: '1px solid rgba(255,255,255,0.08)',
-      borderRadius: 10, overflow: 'hidden', background: '#0a0a0a',
-      borderTop: '2px solid #c9b787',
+      border: '1px solid var(--border-subtle)',
+      borderRadius: 'var(--radius-md)', overflow: 'hidden', background: 'var(--bg)',
     }}>
       <div style={{
         padding: '0.625rem 0.875rem',
-        borderBottom: '1px solid rgba(255,255,255,0.08)',
+        borderBottom: '1px solid var(--border)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        background: 'rgba(255,255,255,0.02)',
+        background: 'color-mix(in srgb, var(--surface-raised) 50%, transparent)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#c9b787', boxShadow: '0 0 6px #c9b787' }} />
-          <span style={{ fontSize: '0.6875rem', color: '#f5f5f5', fontWeight: 600 }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-silver-300)', boxShadow: '0 0 6px var(--color-silver-300)' }} />
+          <span style={{ fontSize: '0.6875rem', color: 'var(--text)', fontWeight: 600 }}>
             {title ?? `Atelier Space · ${spaceSlug}`}
           </span>
-          <span style={{ fontSize: '0.5rem', fontFamily: 'ui-monospace, monospace', color: '#8a8a8a', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+          <span style={{ fontSize: '0.5rem', fontFamily: 'var(--font-mono)', color: 'var(--text-sub)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
             Live embed
           </span>
         </div>
         <button onClick={runSpace} disabled={!done && lines.length > 0}
           style={{
             padding: '0.25rem 0.75rem', borderRadius: 4, cursor: 'pointer',
-            background: 'rgba(201,183,135,0.1)', color: '#c9b787',
-            border: '1px solid rgba(201,183,135,0.25)',
-            fontSize: '0.625rem', fontFamily: 'ui-monospace, monospace',
+            background: 'color-mix(in srgb, var(--text) 10%, transparent)', color: 'var(--text)',
+            border: '1px solid color-mix(in srgb, var(--text) 25%, transparent)',
+            fontSize: '0.625rem', fontFamily: 'var(--font-mono)',
           }}>
-          {lines.length === 0 ? '▶ Run governed' : done ? '↻ Run again' : '⟳ Running…'}
+          {lines.length === 0 ? 'Run governed' : done ? 'Run again' : 'Running…'}
         </button>
       </div>
       <iframe ref={ref} src={embedSrc} title={`Atelier ${spaceSlug}`}
-        style={{ width: '100%', height: 90, border: 'none', display: 'block', background: '#0a0a0a' }} />
+        style={{ width: '100%', height: 90, border: 'none', display: 'block', background: 'var(--bg)' }} />
       <div style={{
         height, overflowY: 'auto', padding: '0.875rem',
-        fontFamily: 'ui-monospace, monospace', fontSize: '0.6875rem',
-        lineHeight: 1.7, color: '#8a8a8a',
+        fontFamily: 'var(--font-mono)', fontSize: '0.6875rem',
+        lineHeight: 1.7, color: 'var(--text-sub)',
       }}>
         {lines.length === 0 && (
-          <div style={{ color: '#5e5e5e' }}>Click Run to execute this Atelier Space in the governed runtime.</div>
+          <div style={{ color: 'var(--text-sub)' }}>Click Run to execute this Atelier Space in the governed runtime.</div>
         )}
         {lines.map((l, i) => (
-          <div key={i} style={{ color: l.startsWith('✓') ? '#c9b787' : l.startsWith('⚠') ? '#e8b04f' : l.startsWith('⟳') ? '#5e5e5e' : '#f5f5f5' }}>
+          <div key={i} style={{ color: l.startsWith('✓') ? 'var(--ink-good)' : l.startsWith('⚠') ? 'var(--ink-warn)' : l.startsWith('⟳') ? 'var(--text-sub)' : 'var(--text)' }}>
             {l}
           </div>
         ))}
         {proofRef && (
-          <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.05)', color: '#c9b787' }}>
+          <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-subtle)', color: 'var(--ink-good)' }}>
             ✓ Proof ref:{' '}
             {proofPacketId ? (
-              <a href={`${atelierOrigin}/atelier/proof/${proofPacketId}`} target="_blank" rel="noreferrer" style={{ color: '#c9b787' }}>{proofRef}</a>
+              <a href={`${atelierOrigin}/atelier/proof/${proofPacketId}`} target="_blank" rel="noreferrer" style={{ color: 'var(--link)' }}>{proofRef}</a>
             ) : (
-              <span style={{ color: '#c9b787' }}>{proofRef}</span>
+              <span style={{ color: 'var(--ink-good)' }}>{proofRef}</span>
             )}
           </div>
         )}
       </div>
       <div style={{
         padding: '0.375rem 0.875rem',
-        borderTop: '1px solid rgba(255,255,255,0.08)',
-        background: 'rgba(255,255,255,0.01)',
+        borderTop: '1px solid var(--border)',
+        background: 'color-mix(in srgb, var(--surface-raised) 50%, transparent)',
         display: 'flex', alignItems: 'center', gap: '0.5rem',
-        fontFamily: 'ui-monospace, monospace', fontSize: '0.5rem', color: '#5e5e5e',
+        fontFamily: 'var(--font-mono)', fontSize: '0.5rem', color: 'var(--text-sub)',
       }}>
         <span>Powered by</span>
-        <a href={`${atelierOrigin}/atelier/s/${spaceSlug}`} target="_blank" rel="noreferrer" style={{ color: '#c9b787', fontWeight: 600 }}>A11oy Atelier</a>
+        <a href={`${atelierOrigin}/atelier/s/${spaceSlug}`} target="_blank" rel="noreferrer" style={{ color: 'var(--link)', fontWeight: 600 }}>A11oy Atelier</a>
         <span>· cross-Space composition · constitutionally bound</span>
       </div>
     </div>
