@@ -1,8 +1,0 @@
-# SPDX-License-Identifier: Apache-2.0
-# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
-#
-# assets/szl/ is the vendored SZL KANCHAY v1.1.0 bundle (szl-holdings/szl-brand
-# kanchay/ @aa876fa). Keep its bytes exactly as shipped so they match SOURCE.json.
-# The repository-root .gitattributes is itself vendored from platform, so this
-# nested file carries the rule; it outranks the root "text eol=lf" patterns.
-assets/szl/** -text

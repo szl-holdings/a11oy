@@ -26,86 +26,82 @@
     ["Investor", `${PRODUCT}/console?view=investor`],
   ];
 
-  const PALETTES = [
-    ["#05080b", "#0b1218", "#f3f7f5", "#9bacb3", "#55e7df", "#79a8ff"],
-    ["#0b0709", "#171015", "#fff7f8", "#c1a6ac", "#ff86b6", "#ffc07a"],
-    ["#050b08", "#0c1712", "#f4fff8", "#a0b5a9", "#71e99d", "#5fd7ff"],
-    ["#0c0905", "#19130c", "#fffaf1", "#c0b29e", "#f0c36a", "#ff8878"],
-    ["#070812", "#111426", "#f7f7ff", "#a9abc4", "#8e93ff", "#59ded2"],
-    ["#0b0610", "#180d20", "#fff7ff", "#bda9c4", "#d99cff", "#77c9ff"],
-    ["#041012", "#0b191c", "#f3feff", "#9eb6b8", "#55ddd0", "#b9e879"],
-    ["#0d0606", "#1d1010", "#fff7f4", "#c2aaa5", "#ff746b", "#e9cb72"],
-    ["#071014", "#0f1a21", "#f5fbff", "#a4b2ba", "#8bc8ff", "#91e8bd"],
-    ["#0e0d06", "#1b1a0e", "#fffef2", "#beb99f", "#dce96e", "#e5aa65"],
-    ["#090611", "#161022", "#fbf7ff", "#afa4bc", "#bca2ff", "#ff91b5"],
-    ["#06100d", "#0e1b17", "#f3fff9", "#9fb5aa", "#7ce5b5", "#c3a7ff"],
-  ];
+  // SZL KANCHAY founder direction (kit 1.1.0): every surface shares one palette of
+  // design-system tokens from /assets/szl/szl-design-system.css. Slots: background,
+  // surface, foreground, muted, accent, accent-2. Both accents are silver linework;
+  // coral stays with the page's one moment and teal with links and focus.
+  const FOUNDER_PALETTE = Object.freeze([
+    "var(--bg)", "var(--surface)", "var(--text)", "var(--text-sub)",
+    "var(--color-silver-300)", "var(--color-silver-500)",
+  ]);
+
+  const PALETTES = [FOUNDER_PALETTE];
 
   const CURATED = {
     a11oy: {
       label: "A11oy Command",
       motif: "command-constellation",
-      palette: ["#040806", "#0a1311", "#f3faf7", "#9eb1aa", "#55e7df", "#7ca9ff"],
+      palette: FOUNDER_PALETTE,
     },
     proof: {
       label: "A11oy Proof Network",
       motif: "evidence-vault",
-      palette: ["#06090d", "#0e151e", "#f4f6f8", "#a4aeb7", "#6fd2a8", "#d8b86f"],
+      palette: FOUNDER_PALETTE,
     },
     lyte: {
       label: "Lyte",
       motif: "signal-aurora",
-      palette: ["#03100e", "#09201b", "#effffb", "#96bcb2", "#55f4cb", "#7da5ff"],
+      palette: FOUNDER_PALETTE,
     },
     vessels: {
       label: "Vessels",
       motif: "bathymetric-radar",
-      palette: ["#020c16", "#082036", "#effaff", "#91b4c5", "#58d9f8", "#3b7cff"],
+      palette: FOUNDER_PALETTE,
     },
     terra: {
       label: "Terra",
       motif: "topographic-parcels",
-      palette: ["#061009", "#112419", "#f5fff7", "#a2b5a5", "#7ce39a", "#d4a55f"],
+      palette: FOUNDER_PALETTE,
     },
     aegis: {
       label: "Aegis",
       motif: "threat-lattice",
-      palette: ["#100606", "#231010", "#fff5f2", "#c3a39f", "#f56c64", "#efb04e"],
+      palette: FOUNDER_PALETTE,
     },
     "prism-counsel": {
       label: "PRISM Counsel",
       motif: "case-facets",
-      palette: ["#060a16", "#11182c", "#f8f9ff", "#abb2c7", "#82a9f7", "#d4c7ff"],
+      palette: FOUNDER_PALETTE,
     },
     "carlota-jo": {
       label: "Carlota Jo",
       motif: "editorial-orbit",
-      palette: ["#110914", "#241129", "#fff8ff", "#c4abc5", "#dda9f4", "#eb9e70"],
+      palette: FOUNDER_PALETTE,
     },
     nexus: {
       label: "Nexus",
       motif: "connection-field",
-      palette: ["#070817", "#12152b", "#f7f7ff", "#a7acc3", "#9c91f4", "#5bdff0"],
+      palette: FOUNDER_PALETTE,
     },
     factory: {
       label: "A11oy Factory",
       motif: "assembly-circuit",
-      palette: ["#060b06", "#131b11", "#fbfff6", "#abb7a6", "#c7eb66", "#859df7"],
+      palette: FOUNDER_PALETTE,
     },
     ouroboros: {
       label: "Ouroboros",
       motif: "recursive-ring",
-      palette: ["#0d0905", "#1e150b", "#fffaf1", "#c0b49f", "#edc96d", "#bb9bea"],
+      palette: FOUNDER_PALETTE,
     },
     khipu: {
       label: "KHIPU",
       motif: "woven-proof",
-      palette: ["#100a05", "#21170d", "#fff9ef", "#c2b39f", "#dfbd70", "#bf7d4d"],
+      palette: FOUNDER_PALETTE,
     },
     killinchu: {
       label: "Killinchu",
       motif: "agent-swarm",
-      palette: ["#0c0710", "#1e1124", "#fff6ff", "#c2a8c4", "#e982c8", "#70d8e9"],
+      palette: FOUNDER_PALETTE,
     },
   };
 

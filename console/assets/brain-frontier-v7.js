@@ -390,6 +390,19 @@
     return result >>> 0;
   }
 
+  // Canvas cannot read CSS variables, so the SZL KANCHAY founder tokens
+  // (/assets/szl/szl-design-system.css) are resolved at paint time. Alpha is
+  // appended as an 8-digit hex suffix to the token's own 6-digit value.
+  function token(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  function tokenAlpha(name, alpha) {
+    const value = token(name);
+    if (!/^#[0-9a-f]{6}$/i.test(value)) return value;
+    return value + Math.round(alpha * 255).toString(16).padStart(2, "0");
+  }
+
   function drawGraph(timestamp = 0) {
     const canvas = document.getElementById(CANVAS_ID);
     if (!canvas) return;
@@ -407,6 +420,19 @@
     if (!context) return;
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     context.clearRect(0, 0, width, height);
+    const ink = {
+      spoke: tokenAlpha("--color-silver-300", 0.24),
+      link: tokenAlpha("--color-silver-500", 0.5),
+      node: token("--color-silver-300"),
+      nodeQuant: token("--text"),
+      coreFill: tokenAlpha("--bg-deep", 0.98),
+      coreEdge: tokenAlpha("--color-silver-300", 0.65),
+      coreText: token("--text"),
+      rootFill: tokenAlpha("--surface", 0.98),
+      rootEdge: tokenAlpha("--color-silver-300", 0.43),
+      rootText: token("--text-sub"),
+      mono: token("--font-mono"),
+    };
 
     const handles = filteredHandles().slice(0, 36);
     const centerX = width / 2;
@@ -429,7 +455,7 @@
         y: centerY + Math.sin(root.angle) * rootRadius,
       };
       rootPositions.set(root.id, point);
-      context.strokeStyle = "rgba(58,244,200,.24)";
+      context.strokeStyle = ink.spoke;
       context.beginPath();
       context.moveTo(centerX, centerY);
       context.lineTo(point.x, point.y);
@@ -450,41 +476,41 @@
             ? rootPositions.get("anatomy")
             : rootPositions.get("brain");
       if (root) {
-        context.strokeStyle = "rgba(148,170,168,.13)";
+        context.strokeStyle = ink.link;
         context.beginPath();
         context.moveTo(root.x, root.y);
         context.lineTo(x, y);
         context.stroke();
       }
-      context.fillStyle = kind === "quant-domain" ? "#d9bd7b" : "#3af4c8";
+      context.fillStyle = kind === "quant-domain" ? ink.nodeQuant : ink.node;
       context.beginPath();
       context.arc(x, y, 2.2, 0, Math.PI * 2);
       context.fill();
     });
 
-    context.fillStyle = "rgba(4,16,22,.98)";
-    context.strokeStyle = "rgba(58,244,200,.65)";
+    context.fillStyle = ink.coreFill;
+    context.strokeStyle = ink.coreEdge;
     context.lineWidth = 1.2;
     context.beginPath();
     context.arc(centerX, centerY, 20 + pulse, 0, Math.PI * 2);
     context.fill();
     context.stroke();
-    context.fillStyle = "#edf8f5";
-    context.font = "700 8px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+    context.fillStyle = ink.coreText;
+    context.font = `700 8px ${ink.mono}`;
     context.textAlign = "center";
     context.textBaseline = "middle";
     context.fillText("HOLD", centerX, centerY);
 
     for (const root of roots) {
       const point = rootPositions.get(root.id);
-      context.fillStyle = "rgba(8,24,31,.98)";
-      context.strokeStyle = "rgba(58,244,200,.43)";
+      context.fillStyle = ink.rootFill;
+      context.strokeStyle = ink.rootEdge;
       context.beginPath();
       context.arc(point.x, point.y, 13, 0, Math.PI * 2);
       context.fill();
       context.stroke();
-      context.fillStyle = "#94aaa8";
-      context.font = "700 7px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+      context.fillStyle = ink.rootText;
+      context.font = `700 7px ${ink.mono}`;
       context.fillText(root.label, point.x, point.y);
     }
 
