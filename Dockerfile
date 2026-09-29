@@ -86,17 +86,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # … (full rationale: docs/DOCKERFILE_NOTES.md §2)
 RUN pip install --no-cache-dir \
     "fastapi==0.141.1" \
-    "uvicorn[standard]==0.52.4" \
+    "uvicorn[standard]==0.53.0" \
     "httpx==0.28.1" \
     "starlette==1.6.0" \
-    "huggingface_hub==1.31.0" \
+    "huggingface_hub==1.32.0" \
     "openai==2.43.0" \
     "python-multipart==0.0.32" \
     "cryptography==50.0.1" \
     "lmdb==2.3.0" \
     "slowapi==0.1.10" \
     "defusedxml==0.7.1" \
-    "numpy==2.5.2"
+    "numpy==2.5.3"
 
 # Canonical non-generative Nemo witness: exact immutable source revision,
 # zero action authority, and import-time doctrine identity verification.
