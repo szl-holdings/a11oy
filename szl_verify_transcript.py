@@ -141,6 +141,17 @@ def _exec_permitted(request) -> bool:
                 and _opauth.exec_permitted(request))
 
 
+def _refused(request, action: str):
+    """401 BLOCKED before any model call, gate, sandbox or receipt for a caller
+    without the operator Bearer. A host without the resolver refuses everyone."""
+    if _opauth is None:
+        from starlette.responses import JSONResponse
+        return JSONResponse({"ok": False, "status": "BLOCKED",
+                             "error": "%s requires the operator credential." % action},
+                            status_code=401, headers={"WWW-Authenticate": "Bearer"})
+    return _opauth.operator_refusal(request, action)
+
+
 def _fallback_sign(obj: dict) -> dict:
     """Honest signer fallback: real szl_dsse in-Space, UNSIGNED-LOCAL locally.
     NEVER fabricates a signature."""
@@ -537,6 +548,11 @@ def register(app, ns: str = "a11oy",
         # POST body optional; GET works too (default task) — a SINGLE public request.
         b: dict = {}
         if request.method == "POST":
+            # A POST runs the governed loop on a caller-chosen task; the GET read
+            # path (default task, never executes) stays public.
+            refused = _refused(request, "Transcript build")
+            if refused is not None:
+                return refused
             try:
                 b = await request.json()
             except Exception:

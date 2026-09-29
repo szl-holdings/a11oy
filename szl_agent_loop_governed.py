@@ -163,6 +163,17 @@ def _exec_permitted(request) -> bool:
     return bool(_opauth is not None and _opauth.exec_permitted(request))
 
 
+def _refused(request, action: str):
+    """401 BLOCKED before any model call, gate, sandbox or receipt for a caller
+    without the operator Bearer. A host without the resolver refuses everyone."""
+    if _opauth is None:
+        from starlette.responses import JSONResponse
+        return JSONResponse({"ok": False, "status": "BLOCKED",
+                             "error": "%s requires the operator credential." % action},
+                            status_code=401, headers={"WWW-Authenticate": "Bearer"})
+    return _opauth.operator_refusal(request, action)
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -747,6 +758,9 @@ def register(app, ns: str = "a11oy", sign_fn: Optional[Callable[[dict], dict]] =
         sign_fn = _fallback_sign
 
     async def _run(request):
+        refused = _refused(request, "Governed agent loop")
+        if refused is not None:
+            return refused
         try:
             b = await request.json()
         except Exception:

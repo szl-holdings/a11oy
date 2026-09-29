@@ -15198,6 +15198,12 @@ except Exception:
 try:
     try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
         from szl_substrate import a11oy_code_engine as _a11oy_code  # single source of truth
+        import inspect as _code_inspect
+        # SECURITY: only a copy that carries the deny-by-default allow_exec
+        # chokepoint may serve /v1/code/*; an older shared copy would run the
+        # sandbox for any caller. Otherwise use the vendored copy.
+        if "allow_exec" not in _code_inspect.signature(_a11oy_code.governed_turn).parameters:
+            raise ImportError("szl_substrate a11oy_code_engine lacks allow_exec")
     except Exception:
         import a11oy_code_engine as _a11oy_code
     import sys as _code_sys
@@ -16839,6 +16845,21 @@ try:
     _anatomy_ledger_module.register(app)
 except Exception as _anatomy_ledger_error:
     print(f"[a11oy] anatomy ledger unavailable: {_anatomy_ledger_error!r}", file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
+# SECURITY (deny-by-default): every route that can execute code, dispatch an
+# agent or tool with side effects, sign a caller-supplied payload with the server
+# key, or write server state answers 401 BLOCKED without the operator Bearer
+# (A11OY_CODE_ADMIN_KEY) before any handler runs. The table lives in
+# szl_operator_auth.PROTECTED_ROUTES; GET/HEAD/OPTIONS are never gated. Installed
+# last so it is the innermost middleware (a refusal still carries CORS/security
+# headers). Deliberately NOT wrapped in try/except: if the resolver cannot load,
+# the app must not serve these routes at all.
+# ---------------------------------------------------------------------------
+import szl_operator_auth as _szl_operator_gate  # noqa: E402
+
+_szl_operator_gate.install_gate(app)
 
 
 if __name__ == "__main__":

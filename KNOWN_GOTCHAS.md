@@ -185,6 +185,19 @@ are evicted (its variables are lost); a kernel mid-cell is never evicted. Only w
 is executing does `/kernel/{run_id}/exec` answer `429 BLOCKED`, and nothing runs. A code-as-
 action cell that finds no kernel is receipted `executed: false` with no energy-ledger entry.
 
+**Route-level gate (one table, whole app):** `szl_operator_auth.PROTECTED_ROUTES` lists every
+route that can execute code, dispatch an agent or tool with side effects, sign a caller-supplied
+payload with the server key, or write server state. `serve.py` installs
+`OperatorGateMiddleware` last (innermost, so CORS/security headers still wrap a refusal): a
+non-GET/HEAD/OPTIONS request to a listed path without the operator Bearer gets `401 BLOCKED`
+before any handler, model call, tool call or write runs. GETs are never gated. The engine,
+run-loop, agent-loop and transcript POST handlers also refuse anonymous callers themselves, and
+MCP `tools/call sign_receipt` is operator-only in its handler. A new side-effecting route must be
+added to the table (or reviewed into `REVIEWED_PUBLIC_WRITE_ROUTES` in the test); the golden test
+enumerates the real route table and fails otherwise. Routes with their own credential registry
+(GDW, eval-arena rerun, ouroboros run-all, immune lorenz, compute jobs, numerics ingest, Wire-D
+probe, deva/devb/vertical govern, agent cycle, API-key completions) are left to that registry.
+
 The sandboxed child runs as the server UID, so it could read `/proc/<pid>/environ`; that is
 why execution is not public. Container/microVM isolation stays ROADMAP.
 Resolver: `szl_operator_auth.py` (governance/). Tests: `tests/test_operator_auth_code_routes.py`.

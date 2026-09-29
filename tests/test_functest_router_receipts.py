@@ -151,16 +151,25 @@ def test_public_forum_ingest_cannot_inflate_router_counter(monkeypatch):
     monkeypatch.setattr(registry, "_ROUTER_DECISIONS_BY_ROUTE", {})
     monkeypatch.setattr(registry, "_ROUTER_COUNTER_STARTED_AT", "2026-08-26T12:00:00Z")
 
+    ingest = {
+        "source": "operator",
+        "receipt": {
+            "schema": "szl.llm_route.lambda_receipt/v1",
+            "tier_selected": 2,
+            "model_id": "gpt_5_4",
+        },
+    }
+    # Forum ingest is an operator-only write (szl_operator_auth.PROTECTED_ROUTES):
+    # anonymous is refused before any append; even the operator cannot inflate it.
+    import szl_operator_auth as opauth
+    monkeypatch.setenv(opauth.OPERATOR_KEY_ENV, "test-operator-secret-not-real")
+    refused = client.post("/api/a11oy/v1/llm/forum/ingest", json=ingest)
+    assert refused.status_code == 401
+    assert registry._FORUM_LOG == []
     response = client.post(
         "/api/a11oy/v1/llm/forum/ingest",
-        json={
-            "source": "operator",
-            "receipt": {
-                "schema": "szl.llm_route.lambda_receipt/v1",
-                "tier_selected": 2,
-                "model_id": "gpt_5_4",
-            },
-        },
+        json=ingest,
+        headers={"Authorization": "Bearer test-operator-secret-not-real"},
     )
 
     assert response.status_code == 200

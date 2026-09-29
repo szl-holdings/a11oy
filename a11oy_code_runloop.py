@@ -72,6 +72,17 @@ def _exec_permitted(request) -> bool:
     return bool(_opauth is not None and _opauth.exec_permitted(request))
 
 
+def _refused(request, action: str):
+    """401 BLOCKED before any plan, model call, gate or grant for a caller without
+    the operator Bearer. A host without the resolver refuses everyone."""
+    if _opauth is None:
+        from starlette.responses import JSONResponse
+        return JSONResponse({"ok": False, "status": "BLOCKED",
+                             "error": "%s requires the operator credential." % action},
+                            status_code=401, headers={"WWW-Authenticate": "Bearer"})
+    return _opauth.operator_refusal(request, action)
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -174,6 +185,9 @@ def register(app, ns: str, sign_fn, verify_fn=None):
     from starlette.responses import JSONResponse
 
     async def _plan(request):
+        refused = _refused(request, "Run-loop plan")
+        if refused is not None:
+            return refused
         try:
             b = await request.json()
         except Exception:
@@ -186,6 +200,9 @@ def register(app, ns: str, sign_fn, verify_fn=None):
         """Execute ONE planned step through the REAL governed engine. Returns the
         engine's full governed run (chain + signed receipt + Λ-gate) PLUS the
         HumanApprovalGate verdict for state-changing steps. NEVER fabricates."""
+        refused = _refused(request, "Run-loop step")
+        if refused is not None:
+            return refused
         try:
             b = await request.json()
         except Exception:
@@ -292,6 +309,9 @@ def register(app, ns: str, sign_fn, verify_fn=None):
         """Echo a HumanApprovalGate grant back so the UI can re-run the step carrying
         it. This does NOT itself fire anything — it records the human's intent for the
         durable checkpoint; the engine re-run is what may then proceed."""
+        refused = _refused(request, "Run-loop approval grant")
+        if refused is not None:
+            return refused
         try:
             b = await request.json()
         except Exception:

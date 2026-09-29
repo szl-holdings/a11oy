@@ -437,13 +437,18 @@ class GovernedTurnChokepoint(unittest.TestCase):
         return TestClient(app)
 
     def _assert_route(self, client, method, path, body):
-        for label, headers, want_exec in (("anonymous", {}, False),
-                                          ("operator only", OPERATOR_ONLY, False),
-                                          ("both", BOTH, True)):
+        # Anonymous is refused (401 BLOCKED) before any model call, gate or receipt;
+        # the operator alone reaches the route but never the sandbox; only the
+        # two-person principal executes.
+        for label, headers, want_status, want_exec in (("anonymous", {}, 401, False),
+                                                       ("operator only", OPERATOR_ONLY, 200, False),
+                                                       ("both", BOTH, 200, True)):
             with self.subTest(path=path, caller=label):
                 self.calls.clear()
                 r = client.request(method, path, headers=headers, json=body)
-                self.assertEqual(r.status_code, 200, r.text[:400])
+                self.assertEqual(r.status_code, want_status, r.text[:400])
+                if want_status == 401:
+                    self.assertEqual(r.json()["status"], "BLOCKED")
                 self.assertEqual(bool(self.calls), want_exec)
 
     def test_engine_run_and_turn_routes(self):
@@ -472,7 +477,7 @@ class GovernedTurnChokepoint(unittest.TestCase):
         client = self._app(lambda app: vt.register(app, ns="a11oy", sign_fn=_unsigned))
         with patch.object(vt, "build_transcript",
                           return_value={"ok": True, "status_code": 200}) as build:
-            for method, headers, want in (("GET", BOTH, False), ("POST", {}, False),
+            for method, headers, want in (("GET", {}, False), ("GET", BOTH, False),
                                           ("POST", OPERATOR_ONLY, False), ("POST", BOTH, True)):
                 with self.subTest(method=method, headers=sorted(headers)):
                     build.reset_mock()
@@ -481,6 +486,28 @@ class GovernedTurnChokepoint(unittest.TestCase):
                                        json={"mode": "code"} if method == "POST" else None)
                     self.assertEqual(r.status_code, 200, r.text[:400])
                     self.assertIs(build.call_args.kwargs["allow_exec"], want)
+            build.reset_mock()
+            r = client.post("/api/a11oy/v1/verify/transcript", json={"mode": "code"})
+            self.assertEqual(r.status_code, 401, r.text[:400])
+            build.assert_not_called()
+
+    def test_runloop_plan_and_approve_refuse_anonymous(self):
+        import a11oy_code_runloop as runloop
+        client = self._app(lambda app: runloop.register(app, "a11oy", _unsigned))
+        for path, body in (("/api/a11oy/v1/code/plan", {"task": "t"}),
+                           ("/api/a11oy/v1/code/approve",
+                            {"checkpoint_id": "c", "approver": "a"})):
+            with self.subTest(path=path):
+                self.assertEqual(client.post(path, json=body).status_code, 401)
+                self.assertEqual(client.post(path, json=body, headers=OPERATOR_ONLY).status_code,
+                                 200)
+
+    def test_consensus_refuses_anonymous(self):
+        client = self._app(lambda app: engine.register(app, "a11oy", _unsigned))
+        path = "/api/a11oy/v1/code/consensus"
+        self.assertEqual(client.post(path, json={"prompt": "p"}).status_code, 401)
+        self.assertEqual(client.post(path, json={"prompt": "p"}, headers=OPERATOR_ONLY).status_code,
+                         200)
 
     def test_build_transcript_threads_allow_exec_to_the_loop(self):
         import szl_verify_transcript as vt
@@ -532,6 +559,303 @@ class KenMcpCall(unittest.TestCase):
                                          json=body).status_code, 403)
             self.assertEqual(client.post("/api/killinchu/v1/mcp/call", headers=BOTH,
                                          json=body).status_code, 200)
+
+
+# ---------------------------------------------------------------------------
+# Route-level gate: szl_operator_auth.PROTECTED_ROUTES + OperatorGateMiddleware.
+# ---------------------------------------------------------------------------
+class GateTable(unittest.TestCase):
+    def test_safe_methods_are_never_gated(self):
+        for method in ("GET", "HEAD", "OPTIONS", "get"):
+            with self.subTest(method=method):
+                self.assertIsNone(opauth.protected_action(method, "/api/a11oy/code/run"))
+
+    def test_unsafe_methods_on_protected_paths_are_gated(self):
+        for method in ("POST", "PUT", "PATCH", "DELETE", "post"):
+            with self.subTest(method=method):
+                self.assertIsNotNone(opauth.protected_action(method, "/api/a11oy/code/run"))
+
+    def test_path_normalisation_cannot_slip_past(self):
+        for path in ("/api/a11oy/code/run/", "//api/a11oy/code/run",
+                     "/api//a11oy/code//run", "/api/a11oy/code/kernel/abc/exec/"):
+            with self.subTest(path=path):
+                self.assertIsNotNone(opauth.protected_action("POST", path))
+
+    def test_near_misses_and_public_routes_are_not_gated(self):
+        for path in ("/api/a11oy/code/runner", "/api/a11oy/code/chat/stream",
+                     "/api/a11oy/v1/code/chat", "/api/a11oy/v1/agent/react/memory/search",
+                     "/api/a11oy/v1/honest", "/mcp"):
+            with self.subTest(path=path):
+                self.assertIsNone(opauth.protected_action("POST", path))
+
+    def test_constitution_reads_stay_public_and_writes_are_gated(self):
+        for leaf in ("state", "ontology", "memory", "ledger"):
+            path = f"/api/a11oy/v1/constitution/{leaf}"
+            with self.subTest(path=path):
+                self.assertIsNone(opauth.protected_action("GET", path))
+                self.assertIsNotNone(opauth.protected_action("POST", path))
+
+
+class GateMiddleware(unittest.TestCase):
+    """The middleware answers before the downstream app is ever invoked."""
+
+    def setUp(self):
+        self.reached = []
+
+        async def downstream(scope, receive, send):
+            self.reached.append((scope["method"], scope["path"]))
+            await send({"type": "http.response.start", "status": 200,
+                        "headers": [(b"content-type", b"application/json")]})
+            await send({"type": "http.response.body", "body": b"{}"})
+
+        self.client = TestClient(opauth.OperatorGateMiddleware(downstream))
+
+    def test_anonymous_wrong_and_empty_credentials_never_reach_the_handler(self):
+        with patch.dict(os.environ, SECRETS):
+            for headers in ({}, {"Authorization": "Bearer nope"}, {"Authorization": "Bearer "},
+                            {"Authorization": f"Basic {OPERATOR}"},
+                            {opauth.SECOND_APPROVER_HEADER: APPROVER}):
+                with self.subTest(headers=sorted(headers)):
+                    r = self.client.post("/api/a11oy/code/run", headers=headers,
+                                         json={"code": "print(1)"})
+                    self.assertEqual(r.status_code, 401)
+                    self.assertEqual(r.headers.get("www-authenticate"), "Bearer")
+                    self.assertEqual(r.json()["status"], "BLOCKED")
+                    self.assertNotIn(OPERATOR, r.text)
+                    self.assertNotIn(APPROVER, r.text)
+        self.assertEqual(self.reached, [])
+
+    def test_unset_secret_denies_everyone(self):
+        with patch.dict(os.environ, {opauth.OPERATOR_KEY_ENV: "",
+                                     opauth.SECOND_APPROVER_KEY_ENV: ""}):
+            for headers in ({}, {"Authorization": "Bearer "}, OPERATOR_ONLY):
+                with self.subTest(headers=sorted(headers)):
+                    r = self.client.post("/khipu/sign", headers=headers, json={})
+                    self.assertEqual(r.status_code, 401)
+                    self.assertFalse(r.json()["credential_configured"])
+        self.assertEqual(self.reached, [])
+
+    def test_operator_and_public_requests_pass_through(self):
+        with patch.dict(os.environ, SECRETS):
+            self.assertEqual(self.client.post("/api/a11oy/code/run", headers=OPERATOR_ONLY,
+                                              json={}).status_code, 200)
+            self.assertEqual(self.client.get("/api/a11oy/code/run").status_code, 200)
+            self.assertEqual(self.client.post("/api/a11oy/v1/honest", json={}).status_code, 200)
+        self.assertEqual(self.reached, [("POST", "/api/a11oy/code/run"),
+                                        ("GET", "/api/a11oy/code/run"),
+                                        ("POST", "/api/a11oy/v1/honest")])
+
+    def test_install_is_idempotent_and_innermost(self):
+        from starlette.middleware.cors import CORSMiddleware
+        app = FastAPI()
+        app.add_middleware(CORSMiddleware, allow_origins=["https://a-11-oy.com"])
+        self.assertTrue(opauth.install_gate(app))
+        self.assertFalse(opauth.install_gate(app))
+        self.assertIs(app.user_middleware[-1].cls, opauth.OperatorGateMiddleware)
+        self.assertEqual(
+            sum(m.cls is opauth.OperatorGateMiddleware for m in app.user_middleware), 1)
+
+
+# Write routes whose path looks side-effecting but which were reviewed and stay
+# public: pure compute/verify/score, model-only answers without tools or
+# persistence, or their own credential registry. A NEW route caught by the keyword
+# net must be gated in PROTECTED_ROUTES or reviewed here; the test fails otherwise.
+REVIEWED_PUBLIC_WRITE_ROUTES = {
+    "/api/a11oy/chaski/onboard/step": "session-scoped onboarding step (in-memory, per session id)",
+    "/api/a11oy/code/chat/stream": "anonymous: model-only, tools disabled, never persisted",
+    "/api/a11oy/v1/agent/cycle": "own credential registry (gdw_auth) + A11OY_OUROBOROS flag",
+    "/api/a11oy/v1/agent/operate": "bounded model proposals over the brain; no tool dispatch",
+    "/api/a11oy/v1/agent/react/memory/search": "read-only memory search",
+    "/api/a11oy/v1/agent/run": "oversight simulation; no tool dispatch",
+    "/api/a11oy/v1/agent/verify-chain": "verification of a caller-supplied chain",
+    "/api/a11oy/v1/brain/agent/receipt": "read traversal + unsigned digest",
+    "/api/a11oy/v1/brain/memory/receipt": "aggregate + unsigned digest; body ignored",
+    "/api/a11oy/v1/brain/verdict/sign": "signs a server-computed verdict, not caller output",
+    "/api/a11oy/v1/composer/run": "deterministic formula chain",
+    "/api/a11oy/v1/dream/promote": "promotion always denied; compute only",
+    "/api/a11oy/v1/edge/run": "deterministic demo",
+    "/api/a11oy/v1/eval/run": "model-only eval over a fixed suite",
+    "/api/a11oy/v1/gdw/step": "own credential registry (gdw_auth, step:write scope)",
+    "/api/a11oy/v1/govern/agentos/snapshot": "aggregate + unsigned digest; body ignored",
+    "/api/a11oy/v1/kverify/run": "bounded deterministic benchmark",
+    "/api/a11oy/v1/loopforge/run": "bounded deterministic loop",
+    "/api/a11oy/v1/memory/readiness/assess": "readiness assessment compute",
+    "/api/a11oy/v1/numerics/run/{engine}":
+        "three fixed numeric operations, no source accepted, network-isolated launcher",
+    "/api/a11oy/v1/operator/ask": "read-only question over in-process state",
+    "/api/a11oy/v1/ouroboros/run-all": "own credential registry (gdw_auth) + deployment flag",
+    "/api/a11oy/v1/oversight/run": "deterministic oversight scenario",
+    "/api/a11oy/v1/specdec/run": "bounded deterministic benchmark",
+    "/api/a11oy/v1/trajectory/ingest": "stateless parse of the posted sample",
+    "/api/a11oy/v1/warhacker/run/{problem}": "deterministic demo engine",
+    "/api/a11oy/v1/warhacker/run/{problem}/{demo}": "deterministic demo engine",
+    "/api/a11oy/v1/wh-demo/run/{problem}": "deterministic demo engine",
+    "/api/a11oy/v4/agent/ask": "model-only voter fan-out; no tools",
+    "/mcp": "JSON-RPC; sign_receipt is operator-only in the handler",
+    "/mcp/": "JSON-RPC; sign_receipt is operator-only in the handler",
+    "/v1/agent/run": "oversight simulation alias",
+    "/v1/agent/verify-chain": "verification alias",
+    "/v1/edge/run": "deterministic demo alias",
+    "/v1/gdw/step": "own credential registry alias",
+    "/v1/kverify/run": "benchmark alias",
+    "/v1/oversight/run": "oversight alias",
+    "/v1/specdec/run": "benchmark alias",
+    "/v1/trajectory/ingest": "stateless parse alias",
+    "/v1/warhacker/run/{problem}": "demo alias",
+    "/v1/warhacker/run/{problem}/{demo}": "demo alias",
+    "/v1/wh-demo/run/{problem}": "demo alias",
+}
+
+_SIDE_EFFECT_NET = (r"exec|/run\b|/run/|sign\b|inject|append|/write|operator|agent|mcp|/keys|"
+                    r"ingest|record|/cap\b|start|stop|checkpoint|archive|command|chaos|promote|"
+                    r"admit|memory|/act\b|bridge|stream|stt|turn|loop|step")
+
+
+class ServeAppGate(unittest.TestCase):
+    """The REAL application: every protected route refuses anonymous callers."""
+
+    @classmethod
+    def setUpClass(cls):
+        import contextlib
+        import io
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            import serve
+        from fastapi.routing import _IncludedRouter
+        cls.serve = serve
+        routes = []
+
+        def walk(items, prefix=""):
+            for r in items:
+                if isinstance(r, _IncludedRouter):
+                    walk(r.original_router.routes,
+                         prefix + (getattr(r.include_context, "prefix", "") or ""))
+                elif getattr(r, "methods", None):
+                    routes.append((prefix + r.path, frozenset(r.methods)))
+
+        walk(serve.app.routes)
+        cls.write_routes = sorted({(p, m) for p, m in routes
+                                   if m - {"GET", "HEAD", "OPTIONS"}},
+                                  key=lambda item: (item[0], sorted(item[1])))
+        cls.client = TestClient(serve.app)
+
+    @staticmethod
+    def _sample(path):
+        import re
+        return re.sub(r"\{[^}]+\}", "x", path)
+
+    @staticmethod
+    def _write_method(methods):
+        return sorted(methods - {"GET", "HEAD", "OPTIONS"})[0]
+
+    def setUp(self):
+        self.env = patch.dict(os.environ, SECRETS)
+        self.env.start()
+
+    def tearDown(self):
+        self.env.stop()
+
+    def _protected_real_routes(self):
+        out = []
+        for path, methods in self.write_routes:
+            method = self._write_method(methods)
+            if opauth.protected_action(method, self._sample(path)):
+                out.append((method, path))
+        return out
+
+    def test_gate_is_installed_innermost(self):
+        self.assertIs(self.serve.app.user_middleware[-1].cls, opauth.OperatorGateMiddleware)
+
+    def test_every_table_entry_matches_a_real_route(self):
+        import re
+        for pattern, action, _category in opauth.PROTECTED_ROUTES:
+            rx = re.compile(r"\A" + pattern + r"\Z")
+            with self.subTest(pattern=pattern):
+                self.assertTrue(any(rx.match(self._sample(p)) for p, _m in self.write_routes),
+                                f"{pattern} ({action}) matches no registered write route")
+
+    def test_every_protected_route_refuses_anonymous_and_wrong_bearer(self):
+        routes = self._protected_real_routes()
+        self.assertGreaterEqual(len(routes), 60)
+        for method, path in routes:
+            for headers in ({}, {"Authorization": "Bearer wrong"}):
+                with self.subTest(method=method, path=path, headers=sorted(headers)):
+                    r = self.client.request(method, self._sample(path), headers=headers,
+                                            json={"code": "import os; print(os.environ)",
+                                                  "two_person_attested": True})
+                    self.assertEqual(r.status_code, 401, r.text[:200])
+                    self.assertEqual(r.json()["status"], "BLOCKED")
+
+    def test_anonymous_never_reaches_execution_or_signing(self):
+        import szl_dsse
+        with patch.object(engine, "governed_turn") as turn, \
+                patch.object(orchestrator, "run_code") as run_code, \
+                patch.object(szl_dsse, "sign_payload") as sign:
+            for path in ("/api/a11oy/code/run", "/api/a11oy/v1/code/run",
+                         "/api/a11oy/v1/code/turn", "/api/a11oy/code/kernel/k1/exec",
+                         "/khipu/sign", "/api/a11oy/khipu/sign"):
+                with self.subTest(path=path):
+                    r = self.client.post(path, json={"code": "print(1)", "prompt": "print(1)"})
+                    self.assertEqual(r.status_code, 401)
+        turn.assert_not_called()
+        run_code.assert_not_called()
+        sign.assert_not_called()
+
+    def test_side_effect_routes_are_gated_or_reviewed(self):
+        import re
+        net = re.compile(_SIDE_EFFECT_NET)
+        unreviewed = []
+        for path, methods in self.write_routes:
+            method = self._write_method(methods)
+            if opauth.protected_action(method, self._sample(path)):
+                continue
+            if net.search(path) and path not in REVIEWED_PUBLIC_WRITE_ROUTES:
+                unreviewed.append(f"{method} {path}")
+        self.assertEqual(unreviewed, [], "gate these in PROTECTED_ROUTES or review them")
+
+    def test_public_reads_still_work(self):
+        for path in ("/api/a11oy/v1/honest", "/api/a11oy/v1/constitution/memory", "/mcp"):
+            with self.subTest(path=path):
+                self.assertEqual(self.client.get(path).status_code, 200)
+
+    def test_operator_reaches_the_engine_but_only_two_person_executes(self):
+        calls = []
+        with patch.object(engine, "_sandbox_exec", _fake_sandbox(calls)), \
+                patch.object(engine, "_model_configured", return_value=False):
+            body = {"prompt": "write a python function that returns 5 primes"}
+            r = self.client.post("/api/a11oy/v1/code/run", headers=OPERATOR_ONLY, json=body)
+            self.assertEqual(r.status_code, 200, r.text[:300])
+            self.assertFalse(r.json()["executed"])
+            self.assertEqual(calls, [])
+            r = self.client.post("/api/a11oy/v1/code/run", headers=BOTH, json=body)
+            self.assertEqual(r.status_code, 200, r.text[:300])
+            self.assertTrue(r.json()["executed"])
+            self.assertEqual(len(calls), 1)
+        r = self.client.post("/api/a11oy/v1/code/consensus", headers=OPERATOR_ONLY,
+                             json={"prompt": "p"})
+        self.assertEqual(r.status_code, 200)
+
+    def test_mcp_sign_receipt_is_operator_only_and_reads_stay_open(self):
+        call = {"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                "params": {"name": "sign_receipt", "arguments": {"payload": {"forged": True}}}}
+        r = self.client.post("/mcp", json=call)
+        self.assertEqual(r.status_code, 401)
+        self.assertEqual(r.json()["error"]["code"], -32001)
+        r = self.client.post("/mcp", json=call, headers=OPERATOR_ONLY)
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("result", r.json())
+        listing = self.client.post("/mcp", json={"jsonrpc": "2.0", "id": 2,
+                                                 "method": "tools/list"})
+        self.assertEqual(listing.status_code, 200)
+        policy = self.client.post("/mcp", json={
+            "jsonrpc": "2.0", "id": 3, "method": "tools/call",
+            "params": {"name": "policy_check", "arguments": {}}})
+        self.assertEqual(policy.status_code, 200)
+
+    def test_refusal_keeps_cors_for_allowed_origin(self):
+        r = self.client.post("/api/a11oy/code/run", headers={"Origin": "https://a-11-oy.com"},
+                             json={})
+        self.assertEqual(r.status_code, 401)
+        self.assertEqual(r.headers.get("access-control-allow-origin"), "https://a-11-oy.com")
 
 
 if __name__ == "__main__":

@@ -93,3 +93,168 @@ def blocked_body(action: str, needs_second_approver: bool = False) -> dict:
         "error": f"{action} requires {need}. Anonymous callers are denied by default.",
         "credential_configured": configured,
     }
+
+
+# ---------------------------------------------------------------------------
+# Route-level gate (defence in depth, one table for the whole app).
+#
+# Every entry below is a route that can execute code, dispatch an agent or a tool
+# with side effects, sign a caller-supplied payload with the server key, or write
+# server state. A request whose method is not GET/HEAD/OPTIONS and whose path
+# matches is answered 401 BLOCKED before any handler runs — no code, tool call,
+# model call or state write happens — unless it carries the operator Bearer.
+# Handlers keep their own checks (execution still needs the second approver);
+# this table only makes the anonymous refusal uniform and independent of which
+# module registered the route, or in which order.
+#
+# Read-only GET routes are never gated here. Routes that already enforce their
+# own credential registry (GDW, eval-arena rerun, ouroboros run-all, immune
+# lorenz, compute jobs, numerics dataset ingest, wire-D probe, deva/devb/vertical
+# govern, agent cycle, the OpenAI-compatible API-key surface, loopback-only brain
+# refresh) are deliberately left to that registry and are not listed.
+# ---------------------------------------------------------------------------
+import json as _json
+import re as _re
+
+_SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+
+# (path regex, action label, category). Paths are matched after collapsing
+# repeated slashes and dropping one trailing slash.
+PROTECTED_ROUTES = (
+    # -- code execution --------------------------------------------------------
+    (r"/api/a11oy/code/run", "Code execution", "exec"),
+    (r"/api/a11oy/code/kernel/[^/]+/exec", "Kernel execution", "exec"),
+    (r"/api/a11oy/v1/code/(run|turn|consensus|plan|runstep|approve)", "Governed code turn", "exec"),
+    (r"/api/a11oy/v1/agentloop/run", "Governed agent loop", "exec"),
+    (r"/api/a11oy/v1/verify/transcript", "Transcript build (POST runs the loop)", "exec"),
+    (r"/api/a11oy/v1/agent/code/(compose|revise|inspect)", "Code-as-action", "exec"),
+    # -- agents and tools with side effects -------------------------------------
+    (r"/api/a11oy/code/agent/(run|stream)", "Agent run", "tool"),
+    (r"/api/a11oy/code/rag/(index|refresh|seed)", "RAG writes", "state"),
+    (r"/api/a11oy/code/profile/[^/]+", "Profile writes", "state"),
+    (r"/api/a11oy/code/v1/keys", "API key issue", "state"),
+    (r"/api/a11oy/code/voice/stt", "Speech-to-text (server HF token)", "tool"),
+    (r"/api/a11oy/v1/agent/react/(run|resume|reflect|memory/add|skills/admit)", "ReAct writes", "tool"),
+    (r"/api/a11oy/v1/agent/resume", "ReAct resume", "tool"),
+    (r"/api/a11oy/v1/agent/loop", "Agent tool loop", "tool"),
+    (r"/api/a11oy/v1/mcp/call", "MCP tool call", "tool"),
+    (r"/api/a11oy/v4/command", "Operator shell command", "tool"),
+    (r"/api/a11oy/v1/operator/act", "Operator action", "tool"),
+    (r"/api/a11oy/v1/companion/act", "Operator action", "tool"),
+    (r"/api/a11oy/v2/operator/command", "Operator command loop", "tool"),
+    (r"/api/a11oy/v1/companion/evolve", "Companion strategy change", "state"),
+    (r"/api/a11oy/v1/connectors/[^/]+/write", "Connector write", "tool"),
+    (r"/api/a11oy/v4/bridge/(hermes|openclaw)", "External agent bridge", "tool"),
+    (r"/api/a11oy/v1/factory/run", "Factory workflow run", "state"),
+    # -- signing a caller-supplied payload with the server key ------------------
+    (r"/khipu/sign", "Receipt signing", "sign"),
+    (r"/api/a11oy/khipu/sign", "Receipt signing", "sign"),
+    (r"/api/a11oy/v1/brain/receipt/sign", "Receipt signing", "sign"),
+    (r"/api/a11oy/v1/provenance/pqc/sign", "Receipt signing", "sign"),
+    # -- control plane and persistent writes ------------------------------------
+    (r"(/api/a11oy)?/v1/energy/operator/(start|stop)", "Energy operator control", "state"),
+    (r"/api/a11oy/v1/spend/(record|cap)", "Spend ledger writes", "state"),
+    (r"/api/a11oy/v1/constitution/(state|ontology|memory|ledger)", "Constitution writes", "state"),
+    (r"/api/a11oy/v1/khipu-os/(checkpoint|archive)", "Khipu OS checkpoint/archive", "state"),
+    (r"/api/a11oy/v1/be/khipu/append", "Khipu append", "state"),
+    (r"/api/a11oy/v1/wires/inject", "Cross-Space wire injection", "state"),
+    (r"/api/a11oy/v4/inbox", "Organ inbox writes", "state"),
+    (r"/api/a11oy/v1/provenance/(anchor/anchor|govern)", "Public-ledger anchor", "state"),
+    (r"/api/a11oy/wasi-rikuq/chaos", "Chaos experiment scheduling", "state"),
+    (r"/api/a11oy/v1/gov/calibration/log", "Calibration log writes", "state"),
+    (r"/api/a11oy/v1/research/(prereg|trial)", "Research registry writes", "state"),
+    (r"/api/a11oy/v1/brain/audit/record", "Brain audit writes", "state"),
+    (r"/api/a11oy/v1/llm/forum/ingest", "LLM forum ingest", "state"),
+    (r"(/api/lake/v1|/v1/lake)/receipts", "Lake receipt ingest", "state"),
+    (r"/api/a11oy/v1/series-a/(refresh|passports/(evaluate|execute))", "Series-A passport writes", "state"),
+)
+
+_COMPILED_ROUTES = tuple(
+    (_re.compile(r"\A" + pattern + r"\Z"), action, category)
+    for pattern, action, category in PROTECTED_ROUTES
+)
+
+
+def _normalise_path(path: str) -> str:
+    path = _re.sub(r"/{2,}", "/", path or "/")
+    if len(path) > 1 and path.endswith("/"):
+        path = path[:-1]
+    return path
+
+
+def protected_action(method: str, path: str) -> Optional[tuple]:
+    """(action, category) when this request needs the operator, else None."""
+    if (method or "").upper() in _SAFE_METHODS:
+        return None
+    norm = _normalise_path(path)
+    for rx, action, category in _COMPILED_ROUTES:
+        if rx.match(norm):
+            return action, category
+    return None
+
+
+class OperatorGateMiddleware:
+    """Pure ASGI gate: answers 401 BLOCKED for a protected route without the operator
+    Bearer. Nothing downstream runs; the request body is never read. Any resolver
+    error denies."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") != "http":
+            await self.app(scope, receive, send)
+            return
+        hit = protected_action(scope.get("method", ""), scope.get("path", ""))
+        if hit is None:
+            await self.app(scope, receive, send)
+            return
+        try:
+            headers = {}
+            for key, value in scope.get("headers") or []:
+                headers[key.decode("latin-1")] = value.decode("latin-1")
+            allowed = bool(principal_from_headers(headers)["operator"])
+        except Exception:
+            allowed = False
+        if allowed:
+            await self.app(scope, receive, send)
+            return
+        body = _json.dumps(blocked_body(hit[0]), separators=(",", ":")).encode("utf-8")
+        await send({
+            "type": "http.response.start",
+            "status": 401,
+            "headers": [
+                (b"content-type", b"application/json"),
+                (b"content-length", str(len(body)).encode("ascii")),
+                (b"www-authenticate", b"Bearer"),
+                (b"cache-control", b"no-store"),
+            ],
+        })
+        await send({"type": "http.response.body", "body": body})
+
+
+def install_gate(app) -> bool:
+    """Install the gate as the innermost middleware (after CORS, security headers and
+    metrics, so a refusal still carries them). Idempotent."""
+    from starlette.middleware import Middleware
+
+    for existing in getattr(app, "user_middleware", []):
+        if getattr(existing, "cls", None) is OperatorGateMiddleware:
+            return False
+    app.user_middleware.append(Middleware(OperatorGateMiddleware))
+    app.middleware_stack = None  # rebuilt on the next request
+    return True
+
+
+def operator_refusal(request, action: str):
+    """Handler-level twin of the gate: a 401 BLOCKED JSONResponse for a caller
+    without the operator Bearer, else None. Any resolver error refuses."""
+    try:
+        if principal(request)["operator"]:
+            return None
+    except Exception:
+        pass
+    from starlette.responses import JSONResponse
+
+    return JSONResponse(blocked_body(action), status_code=401,
+                        headers={"WWW-Authenticate": "Bearer"})

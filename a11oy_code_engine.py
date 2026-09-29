@@ -1295,6 +1295,22 @@ def _exec_permitted(request) -> bool:
     return _opauth.exec_permitted(request)
 
 
+def _operator_denied(request, action: str):
+    """401 BLOCKED body for a caller without the operator Bearer, else None. Runs
+    before any model call, gate, sandbox or receipt. A host without the resolver
+    module denies (deny-by-default)."""
+    try:
+        import szl_operator_auth as _opauth
+        if _opauth.principal(request)["operator"]:
+            return None
+        body = _opauth.blocked_body(action)
+    except Exception:
+        body = {"ok": False, "status": "BLOCKED",
+                "error": "%s requires the operator credential." % action}
+    from starlette.responses import JSONResponse
+    return JSONResponse(body, status_code=401, headers={"WWW-Authenticate": "Bearer"})
+
+
 def register(app, ns: str, sign_fn, verify_fn=None, signer_label: str = "in-image key"):
     from starlette.routing import Route
     from starlette.responses import JSONResponse
@@ -1302,6 +1318,9 @@ def register(app, ns: str, sign_fn, verify_fn=None, signer_label: str = "in-imag
     _RUN_CHAIN = []   # run-of-runs chain for this surface
 
     async def _turn(request):
+        denied = _operator_denied(request, "Governed code turn")
+        if denied is not None:
+            return denied
         try:
             b = await request.json()
         except Exception:
@@ -1362,7 +1381,11 @@ def register(app, ns: str, sign_fn, verify_fn=None, signer_label: str = "in-imag
 
     async def _run(request):
         """POST /api/<ns>/v1/code/run {prompt|code} — governed code turn; the sandbox
-        runs only for a two-person-attested caller, otherwise NOT_EXECUTED/BLOCKED."""
+        runs only for a two-person-attested caller, otherwise NOT_EXECUTED/BLOCKED.
+        Anonymous callers are refused before any model call or receipt."""
+        denied = _operator_denied(request, "Governed code run")
+        if denied is not None:
+            return denied
         try:
             b = await request.json()
         except Exception:
@@ -1376,6 +1399,9 @@ def register(app, ns: str, sign_fn, verify_fn=None, signer_label: str = "in-imag
 
     async def _consensus_route(request):
         """Optional multi-model agreement vote over the routed candidates (C10-C12)."""
+        denied = _operator_denied(request, "Code consensus")
+        if denied is not None:
+            return denied
         try:
             b = await request.json()
         except Exception:
