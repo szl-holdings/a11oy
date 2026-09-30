@@ -12,8 +12,10 @@ HONESTY DOCTRINE (machine-relevant, doctrine v11):
   * EXPERIMENTAL main @ dc64dd80 = CI-green, kernel-verified, ~80+ theorems
     (Waves 5-24, Theorem U conditional, Theorem 9 Merkle Functor, PAC-Bayes
     routing, agentic loop, binary_pinsker, etc.). NEVER folded into the locked 8.
-  * Every item surfaced here carries the exact badge:
+  * Every theorem item surfaced here carries the exact badge:
       "EXPERIMENTAL · CI-green · NOT in locked-8 · kernel c7c0ba17 unchanged"
+  * Software labs are source-declared, separately counted, and retain their
+    own promotion status. A linked demo is not an observation or admission.
   * Λ = Conjecture 1 — never a theorem on this surface.
   * The half-state (experimental items appearing as locked/proven) is the only
     unacceptable outcome. This module prevents that by always carrying tier labels.
@@ -31,8 +33,7 @@ Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
 Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 DCO: I certify that I contributed this work under the Apache-2.0 license.
 """
-from __future__ import annotations
-
+import copy
 import datetime
 from typing import Any
 
@@ -49,6 +50,32 @@ _HONESTY_BADGE = (
     "EXPERIMENTAL \u00b7 CI-green \u00b7 NOT in locked-8 "
     "\u00b7 kernel c7c0ba17 unchanged"
 )
+
+# Software experiments have their own admission contract, separate from proofs.
+_SOFTWARE_LABS: list[dict[str, Any]] = [
+    {
+        "id": "szl-typesafe-triage",
+        "name": "TypeSafe Triage",
+        "label": "EXPERIMENTAL",
+        "promotion_status": "HOLD",
+        "production_admitted": False,
+        "locked_formula_member": False,
+        "source_url": "https://github.com/szl-holdings/szl-typesafe-triage",
+        "space_url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-typesafe-triage",
+        "demo_url": "https://szlholdings-szl-typesafe-triage.hf.space",
+        "record_url": "https://a11oy.net/experiments/",
+        "runtime_contract": {
+            "version": "0.5.0",
+            "implementation": "Python deterministic triage",
+            "model_loaded": False,
+        },
+        "runtime_observation": "NOT_PROBED",
+        "note": (
+            "Source-declared software lab. Open the demo to inspect its current "
+            "runtime contract. No model inference or production promotion claim."
+        ),
+    },
+]
 
 # ---------------------------------------------------------------------------
 # Frontier theorems — top 5 from FORMULA_CORPUS_MASTER.md §2.
@@ -224,6 +251,8 @@ def handle_experimental_index(wave910_data: dict | None = None) -> dict:
             ),
         },
         "founder_gated": _FOUNDER_GATED,
+        "software_labs": copy.deepcopy(_SOFTWARE_LABS),
+        "software_lab_count": len(_SOFTWARE_LABS),
         "total_experimental_items": (
             len(_FRONTIER_FIVE)
             + wave910_count

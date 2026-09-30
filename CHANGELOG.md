@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - experimental software lab discovery
+- TypeSafe Triage is linked from the product landing and listed separately under
+  `software_labs` in `/api/a11oy/v1/experimental/index`. Its source contract is
+  Python deterministic triage version 0.5.0 with `model_loaded=false`, promotion
+  HOLD, and runtime NOT_PROBED on this surface. The theorem counts are preserved.
+
 ### Added - command observation context
 - `/command-v2` adds read-only source inspection, explicit refresh, per-source
   60-second client expiry and truthful missing-value states. Existing backend
