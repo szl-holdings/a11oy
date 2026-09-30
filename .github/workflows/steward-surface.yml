@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+name: Public Steward read-only package contract
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: steward-surface-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  public-package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11', '3.14']
+    steps:
+      - name: Check out exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up contract Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install reviewed hash-locked CI dependencies
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Check dependency consistency
+        run: python -m pip check
+      - name: Compile the read-only reader and service
+        run: python -m py_compile a11oy_steward_surface.py steward_public.py
+      - name: Verify source pins, deployment closure, and read-only routes
+        run: python -m pytest -q tests/test_steward_surface.py tests/test_steward_package.py

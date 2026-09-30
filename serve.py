@@ -600,6 +600,15 @@ except Exception as _gdw_frontier_error:  # pragma: no cover - fail one surface 
     }
 
 
+# Services layer: the public Steward namespace is reserved before either
+# catch-all. Its pinned package may be unavailable or stale, but its reader
+# still rejects non-GET requests rather than forwarding them to the proxy.
+# No model call, signing, receipt write, or live estate collection occurs here.
+import a11oy_steward_surface as _steward_surface
+
+_STEWARD_SURFACE_STATUS = _steward_surface.register(app)
+
+
 # Governed Graph Operations (2026-08-01): a deterministic, non-effecting
 # topology analyzer for bounded loop nodes, real data/control edges, fan-in
 # completeness, independent verification, hidden resource conflicts, budgets,
