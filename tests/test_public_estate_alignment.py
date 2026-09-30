@@ -118,6 +118,16 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         self.assertNotIn(repo_id, alignment.inventory_only_spaces(self.contract))
         self.assertNotIn(repo_id, alignment.governed_keep_spaces())
 
+        development_model = next(
+            row
+            for row in self.manifest["inventory"]["models"]
+            if row["id"] == "SZLHOLDINGS/szl-triage-linear-development-v1"
+        )
+        self.assertEqual(development_model["claimStatus"], "inventory")
+        self.assertFalse(development_model["gated"])
+        self.assertIn("research", development_model["tags"])
+        self.assertIn("unqualified", development_model["tags"])
+
         product_source = (ROOT / "a11oy_experimental_tier.py").read_text(
             encoding="utf-8"
         )
