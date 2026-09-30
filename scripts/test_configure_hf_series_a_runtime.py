@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -203,3 +204,104 @@ def test_volume_readback_fails_closed_when_space_info_omits_metadata() -> None:
 
     with pytest.raises(config.RuntimeConfigError, match="runtime metadata"):
         config.read_space_volumes(api, repo_id=config.CANONICAL_SPACE)
+
+
+class PublicReadProbe:
+    def __init__(self, *, status=200, scopes="read:org", private=False,
+                 organization="szl-holdings", transport_failure=False) -> None:
+        self.status = status
+        self.scopes = scopes
+        self.private = private
+        self.organization = organization
+        self.transport_failure = transport_failure
+        self.calls = []
+
+    def __call__(self, url, **kwargs):
+        self.calls.append((url, kwargs))
+        if self.transport_failure:
+            raise ValueError("credential-value-must-not-escape")
+        if url.endswith("/user"):
+            headers = {} if self.scopes is None else {"X-OAuth-Scopes": self.scopes}
+            payload = {"id": 1}
+        else:
+            headers = {}
+            payload = [{"private": self.private, "visibility": "private" if self.private else "public",
+                        "owner": {"login": self.organization}}]
+        return SimpleNamespace(status_code=self.status, headers=headers, json=lambda: payload)
+
+
+class ReaderBindingApi:
+    def __init__(self, *, collision=False, readback=True) -> None:
+        self.collision = collision
+        self.readback = readback
+        self.writes = []
+
+    def get_space_variables(self, *, repo_id):
+        return {config.GITHUB_PUBLIC_READ_SECRET: object()} if self.collision else {}
+
+    def add_space_secret(self, **kwargs):
+        self.writes.append(kwargs)
+
+    def get_space_secrets(self, *, repo_id):
+        return {config.GITHUB_PUBLIC_READ_SECRET: object()} if self.readback else {}
+
+
+def test_authenticated_read_binding_has_exact_target_and_secret_free_receipt() -> None:
+    probe = PublicReadProbe()
+    api = ReaderBindingApi()
+    token = "opaque-persistent-read-credential"
+    report = config.bind_public_github_reader(api, repo_id=config.CANONICAL_SPACE,
+                                             token=token, get=probe)
+    assert [url for url, _ in probe.calls] == [
+        "https://api.github.com/user",
+        "https://api.github.com/orgs/szl-holdings/repos?type=public&per_page=1",
+    ]
+    for _, options in probe.calls:
+        assert options["allow_redirects"] is False
+        assert options["timeout"] == 20
+        assert options["headers"]["Authorization"] == "Bearer " + token
+    assert api.writes == [{"repo_id": config.CANONICAL_SPACE,
+        "key": config.GITHUB_PUBLIC_READ_SECRET, "value": token,
+        "description": "Verified read-only organization credential for public GitHub inventory."}]
+    assert report["state"] == "VERIFIED_AUTHENTICATED_PUBLIC_READ"
+    assert report["oauth_scopes"] == ["read:org"]
+    assert token not in json.dumps(report)
+
+
+@pytest.mark.parametrize("kwargs", [
+    {"status": 401}, {"status": 403}, {"status": 302},
+    {"scopes": "repo,read:org"}, {"scopes": "public_repo"},
+    {"scopes": None}, {"private": True}, {"organization": "another-org"},
+    {"transport_failure": True},
+])
+def test_unproved_reader_never_reaches_secret_writer_or_leaks_exception(kwargs) -> None:
+    api = ReaderBindingApi()
+    with pytest.raises(config.RuntimeConfigError) as error:
+        config.bind_public_github_reader(api, repo_id=config.CANONICAL_SPACE,
+                                         token="credential-value-must-not-escape", get=PublicReadProbe(**kwargs))
+    assert api.writes == []
+    assert "credential-value-must-not-escape" not in str(error.value)
+
+
+@pytest.mark.parametrize("token", ["", "bad\nheader", "bad\rheader"])
+def test_missing_or_malformed_read_token_is_rejected_before_network(token) -> None:
+    probe = PublicReadProbe()
+    with pytest.raises(config.RuntimeConfigError):
+        config.verify_public_github_reader(token, get=probe)
+    assert probe.calls == []
+
+
+def test_public_variable_collision_and_noncanonical_binding_never_write() -> None:
+    for repo_id, collision in ((config.CANONICAL_SPACE, True), ("SZLHOLDINGS/other", False)):
+        api = ReaderBindingApi(collision=collision)
+        with pytest.raises(config.RuntimeConfigError):
+            config.bind_public_github_reader(api, repo_id=repo_id, token="read-token", get=PublicReadProbe())
+        assert api.writes == []
+
+
+def test_secret_name_readback_is_required_after_one_binding_attempt() -> None:
+    api = ReaderBindingApi(readback=False)
+    with pytest.raises(config.RuntimeConfigError, match="readback"):
+        config.bind_public_github_reader(api, repo_id=config.CANONICAL_SPACE,
+                                         token="read-token", get=PublicReadProbe())
+    assert len(api.writes) == 1
