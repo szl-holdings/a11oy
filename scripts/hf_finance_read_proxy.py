@@ -18,7 +18,6 @@ if CFG.get("slug") == "finance":
     import math as _finance_math
     import re as _finance_re
     import time as _finance_time
-    from fastapi import Request as _FinanceRequest
     from urllib.parse import urlencode as _finance_urlencode
     _FINANCE_ORIGIN = "https://szlholdings-a11oy.hf.space"
     _FINANCE_PREFIX = "/api/a11oy/v1/finance/"
@@ -260,8 +259,15 @@ if CFG.get("slug") == "finance":
                     except _FinanceBoundaryError as exc:
                         return _finance_unavailable(str(exc))
                     return body,response.status_code
+        except _FinanceTimeoutException:
+            return _finance_unavailable("CANONICAL_SOURCE_TIMEOUT")
+        except _FinanceTransportError:
+            return _finance_unavailable("CANONICAL_SOURCE_TRANSPORT_UNAVAILABLE")
         except Exception:
-            return _finance_unavailable("CANONICAL_SOURCE_UNAVAILABLE")
+            return _finance_unavailable("CANONICAL_INTERNAL_ERROR")
+
+    from fastapi import Request as _FinanceRequest
+    from httpx import TimeoutException as _FinanceTimeoutException, TransportError as _FinanceTransportError
 
     @app.get("/research", response_class=HTMLResponse)
     def finance_research_workspace():
@@ -349,3 +355,12 @@ def augment(app_source: str) -> str:
     projection=FINANCE_PROXY.replace("__COMPONENT_BINDING__", repr(COMPONENT))
     compile(app_source + projection, "finance-flagship-app.py", "exec")
     return app_source + projection
+
+
+def validation_namespace(revision: str) -> dict:
+    """Run the emitted app's exact validators without ASGI, network or credentials."""
+    source = FINANCE_PROXY.replace("__COMPONENT_BINDING__", repr(COMPONENT))
+    validators = source.split("    def _finance_get(", 1)[0]
+    namespace = {"CFG": {"slug": "finance", "source_revision": revision}, "json": json}
+    exec(compile(validators, "finance-emitted-validators.py", "exec"), namespace)
+    return namespace
