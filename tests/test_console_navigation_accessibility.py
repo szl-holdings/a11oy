@@ -64,7 +64,7 @@ def test_runtime_navigation_preserves_semantics_and_visible_focus() -> None:
     html = CONSOLE.read_text(encoding="utf-8")
 
     assert ".nav-item:focus-visible" in html
-    assert "outline:2px solid var(--teal)" in html
+    assert ".nav-item:focus-visible{outline:2px solid var(--focus)" in html
     assert "var d = document.createElement('button');" in html
     assert "d.type = 'button';" in html
     assert "n.setAttribute('aria-current','page')" in html

@@ -1,15 +1,13 @@
+/* Aegis Proof Cells — SZL KANCHAY founder direction, dark operator surface.
+   Colours and faces come from /assets/szl/szl-design-system.css (linked first);
+   this sheet only lays the page out and points each role at a founder token.
+   Coral (--accent) is the single moment: the "Generate governed plan" button. */
 :root {
   color-scheme: dark;
-  --bg: #05070a;
-  --panel: rgba(14, 19, 26, 0.86);
-  --panel-strong: #111722;
-  --line: #273444;
-  --text: #eef4fb;
-  --muted: #9aa9ba;
-  --signal: #78d5ff;
-  --good: #7ee7b6;
-  --warn: #ffd479;
-  --danger: #ff8c8c;
+  --panel: color-mix(in srgb, var(--surface) 86%, transparent);
+  --line: var(--border);
+  --muted: var(--text-sub);
+  --label: var(--color-gray-300);
   --radius: 18px;
 }
 *,
@@ -25,15 +23,13 @@ body {
 html { scroll-behavior: smooth; }
 body {
   background:
-    radial-gradient(circle at 82% 2%, rgba(49, 148, 255, 0.15), transparent 32rem),
-    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    radial-gradient(120% 80% at 82% -10%, color-mix(in srgb, var(--color-space-700) 60%, transparent), transparent 60%),
     var(--bg);
-  background-size: auto, 32px 32px, 32px 32px, auto;
   color: var(--text);
-  font: 15px/1.6 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font: var(--text-base)/var(--leading-normal) var(--font-body);
 }
-a { color: var(--signal); }
+a { color: var(--link); }
+a:hover { color: var(--link-hover); }
 a,
 button,
 input,
@@ -46,23 +42,38 @@ select {
   max-width: 100%;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: #0c1118;
+  background: var(--bg-deep);
   color: var(--text);
   padding: 0.75rem 0.9rem;
   font: inherit;
 }
 button {
   cursor: pointer;
-  background: var(--text);
-  color: #05070a;
-  font-weight: 800;
+  background: transparent;
+  color: var(--text);
+  font-weight: var(--weight-semibold);
+  transition: background var(--duration-fast) var(--ease-standard),
+              border-color var(--duration-fast) var(--ease-standard);
 }
-button:hover { filter: brightness(0.92); }
+button:hover {
+  border-color: var(--text-ghost);
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+}
+form button[type="submit"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+form button[type="submit"]:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+form button[type="submit"]:active { background: var(--accent-press); }
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 a:focus-visible {
-  outline: 3px solid var(--signal);
+  outline: 3px solid var(--focus);
   outline-offset: 3px;
 }
 .skip {
@@ -89,19 +100,28 @@ header {
 .eyebrow,
 .metric-label,
 .cell-id {
-  color: var(--signal);
-  font: 700 0.75rem/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
+  color: var(--label);
+  font: var(--weight-bold) 0.75rem/1.4 var(--font-mono);
   letter-spacing: 0.13em;
   text-transform: uppercase;
 }
 h1 {
   margin: 0;
   max-width: 13ch;
+  font-family: var(--font-display);
   font-size: clamp(2.8rem, 10vw, 7.5rem);
-  line-height: 0.88;
-  letter-spacing: -0.065em;
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
   overflow-wrap: anywhere;
 }
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: var(--tracking-tight);
+}
+h2 { font-size: var(--text-xl); }
+h3 { font-size: var(--text-lg); }
 .lede {
   max-width: 72ch;
   margin: 0;
@@ -110,9 +130,9 @@ h1 {
 }
 .truth-banner {
   border: 1px solid var(--line);
-  border-left: 4px solid var(--signal);
+  border-left: 4px solid var(--color-silver-300);
   border-radius: 12px;
-  background: rgba(12, 17, 24, 0.9);
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
   padding: 1rem 1.1rem;
   overflow-wrap: anywhere;
 }
@@ -140,6 +160,8 @@ h1 {
 .metric strong {
   display: block;
   margin-top: 0.4rem;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums lining-nums;
   font-size: clamp(1.1rem, 3vw, 1.8rem);
   overflow-wrap: anywhere;
 }
@@ -163,7 +185,7 @@ label {
   gap: 0.4rem;
   min-width: 0;
   color: var(--muted);
-  font-weight: 650;
+  font-weight: var(--weight-semibold);
 }
 label.wide,
 form button { grid-column: 1 / -1; }
@@ -188,13 +210,14 @@ pre {
   padding: 1rem;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: #070b10;
-  color: #cfe9ff;
+  background: var(--bg-deep);
+  color: var(--text);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: break-word;
-  font: 0.78rem/1.55 ui-monospace, SFMono-Regular, Consolas, monospace;
+  font: 0.78rem/1.55 var(--font-mono);
 }
+code { font-family: var(--font-mono); overflow-wrap: anywhere; }
 .section-heading {
   margin: 4rem 0 1rem;
 }
@@ -217,8 +240,7 @@ pre {
   width: 0.65rem;
   height: 0.65rem;
   border-radius: 50%;
-  background: var(--signal);
-  box-shadow: 0 0 1rem var(--signal);
+  background: var(--color-silver-300);
 }
 footer {
   margin-top: 4rem;
@@ -249,8 +271,8 @@ footer {
 }
 @media (prefers-contrast: more) {
   :root {
-    --line: #a7dfff;
-    --muted: #d7e2ec;
+    --line: var(--color-silver-300);
+    --muted: var(--text);
   }
 }
 @media (forced-colors: active) {
