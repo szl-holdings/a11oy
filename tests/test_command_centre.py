@@ -4,6 +4,8 @@
 
 from datetime import datetime, timedelta, timezone
 import inspect
+import hashlib
+import json
 
 import pytest
 from fastapi import FastAPI
@@ -165,3 +167,16 @@ def test_missing_page_is_unavailable(client, monkeypatch, tmp_path):
     response = client.get('/command-centre')
     assert response.status_code == 503
     assert response.json()['code'] == 'ASSET_UNAVAILABLE'
+
+
+def test_vendor_exception_is_byte_bound_not_application_exemption():
+    provenance = json.loads((centre.ROOT / 'szl' / 'SOURCE.json').read_text(encoding='utf-8'))
+    assert provenance['version'] == '1.1.0'
+    assert provenance['source_commit'] == '168c53a0252b55243e3fa75fa5e3c743b8efb806'
+    for name, digest in provenance['sha256'].items():
+        assert hashlib.sha256((centre.ROOT / 'szl' / name).read_bytes()).hexdigest() == digest
+    from scripts.check_banned_tokens import Allowlist
+    allowlist = Allowlist.load(str(centre.ROOT.parents[1] / '.doctrine-allowlist'))
+    assert allowlist.is_allowed('routers/command_centre_web/szl/szl-design-system.css')
+    assert not allowlist.is_allowed('routers/command_centre_web/app.js')
+    assert not allowlist.is_allowed('routers/command_centre_web/index.html')
