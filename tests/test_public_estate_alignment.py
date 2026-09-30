@@ -58,7 +58,7 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         topology = alignment.topology_spaces(self.contract)
         inventory_only = alignment.inventory_only_spaces(self.contract)
         observed = alignment.measured_spaces(self.manifest)
-        self.assertEqual(len(topology), 13)
+        self.assertEqual(len(topology), 14)
         self.assertEqual(
             inventory_only,
             [
@@ -72,7 +72,6 @@ class PublicEstateAlignmentTests(unittest.TestCase):
                 "SZLHOLDINGS/szl-bench-suite",
                 "SZLHOLDINGS/szl-forge-lab",
                 "SZLHOLDINGS/szl-khipu",
-                "SZLHOLDINGS/szl-typesafe-triage",
                 "SZLHOLDINGS/the-grid",
                 "SZLHOLDINGS/yarqa",
             ],
@@ -83,7 +82,16 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         )
 
     def test_new_public_inventory_is_not_a_keeper_or_runtime_promotion(self) -> None:
-        for name in ('holographic-unify', 'llm-router-live', 'oac-system-health-lab', 'szl-atelier', 'szl-bench-suite', 'szl-forge-lab', 'szl-khipu', 'szl-typesafe-triage', 'the-grid'):
+        for name in (
+            'holographic-unify',
+            'llm-router-live',
+            'oac-system-health-lab',
+            'szl-atelier',
+            'szl-bench-suite',
+            'szl-forge-lab',
+            'szl-khipu',
+            'the-grid',
+        ):
             repo_id = 'SZLHOLDINGS/' + name
             with self.subTest(repo_id=repo_id):
                 row = next(r for r in self.contract['inventoryOnlyHuggingFaceRepositories'] if r['id'] == repo_id)
@@ -102,6 +110,22 @@ class PublicEstateAlignmentTests(unittest.TestCase):
                 next(r for r in promoted['inventoryOnlyHuggingFaceRepositories'] if r['id'] == repo_id)['governedKeep'] = True
                 with self.assertRaisesRegex(alignment.ContractError, 'cannot be a governed keeper'):
                     alignment.validate(promoted, self.manifest)
+
+    def test_typesafe_triage_is_a_non_keeper_lab_without_promotion_authority(self) -> None:
+        repo_id = "SZLHOLDINGS/szl-typesafe-triage"
+        self.assertIn(repo_id, self.contract["laboratorySurfaces"])
+        self.assertIn(repo_id, alignment.topology_spaces(self.contract))
+        self.assertNotIn(repo_id, alignment.inventory_only_spaces(self.contract))
+        self.assertNotIn(repo_id, alignment.governed_keep_spaces())
+
+        product_source = (ROOT / "a11oy_experimental_tier.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('"id": "szl-typesafe-triage"', product_source)
+        self.assertIn('"label": "EXPERIMENTAL"', product_source)
+        self.assertIn('"promotion_status": "HOLD"', product_source)
+        self.assertIn('"production_admitted": False', product_source)
+        self.assertIn('"model_loaded": False', product_source)
 
     def test_killinchu_is_public_body_and_governed_keeper(self) -> None:
         killinchu = next(
