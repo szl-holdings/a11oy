@@ -9,47 +9,21 @@ import hashlib
 import json
 import os
 import re
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
-from urllib.error import HTTPError
 from urllib.parse import urlencode, urlsplit
-from urllib.request import Request, urlopen
 
-def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--repo-id", default="SZLHOLDINGS/a11oy")
-    parser.add_argument("--origin", default="https://a-11-oy.com")
-    parser.add_argument("--source-sha", required=True)
-    parser.add_argument("--output", required=True)
-    parser.add_argument("--attempts", type=int, default=90)
-    parser.add_argument("--retry-seconds", type=int, default=10)
-    parser.add_argument("--deadline-seconds", type=int, default=20 * 60)
-    args = parser.parse_args()
-    source = args.source_sha.strip().lower()
-    report = {
-        "schema": "szl.series-a-restart-proof/v1",
-        "source_revision": source if re.fullmatch(r"[0-9a-f]{40}", source) else "UNVALIDATED",
-        "repo_id": "SZLHOLDINGS/a11oy", "origin": "UNVALIDATED",
-        "status": "FAIL", "ok": False, "evidence": {},
-        "credential_authority_state": "UNKNOWN",
-        "error": {"type": "RuntimeError", "message": "SETUP_REQUIRED: live proof effects remain unreviewed"},
-        "secret_values_recorded": False,
-    }
-    output = Path(args.output)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"
-    output.write_text(encoded, encoding="utf-8")
-    print(encoded, end="")
-    return 1
+_SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
 
+import hf_live_proof_bounds as bounds  # noqa: E402
+from hf_live_proof_bounds import ProofBoundaryError  # noqa: E402
 
-# Direct CLI use stops before third-party initialization can consume credentials.
-if __name__ == "__main__":
-    raise SystemExit(main())
-
-from huggingface_hub import HfApi
+HfApi = Any  # the proof never constructs huggingface_hub.HfApi; see ScopedSpaceControl
 
 
 SCHEMA = "szl.series-a-restart-proof/v1"
@@ -59,15 +33,44 @@ BOOT_ID = re.compile(r"^boot_[0-9a-f]{32}$")
 RECEIPT_HASH = re.compile(r"^[0-9a-f]{64}$")
 EXPECTED_SIGNER = "persistent:env:SZL_COSIGN_PRIVATE_PEM"
 EXPECTED_DATABASE = "/data/a11oy/series-a/control-plane-v2.sqlite3"
+# Proof-wide deadline: two stop-the-world restarts (activation + durability)
+# share one clock. 20 minutes equals the reviewed deploy wait-running bound;
+# callers may lower it, never raise it. Transient admission retries are capped
+# separately at bounds.MAX_ATTEMPTS inside bounds.RETRY_WINDOW_SECONDS.
 DEFAULT_DEADLINE_SECONDS = 20 * 60
+MAX_DEADLINE_SECONDS = 20 * 60
+MAX_POLL_ATTEMPTS = 90
+MAX_RETRY_SECONDS = 30
 
 
 class RestartProofError(RuntimeError):
-    """The restarted runtime did not preserve the required identity."""
+    """The restarted runtime did not preserve the required identity.
+
+    Messages are fixed literals authored here; reports carry only ``code``.
+    """
+
+    def __init__(self, message: str, *, code: str = "RESTART_CONTRACT_FAILED") -> None:
+        super().__init__(message)
+        self.code = code if code in bounds.DIAGNOSTIC_CODES else "RESTART_CONTRACT_FAILED"
+
+
+def _code(error: BaseException | None) -> str:
+    """Fixed diagnostic for an exception; provider text is never returned."""
+
+    if error is None:
+        return "NOT_OBSERVED"
+    return bounds.diagnostic_code(error, "UNEXPECTED_FAILURE")
+
+
+def _reraise_hard(error: BaseException) -> None:
+    """Destination, redirect, scope and deadline failures are never polled past."""
+
+    if bounds.is_hard_failure(error):
+        raise error
 
 
 class HttpResponse:
-    """Minimal response surface for a dependency-free proof client."""
+    """Minimal response surface; error bodies are never read or retained."""
 
     def __init__(self, url: str, status: int, content: bytes) -> None:
         self.url = url
@@ -76,63 +79,51 @@ class HttpResponse:
 
     def raise_for_status(self) -> None:
         if not 200 <= self.status < 300:
-            raise RestartProofError(f"{self.url} returned HTTP {self.status}")
+            raise RestartProofError(
+                "live endpoint returned a non-success status",
+                code="HTTP_STATUS_REJECTED",
+            )
 
     def json(self) -> Any:
         return json.loads(self.content)
 
 
 class HttpSession:
-    """Small urllib-backed session; deliberately has no undeclared dependency."""
+    """Public-origin reader routed through the bounded no-redirect transport.
 
-    def __init__(self) -> None:
+    Only ``CANONICAL_ORIGIN`` is reachable (``bounds.check_destination``); any
+    3xx is a hard ``REDIRECT_REJECTED``; 429/502/503/504 are retried inside the
+    capped budget; every other non-2xx status becomes an empty response whose
+    body was never read, so provider text cannot reach evidence.
+    """
+
+    def __init__(self, transport: bounds.BoundedTransport | None = None) -> None:
         self.headers: dict[str, str] = {}
+        self._transport = transport or bounds.BoundedTransport()
 
-    def _request(
-        self,
-        method: str,
-        url: str,
-        *,
-        timeout: float,
-        value: Mapping[str, Any] | None = None,
-    ) -> HttpResponse:
-        data = None
-        headers = dict(self.headers)
-        if value is not None:
-            data = json.dumps(value).encode("utf-8")
-            headers["Content-Type"] = "application/json"
-        request = Request(url, data=data, headers=headers, method=method)
+    def _request(self, method: str, url: str, *, timeout: float) -> HttpResponse:
+        del timeout  # the transport derives per-request timeouts from its deadline
         try:
-            with urlopen(request, timeout=timeout) as response:  # noqa: S310
-                return HttpResponse(
-                    url=response.geturl(),
-                    status=response.status,
-                    content=response.read(),
-                )
-        except HTTPError as exc:
-            return HttpResponse(
-                url=exc.geturl(),
-                status=int(exc.code),
-                content=exc.read(),
+            status, content = self._transport.request(
+                method, url, headers=self.headers, expect_json=False,
             )
+        except ProofBoundaryError as exc:
+            if exc.code in {"HTTP_STATUS_REJECTED", "TRANSIENT_RETRY_EXHAUSTED"}:
+                return HttpResponse(url=url, status=int(exc.http_status or 0), content=b"")
+            raise
+        return HttpResponse(url=url, status=status, content=content)
 
     def get(self, url: str, *, timeout: float) -> HttpResponse:
         return self._request("GET", url, timeout=timeout)
 
-    def post(
-        self,
-        url: str,
-        *,
-        json: Mapping[str, Any],
-        timeout: int,
-    ) -> HttpResponse:
-        return self._request("POST", url, timeout=timeout, value=json)
-
 
 def normalize_origin(value: str) -> str:
-    parsed = urlsplit(str(value or "").strip())
+    """Admit exactly ``CANONICAL_ORIGIN``; hostnames are compared exactly."""
+
+    raw = str(value or "")
+    parsed = urlsplit(raw)
     if (
-        parsed.scheme.lower() != "https"
+        parsed.scheme != "https"
         or not parsed.hostname
         or parsed.username
         or parsed.password
@@ -140,35 +131,50 @@ def normalize_origin(value: str) -> str:
         or parsed.fragment
         or parsed.path not in ("", "/")
     ):
-        raise RestartProofError("origin must be a credential-free HTTPS origin")
-    port = f":{parsed.port}" if parsed.port else ""
-    return f"https://{parsed.hostname.lower()}{port}"
+        raise RestartProofError(
+            "origin must be a credential-free HTTPS origin",
+            code="DESTINATION_REJECTED",
+        )
+    if raw.rstrip("/") != bounds.CANONICAL_ORIGIN or raw.count("/") > 3:
+        raise RestartProofError(
+            "origin is not the canonical A11oy Space origin",
+            code="DESTINATION_REJECTED",
+        )
+    return bounds.CANONICAL_ORIGIN
 
 
 def _json(response: HttpResponse) -> Mapping[str, Any]:
     response.raise_for_status()
     value = response.json()
     if not isinstance(value, Mapping):
-        raise RestartProofError(f"{response.url} did not return a JSON object")
+        raise RestartProofError(
+            "live endpoint did not return a JSON object", code="RESPONSE_NOT_JSON"
+        )
     return value
 
 
 def _remaining_timeout(deadline: float, maximum: float) -> float:
     remaining = deadline - time.monotonic()
     if remaining <= 0:
-        raise RestartProofError("restart proof deadline exhausted")
+        raise RestartProofError(
+            "restart proof deadline exhausted", code="DEADLINE_EXHAUSTED"
+        )
     return max(0.1, min(maximum, remaining))
 
 
 def _check_deadline(deadline: float) -> None:
     if time.monotonic() >= deadline:
-        raise RestartProofError("restart proof deadline exhausted")
+        raise RestartProofError(
+            "restart proof deadline exhausted", code="DEADLINE_EXHAUSTED"
+        )
 
 
 def _sleep_with_deadline(deadline: float, seconds: float) -> None:
     remaining = deadline - time.monotonic()
     if remaining <= 0:
-        raise RestartProofError("restart proof deadline exhausted")
+        raise RestartProofError(
+            "restart proof deadline exhausted", code="DEADLINE_EXHAUSTED"
+        )
     time.sleep(min(max(0.0, seconds), remaining))
     _check_deadline(deadline)
 
@@ -210,6 +216,8 @@ def stop_the_world_restart(
 
     if attempts < 1 or retry_seconds < 0:
         raise RestartProofError("stop-the-world polling bounds are invalid")
+    # Effect scope: the only Space this proof may pause/restart.
+    bounds.require_canonical_space(repo_id)
     record: dict[str, Any] = {
         "phase": phase,
         "pause_requested": False,
@@ -227,12 +235,13 @@ def stop_the_world_restart(
     try:
         paused = api.pause_space(repo_id=repo_id)
     except Exception as exc:  # noqa: BLE001 - provider error is receipt evidence
+        _reraise_hard(exc)
         record["pause_error"] = {
             "type": type(exc).__name__,
-            "message": str(exc)[:180],
+            "message": _code(exc),
         }
         raise RestartProofError(
-            f"{phase} pause request failed: {type(exc).__name__}: {str(exc)[:180]}"
+            f"{phase} pause request failed: {type(exc).__name__}: {_code(exc)}"
         ) from exc
     record["pause_requested"] = True
     pause_stage = _runtime_stage(paused)
@@ -252,12 +261,13 @@ def stop_the_world_restart(
             )
             confirmed = last_stage == "PAUSED"
         except Exception as exc:  # noqa: BLE001 - bounded provider polling
+            _reraise_hard(exc)
             record["pause_observations"].append(
                 {
                     "attempt": attempt + 1,
                     "stage": "UNAVAILABLE",
                     "error_type": type(exc).__name__,
-                    "error": str(exc)[:180],
+                    "error": _code(exc),
                 }
             )
         if not confirmed and attempt + 1 < max(1, attempts):
@@ -277,19 +287,21 @@ def stop_the_world_restart(
         record["restart_requested"] = True
         restart_stage = _runtime_stage(restarted)
     except Exception as exc:  # noqa: BLE001 - recover availability without overlap
+        _reraise_hard(exc)
         record["restart_response_lost"] = True
         record["restart_error"] = {
             "type": type(exc).__name__,
-            "message": str(exc)[:180],
+            "message": _code(exc),
         }
         _check_deadline(deadline)
         try:
             runtime = api.get_space_runtime(repo_id=repo_id)
             observed_stage = _runtime_stage(runtime)
         except Exception as runtime_exc:  # noqa: BLE001
+            _reraise_hard(runtime_exc)
             record["restart_failure_runtime_error"] = {
                 "type": type(runtime_exc).__name__,
-                "message": str(runtime_exc)[:180],
+                "message": _code(runtime_exc),
             }
             raise RestartProofError(
                 f"{phase} restart response was lost and runtime state is unavailable"
@@ -303,9 +315,10 @@ def stop_the_world_restart(
                     factory_reboot=False,
                 )
             except Exception as retry_exc:  # noqa: BLE001
+                _reraise_hard(retry_exc)
                 raise RestartProofError(
                     f"{phase} restart failed after confirmed pause: "
-                    f"{type(retry_exc).__name__}: {str(retry_exc)[:180]}"
+                    f"{type(retry_exc).__name__}: {_code(retry_exc)}"
                 ) from retry_exc
             record["restart_requested"] = True
             restart_stage = _runtime_stage(restarted)
@@ -445,11 +458,12 @@ def await_capture(
                 )
             return candidate
         except Exception as exc:  # noqa: BLE001 - bounded runtime polling
+            _reraise_hard(exc)
             last_error = exc
             if attempt + 1 < max(1, attempts):
                 _sleep_with_deadline(deadline, retry_seconds)
     raise RestartProofError(
-        f"{context}: {type(last_error).__name__}: {str(last_error)[:180]}"
+        f"{context}: {type(last_error).__name__}: {_code(last_error)}"
     )
 
 
@@ -684,6 +698,7 @@ def await_receipt_recovery(
             retry_evidence[-1]["recovered"] = True
             return current_after
         except Exception as exc:  # noqa: BLE001 - bounded recovery polling
+            _reraise_hard(exc)
             last_error = exc
             if not retry_evidence or retry_evidence[-1].get("attempt") != attempt + 1:
                 retry_evidence.append({"attempt": attempt + 1})
@@ -691,14 +706,86 @@ def await_receipt_recovery(
                 {
                     "recovered": False,
                     "error_type": type(exc).__name__,
-                    "error": str(exc)[:180],
+                    "error": _code(exc),
                 }
             )
             if attempt + 1 < max(1, attempts):
                 _sleep_with_deadline(deadline, retry_seconds)
     raise RestartProofError(
         "pre-restart receipt-chain head was not recovered after bounded polling: "
-        f"{type(last_error).__name__}: {str(last_error)[:180]}"
+        f"{type(last_error).__name__}: {_code(last_error)}"
+    )
+
+
+HONEST_ROUTE = "/api/a11oy/v1/honest"
+
+
+def await_running_source(
+    api: Any,
+    session: HttpSession,
+    *,
+    repo_id: str,
+    origin: str,
+    expected_source: str,
+    deadline: float,
+    attempts: int,
+    retry_seconds: int,
+    phase: str,
+    evidence: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Wait for ``runtime.stage == RUNNING`` and live honest ``git_sha``.
+
+    Persistence is never declared from a runtime that is not RUNNING or that
+    serves another revision. Exhausting the attempt cap or the shared deadline
+    is ``RESTART_PROOF_TIMEOUT`` (a failure, never a pass).
+    """
+
+    bounds.require_canonical_space(repo_id)
+    observations: list[dict[str, Any]] = []
+    if evidence is not None:
+        evidence[f"{phase}_running_source_observations"] = observations
+    for attempt in range(max(1, attempts)):
+        stage = "UNKNOWN"
+        git_sha_matches = False
+        try:
+            _check_deadline(deadline)
+            stage = _runtime_stage(api.get_space_runtime(repo_id=repo_id))
+            if stage == "RUNNING":
+                honest = _json(
+                    session.get(
+                        origin + HONEST_ROUTE,
+                        timeout=_remaining_timeout(deadline, 45),
+                    )
+                )
+                git_sha_matches = (
+                    str(honest.get("git_sha") or "").lower() == expected_source
+                )
+            if len(observations) < 32:
+                observations.append({
+                    "attempt": attempt + 1,
+                    "stage": stage if re.fullmatch(r"[A-Z_]{1,32}", stage) else "UNKNOWN",
+                    "git_sha_matches": git_sha_matches,
+                })
+            if stage == "RUNNING" and git_sha_matches:
+                return {"stage": "RUNNING", "git_sha": expected_source, "attempts": attempt + 1}
+        except Exception as exc:  # noqa: BLE001 - bounded readiness polling
+            if isinstance(exc, ProofBoundaryError) and exc.code == "DEADLINE_EXHAUSTED":
+                break
+            if getattr(exc, "code", None) == "DEADLINE_EXHAUSTED":
+                break
+            _reraise_hard(exc)
+            if len(observations) < 32:
+                observations.append({"attempt": attempt + 1, "error": _code(exc)})
+        if attempt + 1 < max(1, attempts):
+            if deadline - time.monotonic() <= 0:
+                break
+            try:
+                _sleep_with_deadline(deadline, retry_seconds)
+            except RestartProofError:
+                break
+    raise RestartProofError(
+        f"{phase} runtime did not reach RUNNING at the deployed revision",
+        code="RESTART_PROOF_TIMEOUT",
     )
 
 
@@ -713,9 +800,25 @@ def prove(
     retry_seconds: int,
     deadline_seconds: int = DEFAULT_DEADLINE_SECONDS,
     evidence: dict[str, Any] | None = None,
+    require_running_source: bool = True,
 ) -> dict[str, Any]:
-    if attempts < 1 or retry_seconds < 0 or deadline_seconds < 1:
-        raise RestartProofError("polling bounds must be positive and finite")
+    if (
+        attempts < 1
+        or attempts > MAX_POLL_ATTEMPTS
+        or retry_seconds < 0
+        or retry_seconds > MAX_RETRY_SECONDS
+        or deadline_seconds < 1
+        or deadline_seconds > MAX_DEADLINE_SECONDS
+    ):
+        raise RestartProofError(
+            "polling bounds must be positive and finite", code="INVALID_ARGUMENTS"
+        )
+    # Destination and effect scope are fixed before any network access.
+    bounds.require_canonical_space(repo_id)
+    if origin != bounds.CANONICAL_ORIGIN:
+        raise ProofBoundaryError("DESTINATION_REJECTED")
+    if SHA40.fullmatch(str(source_sha or "")) is None:
+        raise RestartProofError("source revision is not canonical", code="INVALID_ARGUMENTS")
     deadline = time.monotonic() + deadline_seconds
     trace = evidence if evidence is not None else {}
     trace.update(
@@ -746,6 +849,13 @@ def prove(
     trace["activation_restart_requested"] = True
     activation_stage = activation_control["restart_response_stage"]
     _sleep_with_deadline(deadline, max(10, retry_seconds))
+    activation_running = None
+    if require_running_source:
+        activation_running = await_running_source(
+            api, session, repo_id=repo_id, origin=origin,
+            expected_source=source_sha, deadline=deadline, attempts=attempts,
+            retry_seconds=retry_seconds, phase="activation", evidence=trace,
+        )
     before = await_capture(
         session,
         origin,
@@ -771,10 +881,11 @@ def prove(
                 if before["storage"]["receipt_count"] > 0:
                     break
             except Exception as exc:  # noqa: BLE001 - bounded startup polling
+                _reraise_hard(exc)
                 startup_error = exc
     if before["storage"]["receipt_count"] == 0:
         detail = (
-            f": {type(startup_error).__name__}: {str(startup_error)[:180]}"
+            f": {type(startup_error).__name__}: {_code(startup_error)}"
             if startup_error is not None
             else ""
         )
@@ -808,6 +919,15 @@ def prove(
     # Do not accept a response from the pre-restart process as post-restart
     # evidence while the control plane is still draining.
     _sleep_with_deadline(deadline, max(10, retry_seconds))
+    durability_running = None
+    if require_running_source:
+        # Persistence is only declared against a RUNNING runtime that serves
+        # the deployed revision; a timeout here is RESTART_PROOF_TIMEOUT.
+        durability_running = await_running_source(
+            api, session, repo_id=repo_id, origin=origin,
+            expected_source=source_sha, deadline=deadline, attempts=attempts,
+            retry_seconds=retry_seconds, phase="durability", evidence=trace,
+        )
 
     last_error: Exception | None = None
     after: dict[str, Any] | None = None
@@ -822,12 +942,13 @@ def prove(
             trace["after_capture"] = after
             break
         except Exception as exc:  # noqa: BLE001 - bounded restart polling
+            _reraise_hard(exc)
             last_error = exc
             _sleep_with_deadline(deadline, retry_seconds)
     if after is None:
         raise RestartProofError(
             "runtime restart was not observed after bounded polling: "
-            f"{type(last_error).__name__}: {str(last_error)[:180]}"
+            f"{type(last_error).__name__}: {_code(last_error)}"
         )
 
     trace["phase"] = "recover_post_restart_head"
@@ -885,17 +1006,52 @@ def prove(
             "activation_stop_the_world": True,
             "durability_stop_the_world": True,
             "writer_overlap_prevented": True,
+            "running_stage_and_source_observed": bool(
+                activation_running and durability_running
+            ),
         },
+        "activation_running": activation_running,
+        "durability_running": durability_running,
         "secret_values_read": False,
     }
 
 
 def write_report(path: Path, report: Mapping[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(dict(report), indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
+    bounds.write_json(path, report)
+
+
+MAX_REPORT_BYTES = 12 * 1024
+_EVIDENCE_KEYS = (
+    "phase",
+    "pre_activation_runtime_boot_id",
+    "activation_restart_control",
+    "durability_restart_control",
+    "activation_running_source_observations",
+    "durability_running_source_observations",
+    "activation_restart_requested",
+    "durability_restart_requested",
+)
+
+
+def _bounded_evidence(evidence: Mapping[str, Any], secrets: tuple[str, ...]) -> dict[str, Any]:
+    summary = bounds.bounded_report(
+        {key: evidence.get(key) for key in _EVIDENCE_KEYS if key in evidence}
     )
+    before = evidence.get("before")
+    if isinstance(before, Mapping):
+        summary["before"] = bounds.bounded_report({
+            "runtime_boot_id": before.get("runtime_boot_id"),
+            "storage": {
+                key: (before.get("storage") or {}).get(key)
+                for key in ("instance_id", "receipt_count", "last_receipt_sequence", "chain_head")
+            } if isinstance(before.get("storage"), Mapping) else None,
+        })
+    encoded = json.dumps(summary, sort_keys=True)
+    if len(encoded.encode("utf-8")) > MAX_REPORT_BYTES // 2 or any(
+        secret and secret in encoded for secret in secrets
+    ):
+        return {"phase": bounds.bounded_report(evidence.get("phase"))}
+    return summary
 
 
 def failure_report(
@@ -907,22 +1063,141 @@ def failure_report(
     error: Exception,
     secrets: tuple[str, ...] = (),
 ) -> dict[str, Any]:
-    message = str(error)
-    for secret in secrets:
-        if secret:
-            message = message.replace(secret, "[REDACTED]")
+    """Fixed-code failure report: no exception text, provider body or secret."""
+
+    code = bounds.diagnostic_code(error, "UNEXPECTED_FAILURE")
     return {
         "schema": SCHEMA,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "status": "FAIL",
         "ok": False,
-        "repo_id": repo_id,
-        "origin": origin or "UNVALIDATED",
-        "source_revision": source_revision,
-        "evidence": dict(evidence),
+        "diagnostic_code": code,
+        "repo_id": bounds.CANONICAL_SPACE,
+        "requested_repo_id_admitted": repo_id == bounds.CANONICAL_SPACE,
+        "origin": bounds.CANONICAL_ORIGIN if origin == bounds.CANONICAL_ORIGIN else "UNVALIDATED",
+        "source_revision": source_revision if SHA40.fullmatch(str(source_revision or "")) else "UNVALIDATED",
+        "evidence": _bounded_evidence(evidence, secrets),
         "error": {
-            "type": type(error).__name__,
-            "message": message[:500],
+            "type": type(error).__name__ if type(error).__name__ in {
+                "RestartProofError", "ProofBoundaryError"} else "UnexpectedError",
+            "code": code,
         },
+        "credential_authority_state": "UNKNOWN",
         "secret_values_recorded": False,
     }
+
+
+def setup_required_report(*, source_revision: str, missing: list[str]) -> dict[str, Any]:
+    return {
+        "schema": SCHEMA,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "status": "FAIL",
+        "ok": False,
+        "state": "SETUP_REQUIRED",
+        "diagnostic_code": "SETUP_REQUIRED",
+        "missing_secret_names": list(missing),
+        "repo_id": bounds.CANONICAL_SPACE,
+        "origin": bounds.CANONICAL_ORIGIN,
+        "source_revision": source_revision if SHA40.fullmatch(source_revision) else "UNVALIDATED",
+        "evidence": {},
+        "credential_authority_state": "UNKNOWN",
+        "secret_values_recorded": False,
+    }
+
+
+def pass_report(result: Mapping[str, Any], *, deadline_seconds: int, effects: list[Any]) -> dict[str, Any]:
+    report = bounds.bounded_report(dict(result))
+    report.update({
+        "schema": SCHEMA,
+        "status": "PASS",
+        "ok": True,
+        "state": "PROVEN",
+        "diagnostic_code": "LIVE_PROOF_PASSED",
+        "repo_id": bounds.CANONICAL_SPACE,
+        "origin": bounds.CANONICAL_ORIGIN,
+        "bounds": bounds.bounds_record(deadline_seconds=deadline_seconds),
+        "effects": bounds.bounded_report(effects),
+        "credential_authority_state": "VERIFIED",
+        "secret_values_read": False,
+        "secret_values_recorded": False,
+    })
+    return report
+
+
+# The only credential this proof reads. Its value is placed in one
+# Authorization header for huggingface.co/api/spaces/SZLHOLDINGS/a11oy and is
+# never printed, logged or persisted.
+HF_TOKEN_NAME = "HF_TOKEN"
+
+
+def main(argv: list[str] | None = None, *, transport_factory: Any = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Bounded live Series-A restart persistence proof (SZLHOLDINGS/a11oy only)."
+    )
+    parser.add_argument("--repo-id", default=bounds.CANONICAL_SPACE)
+    parser.add_argument("--origin", default=bounds.CANONICAL_ORIGIN)
+    parser.add_argument("--source-sha", required=True)
+    parser.add_argument("--output", required=True)
+    parser.add_argument("--attempts", type=int, default=MAX_POLL_ATTEMPTS)
+    parser.add_argument("--retry-seconds", type=int, default=10)
+    parser.add_argument("--deadline-seconds", type=int, default=DEFAULT_DEADLINE_SECONDS)
+    args = parser.parse_args(argv)
+    source = str(args.source_sha or "").strip().lower()
+    output = Path(args.output)
+    evidence: dict[str, Any] = {}
+    token = ""
+    try:
+        if SHA40.fullmatch(source) is None:
+            raise RestartProofError("source revision is not canonical", code="INVALID_ARGUMENTS")
+        bounds.require_canonical_space(args.repo_id)
+        origin = normalize_origin(args.origin)
+        token = os.environ.get(HF_TOKEN_NAME, "")
+        if not token.strip():
+            report = setup_required_report(source_revision=source, missing=[HF_TOKEN_NAME])
+            encoded = bounds.write_json(output, report)
+            print(encoded, end="")
+            return 1
+        deadline_seconds = min(max(1, args.deadline_seconds), MAX_DEADLINE_SECONDS)
+        make_transport = transport_factory or bounds.BoundedTransport
+        transport = make_transport(deadline_seconds=deadline_seconds)
+        api = bounds.ScopedSpaceControl(transport, token, bounds.CANONICAL_SPACE)
+        session = HttpSession(transport)
+        result = prove(
+            api=api,
+            session=session,
+            repo_id=bounds.CANONICAL_SPACE,
+            origin=origin,
+            source_sha=source,
+            attempts=args.attempts,
+            retry_seconds=args.retry_seconds,
+            deadline_seconds=deadline_seconds,
+            evidence=evidence,
+            require_running_source=True,
+        )
+        report = pass_report(result, deadline_seconds=deadline_seconds, effects=api.effects)
+        report["source_revision"] = source
+        code = 0
+    except Exception as exc:  # noqa: BLE001 - every failure is a fixed code
+        report = failure_report(
+            repo_id=str(args.repo_id),
+            origin=str(args.origin),
+            source_revision=source,
+            evidence=evidence,
+            error=exc,
+            secrets=(token,) if token else (),
+        )
+        code = 1
+    encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if token and token in encoded:  # defence in depth; never persist a secret
+        report = failure_report(
+            repo_id=bounds.CANONICAL_SPACE, origin=None, source_revision=source,
+            evidence={}, error=ProofBoundaryError("UNEXPECTED_FAILURE"),
+        )
+        code = 1
+    encoded = bounds.write_json(output, report)
+    print(encoded, end="")
+    return code
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

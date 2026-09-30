@@ -147,6 +147,8 @@ class Session:
             return Response(url, value=value)
         if url.endswith("/api/build-info"):
             return Response(url, value={"build": {"revision": self.source}})
+        if url.endswith("/api/a11oy/v1/honest"):
+            return Response(url, value={"git_sha": self.source})
         if url.endswith("/series-a/public-key"):
             return Response(
                 url,
@@ -270,17 +272,20 @@ class Api:
         self.calls = []
         self.pause_calls = []
         self.runtime_calls = []
+        self.stage = "RUNNING"
 
     def pause_space(self, **kwargs):
         self.pause_calls.append(kwargs)
+        self.stage = "PAUSED"
         return SimpleNamespace(stage=SimpleNamespace(value="PAUSING"))
 
     def get_space_runtime(self, **kwargs):
         self.runtime_calls.append(kwargs)
-        return SimpleNamespace(stage=SimpleNamespace(value="PAUSED"))
+        return SimpleNamespace(stage=SimpleNamespace(value=self.stage))
 
     def restart_space(self, **kwargs):
         self.calls.append(kwargs)
+        self.stage = "RUNNING"
         return SimpleNamespace(
             runtime=SimpleNamespace(stage=SimpleNamespace(value="RESTARTING"))
         )
@@ -295,7 +300,7 @@ def test_prove_requires_same_key_database_and_chain_after_restart(monkeypatch) -
         api=api,
         session=Session(source),
         repo_id="SZLHOLDINGS/a11oy",
-        origin="https://a-11-oy.com",
+        origin="https://szlholdings-a11oy.hf.space",
         source_sha=source,
         attempts=2,
         retry_seconds=0,
@@ -320,7 +325,7 @@ def test_prove_polls_past_pre_activation_runtime(monkeypatch) -> None:
         api=Api(),
         session=PreActivationSession(source),
         repo_id="SZLHOLDINGS/a11oy",
-        origin="https://a-11-oy.com",
+        origin="https://szlholdings-a11oy.hf.space",
         source_sha=source,
         attempts=3,
         retry_seconds=0,
@@ -343,7 +348,7 @@ def test_prove_waits_for_startup_receipt_without_direct_refresh(
         api=api,
         session=session,
         repo_id="SZLHOLDINGS/a11oy",
-        origin="https://a-11-oy.com",
+        origin="https://szlholdings-a11oy.hf.space",
         source_sha=source,
         attempts=2,
         retry_seconds=0,
@@ -372,7 +377,7 @@ def test_prove_rejects_successful_capture_from_same_runtime(monkeypatch) -> None
             api=api,
             session=session,
             repo_id="SZLHOLDINGS/a11oy",
-            origin="https://a-11-oy.com",
+            origin="https://szlholdings-a11oy.hf.space",
             source_sha=source,
             attempts=2,
             retry_seconds=0,
@@ -387,7 +392,7 @@ def test_prove_polls_past_draining_old_runtime(monkeypatch) -> None:
         api=Api(),
         session=DrainingSession(source),
         repo_id="SZLHOLDINGS/a11oy",
-        origin="https://a-11-oy.com",
+        origin="https://szlholdings-a11oy.hf.space",
         source_sha=source,
         attempts=2,
         retry_seconds=0,
@@ -408,7 +413,7 @@ def test_prove_retries_transient_startup_capture(monkeypatch) -> None:
         api=Api(),
         session=session,
         repo_id="SZLHOLDINGS/a11oy",
-        origin="https://a-11-oy.com",
+        origin="https://szlholdings-a11oy.hf.space",
         source_sha=source,
         attempts=3,
         retry_seconds=0,
@@ -426,7 +431,7 @@ def test_prove_polls_until_pre_restart_head_is_recovered(monkeypatch) -> None:
         api=Api(),
         session=session,
         repo_id="SZLHOLDINGS/a11oy",
-        origin="https://a-11-oy.com",
+        origin="https://szlholdings-a11oy.hf.space",
         source_sha=source,
         attempts=3,
         retry_seconds=0,
@@ -452,7 +457,7 @@ def test_prove_fails_closed_when_pre_restart_head_never_recovers(
             api=Api(),
             session=session,
             repo_id="SZLHOLDINGS/a11oy",
-            origin="https://a-11-oy.com",
+            origin="https://szlholdings-a11oy.hf.space",
             source_sha=source,
             attempts=3,
             retry_seconds=0,
@@ -475,7 +480,7 @@ def test_prove_refuses_missing_head_before_durability_restart(
             api=api,
             session=MissingPreRestartReceiptSession(source),
             repo_id="SZLHOLDINGS/a11oy",
-            origin="https://a-11-oy.com",
+            origin="https://szlholdings-a11oy.hf.space",
             source_sha=source,
             attempts=3,
             retry_seconds=0,
@@ -486,11 +491,11 @@ def test_prove_refuses_missing_head_before_durability_restart(
     ]
 
 
-def test_failure_report_preserves_secret_free_restart_evidence() -> None:
+def test_failure_report_carries_only_fixed_codes_and_bounded_evidence() -> None:
     secret = "hf_example_secret_value"
     report = proof.failure_report(
         repo_id="SZLHOLDINGS/a11oy",
-        origin="https://a-11-oy.com",
+        origin="https://szlholdings-a11oy.hf.space",
         source_revision="a" * 40,
         evidence={
             "phase": "recover_post_restart_head",
@@ -499,6 +504,7 @@ def test_failure_report_preserves_secret_free_restart_evidence() -> None:
                 "storage": {
                     "chain_head": BEFORE_HASH,
                     "last_receipt_sequence": 1,
+                    "provider_note": "Traceback: internal error body",
                 },
             },
         },
@@ -511,48 +517,64 @@ def test_failure_report_preserves_secret_free_restart_evidence() -> None:
     encoded = proof.json.dumps(report, sort_keys=True)
     assert report["ok"] is False
     assert report["status"] == "FAIL"
+    assert report["diagnostic_code"] == "RESTART_CONTRACT_FAILED"
+    assert report["error"] == {"type": "RestartProofError", "code": "RESTART_CONTRACT_FAILED"}
     assert report["secret_values_recorded"] is False
     assert report["evidence"]["before"]["storage"]["chain_head"] == BEFORE_HASH
     assert secret not in encoded
-    assert "[REDACTED]" in encoded
+    assert "head unavailable" not in encoded
+    assert "Traceback" not in encoded
 
 
-def test_main_blocks_before_credentials_or_proof_effects(
+def test_main_reports_setup_required_by_name_without_provider_effects(
     monkeypatch,
     tmp_path: pathlib.Path,
 ) -> None:
-    secret = "hf_example_secret_value"
     output = tmp_path / "restart-proof.json"
-    monkeypatch.setenv("HF_TOKEN", secret)
+    monkeypatch.delenv("HF_TOKEN", raising=False)
     attempts = []
 
     def refuse(*args, **kwargs):
-        attempts.append("unreviewed live effect")
-        raise AssertionError("blocked CLI must not initialize or invoke a provider")
+        attempts.append("provider effect")
+        raise AssertionError("SETUP_REQUIRED must stop before any provider call")
 
-    monkeypatch.setattr(proof, "HfApi", refuse)
     monkeypatch.setattr(proof, "prove", refuse)
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        [
-            str(SCRIPT),
-            "--source-sha",
-            "a" * 40,
-            "--output",
-            str(output),
-        ],
-    )
+    monkeypatch.setattr(proof.bounds, "BoundedTransport", refuse)
 
-    assert proof.main() == 1
+    code = proof.main(["--source-sha", "a" * 40, "--output", str(output)])
 
-    report = json.loads(output.read_text(encoding="utf-8"))
-    assert report["status"] == "FAIL"
+    raw = output.read_text(encoding="utf-8")
+    report = json.loads(raw)
+    assert code == 1
+    assert report["state"] == "SETUP_REQUIRED"
+    assert report["diagnostic_code"] == "SETUP_REQUIRED"
+    assert report["missing_secret_names"] == ["HF_TOKEN"]
     assert report["ok"] is False
     assert report["credential_authority_state"] == "UNKNOWN"
-    assert report["evidence"] == {}
     assert attempts == []
-    assert secret not in output.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    ("argv", "code"),
+    [
+        (["--repo-id", "SZLHOLDINGS/other"], "SPACE_SCOPE_REJECTED"),
+        (["--repo-id", "szlholdings/a11oy"], "SPACE_SCOPE_REJECTED"),
+        (["--origin", "https://a-11-oy.com"], "DESTINATION_REJECTED"),
+        (["--origin", "https://szlholdings-a11oy.hf.space.evil.example"], "DESTINATION_REJECTED"),
+    ],
+)
+def test_main_rejects_wrong_space_or_origin_before_credentials(
+    monkeypatch, tmp_path: pathlib.Path, argv, code
+) -> None:
+    secret = "hf_example_secret_value_long_enough"
+    monkeypatch.setenv("HF_TOKEN", secret)
+    output = tmp_path / "restart-proof.json"
+    monkeypatch.setattr(proof, "prove", lambda **_k: (_ for _ in ()).throw(AssertionError("no")))
+    assert proof.main(["--source-sha", "a" * 40, "--output", str(output), *argv]) == 1
+    raw = output.read_text(encoding="utf-8")
+    report = json.loads(raw)
+    assert report["diagnostic_code"] == code
+    assert secret not in raw
 
 
 def test_prove_uses_one_shared_deadline(monkeypatch) -> None:
@@ -567,7 +589,7 @@ def test_prove_uses_one_shared_deadline(monkeypatch) -> None:
             api=Api(),
             session=session,
             repo_id="SZLHOLDINGS/a11oy",
-            origin="https://a-11-oy.com",
+            origin="https://szlholdings-a11oy.hf.space",
             source_sha=source,
             attempts=90,
             retry_seconds=10,
@@ -610,17 +632,158 @@ def test_capture_rejects_missing_database_creation_identity() -> None:
     session = Session(source)
     session.statuses[0]["storage"]["created_at"] = None
     with pytest.raises(proof.RestartProofError):
-        proof.capture(session, "https://a-11-oy.com", source)
+        proof.capture(session, "https://szlholdings-a11oy.hf.space", source)
 
 
 @pytest.mark.parametrize(
     "value",
     [
-        "http://a-11-oy.com",
-        "https://user:pass@a-11-oy.com",
-        "https://a-11-oy.com/path",
+        "http://szlholdings-a11oy.hf.space",
+        "https://user:pass@szlholdings-a11oy.hf.space",
+        "https://szlholdings-a11oy.hf.space/path",
+        "https://a-11-oy.com",
+        "https://SZLHOLDINGS-A11OY.hf.space",
+        "https://szlholdings-a11oy.hf.space.evil.example",
+        "https://szlholdings-a11oy.hf.space:8443",
     ],
 )
 def test_origin_rejects_noncanonical_or_credentialed_values(value: str) -> None:
     with pytest.raises(proof.RestartProofError):
         proof.normalize_origin(value)
+
+
+# --- Bounded live-proof admission -----------------------------------------
+
+
+def _load_checker():
+    import importlib.util
+
+    path = pathlib.Path(__file__).with_name("check_hf_manual_prerequisites.py")
+    spec = importlib.util.spec_from_file_location("checker_for_series_a", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_prove_records_running_stage_and_deployed_source(monkeypatch) -> None:
+    source = "a" * 40
+    monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
+    report = proof.prove(
+        api=Api(), session=Session(source), repo_id="SZLHOLDINGS/a11oy",
+        origin="https://szlholdings-a11oy.hf.space", source_sha=source,
+        attempts=2, retry_seconds=0,
+    )
+    assert report["proof"]["running_stage_and_source_observed"] is True
+    assert report["durability_running"]["stage"] == "RUNNING"
+    assert report["durability_running"]["git_sha"] == source
+
+
+class StaleHonestSession(Session):
+    def get(self, url: str, **kwargs):
+        if url.endswith("/api/a11oy/v1/honest"):
+            return Response(url, value={"git_sha": "b" * 40})
+        return super().get(url, **kwargs)
+
+
+def test_restart_proof_times_out_when_the_deployed_source_never_serves(monkeypatch) -> None:
+    source = "a" * 40
+    monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
+    with pytest.raises(proof.RestartProofError) as excinfo:
+        proof.prove(
+            api=Api(), session=StaleHonestSession(source), repo_id="SZLHOLDINGS/a11oy",
+            origin="https://szlholdings-a11oy.hf.space", source_sha=source,
+            attempts=2, retry_seconds=0,
+        )
+    assert proof._code(excinfo.value) == "RESTART_PROOF_TIMEOUT"
+
+
+class NotRunningApi(Api):
+    def restart_space(self, **kwargs):
+        value = super().restart_space(**kwargs)
+        self.stage = "BUILDING"
+        return value
+
+
+def test_restart_proof_times_out_when_the_space_never_reaches_running(monkeypatch) -> None:
+    source = "a" * 40
+    monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
+    with pytest.raises(proof.RestartProofError) as excinfo:
+        proof.prove(
+            api=NotRunningApi(), session=Session(source), repo_id="SZLHOLDINGS/a11oy",
+            origin="https://szlholdings-a11oy.hf.space", source_sha=source,
+            attempts=2, retry_seconds=0,
+        )
+    assert proof._code(excinfo.value) == "RESTART_PROOF_TIMEOUT"
+
+
+def test_pass_report_is_admitted_only_as_an_exact_bounded_pass(monkeypatch, tmp_path) -> None:
+    source = "a" * 40
+    monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
+    api = Api()
+    result = proof.prove(
+        api=api, session=Session(source), repo_id="SZLHOLDINGS/a11oy",
+        origin="https://szlholdings-a11oy.hf.space", source_sha=source,
+        attempts=2, retry_seconds=0,
+    )
+    effects = [{"effect": "pause_space", "repo_id": "SZLHOLDINGS/a11oy"},
+               {"effect": "restart_space", "repo_id": "SZLHOLDINGS/a11oy"}] * 2
+    report = proof.pass_report(result, deadline_seconds=1200, effects=effects)
+    report["source_revision"] = source
+    output = tmp_path / "series-a.json"
+    encoded = proof.bounds.write_json(output, report)
+    assert len(encoded.encode("utf-8")) <= 16 * 1024
+    checker = _load_checker()
+    assert checker.inspect_live_proof(output, "series_a", 0, source) == {
+        "report_valid": True, "state": "PROVEN"}
+    assert checker.inspect_live_proof(output, "series_a", 1, source)["state"] == "UNPROVEN"
+    # An effect on any other Space makes the report inadmissible.
+    report["effects"].append({"effect": "restart_space", "repo_id": "SZLHOLDINGS/other"})
+    proof.bounds.write_json(output, report)
+    assert checker.inspect_live_proof(output, "series_a", 0, source)["state"] == "UNPROVEN"
+
+
+class _Resp:
+    def __init__(self, url, payload, status=200):
+        self._url, self._body, self.status = url, json.dumps(payload).encode(), status
+
+    def read(self, *_a):
+        return self._body
+
+    def geturl(self):
+        return self._url
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_a):
+        return False
+
+
+def test_main_redirect_on_space_control_is_a_fixed_code_without_body(monkeypatch, tmp_path) -> None:
+    import io
+    from urllib.error import HTTPError
+
+    secret = "hf_example_secret_value_long_enough"
+    monkeypatch.setenv("HF_TOKEN", secret)
+    seen = []
+
+    class Opener:
+        def open(self, request, timeout=None):
+            seen.append(request.full_url)
+            raise HTTPError(request.full_url, 307, "redirect", {"Location": "https://evil.example/"},
+                            io.BytesIO(b"<html>provider page " + secret.encode() + b"</html>"))
+
+    def factory(**kwargs):
+        return proof.bounds.BoundedTransport(opener=Opener(), sleep=lambda _s: None, **kwargs)
+
+    output = tmp_path / "series-a.json"
+    code = proof.main(["--source-sha", "a" * 40, "--output", str(output)], transport_factory=factory)
+    raw = output.read_text(encoding="utf-8")
+    report = json.loads(raw)
+    assert code == 1
+    assert report["diagnostic_code"] == "REDIRECT_REJECTED"
+    assert secret not in raw and "provider page" not in raw and "evil.example" not in raw
+    assert len(seen) == 1
+    assert all(url.startswith(("https://szlholdings-a11oy.hf.space/api/",
+                               "https://huggingface.co/api/spaces/SZLHOLDINGS/a11oy"))
+               for url in seen)

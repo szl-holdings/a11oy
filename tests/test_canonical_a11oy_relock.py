@@ -1009,46 +1009,46 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertIn("probe summary contains doctrine lies", publisher)
 
-    def test_runtime_config_retains_independently_blocked_proof_evidence(self) -> None:
+    def test_runtime_config_runs_bounded_live_proofs_and_retains_evidence(self) -> None:
         runtime_config = self.workflow.split(
             "  runtime-config:", 1
         )[1].split("\n  deploy:", 1)[0]
-        for kind, name, output in (
-            ("series-a", "Block unreviewed live Series-A restart effects", "SERIES_A_LIVE_REPORT"),
-            ("gdw", "Block unreviewed live GDW write effects", "GDW_LIVE_REPORT"),
+        series_name = "Prove live Series-A restart persistence (bounded)"
+        gdw_name = "Prove live GDW write, drain, and receipt integrity (bounded)"
+        admit_name = "Admit bounded live proof reports and fail closed"
+        for script, name, output in (
+            ("prove_hf_series_a_restart.py", series_name, "SERIES_A_LIVE_REPORT"),
+            ("prove_hf_gdw_runtime.py", gdw_name, "GDW_LIVE_REPORT"),
         ):
-            with self.subTest(kind=kind):
+            with self.subTest(script=script):
                 step = runtime_config.split(f"      - name: {name}\n", 1)[1].split(
                     "\n      - name:", 1
                 )[0]
-                self.assertIn("python -B scripts/check_hf_manual_prerequisites.py", step)
-                self.assertIn(f"--blocked-proof {kind}", step)
+                self.assertIn(f"python -B scripts/{script}", step)
+                self.assertIn('--origin "$CANONICAL_ORIGIN"', step)
                 self.assertIn('--source-sha "${{ github.sha }}"', step)
                 self.assertIn(f'--output "${output}"', step)
+                self.assertIn('exit "$code"', step)
                 self.assertNotIn("continue-on-error", step)
                 self.assertIn(f"${{{{ env.{output} }}}}", runtime_config)
-        self.assertNotIn("prove_hf_series_a_restart.py", self.workflow)
-        self.assertNotIn("prove_hf_gdw_runtime.py", self.workflow)
+        self.assertNotIn("--blocked-proof", runtime_config)
+        admit = runtime_config.split(f"      - name: {admit_name}\n", 1)[1].split(
+            "\n      - name:", 1
+        )[0]
+        self.assertIn("--admit-live-proofs", admit)
+        self.assertIn("set -euo pipefail", admit)
+        self.assertIn("${{ env.LIVE_PROOF_ADMISSION_REPORT }}", runtime_config)
         self.assertIn(
             "- name: Upload secret-free runtime configuration evidence\n"
             "        if: ${{ always() }}",
             self.workflow,
         )
         self.assertIn("if-no-files-found: error", runtime_config)
-        self.assertLess(
-            self.workflow.index("Block unreviewed live Series-A restart effects"),
-            self.workflow.index("Block unreviewed live GDW write effects"),
-        )
-        self.assertLess(
-            self.workflow.index("Block unreviewed live GDW write effects"),
-            self.workflow.index("Upload secret-free runtime configuration evidence"),
-        )
-        self.assertLess(
-            self.workflow.index("Upload secret-free runtime configuration evidence"),
-            self.workflow.index(
-                "python .github/scripts/verify_canonical_a11oy.py"
-            ),
-        )
+        order = [series_name, gdw_name, admit_name,
+                 "Upload secret-free runtime configuration evidence",
+                 "python .github/scripts/verify_canonical_a11oy.py"]
+        positions = [self.workflow.index(item) for item in order]
+        self.assertEqual(positions, sorted(positions))
 
     def test_immutable_artifacts_are_unique_across_rerun_attempts(self) -> None:
         self.assertIn(

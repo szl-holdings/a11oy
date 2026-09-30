@@ -178,7 +178,7 @@ jobs:
           retention-days: 90
 
   runtime-config:
-    name: Verify post-deploy configuration and retain blocked live proof evidence
+    name: Verify post-deploy configuration and bounded live proofs
     needs: [manual-prerequisites, deploy]
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -188,6 +188,7 @@ jobs:
       SERIES_A_LIVE_REPORT: /tmp/series-a-restart-proof.json
       GDW_CONFIG_REPORT: /tmp/gdw-runtime-config.json
       GDW_LIVE_REPORT: /tmp/gdw-live-proof.json
+      LIVE_PROOF_ADMISSION_REPORT: /tmp/live-proof-admission.json
     steps:
       - name: Checkout exact protected source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -221,20 +222,50 @@ jobs:
           --repo-id "$CANONICAL_SPACE"
           --output "$GDW_CONFIG_REPORT"
 
-      - name: Block unreviewed live Series-A restart effects
-        run: >-
-          python -B scripts/check_hf_manual_prerequisites.py
-          --blocked-proof series-a
-          --source-sha "${{ github.sha }}"
-          --output "$SERIES_A_LIVE_REPORT"
+      # Bounded (scripts/hf_live_proof_bounds.py): exact destinations only, no
+      # redirects, fixed diagnostic codes, 8 attempts / 10 minutes for
+      # transient admission, effects limited to SZLHOLDINGS/a11oy.
+      - name: Prove live Series-A restart persistence (bounded)
+        id: series_a_proof
+        shell: bash
+        run: |
+          set +e
+          python -B scripts/prove_hf_series_a_restart.py \
+            --repo-id "$CANONICAL_SPACE" --origin "$CANONICAL_ORIGIN" \
+            --source-sha "${{ github.sha }}" --output "$SERIES_A_LIVE_REPORT"
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit "$code"
 
-      - name: Block unreviewed live GDW write effects
+      # Writes only in the a11oy GDW namespace; the proof-tagged receipt must
+      # verify against ayllu/keys/council-runtime-2026-07-21.pub.
+      - name: Prove live GDW write, drain, and receipt integrity (bounded)
+        id: gdw_proof
+        if: ${{ always() && needs.manual-prerequisites.result == 'success' && needs.deploy.result == 'success' && (steps.series_a_proof.outcome == 'success' || steps.series_a_proof.outcome == 'failure') }}
+        shell: bash
+        env:
+          GDW_OPERATOR_TOKEN: ${{ secrets.GDW_OPERATOR_TOKEN }}
+        run: |
+          set +e
+          python -B scripts/prove_hf_gdw_runtime.py \
+            --origin "$CANONICAL_ORIGIN" \
+            --source-sha "${{ github.sha }}" --output "$GDW_LIVE_REPORT"
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit "$code"
+
+      - name: Admit bounded live proof reports and fail closed
         if: ${{ always() && needs.manual-prerequisites.result == 'success' && needs.deploy.result == 'success' }}
-        run: >-
-          python -B scripts/check_hf_manual_prerequisites.py
-          --blocked-proof gdw
-          --source-sha "${{ github.sha }}"
-          --output "$GDW_LIVE_REPORT"
+        shell: bash
+        env:
+          SERIES_A_PROOF_EXIT: ${{ steps.series_a_proof.outputs.exit_code }}
+          GDW_PROOF_EXIT: ${{ steps.gdw_proof.outputs.exit_code }}
+        run: |
+          set -euo pipefail
+          python -B scripts/check_hf_manual_prerequisites.py --admit-live-proofs \
+            --series-a-proof "$SERIES_A_LIVE_REPORT" --series-a-proof-exit "${SERIES_A_PROOF_EXIT:-2}" \
+            --gdw-proof "$GDW_LIVE_REPORT" --gdw-proof-exit "${GDW_PROOF_EXIT:-2}" \
+            --source-sha "${{ github.sha }}" --output "$LIVE_PROOF_ADMISSION_REPORT"
 
       - name: Upload secret-free runtime configuration evidence
         if: ${{ always() }}
@@ -246,6 +277,7 @@ jobs:
             ${{ env.SERIES_A_LIVE_REPORT }}
             ${{ env.GDW_CONFIG_REPORT }}
             ${{ env.GDW_LIVE_REPORT }}
+            ${{ env.LIVE_PROOF_ADMISSION_REPORT }}
           if-no-files-found: error
           retention-days: 90
 
