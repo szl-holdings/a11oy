@@ -8,14 +8,19 @@ The script is intentionally narrow:
 * it preserves every existing Space volume and fails on mount conflicts;
 * it requires the canonical signing-secret name without reading its value;
 * it checks manually installed credential metadata without transferring values;
-* its report contains names and topology, never secret material.
+* it verifies installed signing authority by matching the live runtime public
+  key against the pinned runtime key (``scripts/verify_installed_authority.py``);
+* its report contains names, public fingerprints and topology, never secret
+  material.
 """
 
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
+import sys
 import time
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping
@@ -26,6 +31,11 @@ CANONICAL_BUCKET = "SZLHOLDINGS/szl-evidence"
 CANONICAL_SIGNING_SECRET = "SZL_COSIGN_PRIVATE_PEM"
 GITHUB_PUBLIC_READ_SECRET = "A11OY_GITHUB_PUBLIC_READ_TOKEN"
 GITHUB_READ_SCOPES = {"read:org", "read:user", "user:email"}
+# Founder decision 2026-09-30: the GitHub public reader is optional. It is
+# reported by name only and never required for admission.
+REQUIRED_SECRET_NAMES = (CANONICAL_SIGNING_SECRET,)
+OPTIONAL_SECRET_NAMES = (GITHUB_PUBLIC_READ_SECRET,)
+DEFAULT_CANONICAL_ORIGIN = "https://szlholdings-a11oy.hf.space"
 DATA_MOUNT = "/data"
 SERIES_A_VARIABLES = {
     "A11OY_REQUIRE_PERSISTENT_SIGNING": "1",
@@ -66,6 +76,36 @@ RUNTIME_VARIABLES = {
 }
 
 
+INSTALLED_AUTHORITY_DIAGNOSTICS = (
+    "INSTALLED_AUTHORITY_VERIFIED", "AUTHORITY_ORIGIN_NOT_CANONICAL", "AUTHORITY_ORIGIN_UNAVAILABLE",
+    "SIGNING_KEY_NOT_INSTALLED", "SIGNING_KEY_MISMATCH", "PINNED_KEY_INCONSISTENT",
+    "SIGNING_SECRET_MISSING", "GDW_CREDENTIALS_MISSING",
+)
+
+
+def load_authority_verifier() -> Any:
+    """Load the sibling verifier by path (scripts/ is not a package)."""
+    cached = sys.modules.get("verify_installed_authority")
+    if cached is not None:
+        return cached
+    path = Path(__file__).resolve().with_name("verify_installed_authority.py")
+    spec = importlib.util.spec_from_file_location("verify_installed_authority", path)
+    if spec is None or spec.loader is None:
+        raise ImportError("installed-authority verifier is unavailable")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["verify_installed_authority"] = module
+    try:
+        spec.loader.exec_module(module)
+    except Exception:
+        sys.modules.pop("verify_installed_authority", None)
+        raise
+    return module
+
+
+def canonical_origin() -> str:
+    return os.environ.get("CANONICAL_ORIGIN") or DEFAULT_CANONICAL_ORIGIN
+
+
 class RuntimeConfigError(RuntimeError):
     """Fail closed with a fixed public diagnostic and no provider error text."""
 
@@ -78,6 +118,7 @@ class RuntimeConfigError(RuntimeError):
             "LEGACY_PRINCIPAL_CONFLICT", "PERSISTENT_STORAGE_UNAVAILABLE",
             "SPACE_CLIENT_UNAVAILABLE", "INSTALLED_AUTHORITY_UNKNOWN",
             "HF_CONTROL_CREDENTIAL_MISSING", "CHECK_MODE_MALFORMED",
+            *INSTALLED_AUTHORITY_DIAGNOSTICS,
         }
         self.diagnostic_code = diagnostic_code if diagnostic_code in allowed else "PREREQUISITES_UNAVAILABLE"
 
@@ -141,8 +182,14 @@ def verify_public_github_reader(token: str, *, get: Callable | None = None) -> d
             "credential_value_reported": False}
 
 
-def manual_prerequisites(api: Any, *, repo_id: str) -> dict[str, Any]:
-    """Inspect names and storage only; installed credential authority is unknown."""
+def manual_prerequisites(api: Any, *, repo_id: str, origin: str | None = None,
+                         authority_get: Callable | None = None) -> dict[str, Any]:
+    """Inspect names and storage, then verify installed signing authority.
+
+    Authority is VERIFIED only when the live runtime public key matches both
+    pins (``verify_installed_authority``); every other outcome stays
+    SETUP_REQUIRED with a fixed diagnostic. Secret values are never read.
+    """
     if repo_id != CANONICAL_SPACE:
         raise RuntimeConfigError("SETUP_REQUIRED: only the canonical A11oy Space is admitted", diagnostic_code="CANONICAL_DESTINATION_REQUIRED")
     try:
@@ -161,8 +208,8 @@ def manual_prerequisites(api: Any, *, repo_id: str) -> dict[str, Any]:
         public_names = set(variable_names)
     except Exception:
         raise RuntimeConfigError("SETUP_REQUIRED: Space credential names are malformed", diagnostic_code="CREDENTIAL_NAMES_MALFORMED") from None
-    required = {CANONICAL_SIGNING_SECRET, GITHUB_PUBLIC_READ_SECRET}
-    if required.intersection(public_names):
+    required = set(REQUIRED_SECRET_NAMES)
+    if (required | set(OPTIONAL_SECRET_NAMES)).intersection(public_names):
         raise RuntimeConfigError("SETUP_REQUIRED: a required secret collides with a public variable", diagnostic_code="PUBLIC_VARIABLE_COLLISION")
     try:
         volumes = read_space_volumes(api, repo_id=repo_id)
@@ -171,16 +218,30 @@ def manual_prerequisites(api: Any, *, repo_id: str) -> dict[str, Any]:
         _, missing_volume = plan_volumes(volumes)
     except Exception:
         raise RuntimeConfigError("SETUP_REQUIRED: canonical persistent volume metadata is unavailable or conflicting", diagnostic_code="PERSISTENT_STORAGE_UNAVAILABLE") from None
+    try:
+        authority = load_authority_verifier().verify_installed_authority(
+            names, public_names, origin=origin or canonical_origin(), get=authority_get)
+    except Exception:
+        raise RuntimeConfigError("SETUP_REQUIRED: installed credential authority is UNKNOWN", diagnostic_code="INSTALLED_AUTHORITY_UNKNOWN") from None
+    verified = (authority.get("credential_authority_state") == "VERIFIED"
+                and not missing_volume and required <= names)
+    diagnostic = authority.get("diagnostic_code")
+    if not verified:
+        if diagnostic == "INSTALLED_AUTHORITY_VERIFIED" or diagnostic not in INSTALLED_AUTHORITY_DIAGNOSTICS:
+            diagnostic = "INSTALLED_AUTHORITY_UNKNOWN"
     return {
         "schema": "szl.hf-series-a-runtime-config/v1",
         "repo_id": repo_id,
-        "state": "SETUP_REQUIRED",
-        "diagnostic_code": "INSTALLED_AUTHORITY_UNKNOWN",
+        "state": "READY" if verified else "SETUP_REQUIRED",
+        "diagnostic_code": "INSTALLED_AUTHORITY_VERIFIED" if verified else diagnostic,
         "missing_secret_names": sorted(required - names),
         "required_secret_names": sorted(required),
+        "optional_secret_names": sorted(OPTIONAL_SECRET_NAMES),
+        "optional_secret_names_present": sorted(set(OPTIONAL_SECRET_NAMES) & names),
         "persistent_volume_present": not missing_volume,
-        "credential_authority_state": "UNKNOWN",
-        "converged": False,
+        "credential_authority_state": "VERIFIED" if verified else "UNKNOWN",
+        "installed_authority": authority,
+        "converged": verified,
         "secret_values_read": False,
         "secret_values_written": False,
     }
@@ -356,6 +417,8 @@ def configure(
     bucket: str,
     token: str,
     check_only: bool = False,
+    origin: str | None = None,
+    authority_get: Callable | None = None,
 ) -> dict[str, Any]:
     if not token:
         raise RuntimeConfigError("HF_TOKEN is required", diagnostic_code="HF_CONTROL_CREDENTIAL_MISSING")
@@ -369,13 +432,15 @@ def configure(
         api = HfApi(token=token)
     except Exception:
         raise RuntimeConfigError("SETUP_REQUIRED: Space metadata client is unavailable", diagnostic_code="SPACE_CLIENT_UNAVAILABLE") from None
-    prerequisites = manual_prerequisites(api, repo_id=repo_id)
+    prerequisites = manual_prerequisites(api, repo_id=repo_id, origin=origin, authority_get=authority_get)
     if check_only:
         return prerequisites
-    # Names do not bind the installed secret to independently verified authority.
-    # No supported handoff consumer exists; ordinary configuration stays held.
-    if prerequisites["converged"] is not True or prerequisites["credential_authority_state"] == "UNKNOWN":
-        raise RuntimeConfigError("SETUP_REQUIRED: installed credential authority is UNKNOWN", diagnostic_code="INSTALLED_AUTHORITY_UNKNOWN")
+    # Only independently verified installed authority (live runtime key equal
+    # to both pins) admits configuration; every other state stays held.
+    if (prerequisites["converged"] is not True or prerequisites["state"] != "READY"
+            or prerequisites["credential_authority_state"] != "VERIFIED"):
+        raise RuntimeConfigError("SETUP_REQUIRED: installed credential authority is not VERIFIED",
+                                 diagnostic_code=prerequisites.get("diagnostic_code", "INSTALLED_AUTHORITY_UNKNOWN"))
     current_volumes = read_space_volumes(api, repo_id=repo_id)
     desired_volumes, volume_change = plan_volumes(
         current_volumes,
@@ -427,7 +492,9 @@ def configure(
         "variables_changed": sorted(variable_changes),
         "converged": True,
         "existing_space_secret_values_read": False,
-        "github_public_reader": prerequisites,
+        "credential_authority_state": "VERIFIED",
+        "github_public_reader": prerequisites["installed_authority"]["github_public_reader"],
+        "installed_authority": prerequisites["installed_authority"],
     }
 
 

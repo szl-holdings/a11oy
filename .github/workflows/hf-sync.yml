@@ -106,7 +106,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install exact metadata client
-        run: python -m pip install --disable-pip-version-check "huggingface_hub==1.23.0" "requests==2.32.5"
+        # cryptography parses the live runtime public key for the pinned
+        # installed-authority check (scripts/verify_installed_authority.py).
+        run: python -m pip install --disable-pip-version-check "huggingface_hub==1.23.0" "requests==2.32.5" "cryptography==50.0.1"
       - name: Retain metadata checks and fail closed on UNKNOWN authority
         shell: bash
         run: |
@@ -204,6 +206,7 @@ jobs:
           python -m pip install --disable-pip-version-check
           "huggingface_hub==1.23.0"
           "requests==2.32.5"
+          "cryptography==50.0.1"
 
       - name: Converge fail-closed runtime configuration
         run: >-
