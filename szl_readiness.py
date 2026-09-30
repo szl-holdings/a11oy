@@ -44,6 +44,7 @@ Endpoints (per namespace ns):
 from __future__ import annotations
 
 import json
+import math
 import os
 import tempfile
 import threading
@@ -94,10 +95,12 @@ def _a11oy_cfg() -> Dict[str, Any]:
                 {"id": "console", "role": "app",
                  "title": "Operator console", "url": base + "/console"},
                 {"id": "healthz", "role": "health",
-                 "title": "Liveness probe", "url": base + "/healthz"},
+                 "title": "Liveness probe", "url": base + "/healthz",
+                 "contract": "health-v1", "organ": "a11oy"},
                 {"id": "api", "role": "api",
                  "title": "Live API (evidence read)",
-                 "url": api + "/evidence/research"},
+                 "url": api + "/evidence/research",
+                 "contract": "evidence-v1", "organ": "a11oy"},
             ],
         },
     }
@@ -123,10 +126,12 @@ def _killinchu_cfg() -> Dict[str, Any]:
                  "title": "Path mount (a-11-oy.com/killinchu)",
                  "url": _envbase("a11oy", "https://a-11-oy.com") + "/killinchu"},
                 {"id": "healthz", "role": "health",
-                 "title": "Liveness probe", "url": base + "/healthz"},
+                 "title": "Liveness probe", "url": base + "/healthz",
+                 "contract": "health-v1", "organ": "killinchu"},
                 {"id": "api", "role": "api",
                  "title": "Live API (evidence read)",
-                 "url": api + "/evidence/research"},
+                 "url": api + "/evidence/research",
+                 "contract": "evidence-v1", "organ": "killinchu"},
             ],
         },
     }
@@ -152,6 +157,7 @@ _GH_TTL = 600           # 10 min — GitHub repo/CI/release/compare freshness
 _HF_TTL = 600           # 10 min — Hugging Face Space freshness
 _LIVENESS_TTL = 300     # 5 min — endpoint reachability badge freshness
 _LIVENESS_TIMEOUT = 8   # 8 s — per-endpoint HEAD/GET probe timeout
+_CONTRACT_MAX_BYTES = 1024 * 1024
 _WARM_INTERVAL = int(os.environ.get("SZL_READINESS_WARM_INTERVAL", "240") or "240")
 _DISK = os.environ.get(
     "SZL_READINESS_CACHE",
@@ -503,6 +509,145 @@ def _liveness(url: str, fresh: bool = False) -> Dict[str, Any]:
             "mode": "unreachable", "checked_at": _now_iso()}
 
 
+def _json_object(pairs: List[Tuple[str, Any]]) -> Dict[str, Any]:
+    value: Dict[str, Any] = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError("duplicate JSON key")
+        value[key] = item
+    return value
+
+
+def _invalid_json_constant(_value: str) -> None:
+    raise ValueError("non-finite JSON constant")
+
+
+def _finite_json_float(value: str) -> float:
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError("non-finite JSON number")
+    return number
+
+
+def _validate_contract(endpoint: Dict[str, Any], status: int, content_type: str,
+                       body: bytes) -> str:
+    """Return a failure reason, or an empty string for the declared JSON shape.
+
+    This checks the passive health/evidence route only; it grants no execution
+    authority and makes no claim about the truth of individual research claims.
+    """
+    if status != 200:
+        return "http_status_%s" % status
+    if content_type.split(";", 1)[0].strip().lower() != "application/json":
+        return "content_type_not_json"
+    if len(body) > _CONTRACT_MAX_BYTES:
+        return "body_too_large"
+    try:
+        value = json.loads(body, object_pairs_hook=_json_object,
+                           parse_constant=_invalid_json_constant, parse_float=_finite_json_float)
+    except (ValueError, UnicodeError):
+        return "malformed_json"
+    if not isinstance(value, dict):
+        return "json_not_object"
+    if value.get("stale") is True:
+        return "upstream_stale"
+    organ = endpoint.get("organ")
+    if not organ:
+        return "missing_organ_contract"
+    contract = endpoint.get("contract")
+    if contract == "health-v1":
+        identities = [value[key] for key in ("organ", "service") if key in value]
+        if value.get("status") != "ok" or not identities or any(v != organ for v in identities):
+            return "health_contract_mismatch"
+    elif contract == "evidence-v1":
+        claims = value.get("claims")
+        if (value.get("layer") != "%s evidence & research" % organ
+                or not isinstance(value.get("honest"), str) or not value["honest"].strip()
+                or not isinstance(claims, list)
+                or type(value.get("count")) is not int or value["count"] != len(claims)):
+            return "evidence_contract_mismatch"
+        if any(not isinstance(claim, dict)
+               or not isinstance(claim.get("id"), str) or not claim["id"].strip()
+               or not isinstance(claim.get("claim"), str) or not claim["claim"].strip()
+               or not isinstance(claim.get("sources"), list) for claim in claims):
+            return "evidence_claim_contract_mismatch"
+    else:
+        return "unknown_contract"
+    return ""
+
+
+def _clock_age(now: Any, observed: Any) -> Optional[float]:
+    """Reject malformed clocks instead of emitting non-finite JSON ages."""
+    if type(now) not in (int, float) or type(observed) not in (int, float):
+        return None
+    try:
+        if not math.isfinite(now) or not math.isfinite(observed):
+            return None
+        age = now - observed
+        return age if math.isfinite(age) else None
+    except OverflowError:
+        return None
+
+
+def _endpoint_liveness(endpoint: Dict[str, Any], fresh: bool = False) -> Dict[str, Any]:
+    """Keep transport observations separate from a successful JSON contract."""
+    url = endpoint.get("url", "")
+    required = endpoint.get("role") in ("health", "api")
+    if not required:
+        return _liveness(url, fresh=fresh)
+    contract = {"id": endpoint.get("contract"), "required": True,
+                "valid": False, "ready": False, "reason": "contract_unconfigured"}
+    if not endpoint.get("contract") or not endpoint.get("organ"):
+        return {**_liveness(url, fresh=fresh), "contract": contract}
+    key = "contract:v1:%s:%s:%s" % (endpoint["contract"], endpoint["organ"], url)
+    now = time.time()
+    hit = _hit(key)
+    age = _clock_age(now, hit.get("_t")) if isinstance(hit, dict) else None
+    if hit and age is None:
+        # A malformed persisted observation cannot be reused as readiness.
+        hit = None
+    if not fresh and hit and age is not None and 0 <= age < _LIVENESS_TTL:
+        return {**hit["v"], "mode": "cached", "checked_at": hit["at"],
+                "checked_at_unix": hit["_t"], "age_seconds": round(age, 1), "stale": False}
+    status = None
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": _UA, "Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=_LIVENESS_TIMEOUT) as response:  # nosec - passive public GET
+            status = response.getcode()
+            reason = _validate_contract(endpoint, status,
+                                        response.headers.get("Content-Type", ""),
+                                        response.read(_CONTRACT_MAX_BYTES + 1))
+    except urllib.error.HTTPError as ex:
+        status, reason = ex.code, "http_status_%s" % ex.code
+    except Exception as ex:  # noqa: BLE001 - preserve failed refresh and prior observation
+        error = type(ex).__name__
+        if hit:
+            previous = hit["v"]
+            failed = {**previous, "error": error,
+                      "contract": {**previous.get("contract", contract), "ready": False,
+                                   "reason": "live_check_failed"},
+                      "note": "live JSON check failed; cached observation is not current readiness"}
+            # Preserve the observation's original clock; a failed refresh must
+            # neither renew its TTL nor resurrect a prior pass on the next read.
+            with _LOCK:
+                _CACHE[key] = {**hit, "v": failed, "live": False}
+            _disk_save()
+            return {**failed, "mode": "cached", "checked_at": hit["at"],
+                    "checked_at_unix": hit.get("_t"), "age_seconds": round(age, 1),
+                    "stale": age < 0 or age >= _LIVENESS_TTL}
+        return {"url": url, "reachable": status is not None, "http_status": status,
+                "mode": "unreachable", "checked_at": _now_iso(), "error": error,
+                "stale": False, "contract": {**contract, "reason": "live_check_failed"}}
+    at = _now_iso()
+    observed = time.time()
+    val = {"url": url, "reachable": True, "http_status": status,
+           "contract": {**contract, "valid": not reason, "ready": not reason,
+                        "reason": reason or "ok"}}
+    _store(key, val, at, live=True)
+    return {**val, "mode": "live", "checked_at": at, "checked_at_unix": observed,
+            "age_seconds": 0.0, "stale": False}
+
+
 def _endpoints_live(endpoints: List[Dict[str, Any]], fresh: bool = False) -> List[Dict[str, Any]]:
     n = len(endpoints)
     out: List[Optional[Dict[str, Any]]] = [None] * n
@@ -516,7 +661,7 @@ def _endpoints_live(endpoints: List[Dict[str, Any]], fresh: bool = False) -> Lis
     try:
         from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor(max_workers=min(8, n)) as ex:
-            futs = {ex.submit(_liveness, e.get("url", ""), fresh): i
+            futs = {ex.submit(_endpoint_liveness, e, fresh): i
                     for i, e in enumerate(endpoints)}
             for f, i in futs.items():
                 try:
@@ -526,7 +671,7 @@ def _endpoints_live(endpoints: List[Dict[str, Any]], fresh: bool = False) -> Lis
     except Exception:  # noqa: BLE001 - degrade to sequential probing
         for i, e in enumerate(endpoints):
             try:
-                out[i] = _liveness(e.get("url", ""), fresh)
+                out[i] = _endpoint_liveness(e, fresh)
             except Exception:  # noqa: BLE001
                 out[i] = _fallback(e)
     return [o if o is not None else _fallback(endpoints[i]) for i, o in enumerate(out)]
@@ -550,7 +695,17 @@ def _sec_deployment(cfg: Dict[str, Any], fresh: bool = False) -> Dict[str, Any]:
     reachable = sum(1 for lv in live if lv.get("reachable"))
     return {"id": "deployment", "kind": "endpoints",
             "title": "Deployment surface", "target": dep["name"],
-            "endpoints": rows, "reachable": reachable, "total": len(rows)}
+            "endpoints": rows, "reachable": reachable, "total": len(rows),
+            **_application_summary(rows)}
+
+
+def _application_summary(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+    required = [row for row in rows if row.get("role") in ("health", "api")]
+    ready = sum(1 for row in required
+                if (row.get("liveness", {}).get("contract") or {}).get("ready") is True)
+    complete = {row.get("role") for row in required} == {"health", "api"}
+    return {"json_endpoints_ready": ready, "json_endpoints_total": len(required),
+            "application_ready": complete and ready == len(required)}
 
 
 def _sec_identity(cfg: Dict[str, Any], fresh: bool = False) -> Dict[str, Any]:
@@ -730,6 +885,7 @@ def _summary(sections: List[Dict[str, Any]]) -> Dict[str, Any]:
     dep = by.get("deployment") or {}
     out["endpoints_reachable"] = dep.get("reachable")
     out["endpoints_total"] = dep.get("total")
+    out.update(_application_summary(dep.get("endpoints") or []))
     par = by.get("parity") or {}
     b = par.get("build") or {}
     out["build_status"] = b.get("status")
@@ -751,7 +907,10 @@ _HONEST = (
     "anchor (kernel_commit) is the locked, kernel-verified formulas commit, "
     "surfaced verbatim and never equated with HEAD. A kept-warm on-disk cache "
     "means a momentarily unreachable upstream degrades to a real cached reading, "
-    "never to a fabricated status. No value on this panel is invented."
+    "never to a fabricated status. Transport reachability accepts any HTTP "
+    "response; application_ready separately requires fresh successful JSON "
+    "health and evidence contracts. It does not qualify research claims or "
+    "grant operational authority. No value on this panel is invented."
 )
 
 
@@ -801,6 +960,66 @@ def _build_snapshot(ns: str) -> Dict[str, Any]:
 def _snapshot(ns: str) -> Optional[Dict[str, Any]]:
     with _SNAPSHOT_LOCK:
         return _SNAPSHOT.get(ns)
+
+
+def _snapshot_payload(snap: Dict[str, Any]) -> Dict[str, Any]:
+    """Expire evidence and reconcile known failures without probes or mutation."""
+    payload = dict(snap["payload"])
+    now = time.time()
+    age = _clock_age(now, snap.get("_t"))
+    stale = age is None or age < 0 or age > _SNAPSHOT_STALE
+    sections = []
+    for original in payload.get("sections", []):
+        section = dict(original)
+        if section.get("id") == "deployment":
+            rows = []
+            for original_row in section.get("endpoints", []):
+                row = dict(original_row)
+                if row.get("role") in ("health", "api"):
+                    lv = dict(row.get("liveness") or {})
+                    contract = dict(lv.get("contract") or {})
+                    checked = lv.get("checked_at_unix")
+                    evidence_age = _clock_age(now, checked)
+                    if evidence_age is None:
+                        lv["checked_at_unix"] = None
+                    organ = payload.get("organ")
+                    url = row.get("url") or lv.get("url")
+                    if not organ or not url or not contract.get("id"):
+                        contract.update(ready=False, reason="snapshot_identity_unconfigured")
+                    else:
+                        key = "contract:v1:%s:%s:%s" % (contract["id"], organ, url)
+                        with _LOCK:
+                            cached = _CACHE.get(key)
+                            cached_at = cached.get("_t") if isinstance(cached, dict) else None
+                            value = cached.get("v") if isinstance(cached, dict) else None
+                            latest = dict(value) if isinstance(value, dict) else {}
+                        if cached is not None:
+                            latest_age = _clock_age(now, cached_at)
+                            latest_contract = latest.get("contract")
+                            if not isinstance(latest_contract, dict):
+                                latest_contract = {}
+                            if latest_age is None or latest_age < 0:
+                                contract.update(ready=False, reason="invalid_cached_evidence_clock")
+                            elif evidence_age is not None and latest_age <= evidence_age \
+                                    and latest_contract.get("ready") is not True:
+                                # A newer failed check overrides the old pass; it
+                                # cannot renew either original observation clock.
+                                contract.update(ready=False, reason=latest_contract.get("reason")
+                                                or "latest_contract_unverified")
+                                lv["latest_contract_ready"] = False
+                    expired = evidence_age is None or evidence_age < 0 or evidence_age >= _LIVENESS_TTL
+                    if stale or expired:
+                        contract.update(ready=False, reason="stale_evidence")
+                    lv.update(contract=contract, stale=stale or expired,
+                              age_seconds=round(evidence_age, 1) if evidence_age is not None else None)
+                    row["liveness"] = lv
+                rows.append(row)
+            section.update(endpoints=rows, **_application_summary(rows))
+        sections.append(section)
+    payload.update(sections=sections, summary=_summary(sections), served_from="background-snapshot",
+                   snapshot_fetched_at=snap.get("at"),
+                   snapshot_age_seconds=round(age, 1) if age is not None else None, stale=stale)
+    return payload
 
 
 def _kick_background_build(ns: str) -> None:
@@ -880,13 +1099,7 @@ def register(app, ns: str = "a11oy") -> None:
         # live/cached/unreachable labels; we add only honest age/staleness meta.
         snap = _snapshot(ns)
         if snap is not None:
-            payload = dict(snap["payload"])
-            age = time.time() - snap.get("_t", 0)
-            payload["served_from"] = "background-snapshot"
-            payload["snapshot_fetched_at"] = snap.get("at")
-            payload["snapshot_age_seconds"] = round(age, 1)
-            payload["stale"] = age > _SNAPSHOT_STALE
-            return JSONResponse(payload)
+            return JSONResponse(_snapshot_payload(snap))
         # Cold: snapshot not built yet (just-restarted process). Kick a
         # background build and return immediately with an honest "warming"
         # placeholder rather than blocking on the full live probe sweep.
@@ -932,16 +1145,16 @@ def register(app, ns: str = "a11oy") -> None:
         _kick_background_build(ns)
         snap = _snapshot(ns)
         if snap is not None:
-            age = time.time() - snap.get("_t", 0)
+            payload = _snapshot_payload(snap)
             return JSONResponse({
                 "layer": "%s readiness freshness sweep" % ns,
                 "honest": _HONEST,
                 "organ": cfg["organ"],
-                "summary": (snap["payload"].get("summary") or {}),
+                "summary": payload["summary"],
                 "served_from": "background-snapshot",
                 "snapshot_fetched_at": snap.get("at"),
-                "snapshot_age_seconds": round(age, 1),
-                "stale": age > _SNAPSHOT_STALE,
+                "snapshot_age_seconds": payload["snapshot_age_seconds"],
+                "stale": payload["stale"],
                 "refresh_triggered": True,
                 "checked_at": _now_iso(),
             })
