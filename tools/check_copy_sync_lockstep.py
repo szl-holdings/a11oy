@@ -55,6 +55,7 @@
 import ast
 import fnmatch
 import glob as globmod
+import hashlib
 import json
 import os
 import posixpath
@@ -598,8 +599,12 @@ SOURCE_DERIVED_CONTROLLER_REVISIONS = frozenset({
 })
 
 
-def job_has_source_derived_deploy_contract(block_lines, job_indent):
-    """Require an unconditional reviewed Dockerfile-derived deploy job."""
+REVIEWED_SOURCE_ADMISSION_JOB_SHA256 = "e9777064159bf0d120e9f18931e98c8f832b9e163b7b358908c92921ee69a668"
+REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee8395e042853ded04deb7d170189"
+
+
+def job_has_source_derived_deploy_contract(block_lines, job_indent, *, admission_verified=False):
+    """Require an unconditional deploy or the exact reviewed ownership gate."""
     property_indents = []
     for raw in block_lines[1:]:
         stripped = raw.strip()
@@ -614,18 +619,19 @@ def job_has_source_derived_deploy_contract(block_lines, job_indent):
     pinned_controller = False
     controller_seen = False
     with_index = None
+    gates = {}
     for index, raw in enumerate(block_lines[1:], start=1):
         stripped = raw.strip()
         indent = len(raw) - len(raw.lstrip())
         if indent != property_indent:
             continue
         entry = yaml_mapping_entry(stripped)
-        if entry and entry[0] in {"if", "<<", "needs"}:
-            # A skipped reusable job can leave the workflow green without
-            # publishing protected-main source changes. Dependencies can be
-            # skipped, and YAML merges can inherit either gate. Fail closed
-            # rather than proving arbitrary dependency/expression semantics.
+        if entry and entry[0] == "<<":
             return False
+        if entry and entry[0] in {"if", "needs"}:
+            if entry[0] in gates:
+                return False
+            gates[entry[0]] = entry[1]
         if entry and entry[0] == "uses":
             if controller_seen:
                 return False
@@ -646,13 +652,22 @@ def job_has_source_derived_deploy_contract(block_lines, job_indent):
             with_index = index
     if not controller_seen or not pinned_controller or with_index is None:
         return False
+    if gates and (not admission_verified or gates != {
+        "needs": "source-admission",
+        "if": "${{ needs.source-admission.outputs.publish == 'true' }}",
+    }):
+        # Arbitrary skipped/dependency-gated jobs still cannot prove coverage.
+        return False
 
     expected_inputs = {
         "hf-repo": "SZLHOLDINGS/a11oy",
         "ref": "${{ github.sha }}",
         "dockerfile-path": "Dockerfile",
     }
+    if gates:
+        expected_inputs["require-default-branch-tip"] = "true"
     matched_inputs = {}
+    contract_only_seen = False
     with_indent = None
     for raw in block_lines[with_index + 1:]:
         stripped = raw.strip()
@@ -669,6 +684,10 @@ def job_has_source_derived_deploy_contract(block_lines, job_indent):
         if not entry or entry[0] == "<<":
             return False
         key, value = entry
+        if key == "contract-only":
+            if contract_only_seen or not yaml_scalar_matches(value, "false"):
+                return False
+            contract_only_seen = True
         if key in expected_inputs:
             if key in matched_inputs:
                 return False
@@ -679,19 +698,33 @@ def job_has_source_derived_deploy_contract(block_lines, job_indent):
     )
 
 
-def has_source_derived_deploy_contract(hf_sync_text):
+def has_source_derived_deploy_contract(hf_sync_text, *, ownership_helper=None):
     """Return True only for the pinned reusable Dockerfile-derived deploy lane.
 
     The shared controller expands Dockerfile COPY sources and publishes that
     exact set. Requiring a reviewed capability-bearing controller revision,
     canonical destination, exact source SHA, and Dockerfile input in the same
-    unconditional job prevents a generic pin, stale ref, wrong destination,
-    comment, step, unrelated workflow, or skipped deploy job from satisfying
-    CHECK 3.
+    unconditional job or exact reviewed source admission prevents a generic
+    pin, stale ref, wrong destination, comment, step, unrelated workflow, or
+    arbitrary skipped deploy job from satisfying CHECK 3. Ownership admission
+    requires reviewed workflow and helper bytes plus the adjacent provider guard.
     """
+    jobs = workflow_job_blocks(hf_sync_text)
+    if len({job_id for job_id, _lines, _indent in jobs}) != len(jobs):
+        return False
+    admissions = [lines for job_id, lines, _indent in jobs if job_id == "source-admission"]
+    admission_verified = (
+        len(admissions) == 1
+        and isinstance(ownership_helper, bytes)
+        and hashlib.sha256(ownership_helper.replace(b"\r\n", b"\n")).hexdigest()
+        == REVIEWED_SOURCE_ADMISSION_HELPER_SHA256
+        and hashlib.sha256("\n".join(admissions[0]).strip().encode("utf-8")).hexdigest()
+        == REVIEWED_SOURCE_ADMISSION_JOB_SHA256
+    )
     return workflow_has_unfiltered_main_push(hf_sync_text) and any(
-        job_has_source_derived_deploy_contract(block_lines, job_indent)
-        for _job_id, block_lines, job_indent in workflow_job_blocks(hf_sync_text)
+        job_has_source_derived_deploy_contract(block_lines, job_indent,
+                                             admission_verified=admission_verified)
+        for _job_id, block_lines, job_indent in jobs
     )
 
 
@@ -870,7 +903,13 @@ def main():
     if hf_sync_present:
         with open(hf_sync, "r", encoding="utf-8") as fh:
             hf_text = fh.read()
-        source_derived_deploy = has_source_derived_deploy_contract(hf_text)
+        ownership_path = os.path.join(root, "scripts", "hf_exact_main_ownership.py")
+        ownership_helper = None
+        if os.path.isfile(ownership_path):
+            with open(ownership_path, "rb") as fh:
+                ownership_helper = fh.read()
+        source_derived_deploy = has_source_derived_deploy_contract(
+            hf_text, ownership_helper=ownership_helper)
         mirror_explicit, mirror_globs = parse_hf_sync_mirror(hf_text)
         # a11oy mirrors front-door pages/console globs inside the heredoc step.
         if "pages/*.html" in hf_text or "console/*.html" in hf_text:

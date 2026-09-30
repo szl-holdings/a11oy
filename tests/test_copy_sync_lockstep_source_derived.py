@@ -29,6 +29,52 @@ UNFILTERED_MAIN_PUSH = textwrap.dedent(
 
 
 class SourceDerivedCopySyncTests(unittest.TestCase):
+    def test_exact_reviewed_source_admission_preserves_copy_coverage(self) -> None:
+        workflow = (ROOT / ".github/workflows/hf-sync.yml").read_text(encoding="utf-8")
+        helper = (ROOT / "scripts/hf_exact_main_ownership.py").read_bytes()
+        self.assertTrue(CHECKER.has_source_derived_deploy_contract(
+            workflow, ownership_helper=helper))
+        self.assertFalse(CHECKER.has_source_derived_deploy_contract(workflow))
+
+    def test_source_admission_cannot_hide_changed_helper_or_arbitrary_skip(self) -> None:
+        workflow = (ROOT / ".github/workflows/hf-sync.yml").read_text(encoding="utf-8")
+        helper = (ROOT / "scripts/hf_exact_main_ownership.py").read_bytes()
+        changes = (
+            (workflow, helper + b"\n# changed ownership implementation\n"),
+            (workflow.replace("publish: ${{ steps.owner.outputs.publish }}", "publish: false"), helper),
+            (workflow.replace("--expected-sha \"$GITHUB_SHA\"", "--expected-sha main"), helper),
+            (workflow.replace("needs: source-admission", "needs: arbitrary-gate"), helper),
+            (workflow.replace("needs.source-admission.outputs.publish == 'true'", "false"), helper),
+            (workflow.replace("require-default-branch-tip: true", "require-default-branch-tip: false"), helper),
+            (workflow.replace("needs: source-admission", "needs: source-admission\n    needs: skipped"), helper),
+            (workflow.replace("  source-admission:\n", "  source-admission:\n    if: false\n"), helper),
+            (workflow.replace("      require-default-branch-tip: true", "      require-default-branch-tip: true\n      contract-only: true"), helper),
+            (workflow.replace("      require-default-branch-tip: true", "      require-default-branch-tip: true\n      contract-only: false\n      contract-only: true"), helper),
+        )
+        for changed, changed_helper in changes:
+            with self.subTest(change=changed != workflow, helper=changed_helper != helper):
+                self.assertFalse(CHECKER.has_source_derived_deploy_contract(
+                    changed, ownership_helper=changed_helper))
+
+    def test_contract_only_cannot_supply_unconditional_copy_coverage(self) -> None:
+        workflow = UNFILTERED_MAIN_PUSH + textwrap.dedent(
+            """
+            jobs:
+              deploy:
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@e3ec47ad2e99a535839afe0f30fefbd8973d52da
+                with:
+                  hf-repo: SZLHOLDINGS/a11oy
+                  ref: ${{ github.sha }}
+                  dockerfile-path: Dockerfile
+            """
+        )
+        self.assertTrue(CHECKER.has_source_derived_deploy_contract(
+            workflow + "      contract-only: false\n"))
+        self.assertFalse(CHECKER.has_source_derived_deploy_contract(
+            workflow + "      contract-only: true\n"))
+        self.assertFalse(CHECKER.has_source_derived_deploy_contract(
+            workflow + "      contract-only: false\n      contract-only: true\n"))
+
     def test_pinned_dockerfile_deployer_is_recognized(self) -> None:
         workflow = UNFILTERED_MAIN_PUSH + textwrap.dedent(
             """
