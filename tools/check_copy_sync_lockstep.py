@@ -55,6 +55,7 @@
 import ast
 import fnmatch
 import glob as globmod
+import hashlib
 import json
 import os
 import posixpath
@@ -598,8 +599,51 @@ SOURCE_DERIVED_CONTROLLER_REVISIONS = frozenset({
 })
 
 
-def job_has_source_derived_deploy_contract(block_lines, job_indent):
-    """Require an unconditional reviewed Dockerfile-derived deploy job."""
+REVIEWED_SOURCE_ADMISSION_JOB_SHA256 = "e9777064159bf0d120e9f18931e98c8f832b9e163b7b358908c92921ee69a668"
+REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee8395e042853ded04deb7d170189"
+REVIEWED_MANUAL_PREREQUISITES_JOB_SHA256 = "b61cc880e667f41f703e79dd7bf40b054749fcc6d00c6d2d0830b87544b26c61"
+REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
+    "scripts/check_hf_manual_prerequisites.py": "55266f4aac729cbe52bf2c62751f5ce7a6aec0553646c175e6c6fbf80538b92e",
+    "scripts/configure_hf_series_a_runtime.py": "69a8e81ed28063cc0ceaa2435ac2f3b0ef1efe820ac3e378c2479fa75a2648bd",
+    "scripts/configure_hf_gdw_runtime.py": "87fa43065e776cd6fc4cfd646384d86c82e12b8bc8943838d23369193e1d552a",
+}
+REVIEWED_RESUME_GATES = {
+    "needs": "[source-admission, manual-prerequisites]",
+    "if": "${{ needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' }}",
+}
+REVIEWED_DEPLOY_GATES = {
+    "needs": "[source-admission, manual-prerequisites, resume-paused-space]",
+    "if": "${{ needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && needs.resume-paused-space.result == 'success' }}",
+}
+
+
+def direct_job_gates(block_lines, job_indent):
+    """Read direct gate properties without accepting merges or masked failures."""
+    indents = [len(raw) - len(raw.lstrip()) for raw in block_lines[1:]
+               if raw.strip() and not raw.strip().startswith("#")
+               and len(raw) - len(raw.lstrip()) > job_indent]
+    if not indents:
+        return None
+    property_indent = min(indents)
+    gates = {}
+    for raw in block_lines[1:]:
+        if len(raw) - len(raw.lstrip()) != property_indent:
+            continue
+        entry = yaml_mapping_entry(raw.strip())
+        if entry and entry[0] in {"<<", "continue-on-error"}:
+            return None
+        if entry and entry[0] in {"if", "needs"}:
+            if entry[0] in gates:
+                return None
+            gates[entry[0]] = entry[1]
+    return gates
+
+
+def job_has_source_derived_deploy_contract(block_lines, job_indent, *,
+                                         admission_verified=False,
+                                         prerequisites_verified=False,
+                                         resume_verified=False):
+    """Recognize only the reviewed prerequisite and successful-resume graph."""
     property_indents = []
     for raw in block_lines[1:]:
         stripped = raw.strip()
@@ -614,18 +658,19 @@ def job_has_source_derived_deploy_contract(block_lines, job_indent):
     pinned_controller = False
     controller_seen = False
     with_index = None
+    gates = {}
     for index, raw in enumerate(block_lines[1:], start=1):
         stripped = raw.strip()
         indent = len(raw) - len(raw.lstrip())
         if indent != property_indent:
             continue
         entry = yaml_mapping_entry(stripped)
-        if entry and entry[0] in {"if", "<<", "needs"}:
-            # A skipped reusable job can leave the workflow green without
-            # publishing protected-main source changes. Dependencies can be
-            # skipped, and YAML merges can inherit either gate. Fail closed
-            # rather than proving arbitrary dependency/expression semantics.
+        if entry and entry[0] in {"<<", "continue-on-error"}:
             return False
+        if entry and entry[0] in {"if", "needs"}:
+            if entry[0] in gates:
+                return False
+            gates[entry[0]] = entry[1]
         if entry and entry[0] == "uses":
             if controller_seen:
                 return False
@@ -646,13 +691,19 @@ def job_has_source_derived_deploy_contract(block_lines, job_indent):
             with_index = index
     if not controller_seen or not pinned_controller or with_index is None:
         return False
+    if not (admission_verified and prerequisites_verified and resume_verified
+            and gates == REVIEWED_DEPLOY_GATES):
+        # Empty gates and the former source-only gate cannot bypass prerequisites.
+        return False
 
     expected_inputs = {
         "hf-repo": "SZLHOLDINGS/a11oy",
         "ref": "${{ github.sha }}",
         "dockerfile-path": "Dockerfile",
+        "require-default-branch-tip": "true",
     }
     matched_inputs = {}
+    contract_only_seen = False
     with_indent = None
     for raw in block_lines[with_index + 1:]:
         stripped = raw.strip()
@@ -669,6 +720,10 @@ def job_has_source_derived_deploy_contract(block_lines, job_indent):
         if not entry or entry[0] == "<<":
             return False
         key, value = entry
+        if key == "contract-only":
+            if contract_only_seen or not yaml_scalar_matches(value, "false"):
+                return False
+            contract_only_seen = True
         if key in expected_inputs:
             if key in matched_inputs:
                 return False
@@ -679,19 +734,55 @@ def job_has_source_derived_deploy_contract(block_lines, job_indent):
     )
 
 
-def has_source_derived_deploy_contract(hf_sync_text):
+def has_source_derived_deploy_contract(hf_sync_text, *, ownership_helper=None,
+                                     manual_helpers=None):
     """Return True only for the pinned reusable Dockerfile-derived deploy lane.
 
     The shared controller expands Dockerfile COPY sources and publishes that
     exact set. Requiring a reviewed capability-bearing controller revision,
     canonical destination, exact source SHA, and Dockerfile input in the same
-    unconditional job prevents a generic pin, stale ref, wrong destination,
-    comment, step, unrelated workflow, or skipped deploy job from satisfying
-    CHECK 3.
+    reviewed source and manual-prerequisite graph prevents a generic
+    pin, stale ref, wrong destination, comment, step, unrelated workflow, or
+    arbitrary skipped deploy job from satisfying CHECK 3. Ownership admission
+    requires reviewed workflow and helper bytes plus the adjacent provider guard.
+    Recognition proves the COPY source contract, never credential authority or
+    live publication: the pinned prerequisite summary deliberately fails closed.
     """
-    return workflow_has_unfiltered_main_push(hf_sync_text) and any(
-        job_has_source_derived_deploy_contract(block_lines, job_indent)
-        for _job_id, block_lines, job_indent in workflow_job_blocks(hf_sync_text)
+    jobs = workflow_job_blocks(hf_sync_text)
+    if len({job_id for job_id, _lines, _indent in jobs}) != len(jobs):
+        return False
+    admissions = [lines for job_id, lines, _indent in jobs if job_id == "source-admission"]
+    admission_verified = (
+        len(admissions) == 1
+        and isinstance(ownership_helper, bytes)
+        and hashlib.sha256(ownership_helper.replace(b"\r\n", b"\n")).hexdigest()
+        == REVIEWED_SOURCE_ADMISSION_HELPER_SHA256
+        and hashlib.sha256("\n".join(admissions[0]).strip().encode("utf-8")).hexdigest()
+        == REVIEWED_SOURCE_ADMISSION_JOB_SHA256
+    )
+    prerequisites = [lines for job_id, lines, _indent in jobs
+                     if job_id == "manual-prerequisites"]
+    prerequisites_verified = (
+        len(prerequisites) == 1
+        and type(manual_helpers) is dict
+        and set(manual_helpers) == set(REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256)
+        and all(isinstance(manual_helpers[path], bytes)
+                and hashlib.sha256(manual_helpers[path].replace(b"\r\n", b"\n")).hexdigest() == expected
+                for path, expected in REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256.items())
+        and hashlib.sha256("\n".join(prerequisites[0]).strip().encode("utf-8")).hexdigest()
+        == REVIEWED_MANUAL_PREREQUISITES_JOB_SHA256
+    )
+    resumes = [(lines, indent) for job_id, lines, indent in jobs
+               if job_id == "resume-paused-space"]
+    resume_verified = (len(resumes) == 1
+                       and direct_job_gates(*resumes[0]) == REVIEWED_RESUME_GATES)
+    deploys = [(lines, indent) for job_id, lines, indent in jobs if job_id == "deploy"]
+    return (workflow_has_unfiltered_main_push(hf_sync_text)
+            and len(deploys) == 1
+            and job_has_source_derived_deploy_contract(
+                *deploys[0], admission_verified=admission_verified,
+                prerequisites_verified=prerequisites_verified,
+                resume_verified=resume_verified)
     )
 
 
@@ -870,7 +961,19 @@ def main():
     if hf_sync_present:
         with open(hf_sync, "r", encoding="utf-8") as fh:
             hf_text = fh.read()
-        source_derived_deploy = has_source_derived_deploy_contract(hf_text)
+        ownership_path = os.path.join(root, "scripts", "hf_exact_main_ownership.py")
+        ownership_helper = None
+        if os.path.isfile(ownership_path):
+            with open(ownership_path, "rb") as fh:
+                ownership_helper = fh.read()
+        manual_helpers = {}
+        for helper_path in REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256:
+            absolute_path = os.path.join(root, helper_path)
+            if os.path.isfile(absolute_path):
+                with open(absolute_path, "rb") as fh:
+                    manual_helpers[helper_path] = fh.read()
+        source_derived_deploy = has_source_derived_deploy_contract(
+            hf_text, ownership_helper=ownership_helper, manual_helpers=manual_helpers)
         mirror_explicit, mirror_globs = parse_hf_sync_mirror(hf_text)
         # a11oy mirrors front-door pages/console globs inside the heredoc step.
         if "pages/*.html" in hf_text or "console/*.html" in hf_text:

@@ -339,16 +339,19 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--surface', choices=tuple(ORIGINS), required=True)
     parser.add_argument('--expected-source', required=True)
+    parser.add_argument('--source-root', type=Path, default=ROOT,
+                        help='Read immutable source files from this checkout without executing them')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     report = {'schema':'szl.model-pretraining-live/v1', 'observedAt':datetime.now(timezone.utc).isoformat(),
               'surface':args.surface, 'state':'UNAVAILABLE', 'trainingAllowed':False, 'wholeEstateAligned':False}
     code = 1
     try:
-        actual = subprocess.run(['git','rev-parse','HEAD'], cwd=ROOT, check=True, capture_output=True,
+        source_root = getattr(args, 'source_root', ROOT).resolve()
+        actual = subprocess.run(['git','rev-parse','HEAD'], cwd=source_root, check=True, capture_output=True,
                                 text=True, timeout=10).stdout.strip()
         require(actual == args.expected_source, 'checkout/source mismatch')
-        report.update(probe(ROOT, ORIGINS[args.surface], actual)); code = 0
+        report.update(probe(source_root, ORIGINS[args.surface], actual)); code = 0
     except (VerificationError, OSError, error.URLError, subprocess.SubprocessError, TypeError, KeyError) as exc:
         report['errorType'] = type(exc).__name__
         report['reason'] = str(exc)[:300]
