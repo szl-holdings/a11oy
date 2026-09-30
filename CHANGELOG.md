@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - experimental software lab discovery
+- TypeSafe Triage is linked from the product landing and listed separately under
+  `software_labs` in `/api/a11oy/v1/experimental/index`. Its source contract is
+  Python deterministic triage with `model_loaded=false`, promotion HOLD, and
+  runtime NOT_PROBED on this surface. Current version and source binding are
+  linked through the lab's `/readyz` contract. The theorem counts are preserved.
+
+### Fixed - read-only agent health and grounded operator health answers
+- Agent-loop health reads an explicit signer capability without creating a
+  signature. Missing or failed capability observations remain `UNAVAILABLE`.
+- Operator health questions on GET and POST cite the current health rollup,
+  including reported dependencies and degradation reasons. A missing report
+  returns `UNAVAILABLE` evidence with a `DEGRADED` envelope; an overall health
+  observation does not assert individual model or tool readiness.
+
+### Added - command observation context
+- `/command-v2` adds read-only source inspection, explicit refresh, per-source
+  60-second client expiry and truthful missing-value states. Existing backend
+  contracts and action authorization remain unchanged.
+- Uses local, hash-verified KANCHAY operator styles. The loopback preview labels
+  synthetic software QA and rejects all writes.
+
 ### Fixed - receipt-record count and read-only pcai/run
 - `GET /api/a11oy/v1/pcai/run` no longer appends a MODELED probe to the
   `szl.lake.receipt/v1` chain and reports `receipt_minted: false`. Records
