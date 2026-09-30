@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Foundation Confirmation trial workbench handoff
+- `/research/confirmation/workbench` redirects only to the separate synthetic CPU
+  model workbench. The Frontier research block links fresh exploratory trials,
+  explains on-demand availability and temporary receipt retention, and preserves
+  the frozen registered experiment's FAILED result.
+
+
 ### Fixed - evaluation results require governed selected-model execution
 - Live evaluation now uses the existing canonical router after governance and
   binds the selected registry model, eligible plan, provider and completion.
