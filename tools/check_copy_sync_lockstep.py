@@ -603,7 +603,7 @@ REVIEWED_SOURCE_ADMISSION_JOB_SHA256 = "e9777064159bf0d120e9f18931e98c8f832b9e16
 REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee8395e042853ded04deb7d170189"
 REVIEWED_MANUAL_PREREQUISITES_JOB_SHA256 = "a9964f07ecc715f1a3340086493aafc4b87c488ac1e7689d6439dc2832ff44ca"
 REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
-    "scripts/check_hf_manual_prerequisites.py": "188933de8970ee2ae981378b5fe2cc87b071b862545672f55910cd18c5f3946f",
+    "scripts/check_hf_manual_prerequisites.py": "b270ec5dc9b5bf969876009866f10fc7ff324c30da07d004c95feabeef4926d8",
     "scripts/configure_hf_series_a_runtime.py": "a43f8610e31ad43be7c5b6a010c1ea560e3d323ad63d25120adbda251392fd55",
     "scripts/configure_hf_gdw_runtime.py": "e5eb45181c8265972ee2aaf47e329ffb2c885edc9b3c90553aa5a152e42603e8",
     # Installed-authority verifier imported by both configure helpers.

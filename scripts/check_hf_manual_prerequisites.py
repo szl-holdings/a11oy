@@ -8,6 +8,12 @@ Publication is admitted only when BOTH check-only reports are READY with
 verifier (live runtime public key equal to the pinned runtime key), each with
 exit code 0. Every other report -- UNKNOWN, forged, malformed, oversized,
 duplicate-field or wrongly typed -- stays SETUP_REQUIRED and exits 1.
+
+``--admit-live-proofs`` consumes the two bounded post-deploy live-proof
+reports (Series-A restart persistence, GDW write/drain/pinned receipt) and
+exits 0 only when both are exact PASS reports with the reviewed bounds. The
+retained ``--blocked-proof`` mode is still used by the standalone
+``series-a-restart-proof.yml`` workflow and always exits 1.
 """
 
 import argparse
@@ -127,6 +133,128 @@ def prerequisite_report(series_a, gdw, source_sha, series_exit, gdw_exit):
     }
 
 
+LIVE_PROOF_SCHEMAS = {
+    "series_a": "szl.series-a-restart-proof/v1",
+    "gdw": "szl.hf-gdw-live-proof/v1",
+}
+LIVE_PROOF_ADMISSION_SCHEMA = "szl.hf-live-proof-admission/v1"
+CANONICAL_ORIGIN = "https://szlholdings-a11oy.hf.space"
+PINNED_RUNTIME_KEY_PATH = "ayllu/keys/council-runtime-2026-07-21.pub"
+SERIES_A_PROOF_FLAGS = (
+    "source_stable", "activation_runtime_transition_observed", "runtime_boot_identity_changed",
+    "public_signing_identity_stable", "database_instance_stable", "database_creation_identity_stable",
+    "receipt_count_non_regressing", "pre_restart_chain_head_recovered", "activation_stop_the_world",
+    "durability_stop_the_world", "writer_overlap_prevented", "running_stage_and_source_observed",
+)
+
+
+def _bounds_ok(value):
+    return (
+        type(value) is dict
+        and value.get("max_attempts") == 8
+        and value.get("retry_window_seconds") == 600
+        and type(value.get("deadline_seconds")) is int
+        and 1 <= value["deadline_seconds"] <= 1200
+        and value.get("transient_http_statuses") == [429, 502, 503, 504]
+        and value.get("redirects_allowed") is False
+        and value.get("destinations") == [CANONICAL_ORIGIN,
+                                          "https://huggingface.co/api/spaces/SZLHOLDINGS/a11oy"]
+    )
+
+
+def _series_a_passed(report):
+    proof = report.get("proof")
+    running = report.get("durability_running")
+    effects = report.get("effects")
+    return (
+        report.get("secret_values_read") is False
+        and report.get("secret_values_recorded") is False
+        and type(proof) is dict
+        and all(proof.get(flag) is True for flag in SERIES_A_PROOF_FLAGS)
+        and type(running) is dict
+        and running.get("stage") == "RUNNING"
+        and running.get("git_sha") == report.get("source_revision")
+        and type(effects) is list
+        and 1 <= len(effects) <= 8
+        and all(type(item) is dict and item.get("repo_id") == "SZLHOLDINGS/a11oy"
+                and item.get("effect") in {"pause_space", "restart_space"} for item in effects)
+    )
+
+
+def _gdw_passed(report):
+    evidence = report.get("evidence")
+    receipt = evidence.get("signed_receipt") if type(evidence) is dict else None
+    return (
+        report.get("credential_values_recorded") is False
+        and report.get("namespace") == "a11oy"
+        and type(evidence) is dict
+        and evidence.get("namespace") == "a11oy"
+        and type(receipt) is dict
+        and receipt.get("namespace") == "a11oy"
+        and receipt.get("receipt_status") == "SIGNED_KHIPU_DSSE"
+        and receipt.get("signature_verified") is True
+        and receipt.get("verified_against") == PINNED_RUNTIME_KEY_PATH
+        and receipt.get("pinned_key_der_sha256") == PINNED_SIGNING_KEY_DER_SHA256
+    )
+
+
+def inspect_live_proof(path, kind, exit_code, source_sha):
+    """Admit one live-proof report only when it is a bounded, exact PASS."""
+    passed = False
+    valid = False
+    try:
+        with Path(path).open("rb") as stream:
+            raw = stream.read(MAX_REPORT_BYTES + 1)
+        if len(raw) > MAX_REPORT_BYTES:
+            raise ValueError("oversized report")
+        report = json.loads(raw, object_pairs_hook=unique_object)
+        valid = (
+            type(report) is dict
+            and report.get("schema") == LIVE_PROOF_SCHEMAS[kind]
+            and report.get("repo_id") == "SZLHOLDINGS/a11oy"
+            and type(exit_code) is int
+            and type(report.get("ok")) is bool
+            and report.get("status") in {"PASS", "FAIL"}
+        )
+        passed = (
+            valid
+            and exit_code == 0
+            and report.get("status") == "PASS"
+            and report.get("ok") is True
+            and report.get("state") == "PROVEN"
+            and report.get("diagnostic_code") == "LIVE_PROOF_PASSED"
+            and report.get("origin") == CANONICAL_ORIGIN
+            and report.get("source_revision") == source_sha
+            and report.get("credential_authority_state") == "VERIFIED"
+            and _bounds_ok(report.get("bounds"))
+            and (_series_a_passed(report) if kind == "series_a" else _gdw_passed(report))
+        )
+    except (OSError, ValueError, UnicodeError, RecursionError, KeyError):
+        valid = passed = False
+    return {"report_valid": bool(valid), "state": "PROVEN" if passed else "UNPROVEN"}
+
+
+def live_proof_admission(series_a, gdw, source_sha, series_exit, gdw_exit):
+    source_valid = type(source_sha) is str and re.fullmatch(r"[0-9a-f]{40}", source_sha) is not None
+    series_result = inspect_live_proof(series_a, "series_a", series_exit, source_sha)
+    gdw_result = inspect_live_proof(gdw, "gdw", gdw_exit, source_sha)
+    admitted = (source_valid and series_result["state"] == "PROVEN"
+                and gdw_result["state"] == "PROVEN")
+    return {
+        "schema": LIVE_PROOF_ADMISSION_SCHEMA,
+        "repo_id": "SZLHOLDINGS/a11oy",
+        "source_revision": source_sha if source_valid else "UNVALIDATED",
+        "state": "ADMITTED" if admitted else "NOT_ADMITTED",
+        "admitted": admitted,
+        "source_revision_valid": source_valid,
+        "series_a": series_result,
+        "gdw": gdw_result,
+        "secret_values_read": False,
+        "secret_values_written": False,
+        "diagnostic_code": "LIVE_PROOFS_ADMITTED" if admitted else "LIVE_PROOFS_UNPROVEN",
+    }
+
+
 def blocked_proof_report(kind, source_sha):
     valid = type(source_sha) is str and re.fullmatch(r"[0-9a-f]{40}", source_sha) is not None
     return {
@@ -148,7 +276,21 @@ def main(argv=None):
     parser.add_argument("--source-sha", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--blocked-proof", choices=("series-a", "gdw"))
+    parser.add_argument("--admit-live-proofs", action="store_true")
+    parser.add_argument("--series-a-proof")
+    parser.add_argument("--gdw-proof")
+    parser.add_argument("--series-a-proof-exit", type=int)
+    parser.add_argument("--gdw-proof-exit", type=int)
     args = parser.parse_args(argv)
+    if args.admit_live_proofs:
+        if args.blocked_proof or args.series_a_proof is None or args.gdw_proof is None:
+            parser.error("live proof admission requires both proof report paths")
+        report = live_proof_admission(args.series_a_proof, args.gdw_proof, args.source_sha,
+                                      args.series_a_proof_exit, args.gdw_proof_exit)
+        output = Path(args.output)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        return 0 if report["admitted"] is True else 1
     if args.blocked_proof:
         report = blocked_proof_report(args.blocked_proof, args.source_sha)
     else:

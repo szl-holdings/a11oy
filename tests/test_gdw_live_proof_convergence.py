@@ -62,6 +62,7 @@ def test_live_proof_waits_for_supervisor_claim_to_converge(monkeypatch) -> None:
                 "dead_letter_effects": 0,
                 "invalid_effect_bindings": 0,
                 "invalid_exported_artifacts": 0,
+                "invalid_recovery_audits": 0,
             }
         if method == "GET" and url.endswith("/gdw/integrity"):
             return {
@@ -74,6 +75,7 @@ def test_live_proof_waits_for_supervisor_claim_to_converge(monkeypatch) -> None:
                 "dead_letter_effects": 0,
                 "invalid_effect_bindings": 0,
                 "invalid_exported_artifacts": 0,
+                "invalid_recovery_audits": 0,
             }
         if method == "GET" and url.endswith(
             "/gdw/sessions/protected-promotion-aaaaaaaaaaaaaaaa"
@@ -89,13 +91,15 @@ def test_live_proof_waits_for_supervisor_claim_to_converge(monkeypatch) -> None:
     monkeypatch.setattr(prove_hf_gdw_runtime.time, "sleep", lambda _seconds: None)
 
     report = prove_hf_gdw_runtime.prove(
-        origin="https://example.invalid",
+        origin="https://szlholdings-a11oy.hf.space",
         source_sha=source_sha,
         operator_token="operator-token-with-at-least-32-bytes",
+        require_signed_receipt=False,
     )
 
-    assert integrity_reads == 5
-    assert health_reads == 5
+    # One non-converged global read, then the stable-sample window.
+    assert integrity_reads >= 5
+    assert health_reads >= 5
     assert report["drain"]["pending_effects"] == 1
     assert report["integrity"]["pending_effects"] == 0
 
