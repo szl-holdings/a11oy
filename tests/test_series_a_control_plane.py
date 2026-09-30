@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
+import h11
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from starlette.requests import Request
@@ -31,6 +32,7 @@ def public_github_collector(
     token: str = "synthetic-public-token",
     repository_status: int = 200,
     search_status: int = 200,
+    validate_malformed_header: bool = False,
 ) -> tuple[control.Collector, list[control.httpx.Request]]:
     """Exercise the real collector against an offline fixed-origin transport."""
     monkeypatch.setenv("GITHUB_TOKEN", token)
@@ -41,6 +43,13 @@ def public_github_collector(
 
     def respond(request: control.httpx.Request) -> control.httpx.Response:
         calls.append(request)
+        if validate_malformed_header:
+            # Real protocol validation, offline: malformed headers may echo secrets.
+            h11.Request(
+                method=request.method.encode("ascii"),
+                target=request.url.raw_path,
+                headers=request.headers.raw,
+            )
         if request.url.path.endswith("/repos"):
             return control.httpx.Response(repository_status, json=repositories)
         assert request.url.path == "/search/issues"
@@ -196,6 +205,63 @@ def test_github_authentication_401_is_structured_blocked_without_fallback(
     assert "synthetic-public-token" not in json.dumps(manifest)
 
 
+def test_malformed_github_header_never_leaks_into_plain_or_base64_public_failure(
+    tmp_path: Path, monkeypatch
+) -> None:
+    sentinel = "synthetic-credential-sentinel"
+    collector, calls = public_github_collector(
+        monkeypatch,
+        [],
+        token=sentinel + "\ninvalid",
+        validate_malformed_header=True,
+    )
+    manifest = asyncio.run(collector.collect())
+    assert len(calls) == 1
+    assert manifest["status"] == "BLOCKED"
+    assert manifest["github"] == {
+        "state": "UNAVAILABLE",
+        "detail": {
+            "code": "GITHUB_COLLECTION_FAILED",
+            "error": "GitHub public inventory collection failed",
+        },
+    }
+    assert manifest["counts"]["github_repositories"] is None
+    assert manifest["counts"]["github_open_pull_requests"] is None
+    assert sentinel not in json.dumps(manifest)
+    value = app(tmp_path)
+    service = value.state.szl_series_a_service
+    service.store.save_snapshot(manifest, service.signer.sign(manifest))
+    before = service.store.latest_snapshot()
+    before_events = service.store.events_since(0)
+    before_receipts = service.store.list_receipts()
+
+    def no_sign_on_read(_payload):
+        raise AssertionError("GET/HEAD attempted to sign")
+
+    monkeypatch.setattr(service.signer, "sign", no_sign_on_read)
+    with TestClient(value) as client:
+        response = client.get("/api/a11oy/v1/series-a/manifest")
+        status = client.get("/api/a11oy/v1/series-a/status")
+        head = client.head("/api/a11oy/v1/series-a/manifest")
+        status_head = client.head("/api/a11oy/v1/series-a/status")
+
+    assert response.status_code == status.status_code == 200
+    assert response.json() == before
+    assert response.json()["manifest"]["status"] == "BLOCKED"
+    assert status.json()["state"] == "BLOCKED"
+    assert status.json()["counts"]["github_repositories"] is None
+    assert status.json()["counts"]["github_open_pull_requests"] is None
+    decoded = base64.b64decode(response.json()["envelope"]["payload"]).decode()
+    assert decoded == control._canonical(manifest).decode()
+    assert sentinel not in decoded + response.text + status.text
+    assert head.status_code == status_head.status_code == 200
+    assert head.content == status_head.content == b""
+    assert service.store.latest_snapshot() == before
+    assert service.store.events_since(0) == before_events
+    assert service.store.list_receipts() == before_receipts
+    assert len(calls) == 1
+
+
 def test_public_reads_withhold_legacy_counts_and_envelope_until_fresh_refresh(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -348,6 +414,8 @@ def test_public_manifest_withholds_mismatched_private_envelope(
     [
         "private-row", "extra-field", "value-extra-field", "missing-scope",
         "count-mismatch", "bool-repository-count", "bool-pr-count",
+        "wrapper-extra-field", "detail-extra-field", "detail-non-boolean",
+        "detail-null", "detail-empty", "detail-non-mapping",
     ],
 )
 def test_public_manifest_rejects_unsafe_marked_or_legacy_snapshots(
@@ -365,6 +433,18 @@ def test_public_manifest_rejects_unsafe_marked_or_legacy_snapshots(
         row["private_metadata"] = "private-name-sentinel"
     elif mutation == "value-extra-field":
         manifest["github"]["value"]["private_metadata"] = "private-name-sentinel"
+    elif mutation == "wrapper-extra-field":
+        manifest["github"]["private_repository_names"] = ["private-name-sentinel"]
+    elif mutation == "detail-extra-field":
+        manifest["github"]["detail"]["private_repository_names"] = ["private-name-sentinel"]
+    elif mutation == "detail-non-boolean":
+        manifest["github"]["detail"]["authenticated"] = 1
+    elif mutation == "detail-null":
+        manifest["github"]["detail"] = None
+    elif mutation == "detail-empty":
+        manifest["github"]["detail"] = {}
+    elif mutation == "detail-non-mapping":
+        manifest["github"]["detail"] = ["private-name-sentinel"]
     elif mutation == "missing-scope":
         manifest.pop("github_inventory_scope")
     elif mutation == "bool-repository-count":
@@ -375,10 +455,20 @@ def test_public_manifest_rejects_unsafe_marked_or_legacy_snapshots(
     else:
         manifest["counts"]["github_repositories"] = 999
     service.store.save_snapshot(manifest, service.signer.sign(manifest))
+    before = service.store.latest_snapshot()
+    before_events = service.store.events_since(0)
+    before_receipts = service.store.list_receipts()
+
+    def no_sign_on_read(_payload):
+        raise AssertionError("GET/HEAD attempted to sign")
+
+    monkeypatch.setattr(service.signer, "sign", no_sign_on_read)
 
     with TestClient(value) as client:
         response = client.get("/api/a11oy/v1/series-a/manifest")
         status = client.get("/api/a11oy/v1/series-a/status")
+        head = client.head("/api/a11oy/v1/series-a/manifest")
+        status_head = client.head("/api/a11oy/v1/series-a/status")
 
     assert response.status_code == 503
     assert "private-name-sentinel" not in response.text
@@ -388,6 +478,121 @@ def test_public_manifest_rejects_unsafe_marked_or_legacy_snapshots(
     assert "private-name-sentinel" not in status.text
     for field in ("counts", "github", "manifest", "envelope"):
         assert field not in status.json()
+    assert head.status_code == 503 and status_head.status_code == 200
+    assert head.content == status_head.content == b""
+    assert service.store.latest_snapshot() == before
+    assert service.store.events_since(0) == before_events
+    assert service.store.list_receipts() == before_receipts
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "wrapper-extra-field", "detail-extra-field", "null-value", "populated-value",
+        "raw-error", "wrong-error-class", "wrong-http-code", "bool-http-status",
+        "successful-http-status", "null-detail", "empty-detail", "authenticated-detail",
+        "generic-extra-field", "generic-raw-error",
+    ],
+)
+def test_public_unavailable_diagnostics_reject_unadmitted_fields_atomically(
+    tmp_path: Path, monkeypatch, mutation: str
+) -> None:
+    collector, _ = public_github_collector(monkeypatch, [], repository_status=401)
+    value = app(tmp_path)
+    service = value.state.szl_series_a_service
+    manifest = asyncio.run(collector.collect())
+    github = manifest["github"]
+    detail = github["detail"]
+    if mutation == "wrapper-extra-field":
+        github["private_repository_names"] = ["private-name-sentinel"]
+    elif mutation == "detail-extra-field":
+        detail["private_repository_names"] = ["private-name-sentinel"]
+    elif mutation == "null-value":
+        github["value"] = None
+    elif mutation == "populated-value":
+        github["value"] = {"private_repository_names": ["private-name-sentinel"]}
+    elif mutation == "raw-error":
+        detail["error"] = "private-name-sentinel"
+    elif mutation == "wrong-error-class":
+        detail["error_class"] = "LocalProtocolError"
+    elif mutation == "wrong-http-code":
+        detail["code"] = "GITHUB_HTTP_UNAVAILABLE"
+    elif mutation == "bool-http-status":
+        detail["http_status"] = True
+    elif mutation == "successful-http-status":
+        detail["http_status"] = 200
+        detail["error"] = "HTTP 200"
+        detail["code"] = "GITHUB_HTTP_UNAVAILABLE"
+    elif mutation == "null-detail":
+        github["detail"] = None
+    elif mutation == "empty-detail":
+        github["detail"] = {}
+    elif mutation == "authenticated-detail":
+        github["detail"] = {"authenticated": True}
+    else:
+        github["detail"] = {
+            "code": "GITHUB_COLLECTION_FAILED",
+            "error": "GitHub public inventory collection failed",
+        }
+        if mutation == "generic-extra-field":
+            github["detail"]["private_repository_names"] = ["private-name-sentinel"]
+        else:
+            github["detail"]["error"] = "private-name-sentinel"
+    service.store.save_snapshot(manifest, service.signer.sign(manifest))
+    before = service.store.latest_snapshot()
+    before_events = service.store.events_since(0)
+    before_receipts = service.store.list_receipts()
+
+    def no_sign_on_read(_payload):
+        raise AssertionError("GET/HEAD attempted to sign")
+
+    monkeypatch.setattr(service.signer, "sign", no_sign_on_read)
+    with TestClient(value) as client:
+        response = client.get("/api/a11oy/v1/series-a/manifest")
+        status = client.get("/api/a11oy/v1/series-a/status")
+        head = client.head("/api/a11oy/v1/series-a/manifest")
+        status_head = client.head("/api/a11oy/v1/series-a/status")
+
+    assert response.status_code == 503
+    assert response.json()["detail"]["code"] == "PUBLIC_GITHUB_SNAPSHOT_REQUIRED"
+    assert "private-name-sentinel" not in response.text + status.text
+    assert status.json()["state"] == "UNAVAILABLE"
+    for field in ("manifest", "envelope", "github", "counts"):
+        assert field not in response.json()
+        assert field not in status.json()
+    assert head.status_code == 503 and status_head.status_code == 200
+    assert head.content == status_head.content == b""
+    assert service.store.latest_snapshot() == before
+    assert service.store.events_since(0) == before_events
+    assert service.store.list_receipts() == before_receipts
+
+
+def test_unsigned_safe_public_observation_is_not_signed_executable_evidence(
+    tmp_path: Path, monkeypatch
+) -> None:
+    collector, _ = public_github_collector(monkeypatch, [public_repository()])
+    value = app(tmp_path)
+    service = value.state.szl_series_a_service
+    manifest = asyncio.run(collector.collect())
+    digest = service.store.save_snapshot(manifest, service.signer.sign(manifest))
+    before = service.store.latest_snapshot()
+
+    def no_sign_on_read(_payload):
+        raise AssertionError("GET attempted to sign")
+
+    monkeypatch.setattr(service.signer, "sign", no_sign_on_read)
+    with TestClient(value) as client:
+        response = client.get("/api/a11oy/v1/series-a/manifest")
+        status = client.get("/api/a11oy/v1/series-a/status")
+
+    assert response.status_code == 200
+    assert status.json()["state"] == "OBSERVED"
+    assert response.json()["envelope"]["signature_status"] == "UNSIGNED_UNAVAILABLE"
+    assert response.json()["envelope"]["signatures"] == []
+    assert service._fresh_evidence_reasons(
+        [{"label": "OBSERVED", "content_digest": digest}]
+    ) == ["SIGNED_SERVER_EVIDENCE_REQUIRED"]
+    assert service.store.latest_snapshot() == before
 
 
 def test_public_manifest_can_publish_honest_authentication_failure(
@@ -423,8 +628,8 @@ def test_github_public_inventory_retains_bounded_pagination(monkeypatch) -> None
 
     assert observed.state == "UNAVAILABLE"
     assert observed.detail == {
-        "error_class": "RuntimeError",
-        "error": "repository pagination exceeded bounded window",
+        "code": "GITHUB_COLLECTION_FAILED",
+        "error": "GitHub public inventory collection failed",
     }
     assert len(calls) == control.MAX_PAGES
     assert all(request.url.params["type"] == "public" for request in calls)

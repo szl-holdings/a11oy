@@ -865,6 +865,25 @@ class GitHubHTTPError(RuntimeError):
         self.status_code = status_code
 
 
+def _github_failure_detail(status_code: int | None = None) -> dict[str, Any]:
+    """Only fixed diagnostics may cross the public GitHub observation boundary."""
+    if type(status_code) is int and 100 <= status_code <= 599 and status_code != 200:
+        return {
+            "error_class": "GitHubHTTPError",
+            "error": f"HTTP {status_code}",
+            "code": (
+                "GITHUB_AUTHENTICATION_FAILED"
+                if status_code == 401
+                else "GITHUB_HTTP_UNAVAILABLE"
+            ),
+            "http_status": status_code,
+        }
+    return {
+        "code": "GITHUB_COLLECTION_FAILED",
+        "error": "GitHub public inventory collection failed",
+    }
+
+
 def _public_github_snapshot_ready(latest: Mapping[str, Any]) -> bool:
     """Withhold legacy private-capable snapshots, including their DSSE payload.
 
@@ -882,6 +901,14 @@ def _public_github_snapshot_ready(latest: Mapping[str, Any]) -> bool:
     if not isinstance(github, dict) or not isinstance(counts, dict):
         return False
     if github.get("state") == "OBSERVED":
+        if set(github) not in ({"state", "value"}, {"state", "value", "detail"}):
+            return False
+        if "detail" in github:
+            detail = github["detail"]
+            if not isinstance(detail, dict) or set(detail) != {"authenticated"}:
+                return False
+            if type(detail["authenticated"]) is not bool:
+                return False
         value = github.get("value")
         public_value_fields = {
             "repository_count", "open_pull_request_count", "repositories", "pagination_complete"
@@ -910,8 +937,20 @@ def _public_github_snapshot_ready(latest: Mapping[str, Any]) -> bool:
         if type(counts.get("github_open_pull_requests")) is not int or counts["github_open_pull_requests"] != pr_count:
             return False
     elif github.get("state") == "UNAVAILABLE":
-        if github.get("value") is not None:
+        if set(github) not in ({"state"}, {"state", "detail"}):
             return False
+        if "detail" in github:
+            detail = github["detail"]
+            if not isinstance(detail, dict):
+                return False
+            if "http_status" in detail:
+                http_status = detail["http_status"]
+                if type(http_status) is not int or not 100 <= http_status <= 599 or http_status == 200:
+                    return False
+                if detail != _github_failure_detail(http_status):
+                    return False
+            elif detail != _github_failure_detail():
+                return False
         if counts.get("github_repositories") is not None or counts.get("github_open_pull_requests") is not None:
             return False
     else:
@@ -1005,19 +1044,10 @@ class Collector:
         except GitHubHTTPError as exc:
             return Observation(
                 "UNAVAILABLE",
-                detail={
-                    "error_class": type(exc).__name__,
-                    "error": str(exc),
-                    "code": (
-                        "GITHUB_AUTHENTICATION_FAILED"
-                        if exc.status_code == 401
-                        else "GITHUB_HTTP_UNAVAILABLE"
-                    ),
-                    "http_status": exc.status_code,
-                },
+                detail=_github_failure_detail(exc.status_code),
             )
-        except Exception as exc:
-            return Observation("UNAVAILABLE", detail=_safe_error(exc))
+        except Exception:
+            return Observation("UNAVAILABLE", detail=_github_failure_detail())
 
     def _hf_list(self, method_name: str, kwargs: Mapping[str, Any]) -> list[Any]:
         from huggingface_hub import HfApi
