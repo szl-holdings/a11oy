@@ -73,6 +73,12 @@ class ReadinessContractTests(unittest.TestCase):
                 result = self.observe({"status": "ok", field: "killinchu"}, self.health)
                 self.assertTrue(result["contract"]["ready"])
 
+    def test_a11oy_health_and_evidence_contracts(self):
+        health, api = readiness._a11oy_cfg()["deployment"]["endpoints"][-2:]
+        self.assertTrue(self.observe({"status": "ok", "organ": "a11oy"}, health)["contract"]["ready"])
+        body = {**self.evidence, "layer": "a11oy evidence & research"}
+        self.assertTrue(self.observe(body, api)["contract"]["ready"])
+
     def test_both_namespace_descriptors_are_bound(self):
         for ns in ("a11oy", "killinchu"):
             for endpoint in readiness._cfg_for(ns)["deployment"]["endpoints"]:
@@ -221,9 +227,124 @@ class ReadinessContractTests(unittest.TestCase):
 
     def snapshot(self):
         lv = self.observe(self.evidence)
-        rows = [{"role": "api", "liveness": lv}]
+        health = self.observe({"status": "ok", "organ": "killinchu"}, self.health)
+        rows = [{"role": "api", "liveness": lv}, {"role": "health", "liveness": health}]
         return {"_t": self.clock, "at": "snapshot-time",
-                "payload": {"sections": [{"id": "deployment", "endpoints": rows}]}}
+                "payload": {"organ": "killinchu",
+                            "sections": [{"id": "deployment", "endpoints": rows}]}}
+
+    def contract_cache_key(self, organ="killinchu"):
+        return "contract:v1:%s:%s:%s" % (self.endpoint["contract"], organ, self.endpoint["url"])
+
+    def test_snapshot_reconciles_new_http_failure_without_mutation(self):
+        snap = self.snapshot()
+        original = copy.deepcopy(snap)
+        self.clock += 1
+        self.network.side_effect = urllib.error.HTTPError(self.endpoint["url"], 404, "missing", {}, None)
+        self.assertFalse(readiness._endpoint_liveness(self.endpoint, fresh=True)["contract"]["ready"])
+        payload = readiness._snapshot_payload(snap)
+        self.assertFalse(payload["summary"]["application_ready"])
+        self.assertEqual(payload["sections"][0]["endpoints"][0]["liveness"]["contract"]["reason"],
+                         "http_status_404")
+        self.assertEqual(snap, original)
+
+    def test_snapshot_reconciles_timeout_without_renewing_evidence_clock(self):
+        snap = self.snapshot()
+        original = copy.deepcopy(snap)
+        self.clock += 1
+        self.network.side_effect = TimeoutError("unavailable")
+        readiness._endpoint_liveness(self.endpoint, fresh=True)
+        payload = readiness._snapshot_payload(snap)
+        lv = payload["sections"][0]["endpoints"][0]["liveness"]
+        self.assertFalse(payload["summary"]["application_ready"])
+        self.assertEqual(lv["contract"]["reason"], "live_check_failed")
+        self.assertEqual(lv["checked_at_unix"], original["_t"])
+        self.assertEqual(lv["age_seconds"], 1)
+        self.assertEqual(payload["snapshot_age_seconds"], 1)
+        self.assertEqual(snap, original)
+
+    def test_snapshot_does_not_replace_newer_evidence_with_an_older_failure(self):
+        snap = self.snapshot()
+        entry = copy.deepcopy(readiness._CACHE[self.contract_cache_key()])
+        entry["_t"] -= 1
+        entry["v"]["contract"].update(ready=False, reason="live_check_failed")
+        readiness._CACHE[self.contract_cache_key()] = entry
+        self.assertTrue(readiness._snapshot_payload(snap)["summary"]["application_ready"])
+
+    def test_other_namespace_failure_cannot_override_snapshot(self):
+        snap = self.snapshot()
+        entry = copy.deepcopy(readiness._CACHE[self.contract_cache_key()])
+        entry["v"]["contract"].update(ready=False, reason="live_check_failed")
+        readiness._CACHE[self.contract_cache_key("a11oy")] = entry
+        self.assertTrue(readiness._snapshot_payload(snap)["summary"]["application_ready"])
+
+    def test_malformed_snapshot_clocks_fail_closed_and_serialize(self):
+        for value in (None, True, "bad", float("nan"), float("inf"), -float("inf"), 10**400):
+            with self.subTest(clock_type=type(value).__name__):
+                snap = self.snapshot()
+                snap["_t"] = value
+                payload = readiness._snapshot_payload(snap)
+                self.assertFalse(payload["summary"]["application_ready"])
+                self.assertTrue(payload["stale"])
+                self.assertIsNone(payload["snapshot_age_seconds"])
+                json.dumps(payload, allow_nan=False)
+
+    def test_malformed_endpoint_clocks_fail_closed_and_serialize(self):
+        for value in (None, True, "bad", float("nan"), float("inf"), -float("inf"), 10**400):
+            with self.subTest(clock_type=type(value).__name__):
+                snap = self.snapshot()
+                snap["payload"]["sections"][0]["endpoints"][0]["liveness"]["checked_at_unix"] = value
+                before = json.dumps(snap, sort_keys=True)
+                payload = readiness._snapshot_payload(snap)
+                self.assertFalse(payload["summary"]["application_ready"])
+                self.assertIsNone(payload["sections"][0]["endpoints"][0]["liveness"]["checked_at_unix"])
+                json.dumps(payload, allow_nan=False)
+                self.assertEqual(json.dumps(snap, sort_keys=True), before)
+
+    def test_malformed_cache_clocks_require_new_observation(self):
+        for value in (None, True, "bad", float("nan"), float("inf"), -float("inf"), 10**400):
+            with self.subTest(clock_type=type(value).__name__):
+                self.observe(self.evidence)
+                readiness._CACHE[self.contract_cache_key()]["_t"] = value
+                self.network.side_effect = TimeoutError("unavailable")
+                self.network.reset_mock()
+                result = readiness._endpoint_liveness(self.endpoint)
+                self.assertFalse(result["contract"]["ready"])
+                self.assertEqual(result["mode"], "unreachable")
+                self.network.assert_called_once()
+                json.dumps(result, allow_nan=False)
+
+    def test_snapshot_rejects_malformed_latest_cache_clock(self):
+        snap = self.snapshot()
+        readiness._CACHE[self.contract_cache_key()]["_t"] = float("nan")
+        payload = readiness._snapshot_payload(snap)
+        self.assertFalse(payload["summary"]["application_ready"])
+        self.assertEqual(payload["sections"][0]["endpoints"][0]["liveness"]["contract"]["reason"],
+                         "invalid_cached_evidence_clock")
+        json.dumps(payload, allow_nan=False)
+
+    def test_snapshot_requires_both_health_and_evidence(self):
+        for roles in ({"health"}, {"api"}, set()):
+            with self.subTest(roles=roles):
+                snap = self.snapshot()
+                section = snap["payload"]["sections"][0]
+                section["endpoints"] = [row for row in section["endpoints"] if row["role"] in roles]
+                self.assertFalse(readiness._snapshot_payload(snap)["summary"]["application_ready"])
+
+    def test_future_endpoint_and_latest_cache_clocks_fail_independently(self):
+        snap = self.snapshot()
+        snap["payload"]["sections"][0]["endpoints"][0]["liveness"]["checked_at_unix"] = self.clock + 1
+        payload = readiness._snapshot_payload(snap)
+        self.assertFalse(payload["stale"])
+        self.assertFalse(payload["summary"]["application_ready"])
+        self.assertTrue(payload["sections"][0]["endpoints"][0]["liveness"]["stale"])
+        snap = self.snapshot()
+        readiness._CACHE[self.contract_cache_key()]["_t"] = self.clock + 1
+        payload = readiness._snapshot_payload(snap)
+        self.assertFalse(payload["stale"])
+        self.assertFalse(payload["summary"]["application_ready"])
+        self.assertEqual(payload["sections"][0]["endpoints"][0]["liveness"]["contract"]["reason"],
+                         "invalid_cached_evidence_clock")
 
     def test_snapshot_expires_inner_evidence_before_snapshot_ttl(self):
         snap = self.snapshot()

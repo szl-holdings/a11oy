@@ -576,6 +576,19 @@ def _validate_contract(endpoint: Dict[str, Any], status: int, content_type: str,
     return ""
 
 
+def _clock_age(now: Any, observed: Any) -> Optional[float]:
+    """Reject malformed clocks instead of emitting non-finite JSON ages."""
+    if type(now) not in (int, float) or type(observed) not in (int, float):
+        return None
+    try:
+        if not math.isfinite(now) or not math.isfinite(observed):
+            return None
+        age = now - observed
+        return age if math.isfinite(age) else None
+    except OverflowError:
+        return None
+
+
 def _endpoint_liveness(endpoint: Dict[str, Any], fresh: bool = False) -> Dict[str, Any]:
     """Keep transport observations separate from a successful JSON contract."""
     url = endpoint.get("url", "")
@@ -589,7 +602,10 @@ def _endpoint_liveness(endpoint: Dict[str, Any], fresh: bool = False) -> Dict[st
     key = "contract:v1:%s:%s:%s" % (endpoint["contract"], endpoint["organ"], url)
     now = time.time()
     hit = _hit(key)
-    age = now - hit.get("_t", 0) if hit else None
+    age = _clock_age(now, hit.get("_t")) if isinstance(hit, dict) else None
+    if hit and age is None:
+        # A malformed persisted observation cannot be reused as readiness.
+        hit = None
     if not fresh and hit and age is not None and 0 <= age < _LIVENESS_TTL:
         return {**hit["v"], "mode": "cached", "checked_at": hit["at"],
                 "checked_at_unix": hit["_t"], "age_seconds": round(age, 1), "stale": False}
@@ -687,8 +703,9 @@ def _application_summary(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     required = [row for row in rows if row.get("role") in ("health", "api")]
     ready = sum(1 for row in required
                 if (row.get("liveness", {}).get("contract") or {}).get("ready") is True)
+    complete = {row.get("role") for row in required} == {"health", "api"}
     return {"json_endpoints_ready": ready, "json_endpoints_total": len(required),
-            "application_ready": bool(required) and ready == len(required)}
+            "application_ready": complete and ready == len(required)}
 
 
 def _sec_identity(cfg: Dict[str, Any], fresh: bool = False) -> Dict[str, Any]:
@@ -946,11 +963,11 @@ def _snapshot(ns: str) -> Optional[Dict[str, Any]]:
 
 
 def _snapshot_payload(snap: Dict[str, Any]) -> Dict[str, Any]:
-    """Expire application evidence at read time without mutating the snapshot."""
+    """Expire evidence and reconcile known failures without probes or mutation."""
     payload = dict(snap["payload"])
     now = time.time()
-    age = now - snap.get("_t", 0)
-    stale = age < 0 or age > _SNAPSHOT_STALE
+    age = _clock_age(now, snap.get("_t"))
+    stale = age is None or age < 0 or age > _SNAPSHOT_STALE
     sections = []
     for original in payload.get("sections", []):
         section = dict(original)
@@ -962,7 +979,34 @@ def _snapshot_payload(snap: Dict[str, Any]) -> Dict[str, Any]:
                     lv = dict(row.get("liveness") or {})
                     contract = dict(lv.get("contract") or {})
                     checked = lv.get("checked_at_unix")
-                    evidence_age = now - checked if isinstance(checked, (int, float)) else None
+                    evidence_age = _clock_age(now, checked)
+                    if evidence_age is None:
+                        lv["checked_at_unix"] = None
+                    organ = payload.get("organ")
+                    url = row.get("url") or lv.get("url")
+                    if not organ or not url or not contract.get("id"):
+                        contract.update(ready=False, reason="snapshot_identity_unconfigured")
+                    else:
+                        key = "contract:v1:%s:%s:%s" % (contract["id"], organ, url)
+                        with _LOCK:
+                            cached = _CACHE.get(key)
+                            cached_at = cached.get("_t") if isinstance(cached, dict) else None
+                            value = cached.get("v") if isinstance(cached, dict) else None
+                            latest = dict(value) if isinstance(value, dict) else {}
+                        if cached is not None:
+                            latest_age = _clock_age(now, cached_at)
+                            latest_contract = latest.get("contract")
+                            if not isinstance(latest_contract, dict):
+                                latest_contract = {}
+                            if latest_age is None or latest_age < 0:
+                                contract.update(ready=False, reason="invalid_cached_evidence_clock")
+                            elif evidence_age is not None and latest_age <= evidence_age \
+                                    and latest_contract.get("ready") is not True:
+                                # A newer failed check overrides the old pass; it
+                                # cannot renew either original observation clock.
+                                contract.update(ready=False, reason=latest_contract.get("reason")
+                                                or "latest_contract_unverified")
+                                lv["latest_contract_ready"] = False
                     expired = evidence_age is None or evidence_age < 0 or evidence_age >= _LIVENESS_TTL
                     if stale or expired:
                         contract.update(ready=False, reason="stale_evidence")
@@ -973,7 +1017,8 @@ def _snapshot_payload(snap: Dict[str, Any]) -> Dict[str, Any]:
             section.update(endpoints=rows, **_application_summary(rows))
         sections.append(section)
     payload.update(sections=sections, summary=_summary(sections), served_from="background-snapshot",
-                   snapshot_fetched_at=snap.get("at"), snapshot_age_seconds=round(age, 1), stale=stale)
+                   snapshot_fetched_at=snap.get("at"),
+                   snapshot_age_seconds=round(age, 1) if age is not None else None, stale=stale)
     return payload
 
 
