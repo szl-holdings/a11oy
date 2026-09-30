@@ -1,0 +1,75 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+name: Command observation contract
+
+on:
+  pull_request:
+    paths:
+      - pages/command-v2.html
+      - console/assets/szl/**
+      - scripts/preview_command_observations.py
+      - tests/test_command_observations.cjs
+      - tests/test_command_preview.py
+      - tests/browser_command_observations.py
+      - .github/workflows/command-observations.yml
+  push:
+    branches: [main]
+    paths:
+      - pages/command-v2.html
+      - console/assets/szl/**
+      - scripts/preview_command_observations.py
+      - tests/test_command_observations.cjs
+      - tests/test_command_preview.py
+      - tests/browser_command_observations.py
+      - .github/workflows/command-observations.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  observations:
+    name: Read-only source observation regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - run: node --test tests/test_command_observations.cjs
+      - run: python -m unittest discover -s tests -p test_command_preview.py -v
+
+  browser:
+    name: Command observation Chromium witness
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+      - name: Install pinned isolated browser runner
+        run: |
+          python -m pip install --disable-pip-version-check 'playwright==1.57.0'
+          python -m playwright install --with-deps chromium
+      - name: Test actual page and assets with synthetic source fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p command-evidence
+          git rev-parse HEAD > command-evidence/checkout.txt
+          python tests/browser_command_observations.py 2>&1 | tee command-evidence/tests.log
+      - name: Preserve browser evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: command-observations-${{ github.run_id }}-${{ github.run_attempt }}
+          path: command-evidence/
+          if-no-files-found: error
+          retention-days: 30
