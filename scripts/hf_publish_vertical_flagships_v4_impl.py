@@ -201,6 +201,34 @@ def html(item: dict[str, Any]) -> str:
 
 _BASE.html = html
 
+# Every publication scope qualifies Finance's public forwarding functionality.
+# File parity/process liveness alone cannot admit a broken or replaced projection.
+_base_observe_flagship = _BASE.observe_flagship
+_base_observation_passes = _BASE.observation_passes
+_gate_spec = importlib.util.spec_from_file_location(
+    "szl_finance_functional_gate", Path(__file__).with_name("hf_finance_functional_gate.py"))
+_gate_module = importlib.util.module_from_spec(_gate_spec)
+_gate_spec.loader.exec_module(_gate_module)
+
+
+def observe_flagship(row: dict[str, Any]) -> None:
+    _base_observe_flagship(row)
+    if row.get("slug") == "finance" and _base_observation_passes(
+            row, source_revision=row["source_revision"], workflow_run_id=str(row["workflow_run_id"])):
+        row["finance_functional"] = _gate_module.observe_finance(row["source_revision"])
+    elif row.get("slug") == "finance":
+        row["finance_functional"] = {"complete": False, "state": "WAITING_FOR_EXACT_RUNTIME"}
+
+
+def observation_passes(row: dict[str, Any], *, source_revision: str, workflow_run_id: str) -> bool:
+    shell_passes = _base_observation_passes(row, source_revision=source_revision, workflow_run_id=workflow_run_id)
+    return shell_passes and (row.get("slug") != "finance"
+        or row.get("finance_functional", {}).get("complete") is True)
+
+
+_BASE.observe_flagship = observe_flagship
+_BASE.observation_passes = observation_passes
+
 
 def readme(item: dict[str, Any]) -> str:
     _sync_contract()
