@@ -121,6 +121,11 @@ jobs:
           tests/test_gdw_attention.py
           tests/test_gdw_bench_tools.py
           tests/test_gdw_transient_recovery.py
+          tests/test_atelier_grok.py
+          tests/test_command_centre.py
+          tests/test_jev_gate.py
+          tests/test_jev_fail_closed.py
+          payloads/tests/test_yuyay_jev_offline.py
           tests/test_openapi_schema_generation.py
           scripts/test_configure_hf_gdw_runtime.py
           scripts/test_prove_hf_gdw_runtime.py
@@ -311,7 +316,7 @@ jobs:
         # data surface (POST /api/<organ>/v1/be/echo) keyed off RATE_LIMIT_PER_MIN and
         # asserts /healthz stays exempt — so a regression that throttles a health probe,
         # drops the limiter, or breaks an envelope becomes a red gate.
-        run: pytest tests/test_be_hardening.py -q
+        run: pytest tests/test_be_hardening.py tests/test_experimental_software_labs.py -q
 
   python-energy-egress-scrub:
     name: Energy /metrics private-address egress guard (pytest, offline)
@@ -400,6 +405,11 @@ jobs:
         # writers must never race under any automatic trigger. The negative fixture proves this
         # guard detects a second mutation-capable workflow instead of always passing.
         run: python3 tests/test_hf_single_writer.py
+      - name: Prove queued source admission fails closed before provider writes
+        run: |
+          python3 scripts/test_hf_exact_main_ownership.py
+          python3 tests/test_hf_sync_supersession_contract.py
+          python3 tests/test_hf_manual_prerequisites_workflow.py
 
   theorem-manifest-honesty-selftest:
     name: Theorem-manifest honesty-guard self-test (stdlib, network-free)

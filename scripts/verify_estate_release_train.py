@@ -32,6 +32,11 @@ PROFILE_COUNTS = re.compile(
     r"(?P<spaces>[0-9]+) public Spaces, (?P<models>[0-9]+) models, "
     r"(?P<datasets>[0-9]+) datasets"
 )
+CURRENT_PROFILE_PUBLIC_COUNTS = re.compile(
+    r"\bpublic\s+(?P<spaces>[0-9]+) Spaces,\s*(?P<models>[0-9]+) models, "
+    r"(?P<datasets>[0-9]+) datasets\b",
+    re.IGNORECASE,
+)
 MAX_BODY = 2_000_000
 USER_AGENT = "SZL-Estate-Release-Train/1.0"
 RETRYABLE = frozenset({429, 500, 502, 503, 504})
@@ -123,6 +128,7 @@ def fetch(
     github: bool = False,
     huggingface: bool = False,
     attempts: int = 4,
+    retain_text: bool = False,
 ) -> dict[str, Any]:
     parsed = urllib.parse.urlsplit(url)
     if parsed.scheme != "https" or parsed.username or parsed.password:
@@ -154,7 +160,7 @@ def fetch(
                     "bytes": len(raw),
                     "sha256": hashlib.sha256(raw).hexdigest(),
                     "json": decoded,
-                    "text": text if decoded is None else None,
+                    "text": text if decoded is None or retain_text else None,
                     "redirect": None,
                     "link": response.headers.get("Link"),
                 }
@@ -234,7 +240,7 @@ def github_file(repository: str, path: str, revision: str) -> dict[str, Any]:
     url = (
         f"https://raw.githubusercontent.com/{repository}/{revision}/{quoted}"
     )
-    return fetch(url)
+    return fetch(url, retain_text=True)
 
 
 def hf_space(repo_id: str) -> dict[str, Any]:
@@ -532,23 +538,42 @@ def probe_source(origin: str, paths: Sequence[str]) -> dict[str, Any]:
     }
 
 
-def _is_provider_injected_script(src: str) -> bool:
-    """Identify only the known Cloudflare Web Analytics beacon injection.
+def _is_provider_injected_script(
+    src: str, attrs: Sequence[tuple[str, str | None]] = ()
+) -> bool:
+    """Identify only the known Cloudflare beacon and exact observed WebMCP tag.
 
     The apex is served through Cloudflare, while the canonical Hugging Face Space
     is not. Cloudflare may therefore append its own external analytics beacon to
     otherwise byte-equivalent product HTML. That provider-owned script is not an
-    SZL product asset and must not create product/Space semantic drift. The
-    allowlist is deliberately narrow: any other external script remains part of
-    the semantic contract and will continue to fail parity.
+    SZL product asset and must not create product/Space semantic drift.
+    Cloudflare also injects its WebMCP bridge when the zone's webmcp_enabled
+    setting is on; see its zone-setting contract:
+    https://developers.cloudflare.com/api/resources/zones/subresources/settings/
+    Only the exact canonical-apex module tag observed
+    with the mcp-server-client pack is recognized. Its URL and metadata remain
+    bounded: altered attributes, duplicate attributes, URLs, or tool packs stay
+    in the product semantic contract and continue to fail parity.
     """
     parsed = urllib.parse.urlsplit(src)
-    return bool(
+    if (
         parsed.scheme == "https"
         and parsed.netloc == "static.cloudflareinsights.com"
         and parsed.path.startswith("/beacon.min.js/")
         and not parsed.query
         and not parsed.fragment
+    ):
+        return True
+    return bool(
+        parsed.scheme == "https"
+        and parsed.netloc == "a-11-oy.com"
+        and parsed.path == "/.webmcp/bridge.js"
+        and not parsed.query
+        and not parsed.fragment
+        and src == "https://a-11-oy.com/.webmcp/bridge.js"
+        and len(attrs) == 3
+        and dict(attrs)
+        == {"src": src, "type": "module", "data-packs": "mcp-server-client"}
     )
 
 
@@ -574,7 +599,7 @@ class SemanticHTML(HTMLParser):
                 self.markers[key] = value
         if tag == "script" and values.get("src"):
             src = values["src"]
-            if _is_provider_injected_script(src):
+            if _is_provider_injected_script(src, attrs):
                 self.provider_scripts.add(src)
             else:
                 self.scripts.add(src)
@@ -679,6 +704,85 @@ def inspect_component(component: Mapping[str, Any], paths: Sequence[str]) -> dic
     }
 
 
+def _inventory_counts(value: Any) -> dict[str, int] | None:
+    if not isinstance(value, Mapping) or set(value) != set(INVENTORY_KINDS):
+        return None
+    if any(type(value[kind]) is not int or value[kind] < 0 for kind in INVENTORY_KINDS):
+        return None
+    return {kind: value[kind] for kind in INVENTORY_KINDS}
+
+
+def _profile_record(response: Mapping[str, Any]) -> Mapping[str, Any] | None:
+    """Reject duplicate JSON keys instead of choosing one ambiguous declaration."""
+    def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("duplicate profile inventory key")
+            result[key] = value
+        return result
+
+    if response.get("status") != 200:
+        return None
+    text = response.get("text")
+    if isinstance(text, str):
+        try:
+            value = json.loads(text, object_pairs_hook=unique_object)
+        except (ValueError, TypeError):
+            return None
+    else:
+        value = response.get("json")
+    return value if isinstance(value, Mapping) else None
+
+
+def _public_manifest(response: Mapping[str, Any]) -> Mapping[str, Any] | None:
+    value = _profile_record(response)
+    scope = value.get("inventoryScope") if value else None
+    if not (
+        value and value.get("schemaVersion") == 2
+        and value.get("org") == "SZLHOLDINGS"
+        and isinstance(scope, Mapping)
+        and scope.get("visibility") == "public-only"
+        and scope.get("authenticated") is False
+        and scope.get("privateAssetsIncluded") is False
+        and _inventory_counts(value.get("counts")) is not None
+    ):
+        return None
+    return value
+
+
+def declared_profile_counts(text: str) -> dict[str, int] | None:
+    """Read current public declarations without promoting historical snapshots.
+
+    Profile declarations are compared with the independently observed anonymous
+    membership below; they do not replace authenticated official inventory.
+    """
+    current: list[str] = []
+    legacy: list[re.Match[str]] = []
+    historical_section = False
+    for paragraph in re.split(r"\n\s*\n", text):
+        plain = re.sub(r"[*_`]", "", paragraph).strip()
+        heading = re.match(r"^#{1,6}\s+([^\n]+)", plain)
+        if heading:
+            historical_section = "historical" in heading.group(1).lower()
+        if historical_section or re.search(r"\bhistorical\b", plain, re.IGNORECASE):
+            continue
+        if re.match(r"^Current inventory\b", plain, re.IGNORECASE):
+            current.append(plain)
+        else:
+            legacy.extend(PROFILE_COUNTS.finditer(plain))
+    if current:
+        if len(current) != 1:
+            return None
+        matches = list(CURRENT_PROFILE_PUBLIC_COUNTS.finditer(current[0]))
+        matches.extend(PROFILE_COUNTS.finditer(current[0]))
+    else:
+        matches = legacy
+    if len(matches) != 1:
+        return None
+    return {key: int(value) for key, value in matches[0].groupdict().items()}
+
+
 def profile_inventory_contract(
     config: Mapping[str, Any],
     inventory: Mapping[str, Any],
@@ -687,48 +791,121 @@ def profile_inventory_contract(
     profile = config["profile"]
     repository = str(profile["repository"])
     head = github_main(repository)
-    profile_file = github_file(repository, str(profile["path"]), str(head.get("sha")))
-    text = profile_file.get("text") or ""
-    match = PROFILE_COUNTS.search(text)
+    record_path = str(profile.get("inventory_path", "profile/public-inventory.json"))
+    record_file = (
+        github_file(repository, record_path, str(head["sha"]))
+        if head.get("observed") else {}
+    )
+    record = _profile_record(record_file)
+    actual = _inventory_counts(inventory.get("counts"))
     declared = None
-    if match:
-        declared = {key: int(value) for key, value in match.groupdict().items()}
-    actual = inventory.get("counts") if isinstance(inventory, Mapping) else None
+    blockers: list[str] = []
+    expected_scope = config.get("public_inventory_scope")
+    record_valid = bool(
+        record
+        and record.get("schema") == "szl.public-profile-inventory/v1"
+        and isinstance(expected_scope, Mapping)
+        and expected_scope.get("id") == "hf-public-author-membership/v1"
+        and expected_scope.get("authentication") == "none"
+        and expected_scope.get("visibility") == "public-only"
+        and record.get("scope") == expected_scope
+        and record.get("scope_sha256") == canonical_sha256(expected_scope)
+        and _inventory_counts(record.get("counts")) is not None
+        and record.get("source_repository") == "szl-holdings/a11oy"
+        and record.get("source_path") == "docs/huggingface-ecosystem-manifest.json"
+        and isinstance(record.get("source_revision"), str)
+        and SHA40.fullmatch(record["source_revision"])
+        and isinstance(record.get("source_git_blob"), str)
+        and SHA40.fullmatch(record["source_git_blob"])
+        and isinstance(record.get("source_sha256"), str)
+        and re.fullmatch(r"[0-9a-f]{64}", record["source_sha256"])
+        and record.get("production_authorization") is False
+        and record.get("runtime_readiness_inferred") is False
+        and record.get("model_quality_inferred") is False
+    )
+    if record_valid:
+        try:
+            observed_at = dt.datetime.fromisoformat(str(record.get("observed_at", "")).replace("Z", "+00:00"))
+            record_valid = observed_at.tzinfo is not None
+        except ValueError:
+            record_valid = False
+    if not record_valid:
+        blockers.append("HF_PROFILE_INVENTORY_RECORD_UNAVAILABLE_OR_INVALID")
+    else:
+        declared = _inventory_counts(record["counts"])
     enumeration = (
         inventory.get("enumeration_state") if isinstance(inventory, Mapping) else None
     )
-    enumeration_complete = enumeration is None or (
+    enumeration_complete = (
         isinstance(enumeration, Mapping)
         and all(enumeration.get(kind) == "COMPLETE" for kind in INVENTORY_KINDS)
     )
 
     manifest = None
+    manifest_file: dict[str, Any] = {}
     if a11oy_sha:
         manifest_file = github_file(
             "szl-holdings/a11oy",
             "docs/huggingface-ecosystem-manifest.json",
             a11oy_sha,
         )
-        if isinstance(manifest_file.get("json"), Mapping):
-            manifest = manifest_file["json"].get("counts")
+        manifest_json = _public_manifest(manifest_file)
+        if manifest_json:
+            manifest = _inventory_counts(manifest_json.get("counts"))
+
+    source_bound = False
+    if record_valid:
+        pinned = github_file(record["source_repository"], record["source_path"], record["source_revision"])
+        quoted = urllib.parse.quote(record["source_path"], safe="/")
+        blob = fetch(
+            f"https://api.github.com/repos/{record['source_repository']}/contents/"
+            f"{quoted}?ref={record['source_revision']}", github=True,
+        )
+        metadata = blob.get("json")
+        pinned_json = _public_manifest(pinned)
+        source_bound = bool(
+            pinned.get("status") == 200
+            and pinned.get("sha256") == record["source_sha256"]
+            and isinstance(pinned_json, Mapping)
+            and _inventory_counts(pinned_json.get("counts")) == declared
+            and blob.get("status") == 200
+            and isinstance(metadata, Mapping)
+            and metadata.get("type") == "file"
+            and metadata.get("path") == record["source_path"]
+            and metadata.get("sha") == record["source_git_blob"]
+            and manifest_file.get("status") == 200
+            and manifest_file.get("sha256") == record["source_sha256"]
+        )
+        if not source_bound:
+            blockers.append("HF_PROFILE_INVENTORY_SOURCE_BINDING_MISMATCH_OR_UNAVAILABLE")
 
     aligned = bool(
         head.get("observed")
+        and record_valid
+        and source_bound
         and declared
         and actual
         and manifest
+        and inventory.get("observed") is True
         and enumeration_complete
         and declared == actual == manifest
     )
-    blockers: list[str] = []
     if not aligned:
-        if enumeration is not None and not enumeration_complete:
+        if not enumeration_complete:
             blockers.append("HF_INVENTORY_ENUMERATION_INCOMPLETE_OR_UNAVAILABLE")
         else:
             blockers.append("HF_INVENTORY_COUNT_MISMATCH_OR_UNAVAILABLE")
     return {
         "profile_repository": repository,
         "profile_sha": head.get("sha"),
+        "inventory_record_path": record_path,
+        "inventory_record_sha256": record_file.get("sha256"),
+        "inventory_record_source_revision": record.get("source_revision") if record else None,
+        "inventory_record_source_git_blob": record.get("source_git_blob") if record else None,
+        "inventory_record_source_sha256": record.get("source_sha256") if record else None,
+        "inventory_record_observed_at": record.get("observed_at") if record else None,
+        "inventory_record_valid": record_valid,
+        "inventory_record_source_bound": source_bound,
         "declared_counts": declared,
         "manifest_counts": manifest,
         "observed_counts": actual,
@@ -747,19 +924,65 @@ def proof_contract(config: Mapping[str, Any]) -> dict[str, Any]:
     health = fetch(origin.rstrip("/") + "/health.json")
     health_revision, health_field = extract_source_revision(health.get("json"))
 
-    pages = fetch(
-        f"https://api.github.com/repos/{repository}/pages/builds/latest",
-        github=True,
-    )
-    pages_json = pages.get("json")
+    base = f"https://api.github.com/repos/{repository}"
+    pages = fetch(f"{base}/pages", github=True)
+    metadata = pages.get("json")
+    mode = metadata.get("build_type") if pages.get("status") == 200 and isinstance(metadata, Mapping) else None
     pages_sha = None
     pages_status = None
-    if isinstance(pages_json, Mapping):
-        commit = pages_json.get("commit")
-        pages_sha = _candidate_revision(commit)
-        pages_status = pages_json.get("status")
+    revision_source = None
+    deployment_id = None
+    deployment_http = None
+    status_http = None
+    deployment_url = None
+    deployment_log_url = None
+    deployment_valid = False
+    if mode == "legacy":
+        build = fetch(f"{base}/pages/builds/latest", github=True)
+        deployment_http = build.get("status")
+        build_json = build.get("json")
+        if deployment_http == 200 and isinstance(build_json, Mapping):
+            pages_sha = _candidate_revision(build_json.get("commit"))
+            pages_status = build_json.get("status")
+            revision_source = "legacy-pages-build"
+            deployment_valid = pages_status == "built"
+    elif mode == "workflow":
+        # Actions deployments do not update the old branch-build endpoint.
+        # Only the newest github-pages deployment and its newest status count.
+        # A failed/newer deployment never falls back to an older green record.
+        deployments = fetch(f"{base}/deployments?environment=github-pages&per_page=1", github=True)
+        deployment_http = deployments.get("status")
+        rows = deployments.get("json")
+        row = rows[0] if deployment_http == 200 and isinstance(rows, list) and len(rows) == 1 else None
+        if isinstance(row, Mapping):
+            pages_sha = _candidate_revision(row.get("sha"))
+            candidate_id = row.get("id")
+            if (type(candidate_id) is int and candidate_id > 0 and pages_sha
+                    and row.get("environment") == "github-pages" and row.get("ref") in ("main", "refs/heads/main")):
+                deployment_id = candidate_id
+                statuses = fetch(f"{base}/deployments/{deployment_id}/statuses?per_page=1", github=True)
+                status_http = statuses.get("status")
+                status_rows = statuses.get("json")
+                status = status_rows[0] if status_http == 200 and isinstance(status_rows, list) and len(status_rows) == 1 else None
+                if isinstance(status, Mapping):
+                    pages_status = status.get("state")
+                    deployment_url = status.get("environment_url")
+                    deployment_log_url = status.get("log_url")
+                    # Pages may report its configured custom domain as http.
+                    # The independent public root probe still requires the
+                    # configured origin, normally https, to return HTTP 200.
+                    allowed_sites = {origin.rstrip("/")}
+                    if origin.startswith("https://"):
+                        allowed_sites.add("http://" + origin[len("https://"):].rstrip("/"))
+                    metadata_url = metadata.get("html_url")
+                    deployment_valid = (
+                        pages_status == "success"
+                        and isinstance(deployment_url, str) and deployment_url.rstrip("/") in allowed_sites
+                        and isinstance(metadata_url, str) and metadata_url.rstrip("/") in allowed_sites
+                    )
+                revision_source = "github-pages-deployment"
 
-    exact_pages = pages_sha if pages_status == "built" else None
+    exact_pages = pages_sha if deployment_valid else None
     aligned = bool(
         source.get("observed")
         and root.get("status") == 200
@@ -768,7 +991,7 @@ def proof_contract(config: Mapping[str, Any]) -> dict[str, Any]:
     blockers: list[str] = []
     if root.get("status") != 200:
         blockers.append(f"PROOF_ROOT_HTTP_{root.get('status')}")
-    if pages_status not in {None, "built"}:
+    if pages_status not in (None, "built", "success"):
         blockers.append(f"PROOF_PAGES_STATUS_{pages_status}")
     if not exact_pages:
         blockers.append("PROOF_PAGES_REVISION_UNAVAILABLE")
@@ -785,8 +1008,15 @@ def proof_contract(config: Mapping[str, Any]) -> dict[str, Any]:
         "health_revision_field": health_field,
         "health_is_not_pages_deployment": True,
         "pages_status": pages.get("status"),
+        "pages_build_type": mode,
         "pages_build_status": pages_status,
         "pages_revision": pages_sha,
+        "pages_revision_source": revision_source,
+        "pages_deployment_id": deployment_id,
+        "pages_deployment_http_status": deployment_http,
+        "pages_deployment_status_http_status": status_http,
+        "pages_deployment_environment_url": deployment_url,
+        "pages_deployment_log_url": deployment_log_url,
         "aligned": aligned,
         "blockers": blockers,
     }

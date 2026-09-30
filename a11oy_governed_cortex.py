@@ -56,10 +56,17 @@ _ANATOMY = {"observation_count": 0, "last": None}
 
 
 class CortexBoundaryError(RuntimeError):
-    def __init__(self, code: str, status: int = 503):
+    def __init__(
+        self,
+        code: str,
+        status: int = 503,
+        *,
+        nemo_witness: dict[str, Any] | None = None,
+    ):
         super().__init__(code)
         self.code = code
         self.status = status
+        self.nemo_witness = deepcopy(nemo_witness)
 
 
 class GovernedInferenceRequest(BaseModel):
@@ -488,6 +495,44 @@ def _decision_dict(decision: Any) -> dict[str, Any]:
     }
 
 
+def _nemo_denial_witness(
+    nemo: Any,
+    stage: str,
+    decision: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Expose only fixed rule identifiers and a hash, never witness text."""
+    text_stage = stage == "TEXT_R1_R5"
+    known_rules = set(
+        getattr(nemo, "RULE_IDS" if text_stage else "ENVELOPE_RULE_IDS", ())
+    )
+    expected_version = (
+        "doctrine-v11/R1-R5" if text_stage else "doctrine-v11/E1-E10"
+    )
+    input_hash = decision.get("input_hash")
+    return {
+        "stage": stage,
+        "decision": (
+            decision["decision"]
+            if decision.get("decision") in {"BLOCK", "REVIEW"}
+            else "UNAVAILABLE"
+        ),
+        "violated_rules": [
+            rule for rule in decision.get("violated_rules", ()) if rule in known_rules
+        ],
+        "rule_version": (
+            expected_version
+            if decision.get("rule_version") == expected_version
+            else "UNAVAILABLE"
+        ),
+        "input_hash": (
+            input_hash
+            if isinstance(input_hash, str)
+            and re.fullmatch(r"sha256:[0-9a-f]{64}", input_hash)
+            else None
+        ),
+    }
+
+
 def _compose_messages(
     prompt: str,
     evidence: Mapping[str, Any],
@@ -503,11 +548,16 @@ def _compose_messages(
     system = (
         "You are the local SZL Khipu proposal cortex inside A11oy. Answer only "
         "from the supplied public evidence projections and cite supporting node "
-        "IDs in square brackets. If evidence is insufficient, state that plainly. "
+        "IDs in square brackets. Begin the final proposal with a supporting "
+        "node ID copied exactly from the supplied evidence, enclosed in square "
+        "brackets, followed by one concise sentence. If evidence is "
+        "insufficient, state that plainly. "
         "Do not expose hidden reasoning. Do not issue tool calls or claim that an "
-        "action was executed. Lambda is Conjecture 1, advisory, and cannot "
-        "authorize action. Never call Lambda a theorem, proven, certified, or "
-        "guaranteed. Never claim perfect or 100% trust. If asked about model "
+        "action was executed. State Lambda's status using this affirmative "
+        "wording: Lambda remains Conjecture 1, advisory only, and cannot "
+        "authorize actions. Keep that status wording without a stronger "
+        "status comparison. State uncertainty and trust limits without "
+        "absolute trust claims. If asked about model "
         "training, disclose that SZL fine-tuned Khipu from Qwen2.5-1.5B-Instruct "
         "and did not train a foundation model from scratch. Label benchmark or "
         "numeric performance claims MEASURED, REPORTED, MODELED, HEURISTIC, "
@@ -520,7 +570,9 @@ def _compose_messages(
         + "\n\nFormula applicability: F1 applies only to deterministic replay "
         "hashing for this request. The other locked formulas are authority "
         "metadata and are not asserted applicable. No formula independently "
-        "authorizes action.\n\nReturn a concise evidence-cited proposal."
+        "authorizes action.\n\nReturn a concise evidence-cited proposal. "
+        "Place the exact supporting evidence citation before the statement "
+        "it supports so it fits within the output token budget."
     )
     return [
         {"role": "system", "content": system},
@@ -599,9 +651,13 @@ def _generate(
 def _extract_citations(output: str, evidence: Mapping[str, Any]) -> list[str]:
     allowed = {item["node_id"] for item in evidence["items"]}
     found: list[str] = []
-    for candidate in re.findall(r"\[([^\[\]]{1,160})\]", output):
-        if candidate in allowed and candidate not in found:
+    for candidate in re.findall(r"\[([^\[\]]*)\]", output):
+        if candidate not in allowed:
+            raise CortexBoundaryError("owned_model_citation_not_in_evidence", 502)
+        if candidate not in found:
             found.append(candidate)
+    if not found:
+        raise CortexBoundaryError("owned_model_evidence_citation_missing", 502)
     return found
 
 
@@ -631,7 +687,12 @@ def _headers() -> dict[str, str]:
     }
 
 
-def _error(code: str, status: int) -> JSONResponse:
+def _error(
+    code: str,
+    status: int,
+    *,
+    nemo_witness: dict[str, Any] | None = None,
+) -> JSONResponse:
     return JSONResponse(
         {
             "schema": "szl.a11oy.owned-khipu-cortex-error/v1",
@@ -640,6 +701,7 @@ def _error(code: str, status: int) -> JSONResponse:
             "executed": False,
             "tool_execution": False,
             "authority_state": "NO_ACTION_AUTHORITY",
+            **({"nemo_witness": nemo_witness} if nemo_witness is not None else {}),
         },
         status_code=status,
         headers=_headers(),
@@ -830,7 +892,11 @@ def infer_payload(request: GovernedInferenceRequest) -> dict[str, Any]:
     )
     pre = _decision_dict(nemo.evaluate_envelope(pre_envelope))
     if pre["decision"] != "ALLOW":
-        raise CortexBoundaryError("nemo_pre_generation_blocked", 422)
+        raise CortexBoundaryError(
+            "nemo_pre_generation_blocked",
+            422,
+            nemo_witness=_nemo_denial_witness(nemo, "PRE_GENERATION", pre),
+        )
     output, identity, metrics = _generate(
         request.prompt,
         evidence,
@@ -839,7 +905,11 @@ def infer_payload(request: GovernedInferenceRequest) -> dict[str, Any]:
     )
     text_witness = _decision_dict(nemo.evaluate(request.prompt, output))
     if text_witness["decision"] != "ALLOW":
-        raise CortexBoundaryError("nemo_text_witness_blocked", 422)
+        raise CortexBoundaryError(
+            "nemo_text_witness_blocked",
+            422,
+            nemo_witness=_nemo_denial_witness(nemo, "TEXT_R1_R5", text_witness),
+        )
     output_digest = text_sha256(output)
     claims = [{"label": "MODELED", "statement_sha256": output_digest}]
     post_envelope = _nemo_envelope(
@@ -851,7 +921,11 @@ def infer_payload(request: GovernedInferenceRequest) -> dict[str, Any]:
     )
     post = _decision_dict(nemo.evaluate_envelope(post_envelope))
     if post["decision"] != "ALLOW":
-        raise CortexBoundaryError("nemo_post_generation_blocked", 422)
+        raise CortexBoundaryError(
+            "nemo_post_generation_blocked",
+            422,
+            nemo_witness=_nemo_denial_witness(nemo, "POST_GENERATION", post),
+        )
     citations = _extract_citations(output, evidence)
     request_id = canonical_sha256(
         {
@@ -1001,7 +1075,7 @@ def register(app: FastAPI, ns: str = "a11oy") -> str:
             payload = infer_payload(request)
             return JSONResponse(payload, headers=_headers())
         except CortexBoundaryError as exc:
-            return _error(exc.code, exc.status)
+            return _error(exc.code, exc.status, nemo_witness=exc.nemo_witness)
 
     @app.get("/api/v2/anatomy/last")
     def anatomy_last() -> JSONResponse:

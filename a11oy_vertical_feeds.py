@@ -1945,6 +1945,9 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
             + [(feed_gh_events, ("huggingface/transformers", 12), {}),
                (feed_hf, (8,), {})]
         )
+        # Use the canonical source envelope without hiding upstream failures or
+        # replacing their observation clocks. Last-good data remains cached.
+        values = [_readiness_public_source(value) for value in values]
         kev, nvd = values[:2]
         gh = dict(zip(repos, values[2:2 + len(repos)]))
         ghev, hf = values[2 + len(repos):2 + len(repos) + 2]
