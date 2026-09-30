@@ -128,6 +128,7 @@ def fetch(
     github: bool = False,
     huggingface: bool = False,
     attempts: int = 4,
+    retain_text: bool = False,
 ) -> dict[str, Any]:
     parsed = urllib.parse.urlsplit(url)
     if parsed.scheme != "https" or parsed.username or parsed.password:
@@ -159,7 +160,7 @@ def fetch(
                     "bytes": len(raw),
                     "sha256": hashlib.sha256(raw).hexdigest(),
                     "json": decoded,
-                    "text": text if decoded is None else None,
+                    "text": text if decoded is None or retain_text else None,
                     "redirect": None,
                     "link": response.headers.get("Link"),
                 }
@@ -239,7 +240,7 @@ def github_file(repository: str, path: str, revision: str) -> dict[str, Any]:
     url = (
         f"https://raw.githubusercontent.com/{repository}/{revision}/{quoted}"
     )
-    return fetch(url)
+    return fetch(url, retain_text=True)
 
 
 def hf_space(repo_id: str) -> dict[str, Any]:
@@ -537,29 +538,42 @@ def probe_source(origin: str, paths: Sequence[str]) -> dict[str, Any]:
     }
 
 
-def _is_provider_injected_script(src: str) -> bool:
-    """Identify the known Cloudflare analytics and apex WebMCP injections.
+def _is_provider_injected_script(
+    src: str, attrs: Sequence[tuple[str, str | None]] = ()
+) -> bool:
+    """Identify only the known Cloudflare beacon and exact observed WebMCP tag.
 
     The apex is served through Cloudflare, while the canonical Hugging Face Space
     is not. Cloudflare may therefore append its own external analytics beacon to
     otherwise byte-equivalent product HTML. That provider-owned script is not an
-    SZL product asset and must not create product/Space semantic drift. The
-    allowlist is deliberately narrow: any other external script remains part of
-    the semantic contract and will continue to fail parity. The WebMCP bridge
-    uses the exact absolute apex URL observed on 2026-09-30; relative paths,
-    other hosts, ports, queries, and fragments remain product scripts. Both
-    overlays remain in provider_scripts in the observation receipt.
-    Provider behavior: https://developers.cloudflare.com/api/resources/zones/subresources/settings/
+    SZL product asset and must not create product/Space semantic drift.
+    Cloudflare also injects its WebMCP bridge when the zone's webmcp_enabled
+    setting is on; see its zone-setting contract:
+    https://developers.cloudflare.com/api/resources/zones/subresources/settings/
+    Only the exact canonical-apex module tag observed
+    with the mcp-server-client pack is recognized. Its URL and metadata remain
+    bounded: altered attributes, duplicate attributes, URLs, or tool packs stay
+    in the product semantic contract and continue to fail parity.
     """
-    if src == "https://a-11-oy.com/.webmcp/bridge.js":
-        return True
     parsed = urllib.parse.urlsplit(src)
-    return bool(
+    if (
         parsed.scheme == "https"
         and parsed.netloc == "static.cloudflareinsights.com"
         and parsed.path.startswith("/beacon.min.js/")
         and not parsed.query
         and not parsed.fragment
+    ):
+        return True
+    return bool(
+        parsed.scheme == "https"
+        and parsed.netloc == "a-11-oy.com"
+        and parsed.path == "/.webmcp/bridge.js"
+        and not parsed.query
+        and not parsed.fragment
+        and src == "https://a-11-oy.com/.webmcp/bridge.js"
+        and len(attrs) == 3
+        and dict(attrs)
+        == {"src": src, "type": "module", "data-packs": "mcp-server-client"}
     )
 
 
@@ -585,7 +599,7 @@ class SemanticHTML(HTMLParser):
                 self.markers[key] = value
         if tag == "script" and values.get("src"):
             src = values["src"]
-            if _is_provider_injected_script(src):
+            if _is_provider_injected_script(src, attrs):
                 self.provider_scripts.add(src)
             else:
                 self.scripts.add(src)
@@ -690,6 +704,53 @@ def inspect_component(component: Mapping[str, Any], paths: Sequence[str]) -> dic
     }
 
 
+def _inventory_counts(value: Any) -> dict[str, int] | None:
+    if not isinstance(value, Mapping) or set(value) != set(INVENTORY_KINDS):
+        return None
+    if any(type(value[kind]) is not int or value[kind] < 0 for kind in INVENTORY_KINDS):
+        return None
+    return {kind: value[kind] for kind in INVENTORY_KINDS}
+
+
+def _profile_record(response: Mapping[str, Any]) -> Mapping[str, Any] | None:
+    """Reject duplicate JSON keys instead of choosing one ambiguous declaration."""
+    def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("duplicate profile inventory key")
+            result[key] = value
+        return result
+
+    if response.get("status") != 200:
+        return None
+    text = response.get("text")
+    if isinstance(text, str):
+        try:
+            value = json.loads(text, object_pairs_hook=unique_object)
+        except (ValueError, TypeError):
+            return None
+    else:
+        value = response.get("json")
+    return value if isinstance(value, Mapping) else None
+
+
+def _public_manifest(response: Mapping[str, Any]) -> Mapping[str, Any] | None:
+    value = _profile_record(response)
+    scope = value.get("inventoryScope") if value else None
+    if not (
+        value and value.get("schemaVersion") == 2
+        and value.get("org") == "SZLHOLDINGS"
+        and isinstance(scope, Mapping)
+        and scope.get("visibility") == "public-only"
+        and scope.get("authenticated") is False
+        and scope.get("privateAssetsIncluded") is False
+        and _inventory_counts(value.get("counts")) is not None
+    ):
+        return None
+    return value
+
+
 def declared_profile_counts(text: str) -> dict[str, int] | None:
     """Read current public declarations without promoting historical snapshots.
 
@@ -730,45 +791,121 @@ def profile_inventory_contract(
     profile = config["profile"]
     repository = str(profile["repository"])
     head = github_main(repository)
-    profile_file = github_file(repository, str(profile["path"]), str(head.get("sha")))
-    text = profile_file.get("text") or ""
-    declared = declared_profile_counts(text)
-    actual = inventory.get("counts") if isinstance(inventory, Mapping) else None
+    record_path = str(profile.get("inventory_path", "profile/public-inventory.json"))
+    record_file = (
+        github_file(repository, record_path, str(head["sha"]))
+        if head.get("observed") else {}
+    )
+    record = _profile_record(record_file)
+    actual = _inventory_counts(inventory.get("counts"))
+    declared = None
+    blockers: list[str] = []
+    expected_scope = config.get("public_inventory_scope")
+    record_valid = bool(
+        record
+        and record.get("schema") == "szl.public-profile-inventory/v1"
+        and isinstance(expected_scope, Mapping)
+        and expected_scope.get("id") == "hf-public-author-membership/v1"
+        and expected_scope.get("authentication") == "none"
+        and expected_scope.get("visibility") == "public-only"
+        and record.get("scope") == expected_scope
+        and record.get("scope_sha256") == canonical_sha256(expected_scope)
+        and _inventory_counts(record.get("counts")) is not None
+        and record.get("source_repository") == "szl-holdings/a11oy"
+        and record.get("source_path") == "docs/huggingface-ecosystem-manifest.json"
+        and isinstance(record.get("source_revision"), str)
+        and SHA40.fullmatch(record["source_revision"])
+        and isinstance(record.get("source_git_blob"), str)
+        and SHA40.fullmatch(record["source_git_blob"])
+        and isinstance(record.get("source_sha256"), str)
+        and re.fullmatch(r"[0-9a-f]{64}", record["source_sha256"])
+        and record.get("production_authorization") is False
+        and record.get("runtime_readiness_inferred") is False
+        and record.get("model_quality_inferred") is False
+    )
+    if record_valid:
+        try:
+            observed_at = dt.datetime.fromisoformat(str(record.get("observed_at", "")).replace("Z", "+00:00"))
+            record_valid = observed_at.tzinfo is not None
+        except ValueError:
+            record_valid = False
+    if not record_valid:
+        blockers.append("HF_PROFILE_INVENTORY_RECORD_UNAVAILABLE_OR_INVALID")
+    else:
+        declared = _inventory_counts(record["counts"])
     enumeration = (
         inventory.get("enumeration_state") if isinstance(inventory, Mapping) else None
     )
-    enumeration_complete = enumeration is None or (
+    enumeration_complete = (
         isinstance(enumeration, Mapping)
         and all(enumeration.get(kind) == "COMPLETE" for kind in INVENTORY_KINDS)
     )
 
     manifest = None
+    manifest_file: dict[str, Any] = {}
     if a11oy_sha:
         manifest_file = github_file(
             "szl-holdings/a11oy",
             "docs/huggingface-ecosystem-manifest.json",
             a11oy_sha,
         )
-        if isinstance(manifest_file.get("json"), Mapping):
-            manifest = manifest_file["json"].get("counts")
+        manifest_json = _public_manifest(manifest_file)
+        if manifest_json:
+            manifest = _inventory_counts(manifest_json.get("counts"))
+
+    source_bound = False
+    if record_valid:
+        pinned = github_file(record["source_repository"], record["source_path"], record["source_revision"])
+        quoted = urllib.parse.quote(record["source_path"], safe="/")
+        blob = fetch(
+            f"https://api.github.com/repos/{record['source_repository']}/contents/"
+            f"{quoted}?ref={record['source_revision']}", github=True,
+        )
+        metadata = blob.get("json")
+        pinned_json = _public_manifest(pinned)
+        source_bound = bool(
+            pinned.get("status") == 200
+            and pinned.get("sha256") == record["source_sha256"]
+            and isinstance(pinned_json, Mapping)
+            and _inventory_counts(pinned_json.get("counts")) == declared
+            and blob.get("status") == 200
+            and isinstance(metadata, Mapping)
+            and metadata.get("type") == "file"
+            and metadata.get("path") == record["source_path"]
+            and metadata.get("sha") == record["source_git_blob"]
+            and manifest_file.get("status") == 200
+            and manifest_file.get("sha256") == record["source_sha256"]
+        )
+        if not source_bound:
+            blockers.append("HF_PROFILE_INVENTORY_SOURCE_BINDING_MISMATCH_OR_UNAVAILABLE")
 
     aligned = bool(
         head.get("observed")
+        and record_valid
+        and source_bound
         and declared
         and actual
         and manifest
+        and inventory.get("observed") is True
         and enumeration_complete
         and declared == actual == manifest
     )
-    blockers: list[str] = []
     if not aligned:
-        if enumeration is not None and not enumeration_complete:
+        if not enumeration_complete:
             blockers.append("HF_INVENTORY_ENUMERATION_INCOMPLETE_OR_UNAVAILABLE")
         else:
             blockers.append("HF_INVENTORY_COUNT_MISMATCH_OR_UNAVAILABLE")
     return {
         "profile_repository": repository,
         "profile_sha": head.get("sha"),
+        "inventory_record_path": record_path,
+        "inventory_record_sha256": record_file.get("sha256"),
+        "inventory_record_source_revision": record.get("source_revision") if record else None,
+        "inventory_record_source_git_blob": record.get("source_git_blob") if record else None,
+        "inventory_record_source_sha256": record.get("source_sha256") if record else None,
+        "inventory_record_observed_at": record.get("observed_at") if record else None,
+        "inventory_record_valid": record_valid,
+        "inventory_record_source_bound": source_bound,
         "declared_counts": declared,
         "manifest_counts": manifest,
         "observed_counts": actual,
