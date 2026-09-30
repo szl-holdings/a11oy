@@ -386,11 +386,19 @@ def _resolve_client() -> Any:
 # a thread so the probe still reflects REAL reachability instead of a false negative.
 # Still 0 browser CDN (server-side fetch). No auth token forwarded (public).
 def _urllib_probe(url: str, timeout: float, want_json: bool = False) -> Any:
-    """Blocking stdlib fetch. Returns (status_code, json_or_None). Raises on failure."""
+    """Return HTTP status without error-body contents; transport failures raise."""
     import json as _json
+    import urllib.error
     import urllib.request
     req = urllib.request.Request(url, headers={"User-Agent": "szl-spaces-surface/1.0"})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
+    try:
+        response = urllib.request.urlopen(req, timeout=timeout)
+    except urllib.error.HTTPError as error:
+        try:
+            return int(error.code), None
+        finally:
+            error.close()
+    with response as r:
         status = getattr(r, "status", None) or r.getcode()
         if want_json:
             data = r.read(262144)
@@ -656,7 +664,7 @@ async def _probe_one(client: Any, sp: dict[str, str]) -> dict[str, Any]:
         try:
             r = await client.request("HEAD", hf_url(name) + "/",
                                      timeout=_PROBE_TIMEOUT, follow_redirects=True)
-            result["app_reachable"] = bool(r.status_code < 500)
+            result["app_reachable"] = bool(200 <= r.status_code < 300)
             result["app_status"] = r.status_code
             result["probe_via"] = "httpx"
             probed = True
@@ -664,7 +672,7 @@ async def _probe_one(client: Any, sp: dict[str, str]) -> dict[str, Any]:
             try:
                 r = await client.get(hf_url(name) + "/", timeout=_PROBE_TIMEOUT,
                                      follow_redirects=True)
-                result["app_reachable"] = bool(r.status_code < 500)
+                result["app_reachable"] = bool(200 <= r.status_code < 300)
                 result["app_status"] = r.status_code
                 result["probe_via"] = "httpx"
                 probed = True
@@ -674,7 +682,7 @@ async def _probe_one(client: Any, sp: dict[str, str]) -> dict[str, Any]:
         # stdlib fallback (the path a11oy_hf_assets proves works on this box).
         try:
             status, _ = await _to_thread(_urllib_probe, hf_url(name) + "/", _PROBE_TIMEOUT, False)
-            result["app_reachable"] = bool(status < 500)
+            result["app_reachable"] = bool(200 <= status < 300)
             result["app_status"] = status
             result["probe_via"] = "urllib"
         except Exception as e:
