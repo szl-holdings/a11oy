@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - command release qualification
+- Make Command v2 own its response with no-store/no-transform; verify actual
+  middleware composition preserves its bytes without changing legacy pages.
+- Restore the command quarantine marker and test canonical origin, redirects,
+  and embedded replacements without rejecting ordinary provider links.
+- Keep a local reduced-motion fallback and run the full command origin/read-only
+  regressions. Add an opt-in, exact-source public browser witness with fixed GET
+  allowlists, redirect rejection, desktop/mobile inspection and retained evidence.
+
 ### Added - experimental software lab discovery
 - TypeSafe Triage is linked from the product landing and listed separately under
   `software_labs` in `/api/a11oy/v1/experimental/index`. Its source contract is
