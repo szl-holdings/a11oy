@@ -43,6 +43,34 @@ The 2 sorries are explicitly named (`AsymptoticTightness`, `KLMonotonicity`) wit
 
 ## Installation
 
+Build and verify this source checkout before installing its local archive:
+
+```bash
+cd packages/rae1
+npm ci --ignore-scripts --no-audit --no-fund
+npm run typecheck
+npm test
+npm run test:package
+npm pack
+```
+
+`npm pack` builds the JavaScript and declarations in `dist/` before creating
+`szl-holdings-rae1-1.0.0.tgz`. Install that archive in a separate Node project:
+
+```bash
+npm install /path/to/szl-holdings-rae1-1.0.0.tgz
+```
+
+The installed package works with ordinary Node ES-module imports; it does not
+require a TypeScript loader. `test:package` installs the archive into a temporary
+consumer and checks all public entry points, key-ID generation, HMAC verification,
+rejection of tampered payloads and wrong keys, and chain hashing. The RAE-1 package
+contract workflow repeats type checking, the source tests, and this consumer check
+on Node 20 and 24 for package PRs and pushes to `main`.
+
+This source build does not publish to a registry. Registry installation requires
+a separately published version:
+
 ```bash
 pnpm add @szl-holdings/rae1
 # or
