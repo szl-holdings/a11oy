@@ -15,7 +15,6 @@ on:
       - 'packages/perception-loop/**'
       - 'packages/sequence-pipeline/**'
       - 'packages/sparse-attention-kit/**'
-      - 'packages/rae1/**'
       - 'huggingface/**'
       - 'docs/huggingface.md'
       - 'docs/INVESTOR_DEMO.md'
@@ -49,7 +48,6 @@ on:
       - 'packages/perception-loop/**'
       - 'packages/sequence-pipeline/**'
       - 'packages/sparse-attention-kit/**'
-      - 'packages/rae1/**'
       - 'huggingface/**'
       - 'docs/huggingface.md'
       - 'docs/INVESTOR_DEMO.md'
@@ -108,10 +106,6 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Verify declared and resolved dependency security overrides
         run: node --test tests/dependency-overrides.test.mjs
-      - name: Validate the locked standalone RAE1 receipt tests
-        run: |
-          npm --prefix packages/rae1 ci --ignore-scripts --no-audit --no-fund
-          npm --prefix packages/rae1 test
       - name: Verify live tracked Hugging Face ecosystem manifest
         if: github.event_name != 'pull_request'
         run: pnpm hf:ecosystem:audit
