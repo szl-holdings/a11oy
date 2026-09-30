@@ -787,19 +787,65 @@ def proof_contract(config: Mapping[str, Any]) -> dict[str, Any]:
     health = fetch(origin.rstrip("/") + "/health.json")
     health_revision, health_field = extract_source_revision(health.get("json"))
 
-    pages = fetch(
-        f"https://api.github.com/repos/{repository}/pages/builds/latest",
-        github=True,
-    )
-    pages_json = pages.get("json")
+    base = f"https://api.github.com/repos/{repository}"
+    pages = fetch(f"{base}/pages", github=True)
+    metadata = pages.get("json")
+    mode = metadata.get("build_type") if pages.get("status") == 200 and isinstance(metadata, Mapping) else None
     pages_sha = None
     pages_status = None
-    if isinstance(pages_json, Mapping):
-        commit = pages_json.get("commit")
-        pages_sha = _candidate_revision(commit)
-        pages_status = pages_json.get("status")
+    revision_source = None
+    deployment_id = None
+    deployment_http = None
+    status_http = None
+    deployment_url = None
+    deployment_log_url = None
+    deployment_valid = False
+    if mode == "legacy":
+        build = fetch(f"{base}/pages/builds/latest", github=True)
+        deployment_http = build.get("status")
+        build_json = build.get("json")
+        if deployment_http == 200 and isinstance(build_json, Mapping):
+            pages_sha = _candidate_revision(build_json.get("commit"))
+            pages_status = build_json.get("status")
+            revision_source = "legacy-pages-build"
+            deployment_valid = pages_status == "built"
+    elif mode == "workflow":
+        # Actions deployments do not update the old branch-build endpoint.
+        # Only the newest github-pages deployment and its newest status count.
+        # A failed/newer deployment never falls back to an older green record.
+        deployments = fetch(f"{base}/deployments?environment=github-pages&per_page=1", github=True)
+        deployment_http = deployments.get("status")
+        rows = deployments.get("json")
+        row = rows[0] if deployment_http == 200 and isinstance(rows, list) and len(rows) == 1 else None
+        if isinstance(row, Mapping):
+            pages_sha = _candidate_revision(row.get("sha"))
+            candidate_id = row.get("id")
+            if (type(candidate_id) is int and candidate_id > 0 and pages_sha
+                    and row.get("environment") == "github-pages" and row.get("ref") in ("main", "refs/heads/main")):
+                deployment_id = candidate_id
+                statuses = fetch(f"{base}/deployments/{deployment_id}/statuses?per_page=1", github=True)
+                status_http = statuses.get("status")
+                status_rows = statuses.get("json")
+                status = status_rows[0] if status_http == 200 and isinstance(status_rows, list) and len(status_rows) == 1 else None
+                if isinstance(status, Mapping):
+                    pages_status = status.get("state")
+                    deployment_url = status.get("environment_url")
+                    deployment_log_url = status.get("log_url")
+                    # Pages may report its configured custom domain as http.
+                    # The independent public root probe still requires the
+                    # configured origin, normally https, to return HTTP 200.
+                    allowed_sites = {origin.rstrip("/")}
+                    if origin.startswith("https://"):
+                        allowed_sites.add("http://" + origin[len("https://"):].rstrip("/"))
+                    metadata_url = metadata.get("html_url")
+                    deployment_valid = (
+                        pages_status == "success"
+                        and isinstance(deployment_url, str) and deployment_url.rstrip("/") in allowed_sites
+                        and isinstance(metadata_url, str) and metadata_url.rstrip("/") in allowed_sites
+                    )
+                revision_source = "github-pages-deployment"
 
-    exact_pages = pages_sha if pages_status == "built" else None
+    exact_pages = pages_sha if deployment_valid else None
     aligned = bool(
         source.get("observed")
         and root.get("status") == 200
@@ -808,7 +854,7 @@ def proof_contract(config: Mapping[str, Any]) -> dict[str, Any]:
     blockers: list[str] = []
     if root.get("status") != 200:
         blockers.append(f"PROOF_ROOT_HTTP_{root.get('status')}")
-    if pages_status not in {None, "built"}:
+    if pages_status not in (None, "built", "success"):
         blockers.append(f"PROOF_PAGES_STATUS_{pages_status}")
     if not exact_pages:
         blockers.append("PROOF_PAGES_REVISION_UNAVAILABLE")
@@ -825,8 +871,15 @@ def proof_contract(config: Mapping[str, Any]) -> dict[str, Any]:
         "health_revision_field": health_field,
         "health_is_not_pages_deployment": True,
         "pages_status": pages.get("status"),
+        "pages_build_type": mode,
         "pages_build_status": pages_status,
         "pages_revision": pages_sha,
+        "pages_revision_source": revision_source,
+        "pages_deployment_id": deployment_id,
+        "pages_deployment_http_status": deployment_http,
+        "pages_deployment_status_http_status": status_http,
+        "pages_deployment_environment_url": deployment_url,
+        "pages_deployment_log_url": deployment_log_url,
         "aligned": aligned,
         "blockers": blockers,
     }
