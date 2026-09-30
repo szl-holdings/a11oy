@@ -19,6 +19,12 @@ Existing consoles, model walk, Frontier, fleet, governance and receipt verifier
 remain independently available. The shared navigation points to the consolidated
 entry point; a link does not grant an action capability.
 
+The response owner sets `Cache-Control: no-store, no-transform`, the existing
+product contract that prevents legacy navigation/widget middleware from appending
+duplicate UI. This is not a request-header opt-out or an authorization bypass;
+API and action guards are unchanged. Full-product regression checks require the
+served page body to be byte-identical to its owning source asset.
+
 The manifest and public HF inventory projection are GET/HEAD-only. Inventory counts
 come from timestamped `a11oy.net/estate/hf-current.json`, never guessed; stale,
 malformed and unavailable snapshots retain explicit states. A public inventory may

@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parent / "command_centre_web"
 STUDY = Path(__file__).resolve().parent / "data" / "atelier-model-intake-2026-09-29.json"
 PROOF_INVENTORY = "https://a11oy.net/estate/hf-current.json"
 HEADERS = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer"}
-PAGE_HEADERS = {**HEADERS, "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'", "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()"}
+PAGE_HEADERS = {**HEADERS, "Cache-Control": "no-store, no-transform", "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'", "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()"}
 
 SURFACES = (
     ("operate", "Operator console", "/console?view=command", "Existing governed controls and runtime posture"),

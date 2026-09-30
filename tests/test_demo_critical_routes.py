@@ -237,6 +237,8 @@ def test_command_centre_survives_real_product_middleware():
     assert 'id="turn-form"' in response.text
     assert 'id="study-models"' in response.text
     assert '</html>' in response.text
+    from routers.command_centre import ROOT
+    assert response.content == (ROOT / 'index.html').read_bytes()
     script = client.get("/command-centre/app.js")
     assert script.status_code == 200
     assert 'reasoning_effort' in script.text

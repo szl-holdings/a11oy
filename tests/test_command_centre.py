@@ -32,7 +32,7 @@ def test_owned_page_and_security_headers(client, path):
     response = client.get(path)
     assert response.status_code == 200
     assert 'Command centre' in response.text
-    assert response.headers['cache-control'] == 'no-store'
+    assert response.headers['cache-control'] == 'no-store, no-transform'
     assert "default-src 'none'" in response.headers['content-security-policy']
     assert "script-src 'self'" in response.headers['content-security-policy']
     assert client.head(path).status_code == 200
