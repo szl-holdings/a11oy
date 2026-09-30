@@ -10,7 +10,7 @@ import sys
 import unittest
 from urllib.parse import urlsplit
 
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import expect, sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -44,7 +44,7 @@ class CommandBrowserTests(unittest.TestCase):
         self.page.on("pageerror", lambda error: self.errors.append(str(error)))
         self.context.route("**/*", self.serve)
         self.page.goto(ORIGIN + "/command-v2", wait_until="networkidle")
-        self.page.wait_for_function("document.querySelectorAll('.source-state[data-state=OBSERVED]').length === 11")
+        expect(self.page.locator('.source-state[data-state=OBSERVED]')).to_have_count(11)
 
     def serve(self, route):
         request = route.request
@@ -111,7 +111,7 @@ class CommandBrowserTests(unittest.TestCase):
         self.assertEqual(self.page.locator("#receipts").inner_text(), "Receipts · 0")
         self.unavailable = True
         self.page.get_by_role("button", name="Refresh observations", exact=True).click()
-        self.page.wait_for_function("document.querySelectorAll('.source-state[data-state=UNAVAILABLE]').length === 11")
+        expect(self.page.locator('.source-state[data-state=UNAVAILABLE]')).to_have_count(11)
         self.assertEqual(self.page.locator("#receipts").inner_text(), "Receipts · UNAVAILABLE")
         self.assertTrue(all(method == "GET" for method, _ in self.requests))
         self.assertFalse(any("/kernel/probe" in url for _, url in self.requests))
@@ -120,7 +120,7 @@ class CommandBrowserTests(unittest.TestCase):
 
     def test_real_client_expiry_preserves_inspector_and_focus(self):
         self.page.get_by_role("button", name="Inspect Receipts source", exact=True).click()
-        self.page.wait_for_function("document.querySelector('#source-inspector dl').textContent.includes('STALE')", timeout=70000)
+        expect(self.page.locator('#source-inspector dl')).to_contain_text('STALE', timeout=70000)
         self.assertEqual(self.page.evaluate("document.activeElement.id"), "close-source-inspector")
         self.assertEqual(self.page.locator("#receipts").inner_text(), "Receipts · UNAVAILABLE")
         self.assertEqual(json.loads(self.page.locator("#source-inspector pre").text_content())["count"], 0)
