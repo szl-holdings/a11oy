@@ -67,5 +67,3 @@ szl_llm_registry.py        # Wave M DEV-1 a11oy-only sovereign backend (szl-sove
 szl_connectors/governance.py  # TEMP: coordinated nested-secret scrub rollout
 szl_connectors/oauth.py       # TEMP: coordinated public OAuth-scope separation
 szl_dsse.py                   # TEMP: coordinated content-address separation
-szl_ecosystem_routes.py  # pre-existing divergence between a11oy main and killinchu main (not introduced by audit wave 1); reconcile in a dedicated PR
-szl_warhacker_aliases.py  # pre-existing divergence between a11oy main and killinchu main (not introduced by audit wave 1); reconcile in a dedicated PR
