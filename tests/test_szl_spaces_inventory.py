@@ -7,7 +7,12 @@ only, not public Hub applications. Atlas keep-7 at 18:05Z and KEEP-6 are prior
 snapshots and are not rewritten here as live claims.
 """
 
+import hashlib
 from pathlib import Path
+import shutil
+import subprocess
+
+import pytest
 
 import szl_spaces_proxy as proxy
 import szl_spaces_surface as surface
@@ -254,15 +259,38 @@ def test_anatomy_and_sda_health_use_exact_api_contract_routes():
 def test_sda_vendored_widget_is_locked_to_the_canonical_verifier_contract():
     widget_path = (Path(__file__).parents[1] / "spaces" / "sda" / "assets" /
                    "szl_verify_widget.js")
-    if not widget_path.exists():
-        return
-    widget = widget_path.read_text(encoding="utf-8")
-    assert widget.startswith(
-        "// VENDORED FROM szl-holdings/platform@9798feff9af3d6b0d8737abd70f71a1db1755a65"
+    assert widget_path.is_file(), "materialize the vendored SDA widget; absence is not a pass"
+    widget_bytes = widget_path.read_bytes()
+    header = (
+        "// VENDORED FROM szl-holdings/platform@880fda4f67fd2bbdc3507dce6d81fb782ca64c4c"
+        " — replit-sync/hf_spaces/hf_sda_space/assets/szl_verify_widget.js\n"
+        "// DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.\n"
     )
+    assert widget_bytes.startswith(header.encode("utf-8"))
+    # Independently read from the immutable platform pin, Git blob
+    # e2f084b6790e4aaac8b6f26f7ee5d52052263de0; not derived from this checkout.
+    assert hashlib.sha256(widget_bytes[len(header.encode("utf-8")):]).hexdigest() == (
+        "d3efef893b3c76b50dad87ab52b8b5cd1b5566d51110ab755427e52721171d0a"
+    )
+    widget = widget_bytes.decode("utf-8")
     assert "VERIFY_PATH  = '/api/a11oy/v1/verify/receipt'" in widget
     assert "/api/a11oy/v1/verify?url=" not in widget
     assert "p = pull(u, {method:'GET'})" in widget
+
+
+def test_sda_vendored_widget_executable_contract():
+    node = shutil.which("node")
+    assert node, "Node.js is required to execute the actual vendored widget contract"
+    harness = Path(__file__).with_name("sda_verifier_widget_contract.cjs")
+    assert harness.is_file(), "the executable widget contract harness must be present"
+    result = subprocess.run(
+        [node, "--test", str(harness)],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_exact_contract_probe_requires_expected_json_marker():
@@ -403,10 +431,83 @@ def test_contract_retry_and_circuit_are_bounded_and_fail_closed():
             surface._CONTRACT_CIRCUITS[contract["id"]] = previous
 
     assert first["state"] == "UNAVAILABLE" and first["attempts"] == 2
+    assert first["http_status"] is None
     assert first["circuit_state"] == "CLOSED"
     assert second["state"] == "UNAVAILABLE" and second["circuit_state"] == "OPEN"
     assert open_result["probe_state"] == "CIRCUIT_OPEN"
     assert open_result["attempts"] == 0 and open_result["retry_after_s"] > 0
+
+
+@pytest.mark.parametrize("status", [401, 403, 404, 429, 500, 503])
+@pytest.mark.parametrize("want_json", [False, True])
+def test_urllib_http_errors_preserve_status_close_and_never_read_body(monkeypatch, status, want_json):
+    import io
+    import urllib.error
+    import urllib.request
+
+    class ErrorBody(io.BytesIO):
+        def read(self, *args):
+            pytest.fail("HTTP error body must not be read or exposed")
+
+    body = ErrorBody(b"sensitive untrusted upstream body")
+    def failure(*args, **kwargs):
+        raise urllib.error.HTTPError("https://unit.invalid/status", status, "untrusted diagnostic", {}, body)
+    monkeypatch.setattr(urllib.request, "urlopen", failure)
+    observed, data = surface._urllib_probe("https://unit.invalid/status", 1, want_json)
+    assert observed == status
+    assert data is None
+    assert body.closed
+
+
+@pytest.mark.parametrize("status,attempts", [(403, 1), (429, 2), (500, 2), (503, 2)])
+def test_urllib_contract_http_status_preserves_existing_retry_policy(monkeypatch, status, attempts):
+    import asyncio
+    import io
+    import urllib.error
+    import urllib.request
+
+    calls = []
+    def failure(*args, **kwargs):
+        calls.append(1)
+        raise urllib.error.HTTPError("https://unit.invalid/health", status, "untrusted", {}, io.BytesIO(b"not returned"))
+    monkeypatch.setattr(urllib.request, "urlopen", failure)
+    contract = {"id": "unit-http-status-" + str(status), "url": "https://unit.invalid/health", "expected": {"ok": True}}
+    monkeypatch.setattr(surface, "_CONTRACT_CIRCUITS", {})
+    result = asyncio.run(surface._probe_contract(None, contract))
+    assert result["state"] == "UNAVAILABLE"
+    assert result["http_status"] == status
+    assert result["probe_via"] == "urllib"
+    assert result["error"] == "HTTPStatus"
+    assert result["attempts"] == len(calls) == attempts
+
+
+@pytest.mark.parametrize("status", [200, 204, 301, 401, 403, 404, 429, 500, 503])
+@pytest.mark.parametrize("transport", ["httpx-head", "httpx-get", "urllib"])
+def test_space_liveness_adapters_require_success_and_preserve_status(monkeypatch, status, transport):
+    import asyncio
+    from types import SimpleNamespace
+
+    class Client:
+        async def request(self, *args, **kwargs):
+            if transport == "httpx-get":
+                raise TimeoutError("isolated HEAD failure")
+            return SimpleNamespace(status_code=status)
+        async def get(self, url, **kwargs):
+            if url.startswith("https://huggingface.co/api/"):
+                return SimpleNamespace(status_code=200, json=lambda: {"runtime": {"stage": "RUNNING"}})
+            return SimpleNamespace(status_code=status)
+    def probe(url, timeout, want_json=False):
+        if url.startswith("https://huggingface.co/api/"):
+            return 200, {"runtime": {"stage": "RUNNING"}}
+        return status, None
+    async def no_contracts(*args):
+        return []
+    monkeypatch.setattr(surface, "_urllib_probe", probe)
+    monkeypatch.setattr(surface, "_probe_contracts", no_contracts)
+    result = asyncio.run(surface._probe_one(None if transport == "urllib" else Client(), surface.SPACES[0]))
+    assert result["app_status"] == status
+    assert result["app_reachable"] is (200 <= status < 300)
+    assert result["probe_via"] == ("urllib" if transport == "urllib" else "httpx")
 
 
 def test_unify_ledger_is_bind_not_a_hub_space():
