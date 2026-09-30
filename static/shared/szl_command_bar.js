@@ -31,7 +31,7 @@
     { label: 'Verify a receipt', href: '/verify' },
     { label: 'Open diligence room', href: PROOF },
     { label: 'Proof registry', href: PROOF },
-    { label: 'Command Center', href: '/console?view=command' },
+    { label: 'Command Center', href: '/command-centre' },
     { label: 'Holo', href: '/holographic' },
     { label: 'Frontier', href: '/frontier-now' },
     { label: 'Models + Kernels', href: '/estate' },
