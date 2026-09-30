@@ -598,6 +598,8 @@
 
   function enhanceCommandBar() {
     var root = document.querySelector(".szl-hbar");
+    // The shared command bar owns its navigation, status chips and accessibility.
+    if (root && root.hasAttribute("data-szl-command-bar")) return true;
     var nav = root && root.querySelector(".szl-estate");
     if (!root || !nav || nav.dataset.szlFluidEstate === "v5") return false;
 
