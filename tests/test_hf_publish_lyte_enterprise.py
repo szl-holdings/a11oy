@@ -51,8 +51,8 @@ def test_source_owned_publisher_is_exact_reviewable_and_non_destructive() -> Non
         'HF_REPOSITORY = "SZLHOLDINGS/lyte"',
         'ORIGIN = "https://szlholdings-lyte.hf.space"',
         'SOURCE_VARIABLE = "LYTE_SOURCE_REVISION"',
-        'CONTROLLER_REVISION = "c889276e51e7d954c4bba8b216f86fc7577721fa"',
-        'CONTROLLER_BLOB_SHA1 = "9d5b90b8bbf04e6d46ef0f971fc65604e1323b1b"',
+        'CONTROLLER_REVISION = "7b4b43fd4efa0dbcc9667fe29e3e8f9e1a756c5f"',
+        'CONTROLLER_BLOB_SHA1 = "3fa968416a3623d66b5b5b64abf8b830cc854e1c"',
         '"--dockerfile-path"', '"Dockerfile"', '"--require-default-branch-tip"',
         '"--prune"', '"--restart-space"', '"--attest"',
         'with_name("lyte_enterprise_live_contract.py")',
@@ -89,13 +89,12 @@ def test_lyte_writer_uses_release_guard_runner() -> None:
     assert '"execution_authority": "NONE"' in source
     assert '"release_guard_runner": "szl_release_guard.run_bounded"' in source
     tree = ast.parse(source)
-    imported = False
+    imported = set()
     for node in tree.body:
         if isinstance(node, ast.ImportFrom) and node.module == "szl_release_guard":
             names = {alias.name for alias in node.names}
-            assert "run_bounded" in names
-            imported = True
-    assert imported, "publisher must import run_bounded from szl_release_guard"
+            imported.update(names)
+    assert "run_bounded" in imported, "publisher must import run_bounded from szl_release_guard"
 
 
 def test_lyte_live_admission_requires_business_observability_and_non_authority() -> None:

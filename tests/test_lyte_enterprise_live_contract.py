@@ -7,6 +7,7 @@ source-pinned integration run checks these expectations against the Lyte app.
 from __future__ import annotations
 
 import copy
+import hashlib
 import importlib.util
 from pathlib import Path
 
@@ -244,7 +245,7 @@ def test_returned_fixture_mutations_do_not_leak_between_runs():
     METRICS.replace('version="4.0.0"}', 'version="4.0.0",owner="other"}'),
     METRICS.rstrip('\n'),
     METRICS + '#' * (CONTRACT.MAX_METRICS_BYTES + 1) + '\n',
-])
+], ids=lambda body: hashlib.sha256(body.encode()).hexdigest()[:12])
 def test_invalid_metrics_cannot_be_hidden_by_passing_json_contract(body):
     transport = FixtureTransport()
     original = transport.text
