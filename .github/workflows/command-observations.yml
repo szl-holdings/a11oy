@@ -6,6 +6,7 @@ on:
   pull_request:
     paths:
       - pages/command-v2.html
+      - console/assets/szl/**
       - scripts/preview_command_observations.py
       - tests/test_command_observations.cjs
       - tests/test_command_preview.py
@@ -14,6 +15,7 @@ on:
     branches: [main]
     paths:
       - pages/command-v2.html
+      - console/assets/szl/**
       - scripts/preview_command_observations.py
       - tests/test_command_observations.cjs
       - tests/test_command_preview.py

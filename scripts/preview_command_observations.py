@@ -15,6 +15,11 @@ from urllib.request import HTTPRedirectHandler, build_opener
 
 ROOT = Path(__file__).resolve().parents[1]
 ORIGIN = "https://a-11-oy.com"
+ASSETS = {
+    "/assets/szl/szl-design-system.css": ("szl-design-system.css", "text/css"),
+    "/assets/szl/szl-console.css": ("szl-console.css", "text/css"),
+    "/assets/szl/logos/szl_favicon_square.svg": ("logos/szl_favicon_square.svg", "image/svg+xml"),
+}
 READ_PATHS = frozenset({
     "/api/a11oy/v1/honest", "/api/a11oy/v1/lambda", "/api/a11oy/v1/version",
     "/api/a11oy/v1/ledger", "/api/a11oy/v1/signing-status",
@@ -27,6 +32,10 @@ READ_PATHS = frozenset({
 class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, request, fp, code, msg, headers, new_url):
         return None
+
+
+class PreviewServer(ThreadingHTTPServer):
+    request_queue_size = 32
 
 
 class Preview(BaseHTTPRequestHandler):
@@ -47,6 +56,10 @@ class Preview(BaseHTTPRequestHandler):
             return
         if self.path in ("/", "/command-v2"):
             self.reply(200, (ROOT / "pages/command-v2.html").read_bytes(), "text/html; charset=utf-8")
+            return
+        if self.path in ASSETS:
+            name, content_type = ASSETS[self.path]
+            self.reply(200, (ROOT / "console/assets/szl" / name).read_bytes(), content_type)
             return
         if self.path not in READ_PATHS:
             self.reply(404, b'{"error":"preview_path_not_allowed"}')
@@ -86,7 +99,7 @@ def main():
     parser.add_argument("--source", choices=("live", "fixture", "unavailable"), default="fixture")
     args = parser.parse_args()
     Preview.source = args.source
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), Preview)
+    server = PreviewServer(("127.0.0.1", args.port), Preview)
     print(f"Preview http://127.0.0.1:{args.port}/command-v2 source={args.source}; writes rejected", flush=True)
     try:
         server.serve_forever()

@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - command observation context
+- `/command-v2` adds read-only source inspection, explicit refresh, per-source
+  60-second client expiry and truthful missing-value states. Existing backend
+  contracts and action authorization remain unchanged.
+- Uses local, hash-verified KANCHAY operator styles. The loopback preview labels
+  synthetic software QA and rejects all writes.
+
 ### Fixed - receipt-record count and read-only pcai/run
 - `GET /api/a11oy/v1/pcai/run` no longer appends a MODELED probe to the
   `szl.lake.receipt/v1` chain and reports `receipt_minted: false`. Records

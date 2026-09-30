@@ -23,6 +23,19 @@ but no longer supply headline values. Refresh is single-flight and uses the
 existing 11 same-origin GET contracts, no credentials and no redirects. The
 client batch is not an atomic server or cross-service snapshot.
 
+Each source expires independently. Expiry and refresh preserve keyboard focus
+and the selected inspector; returning from a hidden tab rechecks client age.
+
+## Local Design Assets
+
+The page follows the current KANCHAY rule using local styles and an existing
+SZL mark from `console/assets/szl/`. `SOURCE.json` records the upstream revision,
+license, and exact SHA-256 values. These are byte-identical copies of the bundle
+already adopted on main, not independently modified styles. The page uses its
+tokens, with a single coral active-room indicator and no CDN or webfont requests.
+The existing `COPY console/ ./static/` and `/assets` mount carry these assets;
+no new application route or publisher is introduced.
+
 ## Comparative Interaction Study
 
 On 2026-09-24, public browser interaction was performed on
@@ -60,13 +73,15 @@ python -m unittest discover -s tests -p test_command_preview.py -v
 python scripts/preview_command_observations.py --source fixture --port 8788
 ```
 
-The loopback preview serves only this candidate page and 11 exact API paths.
+The loopback preview serves this candidate page, three exact local assets and
+11 exact API paths.
 Fixture mode is SYNTHETIC SOFTWARE QA, not a deployment witness. `--source live`
 reads the public product origin without credentials; HTTP failures stay failures.
 All preview POSTs are rejected, including the existing kernel probe. It does not
 boot the application or start a GPU operator.
 
-The broader command-origin/read-only run found 17 passes and 2 failures in
+The broader command-origin/read-only and fail-closed-paint run found 30 passes
+and 2 failures in
 untouched code: a required quarantine wording marker and a legacy self-test that
 rejects any Hugging Face Space link in the Killinchu page. Both failures also
 reproduced in the earlier checkout. They are not suppressed or rewritten here.
