@@ -10,6 +10,8 @@ name: HF Lyte Enterprise source-owned contract
       - scripts/lyte_forecast_risk_live_contract.py
       - governance/public-estate.v1.json
       - tests/test_hf_publish_lyte_enterprise.py
+      - tests/test_lyte_publisher_source_resolution.py
+      - .github/workflows/hf-publish-vertical-flagships.yml
       - tests/test_lyte_enterprise_live_contract.py
       - tests/test_lyte_forecast_risk_live_contract.py
       - tests/test_lyte_monitoring_contract.py
@@ -60,6 +62,7 @@ jobs:
         run: >-
           python -m pytest
           tests/test_hf_publish_lyte_enterprise.py
+          tests/test_lyte_publisher_source_resolution.py
           tests/test_lyte_enterprise_live_contract.py
           tests/test_lyte_forecast_risk_live_contract.py
           tests/test_lyte_monitoring_contract.py -q

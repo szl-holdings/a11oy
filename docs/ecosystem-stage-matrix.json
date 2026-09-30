@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-09-25T15:51:24Z",
+  "observedAt": "2026-09-29T21:16:06Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -27,8 +27,8 @@
     "githubReadinessEntries": 19,
     "huggingFacePublic": {
       "models": 49,
-      "datasets": 35,
-      "spaces": 22
+      "datasets": 34,
+      "spaces": 23
     },
     "huggingFaceScope": {
       "visibility": "public-only",
@@ -1303,16 +1303,6 @@
       ]
     },
     {
-      "id": "SZLHOLDINGS/david-leads-data",
-      "repoType": "dataset",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/datasets/SZLHOLDINGS/david-leads-data"
-      ]
-    },
-    {
       "id": "SZLHOLDINGS/doctrine-v10-v11",
       "repoType": "dataset",
       "stage": "inventory",
@@ -1765,13 +1755,13 @@
       ]
     },
     {
-      "id": "SZLHOLDINGS/szl-constellation-staging",
+      "id": "SZLHOLDINGS/szl-forge-lab",
       "repoType": "space",
       "stage": "inventory",
       "private": false,
       "unsafeFlags": [],
       "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/szl-constellation-staging"
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-forge-lab"
       ]
     },
     {
@@ -1812,6 +1802,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/terra"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/the-grid",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/the-grid"
       ]
     },
     {

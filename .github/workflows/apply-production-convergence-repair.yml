@@ -17,6 +17,7 @@ on:
     - tests/test_frontend_flow_shell.py
     - tests/test_frontend_source_boundaries.py
     - tests/test_integrations_flow_boundary.py
+    - tests/test_landing_estate_pulse.py
     - .github/workflows/apply-production-convergence-repair.yml
   push:
     branches:
@@ -34,6 +35,7 @@ on:
     - tests/test_frontend_flow_shell.py
     - tests/test_frontend_source_boundaries.py
     - tests/test_integrations_flow_boundary.py
+    - tests/test_landing_estate_pulse.py
     - .github/workflows/apply-production-convergence-repair.yml
   workflow_dispatch: null
   merge_group:
@@ -72,10 +74,12 @@ jobs:
             szl_connectors_serve.py \
             tests/test_integrations_flow_boundary.py \
             tests/test_frontend_flow_shell.py \
-            tests/test_frontend_source_boundaries.py
+            tests/test_frontend_source_boundaries.py \
+            tests/test_landing_estate_pulse.py
           python tests/test_integrations_flow_boundary.py -v
           python tests/test_frontend_flow_shell.py -v
           python tests/test_frontend_source_boundaries.py -v
+          python tests/test_landing_estate_pulse.py -v
           python scripts/repair_a11oy_frontdoor.py a11oy_landing.html --check
           python scripts/rollout_frontend_flow_shell.py --check
           node --check console/assets/szl-flow.js

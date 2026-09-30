@@ -16,6 +16,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import re
 import sys
 import tempfile
 import time
@@ -26,10 +27,17 @@ from typing import Any
 
 from huggingface_hub import HfApi
 
-from szl_release_guard import run_bounded as guard_run_bounded
+from szl_release_guard import run_bounded as guard_run_bounded, strict_json
 
 SOURCE_REPOSITORY = "szl-holdings/lyte-services"
-SOURCE_REVISION = "445c24c5a2ad314775af9a463a7d26acb910a5f1"
+SHA40 = re.compile(r"^[0-9a-f]{40}$")
+SOURCE_REQUIRED_CHECKS = (
+    "python-compile", "lint", "unit", "api-contract", "release-gates",
+    "database-migrations", "connector-contract", "truth-and-governance",
+    "security-scan", "secret-scan", "frontend-static-contract", "accessibility",
+    "responsive-overflow", "bundle-budget", "container-build", "container-smoke",
+    "source-binding",
+)
 EXPECTED_VERSION = "4.0.0"
 HF_REPOSITORY = "SZLHOLDINGS/lyte"
 ORIGIN = "https://szlholdings-lyte.hf.space"
@@ -78,6 +86,69 @@ def token_from_env() -> tuple[str, str]:
     raise RuntimeError("no Hugging Face write token available to canonical writer")
 
 
+def github_json(path: str) -> dict[str, Any]:
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": USER_AGENT,
+               "X-GitHub-Api-Version": "2022-11-28", "Cache-Control": "no-cache"}
+    token = (os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN") or "").strip()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    request = urllib.request.Request(f"https://api.github.com{path}", headers=headers)
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, response_headers, newurl):
+            raise RuntimeError("Lyte source resolution redirect refused")
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+    with opener.open(request, timeout=30) as response:
+        payload = strict_json(response.read(2_000_001))
+    if not isinstance(payload, dict):
+        raise RuntimeError("Lyte source resolution returned a non-object")
+    return payload
+
+
+def verified_revision(head: dict[str, Any]) -> str:
+    revision = head.get("sha")
+    commit = head.get("commit")
+    verification = commit.get("verification") if isinstance(commit, dict) else None
+    if (not isinstance(revision, str) or SHA40.fullmatch(revision) is None
+            or revision == "0" * 40 or not isinstance(verification, dict)
+            or verification.get("verified") is not True):
+        raise RuntimeError("Lyte main is not an exact verified source commit")
+    return revision
+
+
+def resolve_verified_source_tip() -> tuple[str, dict[str, Any]]:
+    """Qualify one current source SHA before any Hub configuration or write."""
+    revision = verified_revision(github_json(f"/repos/{SOURCE_REPOSITORY}/commits/main"))
+    checks = github_json(
+        f"/repos/{SOURCE_REPOSITORY}/commits/{revision}/check-runs?filter=latest&per_page=100"
+    ).get("check_runs")
+    if not isinstance(checks, list):
+        raise RuntimeError("Lyte source check-runs are missing")
+    trusted = [row for row in checks if isinstance(row, dict)
+               and row.get("head_sha") == revision and isinstance(row.get("app"), dict)
+               and row["app"].get("slug") == "github-actions"]
+    accepted = {
+        name for name in SOURCE_REQUIRED_CHECKS
+        if any(row.get("name") == name for row in trusted)
+        and all(row.get("status") == "completed" and row.get("conclusion") == "success"
+                for row in trusted if row.get("name") == name)
+    }
+    missing = sorted(set(SOURCE_REQUIRED_CHECKS) - accepted)
+    if missing:
+        raise RuntimeError("Lyte source gates did not pass: " + ", ".join(missing))
+    return revision, {
+        "schema": "szl.lyte-source-resolution/v1", "repository": SOURCE_REPOSITORY,
+        "branch": "main", "revision": revision, "verified_commit": True,
+        "required_checks": list(SOURCE_REQUIRED_CHECKS),
+        "live_health_check_used_as_source_gate": False,
+        "default_branch_tip_rechecked_by_deployer": True, "token_value_recorded": False,
+    }
+
+
+def require_current_source(revision: str) -> None:
+    if verified_revision(github_json(f"/repos/{SOURCE_REPOSITORY}/commits/main")) != revision:
+        raise RuntimeError("Lyte main changed after source admission")
+
+
 def journal(phase: str, **extra: Any) -> None:
     PHASE_JOURNAL.append({"ts": utc_now(), "phase": phase, **extra})
 
@@ -122,7 +193,7 @@ def run_checked(
     run_bounded(command, cwd=cwd, timeout=timeout)
 
 
-def checkout_exact_source(destination: Path) -> None:
+def checkout_exact_source(destination: Path, *, revision: str) -> None:
     run_checked(["git", "init", "--quiet", str(destination)])
     run_checked([
         "git", "-C", str(destination), "remote", "add", "origin",
@@ -130,7 +201,7 @@ def checkout_exact_source(destination: Path) -> None:
     ])
     run_checked([
         "git", "-C", str(destination), "fetch", "--quiet", "--depth=1",
-        "origin", SOURCE_REVISION,
+        "origin", revision,
     ])
     run_checked([
         "git", "-C", str(destination), "checkout", "--quiet", "--detach", "FETCH_HEAD",
@@ -140,9 +211,9 @@ def checkout_exact_source(destination: Path) -> None:
     observed = head_path.read_text(encoding="utf-8").strip().lower()
     if observed.startswith("ref:"):
         raise RuntimeError("source checkout is not detached")
-    if observed != SOURCE_REVISION:
+    if observed != revision:
         raise RuntimeError(
-            f"source checkout mismatch: expected {SOURCE_REVISION}, observed {observed}"
+            f"source checkout mismatch: expected {revision}, observed {observed}"
         )
 
 
@@ -170,16 +241,16 @@ def fetch_pinned_controller(destination: Path) -> None:
     destination.write_bytes(payload)
 
 
-def ensure_runtime_configuration(api: HfApi) -> dict[str, Any]:
+def ensure_runtime_configuration(api: HfApi, *, revision: str) -> dict[str, Any]:
     """Require the existing Space and bind only a non-secret source variable."""
     api.auth_check(repo_id=HF_REPOSITORY, repo_type="space", write=True)
     api.add_space_variable(
-        repo_id=HF_REPOSITORY, key=SOURCE_VARIABLE, value=SOURCE_REVISION,
+        repo_id=HF_REPOSITORY, key=SOURCE_VARIABLE, value=revision,
         description="Exact tested GitHub revision for Lyte fail-closed source binding.",
     )
     return {
         "space_preexisted": True, "space_created": False,
-        "source_variable": SOURCE_VARIABLE, "source_variable_value": SOURCE_REVISION,
+        "source_variable": SOURCE_VARIABLE, "source_variable_value": revision,
         "secret_values_read": False, "secret_values_written": False,
         "sentra_signing_key_touched": False,
     }
@@ -252,14 +323,14 @@ def request_text(path: str, *, attempts: int = 4) -> tuple[int, str]:
     )
 
 
-def deploy_with_controller(source: Path, controller: Path, manifest: Path) -> None:
+def deploy_with_controller(source: Path, controller: Path, manifest: Path, *, revision: str) -> None:
     smoke_json = json.dumps(SMOKE_PATHS, separators=(",", ":"))
     base = [
         sys.executable, str(controller), "--repo-root", str(source),
         "--github-repo", SOURCE_REPOSITORY, "--hf-repo", HF_REPOSITORY,
     ]
     run_checked(base + [
-        "--ref", SOURCE_REVISION, "--source-sha", SOURCE_REVISION,
+        "--ref", revision, "--source-sha", revision,
         "--dockerfile-path", "Dockerfile", "--include-readme", "true",
         "--smoke-paths", smoke_json, "--manifest-out", str(manifest),
         "--prune", "--require-default-branch-tip",
@@ -274,7 +345,7 @@ def deploy_with_controller(source: Path, controller: Path, manifest: Path) -> No
     ], timeout=ATTEST_COMMAND_TIMEOUT_S)
 
 
-def verify_contract() -> dict[str, Any]:
+def verify_contract(*, revision: str) -> dict[str, Any]:
     """Verify the current source-owned API, never the retired v3 deployment."""
     spec = importlib.util.spec_from_file_location("szl_lyte_live_contract", CONTRACT_PATH)
     if spec is None or spec.loader is None:
@@ -282,7 +353,7 @@ def verify_contract() -> dict[str, Any]:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module.verify_current_contract(
-        request_json, request_text, revision=SOURCE_REVISION, version=EXPECTED_VERSION,
+        request_json, request_text, revision=revision, version=EXPECTED_VERSION,
     )
 
 
@@ -291,7 +362,7 @@ def main() -> int:
     os.environ["HF_TOKEN"] = token
     receipt: dict[str, Any] = {
         "schema": "szl.hf-lyte-enterprise-publication/v3", "generated_at": utc_now(),
-        "source_repository": SOURCE_REPOSITORY, "source_revision": SOURCE_REVISION,
+        "source_repository": SOURCE_REPOSITORY, "source_revision": "UNRESOLVED",
         "expected_version": EXPECTED_VERSION, "hf_repository": HF_REPOSITORY,
         "origin": ORIGIN, "controller_repository": CONTROLLER_REPOSITORY,
         "controller_revision": CONTROLLER_REVISION, "controller_blob_sha1": CONTROLLER_BLOB_SHA1,
@@ -302,17 +373,20 @@ def main() -> int:
         "execution_authority": "NONE",
     }
     try:
+        revision, receipt["source_resolution"] = resolve_verified_source_tip()
+        receipt["source_revision"] = revision
         api = HfApi(token=token)
         with tempfile.TemporaryDirectory(prefix="szl-lyte-enterprise-") as td:
             root = Path(td)
             source, controller, manifest = root / "source", root / "controller.py", root / "manifest.json"
-            checkout_exact_source(source)
+            checkout_exact_source(source, revision=revision)
             fetch_pinned_controller(controller)
+            require_current_source(revision)
             # Verify source and controller bytes before any runtime configuration write.
             # Do not reorder configuration vs deploy until the image-marker strategy is reviewed.
-            receipt["configuration"] = ensure_runtime_configuration(api)
+            receipt["configuration"] = ensure_runtime_configuration(api, revision=revision)
             try:
-                deploy_with_controller(source, controller, manifest)
+                deploy_with_controller(source, controller, manifest, revision=revision)
                 receipt["deployment_manifest"] = json.loads(manifest.read_text(encoding="utf-8"))
             except Exception:
                 if manifest.exists():
@@ -320,7 +394,8 @@ def main() -> int:
                     receipt["retained_manifest"] = str(FAILED_MANIFEST_PATH.resolve())
                     journal("manifest_retained", path=receipt["retained_manifest"])
                 raise
-        receipt["verification"] = verify_contract()
+        receipt["verification"] = verify_contract(revision=revision)
+        require_current_source(revision)
         receipt["complete"] = receipt["verification"]["complete"]
     except Exception as exc:
         receipt["error"] = f"{type(exc).__name__}: {exc}"

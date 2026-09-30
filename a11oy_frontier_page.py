@@ -458,6 +458,16 @@ def _page_html(ns: str) -> str:
     </div>
     <div id="rollup"></div>
 
+    <section id="confirmation-research" aria-labelledby="confirmation-h">
+      <div class="plaque">Synthetic research / RECORD</div>
+      <h2 id="confirmation-h">When is another observation worth buying?</h2>
+      <p class="sub">Source-aware confirmation records 5,184 policy runs across 576 synthetic worlds.
+        The shared-bias gain criterion passed; the clean-sensor guard and overall registered gate failed.
+        The learned selector did not outperform the strongest simple control.</p>
+      <p class="sub"><a href="/research/confirmation">Explore recorded evidence and fixed-trace prices &rarr;</a></p>
+      <p class="sub">This link opens a frozen evidence replay. It adds no inference action or runtime capability to this surface.</p>
+    </section>
+
     <section id="fashion-section" aria-labelledby="fashion-h">
       <div class="plaque">Fashion lineage / REPORTED</div>
       <h2 id="fashion-h">Stolen jobs. SZL tweaks. No borrowed chrome.</h2>
@@ -1034,7 +1044,11 @@ def register(app, ns: str = "a11oy") -> str:
 
     # Keep the pure manifest builders importable in bounded/offline evidence
     # jobs where the web-serving dependency is intentionally absent.
-    from fastapi.responses import HTMLResponse, JSONResponse
+    from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+
+    @app.get("/research/confirmation", include_in_schema=False)
+    async def confirmation_research():  # noqa: ANN202
+        return RedirectResponse("https://a11oy.net/experiments/confirmation/", status_code=307)
 
     @app.get("/frontier", include_in_schema=False)
     async def frontier_page():  # noqa: ANN202
