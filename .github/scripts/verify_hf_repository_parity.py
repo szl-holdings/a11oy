@@ -12,6 +12,7 @@ is covered by an explicit byte comparison of ``.well-known/security.txt``.
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import hashlib
 import json
 import os
@@ -445,6 +446,42 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--report-out", type=Path, required=True)
     args = parser.parse_args(argv)
 
+    evidence = {
+        "schema": "szl.hf-repository-parity-failure/v1",
+        "observed_at": datetime.now(timezone.utc).isoformat(),
+        "github_repo": args.github_repo,
+        "github_ref": args.github_ref,
+        "base_ref": args.base_ref or None,
+        "hf_repo": args.hf_repo,
+        "immutable_hf_ref": None,
+        "status": "blocked",
+        "proof_status": "unproved",
+        "complete": False,
+        "comparators": {},
+    }
+    try:
+        return verify_parity(args, evidence)
+    except (OSError, ParityError, subprocess.CalledProcessError, json.JSONDecodeError, UnicodeError) as exc:
+        evidence["error_type"] = type(exc).__name__
+        evidence["reason"] = str(exc)[:500]
+        args.report_out.parent.mkdir(parents=True, exist_ok=True)
+        args.report_out.write_text(
+            json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        raise
+
+
+def read_comparator_report(path: Path, evidence: dict, stage: str) -> object:
+    """Retain the raw report digest and findings without admitting them as proof."""
+    raw = path.read_bytes()
+    observed = {"sha256": hashlib.sha256(raw).hexdigest()}
+    evidence["comparators"][stage] = observed
+    value = json.loads(raw)
+    observed["report"] = value
+    return value
+
+
+def verify_parity(args: argparse.Namespace, evidence: dict) -> int:
     if not SHA_RE.fullmatch(args.github_ref):
         raise ParityError("github-ref must be an exact lowercase 40-character SHA")
     if args.base_ref and not SHA_RE.fullmatch(args.base_ref):
@@ -459,6 +496,7 @@ def main(argv: list[str] | None = None) -> int:
     args.report_out.unlink(missing_ok=True)
 
     hf_ref = resolve_stable_revision(args.hf_repo)
+    evidence["immutable_hf_ref"] = hf_ref
     head_tree = github_blob_tree(args.github_repo, github_ref=args.github_ref)
 
     if args.base_ref:
@@ -482,7 +520,7 @@ def main(argv: list[str] | None = None) -> int:
                 capture=True,
             )
             try:
-                base_report = json.loads(base_report_path.read_text(encoding="utf-8"))
+                base_report = read_comparator_report(base_report_path, evidence, "protected-base")
                 validate_report(
                     base_report,
                     github_repo=args.github_repo,
@@ -515,9 +553,7 @@ def main(argv: list[str] | None = None) -> int:
                 capture=True,
             )
             try:
-                report = json.loads(
-                    candidate_report_path.read_text(encoding="utf-8")
-                )
+                report = read_comparator_report(candidate_report_path, evidence, "candidate")
                 admitted = validate_candidate_report(
                     report,
                     base_ref=args.base_ref,
@@ -554,11 +590,11 @@ def main(argv: list[str] | None = None) -> int:
                 report_out=strict_report_path,
                 capture=True,
             )
+            report = read_comparator_report(strict_report_path, evidence, "strict")
             if strict_run.returncode != 0:
                 if strict_run.stdout:
                     print(strict_run.stdout, file=sys.stderr)
                 raise ParityError("strict repository comparator exited non-zero")
-            report = json.loads(strict_report_path.read_text(encoding="utf-8"))
             validate_report(
                 report,
                 github_repo=args.github_repo,
@@ -603,6 +639,6 @@ def main(argv: list[str] | None = None) -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except (OSError, ParityError, subprocess.CalledProcessError, json.JSONDecodeError) as exc:
+    except (OSError, ParityError, subprocess.CalledProcessError, json.JSONDecodeError, UnicodeError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         raise SystemExit(1)

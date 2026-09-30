@@ -28,6 +28,20 @@ EDGE_GATE = "Enforce proved live edge"
 MAX_BYTES = 8 * 1024 * 1024
 
 
+def dispatch_hf_then_edge(command: list[str], revision: str,
+                          vertical_requested: bool, reports: Path) -> None:
+    """Require exact canonical publication completion before the domain writer."""
+    hf_path = reports / "estate-child-hf.jsonl"
+    hf = dispatch_child(command, "hf-sync.yml", revision, vertical_requested, hf_path)
+    wait_for_children([(hf, hf_path)])
+    edge_path = reports / "estate-child-edge.jsonl"
+    edge_command = ["gh", "workflow", "run", "repair-cloudflare-product-edge.yml",
+                    "--repo", REPOSITORY, "--ref", "main"]
+    edge = dispatch_child(edge_command, "repair-cloudflare-product-edge.yml",
+                          revision, False, edge_path)
+    wait_for_children([(edge, edge_path)], seconds=1200)
+
+
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise RuntimeError(message)
