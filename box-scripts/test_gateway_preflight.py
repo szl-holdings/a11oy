@@ -190,6 +190,14 @@ class ContractTests(unittest.TestCase):
 
 
 class InputTests(unittest.TestCase):
+    def test_hosted_workflow_is_parseable_and_runs_both_platforms(self):
+        path = Path(__file__).resolve().parent.parent / ".github/workflows/gateway-preflight.yml"
+        workflow = yaml.load(path.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+        self.assertEqual(set(workflow["on"]), {"push", "pull_request", "workflow_dispatch"})
+        matrix = workflow["jobs"]["selftest"]["strategy"]["matrix"]
+        self.assertEqual(set(matrix["os"]), {"ubuntu-latest", "windows-latest"})
+        self.assertEqual(set(matrix["python"]), {"3.11", "3.12"})
+
     def load(self, content):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "config.yaml"

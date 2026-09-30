@@ -42,13 +42,17 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          sparse-checkout: box-scripts
+          sparse-checkout: |
+            box-scripts
+            .github/workflows
           sparse-checkout-cone-mode: true
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python }}
       - name: Install hash-pinned parser
-        run: python -m pip install --require-hashes --only-binary=:all: --no-deps -r box-scripts/gateway-preflight-requirements.txt
+        run: >-
+          python -m pip install --require-hashes --only-binary=:all: --no-deps
+          -r box-scripts/gateway-preflight-requirements.txt
       - name: Compile
         run: python -m py_compile box-scripts/gateway_preflight.py box-scripts/test_gateway_preflight.py
       - name: Test with synthetic fixtures and loopback servers
