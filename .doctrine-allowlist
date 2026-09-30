@@ -409,3 +409,9 @@ landing/szl/
 # Application markup, script, preview and other assets remain scanned.
 console/assets/szl/szl-design-system.css
 console/assets/szl/szl-console.css
+
+# Founder green light 2026-09-29: exact KANCHAY vendor copy, hash-bound by
+# routers/command_centre_web/szl/SOURCE.json and its regression test.
+# --leading-mono is a CSS line-height token, not a prose superiority claim.
+# Only this immutable stylesheet is exempt; application copy/script stay scanned.
+routers/command_centre_web/szl/szl-design-system.css
