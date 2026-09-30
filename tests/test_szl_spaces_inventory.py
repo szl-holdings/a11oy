@@ -7,7 +7,10 @@ only, not public Hub applications. Atlas keep-7 at 18:05Z and KEEP-6 are prior
 snapshots and are not rewritten here as live claims.
 """
 
+import hashlib
 from pathlib import Path
+import shutil
+import subprocess
 
 import pytest
 
@@ -256,15 +259,38 @@ def test_anatomy_and_sda_health_use_exact_api_contract_routes():
 def test_sda_vendored_widget_is_locked_to_the_canonical_verifier_contract():
     widget_path = (Path(__file__).parents[1] / "spaces" / "sda" / "assets" /
                    "szl_verify_widget.js")
-    if not widget_path.exists():
-        return
-    widget = widget_path.read_text(encoding="utf-8")
-    assert widget.startswith(
-        "// VENDORED FROM szl-holdings/platform@9798feff9af3d6b0d8737abd70f71a1db1755a65"
+    assert widget_path.is_file(), "materialize the vendored SDA widget; absence is not a pass"
+    widget_bytes = widget_path.read_bytes()
+    header = (
+        "// VENDORED FROM szl-holdings/platform@880fda4f67fd2bbdc3507dce6d81fb782ca64c4c"
+        " — replit-sync/hf_spaces/hf_sda_space/assets/szl_verify_widget.js\n"
+        "// DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.\n"
     )
+    assert widget_bytes.startswith(header.encode("utf-8"))
+    # Independently read from the immutable platform pin, Git blob
+    # e2f084b6790e4aaac8b6f26f7ee5d52052263de0; not derived from this checkout.
+    assert hashlib.sha256(widget_bytes[len(header.encode("utf-8")):]).hexdigest() == (
+        "d3efef893b3c76b50dad87ab52b8b5cd1b5566d51110ab755427e52721171d0a"
+    )
+    widget = widget_bytes.decode("utf-8")
     assert "VERIFY_PATH  = '/api/a11oy/v1/verify/receipt'" in widget
     assert "/api/a11oy/v1/verify?url=" not in widget
     assert "p = pull(u, {method:'GET'})" in widget
+
+
+def test_sda_vendored_widget_executable_contract():
+    node = shutil.which("node")
+    assert node, "Node.js is required to execute the actual vendored widget contract"
+    harness = Path(__file__).with_name("sda_verifier_widget_contract.cjs")
+    assert harness.is_file(), "the executable widget contract harness must be present"
+    result = subprocess.run(
+        [node, "--test", str(harness)],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_exact_contract_probe_requires_expected_json_marker():
