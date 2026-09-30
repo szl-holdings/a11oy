@@ -548,7 +548,10 @@ def _compose_messages(
     system = (
         "You are the local SZL Khipu proposal cortex inside A11oy. Answer only "
         "from the supplied public evidence projections and cite supporting node "
-        "IDs in square brackets. If evidence is insufficient, state that plainly. "
+        "IDs in square brackets. Begin the final proposal with a supporting "
+        "node ID copied exactly from the supplied evidence, enclosed in square "
+        "brackets, followed by one concise sentence. If evidence is "
+        "insufficient, state that plainly. "
         "Do not expose hidden reasoning. Do not issue tool calls or claim that an "
         "action was executed. State Lambda's status using this affirmative "
         "wording: Lambda remains Conjecture 1, advisory only, and cannot "
@@ -567,7 +570,9 @@ def _compose_messages(
         + "\n\nFormula applicability: F1 applies only to deterministic replay "
         "hashing for this request. The other locked formulas are authority "
         "metadata and are not asserted applicable. No formula independently "
-        "authorizes action.\n\nReturn a concise evidence-cited proposal."
+        "authorizes action.\n\nReturn a concise evidence-cited proposal. "
+        "Place the exact supporting evidence citation before the statement "
+        "it supports so it fits within the output token budget."
     )
     return [
         {"role": "system", "content": system},
@@ -646,9 +651,13 @@ def _generate(
 def _extract_citations(output: str, evidence: Mapping[str, Any]) -> list[str]:
     allowed = {item["node_id"] for item in evidence["items"]}
     found: list[str] = []
-    for candidate in re.findall(r"\[([^\[\]]{1,160})\]", output):
-        if candidate in allowed and candidate not in found:
+    for candidate in re.findall(r"\[([^\[\]]*)\]", output):
+        if candidate not in allowed:
+            raise CortexBoundaryError("owned_model_citation_not_in_evidence", 502)
+        if candidate not in found:
             found.append(candidate)
+    if not found:
+        raise CortexBoundaryError("owned_model_evidence_citation_missing", 502)
     return found
 
 
