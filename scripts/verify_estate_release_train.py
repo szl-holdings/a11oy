@@ -836,7 +836,7 @@ def profile_inventory_contract(
     enumeration = (
         inventory.get("enumeration_state") if isinstance(inventory, Mapping) else None
     )
-    enumeration_complete = enumeration is None or (
+    enumeration_complete = (
         isinstance(enumeration, Mapping)
         and all(enumeration.get(kind) == "COMPLETE" for kind in INVENTORY_KINDS)
     )
@@ -891,7 +891,7 @@ def profile_inventory_contract(
         and declared == actual == manifest
     )
     if not aligned:
-        if enumeration is not None and not enumeration_complete:
+        if not enumeration_complete:
             blockers.append("HF_INVENTORY_ENUMERATION_INCOMPLETE_OR_UNAVAILABLE")
         else:
             blockers.append("HF_INVENTORY_COUNT_MISMATCH_OR_UNAVAILABLE")
@@ -901,6 +901,9 @@ def profile_inventory_contract(
         "inventory_record_path": record_path,
         "inventory_record_sha256": record_file.get("sha256"),
         "inventory_record_source_revision": record.get("source_revision") if record else None,
+        "inventory_record_source_git_blob": record.get("source_git_blob") if record else None,
+        "inventory_record_source_sha256": record.get("source_sha256") if record else None,
+        "inventory_record_observed_at": record.get("observed_at") if record else None,
         "inventory_record_valid": record_valid,
         "inventory_record_source_bound": source_bound,
         "declared_counts": declared,

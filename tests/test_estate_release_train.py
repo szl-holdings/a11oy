@@ -291,7 +291,8 @@ class EstateReleaseTrainTests(unittest.TestCase):
         }}
         return config, record, manifest, blob
 
-    def _profile_observation(self, config, record, manifest, blob, counts, *, text=None, pinned=None):
+    def _profile_observation(self, config, record, manifest, blob, counts, *, text=None, pinned=None,
+                             inventory=None):
         response = {"status": 200, "json": record,
                     "text": json.dumps(record) if text is None else text,
                     "sha256": "d" * 64}
@@ -306,10 +307,27 @@ class EstateReleaseTrainTests(unittest.TestCase):
         ):
             result = release.profile_inventory_contract(
                 config, {"counts": counts, "observed": True,
-                         "enumeration_state": {kind: "COMPLETE" for kind in counts}},
+                         "enumeration_state": {kind: "COMPLETE" for kind in counts}}
+                        if inventory is None else inventory,
                 "e" * 40,
             )
         return result, files
+
+    def test_profile_counts_require_observed_complete_enumeration(self) -> None:
+        config, record, manifest, blob = self._profile_fixture()
+        counts = record["counts"]
+        complete = {kind: "COMPLETE" for kind in counts}
+        for inventory in (
+            {"counts": counts, "observed": True},
+            {"counts": counts, "observed": True, "enumeration_state":
+             {**complete, "spaces": "PARTIAL"}},
+            {"counts": counts, "observed": False, "enumeration_state": complete},
+        ):
+            with self.subTest(inventory=inventory):
+                result, _ = self._profile_observation(
+                    config, record, manifest, blob, counts, inventory=inventory,
+                )
+                self.assertFalse(result["aligned"])
 
     def test_profile_historical_prose_cannot_override_current_scoped_record(self) -> None:
         config, record, manifest, blob = self._profile_fixture()
