@@ -1,0 +1,61 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 */
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 2rem; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); line-height: 1.6; }
+a { color: var(--link); text-decoration-thickness: 1px; text-underline-offset: .25em; }
+button, input, textarea, select { font: inherit; }
+button, input, select { min-height: 44px; }
+button { cursor: pointer; border: 1px solid var(--accent); border-radius: var(--radius-md); padding: .7rem 1rem; background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+button.secondary { border-color: var(--border); background: var(--surface); color: var(--text); }
+button:disabled { opacity: .55; cursor: not-allowed; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.skip { position: absolute; left: 1rem; top: -5rem; z-index: 50; background: var(--surface); padding: 1rem; }
+.skip:focus { top: 1rem; }
+.shell { display: grid; grid-template-columns: 230px minmax(0, 1fr); min-height: 100vh; }
+.rail { display: flex; flex-direction: column; padding: 2.5rem 1.5rem; border-right: 1px solid var(--border-subtle); background: var(--bg-deep); position: sticky; top: 0; height: 100vh; }
+.identity { color: var(--text); text-decoration: none; font-weight: 650; font-size: 1.8rem; letter-spacing: -.04em; }
+.identity span { display: block; font-size: 1rem; font-weight: 400; letter-spacing: 0; color: var(--text-sub); }
+.eyebrow { font-family: var(--font-mono); font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; color: var(--text-sub); }
+.rail > .eyebrow { margin-top: 3rem; }
+nav { display: grid; gap: .5rem; }
+nav a { display: flex; align-items: center; min-height: 44px; text-decoration: none; padding: .5rem 0; }
+.rail-foot { margin-top: auto; font-size: .8rem; color: var(--text-sub); }
+main { width: 100%; max-width: 1300px; padding: 3.5rem clamp(1.25rem, 4vw, 4rem); }
+.masthead, .section-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; }
+h1 { font-size: clamp(2rem, 4vw, 3.4rem); letter-spacing: -.045em; line-height: 1.12; font-weight: 550; margin: .75rem 0; }
+h2 { font-size: 1.55rem; letter-spacing: -.025em; font-weight: 550; margin: .3rem 0 1rem; }
+.lede, .muted, small, .fine { color: var(--text-sub); }
+.lede { font-size: 1rem; max-width: 55ch; }
+.status-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin: 2rem 0; }
+.status-grid article, .panel { border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: var(--surface); padding: 1.3rem; }
+.status-grid p:not(.eyebrow) { font-weight: 550; margin: .5rem 0; }
+.status-grid code, .status-grid small { display: block; font-size: .75rem; overflow-wrap: anywhere; }
+.status-grid a { display: inline-block; font-size: .8rem; margin-top: .5rem; }
+.panel { padding: clamp(1.2rem, 3vw, 2rem); }
+.label { border: 1px solid var(--border); border-radius: var(--radius-full); padding: .35rem .6rem; font-size: .7rem; color: var(--text-sub); }
+label { display: block; font-size: .82rem; color: var(--text-sub); margin-bottom: .5rem; }
+form { margin-top: 1.5rem; }
+input, textarea, select { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-deep); color: var(--text); padding: .75rem; }
+textarea { resize: vertical; }
+.key-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .75rem; }
+form > small { display: block; font-size: .72rem; margin: .5rem 0 1.4rem; }
+.controls { display: grid; grid-template-columns: 1fr .7fr 1fr auto; gap: .75rem; align-items: end; margin-top: 1rem; }
+.controls label { margin: 0; }
+.controls select { display: block; margin-top: .4rem; }
+.controls button { min-height: 49px; }
+#turn-status { font-size: .85rem; margin-top: 1.4rem; }
+.answer { border-left: 2px solid var(--border); background: var(--bg-deep); padding: 1.2rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+pre { font: .75rem/1.6 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 24rem; overflow: auto; }
+summary { cursor: pointer; padding: 1rem 0; min-height: 44px; }
+.fine { font-size: .75rem; line-height: 1.7; }
+section:not(.status-grid):not(.work) { margin-top: 3rem; }
+.link-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.link-card { display: block; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 1.1rem; text-decoration: none; background: var(--bg-deep); }
+.link-card strong { color: var(--text); font-weight: 550; display: block; }
+.link-card span { display: block; color: var(--text-sub); font-size: .78rem; margin-top: .4rem; }
+.release-order { display: flex; flex-wrap: wrap; gap: 2rem; padding: 1rem 1.5rem; color: var(--text-sub); font-size: .8rem; }
+footer { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--border-subtle); color: var(--text-sub); font-size: .75rem; }
+@media (max-width: 1000px) { .controls { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 760px) { .shell { display: block; } .rail { position: static; height: auto; padding: 1rem 1.25rem; border-right: 0; border-bottom: 1px solid var(--border-subtle); } .identity span { display: inline; padding-left: .5rem; } .rail > .eyebrow, .rail-foot { display: none; } nav { grid-template-columns: repeat(3, 1fr); margin-top: .5rem; gap: .25rem; } nav a { font-size: .72rem; } main { padding-top: 2rem; } .status-grid { grid-template-columns: 1fr; } .link-grid { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }

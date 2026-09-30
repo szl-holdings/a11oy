@@ -58,6 +58,12 @@ the declared producer revision has reached its protected canonical branch.
 
 ## Operational identity
 
+The additive [Atelier command centre](ATELIER_COMMAND_CENTRE.md) consolidates
+existing product and proof entry points at `/command-centre` and `/a11oy/atelier`.
+Its Python chat path is authenticated, bounded single-turn third-party inference;
+configuration, local contract checks, publication, and live inference are distinct
+proof layers. It does not port the platform Turn Capsule or create owned Grok weights.
+
 **MEASURED:** a11oy is a full deployable application — UI, runtime, server, and shipped libraries —
 and also a TypeScript workspace. Its operational Hugging Face surface is produced by
 `pnpm payload:huggingface`. Its diligence demo is `pnpm test:doctrine` running vitest
