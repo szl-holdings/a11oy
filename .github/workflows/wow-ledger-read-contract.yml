@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+name: Receipt ledger read contract
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - a11oy_dev1_endpoints.py
+      - tests/test_wow_ledger_read_contract.py
+      - .github/requirements/ci-core.txt
+      - .github/workflows/wow-ledger-read-contract.yml
+  push:
+    branches: [main]
+    paths:
+      - a11oy_dev1_endpoints.py
+      - tests/test_wow_ledger_read_contract.py
+      - .github/requirements/ci-core.txt
+      - .github/workflows/wow-ledger-read-contract.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  read-contract:
+    name: Ledger GET preserves receipt state
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install exact core test dependencies
+        run: python -m pip install --disable-pip-version-check --no-cache-dir --require-hashes -r .github/requirements/ci-core.txt
+      - name: Verify read-only defaults and explicit synthetic advancement
+        run: python -m pytest tests/test_wow_ledger_read_contract.py -q
