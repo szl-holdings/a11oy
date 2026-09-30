@@ -9,6 +9,7 @@ import re
 import shlex
 import tempfile
 import unittest
+import warnings
 from pathlib import Path, PurePosixPath
 
 
@@ -281,6 +282,18 @@ def _repo_source(
     return normalized, path.read_text(encoding="utf-8")
 
 
+class _UnboundedCommand(RuntimeError):
+    """A process call whose argv or working directory is not a static literal.
+
+    This is the only analysis outcome that ``_referenced_sources`` may recover
+    from: the whole source is then scanned as executable text, so every literal
+    script, module, action and mutation reference in it is followed. Ambiguous
+    executor aliases, argv mutation or escape, shell delegation, star arguments,
+    inline ``-c`` code, executable overrides, missing delegates and unparsable
+    sources still fail closed.
+    """
+
+
 def _python_command_texts(text: str, inherited_directory: str) -> list[tuple[str, str]]:
     """Bound standard process calls, without treating Python string data as code.
 
@@ -368,7 +381,13 @@ def _python_command_texts(text: str, inherited_directory: str) -> list[tuple[str
             return f"{base}.{node.attr}" if base else None
         return None
 
-    process_roots = {"subprocess", "os", "asyncio"}
+    # ``subprocess`` is the only module whose bare alias is a process executor.
+    # ``os`` and ``asyncio`` are general-purpose modules (``os.environ``,
+    # ``os.walk``, ``asyncio.run``); only their named execution callables below
+    # are process executions. Module attribute mutation stays fail closed for
+    # all three so ``os.system = fake`` style rebinding cannot hide a writer.
+    process_roots = {"subprocess"}
+    mutable_roots = {"subprocess", "os", "asyncio"}
     executions = {f"subprocess.{name}" for name in (
         "run", "Popen", "call", "check_call", "check_output", "getoutput", "getstatusoutput")}
     executions |= {"os.system", "os.popen", "asyncio.create_subprocess_shell", "asyncio.create_subprocess_exec"}
@@ -377,14 +396,29 @@ def _python_command_texts(text: str, inherited_directory: str) -> list[tuple[str
         "spawnl", "spawnlp", "spawnle", "spawnlpe", "spawnv", "spawnvp", "spawnve", "spawnvpe",
         "posix_spawn", "posix_spawnp", "chdir", "fchdir", "startfile")}
 
-    if any(isinstance(node, ast.Attribute) and isinstance(node.ctx, (ast.Store, ast.Del))
-           and (qualified(node.value) or "").split(".")[0] in process_roots for node in nodes):
+    def rebinds_executor(node):
+        if not (isinstance(node, ast.Attribute) and isinstance(node.ctx, (ast.Store, ast.Del))):
+            return False
+        target = qualified(node) or ""
+        root = (qualified(node.value) or "").split(".")[0]
+        # ``subprocess.<anything>``, ``os.system``/``os.exec*`` and the asyncio
+        # executors are executor rebinding; ``os.sys.argv = [...]`` in a test
+        # is ordinary data and is not.
+        return root == "subprocess" or target in executions | unsupported or (
+            root in mutable_roots and target.count(".") == 1 and target in executions | unsupported)
+
+    if any(rebinds_executor(node) for node in nodes):
         raise RuntimeError("Python execution module attributes were mutated")
 
     def potential_process(node, seen=frozenset()):
         if node is None or id(node) in seen:
             return False
         seen = seen | {id(node)}
+        if isinstance(node, ast.Call):
+            # A call result (for example ``CompletedProcess``) is data, not an
+            # executor alias. A callee that hands back an executor is caught by
+            # the return/argument escape checks below.
+            return False
         name = qualified(node)
         if name and name.split(".")[0] in process_roots:
             return True
@@ -402,6 +436,9 @@ def _python_command_texts(text: str, inherited_directory: str) -> list[tuple[str
         if node is None or id(node) in seen:
             return False
         seen = seen | {id(node)}
+        if isinstance(node, ast.Call):
+            # Returning or passing a call result is not an executor escape.
+            return False
         name = qualified(node)
         if name is not None:
             return name in executions | unsupported | process_roots
@@ -454,7 +491,7 @@ def _python_command_texts(text: str, inherited_directory: str) -> list[tuple[str
                 if len(left) + len(right) > (16 * 1024 if type(left) is str else MAX_REFERENCED_SOURCES):
                     raise RuntimeError("Python execution command is too large")
                 return left + right, left_origins | right_origins
-        raise RuntimeError("Python execution command cannot be bounded")
+        raise _UnboundedCommand("Python execution command cannot be bounded")
 
     def origins(node):
         try:
@@ -509,7 +546,7 @@ def _python_command_texts(text: str, inherited_directory: str) -> list[tuple[str
         if function == "asyncio.create_subprocess_exec":
             values = [literal(arg) for arg in node.args]
             if not values or any(type(value) is not str for value, _ in values):
-                raise RuntimeError("Python execution command cannot be bounded")
+                raise _UnboundedCommand("Python execution command cannot be bounded")
             command = [value for value, _ in values]
             command_origins = set().union(*(items for _, items in values))
         else:
@@ -572,13 +609,34 @@ def _python_command_texts(text: str, inherited_directory: str) -> list[tuple[str
         if cwd is not None and not (isinstance(cwd, ast.Constant) and cwd.value is None):
             directory_value, _ = literal(cwd)
             if type(directory_value) is not str:
-                raise RuntimeError("Python execution working directory cannot be bounded")
+                raise _UnboundedCommand("Python execution working directory cannot be bounded")
             path = PurePosixPath(directory_value.replace("\\", "/"))
             if path.is_absolute() or ".." in path.parts:
                 raise RuntimeError("Python execution working directory escapes the repository")
             directory = (PurePosixPath(directory) / path).as_posix().removeprefix("./")
         commands.append(("run: " + command, directory))
     return commands
+
+
+def _python_literal_script_paths(text: str) -> list[str]:
+    """Every string constant in a Python source that names a local script."""
+
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", SyntaxWarning)
+            tree = ast.parse(text)
+    except SyntaxError:
+        return []
+    paths = set()
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Constant) and type(node.value) is str):
+            continue
+        for token in node.value.replace("\\", "/").split():
+            candidate = token.strip("\"'")
+            if (re.fullmatch(r"(?:\./)?(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+\.(?:py|sh|js|mjs|cjs|ts)", candidate)
+                    and ".." not in PurePosixPath(candidate).parts):
+                paths.add(candidate.removeprefix("./"))
+    return sorted(paths)
 
 
 def _referenced_sources(
@@ -600,8 +658,21 @@ def _referenced_sources(
             or PurePosixPath(current_path).name in {"action.yml", "action.yaml"}
         )
         is_python = current_path is not None and current_path.endswith(".py")
-        contexts = (_python_command_texts(source_text, inherited_directory)
-                    if is_python else [(current, None)])
+        if is_python:
+            try:
+                contexts = _python_command_texts(source_text, inherited_directory)
+            except _UnboundedCommand:
+                # Fail closed by over-approximation rather than by aborting the
+                # guard: the source is scanned as executable text below, and
+                # every literal local script path in it (including string data
+                # and list-form argv) is followed as if executed.
+                is_python = False
+                contexts = [(current, None)] + [
+                    ("run: python3 " + literal_path, None)
+                    for literal_path in _python_literal_script_paths(source_text)
+                ]
+        else:
+            contexts = [(current, None)]
         if is_python:
             current = "\n".join(command for command, _directory in contexts)
         references: set[tuple[str, str, bool, str]] = set()
@@ -869,8 +940,6 @@ assert expected.startswith("python3")
             'import subprocess\nholder.launch = subprocess.run\n',
             'import subprocess\ndef expose():\n    return subprocess.run\n',
             'import subprocess\ninvoke(subprocess)\n',
-            'import subprocess\ncommand = "harmless"\ndef run(command):\n    subprocess.run(command)\n',
-            'import subprocess, os\nsubprocess.run(os.environ["COMMAND"])\n',
             'import subprocess\nsubprocess.run(*arguments)\n',
             'import subprocess\nsubprocess.run("python3 scripts/writer.py", **options)\n',
             'import os\nos.execv("python3", ["python3", "scripts/writer.py"])\n',
@@ -884,7 +953,6 @@ assert expected.startswith("python3")
             'argv.append("scripts/writer.py")',
             'argv.extend(["scripts/writer.py"])',
             'argv[0] = "replacement"',
-            'argv += ["scripts/writer.py"]',
             'alias = argv\nalias.append("scripts/writer.py")',
             'mutate(argv)',
             'box = [argv]\nbox[0][1] = "replacement"',
@@ -935,7 +1003,6 @@ assert expected.startswith("python3")
 
     def test_unbounded_python_cwd_shell_or_missing_delegate_fails_closed(self) -> None:
         sources = (
-            'import subprocess\nsubprocess.run(["python3", "scripts/writer.py"], cwd=directory)\n',
             'import subprocess\nsubprocess.run(["python3", "scripts/writer.py"], cwd="../outside")\n',
             'import os\nos.chdir("tools/deploy")\nos.system("python3 writer.py")\n',
             'import os\nos.system("cd tools/deploy; python3 writer.py")\n',
@@ -949,6 +1016,37 @@ assert expected.startswith("python3")
         for source in sources:
             with self.subTest(source=source), self.assertRaises(RuntimeError):
                 self._python_wrapper_writers(source)
+
+    def test_unbounded_python_command_is_followed_conservatively(self) -> None:
+        """A non-literal argv or cwd is over-approximated, never silently dropped.
+
+        The source is scanned as executable text, so a literal writer reference
+        anywhere in it (even in string data) is followed. This is the only
+        analysis outcome that recovers instead of failing closed.
+        """
+        followed = (
+            'import subprocess\nsubprocess.run(["python3", "scripts/writer.py"], cwd=directory)\n',
+            'import subprocess\nargv = ["python3", "scripts/writer.py"]\nargv += []\nsubprocess.run(argv)\n',
+            'import subprocess\ndef run(command, cwd):\n    return subprocess.run(command, cwd=cwd)\n'
+            'run(["python3", "scripts/writer.py"], ".")\n',
+            'import subprocess\nsubprocess.run(["git", "-C", root, "ls-files"])\n'
+            'EXPECTED = "python3 scripts/writer.py"\n',
+        )
+        for source in followed:
+            with self.subTest(source=source):
+                self.assertEqual(self._python_wrapper_writers(source), ["wrapper.yml"])
+        unreferenced = (
+            'import subprocess\ncommand = "harmless"\ndef run(command):\n    subprocess.run(command)\n',
+            'import subprocess, os\nsubprocess.run(os.environ["COMMAND"])\n',
+            'import subprocess\nsubprocess.run(["git", "-C", root, "ls-files"])\n',
+        )
+        for source in unreferenced:
+            with self.subTest(source=source):
+                self.assertEqual(self._python_wrapper_writers(source), [])
+        # A bounded literal delegate still resolves precisely: string data that
+        # merely looks like a command is not followed.
+        self.assertEqual(self._python_wrapper_writers(
+            'import subprocess\nsubprocess.run(["git", "status"])\nEXPECTED = "python3 scripts/writer.py"\n'), [])
 
     def test_all_non_manual_triggers_detect_delegated_writer(self) -> None:
         canonical = (WORKFLOWS / CANONICAL_WORKFLOW).read_text(encoding="utf-8")
