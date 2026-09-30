@@ -461,7 +461,7 @@ def main(argv: list[str] | None = None) -> int:
     }
     try:
         return verify_parity(args, evidence)
-    except (OSError, ParityError, subprocess.CalledProcessError, json.JSONDecodeError, UnicodeError) as exc:
+    except (OSError, ParityError, subprocess.CalledProcessError, json.JSONDecodeError, UnicodeError, RecursionError) as exc:
         evidence["error_type"] = type(exc).__name__
         evidence["reason"] = str(exc)[:500]
         args.report_out.parent.mkdir(parents=True, exist_ok=True)
@@ -477,6 +477,15 @@ def read_comparator_report(path: Path, evidence: dict, stage: str) -> object:
     observed = {"sha256": hashlib.sha256(raw).hexdigest()}
     evidence["comparators"][stage] = observed
     value = json.loads(raw)
+    pending = [(value, 0)]
+    while pending:
+        item, depth = pending.pop()
+        if depth > 32:
+            raise ParityError("comparator JSON nesting exceeds evidence bound")
+        if isinstance(item, dict):
+            pending.extend((child, depth + 1) for child in item.values())
+        elif isinstance(item, list):
+            pending.extend((child, depth + 1) for child in item)
     observed["report"] = value
     return value
 
@@ -639,6 +648,6 @@ def verify_parity(args: argparse.Namespace, evidence: dict) -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except (OSError, ParityError, subprocess.CalledProcessError, json.JSONDecodeError, UnicodeError) as exc:
+    except (OSError, ParityError, subprocess.CalledProcessError, json.JSONDecodeError, UnicodeError, RecursionError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         raise SystemExit(1)

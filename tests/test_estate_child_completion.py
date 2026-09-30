@@ -53,13 +53,31 @@ class CompletionTests(unittest.TestCase):
             events.append(('dispatch',workflow,revision,vertical))
             return {'workflow':workflow}
         def wait(pairs, **bounds):
-            events.append(('verified',pairs[0][0]['workflow'],bounds))
+            events.append(('verified',tuple(pair[0]['workflow'] for pair in pairs),bounds))
         with patch.object(gate,'dispatch_child',side_effect=dispatch), patch.object(gate,'wait_for_children',side_effect=wait):
             gate.dispatch_hf_then_edge(command,SOURCE,False,Path('reports'))
         self.assertEqual(events,[('dispatch','hf-sync.yml',SOURCE,False),
-                                 ('verified','hf-sync.yml',{}),
+                                 ('verified',('hf-sync.yml',),{}),
                                  ('dispatch','repair-cloudflare-product-edge.yml',SOURCE,False),
-                                 ('verified','repair-cloudflare-product-edge.yml',{'seconds':1200})])
+                                 ('verified',('hf-sync.yml','repair-cloudflare-product-edge.yml'),{'seconds':1200})])
+
+    def test_hf_rerun_during_edge_keeps_parent_incomplete(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls=0
+            def observe(suffix):
+                nonlocal calls
+                if suffix=='git/ref/heads/main':return {'object':{'sha':SOURCE}}
+                if suffix=='actions/runs/'+str(RUN):
+                    calls+=1
+                    return run() if calls<=3 else {**run(),'run_attempt':2}
+                raise AssertionError('unexpected read:'+suffix)
+            edge={**child(False,'repair-cloudflare-product-edge.yml'),'run_id':5678}
+            with patch.object(gate,'dispatch_child',side_effect=[child(False),edge]) as dispatch, \
+                    patch.object(gate,'api',side_effect=observe), patch.object(gate,'child_jobs',return_value=jobs()):
+                with self.assertRaises(RuntimeError):
+                    gate.dispatch_hf_then_edge(['admitted-by-existing-dispatch-validation'],SOURCE,False,Path(directory))
+            self.assertEqual(dispatch.call_count,2)
+            self.assertEqual(json.loads((Path(directory)/'estate-child-hf.jsonl').read_text().splitlines()[-1])['state'],'HOLD')
 
     def test_failed_or_moved_hf_child_never_dispatches_domain(self):
         for failure in ('failed child','source moved','missing runtime proof'):

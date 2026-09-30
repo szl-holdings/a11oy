@@ -749,7 +749,7 @@ class FailedParityReceiptTests(unittest.TestCase):
                     mock.patch.object(MODULE,'github_blob_tree',return_value={}), \
                     mock.patch.object(MODULE,'run_comparator',side_effect=comparator), \
                     mock.patch.object(MODULE.sys,'stderr',io.StringIO()):
-                with self.assertRaises((MODULE.ParityError,OSError,json.JSONDecodeError,UnicodeError)):
+                with self.assertRaises((MODULE.ParityError,OSError,json.JSONDecodeError,UnicodeError,RecursionError)):
                     MODULE.main(['--tools-script',str(SCRIPT),'--github-repo',GITHUB_REPO,
                                  '--github-ref','a'*40,'--hf-repo',HF_REPO,'--report-out',str(output)])
             value=json.loads(output.read_text())
@@ -787,6 +787,19 @@ class FailedParityReceiptTests(unittest.TestCase):
     def test_invalid_utf8_retains_digest_and_stays_unproved(self):
         value=self.exercise_failure(b'\xff')
         self.assertEqual(value['error_type'],'UnicodeDecodeError')
+        self.assertNotIn('report',value['comparators']['strict'])
+
+    def test_json_decoder_recursion_failure_retains_digest(self):
+        raw=b'['*10000+b'0'+b']'*10000
+        value=self.exercise_failure(raw)
+        self.assertEqual(value['error_type'],'RecursionError')
+        self.assertEqual(value['comparators']['strict']['sha256'],MODULE.hashlib.sha256(raw).hexdigest())
+        self.assertNotIn('report',value['comparators']['strict'])
+
+    def test_deep_valid_json_cannot_break_failure_receipt_encoding(self):
+        value=self.exercise_failure(b'['*64+b'0'+b']'*64)
+        self.assertEqual(value['error_type'],'ParityError')
+        self.assertIn('nesting',value['reason'])
         self.assertNotIn('report',value['comparators']['strict'])
 
     def test_unavailable_hub_does_not_invent_revision(self):

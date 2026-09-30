@@ -39,7 +39,8 @@ def dispatch_hf_then_edge(command: list[str], revision: str,
                     "--repo", REPOSITORY, "--ref", "main"]
     edge = dispatch_child(edge_command, "repair-cloudflare-product-edge.yml",
                           revision, False, edge_path)
-    wait_for_children([(edge, edge_path)], seconds=1200)
+    # Revalidate HF as well: an earlier completed child can be rerun during edge repair.
+    wait_for_children([(hf, hf_path), (edge, edge_path)], seconds=1200)
 
 
 def require(condition: bool, message: str) -> None:
