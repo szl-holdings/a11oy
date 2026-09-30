@@ -354,7 +354,7 @@ def test_registry_is_configuration_not_connectivity():
     assert all(s["last_attempt"] is None for s in body["sources"])
 
 
-def test_route_assembly_ahead_of_spa_and_no_write_routes(monkeypatch):
+def test_route_assembly_ahead_of_spa_and_only_declared_stateless_posts(monkeypatch):
     monkeypatch.setattr(routes, "CLIENT", client())
     app = FastAPI()
     @app.get("/{path:path}")
@@ -371,7 +371,16 @@ def test_route_assembly_ahead_of_spa_and_no_write_routes(monkeypatch):
     assert http.get(prefix + "/observations/coinbase-ticker?url=https://127.0.0.1/").status_code == 422
     assert http.get(prefix + "/observations/alpaca-quote").status_code == 403
     assert http.post(prefix + "/observations/coinbase-ticker").status_code == 405
-    assert all(route.methods <= {"GET"} for route in app.routes if getattr(route, "path", "").startswith(prefix))
+    # OpenAPI traverses both flat and grouped FastAPI routers. Only the two
+    # admitted stateless analytics operations accept POST; provider reads do not.
+    operations = {path: set(methods) for path, methods in app.openapi()["paths"].items()
+                  if path.startswith(prefix + "/")}
+    assert operations[prefix + "/analytics/v2/portfolio"] == {"post"}
+    assert operations[prefix + "/analytics/v2/receipts/verify"] == {"get", "post"}
+    assert all(methods == {"get"} for path, methods in operations.items()
+               if path not in {prefix + "/analytics/v2/portfolio", prefix + "/analytics/v2/receipts/verify"})
+    assert not any(path.startswith(prefix + "/" + denied) for path in operations
+                   for denied in ("accounts", "orders", "wallet", "withdrawals", "deposits"))
     assert result.headers["cache-control"] == "private, no-store"
 
 
