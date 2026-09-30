@@ -963,13 +963,14 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
   'cc-observe':{title:'Observe',badge:'SNAPSHOT',sub:'Live estate truth — the GitHub organization, the Hugging Face estate, and service health. Repo and Hub rows are a REPORTED audit snapshot; service health is a live probe. Missing data is UNAVAILABLE, never green.',
     render:async(c)=>{c.innerHTML=`<div class="kpis" id="cc-o-kpis"><div class="kpi"><div class="k">Estate</div><div class="v">loading…</div><div class="d">audit snapshot</div></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Service health</span><span class="card-ep">live probe</span></div><div id="cc-o-fleet"><div class="row mono dim">probing…</div></div></div>
-      <div class="card"><div class="card-h"><span class="card-t">GitHub estate — 104 repositories</span><span class="card-ep" id="cc-o-gen">snapshot</span></div>
-        <div class="btns" id="cc-o-filters"><button class="btn teal" onclick="ccFilterRepos('all')">All</button><button class="btn" onclick="ccFilterRepos('canonical-active')">Canonical</button><button class="btn" onclick="ccFilterRepos('archived-provenance')">Archived</button><button class="btn" onclick="ccFilterRepos('transfer-candidate')">Transfer candidates</button><button class="btn" onclick="ccFilterRepos('inconsistent')">Inconsistent</button></div>
+      <div class="card"><div class="card-h"><span class="card-t" id="cc-o-title">GitHub estate</span><span class="card-ep" id="cc-o-gen">snapshot</span></div>
+        <div class="btns" id="cc-o-filters"><button class="btn teal" onclick="ccFilterRepos('all')">All</button><button class="btn" onclick="ccFilterRepos('canonical-active')">Canonical</button><button class="btn" onclick="ccFilterRepos('archived-provenance')">Archived</button><button class="btn" onclick="ccFilterRepos('novelty-candidate')">Novelty candidates</button><button class="btn" onclick="ccFilterRepos('review-duplicate')">Review duplicates</button><button class="btn" onclick="ccFilterRepos('active-new-wave')">New wave</button></div>
         <div id="cc-o-repos"><div class="row mono dim">loading estate snapshot…</div></div></div>${HONEST}`;
       try{const d=await getJSON(API+'/v1/observability/summary');const mr=d.mesh_reach||{};const keys=Object.keys(mr);setHTML('cc-o-fleet',keys.map(k=>{const p=mr[k];const up=(p.status||'ok')==='ok';return '<div class="row"><span class="badge '+(up?'b-live':'b-err')+'">'+(up?'UP':'DOWN')+'</span><span>'+esc(p.name||k)+'</span><span class="spacer mono dim">'+(p.latency_ms?Math.round(p.latency_ms)+'ms':'')+'</span></div>';}).join('')||'<div class="row mono dim">no services reported</div>');}catch(e){setHTML('cc-o-fleet','<div class="row mono dim">observability endpoint unavailable: '+esc(e.message)+' — honest failure, not faked</div>');}
       let est=null;try{est=await (await fetch('estate.json')).json();}catch(e){setHTML('cc-o-repos','<div class="row mono dim">estate.json unavailable: '+esc(e.message)+'</div>');return;}
       window.__CC_ESTATE=est;const n=est.counts||{};
       setHTML('cc-o-kpis','<div class="kpi"><div class="k">GitHub repos</div><div class="v teal">'+n.repos_total+'</div><div class="d">'+n.repos_active+' active · '+n.repos_archived+' archived</div></div><div class="kpi"><div class="k">Canonical core</div><div class="v teal">'+n.repos_canonical+'</div><div class="d">operational sources</div></div><div class="kpi"><div class="k">HF estate</div><div class="v teal">'+(n.hf_models+n.hf_datasets+n.hf_spaces)+'</div><div class="d">'+n.hf_models+' models · '+n.hf_datasets+' datasets · '+n.hf_spaces+' spaces</div></div><div class="kpi"><div class="k">Needs decision</div><div class="v">'+(n.repos_inconsistent+n.repos_transfer_candidates)+'</div><div class="d">'+n.repos_inconsistent+' inconsistent · '+n.repos_transfer_candidates+' transfer candidates</div></div>');
+      setTxt('cc-o-title','GitHub estate — '+(n.repos_total||'?')+' repositories');
       setTxt('cc-o-gen','REPORTED · generated '+(est.generated_at||'UNKNOWN'));
       ccFilterRepos('all');
     }},
@@ -1019,7 +1020,7 @@ window.ccFilterRepos=function(cls){
   const est=window.__CC_ESTATE;if(!est)return;
   const rows=(est.repos||[]).filter(r=>cls==='all'||r.class===cls);
   setHTML('cc-o-repos',rows.map(r=>{
-    const bc=r.class==='canonical-active'?'b-live':((r.class==='inconsistent'||r.class==='transfer-candidate')?'b-err':'');
+    const bc=r.class==='canonical-active'?'b-live':((r.class==='review-duplicate'||r.class==='novelty-candidate')?'b-err':'');
     return '<div class="row"><span class="badge '+bc+'">'+esc(r.class)+'</span><span><a href="'+esc(r.url)+'" target="_blank" rel="noopener">'+esc(r.name)+'</a></span><span class="spacer mono dim">'+esc(r.pushed_at||'').slice(0,10)+(r.successor?' → '+esc(r.successor):'')+'</span></div>';}).join('')||'<div class="row mono dim">none in this class</div>');
 };
 

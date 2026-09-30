@@ -1,22 +1,22 @@
 {
   "kind": "szl-estate-snapshot/v1",
-  "generated_at": "2026-09-30T20:01:27.725070+00:00",
+  "generated_at": "2026-09-30T20:07:16.151811+00:00",
   "evidence_class": "REPORTED",
   "sources": [
-    "gh repo list szl-holdings (2026-09-02)",
-    "HF hub search author=SZLHOLDINGS (44 models / 39 datasets / 57 spaces)",
+    "gh repo list szl-holdings (2026-09-30)",
+    "HF hub search author=SZLHOLDINGS: 50 models / 44 datasets / 37 spaces (2026-09-30)",
     "szl-forge README portfolio truth card"
   ],
   "counts": {
-    "repos_total": 104,
-    "repos_active": 69,
-    "repos_archived": 35,
-    "repos_canonical": 17,
-    "repos_inconsistent": 2,
+    "repos_total": 130,
+    "repos_active": 102,
+    "repos_archived": 28,
+    "repos_canonical": 23,
+    "repos_inconsistent": 7,
     "repos_transfer_candidates": 3,
-    "hf_models": 44,
-    "hf_datasets": 39,
-    "hf_spaces": 57
+    "hf_models": 50,
+    "hf_datasets": 44,
+    "hf_spaces": 37
   },
   "repos": [
     {
@@ -24,7 +24,7 @@
       "url": "https://github.com/szl-holdings/.github",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-09-03T00:30:14Z",
+      "pushed_at": "2026-09-30T09:06:05Z",
       "successor": null,
       "note": null,
       "description": "SZL Holdings org profile. Product a-11-oy.com \u00b7 Proof a11oy.net. Doctrine, reusable workflows, community health."
@@ -34,7 +34,7 @@
       "url": "https://github.com/szl-holdings/a11oy",
       "class": "canonical-active",
       "archived": false,
-      "pushed_at": "2026-09-03T00:52:07Z",
+      "pushed_at": "2026-09-30T20:05:55Z",
       "successor": null,
       "note": "Command Centre / Heart \u2014 governed-AI console, approval flow, routing",
       "description": "a11oy \u2014 governed-AI Command Center. Deny by default. Signed receipts. Trust ceiling 0.97. \u039b = Conjecture 1."
@@ -44,7 +44,7 @@
       "url": "https://github.com/szl-holdings/a11oy-factory",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-09-02T17:09:53Z",
+      "pushed_at": "2026-09-29T21:57:52Z",
       "successor": null,
       "note": null,
       "description": "Bind as an a11oy package. Decision Cell Compiler, admitted Lyte cell, frontier N1\u2013N8."
@@ -54,7 +54,7 @@
       "url": "https://github.com/szl-holdings/a11oy-net",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-09-02T23:10:52Z",
+      "pushed_at": "2026-09-30T08:10:18Z",
       "successor": null,
       "note": null,
       "description": "a11oy.net \u2014 public proof origin. RECORD, atlas, ROADMAP, diligence. Static. Not runtime."
@@ -64,7 +64,7 @@
       "url": "https://github.com/szl-holdings/anatomy",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-09-02T23:36:03Z",
+      "pushed_at": "2026-09-29T15:39:04Z",
       "successor": null,
       "note": null,
       "description": "SZL Living Anatomy \u2014 3D navigable governed-AI organ substrate. Visualizes the 5 organs (reasoning cortex, trust gate, receipt bus, consensus, egress) powering a"
@@ -74,10 +74,20 @@
       "url": "https://github.com/szl-holdings/ayllu",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-09-02T17:31:51Z",
+      "pushed_at": "2026-09-30T15:11:54Z",
       "successor": null,
       "note": null,
-      "description": "Ayllu Counsel \u2014 evidence-bound holographic agent council. 11 Quechua seats, fail-closed \u039b-gate, debate-then-converge, UNSIGNED-honest receipts. SOFTWARE/LIVE ho"
+      "description": "Ayllu Counsel \u2014 evidence-bound holographic agent council. 11 Quechua seats, fail-closed \u039b-gate, Maskaq vertical search, UNSIGNED-honest receipts. SOFTWARE/LIVE "
+    },
+    {
+      "name": "ayllu-hf-space",
+      "url": "https://github.com/szl-holdings/ayllu-hf-space",
+      "class": "active-new-wave",
+      "archived": false,
+      "pushed_at": "2026-09-29T10:01:51Z",
+      "successor": null,
+      "note": "Bench/verification wave, created Sep 27-30",
+      "description": "HF Space bind target for Ayllu Counsel. Canonical source remains szl-holdings/ayllu."
     },
     {
       "name": "cosmos",
@@ -102,12 +112,12 @@
     {
       "name": "david-leads",
       "url": "https://github.com/szl-holdings/david-leads",
-      "class": "archived-provenance",
-      "archived": true,
-      "pushed_at": "2026-08-28T18:48:14Z",
-      "successor": "a11oy",
-      "note": null,
-      "description": "ARCHIVED duplicate/hologram. Canonical: https://github.com/szl-holdings/a11oy"
+      "class": "canonical-active",
+      "archived": false,
+      "pushed_at": "2026-09-30T03:54:32Z",
+      "successor": null,
+      "note": "FLAGSHIP (restored) \u2014 evidence-backed broker research",
+      "description": "David Leads \u2014 SZL Holdings flagship for evidence-backed broker research, governed lead intelligence, and auditable public-data workflows."
     },
     {
       "name": "developers",
@@ -144,7 +154,7 @@
       "url": "https://github.com/szl-holdings/evidence-doctrine",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-08-30T22:30:51Z",
+      "pushed_at": "2026-09-29T00:53:00Z",
       "successor": null,
       "note": null,
       "description": "Decision-SLSA v1.4 fail-closed maturity model and TypeScript/Python reference evaluators"
@@ -154,7 +164,7 @@
       "url": "https://github.com/szl-holdings/evidence-studio",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-08-30T21:17:16Z",
+      "pushed_at": "2026-09-30T01:34:33Z",
       "successor": null,
       "note": null,
       "description": "Canonical merge sink for holographic and receipt Spaces. One writer. Bind as an a11oy package."
@@ -180,6 +190,26 @@
       "description": "Archival preprint and reproducibility package for fail-closed epistemic boundaries in governed AI services."
     },
     {
+      "name": "frontier-bench",
+      "url": "https://github.com/szl-holdings/frontier-bench",
+      "class": "review-duplicate",
+      "archived": false,
+      "pushed_at": "2026-09-30T13:40:50Z",
+      "successor": "szl-engine-bench",
+      "note": "Overlaps with szl-engine-bench \u2014 pick one source of truth",
+      "description": "Frontier Inference Engine Benchmark Harness \u2014 vendor-neutral OpenAI-compatible benchmarking for vLLM, SGLang, TGI, llama.cpp, MLX, Transformers. Real measured T"
+    },
+    {
+      "name": "frontier-compass",
+      "url": "https://github.com/szl-holdings/frontier-compass",
+      "class": "active-new-wave",
+      "archived": false,
+      "pushed_at": "2026-09-30T04:17:54Z",
+      "successor": null,
+      "note": "Bench/verification wave, created Sep 27-30",
+      "description": "Read-only nightly observer: claims, Lean reproduction, links, posture (moved from .github#776)"
+    },
+    {
       "name": "gdw-frontier",
       "url": "https://github.com/szl-holdings/gdw-frontier",
       "class": "active",
@@ -194,7 +224,7 @@
       "url": "https://github.com/szl-holdings/governance-as-code",
       "class": "canonical-active",
       "archived": false,
-      "pushed_at": "2026-09-03T00:19:29Z",
+      "pushed_at": "2026-09-30T04:49:08Z",
       "successor": null,
       "note": "GovernedAction/v1 receipt format + CI gates",
       "description": "GovernedAction/v1 receipt format, CI gates, and the 12-step governed-action demo. Give away the format; sell the control plane."
@@ -224,7 +254,7 @@
       "url": "https://github.com/szl-holdings/governed-receipt-spec",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-09-01T00:58:05Z",
+      "pushed_at": "2026-09-30T16:12:25Z",
       "successor": null,
       "note": null,
       "description": "Open format for a governed AI inference decision receipt (decision, \u039b status, measured-or-null energy, hash chain, DSSE) + a dependency-free offline verifier. R"
@@ -234,7 +264,7 @@
       "url": "https://github.com/szl-holdings/hatun-mcp",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-09-03T00:07:27Z",
+      "pushed_at": "2026-09-30T13:40:32Z",
       "successor": null,
       "note": null,
       "description": "Hatun-MCP \u2014 doctrine-aware Model Context Protocol server. 16 SZL tools under PURIQ governance (Yuyay-13 gate, Khipu receipts, DSSE-signed). Streamable HTTP + SS"
@@ -242,22 +272,22 @@
     {
       "name": "holographic-unify",
       "url": "https://github.com/szl-holdings/holographic-unify",
-      "class": "archived-provenance",
-      "archived": true,
-      "pushed_at": "2026-08-29T17:04:52Z",
-      "successor": "a11oy",
+      "class": "active",
+      "archived": false,
+      "pushed_at": "2026-09-30T13:20:25Z",
+      "successor": null,
       "note": null,
-      "description": "ARCHIVED hologram/duplicate. Canonical: https://github.com/szl-holdings/a11oy"
+      "description": "HOLOGRAM \u2014 Wave 2026 estate command desk. Not the flagship. Canonical product is a11oy. Not a-11-oy.com certified."
     },
     {
       "name": "immune",
       "url": "https://github.com/szl-holdings/immune",
       "class": "canonical-active",
       "archived": false,
-      "pushed_at": "2026-09-03T00:42:03Z",
+      "pushed_at": "2026-09-30T02:44:25Z",
       "successor": null,
       "note": "Verifiable-AI defense matrix",
-      "description": "IMMUNE \u2014 Verifiable-AI Defense Matrix. Append-only SHA-256 receipt chain (YAWAR) + SENTRA/GATE admission + HUKLLA tripwires. Source of the live Hugging Face Spa"
+      "description": "IMMUNE \u2014 fail-closed kernel. SENTRA admits, YAWAR seals hashes. NEXUS Lorenz OP is MEASURED software simulation. Product tab a-11-oy.com/immune. Spaces: SZLHOLD"
     },
     {
       "name": "immune-lattice",
@@ -274,10 +304,10 @@
       "url": "https://github.com/szl-holdings/khipu-consensus",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-08-31T12:21:51Z",
+      "pushed_at": "2026-09-29T02:21:07Z",
       "successor": null,
       "note": null,
-      "description": "BFT 3-of-4 multi-party-witnessed agreement \u2014 each witness signs an action hash with its own ECDSA P-256 cosign key over DSSE. The category SZL invents: multi-pa"
+      "description": "BFT 3-of-4 multi-party-witnessed agreement \u2014 each witness signs an action hash with its own ECDSA P-256 cosign key over DSSE. The category SZL builds: multi-par"
     },
     {
       "name": "khipu-lab",
@@ -304,7 +334,7 @@
       "url": "https://github.com/szl-holdings/khipu-sda-core",
       "class": "canonical-active",
       "archived": false,
-      "pushed_at": "2026-08-31T12:22:12Z",
+      "pushed_at": "2026-09-28T13:14:49Z",
       "successor": null,
       "note": "Sovereign clean-room anomaly/SDA engine",
       "description": "SZL khipu-sda-core \u2014 sovereign clean-room anomaly/SDA engine (Domain-Superiority). Signed receipts + \u039b-gated honest confidence. Doctrine v11. Clean-room from pe"
@@ -314,7 +344,7 @@
       "url": "https://github.com/szl-holdings/khipu-x1",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-09-02T23:10:49Z",
+      "pushed_at": "2026-09-28T14:24:18Z",
       "successor": null,
       "note": null,
       "description": "KHIPU-X1 \u2014 FPGA-first governed LLM accelerator software reference (SOFTWARE_EMULATED; no hardware claimed). Doctrine v11."
@@ -324,7 +354,7 @@
       "url": "https://github.com/szl-holdings/killinchu",
       "class": "canonical-active",
       "archived": false,
-      "pushed_at": "2026-09-02T21:16:00Z",
+      "pushed_at": "2026-09-30T20:03:54Z",
       "successor": null,
       "note": "Counter-UAS reference surface",
       "description": "Counter-UAS reference at /elite. Tracks, fusion, ROE, BFT, DSSE per interdiction. Public synthetic \u2014 no public effector. \u039b = Conjecture 1."
@@ -354,7 +384,7 @@
       "url": "https://github.com/szl-holdings/lutar-lean",
       "class": "canonical-active",
       "archived": false,
-      "pushed_at": "2026-09-01T01:08:38Z",
+      "pushed_at": "2026-09-30T04:59:55Z",
       "successor": null,
       "note": "Lean 4 + Mathlib formalization (Lambda = Conjecture 1)",
       "description": "Lean 4 + Mathlib formalization of the \u039b aggregator \u2014 \u039b uniqueness as Conjecture 1 (not a closed theorem). 749 declarations \u00b7 14 axioms \u00b7 163 tracked sorries. Ba"
@@ -362,11 +392,11 @@
     {
       "name": "lyte-lattice",
       "url": "https://github.com/szl-holdings/lyte-lattice",
-      "class": "transfer-candidate",
+      "class": "novelty-candidate",
       "archived": false,
-      "pushed_at": "2026-09-02T23:10:50Z",
+      "pushed_at": "2026-09-29T20:38:04Z",
       "successor": "betterwithage",
-      "note": "BIND hologram for frontiers N1-N25 \u2014 explicitly not a flagship",
+      "note": "BIND hologram for frontiers N1-N25 \u2014 self-declared non-flagship",
       "description": "BIND hologram for named frontiers N1\u2013N25. BIND_AS_A11OY_PACKAGE. Not a flagship. Not a product certificate."
     },
     {
@@ -374,7 +404,7 @@
       "url": "https://github.com/szl-holdings/lyte-services",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-08-30T21:17:29Z",
+      "pushed_at": "2026-09-30T04:43:42Z",
       "successor": null,
       "note": null,
       "description": "Lyte design-partner cell. Same factory compiler, Lyte window. Bind as an a11oy package."
@@ -382,12 +412,12 @@
     {
       "name": "nexus",
       "url": "https://github.com/szl-holdings/nexus",
-      "class": "transfer-candidate",
+      "class": "novelty-candidate",
       "archived": false,
-      "pushed_at": "2026-09-01T03:28:34Z",
+      "pushed_at": "2026-09-30T05:25:58Z",
       "successor": "betterwithage",
-      "note": "Holographic analog-computer synth \u2014 novel, self-contained, non-operational",
-      "description": "Holographic analog computer \u2014 Lorenz core, ouroboros, five organs. Incubator package AO-2026-08-29-001. Bind as an a11oy package."
+      "note": "Dynamics source (Lorenz/harmonic/vdp/duffing/lotka) \u2014 novelty lane",
+      "description": "NEXUS dynamics source (Lorenz/harmonic/vanderpol/duffing/lotka/nemo). Runtime lives inside IMMUNE \u2014 not a second product Space. Pin: szl-holdings/nexus@617fb49."
     },
     {
       "name": "ouroboros",
@@ -404,7 +434,7 @@
       "url": "https://github.com/szl-holdings/pitch-collateral",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-08-31T04:51:11Z",
+      "pushed_at": "2026-09-22T13:58:46Z",
       "successor": null,
       "note": null,
       "description": "SZL Holdings Series-A pitch collateral (PRIVATE, IP-sensitive) \u2014 one-pager, deck outline, demo scripts, design-partner outreach. Doctrine v11 LOCKED (749/14/163"
@@ -414,7 +444,7 @@
       "url": "https://github.com/szl-holdings/platform",
       "class": "canonical-active",
       "archived": false,
-      "pushed_at": "2026-09-03T00:16:53Z",
+      "pushed_at": "2026-09-30T13:09:52Z",
       "successor": null,
       "note": "Monorepo substrate \u2014 runtime, agent loops, MCP tooling, CI gates",
       "description": "SZL Holdings monorepo \u2014 substrate runtime, agentic loops, MCP server (11 tools), reusable workflows, CI gates. Doctrine v11 LOCKED (749/14/163)"
@@ -424,10 +454,20 @@
       "url": "https://github.com/szl-holdings/puriq-live",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-08-31T04:51:30Z",
+      "pushed_at": "2026-09-29T21:54:45Z",
       "successor": null,
       "note": null,
       "description": "PURIQ Live \u2014 execute the SZL formula corpus against live public signals. Symmetric vs Egyptian \u039b, maxAgg counterexample, fail-closed Yuyay-13. \u039b = Conjecture 1."
+    },
+    {
+      "name": "quant-curve",
+      "url": "https://github.com/szl-holdings/quant-curve",
+      "class": "review-duplicate",
+      "archived": false,
+      "pushed_at": "2026-09-28T20:15:28Z",
+      "successor": "szl-quant-bench",
+      "note": "Overlaps with szl-quant-bench \u2014 pick one source of truth",
+      "description": "Quant Curve \u2014 quantization quality-vs-resource Pareto frontier and promotion gates. Quality retention vs memory reduction, five-state receipts (MEASURED/BLOCKED"
     },
     {
       "name": "receipt-chain-live",
@@ -440,11 +480,21 @@
       "description": "ARCHIVED hologram/duplicate. Canonical: https://github.com/szl-holdings/szl-receipt"
     },
     {
+      "name": "retrieval-bench",
+      "url": "https://github.com/szl-holdings/retrieval-bench",
+      "class": "review-duplicate",
+      "archived": false,
+      "pushed_at": "2026-09-28T20:15:39Z",
+      "successor": "szl-retrieval-bench",
+      "note": "Overlaps with szl-retrieval-bench \u2014 pick one source of truth",
+      "description": "Retrieval Benchmark Plane \u2014 sparse BM25, dense, hybrid RRF, cross-encoder rerank lanes with five-state honesty contract (MEASURED/BLOCKED/INVALID/FAILED/PROMOTE"
+    },
+    {
       "name": "sda",
       "url": "https://github.com/szl-holdings/sda",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-09-02T17:06:50Z",
+      "pushed_at": "2026-09-29T15:10:21Z",
       "successor": null,
       "note": null,
       "description": "Investor-facing sovereign domain-awareness surface for khipu-sda-core: anomaly detection, sensor fusion, governed advisory verdicts, and receipt evidence."
@@ -452,19 +502,19 @@
     {
       "name": "szl-atelier",
       "url": "https://github.com/szl-holdings/szl-atelier",
-      "class": "inconsistent",
+      "class": "active",
       "archived": false,
-      "pushed_at": "2026-09-02T17:06:20Z",
+      "pushed_at": "2026-09-30T11:49:01Z",
       "successor": null,
-      "note": "Description says ARCHIVED with canonical successor szl-forge, but the repo is still active. Action: archive it (or correct the description).",
-      "description": "ARCHIVED duplicate/hologram. Canonical: https://github.com/szl-holdings/szl-forge"
+      "note": null,
+      "description": "Governed Hugging Face artifact showcase and exact-projection publisher. Source authority per archive-portfolio-v2."
     },
     {
       "name": "szl-block-kv",
       "url": "https://github.com/szl-holdings/szl-block-kv",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-08-31T22:51:43Z",
+      "pushed_at": "2026-09-30T12:06:16Z",
       "successor": null,
       "note": null,
       "description": "Original SZL Triton paged KV cache with block-table SHA3 receipts. PagedAttention silhouette, not a rehost. Doctrine v11, Apache-2.0."
@@ -474,7 +524,7 @@
       "url": "https://github.com/szl-holdings/szl-blocked",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-08-30T21:17:11Z",
+      "pushed_at": "2026-09-30T04:27:57Z",
       "successor": null,
       "note": null,
       "description": "Canonical GitHub source for the szl-blocked Kernel Hub package (honest BLOCKED, fail-closed). Hub is the publish mirror. Apache-2.0 \u00b7 Doctrine v11."
@@ -484,7 +534,7 @@
       "url": "https://github.com/szl-holdings/szl-brand",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-09-01T14:08:43Z",
+      "pushed_at": "2026-09-30T19:53:57Z",
       "successor": null,
       "note": null,
       "description": "Brand assets, logos, social-preview templates, and visual doctrine for SZL Holdings \u2014 Sovereign Governed AI. Doctrine v11 LOCKED."
@@ -492,22 +542,52 @@
     {
       "name": "szl-build-env",
       "url": "https://github.com/szl-holdings/szl-build-env",
-      "class": "archived-provenance",
-      "archived": true,
-      "pushed_at": "2026-08-28T15:41:13Z",
-      "successor": "szl-forge",
-      "note": null,
-      "description": "ARCHIVED duplicate/hologram. Canonical: https://github.com/szl-holdings/szl-forge"
+      "class": "canonical-active",
+      "archived": false,
+      "pushed_at": "2026-09-30T06:40:02Z",
+      "successor": null,
+      "note": "Restored \u2014 dev topology + runtime acceptance toolkit",
+      "description": "SZL development topology and runtime acceptance toolkit: DSSE receipts, route acknowledgements, connected traces and router integration checks."
+    },
+    {
+      "name": "szl-calibration",
+      "url": "https://github.com/szl-holdings/szl-calibration",
+      "class": "active-new-wave",
+      "archived": false,
+      "pushed_at": "2026-09-28T14:25:28Z",
+      "successor": null,
+      "note": "Bench/verification wave, created Sep 27-30",
+      "description": "Calibration Intelligence Plane \u2014 exact calibration metrics (ECE/MCE/Brier/NLL/AUROC), UNSIGNED_HONEST hash-chained receipts, fail-closed safetensors weight gate"
+    },
+    {
+      "name": "szl-ci-witness",
+      "url": "https://github.com/szl-holdings/szl-ci-witness",
+      "class": "active-new-wave",
+      "archived": false,
+      "pushed_at": "2026-09-28T20:16:13Z",
+      "successor": null,
+      "note": "Bench/verification wave, created Sep 27-30",
+      "description": "CI as witness: every workflow run appends a hash-chained receipt (repo, commit, run id, conclusion, test counts) to a verifiable chain. Regressions and fixes ar"
     },
     {
       "name": "szl-command-lab",
       "url": "https://github.com/szl-holdings/szl-command-lab",
-      "class": "transfer-candidate",
+      "class": "novelty-candidate",
       "archived": false,
-      "pushed_at": "2026-09-02T17:05:47Z",
+      "pushed_at": "2026-09-30T04:21:16Z",
       "successor": "betterwithage",
-      "note": "Holographic command body \u2014 pre-a11oy command experiment",
+      "note": "Holographic command body \u2014 self-declared non-flagship, but actively developed",
       "description": "Holographic command body. Energy MEASURED from RAPL/NVML. GPU train fail-closed. Not flagship."
+    },
+    {
+      "name": "szl-constellation",
+      "url": "https://github.com/szl-holdings/szl-constellation",
+      "class": "active-new-wave",
+      "archived": false,
+      "pushed_at": "2026-09-29T21:02:54Z",
+      "successor": null,
+      "note": "Bench/verification wave, created Sep 27-30",
+      "description": "SZL Constellation - the living archive. 49 estates unarchived as a WebGL hologram, 8 verticals wired to their real repos/kernels/models/datasets, FastAPI JSON b"
     },
     {
       "name": "szl-cookbook",
@@ -520,11 +600,21 @@
       "description": "ARCHIVED duplicate/hologram. Canonical: https://github.com/szl-holdings/szl-forge"
     },
     {
+      "name": "szl-crosscheck",
+      "url": "https://github.com/szl-holdings/szl-crosscheck",
+      "class": "active-new-wave",
+      "archived": false,
+      "pushed_at": "2026-09-30T03:54:06Z",
+      "successor": null,
+      "note": "Bench/verification wave, created Sep 27-30",
+      "description": "Cross-implementation verification: two independent harnesses' receipt chains in, CONSISTENT/DIVERGENT/INCOMPARABLE out, with a dual-signed master receipt. Settl"
+    },
+    {
       "name": "szl-defensive-control-plane",
       "url": "https://github.com/szl-holdings/szl-defensive-control-plane",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-09-01T04:34:17Z",
+      "pushed_at": "2026-09-24T08:34:50Z",
       "successor": null,
       "note": null,
       "description": "Evidence-bound defensive security control plane for signed event ingestion, governed response, and tamper-evident case evidence."
@@ -534,7 +624,7 @@
       "url": "https://github.com/szl-holdings/szl-doctrine",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-08-31T11:29:28Z",
+      "pushed_at": "2026-09-29T00:53:54Z",
       "successor": null,
       "note": null,
       "description": "SZL doctrine + org-wide governance workflows (secret health, etc.)"
@@ -544,27 +634,47 @@
       "url": "https://github.com/szl-holdings/szl-drift",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-08-30T22:31:29Z",
+      "pushed_at": "2026-09-29T00:52:24Z",
       "successor": null,
       "note": null,
       "description": "Origin-drift receipts: compare a-11-oy.com, a11oy.net, and a Ring 1 preview. \u039b = Conjecture 1. Apache-2.0."
+    },
+    {
+      "name": "szl-eclipse",
+      "url": "https://github.com/szl-holdings/szl-eclipse",
+      "class": "active-new-wave",
+      "archived": false,
+      "pushed_at": "2026-09-28T14:26:11Z",
+      "successor": null,
+      "note": "Bench/verification wave, created Sep 27-30",
+      "description": "Who verifies the verifier: mutation-testing for receipt verifiers. Ten attack classes (metric tamper, reorder, lane/key rename, truncation, type confusion, dupl"
     },
     {
       "name": "szl-energy-attest",
       "url": "https://github.com/szl-holdings/szl-energy-attest",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-08-31T12:19:44Z",
+      "pushed_at": "2026-09-30T05:17:52Z",
       "successor": null,
       "note": null,
       "description": "Attestable energy receipts for governed compute \u2014 MEASURED-NVML joules (or honest UNAVAILABLE null), cheapest-watt placement, hash-chained signable receipts. Ve"
+    },
+    {
+      "name": "szl-engine-bench",
+      "url": "https://github.com/szl-holdings/szl-engine-bench",
+      "class": "review-duplicate",
+      "archived": false,
+      "pushed_at": "2026-09-28T14:26:17Z",
+      "successor": "frontier-bench",
+      "note": "Overlaps with frontier-bench \u2014 pick one source of truth",
+      "description": "Honest inference-engine benchmark harness: TTFT/throughput percentiles for vLLM, SGLang, llama.cpp, MLX, TGI, Transformers. Fairness gates, hash-chained receipt"
     },
     {
       "name": "szl-estate-os",
       "url": "https://github.com/szl-holdings/szl-estate-os",
       "class": "canonical-active",
       "archived": false,
-      "pushed_at": "2026-09-01T00:56:31Z",
+      "pushed_at": "2026-09-30T19:26:07Z",
       "successor": null,
       "note": "Cross-estate control plane (GitHub/HF/domains)",
       "description": "Governed, evidence-aware control plane for the SZL GitHub, Hugging Face, and domain estate."
@@ -574,10 +684,20 @@
       "url": "https://github.com/szl-holdings/szl-evidence-litellm",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-09-01T04:50:49Z",
+      "pushed_at": "2026-09-30T04:45:38Z",
       "successor": null,
       "note": null,
       "description": "Tamper-evident, hash-chained receipts for every LiteLLM request \u2014 standalone distribution of szl-receipts + the SZL evidence plugin"
+    },
+    {
+      "name": "szl-evidence-mandate",
+      "url": "https://github.com/szl-holdings/szl-evidence-mandate",
+      "class": "active-new-wave",
+      "archived": false,
+      "pushed_at": "2026-09-29T02:21:51Z",
+      "successor": null,
+      "note": "Bench/verification wave, created Sep 27-30",
+      "description": "Scientific evidence gate (PASS/FAIL/ABSTAIN/ERROR receipts, mutation testing, fixtures) and read-only audits of the szl-holdings GitHub and Hugging Face estate"
     },
     {
       "name": "szl-experiments",
@@ -604,10 +724,10 @@
       "url": "https://github.com/szl-holdings/szl-forge",
       "class": "canonical-active",
       "archived": false,
-      "pushed_at": "2026-09-03T00:13:24Z",
+      "pushed_at": "2026-09-30T20:02:42Z",
       "successor": null,
       "note": "Model lifecycle \u2014 train, qualify, evaluate, publish",
-      "description": "SZL Forge \u2014 train SZL Holdings own sovereign model (SZL-1) on SZL own hardware. QLoRA fine-tune kit: dataset, Unsloth training script, Ollama Modelfile, runbook"
+      "description": "SZL Forge: QLoRA kit that fine-tunes an open base model into SZL-1 on SZL-owned hardware. Dataset, Unsloth training script, Ollama Modelfile, runbook."
     },
     {
       "name": "szl-formula-ledger",
@@ -624,7 +744,7 @@
       "url": "https://github.com/szl-holdings/szl-formulas",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-08-30T21:17:05Z",
+      "pushed_at": "2026-09-30T04:18:19Z",
       "successor": null,
       "note": null,
       "description": "Canonical GitHub source for the szl-formulas Kernel Hub package (21 canonical formulas, locked-proven exactly 8). Hub is the publish mirror. Apache-2.0 \u00b7 Doctri"
@@ -634,17 +754,17 @@
       "url": "https://github.com/szl-holdings/szl-frontier",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-09-02T17:32:39Z",
+      "pushed_at": "2026-09-29T21:11:23Z",
       "successor": null,
       "note": null,
-      "description": "SZL Frontier \u2014 Memory Covenant v0.3. Deny-by-default governed memory plane. Approval cannot lift a hard deny. Doctrine v11. \u039b = Conjecture 1."
+      "description": "SZL Frontier \u2014 Memory Covenant + Yachay fold. Deny-by-default governed memory plane. Hugging Face runtime: SZLHOLDINGS/szl-frontier. Doctrine v11. \u039b = Conjectur"
     },
     {
       "name": "szl-gov",
       "url": "https://github.com/szl-holdings/szl-gov",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-09-02T00:06:38Z",
+      "pushed_at": "2026-09-29T00:54:38Z",
       "successor": null,
       "note": null,
       "description": "Estate truth layer: signed, offline-verifiable audit of the SZL estate + gates that keep it honest"
@@ -664,7 +784,7 @@
       "url": "https://github.com/szl-holdings/szl-govsign",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-08-30T21:17:08Z",
+      "pushed_at": "2026-09-30T04:18:27Z",
       "successor": null,
       "note": null,
       "description": "Canonical GitHub source for the szl-govsign Kernel Hub package (DSSE/in-toto governance signatures). Hub is the publish mirror. Apache-2.0 \u00b7 Doctrine v11."
@@ -674,7 +794,7 @@
       "url": "https://github.com/szl-holdings/szl-gpu-bridge",
       "class": "canonical-active",
       "archived": false,
-      "pushed_at": "2026-08-31T04:51:18Z",
+      "pushed_at": "2026-09-29T20:19:24Z",
       "successor": null,
       "note": "Signed job specs -> owner GPU metal -> receipts",
       "description": "Doctrine-governed training bridge: DSSE-signed job specs \u2192 owner GPU metal \u2192 signed receipts back. Fail-closed both directions."
@@ -684,27 +804,37 @@
       "url": "https://github.com/szl-holdings/szl-guardrail-receipt",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-07-09T15:35:14Z",
+      "pushed_at": "2026-09-29T15:11:36Z",
       "successor": null,
       "note": null,
       "description": "Wrap any LLM guardrail (Llama-Guard / NeMo / guardrails-ai / your callable) and emit a signed, hash-chained DSSE decision receipt \u2014 aligned with governed-receip"
+    },
+    {
+      "name": "szl-hf-frontier",
+      "url": "https://github.com/szl-holdings/szl-hf-frontier",
+      "class": "active-new-wave",
+      "archived": false,
+      "pushed_at": "2026-09-30T14:52:31Z",
+      "successor": null,
+      "note": "Bench/verification wave, created Sep 27-30",
+      "description": "HF Model + Kernel Frontier Program \u2014 payload SZL-HF-FRONTIER-2026-08-29. CTO work orders for critical findings and the three public lanes. Read-only auditor. Fa"
     },
     {
       "name": "szl-holdings.github.io",
       "url": "https://github.com/szl-holdings/szl-holdings.github.io",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-09-03T00:01:05Z",
+      "pushed_at": "2026-09-30T01:43:07Z",
       "successor": null,
       "note": null,
-      "description": "SZL Holdings \u2014 cryptographic proof infrastructure. One doctrine, many organs."
+      "description": "SZL Holdings \u2014 cryptographic provenance infrastructure. One doctrine, many organs."
     },
     {
       "name": "szl-invariants",
       "url": "https://github.com/szl-holdings/szl-invariants",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-08-31T21:47:32Z",
+      "pushed_at": "2026-09-29T20:38:09Z",
       "successor": null,
       "note": null,
       "description": "Canonical GitHub source for the szl-invariants Kernel Hub package (8 falsifiable receipt invariants). Hub is the publish mirror. Apache-2.0 \u00b7 Doctrine v11."
@@ -714,7 +844,7 @@
       "url": "https://github.com/szl-holdings/szl-kernels",
       "class": "canonical-active",
       "archived": false,
-      "pushed_at": "2026-09-02T20:50:10Z",
+      "pushed_at": "2026-09-30T12:30:22Z",
       "successor": null,
       "note": "Governed-kernel suite canonical source",
       "description": "Canonical source for the SZL governed-kernel suite and receipted MiniEmbed artifact"
@@ -734,7 +864,7 @@
       "url": "https://github.com/szl-holdings/szl-khipu",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-09-02T17:05:21Z",
+      "pushed_at": "2026-09-30T13:26:19Z",
       "successor": null,
       "note": null,
       "description": "SZL KHIPU \u2014 live Python kernels and tiny trained silhouettes. Knot the run. Hash the proof. Fail closed. Doctrine v11 LOCKED. Apache-2.0."
@@ -744,7 +874,7 @@
       "url": "https://github.com/szl-holdings/szl-lake",
       "class": "canonical-active",
       "archived": false,
-      "pushed_at": "2026-09-02T18:48:29Z",
+      "pushed_at": "2026-09-30T18:55:37Z",
       "successor": null,
       "note": "Append-only DSSE receipt store",
       "description": "SZL Holdings Lake \u2014 append-only DSSE receipt store (GitHub origin, HF dataset SZLHOLDINGS/szl-lake mirror). Doctrine v11 LOCKED. Live receipt infrastructure for"
@@ -754,7 +884,7 @@
       "url": "https://github.com/szl-holdings/szl-lambda-gate",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-08-31T12:20:32Z",
+      "pushed_at": "2026-09-30T04:54:47Z",
       "successor": null,
       "note": null,
       "description": "\u039b (Lambda-Spine) aggregator universal kernel \u2014 weighted geometric mean over axis scores in [0,1] with an ADVISORY governance gate + A1-A4 axiom self-checks. \u039b ="
@@ -764,7 +894,7 @@
       "url": "https://github.com/szl-holdings/szl-maskmod",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-08-30T21:17:19Z",
+      "pushed_at": "2026-09-30T04:18:10Z",
       "successor": null,
       "note": null,
       "description": "Original SZL Triton score_mod + block-sparse mask attention with receipts. FlexAttention silhouette, not a rehost. Doctrine v11, Apache-2.0."
@@ -772,29 +902,39 @@
     {
       "name": "szl-mesh",
       "url": "https://github.com/szl-holdings/szl-mesh",
-      "class": "archived-provenance",
-      "archived": true,
-      "pushed_at": "2026-08-26T13:49:48Z",
-      "successor": "szl-substrate",
-      "note": null,
-      "description": "ARCHIVED duplicate/hologram. Canonical: https://github.com/szl-holdings/szl-substrate"
+      "class": "canonical-active",
+      "archived": false,
+      "pushed_at": "2026-09-28T13:15:15Z",
+      "successor": null,
+      "note": "Restored \u2014 deterministic CRDT convergence command",
+      "description": "Deterministic disconnected-state CRDT convergence command. Source authority per archive-portfolio-v2."
     },
     {
       "name": "szl-nemo",
       "url": "https://github.com/szl-holdings/szl-nemo",
       "class": "canonical-active",
       "archived": false,
-      "pushed_at": "2026-09-02T00:23:13Z",
+      "pushed_at": "2026-09-29T15:28:20Z",
       "successor": null,
       "note": "Doctrine rule_check surrogate (not an LLM)",
       "description": "SOFTWARE/SURROGATE: doctrine rule_check for recipe conformance. Not Nemotron, not an LLM, not a CUDA kernel. joblib quarantined."
+    },
+    {
+      "name": "szl-openshell-receipts",
+      "url": "https://github.com/szl-holdings/szl-openshell-receipts",
+      "class": "active-new-wave",
+      "archived": false,
+      "pushed_at": "2026-09-29T02:17:42Z",
+      "successor": null,
+      "note": "Bench/verification wave, created Sep 27-30",
+      "description": "Governed receipts and an independent reach-delta witness for sandboxed agent runtimes."
     },
     {
       "name": "szl-org-health",
       "url": "https://github.com/szl-holdings/szl-org-health",
       "class": "canonical-active",
       "archived": false,
-      "pushed_at": "2026-08-31T04:40:30Z",
+      "pushed_at": "2026-09-30T03:22:44Z",
       "successor": null,
       "note": "Org health dashboard, fail-closed UNKNOWN posture",
       "description": "Live org-health dashboard \u2014 real GitHub CI/security, Hugging Face Space health, and DNS/email-auth posture. Honest UNKNOWN over fabricated green."
@@ -824,7 +964,7 @@
       "url": "https://github.com/szl-holdings/szl-ouroboros",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-08-31T21:47:41Z",
+      "pushed_at": "2026-09-30T04:21:04Z",
       "successor": null,
       "note": null,
       "description": "Canonical GitHub source for the szl-ouroboros Kernel Hub package (bounded loop-tax accounting). Hub is the publish mirror. Apache-2.0 \u00b7 Doctrine v11."
@@ -834,27 +974,37 @@
       "url": "https://github.com/szl-holdings/szl-papers",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-08-31T04:51:14Z",
+      "pushed_at": "2026-09-29T19:30:26Z",
       "successor": null,
       "note": null,
       "description": "SZL Holdings academic corpus \u2014 preprints, thesis lineage, bounty problems, prior-art disclosures. Doctrine v11 LOCKED 749/14/163."
     },
     {
+      "name": "szl-pin",
+      "url": "https://github.com/szl-holdings/szl-pin",
+      "class": "active-new-wave",
+      "archived": false,
+      "pushed_at": "2026-09-28T14:28:05Z",
+      "successor": null,
+      "note": "Bench/verification wave, created Sep 27-30",
+      "description": "Estate pinning: one SHA-256 hash commits to every repo head in the frontier. Deterministic, order-independent, offline-verifiable. pin_diff names every moved/ad"
+    },
+    {
       "name": "szl-platform",
       "url": "https://github.com/szl-holdings/szl-platform",
-      "class": "inconsistent",
+      "class": "review-duplicate",
       "archived": false,
-      "pushed_at": "2026-09-01T20:17:51Z",
-      "successor": null,
-      "note": "Empty-description repo colliding with canonical 'platform' monorepo name. Action: review contents; merge or rename.",
-      "description": ""
+      "pushed_at": "2026-09-28T14:28:12Z",
+      "successor": "platform",
+      "note": "Overlaps with platform \u2014 pick one source of truth",
+      "description": "SZL Platform \u2014 governed-AI engineering monorepo: receipt-first packages, estate audit control plane, KIDS simulator, adversarial harness. Prove, don't assert. D"
     },
     {
       "name": "szl-provctl",
       "url": "https://github.com/szl-holdings/szl-provctl",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-08-30T21:17:10Z",
+      "pushed_at": "2026-09-30T04:18:04Z",
       "successor": null,
       "note": null,
       "description": "Canonical GitHub source for the szl-provctl Kernel Hub package (in-toto/SLSA provenance controller). Hub is the publish mirror. Apache-2.0 \u00b7 Doctrine v11."
@@ -874,17 +1024,27 @@
       "url": "https://github.com/szl-holdings/szl-quant",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-09-02T18:36:30Z",
+      "pushed_at": "2026-09-30T18:39:24Z",
       "successor": null,
       "note": null,
       "description": "Doctrine-governed quant research engine \u2014 every advisory signal ships a DSSE-signed receipt. Paper-only. Not financial advice."
+    },
+    {
+      "name": "szl-quant-bench",
+      "url": "https://github.com/szl-holdings/szl-quant-bench",
+      "class": "review-duplicate",
+      "archived": false,
+      "pushed_at": "2026-09-28T14:28:29Z",
+      "successor": "quant-curve",
+      "note": "Overlaps with quant-curve \u2014 pick one source of truth",
+      "description": "Honest quantization quality-curve bench: uniform absmax quantization, cosine/KL/top-1 degradation vs bit-width, hash-chained receipts. Real logits in, measured "
     },
     {
       "name": "szl-quant-witness",
       "url": "https://github.com/szl-holdings/szl-quant-witness",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-09-02T20:24:32Z",
+      "pushed_at": "2026-09-30T14:29:23Z",
       "successor": null,
       "note": null,
       "description": "Second observer for the szl-quant ledger \u2014 independent scheduled vantage point that cross-logs signed gossip observations (REPORTED, offline-replayable). Paper-"
@@ -894,7 +1054,7 @@
       "url": "https://github.com/szl-holdings/szl-real-estate",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-09-01T04:42:03Z",
+      "pushed_at": "2026-09-28T14:59:32Z",
       "successor": null,
       "note": null,
       "description": "SZL Real Estate \u2014 public-records underwriting. Not an MLS. Occupancy UNAVAILABLE. PLUTO MEASURED on Kings/Queens. Nassau has no PLUTO. Apache-2.0."
@@ -904,7 +1064,7 @@
       "url": "https://github.com/szl-holdings/szl-receipt",
       "class": "canonical-active",
       "archived": false,
-      "pushed_at": "2026-09-01T01:43:00Z",
+      "pushed_at": "2026-09-30T15:40:37Z",
       "successor": null,
       "note": "Shared signed-receipt library (DSSE/ECDSA-P256)",
       "description": "Shared signed-receipt library \u2014 DSSE/ECDSA-P256, cosign-compatible, UNSIGNED-honest fallback. The one signing primitive every SZL component shares."
@@ -914,47 +1074,97 @@
       "url": "https://github.com/szl-holdings/szl-receipt-attn",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-08-31T22:51:46Z",
+      "pushed_at": "2026-09-30T13:07:45Z",
       "successor": null,
       "note": null,
       "description": "Original SZL Triton tiled fused attention with UnifiedReceiptChain. FlashAttention silhouette, not a rehost. Doctrine v11, \u039b=Conjecture 1, Apache-2.0."
     },
     {
+      "name": "szl-retrieval-bench",
+      "url": "https://github.com/szl-holdings/szl-retrieval-bench",
+      "class": "review-duplicate",
+      "archived": false,
+      "pushed_at": "2026-09-30T08:30:32Z",
+      "successor": "retrieval-bench",
+      "note": "Overlaps with retrieval-bench \u2014 pick one source of truth",
+      "description": "Honest retrieval benchmark lane: BM25, RRF hybrid fusion, nDCG/Recall/MRR/MAP, fairness gates, hash-chained receipts. Fail closed \u2014 BLOCKED, never fabricated. A"
+    },
+    {
       "name": "szl-router",
       "url": "https://github.com/szl-holdings/szl-router",
-      "class": "archived-provenance",
-      "archived": true,
-      "pushed_at": "2026-08-26T13:47:06Z",
-      "successor": "a11oy",
-      "note": null,
-      "description": "ARCHIVED duplicate/hologram. Canonical: https://github.com/szl-holdings/a11oy"
+      "class": "canonical-active",
+      "archived": false,
+      "pushed_at": "2026-09-30T08:56:02Z",
+      "successor": null,
+      "note": "FLAGSHIP (restored) \u2014 sovereign-first OpenAI-compatible LLM router",
+      "description": "FLAGSHIP: sovereign-first OpenAI-compatible LLM router with verifiable routing receipts; source for SZLHOLDINGS/llm-router-live"
+    },
+    {
+      "name": "szl-runbook-catalog",
+      "url": "https://github.com/szl-holdings/szl-runbook-catalog",
+      "class": "active-new-wave",
+      "archived": false,
+      "pushed_at": "2026-09-29T00:53:29Z",
+      "successor": null,
+      "note": "Bench/verification wave, created Sep 27-30",
+      "description": "SZL Runbook Catalog - the estate's registry of receipted, hash-committed task specs (bench lanes, kernel fixtures, GPU-bridge jobspecs). SkyPilot-catalog patter"
+    },
+    {
+      "name": "szl-safe-stack",
+      "url": "https://github.com/szl-holdings/szl-safe-stack",
+      "class": "active-new-wave",
+      "archived": false,
+      "pushed_at": "2026-09-29T20:35:45Z",
+      "successor": null,
+      "note": "Bench/verification wave, created Sep 27-30",
+      "description": "Self-hosted Python evidence APIs, fail-closed policies, audit ledgers, and verified source distribution"
     },
     {
       "name": "szl-second-brain",
       "url": "https://github.com/szl-holdings/szl-second-brain",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-08-31T04:51:27Z",
+      "pushed_at": "2026-09-29T16:33:52Z",
       "successor": null,
       "note": null,
       "description": "Public second-brain retrieval hologram. Handles only. SOFTWARE navigator over 575 chunks. \u039b = Conjecture 1."
+    },
+    {
+      "name": "szl-seismic-review",
+      "url": "https://github.com/szl-holdings/szl-seismic-review",
+      "class": "active-new-wave",
+      "archived": false,
+      "pushed_at": "2026-09-30T01:40:30Z",
+      "successor": null,
+      "note": "Bench/verification wave, created Sep 27-30",
+      "description": "Evidence-bound seismic catalogue review pilot with blinded human review and calibrated Japan-panel research baseline"
     },
     {
       "name": "szl-serve",
       "url": "https://github.com/szl-holdings/szl-serve",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-08-31T04:51:15Z",
+      "pushed_at": "2026-09-30T04:22:00Z",
       "successor": null,
       "note": null,
       "description": "Canonical SZL governed serve recipe: llama.cpp/Ollama CPU honest path for Khipu GGUF, schema validation outside the weights, energy MEASURED or UNAVAILABLE, GPU"
+    },
+    {
+      "name": "szl-skills",
+      "url": "https://github.com/szl-holdings/szl-skills",
+      "class": "active-new-wave",
+      "archived": false,
+      "pushed_at": "2026-09-30T13:09:41Z",
+      "successor": null,
+      "note": "Bench/verification wave, created Sep 27-30",
+      "description": "Fail-closed evidence and decision skills for Claude (SZL Holdings)"
     },
     {
       "name": "szl-sovereign-os",
       "url": "https://github.com/szl-holdings/szl-sovereign-os",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-09-02T17:04:48Z",
+      "pushed_at": "2026-09-29T15:14:24Z",
       "successor": null,
       "note": null,
       "description": "SZL Sovereign OS \u2014 fail-closed operator kernel. Five organs, five verticals, eleven category captures. Take the JOB from the leader, never the code. \u039b = Conject"
@@ -964,7 +1174,7 @@
       "url": "https://github.com/szl-holdings/szl-substrate",
       "class": "canonical-active",
       "archived": false,
-      "pushed_at": "2026-08-31T21:47:45Z",
+      "pushed_at": "2026-09-28T20:17:57Z",
       "successor": null,
       "note": "Shared installable substrate for a11oy + killinchu",
       "description": "szl-substrate \u2014 installable shared substrate package for a11oy + killinchu. Eliminates 69-file source duplication. Pure-stdlib where possible; DSSE-signed recei"
@@ -984,10 +1194,20 @@
       "url": "https://github.com/szl-holdings/szl-trust",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-09-01T20:17:16Z",
+      "pushed_at": "2026-09-30T04:45:04Z",
       "successor": null,
       "note": null,
       "description": "SZL Holdings Public Trust Portal \u2014 Covenant Proof Standard run artifacts, deterministic replay receipts. Doctrine v11 LOCKED (749/14/163)"
+    },
+    {
+      "name": "szl-typesafe-triage",
+      "url": "https://github.com/szl-holdings/szl-typesafe-triage",
+      "class": "active-new-wave",
+      "archived": false,
+      "pushed_at": "2026-09-30T06:37:57Z",
+      "successor": null,
+      "note": "Bench/verification wave, created Sep 27-30",
+      "description": "TypeSafe triage pack \u2014 deterministic, receipt-bearing typed triage engine. Versioned JSON policies, fixture-gated CI, hash-chained receipts (UNSIGNED_HONEST fal"
     },
     {
       "name": "szl-uds-deployment",
@@ -1004,30 +1224,70 @@
       "url": "https://github.com/szl-holdings/szl-v14",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-09-01T20:28:15Z",
+      "pushed_at": "2026-09-29T21:36:25Z",
       "successor": null,
       "note": null,
       "description": "SZL V14: payload builder + estate control plane + live audit bundle (read-only control plane; authorization packets for mutations)"
     },
     {
+      "name": "szl-vertical-forge",
+      "url": "https://github.com/szl-holdings/szl-vertical-forge",
+      "class": "active-new-wave",
+      "archived": false,
+      "pushed_at": "2026-09-29T10:07:45Z",
+      "successor": null,
+      "note": "Bench/verification wave, created Sep 27-30",
+      "description": "Vertical forge: audited vertical configs in (verticals.json), killinchu-pattern landing shells out - hero, live data probe with MEASURED/UNAVAILABLE honesty, es"
+    },
+    {
+      "name": "szl-wave1-report",
+      "url": "https://github.com/szl-holdings/szl-wave1-report",
+      "class": "active-new-wave",
+      "archived": false,
+      "pushed_at": "2026-09-27T22:10:20Z",
+      "successor": null,
+      "note": "Bench/verification wave, created Sep 27-30",
+      "description": "Wave 1 capstone: verify harness receipt chains (retrieval, engine, quant, calibration) and emit one consolidated, tamper-evident bakeoff report. Fail-closed on "
+    },
+    {
+      "name": "the-grid",
+      "url": "https://github.com/szl-holdings/the-grid",
+      "class": "active-new-wave",
+      "archived": false,
+      "pushed_at": "2026-09-29T15:17:36Z",
+      "successor": null,
+      "note": "Bench/verification wave, created Sep 27-30",
+      "description": "THE GRID \u2014 isometric extraction protocol. Convergence ring collapse. Canonical source for HF Space SZLHOLDINGS/the-grid. Demo / vertical exhibit, not a governed"
+    },
+    {
       "name": "uds-bundles",
       "url": "https://github.com/szl-holdings/uds-bundles",
-      "class": "archived-provenance",
-      "archived": true,
-      "pushed_at": "2026-06-30T01:19:53Z",
+      "class": "canonical-active",
+      "archived": false,
+      "pushed_at": "2026-09-29T15:56:06Z",
       "successor": null,
-      "note": null,
+      "note": "Restored \u2014 UDS/Zarf bundles for a11oy + killinchu",
       "description": "SZL UDS Zarf bundles for the two products (a11oy + killinchu) and their capability services \u2014 airgap-deployable, cosign-signed, SLSA L1+L2. Doctrine v11 LOCKED "
+    },
+    {
+      "name": "vertical-services",
+      "url": "https://github.com/szl-holdings/vertical-services",
+      "class": "active-new-wave",
+      "archived": false,
+      "pushed_at": "2026-09-30T04:01:44Z",
+      "successor": null,
+      "note": "Bench/verification wave, created Sep 27-30",
+      "description": "Live deployable FastAPI services for the five SZL vertical Spaces \u2014 sentra (policy gates), lyte (observability), vessels (maritime risk), finance (portfolio ana"
     },
     {
       "name": "vsp-otel",
       "url": "https://github.com/szl-holdings/vsp-otel",
-      "class": "archived-provenance",
-      "archived": true,
-      "pushed_at": "2026-08-26T13:49:32Z",
-      "successor": "szl-substrate",
-      "note": null,
-      "description": "ARCHIVED duplicate/hologram. Canonical: https://github.com/szl-holdings/szl-substrate"
+      "class": "canonical-active",
+      "archived": false,
+      "pushed_at": "2026-09-30T03:03:27Z",
+      "successor": null,
+      "note": "Restored source owner \u2014 OTLP collector, signed-span exporter",
+      "description": "SZL OTLP collector, signed-span exporter and Helm package. Restored source owner; runtime and forwarding acceptance verified separately."
     },
     {
       "name": "warhacker-demo",
@@ -1044,7 +1304,7 @@
       "url": "https://github.com/szl-holdings/yarqa",
       "class": "canonical-active",
       "archived": false,
-      "pushed_at": "2026-09-02T23:34:36Z",
+      "pushed_at": "2026-09-30T12:07:06Z",
       "successor": null,
       "note": "Plug-flow compartmentalization with signed receipts",
       "description": "yarqa \u2014 plug-flow compartmentalization with signed provenance receipts. Converts CFD velocity fields into auditable compartmental networks. Clean-room Apache-2."
@@ -1054,7 +1314,7 @@
       "url": "https://github.com/szl-holdings/YARQA-ATTN",
       "class": "active",
       "archived": false,
-      "pushed_at": "2026-08-31T04:51:13Z",
+      "pushed_at": "2026-09-30T12:06:05Z",
       "successor": null,
       "note": null,
       "description": "KERNEL original SZL attention kernel (YARQA canal/compartment silhouette). Receipt-aware, honesty-labeled. Not a Flash/Sage/Flex clone, not a weight, not an ali"
@@ -1063,58 +1323,58 @@
   "models": [
     {
       "artifact": "SZLHOLDINGS/chaski",
-      "class": "merged finetune (1.7 GB)",
+      "class": "merged finetune",
       "evidence": "MEASURED_FAIL",
-      "downloads": "2.3K",
+      "downloads": "3.1K",
       "boundary": "JSON draft 0/5, refusal 2/6; publication_eligible false; do not promote"
     },
     {
       "artifact": "SZLHOLDINGS/chaski-r2",
       "class": "LoRA 25.6 MB",
       "evidence": "MEASURED_PASS",
-      "downloads": "85",
+      "downloads": "138",
       "boundary": "JSON draft 5/5, refusal 6/6; best current candidate; still non-operational"
     },
     {
       "artifact": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3",
       "class": "LoRA 25.6 MB",
       "evidence": "MEASURED_DEV_ONLY",
-      "downloads": "50",
-      "boundary": "dev 11/12; sealed test unopened; run operational/evaluate_receiptagent_v3.py --unseal to measure"
+      "downloads": "134",
+      "boundary": "dev 11/12; sealed test unopened; run operational/evaluate_receiptagent_v3.py --unseal"
     },
     {
       "artifact": "SZLHOLDINGS/khipu-r3",
       "class": "LoRA 25.6 MB",
       "evidence": "MEASURED_FAIL",
-      "downloads": "36",
+      "downloads": "97",
       "boundary": "grounding 4/5, abstain 0/6; retrieves when it must abstain"
     },
     {
       "artifact": "SZLHOLDINGS/WILLAY",
       "class": "two LoRA adapters",
       "evidence": "UNKNOWN",
-      "downloads": "55",
+      "downloads": "94",
       "boundary": "no evaluation exists; doctrine suite required before any claim"
     },
     {
       "artifact": "SZLHOLDINGS/KHIPU-R2",
       "class": "adapter 147.8 MB",
       "evidence": "MEASURED_RESEARCH_ONLY",
-      "downloads": "63",
-      "boundary": "abstain 3/6 (not a pass), grounding 5/5, plan 11/11; does not overwrite signed 1.5B"
+      "downloads": "118",
+      "boundary": "abstain 3/6 (not a pass), grounding 5/5, plan 11/11"
     },
     {
       "artifact": "SZLHOLDINGS/SZL-Khipu-1.5B",
       "class": "merged finetune",
       "evidence": "MEASURED_RESEARCH_ONLY",
-      "downloads": "1.4K",
+      "downloads": "3.0K",
       "boundary": "held-out abstention 2/6; autonomous/high-stakes use prohibited"
     },
     {
       "artifact": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
       "class": "merged finetune",
       "evidence": "MEASURED_LIMITED",
-      "downloads": "1.2K",
+      "downloads": "877",
       "boundary": "proposal-only; not promoted; not independently certified"
     },
     {
@@ -1122,14 +1382,14 @@
       "class": "embedding kit (recipe)",
       "evidence": "UNKNOWN",
       "downloads": "0",
-      "boundary": "Hub stub has no weights; nDCG@10 UNKNOWN; operational/ package adds the train+eval path"
+      "boundary": "Hub stub, no weights; nDCG@10 UNKNOWN; operational/ adds the train+eval path"
     },
     {
       "artifact": "SZLHOLDINGS/tinku",
       "class": "reranker kit (recipe)",
       "evidence": "UNKNOWN",
       "downloads": "0",
-      "boundary": "no admitted triples until review; operational/ package adds the smoke trainer"
+      "boundary": "no admitted triples until review; operational/ adds the smoke trainer"
     },
     {
       "artifact": "SZLHOLDINGS/szl-nemo",
