@@ -367,7 +367,7 @@ class EstateReleaseTrainTests(unittest.TestCase):
                 config, {"counts": counts if observed is None else observed}, sha,
             )
 
-    def test_profile_selects_current_public_counts_without_private_or_historical_totals(self):
+    def test_profile_current_prose_cannot_substitute_for_scoped_source_record(self):
         current = (
             "**Current inventory** (observed **2026-09-29T02:04:17Z**, authenticated Hub API): "
             "public **23 Spaces, 49 models, 34 datasets**; including private: "
@@ -381,8 +381,11 @@ class EstateReleaseTrainTests(unittest.TestCase):
         for text in (current + "\n\n" + historical, historical + "\n\n" + current):
             with self.subTest(historical_first=text.startswith(historical)):
                 result = self._profile_contract_for_text(text)
-                self.assertEqual(result["declared_counts"], {"spaces": 23, "models": 49, "datasets": 34})
-                self.assertTrue(result["aligned"])
+                self.assertEqual(release.declared_profile_counts(text),
+                                 {"spaces": 23, "models": 49, "datasets": 34})
+                self.assertIsNone(result["declared_counts"])
+                self.assertFalse(result["aligned"])
+                self.assertIn("HF_PROFILE_INVENTORY_RECORD_UNAVAILABLE_OR_INVALID", result["blockers"])
 
     def test_profile_historical_snapshot_cannot_satisfy_current_count_gate(self):
         result = self._profile_contract_for_text(
@@ -409,11 +412,16 @@ class EstateReleaseTrainTests(unittest.TestCase):
         self.assertFalse(result["aligned"])
 
     def test_profile_current_declaration_still_requires_manifest_and_observed_equality(self):
-        text = "**Current inventory**: public **23 Spaces, 49 models, 34 datasets**."
+        config, record, manifest, blob = self._profile_fixture()
         different = {"spaces": 24, "models": 49, "datasets": 34}
         for kwargs in ({"observed": different}, {"manifest": different}):
             with self.subTest(kwargs=kwargs):
-                result = self._profile_contract_for_text(text, **kwargs)
+                current = {**manifest, "json": {**manifest["json"],
+                            "counts": kwargs.get("manifest", record["counts"])}}
+                result, _ = self._profile_observation(
+                    config, record, current, blob,
+                    kwargs.get("observed", record["counts"]), pinned=manifest,
+                )
                 self.assertEqual(result["declared_counts"], {"spaces": 23, "models": 49, "datasets": 34})
                 self.assertFalse(result["aligned"])
                 self.assertIn("HF_INVENTORY_COUNT_MISMATCH_OR_UNAVAILABLE", result["blockers"])
