@@ -27,7 +27,7 @@ function run(executable, args, cwd) {
 
 try {
   // npm pack runs this package's prepack build. Install the resulting archive,
-  // never a source-directory link. There are no runtime dependencies.
+  // never a source-directory link. Node declarations are its only dependency.
   const packed = JSON.parse(run(process.execPath,
     [npmCli, "pack", "--json", "--pack-destination", temporary], root));
   assert.equal(packed.length, 1);
@@ -75,6 +75,29 @@ console.log('Installed RAE-1 tarball: all public imports, HMAC verification, tam
 `;
   writeFileSync(join(temporary, "consumer.mjs"), consumer, "utf8");
   process.stdout.write(run(process.execPath, [join(temporary, "consumer.mjs")], temporary));
+  // Check the declarations from the installed archive, without relying on
+  // ambient Node types from this checkout or the caller's TypeScript project.
+  writeFileSync(join(temporary, "consumer.mts"), `
+import {Buffer} from 'node:buffer';
+import {makeKeyId, RAE1_SCHEMA_VERSION, type DSSEEnvelope} from '@szl-holdings/rae1';
+import {validateRAE1Schema} from '@szl-holdings/rae1/validate';
+const version: string = RAE1_SCHEMA_VERSION;
+const envelope: DSSEEnvelope = {payloadType: 'application/vnd.szl.rae1+json', payload: '', signatures: []};
+export function check(key: Buffer): string {
+  const id: string = makeKeyId(key);
+  const valid: boolean = validateRAE1Schema(envelope).valid;
+  return version + id + valid;
+}
+`, "utf8");
+  writeFileSync(join(temporary, "tsconfig.json"), JSON.stringify({
+    compilerOptions: { target: "ES2022", module: "NodeNext", moduleResolution: "NodeNext",
+      strict: true, noEmit: true, types: ["node"], typeRoots: ["./node_modules/@types"],
+      skipLibCheck: false },
+    files: ["consumer.mts"],
+  }));
+  run(process.execPath, [join(root, "node_modules/typescript/lib/tsc.js"),
+    "-p", join(temporary, "tsconfig.json")], temporary);
+  console.log("Installed RAE-1 declarations: clean TypeScript consumer passed");
 } finally {
   // Only remove the unique temporary directory created by this check.
   rmSync(temporary, { recursive: true, force: true });

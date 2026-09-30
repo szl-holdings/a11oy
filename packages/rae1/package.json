@@ -57,10 +57,12 @@
   },
   "devDependencies": {
     "vitest": "4.1.11",
-    "typescript": "^5.4.0",
-    "@types/node": "^20.0.0"
+    "typescript": "^5.4.0"
   },
   "peerDependencies": {
     "typescript": ">=5.0.0"
+  },
+  "dependencies": {
+    "@types/node": "^20.0.0"
   }
 }

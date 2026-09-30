@@ -64,8 +64,10 @@ npm install /path/to/szl-holdings-rae1-1.0.0.tgz
 The installed package works with ordinary Node ES-module imports; it does not
 require a TypeScript loader. `test:package` installs the archive into a temporary
 consumer and checks all public entry points, key-ID generation, HMAC verification,
-rejection of tampered payloads and wrong keys, and chain hashing. The RAE-1 package
-contract workflow repeats type checking, the source tests, and this consumer check
+rejection of tampered payloads and wrong keys, and chain hashing. It also compiles
+a separate TypeScript consumer against the installed declarations and the Node
+types shipped as a package dependency. The RAE-1 package contract workflow
+repeats type checking, the source tests, and these consumer checks
 on Node 20 and 24 for package PRs and pushes to `main`.
 
 This source build does not publish to a registry. Registry installation requires

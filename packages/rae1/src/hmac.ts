@@ -30,6 +30,7 @@
  */
 
 import { createHash, createHmac, timingSafeEqual } from "crypto";
+import { Buffer } from "node:buffer";
 import { dsseV1Pae, dsseV1PaeFromBase64Body } from "./dsse-pae.js";
 
 // ─── PAE (Pre-Authentication Encoding) ───────────────────────────────────────
