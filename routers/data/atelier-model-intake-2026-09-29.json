@@ -1,0 +1,1338 @@
+{
+  "schema": "szl.atelier.model-intake.v1",
+  "spdx_license_identifier": "Apache-2.0",
+  "copyright": "2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "client_date": "2026-09-29",
+  "client_timezone": "America/New_York",
+  "evidence_class": "REPORTED_PUBLIC_METADATA_WITH_BOUNDED_SOURCE_REVIEW",
+  "collected_at_utc": "2026-09-30T01:36:01.835944+00:00",
+  "scope": "Bounded first intake: 5 trending and 5 downloaded text-generation models, plus separate 5+5 inference-provider-filtered cohorts; 17 unique repositories. Not an audit of all Hub models.",
+  "canonical_source": {
+    "repository": "https://github.com/szl-holdings/a11oy",
+    "baseline_revision": "599d3a4783fe2816a7c5cf15a819453d5cb6c264",
+    "publication_order": [
+      "GitHub szl-holdings",
+      "Hugging Face SZLHOLDINGS matching artifact type",
+      "a-11-oy.com product runtime",
+      "a11oy.net evidence"
+    ]
+  },
+  "collection": {
+    "schema": "szl.atelier.public-model-metadata.v1",
+    "observed_at_utc": "2026-09-30T01:36:01.835944+00:00",
+    "source": "Hugging Face public Hub API",
+    "ranking_is_quality": false,
+    "metadata_is_successful_inference": false,
+    "external_mutation_performed": false,
+    "billable_inference_performed": false,
+    "model_weights_downloaded": false,
+    "public_code_executed": false,
+    "bounds": {
+      "per_ranking_limit": 5,
+      "ranking_count": 4,
+      "requests_made": 21,
+      "max_requests": 24,
+      "max_response_bytes": 2097152,
+      "timeout_seconds": 20
+    },
+    "rankings": [
+      {
+        "cohort": "text-generation",
+        "metric": "trendingScore",
+        "url": "https://huggingface.co/api/models?pipeline_tag=text-generation&sort=trendingScore&direction=-1&limit=5&full=true",
+        "observed_at_utc": "2026-09-30T01:35:58.618710+00:00",
+        "response_sha256": "d499704105c1d1ccebe07e04497646435ee712b216d935e3121d5264db0015fa",
+        "response_bytes": 15656,
+        "models": [
+          {
+            "rank": 1,
+            "id": "XingChen-AGI/Xing4.0-29B-A4B",
+            "metric_value": 412,
+            "listed_revision": "baae3c3e813cad5f888f1f485cfff659c89076c5"
+          },
+          {
+            "rank": 2,
+            "id": "prism-ml/Ternary-Bonsai-2-27B-gguf",
+            "metric_value": 354,
+            "listed_revision": "b072e1d3b35a0a630cece372c2127528e0994386"
+          },
+          {
+            "rank": 3,
+            "id": "Altworld/Hemmingway-1",
+            "metric_value": 270,
+            "listed_revision": "b987f1800da287b3016862948743a253fbf80553"
+          },
+          {
+            "rank": 4,
+            "id": "orcarouter/OrcaSAQ-2-27B",
+            "metric_value": 211,
+            "listed_revision": "15d20d7e9ae4fd89d1a47878f69381760169445b"
+          },
+          {
+            "rank": 5,
+            "id": "XiaomiMiMo/MiMo-V2.6-Pro-RL",
+            "metric_value": 205,
+            "listed_revision": "73875d00b30a89ef8cc353a0b60b0e9f9561952d"
+          }
+        ]
+      },
+      {
+        "cohort": "text-generation",
+        "metric": "downloads",
+        "url": "https://huggingface.co/api/models?pipeline_tag=text-generation&sort=downloads&direction=-1&limit=5&full=true",
+        "observed_at_utc": "2026-09-30T01:35:58.729112+00:00",
+        "response_sha256": "89b442ebc8aa8914f14bfdd22ea406122607aa04899d503c4031f9fb0c1818c3",
+        "response_bytes": 7262,
+        "models": [
+          {
+            "rank": 1,
+            "id": "Qwen/Qwen3-0.6B",
+            "metric_value": 29631573,
+            "listed_revision": "c1899de289a04d12100db370d81485cdf75e47ca"
+          },
+          {
+            "rank": 2,
+            "id": "openai-community/gpt2",
+            "metric_value": 15551940,
+            "listed_revision": "607a30d783dfa663caf39e06633721c8d4cfcd7e"
+          },
+          {
+            "rank": 3,
+            "id": "Qwen/Qwen3-8B",
+            "metric_value": 11688880,
+            "listed_revision": "b968826d9c46dd6066d109eabc6255188de91218"
+          },
+          {
+            "rank": 4,
+            "id": "trl-internal-testing/tiny-Qwen2ForCausalLM-2.5",
+            "metric_value": 11523350,
+            "listed_revision": "ce8d0bf270b28c8fab026ced69fe8aa14b0f0eda"
+          },
+          {
+            "rank": 5,
+            "id": "unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF",
+            "metric_value": 9901942,
+            "listed_revision": "b17cb02dd882d5b6ab62fc777ad2995f19668350"
+          }
+        ]
+      },
+      {
+        "cohort": "text-generation-with-provider-mapping",
+        "metric": "trendingScore",
+        "url": "https://huggingface.co/api/models?pipeline_tag=text-generation&sort=trendingScore&direction=-1&limit=5&full=true&inference_provider=all",
+        "observed_at_utc": "2026-09-30T01:35:58.815439+00:00",
+        "response_sha256": "ea66c02f5adb4b60950367efc836bf52d313de5b33093ef7bac74d1541ca4bbc",
+        "response_bytes": 15654,
+        "models": [
+          {
+            "rank": 1,
+            "id": "zai-org/GLM-5.3",
+            "metric_value": 53,
+            "listed_revision": "aca966e4e02791568aa6a4ced368624b3d897f42"
+          },
+          {
+            "rank": 2,
+            "id": "meta-llama/Llama-3.1-8B-Instruct",
+            "metric_value": 51,
+            "listed_revision": "0e9e39f249a16976918f6564b8830bc894c89659"
+          },
+          {
+            "rank": 3,
+            "id": "OBLITERATUS/Qwen3.8-27B-OBLITERATED",
+            "metric_value": 32,
+            "listed_revision": "a58c3b53b3ce71551eafde2ed5ec8df48e0f4ff8"
+          },
+          {
+            "rank": 4,
+            "id": "meta-llama/Llama-3.2-1B-Instruct",
+            "metric_value": 26,
+            "listed_revision": "9213176726f574b556790deb65791e0c5aa438b6"
+          },
+          {
+            "rank": 5,
+            "id": "Qwen/Qwen3-0.6B",
+            "metric_value": 26,
+            "listed_revision": "c1899de289a04d12100db370d81485cdf75e47ca"
+          }
+        ]
+      },
+      {
+        "cohort": "text-generation-with-provider-mapping",
+        "metric": "downloads",
+        "url": "https://huggingface.co/api/models?pipeline_tag=text-generation&sort=downloads&direction=-1&limit=5&full=true&inference_provider=all",
+        "observed_at_utc": "2026-09-30T01:35:58.954180+00:00",
+        "response_sha256": "3562d0f986049ccb861329aa454dc4dacec32b7b8616acbc710c2054dd3afb0b",
+        "response_bytes": 5417,
+        "models": [
+          {
+            "rank": 1,
+            "id": "Qwen/Qwen3-0.6B",
+            "metric_value": 29631573,
+            "listed_revision": "c1899de289a04d12100db370d81485cdf75e47ca"
+          },
+          {
+            "rank": 2,
+            "id": "Qwen/Qwen3-8B",
+            "metric_value": 11688880,
+            "listed_revision": "b968826d9c46dd6066d109eabc6255188de91218"
+          },
+          {
+            "rank": 3,
+            "id": "Qwen/Qwen2.5-7B-Instruct",
+            "metric_value": 9638289,
+            "listed_revision": "a09a35458c702b33eeacc393d103063234e8bc28"
+          },
+          {
+            "rank": 4,
+            "id": "Qwen/Qwen2.5-0.5B-Instruct",
+            "metric_value": 8642475,
+            "listed_revision": "7ae557604adf67be50417f59c2c2f167def9a775"
+          },
+          {
+            "rank": 5,
+            "id": "Qwen/Qwen2.5-1.5B-Instruct",
+            "metric_value": 7672124,
+            "listed_revision": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306"
+          }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "id": "XingChen-AGI/Xing4.0-29B-A4B",
+        "downloads": 46557,
+        "likes": 1808,
+        "trending_score": 412,
+        "pipeline_tag": "text-generation",
+        "library_name": "transformers",
+        "metadata_observation": {
+          "url": "https://huggingface.co/api/models/XingChen-AGI/Xing4.0-29B-A4B?expand=sha&expand=cardData&expand=inferenceProviderMapping",
+          "observed_at_utc": "2026-09-30T01:35:59.039352+00:00",
+          "response_sha256": "968e9a0b8e31f941f22afd1b54003c0d707a77b6742cdd5c72eb502ca8e7640e",
+          "response_bytes": 248
+        },
+        "revision": "baae3c3e813cad5f888f1f485cfff659c89076c5",
+        "model_card_url": "https://huggingface.co/XingChen-AGI/Xing4.0-29B-A4B/blob/baae3c3e813cad5f888f1f485cfff659c89076c5/README.md",
+        "card_license_declared": "apache-2.0",
+        "card_license_name": null,
+        "model_license_text_reviewed": false,
+        "base_model": null,
+        "inference_provider_mapping": {},
+        "provider_evidence_class": "REPORTED_METADATA_NOT_INFERENCE",
+        "official_code_repository": "https://github.com/XingChen-AGI/Xing4.0-29B-A4B",
+        "code_license": "Apache-2.0",
+        "code_license_reviewed": true,
+        "local_inference_witnessed": false,
+        "quality_score": null,
+        "first_token_latency_ms": null,
+        "tokens_per_second": null,
+        "joules": null,
+        "price_per_million_tokens": null,
+        "deployment_admitted": false,
+        "review_status": "CARD_CONFIG_AND_LICENSE_SOURCE_REVIEW_NOT_IMPLEMENTATION_AUDIT",
+        "license_decision": "REVIEW_REQUIRED",
+        "official_code_revision": "3adb7d6786fdcb0201be2b32d17e9ec2c162a318"
+      },
+      {
+        "id": "prism-ml/Ternary-Bonsai-2-27B-gguf",
+        "downloads": 3581027,
+        "likes": 2269,
+        "trending_score": 354,
+        "pipeline_tag": "text-generation",
+        "library_name": "llama.cpp",
+        "metadata_observation": {
+          "url": "https://huggingface.co/api/models/prism-ml/Ternary-Bonsai-2-27B-gguf?expand=sha&expand=cardData&expand=inferenceProviderMapping",
+          "observed_at_utc": "2026-09-30T01:35:59.155055+00:00",
+          "response_sha256": "4159ea111df4fb58a0c583e3f27cafa76b9a36fd71b4b0d1bf2f87936e4b0dd1",
+          "response_bytes": 396
+        },
+        "revision": "b072e1d3b35a0a630cece372c2127528e0994386",
+        "model_card_url": "https://huggingface.co/prism-ml/Ternary-Bonsai-2-27B-gguf/blob/b072e1d3b35a0a630cece372c2127528e0994386/README.md",
+        "card_license_declared": "apache-2.0",
+        "card_license_name": null,
+        "model_license_text_reviewed": false,
+        "base_model": [
+          "Qwen/Qwen3.8-27B"
+        ],
+        "inference_provider_mapping": {},
+        "provider_evidence_class": "REPORTED_METADATA_NOT_INFERENCE",
+        "official_code_repository": null,
+        "code_license": null,
+        "code_license_reviewed": false,
+        "local_inference_witnessed": false,
+        "quality_score": null,
+        "first_token_latency_ms": null,
+        "tokens_per_second": null,
+        "joules": null,
+        "price_per_million_tokens": null,
+        "deployment_admitted": false,
+        "review_status": "METADATA_ONLY_NOT_ADMITTED",
+        "license_decision": "REVIEW_REQUIRED"
+      },
+      {
+        "id": "Altworld/Hemmingway-1",
+        "downloads": 7880,
+        "likes": 773,
+        "trending_score": 270,
+        "pipeline_tag": "text-generation",
+        "library_name": "transformers",
+        "metadata_observation": {
+          "url": "https://huggingface.co/api/models/Altworld/Hemmingway-1?expand=sha&expand=cardData&expand=inferenceProviderMapping",
+          "observed_at_utc": "2026-09-30T01:35:59.332295+00:00",
+          "response_sha256": "a2942316bd405172b93711dcdbe6e76100224c6e3ea6c8d308bca541560f70d4",
+          "response_bytes": 349
+        },
+        "revision": "b987f1800da287b3016862948743a253fbf80553",
+        "model_card_url": "https://huggingface.co/Altworld/Hemmingway-1/blob/b987f1800da287b3016862948743a253fbf80553/README.md",
+        "card_license_declared": "cc-by-nc-4.0",
+        "card_license_name": null,
+        "model_license_text_reviewed": false,
+        "base_model": "Qwen/Qwen3.8-27B",
+        "inference_provider_mapping": {},
+        "provider_evidence_class": "REPORTED_METADATA_NOT_INFERENCE",
+        "official_code_repository": null,
+        "code_license": null,
+        "code_license_reviewed": false,
+        "local_inference_witnessed": false,
+        "quality_score": null,
+        "first_token_latency_ms": null,
+        "tokens_per_second": null,
+        "joules": null,
+        "price_per_million_tokens": null,
+        "deployment_admitted": false,
+        "review_status": "METADATA_ONLY_NOT_ADMITTED",
+        "license_decision": "REVIEW_REQUIRED",
+        "review_flags": [
+          "NONCOMMERCIAL_LICENSE_DECLARED_NOT_DEPLOYMENT_ADMITTED"
+        ]
+      },
+      {
+        "id": "orcarouter/OrcaSAQ-2-27B",
+        "downloads": 2143,
+        "likes": 212,
+        "trending_score": 211,
+        "pipeline_tag": "text-generation",
+        "library_name": "vllm",
+        "metadata_observation": {
+          "url": "https://huggingface.co/api/models/orcarouter/OrcaSAQ-2-27B?expand=sha&expand=cardData&expand=inferenceProviderMapping",
+          "observed_at_utc": "2026-09-30T01:35:59.498055+00:00",
+          "response_sha256": "b0486f5a8453e62f07d8cccad539b385eecbafd210cf337e65dd4ff7ef7424fb",
+          "response_bytes": 497
+        },
+        "revision": "15d20d7e9ae4fd89d1a47878f69381760169445b",
+        "model_card_url": "https://huggingface.co/orcarouter/OrcaSAQ-2-27B/blob/15d20d7e9ae4fd89d1a47878f69381760169445b/README.md",
+        "card_license_declared": "apache-2.0",
+        "card_license_name": null,
+        "model_license_text_reviewed": false,
+        "base_model": "Qwen/Qwen3.8-27B",
+        "inference_provider_mapping": {},
+        "provider_evidence_class": "REPORTED_METADATA_NOT_INFERENCE",
+        "official_code_repository": null,
+        "code_license": null,
+        "code_license_reviewed": false,
+        "local_inference_witnessed": false,
+        "quality_score": null,
+        "first_token_latency_ms": null,
+        "tokens_per_second": null,
+        "joules": null,
+        "price_per_million_tokens": null,
+        "deployment_admitted": false,
+        "review_status": "METADATA_ONLY_NOT_ADMITTED",
+        "license_decision": "REVIEW_REQUIRED"
+      },
+      {
+        "id": "XiaomiMiMo/MiMo-V2.6-Pro-RL",
+        "downloads": 78135,
+        "likes": 601,
+        "trending_score": 205,
+        "pipeline_tag": "text-generation",
+        "library_name": "transformers",
+        "metadata_observation": {
+          "url": "https://huggingface.co/api/models/XiaomiMiMo/MiMo-V2.6-Pro-RL?expand=sha&expand=cardData&expand=inferenceProviderMapping",
+          "observed_at_utc": "2026-09-30T01:35:59.709248+00:00",
+          "response_sha256": "7a82274d0d7c7ef519956eea73677d8a386aca38a830f1ebf7bf59579b9f41e1",
+          "response_bytes": 366
+        },
+        "revision": "73875d00b30a89ef8cc353a0b60b0e9f9561952d",
+        "model_card_url": "https://huggingface.co/XiaomiMiMo/MiMo-V2.6-Pro-RL/blob/73875d00b30a89ef8cc353a0b60b0e9f9561952d/README.md",
+        "card_license_declared": "mit",
+        "card_license_name": null,
+        "model_license_text_reviewed": false,
+        "base_model": null,
+        "inference_provider_mapping": {},
+        "provider_evidence_class": "REPORTED_METADATA_NOT_INFERENCE",
+        "official_code_repository": null,
+        "code_license": null,
+        "code_license_reviewed": false,
+        "local_inference_witnessed": false,
+        "quality_score": null,
+        "first_token_latency_ms": null,
+        "tokens_per_second": null,
+        "joules": null,
+        "price_per_million_tokens": null,
+        "deployment_admitted": false,
+        "review_status": "PINNED_CARD_CONFIG_ONLY_VERSION_SPECIFIC_CODE_UNAVAILABLE",
+        "license_decision": "REVIEW_REQUIRED",
+        "review_flags": [
+          "VERSION_SPECIFIC_CODE_NOT_FOUND",
+          "DECLARED_MIT_LICENSE_TEXT_FILE_NOT_FOUND"
+        ]
+      },
+      {
+        "id": "Qwen/Qwen3-0.6B",
+        "downloads": 29631573,
+        "likes": 1704,
+        "trending_score": null,
+        "pipeline_tag": "text-generation",
+        "library_name": "transformers",
+        "metadata_observation": {
+          "url": "https://huggingface.co/api/models/Qwen/Qwen3-0.6B?expand=sha&expand=cardData&expand=inferenceProviderMapping",
+          "observed_at_utc": "2026-09-30T01:35:59.921652+00:00",
+          "response_sha256": "33817d2f97fc35d1673c4be2cbf64def18cbde7f3ee70dea389ccbf8f5e3c57f",
+          "response_bytes": 458
+        },
+        "revision": "c1899de289a04d12100db370d81485cdf75e47ca",
+        "model_card_url": "https://huggingface.co/Qwen/Qwen3-0.6B/blob/c1899de289a04d12100db370d81485cdf75e47ca/README.md",
+        "card_license_declared": "apache-2.0",
+        "card_license_name": null,
+        "model_license_text_reviewed": true,
+        "base_model": [
+          "Qwen/Qwen3-0.6B-Base"
+        ],
+        "inference_provider_mapping": {
+          "featherless-ai": {
+            "status": "live",
+            "providerId": "Qwen/Qwen3-0.6B",
+            "task": "conversational",
+            "isModelAuthor": false
+          }
+        },
+        "provider_evidence_class": "REPORTED_METADATA_NOT_INFERENCE",
+        "official_code_repository": "https://github.com/QwenLM/Qwen3",
+        "code_license": null,
+        "code_license_reviewed": false,
+        "local_inference_witnessed": false,
+        "quality_score": null,
+        "first_token_latency_ms": null,
+        "tokens_per_second": null,
+        "joules": null,
+        "price_per_million_tokens": null,
+        "deployment_admitted": false,
+        "review_status": "PINNED_CARD_CONFIG_LICENSE_AND_RELATED_AGENT_HELPER_REVIEW",
+        "license_decision": "REVIEW_REQUIRED",
+        "official_code_revision": "7a2f61ffc7a20d47efcd2bf97f6f2bf52729042e",
+        "related_agent_code_license": "Apache-2.0",
+        "related_agent_code_license_reviewed": true
+      },
+      {
+        "id": "openai-community/gpt2",
+        "downloads": 15551940,
+        "likes": 4188,
+        "trending_score": null,
+        "pipeline_tag": "text-generation",
+        "library_name": "transformers",
+        "metadata_observation": {
+          "url": "https://huggingface.co/api/models/openai-community/gpt2?expand=sha&expand=cardData&expand=inferenceProviderMapping",
+          "observed_at_utc": "2026-09-30T01:36:00.278521+00:00",
+          "response_sha256": "a4bf0196aa926d54aa532f3d0a5834ca2f57b0c3f3c7e90cf8bc255d1ae6137d",
+          "response_bytes": 205
+        },
+        "revision": "607a30d783dfa663caf39e06633721c8d4cfcd7e",
+        "model_card_url": "https://huggingface.co/openai-community/gpt2/blob/607a30d783dfa663caf39e06633721c8d4cfcd7e/README.md",
+        "card_license_declared": "mit",
+        "card_license_name": null,
+        "model_license_text_reviewed": false,
+        "base_model": null,
+        "inference_provider_mapping": {},
+        "provider_evidence_class": "REPORTED_METADATA_NOT_INFERENCE",
+        "official_code_repository": null,
+        "code_license": null,
+        "code_license_reviewed": false,
+        "local_inference_witnessed": false,
+        "quality_score": null,
+        "first_token_latency_ms": null,
+        "tokens_per_second": null,
+        "joules": null,
+        "price_per_million_tokens": null,
+        "deployment_admitted": false,
+        "review_status": "METADATA_ONLY_NOT_ADMITTED",
+        "license_decision": "REVIEW_REQUIRED"
+      },
+      {
+        "id": "Qwen/Qwen3-8B",
+        "downloads": 11688880,
+        "likes": 2061,
+        "trending_score": null,
+        "pipeline_tag": "text-generation",
+        "library_name": "transformers",
+        "metadata_observation": {
+          "url": "https://huggingface.co/api/models/Qwen/Qwen3-8B?expand=sha&expand=cardData&expand=inferenceProviderMapping",
+          "observed_at_utc": "2026-09-30T01:36:00.484742+00:00",
+          "response_sha256": "93f7a8ff54135c32ac4dd625ce1bded3794f5c32b8185adcf7bc820edb549271",
+          "response_bytes": 552
+        },
+        "revision": "b968826d9c46dd6066d109eabc6255188de91218",
+        "model_card_url": "https://huggingface.co/Qwen/Qwen3-8B/blob/b968826d9c46dd6066d109eabc6255188de91218/README.md",
+        "card_license_declared": "apache-2.0",
+        "card_license_name": null,
+        "model_license_text_reviewed": false,
+        "base_model": [
+          "Qwen/Qwen3-8B-Base"
+        ],
+        "inference_provider_mapping": {
+          "nscale": {
+            "status": "live",
+            "providerId": "Qwen/Qwen3-8B",
+            "task": "conversational",
+            "isModelAuthor": false
+          },
+          "featherless-ai": {
+            "status": "live",
+            "providerId": "Qwen/Qwen3-8B",
+            "task": "conversational",
+            "isModelAuthor": false
+          }
+        },
+        "provider_evidence_class": "REPORTED_METADATA_NOT_INFERENCE",
+        "official_code_repository": null,
+        "code_license": null,
+        "code_license_reviewed": false,
+        "local_inference_witnessed": false,
+        "quality_score": null,
+        "first_token_latency_ms": null,
+        "tokens_per_second": null,
+        "joules": null,
+        "price_per_million_tokens": null,
+        "deployment_admitted": false,
+        "review_status": "METADATA_ONLY_NOT_ADMITTED",
+        "license_decision": "REVIEW_REQUIRED"
+      },
+      {
+        "id": "trl-internal-testing/tiny-Qwen2ForCausalLM-2.5",
+        "downloads": 11523350,
+        "likes": 53,
+        "trending_score": null,
+        "pipeline_tag": "text-generation",
+        "library_name": "transformers",
+        "metadata_observation": {
+          "url": "https://huggingface.co/api/models/trl-internal-testing/tiny-Qwen2ForCausalLM-2.5?expand=sha&expand=cardData&expand=inferenceProviderMapping",
+          "observed_at_utc": "2026-09-30T01:36:00.647920+00:00",
+          "response_sha256": "413718ec7995da2cac5cfddee937e25924d69aa20a7e5b8b958bf12fa4df5a3a",
+          "response_bytes": 225
+        },
+        "revision": "ce8d0bf270b28c8fab026ced69fe8aa14b0f0eda",
+        "model_card_url": "https://huggingface.co/trl-internal-testing/tiny-Qwen2ForCausalLM-2.5/blob/ce8d0bf270b28c8fab026ced69fe8aa14b0f0eda/README.md",
+        "card_license_declared": null,
+        "card_license_name": null,
+        "model_license_text_reviewed": false,
+        "base_model": null,
+        "inference_provider_mapping": {},
+        "provider_evidence_class": "REPORTED_METADATA_NOT_INFERENCE",
+        "official_code_repository": null,
+        "code_license": null,
+        "code_license_reviewed": false,
+        "local_inference_witnessed": false,
+        "quality_score": null,
+        "first_token_latency_ms": null,
+        "tokens_per_second": null,
+        "joules": null,
+        "price_per_million_tokens": null,
+        "deployment_admitted": false,
+        "review_status": "METADATA_ONLY_NOT_ADMITTED",
+        "license_decision": "REVIEW_REQUIRED",
+        "review_flags": [
+          "INTERNAL_TEST_FIXTURE_NAME",
+          "MODEL_CARD_LICENSE_MISSING"
+        ]
+      },
+      {
+        "id": "unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF",
+        "downloads": 9901942,
+        "likes": 1089,
+        "trending_score": null,
+        "pipeline_tag": "text-generation",
+        "library_name": "transformers",
+        "metadata_observation": {
+          "url": "https://huggingface.co/api/models/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF?expand=sha&expand=cardData&expand=inferenceProviderMapping",
+          "observed_at_utc": "2026-09-30T01:36:00.785625+00:00",
+          "response_sha256": "74800cd4362bc8dc72fa7575e277551660261529eb0c2e79913867666ab6786d",
+          "response_bytes": 438
+        },
+        "revision": "b17cb02dd882d5b6ab62fc777ad2995f19668350",
+        "model_card_url": "https://huggingface.co/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/blob/b17cb02dd882d5b6ab62fc777ad2995f19668350/README.md",
+        "card_license_declared": "apache-2.0",
+        "card_license_name": null,
+        "model_license_text_reviewed": false,
+        "base_model": [
+          "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+        ],
+        "inference_provider_mapping": {},
+        "provider_evidence_class": "REPORTED_METADATA_NOT_INFERENCE",
+        "official_code_repository": null,
+        "code_license": null,
+        "code_license_reviewed": false,
+        "local_inference_witnessed": false,
+        "quality_score": null,
+        "first_token_latency_ms": null,
+        "tokens_per_second": null,
+        "joules": null,
+        "price_per_million_tokens": null,
+        "deployment_admitted": false,
+        "review_status": "METADATA_ONLY_NOT_ADMITTED",
+        "license_decision": "REVIEW_REQUIRED"
+      },
+      {
+        "id": "zai-org/GLM-5.3",
+        "downloads": 1363500,
+        "likes": 1972,
+        "trending_score": 53,
+        "pipeline_tag": "text-generation",
+        "library_name": "transformers",
+        "metadata_observation": {
+          "url": "https://huggingface.co/api/models/zai-org/GLM-5.3?expand=sha&expand=cardData&expand=inferenceProviderMapping",
+          "observed_at_utc": "2026-09-30T01:36:01.036059+00:00",
+          "response_sha256": "ae2e962e2b6cebcea895c08e370f576d744f28719badfb2d3347b69b0df8a3e1",
+          "response_bytes": 1035
+        },
+        "revision": "aca966e4e02791568aa6a4ced368624b3d897f42",
+        "model_card_url": "https://huggingface.co/zai-org/GLM-5.3/blob/aca966e4e02791568aa6a4ced368624b3d897f42/README.md",
+        "card_license_declared": "other",
+        "card_license_name": "glm-5.3",
+        "model_license_text_reviewed": false,
+        "base_model": null,
+        "inference_provider_mapping": {
+          "novita": {
+            "status": "live",
+            "providerId": "zai-org/glm-5.3",
+            "task": "conversational",
+            "isModelAuthor": false
+          },
+          "together": {
+            "status": "live",
+            "providerId": "zai-org/GLM-5.3",
+            "task": "conversational",
+            "isModelAuthor": false
+          },
+          "fireworks-ai": {
+            "status": "live",
+            "providerId": "accounts/fireworks/models/glm-5p3",
+            "task": "conversational",
+            "isModelAuthor": false
+          },
+          "featherless-ai": {
+            "status": "live",
+            "providerId": "zai-org/GLM-5.3",
+            "task": "conversational",
+            "isModelAuthor": false
+          },
+          "zai-org": {
+            "status": "live",
+            "providerId": "glm-5.3",
+            "task": "conversational",
+            "isModelAuthor": true
+          },
+          "baseten": {
+            "status": "live",
+            "providerId": "zai-org/GLM-5.3",
+            "task": "conversational",
+            "isModelAuthor": false
+          },
+          "deepinfra": {
+            "status": "live",
+            "providerId": "zai-org/GLM-5.3",
+            "task": "conversational",
+            "isModelAuthor": false
+          }
+        },
+        "provider_evidence_class": "REPORTED_METADATA_NOT_INFERENCE",
+        "official_code_repository": null,
+        "code_license": null,
+        "code_license_reviewed": false,
+        "local_inference_witnessed": false,
+        "quality_score": null,
+        "first_token_latency_ms": null,
+        "tokens_per_second": null,
+        "joules": null,
+        "price_per_million_tokens": null,
+        "deployment_admitted": false,
+        "review_status": "METADATA_ONLY_NOT_ADMITTED",
+        "license_decision": "REVIEW_REQUIRED"
+      },
+      {
+        "id": "meta-llama/Llama-3.1-8B-Instruct",
+        "downloads": 6135791,
+        "likes": 8055,
+        "trending_score": 51,
+        "pipeline_tag": "text-generation",
+        "library_name": "transformers",
+        "metadata_observation": {
+          "url": "https://huggingface.co/api/models/meta-llama/Llama-3.1-8B-Instruct?expand=sha&expand=cardData&expand=inferenceProviderMapping",
+          "observed_at_utc": "2026-09-30T01:36:01.152548+00:00",
+          "response_sha256": "842c58489382a79eeae5339447458904893ca33d388787c17294f9111d442c4b",
+          "response_bytes": 13805
+        },
+        "revision": "0e9e39f249a16976918f6564b8830bc894c89659",
+        "model_card_url": "https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/blob/0e9e39f249a16976918f6564b8830bc894c89659/README.md",
+        "card_license_declared": "llama3.1",
+        "card_license_name": null,
+        "model_license_text_reviewed": false,
+        "base_model": "meta-llama/Meta-Llama-3.1-8B",
+        "inference_provider_mapping": {
+          "novita": {
+            "status": "live",
+            "providerId": "meta-llama/llama-3.1-8b-instruct",
+            "task": "conversational",
+            "isModelAuthor": false
+          },
+          "nscale": {
+            "status": "live",
+            "providerId": "meta-llama/Llama-3.1-8B-Instruct",
+            "task": "conversational",
+            "isModelAuthor": false
+          },
+          "featherless-ai": {
+            "status": "live",
+            "providerId": "meta-llama/Llama-3.1-8B-Instruct",
+            "task": "conversational",
+            "isModelAuthor": false
+          },
+          "deepinfra": {
+            "status": "live",
+            "providerId": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+            "task": "conversational",
+            "isModelAuthor": false
+          }
+        },
+        "provider_evidence_class": "REPORTED_METADATA_NOT_INFERENCE",
+        "official_code_repository": null,
+        "code_license": null,
+        "code_license_reviewed": false,
+        "local_inference_witnessed": false,
+        "quality_score": null,
+        "first_token_latency_ms": null,
+        "tokens_per_second": null,
+        "joules": null,
+        "price_per_million_tokens": null,
+        "deployment_admitted": false,
+        "review_status": "METADATA_ONLY_NOT_ADMITTED",
+        "license_decision": "REVIEW_REQUIRED"
+      },
+      {
+        "id": "OBLITERATUS/Qwen3.8-27B-OBLITERATED",
+        "downloads": 852659,
+        "likes": 1344,
+        "trending_score": 32,
+        "pipeline_tag": "text-generation",
+        "library_name": "mlx",
+        "metadata_observation": {
+          "url": "https://huggingface.co/api/models/OBLITERATUS/Qwen3.8-27B-OBLITERATED?expand=sha&expand=cardData&expand=inferenceProviderMapping",
+          "observed_at_utc": "2026-09-30T01:36:01.270289+00:00",
+          "response_sha256": "3623603ecba516e0ef4eb1f173009689bd1bee5d4bea6c977899abc0187a6c56",
+          "response_bytes": 536
+        },
+        "revision": "a58c3b53b3ce71551eafde2ed5ec8df48e0f4ff8",
+        "model_card_url": "https://huggingface.co/OBLITERATUS/Qwen3.8-27B-OBLITERATED/blob/a58c3b53b3ce71551eafde2ed5ec8df48e0f4ff8/README.md",
+        "card_license_declared": "apache-2.0",
+        "card_license_name": null,
+        "model_license_text_reviewed": false,
+        "base_model": "Qwen/Qwen3.8-27B",
+        "inference_provider_mapping": {
+          "featherless-ai": {
+            "status": "live",
+            "providerId": "OBLITERATUS/Qwen3.8-27B-OBLITERATED",
+            "task": "conversational",
+            "isModelAuthor": false
+          }
+        },
+        "provider_evidence_class": "REPORTED_METADATA_NOT_INFERENCE",
+        "official_code_repository": null,
+        "code_license": null,
+        "code_license_reviewed": false,
+        "local_inference_witnessed": false,
+        "quality_score": null,
+        "first_token_latency_ms": null,
+        "tokens_per_second": null,
+        "joules": null,
+        "price_per_million_tokens": null,
+        "deployment_admitted": false,
+        "review_status": "METADATA_ONLY_NOT_ADMITTED",
+        "license_decision": "REVIEW_REQUIRED",
+        "review_flags": [
+          "SAFETY_ABLATION_VARIANT_REQUIRES_ISOLATED_EVALUATION",
+          "NOT_AUTOMATICALLY_ADMITTED_FROM_POPULARITY"
+        ]
+      },
+      {
+        "id": "meta-llama/Llama-3.2-1B-Instruct",
+        "downloads": 7482149,
+        "likes": 1756,
+        "trending_score": 26,
+        "pipeline_tag": "text-generation",
+        "library_name": "transformers",
+        "metadata_observation": {
+          "url": "https://huggingface.co/api/models/meta-llama/Llama-3.2-1B-Instruct?expand=sha&expand=cardData&expand=inferenceProviderMapping",
+          "observed_at_utc": "2026-09-30T01:36:01.429715+00:00",
+          "response_sha256": "a8909994fd50ef2af4364d7b7510cd38e8809d4c02fa34652898ea47402cd343",
+          "response_bytes": 15064
+        },
+        "revision": "9213176726f574b556790deb65791e0c5aa438b6",
+        "model_card_url": "https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct/blob/9213176726f574b556790deb65791e0c5aa438b6/README.md",
+        "card_license_declared": "llama3.2",
+        "card_license_name": null,
+        "model_license_text_reviewed": false,
+        "base_model": null,
+        "inference_provider_mapping": {
+          "featherless-ai": {
+            "status": "live",
+            "providerId": "meta-llama/Llama-3.2-1B-Instruct",
+            "task": "conversational",
+            "isModelAuthor": false
+          },
+          "novita": {
+            "status": "error",
+            "providerId": "meta-llama/llama-3.2-1b-instruct",
+            "task": "conversational",
+            "isModelAuthor": false
+          }
+        },
+        "provider_evidence_class": "REPORTED_METADATA_NOT_INFERENCE",
+        "official_code_repository": null,
+        "code_license": null,
+        "code_license_reviewed": false,
+        "local_inference_witnessed": false,
+        "quality_score": null,
+        "first_token_latency_ms": null,
+        "tokens_per_second": null,
+        "joules": null,
+        "price_per_million_tokens": null,
+        "deployment_admitted": false,
+        "review_status": "METADATA_ONLY_NOT_ADMITTED",
+        "license_decision": "REVIEW_REQUIRED"
+      },
+      {
+        "id": "Qwen/Qwen2.5-7B-Instruct",
+        "downloads": 9638289,
+        "likes": 2329,
+        "trending_score": null,
+        "pipeline_tag": "text-generation",
+        "library_name": "transformers",
+        "metadata_observation": {
+          "url": "https://huggingface.co/api/models/Qwen/Qwen2.5-7B-Instruct?expand=sha&expand=cardData&expand=inferenceProviderMapping",
+          "observed_at_utc": "2026-09-30T01:36:01.542085+00:00",
+          "response_sha256": "829b77de9baf0f02aa14cd05e7c12f9e335107272226cb9ed940d1d0d6ae897f",
+          "response_bytes": 634
+        },
+        "revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+        "model_card_url": "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct/blob/a09a35458c702b33eeacc393d103063234e8bc28/README.md",
+        "card_license_declared": "apache-2.0",
+        "card_license_name": null,
+        "model_license_text_reviewed": false,
+        "base_model": "Qwen/Qwen2.5-7B",
+        "inference_provider_mapping": {
+          "featherless-ai": {
+            "status": "live",
+            "providerId": "Qwen/Qwen2.5-7B-Instruct",
+            "task": "conversational",
+            "isModelAuthor": false
+          },
+          "together": {
+            "status": "error",
+            "providerId": "Qwen/Qwen2.5-7B-Instruct-Turbo",
+            "task": "conversational",
+            "isModelAuthor": false
+          }
+        },
+        "provider_evidence_class": "REPORTED_METADATA_NOT_INFERENCE",
+        "official_code_repository": null,
+        "code_license": null,
+        "code_license_reviewed": false,
+        "local_inference_witnessed": false,
+        "quality_score": null,
+        "first_token_latency_ms": null,
+        "tokens_per_second": null,
+        "joules": null,
+        "price_per_million_tokens": null,
+        "deployment_admitted": false,
+        "review_status": "METADATA_ONLY_NOT_ADMITTED",
+        "license_decision": "REVIEW_REQUIRED"
+      },
+      {
+        "id": "Qwen/Qwen2.5-0.5B-Instruct",
+        "downloads": 8642475,
+        "likes": 645,
+        "trending_score": null,
+        "pipeline_tag": "text-generation",
+        "library_name": "transformers",
+        "metadata_observation": {
+          "url": "https://huggingface.co/api/models/Qwen/Qwen2.5-0.5B-Instruct?expand=sha&expand=cardData&expand=inferenceProviderMapping",
+          "observed_at_utc": "2026-09-30T01:36:01.657468+00:00",
+          "response_sha256": "44d9e0826b7adbb1710bea80487df6c1fbbbfe8cd4116b8139fb4991ea51f805",
+          "response_bytes": 520
+        },
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+        "model_card_url": "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct/blob/7ae557604adf67be50417f59c2c2f167def9a775/README.md",
+        "card_license_declared": "apache-2.0",
+        "card_license_name": null,
+        "model_license_text_reviewed": false,
+        "base_model": "Qwen/Qwen2.5-0.5B",
+        "inference_provider_mapping": {
+          "featherless-ai": {
+            "status": "live",
+            "providerId": "Qwen/Qwen2.5-0.5B-Instruct",
+            "task": "conversational",
+            "isModelAuthor": false
+          }
+        },
+        "provider_evidence_class": "REPORTED_METADATA_NOT_INFERENCE",
+        "official_code_repository": null,
+        "code_license": null,
+        "code_license_reviewed": false,
+        "local_inference_witnessed": false,
+        "quality_score": null,
+        "first_token_latency_ms": null,
+        "tokens_per_second": null,
+        "joules": null,
+        "price_per_million_tokens": null,
+        "deployment_admitted": false,
+        "review_status": "METADATA_ONLY_NOT_ADMITTED",
+        "license_decision": "REVIEW_REQUIRED"
+      },
+      {
+        "id": "Qwen/Qwen2.5-1.5B-Instruct",
+        "downloads": 7672124,
+        "likes": 861,
+        "trending_score": null,
+        "pipeline_tag": "text-generation",
+        "library_name": "transformers",
+        "metadata_observation": {
+          "url": "https://huggingface.co/api/models/Qwen/Qwen2.5-1.5B-Instruct?expand=sha&expand=cardData&expand=inferenceProviderMapping",
+          "observed_at_utc": "2026-09-30T01:36:01.835944+00:00",
+          "response_sha256": "2b95f90a5ea904c6558be6ce9ffa3abfee57148ddc490874fe31d2b56545a44b",
+          "response_bytes": 520
+        },
+        "revision": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306",
+        "model_card_url": "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct/blob/989aa7980e4cf806f80c7fef2b1adb7bc71aa306/README.md",
+        "card_license_declared": "apache-2.0",
+        "card_license_name": null,
+        "model_license_text_reviewed": false,
+        "base_model": "Qwen/Qwen2.5-1.5B",
+        "inference_provider_mapping": {
+          "featherless-ai": {
+            "status": "live",
+            "providerId": "Qwen/Qwen2.5-1.5B-Instruct",
+            "task": "conversational",
+            "isModelAuthor": false
+          }
+        },
+        "provider_evidence_class": "REPORTED_METADATA_NOT_INFERENCE",
+        "official_code_repository": null,
+        "code_license": null,
+        "code_license_reviewed": false,
+        "local_inference_witnessed": false,
+        "quality_score": null,
+        "first_token_latency_ms": null,
+        "tokens_per_second": null,
+        "joules": null,
+        "price_per_million_tokens": null,
+        "deployment_admitted": false,
+        "review_status": "METADATA_ONLY_NOT_ADMITTED",
+        "license_decision": "REVIEW_REQUIRED"
+      }
+    ]
+  },
+  "interpretation": {
+    "rankings_are_not_quality": true,
+    "downloads_are_not_unique_users_or_successful_inference": true,
+    "trending_formula_not_audited": true,
+    "download_window_description": "Hub adoption counter labelled downloads; not interpreted as a model benchmark.",
+    "provider_live_status_is_reported_not_witnessed": true,
+    "provider_mappings_are_mutable_and_not_checkpoint_serving_attestations": true,
+    "no_population_complete_claim": true,
+    "no_automatic_deployment_or_weight_adoption": true,
+    "no_performance_superiority_claim": true,
+    "empty_provider_mapping": "No provider was listed in this response; does not prove the model cannot be self-hosted.",
+    "unknown_numeric_fields": "null means not measured or not audited, never zero.",
+    "metadata_tools_fallback": "Hugging Face model_search MCP tool returned Tool model_search not found; official unauthenticated Hub API used instead.",
+    "source_urls": [
+      "https://huggingface.co/docs/inference-providers/hub-api",
+      "https://huggingface.co/docs/inference-providers/hub-integration",
+      "https://huggingface.co/docs/hub/models-the-hub"
+    ]
+  },
+  "requested_systems": [
+    {
+      "id": "grok-4.7",
+      "identity_state": "VERIFIED_PRIMARY_DOCUMENTATION",
+      "kind": "proprietary provider model",
+      "official_sources": [
+        "https://docs.x.ai/developers/grok-4-7",
+        "https://docs.x.ai/developers/model-capabilities/text/reasoning"
+      ],
+      "public_model_source_revision": null,
+      "model_code_license": null,
+      "owned_weights": false,
+      "live_inference_witnessed_by_this_intake": false,
+      "notes": "Official API identifier grok-4.7; reasoning effort low/medium/high/xhigh. This research does not establish successful provider inference or ownership of model weights. Provider capability must separately label final-text history and native encrypted-reasoning continuation."
+    },
+    {
+      "id": "jev-latest",
+      "identity_state": "MATCHED_EXISTING_CANONICAL_CONTRACT_AND_PRIMARY_DOCS",
+      "kind": "TypeSafe System One structured decision service",
+      "canonical_contract": "docs/model_admit_contract.v1.json",
+      "official_sources": [
+        "https://docs.typesafe.ai/introduction",
+        "https://docs.typesafe.ai/llms.txt",
+        "https://typesafe.ai/blog/introducing-system-one-models-and-jev"
+      ],
+      "primitives": [
+        "choice",
+        "score",
+        "noul"
+      ],
+      "role": "Proposal and advisory judgment only; controller owns permission and promotion.",
+      "provider_model_revision": null,
+      "model_code_license": null,
+      "owned_weights": false,
+      "live_inference_witnessed": false,
+      "deployment_admitted": false,
+      "source_review_status": "LOCAL_PAYLOAD_GAP_REPRODUCED",
+      "notes": "Primary docs describe typed decisions and probabilities. Reported confidence is not independently calibrated here. No Jev API request was made."
+    },
+    {
+      "id": "muse",
+      "identity_state": "USER_BINDING_UNRESOLVED_META_MUSE_IS_CANDIDATE_ONLY",
+      "kind": "Meta personal agent / Muse Spark model family",
+      "official_sources": [
+        "https://about.fb.com/news/2026/09/introducing-muse-personal-ai-agent/amp/",
+        "https://research.meta.ai/blog/security-and-safety-for-ai-agents-our-approach-with-muse",
+        "https://ai.meta.com/tools/muse/"
+      ],
+      "canonical_binding_found": false,
+      "scope_scanned": "Bounded canonical source scan in docs/research/config/model_release and Python/JSON/Markdown source; no exact Muse binding found.",
+      "public_implementation_revision": null,
+      "model_code_license": null,
+      "owned_weights": false,
+      "live_inference_witnessed": false,
+      "deployment_admitted": false,
+      "notes": "Meta's current Muse personal agent is one primary-source-backed candidate for the user's ambiguous term. No user-selected Muse product/model/version or canonical Muse binding is established. Google's 2023 image-generation Muse and unrelated MUSE papers are different identities. This is documentation study, not an implementation-code audit or a claim that Meta's protections exist in a11oy."
+    }
+  ],
+  "local_jev_audit": {
+    "baseline_revision": "599d3a4783fe2816a7c5cf15a819453d5cb6c264",
+    "source_files": [
+      {
+        "path": "payloads/yuyay_jev.py",
+        "sha256": "114f506524c74247cb75f78b2efe97a09f23a5291d1f3fa4e5b15ef64784ede4",
+        "source_url": "https://github.com/szl-holdings/a11oy/blob/599d3a4783fe2816a7c5cf15a819453d5cb6c264/payloads/yuyay_jev.py"
+      },
+      {
+        "path": "szl_jev_gate.py",
+        "sha256": "9801a9ed1b7a5e2ad97aae9d82df8f5f394811e705e61938077fd0162a9b65ea",
+        "source_url": "https://github.com/szl-holdings/a11oy/blob/599d3a4783fe2816a7c5cf15a819453d5cb6c264/szl_jev_gate.py"
+      },
+      {
+        "path": "docs/model_admit_contract.v1.json",
+        "sha256": "967b5dd50c74d287219e4f89f1f7e7447e971b87a288e384284f5d8a7addc56c"
+      }
+    ],
+    "offline_suite": {
+      "command": "python -B -m unittest payloads.tests.test_yuyay_jev_offline",
+      "tests": 19,
+      "failed": 0,
+      "result": "PASS",
+      "proof_scope": "Local software suite only; no Jev provider inference, model quality, or runtime publication proved."
+    },
+    "findings": [
+      {
+        "id": "JEV_INVERTED_MISSING_ANSWER",
+        "priority": "P1",
+        "state": "REPRODUCED_REPAIR_IN_PROGRESS_BY_CANONICAL_BUILD",
+        "location": "payloads/yuyay_jev.py:190",
+        "description": "axis_from_answer clamps absent, null, and NaN noul to zero, then invert polarity maps the invalid answer to 1.0. An unavailable hazard judgment can therefore appear maximally safe.",
+        "reproduction": {
+          "spec": {
+            "type": "noul",
+            "polarity": "invert"
+          },
+          "missing_answer_result": 1,
+          "null_answer_result": 1,
+          "nan_answer_result": 1,
+          "valid_hazard_probability_0_9_result": 0.1
+        },
+        "repair_contract": "Validate presence/type/finite/range before polarity inversion; invalid judgments must remain unavailable or fail closed.",
+        "test_gap": "Existing invert test exercises only valid 0.9; 19 passing tests do not cover malformed inverted answers.",
+        "repair_verification": "No repaired-source receipt was available to this intake; findings remain bound to baseline revision."
+      },
+      {
+        "id": "JEV_TRANSPORT_UNBOUNDED_REDIRECTS",
+        "priority": "P2",
+        "state": "SOURCE_OBSERVED_NOT_EXPLOITED",
+        "locations": [
+          "payloads/yuyay_jev.py:223",
+          "szl_jev_gate.py:212",
+          "szl_jev_gate.py:517"
+        ],
+        "description": "Provider code uses urllib default redirect handling and unbounded response reads; the canonical route path also retains a slice of the raw HTTP error body in detail.",
+        "repair_contract": "Use the existing bounded provider transport, fixed allowlisted endpoint, no redirects, bounded bytes, sanitized error taxonomy. Do not infer exploitation from source review."
+      }
+    ],
+    "external_api_calls": 0,
+    "evidence_signatures_verified": false
+  },
+  "source_reviews": [
+    {
+      "family": "Xing4.0",
+      "id": "XingChen-AGI/Xing4.0-29B-A4B",
+      "hf_revision": "baae3c3e813cad5f888f1f485cfff659c89076c5",
+      "github_repository": "https://github.com/XingChen-AGI/Xing4.0-29B-A4B",
+      "github_revision": "3adb7d6786fdcb0201be2b32d17e9ec2c162a318",
+      "github_model_version_match": true,
+      "weight_build_attested": false,
+      "model_license_declared": "apache-2.0",
+      "hf_license_file_url": null,
+      "hf_license_file_observed_status": 404,
+      "code_license": "Apache-2.0",
+      "implementation_code_completely_reviewed": false,
+      "artifacts": [
+        {
+          "url": "https://huggingface.co/XingChen-AGI/Xing4.0-29B-A4B/blob/baae3c3e813cad5f888f1f485cfff659c89076c5/README.md",
+          "sha256": "a827e38dcfbff6f0224290e4c82328fb8a3cbd25661881ba8096038fc50cb117",
+          "bytes": 8592,
+          "review_scope": "pinned model card"
+        },
+        {
+          "url": "https://huggingface.co/XingChen-AGI/Xing4.0-29B-A4B/blob/baae3c3e813cad5f888f1f485cfff659c89076c5/config.json",
+          "sha256": "253e6742d5be0094fd03d79d65cead200de11c5962be9220f8117d978bbe3cc8",
+          "bytes": 1649,
+          "review_scope": "pinned model configuration"
+        },
+        {
+          "url": "https://github.com/XingChen-AGI/Xing4.0-29B-A4B/blob/3adb7d6786fdcb0201be2b32d17e9ec2c162a318/README.md",
+          "sha256": "d97be882f33becef18410f3592a4cc0ceb01d10a545c44eb478033c8b251e445",
+          "bytes": null,
+          "review_scope": "retrieved and hashed; inspection partial"
+        },
+        {
+          "url": "https://github.com/XingChen-AGI/Xing4.0-29B-A4B/blob/3adb7d6786fdcb0201be2b32d17e9ec2c162a318/LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "bytes": null,
+          "review_scope": "code license text reviewed"
+        }
+      ],
+      "reported_capabilities": {
+        "total_parameters_billions": 29,
+        "active_parameters_billions": 4,
+        "config_max_position_embeddings": 262144,
+        "custom_auto_map_present": true,
+        "capability_values_witnessed": false
+      },
+      "abstract_pattern": "Separate resident parameters from per-token active parameters; retain explicit backend and reasoning-mode capability records.",
+      "independent_test_plan": [
+        "Reject unsupported backend/reasoning combinations before provider I/O.",
+        "Reject unapproved remote-code loading and revision mismatch.",
+        "Do not infer 4B-weight memory footprint from 4B active experts."
+      ]
+    },
+    {
+      "family": "Qwen3",
+      "id": "Qwen/Qwen3-0.6B",
+      "hf_revision": "c1899de289a04d12100db370d81485cdf75e47ca",
+      "github_repository": "https://github.com/QwenLM/Qwen3",
+      "github_revision": "7a2f61ffc7a20d47efcd2bf97f6f2bf52729042e",
+      "model_license_declared": "apache-2.0",
+      "model_license_text_reviewed": true,
+      "family_root_code_license": null,
+      "family_root_license_observed_status": 404,
+      "related_agent_repository": "https://github.com/QwenLM/Qwen-Agent",
+      "related_agent_revision": "31a4d36d123688581a9e9744427272b33ce940e0",
+      "related_agent_code_license": "Apache-2.0",
+      "weight_build_attested": false,
+      "artifacts": [
+        {
+          "url": "https://huggingface.co/Qwen/Qwen3-0.6B/blob/c1899de289a04d12100db370d81485cdf75e47ca/README.md",
+          "sha256": "1ab64a26fcb3b461423b89a433a8c858f1bf8d4086f979cbb3ff878d47cf20e9",
+          "bytes": 13965,
+          "review_scope": "pinned model card"
+        },
+        {
+          "url": "https://huggingface.co/Qwen/Qwen3-0.6B/blob/c1899de289a04d12100db370d81485cdf75e47ca/config.json",
+          "sha256": "660db3b73d788119c04535e48cf9be5f55bc3100841a718637ae695b442f27dd",
+          "bytes": 726,
+          "review_scope": "pinned model configuration"
+        },
+        {
+          "url": "https://huggingface.co/Qwen/Qwen3-0.6B/blob/c1899de289a04d12100db370d81485cdf75e47ca/LICENSE",
+          "sha256": "832dd9e00a68dd83b3c3fb9f5588dad7dcf337a0db50f7d9483f310cd292e92e",
+          "bytes": null,
+          "review_scope": "model license text reviewed"
+        },
+        {
+          "url": "https://github.com/QwenLM/Qwen-Agent/blob/31a4d36d123688581a9e9744427272b33ce940e0/qwen_agent/agents/assistant.py",
+          "sha256": "d69505e07d97a04d87b228479df1115fe52eeb721a3256d3a2cd4fa4ff16bb99",
+          "bytes": 6407,
+          "review_scope": "helper read completely; not whole agent audit"
+        },
+        {
+          "url": "https://github.com/QwenLM/Qwen-Agent/blob/31a4d36d123688581a9e9744427272b33ce940e0/LICENSE",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "bytes": null,
+          "review_scope": "related agent code license text reviewed"
+        }
+      ],
+      "additional_documentation_url": "https://github.com/QwenLM/Qwen3/blob/7a2f61ffc7a20d47efcd2bf97f6f2bf52729042e/README.md",
+      "reported_capabilities": {
+        "model_card_context_length": 32768,
+        "config_max_position_embeddings": 40960,
+        "capability_values_witnessed": false
+      },
+      "abstract_pattern": "Provider history modes must distinguish ordinary final-text chat from native reasoning/tool continuation. The inspected helper copies messages and attaches source-labelled retrieval to system content.",
+      "independent_design_inference": "Use immutable bounded retrieval envelopes with provenance and UNTRUSTED_INPUT boundaries; do not promote retrieved instructions into trusted system authority.",
+      "independent_test_plan": [
+        "Inputs remain immutable.",
+        "Retrieval bytes and source identifiers are bounded and retained.",
+        "Injected retrieval cannot change tool policy.",
+        "Final-text and native continuation fixtures remain distinct.",
+        "Reasoning text/ciphertext never leak into logs or receipts."
+      ]
+    },
+    {
+      "family": "MiMo-V2.6",
+      "id": "XiaomiMiMo/MiMo-V2.6-Pro-RL",
+      "hf_revision": "73875d00b30a89ef8cc353a0b60b0e9f9561952d",
+      "model_license_declared": "mit",
+      "hf_license_file_url": null,
+      "hf_license_file_observed_status": 404,
+      "version_specific_code_repository": null,
+      "version_specific_code_revision": null,
+      "version_specific_code_license": null,
+      "related_official_repository": "https://github.com/XiaomiMiMo/MiMo",
+      "related_official_revision": "3a3fe65e6081c9f340ff0d24d82c4d7a96a247c5",
+      "related_code_license": "Apache-2.0",
+      "github_model_version_match": false,
+      "weight_build_attested": false,
+      "artifacts": [
+        {
+          "url": "https://huggingface.co/XiaomiMiMo/MiMo-V2.6-Pro-RL/blob/73875d00b30a89ef8cc353a0b60b0e9f9561952d/README.md",
+          "sha256": "bf373f444efcd309534804edd1fadadd1eb0ad64f7b0474c96fdac946614c13e",
+          "bytes": 9770,
+          "review_scope": "pinned V2.6 model card"
+        },
+        {
+          "url": "https://huggingface.co/XiaomiMiMo/MiMo-V2.6-Pro-RL/blob/73875d00b30a89ef8cc353a0b60b0e9f9561952d/config.json",
+          "sha256": "a9dc00e2a0c2c172efd198f42e81e41c95472021b57c65366c06587d44038b62",
+          "bytes": 9263,
+          "review_scope": "pinned V2.6 model configuration"
+        },
+        {
+          "url": "https://github.com/XiaomiMiMo/MiMo/blob/3a3fe65e6081c9f340ff0d24d82c4d7a96a247c5/README.md",
+          "sha256": "ebed748358d4cf7116960d60afb39040bbd48343abf713be58148abb22f3e661",
+          "bytes": 15645,
+          "review_scope": "related older MiMo-7B / MiMo-7B-RL-0530 documentation"
+        },
+        {
+          "url": "https://github.com/XiaomiMiMo/MiMo/blob/3a3fe65e6081c9f340ff0d24d82c4d7a96a247c5/LICENSE",
+          "sha256": "539327f43d0a84438f006fadf77a651daa9ca29429286a46e69cb6b2594d8a4c",
+          "bytes": null,
+          "review_scope": "related older code license only"
+        }
+      ],
+      "audit_boundary": "Related repository is an older 2025 family; its Apache code license and implementation cannot be transferred to V2.6 weights. A V2.6 implementation-code audit remains unavailable.",
+      "abstract_pattern": "The current card describes comparing successful trajectories with additional rubric signals instead of treating every passing run equally.",
+      "independent_test_plan": [
+        "Correctness remains a hard gate.",
+        "Compare passing software traces using receipt completeness, denied-action violations, tool count, token budget and wall time.",
+        "Keep evaluation design separate from a training/RL or model-performance claim."
+      ]
+    }
+  ],
+  "independent_development": {
+    "label": "MODELED_RECOMMENDATION_NOT_IMPLEMENTED_MODEL_OR_BENCHMARK",
+    "direction": "An original SZL evidence-conditioned routing and command layer around existing a11oy controllers, not a renamed external foundation model.",
+    "non_copying_boundary": [
+      "Study public cards and small pinned documentation/source files only.",
+      "Do not execute untrusted remote code or import copied model implementations.",
+      "Do not rename external weights, inherit an unverified license, or claim their architecture/code as SZL work.",
+      "Implement independent interfaces, policies, math experiments and tests in canonical Python; cite inspected prior art.",
+      "Keep proprietary Grok/Jev/Muse behind explicit provider adapters, not owned model/kernel/dataset cards."
+    ],
+    "hypotheses": [
+      {
+        "id": "H1_EVIDENCE_ROUTER",
+        "label": "MODELED",
+        "statement": "A deterministic admission gate followed by a calibrated, abstaining route selector can reduce invalid or unsupported outputs at matched coverage compared with a single-provider free-text router.",
+        "objective": "Choose route r minimizing measured cost(r)+lambda*measured_latency(r)+mu*heldout_selective_error(r), subject to hard permission, provenance, license, and resource constraints. Unknown metrics disqualify automated cost/performance selection; coefficients frozen before held-out evaluation.",
+        "not_a_theorem": true,
+        "does_not_modify_locked_formula_count": true
+      },
+      {
+        "id": "H2_CONTEXT_BOUNDARY",
+        "label": "MODELED",
+        "statement": "Immutable bounded retrieval envelopes retaining source IDs and an explicit untrusted-data boundary can reduce instruction override failures compared with concatenating retrieved text into trusted system content.",
+        "not_a_theorem": true
+      },
+      {
+        "id": "H3_TYPED_JUDGMENT",
+        "label": "MODELED",
+        "statement": "Closed schemas and per-field validity checks with explicit abstention can reduce malformed/missing-answer acceptance compared with permissive numeric coercion. Valid typed model output still cannot authorize an action.",
+        "not_a_theorem": true
+      }
+    ],
+    "proposed_evaluation_protocol": {
+      "label": "ROADMAP_NO_RESULTS",
+      "implementation_baseline": "Current canonical a11oy software plus single-provider routing; record exact commit and provider model/version.",
+      "reference_candidates": [
+        "Qwen/Qwen3-0.6B",
+        "Qwen/Qwen3-8B",
+        "grok-4.7 if provisioned",
+        "jev-latest for typed advisory tasks if provisioned"
+      ],
+      "license_admission_required_before_weight_or_provider_use": true,
+      "challenge_split": {
+        "calibration_cases": 100,
+        "held_out_cases": 300,
+        "held_out_composition": {
+          "document_grounding": 100,
+          "allowed_command_routing": 100,
+          "malformed_missing_and_injection_resistance": 100
+        },
+        "cases_collected": 0,
+        "public_benchmark_imported": false,
+        "data_identity_sha256": null
+      },
+      "contamination_control": "Author task fixtures independently; freeze source/fixture hashes, splits, tuning coefficients and stop criteria before held-out runs; do not tune on held-out results.",
+      "arms": [
+        "Single provider baseline",
+        "Schema and deterministic admission only",
+        "Schema plus abstaining calibrated router",
+        "Full bounded retrieval envelopes plus router"
+      ],
+      "measures": [
+        "Task correctness with retained per-case evidence",
+        "Selective risk versus accepted coverage",
+        "Malformed/missing-answer acceptance",
+        "Unauthorized side effects",
+        "Source citation validity",
+        "Median and p95 end-to-end latency on named hardware/provider",
+        "Actual billed tokens/cost if available",
+        "Measured joules only from fresh exporter deltas; otherwise null"
+      ],
+      "statistical_rule": "Paired evaluation on identical frozen cases; report sample sizes and confidence intervals, including abstentions and failures. A quality improvement needs a positive paired result at matched coverage, not a popularity ranking.",
+      "security_rule": "No unauthorized action in the adversarial fixture set; any invalid measurement becoming safe or any hard-deny override blocks promotion. Passing a finite fixture set does not prove universal safety.",
+      "superiority_claim_allowed": false,
+      "executed_cases": 0,
+      "quality_score": null,
+      "cost_improvement": null,
+      "latency_improvement": null,
+      "energy_improvement": null,
+      "result_receipt": null
+    },
+    "immediate_action_order": [
+      "Repair Jev invalid-answer and transport gaps before operational claims.",
+      "Complete source/version/license review before admitting any checkpoint.",
+      "Expose this pinned metadata as read-only research in the canonical command centre.",
+      "Build independent provider capability/history contracts and evidence handles.",
+      "Run the frozen evaluation only with provisioned providers and approved resource budget.",
+      "Publish only actual new SZL software/kernels/datasets/model artifacts to their matching Hub types after protected GitHub source passes."
+    ]
+  }
+}
