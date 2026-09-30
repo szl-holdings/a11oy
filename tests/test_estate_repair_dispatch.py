@@ -317,7 +317,9 @@ class CommandBoundaryTests(unittest.TestCase):
 class WorkflowContractTests(unittest.TestCase):
     def test_hf_sync_vertical_job_remains_opt_in(self) -> None:
         text = HF_SYNC.read_text(encoding="utf-8")
-        self.assertIn("if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_vertical_flagships }}", text)
+        job = text.split("  publish-vertical-flagships:\n", 1)[1].split("\n  publish-finance-projection:", 1)[0]
+        self.assertIn("if: ${{ needs.manual-prerequisites.result == 'success' && github.event_name == 'workflow_dispatch' && inputs.publish_vertical_flagships }}", job)
+        self.assertIn("needs: [manual-prerequisites, deploy]", job)
 
     def test_estate_offline_suite_includes_dispatch_helper(self) -> None:
         text = ESTATE.read_text(encoding="utf-8")

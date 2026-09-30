@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - passive readiness JSON contracts
+- Passive readiness now separates transport reachability from successful health
+  and research JSON contracts. Missing routes, HTML responses, invalid payloads,
+  failed refreshes, and expired cached observations cannot count as ready.
+  This check does not grant operational authority or validate research claims.
+
 ### Fixed - command release qualification
 - Make Command v2 own its response with no-store/no-transform; verify actual
   middleware composition preserves its bytes without changing legacy pages.
