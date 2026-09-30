@@ -6,6 +6,7 @@
 import ast
 import hashlib
 import json
+import shlex
 import unittest
 from pathlib import Path
 
@@ -35,9 +36,11 @@ class PublicStewardPackageTests(unittest.TestCase):
     def test_explicit_docker_copy_closure(self):
         copies = [line.strip() for line in (ROOT / 'Dockerfile').read_text().splitlines()
                   if line.strip().startswith('COPY ')]
+        root_sources = {name for line in copies for parts in [shlex.split(line)]
+                        if parts[-1] == './' for name in parts[1:-1]}
         for filename in ('a11oy_steward_surface.py', 'steward_public.py',
                          'steward-public.json', 'steward-source-lock.json'):
-            self.assertIn('COPY ' + filename + ' ./', copies)
+            self.assertIn(filename, root_sources)
         self.assertFalse(any('estate.db' in line or 'frontier_steward_plan.json' in line
                              for line in copies))
 

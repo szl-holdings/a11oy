@@ -149,10 +149,7 @@ COPY szl_quantum_utility.py ./
 COPY szl_numerics_adapter.py ./
 # Public Steward services/provenance dependency: fixed read-only bytes from
 # exact canonical Estate OS source. No private audit store or model adapter.
-COPY a11oy_steward_surface.py ./
-COPY steward_public.py ./
-COPY steward-public.json ./
-COPY steward-source-lock.json ./
+COPY a11oy_steward_surface.py steward_public.py steward-public.json steward-source-lock.json ./
 COPY szl_numerics_dataset.py ./
 COPY szl_numerics_experiment.py ./
 COPY numerics/ ./numerics/
