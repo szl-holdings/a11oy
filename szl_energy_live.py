@@ -9,8 +9,8 @@ power-meter exporter and (b) the in-process sovereign-mesh governance posture.
   GET /api/<ns>/v1/energy/harvest  Bekenstein budget series + a heuristic tariff window
 
 DOCTRINE (v11 — NEVER violate):
-  - HONEST LABELS. joules read MEASURED only from a REAL, reachable NVML exporter;
-    when the meter is unreachable the label is UNAVAILABLE and joules is null with a
+  - HONEST LABELS. joules read MEASURED only with a valid reading from a reachable
+    NVML exporter; missing or invalid readings are UNAVAILABLE and joules is null with a
     note that joules were NOT fabricated. We NEVER invent a number.
   - The exporter is the SZL_GLM_METER NVML exporter (default https://meter2.a-11-oy.com),
     scraped at GET /metrics in Prometheus exposition format (szl_gpu_power_watts{...},
@@ -78,11 +78,13 @@ def _parse_labels(raw: str) -> dict:
 
 
 def _coerce_float(s: str):
+    if s is None or isinstance(s, bool):
+        return None
     try:
         f = float(s)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return None
-    if f != f or f in (float("inf"), float("-inf")):  # NaN / inf are not readings
+    if f != f or f in (float("inf"), float("-inf")) or f < 0:
         return None
     return f
 
@@ -106,18 +108,19 @@ def parse_meter_metrics(text: str) -> dict:
                     rows.append({
                         "gpu": str(g.get("index", "")),
                         "name": g.get("name") or ename,
-                        "watts": g.get("power_w"),
-                        "joules": g.get("joules"),
+                        "watts": _coerce_float(g.get("power_w")),
+                        "joules": _coerce_float(g.get("joules")),
                     })
-            tw = sum(g["watts"] for g in rows if isinstance(g["watts"], (int, float)))
-            jv = [g["joules"] for g in rows if isinstance(g["joules"], (int, float))]
-            tj = doc.get("totals", {}).get("joules")
+            wv = [g["watts"] for g in rows if g["watts"] is not None]
+            tw = _coerce_float(sum(wv)) if wv else None
+            jv = [g["joules"] for g in rows if g["joules"] is not None]
+            tj = _coerce_float(doc.get("totals", {}).get("joules"))
             if tj is None and jv:
-                tj = sum(jv)
+                tj = _coerce_float(sum(jv))
             return {
                 "gpus": rows,
-                "total_watts": round(tw, 6),
-                "total_joules": (round(tj, 6) if isinstance(tj, (int, float)) else None),
+                "total_watts": round(tw, 6) if tw is not None else None,
+                "total_joules": round(tj, 6) if tj is not None else None,
             }
         except Exception:
             pass  # fall through to Prometheus parse; never fabricate
@@ -145,12 +148,13 @@ def parse_meter_metrics(text: str) -> dict:
         else:
             slot["joules"] = val
     rows = list(gpus.values())
-    total_watts = sum(g["watts"] for g in rows if isinstance(g["watts"], (int, float)))
+    w_vals = [g["watts"] for g in rows if g["watts"] is not None]
+    total_watts = _coerce_float(sum(w_vals)) if w_vals else None
     j_vals = [g["joules"] for g in rows if isinstance(g["joules"], (int, float))]
-    total_joules = sum(j_vals) if j_vals else None
+    total_joules = _coerce_float(sum(j_vals)) if j_vals else None
     return {
         "gpus": rows,
-        "total_watts": round(total_watts, 6),
+        "total_watts": round(total_watts, 6) if total_watts is not None else None,
         "total_joules": (round(total_joules, 6) if total_joules is not None else None),
     }
 
@@ -300,19 +304,25 @@ def build_live() -> dict:
     reachable = bool(snap.get("reachable"))
     posture = govern_posture()
     if reachable:
-        label = LABEL_MEASURED
-        joules_label = LABEL_MEASURED
+        total_watts = _coerce_float(snap.get("total_watts"))
+        total_joules = _coerce_float(snap.get("total_joules"))
+        label = LABEL_MEASURED if total_joules is not None else LABEL_UNAVAILABLE
+        joules_label = label
         gpus = snap.get("gpus") or []
         nodes = [{
             "name": (g.get("name") or f"gpu{g.get('gpu')}"),
             "live": True,
-            "watts": g.get("watts"),
-            "joules": g.get("joules"),
+            "watts": _coerce_float(g.get("watts")),
+            "joules": _coerce_float(g.get("joules")),
+            "watts_label": (LABEL_MEASURED if _coerce_float(g.get("watts")) is not None
+                            else LABEL_UNAVAILABLE),
+            "joules_label": (LABEL_MEASURED if _coerce_float(g.get("joules")) is not None
+                             else LABEL_UNAVAILABLE),
             "source": "NVML",
         } for g in gpus]
-        total_watts = snap.get("total_watts")
-        total_joules = snap.get("total_joules")
-        note = "joules MEASURED from the live NVML exporter (Prometheus /metrics)"
+        note = ("joules MEASURED from the live NVML exporter (Prometheus /metrics)"
+                if total_joules is not None else
+                "meter reachable but valid joule readings UNAVAILABLE; joules NOT fabricated")
     else:
         label = LABEL_UNAVAILABLE
         joules_label = LABEL_UNAVAILABLE
@@ -323,6 +333,8 @@ def build_live() -> dict:
             "live": n.get("live"),
             "watts": None,
             "joules": None,
+            "watts_label": LABEL_UNAVAILABLE,
+            "joules_label": LABEL_UNAVAILABLE,
             "source": "mesh-posture",
         } for n in (posture.get("nodes") or [])]
         total_watts = None
@@ -333,6 +345,7 @@ def build_live() -> dict:
         "label": label,
         "nodes": nodes,
         "total_watts": total_watts,
+        "watts_label": LABEL_MEASURED if total_watts is not None else LABEL_UNAVAILABLE,
         "total_joules": total_joules,
         "joules_label": joules_label,
         "meter_url": METER_URL,
@@ -370,13 +383,14 @@ def _merged_engine_readings() -> dict:
             continue
         watts = None
         for g in (e.get("gpus") or []):
-            if g.get("live") and isinstance(g.get("power_w"), (int, float)):
-                watts = float(g["power_w"])
+            value = _coerce_float(g.get("power_w"))
+            if g.get("live") and value is not None:
+                watts = value
                 break
         joules = e.get("joules")
         out[name] = {
             "watts": watts,
-            "joules": float(joules) if isinstance(joules, (int, float)) else None,
+            "joules": _coerce_float(joules),
         }
     return out
 
@@ -438,13 +452,13 @@ def build_mesh() -> dict:
         exporter = str(n.get("exporter") or "").strip().lower()
         reading = engine_map.get(exporter) if exporter else None
         if reading is not None:
-            watts = reading.get("watts")
-            joules = reading.get("joules")
+            watts = _coerce_float(reading.get("watts"))
+            joules = _coerce_float(reading.get("joules"))
             source = "NVML"
         else:
             g = _match_gpu(n.get("gpu_model"))
-            watts = g.get("watts") if g else None
-            joules = g.get("joules") if g else None
+            watts = _coerce_float(g.get("watts")) if g else None
+            joules = _coerce_float(g.get("joules")) if g else None
             source = "NVML" if g else "mesh-posture"
         if isinstance(watts, (int, float)):
             watt_vals.append(watts)
@@ -454,7 +468,7 @@ def build_mesh() -> dict:
             "live": n.get("live"),
             "watts": watts,
             "joules": joules,
-            "joules_label": LABEL_MEASURED if isinstance(joules, (int, float)) else LABEL_UNAVAILABLE,
+            "joules_label": LABEL_MEASURED if joules is not None else LABEL_UNAVAILABLE,
             "source": source,
         }
         # GLM node: attribute REAL per-inference energy from the probe's models[] entry.
@@ -464,15 +478,16 @@ def build_mesh() -> dict:
         if n.get("is_glm"):
             base = str(n.get("model") or "").strip().lower().split(":", 1)[0]
             m = model_map.get(base) if base else None
-            jpt = m.get("joules_per_token") if m else None
+            jpt = _coerce_float(m.get("joules_per_token")) if m else None
             mlabel = (m.get("label") if m else None) or LABEL_UNAVAILABLE
-            if isinstance(jpt, (int, float)) and mlabel != LABEL_UNAVAILABLE:
+            if jpt is not None and mlabel != LABEL_UNAVAILABLE:
                 node["joules_per_token"] = jpt
                 node["joules_per_token_label"] = mlabel  # verbatim, never upgraded
                 node["measurement_method"] = m.get("measurement_method")
                 node["exclusive"] = m.get("exclusive")
-                node["energy_joules"] = m.get("energy_joules")
-                node["output_tokens"] = m.get("output_tokens")
+                node["energy_joules"] = _coerce_float(m.get("energy_joules"))
+                tokens = m.get("output_tokens")
+                node["output_tokens"] = tokens if type(tokens) is int and tokens >= 0 else None
                 node["inference_source"] = m.get("source")
             else:
                 node["joules_per_token"] = None
@@ -489,11 +504,11 @@ def build_mesh() -> dict:
     # metered this tick); fall back to the single-meter snapshot when nothing attributed.
     node_watts = [nd["watts"] for nd in nodes if isinstance(nd["watts"], (int, float))]
     node_joules = [nd["joules"] for nd in nodes if isinstance(nd["joules"], (int, float))]
-    any_reading = bool(node_watts) or bool(node_joules) or reachable
-    total_watts = (round(sum(node_watts), 6) if node_watts
-                   else (snap.get("total_watts") if reachable else None))
-    total_joules = (round(sum(node_joules), 6) if node_joules
-                    else (snap.get("total_joules") if reachable else None))
+    total_watts = (_coerce_float(sum(node_watts)) if node_watts
+                   else (_coerce_float(snap.get("total_watts")) if reachable else None))
+    total_joules = (_coerce_float(sum(node_joules)) if node_joules
+                    else (_coerce_float(snap.get("total_joules")) if reachable else None))
+    any_reading = total_watts is not None or total_joules is not None
 
     # ── HONEST METER GATE (Wave 32) ────────────────────────────────────────
     # The surface label is MEASURED only when the fleet joule meter env
@@ -515,7 +530,7 @@ def build_mesh() -> dict:
                                            % type(e).__name__),
                 "upgrade_condition": "restore szl_surface_fidelity and set "
                                      "A11OY_JOULE_METER_URLS"}
-    gated_measured = (gate.get("label") == LABEL_MEASURED)
+    gated_measured = gate.get("label") == LABEL_MEASURED and total_joules is not None
     label = LABEL_MEASURED if gated_measured else "STRUCTURAL-ONLY"
     # Totals survive ONLY when real per-node numbers were actually read this request.
     # Anything else (a cached snapshot, a default meter the operator never configured)
@@ -736,10 +751,10 @@ def _fetch_grid_intensity() -> tuple[float, str, str]:
         )
         with _ur.urlopen(req, timeout=4) as r:
             data = __import__("json").loads(r.read().decode())
-        ci = data.get("carbonIntensity")
+        ci = _coerce_float(data.get("carbonIntensity"))
         if ci is not None:
             return (
-                float(ci),
+                ci,
                 "MEASURED",
                 f"electricity_maps_v3 zone={_SCI_ELEC_MAPS_ZONE}",
             )
@@ -766,30 +781,38 @@ def build_sci() -> dict:
       - The Khipu receipt consumer MUST include these fields before DSSE signing.
     """
     snap = meter_snapshot()  # cached, short TTL
-    energy_joules: float | None = snap.get("total_joules")  # None when meter is down
     meter_reachable: bool = bool(snap.get("reachable"))
+    energy_joules = _coerce_float(snap.get("total_joules")) if meter_reachable else None
 
     grid_intensity, grid_label, grid_source = _fetch_grid_intensity()
+    grid_intensity = _coerce_float(grid_intensity)
+    if grid_intensity is None:
+        grid_label = LABEL_UNAVAILABLE
+    embodied_gco2 = _coerce_float(_SCI_EMBODIED_GCO2_PER_CALL)
 
-    if energy_joules is not None and energy_joules > 0 and meter_reachable:
+    if energy_joules is not None:
         energy_kwh = energy_joules / 3_600_000.0
-        operational_gco2 = energy_kwh * grid_intensity      # E × I
-        embodied_gco2 = _SCI_EMBODIED_GCO2_PER_CALL          # M (MODELED share)
-        sci_score = operational_gco2 + embodied_gco2          # (O + M) / R, R=1
-        carbon_gco2 = round(operational_gco2, 8)
-        sci_rounded = round(sci_score, 8)
+        operational_gco2 = (_coerce_float(energy_kwh * grid_intensity)
+                           if grid_intensity is not None else None)
+        sci_score = (_coerce_float(operational_gco2 + embodied_gco2)
+                     if operational_gco2 is not None and embodied_gco2 is not None else None)
+        carbon_gco2 = round(operational_gco2, 8) if operational_gco2 is not None else None
+        sci_rounded = round(sci_score, 8) if sci_score is not None else None
         energy_label = LABEL_MEASURED
-        overall_label = LABEL_MEASURED if grid_label == "MEASURED" else "MODELED"
-        note = "Energy MEASURED from live NVML meter; SCI computed per ISO 21031:2024."
+        # Embodied carbon remains modeled even when both energy and grid are measured.
+        overall_label = "MODELED" if sci_score is not None else LABEL_UNAVAILABLE
+        note = ("Energy MEASURED from a cumulative NVML exporter counter; SCI includes "
+                "MODELED embodied carbon, without per-inference attribution."
+                if sci_score is not None else
+                "Energy MEASURED; SCI UNAVAILABLE because a carbon input or result is invalid.")
     else:
         energy_kwh = None
         carbon_gco2 = None
         sci_rounded = None
         energy_label = LABEL_UNAVAILABLE
         overall_label = LABEL_UNAVAILABLE
-        note = ("energy_joules UNAVAILABLE — sovereign GPU + meter are offline. "
-                "Joules NOT fabricated. Turn on the sovereign GPU and start "
-                "the cloudflared meter tunnel to get MEASURED SCI scores.")
+        note = ("energy_joules UNAVAILABLE — no valid live energy reading. "
+                "Joules NOT fabricated; exporter reachability alone is not a measurement.")
 
     return {
         "label": overall_label,
@@ -800,10 +823,12 @@ def build_sci() -> dict:
         "grid_intensity_gco2_per_kwh": grid_intensity,
         "grid_intensity_label": grid_label,
         "grid_source": grid_source,
-        "embodied_gco2eq_per_call": _SCI_EMBODIED_GCO2_PER_CALL,
-        "embodied_label": "MODELED",
+        "embodied_gco2eq_per_call": embodied_gco2,
+        "embodied_label": "MODELED" if embodied_gco2 is not None else LABEL_UNAVAILABLE,
         "sci_score_gco2_per_call": sci_rounded,
         "sci_functional_unit": "inference_call",
+        "energy_scope": "cumulative_exporter_reading",
+        "per_inference_attribution": LABEL_UNAVAILABLE,
         "measurement_source": ("nvml/kepler" if meter_reachable and energy_joules is not None
                                else "none/meter_offline"),
         "methodology": "GSF_SCI_ISO_21031_2024",
@@ -833,12 +858,14 @@ def build_sci_receipt_fields() -> dict:
         "sci_score_gco2_per_call": sci["sci_score_gco2_per_call"],
         "sci_functional_unit": "inference_call",
         "measurement_source": sci["measurement_source"],
+        "energy_scope": sci["energy_scope"],
+        "per_inference_attribution": sci["per_inference_attribution"],
         "grid_source": sci["grid_source"],
         "methodology": "GSF_SCI_ISO_21031_2024",
         "energy_label": sci["energy_label"],
         "grid_intensity_label": sci["grid_intensity_label"],
         "embodied_gco2eq_per_call": sci["embodied_gco2eq_per_call"],
-        "embodied_label": "MODELED",
+        "embodied_label": sci["embodied_label"],
         "sci_label": sci["label"],
         "sci_note": sci["note"],
     }
