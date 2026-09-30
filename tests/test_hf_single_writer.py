@@ -281,12 +281,25 @@ def _repo_source(
     return normalized, path.read_text(encoding="utf-8")
 
 
-def _python_command_texts(text: str, inherited_directory: str) -> list[tuple[str, str]]:
+class _OpaquePythonValue(RuntimeError):
+    """An in-file computed argv/cwd value that is over-approximated, not trusted."""
+
+
+def _python_command_texts(text: str, inherited_directory: str,
+                          source_exists=None, source_directory: str = "") -> list[tuple[str, str]]:
     """Bound standard process calls, without treating Python string data as code.
 
     This is a static check of supported subprocess/os/asyncio calls, not proof
     that arbitrary dynamically constructed Python cannot execute another file.
-    Unknown commands and ambiguous aliases in those calls fail closed.
+    Ambiguous executor aliases, escaped executors, mutated argv, overrides and
+    externally supplied commands (environment/argv reads) fail closed.
+
+    A standard process call whose argv or cwd is built from in-file values
+    that cannot be reduced to one literal (a wrapper parameter, a computed
+    ``Path``) is over-approximated instead: every repository script or module
+    that the file names in string data (and that exists) is treated as a
+    possible delegate, so a writer reachable through such a wrapper is still
+    followed. ``source_exists(path, base_dir)`` filters witnesses to real files.
     """
     try:
         tree = ast.parse(text)
@@ -327,6 +340,8 @@ def _python_command_texts(text: str, inherited_directory: str) -> list[tuple[str
             value = (parent.value if isinstance(parent, ast.Assign) and node in parent.targets
                      else parent.value if isinstance(parent, ast.AnnAssign) and parent.target is node
                      else None)
+            if value is None and isinstance(parent, ast.For) and parent.target is node:
+                value = ("for", parent.iter)
             if value is None:
                 cursor = parent
                 while isinstance(cursor, (ast.Tuple, ast.List)):
@@ -335,7 +350,7 @@ def _python_command_texts(text: str, inherited_directory: str) -> list[tuple[str
                     value = ("unknown", cursor.value)
             bind(node, node.id, value)
         elif isinstance(node, ast.arg):
-            bind(node, node.arg, None)
+            bind(node, node.arg, ("param", node))
         elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             bind(node, node.name, None)
         elif isinstance(node, (ast.Global, ast.Nonlocal)):
@@ -377,22 +392,45 @@ def _python_command_texts(text: str, inherited_directory: str) -> list[tuple[str
         "spawnl", "spawnlp", "spawnle", "spawnlpe", "spawnv", "spawnvp", "spawnve", "spawnvpe",
         "posix_spawn", "posix_spawnp", "chdir", "fchdir", "startfile")}
 
+    # ``os.sys.argv = [...]`` (a test harness setting argv) is data, not an
+    # executor; every other store/delete on a process-module member fails closed.
+    mutable_data_members = {"os.sys.argv", "os.environ"}
     if any(isinstance(node, ast.Attribute) and isinstance(node.ctx, (ast.Store, ast.Del))
-           and (qualified(node.value) or "").split(".")[0] in process_roots for node in nodes):
+           and (qualified(node.value) or "").split(".")[0] in process_roots
+           and f"{qualified(node.value)}.{node.attr}" not in mutable_data_members for node in nodes):
         raise RuntimeError("Python execution module attributes were mutated")
 
+    process_data_members = {
+        "os.environ", "os.getenv", "os.path", "os.sep", "os.linesep", "os.pathsep", "os.fspath",
+        "os.getcwd", "os.name", "os.listdir", "os.scandir", "os.walk", "os.stat", "os.lstat", "os.fstat",
+        "os.getpid", "os.cpu_count", "os.urandom", "os.sys.argv", "subprocess.PIPE", "subprocess.DEVNULL", "subprocess.STDOUT",
+        "subprocess.CalledProcessError", "subprocess.TimeoutExpired", "subprocess.SubprocessError",
+        "subprocess.CompletedProcess"}
+
+    def process_result(node):
+        # The value returned by an unambiguous standard process call (for
+        # example ``subprocess.run(...).stdout``) is result data, not the
+        # callee. The call itself is still validated by the execution loop.
+        return isinstance(node, ast.Call) and qualified(node.func) in executions
+
     def potential_process(node, seen=frozenset()):
-        if node is None or id(node) in seen:
+        if node is None or id(node) in seen or process_result(node):
+            return False
+        if isinstance(node, ast.Call) and data_member_access(node):
             return False
         seen = seen | {id(node)}
         name = qualified(node)
         if name and name.split(".")[0] in process_roots:
-            return True
+            # Known data/constant members of the process modules (environment
+            # reads, path helpers, pipe sentinels, exception types) cannot
+            # launch a process; every other member remains a potential alias.
+            return not any(name == prefix or name.startswith(prefix + ".")
+                           for prefix in process_data_members)
         if isinstance(node, ast.Name):
             # Inspect shadowed outer bindings too: an ambiguous executor alias
             # must not disappear just because a nearer parameter hides it.
             return any((isinstance(value, tuple) and value[0] == "qualified" and value[1].split(".")[0] in process_roots)
-                       or (isinstance(value, tuple) and value[0] == "unknown" and potential_process(value[1], seen))
+                       or (isinstance(value, tuple) and value[0] in {"unknown", "for"} and potential_process(value[1], seen))
                        or (isinstance(value, ast.AST) and potential_process(value, seen))
                        for scope in scopes(node)
                        for value in bindings.get(scope, {}).get(node.id, []))
@@ -402,21 +440,47 @@ def _python_command_texts(text: str, inherited_directory: str) -> list[tuple[str
         if node is None or id(node) in seen:
             return False
         seen = seen | {id(node)}
+        if isinstance(node, ast.Call) and data_member_access(node):
+            return False
+        if process_result(node):
+            # Only the arguments can smuggle an executor out of a result.
+            return any(execution_value(value, seen)
+                       for value in [*node.args, *(keyword.value for keyword in node.keywords)])
         name = qualified(node)
         if name is not None:
             return name in executions | unsupported | process_roots
         if isinstance(node, ast.Name):
             return any((isinstance(value, tuple) and value[0] == "qualified"
                         and value[1] in executions | unsupported | process_roots)
-                       or (isinstance(value, tuple) and value[0] == "unknown" and execution_value(value[1], seen))
+                       or (isinstance(value, tuple) and value[0] in {"unknown", "for"} and execution_value(value[1], seen))
                        or (isinstance(value, ast.AST) and execution_value(value, seen))
                        for scope in scopes(node)
                        for value in bindings.get(scope, {}).get(node.id, []))
         return any(execution_value(child, seen) for child in ast.iter_child_nodes(node))
 
+    def data_member_access(call):
+        # getattr(os, "O_BINARY", 0) / mock.patch.object(os, "environ", ...) name
+        # one constant data member; handing out an executor name stays closed.
+        function = qualified(call.func)
+        if function is None and isinstance(call.func, ast.Name) and not lookup(call.func.id, scopes(call.func)):
+            function = "builtins." + call.func.id
+        if function not in {"builtins.getattr", "builtins.hasattr"} and not (
+                function or "").endswith("patch.object"):
+            return False
+        if len(call.args) < 2 or not isinstance(call.args[1], ast.Constant) or type(call.args[1].value) is not str:
+            return False
+        module = qualified(call.args[0])
+        if module not in process_roots | {"builtins", "sys"}:
+            return False
+        member = f"{module}.{call.args[1].value}"
+        return (member.startswith("os.O_") or member in {"os.environ", "os.getenv", "sys.argv", "builtins.__import__"}
+                or any(member == prefix for prefix in process_data_members))
+
     for node in nodes:
         escaping = []
-        if isinstance(node, ast.Call) and qualified(node.func) not in executions:
+        if isinstance(node, ast.Call) and data_member_access(node):
+            escaping = [*node.args[2:], *(keyword.value for keyword in node.keywords)]
+        elif isinstance(node, ast.Call) and qualified(node.func) not in executions:
             escaping = [*node.args, *(keyword.value for keyword in node.keywords)]
         elif isinstance(node, (ast.Return, ast.Yield, ast.YieldFrom)):
             escaping = [node.value]
@@ -428,6 +492,23 @@ def _python_command_texts(text: str, inherited_directory: str) -> list[tuple[str
             escaping = [node.value]
         if any(execution_value(value) for value in escaping):
             raise RuntimeError("Python execution callable or module escaped its bounded scope")
+
+    def opaque(node):
+        # In-file computed data (a wrapper parameter, a computed Path/str, an
+        # attribute or f-string) that is not one literal. Undefined names,
+        # rebinding and mutation are NOT opaque; they stay fail-closed.
+        if isinstance(node, ast.Name):
+            values = lookup(node.id, scopes(node))
+            if len(values) == 1:
+                return isinstance(values[0], tuple) and values[0][0] in {"param", "for"}
+            # Several in-file assignments of computed data are over-approximated;
+            # a bare rebinding (augmented assignment, del, global) stays closed.
+            return bool(values) and all(isinstance(value, ast.AST)
+                                        or isinstance(value, tuple) and value[0] in {"param", "for", "unknown"}
+                                        for value in values)
+        if isinstance(node, ast.Starred):
+            return opaque(node.value)
+        return isinstance(node, (ast.Call, ast.Attribute, ast.JoinedStr, ast.Subscript, ast.IfExp, ast.BoolOp))
 
     def literal(node, seen=frozenset()):
         if node is None or id(node) in seen or len(seen) > MAX_REFERENCE_DEPTH:
@@ -454,6 +535,8 @@ def _python_command_texts(text: str, inherited_directory: str) -> list[tuple[str
                 if len(left) + len(right) > (16 * 1024 if type(left) is str else MAX_REFERENCED_SOURCES):
                     raise RuntimeError("Python execution command is too large")
                 return left + right, left_origins | right_origins
+        if opaque(node):
+            raise _OpaquePythonValue("Python execution command cannot be bounded")
         raise RuntimeError("Python execution command cannot be bounded")
 
     def origins(node):
@@ -484,6 +567,131 @@ def _python_command_texts(text: str, inherited_directory: str) -> list[tuple[str
                 if isinstance(part, ast.Name):
                     escaped_lists.update(origins(part))
 
+    def loop_candidates(argument):
+        # ``for command in ([...], [...]): subprocess.run(command)`` binds the
+        # argv to each element of a fixed literal sequence; every element is
+        # bounded and validated as its own command. Anything else is unchanged.
+        if isinstance(argument, ast.Name):
+            values = lookup(argument.id, scopes(argument))
+            if (len(values) == 1 and isinstance(values[0], tuple) and values[0][0] == "for"
+                    and isinstance(values[0][1], (ast.Tuple, ast.List))
+                    and 0 < len(values[0][1].elts) <= MAX_REFERENCED_SOURCES):
+                return list(values[0][1].elts)
+        return [argument]
+
+    external_sources = {"os.environ", "os.getenv", "os.environb", "os.getenvb", "sys.argv", "sys.stdin",
+                        "builtins.input", "builtins.open", "fileinput.input"}
+
+    def external_command(call, every_keyword=False):
+        """Commands read from the environment, argv, stdin or files have no in-file witness."""
+        arguments = [*call.args, *(keyword.value for keyword in call.keywords
+                                   if every_keyword or keyword.arg in {None, "args"})]
+        pending, seen = list(arguments), set()
+        while pending:
+            current = pending.pop()
+            if id(current) in seen or len(seen) > 4096:
+                continue
+            seen.add(id(current))
+            for part in ast.walk(current):
+                name = qualified(part)
+                if name is not None and any(name == prefix or name.startswith(prefix + ".")
+                                            for prefix in external_sources):
+                    return True
+                if isinstance(part, ast.Name) and part.id in {"input", "open"} and not lookup(part.id, scopes(part)):
+                    return True
+                if isinstance(part, ast.Name):
+                    for value in lookup(part.id, scopes(part)):
+                        if isinstance(value, ast.AST):
+                            pending.append(value)
+                        elif isinstance(value, tuple) and value[0] in {"unknown", "for"}:
+                            pending.append(value[1])
+        return False
+
+    def externally_fed(call, argument):
+        """A wrapper whose in-file callers pass environment/argv/stdin data as the argv."""
+        cursor = parents.get(call)
+        while cursor is not None and not isinstance(cursor, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            cursor = parents.get(cursor)
+        if cursor is None:
+            return False
+        names, pending, seen = set(), [argument], set()
+        while pending:
+            current = pending.pop()
+            if current is None or id(current) in seen or len(seen) > 4096:
+                continue
+            seen.add(id(current))
+            for part in ast.walk(current):
+                if isinstance(part, ast.Name):
+                    names.add(part.id)
+                    for value in lookup(part.id, scopes(part)):
+                        if isinstance(value, ast.AST):
+                            pending.append(value)
+                        elif isinstance(value, tuple) and value[0] in {"unknown", "for"}:
+                            pending.append(value[1])
+        positional = [arg.arg for arg in [*cursor.args.posonlyargs, *cursor.args.args]]
+        for other in nodes:
+            if not isinstance(other, ast.Call):
+                continue
+            if isinstance(other.func, ast.Name) and other.func.id == cursor.name:
+                offset = 0
+            elif isinstance(other.func, ast.Attribute) and other.func.attr == cursor.name:
+                offset = 1 if positional[:1] in (["self"], ["cls"]) else 0
+            else:
+                continue
+            fed = [value for index, value in enumerate(other.args)
+                   if isinstance(value, ast.Starred)
+                   or index + offset < len(positional) and positional[index + offset] in names]
+            fed += [keyword.value for keyword in other.keywords if keyword.arg is None or keyword.arg in names]
+            if fed and external_command(ast.Call(func=other.func, args=fed, keywords=[])):
+                return True
+        return False
+
+    def witness_commands():
+        """Every existing repository script/module this file names in string data."""
+        dirs = sorted({inherited_directory, "", source_directory})
+        pieces = []
+        for node in nodes:
+            if isinstance(node, ast.Constant) and type(node.value) is str and len(node.value) <= 16 * 1024:
+                pieces.append(node.value)
+            elif isinstance(node, (ast.List, ast.Tuple)):
+                parts = [("python3" if qualified(part) == "sys.executable" else part.value)
+                         for part in node.elts
+                         if qualified(part) == "sys.executable"
+                         or isinstance(part, ast.Constant) and type(part.value) is str]
+                if parts:
+                    pieces.append(" ".join(parts))
+            elif isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div) and not isinstance(parents.get(node), ast.BinOp):
+                chain, cursor = [], node
+                while isinstance(cursor, ast.BinOp) and isinstance(cursor.op, ast.Div):
+                    if isinstance(cursor.right, ast.Constant) and type(cursor.right.value) is str:
+                        chain.append(cursor.right.value)
+                    cursor = cursor.left
+                if isinstance(cursor, ast.Constant) and type(cursor.value) is str:
+                    chain.append(cursor.value)
+                if chain:
+                    pieces.append("/".join(reversed(chain)))
+        found = []
+        for piece in pieces:
+            for token in re.split(r"[\s\"',;|&()\[\]{}=]+", piece):
+                token = token.removeprefix("./")
+                if (not re.fullmatch(r"(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+", token)
+                        or ".." in PurePosixPath(token).parts):
+                    continue
+                suffix = PurePosixPath(token).suffix.lower()
+                runner = {".py": "python3", ".sh": "bash", ".bash": "bash",
+                          ".js": "node", ".mjs": "node", ".cjs": "node"}.get(suffix)
+                candidates = [f"{runner} {token}"] if runner else []
+                if re.fullmatch(r"[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+", token) and not runner:
+                    candidates.append(f"python3 -m {token}")
+                for base_dir in dirs:
+                    for candidate in candidates:
+                        target = (token if not candidate.startswith("python3 -m ")
+                                  else token.replace(".", "/") + ".py")
+                        if source_exists is not None and source_exists(target, base_dir):
+                            found.append(("run: " + candidate, base_dir))
+        return sorted(set(found))
+
+    unbounded_calls = []
     commands = []
     for node in nodes:
         if not isinstance(node, ast.Call):
@@ -506,78 +714,102 @@ def _python_command_texts(text: str, inherited_directory: str) -> list[tuple[str
         argument = node.args[0] if node.args else keywords.get("args")
         if node.args and "args" in keywords:
             raise RuntimeError("Python execution arguments cannot be bounded")
-        if function == "asyncio.create_subprocess_exec":
-            values = [literal(arg) for arg in node.args]
-            if not values or any(type(value) is not str for value, _ in values):
-                raise RuntimeError("Python execution command cannot be bounded")
-            command = [value for value, _ in values]
-            command_origins = set().union(*(items for _, items in values))
-        else:
-            command, command_origins = literal(argument)
-        if command_origins & escaped_lists:
-            raise RuntimeError("Python execution argv was mutated or escaped")
-        shell = keywords.get("shell")
-        if shell is not None and not (isinstance(shell, ast.Constant) and type(shell.value) is bool):
-            raise RuntimeError("Python execution shell mode cannot be bounded")
-        uses_shell = (function in {"os.system", "os.popen", "subprocess.getoutput",
-                                  "subprocess.getstatusoutput", "asyncio.create_subprocess_shell"}
-                      or (shell is not None and shell.value is True))
-        if uses_shell and isinstance(command, str) and any(token in command for token in (";", "&", "|", "\n", "`", "$")):
-            raise RuntimeError("Python shell delegation cannot be bounded")
-        if isinstance(command, list):
-            if not command:
-                raise RuntimeError("Python execution command cannot be bounded")
-            argv = command
-        else:
+        if external_command(node):
+            raise RuntimeError("Python execution command is externally supplied and cannot be bounded")
+        for argument in loop_candidates(argument):
             try:
-                argv = shlex.split(command, posix=True)
-            except ValueError as exc:
-                raise RuntimeError("Python execution argv cannot be bounded") from exc
-        if not argv or any(any(token in argument for token in ("$", "`", "\n", "\x00")) for argument in argv):
-            raise RuntimeError("Python interpreter expansion cannot be bounded")
-        program = PurePosixPath(argv[0]).name
-        if any(character.isspace() for character in argv[0]) or program == "env" or any(token in argv[0] for token in ("\\", ":")):
-            raise RuntimeError("Python execution program cannot be bounded")
-        interpreter = re.fullmatch(r"python(?:3(?:\.\d+)?)?", program) is not None
-        if (interpreter or program in {"bash", "sh", "node"}) and argv[0] != program:
-            raise RuntimeError("Python interpreter executable identity cannot be bounded")
-        if program in {"bash", "sh"} and (len(argv) < 2 or argv[1].startswith("-")):
-            raise RuntimeError("Python shell interpreter delegation cannot be bounded")
-        if interpreter or program in {"bash", "sh", "node"}:
-            index = 1
-            while index < len(argv) and argv[index] in {"-B", "-u", "-O", "-OO"}:
-                index += 1
-            if index >= len(argv):
-                raise RuntimeError("Python interpreter source cannot be bounded")
-            selector = argv[index]
-            if selector in {"-c", "-e"}:
-                if index + 1 >= len(argv):
-                    raise RuntimeError("Python inline execution cannot be bounded")
-                inline = argv[index + 1]
-                known_mutation = (_python_mutates_space(inline) if interpreter
-                                  else any(pattern.search(inline) for pattern in MUTATION_PATTERNS))
-                if not known_mutation:
-                    raise RuntimeError("Python inline execution cannot be bounded")
-            elif selector == "-m" and interpreter:
-                if index + 1 >= len(argv) or not re.fullmatch(r"[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*", argv[index + 1]):
-                    raise RuntimeError("Python module execution cannot be bounded")
-            elif selector.startswith("-") or any(character.isspace() for character in selector):
-                raise RuntimeError("Python interpreter source identity cannot be bounded")
-            elif (not re.fullmatch(r"(?:\./)?(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+", selector)
-                  or ".." in PurePosixPath(selector).parts):
-                raise RuntimeError("Python interpreter source path cannot be bounded")
-        command = " ".join(argv)
-        directory = inherited_directory
-        cwd = keywords.get("cwd")
-        if cwd is not None and not (isinstance(cwd, ast.Constant) and cwd.value is None):
-            directory_value, _ = literal(cwd)
-            if type(directory_value) is not str:
-                raise RuntimeError("Python execution working directory cannot be bounded")
-            path = PurePosixPath(directory_value.replace("\\", "/"))
-            if path.is_absolute() or ".." in path.parts:
-                raise RuntimeError("Python execution working directory escapes the repository")
-            directory = (PurePosixPath(directory) / path).as_posix().removeprefix("./")
-        commands.append(("run: " + command, directory))
+                if function == "asyncio.create_subprocess_exec":
+                    values = [literal(arg) for arg in node.args]
+                    if not values or any(type(value) is not str for value, _ in values):
+                        raise RuntimeError("Python execution command cannot be bounded")
+                    command = [value for value, _ in values]
+                    command_origins = set().union(*(items for _, items in values))
+                else:
+                    command, command_origins = literal(argument)
+            except _OpaquePythonValue:
+                if externally_fed(node, argument):
+                    raise RuntimeError("Python execution command is externally supplied and cannot be bounded")
+                unbounded_calls.append(node)
+                continue
+            if command_origins & escaped_lists:
+                raise RuntimeError("Python execution argv was mutated or escaped")
+            shell = keywords.get("shell")
+            if shell is not None and not (isinstance(shell, ast.Constant) and type(shell.value) is bool):
+                raise RuntimeError("Python execution shell mode cannot be bounded")
+            uses_shell = (function in {"os.system", "os.popen", "subprocess.getoutput",
+                                      "subprocess.getstatusoutput", "asyncio.create_subprocess_shell"}
+                          or (shell is not None and shell.value is True))
+            if uses_shell and isinstance(command, str) and any(token in command for token in (";", "&", "|", "\n", "`", "$")):
+                raise RuntimeError("Python shell delegation cannot be bounded")
+            if isinstance(command, list):
+                if not command:
+                    raise RuntimeError("Python execution command cannot be bounded")
+                argv = command
+            else:
+                try:
+                    argv = shlex.split(command, posix=True)
+                except ValueError as exc:
+                    raise RuntimeError("Python execution argv cannot be bounded") from exc
+            if not argv or any(any(token in argument for token in ("$", "`", "\n", "\x00")) for argument in argv):
+                raise RuntimeError("Python interpreter expansion cannot be bounded")
+            program = PurePosixPath(argv[0]).name
+            if any(character.isspace() for character in argv[0]) or program == "env" or any(token in argv[0] for token in ("\\", ":")):
+                raise RuntimeError("Python execution program cannot be bounded")
+            interpreter = re.fullmatch(r"python(?:3(?:\.\d+)?)?", program) is not None
+            if (interpreter or program in {"bash", "sh", "node"}) and argv[0] != program:
+                raise RuntimeError("Python interpreter executable identity cannot be bounded")
+            if program in {"bash", "sh"} and (len(argv) < 2 or argv[1].startswith("-")):
+                raise RuntimeError("Python shell interpreter delegation cannot be bounded")
+            if interpreter or program in {"bash", "sh", "node"}:
+                index = 1
+                while index < len(argv) and argv[index] in {"-B", "-u", "-O", "-OO"}:
+                    index += 1
+                if index >= len(argv):
+                    raise RuntimeError("Python interpreter source cannot be bounded")
+                selector = argv[index]
+                if selector in {"-c", "-e"}:
+                    if index + 1 >= len(argv):
+                        raise RuntimeError("Python inline execution cannot be bounded")
+                    inline = argv[index + 1]
+                    known_mutation = (_python_mutates_space(inline) if interpreter
+                                      else any(pattern.search(inline) for pattern in MUTATION_PATTERNS))
+                    if not known_mutation:
+                        raise RuntimeError("Python inline execution cannot be bounded")
+                elif selector == "-m" and interpreter:
+                    if index + 1 >= len(argv) or not re.fullmatch(r"[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*", argv[index + 1]):
+                        raise RuntimeError("Python module execution cannot be bounded")
+                elif selector.startswith("-") or any(character.isspace() for character in selector):
+                    raise RuntimeError("Python interpreter source identity cannot be bounded")
+                elif (not re.fullmatch(r"(?:\./)?(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+", selector)
+                      or ".." in PurePosixPath(selector).parts):
+                    raise RuntimeError("Python interpreter source path cannot be bounded")
+            command = " ".join(argv)
+            directory = inherited_directory
+            cwd = keywords.get("cwd")
+            if cwd is not None and not (isinstance(cwd, ast.Constant) and cwd.value is None):
+                try:
+                    directory_value, _ = literal(cwd)
+                except _OpaquePythonValue:
+                    # A dynamic cwd only matters when the command can resolve a
+                    # repository script or module relative to it. A bare external
+                    # program (for example ``git rev-parse HEAD``) resolves no
+                    # local source; its command text remains mutation evidence.
+                    if (interpreter or program in {"bash", "sh", "node"} or "/" in argv[0]
+                            or program != argv[0] or not re.fullmatch(r"[A-Za-z0-9_.+-]+", program)):
+                        # A local-source launch from an unknown cwd is
+                        # over-approximated through the file's witnesses.
+                        unbounded_calls.append(node)
+                    commands.append(("run: " + command, directory))
+                    continue
+                if type(directory_value) is not str:
+                    raise RuntimeError("Python execution working directory cannot be bounded")
+                path = PurePosixPath(directory_value.replace("\\", "/"))
+                if path.is_absolute() or ".." in path.parts:
+                    raise RuntimeError("Python execution working directory escapes the repository")
+                directory = (PurePosixPath(directory) / path).as_posix().removeprefix("./")
+            commands.append(("run: " + command, directory))
+    if unbounded_calls:
+        commands.extend(witness_commands())
     return commands
 
 
@@ -600,7 +832,10 @@ def _referenced_sources(
             or PurePosixPath(current_path).name in {"action.yml", "action.yaml"}
         )
         is_python = current_path is not None and current_path.endswith(".py")
-        contexts = (_python_command_texts(source_text, inherited_directory)
+        contexts = (_python_command_texts(
+                        source_text, inherited_directory,
+                        lambda path, base_dir: _repo_source(path, repo_files, base_dir=base_dir) is not None,
+                        PurePosixPath(current_path).parent.as_posix().removeprefix(".") if current_path else "")
                     if is_python else [(current, None)])
         if is_python:
             current = "\n".join(command for command, _directory in contexts)
@@ -869,15 +1104,84 @@ assert expected.startswith("python3")
             'import subprocess\nholder.launch = subprocess.run\n',
             'import subprocess\ndef expose():\n    return subprocess.run\n',
             'import subprocess\ninvoke(subprocess)\n',
-            'import subprocess\ncommand = "harmless"\ndef run(command):\n    subprocess.run(command)\n',
+            'import subprocess\nimport os\ndef run(command):\n    subprocess.run(command)\nrun(os.environ["COMMAND"])\n',
+            'import subprocess, sys\nsubprocess.run(sys.argv[1:])\n',
+            'import subprocess\nargv = ["python3", "scripts/writer.py"]\nargv += extra\nsubprocess.run(argv)\n',
             'import subprocess, os\nsubprocess.run(os.environ["COMMAND"])\n',
             'import subprocess\nsubprocess.run(*arguments)\n',
             'import subprocess\nsubprocess.run("python3 scripts/writer.py", **options)\n',
             'import os\nos.execv("python3", ["python3", "scripts/writer.py"])\n',
+            'import subprocess\nresult = subprocess.run\ndef expose():\n    return result\n',
+            'import subprocess, os\ndef expose():\n    return subprocess.run(["git", "status"], preexec_fn=os.system)\n',
+            'import subprocess\ndef expose():\n    return subprocess.run(["git", "status"]).__class__(subprocess.run)\n',
         )
         for source in sources:
             with self.subTest(source=source), self.assertRaises(RuntimeError):
                 self._python_wrapper_writers(source)
+
+    def test_in_file_computed_python_commands_are_over_approximated(self) -> None:
+        # A wrapper parameter or computed path cannot be reduced to one literal;
+        # every existing repository script the file names is then a delegate.
+        delegating = (
+            'import subprocess\ndef run(command):\n    return subprocess.run(command, check=False)\n'
+            'run(["python3", "scripts/writer.py"])\n',
+            'import subprocess, sys\nfrom pathlib import Path\nROOT = Path(__file__).parent\n'
+            'subprocess.run([sys.executable, str(ROOT / "writer.py")])\n',
+            'import subprocess\ndef run(argv, cwd):\n    subprocess.run(argv, cwd=cwd)\n'
+            'run(["python3", "scripts/writer.py"], cwd=".")\n',
+            'import subprocess\ndef launch(args):\n    subprocess.run(["python3", *args])\nlaunch(["-m", "scripts.writer"])\n',
+        )
+        for source in delegating:
+            with self.subTest(source=source):
+                self.assertEqual(self._python_wrapper_writers(source), ["wrapper.yml"])
+        harmless = (
+            'import subprocess\ncommand = "harmless"\ndef run(command):\n    subprocess.run(command)\n',
+            'import subprocess\ndef git(root):\n    return subprocess.run(["git", "-C", root, "ls-files"], capture_output=True).stdout\n',
+            'import subprocess\nfor command in (["git", "diff", "--quiet"], ["git", "diff", "--cached", "--quiet"]):\n'
+            '    subprocess.run(command, check=False)\n',
+        )
+        for source in harmless:
+            with self.subTest(source=source):
+                self.assertEqual(self._python_wrapper_writers(source), [])
+        # A fixed literal loop still reaches a writer named in its elements.
+        loop = 'import subprocess\nfor command in (["git", "status"], ["python3", "scripts/writer.py"]):\n    subprocess.run(command)\n'
+        self.assertEqual(self._python_wrapper_writers(loop), ["wrapper.yml"])
+
+    def test_process_module_data_members_are_not_executors(self) -> None:
+        sources = (
+            'import os\nflags = os.O_RDONLY | getattr(os, "O_BINARY", 0)\nfd = os.open("x", flags)\n',
+            'import os\nfor name in sorted(os.listdir(".")):\n    name.endswith(".py")\n',
+            'import os\nvalue = os.environ.get("X", "y")\nrecord(str(value))\n',
+            'import os, sys\nos.sys.argv = ["tool", "--check"]\n',
+        )
+        for source in sources:
+            with self.subTest(source=source):
+                self.assertEqual(self._python_wrapper_writers(source), [])
+        escapes = (
+            'import os\nlaunch = getattr(os, "system")\n',
+            'import os\nhandle(getattr(os, "system"))\n',
+            'from unittest import mock\nimport subprocess\nmock.patch.object(subprocess, "run", fake)\n',
+            'import os\nos.system = replacement\n',
+            'import subprocess\nfor launch in (subprocess.run,):\n    launch(["python3", "scripts/writer.py"])\n',
+        )
+        for source in escapes:
+            with self.subTest(source=source), self.assertRaises(RuntimeError):
+                self._python_wrapper_writers(source)
+
+    def test_python_process_result_data_is_not_an_escaped_executor(self) -> None:
+        sources = (
+            'import subprocess\ndef read():\n    base_suite = subprocess.run(["git", "status"], stdout=subprocess.PIPE)\n'
+            '    return base_suite.stdout if base_suite.returncode == 0 else None\n',
+            'import subprocess\nactual = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()\n'
+            'require(actual == expected, "mismatch")\n',
+        )
+        for source in sources:
+            with self.subTest(source=source):
+                self.assertEqual(self._python_wrapper_writers(source), [])
+        # The same result-data shape still reaches a real delegated writer.
+        writer = ('import subprocess\ndef read():\n    completed = subprocess.run(["python3", "scripts/writer.py"])\n'
+                  '    return completed.returncode\n')
+        self.assertEqual(self._python_wrapper_writers(writer), ["wrapper.yml"])
 
     def test_mutated_or_escaped_python_argv_fails_closed(self) -> None:
         mutations = (
