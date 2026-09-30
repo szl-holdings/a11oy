@@ -71,6 +71,11 @@ DEMO_CRITICAL_ROUTES = [
     "/api/a11oy/v1/models/series-a",           # Series A holographic models+kernels bind
     "/estate",                                 # dedicated models+kernels surface
     "/atelier",                                # forty-model walk (declared product surface)
+    "/command-centre",                          # consolidated Python product entry point
+    "/api/a11oy/v1/command-centre/manifest",     # read-only authority/navigation manifest
+    "/api/a11oy/v1/command-centre/study",        # pinned research, not model admission
+    "/api/a11oy/v1/atelier/health",              # configuration, not inference readiness proof
+    "/api/a11oy/v1/atelier/turn",                # authenticated single-turn provider route
     "/api/a11oy/v1/frontier-now/summary",      # read-only estate proof projection
     "/frontier-now",                           # responsive Frontier Now PAGE
     "/api/a11oy/v1/khipu/status",              # live CPU-lab pin + READY/FAILED (no sign on GET)
@@ -220,3 +225,32 @@ def test_investor_alias_is_307_onto_console_view_not_404():
     )
     location = response.headers.get("location") or ""
     assert location.endswith("/console?view=investor") or location == "/console?view=investor"
+
+
+def test_command_centre_survives_real_product_middleware():
+    """Owned body and script must survive the real app, not merely a tiny router."""
+    from starlette.testclient import TestClient
+
+    client = TestClient(serve.app)
+    response = client.get("/command-centre")
+    assert response.status_code == 200
+    assert 'id="turn-form"' in response.text
+    assert 'id="study-models"' in response.text
+    assert '</html>' in response.text
+    from routers.command_centre import ROOT
+    assert response.content == (ROOT / 'index.html').read_bytes()
+    script = client.get("/command-centre/app.js")
+    assert script.status_code == 200
+    assert 'reasoning_effort' in script.text
+    assert 'No automatic retry' in script.text
+
+
+def test_command_centre_and_turn_keep_owning_handlers_before_catchalls():
+    routes = list(serve.app.router.routes)
+    catchall = next(i for i, route in enumerate(routes) if getattr(route, 'path', None) == '/{full_path:path}')
+    for path, owner in (('/command-centre', 'routers.command_centre'),
+                        ('/api/a11oy/v1/command-centre/study', 'routers.command_centre'),
+                        ('/api/a11oy/v1/atelier/turn', 'routers.atelier_grok')):
+        index, route = next((i, r) for i, r in enumerate(routes) if getattr(r, 'path', None) == path)
+        assert index < catchall
+        assert route.endpoint.__module__ == owner
