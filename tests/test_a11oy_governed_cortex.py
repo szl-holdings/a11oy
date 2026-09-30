@@ -307,6 +307,109 @@ class CortexContractTests(unittest.TestCase):
             with self.assertRaisesRegex(cortex.CortexBoundaryError, "text_witness_blocked"):
                 cortex.infer_payload(cortex.GovernedInferenceRequest(prompt="status"))
 
+    def _infer_with_exact_nemo(self, output, prompt="Explain the Lambda authority boundary."):
+        import szl_nemo
+
+        self.assertEqual(szl_nemo.__version__, cortex.NEMO_VERSION)
+        identity = fake_identity()
+        with (
+            mock.patch.object(cortex, "_load_formula_authority", side_effect=fake_authority),
+            mock.patch.object(cortex, "_load_nemo", return_value=szl_nemo),
+            mock.patch.object(cortex, "_brain_evidence", return_value=fake_evidence()),
+            mock.patch.object(cortex, "_load_model", return_value=(object(), identity)),
+            mock.patch.object(cortex, "_generate", return_value=(output, identity, {})),
+        ):
+            return cortex.infer_payload(cortex.GovernedInferenceRequest(prompt=prompt))
+
+    def test_generation_guidance_is_compatible_with_exact_nemo_text_rules(self):
+        import szl_nemo
+
+        prompt = "Explain the Lambda authority boundary."
+        messages = cortex._compose_messages(prompt, fake_evidence(), {})
+        self.assertEqual(szl_nemo.evaluate(prompt, messages[0]["content"]).decision, "ALLOW")
+
+    def test_affirmative_lambda_status_passes_actual_pinned_nemo(self):
+        output = (
+            "Lambda remains Conjecture 1, advisory only, and cannot "
+            "authorize actions [node-a]."
+        )
+        result = self._infer_with_exact_nemo(output)
+        self.assertEqual(result["output"], output)
+        self.assertEqual(result["citations"], ["node-a"])
+        self.assertTrue(all(row["decision"] == "ALLOW" for row in result["nemo"]))
+        self.assertFalse(result["executed"])
+        self.assertFalse(result["tool_execution"])
+        self.assertEqual(result["authority_state"], "NO_ACTION_AUTHORITY")
+        self.assertEqual(cortex._ANATOMY["observation_count"], 1)
+
+    def test_unsafe_lambda_promotions_remain_blocked_by_actual_pinned_nemo(self):
+        for output in (
+            # Rejected negative fixture: Lambda remains Conjecture 1, never a theorem.
+            "Lambda is a theorem [node-a].",
+            "Lambda is proven [node-a].",
+            "Lambda is certified [node-a].",
+            "Lambda is guaranteed [node-a].",
+        ):
+            with self.subTest(output=output):
+                with self.assertRaises(cortex.CortexBoundaryError) as caught:
+                    self._infer_with_exact_nemo(output)
+                error = caught.exception
+                self.assertEqual(error.code, "nemo_text_witness_blocked")
+                self.assertEqual(error.status, 422)
+                self.assertEqual(error.nemo_witness["stage"], "TEXT_R1_R5")
+                self.assertEqual(error.nemo_witness["decision"], "BLOCK")
+                self.assertEqual(error.nemo_witness["violated_rules"], ["R4_lambda_not_theorem"])
+                self.assertEqual(cortex._ANATOMY["observation_count"], 0)
+
+    def test_pinned_nemo_negation_block_is_preserved(self):
+        with self.assertRaises(cortex.CortexBoundaryError) as caught:
+            self._infer_with_exact_nemo("Lambda is not a theorem [node-a].")
+        self.assertEqual(caught.exception.nemo_witness["violated_rules"], ["R4_lambda_not_theorem"])
+        self.assertEqual(cortex._ANATOMY["observation_count"], 0)
+
+    def test_denial_route_exposes_only_rule_identifiers_and_hash(self):
+        prompt = "Explain the Lambda authority boundary with private-request-marker."
+        output = "Lambda is proven [node-a]. private-output-marker"
+        with self.assertRaises(cortex.CortexBoundaryError) as caught:
+            self._infer_with_exact_nemo(output, prompt)
+        app = FastAPI()
+        cortex.register(app)
+        with mock.patch.object(cortex, "infer_payload", side_effect=caught.exception):
+            response = TestClient(app).post("/api/v2/governed-infer", json={"prompt": prompt})
+        self.assertEqual(response.status_code, 422)
+        body = response.json()
+        witness = body["nemo_witness"]
+        self.assertEqual(set(witness), {"stage", "decision", "violated_rules", "rule_version", "input_hash"})
+        self.assertEqual(witness["violated_rules"], ["R4_lambda_not_theorem"])
+        self.assertRegex(witness["input_hash"], r"^sha256:[0-9a-f]{64}$")
+        self.assertNotIn("private-request-marker", response.text)
+        self.assertNotIn("private-output-marker", response.text)
+        self.assertNotIn("projection_text", response.text)
+        self.assertNotIn("reasons", witness)
+        self.assertFalse(body["executed"])
+        self.assertFalse(body["tool_execution"])
+        self.assertEqual(body["authority_state"], "NO_ACTION_AUTHORITY")
+
+    def test_denial_diagnostics_drop_unrecognized_free_text(self):
+        import szl_nemo
+
+        private_text = "private-debug-marker"
+        witness = cortex._nemo_denial_witness(
+            szl_nemo,
+            "TEXT_R1_R5",
+            {
+                "decision": "BLOCK",
+                "violated_rules": ["R4_lambda_not_theorem", private_text],
+                "rule_version": private_text,
+                "input_hash": private_text,
+                "reasons": [private_text],
+            },
+        )
+        self.assertEqual(witness["violated_rules"], ["R4_lambda_not_theorem"])
+        self.assertEqual(witness["rule_version"], "UNAVAILABLE")
+        self.assertIsNone(witness["input_hash"])
+        self.assertNotIn(private_text, cortex.canonical_bytes(witness).decode())
+
     def test_health_fails_closed_and_succeeds_only_when_all_organs_ready(self):
         identity = fake_identity()
         with (
