@@ -238,3 +238,95 @@ def test_v2_command_empty_is_rejected(client):
     _assert_envelope(body)
     assert body.get("outcome") == "REJECTED_EMPTY_COMMAND"
     assert body.get("ok") is False
+
+
+@pytest.mark.parametrize("method", ["GET", "POST"])
+@pytest.mark.parametrize("health_status", ["ok", "degraded"])
+def test_operator_health_answers_cite_the_observed_rollup(client, monkeypatch, method, health_status):
+    from fastapi.responses import JSONResponse
+
+    observed = {"service": "a11oy", "status": health_status,
+                "degraded_reasons": ["storage-unavailable"] if health_status == "degraded" else [],
+                "dependency": {"node_backend": {"status": "down", "backend_alive": False}}}
+    calls = []
+
+    async def report():
+        calls.append("healthz")
+        return JSONResponse(observed)
+
+    monkeypatch.setattr(serve, "healthz", report)
+    if method == "GET":
+        response = client.get("/api/a11oy/v1/operator/ask", params={"question": "health"})
+    else:
+        response = client.post("/api/a11oy/v1/operator/ask", json={"question": "health"})
+    body = response.json()
+    _assert_envelope(body)
+    assert response.status_code == 200
+    assert body["health_state"] == ("OBSERVED" if health_status == "ok" else "DEGRADED")
+    assert body["status"] == ("REAL" if health_status == "ok" else "DEGRADED")
+    assert body["grounded"] is True
+    assert body["citations"] == [{"endpoint": "/api/a11oy/healthz", "data": observed}]
+    assert calls == ["healthz"]
+
+
+@pytest.mark.parametrize("failure", ["exception", "wrong-service", "non-object", "http-error"])
+def test_operator_health_missing_report_is_unavailable(client, monkeypatch, failure):
+    from fastapi.responses import JSONResponse
+
+    async def report():
+        if failure == "exception":
+            raise RuntimeError("test health source unavailable")
+        if failure == "wrong-service":
+            return JSONResponse({"service": "other", "status": "ok"})
+        if failure == "non-object":
+            return JSONResponse(["ok"])
+        return JSONResponse({"service": "a11oy", "status": "ok"}, status_code=503)
+
+    monkeypatch.setattr(serve, "healthz", report)
+    body = client.get("/api/a11oy/v1/operator/ask", params={"question": "health"}).json()
+    _assert_envelope(body)
+    assert body["status"] == "DEGRADED"
+    assert body["health_state"] == "UNAVAILABLE"
+    assert body["grounded"] is False
+    assert "LIVE" not in body["answer"]
+    assert body["citations"] == [{"endpoint": "/api/a11oy/healthz", "data": {"state": "UNAVAILABLE"}}]
+
+
+def test_operator_descriptor_does_not_probe_health(client, monkeypatch):
+    async def forbidden():
+        raise AssertionError("descriptor must not probe health")
+
+    monkeypatch.setattr(serve, "healthz", forbidden)
+    body = client.get("/api/a11oy/v1/operator/ask").json()
+    assert body["capability"] == "operator.ask"
+
+
+@pytest.mark.parametrize("availability", [True, False, None, "invalid", "raises"])
+def test_agentloop_health_reads_capability_without_signing(monkeypatch, availability):
+    from fastapi import FastAPI
+    import szl_agent_loop_governed as agentloop
+
+    calls = []
+
+    def sign_spy(payload):
+        calls.append(payload)
+        raise AssertionError("GET must not sign")
+
+    def predicate():
+        if availability == "raises":
+            raise RuntimeError("test readiness unavailable")
+        return availability
+
+    monkeypatch.setattr(agentloop, "_BRAINFEED_OK", False)
+    app = FastAPI()
+    kwargs = {} if availability is None else {"signer_available_fn": predicate}
+    agentloop.register(app, sign_fn=sign_spy, **kwargs)
+    response = TestClient(app).get("/api/a11oy/v1/agentloop/health")
+    body = response.json()
+    assert response.status_code == 200
+    assert calls == []
+    expected = availability if isinstance(availability, bool) else None
+    assert body["signing_available"] is expected
+    assert body["signer_live"] is (expected is True)
+    assert body["signer_availability"] == ("AVAILABLE" if expected is True else
+                                           "UNSIGNED-LOCAL" if expected is False else "UNAVAILABLE")

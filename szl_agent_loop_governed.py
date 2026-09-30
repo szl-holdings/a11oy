@@ -739,7 +739,7 @@ def _ingest_forum(receipt_body: dict, dsse: dict) -> dict:
 # sign_fn = the HOST app's REAL signer (same as the engine + eval-arena use).
 # ===========================================================================
 def register(app, ns: str = "a11oy", sign_fn: Optional[Callable[[dict], dict]] = None,
-             verify_fn=None) -> dict:
+             verify_fn=None, signer_available_fn: Optional[Callable[[], bool]] = None) -> dict:
     from starlette.routing import Route
     from starlette.responses import JSONResponse
 
@@ -756,6 +756,11 @@ def register(app, ns: str = "a11oy", sign_fn: Optional[Callable[[dict], dict]] =
                         "signatures": [], "signed": False,
                         "honesty": "UNSIGNED-LOCAL — no signer (%r)." % e}
         sign_fn = _fallback_sign
+        if not callable(signer_available_fn):
+            def _fallback_available() -> bool:
+                import szl_dsse
+                return bool(szl_dsse.signing_available())
+            signer_available_fn = _fallback_available
 
     async def _run(request):
         refused = _refused(request, "Governed agent loop")
@@ -799,12 +804,15 @@ def register(app, ns: str = "a11oy", sign_fn: Optional[Callable[[dict], dict]] =
         return JSONResponse(result, status_code=result.get("status_code", 200))
 
     async def _health(request):
-        signer_live = False
-        try:
-            probe = sign_fn({"probe": "agentloop-health", "ts": _now()})
-            signer_live = bool(probe.get("signed"))
-        except Exception:
-            signer_live = False
+        signing_available = None
+        if callable(signer_available_fn):
+            try:
+                observed = signer_available_fn()
+                if isinstance(observed, bool):
+                    signing_available = observed
+            except Exception:
+                pass
+        signer_live = signing_available is True
         eval_suites = None
         if _ARENA_OK:
             try:
@@ -858,8 +866,12 @@ def register(app, ns: str = "a11oy", sign_fn: Optional[Callable[[dict], dict]] =
             "eval_suites": eval_suites,
             "approval_gate_enabled": os.environ.get("A11OY_APPROVAL_INTERRUPT") == "1",
             "signer_live": signer_live,
-            "signature_mode": ("LIVE (real ECDSA-P256 in-image key)" if signer_live
-                               else "UNSIGNED-LOCAL (honest — no in-image key in this runtime)"),
+            "signing_available": signing_available,
+            "signer_availability": ("AVAILABLE" if signer_live else
+                                    "UNSIGNED-LOCAL" if signing_available is False else "UNAVAILABLE"),
+            "signature_mode": ("AVAILABLE (configured signer; health does not sign)" if signer_live
+                               else "UNSIGNED-LOCAL (signer capability reports no key)" if signing_available is False
+                               else "UNAVAILABLE (signer capability was not observed)"),
             "endpoints": ["/api/%s/v1/agentloop/run" % ns,
                           "/api/%s/v1/agentloop/health" % ns],
             "backs_view": "governedagent",
