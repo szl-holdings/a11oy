@@ -207,6 +207,71 @@ class EstateReleaseTrainTests(unittest.TestCase):
             )
         self.assertTrue(result["aligned"])
 
+    def _profile_contract_for_text(self, text, observed=None, manifest=None):
+        counts = {"spaces": 23, "models": 49, "datasets": 34}
+        sha = "f" * 40
+        config = {"profile": {"repository": "szl-holdings/.github", "path": "profile/README.md"}}
+        with (
+            mock.patch.object(release, "github_main", return_value={"observed": True, "sha": sha}),
+            mock.patch.object(release, "github_file", side_effect=[
+                {"text": text}, {"json": {"counts": counts if manifest is None else manifest}},
+            ]),
+        ):
+            return release.profile_inventory_contract(
+                config, {"counts": counts if observed is None else observed}, sha,
+            )
+
+    def test_profile_selects_current_public_counts_without_private_or_historical_totals(self):
+        current = (
+            "**Current inventory** (observed **2026-09-29T02:04:17Z**, authenticated Hub API): "
+            "public **23 Spaces, 49 models, 34 datasets**; including private: "
+            "29 Spaces, 49 models, 43 datasets. Repository counts only."
+        )
+        historical = (
+            "**Historical public snapshot:** 21 public Spaces, 46 models, 35 datasets, "
+            "observed **2026-09-10T03:20:41Z** under the anonymous "
+            "`hf-public-author-membership/v1` predicate."
+        )
+        for text in (current + "\n\n" + historical, historical + "\n\n" + current):
+            with self.subTest(historical_first=text.startswith(historical)):
+                result = self._profile_contract_for_text(text)
+                self.assertEqual(result["declared_counts"], {"spaces": 23, "models": 49, "datasets": 34})
+                self.assertTrue(result["aligned"])
+
+    def test_profile_historical_snapshot_cannot_satisfy_current_count_gate(self):
+        result = self._profile_contract_for_text(
+            "**Historical public snapshot:** 23 public Spaces, 49 models, 34 datasets"
+        )
+        self.assertIsNone(result["declared_counts"])
+        self.assertFalse(result["aligned"])
+        self.assertIn("HF_INVENTORY_COUNT_MISMATCH_OR_UNAVAILABLE", result["blockers"])
+
+    def test_profile_malformed_current_declaration_cannot_fall_back_to_history(self):
+        result = self._profile_contract_for_text(
+            "**Current inventory**: including private: 29 Spaces, 49 models, 43 datasets.\n\n"
+            "**Historical public snapshot:** 23 public Spaces, 49 models, 34 datasets"
+        )
+        self.assertIsNone(result["declared_counts"])
+        self.assertFalse(result["aligned"])
+
+    def test_profile_conflicting_current_declarations_fail_closed(self):
+        result = self._profile_contract_for_text(
+            "**Current inventory**: public **23 Spaces, 49 models, 34 datasets**.\n\n"
+            "**Current inventory**: public **24 Spaces, 49 models, 34 datasets**."
+        )
+        self.assertIsNone(result["declared_counts"])
+        self.assertFalse(result["aligned"])
+
+    def test_profile_current_declaration_still_requires_manifest_and_observed_equality(self):
+        text = "**Current inventory**: public **23 Spaces, 49 models, 34 datasets**."
+        different = {"spaces": 24, "models": 49, "datasets": 34}
+        for kwargs in ({"observed": different}, {"manifest": different}):
+            with self.subTest(kwargs=kwargs):
+                result = self._profile_contract_for_text(text, **kwargs)
+                self.assertEqual(result["declared_counts"], {"spaces": 23, "models": 49, "datasets": 34})
+                self.assertFalse(result["aligned"])
+                self.assertIn("HF_INVENTORY_COUNT_MISMATCH_OR_UNAVAILABLE", result["blockers"])
+
     def test_release_id_is_deterministic_and_authority_is_fail_closed(self) -> None:
         config = json.loads(
             (ROOT / "config" / "estate-release-train.v1.json").read_text(
