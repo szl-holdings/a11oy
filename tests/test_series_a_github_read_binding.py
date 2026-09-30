@@ -28,10 +28,12 @@ def test_public_inventory_ignores_generic_runtime_token(monkeypatch, dedicated):
         return httpx.Response(200, json=[{"name": "vertical-services", "private": False,
                                          "visibility": "public", "default_branch": "main"}])
     monkeypatch.setattr(control.httpx, "AsyncClient", lambda **kw: real_client(transport=httpx.MockTransport(response), **kw))
-    result = asyncio.run(control.Collector().github())
+    collector = control.Collector()
+    result = asyncio.run(collector.github())
     assert result.state == "OBSERVED"
     assert result.value["repository_count"] == 1
-    assert result.detail["authentication_mode"] == ("DEDICATED_PUBLIC_READ_TOKEN" if dedicated else "PUBLIC_ANONYMOUS")
+    assert collector.github_authentication_mode == ("DEDICATED_PUBLIC_READ_TOKEN" if dedicated else "PUBLIC_ANONYMOUS")
+    assert result.detail == {"authenticated": bool(dedicated)}
     assert dedicated is None or dedicated not in json.dumps(result.as_dict())
     assert len(requests) == 2
 

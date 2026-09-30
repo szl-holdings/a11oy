@@ -935,8 +935,7 @@ class Collector:
                     "pagination_complete": True,
                     "repositories": rows,
                 },
-                {"authenticated": bool(self.github_token),
-                 "authentication_mode": self.github_authentication_mode},
+                {"authenticated": bool(self.github_token)},
             )
         except Exception as exc:
             return Observation("UNAVAILABLE", detail=_safe_error(exc))
