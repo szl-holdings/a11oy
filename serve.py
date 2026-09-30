@@ -7378,6 +7378,16 @@ async def _a11oy_pr_honest_v2():
             _A11OY_SLSA_TEXT,
         ],
         "role": "Brand Orchestration / gates",
+        "atelier_command_centre": {
+            "state": "SOURCE_PRESENT_RUNTIME_GATES_REQUIRED",
+            "entry": "/command-centre",
+            "health": "/api/a11oy/v1/atelier/health",
+            "inference_verified": False,
+            "continuity": "SINGLE_TURN_NO_SERVER_TEXT_HISTORY",
+            "external_provider": "xai",
+            "owned_grok_weights": False,
+            "note": "Read-only navigation and configuration are not successful inference or release closure.",
+        },
     })
 
 @app.get("/api/a11oy/v1/audit-log")
@@ -16848,6 +16858,13 @@ except Exception as _anatomy_ledger_error:
 
 
 # ---------------------------------------------------------------------------
+# Atelier entry point consolidates navigation; actions retain explicit guards.
+from routers import command_centre as _command_centre  # noqa: E402
+from routers import atelier_grok as _atelier_grok  # noqa: E402
+
+_command_centre.register(app)
+_atelier_grok.register(app)
+
 # SECURITY (deny-by-default): every route that can execute code, dispatch an
 # agent or tool with side effects, sign a caller-supplied payload with the server
 # key, or write server state answers 401 BLOCKED without the operator Bearer
