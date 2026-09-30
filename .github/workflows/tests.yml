@@ -316,7 +316,7 @@ jobs:
         # data surface (POST /api/<organ>/v1/be/echo) keyed off RATE_LIMIT_PER_MIN and
         # asserts /healthz stays exempt — so a regression that throttles a health probe,
         # drops the limiter, or breaks an envelope becomes a red gate.
-        run: pytest tests/test_be_hardening.py tests/test_experimental_software_labs.py -q
+        run: pytest tests/test_be_hardening.py tests/test_experimental_software_labs.py tests/test_szl_spaces_inventory.py -q
 
   python-energy-egress-scrub:
     name: Energy /metrics private-address egress guard (pytest, offline)

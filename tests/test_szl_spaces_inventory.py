@@ -9,6 +9,8 @@ snapshots and are not rewritten here as live claims.
 
 from pathlib import Path
 
+import pytest
+
 import szl_spaces_proxy as proxy
 import szl_spaces_surface as surface
 
@@ -403,10 +405,83 @@ def test_contract_retry_and_circuit_are_bounded_and_fail_closed():
             surface._CONTRACT_CIRCUITS[contract["id"]] = previous
 
     assert first["state"] == "UNAVAILABLE" and first["attempts"] == 2
+    assert first["http_status"] is None
     assert first["circuit_state"] == "CLOSED"
     assert second["state"] == "UNAVAILABLE" and second["circuit_state"] == "OPEN"
     assert open_result["probe_state"] == "CIRCUIT_OPEN"
     assert open_result["attempts"] == 0 and open_result["retry_after_s"] > 0
+
+
+@pytest.mark.parametrize("status", [401, 403, 404, 429, 500, 503])
+@pytest.mark.parametrize("want_json", [False, True])
+def test_urllib_http_errors_preserve_status_close_and_never_read_body(monkeypatch, status, want_json):
+    import io
+    import urllib.error
+    import urllib.request
+
+    class ErrorBody(io.BytesIO):
+        def read(self, *args):
+            pytest.fail("HTTP error body must not be read or exposed")
+
+    body = ErrorBody(b"sensitive untrusted upstream body")
+    def failure(*args, **kwargs):
+        raise urllib.error.HTTPError("https://unit.invalid/status", status, "untrusted diagnostic", {}, body)
+    monkeypatch.setattr(urllib.request, "urlopen", failure)
+    observed, data = surface._urllib_probe("https://unit.invalid/status", 1, want_json)
+    assert observed == status
+    assert data is None
+    assert body.closed
+
+
+@pytest.mark.parametrize("status,attempts", [(403, 1), (429, 2), (500, 2), (503, 2)])
+def test_urllib_contract_http_status_preserves_existing_retry_policy(monkeypatch, status, attempts):
+    import asyncio
+    import io
+    import urllib.error
+    import urllib.request
+
+    calls = []
+    def failure(*args, **kwargs):
+        calls.append(1)
+        raise urllib.error.HTTPError("https://unit.invalid/health", status, "untrusted", {}, io.BytesIO(b"not returned"))
+    monkeypatch.setattr(urllib.request, "urlopen", failure)
+    contract = {"id": "unit-http-status-" + str(status), "url": "https://unit.invalid/health", "expected": {"ok": True}}
+    monkeypatch.setattr(surface, "_CONTRACT_CIRCUITS", {})
+    result = asyncio.run(surface._probe_contract(None, contract))
+    assert result["state"] == "UNAVAILABLE"
+    assert result["http_status"] == status
+    assert result["probe_via"] == "urllib"
+    assert result["error"] == "HTTPStatus"
+    assert result["attempts"] == len(calls) == attempts
+
+
+@pytest.mark.parametrize("status", [200, 204, 301, 401, 403, 404, 429, 500, 503])
+@pytest.mark.parametrize("transport", ["httpx-head", "httpx-get", "urllib"])
+def test_space_liveness_adapters_require_success_and_preserve_status(monkeypatch, status, transport):
+    import asyncio
+    from types import SimpleNamespace
+
+    class Client:
+        async def request(self, *args, **kwargs):
+            if transport == "httpx-get":
+                raise TimeoutError("isolated HEAD failure")
+            return SimpleNamespace(status_code=status)
+        async def get(self, url, **kwargs):
+            if url.startswith("https://huggingface.co/api/"):
+                return SimpleNamespace(status_code=200, json=lambda: {"runtime": {"stage": "RUNNING"}})
+            return SimpleNamespace(status_code=status)
+    def probe(url, timeout, want_json=False):
+        if url.startswith("https://huggingface.co/api/"):
+            return 200, {"runtime": {"stage": "RUNNING"}}
+        return status, None
+    async def no_contracts(*args):
+        return []
+    monkeypatch.setattr(surface, "_urllib_probe", probe)
+    monkeypatch.setattr(surface, "_probe_contracts", no_contracts)
+    result = asyncio.run(surface._probe_one(None if transport == "urllib" else Client(), surface.SPACES[0]))
+    assert result["app_status"] == status
+    assert result["app_reachable"] is (200 <= status < 300)
+    assert result["probe_via"] == ("urllib" if transport == "urllib" else "httpx")
 
 
 def test_unify_ledger_is_bind_not_a_hub_space():
