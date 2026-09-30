@@ -15,6 +15,25 @@ SPEC = importlib.util.spec_from_file_location("configure_hf_gdw_runtime", SCRIPT
 assert SPEC and SPEC.loader
 config = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(config)
+verifier = config.load_authority_verifier()
+ROOT = SCRIPT.resolve().parent.parent
+PINNED_PEM = (ROOT / verifier.PINNED_SIGNING_PUBLIC_KEY_PATH).read_bytes()
+SIGNING_SECRET = "SZL_COSIGN_PRIVATE_PEM"
+
+
+def offline_get(_url):
+    raise OSError("offline fixture: no network")
+
+
+def pinned_get(url):
+    if url.endswith("/cosign.pub"):
+        return 200, {}, PINNED_PEM
+    return 503, {}, b""
+
+
+@pytest.fixture(autouse=True)
+def no_network(monkeypatch):
+    monkeypatch.setattr(verifier, "default_get", offline_get)
 
 
 def test_desired_variables_preserve_nonsecret_storage_and_resource_contract() -> None:
@@ -104,7 +123,7 @@ class MetadataOnlyApi:
         self.value_reads = []
         self.reads = []
         self.writes = []
-        required = {config.CREDENTIAL_REGISTRY_SECRET}
+        required = {config.CREDENTIAL_REGISTRY_SECRET, SIGNING_SECRET}
         self.secrets = NamesOnlyMetadata(required if secret_names is None else secret_names,
                                          self.value_reads)
         self.variables = NamesOnlyMetadata(variable_names, self.value_reads)
@@ -152,20 +171,52 @@ def assert_setup_required(report, api, diagnostic_code="INSTALLED_AUTHORITY_UNKN
     assert api.writes == []
 
 
-@pytest.mark.parametrize("secret_names,variable_names", [
-    (set(), ()),
-    (None, ()),
-    ({config.CREDENTIAL_REGISTRY_SECRET, "GDW_DB_PATH"}, ()),
+@pytest.mark.parametrize("secret_names,diagnostic", [
+    (set(), "SIGNING_SECRET_MISSING"),
+    (None, "AUTHORITY_ORIGIN_UNAVAILABLE"),
+    ({config.CREDENTIAL_REGISTRY_SECRET, "GDW_DB_PATH"}, "SIGNING_SECRET_MISSING"),
+    ({SIGNING_SECRET}, "AUTHORITY_ORIGIN_UNAVAILABLE"),
 ])
-def test_manual_registry_names_never_prove_authority(secret_names, variable_names):
-    api = MetadataOnlyApi(secret_names=secret_names, variable_names=variable_names)
+def test_manual_registry_names_never_prove_authority(secret_names, diagnostic):
+    api = MetadataOnlyApi(secret_names=secret_names)
     report = config.manual_prerequisites(api, repo_id=config.CANONICAL_SPACE)
-    assert_setup_required(report, api)
+    assert_setup_required(report, api, diagnostic)
     present = {config.CREDENTIAL_REGISTRY_SECRET} if secret_names is None else secret_names
     assert report["required_secret_names"] == [config.CREDENTIAL_REGISTRY_SECRET]
     assert report["missing_secret_names"] == ([] if config.CREDENTIAL_REGISTRY_SECRET in present
                                                else [config.CREDENTIAL_REGISTRY_SECRET])
     assert {kind for kind, _ in api.reads} == {"secrets", "variables", "volumes"}
+
+
+def test_pinned_runtime_key_and_registry_name_are_ready():
+    api = MetadataOnlyApi()
+    report = config.manual_prerequisites(api, repo_id=config.CANONICAL_SPACE, authority_get=pinned_get)
+    assert report["state"] == "READY"
+    assert report["converged"] is True
+    assert report["credential_authority_state"] == "VERIFIED"
+    assert report["diagnostic_code"] == "INSTALLED_AUTHORITY_VERIFIED"
+    assert report["gdw_authority"]["state"] == "NAME_PRESENT_RUNTIME_PROVEN_DOWNSTREAM"
+    assert report["installed_authority"]["github_public_reader"]["state"] == "PUBLIC_ANONYMOUS"
+    assert report["installed_authority"]["live_git_sha"] is None  # /honest unavailable: informational only
+    assert api.value_reads == [] and api.writes == []
+
+
+def test_pinned_key_without_registry_name_is_blocking():
+    api = MetadataOnlyApi(secret_names={SIGNING_SECRET})
+    report = config.manual_prerequisites(api, repo_id=config.CANONICAL_SPACE, authority_get=pinned_get)
+    assert_setup_required(report, api, "GDW_CREDENTIALS_MISSING")
+    assert report["missing_secret_names"] == [config.CREDENTIAL_REGISTRY_SECRET]
+
+
+def test_verified_gdw_check_only_cli_exits_zero(monkeypatch, tmp_path):
+    api = MetadataOnlyApi()
+    monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(HfApi=lambda **_kwargs: api))
+    monkeypatch.setattr(verifier, "default_get", pinned_get)
+    monkeypatch.setenv("HF_TOKEN", "synthetic-hf-control")
+    output = tmp_path / "gdw.json"
+    assert config.main(["--check-only", "--output", str(output)]) == 0
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["state"] == "READY" and report["credential_authority_state"] == "VERIFIED"
 
 
 @pytest.mark.parametrize("secret_names,variable_names", [
@@ -240,7 +291,7 @@ def test_configure_refuses_unknown_authority_before_any_mutation(monkeypatch, ch
     kwargs = {"repo_id": config.CANONICAL_SPACE, "hf_token": "synthetic-hf-control",
               "check_only": check_only}
     if check_only:
-        assert_setup_required(config.configure(**kwargs), api)
+        assert_setup_required(config.configure(**kwargs), api, "AUTHORITY_ORIGIN_UNAVAILABLE")
     else:
         with pytest.raises(config.RuntimeConfigError) as error:
             config.configure(**kwargs)
@@ -278,7 +329,7 @@ def test_check_only_cli_emits_bounded_failed_report_without_operator_token(monke
     assert json.loads(capsys.readouterr().out) == report
     assert output.stat().st_size < 16384
     assert "GDW_OPERATOR_TOKEN" not in env_reads
-    expected = {None: "INSTALLED_AUTHORITY_UNKNOWN", "client": "SPACE_CLIENT_UNAVAILABLE",
+    expected = {None: "AUTHORITY_ORIGIN_UNAVAILABLE", "client": "SPACE_CLIENT_UNAVAILABLE",
                 "secrets": "CREDENTIAL_METADATA_UNAVAILABLE",
                 "variables": "CREDENTIAL_METADATA_UNAVAILABLE",
                 "volumes": "PERSISTENT_STORAGE_UNAVAILABLE"}

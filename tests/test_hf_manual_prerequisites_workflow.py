@@ -362,6 +362,111 @@ class PureAggregateWorkflowBoundaryTests(unittest.TestCase):
             self.assertIs(namespace["inspect_report"](report, fixture["schema"], True)["report_valid"], False)
 
 
+PINNED_FINGERPRINT = "8e2d106c6995e11dbf7cbedfa9e5800bb50c82a635756e40dcd330364f6ea8ba"
+
+
+def verified_report(schema):
+    authority = {
+        "schema": "szl.hf-installed-authority/v1", "credential_authority_state": "VERIFIED",
+        "diagnostic_code": "INSTALLED_AUTHORITY_VERIFIED", "public_variable_collision": False,
+        "signing_secret_name_present": True, "secret_values_read": False, "secret_values_written": False,
+        "signing": {"state": "VERIFIED_PINNED_RUNTIME_KEY", "served_fingerprint_sha256": PINNED_FINGERPRINT,
+                    "pinned_fingerprint_sha256": PINNED_FINGERPRINT},
+        "gdw": {"state": "NAME_PRESENT_RUNTIME_PROVEN_DOWNSTREAM", "blocking": False},
+        "github_public_reader": {"state": "PUBLIC_ANONYMOUS", "blocking": False},
+    }
+    return {"schema": schema, "repo_id": "SZLHOLDINGS/a11oy", "state": "READY",
+            "credential_authority_state": "VERIFIED", "diagnostic_code": "INSTALLED_AUTHORITY_VERIFIED",
+            "converged": True, "missing_secret_names": [], "installed_authority": authority,
+            "secret_values_read": False, "secret_values_written": False}
+
+
+class VerifiedAuthorityAggregateTests(unittest.TestCase):
+    checker_namespace = PureAggregateWorkflowBoundaryTests.checker_namespace
+    SERIES = "szl.hf-series-a-runtime-config/v1"
+    GDW = "szl.hf-gdw-runtime-config/v1"
+
+    def run_aggregate(self, series_report, gdw_report, series_exit="0", gdw_exit="0", source="a" * 40):
+        namespace = self.checker_namespace()
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            series, gdw, output = base / "series.json", base / "gdw.json", base / "aggregate.json"
+            series.write_text(series_report if isinstance(series_report, str) else json.dumps(series_report), encoding="utf-8")
+            gdw.write_text(gdw_report if isinstance(gdw_report, str) else json.dumps(gdw_report), encoding="utf-8")
+            code = namespace["main"](["--series-a", str(series), "--gdw", str(gdw), "--series-a-exit", series_exit,
+                                      "--gdw-exit", gdw_exit, "--source-sha", source, "--output", str(output)])
+            raw = output.read_text(encoding="utf-8")
+        return code, json.loads(raw), raw
+
+    def test_two_genuine_verified_reports_admit_provider_writes(self):
+        code, result, raw = self.run_aggregate(verified_report(self.SERIES), verified_report(self.GDW))
+        self.assertEqual(code, 0)
+        self.assertEqual(result["state"], "READY")
+        self.assertEqual(result["credential_authority_state"], "VERIFIED")
+        self.assertIs(result["converged"], True)
+        self.assertEqual(result["diagnostic_code"], "INSTALLED_AUTHORITY_VERIFIED")
+        self.assertEqual(result["series_a"], {"report_valid": True, "state": "READY", "credential_authority_state": "VERIFIED"})
+        self.assertLess(len(raw.encode()), 16 * 1024)
+
+    def test_any_weakened_verified_report_stays_setup_required(self):
+        def mutate(path, value):
+            report = verified_report(self.SERIES)
+            target = report
+            for key in path[:-1]:
+                target = target[key]
+            if value is KeyError:
+                del target[path[-1]]
+            else:
+                target[path[-1]] = value
+            return report
+
+        cases = (
+            ("nonzero-exit", verified_report(self.SERIES), "1"),
+            ("bool-exit", verified_report(self.SERIES), "True"),
+            ("state", mutate(("state",), "PASS"), "0"),
+            ("authority", mutate(("credential_authority_state",), "UNKNOWN"), "0"),
+            ("converged-int", mutate(("converged",), 1), "0"),
+            ("diagnostic", mutate(("diagnostic_code",), "INSTALLED_AUTHORITY_UNKNOWN"), "0"),
+            ("missing-name", mutate(("missing_secret_names",), ["SZL_COSIGN_PRIVATE_PEM"]), "0"),
+            ("no-authority", mutate(("installed_authority",), KeyError), "0"),
+            ("wrong-served-key", mutate(("installed_authority", "signing", "served_fingerprint_sha256"), "0" * 64), "0"),
+            ("wrong-pin", mutate(("installed_authority", "signing", "pinned_fingerprint_sha256"), "0" * 64), "0"),
+            ("not-installed", mutate(("installed_authority", "signing", "state"), "SIGNING_KEY_NOT_INSTALLED"), "0"),
+            ("gdw-missing", mutate(("installed_authority", "gdw", "blocking"), True), "0"),
+            ("collision", mutate(("installed_authority", "public_variable_collision"), True), "0"),
+            ("secret-read", mutate(("secret_values_read",), True), "0"),
+            ("inner-secret-read", mutate(("installed_authority", "secret_values_read"), 0), "0"),
+            ("duplicate", json.dumps(verified_report(self.SERIES))[:-1] + ', "state": "READY"}', "0"),
+            ("oversized", mutate(("padding",), "x" * (16 * 1024)), "0"),
+            ("wrong-schema", verified_report(self.GDW), "0"),
+        )
+        for name, report, exit_code in cases:
+            with self.subTest(case=name):
+                if exit_code == "True":
+                    namespace = self.checker_namespace()
+                    with tempfile.TemporaryDirectory() as temporary:
+                        path = Path(temporary) / "r.json"
+                        path.write_text(json.dumps(report), encoding="utf-8")
+                        self.assertIs(namespace["inspect_report"](path, self.SERIES, True)["report_valid"], False)
+                    continue
+                code, result, _ = self.run_aggregate(report, verified_report(self.GDW), series_exit=exit_code)
+                self.assertEqual(code, 1)
+                self.assertEqual(result["state"], "SETUP_REQUIRED")
+                self.assertEqual(result["credential_authority_state"], "UNKNOWN")
+                self.assertIs(result["converged"], False)
+                self.assertNotEqual(result["series_a"]["state"], "READY")
+
+    def test_one_verified_report_or_invalid_source_is_not_enough(self):
+        unknown = {"schema": self.GDW, "repo_id": "SZLHOLDINGS/a11oy", "state": "SETUP_REQUIRED",
+                   "credential_authority_state": "UNKNOWN", "converged": False,
+                   "secret_values_read": False, "secret_values_written": False}
+        code, result, _ = self.run_aggregate(verified_report(self.SERIES), unknown, gdw_exit="1")
+        self.assertEqual((code, result["state"]), (1, "SETUP_REQUIRED"))
+        self.assertEqual(result["series_a"]["state"], "READY")
+        code, result, _ = self.run_aggregate(verified_report(self.SERIES), verified_report(self.GDW), source="../x")
+        self.assertEqual((code, result["state"], result["source_revision"]), (1, "SETUP_REQUIRED", "UNVALIDATED"))
+
+
 class BlockedProofCLIBoundaryTests(unittest.TestCase):
     def test_actual_startup_prefix_fails_before_credentials_providers_or_live_functions(self):
         for filename, schema, value_field in PROOFS:
