@@ -21,6 +21,7 @@ from typing import Any
 TRUST_CEILING, LAMBDA_BOUND = 0.97, 0.72
 KERNEL_PIN, DOCTRINE, PAYLOAD, VERSION = "c7c0ba17", "v11 LOCKED", "yuyay_jev", "1.0.0"
 ENDPOINT, DEFAULT_MODEL = "https://api.typesafe.ai/v1/systemone", "jev-latest"
+MAX_REQUEST_BYTES, MAX_RESPONSE_BYTES = 1_048_576, 1_048_576
 LOCKED_EIGHT = ("F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22")
 YUYAY_AXES = (
     "moralGrounding",
@@ -188,17 +189,73 @@ def load_pack() -> dict[str, Any]:
 
 
 def axis_from_answer(spec: dict[str, Any], answer: dict[str, Any], conf_floor: float) -> float:
+    if not isinstance(spec, dict) or not isinstance(answer, dict):
+        return 0.0
     typ, polarity = spec.get("type"), spec.get("polarity", "direct")
+    if polarity not in {"direct", "invert"}:
+        return 0.0
     if typ == "noul":
-        raw = clamp01(answer.get("noul", 0.0))
+        raw = _bounded_number(answer.get("noul"), 1.0)
     elif typ == "score":
-        legend = answer.get("legend") or {}
-        raw = clamp01(float(answer.get("score", 0.0)) / max(len(legend) - 1, 1))
-        if float(answer.get("confidence", 0.0) or 0.0) < conf_floor:
-            raw = 0.0
+        legend = answer.get("legend")
+        if not isinstance(legend, (dict, list)) or len(legend) < 2:
+            return 0.0
+        score = _bounded_number(answer.get("score"), len(legend) - 1)
+        confidence = _bounded_number(answer.get("confidence"), 1.0)
+        floor = _bounded_number(conf_floor, 1.0)
+        if score is None or confidence is None or floor is None or confidence < floor:
+            return 0.0
+        raw = score / (len(legend) - 1)
     else:
-        raw = 0.0
-    return round(clamp01(1.0 - raw) if polarity == "invert" else raw, 12)
+        return 0.0
+    # Missing hazard evidence is not evidence of absence, even for inverted axes.
+    if raw is None:
+        return 0.0
+    return round(1.0 - raw if polarity == "invert" else raw, 12)
+
+
+def _bounded_number(value: Any, maximum: float) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    try:
+        number = float(value)
+    except (OverflowError, ValueError):
+        return None
+    return number if math.isfinite(number) and 0.0 <= number <= maximum else None
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def _strict_json(raw: bytes) -> dict[str, Any]:
+    def reject_constant(value: str) -> None:
+        raise ValueError("non-finite JSON number")
+
+    def unique_object(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("duplicate JSON key")
+            result[key] = value
+        return result
+
+    def finite_float(value: str) -> float:
+        number = float(value)
+        if not math.isfinite(number):
+            raise ValueError("non-finite JSON number")
+        return number
+
+    document = json.loads(
+        raw.decode("utf-8"), parse_constant=reject_constant,
+        parse_float=finite_float, object_pairs_hook=unique_object,
+    )
+    if not isinstance(document, dict) or not isinstance(document.get("answers"), dict):
+        raise ValueError("invalid Jev answer document")
+    if any(not isinstance(answer, dict) for answer in document["answers"].values()):
+        raise ValueError("invalid Jev answer")
+    return document
 
 
 def call_jev(state: Any, pack: dict[str, Any]) -> dict[str, Any]:
@@ -209,9 +266,20 @@ def call_jev(state: Any, pack: dict[str, Any]) -> dict[str, Any]:
         qid: {k: v for k, v in spec.items() if k in {"type", "instructions", "criteria"}}
         for qid, spec in pack["questions"].items()
     }
+    try:
+        body = json.dumps(
+            {"state": state, "model": pack.get("model", DEFAULT_MODEL), "questions": questions},
+            sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError, OverflowError):
+        raise RuntimeError("TYPESAFE_INVALID_REQUEST") from None
+    if len(body) > MAX_REQUEST_BYTES:
+        raise RuntimeError("TYPESAFE_REQUEST_TOO_LARGE")
+    if any(ord(character) < 32 or ord(character) == 127 for character in key):
+        raise RuntimeError("TYPESAFE_INVALID_CREDENTIAL")
     req = urllib.request.Request(
         ENDPOINT,
-        data=canon({"state": state, "model": pack.get("model", DEFAULT_MODEL), "questions": questions}),
+        data=body,
         method="POST",
         headers={
             "Authorization": f"Bearer {key}",
@@ -220,12 +288,31 @@ def call_jev(state: Any, pack: dict[str, Any]) -> dict[str, Any]:
         },
     )
     try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            return json.loads(resp.read().decode())
+        with urllib.request.build_opener(_NoRedirect()).open(req, timeout=60) as resp:
+            if not 200 <= resp.status < 300:
+                raise RuntimeError(f"TYPESAFE_HTTP_{int(resp.status)}")
+            content_length = resp.headers.get("Content-Length")
+            if content_length is not None:
+                try:
+                    length = int(content_length)
+                except (ValueError, TypeError):
+                    raise RuntimeError("TYPESAFE_INVALID_RESPONSE") from None
+                if length < 0:
+                    raise RuntimeError("TYPESAFE_INVALID_RESPONSE")
+                if length > MAX_RESPONSE_BYTES:
+                    raise RuntimeError("TYPESAFE_RESPONSE_TOO_LARGE")
+            raw = resp.read(MAX_RESPONSE_BYTES + 1)
+            if len(raw) > MAX_RESPONSE_BYTES:
+                raise RuntimeError("TYPESAFE_RESPONSE_TOO_LARGE")
+            try:
+                return _strict_json(raw)
+            except (UnicodeError, ValueError, OverflowError, RecursionError):
+                raise RuntimeError("TYPESAFE_INVALID_RESPONSE") from None
     except urllib.error.HTTPError as exc:
-        raise RuntimeError(f"TYPESAFE_HTTP_{exc.code}") from exc
-    except urllib.error.URLError as exc:
-        raise RuntimeError("TYPESAFE_UNAVAILABLE") from exc
+        exc.close()
+        raise RuntimeError(f"TYPESAFE_HTTP_{exc.code}") from None
+    except (urllib.error.URLError, TimeoutError, OSError):
+        raise RuntimeError("TYPESAFE_UNAVAILABLE") from None
 
 
 def fail(detail: str) -> None:
@@ -266,7 +353,7 @@ def measure(req: dict[str, Any]) -> dict[str, Any]:
     else:
         pack = load_pack()
         jev = call_jev(state, pack)
-        answers, conf = jev.get("answers") or {}, float(pack.get("confidence_floor", 0.55))
+        answers, conf = jev.get("answers") or {}, pack.get("confidence_floor", 0.55)
         axes = {qid: axis_from_answer(spec, answers.get(qid) or {}, conf) for qid, spec in pack["questions"].items()}
         values = [axes[a] for a in YUYAY_AXES]
         lam = wgm(values)

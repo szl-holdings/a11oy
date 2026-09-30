@@ -107,6 +107,12 @@ class CommandBrowserTests(unittest.TestCase):
         self.assertFalse(self.page.locator("#palette").is_visible())
         self.assertEqual(self.errors, [])
 
+    def test_reduced_motion_remains_local_when_shared_styles_fail(self):
+        self.page.emulate_media(reduced_motion="reduce")
+        self.page.locator('link[rel="stylesheet"]').evaluate_all("nodes => nodes.forEach(node => node.remove())")
+        self.assertEqual(self.page.locator(".action").first.evaluate("node => getComputedStyle(node).transitionDuration"), "0s")
+        self.assertEqual(self.page.locator(".action").first.evaluate("node => getComputedStyle(node).animationName"), "none")
+
     def test_refresh_failure_clears_headlines_and_never_writes(self):
         self.assertEqual(self.page.locator("#receipts").inner_text(), "Receipts · 0")
         self.unavailable = True

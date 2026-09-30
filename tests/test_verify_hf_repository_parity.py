@@ -736,5 +736,82 @@ class ImmutableRepositoryParityTests(unittest.TestCase):
         )
 
 
+class FailedParityReceiptTests(unittest.TestCase):
+    def exercise_failure(self, raw=None, *, resolve_error=None, returncode=1):
+        with tempfile.TemporaryDirectory() as directory:
+            output=Path(directory)/'failure.json'
+            output.write_text('{"proof_status":"exact","stale":true}')
+            def comparator(**arguments):
+                if raw is not None:
+                    arguments['report_out'].write_bytes(raw)
+                return MODULE.subprocess.CompletedProcess([],returncode,stdout='bounded comparator failure')
+            with mock.patch.object(MODULE,'resolve_stable_revision',side_effect=resolve_error,return_value='b'*40), \
+                    mock.patch.object(MODULE,'github_blob_tree',return_value={}), \
+                    mock.patch.object(MODULE,'run_comparator',side_effect=comparator), \
+                    mock.patch.object(MODULE.sys,'stderr',io.StringIO()):
+                with self.assertRaises((MODULE.ParityError,OSError,json.JSONDecodeError,UnicodeError,RecursionError)):
+                    MODULE.main(['--tools-script',str(SCRIPT),'--github-repo',GITHUB_REPO,
+                                 '--github-ref','a'*40,'--hf-repo',HF_REPO,'--report-out',str(output)])
+            value=json.loads(output.read_text())
+        self.assertEqual(value['schema'],'szl.hf-repository-parity-failure/v1')
+        self.assertEqual(value['status'],'blocked')
+        self.assertEqual(value['proof_status'],'unproved')
+        self.assertIs(value['complete'],False)
+        self.assertEqual(value['github_ref'],'a'*40)
+        self.assertEqual(value['hf_repo'],HF_REPO)
+        self.assertNotIn('stale',value)
+        self.assertNotIn('leading_dot_copy',value)
+        self.assertIn('observed_at',value)
+        return value
+
+    def test_nonzero_comparator_retains_drift_and_digest_then_fails(self):
+        raw=json.dumps({'status':'drift','error_count':1,'findings':[{'path':'routers/data/model-pretraining-snapshot.json'}]}).encode()
+        value=self.exercise_failure(raw)
+        self.assertEqual(value['immutable_hf_ref'],'b'*40)
+        self.assertEqual(value['comparators']['strict']['report'],json.loads(raw))
+        self.assertEqual(value['comparators']['strict']['sha256'],MODULE.hashlib.sha256(raw).hexdigest())
+        self.assertIn('non-zero',value['reason'])
+
+    def test_invalid_json_retains_digest_and_stays_unproved(self):
+        raw=b'{"partial":'
+        value=self.exercise_failure(raw)
+        self.assertEqual(value['error_type'],'JSONDecodeError')
+        self.assertEqual(value['comparators']['strict']['sha256'],MODULE.hashlib.sha256(raw).hexdigest())
+        self.assertNotIn('report',value['comparators']['strict'])
+
+    def test_missing_report_does_not_leave_stale_success(self):
+        value=self.exercise_failure()
+        self.assertEqual(value['error_type'],'FileNotFoundError')
+        self.assertEqual(value['comparators'],{})
+
+    def test_invalid_utf8_retains_digest_and_stays_unproved(self):
+        value=self.exercise_failure(b'\xff')
+        self.assertEqual(value['error_type'],'UnicodeDecodeError')
+        self.assertNotIn('report',value['comparators']['strict'])
+
+    def test_json_decoder_recursion_failure_retains_digest(self):
+        raw=b'['*10000+b'0'+b']'*10000
+        value=self.exercise_failure(raw)
+        self.assertEqual(value['error_type'],'RecursionError')
+        self.assertEqual(value['comparators']['strict']['sha256'],MODULE.hashlib.sha256(raw).hexdigest())
+        self.assertNotIn('report',value['comparators']['strict'])
+
+    def test_deep_valid_json_cannot_break_failure_receipt_encoding(self):
+        value=self.exercise_failure(b'['*64+b'0'+b']'*64)
+        self.assertEqual(value['error_type'],'ParityError')
+        self.assertIn('nesting',value['reason'])
+        self.assertNotIn('report',value['comparators']['strict'])
+
+    def test_unavailable_hub_does_not_invent_revision(self):
+        value=self.exercise_failure(resolve_error=MODULE.ParityError('Hub unavailable'))
+        self.assertIsNone(value['immutable_hf_ref'])
+        self.assertEqual(value['reason'],'Hub unavailable')
+
+    def test_zero_exit_invalid_report_still_fails_and_retains_evidence(self):
+        value=self.exercise_failure(b'{"status":"ok"}',returncode=0)
+        self.assertEqual(value['error_type'],'ParityError')
+        self.assertEqual(value['comparators']['strict']['report'],{'status':'ok'})
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
