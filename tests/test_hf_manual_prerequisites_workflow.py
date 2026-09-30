@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
-"""Offline workflow and blocked CLI boundaries; no live proof module imports."""
+"""Offline workflow, bounded live-proof and blocked CLI boundaries; no network."""
 
 from __future__ import annotations
 
@@ -40,6 +40,73 @@ def named_step(job, name):
 
 def compact(value):
     return " ".join(value.split())
+
+
+ADMITTED_GDW_SECRET_LINE = "          GDW_OPERATOR_TOKEN: ${{ secrets.GDW_OPERATOR_TOKEN }}\n"
+ADMISSION_CONDITION = "${{ always() && needs.manual-prerequisites.result == 'success' && needs.deploy.result == 'success' }}"
+GDW_CONDITION = ADMISSION_CONDITION[:-3] + " && (steps.series_a_proof.outcome == 'success' || steps.series_a_proof.outcome == 'failure') }}"
+BOUNDED_RUNS = {
+    "series_a": r'''set +e
+python -B scripts/prove_hf_series_a_restart.py \
+  --repo-id "$CANONICAL_SPACE" --origin "$CANONICAL_ORIGIN" \
+  --source-sha "${{ github.sha }}" --output "$SERIES_A_LIVE_REPORT"
+code=$?
+echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+exit "$code"''',
+    "gdw": r'''set +e
+python -B scripts/prove_hf_gdw_runtime.py \
+  --origin "$CANONICAL_ORIGIN" \
+  --source-sha "${{ github.sha }}" --output "$GDW_LIVE_REPORT"
+code=$?
+echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+exit "$code"''',
+    "admission": r'''set -euo pipefail
+python -B scripts/check_hf_manual_prerequisites.py --admit-live-proofs \
+  --series-a-proof "$SERIES_A_LIVE_REPORT" --series-a-proof-exit "${SERIES_A_PROOF_EXIT:-2}" \
+  --gdw-proof "$GDW_LIVE_REPORT" --gdw-proof-exit "${GDW_PROOF_EXIT:-2}" \
+  --source-sha "${{ github.sha }}" --output "$LIVE_PROOF_ADMISSION_REPORT"''',
+}
+
+
+def assert_bounded_live_proof_steps(runtime, source):
+    """The two live proofs run bounded, fail closed and are admitted by the checker."""
+    env = runtime.get("env", {})
+    if env.get("CANONICAL_SPACE") is not None or "GDW_OPERATOR_TOKEN" in env or "continue-on-error" in runtime:
+        raise WorkflowContractError("live proof must be bounded and fail closed: job")
+    series = named_step(runtime, "Prove live Series-A restart persistence (bounded)")
+    gdw = named_step(runtime, "Prove live GDW write, drain, and receipt integrity (bounded)")
+    admission = named_step(runtime, "Admit bounded live proof reports and fail closed")
+    for kind, step, condition, step_env in (
+        ("series-a", series, None, None),
+        ("gdw", gdw, GDW_CONDITION, {"GDW_OPERATOR_TOKEN": "${{ secrets.GDW_OPERATOR_TOKEN }}"}),
+        ("admission", admission, ADMISSION_CONDITION, {
+            "SERIES_A_PROOF_EXIT": "${{ steps.series_a_proof.outputs.exit_code }}",
+            "GDW_PROOF_EXIT": "${{ steps.gdw_proof.outputs.exit_code }}",
+        }),
+    ):
+        key = {"series-a": "series_a"}.get(kind, kind)
+        if (
+            compact(step.get("run", "")) != compact(BOUNDED_RUNS[key])
+            or step.get("if") != condition
+            or step.get("env") != step_env
+            or "continue-on-error" in step
+            or step.get("shell") != "bash"
+        ):
+            raise WorkflowContractError("live proof must be bounded and fail closed: " + kind)
+    if series.get("id") != "series_a_proof" or gdw.get("id") != "gdw_proof":
+        raise WorkflowContractError("live proof must be bounded and fail closed: ids")
+    steps = runtime["steps"]
+    if not steps.index(series) < steps.index(gdw) < steps.index(admission):
+        raise WorkflowContractError("live proof must be bounded and fail closed: order")
+    upload = named_step(runtime, "Upload secret-free runtime configuration evidence")
+    paths = upload.get("with", {}).get("path", "")
+    for name in ("SERIES_A_LIVE_REPORT", "GDW_LIVE_REPORT", "LIVE_PROOF_ADMISSION_REPORT"):
+        if "${{ env." + name + " }}" not in paths:
+            raise WorkflowContractError("live proof reports must be retained")
+    if "--blocked-proof" in source:
+        raise WorkflowContractError("hf-sync must not fall back to the blocked proof")
+    if source.count("prove_hf_series_a_restart.py") != 1 or source.count("prove_hf_gdw_runtime.py") != 1:
+        raise WorkflowContractError("live proof must be bounded and fail closed: duplicate call")
 
 
 def assert_manual_step_contract(source):
@@ -82,20 +149,13 @@ python -B scripts/check_hf_manual_prerequisites.py \
     receipt = named_step(job, "Retain bounded prerequisite decision")
     if receipt.get("if") != "always()" or receipt.get("with", {}).get("if-no-files-found") != "error":
         raise WorkflowContractError("manual decision must be retained")
+    # The GDW operator credential may appear exactly once: as the step-level
+    # env of the bounded GDW proof step. Anywhere else it is a removed effect.
+    scanned = source.replace(ADMITTED_GDW_SECRET_LINE, "", 1)
     for token in ("DOCS_READ_TOKEN", "--github-read-token", "--operator-token", "--capacity-donor", "HF_CAPACITY_DONOR", "add_space_secret", "delete_space_secret", "gh issue", "issues: write", "OPERATOR_TOKEN"):
-        if token in source:
+        if token in scanned:
             raise WorkflowContractError("removed credential or donor effect: " + token)
-    runtime = jobs["runtime-config"]
-    for name, kind, output in (
-        ("Block unreviewed live Series-A restart effects", "series-a", "$SERIES_A_LIVE_REPORT"),
-        ("Block unreviewed live GDW write effects", "gdw", "$GDW_LIVE_REPORT"),
-    ):
-        blocked = named_step(runtime, name)
-        expected = f'python -B scripts/check_hf_manual_prerequisites.py --blocked-proof {kind} --source-sha "${{{{ github.sha }}}}" --output "{output}"'
-        if compact(blocked.get("run", "")) != expected:
-            raise WorkflowContractError("live proof remains unadmitted: " + kind)
-    if "prove_hf_series_a_restart.py" in source or "prove_hf_gdw_runtime.py" in source:
-        raise WorkflowContractError("workflow cannot call retained live proof library")
+    assert_bounded_live_proof_steps(jobs["runtime-config"], source)
     document = workflow_document(source)
     if document["on"]["workflow_dispatch"]["inputs"]["publish_vertical_flagships"]["default"] is not False:
         raise WorkflowContractError("vertical publication requires explicit opt in")
@@ -145,39 +205,50 @@ def assert_blocked_restart_workflow(source):
         raise WorkflowContractError("blocked restart receipt missing")
 
 
-def proof_cli_prefix(path):
-    """Return the actual startup prefix only; retained live functions are excluded."""
+PROOF_SECRET_NAMES = {"prove_hf_series_a_restart.py": "HF_TOKEN", "prove_hf_gdw_runtime.py": "GDW_OPERATOR_TOKEN"}
+PERMITTED_PROOF_IMPORTS = {"__future__", "argparse", "base64", "hashlib", "json", "os", "re", "sys", "time", "datetime", "pathlib", "typing", "urllib", "hf_live_proof_bounds"}
+FORBIDDEN_PROVIDER_EFFECTS = ("delete_space_secret", "add_space_secret", "add_space_variable", "delete_space_variable", "delete_space_storage", "request_space_storage", "request_space_hardware", "upload_file", "delete_repo", "factory_reboot=True")
+
+
+def bounded_proof_cli_contract(path):
+    """Static boundary of an admitted live proof CLI (and the shared bounds)."""
     source = path.read_text(encoding="utf-8")
     tree = ast.parse(source, filename=str(path))
     mains = [node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "main"]
     entries = [node for node in tree.body if isinstance(node, ast.If) and
                ast.dump(node.test) == ast.dump(ast.parse('__name__ == "__main__"', mode="eval").body)]
-    if len(mains) != 1 or len(entries) != 1:
-        raise WorkflowContractError("proof CLI requires one early main and entrypoint")
-    entry = entries[0]
-    if mains[0].lineno >= entry.lineno or len(entry.body) != 1 or entry.orelse:
-        raise WorkflowContractError("proof CLI entrypoint is not terminal")
-    if ast.dump(entry.body[0]) != ast.dump(ast.parse("raise SystemExit(main())").body[0]):
-        raise WorkflowContractError("proof CLI entrypoint is not terminal")
-    permitted = {"__future__", "argparse", "base64", "hashlib", "json", "os", "re", "time", "datetime", "pathlib", "typing", "urllib", "sys"}
-    prefix = ast.Module(body=[node for node in tree.body if node.lineno <= entry.lineno], type_ignores=[])
-    for node in ast.walk(prefix):
+    if len(mains) != 1 or len(entries) != 1 or tree.body[-1] is not entries[0]:
+        raise WorkflowContractError("proof CLI requires one terminal main entrypoint")
+    if ast.dump(entries[0].body[0]) != ast.dump(ast.parse("raise SystemExit(main())").body[0]) or len(entries[0].body) != 1:
+        raise WorkflowContractError("proof CLI requires one terminal main entrypoint")
+    for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             imported = [name.name.split(".", 1)[0] for name in node.names]
         elif isinstance(node, ast.ImportFrom):
             imported = [(node.module or "").split(".", 1)[0]]
         else:
             continue
-        if any(name not in permitted for name in imported):
-            raise WorkflowContractError("provider import before blocked CLI")
-    calls = {ast.unparse(node.func) for node in ast.walk(mains[0]) if isinstance(node, ast.Call)}
-    permitted_calls = {"argparse.ArgumentParser", "parser.add_argument", "parser.parse_args", "args.source_sha.strip().lower", "args.source_sha.strip", "re.fullmatch", "Path", "output.parent.mkdir", "json.dumps", "output.write_text", "print"}
-    if not calls.issubset(permitted_calls):
-        raise WorkflowContractError("blocked CLI has an unreviewed call")
-    startup_calls = {ast.unparse(node.func) for node in ast.walk(prefix) if isinstance(node, ast.Call)}
-    if not startup_calls.issubset(permitted_calls | {"Path(__file__).resolve", "str", "sys.path.insert", "SystemExit", "main"}):
-        raise WorkflowContractError("proof startup has an unreviewed call")
-    return prefix, permitted
+        if any(name not in PERMITTED_PROOF_IMPORTS for name in imported):
+            raise WorkflowContractError("provider import in bounded proof")
+    for token in FORBIDDEN_PROVIDER_EFFECTS:
+        if token in source.replace("factory_reboot=False", ""):
+            raise WorkflowContractError("unreviewed provider effect: " + token)
+    reads = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and ast.unparse(node.func) in {"os.environ.get", "os.getenv", "os.environ.__getitem__"}:
+            reads.append(ast.unparse(node.args[0]) if node.args else "")
+        if isinstance(node, ast.Subscript) and ast.unparse(node.value) == "os.environ":
+            reads.append(ast.unparse(node.slice))
+    expected_name = PROOF_SECRET_NAMES[path.name]
+    constants = {
+        node.targets[0].id: node.value.value for node in tree.body
+        if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)
+        and isinstance(node.value, ast.Constant) and isinstance(node.value.value, str)
+    }
+    resolved = [constants.get(name, name.strip("'\"")) for name in reads]
+    if resolved != [expected_name]:
+        raise WorkflowContractError("proof reads an unreviewed environment name")
+    return tree
 
 
 class ManualPrerequisiteWorkflowTests(unittest.TestCase):
@@ -211,12 +282,27 @@ class ManualPrerequisiteWorkflowTests(unittest.TestCase):
             with self.subTest(token=token), self.assertRaisesRegex(WorkflowContractError, "removed credential or donor effect"):
                 assert_manual_step_contract(self.source + "\n# " + token + "\n")
 
-    def test_live_proof_call_cannot_replace_blocked_report_step(self):
-        changed = self.source.replace("--blocked-proof series-a", "--admit-live-proof series-a", 1)
-        with self.assertRaisesRegex(WorkflowContractError, "live proof remains unadmitted: series-a"):
-            assert_manual_step_contract(changed)
-        changed = self.source.replace("--blocked-proof gdw", "--admit-live-proof gdw", 1)
-        with self.assertRaisesRegex(WorkflowContractError, "live proof remains unadmitted: gdw"):
+    def test_weakened_bounded_live_proof_steps_are_rejected(self):
+        cases = (
+            ('          exit "$code"\n\n      # Writes only', '          exit 0\n\n      # Writes only', "series-a"),
+            ('--origin "$CANONICAL_ORIGIN" \\\n            --source-sha "${{ github.sha }}" --output "$GDW_LIVE_REPORT"', '--origin "https://a-11-oy.com" \\\n            --source-sha "${{ github.sha }}" --output "$GDW_LIVE_REPORT"', "gdw"),
+            ('--admit-live-proofs \\', '--admit-live-proofs || true \\', "admission"),
+            ("        id: gdw_proof\n", "        id: gdw_proof\n        continue-on-error: true\n", "gdw|step failure bypass"),
+            ("      - name: Admit bounded live proof reports and fail closed\n", "      - name: Admit bounded live proof reports and fail closed\n        continue-on-error: true\n", "admission|step failure bypass"),
+            ("            ${{ env.LIVE_PROOF_ADMISSION_REPORT }}\n", "", "retained"),
+            ("      GDW_LIVE_REPORT: /tmp/gdw-live-proof.json\n", "      GDW_LIVE_REPORT: /tmp/gdw-live-proof.json\n      GDW_OPERATOR_TOKEN: ${{ secrets.GDW_OPERATOR_TOKEN }}\n", "removed credential"),
+        )
+        for original, replacement, diagnostic in cases:
+            with self.subTest(diagnostic=diagnostic, original=original):
+                self.assertIn(original, self.source)
+                with self.assertRaisesRegex(WorkflowContractError, diagnostic):
+                    assert_manual_step_contract(self.source.replace(original, replacement, 1))
+
+    def test_blocked_proof_fallback_in_hf_sync_is_rejected(self):
+        changed = self.source.replace(
+            "python -B scripts/prove_hf_gdw_runtime.py \\",
+            "python -B scripts/check_hf_manual_prerequisites.py --blocked-proof gdw \\", 1)
+        with self.assertRaises(WorkflowContractError):
             assert_manual_step_contract(changed)
 
     def test_standalone_restart_workflow_has_no_provider_or_secret_path(self):
@@ -467,95 +553,187 @@ class VerifiedAuthorityAggregateTests(unittest.TestCase):
         self.assertEqual((code, result["state"], result["source_revision"]), (1, "SETUP_REQUIRED", "UNVALIDATED"))
 
 
-class BlockedProofCLIBoundaryTests(unittest.TestCase):
-    def test_actual_startup_prefix_fails_before_credentials_providers_or_live_functions(self):
+class BoundedProofCLIBoundaryTests(unittest.TestCase):
+    def test_bounded_proof_modules_have_no_provider_client_or_other_secret(self):
+        for filename, _schema, _field in PROOFS:
+            with self.subTest(script=filename):
+                bounded_proof_cli_contract(ROOT / "scripts" / filename)
+        bounds_source = (ROOT / "scripts/hf_live_proof_bounds.py").read_text(encoding="utf-8")
+        for token in FORBIDDEN_PROVIDER_EFFECTS + ("os.environ",):
+            self.assertNotIn(token, bounds_source.replace("factory_reboot=False", ""))
+
+    def test_provider_import_is_a_rejected_negative_fixture(self):
+        path = ROOT / "scripts" / PROOFS[0][0]
+        changed = path.read_text(encoding="utf-8").replace("import argparse\n", "import argparse\nfrom huggingface_hub import HfApi\n", 1)
+        with mock.patch.object(Path, "read_text", return_value=changed), self.assertRaisesRegex(WorkflowContractError, "provider import"):
+            bounded_proof_cli_contract(path)
+
+    def test_extra_secret_read_is_a_rejected_negative_fixture(self):
+        path = ROOT / "scripts" / PROOFS[1][0]
+        source = path.read_text(encoding="utf-8")
+        changed = source.replace("    args = parser.parse_args(argv)\n", "    args = parser.parse_args(argv)\n    os.environ.get('HF_TOKEN')\n", 1)
+        self.assertNotEqual(changed, source)
+        with mock.patch.object(Path, "read_text", return_value=changed), self.assertRaisesRegex(WorkflowContractError, "unreviewed environment name"):
+            bounded_proof_cli_contract(path)
+
+    def test_secret_deletion_is_a_rejected_negative_fixture(self):
+        path = ROOT / "scripts" / PROOFS[0][0]
+        changed = path.read_text(encoding="utf-8") + "\n# api.delete_space_secret(repo_id=x, key=y)\n"
+        with mock.patch.object(Path, "read_text", return_value=changed), self.assertRaisesRegex(WorkflowContractError, "unreviewed provider effect"):
+            bounded_proof_cli_contract(path)
+
+    def test_actual_cli_without_secret_is_setup_required_before_any_network(self):
         for filename, schema, value_field in PROOFS:
             path = ROOT / "scripts" / filename
-            prefix, permitted = proof_cli_prefix(path)
-            for source_sha in ("a" * 40, "../private-fixture?token=must-not-echo"):
-                with self.subTest(script=filename, source_sha=source_sha), tempfile.TemporaryDirectory() as temporary:
-                    output = Path(temporary) / "blocked.json"
-                    attempts = []
+            secret_name = PROOF_SECRET_NAMES[filename]
+            with self.subTest(script=filename), tempfile.TemporaryDirectory() as temporary:
+                output = Path(temporary) / "proof.json"
+                attempts = []
 
-                    def forbidden(*args, **kwargs):
-                        attempts.append("unreviewed access")
-                        raise AssertionError("blocked CLI crossed its pure boundary")
+                def forbidden(*args, **kwargs):
+                    attempts.append("network")
+                    raise AssertionError("SETUP_REQUIRED crossed the network boundary")
 
-                    original_import = builtins.__import__
+                class OnlyReviewedName(dict):
+                    default_names = {"LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG", "COLUMNS", "LINES", "NO_COLOR", "FORCE_COLOR", "PYTHON_COLORS", "TERM"}
 
-                    def restricted_import(name, *args, **kwargs):
-                        if name.split(".", 1)[0] not in permitted | sys.stdlib_module_names:
-                            return forbidden()
-                        return original_import(name, *args, **kwargs)
+                    def get(self, key, default=None):
+                        if key in self.default_names or key == secret_name:
+                            return default
+                        return forbidden()
 
-                    class NoCredentialEnvironment(dict):
-                        # argparse/gettext/shutil may inspect locale and display
-                        # defaults. Never consult the real environment; every
-                        # other name, including all credential names, is rejected.
-                        default_names = {"LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG", "COLUMNS", "LINES"}
+                    def __getitem__(self, key):
+                        if key in self.default_names:
+                            raise KeyError(key)
+                        return forbidden()
 
-                        def get(self, key, default=None):
-                            if key in self.default_names:
-                                return default
-                            return forbidden()
+                    def __contains__(self, key):
+                        return False
 
-                        def __getitem__(self, key):
-                            if key in self.default_names:
-                                raise KeyError(key)
-                            return forbidden()
+                argv = [str(path), "--source-sha", "a" * 40, "--output", str(output)]
+                saved_path = list(sys.path)
+                captured = io.StringIO()
+                environment = OnlyReviewedName()
+                try:
+                    with mock.patch.object(sys, "argv", argv), mock.patch.object(os, "environ", environment), \
+                            mock.patch.object(os, "getenv", environment.get), \
+                            mock.patch("urllib.request.OpenerDirector.open", forbidden), \
+                            mock.patch("urllib.request.urlopen", forbidden), redirect_stdout(captured):
+                        with self.assertRaises(SystemExit) as exit_result:
+                            exec(compile(path.read_text(encoding="utf-8"), str(path), "exec"),
+                                 {"__name__": "__main__", "__file__": str(path)})
+                finally:
+                    sys.path[:] = saved_path
+                self.assertEqual(exit_result.exception.code, 1)
+                raw = output.read_text(encoding="utf-8")
+                result = json.loads(raw)
+                self.assertEqual(captured.getvalue(), raw)
+                self.assertEqual(result["schema"], schema)
+                self.assertEqual(result["state"], "SETUP_REQUIRED")
+                self.assertEqual(result["missing_secret_names"], [secret_name])
+                self.assertIs(result["ok"], False)
+                self.assertEqual(result["evidence"], {})
+                self.assertEqual(result["credential_authority_state"], "UNKNOWN")
+                self.assertIs(result[value_field], False)
+                self.assertEqual(attempts, [])
+                self.assertLess(len(raw.encode()), 16 * 1024)
 
-                        __iter__ = keys = items = values = forbidden
+    def test_wrong_destination_or_space_fails_before_credentials(self):
+        cases = (
+            ("prove_hf_series_a_restart.py", ["--repo-id", "untrusted/fixture"], "SPACE_SCOPE_REJECTED"),
+            ("prove_hf_series_a_restart.py", ["--origin", "https://untrusted.invalid/?token=must-not-echo"], "DESTINATION_REJECTED"),
+            ("prove_hf_gdw_runtime.py", ["--origin", "https://untrusted.invalid/?token=must-not-echo"], "DESTINATION_REJECTED"),
+        )
+        for filename, extra, code in cases:
+            path = ROOT / "scripts" / filename
+            with self.subTest(script=filename, code=code), tempfile.TemporaryDirectory() as temporary:
+                output = Path(temporary) / "proof.json"
 
-                    argv = [str(path), "--source-sha", source_sha, "--output", str(output), "--origin", "https://untrusted.invalid/?token=must-not-echo"]
-                    if filename == "prove_hf_series_a_restart.py":
-                        argv.extend(["--repo-id", "untrusted/fixture"])
-                    else:
-                        argv.extend(["--restart-repo-id", "untrusted/fixture"])
-                    namespace = {"__name__": "__main__", "__file__": str(path), "HfApi": forbidden, "prove": forbidden, "request_json": forbidden, "urlopen": forbidden}
-                    saved_path = list(sys.path)
-                    captured = io.StringIO()
-                    try:
-                        environment = NoCredentialEnvironment()
-                        with mock.patch.object(sys, "argv", argv), mock.patch.object(os, "environ", environment), mock.patch.object(os, "getenv", environment.get), mock.patch.object(builtins, "__import__", restricted_import), redirect_stdout(captured):
-                            with self.assertRaises(SystemExit) as exit_result:
-                                exec(compile(prefix, str(path), "exec"), namespace)
-                    finally:
-                        sys.path[:] = saved_path
-                    self.assertEqual(exit_result.exception.code, 1)
-                    raw = output.read_text(encoding="utf-8")
-                    result = json.loads(raw)
-                    self.assertEqual(captured.getvalue(), raw)
-                    self.assertEqual(result["schema"], schema)
-                    self.assertEqual(result["status"], "FAIL")
-                    self.assertIs(result["ok"], False)
-                    self.assertEqual(result["evidence"], {})
-                    self.assertEqual(result["credential_authority_state"], "UNKNOWN")
-                    self.assertIs(result[value_field], False)
-                    self.assertEqual(result["source_revision"], source_sha if source_sha == "a" * 40 else "UNVALIDATED")
-                    self.assertNotIn("must-not-echo", raw)
-                    self.assertEqual(attempts, [])
-                    self.assertLess(len(raw.encode()), 16 * 1024)
+                def forbidden(*args, **kwargs):
+                    raise AssertionError("credential or network access before scope check")
 
-    def test_provider_import_before_entrypoint_is_a_rejected_negative_fixture(self):
-        path = ROOT / "scripts" / PROOFS[0][0]
-        source = path.read_text(encoding="utf-8")
-        changed = source.replace("import argparse\n", "import argparse\nfrom huggingface_hub import HfApi\n", 1)
-        with mock.patch.object(Path, "read_text", return_value=changed), self.assertRaisesRegex(WorkflowContractError, "provider import before blocked CLI"):
-            proof_cli_prefix(path)
+                class NoCredentials(dict):
+                    default_names = {"LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG", "COLUMNS", "LINES", "NO_COLOR", "FORCE_COLOR", "PYTHON_COLORS", "TERM"}
 
-    def test_live_call_in_early_main_is_a_rejected_negative_fixture(self):
-        path = ROOT / "scripts" / PROOFS[1][0]
-        source = path.read_text(encoding="utf-8")
-        changed = source.replace("def main() -> int:\n", "def main() -> int:\n    request_json('POST', 'https://untrusted.invalid')\n", 1)
-        with mock.patch.object(Path, "read_text", return_value=changed), self.assertRaisesRegex(WorkflowContractError, "blocked CLI has an unreviewed call"):
-            proof_cli_prefix(path)
+                    def get(self, key, default=None):
+                        if key in self.default_names:
+                            return default
+                        return forbidden()
 
-    def test_top_level_live_call_before_main_is_a_rejected_negative_fixture(self):
-        path = ROOT / "scripts" / PROOFS[1][0]
-        source = path.read_text(encoding="utf-8")
-        changed = source.replace("def main() -> int:\n", "request_json('POST', 'https://untrusted.invalid')\n\ndef main() -> int:\n", 1)
-        with mock.patch.object(Path, "read_text", return_value=changed), self.assertRaisesRegex(WorkflowContractError, "proof startup has an unreviewed call"):
-            proof_cli_prefix(path)
+                    def __contains__(self, key):
+                        return False
+
+                argv = [str(path), "--source-sha", "a" * 40, "--output", str(output), *extra]
+                saved_path = list(sys.path)
+                environment = NoCredentials()
+                try:
+                    with mock.patch.object(sys, "argv", argv), mock.patch.object(os, "environ", environment), \
+                            mock.patch.object(os, "getenv", environment.get), \
+                            mock.patch("urllib.request.OpenerDirector.open", forbidden), redirect_stdout(io.StringIO()):
+                        with self.assertRaises(SystemExit) as exit_result:
+                            exec(compile(path.read_text(encoding="utf-8"), str(path), "exec"),
+                                 {"__name__": "__main__", "__file__": str(path)})
+                finally:
+                    sys.path[:] = saved_path
+                self.assertEqual(exit_result.exception.code, 1)
+                raw = output.read_text(encoding="utf-8")
+                self.assertEqual(json.loads(raw)["diagnostic_code"], code)
+                self.assertNotIn("must-not-echo", raw)
+
+
+class LiveProofAdmissionCheckerTests(unittest.TestCase):
+    def checker(self):
+        namespace = {"__name__": "offline_live_proof_admission", "__file__": str(CHECKER)}
+        exec(compile(CHECKER.read_text(encoding="utf-8"), str(CHECKER), "exec"), namespace)
+        return namespace
+
+    def run_admission(self, series_raw, gdw_raw, series_exit="0", gdw_exit="0", source="a" * 40):
+        namespace = self.checker()
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            series, gdw, output = base / "s.json", base / "g.json", base / "out.json"
+            if series_raw is not None:
+                series.write_text(series_raw, encoding="utf-8")
+            if gdw_raw is not None:
+                gdw.write_text(gdw_raw, encoding="utf-8")
+            code = namespace["main"]([
+                "--admit-live-proofs", "--series-a-proof", str(series), "--series-a-proof-exit", series_exit,
+                "--gdw-proof", str(gdw), "--gdw-proof-exit", gdw_exit,
+                "--source-sha", source, "--output", str(output),
+            ])
+            return code, json.loads(output.read_text(encoding="utf-8")), output.read_text(encoding="utf-8")
+
+    def blocked(self, kind):
+        namespace = self.checker()
+        return json.dumps(namespace["blocked_proof_report"](kind, "a" * 40))
+
+    def test_blocked_or_missing_reports_are_never_admitted(self):
+        for series, gdw in ((self.blocked("series-a"), self.blocked("gdw")), (None, None), ("", "")):
+            code, result, _ = self.run_admission(series, gdw)
+            self.assertEqual((code, result["state"], result["admitted"]), (1, "NOT_ADMITTED", False))
+
+    def test_malformed_duplicate_oversized_and_wrong_schema_reports_fail_closed(self):
+        fixture = {"schema": "szl.series-a-restart-proof/v1", "repo_id": "SZLHOLDINGS/a11oy", "status": "PASS", "ok": True}
+        raw = json.dumps(fixture)
+        for label, value in (
+            ("malformed", "{"),
+            ("duplicate", raw[:-1] + ', "status": "PASS", "poison": "must-not-echo"}'),
+            ("oversized", json.dumps(dict(fixture, padding="x" * (17 * 1024)))),
+            ("array", "[]"),
+            ("wrong_schema", json.dumps(dict(fixture, schema="szl.other/v1"))),
+            ("wrong_space", json.dumps(dict(fixture, repo_id="SZLHOLDINGS/other"))),
+        ):
+            with self.subTest(label=label):
+                code, result, encoded = self.run_admission(value, value)
+                self.assertEqual(code, 1)
+                self.assertEqual(result["series_a"], {"report_valid": False, "state": "UNPROVEN"})
+                self.assertNotIn("must-not-echo", encoded)
+
+    def test_non_integer_or_nonzero_exit_and_invalid_source_are_not_admitted(self):
+        for series_exit, source in (("1", "a" * 40), ("0", "../x")):
+            code, result, _ = self.run_admission(self.blocked("series-a"), self.blocked("gdw"), series_exit=series_exit, source=source)
+            self.assertEqual(code, 1)
+            self.assertFalse(result["admitted"])
 
 
 if __name__ == "__main__":

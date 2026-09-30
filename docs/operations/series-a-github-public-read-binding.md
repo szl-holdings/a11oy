@@ -111,10 +111,79 @@ derive it, unless the runtime is hostile (see below). A live run on
 
 - Source-ownership, exact-head, drift, single-writer, security and live-proof
   jobs are not weakened.
-- The `--blocked-proof` restart and GDW proof entrypoints still fail closed
-  before any credential reads.
+- The `--blocked-proof` entrypoint of `check_hf_manual_prerequisites.py`
+  stays in place for the standalone `series-a-restart-proof.yml` workflow,
+  which still fails closed before any credential reads. `hf-sync.yml` no
+  longer calls it (see "Live proofs" below).
 - Evidence belongs in Actions artifacts and summaries. Issue #1043 is not
   edited, closed, reopened or commented on.
+
+## Live proofs (admitted 2026-09-30, bounded)
+
+Status: admitted into `hf-sync.yml` job `runtime-config`, after the two
+converge steps. The founder decision above (wave 2 of the unfreeze) replaced
+the two blocked-report steps with real, bounded invocations:
+
+1. `Prove live Series-A restart persistence (bounded)` runs
+   `scripts/prove_hf_series_a_restart.py` (reads `HF_TOKEN` only).
+2. `Prove live GDW write, drain, and receipt integrity (bounded)` runs
+   `scripts/prove_hf_gdw_runtime.py` (reads `GDW_OPERATOR_TOKEN` only, as a
+   step-level env; it is never forwarded into Space secrets).
+3. `Admit bounded live proof reports and fail closed` runs
+   `check_hf_manual_prerequisites.py --admit-live-proofs`. It exits 0 only
+   when both reports are exact `PASS` reports with the reviewed bounds. It
+   rejects missing, malformed, oversized (>16 KiB), duplicate-field and
+   wrongly typed reports.
+
+All three reports plus `/tmp/live-proof-admission.json` go to the existing
+runtime-configuration artifact. No new secret names were added. A missing
+secret yields `SETUP_REQUIRED` with the secret name only, and exit 1.
+
+Bounds (shared, `scripts/hf_live_proof_bounds.py`, covered by offline tests):
+
+- Destination: only `https://szlholdings-a11oy.hf.space/api/...` and
+  `https://huggingface.co/api/spaces/SZLHOLDINGS/a11oy[/...]`, compared by
+  exact host. Redirects are never followed; any 3xx is
+  `REDIRECT_REJECTED`.
+- Error text: provider bodies are never read on error, and exception text is
+  never written. Reports carry fixed `diagnostic_code` values only, and
+  evidence strings that are not short safe tokens become `[REDACTED_TEXT]`.
+- Retry: only 429/502/503/504 (booting runtime, GDW admission pending) are
+  retried, at most 8 attempts within 10 minutes per request. Everything else
+  fails closed on the first response. GDW has a 10-minute proof deadline.
+  Series-A has a 20-minute deadline because it performs two restarts.
+- Effect scope, Series-A: stop-the-world pause then restart (never factory
+  reboot) of exactly `SZLHOLDINGS/a11oy`, plus runtime read-back. The pause
+  is part of the single-writer SQLite restart and is not a separate effect.
+  After each restart the proof waits for `runtime.stage == RUNNING` and for
+  `/api/a11oy/v1/honest` `git_sha` to equal the deployed SHA. If that never
+  happens it fails with `RESTART_PROOF_TIMEOUT`. There is no secret, variable,
+  volume, hardware or other-Space capability.
+- Effect scope, GDW: calls go to `/api/a11oy/v1/gdw/*` only, and writes are
+  limited to `step`, `drain` and `recovery/transient-effects`. The session
+  must be in namespace `a11oy`. After drain convergence, one proof-tagged
+  (`gdw-proof-...`) recovery audit record is written. It must be
+  `SIGNED_KHIPU_DSSE` in namespace `a11oy`, and its signature must verify
+  against `ayllu/keys/council-runtime-2026-07-21.pub`, the only trusted key.
+  Otherwise the proof fails with `RECEIPT_UNSIGNED` or
+  `RECEIPT_SIGNATURE_INVALID`.
+
+What a `PASS` measures: at run time, restart persistence (same signing key,
+database instance and chain head across two restarts, with no writer overlap).
+It also measures a hash-bound GDW write, drain quiescence and integrity, and
+one pinned-key-verified receipt, all bound to the exact deployed SHA.
+
+What remains unproven or unavailable:
+
+- The GDW step receipt is `UNSIGNED_ATOMIC` (hash-bound). Only the
+  proof-tagged recovery audit record is signature-checked.
+- The principal behind `GDW_OPERATOR_TOKEN` is whoever that token binds. Only
+  its namespace (`a11oy`) is pinned. Its owner id is recorded, not verified.
+- A PASS is a point-in-time measurement. It does not prove durability under
+  other workloads, provider SLA, hosted readiness or any Series-A outcome.
+  Private-key possession is still not challenged (see above).
+- These are measured runtime facts, not modeled ones. Anything not measured
+  is reported as unavailable. Λ remains Conjecture 1.
 
 Local check (public, no secrets):
 `python scripts/verify_installed_authority.py` exits 0 only on
