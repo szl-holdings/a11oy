@@ -35,7 +35,7 @@ def public_github_collector(
     validate_malformed_header: bool = False,
 ) -> tuple[control.Collector, list[control.httpx.Request]]:
     """Exercise the real collector against an offline fixed-origin transport."""
-    monkeypatch.setenv("GITHUB_TOKEN", token)
+    monkeypatch.setenv("A11OY_GITHUB_PUBLIC_READ_TOKEN", token)
     monkeypatch.setenv("HF_TOKEN", "")
     # These regressions need no persistent signing key or secret discovery.
     monkeypatch.setenv("SZL_COSIGN_PRIVATE_PEM", "")
