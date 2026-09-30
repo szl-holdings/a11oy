@@ -304,6 +304,10 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.11"
+      # Execute the real SDA widget contract from the existing pytest target.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
       - name: Install test deps (FastAPI TestClient over a real hardened app)
         run: |
           # szl_be_hardening builds a FastAPI app; httpx backs Starlette TestClient.
@@ -316,7 +320,7 @@ jobs:
         # data surface (POST /api/<organ>/v1/be/echo) keyed off RATE_LIMIT_PER_MIN and
         # asserts /healthz stays exempt — so a regression that throttles a health probe,
         # drops the limiter, or breaks an envelope becomes a red gate.
-        run: pytest tests/test_be_hardening.py tests/test_experimental_software_labs.py -q
+        run: pytest tests/test_be_hardening.py tests/test_experimental_software_labs.py tests/test_szl_spaces_inventory.py -q
 
   python-energy-egress-scrub:
     name: Energy /metrics private-address egress guard (pytest, offline)
