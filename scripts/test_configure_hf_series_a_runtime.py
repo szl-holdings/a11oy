@@ -17,6 +17,27 @@ SPEC = importlib.util.spec_from_file_location(
 assert SPEC and SPEC.loader
 config = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(config)
+verifier = config.load_authority_verifier()
+ROOT = SCRIPT.resolve().parent.parent
+PINNED_PEM = (ROOT / verifier.PINNED_SIGNING_PUBLIC_KEY_PATH).read_bytes()
+
+
+def offline_get(_url):
+    raise OSError("offline fixture: no network")
+
+
+def pinned_get(url):
+    if url.endswith("/cosign.pub"):
+        return 200, {"content-type": "text/plain"}, PINNED_PEM
+    if url.endswith("/api/a11oy/v1/honest"):
+        return 200, {}, json.dumps({"git_sha": "c" * 40}).encode()
+    return 404, {}, b""
+
+
+@pytest.fixture(autouse=True)
+def no_network(monkeypatch):
+    # Every test is offline unless it injects an explicit fixture getter.
+    monkeypatch.setattr(verifier, "default_get", offline_get)
 
 
 def volume(
@@ -366,21 +387,142 @@ def assert_setup_required(report, api, diagnostic_code="INSTALLED_AUTHORITY_UNKN
     assert api.writes == []
 
 
-@pytest.mark.parametrize("secret_names,variable_names", [
-    (set(), ()),
-    ({config.CANONICAL_SIGNING_SECRET}, ()),
-    ({config.GITHUB_PUBLIC_READ_SECRET}, ()),
-    (None, ()),
+@pytest.mark.parametrize("secret_names,diagnostic", [
+    (set(), "SIGNING_SECRET_MISSING"),
+    ({config.CANONICAL_SIGNING_SECRET}, "AUTHORITY_ORIGIN_UNAVAILABLE"),
+    ({config.GITHUB_PUBLIC_READ_SECRET}, "SIGNING_SECRET_MISSING"),
+    (None, "AUTHORITY_ORIGIN_UNAVAILABLE"),
 ])
-def test_manual_names_never_prove_authority(secret_names, variable_names):
-    api = MetadataOnlyApi(secret_names=secret_names, variable_names=variable_names)
+def test_manual_names_never_prove_authority(secret_names, diagnostic):
+    # Names alone never verify authority: the live key match is unavailable offline.
+    api = MetadataOnlyApi(secret_names=secret_names)
     report = config.manual_prerequisites(api, repo_id=config.CANONICAL_SPACE)
-    assert_setup_required(report, api)
-    required = {config.CANONICAL_SIGNING_SECRET, config.GITHUB_PUBLIC_READ_SECRET}
-    present = required if secret_names is None else secret_names
+    assert_setup_required(report, api, diagnostic)
+    required = {config.CANONICAL_SIGNING_SECRET}
+    present = {config.CANONICAL_SIGNING_SECRET, config.GITHUB_PUBLIC_READ_SECRET} if secret_names is None else secret_names
     assert report["required_secret_names"] == sorted(required)
+    assert report["optional_secret_names"] == [config.GITHUB_PUBLIC_READ_SECRET]
     assert report["missing_secret_names"] == sorted(required - present)
     assert {kind for kind, _ in api.reads} == {"secrets", "variables", "volumes"}
+
+
+def verified_names(*extra):
+    return {config.CANONICAL_SIGNING_SECRET, "GDW_CREDENTIALS_JSON", *extra}
+
+
+@pytest.mark.parametrize("reader_present", [False, True])
+def test_pinned_runtime_key_verifies_installed_authority(reader_present):
+    extra = (config.GITHUB_PUBLIC_READ_SECRET,) if reader_present else ()
+    api = MetadataOnlyApi(secret_names=verified_names(*extra))
+    report = config.manual_prerequisites(api, repo_id=config.CANONICAL_SPACE, authority_get=pinned_get)
+    assert report["state"] == "READY"
+    assert report["converged"] is True
+    assert report["credential_authority_state"] == "VERIFIED"
+    assert report["diagnostic_code"] == "INSTALLED_AUTHORITY_VERIFIED"
+    assert report["missing_secret_names"] == []
+    assert report["optional_secret_names_present"] == sorted(extra)
+    authority = report["installed_authority"]
+    assert authority["signing"]["state"] == "VERIFIED_PINNED_RUNTIME_KEY"
+    assert authority["signing"]["served_fingerprint_sha256"] == verifier.PINNED_SIGNING_KEY_DER_SHA256
+    assert authority["github_public_reader"]["state"] == ("INSTALLED_NAME_ONLY" if reader_present else "PUBLIC_ANONYMOUS")
+    assert authority["github_public_reader"]["blocking"] is False
+    assert authority["live_git_sha"] == "c" * 40
+    assert report["secret_values_read"] is False and report["secret_values_written"] is False
+    assert api.value_reads == [] and api.writes == []
+    assert len(json.dumps(report).encode()) < 16 * 1024
+
+
+def test_pinned_key_without_gdw_name_stays_blocked():
+    api = MetadataOnlyApi(secret_names={config.CANONICAL_SIGNING_SECRET})
+    report = config.manual_prerequisites(api, repo_id=config.CANONICAL_SPACE, authority_get=pinned_get)
+    assert_setup_required(report, api, "GDW_CREDENTIALS_MISSING")
+
+
+def test_static_fallback_or_foreign_key_stays_blocked():
+    tree = verifier.ast.parse((ROOT / "szl_dsse.py").read_text(encoding="utf-8"))
+    static = next(node.value.value for node in tree.body if isinstance(node, verifier.ast.Assign)
+                  and getattr(node.targets[0], "id", "") == "COSIGN_PUBLIC_PEM")
+    for body, diagnostic in ((static.strip().encode(), "SIGNING_KEY_NOT_INSTALLED"),
+                             (foreign_pem(), "SIGNING_KEY_MISMATCH")):
+        api = MetadataOnlyApi(secret_names=verified_names())
+        report = config.manual_prerequisites(api, repo_id=config.CANONICAL_SPACE,
+                                             authority_get=lambda url, body=body: (200, {}, body))
+        assert_setup_required(report, api, diagnostic)
+
+
+def foreign_pem():
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+
+    return ec.generate_private_key(ec.SECP256R1()).public_key().public_bytes(
+        serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo)
+
+
+class Value(SimpleNamespace):
+    pass
+
+
+class ConvergedApi:
+    """Converged metadata: configure() must pass the hold without any write."""
+
+    def __init__(self):
+        self.writes = []
+        self.secrets = dict.fromkeys(verified_names())
+        self.variables = {name: Value(value=value) for name, value in config.RUNTIME_VARIABLES.items()}
+
+    def get_space_secrets(self, *, repo_id):
+        return self.secrets
+
+    def get_space_variables(self, *, repo_id):
+        return self.variables
+
+    def space_info(self, *, repo_id):
+        return SimpleNamespace(runtime=SimpleNamespace(volumes=[volume(config.CANONICAL_BUCKET, "/data")]))
+
+    def __getattr__(self, name):
+        if name.startswith(("add_", "delete_", "set_", "update_", "restart_", "pause_")):
+            def record(*_args, **_kwargs):
+                self.writes.append(name)
+            return record
+        raise AttributeError(name)
+
+
+def test_configure_proceeds_only_when_installed_authority_is_verified(monkeypatch):
+    api = ConvergedApi()
+    monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(HfApi=lambda **_kwargs: api))
+    kwargs = {"repo_id": config.CANONICAL_SPACE, "bucket": config.CANONICAL_BUCKET,
+              "token": "synthetic-hf-control", "check_only": False}
+    report = config.configure(**kwargs, authority_get=pinned_get)
+    assert report["converged"] is True
+    assert report["credential_authority_state"] == "VERIFIED"
+    assert report["variables_changed"] == [] and report["volume_changed"] is False
+    assert api.writes == []
+    with pytest.raises(config.RuntimeConfigError) as error:
+        config.configure(**kwargs)  # offline: authority unavailable -> held
+    assert error.value.diagnostic_code == "AUTHORITY_ORIGIN_UNAVAILABLE"
+    assert api.writes == []
+
+
+def test_verified_check_only_cli_exits_zero(monkeypatch, tmp_path, capsys):
+    api = MetadataOnlyApi(secret_names=verified_names())
+    monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(HfApi=lambda **_kwargs: api))
+    monkeypatch.setattr(verifier, "default_get", pinned_get)
+    monkeypatch.setenv("HF_TOKEN", "synthetic-hf-control")
+    monkeypatch.delenv("CANONICAL_ORIGIN", raising=False)
+    output = tmp_path / "series.json"
+    code = config.main(["--check-only", "--output", str(output)])
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert code == 0
+    assert report["state"] == "READY" and report["credential_authority_state"] == "VERIFIED"
+    assert json.loads(capsys.readouterr().out) == report
+    assert "synthetic-hf-control" not in output.read_text(encoding="utf-8")
+
+
+def test_noncanonical_origin_is_never_verified(monkeypatch):
+    api = MetadataOnlyApi(secret_names=verified_names())
+    report = config.manual_prerequisites(api, repo_id=config.CANONICAL_SPACE,
+                                         origin="https://attacker.hf.space", authority_get=pinned_get)
+    assert_setup_required(report, api, "AUTHORITY_ORIGIN_NOT_CANONICAL")
 
 
 @pytest.mark.parametrize("variable_name", [config.GITHUB_PUBLIC_READ_SECRET,
@@ -449,7 +591,7 @@ def test_configure_cannot_mutate_even_when_all_secret_names_are_present(monkeypa
     kwargs = {"repo_id": config.CANONICAL_SPACE, "bucket": config.CANONICAL_BUCKET,
               "token": "synthetic-hf-control", "check_only": check_only}
     if check_only:
-        assert_setup_required(config.configure(**kwargs), api)
+        assert_setup_required(config.configure(**kwargs), api, "AUTHORITY_ORIGIN_UNAVAILABLE")
     else:
         with pytest.raises(config.RuntimeConfigError) as error:
             config.configure(**kwargs)
@@ -487,7 +629,7 @@ def test_check_only_cli_emits_bounded_failed_report_without_read_token(monkeypat
     assert json.loads(capsys.readouterr().out) == report
     assert output.stat().st_size < 16384
     assert config.GITHUB_PUBLIC_READ_SECRET not in env_reads
-    expected = {None: "INSTALLED_AUTHORITY_UNKNOWN", "client": "SPACE_CLIENT_UNAVAILABLE",
+    expected = {None: "AUTHORITY_ORIGIN_UNAVAILABLE", "client": "SPACE_CLIENT_UNAVAILABLE",
                 "secrets": "CREDENTIAL_METADATA_UNAVAILABLE",
                 "variables": "CREDENTIAL_METADATA_UNAVAILABLE",
                 "volumes": "PERSISTENT_STORAGE_UNAVAILABLE"}
