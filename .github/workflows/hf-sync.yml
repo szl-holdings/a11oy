@@ -300,6 +300,66 @@ jobs:
           if-no-files-found: error
           retention-days: 180
 
+  publish-finance-projection:
+    name: Rebind and functionally verify the existing Finance projection
+    # Finance validates the exact backend SHA, so every successful canonical
+    # relock must update it through the same established scoped publisher.
+    # An explicitly requested estate publication already owns Finance.
+    if: ${{ github.event_name == 'push' || !inputs.publish_vertical_flagships }}
+    needs: relock
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: hf-publish-vertical-flagships
+      cancel-in-progress: false
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
+      HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
+      HUGGING_FACE_HUB_TOKEN: ${{ secrets.HUGGING_FACE_HUB_TOKEN }}
+      SZL_FLAGSHIP_SCOPE: finance
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - name: Checkout the exact relocked source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Admit only the current protected main owner
+        id: owner
+        run: >-
+          python3 -B scripts/hf_exact_main_ownership.py
+          --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA"
+          --receipt "$RUNNER_TEMP/finance-main-ownership.json"
+          --github-output "$GITHUB_OUTPUT"
+      - name: Set up Python
+        if: ${{ steps.owner.outputs.publish == 'true' }}
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Install the established pinned publisher
+        if: ${{ steps.owner.outputs.publish == 'true' }}
+        run: python -m pip install --disable-pip-version-check --no-cache-dir 'huggingface_hub==1.31.0'
+      - name: Publish exactly Finance and require public functional evidence
+        if: ${{ steps.owner.outputs.publish == 'true' }}
+        run: python scripts/hf_publish_vertical_flagships_v4.py
+      - name: Retain ownership and functional publication receipts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: finance-projection-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/finance-main-ownership.json
+            hf-vertical-flagships-receipt.json
+          if-no-files-found: error
+          retention-days: 180
+
   readiness-verdict:
     name: Probe and ingest exact post-deploy readiness verdict
     needs: runtime-config
