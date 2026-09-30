@@ -99,6 +99,7 @@ jobs:
     timeout-minutes: 45
     env:
       HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+      A11OY_GITHUB_PUBLIC_READ_TOKEN: ${{ secrets.DOCS_AUTOMATION_TEAM_READ_TOKEN }}
       GDW_OPERATOR_TOKEN: ${{ secrets.GDW_OPERATOR_TOKEN }}
       RUNTIME_CONFIG_REPORT: /tmp/series-a-runtime-config.json
       SERIES_A_LIVE_REPORT: /tmp/series-a-restart-proof.json

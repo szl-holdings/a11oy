@@ -7,7 +7,7 @@ The script is intentionally narrow:
 * it reuses an existing organization bucket and never creates storage;
 * it preserves every existing Space volume and fails on mount conflicts;
 * it requires the canonical signing-secret name without reading its value;
-* it writes only non-secret runtime variables; and
+* it binds the dedicated GitHub reader only after authenticated read-scope proof;
 * its report contains names and topology, never secret material.
 """
 
@@ -24,6 +24,8 @@ from typing import Any, Callable, Iterable, Mapping
 CANONICAL_SPACE = "SZLHOLDINGS/a11oy"
 CANONICAL_BUCKET = "SZLHOLDINGS/szl-evidence"
 CANONICAL_SIGNING_SECRET = "SZL_COSIGN_PRIVATE_PEM"
+GITHUB_PUBLIC_READ_SECRET = "A11OY_GITHUB_PUBLIC_READ_TOKEN"
+GITHUB_READ_SCOPES = {"read:org", "read:user", "user:email"}
 DATA_MOUNT = "/data"
 SERIES_A_VARIABLES = {
     "A11OY_REQUIRE_PERSISTENT_SIGNING": "1",
@@ -66,6 +68,84 @@ RUNTIME_VARIABLES = {
 
 class RuntimeConfigError(RuntimeError):
     """Fail-closed runtime configuration error."""
+
+
+def verify_public_github_reader(token: str, *, get: Callable | None = None) -> dict[str, Any]:
+    """Check identity, read-only OAuth scopes, and the exact public read target.
+
+    The existing organization automation token must expose its OAuth scopes.
+    Fine-grained credentials without this scope evidence require a separate
+    permission receipt and are not implicitly admitted by this helper.
+    Response bodies, credential values, and exception text are never reported.
+    """
+    if not token or any(char.isspace() for char in token):
+        raise RuntimeConfigError("a persistent GitHub public read token is required")
+    if get is None:
+        import requests
+
+        get = requests.get
+    headers = {"Authorization": "Bearer " + token,
+               "Accept": "application/vnd.github+json",
+               "User-Agent": "SZL-Canonical-Public-Inventory-Reader/1.0"}
+
+    def probe(path: str) -> Any:
+        try:
+            response = get("https://api.github.com" + path, headers=headers,
+                           timeout=20, allow_redirects=False)
+        except Exception:
+            raise RuntimeConfigError("GitHub read authority probe transport failed") from None
+        if response.status_code != 200:
+            raise RuntimeConfigError("GitHub read authority probe returned HTTP " + str(response.status_code))
+        return response
+
+    identity = probe("/user")
+    if "X-OAuth-Scopes" not in identity.headers:
+        raise RuntimeConfigError("GitHub read token scope evidence is unavailable")
+    scopes = {value.strip() for value in identity.headers["X-OAuth-Scopes"].split(",") if value.strip()}
+    if not scopes <= GITHUB_READ_SCOPES:
+        raise RuntimeConfigError("GitHub reader has scopes outside the permitted read boundary")
+    try:
+        actor = identity.json()
+        authenticated = isinstance(actor, dict) and type(actor.get("id")) is int and actor["id"] > 0
+    except Exception:
+        authenticated = False
+    if not authenticated:
+        raise RuntimeConfigError("GitHub reader authenticated identity is unavailable")
+    public = probe("/orgs/szl-holdings/repos?type=public&per_page=1")
+    try:
+        rows = public.json()
+        verified = (isinstance(rows, list) and bool(rows)
+                    and all(isinstance(row, dict) and row.get("private") is False
+                            and row.get("visibility") == "public"
+                            and isinstance(row.get("owner"), dict)
+                            and str(row["owner"].get("login", "")).lower() == "szl-holdings"
+                            for row in rows))
+    except Exception:
+        verified = False
+    if not verified:
+        raise RuntimeConfigError("GitHub public organization read contract failed")
+    return {"state": "VERIFIED_AUTHENTICATED_PUBLIC_READ", "organization": "szl-holdings",
+            "inventory_scope": "public-only", "oauth_scopes": sorted(scopes),
+            "credential_value_reported": False}
+
+
+def bind_public_github_reader(api: Any, *, repo_id: str, token: str,
+                             get: Callable | None = None) -> dict[str, Any]:
+    if repo_id != CANONICAL_SPACE:
+        raise RuntimeConfigError("GitHub reader binding is limited to the canonical A11oy Space")
+    authority = verify_public_github_reader(token, get=get)
+    if GITHUB_PUBLIC_READ_SECRET in api.get_space_variables(repo_id=repo_id):
+        raise RuntimeConfigError("GitHub reader secret collides with a public Space variable")
+    try:
+        api.add_space_secret(repo_id=repo_id, key=GITHUB_PUBLIC_READ_SECRET, value=token,
+                             description="Verified read-only organization credential for public GitHub inventory.")
+        names = api.get_space_secrets(repo_id=repo_id)
+    except Exception:
+        raise RuntimeConfigError("Dedicated GitHub reader secret binding failed") from None
+    if GITHUB_PUBLIC_READ_SECRET not in names:
+        raise RuntimeConfigError("Dedicated GitHub reader secret name readback failed")
+    return {**authority, "secret_name": GITHUB_PUBLIC_READ_SECRET, "secret_name_present": True,
+            "existing_space_secret_values_read": False}
 
 
 def _value(item: Any, name: str, default: Any = None) -> Any:
@@ -237,6 +317,7 @@ def configure(
     repo_id: str,
     bucket: str,
     token: str,
+    github_read_token: str,
 ) -> dict[str, Any]:
     from huggingface_hub import HfApi
 
@@ -257,6 +338,8 @@ def configure(
         )
     variables = api.get_space_variables(repo_id=repo_id)
     variable_changes = plan_variables(variables, secret_names)
+
+    github_reader = bind_public_github_reader(api, repo_id=repo_id, token=github_read_token)
 
     if volume_change:
         api.set_space_volumes(
@@ -293,7 +376,8 @@ def configure(
         "variables_managed": sorted(RUNTIME_VARIABLES),
         "variables_changed": sorted(variable_changes),
         "converged": True,
-        "secret_values_read": False,
+        "existing_space_secret_values_read": False,
+        "github_public_reader": github_reader,
     }
 
 
@@ -308,6 +392,7 @@ def main() -> int:
         repo_id=args.repo_id,
         bucket=args.bucket,
         token=os.environ.get("HF_TOKEN", ""),
+        github_read_token=os.environ.get(GITHUB_PUBLIC_READ_SECRET, ""),
     )
     encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"
     if args.output:
