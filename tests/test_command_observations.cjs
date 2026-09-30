@@ -8,7 +8,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const html = fs.readFileSync(path.join(__dirname, "../pages/command-v2.html"), "utf8");
-const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
+const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/gi)];
 assert.equal(scripts.length, 1, "The self-contained surface has one executable script");
 
 async function harness(response = {}) {

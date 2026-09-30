@@ -92,7 +92,7 @@ class CommandBrowserTests(unittest.TestCase):
                 self.page.screenshot(path=str(EVIDENCE / f"inspector-{width}.png"))
                 self.page.keyboard.press("Escape")
                 self.assertFalse(dialog.is_visible())
-                self.assertEqual(self.page.evaluate("document.activeElement.id"), "inspect-card-receipts")
+                expect(self.page.get_by_role("button", name="Inspect Receipts source", exact=True)).to_be_focused()
         self.assertEqual(self.errors, [])
 
     def test_mobile_palette_and_evidence_navigation(self):
@@ -126,7 +126,7 @@ class CommandBrowserTests(unittest.TestCase):
         self.assertEqual(json.loads(self.page.locator("#source-inspector pre").text_content())["count"], 0)
         self.page.screenshot(path=str(EVIDENCE / "expired-inspector.png"))
         self.page.keyboard.press("Escape")
-        self.assertEqual(self.page.evaluate("document.activeElement.id"), "inspect-card-receipts")
+        expect(self.page.get_by_role("button", name="Inspect Receipts source", exact=True)).to_be_focused()
         self.assertEqual(self.errors, [])
 
 

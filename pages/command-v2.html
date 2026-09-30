@@ -164,7 +164,7 @@ async function refreshObservations(){
     state.data={...state.data,...Object.fromEntries(rows)};
   }finally{state.refreshing=false;state.observationSignature=observationSignature();updateChips();render();if(state.selectedSource)inspectorContent()}
 }
-function observationSignature(){const now=Date.now();return Object.entries(state.data).map(([name,record])=>`${name}:${observationState(record,now)}`).join("|")}
+function observationSignature(){const now=Date.now();return Object.entries(state.data).map(([name,record])=>`${name}:${observationState(record,now)}`).join("|");}
 function updateObservationLifetime(){
   const signature=observationSignature();
   if(signature===state.observationSignature)return;
