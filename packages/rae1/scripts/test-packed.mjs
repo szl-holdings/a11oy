@@ -39,8 +39,9 @@ try {
   }
   assert.ok(![...paths].some((path) => path.includes("node_modules") || path.endsWith(".test.ts")));
   writeFileSync(join(temporary, "package.json"), JSON.stringify({ private: true, type: "module" }));
+  // A fresh npm ci caches tarballs but may lack dependency registry metadata.
   run(process.execPath, [npmCli, "install", join(temporary, packed[0].filename),
-    "--offline", "--ignore-scripts", "--legacy-peer-deps", "--no-audit", "--no-fund"], temporary);
+    "--prefer-offline", "--ignore-scripts", "--legacy-peer-deps", "--no-audit", "--no-fund"], temporary);
   const consumer = `
 import assert from 'node:assert/strict';
 import { createHash, createHmac, randomBytes } from 'node:crypto';
