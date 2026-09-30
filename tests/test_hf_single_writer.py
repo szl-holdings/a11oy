@@ -281,17 +281,27 @@ def _repo_source(
     return normalized, path.read_text(encoding="utf-8")
 
 
-def _python_command_texts(text: str, inherited_directory: str) -> list[tuple[str, str]]:
+def _python_command_texts(text: str, inherited_directory: str,
+                          source_path: str | None = None) -> list[tuple[str, str]]:
     """Bound standard process calls, without treating Python string data as code.
 
     This is a static check of supported subprocess/os/asyncio calls, not proof
     that arbitrary dynamically constructed Python cannot execute another file.
     Unknown commands and ambiguous aliases in those calls fail closed.
     """
+    current_call_line = 0
+
+    def failure(message, node=None):
+        line = current_call_line or getattr(node, "lineno", None)
+        location = source_path or "<python source>"
+        if line is not None:
+            location += ":" + str(line)
+        return RuntimeError(location + ": " + message)
+
     try:
         tree = ast.parse(text)
     except SyntaxError as exc:
-        raise RuntimeError("Python command delegation cannot be parsed") from exc
+        raise failure("Python command delegation cannot be parsed", exc) from None
     nodes = list(ast.walk(tree))
     parents = {child: node for node in nodes for child in ast.iter_child_nodes(node)}
     scope_types = (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)
@@ -381,8 +391,15 @@ def _python_command_texts(text: str, inherited_directory: str) -> list[tuple[str
            and (qualified(node.value) or "").split(".")[0] in process_roots for node in nodes):
         raise RuntimeError("Python execution module attributes were mutated")
 
+    def known_process_result(node):
+        # The value returned by run() is process result data, not its callee.
+        # Every run() call is still independently checked by the execution loop.
+        return isinstance(node, ast.Call) and qualified(node.func) == "subprocess.run"
+
     def potential_process(node, seen=frozenset()):
         if node is None or id(node) in seen:
+            return False
+        if known_process_result(node):
             return False
         seen = seen | {id(node)}
         name = qualified(node)
@@ -400,6 +417,8 @@ def _python_command_texts(text: str, inherited_directory: str) -> list[tuple[str
 
     def execution_value(node, seen=frozenset()):
         if node is None or id(node) in seen:
+            return False
+        if known_process_result(node):
             return False
         seen = seen | {id(node)}
         name = qualified(node)
@@ -427,11 +446,11 @@ def _python_command_texts(text: str, inherited_directory: str) -> list[tuple[str
         elif isinstance(node, ast.AnnAssign) and not isinstance(node.target, ast.Name):
             escaping = [node.value]
         if any(execution_value(value) for value in escaping):
-            raise RuntimeError("Python execution callable or module escaped its bounded scope")
+            raise failure("Python execution callable or module escaped its bounded scope", node)
 
     def literal(node, seen=frozenset()):
         if node is None or id(node) in seen or len(seen) > MAX_REFERENCE_DEPTH:
-            raise RuntimeError("Python execution command cannot be bounded")
+            raise failure("Python execution command cannot be bounded", node)
         seen = seen | {id(node)}
         if isinstance(node, ast.Constant) and type(node.value) is str:
             if len(node.value) > 16 * 1024:
@@ -454,7 +473,7 @@ def _python_command_texts(text: str, inherited_directory: str) -> list[tuple[str
                 if len(left) + len(right) > (16 * 1024 if type(left) is str else MAX_REFERENCED_SOURCES):
                     raise RuntimeError("Python execution command is too large")
                 return left + right, left_origins | right_origins
-        raise RuntimeError("Python execution command cannot be bounded")
+        raise failure("Python execution command cannot be bounded", node)
 
     def origins(node):
         try:
@@ -488,6 +507,7 @@ def _python_command_texts(text: str, inherited_directory: str) -> list[tuple[str
     for node in nodes:
         if not isinstance(node, ast.Call):
             continue
+        current_call_line = node.lineno
         function = qualified(node.func)
         if function in unsupported or (function is None and potential_process(node.func)):
             raise RuntimeError("Python execution alias or working directory cannot be bounded")
@@ -600,7 +620,7 @@ def _referenced_sources(
             or PurePosixPath(current_path).name in {"action.yml", "action.yaml"}
         )
         is_python = current_path is not None and current_path.endswith(".py")
-        contexts = (_python_command_texts(source_text, inherited_directory)
+        contexts = (_python_command_texts(source_text, inherited_directory, current_path)
                     if is_python else [(current, None)])
         if is_python:
             current = "\n".join(command for command, _directory in contexts)
@@ -854,6 +874,44 @@ assert expected.startswith("python3")
         self.assertEqual(self._python_wrapper_writers(source), ["wrapper.yml"])
         self.assertEqual(self._python_wrapper_writers(
             source.replace("['python3', '-c'", "['python3', '-B', '-c'")), ["wrapper.yml"])
+
+    def test_standard_run_result_data_is_not_execution_authority(self) -> None:
+        sources = (
+            'import subprocess\ndef observe():\n    result = subprocess.run(["printf", "harmless"])\n    return result.stdout if result.returncode == 0 else None\n',
+            'import subprocess\ndef observe():\n    result = subprocess.run(["printf", "harmless"])\n    data = result.stdout.decode("ascii").strip()\n    return data\n',
+            'from subprocess import run as execute\ndef observe():\n    result = execute(["printf", "harmless"])\n    return (result.stdout, result.stderr, result.returncode)\n',
+        )
+        for source in sources:
+            with self.subTest(source=source):
+                self.assertEqual(self._python_wrapper_writers(source), [])
+                writer = source.replace('["printf", "harmless"]', '["python3", "scripts/writer.py"]')
+                self.assertEqual(self._python_wrapper_writers(writer), ["wrapper.yml"])
+
+    def test_returned_run_data_does_not_waive_unknown_commands_or_cwd(self) -> None:
+        sources = (
+            'import subprocess\ndef observe(command):\n    result = subprocess.run(command)\n    return result.stdout\n',
+            'import subprocess\ndef observe(directory):\n    result = subprocess.run(["python3", "scripts/writer.py"], cwd=directory)\n    return result.stdout\n',
+            'import subprocess\ncommand = input("must-not-echo")\nresult = subprocess.run(command)\nprint(result.stdout)\n',
+        )
+        for source in sources:
+            with self.subTest(source=source), self.assertRaises(RuntimeError) as caught:
+                self._python_wrapper_writers(source)
+            message = str(caught.exception)
+            self.assertRegex(message, r"scripts/driver\.py:\d+: Python execution command cannot be bounded")
+            self.assertNotIn("must-not-echo", message)
+
+    def test_real_executor_escape_remains_blocked_beside_run_result_data(self) -> None:
+        escapes = (
+            'return subprocess.run',
+            'return subprocess',
+            'return factory(subprocess.run)',
+            'result.stdout = subprocess.run\n    return result.stdout',
+            'box = [subprocess.run]\n    return box',
+        )
+        for escape in escapes:
+            source = 'import subprocess\ndef observe():\n    result = subprocess.run(["printf", "harmless"])\n    ' + escape + '\n'
+            with self.subTest(escape=escape), self.assertRaises(RuntimeError):
+                self._python_wrapper_writers(source)
 
     def test_ambiguous_shadowed_or_dynamic_python_execution_fails_closed(self) -> None:
         sources = (
