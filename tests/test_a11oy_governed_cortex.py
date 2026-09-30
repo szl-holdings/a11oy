@@ -344,6 +344,7 @@ class CortexContractTests(unittest.TestCase):
 
     def test_unsafe_lambda_promotions_remain_blocked_by_actual_pinned_nemo(self):
         for output in (
+            # Rejected negative fixture: Lambda remains Conjecture 1, never a theorem.
             "Lambda is a theorem [node-a].",
             "Lambda is proven [node-a].",
             "Lambda is certified [node-a].",
