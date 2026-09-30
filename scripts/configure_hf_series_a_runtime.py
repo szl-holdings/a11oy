@@ -7,7 +7,7 @@ The script is intentionally narrow:
 * it reuses an existing organization bucket and never creates storage;
 * it preserves every existing Space volume and fails on mount conflicts;
 * it requires the canonical signing-secret name without reading its value;
-* it binds the dedicated GitHub reader only after authenticated read-scope proof;
+* it checks manually installed credential metadata without transferring values;
 * its report contains names and topology, never secret material.
 """
 
@@ -67,7 +67,19 @@ RUNTIME_VARIABLES = {
 
 
 class RuntimeConfigError(RuntimeError):
-    """Fail-closed runtime configuration error."""
+    """Fail closed with a fixed public diagnostic and no provider error text."""
+
+    def __init__(self, message: str, *, diagnostic_code: str = "PREREQUISITES_UNAVAILABLE") -> None:
+        super().__init__(message)
+        allowed = {
+            "PREREQUISITES_UNAVAILABLE", "CANONICAL_DESTINATION_REQUIRED",
+            "CREDENTIAL_METADATA_UNAVAILABLE", "CREDENTIAL_METADATA_MALFORMED",
+            "CREDENTIAL_NAMES_MALFORMED", "PUBLIC_VARIABLE_COLLISION",
+            "LEGACY_PRINCIPAL_CONFLICT", "PERSISTENT_STORAGE_UNAVAILABLE",
+            "SPACE_CLIENT_UNAVAILABLE", "INSTALLED_AUTHORITY_UNKNOWN",
+            "HF_CONTROL_CREDENTIAL_MISSING", "CHECK_MODE_MALFORMED",
+        }
+        self.diagnostic_code = diagnostic_code if diagnostic_code in allowed else "PREREQUISITES_UNAVAILABLE"
 
 
 def verify_public_github_reader(token: str, *, get: Callable | None = None) -> dict[str, Any]:
@@ -129,23 +141,49 @@ def verify_public_github_reader(token: str, *, get: Callable | None = None) -> d
             "credential_value_reported": False}
 
 
-def bind_public_github_reader(api: Any, *, repo_id: str, token: str,
-                             get: Callable | None = None) -> dict[str, Any]:
+def manual_prerequisites(api: Any, *, repo_id: str) -> dict[str, Any]:
+    """Inspect names and storage only; installed credential authority is unknown."""
     if repo_id != CANONICAL_SPACE:
-        raise RuntimeConfigError("GitHub reader binding is limited to the canonical A11oy Space")
-    authority = verify_public_github_reader(token, get=get)
-    if GITHUB_PUBLIC_READ_SECRET in api.get_space_variables(repo_id=repo_id):
-        raise RuntimeConfigError("GitHub reader secret collides with a public Space variable")
+        raise RuntimeConfigError("SETUP_REQUIRED: only the canonical A11oy Space is admitted", diagnostic_code="CANONICAL_DESTINATION_REQUIRED")
     try:
-        api.add_space_secret(repo_id=repo_id, key=GITHUB_PUBLIC_READ_SECRET, value=token,
-                             description="Verified read-only organization credential for public GitHub inventory.")
-        names = api.get_space_secrets(repo_id=repo_id)
+        secrets = api.get_space_secrets(repo_id=repo_id)
+        variables = api.get_space_variables(repo_id=repo_id)
     except Exception:
-        raise RuntimeConfigError("Dedicated GitHub reader secret binding failed") from None
-    if GITHUB_PUBLIC_READ_SECRET not in names:
-        raise RuntimeConfigError("Dedicated GitHub reader secret name readback failed")
-    return {**authority, "secret_name": GITHUB_PUBLIC_READ_SECRET, "secret_name_present": True,
-            "existing_space_secret_values_read": False}
+        raise RuntimeConfigError("SETUP_REQUIRED: Space credential metadata is unavailable", diagnostic_code="CREDENTIAL_METADATA_UNAVAILABLE") from None
+    if not isinstance(secrets, (Mapping, list, tuple, set)) or not isinstance(variables, Mapping):
+        raise RuntimeConfigError("SETUP_REQUIRED: Space credential metadata is malformed", diagnostic_code="CREDENTIAL_METADATA_MALFORMED")
+    try:
+        secret_names = list(secrets)
+        variable_names = list(variables)
+        if not all(type(name) is str for name in secret_names + variable_names):
+            raise ValueError("invalid metadata names")
+        names = set(secret_names)
+        public_names = set(variable_names)
+    except Exception:
+        raise RuntimeConfigError("SETUP_REQUIRED: Space credential names are malformed", diagnostic_code="CREDENTIAL_NAMES_MALFORMED") from None
+    required = {CANONICAL_SIGNING_SECRET, GITHUB_PUBLIC_READ_SECRET}
+    if required.intersection(public_names):
+        raise RuntimeConfigError("SETUP_REQUIRED: a required secret collides with a public variable", diagnostic_code="PUBLIC_VARIABLE_COLLISION")
+    try:
+        volumes = read_space_volumes(api, repo_id=repo_id)
+        if any(type(_value(item, "read_only")) is not bool for item in volumes):
+            raise RuntimeConfigError("volume access metadata is unknown")
+        _, missing_volume = plan_volumes(volumes)
+    except Exception:
+        raise RuntimeConfigError("SETUP_REQUIRED: canonical persistent volume metadata is unavailable or conflicting", diagnostic_code="PERSISTENT_STORAGE_UNAVAILABLE") from None
+    return {
+        "schema": "szl.hf-series-a-runtime-config/v1",
+        "repo_id": repo_id,
+        "state": "SETUP_REQUIRED",
+        "diagnostic_code": "INSTALLED_AUTHORITY_UNKNOWN",
+        "missing_secret_names": sorted(required - names),
+        "required_secret_names": sorted(required),
+        "persistent_volume_present": not missing_volume,
+        "credential_authority_state": "UNKNOWN",
+        "converged": False,
+        "secret_values_read": False,
+        "secret_values_written": False,
+    }
 
 
 def _value(item: Any, name: str, default: Any = None) -> Any:
@@ -317,13 +355,27 @@ def configure(
     repo_id: str,
     bucket: str,
     token: str,
-    github_read_token: str,
+    check_only: bool = False,
 ) -> dict[str, Any]:
-    from huggingface_hub import HfApi
-
     if not token:
-        raise RuntimeConfigError("HF_TOKEN is required")
-    api = HfApi(token=token)
+        raise RuntimeConfigError("HF_TOKEN is required", diagnostic_code="HF_CONTROL_CREDENTIAL_MISSING")
+    if repo_id != CANONICAL_SPACE or bucket != CANONICAL_BUCKET:
+        raise RuntimeConfigError("SETUP_REQUIRED: canonical Space and bucket are required", diagnostic_code="CANONICAL_DESTINATION_REQUIRED")
+    if type(check_only) is not bool:
+        raise RuntimeConfigError("SETUP_REQUIRED: check_only must be a boolean", diagnostic_code="CHECK_MODE_MALFORMED")
+    try:
+        from huggingface_hub import HfApi
+
+        api = HfApi(token=token)
+    except Exception:
+        raise RuntimeConfigError("SETUP_REQUIRED: Space metadata client is unavailable", diagnostic_code="SPACE_CLIENT_UNAVAILABLE") from None
+    prerequisites = manual_prerequisites(api, repo_id=repo_id)
+    if check_only:
+        return prerequisites
+    # Names do not bind the installed secret to independently verified authority.
+    # No supported handoff consumer exists; ordinary configuration stays held.
+    if prerequisites["converged"] is not True or prerequisites["credential_authority_state"] == "UNKNOWN":
+        raise RuntimeConfigError("SETUP_REQUIRED: installed credential authority is UNKNOWN", diagnostic_code="INSTALLED_AUTHORITY_UNKNOWN")
     current_volumes = read_space_volumes(api, repo_id=repo_id)
     desired_volumes, volume_change = plan_volumes(
         current_volumes,
@@ -338,8 +390,6 @@ def configure(
         )
     variables = api.get_space_variables(repo_id=repo_id)
     variable_changes = plan_variables(variables, secret_names)
-
-    github_reader = bind_public_github_reader(api, repo_id=repo_id, token=github_read_token)
 
     if volume_change:
         api.set_space_volumes(
@@ -377,30 +427,33 @@ def configure(
         "variables_changed": sorted(variable_changes),
         "converged": True,
         "existing_space_secret_values_read": False,
-        "github_public_reader": github_reader,
+        "github_public_reader": prerequisites,
     }
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo-id", default=CANONICAL_SPACE)
     parser.add_argument("--bucket", default=CANONICAL_BUCKET)
     parser.add_argument("--output")
-    args = parser.parse_args()
+    parser.add_argument("--check-only", action="store_true")
+    args = parser.parse_args(argv)
+    try:
+        report = configure(repo_id=args.repo_id, bucket=args.bucket,
+                           token=os.environ.get("HF_TOKEN", ""), check_only=args.check_only)
+    except RuntimeConfigError as error:
+        report = {"schema": "szl.hf-series-a-runtime-config/v1", "repo_id": CANONICAL_SPACE,
+                  "state": "SETUP_REQUIRED", "credential_authority_state": "UNKNOWN",
+                  "converged": False, "secret_values_read": False, "secret_values_written": False,
+                  "diagnostic_code": error.diagnostic_code}
 
-    report = configure(
-        repo_id=args.repo_id,
-        bucket=args.bucket,
-        token=os.environ.get("HF_TOKEN", ""),
-        github_read_token=os.environ.get(GITHUB_PUBLIC_READ_SECRET, ""),
-    )
     encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"
     if args.output:
         output = Path(args.output)
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(encoded, encoding="utf-8")
     print(encoded, end="")
-    return 0
+    return 1 if report.get("state") == "SETUP_REQUIRED" else 0
 
 
 if __name__ == "__main__":
