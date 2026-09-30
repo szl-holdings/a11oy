@@ -273,21 +273,31 @@ def _repo_source(
 
     path = ROOT.joinpath(*parts).resolve()
     try:
-        path.relative_to(ROOT.resolve())
+        canonical = path.relative_to(ROOT.resolve()).as_posix()
     except ValueError:
+        return None
+    if canonical != normalized:
+        # Do not derive __file__ identity from an alias/symlink source path.
         return None
     if not path.is_file():
         return None
     return normalized, path.read_text(encoding="utf-8")
 
 
-def _python_command_texts(text: str, inherited_directory: str,
-                          source_path: str | None = None) -> list[tuple[str, str]]:
+class _PythonSourcePath(str):
+    """A source executed by Python, independent of the filename extension."""
+
+
+def _python_command_texts(text: str, inherited_directory: str | None,
+                          source_path: str | None = None) -> list[tuple[str, str | None, tuple[str, bool] | None]]:
     """Bound standard process calls, without treating Python string data as code.
 
     This is a static check of supported subprocess/os/asyncio calls, not proof
     that arbitrary dynamically constructed Python cannot execute another file.
-    Unknown commands and ambiguous aliases in those calls fail closed.
+    Unknown commands and ambiguous aliases in those calls fail closed. Fixed
+    script sources and runtime directories have separate provenance; script
+    data is not command text. Importlib/eval/reflection and arbitrary objects'
+    conversion methods are outside this bounded process-call analysis.
     """
     current_call_line = 0
 
@@ -328,10 +338,15 @@ def _python_command_texts(text: str, inherited_directory: str,
                 bind(node, alias.asname or alias.name.split(".")[0],
                      ("qualified", alias.name if alias.asname else alias.name.split(".")[0]))
         elif isinstance(node, ast.ImportFrom):
-            if node.module in {"subprocess", "os", "asyncio"} and any(alias.name == "*" for alias in node.names):
+            if node.level and (
+                    (node.module or "").split(".")[0] in {"subprocess", "os", "asyncio", "sys", "pathlib", "builtins"}
+                    or any(alias.name in {"subprocess", "os", "asyncio", "sys", "pathlib", "builtins"} for alias in node.names)):
+                raise failure("Relative Python execution/helper import cannot be bounded", node)
+            if node.module in {"subprocess", "os", "asyncio", "sys", "pathlib", "builtins"} and any(alias.name == "*" for alias in node.names):
                 raise RuntimeError("Python execution wildcard import cannot be bounded")
             for alias in node.names:
-                bind(node, alias.asname or alias.name, ("qualified", f"{node.module}.{alias.name}"))
+                bind(node, alias.asname or alias.name,
+                     None if node.level else ("qualified", f"{node.module}.{alias.name}"))
         elif isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del)):
             parent = parents[node]
             value = (parent.value if isinstance(parent, ast.Assign) and node in parent.targets
@@ -388,8 +403,28 @@ def _python_command_texts(text: str, inherited_directory: str,
         "posix_spawn", "posix_spawnp", "chdir", "fchdir", "startfile")}
 
     if any(isinstance(node, ast.Attribute) and isinstance(node.ctx, (ast.Store, ast.Del))
-           and (qualified(node.value) or "").split(".")[0] in process_roots for node in nodes):
+           and (qualified(node.value) or "").split(".")[0]
+           in process_roots | {"sys", "pathlib", "builtins"} for node in nodes):
         raise RuntimeError("Python execution module attributes were mutated")
+
+    path_intrinsics = {"os.path", "os.path.abspath", "os.path.dirname", "os.path.join",
+                       "pathlib", "pathlib.Path", "sys", "builtins", "builtins.str"}
+
+    def intrinsic_value(node, seen=frozenset()):
+        # A returned path/string is data; handing out the helper/module is not.
+        if node is None or id(node) in seen or isinstance(node, ast.Call):
+            return False
+        seen = seen | {id(node)}
+        name = qualified(node)
+        if name is not None:
+            return name in path_intrinsics
+        if isinstance(node, ast.Name):
+            return any((isinstance(value, tuple) and value[0] == "qualified"
+                        and value[1] in path_intrinsics)
+                       or (isinstance(value, ast.AST) and intrinsic_value(value, seen))
+                       for scope in scopes(node)
+                       for value in bindings.get(scope, {}).get(node.id, []))
+        return any(intrinsic_value(child, seen) for child in ast.iter_child_nodes(node))
 
     def known_process_result(node):
         # The value returned by run() is process result data, not its callee.
@@ -445,8 +480,31 @@ def _python_command_texts(text: str, inherited_directory: str,
             escaping = [node.value]
         elif isinstance(node, ast.AnnAssign) and not isinstance(node.target, ast.Name):
             escaping = [node.value]
-        if any(execution_value(value) for value in escaping):
+        if any(execution_value(value) or intrinsic_value(value) for value in escaping):
             raise failure("Python execution callable or module escaped its bounded scope", node)
+
+    class RepoPath:
+        """Source-derived repository identity, never a host absolute literal."""
+        def __init__(self, relative, absolute=False, mutable=False):
+            self.relative = relative
+            self.absolute = absolute
+            self.mutable = mutable
+
+    class RelativePath:
+        def __init__(self, relative):
+            self.relative = relative
+
+    def join_path(base, component, node):
+        if (not base.absolute or type(component) is not str or not component
+                or not re.fullmatch(r"(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+", component)
+                or ".." in PurePosixPath(component).parts):
+            raise failure("Python source-derived path cannot be bounded", node)
+        return RepoPath((PurePosixPath(base.relative) / component).as_posix().removeprefix("./"), base.absolute, base.mutable)
+
+    def builtin_str(node):
+        return (qualified(node) == "builtins.str"
+                or isinstance(node, ast.Name) and node.id == "str"
+                and not lookup("str", scopes(node)))
 
     def literal(node, seen=frozenset()):
         if node is None or id(node) in seen or len(seen) > MAX_REFERENCE_DEPTH:
@@ -458,6 +516,69 @@ def _python_command_texts(text: str, inherited_directory: str,
             return node.value, set()
         if qualified(node) == "sys.executable":
             return "python", set()
+        if isinstance(node, ast.Name) and node.id == "__file__":
+            if (lookup("__file__", scopes(node)) or source_path is None
+                    or not re.fullmatch(r"(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+", source_path)
+                    or ".." in PurePosixPath(source_path).parts):
+                raise failure("Python source file identity cannot be bounded", node)
+            return RepoPath(source_path), set()
+        if isinstance(node, ast.Call):
+            function = qualified(node.func)
+            if function in {"pathlib.Path", "os.path.abspath", "os.path.dirname", "os.path.join"} or builtin_str(node.func):
+                if node.keywords or not node.args or any(isinstance(arg, ast.Starred) for arg in node.args):
+                    raise failure("Python source-derived path cannot be bounded", node)
+                value, _ = literal(node.args[0], seen)
+                if function == "os.path.join":
+                    if not isinstance(value, RepoPath):
+                        raise failure("Python source-derived path lacks repository identity", node)
+                    for component in node.args[1:]:
+                        part, _ = literal(component, seen)
+                        value = join_path(value, part, node)
+                    return RepoPath(value.relative, value.absolute), set()
+                if len(node.args) != 1:
+                    raise failure("Python source-derived path cannot be bounded", node)
+                if builtin_str(node.func) and isinstance(value, RepoPath):
+                    return RepoPath(value.relative, value.absolute), set()
+                if not isinstance(value, RepoPath):
+                    raise failure("Python source-derived path lacks repository identity", node)
+                if function == "pathlib.Path":
+                    value = RepoPath(value.relative, value.absolute, True)
+                if function == "os.path.abspath":
+                    value = RepoPath(value.relative, True)
+                if function == "os.path.dirname":
+                    if not value.absolute or not value.relative:
+                        raise failure("Python source-derived path escapes or lacks repository identity", node)
+                    parent = PurePosixPath(value.relative).parent.as_posix()
+                    value = RepoPath("" if parent == "." else parent, value.absolute)
+                return value, set()
+            if isinstance(node.func, ast.Attribute):
+                value, _ = literal(node.func.value, seen)
+                if node.func.attr == "resolve" and isinstance(value, RepoPath) and value.mutable and not node.args and not node.keywords:
+                    return RepoPath(value.relative, True, True), set()
+                if node.func.attr == "relative_to" and isinstance(value, RepoPath) and value.mutable and len(node.args) == 1 and not node.keywords:
+                    base, _ = literal(node.args[0], seen)
+                    if isinstance(base, RepoPath) and base.absolute and value.absolute:
+                        try:
+                            relative = PurePosixPath(value.relative).relative_to(PurePosixPath(base.relative)).as_posix()
+                        except ValueError:
+                            raise failure("Python source-derived relative path escapes its anchor", node) from None
+                        return RelativePath(relative), set()
+                if node.func.attr == "as_posix" and isinstance(value, RelativePath) and not node.args and not node.keywords:
+                    return value.relative, set()
+        if (isinstance(node, ast.Subscript) and isinstance(node.value, ast.Attribute)
+                and node.value.attr == "parents"):
+            value, _ = literal(node.value.value, seen)
+            index = node.slice
+            if (isinstance(value, RepoPath) and value.absolute and value.mutable and isinstance(index, ast.Constant)
+                    and type(index.value) is int and 0 <= index.value < len(PurePosixPath(value.relative).parts)):
+                parent = PurePosixPath(value.relative).parents[index.value].as_posix()
+                return RepoPath("" if parent == "." else parent, value.absolute, True), set()
+            raise failure("Python source-derived parent is outside the repository", node)
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+            base, _ = literal(node.left, seen)
+            component, _ = literal(node.right, seen)
+            if isinstance(base, RepoPath) and base.absolute and base.mutable:
+                return join_path(base, component, node), set()
         if isinstance(node, ast.Name):
             values = lookup(node.id, scopes(node))
             if len(values) == 1 and isinstance(values[0], ast.AST):
@@ -475,11 +596,64 @@ def _python_command_texts(text: str, inherited_directory: str,
                 return left + right, left_origins | right_origins
         raise failure("Python execution command cannot be bounded", node)
 
-    def origins(node):
-        try:
-            return literal(node)[1]
-        except RuntimeError:
+    def origins(node, seen=frozenset()):
+        # Track mutable containers even when a script-data operand is opaque.
+        if node is None or id(node) in seen or len(seen) > MAX_REFERENCE_DEPTH:
             return set()
+        seen = seen | {id(node)}
+        if isinstance(node, ast.List):
+            return {id(node)}
+        if isinstance(node, ast.Name):
+            return set().union(*(origins(value, seen) for value in lookup(node.id, scopes(node))
+                                 if isinstance(value, ast.AST)))
+        if isinstance(node, ast.Subscript):
+            return origins(node.value, seen)
+        if isinstance(node, (ast.Tuple, ast.BinOp)):
+            return set().union(*(origins(child, seen) for child in ast.iter_child_nodes(node)))
+        return set()
+
+    def argv_nodes(node, seen=frozenset()):
+        if node is None or id(node) in seen or len(seen) > MAX_REFERENCE_DEPTH:
+            raise failure("Python execution argv cannot be bounded", node)
+        seen = seen | {id(node)}
+        if isinstance(node, (ast.List, ast.Tuple)) and len(node.elts) <= MAX_REFERENCED_SOURCES:
+            if any(isinstance(part, ast.Starred) for part in node.elts):
+                raise failure("Python execution argv cannot be bounded", node)
+            return node.elts
+        if isinstance(node, ast.Name):
+            values = lookup(node.id, scopes(node))
+            if len(values) == 1 and isinstance(values[0], ast.AST):
+                return argv_nodes(values[0], seen)
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+            parts = argv_nodes(node.left, seen) + argv_nodes(node.right, seen)
+            if len(parts) <= MAX_REFERENCED_SOURCES:
+                return parts
+        raise failure("Python execution argv cannot be bounded", node)
+
+    def script_data(node, seen=frozenset()):
+        # Data after a fixed script cannot choose that script. Never stringify
+        # this domain into executable evidence or relax nested process calls.
+        if node is None or id(node) in seen or len(seen) > MAX_REFERENCE_DEPTH or execution_value(node):
+            raise failure("Python script data cannot be bounded", node)
+        seen = seen | {id(node)}
+        try:
+            value, _ = literal(node)
+        except RuntimeError:
+            if isinstance(node, ast.Name):
+                values = lookup(node.id, scopes(node))
+                if len(values) == 1:
+                    if values[0] is None:  # A parameter: an opaque data operand.
+                        return
+                    if isinstance(values[0], ast.AST):
+                        return script_data(values[0], seen)
+            if (isinstance(node, ast.Call) and builtin_str(node.func)
+                    and len(node.args) == 1 and not node.keywords
+                    and not isinstance(node.args[0], (ast.Starred, ast.List, ast.Tuple, ast.Dict, ast.Set))):
+                if not execution_value(node.args[0]):
+                    return
+            raise failure("Python script data cannot be bounded", node) from None
+        if not isinstance(value, RepoPath) and type(value) is not str:
+            raise failure("Python script data cannot be bounded", node)
 
     escaped_lists = set()
     for node in nodes:
@@ -502,6 +676,51 @@ def _python_command_texts(text: str, inherited_directory: str,
             for part in ast.walk(node):
                 if isinstance(part, ast.Name):
                     escaped_lists.update(origins(part))
+
+    def mutable_path(node):
+        try:
+            value, _ = literal(node)
+        except RuntimeError:
+            return False
+        return isinstance(value, RelativePath) or isinstance(value, RepoPath) and value.mutable
+
+    # Path.__str__/__fspath__ can change through private state or an escaped
+    # instance. Reject those effects instead of trusting its reconstructed AST.
+    allowed_argv_origins = set()
+    for node in nodes:
+        if isinstance(node, ast.Call) and qualified(node.func) in executions:
+            argument = node.args[0] if node.args else next(
+                (item.value for item in node.keywords if item.arg == "args"), None)
+            allowed_argv_origins.update(origins(argument))
+    for node in nodes:
+        if (isinstance(node, ast.Attribute) and isinstance(node.ctx, (ast.Store, ast.Del))
+                and mutable_path(node.value)):
+            raise failure("Python source-derived Path object was mutated", node)
+        escaping = []
+        if isinstance(node, ast.Call) and qualified(node.func) not in executions:
+            bounded_helper = (qualified(node.func) in {
+                "pathlib.Path", "os.path.abspath", "os.path.dirname", "os.path.join"}
+                or builtin_str(node.func))
+            if isinstance(node.func, ast.Attribute) and mutable_path(node.func.value):
+                try:
+                    literal(node)
+                except RuntimeError:
+                    raise failure("Python source-derived Path method cannot be bounded", node) from None
+                bounded_helper = True
+            if not bounded_helper:
+                escaping = [*node.args, *(item.value for item in node.keywords)]
+        elif isinstance(node, (ast.Return, ast.Yield, ast.YieldFrom)):
+            escaping = [node.value]
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            escaping = [*node.args.defaults, *(value for value in node.args.kw_defaults if value is not None)]
+        elif isinstance(node, ast.Assign) and any(not isinstance(target, ast.Name) for target in node.targets):
+            escaping = [node.value]
+        elif isinstance(node, ast.AnnAssign) and not isinstance(node.target, ast.Name):
+            escaping = [node.value]
+        elif isinstance(node, (ast.List, ast.Tuple, ast.Set, ast.Dict)) and id(node) not in allowed_argv_origins:
+            escaping = list(ast.iter_child_nodes(node))
+        if any(mutable_path(part) for value in escaping for part in ast.walk(value)):
+            raise failure("Python source-derived Path object escaped its bounded scope", node)
 
     commands = []
     for node in nodes:
@@ -526,14 +745,18 @@ def _python_command_texts(text: str, inherited_directory: str,
         argument = node.args[0] if node.args else keywords.get("args")
         if node.args and "args" in keywords:
             raise RuntimeError("Python execution arguments cannot be bounded")
+        structural = None
         if function == "asyncio.create_subprocess_exec":
-            values = [literal(arg) for arg in node.args]
-            if not values or any(type(value) is not str for value, _ in values):
-                raise RuntimeError("Python execution command cannot be bounded")
-            command = [value for value, _ in values]
-            command_origins = set().union(*(items for _, items in values))
+            structural = node.args
+            command_origins = set().union(*(origins(arg) for arg in node.args))
         else:
-            command, command_origins = literal(argument)
+            command_origins = origins(argument)
+            try:
+                structural = argv_nodes(argument)
+            except RuntimeError:
+                command, _ = literal(argument)
+                if type(command) is not str:
+                    raise failure("Python execution command cannot be bounded", node)
         if command_origins & escaped_lists:
             raise RuntimeError("Python execution argv was mutated or escaped")
         shell = keywords.get("shell")
@@ -542,62 +765,121 @@ def _python_command_texts(text: str, inherited_directory: str,
         uses_shell = (function in {"os.system", "os.popen", "subprocess.getoutput",
                                   "subprocess.getstatusoutput", "asyncio.create_subprocess_shell"}
                       or (shell is not None and shell.value is True))
-        if uses_shell and isinstance(command, str) and any(token in command for token in (";", "&", "|", "\n", "`", "$")):
-            raise RuntimeError("Python shell delegation cannot be bounded")
-        if isinstance(command, list):
-            if not command:
-                raise RuntimeError("Python execution command cannot be bounded")
-            argv = command
+        if structural is not None:
+            if not structural:
+                raise failure("Python execution command cannot be bounded", node)
+            program_value, _ = literal(structural[0])
+            if type(program_value) is not str:
+                raise failure("Python execution program cannot be bounded", node)
+            argv = [program_value]
         else:
+            if uses_shell and any(token in command for token in (";", "&", "|", "\n", "`", "$")):
+                raise RuntimeError("Python shell delegation cannot be bounded")
             try:
                 argv = shlex.split(command, posix=True)
             except ValueError as exc:
                 raise RuntimeError("Python execution argv cannot be bounded") from exc
-        if not argv or any(any(token in argument for token in ("$", "`", "\n", "\x00")) for argument in argv):
-            raise RuntimeError("Python interpreter expansion cannot be bounded")
+        if not argv:
+            raise RuntimeError("Python execution command cannot be bounded")
         program = PurePosixPath(argv[0]).name
-        if any(character.isspace() for character in argv[0]) or program == "env" or any(token in argv[0] for token in ("\\", ":")):
+        if any(character.isspace() for character in argv[0]) or program == "env" or any(token in argv[0] for token in ("\\", ":", "$", "`", "\n", "\x00")):
             raise RuntimeError("Python execution program cannot be bounded")
         interpreter = re.fullmatch(r"python(?:3(?:\.\d+)?)?", program) is not None
         if (interpreter or program in {"bash", "sh", "node"}) and argv[0] != program:
             raise RuntimeError("Python interpreter executable identity cannot be bounded")
-        if program in {"bash", "sh"} and (len(argv) < 2 or argv[1].startswith("-")):
-            raise RuntimeError("Python shell interpreter delegation cannot be bounded")
-        if interpreter or program in {"bash", "sh", "node"}:
+        source_reference = None
+        anchored_script = None
+        isolated = False
+        fixed_script = False
+        if interpreter and structural is not None and not uses_shell:
             index = 1
-            while index < len(argv) and argv[index] in {"-B", "-u", "-O", "-OO"}:
+            while index < len(structural):
+                value, _ = literal(structural[index])
+                if type(value) is not str or value not in {"-B", "-u", "-O", "-OO", "-I"}:
+                    break
+                isolated |= value == "-I"
+                argv.append(value)
                 index += 1
-            if index >= len(argv):
-                raise RuntimeError("Python interpreter source cannot be bounded")
-            selector = argv[index]
-            if selector in {"-c", "-e"}:
-                if index + 1 >= len(argv):
-                    raise RuntimeError("Python inline execution cannot be bounded")
-                inline = argv[index + 1]
-                known_mutation = (_python_mutates_space(inline) if interpreter
-                                  else any(pattern.search(inline) for pattern in MUTATION_PATTERNS))
-                if not known_mutation:
-                    raise RuntimeError("Python inline execution cannot be bounded")
-            elif selector == "-m" and interpreter:
-                if index + 1 >= len(argv) or not re.fullmatch(r"[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*", argv[index + 1]):
-                    raise RuntimeError("Python module execution cannot be bounded")
-            elif selector.startswith("-") or any(character.isspace() for character in selector):
-                raise RuntimeError("Python interpreter source identity cannot be bounded")
-            elif (not re.fullmatch(r"(?:\./)?(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+", selector)
-                  or ".." in PurePosixPath(selector).parts):
-                raise RuntimeError("Python interpreter source path cannot be bounded")
-        command = " ".join(argv)
+            if index >= len(structural):
+                raise failure("Python interpreter source cannot be bounded", node)
+            selector, _ = literal(structural[index])
+            if isinstance(selector, RepoPath):
+                if not selector.absolute:
+                    raise failure("Python source-derived script lacks absolute repository identity", node)
+                anchored_script = selector.relative
+                source_reference = (selector.relative, True)
+                fixed_script = True
+            elif type(selector) is str and not selector.startswith("-"):
+                if (not re.fullmatch(r"(?:\./)?(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+", selector)
+                        or ".." in PurePosixPath(selector).parts):
+                    raise failure("Python interpreter source path cannot be bounded", node)
+                source_reference = (selector, False)
+                fixed_script = True
+            if fixed_script:
+                for operand in structural[index + 1:]:
+                    script_data(operand)
+                # Only the interpreter and source are executable evidence.
+                command = " ".join(argv)
+        if not fixed_script:
+            if structural is not None:
+                values = [literal(part)[0] for part in structural]
+                if any(type(value) is not str for value in values):
+                    raise failure("Python execution command cannot be bounded", node)
+                argv = values
+            if any(any(token in part for token in ("$", "`", "\n", "\x00")) for part in argv):
+                raise RuntimeError("Python interpreter expansion cannot be bounded")
+            if program in {"bash", "sh"} and (len(argv) < 2 or argv[1].startswith("-")):
+                raise RuntimeError("Python shell interpreter delegation cannot be bounded")
+            if interpreter or program in {"bash", "sh", "node"}:
+                index = 1
+                while index < len(argv) and argv[index] in {"-B", "-u", "-O", "-OO", "-I"}:
+                    index += 1
+                if index >= len(argv):
+                    raise RuntimeError("Python interpreter source cannot be bounded")
+                selector = argv[index]
+                if selector in {"-c", "-e"}:
+                    if index + 1 >= len(argv):
+                        raise RuntimeError("Python inline execution cannot be bounded")
+                    inline = argv[index + 1]
+                    known_mutation = (_python_mutates_space(inline) if interpreter
+                                      else any(pattern.search(inline) for pattern in MUTATION_PATTERNS))
+                    if not known_mutation:
+                        raise RuntimeError("Python inline execution cannot be bounded")
+                elif selector == "-m" and interpreter:
+                    if index + 1 >= len(argv) or not re.fullmatch(r"[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*", argv[index + 1]):
+                        raise RuntimeError("Python module execution cannot be bounded")
+                elif selector.startswith("-") or any(character.isspace() for character in selector):
+                    raise RuntimeError("Python interpreter source identity cannot be bounded")
+                elif (not re.fullmatch(r"(?:\./)?(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+", selector)
+                      or ".." in PurePosixPath(selector).parts):
+                    raise RuntimeError("Python interpreter source path cannot be bounded")
+            command = " ".join(argv)
         directory = inherited_directory
         cwd = keywords.get("cwd")
         if cwd is not None and not (isinstance(cwd, ast.Constant) and cwd.value is None):
-            directory_value, _ = literal(cwd)
-            if type(directory_value) is not str:
-                raise RuntimeError("Python execution working directory cannot be bounded")
-            path = PurePosixPath(directory_value.replace("\\", "/"))
-            if path.is_absolute() or ".." in path.parts:
-                raise RuntimeError("Python execution working directory escapes the repository")
-            directory = (PurePosixPath(directory) / path).as_posix().removeprefix("./")
-        commands.append(("run: " + command, directory))
+            try:
+                directory_value, _ = literal(cwd)
+            except RuntimeError:
+                if anchored_script is None or not isolated or uses_shell:
+                    raise failure("Python execution command cannot be bounded", node) from None
+                directory_value = None
+            if isinstance(directory_value, RepoPath):
+                if not directory_value.absolute:
+                    raise failure("Python source-derived cwd lacks absolute repository identity", node)
+                directory = directory_value.relative
+            elif directory_value is None:
+                directory = None  # UNKNOWN, never silently inherit a known cwd.
+            elif type(directory_value) is str:
+                path = PurePosixPath(directory_value)
+                if (not re.fullmatch(r"(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+", directory_value)
+                        or path.is_absolute() or ".." in path.parts or directory is None):
+                    raise failure("Python execution working directory escapes or lacks repository provenance", node)
+                directory = (PurePosixPath(directory) / path).as_posix().removeprefix("./")
+            else:
+                raise failure("Python execution working directory cannot be bounded", node)
+        if directory is None and (anchored_script is None or not isolated or uses_shell):
+            raise failure("Python execution working directory cannot be bounded", node)
+        commands.append(("run: " + command, directory, source_reference))
     return commands
 
 
@@ -608,8 +890,8 @@ def _referenced_sources(
     """Include scripts and local actions that the workflow actually executes."""
 
     combined: list[tuple[str | None, str]] = [(None, text)]
-    queue: list[tuple[str | None, str, int, str]] = [(None, text, 0, "")]
-    visited: set[tuple[str, str]] = set()
+    queue: list[tuple[str | None, str, int, str | None]] = [(None, text, 0, "")]
+    visited: set[tuple[str, str | None, bool]] = set()
     while queue:
         current_path, source_text, depth, inherited_directory = queue.pop()
         if depth > MAX_REFERENCE_DEPTH:
@@ -619,25 +901,35 @@ def _referenced_sources(
             current_path is None
             or PurePosixPath(current_path).name in {"action.yml", "action.yaml"}
         )
-        is_python = current_path is not None and current_path.endswith(".py")
+        is_python = current_path is not None and (isinstance(current_path, _PythonSourcePath) or current_path.endswith(".py"))
         contexts = (_python_command_texts(source_text, inherited_directory, current_path)
-                    if is_python else [(current, None)])
+                    if is_python else [(current, inherited_directory, None)])
         if is_python:
-            current = "\n".join(command for command, _directory in contexts)
-        references: set[tuple[str, str, bool, str]] = set()
-        for command_text, command_directory in contexts:
+            current = "\n".join(command for command, _directory, _anchor in contexts)
+        references: set[tuple[str, str, bool, str | None, bool]] = set()
+        for command_text, command_directory, source_reference in contexts:
+            if source_reference is not None:
+                script, anchored = source_reference
+                if not anchored and command_directory is None:
+                    raise RuntimeError("relative Python source requires known repository working directory")
+                references.add((script, "" if anchored else command_directory, True, command_directory, True))
             if is_python:
                 # Executed inline commands remain mutation evidence; expected
                 # command strings elsewhere in Python do not become references.
                 combined.append((None, command_text))
             direct_calls = {match.group("path") for match in DIRECT_SCRIPT_CALL.finditer(command_text)}
-            script_calls = {match.group("path") for match in LOCAL_SCRIPT_CALL.finditer(command_text)}
+            script_matches = list(LOCAL_SCRIPT_CALL.finditer(command_text))
+            script_calls = {match.group("path") for match in script_matches}
+            python_script_calls = {match.group("path") for match in script_matches
+                                   if re.match(r"\s*python(?:3(?:\.\d+)?)?(?:\s|$)", match.group(0))}
             module_calls = {match.group("module") for match in LOCAL_MODULE_CALL.finditer(command_text)}
             working_directories = (_working_directories(current)
                 if is_yaml_execution_context and (script_calls or direct_calls or module_calls)
-                else {command_directory if command_directory is not None else inherited_directory})
+                else {command_directory})
+            if (script_calls or direct_calls or module_calls) and None in working_directories:
+                raise RuntimeError("relative Python source requires known repository working directory")
             for relative_path in script_calls | direct_calls:
-                references.update((relative_path, base_dir, is_python, base_dir)
+                references.update((relative_path, base_dir, is_python, base_dir, relative_path in python_script_calls)
                                   for base_dir in working_directories)
             for module in module_calls:
                 module_path = module.replace(".", "/")
@@ -647,14 +939,14 @@ def _referenced_sources(
                                  if _repo_source(path, repo_files, base_dir=base_dir) is not None]
                     if is_python and not available:
                         raise RuntimeError("required local writer module is unavailable: " + module)
-                    references.update((path, base_dir, False, base_dir) for path in available)
+                    references.update((path, base_dir, False, base_dir, False) for path in available)
 
         for match in LOCAL_ACTION_CALL.finditer(current) if not is_python else ():
             action_dir = match.group("path").rstrip("/")
             references.update(
                 {
-                    (f"{action_dir}/action.yml", "", False, inherited_directory),
-                    (f"{action_dir}/action.yaml", "", False, inherited_directory),
+                    (f"{action_dir}/action.yml", "", False, inherited_directory, False),
+                    (f"{action_dir}/action.yaml", "", False, inherited_directory, False),
                 }
             )
 
@@ -665,11 +957,11 @@ def _referenced_sources(
         ):
             action_dir = PurePosixPath(current_path).parent.as_posix()
             references.update(
-                (match.group("path"), action_dir, True, inherited_directory)
+                (match.group("path"), action_dir, True, inherited_directory, False)
                 for match in ACTION_ENTRYPOINT.finditer(current)
             )
             references.update(
-                (match.group("path"), action_dir, True, inherited_directory)
+                (match.group("path"), action_dir, True, inherited_directory, False)
                 for match in ACTION_DOCKER_IMAGE.finditer(current)
             )
 
@@ -679,11 +971,12 @@ def _referenced_sources(
         ):
             docker_dir = PurePosixPath(current_path).parent.as_posix()
             references.update(
-                (relative_path, docker_dir, True, inherited_directory)
+                (relative_path, docker_dir, True, inherited_directory, False)
                 for relative_path in _docker_local_sources(current)
             )
 
-        for relative_path, base_dir, required, next_directory in sorted(references):
+        for relative_path, base_dir, required, next_directory, python_source in sorted(
+                references, key=lambda item: (item[0], item[1], item[2], item[3] or "", item[4])):
             source = _repo_source(
                 relative_path,
                 repo_files,
@@ -696,7 +989,9 @@ def _referenced_sources(
                     )
                 continue
             normalized, source_text = source
-            visit = (normalized, next_directory)
+            if python_source:
+                normalized = _PythonSourcePath(normalized)
+            visit = (normalized, next_directory, python_source or normalized.endswith(".py"))
             if visit in visited:
                 continue
             if len(visited) >= MAX_REFERENCED_SOURCES:
@@ -731,7 +1026,7 @@ def _mutates_canonical_space(
     mutation_found = False
     for relative_path, source_text in sources:
         executable = _executable_text(source_text)
-        if relative_path is not None and relative_path.lower().endswith(".py"):
+        if relative_path is not None and (isinstance(relative_path, _PythonSourcePath) or relative_path.lower().endswith(".py")):
             mutation_found = _python_mutates_space(source_text)
         else:
             mutation_found = any(
@@ -964,6 +1259,11 @@ assert expected.startswith("python3")
             'from os import *\nsystem("python3 scripts/writer.py")\n',
             'from asyncio import *\ncreate_subprocess_exec("python3", "scripts/writer.py")\n',
             'import os\nos.startfile("scripts/writer.py")\n',
+            'from .subprocess import run as launch\nlaunch(["python3", "scripts/writer.py"])\n',
+            'from . import subprocess\nsubprocess.run(["python3", "scripts/writer.py"])\n',
+            'from . import os as operating\noperating.system("python3 scripts/writer.py")\n',
+            'from .os import system\nsystem("python3 scripts/writer.py")\n',
+            'from .asyncio import create_subprocess_exec\ncreate_subprocess_exec("python3", "scripts/writer.py")\n',
             'import subprocess\nsubprocess.run(["bash", "-c", "$SCRIPT"], env=environment)\n',
             'import subprocess\nsubprocess.run(["sh", "-c", "python3 scripts/writer.py"])\n',
             'import subprocess\nsubprocess.run(["env", "python3", "scripts/writer.py"])\n',
@@ -1007,6 +1307,187 @@ assert expected.startswith("python3")
         for source in sources:
             with self.subTest(source=source), self.assertRaises(RuntimeError):
                 self._python_wrapper_writers(source)
+
+    def test_source_anchored_python_script_keeps_opaque_tail_as_data(self) -> None:
+        sources = (
+            'import os, subprocess, sys\nHERE = os.path.dirname(os.path.abspath(__file__))\nCHECKER = os.path.join(HERE, "checker.py")\ndef inspect(root: str):\n    subprocess.run([sys.executable, CHECKER, root])\n',
+            'import subprocess, sys\nfrom pathlib import Path\nBASE = Path(__file__).resolve().parents[0]\nCHECKER = BASE / "checker.py"\ndef inspect(root: str):\n    subprocess.run([sys.executable, str(CHECKER), root])\n',
+            'import subprocess, sys\nfrom os.path import abspath as absolute, dirname as parent, join as joined\nCHECKER = joined(parent(absolute(__file__)), "checker.py")\ndef inspect(root: str):\n    subprocess.run([sys.executable, CHECKER, root])\n',
+        )
+        for source in sources:
+            with self.subTest(source=source):
+                files = {"scripts/driver.py": source, "scripts/checker.py": "print('inert')\n"}
+                self.assertEqual(self._python_wrapper_writers(source, files=files), [])
+                files["scripts/checker.py"] = "client.create_commit(repo_id='target', operations=[])\n"
+                self.assertEqual(self._python_wrapper_writers(source, files=files), ["wrapper.yml"])
+        source = sources[0].replace('CHECKER, root', 'CHECKER, "python3 scripts/missing.py", "--runtime-root", "data with spaces"')
+        self.assertEqual(self._python_wrapper_writers(source, files={
+            "scripts/driver.py": source, "scripts/checker.py": "print('inert')\n"}), [])
+
+    def test_source_derived_relative_path_uses_its_explicit_anchor(self) -> None:
+        source = ('import subprocess, sys\nfrom pathlib import Path\n'
+                  'ROOT = Path(__file__).resolve().parents[1]\n'
+                  'CHECKER = ROOT / "scripts" / "checker.py"\n'
+                  'relative = CHECKER.relative_to(ROOT).as_posix()\n'
+                  'subprocess.run([sys.executable, relative], cwd=ROOT)\n')
+        self.assertEqual(self._python_wrapper_writers(source, files={
+            "scripts/driver.py": source,
+            "scripts/checker.py": "client.create_commit(repo_id='target', operations=[])\n"}), ["wrapper.yml"])
+        dot_source = ('import os, subprocess, sys\n'
+                      'HERE = os.path.dirname(os.path.abspath(__file__))\n'
+                      'subprocess.run([sys.executable, os.path.join(HERE, "checker.py")])\n')
+        workflow = "on: [schedule]\njobs:\n  check:\n    env:\n      SPACE_ID: SZLHOLDINGS/a11oy\n    steps:\n      - run: python3 .github/scripts/driver.py\n"
+        self.assertEqual(find_automatic_writers({"wrapper.yml": workflow}, {
+            ".github/scripts/driver.py": dot_source,
+            ".github/scripts/checker.py": "client.create_commit(repo_id='target', operations=[])\n"}), ["wrapper.yml"])
+
+    def test_opaque_python_argv_origins_still_reject_mutation_and_escape(self) -> None:
+        mutations = (
+            'argv[1] = replacement', 'argv.append(root)',
+            'alias = argv\n    alias.append(root)', 'mutate(argv)',
+            'box = [argv]\n    box[0][1] = replacement',
+        )
+        for mutation in mutations:
+            source = ('import os, subprocess, sys\n'
+                      'CHECKER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "checker.py")\n'
+                      'def inspect(root: str):\n    argv = [sys.executable, CHECKER, root]\n    '
+                      + mutation + '\n    subprocess.run(argv)\n')
+            with self.subTest(mutation=mutation), self.assertRaises(RuntimeError):
+                self._python_wrapper_writers(source, files={
+                    "scripts/driver.py": source, "scripts/checker.py": "print('inert')\n"})
+
+    def test_script_data_does_not_qualify_a_nested_process_selector(self) -> None:
+        source = ('import os, subprocess, sys\n'
+                  'CHECKER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "checker.py")\n'
+                  'def inspect(root: str):\n    subprocess.run([sys.executable, CHECKER, root])\n')
+        delegates = (
+            'import subprocess, sys\nsubprocess.run(sys.argv[1])\n',
+            'import subprocess, sys\nsubprocess.run([sys.executable, sys.argv[1]])\n',
+        )
+        for delegate in delegates:
+            with self.subTest(delegate=delegate), self.assertRaises(RuntimeError):
+                self._python_wrapper_writers(source, files={
+                    "scripts/driver.py": source, "scripts/checker.py": delegate})
+        with self.assertRaises(RuntimeError):
+            self._python_wrapper_writers(source, files={"scripts/driver.py": source})
+        for selector in ('tools_script', 'str(tools_script)'):
+            dynamic = 'import subprocess, sys\ndef inspect(tools_script, root):\n    subprocess.run([sys.executable, ' + selector + ', root])\n'
+            with self.subTest(selector=selector), self.assertRaises(RuntimeError):
+                self._python_wrapper_writers(dynamic)
+
+    def test_source_derived_path_rejects_traversal_and_out_of_repo_parents(self) -> None:
+        expressions = (
+            'os.path.join(HERE, "/outside.py")', 'os.path.join(HERE, "../writer.py")',
+            'os.path.join(HERE, "C:/writer.py")', 'os.path.join(HERE, "folder\\\\writer.py")',
+            'Path(__file__).resolve().parents[99] / "writer.py"',
+            'Path(__file__).resolve().parents[-1] / "writer.py"',
+            'Path(__file__).resolve().parents[True] / "writer.py"',
+            'Path(__file__).resolve().parents[0] / "../writer.py"',
+            'Path("/outside/writer.py")', 'Path("__file__")',
+            '__file__', 'Path(__file__)', 'str(Path(__file__))',
+            'os.path.abspath(os.path.dirname(__file__))',
+            'os.path.abspath(os.path.join(os.path.dirname(__file__), "writer.py"))',
+            'Path(__file__).parents[0].resolve() / "writer.py"',
+            '(Path(__file__) / "writer.py").resolve()',
+        )
+        for expression in expressions:
+            source = ('import os, subprocess, sys\nfrom pathlib import Path\n'
+                      'HERE = os.path.dirname(os.path.abspath(__file__))\n'
+                      'subprocess.run([sys.executable, ' + expression + '])\n')
+            with self.subTest(expression=expression), self.assertRaises(RuntimeError):
+                self._python_wrapper_writers(source)
+
+    def test_path_helpers_file_and_interpreter_identity_cannot_be_shadowed(self) -> None:
+        replacements = (
+            '__file__ = "scripts/driver.py"', 'sys.executable = "replacement"',
+            'alias = sys\nalias.executable = "replacement"', 'del sys.executable',
+            'os.path.join = replacement', 'alias = os.path\nalias.join = replacement',
+            'Path = replacement', 'str = replacement',
+            'mutate(sys)', 'mutate(os.path)', 'mutate(Path)',
+            'holder.helper = Path',
+        )
+        for replacement in replacements:
+            source = ('import os, subprocess, sys\nfrom pathlib import Path\n' + replacement + '\n'
+                      'CHECKER = Path(__file__).resolve().parents[0] / "writer.py"\n'
+                      'subprocess.run([sys.executable, str(CHECKER)])\n')
+            with self.subTest(replacement=replacement), self.assertRaises(RuntimeError):
+                self._python_wrapper_writers(source)
+        shadowed = ('import os, subprocess, sys\ndef inspect(__file__):\n'
+                    '    checker = os.path.join(os.path.dirname(os.path.abspath(__file__)), "writer.py")\n'
+                    '    subprocess.run([sys.executable, checker])\n')
+        with self.assertRaises(RuntimeError):
+            self._python_wrapper_writers(shadowed)
+
+    def test_unknown_cwd_requires_isolated_anchored_source_and_stays_unknown(self) -> None:
+        source = ('import subprocess, sys\nfrom pathlib import Path\n'
+                  'CHECKER = Path(__file__).resolve().parents[0] / "checker.py"\n'
+                  'def inspect(root):\n    subprocess.run([sys.executable, "-I", str(CHECKER), str(root)], cwd=root)\n')
+        files = {"scripts/driver.py": source, "scripts/checker.py": "print('inert')\n"}
+        self.assertEqual(self._python_wrapper_writers(source, files=files), [])
+        files["scripts/checker.py"] = "client.create_commit(repo_id='target', operations=[])\n"
+        self.assertEqual(self._python_wrapper_writers(source, files=files), ["wrapper.yml"])
+        for bad in (source.replace('"-I", ', ''), source.replace('str(CHECKER)', '"scripts/checker.py"')):
+            with self.subTest(bad=bad), self.assertRaises(RuntimeError):
+                self._python_wrapper_writers(bad, files={"scripts/driver.py": bad, "scripts/checker.py": "print('inert')\n"})
+        files["scripts/checker.py"] = 'import subprocess\nsubprocess.run(["python3", "scripts/writer.py"], cwd=None)\n'
+        files["scripts/writer.py"] = "client.create_commit(repo_id='target', operations=[])\n"
+        with self.assertRaises(RuntimeError):
+            self._python_wrapper_writers(source, files=files)
+
+    def test_visit_context_does_not_merge_known_and_unknown_directories(self) -> None:
+        source = ('import subprocess, sys\nfrom pathlib import Path\n'
+                  'CHECKER = Path(__file__).resolve().parents[0] / "checker.py"\n'
+                  'subprocess.run([sys.executable, str(CHECKER)])\n'
+                  'def inspect(root):\n    subprocess.run([sys.executable, "-I", str(CHECKER)], cwd=root)\n')
+        files = {"scripts/driver.py": source,
+                 "scripts/checker.py": 'import subprocess\nsubprocess.run(["python3", "scripts/writer.py"])\n',
+                 "scripts/writer.py": "client.create_commit(repo_id='target', operations=[])\n"}
+        with self.assertRaises(RuntimeError):
+            self._python_wrapper_writers(source, files=files)
+        # A new independently anchored cwd can establish repository provenance.
+        files["scripts/checker.py"] = ('import subprocess\nfrom pathlib import Path\n'
+            'ROOT = Path(__file__).resolve().parents[1]\n'
+            'subprocess.run(["python3", "scripts/writer.py"], cwd=ROOT)\n')
+        self.assertEqual(self._python_wrapper_writers(source, files=files), ["wrapper.yml"])
+
+    def test_source_derived_path_instances_cannot_mutate_or_escape(self) -> None:
+        mutations = (
+            'CHECKER._str = "scripts/writer.py"',
+            'alias = CHECKER\nalias._str = "scripts/writer.py"',
+            'setattr(CHECKER, "_str", "scripts/writer.py")',
+            'mutate(CHECKER)', 'holder.path = CHECKER',
+            'box = [CHECKER]\nbox[0]._str = "scripts/writer.py"',
+            'argv = [sys.executable, CHECKER]\nargv[1]._str = "scripts/writer.py"',
+            'CHECKER.touch()',
+        )
+        for mutation in mutations:
+            source = ('import subprocess, sys\nfrom pathlib import Path\n'
+                      'CHECKER = Path(__file__).resolve().parents[0] / "checker.py"\n'
+                      + mutation + '\nsubprocess.run([sys.executable, str(CHECKER)])\n')
+            with self.subTest(mutation=mutation), self.assertRaises(RuntimeError):
+                self._python_wrapper_writers(source, files={
+                    "scripts/driver.py": source, "scripts/checker.py": "print('inert')\n"})
+
+    def test_python_execution_language_does_not_depend_on_script_suffix(self) -> None:
+        source = ('import os, subprocess, sys\n'
+                  'CHECKER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "checker.data")\n'
+                  'def inspect(root: str):\n    subprocess.run([sys.executable, CHECKER, root])\n')
+        files = {"scripts/driver.py": source,
+                 "scripts/checker.data": 'expected = "client.create_commit(repo_id=target, operations=[])"\n'}
+        self.assertEqual(self._python_wrapper_writers(source, files=files), [])
+        files["scripts/checker.data"] = "client.create_commit(repo_id='target', operations=[])\n"
+        self.assertEqual(self._python_wrapper_writers(source, files=files), ["wrapper.yml"])
+        files["scripts/checker.data"] = 'import subprocess, sys\nsubprocess.run(sys.argv[1])\n'
+        with self.assertRaises(RuntimeError):
+            self._python_wrapper_writers(source, files=files)
+        workflow = "on: [schedule]\njobs:\n  check:\n    env:\n      SPACE_ID: SZLHOLDINGS/a11oy\n    steps:\n      - run: python3 scripts/publish\n"
+        self.assertEqual(find_automatic_writers({"wrapper.yml": workflow}, {
+            "scripts/publish": 'expected = "client.create_commit(repo_id=target, operations=[])"\n'}), [])
+        self.assertEqual(find_automatic_writers({"wrapper.yml": workflow}, {
+            "scripts/publish": "client.create_commit(repo_id='target', operations=[])\n"}), ["wrapper.yml"])
+        for delegate in ('import subprocess, sys\nsubprocess.run(sys.argv[1])\n', 'def broken(:\n'):
+            with self.subTest(delegate=delegate), self.assertRaises(RuntimeError):
+                find_automatic_writers({"wrapper.yml": workflow}, {"scripts/publish": delegate})
 
     def test_all_non_manual_triggers_detect_delegated_writer(self) -> None:
         canonical = (WORKFLOWS / CANONICAL_WORKFLOW).read_text(encoding="utf-8")
