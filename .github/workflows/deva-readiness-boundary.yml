@@ -1,4 +1,4 @@
-name: DEV-A real-estate readiness HTTP boundary
+name: DEV-A and Cyber readiness HTTP boundaries
 
 on:
   pull_request:
@@ -9,6 +9,9 @@ on:
     - a11oy_vertical_feeds.py
     - tests/test_deva_realestate_readiness_route_boundary.py
     - tests/test_deva_realestate_http_boundary.py
+    - tests/test_cyber_readiness_truth_contract.py
+    - tests/test_legal_readiness_unavailable_contract.py
+    - tests/test_realestate_readiness_truth_contract.py
     - .github/requirements/ci-core.txt
     - .github/workflows/deva-readiness-boundary.yml
   push:
@@ -19,6 +22,9 @@ on:
     - a11oy_vertical_feeds.py
     - tests/test_deva_realestate_readiness_route_boundary.py
     - tests/test_deva_realestate_http_boundary.py
+    - tests/test_cyber_readiness_truth_contract.py
+    - tests/test_legal_readiness_unavailable_contract.py
+    - tests/test_realestate_readiness_truth_contract.py
     - .github/requirements/ci-core.txt
     - .github/workflows/deva-readiness-boundary.yml
   merge_group:
@@ -41,6 +47,10 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: '3.12'
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '24'
+          package-manager-cache: false
       - name: Install existing hash-locked core test dependencies
         run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Verify source envelopes through real registered HTTP routes
@@ -48,3 +58,6 @@ jobs:
           python -m pytest -q
           tests/test_deva_realestate_readiness_route_boundary.py
           tests/test_deva_realestate_http_boundary.py
+          tests/test_cyber_readiness_truth_contract.py
+          tests/test_legal_readiness_unavailable_contract.py
+          tests/test_realestate_readiness_truth_contract.py

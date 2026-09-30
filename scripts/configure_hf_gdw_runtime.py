@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
-"""Check manual GDW credential prerequisites without mutating credentials."""
+"""Check manual GDW credential prerequisites without mutating credentials.
+
+Admission additionally requires independently verified installed signing
+authority (``scripts/verify_installed_authority.py``): the live runtime public
+key must match the pinned runtime key. Secret values are never read.
+"""
 
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
+import sys
 import time
 from pathlib import Path
 from typing import Any, Callable, Mapping
@@ -67,6 +74,37 @@ STATIC_VARIABLES = {
 }
 
 
+DEFAULT_CANONICAL_ORIGIN = "https://szlholdings-a11oy.hf.space"
+INSTALLED_AUTHORITY_DIAGNOSTICS = (
+    "INSTALLED_AUTHORITY_VERIFIED", "AUTHORITY_ORIGIN_NOT_CANONICAL", "AUTHORITY_ORIGIN_UNAVAILABLE",
+    "SIGNING_KEY_NOT_INSTALLED", "SIGNING_KEY_MISMATCH", "PINNED_KEY_INCONSISTENT",
+    "SIGNING_SECRET_MISSING", "GDW_CREDENTIALS_MISSING",
+)
+
+
+def load_authority_verifier() -> Any:
+    """Load the sibling verifier by path (scripts/ is not a package)."""
+    cached = sys.modules.get("verify_installed_authority")
+    if cached is not None:
+        return cached
+    path = Path(__file__).resolve().with_name("verify_installed_authority.py")
+    spec = importlib.util.spec_from_file_location("verify_installed_authority", path)
+    if spec is None or spec.loader is None:
+        raise ImportError("installed-authority verifier is unavailable")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["verify_installed_authority"] = module
+    try:
+        spec.loader.exec_module(module)
+    except Exception:
+        sys.modules.pop("verify_installed_authority", None)
+        raise
+    return module
+
+
+def canonical_origin() -> str:
+    return os.environ.get("CANONICAL_ORIGIN") or DEFAULT_CANONICAL_ORIGIN
+
+
 class RuntimeConfigError(RuntimeError):
     """Fail closed with a fixed public diagnostic and no provider error text."""
 
@@ -79,6 +117,7 @@ class RuntimeConfigError(RuntimeError):
             "LEGACY_PRINCIPAL_CONFLICT", "PERSISTENT_STORAGE_UNAVAILABLE",
             "SPACE_CLIENT_UNAVAILABLE", "INSTALLED_AUTHORITY_UNKNOWN",
             "HF_CONTROL_CREDENTIAL_MISSING", "CHECK_MODE_MALFORMED",
+            *INSTALLED_AUTHORITY_DIAGNOSTICS,
         }
         self.diagnostic_code = diagnostic_code if diagnostic_code in allowed else "PREREQUISITES_UNAVAILABLE"
 
@@ -111,8 +150,13 @@ def plan_variables(
     }
 
 
-def manual_prerequisites(api: Any, *, repo_id: str) -> dict[str, Any]:
-    """Inspect metadata without deriving, replacing or retiring any credential."""
+def manual_prerequisites(api: Any, *, repo_id: str, origin: str | None = None,
+                         authority_get: Callable | None = None) -> dict[str, Any]:
+    """Inspect metadata without deriving, replacing or retiring any credential.
+
+    READY only when ``GDW_CREDENTIALS_JSON`` is present by name and the
+    installed signing authority verifies against the pinned runtime key.
+    """
     if repo_id != CANONICAL_SPACE:
         raise RuntimeConfigError("SETUP_REQUIRED: only the canonical A11oy Space is admitted", diagnostic_code="CANONICAL_DESTINATION_REQUIRED")
     try:
@@ -139,14 +183,28 @@ def manual_prerequisites(api: Any, *, repo_id: str) -> dict[str, Any]:
         volume = require_data_mount(api, repo_id=repo_id)
     except Exception:
         raise RuntimeConfigError("SETUP_REQUIRED: persistent GDW volume metadata is unavailable or conflicting", diagnostic_code="PERSISTENT_STORAGE_UNAVAILABLE") from None
+    try:
+        authority = load_authority_verifier().verify_installed_authority(
+            names, public_names, origin=origin or canonical_origin(), get=authority_get)
+    except Exception:
+        raise RuntimeConfigError("SETUP_REQUIRED: installed credential authority is UNKNOWN", diagnostic_code="INSTALLED_AUTHORITY_UNKNOWN") from None
+    verified = (authority.get("credential_authority_state") == "VERIFIED"
+                and CREDENTIAL_REGISTRY_SECRET in names)
+    diagnostic = authority.get("diagnostic_code")
+    if not verified and (diagnostic == "INSTALLED_AUTHORITY_VERIFIED"
+                         or diagnostic not in INSTALLED_AUTHORITY_DIAGNOSTICS):
+        diagnostic = "INSTALLED_AUTHORITY_UNKNOWN"
     return {
         "schema": "szl.hf-gdw-runtime-config/v1", "repo_id": repo_id,
-        "state": "SETUP_REQUIRED",
-        "diagnostic_code": "INSTALLED_AUTHORITY_UNKNOWN",
+        "state": "READY" if verified else "SETUP_REQUIRED",
+        "diagnostic_code": "INSTALLED_AUTHORITY_VERIFIED" if verified else diagnostic,
         "required_secret_names": [CREDENTIAL_REGISTRY_SECRET],
         "missing_secret_names": [] if CREDENTIAL_REGISTRY_SECRET in names else [CREDENTIAL_REGISTRY_SECRET],
-        "data_volume": volume, "credential_authority_state": "UNKNOWN",
-        "converged": False, "secret_values_read": False, "secret_values_written": False,
+        "data_volume": volume,
+        "credential_authority_state": "VERIFIED" if verified else "UNKNOWN",
+        "gdw_authority": authority["gdw"],
+        "installed_authority": authority,
+        "converged": verified, "secret_values_read": False, "secret_values_written": False,
     }
 
 
@@ -195,7 +253,8 @@ def await_readback(
     )
 
 
-def configure(*, repo_id: str, hf_token: str, check_only: bool = False) -> dict[str, Any]:
+def configure(*, repo_id: str, hf_token: str, check_only: bool = False,
+              origin: str | None = None, authority_get: Callable | None = None) -> dict[str, Any]:
     if not hf_token:
         raise RuntimeConfigError("HF_TOKEN is required", diagnostic_code="HF_CONTROL_CREDENTIAL_MISSING")
     if repo_id != CANONICAL_SPACE:
@@ -208,11 +267,13 @@ def configure(*, repo_id: str, hf_token: str, check_only: bool = False) -> dict[
         api = HfApi(token=hf_token)
     except Exception:
         raise RuntimeConfigError("SETUP_REQUIRED: Space metadata client is unavailable", diagnostic_code="SPACE_CLIENT_UNAVAILABLE") from None
-    prerequisites = manual_prerequisites(api, repo_id=repo_id)
+    prerequisites = manual_prerequisites(api, repo_id=repo_id, origin=origin, authority_get=authority_get)
     if check_only:
         return prerequisites
-    if prerequisites["converged"] is not True or prerequisites["credential_authority_state"] == "UNKNOWN":
-        raise RuntimeConfigError("SETUP_REQUIRED: installed credential authority is UNKNOWN", diagnostic_code="INSTALLED_AUTHORITY_UNKNOWN")
+    if (prerequisites["converged"] is not True or prerequisites["state"] != "READY"
+            or prerequisites["credential_authority_state"] != "VERIFIED"):
+        raise RuntimeConfigError("SETUP_REQUIRED: installed credential authority is not VERIFIED",
+                                 diagnostic_code=prerequisites.get("diagnostic_code", "INSTALLED_AUTHORITY_UNKNOWN"))
     desired = desired_variables()
     volume = require_data_mount(api, repo_id=repo_id)
     current_secret_names = set(api.get_space_secrets(repo_id=repo_id))
@@ -253,6 +314,8 @@ def configure(*, repo_id: str, hf_token: str, check_only: bool = False) -> dict[
         "credential_registry_converged": False,
         "readback_attempts": attempts,
         "converged": True,
+        "credential_authority_state": "VERIFIED",
+        "installed_authority": prerequisites["installed_authority"],
         "credential_values_recorded": False,
     }
 
