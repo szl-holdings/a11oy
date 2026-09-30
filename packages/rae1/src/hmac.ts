@@ -29,7 +29,8 @@
  * Signed-off-by: SZL Engineering <eng@szl-holdings.com>
  */
 
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHash, createHmac, timingSafeEqual } from "crypto";
+import { Buffer } from "node:buffer";
 import { dsseV1Pae, dsseV1PaeFromBase64Body } from "./dsse-pae.js";
 
 // ─── PAE (Pre-Authentication Encoding) ───────────────────────────────────────
@@ -159,7 +160,6 @@ export function signEnvelope<T extends {
  * @returns keyid string
  */
 export function makeKeyId(key: Buffer): string {
-  const { createHash } = require("crypto");
   const keyHash = createHash("sha256").update(key).digest("hex");
   return `hmac-sha256:${keyHash}`;
 }

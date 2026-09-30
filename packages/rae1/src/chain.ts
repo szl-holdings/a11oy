@@ -145,8 +145,8 @@ export function decodeEnvelopePayload(envelope: DSSEEnvelope): RAE1Payload {
 export function validateReceiptChain(jsonlContent: string): ChainValidationResult {
   const lines = jsonlContent.split("\n").filter((l) => l.trim().length > 0);
   const errors: string[] = [];
-  let prevHash = CHAIN_GENESIS;
-  let chainRoot = CHAIN_GENESIS;
+  let prevHash: string = CHAIN_GENESIS;
+  let chainRoot: string = CHAIN_GENESIS;
   let nSolved = 0;
 
   for (let i = 0; i < lines.length; i++) {
@@ -234,7 +234,7 @@ export function validateReceiptChain(jsonlContent: string): ChainValidationResul
  */
 export function computeChainHead(jsonlContent: string): ChainHeadResult {
   const lines = jsonlContent.split("\n").filter((l) => l.trim().length > 0);
-  let head = CHAIN_GENESIS;
+  let head: string = CHAIN_GENESIS;
   for (const line of lines) {
     head = computeLineHash(line);
   }

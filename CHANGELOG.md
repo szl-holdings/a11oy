@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - evaluation results require governed selected-model execution
+- Live evaluation now uses the existing canonical router after governance and
+  binds the selected registry model, eligible plan, provider and completion.
+  Expected answers and scoring rules remain outside generation. Failed or
+  unavailable calls have no model score; partial coverage is explicit.
+- Explicit modeled runs exercise only the reference pipeline. Unsupported
+  harness profiles fail closed, and a failed sovereign call cannot return a
+  reference answer. Blocking transport runs off the serving event loop.
+- Per-case receipt evidence binds governance and generation digests. This
+  software contract is not model qualification or a live-provider witness.
+
+### Fixed - passive readiness JSON contracts
+- Passive readiness now separates transport reachability from successful health
+  and research JSON contracts. Missing routes, HTML responses, invalid payloads,
+  failed refreshes, and expired cached observations cannot count as ready.
+  This check does not grant operational authority or validate research claims.
+
 ### Fixed - command release qualification
 - Make Command v2 own its response with no-store/no-transform; verify actual
   middleware composition preserves its bytes without changing legacy pages.
@@ -17,6 +34,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Keep a local reduced-motion fallback and run the full command origin/read-only
   regressions. Add an opt-in, exact-source public browser witness with fixed GET
   allowlists, redirect rejection, desktop/mobile inspection and retained evidence.
+
+### Fixed - consistent public Space HTTP diagnostics
+- Preserve and close HTTP error responses without reading or returning their
+  bodies. Application reachability requires a 2xx response with either transport
+  adapter; provider RUNNING metadata cannot override a failed application probe.
+- Keep existing retry, circuit and cache policy. Retained status lets its
+  nontransient rejection and transient retry rules classify errors correctly.
+- Include the existing inventory regressions in the required backend check,
+  alongside its previous targets. HTTP metadata does not diagnose an upstream
+  cause or qualify every application feature.
+
 
 ### Added - experimental software lab discovery
 - TypeSafe Triage is linked from the product landing and listed separately under
@@ -32,6 +60,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   including reported dependencies and degradation reasons. A missing report
   returns `UNAVAILABLE` evidence with a `DEGRADED` envelope; an overall health
   observation does not assert individual model or tool readiness.
+
+### Fixed - root dependency security closure
+- Pin the root npm and pnpm brace-expansion resolutions to the reviewed patched
+  version 5.0.12 and regenerate both package-manager locks with install scripts
+  disabled.
+- Pin the compatible fast-uri 3.x resolution to 3.1.8 across npm and pnpm,
+  including the conditional selector, closing the percent-encoded uppercase
+  host normalization advisory GHSA-hrr3-gc8f-f4qj.
+- Extend dependency-policy regressions to reject affected, prerelease or missing
+  locked resolutions and verify the actually installed Ajv parser's parse,
+  normalize and equal behavior. Separate RAE1 tooling changes remain outside
+  this root dependency repair.
 
 ### Added - command observation context
 - `/command-v2` adds read-only source inspection, explicit refresh, per-source
