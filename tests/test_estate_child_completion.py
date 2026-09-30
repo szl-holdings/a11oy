@@ -46,6 +46,63 @@ def receipt():
 
 
 class CompletionTests(unittest.TestCase):
+    def test_domain_dispatch_follows_verified_hf_completion(self):
+        events=[]
+        command=['gh','workflow','run','hf-sync.yml','--repo',gate.REPOSITORY,'--ref','main']
+        def dispatch(argv, workflow, revision, vertical, path):
+            events.append(('dispatch',workflow,revision,vertical))
+            return {'workflow':workflow}
+        def wait(pairs, **bounds):
+            events.append(('verified',tuple(pair[0]['workflow'] for pair in pairs),bounds))
+        with patch.object(gate,'dispatch_child',side_effect=dispatch), patch.object(gate,'wait_for_children',side_effect=wait):
+            gate.dispatch_hf_then_edge(command,SOURCE,False,Path('reports'))
+        self.assertEqual(events,[('dispatch','hf-sync.yml',SOURCE,False),
+                                 ('verified',('hf-sync.yml',),{'stage_only':True}),
+                                 ('dispatch','repair-cloudflare-product-edge.yml',SOURCE,False),
+                                 ('verified',('hf-sync.yml','repair-cloudflare-product-edge.yml'),{'seconds':1200})])
+
+    def test_hf_rerun_during_edge_keeps_parent_incomplete(self):
+        with tempfile.TemporaryDirectory() as directory:
+            calls=0
+            def observe(suffix):
+                nonlocal calls
+                if suffix=='git/ref/heads/main':return {'object':{'sha':SOURCE}}
+                if suffix=='actions/runs/'+str(RUN):
+                    calls+=1
+                    return run() if calls<=3 else {**run(),'run_attempt':2}
+                raise AssertionError('unexpected read:'+suffix)
+            edge={**child(False,'repair-cloudflare-product-edge.yml'),'run_id':5678}
+            with patch.object(gate,'dispatch_child',side_effect=[child(False),edge]) as dispatch, \
+                    patch.object(gate,'api',side_effect=observe), patch.object(gate,'child_jobs',return_value=jobs()):
+                with self.assertRaises(RuntimeError):
+                    gate.dispatch_hf_then_edge(['admitted-by-existing-dispatch-validation'],SOURCE,False,Path(directory))
+            self.assertEqual(dispatch.call_count,2)
+            self.assertEqual(json.loads((Path(directory)/'estate-child-hf.jsonl').read_text().splitlines()[-1])['state'],'HOLD')
+
+    def test_failed_or_moved_hf_child_never_dispatches_domain(self):
+        for failure in ('failed child','source moved','missing runtime proof'):
+            with self.subTest(failure=failure), patch.object(gate,'dispatch_child',return_value=child()) as dispatch, \
+                    patch.object(gate,'wait_for_children',side_effect=RuntimeError(failure)):
+                with self.assertRaisesRegex(RuntimeError,failure):
+                    gate.dispatch_hf_then_edge(['admitted-by-existing-dispatch-validation'],SOURCE,False,Path('reports'))
+                self.assertEqual(dispatch.call_count,1)
+                self.assertEqual(dispatch.call_args.args[1],'hf-sync.yml')
+
+    def test_release_workflow_uses_sequential_barrier(self):
+        source=(ROOT/'.github/workflows/estate-release-train.yml').read_text()
+        self.assertIn('dispatch_hf_then_edge(command, revision, receipt["vertical_flagships"], Path("reports"))',source)
+        self.assertNotIn('children.append(',source)
+
+    def test_publication_stage_does_not_record_final_child_completion(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'hf.jsonl'
+            with patch.object(gate,'api',side_effect=lambda suffix: {'object':{'sha':SOURCE}} if suffix=='git/ref/heads/main' else run()), \
+                    patch.object(gate,'child_jobs',return_value=jobs()):
+                gate.wait_for_children([(child(False),path)],stage_only=True)
+            value=json.loads(path.read_text())
+            self.assertEqual(value['state'],'CHILD_STAGE_VERIFIED')
+            self.assertNotIn('CHILD_COMPLETION_VERIFIED',path.read_text())
+
     def test_exact_terminal_child(self):
         self.assertEqual(gate.validate_run(run(), child()), "completed")
         gate.validate_jobs(jobs(), child())
@@ -219,8 +276,8 @@ class CompletionTests(unittest.TestCase):
         self.assertIn("run: python scripts/estate_child_completion.py",vertical)
         self.assertIn("inputs.publish_vertical_flagships }}",vertical)
         parent=(ROOT/".github/workflows/estate-release-train.yml").read_text()
-        self.assertIn("wait_for_children(children)",parent)
-        self.assertLess(parent.index("wait_for_children(children)"),parent.index("- name: Reobserve after an explicit repair dispatch"))
+        self.assertIn("dispatch_hf_then_edge(command, revision",parent)
+        self.assertLess(parent.index("dispatch_hf_then_edge(command, revision"),parent.index("- name: Reobserve after an explicit repair dispatch"))
         self.assertIn("reports/estate-child-*.jsonl",parent)
         self.assertIn("python tests/test_estate_child_completion.py",parent)
         self.assertNotIn("subprocess.run(command, check=True)",parent)
