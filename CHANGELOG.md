@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - read-only agent health and grounded operator health answers
+- Agent-loop health reads an explicit signer capability without creating a
+  signature. Missing or failed capability observations remain `UNAVAILABLE`.
+- Operator health questions on GET and POST cite the current health rollup,
+  including reported dependencies and degradation reasons. A missing report
+  returns `UNAVAILABLE` evidence with a `DEGRADED` envelope; an overall health
+  observation does not assert individual model or tool readiness.
+
 ### Added - command observation context
 - `/command-v2` adds read-only source inspection, explicit refresh, per-source
   60-second client expiry and truthful missing-value states. Existing backend
