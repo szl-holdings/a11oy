@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-console-style="restrained">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
@@ -47,6 +47,8 @@
 <script defer src="/static/shared/szl_label_engine.js"></script>
 <script defer src="/static/shared/szl_receipt_cosign.js"></script>
 <script defer src="/static/shared/szl_codename_sanitizer.js"></script>
+<link rel="stylesheet" href="/assets/szl/szl-design-system.css"/>
+<link rel="stylesheet" href="/assets/szl/szl-console.css"/>
 <style>/* ============ SZL UNIFIED APP SHELL — house style (gold+teal on dark) ============ */
 /* Shared by all 5 flagship full-applications. One product family. */
 :root{
@@ -639,6 +641,7 @@ html[data-view] .app .side-scrim{top:var(--szl-console-header-height,68px)!impor
 @media(max-width:400px){.content .hero-counters{grid-template-columns:1fr}.content .hero-counters .hctr:last-child{grid-column:auto}}
 @media(prefers-reduced-motion:reduce){.content *{animation:none!important;scroll-behavior:auto!important}}
 </style>
+<link rel="stylesheet" href="/assets/szl-console-focus.css"/>
 </head>
 <body>
 <a class="skip-link" href="#content">Skip to command content</a>
@@ -5828,34 +5831,33 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       }};
 
     /* =============== fleet — CSS-grid status-history grid =============== */
-    V.fleet={title:'System Health',badge:'STATUS-HISTORY GRID \u00b7 LIVE PROBE',sub:'Live reachability of every service as a status-history grid (services \u00d7 recent time buckets), Statuspage-style. Each cell is colored by the live probe; a never-checked bucket is gray/hollow \u2014 never faked green (hollow-pass guard). A down service shows honestly.',
-      render:async function(c){ c.innerHTML='<div class="kpis">'
-        +'<div class="kpi"><div class="k">Services</div><div class="v" id="fl-n">\u2014</div></div>'
-        +'<div class="kpi"><div class="k">Up now</div><div class="v teal" id="fl-up">\u2014</div></div>'
-        +'<div class="kpi"><div class="k">Buckets</div><div class="v">12</div><div class="d">recent windows</div></div>'
-        +'<div class="kpi"><div class="k">Hollow-pass</div><div class="v warn">guarded</div><div class="d">never faked green</div></div></div>'
-        +'<div class="card"><div class="card-h"><span class="card-t">Status history \u2014 services \u00d7 recent buckets</span><span class="card-ep">CSS grid \u00b7 Statuspage pattern</span></div>'
-        +'<div id="fl-grid" role="region" aria-label="Service status history" tabindex="0" style="overflow:auto"><div role="status">Loading service observations...</div></div>'
-        +'<div class="brain-note">Green=ok, gold=degraded, red=down, <span style="color:'+GRAY+'">gray hollow=never-checked bucket (NOT a pass)</span>. Latest bucket is the live probe; earlier buckets are honestly marked unverified where we have no stored history.</div></div>'+honest();
+    V.fleet={title:'System Health',badge:'OBSERVATIONS',sub:'Reported service status and latency. Missing readings stay unavailable; a successful probe does not establish delivery or production readiness.',
+      render:async function(c){ c.innerHTML='<section class="health-overview" aria-label="Observation summary">'
+        +'<div class="health-metric"><div class="k">Services reported</div><div class="v" id="fl-n">\u2014</div></div>'
+        +'<div class="health-metric"><div class="k">Reported OK</div><div class="v" id="fl-up">\u2014</div></div></section>'
+        +'<section class="health-evidence" aria-label="Evidence scope"><span class="health-label">INTERNALLY_TESTED</span>'
+        +'<p>System Health presentation has local fixture coverage. This is not a deployment or production-readiness claim.</p>'
+        +'<p><strong>Delivery classification: UNKNOWN.</strong> No shipping or demonstration evidence is supplied by this observation feed.</p></section>'
+        +'<section class="card health-services" aria-labelledby="health-services-title"><div class="card-h"><h2 id="health-services-title">Service observations</h2></div>'
+        +'<div id="fl-grid" role="region" aria-label="Service observations" tabindex="0"><div role="status">Loading service observations...</div></div>'
+        +'<p class="health-note">Observation time and stored history are unavailable in this view. No earlier results are inferred.</p></section>';
         try{
           var s=await gj('/api/a11oy/v1/observability/summary');
-          if(!s || !Array.isArray(s.capabilities)) throw new Error('Service observations were not supplied.');
+          if(!s || !Array.isArray(s.capabilities) || s.capabilities.some(function(cap){return !cap || typeof cap !== 'object';})) throw new Error('Service observations were not supplied.');
+          if(!c.isConnected || !c.querySelector('#fl-grid')) return;
           var caps=s.capabilities;
           T('fl-n',caps.length); T('fl-up',caps.filter(function(x){return x.status==='ok';}).length);
           if(!caps.length){ H('fl-grid','<div role="status">EMPTY: no service observations returned.</div>'); return; }
-          var buckets=12;
-          var html='<div style="display:grid;grid-template-columns:160px repeat('+buckets+',1fr);gap:3px;min-width:560px;align-items:center">';
-          html+='<div></div>'; for(var b=0;b<buckets;b++){ html+='<div class="mono" style="font-size:7px;color:'+DIM+';text-align:center">'+(b===buckets-1?'now':('-'+(buckets-1-b))) +'</div>'; }
+          var html='<ul class="health-list">';
           caps.forEach(function(cap){
             var latency=typeof cap.latency_ms==='number' && Number.isFinite(cap.latency_ms) && cap.latency_ms>=0 ? cap.latency_ms+' ms' : 'latency unavailable';
-            html+='<div class="mono" style="font-size:9px;color:#cdd2d8">'+esc(cap.name||cap.id||'Unnamed service')+' <span style="color:'+DIM+'">'+esc(latency)+'</span><div>'+esc(cap.status||'unavailable')+'</div></div>';
-            for(var bi=0;bi<buckets;bi++){
-              if(bi===buckets-1){ var col=statusColor(cap.status); html+='<div title="live probe: '+esc(cap.status)+'" style="height:20px;border-radius:3px;background:'+col+';opacity:0.9"></div>'; }
-              else { html+='<div title="no stored history \u2014 not a pass" style="height:20px;border-radius:3px;background:transparent;border:1px dashed '+GRAY+'"></div>'; }
-            }
+            var status=typeof cap.status==='string' && cap.status ? cap.status : 'unavailable';
+            var tone=status==='ok'?'ok':status==='degraded'?'warning':status==='down'?'error':'unknown';
+            html+='<li><div class="health-service"><strong>'+esc(cap.name||cap.id||'Unnamed service')+'</strong><span>'+esc(latency)+'</span></div>'
+              +'<span class="health-status" data-status="'+tone+'">'+esc(status)+'</span></li>';
           });
-          html+='</div>'; H('fl-grid',html);
-        }catch(e){ T('fl-n','UNAVAILABLE'); T('fl-up','UNAVAILABLE'); H('fl-grid','<div role="status">Service observations unavailable: '+esc(e.message||e)+'</div>'); }
+          html+='</ul>'; H('fl-grid',html);
+        }catch(e){ if(!c.isConnected || !c.querySelector('#fl-grid')) return; T('fl-n','UNAVAILABLE'); T('fl-up','UNAVAILABLE'); H('fl-grid','<div role="status">Service observations unavailable: '+esc(e.message||e)+'</div>'); }
       }};
 
     /* =============== mesh — Cytoscape force-directed service map + panzoom =============== */
@@ -17467,5 +17469,10 @@ window.a11oyInvestor = (function(){
 
   <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
   <script src="/assets/szl-holo-v2.js" defer data-szl-holo-asset="script-v2"></script>
-</body>
+<script>
+// Legacy registration callbacks can replace the requested URL with their default.
+document.addEventListener('DOMContentLoaded', function () {
+  if (typeof start !== 'undefined' && start === 'fleet' && typeof window.go === 'function') window.go('fleet');
+}, {once:true});
+</script></body>
 </html>

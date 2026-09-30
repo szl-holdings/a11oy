@@ -12,6 +12,24 @@
   var PROOF = 'https://a11oy.net';
   var KERNEL = 'https://huggingface.co/SZLHOLDINGS/governed-inference-meter';
   var barId = 0;
+  var themeMedia = global.matchMedia('(prefers-color-scheme: light)');
+  var consoleTheme = document.documentElement.hasAttribute('data-console-style');
+  var themeChoice = null;
+  function applyConsoleTheme() {
+    if (!consoleTheme) return;
+    var light = themeChoice ? themeChoice === 'light' : themeMedia.matches;
+    document.documentElement.setAttribute('data-surface', light ? 'light' : 'dark');
+    document.querySelectorAll('.szl-theme-toggle').forEach(function (button) {
+      button.textContent = light ? 'Dark theme' : 'Light theme';
+      button.setAttribute('aria-label', light ? 'Switch to dark theme' : 'Switch to light theme');
+    });
+  }
+  if (consoleTheme) {
+    try { themeChoice = localStorage.getItem('szl.console.theme'); } catch (e) {}
+    if (themeChoice !== 'light' && themeChoice !== 'dark') themeChoice = null;
+    applyConsoleTheme();
+    themeMedia.addEventListener('change', applyConsoleTheme);
+  }
   var reduce = false;
   try {
     reduce = !!(global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -194,6 +212,16 @@
     root.appendChild(scope);
     root.appendChild(live);
     root.appendChild(sw);
+    if (consoleTheme) {
+      var themeButton = el('button', { class: 'szl-origin szl-theme-toggle', type: 'button' });
+      themeButton.addEventListener('click', function () {
+        themeChoice = document.documentElement.getAttribute('data-surface') === 'light' ? 'dark' : 'light';
+        try { localStorage.setItem('szl.console.theme', themeChoice); } catch (e) {}
+        applyConsoleTheme();
+      });
+      sw.insertBefore(themeButton, overflow);
+      applyConsoleTheme();
+    }
 
     opBtn.addEventListener('click', function () {
       var on = document.documentElement.getAttribute('data-operator') === '1';
