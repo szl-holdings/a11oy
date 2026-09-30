@@ -43,7 +43,7 @@ jobs:
         run: |
           python -m pip check
           python -m compileall -q verticals/puriq-markets/runtime scripts/hf_finance_read_proxy.py scripts/hf_flagship_runtime_contract.py scripts/materialize_finance_runtime.py tests/smoke_generated_finance_runtime.py
-          python -m pytest tests/test_finance_source_contracts.py tests/test_finance_route_registration.py tests/test_finance_bls_missing.py tests/test_finance_release_boundaries.py tests/test_finance_legacy_access.py tests/test_finance_emitted_runtime.py tests/test_hf_publish_vertical_flagships_v4.py tests/test_finance_workspace.py tests/test_finance_analytics_v2.py tests/test_finance_publication_scope.py -q --junitxml=finance-contracts.xml
+          python -m pytest tests/test_finance_source_contracts.py tests/test_finance_route_registration.py tests/test_finance_bls_missing.py tests/test_finance_release_boundaries.py tests/test_finance_legacy_access.py tests/test_finance_emitted_runtime.py tests/test_hf_publish_vertical_flagships_v4.py tests/test_finance_workspace.py tests/test_finance_analytics_v2.py tests/test_finance_publication_scope.py tests/test_finance_functional_gate.py -q --junitxml=finance-contracts.xml
       - name: Materialize and build the actual generated Finance application
         if: matrix.python == '3.12'
         shell: bash
@@ -119,6 +119,8 @@ jobs:
             tests/test_finance_workspace.py
             tests/test_finance_analytics_v2.py
             tests/test_finance_publication_scope.py
+            tests/test_finance_functional_gate.py
+            scripts/hf_finance_functional_gate.py
             tests/browser_finance_workspace.py
             finance-generated/
             finance-generated-image.json

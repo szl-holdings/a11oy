@@ -32,6 +32,11 @@ PROFILE_COUNTS = re.compile(
     r"(?P<spaces>[0-9]+) public Spaces, (?P<models>[0-9]+) models, "
     r"(?P<datasets>[0-9]+) datasets"
 )
+CURRENT_PROFILE_PUBLIC_COUNTS = re.compile(
+    r"\bpublic\s+(?P<spaces>[0-9]+) Spaces,\s*(?P<models>[0-9]+) models, "
+    r"(?P<datasets>[0-9]+) datasets\b",
+    re.IGNORECASE,
+)
 MAX_BODY = 2_000_000
 USER_AGENT = "SZL-Estate-Release-Train/1.0"
 RETRYABLE = frozenset({429, 500, 502, 503, 504})
@@ -533,15 +538,21 @@ def probe_source(origin: str, paths: Sequence[str]) -> dict[str, Any]:
 
 
 def _is_provider_injected_script(src: str) -> bool:
-    """Identify only the known Cloudflare Web Analytics beacon injection.
+    """Identify the known Cloudflare analytics and apex WebMCP injections.
 
     The apex is served through Cloudflare, while the canonical Hugging Face Space
     is not. Cloudflare may therefore append its own external analytics beacon to
     otherwise byte-equivalent product HTML. That provider-owned script is not an
     SZL product asset and must not create product/Space semantic drift. The
     allowlist is deliberately narrow: any other external script remains part of
-    the semantic contract and will continue to fail parity.
+    the semantic contract and will continue to fail parity. The WebMCP bridge
+    uses the exact absolute apex URL observed on 2026-09-30; relative paths,
+    other hosts, ports, queries, and fragments remain product scripts. Both
+    overlays remain in provider_scripts in the observation receipt.
+    Provider behavior: https://developers.cloudflare.com/api/resources/zones/subresources/settings/
     """
+    if src == "https://a-11-oy.com/.webmcp/bridge.js":
+        return True
     parsed = urllib.parse.urlsplit(src)
     return bool(
         parsed.scheme == "https"
@@ -679,6 +690,38 @@ def inspect_component(component: Mapping[str, Any], paths: Sequence[str]) -> dic
     }
 
 
+def declared_profile_counts(text: str) -> dict[str, int] | None:
+    """Read current public declarations without promoting historical snapshots.
+
+    Profile declarations are compared with the independently observed anonymous
+    membership below; they do not replace authenticated official inventory.
+    """
+    current: list[str] = []
+    legacy: list[re.Match[str]] = []
+    historical_section = False
+    for paragraph in re.split(r"\n\s*\n", text):
+        plain = re.sub(r"[*_`]", "", paragraph).strip()
+        heading = re.match(r"^#{1,6}\s+([^\n]+)", plain)
+        if heading:
+            historical_section = "historical" in heading.group(1).lower()
+        if historical_section or re.search(r"\bhistorical\b", plain, re.IGNORECASE):
+            continue
+        if re.match(r"^Current inventory\b", plain, re.IGNORECASE):
+            current.append(plain)
+        else:
+            legacy.extend(PROFILE_COUNTS.finditer(plain))
+    if current:
+        if len(current) != 1:
+            return None
+        matches = list(CURRENT_PROFILE_PUBLIC_COUNTS.finditer(current[0]))
+        matches.extend(PROFILE_COUNTS.finditer(current[0]))
+    else:
+        matches = legacy
+    if len(matches) != 1:
+        return None
+    return {key: int(value) for key, value in matches[0].groupdict().items()}
+
+
 def profile_inventory_contract(
     config: Mapping[str, Any],
     inventory: Mapping[str, Any],
@@ -689,10 +732,7 @@ def profile_inventory_contract(
     head = github_main(repository)
     profile_file = github_file(repository, str(profile["path"]), str(head.get("sha")))
     text = profile_file.get("text") or ""
-    match = PROFILE_COUNTS.search(text)
-    declared = None
-    if match:
-        declared = {key: int(value) for key, value in match.groupdict().items()}
+    declared = declared_profile_counts(text)
     actual = inventory.get("counts") if isinstance(inventory, Mapping) else None
     enumeration = (
         inventory.get("enumeration_state") if isinstance(inventory, Mapping) else None
