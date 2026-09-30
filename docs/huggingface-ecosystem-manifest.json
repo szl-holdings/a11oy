@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedBy": "scripts/audit_huggingface_ecosystem.py",
-  "observedAt": "2026-09-30T02:54:34Z",
+  "observedAt": "2026-09-30T03:18:38Z",
   "org": "SZLHOLDINGS",
   "inventoryScope": {
     "visibility": "public-only",
@@ -19,7 +19,7 @@
     "https://huggingface.co/api/spaces?author=SZLHOLDINGS&limit=100&full=true"
   ],
   "counts": {
-    "models": 49,
+    "models": 50,
     "datasets": 34,
     "spaces": 26
   },
@@ -1472,6 +1472,34 @@
         "claimStatus": "inventory",
         "evidenceUrls": [
           "https://huggingface.co/SZLHOLDINGS/szl-training-scripts"
+        ],
+        "unsafeFlags": []
+      },
+      {
+        "id": "SZLHOLDINGS/szl-triage-linear-development-v1",
+        "repoType": "model",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": null,
+        "license": "apache-2.0",
+        "sha": "b6ec192000d38e6a29787410f8bc077266b62a22",
+        "lastModified": "2026-09-30T03:13:08.000Z",
+        "cardSemanticSha256": "9def83c78bcfa7e8e63012a9e097ac9f7b0b6b1159079dd2939560d08e530ef3",
+        "createdAt": "2026-09-30T03:13:07.000Z",
+        "tags": [
+          "text-classification",
+          "custom-python",
+          "cpu",
+          "research",
+          "unqualified",
+          "en",
+          "license:apache-2.0",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/SZLHOLDINGS/szl-triage-linear-development-v1"
         ],
         "unsafeFlags": []
       },
