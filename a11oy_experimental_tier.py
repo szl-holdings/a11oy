@@ -63,9 +63,9 @@ _SOFTWARE_LABS: list[dict[str, Any]] = [
         "source_url": "https://github.com/szl-holdings/szl-typesafe-triage",
         "space_url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-typesafe-triage",
         "demo_url": "https://szlholdings-szl-typesafe-triage.hf.space",
+        "readiness_url": "https://szlholdings-szl-typesafe-triage.hf.space/readyz",
         "record_url": "https://a11oy.net/experiments/",
         "runtime_contract": {
-            "version": "0.5.0",
             "implementation": "Python deterministic triage",
             "model_loaded": False,
         },

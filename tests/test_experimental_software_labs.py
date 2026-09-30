@@ -30,6 +30,7 @@ def test_software_lab_manifest_preserves_proof_and_admission_boundaries():
     page = (Path(__file__).resolve().parents[1] / "a11oy_landing.html").read_text(encoding="utf-8")
     assert f'href="{lab["demo_url"]}"' in page
     assert f'href="{lab["space_url"]}"' in page
+    assert f'href="{lab["readiness_url"]}"' in page
 
 
 def test_mutating_manifest_does_not_change_future_admission_contract():
