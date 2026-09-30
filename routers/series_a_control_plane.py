@@ -38,6 +38,7 @@ SCHEMA_PASSPORT = "szl.counterfactual-action-passport/v3"
 SCHEMA_RECEIPT = "szl.series-a-receipt/v1"
 SCHEMA_STATUS = "szl.series-a-status/v1"
 SCHEMA_TRUST = "szl.agent-trust-factor/v1"
+GITHUB_PUBLIC_INVENTORY_SCOPE = "public-only"
 PAYLOAD_TYPE = "application/vnd.szl.series-a-receipt.v1+json"
 ORG = "szl-holdings"
 HF_ORG = "SZLHOLDINGS"
@@ -856,9 +857,121 @@ class Observation:
         return value
 
 
+class GitHubHTTPError(RuntimeError):
+    """Fixed-origin HTTP failure without upstream body or credential content."""
+
+    def __init__(self, status_code: int) -> None:
+        super().__init__(f"HTTP {status_code}")
+        self.status_code = status_code
+
+
+def _github_failure_detail(status_code: int | None = None) -> dict[str, Any]:
+    """Only fixed diagnostics may cross the public GitHub observation boundary."""
+    if type(status_code) is int and 100 <= status_code <= 599 and status_code != 200:
+        return {
+            "error_class": "GitHubHTTPError",
+            "error": f"HTTP {status_code}",
+            "code": (
+                "GITHUB_AUTHENTICATION_FAILED"
+                if status_code == 401
+                else "GITHUB_HTTP_UNAVAILABLE"
+            ),
+            "http_status": status_code,
+        }
+    return {
+        "code": "GITHUB_COLLECTION_FAILED",
+        "error": "GitHub public inventory collection failed",
+    }
+
+
+def _public_github_snapshot_ready(latest: Mapping[str, Any]) -> bool:
+    """Withhold legacy private-capable snapshots, including their DSSE payload.
+
+    A read never redacts or re-signs a persisted manifest. A fresh write must
+    produce the explicit public scope and an envelope bound to that manifest.
+    """
+    manifest = latest.get("manifest")
+    envelope = latest.get("envelope")
+    if not isinstance(manifest, dict) or not isinstance(envelope, dict):
+        return False
+    if manifest.get("github_inventory_scope") != GITHUB_PUBLIC_INVENTORY_SCOPE:
+        return False
+    github = manifest.get("github")
+    counts = manifest.get("counts")
+    if not isinstance(github, dict) or not isinstance(counts, dict):
+        return False
+    if github.get("state") == "OBSERVED":
+        if set(github) not in ({"state", "value"}, {"state", "value", "detail"}):
+            return False
+        if "detail" in github:
+            detail = github["detail"]
+            if not isinstance(detail, dict) or set(detail) != {"authenticated"}:
+                return False
+            if type(detail["authenticated"]) is not bool:
+                return False
+        value = github.get("value")
+        public_value_fields = {
+            "repository_count", "open_pull_request_count", "repositories", "pagination_complete"
+        }
+        if not isinstance(value, dict) or set(value) != public_value_fields:
+            return False
+        rows = value.get("repositories")
+        if not isinstance(rows, list) or value.get("pagination_complete") is not True:
+            return False
+        public_fields = {"name", "archived", "visibility", "default_branch", "updated_at"}
+        for row in rows:
+            if not isinstance(row, dict) or set(row) != public_fields:
+                return False
+            if row.get("visibility") != "public" or type(row.get("archived")) is not bool:
+                return False
+            if any(not isinstance(row.get(field), str) for field in public_fields - {"archived"}):
+                return False
+        repository_count = value.get("repository_count")
+        pr_count = value.get("open_pull_request_count")
+        if type(repository_count) is not int or repository_count != len(rows):
+            return False
+        if type(pr_count) is not int or pr_count < 0:
+            return False
+        if type(counts.get("github_repositories")) is not int or counts["github_repositories"] != repository_count:
+            return False
+        if type(counts.get("github_open_pull_requests")) is not int or counts["github_open_pull_requests"] != pr_count:
+            return False
+    elif github.get("state") == "UNAVAILABLE":
+        if set(github) not in ({"state"}, {"state", "detail"}):
+            return False
+        if "detail" in github:
+            detail = github["detail"]
+            if not isinstance(detail, dict):
+                return False
+            if "http_status" in detail:
+                http_status = detail["http_status"]
+                if type(http_status) is not int or not 100 <= http_status <= 599 or http_status == 200:
+                    return False
+                if detail != _github_failure_detail(http_status):
+                    return False
+            elif detail != _github_failure_detail():
+                return False
+        if counts.get("github_repositories") is not None or counts.get("github_open_pull_requests") is not None:
+            return False
+    else:
+        return False
+    try:
+        # The base64 payload must not retain fields absent from the plain view.
+        payload = base64.b64decode(envelope.get("payload", ""), validate=True)
+        return payload == _canonical(manifest)
+    except (TypeError, ValueError):
+        return False
+
+
 class Collector:
     def __init__(self) -> None:
-        self.github_token = (os.environ.get("GITHUB_TOKEN") or "").strip()
+        # This public inventory has a distinct credential boundary. A generic
+        # workflow/runtime token may have expired or target another repository.
+        # Never reuse it or silently retry a rejected dedicated credential.
+        self.github_token = (os.environ.get("A11OY_GITHUB_PUBLIC_READ_TOKEN") or "").strip()
+        self.github_authentication_mode = (
+            "DEDICATED_PUBLIC_READ_TOKEN" if self.github_token else "PUBLIC_ANONYMOUS"
+        )
         self.hf_token = (os.environ.get("HF_TOKEN") or "").strip()
 
     async def _json(
@@ -874,6 +987,8 @@ class Collector:
             raise RuntimeError("outbound URL left the fixed HTTPS origin")
         response = await client.get(url, params=params)
         if response.status_code != 200:
+            if allowed_host == "api.github.com":
+                raise GitHubHTTPError(response.status_code)
             raise RuntimeError(f"HTTP {response.status_code}")
         if len(response.content) > MAX_RESPONSE_BYTES:
             raise RuntimeError("response exceeded byte limit")
@@ -894,7 +1009,7 @@ class Collector:
                     values, _ = await self._json(
                         client,
                         f"https://api.github.com/orgs/{ORG}/repos",
-                        params={"type": "all", "per_page": 100, "page": page},
+                        params={"type": "public", "per_page": 100, "page": page},
                         allowed_host="api.github.com",
                     )
                     if not isinstance(values, list):
@@ -908,7 +1023,7 @@ class Collector:
                 pr_data, _ = await self._json(
                     client,
                     "https://api.github.com/search/issues",
-                    params={"q": f"org:{ORG} is:pr is:open", "per_page": 1},
+                    params={"q": f"org:{ORG} is:pr is:open is:public", "per_page": 1},
                     allowed_host="api.github.com",
                 )
             rows = [
@@ -920,6 +1035,7 @@ class Collector:
                     "updated_at": str(item.get("updated_at") or ""),
                 }
                 for item in repos
+                if item.get("private") is False and item.get("visibility") == "public"
             ]
             return Observation(
                 "OBSERVED",
@@ -931,8 +1047,13 @@ class Collector:
                 },
                 {"authenticated": bool(self.github_token)},
             )
-        except Exception as exc:
-            return Observation("UNAVAILABLE", detail=_safe_error(exc))
+        except GitHubHTTPError as exc:
+            return Observation(
+                "UNAVAILABLE",
+                detail=_github_failure_detail(exc.status_code),
+            )
+        except Exception:
+            return Observation("UNAVAILABLE", detail=_github_failure_detail())
 
     def _hf_list(self, method_name: str, kwargs: Mapping[str, Any]) -> list[Any]:
         from huggingface_hub import HfApi
@@ -1046,6 +1167,7 @@ class Collector:
             "source_revision": _git_revision(),
             "organization": ORG,
             "huggingface_organization": HF_ORG,
+            "github_inventory_scope": GITHUB_PUBLIC_INVENTORY_SCOPE,
             "status": "BLOCKED" if critical_failures else "OBSERVED",
             "critical_failures": critical_failures,
             "github": github.as_dict(),
@@ -1241,6 +1363,22 @@ class Service:
                 "storage": self.store.storage_status(),
                 "refresh_scheduler": self.scheduler_status(),
                 "detail": "no completed refresh is persisted yet",
+            }
+        if not _public_github_snapshot_ready(latest):
+            return {
+                "schema": SCHEMA_STATUS,
+                "state": "UNAVAILABLE",
+                "terminal": True,
+                "source_revision": _git_revision(),
+                "runtime_boot_id": self.runtime_boot_id,
+                "signing_key_source": self.signer.source,
+                "database": self.store.path,
+                "storage": self.store.storage_status(),
+                "refresh_scheduler": self.scheduler_status(),
+                "detail": {
+                    "code": "PUBLIC_GITHUB_SNAPSHOT_REQUIRED",
+                    "github_inventory_scope": GITHUB_PUBLIC_INVENTORY_SCOPE,
+                },
             }
         valid_until = datetime.fromisoformat(latest["valid_until"].replace("Z", "+00:00"))
         stale = datetime.now(timezone.utc) >= valid_until
@@ -1772,13 +1910,25 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
 
     async def manifest(request: Request) -> Response:
         latest = service.store.latest_snapshot()
+        status_code = 200
         if latest is None:
             payload = {"schema": SCHEMA_MANIFEST, "status": "PENDING", "terminal": True}
+        elif not _public_github_snapshot_ready(latest):
+            status_code = 503
+            payload = {
+                "schema": SCHEMA_MANIFEST,
+                "status": "UNAVAILABLE",
+                "terminal": True,
+                "detail": {
+                    "code": "PUBLIC_GITHUB_SNAPSHOT_REQUIRED",
+                    "github_inventory_scope": GITHUB_PUBLIC_INVENTORY_SCOPE,
+                },
+            }
         else:
             payload = latest
         if request.method == "HEAD":
-            return Response(status_code=200, media_type="application/json")
-        return JSONResponse(payload, headers={"cache-control": "no-store"})
+            return Response(status_code=status_code, media_type="application/json", headers={"cache-control": "no-store"})
+        return JSONResponse(payload, status_code=status_code, headers={"cache-control": "no-store"})
 
     async def refresh(request: Request) -> Response:
         await _bounded_json(request)

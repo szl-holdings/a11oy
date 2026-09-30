@@ -23,6 +23,34 @@ _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPOSITORY_ROOT))
 
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--origin", required=True)
+    parser.add_argument("--source-sha", required=True)
+    parser.add_argument("--output")
+    parser.add_argument("--restart-repo-id")
+    args = parser.parse_args()
+    source = args.source_sha.strip().lower()
+    report = {
+        "schema": "szl.hf-gdw-live-proof/v1",
+        "source_revision": source if re.fullmatch(r"[0-9a-f]{40}", source) else "UNVALIDATED",
+        "status": "FAIL", "ok": False, "evidence": {},
+        "credential_authority_state": "UNKNOWN",
+        "error": {"type": "RuntimeError", "message": "SETUP_REQUIRED: live proof effects remain unreviewed"},
+        "credential_values_recorded": False,
+    }
+    encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if args.output:
+        output = Path(args.output)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(encoded, encoding="utf-8")
+    print(encoded, end="")
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+
 import szl_dsse
 
 
@@ -1290,42 +1318,3 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
         },
         "credential_values_recorded": False,
     }
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--origin", required=True)
-    parser.add_argument("--source-sha", required=True)
-    parser.add_argument("--output")
-    parser.add_argument("--restart-repo-id")
-    args = parser.parse_args()
-    report = prove(
-        origin=args.origin,
-        source_sha=args.source_sha,
-        operator_token=os.environ.get("GDW_OPERATOR_TOKEN", ""),
-    )
-    if args.restart_repo_id:
-        hf_token = os.environ.get("HF_TOKEN", "")
-        if not hf_token:
-            raise RuntimeError("HF_TOKEN is unavailable for restart proof")
-        from huggingface_hub import HfApi
-
-        report["restart"] = prove_restart(
-            api=HfApi(token=hf_token),
-            repo_id=args.restart_repo_id,
-            base=args.origin.rstrip("/"),
-            source_sha=args.source_sha,
-            operator_token=os.environ.get("GDW_OPERATOR_TOKEN", ""),
-            session_id=report["transition"]["session_id"],
-        )
-    encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"
-    if args.output:
-        output = Path(args.output)
-        output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(encoded, encoding="utf-8")
-    print(encoded, end="")
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

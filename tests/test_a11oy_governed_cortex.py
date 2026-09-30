@@ -342,6 +342,35 @@ class CortexContractTests(unittest.TestCase):
         self.assertEqual(result["authority_state"], "NO_ACTION_AUTHORITY")
         self.assertEqual(cortex._ANATOMY["observation_count"], 1)
 
+    def test_uncited_model_output_never_becomes_a_proposal_or_observation(self):
+        with self.assertRaises(cortex.CortexBoundaryError) as caught:
+            self._infer_with_exact_nemo("Lambda remains Conjecture 1, advisory only.")
+        self.assertEqual(caught.exception.code, "owned_model_evidence_citation_missing")
+        self.assertEqual(caught.exception.status, 502)
+        self.assertEqual(cortex._ANATOMY["observation_count"], 0)
+
+    def test_unknown_citation_is_denied_even_alongside_an_allowed_handle(self):
+        with self.assertRaises(cortex.CortexBoundaryError) as caught:
+            self._infer_with_exact_nemo(
+                "[node-a] Lambda remains Conjecture 1, advisory only [invented-node]."
+            )
+        self.assertEqual(caught.exception.code, "owned_model_citation_not_in_evidence")
+        self.assertEqual(cortex._ANATOMY["observation_count"], 0)
+
+    def test_citation_instruction_preserves_the_exact_public_handle(self):
+        evidence = fake_evidence()
+        evidence["items"][0]["node_id"] = "source:paper:version-2:abc123"
+        messages = cortex._compose_messages("status", evidence, {})
+        self.assertIn("Begin the final proposal", messages[0]["content"])
+        self.assertIn("[source:paper:version-2:abc123]", messages[1]["content"])
+        output = "[source:paper:version-2:abc123] This is an advisory proposal."
+        self.assertEqual(cortex._extract_citations(output, evidence), ["source:paper:version-2:abc123"])
+
+    def test_oversized_unknown_citation_cannot_hide_beside_a_valid_handle(self):
+        with self.assertRaises(cortex.CortexBoundaryError) as caught:
+            cortex._extract_citations("[node-a] Advisory [" + "x" * 161 + "]", fake_evidence())
+        self.assertEqual(caught.exception.code, "owned_model_citation_not_in_evidence")
+
     def test_unsafe_lambda_promotions_remain_blocked_by_actual_pinned_nemo(self):
         for output in (
             # Rejected negative fixture: Lambda remains Conjecture 1, never a theorem.
