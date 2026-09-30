@@ -52,6 +52,31 @@ must be reported without pausing another Space or provisioning hardware.
 Deployment evidence belongs in Actions artifacts and summaries; the publisher
 must not edit, close, reopen or comment on issue #1043.
 
+The canonical workflow checks exact current-main source ownership first, then
+runs both configuration scripts in read-only `--check-only` mode. The bounded
+prerequisite summary retains their failure state and always exits nonzero until
+an independently reviewed installed-authority consumer exists. Missing,
+malformed, duplicate-field or oversized reports cannot grant permission.
+Resume requires successful source and prerequisite jobs. Deployment also waits
+for successful resume and retains the adjacent default-branch-tip recheck.
+Configuration, verdict publication, relock, Finance and explicitly requested
+vertical publication remain downstream of the same prerequisite boundary.
+
+Live restart and GDW proof entrypoints separately fail before credential reads
+or provider initialization, including the standalone manual restart workflow.
+Their underlying validation functions remain available for isolated mocked
+review. Their HTTP destination/redirect behavior, nested provider error text,
+uncertain drain retries and downstream effect scope are not admitted for live
+use by this change. Future authority validation must not silently enable those
+proof effects; they need their own source and effects review.
+
+The owner decisions still required are the supported secure transmission flow,
+preservation of the existing signing identity and principals, resolution of
+legacy registry or storage conflicts, and independent binding of installed
+credential identity/scope to that approved handoff. This source change performs
+none of that configuration and does not create an approval flag or receipt-based
+bypass. Releasing a source draft alone cannot satisfy these prerequisites.
+
 These are source changes and mocked regression checks. They do not configure
 live credentials, deploy a Space, prove hosted readiness or remove the release
 hold. Final release also requires exact-head checks, matching shared source,

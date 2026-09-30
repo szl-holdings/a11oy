@@ -17,6 +17,38 @@ from urllib.error import HTTPError
 from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
 
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--repo-id", default="SZLHOLDINGS/a11oy")
+    parser.add_argument("--origin", default="https://a-11-oy.com")
+    parser.add_argument("--source-sha", required=True)
+    parser.add_argument("--output", required=True)
+    parser.add_argument("--attempts", type=int, default=90)
+    parser.add_argument("--retry-seconds", type=int, default=10)
+    parser.add_argument("--deadline-seconds", type=int, default=20 * 60)
+    args = parser.parse_args()
+    source = args.source_sha.strip().lower()
+    report = {
+        "schema": "szl.series-a-restart-proof/v1",
+        "source_revision": source if re.fullmatch(r"[0-9a-f]{40}", source) else "UNVALIDATED",
+        "repo_id": "SZLHOLDINGS/a11oy", "origin": "UNVALIDATED",
+        "status": "FAIL", "ok": False, "evidence": {},
+        "credential_authority_state": "UNKNOWN",
+        "error": {"type": "RuntimeError", "message": "SETUP_REQUIRED: live proof effects remain unreviewed"},
+        "secret_values_recorded": False,
+    }
+    output = Path(args.output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"
+    output.write_text(encoded, encoding="utf-8")
+    print(encoded, end="")
+    return 1
+
+
+# Direct CLI use stops before third-party initialization can consume credentials.
+if __name__ == "__main__":
+    raise SystemExit(main())
+
 from huggingface_hub import HfApi
 
 
@@ -894,70 +926,3 @@ def failure_report(
         },
         "secret_values_recorded": False,
     }
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--repo-id", default="SZLHOLDINGS/a11oy")
-    parser.add_argument("--origin", default="https://a-11-oy.com")
-    parser.add_argument("--source-sha", required=True)
-    parser.add_argument("--output", required=True)
-    parser.add_argument("--attempts", type=int, default=90)
-    parser.add_argument("--retry-seconds", type=int, default=10)
-    parser.add_argument(
-        "--deadline-seconds",
-        type=int,
-        default=DEFAULT_DEADLINE_SECONDS,
-    )
-    args = parser.parse_args()
-
-    output = Path(args.output)
-    source = args.source_sha.strip().lower()
-    token = os.environ.get("HF_TOKEN", "")
-    origin: str | None = None
-    evidence: dict[str, Any] = {}
-    try:
-        if SHA40.fullmatch(source) is None:
-            raise RestartProofError("source SHA must be exact 40-character hex")
-        if not token:
-            raise RestartProofError("HF_TOKEN is required")
-        origin = normalize_origin(args.origin)
-        session = HttpSession()
-        session.headers.update(
-            {
-                "Accept": "application/json,text/plain;q=0.9,*/*;q=0.8",
-                "Cache-Control": "no-cache, no-store, max-age=0",
-                "Pragma": "no-cache",
-                "User-Agent": "szl-series-a-restart-proof/1",
-            }
-        )
-        report = prove(
-            api=HfApi(token=token),
-            session=session,
-            repo_id=args.repo_id,
-            origin=origin,
-            source_sha=source,
-            attempts=args.attempts,
-            retry_seconds=args.retry_seconds,
-            deadline_seconds=args.deadline_seconds,
-            evidence=evidence,
-        )
-    except Exception as exc:
-        report = failure_report(
-            repo_id=args.repo_id,
-            origin=origin,
-            source_revision=source,
-            evidence=evidence,
-            error=exc,
-            secrets=(token,),
-        )
-        write_report(output, report)
-        print(json.dumps(report, indent=2, sort_keys=True))
-        raise
-    write_report(output, report)
-    print(json.dumps(report, indent=2, sort_keys=True))
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
