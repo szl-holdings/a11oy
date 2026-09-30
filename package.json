@@ -77,7 +77,7 @@
     "overrides": {
       "vite": "^6.4.2",
       "esbuild": "0.28.1",
-      "brace-expansion": "5.0.9",
+      "brace-expansion": "5.0.12",
       "fast-uri@<3.1.7": "3.1.7",
       "js-yaml@<4.3.2": "4.3.2",
       "browserslist": "4.28.8"
@@ -85,7 +85,7 @@
   },
   "overrides": {
     "esbuild": "0.28.1",
-    "brace-expansion": "5.0.9",
+    "brace-expansion": "5.0.12",
     "fast-uri@<3.1.7": "3.1.7",
     "@istanbuljs/load-nyc-config": {
       "js-yaml": "4.3.2"

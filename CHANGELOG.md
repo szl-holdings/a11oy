@@ -24,6 +24,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   returns `UNAVAILABLE` evidence with a `DEGRADED` envelope; an overall health
   observation does not assert individual model or tool readiness.
 
+### Fixed - development dependency security closure
+- Pin the root npm and pnpm brace-expansion resolutions to the reviewed patched
+  version 5.0.12 and regenerate both package-manager locks with install scripts
+  disabled.
+- Upgrade the standalone RAE1 test runner to Vitest 4.1.11 with a package-local
+  lock and Vite 6 tooling, preserving its declared Node 20 compatibility. All 32
+  receipt-contract tests remain required; the inherited root TypeScript check is
+  not claimed repaired by this dependency update.
+- Extend dependency-policy regressions to reject affected or missing locked
+  resolutions for both advisories.
+
 ### Added - command observation context
 - `/command-v2` adds read-only source inspection, explicit refresh, per-source
   60-second client expiry and truthful missing-value states. Existing backend
