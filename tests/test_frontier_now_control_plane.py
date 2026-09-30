@@ -3,6 +3,7 @@
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
 """Frontier Now read-projection and responsive-surface regression tests."""
 
+import base64
 import json
 import re
 from datetime import datetime, timedelta, timezone
@@ -31,15 +32,31 @@ def _app(tmp_path: Path, monkeypatch) -> FastAPI:
     return value
 
 
-def _seed_observed(value: FastAPI) -> str:
+def _unsigned_envelope(manifest: dict, reason: str) -> dict:
+    return {
+        "payloadType": series_a.PAYLOAD_TYPE,
+        "payload": base64.b64encode(series_a._canonical(manifest)).decode("ascii"),
+        "signatures": [],
+        "signature_status": "UNAVAILABLE",
+        "reason": reason,
+    }
+
+
+def _seed_observed(
+    value: FastAPI,
+    *,
+    observed_offset_seconds: int = 0,
+    valid_offset_seconds: int = 300,
+) -> str:
     service = value.state.szl_series_a_service
     manifest = {
         "schema": series_a.SCHEMA_MANIFEST,
-        "observed_at": _stamp(),
-        "valid_until": _stamp(300),
+        "observed_at": _stamp(observed_offset_seconds),
+        "valid_until": _stamp(valid_offset_seconds),
         "source_revision": "a" * 40,
         "organization": "szl-holdings",
         "huggingface_organization": "SZLHOLDINGS",
+        "github_inventory_scope": series_a.GITHUB_PUBLIC_INVENTORY_SCOPE,
         "status": "OBSERVED",
         "critical_failures": [],
         "github": {
@@ -50,9 +67,17 @@ def _seed_observed(value: FastAPI) -> str:
                 "pagination_complete": True,
                 "repositories": [
                     {
-                        "name": "not-exposed-by-frontier-now",
-                        "visibility": "private",
+                        "name": (
+                            "not-exposed-by-frontier-now"
+                            if index == 0
+                            else f"public-repository-fixture-{index}"
+                        ),
+                        "archived": False,
+                        "visibility": "public",
+                        "default_branch": "main",
+                        "updated_at": "2026-09-29T00:00:00Z",
                     }
+                    for index in range(58)
                 ],
             },
             "detail": {"authenticated": True},
@@ -61,7 +86,7 @@ def _seed_observed(value: FastAPI) -> str:
             "state": "PARTIAL",
             "value": {
                 "categories": {
-                    "models": {"state": "OBSERVED", "count": 16, "items": [{"id": "private-model-name"}]},
+                    "models": {"state": "OBSERVED", "count": 16, "items": [{"id": "public-model-fixture"}]},
                     "datasets": {"state": "OBSERVED", "count": 27, "items": []},
                     "spaces": {"state": "OBSERVED", "count": 26, "items": []},
                     "collections": {"state": "OBSERVED", "count": 3, "items": []},
@@ -90,7 +115,7 @@ def _seed_observed(value: FastAPI) -> str:
     }
     return service.store.save_snapshot(
         manifest,
-        {"signature_status": "UNAVAILABLE", "reason": "test fixture"},
+        _unsigned_envelope(manifest, "test fixture"),
     )
 
 
@@ -233,6 +258,7 @@ def test_inventory_exposes_capability_state_and_counts_not_asset_names(
     encoded = json.dumps(payload, sort_keys=True)
     assert "not-exposed-by-frontier-now" not in encoded
     assert "private-model-name" not in encoded
+    assert "public-model-fixture" not in encoded
     assert "GITHUB_TOKEN" not in encoded and "HF_TOKEN" not in encoded
     assert invalid.status_code == 422
     assert duplicate.status_code == 400
@@ -259,15 +285,10 @@ def test_stale_snapshot_cannot_retain_observed_capabilities_or_current_counts(
     tmp_path: Path, monkeypatch
 ) -> None:
     value = _app(tmp_path, monkeypatch)
-    service = value.state.szl_series_a_service
-    _seed_observed(value)
-    latest = service.store.latest_snapshot()
-    manifest = dict(latest["manifest"])
-    manifest["observed_at"] = _stamp(1)
-    manifest["valid_until"] = _stamp(-300)
-    service.store.save_snapshot(
-        manifest,
-        {"signature_status": "UNAVAILABLE", "reason": "stale fixture"},
+    _seed_observed(
+        value,
+        observed_offset_seconds=-600,
+        valid_offset_seconds=-300,
     )
 
     with TestClient(value) as client:
@@ -283,6 +304,78 @@ def test_stale_snapshot_cannot_retain_observed_capabilities_or_current_counts(
         "UNAVAILABLE",
     }
     assert all(item["count"] is None for item in inventory["items"])
+
+
+def test_unsafe_legacy_snapshot_never_projects_counts_names_or_evidence_digest(
+    tmp_path: Path, monkeypatch
+) -> None:
+    value = _app(tmp_path, monkeypatch)
+    service = value.state.szl_series_a_service
+    legacy = {
+        "schema": series_a.SCHEMA_MANIFEST,
+        "observed_at": _stamp(),
+        "valid_until": _stamp(300),
+        "source_revision": "a" * 40,
+        "status": "OBSERVED",
+        "critical_failures": [],
+        "github": {
+            "state": "OBSERVED",
+            "value": {
+                "repository_count": 987654321,
+                "open_pull_request_count": 765432109,
+                "pagination_complete": True,
+                "repositories": [{"name": "legacy-repository-sentinel"}],
+            },
+        },
+        "counts": {
+            "github_repositories": 987654321,
+            "github_open_pull_requests": 765432109,
+        },
+    }
+    digest = service.store.save_snapshot(
+        legacy, _unsigned_envelope(legacy, "unsafe legacy fixture")
+    )
+    before_snapshot = service.store.latest_snapshot()
+    before_events = service.store.events_since(0)
+    before_receipts = service.store.list_receipts()
+
+    def no_sign_on_read(_payload):
+        raise AssertionError("Frontier read attempted to sign")
+
+    async def no_collection_on_read():
+        raise AssertionError("Frontier read attempted to collect")
+
+    monkeypatch.setattr(service.signer, "sign", no_sign_on_read)
+    monkeypatch.setattr(service.collector, "collect", no_collection_on_read)
+    with TestClient(value) as client:
+        summary_response = client.get("/api/a11oy/v1/frontier-now/summary")
+        inventory_response = client.get("/api/a11oy/v1/frontier-now/inventory")
+        summary_head = client.head("/api/a11oy/v1/frontier-now/summary")
+        inventory_head = client.head("/api/a11oy/v1/frontier-now/inventory")
+
+    summary = summary_response.json()
+    inventory = inventory_response.json()
+    assert summary_response.status_code == inventory_response.status_code == 200
+    assert summary["observation"]["state"] == "UNAVAILABLE"
+    assert summary["observation"]["manifest_digest"] is None
+    assert summary["enforcement"]["state"] == "FAILED_CLOSED"
+    assert summary["counts"] == {}
+    assert summary["last_known_counts"]["values"] == {}
+    assert inventory["observation_state"] == "UNAVAILABLE"
+    assert inventory["manifest_digest"] is None
+    for rows in (summary["coverage"], inventory["items"]):
+        assert all(item["state"] == "UNAVAILABLE" for item in rows)
+        assert all(item["count"] is None for item in rows)
+    encoded = summary_response.text + inventory_response.text
+    for sentinel in (
+        "legacy-repository-sentinel", "987654321", "765432109", digest
+    ):
+        assert sentinel not in encoded
+    assert summary_head.status_code == inventory_head.status_code == 200
+    assert summary_head.content == inventory_head.content == b""
+    assert service.store.latest_snapshot() == before_snapshot
+    assert service.store.events_since(0) == before_events
+    assert service.store.list_receipts() == before_receipts
 
 
 def test_snapshot_disappearing_between_status_and_read_fails_closed() -> None:
