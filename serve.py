@@ -8557,13 +8557,28 @@ try:
             return "health"
         return "general"
 
-    def _sc_ask(question):
+    def _sc_ask(question, health_report=None):
         topic = _sc_classify(question)
+        health_state = None
         if topic == "health":
-            answer = ("The platform is LIVE and self-contained: a11oy serves its Policy/Safety (safety/compliance), "
-                      "Reasoning (readiness) and Operator (ask/act/ledger) capabilities in-process. No external "
-                      "services are required. Source is a11oy's own consolidated health.")
-            cites = [{"endpoint": "/api/a11oy/healthz (self-contained platform health)", "data": {"a11oy": {"ok": True}}}]
+            valid_health = (isinstance(health_report, dict)
+                            and health_report.get("service") == "a11oy"
+                            and health_report.get("status") in ("ok", "degraded"))
+            if valid_health:
+                observed = {key: health_report[key] for key in
+                            ("service", "status", "degraded_reasons", "dependency", "uptime_s")
+                            if key in health_report}
+                health_state = "OBSERVED" if health_report["status"] == "ok" else "DEGRADED"
+                answer = ("The current a11oy health rollup reports " + health_report["status"].upper()
+                          + ". This observation covers the health rollup; individual model and tool "
+                          "readiness remains separate. Reported dependencies and degradation reasons "
+                          "are included in the citation.")
+                cites = [{"endpoint": "/api/a11oy/healthz", "data": observed}]
+            else:
+                health_state = "UNAVAILABLE"
+                answer = ("Current platform health is UNAVAILABLE: the health rollup could not be "
+                          "observed. I cannot confirm which services are currently ready.")
+                cites = [{"endpoint": "/api/a11oy/healthz", "data": {"state": "UNAVAILABLE"}}]
         elif topic == "quorum":
             m = _SC_BUNDLE["mesh3d"]
             answer = ("BFT quorum is " + ("PERMITTED" if m.get("quorum_permitted") else "NOT permitted")
@@ -8594,7 +8609,7 @@ try:
                       "proved-formula set, or how the platform is organised. Ask me one of those and I will cite the "
                       "endpoint I read.")
             cites = [{"endpoint": "(none — refused to fabricate)", "data": {}}]
-        grounded = topic != "general"
+        grounded = topic != "general" and health_state != "UNAVAILABLE"
         llm = {"tier_used": "claude_sonnet_4_6", "tier_rank": 0,
                "response": "[HONEST STUB] would route to claude_sonnet_4_6 (rank 0). No model key wired in this Space; tier selection + Lambda-receipt are real, the model prose is a stub.",
                "lambda_receipt": {"lambda": 0.92, "axis_scores": [0.92] * 13, "tier_used": "claude_sonnet_4_6",
@@ -8606,7 +8621,23 @@ try:
                                "grounded source exists the assistant refuses to fabricate. LLM framing is an honest "
                                "stub when no model key is present.")}
         payload["receipt"] = _sc_receipt("ask", {"question": question, "topic": topic, "grounded": grounded})
+        if health_state is not None:
+            payload["health_state"] = health_state
+            payload["status"] = "REAL" if health_state == "OBSERVED" else "DEGRADED"
+            payload["honesty"] = ("Health answers cite the current health rollup. A missing report is "
+                                  "UNAVAILABLE and cannot confirm readiness. LLM framing remains a stub.")
         return payload
+
+    async def _sc_operator_answer(question):
+        report = None
+        if _sc_classify(question) == "health":
+            try:
+                response = await healthz()
+                if response.status_code == 200:
+                    report = _sc_json.loads(response.body)
+            except Exception:
+                pass
+        return _sc_ask(question, health_report=report)
 
     def _sc_act(action, target="", note="", operator="operator"):
         global _SC_OP_PREV
@@ -8806,7 +8837,8 @@ try:
     @app.post("/api/a11oy/v1/operator/ask")
     async def _sc_cap_ask(request: _SCRequest):
         body = await _sc_body(request)
-        return _SCJSON(gov_envelope(_sc_ask((body or {}).get("question", "")), status="REAL"))
+        answer = await _sc_operator_answer((body or {}).get("question", ""))
+        return _SCJSON(gov_envelope(answer, status=answer.get("status", "REAL")))
 
     @app.post("/api/a11oy/v1/operator/act")
     async def _sc_cap_act(request: _SCRequest):
@@ -8890,7 +8922,8 @@ try:
     @app.get("/api/a11oy/v1/operator/ask")
     async def _sc_cap_ask_get(question: str = ""):
         if (question or "").strip():
-            return _SCJSON(gov_envelope(_sc_ask(question), status="REAL"))
+            answer = await _sc_operator_answer(question)
+            return _SCJSON(gov_envelope(answer, status=answer.get("status", "REAL")))
         desc = {"capability": "operator.ask",
                 "summary": "Grounded operator Q&A \u2014 answers only from live platform data, refuses to fabricate.",
                 "method": "POST {question} for a grounded answer; GET ?question= also answers; bare GET returns this descriptor.",
@@ -15274,7 +15307,8 @@ try:
     import sys as _al_sys
     _al_verify = _a11oy_loop_verify if "_a11oy_loop_verify" in dir() else None
     _al_status = _szl_agentloop.register(app, ns="a11oy",
-                                         sign_fn=_a11oy_sign_receipt, verify_fn=_al_verify)
+                                         sign_fn=_a11oy_sign_receipt, verify_fn=_al_verify,
+                                         signer_available_fn=lambda: _A11OY_PRIV is not None)
     print(f"[a11oy] Governed agent loop registered: {_al_status}", file=_al_sys.stderr)
 except Exception as _al_e:
     import sys as _al_sys, traceback as _al_tb
