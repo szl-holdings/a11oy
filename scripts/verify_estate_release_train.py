@@ -538,15 +538,21 @@ def probe_source(origin: str, paths: Sequence[str]) -> dict[str, Any]:
 
 
 def _is_provider_injected_script(src: str) -> bool:
-    """Identify only the known Cloudflare Web Analytics beacon injection.
+    """Identify the known Cloudflare analytics and apex WebMCP injections.
 
     The apex is served through Cloudflare, while the canonical Hugging Face Space
     is not. Cloudflare may therefore append its own external analytics beacon to
     otherwise byte-equivalent product HTML. That provider-owned script is not an
     SZL product asset and must not create product/Space semantic drift. The
     allowlist is deliberately narrow: any other external script remains part of
-    the semantic contract and will continue to fail parity.
+    the semantic contract and will continue to fail parity. The WebMCP bridge
+    uses the exact absolute apex URL observed on 2026-09-30; relative paths,
+    other hosts, ports, queries, and fragments remain product scripts. Both
+    overlays remain in provider_scripts in the observation receipt.
+    Provider behavior: https://developers.cloudflare.com/api/resources/zones/subresources/settings/
     """
+    if src == "https://a-11-oy.com/.webmcp/bridge.js":
+        return True
     parsed = urllib.parse.urlsplit(src)
     return bool(
         parsed.scheme == "https"
