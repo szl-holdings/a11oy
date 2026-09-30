@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Foundation Confirmation trial workbench handoff
+- `/research/confirmation/workbench` redirects only to the separate synthetic CPU
+  model workbench. The Frontier research block links fresh exploratory trials,
+  explains on-demand availability and temporary receipt retention, and preserves
+  the frozen registered experiment's FAILED result.
+
+
 ### Fixed - command release qualification
 - Make Command v2 own its response with no-store/no-transform; verify actual
   middleware composition preserves its bytes without changing legacy pages.
