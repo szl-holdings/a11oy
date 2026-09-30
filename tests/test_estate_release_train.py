@@ -115,6 +115,77 @@ class EstateReleaseTrainTests(unittest.TestCase):
             cloudflare_other_path.result()["semantic_sha256"],
         )
 
+    def test_semantic_html_retains_exact_cloudflare_webmcp_as_provider_evidence(self) -> None:
+        baseline = release.SemanticHTML()
+        baseline.feed('<title>A11oy</title><script src="/app.js"></script>')
+        bridge = "https://a-11-oy.com/.webmcp/bridge.js"
+        apex = release.SemanticHTML()
+        apex.feed(
+            '<title>A11oy</title><script src="/app.js"></script>'
+            f'<script type="module" src="{bridge}" '
+            'data-packs="mcp-server-client"></script>'
+        )
+        self.assertEqual(
+            baseline.result()["semantic_sha256"], apex.result()["semantic_sha256"]
+        )
+        self.assertEqual(apex.result()["provider_scripts"], [bridge])
+        self.assertEqual(apex.result()["scripts"], ["/app.js"])
+
+    def test_semantic_html_webmcp_variants_remain_product_drift(self) -> None:
+        baseline = release.SemanticHTML()
+        baseline.feed('<title>A11oy</title><script src="/app.js"></script>')
+        bridge = "https://a-11-oy.com/.webmcp/bridge.js"
+        urls = (
+            "http://a-11-oy.com/.webmcp/bridge.js",
+            "https://example.com/.webmcp/bridge.js",
+            "https://www.a-11-oy.com/.webmcp/bridge.js",
+            "https://a-11-oy.com:443/.webmcp/bridge.js",
+            "https://user@a-11-oy.com/.webmcp/bridge.js",
+            "https://a-11-oy.com/.webmcp/other.js",
+            "https://a-11-oy.com/.webmcp/bridge.js/extra",
+            "https://a-11-oy.com/.webmcp/bridge.js?pack=other",
+            "https://a-11-oy.com/.webmcp/bridge.js#other",
+            "https://a-11-oy.com/.webmcp/bridge.js?",
+            "https://a-11-oy.com/.webmcp/bridge.js#",
+            " https://a-11-oy.com/.webmcp/bridge.js",
+            "/.webmcp/bridge.js",
+        )
+        tags = [
+            f'<script type="module" src="{url}" '
+            'data-packs="mcp-server-client"></script>'
+            for url in urls
+        ]
+        tags.extend(
+            (
+                f'<script src="{bridge}" data-packs="mcp-server-client"></script>',
+                f'<script type="text/javascript" src="{bridge}" '
+                'data-packs="mcp-server-client"></script>',
+                f'<script type="module" src="{bridge}"></script>',
+                f'<script type="module" src="{bridge}" data-packs="dom"></script>',
+                f'<script type="module" src="{bridge}" '
+                'data-packs="mcp-server-client,dom"></script>',
+                f'<script type="module" src="{bridge}" '
+                'data-packs="mcp-server-client" onload="changed()"></script>',
+                f'<script type="module" src="{bridge}" '
+                'data-packs="mcp-server-client" async></script>',
+                f'<script type="module" src="{bridge}" '
+                'data-packs="mcp-server-client" data-packs="dom"></script>',
+                f'<script type="module" src="{bridge}" src="{bridge}" '
+                'data-packs="mcp-server-client"></script>',
+            )
+        )
+        for tag in tags:
+            with self.subTest(tag=tag):
+                changed = release.SemanticHTML()
+                changed.feed(
+                    '<title>A11oy</title><script src="/app.js"></script>' + tag
+                )
+                self.assertNotEqual(
+                    baseline.result()["semantic_sha256"],
+                    changed.result()["semantic_sha256"],
+                )
+                self.assertEqual(changed.result()["provider_scripts"], [])
+
     def test_inspect_component_requires_source_running_root_and_exact_witness(self) -> None:
         sha = "c" * 40
         component = {
@@ -177,35 +248,110 @@ class EstateReleaseTrainTests(unittest.TestCase):
         self.assertIn("SOURCE_REVISION_MISMATCH", result["blockers"])
 
     def test_profile_contract_requires_three_way_count_equality(self) -> None:
-        sha = "f" * 40
-        config = {
-            "profile": {
-                "repository": "szl-holdings/.github",
-                "path": "profile/README.md",
-            }
+        config, record, manifest, blob = self._profile_fixture()
+        counts = record["counts"]
+        result, files = self._profile_observation(config, record, manifest, blob, counts)
+        self.assertTrue(result["aligned"])
+        self.assertEqual(result["declared_counts"], counts)
+        self.assertEqual(
+            files.call_args_list[0],
+            mock.call("szl-holdings/.github", "profile/public-inventory.json", "f" * 40),
+        )
+        self.assertNotIn("profile/README.md", str(files.call_args_list))
+        result, _ = self._profile_observation(
+            config, record, manifest, blob, {**counts, "spaces": counts["spaces"] + 1}
+        )
+        self.assertFalse(result["aligned"])
+
+    def _profile_fixture(self):
+        config = json.loads((ROOT / "config/estate-release-train.v1.json").read_text())
+        scope = config["public_inventory_scope"]
+        counts = {"spaces": 23, "models": 49, "datasets": 34}
+        record = {
+            "schema": "szl.public-profile-inventory/v1", "counts": counts,
+            "scope": scope, "scope_sha256": release.canonical_sha256(scope),
+            "observed_at": "2026-09-29T21:16:06Z",
+            "source_repository": "szl-holdings/a11oy",
+            "source_path": "docs/huggingface-ecosystem-manifest.json",
+            "source_revision": "a" * 40, "source_git_blob": "b" * 40,
+            "source_sha256": "c" * 64, "production_authorization": False,
+            "runtime_readiness_inferred": False, "model_quality_inferred": False,
         }
-        profile = {
-            "text": "Artifacts: 15 public Spaces, 44 models, 33 datasets"
-        }
-        manifest = {"json": {"counts": {"spaces": 15, "models": 44, "datasets": 33}}}
+        manifest = {"status": 200, "sha256": "c" * 64, "json": {
+            "schemaVersion": 2, "org": "SZLHOLDINGS", "counts": counts,
+            "inventoryScope": {"visibility": "public-only", "authenticated": False,
+                               "privateAssetsIncluded": False},
+        }}
+        blob = {"status": 200, "json": {
+            "type": "file", "path": record["source_path"], "sha": "b" * 40,
+        }}
+        return config, record, manifest, blob
+
+    def _profile_observation(self, config, record, manifest, blob, counts, *, text=None, pinned=None):
+        response = {"status": 200, "json": record,
+                    "text": json.dumps(record) if text is None else text,
+                    "sha256": "d" * 64}
         with (
             mock.patch.object(
-                release,
-                "github_main",
-                return_value={"observed": True, "sha": sha},
+                release, "github_main", return_value={"observed": True, "sha": "f" * 40},
             ),
             mock.patch.object(
-                release,
-                "github_file",
-                side_effect=[profile, manifest],
-            ),
+                release, "github_file", side_effect=[response, manifest, pinned or manifest],
+            ) as files,
+            mock.patch.object(release, "fetch", return_value=blob),
         ):
             result = release.profile_inventory_contract(
-                config,
-                {"counts": {"spaces": 15, "models": 44, "datasets": 33}},
-                sha,
+                config, {"counts": counts, "observed": True,
+                         "enumeration_state": {kind: "COMPLETE" for kind in counts}},
+                "e" * 40,
             )
+        return result, files
+
+    def test_profile_historical_prose_cannot_override_current_scoped_record(self) -> None:
+        config, record, manifest, blob = self._profile_fixture()
+        result, files = self._profile_observation(config, record, manifest, blob, record["counts"])
         self.assertTrue(result["aligned"])
+        self.assertEqual(result["declared_counts"], {"spaces": 23, "models": 49, "datasets": 34})
+        # README is deliberately not fetched: its historical 21/46/35 paragraph
+        # cannot supply a current declaration or override the selected record.
+        self.assertEqual(files.call_count, 3)
+
+    def test_profile_missing_malformed_ambiguous_or_wrong_scope_is_blocking(self) -> None:
+        config, valid, manifest, blob = self._profile_fixture()
+        variants = [None, [], {**valid, "schema": "wrong"},
+                    {**valid, "counts": {**valid["counts"], "spaces": True}},
+                    {**valid, "scope": {**valid["scope"], "authentication": "token"}},
+                    {**valid, "scope_sha256": "0" * 64},
+                    {**valid, "source_revision": "short"},
+                    {**valid, "production_authorization": True},
+                    {**valid, "observed_at": "2026-09-29"}]
+        for record in variants:
+            with self.subTest(record=record):
+                result, _ = self._profile_observation(config, record, manifest, blob, valid["counts"])
+                self.assertFalse(result["aligned"])
+                self.assertIn("HF_PROFILE_INVENTORY_RECORD_UNAVAILABLE_OR_INVALID", result["blockers"])
+        for text in ("{broken", json.dumps(valid)[:-1] + ',"counts":{"spaces":0,"models":0,"datasets":0}}'):
+            with self.subTest(text=text):
+                result, _ = self._profile_observation(config, valid, manifest, blob, valid["counts"], text=text)
+                self.assertFalse(result["aligned"])
+                self.assertIsNone(result["declared_counts"])
+
+    def test_profile_source_hash_blob_and_current_manifest_must_match(self) -> None:
+        config, record, manifest, blob = self._profile_fixture()
+        variants = (
+            ({**manifest, "sha256": "0" * 64}, manifest, blob),
+            (manifest, {**manifest, "sha256": "0" * 64}, blob),
+            (manifest, manifest, {"status": 404}),
+            (manifest, manifest, {**blob, "json": {**blob["json"], "sha": "0" * 40}}),
+            (manifest, {**manifest, "json": {**manifest["json"],
+                "inventoryScope": {"visibility": "all", "authenticated": True,
+                                   "privateAssetsIncluded": True}}}, blob),
+        )
+        for current, pinned, metadata in variants:
+            with self.subTest(current=current, pinned=pinned, metadata=metadata):
+                result, _ = self._profile_observation(config, record, current, metadata, record["counts"], pinned=pinned)
+                self.assertFalse(result["aligned"])
+                self.assertIn("HF_PROFILE_INVENTORY_SOURCE_BINDING_MISMATCH_OR_UNAVAILABLE", result["blockers"])
 
     def test_release_id_is_deterministic_and_authority_is_fail_closed(self) -> None:
         config = json.loads(
