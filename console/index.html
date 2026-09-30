@@ -73,6 +73,9 @@ a{color:inherit;text-decoration:none;}
 .nav-item:hover{background:var(--gold-soft);color:var(--cream);}
 .nav-item.active{background:var(--teal-soft);color:var(--teal);border-color:var(--teal-line);}
 .nav-item .ico{width:16px;text-align:center;opacity:.8;font-size:12px;}
+.nav-item.tab4{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:#f2f5ff;border-left:4px solid #2e5cff;border-radius:0 7px 7px 0;padding:.55rem .6rem .55rem .8rem;margin-bottom:.35rem;background:linear-gradient(90deg,rgba(46,92,255,.14),transparent 65%);}
+.nav-item.tab4:hover{background:linear-gradient(90deg,rgba(46,92,255,.28),transparent 70%);color:#fff;}
+.nav-item.tab4.active{background:linear-gradient(90deg,rgba(46,92,255,.4),transparent 75%);color:#fff;border-left-color:#6f90ff;}
 .side-foot{margin-top:1.2rem;padding:.7rem .6rem;border-top:1px solid var(--gold-line);font-family:var(--mono);font-size:9.5px;color:var(--dim);line-height:1.7;}
 
 /* ===== CONTENT ===== */
@@ -241,6 +244,8 @@ details.raw[open] summary{color:var(--muted);}
   <aside class="side">
     <div class="brand"><div class="mark">A</div><div><div class="nm">a11oy</div><div class="role">orchestrating brain</div></div></div>
     <button class="cmdk-btn" onclick="openPalette()" title="Search every view — ⌘K / Ctrl-K"><span class="ico">⌕</span>Search all views<span class="kbd">⌘K</span></button>
+    <div class="nav-group">Command Centre</div>
+    <div id="tab4"></div>
     <div class="nav-group">Flagships</div>
     <div class="featured" id="featured"></div>
     <div class="nav-group">Domains</div>
@@ -806,6 +811,8 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
       <div class="card"><div class="card-h"><span class="card-t">SZL Prior Art \u2014 the foundation</span><span class="card-ep">DOI-stamped, Apr\u2013May 2026</span></div>
         ${pa}</div>
       <div class="honesty"><b>Honest by design.</b> ${esc(G.honest_note)}</div>
+    `;}},
+
   experimental:{title:'Experimental Tier',badge:'EXPERIMENTAL · CI-green · NOT in locked-8',sub:'Every theorem in the CI-green experimental tier — Waves 5–24, Theorem 9 (Khipu Merkle Functor), binary_pinsker, conditional Λ uniqueness, PAC-Bayes routing envelope, agentic loop, and more. LOCKED baseline = exactly 8 {F1,F4,F7,F11,F12,F18,F19,F22} @ kernel c7c0ba17. These 80+ theorems are CI-green on main @ dc64dd80 and are NEVER folded into the locked count. Λ = Conjecture 1.',
     render:async(c)=>{
       const EBADGE='<span class="badge" style="color:#c9a05f;border:1px solid rgba(201,160,95,.5);background:rgba(201,160,95,.08)">EXPERIMENTAL · CI-green · NOT in locked-8</span>';
@@ -919,6 +926,102 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
       </div>
       <div class="honesty"><b>Honesty (doctrine v11 LOCKED).</b> \u039b = Conjecture 1 \u2014 advisory floor, NOT a closed theorem. Answer returned only when decision == allow; on review/deny the governance verdict and receipt are returned with no answer. Energy labeled MEASURED only when NVML meter is live; otherwise UNAVAILABLE \u2014 never fabricated. Receipt chain is hash-linked; DSSE_PLACEHOLDER when cosign key is absent. Sovereign GPU 1 (laptop \u00b7 RTX 5050 \u00b7 Blackwell) is the live engine as of 2026-06-30; GPU 2 (tower \u00b7 RTX 4060 Ti) is offline.</div>
     `;}},
+
+  'cc-operate':{title:'Operate',badge:'GOVERNED',sub:'Compose a bounded action, preview its governance posture, and route it to the approval queue. Nothing mutates here: proposals are DRAFT until GOVERN approves an exact, resolved payload.',
+    render:async(c)=>{c.innerHTML=`<div class="grid2">
+      <div class="card"><div class="card-h"><span class="card-t">Action composer</span><span class="card-ep">draft only</span></div>
+        <div style="display:grid;gap:.5rem">
+          <select id="cc-op-cap" class="btn" style="width:100%"><option value="szl-forge.training">szl-forge — training lane</option><option value="szl-gpu-bridge.job">szl-gpu-bridge — signed GPU job</option><option value="a11oy.deploy">a11oy — console deploy</option><option value="szl-lake.receipt">szl-lake — receipt append</option></select>
+          <textarea id="cc-op-obj" class="out" style="min-height:70px" placeholder="Bounded objective — what, exactly, should happen"></textarea>
+          <select id="cc-op-scope" class="btn" style="width:100%"><option value="read-only">read-only</option><option value="write">write (branch/commit)</option><option value="publish">publish (Hub/deploy)</option></select>
+          <div class="btns"><button class="btn teal" onclick="ccCompose()">Compose proposal</button><button class="btn" onclick="ccSubmit()">Submit to GOVERN queue</button></div>
+        </div>
+        <pre class="out" id="cc-op-out">— compose a proposal —</pre></div>
+      <div class="card"><div class="card-h"><span class="card-t">Governance posture</span><span class="card-ep">live when reachable</span></div>
+        <div class="kpis"><div class="kpi"><div class="k">Policy gates</div><div class="v teal" id="cc-op-gates">—</div><div class="d">deny-by-default count</div></div>
+        <div class="kpi"><div class="k">Decisions buffered</div><div class="v" id="cc-op-dec">—</div><div class="d">governed feed</div></div></div>
+        <div id="cc-op-posture"><div class="row mono dim">probing policy endpoints…</div></div>
+        <div class="brain-note">Status vocabulary: DRAFT → AWAITING_APPROVAL → APPROVED / DENIED → EXECUTED. UNAVAILABLE is stated, never hidden. Approval binds to an exact payload — no blanket authorization.</div></div>
+      </div>${HONEST}`;
+      try{const g=await orgGet('core','/api/a11oy/v1/policy/gates');const gs=g.gates||[];const deny=gs.filter(x=>x.expectedDecision==='deny').length;setTxt('cc-op-gates',deny+'/'+gs.length);setHTML('cc-op-posture',gs.slice(0,8).map(x=>'<div class="row"><span class="badge '+(x.expectedDecision==='deny'?'b-err':'b-live')+'">'+esc(x.expectedDecision||'?')+'</span><span>'+esc(x.name||x.id||'gate')+'</span></div>').join(''));}catch(e){setHTML('cc-op-posture','<div class="row mono dim">policy endpoint unavailable: '+esc(e.message)+' — honest failure, not faked</div>');}
+      try{const f=await orgGet('core','/api/a11oy/v1/policy/decisions/feed?limit=50');setTxt('cc-op-dec',f.total_buffered??(f.verdicts||[]).length);}catch(e){setTxt('cc-op-dec','—');}
+    }},
+
+  'cc-build':{title:'Build',badge:'EVIDENCE',sub:'Model lifecycle ledger for the SZL estate — every artifact carries its evidence class. Train and qualify through szl-forge; publish only what MEASURED evidence supports. UNKNOWN is shown, never filled in.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis" id="cc-b-kpis"></div>
+      <div class="card"><div class="card-h"><span class="card-t">Model lifecycle ledger</span><span class="card-ep">estate.json snapshot · downloads 2026-09-02</span></div><div id="cc-b-models"><div class="row mono dim">loading estate snapshot…</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Forge operational package</span><span class="card-ep">PR open</span></div><div id="cc-b-forge"><div class="row mono dim">loading…</div></div></div>${HONEST}`;
+      let est=null;try{est=await (await fetch('estate.json')).json();}catch(e){setHTML('cc-b-models','<div class="row mono dim">estate.json unavailable: '+esc(e.message)+'</div>');setHTML('cc-b-forge','<div class="row mono dim">estate.json unavailable</div>');return;}
+      const ms=est.models||[];const cnt={};ms.forEach(m=>cnt[m.evidence]=(cnt[m.evidence]||0)+1);
+      setHTML('cc-b-kpis',Object.keys(cnt).map(k=>'<div class="kpi"><div class="k">'+esc(k)+'</div><div class="v teal">'+cnt[k]+'</div><div class="d">artifacts</div></div>').join(''));
+      setHTML('cc-b-models',ms.map(m=>{const bc=m.evidence.indexOf('MEASURED_FAIL')===0?'b-err':(m.evidence.indexOf('MEASURED')===0?'b-live':'');
+        return '<div class="row"><span class="badge '+bc+'">'+esc(m.evidence)+'</span><span><a href="https://huggingface.co/'+esc(m.artifact)+'" target="_blank" rel="noopener">'+esc(m.artifact)+'</a> <span class="mono dim">'+esc(m.class)+' · '+esc(m.downloads)+' dl</span></span><span class="spacer mono dim">'+esc(m.boundary)+'</span></div>';}).join(''));
+      const f=est.forge_operational||{};
+      setHTML('cc-b-forge','<div class="row"><span class="badge b-live">PR</span><span><a href="'+esc(f.pr||'#')+'" target="_blank" rel="noopener">operational training package</a> on <span class="mono">'+esc(f.branch||'')+'</span></span></div><div class="row mono dim">smoke: '+esc(f.smoke_status||'UNKNOWN')+'</div><div class="row mono dim">train: '+esc(f.train_status||'UNKNOWN')+'</div>');
+    }},
+
+  'cc-observe':{title:'Observe',badge:'SNAPSHOT',sub:'Live estate truth — the GitHub organization, the Hugging Face estate, and service health. Repo and Hub rows are a REPORTED audit snapshot; service health is a live probe. Missing data is UNAVAILABLE, never green.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis" id="cc-o-kpis"><div class="kpi"><div class="k">Estate</div><div class="v">loading…</div><div class="d">audit snapshot</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Service health</span><span class="card-ep">live probe</span></div><div id="cc-o-fleet"><div class="row mono dim">probing…</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t" id="cc-o-title">GitHub estate</span><span class="card-ep" id="cc-o-gen">snapshot</span></div>
+        <div class="btns" id="cc-o-filters"><button class="btn teal" onclick="ccFilterRepos('all')">All</button><button class="btn" onclick="ccFilterRepos('canonical-active')">Canonical</button><button class="btn" onclick="ccFilterRepos('archived-provenance')">Archived</button><button class="btn" onclick="ccFilterRepos('novelty-candidate')">Novelty candidates</button><button class="btn" onclick="ccFilterRepos('review-duplicate')">Review duplicates</button><button class="btn" onclick="ccFilterRepos('active-new-wave')">New wave</button></div>
+        <div id="cc-o-repos"><div class="row mono dim">loading estate snapshot…</div></div></div>${HONEST}`;
+      try{const d=await getJSON(API+'/v1/observability/summary');const mr=d.mesh_reach||{};const keys=Object.keys(mr);setHTML('cc-o-fleet',keys.map(k=>{const p=mr[k];const up=(p.status||'ok')==='ok';return '<div class="row"><span class="badge '+(up?'b-live':'b-err')+'">'+(up?'UP':'DOWN')+'</span><span>'+esc(p.name||k)+'</span><span class="spacer mono dim">'+(p.latency_ms?Math.round(p.latency_ms)+'ms':'')+'</span></div>';}).join('')||'<div class="row mono dim">no services reported</div>');}catch(e){setHTML('cc-o-fleet','<div class="row mono dim">observability endpoint unavailable: '+esc(e.message)+' — honest failure, not faked</div>');}
+      let est=null;try{est=await (await fetch('estate.json')).json();}catch(e){setHTML('cc-o-repos','<div class="row mono dim">estate.json unavailable: '+esc(e.message)+'</div>');return;}
+      window.__CC_ESTATE=est;const n=est.counts||{};
+      setHTML('cc-o-kpis','<div class="kpi"><div class="k">GitHub repos</div><div class="v teal">'+n.repos_total+'</div><div class="d">'+n.repos_active+' active · '+n.repos_archived+' archived</div></div><div class="kpi"><div class="k">Canonical core</div><div class="v teal">'+n.repos_canonical+'</div><div class="d">operational sources</div></div><div class="kpi"><div class="k">HF estate</div><div class="v teal">'+(n.hf_models+n.hf_datasets+n.hf_spaces)+'</div><div class="d">'+n.hf_models+' models · '+n.hf_datasets+' datasets · '+n.hf_spaces+' spaces</div></div><div class="kpi"><div class="k">Needs decision</div><div class="v">'+(n.repos_inconsistent+n.repos_transfer_candidates)+'</div><div class="d">'+n.repos_inconsistent+' inconsistent · '+n.repos_transfer_candidates+' transfer candidates</div></div>');
+      setTxt('cc-o-title','GitHub estate — '+(n.repos_total||'?')+' repositories');
+      setTxt('cc-o-gen','REPORTED · generated '+(est.generated_at||'UNKNOWN'));
+      ccFilterRepos('all');
+    }},
+
+  'cc-govern':{title:'Govern',badge:'HUMAN-IN-LOOP',sub:'The approval queue and the honesty boundary. Approve or deny exact proposals; verify receipts; publish only what MEASURED evidence supports. Λ = Conjecture 1 — advisory floor, not a theorem.',
+    render:async(c)=>{c.innerHTML=`<div class="grid2">
+      <div class="card"><div class="card-h"><span class="card-t">Approval queue</span><span class="card-ep">this session</span></div><div id="cc-gov-queue"></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Doctrine boundaries</span><span class="card-ep">locked</span></div>
+        <div class="row mono dim" style="display:block;line-height:1.9">· Control before action; evidence after.<br>· Approval binds to one exact payload — no blanket authorization.<br>· publication_eligible stays false until a MEASURED in-house held-out result exists.<br>· Λ = Conjecture 1 (lutar-lean). Not a closed theorem.<br>· Proposal models never become authorizers or executors.<br>· UNKNOWN / UNAVAILABLE are first-class states, never hidden.</div>
+        <div class="btns" style="margin-top:.8rem"><button class="btn" onclick="go('receipts')">Open receipt chain</button><button class="btn" onclick="go('gates')">Open safety gates</button><button class="btn" onclick="window.open('https://hf.co/spaces/SZLHOLDINGS/governed-receipt-verifier','_blank')">Verify a receipt ↗</button></div></div>
+      </div>${HONEST}`;
+      ccRenderQueue();
+    }},
+};
+window.__CC_QUEUE=window.__CC_QUEUE||[];
+window.ccCompose=function(){
+  const cap=document.getElementById('cc-op-cap').value,obj=document.getElementById('cc-op-obj').value.trim(),scope=document.getElementById('cc-op-scope').value;
+  const p={id:'prop-'+Date.now().toString(36),capability:cap,objective:obj||'(no objective stated)',scope:scope,status:'DRAFT',created_at:new Date().toISOString()};
+  window.__CC_DRAFT=p;
+  document.getElementById('cc-op-out').textContent=JSON.stringify(p,null,2);
+};
+window.ccSubmit=function(){
+  const p=window.__CC_DRAFT;const out=document.getElementById('cc-op-out');
+  if(!p){out.textContent='compose a proposal first';return;}
+  p.status='AWAITING_APPROVAL';window.__CC_QUEUE.push(p);window.__CC_DRAFT=null;
+  out.textContent=JSON.stringify(p,null,2)+'\n\n→ queued: open GOVERN to approve or deny this exact payload';
+};
+window.ccDecide=function(i,decision){
+  const q=window.__CC_QUEUE[i];if(!q)return;
+  q.status=decision;q.decided_at=new Date().toISOString();
+  if(decision==='APPROVED')q.execution='route to Ask & Act signed action surface — execution itself requires an explicit operator action there';
+  window.ccRenderQueue();
+};
+window.ccRenderQueue=function(){
+  const host=document.getElementById('cc-gov-queue');if(!host)return;
+  const q=window.__CC_QUEUE;
+  if(!q.length){host.innerHTML='<div class="row mono dim">queue empty — compose a proposal in OPERATE</div>';return;}
+  host.innerHTML=q.map(function(p,i){
+    const bc=p.status==='APPROVED'?'b-live':(p.status==='DENIED'?'b-err':'');
+    return '<div class="card" style="margin-bottom:.6rem"><div class="row"><span class="badge '+bc+'">'+esc(p.status)+'</span><span class="mono">'+esc(p.id)+'</span><span class="spacer mono dim">'+esc(p.scope)+'</span></div>'
+      +'<div class="row mono dim" style="display:block">'+esc(p.capability)+' — '+esc(p.objective)+'</div>'
+      +(p.status==='AWAITING_APPROVAL'?'<div class="btns"><button class="btn teal" onclick="ccDecide('+i+',\'APPROVED\')">Approve this exact payload</button><button class="btn" onclick="ccDecide('+i+',\'DENIED\')">Deny</button></div>':'')
+      +(p.execution?'<div class="row mono dim">'+esc(p.execution)+'</div>':'')+'</div>';
+  }).join('');
+};
+window.ccFilterRepos=function(cls){
+  const est=window.__CC_ESTATE;if(!est)return;
+  const rows=(est.repos||[]).filter(r=>cls==='all'||r.class===cls);
+  setHTML('cc-o-repos',rows.map(r=>{
+    const bc=r.class==='canonical-active'?'b-live':((r.class==='review-duplicate'||r.class==='novelty-candidate')?'b-err':'');
+    return '<div class="row"><span class="badge '+bc+'">'+esc(r.class)+'</span><span><a href="'+esc(r.url)+'" target="_blank" rel="noopener">'+esc(r.name)+'</a></span><span class="spacer mono dim">'+esc(r.pushed_at||'').slice(0,10)+(r.successor?' → '+esc(r.successor):'')+'</span></div>';}).join('')||'<div class="row mono dim">none in this class</div>');
 };
 
 // ============ HANDLERS ============
@@ -1972,6 +2075,12 @@ window.operate_run=operate_run;
     {id:'threat',icon:'⚔',label:'World & Threat Intel',full:'World & Threat Intel — threat library, CVE watch, known-exploited & adversary techniques',views:['threats','cve','kev','attack']},
     {id:'doctrine',icon:'⟁',label:'Doctrine & Frontier',full:'Doctrine & Frontier — what we claim, governed post-determinism, vertical-pack ecosystem & experimental tier',views:['honest','gpd','verticals','experimental'],ext:[{label:'Wave9/10 Formulas',href:'/proven-formulas',icon:'∿'},{label:'Frontier Showcase',href:'/frontier',icon:'◌'}]}
   ];
+  const TAB4=[
+    {view:'cc-operate',label:'OPERATE',tip:'Operate — compose bounded governed actions; DRAFT until approved'},
+    {view:'cc-build',label:'BUILD',tip:'Build — model lifecycle ledger; train/qualify via szl-forge; publish only MEASURED'},
+    {view:'cc-observe',label:'OBSERVE',tip:'Observe — live GitHub + Hugging Face estate truth and service health'},
+    {view:'cc-govern',label:'GOVERN',tip:'Govern — approval queue, doctrine boundaries, receipt verification'}
+  ];
   const FLAGSHIPS=[
     {view:'command',label:'Ops Command',hero:true,tip:'Command Center — one pane of glass over the whole governed-AI platform'},
     {view:'organism',label:'Living Body',tip:'Living Organism — the platform as one breathing 3D organism'},
@@ -1986,13 +2095,15 @@ window.operate_run=operate_run;
   const domOf={}; DOMAINS.forEach(function(d){d.views.forEach(function(v){domOf[v]=d;});});
   // orphan safety net: any VIEWS key not placed in a domain is appended to the
   // last domain so no view can ever become unreachable if the registry drifts.
-  try{Object.keys(V()).forEach(function(v){if(!domOf[v]){var last=DOMAINS[DOMAINS.length-1];last.views.push(v);domOf[v]=last;}});}catch(e){}
+  try{Object.keys(V()).forEach(function(v){if(!domOf[v]&&!TAB4.some(function(t){return t.view===v;})){var last=DOMAINS[DOMAINS.length-1];last.views.push(v);domOf[v]=last;}});}catch(e){}
   function attr(s){return String(s==null?'':s).replace(/"/g,'&quot;');}
   function navItem(v){
     var tip=(T(v)+' — '+SUB(v)).slice(0,190);
     return '<div class="nav-item" data-view="'+v+'" title="'+attr(tip)+'" onclick="go(\''+v+'\')"><span class="ico">▸</span>'+T(v)+'</div>';
   }
   function buildRail(){
+    var t4=document.getElementById('tab4');
+    if(t4)t4.innerHTML=TAB4.map(function(t){return '<div class="nav-item tab4" data-view="'+t.view+'" title="'+attr(t.tip)+'" onclick="go(\''+t.view+'\')">'+t.label+'</div>';}).join('');
     var feat=document.getElementById('featured');
     if(feat)feat.innerHTML=FLAGSHIPS.map(function(f){
       return '<div class="flag-card'+(f.hero?' full':'')+'" data-view="'+f.view+'" title="'+attr(f.tip)+'" onclick="go(\''+f.view+'\')"><span class="ico">★</span>'+f.label+'</div>';
@@ -2026,6 +2137,7 @@ window.operate_run=operate_run;
   var PAL=[],selIdx=0;
   function palItems(){
     var arr=[];
+    TAB4.forEach(function(t){arr.push({type:'view',id:t.view,label:t.label,dom:'Command Centre',icon:'▮',hay:(t.view+' '+t.label+' command centre').toLowerCase()});});
     DOMAINS.forEach(function(d){
       d.views.forEach(function(v){arr.push({type:'view',id:v,label:T(v),dom:d.label,icon:'▸',hay:(v+' '+T(v)+' '+d.label+' '+SUB(v)).toLowerCase()});});
       (d.ext||[]).forEach(function(e){arr.push({type:'ext',href:e.href,label:e.label+' ↗',dom:d.label,icon:e.icon,hay:(e.label+' '+e.href+' '+d.label).toLowerCase()});});

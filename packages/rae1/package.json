@@ -5,40 +5,40 @@
   "type": "module",
   "exports": {
     ".": {
-      "import": "./src/index.js",
-      "types": "./src/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     },
     "./schema": {
-      "import": "./src/schema.js",
-      "types": "./src/schema.d.ts"
+      "types": "./dist/schema.d.ts",
+      "import": "./dist/schema.js"
     },
     "./validate": {
-      "import": "./src/validate.js",
-      "types": "./src/validate.d.ts"
+      "types": "./dist/validate.d.ts",
+      "import": "./dist/validate.js"
     },
     "./chain": {
-      "import": "./src/chain.js",
-      "types": "./src/chain.d.ts"
+      "types": "./dist/chain.d.ts",
+      "import": "./dist/chain.js"
     },
     "./hmac": {
-      "import": "./src/hmac.js",
-      "types": "./src/hmac.d.ts"
+      "types": "./dist/hmac.d.ts",
+      "import": "./dist/hmac.js"
     }
   },
-  "main": "./src/index.js",
-  "types": "./src/index.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "files": [
-    "src/**/*.ts",
-    "src/**/*.js",
-    "src/**/*.d.ts",
+    "dist/",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src/**/*.ts",
-    "build": "tsc"
+    "build": "tsc -p tsconfig.json",
+    "prepack": "npm run build",
+    "test:package": "node scripts/test-packed.mjs"
   },
   "keywords": [
     "rae1",
@@ -56,11 +56,13 @@
     "node": ">=20.0.0"
   },
   "devDependencies": {
-    "vitest": "^3.2.6",
-    "typescript": "^5.4.0",
-    "@types/node": "^20.0.0"
+    "vitest": "4.1.11",
+    "typescript": "^5.4.0"
   },
   "peerDependencies": {
     "typescript": ">=5.0.0"
+  },
+  "dependencies": {
+    "@types/node": "^20.0.0"
   }
 }

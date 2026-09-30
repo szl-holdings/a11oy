@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-09-30T03:18:38Z",
+  "observedAt": "2026-09-30T21:07:31Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -27,8 +27,8 @@
     "githubReadinessEntries": 19,
     "huggingFacePublic": {
       "models": 50,
-      "datasets": 34,
-      "spaces": 26
+      "datasets": 35,
+      "spaces": 31
     },
     "huggingFaceScope": {
       "visibility": "public-only",
@@ -1523,6 +1523,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-marketing-factbase",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/szl-marketing-factbase"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-quant-sft-v1",
       "repoType": "dataset",
       "stage": "inventory",
@@ -1663,6 +1673,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/gdw-frontier",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/gdw-frontier"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/holographic-unify",
       "repoType": "space",
       "stage": "inventory",
@@ -1735,6 +1755,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/prove-it",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/prove-it"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/sentra",
       "repoType": "space",
       "stage": "inventory",
@@ -1762,6 +1792,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/szl-bench-suite"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-brand-campaign",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-brand-campaign"
       ]
     },
     {
@@ -1795,6 +1835,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-foundation-confirmation",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-foundation-confirmation"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-frontier",
       "repoType": "space",
       "stage": "inventory",
@@ -1812,6 +1862,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/szl-khipu"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-marketing-1.1",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-marketing-1.1"
       ]
     },
     {
