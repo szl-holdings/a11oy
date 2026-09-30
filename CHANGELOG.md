@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - evaluation results require governed selected-model execution
+- Live evaluation now uses the existing canonical router after governance and
+  binds the selected registry model, eligible plan, provider and completion.
+  Expected answers and scoring rules remain outside generation. Failed or
+  unavailable calls have no model score; partial coverage is explicit.
+- Explicit modeled runs exercise only the reference pipeline. Unsupported
+  harness profiles fail closed, and a failed sovereign call cannot return a
+  reference answer. Blocking transport runs off the serving event loop.
+- Per-case receipt evidence binds governance and generation digests. This
+  software contract is not model qualification or a live-provider witness.
+
 ### Fixed - passive readiness JSON contracts
 - Passive readiness now separates transport reachability from successful health
   and research JSON contracts. Missing routes, HTML responses, invalid payloads,
@@ -33,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Include the existing inventory regressions in the required backend check,
   alongside its previous targets. HTTP metadata does not diagnose an upstream
   cause or qualify every application feature.
+
 
 ### Added - experimental software lab discovery
 - TypeSafe Triage is linked from the product landing and listed separately under

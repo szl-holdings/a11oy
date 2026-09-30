@@ -202,12 +202,50 @@ def _verify_completion(value, headers, request):
     return completion, receipt
 
 
-def complete(prompt, *, classification, request_id=None, request_origin=""):
+def _model_plan(client, base, headers, request, expected_upstream_model):
+    payload = {key: request[key] for key in ("model", "data_classification", "max_cost_tier")}
+    status, value, _ = _read(client, "POST", base + "/api/plan", headers=headers, payload=payload)
+    receipt = value.get("receipt")
+    body = {key: item for key, item in value.items() if key != "receipt"}
+    candidates = value.get("candidates")
+    if (status != 200 or value.get("schema") != "szl.router-plan/v1"
+            or value.get("model") != request["model"]
+            or value.get("classification") != request["data_classification"]
+            or value.get("max_cost_tier") != request["max_cost_tier"]
+            or value.get("registry_state") != "VALIDATED"
+            or value.get("egress_enabled") is not True
+            or not isinstance(receipt, dict) or receipt.get("algorithm") != "sha256"
+            or receipt.get("digest") != _digest(body)
+            or not isinstance(candidates, list) or not candidates):
+        raise RouterContractError("ROUTER_MODEL_PLAN_INVALID")
+    # Every fallback candidate must serve the same selected model, before any generation.
+    for candidate in candidates:
+        if (not isinstance(candidate, dict)
+                or candidate.get("public_model") != request["model"]
+                or candidate.get("upstream_model") != expected_upstream_model
+                or candidate.get("classification") != request["data_classification"]
+                or type(candidate.get("cost_tier")) is not int
+                or not 0 <= candidate["cost_tier"] <= request["max_cost_tier"]
+                or not isinstance(candidate.get("provider_id"), str)
+                or not _IDENTIFIER.fullmatch(candidate["provider_id"])):
+            raise RouterContractError("ROUTER_SELECTED_MODEL_MISMATCH")
+    return receipt["digest"], {candidate["provider_id"] for candidate in candidates}
+
+
+def complete(prompt, *, classification, request_id=None, request_origin="",
+             model=None, expected_upstream_model=None):
     """Execute once after the caller's governance allow; no provider fallback."""
     evidence = {"state": "UNAVAILABLE", "answer": None, "signature_state": "UNSIGNED",
                 "receipt_kind": "HASH_INTEGRITY_ONLY", "http_status": 503}
     try:
-        base, token, revision, model = _configuration(request_origin)
+        base, token, revision, configured_model = _configuration(request_origin)
+        model = configured_model if model is None else model
+        if not isinstance(model, str) or not _IDENTIFIER.fullmatch(model):
+            raise RouterContractError("INVALID_ROUTER_MODEL")
+        if expected_upstream_model is not None and (
+                not isinstance(expected_upstream_model, str)
+                or not _IDENTIFIER.fullmatch(expected_upstream_model)):
+            raise RouterContractError("INVALID_ROUTER_EXPECTED_MODEL")
         if classification not in {"PUBLIC", "INTERNAL"}:
             raise RouterContractError("ROUTER_CLASSIFICATION_DENIED")
         if not isinstance(prompt, str) or not 0 < len(prompt) <= 32_000:
@@ -230,6 +268,9 @@ def complete(prompt, *, classification, request_id=None, request_origin=""):
             if (status != 200 or admission.get("ready_for_requests") is not True
                     or admission.get("basis") != "LOCAL_CONFIGURATION_ONLY"):
                 raise RouterContractError("ROUTER_NOT_ADMITTED")
+            plan_digest, plan_providers = None, set()
+            if expected_upstream_model is not None:
+                plan_digest, plan_providers = _model_plan(client, base, headers, request, expected_upstream_model)
             status, value, response_headers = _read(
                 client, "POST", base + "/v1/chat/completions",
                 headers={**headers, "Authorization": f"Bearer {token}", "X-SZL-Router-Hop": "1"},
@@ -241,6 +282,11 @@ def complete(prompt, *, classification, request_id=None, request_origin=""):
                         "error": "ROUTER_REQUEST_FAILED", "failure": _safe_failure(value.get("detail")),
                         "request_id": request_id}
             completion, receipt = _verify_completion(value, response_headers, request)
+            if expected_upstream_model is not None and (
+                    receipt.get("upstream_model") != expected_upstream_model
+                    or receipt.get("provider_id") not in plan_providers
+                    or receipt.get("plan_digest") != plan_digest):
+                raise RouterContractError("ROUTER_SELECTED_MODEL_MISMATCH")
             if _source(client, base, revision, headers) != source_digest:
                 raise RouterContractError("ROUTER_SOURCE_CHANGED_DURING_REQUEST")
         message = completion["choices"][0]["message"]
