@@ -105,13 +105,13 @@ export default function ModelFleetConsole() {
             placeholder="Search models..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 bg-card border border-border rounded-md text-sm focus-visible:outline-none focus-visible:border-focus focus-visible:shadow-[var(--shadow-focus)]"
+            className="input pl-9 bg-card placeholder:text-ink-sub"
           />
         </div>
         <select
           value={filterDomain}
           onChange={(e) => setFilterDomain(e.target.value)}
-          className="bg-card border border-border rounded-md px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-focus focus-visible:shadow-[var(--shadow-focus)]"
+          className="select w-auto bg-card"
         >
           <option value="">All Domains</option>
           {(summary?.domains ?? []).map((d) => (
@@ -121,7 +121,7 @@ export default function ModelFleetConsole() {
         <select
           value={filterLifecycle}
           onChange={(e) => setFilterLifecycle(e.target.value)}
-          className="bg-card border border-border rounded-md px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-focus focus-visible:shadow-[var(--shadow-focus)]"
+          className="select w-auto bg-card"
         >
           <option value="">All Stages</option>
           <option value="experimental">Experimental</option>

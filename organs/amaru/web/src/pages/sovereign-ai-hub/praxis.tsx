@@ -124,7 +124,7 @@ export default function PraxisPlayground() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Query the fusion cortex... (e.g. 'vessels linked to sanctioned entities')"
-            className="flex-1 bg-background border border-border rounded-md px-4 py-2 text-sm focus-visible:outline-none focus-visible:border-focus focus-visible:shadow-[var(--shadow-focus)]"
+            className="input flex-1 px-4 bg-background placeholder:text-ink-sub"
           />
           <Button
             variant="default"

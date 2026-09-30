@@ -56,7 +56,7 @@ function ApplyModal({ template, onClose }: { template: { id: string; name: strin
               type="text"
               value={name}
               onChange={e => setName(e.target.value)}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:border-focus focus-visible:shadow-[var(--shadow-focus)]"
+              className="input placeholder:text-ink-sub"
               placeholder="Name this sync"
             />
           </div>
