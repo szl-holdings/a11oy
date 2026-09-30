@@ -26,7 +26,7 @@
     ["Investor", `${PRODUCT}/console?view=investor`],
   ];
 
-  // SZL KANCHAY founder direction (kit 1.1.0): every surface shares one palette of
+  // SZL KANCHAY founder direction (kit 1.1.1): every surface shares one palette of
   // design-system tokens from /assets/szl/szl-design-system.css. Slots: background,
   // surface, foreground, muted, accent, accent-2. Both accents are silver linework;
   // coral stays with the page's one moment and teal with links and focus.

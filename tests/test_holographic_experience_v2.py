@@ -165,7 +165,11 @@ class HolographicExperienceV2Contract(unittest.TestCase):
         self.assertIn("Math.imul", self.javascript)
         self.assertIn('source: "deterministic"', self.javascript)
         self.assertIn("huggingFaceSlug", self.javascript)
-        self.assertGreaterEqual(self.javascript.count("#"), 60)
+        # SZL KANCHAY founder direction: every surface resolves one palette of
+        # design-system tokens, so unknown Spaces stay on-brand and no hex
+        # palette can drift back into the runtime.
+        self.assertIn('"var(--bg)", "var(--surface)", "var(--text)", "var(--text-sub)"', self.javascript)
+        self.assertNotRegex(self.javascript, r'"#[0-9a-fA-F]{3,8}"')
 
     def test_motion_is_progressively_bounded(self) -> None:
         self.assertIn("requestAnimationFrame", self.javascript)

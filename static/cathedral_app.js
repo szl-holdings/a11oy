@@ -28,7 +28,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/OrbitControls.js';
 
-// SZL KANCHAY founder tokens (kit 1.1.0), resolved once from the design system the page
+// SZL KANCHAY founder tokens (kit 1.1.1), resolved once from the design system the page
 // links: WebGL materials and canvas textures cannot read CSS variables. The scene is navy
 // ground, silver linework and neutral bodies; colour is kept for the status encodings the
 // HUD legend names in words (verdict and compute-fabric tier). Alpha is appended to a

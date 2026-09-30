@@ -1,5 +1,5 @@
 /* ============================================================================
- * SZL HOLDINGS — KANCHAY Design System v1.1.0  ·  szl-design-system.css
+ * SZL HOLDINGS — KANCHAY Design System v1.1.1  ·  szl-design-system.css
  * One self-contained file. 0 runtime CDN. No Google Fonts. No Inter default.
  * No purple gradients. Self-hosted system-font stack only.
  *
@@ -170,7 +170,7 @@ code,kbd,samp { font-family:var(--font-mono); font-size:.92em; }
 hr { border:0; border-top:var(--border-hairline) solid var(--border); margin:var(--space-8) 0; }
 ::selection { background:color-mix(in srgb, var(--accent) 30%, transparent); }
 :where(a,button,input,select,textarea,[tabindex]):focus-visible {
-  outline:var(--border-focus) solid transparent;
+  outline:2px solid var(--focus); outline-offset:2px;
   box-shadow:var(--shadow-focus); border-radius:var(--radius-sm);
 }
 .tabular,[data-tabular] { font-variant-numeric:tabular-nums lining-nums; }

@@ -1,18 +1,18 @@
 {
   "name": "szl-kanchay",
-  "version": "1.1.0",
-  "base": "szl-holdings/szl-brand kit/tokens/szl-design-system.css (KANCHAY v1.1.0, founder-approved)",
+  "version": "1.1.1",
+  "base": "szl-holdings/szl-brand kit/tokens/szl-design-system.css (KANCHAY v1.1.1, founder-approved)",
   "layers": {
     "szl-console.css": "1.0.0 (operator console, additive)"
   },
-  "source_commit": "168c53a0252b55243e3fa75fa5e3c743b8efb806",
+  "source_commit": "a0a27f00882b8ec423047605d2f1fced1f0cdc74",
   "license": {
     "code": "Apache-2.0",
     "brand_assets": "CC BY 4.0"
   },
   "sha256": {
     "szl-console.css": "7ef6a0908302c6c2d83d637d1aa4fcac36ae2740a5c8e9cac0608c3cdb2c9928",
-    "szl-design-system.css": "9e5e6e3ae2a5c6f5a2a3c6bf4c607406dc39db3fbe9115e91a1865054678493e",
+    "szl-design-system.css": "e05d19baa02185187491504673b00a3e3c4696af9ec9406dec9b6471987ccbc2",
     "logos/szl_favicon.svg": "4b154f0de21f71b111bde98bc564ddeef082d888d44f0b50b5a5247e3badf190",
     "logos/szl_favicon_180.png": "75457c07144e90dcc23e3180e83a47e21cf20be3e7eb163ea41b4fed8c6c1b08",
     "logos/szl_favicon_32.png": "a3413a0dfc1516c11a668e4c945d140bb1f9299f91ddf1e224108645802506ed",

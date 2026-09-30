@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0
  * A11oy Holographic v7 · Brain Frontier instrument.
  * Namespaced to avoid disturbing the existing Three.js stage and category shell.
- * Colours and faces are SZL KANCHAY founder tokens (kit 1.1.0, /assets/szl/):
+ * Colours and faces are SZL KANCHAY founder tokens (kit 1.1.1, /assets/szl/):
  * neutrals for the instrument, status inks for state words, teal for focus.
  * The layered import resolves the tokens without outranking the page's rules.
  */
