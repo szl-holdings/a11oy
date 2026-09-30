@@ -46,7 +46,6 @@ SOURCE_OWNED_FLAGSHIP_SLUGS = ("lyte",)
 FOLDED_INTO_KILLINCHU = ("vessels",)
 KILLINCHU_SPACE = "SZLHOLDINGS/killinchu"
 SENTRA_SPACE = "SZLHOLDINGS/sentra"
-LYTE_SOURCE_REVISION = "445c24c5a2ad314775af9a463a7d26acb910a5f1"
 VERTICAL_SERVICES_REPOSITORY = "szl-holdings/vertical-services"
 GITHUB_API = "https://api.github.com"
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
@@ -368,6 +367,43 @@ def publish_finance_only(space_guard_module) -> int:
     return 0 if receipt["complete"] else 1
 
 
+def lyte_receipt_is_complete(receipt: dict[str, Any]) -> bool:
+    resolution = receipt.get("source_resolution")
+    revision = receipt.get("source_revision")
+    return bool(
+        receipt.get("complete") is True
+        and receipt.get("source_repository") == "szl-holdings/lyte-services"
+        and isinstance(revision, str) and SHA40.fullmatch(revision) is not None
+        and revision != "0" * 40
+        and isinstance(resolution, dict)
+        and resolution.get("schema") == "szl.lyte-source-resolution/v1"
+        and resolution.get("repository") == "szl-holdings/lyte-services"
+        and resolution.get("branch") == "main"
+        and resolution.get("revision") == revision
+        and resolution.get("verified_commit") is True
+    )
+
+
+def publish_lyte_only(space_guard_module) -> int:
+    """Repair the source-owned product through the existing writer alone."""
+    code, error, _ = run_publisher("szl_lyte_enterprise", LYTE_IMPL)
+    lyte = read_receipt(LYTE_RECEIPT) or {}
+    receipt = {
+        "schema": "szl.hf-vertical-estate/v8", "publication_scope": "lyte",
+        "source_repository": "szl-holdings/lyte-services",
+        "source_revision": lyte.get("source_revision", "UNRESOLVED"),
+        "lyte_runtime": lyte, "lyte_exit_code": code,
+        "existing_space_guard": space_guard_module.guard_report(),
+        "sibling_publications": 0, "delete_operations": 0, "secret_values_recorded": False,
+        "complete": code == 0 and lyte_receipt_is_complete(lyte),
+    }
+    if error:
+        receipt["entrypoint_error"] = error
+    FLAGSHIP_RECEIPT.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(json.dumps(receipt, indent=2, sort_keys=True))
+    return 0 if receipt["complete"] else 1
+
+
 def main() -> int:
     # Load the helper by exact adjacent path. Several isolated contract tests
     # execute this entrypoint with importlib without adding ``scripts`` to
@@ -380,10 +416,12 @@ def main() -> int:
 
     github_token_source = normalize_github_token_alias()
     scope = os.environ.get("SZL_FLAGSHIP_SCOPE", "estate")
-    if scope not in ("estate", "finance"):
+    if scope not in ("estate", "finance", "lyte"):
         raise RuntimeError("unknown publication scope")
     if scope == "finance":
         return publish_finance_only(space_guard_module)
+    if scope == "lyte":
+        return publish_lyte_only(space_guard_module)
     flagship_code, flagship_error, admitted = run_publisher(
         "szl_flagship_v4",
         FLAGSHIP_IMPL,
@@ -463,9 +501,7 @@ def main() -> int:
     flagship["complete"] = bool(
         generated_complete
         and tuple(admitted or ()) == GENERATED_FLAGSHIP_SLUGS
-        and lyte.get("complete") is True
-        and lyte.get("source_repository") == "szl-holdings/lyte-services"
-        and lyte.get("source_revision") == LYTE_SOURCE_REVISION
+        and lyte_receipt_is_complete(lyte)
         and combined.get("complete") is True
         and combined.get("resolved_source_revision") == resolved_revision
         and SHA40.fullmatch(resolved_revision) is not None

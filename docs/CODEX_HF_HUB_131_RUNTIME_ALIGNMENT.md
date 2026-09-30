@@ -14,6 +14,10 @@ This branch repairs the audit file to `openai==2.43.0` so it matches the canonic
 
 Do not `pip install -r requirements-audit.txt`.
 
+## Single source of runtime pins (2026-09-29)
+
+The runtime pins now live only in `requirements-runtime.txt`. The Dockerfile installs that file and `requirements-audit.txt` includes it with `-r`, so `evaluate_repository` reads the runtime pin from the file the image installs (and refuses a Dockerfile that does not install it). This restores `huggingface_hub==1.31.0`, `openai==2.43.0`, `uvicorn==0.52.4` and `numpy==2.5.2`: #2315 had moved the Dockerfile to Hub 1.32.0, uvicorn 0.53.0 and numpy 2.5.3 without review, and #2307 had moved only the audit file to openai 3.8.0. Neither is an admitted successor.
+
 ## Remaining gates (not granted by this source change)
 
 - exact-head repository checks on this PR
