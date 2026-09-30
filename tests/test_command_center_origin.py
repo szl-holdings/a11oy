@@ -8,6 +8,7 @@ browser-safety, API-schema, and evidence contracts are release-ready.
 /command-v2 remains additive; /console and host-root /brain retain their owners.
 """
 import fnmatch
+import itertools
 import json
 import posixpath
 import runpy
@@ -197,6 +198,32 @@ def test_module_selftest_if_starlette_present() -> None:
     import a11oy_command_center as module
 
     module._selftest()
+
+
+@pytest.mark.parametrize("order", list(itertools.permutations(range(3))))
+def test_v2_owns_its_response_through_real_injectors(order) -> None:
+    from starlette.applications import Starlette
+    from starlette.testclient import TestClient
+    import a11oy_command_center as module
+
+    helpers = runpy.run_path(str(ROOT / "tests" / "test_model_pretraining_response_ownership.py"))
+    injectors = helpers["factories"](ROOT)
+    app = Starlette()
+    module.register(app)
+    for index in order:
+        app.add_middleware(injectors[index])
+    with TestClient(app) as client:
+        response = client.get("/command-v2")
+        assert response.status_code == 200
+        assert response.headers.get("cache-control") == "no-store, no-transform"
+        assert response.content == V2_PAGE.read_bytes()
+        head = client.head("/command-v2")
+        assert head.status_code == 200 and head.content == b""
+        assert head.headers["cache-control"] == response.headers["cache-control"]
+        legacy = client.get("/killinchu", headers={"Cache-Control": "no-transform"})
+        assert b"a11oy-operator-widget.js" in legacy.content
+        assert b'data-view-grc="grc"' in legacy.content
+        assert "no-transform" not in legacy.headers.get("cache-control", "")
 
 
 @pytest.mark.parametrize("replacement", [

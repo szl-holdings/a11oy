@@ -119,7 +119,8 @@ def register(app, ns: str = "a11oy") -> List[str]:
         async def _handler(_request=None):
             page = _page(name)
             if page.is_file():
-                return FileResponse(page, media_type="text/html; charset=utf-8")
+                headers = {"Cache-Control": "no-store, no-transform"} if name == "command-v2.html" else None
+                return FileResponse(page, media_type="text/html; charset=utf-8", headers=headers)
             required = name in REQUIRED_PAGES
             return JSONResponse(
                 {

@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed - command release qualification
+- Make Command v2 own its response with no-store/no-transform; verify actual
+  middleware composition preserves its bytes without changing legacy pages.
 - Restore the command quarantine marker and test canonical origin, redirects,
   and embedded replacements without rejecting ordinary provider links.
 - Keep a local reduced-motion fallback and run the full command origin/read-only

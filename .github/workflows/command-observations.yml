@@ -16,6 +16,10 @@ on:
       - scripts/witness_command_release.py
       - tests/test_command_release_witness.py
       - tests/test_command_center_origin.py
+      - tests/test_model_pretraining_response_ownership.py
+      - a11oy_grc.py
+      - szl_spaces_surface.py
+      - serve.py
       - .github/workflows/command-observations.yml
   push:
     branches: [main]
@@ -31,6 +35,10 @@ on:
       - scripts/witness_command_release.py
       - tests/test_command_release_witness.py
       - tests/test_command_center_origin.py
+      - tests/test_model_pretraining_response_ownership.py
+      - a11oy_grc.py
+      - szl_spaces_surface.py
+      - serve.py
       - .github/workflows/command-observations.yml
   workflow_dispatch:
     inputs:

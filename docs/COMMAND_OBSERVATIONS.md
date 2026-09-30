@@ -26,6 +26,15 @@ client batch is not an atomic server or cross-service snapshot.
 Each source expires independently. Expiry and refresh preserve keyboard focus
 and the selected inspector; returning from a hidden tab rechecks client age.
 
+The `/command-v2` HTML response owns its content with `Cache-Control: no-store,
+no-transform`. Existing GRC, Spaces and operator-widget middleware therefore
+preserve the document without adding scripts or navigation. Tests compose all
+six orders of those actual middleware classes and check GET, HEAD and unchanged
+legacy behavior. This follows the existing standalone-page pattern, not a
+global middleware disable. Cloudflare documents the intermediary meaning of
+[no-transform](https://developers.cloudflare.com/cache/concepts/cache-control/);
+actual edge behavior still requires the public witness.
+
 ## Local Design Assets
 
 The page follows the current KANCHAY rule using local styles and an existing
