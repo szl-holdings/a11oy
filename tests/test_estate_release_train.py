@@ -115,6 +115,37 @@ class EstateReleaseTrainTests(unittest.TestCase):
             cloudflare_other_path.result()["semantic_sha256"],
         )
 
+    def test_semantic_html_records_exact_apex_webmcp_overlay(self) -> None:
+        html = '<html><head><title>A11oy</title><script src="/app.js"></script></head></html>'
+        baseline = release.SemanticHTML()
+        baseline.feed(html)
+        bridge = "https://a-11-oy.com/.webmcp/bridge.js"
+        apex = release.SemanticHTML()
+        apex.feed(html.replace('</head>', f'<script src="{bridge}"></script></head>'))
+        self.assertEqual(baseline.result()["semantic_sha256"], apex.result()["semantic_sha256"])
+        self.assertEqual(apex.result()["provider_scripts"], [bridge])
+        self.assertEqual(apex.result()["scripts"], ["/app.js"])
+
+    def test_webmcp_near_matches_and_product_changes_still_fail_semantic_parity(self) -> None:
+        html = '<html><head><title>A11oy</title><script src="/app.js"></script></head></html>'
+        baseline = release.SemanticHTML()
+        baseline.feed(html)
+        for src in (
+            "/.webmcp/bridge.js", "http://a-11-oy.com/.webmcp/bridge.js",
+            "https://a-11-oy.com:443/.webmcp/bridge.js", "https://www.a-11-oy.com/.webmcp/bridge.js",
+            "https://a-11-oy.com.evil.example/.webmcp/bridge.js",
+            "https://user@a-11-oy.com/.webmcp/bridge.js", "https://a11oy.net/.webmcp/bridge.js",
+            "https://a-11-oy.com/.webmcp/bridge.js?x=1", "https://a-11-oy.com/.webmcp/bridge.js#x",
+            "https://a-11-oy.com/.webmcp/bridge.js?", "https://a-11-oy.com/.webmcp/bridge.js#",
+            "https://a-11-oy.com/.webmcp/other.js", "https://a-11-oy.com/.webmcp/bridge.js/",
+            "/changed-product.js",
+        ):
+            with self.subTest(src=src):
+                changed = release.SemanticHTML()
+                changed.feed(html.replace('</head>', f'<script src="{src}"></script></head>'))
+                self.assertNotEqual(baseline.result()["semantic_sha256"], changed.result()["semantic_sha256"])
+                self.assertEqual(changed.result()["provider_scripts"], [])
+
     def test_inspect_component_requires_source_running_root_and_exact_witness(self) -> None:
         sha = "c" * 40
         component = {
