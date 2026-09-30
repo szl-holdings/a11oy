@@ -16,7 +16,8 @@
   },
   "profile": {
     "repository": "szl-holdings/.github",
-    "path": "profile/README.md"
+    "path": "profile/README.md",
+    "inventory_path": "profile/public-inventory.json"
   },
   "components": [
     {
