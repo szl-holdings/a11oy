@@ -45,7 +45,8 @@ def test_source_owned_publisher_is_exact_reviewable_and_non_destructive() -> Non
     }.issubset(function_names(PUBLISHER))
     for fragment in (
         'SOURCE_REPOSITORY = "szl-holdings/lyte-services"',
-        'SOURCE_REVISION = "445c24c5a2ad314775af9a463a7d26acb910a5f1"',
+        'def resolve_verified_source_tip()',
+        'def require_current_source(revision: str)',
         'EXPECTED_VERSION = "4.0.0"',
         'HF_REPOSITORY = "SZLHOLDINGS/lyte"',
         'ORIGIN = "https://szlholdings-lyte.hf.space"',
@@ -129,8 +130,8 @@ def test_estate_entrypoint_routes_lyte_away_from_generic_renderer() -> None:
         'forbidden = set(FOLDED_INTO_KILLINCHU) | set(SOURCE_OWNED_FLAGSHIP_SLUGS)',
         '"szl_lyte_enterprise"', 'flagship["lyte_runtime"] = lyte',
         'flagship["source_owned_flagship_slugs"]', '"szl.hf-vertical-estate/v8"',
-        'lyte.get("complete") is True',
-        'lyte.get("source_repository") == "szl-holdings/lyte-services"',
+        'lyte_receipt_is_complete(lyte)',
+        'receipt.get("source_repository") == "szl-holdings/lyte-services"',
         'and lyte_code == 0', 'flagship["sentra_signing_key_rotated"] = False',
         'flagship["delete_operations"] = 0',
     ):
@@ -159,7 +160,9 @@ def test_source_owned_lyte_does_not_change_other_vertical_authority() -> None:
 def test_estate_receipt_binds_the_exact_lyte_source_revision() -> None:
     publisher = PUBLISHER.read_text(encoding="utf-8")
     entrypoint = ENTRYPOINT.read_text(encoding="utf-8")
-    expected = "445c24c5a2ad314775af9a463a7d26acb910a5f1"
-    assert f'SOURCE_REVISION = "{expected}"' in publisher
-    assert f'LYTE_SOURCE_REVISION = "{expected}"' in entrypoint
-    assert 'lyte.get("source_revision") == LYTE_SOURCE_REVISION' in entrypoint
+    assert 'revision, receipt["source_resolution"] = resolve_verified_source_tip()' in publisher
+    assert 'receipt["source_revision"] = revision' in publisher
+    assert 'resolution.get("revision") == revision' in entrypoint
+    assert 'resolution.get("verified_commit") is True' in entrypoint
+    assert 'SOURCE_REVISION = "445c24' not in publisher
+    assert 'LYTE_SOURCE_REVISION = ' not in entrypoint
