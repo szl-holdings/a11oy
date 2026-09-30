@@ -12,6 +12,20 @@ permissions:
   packages: read
 
 jobs:
+  python-energy-measurement:
+    name: Energy exporter measurement and null-evidence contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install exact core test dependencies
+        run: pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Reject missing, invalid, and offline measurements through real routes
+        run: python -m pytest tests/test_energy_live_measurement_contract.py -q
+
   test:
     name: Run tests
     runs-on: ubuntu-latest

@@ -38,6 +38,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             "scripts/check_hf_manual_prerequisites.py",
             "scripts/configure_hf_series_a_runtime.py",
             "scripts/configure_hf_gdw_runtime.py",
+            "scripts/verify_installed_authority.py",
         )}
         cls.deploy_needs = "[source-admission, manual-prerequisites, resume-paused-space]"
         cls.deploy_if = "${{ needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && needs.resume-paused-space.result == 'success' }}"
