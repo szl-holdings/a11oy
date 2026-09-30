@@ -601,11 +601,13 @@ SOURCE_DERIVED_CONTROLLER_REVISIONS = frozenset({
 
 REVIEWED_SOURCE_ADMISSION_JOB_SHA256 = "e9777064159bf0d120e9f18931e98c8f832b9e163b7b358908c92921ee69a668"
 REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee8395e042853ded04deb7d170189"
-REVIEWED_MANUAL_PREREQUISITES_JOB_SHA256 = "b61cc880e667f41f703e79dd7bf40b054749fcc6d00c6d2d0830b87544b26c61"
+REVIEWED_MANUAL_PREREQUISITES_JOB_SHA256 = "a9964f07ecc715f1a3340086493aafc4b87c488ac1e7689d6439dc2832ff44ca"
 REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
-    "scripts/check_hf_manual_prerequisites.py": "55266f4aac729cbe52bf2c62751f5ce7a6aec0553646c175e6c6fbf80538b92e",
-    "scripts/configure_hf_series_a_runtime.py": "69a8e81ed28063cc0ceaa2435ac2f3b0ef1efe820ac3e378c2479fa75a2648bd",
-    "scripts/configure_hf_gdw_runtime.py": "87fa43065e776cd6fc4cfd646384d86c82e12b8bc8943838d23369193e1d552a",
+    "scripts/check_hf_manual_prerequisites.py": "188933de8970ee2ae981378b5fe2cc87b071b862545672f55910cd18c5f3946f",
+    "scripts/configure_hf_series_a_runtime.py": "a43f8610e31ad43be7c5b6a010c1ea560e3d323ad63d25120adbda251392fd55",
+    "scripts/configure_hf_gdw_runtime.py": "e5eb45181c8265972ee2aaf47e329ffb2c885edc9b3c90553aa5a152e42603e8",
+    # Installed-authority verifier imported by both configure helpers.
+    "scripts/verify_installed_authority.py": "2d9465f393dbaa08754b02d6295abade1134a7dbc843cdab48a6ad70867fb68e",
 }
 REVIEWED_RESUME_GATES = {
     "needs": "[source-admission, manual-prerequisites]",
@@ -746,7 +748,8 @@ def has_source_derived_deploy_contract(hf_sync_text, *, ownership_helper=None,
     arbitrary skipped deploy job from satisfying CHECK 3. Ownership admission
     requires reviewed workflow and helper bytes plus the adjacent provider guard.
     Recognition proves the COPY source contract, never credential authority or
-    live publication: the pinned prerequisite summary deliberately fails closed.
+    live publication: the pinned prerequisite summary admits only a verified
+    installed-authority report (served runtime key == pinned runtime key).
     """
     jobs = workflow_job_blocks(hf_sync_text)
     if len({job_id for job_id, _lines, _indent in jobs}) != len(jobs):
