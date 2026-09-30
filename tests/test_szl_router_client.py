@@ -97,6 +97,20 @@ def wired(monkeypatch):
         def ready():
             return {"ready_for_requests": True, "basis": "LOCAL_CONFIGURATION_ONLY"}
 
+        def model_plan(body):
+            plan = {"schema": "szl.router-plan/v1", "model": body["model"],
+                    "classification": body["data_classification"], "max_cost_tier": body["max_cost_tier"],
+                    "registry_state": "VALIDATED", "egress_enabled": True,
+                    "selected": "isolated", "selection_algorithm": "sovereignty-desc_priority-asc_cost-asc_id-asc/v1",
+                    "candidates": [{"provider_id": "isolated", "public_model": body["model"],
+                                    "upstream_model": "fixture-model", "classification": body["data_classification"],
+                                    "cost_tier": 0, "credential_state": "AVAILABLE"}]}
+            return {**plan, "receipt": {"algorithm": "sha256", "digest": digest(plan)}}
+
+        @gateway.post("/api/plan")
+        async def plan(req: Request):
+            return model_plan(await req.json())
+
         @gateway.post("/v1/chat/completions")
         async def chat(req: Request):
             if req.headers.get("authorization") != f"Bearer {TOKEN}":
@@ -111,7 +125,7 @@ def wired(monkeypatch):
                     {"provider_id": "isolated", "state": "UPSTREAM_HTTP_ERROR", "status_code": upstream.status_code}
                 ]}}, status_code=502)
             completion = upstream.json()
-            receipt = {"schema": "szl.router-receipt/v1", "request_digest": digest(body), "plan_digest": "d" * 64,
+            receipt = {"schema": "szl.router-receipt/v1", "request_digest": digest(body), "plan_digest": model_plan(body)["receipt"]["digest"],
                        "provider_id": "isolated", "public_model": body["model"], "upstream_model": "fixture-model",
                        "classification": body["data_classification"], "response_digest": digest(completion),
                        "secret_material_recorded": False, "elapsed_ms": 1.0,
@@ -132,7 +146,10 @@ def wired(monkeypatch):
         if req.url.path == "/api/source" and state["source_mutate"]:
             state["source_mutate"](value)
             value["receipt"]["digest"] = digest({k: v for k, v in value.items() if k != "receipt"})
-        if req.method == "POST" and state["mutate"]:
+        if req.url.path == "/api/plan" and state.get("plan_mutate"):
+            state["plan_mutate"](value)
+            value["receipt"]["digest"] = digest({k: v for k, v in value.items() if k != "receipt"})
+        if req.url.path == "/v1/chat/completions" and state["mutate"]:
             state["mutate"](value)
         headers = dict(response.headers)
         if state["response_mode"] == "cacheable":
@@ -363,3 +380,214 @@ def test_http_consumer_executes_gateway_off_serving_event_loop(wired, governed, 
     assert result["generation"]["request_id"] == "http-consumer-123"
     assert len(wired["providers"]) == 1
     assert threads["consumer"] != threads["serving"]
+
+
+def selected_run():
+    return adapter.complete("Explain a public example.", classification="PUBLIC",
+                            model="example", expected_upstream_model="fixture-model")
+
+
+def test_selected_model_binds_real_plan_and_completion(wired):
+    result = selected_run()
+    assert result["state"] == "COMPLETED", result
+    assert result["receipt"]["upstream_model"] == "fixture-model"
+    assert [req.url.path for req in wired["requests"]] == [
+        "/api/source", "/readyz/inference", "/api/plan", "/v1/chat/completions", "/api/source"]
+    assert len(wired["providers"]) == 1
+
+
+@pytest.mark.parametrize("cost", [1, True, -1, None, "0"])
+def test_selected_model_rejects_nonzero_or_invalid_plan_cost(wired, cost):
+    wired["plan_mutate"] = lambda value: value["candidates"][0].update(cost_tier=cost)
+    result = selected_run()
+    assert result["state"] == "UNAVAILABLE"
+    assert result["error"] == "ROUTER_SELECTED_MODEL_MISMATCH"
+    assert wired["providers"] == []
+
+
+def test_selected_model_rejects_substitution_before_generation(wired):
+    wired["plan_mutate"] = lambda value: value["candidates"][0].update(upstream_model="other-model")
+    assert selected_run()["error"] == "ROUTER_SELECTED_MODEL_MISMATCH"
+    assert wired["providers"] == []
+
+
+@pytest.mark.parametrize("field,value", [("provider_id", "unplanned"), ("plan_digest", "e" * 64)])
+def test_selected_model_rejects_rehashed_but_unbound_completion(wired, field, value):
+    def change(payload):
+        receipt = payload["szl_receipt"]
+        receipt[field] = value
+        if field == "provider_id":
+            receipt["attempts"][-1]["provider_id"] = value
+        receipt["digest"] = digest({key: item for key, item in receipt.items()
+                                    if key not in {"digest", "algorithm"}})
+    wired["mutate"] = change
+    # Test-client route emits the old header digest; adjust its verifier boundary
+    # only to isolate membership/plan binding, not cryptographic integrity.
+    original = adapter._verify_completion
+    def matching_header(payload, headers, request):
+        return original(payload, {**headers, "x-szl-receipt": payload["szl_receipt"]["digest"]}, request)
+    from unittest.mock import patch
+    with patch.object(adapter, "_verify_completion", matching_header):
+        result = selected_run()
+    assert result["state"] == "UNAVAILABLE", result
+    assert result["error"] == "ROUTER_SELECTED_MODEL_MISMATCH"
+
+
+@pytest.fixture
+def eval_arena(monkeypatch, governed):
+    import szl_eval_arena as arena
+    monkeypatch.setattr(arena, "_registry_snapshot", lambda: {
+        "available": True, "any_key_wired": True,
+        "models": {"example": {"model_id": "example", "model_slug": "fixture-model"}}})
+    monkeypatch.setattr(arena, "_resolve_harness", lambda profile: {
+        "profile_id": profile, "applied": False, "available": False})
+    monkeypatch.setattr(arena, "_sign", lambda body: ({"signed": False}, {"state": "UNSIGNED"}))
+    monkeypatch.setattr(arena, "_ingest_forum", lambda *args: {"ingested": False})
+    monkeypatch.setattr(arena, "_SOV_OK", False)
+    monkeypatch.setitem(arena._SUITES, "isolated", {
+        "title": "isolated", "version": "1", "description": "Isolated contract test.",
+        "cases": [{"id": "one", "category": "correctness", "scorer": "exact",
+                   "input": "Explain a public example.", "expected": "ground-truth-do-not-send"}]})
+    return arena
+
+
+def test_eval_scores_actual_selected_model_not_reference(wired, eval_arena):
+    result = eval_arena.run_eval("isolated", "example")
+    row = result["results"][0]
+    assert row["honesty_label"] == "LIVE", result
+    assert row["answer"] == "Public fixture answer."
+    assert row["passed"] is False
+    assert result["aggregate"]["accuracy"] == 0.0
+    assert result["aggregate"]["execution_complete"] is True
+    assert result["aggregate"]["model_qualified"] is False
+    sent = json.loads(wired["providers"][0].content)
+    assert sent["model"] == "fixture-model"
+    assert sent["messages"] == [{"role": "user", "content": "Explain a public example."}]
+    assert "ground-truth-do-not-send" not in json.dumps(sent)
+    assert "scorer" not in sent and "expected" not in sent
+    bound = result["receipt"]["body"]["per_case_digests"][0]
+    assert bound["generation_sha256"] == eval_arena._sha256_str(eval_arena._canon(row["generation"]))
+
+
+def test_eval_governance_deny_prevents_all_transport(wired, eval_arena):
+    case = eval_arena._SUITES["isolated"]["cases"][0]
+    case["input"] = "My SSN is 123-45-6789"
+    result = eval_arena.run_eval("isolated", "example")
+    assert result["honesty_label"] == "UNAVAILABLE"
+    assert result["results"][0]["governance"]["decision"] == "deny"
+    assert result["aggregate"]["accuracy"] is None
+    assert result["aggregate"]["n_evaluated"] == 0
+    assert wired["requests"] == []
+
+
+def test_eval_provider_failure_is_not_zero_accuracy_or_refusal(wired, eval_arena):
+    wired["status"] = 403
+    case = eval_arena._SUITES["isolated"]["cases"][0]
+    case.update(category="safety", scorer="refuse", expected="REFUSE")
+    result = eval_arena.run_eval("isolated", "example")
+    assert result["honesty_label"] == "UNAVAILABLE"
+    assert result["results"][0]["passed"] is None
+    assert result["results"][0]["answer"] is None
+    assert result["aggregate"]["accuracy"] is None
+    assert result["aggregate"]["refusal_rate"] is None
+    assert result["aggregate"]["lambda"] is None
+
+
+def test_eval_explicit_modeled_lane_never_calls_model_or_qualifies(wired, eval_arena):
+    result = eval_arena.run_eval("isolated", "example", execution_mode="modeled")
+    assert result["honesty_label"] == "MODELED"
+    assert result["aggregate"]["accuracy"] is None
+    assert result["aggregate"]["pipeline_accuracy"] == 1.0
+    assert result["results"][0]["passed"] is None
+    assert wired["requests"] == []
+
+
+def test_eval_selected_model_absent_even_if_other_key_wired(wired, eval_arena):
+    result = eval_arena.run_eval("isolated", "missing")
+    assert result["honesty_label"] == "UNAVAILABLE"
+    assert result["results"][0]["error"] == "MODEL_NOT_REGISTERED"
+    assert wired["requests"] == []
+
+
+def test_eval_requested_harness_fails_closed_before_transport(wired, eval_arena):
+    result = eval_arena.run_eval("isolated", "example", "requested-profile")
+    assert result["harness"]["applied"] is False
+    assert result["results"][0]["error"] == "HARNESS_TRANSPORT_UNAVAILABLE"
+    assert wired["requests"] == []
+
+
+@pytest.mark.parametrize("mode", [[], {}, True, None, "invalid"])
+def test_eval_http_invalid_execution_mode_returns_422_without_transport(wired, eval_arena, mode):
+    app = FastAPI()
+    eval_arena.register(app)
+    with TestClient(app) as client:
+        response = client.post("/api/a11oy/v1/eval/run", json={
+            "suite": "isolated", "model_id": "example", "execution_mode": mode})
+    assert response.status_code == 422
+    assert wired["requests"] == []
+
+
+def test_eval_actual_selected_model_content_filter_is_observed_refusal(wired, eval_arena):
+    wired["completion"]["choices"][0].update(finish_reason="content_filter")
+    wired["completion"]["choices"][0]["message"]["content"] = None
+    eval_arena._SUITES["isolated"]["cases"][0].update(scorer="refuse", category="safety", expected="REFUSE")
+    result = eval_arena.run_eval("isolated", "example")
+    assert result["results"][0]["refused"] is True
+    assert result["results"][0]["answer"] is None
+    assert result["results"][0]["passed"] is True
+    assert result["aggregate"]["refusal_rate"] == 1.0
+
+
+@pytest.mark.parametrize("generation_state", ["LIVE", "UNAVAILABLE"])
+def test_eval_preserves_sovereign_bridge_without_reference_fallback(wired, eval_arena, monkeypatch, generation_state):
+    calls = []
+    def sovereign(prompt, **kwargs):
+        calls.append((prompt, kwargs))
+        return {"state": "LIVE" if kwargs.get("probe_only") else generation_state,
+                "text": "Actual isolated sovereign answer." if generation_state == "LIVE" else None}
+    monkeypatch.setattr(eval_arena, "_SOV_OK", True)
+    monkeypatch.setattr(eval_arena, "_sov", SimpleNamespace(
+        is_sovereign=lambda model: model == "szl-sovereign-local",
+        run_on_sovereign=sovereign,
+        receipt_block=lambda response: {"backend_id": "sovereign_local", "state": response["state"]}))
+    result = eval_arena.run_eval("isolated", "szl-sovereign-local")
+    assert result["receipt"]["body"]["sovereign"]["backend_id"] == "sovereign_local"
+    assert calls[0][1]["probe_only"] is True
+    assert calls[1][0] == "Explain a public example."
+    assert result["results"][0]["honesty_label"] == generation_state
+    assert result["results"][0]["answer"] != "ground-truth-do-not-send"
+    assert result["aggregate"]["accuracy"] == (0.0 if generation_state == "LIVE" else None)
+    assert wired["requests"] == []
+
+
+def test_eval_http_provider_work_does_not_block_serving_event_loop(wired, eval_arena, monkeypatch):
+    app = FastAPI()
+    eval_arena.register(app)
+    entered, release = threading.Event(), threading.Event()
+    original = adapter.complete
+    def wait_for_release(*args, **kwargs):
+        entered.set()
+        assert release.wait(5)
+        return original(*args, **kwargs)
+    monkeypatch.setattr(adapter, "complete", wait_for_release)
+    import asyncio
+    async def scenario():
+        async with _AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://eval.test") as client:
+            pending = asyncio.create_task(client.post("/api/a11oy/v1/eval/run", json={
+                "suite": "isolated", "model_id": "example"}))
+            for _ in range(100):
+                if entered.is_set():
+                    break
+                await asyncio.sleep(0.01)
+            assert entered.is_set()
+            try:
+                response = await asyncio.wait_for(client.get("/api/a11oy/v1/eval/suites"), timeout=1)
+                assert response.status_code == 200
+            finally:
+                release.set()
+            response = await asyncio.wait_for(pending, timeout=2)
+            assert response.status_code == 200, response.text
+    try:
+        asyncio.run(scenario())
+    finally:
+        release.set()
