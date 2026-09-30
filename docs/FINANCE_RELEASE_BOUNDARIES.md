@@ -82,3 +82,21 @@ before publishing exactly `SZLHOLDINGS/finance`. It preserves sibling Spaces.
 The existing `hf-sync.yml` remains the automatic canonical backend writer.
 Source CI, container/browser tests, canonical deployment, Finance publication,
 live provider observations and domain readback remain separate proof layers.
+
+## Projection publication closure
+
+The established canonical sync now runs the existing Finance-only publisher
+after successful canonical relock. It uses the exact relocked source and skips
+only when GitHub proves a newer main superseded it. Its writer shares the manual
+flagship publisher's concurrency group; sibling products remain outside this
+automatic Finance scope.
+
+Finance publication requires public source binding, all 16 provider descriptors,
+synthetic signals and quote, a known-answer caller portfolio, valid receipt
+integrity, tampered receipt rejection, private-source denial, and one live
+Coinbase signal result. The witness executes the emitted projection's own
+validators. Shell file parity alone cannot pass a Finance publication. Witnesses
+retain response hashes and sanitized failure classes; they establish public
+functionality at their observation time, not financial performance or receipt
+authenticity. Timeout, transport and internal proxy faults use separate fixed
+error codes without exposing exception strings or caller credentials.

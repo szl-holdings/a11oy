@@ -159,7 +159,21 @@
       "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
+      "id": "SZLHOLDINGS/oac-system-health-lab",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
       "id": "SZLHOLDINGS/szl-atelier",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-bench-suite",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",
@@ -174,6 +188,13 @@
     },
     {
       "id": "SZLHOLDINGS/szl-khipu",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-typesafe-triage",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",
