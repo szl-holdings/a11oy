@@ -24,6 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   regressions. Add an opt-in, exact-source public browser witness with fixed GET
   allowlists, redirect rejection, desktop/mobile inspection and retained evidence.
 
+### Fixed - consistent public Space HTTP diagnostics
+- Preserve and close HTTP error responses without reading or returning their
+  bodies. Application reachability requires a 2xx response with either transport
+  adapter; provider RUNNING metadata cannot override a failed application probe.
+- Keep existing retry, circuit and cache policy. Retained status lets its
+  nontransient rejection and transient retry rules classify errors correctly.
+- Include the existing inventory regressions in the required backend check,
+  alongside its previous targets. HTTP metadata does not diagnose an upstream
+  cause or qualify every application feature.
+
 ### Added - experimental software lab discovery
 - TypeSafe Triage is linked from the product landing and listed separately under
   `software_labs` in `/api/a11oy/v1/experimental/index`. Its source contract is
