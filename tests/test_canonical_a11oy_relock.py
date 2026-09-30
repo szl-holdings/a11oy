@@ -952,11 +952,17 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
         runtime_config = self.workflow.split(
             "  runtime-config:", 1
         )[1].split("\n  deploy:", 1)[0]
-        self.assertIn("needs: deploy", runtime_config)
-        self.assertIn("needs: runtime-config", self.workflow)
+        self.assertIn("needs: [manual-prerequisites, deploy]", runtime_config)
+        readiness_verdict = self.workflow.split(
+            "  readiness-verdict:", 1
+        )[1].split("\n  relock:", 1)[0]
         self.assertIn(
-            "needs: [runtime-config, readiness-verdict]",
-            self.workflow,
+            "needs: [manual-prerequisites, runtime-config]", readiness_verdict
+        )
+        relock_job = self.workflow.split("  relock:", 1)[1]
+        self.assertIn(
+            "needs: [manual-prerequisites, runtime-config, readiness-verdict]",
+            relock_job,
         )
         self.assertIn("--expected-origin \"$CANONICAL_ORIGIN\"", self.workflow)
         self.assertIn("--expected-source-sha \"$SOURCE_SHA\"", self.workflow)
@@ -976,26 +982,42 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertIn("probe summary contains doctrine lies", publisher)
 
-    def test_runtime_config_proves_a_persisted_receipt_across_restart(self) -> None:
-        self.assertIn(
-            "python scripts/prove_hf_series_a_restart.py",
-            self.workflow,
-        )
-        self.assertIn(
-            "--output \"$SERIES_A_LIVE_REPORT\"",
-            self.workflow,
-        )
-        self.assertIn(
-            "${{ env.SERIES_A_LIVE_REPORT }}",
-            self.workflow,
-        )
+    def test_runtime_config_retains_independently_blocked_proof_evidence(self) -> None:
+        runtime_config = self.workflow.split(
+            "  runtime-config:", 1
+        )[1].split("\n  deploy:", 1)[0]
+        for kind, name, output in (
+            ("series-a", "Block unreviewed live Series-A restart effects", "SERIES_A_LIVE_REPORT"),
+            ("gdw", "Block unreviewed live GDW write effects", "GDW_LIVE_REPORT"),
+        ):
+            with self.subTest(kind=kind):
+                step = runtime_config.split(f"      - name: {name}\n", 1)[1].split(
+                    "\n      - name:", 1
+                )[0]
+                self.assertIn("python -B scripts/check_hf_manual_prerequisites.py", step)
+                self.assertIn(f"--blocked-proof {kind}", step)
+                self.assertIn('--source-sha "${{ github.sha }}"', step)
+                self.assertIn(f'--output "${output}"', step)
+                self.assertNotIn("continue-on-error", step)
+                self.assertIn(f"${{{{ env.{output} }}}}", runtime_config)
+        self.assertNotIn("prove_hf_series_a_restart.py", self.workflow)
+        self.assertNotIn("prove_hf_gdw_runtime.py", self.workflow)
         self.assertIn(
             "- name: Upload secret-free runtime configuration evidence\n"
             "        if: ${{ always() }}",
             self.workflow,
         )
+        self.assertIn("if-no-files-found: error", runtime_config)
         self.assertLess(
-            self.workflow.index("python scripts/prove_hf_series_a_restart.py"),
+            self.workflow.index("Block unreviewed live Series-A restart effects"),
+            self.workflow.index("Block unreviewed live GDW write effects"),
+        )
+        self.assertLess(
+            self.workflow.index("Block unreviewed live GDW write effects"),
+            self.workflow.index("Upload secret-free runtime configuration evidence"),
+        )
+        self.assertLess(
+            self.workflow.index("Upload secret-free runtime configuration evidence"),
             self.workflow.index(
                 "python .github/scripts/verify_canonical_a11oy.py"
             ),
@@ -1011,13 +1033,37 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
             self.workflow,
         )
 
-    def test_issue_write_is_limited_to_relock_job(self) -> None:
+    def test_issue_effects_are_absent_and_actual_verdict_is_enforced(self) -> None:
         self.assertIn("contents: read", self.workflow)
-        self.assertIn("issues: write", self.workflow)
-        self.assertIn('RELOCK_ISSUE: "1043"', self.workflow)
-        self.assertIn("gh issue edit", self.workflow)
-        self.assertIn("gh issue close", self.workflow)
-        self.assertIn("gh issue reopen", self.workflow)
+        for forbidden in ("issues: write", "RELOCK_ISSUE", "gh issue"):
+            self.assertNotIn(forbidden, self.workflow)
+        relock_job = self.workflow.split("  relock:", 1)[1]
+        summary = relock_job.split(
+            "      - name: Retain the verification outcome without issue mutation\n", 1
+        )[1].split("\n      - name:", 1)[0]
+        self.assertIn("if: always()", summary)
+        self.assertIn('EXIT_CODE: ${{ steps.verify.outputs.exit_code }}', summary)
+        self.assertIn('case "${EXIT_CODE:-2}" in', summary)
+        self.assertIn("0) outcome=PASS ;;", summary)
+        self.assertIn("*) outcome=FAIL ;;", summary)
+        self.assertIn(
+            "printf 'Canonical verification outcome: %s. See the immutable relock artifact.\\n'",
+            summary,
+        )
+        self.assertIn('"$outcome" >> "$GITHUB_STEP_SUMMARY"', summary)
+        self.assertNotIn('"$EXIT_CODE" >>', summary)
+        enforce = relock_job.split("      - name: Enforce exact live state\n", 1)[1].split(
+            "\n      - name:", 1
+        )[0]
+        self.assertIn("if: always()", enforce)
+        self.assertIn('code="${EXIT_CODE:-2}"', enforce)
+        self.assertIn('if [ "$code" -ne 0 ]; then', enforce)
+        self.assertIn('exit "$code"', enforce)
+        self.assertNotIn("continue-on-error", enforce)
+        self.assertLess(
+            relock_job.index("Enforce exact live state"),
+            relock_job.index("Trigger strict post-deployment GitHub/HF parity"),
+        )
 
     def test_required_routes_and_pruning_remain_enforced(self) -> None:
         for route in (

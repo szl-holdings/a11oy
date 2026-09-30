@@ -16,7 +16,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
-      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
       PROOF_PATH: /tmp/series-a-restart-proof.json
     steps:
       - name: Checkout exact protected source
@@ -31,20 +30,15 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install exact restart-proof clients
+      - name: Fail explicitly while live restart effects remain unreviewed
         run: >-
-          python -m pip install --disable-pip-version-check
-          "huggingface_hub==1.23.0"
-
-      - name: Restart canonical runtime and prove recovery
-        run: >-
-          python scripts/prove_hf_series_a_restart.py
-          --repo-id "SZLHOLDINGS/a11oy"
-          --origin "https://a-11-oy.com"
-          --source-sha "${GITHUB_SHA}"
+          python -B scripts/check_hf_manual_prerequisites.py
+          --blocked-proof series-a
+          --source-sha "$GITHUB_SHA"
           --output "$PROOF_PATH"
 
-      - name: Upload immutable restart proof
+      - name: Upload immutable blocked restart evidence
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: series-a-restart-proof-${{ github.run_id }}-${{ github.run_attempt }}
