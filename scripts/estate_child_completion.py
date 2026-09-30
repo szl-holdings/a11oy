@@ -33,7 +33,7 @@ def dispatch_hf_then_edge(command: list[str], revision: str,
     """Require exact canonical publication completion before the domain writer."""
     hf_path = reports / "estate-child-hf.jsonl"
     hf = dispatch_child(command, "hf-sync.yml", revision, vertical_requested, hf_path)
-    wait_for_children([(hf, hf_path)])
+    wait_for_children([(hf, hf_path)], stage_only=True)
     edge_path = reports / "estate-child-edge.jsonl"
     edge_command = ["gh", "workflow", "run", "repair-cloudflare-product-edge.yml",
                     "--repo", REPOSITORY, "--ref", "main"]
@@ -230,7 +230,8 @@ def child_jobs(child: dict) -> list[dict]:
     raise RuntimeError("child job pagination bound exceeded")
 
 
-def wait_for_children(children: list[tuple[dict, Path]], *, seconds: int = 3600) -> None:
+def wait_for_children(children: list[tuple[dict, Path]], *, seconds: int = 3600,
+                      stage_only: bool = False) -> None:
     """Join exact first-attempt children; recheck the whole set before returning.
 
     These bounded sequential reads are not an atomic GitHub lease. Re-reading
@@ -240,6 +241,7 @@ def wait_for_children(children: list[tuple[dict, Path]], *, seconds: int = 3600)
     """
     require(bool(children) and type(seconds) is int and 1 <= seconds <= 3600,
             "invalid child wait bound")
+    require(type(stage_only) is bool, "invalid stage observation flag")
     require(len(children) <= len(WORKFLOWS), "unexpected child count")
     run_ids = [child.get("run_id") for child, _ in children]
     workflows = [child.get("workflow") for child, _ in children]
@@ -296,7 +298,7 @@ def wait_for_children(children: list[tuple[dict, Path]], *, seconds: int = 3600)
                 "source moved before complete-set readback")
         within_deadline()
         for child, path in children:
-            journal(path, {**child, "state": "CHILD_COMPLETION_VERIFIED",
+            journal(path, {**child, "state": "CHILD_STAGE_VERIFIED" if stage_only else "CHILD_COMPLETION_VERIFIED",
                            **observations[child["run_id"]]})
     except Exception:
         # Partial observations and timeouts never become a successful return.

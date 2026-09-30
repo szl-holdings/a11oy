@@ -57,7 +57,7 @@ class CompletionTests(unittest.TestCase):
         with patch.object(gate,'dispatch_child',side_effect=dispatch), patch.object(gate,'wait_for_children',side_effect=wait):
             gate.dispatch_hf_then_edge(command,SOURCE,False,Path('reports'))
         self.assertEqual(events,[('dispatch','hf-sync.yml',SOURCE,False),
-                                 ('verified',('hf-sync.yml',),{}),
+                                 ('verified',('hf-sync.yml',),{'stage_only':True}),
                                  ('dispatch','repair-cloudflare-product-edge.yml',SOURCE,False),
                                  ('verified',('hf-sync.yml','repair-cloudflare-product-edge.yml'),{'seconds':1200})])
 
@@ -92,6 +92,16 @@ class CompletionTests(unittest.TestCase):
         source=(ROOT/'.github/workflows/estate-release-train.yml').read_text()
         self.assertIn('dispatch_hf_then_edge(command, revision, receipt["vertical_flagships"], Path("reports"))',source)
         self.assertNotIn('children.append(',source)
+
+    def test_publication_stage_does_not_record_final_child_completion(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'hf.jsonl'
+            with patch.object(gate,'api',side_effect=lambda suffix: {'object':{'sha':SOURCE}} if suffix=='git/ref/heads/main' else run()), \
+                    patch.object(gate,'child_jobs',return_value=jobs()):
+                gate.wait_for_children([(child(False),path)],stage_only=True)
+            value=json.loads(path.read_text())
+            self.assertEqual(value['state'],'CHILD_STAGE_VERIFIED')
+            self.assertNotIn('CHILD_COMPLETION_VERIFIED',path.read_text())
 
     def test_exact_terminal_child(self):
         self.assertEqual(gate.validate_run(run(), child()), "completed")
