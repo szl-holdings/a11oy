@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedBy": "scripts/audit_huggingface_ecosystem.py",
-  "observedAt": "2026-09-30T02:54:34Z",
+  "observedAt": "2026-09-30T03:18:38Z",
   "org": "SZLHOLDINGS",
   "inventoryScope": {
     "visibility": "public-only",
@@ -19,7 +19,7 @@
     "https://huggingface.co/api/spaces?author=SZLHOLDINGS&limit=100&full=true"
   ],
   "counts": {
-    "models": 49,
+    "models": 50,
     "datasets": 34,
     "spaces": 26
   },
@@ -1476,6 +1476,34 @@
         "unsafeFlags": []
       },
       {
+        "id": "SZLHOLDINGS/szl-triage-linear-development-v1",
+        "repoType": "model",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": null,
+        "license": "apache-2.0",
+        "sha": "b6ec192000d38e6a29787410f8bc077266b62a22",
+        "lastModified": "2026-09-30T03:13:08.000Z",
+        "cardSemanticSha256": "9def83c78bcfa7e8e63012a9e097ac9f7b0b6b1159079dd2939560d08e530ef3",
+        "createdAt": "2026-09-30T03:13:07.000Z",
+        "tags": [
+          "text-classification",
+          "custom-python",
+          "cpu",
+          "research",
+          "unqualified",
+          "en",
+          "license:apache-2.0",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/SZLHOLDINGS/szl-triage-linear-development-v1"
+        ],
+        "unsafeFlags": []
+      },
+      {
         "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora",
         "repoType": "model",
         "private": false,
@@ -1930,8 +1958,8 @@
         "disabled": false,
         "sdk": null,
         "license": "other",
-        "sha": "7a4921951554c4407dd81f43b406e2ed0d8bb5c7",
-        "lastModified": "2026-09-30T02:51:01.000Z",
+        "sha": "294aff948ee9999f82c3b82090669859f985429a",
+        "lastModified": "2026-09-30T03:17:55.000Z",
         "cardSemanticSha256": "7b09277401ed789f6ac2885e5307b621780e0d6b4a6369f7e00e0cdc7e9d68b1",
         "createdAt": "2026-06-12T11:38:04.000Z",
         "tags": [
@@ -2836,8 +2864,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "819fec343013de657154782e9f6778df0f823688",
-        "lastModified": "2026-09-30T02:37:34.000Z",
+        "sha": "c56d30f758157d4cd274922fc34a50827470a259",
+        "lastModified": "2026-09-30T03:11:03.000Z",
         "cardSemanticSha256": "4dbaed0c3ebef55d405f7a9e2fcd0d190466e9eb1e0d13412c621ac91ffc9cea",
         "createdAt": "2026-06-03T21:58:01.000Z",
         "tags": [
@@ -3131,8 +3159,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "456801e7313e09b62c74fa68be5c165ecf12d79c",
-        "lastModified": "2026-09-30T02:13:15.000Z",
+        "sha": "332ad01ebd55256ebb91f01ba424d33cdc38f488",
+        "lastModified": "2026-09-30T02:59:02.000Z",
         "cardSemanticSha256": "1b0525c80ab6d06c22ef08f931761f554713e56f839dac558f7667cab45bd15c",
         "createdAt": "2026-09-30T01:31:00.000Z",
         "tags": [
