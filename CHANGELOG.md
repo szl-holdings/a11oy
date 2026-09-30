@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - passive readiness JSON contracts
+- Passive readiness now separates transport reachability from successful health
+  and research JSON contracts. Missing routes, HTML responses, invalid payloads,
+  failed refreshes, and expired cached observations cannot count as ready.
+  This check does not grant operational authority or validate research claims.
+
 ### Added - experimental software lab discovery
 - TypeSafe Triage is linked from the product landing and listed separately under
   `software_labs` in `/api/a11oy/v1/experimental/index`. Its source contract is
