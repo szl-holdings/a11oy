@@ -386,7 +386,9 @@ class EstateReleaseTrainTests(unittest.TestCase):
             ]),
         ):
             return release.profile_inventory_contract(
-                config, {"counts": counts if observed is None else observed}, sha,
+                config, {"counts": counts if observed is None else observed,
+                         "observed": True,
+                         "enumeration_state": {kind: "COMPLETE" for kind in counts}}, sha,
             )
 
     def test_profile_current_prose_cannot_substitute_for_scoped_source_record(self):
