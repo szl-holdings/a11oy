@@ -31,7 +31,7 @@ A courier that cannot invent the dispatch. The oldest job in the Andes, as a LoR
 | NVIDIA | NVLM / NeMo multimodal, minus the right to act. |
 | Unsloth | Attention-only LoRA on Qwen3.5-0.8B. MLP frozen so the courier cannot author. |
 
-Nobody else ships this combination. That is the point of a one-of-one.
+No equivalent public combination was found among the leaders surveyed above (a snapshot, not an ecosystem-wide novelty claim).
 
 ## Intended use
 

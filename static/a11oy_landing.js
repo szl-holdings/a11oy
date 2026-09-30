@@ -16,7 +16,8 @@
  *               the receipts that already exist. We never fake a "new signature".
  *   • GLOW    = the governance core's intensity is tied to the advisory Λ from
  *               GET /api/a11oy/v1/lambda/org. Λ is Conjecture 1 (advisory bound),
- *               so the glow is a mood, never a pass/fail oracle.
+ *               so the glow is a mood, never a pass/fail oracle. A SAMPLE Λ
+ *               (default constants, inputs.class != SUPPLIED) leaves it neutral.
  *
  * HONEST DEGRADE: if the ledger is unreachable we do NOT invent receipts or a
  * fake flow. The scene falls back to a calm, still lattice (dim wireframe core +
@@ -319,7 +320,10 @@ export function mountHero(canvas) {
   // ---- live data: fetch real receipts + Λ; poll lake for genuine growth ------
   async function boot() {
     const [ledger, lam] = await Promise.all([getJSON(LEDGER_URL), getJSON(LAMBDA_URL)]);
-    if (lam && typeof lam.lambda_org === "number") hero.setLambda(lam.lambda_org);
+    // Default-constant Λ (inputs.class SAMPLE) leaves the glow neutral.
+    if (lam && typeof lam.lambda_org === "number" && lam.inputs && lam.inputs.class === "SUPPLIED") {
+      hero.setLambda(lam.lambda_org);
+    }
     if (ledger && Array.isArray(ledger.receipts) && ledger.receipts.length) {
       hero.setReceipts(ledger.receipts);
     } else {

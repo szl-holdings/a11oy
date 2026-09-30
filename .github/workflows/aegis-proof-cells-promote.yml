@@ -1,0 +1,44 @@
+name: Aegis Proof Cells protected promotion
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize, ready_for_review]
+    paths:
+      - ".github/workflows/aegis-proof-cells-promote.yml"
+      - ".github/workflows/aegis-proof-cells.yml"
+      - "console/3d/aegis-proof-cells.html"
+      - "console/3d/aegis-proof-cells/**"
+      - "docs/third-party/bricklayer-ai-intake-v1.md"
+      - "scripts/verify_aegis_proof_cells_live.py"
+      - "tests/test_aegis_proof_cells_static.py"
+      - "tests/test_aegis_proof_cells_engine.mjs"
+      - "tests/test_aegis_proof_cells_live.py"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: aegis-proof-cells-promotion-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  request-protected-auto-merge:
+    if: >-
+      github.repository == 'szl-holdings/a11oy' &&
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'feat/aegis-proof-cells-operational-v1-20260903' &&
+      github.actor == 'stephenlutar2-hash'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_URL: ${{ github.event.pull_request.html_url }}
+    steps:
+      - name: Request squash merge after all protected requirements pass
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh pr merge "$PR_URL" --repo "$GITHUB_REPOSITORY" --squash --auto --delete-branch

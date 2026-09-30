@@ -21,31 +21,37 @@ name: Page-claim honesty guard
 
 on:
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - "pages/*.html"
-      - "pages/claims/*.json"
-      - "tools/page-claim-guard/**"
-      - "benchmarks/pinn/results.json"
-      - ".github/test-fixtures/page-claim-guard/**"
-      - ".github/workflows/page-claim-guard.yml"
+    - pages/*.html
+    - pages/claims/*.json
+    - tools/page-claim-guard/**
+    - benchmarks/pinn/results.json
+    - .github/test-fixtures/page-claim-guard/**
+    - .github/workflows/page-claim-guard.yml
   pull_request:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - "pages/*.html"
-      - "pages/claims/*.json"
-      - "tools/page-claim-guard/**"
-      - "benchmarks/pinn/results.json"
-      - ".github/test-fixtures/page-claim-guard/**"
-      - ".github/workflows/page-claim-guard.yml"
+    - pages/*.html
+    - pages/claims/*.json
+    - tools/page-claim-guard/**
+    - benchmarks/pinn/results.json
+    - .github/test-fixtures/page-claim-guard/**
+    - .github/workflows/page-claim-guard.yml
   workflow_dispatch: {}
-
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 
 concurrency:
   group: page-claim-guard-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   self-test:

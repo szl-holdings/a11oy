@@ -1,0 +1,138 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Reviewed public inventory refresh
+
+"on":
+  push:
+    branches: ['maintenance/public-inventory/**']
+    paths: ['.github/workflows/public-inventory-refresh.yml']
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact maintenance-branch source revision
+        type: string
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: public-inventory-refresh-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  refresh:
+    if: >-
+      github.repository == 'szl-holdings/a11oy' &&
+      github.actor == 'stephenlutar2-hash' &&
+      startsWith(github.ref, 'refs/heads/maintenance/public-inventory/')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Bind exact source and preserve previous observation
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test -z "$(git status --porcelain)"
+          mkdir -p /tmp/public-inventory-refresh
+          cp docs/huggingface-ecosystem-manifest.json /tmp/public-inventory-refresh/previous-manifest.json
+          git rev-parse HEAD > /tmp/public-inventory-refresh/generator-checkout.txt
+          sha256sum docs/series-a/hf-space-keep-list.yaml static/shared/public-estate-contract.v1.json > /tmp/public-inventory-refresh/policy.sha256
+          python -S scripts/test_audit_huggingface_ecosystem.py
+          python -S scripts/test_hf_gated_public_inventory.py
+      - name: Generate a fresh public card snapshot and all existing projections
+        run: |
+          set -euo pipefail
+          python scripts/audit_huggingface_ecosystem.py
+          python scripts/build_ecosystem_stage_matrix.py
+          python scripts/render_public_estate_alignment.py
+          python scripts/build_ecosystem_stage_matrix.py --check
+          python scripts/render_public_estate_alignment.py --check
+          python -m unittest tests.test_public_estate_alignment -v
+          python tests/test_hf_public_inventory.py
+          sha256sum --check /tmp/public-inventory-refresh/policy.sha256
+      - name: Independently verify complete membership and record exact output bytes
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, json, os, subprocess
+          from pathlib import Path
+          from scripts.hf_public_inventory import collect, compare_manifest, PREDICATE, digest
+          outputs = [
+              'docs/huggingface-ecosystem-manifest.json',
+              'docs/ecosystem-stage-matrix.json',
+              'docs/generated/github-org-public-estate.md',
+              'docs/generated/huggingface-org-card.md',
+              'docs/generated/a11oy-net-public-estate.md',
+          ]
+          root = Path('/tmp/public-inventory-refresh')
+          previous = json.loads((root/'previous-manifest.json').read_text())
+          current = json.loads(Path(outputs[0]).read_text())
+          public = collect('SZLHOLDINGS')
+          result = compare_manifest(public, current, current['counts'])
+          report = {
+              'schema': 'szl.reviewed-public-snapshot/v1',
+              'state': 'VALIDATED' if result['aligned'] else 'HOLD',
+              'generator_source_revision': os.environ['GITHUB_SHA'],
+              'source_binding': 'GENERATOR_CHECKOUT_AND_OUTPUT_BYTES_NOT_RUNTIME_ATTESTATION',
+              'observed_at': current['observedAt'],
+              'scope': PREDICATE, 'scope_sha256': digest(PREDICATE),
+              'previous_counts': previous['counts'], 'counts': current['counts'],
+              'comparison': result, 'public_observation': public,
+              'delta': {k: {
+                  'added': sorted({r['id'] for r in current['inventory'][k]} - {r['id'] for r in previous['inventory'][k]}),
+                  'removed': sorted({r['id'] for r in previous['inventory'][k]} - {r['id'] for r in current['inventory'][k]}),
+              } for k in ('models','datasets','spaces')},
+              'output_sha256': {p: hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in outputs},
+              'previous_manifest_sha256': hashlib.sha256((root/'previous-manifest.json').read_bytes()).hexdigest(),
+              'provider_mutations': False, 'production_authorization': False,
+              'model_executed': False, 'policy_changed_by_generator': False,
+              'profile_declaration_updated': False,
+          }
+          report['record_sha256'] = digest(report)
+          (root/'receipt.json').write_text(json.dumps(report, indent=2, sort_keys=True)+'\n')
+          changed = set(subprocess.check_output(['git','diff','--name-only'], text=True).splitlines())
+          assert changed <= set(outputs), sorted(changed-set(outputs))
+          assert not subprocess.check_output(['git','ls-files','--others','--exclude-standard'], text=True).strip()
+          assert result['aligned'], result
+          for path in outputs:
+              target = root/'candidate'/path
+              target.parent.mkdir(parents=True, exist_ok=True)
+              target.write_bytes(Path(path).read_bytes())
+          PY
+          python scripts/audit_huggingface_ecosystem.py --check
+          git diff --check
+          git diff --binary > /tmp/public-inventory-refresh/candidate.patch
+      - name: Commit only generated observations to the unchanged maintenance branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          branch="${GITHUB_REF#refs/heads/}"
+          case "$branch" in maintenance/public-inventory/*) ;; *) exit 2;; esac
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/$branch" --jq .object.sha)" = "$GITHUB_SHA"
+          if git diff --quiet; then exit 0; fi
+          git add -- docs/huggingface-ecosystem-manifest.json docs/ecosystem-stage-matrix.json docs/generated/github-org-public-estate.md docs/generated/huggingface-org-card.md docs/generated/a11oy-net-public-estate.md
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit --signoff -m 'docs(estate): regenerate source-bound public inventory and projections'
+          gh auth setup-git
+          git push origin "HEAD:refs/heads/$branch"
+          git rev-parse HEAD > /tmp/public-inventory-refresh/generated-commit.txt
+      - name: Preserve original, candidate, and verification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: public-inventory-refresh-${{ github.run_id }}-${{ github.run_attempt }}
+          path: /tmp/public-inventory-refresh
+          if-no-files-found: error
+          retention-days: 90

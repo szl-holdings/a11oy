@@ -47,6 +47,12 @@ from a one-line marker at the original location.
 # hardened in BOTH flagships rather than silently degrading to the stdlib parser.
 ```
 
+Since 2026-09-29 the exact pins live in `requirements-runtime.txt`, which the Dockerfile
+installs with `pip install -r` and `requirements-audit.txt` includes with `-r`. Inline
+pins in the `RUN` line let Dependabot bump the audit file without the image (#2306,
+#2307) and let a Dockerfile edit move the image without the audit file (#2315).
+`scripts/audit_closure_check.py` (Dependency Audit workflow) fails closed on either.
+
 ## §3 — a11oy source for the serve runtime (receipt-substrate + policy gates only).
 
 ```

@@ -17,6 +17,38 @@ from urllib.error import HTTPError
 from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
 
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--repo-id", default="SZLHOLDINGS/a11oy")
+    parser.add_argument("--origin", default="https://a-11-oy.com")
+    parser.add_argument("--source-sha", required=True)
+    parser.add_argument("--output", required=True)
+    parser.add_argument("--attempts", type=int, default=90)
+    parser.add_argument("--retry-seconds", type=int, default=10)
+    parser.add_argument("--deadline-seconds", type=int, default=20 * 60)
+    args = parser.parse_args()
+    source = args.source_sha.strip().lower()
+    report = {
+        "schema": "szl.series-a-restart-proof/v1",
+        "source_revision": source if re.fullmatch(r"[0-9a-f]{40}", source) else "UNVALIDATED",
+        "repo_id": "SZLHOLDINGS/a11oy", "origin": "UNVALIDATED",
+        "status": "FAIL", "ok": False, "evidence": {},
+        "credential_authority_state": "UNKNOWN",
+        "error": {"type": "RuntimeError", "message": "SETUP_REQUIRED: live proof effects remain unreviewed"},
+        "secret_values_recorded": False,
+    }
+    output = Path(args.output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"
+    output.write_text(encoded, encoding="utf-8")
+    print(encoded, end="")
+    return 1
+
+
+# Direct CLI use stops before third-party initialization can consume credentials.
+if __name__ == "__main__":
+    raise SystemExit(main())
+
 from huggingface_hub import HfApi
 
 
@@ -139,6 +171,155 @@ def _sleep_with_deadline(deadline: float, seconds: float) -> None:
         raise RestartProofError("restart proof deadline exhausted")
     time.sleep(min(max(0.0, seconds), remaining))
     _check_deadline(deadline)
+
+
+
+def _runtime_stage(value: Any) -> str:
+    """Normalize huggingface_hub SpaceRuntime and SpaceInfo stage shapes."""
+
+    candidate = value
+    if isinstance(candidate, Mapping):
+        candidate = candidate.get("runtime", candidate)
+        stage = candidate.get("stage") if isinstance(candidate, Mapping) else None
+    else:
+        nested = getattr(candidate, "runtime", None)
+        candidate = nested if nested is not None else candidate
+        stage = getattr(candidate, "stage", None)
+    stage = getattr(stage, "value", stage)
+    return str(stage or "UNKNOWN").strip().upper()
+
+
+def stop_the_world_restart(
+    api: HfApi,
+    *,
+    repo_id: str,
+    deadline: float,
+    attempts: int,
+    retry_seconds: int,
+    phase: str,
+    evidence: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Pause to zero writers, confirm PAUSED, then start one replacement runtime.
+
+    A direct restart may overlap a retiring and replacement replica. That is not
+    admissible for a single-writer SQLite receipt chain on a mounted provider
+    filesystem. This transition proves the old runtime is PAUSED before any new
+    runtime is requested. If the restart response is lost, provider stage is
+    inspected before a retry so an accepted request is never duplicated blindly.
+    """
+
+    if attempts < 1 or retry_seconds < 0:
+        raise RestartProofError("stop-the-world polling bounds are invalid")
+    record: dict[str, Any] = {
+        "phase": phase,
+        "pause_requested": False,
+        "pause_confirmed": False,
+        "pause_observations": [],
+        "restart_requested": False,
+        "restart_response_lost": False,
+        "restart_retry_requested": False,
+        "writer_overlap_prevented": False,
+    }
+    if evidence is not None:
+        evidence[f"{phase}_restart_control"] = record
+
+    _check_deadline(deadline)
+    try:
+        paused = api.pause_space(repo_id=repo_id)
+    except Exception as exc:  # noqa: BLE001 - provider error is receipt evidence
+        record["pause_error"] = {
+            "type": type(exc).__name__,
+            "message": str(exc)[:180],
+        }
+        raise RestartProofError(
+            f"{phase} pause request failed: {type(exc).__name__}: {str(exc)[:180]}"
+        ) from exc
+    record["pause_requested"] = True
+    pause_stage = _runtime_stage(paused)
+    record["pause_response_stage"] = pause_stage
+    confirmed = pause_stage == "PAUSED"
+    last_stage = pause_stage
+
+    for attempt in range(max(1, attempts)):
+        if confirmed:
+            break
+        _check_deadline(deadline)
+        try:
+            runtime = api.get_space_runtime(repo_id=repo_id)
+            last_stage = _runtime_stage(runtime)
+            record["pause_observations"].append(
+                {"attempt": attempt + 1, "stage": last_stage}
+            )
+            confirmed = last_stage == "PAUSED"
+        except Exception as exc:  # noqa: BLE001 - bounded provider polling
+            record["pause_observations"].append(
+                {
+                    "attempt": attempt + 1,
+                    "stage": "UNAVAILABLE",
+                    "error_type": type(exc).__name__,
+                    "error": str(exc)[:180],
+                }
+            )
+        if not confirmed and attempt + 1 < max(1, attempts):
+            _sleep_with_deadline(deadline, retry_seconds)
+
+    if not confirmed:
+        raise RestartProofError(
+            f"{phase} runtime did not reach PAUSED before replacement request; "
+            f"last stage={last_stage}"
+        )
+    record["pause_confirmed"] = True
+    record["confirmed_pause_stage"] = "PAUSED"
+    _check_deadline(deadline)
+
+    try:
+        restarted = api.restart_space(repo_id=repo_id, factory_reboot=False)
+        record["restart_requested"] = True
+        restart_stage = _runtime_stage(restarted)
+    except Exception as exc:  # noqa: BLE001 - recover availability without overlap
+        record["restart_response_lost"] = True
+        record["restart_error"] = {
+            "type": type(exc).__name__,
+            "message": str(exc)[:180],
+        }
+        _check_deadline(deadline)
+        try:
+            runtime = api.get_space_runtime(repo_id=repo_id)
+            observed_stage = _runtime_stage(runtime)
+        except Exception as runtime_exc:  # noqa: BLE001
+            record["restart_failure_runtime_error"] = {
+                "type": type(runtime_exc).__name__,
+                "message": str(runtime_exc)[:180],
+            }
+            raise RestartProofError(
+                f"{phase} restart response was lost and runtime state is unavailable"
+            ) from runtime_exc
+        record["restart_failure_runtime_stage"] = observed_stage
+        if observed_stage == "PAUSED":
+            record["restart_retry_requested"] = True
+            try:
+                restarted = api.restart_space(
+                    repo_id=repo_id,
+                    factory_reboot=False,
+                )
+            except Exception as retry_exc:  # noqa: BLE001
+                raise RestartProofError(
+                    f"{phase} restart failed after confirmed pause: "
+                    f"{type(retry_exc).__name__}: {str(retry_exc)[:180]}"
+                ) from retry_exc
+            record["restart_requested"] = True
+            restart_stage = _runtime_stage(restarted)
+        else:
+            # The provider no longer reports PAUSED, so the first request may
+            # have been accepted. Do not issue a duplicate restart; the later
+            # public boot-ID proof decides whether the transition completed.
+            record["restart_requested"] = True
+            restart_stage = observed_stage
+
+    record["restart_response_stage"] = restart_stage
+    record["writer_overlap_prevented"] = True
+    _check_deadline(deadline)
+    return record
 
 
 def capture(
@@ -553,18 +734,17 @@ def prove(
     # configuration instead of a retiring replica with stale environment. When
     # the old guarded contract has no boot ID, the new full contract's valid boot
     # is itself the observed transition.
-    activation_restart = api.restart_space(
+    activation_control = stop_the_world_restart(
+        api,
         repo_id=repo_id,
-        factory_reboot=False,
+        deadline=deadline,
+        attempts=attempts,
+        retry_seconds=retry_seconds,
+        phase="activation",
+        evidence=trace,
     )
     trace["activation_restart_requested"] = True
-    _check_deadline(deadline)
-    activation_stage = getattr(
-        getattr(activation_restart, "runtime", None),
-        "stage",
-        None,
-    )
-    activation_stage = getattr(activation_stage, "value", activation_stage)
+    activation_stage = activation_control["restart_response_stage"]
     _sleep_with_deadline(deadline, max(10, retry_seconds))
     before = await_capture(
         session,
@@ -614,22 +794,17 @@ def prove(
     trace["pre_restart_exact_recovery"] = pre_restart_recovery
     _check_deadline(deadline)
     trace["phase"] = "request_durability_restart"
-    durability_restart = api.restart_space(
+    durability_control = stop_the_world_restart(
+        api,
         repo_id=repo_id,
-        factory_reboot=False,
+        deadline=deadline,
+        attempts=attempts,
+        retry_seconds=retry_seconds,
+        phase="durability",
+        evidence=trace,
     )
     trace["durability_restart_requested"] = True
-    _check_deadline(deadline)
-    durability_stage = getattr(
-        getattr(durability_restart, "runtime", None),
-        "stage",
-        None,
-    )
-    durability_stage = getattr(
-        durability_stage,
-        "value",
-        durability_stage,
-    )
+    durability_stage = durability_control["restart_response_stage"]
     # Do not accept a response from the pre-restart process as post-restart
     # evidence while the control plane is still draining.
     _sleep_with_deadline(deadline, max(10, retry_seconds))
@@ -682,12 +857,20 @@ def prove(
         "activation_restart_response_stage": str(
             activation_stage or "UNKNOWN"
         ),
+        "activation_pause_confirmed": activation_control["pause_confirmed"],
+        "activation_writer_overlap_prevented": activation_control[
+            "writer_overlap_prevented"
+        ],
         "pre_activation_runtime_boot_id": pre_activation_boot_id,
         "activation_runtime_boot_identity_observed": True,
         "durability_restart_requested": True,
         "durability_restart_response_stage": str(
             durability_stage or "UNKNOWN"
         ),
+        "durability_pause_confirmed": durability_control["pause_confirmed"],
+        "durability_writer_overlap_prevented": durability_control[
+            "writer_overlap_prevented"
+        ],
         "before": before,
         "after": after,
         "proof": {
@@ -699,6 +882,9 @@ def prove(
             "database_creation_identity_stable": True,
             "receipt_count_non_regressing": True,
             "pre_restart_chain_head_recovered": True,
+            "activation_stop_the_world": True,
+            "durability_stop_the_world": True,
+            "writer_overlap_prevented": True,
         },
         "secret_values_read": False,
     }
@@ -740,70 +926,3 @@ def failure_report(
         },
         "secret_values_recorded": False,
     }
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--repo-id", default="SZLHOLDINGS/a11oy")
-    parser.add_argument("--origin", default="https://a-11-oy.com")
-    parser.add_argument("--source-sha", required=True)
-    parser.add_argument("--output", required=True)
-    parser.add_argument("--attempts", type=int, default=90)
-    parser.add_argument("--retry-seconds", type=int, default=10)
-    parser.add_argument(
-        "--deadline-seconds",
-        type=int,
-        default=DEFAULT_DEADLINE_SECONDS,
-    )
-    args = parser.parse_args()
-
-    output = Path(args.output)
-    source = args.source_sha.strip().lower()
-    token = os.environ.get("HF_TOKEN", "")
-    origin: str | None = None
-    evidence: dict[str, Any] = {}
-    try:
-        if SHA40.fullmatch(source) is None:
-            raise RestartProofError("source SHA must be exact 40-character hex")
-        if not token:
-            raise RestartProofError("HF_TOKEN is required")
-        origin = normalize_origin(args.origin)
-        session = HttpSession()
-        session.headers.update(
-            {
-                "Accept": "application/json,text/plain;q=0.9,*/*;q=0.8",
-                "Cache-Control": "no-cache, no-store, max-age=0",
-                "Pragma": "no-cache",
-                "User-Agent": "szl-series-a-restart-proof/1",
-            }
-        )
-        report = prove(
-            api=HfApi(token=token),
-            session=session,
-            repo_id=args.repo_id,
-            origin=origin,
-            source_sha=source,
-            attempts=args.attempts,
-            retry_seconds=args.retry_seconds,
-            deadline_seconds=args.deadline_seconds,
-            evidence=evidence,
-        )
-    except Exception as exc:
-        report = failure_report(
-            repo_id=args.repo_id,
-            origin=origin,
-            source_revision=source,
-            evidence=evidence,
-            error=exc,
-            secrets=(token,),
-        )
-        write_report(output, report)
-        print(json.dumps(report, indent=2, sort_keys=True))
-        raise
-    write_report(output, report)
-    print(json.dumps(report, indent=2, sort_keys=True))
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

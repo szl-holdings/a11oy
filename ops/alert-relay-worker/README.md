@@ -2,16 +2,21 @@
 
 This Worker restores `ntfy.a11oy.net` as the receiving edge for the shared
 receipt-failure channel. It forwards to the real `ntfy.sh` provider while
-preserving the managed secret's opaque path and query.
+keeping the managed secret's opaque path at the controlled edge. A deterministic
+240-bit SHA-256 prefix converts that path into an ntfy-safe topic; query behavior
+is preserved, and the same mapping supports JSON, SSE, raw, and WebSocket
+subscriptions through the custom domain.
 
-The relay has no secret binding and never records the topic path. Native ntfy
-requests stream through unchanged. Slack-compatible JSON with a non-empty
-`text` field is bounded to 64 KiB and translated to `text/plain`, which keeps
-the older receipt and health workflows compatible with the ntfy channel.
+The relay has no secret binding, does not persist invocation logs, and never
+logs the inbound path. Native ntfy request bodies stream through unchanged.
+Slack-compatible JSON with a non-empty `text` field is bounded to 64 KiB and
+translated to `text/plain`, which keeps the older receipt and health workflows
+compatible with the ntfy channel.
 
 Safety properties:
 
 - upstream origin is fixed to `https://ntfy.sh` and redirects are not followed;
+- arbitrary legacy paths become one provider-safe, non-reversible topic;
 - cookies and Cloudflare forwarding metadata are not sent upstream;
 - write requests require a topic path;
 - malformed or oversized JSON fails before delivery;

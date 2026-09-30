@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
-// a11oy.code — 7-tier organ-mapped LLM router UI (Doctrine v11 §14). ADDITIVE page at /code.
+// a11oy.code — integrated 7-tier view of the canonical szl-holdings/szl-router runtime (Doctrine v11 §14). ADDITIVE page at /code.
 import { useEffect, useState } from "react";
 
 type Tier = {

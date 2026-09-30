@@ -28,19 +28,22 @@ name: Service Status Link Guard
 on:
   pull_request:
     paths:
-      - "pages/console.html"
-      - ".github/workflows/service-status-link-guard.yml"
-      - "scripts/service-status-link-guard-checks.sh"
-      - "scripts/service-status-link-guard-checks.test.sh"
+    - pages/console.html
+    - .github/workflows/service-status-link-guard.yml
+    - scripts/service-status-link-guard-checks.sh
+    - scripts/service-status-link-guard-checks.test.sh
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - "pages/console.html"
-      - ".github/workflows/service-status-link-guard.yml"
-      - "scripts/service-status-link-guard-checks.sh"
-      - "scripts/service-status-link-guard-checks.test.sh"
-  workflow_dispatch:
-
+    - pages/console.html
+    - .github/workflows/service-status-link-guard.yml
+    - scripts/service-status-link-guard-checks.sh
+    - scripts/service-status-link-guard-checks.test.sh
+  workflow_dispatch: null
+  merge_group:
+    types:
+    - checks_requested
 permissions:
   contents: read
 

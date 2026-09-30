@@ -47,6 +47,7 @@ class FakeResponse:
         status: int = 200,
         payload=None,
         text: str | None = None,
+        content: bytes | None = None,
         content_type: str | None = None,
     ) -> None:
         self.url = url
@@ -54,8 +55,10 @@ class FakeResponse:
         self._payload = payload
         if text is None and payload is not None:
             text = json.dumps(payload, sort_keys=True)
-        self.text = text or ""
-        self.content = self.text.encode("utf-8")
+        if content is None:
+            content = (text or "").encode("utf-8")
+        self.content = content
+        self.text = content.decode("utf-8")
         self.headers = {
             "content-type": content_type
             or ("application/json" if payload is not None else "text/html; charset=utf-8")
@@ -91,7 +94,7 @@ class FakeApi:
         self.private = False
         self.sdk = "docker"
         self.stage = "RUNNING"
-        self.files = {"Dockerfile", "static/3d/holographic.html", "serve.py"}
+        self.files = {*relock.REQUIRED_REMOTE_FILES, "serve.py"}
         self.variables = {
             "SZL_GIT_SHA": SimpleNamespace(value=source_sha),
             **{
@@ -161,9 +164,10 @@ def success_session(origin: str, source_sha: str) -> FakeSession:
     )
     payloads = {
         "livez": {
-            "status": "LIVE",
+            "status": "PROCESS_ALIVE",
             "process": {"pid": 1},
             "scope": "process liveness only",
+            "production_ready": False,
             "receipt_minted": False,
         },
         "build_info": {
@@ -235,13 +239,18 @@ def success_session(origin: str, source_sha: str) -> FakeSession:
     for name, path in relock.ROUTES.items():
         url = origin + path
         responses[("HEAD", url)] = FakeResponse(url, status=200, text="")
-        if name == "holographic":
+        if name in relock.HOLOGRAPHIC_ROUTES:
             responses[("GET", url)] = FakeResponse(
                 url,
-                text=(
-                    "<title>A11oy Holographic Operations</title>"
-                    "<h2>The estate, observed—not assumed.</h2>"
-                ),
+                content=(ROOT / relock.HOLOGRAPHIC_SOURCE_PATH).read_bytes(),
+            )
+        elif name in relock.BRAIN_SOURCE_PATHS:
+            source_path = relock.BRAIN_SOURCE_PATHS[name]
+            content_types = relock.ASSET_CONTENT_TYPES[name]
+            responses[("GET", url)] = FakeResponse(
+                url,
+                content=(ROOT / source_path).read_bytes(),
+                content_type=content_types[0],
             )
         else:
             responses[("GET", url)] = FakeResponse(url, payload=payloads[name])
@@ -311,10 +320,8 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
             relock.evaluate_once(FakeApi(self.source), session, self.contract)
 
     def test_reviewed_markers_are_bound_to_the_deployed_holographic_source(self) -> None:
-        self.assertEqual(
-            relock.HOLOGRAPHIC_SOURCE_PATH,
-            relock.ROUTES["holographic"].lstrip("/"),
-        )
+        self.assertEqual(relock.ROUTES["holographic"], "/holographic")
+        self.assertEqual(relock.ROUTES["holographic_slash"], "/holographic/")
         source = (ROOT / relock.HOLOGRAPHIC_SOURCE_PATH).read_text(encoding="utf-8")
         for marker in relock.HOLOGRAPHIC_SOURCE_MARKERS:
             with self.subTest(marker=marker):
@@ -323,6 +330,10 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
         self.assertNotIn(
             "console/3d/holographic.html",
             relock.REQUIRED_REMOTE_FILES,
+        )
+        self.assertTrue(
+            set(relock.BRAIN_SOURCE_PATHS.values())
+            <= relock.REQUIRED_REMOTE_FILES
         )
 
     def test_live_holographic_surface_missing_either_marker_fails_closed(self) -> None:
@@ -337,6 +348,112 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
                 "reviewed source markers",
             ):
                 relock.evaluate_once(FakeApi(self.source), session, self.contract)
+
+    def test_every_live_frontier_asset_must_match_reviewed_source_bytes(self) -> None:
+        for name in relock.BRAIN_SOURCE_PATHS:
+            session = success_session(self.origin, self.source)
+            url = self.origin + relock.ROUTES[name]
+            response = session.responses[("GET", url)]
+            response.content += b"\n<!-- drift -->"
+            response.text = response.content.decode("utf-8")
+            with self.subTest(name=name), self.assertRaisesRegex(
+                relock.RelockError,
+                "does not match reviewed source bytes",
+            ):
+                relock.evaluate_once(FakeApi(self.source), session, self.contract)
+
+    def test_holographic_allows_runtime_widget_without_claiming_byte_equality(self) -> None:
+        for name in sorted(relock.HOLOGRAPHIC_ROUTES):
+            session = success_session(self.origin, self.source)
+            response = session.responses[("GET", self.origin + relock.ROUTES[name])]
+            response.content = response.content.replace(
+                b"</body>", b'<script src="/operator-widget.js"></script></body>'
+            )
+            response.text = response.content.decode("utf-8")
+            report = relock.evaluate_once(FakeApi(self.source), session, self.contract)
+            evidence = report["routes"][name]
+            self.assertTrue(evidence["reviewed_asset_mounts"])
+            self.assertFalse(evidence["source_bytes_matched"])
+            self.assertNotEqual(evidence["sha256"], evidence["source_sha256"])
+
+    def test_holographic_rejects_missing_duplicate_changed_or_inert_mounts(self) -> None:
+        script = '<script src="/assets/brain-frontier-v7.js" defer data-szl-brain-frontier-v7="script"></script>'
+        cases = (
+            "", script + script,
+            script.replace("/assets/", "https://example.com/assets/"),
+            "<!--" + script + "-->",
+            "<template>" + script + "</template>",
+            "<noscript>" + script + "</noscript>",
+            script.replace(" defer", ' src="/alternate.js" defer'),
+            *(f"<{tag}>" + script + f"</{tag}>" for tag in (
+                "textarea", "title", "xmp", "iframe", "noembed", "noframes", "plaintext", "svg", "math"
+            )),
+            '<base href="https://example.org/">' + script,
+            "<textarea></noscript>" + script + "</textarea>",
+            *(f"<{tag}/>" + script + f"</{tag}>" for tag in (
+                "textarea", "title", "xmp", "iframe", "noembed", "noframes", "plaintext", "template", "noscript"
+            )),
+            script.replace("></script>", "/>"),
+            script.replace("</script>", ""),
+        )
+        for name in sorted(relock.HOLOGRAPHIC_ROUTES):
+            for replacement in cases:
+                session = success_session(self.origin, self.source)
+                response = session.responses[("GET", self.origin + relock.ROUTES[name])]
+                self.assertIn(script, response.text)
+                response.text = response.text.replace(script, replacement)
+                response.content = response.text.encode("utf-8")
+                with self.subTest(name=name, replacement=replacement), self.assertRaisesRegex(
+                    relock.RelockError, "exact active reviewed asset mounts"
+                ):
+                    relock.evaluate_once(FakeApi(self.source), session, self.contract)
+
+    def test_self_closing_foreign_elements_do_not_hide_the_following_mount(self) -> None:
+        for tag in ("svg", "math"):
+            session = success_session(self.origin, self.source)
+            response = session.responses[("GET", self.origin + relock.ROUTES["holographic"])]
+            response.content = response.content.replace(
+                b'<script src="/assets/brain-frontier-v7.js"',
+                f'<{tag}/><script src="/assets/brain-frontier-v7.js"'.encode(),
+            )
+            response.text = response.content.decode("utf-8")
+            report = relock.evaluate_once(FakeApi(self.source), session, self.contract)
+            self.assertTrue(report["routes"]["holographic"]["reviewed_asset_mounts"])
+
+    def test_brain_snapshot_semantics_are_independently_verified(self) -> None:
+        source = (ROOT / relock.BRAIN_SOURCE_PATHS["brain_frontier_snapshot"]).read_bytes()
+        evidence = relock.validate_brain_snapshot(source)
+        self.assertEqual(evidence["selected_handle_count"], 72)
+        self.assertEqual(
+            set(evidence["source_repositories"]),
+            relock.BRAIN_SOURCE_REPOSITORIES,
+        )
+        self.assertEqual(evidence["kind_distribution"]["attributed-formula"], 30)
+        self.assertTrue(evidence["handles_only"])
+
+    def test_brain_snapshot_tampering_fails_closed_before_live_acceptance(self) -> None:
+        source_path = ROOT / relock.BRAIN_SOURCE_PATHS["brain_frontier_snapshot"]
+        payload = json.loads(source_path.read_text(encoding="utf-8"))
+        cases = (
+            ("content", "forbidden"),
+            ("selected_handle_count", 71),
+            ("snapshot_sha256", "0" * 64),
+        )
+        for key, value in cases:
+            candidate = dict(payload)
+            candidate[key] = value
+            with self.subTest(key=key), self.assertRaises(relock.RelockError):
+                relock.validate_brain_snapshot(
+                    json.dumps(candidate, sort_keys=True).encode("utf-8")
+                )
+
+    def test_frontier_asset_content_type_drift_fails_closed(self) -> None:
+        session = success_session(self.origin, self.source)
+        name = "brain_frontier_js"
+        url = self.origin + relock.ROUTES[name]
+        session.responses[("GET", url)].headers["content-type"] = "text/html"
+        with self.assertRaisesRegex(relock.RelockError, "invalid content type"):
+            relock.evaluate_once(FakeApi(self.source), session, self.contract)
 
     def test_observed_badge_stays_unverified_until_both_probes_verify(self) -> None:
         source = (ROOT / relock.HOLOGRAPHIC_SOURCE_PATH).read_text(encoding="utf-8")
@@ -835,11 +952,17 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
         runtime_config = self.workflow.split(
             "  runtime-config:", 1
         )[1].split("\n  deploy:", 1)[0]
-        self.assertIn("needs: deploy", runtime_config)
-        self.assertIn("needs: runtime-config", self.workflow)
+        self.assertIn("needs: [manual-prerequisites, deploy]", runtime_config)
+        readiness_verdict = self.workflow.split(
+            "  readiness-verdict:", 1
+        )[1].split("\n  relock:", 1)[0]
         self.assertIn(
-            "needs: [runtime-config, readiness-verdict]",
-            self.workflow,
+            "needs: [manual-prerequisites, runtime-config]", readiness_verdict
+        )
+        relock_job = self.workflow.split("  relock:", 1)[1]
+        self.assertIn(
+            "needs: [manual-prerequisites, runtime-config, readiness-verdict]",
+            relock_job,
         )
         self.assertIn("--expected-origin \"$CANONICAL_ORIGIN\"", self.workflow)
         self.assertIn("--expected-source-sha \"$SOURCE_SHA\"", self.workflow)
@@ -859,26 +982,42 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertIn("probe summary contains doctrine lies", publisher)
 
-    def test_runtime_config_proves_a_persisted_receipt_across_restart(self) -> None:
-        self.assertIn(
-            "python scripts/prove_hf_series_a_restart.py",
-            self.workflow,
-        )
-        self.assertIn(
-            "--output \"$SERIES_A_LIVE_REPORT\"",
-            self.workflow,
-        )
-        self.assertIn(
-            "${{ env.SERIES_A_LIVE_REPORT }}",
-            self.workflow,
-        )
+    def test_runtime_config_retains_independently_blocked_proof_evidence(self) -> None:
+        runtime_config = self.workflow.split(
+            "  runtime-config:", 1
+        )[1].split("\n  deploy:", 1)[0]
+        for kind, name, output in (
+            ("series-a", "Block unreviewed live Series-A restart effects", "SERIES_A_LIVE_REPORT"),
+            ("gdw", "Block unreviewed live GDW write effects", "GDW_LIVE_REPORT"),
+        ):
+            with self.subTest(kind=kind):
+                step = runtime_config.split(f"      - name: {name}\n", 1)[1].split(
+                    "\n      - name:", 1
+                )[0]
+                self.assertIn("python -B scripts/check_hf_manual_prerequisites.py", step)
+                self.assertIn(f"--blocked-proof {kind}", step)
+                self.assertIn('--source-sha "${{ github.sha }}"', step)
+                self.assertIn(f'--output "${output}"', step)
+                self.assertNotIn("continue-on-error", step)
+                self.assertIn(f"${{{{ env.{output} }}}}", runtime_config)
+        self.assertNotIn("prove_hf_series_a_restart.py", self.workflow)
+        self.assertNotIn("prove_hf_gdw_runtime.py", self.workflow)
         self.assertIn(
             "- name: Upload secret-free runtime configuration evidence\n"
             "        if: ${{ always() }}",
             self.workflow,
         )
+        self.assertIn("if-no-files-found: error", runtime_config)
         self.assertLess(
-            self.workflow.index("python scripts/prove_hf_series_a_restart.py"),
+            self.workflow.index("Block unreviewed live Series-A restart effects"),
+            self.workflow.index("Block unreviewed live GDW write effects"),
+        )
+        self.assertLess(
+            self.workflow.index("Block unreviewed live GDW write effects"),
+            self.workflow.index("Upload secret-free runtime configuration evidence"),
+        )
+        self.assertLess(
+            self.workflow.index("Upload secret-free runtime configuration evidence"),
             self.workflow.index(
                 "python .github/scripts/verify_canonical_a11oy.py"
             ),
@@ -894,13 +1033,37 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
             self.workflow,
         )
 
-    def test_issue_write_is_limited_to_relock_job(self) -> None:
+    def test_issue_effects_are_absent_and_actual_verdict_is_enforced(self) -> None:
         self.assertIn("contents: read", self.workflow)
-        self.assertIn("issues: write", self.workflow)
-        self.assertIn('RELOCK_ISSUE: "1043"', self.workflow)
-        self.assertIn("gh issue edit", self.workflow)
-        self.assertIn("gh issue close", self.workflow)
-        self.assertIn("gh issue reopen", self.workflow)
+        for forbidden in ("issues: write", "RELOCK_ISSUE", "gh issue"):
+            self.assertNotIn(forbidden, self.workflow)
+        relock_job = self.workflow.split("  relock:", 1)[1]
+        summary = relock_job.split(
+            "      - name: Retain the verification outcome without issue mutation\n", 1
+        )[1].split("\n      - name:", 1)[0]
+        self.assertIn("if: always()", summary)
+        self.assertIn('EXIT_CODE: ${{ steps.verify.outputs.exit_code }}', summary)
+        self.assertIn('case "${EXIT_CODE:-2}" in', summary)
+        self.assertIn("0) outcome=PASS ;;", summary)
+        self.assertIn("*) outcome=FAIL ;;", summary)
+        self.assertIn(
+            "printf 'Canonical verification outcome: %s. See the immutable relock artifact.\\n'",
+            summary,
+        )
+        self.assertIn('"$outcome" >> "$GITHUB_STEP_SUMMARY"', summary)
+        self.assertNotIn('"$EXIT_CODE" >>', summary)
+        enforce = relock_job.split("      - name: Enforce exact live state\n", 1)[1].split(
+            "\n      - name:", 1
+        )[0]
+        self.assertIn("if: always()", enforce)
+        self.assertIn('code="${EXIT_CODE:-2}"', enforce)
+        self.assertIn('if [ "$code" -ne 0 ]; then', enforce)
+        self.assertIn('exit "$code"', enforce)
+        self.assertNotIn("continue-on-error", enforce)
+        self.assertLess(
+            relock_job.index("Enforce exact live state"),
+            relock_job.index("Trigger strict post-deployment GitHub/HF parity"),
+        )
 
     def test_required_routes_and_pruning_remain_enforced(self) -> None:
         for route in (
@@ -910,7 +1073,12 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
             "/api/a11oy/v1/brain/capabilities",
             "/api/a11oy/v1/readiness/tab-matrix?view=summary",
             "/api/a11oy/v1/series-a/status",
+            "/holographic",
+            "/holographic/",
             "/static/3d/holographic.html",
+            "/assets/brain-frontier-v7.css",
+            "/assets/brain-frontier-v7.js",
+            "/assets/brain-frontier-v7.json",
         ):
             self.assertIn(route, self.workflow)
         self.assertIn("prune: true", self.workflow)

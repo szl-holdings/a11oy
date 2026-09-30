@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import inspect
+import json
+import re
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -58,6 +60,8 @@ def test_holographic_operations_surface_is_deployed_and_accessible() -> None:
     assert "A11oy Holographic Operations" in source
     assert "The estate, observed—not assumed." in source
     assert "/api/livez" in source
+    assert 'p.status==="PROCESS_ALIVE"' in source
+    assert 'p.status==="LIVE"' not in source
     assert "/api/build-info" in source
     assert "/api/a11oy/v1/brain/capabilities" in source
     assert "/api/a11oy/v1/readiness/tab-matrix?view=summary" in source
@@ -81,11 +85,42 @@ def test_permanent_sync_uses_the_reusable_source_bound_authority() -> None:
         "/api/a11oy/v1/brain/capabilities",
         "/api/a11oy/v1/readiness/tab-matrix?view=summary",
         "/static/3d/holographic.html",
+        "/atelier/frontier",
+        "/api/a11oy/v1/atelier/frontier/registry",
+        "/api/a11oy/v1/atelier/frontier/evaluate",
         "needs: deploy",
         'RELOCK_ISSUE: "1043"',
         "Trigger strict post-deployment GitHub/HF parity",
     ):
         assert required in workflow
+
+    expected_smoke_paths = [
+        "/",
+        "/api/livez",
+        "/api/build-info",
+        "/api/a11oy/v1/brain/capabilities",
+        "/api/a11oy/v1/readiness/tab-matrix?view=summary",
+        "/api/a11oy/v1/series-a/status",
+        "/holographic",
+        "/holographic/",
+        "/static/3d/holographic.html",
+        "/assets/brain-frontier-v7.css",
+        "/assets/brain-frontier-v7.js",
+        "/assets/brain-frontier-v7.json",
+        "/atelier/frontier",
+        "/api/a11oy/v1/atelier/frontier/registry",
+        (
+            "/api/a11oy/v1/atelier/frontier/evaluate"
+            "?evidence=90&repeatability=90&coverage=90&governance=90"
+            "&safety=1&energy_state=UNAVAILABLE"
+        ),
+        "/api/a11oy/v1/atelier/frontier/evaluate?safety=0",
+    ]
+    match = re.search(r"^\s+smoke-paths:\s+'([^']+)'\s*$", workflow, re.MULTILINE)
+    assert match is not None
+    smoke_paths = json.loads(match.group(1))
+    assert smoke_paths == expected_smoke_paths
+    assert len(smoke_paths) == len(set(smoke_paths))
 
     for forbidden in (
         "add_space_variable(",

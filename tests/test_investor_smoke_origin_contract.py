@@ -4,7 +4,8 @@
 
 The public apex is a static product front door. Runtime HTTP and API assertions
 belong to the canonical source-bound Hugging Face Space until an independently
-proved edge proxy changes that architecture.
+proved edge proxy changes that architecture. Provider liveness is measured after
+protected merge and on schedule, not used to deadlock an unrelated source PR.
 """
 from pathlib import Path
 
@@ -38,3 +39,21 @@ def test_gate_remains_read_only_and_fail_closed() -> None:
     assert "--mode live" in text
     assert "curl -X POST" not in text
     assert "continue-on-error" not in text
+
+
+def test_provider_liveness_is_post_merge_and_scheduled_not_pr_admission() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert "pull_request:\n    branches: [main]" in text
+    assert "push:\n    branches: [main]" in text
+    assert 'schedule:\n    - cron: "17 */6 * * *"' in text
+    assert "workflow_dispatch: {}" in text
+    assert "name: Investor smoke live probes\n    if: github.event_name != 'pull_request'" in text
+    assert "A skipped live job on a pull request is an explicit lifecycle state" in text
+
+
+def test_runbook_preserves_provider_failure_visibility() -> None:
+    text = RUNBOOK.read_text(encoding="utf-8")
+    assert "Provider liveness is not a pull-request admission check." in text
+    assert "protected-main push" in text
+    assert "six-hour schedule" in text
+    assert "must remain red" in text

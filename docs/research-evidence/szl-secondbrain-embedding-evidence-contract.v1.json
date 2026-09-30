@@ -1,0 +1,81 @@
+{
+  "schema": "szl.research-evidence-contract.v1",
+  "artifact_class": "EVIDENCE_CONTRACT",
+  "status": "PROPOSED",
+  "created": "2026-09-08",
+  "purpose": "Evidence for a CPU-lab embedding uplift evaluation for the szl-second-brain RAG lane. Measures whether the Qwen3-Embedding-0.6B class (GGUF, llama.cpp-native) beats the estate's current pinned embedding artifact on estate-held-out retrieval queries — without any production change.",
+  "governing_boundary": {
+    "overlay": "model_release/frontier-qualification/top-choice-wave-2026-09-07.json",
+    "overlay_commit": "c7c430930008025789f92438bb6503099ca36d8b",
+    "rule": "Outputs of any run under this contract are proposal/evidence only. Upstream benchmark claims (including any MTEB figures on model cards) are not local measurements. Silent substitution is forbidden."
+  },
+  "pairing": {
+    "baseline": {
+      "role": "current_estate_embedding_artifact",
+      "identity": "REQUIRED_AT_EXECUTION (owner pins the current second-brain embedding artifact + revision)",
+      "note": "The baseline is the estate's own production embedding path; it is pinned at execution so the comparison is honest and reproducible."
+    },
+    "candidate": {
+      "role": "challenger_embedding_artifact",
+      "repo": "AIconjured/Qwen3-Embedding-0.6B-Q8-NVFP4",
+      "base_model": "Qwen/Qwen3-Embedding-0.6B",
+      "license": "apache-2.0",
+      "revision_pin": "REQUIRED_AT_EXECUTION",
+      "upstream_status": "UNVERIFIED_UPSTREAM_ARTIFACT",
+      "inspected_2026_09_08": {
+        "format": "GGUF (Q8 + imatrix), llama.cpp and Ollama loadable",
+        "task_tags": ["feature-extraction", "embedding", "rag"],
+        "created": "2026-09-05",
+        "downloads_observed": 156,
+        "note": "0.6B class — CPU-lab native; the estate's llama.cpp stack loads it without new dependencies."
+      }
+    }
+  },
+  "execution_envelope": {
+    "environment": "house CPU lab via llama.cpp embedding endpoint or the harness instrumented-wrapper mode (recorded commands)",
+    "harness": "harnesses/research-evidence/cpu_evidence_harness.py — probe mode (recorded command per measurement rung)",
+    "metal_dependency": "NONE"
+  },
+  "measurements_required": [
+    {
+      "id": "retrieval_quality",
+      "definition": "recall@k (k in [1,5,10]) on an estate-held-out query set drawn from the second-brain corpus; identical queries, identical k, both artifacts",
+      "report": ["recall_at_1", "recall_at_5", "recall_at_10", "per_query_divergences"],
+      "label": "MEASURED on estate corpus only; never report upstream MTEB as estate evidence"
+    },
+    {
+      "id": "embedding_throughput",
+      "definition": "texts/second at fixed batch and document length distribution, both artifacts, same hardware",
+      "report": ["texts_per_s_baseline", "texts_per_s_candidate", "ratio"],
+      "label": "MEASURED"
+    },
+    {
+      "id": "resource_envelope",
+      "definition": "Peak RSS and cold-load time for both artifacts",
+      "report": ["peak_rss_mb", "cold_load_s"],
+      "label": "MEASURED"
+    }
+  ],
+  "gate_thresholds": {
+    "recall_rule": "candidate recall@5 >= baseline recall@5 (parity or better; regression is an automatic park)",
+    "throughput_ratio_min": 1.25,
+    "note": "Thresholds authorize writing an integration proposal for the second-brain lane only. They do not select, promote, or ship."
+  },
+  "non_goals": [
+    "No Hugging Face repository is created, overwritten, or retagged by this contract",
+    "No held frontier choice is promoted or ungated",
+    "No production RAG change is authorized",
+    "No upstream leaderboard figure may be quoted as a local measurement"
+  ],
+  "receipt_requirement": {
+    "type": "a11oy_receipt",
+    "bound_fields": ["baseline_revision", "candidate_revision", "query_set_hash", "harness_revision", "hardware_envelope", "raw_measurement_artifact_hash"],
+    "signing_note": "Receipts emit under current signing posture; HMAC PLACEHOLDER labeling applies until A11OY_HMAC_KEY is set, per HONEST_DISCLOSURE.md"
+  },
+  "provenance": {
+    "radar": "frontier-radar-2026-09-08 (second pass, lane coverage completion: second-brain/embedding lane)",
+    "authored_by": "Perplexity frontier-radar session, owner-directed",
+    "pattern": "Mirrors docs/research-evidence/szl-specdec-drafter-evidence-contract.v1.json (#2047/#2059) and szl-linear-attention-cpu-probe-contract.v1.json (#2060)",
+    "inspection": "hub_repo_search embedding-lane scan, 2026-09-08"
+  }
+}

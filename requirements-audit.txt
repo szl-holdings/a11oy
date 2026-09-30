@@ -3,27 +3,19 @@
 #
 # WHY THIS FILE EXISTS
 # requirements.txt intentionally declares only the cross-pod tracing deps; a11oy's
-# primary runtime deps are pinned in the Dockerfile for the HF Space build. That
-# means `pip-audit -r requirements.txt` audits a MINORITY of what actually ships.
-# This file is the union of both so the vulnerability audit covers the real
-# deployed closure. It is an AUDIT INPUT ONLY — never install from it.
+# primary runtime deps are pinned in requirements-runtime.txt, which the Dockerfile
+# installs for the HF Space / GHCR build. That means `pip-audit -r requirements.txt`
+# audits a MINORITY of what actually ships. This file is the union of both so the
+# vulnerability audit covers the real deployed closure. It is an AUDIT INPUT ONLY —
+# never install from it.
 #
-# INVARIANT: every pin here must match the Dockerfile pin exactly. CI enforces
-# this (see .github/workflows/dependency-audit.yml) so the two cannot drift.
+# INVARIANT: the runtime pins are INCLUDED, never copied. The `-r` line below is the
+# only reference to them, so the audit closure cannot drift from what the image
+# installs. CI (.github/workflows/dependency-audit.yml) fails closed if a runtime
+# pin is re-listed here or inline in the Dockerfile.
 
-# --- Dockerfile runtime pins (docker build stage) ---
-fastapi==0.141.1
-uvicorn==0.52.4
-httpx==0.28.1
-starlette==1.6.0
-huggingface_hub==1.29.0
-openai==2.43.0
-python-multipart==0.0.32
-cryptography==50.0.1
-lmdb==2.3.0
-slowapi==0.1.10
-defusedxml==0.7.1
-numpy==2.5.2
+# --- Runtime image pins (Dockerfile: pip install -r requirements-runtime.txt) ---
+-r requirements-runtime.txt
 
 # --- Optional local-LLM path, installed ONLY when A11OY_REQUIRE_LOCAL_LLM=1 ---
 # Pulls diskcache>=5.6.1 transitively. diskcache 5.6.3 carries CVE-2025-69872

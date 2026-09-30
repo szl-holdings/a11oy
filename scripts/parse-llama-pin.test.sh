@@ -2,21 +2,12 @@
 # Copyright 2026 SZL Holdings
 # SPDX-License-Identifier: Apache-2.0
 #
-# parse-llama-pin.test.sh — negative-fixture self-test for parse-llama-pin.sh,
-# the parser the llama-cpp wheel guard depends on. Proves the parser (a)
-# extracts the right version from a representative known-good Dockerfile, (b)
-# fails LOUDLY (non-zero) on known-bad fixtures where the pin is absent or
-# reshaped, and (c) still extracts a plausible pin from the REAL root Dockerfile.
+# Negative-fixture contract for scripts/parse-llama-pin.sh. It proves the
+# parser accepts one literal exact source pin or one literal official manylinux
+# wheel version, accepts repeated references to the same wheel, and fails closed
+# on absent, ranged, indirect, malformed, or conflicting versions.
 #
-# Why this exists: the wheel guard re-builds the pinned llama-cpp-python version
-# parsed from the Dockerfile. If a refactor reshapes/moves the install line, the
-# parser would return empty and the guard step would error — but nothing checks
-# the parser still matches the Dockerfile's actual shape, so a refactor could
-# quietly disable the protection. This self-test (mirroring the box watch-alarm
-# guards' negative-fixture convention) turns that silent breakage into a RED CI
-# failure.
-#
-# Signed-off-by: Forge <forge@szlholdings.ai>
+# Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -32,79 +23,98 @@ trap 'rm -rf "$TMP"' EXIT
 expect_version() { # <file> <expected-version> <label>
   local out
   if ! out="$(bash "$PARSER" "$1" 2>/dev/null)"; then
-    echo "SELF-TEST FAIL: parser should PASS on $3 but it exited non-zero" >&2; exit 1
+    echo "SELF-TEST FAIL: parser should PASS on $3 but it exited non-zero" >&2
+    exit 1
   fi
   if [ "$out" != "$2" ]; then
-    echo "SELF-TEST FAIL: parser extracted '$out' from $3, expected '$2'" >&2; exit 1
+    echo "SELF-TEST FAIL: parser extracted '$out' from $3, expected '$2'" >&2
+    exit 1
   fi
   echo "ok: parser extracts '$2' from $3"
 }
 
 expect_fail() { # <file> <label>
   if bash "$PARSER" "$1" >/dev/null 2>&1; then
-    echo "SELF-TEST FAIL: parser should FAIL (exit non-zero) on $2 but it passed" >&2; exit 1
+    echo "SELF-TEST FAIL: parser should FAIL on $2 but it passed" >&2
+    exit 1
   fi
   echo "ok: parser FAILS loudly on $2"
 }
 
-# --- Known-GOOD fixture: representative of the real Dockerfile install line. ---
-cat > "$TMP/good.Dockerfile" <<'EOF'
+cat > "$TMP/source-good.Dockerfile" <<'EOF'
 FROM python:3.12-slim
-RUN set -eux; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends build-essential cmake ninja-build; \
-    CMAKE_ARGS="-DGGML_NATIVE=OFF" pip install --no-cache-dir --no-binary llama-cpp-python "llama-cpp-python==0.3.19"; \
-    rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir --no-binary llama-cpp-python \
+    "llama-cpp-python==0.3.19"
 EOF
-expect_version "$TMP/good.Dockerfile" "0.3.19" "known-good fixture"
+expect_version "$TMP/source-good.Dockerfile" "0.3.19" "literal source-install fixture"
 
-# A different pinned version must be extracted verbatim (not hard-coded).
-cat > "$TMP/good2.Dockerfile" <<'EOF'
+cat > "$TMP/wheel-good.Dockerfile" <<'EOF'
 FROM python:3.12-slim
-RUN pip install --no-binary llama-cpp-python "llama-cpp-python==0.4.1"
+ADD --checksum=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+    https://github.com/abetlen/llama-cpp-python/releases/download/v0.3.35/llama_cpp_python-0.3.35-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl \
+    /wheels/llama_cpp_python-0.3.35-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
 EOF
-expect_version "$TMP/good2.Dockerfile" "0.4.1" "alternate-version fixture"
+expect_version "$TMP/wheel-good.Dockerfile" "0.3.35" "official manylinux wheel fixture"
 
-# --- Known-BAD fixtures: the pin is absent or reshaped to a non-== form. ---
+cat > "$TMP/wheel-repeated.Dockerfile" <<'EOF'
+FROM python:3.12-slim
+ARG LLAMA_CPP_WHEEL=llama_cpp_python-0.3.35-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+ADD --checksum=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+    https://github.com/abetlen/llama-cpp-python/releases/download/v0.3.35/llama_cpp_python-0.3.35-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl \
+    /wheels/llama_cpp_python-0.3.35-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+RUN test -f /wheels/llama_cpp_python-0.3.35-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+EOF
+expect_version "$TMP/wheel-repeated.Dockerfile" "0.3.35" "repeated identical wheel references"
 
-# 1) Pin removed entirely (package no longer pinned at all).
 cat > "$TMP/no-pin.Dockerfile" <<'EOF'
 FROM python:3.12-slim
-RUN pip install --no-cache-dir requests numpy
+RUN pip install requests numpy
 EOF
-expect_fail "$TMP/no-pin.Dockerfile" "no-pin fixture (package absent)"
+expect_fail "$TMP/no-pin.Dockerfile" "no-pin fixture"
 
-# 2) Unpinned install (no version-equality) — guard cannot know what to rebuild.
 cat > "$TMP/unpinned.Dockerfile" <<'EOF'
 FROM python:3.12-slim
-RUN pip install --no-binary llama-cpp-python llama-cpp-python
+RUN pip install llama-cpp-python
 EOF
-expect_fail "$TMP/unpinned.Dockerfile" "unpinned fixture (no ==<ver>)"
+expect_fail "$TMP/unpinned.Dockerfile" "unpinned source install"
 
-# 3) Reshaped to a range/compatible pin instead of exact ==.
 cat > "$TMP/range.Dockerfile" <<'EOF'
 FROM python:3.12-slim
 RUN pip install "llama-cpp-python>=0.3.19,<0.4"
 EOF
-expect_fail "$TMP/range.Dockerfile" "range-pin fixture (>= instead of ==)"
+expect_fail "$TMP/range.Dockerfile" "range pin"
 
-# 4) Pin moved into a requirements var with a non-version token after ==.
-cat > "$TMP/var.Dockerfile" <<'EOF'
+cat > "$TMP/indirect.Dockerfile" <<'EOF'
 FROM python:3.12-slim
-ARG LLAMA_PIN=latest
+ARG LLAMA_PIN=0.3.35
 RUN pip install "llama-cpp-python==${LLAMA_PIN}"
 EOF
-expect_fail "$TMP/var.Dockerfile" "indirected-pin fixture (==\${VAR})"
+expect_fail "$TMP/indirect.Dockerfile" "indirect source pin"
 
-# 5) Missing Dockerfile path must also fail loudly (not silently pass).
-expect_fail "$TMP/does-not-exist.Dockerfile" "missing-file fixture"
+cat > "$TMP/conflicting.Dockerfile" <<'EOF'
+FROM python:3.12-slim
+RUN pip install "llama-cpp-python==0.3.19"
+ADD --checksum=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+    https://github.com/abetlen/llama-cpp-python/releases/download/v0.3.35/llama_cpp_python-0.3.35-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl \
+    /wheels/llama_cpp_python-0.3.35-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+EOF
+expect_fail "$TMP/conflicting.Dockerfile" "conflicting source and wheel versions"
 
-# --- The REAL root Dockerfile must yield a plausible semver pin. ---
+cat > "$TMP/malformed-wheel.Dockerfile" <<'EOF'
+FROM python:3.12-slim
+ADD --checksum=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+    https://github.com/abetlen/llama-cpp-python/releases/download/v0.3.35/llama_cpp_python-0.3.35-cp312-cp312-linux_x86_64.whl \
+    /wheels/llama_cpp_python-0.3.35-cp312-cp312-linux_x86_64.whl
+EOF
+expect_fail "$TMP/malformed-wheel.Dockerfile" "unsupported wheel shape"
+
+expect_fail "$TMP/does-not-exist.Dockerfile" "missing file"
+
 real_ver="$(bash "$PARSER" "$DOCKERFILE")"
 if ! printf '%s' "$real_ver" | grep -qE '^[0-9]+\.[0-9]+(\.[0-9]+)?$'; then
-  echo "SELF-TEST FAIL: parser returned '$real_ver' from the real Dockerfile, which is not a plausible version. The install line may have been reshaped — update scripts/parse-llama-pin.sh in lockstep." >&2
+  echo "SELF-TEST FAIL: parser returned '$real_ver' from the real Dockerfile" >&2
   exit 1
 fi
-echo "ok: parser extracts a plausible pin ('$real_ver') from the real root Dockerfile"
+echo "ok: parser extracts exact real-Dockerfile pin '$real_ver'"
 
 echo "All parse-llama-pin self-tests passed."

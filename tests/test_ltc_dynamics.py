@@ -12,6 +12,7 @@ Ouroboros cycle. Discipline under test:
   * GRACEFUL    — malformed input degrades to an honest inert no-op, never raises.
   * NON-REGRESSION — /agent/run stays byte-identical; the note is additive-only.
 """
+import json
 import warnings
 
 import pytest
@@ -69,6 +70,36 @@ starlette_testclient = pytest.importorskip("starlette.testclient")
 TestClient = starlette_testclient.TestClient
 
 import serve  # noqa: E402
+import szl_agentic_loop as runtime_loop  # noqa: E402
+
+
+_OPERATOR_TOKEN = "test-ltc-operator-token"
+_OPERATOR_HEADERS = {"Authorization": f"Bearer {_OPERATOR_TOKEN}"}
+
+
+@pytest.fixture(autouse=True)
+def configured_runtime_operator(monkeypatch):
+    monkeypatch.setenv("A11OY_OPERATOR_CREDENTIALS_JSON", json.dumps({
+        "version": 1,
+        "credentials": [{
+            "owner_id": "operator:test",
+            "namespace": "a11oy",
+            "key_id": "ltc-test-key",
+            "token": _OPERATOR_TOKEN,
+            "scopes": ["agent:cycle"],
+            "revoked": False,
+        }],
+    }))
+    monkeypatch.setenv("A11OY_OPERATOR_NAMESPACE", "a11oy")
+    monkeypatch.setenv("A11OY_OPERATOR_MIN_INTERVAL_SEC", "0")
+    monkeypatch.delenv("A11OY_OPERATOR_PRINCIPALS_JSON", raising=False)
+    with runtime_loop._OPERATOR_ACTION_LOCK:
+        runtime_loop._OPERATOR_ACTION_PENDING.clear()
+        runtime_loop._OPERATOR_ACTION_LAST.clear()
+    yield
+    with runtime_loop._OPERATOR_ACTION_LOCK:
+        runtime_loop._OPERATOR_ACTION_PENDING.clear()
+        runtime_loop._OPERATOR_ACTION_LAST.clear()
 
 
 @pytest.fixture(scope="module")
@@ -81,7 +112,8 @@ def test_cycle_emits_advisory_ltc_note(client, monkeypatch):
     r = client.post("/api/a11oy/v1/agent/cycle",
                     json={"query": "deploy a low-risk reversible change",
                           "severity": "low", "reversible": True,
-                          "budget": 5, "eps": 0.01})
+                          "budget": 5, "eps": 0.01, "loop": True},
+                    headers=_OPERATOR_HEADERS)
     assert r.status_code == 200
     body = r.json()
     note = body.get("ltc_stability_note")

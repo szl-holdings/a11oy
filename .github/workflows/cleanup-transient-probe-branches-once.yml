@@ -1,0 +1,119 @@
+name: Clean transient probe branches once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/cleanup-transient-probe-branches-once.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cleanup-transient-probe-branches-once
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: Delete exact transient probe refs
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Delete only the enumerated unprotected refs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+          import json
+          import os
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+          from pathlib import Path
+
+          branches = [
+              "probe-ignore",
+              "probe-ignore-2",
+              "probe-ignore-3",
+              "probe-ignore-4",
+              "probe-ignore-5",
+              "probe-ignore-6",
+              "probe-ignore-7",
+              "probe-ignore-8",
+              "probe-ignore-9",
+              "probe-ignore-10",
+              "probe-ignore-11",
+          ]
+          token = os.environ["GH_TOKEN"]
+          repository = os.environ["GH_REPOSITORY"]
+          api = "https://api.github.com"
+          rows = []
+
+          def request(method: str, url: str) -> tuple[int, bytes]:
+              req = urllib.request.Request(
+                  url,
+                  method=method,
+                  headers={
+                      "Authorization": f"Bearer {token}",
+                      "Accept": "application/vnd.github+json",
+                      "X-GitHub-Api-Version": "2022-11-28",
+                      "User-Agent": "SZL-transient-ref-cleaner/1.0",
+                  },
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=20) as response:
+                      return response.status, response.read()
+              except urllib.error.HTTPError as exc:
+                  return exc.code, exc.read()
+
+          for branch in branches:
+              encoded = urllib.parse.quote(branch, safe="")
+              url = f"{api}/repos/{repository}/git/ref/heads/{encoded}"
+              before, _ = request("GET", url)
+              if before == 404:
+                  rows.append({"branch": branch, "state": "ALREADY_ABSENT"})
+                  continue
+              if before != 200:
+                  rows.append({"branch": branch, "state": "READ_FAILED", "http": before})
+                  continue
+              deleted, _ = request("DELETE", url)
+              after, _ = request("GET", url)
+              rows.append(
+                  {
+                      "branch": branch,
+                      "state": "DELETED_VERIFIED" if deleted == 204 and after == 404 else "DELETE_FAILED",
+                      "delete_http": deleted,
+                      "after_http": after,
+                  }
+              )
+
+          receipt = {
+              "schema": "szl.github-transient-ref-cleanup/v1",
+              "repository": repository,
+              "branches": rows,
+              "token_recorded": False,
+              "complete": all(row["state"] in {"ALREADY_ABSENT", "DELETED_VERIFIED"} for row in rows),
+          }
+          Path("/tmp/transient-probe-branch-cleanup.json").write_text(
+              json.dumps(receipt, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(receipt, indent=2, sort_keys=True))
+          if not receipt["complete"]:
+              raise SystemExit(1)
+          PY
+
+      - name: Upload cleanup receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: transient-probe-branch-cleanup-${{ github.run_id }}-${{ github.run_attempt }}
+          path: /tmp/transient-probe-branch-cleanup.json
+          if-no-files-found: error
+          retention-days: 30

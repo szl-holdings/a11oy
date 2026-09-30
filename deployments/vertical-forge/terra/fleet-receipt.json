@@ -1,0 +1,67 @@
+{
+  "algorithm": "sha256-canonical-json-chain",
+  "config_sha256": "4b85cb67e7003cee620119835c91a92e954f3c863fc2faa505b07aeb4a1c2a46",
+  "events": [
+    {
+      "artifact_sha256": "f2d94757f0f6832d7f9989440caea98438e8114307077799ed99ca5b2c2add1c",
+      "chain_hash": "a1474459b2ecb963fe233d05ef130f72b4d80f7a5ccfcf4903f8ba2f29174653",
+      "kind": "generated-index",
+      "path": "counsel/index.html",
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "artifact_sha256": "21cd0fe2b30abbf071ead0b590d17b0ad5dea17aace9f0ed9add0133ed6666bf",
+      "chain_hash": "31296dc9d84aaee70fd1bdae834b57852486fd97d5b2f462c2e02a11a1ef9cf5",
+      "kind": "generated-index",
+      "path": "david-leads/index.html",
+      "prev_hash": "a1474459b2ecb963fe233d05ef130f72b4d80f7a5ccfcf4903f8ba2f29174653"
+    },
+    {
+      "artifact_sha256": "e228dadbcbcb93f4694a43cb4dc69a452b9369b3cd2fb17483361ab33b43f7cf",
+      "chain_hash": "c953e5d28d391301381801208a23ad3ac91012dd644f6733ccbe2fb3187b2ca7",
+      "kind": "generated-index",
+      "path": "finance/index.html",
+      "prev_hash": "31296dc9d84aaee70fd1bdae834b57852486fd97d5b2f462c2e02a11a1ef9cf5"
+    },
+    {
+      "artifact_sha256": "91e3819fb5a8de93eb8f600b71ae77d6d7390591ad56df60d2b67470a9f1c45f",
+      "chain_hash": "47abc4c50020d3d838d7e296a07b042bed5bc3ed02fdf059050e56defb4137e0",
+      "kind": "generated-index",
+      "path": "killinchu/index.html",
+      "prev_hash": "c953e5d28d391301381801208a23ad3ac91012dd644f6733ccbe2fb3187b2ca7"
+    },
+    {
+      "artifact_sha256": "dc5c8816c17b8c4e4f85d9f4b91ab24ad3f35685d7a93fb2112abc477df4ea43",
+      "chain_hash": "3f8909834e5720935b7e452ae403f9c372119f9926891ee05d8c7bef52894582",
+      "kind": "generated-index",
+      "path": "lyte/index.html",
+      "prev_hash": "47abc4c50020d3d838d7e296a07b042bed5bc3ed02fdf059050e56defb4137e0"
+    },
+    {
+      "artifact_sha256": "abeb13a98e82c8b294259717d6fb981ba43e1284c8faa01a1af5b4ff89194822",
+      "chain_hash": "3c1ded7d92fcc54ee87fa318f05cb0d55c8ee307c32b509522444b0425433f31",
+      "kind": "generated-index",
+      "path": "puriq/index.html",
+      "prev_hash": "3f8909834e5720935b7e452ae403f9c372119f9926891ee05d8c7bef52894582"
+    },
+    {
+      "artifact_sha256": "039b01613d44e044216714beeeecf86f9e636c61eba16fe7a0a30b282e07438c",
+      "chain_hash": "8ff12bb0f4a4786a3952b70117e5cb191fe098d26a04d128af0c2c02dcd9ba93",
+      "kind": "generated-index",
+      "path": "sentra/index.html",
+      "prev_hash": "3c1ded7d92fcc54ee87fa318f05cb0d55c8ee307c32b509522444b0425433f31"
+    },
+    {
+      "artifact_sha256": "3970b3ac1065db1c531d141d3d0aa7ae1903546d6b10197b6f03794d72bca5c4",
+      "chain_hash": "26f1316c4c15886ebbb80cd625bc92d741dce83f4ccff02ce04eaefa4c03e34f",
+      "kind": "generated-index",
+      "path": "terra/index.html",
+      "prev_hash": "8ff12bb0f4a4786a3952b70117e5cb191fe098d26a04d128af0c2c02dcd9ba93"
+    }
+  ],
+  "generator": "szl-vertical-forge/0.2.2",
+  "genesis": "0000000000000000000000000000000000000000000000000000000000000000",
+  "master_hash": "26f1316c4c15886ebbb80cd625bc92d741dce83f4ccff02ce04eaefa4c03e34f",
+  "schema": "szl.vertical-forge.receipt/v3",
+  "vertical_count": 8
+}

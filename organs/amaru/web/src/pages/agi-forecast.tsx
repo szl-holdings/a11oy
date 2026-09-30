@@ -36,25 +36,25 @@ function formatGaugeValue(v: GaugeStatus['value']): string {
 function GaugeStatusTable({ statuses }: { statuses: readonly GaugeStatus[] }) {
   if (statuses.length === 0) {
     return (
-      <div className="text-[12px] font-mono text-[#666]">
+      <div className="text-[12px] font-mono text-ink-sub">
         No gauges registered.
       </div>
     );
   }
   return (
-    <div className="rounded-xl border border-[rgba(255,255,255,0.06)] bg-[#0e0e0e] overflow-hidden">
-      <div className="px-5 py-3 border-b border-[rgba(255,255,255,0.06)] flex items-baseline justify-between">
-        <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-[#666]">
+    <div className="rounded-xl border border-line-subtle bg-ground-deep overflow-hidden">
+      <div className="px-5 py-3 border-b border-line-subtle flex items-baseline justify-between">
+        <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-sub">
           Per-Gauge Status
         </div>
-        <div className="text-[11px] font-mono text-[#8a8a8a] tabular-nums">
+        <div className="text-[11px] font-mono text-ink-sub tabular-nums">
           {statuses.filter((s) => s.ok).length}/{statuses.length} ok
         </div>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-[12px]">
-          <thead className="text-[10px] font-mono uppercase tracking-[0.15em] text-[#555]">
-            <tr className="border-b border-[rgba(255,255,255,0.04)]">
+          <thead className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-sub">
+            <tr className="border-b border-line-subtle">
               <th className="text-left px-5 py-2 font-normal">Gauge</th>
               <th className="text-left px-3 py-2 font-normal">Source</th>
               <th className="text-left px-3 py-2 font-normal">Status</th>
@@ -67,15 +67,15 @@ function GaugeStatusTable({ statuses }: { statuses: readonly GaugeStatus[] }) {
             {statuses.map((s) => (
               <tr
                 key={s.id}
-                className="border-b border-[rgba(255,255,255,0.03)] last:border-b-0 hover:bg-[rgba(255,255,255,0.02)]"
+                className="border-b border-line-subtle last:border-b-0 hover:bg-wash/7"
               >
                 <td className="px-5 py-2.5">
-                  <div className="font-mono text-[#f5f5f5]">{s.label ?? s.id}</div>
+                  <div className="font-mono text-ink">{s.label ?? s.id}</div>
                   {s.label && s.label !== s.id && (
-                    <div className="text-[10px] font-mono text-[#555]">{s.id}</div>
+                    <div className="text-[10px] font-mono text-ink-sub">{s.id}</div>
                   )}
                 </td>
-                <td className="px-3 py-2.5 font-mono text-[11px] text-[#8a8a8a]">
+                <td className="px-3 py-2.5 font-mono text-[11px] text-ink-sub">
                   {s.source ?? '—'}
                 </td>
                 <td className="px-3 py-2.5">
@@ -83,35 +83,35 @@ function GaugeStatusTable({ statuses }: { statuses: readonly GaugeStatus[] }) {
                     className={
                       'inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-[10px] font-mono uppercase tracking-[0.12em] ' +
                       (s.ok
-                        ? 'bg-[rgba(120,200,140,0.08)] text-[#7bc88c] border border-[rgba(120,200,140,0.2)]'
-                        : 'bg-[rgba(220,80,80,0.08)] text-[#dc8a8a] border border-[rgba(220,80,80,0.25)]')
+                        ? 'bg-success/8 text-ink-good border border-success/20'
+                        : 'bg-error/8 text-ink-bad border border-error/25')
                     }
                   >
                     <span
                       className={
                         'inline-block w-1.5 h-1.5 rounded-full ' +
-                        (s.ok ? 'bg-[#7bc88c]' : 'bg-[#dc8a8a]')
+                        (s.ok ? 'bg-success' : 'bg-error')
                       }
                     />
                     {s.ok ? 'ok' : 'failed'}
                   </span>
                 </td>
-                <td className="px-3 py-2.5 text-right font-mono tabular-nums text-[#c9b787]">
+                <td className="px-3 py-2.5 text-right font-mono tabular-nums text-ink">
                   {formatGaugeValue(s.value)}
                 </td>
-                <td className="px-3 py-2.5 font-mono text-[11px] text-[#8a8a8a]">
+                <td className="px-3 py-2.5 font-mono text-[11px] text-ink-sub">
                   <div>{relativeTime(s.lastFetchedAt)}</div>
                   {s.lastFetchedAt && (
-                    <div className="text-[10px] text-[#555]" title={s.lastFetchedAt}>
+                    <div className="text-[10px] text-ink-sub" title={s.lastFetchedAt}>
                       {new Date(s.lastFetchedAt).toISOString().replace('T', ' ').slice(0, 19)}Z
                     </div>
                   )}
                 </td>
-                <td className="px-5 py-2.5 font-mono text-[11px] text-[#dc8a8a] max-w-[280px]">
+                <td className="px-5 py-2.5 font-mono text-[11px] text-ink-bad max-w-[280px]">
                   {s.error ? (
                     <span className="line-clamp-2" title={s.error}>{s.error}</span>
                   ) : (
-                    <span className="text-[#444]">—</span>
+                    <span className="text-ink-sub">—</span>
                   )}
                 </td>
               </tr>
@@ -172,7 +172,7 @@ function Sparkline({ values }: { values: ReadonlyArray<number | null> }) {
   const present = values.filter((v): v is number => v !== null && Number.isFinite(v));
   if (present.length < 2) {
     return (
-      <div className="text-[10px] font-mono uppercase tracking-[0.15em] text-[#555]">
+      <div className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink-sub">
         not enough history
       </div>
     );
@@ -199,7 +199,7 @@ function Sparkline({ values }: { values: ReadonlyArray<number | null> }) {
     >
       <polyline
         fill="none"
-        stroke="#c9b787"
+        stroke="var(--color-silver-300)"
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -223,26 +223,26 @@ function MetricCard({
   const last = [...series].reverse().find((v): v is number => v !== null && Number.isFinite(v));
   const delta = first !== undefined && last !== undefined ? last - first : null;
   return (
-    <div className="rounded-xl border border-[rgba(255,255,255,0.06)] bg-[#0e0e0e] p-5 flex flex-col gap-4">
+    <div className="rounded-xl border border-line-subtle bg-ground-deep p-5 flex flex-col gap-4">
       <div>
-        <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-[#666]">
+        <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-sub">
           {spec.title}
         </div>
         <div className="mt-2 flex items-baseline gap-3">
-          <div className="font-mono text-3xl text-[#f5f5f5] tabular-nums">
+          <div className="font-mono text-3xl text-ink tabular-nums">
             {fmt(current, spec)}
           </div>
-          <div className="text-[11px] text-[#666]">{spec.unit}</div>
+          <div className="text-[11px] text-ink-sub">{spec.unit}</div>
         </div>
         {delta !== null && Number.isFinite(delta) && (
-          <div className="mt-1 text-[11px] font-mono text-[#8a8a8a] tabular-nums">
+          <div className="mt-1 text-[11px] font-mono text-ink-sub tabular-nums">
             {delta >= 0 ? '+' : ''}
             {delta.toFixed(3)} over last {history.length} day{history.length === 1 ? '' : 's'}
           </div>
         )}
       </div>
       <Sparkline values={series} />
-      <p className="text-[12px] leading-relaxed text-[#8a8a8a]">{spec.explainer}</p>
+      <p className="text-[12px] leading-relaxed text-ink-sub">{spec.explainer}</p>
     </div>
   );
 }
@@ -250,33 +250,33 @@ function MetricCard({
 function StatusLine({ data }: { data: AgiForecastStatus }) {
   if (!data.present) {
     return (
-      <div className="text-[12px] font-mono text-[#666]">
+      <div className="text-[12px] font-mono text-ink-sub">
         {data.message}
       </div>
     );
   }
   const okCount = data.statuses.filter((s) => s.ok).length;
   return (
-    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[11px] font-mono text-[#666]">
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[11px] font-mono text-ink-sub">
       <span>
         snapshot date{' '}
-        <span className="text-[#c9b787]">{data.date}</span>
+        <span className="text-ink">{data.date}</span>
       </span>
       <span>
         last run{' '}
-        <span className="text-[#c9b787]">
+        <span className="text-ink">
           {new Date(data.lastRunAt).toISOString().replace('T', ' ').slice(0, 19)}Z
         </span>
       </span>
       <span>
         signals{' '}
-        <span className="text-[#c9b787]">
+        <span className="text-ink">
           {okCount}/{data.statuses.length} ok
         </span>
       </span>
       <span>
         receipt{' '}
-        <span className="text-[#c9b787]">{data.summary.receiptHash.slice(0, 12)}…</span>
+        <span className="text-ink">{data.summary.receiptHash.slice(0, 12)}…</span>
       </span>
     </div>
   );
@@ -313,20 +313,20 @@ export default function AgiForecastPage() {
     <div className="flex flex-col gap-6">
       <header className="flex items-start justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-display font-semibold text-[#f5f5f5]">
+          <h1 className="text-2xl font-display font-semibold text-ink">
             AGI Forecast — Derived Metrics
           </h1>
-          <p className="mt-1 max-w-2xl text-[13px] text-[#8a8a8a]">
+          <p className="mt-1 max-w-2xl text-[13px] text-ink-sub">
             Today's horizon-velocity, alignment-debt, and lutar-readiness, derived from the
             public-only gauge snapshot. Values are read straight from{' '}
-            <code className="font-mono text-[#c9b787]">buildDailySummary</code> — no
+            <code className="font-mono text-ink">buildDailySummary</code> — no
             recalculation happens in the browser.
           </p>
         </div>
         <button
           onClick={handleRefresh}
           disabled={busy}
-          className="shrink-0 rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#0e0e0e] px-3 py-1.5 text-[11px] font-mono uppercase tracking-[0.15em] text-[#8a8a8a] hover:text-[#f5f5f5] hover:border-[rgba(201,183,135,0.4)] transition-colors disabled:opacity-40"
+          className="shrink-0 rounded-lg border border-line bg-ground-deep px-3 py-1.5 text-[11px] font-mono uppercase tracking-[0.15em] text-ink-sub hover:text-ink hover:border-line transition-colors disabled:opacity-40"
           title="Trigger a fresh scheduled-style run via POST /api/agi-forecast/refresh"
         >
           {isRefreshing ? 'running ingest…' : isFetching ? 'refreshing…' : 'refresh now'}
@@ -334,23 +334,23 @@ export default function AgiForecastPage() {
       </header>
 
       {isLoading && (
-        <div className="text-[12px] font-mono text-[#666]">loading snapshot…</div>
+        <div className="text-[12px] font-mono text-ink-sub">loading snapshot…</div>
       )}
 
       {isError && (
-        <div className="rounded-lg border border-[rgba(220,80,80,0.3)] bg-[rgba(220,80,80,0.05)] p-4 text-[12px] text-[#dc8a8a]">
+        <div className="rounded-lg border border-error/30 bg-error/5 p-4 text-[12px] text-ink-bad">
           Failed to load forecast snapshot: {error instanceof Error ? error.message : String(error)}
         </div>
       )}
 
       {refreshError && (
-        <div className="rounded-lg border border-[rgba(220,80,80,0.3)] bg-[rgba(220,80,80,0.05)] p-4 text-[12px] text-[#dc8a8a]">
+        <div className="rounded-lg border border-error/30 bg-error/5 p-4 text-[12px] text-ink-bad">
           Manual refresh failed: {refreshError}
         </div>
       )}
 
       {data && !data.present && (
-        <div className="rounded-lg border border-[rgba(255,255,255,0.06)] bg-[#0e0e0e] p-4 text-[12px] text-[#8a8a8a]">
+        <div className="rounded-lg border border-line-subtle bg-ground-deep p-4 text-[12px] text-ink-sub">
           {data.message}
         </div>
       )}

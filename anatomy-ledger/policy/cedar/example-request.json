@@ -1,0 +1,18 @@
+{
+  "principal": {"type": "A11oy::WorkloadIdentity", "id": "agent:operator-01"},
+  "action": {"type": "A11oy::Action", "id": "DeployArtifact"},
+  "resource": {"type": "A11oy::ProtectedResource", "id": "deployment:production"},
+  "context": {
+    "requestId": "replace-with-request-id",
+    "sessionId": "replace-with-session-id",
+    "purpose": "release-approved-artifact",
+    "intendedEffect": "deploy",
+    "riskScore": 250,
+    "humanApproval": true,
+    "mfa": true,
+    "networkZone": "trusted-ci",
+    "evidenceDigest": "replace-with-sha256",
+    "traceId": "replace-with-trace-id",
+    "timestamp": "replace-with-rfc3339-time"
+  }
+}

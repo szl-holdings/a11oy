@@ -73,8 +73,26 @@ try:
 except Exception:  # pragma: no cover — never let a missing helper break the ledger
     _DurableStore = None  # type: ignore
 
+try:
+    from szl_energy_ledger_recovery import (
+        LedgerLockTimeout as _LedgerLockTimeout,
+        LedgerLockUnavailable as _LedgerLockUnavailable,
+        exclusive_writer_lock as _exclusive_writer_lock,
+        quarantine_generation as _quarantine_generation,
+        strict_read as _strict_read,
+    )
+except Exception:  # pragma: no cover - image COPY guard must prevent this in production
+    _LedgerLockTimeout = RuntimeError  # type: ignore
+    _LedgerLockUnavailable = RuntimeError  # type: ignore
+    _exclusive_writer_lock = None  # type: ignore
+    _quarantine_generation = None  # type: ignore
+    _strict_read = None  # type: ignore
+
 GENESIS_PREV = "0" * 64                      # genesis entry's prev_digest (64 zeros)
 DEFAULT_PRICE_PER_KWH_CENTS = int(os.getenv("STRIPE_PRICE_PER_KWH_CENTS", "45"))
+DEFAULT_WRITER_LOCK_TIMEOUT_S = float(os.getenv("SZL_ENERGY_WRITER_LOCK_TIMEOUT_S", "5"))
+DEFAULT_LEDGER_PAGE_LIMIT = 50
+MAX_LEDGER_PAGE_LIMIT = 100
 
 # Where the chain persists. The receipt chain MUST survive a box redeploy — otherwise
 # seq re-genesises to 0 on every deploy and the signed-receipt count visibly drops to ~0.
@@ -260,12 +278,17 @@ class EnergyLedger:
     """
 
     def __init__(self, path: Optional[str] = None,
-                 price_per_kwh_cents: int = DEFAULT_PRICE_PER_KWH_CENTS):
+                 price_per_kwh_cents: int = DEFAULT_PRICE_PER_KWH_CENTS,
+                 writer_lock_timeout_s: float = DEFAULT_WRITER_LOCK_TIMEOUT_S):
         self.path = path if path is not None else DEFAULT_LEDGER_PATH
         self.price_per_kwh_cents = price_per_kwh_cents
+        self.writer_lock_timeout_s = max(0.01, float(writer_lock_timeout_s))
         self._entries: list[dict] = []
         self._idem_seen: set[str] = set()
         self._lock = threading.Lock()
+        self._load_error: Optional[dict[str, Any]] = None
+        self._recovery_info: Optional[dict[str, Any]] = None
+        self._retention_anchor: Optional[dict[str, Any]] = None
         # DURABLE, BOUNDED backing store (waveJ Dev1). When szl_durable_ledger is
         # available the JSONL is size-capped + rotating and degradation is HONEST; the
         # store is the single writer so the on-disk footprint can no longer fill the
@@ -281,60 +304,192 @@ class EnergyLedger:
         self._load()
 
     # -- persistence -------------------------------------------------------
-    def _load(self) -> None:
-        """Reload the chain from disk so it survives a restart. When the durable store is
-        active we read ACROSS all retained rotated segments oldest→newest (so the chain
-        reconstructs in order after rotation); otherwise we read the single raw file.
-        Bad lines are skipped honestly (never silently fabricated)."""
-        if self._store is not None:
-            for entry in self._store.iter_records():
-                self._entries.append(entry)
-                k = entry.get("idempotency_key")
-                if k:
-                    self._idem_seen.add(k)
-            return
-        if not self.path or not os.path.exists(self.path):
-            return
-        try:
-            with open(self.path, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        entry = json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
-                    self._entries.append(entry)
-                    k = entry.get("idempotency_key")
-                    if k:
-                        self._idem_seen.add(k)
-        except OSError:
-            pass
+    def _replace_memory(self, records: list[dict]) -> None:
+        self._entries = list(records)
+        self._retention_anchor = None
+        self._idem_seen = {
+            str(entry["idempotency_key"])
+            for entry in self._entries
+            if entry.get("idempotency_key")
+        }
+        self._recovery_info = None
+        for entry in self._entries:
+            decision = entry.get("receipt", {}).get("decision", {})
+            if decision.get("schema") == "SZL.Energy.LedgerReset.v1":
+                self._recovery_info = {
+                    "state": "RECOVERED_GENERATION",
+                    "prior_generation_sha256": decision.get("prior_generation_sha256"),
+                    "prior_chain_ok": decision.get("prior_chain", {}).get("ok"),
+                    "quarantine_manifest_sha256": decision.get("quarantine_manifest_sha256"),
+                    "reset_at": decision.get("reset_at"),
+                }
 
-    def _persist_entry(self, entry: dict) -> None:
-        """Append one entry to the DURABLE bounded store (size-capped + rotating + fsync'd)
-        so a crash-after-append survives AND the disk can never fill. Records the honest
-        storage status so storage_health() / /healthz can report UNAVAILABLE when a write
-        was refused — we NEVER fabricate a persisted write. Falls back to the prior raw
-        append when the durable store is unavailable."""
-        if self._store is not None:
-            res = self._store.append(entry)
-            self._last_store_status = res.status
+    def _build_reset_entry(self, quarantine: dict, prior_verdict: dict) -> dict:
+        decision = {
+            "schema": "SZL.Energy.LedgerReset.v1",
+            "reason": "INVALID_PRIOR_GENERATION_QUARANTINED",
+            "reset_at": datetime.now(timezone.utc).isoformat(),
+            "prior_generation_sha256": quarantine["aggregate_sha256"],
+            "quarantine_manifest_sha256": sha256_canon(
+                {
+                    key: quarantine[key]
+                    for key in (
+                        "schema", "created_at", "aggregate_sha256", "cause",
+                        "files", "strict_errors", "prior_chain", "record_count_recovered",
+                    )
+                }
+            ),
+            "prior_chain": prior_verdict,
+            "prior_files": quarantine["files"],
+            "strict_errors": quarantine["strict_errors"],
+            "authorization": "AUTOMATIC_FAIL_CLOSED_FORENSIC_RECOVERY",
+            "billable": False,
+            "sovereign": False,
+            "lambda_status": "CONJECTURE_1_ADVISORY",
+        }
+        payload_digest = sha256_canon(decision)
+        receipt = {
+            "schema": "SZL.Energy.Receipt.v1",
+            "decision": decision,
+            "payload_digest": payload_digest,
+        }
+        idem = f"energy-ledger-reset:{quarantine['aggregate_sha256']}"
+        return {
+            "seq": 0,
+            "prev_digest": GENESIS_PREV,
+            "receipt": receipt,
+            "job": {
+                "node": "a11oy-energy-ledger",
+                "tokens": 0,
+                "wall_s": 0.0,
+                "model": "forensic-generation-reset",
+                "ts": decision["reset_at"],
+                "nvml_age_s": None,
+            },
+            "billable": False,
+            "reason": decision["reason"],
+            "charge": {"status": "blocked", "reason": "forensic reset is not billable"},
+            "idempotency_key": idem,
+            "entry_digest": _entry_digest(0, GENESIS_PREV, payload_digest),
+        }
+
+    def _strict_reload_locked(self, recover: bool = True) -> None:
+        if not self.path:
+            self._replace_memory([])
+            self._load_error = None
             return
+        if _strict_read is None or _quarantine_generation is None:
+            raise RuntimeError("energy ledger process-safety helper is unavailable")
+        backup_count = int(getattr(self._store, "backup_count", 4) or 4)
+        strict = _strict_read(self.path, backup_count)
+        self._replace_memory(list(strict.records))
+        active_name = os.path.basename(self.path)
+        rotated_retention = any(row.get("name") != active_name for row in strict.files)
+        if self._entries and rotated_retention:
+            first = self._entries[0]
+            first_seq = first.get("seq")
+            first_prev = first.get("prev_digest")
+            if (
+                isinstance(first_seq, int)
+                and first_seq > 0
+                and isinstance(first_prev, str)
+                and first_prev.startswith("sha256:")
+                and len(first_prev) == 71
+                and first_prev != GENESIS_PREV
+            ):
+                self._retention_anchor = {
+                    "first_seq": first_seq,
+                    "external_prev_digest": first_prev,
+                    "evidence": "ROTATED_SEGMENTS_PRESENT",
+                    "retained_segments": [row.get("name") for row in strict.files],
+                }
+        verdict = self.verify()
+        invalid = bool(strict.errors) or not verdict["ok"]
+        if not invalid:
+            self._load_error = None
+            return
+        if not recover:
+            raise RuntimeError("ledger generation is malformed or forked")
+
+        quarantine = _quarantine_generation(
+            self.path,
+            backup_count,
+            strict,
+            verdict,
+            "strict-read-error" if strict.errors else "chain-verification-failed",
+        )
+        self._replace_memory([])
+        if _DurableStore is not None:
+            previous = self._store
+            kwargs = {}
+            for name in ("max_bytes", "backup_count", "pressure_ratio", "min_free_bytes", "fsync"):
+                if previous is not None and hasattr(previous, name):
+                    kwargs[name] = getattr(previous, name)
+            self._store = _DurableStore(self.path, **kwargs)
+        reset = self._build_reset_entry(quarantine, verdict)
+        persisted = self._persist_entry(reset)
+        if not persisted["ok"]:
+            raise RuntimeError(
+                "quarantined invalid generation but reset receipt could not be persisted: "
+                + str(persisted.get("error") or persisted.get("status"))
+            )
+        self._replace_memory([reset])
+        self._load_error = None
+
+    def _load(self) -> None:
+        """Strictly load or quarantine an invalid durable generation under flock."""
         if not self.path:
             return
+        if _exclusive_writer_lock is None:
+            self._load_error = {
+                "code": "INTERPROCESS_LOCK_UNAVAILABLE",
+                "message": "process-safety helper is unavailable",
+            }
+            return
+        try:
+            with _exclusive_writer_lock(self.path, self.writer_lock_timeout_s):
+                self._strict_reload_locked(recover=True)
+        except (_LedgerLockTimeout, _LedgerLockUnavailable) as exc:
+            self._replace_memory([])
+            self._last_store_status = "unavailable"
+            self._load_error = {"code": type(exc).__name__, "message": str(exc)}
+        except Exception as exc:
+            self._replace_memory([])
+            self._last_store_status = "unavailable"
+            self._load_error = {
+                "code": "LEDGER_RECOVERY_FAILED",
+                "message": f"{type(exc).__name__}: {exc}",
+            }
+
+    def _persist_entry(self, entry: dict) -> dict[str, Any]:
+        """Persist one row and return an acknowledgement; never mutate memory first."""
+        if self._store is not None:
+            result = self._store.append(entry)
+            self._last_store_status = result.status
+            return {
+                "ok": bool(result.ok),
+                "status": result.status,
+                "error": result.error,
+                "bytes_written": result.bytes_written,
+                "rotated": result.rotated,
+            }
+        if not self.path:
+            return {"ok": False, "status": "unavailable", "error": "ledger path absent"}
         try:
             os.makedirs(os.path.dirname(os.path.abspath(self.path)), exist_ok=True)
-            with open(self.path, "a", encoding="utf-8") as f:
-                f.write(json.dumps(entry, sort_keys=True, separators=(",", ":")) + "\n")
-                f.flush()
-                os.fsync(f.fileno())
+            with open(self.path, "a", encoding="utf-8") as handle:
+                handle.write(json.dumps(entry, sort_keys=True, separators=(",", ":")) + "\n")
+                handle.flush()
+                os.fsync(handle.fileno())
             self._last_store_status = "ok"
+            return {"ok": True, "status": "ok", "error": None}
         except OSError as exc:
-            # HONEST: the raw-fallback write failed (full / read-only). Record it so
-            # storage_health() reports UNAVAILABLE rather than silently claiming success.
             self._last_store_status = "unavailable"
+            return {
+                "ok": False,
+                "status": "unavailable",
+                "error": f"{type(exc).__name__}: {exc}",
+            }
 
     # -- core append -------------------------------------------------------
     def prev_digest(self) -> str:
@@ -344,74 +499,127 @@ class EnergyLedger:
         return self._entries[-1]["entry_digest"]
 
     def append_job(self, job: JobRecord, now: Optional[float] = None) -> dict:
+        """Serialize writers across processes, re-read the tail, then append once."""
+        if not self.path or _exclusive_writer_lock is None:
+            self._last_store_status = "unavailable"
+            return {
+                "appended": False,
+                "duplicate": False,
+                "error": "INTERPROCESS_LOCK_UNAVAILABLE",
+                "entry": None,
+            }
+        with self._lock:
+            try:
+                with _exclusive_writer_lock(self.path, self.writer_lock_timeout_s) as lease:
+                    self._strict_reload_locked(recover=True)
+                    result = self._append_job_after_refresh(job, now=now)
+                    result["writer_lease"] = lease
+                    return result
+            except _LedgerLockTimeout as exc:
+                self._last_store_status = "unavailable"
+                return {
+                    "appended": False,
+                    "duplicate": False,
+                    "error": "WRITER_LOCK_TIMEOUT",
+                    "message": str(exc),
+                    "entry": None,
+                }
+            except _LedgerLockUnavailable as exc:
+                self._last_store_status = "unavailable"
+                return {
+                    "appended": False,
+                    "duplicate": False,
+                    "error": "INTERPROCESS_LOCK_UNAVAILABLE",
+                    "message": str(exc),
+                    "entry": None,
+                }
+            except Exception as exc:
+                self._last_store_status = "unavailable"
+                return {
+                    "appended": False,
+                    "duplicate": False,
+                    "error": "LEDGER_APPEND_FAILED_CLOSED",
+                    "message": f"{type(exc).__name__}: {exc}",
+                    "entry": None,
+                }
+
+    def _append_job_after_refresh(self, job: JobRecord, now: Optional[float] = None) -> dict:
         """Build a JouleCharge receipt for one job and append it to the chain.
 
         Refuses to BILL non-MEASURED / stale joules (the receipt is still recorded with
         billable=false + charge.status="blocked", so the refusal is itself auditable).
         DRY-RUN bills when no STRIPE_API_KEY. Idempotent on the receipt digest: a repeat
         job that produces the same receipt digest is NOT appended a second time."""
-        with self._lock:
-            # Normalize the operator's label to the billing core's vocabulary. The
-            # billing gate only ever treats the literal "MEASURED" as billable; any
-            # other label (sample/estimate/...) is refused — which is the doctrine.
-            label = (job.joules_label or "").strip().upper()
-            nvml_age_s = _derive_nvml_age_s(job, now=now)
+        # Normalize the operator's label to the billing core's vocabulary. The
+        # billing gate only ever treats the literal "MEASURED" as billable; any
+        # other label (sample/estimate/...) is refused — which is the doctrine.
+        label = (job.joules_label or "").strip().upper()
+        nvml_age_s = _derive_nvml_age_s(job, now=now)
 
-            reading = JouleReading(
-                node=job.node,
-                joules=job.joules_measured,
-                label=label,
-                nvml_age_s=nvml_age_s,
-                grid_price_eur_mwh=job.grid_price_eur_mwh,
-                ts=job.ts,
+        reading = JouleReading(
+            node=job.node,
+            joules=job.joules_measured,
+            label=label,
+            nvml_age_s=nvml_age_s,
+            grid_price_eur_mwh=job.grid_price_eur_mwh,
+            ts=job.ts,
+        )
+        billable, reason = reading.is_billable()
+        receipt = build_receipt(reading, self.price_per_kwh_cents)
+        idem = d_idem(receipt)
+
+        # Idempotency: same receipt digest -> same idem key -> never double-append.
+        if idem in self._idem_seen:
+            existing = next(
+                (e for e in self._entries if e.get("idempotency_key") == idem), None
             )
-            billable, reason = reading.is_billable()
-            receipt = build_receipt(reading, self.price_per_kwh_cents)
-            idem = d_idem(receipt)
-
-            # Idempotency: same receipt digest -> same idem key -> never double-append.
-            if idem in self._idem_seen:
-                existing = next(
-                    (e for e in self._entries if e.get("idempotency_key") == idem), None
-                )
-                return {
-                    "appended": False,
-                    "duplicate": True,
-                    "idempotency_key": idem,
-                    "entry": existing,
-                }
-
-            if billable:
-                charge = charge_stripe(receipt, customer=os.getenv("STRIPE_CUSTOMER", "cus_demo"),
-                                       api_key=os.getenv("STRIPE_API_KEY", ""))
-            else:
-                charge = {"status": "blocked", "reason": reason}
-
-            seq = len(self._entries)
-            prev = self.prev_digest()
-            entry = {
-                "seq": seq,
-                "prev_digest": prev,
-                "receipt": receipt,
-                "job": {
-                    "node": job.node,
-                    "tokens": job.tokens,
-                    "wall_s": job.wall_s,
-                    "model": job.model,
-                    "ts": job.ts,
-                    "nvml_age_s": nvml_age_s,
-                },
-                "billable": billable,
-                "reason": reason,
-                "charge": charge,
+            return {
+                "appended": False,
+                "duplicate": True,
                 "idempotency_key": idem,
-                "entry_digest": _entry_digest(seq, prev, receipt["payload_digest"]),
+                "entry": existing,
             }
-            self._entries.append(entry)
-            self._idem_seen.add(idem)
-            self._persist_entry(entry)
-            return {"appended": True, "duplicate": False,
-                    "idempotency_key": idem, "entry": entry}
+
+        if billable:
+            charge = charge_stripe(receipt, customer=os.getenv("STRIPE_CUSTOMER", "cus_demo"),
+                                   api_key=os.getenv("STRIPE_API_KEY", ""))
+        else:
+            charge = {"status": "blocked", "reason": reason}
+
+        seq = (int(self._entries[-1].get("seq", -1)) + 1) if self._entries else 0
+        prev = self.prev_digest()
+        entry = {
+            "seq": seq,
+            "prev_digest": prev,
+            "receipt": receipt,
+            "job": {
+                "node": job.node,
+                "tokens": job.tokens,
+                "wall_s": job.wall_s,
+                "model": job.model,
+                "ts": job.ts,
+                "nvml_age_s": nvml_age_s,
+            },
+            "billable": billable,
+            "reason": reason,
+            "charge": charge,
+            "idempotency_key": idem,
+            "entry_digest": _entry_digest(seq, prev, receipt["payload_digest"]),
+        }
+        persisted = self._persist_entry(entry)
+        if not persisted["ok"]:
+            return {
+                "appended": False,
+                "duplicate": False,
+                "error": "STORAGE_UNAVAILABLE",
+                "storage": persisted,
+                "idempotency_key": idem,
+                "entry": None,
+            }
+        self._entries.append(entry)
+        self._idem_seen.add(idem)
+        return {"appended": True, "duplicate": False,
+                "idempotency_key": idem, "entry": entry, "storage": persisted}
 
     # -- verification ------------------------------------------------------
     def verify(self) -> dict:
@@ -425,9 +633,21 @@ class EnergyLedger:
         first_break: Optional[dict] = None
         links_intact = True
         receipts_intact = True
-        expected_prev = GENESIS_PREV
+        retained = self._retention_anchor
+        expected_prev = (
+            str(retained["external_prev_digest"]) if retained else GENESIS_PREV
+        )
+        first_seq = int(retained["first_seq"]) if retained else 0
 
         for i, e in enumerate(self._entries):
+            expected_seq = first_seq + i
+            if e.get("seq") != expected_seq:
+                links_intact = False
+                if first_break is None:
+                    first_break = {
+                        "index": i,
+                        "reason": "seq is not contiguous within the retained generation",
+                    }
             receipt = e.get("receipt", {})
             decision = receipt.get("decision", {})
             # (a) receipt re-hashes to its digest
@@ -462,6 +682,7 @@ class EnergyLedger:
             "links_intact": links_intact,
             "receipts_intact": receipts_intact,
             "genesis_prev": GENESIS_PREV,
+            "retention_anchor": retained,
         }
 
     # -- views -------------------------------------------------------------
@@ -478,7 +699,8 @@ class EnergyLedger:
         """Aggregate totals across the chain. would_charge_cents sums dry-run +
         charged amounts for BILLABLE entries only (blocked entries contribute 0).
         joules_measured_total sums only MEASURED-billable joules (honest)."""
-        jobs = len(self._entries)
+        jobs = 0
+        reset_records = 0
         joules_total = 0.0
         joules_measured_billable = 0.0
         tokens_total = 0
@@ -488,6 +710,10 @@ class EnergyLedger:
         dry_run = 0
         for e in self._entries:
             d = e.get("receipt", {}).get("decision", {})
+            if d.get("schema") == "SZL.Energy.LedgerReset.v1":
+                reset_records += 1
+                continue
+            jobs += 1
             joules_total += float(d.get("joules_measured", 0.0) or 0.0)
             tokens_total += int(e.get("job", {}).get("tokens", 0) or 0)
             charge = e.get("charge", {})
@@ -503,6 +729,8 @@ class EnergyLedger:
                 blocked += 1
         return {
             "jobs": jobs,
+            "ledger_records": len(self._entries),
+            "reset_records": reset_records,
             "joules_total": round(joules_total, 6),
             "joules_measured_billable": round(joules_measured_billable, 6),
             "tokens_total": tokens_total,
@@ -563,20 +791,51 @@ class EnergyLedger:
             "doctrine": "v11",
         }
 
-    def summary(self) -> dict:
-        """Full ledger view for the GET /energy/ledger endpoint."""
+    def paged_entries(
+        self,
+        limit: int = DEFAULT_LEDGER_PAGE_LIMIT,
+        before_seq: Optional[int] = None,
+    ) -> tuple[list[dict], dict[str, Any]]:
+        bounded = min(MAX_LEDGER_PAGE_LIMIT, max(1, int(limit)))
+        total = len(self._entries)
+        end = total if before_seq is None else min(total, max(0, int(before_seq)))
+        start = max(0, end - bounded)
+        page = list(self._entries[start:end])
+        return page, {
+            "limit": bounded,
+            "total_records": total,
+            "returned": len(page),
+            "start_seq": page[0].get("seq") if page else None,
+            "end_seq": page[-1].get("seq") if page else None,
+            "next_before_seq": start if start > 0 else None,
+            "complete": start == 0,
+        }
+
+    def summary(
+        self,
+        limit: int = DEFAULT_LEDGER_PAGE_LIMIT,
+        before_seq: Optional[int] = None,
+    ) -> dict:
+        """Bounded public view; integrity and totals still cover the full generation."""
+        receipts, page = self.paged_entries(limit=limit, before_seq=before_seq)
+        chain = self.verify()
         return {
-            "ok": True,
-            "receipts": self.entries(),
-            "chain": self.verify(),
+            "ok": bool(chain["ok"] and self._load_error is None),
+            "receipts": receipts,
+            "page": page,
+            "chain": chain,
             "totals": self.totals(),
             "persistence": self.persistence_info(),
             "storage": self.storage_health(),
+            "recovery": self._recovery_info,
+            "load_error": self._load_error,
             "price_per_kwh_cents": self.price_per_kwh_cents,
             "stripe_mode": "live" if os.getenv("STRIPE_API_KEY") else "dry-run",
             "doctrine": DOCTRINE_NOTE,
             "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         }
+
+
 
 
 # ---------------------------------------------------------------------------
@@ -697,8 +956,21 @@ def wire_operator_to_ledger(operator: Any, ledger: Optional["EnergyLedger"] = No
 # HTTP handlers + registration (dual-register via add_api_route, matching
 # szl_energy_provenance.register()). Registered BEFORE the SPA catch-all.
 # ---------------------------------------------------------------------------
-def handle_ledger() -> dict:
-    return get_ledger().summary()
+def handle_ledger(request: Optional[_Request] = None) -> dict:
+    # Preserve the small offline contract while bounding every HTTP response.
+    if request is None:
+        return get_ledger().summary()
+    params = request.query_params
+    try:
+        limit = int(params.get("limit", DEFAULT_LEDGER_PAGE_LIMIT))
+    except (TypeError, ValueError):
+        limit = DEFAULT_LEDGER_PAGE_LIMIT
+    raw_before = params.get("before_seq")
+    try:
+        before_seq = None if raw_before in (None, "") else int(raw_before)
+    except (TypeError, ValueError):
+        before_seq = None
+    return get_ledger().summary(limit=limit, before_seq=before_seq)
 
 
 def handle_receipt(idem: str) -> dict:
@@ -732,7 +1004,7 @@ def register(app, ns: str = "a11oy"):
 
     # Annotated with the module-scope Request so FastAPI injects it (not a 422 query param).
     def _h_ledger(request: _Request):
-        return JSONResponse(handle_ledger())
+        return JSONResponse(handle_ledger(request))
 
     def _h_receipt(request: _Request):
         idem = request.path_params.get("idem", "")
@@ -740,6 +1012,7 @@ def register(app, ns: str = "a11oy"):
 
     handlers = [
         (f"{base}/ledger", _h_ledger),
+        (f"{base}/ledger/summary", _h_ledger),
         (f"{base}/receipt/{{idem}}", _h_receipt),
         ("/energy/receipt/{idem}", _h_receipt),   # short alias per spec
     ]

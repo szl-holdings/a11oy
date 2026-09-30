@@ -64,7 +64,10 @@ _SURFACES = [
     ("/sovereign",      "\u26D3",     "Sovereign Ledger"),                  # khipu health+spend
     ("/nemo",           "\u25C6",     "SZL-Nemo"),                          # ◆
     ("/immune",         "\u2B21",     "IMMUNE"),                            # ⬡
+    ("/holographic",    "\u25C8",     "Holo"),                              # ◈
+    ("/frontier-now",   "\u25C7",     "Frontier NOW"),                      # ◇
     ("/lyte",           "\u2696",     "LYTE lattice"),                      # ⚖ BIND package, not flagship
+    ("/unify",          "\u25C7",     "Unify flock"),                       # ◇ five-door flock ledger
     ("/five-space",     "\u25A6",     "Five-space operator"),               # ▦ BIND package, not /console
     ("/autoreview",     "\u2713",     "Auto-Review (Governed Autonomy)"),   # ✓
     ("/factory",        "\u2699",     "Governed Factory"),                  # ⚙
@@ -95,7 +98,10 @@ _SURFACE_GROUP_OF = {
     "/sovereign": "Sovereign & Agentic Core",
     "/nemo": "Sovereign & Agentic Core",
     "/immune": "Sovereign & Agentic Core",
+    "/holographic": "Sovereign & Agentic Core",
+    "/frontier-now": "Sovereign & Agentic Core",
     "/lyte": "Sovereign & Agentic Core",
+    "/unify": "Sovereign & Agentic Core",
     "/five-space": "Sovereign & Agentic Core",
     "/autoreview": "Sovereign & Agentic Core",
     "/factory": "Sovereign & Agentic Core",
@@ -215,8 +221,8 @@ _REL_MARKER = b'data-related-surfaces="qa10"'
 # Flagship surfaces that get the cross-link strip. /restraint-bench (the REAL
 # Restraint page) is used, not /restraint (generic shell fallthrough).
 _FLAGSHIP_PATHS = {
-    "/nemo", "/immune", "/lyte", "/five-space", "/autoreview", "/factory", "/constitution",
-    "/energy", "/agent-loop", "/quant", "/grc", "/restraint-bench",
+    "/nemo", "/immune", "/lyte", "/unify", "/five-space", "/autoreview", "/factory",
+    "/constitution", "/energy", "/agent-loop", "/quant", "/grc", "/restraint-bench",
     "/code", "/fleet-c2", "/living-anatomy",
 }
 
@@ -225,9 +231,13 @@ def _build_related_strip(current_path: str) -> bytes:
     """A small 'Related surfaces' strip linking the flagship surfaces to each
     other. Inline-styled (0 CDN). Honest labels; the current page is omitted."""
     rel = [
+        ("/spaces", "Spaces"),
+        ("/lyte", "LYTE lattice"),
+        ("/unify", "Unify flock"),
         ("/nemo", "SZL-Nemo"),
         ("/immune", "IMMUNE"),
-        ("/lyte", "LYTE lattice"),
+        ("/holographic", "Holo"),
+        ("/frontier-now", "Frontier NOW"),
         ("/five-space", "Five-space operator"),
         ("/autoreview", "Auto-Review"),
         ("/factory", "Factory"),
@@ -337,10 +347,22 @@ _WEB_DIR_ALIASES = "/app/web"
 # /trust, /console already 200. Additive FileResponse / RedirectResponse, same
 # pattern as /restraint-bench. Idempotent.
 _PUBLIC_PAGE_ALIASES = (
+    ("/console/", None, "redirect", "/console"),
     ("/mesh", "mesh.html", "pages", "/console"),
     ("/evidence", None, "redirect", "/trust"),
     ("/arena", None, "redirect", "/console"),
     ("/router", None, "redirect", "/console"),
+    ("/products", None, "redirect", "/#products"),
+    ("/products/", None, "redirect", "/#products"),
+    ("/hatun", None, "redirect", "/hatun-mcp"),
+    ("/hatun/", None, "redirect", "/hatun-mcp"),
+    ("/hatun-mcp/", None, "redirect", "/hatun-mcp"),
+    ("/anatomy", None, "redirect", "/living-anatomy"),
+    ("/anatomy/", None, "redirect", "/living-anatomy"),
+    ("/codex", None, "redirect", "/formulas"),
+    ("/codex/", None, "redirect", "/formulas"),
+    ("/ouroboros", None, "redirect", "/formulas"),
+    ("/ouroboros/", None, "redirect", "/formulas"),
 )
 
 
@@ -513,6 +535,10 @@ if __name__ == "__main__":
     h2 = c.get("/console?operator=1").text  # second hit must be byte-identical (idempotent)
     public = c.get("/console").text
     assert "qa12-nav" not in public, "public /console must not splice 40+ estate items"
+    slash = c.get("/console/", follow_redirects=False)
+    loc = (slash.headers.get("location") or "")
+    assert slash.status_code in (301, 302, 307, 308), slash.status_code
+    assert loc.endswith("/console") or loc == "/console", loc
 
 
     # --- SPEC splice: exactly once, idempotent ---
@@ -568,6 +594,10 @@ if __name__ == "__main__":
     assert "Auto-Review" in n1 and "/autoreview" in n1, "strip must cross-link surfaces"
     assert "/restraint-bench" in n1, "strip must cross-link the real Restraint page"
     assert "/immune" in n1, "strip must cross-link the IMMUNE tab"
+    assert "/spaces" in n1, "strip must cross-link /spaces"
+    assert "/lyte" in n1, "strip must cross-link /lyte"
+    assert "/unify" in n1, "strip must cross-link Unify flock"
+    assert '"/unify"' in h1 and "Unify flock" in h1, "SPEC must page-link Unify flock"
     assert "/nemo" not in n1.split('data-related-surfaces="qa10"')[1].split("</nav>")[0], \
         "related strip must omit the current page (/nemo)"
     assert n1 == n2, "second nemo render must be byte-identical"

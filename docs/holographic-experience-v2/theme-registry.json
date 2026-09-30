@@ -1,15 +1,15 @@
 {
   "schema": "szl.holographic-experience/v2",
-  "version": "2.0.0",
-  "name": "A11oy Holo-Constellation",
-  "purpose": "One governed experience system with a distinct visual instrument for every SZL product, proof surface, and application Space.",
+  "version": "2.1.0",
+  "name": "SZL Obsidian Signal",
+  "purpose": "One premium interaction grammar with a distinct visual instrument for every SZL product, proof surface, and application Space.",
   "inspiration_principles": {
     "editorial_clarity": "Large human-readable typography, calm hierarchy, generous whitespace, and precise language.",
-    "orbital_depth": "Cinematic spatial composition, orbital paths, mission-control framing, and disciplined darkness.",
-    "performance_materiality": "GPU-grade dimensional surfaces, specular light, depth cues, and fast progressive enhancement.",
-    "observability_legibility": "Dense operational information organized by signal, state, confidence, evidence, and action.",
-    "agentic_workflows": "Visible handoffs between human and machine actors without implying unmeasured autonomy.",
-    "premium_storytelling": "Strong product narrative, modular sections, and polished transitions without decorative overload."
+    "orbital_depth": "Cinematic spatial composition, mission-control framing, and disciplined darkness without game-like chrome.",
+    "performance_materiality": "Dimensional surfaces, restrained specular light, progressive enhancement, and small runtime budgets.",
+    "observability_legibility": "Operational information is organized by signal, state, confidence, evidence, and action.",
+    "agentic_workflows": "Human and machine handoffs remain visible without implying unmeasured autonomy.",
+    "premium_storytelling": "Product narrative and interaction hierarchy carry the experience; ornament never competes with evidence."
   },
   "originality_boundary": [
     "No copied source code, graphics, trademarks, layouts, illustrations, motion sequences, or proprietary assets.",
@@ -28,7 +28,9 @@
     "horizontal_overflow": "forbidden",
     "third_party_runtime_assets": "forbidden",
     "analytics_or_tracking": "not included",
-    "progressive_enhancement": "CSS first; Canvas enhancement optional; content remains usable without animation",
+    "progressive_enhancement": "CSS first; decorative Canvas is optional; content and evidence remain usable without motion",
+    "pathways": ["Understand", "Build", "Verify"],
+    "state_vocabulary": ["LIVE", "MEASURED", "REPORTED", "DECLARED", "DEGRADED", "UNAVAILABLE"],
     "performance_budget": {
       "core_css_gzip_kb_max": 24,
       "core_js_gzip_kb_max": 18,
@@ -43,15 +45,29 @@
       "host": "a-11-oy.com",
       "instrument": "command-constellation",
       "personality": "decisive, spatial, operational",
-      "material": "obsidian glass with cyan and controlled lime signal light",
-      "motif": "vector field plus governed orbit paths"
+      "material": "obsidian and bone with cold cyan signal light",
+      "motif": "governed orbit paths and evidence vectors"
     },
     "proof": {
       "host": "a11oy.net",
       "instrument": "evidence-vault",
       "personality": "forensic, archival, exact",
-      "material": "graphite glass with mint and amber evidence light",
-      "motif": "ledger lanes plus checksum constellations"
+      "material": "graphite and bone with mint and amber evidence light",
+      "motif": "ledger lanes and checksum constellations"
+    },
+    "field": {
+      "host": "szlholdings-killinchu.hf.space",
+      "instrument": "field-vector",
+      "personality": "tactical, restrained, geospatial",
+      "material": "carbon field glass with glacier teal and one copper signal",
+      "motif": "terrain vectors, radar arcs, and track corridors"
+    },
+    "gateway": {
+      "host": "a-11-oy.com/wires",
+      "instrument": "gateway-weave",
+      "personality": "protocol-first, connective, exact",
+      "material": "indigo-black glass with frost-blue context threads and one amber proof signal",
+      "motif": "woven context lines and source-bound handoffs"
     }
   },
   "surfaces": {
@@ -59,8 +75,16 @@
       "label": "A11oy Command",
       "archetype": "command",
       "motif": "command-constellation",
-      "palette": ["#050806", "#0c1513", "#f3fff8", "#9fb7ad", "#b8ff45", "#31e6d1"],
-      "motion": "vector drift and proof-orbit handoff",
+      "palette": ["#05070a", "#0b1017", "#f1f4f6", "#98a6b5", "#57ebff", "#31e6d1"],
+      "motion": "slow evidence orbit and pointer-proximate signal field",
+      "density": "balanced"
+    },
+    "hatun": {
+      "label": "Hatun Gateway",
+      "archetype": "context-gateway",
+      "motif": "gateway-weave",
+      "palette": ["#060711", "#0d1020", "#f1f3f6", "#9aa5b7", "#9e9bff", "#70dbff"],
+      "motion": "woven context lines and source-bound handoff pulses",
       "density": "balanced"
     },
     "lyte": {
@@ -144,11 +168,11 @@
       "density": "high"
     },
     "killinchu": {
-      "label": "Killinchu",
-      "archetype": "agent-orchestration",
-      "motif": "agent-swarm",
-      "palette": ["#100615", "#26102e", "#fff5ff", "#c5a4c9", "#ff74d4", "#68e8ff"],
-      "motion": "agent swarm and governed convergence",
+      "label": "Killinchu Field",
+      "archetype": "defense-command",
+      "motif": "field-vector",
+      "palette": ["#050a0c", "#0a1316", "#f0f5f3", "#91a7aa", "#68e8d8", "#d9955b"],
+      "motion": "terrain vectors, track corridors, and bounded radar arcs",
       "density": "high"
     },
     "proof": {
@@ -161,9 +185,9 @@
     }
   },
   "shared_journeys": [
-    {"id": "command", "label": "Command", "href": "https://a-11-oy.com/"},
-    {"id": "products", "label": "Products", "href": "https://a-11-oy.com/console"},
-    {"id": "proof", "label": "Proof", "href": "https://a11oy.net/record/"},
+    {"id": "understand", "label": "Understand", "href": "https://a-11-oy.com/"},
+    {"id": "build", "label": "Build", "href": "https://a-11-oy.com/code"},
+    {"id": "verify", "label": "Verify", "href": "https://a11oy.net/record/"},
     {"id": "source", "label": "Source", "href": "https://github.com/szl-holdings"},
     {"id": "spaces", "label": "Spaces", "href": "https://huggingface.co/SZLHOLDINGS"}
   ]

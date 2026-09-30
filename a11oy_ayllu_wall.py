@@ -102,17 +102,20 @@ def _runtime_key_state(pinned_pem: bytes) -> dict:
                     "note": "no signing secret in this runtime; new decisions would be honestly UNSIGNED"}
         from cryptography.hazmat.primitives.serialization import (
             Encoding, PublicFormat)
+        # Compare the keys, not their PEM text: the pinned file is wrapped at 76
+        # columns while cryptography emits 64, so equal keys differ as text.
         cur = priv.public_key().public_bytes(
-            Encoding.PEM, PublicFormat.SubjectPublicKeyInfo)
-        if cur.strip() == pinned_pem.strip():
+            Encoding.DER, PublicFormat.SubjectPublicKeyInfo)
+        pinned = load_pem_public_key(pinned_pem).public_bytes(
+            Encoding.DER, PublicFormat.SubjectPublicKeyInfo)
+        if cur == pinned:
             return {"state": "ENV_SIGNER_MATCHES_PIN",
-                    "note": "the szl_dsse env-secret-derived key equals the pinned council key"}
+                    "note": "the szl_dsse env-secret-derived key equals the pinned council key "
+                            "(SubjectPublicKeyInfo DER compare)"}
         return {"state": "ENV_SIGNER_DIFFERS_FROM_PIN",
-                "note": "this probe compares ONLY the szl_dsse env-secret-derived key with "
-                        "the pin; live council receipts have empirically verified against "
-                        "the pin across a Space rebuild (see the committed post-rebuild "
-                        "continuity decision), so the council's effective signer is a "
-                        "persistent key, not this env secret. Trust the per-decision "
+                "note": "the szl_dsse env-secret-derived key is a different public key from "
+                        "the pin (SubjectPublicKeyInfo DER compare); decisions signed by this "
+                        "runtime would not verify against the pin. Trust the per-decision "
                         "verification above — it is the empirical check."}
     except Exception as exc:
         return {"state": "UNKNOWN", "note": f"{type(exc).__name__}: could not compare"}

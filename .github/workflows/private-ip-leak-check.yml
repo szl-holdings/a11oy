@@ -9,18 +9,30 @@ name: Private-IP Leak Check
 
 on:
   pull_request:
-    branches: [main, master]
-    types: [opened, synchronize, reopened]
+    branches:
+    - main
+    - master
+    types:
+    - opened
+    - synchronize
+    - reopened
   push:
-    branches: [main, master]
-  workflow_dispatch:
-
+    branches:
+    - main
+    - master
+  workflow_dispatch: null
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
+    - master
 permissions:
   contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   private-ip-leak-check:

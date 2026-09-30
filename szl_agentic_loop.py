@@ -38,6 +38,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import threading
 import time
 import uuid
@@ -48,6 +49,70 @@ from datetime import datetime, timezone
 # that this module actually observed creating. It is deliberately ephemeral: a
 # restart clears the feed, and no GET handler signs or appends anything.
 _HATUN_FEED_LIMIT = 32
+
+# State-changing operator surfaces share one fail-closed bearer boundary and a
+# process-local single-flight/cooldown guard.  Credentials remain secret-managed
+# environment data; this module retains only parsed token digests via gdw_auth.
+_OPERATOR_ACTION_LOCK = threading.Lock()
+_OPERATOR_ACTION_PENDING: set[tuple[str, str, str, str]] = set()
+_OPERATOR_ACTION_LAST: dict[tuple[str, str, str, str], float] = {}
+
+
+def _operator_authenticate(authorization: str | None, ns: str, scope: str):
+    """Authenticate a namespaced operator using the canonical GDW registry."""
+    from gdw_auth import authenticate_bearer, load_credential_registry
+
+    prefix = str(ns or "a11oy").upper().replace("-", "_")
+    registry_json = os.environ.get(prefix + "_OPERATOR_CREDENTIALS_JSON")
+    principals_json = os.environ.get(prefix + "_OPERATOR_PRINCIPALS_JSON")
+    if registry_json is None:
+        registry_json = os.environ.get("GDW_CREDENTIALS_JSON")
+    if principals_json is None:
+        principals_json = os.environ.get("GDW_PRINCIPALS_JSON")
+    namespace = (
+        os.environ.get(prefix + "_OPERATOR_NAMESPACE")
+        or os.environ.get("GDW_NAMESPACE")
+        or str(ns or "a11oy")
+    )
+    registry = load_credential_registry(
+        registry_json,
+        principal_registry_json=principals_json,
+        principal_registry_namespace=namespace,
+    )
+    return authenticate_bearer(
+        authorization,
+        registry,
+        namespace=namespace,
+        required_scopes=(scope,),
+    )
+
+
+def _operator_action_claim(principal, ns: str, action: str) -> tuple[object | None, int | None]:
+    """Claim one process-wide action flight and enforce a per-principal cooldown."""
+    prefix = str(ns or "a11oy").upper().replace("-", "_")
+    try:
+        interval = int(os.environ.get(prefix + "_OPERATOR_MIN_INTERVAL_SEC", "1"))
+    except Exception:
+        interval = 1
+    interval = max(0, min(3600, interval))
+    identity = (str(ns), str(action), principal.owner_id, principal.key_id)
+    now = time.monotonic()
+    with _OPERATOR_ACTION_LOCK:
+        if any(key[:2] == identity[:2] for key in _OPERATOR_ACTION_PENDING):
+            return None, max(1, interval)
+        last = _OPERATOR_ACTION_LAST.get(identity)
+        if last is not None and now - last < interval:
+            return None, max(1, int(interval - (now - last) + 0.999))
+        _OPERATOR_ACTION_PENDING.add(identity)
+    return identity, None
+
+
+def _operator_action_release(identity: object | None) -> None:
+    if identity is None:
+        return
+    with _OPERATOR_ACTION_LOCK:
+        _OPERATOR_ACTION_PENDING.discard(identity)
+        _OPERATOR_ACTION_LAST[identity] = time.monotonic()
 
 # ----------------------------------------------------------------------------
 # FORMULA WIRING (ADDITIVE 2026-06-06): the ~80 kernel-verified theorems wired
@@ -577,8 +642,26 @@ def governance_standards_note() -> dict:
 
 
 def _retrieve(query: str, top_k: int = 3):
-    """Real keyword + token-overlap retrieval over the in-image corpus.
-    Deterministic, dependency-free, always available. Returns scored chunks."""
+    """Prefer the org second-brain index when it is built. Else in-image corpus."""
+    try:
+        import a11oy_org_rag as _org_rag
+        hit = _org_rag.query(query or "", k=max(1, min(int(top_k or 3), 8)))
+        chunks = hit.get("chunks") or []
+        if hit.get("ok") and chunks and not hit.get("i_dont_know"):
+            out = []
+            for c in chunks[:top_k]:
+                out.append({
+                    "chunk_id": c.get("id") or c.get("chunk_id") or "org",
+                    "title": c.get("title") or c.get("path") or "org-rag",
+                    "source": c.get("source") or "org-rag",
+                    "relevance": c.get("lambda") or c.get("score") or 0,
+                    "text": (c.get("text") or "")[:800],
+                    "plane": "second-brain",
+                })
+            if out:
+                return out
+    except Exception:
+        pass
     q = (query or "").lower()
     q_tokens = set(t for t in ''.join(c if c.isalnum() else ' ' for c in q).split() if len(t) > 2)
     scored = []
@@ -622,6 +705,12 @@ def _trust_score(axes: dict) -> float:
 def _tool_catalog(ns: str):
     field = "drone/vessel field operations" if ns == "killinchu" else "governed AI operations"
     tools = [
+        {"name": "search_tools",
+         "title": "Search tools",
+         "description": "Progressive discovery: filter the declared Hatun catalog by query. Does not execute tools.",
+         "inputSchema": {"type": "object", "properties": {
+             "query": {"type": "string"}},
+             "required": ["query"]}},
         {"name": "retrieve_context",
          "title": "Retrieve context",
          "description": f"Search the in-image governance corpus for {field} guidance.",
@@ -739,6 +828,17 @@ def _sha(obj) -> str:
     return hashlib.sha256(json.dumps(obj, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
+def _append_run_record(run_chain, lock, record):
+    """Atomically append one run-of-runs record without lineage forks."""
+    with lock:
+        stored = dict(record)
+        stored["prev_run_hash"] = (
+            run_chain[-1]["final_hash"] if run_chain else "GENESIS"
+        )
+        run_chain.append(stored)
+        return stored
+
+
 # ----------------------------------------------------------------------------
 # Registration.  sign_fn(payload_dict) MUST return a DSSE-style envelope dict
 # with at least: payloadType, payload(b64), signatures(list), signed(bool),
@@ -753,11 +853,12 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
     # the raw Request via positional injection and FastAPI does NOT treat the
     # `request` parameter as a query field to validate (which caused a 422).
     from starlette.routing import Route
-    from starlette.responses import JSONResponse, HTMLResponse
+    from starlette.responses import JSONResponse, HTMLResponse, Response
     from starlette.requests import Request
 
     # In-memory chain of full runs (each run is itself a chained sub-ledger).
     _RUN_CHAIN = []  # list of {run_id, final_hash, prev_run_hash}
+    _RUN_CHAIN_LOCK = threading.Lock()
 
     # Bounded read model derived only from receipts created by _do_run. This is
     # not a durable ledger and it is never populated by a GET request.
@@ -1096,11 +1197,18 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                          "and axis scores — not asserted. Maturity per mechanism."),
             }
 
-        # record this whole run into the run-of-runs chain
-        run_record = {"run_id": tr.trace_id, "final_hash": prev_hash,
-                      "prev_run_hash": (_RUN_CHAIN[-1]["final_hash"] if _RUN_CHAIN else "GENESIS"),
-                      "decision": decision}
-        _RUN_CHAIN.append(run_record)
+        # Record this whole run into the run-of-runs chain. Every caller of
+        # _do_run (single-pass and governed-cycle paths) reaches this same atomic
+        # append, so concurrent requests cannot observe one predecessor twice.
+        _append_run_record(
+            _RUN_CHAIN,
+            _RUN_CHAIN_LOCK,
+            {
+                "run_id": tr.trace_id,
+                "final_hash": prev_hash,
+                "decision": decision,
+            },
+        )
 
         result = {
             "run_id": tr.trace_id,
@@ -1328,6 +1436,90 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                         "the corresponding evidence."),
         }
 
+    def _hatun_mesh_contract() -> dict:
+        """REPORTED organ mesh. Live second-brain/RAG/formulas when importable."""
+        catalog = _tool_catalog(ns)
+        try:
+            import a11oy_org_rag as _org_rag
+            rag = _org_rag.status()
+        except Exception as exc:
+            rag = {"built": False, "state": "UNAVAILABLE", "honesty": type(exc).__name__}
+        try:
+            from ayllu.model_binding import second_brain_binding
+            brain = second_brain_binding(namespace=ns, rag_status=rag)
+        except Exception:
+            brain = {"state": rag.get("state") or "UNAVAILABLE",
+                     "ready_for_grounded_navigation": False}
+        formulas = []
+        try:
+            import szl_formulas as _sf
+            formulas = list(getattr(_sf, "FORMULA_NAMES", None) or [])
+        except Exception:
+            formulas = []
+        chakras = []
+        try:
+            from szl_anatomy_routes import CHAKRAS
+            chakras = [{"n": c.get("n"), "name": c.get("name"), "formula": c.get("formula")}
+                       for c in CHAKRAS]
+        except Exception:
+            chakras = []
+        return {
+            "schema": "szl.hatun.mesh.v1",
+            "truth": "REPORTED",
+            "get_mints_receipt": False,
+            "rule": "Hatun is the governed tool plane. Organs stay themselves.",
+            "mcp": {
+                "endpoint": "/mcp/",
+                "status": "RUNTIME_DECLARED",
+                "tool_count": len(catalog),
+                "tools": [row.get("name") for row in catalog],
+            },
+            "second_brain": {
+                "state": brain.get("state"),
+                "ready_for_grounded_navigation": bool(brain.get("ready_for_grounded_navigation")),
+                "index_built": bool(rag.get("built")),
+                "chunk_count": rag.get("chunk_count") or rag.get("corpus_chunk_count") or 0,
+                "href": "/ayllu#sec-organism",
+                "api": "/api/a11oy/v1/ayllu/second-brain",
+                "ask": "/api/a11oy/v1/rag/query",
+            },
+            "codex": {
+                "href": "/formulas",
+                "api": "/api/a11oy/v1/formulas",
+                "count": len(formulas),
+                "formulas": formulas,
+            },
+            "anatomy": {
+                "href": "/living-anatomy",
+                "chakras": chakras,
+            },
+            "ouroboros": {
+                "href": "/formulas",
+                "api": "/api/a11oy/v1/ouroboros/run-all",
+                "mode": "POST_ONLY",
+                "note": "Bounded converge-or-halt. Advisory only. Lambda remains Conjecture 1.",
+            },
+            "organs": [
+                {"id": "hatun", "job": "governed MCP tool plane", "href": "/hatun-mcp",
+                 "api": "/mcp/", "label": "RUNTIME_DECLARED"},
+                {"id": "second-brain", "job": "compound evidence memory + navigator",
+                 "href": "/ayllu#sec-organism",
+                 "api": "/api/a11oy/v1/ayllu/second-brain",
+                 "label": brain.get("state") or "UNAVAILABLE"},
+                {"id": "anatomy", "job": "living-systems map of organs and formulas",
+                 "href": "/living-anatomy", "api": "/anatomy-v5", "label": "LIVE_PAGE"},
+                {"id": "ouroboros", "job": "bounded loop-tax / converge-or-halt",
+                 "href": "/formulas", "api": "/api/a11oy/v1/ouroboros/run-all",
+                 "label": "POST_ONLY"},
+                {"id": "codex", "job": "formula composer / chakra binding",
+                 "href": "/formulas", "api": "/api/a11oy/v1/formulas",
+                 "label": "LIVE_READ" if formulas else "UNAVAILABLE"},
+            ],
+            "honesty": ("Second-brain ready flag is not upgraded. Formula names are the "
+                        "in-image registry. RAG citations exist only when the seed index "
+                        "is built. Lambda remains Conjecture 1."),
+        }
+
     # ------------------------------------------------------------------ #
     # OUROBOROS CLOSED LOOP (ADDITIVE 2026-07-03, default-OFF, honest).
     # Wraps the single governed pass `_do_run` into a BOUNDED, WITNESSED,
@@ -1539,6 +1731,8 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
             return core
 
     # ---- MCP JSON-RPC handler (runtime-declared MCP surface) ----
+    _MCP_OPERATOR_TOOLS = frozenset({"sign_receipt"})
+
     async def _mcp_post(request: Request):
         try:
             body = await request.json()
@@ -1546,15 +1740,33 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
             return JSONResponse({"jsonrpc": "2.0", "id": None,
                                  "error": {"code": -32700, "message": "Parse error"}},
                                 status_code=200)
+        if not isinstance(body, dict):
+            return JSONResponse({"jsonrpc": "2.0", "id": None,
+                                 "error": {"code": -32600, "message": "Invalid Request"}},
+                                status_code=200)
         rid = body.get("id")
         method = body.get("method", "")
         params = body.get("params") or {}
         if method == "initialize":
             return JSONResponse({"jsonrpc": "2.0", "id": rid, "result": {
                 "protocolVersion": "2024-11-05",
-                "capabilities": {"tools": {"listChanged": False}},
-                "serverInfo": {"name": "szl-%s-mcp" % ns, "version": "1.0.0",
-                               "title": "SZL %s governed MCP" % ns}}})
+                "capabilities": {
+                    "tools": {"listChanged": False},
+                    "resources": {"listChanged": False, "subscribe": False},
+                    "prompts": {"listChanged": False},
+                },
+                "serverInfo": {"name": "szl-%s-mcp" % ns, "version": "1.1.0",
+                               "title": "SZL %s governed MCP" % ns},
+                "instructions": (
+                    "Hatun is deny-by-default. Use search_tools then tools/call. "
+                    "GET never mints a receipt. Lambda remains Conjecture 1."
+                ),
+            }})
+        if method in ("notifications/initialized", "initialized") or method.startswith("notifications/"):
+            # Streamable HTTP notifications have no JSON-RPC response body.
+            if rid is None:
+                return Response(status_code=202)
+            return JSONResponse({"jsonrpc": "2.0", "id": rid, "result": {}})
         if method in ("tools/list", "list_tools"):
             return JSONResponse({"jsonrpc": "2.0", "id": rid,
                                  "result": {"tools": _tool_catalog(ns)}})
@@ -1563,16 +1775,56 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
             args = params.get("arguments")
             if not isinstance(args, dict):
                 args = {}
+            # sign_receipt signs a caller-supplied payload with the server key: an
+            # anonymous caller could mint receipts that verify against /cosign.pub.
+            # Operator Bearer only; any resolver error refuses.
+            if name in _MCP_OPERATOR_TOOLS:
+                try:
+                    import szl_operator_auth as _opauth
+                    _is_operator = bool(_opauth.principal(request)["operator"])
+                except Exception:
+                    _is_operator = False
+                if not _is_operator:
+                    return JSONResponse({"jsonrpc": "2.0", "id": rid, "error": {
+                        "code": -32001,
+                        "message": "BLOCKED: %s requires the operator credential "
+                                   "(Authorization: Bearer <A11OY_CODE_ADMIN_KEY>)." % name}},
+                        status_code=401, headers={"WWW-Authenticate": "Bearer"})
             result = _mcp_tool_call(name, args)
             return JSONResponse({"jsonrpc": "2.0", "id": rid, "result": {
                 "content": [{"type": "text", "text": json.dumps(result)}],
                 "structuredContent": result, "isError": bool(result.get("_error"))}})
+        if method in ("resources/list", "list_resources"):
+            return JSONResponse({"jsonrpc": "2.0", "id": rid, "result": {
+                "resources": [],
+                "honesty": "No MCP resources are published in this runtime.",
+            }})
+        if method in ("resources/read", "read_resource"):
+            return JSONResponse({"jsonrpc": "2.0", "id": rid,
+                                 "error": {"code": -32002, "message": "Resource unavailable"}})
+        if method in ("prompts/list", "list_prompts"):
+            return JSONResponse({"jsonrpc": "2.0", "id": rid, "result": {
+                "prompts": [],
+                "honesty": "No MCP prompts are published in this runtime.",
+            }})
+        if method in ("prompts/get", "get_prompt"):
+            return JSONResponse({"jsonrpc": "2.0", "id": rid,
+                                 "error": {"code": -32602, "message": "Prompt unavailable"}})
         if method in ("ping",):
             return JSONResponse({"jsonrpc": "2.0", "id": rid, "result": {}})
         return JSONResponse({"jsonrpc": "2.0", "id": rid,
                              "error": {"code": -32601, "message": "Method not found: %s" % method}})
 
     def _mcp_tool_call(name, args):
+        if name == "search_tools":
+            q = str(args.get("query") or "").lower()
+            hits = []
+            for row in _tool_catalog(ns):
+                blob = " ".join(str(row.get(k) or "") for k in ("name", "title", "description"))
+                if not q or q in blob.lower():
+                    hits.append({"name": row.get("name"), "title": row.get("title")})
+            return {"query": args.get("query"), "matches": hits, "count": len(hits),
+                    "evidence": "RUNTIME_DECLARED"}
         if name == "retrieve_context":
             return {"chunks": _retrieve(args.get("query", ""), int(args.get("top_k", 3)))}
         if name == "policy_check":
@@ -1684,6 +1936,10 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         return JSONResponse(_hatun_invocation_contract(),
                             headers={"Cache-Control": "no-store"})
 
+    async def _agent_mesh(request: Request):
+        return JSONResponse(_hatun_mesh_contract(),
+                            headers={"Cache-Control": "no-store"})
+
     async def _agent_governance_standards(request: Request):
         return JSONResponse(governance_standards_note())
 
@@ -1697,42 +1953,108 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         return JSONResponse(_verify_chain(run))
 
     async def _agent_cycle(request: Request):
-        # OUROBOROS closed loop (ADDITIVE, default-OFF). Gated at request time on
-        # env A11OY_OUROBOROS=1 so the surface exists but is inert by default;
-        # /agent/run is entirely untouched. Honest disabled note when off.
-        import os
-        if os.environ.get("A11OY_OUROBOROS") != "1":
+        # Bounded loop. Execution requires BOTH deployment enablement and an
+        # authenticated operator request. /agent/run stays single-pass.
+        env_on = os.environ.get("A11OY_OUROBOROS") == "1"
+        if request.method == "GET":
             return JSONResponse({
                 "cycle": False,
-                "enabled": False,
-                "note": ("Ouroboros closed loop is OFF. Set A11OY_OUROBOROS=1 to enable. "
-                         "The single-pass /agent/run path is unaffected."),
+                "enabled": env_on,
+                "authorization": "required",
+                "opt_in": "authorized POST with strict boolean loop=true",
+                "bound": 4,
+                "note": "Loop is bounded and advisory. Lambda remains Conjecture 1.",
                 "doctrine": "v11",
-            }, status_code=200)
+            })
         try:
             b = await request.json()
         except Exception:
             b = {}
-        query = b.get("query") or b.get("goal") or "deploy a low-risk reversible change"
-        action = b.get("action") or query
-        severity = b.get("severity", "low")
-        confidence = float(b.get("confidence", 0.9))
-        reversible = bool(b.get("reversible", True))
-        untrusted_input = b.get("untrusted_input") or b.get("untrusted") or ""
-        approval_grant = b.get("approval_grant") or b.get("approval")
+        if not isinstance(b, dict):
+            b = {}
+        loop_on = b.get("loop") is True
+        if not env_on or not loop_on:
+            return JSONResponse({
+                "cycle": False,
+                "enabled": False,
+                "note": ("Ouroboros closed loop is OFF. Deployment must set "
+                         "A11OY_OUROBOROS=1 and an authorized POST must include "
+                         "the strict boolean loop=true. /agent/run stays single-pass."),
+                "doctrine": "v11",
+            }, status_code=200)
+        from gdw_auth import AuthConfigurationError, AuthenticationError
         try:
-            budget = int(b.get("budget", 4))
-        except Exception:
-            budget = 4
+            principal = _operator_authenticate(
+                request.headers.get("authorization"), ns, "agent:cycle")
+        except AuthConfigurationError:
+            return JSONResponse({
+                "cycle": False,
+                "state": "unavailable",
+                "error": "operator credential registry is unavailable",
+            }, status_code=503)
+        except AuthenticationError as exc:
+            status = 403 if exc.code in {
+                "credential_revoked", "foreign_namespace", "missing_scopes",
+            } else 401
+            headers = {"WWW-Authenticate": "Bearer"} if status == 401 else None
+            return JSONResponse({"cycle": False, "state": "denied", "error": exc.code},
+                                status_code=status, headers=headers)
+        identity, retry_after = _operator_action_claim(principal, ns, "agent-cycle")
+        if identity is None:
+            return JSONResponse({
+                "cycle": False,
+                "state": "rate_limited",
+                "error": "an agent cycle is already active or this principal is inside its cooldown",
+                "retry_after_s": retry_after,
+            }, status_code=429, headers={"Retry-After": str(retry_after)})
         try:
-            eps = float(b.get("eps", 0.01))
+            query = b.get("query") or b.get("goal") or "deploy a low-risk reversible change"
+            action = b.get("action") or query
+            severity = b.get("severity", "low")
+            try:
+                confidence = float(b.get("confidence", 0.9))
+            except Exception:
+                return JSONResponse({
+                    "cycle": False,
+                    "state": "denied",
+                    "error": "confidence must be numeric",
+                }, status_code=400)
+            reversible = bool(b.get("reversible", True))
+            untrusted_input = b.get("untrusted_input") or b.get("untrusted") or ""
+            approval_grant = b.get("approval_grant") or b.get("approval")
+            try:
+                budget = int(b.get("budget", 2))
+            except Exception:
+                budget = 2
+            budget = max(1, min(budget, 4))
+            try:
+                eps = float(b.get("eps", 0.01))
+            except Exception:
+                eps = 0.01
+            import functools
+            import anyio
+            run_cycle = functools.partial(
+                _do_governed_cycle,
+                budget=budget, eps=eps,
+                query=query, action=action, severity=severity, confidence=confidence,
+                reversible=reversible, untrusted_input=untrusted_input,
+                approval_grant=approval_grant,
+            )
+            result = await anyio.to_thread.run_sync(run_cycle)
+            result["operator"] = {
+                "owner_id": principal.owner_id,
+                "namespace": principal.namespace,
+                "key_id": principal.key_id,
+            }
+            return JSONResponse(result)
         except Exception:
-            eps = 0.01
-        return JSONResponse(_do_governed_cycle(
-            budget=budget, eps=eps,
-            query=query, action=action, severity=severity, confidence=confidence,
-            reversible=reversible, untrusted_input=untrusted_input,
-            approval_grant=approval_grant))
+            return JSONResponse({
+                "cycle": False,
+                "state": "unavailable",
+                "error": "governed cycle execution unavailable",
+            }, status_code=503)
+        finally:
+            _operator_action_release(identity)
 
     async def _ask_and_act_ui(request: Request):
         return HTMLResponse(_UI_HTML.replace("__NS__", ns).replace("__SIGNER__", signer_label))
@@ -1755,7 +2077,7 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         Route("/api/%s/v1/agent/governance-standards" % ns, _agent_governance_standards,
               methods=["GET"], name="%s_agent_gov_standards" % ns),
         Route("/api/%s/v1/agent/verify-chain" % ns, _agent_verify, methods=["POST"], name="%s_agent_verify" % ns),
-        Route("/api/%s/v1/agent/cycle" % ns, _agent_cycle, methods=["POST"], name="%s_agent_cycle" % ns),
+        Route("/api/%s/v1/agent/cycle" % ns, _agent_cycle, methods=["GET", "POST"], name="%s_agent_cycle" % ns),
         Route("/ask-and-act", _ask_and_act_ui, methods=["GET"], name="%s_ask_and_act" % ns),
         Route("/governed-run", _ask_and_act_ui, methods=["GET"], name="%s_governed_run" % ns),
     ]
@@ -1765,6 +2087,10 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                   name="hatun_evidence"),
             Route("/api/hatun/invocations", _agent_invocations, methods=["GET"],
                   name="hatun_invocations"),
+            Route("/api/hatun/mesh", _agent_mesh, methods=["GET"],
+                  name="hatun_mesh"),
+            Route("/api/%s/v1/hatun/mesh" % ns, _agent_mesh, methods=["GET"],
+                  name="hatun_mesh_ns"),
         ])
     # insert at position 0 so they win over the SPA catch-all (the known gotcha).
     for r in reversed(routes):

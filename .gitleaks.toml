@@ -59,6 +59,9 @@ regexes = [
   # 64-hex sha256 digest AND the name says sha256 / fingerprint / orphan_key —
   # a public-key digest is not a credential. Real 64-hex tokens are not named so.
   '''(?i)(sha256|fingerprint|orphan_key)["']?\s*[:=]\s*["'][0-9a-f]{64}["']''',
+  # Content-addressed public source digest, not a credential. Keep this bound
+  # to the single gdw_auth manifest row; other 64-hex values remain scanned.
+  '''^\s*"gdw_auth\.py"\s*:\s*"[0-9a-f]{64}",?\s*$''',
 ]
 
 # Stopwords — exempt specific DOCUMENTED non-secret literals by their value,
@@ -84,4 +87,3 @@ paths = [
   '''.*/testdata/.*''',
   '''.*\.test\.key$''',
 ]
-

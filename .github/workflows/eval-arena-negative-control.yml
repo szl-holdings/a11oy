@@ -32,25 +32,31 @@ name: Eval Arena Negative Control Guard
 
 on:
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - "serve.py"
-      - "scripts/check_eval_arena_negative_control.py"
-      - ".github/workflows/eval-arena-negative-control.yml"
+    - serve.py
+    - scripts/check_eval_arena_negative_control.py
+    - .github/workflows/eval-arena-negative-control.yml
   pull_request:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - "serve.py"
-      - "scripts/check_eval_arena_negative_control.py"
-      - ".github/workflows/eval-arena-negative-control.yml"
-  workflow_dispatch:
-
+    - serve.py
+    - scripts/check_eval_arena_negative_control.py
+    - .github/workflows/eval-arena-negative-control.yml
+  workflow_dispatch: null
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 
 concurrency:
   group: eval-arena-negative-control-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   # Prove the validator still rejects degenerate runs (i.e. is not silently

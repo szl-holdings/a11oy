@@ -101,7 +101,7 @@ export default function SyncsList() {
                       </td>
                       <td className="px-6 py-4 relative z-10">
                         <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: dest?.color || '#ccc' }} />
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: dest?.color || 'var(--text-ghost)' }} />
                           <span>{sync.connection?.name || 'Unknown'}</span>
                         </div>
                       </td>
@@ -121,7 +121,7 @@ export default function SyncsList() {
                           {sync.lastRunAt ? (
                             <>
                               <span className="flex items-center gap-1.5">
-                                <span className={`w-1.5 h-1.5 rounded-full ${sync.lastRunStatus === 'success' ? 'bg-green-500' : sync.lastRunStatus === 'failed' ? 'bg-red-500' : 'bg-yellow-500'}`} />
+                                <span className={`w-1.5 h-1.5 rounded-full ${sync.lastRunStatus === 'success' ? 'bg-success' : sync.lastRunStatus === 'failed' ? 'bg-error' : 'bg-warning'}`} />
                                 {formatDate(sync.lastRunAt)}
                               </span>
                             </>
@@ -138,7 +138,7 @@ export default function SyncsList() {
                             onClick={(e) => toggleStatus(e, sync.id, sync.status)}
                             title={sync.status === 'active' ? 'Pause Sync' : 'Resume Sync'}
                           >
-                            {sync.status === 'active' ? <Pause className="w-4 h-4" /> : <Power className="w-4 h-4 text-primary" />}
+                            {sync.status === 'active' ? <Pause className="w-4 h-4" /> : <Power className="w-4 h-4 text-ink" />}
                           </Button>
                           <Link href={`/syncs/${sync.id}`}>
                             <Button variant="ghost" size="sm" title="Edit">

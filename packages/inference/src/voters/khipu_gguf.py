@@ -124,7 +124,7 @@ def khipu_pin() -> Dict[str, Any]:
         "gpu_inference_endpoint": "ROADMAP",
         "forge_lab": "SNAPSHOT",
         "forge_lab_role": "not a trainer, not Serve Studio",
-        "energy_attested_runs": "8/8 SIMULATED",
+        "energy_attested_runs": "UNAVAILABLE",
         "killinchu_detector": "SIMULATED",
         "lambda": "Conjecture 1",
     }
@@ -169,7 +169,6 @@ def extract_lab_receipt(data: Dict[str, Any]) -> Dict[str, Any]:
         or receipt.get("sha256")
         or receipt.get("record_sha256")
         or provenance.get("record_sha256")
-        or data.get("id")
     )
     if not sha:
         sha = "UNKNOWN"

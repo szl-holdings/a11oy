@@ -9,14 +9,15 @@ DNS, or Cloudflare state.
 ## Inventory contract
 
 The public application registry is defined once in `szl_spaces_surface.SPACES`
-as the MEASURED Hub KEEP-7 set. Health probes that set only. Folded Spaces
-live in `FOLD_SPACES` and are PAUSED+PRIVATE; the redirect-only compatibility
-surface 307s their legacy `/spaces/<slug>` links to existing product
-(`a-11-oy.com`) and proof (`a11oy.net`) destinations. RECORD:
-https://a11oy.net/spaces.json. `/verify` is not cloned.
+as the KEEP-5 FLOCK doors. Health probes that set only. Folded Spaces live in
+`FOLD_SPACES` and Unify stragglers live in `UNIFY_SPACES`; both are destination
+ledger only. The redirect-only compatibility surface 307s their legacy
+`/spaces/<slug>` links to existing product (`a-11-oy.com`) and proof
+(`a11oy.net`) destinations. RECORD: https://a11oy.net/spaces.json. `/verify`
+is not cloned. GET `/unify` is a product tab, not a Hub Space.
 
-Every fresh health cycle compares the KEEP-7 set with the public Hugging
-Face Spaces API set.
+Every fresh health cycle compares the KEEP-5 set with the public Hugging
+Face Spaces API set. Inventory mismatch is DEGRADED, never a fabricated LIVE.
 
 - `inventory.state=LIVE`: the two public regular-Space sets are exactly equal.
 - `inventory.state=DEGRADED`: the API responded, but `missing` or `unexpected`

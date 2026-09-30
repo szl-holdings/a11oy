@@ -84,7 +84,9 @@ def test_public_header_is_command_and_proof_registry() -> None:
     assert "text: 'Command'" in BAR_JS
     assert "Proof registry ↗" in BAR_JS
     assert "https://a11oy.net" in BAR_JS
-    assert '<a href="/console">Command</a>' in LANDING
+    landing_header = LANDING.split("<header", 1)[1].split("</header>", 1)[0]
+    assert 'href="/console"' in landing_header
+    assert '<span class="nav-cta-full">Command</span>' in landing_header
     assert "Proof registry ↗" in LANDING
     assert 'href="https://a11oy.net"' in LANDING
     assert ">Command center</span> →" in LANDING
@@ -92,6 +94,16 @@ def test_public_header_is_command_and_proof_registry() -> None:
     assert 'class="nav-cta-short"' in LANDING
     assert '<a href="/console">Command</a>' in TRUST
     assert "Proof registry ↗" in TRUST
+
+
+def test_command_bar_exposes_holo_and_frontier_tabs() -> None:
+    """Operator surfaces already served by Space SZLHOLDINGS/a11oy."""
+    assert "href: '/holographic'" in BAR_JS
+    assert "href: '/frontier-now'" in BAR_JS
+    assert "text: 'Holo'" in BAR_JS
+    assert "text: 'Frontier'" in BAR_JS
+    assert '<a href="/holographic">Holo</a>' in LANDING
+    assert '<a href="/frontier-now">Frontier</a>' in LANDING
 
 
 def test_no_investor_route_stub() -> None:
@@ -112,7 +124,12 @@ def test_no_investor_route_stub() -> None:
     assert "go('investor')" in overlay_js
     assert "o.classList.toggle('open', !!open)" not in overlay_js.split("function open()")[1].split("function close()")[0]
     view = CONSOLE.split("V.investor=", 1)[1]
-    assert "{F1, F4, F7, F11, F12, F18, F19, F22}" in view[:2500]
+    investor_view = view[:5000]
+    assert "/api/a11oy/v1/honest" in investor_view
+    assert "locked_formula_count" in investor_view
+    assert "locked_formula_ids" in investor_view
+    assert 'id="inv-locked-ep">UNAVAILABLE' in investor_view
+    assert "{F1, F4, F7, F11, F12, F18, F19, F22}" not in investor_view
     assert "Verify a receipt" in view[:4000]
     assert "Open diligence on a11oy.net" in view[:4000]
     assert "UNAVAILABLE" in view[:4500]

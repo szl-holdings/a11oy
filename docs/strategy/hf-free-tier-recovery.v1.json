@@ -1,0 +1,40 @@
+{
+  "schema": "szl.hf-free-tier-recovery-plan/v2",
+  "issued_at": "2026-09-04T16:35:00Z",
+  "trigger": {
+    "provider": "Hugging Face",
+    "observed_http_status": 402,
+    "observed_constraint": "Organization Gradio and Docker Spaces on cpu-basic require a Team or Enterprise plan",
+    "source_run": 33846841792,
+    "state": "UNAVAILABLE",
+    "truth_label": "UNAVAILABLE"
+  },
+  "recovery": {
+    "dynamic_runtime": "UNAVAILABLE",
+    "personal_namespace_runtime": false,
+    "organization_docker_cpu_basic": "UNAVAILABLE until Team or Enterprise",
+    "organization_gateways": [
+      "SZLHOLDINGS/vertical-services",
+      "SZLHOLDINGS/terra",
+      "SZLHOLDINGS/counsel",
+      "SZLHOLDINGS/finance",
+      "SZLHOLDINGS/lyte"
+    ],
+    "single_writer": "szl-holdings/a11oy GitHub Actions",
+    "destructive_scope": "none"
+  },
+  "authority": {
+    "effectors_enabled": false,
+    "human_approval_required": true,
+    "lambda": "CONJECTURE_1_ADVISORY",
+    "sample_substitution": false,
+    "secret_value_recorded": false
+  },
+  "non_claims": [
+    "This does not change the Hugging Face organization subscription.",
+    "HF 402 is a paid-plan constraint, not a parser defect.",
+    "Product runtime does not live in a personal Hugging Face Space (Doctrine v7 §14).",
+    "Killinchu is not converted or mutated by this record.",
+    "Static gateway HTTP 200 is not dynamic-runtime readiness proof."
+  ]
+}

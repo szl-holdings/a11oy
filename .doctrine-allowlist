@@ -396,3 +396,22 @@ tools/docs_lexicon_gate.py
 docs/cookbook/recipes/knot-calculus-v1/README.md
 docs/papers/ouroboros-archive/docs/v15/ch10_knot_calculus.md
 docs/papers/ouroboros-archive/docs/sdk-innovation.md
+
+# 2026-09-29 SZL KANCHAY founder-direction rollout (draft PR; needs the founder's OK):
+# byte-identical vendored copy of szl-brand kanchay/ 1.1.0, sha256-pinned by its
+# SOURCE.json. The one hit is a CSS line-height design-token name, not prose; editing
+# the bytes would break the vendor pin. (organs/amaru/web/public/szl/ is already
+# covered by the organs/amaru/ entry above.)
+landing/szl/
+
+# Founder green light 2026-09-29: exact, hash-verified KANCHAY styles only.
+# CSS token names are not prose claims; regression tests verify SOURCE.json hashes.
+# Application markup, script, preview and other assets remain scanned.
+console/assets/szl/szl-design-system.css
+console/assets/szl/szl-console.css
+
+# Founder green light 2026-09-29: exact KANCHAY vendor copy, hash-bound by
+# routers/command_centre_web/szl/SOURCE.json and its regression test.
+# --leading-mono is a CSS line-height token, not a prose superiority claim.
+# Only this immutable stylesheet is exempt; application copy/script stay scanned.
+routers/command_centre_web/szl/szl-design-system.css

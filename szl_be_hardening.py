@@ -87,14 +87,62 @@ DOCTRINE_LOCK = {
     "commit": "c7c0ba17",
     "lambda": "Conjecture 1",
     "lambda_note": "Λ-Aggregator Uniqueness — Conjecture 1, NOT a closed theorem.",
-    # Locked-proven formulas = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17.
+    # Locked-proven formulas = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}. These
+    # theorems are NOT in lutar-lean at c7c0ba17 (2026-05-31). They are in
+    # Lutar/Puriq/Formulas/ProvedFormulas.lean, pinned here to lutar-lean 3a886349
+    # (main as checked 2026-09-25). That file was added 2026-06-04 (e6de491, #185)
+    # and last changed 2026-06-10 (5cfaf9a: non-vacuous F4/F7). It sits in the
+    # experimental scope that the 749/14/163 count excludes.
     # The count itself is the no-axiom theorem locked_count_eight (lutar-lean #219 +
     # platform #321, merged 2026-06-10). Surfaced here so /honest carries the canonical
     # locked-8 (count + IDs), not just 749/14/163 + Λ. Additive; never inflate.
     "locked_formula_count": 8,
     "locked_formula_ids": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
+    # How "sorries" is counted (additive labels). 163 is a raw text count that
+    # includes comments and docstrings; it is NOT the number of open proof holes.
+    # Reproduce: in a lutar-lean checkout at c7c0ba17 run
+    #   python .github/scripts/lean_numbers.py --repo-path .
+    # -> numbers.sorries_raw = 163, numbers.sorries_noncomment = 149.
+    "sorries_method": (
+        "lutar-lean .github/scripts/lean_numbers.py sorries_raw @ c7c0ba17 — "
+        "word-boundary 'sorry' text occurrences in Lutar/**+Main.lean, including "
+        "comments and docstrings; not a count of open proof obligations"
+    ),
+    # Same script, same commit: COMMENT_LINE_RE = ^\s*-- drops only lines that
+    # start with `--`, so /- -/ block and doc comments are still counted. 149 is
+    # therefore NOT the number of open proof holes either; the served label says so.
+    "sorries_noncomment": 149,
+    "sorries_noncomment_method": (
+        "same script and commit (lutar-lean .github/scripts/lean_numbers.py @ "
+        "c7c0ba17) — drops only lines whose first non-blank characters are `--`; "
+        "'sorry' text inside /- -/ block comments, /-- -/ doc comments and trailing "
+        "`--` comments after code is still counted; not a count of open proof "
+        "obligations"
+    ),
+    "locked_formula_source": (
+        "lutar-lean Lutar/Puriq/Formulas/ProvedFormulas.lean @ 3a886349 "
+        "(checked 2026-09-25; file added 2026-06-04 e6de491, last changed "
+        "2026-06-10 5cfaf9a; not present at c7c0ba17; experimental scope, "
+        "outside the 749/14/163 count)"
+    ),
 }
 DOCTRINE_FOOTER = "Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1"
+
+
+def huggingface_hub_version() -> str:
+    """Installed-module readback. The Dockerfile pin is not this field.
+
+    Missing import or empty __version__ is UNAVAILABLE. Never copies 1.31.0
+    from audit/source pins into the live payload.
+    """
+    try:
+        import huggingface_hub as _hub
+    except Exception:
+        return "UNAVAILABLE"
+    version = getattr(_hub, "__version__", None)
+    if isinstance(version, str) and version.strip():
+        return version.strip()
+    return "UNAVAILABLE"
 
 _GENESIS = "0" * 64
 # DEMO-FLOOR RATE-LIMIT FIX (2026-06-17): the per-IP limiter previously capped
@@ -662,9 +710,30 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
     @app.get(f"{base}/healthz", tags=["health"])
     @app.get("/healthz", tags=["health"])
     async def _healthz():
-        return {"status": "ok", "organ": organ, "doctrine": DOCTRINE,
-                "lock": "749/14/163", "commit": "c7c0ba17",
-                "signer": dict(_SIGNER_ABSENT)}
+        live = {
+            "status": "ABSENT",
+            "signing_available": False,
+            "scheme": "UNAVAILABLE",
+            "mint": "POST /api/a11oy/khipu/sign",
+            "rollup": "/api/a11oy/healthz",
+            "pubkey": "/cosign.pub",
+        }
+        try:
+            import szl_dsse as _dsse
+            # Fingerprint only. This route never stamps DSSE-LIVE; signer stays
+            # ABSENT. Live signing is /api/a11oy/healthz rollup.signer.
+            live["public_key_fingerprint"] = _dsse.public_key_fingerprint()
+        except Exception as exc:  # noqa: BLE001
+            live["error"] = type(exc).__name__
+        return {
+            "status": "ok",
+            "organ": organ,
+            "doctrine": DOCTRINE,
+            "lock": "749/14/163",
+            "commit": "c7c0ba17",
+            "signer": dict(_SIGNER_ABSENT),
+            "dsse_live": live,
+        }
 
     @app.get(f"{base}/readyz", tags=["health"])
     @app.get("/readyz", tags=["health"])
@@ -766,6 +835,7 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
             "locked_formula_count": DOCTRINE_LOCK.get("locked_formula_count"),
             "locked_formula_ids": list(DOCTRINE_LOCK.get("locked_formula_ids") or []),
             "footer": DOCTRINE_FOOTER,
+            "huggingface_hub_version": huggingface_hub_version(),
             "honest_labels": {
                 "lambda": "Λ-Aggregator Uniqueness is Conjecture 1 — NOT a theorem.",
                 "khipu_signatures": "Chain integrity is SHA3-256 hash-chain verified; "
@@ -865,7 +935,9 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
             "data_kind": "live" if (gm.get("present") or crosswalk is not None)
                          else "structural",
             "honesty": ("doctrine lock is the canonical locked-8 {F1,F4,F7,F11,F12,"
-                        "F18,F19,F22} @ c7c0ba17 (no-axiom theorem locked_count_eight). "
+                        "F18,F19,F22} (no-axiom theorem locked_count_eight); the "
+                        "theorems are in lutar-lean ProvedFormulas.lean @ 3a886349, "
+                        "not at c7c0ba17 (see doctrine_lock.locked_formula_source). "
                         "coverage is a MEASURED count of canonical crosswalk cells, "
                         "not certification; gates_manifest is summarised from disk when "
                         "present. Λ remains Conjecture 1."),
@@ -891,18 +963,36 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
                                 "git_sha": os.getenv("SZL_GIT_SHA", "unknown")}
         try:
             import szl_dsse as _dsse
+            signing = bool(_dsse.signing_available())
+            if signing:
+                key_honesty = (
+                    "public_key_pem is the runtime signer's public key, the key "
+                    "public_key_fingerprint_sha256 hashes; it verifies, offline, the "
+                    "szl_dsse signatures this runtime produces (ECDSA-P256-SHA256 over "
+                    "the DSSE PAE). signing_available reports the signer truthfully; "
+                    "never faked.")
+            else:
+                # active_public_key_pem() falls back when no persistent signer is
+                # loaded, so the PEM here is not a signer key.
+                key_honesty = (
+                    "signing_available is false: szl_dsse signs nothing in this "
+                    "runtime and labels its envelopes UNSIGNED. public_key_pem (the "
+                    "key public_key_fingerprint_sha256 hashes) is only a fallback "
+                    "verification key: a process-local shared-signer key that "
+                    "/cosign.pub also serves, or, when no shared signer key is "
+                    "loaded, the embedded szl-holdings/.github org key, and then "
+                    "/cosign.pub may return 503. Never faked.")
             info.update({
                 "data_kind": "live",
                 "algorithm": "ECDSA-P256-SHA256 over DSSE PAE (cosign-compatible)",
-                "signing_available": bool(_dsse.signing_available()),
+                "signing_available": signing,
                 "public_key_fingerprint_sha256": _dsse.public_key_fingerprint(),
-                "public_key_pem": _dsse.COSIGN_PUBLIC_PEM.strip(),
-                "private_key_source": ("runtime secret only "
-                                       "(SZL_COSIGN_PRIVATE_KEY_PEM); never committed"),
-                "honesty": ("the embedded public key verifies signatures offline "
-                            "(cosign verify-blob). Signing is REAL only when the cosign "
-                            "private-key secret is present in this runtime — "
-                            "signing_available reports that truthfully; never faked."),
+                "public_key_pem": _dsse.active_public_key_pem().strip(),
+                "private_key_source": ("runtime secret or mounted key file only "
+                                       "(SZL_COSIGN_PRIVATE_PEM first; other accepted "
+                                       "sources are listed in a11oy_signing_key and "
+                                       "szl_dsse.PRIVATE_KEY_ENV_VARS); never committed"),
+                "honesty": key_honesty,
             })
         except Exception as exc:
             info.update({

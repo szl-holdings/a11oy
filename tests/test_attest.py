@@ -409,6 +409,72 @@ def test_lake_receipt_is_opt_in_and_never_writes_on_a_read_path(monkeypatch):
     assert res["status"] == "NOT_CONFIGURED"
 
 
+def test_lake_receipt_uses_real_ledger_and_reports_duplicates(monkeypatch, tmp_path):
+    import szl_lake_store as lake
+
+    monkeypatch.setenv(A.LAKE_DIR_ENV, str(tmp_path))
+    monkeypatch.setattr(lake, "DEFAULT_ROOT", str(tmp_path))
+    monkeypatch.setattr(lake, "_DEFAULT_LEDGER", None)
+    manifest = {"statement_digest_sha256": "a" * 64,
+                "built_at": "2026-09-19T00:00:00Z", "verdict": "UNKNOWN",
+                "label": "MODELED", "envelope": {"signed": False}}
+    first = A.lake_receipt(manifest)
+    assert first["appended"] is True
+    assert first["status"] == "APPENDED"
+    assert first["chain_index"] == 1
+    duplicate = A.lake_receipt(manifest)
+    assert duplicate["appended"] is False
+    assert duplicate["status"] == "DUPLICATE"
+    assert duplicate["chain_head"] == first["chain_head"]
+    # Reopen actual files, rather than accepting the in-process write response.
+    assert lake.ReceiptLedger(str(tmp_path)).health()["total_receipts"] == 1
+
+
+def test_lake_failure_never_reports_appended(monkeypatch, tmp_path):
+    import szl_lake_store as lake
+
+    root = tmp_path / "not-a-directory"
+    root.write_text("occupied", encoding="utf-8")
+    monkeypatch.setenv(A.LAKE_DIR_ENV, str(root))
+    monkeypatch.setattr(lake, "DEFAULT_ROOT", str(root))
+    monkeypatch.setattr(lake, "_DEFAULT_LEDGER", None)
+    result = A.lake_receipt({"statement_digest_sha256": "b" * 64})
+    assert result["appended"] is False
+    assert result["status"] == "UNAVAILABLE"
+
+
+@pytest.mark.parametrize("path", ["manifest", "verify", "manifest?require_transparency=1"])
+def test_attest_get_never_signs_submits_or_appends(monkeypatch, tmp_path, path):
+    from fastapi import FastAPI
+    from starlette.testclient import TestClient
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("GET must not sign, submit to Rekor, or append a receipt")
+
+    monkeypatch.setenv(A.LAKE_DIR_ENV, str(tmp_path))
+    monkeypatch.setenv(A.REKOR_ENABLE_ENV, "1")
+    monkeypatch.setattr(A, "sign_statement", forbidden)
+    monkeypatch.setattr(A, "rekor_submit", forbidden)
+    monkeypatch.setattr(A, "lake_receipt", forbidden)
+    app = FastAPI()
+    A.register(app)
+    with TestClient(app) as c:
+        response = c.get("/api/a11oy/v1/attest/" + path)
+    assert response.status_code == 200
+    result = response.json()
+    assert result["ok"] is True
+    assert result["label"] == "MODELED"
+    if path.startswith("manifest"):
+        assert result["envelope"]["signed"] is False
+        assert result["envelope"]["signatures"] == []
+        assert result["verification"]["signature"]["status"] == "UNSIGNED-READ-ONLY"
+        assert result["rekor"]["attempted"] is False
+        assert result["lake"] == {"appended": False, "status": "READ_ONLY"}
+    if "require_transparency=1" in path:
+        assert result["verdict"] == "UNKNOWN"
+    assert list(tmp_path.iterdir()) == []
+
+
 # --------------------------------------------------------------------------- #
 # Live endpoints through the REAL app (no mocks, no network)
 # --------------------------------------------------------------------------- #

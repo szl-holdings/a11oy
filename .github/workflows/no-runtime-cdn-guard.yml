@@ -8,13 +8,17 @@ name: no-runtime-cdn-guard
 on:
   pull_request:
     paths:
-      - '**/*.html'
-      - '**/*.js'
+    - '**/*.html'
+    - '**/*.js'
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - '**/*.html'
-      - '**/*.js'
+    - '**/*.html'
+    - '**/*.js'
+  merge_group:
+    types:
+    - checks_requested
 permissions:
   contents: read
 jobs:

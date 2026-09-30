@@ -5,10 +5,13 @@ name: vendor-sync-check
 # the flagship copy. After `sync_from_monorepo.sh sync` applies attribution
 # headers, flip the check below to `check --strict-headers`.
 on:
-  pull_request:
+  pull_request: null
   push:
-    branches: [main]
-
+    branches:
+    - main
+  merge_group:
+    types:
+    - checks_requested
 permissions:
   contents: read
 

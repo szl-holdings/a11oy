@@ -6,7 +6,7 @@
     {
       "name": "szl-convergence-bootstrap",
       "command": [
-        "C:\\Users\\steph\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "python",
         "-I",
         "-B",
         "tools/szl_convergence_bootstrap.py",
@@ -23,13 +23,13 @@
     {
       "name": "round5-lexicon-gate",
       "command": [
-        "C:\\Users\\steph\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "python",
         "-I",
         "-B",
         "tools/lexicon_gate.py",
         "--check",
         "--report",
-        "C:\\Users\\steph\\Documents\\Codex\\2026-08-11\\worktrees\\a11oy-pr1285-signed\\audit\\frontier-lexicon-gate.json"
+        "audit/frontier-lexicon-gate.json"
       ],
       "status": "PASS",
       "return_code": 0,
@@ -42,7 +42,7 @@
     {
       "name": "frontdoor-truth",
       "command": [
-        "C:\\Users\\steph\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "python",
         "-I",
         "-B",
         "scripts/check_a11oy_frontdoor_truth.py",
@@ -59,7 +59,7 @@
     {
       "name": "frontdoor-repair-check",
       "command": [
-        "C:\\Users\\steph\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "python",
         "-I",
         "-B",
         "scripts/repair_a11oy_frontdoor.py",
@@ -77,7 +77,7 @@
     {
       "name": "hf-ecosystem-check",
       "command": [
-        "C:\\Users\\steph\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "python",
         "-I",
         "-B",
         "scripts/audit_huggingface_ecosystem.py",
@@ -94,14 +94,14 @@
     {
       "name": "github-access-check",
       "command": [
-        "C:\\Users\\steph\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "python",
         "-I",
         "-B",
         "scripts/audit_github_access_permissions.py",
         "--checklist",
-        "C:\\Users\\steph\\Documents\\Codex\\2026-08-11\\worktrees\\a11oy-pr1285-signed\\docs\\github-enterprise-access-checklist.json",
+        "docs/github-enterprise-access-checklist.json",
         "--output",
-        "C:\\Users\\steph\\Documents\\Codex\\2026-08-11\\worktrees\\a11oy-pr1285-signed\\audit\\github-access-audit.json",
+        "audit/github-access-audit.json",
         "--validate"
       ],
       "status": "PASS",
@@ -115,7 +115,7 @@
     {
       "name": "szl-convergence-verify",
       "command": [
-        "C:\\Users\\steph\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "python",
         "-I",
         "-B",
         "tools/szl_convergence_bootstrap.py",

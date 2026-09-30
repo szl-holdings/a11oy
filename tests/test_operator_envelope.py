@@ -14,10 +14,22 @@ starlette_testclient = pytest.importorskip("starlette.testclient")
 TestClient = starlette_testclient.TestClient
 
 import serve  # noqa: E402
+import szl_operator_auth as opauth  # noqa: E402
+
+# The routes under test are operator-only (szl_operator_auth.PROTECTED_ROUTES):
+# the shared client carries the operator Bearer. Test-only secret, not real.
+_TEST_OPERATOR = "test-operator-secret-not-real"
 
 
 @pytest.fixture(scope="module")
 def client():
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv(opauth.OPERATOR_KEY_ENV, _TEST_OPERATOR)
+        yield TestClient(serve.app, headers={"Authorization": f"Bearer {_TEST_OPERATOR}"})
+
+
+@pytest.fixture(scope="module")
+def anonymous_client(client):
     return TestClient(serve.app)
 
 
@@ -43,7 +55,10 @@ def test_operator_get_surface_is_live_and_governed(client, path):
     ("/api/a11oy/v1/operator/ask", {"question": "which services are live?"}),
     ("/api/a11oy/v1/operator/act", {"action": "acknowledge", "target": "test", "note": "regression"}),
 ])
-def test_operator_post_surface_is_live_and_governed(client, path, payload):
+def test_operator_post_surface_is_live_and_governed(client, anonymous_client, path, payload):
+    if opauth.protected_action("POST", path):
+        refused = anonymous_client.post(path, json=payload)
+        assert refused.status_code == 401 and refused.json()["status"] == "BLOCKED"
     response = client.post(path, json=payload)
     assert response.status_code == 200, f"POST {path} regressed to {response.status_code}"
     _assert_envelope(response.json())

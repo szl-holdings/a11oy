@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-09-01T12:32:42Z",
+  "observedAt": "2026-09-30T02:54:34Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -26,16 +26,17 @@
   "machineGeneratedCounts": {
     "githubReadinessEntries": 19,
     "huggingFacePublic": {
-      "models": 44,
-      "datasets": 31,
-      "spaces": 35
+      "models": 49,
+      "datasets": 34,
+      "spaces": 26
     },
     "huggingFaceScope": {
       "visibility": "public-only",
       "authenticated": false,
       "privateAssetsIncluded": false,
       "countMeaning": "Items returned by the author-filtered public APIs; not the authenticated organization total.",
-      "revisionFields": "Every item has sha and lastModified snapshot evidence plus a cardSemanticSha256 claim digest at observedAt; --check verifies retained revisions, rejects card and curated-tag drift, and ignores only complete, valid later source-only revision changes and Hugging Face-generated dataset size, modality, format, or library tags."
+      "cardEvidenceBoundary": "Gated repositories are inventoried from public API metadata only. Their cardObservation is ACCESS_RESTRICTED and cardSemanticSha256 is null; metadataSha256 is not a README or weight digest. No access request, authentication, or protected download is attempted. Restricted revisions remain exact-pinned in --check.",
+      "revisionFields": "Every item has sha and lastModified snapshot evidence. Ungated cards have a cardSemanticSha256 claim digest at observedAt; gated cards have explicit restricted metadata evidence. --check verifies retained revisions, rejects card and curated-tag drift, and ignores only complete, valid later source-only revision changes and Hugging Face-generated dataset size, modality, format, or library tags."
     },
     "theoremRuntimeEntries": 46
   },
@@ -990,6 +991,26 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/oac-clinical-transport-health-v1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/oac-clinical-transport-health-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/oac-system-health-v1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/oac-system-health-v1"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/qantu",
       "repoType": "model",
       "stage": "inventory",
@@ -1170,6 +1191,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3",
       "repoType": "model",
       "stage": "inventory",
@@ -1187,6 +1218,26 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/szl-training-scripts"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-study5",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-study5"
       ]
     },
     {
@@ -1342,6 +1393,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/oac-clinical-transport-observability-synthetic",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/oac-clinical-transport-observability-synthetic"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/ouroboros-arxiv-preprint",
       "repoType": "dataset",
       "stage": "inventory",
@@ -1412,6 +1473,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-estate-graph",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/szl-estate-graph"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-frontier-covenant",
       "repoType": "dataset",
       "stage": "inventory",
@@ -1419,6 +1490,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/datasets/SZLHOLDINGS/szl-frontier-covenant"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-frontier-evaluation-receipts",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/szl-frontier-evaluation-receipts"
       ]
     },
     {
@@ -1532,26 +1613,6 @@
       ]
     },
     {
-      "id": "SZLHOLDINGS/a11oy-factory",
-      "repoType": "space",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/a11oy-factory"
-      ]
-    },
-    {
-      "id": "SZLHOLDINGS/anatomy",
-      "repoType": "space",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/anatomy"
-      ]
-    },
-    {
       "id": "SZLHOLDINGS/ayllu",
       "repoType": "space",
       "stage": "inventory",
@@ -1562,13 +1623,13 @@
       ]
     },
     {
-      "id": "SZLHOLDINGS/cosmos",
+      "id": "SZLHOLDINGS/counsel",
       "repoType": "space",
       "stage": "inventory",
       "private": false,
       "unsafeFlags": [],
       "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/cosmos"
+        "https://huggingface.co/spaces/SZLHOLDINGS/counsel"
       ]
     },
     {
@@ -1582,83 +1643,23 @@
       ]
     },
     {
-      "id": "SZLHOLDINGS/energy-attested-runs",
+      "id": "SZLHOLDINGS/finance",
       "repoType": "space",
       "stage": "inventory",
       "private": false,
       "unsafeFlags": [],
       "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/energy-attested-runs"
+        "https://huggingface.co/spaces/SZLHOLDINGS/finance"
       ]
     },
     {
-      "id": "SZLHOLDINGS/experiments",
+      "id": "SZLHOLDINGS/holographic-unify",
       "repoType": "space",
       "stage": "inventory",
       "private": false,
       "unsafeFlags": [],
       "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/experiments"
-      ]
-    },
-    {
-      "id": "SZLHOLDINGS/gdw-frontier",
-      "repoType": "space",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/gdw-frontier"
-      ]
-    },
-    {
-      "id": "SZLHOLDINGS/governed-agent-bench",
-      "repoType": "space",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/governed-agent-bench"
-      ]
-    },
-    {
-      "id": "SZLHOLDINGS/governed-norm-holo",
-      "repoType": "space",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/governed-norm-holo"
-      ]
-    },
-    {
-      "id": "SZLHOLDINGS/governed-receipt-verifier",
-      "repoType": "space",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/governed-receipt-verifier"
-      ]
-    },
-    {
-      "id": "SZLHOLDINGS/guardrail-receipt",
-      "repoType": "space",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/guardrail-receipt"
-      ]
-    },
-    {
-      "id": "SZLHOLDINGS/hatun-mcp",
-      "repoType": "space",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/hatun-mcp"
+        "https://huggingface.co/spaces/SZLHOLDINGS/holographic-unify"
       ]
     },
     {
@@ -1672,6 +1673,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/immune-lattice",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/immune-lattice"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/killinchu",
       "repoType": "space",
       "stage": "inventory",
@@ -1679,16 +1690,6 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/killinchu"
-      ]
-    },
-    {
-      "id": "SZLHOLDINGS/lambda-gate-holo",
-      "repoType": "space",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/lambda-gate-holo"
       ]
     },
     {
@@ -1702,7 +1703,7 @@
       ]
     },
     {
-      "id": "SZLHOLDINGS/lyte-lattice",
+      "id": "SZLHOLDINGS/lyte",
       "repoType": "space",
       "stage": "inventory",
       "private": false,
@@ -1710,37 +1711,27 @@
         "stale-product-name-review"
       ],
       "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/lyte-lattice"
+        "https://huggingface.co/spaces/SZLHOLDINGS/lyte"
       ]
     },
     {
-      "id": "SZLHOLDINGS/prove-it",
+      "id": "SZLHOLDINGS/oac-system-health-lab",
       "repoType": "space",
       "stage": "inventory",
       "private": false,
       "unsafeFlags": [],
       "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/prove-it"
+        "https://huggingface.co/spaces/SZLHOLDINGS/oac-system-health-lab"
       ]
     },
     {
-      "id": "SZLHOLDINGS/sda",
+      "id": "SZLHOLDINGS/sentra",
       "repoType": "space",
       "stage": "inventory",
       "private": false,
       "unsafeFlags": [],
       "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/sda"
-      ]
-    },
-    {
-      "id": "SZLHOLDINGS/second-brain",
-      "repoType": "space",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/second-brain"
+        "https://huggingface.co/spaces/SZLHOLDINGS/sentra"
       ]
     },
     {
@@ -1754,6 +1745,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-bench-suite",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-bench-suite"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-command-lab",
       "repoType": "space",
       "stage": "inventory",
@@ -1764,23 +1765,13 @@
       ]
     },
     {
-      "id": "SZLHOLDINGS/szl-estate-live",
+      "id": "SZLHOLDINGS/szl-constellation",
       "repoType": "space",
       "stage": "inventory",
       "private": false,
       "unsafeFlags": [],
       "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/szl-estate-live"
-      ]
-    },
-    {
-      "id": "SZLHOLDINGS/szl-experiments",
-      "repoType": "space",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/szl-experiments"
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-constellation"
       ]
     },
     {
@@ -1804,26 +1795,6 @@
       ]
     },
     {
-      "id": "SZLHOLDINGS/szl-govsign-live",
-      "repoType": "space",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/szl-govsign-live"
-      ]
-    },
-    {
-      "id": "SZLHOLDINGS/szl-kernels-live",
-      "repoType": "space",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/szl-kernels-live"
-      ]
-    },
-    {
       "id": "SZLHOLDINGS/szl-khipu",
       "repoType": "space",
       "stage": "inventory",
@@ -1844,23 +1815,43 @@
       ]
     },
     {
-      "id": "SZLHOLDINGS/szl-quant-live",
+      "id": "SZLHOLDINGS/szl-typesafe-triage",
       "repoType": "space",
       "stage": "inventory",
       "private": false,
       "unsafeFlags": [],
       "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/szl-quant-live"
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-typesafe-triage"
       ]
     },
     {
-      "id": "SZLHOLDINGS/szl-sovereign-os",
+      "id": "SZLHOLDINGS/terra",
       "repoType": "space",
       "stage": "inventory",
       "private": false,
       "unsafeFlags": [],
       "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/szl-sovereign-os"
+        "https://huggingface.co/spaces/SZLHOLDINGS/terra"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/the-grid",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/the-grid"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/vertical-services",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/vertical-services"
       ]
     },
     {

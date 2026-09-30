@@ -1,0 +1,147 @@
+{
+  "schema": "szl.flagship-tab-consolidation/v2",
+  "status": "OWNER_DECISION_ACCEPTED",
+  "effective_date": "2026-09-04",
+  "canonical_product_origin": "https://a-11-oy.com",
+  "canonical_proof_origin": "https://a11oy.net",
+  "policy": {
+    "source_of_truth": "GitHub repositories under szl-holdings",
+    "org_space_policy": "Keep public flagship Spaces only after build, health, route, source-parity, and product-boundary verification.",
+    "legacy_space_deletion": "PERMITTED only after source, product, evidence, publisher-removal, replacement-verification, and secret-dependency gates pass.",
+    "recreation_policy": "A retired Space id must be absent from every active publisher and keep-list before deletion.",
+    "personal_space_policy": "Novelty and lab experiences may live under betterwithage only after a complete copied build passes its health check."
+  },
+  "flagships": [
+    {
+      "id": "a11oy",
+      "space": "SZLHOLDINGS/a11oy",
+      "source_repo": "szl-holdings/a11oy",
+      "tabs": [
+        "Overview",
+        "Command",
+        "Evidence",
+        "Models",
+        "Frontier",
+        "Operations",
+        "Knowledge",
+        "Khipu",
+        "Governed routing"
+      ],
+      "consolidates": [
+        "a11oy-factory",
+        "evidence-studio",
+        "szl-command-lab",
+        "llm-router-live",
+        "hatun-mcp",
+        "szl-frontier",
+        "gdw-frontier",
+        "szl-khipu",
+        "szl-sovereign-os",
+        "prove-it",
+        "governed-receipt-verifier",
+        "energy-attested-runs",
+        "receipt-chain-live",
+        "szl-govsign-live",
+        "szl-provctl-live",
+        "szl-kernels-live",
+        "szl-blocked-live",
+        "lambda-gate-holo",
+        "governed-norm-holo",
+        "energy-attest-holo"
+      ]
+    },
+    {
+      "id": "killinchu",
+      "space": "SZLHOLDINGS/killinchu",
+      "source_repo": "szl-holdings/killinchu",
+      "positioning": "Cyber-Physical Resilience Command",
+      "internal_portfolio_name": "Aegis",
+      "tabs": [
+        "Resilience",
+        "Defend",
+        "Immune",
+        "Maritime",
+        "Airspace",
+        "Evidence",
+        "Simulation"
+      ],
+      "capability_sources": {
+        "sentra": "szl-holdings/szl-defensive-control-plane",
+        "immune": "szl-holdings/immune",
+        "vessels": "szl-holdings/killinchu",
+        "counter_uas": "szl-holdings/killinchu"
+      },
+      "consolidates": [
+        "sda",
+        "sentra",
+        "immune",
+        "immune-lattice",
+        "vessels",
+        "aegis-assurance"
+      ],
+      "legacy_space_retirement": {
+        "SZLHOLDINGS/vessels": "REFERENCE_CLEANUP_REQUIRED",
+        "SZLHOLDINGS/aegis-assurance": "DELETE_READY_AFTER_REFERENCE_CLEANUP",
+        "SZLHOLDINGS/sentra": "MIGRATION_REQUIRED",
+        "SZLHOLDINGS/immune": "MIGRATION_REQUIRED",
+        "SZLHOLDINGS/immune-lattice": "PARITY_AUDIT_REQUIRED"
+      }
+    },
+    {
+      "id": "counsel",
+      "space": "SZLHOLDINGS/counsel",
+      "source_repo": "szl-holdings/ayllu",
+      "tabs": ["Matters", "Evidence", "Council", "Assurance", "Deadlines"],
+      "consolidates": ["ayllu", "counsel-assurance"]
+    },
+    {
+      "id": "terra",
+      "space": "SZLHOLDINGS/terra",
+      "source_repo": "szl-holdings/szl-real-estate",
+      "tabs": ["Underwriting", "Public records", "Portfolio", "Assurance", "Evidence"],
+      "consolidates": ["szl-real-estate", "terra-assurance"]
+    },
+    {
+      "id": "finance",
+      "space": "SZLHOLDINGS/finance",
+      "source_repo": "szl-holdings/szl-quant",
+      "tabs": ["Research", "Signals", "Portfolios", "Market evidence", "Risk limits"],
+      "consolidates": ["puriq-markets", "szl-quant-live"]
+    },
+    {
+      "id": "lyte",
+      "space": "SZLHOLDINGS/lyte",
+      "source_repo": "szl-holdings/lyte-services",
+      "tabs": ["Telemetry", "Services", "Lattice", "Incidents", "Evidence"],
+      "consolidates": ["lyte-services", "lyte-lattice"]
+    },
+    {
+      "id": "david-leads",
+      "space": "SZLHOLDINGS/david-leads",
+      "source_repo": "szl-holdings/david-leads",
+      "tabs": ["Accounts", "Leads", "Signals", "Scoring", "Evidence", "Workflows"],
+      "consolidates": []
+    }
+  ],
+  "personal_preservation": [
+    "nexus",
+    "cosmos",
+    "holographic",
+    "khipu-lab",
+    "szl-experiments",
+    "second-brain",
+    "szl-model-inference-lab",
+    "governed-agent-bench"
+  ],
+  "delete_gate": [
+    "GitHub source revision recorded",
+    "target capability route deployed",
+    "target route returns successful response",
+    "target readiness contract passes",
+    "replacement Space is exact-source bound",
+    "active publishers and keep-lists cannot recreate legacy id",
+    "rollback source retained",
+    "unique signing or secret dependency preserved",
+    "post-retirement receipt recorded"
+  ]
+}

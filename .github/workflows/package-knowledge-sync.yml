@@ -43,31 +43,37 @@ name: Package knowledge consistent with canonical corpus
 
 on:
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - "knowledge.json"
-      - "packages/a11oy-knowledge/src/knowledge.json"
-      - "scripts/check_pages_knowledge_sync.py"
-      - "scripts/test_check_pages_knowledge_sync.py"
-      - ".github/workflows/package-knowledge-sync.yml"
+    - knowledge.json
+    - packages/a11oy-knowledge/src/knowledge.json
+    - scripts/check_pages_knowledge_sync.py
+    - scripts/test_check_pages_knowledge_sync.py
+    - .github/workflows/package-knowledge-sync.yml
   pull_request:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - "knowledge.json"
-      - "packages/a11oy-knowledge/src/knowledge.json"
-      - "scripts/check_pages_knowledge_sync.py"
-      - "scripts/test_check_pages_knowledge_sync.py"
-      - ".github/workflows/package-knowledge-sync.yml"
+    - knowledge.json
+    - packages/a11oy-knowledge/src/knowledge.json
+    - scripts/check_pages_knowledge_sync.py
+    - scripts/test_check_pages_knowledge_sync.py
+    - .github/workflows/package-knowledge-sync.yml
   schedule:
-    - cron: '57 6 * * 1'  # Mondays 06:57 UTC (offset from sibling corpus guards)
-  workflow_dispatch:
-
+  - cron: 57 6 * * 1
+  workflow_dispatch: null
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   self-test:

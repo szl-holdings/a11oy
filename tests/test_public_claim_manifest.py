@@ -14,8 +14,8 @@ from scripts import verify_public_claim_github_job as github_verify
 
 
 AS_OF = "2026-07-18T12:00:00Z"
-REAL_MANIFEST_REVIEW_AS_OF = "2026-08-20T11:24:43Z"
-REAL_MANIFEST_STALE_AS_OF = "2026-09-12T11:14:30Z"
+REAL_MANIFEST_REVIEW_AS_OF = "2026-09-25T16:28:00Z"
+REAL_MANIFEST_STALE_AS_OF = "2026-10-26T16:27:54Z"
 
 
 def _sha(path: Path) -> str:

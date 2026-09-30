@@ -90,8 +90,9 @@ services:
   # --- Unified gateway: the ONE endpoint the a11oy Space calls ---------------
   # sovereign-llm load-balances omen + betterwithage Ollama over the tailnet.
   # Bearer master_key from the environment (never hardcoded). See litellm_config.yaml.
+  # PIN 2026-09-11: LiteLLM retired main-stable. v1.100.1 is SOFTWARE, not a live broker.
   litellm:
-    image: ghcr.io/berriai/litellm:main-stable
+    image: ghcr.io/berriai/litellm:v1.100.1
     container_name: litellm
     restart: unless-stopped
     command: ["--config", "/app/config.yaml", "--port", "4000"]

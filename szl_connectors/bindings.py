@@ -12,7 +12,7 @@ from __future__ import annotations
 
 TAB_BINDINGS: dict[str, list[str]] = {
     # a11oy governed-AI / security verticals (keyless → CONNECTED now)
-    "vuln":      ["nvd_cve", "cisa_kev", "epss"],
+    "vuln":      ["nvd_cve", "cisa_kev", "epss", "defensive_fusion"],
     "attack":    ["mitre_attack"],
     "macro":     ["fred", "sec_edgar"],
     "research":  ["arxiv", "hf_hub", "github"],

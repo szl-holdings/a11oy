@@ -25,27 +25,33 @@ name: local image refs guard
 
 on:
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - "docs/site/**"
-      - "scripts/check_local_image_refs.py"
-      - "scripts/check_local_image_refs.test.sh"
-      - ".github/workflows/local-image-refs-guard.yml"
+    - docs/site/**
+    - scripts/check_local_image_refs.py
+    - scripts/check_local_image_refs.test.sh
+    - .github/workflows/local-image-refs-guard.yml
   pull_request:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - "docs/site/**"
-      - "scripts/check_local_image_refs.py"
-      - "scripts/check_local_image_refs.test.sh"
-      - ".github/workflows/local-image-refs-guard.yml"
+    - docs/site/**
+    - scripts/check_local_image_refs.py
+    - scripts/check_local_image_refs.test.sh
+    - .github/workflows/local-image-refs-guard.yml
   workflow_dispatch: {}
-
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   guard:

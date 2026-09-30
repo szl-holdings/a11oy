@@ -205,6 +205,7 @@ HONEST_BANNER = (
 _MANIFEST_EP = "/api/{ns}/v1/frontier/manifest"
 # The 3D-surface manifest this page renders its surface list from (one source of truth).
 _SURFACES_EP = "/api/{ns}/v1/frontier/surfaces"
+_FASHION_EP = "/api/{ns}/v1/fashion"
 
 # 0-CDN vendored three.js r160 — the proven, allowlisted, runtime-served hero path
 # (serve.py GET /hero/vendor3d/{fname}; identical to the /orbital page importmap).
@@ -217,7 +218,7 @@ def _page_html(ns: str) -> str:
     surfaces_ep = _SURFACES_EP.format(ns=ns)
     return f"""<!doctype html>
 <html lang="en"><head>
-<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 <title>A11oy — SZL Frontier (Unified Ecosystem Showcase)</title>
 <!-- Sovereign importmap: ONLY vendored local files. 0 runtime CDN. Doctrine v11. -->
 <script type="importmap">
@@ -264,6 +265,14 @@ def _page_html(ns: str) -> str:
   .sub {{ color:var(--muted); max-width:70ch; line-height:1.55; font-size:.9rem; margin:.45rem 0 0; }}
   #rollup {{ display:flex; gap:.7rem; flex-wrap:wrap; margin:1.1rem 0 .3rem;
              font-family:ui-monospace,monospace; font-size:.72rem; }}
+  #fashion-grid {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));
+                   gap:.7rem; margin:.8rem 0 1.4rem; }}
+  .fashion-card {{ background:rgba(16,26,46,.82); border:1px solid #21304d; border-radius:12px;
+                   padding:.85rem .95rem; min-height:8rem; }}
+  .fashion-card b {{ display:block; margin-bottom:.35rem; }}
+  .fashion-card .job,.fashion-card .tweak {{ color:var(--muted); font-size:.86rem; line-height:1.45; }}
+  .fashion-card .leader {{ color:var(--amber); font-family:ui-monospace,monospace; font-size:.72rem;
+                           margin:.35rem 0; }}
   .chip {{ background:rgba(16,26,46,.8); border:1px solid #21304d; border-radius:999px;
            padding:.3rem .7rem; color:var(--muted); }}
   .chip b {{ color:var(--ink); }}
@@ -439,8 +448,8 @@ def _page_html(ns: str) -> str:
     <div class="plaque">SZL HOLDINGS / A11OY / DOCTRINE <b>V11 · LOCKED</b> / Λ = CONJECTURE 1</div>
     <h1>The whole stack, <span class="accent">honestly</span> labeled.</h1>
     <p class="sub" id="subline">Every capability we run, on one screen — live from
-       <code>/frontier/manifest</code>. Each tile is tagged with how real it is and links
-       straight to the proof.</p>
+       <code>{manifest_ep}</code>. Each tile is tagged with how real it is and links
+       straight to the proof. Fashion lineage is a separate REPORTED contract.</p>
     <div id="legend">
       <span class="lg measured">MEASURED — live, measured now</span>
       <span class="lg modeled">MODELED — derived from real data</span>
@@ -448,6 +457,23 @@ def _page_html(ns: str) -> str:
       <span class="lg sample">SAMPLE — illustrative only</span>
     </div>
     <div id="rollup"></div>
+
+    <section id="confirmation-research" aria-labelledby="confirmation-h">
+      <div class="plaque">Synthetic research / RECORD</div>
+      <h2 id="confirmation-h">When is another observation worth buying?</h2>
+      <p class="sub">Source-aware confirmation records 5,184 policy runs across 576 synthetic worlds.
+        The shared-bias gain criterion passed; the clean-sensor guard and overall registered gate failed.
+        The learned selector did not outperform the strongest simple control.</p>
+      <p class="sub"><a href="/research/confirmation">Explore recorded evidence and fixed-trace prices &rarr;</a></p>
+      <p class="sub">This link opens a frozen evidence replay. It adds no inference action or runtime capability to this surface.</p>
+    </section>
+
+    <section id="fashion-section" aria-labelledby="fashion-h">
+      <div class="plaque">Fashion lineage / REPORTED</div>
+      <h2 id="fashion-h">Stolen jobs. SZL tweaks. No borrowed chrome.</h2>
+      <p class="sub">Live read of the vertical-services fashion contract. If the contract does not answer, this band stays UNAVAILABLE.</p>
+      <div id="fashion-grid">Loading fashion lineage…</div>
+    </section>
 
     <section id="brain-section" aria-labelledby="brain-h">
       <div class="brain-shell">
@@ -533,9 +559,34 @@ import * as THREE from 'three';
 import {{ OrbitControls }} from 'three/addons/OrbitControls.js';
 
 const MANIFEST_EP = {manifest_ep!r};
+const FASHION_EP = '/api/a11oy/v1/fashion';
 const BRAIN_STATS_EP = '/api/a11oy/v1/brain/stats';
 const BRAIN_CORPUS_EP = '/api/a11oy/v1/brain/health/corpus-sources';
 const BRAIN_ASK_EP = '/api/a11oy/v1/brain/ask';
+(async function loadFashion() {{
+  const grid = document.getElementById('fashion-grid');
+  if (!grid) return;
+  try {{
+    const response = await fetch(FASHION_EP, {{headers:{{Accept:'application/json'}}, cache:'no-store'}});
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const data = await response.json();
+    const lanes = Array.isArray(data.lanes) ? data.lanes : [];
+    if (!lanes.length) throw new Error('empty lanes');
+    grid.replaceChildren();
+    lanes.forEach(lane => {{
+      const card = document.createElement('article');
+      card.className = 'fashion-card';
+      card.innerHTML = '<b>' + (lane.id || 'lane') + '</b>'
+        + '<div class="job">' + (lane.job || 'UNAVAILABLE') + '</div>'
+        + '<div class="leader">' + (lane.leader || 'UNAVAILABLE') + '</div>'
+        + '<div class="tweak">' + (lane.tweak || 'UNAVAILABLE') + '</div>';
+      grid.appendChild(card);
+    }});
+  }} catch (error) {{
+    grid.textContent = 'Fashion lineage UNAVAILABLE — ' + error + '. No leader chrome is fabricated.';
+  }}
+}})();
+
 const banner = document.getElementById('honest-banner');
 function syncBannerOffset() {{
   const height = banner ? Math.ceil(banner.getBoundingClientRect().height) : 0;
@@ -966,13 +1017,38 @@ document.getElementById('surface-next').addEventListener('click', () => {{
 </body></html>"""
 
 
+_FASHION_CONTRACT = {
+    "schema": "szl.fashion-lineage/v1",
+    "rule": "Take the job the field leader already won. Rewrite with SZL formulas, receipts, and honest labels. Never take their name, chrome, datasets, or code.",
+    "doctrine": "v11",
+    "truth": "REPORTED",
+    "served_from": "a11oy same-origin",
+    "lanes": [
+        {"id": "killinchu", "job": "sensor-fusion C2 and kill-chain compression", "leader": "Anduril Lattice / JIATF-401", "tweak": "ROE-gated synthetic tracks, DSSE per interdiction, no public effector"},
+        {"id": "sentra", "job": "harness-time allow / log / escalate / deny", "leader": "CrowdStrike Baywatch + Credo Agent Governor", "tweak": "eight-plus deny-by-default gates and HMAC/DSSE verdicts"},
+        {"id": "vessels", "job": "dark-activity and AIS-gap maritime picture", "leader": "Windward Maritime AI", "tweak": "Killinchu desk on SAMPLE or historical official data"},
+        {"id": "terra", "job": "parcel as the join key for civic and property context", "leader": "Regrid", "tweak": "PLUTO observations stay separate from modeled cap-rate"},
+        {"id": "finance", "job": "open backtest engine plus risk overlays", "leader": "QuantConnect LEAN + Riskfolio-Lib", "tweak": "paper-only PURIQ tape, not financial advice"},
+        {"id": "lyte", "job": "instrument, collect, export, then diagnose", "leader": "Grafana + OpenTelemetry + Honeycomb", "tweak": "bounded loop-tax, receipted spans"},
+        {"id": "counsel", "job": "agentic legal work grounded in an authority stack", "leader": "Harvey + Thomson Reuters CoCounsel", "tweak": "Ayllu council, LICENSE_REQUIRED, no legal advice"},
+        {"id": "david-leads", "job": "evidence-backed broker research", "leader": "official-source diligence", "tweak": "every lead carries an evidence trail or it does not exist"},
+        {"id": "puriq", "job": "formula governance over public signals", "leader": "category invented here", "tweak": "canonical-formulas-v1; Lambda remains Conjecture 1"},
+        {"id": "hatun", "job": "governed tool plane for agent runtimes", "leader": "Model Context Protocol hosts", "tweak": "Yuyay-13 gate, Khipu receipts, signer UNKNOWN until a real key exists"},
+    ],
+}
+
+
 def register(app, ns: str = "a11oy") -> str:
     """Mount GET /frontier (HTML) + GET /api/<ns>/v1/frontier/page-manifest (JSON).
     ADDITIVE — registered before the SPA catch-all; touches no existing route."""
 
     # Keep the pure manifest builders importable in bounded/offline evidence
     # jobs where the web-serving dependency is intentionally absent.
-    from fastapi.responses import HTMLResponse, JSONResponse
+    from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+
+    @app.get("/research/confirmation", include_in_schema=False)
+    async def confirmation_research():  # noqa: ANN202
+        return RedirectResponse("https://a11oy.net/experiments/confirmation/", status_code=307)
 
     @app.get("/frontier", include_in_schema=False)
     async def frontier_page():  # noqa: ANN202
@@ -985,6 +1061,12 @@ def register(app, ns: str = "a11oy") -> str:
         id + title + honesty label (parsed from the surface source, verbatim) +
         asset path. Missing asset -> UNAVAILABLE with reason. Pure read; no sign."""
         return JSONResponse(build_surfaces_manifest(ns))
+
+    @app.get(f"/api/{ns}/v1/fashion")
+    @app.get("/api/fashion", include_in_schema=False)
+    async def frontier_fashion():  # noqa: ANN202
+        """REPORTED fashion lineage. Same-origin. GET never signs."""
+        return JSONResponse(_FASHION_CONTRACT)
 
     @app.get(f"/api/{ns}/v1/frontier/page-manifest", include_in_schema=False)
     async def frontier_page_manifest():  # noqa: ANN202

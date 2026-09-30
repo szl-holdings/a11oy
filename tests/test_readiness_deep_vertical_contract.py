@@ -357,6 +357,73 @@ assert.equal(probe.validateSchema("vert_finance_feed", finance).ok, false);
     assert result.returncode == 0, result.stderr
 
 
+def test_canonical_unavailable_source_envelopes_are_typed_not_fabricated() -> None:
+    result = _node_eval(
+        """
+const observed = {
+  value: { items: [{ url: "https://www.courtlistener.com/opinion/1/" }] },
+  freshness: { status: "live", fetched_at: "2026-08-11T12:00:00Z" },
+};
+const unavailable = {
+  value: null,
+  freshness: {
+    status: "UNAVAILABLE",
+    fetched_at: "2026-08-11T12:00:00Z",
+    error: "upstream timeout",
+  },
+};
+
+const matter = {
+  surface: "matter",
+  term: "insurance",
+  opinions: structuredClone(unavailable),
+  sources_cited: [{ url: "https://www.courtlistener.com/help/api/rest/" }],
+  doctrine: {},
+};
+assert.equal(probe.validateSchema("devb_legal_matter", matter).ok, true);
+
+delete matter.opinions.freshness.error;
+assert.equal(probe.validateSchema("devb_legal_matter", matter).ok, false);
+matter.opinions.freshness.error = "upstream timeout";
+
+matter.opinions.value = { items: [] };
+assert.equal(probe.validateSchema("devb_legal_matter", matter).ok, false);
+matter.opinions.value = null;
+
+matter.opinions.freshness.status = "unavailable";
+assert.equal(probe.validateSchema("devb_legal_matter", matter).ok, false);
+matter.opinions.freshness.status = "UNAVAILABLE";
+
+matter.opinions.freshness.fetched_at = "not-a-timestamp";
+assert.equal(probe.validateSchema("devb_legal_matter", matter).ok, false);
+matter.opinions.freshness.fetched_at = "2026-08-11T12:00:00Z";
+
+const legal = {
+  vertical: "legal",
+  federal_register: structuredClone(observed),
+  court_filings: structuredClone(unavailable),
+  sources_cited: [{ url: "https://www.federalregister.gov/" }],
+  doctrine: {},
+};
+assert.equal(probe.validateSchema("vert_legal_feed", legal).ok, true);
+
+legal.federal_register = structuredClone(unavailable);
+assert.equal(probe.validateSchema("vert_legal_feed", legal).ok, true);
+
+legal.court_filings.freshness.status = "live";
+assert.equal(probe.validateSchema("vert_legal_feed", legal).ok, false);
+legal.court_filings.freshness.status = "UNAVAILABLE";
+
+legal.court_filings.value = { items: [] };
+assert.equal(probe.validateSchema("vert_legal_feed", legal).ok, false);
+legal.court_filings = structuredClone(observed);
+delete legal.court_filings.value.items;
+assert.equal(probe.validateSchema("vert_legal_feed", legal).ok, false);
+"""
+    )
+    assert result.returncode == 0, result.stderr
+
+
 def test_required_http_200_stale_unavailable_and_modeled_labels_fail() -> None:
     result = _node_eval(
         """

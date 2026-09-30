@@ -24,6 +24,7 @@ import {
   Cell,
 } from 'recharts';
 import { fetchHub } from './shared';
+import { CATEGORY_TONES, wash } from '@/lib/utils';
 
 interface ProviderStatus {
   name: string;
@@ -52,13 +53,24 @@ const ROUTING_HISTORY = Array.from({ length: 24 }, (_, i) => ({
   substrate: Math.floor(800 + Math.sin(i / 2) * 300 + Math.random() * 150),
 }));
 
+// Provider identity is a neutral series tone (founder: no categorical hues); the axis
+// label names each bar.
+const SERIES = {
+  substrate: CATEGORY_TONES[0],
+  openai: CATEGORY_TONES[1],
+  anthropic: CATEGORY_TONES[2],
+  deepseek: CATEGORY_TONES[3],
+  gemini: CATEGORY_TONES[4],
+  huggingface: CATEGORY_TONES[5],
+};
+
 const COST_BY_PROVIDER = [
-  { name: 'OpenAI', cost: 42.80, color: '#10b981' },
-  { name: 'Anthropic', cost: 38.50, color: '#6366f1' },
-  { name: 'Gemini', cost: 12.40, color: '#f59e0b' },
-  { name: 'DeepSeek', cost: 8.20, color: '#06b6d4' },
-  { name: 'HuggingFace', cost: 3.60, color: '#ec4899' },
-  { name: 'Substrate', cost: 0, color: '#8b5cf6' },
+  { name: 'OpenAI', cost: 42.80, color: SERIES.openai },
+  { name: 'Anthropic', cost: 38.50, color: SERIES.anthropic },
+  { name: 'Gemini', cost: 12.40, color: SERIES.gemini },
+  { name: 'DeepSeek', cost: 8.20, color: SERIES.deepseek },
+  { name: 'HuggingFace', cost: 3.60, color: SERIES.huggingface },
+  { name: 'Substrate', cost: 0, color: SERIES.substrate },
 ];
 
 function relativeTime(iso: string): string {
@@ -82,9 +94,9 @@ function describeRouting(p: ProofLedgerEntry): { route: string; from: string; to
 }
 
 const STATUS_COLORS = {
-  healthy: 'text-green-400',
-  degraded: 'text-yellow-400',
-  down: 'text-red-400',
+  healthy: 'text-ink-good',
+  degraded: 'text-ink-warn',
+  down: 'text-ink-bad',
 };
 
 export default function InferenceObservatory() {
@@ -121,8 +133,8 @@ export default function InferenceObservatory() {
           SOVEREIGN AI HUB · INFERENCE
         </p>
         <h1 className="text-2xl font-display font-bold tracking-tight flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center border border-cyan-500/30">
-            <Eye className="w-5 h-5 text-cyan-400" />
+          <div className="w-8 h-8 rounded-lg bg-wash/10 flex items-center justify-center border border-line">
+            <Eye className="w-5 h-5 text-ink-good" />
           </div>
           Inference Observatory
         </h1>
@@ -153,20 +165,20 @@ export default function InferenceObservatory() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="rounded-lg border border-border bg-card p-4">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-cyan-400" />
+            <TrendingUp className="w-4 h-4 text-ink-good" />
             Request Volume by Provider (24h)
           </h3>
           <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={ROUTING_HISTORY}>
-                <XAxis dataKey="hour" tick={{ fontSize: 10, fill: '#6b7280' }} interval={5} />
-                <YAxis tick={{ fontSize: 10, fill: '#6b7280' }} />
-                <Tooltip contentStyle={{ background: '#1f2937', border: '1px solid #374151', borderRadius: 8, fontSize: 12 }} />
-                <Area type="monotone" dataKey="substrate" stackId="1" stroke="#8b5cf6" fill="#8b5cf640" />
-                <Area type="monotone" dataKey="openai" stackId="1" stroke="#10b981" fill="#10b98140" />
-                <Area type="monotone" dataKey="anthropic" stackId="1" stroke="#6366f1" fill="#6366f140" />
-                <Area type="monotone" dataKey="deepseek" stackId="1" stroke="#06b6d4" fill="#06b6d440" />
-                <Area type="monotone" dataKey="gemini" stackId="1" stroke="#f59e0b" fill="#f59e0b40" />
+                <XAxis dataKey="hour" tick={{ fontSize: 10, fill: 'var(--text-sub)' }} interval={5} />
+                <YAxis tick={{ fontSize: 10, fill: 'var(--text-sub)' }} />
+                <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg)', color: 'var(--text)', fontSize: 12 }} labelStyle={{ color: 'var(--text-sub)' }} />
+                <Area type="monotone" dataKey="substrate" stackId="1" stroke={SERIES.substrate} fill={wash(SERIES.substrate, 25)} />
+                <Area type="monotone" dataKey="openai" stackId="1" stroke={SERIES.openai} fill={wash(SERIES.openai, 25)} />
+                <Area type="monotone" dataKey="anthropic" stackId="1" stroke={SERIES.anthropic} fill={wash(SERIES.anthropic, 25)} />
+                <Area type="monotone" dataKey="deepseek" stackId="1" stroke={SERIES.deepseek} fill={wash(SERIES.deepseek, 25)} />
+                <Area type="monotone" dataKey="gemini" stackId="1" stroke={SERIES.gemini} fill={wash(SERIES.gemini, 25)} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -174,15 +186,15 @@ export default function InferenceObservatory() {
 
         <div className="rounded-lg border border-border bg-card p-4">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <Zap className="w-4 h-4 text-amber-400" />
+            <Zap className="w-4 h-4 text-ink-warn" />
             Cost Distribution (24h)
           </h3>
           <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={COST_BY_PROVIDER} layout="vertical">
-                <XAxis type="number" tick={{ fontSize: 10, fill: '#6b7280' }} tickFormatter={(v) => `$${v}`} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: '#6b7280' }} width={80} />
-                <Tooltip contentStyle={{ background: '#1f2937', border: '1px solid #374151', borderRadius: 8, fontSize: 12 }} formatter={(v: number) => [`$${v.toFixed(2)}`, 'Cost']} />
+                <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-sub)' }} tickFormatter={(v) => `$${v}`} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: 'var(--text-sub)' }} width={80} />
+                <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg)', color: 'var(--text)', fontSize: 12 }} labelStyle={{ color: 'var(--text-sub)' }} formatter={(v: number) => [`$${v.toFixed(2)}`, 'Cost']} />
                 <Bar dataKey="cost" radius={[0, 4, 4, 0]}>
                   {COST_BY_PROVIDER.map((entry) => (
                     <Cell key={entry.name} fill={entry.color} />
@@ -196,7 +208,7 @@ export default function InferenceObservatory() {
 
       <div className="rounded-lg border border-border bg-card p-4">
         <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-          <Server className="w-4 h-4 text-indigo-400" />
+          <Server className="w-4 h-4 text-ink" />
           Provider Health Status
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -205,7 +217,7 @@ export default function InferenceObservatory() {
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-semibold">{p.name}</span>
                 <div className="flex items-center gap-1.5">
-                  <div className={`w-2 h-2 rounded-full ${p.status === 'healthy' ? 'bg-green-500' : p.status === 'degraded' ? 'bg-yellow-500' : 'bg-red-500'}`} />
+                  <div className={`w-2 h-2 rounded-full ${p.status === 'healthy' ? 'bg-success' : p.status === 'degraded' ? 'bg-warning' : 'bg-error'}`} />
                   <span className={`text-xs font-mono ${STATUS_COLORS[p.status]}`}>{p.status.toUpperCase()}</span>
                 </div>
               </div>
@@ -230,7 +242,7 @@ export default function InferenceObservatory() {
 
       <div className="rounded-lg border border-border bg-card p-4">
         <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-          <Activity className="w-4 h-4 text-green-400" />
+          <Activity className="w-4 h-4 text-ink-good" />
           Recent Routing Decisions
           <span className="ml-auto text-[10px] font-mono text-muted-foreground">
             A11oy fabric · live
@@ -249,7 +261,7 @@ export default function InferenceObservatory() {
                 <a
                   key={p.id}
                   href={p.deepLink ?? '#'}
-                  className="flex items-start gap-3 p-2 rounded-md bg-background border border-border hover:border-cyan-500/40 transition-colors no-underline"
+                  className="flex items-start gap-3 p-2 rounded-md bg-background border border-border hover:border-line transition-colors no-underline"
                   data-testid={`fabric-routing-${p.id}`}
                 >
                   <span className="text-[10px] font-mono text-muted-foreground whitespace-nowrap mt-0.5">
@@ -257,7 +269,7 @@ export default function InferenceObservatory() {
                   </span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-mono font-semibold text-primary">{d.route}</span>
+                      <span className="text-xs font-mono font-semibold text-ink">{d.route}</span>
                       <span className="text-[10px] text-muted-foreground">{d.from} → {d.to}</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">{d.reason}</p>

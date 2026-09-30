@@ -1,9 +1,10 @@
-"""Regression coverage for the public KEEP-6 Hub Spaces inventory.
+"""Regression coverage for the public KEEP-5 FLOCK door inventory.
 
 These tests are deliberately offline: runtime health remains the responsibility of the
 honest probe endpoint, while this suite locks identity, destinations, and the
-canonical-origin isolation boundary. Folded Spaces are not public Hub applications.
-Atlas keep-7 at 18:05Z is a prior snapshot and is not rewritten here.
+canonical-origin isolation boundary. Folded and Unify Spaces are destination ledger
+only, not public Hub applications. Atlas keep-7 at 18:05Z and KEEP-6 are prior
+snapshots and are not rewritten here as live claims.
 """
 
 from pathlib import Path
@@ -13,17 +14,22 @@ import szl_spaces_surface as surface
 
 
 EXPECTED = [
-    ("a11oy", "a11oy", "a11oy — Command Center", "docker", "https://a-11-oy.com"),
-    ("killinchu", "killinchu", "killinchu — Andean Drone Intelligence", "docker",
+    ("a11oy", "a11oy", "a11oy — Command Center", "docker", "https://a-11-oy.com/console"),
+    ("killinchu", "killinchu", "killinchu — Counter-UAS", "docker",
      "https://szlholdings-killinchu.hf.space/elite"),
     ("immune", "immune", "IMMUNE — Verifiable AI Defense Matrix", "docker",
      "https://a-11-oy.com/immune"),
-    ("szl-khipu", "szl-khipu", "szl-khipu", "docker", "https://a-11-oy.com/khipu"),
-    ("szl-atelier", "szl-atelier", "SZL Atelier — forty-model walk", "static",
-     "https://a11oy.net/atelier/"),
-    ("governed-receipt-verifier", "governed-receipt-verifier", "Governed Receipt Verifier", "static",
-     "https://a11oy.net/record/"),
+    ("lyte", "lyte", "LYTE lattice", "docker", "https://a-11-oy.com/lyte"),
+    ("vertical-services", "vertical-services", "Vertical Services", "docker",
+     "https://a-11-oy.com/spaces#verticals"),
 ]
+
+UNIFY_EXPECTED = (
+    "szl-command-lab",
+    "szl-model-inference-lab",
+    "szl-frontier",
+    "szl-constellation",
+)
 
 FOLDED_PII = ("david-leads", "anatomy", "szl-real-estate")
 
@@ -33,19 +39,25 @@ def _rows(records):
 
 
 def test_audited_inventory_is_exact_and_in_lockstep():
-    assert len(EXPECTED) == 6
-    assert surface.KEEP_TARGET == 6
+    assert len(EXPECTED) == 5
+    assert surface.KEEP_TARGET == 5
     assert _rows(surface.SPACES) == EXPECTED
     assert _rows(proxy.SPACE_INVENTORY) == EXPECTED
     assert proxy.SPACE_INVENTORY is not surface.SPACES
-    assert len({row[0] for row in EXPECTED}) == 6
-    assert len({row[1] for row in EXPECTED}) == 6
+    assert len({row[0] for row in EXPECTED}) == 5
+    assert len({row[1] for row in EXPECTED}) == 5
     assert not {"cathedral", "energy", "khipu-constellation"} & set(proxy.ALL_SPACES)
     assert "governed-agent-bench" not in {row[0] for row in EXPECTED}
     assert "cosmos" not in {row[0] for row in EXPECTED}
     for name in FOLDED_PII:
         assert name not in {row[0] for row in EXPECTED}
         assert name in {sp["name"] for sp in surface.FOLD_SPACES}
+    assert tuple(sp["slug"] for sp in surface.UNIFY_SPACES) == UNIFY_EXPECTED
+    assert surface.UNIFY_TARGET == 4
+    for name in UNIFY_EXPECTED:
+        assert name not in {row[0] for row in EXPECTED}
+        assert name not in {sp["name"] for sp in surface.FOLD_SPACES}
+        assert name in {sp["name"] for sp in surface.UNIFY_SPACES}
 
 
 def test_sdk_selects_the_canonical_hugging_face_host():
@@ -69,7 +81,7 @@ def test_every_audited_shortcut_hands_off_to_an_isolated_origin():
     expected_slugs = {row[1] for row in EXPECTED}
     assert set(proxy.ALL_SPACES) == expected_slugs
     assert expected_slugs <= set(proxy.HANDOFF_SPACES)
-    assert len(proxy.HANDOFF_SPACES) == 6 + len(proxy.FOLD_INVENTORY)
+    assert len(proxy.HANDOFF_SPACES) == 5 + len(proxy.FOLD_INVENTORY) + len(proxy.UNIFY_INVENTORY)
     for name, _slug, _title, _sdk, dest in EXPECTED:
         assert surface.canonical_url(name) == dest
         assert surface.proxy_url(name) == dest
@@ -112,12 +124,23 @@ def test_tiles_and_fallback_render_every_audited_title_without_runtime_claims():
         assert dest in tiles
         assert title in fallback
         assert name in fallback
-    assert "Public Hub cut is 6 KEEP" in tiles
-    assert "Public Hub cut is 6 KEEP" in fallback
+    assert "Public Hub cut is 5 KEEP" in tiles
+    assert "Public Hub cut is 5 KEEP" in fallback
+    assert "stage: <span>pending</span>" in tiles
+    assert ">CHECKING</strong>" in tiles
+    assert "never LIVE/RUNNING/PASS" in tiles
+    assert 'data-unify="szl-frontier"' in tiles
+    assert 'id="verticals"' in tiles
     assert "/verify is not cloned" in tiles
     assert "all RUNNING" not in fallback
     assert "Open destination" in tiles
     assert "View Hub repository" in tiles
+    first_paint = tiles.split("<script", 1)[0]
+    assert ">LIVE<" not in first_paint
+    assert ">RUNNING<" not in first_paint
+    assert ">PASS<" not in first_paint
+    assert ">CHECKING</strong>" in first_paint
+    assert "stage: <span>pending</span>" in first_paint
     assert "reverse proxy" not in fallback.lower()
     assert "8/8 SIMULATED" in tiles
     assert "not a trainer" in tiles
@@ -158,7 +181,13 @@ def test_registered_shortcuts_redirect_without_proxying_content():
     assert nested.headers["location"] == (
         "https://a-11-oy.com/immune/assets/app.js?v=1&mode=full"
     )
-    assert client.get("/spaces/a11oy").headers["location"] == "https://a-11-oy.com"
+    assert client.get("/spaces/a11oy").headers["location"] == "https://a-11-oy.com/console"
+    assert client.get("/spaces/szl-frontier").headers["location"] == (
+        "https://a-11-oy.com/console"
+    )
+    assert client.get("/spaces/vertical-services").headers["location"] == (
+        "https://a-11-oy.com/spaces#verticals"
+    )
     assert client.get("/spaces/killinchu").headers["location"] == (
         "https://szlholdings-killinchu.hf.space/elite"
     )
@@ -378,6 +407,53 @@ def test_contract_retry_and_circuit_are_bounded_and_fail_closed():
     assert second["state"] == "UNAVAILABLE" and second["circuit_state"] == "OPEN"
     assert open_result["probe_state"] == "CIRCUIT_OPEN"
     assert open_result["attempts"] == 0 and open_result["retry_after_s"] > 0
+
+
+def test_unify_ledger_is_bind_not_a_hub_space():
+    ledger = surface.unify_ledger()
+    page = surface._unify_page("a11oy").decode("utf-8")
+    assert ledger["state"] == "BIND"
+    assert ledger["winner"] is None
+    assert ledger["proven_trust"] is False
+    assert ledger["certified"] is False
+    assert ledger["hub_write"] is False
+    assert ledger["hub_space_created"] is False
+    assert [row["slug"] for row in ledger["keep"]] == [row[1] for row in EXPECTED]
+    assert [row["slug"] for row in ledger["unify"]] == list(UNIFY_EXPECTED)
+    assert {row["slug"] for row in ledger["fold"]} >= {
+        "immune-lattice", "counsel", "ayllu", "sentra", "finance", "terra", "david-leads",
+    }
+    assert "Never LIVE/RUNNING/PASS" in page
+    assert "winner=null" in page
+    assert "proven_trust=false" in page
+    assert "szl-constellation" in page
+    assert "Do not create Space SZLHOLDINGS/unify" in page
+    first_paint = page.split("<script", 1)[0]
+    assert ">LIVE<" not in first_paint
+    assert ">RUNNING<" not in first_paint
+    assert ">PASS<" not in first_paint
+
+
+def test_unify_routes_are_named_in_serve_and_registered():
+    from pathlib import Path
+    from starlette.applications import Starlette
+    from starlette.responses import PlainTextResponse
+    from starlette.routing import Route
+    from starlette.testclient import TestClient
+
+    serve = (Path(__file__).parents[1] / "serve.py").read_text(encoding="utf-8")
+    assert "GET /unify" in serve and "GET /a11oy/unify" in serve
+    assert "SZLHOLDINGS/unify" in serve
+
+    app = Starlette(routes=[Route("/{full_path:path}", lambda _: PlainTextResponse("SPA"))])
+    surface.register(app, ns="a11oy")
+    client = TestClient(app, follow_redirects=False)
+    for path in ("/unify", "/a11oy/unify"):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert "Unify flock" in response.text
+        assert response.headers["cache-control"] == "no-store"
+        assert client.head(path).status_code == 200
 
 
 def test_hf_pending_custom_domain_stays_degraded():

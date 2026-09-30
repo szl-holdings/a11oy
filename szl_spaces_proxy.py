@@ -30,10 +30,11 @@ from __future__ import annotations
 import html
 import sys
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit, urlunsplit
 
 from szl_spaces_surface import FOLD_SPACES as _FOLD_SPACES
 from szl_spaces_surface import SPACES as _CANONICAL_SPACES
+from szl_spaces_surface import UNIFY_SPACES as _UNIFY_SPACES
 from szl_spaces_surface import canonical_url as _destination_url
 
 _ORG_PREFIX = "szlholdings-"
@@ -44,7 +45,8 @@ SPACE_HANDOFF_MODE = "canonical-redirect-only/v1"
 # surface cannot mutate the canonical registry by accident.
 SPACE_INVENTORY: list[dict[str, str]] = [dict(record) for record in _CANONICAL_SPACES]
 FOLD_INVENTORY: list[dict[str, str]] = [dict(record) for record in _FOLD_SPACES]
-HANDOFF_INVENTORY: list[dict[str, str]] = SPACE_INVENTORY + FOLD_INVENTORY
+UNIFY_INVENTORY: list[dict[str, str]] = [dict(record) for record in _UNIFY_SPACES]
+HANDOFF_INVENTORY: list[dict[str, str]] = SPACE_INVENTORY + FOLD_INVENTORY + UNIFY_INVENTORY
 _SPACE_BY_NAME = {sp["name"]: sp for sp in HANDOFF_INVENTORY}
 _SPACE_BY_SLUG = {sp["slug"]: sp for sp in HANDOFF_INVENTORY}
 
@@ -93,7 +95,17 @@ def _fallback_index() -> bytes:
         name = html.escape(record["name"])
         sdk = html.escape(record["sdk"])
         canonical = html.escape(_destination_url(record["slug"]), quote=True)
-        repository = html.escape(hf_repo_url(record["slug"]), quote=True)
+        if record.get("hub_unreadable"):
+            repository_html = (
+                '<small style="color:#7c8794">Hub repository not publicly readable '
+                '(checked %s); link removed</small>' % html.escape(record["hub_unreadable"])
+            )
+        else:
+            repository_html = (
+                '<a href="%s" rel="noopener" target="_blank" '
+                'style="color:#7c8794;text-decoration:none">View repository &#8599;</a>'
+                % html.escape(hf_repo_url(record["slug"]), quote=True)
+            )
         honesty_raw = record.get("honesty") or ""
         honesty = (
             ' <small style="color:#c9a23a">%s</small>' % html.escape(honesty_raw)
@@ -105,9 +117,8 @@ def _fallback_index() -> bytes:
             '<small style="color:#697787">%s &middot; %s</small>%s '
             '&middot; <a href="%s" rel="noopener" target="_blank" '
             'style="color:#d4a444;text-decoration:none">Open canonical app &#8599;</a> '
-            '&middot; <a href="%s" rel="noopener" target="_blank" '
-            'style="color:#7c8794;text-decoration:none">View repository &#8599;</a></li>'
-            % (title, name, sdk, honesty, canonical, repository)
+            '&middot; %s</li>'
+            % (title, name, sdk, honesty, canonical, repository_html)
         )
     return (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
@@ -135,18 +146,19 @@ def _canonical_target(name: str, subpath: str = "", query: str = "") -> str:
     record = _SPACE_BY_SLUG.get(name)
     if record is None or name not in HANDOFF_SPACES:
         raise ValueError("unknown Space identifier: %s" % name)
-    target = _destination_url(name).rstrip("/") if name != "szl-kernels-live" else _destination_url(name)
-    if name == "szl-kernels-live":
-        # dest already carries a fragment; do not append a path onto #atlas
-        if query:
-            return target + ("&" if "?" in target else "?") + quote(query, safe="=&;%:+,/?@-._~")
-        return target
-    if subpath:
-        encoded_path = quote(subpath.lstrip("/"), safe="/:@!$&'()*+,;=-._~")
-        target += "/" + encoded_path
+    dest = urlsplit(_destination_url(name))
+    # Fragment destinations are existing document anchors, not path-prefix apps.
+    # Keep the anchor last: appending ?query after # would silently lose the
+    # request query and change which element the browser navigates to.
+    path = dest.path if dest.fragment else dest.path.rstrip("/")
+    if subpath and not dest.fragment:
+        path += "/" + quote(subpath.lstrip("/"), safe="/:@!$&'()*+,;=-._~")
+    merged_query = dest.query
     if query:
-        target += "?" + quote(query, safe="=&;%:+,/?@-._~")
-    return target
+        encoded_query = quote(query, safe="=&;%:+,/?@-._~")
+        merged_query += ("&" if merged_query else "") + encoded_query
+    return urlunsplit((dest.scheme, dest.netloc, path, merged_query, dest.fragment))
+
 
 
 def _raw_query(request: Any) -> str | None:
@@ -253,8 +265,8 @@ if __name__ == "__main__":
     assert "client." + "request(" not in source
     assert "upstream." + "content" not in source
 
-    assert len(ALL_SPACES) == 6
-    assert len(HANDOFF_SPACES) == 6 + len(FOLD_INVENTORY)
+    assert len(ALL_SPACES) == 5
+    assert len(HANDOFF_SPACES) == 5 + len(FOLD_INVENTORY) + len(UNIFY_INVENTORY)
     assert hf_url("governed-agent-bench") == "https://szlholdings-governed-agent-bench.hf.space"
     assert hf_url("immune") == "https://szlholdings-immune.hf.space"
     assert _canonical_target("immune") == "https://a-11-oy.com/immune"
@@ -312,12 +324,12 @@ if __name__ == "__main__":
     assert client.get("/spaces/notreal", follow_redirects=False).status_code == 404
     own = client.get("/spaces/a11oy", follow_redirects=False)
     assert own.status_code == 307
-    assert own.headers["location"] == "https://a-11-oy.com"
+    assert own.headers["location"] == "https://a-11-oy.com/console"
     cosmos = client.get("/spaces/cosmos", follow_redirects=False)
     assert cosmos.status_code == 307
     assert cosmos.headers["location"] == "https://a-11-oy.com/living-anatomy"
 
     print(
-        "szl_spaces_proxy: ALL OK (6 KEEP + fold dest handoffs; "
+        "szl_spaces_proxy: ALL OK (5 KEEP + fold + unify dest handoffs; "
         "path/query preserved; no-store; no upstream bytes/Set-Cookie)"
     )

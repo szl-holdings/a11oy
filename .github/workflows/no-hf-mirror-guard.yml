@@ -4,11 +4,14 @@ name: no-hf-mirror-guard
 # `.hf-mirror/` dirs are dead HF-Space snapshots, not canonical source.
 
 on:
-  pull_request:
+  pull_request: null
   push:
-    branches: [main]
-  workflow_dispatch:
-
+    branches:
+    - main
+  workflow_dispatch: null
+  merge_group:
+    types:
+    - checks_requested
 permissions:
   contents: read
 

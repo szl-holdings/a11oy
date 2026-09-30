@@ -45,7 +45,6 @@ _INK = "#c9d6e2"
 _MUTE = "#7d93a6"
 
 _HF_MODEL_URL = "https://huggingface.co/SZLHOLDINGS/SZL-Khipu-1.5B-GGUF"
-_REPRO_PATH = "/repro/agent-run-2026-07-16/"
 
 
 def _load_data() -> dict:
@@ -190,7 +189,7 @@ def _render_page(data: dict) -> str:
 {cmd_block}
     <footer>
       Model repo: <a href="{e(_HF_MODEL_URL)}" rel="noopener">{e(_HF_MODEL_URL)}</a>
-      · Repro / agent-run: <a href="{e(_REPRO_PATH)}">{e(_REPRO_PATH)}</a>
+      · Repro / agent-run 2026-07-16: bundle not served on a-11-oy.com or a11oy.net (checked 2026-09-25; link removed)
     </footer>
   </main>
   <script>

@@ -2,11 +2,11 @@
   {
     "name": "frontdoor_truth",
     "command": [
-      "C:\\Users\\steph\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+      "python",
       "-I",
       "-B",
       "scripts/check_a11oy_frontdoor_truth.py",
-      "C:\\Users\\steph\\Documents\\Codex\\2026-08-11\\worktrees\\a11oy-pr1285-signed\\a11oy_landing.html"
+      "a11oy_landing.html"
     ],
     "status": "PASS",
     "return_code": 0,
@@ -19,11 +19,11 @@
   {
     "name": "frontdoor_repair_idempotent",
     "command": [
-      "C:\\Users\\steph\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+      "python",
       "-I",
       "-B",
       "scripts/repair_a11oy_frontdoor.py",
-      "C:\\Users\\steph\\Documents\\Codex\\2026-08-11\\worktrees\\a11oy-pr1285-signed\\a11oy_landing.html",
+      "a11oy_landing.html",
       "--check"
     ],
     "status": "PASS",
@@ -32,12 +32,12 @@
     "stdout_sha256": "172b621993745bedb8dd1dbb63a75137be3a934f4515e645a59dd0942f592883",
     "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "error": null,
-    "excerpt": "{\\n  \"status\": \"PASS\",\\n  \"target\": \"C:\\\\Users\\\\steph\\\\Documents\\\\Codex\\\\2026-08-11\\\\worktrees\\\\a11oy-pr1285-signed\\\\a11oy_landing.html\",\\n  \"notes\": \"frontdoor truth contract already current\"\\n}"
+    "excerpt": "{\n  \"status\": \"PASS\",\n  \"target\": \"a11oy_landing.html\",\n  \"notes\": \"frontdoor truth contract already current\"\n}"
   },
   {
     "name": "hf_ecosystem_check",
     "command": [
-      "C:\\Users\\steph\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+      "python",
       "-I",
       "-B",
       "scripts/audit_huggingface_ecosystem.py",
@@ -54,14 +54,14 @@
   {
     "name": "github_access_audit",
     "command": [
-      "C:\\Users\\steph\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+      "python",
       "-I",
       "-B",
       "scripts/audit_github_access_permissions.py",
       "--checklist",
-      "C:\\Users\\steph\\Documents\\Codex\\2026-08-11\\worktrees\\a11oy-pr1285-signed\\docs\\github-enterprise-access-checklist.json",
+      "docs/github-enterprise-access-checklist.json",
       "--output",
-      "C:\\Users\\steph\\Documents\\Codex\\2026-08-11\\worktrees\\a11oy-pr1285-signed\\audit\\github-access-audit.json",
+      "audit/github-access-audit.json",
       "--validate"
     ],
     "status": "PASS",
@@ -70,6 +70,6 @@
     "stdout_sha256": "270941ebe82306f90c084aa45bfc517bcc86cf0ad687dc2959c6dd367f7b56b6",
     "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "error": null,
-    "excerpt": "Wrote GitHub access audit: C:\\Users\\steph\\Documents\\Codex\\2026-08-11\\worktrees\\a11oy-pr1285-signed\\audit\\github-access-audit.json\\nSummary: 11 write-ready, 0 read-only, 0 unavailable"
+    "excerpt": "Wrote GitHub access audit: audit/github-access-audit.json\nSummary: 11 write-ready, 0 read-only, 0 unavailable"
   }
 ]

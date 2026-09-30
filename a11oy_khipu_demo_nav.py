@@ -50,7 +50,7 @@ def _build_nav_block() -> bytes:
 
 def _build_rel_strip() -> bytes:
     rel = [("/yupay", "YUPAY — Governed Audit"), ("/waqay", "WAQAY — Sovereign Memory"),
-           ("/willay", "WILLAY — Safety Gateway"), ("/uds-portability", "UDS Portability")]
+           ("/willay", "WILLAY — Safety Gateway")]
     links = "".join(
         '<a href="%s" style="color:#39d8c8;text-decoration:none;margin:0 .55em;'
         'white-space:nowrap">%s</a>' % (p, l) for p, l in rel)

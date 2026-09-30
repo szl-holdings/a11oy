@@ -20,11 +20,21 @@ name: Sync and Relock Canonical Hugging Face Space
 on:
   push:
     branches: [main]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      publish_vertical_flagships:
+        description: Publish six domain-native flagship Spaces. Default false until plan complete=true.
+        type: boolean
+        default: false
+
+      vertical_plan_json:
+        description: Complete approved plan JSON with expected_source_revision bound to exact A11oy main; not a production-readiness certificate.
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
-  issues: write
   actions: write
 
 concurrency:
@@ -35,13 +45,98 @@ env:
   GH_TOKEN: ${{ github.token }}
   CANONICAL_SPACE: SZLHOLDINGS/a11oy
   CANONICAL_ORIGIN: https://szlholdings-a11oy.hf.space
-  CAPACITY_DONOR_SPACE: SZLHOLDINGS/holographic
-  RELOCK_ISSUE: "1043"
   REPORT_PATH: reports/canonical-a11oy-relock-v4.json
 
 jobs:
+  source-admission:
+    name: Admit the queued source before provider mutation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      publish: ${{ steps.owner.outputs.publish }}
+    steps:
+      - name: Checkout the immutable queued source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Require main and classify current source ownership
+        id: owner
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/main
+          python3 -B scripts/hf_exact_main_ownership.py \
+            --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+            --receipt "$RUNNER_TEMP/canonical-source-admission.json" \
+            --github-output "$GITHUB_OUTPUT"
+      - name: Retain the source admission decision
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: canonical-source-admission-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/canonical-source-admission.json
+          if-no-files-found: error
+          retention-days: 90
+
+  manual-prerequisites:
+    name: Check manual authority prerequisites before provider writes
+    needs: source-admission
+    if: ${{ needs.source-admission.outputs.publish == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+    steps:
+      - name: Checkout the immutable admitted source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install exact metadata client
+        run: python -m pip install --disable-pip-version-check "huggingface_hub==1.23.0" "requests==2.32.5"
+      - name: Retain metadata checks and fail closed on UNKNOWN authority
+        shell: bash
+        run: |
+          set +e
+          python -B scripts/configure_hf_series_a_runtime.py \
+            --repo-id "$CANONICAL_SPACE" --check-only \
+            --output "$RUNNER_TEMP/manual-series-a.json"
+          series_code=$?
+          python -B scripts/configure_hf_gdw_runtime.py \
+            --repo-id "$CANONICAL_SPACE" --check-only \
+            --output "$RUNNER_TEMP/manual-gdw.json"
+          gdw_code=$?
+          set -euo pipefail
+          python -B scripts/check_hf_manual_prerequisites.py \
+            --series-a "$RUNNER_TEMP/manual-series-a.json" --series-a-exit "$series_code" \
+            --gdw "$RUNNER_TEMP/manual-gdw.json" --gdw-exit "$gdw_code" \
+            --source-sha "$GITHUB_SHA" --output "$RUNNER_TEMP/manual-prerequisites.json"
+      - name: Retain bounded prerequisite decision
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: canonical-manual-prerequisites-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/manual-prerequisites.json
+          if-no-files-found: error
+          retention-days: 90
+
   resume-paused-space:
     name: Resume the canonical Space without changing its allocation
+    needs: [source-admission, manual-prerequisites]
+    if: ${{ needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -69,7 +164,6 @@ jobs:
         run: >-
           python .github/scripts/resume_hf_space.py
           --repo-id "$CANONICAL_SPACE"
-          --capacity-donor "$CAPACITY_DONOR_SPACE"
           --output "$RESUME_REPORT"
 
       - name: Upload immutable resume evidence
@@ -82,13 +176,12 @@ jobs:
           retention-days: 90
 
   runtime-config:
-    name: Converge persistent signer, receipt storage, and GDW successor
-    needs: deploy
+    name: Verify post-deploy configuration and retain blocked live proof evidence
+    needs: [manual-prerequisites, deploy]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
       HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
-      GDW_OPERATOR_TOKEN: ${{ secrets.GDW_OPERATOR_TOKEN }}
       RUNTIME_CONFIG_REPORT: /tmp/series-a-runtime-config.json
       SERIES_A_LIVE_REPORT: /tmp/series-a-restart-proof.json
       GDW_CONFIG_REPORT: /tmp/gdw-runtime-config.json
@@ -125,20 +218,19 @@ jobs:
           --repo-id "$CANONICAL_SPACE"
           --output "$GDW_CONFIG_REPORT"
 
-      - name: Prove a persistent Series-A receipt across restart
+      - name: Block unreviewed live Series-A restart effects
         run: >-
-          python scripts/prove_hf_series_a_restart.py
-          --repo-id "$CANONICAL_SPACE"
-          --origin "$CANONICAL_ORIGIN"
+          python -B scripts/check_hf_manual_prerequisites.py
+          --blocked-proof series-a
           --source-sha "${{ github.sha }}"
           --output "$SERIES_A_LIVE_REPORT"
 
-      - name: Prove live authenticated transition, drain, and integrity
+      - name: Block unreviewed live GDW write effects
+        if: ${{ always() && needs.manual-prerequisites.result == 'success' && needs.deploy.result == 'success' }}
         run: >-
-          python scripts/prove_hf_gdw_runtime.py
-          --origin "$CANONICAL_ORIGIN"
+          python -B scripts/check_hf_manual_prerequisites.py
+          --blocked-proof gdw
           --source-sha "${{ github.sha }}"
-          --restart-repo-id "$CANONICAL_SPACE"
           --output "$GDW_LIVE_REPORT"
 
       - name: Upload secret-free runtime configuration evidence
@@ -156,10 +248,14 @@ jobs:
 
   deploy:
     name: Deploy, source-bind, and attest exact surface
+    needs: [source-admission, manual-prerequisites, resume-paused-space]
+    if: ${{ needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && needs.resume-paused-space.result == 'success' }}
     uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@e3ec47ad2e99a535839afe0f30fefbd8973d52da
     with:
       hf-repo: SZLHOLDINGS/a11oy
       ref: ${{ github.sha }}
+      # Recheck next to the provider commit if main advances after admission.
+      require-default-branch-tip: true
       dockerfile-path: Dockerfile
       include-readme: true
       prune: true
@@ -167,13 +263,191 @@ jobs:
       restart-space: true
       source-revision-variable: SZL_GIT_SHA
       source-revision-probe-path: /api/build-info
-      smoke-paths: '["/","/api/livez","/api/build-info","/api/a11oy/v1/brain/capabilities","/api/a11oy/v1/readiness/tab-matrix?view=summary","/api/a11oy/v1/series-a/status","/static/3d/holographic.html"]'
+      smoke-paths: '["/","/api/livez","/api/build-info","/api/a11oy/v1/honest","/api/a11oy/healthz","/api/a11oy/v1/brain/capabilities","/api/a11oy/v1/readiness/tab-matrix?view=summary","/api/a11oy/v1/series-a/status","/holographic","/holographic/","/static/3d/holographic.html","/assets/brain-frontier-v7.css","/assets/brain-frontier-v7.js","/assets/brain-frontier-v7.json","/static/landing-honest-bind.js","/atelier/frontier","/api/a11oy/v1/atelier/frontier/registry","/api/a11oy/v1/atelier/frontier/evaluate?evidence=90&repeatability=90&coverage=90&governance=90&safety=1&energy_state=UNAVAILABLE","/api/a11oy/v1/atelier/frontier/evaluate?safety=0"]'
     secrets:
       HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
 
+  publish-vertical-flagships:
+    name: Publish and live-verify six domain-native flagship Spaces
+    # Other-Space execute is not product promote. Skip on push until plan complete=true.
+    # Explicit opt-in includes this publisher in the requested run completion.
+    # Product-only pushes still skip it; canonical product evidence stays separate.
+    if: ${{ needs.manual-prerequisites.result == 'success' && github.event_name == 'workflow_dispatch' && inputs.publish_vertical_flagships }}
+    needs: [manual-prerequisites, deploy]
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
+      HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
+      HUGGING_FACE_HUB_TOKEN: ${{ secrets.HUGGING_FACE_HUB_TOKEN }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Assert the workflow owns exact protected main
+        id: exact_main_owner
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B scripts/hf_exact_main_ownership.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --expected-sha "$GITHUB_SHA" \
+            --receipt "$RUNNER_TEMP/hf-main-ownership.json" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Upload exact-main ownership receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # pinned
+        with:
+          name: hf-main-ownership-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/hf-main-ownership.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Set up Python
+        if: ${{ steps.exact_main_owner.outputs.publish == 'true' }}
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Require the approved plan for the actual vertical source
+        id: vertical_plan
+        if: ${{ steps.exact_main_owner.outputs.publish == 'true' }}
+        env:
+          VERTICAL_PLAN_JSON: ${{ inputs.vertical_plan_json }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/estate_repair_dispatch.py \
+            --repair true --vertical-requested true --plan-from-env \
+            --expected-sha "$GITHUB_SHA" --current-sha "$GITHUB_SHA" \
+            --repo "$GITHUB_REPOSITORY" --require-vertical \
+            --github-output "$GITHUB_OUTPUT" \
+            > "$RUNNER_TEMP/hf-vertical-plan.json"
+
+      - name: Upload the vertical plan decision without raw operator input
+        if: ${{ always() && steps.exact_main_owner.outputs.publish == 'true' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hf-vertical-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/hf-vertical-plan.json
+          if-no-files-found: error
+          retention-days: 180
+
+      - name: Install pinned vertical publisher
+        if: ${{ steps.exact_main_owner.outputs.publish == 'true' && steps.vertical_plan.outputs.vertical_flagships == 'true' }}
+        run: >-
+          python -m pip install --disable-pip-version-check --no-cache-dir
+          "huggingface_hub==1.31.0"
+
+      - name: Publish and verify the v4 vertical estate
+        id: vertical_publish
+        if: ${{ steps.exact_main_owner.outputs.publish == 'true' && steps.vertical_plan.outputs.vertical_flagships == 'true' }}
+        run: python scripts/hf_publish_vertical_flagships_v4.py
+
+      - name: Enforce complete explicitly requested vertical publication
+        if: always()
+        env:
+          EXACT_MAIN_PUBLISH: ${{ steps.exact_main_owner.outputs.publish }}
+          VERTICAL_PLAN_PUBLISH: ${{ steps.vertical_plan.outputs.vertical_flagships }}
+          VERTICAL_PUBLISH_OUTCOME: ${{ steps.vertical_publish.outcome }}
+        run: python scripts/estate_child_completion.py
+
+      - name: Preserve source-bound Lyte failure diagnostics
+        if: ${{ always() && hashFiles('hf-lyte-enterprise-manifest.failed.json') != '' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hf-lyte-failure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            hf-lyte-enterprise-manifest.failed.json
+            hf-lyte-enterprise-receipt.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload immutable vertical publication receipt
+        if: ${{ always() && steps.exact_main_owner.outputs.publish == 'true' && steps.vertical_plan.outputs.vertical_flagships == 'true' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hf-vertical-flagships-${{ github.run_id }}-${{ github.run_attempt }}
+          path: hf-vertical-flagships-receipt.json
+          if-no-files-found: error
+          retention-days: 180
+
+  publish-finance-projection:
+    name: Rebind and functionally verify the existing Finance projection
+    # Finance validates the exact backend SHA, so every successful canonical
+    # relock must update it through the same established scoped publisher.
+    # An explicitly requested estate publication already owns Finance.
+    if: ${{ needs.manual-prerequisites.result == 'success' && (github.event_name == 'push' || !inputs.publish_vertical_flagships) }}
+    needs: [manual-prerequisites, relock]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: hf-publish-vertical-flagships
+      cancel-in-progress: false
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
+      HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
+      HUGGING_FACE_HUB_TOKEN: ${{ secrets.HUGGING_FACE_HUB_TOKEN }}
+      SZL_FLAGSHIP_SCOPE: finance
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - name: Checkout the exact relocked source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Admit only the current protected main owner
+        id: owner
+        run: >-
+          python3 -B scripts/hf_exact_main_ownership.py
+          --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA"
+          --receipt "$RUNNER_TEMP/finance-main-ownership.json"
+          --github-output "$GITHUB_OUTPUT"
+      - name: Set up Python
+        if: ${{ steps.owner.outputs.publish == 'true' }}
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Install the established pinned publisher
+        if: ${{ steps.owner.outputs.publish == 'true' }}
+        run: python -m pip install --disable-pip-version-check --no-cache-dir 'huggingface_hub==1.31.0'
+      - name: Publish exactly Finance and require public functional evidence
+        if: ${{ steps.owner.outputs.publish == 'true' }}
+        run: python scripts/hf_publish_vertical_flagships_v4.py
+      - name: Retain ownership and functional publication receipts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: finance-projection-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/finance-main-ownership.json
+            hf-vertical-flagships-receipt.json
+          if-no-files-found: error
+          retention-days: 180
+
   readiness-verdict:
     name: Probe and ingest exact post-deploy readiness verdict
-    needs: runtime-config
+    needs: [manual-prerequisites, runtime-config]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -231,7 +505,7 @@ jobs:
 
   relock:
     name: Prove exact live source, runtime, routes, and singleton state
-    needs: [runtime-config, readiness-verdict]
+    needs: [manual-prerequisites, runtime-config, readiness-verdict]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -282,31 +556,18 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-      - name: Persist the canonical deployment authority
+      - name: Retain the verification outcome without issue mutation
         if: always()
         shell: bash
         env:
           EXIT_CODE: ${{ steps.verify.outputs.exit_code }}
         run: |
           set -euo pipefail
-          test -f "$REPORT_PATH"
-          {
-            echo '<!-- szl-current-a11oy-relock -->'
-            echo '# Current canonical A11oy deployment relock'
-            echo
-            echo "- Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-            echo
-            echo '```json'
-            cat "$REPORT_PATH"
-            echo '```'
-          } > /tmp/relock.md
-          gh issue edit "$RELOCK_ISSUE" --repo "$GITHUB_REPOSITORY" --body-file /tmp/relock.md
-          if [ "${EXIT_CODE:-2}" = '0' ]; then
-            gh issue close "$RELOCK_ISSUE" --repo "$GITHUB_REPOSITORY" --reason completed \
-              --comment 'Protected source, reusable source binding, immutable current runtime, exact HEAD/GET contracts, holographic surface, and singleton topology all passed.' || true
-          else
-            gh issue reopen "$RELOCK_ISSUE" --repo "$GITHUB_REPOSITORY" || true
-          fi
+          case "${EXIT_CODE:-2}" in
+            0) outcome=PASS ;;
+            *) outcome=FAIL ;;
+          esac
+          printf 'Canonical verification outcome: %s. See the immutable relock artifact.\n' "$outcome" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Enforce exact live state
         if: always()

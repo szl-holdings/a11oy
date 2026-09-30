@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
-"""Publish Packet 8 vertical Space adapters as private Docker Spaces.
+"""Publish the remaining Packet 8 vertical adapters as private Docker Spaces.
 
 Uses the org token from GitHub Actions (HF_ORG_TOKEN || HF_TOKEN).
+
+Aegis is no longer a separate Space target: it is the internal portfolio name
+for Killinchu's cyber-resilience capability family. The historical adapter
+source stays in Git, but this publisher must never recreate
+``SZLHOLDINGS/aegis-assurance``.
 
 Does not wait for RUNNING. Does not stamp LIVE. Writes evidence JSON only.
 Does not mutate the canonical product Space (hf-sync.yml is the writer).
@@ -21,16 +26,12 @@ from typing import Any
 
 from huggingface_hub import HfApi
 
+RETIRED_SPACE_IDS = frozenset({"SZLHOLDINGS/aegis-assurance"})
 SPACES = [
     {
         "space_id": "SZLHOLDINGS/terra-assurance",
         "folder": "huggingface/spaces/terra-assurance",
         "vertical_id": "terra",
-    },
-    {
-        "space_id": "SZLHOLDINGS/aegis-assurance",
-        "folder": "huggingface/spaces/aegis-assurance",
-        "vertical_id": "aegis",
     },
     {
         "space_id": "SZLHOLDINGS/puriq-markets",
@@ -43,6 +44,15 @@ SPACES = [
         "vertical_id": "counsel",
     },
 ]
+
+
+def _assert_inventory() -> None:
+    ids = [item["space_id"] for item in SPACES]
+    if len(ids) != len(set(ids)):
+        raise RuntimeError("duplicate Packet 8 Space id")
+    retired = sorted(set(ids) & RETIRED_SPACE_IDS)
+    if retired:
+        raise RuntimeError(f"retired Space reached Packet 8 publisher: {retired}")
 
 
 def _runtime_stage(value: Any) -> str | None:
@@ -89,6 +99,9 @@ def _publish_one(
     root: Path,
     source_sha: str,
 ) -> dict[str, Any]:
+    if item["space_id"] in RETIRED_SPACE_IDS:
+        raise RuntimeError(f"refusing retired Space: {item['space_id']}")
+
     record: dict[str, Any] = {
         "space_id": item["space_id"],
         "vertical_id": item["vertical_id"],
@@ -171,6 +184,7 @@ def main() -> int:
     parser.add_argument("--source-sha", default=os.environ.get("GITHUB_SHA", "UNKNOWN"))
     args = parser.parse_args()
 
+    _assert_inventory()
     token = os.environ.get("HF_TOKEN") or os.environ.get("HF_ORG_TOKEN")
     if not token:
         print("HF_TOKEN / HF_ORG_TOKEN missing", file=sys.stderr)
@@ -182,14 +196,17 @@ def main() -> int:
     failed = sum(1 for rec in records if not rec.get("ok"))
 
     evidence = {
-        "schema": "szl.packet8-hub-publish/v8",
+        "schema": "szl.packet8-hub-publish/v9",
         "source_sha": args.source_sha,
         "spaces": records,
+        "retired_spaces": sorted(RETIRED_SPACE_IDS),
+        "retired_spaces_mutated": False,
         "all_ok": failed == 0,
         "runtime_claimed": False,
         "note": (
             "Private adapters uploaded when the Space already existed or create "
-            "succeeded. Do not claim RUNNING or LIVE without Hub runtime readback."
+            "succeeded. Aegis is internal to Killinchu and cannot be recreated. "
+            "Do not claim RUNNING or LIVE without Hub runtime readback."
         ),
     }
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)

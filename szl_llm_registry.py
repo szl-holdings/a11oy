@@ -4,14 +4,14 @@
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 """
-szl_llm_registry — a11oy is THE LLM Hub for the SZL ecosystem.
+szl_llm_registry — A11oy is the portfolio model registry and operator forum; szl-holdings/szl-router is the canonical routing-runtime source.
 
 Every model a11oy can route to is declared here as the canonical Model Registry.
 Policy, Reasoning, and killinchu mirror a11oy's model-access by importing this roster
 via /api/a11oy/v1/llm/registry (the "forum" — shared receipt/decision substrate).
 
 KEY DESIGN DECISIONS (from founder):
-  1. a11oy holds ALL the LLMs — explicit, real, no mocked entries.
+  1. A11oy catalogs approved model routes; szl-router owns runtime routing and provider fallback.
   2. Operator and a11oy share the same "forum" (receipt/decision substrate).
      a11oy ingests it so the rest of the ecosystem can mirror model-access.
   3. The tier→model routing is backed by szl_brain.TIERS (real, production-locked).

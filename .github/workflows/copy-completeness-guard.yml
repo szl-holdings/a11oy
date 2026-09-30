@@ -20,34 +20,40 @@ name: COPY-Completeness Guard
 
 on:
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - 'serve.py'
-      - 'wayra_serve.py'
-      - 'ayni_os_serve.py'
-      - 'kipu_qillqaq_serve.py'
-      - 'Dockerfile'
-      - '.github/scripts/copy_completeness.py'
-      - 'tests/test_copy_completeness_transitive.py'
-      - '**.py'
+    - serve.py
+    - wayra_serve.py
+    - ayni_os_serve.py
+    - kipu_qillqaq_serve.py
+    - Dockerfile
+    - .github/scripts/copy_completeness.py
+    - tests/test_copy_completeness_transitive.py
+    - '**.py'
   pull_request:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - 'serve.py'
-      - 'wayra_serve.py'
-      - 'ayni_os_serve.py'
-      - 'kipu_qillqaq_serve.py'
-      - 'Dockerfile'
-      - '.github/scripts/copy_completeness.py'
-      - '**.py'
-  workflow_dispatch:
-
+    - serve.py
+    - wayra_serve.py
+    - ayni_os_serve.py
+    - kipu_qillqaq_serve.py
+    - Dockerfile
+    - .github/scripts/copy_completeness.py
+    - '**.py'
+  workflow_dispatch: null
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   import-vs-copy:
@@ -91,4 +97,8 @@ jobs:
         # (the szl_energy_measured class) and does NOT flag covered modules.
         run: |
           pip install --quiet --require-hashes -r .github/requirements/ci-core.txt
-          python3 -m pytest tests/test_copy_completeness_transitive.py -q
+          python3 -m pytest -q \
+            tests/test_copy_completeness_transitive.py \
+            tests/test_vsp_otel_packaging.py \
+            tests/test_vsp_otel_security.py \
+            tests/test_dockerfile_layer_budget.py

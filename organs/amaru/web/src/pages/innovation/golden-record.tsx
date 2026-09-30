@@ -139,7 +139,7 @@ export default function GoldenRecordPage() {
         title="Golden Record · Cross-Source Identity Unification"
         blurb="The Mapper fuses entity records across CRM, warehouse, support, billing, and marketing into a single golden record per organisation — purely organisational identifiers (account IDs, registration numbers, tickers, regions). No personal identifiers in seed data; this surface deals only with org-level identity. Merges propagate into mapping behavior."
         trailing={
-          <Link href="/innovation" className="flex items-center gap-1.5 text-[11px] font-mono text-[#c9b787] hover:underline">
+          <Link href="/innovation" className="flex items-center gap-1.5 text-[11px] font-mono text-link hover:underline">
             <ArrowLeft className="w-3.5 h-3.5" /> Innovation index
           </Link>
         }
@@ -158,10 +158,10 @@ export default function GoldenRecordPage() {
           <button key={c.id} onClick={() => setDrawerId(c.id)} className="conduit-card p-4 text-left">
             <div className="flex items-start justify-between mb-2">
               <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-[#c9b787]" />
+                <Users className="w-4 h-4 text-ink" />
                 <div>
-                  <div className="text-[#f5f5f5] text-sm font-medium font-mono">{c.records[0]?.accountId}</div>
-                  <div className="text-[11px] text-[#666] mt-0.5">{c.entityType} · {c.records.length} sources · ticker {c.records[0]?.ticker}</div>
+                  <div className="text-ink text-sm font-medium font-mono">{c.records[0]?.accountId}</div>
+                  <div className="text-[11px] text-ink-sub mt-0.5">{c.entityType} · {c.records.length} sources · ticker {c.records[0]?.ticker}</div>
                 </div>
               </div>
               {c.mergeStatus === 'merged' ? <Badge variant="success">merged</Badge> :
@@ -169,11 +169,11 @@ export default function GoldenRecordPage() {
                 <Badge variant="partial">pending</Badge>}
             </div>
             <div className="space-y-1.5 mt-3">
-              <div className="flex items-center justify-between text-[11px]"><span className="text-[#8a8a8a]">overall confidence</span><span className="font-mono tabular-nums text-[#c9b787]">{(c.overallConfidence * 100).toFixed(0)}%</span></div>
+              <div className="flex items-center justify-between text-[11px]"><span className="text-ink-sub">overall confidence</span><span className="font-mono tabular-nums text-ink">{(c.overallConfidence * 100).toFixed(0)}%</span></div>
               <MicroBar value={c.overallConfidence * 100} max={100} tone={c.overallConfidence >= 0.9 ? 'good' : c.overallConfidence >= 0.75 ? 'gold' : 'warn'} />
             </div>
             {c.conflictFields.length > 0 && (
-              <div className="mt-2 flex items-center gap-1.5 text-[10px] text-[#d4a853]">
+              <div className="mt-2 flex items-center gap-1.5 text-[10px] text-ink-warn">
                 <AlertTriangle className="w-3 h-3" />
                 <span>{c.conflictFields.length} conflict field(s): {c.conflictFields.join(', ')}</span>
               </div>
@@ -199,10 +199,10 @@ export default function GoldenRecordPage() {
             <FabricCard title="GOLDEN RECORD (RESOLVED)" trailing={<GovernanceDot state="green" />}>
               <div className="space-y-2">
                 {Object.entries(drawer.resolvedFields).map(([field, { value, sourceIdx }]) => (
-                  <div key={field} className="flex items-center justify-between text-[12px] py-1.5 border-b border-[rgba(255,255,255,0.04)] last:border-0">
-                    <span className="font-mono text-[#8a8a8a]">{FIELD_LABELS[field] ?? field}</span>
+                  <div key={field} className="flex items-center justify-between text-[12px] py-1.5 border-b border-line-subtle last:border-0">
+                    <span className="font-mono text-ink-sub">{FIELD_LABELS[field] ?? field}</span>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-[#f5f5f5]">{value}</span>
+                      <span className="font-mono text-ink">{value}</span>
                       <Badge variant="default">{drawer.records[sourceIdx]?.source}</Badge>
                     </div>
                   </div>
@@ -212,26 +212,26 @@ export default function GoldenRecordPage() {
             <FabricCard title="SOURCE RECORDS">
               <div className="space-y-3">
                 {drawer.records.map((r, i) => (
-                  <div key={i} className="p-3 rounded bg-[#0e0e0e] border border-[rgba(255,255,255,0.04)]">
+                  <div key={i} className="p-3 rounded bg-ground-deep border border-line-subtle">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <Badge variant="active">{r.source}</Badge>
-                        <span className="font-mono text-[10px] text-[#666]">{r.entityId}</span>
+                        <span className="font-mono text-[10px] text-ink-sub">{r.entityId}</span>
                       </div>
-                      <span className="font-mono text-[11px] text-[#c9b787]">{(r.confidence * 100).toFixed(0)}%</span>
+                      <span className="font-mono text-[11px] text-ink">{(r.confidence * 100).toFixed(0)}%</span>
                     </div>
                     <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
-                      <div><span className="text-[#666]">account </span><span className="font-mono text-[#8a8a8a]">{r.accountId}</span></div>
-                      <div><span className="text-[#666]">reg# </span><span className="font-mono text-[#8a8a8a]">{r.registrationNumber}</span></div>
-                      <div><span className="text-[#666]">ticker </span><span className="font-mono text-[#8a8a8a]">{r.ticker}</span></div>
-                      <div><span className="text-[#666]">region </span><span className="font-mono text-[#8a8a8a]">{r.region}</span></div>
-                      <div className="col-span-2"><span className="text-[#666]">last seen </span><span className="font-mono text-[#8a8a8a]">{r.lastSeen}</span></div>
+                      <div><span className="text-ink-sub">account </span><span className="font-mono text-ink-sub">{r.accountId}</span></div>
+                      <div><span className="text-ink-sub">reg# </span><span className="font-mono text-ink-sub">{r.registrationNumber}</span></div>
+                      <div><span className="text-ink-sub">ticker </span><span className="font-mono text-ink-sub">{r.ticker}</span></div>
+                      <div><span className="text-ink-sub">region </span><span className="font-mono text-ink-sub">{r.region}</span></div>
+                      <div className="col-span-2"><span className="text-ink-sub">last seen </span><span className="font-mono text-ink-sub">{r.lastSeen}</span></div>
                       {Object.entries(r.fields).slice(0, 4).map(([k, v]) => (
-                        <div key={k}><span className="text-[#666]">{k} </span><span className="font-mono text-[#8a8a8a]">{v}</span></div>
+                        <div key={k}><span className="text-ink-sub">{k} </span><span className="font-mono text-ink-sub">{v}</span></div>
                       ))}
                     </div>
                     {drawer.conflictFields.some((f) => getRecordField(r, f) !== drawer.resolvedFields[f]?.value) && (
-                      <div className="mt-2 text-[10px] text-[#d4a853]">⚠ differs on resolved field(s)</div>
+                      <div className="mt-2 text-[10px] text-ink-warn">Differs on resolved field(s)</div>
                     )}
                   </div>
                 ))}
@@ -244,15 +244,15 @@ export default function GoldenRecordPage() {
               </div>
             )}
             {drawer.mergeStatus === 'merged' && (
-              <div className="flex items-center gap-2 text-[12px] text-[#5a8a6e]"><CheckCircle className="w-4 h-4" />Golden record committed · downstream mappings updated</div>
+              <div className="flex items-center gap-2 text-[12px] text-ink-good"><CheckCircle className="w-4 h-4" />Golden record committed · downstream mappings updated</div>
             )}
           </>
         )}
       </FabricDrawer>
 
       <div className="conduit-card p-4 mt-6">
-        <div className="flex items-center gap-2 mb-2"><Merge className="w-4 h-4 text-[#c9b787]" /><span className="label-mono">FORMULA · Identity confidence</span></div>
-        <pre className="font-mono text-[11px] text-[#f5f5f5] bg-[#0a0a0a] p-3 rounded overflow-x-auto">{`overall_confidence(cluster) = avg(record.confidence) × source_diversity_bonus
+        <div className="flex items-center gap-2 mb-2"><Merge className="w-4 h-4 text-ink" /><span className="label-mono">FORMULA · Identity confidence</span></div>
+        <pre className="font-mono text-[11px] text-ink bg-ground p-3 rounded overflow-x-auto">{`overall_confidence(cluster) = avg(record.confidence) × source_diversity_bonus
 source_diversity_bonus = 1 + 0.05 × min(4, distinct_source_kinds(cluster))
 conflict_penalty(field) = 1 - (0.1 × distinct_values(field) / records.length)
 merge_eligible iff overall_confidence ≥ 0.85 ∧ no_critical_conflicts`}</pre>

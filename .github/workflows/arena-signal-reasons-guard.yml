@@ -35,27 +35,33 @@ name: Arena Signal Reasons Guard
 
 on:
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - "serve.py"
-      - "pages/console.html"
-      - "scripts/check_arena_signal_reasons.py"
-      - ".github/workflows/arena-signal-reasons-guard.yml"
+    - serve.py
+    - pages/console.html
+    - scripts/check_arena_signal_reasons.py
+    - .github/workflows/arena-signal-reasons-guard.yml
   pull_request:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - "serve.py"
-      - "pages/console.html"
-      - "scripts/check_arena_signal_reasons.py"
-      - ".github/workflows/arena-signal-reasons-guard.yml"
-  workflow_dispatch:
-
+    - serve.py
+    - pages/console.html
+    - scripts/check_arena_signal_reasons.py
+    - .github/workflows/arena-signal-reasons-guard.yml
+  workflow_dispatch: null
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 
 concurrency:
   group: arena-signal-reasons-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   # Prove the analyzer still rejects a missing mapping (i.e. is not silently

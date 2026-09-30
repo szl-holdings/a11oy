@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+name: Brain Frontier refresh transaction tests
+
+on:
+  pull_request:
+    paths:
+      - scripts/brain_frontier_v7_refresh.py
+      - tests/test_brain_frontier_v7_refresh.py
+      - tests/test_brain_frontier_v7_surface.py
+      - .github/workflows/brain-frontier-v7-refresh.yml
+      - .github/workflows/brain-frontier-v7-refresh-tests.yml
+  merge_group:
+    types: [checks_requested]
+
+permissions:
+  contents: read
+
+jobs:
+  transaction:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Test failure, retry and source-binding boundaries offline
+        run: |
+          python -m pip install --disable-pip-version-check "pytest==8.3.5" "PyYAML==6.0.2"
+          python -m pytest -q tests/test_brain_frontier_v7_refresh.py tests/test_brain_frontier_v7.py tests/test_brain_frontier_v7_surface.py
+          git diff --check

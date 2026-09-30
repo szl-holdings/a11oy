@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en" data-szl-public-experience-v3="true">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="description" content="A provenance-controlled, clean-room capability synthesis for the SZL Atelier.">
+  <meta name="color-scheme" content="dark">
+  <title>SZL Atelier · Frontier Workbench</title>
+  <link rel="stylesheet" href="/atelier/frontier/styles.css?v=__STYLE_ASSET_DIGEST__">
+  <script src="/atelier/frontier/app.js?v=__APP_ASSET_DIGEST__" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to workbench</a>
+  <header class="topbar">
+    <a class="identity" href="/atelier" aria-label="Return to SZL Atelier">
+      <span class="mark" aria-hidden="true"></span>
+      <span><strong>SZL Atelier</strong><small>Frontier Workbench</small></span>
+    </a>
+    <nav aria-label="Workbench navigation">
+      <a href="#patterns">Patterns</a>
+      <a href="#evaluator">Evaluate</a>
+      <a href="#provenance">Provenance</a>
+      <a href="/api/a11oy/v1/atelier/frontier/registry">Registry API</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="hero" aria-labelledby="title">
+      <p class="eyebrow">CLEAN-ROOM SYNTHESIS · READ-ONLY · NO AFFILIATION</p>
+      <h1 id="title">Observe the pattern.<br>Rebuild the capability.<br>Prove the difference.</h1>
+      <p class="lede">This surface inventories a bounded public reference portfolio, separates permissive code from unverified material, and recombines the useful capability patterns with A11oy governance, provenance, and source-to-runtime controls.</p>
+      <div class="hero-actions">
+        <a class="button primary" href="#evaluator">Score a candidate</a>
+        <a class="button" href="/atelier">Open model walk</a>
+      </div>
+      <div class="truth-strip" role="note">
+        <span>Source code copied: <b>NO</b></span>
+        <span>Brand assets copied: <b>NO</b></span>
+        <span>External writes: <b>DISABLED</b></span>
+        <span>Trust ceiling: <b>0.97</b></span>
+      </div>
+    </section>
+
+    <section class="metrics" aria-label="Inventory summary">
+      <article><span id="repoCount">—</span><small>public repositories observed</small></article>
+      <article><span id="cleanCount">—</span><small>clean-room-only lanes</small></article>
+      <article><span id="licensedCount">—</span><small>verified permissive lanes</small></article>
+      <article><span id="snapshotState">LOADING</span><small>registry state</small></article>
+    </section>
+
+    <section id="patterns" class="section">
+      <div class="section-head">
+        <div><p class="eyebrow">CAPABILITY CUTS</p><h2>What gets recombined inside A11oy</h2></div>
+        <p>Each lane names the reference set, the current evidence state, the native A11oy binding, and the improvement that makes the result materially different.</p>
+      </div>
+      <div id="laneGrid" class="lane-grid" aria-live="polite"></div>
+    </section>
+
+    <section id="provenance" class="section">
+      <div class="section-head">
+        <div><p class="eyebrow">PROVENANCE LEDGER</p><h2>All 26 repositories, one explicit reuse rule</h2></div>
+        <p>Unverified license means no source copy. Apparent mirrors require upstream verification. The verified MIT lane retains its notice even though this workbench independently implements the pattern.</p>
+      </div>
+      <div class="filters" aria-label="Repository filters">
+        <label>Search<input id="search" type="search" autocomplete="off" placeholder="repository or capability"></label>
+        <label>Reuse policy<select id="policy"><option value="all">All policies</option></select></label>
+        <label>Capability<select id="lane"><option value="all">All capabilities</option></select></label>
+      </div>
+      <div class="table-wrap" tabindex="0" aria-label="Scrollable repository ledger">
+        <table>
+          <thead><tr><th>Repository</th><th>License state</th><th>Reuse rule</th><th>Capability lanes</th><th>Boundary</th></tr></thead>
+          <tbody id="repoRows"></tbody>
+        </table>
+      </div>
+      <p id="repoResultCount" class="table-note"></p>
+    </section>
+
+    <section id="evaluator" class="section evaluator">
+      <div class="section-head">
+        <div><p class="eyebrow">LUTAR-GATED EVALUATION</p><h2>Model a candidate before any build is authorized</h2></div>
+        <p>The score is a weighted geometric mean of evidence, repeatability, coverage, and governance. Safety is a hard-zero gate. Energy remains caller-reported or unavailable; this surface never claims measured joules.</p>
+      </div>
+      <div class="eval-grid">
+        <form id="scoreForm" class="score-form">
+          <div id="sliders"></div>
+          <label class="select-row">Energy evidence
+            <select id="energyState" name="energy_state">
+              <option value="UNAVAILABLE">UNAVAILABLE · ignored by formula</option>
+              <option value="REPORTED">REPORTED · caller supplied</option>
+            </select>
+          </label>
+          <label class="safety"><input id="safety" name="safety" type="checkbox" value="1"><span><b>Safety gate passed</b><small>Unchecked means DENIED regardless of every other score.</small></span></label>
+          <button class="button primary" type="submit">Evaluate candidate</button>
+        </form>
+        <aside class="result" aria-live="polite" aria-labelledby="decisionLabel">
+          <p class="eyebrow">DECISION</p>
+          <strong id="decisionLabel" class="decision">DENIED</strong>
+          <div class="score"><span id="scoreValue">0.000</span><small>MODELED · ceiling 0.97</small></div>
+          <dl>
+            <div><dt>Reason</dt><dd id="reason">SAFETY_GATE_FAILED</dd></div>
+            <div><dt>Quality</dt><dd id="quality">—</dd></div>
+            <div><dt>Energy factor</dt><dd id="energyFactor">—</dd></div>
+            <div><dt>Derivation SHA-256</dt><dd id="fingerprint" class="digest">—</dd></div>
+          </dl>
+          <p class="result-note">No database write, signature, automatic retry, deployment, trade, biometric action, or other effector is attached.</p>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section method">
+      <p class="eyebrow">FASHION THINKING · GOVERNED</p>
+      <div class="method-grid">
+        <article><span>01</span><h3>Observe</h3><p>Inventory the public capability and its provenance without assuming ownership.</p></article>
+        <article><span>02</span><h3>Abstract</h3><p>Separate the transferable interaction or architecture pattern from implementation and brand expression.</p></article>
+        <article><span>03</span><h3>Recombine</h3><p>Join the pattern to A11oy formulas, evidence classes, restraint, and vertical domain twins.</p></article>
+        <article><span>04</span><h3>Verify</h3><p>Require tests, source binding, terminal deployment evidence, and explicit limitations.</p></article>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>SZL Atelier Frontier Workbench · Apache-2.0</span>
+    <span>Reference portfolio affiliation: NONE</span>
+    <a href="/api/build-info">Build identity</a>
+    <a href="/api/a11oy/readyz">Runtime readiness</a>
+  </footer>
+</body>
+</html>

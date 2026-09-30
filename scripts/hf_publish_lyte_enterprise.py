@@ -1,0 +1,412 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
+"""Publish the exact source-owned Lyte Enterprise runtime through A11oy.
+
+The existing canonical writer deploys an already-existing Space through the
+same byte-pinned, Dockerfile-derived controller. Current Lyte 4 runtime checks
+live in an adjacent, pure verification module. No second writer is introduced.
+Process execution uses the #2117 szl_release_guard runner: POSIX process-group
+timeout, output cap, no shell. This module still owns mutation; the guard
+does not gain execution authority.
+"""
+from __future__ import annotations
+
+import datetime as dt
+import hashlib
+import importlib.util
+import json
+import os
+import re
+import sys
+import tempfile
+import time
+import urllib.error
+import urllib.request
+from pathlib import Path
+from typing import Any
+
+from huggingface_hub import HfApi
+
+from szl_release_guard import run_bounded as guard_run_bounded, strict_json
+
+SOURCE_REPOSITORY = "szl-holdings/lyte-services"
+SHA40 = re.compile(r"^[0-9a-f]{40}$")
+SOURCE_REQUIRED_CHECKS = (
+    "python-compile", "lint", "unit", "api-contract", "release-gates",
+    "database-migrations", "connector-contract", "truth-and-governance",
+    "security-scan", "secret-scan", "frontend-static-contract", "accessibility",
+    "responsive-overflow", "bundle-budget", "container-build", "container-smoke",
+    "source-binding",
+)
+EXPECTED_VERSION = "4.0.0"
+HF_REPOSITORY = "SZLHOLDINGS/lyte"
+ORIGIN = "https://szlholdings-lyte.hf.space"
+SOURCE_VARIABLE = "LYTE_SOURCE_REVISION"
+RECEIPT_PATH = Path("hf-lyte-enterprise-receipt.json")
+FAILED_MANIFEST_PATH = Path("hf-lyte-enterprise-manifest.failed.json")
+CONTRACT_PATH = Path(__file__).resolve().with_name("lyte_enterprise_live_contract.py")
+DEFAULT_COMMAND_TIMEOUT_S = 600
+ATTEST_COMMAND_TIMEOUT_S = 2400
+PHASE_JOURNAL: list[dict[str, Any]] = []
+
+CONTROLLER_REPOSITORY = "szl-holdings/.github"
+CONTROLLER_REVISION = "c889276e51e7d954c4bba8b216f86fc7577721fa"
+CONTROLLER_PATH = ".github/scripts/hf_deploy_from_dockerfile.py"
+CONTROLLER_BLOB_SHA1 = "9d5b90b8bbf04e6d46ef0f971fc65604e1323b1b"
+USER_AGENT = "SZLHOLDINGS-Lyte-Enterprise-Publisher/4.0"
+
+# API version and package version are distinct. The current 4.0.0 application
+# owns /api/lyte/v2; the removed v3 application must never be its smoke target.
+# Public metrics use the source-owned API alias, not a hosting ingress path.
+SMOKE_PATHS = (
+    "/", "/healthz", "/readyz", "/api/build-info", "/api/source",
+    "/.well-known/szl-source.json", "/api/lyte/v2/metrics",
+    "/static/lyte/styles.css", "/static/lyte/app.js",
+    "/api/lyte/v2/catalog", "/api/lyte/v2/capabilities",
+    "/api/lyte/v2/anatomy", "/api/lyte/v2/formulas", "/api/lyte/v2/sources",
+    "/api/lyte/v2/services", "/api/lyte/v2/journeys", "/api/lyte/v2/outcomes",
+    "/api/lyte/v2/agents", "/api/lyte/v2/incidents", "/api/lyte/v2/decisions",
+    "/api/lyte/v2/playback", "/api/lyte/v2/second-brain",
+    "/api/lyte/v2/evidence", "/api/lyte/v2/receipts",
+)
+
+
+def utc_now() -> str:
+    return dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def token_from_env() -> tuple[str, str]:
+    for name in (
+        "HF_ORG_TOKEN", "HF_WRITE_TOKEN", "HF_TOKEN",
+        "HUGGINGFACE_TOKEN", "HUGGING_FACE_HUB_TOKEN",
+    ):
+        value = os.getenv(name, "").strip()
+        if value:
+            return value, name
+    raise RuntimeError("no Hugging Face write token available to canonical writer")
+
+
+def github_json(path: str) -> dict[str, Any]:
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": USER_AGENT,
+               "X-GitHub-Api-Version": "2022-11-28", "Cache-Control": "no-cache"}
+    token = (os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN") or "").strip()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    request = urllib.request.Request(f"https://api.github.com{path}", headers=headers)
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, response_headers, newurl):
+            raise RuntimeError("Lyte source resolution redirect refused")
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+    with opener.open(request, timeout=30) as response:
+        payload = strict_json(response.read(2_000_001))
+    if not isinstance(payload, dict):
+        raise RuntimeError("Lyte source resolution returned a non-object")
+    return payload
+
+
+def verified_revision(head: dict[str, Any]) -> str:
+    revision = head.get("sha")
+    commit = head.get("commit")
+    verification = commit.get("verification") if isinstance(commit, dict) else None
+    if (not isinstance(revision, str) or SHA40.fullmatch(revision) is None
+            or revision == "0" * 40 or not isinstance(verification, dict)
+            or verification.get("verified") is not True):
+        raise RuntimeError("Lyte main is not an exact verified source commit")
+    return revision
+
+
+def resolve_verified_source_tip() -> tuple[str, dict[str, Any]]:
+    """Qualify one current source SHA before any Hub configuration or write."""
+    revision = verified_revision(github_json(f"/repos/{SOURCE_REPOSITORY}/commits/main"))
+    checks = github_json(
+        f"/repos/{SOURCE_REPOSITORY}/commits/{revision}/check-runs?filter=latest&per_page=100"
+    ).get("check_runs")
+    if not isinstance(checks, list):
+        raise RuntimeError("Lyte source check-runs are missing")
+    trusted = [row for row in checks if isinstance(row, dict)
+               and row.get("head_sha") == revision and isinstance(row.get("app"), dict)
+               and row["app"].get("slug") == "github-actions"]
+    accepted = {
+        name for name in SOURCE_REQUIRED_CHECKS
+        if any(row.get("name") == name for row in trusted)
+        and all(row.get("status") == "completed" and row.get("conclusion") == "success"
+                for row in trusted if row.get("name") == name)
+    }
+    missing = sorted(set(SOURCE_REQUIRED_CHECKS) - accepted)
+    if missing:
+        raise RuntimeError("Lyte source gates did not pass: " + ", ".join(missing))
+    return revision, {
+        "schema": "szl.lyte-source-resolution/v1", "repository": SOURCE_REPOSITORY,
+        "branch": "main", "revision": revision, "verified_commit": True,
+        "required_checks": list(SOURCE_REQUIRED_CHECKS),
+        "live_health_check_used_as_source_gate": False,
+        "default_branch_tip_rechecked_by_deployer": True, "token_value_recorded": False,
+    }
+
+
+def require_current_source(revision: str) -> None:
+    if verified_revision(github_json(f"/repos/{SOURCE_REPOSITORY}/commits/main")) != revision:
+        raise RuntimeError("Lyte main changed after source admission")
+
+
+def journal(phase: str, **extra: Any) -> None:
+    PHASE_JOURNAL.append({"ts": utc_now(), "phase": phase, **extra})
+
+
+def run_bounded(
+    command: list[str],
+    *,
+    cwd: Path | None = None,
+    timeout: int = DEFAULT_COMMAND_TIMEOUT_S,
+) -> None:
+    """Writer-facing wrapper over the #2117 POSIX bounded runner.
+
+    Public journal records reason codes and pass/fail only. Guard receipts
+    never include raw process output. A failed observation raises; it does
+    not mint a publication success.
+    """
+    journal("run_bounded", argv=command[:6], timeout=timeout)
+    workdir = cwd if cwd is not None else Path.cwd()
+    observation = guard_run_bounded(command, cwd=workdir, timeout=float(timeout))
+    journal(
+        "run_bounded_observation",
+        reason_code=observation.get("reason_code"),
+        passed=observation.get("passed"),
+        exit_code=observation.get("exit_code"),
+        timed_out=observation.get("timed_out"),
+        output_limited=observation.get("output_limited"),
+        output_complete=observation.get("output_complete"),
+        execution_authority="NONE",
+    )
+    if observation.get("passed") is not True:
+        code = observation.get("reason_code") or "NONZERO_EXIT_UNCLASSIFIED"
+        journal("run_bounded_fail", argv=command[:6], reason_code=code)
+        raise RuntimeError(
+            f"command failed with {code}: " + " ".join(command[:5])
+        )
+    journal("run_bounded_ok", argv=command[:6])
+
+
+def run_checked(
+    command: list[str], *, cwd: Path | None = None, timeout: int = DEFAULT_COMMAND_TIMEOUT_S,
+) -> None:
+    run_bounded(command, cwd=cwd, timeout=timeout)
+
+
+def checkout_exact_source(destination: Path, *, revision: str) -> None:
+    run_checked(["git", "init", "--quiet", str(destination)])
+    run_checked([
+        "git", "-C", str(destination), "remote", "add", "origin",
+        f"https://github.com/{SOURCE_REPOSITORY}.git",
+    ])
+    run_checked([
+        "git", "-C", str(destination), "fetch", "--quiet", "--depth=1",
+        "origin", revision,
+    ])
+    run_checked([
+        "git", "-C", str(destination), "checkout", "--quiet", "--detach", "FETCH_HEAD",
+    ])
+    # Guard runner does not return raw stdout. Detached HEAD is the SHA on disk.
+    head_path = destination / ".git" / "HEAD"
+    observed = head_path.read_text(encoding="utf-8").strip().lower()
+    if observed.startswith("ref:"):
+        raise RuntimeError("source checkout is not detached")
+    if observed != revision:
+        raise RuntimeError(
+            f"source checkout mismatch: expected {revision}, observed {observed}"
+        )
+
+
+def git_blob_sha1(payload: bytes) -> str:
+    return hashlib.sha1(f"blob {len(payload)}\0".encode("ascii") + payload).hexdigest()
+
+
+def fetch_pinned_controller(destination: Path) -> None:
+    url = (
+        f"https://raw.githubusercontent.com/{CONTROLLER_REPOSITORY}/"
+        f"{CONTROLLER_REVISION}/{CONTROLLER_PATH}"
+    )
+    request = urllib.request.Request(
+        url, headers={"Cache-Control": "no-cache", "User-Agent": USER_AGENT},
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        payload = response.read()
+        if response.status != 200:
+            raise RuntimeError(f"controller fetch failed: HTTP {response.status}")
+    observed = git_blob_sha1(payload)
+    if observed != CONTROLLER_BLOB_SHA1:
+        raise RuntimeError(
+            f"controller blob mismatch: expected {CONTROLLER_BLOB_SHA1}, observed {observed}"
+        )
+    destination.write_bytes(payload)
+
+
+def ensure_runtime_configuration(api: HfApi, *, revision: str) -> dict[str, Any]:
+    """Require the existing Space and bind only a non-secret source variable."""
+    api.auth_check(repo_id=HF_REPOSITORY, repo_type="space", write=True)
+    api.add_space_variable(
+        repo_id=HF_REPOSITORY, key=SOURCE_VARIABLE, value=revision,
+        description="Exact tested GitHub revision for Lyte fail-closed source binding.",
+    )
+    return {
+        "space_preexisted": True, "space_created": False,
+        "source_variable": SOURCE_VARIABLE, "source_variable_value": revision,
+        "secret_values_read": False, "secret_values_written": False,
+        "sentra_signing_key_touched": False,
+    }
+
+
+def request_json(
+    path: str, *, method: str = "GET", payload: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None, attempts: int = 4,
+    expected_statuses: tuple[int, ...] = (200,),
+) -> tuple[int, Any]:
+    """Retry transport failures, but preserve explicit negative-control statuses.
+
+    A disabled Granite 503 is expected evidence, not a transient service failure.
+    HTML 200 fallback responses cannot pass JSON decoding.
+    """
+    body = None if payload is None else json.dumps(payload).encode("utf-8")
+    request_headers = {
+        "Accept": "application/json", "Cache-Control": "no-cache",
+        "User-Agent": USER_AGENT, **(headers or {}),
+    }
+    if body is not None:
+        request_headers["Content-Type"] = "application/json"
+    last_error: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        separator = "&" if "?" in path else "?"
+        request = urllib.request.Request(
+            f"{ORIGIN}{path}{separator}szl_verify={time.time_ns()}",
+            data=body, method=method, headers=request_headers,
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=75) as response:
+                return response.status, json.loads(response.read())
+        except urllib.error.HTTPError as exc:
+            response_body = exc.read().decode("utf-8", errors="replace")
+            if exc.code < 500 or exc.code in expected_statuses:
+                try:
+                    parsed: Any = json.loads(response_body)
+                except json.JSONDecodeError:
+                    parsed = {"body_excerpt": response_body[:500]}
+                return exc.code, parsed
+            last_error = exc
+        except Exception as exc:
+            last_error = exc
+        if attempt < attempts:
+            time.sleep(2 ** (attempt - 1))
+    raise RuntimeError(
+        f"live request did not converge: {method} {path}: "
+        f"{type(last_error).__name__ if last_error else 'UnknownError'}"
+    )
+
+
+def request_text(path: str, *, attempts: int = 4) -> tuple[int, str]:
+    last_error: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        separator = "&" if "?" in path else "?"
+        request = urllib.request.Request(
+            f"{ORIGIN}{path}{separator}szl_verify={time.time_ns()}",
+            headers={"Accept": "*/*", "Cache-Control": "no-cache", "User-Agent": USER_AGENT},
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=60) as response:
+                return response.status, response.read().decode("utf-8", errors="replace")
+        except Exception as exc:
+            last_error = exc
+        if attempt < attempts:
+            time.sleep(2 ** (attempt - 1))
+    raise RuntimeError(
+        "live text request did not converge: "
+        f"{type(last_error).__name__ if last_error else 'UnknownError'}"
+    )
+
+
+def deploy_with_controller(source: Path, controller: Path, manifest: Path, *, revision: str) -> None:
+    smoke_json = json.dumps(SMOKE_PATHS, separators=(",", ":"))
+    base = [
+        sys.executable, str(controller), "--repo-root", str(source),
+        "--github-repo", SOURCE_REPOSITORY, "--hf-repo", HF_REPOSITORY,
+    ]
+    run_checked(base + [
+        "--ref", revision, "--source-sha", revision,
+        "--dockerfile-path", "Dockerfile", "--include-readme", "true",
+        "--smoke-paths", smoke_json, "--manifest-out", str(manifest),
+        "--prune", "--require-default-branch-tip",
+    ])
+    run_checked([
+        sys.executable, str(controller), "--restart-space", "--manifest", str(manifest),
+        "--hf-repo", HF_REPOSITORY,
+    ])
+    run_checked([
+        sys.executable, str(controller), "--attest", "--manifest", str(manifest),
+        "--hf-repo", HF_REPOSITORY, "--wait-running", "1200", "--smoke-retries", "24",
+    ], timeout=ATTEST_COMMAND_TIMEOUT_S)
+
+
+def verify_contract(*, revision: str) -> dict[str, Any]:
+    """Verify the current source-owned API, never the retired v3 deployment."""
+    spec = importlib.util.spec_from_file_location("szl_lyte_live_contract", CONTRACT_PATH)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("source-owned Lyte live contract is unavailable")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.verify_current_contract(
+        request_json, request_text, revision=revision, version=EXPECTED_VERSION,
+    )
+
+
+def main() -> int:
+    token, token_source = token_from_env()
+    os.environ["HF_TOKEN"] = token
+    receipt: dict[str, Any] = {
+        "schema": "szl.hf-lyte-enterprise-publication/v3", "generated_at": utc_now(),
+        "source_repository": SOURCE_REPOSITORY, "source_revision": "UNRESOLVED",
+        "expected_version": EXPECTED_VERSION, "hf_repository": HF_REPOSITORY,
+        "origin": ORIGIN, "controller_repository": CONTROLLER_REPOSITORY,
+        "controller_revision": CONTROLLER_REVISION, "controller_blob_sha1": CONTROLLER_BLOB_SHA1,
+        "token_source_name": token_source, "token_value_recorded": False,
+        "secret_values_recorded": False, "sentra_signing_key_touched": False,
+        "space_created": False, "delete_operations": 0, "complete": False,
+        "release_guard_runner": "szl_release_guard.run_bounded",
+        "execution_authority": "NONE",
+    }
+    try:
+        revision, receipt["source_resolution"] = resolve_verified_source_tip()
+        receipt["source_revision"] = revision
+        api = HfApi(token=token)
+        with tempfile.TemporaryDirectory(prefix="szl-lyte-enterprise-") as td:
+            root = Path(td)
+            source, controller, manifest = root / "source", root / "controller.py", root / "manifest.json"
+            checkout_exact_source(source, revision=revision)
+            fetch_pinned_controller(controller)
+            require_current_source(revision)
+            # Verify source and controller bytes before any runtime configuration write.
+            # Do not reorder configuration vs deploy until the image-marker strategy is reviewed.
+            receipt["configuration"] = ensure_runtime_configuration(api, revision=revision)
+            try:
+                deploy_with_controller(source, controller, manifest, revision=revision)
+                receipt["deployment_manifest"] = json.loads(manifest.read_text(encoding="utf-8"))
+            except Exception:
+                if manifest.exists():
+                    FAILED_MANIFEST_PATH.write_bytes(manifest.read_bytes())
+                    receipt["retained_manifest"] = str(FAILED_MANIFEST_PATH.resolve())
+                    journal("manifest_retained", path=receipt["retained_manifest"])
+                raise
+        receipt["verification"] = verify_contract(revision=revision)
+        require_current_source(revision)
+        receipt["complete"] = receipt["verification"]["complete"]
+    except Exception as exc:
+        receipt["error"] = f"{type(exc).__name__}: {exc}"
+        journal("error", error=receipt["error"])
+    finally:
+        receipt["phase_journal"] = list(PHASE_JOURNAL)
+        receipt["finished_at"] = utc_now()
+        RECEIPT_PATH.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        print(json.dumps(receipt, indent=2, sort_keys=True))
+    return 0 if receipt["complete"] else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

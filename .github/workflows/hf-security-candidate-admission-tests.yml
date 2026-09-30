@@ -2,21 +2,26 @@ name: HF protected security-input admission tests
 
 on:
   pull_request:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - .github/scripts/select_hf_candidate_admission.py
-      - .github/scripts/verify_hf_security_candidate_admission.py
-      - tests/test_hf_security_candidate_admission.py
-      - .github/workflows/hf-security-candidate-admission-tests.yml
+    - .github/scripts/select_hf_candidate_admission.py
+    - .github/scripts/verify_hf_security_candidate_admission.py
+    - tests/test_hf_security_candidate_admission.py
+    - .github/workflows/hf-security-candidate-admission-tests.yml
   push:
     branches:
-      - fix/hf-security-input-admission-bootstrap-20260830
+    - fix/hf-security-input-admission-bootstrap-20260830
     paths:
-      - .github/scripts/select_hf_candidate_admission.py
-      - .github/scripts/verify_hf_security_candidate_admission.py
-      - tests/test_hf_security_candidate_admission.py
-      - .github/workflows/hf-security-candidate-admission-tests.yml
-
+    - .github/scripts/select_hf_candidate_admission.py
+    - .github/scripts/verify_hf_security_candidate_admission.py
+    - tests/test_hf_security_candidate_admission.py
+    - .github/workflows/hf-security-candidate-admission-tests.yml
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 

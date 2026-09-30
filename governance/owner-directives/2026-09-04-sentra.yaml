@@ -1,0 +1,37 @@
+# Owner directive - machine-readable
+# Consumed by the estate operator lane. Precedence: over any conflicting
+# state in keep-lists, public-estate ledgers, and migration plans dated before
+# 2026-09-04.
+
+directive:
+  id: owner-2026-09-04-sentra-assurance-command
+  issued: "2026-09-04"
+  authority: owner
+  summary: Aegis fully consolidated into Sentra; Sentra is the sole assurance flagship.
+
+  states:
+    - id: SZLHOLDINGS/sentra
+      state: FLAGSHIP_KEPT
+      role: sole-assurance-command
+      planes: [gate, yawar, evidence]
+      absorbs: [SZLHOLDINGS/aegis-assurance]
+      supersedes:
+        - "docs/series-a/hf-space-keep-list.yaml#SZLHOLDINGS/sentra"
+        - "docs/estate/hf-nine-flagship-keep.yaml#SZLHOLDINGS/sentra"
+        - "governance/public-estate.v1.json#retirement_candidates[szl/sentra]"
+        - "docs/estate/HF_FLAGSHIP_MIGRATION.md#sentra-row"
+
+    - id: SZLHOLDINGS/aegis-assurance
+      state: DECOMMISSIONED
+      effective: "2026-09-04"
+      mission_routes_to: SZLHOLDINGS/sentra
+      note: references pointing at killinchu#resilience are amended to sentra
+
+    - id: SZLHOLDINGS/killinchu
+      state: FLAGSHIP_KEPT
+      role: sole-cyber-physical-resilience-command
+      note: unchanged; defense/maritime only, not assurance
+
+    - id: SZLHOLDINGS/immune
+      state: ENGINE_LIBRARY_UNDER_SENTRA
+      note: repo unchanged; engine role under the sentra flagship

@@ -30,6 +30,12 @@ being filled with no-op pages or fabricated packages.
 
 ## Operational identity
 
+The additive [Atelier command centre](ATELIER_COMMAND_CENTRE.md) consolidates
+existing product and proof entry points at `/command-centre` and `/a11oy/atelier`.
+Its Python chat path is authenticated, bounded single-turn third-party inference;
+configuration, local contract checks, publication, and live inference are distinct
+proof layers. It does not port the platform Turn Capsule or create owned Grok weights.
+
 **MEASURED:** a11oy is a full deployable application — UI, runtime, server, and shipped libraries —
 and also a TypeScript workspace. Its operational Hugging Face surface is produced by
 `pnpm payload:huggingface`. Its diligence demo is `pnpm test:doctrine` running vitest
@@ -148,6 +154,16 @@ Every action (agent step, route hit, eval run, deploy) mints a DSSE-enveloped,
 ECDSA-P256-SHA256-signed receipt on a SHA-256 hash-linked Merkle DAG. Invariant
 **`receipts.in ≡ receipts.out`**. Real signatures when `SZL_COSIGN_PRIVATE_PEM` is present;
 **UNSIGNED + clearly labelled** when absent — never faked.
+
+The `szl_attest` manifest and verification GET routes are read-only exceptions
+to action receipt emission: they inspect current evidence without signing,
+Rekor submission, or ledger append. The manifest labels its envelope
+`UNSIGNED-READ-ONLY` and its ledger action `READ_ONLY`. An explicit write caller
+can opt into `build_manifest(read_only=False)` and `lake_receipt`; the latter
+uses the shared `szl_lake_store.get_default_ledger()` and distinguishes
+`APPENDED`, `DUPLICATE`, and `UNAVAILABLE`. These are source contracts, not a
+claim that a new version is deployed or that transparency proofs are independently
+verified. The existing canonical HF publisher remains the only release path.
 
 ### governance/ — doctrine gate + restraint / Λ (deny-by-default) `[EXISTS]`
 `a11oy_constitution.py` · `szl_governance_gateway.py` · `szl_restraint.py` /

@@ -52,12 +52,12 @@ interface TrainingRun {
 }
 
 const STATUS_ICON: Record<string, React.ReactNode> = {
-  completed: <CheckCircle2 className="w-4 h-4 text-green-400" />,
-  succeeded: <CheckCircle2 className="w-4 h-4 text-green-400" />,
-  failed: <XCircle className="w-4 h-4 text-red-400" />,
-  running: <Activity className="w-4 h-4 text-yellow-400 animate-spin" />,
+  completed: <CheckCircle2 className="w-4 h-4 text-ink-good" />,
+  succeeded: <CheckCircle2 className="w-4 h-4 text-ink-good" />,
+  failed: <XCircle className="w-4 h-4 text-ink-bad" />,
+  running: <Activity className="w-4 h-4 text-ink-warn animate-spin" />,
   pending: <Clock className="w-4 h-4 text-muted-foreground" />,
-  validating_output: <Shield className="w-4 h-4 text-blue-400" />,
+  validating_output: <Shield className="w-4 h-4 text-ink-sub" />,
 };
 
 export default function DomainDistillery() {
@@ -99,8 +99,8 @@ export default function DomainDistillery() {
           SOVEREIGN AI HUB · DOMAIN DISTILLERY
         </p>
         <h1 className="text-2xl font-display font-bold tracking-tight flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center border border-amber-500/30">
-            <FlaskConical className="w-5 h-5 text-amber-400" />
+          <div className="w-8 h-8 rounded-lg bg-warning/10 flex items-center justify-center border border-warning/30">
+            <FlaskConical className="w-5 h-5 text-ink-warn" />
           </div>
           Domain Distillery
         </h1>
@@ -124,20 +124,20 @@ export default function DomainDistillery() {
         </div>
         <div className="rounded-lg border border-border bg-card p-4">
           <p className="text-xs font-mono text-muted-foreground uppercase mb-1">Pipeline Health</p>
-          <p className="text-2xl font-mono font-bold text-green-400">{pipelineHealth?.status ?? 'OK'}</p>
+          <p className="text-2xl font-mono font-bold text-ink-good">{pipelineHealth?.status ?? 'OK'}</p>
         </div>
       </div>
 
       {canaryList.length > 0 && (
         <div className="rounded-lg border border-border bg-card p-4">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-400" />
+            <AlertTriangle className="w-4 h-4 text-ink-warn" />
             Canary Deployments
           </h3>
           <div className="space-y-2">
             {canaryList.map((c) => (
               <div key={c.agentId} className="flex items-center gap-4 p-3 rounded-md bg-background border border-border">
-                <div className={`w-2 h-2 rounded-full ${c.isActive ? 'bg-green-500 animate-pulse' : 'bg-muted-foreground'}`} />
+                <div className={`w-2 h-2 rounded-full ${c.isActive ? 'bg-success animate-pulse' : 'bg-muted-foreground'}`} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold">{c.agentId}</p>
                   <p className="text-xs text-muted-foreground">
@@ -147,7 +147,7 @@ export default function DomainDistillery() {
                 {c.canaryScore !== undefined && (
                   <div className="text-right">
                     <p className="text-xs font-mono">
-                      <span className="text-green-400">{c.canaryScore?.toFixed(2)}</span>
+                      <span className="text-ink-good">{c.canaryScore?.toFixed(2)}</span>
                       {' / '}
                       <span className="text-muted-foreground">{c.baselineScore?.toFixed(2)}</span>
                     </p>
@@ -163,7 +163,7 @@ export default function DomainDistillery() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="rounded-lg border border-border bg-card p-4">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <FlaskConical className="w-4 h-4 text-amber-400" />
+            <FlaskConical className="w-4 h-4 text-ink-warn" />
             Fine-Tuning Jobs
           </h3>
           {ftLoading ? (
@@ -190,7 +190,7 @@ export default function DomainDistillery() {
 
         <div className="rounded-lg border border-border bg-card p-4">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-indigo-400" />
+            <BarChart3 className="w-4 h-4 text-ink" />
             ML Training Runs
           </h3>
           {runs.length === 0 ? (
@@ -207,7 +207,7 @@ export default function DomainDistillery() {
                     </p>
                   </div>
                   {run.testMetrics && (
-                    <span className="text-[10px] font-mono text-green-400">
+                    <span className="text-[10px] font-mono text-ink-good">
                       {run.testMetrics.accuracy
                         ? `${(run.testMetrics.accuracy * 100).toFixed(1)}%`
                         : run.testMetrics.r2

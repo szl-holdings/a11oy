@@ -17,30 +17,32 @@ name: HF Corpus Guards — Self-test
 on:
   push:
     paths:
-      - 'scripts/szl_corpus_guard_common.py'
-      - 'scripts/check_hf_corpus_*.py'
-      - 'scripts/test_check_hf_corpus_*.py'
-      - 'scripts/test_szl_corpus_publish_gate.py'
-      - 'szl_corpus_publish.py'
-      - '.github/hf-corpus-guards.json'
-      - '.github/workflows/hf-corpus-guards-selftest.yml'
+    - scripts/szl_corpus_guard_common.py
+    - scripts/check_hf_corpus_*.py
+    - scripts/test_check_hf_corpus_*.py
+    - scripts/test_szl_corpus_publish_gate.py
+    - szl_corpus_publish.py
+    - .github/hf-corpus-guards.json
+    - .github/workflows/hf-corpus-guards-selftest.yml
   pull_request:
     paths:
-      - 'scripts/szl_corpus_guard_common.py'
-      - 'scripts/check_hf_corpus_*.py'
-      - 'scripts/test_check_hf_corpus_*.py'
-      - 'scripts/test_szl_corpus_publish_gate.py'
-      - 'szl_corpus_publish.py'
-      - '.github/hf-corpus-guards.json'
-      - '.github/workflows/hf-corpus-guards-selftest.yml'
+    - scripts/szl_corpus_guard_common.py
+    - scripts/check_hf_corpus_*.py
+    - scripts/test_check_hf_corpus_*.py
+    - scripts/test_szl_corpus_publish_gate.py
+    - szl_corpus_publish.py
+    - .github/hf-corpus-guards.json
+    - .github/workflows/hf-corpus-guards-selftest.yml
   workflow_dispatch: {}
-
+  merge_group:
+    types:
+    - checks_requested
 permissions:
   contents: read
 
 concurrency:
   group: hf-corpus-guards-selftest-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   selftest:

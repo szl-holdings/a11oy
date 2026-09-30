@@ -91,8 +91,9 @@
 .szl-origins{display:inline-flex;align-items:center;gap:2px;}
 .szl-origins a,.szl-origins button.szl-origin{
   appearance:none;background:transparent;border:0;color:var(--muted);
+  display:inline-flex;align-items:center;justify-content:center;
   font:inherit;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;
-  padding:7px 10px;border-radius:6px;min-height:36px;
+  padding:7px 10px;border-radius:6px;min-width:48px;min-height:48px;
 }
 .szl-origins a.is-on,.szl-origins button.szl-origin.is-on{color:var(--proof);box-shadow:inset 0 -1px 0 var(--proof);}
 .szl-origins a:hover,.szl-origins button.szl-origin:hover{color:var(--cream);}

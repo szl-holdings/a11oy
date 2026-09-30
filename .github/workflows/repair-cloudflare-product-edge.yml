@@ -1,23 +1,26 @@
-name: Repair Cloudflare Product Root
+name: Repair Cloudflare Product Edge
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/repair-cloudflare-product-edge.yml"
+      - "cloudflare/a11oy-product-root-worker.mjs"
+      - "scripts/repair_cloudflare_product_edge.py"
+      - "tests/test_cloudflare_product_edge.py"
+      - "tests/test_cloudflare_product_edge_worker.mjs"
   push:
     branches: [main]
     paths:
       - ".github/workflows/repair-cloudflare-product-edge.yml"
-      - "cloudflare/**"
+      - "cloudflare/a11oy-product-root-worker.mjs"
       - "scripts/repair_cloudflare_product_edge.py"
       - "tests/test_cloudflare_product_edge.py"
-      - "szl_connectors_serve.py"
-      - "a11oy_landing.html"
-      - "console/assets/szl-flow.css"
-      - "scripts/rollout_frontend_flow_shell.py"
-      - "pages/integrations.html"
-      - "spaces/sda/index.html"
+      - "tests/test_cloudflare_product_edge_worker.mjs"
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Resolve zone and validate route ownership without changing Cloudflare"
+        description: "Resolve exact routes and apex/www DNS proxy state without changing Cloudflare"
         required: false
         type: boolean
         default: false
@@ -27,77 +30,154 @@ permissions:
   issues: write
 
 concurrency:
-  group: cloudflare-product-root
+  group: cloudflare-product-edge-v4
   cancel-in-progress: false
 
 env:
-  EDGE_REPORT: /tmp/cloudflare-product-edge.json
+  EDGE_REPORT: /tmp/cloudflare-product-edge-v4.json
 
 jobs:
-  repair:
-    runs-on: ubuntu-latest
-    timeout-minutes: 12
-    env:
-      GH_TOKEN: ${{ github.token }}
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN || secrets.CLOUDFLARE_TOKEN }}
+  contract:
+    name: Prove bounded routes, reversible DNS cutover, and Worker behavior
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
-      - name: Checkout exact main
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
+      - name: Check out exact candidate
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: main
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
-      - name: Run network-free controller tests
+
+      - name: Run network-free provider-controller tests
         run: python tests/test_cloudflare_product_edge.py -v
-      - name: Deploy exact-scope edge repair and prove the public root
+
+      - name: Run network-free Worker behavior tests
+        run: node --test tests/test_cloudflare_product_edge_worker.mjs
+
+      - name: Check syntax and diff hygiene
+        run: |
+          python -m py_compile scripts/repair_cloudflare_product_edge.py
+          node --check cloudflare/a11oy-product-root-worker.mjs
+          git diff --check
+
+  repair:
+    name: Deploy, cut over exact DNS proxy state, and prove the public edge
+    if: github.event_name != 'pull_request'
+    needs: contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
+      - name: Check out exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Stage exact routes, enable existing web records, and prove public behavior
         id: edge
         shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN || secrets.CLOUDFLARE_TOKEN || secrets.CF_TOKEN || secrets.CLOUDFLARE_WORKERS_API_TOKEN }}
         run: |
           set +e
           args=(--report "$EDGE_REPORT")
-          if [ "${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}" = "true" ]; then args+=(--dry-run); fi
+          if [ "${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}" = "true" ]; then
+            args+=(--dry-run)
+          fi
           python scripts/repair_cloudflare_product_edge.py "${args[@]}"
           code=$?
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           exit 0
-      - name: Upload secret-free edge evidence
+
+      - name: Upload secret-free edge receipt
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: cloudflare-product-edge-${{ github.run_id }}-${{ github.run_attempt }}
+          name: cloudflare-product-edge-v4-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ env.EDGE_REPORT }}
           if-no-files-found: error
           retention-days: 90
-      - name: Publish compact incident update
+
+      - name: Reconcile INC-05 from the receipt
         if: always()
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          python - <<'PY' > /tmp/edge-comment.md
-          import json, os
+          set +e
+          python - <<'PY' > /tmp/cloudflare-product-edge-comment.md
+          import json
+          import os
           from pathlib import Path
-          report = json.loads(Path(os.environ["EDGE_REPORT"]).read_text())
-          print("## Cloudflare product-root controller")
+
+          report = json.loads(Path(os.environ["EDGE_REPORT"]).read_text(encoding="utf-8"))
+          print("## Cloudflare canonical product-edge v4 receipt")
           print()
           print(f"- Run: {os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}")
           print(f"- Status: `{report.get('status', 'UNKNOWN')}`")
-          print(f"- Exact routes: `{', '.join(report.get('routes', []))}`")
+          print(f"- Origin: `{report.get('origin')}`")
+          print(f"- Desired routes: `{', '.join(report.get('desired_routes', []))}`")
+          print(f"- Exact web hosts: `{', '.join(report.get('web_hosts', []))}`")
+          print(f"- DNS initially proxied: `{report.get('dns_initially_proxied')}`")
+          print(f"- DNS mutated: `{report.get('dns_mutated')}`")
+          print(f"- DNS rollback succeeded: `{report.get('dns_rollback_succeeded')}`")
+          print(f"- Token value recorded: `{report.get('token_recorded')}`")
+          for row in report.get("route_results", []):
+              print(f"- Route action: `{row.get('action')}` → `{row.get('state')}`")
+          for row in report.get("dns_results", []):
+              print(f"- DNS action: `{row.get('host')}` `{row.get('type')}` → `{row.get('state')}`")
+          for row in report.get("dns_rollback", []):
+              print(f"- DNS rollback: `{row.get('host')}` `{row.get('type')}` → `{row.get('state')}`")
           probe = report.get("probe") or {}
-          if probe:
-              print(f"- Public root: status `{probe.get('status')}`; edge `{probe.get('edge')}`; body marker `{probe.get('body_has_a11oy')}`")
+          root = probe.get("root") or {}
+          honest = probe.get("honest") or {}
+          www = probe.get("www") or {}
+          if root:
+              print(f"- apex root: HTTP `{root.get('status')}`, edge `{root.get('edge')}`, verified `{probe.get('root_verified')}`")
+          if honest:
+              contract = probe.get("honest_contract") or {}
+              print(f"- honesty API: HTTP `{honest.get('status')}`, organ `{contract.get('organ')}`, locked `{contract.get('locked_formula_count')}`, verified `{probe.get('honest_verified')}`")
+          if www:
+              print(f"- www: HTTP `{www.get('status')}`, location `{www.get('location')}`, edge `{www.get('edge')}`, verified `{probe.get('www_verified')}`")
           if report.get("error"):
               print(f"- Blocker: `{report['error']}`")
-          print("- Token material was not recorded.")
           PY
-          gh issue comment 1359 --body-file /tmp/edge-comment.md
-      - name: Enforce proved result
+          gh issue comment 1497 --body-file /tmp/cloudflare-product-edge-comment.md
+          status="$(python -c 'import json,os; print(json.load(open(os.environ["EDGE_REPORT"]))["status"])')"
+          if [ "$status" = "LIVE" ]; then
+            gh issue close 1497 --reason completed
+          else
+            gh issue reopen 1497 || true
+          fi
+          exit 0
+
+      - name: Enforce proved live edge
+        if: always()
         shell: bash
         run: |
           code="${{ steps.edge.outputs.exit_code }}"
           test -n "$code"
           if [ "$code" -ne 0 ]; then
-            echo "::error::Cloudflare product-root repair did not reach a proved result (exit $code)."
+            echo "::error::The canonical product edge did not reach a proved result; inspect the secret-free v4 receipt."
             exit "$code"
           fi

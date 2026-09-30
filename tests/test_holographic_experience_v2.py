@@ -2,6 +2,7 @@
 """Offline contracts for A11oy Holo-Constellation v2."""
 from __future__ import annotations
 
+import importlib.util
 import json
 import re
 import unittest
@@ -10,6 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CSS_PATH = ROOT / "console" / "assets" / "szl-holo-v2.css"
 JS_PATH = ROOT / "console" / "assets" / "szl-holo-v2.js"
+APEX_PATH = ROOT / "console" / "assets" / "apex-v2.css"
 REGISTRY_PATH = ROOT / "docs" / "holographic-experience-v2" / "theme-registry.json"
 STATE_PATH = ROOT / "docs" / "holographic-experience-v2" / "rollout-state.json"
 BINDER_PATH = ROOT / "scripts" / "rollout_holographic_experience_v2.py"
@@ -20,12 +22,19 @@ SOURCE_MANAGED = {
     "spaces/sda/index.html",
 }
 
+_BINDER_SPEC = importlib.util.spec_from_file_location("szl_holo_binder", BINDER_PATH)
+assert _BINDER_SPEC is not None and _BINDER_SPEC.loader is not None
+_BINDER_MODULE = importlib.util.module_from_spec(_BINDER_SPEC)
+_BINDER_SPEC.loader.exec_module(_BINDER_MODULE)
+is_bound = _BINDER_MODULE.is_bound
+
 
 class HolographicExperienceV2Contract(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.css = CSS_PATH.read_text(encoding="utf-8")
         cls.javascript = JS_PATH.read_text(encoding="utf-8")
+        cls.apex = APEX_PATH.read_text(encoding="utf-8")
         cls.registry = json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
         cls.state = json.loads(STATE_PATH.read_text(encoding="utf-8"))
         cls.binder = BINDER_PATH.read_text(encoding="utf-8")
@@ -90,6 +99,49 @@ class HolographicExperienceV2Contract(unittest.TestCase):
         for token in ("Escape", "aria-expanded", "Skip to main content", "pointerdown"):
             self.assertIn(token, self.javascript)
 
+    def test_frontdoor_touch_geometry_survives_shared_cascade(self) -> None:
+        inner = re.search(
+            r'html\[data-szl-holo="v2"\]\s+body\[data-szl-flow\]\s+'
+            r'\.menu-toggle\{([^}]*)\}',
+            self.apex,
+        )
+        self.assertIsNotNone(inner)
+        inner_contract = inner.group(1)
+        for token in (
+            "width:48px",
+            "height:48px",
+            "min-width:48px",
+            "min-height:48px",
+            "border-radius:6px",
+        ):
+            self.assertIn(token, inner_contract)
+
+        outer = re.search(
+            r'html\[data-szl-holo="v2"\]\s+\.szl-holo-rail\s+'
+            r'\.szl-holo-link,\s*html\[data-szl-holo="v2"\]\s+'
+            r'\.szl-holo-rail\s+\.szl-holo-menu\{([^}]*)\}',
+            self.apex,
+        )
+        self.assertIsNotNone(outer)
+        outer_contract = outer.group(1)
+        for token in (
+            "min-width:56px",
+            "min-height:48px",
+            "height:48px",
+            "border-radius:6px",
+        ):
+            self.assertIn(token, outer_contract)
+
+        def contains_centered_square(width: int, height: int, radius: int) -> bool:
+            inset_x = (width - 44) / 2
+            inset_y = (height - 44) / 2
+            corner_x = max(0.0, radius - inset_x)
+            corner_y = max(0.0, radius - inset_y)
+            return corner_x**2 + corner_y**2 <= radius**2
+
+        self.assertTrue(contains_centered_square(48, 48, 6))
+        self.assertTrue(contains_centered_square(56, 48, 6))
+
     def test_runtime_is_dependency_free_and_non_tracking(self) -> None:
         implementation = self.css + "\n" + self.javascript
         for prohibited in (
@@ -153,6 +205,24 @@ class HolographicExperienceV2Contract(unittest.TestCase):
             self.assertIn(relative, self.binder)
         for prohibited in ("requests.", "urllib", "subprocess", "os.environ", "force_push"):
             self.assertNotIn(prohibited, self.binder)
+
+    def test_binder_ties_each_asset_url_to_its_marked_element(self) -> None:
+        valid = (
+            '<link data-szl-holo-asset="style-v2" href="/assets/szl-holo-v2.css">'
+            '<script defer data-szl-holo-asset="script-v2" src="/assets/szl-holo-v2.js"></script>'
+        )
+        self.assertTrue(is_bound(valid))
+
+        decoy_style = valid.replace(
+            'href="/assets/szl-holo-v2.css"',
+            'href="/wrong.css" data-note="/assets/szl-holo-v2.css"',
+        )
+        decoy_script = valid.replace(
+            'src="/assets/szl-holo-v2.js"',
+            'src="/wrong.js" data-src="/assets/szl-holo-v2.js"',
+        )
+        self.assertFalse(is_bound(decoy_style))
+        self.assertFalse(is_bound(decoy_script))
 
     def test_rollout_state_enforces_exact_bindings_when_active(self) -> None:
         self.assertIn(self.state["state"], {"ASSETS_READY", "ROLLED_OUT"})

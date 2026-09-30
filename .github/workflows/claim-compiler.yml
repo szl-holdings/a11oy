@@ -44,13 +44,16 @@ on:
       - ".github/workflows/release.yml"
       - ".github/workflows/claim-compiler.yml"
   workflow_dispatch: {}
+  merge_group:
+    types: [checks_requested]
+    branches: [main, agent/evidenceos-claim-wave36]
 
 permissions:
   contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   claim-compiler:

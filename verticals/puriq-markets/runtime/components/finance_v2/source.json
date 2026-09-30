@@ -1,0 +1,7 @@
+{
+  "repository": "szl-holdings/vertical-services",
+  "revision": "f487dc0fdc71af52841e3634bf7b9c6bf9fb6448",
+  "path": "services/finance/engine.py",
+  "engine_sha256": "78816c492102ffb8b0ab958a18a89adb1e57eb77a93d1c89a7b6a92a20b691b6",
+  "integration": "math-only; provider and ledger ownership remain canonical A11oy"
+}

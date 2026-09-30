@@ -48,6 +48,11 @@ def test_healthz_liveness(client):
     assert body["signer"]["status"] in ("ABSENT", "UNAVAILABLE")
     assert body["signer"]["status"] != "DSSE-LIVE"
     assert body["signer"]["signing_available"] is False
+    dsse = body.get("dsse_live") or {}
+    assert dsse.get("status") in ("ABSENT", "UNAVAILABLE")
+    assert dsse.get("status") != "DSSE-LIVE"
+    assert dsse.get("signing_available") is False
+    assert dsse.get("rollup") == "/api/a11oy/healthz"
 
 
 def test_healthz_head_matches_get(client):
@@ -188,6 +193,44 @@ def test_honest_footer_exact_lock(client):
     assert body["locked_formula_count"] == 8
     assert body["locked_formula_ids"] == lock["locked_formula_ids"]
     assert body["footer"] == "Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1"
+    # 163 is lean_numbers.py sorries_raw @ c7c0ba17 (text occurrences incl. comments);
+    # the same script gives sorries_noncomment = 149 at that commit.
+    assert lock["sorries_method"].startswith(
+        "lutar-lean .github/scripts/lean_numbers.py sorries_raw @ c7c0ba17")
+    assert "including comments and docstrings" in lock["sorries_method"]
+    assert "not a count of open proof obligations" in lock["sorries_method"]
+    assert lock["sorries_noncomment"] == 149
+    # 149 drops only `--` line comments; the served label must say so.
+    nc = lock["sorries_noncomment_method"]
+    assert "drops only lines whose first non-blank characters are `--`" in nc
+    assert "/- -/ block comments" in nc and "/-- -/ doc comments" in nc
+    assert "not a count of open proof obligations" in nc
+    # The locked-8 theorems are not in lutar-lean at c7c0ba17; the source is pinned
+    # to an immutable lutar-lean commit, never a moving branch.
+    src = lock["locked_formula_source"]
+    assert src.startswith("lutar-lean Lutar/Puriq/Formulas/ProvedFormulas.lean @ 3a886349")
+    assert "lutar-lean main" not in src
+    assert "not present at c7c0ba17" in src
+    assert "outside the 749/14/163 count" in src
+    assert "huggingface_hub_version" in body
+    assert isinstance(body["huggingface_hub_version"], str)
+    assert body["huggingface_hub_version"]
+
+
+def test_huggingface_hub_version_helper_unavailable_without_module(monkeypatch):
+    import sys
+    monkeypatch.setitem(sys.modules, "huggingface_hub", None)
+    assert H.huggingface_hub_version() == "UNAVAILABLE"
+
+
+def test_huggingface_hub_version_helper_does_not_invent_pin(monkeypatch):
+    import sys
+    import types
+    fake = types.ModuleType("huggingface_hub")
+    fake.__version__ = "9.9.9-test"
+    monkeypatch.setitem(sys.modules, "huggingface_hub", fake)
+    assert H.huggingface_hub_version() == "9.9.9-test"
+    assert H.huggingface_hub_version() != "1.31.0"
 
 
 # ---- 2: rate limiting (RATE_LIMIT_PER_MIN/min/IP on the data surface) -------

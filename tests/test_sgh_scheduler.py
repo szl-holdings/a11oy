@@ -15,6 +15,7 @@ cycle (inspiration: arXiv:2604.11378, own-code reimplementation). Asserts:
 The module-level unit tests need no app; the wiring tests boot the real app
 in-process via Starlette TestClient (no mocks).
 """
+import json
 import warnings
 
 import pytest
@@ -140,6 +141,36 @@ starlette_testclient = pytest.importorskip("starlette.testclient")
 TestClient = starlette_testclient.TestClient
 
 import serve  # noqa: E402
+import szl_agentic_loop as runtime_loop  # noqa: E402
+
+
+_OPERATOR_TOKEN = "test-sgh-operator-token"
+_OPERATOR_HEADERS = {"Authorization": f"Bearer {_OPERATOR_TOKEN}"}
+
+
+@pytest.fixture(autouse=True)
+def configured_runtime_operator(monkeypatch):
+    monkeypatch.setenv("A11OY_OPERATOR_CREDENTIALS_JSON", json.dumps({
+        "version": 1,
+        "credentials": [{
+            "owner_id": "operator:test",
+            "namespace": "a11oy",
+            "key_id": "sgh-test-key",
+            "token": _OPERATOR_TOKEN,
+            "scopes": ["agent:cycle"],
+            "revoked": False,
+        }],
+    }))
+    monkeypatch.setenv("A11OY_OPERATOR_NAMESPACE", "a11oy")
+    monkeypatch.setenv("A11OY_OPERATOR_MIN_INTERVAL_SEC", "0")
+    monkeypatch.delenv("A11OY_OPERATOR_PRINCIPALS_JSON", raising=False)
+    with runtime_loop._OPERATOR_ACTION_LOCK:
+        runtime_loop._OPERATOR_ACTION_PENDING.clear()
+        runtime_loop._OPERATOR_ACTION_LAST.clear()
+    yield
+    with runtime_loop._OPERATOR_ACTION_LOCK:
+        runtime_loop._OPERATOR_ACTION_PENDING.clear()
+        runtime_loop._OPERATOR_ACTION_LAST.clear()
 
 
 @pytest.fixture(scope="module")
@@ -154,7 +185,8 @@ def test_cycle_default_off_no_sgh_key(client, monkeypatch):
     r = client.post("/api/a11oy/v1/agent/cycle",
                     json={"query": "deploy a low-risk reversible change",
                           "severity": "low", "reversible": True,
-                          "budget": 5, "eps": 0.01})
+                          "budget": 5, "eps": 0.01, "loop": True},
+                    headers=_OPERATOR_HEADERS)
     assert r.status_code == 200
     body = r.json()
     assert body.get("cycle") is True
@@ -167,7 +199,8 @@ def test_cycle_sgh_enabled_exposes_plan_dag_and_halts(client, monkeypatch):
     r = client.post("/api/a11oy/v1/agent/cycle",
                     json={"query": "deploy a low-risk reversible change",
                           "severity": "low", "reversible": True,
-                          "budget": 5, "eps": 0.01})
+                          "budget": 5, "eps": 0.01, "loop": True},
+                    headers=_OPERATOR_HEADERS)
     assert r.status_code == 200
     body = r.json()
     # Core cycle fields are still present (wrapping, not replacing).
@@ -193,7 +226,8 @@ def test_cycle_sgh_bounded_escalation_on_never_converge(client, monkeypatch):
     r = client.post("/api/a11oy/v1/agent/cycle",
                     json={"query": "deploy a low-risk reversible change",
                           "severity": "low", "reversible": True,
-                          "budget": 3, "eps": -1.0})
+                          "budget": 3, "eps": -1.0, "loop": True},
+                    headers=_OPERATOR_HEADERS)
     assert r.status_code == 200
     sgh = r.json().get("sgh")
     assert sgh is not None

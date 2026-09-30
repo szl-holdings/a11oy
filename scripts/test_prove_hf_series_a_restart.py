@@ -268,6 +268,16 @@ class MissingPreRestartReceiptSession(Session):
 class Api:
     def __init__(self) -> None:
         self.calls = []
+        self.pause_calls = []
+        self.runtime_calls = []
+
+    def pause_space(self, **kwargs):
+        self.pause_calls.append(kwargs)
+        return SimpleNamespace(stage=SimpleNamespace(value="PAUSING"))
+
+    def get_space_runtime(self, **kwargs):
+        self.runtime_calls.append(kwargs)
+        return SimpleNamespace(stage=SimpleNamespace(value="PAUSED"))
 
     def restart_space(self, **kwargs):
         self.calls.append(kwargs)
@@ -507,19 +517,20 @@ def test_failure_report_preserves_secret_free_restart_evidence() -> None:
     assert "[REDACTED]" in encoded
 
 
-def test_main_writes_failure_report_and_remains_nonzero(
+def test_main_blocks_before_credentials_or_proof_effects(
     monkeypatch,
     tmp_path: pathlib.Path,
 ) -> None:
     secret = "hf_example_secret_value"
     output = tmp_path / "restart-proof.json"
     monkeypatch.setenv("HF_TOKEN", secret)
-    monkeypatch.setattr(proof, "HfApi", lambda token: Api())
+    attempts = []
 
-    def refuse(**kwargs):
-        kwargs["evidence"]["phase"] = "verify_pre_restart_head"
-        raise proof.RestartProofError("refused with " + secret)
+    def refuse(*args, **kwargs):
+        attempts.append("unreviewed live effect")
+        raise AssertionError("blocked CLI must not initialize or invoke a provider")
 
+    monkeypatch.setattr(proof, "HfApi", refuse)
     monkeypatch.setattr(proof, "prove", refuse)
     monkeypatch.setattr(
         sys,
@@ -533,12 +544,14 @@ def test_main_writes_failure_report_and_remains_nonzero(
         ],
     )
 
-    with pytest.raises(proof.RestartProofError, match="refused"):
-        proof.main()
+    assert proof.main() == 1
 
     report = json.loads(output.read_text(encoding="utf-8"))
     assert report["status"] == "FAIL"
-    assert report["evidence"]["phase"] == "verify_pre_restart_head"
+    assert report["ok"] is False
+    assert report["credential_authority_state"] == "UNKNOWN"
+    assert report["evidence"] == {}
+    assert attempts == []
     assert secret not in output.read_text(encoding="utf-8")
 
 

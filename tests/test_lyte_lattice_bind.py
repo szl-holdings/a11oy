@@ -1,9 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Static contracts for the LYTE lattice BIND surface on a-11-oy.com.
-
-Locks BIND_AS_A11OY_PACKAGE honesty without pretending a source inspection is a
-live Hub, GPU cluster, RAPL meter, or product certificate.
-"""
+"""Static contracts for the LYTE lattice BIND surface on a-11-oy.com."""
 from pathlib import Path
 
 import szl_lyte_lattice as lyte
@@ -28,7 +24,7 @@ def test_page_does_not_claim_certificate_or_flagship() -> None:
     assert "not a second flagship" in PAGE.lower()
     assert "not a production certificate" in PAGE.lower()
     assert "BIND_AS_A11OY_PACKAGE" in PAGE
-    assert "a11oy.com" in PAGE  # never-origin disclosure
+    assert "a11oy.com" in PAGE
     assert "Do not rehost" in PAGE or "do not rehost" in PAGE.lower()
 
 
@@ -42,13 +38,14 @@ def test_status_is_bind_unsigned_and_unmeasured() -> None:
     assert s["honesty"]["occupancy"].startswith("UNAVAILABLE")
     assert s["hub"]["running"] is False
     assert s["hub"]["state"] == "UNAVAILABLE"
-    assert s["source"]["sha"].startswith("2773eba")
+    assert s["source"]["sha"].startswith("9db7f25")
     assert s["khipu_receipt"]["proven_trust"] is False
     assert s["product"]["certified"] is False
     assert s["product"]["path"] == "/lyte"
-    assert len(s["frontiers"]) == 26
+    assert len(s["frontiers"]) == 28
     assert s["frontiers"][0]["n"] == "lyte"
-    assert s["frontiers"][-1]["n"] == "N25"
+    assert s["frontiers"][-1]["n"] == "N27"
+    assert len(s["waves"]) == 3
 
 
 def test_healthz_never_claims_hub_running() -> None:
@@ -71,7 +68,6 @@ def test_landing_binds_the_package_without_lyte_title_case() -> None:
     assert 'href="/lyte"' in LANDING
     assert "LYTE lattice" in LANDING
     assert "not a second flagship" in LANDING.lower() or "BIND package" in LANDING
-    # lexicon_gate bans \\bLyte\\b on the landing. All-caps LYTE is the allowed form.
     assert "Lyte lattice" not in LANDING
 
 

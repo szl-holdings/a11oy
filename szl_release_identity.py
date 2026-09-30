@@ -7,9 +7,11 @@ DOIs remain separately typed so a UI cannot present either as the new release.
 
 from __future__ import annotations
 
+import json
 import os
 import re
-import json
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +28,51 @@ FORMAL_ARTIFACT_DOI = "10.5281/zenodo.20434276"
 _ZENODO_DOI_RE = re.compile(r"^10\.5281/zenodo\.\d+$")
 _EXPECTED_RELEASE_TAG = f"v{SOFTWARE_VERSION}"
 _READBACK_PATH = Path(__file__).with_name("zenodo-readback.json")
+HF_SPACE_ID = "SZLHOLDINGS/a11oy"
+_HF_SHA_RE = re.compile(r"^[0-9a-f]{7,40}$")
+_HF_SPACE_API = f"https://huggingface.co/api/spaces/{HF_SPACE_ID}"
+
+
+def hf_space_sha_readback(*, timeout: float = 8.0) -> dict[str, Any]:
+    """Live Hub GET. Fail closed to UNKNOWN. Env is CONFIGURED, not verified.
+
+    ``SZL_HF_SHA`` never upgrades an unreachable probe. A hash match with the
+    live Space is OBSERVED, not a signed relock and not OPERATIONAL.
+    """
+
+    configured = (os.getenv("SZL_HF_SHA") or "").strip()
+    if configured in {"", "UNKNOWN"}:
+        configured = None
+    try:
+        req = urllib.request.Request(
+            _HF_SPACE_API,
+            headers={
+                "User-Agent": "szl-release-identity/hf-space-sha-readback",
+                "Accept": "application/json",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=timeout) as res:
+            payload = json.loads(res.read().decode("utf-8", "replace"))
+        sha = str((payload.get("sha") or (payload.get("runtime") or {}).get("sha") or "")).strip()
+        if not _HF_SHA_RE.fullmatch(sha):
+            raise ValueError("hub sha missing")
+        return {
+            "sha": sha,
+            "status": "OBSERVED",
+            "source": "huggingface_api",
+            "space": HF_SPACE_ID,
+            "configured_env": configured,
+            "env_matches_live": bool(configured and configured == sha),
+        }
+    except (OSError, ValueError, TypeError, urllib.error.URLError, json.JSONDecodeError):
+        return {
+            "sha": "UNKNOWN",
+            "status": "UNKNOWN",
+            "source": "probe_failed",
+            "space": HF_SPACE_ID,
+            "configured_env": configured,
+            "env_matches_live": False,
+        }
 
 
 def _configured_version_doi() -> str | None:

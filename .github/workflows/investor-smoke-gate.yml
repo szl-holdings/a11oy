@@ -3,6 +3,15 @@ name: Investor smoke gate (S1–S12)
 # Fail-closed investor-honest quality gate. Does not merge. Does not touch
 # Dockerfile / HF byte parity. Does not rewrite genome.json. No POST.
 #
+# Admission lifecycle:
+# - pull requests run deterministic source contracts and the S7 source bind;
+# - protected-main pushes, the six-hour schedule, and manual dispatch also run
+#   the live provider measurements;
+# - a provider outage remains visible and red in the post-merge monitor, but it
+#   cannot deadlock an unrelated source-only security or documentation change.
+# A skipped live job on a pull request is an explicit lifecycle state, not proof
+# that either public origin is healthy.
+#
 # Origin contract:
 # - a-11-oy.com is the static product/front-door origin.
 # - szlholdings-a11oy.hf.space is the canonical live application runtime.
@@ -15,9 +24,6 @@ name: Investor smoke gate (S1–S12)
 # #cnt-locked on main. S1/S2 product is 1394 on main; live probes measure
 # origin and must not invent LIVE. Do not touch 1363.
 #
-# This workflow is ordinary Actions until branch protection lists the exact
-# check-run names. This PR cannot self-certify as control-plane-required.
-#
 # Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
 
 on:
@@ -25,7 +31,9 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-  workflow_dispatch:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch: {}
 
 permissions:
   contents: read
@@ -82,6 +90,7 @@ jobs:
 
   live:
     name: Investor smoke live probes
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:

@@ -951,10 +951,8 @@ except Exception as _a11oy_ti_e:  # pragma: no cover
 # live/cached/unreachable labels. Same resilience pattern as evidence module.
 # Additive, try/except-guarded, registered EARLY (before the SPA catch-all). Pure stdlib.
 try:
-    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
-        from szl_substrate import szl_readiness as _szl_readiness  # single source of truth
-    except Exception:
-        import szl_readiness as _szl_readiness
+    # Bind selection to the Docker-copied, shared-source-checked module.
+    import szl_readiness as _szl_readiness
     _szl_readiness.register(app, ns="a11oy")
     print("[a11oy] Operational Readiness registered: /api/a11oy/v1/readiness", file=__import__("sys").stderr)
 except Exception as _szl_rd_e:  # pragma: no cover
@@ -1378,6 +1376,40 @@ try:
 except Exception as _szl_fm_e:  # pragma: no cover
     print(f"[a11oy] Frontier manifest NOT registered: {_szl_fm_e!r}", file=__import__("sys").stderr)
 
+# Fail-closed advisory surfaces from #2205/#2260. They answer UNAVAILABLE/HOLD/BLOCKED.
+# None of these routes mint receipts, paint LIVE, or promote ALLOW.
+try:
+    import szl_dream_gate as _szl_dream_gate
+    _szl_dream_gate.register(app, ns="a11oy")
+    print("[a11oy] dream_gate registered: /api/a11oy/v1/dream/* (DREAM, never LIVE/ALLOW)", file=__import__("sys").stderr)
+except Exception as _szl_dg_e:  # pragma: no cover
+    print(f"[a11oy] szl_dream_gate NOT registered: {_szl_dg_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_frontier_gate as _szl_frontier_gate
+    _szl_frontier_gate.register(app, ns="a11oy")
+    print("[a11oy] frontier_gate registered: /api/a11oy/v1/frontier/status (advisory HOLD)", file=__import__("sys").stderr)
+except Exception as _szl_fg_e:  # pragma: no cover
+    print(f"[a11oy] szl_frontier_gate NOT registered: {_szl_fg_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_hf_scout as _szl_hf_scout
+    _szl_hf_scout.register(app, ns="a11oy")
+    print("[a11oy] hf_scout registered: /api/a11oy/v1/hf-scout/* (likes are not LIVE)", file=__import__("sys").stderr)
+except Exception as _szl_hs_e:  # pragma: no cover
+    print(f"[a11oy] szl_hf_scout NOT registered: {_szl_hs_e!r}", file=__import__("sys").stderr)
+try:
+    import szl_kernel_hold as _szl_kernel_hold
+    _szl_kernel_hold.register(app, ns="a11oy")
+    print("[a11oy] kernel_hold registered: /api/a11oy/v1/kernel/* (v1 missing, HOLD)", file=__import__("sys").stderr)
+except Exception as _szl_kh_e:  # pragma: no cover
+    print(f"[a11oy] szl_kernel_hold NOT registered: {_szl_kh_e!r}", file=__import__("sys").stderr)
+
+try:
+    import szl_jev_gate as _szl_jev_gate
+    _szl_jev_gate.register(app, ns="a11oy")
+    print("[a11oy] jev_gate registered: /api/a11oy/v1/jev/* (advisory System One, never LIVE/ALLOW)", file=__import__("sys").stderr)
+except Exception as _szl_jg_e:  # pragma: no cover
+    print(f"[a11oy] szl_jev_gate NOT registered: {_szl_jg_e!r}", file=__import__("sys").stderr)
+
 # zkML Proof-of-Inference ("Cryptographic Receipts") — GET /api/a11oy/v1/frontier/zkinfer
 # returns the CRYPTOGRAPHIC-PROOF trust branch of verifiable inference (counterpart to the
 # TEE branch, ccattest): literature-parameterized zkML proof-cost models (prover time / proof
@@ -1678,9 +1710,10 @@ except Exception as _szl_kv2_e:  # pragma: no cover
 # szl_public_verify lets ANY visitor (investor/auditor/skeptic) PASTE a DSSE/SZL
 # receipt (or a receipt id) at /verify and get an INDEPENDENT verdict computed by
 # POST /api/a11oy/v1/verify/receipt {envelope|receipt_id}. It runs three honest
-# checks: (1) ECDSA-P256 signature vs the PUBLISHED SZLHOLDINGS cosign.pub (reuses
-# szl_dsse.verify_envelope), (2) re-hash the payload and compare to the digest the
-# payload DECLARES about itself (payload_digest) — NOT the chain seal id (the old
+# checks: (1) ECDSA-P256 signature vs this deployment's runtime key (/cosign.pub),
+# then the retained szl_dsse keyring (szl_dsse.verify_envelope), (2) re-hash the
+# payload and compare to the digest the payload DECLARES about itself
+# (payload_digest) — NOT the chain seal id (the old
 # simultaneous VERIFIED+MISMATCH bug is NOT reintroduced), (3) walk/validate the
 # hash-chain to genesis (reuses szl_khipu_verify.verify_digest). Each check is
 # labelled VERIFIED / MISMATCH / UNSIGNED-LOCAL / UNAVAILABLE; nothing is fabricated;
@@ -1847,6 +1880,22 @@ try:
     print(f"[a11oy] Brain API registered: {_brain_api_status}", file=__import__("sys").stderr)
 except Exception as _brain_api_e:  # pragma: no cover
     print(f"[a11oy] Brain API NOT registered: {_brain_api_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+# -- OWNED KHIPU GOVERNED CORTEX -- proposal-only CPU inference over the
+# exact SZLHOLDINGS/SZL-Khipu-1.5B-GGUF artifact. Registered after the
+# Brain API and before the SPA fallback; import failure leaves existing
+# routes available and is reported honestly.
+try:
+    import a11oy_governed_cortex as _a11oy_governed_cortex
+    print(
+        "[a11oy] " + _a11oy_governed_cortex.register(app, ns="a11oy"),
+        file=__import__("sys").stderr,
+    )
+except Exception as _a11oy_governed_cortex_e:  # pragma: no cover
+    print(
+        f"[a11oy] owned Khipu cortex NOT registered: {_a11oy_governed_cortex_e!r}",
+        file=__import__("sys").stderr,
+    )
 
 # -- BRAIN CAPABILITIES LEDGER -- exposes the honest capability contract that the
 # holographic brain must obey: OPERATIONAL / PARTIALLY OPERATIONAL / MODELED /
@@ -4179,7 +4228,8 @@ app.add_middleware(
     # routes, and every document route accepts HEAD, so the CORS preflight answer
     # must say so instead of implying HEAD is unsupported.
     allow_methods=["GET", "HEAD", "POST", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+    allow_headers=["Content-Type", "Authorization", "X-Requested-With",
+                   "X-A11oy-Second-Approver"],
 )
 
 # ===========================================================================
@@ -4304,6 +4354,9 @@ try:
     app.add_api_route("/a11oy/fleet-c2", _ptg_serve("fleet-c2.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/living-anatomy", _ptg_serve("living-anatomy.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/living-anatomy", _ptg_serve("living-anatomy.html"), methods=["GET"], include_in_schema=False)
+    async def _anatomy_alias():
+        return RedirectResponse("/living-anatomy", status_code=302)
+    app.add_api_route("/anatomy", _anatomy_alias, methods=["GET"], include_in_schema=False)
     # ATELIER (2026-08-29): declared product surface. pages/atelier.html rides
     # the wholesale COPY pages/ — no Dockerfile edit (protected admission input).
     # Serve the walk in-app. If the page is missing, 307 to the RUNNING Space.
@@ -4754,7 +4807,13 @@ try:
     from fastapi import FastAPI as _AnatFA
     import szl_anatomy_routes as _anat_mod
     _anat_html_app = _AnatFA()
+    from fastapi.responses import RedirectResponse as _AnatRedirect
     _anat_paths = _anat_mod.register(app, ns="a11oy", api_app=None, html_app=_anat_html_app)
+    # Mount steals exact GET /anatomy from the living-anatomy alias. Put the
+    # 302 on the sub-app root so /anatomy and /anatomy/ both reach the page.
+    async def _anat_mount_root():
+        return _AnatRedirect("/living-anatomy", status_code=302)
+    _anat_html_app.add_api_route("/", _anat_mount_root, methods=["GET"], include_in_schema=False)
     app.mount("/anatomy", _anat_html_app)
     print(f"[a11oy] anatomy run-engine wired ({len(_anat_paths)} routes; HTML at /anatomy/*): {_anat_paths}", file=sys.stderr)
 except Exception as _anat_e:  # additive: never break the Space
@@ -5832,8 +5891,35 @@ async def evidence() -> JSONResponse:
     })
 
 
-@app.post("/api/a11oy/v1/ouroboros/run-all")
-async def ouroboros_run_all() -> JSONResponse:
+@app.get("/api/a11oy/v1/ouroboros")
+@app.get("/api/a11oy/v1/ouroboros/status")
+async def ouroboros_status() -> JSONResponse:
+    """Read-only loop/runner presence. GET never executes the 32-module suite."""
+    from pathlib import Path as _P
+    here = _P(__file__).resolve().parent
+    candidates = [
+        "/app/OUROBOROS_RUN_ALL.py",
+        "/app/ouroboros/OUROBOROS_RUN_ALL.py",
+        str(here / "OUROBOROS_RUN_ALL.py"),
+        str(here / "ouroboros" / "OUROBOROS_RUN_ALL.py"),
+    ]
+    found = next((c for c in candidates if _P(c).is_file()), None)
+    return JSONResponse({
+        "schema": "szl.ouroboros.status.v1",
+        "truth": "REPORTED",
+        "runner_present": bool(found),
+        "runner_id": _P(found).name if found else None,
+        "deployment_enabled": os.environ.get("A11OY_OUROBOROS_RUN_ALL") == "1",
+        "authorization": "required",
+        "run": "POST /api/a11oy/v1/ouroboros/run-all",
+        "cycle": "authorized POST /api/a11oy/v1/agent/cycle with strict boolean loop=true",
+        "bound": 4,
+        "note": "Loop is bounded. Convergence is advisory. Lambda remains Conjecture 1.",
+        "doctrine": "v11",
+    })
+
+
+def _ouroboros_run_all_sync() -> dict:
     """
     Ouroboros Run-All endpoint — executes the 32-module self-test suite.
     Returns {tests_run, tests_pass, tests_fail, tests_blocked, verdict, receipts: [...]}.
@@ -5890,9 +5976,12 @@ async def ouroboros_run_all() -> JSONResponse:
 
     # Attempt to locate and execute OUROBOROS_RUN_ALL.py from known paths
     import subprocess, tempfile, os as _os
+    _here = __import__('pathlib').Path(__file__).resolve().parent
     _OUROBOROS_CANDIDATES = [
         "/app/OUROBOROS_RUN_ALL.py",
         "/app/ouroboros/OUROBOROS_RUN_ALL.py",
+        str(_here / "OUROBOROS_RUN_ALL.py"),
+        str(_here / "ouroboros" / "OUROBOROS_RUN_ALL.py"),
     ]
     ouroboros_path = None
     for _c in _OUROBOROS_CANDIDATES:
@@ -5964,7 +6053,7 @@ async def ouroboros_run_all() -> JSONResponse:
         verdict = "BLOCKED"
     else:
         verdict = "GREEN"
-    return JSONResponse({
+    return {
         "tests_run": len(receipts),
         "tests_pass": tests_pass,
         "tests_fail": tests_fail,
@@ -5974,7 +6063,63 @@ async def ouroboros_run_all() -> JSONResponse:
         "doctrine": "v11",
         "canonical": {"declarations": 749, "axioms": 14, "sorries": 163, "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"}},
         "receipts": receipts,
-    })
+    }
+
+
+@app.post("/api/a11oy/v1/ouroboros/run-all")
+async def ouroboros_run_all(request: Request) -> JSONResponse:
+    """Run the bounded suite off-loop for one explicitly authorised operator."""
+    if os.environ.get("A11OY_OUROBOROS_RUN_ALL") != "1":
+        return JSONResponse({
+            "state": "unavailable",
+            "error": "ouroboros run-all is disabled by deployment policy",
+        }, status_code=503)
+
+    from gdw_auth import AuthConfigurationError, AuthenticationError
+    from szl_agentic_loop import (
+        _operator_action_claim,
+        _operator_action_release,
+        _operator_authenticate,
+    )
+    try:
+        principal = _operator_authenticate(
+            request.headers.get("authorization"), "a11oy", "ouroboros:run")
+    except AuthConfigurationError:
+        return JSONResponse({
+            "state": "unavailable",
+            "error": "operator credential registry is unavailable",
+        }, status_code=503)
+    except AuthenticationError as exc:
+        status = 403 if exc.code in {
+            "credential_revoked", "foreign_namespace", "missing_scopes",
+        } else 401
+        headers = {"WWW-Authenticate": "Bearer"} if status == 401 else None
+        return JSONResponse({"state": "denied", "error": exc.code},
+                            status_code=status, headers=headers)
+
+    identity, retry_after = _operator_action_claim(principal, "a11oy", "ouroboros-run-all")
+    if identity is None:
+        return JSONResponse({
+            "state": "rate_limited",
+            "error": "an ouroboros run is already active or this principal is inside its cooldown",
+            "retry_after_s": retry_after,
+        }, status_code=429, headers={"Retry-After": str(retry_after)})
+    try:
+        import anyio
+        result = await anyio.to_thread.run_sync(_ouroboros_run_all_sync)
+        result["operator"] = {
+            "owner_id": principal.owner_id,
+            "namespace": principal.namespace,
+            "key_id": principal.key_id,
+        }
+        return JSONResponse(result)
+    except Exception:
+        return JSONResponse({
+            "state": "unavailable",
+            "error": "ouroboros run-all execution unavailable",
+        }, status_code=503)
+    finally:
+        _operator_action_release(identity)
 
 
 # ---------------------------------------------------------------------------
@@ -7170,6 +7315,27 @@ async def _a11oy_pr_honest_v2():
             "locked_formula_ids": [
                 "F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22",
             ],
+            # Same labels as szl_be_hardening.DOCTRINE_LOCK (see there for the
+            # reproduce command and the 3a886349 pin).
+            "sorries_method": (
+                "lutar-lean .github/scripts/lean_numbers.py sorries_raw @ c7c0ba17 — "
+                "word-boundary 'sorry' text occurrences in Lutar/**+Main.lean, including "
+                "comments and docstrings; not a count of open proof obligations"
+            ),
+            "sorries_noncomment": 149,
+            "sorries_noncomment_method": (
+                "same script and commit (lutar-lean .github/scripts/lean_numbers.py @ "
+                "c7c0ba17) — drops only lines whose first non-blank characters are `--`; "
+                "'sorry' text inside /- -/ block comments, /-- -/ doc comments and trailing "
+                "`--` comments after code is still counted; not a count of open proof "
+                "obligations"
+            ),
+            "locked_formula_source": (
+                "lutar-lean Lutar/Puriq/Formulas/ProvedFormulas.lean @ 3a886349 "
+                "(checked 2026-09-25; file added 2026-06-04 e6de491, last changed "
+                "2026-06-10 5cfaf9a; not present at c7c0ba17; experimental scope, "
+                "outside the 749/14/163 count)"
+            ),
         }
     _locked_count = _honest_lock.get("locked_formula_count")
     _locked_ids = list(_honest_lock.get("locked_formula_ids") or [])
@@ -7177,8 +7343,12 @@ async def _a11oy_pr_honest_v2():
         "space": "a11oy",
         "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
+        "sorries_method": _honest_lock.get("sorries_method"),
+        "sorries_noncomment": _honest_lock.get("sorries_noncomment"),
+        "sorries_noncomment_method": _honest_lock.get("sorries_noncomment_method"),
         "locked_formula_count": _locked_count,
         "locked_formula_ids": _locked_ids,
+        "locked_formula_source": _honest_lock.get("locked_formula_source"),
         "doctrine_lock": _honest_lock,
         "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "kernel_commit": "c7c0ba17",
@@ -7206,6 +7376,16 @@ async def _a11oy_pr_honest_v2():
             _A11OY_SLSA_TEXT,
         ],
         "role": "Brand Orchestration / gates",
+        "atelier_command_centre": {
+            "state": "SOURCE_PRESENT_RUNTIME_GATES_REQUIRED",
+            "entry": "/command-centre",
+            "health": "/api/a11oy/v1/atelier/health",
+            "inference_verified": False,
+            "continuity": "SINGLE_TURN_NO_SERVER_TEXT_HISTORY",
+            "external_provider": "xai",
+            "owned_grok_weights": False,
+            "note": "Read-only navigation and configuration are not successful inference or release closure.",
+        },
     })
 
 @app.get("/api/a11oy/v1/audit-log")
@@ -7225,9 +7405,13 @@ async def _a11oy_pr_audit_log_v2(limit: int = 50):
 @app.get("/api/a11oy/v1/brain")
 async def _a11oy_pr_brain_route_v2():
     """Unified brain payload — a11oy brand-orchestration role. Doctrine v11 LOCKED."""
+    return JSONResponse(_a11oy_brain_body())
+
+
+def _a11oy_brain_body() -> dict:
     if _A11OY_BRAIN_OK:
-        return JSONResponse(_a11oy_pr_brain.brain_payload("a11oy"))
-    return JSONResponse({
+        return _a11oy_pr_brain.brain_payload("a11oy")
+    return {
         "space": "a11oy", "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
         "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
@@ -7235,6 +7419,63 @@ async def _a11oy_pr_brain_route_v2():
         "role": "Brand Orchestration / gates",
         "lambda_floor": 0.90,
         "honesty": "szl_brain unavailable in this build; honest stub returned.",
+    }
+
+
+@app.get("/api/a11oy/v1/second-brain")
+async def _a11oy_second_brain_alias():
+    """Alias of GET /api/a11oy/v1/brain. Same-origin Second Brain, not a second corpus."""
+    return JSONResponse({
+        "schema": "szl.second-brain.alias.v1",
+        "truth": "REPORTED",
+        "alias_of": "/api/a11oy/v1/brain",
+        "surfaces": ["/brain", "/holographic#brain", "/living-anatomy"],
+        "note": "Second Brain on this origin is the same-origin /brain surface plus the holographic #brain slot. This path is an alias, not a second index and not a claim the external second-brain Space is LIVE.",
+        "doctrine": "v11",
+        "payload": _a11oy_brain_body(),
+    })
+
+
+@app.get("/api/a11oy/v1/codex")
+async def _a11oy_codex_alias():
+    """Alias envelope for the named-formula registry. Locked-8 stays 8."""
+    return JSONResponse({
+        "schema": "szl.codex.alias.v1",
+        "truth": "REPORTED",
+        "alias_of": "/api/a11oy/v1/formulas",
+        "surfaces": ["/formulas", "/ouroboros", "/living-anatomy"],
+        "locked_8": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
+        "lambda": "Conjecture 1",
+        "note": "Codex on this origin is the named-formula registry. Extra named rows are not locked-proven. Follow alias_of for the live list.",
+        "doctrine": "v11",
+        "formulas": "/api/a11oy/v1/formulas",
+    })
+
+
+@app.get("/api/a11oy/v1/anatomy")
+async def _a11oy_anatomy_index():
+    """Index only. Does not claim the creator-profile anatomy Space is LIVE."""
+    return JSONResponse({
+        "schema": "szl.anatomy.index.v1",
+        "truth": "REPORTED",
+        "product_surface": "/living-anatomy",
+        "holo": "/holographic",
+        "holo_brain": "/holographic#brain",
+        "loop": "/api/a11oy/v1/anatomy/loop",
+        "vitals": "/api/a11oy/v1/anatomy/vitals",
+        "brain": "/api/a11oy/v1/brain",
+        "second_brain": "/api/a11oy/v1/second-brain",
+        "formulas": "/api/a11oy/v1/formulas",
+        "codex": "/api/a11oy/v1/codex",
+        "ouroboros": "/api/a11oy/v1/ouroboros",
+        "external_estate": {
+            "origin": "https://betterwithage-anatomy.hf.space",
+            "label": "SEPARATE_ORIGIN",
+        },
+        "locked_8": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
+        "lambda": "Conjecture 1",
+        "note": "Index of same-origin anatomy wiring. External estate origin is labelled separately and is not this payload.",
+        "doctrine": "v11",
     })
 
 @app.get("/api/a11oy/v1/llm/tiers")
@@ -7678,7 +7919,8 @@ for _navmod, _navlabel in (
     ("a11oy_willay_nav", "WILLAY"),
     ("a11oy_waqay_nav", "WAQAY"),
     ("a11oy_yupay_nav", "YUPAY"),
-    ("a11oy_uds_portability_nav", "UDS Portability"),
+    # a11oy_uds_portability_nav is not mounted: its target /uds-portability is not
+    # served (szl_uds_portability.py is not COPY'd or registered), so the nav item 404'd.
     ("a11oy_khipu_demo_nav", "Khipu Demo"),
     ("a11oy_quant_signals_nav", "Quant Signals"),
 ):
@@ -7786,7 +8028,7 @@ except Exception as _elite_e:
 # AND registered as /v4/fleet for HF proxy stripping.  Both registered here.
 @app.get("/api/a11oy/v4/fleet")
 @app.get("/v4/fleet")
-async def api_a11oy_v4_fleet_early() -> JSONResponse:
+def api_a11oy_v4_fleet_early() -> JSONResponse:
     """Fleet status panel — live health of the SZL flagship Spaces.
     Registered before /api/a11oy/{path:path} proxy so route ordering wins.
     Peers are surfaced under generic capability labels — no internal codenames
@@ -8037,15 +8279,20 @@ async def a11oy_mcp_call_inline(request: Request):
 async def a11oy_version():
     """Founder inspection: what build is live, when was it deployed, provenance."""
     import os as _szlv_os
-    from szl_release_identity import release_identity as _release_identity
+    from szl_release_identity import (
+        hf_space_sha_readback as _hf_space_sha_readback,
+        release_identity as _release_identity,
+    )
 
     _identity = _release_identity()
     _release_tag = _identity.get("release_tag")
     _release_assets_ready = bool(_release_tag)
+    _space_sha = _hf_space_sha_readback()
     return {
         **_identity,
         "git_sha": _szlv_os.getenv("SZL_GIT_SHA") or "UNKNOWN",
-        "hf_space_sha": _szlv_os.getenv("SZL_HF_SHA") or "UNKNOWN",
+        "hf_space_sha": _space_sha.get("sha") or "UNKNOWN",
+        "hf_space_sha_readback": _space_sha,
         "build_time": _szlv_os.getenv("SZL_BUILD_TIME") or "UNKNOWN",
         "doctrine": "v11",
         "kernel_commit": "c7c0ba17",
@@ -8318,13 +8565,28 @@ try:
             return "health"
         return "general"
 
-    def _sc_ask(question):
+    def _sc_ask(question, health_report=None):
         topic = _sc_classify(question)
+        health_state = None
         if topic == "health":
-            answer = ("The platform is LIVE and self-contained: a11oy serves its Policy/Safety (safety/compliance), "
-                      "Reasoning (readiness) and Operator (ask/act/ledger) capabilities in-process. No external "
-                      "services are required. Source is a11oy's own consolidated health.")
-            cites = [{"endpoint": "/api/a11oy/healthz (self-contained platform health)", "data": {"a11oy": {"ok": True}}}]
+            valid_health = (isinstance(health_report, dict)
+                            and health_report.get("service") == "a11oy"
+                            and health_report.get("status") in ("ok", "degraded"))
+            if valid_health:
+                observed = {key: health_report[key] for key in
+                            ("service", "status", "degraded_reasons", "dependency", "uptime_s")
+                            if key in health_report}
+                health_state = "OBSERVED" if health_report["status"] == "ok" else "DEGRADED"
+                answer = ("The current a11oy health rollup reports " + health_report["status"].upper()
+                          + ". This observation covers the health rollup; individual model and tool "
+                          "readiness remains separate. Reported dependencies and degradation reasons "
+                          "are included in the citation.")
+                cites = [{"endpoint": "/api/a11oy/healthz", "data": observed}]
+            else:
+                health_state = "UNAVAILABLE"
+                answer = ("Current platform health is UNAVAILABLE: the health rollup could not be "
+                          "observed. I cannot confirm which services are currently ready.")
+                cites = [{"endpoint": "/api/a11oy/healthz", "data": {"state": "UNAVAILABLE"}}]
         elif topic == "quorum":
             m = _SC_BUNDLE["mesh3d"]
             answer = ("BFT quorum is " + ("PERMITTED" if m.get("quorum_permitted") else "NOT permitted")
@@ -8355,7 +8617,7 @@ try:
                       "proved-formula set, or how the platform is organised. Ask me one of those and I will cite the "
                       "endpoint I read.")
             cites = [{"endpoint": "(none — refused to fabricate)", "data": {}}]
-        grounded = topic != "general"
+        grounded = topic != "general" and health_state != "UNAVAILABLE"
         llm = {"tier_used": "claude_sonnet_4_6", "tier_rank": 0,
                "response": "[HONEST STUB] would route to claude_sonnet_4_6 (rank 0). No model key wired in this Space; tier selection + Lambda-receipt are real, the model prose is a stub.",
                "lambda_receipt": {"lambda": 0.92, "axis_scores": [0.92] * 13, "tier_used": "claude_sonnet_4_6",
@@ -8367,7 +8629,23 @@ try:
                                "grounded source exists the assistant refuses to fabricate. LLM framing is an honest "
                                "stub when no model key is present.")}
         payload["receipt"] = _sc_receipt("ask", {"question": question, "topic": topic, "grounded": grounded})
+        if health_state is not None:
+            payload["health_state"] = health_state
+            payload["status"] = "REAL" if health_state == "OBSERVED" else "DEGRADED"
+            payload["honesty"] = ("Health answers cite the current health rollup. A missing report is "
+                                  "UNAVAILABLE and cannot confirm readiness. LLM framing remains a stub.")
         return payload
+
+    async def _sc_operator_answer(question):
+        report = None
+        if _sc_classify(question) == "health":
+            try:
+                response = await healthz()
+                if response.status_code == 200:
+                    report = _sc_json.loads(response.body)
+            except Exception:
+                pass
+        return _sc_ask(question, health_report=report)
 
     def _sc_act(action, target="", note="", operator="operator"):
         global _SC_OP_PREV
@@ -8567,7 +8845,8 @@ try:
     @app.post("/api/a11oy/v1/operator/ask")
     async def _sc_cap_ask(request: _SCRequest):
         body = await _sc_body(request)
-        return _SCJSON(gov_envelope(_sc_ask((body or {}).get("question", "")), status="REAL"))
+        answer = await _sc_operator_answer((body or {}).get("question", ""))
+        return _SCJSON(gov_envelope(answer, status=answer.get("status", "REAL")))
 
     @app.post("/api/a11oy/v1/operator/act")
     async def _sc_cap_act(request: _SCRequest):
@@ -8651,7 +8930,8 @@ try:
     @app.get("/api/a11oy/v1/operator/ask")
     async def _sc_cap_ask_get(question: str = ""):
         if (question or "").strip():
-            return _SCJSON(gov_envelope(_sc_ask(question), status="REAL"))
+            answer = await _sc_operator_answer(question)
+            return _SCJSON(gov_envelope(answer, status=answer.get("status", "REAL")))
         desc = {"capability": "operator.ask",
                 "summary": "Grounded operator Q&A \u2014 answers only from live platform data, refuses to fabricate.",
                 "method": "POST {question} for a grounded answer; GET ?question= also answers; bare GET returns this descriptor.",
@@ -9855,28 +10135,64 @@ except Exception as _r3d_e:  # pragma: no cover — guarded; never take down the
           file=sys.stderr)
 
 
+def _public_khipu_nodes(limit: int = 32) -> list[dict]:
+    """Read-only view of the operator Khipu DAG. GET never mints."""
+    dag = getattr(app.state, "szl_khipu_dag", None)
+    if dag is None:
+        return []
+    try:
+        nodes = list(dag.recent(max(1, min(int(limit), 64))))
+    except Exception:
+        return []
+    out = []
+    for node in nodes:
+        receipt = node.get("receipt") if isinstance(node, dict) else None
+        if not isinstance(receipt, dict):
+            receipt = {}
+        out.append({
+            "index": node.get("index"),
+            "digest": node.get("digest"),
+            "signed": bool(node.get("signed")),
+            "keyid": node.get("keyid"),
+            "schema": receipt.get("schema") or receipt.get("intent") or receipt.get("op"),
+            "actor": receipt.get("actor"),
+            "ts_utc": node.get("ts_utc") or receipt.get("ts_utc"),
+        })
+    return out
+
+
 @app.get("/api/a11oy/v1/ledger")
 async def a11oy_ledger_v2() -> JSONResponse:
-    """Operational receipt ledger. Empty is live-empty, never a SAMPLE chain."""
+    """Operational receipt ledger. Empty is live-empty, never a SAMPLE chain.
+
+    GET is forbidden from minting. Operator POSTs (agent loop, khipu/sign)
+    append to the Khipu DAG; this route only reads it. Series-A SAMPLE
+    rows stay on GET /api/a11oy/v2/command-log.
+    """
     observed_at = _gov_now_iso()
     if observed_at.endswith("+00:00"):
         observed_at = observed_at[:-6] + "Z"
+    receipts = _public_khipu_nodes()
+    signed_any = any(item.get("signed") for item in receipts)
     return JSONResponse({
-        "count": 0,
+        "count": len(receipts),
         "state": "live",
         "data_kind": "live",
         "operational": True,
         "hash_algorithm": "sha256-hex",
         "structure_verified": True,
         "chain_verified": True,
-        "signed": False,
-        "signature_state": "UNSIGNED",
+        "signed": signed_any,
+        "signature_state": "SIGNED" if signed_any else "UNSIGNED",
         "receipt_minted": False,
         "observed_at": observed_at,
-        "honesty": ("Live operational ledger. Zero receipts means none have been "
-                    "minted in this process; this is not the deterministic SAMPLE "
-                    "chain (see GET /api/a11oy/v2/command-log)."),
-        "receipts": [],
+        "book": "public_operator_khipu",
+        "honesty": ("Live operational ledger read from the in-process Khipu DAG. "
+                    "GET never mints, so receipt_minted is always false on this "
+                    "route. count is the number of receipts already present in "
+                    "this process; this is not the deterministic SAMPLE chain "
+                    "(see GET /api/a11oy/v2/command-log)."),
+        "receipts": receipts,
     })
 
 
@@ -12693,13 +13009,14 @@ _LOCAL_ONLY_A11OY_PREFIXES = ("v1/warhacker/", "v1/observability/", "v1/sec/",
 async def _intoto_verify_guide(request: Request) -> Response:
     """in-toto verification guide: what is now verifiable vs roadmap."""
     from starlette.responses import JSONResponse as _JSONResponse
-    _pub_key_url = "https://github.com/szl-holdings/.github/blob/main/cosign.pub"
+    # Runtime signer's key, same-origin; the .github org key is a separate key.
+    _pub_key_url = "/cosign.pub"
     return _JSONResponse({
         "title": "SZL a11oy in-toto Verification Guide",
         "what_is_now_verifiable": {
             "1_dsse_signature": {
                 "status": "LIVE",
-                "description": "DSSE-signed with SZL ECDSA P-256 keypair. payloadType=application/vnd.in-toto+json. Verifiable with cosign verify-blob.",
+                "description": "Scope: the /khipu/intoto/<receipt_id> envelope. It is DSSE-signed (ECDSA P-256) at serve time only if the runtime signer is present (signed=true); otherwise UNSIGNED (signed=false). Khipu hash-chain entries always carry DSSE_PLACEHOLDER and are unsigned, even while the signer is present. payloadType=application/vnd.in-toto+json. The signature is ECDSA-P256-SHA256 over the DSSE PAE; verify a signed envelope against /cosign.pub.",
                 "command": "cosign verify-blob --key https://a-11-oy.com/cosign.pub --bundle <receipt.bundle.json> <statement.json>",
             },
             "2_intoto_statement_v1": {
@@ -12724,7 +13041,7 @@ async def _intoto_verify_guide(request: Request) -> Response:
             "slsa_l2_container": "ROADMAP: actions/attest-build-provenance in CI (~3 YAML lines).",
             "tee_attestation": "ROADMAP Phase II: AWS Nitro PCR-bound inference attestation.",
         },
-        "offline_verifier": "szl-cookbook/verify-intoto-receipt.py (Apache-2.0)",
+        "offline_verifier": "szl-cookbook/verify-intoto-receipt.py (Apache-2.0; checks the szl-holdings/.github org key embedded in it, so a receipt passes there only if that key's fingerprint equals /cosign.pub's)",
         "pr": "https://github.com/szl-holdings/a11oy/pull/567",
         "public_key_url": _pub_key_url,
     })
@@ -12781,7 +13098,7 @@ async def api_proxy(request: Request, path: str) -> Response:
         return JSONResponse({
             "title": "SZL a11oy in-toto Verification Guide",
             "what_is_now_verifiable": {
-                "1_dsse_signature": {"status": "LIVE", "description": "payloadType=application/vnd.in-toto+json, ECDSA-P256-SHA256 DSSE sig"},
+                "1_dsse_signature": {"status": "LIVE", "description": "Scope: the /khipu/intoto/<receipt_id> envelope. payloadType=application/vnd.in-toto+json, ECDSA-P256-SHA256 DSSE sig at serve time only if the runtime signer is present (signed=true), else UNSIGNED (signed=false). Khipu hash-chain entries always carry DSSE_PLACEHOLDER and are unsigned, even while the signer is present."},
                 "2_intoto_statement_v1": {"status": "LIVE", "description": "_type: https://in-toto.io/Statement/v1, predicateType: https://szl.holdings/khipu-governed-inference/v1", "endpoint": "/khipu/intoto/<receipt_id>"},
                 "3_hard_binding": {"status": "LIVE", "description": "subject.digest = SHA3-256(output). C2PA pattern."},
                 "4_merkle_log": {"status": "LIVE", "description": "RFC 6962 SHA3-256 self-hosted log.", "proof_endpoint": "/api/lake/v1/proof/<id>", "log_endpoint": "/api/lake/v1/log", "honest_label": "szl-lake-merkle (self-hosted) — NOT Sigstore Rekor"},
@@ -12791,9 +13108,9 @@ async def api_proxy(request: Request, path: str) -> Response:
                 "slsa_l2": "ROADMAP: actions/attest-build-provenance in CI",
                 "tee": "ROADMAP Phase II: AWS Nitro PCR",
             },
-            "offline_verifier": "szl-cookbook/verify-intoto-receipt.py (Apache-2.0)",
+            "offline_verifier": "szl-cookbook/verify-intoto-receipt.py (Apache-2.0; checks the szl-holdings/.github org key embedded in it, so a receipt passes there only if that key's fingerprint equals /cosign.pub's)",
             "pr": "https://github.com/szl-holdings/a11oy/pull/567",
-            "public_key_url": "https://github.com/szl-holdings/.github/blob/main/cosign.pub",
+            "public_key_url": "/cosign.pub",
             "_dev": "DEV2 in-toto attestation layer (szl_intoto.py)",
         })
 
@@ -12935,6 +13252,7 @@ try:
         "szl_holo3d.js": _VENDOR_JS_CT,
         "szl_command_bar.js": _VENDOR_JS_CT,
         "szl_command_bar.css": _VENDOR_CSS_CT,
+        "puriq_receipt_v1.js": _VENDOR_JS_CT,
     }
 
     @app.get("/static/shared/{fname}")
@@ -12948,9 +13266,40 @@ try:
         return _VendResponse(content=f.read_bytes(), media_type=ct,
                              headers={"Cache-Control": "public, max-age=3600"})
 
+    # Public schema identifiers are served from an explicit allowlist. Keeping
+    # this route ahead of the SPA catch-all prevents a missing schema from being
+    # disguised as an HTML 200 and keeps unrelated repository schemas private.
+    _SCHEMA_DIR = Path("/app/schemas")
+    if not _SCHEMA_DIR.is_dir():
+        _SCHEMA_DIR = Path(__file__).resolve().parent / "schemas"
+    _SCHEMA_ALLOW = {
+        "puriq-receipt-v1.json": "application/schema+json",
+    }
+
+    @app.get("/schemas/{fname}")
+    async def _public_schema(fname: str):
+        ct = _SCHEMA_ALLOW.get(fname)
+        if ct is None:
+            return JSONResponse(
+                {"error": "schema not allowlisted", "file": fname},
+                status_code=404,
+            )
+        f = _SCHEMA_DIR / fname
+        if not f.is_file():
+            return JSONResponse(
+                {"error": "schema missing on disk", "file": fname},
+                status_code=404,
+            )
+        return _VendResponse(
+            content=f.read_bytes(),
+            media_type=ct,
+            headers={"Cache-Control": "public, max-age=31536000, immutable"},
+        )
+
     import sys as _vend_sys
     print("[a11oy] AIR-GAP vendor routes registered: /vendor/{7 libs+KaTeX}, "
-          "/vendor/earth-night.jpg, /vendor/fonts/*, /static/shared/{3 SZL modules} (NO CDN — Warhacker #2 Tychee)", file=_vend_sys.stderr)
+          "/vendor/earth-night.jpg, /vendor/fonts/*, /static/shared/{allowlisted modules}, "
+          "/schemas/{allowlisted schemas} (NO CDN — Warhacker #2 Tychee)", file=_vend_sys.stderr)
 except Exception as _vend_e:  # never crash the app — additive only
     import sys as _vend_sys, traceback as _vend_tb
     print(f"[a11oy] AIR-GAP vendor routes NOT registered: {_vend_e!r}", file=_vend_sys.stderr)
@@ -12986,6 +13335,12 @@ try:
     class _OperatorWidgetInjector(_OPW_Base):
         async def dispatch(self, request, call_next):
             resp = await call_next(request)
+            # The response owner, not an incoming request, opts out of UI mutation.
+            from urllib.request import parse_http_list
+            if any(directive.strip().lower() == "no-transform"
+                   for field in resp.headers.getlist("cache-control")
+                   for directive in parse_http_list(field)):
+                return resp
             try:
                 ct = (resp.headers.get("content-type") or "").lower()
                 # Only touch full HTML documents (skip JSON/SSE/assets/etc).
@@ -13418,47 +13773,29 @@ async def _elite_redirect() -> Response:
 app.add_api_route("/elite", _elite_redirect, methods=["GET"], include_in_schema=False)
 
 
-# /killinchu — path bridge, honestly labelled. Without an explicit route this path
-# falls through to the A11OY SPA shell and returns a misleading HTTP 200. Keep the
-# bridge server-side so it works without JavaScript at every mobile viewport, and
-# preserve subpaths/query strings.
-#
-# HONESTY (identity-lock): the killinchu Space RUNTIME is not up — a request to
-# szlholdings-killinchu.hf.space times out / errors, so redirecting a visitor there
-# implies a live product that is not serving. The bridge therefore targets the
-# Hugging Face HUB page for the Space (which is always readable and states the
-# runtime's own state), stamps X-SZL-Route-State: UNAVAILABLE_RUNTIME, and links
-# the hub as rel="alternate" — NEVER rel="canonical" (this app does not hand its
-# canonical to a third-party host; product canonical stays on a-11-oy.com).
-_KILLINCHU_HUB = "https://huggingface.co/spaces/SZLHOLDINGS/killinchu"
-_KILLINCHU_RUNTIME_STATE = "UNAVAILABLE_RUNTIME"
+# /killinchu and /killinchu/ are owned by a11oy_command_center and serve the
+# reviewed on-origin status page. Deep links used to redirect to a stale HF Hub
+# outage page, contradicting the on-origin owner and the current observed Space.
+# Collapse unknown deep links to the canonical on-origin page. Runtime state is
+# derived in that page from /api/a11oy/v1/spaces/health; this redirect itself makes
+# no LIVE claim and never hands product canonical to a third-party host.
+_KILLINCHU_CANONICAL_PATH = "/killinchu"
+_KILLINCHU_CANONICAL_URL = "https://a-11-oy.com/killinchu"
+_KILLINCHU_ROUTE_STATE = "ON_ORIGIN_STATUS"
 
 
 async def _killinchu_redirect(request: Request, full_path: str = "") -> Response:
-    # Deep links cannot be honoured while the runtime is down (no runtime = no
-    # subpath), so every /killinchu/* request lands on the hub page and the
-    # requested subpath is echoed in a header instead of being faked upstream.
-    response = _PTG_Redirect(url=_KILLINCHU_HUB, status_code=307)
-    response.headers["X-SZL-Route-State"] = _KILLINCHU_RUNTIME_STATE
-    response.headers["X-SZL-Killinchu-Hub"] = _KILLINCHU_HUB
-    if full_path:
-        response.headers["X-SZL-Killinchu-Requested-Path"] = f"/{full_path}"
-    response.headers["Link"] = f'<{_KILLINCHU_HUB}>; rel="alternate"'
+    del request, full_path
+    response = _PTG_Redirect(url=_KILLINCHU_CANONICAL_PATH, status_code=307)
+    response.headers["X-SZL-Route-State"] = _KILLINCHU_ROUTE_STATE
+    response.headers["Link"] = f'<{_KILLINCHU_CANONICAL_URL}>; rel="canonical"'
     return response
 
-
-for _killinchu_path in ("/killinchu", "/killinchu/"):
-    app.add_api_route(
-        _killinchu_path,
-        _killinchu_redirect,
-        methods=["GET"],
-        include_in_schema=False,
-    )
 
 app.add_api_route(
     "/killinchu/{full_path:path}",
     _killinchu_redirect,
-    methods=["GET"],
+    methods=["GET", "HEAD"],
     include_in_schema=False,
 )
 
@@ -14293,7 +14630,7 @@ async def api_health() -> JSONResponse:
 # Root cause: szl_v4_fleet.register() was dead code after uvicorn.run()
 @app.get("/api/a11oy/v4/fleet")
 @app.get("/v4/fleet")
-async def api_a11oy_v4_fleet() -> JSONResponse:
+def api_a11oy_v4_fleet() -> JSONResponse:
     """Fleet status panel — live health of the SZL flagship Spaces.
     Peers are surfaced under generic capability labels — no internal codenames
     or dead *.hf.space targets are ever user-visible."""
@@ -14902,6 +15239,12 @@ except Exception:
 try:
     try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
         from szl_substrate import a11oy_code_engine as _a11oy_code  # single source of truth
+        import inspect as _code_inspect
+        # SECURITY: only a copy that carries the deny-by-default allow_exec
+        # chokepoint may serve /v1/code/*; an older shared copy would run the
+        # sandbox for any caller. Otherwise use the vendored copy.
+        if "allow_exec" not in _code_inspect.signature(_a11oy_code.governed_turn).parameters:
+            raise ImportError("szl_substrate a11oy_code_engine lacks allow_exec")
     except Exception:
         import a11oy_code_engine as _a11oy_code
     import sys as _code_sys
@@ -14972,7 +15315,8 @@ try:
     import sys as _al_sys
     _al_verify = _a11oy_loop_verify if "_a11oy_loop_verify" in dir() else None
     _al_status = _szl_agentloop.register(app, ns="a11oy",
-                                         sign_fn=_a11oy_sign_receipt, verify_fn=_al_verify)
+                                         sign_fn=_a11oy_sign_receipt, verify_fn=_al_verify,
+                                         signer_available_fn=lambda: _A11OY_PRIV is not None)
     print(f"[a11oy] Governed agent loop registered: {_al_status}", file=_al_sys.stderr)
 except Exception as _al_e:
     import sys as _al_sys, traceback as _al_tb
@@ -16106,16 +16450,17 @@ except Exception as _szlfac_e:  # pragma: no cover
 
 
 # ============================================================================
-# SPACES ON a-11-oy.com (Dev2+3) — surface all 11 live HF Spaces same-origin.
+# SPACES ON a-11-oy.com (Dev2+3) — FLOCK five doors + fold/unify ledger.
 # (1) szl_spaces_proxy: reverse-proxy each Space under /spaces/<name> (server-side
 #     fetch, honest 502 on flap, allowlist only, a11oy/killinchu skipped as self/own-
 #     host). (2) szl_spaces_surface: /api/<ns>/v1/spaces/health (REAL probe + HF-API
-#     stage), /spaces tiles page, + ONE idempotent "Spaces" nav item. Both SHARED &
-#     byte-identical in a11oy + killinchu. No new subdomains. 0 runtime CDN (server-
-#     side fetch — same justification as a11oy_hf_assets.py). Additive, idempotent,
-#     try/except-guarded; each register() front-inserts its routes so they beat the
-#     SPA + Node-proxy catch-alls. Doctrine v11: locked=8 @ c7c0ba17; Λ=Conjecture 1;
-#     Khipu=Conjecture 2; honest 502/unknown beats a fake 200; no codenames; no key.
+#     stage), GET /spaces tiles page, GET /unify and GET /a11oy/unify flock ledger,
+#     + ONE idempotent "Spaces" nav item. Do not create Space SZLHOLDINGS/unify.
+#     Both SHARED & byte-identical in a11oy + killinchu. No new subdomains. 0 runtime
+#     CDN. Additive, idempotent, try/except-guarded; each register() front-inserts
+#     its routes so they beat the SPA + Node-proxy catch-alls. Doctrine v11:
+#     locked=8 @ c7c0ba17; Λ=Conjecture 1; Khipu=Conjecture 2; honest 502/unknown
+#     beats a fake 200; first paint never LIVE/RUNNING/PASS; no key.
 # Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ============================================================================
@@ -16135,7 +16480,26 @@ try:
     except Exception:
         import szl_spaces_surface as _szl_spaces_surface
     _szl_spaces_surface_status = _szl_spaces_surface.register(app, ns="a11oy")
-    print(f"[a11oy] Spaces surface registered: {_szl_spaces_surface_status}", file=__import__("sys").stderr)
+    # GET /unify and GET /a11oy/unify are front-inserted by register() above.
+    # Re-assert them here so serve.py itself names the Unify flock aliases.
+    from starlette.routing import Route as _UnifyRoute
+    from starlette.responses import Response as _UnifyResponse
+    _unify_html = _szl_spaces_surface._unify_page("a11oy")
+
+    async def _unify_flock(request):
+        headers = {"Cache-Control": "no-store"}
+        if request.method.upper() == "HEAD":
+            return _UnifyResponse(content=b"", status_code=200, media_type="text/html", headers=headers)
+        return _UnifyResponse(content=_unify_html, status_code=200, media_type="text/html", headers=headers)
+
+    _existing_paths = {getattr(_r, "path", None) for _r in app.router.routes}
+    for _upath in ("/unify", "/a11oy/unify"):
+        if _upath not in _existing_paths:
+            app.router.routes.insert(0, _UnifyRoute(_upath, _unify_flock, methods=["GET", "HEAD"]))
+    print(
+        f"[a11oy] Spaces surface registered: {_szl_spaces_surface_status}; GET /unify GET /a11oy/unify",
+        file=__import__("sys").stderr,
+    )
 except Exception as _szl_ss_e:  # pragma: no cover
     print(f"[a11oy] Spaces surface NOT registered: {_szl_ss_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 # ============================================================================
@@ -16515,6 +16879,36 @@ try:
     _canon_head_mod.ensure_html_documents_accept_head(app)
 except Exception:
     pass
+
+
+# Provenance inspection is evaluation-only; GET and POST perform no governed writes.
+try:
+    import a11oy_anatomy_ledger as _anatomy_ledger_module
+    _anatomy_ledger_module.register(app)
+except Exception as _anatomy_ledger_error:
+    print(f"[a11oy] anatomy ledger unavailable: {_anatomy_ledger_error!r}", file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
+# Atelier entry point consolidates navigation; actions retain explicit guards.
+from routers import command_centre as _command_centre  # noqa: E402
+from routers import atelier_grok as _atelier_grok  # noqa: E402
+
+_command_centre.register(app)
+_atelier_grok.register(app)
+
+# SECURITY (deny-by-default): every route that can execute code, dispatch an
+# agent or tool with side effects, sign a caller-supplied payload with the server
+# key, or write server state answers 401 BLOCKED without the operator Bearer
+# (A11OY_CODE_ADMIN_KEY) before any handler runs. The table lives in
+# szl_operator_auth.PROTECTED_ROUTES; GET/HEAD/OPTIONS are never gated. Installed
+# last so it is the innermost middleware (a refusal still carries CORS/security
+# headers). Deliberately NOT wrapped in try/except: if the resolver cannot load,
+# the app must not serve these routes at all.
+# ---------------------------------------------------------------------------
+import szl_operator_auth as _szl_operator_gate  # noqa: E402
+
+_szl_operator_gate.install_gate(app)
 
 
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ not a zoo. Λ uniqueness stays Conjecture 1. No 40 fake SKUs. No invented
 GPU joules. 44px hit targets. Vendored three.js only.
 """
 from pathlib import Path
+import re
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,15 +20,20 @@ COLLECTIONS = (
     "https://huggingface.co/collections/SZLHOLDINGS/szl-flagship-spaces-6a9315c15be8186d77796e62",
 )
 
-HONESTY = ("MEASURED", "REPORTED", "ROADMAP", "SOFTWARE", "UNAVAILABLE", "SIMULATED")
+HONESTY = ("REACHABLE", "MEASURED", "REPORTED", "ROADMAP", "SOFTWARE", "UNAVAILABLE", "SIMULATED")
 
 
 def test_nav_is_flagships_not_surface_sprawl() -> None:
-    nav = FRONT.split('<nav class="nav-links" id="site-nav">', 1)[1].split("</nav>", 1)[0]
+    nav = re.search(r'<nav\b[^>]*\bid="site-nav"[^>]*>(.*?)</nav>', FRONT, re.S).group(1)
     assert 'href="#products"' in nav
-    assert 'href="#catalog"' in nav
-    assert "https://a11oy.net" in nav
     assert 'href="/console"' in nav
+    assert nav.count('href="/console"') == 1
+    assert 'href="/holographic"' in nav
+    assert 'href="/frontier-now"' in nav
+    assert 'href="/immune"' in nav
+    assert "https://a11oy.net" in nav
+    assert "#anatomy" not in nav
+    assert "#vertical-bodies" not in nav
     for sprawl in ("/ecosystem", "/anatomy-v5", "/observability", "/console#arena", "#surfaces"):
         assert sprawl not in nav
 
@@ -49,7 +55,7 @@ def test_three_products_max() -> None:
 
 def test_lyte_is_bound_package_not_flagship() -> None:
     """LYTE binds onto the product door as a package. Not a fourth flagship."""
-    nav = FRONT.split('<nav class="nav-links" id="site-nav">', 1)[1].split("</nav>", 1)[0]
+    nav = re.search(r'<nav\b[^>]*\bid="site-nav"[^>]*>(.*?)</nav>', FRONT, re.S).group(1)
     assert 'href="/lyte"' in nav
     assert 'id="bind-lyte"' in FRONT
     assert "LYTE lattice" in FRONT
@@ -58,8 +64,6 @@ def test_lyte_is_bound_package_not_flagship() -> None:
     assert 'id="product-lyte"' not in FRONT
     assert FRONT.count('class="card product-card"') == 3
     # lexicon_gate on the front door bans title-case Lyte.
-    import re
-
     assert re.search(r"\bLyte\b", FRONT) is None
 
 
@@ -102,5 +106,5 @@ def test_hit_targets_remain_44px() -> None:
     assert "min-height:44px" in FRONT
     assert "min-width:44px" in FRONT
     rule = FRONT.split(".nav nav a{", 1)[1].split("}", 1)[0]
-    assert "min-height:44px" in rule
+    assert int(re.search(r"min-height:(\d+)px", rule).group(1)) >= 44
     assert "min-width:44px" in rule

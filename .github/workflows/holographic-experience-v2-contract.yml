@@ -3,39 +3,42 @@ name: Holographic Experience v2 Contract
 on:
   pull_request:
     paths:
-      - "console/assets/szl-holo-v2.css"
-      - "console/assets/szl-holo-v2.js"
-      - "docs/holographic-experience-v2/**"
-      - "scripts/rollout_holographic_experience_v2.py"
-      - "tests/test_holographic_experience_v2.py"
-      - ".github/workflows/holographic-experience-v2-contract.yml"
-      - ".github/workflows/rollout-holographic-experience-v2.yml"
-      - "a11oy_landing.html"
-      - "govern_showcase.html"
-      - "cathedral_genius.html"
-      - "pages/**"
-      - "web/**"
-      - "console/**"
-      - "spaces/**"
+    - console/assets/szl-holo-v2.css
+    - console/assets/szl-holo-v2.js
+    - docs/holographic-experience-v2/**
+    - scripts/rollout_holographic_experience_v2.py
+    - tests/test_holographic_experience_v2.py
+    - .github/workflows/holographic-experience-v2-contract.yml
+    - .github/workflows/rollout-holographic-experience-v2.yml
+    - a11oy_landing.html
+    - govern_showcase.html
+    - cathedral_genius.html
+    - pages/**
+    - web/**
+    - console/**
+    - spaces/**
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - "console/assets/szl-holo-v2.css"
-      - "console/assets/szl-holo-v2.js"
-      - "docs/holographic-experience-v2/**"
-      - "scripts/rollout_holographic_experience_v2.py"
-      - "tests/test_holographic_experience_v2.py"
-      - ".github/workflows/holographic-experience-v2-contract.yml"
-      - ".github/workflows/rollout-holographic-experience-v2.yml"
-      - "a11oy_landing.html"
-      - "govern_showcase.html"
-      - "cathedral_genius.html"
-      - "pages/**"
-      - "web/**"
-      - "console/**"
-      - "spaces/**"
-  workflow_dispatch:
-
+    - console/assets/szl-holo-v2.css
+    - console/assets/szl-holo-v2.js
+    - docs/holographic-experience-v2/**
+    - scripts/rollout_holographic_experience_v2.py
+    - tests/test_holographic_experience_v2.py
+    - .github/workflows/holographic-experience-v2-contract.yml
+    - .github/workflows/rollout-holographic-experience-v2.yml
+    - a11oy_landing.html
+    - govern_showcase.html
+    - cathedral_genius.html
+    - pages/**
+    - web/**
+    - console/**
+    - spaces/**
+  workflow_dispatch: null
+  merge_group:
+    types:
+    - checks_requested
 permissions:
   contents: read
 

@@ -16,9 +16,6 @@
     "format": "biome format --write ./src"
   },
   "devDependencies": {
-    "@replit/vite-plugin-cartographer": "catalog:",
-    "@replit/vite-plugin-dev-banner": "catalog:",
-    "@replit/vite-plugin-runtime-error-modal": "catalog:",
     "@szl-holdings/analytics": "workspace:*",
     "@szl-holdings/api-client-react": "workspace:*",
     "@szl-holdings/mcp-client": "workspace:*",

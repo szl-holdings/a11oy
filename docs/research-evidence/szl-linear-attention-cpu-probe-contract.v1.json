@@ -1,0 +1,82 @@
+{
+  "schema": "szl.research-evidence-contract.v1",
+  "artifact_class": "EVIDENCE_CONTRACT",
+  "contract_subtype": "ARCHITECTURE_PROBE",
+  "status": "PROPOSED",
+  "created": "2026-09-08",
+  "purpose": "Decide whether linear-attention architecture earns a roadmap slot in the estate's CPU-lab line. This is an architecture probe, NOT an adoption candidate evaluation. The subject is a 7.5M-parameter micro-model; conclusions apply to the architecture class, not to this artifact's task competence.",
+  "governing_boundary": {
+    "overlay": "model_release/frontier-qualification/top-choice-wave-2026-09-07.json",
+    "overlay_commit": "c7c430930008025789f92438bb6503099ca36d8b",
+    "rule": "Outputs of any run under this contract are proposal/evidence only. Upstream claims (including the bundled paper.pdf) are not local measurements. Silent substitution is forbidden."
+  },
+  "subject": {
+    "candidate": "gdiamos/amx-reasoning-v1-instruct",
+    "license": "apache-2.0",
+    "revision_pin": "REQUIRED_AT_EXECUTION",
+    "upstream_status": "UNVERIFIED_UPSTREAM_ARTIFACT",
+    "inspected_2026_09_08": {
+      "parameters": "7.5M",
+      "architecture": "m2r (linear-attention + sliding-window-attention)",
+      "weights": "model.safetensors, 15.0 MB (LFS)",
+      "shipped_artifacts": ["config.json", "tokenizer.json", "generation.json", "example.py", "training_config.yaml", "requirements.txt", "paper.pdf", "m2r/ code directory", "LICENSE"],
+      "demo_space": "hugging-apps/amx-reasoning-v1-qa-demo",
+      "downloads_observed": 454,
+      "note": "Research-grade packaging: paper, runnable example, and training config ship in-repo, which makes the probe mechanically reproducible."
+    }
+  },
+  "execution_envelope": {
+    "environment": "house CPU lab (artifact is CPU-targeted by design; 15MB weights impose no metal requirement)",
+    "metal_dependency": "NONE"
+  },
+  "measurements_required": [
+    {
+      "id": "context_scaling_curve",
+      "definition": "Decode tok/s and peak RSS at context lengths [512, 2048, 8192, 32768] on the house CPU lab",
+      "hypothesis": "Memory growth is materially sub-quadratic with context length (the linear-attention claim under test)",
+      "report": ["tok_per_s_per_ctx", "peak_rss_mb_per_ctx"],
+      "label": "MEASURED only when produced on estate-controlled hardware"
+    },
+    {
+      "id": "baseline_contrast",
+      "definition": "Identical measurements on a comparable transformer-class artifact of similar parameter scale, same hardware, same harness",
+      "report": ["tok_per_s_per_ctx", "peak_rss_mb_per_ctx", "scaling_exponent_estimate"],
+      "label": "MEASURED; COMPARATIVE, not evaluative"
+    },
+    {
+      "id": "coherence_sanity",
+      "definition": "Fixed probe prompts at 2048+ context; outputs reviewed for basic coherence (not gibberish, not looping)",
+      "report": ["probe_outputs", "coherent_bool"],
+      "label": "SANITY check only; explicitly NOT a quality or reasoning evaluation"
+    },
+    {
+      "id": "load_envelope",
+      "definition": "Load time, RSS at load, dependency footprint of the shipped requirements.txt",
+      "report": ["load_time_s", "rss_at_load_mb", "dependency_list"],
+      "label": "MEASURED"
+    }
+  ],
+  "decision_rule": {
+    "earn_roadmap_slot": "Memory scaling is materially sub-quadratic through 32768 context AND coherence_sanity passes AND no license or supply-chain defect surfaces",
+    "park": "Any leg fails; record the failing measurement in the receipt and park the class with the evidence attached",
+    "note": "A roadmap slot means the class may be considered when a future lane needs long-context CPU inference. It does not select, promote, or ship anything."
+  },
+  "non_goals": [
+    "No Hugging Face repository is created, overwritten, or retagged by this contract",
+    "No held frontier choice is promoted or ungated",
+    "No claim is made about reasoning capability at any scale",
+    "No production use of the subject artifact is authorized",
+    "No figure from paper.pdf may be quoted as a local measurement"
+  ],
+  "receipt_requirement": {
+    "type": "a11oy_receipt",
+    "bound_fields": ["subject_revision", "baseline_revision", "harness_revision", "hardware_envelope", "context_lengths", "raw_measurement_artifact_hash"],
+    "signing_note": "Receipts emit under current signing posture; HMAC PLACEHOLDER labeling applies until A11OY_HMAC_KEY is set, per HONEST_DISCLOSURE.md"
+  },
+  "provenance": {
+    "radar": "frontier-radar-2026-09-07 (contact 1, WATCH tier; parameter count corrected 2026-09-08: 7.5M micro-model, signal-not-candidate)",
+    "authored_by": "Perplexity frontier-radar session, owner-directed",
+    "pattern": "Mirrors docs/research-evidence/szl-specdec-drafter-evidence-contract.v1.json (PR #2047, v1.1 in #2059)",
+    "inspection": "hub_repo_details overview + hf_fs file inventory, 2026-09-08"
+  }
+}

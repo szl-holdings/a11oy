@@ -149,5 +149,60 @@ match it.
 
 ---
 
+## 9. Code execution, tools and agent/memory writes are operator-only (deny-by-default)
+
+**Execution needs two server-held secrets**: `Authorization: Bearer <A11OY_CODE_ADMIN_KEY>`
+plus a distinct `X-A11oy-Second-Approver: <A11OY_CODE_SECOND_APPROVER_KEY>` (the header is
+in the CORS allow-list). Covered: `/api/a11oy/code/run`, `/api/a11oy/code/kernel/{run_id}/exec`,
+`/api/a11oy/v1/agent/code/{compose,revise}`, and every sandbox reached through
+`a11oy_code_engine.governed_turn` — `/api/<ns>/v1/code/{run,turn}`,
+`/api/a11oy/v1/code/runstep`, `/api/a11oy/v1/agentloop/run` and
+`/api/a11oy/v1/verify/transcript` (a GET never executes).
+
+**Chokepoint:** `governed_turn(..., allow_exec=False)` reaches `_sandbox_exec` only when
+`sandbox` and `allow_exec` are both true. Routes pass the header principal; `run_loop` and
+`build_transcript` thread it through. Without it the turn still runs the gate and returns
+`executed: false` with `execution_status` `NOT_EXECUTED — BLOCKED`, and no receipt claims
+execution. A new caller that needs execution must pass `allow_exec=True` on purpose.
+
+**Operator credential alone** covers tool calls (`run_tests` is state-changing, so it also
+needs the second approver), RAG writes, profiles, conversation history, `/agent/run`,
+`/agent/stream`, and the ReAct writes (`/api/a11oy/v1/agent/react/{run,resume,reflect,
+memory/add,skills/admit}`). Anonymous `/chat/stream` still streams, without tools: it gets a
+fresh conversation id, never reads stored history, and is never persisted. Agent turns use a
+PURIQ gate bound to the header principal, so an anonymous turn cannot mint an `allow=true`
+decision receipt. `POST /api/a11oy/code/v1/keys` answers `403` without the operator Bearer.
+`szl_ken` `/mcp/call` two-person tools read the same headers, never the body.
+
+**What `two_person_attested` means:** two distinct secrets arrived in one request. It is a
+two-person control only if custody of the two keys is actually split between two people; it
+is not cryptographic co-signing. Request bodies can never assert it. With a secret unset, the
+matching role is held by nobody and the route answers `401 BLOCKED`.
+
+**Kernel capacity:** at most `A11OY_MAX_KERNELS` persistent kernels (default 4; a malformed
+value falls back to 4). At the cap, dead kernels and then the least-recently-used idle kernel
+are evicted (its variables are lost); a kernel mid-cell is never evicted. Only when every slot
+is executing does `/kernel/{run_id}/exec` answer `429 BLOCKED`, and nothing runs. A code-as-
+action cell that finds no kernel is receipted `executed: false` with no energy-ledger entry.
+
+**Route-level gate (one table, whole app):** `szl_operator_auth.PROTECTED_ROUTES` lists every
+route that can execute code, dispatch an agent or tool with side effects, sign a caller-supplied
+payload with the server key, or write server state. `serve.py` installs
+`OperatorGateMiddleware` last (innermost, so CORS/security headers still wrap a refusal): a
+non-GET/HEAD/OPTIONS request to a listed path without the operator Bearer gets `401 BLOCKED`
+before any handler, model call, tool call or write runs. GETs are never gated. The engine,
+run-loop, agent-loop and transcript POST handlers also refuse anonymous callers themselves, and
+MCP `tools/call sign_receipt` is operator-only in its handler. A new side-effecting route must be
+added to the table (or reviewed into `REVIEWED_PUBLIC_WRITE_ROUTES` in the test); the golden test
+enumerates the real route table and fails otherwise. Routes with their own credential registry
+(GDW, eval-arena rerun, ouroboros run-all, immune lorenz, compute jobs, numerics ingest, Wire-D
+probe, deva/devb/vertical govern, agent cycle, API-key completions) are left to that registry.
+
+The sandboxed child runs as the server UID, so it could read `/proc/<pid>/environ`; that is
+why execution is not public. Container/microVM isolation stays ROADMAP.
+Resolver: `szl_operator_auth.py` (governance/). Tests: `tests/test_operator_auth_code_routes.py`.
+
+---
+
 *Signed-off-by: stephenlutar2-hash <stephenlutar2@gmail.com>*
 *Doctrine v11 LOCKED · 749/14/163.*

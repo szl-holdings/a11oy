@@ -1,0 +1,125 @@
+name: Public estate single-source contract
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - static/shared/public-estate-contract.v1.json
+      - docs/series-a/hf-space-keep-list.yaml
+      - docs/huggingface-ecosystem-manifest.json
+      - docs/ecosystem-readiness-report.json
+      - docs/theorem-runtime-manifest.json
+      - docs/ecosystem-stage-matrix.json
+      - docs/generated/**
+      - scripts/render_public_estate_alignment.py
+      - scripts/build_ecosystem_stage_matrix.py
+      - scripts/hf_keep_policy.py
+      - scripts/hf_consolidate_fleet.py
+      - tests/test_public_estate_alignment.py
+      - tests/test_hf_keep_policy_continuations.py
+      - .github/workflows/public-estate-contract.yml
+  push:
+    branches: [main]
+    paths:
+      - static/shared/public-estate-contract.v1.json
+      - docs/series-a/hf-space-keep-list.yaml
+      - docs/huggingface-ecosystem-manifest.json
+      - docs/ecosystem-readiness-report.json
+      - docs/theorem-runtime-manifest.json
+      - docs/ecosystem-stage-matrix.json
+      - docs/generated/**
+      - scripts/render_public_estate_alignment.py
+      - scripts/build_ecosystem_stage_matrix.py
+      - scripts/hf_keep_policy.py
+      - scripts/hf_consolidate_fleet.py
+      - tests/test_public_estate_alignment.py
+      - tests/test_hf_keep_policy_continuations.py
+      - .github/workflows/public-estate-contract.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-estate-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    name: Product, GitHub, Hub, and proof topology
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Compile alignment source
+        run: >-
+          python -m py_compile scripts/hf_keep_policy.py
+          scripts/hf_consolidate_fleet.py
+          scripts/render_public_estate_alignment.py
+          scripts/build_ecosystem_stage_matrix.py
+          tests/test_public_estate_alignment.py
+          tests/test_hf_keep_policy_continuations.py
+
+      - name: Render deterministic consumers in the isolated runner
+        id: render
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          python scripts/render_public_estate_alignment.py
+          python scripts/build_ecosystem_stage_matrix.py
+          python scripts/render_public_estate_alignment.py --check
+          python scripts/build_ecosystem_stage_matrix.py --check
+          git diff --check
+
+      - name: Upload exact generated-consumer candidate
+        if: steps.render.outcome == 'success'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: public-estate-generated-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_id }}
+          path: |
+            docs/generated/github-org-public-estate.md
+            docs/generated/huggingface-org-card.md
+            docs/generated/a11oy-net-public-estate.md
+            docs/ecosystem-stage-matrix.json
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 9
+
+      - name: Require successful deterministic rendering
+        if: always()
+        env:
+          RENDER_OUTCOME: ${{ steps.render.outcome }}
+        run: |
+          test "$RENDER_OUTCOME" = success || {
+            echo "::error::Deterministic public-estate rendering failed."
+            exit 1
+          }
+
+      - name: Prove generated consumers are committed
+        run: |
+          set -euo pipefail
+          git diff --exit-code -- \
+            docs/generated/github-org-public-estate.md \
+            docs/generated/huggingface-org-card.md \
+            docs/generated/a11oy-net-public-estate.md \
+            docs/ecosystem-stage-matrix.json
+
+      - name: Prove topology, truth, and authority
+        run: >-
+          python -m unittest -v tests.test_public_estate_alignment
+          tests.test_hf_keep_policy_continuations

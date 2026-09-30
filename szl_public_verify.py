@@ -19,8 +19,13 @@ PAGE:
     /verify?envelope=<base64url(JSON DSSE envelope)>   (compact, self-contained)
 
 WHAT IS CHECKED (each labelled honestly, never a fabricated verdict):
-  1. signature      — ECDSA-P256-SHA256 over the DSSE PAE, verified against the
-                      PUBLISHED SZLHOLDINGS cosign public key (szl_dsse.COSIGN_PUBLIC_PEM).
+  1. signature      — ECDSA-P256-SHA256 over the DSSE PAE. POST (the /verify page):
+                      verified first against this deployment's runtime key (served
+                      at /cosign.pub) via app.state.szl_verify_receipt, then against
+                      the retained szl_dsse keyring. GET /receipt/{receipt_id}: the
+                      szl_dsse keyring only. The keyring holds the embedded
+                      szl-holdings/.github org key (szl_dsse.COSIGN_PUBLIC_PEM),
+                      retained public keys, and the active signer's public half.
                       Labels: VERIFIED | MISMATCH | UNSIGNED-LOCAL | UNAVAILABLE.
   2. payload_digest — RE-HASH the DSSE payload bytes and compare to the digest the
                       payload DECLARES about itself (payload_digest / digest field).
@@ -75,7 +80,11 @@ _DOCTRINE = {
     "lambda": _LAMBDA,
     "locked_proven": _LOCKED,
     "trust_ceiling": "never 100%",
-    "signature": "ECDSA-P256-SHA256 over DSSE PAE vs published SZLHOLDINGS cosign.pub",
+    "signature": ("ECDSA-P256-SHA256 over DSSE PAE. POST: this deployment's runtime "
+                  "key (/cosign.pub) first, then the retained szl_dsse keyring. GET by "
+                  "receipt id: the szl_dsse keyring only (it holds the embedded "
+                  "szl-holdings/.github org key, retained keys and the active signer's "
+                  "public half)"),
     "payload_digest_compare": ("recomputed payload digest vs the DECLARED payload_digest "
                                "(NOT the chain seal id — that was the old simultaneous "
                                "VERIFIED+MISMATCH bug, fixed and not reintroduced)"),

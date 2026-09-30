@@ -1,0 +1,65 @@
+{
+  "schema": "szl.current-tip-relock/v1",
+  "kind": "UNSIGNED-honest observational relock",
+  "git_sha": "1d1d8ace2be629fea9171f05774312c13137400a",
+  "identity": "/api/a11oy/v1/honest git_sha",
+  "origin": "https://a-11-oy.com",
+  "repository": "szl-holdings/a11oy",
+  "observed_at": "2026-09-11T23:50:00Z",
+  "doctrine": "v11",
+  "doctrine_lock": {
+    "doctrine": "v11",
+    "state": "LOCKED",
+    "commit": "c7c0ba17",
+    "note": "Doctrine v11 LOCKED kernel pin. This is the doctrine lock, NOT the Space deploy SHA."
+  },
+  "signer": "ABSENT",
+  "signer_honesty": "UNSIGNED-honest",
+  "certified": false,
+  "proven_trust": false,
+  "publication_eligible": false,
+  "first_paint": "OBSERVED",
+  "status": "UNSIGNED-honest",
+  "receipt_minted": false,
+  "dsse": null,
+  "signed_relock": false,
+  "origin_observations": {
+    "honest": {
+      "url": "https://a-11-oy.com/api/a11oy/v1/honest",
+      "git_sha": "1d1d8ace2be629fea9171f05774312c13137400a",
+      "doctrine_lock_commit": "c7c0ba17"
+    },
+    "build_info": {
+      "url": "https://a-11-oy.com/api/build-info",
+      "state": "OBSERVED",
+      "revision": "1d1d8ace2be629fea9171f05774312c13137400a",
+      "revision_source": "env:SZL_GIT_SHA",
+      "receipt_minted": false
+    },
+    "source_json": {
+      "url": "https://a-11-oy.com/.well-known/source.json",
+      "status": "NOT_FOUND",
+      "reason": "undeclared path refused SPA fallback",
+      "declared_on_origin": false
+    }
+  },
+  "historical_95_probe": {
+    "git_sha": "bda66daa67aaa2c7bd9a94bb43537f22bc6c89d7",
+    "run": "34424414138",
+    "covers_current_tip": false,
+    "note": "95 passed endpoint probes plus five intentionally unexecuted state-changing probes at bda66daa / run 34424414138. Historical evidence only. Does not cover the current tip 1d1d8ace. Five unexecuted probes are not passes."
+  },
+  "lyte_three_plane": {
+    "sha": "dd17d9f524b76c8f0e260d7ec1e084cc079dfc43",
+    "kind": "observational equality",
+    "signed_relock": false,
+    "note": "Lyte three-plane MATCH at dd17d9f is observational equality, not a signed relock."
+  },
+  "limits": [
+    "This receipt is UNSIGNED-honest. No persistent product-signer key verifies it.",
+    "Do not stamp LIVE, RUNNING, or PASS.",
+    "Do not mint DSSE as product signer.",
+    "Do not reuse the 95-probe receipt for a later tip.",
+    "Lyte three-plane MATCH is not a signed relock of a11oy."
+  ]
+}

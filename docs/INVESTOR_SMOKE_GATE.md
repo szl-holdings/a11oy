@@ -5,14 +5,19 @@ SPDX-License-Identifier: Apache-2.0
 
 # Investor smoke gate (S1–S12)
 
-Fail-closed HTTP + static contract. **Do not merge until QHAPAQ names the
-required checks green.** Encodes assertions only. Does not rewrite
-`data/genome.json`, does not weaken Immutable HF repository byte parity
-(Dockerfile untouched), does not POST, does not add HEAD handlers or signer
-fields (those landed in **1394** on main), and does not touch PR 1363.
-PR **1396** merged the console `#cnt-locked` kernel chip; this gate does not
-re-edit that chrome. **Do not invent LIVE.** a11oy.net dual-origin smokes
-remain a separate proof-origin contract.
+Fail-closed source contracts plus fail-closed provider monitoring. The workflow
+does not rewrite `data/genome.json`, weaken Immutable HF repository byte parity,
+POST to the runtime, add HEAD handlers or signer fields, or infer application
+health from a static page. **Do not invent LIVE.**
+
+Provider liveness is not a pull-request admission check. Pull requests prove the
+deterministic repository contract and the S7 source bind. The static apex and
+canonical runtime are measured after a protected-main push, on the six-hour
+schedule, and by manual dispatch. A failed provider measurement must remain red
+in those monitor events; it cannot be relabelled green, but it also cannot
+prevent an unrelated source-only security or documentation repair from merging.
+A skipped live job on a pull request is a declared lifecycle state, not a health
+claim.
 
 ## Public-origin contract
 
@@ -28,22 +33,16 @@ changes that architecture.
 
 Workflow: `.github/workflows/investor-smoke-gate.yml`
 
-| Job (exact check-run name) | What it proves |
-|---|---|
-| `Investor smoke contract (S1-S12 static)` | Fixtures, origin separation, skip-as-green rejection, S12 YAML, D-rows, L-row SNAPSHOT date |
-| `Investor smoke bind (S7 kernel chips → /honest 8)` | Kernel chips bind to `/honest` `locked_formula_count` (8 or N/A) |
-| `Investor smoke live probes` | Static apex reachability plus GET/HEAD assertions against the canonical application runtime; no POST |
+| Job (exact check-run name) | Events | What it proves |
+|---|---|---|
+| `Investor smoke contract (S1-S12 static)` | PR, protected-main push, schedule, manual | Fixtures, origin separation, skip-as-green rejection, S12 YAML, D-rows, L-row SNAPSHOT date |
+| `Investor smoke bind (S7 kernel chips → /honest 8)` | PR, protected-main push, schedule, manual | Kernel chips bind to `/honest` `locked_formula_count` (8 or N/A) |
+| `Investor smoke live probes` | Protected-main push, six-hour schedule, manual; explicitly skipped on PR | Static apex reachability plus GET/HEAD assertions against the canonical application runtime; no POST |
 
-This pull request cannot certify those names as control-plane-required.
-`.github/BRANCH_PROTECTION.md` is a Frontier source-pin v2 guarded file, so
-this change does not add rows there. Proposed required-check names:
-
-- `Investor smoke contract (S1-S12 static)`
-- `Investor smoke bind (S7 kernel chips → /honest 8)`
-- `Investor smoke live probes`
-
-QHAPAQ names them required-green. This change cannot self-certify the
-control-plane bind.
+The two deterministic jobs are suitable source-admission checks. The live job is
+a post-merge and scheduled provider monitor. Requiring that live job on pull
+requests would couple repository admission to unrelated DNS, edge, hosting, and
+runtime availability and recreate the deadlock this lifecycle removes.
 
 ## Owners
 
@@ -54,6 +53,7 @@ control-plane bind.
 | S2 signer contract | **1394 on main** | Probe only. `DSSE-LIVE` only on `/api/a11oy/healthz` rollup.signer; lean health JSON is `ABSENT` / `UNAVAILABLE`. |
 | S3 unlabeled live coords | this gate | Fail-closed: UNAVAILABLE, MEASURED **with method**, or unit-labelled. Do not invent MEASURED. |
 | Static apex reachability | Pages front door | Root must return HTTP 200; no application API capability is inferred. |
+| Provider monitor lifecycle | this workflow | Live failures remain red after protected merge and on schedule; they do not gate unrelated source PRs. |
 | PR 1366 memory covenant PG18 | out of scope | **RED**. Not this gate. |
 | PR 1363 | HOLD | Do not touch. |
 
@@ -61,7 +61,7 @@ control-plane bind.
 
 The fail is the **bind**, not the catalog count.
 
-- Genome `LOCKED-PROVEN=25` is a **catalog** tier. It may remain, labelled, never
+- Genome `LOCKED-PROVEN=25` is a **catalog** tier. It may remain labelled, never
   green, never the kernel.
 - `GET /api/a11oy/v1/honest` `locked_formula_count=8` is the **kernel**.
 - Lean-8 ≠ genome-144. D5 stays a catalog-size label.
@@ -106,27 +106,30 @@ for wire-D. L1–L6 are `SNAPSHOT 2026-08-28`.
 | wire-D | Wire D attestation (roadmap, not claimed) | not live |
 | PR 1366 | Memory covenant | **RED out of scope** |
 
-## Out of scope (standing)
+## Out of scope and standing boundaries
 
 - Never merge PR 1363 (HOLD).
 - PR 1396 is merged; do not re-edit console chrome in this gate.
-- PR 1366: **RED**, out of scope.
-- No Dockerfile / hf-sync admission-input changes.
+- PR 1366 remains red and out of scope.
+- No Dockerfile or hf-sync admission-input changes.
 - No POST.
-- No genome.json rewrite.
+- No `genome.json` rewrite.
 - Do not infer application health from the static front door.
-- Do not invent LIVE from source-only 1394.
-- a11oy.net dual-origin smokes remain separate.
+- Do not invent LIVE from source-only evidence.
+- `a11oy.net` dual-origin smokes remain separate.
 
-## Measured live
+## Measured-live lifecycle
 
-The workflow performs two independent measurements:
+The live job performs two independent measurements:
 
 1. `https://a-11-oy.com/` must be a reachable static product front door.
 2. `https://szlholdings-a11oy.hf.space` must satisfy the fail-closed runtime
    S1–S12 GET/HEAD assertions.
 
-A pass on either origin does not substitute for a pass on the other.
+A pass on either origin does not substitute for a pass on the other. These
+measurements run on every protected-main push, every six hours, and on manual
+dispatch. A provider outage therefore remains continuously observable even when
+a source PR is intentionally isolated from that external failure.
 
 ## Run locally
 

@@ -14,12 +14,19 @@ name: Secret Scanning (Gitleaks)
 
 on:
   push:
-    branches: [ main, '**' ]
+    branches:
+    - main
+    - '**'
   pull_request:
-    branches: [ main ]
+    branches:
+    - main
   schedule:
-    - cron: '0 3 * * 1'  # Weekly Monday 03:00 UTC
-
+  - cron: 0 3 * * 1
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 

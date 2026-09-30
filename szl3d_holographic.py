@@ -281,7 +281,7 @@ _BRAIN_SOURCES: Dict[str, str] = {
     "repos": "https://api.github.com/orgs/szl-holdings/repos?per_page=100&type=public",
     "organ:a11oy": "https://szlholdings-a11oy.hf.space/healthz",
     "organ:killinchu": "https://szlholdings-killinchu.hf.space/healthz",
-    "organ:anatomy": "https://szlholdings-anatomy.hf.space/healthz",
+    "organ:anatomy": "https://betterwithage-anatomy.hf.space/healthz",
     "organ:amaru": "https://szlholdings-amaru.hf.space/healthz",
     "organ:sentra": "https://szlholdings-sentra.hf.space/healthz",
     "frontier:deepseek-ai": "https://huggingface.co/api/models?author=deepseek-ai&limit=100&full=false",
@@ -627,6 +627,14 @@ def register(app, ns: str = "a11oy") -> Dict[str, Any]:
         )
         _front_move(route)
         registered.append(f"GET,HEAD {route}")
+        app.add_api_route(
+            route + "/",
+            _shell,
+            methods=["GET", "HEAD"],
+            include_in_schema=False,
+        )
+        _front_move(route + "/")
+        registered.append(f"GET,HEAD {route}/")
 
     async def _info():
         return JSONResponse(info(ns))

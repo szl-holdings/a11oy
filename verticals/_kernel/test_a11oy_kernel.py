@@ -47,6 +47,19 @@ class KernelContractTests(unittest.TestCase):
         self.assertEqual(lam["status"], "ADVISORY_CONJECTURAL")
         self.assertEqual(lam["authority"], "NONE")
 
+    def test_empty_json_bind_is_unknown_not_admit(self) -> None:
+        result = kernel.evaluate({})
+        self.assertEqual(result["state"], "UNKNOWN")
+        self.assertEqual(result["decision"], "UNKNOWN")
+        self.assertEqual(result["honesty"], "UNKNOWN")
+        self.assertEqual(result["formulas"], [])
+        self.assertFalse(result["admit"])
+        self.assertFalse(result["locked_8"])
+        self.assertNotEqual(result["state"], "ADMIT")
+        only_vertical = kernel.evaluate({"vertical_id": "terra"})
+        self.assertEqual(only_vertical["state"], "UNKNOWN")
+        self.assertEqual(only_vertical["reason_codes"], ["EMPTY_KERNEL_BIND"])
+
     def test_scan_catches_authority_phrase(self) -> None:
         scan = kernel.scan_memo("this is legal advice and you should buy")
         self.assertTrue(scan["claimed_authority"])

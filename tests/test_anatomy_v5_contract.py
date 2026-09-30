@@ -82,6 +82,8 @@ def test_failed_or_degraded_sources_keep_honest_state_labels() -> None:
     # and is explicitly UNAVAILABLE; it is never converted to a successful row.
     assert "classifyProbe(name,hit.data)" in html
     assert "hit.data?.state||hit.data?.status||'LIVE'" not in html
+    assert "ADVISORY_BODY')return 'LIVE'" not in html
+    assert "ADVISORY_BODY')return 'ADVISORY'" in html
     assert "return declared||'OBSERVED'" in html
     assert "HONEST_STUB_CATALOG" in html and "return 'MODELED'" in html
     assert "name==='formulas'||name==='genome'" in html

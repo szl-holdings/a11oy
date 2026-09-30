@@ -100,7 +100,7 @@ footer{margin-top:28px;border-top:1px solid var(--line);padding-top:16px;
 <section class="bay" aria-label="Evidence Bay">
   <article class="part"><div class="k">1 · Purpose</div>
     <h2>Prove the body, not the picture.</h2>
-    <p>The 3D atlas at <a href="https://huggingface.co/spaces/SZLHOLDINGS/anatomy">SZLHOLDINGS/anatomy</a>
+    <p>The 3D atlas at <a href="/anatomy-v5">a-11-oy.com/anatomy-v5</a>
       is the map (SLSA L1 static viz). This page is the integrity kernel:
       HEART / YUYAY, CIRCULATORY / YAWAR, BRAIN / YACHAY, NERVOUS / OTel, SKELETON / Khipu.
       WILLAY is conscience, not a sixth proven organ.</p>
@@ -129,7 +129,7 @@ footer{margin-top:28px;border-top:1px solid var(--line);padding-top:16px;
     <ol>
       <li>This page: click <b>Healthy cycle</b>, then <b>Zero heart</b>.</li>
       <li><code>python3 organ_integrity.py</code> then <code>python3 organ_integrity.py --tamper zero_heart</code></li>
-      <li>Source: <a href="https://github.com/szl-holdings/szl-organ-integrity">szl-holdings/szl-organ-integrity</a></li>
+      <li>Source: <a href="https://github.com/szl-holdings/a11oy">szl-holdings/a11oy</a></li>
       <li>This command body: <code>GET https://a-11-oy.com/api/a11oy/v1/organs/integrity</code></li>
       <li>Digital twin: <a href="/anatomy-v5">/anatomy-v5</a> · 3D map: <a href="/living-anatomy">/living-anatomy</a></li>
     </ol>
@@ -144,7 +144,7 @@ footer{margin-top:28px;border-top:1px solid var(--line);padding-top:16px;
   <button class="danger" data-flag="leak_canal" type="button">Leak a canal</button>
   <button class="danger" data-flag="break_skeleton" type="button">Paint a sorry green</button>
   <button class="danger" data-flag="willay_fire" type="button">Governance bypass</button>
-  <a class="btn" href="https://github.com/szl-holdings/szl-organ-integrity">Source</a>
+  <a class="btn" href="https://github.com/szl-holdings/a11oy">Source</a>
 </div>
 <p class="lede" id="surface-note">Running the in-browser SHA-256 kernel. Command-body API probed separately.</p>
 <div class="hero" id="hero">
@@ -155,9 +155,9 @@ footer{margin-top:28px;border-top:1px solid var(--line);padding-top:16px;
 <pre id="receipt">receipt appears here</pre>
 
 <footer>
-  Source <a href="https://github.com/szl-holdings/szl-organ-integrity">szl-holdings/szl-organ-integrity</a>
+  Source <a href="https://github.com/szl-holdings/a11oy">szl-holdings/a11oy</a>
   · kernel playground <a href="https://huggingface.co/spaces/SZLHOLDINGS/szl-khipu">SZLHOLDINGS/szl-khipu</a>
-  · map <a href="https://huggingface.co/spaces/SZLHOLDINGS/anatomy">SZLHOLDINGS/anatomy</a>
+  · map <a href="/anatomy-v5">a-11-oy.com/anatomy-v5</a>
   · command body <a href="https://a-11-oy.com/">a-11-oy.com</a><br />
   SZL Holdings · governed AI you can prove · Λ = Conjecture 1, never a theorem ·
   trust ceiling 0.97 · energy UNAVAILABLE · never a fabricated joule · Apache-2.0
@@ -211,31 +211,31 @@ async function evaluate(flags){
   const skelPass = rows.filter(r => r.ok).length;
   const skeletonDown = skelPass < rows.length;
   const organs = [
-    {id:"brain", name:"BRAIN", quechua:"YACHAY", formulas:["F1"], status: brainDown?"DOWN":"LIVE", honesty:"LIVE",
+    {id:"brain", name:"BRAIN", quechua:"YACHAY", formulas:["F1"], status: brainDown?"DOWN":"ADVISORY", honesty:"STRUCTURAL-ONLY",
       detail: brainDown ? `cross-canal leak ${leaked.toExponential(3)}` : "read-only cortex · canal-partition silhouette leak 0",
       metric: leaked},
-    {id:"heart", name:"HEART", quechua:"YUYAY", formulas:["F4","F11"], status: heartDown?"DOWN":"LIVE", honesty:"ADVISORY",
+    {id:"heart", name:"HEART", quechua:"YUYAY", formulas:["F4","F11"], status: heartDown?"DOWN":"ADVISORY", honesty:"ADVISORY",
       detail: heartDown ? `Λ ${lam.toFixed(4)} · zero-routed` : `Λ ${lam.toFixed(4)} · advisory · Conjecture 1 OPEN`,
       metric: lam},
-    {id:"circulatory", name:"CIRCULATORY", quechua:"YAWAR", formulas:["F7","F22"], status: chain.ok?"LIVE":"DOWN", honesty:"LIVE",
+    {id:"circulatory", name:"CIRCULATORY", quechua:"YAWAR", formulas:["F7","F22"], status: chain.ok?"ADVISORY":"DOWN", honesty:"STRUCTURAL-ONLY",
       detail: chain.ok ? `3-hop SHA-256 · head ${chain.head.slice(0,16)}` : `chain break at ${chain.break_at} · fail closed`,
       metric: chain.ok?0:1},
-    {id:"nervous", name:"NERVOUS", quechua:"OTel", formulas:["F12"], status: nervousDown?"DOWN":"LIVE", honesty:"UNAVAILABLE",
+    {id:"nervous", name:"NERVOUS", quechua:"OTel", formulas:["F12"], status: nervousDown?"DOWN":"ADVISORY", honesty:"UNAVAILABLE",
       detail: nervousDown ? "fabricated joule refused — energy stays UNAVAILABLE" : "energy UNAVAILABLE · never a fabricated joule",
       metric: nervousDown?1:0},
-    {id:"skeleton", name:"SKELETON", quechua:"Khipu", formulas:["F18","F19"], status: skeletonDown?"DOWN":"LIVE", honesty:"ADVISORY",
+    {id:"skeleton", name:"SKELETON", quechua:"Khipu", formulas:["F18","F19"], status: skeletonDown?"DOWN":"ADVISORY", honesty:"ADVISORY",
       detail: skeletonDown ? `locked-8 ${skelPass}/8 — a sorry cannot be painted green` : `locked-8 ${skelPass}/8 · CHECKED ≠ Lean PROVEN @ c7c0ba17`,
       metric: skelPass}
   ];
-  const live = organs.filter(o => o.status==="LIVE").length;
+  const advisory = organs.filter(o => o.status==="ADVISORY").length;
   const organDown = organs.some(o => o.status==="DOWN");
   const blocked = organDown || !!flags.willay_fire;
   let reason;
   if (flags.willay_fire) reason = "WILLAY conscience veto — governance bypass refused (tamper-EVIDENT, not tamper-proof)";
   else if (organDown) reason = `organ integrity FAIL · ${organs.filter(o=>o.status==="DOWN").map(o=>o.name).join(", ")} DOWN · fail closed`;
-  else reason = `organ integrity ${live}/5 LIVE · Λ advisory · energy UNAVAILABLE · Conjecture 1 OPEN`;
+  else reason = `organ integrity ${advisory}/5 ADVISORY · Λ advisory · energy UNAVAILABLE · Conjecture 1 OPEN`;
   const body = {
-    organs, live_count: live, blocked, verdict: blocked ? "BLOCKED" : "ADVISORY_BODY",
+    organs, live_count: 0, advisory_count: advisory, blocked, verdict: blocked ? "BLOCKED" : "ADVISORY_BODY",
     energy:"UNAVAILABLE", energy_j:null, lambda_advisory:true, conjecture_1:"OPEN",
     locked_proven:8, kernel_commit:"c7c0ba17", chain_head: chain.head, chain_ok: chain.ok,
     chain_alg:"SHA-256", proven_trust:false, reason, seed,
@@ -257,7 +257,7 @@ function render(env, label){
   hero.replaceChildren();
   hero.append(
     el("span", "k", `${label} · ${ev.chain_alg || "SHA-256"} · kernel ${ev.kernel_commit || "c7c0ba17"}`),
-    el("p", "statement", `${ev.live_count}/5 LIVE · ${ev.reason || ""}`),
+    el("p", "statement", `${ev.advisory_count||0}/5 ADVISORY · ${ev.reason || ""}`),
     el("span", `verdict ${blocked?"false":"ok"}`,
       `${blocked?"BLOCKED":"advisory body"} · energy UNAVAILABLE · Conjecture 1 OPEN`)
   );
@@ -293,10 +293,11 @@ async function run(flags, label){
     try{
       const ctl = new AbortController();
       const t = setTimeout(() => ctl.abort(), 4000);
+      const apiBody = Object.values(flags).some(Boolean) ? flags : {silhouette: true};
       const r = await fetch(url, {
-        method: Object.values(flags).some(Boolean) ? "POST" : "GET",
+        method: "POST",
         headers: {"content-type":"application/json"},
-        body: Object.values(flags).some(Boolean) ? JSON.stringify(flags) : undefined,
+        body: JSON.stringify(apiBody),
         signal: ctl.signal, cache:"no-store"
       });
       clearTimeout(t);

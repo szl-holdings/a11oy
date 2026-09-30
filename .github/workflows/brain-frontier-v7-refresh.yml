@@ -1,0 +1,175 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+name: Brain Frontier v7 refresh
+
+on:
+  schedule:
+    - cron: "7 */2 * * *"
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Why this fixed-source handles-only refresh is running"
+        required: false
+        default: "manual Brain Frontier refresh"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: brain-frontier-v7-refresh
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    if: github.repository == 'szl-holdings/a11oy' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    outputs:
+      changed: ${{ steps.materialize.outputs.changed }}
+      source_sha: ${{ steps.materialize.outputs.source_sha }}
+      snapshot_digest: ${{ steps.materialize.outputs.snapshot_digest }}
+      candidate_set: ${{ steps.materialize.outputs.candidate_set }}
+      artifact_id: ${{ steps.snapshot_artifact.outputs.artifact-id }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - name: Checkout protected main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Resolve and validate the fixed-source handle snapshot
+        id: materialize
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p reports
+          source_sha="$(git rev-parse HEAD)"
+          python scripts/materialize_brain_frontier_v7.py \
+            --output console/assets/brain-frontier-v7.json \
+            | tee reports/brain-frontier-v7-materialization.json
+          python -m py_compile scripts/materialize_brain_frontier_v7.py scripts/brain_frontier_v7_refresh.py
+          node --check console/assets/brain-frontier-v7.js
+          python -m pip install --disable-pip-version-check --no-cache-dir "pytest==8.3.5" "PyYAML==6.0.2"
+          python -m pytest -q \
+            tests/test_brain_frontier_v7.py \
+            tests/test_brain_frontier_v7_surface.py \
+            tests/test_brain_frontier_v7_refresh.py
+          git diff --check
+          changed=false
+          if ! git diff --quiet -- console/assets/brain-frontier-v7.json; then
+            changed=true
+          fi
+          digest="$(python -c 'import json; print(json.load(open("console/assets/brain-frontier-v7.json"))["snapshot_sha256"])')"
+          candidate_set="$(python -c 'import json; print(json.load(open("console/assets/brain-frontier-v7.json"))["sources"]["second_brain"]["candidate_set_sha256"])')"
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+          echo "source_sha=$source_sha" >> "$GITHUB_OUTPUT"
+          echo "snapshot_digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "candidate_set=$candidate_set" >> "$GITHUB_OUTPUT"
+      - name: Retain validated inputs for this run only
+        id: snapshot_artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: brain-frontier-v7-input-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            console/assets/brain-frontier-v7.json
+            reports/brain-frontier-v7-materialization.json
+          if-no-files-found: error
+          retention-days: 7
+
+  proposal:
+    needs: materialize
+    if: always() && github.repository == 'szl-holdings/a11oy' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      RECEIPT: reports/brain-frontier-v7-refresh.json
+      PROPOSAL: reports/brain-frontier-v7-proposal.json
+      SOURCE_SHA: ${{ needs.materialize.outputs.source_sha }}
+      SNAPSHOT_DIGEST: ${{ needs.materialize.outputs.snapshot_digest }}
+      CANDIDATE_SET: ${{ needs.materialize.outputs.candidate_set }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - name: Checkout the validated source revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.materialize.outputs.source_sha || 'main' }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Load inputs from the successful read-only job
+        if: needs.materialize.result == 'success'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ needs.materialize.outputs.artifact_id }}
+          merge-multiple: true
+          path: .
+      - name: Reconcile one content-addressed branch and open review PR
+        id: proposal
+        if: needs.materialize.result == 'success' && needs.materialize.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.BRAIN_FRONTIER_PR_TOKEN || github.token }}
+          CREDENTIAL_KIND: ${{ secrets.BRAIN_FRONTIER_PR_TOKEN != '' && 'automation-token' || 'github-token' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh auth setup-git --hostname github.com
+          python scripts/brain_frontier_v7_refresh.py reconcile \
+            --repository "$GITHUB_REPOSITORY" \
+            --source-sha "$SOURCE_SHA" \
+            --snapshot-digest "$SNAPSHOT_DIGEST" \
+            --candidate-set "$CANDIDATE_SET" \
+            --credential-kind "$CREDENTIAL_KIND" \
+            --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --evidence "$PROPOSAL" \
+            --github-output "$GITHUB_OUTPUT"
+      - name: Write the secret-free refresh receipt
+        if: always()
+        env:
+          CHANGED: ${{ needs.materialize.outputs.changed }}
+          MATERIALIZE_RESULT: ${{ needs.materialize.result }}
+          PROPOSAL_RESULT: ${{ steps.proposal.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/brain_frontier_v7_refresh.py receipt \
+            --output "$RECEIPT" --proposal "$PROPOSAL" \
+            --repository "$GITHUB_REPOSITORY" --ref "$GITHUB_REF" \
+            --event-name "$GITHUB_EVENT_NAME" --run-id "$GITHUB_RUN_ID" \
+            --run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --materialize-result "$MATERIALIZE_RESULT" --proposal-result "$PROPOSAL_RESULT" \
+            --changed "$CHANGED" --source-sha "$SOURCE_SHA" \
+            --snapshot-digest "$SNAPSHOT_DIGEST" --candidate-set "$CANDIDATE_SET"
+      - name: Retain the refresh outcome before enforcing success
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: brain-frontier-v7-refresh-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ env.RECEIPT }}
+            ${{ env.PROPOSAL }}
+          if-no-files-found: error
+          retention-days: 90
+      - name: Require a verified review PR or validated no-change outcome
+        if: always()
+        run: python scripts/brain_frontier_v7_refresh.py verify-receipt --receipt "$RECEIPT"

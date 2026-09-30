@@ -171,7 +171,7 @@ def _page_html(ns: str) -> str:
                 'Less code + fewer dependencies = smaller attack / maintenance surface. '
                 'Wired into Auto-Review as rule <code>AR-006-prefer-minimal-diff</code>. '
                 '<b>ALIGNS WITH / MAPS TO — NOT certified.</b> '
-                '<a href="/restraint">open Restraint →</a></p>')
+                '<a href="/restraint-bench">open Restraint →</a></p>')
         except Exception:
             _restraint_note = ""
     summ_html = " · ".join(
@@ -433,6 +433,12 @@ def _make_injector():
     class _GrcNavInjector(BaseHTTPMiddleware):
         async def dispatch(self, request, call_next):
             resp = await call_next(request)
+            # The response owner, not an incoming request, opts out of UI mutation.
+            from urllib.request import parse_http_list
+            if any(directive.strip().lower() == "no-transform"
+                   for field in resp.headers.getlist("cache-control")
+                   for directive in parse_http_list(field)):
+                return resp
             try:
                 ct = (resp.headers.get("content-type") or "").lower()
                 if "text/html" not in ct:

@@ -33,6 +33,9 @@ on:
       - '.github/workflows/release.yml'
       - '.github/workflows/public-claim-integrity.yml'
   workflow_dispatch:
+  merge_group:
+    types: [checks_requested]
+    branches: [main, agent/evidenceos-claim-wave36]
 
 permissions:
   contents: read

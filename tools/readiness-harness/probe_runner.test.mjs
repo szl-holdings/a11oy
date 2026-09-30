@@ -136,10 +136,6 @@ test("tab-matrix schema validates available and truthful unavailable wrappers", 
 });
 
 test("router-stats schema requires truthful live process-lifetime counters", () => {
-  // Base object tracks the current doctrine-v11 contract: full protected
-  // catalog coverage, fresh observation, and the exact honesty const from the
-  // checked-in matrix. A hand-rolled minimal object goes stale silently (see
-  // the pre-#1620 honesty drift) and must not be reintroduced here.
   const observed = liveRouterStats();
   assert.equal(validateSchema("router_stats", observed).ok, true);
   assert.equal(validateSchema("router_stats", { ...observed, state: "MODELED" }).ok, false);
@@ -259,4 +255,64 @@ test("feed pulse freshness grades its current heartbeat clock", () => {
   assert.equal(missingHeartbeat.freshOk, false);
   assert.equal(missingHeartbeat.freshnessMissing, true);
   assert.match(missingHeartbeat.freshnessReason, /probed_at/);
+});
+
+test("canonical unavailable freshness.status is not a doctrine lie", () => {
+  const spec = {
+    degradedRules: {
+      allowStatuses: [200],
+      allowLabels: ["live", "cached"],
+      liesIf: ["mock", "fabricated", "placeholder"],
+    },
+  };
+  const fetchedAt = "2026-09-19T23:37:19Z";
+  const canonical = {
+    hpd: {
+      value: null,
+      freshness: {
+        status: "UNAVAILABLE",
+        fetched_at: fetchedAt,
+        error: "HTTPStatusError 503",
+      },
+    },
+    rates: {
+      value: [{ pair: "EURUSD" }],
+      freshness: {
+        status: "live",
+        fetched_at: fetchedAt,
+        error: "",
+      },
+    },
+  };
+  assert.equal(evaluateEndpointLabels(200, spec, canonical).ok, true);
+
+  const missingError = {
+    hpd: {
+      value: null,
+      freshness: {
+        status: "UNAVAILABLE",
+        fetched_at: fetchedAt,
+      },
+    },
+  };
+  assert.equal(evaluateEndpointLabels(200, spec, missingError).ok, false);
+
+  const valueNotNull = {
+    hpd: {
+      value: [],
+      freshness: {
+        status: "UNAVAILABLE",
+        fetched_at: fetchedAt,
+        error: "HTTPStatusError 503",
+      },
+    },
+  };
+  assert.equal(evaluateEndpointLabels(200, spec, valueNotNull).ok, false);
+
+  const rootUnavailable = {
+    freshness: {
+      status: "UNAVAILABLE",
+    },
+  };
+  assert.equal(evaluateEndpointLabels(200, spec, rootUnavailable).ok, false);
 });

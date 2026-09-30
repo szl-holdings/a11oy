@@ -1,0 +1,12 @@
+{
+  "schema": "szl.forecast-loom-projection/v1",
+  "lyte_source_revision": "dbe2465223809853981fbdf776552cae37dac665",
+  "lyte_version": "4.0.0",
+  "hf_schema_job": "6aa1ee2d5527934177ebe848",
+  "hf_challenger_job": "6aa1eed621047bf1b037119e",
+  "granite_admission": "ADMITTED_FOR_EVALUATION",
+  "granite_relative_mae_improvement": 0.8973236913362297,
+  "production_granite_enabled": false,
+  "publisher": "canonical hf-sync single writer",
+  "execution_authority": "NONE"
+}

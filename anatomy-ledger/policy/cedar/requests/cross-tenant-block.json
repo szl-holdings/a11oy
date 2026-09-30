@@ -1,0 +1,18 @@
+{
+  "principal": { "type": "A11oy::WorkloadIdentity", "id": "agent:operator-01" },
+  "action": { "type": "A11oy::Action", "id": "DeployArtifact" },
+  "resource": { "type": "A11oy::ProtectedResource", "id": "deployment:other" },
+  "context": {
+    "requestId": "req-anatomy-cross-tenant-001",
+    "sessionId": "sess-local-verify",
+    "purpose": "release-approved-artifact",
+    "intendedEffect": "deploy",
+    "riskScore": 250,
+    "humanApproval": true,
+    "mfa": true,
+    "networkZone": "trusted-ci",
+    "evidenceDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "traceId": "trace-anatomy-cross-tenant-001",
+    "timestamp": "2026-09-25T18:54:00Z"
+  }
+}

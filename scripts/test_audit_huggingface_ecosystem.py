@@ -9,6 +9,7 @@ import json
 import os
 import tempfile
 import unittest
+from unittest.mock import patch
 from contextlib import redirect_stdout
 from datetime import datetime, timezone
 from pathlib import Path
@@ -67,6 +68,48 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
         finally:
             os.sys.argv = original_argv
 
+    def test_model_rename_requires_new_identity_and_exact_revision(self) -> None:
+        old_id = "SZLHOLDINGS/old-model"
+        new_id = "SZLHOLDINGS/new-model"
+        rename = [old_id, new_id, "a" * 40]
+        audit.validate_model_rename({"inventory": {"models": [item(new_id)]}}, rename)
+        for entries in (
+            [],
+            [item(old_id)],
+            [item(old_id), item(new_id)],
+            [item(new_id), item(new_id)],
+            [{**item(new_id), "sha": "b" * 40}],
+        ):
+            with self.subTest(entries=entries), self.assertRaises(ValueError):
+                audit.validate_model_rename({"inventory": {"models": entries}}, rename)
+
+    def test_model_rename_rejects_ambiguous_identity_or_revision(self) -> None:
+        for rename in (
+            ["SZLHOLDINGS/model", "SZLHOLDINGS/model", "a" * 40],
+            ["other/old-model", "SZLHOLDINGS/new-model", "a" * 40],
+            ["SZLHOLDINGS/old-model", "other/new-model", "a" * 40],
+            ["SZLHOLDINGS/old-model", "SZLHOLDINGS/new-model", "main"],
+        ):
+            with self.subTest(rename=rename), self.assertRaises(ValueError):
+                audit.validate_model_rename({"inventory": {"models": []}}, rename)
+
+    def test_pending_model_rename_does_not_replace_snapshot(self) -> None:
+        old_id, new_id = "SZLHOLDINGS/old-model", "SZLHOLDINGS/new-model"
+        manifest = {"inventory": {"models": [item(old_id)]}}
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "inventory.json"
+            original = b'{"retained":"historical evidence"}\n'
+            output.write_bytes(original)
+            argv = [
+                "audit", "--output", str(output), "--model-rename",
+                old_id, new_id, "a" * 40,
+            ]
+            with patch.object(os.sys, "argv", argv), patch.object(
+                audit, "build_manifest", return_value=manifest
+            ), redirect_stdout(io.StringIO()):
+                self.assertEqual(1, audit.main())
+            self.assertEqual(original, output.read_bytes())
+
     def test_api_items_follows_next_link_and_deduplicates(self) -> None:
         pages = {
             "page-1": ([item("SZLHOLDINGS/b"), item("SZLHOLDINGS/a")], "page-2"),
@@ -120,6 +163,45 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
         self.assertIsInstance(response, Response)
         self.assertEqual(calls, 3)
         self.assertEqual(sleeps, [1.0, 2.0])
+
+    def test_live_fetch_honors_numeric_retry_after(self) -> None:
+        calls = 0
+        sleeps: list[float] = []
+        original_urlopen = audit.urllib.request.urlopen
+
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_: object) -> None:
+                return None
+
+        def rate_limited_urlopen(url: str, *, timeout: float):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise audit.urllib.error.HTTPError(
+                    url,
+                    429,
+                    "Too Many Requests",
+                    {"Retry-After": "17"},
+                    None,
+                )
+            return Response()
+
+        audit.urllib.request.urlopen = rate_limited_urlopen
+        try:
+            response = audit.open_url_with_retry(
+                "https://huggingface.co/api/models",
+                attempts=2,
+                sleep=sleeps.append,
+            )
+        finally:
+            audit.urllib.request.urlopen = original_urlopen
+
+        self.assertIsInstance(response, Response)
+        self.assertEqual(calls, 2)
+        self.assertEqual(sleeps, [17.0])
 
     def test_live_fetch_fails_closed_after_retry_exhaustion(self) -> None:
         calls = 0

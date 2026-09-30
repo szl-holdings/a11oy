@@ -89,7 +89,7 @@ def _json(payload: dict[str, Any], kind: str) -> JSONResponse:
 
 TABS = [
     {"route": "/", "name": "Orchestrator", "purpose": "Brand Orchestration Layer landing", "source": "existing", "status": "GREEN"},
-    {"route": "/a11oy.code", "name": "a11oy.code", "purpose": "Conversational orchestrator (7-tier unified LLM router)", "source": "a11oy_code_orchestrator", "status": "GREEN"},
+    {"route": "/api/a11oy/code/ide", "name": "a11oy.code", "purpose": "Conversational orchestrator (7-tier unified LLM router)", "source": "a11oy_code_orchestrator", "status": "GREEN"},
     {"route": "/docs", "name": "Docs", "purpose": "Customer-facing documentation index", "source": "customer_surface", "status": "GREEN"},
     {"route": "/pricing", "name": "Pricing", "purpose": "Commercial tiers (Demo→DoD), honor-system metering", "source": "customer_surface", "status": "GREEN"},
     {"route": "/api-keys", "name": "API Keys", "purpose": "Key issuance, scopes, rotation, cosign tamper-evidence", "source": "customer_surface", "status": "GREEN"},
@@ -102,7 +102,6 @@ TABS = [
     {"route": "/uds", "name": "UDS", "purpose": "UDS allies map + deploy SZL on UDS Core", "source": "killinchu/uds_allies", "status": "GREEN"},
     {"route": "/counter-uas", "name": "Counter-UAS", "purpose": "Adversary drone catalog + legal/cyber boundary", "source": "killinchu/cuas", "status": "GREEN"},
     {"route": "/evidence", "name": "Evidence", "purpose": "Ouroboros/LUTAR evidence ledger", "source": "existing", "status": "GREEN"},
-    {"route": "/upgrades", "name": "Upgrades", "purpose": "Showcase", "source": "existing", "status": "GREEN"},
     {"route": "/audit", "name": "Audit", "purpose": "Khipu DAG visualizer across ALL flagships (the Greene trick)", "source": "this-pass", "status": "GREEN"},
     {"route": "/gap-report", "name": "Gap Report", "purpose": "Live gap-audit heatmap (partial-public)", "source": "completeness_audit", "status": "GREEN"},
     {"route": "/hub", "name": "Hub Index", "purpose": "One front door linking every tab", "source": "this-pass", "status": "GREEN"},
@@ -185,7 +184,7 @@ SECURITY_POSTURE = {
         {"domain": "Audit logs (Khipu DAG)", "grade": "GREEN substrate / AMBER ops", "note": "SHA-256 Merkle DAG + DSSE receipts, Lean-proved TH11; not off-box"},
     ],
     "cosign_pub_fingerprint": COSIGN_PUB_FPR,
-    "vdp": "https://security.szlholdings.com/.well-known/security.txt (RFC 9116)",
+    "vdp": "https://a-11-oy.com/.well-known/security.txt (RFC 9116)",
     "locked": LOCKED,
 }
 

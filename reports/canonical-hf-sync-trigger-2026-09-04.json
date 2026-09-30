@@ -1,0 +1,32 @@
+{
+  "schema": "szl.canonical-hf-sync-trigger/v1",
+  "issued_at": "2026-09-04T03:59:00Z",
+  "reason": "Re-emit the canonical main-push deployment after protected merge #1794 repaired the vertical-services GitHub token-name contract but no hf-sync run was created for main commit 17aeb82cafcd001380c1f9da021df785d7970b85.",
+  "source_commit": "17aeb82cafcd001380c1f9da021df785d7970b85",
+  "expected_workflow": ".github/workflows/hf-sync.yml",
+  "expected_single_writer": "SZLHOLDINGS/a11oy plus the governed vertical-estate publisher",
+  "acceptance": {
+    "a11oy_exact_source_bound": true,
+    "a11oy_relocked": true,
+    "public_verticals_verified": [
+      "terra",
+      "counsel",
+      "finance",
+      "lyte"
+    ],
+    "folded_capability_planes": {
+      "sentra": "SZLHOLDINGS/killinchu",
+      "vessels": "SZLHOLDINGS/killinchu"
+    },
+    "vertical_services_exact_source_bound": "83edba5c5e730c91d8f5f0a6531213fb860677af",
+    "immutable_receipts_required": true,
+    "http_200_alone_is_sufficient": false
+  },
+  "mutation_boundary": {
+    "runtime_code_changed": false,
+    "workflow_changed": false,
+    "protection_bypassed": false,
+    "second_hf_writer_created": false,
+    "secrets_recorded": false
+  }
+}

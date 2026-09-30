@@ -2,45 +2,53 @@ name: Production Convergence Guard
 
 on:
   pull_request:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - "a11oy_landing.html"
-      - "console/assets/szl-flow.css"
-      - "console/assets/szl-flow.js"
-      - "docs/frontend-flow-shell-state.json"
-      - "pages/integrations.html"
-      - "scripts/repair_a11oy_frontdoor.py"
-      - "scripts/rollout_frontend_flow_shell.py"
-      - "spaces/sda/index.html"
-      - "szl_connectors_serve.py"
-      - "tests/test_frontend_flow_shell.py"
-      - "tests/test_frontend_source_boundaries.py"
-      - "tests/test_integrations_flow_boundary.py"
-      - ".github/workflows/apply-production-convergence-repair.yml"
+    - a11oy_landing.html
+    - console/assets/szl-flow.css
+    - console/assets/szl-flow.js
+    - docs/frontend-flow-shell-state.json
+    - pages/integrations.html
+    - scripts/repair_a11oy_frontdoor.py
+    - scripts/rollout_frontend_flow_shell.py
+    - spaces/sda/index.html
+    - szl_connectors_serve.py
+    - tests/test_frontend_flow_shell.py
+    - tests/test_frontend_source_boundaries.py
+    - tests/test_integrations_flow_boundary.py
+    - tests/test_landing_estate_pulse.py
+    - .github/workflows/apply-production-convergence-repair.yml
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - "a11oy_landing.html"
-      - "console/assets/szl-flow.css"
-      - "console/assets/szl-flow.js"
-      - "docs/frontend-flow-shell-state.json"
-      - "pages/integrations.html"
-      - "scripts/repair_a11oy_frontdoor.py"
-      - "scripts/rollout_frontend_flow_shell.py"
-      - "spaces/sda/index.html"
-      - "szl_connectors_serve.py"
-      - "tests/test_frontend_flow_shell.py"
-      - "tests/test_frontend_source_boundaries.py"
-      - "tests/test_integrations_flow_boundary.py"
-      - ".github/workflows/apply-production-convergence-repair.yml"
-  workflow_dispatch:
-
+    - a11oy_landing.html
+    - console/assets/szl-flow.css
+    - console/assets/szl-flow.js
+    - docs/frontend-flow-shell-state.json
+    - pages/integrations.html
+    - scripts/repair_a11oy_frontdoor.py
+    - scripts/rollout_frontend_flow_shell.py
+    - spaces/sda/index.html
+    - szl_connectors_serve.py
+    - tests/test_frontend_flow_shell.py
+    - tests/test_frontend_source_boundaries.py
+    - tests/test_integrations_flow_boundary.py
+    - tests/test_landing_estate_pulse.py
+    - .github/workflows/apply-production-convergence-repair.yml
+  workflow_dispatch: null
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 
 concurrency:
   group: production-convergence-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   verify:
@@ -66,10 +74,12 @@ jobs:
             szl_connectors_serve.py \
             tests/test_integrations_flow_boundary.py \
             tests/test_frontend_flow_shell.py \
-            tests/test_frontend_source_boundaries.py
+            tests/test_frontend_source_boundaries.py \
+            tests/test_landing_estate_pulse.py
           python tests/test_integrations_flow_boundary.py -v
           python tests/test_frontend_flow_shell.py -v
           python tests/test_frontend_source_boundaries.py -v
+          python tests/test_landing_estate_pulse.py -v
           python scripts/repair_a11oy_frontdoor.py a11oy_landing.html --check
           python scripts/rollout_frontend_flow_shell.py --check
           node --check console/assets/szl-flow.js

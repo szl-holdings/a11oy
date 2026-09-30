@@ -122,6 +122,8 @@ def test_frontier_page_renders_surface_list_from_this_endpoint():
     # 0-CDN doctrine preserved by the added wiring.
     assert "http://" not in html and "https://" not in html, \
         "external URL found (0-CDN doctrine)"
+    assert "/api/a11oy/v1/fashion" in html
+    assert "fashion-section" in html
 
 
 def test_route_and_page_manifest_advertise_the_endpoint():

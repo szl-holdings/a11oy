@@ -11,16 +11,12 @@ ROOT = Path(__file__).resolve().parents[1]
 DOCKERFILE = ROOT / "Dockerfile"
 BUILD_WORKFLOW = ROOT / ".github" / "workflows" / "docker-build.yml"
 RUNTIME_LAYER_BUDGET = 110
-# DISCLOSED pin refresh, feat/frontier-brainlocal (rebased onto current main).
-# Honest accounting of the 550 -> 551 delta: exactly ONE COPY source is added, and it
-# belongs to this branch: szl_brainlocal.py, which joined the EXISTING grouped root-module
-# COPY line rather than taking a new single-file layer. main's own pin measured accurate at
-# 550, so nothing is being absorbed or hidden here. No layer BUDGET was raised:
-# RUNTIME_LAYER_BUDGET is untouched and the COPY layer count is unchanged; only the explicit
-# source allowlist count and its digest move.
-COPY_SOURCE_ALLOWLIST_COUNT = 551
+# Exact base 3831b44 has 577 explicit COPY sources (the prior 565 pin was stale).
+# This repair adds only vsp_otel/__init__.py and vsp_otel/middleware.py; no removals.
+# Preserve the explicit allowlist and unchanged layer budget, not a broad COPY.
+COPY_SOURCE_ALLOWLIST_COUNT = 579
 COPY_SOURCE_ALLOWLIST_SHA256 = (
-    "a3af138e9552f1c697539c3e73e43adaf1ca81612c54153bd1b56f92a3a8820c"
+    "aa11d167572da80452e1247815b1a0e08bbd9ba206f4d859b0b26f8d84ffc48e"
 )
 
 

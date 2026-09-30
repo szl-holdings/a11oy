@@ -1,0 +1,186 @@
+{
+  "schema": "szl.vessels-public-lists/v8",
+  "honesty": "CITATION_ONLY",
+  "status": "ROADMAP",
+  "data_label": "SAMPLE",
+  "formula_authority": "NONE",
+  "licensed_ais_admitted": false,
+  "licensed_ais_queries": 0,
+  "production_ready": false,
+  "stamps_live": false,
+  "vessels_e01": "OUTSTANDING",
+  "vessels_e03": "OUTSTANDING",
+  "proof": "https://a11oy.net/vessels/public-lists-world.json",
+  "lattice_html": "https://a11oy.net/vessels/world/",
+  "authority_lattice": "https://a11oy.net/vessels/public-list-lattice.json",
+  "cn_kr_ua": "https://a11oy.net/vessels/public-lists-cn-kr-ua.json",
+  "digest": "70fd1918fb38791159cfa2c520dc989f32125e4e0de4104b59d0a26fa48e1cb5",
+  "authority_lattice_digest": "b2d23ac69631667c09a8e3c4715d9a7caabda23edc9739b74d743fe6d9f88c1d",
+  "ais_lattice_digest_unchanged": "f931b48544bcf70b1ca0d1c03b38b6c8e9dbf1933adfb8128316324e82eeb457",
+  "authority_classes": [
+    "OFAC-vessel",
+    "UN-1718-vessel",
+    "UK-specified-ship",
+    "UA-GUR-ship",
+    "KR-MOFA-vessel",
+    "IUU-RFMO",
+    "Paris-banned"
+  ],
+  "freshness_classes": [
+    "REACHABLE_FRESH",
+    "STALE_OR_THIN",
+    "PAGE_CITE",
+    "REPORTED",
+    "UNAVAILABLE",
+    "REFUSED"
+  ],
+  "counts": {
+    "lists": 50,
+    "measured_200_or_206": 45,
+    "unavailable": 3,
+    "refused": 2,
+    "stale_or_thin": 2,
+    "page_cite": 12,
+    "reported": 1,
+    "reachable_fresh": 31,
+    "tier_a": 19,
+    "tier_b": 9,
+    "tier_c": 20,
+    "tier_d": 2
+  },
+  "fail_closed_eval_stale": "VESSELS-E-ABSTAIN",
+  "fail_closed_eval_ais": "VESSELS-E-DENY-AIS",
+  "joint_freshness": {
+    "honesty": "CITATION_ONLY",
+    "digest": "1cb5b1178b7cda2327443eb7b8e33703aae26a23b4102a0d5f91291cff149898",
+    "proof": "https://a11oy.net/vessels/joint-freshness.json",
+    "rule": "min-link over current official clocks; stale twins are disagreement; winner not picked",
+    "winner_not_picked": true,
+    "does_not_run_the_kernel": true,
+    "classes": [
+      {"id": "OFAC-vessel", "freshness": "REACHABLE_FRESH", "hole": false},
+      {"id": "UN-1718-vessel", "freshness": "REACHABLE_FRESH", "hole": false},
+      {"id": "UK-specified-ship", "freshness": "REACHABLE_FRESH", "hole": false},
+      {"id": "UA-GUR-ship", "freshness": "REACHABLE_FRESH", "hole": false},
+      {"id": "KR-MOFA-vessel", "freshness": "REPORTED", "hole": true, "maps_to": "VESSELS-E-ABSTAIN"},
+      {"id": "IUU-RFMO", "freshness": "PAGE_CITE", "hole": true, "maps_to": "VESSELS-E-ABSTAIN"},
+      {"id": "Paris-banned", "freshness": "PAGE_CITE", "hole": true, "maps_to": "VESSELS-E-ABSTAIN", "store_rows": "DENIED"}
+    ],
+    "disagreements": [
+      {"id": "UK-FCDO-vs-OFSI", "kind": "DISAGREE_FRESHNESS", "winner_not_picked": true, "using_stale_as_sole_source": "VESSELS-E-ABSTAIN"},
+      {"id": "AU-official-vs-compilation", "kind": "DISAGREE_OFFICIAL_VS_COMPILATION", "winner_not_picked": true, "using_compilation_as_official": "DENIED"},
+      {"id": "EU-FSF-dual-observer", "kind": "DISAGREE_OBSERVER", "winner_not_picked": true}
+    ],
+    "coverage_holes": [
+      "KR-MOFA-vessel",
+      "IUU-RFMO",
+      "Paris-banned",
+      "CN-no-vessel-class",
+      "AU-DFAT-timeout",
+      "SG-MAS-stale",
+      "APAC-official-joint"
+    ],
+    "negative_evidence": {
+      "engine": "stdlib exact-string SAMPLE",
+      "frozen_identity": "AURORA WAVE",
+      "result": "SAMPLE_TEXT_MISS",
+      "miss_is_not_clearance": true,
+      "is_clearance": false,
+      "not_e01": true,
+      "not_typesafe_jev_call": true
+    }
+  },
+  "typed_judgment": {
+    "engine": "stdlib exact-string SAMPLE",
+    "frozen_identity": "AURORA WAVE",
+    "result": "SAMPLE_TEXT_MISS",
+    "miss_is_not_clearance": true,
+    "not_e01": true
+  },
+  "clocks": [
+    {
+      "id": "OFAC_SDN_CSV",
+      "http": 200,
+      "bytes": 5695725,
+      "last_modified": "Fri, 18 Sep 2026 14:02:00 GMT",
+      "freshness": "REACHABLE_FRESH",
+      "class": "MEASURED"
+    },
+    {
+      "id": "UK_FCDO_CSV",
+      "http": 200,
+      "bytes": 49928338,
+      "last_modified": "Fri, 11 Sep 2026 14:02:07 GMT",
+      "freshness": "REACHABLE_FRESH",
+      "class": "MEASURED"
+    },
+    {
+      "id": "UK_OFSI_CONLIST",
+      "http": 200,
+      "bytes": 16641139,
+      "last_modified": "Wed, 03 Jun 2026 11:01:26 GMT",
+      "freshness": "STALE_OR_THIN",
+      "class": "MEASURED"
+    },
+    {
+      "id": "UN_SC_XML",
+      "http": 206,
+      "bytes": 2176957,
+      "last_modified": "Sat, 19 Sep 2026 23:02:27 GMT",
+      "freshness": "REACHABLE_FRESH",
+      "class": "MEASURED"
+    },
+    {
+      "id": "EU_FSF_OFFICIAL",
+      "http": 200,
+      "bytes": 25766640,
+      "last_modified": "Wed, 05 Aug 2026 14:50:10 GMT",
+      "freshness": "REACHABLE_FRESH",
+      "class": "MEASURED"
+    },
+    {
+      "id": "UA_NSDC_API",
+      "http": 200,
+      "freshness": "REACHABLE_FRESH",
+      "class": "MEASURED"
+    },
+    {
+      "id": "UA_GUR_SHIPS",
+      "http": 200,
+      "freshness": "REACHABLE_FRESH",
+      "class": "MEASURED"
+    },
+    {
+      "id": "CN_MFA_AFSL",
+      "http": 200,
+      "freshness": "PAGE_CITE",
+      "class": "MEASURED"
+    },
+    {
+      "id": "KR_MOFA_DPRK",
+      "http": "UNAVAILABLE",
+      "freshness": "REPORTED",
+      "class": "REPORTED"
+    },
+    {
+      "id": "PARIS_DETENTIONS",
+      "http": 200,
+      "freshness": "PAGE_CITE",
+      "class": "MEASURED"
+    },
+    {
+      "id": "OS_MARITIME",
+      "http": 200,
+      "bytes": 5063543,
+      "last_modified": "Sun, 20 Sep 2026 15:04:14 GMT",
+      "freshness": "REACHABLE_FRESH",
+      "class": "MEASURED"
+    },
+    {
+      "id": "MARINETRAFFIC",
+      "http": null,
+      "freshness": "REFUSED",
+      "class": "REFUSED"
+    }
+  ]
+}

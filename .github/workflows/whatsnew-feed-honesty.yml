@@ -18,17 +18,23 @@ name: What's New feed honesty — no feed entry the app doesn't register (Wave S
 
 on:
   push:
-    branches: [main]
+    branches:
+    - main
   pull_request:
-    branches: [main]
-  workflow_dispatch:
-
+    branches:
+    - main
+  workflow_dispatch: null
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
 
 jobs:
   whatsnew-feed-honesty:

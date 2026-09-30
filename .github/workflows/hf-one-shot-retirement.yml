@@ -2,22 +2,28 @@ name: Canonical A11oy HF One-Shot Retirement
 
 on:
   pull_request:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - .github/workflows/deploy-verify-brain-now.yml
-      - .github/workflows/deploy-verify-canonical-a11oy-now.yml
-      - .github/workflows/hf-sync.yml
-      - .github/workflows/hf-one-shot-retirement.yml
-      - tests/test_hf_one_shots_retired.py
+    - .github/workflows/deploy-verify-brain-now.yml
+    - .github/workflows/deploy-verify-canonical-a11oy-now.yml
+    - .github/workflows/hf-sync.yml
+    - .github/workflows/hf-one-shot-retirement.yml
+    - tests/test_hf_one_shots_retired.py
   push:
-    branches: [main]
+    branches:
+    - main
     paths:
-      - .github/workflows/deploy-verify-brain-now.yml
-      - .github/workflows/deploy-verify-canonical-a11oy-now.yml
-      - .github/workflows/hf-sync.yml
-      - .github/workflows/hf-one-shot-retirement.yml
-      - tests/test_hf_one_shots_retired.py
-
+    - .github/workflows/deploy-verify-brain-now.yml
+    - .github/workflows/deploy-verify-canonical-a11oy-now.yml
+    - .github/workflows/hf-sync.yml
+    - .github/workflows/hf-one-shot-retirement.yml
+    - tests/test_hf_one_shots_retired.py
+  merge_group:
+    types:
+    - checks_requested
+    branches:
+    - main
 permissions:
   contents: read
 

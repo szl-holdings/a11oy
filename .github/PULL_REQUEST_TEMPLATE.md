@@ -1,6 +1,6 @@
 <!--
-Thanks for opening a PR! Please fill in every section below.
-PRs missing the doctrine checklist or DCO sign-off will be blocked.
+Thanks for opening a PR. Fill the sections that apply.
+Solo-build: Developer Certificate of Origin and Signed-off-by trailers are not required.
 -->
 
 ## Summary
@@ -59,10 +59,6 @@ If you skipped any item, explain why here:
 - [ ] No public API change
 - [ ] Public API change — migration note added to `CHANGELOG.md`
 - [ ] UDS package layout change — `MANIFEST.json` and `OPERATOR-QUICKSTART.md` updated
-
-## DCO sign-off
-
-- [ ] Every commit in this PR has a `Signed-off-by:` trailer (use `git commit -s`)
 
 ## Reviewer notes
 

@@ -47,6 +47,11 @@ export interface DualUseDetectionResult {
 /** Threshold: dual_use_coefficient > 0.7 → HARD_GATE or HARD_BLOCK */
 const DUAL_USE_THRESHOLD = 0.7;
 
+/** Normalize external lookup values without weakening registry validation. */
+function normalizeLookupValue(value: string): string {
+  return value.trim().toLowerCase();
+}
+
 /** Core Watcher arts (1 Enoch 8 — abbreviated; full 200-entry JSON in watchers_taxonomy.json) */
 export const CORE_WATCHER_ARTS: WatcherArt[] = [
   {
@@ -92,7 +97,11 @@ export function detectDualUse(
   context: string = "general",
   artRegistry: WatcherArt[] = CORE_WATCHER_ARTS,
 ): DualUseDetectionResult {
-  const matched = artRegistry.find(a => a.artDomain === artDomain);
+  const normalizedArtDomain = normalizeLookupValue(artDomain);
+  const normalizedContext = normalizeLookupValue(context);
+  const matched = artRegistry.find(
+    (art) => normalizeLookupValue(art.artDomain) === normalizedArtDomain,
+  );
   if (!matched) {
     return {
       capability, isFlagged: false, gatePolicy: "ALLOW",
@@ -100,7 +109,9 @@ export function detectDualUse(
       reason: "No Watcher art match — allowed",
     };
   }
-  const inPermittedContext = matched.permittedContexts.includes(context);
+  const inPermittedContext = matched.permittedContexts.some(
+    (permittedContext) => normalizeLookupValue(permittedContext) === normalizedContext,
+  );
 
   // HARD_BLOCK arts (e.g. weapons_craft, permittedContexts=[]) can never be
   // downgraded by any context string. For all other arts, a permitted context
@@ -128,7 +139,7 @@ export function detectDualUse(
     dualUseCoefficient: matched.dualUseCoefficient,
     matchedArt: matched.artDomain,
     reason: downgraded
-      ? `Watcher art "${matched.label}" (coeff=${matched.dualUseCoefficient}) flagged but permitted in context "${context}" — ${matched.moralGrounding}`
+      ? `Watcher art "${matched.label}" (coeff=${matched.dualUseCoefficient}) flagged but permitted in context "${normalizedContext}" — ${matched.moralGrounding}`
       : isFlagged
         ? `Watcher art "${matched.label}" (coeff=${matched.dualUseCoefficient}) — ${matched.moralGrounding}`
         : "Within permitted context",

@@ -7,16 +7,18 @@ function relayRequest(path, init = {}) {
   return new Request(`https://ntfy.a11oy.net${path}`, init);
 }
 
-test("pins every upstream request to ntfy.sh", () => {
-  const upstream = toUpstreamUrl(
+test("pins every upstream request to a provider-safe derived topic", async () => {
+  const upstream = await toUpstreamUrl(
     "https://ntfy.a11oy.net//attacker.example/topic?token=opaque",
   );
   assert.equal(upstream.origin, "https://ntfy.sh");
-  assert.equal(upstream.pathname, "//attacker.example/topic");
+  assert.match(upstream.pathname, /^\/szl_[a-f0-9]{60}$/);
+  assert.equal(upstream.pathname.length, 65);
+  assert.equal(upstream.pathname.includes("attacker"), false);
   assert.equal(upstream.search, "?token=opaque");
 });
 
-test("translates Slack-compatible JSON without changing the opaque route", async () => {
+test("translates Slack-compatible JSON without exposing the opaque route", async () => {
   let forwarded;
   const response = await handleRequest(
     relayRequest("/private-topic?token=opaque", {
@@ -34,11 +36,34 @@ test("translates Slack-compatible JSON without changing the opaque route", async
   );
 
   assert.equal(response.status, 204);
-  assert.equal(forwarded.url, "https://ntfy.sh/private-topic?token=opaque");
+  const forwardedUrl = new URL(forwarded.url);
+  assert.equal(forwardedUrl.origin, "https://ntfy.sh");
+  assert.match(forwardedUrl.pathname, /^\/szl_[a-f0-9]{60}$/);
+  assert.equal(forwardedUrl.pathname.includes("private-topic"), false);
+  assert.equal(forwardedUrl.search, "?token=opaque");
   assert.equal(forwarded.redirect, "manual");
   assert.equal(forwarded.headers.get("cookie"), null);
   assert.match(forwarded.headers.get("content-type"), /^text\/plain/);
   assert.equal(await forwarded.text(), "receipt guard failed");
+});
+
+test("uses one derived topic for publish and subscription endpoints", async () => {
+  const publish = await toUpstreamUrl(
+    "https://ntfy.a11oy.net/private%2Ftopic?token=first",
+    "POST",
+  );
+  const changedQuery = await toUpstreamUrl(
+    "https://ntfy.a11oy.net/private%2Ftopic?token=second",
+    "POST",
+  );
+  const subscription = await toUpstreamUrl(
+    "https://ntfy.a11oy.net/private%2Ftopic/json?since=all",
+    "GET",
+  );
+
+  assert.equal(publish.pathname, changedQuery.pathname);
+  assert.equal(subscription.pathname, `${publish.pathname}/json`);
+  assert.equal(subscription.search, "?since=all");
 });
 
 test("streams native ntfy publishes and preserves upstream failure", async () => {

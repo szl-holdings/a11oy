@@ -1,38 +1,76 @@
-as_of: "2026-09-02T22:02:09Z"
-state: LIVE
-action: pause_and_private_never_delete
+as_of: "2026-09-04T03:55:00Z"
+state: APPLY
+action: pause_and_private_then_gated_delete
 product: https://a-11-oy.com/products/
 proof: https://a11oy.net
 hub: https://huggingface.co/SZLHOLDINGS
 counts:
-  spaces_total: 57
-  spaces_public: 9
-  spaces_private: 48
+  spaces_total_observed_org: 57
+  spaces_public_target_org: 7
+  spaces_private_target_org: 50
+  spaces_public_target_creator: 1
+  spaces_public_target_total: 8
 keep:
   - id: SZLHOLDINGS/a11oy
     role: command
     dest: https://a-11-oy.com
   - id: SZLHOLDINGS/killinchu
-    role: defense
+    role: cyber_physical_resilience
+    dest: https://szlholdings-killinchu.hf.space
+    source: szl-holdings/killinchu
+    capability_planes:
+      - sentra
+      - immune
+      - vessels
+      - counter-uas
+      - evidence
   - id: SZLHOLDINGS/terra
     role: real_estate
-  - id: SZLHOLDINGS/sentra
-    role: cybersecurity
   - id: SZLHOLDINGS/counsel
     role: legal
   - id: SZLHOLDINGS/finance
     role: finance
-  - id: SZLHOLDINGS/vessels
-    role: maritime
   - id: SZLHOLDINGS/lyte
     role: business_observability
   - id: SZLHOLDINGS/david-leads
     role: insurance
+  - id: betterwithage/anatomy
+    owner_class: creator_profile
+    role: living_system_atlas
+    live_origin: https://betterwithage-anatomy.hf.space
+    dest: https://a-11-oy.com/living-anatomy
+    source: szl-holdings/anatomy
+    dependencies:
+      - szl-holdings/szl-second-brain
+retire_into_killinchu:
+  - id: SZLHOLDINGS/vessels
+    state: REFERENCE_CLEANUP_REQUIRED
+    target_route: https://szlholdings-killinchu.hf.space/vessels
+  - id: SZLHOLDINGS/aegis-assurance
+    state: DELETE_READY_AFTER_REFERENCE_CLEANUP
+    target_route: https://szlholdings-killinchu.hf.space/resilience
+  - id: SZLHOLDINGS/sentra
+    state: MIGRATION_REQUIRED
+    target_route: https://szlholdings-killinchu.hf.space/defend
+  - id: SZLHOLDINGS/immune
+    state: MIGRATION_REQUIRED
+    target_route: https://szlholdings-killinchu.hf.space/immune
+  - id: SZLHOLDINGS/immune-lattice
+    state: PARITY_AUDIT_REQUIRED
+    target_route: https://szlholdings-killinchu.hf.space/immune
 org_card: SZLHOLDINGS/README
-last_execution:
+previous_execution:
   workflow_run: 33687884541
   attempt: 2
   artifact: hf-nine-flagship-consolidation-33687884541-2
   artifact_sha256: 043aba51a8386038620aca8ecbb122795d51e4317d46d2f513c437413312d916
-  terminal_green: true
-note: "Authenticated inventory measured 2026-09-02: 57 total, exactly 9 canonical public RUNNING, 48 folded private; dynamic folds paused where supported and static folds remain private because static Spaces cannot pause. None deleted. Permanent deletion remains gated on unique source, product copy, evidence, and replacement preservation."
+  terminal_green_for_previous_policy: true
+retirement_gate:
+  - source_captured
+  - product_captured
+  - evidence_captured
+  - publisher_removed
+  - replacement_verified
+  - no_unique_secret_dependency
+  - secret_free_retirement_receipt
+note: "Owner decision 2026-09-04: Killinchu is the sole public cyber-resilience runtime. Sentra, IMMUNE, Vessels and Aegis are capability planes, not separate flagships. The public estate keeps seven organization Spaces plus the creator-profile Living Anatomy Space. Non-keepers are first paused/private; named legacy Spaces may then be irreversibly deleted only after every retirement gate passes and no active publisher can recreate them. Living Anatomy is source-bound to szl-holdings/anatomy, published at betterwithage/anatomy, and exposes only the handles-only public Second Brain projection."

@@ -1138,8 +1138,6 @@ def test_epss_concurrent_callers_singleflight_and_atomic_merge(monkeypatch):
 def test_epss_stalled_read_has_hard_caller_budget_and_no_thread_buildup(
     monkeypatch,
 ):
-    import urllib.request
-
     cve = "CVE-2026-STALLED-READ"
     monkeypatch.setattr(serve, "_KL_EPSS_CACHE", {"ts": 0.0, "map": {}})
     monkeypatch.setattr(serve, "_KL_EPSS_FAIR_STATE", {"epoch": 0, "entries": {}})
@@ -1165,11 +1163,13 @@ def test_epss_stalled_read_has_hard_caller_budget_and_no_thread_buildup(
             assert release_read.wait(2)
             return b'{"data":[]}'
 
-    def stalled_fetch(*_args, **_kwargs):
+    def stalled_fetch_batch(_batch, _timeout, deadline):
         network_calls.append(True)
-        return StalledResponse()
+        with StalledResponse() as response:
+            serve._kl_epss_read_bounded(response, deadline)
+        return {}
 
-    monkeypatch.setattr(urllib.request, "urlopen", stalled_fetch)
+    monkeypatch.setattr(serve, "_kl_epss_fetch_batch", stalled_fetch_batch)
     started_at = time.monotonic()
     assert serve._kl_epss_map([cve]) == {}
     elapsed = time.monotonic() - started_at
