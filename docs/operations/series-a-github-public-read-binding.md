@@ -16,12 +16,19 @@ private rows, and retain the public scope in signed manifests and admission.
 
 If higher API capacity is needed, bind a persistent read credential under the
 dedicated name through the existing canonical Space configuration process.
+The canonical publisher supplies the existing organization secret
+`DOCS_AUTOMATION_TEAM_READ_TOKEN` to that process. Before any binding, it checks
+authenticated identity, explicit OAuth scopes limited to read access, and a
+public repository response from `szl-holdings`. Missing scope evidence, write
+scopes, rejected credentials, redirects, or a private repository response stop
+the binding. The secret name is read back; its value is never reported.
 Neither a workflow's short-lived `github.token` nor a personal CLI credential
 should be copied into the running service. A rejected dedicated token remains
 `UNAVAILABLE`; it is never retried anonymously. Rate limits, transport failures
 and bounded pagination failures retain the existing fail-closed behavior.
 
-The source repair changes the existing `services` control-plane collector, not
-the publisher, signing authority, storage topology, mutation policy or DNS.
+The source repair changes the existing `services` collector and its canonical
+runtime configuration. Signing authority, storage topology, mutation policy
+and DNS remain governed by their existing contracts.
 Release requires protected exact-head checks, the canonical `hf-sync.yml`
 publisher, matching source/readiness, and a fresh live public inventory receipt.
