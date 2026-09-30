@@ -637,6 +637,8 @@ class InventoryAndIdentityContractTests(unittest.TestCase):
                 }
             if "pages/builds/latest" in url:
                 return {"status": 200, "json": {"commit": sha, "status": "built"}}
+            if url.endswith('/pages'):
+                return {"status": 200, "json": {"build_type": "legacy"}}
             return {"status": 200, "json": {}, "text": "<html></html>"}
 
         with (
@@ -673,6 +675,8 @@ class InventoryAndIdentityContractTests(unittest.TestCase):
                 }
             if "pages/builds/latest" in url:
                 return {"status": 200, "json": {"commit": sha, "status": "built"}}
+            if url.endswith('/pages'):
+                return {"status": 200, "json": {"build_type": "legacy"}}
             return {"status": 200, "json": {}}
 
         with (
@@ -687,6 +691,112 @@ class InventoryAndIdentityContractTests(unittest.TestCase):
         self.assertIn("PROOF_HEALTH_DOCUMENT_CONFLICT", result["blockers"])
         self.assertTrue(result["aligned"])
         self.assertEqual(result["pages_revision"], sha)
+
+    def test_actions_pages_uses_the_current_deployment_instead_of_a_stale_branch_build(self) -> None:
+        current, old = 'c' * 40, 'd' * 40
+        responses = {
+            'https://a11oy.net/': {'status': 200},
+            'https://a11oy.net/health.json': {'status': 200, 'json': {'probe_contract': 'STATIC_DOCUMENT'}},
+            'https://api.github.com/repos/szl-holdings/a11oy-net/pages': {
+                'status': 200, 'json': {'build_type': 'workflow', 'html_url': 'http://a11oy.net/'}},
+            'https://api.github.com/repos/szl-holdings/a11oy-net/pages/builds/latest': {
+                'status': 200, 'json': {'commit': old, 'status': 'built'}},
+            'https://api.github.com/repos/szl-holdings/a11oy-net/deployments?environment=github-pages&per_page=1': {
+                'status': 200, 'json': [{'id': 42, 'sha': current, 'ref': 'main', 'environment': 'github-pages'}]},
+            'https://api.github.com/repos/szl-holdings/a11oy-net/deployments/42/statuses?per_page=1': {
+                'status': 200, 'json': [{'state': 'success', 'environment_url': 'http://a11oy.net/',
+                                      'log_url': 'https://github.com/szl-holdings/a11oy-net/actions/runs/123'}]},
+        }
+        config = {'proof': {'repository': 'szl-holdings/a11oy-net', 'origin': 'https://a11oy.net'}}
+        with mock.patch.object(release, 'github_main', return_value={'observed': True, 'sha': current}), \
+                mock.patch.object(release, 'fetch', side_effect=lambda url, **kw: responses[url]) as probe:
+            result = release.proof_contract(config)
+        self.assertTrue(result['aligned'])
+        self.assertEqual(result['pages_revision'], current)
+        self.assertEqual(result['pages_revision_source'], 'github-pages-deployment')
+        self.assertEqual(result['pages_deployment_id'], 42)
+        self.assertFalse(any('pages/builds/latest' in row.args[0] for row in probe.call_args_list))
+
+    def test_actions_pages_never_falls_back_to_an_old_successful_build(self) -> None:
+        current = 'c' * 40
+        config = {'proof': {'repository': 'szl-holdings/a11oy-net', 'origin': 'https://a11oy.net'}}
+        deployments_url = 'https://api.github.com/repos/szl-holdings/a11oy-net/deployments?environment=github-pages&per_page=1'
+        status_url = 'https://api.github.com/repos/szl-holdings/a11oy-net/deployments/42/statuses?per_page=1'
+        valid_deployment = {'id': 42, 'sha': current, 'ref': 'main', 'environment': 'github-pages'}
+        valid_status = {'state': 'success', 'environment_url': 'https://a11oy.net/'}
+        cases = [
+            ({'status': 403, 'json': []}, {'status': 200, 'json': [valid_status]}),
+            ({'status': 200, 'json': []}, {'status': 200, 'json': [valid_status]}),
+            ({'status': 200, 'json': {'sha': current}}, {'status': 200, 'json': [valid_status]}),
+            ({'status': 200, 'json': [dict(valid_deployment, sha='d' * 40)]}, {'status': 200, 'json': [valid_status]}),
+            ({'status': 200, 'json': [dict(valid_deployment, ref='feature')]}, {'status': 200, 'json': [valid_status]}),
+            ({'status': 200, 'json': [dict(valid_deployment, environment='preview')]}, {'status': 200, 'json': [valid_status]}),
+            ({'status': 200, 'json': [dict(valid_deployment, id=True)]}, {'status': 200, 'json': [valid_status]}),
+            ({'status': 200, 'json': [dict(valid_deployment, id='42')]}, {'status': 200, 'json': [valid_status]}),
+            ({'status': 200, 'json': [dict(valid_deployment, sha='short')]}, {'status': 200, 'json': [valid_status]}),
+            ({'status': 200, 'json': [dict(valid_deployment, ref=[])]}, {'status': 200, 'json': [valid_status]}),
+            ({'status': 200, 'json': [valid_deployment]}, {'status': 403, 'json': [valid_status]}),
+            ({'status': 200, 'json': [valid_deployment]}, {'status': 200, 'json': []}),
+            ({'status': 200, 'json': [valid_deployment]}, {'status': 200, 'json': valid_status}),
+            ({'status': 200, 'json': [valid_deployment]}, {'status': 200, 'json': [dict(valid_status, state=[])]}),
+            ({'status': 200, 'json': [valid_deployment]}, {'status': 200, 'json': [{'state': 'failure', 'environment_url': 'https://a11oy.net/'}]}),
+            ({'status': 200, 'json': [valid_deployment]}, {'status': 200, 'json': [{'state': 'in_progress', 'environment_url': 'https://a11oy.net/'}]}),
+            ({'status': 200, 'json': [valid_deployment]}, {'status': 200, 'json': [{'state': 'inactive', 'environment_url': 'https://a11oy.net/'}]}),
+            ({'status': 200, 'json': [valid_deployment]}, {'status': 200, 'json': [dict(valid_status, environment_url='https://other.example/')]}),
+            ({'status': 200, 'json': [valid_deployment]}, {'status': 200, 'json': [dict(valid_status, environment_url='https://a11oy.net/preview')]}),
+        ]
+        for deployments, statuses in cases:
+            with self.subTest(deployments=deployments, statuses=statuses):
+                def fake_fetch(url: str, **kw: object) -> dict[str, object]:
+                    if url.endswith('/pages'):
+                        return {'status': 200, 'json': {'build_type': 'workflow', 'html_url': 'https://a11oy.net/'}}
+                    if url == deployments_url:
+                        return deployments
+                    if url == status_url:
+                        return statuses
+                    if 'pages/builds/latest' in url:
+                        raise AssertionError('workflow mode must not fall back to a branch build')
+                    return {'status': 200, 'json': {}}
+                with mock.patch.object(release, 'github_main', return_value={'observed': True, 'sha': current}), \
+                        mock.patch.object(release, 'fetch', side_effect=fake_fetch):
+                    result = release.proof_contract(config)
+                self.assertFalse(result['aligned'])
+                self.assertTrue(result['blockers'])
+
+    def test_actions_pages_configuration_must_name_the_observed_public_site(self) -> None:
+        sha = 'c' * 40
+        config = {'proof': {'repository': 'szl-holdings/a11oy-net', 'origin': 'https://a11oy.net'}}
+        for site in (None, 'https://other.example/', 'https://a11oy.net/preview', 'https://a11oy.net:8443/'):
+            with self.subTest(site=site):
+                def fake_fetch(url: str, **kw: object) -> dict[str, object]:
+                    if url.endswith('/pages'):
+                        return {'status': 200, 'json': {'build_type': 'workflow', 'html_url': site}}
+                    if '/deployments?' in url:
+                        return {'status': 200, 'json': [{'id': 42, 'sha': sha, 'ref': 'main', 'environment': 'github-pages'}]}
+                    if '/statuses?' in url:
+                        return {'status': 200, 'json': [{'state': 'success', 'environment_url': 'https://a11oy.net/'}]}
+                    return {'status': 200, 'json': {}}
+                with mock.patch.object(release, 'github_main', return_value={'observed': True, 'sha': sha}), \
+                        mock.patch.object(release, 'fetch', side_effect=fake_fetch):
+                    result = release.proof_contract(config)
+                self.assertFalse(result['aligned'])
+
+    def test_unknown_pages_mode_cannot_become_success_from_a_build_record(self) -> None:
+        sha = 'c' * 40
+        config = {'proof': {'repository': 'szl-holdings/a11oy-net', 'origin': 'https://a11oy.net'}}
+        for metadata in ({'status': 403, 'json': {}}, {'status': 200, 'json': {}},
+                         {'status': 200, 'json': {'build_type': 'other'}}):
+            with self.subTest(metadata=metadata):
+                def fake_fetch(url: str, **kw: object) -> dict[str, object]:
+                    if url.endswith('/pages'):
+                        return metadata
+                    if 'pages/builds/latest' in url:
+                        return {'status': 200, 'json': {'commit': sha, 'status': 'built'}}
+                    return {'status': 200, 'json': {}}
+                with mock.patch.object(release, 'github_main', return_value={'observed': True, 'sha': sha}), \
+                        mock.patch.object(release, 'fetch', side_effect=fake_fetch):
+                    result = release.proof_contract(config)
+                self.assertFalse(result['aligned'])
 
 
 if __name__ == "__main__":
