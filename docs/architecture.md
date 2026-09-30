@@ -54,7 +54,8 @@ signed A11oy source checks before the existing publisher runs. Expiry is not
 silenced or renewed by a web request. The unsigned hash chain is local integrity,
 not independent witness proof. This bridge does not qualify a model or establish
 whole-estate production readiness. A source lock alone also does not prove that
-the declared producer revision has reached its protected canonical branch.
+the declared producer revision has reached its canonical branch, nor prove that
+producer branch protection is configured. Consumer main protection is separate.
 
 ## Operational identity
 
