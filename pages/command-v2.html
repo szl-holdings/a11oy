@@ -162,7 +162,7 @@ async function refreshObservations(){
     // Publish one complete client batch; never relabel old data after a failed fetch.
     const rows=await Promise.all(Object.keys(sourceNames).map(async name=>[name,await probe(endpoints[name])]));
     state.data={...state.data,...Object.fromEntries(rows)};
-  }finally{state.refreshing=false;state.observationSignature=observationSignature();updateChips();render();if(state.selectedSource)inspectorContent()}
+  }finally{state.refreshing=false;state.observationSignature=observationSignature();updateChips();render();if(state.selectedSource)inspectorContent();}
 }
 function observationSignature(){const now=Date.now();return Object.entries(state.data).map(([name,record])=>`${name}:${observationState(record,now)}`).join("|");}
 function updateObservationLifetime(){
