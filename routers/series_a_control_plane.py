@@ -858,7 +858,13 @@ class Observation:
 
 class Collector:
     def __init__(self) -> None:
-        self.github_token = (os.environ.get("GITHUB_TOKEN") or "").strip()
+        # This public inventory has a distinct credential boundary. A generic
+        # workflow/runtime token may have expired or target another repository.
+        # Never reuse it or silently retry a rejected dedicated credential.
+        self.github_token = (os.environ.get("A11OY_GITHUB_PUBLIC_READ_TOKEN") or "").strip()
+        self.github_authentication_mode = (
+            "DEDICATED_PUBLIC_READ_TOKEN" if self.github_token else "PUBLIC_ANONYMOUS"
+        )
         self.hf_token = (os.environ.get("HF_TOKEN") or "").strip()
 
     async def _json(
@@ -929,7 +935,8 @@ class Collector:
                     "pagination_complete": True,
                     "repositories": rows,
                 },
-                {"authenticated": bool(self.github_token)},
+                {"authenticated": bool(self.github_token),
+                 "authentication_mode": self.github_authentication_mode},
             )
         except Exception as exc:
             return Observation("UNAVAILABLE", detail=_safe_error(exc))
