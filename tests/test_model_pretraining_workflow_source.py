@@ -20,11 +20,34 @@ class WorkflowSourceTests(unittest.TestCase):
         workflow=(ROOT/'.github/workflows/hf-tooling-product.yml').read_text()
         job=workflow.split('  published-model-readback:',1)[1]
         self.assertIn('ref: ${{ github.sha }}',job)
-        self.assertNotIn('ref: ${{ github.event.workflow_run.head_sha }}',job)
-        self.assertIn('SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}',job)
+        self.assertIn('ref: ${{ github.event.workflow_run.head_sha || github.sha }}',job)
+        self.assertIn('SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}',job)
+        self.assertIn('path: source-snapshot',job)
+        self.assertIn('--source-root source-snapshot',job)
+        self.assertIn('github.event.workflow_run.head_repository.full_name == github.repository',job)
+        self.assertIn("github.event.workflow_run.head_branch == 'main'",job)
+        self.assertIn("github.event.workflow_run.conclusion == 'success'",job)
+        self.assertIn("github.event_name == 'workflow_dispatch'",job)
         self.assertIn('contents: read',job)
         self.assertNotIn('secrets.',job)
         self.assertNotIn('git checkout',job)
+        self.assertNotIn('python source-snapshot/',job)
+        self.assertNotIn('working-directory: source-snapshot',job)
+        self.assertEqual(job.count('persist-credentials: false'),2)
+
+    def test_trusted_observer_reads_published_snapshot_when_default_branch_moves(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)/'snapshot'; root.mkdir()
+            output=Path(folder)/'pass.json'
+            arguments=SimpleNamespace(surface='canonical',expected_source=SHA,source_root=root,output=output)
+            with patch.object(M.argparse.ArgumentParser,'parse_args',return_value=arguments), \
+                    patch.object(M.subprocess,'run',return_value=SimpleNamespace(stdout=SHA)) as git, \
+                    patch.object(M,'probe',return_value={'state':'PASS_SELECTED_SOURCE_AND_DELIVERY'}) as observe, \
+                    patch('builtins.print'):
+                self.assertEqual(M.main(),0)
+            self.assertEqual(git.call_args.kwargs['cwd'],root.resolve())
+            observe.assert_called_once_with(root.resolve(),M.ORIGINS['canonical'],SHA)
+            self.assertFalse(json.loads(output.read_text())['trainingAllowed'])
 
     def test_moved_checkout_stops_before_http_and_writes_failure(self):
         with tempfile.TemporaryDirectory() as folder:
