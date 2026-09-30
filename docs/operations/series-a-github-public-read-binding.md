@@ -1,34 +1,59 @@
 <!-- SPDX-License-Identifier: Apache-2.0
 (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->
 
-# Series-A public GitHub inventory authentication
+# Series-A manual credential prerequisites
 
-The Series-A collector has its own credential boundary:
-`A11OY_GITHUB_PUBLIC_READ_TOKEN`. It no longer forwards the generic runtime
-`GITHUB_TOKEN`, whose current deployment returned HTTP 401. Other runtime
-consumers and all existing secrets are preserved.
+The public inventory collector uses its dedicated credential boundary,
+`A11OY_GITHUB_PUBLIC_READ_TOKEN`. Without that credential it reports
+`PUBLIC_ANONYMOUS` and `authenticated: false`. Its inventory covers public
+repositories and public PRs; it does not establish private organization
+completeness. A rejected dedicated credential remains `UNAVAILABLE`, with no
+anonymous retry. Rate limits, transport errors and incomplete pagination keep
+the existing failure behavior.
 
-With no dedicated credential, the collector explicitly uses `PUBLIC_ANONYMOUS`
-and reports `authenticated: false`. This is the public repository inventory,
-not private organization completeness. The public-scope privacy repair must be
-published with this change: request public repositories and public PRs, filter
-private rows, and retain the public scope in signed manifests and admission.
+An authorized owner must configure credentials for the exact canonical Space
+`SZLHOLDINGS/a11oy` through the supported secure setup flow, with approval at
+the time of transmission. Required destination secret names are
+`A11OY_GITHUB_PUBLIC_READ_TOKEN`, `SZL_COSIGN_PRIVATE_PEM` and
+`GDW_CREDENTIALS_JSON`. Do not put any of these names in public Space variables.
+The publisher must not forward `DOCS_AUTOMATION_TEAM_READ_TOKEN`, workflow
+`github.token`, a personal CLI credential or `GDW_OPERATOR_TOKEN` into Space
+secrets. It must not derive a replacement registry or delete
+`GDW_PRINCIPALS_JSON`. A legacy principal registry is an owner-resolution
+blocker; existing credentials and principals must be preserved.
 
-If higher API capacity is needed, bind a persistent read credential under the
-dedicated name through the existing canonical Space configuration process.
-The canonical publisher supplies the existing organization secret
-`DOCS_AUTOMATION_TEAM_READ_TOKEN` to that process. Before any binding, it checks
-authenticated identity, explicit OAuth scopes limited to read access, and a
-public repository response from `szl-holdings`. Missing scope evidence, write
-scopes, rejected credentials, redirects, or a private repository response stop
-the binding. The secret name is read back; its value is never reported.
-Neither a workflow's short-lived `github.token` nor a personal CLI credential
-should be copied into the running service. A rejected dedicated token remains
-`UNAVAILABLE`; it is never retried anonymously. Rate limits, transport failures
-and bounded pagination failures retain the existing fail-closed behavior.
+The configuration scripts' `--check-only` mode reads secret names and storage
+metadata, never secret values. It checks the canonical bucket
+`SZLHOLDINGS/szl-evidence` and the required read-write `/data` mount without
+creating storage or changing volumes. Missing credentials, public-variable
+collisions, a legacy principal registry, unavailable metadata and conflicting
+volumes require setup. Reports contain fixed prerequisite names and bounded
+status fields; they do not contain token values or registry contents.
 
-The source repair changes the existing `services` collector and its canonical
-runtime configuration. Signing authority, storage topology, mutation policy
-and DNS remain governed by their existing contracts.
-Release requires protected exact-head checks, the canonical `hf-sync.yml`
-publisher, matching source/readiness, and a fresh live public inventory receipt.
+Secret-name presence does not prove identity, authority, scope or that a
+previously verified credential is the credential installed in the Space.
+There is currently no supported consumer of independently verified installed
+credential authority in these scripts. They therefore report
+`state: SETUP_REQUIRED`, `credential_authority_state: UNKNOWN` and
+`converged: false`, with a nonzero exit, even when all required names exist.
+Ordinary configuration also stops before any variable or volume write.
+A caller boolean, source SHA, JSON approval or receipt cannot turn this
+metadata observation into credential authorization. The retained pure GitHub
+reader verifier can validate an explicitly supplied credential with mocked or
+separately authorized probes; it does not bind that credential to an installed
+Space secret and is not called by automatic configuration.
+
+Publication must remain blocked until the owner selects and separately
+reviews a supported secure handoff and its authority validation. That decision
+must preserve signing, storage, source/default-tip admission, security, parity
+and actual runtime validation. The pre-deployment prerequisite gate must run
+before resume, deployment, runtime configuration or restart. A quota failure
+must be reported without pausing another Space or provisioning hardware.
+Deployment evidence belongs in Actions artifacts and summaries; the publisher
+must not edit, close, reopen or comment on issue #1043.
+
+These are source changes and mocked regression checks. They do not configure
+live credentials, deploy a Space, prove hosted readiness or remove the release
+hold. Final release also requires exact-head checks, matching shared source,
+separate review of authenticated runtime proof effects and a fresh live public
+inventory receipt.
