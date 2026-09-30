@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings
+name: RAE-1 package contract
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'packages/rae1/**'
+      - '.github/workflows/rae1-package-contract.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/rae1/**'
+      - '.github/workflows/rae1-package-contract.yml'
+  workflow_dispatch: {}
+  merge_group:
+    types: [checks_requested]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rae1-package-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
+
+jobs:
+  package:
+    name: RAE-1 build and installed-package contract (Node ${{ matrix.node }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['20', '24']
+    defaults:
+      run:
+        working-directory: packages/rae1
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - name: Checkout candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Install locked package dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Check types
+        run: npm run typecheck
+      - name: Verify receipt contracts
+        run: npm test
+      - name: Build and exercise the installed tarball
+        run: npm run test:package
+      - name: Verify clean tracked source
+        run: git diff --exit-code
