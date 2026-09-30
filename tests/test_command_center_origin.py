@@ -13,6 +13,8 @@ import posixpath
 import runpy
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 LEGACY_SPA = ROOT / "pages" / "command-center.html"
 ELITE_SPA = ROOT / "web" / "elite_console.html"
@@ -195,6 +197,28 @@ def test_module_selftest_if_starlette_present() -> None:
     import a11oy_command_center as module
 
     module._selftest()
+
+
+@pytest.mark.parametrize("replacement", [
+    '<link rel="canonical" href="https://huggingface.co/spaces/SZLHOLDINGS/killinchu">',
+    '<link rel="canonical" href="https://a-11-oy.com/killinchu"><iframe src="https://example.invalid"></iframe>',
+    '<link rel="canonical" href="https://a-11-oy.com/killinchu"><meta http-equiv="refresh" content="0;url=https://example.invalid">',
+    '<link rel="canonical" href="https://a-11-oy.com/killinchu"><link rel="canonical" href="https://example.invalid">',
+])
+def test_module_selftest_rejects_replaced_origin_document(monkeypatch, tmp_path, replacement):
+    import a11oy_command_center as module
+
+    original_page = module._page
+    page = original_page("killinchu.html")
+    canonical = 'rel="canonical" href="https://a-11-oy.com/killinchu"'
+    source = page.read_text(encoding="utf-8")
+    assert canonical in source
+    altered = tmp_path / "killinchu.html"
+    altered.write_text(source.replace('<link ' + canonical + '/>', replacement), encoding="utf-8")
+    assert altered.read_text(encoding="utf-8") != source
+    monkeypatch.setattr(module, "_page", lambda name: altered if name == "killinchu.html" else original_page(name))
+    with pytest.raises(AssertionError):
+        module._selftest()
 
 
 def test_dormant_elite_route_fails_closed_if_backend_is_registered() -> None:

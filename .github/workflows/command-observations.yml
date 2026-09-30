@@ -11,6 +11,11 @@ on:
       - tests/test_command_observations.cjs
       - tests/test_command_preview.py
       - tests/browser_command_observations.py
+      - a11oy_command_center.py
+      - pages/killinchu.html
+      - scripts/witness_command_release.py
+      - tests/test_command_release_witness.py
+      - tests/test_command_center_origin.py
       - .github/workflows/command-observations.yml
   push:
     branches: [main]
@@ -21,8 +26,18 @@ on:
       - tests/test_command_observations.cjs
       - tests/test_command_preview.py
       - tests/browser_command_observations.py
+      - a11oy_command_center.py
+      - pages/killinchu.html
+      - scripts/witness_command_release.py
+      - tests/test_command_release_witness.py
+      - tests/test_command_center_origin.py
       - .github/workflows/command-observations.yml
   workflow_dispatch:
+    inputs:
+      live_witness:
+        description: Read-only product browser witness of this exact checked-out revision after canonical publication.
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -42,6 +57,21 @@ jobs:
           python-version: '3.12'
       - run: node --test tests/test_command_observations.cjs
       - run: python -m unittest discover -s tests -p test_command_preview.py -v
+      - run: python -m unittest discover -s tests -p test_command_release_witness.py -v
+
+  origin:
+    name: Command origin and quarantine regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+      - run: python -m pytest tests/test_command_center_origin.py tests/test_command_center_readonly_contract.py tests/test_fail_closed_command_paint.py -q
 
   browser:
     name: Command observation Chromium witness
@@ -71,5 +101,35 @@ jobs:
         with:
           name: command-observations-${{ github.run_id }}-${{ github.run_attempt }}
           path: command-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+  live-browser:
+    name: Command exact-source public browser witness
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.live_witness }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+      - name: Install pinned isolated browser runner
+        run: |
+          python -m pip install --disable-pip-version-check 'playwright==1.57.0'
+          python -m playwright install --with-deps chromium
+      - name: Observe real public reads and interactions without action execution
+        env:
+          EXPECTED_SOURCE: ${{ github.sha }}
+        run: python scripts/witness_command_release.py --expected-source "$EXPECTED_SOURCE"
+      - name: Preserve successful or failed public browser evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: command-live-${{ github.run_id }}-${{ github.run_attempt }}
+          path: command-live-evidence/
           if-no-files-found: error
           retention-days: 30

@@ -161,12 +161,14 @@ def register(app, ns: str = "a11oy") -> List[str]:
     registered.append(
         "command-center reviewed-public on /command; /command-v2 additive; "
         "/killinchu on-origin; constellation/brain/ops beat catch-all; "
-        "/console and host-root /brain untouched"
+        "/console and host-root /brain untouched; dormant elite excluded"
     )
     return registered
 
 
 def _selftest() -> None:
+    from html.parser import HTMLParser
+
     from starlette.applications import Starlette
     from starlette.responses import HTMLResponse
     from starlette.routing import Route
@@ -212,7 +214,29 @@ def _selftest() -> None:
         response = client.get("/killinchu")
         assert response.status_code == 200
         assert "Killinchu" in response.text
-        assert "huggingface.co/spaces" not in response.text
+        assert not response.history
+        assert response.content == _page("killinchu.html").read_bytes()
+
+        class OriginDocument(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.canonical = []
+                self.embeds = []
+                self.redirects = []
+
+            def handle_starttag(self, tag, attrs):
+                attributes = dict(attrs)
+                if tag == "link" and "canonical" in attributes.get("rel", "").lower().split():
+                    self.canonical.append(attributes.get("href"))
+                if tag in {"iframe", "frame", "embed", "object"}:
+                    self.embeds.append(tag)
+                if tag == "meta" and attributes.get("http-equiv", "").lower() == "refresh":
+                    self.redirects.append(attributes.get("content"))
+
+        document = OriginDocument()
+        document.feed(response.text)
+        assert document.canonical == ["https://a-11-oy.com/killinchu"]
+        assert not document.embeds and not document.redirects
 
     if _page("constellation.html").is_file():
         for path in ("/command/constellation", "/constellation"):

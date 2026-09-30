@@ -80,12 +80,26 @@ reads the public product origin without credentials; HTTP failures stay failures
 All preview POSTs are rejected, including the existing kernel probe. It does not
 boot the application or start a GPU operator.
 
-The broader command-origin/read-only and fail-closed-paint run found 30 passes
-and 2 failures in
-untouched code: a required quarantine wording marker and a legacy self-test that
-rejects any Hugging Face Space link in the Killinchu page. Both failures also
-reproduced in the earlier checkout. They are not suppressed or rewritten here.
-Passing the new isolated tests is not a claim that the full suite is green.
+The initial broader run found two pre-existing failures: a missing quarantine
+marker and a self-test that rejected ordinary provider navigation. The follow-up
+restores the marker and checks the actual canonical link, exact served bytes,
+absence of redirects, and absence of embedded replacement pages. Negative tests
+reject changed/duplicate canonical links, frames and refresh redirects. An inline
+reduced-motion fallback also retains accessibility if shared styles fail to load.
+The full origin/read-only/paint set now runs in the dedicated hosted workflow;
+its result remains distinct from a full-repository test result.
 
 Publication and runtime closure require the protected merge, canonical `hf-sync`
 publication, immutable artifact verification and a new live browser witness.
+
+After canonical publication, `command-observations.yml` has an explicit
+`live_witness` manual input, restricted to main. The witness uses the workflow's
+exact checked-out revision, checks source identity before and after observation,
+compares local design assets and application script bytes, and exercises the
+source inspector, keyboard return and palette at desktop/mobile sizes. A fresh
+browser context permits only the fixed product origin's exact GET allowlist;
+redirects, writes, other paths, service workers and unexpected requests fail the
+check. It does not invoke the kernel probe or admit actions. Screenshots and a
+bounded JSON result are retained even on failure. A browser witness is a
+point-in-time UI/read-contract observation, not model qualification or a claim
+that every backend dependency is ready.
