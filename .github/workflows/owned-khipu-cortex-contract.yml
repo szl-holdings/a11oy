@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+name: Owned Khipu cortex contract
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - a11oy_governed_cortex.py
+      - Dockerfile
+      - scripts/fetch_owned_khipu_wheel.py
+      - tests/test_a11oy_governed_cortex.py
+      - tests/test_owned_khipu_docker_contract.py
+      - .github/requirements/ci-core.txt
+      - .github/workflows/owned-khipu-cortex-contract.yml
+  push:
+    branches: [main]
+    paths:
+      - a11oy_governed_cortex.py
+      - Dockerfile
+      - scripts/fetch_owned_khipu_wheel.py
+      - tests/test_a11oy_governed_cortex.py
+      - tests/test_owned_khipu_docker_contract.py
+      - .github/requirements/ci-core.txt
+      - .github/workflows/owned-khipu-cortex-contract.yml
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    name: Owned Khipu cortex and pinned Nemo regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONPATH: ${{ github.workspace }}/.nemo-source
+    steps:
+      - name: Checkout reviewed source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Checkout the deployed Nemo rule revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: szl-holdings/szl-nemo
+          ref: 810231a531188bb569e3faa17396386eb0a5e260
+          path: .nemo-source
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install hash-pinned test dependencies
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Verify actual Nemo decisions, response boundaries and Docker identity
+        run: >-
+          python -m pytest -p no:cacheprovider
+          tests/test_a11oy_governed_cortex.py
+          tests/test_owned_khipu_docker_contract.py
+          -q

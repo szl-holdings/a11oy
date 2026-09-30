@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-09-29T21:16:06Z",
+  "observedAt": "2026-09-30T02:54:34Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -28,7 +28,7 @@
     "huggingFacePublic": {
       "models": 49,
       "datasets": 34,
-      "spaces": 23
+      "spaces": 26
     },
     "huggingFaceScope": {
       "visibility": "public-only",
@@ -1715,6 +1715,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/oac-system-health-lab",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/oac-system-health-lab"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/sentra",
       "repoType": "space",
       "stage": "inventory",
@@ -1732,6 +1742,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/szl-atelier"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-bench-suite",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-bench-suite"
       ]
     },
     {
@@ -1792,6 +1812,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/szl-model-inference-lab"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-typesafe-triage",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-typesafe-triage"
       ]
     },
     {
