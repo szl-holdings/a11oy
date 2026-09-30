@@ -5835,23 +5835,27 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         +'<div class="kpi"><div class="k">Buckets</div><div class="v">12</div><div class="d">recent windows</div></div>'
         +'<div class="kpi"><div class="k">Hollow-pass</div><div class="v warn">guarded</div><div class="d">never faked green</div></div></div>'
         +'<div class="card"><div class="card-h"><span class="card-t">Status history \u2014 services \u00d7 recent buckets</span><span class="card-ep">CSS grid \u00b7 Statuspage pattern</span></div>'
-        +'<div id="fl-grid" style="overflow:auto"></div>'
+        +'<div id="fl-grid" role="region" aria-label="Service status history" tabindex="0" style="overflow:auto"><div role="status">Loading service observations...</div></div>'
         +'<div class="brain-note">Green=ok, gold=degraded, red=down, <span style="color:'+GRAY+'">gray hollow=never-checked bucket (NOT a pass)</span>. Latest bucket is the live probe; earlier buckets are honestly marked unverified where we have no stored history.</div></div>'+honest();
         try{
-          var s=await gj('/api/a11oy/v1/observability/summary'); var caps=s.capabilities||[];
+          var s=await gj('/api/a11oy/v1/observability/summary');
+          if(!s || !Array.isArray(s.capabilities)) throw new Error('Service observations were not supplied.');
+          var caps=s.capabilities;
           T('fl-n',caps.length); T('fl-up',caps.filter(function(x){return x.status==='ok';}).length);
+          if(!caps.length){ H('fl-grid','<div role="status">EMPTY: no service observations returned.</div>'); return; }
           var buckets=12;
           var html='<div style="display:grid;grid-template-columns:160px repeat('+buckets+',1fr);gap:3px;min-width:560px;align-items:center">';
           html+='<div></div>'; for(var b=0;b<buckets;b++){ html+='<div class="mono" style="font-size:7px;color:'+DIM+';text-align:center">'+(b===buckets-1?'now':('-'+(buckets-1-b))) +'</div>'; }
           caps.forEach(function(cap){
-            html+='<div class="mono" style="font-size:9px;color:#cdd2d8">'+esc(cap.name)+' <span style="color:'+DIM+'">'+esc(cap.latency_ms||0)+'ms</span></div>';
+            var latency=typeof cap.latency_ms==='number' && Number.isFinite(cap.latency_ms) && cap.latency_ms>=0 ? cap.latency_ms+' ms' : 'latency unavailable';
+            html+='<div class="mono" style="font-size:9px;color:#cdd2d8">'+esc(cap.name||cap.id||'Unnamed service')+' <span style="color:'+DIM+'">'+esc(latency)+'</span><div>'+esc(cap.status||'unavailable')+'</div></div>';
             for(var bi=0;bi<buckets;bi++){
               if(bi===buckets-1){ var col=statusColor(cap.status); html+='<div title="live probe: '+esc(cap.status)+'" style="height:20px;border-radius:3px;background:'+col+';opacity:0.9"></div>'; }
               else { html+='<div title="no stored history \u2014 not a pass" style="height:20px;border-radius:3px;background:transparent;border:1px dashed '+GRAY+'"></div>'; }
             }
           });
           html+='</div>'; H('fl-grid',html);
-        }catch(e){ T('fl-n',window._szlKpi(e)); }
+        }catch(e){ T('fl-n','UNAVAILABLE'); T('fl-up','UNAVAILABLE'); H('fl-grid','<div role="status">Service observations unavailable: '+esc(e.message||e)+'</div>'); }
       }};
 
     /* =============== mesh — Cytoscape force-directed service map + panzoom =============== */
@@ -11059,7 +11063,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   function rd_modebadge(mode){ if(!mode||mode==='live') return ''; return ' '+rd_badge(mode,rd_kind(mode),'value served '+mode); }
   function rd_kvrows(fields){ var h=''; (fields||[]).forEach(function(f){
       var v=f.v; if(v===true)v='yes'; else if(v===false)v='no';
-      h+='<div class="row" style="display:flex;gap:.6rem;align-items:baseline"><span class="dim" style="min-width:190px;display:inline-block">'+esc(f.k)+'</span><span style="word-break:break-word">'+esc(String(v==null?'\u2014':v))+rd_modebadge(f.mode)+'</span></div>';
+      h+='<div class="row" style="display:flex;gap:.6rem;align-items:baseline;flex-wrap:wrap"><span class="dim" style="max-width:100%;display:inline-block">'+esc(f.k)+'</span><span style="min-width:0;overflow-wrap:anywhere">'+esc(String(v==null?'\u2014':v))+rd_modebadge(f.mode)+'</span></div>';
     }); return h; }
   function rd_section(sec){
     var h='<div class="card" id="rd-sec-'+esc(sec.id)+'"><div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap"><div><b>'+esc(sec.title||sec.id)+'</b>'+(sec.target?(' <span class="dim">\u2014 '+esc(sec.target)+'</span>'):'')+'</div>';
@@ -11098,7 +11102,9 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     var old=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='\u27f3 re-reading\u2026'; }
     try{
       var r=await fetch('/api/'+window.__rd_ns+'/v1/readiness/'+id+'/live');
-      var d=await r.json(); if(d.section) body.innerHTML=rd_section_body(d.section);
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      var d=await r.json(); if(!d || !d.section) throw new Error('No readiness section returned.');
+      body.innerHTML=rd_section_body(d.section);
     }catch(e){
       var note=document.createElement('div'); note.className='dim'; note.style.marginTop='.25rem';
       note.textContent='re-read failed: '+((e&&e.message)||e)+' \u2014 showing last-known values'; body.appendChild(note);
@@ -11109,17 +11115,23 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     if(!opts.silent) c.innerHTML='<div class="card"><div class="dim">reading live deployment, repo and Space\u2026</div></div>';
     try{
       var r=await fetch('/api/'+window.__rd_ns+'/v1/readiness');
-      var d=await r.json(); var h='';
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      var d=await r.json();
+      if(!d || !Array.isArray(d.sections) || !d.summary || typeof d.summary!=='object') throw new Error('Readiness evidence was not supplied.');
+      if(document.documentElement.dataset.view!=='readiness') return;
+      var h='';
       h+='<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap"><span class="dim" style="font-size:12px">Auto-refresh every 30s \u2014 live re-poll of the same real surfaces; honest empty/unreachable states preserved.</span><span style="display:flex;gap:.4rem"><button class="btn" id="rd-auto" style="font-size:11px">\u27f3 auto: '+((window.__tabauto!==false)?'on':'off')+'</button><button class="btn" id="rd-reload" style="font-size:11px">\u21bb reload</button></span></div>';
       if(d.honest) h+='<div class="honesty">'+esc(d.honest)+'</div>';
       var s=d.summary||{};
       h+='<div class="card"><div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">';
-      h+=rd_badge('endpoints '+esc(String(s.endpoints_reachable))+'/'+esc(String(s.endpoints_total)),(s.endpoints_reachable===s.endpoints_total&&s.endpoints_total)?'good':'warn','reachable deployment surfaces');
+      var endpointCounts=Number.isInteger(s.endpoints_reachable)&&s.endpoints_reachable>=0&&Number.isInteger(s.endpoints_total)&&s.endpoints_total>=s.endpoints_reachable;
+      h+=rd_badge(endpointCounts?('endpoints '+s.endpoints_reachable+'/'+s.endpoints_total):'endpoints unavailable',(endpointCounts&&s.endpoints_reachable===s.endpoints_total&&s.endpoints_total)?'good':'warn','reachable deployment surfaces');
       var bstat=s.build_status||'unknown'; var bextra=(s.build_behind_by!=null&&s.build_behind_by>0)?(' '+s.build_behind_by+' behind'):''; h+=' '+rd_badge('build: '+bstat+bextra,rd_kind(bstat),'deployed build vs repo HEAD');
       h+=' '+rd_badge('CI: '+(s.ci||'\u2014'),rd_kind(s.ci),'latest GitHub Actions conclusion');
       h+=' '+rd_badge('HF: '+(s.hf_stage||'\u2014'),rd_kind(s.hf_stage),'Hugging Face Space runtime stage');
-      h+='</div><div class="dim" style="font-size:11px;margin-top:.4rem">organ <b>'+esc(d.organ||'')+'</b> \u00b7 <a href="'+esc(d.repo_url||'#')+'" target="_blank" rel="noopener">'+esc(d.repo||'')+'</a> \u00b7 deployment '+esc(d.deployment||'')+' \u00b7 checked '+esc(rd_ago(d.checked_at)||'just now')+'</div></div>';
+      h+='</div><div class="dim" style="font-size:11px;margin-top:.4rem">organ <b>'+esc(d.organ||'')+'</b> \u00b7 <a href="'+esc(d.repo_url||'#')+'" target="_blank" rel="noopener">'+esc(d.repo||'')+'</a> \u00b7 deployment '+esc(d.deployment||'')+' \u00b7 checked '+esc(rd_ago(d.checked_at)||'timestamp unavailable')+'</div></div>';
       (d.sections||[]).forEach(function(sec){ h+=rd_section(sec); });
+      if(!d.sections.length) h+='<div class="card"><div role="status">EMPTY: no readiness sections returned.</div></div>';
       c.innerHTML=h||'<div class="card"><div class="dim">no readiness sections.</div></div>';
       Array.prototype.forEach.call(c.querySelectorAll('.rd-live-btn'),function(b){
         b.addEventListener('click',function(){ window.readiness_section_live(b.getAttribute('data-rd'),b); });
@@ -11129,11 +11141,11 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       if(!opts.silent && typeof setInterval==='function'){
         if(window.__rd_timer){ clearInterval(window.__rd_timer); }
         window.__rd_timer=setInterval(function(){
-          if(!document.body.contains(c)){ clearInterval(window.__rd_timer); window.__rd_timer=null; return; }
+          if(!document.body.contains(c)||document.documentElement.dataset.view!=='readiness'){ clearInterval(window.__rd_timer); window.__rd_timer=null; return; }
           if((window.__tabauto!==false) && !document.hidden){ window.readiness_render(c,{silent:true}); }
         }, 30000);
       }
-    }catch(e){ c.innerHTML='<div class="card"><div class="dim">readiness layer unavailable: '+esc((e&&e.message)||e)+'</div></div>'; }
+    }catch(e){ if(document.documentElement.dataset.view==='readiness') c.innerHTML='<div class="card"><div role="status">Readiness UNAVAILABLE: '+esc((e&&e.message)||e)+'</div></div>'; }
   };
   function reg(){
     var V=window.VIEWS; if(!V){ return setTimeout(reg,60); }
@@ -11324,27 +11336,31 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     if(!opts.silent) c.innerHTML='<div class="card"><div class="dim">loading open-problem bounties from bounties/*.yaml\u2026</div></div>';
     try{
       var r=await fetch('/api/'+window.__bn_ns+'/v1/bounties');
-      var d=await r.json(); var h='';
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      var d=await r.json();
+      if(!d || !Array.isArray(d.bounties)) throw new Error('Bounty records were not supplied.');
+      if(document.documentElement.dataset.view!=='bounties') return;
+      var h='';
       h+='<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap"><span class="dim" style="font-size:12px">Auto-refresh every 30s \u2014 live re-poll of bounties/*.yaml; only status:OPEN shown, reward stays founder-set, never a figure.</span><span style="display:flex;gap:.4rem"><button class="btn" id="bn-auto" style="font-size:11px">\u27f3 auto: '+((window.__tabauto!==false)?'on':'off')+'</button><button class="btn" id="bn-reload" style="font-size:11px">\u21bb reload</button></span></div>';
       if(d.honest) h+='<div class="honesty">'+bn_esc(d.honest)+'</div>';
       h+='<div class="card"><div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">';
-      h+=bn_badge('OPEN bounties '+(d.count||0),GOLD,'genuinely open problems');
+      h+=bn_badge('OPEN bounties returned '+d.bounties.length,GOLD,'records in this response');
       h+=' '+bn_badge('reward: founder-set',GOLD,'this board never invents a figure');
       h+=' '+bn_badge('doctrine '+(d.doctrine||'v11'),'#8a8f98','honesty doctrine');
-      h+='</div><div class="dim" style="font-size:11px;margin-top:.4rem">Generated from <b>'+bn_esc(d.source||'bounties/*.yaml')+'</b> \u00b7 '+(d.board?bn_link(d.board,'bounty board \u2197')+' \u00b7 ':'')+'checked '+bn_esc(bn_ago(d.checked_at)||'just now')+'</div></div>';
+      h+='</div><div class="dim" style="font-size:11px;margin-top:.4rem">Generated from <b>'+bn_esc(d.source||'bounties/*.yaml')+'</b> \u00b7 '+(d.board?bn_link(d.board,'bounty board \u2197')+' \u00b7 ':'')+'checked '+bn_esc(bn_ago(d.checked_at)||'timestamp unavailable')+'</div></div>';
       (d.bounties||[]).forEach(function(b){ h+=bn_card(b); });
-      if(!(d.bounties||[]).length){ h+='<div class="card"><div class="dim">No OPEN bounties right now \u2014 every conjecture on the board has been settled.</div></div>'; }
+      if(!d.bounties.length){ h+='<div class="card"><div role="status">EMPTY: no open bounty records returned. This does not establish that any conjecture has been settled.</div></div>'; }
       c.innerHTML=h;
       var bnReload=c.querySelector('#bn-reload'); if(bnReload) bnReload.addEventListener('click',function(){ window.bounties_render(c,{silent:true}); });
       var bnAuto=c.querySelector('#bn-auto'); if(bnAuto) bnAuto.addEventListener('click',function(){ window.__tabauto=!(window.__tabauto!==false); bnAuto.textContent='\u27f3 auto: '+((window.__tabauto!==false)?'on':'off'); });
       if(!opts.silent && typeof setInterval==='function'){
         if(window.__bn_timer){ clearInterval(window.__bn_timer); }
         window.__bn_timer=setInterval(function(){
-          if(!document.body.contains(c)){ clearInterval(window.__bn_timer); window.__bn_timer=null; return; }
+          if(!document.body.contains(c)||document.documentElement.dataset.view!=='bounties'){ clearInterval(window.__bn_timer); window.__bn_timer=null; return; }
           if((window.__tabauto!==false) && !document.hidden){ window.bounties_render(c,{silent:true}); }
         }, 30000);
       }
-    }catch(e){ c.innerHTML='<div class="card"><div class="dim">bounty board unavailable: '+bn_esc((e&&e.message)||e)+'</div></div>'; }
+    }catch(e){ if(document.documentElement.dataset.view==='bounties') c.innerHTML='<div class="card"><div role="status">Bounty board UNAVAILABLE: '+bn_esc((e&&e.message)||e)+'</div></div>'; }
   };
   function reg(){
     var V=window.VIEWS; if(!V){ return setTimeout(reg,60); }

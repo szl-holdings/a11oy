@@ -19,7 +19,8 @@ from urllib.parse import urlsplit, parse_qs
 from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
-VIEWS = ("command", "lambda", "chain", "replay", "govern", "estate", "cve", "kev", "evidence", "receipts")
+VIEWS = ("command", "lambda", "chain", "replay", "govern", "estate", "cve", "kev", "evidence", "receipts",
+         "fleet", "readiness", "bounties", "genome", "honest", "launcher", "publications", "energySci", "energyReceipts")
 WIDTHS = (320, 360, 390, 768, 1024, 1440)
 
 
@@ -54,7 +55,7 @@ def run(output):
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     origin = "http://127.0.0.1:" + str(server.server_port)
-    state = {"energy": {}, "ledger": "rows", "lambda": .9191}
+    state = {"energy": {}, "ledger": "rows", "lambda": .9191, "status_mode": "rows"}
     requests = []
     failures = []
     checks = []
@@ -95,6 +96,18 @@ def run(output):
                     payload = {"chain_depth": 2 if state["ledger"] == "rows" else 0, "receipts": rows if state["ledger"] == "rows" else [], "window_verified": True, "final_hash": "b" * 64, "verticals_in_window": {"software": 2}}
             elif url.path == "/api/a11oy/v1/observability/summary":
                 payload = {"dag_depth": 2, "mesh_reach": {"core": {"status": "ok", "name": "Fixture core"}, "missing": {"status": "unavailable", "name": "Fixture missing"}}}
+                if state["status_mode"] == "rows":
+                    payload["capabilities"] = [{"id": "fixture", "name": "TEST FIXTURE service", "status": "ok", "latency_ms": 0}, {"id": "missing", "name": "TEST FIXTURE missing latency", "status": "unavailable"}]
+                elif state["status_mode"] == "empty":
+                    payload["capabilities"] = []
+            elif url.path == "/api/a11oy/v1/readiness" and state["status_mode"] != "error":
+                payload = {"source": "TEST FIXTURE", "summary": {}, "sections": []}
+                if state["status_mode"] == "rows":
+                    payload["sections"] = [{"id": "fixture", "title": "TEST FIXTURE repository", "kind": "kv", "fields": [{"k": "Repository identity", "v": "fixture-only/" + "long-repository-name-" * 8}]}]
+                elif state["status_mode"] == "malformed":
+                    payload = {}
+            elif url.path == "/api/a11oy/v1/bounties" and state["status_mode"] != "error":
+                payload = {"source": "TEST FIXTURE", "bounties": []} if state["status_mode"] != "malformed" else {}
             elif url.path == "/api/a11oy/v1/policy/decisions/feed":
                 payload = {"verdicts": [], "total_buffered": 14}
             elif url.path == "/api/a11oy/v1/models/series-a":
@@ -131,7 +144,7 @@ def run(output):
                     page.wait_for_timeout(500)
                     size = page.evaluate("({viewport:innerWidth,document:document.documentElement.scrollWidth,content:document.querySelector('.content').scrollWidth,client:document.querySelector('.content').clientWidth})")
                     check(f"{view} contained at {width}px", size["document"] <= width + 1 and size["content"] <= size["client"] + 1, size)
-                    if width in (390, 1440) and view in ("command", "chain", "lambda", "govern", "replay", "estate"):
+                    if width in (390, 1440) and view in ("command", "chain", "lambda", "govern", "replay", "estate", "fleet", "readiness", "bounties", "energySci", "energyReceipts", "publications"):
                         page.screenshot(path=str(output / f"{view}-{width}.png"))
             page.set_viewport_size({"width": 390, "height": 844})
             page.evaluate("go('command')")
@@ -165,6 +178,48 @@ def run(output):
             page.evaluate("go('replay')")
             page.wait_for_timeout(500)
             check("replay is labelled sample", "SAMPLE" in page.locator("#vbody").inner_text() and "Live data, no mock" not in page.locator("#vbody").inner_text())
+            page.evaluate("go('fleet')")
+            page.wait_for_timeout(500)
+            check("fleet missing latency stays unavailable", "latency unavailable" in page.locator("#fl-grid").inner_text())
+            check("fleet true zero latency preserved", "0 ms" in page.locator("#fl-grid").inner_text())
+            check("fleet status accessible without color", "unavailable" in page.locator("#fl-grid").inner_text())
+            check("fleet history keyboard scrollable", page.locator("#fl-grid").get_attribute("tabindex") == "0")
+            for mode in ("empty", "malformed", "error"):
+                state["status_mode"] = mode
+                for view in ("fleet", "readiness", "bounties"):
+                    page.evaluate("key=>go(key)", view)
+                    page.wait_for_timeout(500)
+                    content = page.locator("#vbody").inner_text()
+                    check(f"{view} {mode} evidence state", ("EMPTY" if mode == "empty" else "UNAVAILABLE") in content)
+                    if view in ("readiness", "bounties"):
+                        check(f"{view} {mode} has no invented observation time", "just now" not in content)
+                    if view == "bounties":
+                        check(f"bounties {mode} does not settle conjectures", "every conjecture on the board has been settled" not in content)
+            state["status_mode"] = "rows"
+            page.evaluate("go('readiness')")
+            page.wait_for_timeout(500)
+            check("readiness missing counts explicit", "endpoints unavailable" in page.locator("#vbody").inner_text())
+            check("readiness missing timestamp explicit", "timestamp unavailable" in page.locator("#vbody").inner_text())
+            page.locator(".rd-live-btn").click()
+            page.wait_for_timeout(500)
+            check("failed readiness section refresh keeps evidence and reports error", "re-read failed: HTTP 503" in page.locator("#vbody").inner_text() and "TEST FIXTURE repository" in page.locator("#vbody").inner_text())
+            for view in ("readiness", "bounties"):
+                kept = page.evaluate("""async key=>{
+                    const originalFetch=window.fetch;
+                    window.fetch=(...args)=>String(args[0]).endsWith('/v1/'+key)
+                        ? new Promise(resolve=>setTimeout(()=>resolve({ok:true,json:async()=>({summary:{},sections:[],bounties:[]})}),100))
+                        : originalFetch(...args);
+                    try{
+                        go(key);
+                        const pending=window[key+'_render'](document.querySelector('#vbody'),{silent:true});
+                        go('replay');
+                        await pending;
+                        return document.documentElement.dataset.view==='replay' && document.querySelector('#vbody').innerText.includes('SAMPLE');
+                    }finally{window.fetch=originalFetch;}
+                }""", view)
+                check(f"late {view} response preserves next view", kept)
+            page.evaluate("go('replay')")
+            page.wait_for_timeout(500)
             check("shared header keeps ownership", page.locator("[data-szl-command-bar]").get_attribute("data-szl-navigation") != "converged")
             check("mobile palette control visible", page.locator(".szl-cmdk").is_visible())
             check("mobile More control visible", page.locator(".szl-more").is_visible())
@@ -205,10 +260,11 @@ def run(output):
     finally:
         server.shutdown()
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
-    report = {"commit": commit, "source": "LOCAL UI WITH LABELLED TEST FIXTURES; no production readiness claim", "registered_view_keys": len(inventory), "widths": WIDTHS, "selected_benign_views": VIEWS, "checks": checks, "failures": failures, "browser_errors": sorted(set(errors)), "intercepted_requests": requests}
+    dirty = bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True).strip())
+    report = {"commit": commit, "working_tree_dirty": dirty, "source": "LOCAL UI WITH LABELLED TEST FIXTURES; no production readiness claim", "registered_view_keys": len(inventory), "widths": WIDTHS, "selected_benign_views": VIEWS, "checks": checks, "failures": failures, "browser_errors": sorted(set(errors)), "intercepted_requests": requests}
     (output / "browser-report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     print(json.dumps({"checks": len(checks), "passed": len(checks) - len(failures), "failures": failures, "browser_errors": sorted(set(errors)), "report": str(output / "browser-report.json")}, ensure_ascii=True))
-    return bool(failures)
+    return bool(failures or errors)
 
 
 if __name__ == "__main__":
