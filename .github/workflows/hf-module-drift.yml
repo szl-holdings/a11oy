@@ -12,9 +12,9 @@ name: HF Space module-drift guard
 # main revision equals the Hub repository bytes and that the served runtime is
 # RUNNING with two stable /api/build-info source observations.
 #
-# Pushes do not run this workflow because they race publication. Every main
-# push enters hf-sync without a path filter; hf-sync deploys, restarts, relocks,
-# and only then dispatches this workflow against protected main.
+# Pushes do not run this workflow directly because they race publication. Every
+# main push enters hf-sync without a path filter; hf-sync deploys, restarts,
+# relocks, and only then awaits this workflow as a reusable exact-source gate.
 #
 # The historical selector `select_hf_candidate_admission.py` remains available
 # for explicit forensic replay, but this lifecycle workflow never invokes it.
@@ -24,7 +24,8 @@ on:
     branches: [main]
   schedule:
     - cron: '37 6 * * 1'
-  workflow_dispatch:
+  workflow_dispatch: {}
+  workflow_call: {}
 
 permissions:
   contents: read

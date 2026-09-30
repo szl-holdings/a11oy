@@ -218,6 +218,7 @@ def success_session(origin: str, source_sha: str) -> FakeSession:
         "series_a_status": {
             "schema": "szl.series-a-status/v1",
             "state": "OBSERVED",
+            "critical_failures": [],
             "terminal": True,
             "source_revision": source_sha,
             "signing_key_source": "persistent:env:SZL_COSIGN_PRIVATE_PEM",
@@ -869,6 +870,25 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
             with self.subTest(update=update), self.assertRaisesRegex(
                 relock.RelockError,
                 "persistent storage contract",
+            ):
+                relock.evaluate_once(
+                    FakeApi(self.source),
+                    session,
+                    self.contract,
+                )
+
+    def test_series_a_status_rejects_blocked_or_critical_estate(self) -> None:
+        status_url = self.origin + relock.ROUTES["series_a_status"]
+        for update in (
+            {"state": "BLOCKED"},
+            {"critical_failures": ["github_inventory_unavailable"]},
+            {"critical_failures": None},
+        ):
+            session = success_session(self.origin, self.source)
+            session.responses[("GET", status_url)]._payload.update(update)
+            with self.subTest(update=update), self.assertRaisesRegex(
+                relock.RelockError,
+                "estate state",
             ):
                 relock.evaluate_once(
                     FakeApi(self.source),

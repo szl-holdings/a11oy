@@ -36,7 +36,6 @@ on:
 permissions:
   contents: read
   issues: write
-  actions: write
 
 concurrency:
   group: sync-relock-canonical-a11oy
@@ -51,8 +50,46 @@ env:
   REPORT_PATH: reports/canonical-a11oy-relock-v4.json
 
 jobs:
+  source-admission:
+    name: Admit the queued source before provider mutation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      publish: ${{ steps.owner.outputs.publish }}
+    steps:
+      - name: Checkout the immutable queued source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Require main and classify current source ownership
+        id: owner
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/main
+          python3 -B scripts/hf_exact_main_ownership.py \
+            --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+            --receipt "$RUNNER_TEMP/canonical-source-admission.json" \
+            --github-output "$GITHUB_OUTPUT"
+      - name: Retain the source admission decision
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: canonical-source-admission-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/canonical-source-admission.json
+          if-no-files-found: error
+          retention-days: 90
+
   resume-paused-space:
     name: Resume the canonical Space without changing its allocation
+    needs: source-admission
+    if: ${{ needs.source-admission.outputs.publish == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -167,10 +204,14 @@ jobs:
 
   deploy:
     name: Deploy, source-bind, and attest exact surface
+    needs: source-admission
+    if: ${{ needs.source-admission.outputs.publish == 'true' }}
     uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@e3ec47ad2e99a535839afe0f30fefbd8973d52da
     with:
       hf-repo: SZLHOLDINGS/a11oy
       ref: ${{ github.sha }}
+      # Recheck next to the provider commit if main advances after admission.
+      require-default-branch-tip: true
       dockerfile-path: Dockerfile
       include-readme: true
       prune: true
@@ -462,12 +503,26 @@ jobs:
           echo "exit_code=${code}" >> "$GITHUB_OUTPUT"
           exit 0
 
+      - name: Re-admit exact current main after live verification
+        id: post_deploy_owner
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B scripts/hf_exact_main_ownership.py \
+            --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+            --receipt "$RUNNER_TEMP/post-deploy-source-admission.json" \
+            --github-output "$GITHUB_OUTPUT"
+
       - name: Upload immutable relock evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: canonical-a11oy-relock-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ env.REPORT_PATH }}
+          path: |
+            ${{ env.REPORT_PATH }}
+            ${{ runner.temp }}/post-deploy-source-admission.json
           if-no-files-found: error
           retention-days: 90
 
@@ -476,6 +531,7 @@ jobs:
         shell: bash
         env:
           EXIT_CODE: ${{ steps.verify.outputs.exit_code }}
+          CURRENT_MAIN: ${{ steps.post_deploy_owner.outputs.publish }}
         run: |
           set -euo pipefail
           test -f "$REPORT_PATH"
@@ -490,7 +546,7 @@ jobs:
             echo '```'
           } > /tmp/relock.md
           gh issue edit "$RELOCK_ISSUE" --repo "$GITHUB_REPOSITORY" --body-file /tmp/relock.md
-          if [ "${EXIT_CODE:-2}" = '0' ]; then
+          if [ "${EXIT_CODE:-2}" = '0' ] && [ "${CURRENT_MAIN:-false}" = 'true' ]; then
             gh issue close "$RELOCK_ISSUE" --repo "$GITHUB_REPOSITORY" --reason completed \
               --comment 'Protected source, reusable source binding, immutable current runtime, exact HEAD/GET contracts, holographic surface, and singleton topology all passed.' || true
           else
@@ -501,13 +557,23 @@ jobs:
         if: always()
         env:
           EXIT_CODE: ${{ steps.verify.outputs.exit_code }}
+          CURRENT_MAIN: ${{ steps.post_deploy_owner.outputs.publish }}
         run: |
           code="${EXIT_CODE:-2}"
           if [ "$code" -ne 0 ]; then
             echo "::error::Canonical A11oy relock failed with exit ${code}."
             exit "$code"
           fi
+          if [ "${CURRENT_MAIN:-false}" != 'true' ]; then
+            echo '::error::Canonical A11oy relock source is no longer current protected main.'
+            exit 3
+          fi
           echo 'Canonical A11oy is source-bound, singleton, and route-operational.'
 
-      - name: Trigger strict post-deployment GitHub/HF parity
-        run: gh workflow run hf-module-drift.yml --repo "$GITHUB_REPOSITORY" --ref main
+
+  post-deployment-parity:
+    name: Await strict live and repository parity
+    needs: relock
+    permissions:
+      contents: read
+    uses: ./.github/workflows/hf-module-drift.yml

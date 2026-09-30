@@ -405,6 +405,10 @@ jobs:
         # writers must never race under any automatic trigger. The negative fixture proves this
         # guard detects a second mutation-capable workflow instead of always passing.
         run: python3 tests/test_hf_single_writer.py
+      - name: Prove queued source admission fails closed before provider writes
+        run: |
+          python3 scripts/test_hf_exact_main_ownership.py
+          python3 tests/test_hf_sync_supersession_contract.py
 
   theorem-manifest-honesty-selftest:
     name: Theorem-manifest honesty-guard self-test (stdlib, network-free)

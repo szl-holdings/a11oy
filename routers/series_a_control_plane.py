@@ -965,7 +965,17 @@ def _public_github_snapshot_ready(latest: Mapping[str, Any]) -> bool:
 
 class Collector:
     def __init__(self) -> None:
-        self.github_token = (os.environ.get("GITHUB_TOKEN") or "").strip()
+        # The public inventory has a distinct credential boundary. Never reuse
+        # a generic runtime token: it may be stale, belong to another service,
+        # or expose private organization metadata to this public snapshot.
+        self.github_token = (
+            os.environ.get("A11OY_GITHUB_PUBLIC_READ_TOKEN") or ""
+        ).strip()
+        self.github_authentication_mode = (
+            "DEDICATED_PUBLIC_READ_TOKEN"
+            if self.github_token
+            else "PUBLIC_ANONYMOUS"
+        )
         self.hf_token = (os.environ.get("HF_TOKEN") or "").strip()
 
     async def _json(
