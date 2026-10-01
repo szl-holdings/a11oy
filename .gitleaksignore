@@ -46,3 +46,11 @@ tests/test_vectors/valid_chain.json:generic-api-key:74
 tests/test_vectors/valid_chain.json:generic-api-key:156
 # synthetic test fixture, added in #1608, allowlisted in #1608, annotated + CI-verified in this PR — NOT a real credential
 tests/test_vectors/valid_chain.json:generic-api-key:238
+
+# Vendored SZL Kanchay v1.0.0 export manifest (docs site, PR #2318). SOURCE.json lists the
+# public sha256 digest of every file in the export. The generic heuristic flags the row
+# for the design-token file because its name contains the word it looks for. The value is
+# a content digest of a public file, not a credential. Vendored files are byte-for-byte
+# copies and are never edited, so this one finding is exempted by fingerprint (from
+# gitleaks detect --no-git in run 36555943647 job 109365002728).
+docs/site/docs/public/kanchay/SOURCE.json:generic-api-key:14
