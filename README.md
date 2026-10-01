@@ -177,6 +177,7 @@ deployment still requires the canonical publisher and live readback.
 | `www.a-11-oy.com` | **UNAVAILABLE** (TLS alert) |
 | Government authorization / accreditation | **ROADMAP — none claimed** |
 | EXECUTION guard | **ROADMAP** |
+| Atelier command centre and Python Grok route | **SOURCE PRESENT — [configuration and proof gates](docs/ATELIER_COMMAND_CENTRE.md); live inference not established** |
 
 ---
 

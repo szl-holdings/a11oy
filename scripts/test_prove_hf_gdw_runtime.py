@@ -7,6 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
 
@@ -15,6 +16,8 @@ SPEC = importlib.util.spec_from_file_location("prove_hf_gdw_runtime", SCRIPT)
 assert SPEC and SPEC.loader
 proof = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(proof)
+
+import szl_dsse  # noqa: E402  (repository root is on sys.path via the script)
 
 
 SOURCE_SHA = "a" * 40
@@ -305,9 +308,10 @@ def test_live_proof_binds_source_generation_transition_and_artifacts(
     monkeypatch.setattr(proof, "request_json", _live_response)
 
     report = proof.prove(
-        origin="https://example.invalid",
+        origin="https://szlholdings-a11oy.hf.space",
         source_sha=SOURCE_SHA,
         operator_token="x" * 48,
+        require_signed_receipt=False,
     )
 
     assert report["source_revision"] == SOURCE_SHA
@@ -387,9 +391,10 @@ def test_live_proof_recovers_bound_backoff_before_requiring_real_health(
     monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
 
     report = proof.prove(
-        origin="https://example.invalid",
+        origin="https://szlholdings-a11oy.hf.space",
         source_sha=SOURCE_SHA,
         operator_token="x" * 48,
+        require_signed_receipt=False,
     )
 
     assert events.index("health-1") < events.index("recovery")
@@ -445,7 +450,7 @@ def test_failed_recovery_requests_consume_the_eight_call_budget(monkeypatch):
 
     with pytest.raises(RuntimeError, match="did not converge"):
         proof._prove_drain_convergence(
-            base="https://example.invalid",
+            base="https://szlholdings-a11oy.hf.space",
             operator_token="x" * 48,
             database_generation_id=GENERATION_ID,
             source_sha=SOURCE_SHA,
@@ -493,7 +498,7 @@ def test_transient_recovery_rejects_self_consistent_invalid_receipt_bindings(
 
     with pytest.raises(RuntimeError, match="recovery contract"):
         proof._recover_transient_effects(
-            base="https://example.invalid",
+            base="https://szlholdings-a11oy.hf.space",
             operator_token="x" * 48,
             source_sha=SOURCE_SHA,
             database_generation_id=GENERATION_ID,
@@ -518,7 +523,7 @@ def test_transient_recovery_accepts_the_authoritative_selection_id_grammar(
     )
 
     observed = proof._recover_transient_effects(
-        base="https://example.invalid",
+        base="https://szlholdings-a11oy.hf.space",
         operator_token="x" * 48,
         source_sha=SOURCE_SHA,
         database_generation_id=GENERATION_ID,
@@ -548,15 +553,21 @@ def test_transient_recovery_cryptographically_rejects_a_forged_pae_signature(
     }
     private_key = ec.generate_private_key(ec.SECP256R1())
     monkeypatch.setattr(
-        proof.szl_dsse,
+        szl_dsse,
         "_load_private_key",
         lambda: private_key,
     )
-    envelope = proof.szl_dsse.sign_payload(
+    envelope = szl_dsse.sign_payload(
         receipt_payload,
-        proof.szl_dsse.KHIPU_PAYLOAD_TYPE,
+        szl_dsse.KHIPU_PAYLOAD_TYPE,
     )
-    monkeypatch.setattr(proof.szl_dsse, "_load_private_key", lambda: None)
+    monkeypatch.setattr(szl_dsse, "_load_private_key", lambda: None)
+    # Only the pinned key is trusted; for this offline test the "pinned" DER
+    # is the test key's public half.
+    test_der = private_key.public_key().public_bytes(
+        serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    monkeypatch.setattr(proof, "_pinned_key_der", lambda: test_der)
     receipt["receipt_status"] = "SIGNED_KHIPU_DSSE"
     receipt["dsse_envelope"] = envelope
     receipt["dsse_envelope_sha256"] = proof._canonical_hash(envelope)
@@ -571,7 +582,7 @@ def test_transient_recovery_cryptographically_rejects_a_forged_pae_signature(
     monkeypatch.setattr(proof, "request_json", lambda *args, **kwargs: report)
 
     observed = proof._recover_transient_effects(
-        base="https://example.invalid",
+        base="https://szlholdings-a11oy.hf.space",
         operator_token="x" * 48,
         source_sha=SOURCE_SHA,
         database_generation_id=GENERATION_ID,
@@ -604,7 +615,7 @@ def test_transient_recovery_cryptographically_rejects_a_forged_pae_signature(
     monkeypatch.setattr(proof, "request_json", lambda *args, **kwargs: forged)
     with pytest.raises(RuntimeError, match="recovery contract"):
         proof._recover_transient_effects(
-            base="https://example.invalid",
+            base="https://szlholdings-a11oy.hf.space",
             operator_token="x" * 48,
             source_sha=SOURCE_SHA,
             database_generation_id=GENERATION_ID,
@@ -627,7 +638,7 @@ def test_transient_recovery_rejects_numeric_replay_flags(
 
     with pytest.raises(RuntimeError, match="recovery contract"):
         proof._recover_transient_effects(
-            base="https://example.invalid",
+            base="https://szlholdings-a11oy.hf.space",
             operator_token="x" * 48,
             source_sha=SOURCE_SHA,
             database_generation_id=GENERATION_ID,
@@ -654,7 +665,7 @@ def test_transient_recovery_rejects_a_resealed_nonfuture_selection(
 
     with pytest.raises(RuntimeError, match="recovery contract"):
         proof._recover_transient_effects(
-            base="https://example.invalid",
+            base="https://szlholdings-a11oy.hf.space",
             operator_token="x" * 48,
             source_sha=SOURCE_SHA,
             database_generation_id=GENERATION_ID,
@@ -673,7 +684,7 @@ def test_transient_recovery_rejects_attempt_accounting_change(monkeypatch):
 
     with pytest.raises(RuntimeError, match="recovery contract"):
         proof._recover_transient_effects(
-            base="https://example.invalid",
+            base="https://szlholdings-a11oy.hf.space",
             operator_token="x" * 48,
             source_sha=SOURCE_SHA,
             database_generation_id=GENERATION_ID,
@@ -693,9 +704,10 @@ def test_live_proof_never_accepts_a_different_runtime_source(monkeypatch):
 
     with pytest.raises(RuntimeError, match="SOURCE_REVISION_MISMATCH"):
         proof.prove(
-            origin="https://example.invalid",
+            origin="https://szlholdings-a11oy.hf.space",
             source_sha=SOURCE_SHA,
             operator_token="x" * 48,
+            require_signed_receipt=False,
         )
 
 
@@ -732,9 +744,10 @@ def test_live_proof_waits_for_supervised_drain_quiescence(monkeypatch):
     monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
 
     report = proof.prove(
-        origin="https://example.invalid",
+        origin="https://szlholdings-a11oy.hf.space",
         source_sha=SOURCE_SHA,
         operator_token="x" * 48,
+        require_signed_receipt=False,
     )
 
     assert drain_calls == 2
@@ -796,7 +809,7 @@ def test_convergence_counts_only_completed_supervisor_passes(monkeypatch):
     monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
 
     proof._prove_drain_convergence(
-        base="https://example.invalid",
+        base="https://szlholdings-a11oy.hf.space",
         operator_token="x" * 48,
         database_generation_id=GENERATION_ID,
         attempts=6,
@@ -847,9 +860,10 @@ def test_live_proof_rejects_persistent_supervisor_failure(monkeypatch):
 
     with pytest.raises(RuntimeError, match="did not converge") as exc_info:
         proof.prove(
-            origin="https://example.invalid",
+            origin="https://szlholdings-a11oy.hf.space",
             source_sha=SOURCE_SHA,
             operator_token=operator_token,
+            require_signed_receipt=False,
         )
     error = str(exc_info.value)
     assert '"global_dead_letter_effects": 1' in error
@@ -871,9 +885,10 @@ def test_live_proof_rejects_missing_database_generation(monkeypatch):
 
     with pytest.raises(RuntimeError, match="database generation"):
         proof.prove(
-            origin="https://example.invalid",
+            origin="https://szlholdings-a11oy.hf.space",
             source_sha=SOURCE_SHA,
             operator_token="x" * 48,
+            require_signed_receipt=False,
         )
 
 
@@ -915,7 +930,7 @@ def test_restart_proof_preserves_generation_session_and_artifacts(monkeypatch):
     report = proof.prove_restart(
         api=Api(),
         repo_id="SZLHOLDINGS/a11oy",
-        base="https://example.invalid",
+        base="https://szlholdings-a11oy.hf.space",
         source_sha=SOURCE_SHA,
         operator_token="x" * 48,
         session_id="protected-promotion",
@@ -942,7 +957,7 @@ def _http_error(status, body="{}", retry_after=None):
         headers["Retry-After"] = str(retry_after)
     def build():
         return HTTPError(
-            "https://example.invalid/api",
+            "https://szlholdings-a11oy.hf.space/api",
             status,
             "error",
             headers,
@@ -953,11 +968,16 @@ def _http_error(status, body="{}", retry_after=None):
 
 
 class _FakeResponse:
-    def __init__(self, payload):
+    def __init__(self, payload, *, url, status=200):
         self._payload = json.dumps(payload).encode("utf-8")
+        self._url = url
+        self.status = status
 
-    def read(self):
+    def read(self, *_size):
         return self._payload
+
+    def geturl(self):
+        return self._url
 
     def __enter__(self):
         return self
@@ -966,24 +986,32 @@ class _FakeResponse:
         return False
 
 
-def _install_urlopen(monkeypatch, outcomes):
+GDW_URL = "https://szlholdings-a11oy.hf.space/api/a11oy/v1/gdw/step"
+HEALTH_URL = "https://szlholdings-a11oy.hf.space/api/a11oy/v1/gdw/healthz"
+
+
+def _install_transport(monkeypatch, outcomes):
     calls = []
     slept = []
 
-    def fake_urlopen(request, timeout=None):
-        calls.append(request)
-        outcome = outcomes[min(len(calls) - 1, len(outcomes) - 1)]
-        if callable(outcome):
-            raise outcome()
-        return _FakeResponse(outcome)
+    class Opener:
+        def open(self, request, timeout=None):
+            calls.append(request)
+            outcome = outcomes[min(len(calls) - 1, len(outcomes) - 1)]
+            if callable(outcome):
+                raise outcome()
+            return _FakeResponse(outcome, url=request.full_url)
 
-    monkeypatch.setattr(proof, "urlopen", fake_urlopen)
-    monkeypatch.setattr(proof.time, "sleep", lambda seconds: slept.append(seconds))
+    transport = proof.bounds.BoundedTransport(
+        deadline_seconds=600, opener=Opener(), sleep=slept.append,
+        clock=lambda: 0.0,
+    )
+    monkeypatch.setattr(proof, "_TRANSPORT", transport)
     return calls, slept
 
 
 def test_request_json_retries_a_saturated_admission_ceiling(monkeypatch):
-    calls, slept = _install_urlopen(
+    calls, slept = _install_transport(
         monkeypatch,
         [
             _http_error(429, '{"detail":"GDW quota exceeded: OWNER_SESSIONS_QUOTA"}'),
@@ -991,61 +1019,318 @@ def test_request_json_retries_a_saturated_admission_ceiling(monkeypatch):
             {"decision": "ACCEPT"},
         ],
     )
-    assert proof.request_json("POST", "https://example.invalid/api") == {
-        "decision": "ACCEPT"
-    }
+    assert proof.request_json("POST", GDW_URL) == {"decision": "ACCEPT"}
     assert len(calls) == 3
     assert slept == [2.0, 4.0]
 
 
 def test_request_json_honours_retry_after(monkeypatch):
-    _calls, slept = _install_urlopen(
+    _calls, slept = _install_transport(
         monkeypatch,
         [_http_error(503, "{}", retry_after=7), {"ok": True}],
     )
-    assert proof.request_json("GET", "https://example.invalid/api") == {"ok": True}
+    assert proof.request_json("GET", HEALTH_URL) == {"ok": True}
     assert slept == [7.0]
 
 
 def test_request_json_retries_a_booting_runtime(monkeypatch):
-    calls, _slept = _install_urlopen(
+    calls, _slept = _install_transport(
         monkeypatch,
         [_http_error(502), _http_error(504), {"status": "REAL"}],
     )
-    assert proof.request_json("GET", "https://example.invalid/api") == {
-        "status": "REAL"
-    }
+    assert proof.request_json("GET", HEALTH_URL) == {"status": "REAL"}
     assert len(calls) == 3
 
 
 def test_request_json_never_retries_a_contract_or_integrity_failure(monkeypatch):
     for status in (400, 401, 403, 404, 409, 422, 500):
-        calls, _slept = _install_urlopen(monkeypatch, [_http_error(status, "denied")])
+        calls, _slept = _install_transport(
+            monkeypatch, [_http_error(status, '{"detail":"denied: provider secret text"}')]
+        )
         with pytest.raises(RuntimeError) as excinfo:
-            proof.request_json("POST", "https://example.invalid/api")
+            proof.request_json("POST", GDW_URL)
         assert not isinstance(excinfo.value, proof.TransientRequestError)
-        assert f"HTTP {status}" in str(excinfo.value)
+        assert excinfo.value.code == "HTTP_STATUS_REJECTED"
+        assert excinfo.value.http_status == status
+        # The provider body is never read into the error.
+        assert "denied" not in str(excinfo.value)
+        assert "provider secret text" not in repr(excinfo.value)
         assert len(calls) == 1
 
 
 def test_request_json_fails_honestly_when_a_transient_condition_persists(monkeypatch):
-    calls, _slept = _install_urlopen(
+    calls, _slept = _install_transport(
         monkeypatch,
         [_http_error(429, '{"detail":"GDW quota exceeded: OWNER_SESSIONS_QUOTA"}')],
     )
     with pytest.raises(proof.TransientRequestError) as excinfo:
-        proof.request_json("POST", "https://example.invalid/api")
-    assert len(calls) == proof._REQUEST_ATTEMPTS
-    assert "persisted across" in str(excinfo.value)
-    assert "OWNER_SESSIONS_QUOTA" in str(excinfo.value)
+        proof.request_json("POST", GDW_URL)
+    assert len(calls) == proof._REQUEST_ATTEMPTS == 8
+    assert excinfo.value.code == "TRANSIENT_RETRY_EXHAUSTED"
+    assert "OWNER_SESSIONS_QUOTA" not in str(excinfo.value)
 
 
 def test_poll_scoped_calls_use_a_short_budget(monkeypatch):
-    calls, _slept = _install_urlopen(monkeypatch, [_http_error(503)])
+    calls, _slept = _install_transport(monkeypatch, [_http_error(503)])
     with pytest.raises(proof.TransientRequestError):
-        proof.request_json(
-            "GET",
-            "https://example.invalid/api",
-            attempts=proof._POLL_ATTEMPTS,
-        )
+        proof.request_json("GET", HEALTH_URL, attempts=proof._POLL_ATTEMPTS)
     assert len(calls) == proof._POLL_ATTEMPTS
+
+
+def test_request_json_rejects_a_redirect_without_following(monkeypatch):
+    calls, _slept = _install_transport(monkeypatch, [_http_error(302, "moved")])
+    with pytest.raises(proof.ProofBoundaryError) as excinfo:
+        proof.request_json("GET", HEALTH_URL)
+    assert excinfo.value.code == "REDIRECT_REJECTED"
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize(
+    ("method", "url", "code"),
+    [
+        ("GET", "https://a-11-oy.com/api/a11oy/v1/gdw/healthz", "DESTINATION_REJECTED"),
+        ("GET", "https://szlholdings-a11oy.hf.space.evil.example/api/a11oy/v1/gdw/healthz",
+         "DESTINATION_REJECTED"),
+        ("GET", "http://szlholdings-a11oy.hf.space/api/a11oy/v1/gdw/healthz", "DESTINATION_REJECTED"),
+        ("GET", "https://szlholdings-a11oy.hf.space/api/other/v1/gdw/healthz", "NAMESPACE_SCOPE_REJECTED"),
+        ("POST", "https://szlholdings-a11oy.hf.space/api/a11oy/v1/gdw/sessions/x", "EFFECT_SCOPE_REJECTED"),
+        ("POST", "https://szlholdings-a11oy.hf.space/api/a11oy/v1/series-a/restart", "EFFECT_SCOPE_REJECTED"),
+        ("POST", "https://huggingface.co/api/spaces/SZLHOLDINGS/a11oy/restart", "DESTINATION_REJECTED"),
+    ],
+)
+def test_request_json_rejects_out_of_scope_calls_before_network(monkeypatch, method, url, code):
+    calls, _slept = _install_transport(monkeypatch, [{"ok": True}])
+    with pytest.raises(proof.ProofBoundaryError) as excinfo:
+        proof.request_json(method, url)
+    assert excinfo.value.code == code
+    assert calls == []
+
+
+# --- Bounded live-proof admission: proof-tagged receipt and CLI -----------
+
+
+PROOF_RECOVERY_ID = "gdw-proof-aaaaaaaaaaaa-bbbbbbbbbbbb-1"
+
+
+def _sign_recovery_report(monkeypatch, private_key, report):
+    receipt = report["audit_receipt"]
+    payload = {
+        key: value
+        for key, value in receipt.items()
+        if key not in {"receipt_status", "receipt_sha256", "dsse_envelope_sha256",
+                       "chain_sha256", "dsse_envelope"}
+    }
+    monkeypatch.setattr(szl_dsse, "_load_private_key", lambda: private_key)
+    envelope = szl_dsse.sign_payload(payload, szl_dsse.KHIPU_PAYLOAD_TYPE)
+    monkeypatch.setattr(szl_dsse, "_load_private_key", lambda: None)
+    receipt["receipt_status"] = "SIGNED_KHIPU_DSSE"
+    receipt["dsse_envelope"] = envelope
+    receipt["dsse_envelope_sha256"] = proof._canonical_hash(envelope)
+    receipt["chain_sha256"] = proof._canonical_hash({
+        "previous_chain_sha256": receipt["previous_chain_sha256"],
+        "receipt_sha256": receipt["receipt_sha256"],
+        "receipt_status": receipt["receipt_status"],
+        "dsse_envelope_sha256": receipt["dsse_envelope_sha256"],
+    })
+    return report
+
+
+def _der(private_key):
+    return private_key.public_key().public_bytes(
+        serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+
+
+def _proof_receipt(**kwargs):
+    return proof.prove_signed_receipt(
+        base="https://szlholdings-a11oy.hf.space",
+        operator_token="x" * 48,
+        source_sha=SOURCE_SHA,
+        database_generation_id=GENERATION_ID,
+        recovery_evidence=proof._new_recovery_evidence(),
+        **kwargs,
+    )
+
+
+def _no_eligible_report():
+    return _recovery_report(
+        status="NO_ELIGIBLE_EFFECTS", eligible=0, rescheduled=0,
+        recovery_id=PROOF_RECOVERY_ID,
+    )
+
+
+def test_proof_tagged_receipt_verifies_against_the_pinned_key(monkeypatch):
+    key = ec.generate_private_key(ec.SECP256R1())
+    report = _sign_recovery_report(monkeypatch, key, _no_eligible_report())
+    seen = []
+
+    def request_json(method, url, **kwargs):
+        seen.append((method, url, kwargs["headers"]["Idempotency-Key"]))
+        return report
+
+    monkeypatch.setattr(proof, "request_json", request_json)
+    monkeypatch.setattr(proof, "_pinned_key_der", lambda: _der(key))
+    receipt = _proof_receipt()
+    assert receipt["signature_verified"] is True
+    assert receipt["namespace"] == "a11oy"
+    assert receipt["receipt_status"] == "SIGNED_KHIPU_DSSE"
+    assert receipt["verified_against"] == "ayllu/keys/council-runtime-2026-07-21.pub"
+    assert seen[0][0] == "POST"
+    assert seen[0][1].startswith(
+        "https://szlholdings-a11oy.hf.space/api/a11oy/v1/gdw/recovery/transient-effects"
+    )
+    assert seen[0][2] == PROOF_RECOVERY_ID
+
+
+def test_receipt_signed_by_any_other_key_is_rejected(monkeypatch):
+    signer = ec.generate_private_key(ec.SECP256R1())
+    pinned = ec.generate_private_key(ec.SECP256R1())
+    report = _sign_recovery_report(monkeypatch, signer, _no_eligible_report())
+    monkeypatch.setattr(proof, "request_json", lambda *a, **k: report)
+    monkeypatch.setattr(proof, "_pinned_key_der", lambda: _der(pinned))
+    # The in-drain contract check refuses it; szl_dsse runtime trust is not consulted.
+    with pytest.raises(RuntimeError):
+        _proof_receipt()
+    with pytest.raises(proof.ProofBoundaryError) as excinfo:
+        proof._verify_signed_envelope(report["audit_receipt"]["dsse_envelope"])
+    assert excinfo.value.code == "RECEIPT_SIGNATURE_INVALID"
+
+
+def test_real_pinned_key_rejects_a_test_signature():
+    from cryptography.hazmat.primitives import hashes
+
+    signer = ec.generate_private_key(ec.SECP256R1())
+    body = b'{"k":1}'
+    sig = signer.sign(
+        proof.bounds.dsse_pae(proof.bounds.KHIPU_PAYLOAD_TYPE, body), ec.ECDSA(hashes.SHA256())
+    )
+    envelope = {
+        "payloadType": proof.bounds.KHIPU_PAYLOAD_TYPE,
+        "payload": base64.b64encode(body).decode("ascii"),
+        "signed": True,
+        "signatures": [{"sig": base64.b64encode(sig).decode("ascii"), "keyid": "x"}],
+    }
+    with pytest.raises(proof.ProofBoundaryError) as excinfo:
+        proof._verify_signed_envelope(envelope)
+    assert excinfo.value.code == "RECEIPT_SIGNATURE_INVALID"
+
+
+def test_unsigned_proof_receipt_fails_closed(monkeypatch):
+    report = _no_eligible_report()
+    monkeypatch.setattr(proof, "request_json", lambda *a, **k: report)
+    with pytest.raises(proof.ProofBoundaryError) as excinfo:
+        _proof_receipt()
+    assert excinfo.value.code == "RECEIPT_UNSIGNED"
+
+
+def test_unreviewed_recovery_prefix_is_rejected(monkeypatch):
+    monkeypatch.setattr(proof, "request_json", lambda *a, **k: pytest.fail("no call"))
+    with pytest.raises(proof.ProofBoundaryError) as excinfo:
+        proof._recover_transient_effects(
+            base="https://szlholdings-a11oy.hf.space", operator_token="x" * 48,
+            source_sha=SOURCE_SHA, database_generation_id=GENERATION_ID,
+            evidence=proof._new_recovery_evidence(), recovery_prefix="other-namespace",
+        )
+    assert excinfo.value.code == "EFFECT_SCOPE_REJECTED"
+
+
+def test_prove_rejects_a_non_canonical_origin_before_network(monkeypatch):
+    monkeypatch.setattr(proof, "request_json", lambda *a, **k: pytest.fail("no call"))
+    for origin in ("https://a-11-oy.com", "https://szlholdings-a11oy.hf.space.evil.example"):
+        with pytest.raises(proof.ProofBoundaryError) as excinfo:
+            proof.prove(origin=origin, source_sha=SOURCE_SHA, operator_token="x" * 48)
+        assert excinfo.value.code == "DESTINATION_REJECTED"
+
+
+def test_restart_helper_refuses_any_other_space(monkeypatch):
+    class Api:
+        def __getattr__(self, name):
+            pytest.fail("no provider call for another Space")
+
+    monkeypatch.setattr(proof, "request_json", lambda *a, **k: pytest.fail("no call"))
+    with pytest.raises(proof.ProofBoundaryError) as excinfo:
+        proof.prove_restart(
+            api=Api(),
+            repo_id="SZLHOLDINGS/other",
+            base="https://szlholdings-a11oy.hf.space",
+            source_sha=SOURCE_SHA,
+            operator_token="x" * 48,
+            session_id="protected-promotion-aaaaaaaaaaaaaaaa",
+        )
+    assert excinfo.value.code == "SPACE_SCOPE_REJECTED"
+
+
+def test_main_setup_required_names_the_secret(monkeypatch, tmp_path):
+    monkeypatch.delenv("GDW_OPERATOR_TOKEN", raising=False)
+    monkeypatch.setattr(proof, "prove", lambda **k: pytest.fail("no proof without secret"))
+    output = tmp_path / "gdw.json"
+    assert proof.main(["--source-sha", SOURCE_SHA, "--output", str(output)]) == 1
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["state"] == "SETUP_REQUIRED"
+    assert report["missing_secret_names"] == ["GDW_OPERATOR_TOKEN"]
+    assert report["ok"] is False
+
+
+def test_main_failure_reports_fixed_code_without_provider_text(monkeypatch, tmp_path):
+    secret = "gdw-operator-secret-value-with-32-plus-bytes"
+    monkeypatch.setenv("GDW_OPERATOR_TOKEN", secret)
+
+    def fail(**_kwargs):
+        raise RuntimeError("provider said: Traceback " + secret)
+
+    monkeypatch.setattr(proof, "prove", fail)
+    output = tmp_path / "gdw.json"
+    assert proof.main(["--source-sha", SOURCE_SHA, "--output", str(output)]) == 1
+    raw = output.read_text(encoding="utf-8")
+    report = json.loads(raw)
+    assert report["diagnostic_code"] == "GDW_CONTRACT_FAILED"
+    assert secret not in raw and "Traceback" not in raw and "provider said" not in raw
+    assert proof._TRANSPORT is None
+
+
+def test_main_pass_report_is_compact_and_admissible(monkeypatch, tmp_path):
+    secret = "gdw-operator-secret-value-with-32-plus-bytes"
+    monkeypatch.setenv("GDW_OPERATOR_TOKEN", secret)
+    pinned_sha = proof.bounds.PINNED_RUNTIME_KEY_DER_SHA256
+
+    def fake_prove(**kwargs):
+        assert kwargs["origin"] == "https://szlholdings-a11oy.hf.space"
+        assert kwargs["require_signed_receipt"] is True
+        assert proof._TRANSPORT is not None
+        return {
+            "runtime_source_revision": SOURCE_SHA,
+            "namespace": "a11oy",
+            "health": {"persistence": {"storage": {"database_generation_id": GENERATION_ID}},
+                       "noise": "x" * 5000},
+            "drain": {"failed": 0, "pending_effects": 0, "legacy_pending_proofs": 0,
+                      "integrity_ok": True, "database_generation_id": GENERATION_ID},
+            "integrity": _complete_integrity(),
+            "global_integrity": _complete_integrity(),
+            "transient_recovery": proof._new_recovery_evidence(),
+            "signed_receipt": {
+                "recovery_id": PROOF_RECOVERY_ID, "status": "NO_ELIGIBLE_EFFECTS",
+                "namespace": "a11oy", "owner_id": "operator",
+                "receipt_status": "SIGNED_KHIPU_DSSE", "receipt_sha256": "1" * 64,
+                "chain_sha256": "2" * 64, "sequence": 3, "signature_verified": True,
+                "verified_against": "ayllu/keys/council-runtime-2026-07-21.pub",
+                "pinned_key_der_sha256": pinned_sha, "payload_sha256": "3" * 64,
+            },
+        }
+
+    monkeypatch.setattr(proof, "prove", fake_prove)
+    output = tmp_path / "gdw.json"
+    assert proof.main(["--source-sha", SOURCE_SHA, "--output", str(output)]) == 0
+    raw = output.read_text(encoding="utf-8")
+    assert secret not in raw and "xxxxx" not in raw
+    report = json.loads(raw)
+    assert report["status"] == "PASS" and report["state"] == "PROVEN"
+    assert report["bounds"]["redirects_allowed"] is False
+
+    checker_path = Path(__file__).with_name("check_hf_manual_prerequisites.py")
+    spec = importlib.util.spec_from_file_location("checker_for_gdw", checker_path)
+    checker = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(checker)
+    assert checker.inspect_live_proof(output, "gdw", 0, SOURCE_SHA) == {
+        "report_valid": True, "state": "PROVEN"}
+    assert checker.inspect_live_proof(output, "gdw", 1, SOURCE_SHA)["state"] == "UNPROVEN"
+    assert checker.inspect_live_proof(output, "gdw", 0, "c" * 40)["state"] == "UNPROVEN"

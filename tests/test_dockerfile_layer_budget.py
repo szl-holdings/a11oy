@@ -11,14 +11,12 @@ ROOT = Path(__file__).resolve().parents[1]
 DOCKERFILE = ROOT / "Dockerfile"
 BUILD_WORKFLOW = ROOT / ".github" / "workflows" / "docker-build.yml"
 RUNTIME_LAYER_BUDGET = 110
-# DISCLOSED stale-pin reconciliation on current main.
-# The prior pin described 551 sources, while the Dockerfile contains 565 unique explicit
-# COPY sources. The source set itself is unchanged by this branch: the unqualified Elite
-# Console remains excluded. No layer budget is raised; this refresh binds the guard to the
-# script-derived current-main set and keeps RUNTIME_LAYER_BUDGET unchanged.
-COPY_SOURCE_ALLOWLIST_COUNT = 565
+# Exact base 3831b44 has 577 explicit COPY sources (the prior 565 pin was stale).
+# This repair adds only vsp_otel/__init__.py and vsp_otel/middleware.py; no removals.
+# Preserve the explicit allowlist and unchanged layer budget, not a broad COPY.
+COPY_SOURCE_ALLOWLIST_COUNT = 579
 COPY_SOURCE_ALLOWLIST_SHA256 = (
-    "966fc55f221981a03ea3c69cceaed3767c5fdefefec3252662fa8c7fd02c6840"
+    "aa11d167572da80452e1247815b1a0e08bbd9ba206f4d859b0b26f8d84ffc48e"
 )
 
 
