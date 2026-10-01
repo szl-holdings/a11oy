@@ -96,7 +96,8 @@ def test_automatic_projection_follows_relock_and_shares_existing_writer():
     import yaml
     workflow = yaml.safe_load((ROOT / ".github/workflows/hf-sync.yml").read_text())
     job = workflow["jobs"]["publish-finance-projection"]
-    assert job["needs"] == "relock"
+    assert job["needs"] == ["manual-prerequisites", "relock"]
+    assert job["if"] == "${{ needs.manual-prerequisites.result == 'success' && (github.event_name == 'push' || !inputs.publish_vertical_flagships) }}"
     assert job["env"]["SZL_FLAGSHIP_SCOPE"] == "finance"
     assert job["concurrency"] == {"group": "hf-publish-vertical-flagships", "cancel-in-progress": False}
     text = json.dumps(job)

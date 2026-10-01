@@ -126,11 +126,12 @@ jobs:
   published-model-readback:
     name: Read back model preparation (${{ matrix.surface }})
     if: >-
-      github.event_name == 'workflow_run' &&
+      github.repository == 'szl-holdings/a11oy' &&
+      (github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_branch == 'main' &&
-      github.event.workflow_run.head_repository.full_name == github.repository &&
-      github.repository == 'szl-holdings/a11oy'
+      github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-latest
     timeout-minutes: 7
     permissions:
@@ -142,21 +143,27 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          # Execute trusted default-branch code, never a triggering run payload.
-          # A moved source fails the observer comparison before network access.
+          # Execute only trusted default-branch observer code.
           ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Read the immutable published source without executing its code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          path: source-snapshot
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: '3.12'
       - name: Check served source, API contract, and frontend bytes without credentials
         env:
-          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
           SURFACE: ${{ matrix.surface }}
         run: >-
           python -B scripts/verify_model_pretraining_live.py
           --surface "$SURFACE"
           --expected-source "$SOURCE_SHA"
+          --source-root source-snapshot
           --output "artifacts/model-pretraining/live-$SURFACE.json"
       - name: Preserve each origin result without aggregating it into estate readiness
         if: always()

@@ -960,10 +960,8 @@ except Exception as _a11oy_ti_e:  # pragma: no cover
 # live/cached/unreachable labels. Same resilience pattern as evidence module.
 # Additive, try/except-guarded, registered EARLY (before the SPA catch-all). Pure stdlib.
 try:
-    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
-        from szl_substrate import szl_readiness as _szl_readiness  # single source of truth
-    except Exception:
-        import szl_readiness as _szl_readiness
+    # Bind selection to the Docker-copied, shared-source-checked module.
+    import szl_readiness as _szl_readiness
     _szl_readiness.register(app, ns="a11oy")
     print("[a11oy] Operational Readiness registered: /api/a11oy/v1/readiness", file=__import__("sys").stderr)
 except Exception as _szl_rd_e:  # pragma: no cover
