@@ -152,7 +152,7 @@ export default function Settings() {
             <Toggle checked={prefs.notifications.connectionErrors} onChange={(v) => update('notifications', { connectionErrors: v })} label="Connection errors" sub="A connector cannot reach its target." />
             <label className="block">
               <span className="block text-xs text-muted-foreground mb-1.5">Digest email (daily summary)</span>
-              <input type="email" value={prefs.notifications.digestEmail} onChange={(e) => update('notifications', { digestEmail: e.target.value })} placeholder="ops@example.com" className="w-full px-3 py-2 text-sm rounded-md bg-transparent border border-input focus-visible:outline-none focus-visible:border-focus focus-visible:shadow-[var(--shadow-focus)]" />
+              <input type="email" value={prefs.notifications.digestEmail} onChange={(e) => update('notifications', { digestEmail: e.target.value })} placeholder="ops@example.com" className="input placeholder:text-ink-sub" />
             </label>
           </div>
         </section>
@@ -191,7 +191,7 @@ export default function Settings() {
           <div className="space-y-3 pt-1">
             <label className="block">
               <span className="block text-xs text-muted-foreground mb-1.5">Outbound webhook URL</span>
-              <input type="url" value={prefs.api.webhookUrl} onChange={(e) => update('api', { webhookUrl: e.target.value })} placeholder="https://your-system.example/hooks/conduit" className="w-full px-3 py-2 text-sm font-mono rounded-md bg-transparent border border-input focus-visible:outline-none focus-visible:border-focus focus-visible:shadow-[var(--shadow-focus)]" />
+              <input type="url" value={prefs.api.webhookUrl} onChange={(e) => update('api', { webhookUrl: e.target.value })} placeholder="https://your-system.example/hooks/conduit" className="input input--mono placeholder:text-ink-sub" />
             </label>
             <div className="space-y-1.5">
               {prefs.api.keys.length === 0 ? (
