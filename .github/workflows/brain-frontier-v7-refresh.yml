@@ -12,15 +12,14 @@ on:
         required: false
         default: "manual Brain Frontier refresh"
 
-permissions: read-all
+permissions:
+  contents: read
 concurrency:
   group: brain-frontier-v7-refresh
   cancel-in-progress: false
 
 jobs:
   materialize:
-    permissions:
-      contents: read
     if: github.repository == 'szl-holdings/a11oy' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
