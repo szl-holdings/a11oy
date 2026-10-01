@@ -186,7 +186,7 @@ export default function SyncsDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button size="sm" variant="outline" onClick={handleDelete} className="text-rose-400 border-rose-400/20 hover:bg-rose-400/10 hover:border-rose-400/30">
+          <Button size="sm" variant="outline" onClick={handleDelete} className="text-ink-bad border-error/20 hover:bg-error/10 hover:border-error/30">
             <Trash2 className="w-4 h-4" />
           </Button>
           <Button size="sm" isLoading={runSync.isPending} onClick={handleRun}>
@@ -200,17 +200,17 @@ export default function SyncsDetail() {
       {sync.lastRunAt && (
         <div className={cn(
           "conduit-card px-4 py-3 flex items-center gap-3 text-sm",
-          sync.lastRunStatus === 'success' && "border-green-500/20",
-          sync.lastRunStatus === 'failed' && "border-rose-500/20",
-          sync.lastRunStatus === 'partial' && "border-orange-500/20",
+          sync.lastRunStatus === 'success' && "border-success/20",
+          sync.lastRunStatus === 'failed' && "border-error/20",
+          sync.lastRunStatus === 'partial' && "border-warning/20",
         )}>
-          {sync.lastRunStatus === 'success' && <CheckCircle2 className="w-4 h-4 text-green-400 shrink-0" />}
-          {sync.lastRunStatus === 'failed' && <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />}
-          {sync.lastRunStatus === 'partial' && <AlertTriangle className="w-4 h-4 text-orange-400 shrink-0" />}
+          {sync.lastRunStatus === 'success' && <CheckCircle2 className="w-4 h-4 text-ink-good shrink-0" />}
+          {sync.lastRunStatus === 'failed' && <AlertTriangle className="w-4 h-4 text-ink-bad shrink-0" />}
+          {sync.lastRunStatus === 'partial' && <AlertTriangle className="w-4 h-4 text-ink-warn shrink-0" />}
           {(!sync.lastRunStatus || sync.lastRunStatus === 'running') && <Clock className="w-4 h-4 text-muted-foreground shrink-0" />}
           <span className="text-muted-foreground">Last run: <span className="text-foreground">{sync.lastRunStatus}</span> &mdash; {formatTime(sync.lastRunAt)}</span>
           {sync.lastRunId && (
-            <Link href={`/runs/${sync.lastRunId}`} className="ml-auto text-primary text-xs hover:underline">View run</Link>
+            <Link href={`/runs/${sync.lastRunId}`} className="ml-auto text-ink text-xs hover:underline">View run</Link>
           )}
         </div>
       )}
@@ -224,7 +224,7 @@ export default function SyncsDetail() {
             className={cn(
               "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors",
               activeTab === tab.id
-                ? "border-primary text-primary"
+                ? "border-ink-sub text-ink"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             )}
           >
@@ -262,7 +262,7 @@ export default function SyncsDetail() {
                     <tbody className="divide-y divide-border">
                       {sourceFields.map(f => (
                         <tr key={f} className="hover:bg-muted/20">
-                          <td className="px-3 py-2 font-mono text-primary">{f}</td>
+                          <td className="px-3 py-2 font-mono text-ink">{f}</td>
                           <td className="px-3 py-2 text-muted-foreground font-mono truncate max-w-[80px]">
                             {String(sourceRows[0]?.[f] ?? '').slice(0, 20)}
                           </td>
@@ -334,7 +334,7 @@ export default function SyncsDetail() {
                         </Select>
                         <button
                           onClick={() => handleRemoveMapping(idx)}
-                          className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-rose-400 transition-colors"
+                          className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-ink-bad transition-colors"
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
@@ -351,10 +351,11 @@ export default function SyncsDetail() {
                 </Button>
                 <div className="ml-auto flex items-center gap-2">
                   {mappingsDirty && (
-                    <span className="text-xs text-yellow-400">Unsaved changes</span>
+                    <span className="text-xs text-ink-warn">Unsaved changes</span>
                   )}
                   <Button
                     size="sm"
+                    variant="outline"
                     isLoading={putMappings.isPending}
                     disabled={!mappingsDirty}
                     onClick={handleSaveMappings}
@@ -387,11 +388,11 @@ export default function SyncsDetail() {
                   <tbody className="divide-y divide-border">
                     {destFields.map(f => (
                       <tr key={f.name} className="hover:bg-muted/10">
-                        <td className="px-4 py-1.5 font-mono text-primary">{f.name}</td>
+                        <td className="px-4 py-1.5 font-mono text-ink">{f.name}</td>
                         <td className="px-4 py-1.5 text-foreground">{f.label}</td>
                         <td className="px-4 py-1.5 text-muted-foreground font-mono">{f.type}</td>
                         <td className="px-4 py-1.5">
-                          {f.required ? <span className="text-rose-400">Yes</span> : <span className="text-muted-foreground">No</span>}
+                          {f.required ? <span className="text-ink-bad">Yes</span> : <span className="text-muted-foreground">No</span>}
                         </td>
                       </tr>
                     ))}
@@ -413,7 +414,7 @@ export default function SyncsDetail() {
             </div>
           ) : runs.map((run, i) => (
             <Link key={run.id} href={`/runs/${run.id}`}>
-              <div className={cn("conduit-card px-4 py-3 flex items-center gap-4 cursor-pointer hover:border-primary/20 group animate-fade-in-up", `stagger-${Math.min(i + 1, 6)}`)}>
+              <div className={cn("conduit-card px-4 py-3 flex items-center gap-4 cursor-pointer hover:border-line group animate-fade-in-up", `stagger-${Math.min(i + 1, 6)}`)}>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <Badge variant={run.status === 'success' ? 'success' : run.status === 'failed' ? 'failed' : run.status === 'running' ? 'running' : run.status === 'partial' ? 'partial' : 'default'}>
@@ -425,9 +426,9 @@ export default function SyncsDetail() {
                 </div>
                 <div className="flex items-center gap-6 text-xs text-right">
                   <div><span className="text-muted-foreground mr-1">Read</span><span className="font-mono">{run.rowsRead.toLocaleString()}</span></div>
-                  <div><span className="text-muted-foreground mr-1">Written</span><span className="font-mono text-green-400">{run.rowsWritten.toLocaleString()}</span></div>
-                  {run.rowsFailed > 0 && <div><span className="text-muted-foreground mr-1">Failed</span><span className="font-mono text-rose-400">{run.rowsFailed.toLocaleString()}</span></div>}
-                  <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                  <div><span className="text-muted-foreground mr-1">Written</span><span className="font-mono text-ink-good">{run.rowsWritten.toLocaleString()}</span></div>
+                  {run.rowsFailed > 0 && <div><span className="text-muted-foreground mr-1">Failed</span><span className="font-mono text-ink-bad">{run.rowsFailed.toLocaleString()}</span></div>}
+                  <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-ink transition-colors" />
                 </div>
               </div>
             </Link>

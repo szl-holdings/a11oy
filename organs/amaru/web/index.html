@@ -1,485 +1,247 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-surface="light">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#0a0e14">
   <title>amaru — cortex memory · SZL Holdings</title>
   <meta name="description" content="Every inference cites its source. Every memory carries its receipt."/>
   <meta property="og:title" content="amaru — cortex memory · SZL Holdings"/>
   <meta property="og:description" content="Every inference cites its source. Every memory carries its receipt."/>
   <meta property="og:image" content="assets/amaru_hero.png"/>
   <meta property="og:type" content="website"/>
+  <link rel="icon" type="image/svg+xml" href="/szl/logos/szl_favicon_square.svg"/>
+  <!-- SZL KANCHAY v1.1.1 (founder direction): tokens + components, system fonts, no CDN. -->
+  <link rel="stylesheet" href="/szl/szl-design-system.css"/>
   <style>
 /* =========================================================
-   SZL Holdings — shared landing DNA (Vessels gold standard)
-   Dark ground · gold accent · cream paragraph · serif headline
-   Extracted from vessels-landing.tsx hero (szl-holdings/vessels)
+   amaru landing — SZL KANCHAY v1.1.1 (founder direction)
+   Same sheet as the a11oy landing: light marketing surface; requires
+   /szl/szl-design-system.css linked first.
    © 2026 Stephen P. Lutar Jr. — SZL Holdings · Doctrine v7
    ========================================================= */
 
-:root {
-  --ground: #0a0a0a;
-  --panel: #0c0c0c;
-  --gold: #c9b787;
-  --gold-bright: #d6c69a;
-  --cream: #f5f5f5;
-  --paragraph: #9a9a9a;
-  --muted: #888888;
-  --dim: #555555;
-  --hairline: rgba(255, 255, 255, 0.05);
-  --gold-soft: rgba(201, 183, 135, 0.04);
-  --gold-line: rgba(201, 183, 135, 0.15);
-  --live: #5a8a6e;
-  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-  --display: 'Space Grotesk', Georgia, serif;
-}
-
-* { box-sizing: border-box; }
-
-html, body {
-  margin: 0;
-  padding: 0;
-  background: var(--ground);
-  color: var(--cream);
-  font-family: var(--display);
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
-
-.mono { font-family: var(--mono); }
-
-.skip {
-  position: absolute;
-  left: -9999px;
-  top: 1rem;
-  z-index: 999;
-  padding: 0.5rem 1.25rem;
-  background: var(--gold);
-  color: var(--ground);
-  border-radius: 4px;
-  text-decoration: none;
-  font-weight: 600;
-}
-.skip:focus { left: 1rem; }
-
-a { color: inherit; }
-:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 3px; }
-
-/* ===== HEADER ===== */
-.site-header {
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  background: rgba(10, 10, 10, 0.78);
-  backdrop-filter: blur(10px);
-}
-.header-inner {
-  max-width: 72rem;
-  margin: 0 auto;
-  height: 3.5rem;
-  padding: 0 1.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.brand { display: flex; align-items: center; gap: 0.6rem; }
+/* ===== HEADER (.nav) ===== */
+.brand { gap: 0.6rem; min-width: 0; }
 .brand-mark {
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 20px;
+  height: 20px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(201, 183, 135, 0.4);
-  border-radius: 4px;
-  font-size: 9px;
-  color: var(--gold);
+  flex: none;
+  border: var(--border-hairline) solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  color: var(--text);
 }
-.brand-name { font-size: 13px; font-weight: 500; letter-spacing: -0.01em; }
-.brand-tag { font-size: 10px; color: var(--dim); margin-left: 0.4rem; }
-
-.cta-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 12px;
-  font-weight: 500;
-  padding: 0.4rem 0.85rem;
-  border-radius: 6px;
-  background: var(--gold);
-  color: var(--ground);
-  text-decoration: none;
-  transition: background 0.18s ease;
+.brand-name { font-size: var(--text-base); white-space: nowrap; }
+.brand-tag {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  color: var(--text-ghost);
+  white-space: nowrap;
 }
-.cta-pill:hover { background: var(--gold-bright); }
 .cta-arrow { font-size: 0.9em; }
+@media (max-width: 480px) { .brand-tag { display: none; } }
 
-/* ===== HERO ===== */
-.hero {
-  position: relative;
-  overflow: hidden;
-  min-height: calc(100vh - 3.5rem);
-  display: flex;
-  align-items: center;
-}
-.grid-bg {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
-  background-size: 56px 56px;
-  -webkit-mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%);
-  mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%);
-}
+/* ===== HERO =====
+   The system hero paints a navy radial for the dark surface; on the light
+   marketing surface the ground stays plain so body text keeps its contrast. */
+[data-surface="light"] .hero { background: var(--bg); }
+/* Decorative rails (aria-hidden). The hero copy is left-aligned, so only the right
+   rail shows, low in the hero, on wide screens. */
 .hero-rail {
   position: absolute;
-  top: 5rem;
+  bottom: var(--space-8);
+  z-index: 1;
   display: none;
   flex-direction: column;
-  gap: 0.25rem;
-  font-size: 10px;
-  color: #444;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-caps);
+  color: var(--text-ghost);
 }
-.hero-rail-left { left: 1.5rem; align-items: flex-start; }
-.hero-rail-right { right: 1.5rem; align-items: flex-end; }
-.rail-live { display: inline-flex; align-items: center; gap: 0.4rem; }
-.live-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--live); box-shadow: 0 0 6px var(--live);
-  animation: pulseDot 2.2s ease-in-out infinite;
+.hero-rail-left { left: var(--space-6); align-items: flex-start; }
+.hero-rail-right { right: var(--space-6); align-items: flex-end; }
+.rail-live { display: inline-flex; align-items: center; gap: var(--space-2); }
+.rail-live .dot {
+  width: 6px; height: 6px; border-radius: var(--radius-full);
+  background: var(--color-success);
+  animation: live-pulse 2.2s var(--ease-standard) infinite;
 }
-@keyframes pulseDot { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
-@media (min-width: 1024px) { .hero-rail { display: flex; } }
+@keyframes live-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+@media (min-width: 1280px) { .hero-rail-right { display: flex; } }
 
-.hero-inner {
-  position: relative;
-  z-index: 2;
-  max-width: 64rem;
-  margin: 0 auto;
-  padding: 2rem 1.5rem 4rem;
-  text-align: center;
-}
+.hero .eyebrow { margin-bottom: var(--space-6); }
+.hero__sub { font-family: var(--font-mono); font-size: var(--text-base); }
+.hero-ctas { margin-bottom: var(--space-12); }
 
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.3rem 0.85rem;
-  border-radius: 999px;
-  border: 1px solid var(--gold-line);
-  background: var(--gold-soft);
-  margin-bottom: 2.5rem;
-}
-.eyebrow-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--gold);
-  animation: pulseDot 2.2s ease-in-out infinite;
-}
-.eyebrow-text {
-  font-size: 10px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--gold);
+/* Light surface: white on the coral hover is 3.11:1, so hover presses darker. */
+[data-surface="light"] .btn-primary:hover {
+  background: var(--accent-press);
+  border-color: var(--accent-press);
 }
 
-.headline {
-  font-family: var(--display);
-  font-size: clamp(2.6rem, 6vw, 5.2rem);
-  font-weight: 300;
-  line-height: 1.02;
-  letter-spacing: -0.035em;
-  margin: 0 0 1.75rem;
-  color: var(--cream);
-}
-.headline .accent {
-  background: linear-gradient(120deg, var(--cream) 20%, var(--gold) 90%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-}
-
-.support {
-  font-size: 17px;
-  line-height: 1.65;
-  color: var(--paragraph);
-  max-width: 36rem;
-  margin: 0 auto 3rem;
-}
-
-.hero-ctas {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.65rem 1.25rem;
-  font-size: 13px;
-  font-weight: 500;
-  border-radius: 6px;
-  background: var(--gold);
-  color: var(--ground);
-  text-decoration: none;
-  transition: background 0.18s ease;
-}
-.btn-primary:hover { background: var(--gold-bright); }
-
-.hero-portrait {
-  margin: 3.5rem auto 0;
-  max-width: 220px;
-}
-.hero-portrait img {
-  width: 100%;
-  height: auto;
-  border-radius: 12px;
-  border: 1px solid var(--gold-line);
-  display: block;
-}
-
-/* ===== REASONER SECTION ===== */
+/* ===== TRY-IT / REASONER SECTION ===== */
 .reasoner-section {
-  border-top: 1px solid var(--gold-line);
-  padding: 4rem 1.5rem 5rem;
-  background: var(--panel);
+  padding: var(--space-8) 0 var(--space-20);
 }
+/* Same column as .hero__inner, so the page keeps one left edge. */
 .reasoner-inner {
-  max-width: 56rem;
-  margin: 0 auto;
+  max-width: var(--container);
+  margin-inline: auto;
+  padding-inline: var(--space-6);
 }
-.reasoner-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.3rem 0.85rem;
-  border-radius: 999px;
-  border: 1px solid var(--gold-line);
-  background: var(--gold-soft);
-  margin-bottom: 1.75rem;
-}
-.reasoner-eyebrow-text {
-  font-size: 10px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--gold);
-  font-family: var(--mono);
-}
-.reasoner-heading {
-  font-family: var(--display);
-  font-size: clamp(1.5rem, 3vw, 2.25rem);
-  font-weight: 300;
-  letter-spacing: -0.025em;
-  color: var(--cream);
-  margin: 0 0 0.75rem;
-}
-.reasoner-sub {
-  font-size: 14px;
-  color: var(--paragraph);
-  margin: 0 0 2.5rem;
-  line-height: 1.65;
-}
-.reasoner-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-bottom: 2rem;
-}
-.r-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.55rem 1.1rem;
-  font-size: 12px;
-  font-weight: 500;
-  font-family: var(--mono);
-  border-radius: 6px;
-  border: 1px solid var(--gold-line);
-  background: transparent;
-  color: var(--gold);
-  cursor: pointer;
-  transition: background 0.18s ease, border-color 0.18s ease;
-  letter-spacing: 0.04em;
-}
-.r-btn:hover {
-  background: rgba(201, 183, 135, 0.08);
-  border-color: rgba(201, 183, 135, 0.35);
-}
-.r-btn:active { opacity: 0.75; }
-.r-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.r-btn-primary {
-  background: var(--gold);
-  color: var(--ground);
-  border-color: var(--gold);
-}
-.r-btn-primary:hover {
-  background: var(--gold-bright);
-  border-color: var(--gold-bright);
-}
+.reasoner-section .eyebrow { margin: 0 0 var(--space-4); }
+.reasoner-heading { font-size: var(--text-2xl); margin-bottom: var(--space-3); }
+.reasoner-sub { margin-bottom: var(--space-8); }
+.reasoner-controls { margin-bottom: var(--space-6); }
+
+/* Terminal output: code stays dark on both surfaces (founder rule), so this
+   well uses the dark scale steps directly instead of the light surface roles. */
 .reasoner-output {
   position: relative;
-  border: 1px solid var(--gold-line);
-  border-radius: 8px;
-  background: #070707;
   overflow: hidden;
+  border: var(--border-hairline) solid var(--color-gray-600);
+  border-radius: var(--radius-md);
+  background: var(--color-space-900);
+  color-scheme: dark;
 }
 .output-label {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.55rem 1rem;
-  border-bottom: 1px solid var(--gold-line);
-  font-size: 10px;
-  font-family: var(--mono);
-  color: var(--muted);
-  letter-spacing: 0.1em;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: var(--border-hairline) solid var(--color-gray-600);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
+  color: var(--color-gray-400);
 }
-.output-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-}
+.output-status { display: inline-flex; align-items: center; gap: var(--space-2); }
 .status-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--dim);
-  transition: background 0.3s;
+  width: 6px; height: 6px; flex: none; border-radius: var(--radius-full);
+  background: var(--color-gray-500);
+  transition: background-color var(--duration-base) var(--ease-standard);
 }
-.status-dot.ok { background: var(--live); box-shadow: 0 0 6px var(--live); }
-.status-dot.err { background: #8a4a4a; box-shadow: 0 0 6px #8a4a4a; }
-.status-dot.loading { background: var(--gold); animation: pulseDot 1s ease-in-out infinite; }
+.status-dot.ok { background: var(--color-success); }
+.status-dot.err { background: var(--color-error); }
+.status-dot.loading { background: var(--color-silver-300); animation: live-pulse 1s var(--ease-standard) infinite; }
 .output-pre {
   margin: 0;
-  padding: 1rem;
-  font-family: var(--mono);
-  font-size: 11px;
-  line-height: 1.65;
-  color: var(--paragraph);
+  padding: var(--space-4);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--color-gray-200);
   white-space: pre-wrap;
   word-break: break-all;
   max-height: 360px;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: var(--dim) transparent;
+  scrollbar-color: var(--color-gray-600) transparent;
 }
 .output-pre:empty::before {
   content: "— awaiting command —";
-  color: var(--dim);
+  color: var(--color-gray-400);
   font-style: italic;
 }
-.output-pre .k { color: var(--gold); }
-.output-pre .v { color: #7ab8a0; }
-.output-pre .s { color: #b0a0d0; }
 
 /* ===== FOOTER ===== */
 .site-footer {
-  border-top: 1px solid rgba(255, 255, 255, 0.04);
-  padding: 2.5rem 1.5rem;
+  border-top: var(--border-hairline) solid var(--border);
+  padding: var(--space-10) 0;
 }
 .footer-inner {
-  max-width: 72rem;
+  max-width: var(--container);
   margin: 0 auto;
+  padding-inline: var(--space-6);
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: var(--space-4);
 }
 .footer-brand { display: flex; align-items: center; gap: 0.6rem; }
-.footer-name { font-size: 12px; color: var(--muted); }
-.footer-by { font-size: 10px; color: var(--dim); }
-.footer-note {
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--dim);
+.footer-name { font-family: var(--font-display); font-weight: var(--weight-semibold); color: var(--text); }
+.footer-by, .footer-note { font-size: var(--text-xs); color: var(--text-ghost); }
+.footer-note { letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+
+@media (forced-colors: active) {
+  .rail-live .dot, .status-dot { border: 1px solid currentColor; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
-}
-
+/* Receipt syntax inside the dark output well. */
+.output-pre .k { color: var(--color-gray-50); }
+.output-pre .v { color: var(--color-success-light); }
+.output-pre .s { color: var(--color-gray-200); }
 </style>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 </head>
 <body>
 
-<a href="#main" class="skip">Skip to main content</a>
+<a href="#main" class="skip-link">Skip to main content</a>
 
-<!-- ===== HEADER: bracketed identity chip (left) + CTA pill (right) ===== -->
-<header class="site-header">
-  <div class="header-inner">
-    <div class="brand">
-      <span class="brand-mark mono">A</span>
-      <span class="brand-name">amaru</span>
-      <span class="brand-tag mono">/ cortex memory</span>
-    </div>
-    <a class="cta-pill" href="#reasoner">
+<!-- ===== HEADER: identity (left) + secondary CTA (right) ===== -->
+<header class="nav site-header">
+  <a class="nav__brand brand" href="#main">
+    <span class="brand-mark mono" aria-hidden="true">A</span>
+    <span class="brand-name">amaru</span>
+    <span class="brand-tag mono">/ cortex memory</span>
+  </a>
+  <div class="nav__links">
+    <a class="btn btn-secondary btn-sm cta-pill" href="#reasoner">
       Open reasoner <span class="cta-arrow" aria-hidden="true">→</span>
     </a>
   </div>
 </header>
 
-<!-- ===== HERO ===== -->
+<!-- ===== HERO: one silver orbit (-22°), one coral moment = the primary CTA ===== -->
 <main id="main">
   <section class="hero">
-    <div class="grid-bg" aria-hidden="true"></div>
+    <div class="hero__orbit" aria-hidden="true"></div>
 
     <div class="hero-rail hero-rail-left mono" aria-hidden="true">
       <span>BASIN · GLOBAL</span><span>FEED · SIGNED</span><span>POSTURE · UNDERWAY</span>
     </div>
     <div class="hero-rail hero-rail-right mono" aria-hidden="true">
       <span>NODE · AMARU-01</span><span>EPOCH · 2026.Q2</span>
-      <span class="rail-live"><span class="live-dot"></span>LIVE · RT</span>
+      <span class="rail-live"><span class="dot"></span>LIVE · RT</span>
     </div>
 
-    <div class="hero-inner">
-      <div class="eyebrow">
-        <span class="eyebrow-dot"></span>
-        <span class="eyebrow-text mono">· CORTEX MEMORY · SERIES A</span>
-      </div>
+    <div class="hero__inner">
+      <p class="eyebrow">· Cortex memory · Series A</p>
 
-      <h1 class="headline">
-        Reasoning with <span class="accent">provenance.</span>
+      <h1 class="hero__title">
+        Reasoning with provenance.
       </h1>
 
-      <p class="support">Every inference cites its source. Every memory carries its receipt.</p>
+      <p class="hero__sub support">Every inference cites its source. Every memory carries its receipt.</p>
 
-      <div class="hero-ctas">
-        <a class="btn-primary" href="https://huggingface.co/spaces/SZLHOLDINGS/amaru" target="_blank" rel="noopener">
+      <div class="cluster hero-ctas">
+        <a class="btn btn-primary btn-lg" href="https://huggingface.co/spaces/SZLHOLDINGS/amaru" target="_blank" rel="noopener">
           Open reasoner <span class="cta-arrow" aria-hidden="true">→</span>
         </a>
       </div>
 
-      <div class="hero-portrait">
-        <img src="assets/amaru_hero.png" alt="amaru painterly identity portrait" loading="eager"/>
-      </div>
     </div>
   </section>
   <!-- ===== REASONER PANEL (below founder-locked hero) ===== -->
   <section class="reasoner-section" id="reasoner" aria-label="amaru reasoner">
     <div class="reasoner-inner">
-      <div class="reasoner-eyebrow">
-        <span class="eyebrow-dot"></span>
-        <span class="reasoner-eyebrow-text">· live reasoner · api surface</span>
-      </div>
+      <p class="eyebrow">· Live reasoner · API surface</p>
       <h2 class="reasoner-heading">amaru — scheduler &amp; receipts</h2>
       <p class="reasoner-sub">Run a chakra tick, inspect DSSE-wrapped receipts, and check tripwire status — directly against the live API.</p>
 
-      <div class="reasoner-controls">
-        <button class="r-btn r-btn-primary" id="btn-tick" onclick="runTick()">&#9654; Run scheduler tick</button>
-        <button class="r-btn" id="btn-receipts" onclick="showReceipts()">&#x25A4; Show receipt chain</button>
-        <button class="r-btn" id="btn-tripwires" onclick="checkTripwires()">&#x26A0; Check tripwires</button>
+      <div class="cluster reasoner-controls">
+        <button class="btn btn-secondary" id="btn-tick" onclick="runTick()">Run scheduler tick</button>
+        <button class="btn btn-secondary" id="btn-receipts" onclick="showReceipts()">Show receipt chain</button>
+        <button class="btn btn-secondary" id="btn-tripwires" onclick="checkTripwires()">Check tripwires</button>
       </div>
 
       <div class="reasoner-output">
@@ -498,15 +260,12 @@ a { color: inherit; }
   <!-- ===== DINN — 8th chakra (ADDITIVE) ===== -->
   <section class="reasoner-section" id="dinn" aria-label="amaru DINN reasoner">
     <div class="reasoner-inner">
-      <div class="reasoner-eyebrow">
-        <span class="eyebrow-dot"></span>
-        <span class="reasoner-eyebrow-text">· 8th chakra · doctrine-informed neural network</span>
-      </div>
+      <p class="eyebrow">· 8th chakra · Doctrine-informed neural network</p>
       <h2 class="reasoner-heading">DINN — governance as a learning signal</h2>
       <p class="reasoner-sub">Physics-informed neural networks (PINNs) fold a PDE residual into the training loss. A <strong>DINN</strong> folds a <em>law</em> residual instead: a doctrine Λ-floor (Doctrine-DINN), a Reidemeister invariance (Knot-DINN), or a Bekenstein entropy cap (Bekenstein-DINN). Run the live monitor against the <code>/api/amaru/chakra/dinn</code> endpoint — each of 13 axes is structurally pinned ≥ Λ_FLOOR=0.90 and output entropy is clamped under S<sub>max</sub>. Recipes: <a href="https://github.com/szl-holdings/szl-cookbook/tree/main/recipes" target="_blank" rel="noopener">szl-cookbook</a>. <strong>Honesty:</strong> every DINN ships its Lean obligation as a <code>sorry</code> placeholder — none is claimed proven.</p>
 
-      <div class="reasoner-controls">
-        <button class="r-btn r-btn-primary" id="btn-dinn" onclick="runDinn()">&#9654; Run DINN axis monitor</button>
+      <div class="cluster reasoner-controls">
+        <button class="btn btn-secondary" id="btn-dinn" onclick="runDinn()">Run DINN axis monitor</button>
       </div>
 
       <div class="reasoner-output">

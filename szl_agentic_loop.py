@@ -1731,6 +1731,8 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
             return core
 
     # ---- MCP JSON-RPC handler (runtime-declared MCP surface) ----
+    _MCP_OPERATOR_TOOLS = frozenset({"sign_receipt"})
+
     async def _mcp_post(request: Request):
         try:
             body = await request.json()
@@ -1773,6 +1775,21 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
             args = params.get("arguments")
             if not isinstance(args, dict):
                 args = {}
+            # sign_receipt signs a caller-supplied payload with the server key: an
+            # anonymous caller could mint receipts that verify against /cosign.pub.
+            # Operator Bearer only; any resolver error refuses.
+            if name in _MCP_OPERATOR_TOOLS:
+                try:
+                    import szl_operator_auth as _opauth
+                    _is_operator = bool(_opauth.principal(request)["operator"])
+                except Exception:
+                    _is_operator = False
+                if not _is_operator:
+                    return JSONResponse({"jsonrpc": "2.0", "id": rid, "error": {
+                        "code": -32001,
+                        "message": "BLOCKED: %s requires the operator credential "
+                                   "(Authorization: Bearer <A11OY_CODE_ADMIN_KEY>)." % name}},
+                        status_code=401, headers={"WWW-Authenticate": "Bearer"})
             result = _mcp_tool_call(name, args)
             return JSONResponse({"jsonrpc": "2.0", "id": rid, "result": {
                 "content": [{"type": "text", "text": json.dumps(result)}],

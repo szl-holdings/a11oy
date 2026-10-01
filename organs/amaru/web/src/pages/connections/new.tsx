@@ -168,8 +168,8 @@ export default function ConnectionsNew() {
             {validationResult && (
               <div className={`flex items-start gap-2 p-3 rounded-md text-sm ${
                 validationResult.success
-                  ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
-                  : 'bg-red-500/10 border border-red-500/30 text-red-400'
+                  ? 'bg-success/10 border border-success/30 text-ink-good'
+                  : 'bg-error/10 border border-error/30 text-ink-bad'
               }`}>
                 {validationResult.success ? (
                   <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
@@ -196,7 +196,7 @@ export default function ConnectionsNew() {
             <p className="text-xs text-muted-foreground">Test your credentials before saving.</p>
           )}
           {validationResult?.success && (
-            <p className="text-xs text-emerald-400">Credentials validated — ready to save.</p>
+            <p className="text-xs text-ink-good">Credentials validated — ready to save.</p>
           )}
           <Button type="submit" isLoading={createConnection.isPending} disabled={!canSave} className="gap-2">
             <Save className="w-4 h-4" />

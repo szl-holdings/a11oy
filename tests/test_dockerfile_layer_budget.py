@@ -11,14 +11,14 @@ ROOT = Path(__file__).resolve().parents[1]
 DOCKERFILE = ROOT / "Dockerfile"
 BUILD_WORKFLOW = ROOT / ".github" / "workflows" / "docker-build.yml"
 RUNTIME_LAYER_BUDGET = 110
-# DISCLOSED stale-pin reconciliation on current main.
-# The prior pin described 551 sources, while the Dockerfile contains 565 unique explicit
-# COPY sources. The source set itself is unchanged by this branch: the unqualified Elite
-# Console remains excluded. No layer budget is raised; this refresh binds the guard to the
-# script-derived current-main set and keeps RUNTIME_LAYER_BUDGET unchanged.
-COPY_SOURCE_ALLOWLIST_COUNT = 565
+# Exact base 5ec5b66 has 579 explicit COPY sources with SHA-256
+# aa11d167572da80452e1247815b1a0e08bbd9ba206f4d859b0b26f8d84ffc48e.
+# Steward adds only its four named adapter/reader/projection/lock files, batched
+# into one COPY; no original source is removed and the layer budget is unchanged.
+# Preserve the explicit allowlist and unchanged layer budget, not a broad COPY.
+COPY_SOURCE_ALLOWLIST_COUNT = 583
 COPY_SOURCE_ALLOWLIST_SHA256 = (
-    "966fc55f221981a03ea3c69cceaed3767c5fdefefec3252662fa8c7fd02c6840"
+    "b7b71ddc06c69e136240ff67cf62e4377ff8216a1d74bfa65adcffd856728755"
 )
 
 

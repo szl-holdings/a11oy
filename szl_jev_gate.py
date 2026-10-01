@@ -18,15 +18,17 @@ Stdlib only. Additive register(); never replace existing routes.
 from __future__ import annotations
 
 import json
+import math
 import os
-import urllib.error
-import urllib.request
 from typing import Any, Mapping
+
+from szl_provider_http import http_json
 
 TRUST_CEILING = 0.97
 ENDPOINT = "https://api.typesafe.ai/v1/systemone"
 DEFAULT_MODEL = "jev-latest"
 AUTO_ACCEPT = 0.80
+MAX_REQUEST_BYTES, MAX_RESPONSE_BYTES = 1_048_576, 1_048_576
 CONJECTURE_1 = "Λ uniqueness remains Conjecture 1 — advisory, never a theorem."
 
 _FORBIDDEN = (
@@ -193,39 +195,43 @@ def engine_status() -> dict[str, Any]:
 
 
 def call_jev(state: Mapping[str, Any]) -> dict[str, Any]:
-    status = engine_status()
-    if not status["bound"]:
-        return {"ok": False, "engine": status, "answers": None, "reason": "TYPESAFE_API_KEY_UNBOUND"}
-    payload = {"state": dict(state), "model": DEFAULT_MODEL, "questions": questions()}
-    body = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(
-        ENDPOINT,
-        data=body,
-        method="POST",
-        headers={
-            "Authorization": f"Bearer {os.environ['TYPESAFE_API_KEY'].strip()}",
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        },
-    )
+    return call_jev_questions(state, questions())
+
+
+def _answer(answers: Mapping[str, Any], name: str) -> Mapping[str, Any]:
+    value = answers.get(name) if isinstance(answers, Mapping) else None
+    return value if isinstance(value, Mapping) else {}
+
+
+def _number(value: Any, maximum: float = 1.0, default: float = 0.0) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return default
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            parsed = json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")[:400]
-        return {"ok": False, "engine": status, "answers": None, "reason": f"TYPESAFE_HTTP_{exc.code}", "detail": detail}
-    except Exception as exc:
-        return {"ok": False, "engine": status, "answers": None, "reason": "TYPESAFE_TRANSPORT", "detail": type(exc).__name__}
-    return {"ok": True, "engine": status, "answers": parsed.get("answers") or {}, "usage": parsed.get("usage"), "model": parsed.get("model")}
+        number = float(value)
+    except (OverflowError, ValueError):
+        return default
+    return number if math.isfinite(number) and 0.0 <= number <= maximum else default
+
+
+def _finite_document(value: Any) -> bool:
+    if isinstance(value, float):
+        return math.isfinite(value)
+    if isinstance(value, dict):
+        return all(_finite_document(item) for item in value.values())
+    if isinstance(value, list):
+        return all(_finite_document(item) for item in value)
+    return True
 
 
 def compose(claim_text: str, evidence_text: str, answers: Mapping[str, Any]) -> dict[str, Any]:
-    kind = str((answers.get("claim_kind") or {}).get("choice") or "DREAMED")
-    relation = str((answers.get("card_relation") or {}).get("choice") or "says_nothing")
-    kind_conf = float((answers.get("claim_kind") or {}).get("confidence") or 0.0)
-    rel_conf = float((answers.get("card_relation") or {}).get("confidence") or 0.0)
-    promote_p = float((answers.get("promote_ok") or {}).get("noul") or 0.0)
-    strength = float((answers.get("evidence_strength") or {}).get("score") or 0.0)
+    kind = _answer(answers, "claim_kind").get("choice")
+    relation = _answer(answers, "card_relation").get("choice")
+    kind = kind if isinstance(kind, str) and kind in questions()["claim_kind"]["criteria"] else "DREAMED"
+    relation = relation if isinstance(relation, str) and relation in questions()["card_relation"]["criteria"] else "says_nothing"
+    kind_conf = _number(_answer(answers, "claim_kind").get("confidence"))
+    rel_conf = _number(_answer(answers, "card_relation").get("confidence"))
+    promote_p = _number(_answer(answers, "promote_ok").get("noul"))
+    strength = _number(_answer(answers, "evidence_strength").get("score"), maximum=3.0)
     policy_block = _forbidden_text(claim_text) or kind == "FORBIDDEN_PROMOTION"
     low_conf = min(kind_conf, rel_conf) < AUTO_ACCEPT
     silent = relation == "says_nothing"
@@ -418,10 +424,12 @@ def fallback_public_text(identity: str, snippet: str, disagreement: str) -> dict
 
 
 def compose_public_text(identity: str, snippet: str, answers: Mapping[str, Any]) -> dict[str, Any]:
-    klass = str((answers.get("authority_class") or {}).get("choice") or "NO_CLASS")
-    miss_p = float((answers.get("miss_is_clearance") or {}).get("noul") or 0.0)
-    winner = str((answers.get("winner_rule") or {}).get("choice") or "ABSTAIN")
-    strength = float((answers.get("evidence_strength") or {}).get("score") or 0.0)
+    klass = _answer(answers, "authority_class").get("choice")
+    klass = klass if isinstance(klass, str) and klass in public_text_questions()["authority_class"]["criteria"] else "NO_CLASS"
+    miss_p = _number(_answer(answers, "miss_is_clearance").get("noul"), default=1.0)
+    winner = _answer(answers, "winner_rule").get("choice")
+    winner = winner if isinstance(winner, str) and winner in public_text_questions()["winner_rule"]["criteria"] else "ABSTAIN"
+    strength = _number(_answer(answers, "evidence_strength").get("score"), maximum=3.0)
     # Code owns these. Jev cannot clear, pick a winner, or open AIS.
     if klass == "REFUSED_AIS":
         maps_to = "VESSELS-E-DENY-AIS"
@@ -501,31 +509,51 @@ def call_jev_questions(state: Mapping[str, Any], qs: Mapping[str, Any]) -> dict[
     status = engine_status()
     if not status["bound"]:
         return {"ok": False, "engine": status, "answers": None, "reason": "TYPESAFE_API_KEY_UNBOUND"}
-    payload = {"state": dict(state), "model": DEFAULT_MODEL, "questions": dict(qs)}
-    body = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(
-        ENDPOINT,
-        data=body,
-        method="POST",
-        headers={
-            "Authorization": f"Bearer {os.environ['TYPESAFE_API_KEY'].strip()}",
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        },
-    )
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            parsed = json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")[:400]
-        return {"ok": False, "engine": status, "answers": None, "reason": f"TYPESAFE_HTTP_{exc.code}", "detail": detail}
-    except Exception as exc:
-        return {"ok": False, "engine": status, "answers": None, "reason": "TYPESAFE_TRANSPORT", "detail": type(exc).__name__}
-    return {"ok": True, "engine": status, "answers": parsed.get("answers") or {}, "usage": parsed.get("usage"), "model": parsed.get("model")}
+        body = json.dumps(
+            {"state": dict(state), "model": DEFAULT_MODEL, "questions": dict(qs)},
+            allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError, OverflowError):
+        return {"ok": False, "engine": status, "answers": None, "reason": "TYPESAFE_INVALID_REQUEST"}
+    if len(body) > MAX_REQUEST_BYTES:
+        return {"ok": False, "engine": status, "answers": None, "reason": "TYPESAFE_REQUEST_TOO_LARGE"}
+    try:
+        parsed, error = http_json(
+            ENDPOINT, method="POST", body=body,
+            headers={"Authorization": f"Bearer {os.environ.get('TYPESAFE_API_KEY', '').strip()}"},
+            timeout=30.0, max_response_bytes=MAX_RESPONSE_BYTES, max_redirects=0, allow_private=False,
+        )
+    except Exception:
+        return {"ok": False, "engine": status, "answers": None, "reason": "TYPESAFE_TRANSPORT"}
+    if error:
+        reason = "TYPESAFE_TRANSPORT"
+        if error.startswith("HTTP_STATUS:") and error[12:].isdigit() and len(error[12:]) == 3:
+            reason = f"TYPESAFE_HTTP_{error[12:]}"
+        elif error == "RESPONSE_TOO_LARGE":
+            reason = "TYPESAFE_RESPONSE_TOO_LARGE"
+        elif error == "INVALID_JSON":
+            reason = "TYPESAFE_INVALID_RESPONSE"
+        return {"ok": False, "engine": status, "answers": None, "reason": reason}
+    try:
+        valid_numbers = _finite_document(parsed)
+    except RecursionError:
+        valid_numbers = False
+    if (
+        not isinstance(parsed, dict)
+        or not valid_numbers
+        or not isinstance(parsed.get("answers"), dict)
+        or not parsed["answers"]
+        or any(not isinstance(answer, dict) for answer in parsed["answers"].values())
+    ):
+        return {"ok": False, "engine": status, "answers": None, "reason": "TYPESAFE_INVALID_RESPONSE"}
+    return {"ok": True, "engine": status, "answers": parsed["answers"], "usage": parsed.get("usage"), "model": parsed.get("model")}
 
 
 def register(app: Any, ns: str = "a11oy") -> dict[str, Any]:
     report = {"ok": False, "registered": []}
+    if not callable(getattr(app, "get", None)) or not callable(getattr(app, "post", None)):
+        return report
     try:
         from fastapi.responses import JSONResponse
     except Exception:

@@ -335,7 +335,7 @@ def test_cards_are_complete_and_descriptions_remain_bounded() -> None:
         assert len(row["short"]) <= 60
 
 
-def test_entrypoint_preserves_current_topology_and_lyte_pin() -> None:
+def test_entrypoint_preserves_current_topology_and_lyte_source_resolution() -> None:
     entrypoint = source(ENTRYPOINT)
     intelligence = source(INTELLIGENCE)
     combined = source(COMBINED)
@@ -344,7 +344,7 @@ def test_entrypoint_preserves_current_topology_and_lyte_pin() -> None:
         'PUBLIC_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance", "lyte")',
         'GENERATED_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance")',
         'SOURCE_OWNED_FLAGSHIP_SLUGS = ("lyte",)',
-        'LYTE_SOURCE_REVISION = "445c24c5a2ad314775af9a463a7d26acb910a5f1"',
+        'lyte_receipt_is_complete(lyte)',
         'FOLDED_INTO_KILLINCHU = ("vessels",)',
         'KILLINCHU_SPACE = "SZLHOLDINGS/killinchu"',
         'SENTRA_SPACE = "SZLHOLDINGS/sentra"',
@@ -372,12 +372,21 @@ def test_canonical_workflows_still_use_exact_tested_source() -> None:
     assert "persist-credentials: false" in manual
     for fragment in (
         "publish-vertical-flagships:",
-        "needs: deploy",
+        "needs: [manual-prerequisites, deploy]",
         "scripts/hf_publish_vertical_flagships_v4.py",
         "ref: ${{ github.sha }}",
         "persist-credentials: false",
     ):
         assert fragment in sync
+    vertical = sync.split("  publish-vertical-flagships:", 1)[1].split(
+        "\n  publish-finance-projection:", 1
+    )[0]
+    assert "needs: [manual-prerequisites, deploy]" in vertical
+    assert "if: ${{ needs.manual-prerequisites.result == 'success' && github.event_name == 'workflow_dispatch' && inputs.publish_vertical_flagships }}" in vertical
+    assert "steps.exact_main_owner.outputs.publish == 'true' && steps.vertical_plan.outputs.vertical_flagships == 'true'" in vertical
+    assert 'test "$GITHUB_REF" = refs/heads/main' in sync
+    assert "require-default-branch-tip: true" in sync
+    assert "        default: false" in sync
 
 
 def test_archived_vertical_repositories_remain_out_of_source_links() -> None:

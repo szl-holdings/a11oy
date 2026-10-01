@@ -46,7 +46,7 @@ WHEELCHK
 FROM python:3.14-slim@sha256:caaf356f40667c496d405780745b9ac25771c189a51dfcc42430d531ea09f8a2 AS llama-build-0
 RUN mkdir -p /wheels
 
-FROM llama-build-${A11OY_REQUIRE_LOCAL_LLM} AS llama-build
+FROM llama-build-${A11OY_REQUIRE_LOCAL_LLM:-1} AS llama-build
 
 # ---------------------------------------------------------------------------
 # RUNTIME IMAGE (the published a11oy Space / GHCR image).
@@ -84,19 +84,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install Python dependencies
 # … (full rationale: docs/DOCKERFILE_NOTES.md §2)
-RUN pip install --no-cache-dir \
-    "fastapi==0.141.1" \
-    "uvicorn[standard]==0.52.4" \
-    "httpx==0.28.1" \
-    "starlette==1.6.0" \
-    "huggingface_hub==1.31.0" \
-    "openai==2.43.0" \
-    "python-multipart==0.0.32" \
-    "cryptography==50.0.1" \
-    "lmdb==2.3.0" \
-    "slowapi==0.1.10" \
-    "defusedxml==0.7.1" \
-    "numpy==2.5.2"
+# Pins live ONLY in requirements-runtime.txt (single source of truth; the audit
+# closure includes it with -r). Never re-list them inline here.
+COPY requirements-runtime.txt /tmp/requirements-runtime.txt
+RUN pip install --no-cache-dir -r /tmp/requirements-runtime.txt
 
 # Canonical non-generative Nemo witness: exact immutable source revision,
 # zero action authority, and import-time doctrine identity verification.
@@ -112,6 +103,10 @@ RUN pip install --no-cache-dir \
 # … (full rationale: docs/DOCKERFILE_NOTES.md §3)
 COPY packages/receipt-substrate/src /app/a11oy-src/packages/receipt-substrate/src
 COPY packages/policy/src/gates /app/a11oy-src/packages/policy/src/gates
+
+# serve.py installs this package at boot; root-module COPY guards do not cover it.
+# Propagation works without an exporter; collector delivery remains a separate gate.
+COPY vsp_otel/__init__.py vsp_otel/middleware.py ./vsp_otel/
 
 # Copy the pre-built SPA (Brand Orchestration Layer) to the static root.
 # index.html + assets/* are served directly at / and /assets/*; unknown GET -> index.html.
@@ -152,6 +147,9 @@ COPY szl_quantum_utility.py ./
 # Wave 18 numerical-engine frontier. These are only the Apache-2.0 host contract
 # … (full rationale: docs/DOCKERFILE_NOTES.md §6)
 COPY szl_numerics_adapter.py ./
+# Public Steward services/provenance dependency: fixed read-only bytes from
+# exact canonical Estate OS source. No private audit store or model adapter.
+COPY a11oy_steward_surface.py steward_public.py steward-public.json steward-source-lock.json ./
 COPY szl_numerics_dataset.py ./
 COPY szl_numerics_experiment.py ./
 COPY numerics/ ./numerics/
@@ -283,7 +281,7 @@ COPY content_credentials.py ./
 COPY schemas/quant-claims/ ./schemas/quant-claims/
 COPY OUROBOROS_RUN_ALL.py ./
 COPY a11oy_governed_cortex.py ./a11oy_governed_cortex.py
-COPY knowledge.json szl_parity_gaps.py compliance_crosswalk.py szl_compliance_mesh.py a11oy_warhacker_obs.py serve.py szl_governed_api.py szl_demo_tier1.py szl_assurance.py govern_showcase.html a11oy_wireA_metrics.py cathedral.html a11oy_operator_organ.py a11oy_hf_assets.py szl_b2_secdata.py gates_manifest.json a11oy_code_orchestrator.py a11oy_agent_loop.py a11oy_org_rag.py a11oy_mcp_client.py szl_rag.py a11oy_code_ide.html wayra_serve.py wayra_snapshot.json wayra_digests_7d.json szl_khipu_os_routes.py szl_spaces_proxy.py szl_spaces_surface.py szl_khipu_consensus.py szl_puriq_formulas.py ayni_os_serve.py szl_live_wires.py live_wires.html live_wires_3d.js szl_intoto.py szl_intoto_routes.py szl_scitt.py szl_dsse.py szl_content_address.py szl_provenance.py szl_be_hardening.py szl_unay.py szl_khipu_lmdb.py szl_khipu_replicate.py szl_unay_routes.py szl_warhacker_aliases.py a11oy_v4_hickok.py szl_khipu.py szl_formulas.py a11oy_v4_formulas.py szl_anatomy_3d.py szl_anatomy_routes.py szl_anatomy_alias_bind.py _vendor_blobs.py szl_v4_fleet.py operator_shell_v4.py szl_bridge.py szl_bridge_schemas.py agent.html a11oy_bridge_cli.py szl_ken.py a11oy_formula_endpoints.py a11oy_formula_registry_guard.py a11oy_formulas_page.py a11oy_frontier_patch.py a11oy_v4_agent.py szl_brain.py szl_wire.py szl_hub.py szl_rosie_companion.py szl_receipt_substrate.py szl_alloy_embed_fabric.py szl_ayni_quorum.py szl_agentic_loop.py szl_ltc_dynamics.py szl_sgh_scheduler.py szl_formula_wiring.py szl_formula_surfaces.py a11oy_code_engine.py a11oy_code_runloop.py a11oy_code.py a11oy_seismic.py szl_warhacker_real.py szl_warhacker_demos.py NOTICE_warhacker_demos.txt szl_llm_registry.py szl_elite_console.py szl_alloy_models.py szl_scaling.py szl_allodial.py szl_entanglement.py szl_neuroplasticity.py szl_neuromorphic.py szl_kan.py szl_titans.py szl_mor.py szl_ternary.py szl_agentmem.py szl_edgefusion.py szl_hybridssm.py szl_aigov.py szl_chain_of_title.py szl_sovereign_compute.py szl_a11oy_interpretability.py a11oy_active_flux_router.py szl_energy_budget.py szl_energy_sovereign.py szl_energy_provenance.py szl_heart_blood.py szl_engine_status.py szl_backend_hardening.py revenue_endpoints.py a11oy_harvest_endpoints.py szl_energy_measured.py joule_billing.py szl_durable_ledger.py szl_energy_ledger_recovery.py szl_energy_ledger.py szl_energy_operator.py szl_energy_projection.py szl_cheapest_watt.py szl_energy_live.py szl_orbital_topology.py szl_orbital_projection.py a11oy_orbital_page.py a11oy_frontier_page.py szl_frontier_manifest.py szl_frontier_zkinfer.py szl_frontier_fmverif.py szl_frontier_supplychain.py szl_dream_gate.py szl_frontier_gate.py szl_hf_scout.py szl_kernel_hold.py szl_jev_gate.py a11oy_code_as_action.py a11oy_governed_kernel.py szl_lambda_tripwire.py szl_provenance_receipt.py szl_khipu_verify.py szl_public_verify.py szl_attest_stack.py szl_demo_sign.py szl_sda.py szl_fabric_surface.py szl_nemo_agents.py szl_kverify.py szl_specdec.py szl_immune.py szl_quant_qbio_holo.py szl_materials.py szl_materials_predict.py a11oy_factory.py a11oy_constitution.py a11oy_nav_wireup.py szl_mbse_cosim.py szl_mbse_nav.py szl_mbse.py szl_factory.py szl_willay_gateway.py a11oy_willay_nav.py szl_waqay.py a11oy_waqay_nav.py szl_yupay.py a11oy_yupay_nav.py a11oy_uds_portability_nav.py szl_pinn_bounds.py szl_pinn_residual.py physical_bounds_certificate.json agentic_decision_trail.json physical_bounds_certificate.dsse.json szl_pinn_inverse.py szl_governed_ipinn.py szl_calphad_inverse.py szl_pnt_mesh.py quantum_sensing_limits.py pnt_resilience.py nav_coasting.py fundamental_limits.py szl_counter_uas_proxy.py szl_gpu_quant.py szl_joules_truth.py revenue_model.py szl_prod_hardening.py szl_resilience.py szl_observability.py szl_corpus_publish.py szl_lake_store.py szl_lake_ingest.py szl_e8.py szl_trajectory_sign.py szl_nemotron_ingest.py szl_nemotron_corpus.py szl_nemo_verify.py a11oy_nemo_core.py szl_restraint.py szl_sapa.py szl_sapa_patch.py szl_restraint_energy.py a11oy_react_core.py szl_org_lambda.py a11oy_canonical_domain.py a11oy_formula_tiers.py szl_physical_bounds.py szl_kc_loop_forge.py szl_kc_loop_forge_metrics.py szl_kc_atlas.py szl_eval_arena.py szl_vqc.py szl_kc_jpt.py ./
+COPY knowledge.json szl_parity_gaps.py compliance_crosswalk.py szl_compliance_mesh.py a11oy_warhacker_obs.py serve.py szl_governed_api.py szl_demo_tier1.py szl_assurance.py govern_showcase.html a11oy_wireA_metrics.py cathedral.html a11oy_operator_organ.py a11oy_hf_assets.py szl_b2_secdata.py gates_manifest.json a11oy_code_orchestrator.py szl_operator_auth.py a11oy_agent_loop.py a11oy_org_rag.py a11oy_mcp_client.py szl_rag.py a11oy_code_ide.html wayra_serve.py wayra_snapshot.json wayra_digests_7d.json szl_khipu_os_routes.py szl_spaces_proxy.py szl_spaces_surface.py szl_khipu_consensus.py szl_puriq_formulas.py ayni_os_serve.py szl_live_wires.py live_wires.html live_wires_3d.js szl_intoto.py szl_intoto_routes.py szl_scitt.py szl_dsse.py szl_content_address.py szl_provenance.py szl_be_hardening.py szl_unay.py szl_khipu_lmdb.py szl_khipu_replicate.py szl_unay_routes.py szl_warhacker_aliases.py a11oy_v4_hickok.py szl_khipu.py szl_formulas.py a11oy_v4_formulas.py szl_anatomy_3d.py szl_anatomy_routes.py szl_anatomy_alias_bind.py _vendor_blobs.py szl_v4_fleet.py operator_shell_v4.py szl_bridge.py szl_bridge_schemas.py agent.html a11oy_bridge_cli.py szl_ken.py a11oy_formula_endpoints.py a11oy_formula_registry_guard.py a11oy_formulas_page.py a11oy_frontier_patch.py a11oy_v4_agent.py szl_brain.py szl_wire.py szl_hub.py szl_rosie_companion.py szl_receipt_substrate.py szl_alloy_embed_fabric.py szl_ayni_quorum.py szl_agentic_loop.py szl_ltc_dynamics.py szl_sgh_scheduler.py szl_formula_wiring.py szl_formula_surfaces.py a11oy_code_engine.py a11oy_code_runloop.py a11oy_code.py a11oy_seismic.py szl_warhacker_real.py szl_warhacker_demos.py NOTICE_warhacker_demos.txt szl_llm_registry.py szl_elite_console.py szl_alloy_models.py szl_scaling.py szl_allodial.py szl_entanglement.py szl_neuroplasticity.py szl_neuromorphic.py szl_kan.py szl_titans.py szl_mor.py szl_ternary.py szl_agentmem.py szl_edgefusion.py szl_hybridssm.py szl_aigov.py szl_chain_of_title.py szl_sovereign_compute.py szl_a11oy_interpretability.py a11oy_active_flux_router.py szl_energy_budget.py szl_energy_sovereign.py szl_energy_provenance.py szl_heart_blood.py szl_engine_status.py szl_backend_hardening.py revenue_endpoints.py a11oy_harvest_endpoints.py szl_energy_measured.py joule_billing.py szl_durable_ledger.py szl_energy_ledger_recovery.py szl_energy_ledger.py szl_energy_operator.py szl_energy_projection.py szl_cheapest_watt.py szl_energy_live.py szl_orbital_topology.py szl_orbital_projection.py a11oy_orbital_page.py a11oy_frontier_page.py szl_frontier_manifest.py szl_frontier_zkinfer.py szl_frontier_fmverif.py szl_frontier_supplychain.py szl_dream_gate.py szl_frontier_gate.py szl_hf_scout.py szl_kernel_hold.py szl_jev_gate.py a11oy_code_as_action.py a11oy_governed_kernel.py szl_lambda_tripwire.py szl_provenance_receipt.py szl_khipu_verify.py szl_public_verify.py szl_attest_stack.py szl_demo_sign.py szl_sda.py szl_fabric_surface.py szl_nemo_agents.py szl_kverify.py szl_specdec.py szl_immune.py szl_quant_qbio_holo.py szl_materials.py szl_materials_predict.py a11oy_factory.py a11oy_constitution.py a11oy_nav_wireup.py szl_mbse_cosim.py szl_mbse_nav.py szl_mbse.py szl_factory.py szl_willay_gateway.py a11oy_willay_nav.py szl_waqay.py a11oy_waqay_nav.py szl_yupay.py a11oy_yupay_nav.py a11oy_uds_portability_nav.py szl_pinn_bounds.py szl_pinn_residual.py physical_bounds_certificate.json agentic_decision_trail.json physical_bounds_certificate.dsse.json szl_pinn_inverse.py szl_governed_ipinn.py szl_calphad_inverse.py szl_pnt_mesh.py quantum_sensing_limits.py pnt_resilience.py nav_coasting.py fundamental_limits.py szl_counter_uas_proxy.py szl_gpu_quant.py szl_joules_truth.py revenue_model.py szl_prod_hardening.py szl_resilience.py szl_observability.py szl_corpus_publish.py szl_lake_store.py szl_lake_ingest.py szl_e8.py szl_trajectory_sign.py szl_nemotron_ingest.py szl_nemotron_corpus.py szl_nemo_verify.py a11oy_nemo_core.py szl_restraint.py szl_sapa.py szl_sapa_patch.py szl_restraint_energy.py a11oy_react_core.py szl_org_lambda.py a11oy_canonical_domain.py a11oy_formula_tiers.py szl_physical_bounds.py szl_kc_loop_forge.py szl_kc_loop_forge_metrics.py szl_kc_atlas.py szl_eval_arena.py szl_vqc.py szl_kc_jpt.py ./
 
 # Wave M / Dev 4: Sovereign Local Model panel — imported GUARDED by serve.py
 # … (full rationale: docs/DOCKERFILE_NOTES.md §29)

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-surface="light">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -9,82 +9,76 @@
   <meta property="og:description" content="/v1/policy/evaluate · /v1/verify · /v1/ledger — one substrate, hash-chained, deny by default."/>
   <meta property="og:image" content="assets/hero_a11oy.png"/>
   <meta property="og:type" content="website"/>
+  <link rel="icon" type="image/svg+xml" href="szl/logos/szl_favicon_square.svg"/>
+  <!-- SZL KANCHAY v1.1.1 (founder direction): tokens + components, system fonts, no CDN. -->
+  <link rel="stylesheet" href="szl/szl-design-system.css"/>
   <link rel="stylesheet" href="style.css"/>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 </head>
 <body>
 
-<a href="#main" class="skip">Skip to main content</a>
+<a href="#main" class="skip-link">Skip to main content</a>
 
-<!-- ===== HEADER: bracketed identity chip (left) + CTA pill (right) ===== -->
-<header class="site-header">
-  <div class="header-inner">
-    <div class="brand">
-      <span class="brand-mark mono">A</span>
-      <span class="brand-name">a11oy</span>
-      <span class="brand-tag mono">/ governance substrate</span>
-    </div>
-    <a class="cta-pill" href="#try-it">
+<!-- ===== HEADER: identity (left) + secondary CTA (right) ===== -->
+<header class="nav site-header">
+  <a class="nav__brand brand" href="#main">
+    <span class="brand-mark mono" aria-hidden="true">A</span>
+    <span class="brand-name">a11oy</span>
+    <span class="brand-tag mono">/ governance substrate</span>
+  </a>
+  <div class="nav__links">
+    <a class="btn btn-secondary btn-sm cta-pill" href="#try-it">
       Try it live <span class="cta-arrow" aria-hidden="true">→</span>
     </a>
   </div>
 </header>
 
-<!-- ===== HERO ===== -->
+<!-- ===== HERO: one silver orbit (-22°), one coral moment = the primary CTA ===== -->
 <main id="main">
   <section class="hero">
-    <div class="grid-bg" aria-hidden="true"></div>
+    <div class="hero__orbit" aria-hidden="true"></div>
 
     <div class="hero-rail hero-rail-left mono" aria-hidden="true">
       <span>BASIN · GLOBAL</span><span>FEED · SIGNED</span><span>POSTURE · UNDERWAY</span>
     </div>
     <div class="hero-rail hero-rail-right mono" aria-hidden="true">
       <span>NODE · A11OY-01</span><span>EPOCH · 2026.Q2</span>
-      <span class="rail-live"><span class="live-dot"></span>LIVE · RT</span>
+      <span class="rail-live"><span class="dot"></span>LIVE · RT</span>
     </div>
 
-    <div class="hero-inner">
-      <div class="eyebrow">
-        <span class="eyebrow-dot"></span>
-        <span class="eyebrow-text mono">· GOVERNANCE SUBSTRATE · SERIES A</span>
-      </div>
+    <div class="hero__inner">
+      <p class="eyebrow">· Governance substrate · Series A</p>
 
-      <h1 class="headline">
-        Every action signed. Every decision gated. Every receipt <span class="accent">verifiable.</span>
+      <h1 class="hero__title">
+        Every action signed. Every decision gated. Every receipt verifiable.
       </h1>
 
-      <p class="support">/v1/policy/evaluate · /v1/verify · /v1/ledger — one substrate, hash-chained, deny by default.</p>
+      <p class="hero__sub support">/v1/policy/evaluate · /v1/verify · /v1/ledger — one substrate, hash-chained, deny by default.</p>
 
-      <div class="hero-ctas">
-        <a class="btn-primary" href="/console/">
+      <div class="cluster hero-ctas">
+        <a class="btn btn-primary btn-lg" href="/console/">
           Open console <span class="cta-arrow" aria-hidden="true">→</span>
         </a>
       </div>
 
-      <div class="hero-portrait">
-        <img src="assets/hero_a11oy.png" alt="a11oy painterly identity portrait" loading="eager"/>
-      </div>
     </div>
   </section>
+
+  <div class="container"><div class="orbit-rule" aria-hidden="true"></div></div>
 
   <!-- ===== TRY IT PANEL (below founder-locked hero) ===== -->
   <section class="reasoner-section" id="try-it" aria-label="a11oy live API demo">
     <div class="reasoner-inner">
-      <div class="reasoner-eyebrow">
-        <span class="eyebrow-dot"></span>
-        <span class="reasoner-eyebrow-text">· governance substrate · api surface</span>
-      </div>
+      <p class="eyebrow">· Governance substrate · API surface</p>
       <h2 class="reasoner-heading">a11oy — policy gates &amp; receipts</h2>
       <p class="reasoner-sub">Evaluate a policy action, inspect the receipt ledger, and verify chain integrity — directly against the live API. 749 decl / 14 axioms / 168 sorries.</p>
 
-      <div class="reasoner-controls">
-        <button class="r-btn r-btn-primary" id="btn-evaluate" onclick="runEvaluate()">&#9654; Evaluate sample policy</button>
-        <button class="r-btn" id="btn-ledger" onclick="showLedger()">&#x25A4; Show receipt ledger</button>
-        <button class="r-btn" id="btn-verify" onclick="runVerify()">&#x26A0; Verify a receipt</button>
+      <div class="cluster reasoner-controls">
+        <button class="btn btn-secondary" id="btn-evaluate" onclick="runEvaluate()">Evaluate sample policy</button>
+        <button class="btn btn-secondary" id="btn-ledger" onclick="showLedger()">Show receipt ledger</button>
+        <button class="btn btn-secondary" id="btn-verify" onclick="runVerify()">Verify a receipt</button>
       </div>
 
+      <!-- Terminal output stays dark on the light surface (founder rule: code blocks are dark on both). -->
       <div class="reasoner-output">
         <div class="output-label">
           <span id="output-title">OUTPUT</span>

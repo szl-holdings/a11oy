@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-09-25T15:51:24Z",
+  "observedAt": "2026-09-30T21:07:31Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -26,9 +26,9 @@
   "machineGeneratedCounts": {
     "githubReadinessEntries": 19,
     "huggingFacePublic": {
-      "models": 49,
+      "models": 50,
       "datasets": 35,
-      "spaces": 22
+      "spaces": 31
     },
     "huggingFaceScope": {
       "visibility": "public-only",
@@ -1221,6 +1221,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-triage-linear-development-v1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-triage-linear-development-v1"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora",
       "repoType": "model",
       "stage": "inventory",
@@ -1300,16 +1310,6 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/datasets/SZLHOLDINGS/canonical-formulas-v1"
-      ]
-    },
-    {
-      "id": "SZLHOLDINGS/david-leads-data",
-      "repoType": "dataset",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/datasets/SZLHOLDINGS/david-leads-data"
       ]
     },
     {
@@ -1523,6 +1523,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-marketing-factbase",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/szl-marketing-factbase"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-quant-sft-v1",
       "repoType": "dataset",
       "stage": "inventory",
@@ -1663,6 +1673,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/gdw-frontier",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/gdw-frontier"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/holographic-unify",
       "repoType": "space",
       "stage": "inventory",
@@ -1725,6 +1745,26 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/oac-system-health-lab",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/oac-system-health-lab"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/prove-it",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/prove-it"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/sentra",
       "repoType": "space",
       "stage": "inventory",
@@ -1742,6 +1782,26 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/szl-atelier"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-bench-suite",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-bench-suite"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-brand-campaign",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-brand-campaign"
       ]
     },
     {
@@ -1765,13 +1825,23 @@
       ]
     },
     {
-      "id": "SZLHOLDINGS/szl-constellation-staging",
+      "id": "SZLHOLDINGS/szl-forge-lab",
       "repoType": "space",
       "stage": "inventory",
       "private": false,
       "unsafeFlags": [],
       "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/szl-constellation-staging"
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-forge-lab"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-foundation-confirmation",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-foundation-confirmation"
       ]
     },
     {
@@ -1795,6 +1865,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-marketing-1.1",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-marketing-1.1"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-model-inference-lab",
       "repoType": "space",
       "stage": "inventory",
@@ -1805,6 +1885,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-typesafe-triage",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-typesafe-triage"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/terra",
       "repoType": "space",
       "stage": "inventory",
@@ -1812,6 +1902,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/terra"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/the-grid",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/the-grid"
       ]
     },
     {

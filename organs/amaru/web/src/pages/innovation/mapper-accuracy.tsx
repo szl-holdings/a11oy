@@ -130,7 +130,7 @@ export default function MapperAccuracyPage() {
         title="Mapping Confidence Calibration"
         blurb="Verity tracks Mapper's recommended-vs-accepted ratio over time. Accept or reject field mapping recommendations. Calibration engine surfaces threshold adjustments — operator-approved before any change takes effect."
         trailing={
-          <Link href="/innovation" className="flex items-center gap-1.5 text-[11px] text-[#c9b787] hover:underline">
+          <Link href="/innovation" className="flex items-center gap-1.5 text-[11px] text-link hover:underline">
             <ArrowLeft className="w-3 h-3" /> Innovation Brief
           </Link>
         }
@@ -148,10 +148,10 @@ export default function MapperAccuracyPage() {
           <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
               <div className="label-mono">CURRENT THRESHOLD</div>
-              <div className="font-mono text-[#c9b787] text-lg">{threshold.toFixed(2)}</div>
+              <div className="font-mono text-ink text-lg">{threshold.toFixed(2)}</div>
             </div>
             <MicroBar value={threshold * 100} max={100} tone="gold" />
-            <div className="flex justify-between text-[10px] font-mono text-[#555] mt-1">
+            <div className="flex justify-between text-[10px] font-mono text-ink-sub mt-1">
               <span>0.60</span><span>0.80</span><span>1.00</span>
             </div>
           </div>
@@ -162,19 +162,19 @@ export default function MapperAccuracyPage() {
               const rate = h.recommended > 0 ? Math.round(h.accepted / h.recommended * 100) : null;
               return (
                 <div key={h.window} className="flex items-center gap-3 text-[11px] py-1">
-                  <span className="font-mono text-[#666] w-24 shrink-0">{h.window.replace('2026-', '')}</span>
+                  <span className="font-mono text-ink-sub w-24 shrink-0">{h.window.replace('2026-', '')}</span>
                   <div className="flex-1">
                     <MicroBar value={rate ?? 0} max={100} tone={rate !== null && rate >= 85 ? 'good' : rate !== null && rate >= 70 ? 'warn' : 'bad'} />
                   </div>
-                  <span className="font-mono text-[#8a8a8a] shrink-0 w-10 text-right">{rate !== null ? `${rate}%` : '—'}</span>
-                  <span className="font-mono text-[#555] shrink-0 w-8">{h.calibratedThreshold.toFixed(2)}</span>
+                  <span className="font-mono text-ink-sub shrink-0 w-10 text-right">{rate !== null ? `${rate}%` : '—'}</span>
+                  <span className="font-mono text-ink-sub shrink-0 w-8">{h.calibratedThreshold.toFixed(2)}</span>
                 </div>
               );
             })}
           </div>
 
           {calibrationMetrics && (
-            <div className={`p-3 rounded text-[12px] ${calibrationMetrics.direction === 'stable' ? 'text-[#5a8a6e]' : 'text-[#d4a853]'}`} style={{ background: calibrationMetrics.direction === 'stable' ? 'rgba(90,138,110,0.08)' : 'rgba(212,168,83,0.08)', border: `1px solid ${calibrationMetrics.direction === 'stable' ? 'rgba(90,138,110,0.2)' : 'rgba(212,168,83,0.2)'}` }}>
+            <div className={`p-3 rounded text-[12px] ${calibrationMetrics.direction === 'stable' ? 'text-ink-good' : 'text-ink-warn'}`} style={{ background: calibrationMetrics.direction === 'stable' ? 'color-mix(in srgb, var(--color-success) 8%, transparent)' : 'color-mix(in srgb, var(--ink-warn) 8%, transparent)', border: `1px solid ${calibrationMetrics.direction === 'stable' ? 'color-mix(in srgb, var(--color-success) 20%, transparent)' : 'color-mix(in srgb, var(--ink-warn) 20%, transparent)'}` }}>
               <div className="flex items-start gap-2">
                 {calibrationMetrics.direction === 'stable' ? <CheckCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> : <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />}
                 <div>
@@ -183,7 +183,7 @@ export default function MapperAccuracyPage() {
                 </div>
               </div>
               {calibrationMetrics.direction !== 'stable' && !proposedThreshold && (
-                <Button size="sm" onClick={proposeCalibration} className="mt-2">
+                <Button size="sm" variant="outline" onClick={proposeCalibration} className="mt-2">
                   <Settings className="w-3 h-3 mr-1" /> Propose calibration
                 </Button>
               )}
@@ -194,7 +194,7 @@ export default function MapperAccuracyPage() {
                   <Button size="sm" variant="outline" onClick={() => setProposedThreshold(null)}>Cancel</Button>
                 </div>
               )}
-              {calibrationApproved && <div className="mt-2 text-[11px] text-[#5a8a6e]">✓ Calibration applied at {threshold.toFixed(2)}</div>}
+              {calibrationApproved && <div className="mt-2 text-[11px] text-ink-good">✓ Calibration applied at {threshold.toFixed(2)}</div>}
             </div>
           )}
         </FabricCard>
@@ -202,31 +202,31 @@ export default function MapperAccuracyPage() {
         <FabricCard title="QUICK ACTIONS">
           <div className="space-y-3 mb-4">
             <div className="flex items-center justify-between text-[12px]">
-              <span className="text-[#666]">Above threshold ({threshold.toFixed(2)})</span>
-              <span className="font-mono text-[#f5f5f5]">{aboveThreshold.length} recs</span>
+              <span className="text-ink-sub">Above threshold ({threshold.toFixed(2)})</span>
+              <span className="font-mono text-ink">{aboveThreshold.length} recs</span>
             </div>
             <div className="flex items-center justify-between text-[12px]">
-              <span className="text-[#666]">Below threshold</span>
-              <span className="font-mono text-[#d4a853]">{belowThreshold.length} recs</span>
+              <span className="text-ink-sub">Below threshold</span>
+              <span className="font-mono text-ink-warn">{belowThreshold.length} recs</span>
             </div>
             <div className="flex items-center justify-between text-[12px]">
-              <span className="text-[#666]">Pending review</span>
-              <span className="font-mono text-[#f5f5f5]">{pending}</span>
+              <span className="text-ink-sub">Pending review</span>
+              <span className="font-mono text-ink">{pending}</span>
             </div>
           </div>
           <Button onClick={acceptAll} variant="outline" className="w-full mb-2">
             <CheckCircle className="w-3.5 h-3.5 mr-1.5" /> Accept all above {threshold.toFixed(2)}
           </Button>
 
-          <div className="mt-4 pt-4 border-t border-[rgba(255,255,255,0.04)]">
+          <div className="mt-4 pt-4 border-t border-line-subtle">
             <div className="label-mono mb-2">FIELD PAIR ACCURACY</div>
             {['email → Email', 'name → full_name', 'mrr_cents → revenue', 'plan_tier → tier', 'updated_at → last_modified'].map((pair, i) => {
               const acc = 0.72 + i * 0.05;
               return (
                 <div key={pair} className="flex items-center gap-2 text-[11px] py-1">
-                  <span className="font-mono text-[#666] flex-1 truncate">{pair}</span>
+                  <span className="font-mono text-ink-sub flex-1 truncate">{pair}</span>
                   <MicroBar value={acc * 100} max={100} tone={acc >= 0.85 ? 'good' : 'warn'} />
-                  <span className="font-mono text-[#8a8a8a] shrink-0 w-8 text-right">{(acc * 100).toFixed(0)}%</span>
+                  <span className="font-mono text-ink-sub shrink-0 w-8 text-right">{(acc * 100).toFixed(0)}%</span>
                 </div>
               );
             })}
@@ -236,8 +236,8 @@ export default function MapperAccuracyPage() {
 
       <div className="space-y-3 mb-6">
         <div className="flex items-center justify-between">
-          <div className="label-mono text-[#c9b787]">MAPPER RECOMMENDATIONS ({recs.length})</div>
-          <span className="text-[11px] text-[#666]">Click accept ✓ or reject ✗ to calibrate</span>
+          <div className="label-mono text-ink">MAPPER RECOMMENDATIONS ({recs.length})</div>
+          <span className="text-[11px] text-ink-sub">Click accept ✓ or reject ✕ to calibrate</span>
         </div>
         {recs.map((rec) => (
           <div key={rec.id} className="conduit-card p-3">
@@ -245,24 +245,24 @@ export default function MapperAccuracyPage() {
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className="font-mono text-[#f5f5f5] text-[12px] truncate">{rec.sourceField} → {rec.destField}</span>
-                    <span className="text-[10px] text-[#666] font-mono shrink-0">via {rec.transform.split('(')[0]}</span>
+                    <span className="font-mono text-ink text-[12px] truncate">{rec.sourceField} → {rec.destField}</span>
+                    <span className="text-[10px] text-ink-sub font-mono shrink-0">via {rec.transform.split('(')[0]}</span>
                   </div>
-                  <div className="text-[10px] text-[#8a8a8a]">{rec.mappingName} · {rec.reason}</div>
+                  <div className="text-[10px] text-ink-sub">{rec.mappingName} · {rec.reason}</div>
                 </div>
                 <div className="text-right shrink-0">
                   <div className="flex items-center gap-1 mb-0.5">
-                    {rec.confidence >= threshold ? <TrendingUp className="w-3 h-3 text-[#5a8a6e]" /> : <TrendingDown className="w-3 h-3 text-[#d4a853]" />}
-                    <span className={`font-mono text-sm ${rec.confidence >= threshold ? 'text-[#5a8a6e]' : 'text-[#d4a853]'}`}>{(rec.confidence * 100).toFixed(0)}%</span>
+                    {rec.confidence >= threshold ? <TrendingUp className="w-3 h-3 text-ink-good" /> : <TrendingDown className="w-3 h-3 text-ink-warn" />}
+                    <span className={`font-mono text-sm ${rec.confidence >= threshold ? 'text-ink-good' : 'text-ink-warn'}`}>{(rec.confidence * 100).toFixed(0)}%</span>
                   </div>
-                  <div className="text-[10px] text-[#555]">{rec.confidence >= threshold ? '≥ threshold' : '< threshold'}</div>
+                  <div className="text-[10px] text-ink-sub">{rec.confidence >= threshold ? '≥ threshold' : '< threshold'}</div>
                 </div>
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 {rec.status === 'pending' ? (
                   <>
-                    <button onClick={() => accept(rec.id)} className="p-1.5 rounded hover:bg-[rgba(90,138,110,0.15)] text-[#5a8a6e] transition-colors"><CheckCircle className="w-4 h-4" /></button>
-                    <button onClick={() => reject(rec.id)} className="p-1.5 rounded hover:bg-[rgba(184,84,80,0.15)] text-[#b85450] transition-colors"><XCircle className="w-4 h-4" /></button>
+                    <button onClick={() => accept(rec.id)} className="p-1.5 rounded hover:bg-success/15 text-ink-good transition-colors"><CheckCircle className="w-4 h-4" /></button>
+                    <button onClick={() => reject(rec.id)} className="p-1.5 rounded hover:bg-error/15 text-ink-bad transition-colors"><XCircle className="w-4 h-4" /></button>
                   </>
                 ) : (
                   <Badge variant={rec.status === 'accepted' ? 'success' : 'failed'}>{rec.status}</Badge>

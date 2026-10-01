@@ -28,7 +28,42 @@ being filled with no-op pages or fabricated packages.
 
 ---
 
+## Public Frontier Steward bridge
+
+The services-layer `a11oy_steward_surface.py` reserves two fixed read-only routes:
+`GET /api/a11oy/v1/steward/status` and `GET /api/a11oy/v1/steward/proposals`.
+Its provenance-layer dependency `steward_public.py` is vendored byte-for-byte
+from the immutable Estate OS revision declared in `steward-source-lock.json`.
+The lock binds both the reader bytes and the complete `steward-public.json` bytes.
+All four files are explicit Dockerfile inputs and therefore travel through the
+existing canonical `hf-sync.yml` publisher; this bridge adds no Hub writer.
+
+The public snapshot is an allowlisted projection of a retained, credential-free
+GitHub/Hugging Face/domain observation and a recorded deterministic proposal.
+It contains no private repository inventory, database, local paths, credentials,
+model prompt, or model output. Public GETs make no provider call, write no receipt,
+and execute no proposal. The snapshot expires two hours after the original audit,
+not after publication. Missing, altered, or expired evidence returns JSON HTTP 503;
+expired proposals are withheld. Other paths in this namespace return JSON 404,
+non-GET methods return 405, and WebSockets are rejected before either fallback.
+
+Refresh is a separate governed source release: retain a new public observation
+with canonical Estate OS, export from exact committed producer bytes, verify the
+export's retained readback, update the artifact and lock, and pass the normal
+signed A11oy source checks before the existing publisher runs. Expiry is not
+silenced or renewed by a web request. The unsigned hash chain is local integrity,
+not independent witness proof. This bridge does not qualify a model or establish
+whole-estate production readiness. A source lock alone also does not prove that
+the declared producer revision has reached its canonical branch, nor prove that
+producer branch protection is configured. Consumer main protection is separate.
+
 ## Operational identity
+
+The additive [Atelier command centre](ATELIER_COMMAND_CENTRE.md) consolidates
+existing product and proof entry points at `/command-centre` and `/a11oy/atelier`.
+Its Python chat path is authenticated, bounded single-turn third-party inference;
+configuration, local contract checks, publication, and live inference are distinct
+proof layers. It does not port the platform Turn Capsule or create owned Grok weights.
 
 **MEASURED:** a11oy is a full deployable application — UI, runtime, server, and shipped libraries —
 and also a TypeScript workspace. Its operational Hugging Face surface is produced by

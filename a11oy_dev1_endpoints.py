@@ -15,9 +15,9 @@ This module powers four founder-approved WOW investor features:
        When mode="ungoverned_vs_governed" it ALSO returns the ungoverned answer
        (poisoned/hallucinated) being CAUGHT (P3 non-interference, axiom-free).
 
-  GET  /api/a11oy/v1/wow/ledger        — Unified LIVE receipt ledger streaming
-       across ALL verticals: one tamper-evident hash-chain proving the mesh
-       governs everything at once. Auto-poll friendly (each poll appends).
+  GET  /api/a11oy/v1/wow/ledger        - Unified receipt ledger snapshot across
+       verticals. Polling is read-only by default; advance=1 explicitly appends
+       a labeled SIMULATED demonstration record to the in-memory hash-chain.
 
   GET  /api/a11oy/v1/wow/roi           — ROI / cost-of-failure per vertical
        (liability avoided, breaches caught, deals de-risked). EVERY number is an
@@ -579,9 +579,9 @@ def register(app, ns: str = "a11oy") -> str:
 
     @app.get(f"{b}/ledger")
     @app.get(f"/v1/wow/ledger")
-    async def _wow_ledger(limit: int = 60, advance: int = 1):
-        # Optionally append a fresh governed turn so the chain visibly grows on
-        # each auto-poll (the "always recording live" property). advance=0 to peek.
+    async def _wow_ledger(limit: int = 60, advance: int = 0):
+        # Polling must not manufacture receipts. Existing callers can explicitly
+        # opt into a SIMULATED demonstration record with advance=1.
         if advance:
             order = ["core", "defense", "finance", "legal", "enterprise", "realestate", "insurance"]
             v = order[int(time.time()) % len(order)]

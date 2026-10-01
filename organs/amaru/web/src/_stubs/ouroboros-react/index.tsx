@@ -7,7 +7,7 @@ interface LoopGlyphProps {
   color?: string;
 }
 
-export function LoopGlyph({ size = 48, convergence, spinning, color = '#a0c4ff' }: LoopGlyphProps) {
+export function LoopGlyph({ size = 48, convergence, spinning, color = 'var(--color-silver-300)' }: LoopGlyphProps) {
   const r = (size - 8) / 2;
   const cx = size / 2;
   const cy = size / 2;
@@ -15,7 +15,7 @@ export function LoopGlyph({ size = 48, convergence, spinning, color = '#a0c4ff' 
   const totalLen = 2 * Math.PI * r;
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink: 0 }}>
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={3} />
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--surface-raised)" strokeWidth={3} />
       <circle
         cx={cx} cy={cy} r={r}
         fill="none" stroke={color} strokeWidth={3}
@@ -40,15 +40,15 @@ interface OuroborosTraceProps<S, O> {
 export function OuroborosTrace<S, O>({ trace, describeOutput }: OuroborosTraceProps<S, O>) {
   return (
     <div style={{
-      background: 'rgba(255,255,255,0.02)',
-      border: '1px solid rgba(255,255,255,0.08)',
+      background: 'color-mix(in srgb, var(--surface-raised) 50%, transparent)',
+      border: '1px solid var(--border)',
       borderRadius: 6,
       padding: 16,
     }}>
       <div style={{
         fontSize: 11, letterSpacing: '0.16em',
         textTransform: 'uppercase' as const,
-        color: 'rgba(255,255,255,0.55)',
+        color: 'var(--text-sub)',
         marginBottom: 10,
       }}>
         Loop trace · {trace.steps.length} steps · {trace.converged ? 'converged' : 'did not converge'}
@@ -59,15 +59,15 @@ export function OuroborosTrace<S, O>({ trace, describeOutput }: OuroborosTracePr
             display: 'grid',
             gridTemplateColumns: '40px 80px 1fr',
             fontSize: 11,
-            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+            fontFamily: 'var(--font-mono)',
             padding: '4px 6px',
             borderRadius: 3,
-            background: step.deltaMagnitude < 0.5 ? 'rgba(126,215,193,0.06)' : 'transparent',
-            color: step.deltaMagnitude < 0.5 ? '#7ed7c1' : 'rgba(255,255,255,0.7)',
+            background: step.deltaMagnitude < 0.5 ? 'color-mix(in srgb, var(--ink-good) 6%, transparent)' : 'transparent',
+            color: step.deltaMagnitude < 0.5 ? 'var(--ink-good)' : 'var(--text-sub)',
           }}>
             <span>#{step.stepIndex + 1}</span>
             <span>Δ {step.deltaMagnitude.toFixed(2)}</span>
-            <span style={{ color: 'rgba(255,255,255,0.5)' }}>
+            <span style={{ color: 'var(--text-sub)' }}>
               {describeOutput ? describeOutput(step.output as unknown as O) : ''}
             </span>
           </div>

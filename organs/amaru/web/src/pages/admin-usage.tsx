@@ -7,7 +7,7 @@ import { AlertTriangle, BellRing, ChevronDown, ChevronRight } from 'lucide-react
 function overageBadge(state: 'none' | 'warn' | 'over') {
   if (state === 'over') return <Badge variant="error">Over</Badge>;
   if (state === 'warn') return <Badge variant="partial">Warn</Badge>;
-  return <span className="text-[#666] text-xs font-mono">—</span>;
+  return <span className="text-ink-sub text-xs font-mono">—</span>;
 }
 
 function AlertSentBadge({
@@ -18,7 +18,7 @@ function AlertSentBadge({
   alertThresholdsFired: { meterKey: string; threshold: number; notifiedAt: string }[];
 }) {
   if (!lastAlertSentAt) {
-    return <span className="text-[#666] text-xs font-mono">No alerts</span>;
+    return <span className="text-ink-sub text-xs font-mono">No alerts</span>;
   }
 
   const thresholds = Array.from(new Set(alertThresholdsFired.map((a) => a.threshold))).sort(
@@ -37,10 +37,10 @@ function AlertSentBadge({
       title={tooltip}
     >
       <div className="inline-flex items-center gap-1.5 text-xs">
-        <BellRing className="w-3.5 h-3.5 text-[#d4a853]" aria-hidden="true" />
-        <span className="font-mono text-[#d4a853]">Alert sent</span>
+        <BellRing className="w-3.5 h-3.5 text-ink-warn" aria-hidden="true" />
+        <span className="font-mono text-ink-warn">Alert sent</span>
       </div>
-      <div className="text-[11px] font-mono text-[#8a8a8a]">
+      <div className="text-[11px] font-mono text-ink-sub">
         {labelThresholds.map((t) => `${t}%`).join(' · ')} · {formatDate(lastAlertSentAt)}
       </div>
     </div>
@@ -52,13 +52,13 @@ function QuotaViolationsPanel({ orgId }: { orgId: number }) {
 
   if (isLoading) {
     return (
-      <div className="px-4 py-4 text-xs text-[#8a8a8a] font-mono">Loading violations…</div>
+      <div className="px-4 py-4 text-xs text-ink-sub font-mono">Loading violations…</div>
     );
   }
 
   if (error) {
     return (
-      <div className="px-4 py-4 text-xs text-[#b85450] font-mono">
+      <div className="px-4 py-4 text-xs text-ink-bad font-mono">
         Failed to load violations: {(error as Error).message}
       </div>
     );
@@ -66,7 +66,7 @@ function QuotaViolationsPanel({ orgId }: { orgId: number }) {
 
   if (!data || data.rows.length === 0) {
     return (
-      <div className="px-4 py-4 text-xs text-[#8a8a8a] font-mono">
+      <div className="px-4 py-4 text-xs text-ink-sub font-mono">
         No quota violations recorded for this tenant.
       </div>
     );
@@ -75,16 +75,16 @@ function QuotaViolationsPanel({ orgId }: { orgId: number }) {
   return (
     <div className="px-4 py-3">
       <div className="flex items-center justify-between mb-2">
-        <h4 className="text-[11px] uppercase tracking-widest text-[#8a8a8a] font-medium">
+        <h4 className="text-[11px] uppercase tracking-widest text-ink-sub font-medium">
           Quota Violations
         </h4>
-        <span className="text-[11px] font-mono text-[#666]">
+        <span className="text-[11px] font-mono text-ink-sub">
           {data.rows.length} of {data.pagination.total}
         </span>
       </div>
-      <div className="border border-[rgba(255,255,255,0.06)] rounded">
+      <div className="border border-line-subtle rounded">
         <table className="w-full text-xs">
-          <thead className="bg-[#0c0c0c] text-[10px] uppercase tracking-widest text-[#666]">
+          <thead className="bg-ground-deep text-[10px] uppercase tracking-widest text-ink-sub">
             <tr>
               <th className="text-left px-3 py-2 font-medium">When</th>
               <th className="text-left px-3 py-2 font-medium">Type</th>
@@ -96,8 +96,8 @@ function QuotaViolationsPanel({ orgId }: { orgId: number }) {
           </thead>
           <tbody>
             {data.rows.map((v) => (
-              <tr key={v.id} className="border-t border-[rgba(255,255,255,0.04)]">
-                <td className="px-3 py-2 font-mono text-[#c9c9c9] whitespace-nowrap">
+              <tr key={v.id} className="border-t border-line-subtle">
+                <td className="px-3 py-2 font-mono text-ink-sub whitespace-nowrap">
                   {formatDate(v.occurredAt)}
                 </td>
                 <td className="px-3 py-2">
@@ -107,14 +107,14 @@ function QuotaViolationsPanel({ orgId }: { orgId: number }) {
                     <Badge variant="partial">Soft</Badge>
                   )}
                 </td>
-                <td className="px-3 py-2 font-mono text-[#f5f5f5]">{v.featureKey}</td>
-                <td className="px-3 py-2 text-right font-mono text-[#f5f5f5]">
+                <td className="px-3 py-2 font-mono text-ink">{v.featureKey}</td>
+                <td className="px-3 py-2 text-right font-mono text-ink">
                   {v.currentUsage != null ? v.currentUsage.toLocaleString() : '—'}
                 </td>
-                <td className="px-3 py-2 text-right font-mono text-[#c9b787]">
+                <td className="px-3 py-2 text-right font-mono text-ink">
                   {v.limitValue != null ? v.limitValue.toLocaleString() : '—'}
                 </td>
-                <td className="px-3 py-2 font-mono text-[#8a8a8a]">{v.action}</td>
+                <td className="px-3 py-2 font-mono text-ink-sub">{v.action}</td>
               </tr>
             ))}
           </tbody>
@@ -139,23 +139,23 @@ export default function AdminUsagePage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-display font-bold tracking-tight text-[#f5f5f5]">
+          <h1 className="text-2xl font-display font-bold tracking-tight text-ink">
             Admin · Cross-Tenant Usage
           </h1>
-          <p className="text-sm text-[#8a8a8a] mt-1">
+          <p className="text-sm text-ink-sub mt-1">
             Per-org usage, quota status, and overage alert history for the current billing period.
           </p>
         </div>
         {data?.totals ? (
           <div className="flex items-center gap-4 text-xs font-mono">
-            <span className="text-[#8a8a8a]">
-              Orgs: <span className="text-[#f5f5f5]">{data.totals.orgs}</span>
+            <span className="text-ink-sub">
+              Orgs: <span className="text-ink">{data.totals.orgs}</span>
             </span>
-            <span className="text-[#8a8a8a]">
-              Over: <span className="text-[#b85450]">{data.totals.overageCount}</span>
+            <span className="text-ink-sub">
+              Over: <span className="text-ink-bad">{data.totals.overageCount}</span>
             </span>
-            <span className="text-[#8a8a8a]">
-              Warn: <span className="text-[#d4a853]">{data.totals.warnCount}</span>
+            <span className="text-ink-sub">
+              Warn: <span className="text-ink-warn">{data.totals.warnCount}</span>
             </span>
           </div>
         ) : null}
@@ -171,7 +171,7 @@ export default function AdminUsagePage() {
         <select
           value={plan}
           onChange={(e) => setPlan(e.target.value)}
-          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm text-[#f5f5f5]"
+          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm text-ink"
         >
           <option value="">All plans</option>
           <option value="free">Free</option>
@@ -182,15 +182,15 @@ export default function AdminUsagePage() {
       </div>
 
       {error ? (
-        <div className="flex items-center gap-2 p-4 rounded-md border border-[#b85450]/30 bg-[#b85450]/5 text-sm text-[#b85450]">
+        <div className="flex items-center gap-2 p-4 rounded-md border border-error/30 bg-error/5 text-sm text-ink-bad">
           <AlertTriangle className="w-4 h-4" />
           Failed to load usage data: {(error as Error).message}
         </div>
       ) : null}
 
-      <div className="border border-[rgba(255,255,255,0.06)] rounded-lg overflow-hidden">
+      <div className="border border-line-subtle rounded-lg overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-[#111] text-[11px] uppercase tracking-widest text-[#8a8a8a]">
+          <thead className="bg-ground-deep text-[11px] uppercase tracking-widest text-ink-sub">
             <tr>
               <th className="w-8 px-2 py-3" />
               <th className="text-left px-4 py-3 font-medium">Org</th>
@@ -205,13 +205,13 @@ export default function AdminUsagePage() {
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={8} className="text-center py-8 text-[#8a8a8a] text-xs">
+                <td colSpan={8} className="text-center py-8 text-ink-sub text-xs">
                   Loading…
                 </td>
               </tr>
             ) : data?.rows.length === 0 ? (
               <tr>
-                <td colSpan={8} className="text-center py-8 text-[#8a8a8a] text-xs">
+                <td colSpan={8} className="text-center py-8 text-ink-sub text-xs">
                   No orgs match the current filters.
                 </td>
               </tr>
@@ -221,15 +221,15 @@ export default function AdminUsagePage() {
                 return (
                   <React.Fragment key={row.orgId}>
                     <tr
-                      className="border-t border-[rgba(255,255,255,0.04)] hover:bg-[#111] cursor-pointer"
+                      className="border-t border-line-subtle hover:bg-wash/7 cursor-pointer"
                       onClick={() => setExpandedOrg(isExpanded ? null : row.orgId)}
                     >
-                      <td className="px-2 py-3 text-[#8a8a8a]">
+                      <td className="px-2 py-3 text-ink-sub">
                         <button
                           type="button"
                           aria-label={isExpanded ? 'Hide quota violations' : 'Show quota violations'}
                           aria-expanded={isExpanded}
-                          className="flex items-center justify-center w-6 h-6 rounded hover:bg-[rgba(255,255,255,0.06)]"
+                          className="flex items-center justify-center w-6 h-6 rounded hover:bg-wash/7"
                           onClick={(e) => {
                             e.stopPropagation();
                             setExpandedOrg(isExpanded ? null : row.orgId);
@@ -243,15 +243,15 @@ export default function AdminUsagePage() {
                         </button>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="font-medium text-[#f5f5f5]">{row.orgName}</div>
-                        <div className="text-[11px] font-mono text-[#666]">{row.orgSlug}</div>
+                        <div className="font-medium text-ink">{row.orgName}</div>
+                        <div className="text-[11px] font-mono text-ink-sub">{row.orgSlug}</div>
                       </td>
-                      <td className="px-4 py-3 text-[#c9b787] text-xs font-mono uppercase">{row.plan}</td>
-                      <td className="px-4 py-3 text-right font-mono text-[#f5f5f5]">
+                      <td className="px-4 py-3 text-ink text-xs font-mono uppercase">{row.plan}</td>
+                      <td className="px-4 py-3 text-right font-mono text-ink">
                         {row.apiCalls.toLocaleString()}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono text-[#f5f5f5]">{row.members}</td>
-                      <td className="px-4 py-3 text-right font-mono text-[#f5f5f5]">
+                      <td className="px-4 py-3 text-right font-mono text-ink">{row.members}</td>
+                      <td className="px-4 py-3 text-right font-mono text-ink">
                         {row.storageMB.toLocaleString()}
                       </td>
                       <td className="px-4 py-3">
@@ -269,7 +269,7 @@ export default function AdminUsagePage() {
                       </td>
                     </tr>
                     {isExpanded ? (
-                      <tr className="bg-[#0a0a0a] border-t border-[rgba(255,255,255,0.04)]">
+                      <tr className="bg-ground border-t border-line-subtle">
                         <td colSpan={8} className="p-0">
                           <QuotaViolationsPanel orgId={row.orgId} />
                         </td>

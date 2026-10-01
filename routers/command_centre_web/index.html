@@ -1,0 +1,70 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0
+(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SZL Atelier · Command centre</title>
+  <meta name="description" content="One product entry point for governed work, existing SZL runtime tools, canonical source and publication evidence.">
+  <link rel="canonical" href="https://a-11-oy.com/command-centre">
+  <link rel="stylesheet" href="/command-centre/szl/szl-design-system.css">
+  <link rel="stylesheet" href="/command-centre/szl/szl-console.css">
+  <link rel="stylesheet" href="/command-centre/style.css">
+  <script src="/command-centre/app.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#work">Skip to work</a>
+  <div class="shell">
+    <aside class="rail">
+      <a class="identity" href="/">SZL<span>Atelier</span></a>
+      <p class="eyebrow">Command centre</p>
+      <nav aria-label="Command centre">
+        <a href="#work">01 · Work</a>
+        <a href="#operate">02 · Operate</a>
+        <a href="#verify">03 · Verify</a>
+        <a href="#artifacts">04 · Artifacts</a>
+        <a href="#study">05 · Study</a>
+      </nav>
+      <div class="rail-foot"><p>One fabric.<br>Explicit authorities.</p><a href="https://a11oy.net">Open proof room ↗</a></div>
+    </aside>
+    <main>
+      <header class="masthead">
+        <div><p class="eyebrow">a-11-oy.com · operator workspace</p><h1>Your work. One centre.</h1><p class="lede">Governed conversation, existing tools, and the evidence behind them.</p></div>
+        <button id="refresh" class="secondary" type="button">Refresh status</button>
+      </header>
+      <section class="status-grid" aria-label="Observed runtime status">
+        <article><p class="eyebrow">Python source</p><p id="source-state">Not observed yet</p><code id="source-sha">—</code><a href="https://github.com/szl-holdings/a11oy">Canonical GitHub ↗</a></article>
+        <article><p class="eyebrow">Grok connection</p><p id="grok-state">Not observed yet</p><small id="grok-detail">Configuration is not successful inference.</small></article>
+        <article><p class="eyebrow">HF inventory</p><p id="inventory-state">Not observed yet</p><small id="inventory-detail">Public snapshot, not qualification.</small></article>
+      </section>
+      <section id="work" class="work panel">
+        <div class="section-head"><div><p class="eyebrow">01 · Work</p><h2>Think with Atelier.</h2></div><span class="label">External provider · bounded single turn</span></div>
+        <p class="muted">Grok 4.7 supplies text. SZL controls authentication, policy checks and signed receipts. No tools run here. No server-side conversation history is retained.</p>
+        <form id="turn-form">
+          <label for="operator-key">Atelier operator credential</label>
+          <div class="key-row"><input id="operator-key" type="password" autocomplete="off" spellcheck="false" placeholder="Operator credential, not your xAI API key"><button id="forget-key" type="button" class="secondary">Forget</button></div>
+          <small>Held only in this page’s memory; never saved to browser storage. The provider key stays on the server.</small>
+          <label for="prompt">What are we working on?</label>
+          <textarea id="prompt" rows="6" maxlength="32000" required placeholder="Describe one task or ask one question. Do not include secrets or restricted information."></textarea>
+          <div class="controls">
+            <label>Model<select id="model"><option value="grok-4.7">Grok 4.7</option><option value="grok-4.6">Grok 4.6 · explicit rollback</option></select></label>
+            <label>Reasoning<select id="effort"><option>low</option><option>medium</option><option selected>high</option><option>xhigh</option></select></label>
+            <label>Data classification<select id="classification"><option>PUBLIC</option><option>INTERNAL</option><option>RESTRICTED</option><option>SECRET</option></select></label>
+            <button id="send" type="submit">Send governed request</button>
+          </div>
+        </form>
+        <p id="turn-status" role="status" aria-live="polite">No request has been sent. Restricted and secret data cannot leave for Grok.</p>
+        <div id="answer" class="answer" aria-label="Final assistant answer" hidden></div>
+        <details id="receipt-panel" hidden><summary>Inspect outcome and receipt</summary><pre id="receipt"></pre></details>
+        <p class="fine">No automatic retries. A timeout can leave provider execution uncertain; check the outcome before sending another request. Encrypted provider reasoning is not displayed or replayed. Energy is UNAVAILABLE without a measured exporter delta.</p>
+      </section>
+      <section id="operate"><div class="section-head"><div><p class="eyebrow">02 · Operate</p><h2>Existing tools, connected.</h2></div><span class="label">Navigation is not action authorization</span></div><div id="operate-links" class="link-grid"></div></section>
+      <section id="verify"><div class="section-head"><div><p class="eyebrow">03 · Verify</p><h2>Follow the source.</h2></div></div><ol class="release-order"><li>Protected GitHub Python source</li><li>Canonical Hugging Face publication</li><li>Product and proof verification</li></ol><div id="verify-links" class="link-grid"></div><p class="fine">The source reported by this process must be checked against protected GitHub main and the publisher’s byte-attestation receipt. A running Space or HTTP 200 does not prove inference.</p></section>
+      <section id="artifacts"><div class="section-head"><div><p class="eyebrow">04 · Artifacts</p><h2>The SZL estate.</h2></div></div><div id="artifact-links" class="link-grid"></div><p class="fine">Existing models, kernels, Spaces and datasets keep their own source bindings. This integration creates no SZL-owned Grok weights or training dataset.</p></section>
+      <section id="study"><div class="section-head"><div><p class="eyebrow">05 · Study</p><h2>Study widely. Build independently.</h2></div><span class="label">Research intake · not deployment admission</span></div><p id="study-summary" class="muted">Research snapshot not observed yet.</p><div id="study-models" class="link-grid"></div><p class="fine">Popularity is not quality. Provider listings are not successful inference. Declared card licenses still need version-specific review. We study cited public work, implement our own interfaces and mathematics, and require held-out evidence before claiming an improvement. Muse identity remains unconfirmed; Jev is advisory, never permission to act.</p><a href="/api/a11oy/v1/command-centre/study">Inspect the full pinned intake and evaluation protocol ↗</a></section>
+      <footer>Doctrine v11 · 8 locked-proven formulas · Λ is Conjecture 1, advisory.<br><a href="/atelier">Model walk</a> · <a href="/atelier/frontier">Research workbench</a> · <a href="https://a11oy.net">Proof room</a></footer>
+    </main>
+  </div>
+</body>
+</html>

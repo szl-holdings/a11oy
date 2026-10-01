@@ -12,63 +12,89 @@ import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
 
 import sys
-from pathlib import Path
+from typing import Any
 
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPOSITORY_ROOT))
 
-import szl_dsse
+_SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+
+import hf_live_proof_bounds as bounds  # noqa: E402
+from hf_live_proof_bounds import ProofBoundaryError  # noqa: E402
 
 
-# Statuses that describe a runtime that is not ready to answer *yet* rather
-# than a runtime that answered with a contract violation. A freshly deployed
-# docker Space is still booting (502/503/504), and the GDW successor rejects
-# admission with 429 while an owner/global ceiling is momentarily saturated and
-# the outbox drain / retention compactor has not yet released the slots.
-# Every one of these is a capacity or readiness condition, never an integrity
-# verdict: integrity verdicts arrive as HTTP 200 bodies (or as 4xx contract
-# errors) and are still asserted, unretried, by the callers below.
-_TRANSIENT_HTTP_STATUSES = frozenset({408, 425, 429, 502, 503, 504})
-_REQUEST_ATTEMPTS = 6
+# Transient admission only: a booting Space (502/503/504) or a momentarily
+# saturated GDW admission ceiling / pending drain (429, and the 503 the runtime
+# returns while write admission is pending). Every other status, transport
+# error or malformed body fails closed on the first response. Integrity
+# verdicts arrive as HTTP 200 bodies and are asserted, unretried, below.
+_TRANSIENT_HTTP_STATUSES = bounds.TRANSIENT_HTTP_STATUSES
+_REQUEST_ATTEMPTS = bounds.MAX_ATTEMPTS
 # Calls made from inside a convergence loop already have an outer retry
 # budget, so they only absorb a single hiccup and let the loop re-poll.
 _POLL_ATTEMPTS = 2
-_REQUEST_BACKOFF_SECONDS = 2.0
-_REQUEST_BACKOFF_CAP_SECONDS = 30.0
-_RETRY_AFTER_CAP_SECONDS = 60.0
+# Proof-wide deadline (drain convergence + write + receipt verification).
+DEFAULT_DEADLINE_SECONDS = bounds.RETRY_WINDOW_SECONDS
+MAX_DEADLINE_SECONDS = bounds.RETRY_WINDOW_SECONDS
+# Effect scope: every GDW call stays under the a11oy namespace prefix, and
+# writes are limited to these three reviewed routes.
+GDW_PREFIX = "/api/a11oy/v1/gdw/"
+_READ_PATHS = ("/api/build-info",)
+_WRITE_PATHS = (
+    GDW_PREFIX + "step",
+    GDW_PREFIX + "drain",
+    GDW_PREFIX + "recovery/transient-effects",
+)
+_TRANSPORT: bounds.BoundedTransport | None = None
 
 
-class TransientRequestError(RuntimeError):
+class TransientRequestError(ProofBoundaryError):
     """A readiness/capacity condition that survived the whole retry budget."""
 
-
-def _retry_after_seconds(headers) -> float | None:
-    try:
-        raw = headers.get("Retry-After") if headers is not None else None
-    except AttributeError:
-        raw = None
-    if raw is None:
-        return None
-    try:
-        seconds = float(str(raw).strip())
-    except (TypeError, ValueError):
-        return None
-    if seconds < 0:
-        return None
-    return min(seconds, _RETRY_AFTER_CAP_SECONDS)
+    def __init__(self, *, http_status: int | None = None) -> None:
+        super().__init__("TRANSIENT_RETRY_EXHAUSTED", http_status=http_status)
 
 
-def _backoff_seconds(attempt: int) -> float:
-    return min(
-        _REQUEST_BACKOFF_CAP_SECONDS,
-        _REQUEST_BACKOFF_SECONDS * (2 ** (attempt - 1)),
-    )
+def configure_transport(transport: bounds.BoundedTransport | None) -> None:
+    """Bind the proof-wide transport (and its shared deadline)."""
+
+    global _TRANSPORT
+    _TRANSPORT = transport
+
+
+def _transport() -> bounds.BoundedTransport:
+    return _TRANSPORT if _TRANSPORT is not None else bounds.BoundedTransport()
+
+
+def _sleep(seconds: float) -> None:
+    if _TRANSPORT is not None:
+        _TRANSPORT.sleep(seconds)
+    else:
+        time.sleep(seconds)
+
+
+def _reraise_hard(error: BaseException) -> None:
+    if bounds.is_hard_failure(error):
+        raise error
+
+
+def _check_gdw_scope(method: str, url: str) -> None:
+    bounds.check_destination(url)
+    path = url.split("://", 1)[-1].split("/", 1)[-1]
+    path = "/" + path.split("?", 1)[0]
+    if not url.startswith(bounds.CANONICAL_ORIGIN + "/"):
+        raise ProofBoundaryError("DESTINATION_REJECTED")
+    if method == "POST":
+        if path not in _WRITE_PATHS:
+            raise ProofBoundaryError("EFFECT_SCOPE_REJECTED")
+    elif not (path in _READ_PATHS or path.startswith(GDW_PREFIX)):
+        raise ProofBoundaryError("NAMESPACE_SCOPE_REJECTED")
 
 
 def request_json(
@@ -79,55 +105,29 @@ def request_json(
     attempts: int = _REQUEST_ATTEMPTS,
     **kwargs,
 ):
-    """Perform one JSON call, retrying only readiness/capacity conditions.
+    """Perform one bounded JSON call, retrying only transient admission.
 
-    Mutating calls in this proof carry an ``X-Request-Id`` idempotency key, so
-    a retried POST is replayed by the runtime instead of duplicated. Any
-    non-transient status (contract, authorization, lifecycle, or fail-closed
-    500 responses) is raised immediately and unchanged.
+    Mutating calls in this proof carry an ``X-Request-Id`` / ``Idempotency-Key``
+    so a retried POST is replayed by the runtime instead of duplicated. The
+    destination, namespace and write route are checked before any network
+    access; redirects are refused; provider bodies are never read on error.
     """
 
     headers = dict(kwargs.pop("headers", {}))
     payload = kwargs.pop("json", None)
     if kwargs:
         raise TypeError("unsupported request options")
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    data = None
-    if payload is not None:
-        data = json.dumps(payload).encode("utf-8")
-        headers["Content-Type"] = "application/json"
-    budget = max(1, int(attempts))
-    last_transient = ""
-    for attempt in range(1, budget + 1):
-        request = Request(
-            url,
-            data=data,
-            headers=headers,
-            method=method,
+    _check_gdw_scope(method, url)
+    try:
+        _status, value = _transport().request(
+            method, url, token=token, headers=headers, json_body=payload,
+            attempts=attempts,
         )
-        try:
-            with urlopen(request, timeout=30) as response:
-                return json.loads(response.read().decode("utf-8"))
-        except HTTPError as exc:
-            response_body = exc.read().decode("utf-8", errors="replace")
-            detail = f"HTTP {exc.code} {method} {url}: {response_body[:2048]}"
-            if exc.code not in _TRANSIENT_HTTP_STATUSES:
-                raise RuntimeError(detail) from exc
-            last_transient = detail
-            delay = _retry_after_seconds(getattr(exc, "headers", None))
-        except (URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
-            last_transient = (
-                f"{type(exc).__name__} {method} {url}"
-            )
-            delay = None
-        if attempt >= budget:
-            break
-        time.sleep(delay if delay is not None else _backoff_seconds(attempt))
-    raise TransientRequestError(
-        f"transient condition persisted across {budget} attempts: "
-        f"{last_transient}"
-    )
+    except ProofBoundaryError as exc:
+        if exc.code == "TRANSIENT_RETRY_EXHAUSTED":
+            raise TransientRequestError(http_status=exc.http_status) from None
+        raise
+    return value
 
 
 def _canonical_hash(value) -> str:
@@ -282,6 +282,21 @@ def _new_recovery_evidence() -> dict:
     }
 
 
+PROOF_RECOVERY_PREFIX = "gdw-proof"
+
+
+def _pinned_key_der() -> bytes:
+    """DER of ``ayllu/keys/council-runtime-2026-07-21.pub`` (fingerprint-checked)."""
+
+    return bounds._load_pinned_key_der(bounds.REPO_ROOT)
+
+
+def _verify_signed_envelope(envelope) -> dict:
+    return bounds.verify_envelope_against_pinned_key(
+        envelope, public_key_der=_pinned_key_der()
+    )
+
+
 def _recover_transient_effects(
     *,
     base: str,
@@ -289,11 +304,14 @@ def _recover_transient_effects(
     source_sha: str,
     database_generation_id: str,
     evidence: dict,
+    recovery_prefix: str = "gdw-recovery",
 ) -> dict:
+    if recovery_prefix not in {"gdw-recovery", PROOF_RECOVERY_PREFIX}:
+        raise ProofBoundaryError("EFFECT_SCOPE_REJECTED")
     call_number = evidence["calls"] + 1
     evidence["calls"] = call_number
     recovery_id = (
-        f"gdw-recovery-{source_sha[:12]}-"
+        f"{recovery_prefix}-{source_sha[:12]}-"
         f"{database_generation_id[:12]}-{call_number}"
     )
     report = request_json(
@@ -579,9 +597,22 @@ def _recover_transient_effects(
         envelope.get("signed") if type(envelope) is dict else None
     )
     signatures = envelope.get("signatures") if type(envelope) is dict else None
+    # A signed receipt is accepted only when its signature verifies against
+    # the pinned runtime key; no other trusted-key source is consulted.
+    try:
+        pinned_verification = (
+            _verify_signed_envelope(envelope)
+            if envelope_signed is True and type(envelope) is dict
+            else {}
+        )
+    except ProofBoundaryError:
+        pinned_verification = {}
     signature_verification = (
-        szl_dsse.verify_envelope(envelope)
-        if envelope_signed is True and type(envelope) is dict
+        {
+            "verified": pinned_verification.get("signature_verified") is True,
+            "payloadType": envelope.get("payloadType"),
+        }
+        if pinned_verification
         else {}
     )
     dsse_status_ok = (
@@ -592,7 +623,7 @@ def _recover_transient_effects(
             and len(signatures) == 1
             and signature_verification.get("verified") is True
             and signature_verification.get("payloadType")
-            == szl_dsse.KHIPU_PAYLOAD_TYPE
+            == bounds.KHIPU_PAYLOAD_TYPE
         )
         or (
             envelope_signed is False
@@ -772,6 +803,7 @@ def _prove_drain_convergence(
             else "INITIAL_DRAIN_INCOMPLETE"
         )
     except Exception as exc:
+        _reraise_hard(exc)
         last_error = f"INITIAL_DRAIN_{type(exc).__name__}"
 
     for _attempt in range(1, attempts + 1):
@@ -812,7 +844,7 @@ def _prove_drain_convergence(
                     stable_samples = 0
                     last_supervisor_success = None
                     last_error = "TRANSIENT_EFFECTS_RESCHEDULED"
-                    time.sleep(delay_seconds)
+                    _sleep(delay_seconds)
                     continue
             supervisor_success = str(
                 (
@@ -833,17 +865,17 @@ def _prove_drain_convergence(
                 stable_samples = 0
                 last_supervisor_success = None
                 last_error = "SUPERVISOR_NOT_QUIESCENT"
-                time.sleep(delay_seconds)
+                _sleep(delay_seconds)
                 continue
             if supervisor_success == last_supervisor_success:
                 last_error = "AWAITING_SUCCESSIVE_SUPERVISOR_COMPLETION"
-                time.sleep(delay_seconds)
+                _sleep(delay_seconds)
                 continue
             last_supervisor_success = supervisor_success
             stable_samples += 1
             if stable_samples < required_stable_samples:
                 last_error = "AWAITING_STABLE_SUPERVISOR_SAMPLES"
-                time.sleep(delay_seconds)
+                _sleep(delay_seconds)
                 continue
 
             confirmed_drain = request_json(
@@ -873,10 +905,11 @@ def _prove_drain_convergence(
             stable_samples = 0
             last_supervisor_success = None
         except Exception as exc:
+            _reraise_hard(exc)
             last_error = f"CONVERGENCE_{type(exc).__name__}"
             stable_samples = 0
             last_supervisor_success = None
-        time.sleep(delay_seconds)
+        _sleep(delay_seconds)
 
     safe_state = _safe_convergence_state(
         reason=last_error,
@@ -913,7 +946,14 @@ def prove_restart(
     attempts: int = 120,
     delay_seconds: float = 5,
 ) -> dict:
-    """Restart the Space and prove GDW state and artifacts survived."""
+    """Restart the Space and prove GDW state and artifacts survived.
+
+    Library-only (the admitted CLI never restarts from the GDW proof); still
+    scoped to exactly ``SZLHOLDINGS/a11oy`` and the canonical origin.
+    """
+
+    bounds.require_canonical_space(repo_id)
+    bounds.require_canonical_origin(base)
 
     if (
         not session_id
@@ -967,7 +1007,7 @@ def prove_restart(
     restart = api.restart_space(repo_id=repo_id, factory_reboot=False)
     stage = getattr(getattr(restart, "runtime", None), "stage", None)
     stage = getattr(stage, "value", stage)
-    time.sleep(max(10, delay_seconds))
+    _sleep(max(10, delay_seconds))
 
     after_health = None
     last_error = "NOT_OBSERVED"
@@ -997,8 +1037,9 @@ def prove_restart(
                 break
             last_error = "RESTART_IDENTITY_NOT_CHANGED"
         except Exception as exc:
+            _reraise_hard(exc)
             last_error = type(exc).__name__
-        time.sleep(delay_seconds)
+        _sleep(delay_seconds)
     if after_health is None:
         raise RuntimeError(
             f"GDW restart was not observed: {last_error}"
@@ -1069,12 +1110,66 @@ def prove_restart(
     }
 
 
-def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
+def prove_signed_receipt(
+    *,
+    base: str,
+    operator_token: str,
+    source_sha: str,
+    database_generation_id: str,
+    recovery_evidence: dict,
+) -> dict:
+    """Write one proof-tagged audit record and verify its pinned signature.
+
+    The only GDW write that yields a DSSE-signed record is the governed
+    transient-effect recovery audit. After drain convergence it is issued
+    once with a ``gdw-proof-`` idempotency key (so a retry replays instead of
+    duplicating), must be written in namespace ``a11oy``, must be
+    ``SIGNED_KHIPU_DSSE``, and its signature must verify against
+    ``ayllu/keys/council-runtime-2026-07-21.pub``. Unsigned or mismatched
+    receipts fail closed (``RECEIPT_UNSIGNED`` / ``RECEIPT_SIGNATURE_INVALID``).
+    """
+
+    report = _recover_transient_effects(
+        base=base,
+        operator_token=operator_token,
+        source_sha=source_sha,
+        database_generation_id=database_generation_id,
+        evidence=recovery_evidence,
+        recovery_prefix=PROOF_RECOVERY_PREFIX,
+    )
+    receipt = report.get("audit_receipt") or {}
+    operator = receipt.get("operator") or {}
+    if operator.get("namespace") != bounds.GDW_NAMESPACE:
+        raise ProofBoundaryError("NAMESPACE_SCOPE_REJECTED")
+    if receipt.get("receipt_status") != "SIGNED_KHIPU_DSSE":
+        raise ProofBoundaryError("RECEIPT_UNSIGNED")
+    verification = _verify_signed_envelope(receipt.get("dsse_envelope"))
+    return {
+        "recovery_id": receipt.get("recovery_id"),
+        "status": report.get("status"),
+        "namespace": operator.get("namespace"),
+        "owner_id": operator.get("owner_id"),
+        "receipt_status": receipt.get("receipt_status"),
+        "receipt_sha256": receipt.get("receipt_sha256"),
+        "chain_sha256": receipt.get("chain_sha256"),
+        "sequence": receipt.get("sequence"),
+        **verification,
+    }
+
+
+def prove(
+    *,
+    origin: str,
+    source_sha: str,
+    operator_token: str,
+    require_signed_receipt: bool = True,
+) -> dict:
     if len(source_sha) != 40 or any(ch not in "0123456789abcdef" for ch in source_sha):
-        raise RuntimeError("source SHA must be canonical lowercase hexadecimal")
+        raise ProofBoundaryError("INVALID_ARGUMENTS")
     if len(operator_token.encode("utf-8")) < 32:
-        raise RuntimeError("GDW_OPERATOR_TOKEN is unavailable")
-    base = origin.rstrip("/")
+        raise ProofBoundaryError("SETUP_REQUIRED")
+    # Destination: exactly the canonical Space origin, compared exactly.
+    base = bounds.require_canonical_origin(origin)
     health = None
     deployed_revision = ""
     last_error = None
@@ -1091,7 +1186,7 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
             ).lower()
             if deployed_revision != source_sha:
                 last_error = "SOURCE_REVISION_MISMATCH"
-                time.sleep(5)
+                _sleep(5)
                 continue
             try:
                 candidate = request_json(
@@ -1099,7 +1194,8 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
                     f"{base}/api/a11oy/v1/gdw/healthz",
                     attempts=_POLL_ATTEMPTS,
                 )
-            except Exception:
+            except Exception as health_exc:  # noqa: BLE001
+                _reraise_hard(health_exc)
                 candidate = {}
             candidate_global = request_json(
                 "GET",
@@ -1119,7 +1215,7 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
                 health_generation_id != candidate_generation_id
             ):
                 last_error = "DATABASE_GENERATION_MISMATCH"
-                time.sleep(5)
+                _sleep(5)
                 continue
             if (
                 candidate.get("status") == "REAL"
@@ -1170,8 +1266,9 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
                     sort_keys=True,
                 )
         except Exception as exc:
+            _reraise_hard(exc)
             last_error = type(exc).__name__
-        time.sleep(5)
+        _sleep(5)
     if health is None:
         raise RuntimeError(f"GDW health did not converge: {last_error}")
 
@@ -1242,6 +1339,20 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
         .get("database_generation_id")
     ):
         raise RuntimeError("GDW live persistence contract failed")
+    # Effect scope: the written session must live in the a11oy namespace.
+    if "namespace" in session and session.get("namespace") != bounds.GDW_NAMESPACE:
+        raise ProofBoundaryError("NAMESPACE_SCOPE_REJECTED")
+    signed_receipt = None
+    if require_signed_receipt:
+        if session.get("namespace") != bounds.GDW_NAMESPACE:
+            raise ProofBoundaryError("NAMESPACE_SCOPE_REJECTED")
+        signed_receipt = prove_signed_receipt(
+            base=base,
+            operator_token=operator_token,
+            source_sha=source_sha,
+            database_generation_id=database_generation_id,
+            recovery_evidence=recovery_evidence,
+        )
 
     return {
         "schema": "szl.hf-gdw-live-proof/v1",
@@ -1274,6 +1385,8 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
             ],
         },
         "transient_recovery": recovery_evidence,
+        "namespace": session.get("namespace"),
+        "signed_receipt": signed_receipt,
         "integrity": {
             "ok": True,
             "journal_mode": integrity["journal_mode"],
@@ -1292,39 +1405,108 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
     }
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--origin", required=True)
-    parser.add_argument("--source-sha", required=True)
-    parser.add_argument("--output")
-    parser.add_argument("--restart-repo-id")
-    args = parser.parse_args()
-    report = prove(
-        origin=args.origin,
-        source_sha=args.source_sha,
-        operator_token=os.environ.get("GDW_OPERATOR_TOKEN", ""),
-    )
-    if args.restart_repo_id:
-        hf_token = os.environ.get("HF_TOKEN", "")
-        if not hf_token:
-            raise RuntimeError("HF_TOKEN is unavailable for restart proof")
-        from huggingface_hub import HfApi
+SCHEMA = "szl.hf-gdw-live-proof/v1"
+# The only credential this proof reads (the existing hf-sync secret name).
+GDW_TOKEN_NAME = "GDW_OPERATOR_TOKEN"
+MAX_REPORT_BYTES = 12 * 1024
 
-        report["restart"] = prove_restart(
-            api=HfApi(token=hf_token),
-            repo_id=args.restart_repo_id,
-            base=args.origin.rstrip("/"),
-            source_sha=args.source_sha,
-            operator_token=os.environ.get("GDW_OPERATOR_TOKEN", ""),
-            session_id=report["transition"]["session_id"],
+
+def _summary(result: dict) -> dict:
+    health = result.get("health") or {}
+    storage = (health.get("persistence") or {}).get("storage") or {}
+    return bounds.bounded_report({
+        "runtime_source_revision": result.get("runtime_source_revision"),
+        "database_generation_id": storage.get("database_generation_id"),
+        "namespace": result.get("namespace"),
+        "transition": result.get("transition"),
+        "drain": {
+            key: (result.get("drain") or {}).get(key)
+            for key in ("failed", "pending_effects", "legacy_pending_proofs",
+                        "integrity_ok", "database_generation_id")
+        },
+        "global_integrity": result.get("global_integrity"),
+        "integrity": result.get("integrity"),
+        "transient_recovery": {
+            key: (result.get("transient_recovery") or {}).get(key)
+            for key in ("calls", "applied_rounds", "rescheduled_effects",
+                        "replayed_calls", "last_status")
+        },
+        "signed_receipt": result.get("signed_receipt"),
+    })
+
+
+def _report(*, source: str, status: str, code: str, evidence: dict,
+            missing: list | None = None, deadline_seconds: int | None = None) -> dict:
+    report = {
+        "schema": SCHEMA,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "status": status,
+        "ok": status == "PASS",
+        "state": "PROVEN" if status == "PASS" else (
+            "SETUP_REQUIRED" if code == "SETUP_REQUIRED" else "FAILED"),
+        "diagnostic_code": code,
+        "repo_id": bounds.CANONICAL_SPACE,
+        "origin": bounds.CANONICAL_ORIGIN,
+        "namespace": bounds.GDW_NAMESPACE,
+        "source_revision": source if re.fullmatch(r"[0-9a-f]{40}", source) else "UNVALIDATED",
+        "evidence": evidence,
+        "credential_authority_state": "VERIFIED" if status == "PASS" else "UNKNOWN",
+        "credential_values_recorded": False,
+    }
+    if missing is not None:
+        report["missing_secret_names"] = list(missing)
+    if deadline_seconds is not None:
+        report["bounds"] = bounds.bounds_record(deadline_seconds=deadline_seconds)
+    return report
+
+
+def main(argv: list | None = None, *, transport_factory: Any = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Bounded live GDW write, drain, and pinned-receipt proof (a11oy namespace only)."
+    )
+    parser.add_argument("--origin", default=bounds.CANONICAL_ORIGIN)
+    parser.add_argument("--source-sha", required=True)
+    parser.add_argument("--output", required=True)
+    parser.add_argument("--deadline-seconds", type=int, default=DEFAULT_DEADLINE_SECONDS)
+    args = parser.parse_args(argv)
+    source = str(args.source_sha or "").strip().lower()
+    token = ""
+    deadline_seconds = min(max(1, int(args.deadline_seconds)), MAX_DEADLINE_SECONDS)
+    try:
+        if re.fullmatch(r"[0-9a-f]{40}", source) is None:
+            raise ProofBoundaryError("INVALID_ARGUMENTS")
+        bounds.require_canonical_origin(args.origin)
+        token = os.environ.get(GDW_TOKEN_NAME, "")
+        if len(token.strip().encode("utf-8")) < 32:
+            report = _report(source=source, status="FAIL", code="SETUP_REQUIRED",
+                             evidence={}, missing=[GDW_TOKEN_NAME])
+            token = ""
+            code = 1
+        else:
+            make_transport = transport_factory or bounds.BoundedTransport
+            configure_transport(make_transport(deadline_seconds=deadline_seconds))
+            result = prove(origin=bounds.CANONICAL_ORIGIN, source_sha=source,
+                           operator_token=token, require_signed_receipt=True)
+            report = _report(source=source, status="PASS", code="LIVE_PROOF_PASSED",
+                             evidence=_summary(result), deadline_seconds=deadline_seconds)
+            code = 0
+    except Exception as exc:  # noqa: BLE001 - every failure is a fixed code
+        report = _report(
+            source=source, status="FAIL",
+            code=bounds.diagnostic_code(exc, "GDW_CONTRACT_FAILED"),
+            evidence={}, deadline_seconds=deadline_seconds,
         )
-    encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"
-    if args.output:
-        output = Path(args.output)
-        output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(encoded, encoding="utf-8")
+        code = 1
+    finally:
+        configure_transport(None)
+    encoded = json.dumps(report, sort_keys=True)
+    if (token and token in encoded) or len(encoded.encode("utf-8")) > MAX_REPORT_BYTES:
+        report = _report(source=source, status="FAIL", code="UNEXPECTED_FAILURE", evidence={})
+        code = 1
+    output = Path(args.output)
+    encoded = bounds.write_json(output, report)
     print(encoded, end="")
-    return 0
+    return code
 
 
 if __name__ == "__main__":

@@ -207,7 +207,7 @@ export default function PolicyDslPage() {
         title="Policy-as-Code DSL"
         blurb="A small A11oy-native policy language for expressing activation governance rules. Visual rule-builder for non-technical operators. Version history and Sentra-anchored audit. Evaluated against next sync before any byte moves."
         trailing={
-          <Link href="/innovation" className="flex items-center gap-1.5 text-[11px] text-[#c9b787] hover:underline">
+          <Link href="/innovation" className="flex items-center gap-1.5 text-[11px] text-link hover:underline">
             <ArrowLeft className="w-3 h-3" /> Innovation Brief
           </Link>
         }
@@ -222,14 +222,14 @@ export default function PolicyDslPage() {
 
       <div className="flex items-center justify-between mb-4">
         <div className="flex gap-2">
-          <button onClick={() => setMode('dsl')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-mono border transition-all ${mode === 'dsl' ? 'border-[#c9b787] text-[#c9b787] bg-[rgba(201,183,135,0.08)]' : 'border-[rgba(255,255,255,0.08)] text-[#666]'}`}>
+          <button onClick={() => setMode('dsl')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-mono border transition-all ${mode === 'dsl' ? 'border-ink-sub text-ink bg-wash/8' : 'border-line text-ink-sub'}`}>
             <Code className="w-3.5 h-3.5" /> DSL Editor
           </button>
-          <button onClick={() => setMode('visual')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-mono border transition-all ${mode === 'visual' ? 'border-[#c9b787] text-[#c9b787] bg-[rgba(201,183,135,0.08)]' : 'border-[rgba(255,255,255,0.08)] text-[#666]'}`}>
+          <button onClick={() => setMode('visual')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-mono border transition-all ${mode === 'visual' ? 'border-ink-sub text-ink bg-wash/8' : 'border-line text-ink-sub'}`}>
             <LayoutGrid className="w-3.5 h-3.5" /> Visual Builder
           </button>
         </div>
-        <button onClick={() => setShowHistory(!showHistory)} className="flex items-center gap-1.5 text-[11px] text-[#666] hover:text-[#c9b787] transition-colors">
+        <button onClick={() => setShowHistory(!showHistory)} className="flex items-center gap-1.5 text-[11px] text-ink-sub hover:text-ink transition-colors">
           <History className="w-3.5 h-3.5" /> Version history ({versions.length})
         </button>
       </div>
@@ -238,12 +238,12 @@ export default function PolicyDslPage() {
         <FabricCard title="VERSION HISTORY" className="mb-4 animate-scale-in">
           <div className="space-y-2">
             {[...versions].reverse().map((v) => (
-              <div key={v.version} className="flex items-center justify-between p-2 rounded text-[12px]" style={{ background: '#0e0e0e' }}>
+              <div key={v.version} className="flex items-center justify-between p-2 rounded text-[12px]" style={{ background: 'var(--bg-deep)' }}>
                 <div className="flex items-center gap-3">
-                  <span className="font-mono text-[#c9b787] w-12">v{v.version}</span>
+                  <span className="font-mono text-ink w-12">v{v.version}</span>
                   <div>
-                    <div className="text-[#f5f5f5]">{v.description}</div>
-                    <div className="text-[10px] text-[#555]">{new Date(v.savedAt).toLocaleDateString()}</div>
+                    <div className="text-ink">{v.description}</div>
+                    <div className="text-[10px] text-ink-sub">{new Date(v.savedAt).toLocaleDateString()}</div>
                   </div>
                 </div>
                 <Button size="sm" variant="outline" onClick={() => restoreVersion(v)}>Restore</Button>
@@ -257,7 +257,7 @@ export default function PolicyDslPage() {
         {mode === 'dsl' ? (
           <FabricCard title="DSL EDITOR">
             {parseError && (
-              <div className="mb-2 p-2 rounded text-[11px] text-[#b85450]" style={{ background: 'rgba(184,84,80,0.08)' }}>
+              <div className="mb-2 p-2 rounded text-[11px] text-ink-bad" style={{ background: 'color-mix(in srgb, var(--color-error) 8%, transparent)' }}>
                 <XCircle className="w-3 h-3 inline mr-1" /> {parseError}
               </div>
             )}
@@ -265,20 +265,20 @@ export default function PolicyDslPage() {
               value={dslContent}
               onChange={(e) => { setDslContent(e.target.value); setEvalResults(null); }}
               rows={18}
-              className="w-full font-mono text-[11px] bg-[#0a0a0a] text-[#f5f5f5] border border-[rgba(255,255,255,0.08)] rounded-lg p-3 resize-y focus:outline-none focus:border-[#c9b787] leading-relaxed"
+              className="input input--mono text-[11px] bg-ground p-3 resize-y leading-relaxed"
               spellCheck={false}
             />
             <div className="flex gap-2 mt-2">
               <input value={saveDescription} onChange={(e) => setSaveDescription(e.target.value)} placeholder="Version description…" className="flex-1 h-8 rounded-md border border-input bg-transparent px-2 text-xs" />
               <Button size="sm" variant="outline" onClick={saveVersion}>Save version</Button>
             </div>
-            <div className="mt-2 text-[11px] text-[#555]">{parsedRules.length} rule{parsedRules.length !== 1 ? 's' : ''} parsed · {parseError ? '⚠ parse error' : '✓ syntax ok'}</div>
+            <div className="mt-2 text-[11px] text-ink-sub">{parsedRules.length} rule{parsedRules.length !== 1 ? 's' : ''} parsed · {parseError ? 'parse error' : '✓ syntax ok'}</div>
           </FabricCard>
         ) : (
           <FabricCard title="VISUAL RULE BUILDER">
             <div className="space-y-3">
               {visualRules.map((rule) => (
-                <div key={rule.id} className="p-3 rounded border border-[rgba(255,255,255,0.06)]" style={{ background: '#0a0a0a' }}>
+                <div key={rule.id} className="p-3 rounded border border-line-subtle" style={{ background: 'var(--bg)' }}>
                   <div className="flex items-center gap-2 flex-wrap">
                     <select value={rule.field} onChange={(e) => updateVisualRule(rule.id, { field: e.target.value })} className="h-7 rounded border border-input bg-transparent px-2 text-xs font-mono">
                       {['model.qualityScore', 'model.governanceState', 'model.piiScore', 'destination.piiAllowed', 'destination.authState', 'destination.governanceState', 'mapping.confidence', 'mapping.governanceState'].map((f) => <option key={f} value={f}>{f}</option>)}
@@ -288,11 +288,11 @@ export default function PolicyDslPage() {
                     </select>
                     <input value={rule.value} onChange={(e) => updateVisualRule(rule.id, { value: e.target.value })} className="h-7 w-20 rounded border border-input bg-transparent px-2 text-xs font-mono" />
 
-                    <span className="text-[11px] text-[#666]">THEN</span>
+                    <span className="text-[11px] text-ink-sub">THEN</span>
                     <select value={rule.enforcement} onChange={(e) => updateVisualRule(rule.id, { enforcement: e.target.value as Enforcement })} className="h-7 rounded border border-input bg-transparent px-2 text-xs font-mono">
                       {(['block', 'warn', 'redact', 'quarantine', 'notify'] as const).map((e) => <option key={e} value={e}>{e}</option>)}
                     </select>
-                    <button onClick={() => removeVisualRule(rule.id)} className="ml-auto p-1 text-[#666] hover:text-[#b85450]"><Trash2 className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => removeVisualRule(rule.id)} className="ml-auto p-1 text-ink-sub hover:text-ink-bad"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                 </div>
               ))}
@@ -310,7 +310,7 @@ export default function PolicyDslPage() {
               >
                 Compile to DSL ({visualRules.length})
               </Button>
-              <span className="text-[11px] text-[#666] font-mono">
+              <span className="text-[11px] text-ink-sub font-mono">
                 Visual rules are not enforced until compiled to DSL.
               </span>
             </div>
@@ -320,18 +320,18 @@ export default function PolicyDslPage() {
         <div className="space-y-4">
           <FabricCard title="PARSED RULES">
             <div className="space-y-2">
-              {parsedRules.length === 0 && <div className="text-[12px] text-[#555]">No rules parsed yet. Check DSL syntax.</div>}
+              {parsedRules.length === 0 && <div className="text-[12px] text-ink-sub">No rules parsed yet. Check DSL syntax.</div>}
               {parsedRules.map((rule, i) => (
-                <div key={i} className="flex items-start gap-2 p-2 rounded text-[11px]" style={{ background: '#0e0e0e' }}>
+                <div key={i} className="flex items-start gap-2 p-2 rounded text-[11px]" style={{ background: 'var(--bg-deep)' }}>
                   <Badge variant={ENFORCEMENT_BADGE[rule.then]}>{rule.then}</Badge>
                   <div className="flex-1 min-w-0">
-                    <div className="text-[#f5f5f5] font-medium">{rule.name}</div>
-                    <div className="font-mono text-[#666] text-[10px] truncate">{rule.when.replace(/\n/g, ' ')}</div>
+                    <div className="text-ink font-medium">{rule.name}</div>
+                    <div className="font-mono text-ink-sub text-[10px] truncate">{rule.when.replace(/\n/g, ' ')}</div>
                   </div>
                 </div>
               ))}
             </div>
-            <div className="mt-3 pt-3 border-t border-[rgba(255,255,255,0.04)]">
+            <div className="mt-3 pt-3 border-t border-line-subtle">
               <Button onClick={runEval} isLoading={evalLoading} disabled={parsedRules.length === 0} className="w-full">
                 <Play className="w-3.5 h-3.5 mr-1.5" /> Evaluate against next sync
               </Button>
@@ -341,17 +341,17 @@ export default function PolicyDslPage() {
           <FabricCard title="EXISTING POLICY REGISTRY">
             <div className="space-y-2 max-h-52 overflow-y-auto">
               {RELAY_POLICIES.slice(0, 8).map((p) => (
-                <div key={p.id} className="flex items-center gap-2 text-[11px] p-2 rounded" style={{ background: '#0e0e0e' }}>
+                <div key={p.id} className="flex items-center gap-2 text-[11px] p-2 rounded" style={{ background: 'var(--bg-deep)' }}>
                   <SeverityChip level={p.severity} />
                   <div className="flex-1 min-w-0">
-                    <div className="text-[#f5f5f5] truncate">{p.name}</div>
-                    <div className="font-mono text-[#555] text-[10px] truncate">{p.condition}</div>
+                    <div className="text-ink truncate">{p.name}</div>
+                    <div className="font-mono text-ink-sub text-[10px] truncate">{p.condition}</div>
                   </div>
                   <Badge variant={ENFORCEMENT_BADGE[p.enforcement as Enforcement]}>{p.enforcement}</Badge>
                 </div>
               ))}
             </div>
-            <Link href="/policies" className="block mt-2 text-[11px] text-[#c9b787] hover:underline">View all policies →</Link>
+            <Link href="/policies" className="block mt-2 text-[11px] text-link hover:underline">View all policies →</Link>
           </FabricCard>
         </div>
       </div>
@@ -359,20 +359,20 @@ export default function PolicyDslPage() {
       {evalResults && (
         <FabricCard title={`EVALUATION RESULTS — ${triggered} HIT${triggered !== 1 ? 'S' : ''} ACROSS ${RELAY_MAPPINGS.slice(0, 6).length} MAPPINGS`} className="mb-4 animate-scale-in">
           {triggered === 0 && (
-            <div className="flex items-center gap-2 text-[12px] text-[#5a8a6e] mb-4">
+            <div className="flex items-center gap-2 text-[12px] text-ink-good mb-4">
               <CheckCircle className="w-4 h-4" /> All syncs pass — no policy violations detected
             </div>
           )}
           <div className="space-y-2">
             {evalResults.map((r, i) => (
-              <div key={i} className="flex items-start gap-3 p-3 rounded text-[12px]" style={{ background: '#0e0e0e', border: `1px solid ${r.enforcement === 'block' ? 'rgba(184,84,80,0.15)' : r.enforcement === 'warn' ? 'rgba(212,168,83,0.15)' : 'rgba(255,255,255,0.04)'}` }}>
-                {r.enforcement === 'block' ? <XCircle className="w-4 h-4 text-[#b85450] shrink-0 mt-0.5" /> : r.enforcement === 'warn' ? <AlertTriangle className="w-4 h-4 text-[#d4a853] shrink-0 mt-0.5" /> : <CheckCircle className="w-4 h-4 text-[#5a8a6e] shrink-0 mt-0.5" />}
+              <div key={i} className="flex items-start gap-3 p-3 rounded text-[12px]" style={{ background: 'var(--bg-deep)', border: `1px solid ${r.enforcement === 'block' ? 'color-mix(in srgb, var(--color-error) 15%, transparent)' : r.enforcement === 'warn' ? 'color-mix(in srgb, var(--color-warning) 15%, transparent)' : 'var(--border-subtle)'}` }}>
+                {r.enforcement === 'block' ? <XCircle className="w-4 h-4 text-ink-bad shrink-0 mt-0.5" /> : r.enforcement === 'warn' ? <AlertTriangle className="w-4 h-4 text-ink-warn shrink-0 mt-0.5" /> : <CheckCircle className="w-4 h-4 text-ink-good shrink-0 mt-0.5" />}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-[#f5f5f5] font-medium">{r.mappingName}</span>
+                    <span className="text-ink font-medium">{r.mappingName}</span>
                     <Badge variant={ENFORCEMENT_BADGE[r.enforcement]}>{r.enforcement}</Badge>
                   </div>
-                  <div className="text-[#666] text-[10px]">{r.ruleName} · {r.reason}</div>
+                  <div className="text-ink-sub text-[10px]">{r.ruleName} · {r.reason}</div>
                 </div>
               </div>
             ))}

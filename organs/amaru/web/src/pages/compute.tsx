@@ -8,7 +8,7 @@ function UnavailablePanel({ title, source, detail }: { title: string; source: st
         <span className="font-mono text-[10px] text-muted-foreground">{source}</span>
       </div>
       <div className="font-mono text-[11px] text-muted-foreground p-3 border border-border rounded bg-background flex items-start gap-2">
-        <span className="text-amber-400 font-bold shrink-0">UNAVAILABLE</span>
+        <span className="text-ink-warn font-bold shrink-0">UNAVAILABLE</span>
         <span>{detail}</span>
       </div>
     </div>
