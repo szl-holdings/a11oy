@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-console-style="restrained">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
@@ -47,6 +47,8 @@
 <script defer src="/static/shared/szl_label_engine.js"></script>
 <script defer src="/static/shared/szl_receipt_cosign.js"></script>
 <script defer src="/static/shared/szl_codename_sanitizer.js"></script>
+<link rel="stylesheet" href="/assets/szl/szl-design-system.css"/>
+<link rel="stylesheet" href="/assets/szl/szl-console.css"/>
 <style>/* ============ SZL UNIFIED APP SHELL — house style (gold+teal on dark) ============ */
 /* Shared by all 5 flagship full-applications. One product family. */
 :root{
@@ -609,6 +611,37 @@ details.raw[open] summary{color:var(--muted);}
 <script defer src="/static/shared/szl_command_bar.js"></script>
   <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
   <link rel="stylesheet" href="/assets/szl-holo-v2.css" data-szl-holo-asset="style-v2" />
+<style id="szl-mobile-integrity">
+.content,.card,.kpi,.hero-inner{min-width:0}
+.content .card{border-color:rgba(91,141,238,.24);background:linear-gradient(145deg,rgba(14,22,38,.96),rgba(8,12,20,.98))}
+.content .card-ep,.content code,.content .view-sub{overflow-wrap:anywhere}
+.receipt-chain-list{height:auto!important;max-height:380px;overflow:auto!important;padding:1rem;border:1px solid var(--teal-line);border-radius:10px}
+.receipt-chain-list ol{padding-left:1.5rem;margin:0}
+.receipt-chain-list li{padding:.65rem .25rem;border-bottom:1px solid var(--gold-line)}
+.receipt-chain-list li span,.receipt-chain-list li code{display:block;overflow-wrap:anywhere;font-size:12px;line-height:1.6}
+.drawer-close{display:none}
+html[data-view] .app .side{top:var(--szl-console-header-height,68px)!important;height:calc(100dvh - var(--szl-console-header-height,68px))!important}
+html[data-view] .app .side-scrim{top:var(--szl-console-header-height,68px)!important}
+.szl-hbar .szl-hbar-scope{flex:1 1 auto;max-width:none}
+.szl-hbar .szl-hbar-live{flex:1 1 100%;max-width:100%;overflow-x:auto;overflow-y:hidden;flex-wrap:nowrap;justify-content:flex-start}
+.szl-hbar .szl-chip{flex-shrink:0}
+.szl-hbar{flex-wrap:wrap!important}
+#la-val,#la-gbig,#la-pass,#cc-lam{color:#aebccf!important}
+@media(max-width:820px){
+  .szl-hbar .szl-hbar-scope{flex:1 1 calc(100% - 60px);font-size:10px}
+  .szl-hbar .menu-btn{width:44px;flex:0 0 44px;margin-right:10px}
+  .drawer-close{display:flex;min-height:44px;width:100%;justify-content:center;margin-bottom:1rem}
+  .side .nav-item,.side .nav-group[role="button"],.content .btn{min-height:44px}
+  .content input:not([type="range"]),.content select,.content textarea{font-size:16px!important}
+  .content .hero-counters{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .content .hero-counters .hctr:last-child{grid-column:1/-1}
+  .content .hero-cta{display:grid;grid-template-columns:1fr}
+  .content .hero-cta a{justify-content:center;min-height:44px}
+}
+@media(max-width:400px){.content .hero-counters{grid-template-columns:1fr}.content .hero-counters .hctr:last-child{grid-column:auto}}
+@media(prefers-reduced-motion:reduce){.content *{animation:none!important;scroll-behavior:auto!important}}
+</style>
+<link rel="stylesheet" href="/assets/szl-console-focus.css"/>
 </head>
 <body>
 <a class="skip-link" href="#content">Skip to command content</a>
@@ -1384,8 +1417,8 @@ trustspace:{title:'Trust Space',badge:'3D POINT-CLOUD',sub:'Every trust dimensio
       <div class="kpi"><div class="k">Hub</div><div class="v">a11oy</div></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Service &amp; object ontology</span><span class="card-ep">drag nodes \u00b7 red = error edge</span></div><div class="cyto" id="on-cy"></div><div class="brain-note">Built from the live consensus mesh; node = service/object, edge = live wire. Down organ \u2192 red edge.</div></div>${HONEST}`;window.ontology_load();}},
 
-  lambda:{title:'Trust Score',badge:'13 CHECKS',sub:'Before any high-consequence action, the platform scores it across 13 trust dimensions and requires the combined score to clear a floor of 0.90. The score is honest about its own status: it is a research conjecture, not a proven-unique function.',
-    render:async(c)=>{c.innerHTML=`<div class="kpis"><div class="kpi"><div class="k">Trust score</div><div class="v teal" id="la-val">\u2014</div></div><div class="kpi"><div class="k">Floor</div><div class="v" id="la-floor">0.90</div></div><div class="kpi"><div class="k">Decision</div><div class="v" id="la-pass">\u2014</div></div><div class="kpi"><div class="k">Status</div><div class="v warn">research conjecture</div></div></div>
+  lambda:{title:'Trust Score',badge:'13 CHECKS',sub:'The reported score combines 13 trust dimensions. Its comparison with the advisory floor is informational; it does not authorize an action. Λ is Conjecture 1, not a proven-unique function.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis"><div class="kpi"><div class="k">Trust score</div><div class="v teal" id="la-val">\u2014</div></div><div class="kpi"><div class="k">Floor</div><div class="v" id="la-floor">0.90</div></div><div class="kpi"><div class="k">Advisory comparison</div><div class="v" id="la-pass">\u2014</div></div><div class="kpi"><div class="k">Status</div><div class="v warn">research conjecture</div></div></div>
       <div class="grid2">
         <div class="card"><div class="card-h"><span class="card-t">Combined score</span><span class="card-ep">live</span></div><div class="gauge-wrap" style="justify-content:center"><div class="gauge"><canvas id="la-gauge"></canvas><div class="lbl"><div><div class="big" id="la-gbig">\u2014</div><div class="sm">vs floor 0.90</div></div></div></div></div></div>
         <div class="card"><div class="card-h"><span class="card-t">13 trust dimensions</span><span class="card-ep">live</span></div><div class="chartbox"><canvas id="la-radar"></canvas></div></div>
@@ -1940,11 +1973,17 @@ async function mesh_load(){
   }}
 
 // Trust score (a11oy /v1/lambda)
-async function lambda_load(){try{const d=await getJSON(API+'/v1/lambda');const L=d.lambda||0;setTxt('la-val',L.toFixed?L.toFixed(4):L);setTxt('la-floor',d.lambda_floor??'0.90');setTxt('la-pass',d.pass?'ALLOW':(d.pass===false?'DENY':'\u2014'));
-  const ax=d.axes||[];const labels=ax.map(a=>a.name);const vals=ax.map(a=>a.score||0);
-  gauge('la-gauge',L,'',L>=(d.lambda_floor||FLOOR)?TEAL:'#b06a5a');setTxt('la-gbig',(L.toFixed?L.toFixed(3):L));
-  radar('la-radar',labels,vals);barH('la-bars',labels,vals,vals.map(v=>v>=0.9?TEAL:(v>=0.7?GOLD:'#b06a5a')));
-  setHTML('la-host','<details class="raw"><summary>raw trust vector</summary><pre class="out">'+esc(JSON.stringify(d,null,2))+'</pre></details>');}catch(e){setHTML('la-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
+async function lambda_load(){try{
+  const d=await getJSON(API+'/v1/lambda');
+  const L=typeof d.lambda==='number' && Number.isFinite(d.lambda)?d.lambda:null;
+  const floor=typeof d.lambda_floor==='number' && Number.isFinite(d.lambda_floor)?d.lambda_floor:null;
+  setTxt('la-val',L==null?'UNAVAILABLE':L.toFixed(4));setTxt('la-floor',floor==null?'UNAVAILABLE':floor);
+  setTxt('la-pass',L==null||floor==null?'UNAVAILABLE':(L>=floor?'At/above floor':'Below floor'));
+  const ax=d.axes||[];const labels=ax.map(a=>a.name);const vals=ax.map(a=>a.score);
+  if(L!=null)gauge('la-gauge',L,'','#9aabc2');setTxt('la-gbig',L==null?'UNAVAILABLE':L.toFixed(3));
+  radar('la-radar',labels,vals);barH('la-bars',labels,vals,vals.map(()=> '#9aabc2'));
+  setHTML('la-host','<p class="mono muted">Advisory research score · no authorization decision from this comparison.</p><details class="raw"><summary>raw trust vector</summary><pre class="out">'+esc(JSON.stringify(d,null,2))+'</pre></details>');
+}catch(e){['la-val','la-pass','la-gbig'].forEach(id=>setTxt(id,'UNAVAILABLE'));setHTML('la-host','<div class="row mono muted">Source unavailable: '+esc(e.message)+'</div>');}}
 
 // Safety gates (policy)
 async function gates_load(){try{const d=await orgGet('core','/api/a11oy/v1/policy/gates');const g=d.gates||[];setTxt('g-count',d.total||g.length);
@@ -2492,7 +2531,7 @@ function go(view){
   // sub-tab — location.hash is not updated until after render (below), so a
   // vertical sub-view would otherwise always fall back to its first tab (feed).
   window._requestedView = view;
-  c.innerHTML=`<div class="view-head"><h1 class="view-title">${v.title}</h1><span class="view-badge">${v.badge}</span></div><p class="view-sub">${v.sub}</p><div id="vbody"></div>`;
+  c.innerHTML=`<div class="view-head"><h1 class="view-title" tabindex="-1">${v.title}</h1><span class="view-badge">${v.badge}</span></div><p class="view-sub">${v.sub}</p><div id="vbody"></div>`;
   v.render(el('vbody'));
   _szlSpinnerWatchdog(view);
   try{
@@ -2504,6 +2543,8 @@ function go(view){
     if(history.replaceState) history.replaceState(null,'', u.pathname + u.search);
   }catch(e){ if(history.replaceState)history.replaceState(null,'','#'+view); }
   if(window.innerWidth<=820)toggleSide(false);
+  c.scrollTop=0;
+  c.querySelector('.view-title').focus({preventScroll:true});
 }
 /* probe-offline-abort: GLOBAL NO-PERPETUAL-SPINNER WATCHDOG.
    Doctrine v11 — a spinner must ALWAYS resolve to data OR an honest labeled state, never
@@ -2570,13 +2611,41 @@ function _szlSpinnerWatchdog(view){
 }
 window._szlSpinnerWatchdog=_szlSpinnerWatchdog; window._szlSweepSpinners=_szlSweepSpinners;
 /* hamburger drawer + scrim (mobile/tablet <=820px). force=true/false to set explicitly. */
+var sideReturnFocus=null;
 function toggleSide(force){
   const s=document.querySelector('.side');const sc=document.querySelector('.side-scrim');
+  if(!s)return;
   const open=(typeof force==='boolean')?force:!s.classList.contains('open');
+  const mobile=window.innerWidth<=820;
+  const main=document.getElementById('content');
+  if(open&&mobile){sideReturnFocus=document.activeElement;}
   s.classList.toggle('open',open);if(sc)sc.classList.toggle('open',open);
-  const mb=document.querySelector('.menu-btn');if(mb)mb.setAttribute('aria-expanded',String(open));
+  s.inert=mobile&&!open;
+  if(main)main.inert=mobile&&open;
+  const mb=document.querySelector('.menu-btn');if(mb){mb.setAttribute('aria-expanded',String(open));mb.setAttribute('aria-controls','workspace-navigation');}
+  if(open&&mobile){const item=s.querySelector('.nav-item.active')||s.querySelector('button');if(item)item.focus();}
+  if(!open&&sideReturnFocus){const item=sideReturnFocus;sideReturnFocus=null;if(item.isConnected)item.focus({preventScroll:true});}
 }
 window.toggleSide=toggleSide;
+(function accessibleDrawer(){
+  const s=document.querySelector('.side');if(!s)return;
+  s.id='workspace-navigation';
+  const close=document.createElement('button');close.type='button';close.className='drawer-close btn';close.textContent='Close navigation';close.onclick=function(){toggleSide(false);};s.prepend(close);
+  document.addEventListener('keydown',function(e){
+    if(window.innerWidth>820||!s.classList.contains('open'))return;
+    if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();toggleSide(false);return;}
+    if(e.key==='Tab'){
+      const items=Array.from(s.querySelectorAll('button,a[href],input,[tabindex="0"]')).filter(n=>!n.disabled&&n.getClientRects().length);
+      const first=items[0],last=items[items.length-1];
+      if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+      else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+    }
+  });
+  window.matchMedia('(max-width:820px)').addEventListener('change',function(){toggleSide(false);});
+  const bar=document.querySelector('[data-szl-command-bar]');
+  if(bar&&window.ResizeObserver){new ResizeObserver(function(){document.documentElement.style.setProperty('--szl-console-header-height',Math.ceil(bar.getBoundingClientRect().height)+'px');}).observe(bar);}
+  toggleSide(false);
+})();
 /* ===== RESPONSIVE HARDENING v2 SHIM (VISUAL/LAYOUT ONLY) =====
    (1) Collapsible nav-groups on touch viewports so the 50+ tab rail is scannable.
    (2) Defensive hardening of the deploy-injected floating reliability/Chaski badge:
@@ -2695,8 +2764,8 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
       color=C.gray; prefix='Λ SAMPLE';
     } else {
       var clears=(state.pass===true) || (state.pass==null && state.lambda>=FLOOR);
-      color=clears?C.proof:C.gold;
-      prefix='Λ '+state.lambda.toFixed(3)+' '+(clears?'✓':'⚠');
+      color=C.gray;
+      prefix='Λ '+state.lambda.toFixed(3)+' · advisory';
     }
     document.title=prefix+' · '+BASE;
     paintFavicon(color);
@@ -4253,7 +4322,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   async function gj(p){var r=await (window._szlFetch?window._szlFetch(p):fetch(p));if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
   var HONEST=(window.HONEST_DOCTRINE||document.querySelector('.honesty'))?'':'';
   // reuse the page's HONEST block string by cloning from an existing one at render time
-  function honestBlock(){return '<div class="honesty"><b>How to read this.</b> Live data, no mock. The trust score \u039b is a research <b>Conjecture</b> (Conjecture 1, advisory \u2014 unconditional uniqueness machine-checked FALSE). Eight formulas are formally proven/locked {F1,F4,F7,F11,F12,F18,F19,F22}; other waves are CI-green on main (@958c09f9) but not in the locked count. Conformal intervals use W5-3 distribution-free coverage (NOT Hoeffding). SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap on the a11oy image (cosign-signed + signed build-provenance attestation, verifiable via gh attestation verify / cosign verify-attestation). No AGI claims.</div>';}
+  function honestBlock(){return '<div class="honesty"><b>How to read this.</b> Each panel labels its source: current API response, SAMPLE, MODELED, ROADMAP, or UNAVAILABLE. Hash-chain checks and signature verification are separate. Receipts support auditability; they do not establish the truth of a claim. The trust score \u039b is a research <b>Conjecture</b> (Conjecture 1, advisory \u2014 unconditional uniqueness machine-checked FALSE). Eight formulas are formally proven/locked {F1,F4,F7,F11,F12,F18,F19,F22}; other waves are CI-green on main (@958c09f9) but not in the locked count. Conformal intervals use W5-3 distribution-free coverage (NOT Hoeffding). SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap on the a11oy image (cosign-signed + signed build-provenance attestation, verifiable via gh attestation verify / cosign verify-attestation). No AGI claims.</div>';}
 
   // ngraph.graph UMD exposes global as `createGraph` (g.createGraph=f()); alias to the
   // name this module references so gpuKnowledgeGraph/chainDagre/sankeyLineage resolve it.
@@ -4909,11 +4978,11 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       }};
 
     /* ---- REPLAY: span waterfall + scrubber (NOT 3D) ---- */
-    V.replay={title:'Reasoning Replay',badge:'SPAN WATERFALL + SCRUBBER',sub:'Watch it think \u2014 the reasoning run-tree as an SVG span waterfall (depth-indented, time on X), NOT a 3D graph. A scrubber steps the run forward/backward; error spans lock red. Distinct from the receipts waterfall (flat verify pipeline): this is a nested temporal run-tree.',
+    V.replay={title:'Reasoning Replay',badge:'SAMPLE · SPAN WATERFALL + SCRUBBER',sub:'Watch it think \u2014 the reasoning run-tree as an SVG span waterfall (depth-indented, time on X), NOT a 3D graph. A scrubber steps the run forward/backward; error spans lock red. Distinct from the receipts waterfall (flat verify pipeline): this is a nested temporal run-tree.',
       render:async function(c){ c.innerHTML='<div class="kpis">'
         +'<div class="kpi"><div class="k">Spans</div><div class="v" id="rp-n">\u2014</div></div>'
         +'<div class="kpi"><div class="k">Replay determinism</div><div class="v teal" id="rp-det">\u2014</div><div class="d">P4</div></div>'
-        +'<div class="kpi"><div class="k">Run receipt</div><div class="v live">signed</div><div class="d">chain-bound</div></div></div>'
+        +'<div class="kpi"><div class="k">Run receipt</div><div class="v">SAMPLE</div><div class="d">illustration; no run receipt fetched</div></div></div>'
         +'<div class="card"><div class="card-h"><span class="card-t">Reasoning run-tree \u2014 span waterfall</span><span class="card-ep">depth-indented \u00b7 time on X</span></div>'
         +'<div class="row" style="margin-bottom:.5rem"><input type="range" id="rp-scrub" aria-label="reasoning step scrubber" min="0" max="7" value="7" style="flex:1"><span class="mono dim" id="rp-pos">full</span></div>'
         +'<div id="rp-wf" style="min-height:230px"></div>'
@@ -5762,30 +5831,33 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       }};
 
     /* =============== fleet — CSS-grid status-history grid =============== */
-    V.fleet={title:'System Health',badge:'STATUS-HISTORY GRID \u00b7 LIVE PROBE',sub:'Live reachability of every service as a status-history grid (services \u00d7 recent time buckets), Statuspage-style. Each cell is colored by the live probe; a never-checked bucket is gray/hollow \u2014 never faked green (hollow-pass guard). A down service shows honestly.',
-      render:async function(c){ c.innerHTML='<div class="kpis">'
-        +'<div class="kpi"><div class="k">Services</div><div class="v" id="fl-n">\u2014</div></div>'
-        +'<div class="kpi"><div class="k">Up now</div><div class="v teal" id="fl-up">\u2014</div></div>'
-        +'<div class="kpi"><div class="k">Buckets</div><div class="v">12</div><div class="d">recent windows</div></div>'
-        +'<div class="kpi"><div class="k">Hollow-pass</div><div class="v warn">guarded</div><div class="d">never faked green</div></div></div>'
-        +'<div class="card"><div class="card-h"><span class="card-t">Status history \u2014 services \u00d7 recent buckets</span><span class="card-ep">CSS grid \u00b7 Statuspage pattern</span></div>'
-        +'<div id="fl-grid" style="overflow:auto"></div>'
-        +'<div class="brain-note">Green=ok, gold=degraded, red=down, <span style="color:'+GRAY+'">gray hollow=never-checked bucket (NOT a pass)</span>. Latest bucket is the live probe; earlier buckets are honestly marked unverified where we have no stored history.</div></div>'+honest();
+    V.fleet={title:'System Health',badge:'OBSERVATIONS',sub:'Reported service status and latency. Missing readings stay unavailable; a successful probe does not establish delivery or production readiness.',
+      render:async function(c){ c.innerHTML='<section class="health-overview" aria-label="Observation summary">'
+        +'<div class="health-metric"><div class="k">Services reported</div><div class="v" id="fl-n">\u2014</div></div>'
+        +'<div class="health-metric"><div class="k">Reported OK</div><div class="v" id="fl-up">\u2014</div></div></section>'
+        +'<section class="health-evidence" aria-label="Evidence scope"><span class="health-label">INTERNALLY_TESTED</span>'
+        +'<p>System Health presentation has local fixture coverage. This is not a deployment or production-readiness claim.</p>'
+        +'<p><strong>Delivery classification: UNKNOWN.</strong> No shipping or demonstration evidence is supplied by this observation feed.</p></section>'
+        +'<section class="card health-services" aria-labelledby="health-services-title"><div class="card-h"><h2 id="health-services-title">Service observations</h2></div>'
+        +'<div id="fl-grid" role="region" aria-label="Service observations" tabindex="0"><div role="status">Loading service observations...</div></div>'
+        +'<p class="health-note">Observation time and stored history are unavailable in this view. No earlier results are inferred.</p></section>';
         try{
-          var s=await gj('/api/a11oy/v1/observability/summary'); var caps=s.capabilities||[];
+          var s=await gj('/api/a11oy/v1/observability/summary');
+          if(!s || !Array.isArray(s.capabilities) || s.capabilities.some(function(cap){return !cap || typeof cap !== 'object';})) throw new Error('Service observations were not supplied.');
+          if(!c.isConnected || !c.querySelector('#fl-grid')) return;
+          var caps=s.capabilities;
           T('fl-n',caps.length); T('fl-up',caps.filter(function(x){return x.status==='ok';}).length);
-          var buckets=12;
-          var html='<div style="display:grid;grid-template-columns:160px repeat('+buckets+',1fr);gap:3px;min-width:560px;align-items:center">';
-          html+='<div></div>'; for(var b=0;b<buckets;b++){ html+='<div class="mono" style="font-size:7px;color:'+DIM+';text-align:center">'+(b===buckets-1?'now':('-'+(buckets-1-b))) +'</div>'; }
+          if(!caps.length){ H('fl-grid','<div role="status">EMPTY: no service observations returned.</div>'); return; }
+          var html='<ul class="health-list">';
           caps.forEach(function(cap){
-            html+='<div class="mono" style="font-size:9px;color:#cdd2d8">'+esc(cap.name)+' <span style="color:'+DIM+'">'+esc(cap.latency_ms||0)+'ms</span></div>';
-            for(var bi=0;bi<buckets;bi++){
-              if(bi===buckets-1){ var col=statusColor(cap.status); html+='<div title="live probe: '+esc(cap.status)+'" style="height:20px;border-radius:3px;background:'+col+';opacity:0.9"></div>'; }
-              else { html+='<div title="no stored history \u2014 not a pass" style="height:20px;border-radius:3px;background:transparent;border:1px dashed '+GRAY+'"></div>'; }
-            }
+            var latency=typeof cap.latency_ms==='number' && Number.isFinite(cap.latency_ms) && cap.latency_ms>=0 ? cap.latency_ms+' ms' : 'latency unavailable';
+            var status=typeof cap.status==='string' && cap.status ? cap.status : 'unavailable';
+            var tone=status==='ok'?'ok':status==='degraded'?'warning':status==='down'?'error':'unknown';
+            html+='<li><div class="health-service"><strong>'+esc(cap.name||cap.id||'Unnamed service')+'</strong><span>'+esc(latency)+'</span></div>'
+              +'<span class="health-status" data-status="'+tone+'">'+esc(status)+'</span></li>';
           });
-          html+='</div>'; H('fl-grid',html);
-        }catch(e){ T('fl-n',window._szlKpi(e)); }
+          html+='</ul>'; H('fl-grid',html);
+        }catch(e){ if(!c.isConnected || !c.querySelector('#fl-grid')) return; T('fl-n','UNAVAILABLE'); T('fl-up','UNAVAILABLE'); H('fl-grid','<div role="status">Service observations unavailable: '+esc(e.message||e)+'</div>'); }
       }};
 
     /* =============== mesh — Cytoscape force-directed service map + panzoom =============== */
@@ -6503,7 +6575,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
        interval. Stamps a "last updated" element + appends to a rolling receipt mini-log.
        Registered via the toolkit's `every` cleanup list so tab-switch tears it down. */
     window.a11oyPoll=function(fn,stampId){
-      function run(){ try{ fn(); }catch(e){} if(stampId){ var s=E(stampId); if(s) s.textContent='last updated '+new Date().toLocaleTimeString(); } }
+      function run(){ try{ fn(); }catch(e){} if(stampId){ var s=E(stampId); if(s) s.textContent='last checked '+new Date().toLocaleTimeString(); } }
       run();
       function schedule(){ var ms=10000+Math.floor(Math.random()*5000); // 10–15s jittered
         var t=setTimeout(function(){ run(); schedule(); }, ms);
@@ -6516,6 +6588,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       var col = dec==='ALLOW'?TEAL : (dec==='BLOCK'?RED : AMBER);
       return '<div class="row mono" style="font-size:10.5px;gap:.5rem;border-top:1px solid rgba(201,183,135,0.06);padding:.3rem 0">'
         +'<span class="badge" style="color:'+col+';border:1px solid '+col+'66">'+esc(dec||'—')+'</span>'
+        +(r.simulated===true?'<span class="badge b-gold">SAMPLE</span>':'')
         +'<span style="color:#9a9a9a">'+esc(r.vertical||'core')+'</span>'
         +'<span style="color:'+CREAM+'">'+esc(r.action||'')+'</span>'
         +'<span class="spacer dim" style="font-family:var(--mono)">'+esc((r.hash||'').slice(0,12))+'…</span>'
@@ -6549,7 +6622,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
        ============================================================================ */
     var _cmdPrev=V.command;
     V.command={ title:'Command Center', badge:'LIVE · AUTO-POLL',
-      sub:'One pane of glass over the whole governed mesh — live service health, trust posture, governed-decision throughput, and a rolling stream of signed receipts across every vertical. Always recording.',
+      sub:'One pane of glass over the whole governed mesh — live service health, trust posture, governed-decision throughput, and a read-only stream of hash-linked receipt entries. Signature verification is a separate check.',
       render:async function(c){
         /* a11oy-overhaul-marker:BATCH3-hero — front-door hero (SPEC_E §2.2). Instant CSS+SVG
            paint, zero-JS-legible, 0 CDN, no external font/image. Live counters fill AFTER
@@ -6604,7 +6677,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         c.innerHTML=HERO_HTML+'<div class="kpis">'
           +kpi('Services up','cc-svc','live health probe','live')
           +kpi('Trust score Λ','cc-lam','vs floor 0.90','teal')
-          +kpi('Decisions today','cc-dec','governed + logged')
+          +kpi('Decisions buffered','cc-dec','in-process decision feed')
           +kpi('Chain depth','cc-chain','unified receipt ledger','teal')
           +kpi('Build security','cc-slsa','SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap','teal')
           +'</div>'
@@ -6612,7 +6685,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           +'<section class="szl-estate-fold" aria-label="Series A models and kernels">'
           +'<div class="card-h"><span class="card-t">Models + kernels</span><span class="card-ep mono">Hub listing · REPORTED</span></div>'
           +'<div id="szl-series-a-cards"></div></section>'
-          +card('Service health','live probe · <span id="cc-stamp" class="mono dim" style="font-size:10px"></span>','<div class="brain-note" style="margin:.1rem 0 .5rem"><b>How to read “Services up”.</b> This Space runs the <b>governed mesh</b> — the in-image capability mesh is <b>6/6 healthy</b> (Byzantine quorum 4/4 REACHED, see the <b>UDS 4/4 Quorum</b> tab). The heavy <b>organ backends (Reasoning / Policy / Operator / Receipts)</b> run on <b>dedicated infrastructure (roadmap)</b>, so on this demo Space they are shown honestly as <b>not-deployed-here</b> rather than faked “up”. Same truth, two probes: the governed mesh a11oy actually runs on is fully healthy; the organ backends are not deployed on this Space.</div><div id="cc-fleet">'+skelRows(4)+'</div>')
+          +card('Service health','live probe · <span id="cc-stamp" class="mono dim" style="font-size:10px"></span>','<div class="brain-note" style="margin:.1rem 0 .5rem"><b>How to read Services up.</b> The count below comes from /observability/summary mesh_reach. A reachable service is reported UP; undeployed services remain unavailable. This probe does not establish application readiness, inference quality, quorum, or signature verification.</div><div id="cc-fleet">'+skelRows(4)+'</div>')
           +'<div class="grid2 szl-below-fold">'
           +card('Trust posture (13-axis Λ)','live '+window.a11oyPoweredBy(['F19','F1']),'<div class="chartbox"><canvas id="cc-radar"></canvas></div>')
           +card('Governed throughput by vertical','live · auto-poll','<div class="chartbox"><canvas id="cc-bars"></canvas></div>')
@@ -6631,28 +6704,16 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           var _tagEl=document.getElementById('hero-joules-tag');
           var _hj=document.getElementById('hero-joules');
           try{ var _eh=await window.getJSON(API+'/v1/energy/operator/status');
-            var _stub=(_eh&&_eh.stub_mode===true);
-            // measured per-token energy (NVML), only honest when the meter is real (not stub)
-            var _mjt=(_eh&&_eh.measured_token_joules!=null)?Number(_eh.measured_token_joules):null;
-            var _mt=(_eh&&_eh.measured_tokens!=null)?Number(_eh.measured_tokens):0;
-            var _jmt=(_eh&&_eh.joules_measured_total!=null)?Number(_eh.joules_measured_total):null;
-            // sample per-token fallback when in stub mode
-            var _sjt=(_eh&&_eh.sample_token_joules!=null)?Number(_eh.sample_token_joules):null;
-            if(!_stub){
-              // real NVML meter present (stub_mode===false) -> honest MEASURED label
-              if(_tagEl){_tagEl.textContent='MEASURED'; _tagEl.classList.add('live');}
-              if(_hj)_hj.setAttribute('data-maturity','measured');
-              if(_mjt!=null && _mt>0){ setTxt('hero-joules', _mjt.toFixed(2)+' J/tok'); }
-              else if(_jmt!=null && _jmt>0 && _mjt!=null){ setTxt('hero-joules', _mjt.toFixed(2)+' J/tok'); }
-              else { setTxt('hero-joules','measured pending'); }   // real meter, no job yet — honest, never faked
-            } else {
-              // stub/simulated meter -> honest SAMPLE label, never claim MEASURED
-              if(_tagEl) _tagEl.textContent='SAMPLE';
-              if(_hj)_hj.setAttribute('data-maturity','sample');
-              if(_sjt!=null){ setTxt('hero-joules', _sjt.toFixed(2)+' J/tok'); }
-              else { setTxt('hero-joules','\u2014 J/tok'); }
-            }
-          }catch(_e){ setTxt('hero-joules','measured pending'); if(_tagEl)_tagEl.textContent='SAMPLE'; }   // NEVER a fake number
+            var measured=(_eh && _eh.stub_mode===false && typeof _eh.measured_token_joules==='number'
+              && Number.isFinite(_eh.measured_token_joules) && _eh.measured_token_joules>=0
+              && typeof _eh.measured_tokens==='number' && _eh.measured_tokens>0);
+            var sample=(_eh && _eh.stub_mode===true && typeof _eh.sample_token_joules==='number'
+              && Number.isFinite(_eh.sample_token_joules) && _eh.sample_token_joules>=0);
+            var label=measured?'MEASURED':(sample?'SAMPLE':'UNAVAILABLE');
+            if(_tagEl){_tagEl.textContent=label;_tagEl.classList.toggle('live',measured);}
+            if(_hj)_hj.setAttribute('data-maturity',label.toLowerCase());
+            setTxt('hero-joules', measured?_eh.measured_token_joules.toFixed(2)+' J/tok':(sample?_eh.sample_token_joules.toFixed(2)+' J/tok':'No reading'));
+          }catch(_e){ setTxt('hero-joules','No reading'); if(_tagEl){_tagEl.textContent='UNAVAILABLE';_tagEl.classList.remove('live');} if(_hj)_hj.setAttribute('data-maturity','unavailable'); }
           try{ var _g=await window.getJSON(API+'/v1/policy/decisions/feed?limit=1');
             var _v=((_g&&_g.verdicts)||[])[0];
             setHTML('hero-gate','<span class="rmark" aria-hidden="true"></span>'+(_v?esc(String(_v.decision||_v.verdict||'').toUpperCase()||'logged'):'no decisions yet'));
@@ -6664,13 +6725,13 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         // auto-poll: services + decisions + chain depth + ledger stream + throughput bars (all fail-fast)
         window.a11oyPoll(async function(){
           try{ var rS=await gjFast(API+'/v1/observability/summary'); var s=rS.data; var mr=s.mesh_reach||{};var keys=Object.keys(mr);var ok=0;var html='';
-            keys.forEach(function(k){var p=mr[k];var up=(p.status||'ok')==='ok';if(up)ok++;
+            keys.forEach(function(k){var p=mr[k];var up=p.status==='ok';if(up)ok++;
               html+='<div class="row"><span class="badge '+(up?'b-live':'b-gold')+'">'+(up?'UP':'NOT DEPLOYED HERE')+'</span><span>'+esc(p.name||k)+'</span><span class="spacer mono dim">'+(p.latency_ms?Math.round(p.latency_ms)+'ms':(up?'':'dedicated infra (roadmap)'))+'</span></div>';});
             H('cc-fleet',html||'<div class="row mono dim">no services reported</div>'); T('cc-svc',keys.length?ok+'/'+keys.length:'—');
             T('cc-chain', s.dag_depth!=null?s.dag_depth:'—');
           }catch(e){ if(el('cc-svc')&&el('cc-svc').querySelector('.skel')) H('cc-svc', honestDegraded('n/a')); if(el('cc-fleet')&&el('cc-fleet').querySelector('.skel')) H('cc-fleet','<div class="row mono dim">service health not available right now — shown honestly, not faked.</div>'); }
           try{ var rF=await gjFast(API+'/v1/policy/decisions/feed?limit=50'); var f=rF.data; T('cc-dec', f.total_buffered!=null?f.total_buffered:((f.verdicts||[]).length)); }catch(e){ if(el('cc-dec')&&el('cc-dec').querySelector('.skel')) H('cc-dec', honestDegraded('n/a')); }
-          try{ var rLg=await gjFast(API+'/v1/wow/ledger?limit=12'); var L=rLg.data; var rs=L.receipts||[]; var sh='';
+          try{ var rLg=await gjFast(API+'/v1/wow/ledger?limit=12&advance=0'); var L=rLg.data; var rs=L.receipts||[]; var sh='';
             rs.forEach(function(r){ sh+=window.a11oyReceiptRow(r); });
             H('cc-stream', sh||'<div class="row mono dim">no receipts yet</div>');
             if(L.chain_depth!=null) T('cc-chain', L.chain_depth);
@@ -6678,7 +6739,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             if(window.barH&&labs.length) window.barH('cc-bars',labs,vals,labs.map(function(){return TEAL;}));
           }catch(e){ if(el('cc-stream')&&el('cc-stream').querySelector('.skel')) H('cc-stream','<div class="row mono dim">receipt stream not available right now — shown honestly, not faked.</div>'); }
         }, 'cc-stamp');
-        T('cc-slsa','SLSA L1+L2');
+        T('cc-slsa','L2 attestation reported');
         mountEstate('szl-series-a-cards', true);
       }
     };
@@ -6773,11 +6834,11 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
        CORE-5 #4 — RECEIPT CHAIN  (3D DAG, unified ledger)
        ============================================================================ */
     V.chain={ title:'Receipt Chain', badge:'3D DAG · TAMPER-EVIDENT',
-      sub:'The hash-chained audit trail as a 3D DAG. Every governed action across every vertical appends one tamper-evident receipt; receipt.chain = SHA256(prev). The chain is always recording — auto-polled live.',
+      sub:'The hash-chained audit trail as a 3D DAG. Every governed action across every vertical appends one tamper-evident receipt; receipt.chain = SHA256(prev). This view reads the reported chain without creating entries. Hash links and DSSE signature verification are separate checks.',
       render:async function(c){
         c.innerHTML='<div class="kpis">'
-          +kpi('Chain depth','rc-depth','signed receipts','teal')
-          +kpi('Window verified','rc-ver','prev=SHA256','teal')
+          +kpi('Chain depth','rc-depth','hash-linked entries','teal')
+          +kpi('Hash-link check','rc-ver','backend-reported; signature separate')
           +kpi('Verticals','rc-verts','in window')
           +kpi('Final hash','rc-final','chain head','')
           +'</div>'
@@ -6789,20 +6850,27 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           +HON;
         H('rc-formulas', window.a11oyFormula('F18')+window.a11oyFormula('F1'));
         window.a11oyPoll(async function(){
-          try{ var L=await gj(API+'/v1/wow/ledger?limit=18');
+          try{ var L=await gj(API+'/v1/wow/ledger?limit=18&advance=0');
             var rs=L.receipts||[];
-            T('rc-depth', L.chain_depth); T('rc-ver', L.window_verified?'✓ VERIFIED':'✗ BROKEN');
-            var ve=E('rc-ver'); if(ve)ve.style.color=L.window_verified?TEAL:RED;
+            T('rc-depth', L.chain_depth!=null?L.chain_depth:'UNAVAILABLE'); T('rc-ver', !rs.length?'EMPTY':(L.window_verified===true?'REPORTED VALID':(L.window_verified===false?'REPORTED BROKEN':'UNAVAILABLE')));
+            var ve=E('rc-ver'); if(ve)ve.style.color=L.window_verified===false?RED:CREAM;
             T('rc-verts', Object.keys(L.verticals_in_window||{}).length);
-            T('rc-final', (L.final_hash||'').slice(0,10)+'…');
+            T('rc-final', L.final_hash?L.final_hash.slice(0,10)+'…':'UNAVAILABLE');
             var sh=''; rs.forEach(function(r){ sh+=window.a11oyReceiptRow(r); });
             H('rc-stream', sh||'<div class="row mono dim">empty</div>');
             // 3D DAG of the newest receipts (oldest→newest left to right)
             var ordered=rs.slice().reverse();
             var nodes=ordered.map(function(r,i){ return {id:'r'+r.seq,name:(r.vertical||'core')+' #'+r.seq, color:(r.decision==='ALLOW'?TEAL:(r.decision==='BLOCK'?RED:AMBER)), val:5}; });
             var links=[]; for(var i=0;i<ordered.length-1;i++) links.push({source:'r'+ordered[i].seq,target:'r'+ordered[i+1].seq});
-            window.a11oyFG('rc-3d',nodes,links,{dagMode:'lr',dist:40,cooldown:120,labels:nodes.length<=14});
-          }catch(e){ T('rc-depth',window._szlKpi(e)); }
+            var graph=window.innerWidth>600 && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+              ? window.a11oyFG('rc-3d',nodes,links,{dagMode:'lr',dist:40,cooldown:120,labels:nodes.length<=14}) : null;
+            var chainHost=E('rc-3d');
+            if(chainHost && !graph){
+              chainHost.classList.add('receipt-chain-list');
+              chainHost.innerHTML='<p class="mono muted">Receipt order · oldest to newest · read-only ledger window</p>'
+                +(ordered.length?'<ol>'+ordered.map(function(r){return '<li><span class="mono">#'+esc(r.seq)+' · '+esc(r.vertical||'core')+'</span><span>'+esc(r.action||'')+'</span><code>'+esc(r.hash||r.receipt_id||'hash unavailable')+'</code></li>';}).join('')+'</ol>':'<p>No receipt entries in this window.</p>');
+            }
+          }catch(e){ T('rc-depth',window._szlKpi(e)); T('rc-ver','UNAVAILABLE'); T('rc-final','UNAVAILABLE'); H('rc-stream','<div class="row mono muted">Receipt source unavailable: '+esc(e.message)+'</div>'); H('rc-3d','<p class="mono muted">Receipt chain unavailable. No entries invented.</p>'); }
         }, 'rc-stamp');
       }
     };
@@ -6948,7 +7016,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           +'<div class="brain-note" id="wl-hon">One chain across all verticals. In-memory ring buffer (resets on rebuild); SIMULATED governed stream, labeled. Flip any field → window verification fails.</div>'
           +HON;
         window.a11oyPoll(async function(){
-          try{ var L=await gj(API+'/v1/wow/ledger?limit=16');
+          try{ var L=await gj(API+'/v1/wow/ledger?limit=16&advance=0');
             var rs=L.receipts||[];
             T('wl-depth',L.chain_depth); T('wl-ver',L.window_verified?'✓ VERIFIED':'✗ BROKEN');
             var ve=E('wl-ver'); if(ve)ve.style.color=L.window_verified?TEAL:RED;
@@ -7216,7 +7284,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             T('on-slsa','L1 honest; L2 .att emitted (not independently verified)');
             // mesh_reach can be a list (live) — render rows
             var mr=d.mesh_reach||[]; var rows=(Array.isArray(mr)?mr:Object.keys(mr).map(function(k){return mr[k];}));
-            var html=rows.map(function(p){ var up=(p.status||'ok')==='ok';
+            var html=rows.map(function(p){ var up=p.status==='ok';
               return '<div class="row"><span class="badge '+(up?'b-live':'b-err')+'">'+(up?'UP':'DOWN')+'</span><span style="color:'+CREAM+'">'+esc(window._honestOrgan(p.name||p.organ||''))+'</span><span class="spacer mono dim">'+(p.latency_ms!=null?Math.round(p.latency_ms)+'ms':'')+'</span></div>'; }).join('');
             H('on-reachlist', html||'<div class="row mono dim">no probe data</div>');
             var me=E('on-melt'); if(me) me.textContent=JSON.stringify(melt,null,2);
@@ -10997,7 +11065,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   function rd_modebadge(mode){ if(!mode||mode==='live') return ''; return ' '+rd_badge(mode,rd_kind(mode),'value served '+mode); }
   function rd_kvrows(fields){ var h=''; (fields||[]).forEach(function(f){
       var v=f.v; if(v===true)v='yes'; else if(v===false)v='no';
-      h+='<div class="row" style="display:flex;gap:.6rem;align-items:baseline"><span class="dim" style="min-width:190px;display:inline-block">'+esc(f.k)+'</span><span style="word-break:break-word">'+esc(String(v==null?'\u2014':v))+rd_modebadge(f.mode)+'</span></div>';
+      h+='<div class="row" style="display:flex;gap:.6rem;align-items:baseline;flex-wrap:wrap"><span class="dim" style="max-width:100%;display:inline-block">'+esc(f.k)+'</span><span style="min-width:0;overflow-wrap:anywhere">'+esc(String(v==null?'\u2014':v))+rd_modebadge(f.mode)+'</span></div>';
     }); return h; }
   function rd_section(sec){
     var h='<div class="card" id="rd-sec-'+esc(sec.id)+'"><div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap"><div><b>'+esc(sec.title||sec.id)+'</b>'+(sec.target?(' <span class="dim">\u2014 '+esc(sec.target)+'</span>'):'')+'</div>';
@@ -11036,7 +11104,9 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     var old=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='\u27f3 re-reading\u2026'; }
     try{
       var r=await fetch('/api/'+window.__rd_ns+'/v1/readiness/'+id+'/live');
-      var d=await r.json(); if(d.section) body.innerHTML=rd_section_body(d.section);
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      var d=await r.json(); if(!d || !d.section) throw new Error('No readiness section returned.');
+      body.innerHTML=rd_section_body(d.section);
     }catch(e){
       var note=document.createElement('div'); note.className='dim'; note.style.marginTop='.25rem';
       note.textContent='re-read failed: '+((e&&e.message)||e)+' \u2014 showing last-known values'; body.appendChild(note);
@@ -11047,17 +11117,23 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     if(!opts.silent) c.innerHTML='<div class="card"><div class="dim">reading live deployment, repo and Space\u2026</div></div>';
     try{
       var r=await fetch('/api/'+window.__rd_ns+'/v1/readiness');
-      var d=await r.json(); var h='';
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      var d=await r.json();
+      if(!d || !Array.isArray(d.sections) || !d.summary || typeof d.summary!=='object') throw new Error('Readiness evidence was not supplied.');
+      if(document.documentElement.dataset.view!=='readiness') return;
+      var h='';
       h+='<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap"><span class="dim" style="font-size:12px">Auto-refresh every 30s \u2014 live re-poll of the same real surfaces; honest empty/unreachable states preserved.</span><span style="display:flex;gap:.4rem"><button class="btn" id="rd-auto" style="font-size:11px">\u27f3 auto: '+((window.__tabauto!==false)?'on':'off')+'</button><button class="btn" id="rd-reload" style="font-size:11px">\u21bb reload</button></span></div>';
       if(d.honest) h+='<div class="honesty">'+esc(d.honest)+'</div>';
       var s=d.summary||{};
       h+='<div class="card"><div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">';
-      h+=rd_badge('endpoints '+esc(String(s.endpoints_reachable))+'/'+esc(String(s.endpoints_total)),(s.endpoints_reachable===s.endpoints_total&&s.endpoints_total)?'good':'warn','reachable deployment surfaces');
+      var endpointCounts=Number.isInteger(s.endpoints_reachable)&&s.endpoints_reachable>=0&&Number.isInteger(s.endpoints_total)&&s.endpoints_total>=s.endpoints_reachable;
+      h+=rd_badge(endpointCounts?('endpoints '+s.endpoints_reachable+'/'+s.endpoints_total):'endpoints unavailable',(endpointCounts&&s.endpoints_reachable===s.endpoints_total&&s.endpoints_total)?'good':'warn','reachable deployment surfaces');
       var bstat=s.build_status||'unknown'; var bextra=(s.build_behind_by!=null&&s.build_behind_by>0)?(' '+s.build_behind_by+' behind'):''; h+=' '+rd_badge('build: '+bstat+bextra,rd_kind(bstat),'deployed build vs repo HEAD');
       h+=' '+rd_badge('CI: '+(s.ci||'\u2014'),rd_kind(s.ci),'latest GitHub Actions conclusion');
       h+=' '+rd_badge('HF: '+(s.hf_stage||'\u2014'),rd_kind(s.hf_stage),'Hugging Face Space runtime stage');
-      h+='</div><div class="dim" style="font-size:11px;margin-top:.4rem">organ <b>'+esc(d.organ||'')+'</b> \u00b7 <a href="'+esc(d.repo_url||'#')+'" target="_blank" rel="noopener">'+esc(d.repo||'')+'</a> \u00b7 deployment '+esc(d.deployment||'')+' \u00b7 checked '+esc(rd_ago(d.checked_at)||'just now')+'</div></div>';
+      h+='</div><div class="dim" style="font-size:11px;margin-top:.4rem">organ <b>'+esc(d.organ||'')+'</b> \u00b7 <a href="'+esc(d.repo_url||'#')+'" target="_blank" rel="noopener">'+esc(d.repo||'')+'</a> \u00b7 deployment '+esc(d.deployment||'')+' \u00b7 checked '+esc(rd_ago(d.checked_at)||'timestamp unavailable')+'</div></div>';
       (d.sections||[]).forEach(function(sec){ h+=rd_section(sec); });
+      if(!d.sections.length) h+='<div class="card"><div role="status">EMPTY: no readiness sections returned.</div></div>';
       c.innerHTML=h||'<div class="card"><div class="dim">no readiness sections.</div></div>';
       Array.prototype.forEach.call(c.querySelectorAll('.rd-live-btn'),function(b){
         b.addEventListener('click',function(){ window.readiness_section_live(b.getAttribute('data-rd'),b); });
@@ -11067,11 +11143,11 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       if(!opts.silent && typeof setInterval==='function'){
         if(window.__rd_timer){ clearInterval(window.__rd_timer); }
         window.__rd_timer=setInterval(function(){
-          if(!document.body.contains(c)){ clearInterval(window.__rd_timer); window.__rd_timer=null; return; }
+          if(!document.body.contains(c)||document.documentElement.dataset.view!=='readiness'){ clearInterval(window.__rd_timer); window.__rd_timer=null; return; }
           if((window.__tabauto!==false) && !document.hidden){ window.readiness_render(c,{silent:true}); }
         }, 30000);
       }
-    }catch(e){ c.innerHTML='<div class="card"><div class="dim">readiness layer unavailable: '+esc((e&&e.message)||e)+'</div></div>'; }
+    }catch(e){ if(document.documentElement.dataset.view==='readiness') c.innerHTML='<div class="card"><div role="status">Readiness UNAVAILABLE: '+esc((e&&e.message)||e)+'</div></div>'; }
   };
   function reg(){
     var V=window.VIEWS; if(!V){ return setTimeout(reg,60); }
@@ -11262,27 +11338,31 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     if(!opts.silent) c.innerHTML='<div class="card"><div class="dim">loading open-problem bounties from bounties/*.yaml\u2026</div></div>';
     try{
       var r=await fetch('/api/'+window.__bn_ns+'/v1/bounties');
-      var d=await r.json(); var h='';
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      var d=await r.json();
+      if(!d || !Array.isArray(d.bounties)) throw new Error('Bounty records were not supplied.');
+      if(document.documentElement.dataset.view!=='bounties') return;
+      var h='';
       h+='<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap"><span class="dim" style="font-size:12px">Auto-refresh every 30s \u2014 live re-poll of bounties/*.yaml; only status:OPEN shown, reward stays founder-set, never a figure.</span><span style="display:flex;gap:.4rem"><button class="btn" id="bn-auto" style="font-size:11px">\u27f3 auto: '+((window.__tabauto!==false)?'on':'off')+'</button><button class="btn" id="bn-reload" style="font-size:11px">\u21bb reload</button></span></div>';
       if(d.honest) h+='<div class="honesty">'+bn_esc(d.honest)+'</div>';
       h+='<div class="card"><div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">';
-      h+=bn_badge('OPEN bounties '+(d.count||0),GOLD,'genuinely open problems');
+      h+=bn_badge('OPEN bounties returned '+d.bounties.length,GOLD,'records in this response');
       h+=' '+bn_badge('reward: founder-set',GOLD,'this board never invents a figure');
       h+=' '+bn_badge('doctrine '+(d.doctrine||'v11'),'#8a8f98','honesty doctrine');
-      h+='</div><div class="dim" style="font-size:11px;margin-top:.4rem">Generated from <b>'+bn_esc(d.source||'bounties/*.yaml')+'</b> \u00b7 '+(d.board?bn_link(d.board,'bounty board \u2197')+' \u00b7 ':'')+'checked '+bn_esc(bn_ago(d.checked_at)||'just now')+'</div></div>';
+      h+='</div><div class="dim" style="font-size:11px;margin-top:.4rem">Generated from <b>'+bn_esc(d.source||'bounties/*.yaml')+'</b> \u00b7 '+(d.board?bn_link(d.board,'bounty board \u2197')+' \u00b7 ':'')+'checked '+bn_esc(bn_ago(d.checked_at)||'timestamp unavailable')+'</div></div>';
       (d.bounties||[]).forEach(function(b){ h+=bn_card(b); });
-      if(!(d.bounties||[]).length){ h+='<div class="card"><div class="dim">No OPEN bounties right now \u2014 every conjecture on the board has been settled.</div></div>'; }
+      if(!d.bounties.length){ h+='<div class="card"><div role="status">EMPTY: no open bounty records returned. This does not establish that any conjecture has been settled.</div></div>'; }
       c.innerHTML=h;
       var bnReload=c.querySelector('#bn-reload'); if(bnReload) bnReload.addEventListener('click',function(){ window.bounties_render(c,{silent:true}); });
       var bnAuto=c.querySelector('#bn-auto'); if(bnAuto) bnAuto.addEventListener('click',function(){ window.__tabauto=!(window.__tabauto!==false); bnAuto.textContent='\u27f3 auto: '+((window.__tabauto!==false)?'on':'off'); });
       if(!opts.silent && typeof setInterval==='function'){
         if(window.__bn_timer){ clearInterval(window.__bn_timer); }
         window.__bn_timer=setInterval(function(){
-          if(!document.body.contains(c)){ clearInterval(window.__bn_timer); window.__bn_timer=null; return; }
+          if(!document.body.contains(c)||document.documentElement.dataset.view!=='bounties'){ clearInterval(window.__bn_timer); window.__bn_timer=null; return; }
           if((window.__tabauto!==false) && !document.hidden){ window.bounties_render(c,{silent:true}); }
         }, 30000);
       }
-    }catch(e){ c.innerHTML='<div class="card"><div class="dim">bounty board unavailable: '+bn_esc((e&&e.message)||e)+'</div></div>'; }
+    }catch(e){ if(document.documentElement.dataset.view==='bounties') c.innerHTML='<div class="card"><div role="status">Bounty board UNAVAILABLE: '+bn_esc((e&&e.message)||e)+'</div></div>'; }
   };
   function reg(){
     var V=window.VIEWS; if(!V){ return setTimeout(reg,60); }
@@ -16751,7 +16831,7 @@ window.a11oyInvestor = (function(){
   function toggle(){ try{ open(); }catch(_){ } }
   try{
     document.addEventListener('keydown', function(e){
-      try{ if(e.key==='Escape'){ close(); } }catch(_){}
+      try{ if(e.key==='Escape' && document.documentElement.getAttribute('data-view')==='investor'){ close(); } }catch(_){}
     });
     // Compatibility: leftover overlay markup may remain. Deep-links must land
     // on V.investor via go('investor'), never revive the overlay as destination.
@@ -16813,7 +16893,7 @@ window.a11oyInvestor = (function(){
           }
         }catch(_honestUnavailable){}
         try{
-          var L = await readJSON('/api/a11oy/v1/wow/ledger?limit=1');
+          var L = await readJSON('/api/a11oy/v1/wow/ledger?limit=1&advance=0');
           if(L && L.data) L=L.data;
           var rec=((L&&(L.receipts||L.items))||[])[0];
           var host=document.getElementById('inv-one-receipt');
@@ -17389,5 +17469,10 @@ window.a11oyInvestor = (function(){
 
   <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
   <script src="/assets/szl-holo-v2.js" defer data-szl-holo-asset="script-v2"></script>
-</body>
+<script>
+// Legacy registration callbacks can replace the requested URL with their default.
+document.addEventListener('DOMContentLoaded', function () {
+  if (typeof start !== 'undefined' && start === 'fleet' && typeof window.go === 'function') window.go('fleet');
+}, {once:true});
+</script></body>
 </html>

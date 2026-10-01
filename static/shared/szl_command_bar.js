@@ -11,6 +11,25 @@
 
   var PROOF = 'https://a11oy.net';
   var KERNEL = 'https://huggingface.co/SZLHOLDINGS/governed-inference-meter';
+  var barId = 0;
+  var themeMedia = global.matchMedia('(prefers-color-scheme: light)');
+  var consoleTheme = document.documentElement.hasAttribute('data-console-style');
+  var themeChoice = null;
+  function applyConsoleTheme() {
+    if (!consoleTheme) return;
+    var light = themeChoice ? themeChoice === 'light' : themeMedia.matches;
+    document.documentElement.setAttribute('data-surface', light ? 'light' : 'dark');
+    document.querySelectorAll('.szl-theme-toggle').forEach(function (button) {
+      button.textContent = light ? 'Dark theme' : 'Light theme';
+      button.setAttribute('aria-label', light ? 'Switch to dark theme' : 'Switch to light theme');
+    });
+  }
+  if (consoleTheme) {
+    try { themeChoice = localStorage.getItem('szl.console.theme'); } catch (e) {}
+    if (themeChoice !== 'light' && themeChoice !== 'dark') themeChoice = null;
+    applyConsoleTheme();
+    themeMedia.addEventListener('change', applyConsoleTheme);
+  }
   var reduce = false;
   try {
     reduce = !!(global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -160,10 +179,11 @@
         else location.href = '/console?view=investor';
       }
     });
-    var cmdkBtn = el('button', { class: 'szl-cmdk', type: 'button', title: 'Command palette', text: '⌘K' });
-    var opBtn = el('button', { class: 'szl-op-toggle', type: 'button', text: 'Operator' });
-    var moreBtn = el('button', { class: 'szl-more', type: 'button', text: 'More' });
-    var moreMenu = el('div', { class: 'szl-overflow-menu', role: 'menu' });
+    var cmdkBtn = el('button', { class: 'szl-cmdk', type: 'button', title: 'Command palette', 'aria-label': 'Open command palette', 'aria-haspopup': 'dialog', 'aria-controls': 'szl-command-palette', text: '⌘K' });
+    var opBtn = el('button', { class: 'szl-op-toggle', type: 'button', 'aria-pressed': document.documentElement.getAttribute('data-operator') === '1' ? 'true' : 'false', text: 'Operator' });
+    var menuId = 'szl-command-more-' + (++barId);
+    var moreBtn = el('button', { class: 'szl-more', type: 'button', 'aria-expanded': 'false', 'aria-controls': menuId, 'aria-haspopup': 'menu', text: 'More' });
+    var moreMenu = el('div', { class: 'szl-overflow-menu', id: menuId, role: 'menu', 'aria-label': 'More surfaces' });
     var overflow = el('div', { class: 'szl-overflow' }, [moreBtn, moreMenu]);
 
     var estate = el('nav', { class: 'szl-estate extlinks', 'aria-label': 'Estate switcher' }, [
@@ -192,22 +212,77 @@
     root.appendChild(scope);
     root.appendChild(live);
     root.appendChild(sw);
+    if (consoleTheme) {
+      var themeButton = el('button', { class: 'szl-origin szl-theme-toggle', type: 'button' });
+      themeButton.addEventListener('click', function () {
+        themeChoice = document.documentElement.getAttribute('data-surface') === 'light' ? 'dark' : 'light';
+        try { localStorage.setItem('szl.console.theme', themeChoice); } catch (e) {}
+        applyConsoleTheme();
+      });
+      sw.insertBefore(themeButton, overflow);
+      applyConsoleTheme();
+    }
 
     opBtn.addEventListener('click', function () {
       var on = document.documentElement.getAttribute('data-operator') === '1';
       if (on) document.documentElement.removeAttribute('data-operator');
       else document.documentElement.setAttribute('data-operator', '1');
+      opBtn.setAttribute('aria-pressed', on ? 'false' : 'true');
       try { localStorage.setItem('szl.operator', on ? '0' : '1'); } catch (e) {}
     });
     try {
       if (localStorage.getItem('szl.operator') === '1') document.documentElement.setAttribute('data-operator', '1');
     } catch (e) {}
 
+    function closeMore(restore) {
+      overflow.classList.remove('open');
+      moreBtn.setAttribute('aria-expanded', 'false');
+      if (restore) moreBtn.focus();
+    }
+    function openMore(focusLast) {
+      overflow.classList.add('open');
+      moreBtn.setAttribute('aria-expanded', 'true');
+      moreMenu.style.left = '';
+      moreMenu.style.right = '0';
+      if (moreMenu.getBoundingClientRect().left < 8) {
+        moreMenu.style.right = 'auto';
+        moreMenu.style.left = '0';
+      }
+      var items = moreMenu.querySelectorAll('a');
+      if (items.length && focusLast != null) items[focusLast ? items.length - 1 : 0].focus();
+    }
     moreBtn.addEventListener('click', function (ev) {
       ev.stopPropagation();
-      overflow.classList.toggle('open');
+      if (overflow.classList.contains('open')) closeMore(false);
+      else openMore(null);
     });
-    document.addEventListener('click', function () { overflow.classList.remove('open'); });
+    moreBtn.addEventListener('keydown', function (ev) {
+      if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+        ev.preventDefault();
+        openMore(ev.key === 'ArrowUp');
+      } else if (ev.key === 'Escape') closeMore(false);
+    });
+    moreMenu.addEventListener('keydown', function (ev) {
+      var items = Array.prototype.slice.call(moreMenu.querySelectorAll('a'));
+      var index = items.indexOf(document.activeElement);
+      if (ev.key === 'Escape') {
+        ev.preventDefault();
+        ev.stopPropagation();
+        closeMore(true);
+      } else if (items.length && /^(ArrowDown|ArrowUp|Home|End)$/.test(ev.key)) {
+        ev.preventDefault();
+        if (ev.key === 'Home') index = 0;
+        else if (ev.key === 'End') index = items.length - 1;
+        else index = (index + (ev.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+        items[index].focus();
+      }
+    });
+    overflow.addEventListener('focusout', function () {
+      setTimeout(function () {
+        if (!overflow.contains(document.activeElement)) closeMore(false);
+      }, 0);
+    });
+    document.addEventListener('click', function () { closeMore(false); });
 
     function collectOverflow() {
       moreMenu.textContent = '';
@@ -233,7 +308,7 @@
         fetchJson('/api/a11oy/v1/readiness/tab-matrix?view=summary', 6000).catch(function () { return null; }),
         fetchJson('/api/a11oy/v1/observability/summary', 6000).catch(function () { return null; }),
         fetchJson('/api/a11oy/v1/lambda', 6000).catch(function () { return null; }),
-        fetchJson('/api/a11oy/v1/wow/ledger?limit=1', 6000).catch(function () { return null; }),
+        fetchJson('/api/a11oy/v1/wow/ledger?limit=1&advance=0', 6000).catch(function () { return null; }),
         fetchJson('/api/a11oy/v1/honest', 6000).catch(function () { return null; })
       ]).then(function (vals) {
         var health = vals[0], matrix = vals[1], summary = vals[2], lambda = vals[3], ledger = vals[4], honest = vals[5];
@@ -247,8 +322,8 @@
           setChip(svc, false, 'UNAVAILABLE');
         }
 
-        if (lambda && typeof lambda.lambda === 'number') {
-          setChip(lam, true, 'CONJECTURE 1 · ' + lambda.lambda.toFixed(3));
+        if (lambda && typeof lambda.lambda === 'number' && isFinite(lambda.lambda)) {
+          setChip(lam, false, 'CONJECTURE 1 · ADVISORY · ' + lambda.lambda.toFixed(3));
         } else {
           setChip(lam, false, 'CONJECTURE 1 · UNAVAILABLE');
         }
@@ -258,13 +333,17 @@
         if (lockedN === 8) setChip(kern, true, '8');
         else setChip(kern, false, 'UNAVAILABLE');
 
-        var depth = (ledger && ledger.chain_depth != null) ? ledger.chain_depth
-          : (summary && summary.dag_depth != null) ? summary.dag_depth : null;
+        var ledgerDepth = ledger && ledger.chain_depth;
+        var dagDepth = summary && summary.dag_depth;
+        var fromLedger = typeof ledgerDepth === 'number' && isFinite(ledgerDepth) && ledgerDepth >= 0 && Math.floor(ledgerDepth) === ledgerDepth;
+        var depth = fromLedger ? ledgerDepth
+          : (typeof dagDepth === 'number' && isFinite(dagDepth) && dagDepth >= 0 && Math.floor(dagDepth) === dagDepth) ? dagDepth : null;
         var rollEl = chain.querySelector('[data-roll]');
+        chain.firstChild.textContent = depth != null && !fromLedger ? 'DAG' : 'CHAIN';
+        chain.title = depth == null ? 'Chain and DAG depth sources are unavailable.' : fromLedger ? 'Reported ledger chain depth; not a signature verification result.' : 'Reported observability DAG depth; not a receipt count.';
         if (depth != null) {
           setChip(chain, true, '');
           if (rollEl) {
-            rollEl.removeAttribute('data-lab');
             roll(rollEl, String(depth));
           }
         } else {
@@ -272,20 +351,23 @@
         }
 
         var recs = (ledger && (ledger.receipts || ledger.items)) || [];
-        var rec = recs[0];
-        if (rec) {
+        var rec = Array.isArray(recs) && recs[0];
+        if (rec && typeof rec === 'object') {
           var ts = rec.timestamp_utc || rec.ts || rec.t || rec.created_at;
-          var ageLabel = 'SIGNED';
+          var ageLabel = 'UNVERIFIED';
           if (rec.unsigned || rec.signer_state === 'UNSIGNED') ageLabel = 'UNSIGNED';
-          else if (rec.hash || rec.prev_hash) ageLabel = 'HASH-LINKED';
+          else if (typeof rec.hash === 'string' && rec.hash && typeof rec.prev_hash === 'string' && rec.prev_hash) ageLabel = 'HASH-LINKED';
+          if (rec.simulated === true) ageLabel = 'SAMPLE · ' + ageLabel;
           if (ts) {
             var then = Date.parse(ts);
             if (!isNaN(then)) {
-              var sec = Math.max(0, Math.round((Date.now() - then) / 1000));
-              ageLabel += sec < 60 ? (' · ' + sec + 's') : (' · ' + Math.round(sec / 60) + 'm');
+              var sec = Math.round((Date.now() - then) / 1000);
+              if (sec < 0) ageLabel += ' · FUTURE TIMESTAMP';
+              else ageLabel += sec < 60 ? (' · ' + sec + 's') : (' · ' + Math.round(sec / 60) + 'm');
             }
           }
-          setChip(age, true, ageLabel);
+          setChip(age, false, ageLabel);
+          age.title = 'Reported ledger entry. A hash link or receipt id does not verify a signature.';
           var head = rec.hash || rec.receipt_id || rec.id;
           if (head && head !== lastHead) {
             lastHead = head;
@@ -318,6 +400,7 @@
 
     cmdkBtn.addEventListener('click', openPalette);
     document.addEventListener('keydown', function (e) {
+      if (e.isComposing || e.keyCode === 229) return;
       if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
         e.preventDefault();
         openPalette();
@@ -326,34 +409,72 @@
   }
 
   var pal = null;
+  var paletteReturnFocus = null;
+  var paletteBackground = [];
+  var paletteOverflow = '';
   function openPalette() {
     if (!pal) pal = buildPalette();
-    pal.classList.add('open');
-    var inp = pal.querySelector('input');
-    if (inp) inp.focus();
+    if (!pal.classList.contains('open')) {
+      paletteReturnFocus = document.activeElement;
+      pal.classList.add('open');
+      pal.setAttribute('aria-hidden', 'false');
+      var inp = pal.querySelector('input');
+      if (inp) inp.focus();
+      paletteBackground = [];
+      Array.prototype.forEach.call(document.body.children, function (node) {
+        if (node === pal) return;
+        paletteBackground.push({ node: node, inert: node.hasAttribute('inert'), hidden: node.getAttribute('aria-hidden') });
+        node.setAttribute('inert', '');
+        node.setAttribute('aria-hidden', 'true');
+      });
+      paletteOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+    } else {
+      var currentInput = pal.querySelector('input');
+      if (currentInput) currentInput.focus();
+    }
   }
-  function closePalette() { if (pal) pal.classList.remove('open'); }
+  function closePalette() {
+    if (!pal || !pal.classList.contains('open')) return;
+    pal.classList.remove('open');
+    paletteBackground.forEach(function (item) {
+      if (!item.inert) item.node.removeAttribute('inert');
+      if (item.hidden == null) item.node.removeAttribute('aria-hidden');
+      else item.node.setAttribute('aria-hidden', item.hidden);
+    });
+    paletteBackground = [];
+    document.body.style.overflow = paletteOverflow;
+    if (paletteReturnFocus && document.documentElement.contains(paletteReturnFocus) && typeof paletteReturnFocus.focus === 'function') paletteReturnFocus.focus();
+    pal.setAttribute('aria-hidden', 'true');
+    paletteReturnFocus = null;
+  }
 
   function buildPalette() {
-    var ov = el('div', { class: 'szl-pal-ov', role: 'dialog', 'aria-label': 'Command palette' });
+    var ov = el('div', { class: 'szl-pal-ov', id: 'szl-command-palette', role: 'dialog', 'aria-modal': 'true', 'aria-hidden': 'true', 'aria-label': 'Command palette' });
     var box = el('div', { class: 'szl-pal' });
     var inp = el('input', { type: 'search', placeholder: 'Verify a receipt, jump a surface…', 'aria-label': 'Command' });
-    var list = el('div', { class: 'szl-pal-list' });
+    var close = el('button', { class: 'szl-pal-close', type: 'button', 'aria-label': 'Close command palette', text: '×', onclick: closePalette });
+    var head = el('div', { class: 'szl-pal-head' }, [inp, close]);
+    var list = el('nav', { class: 'szl-pal-list', 'aria-label': 'Command destinations' });
     function render(q) {
       list.textContent = '';
       var qq = (q || '').toLowerCase();
-      VERBS.filter(function (v) { return !qq || v.label.toLowerCase().indexOf(qq) >= 0; }).forEach(function (v) {
-        var item = el('div', { class: 'szl-pal-item' }, [
+      var matches = VERBS.filter(function (v) { return !qq || v.label.toLowerCase().indexOf(qq) >= 0; });
+      if (!matches.length) list.appendChild(el('p', { class: 'szl-pal-empty', role: 'status', text: 'No matching commands.' }));
+      matches.forEach(function (v) {
+        var attrs = { class: 'szl-pal-item' };
+        if (v.roadmap) { attrs.type = 'button'; attrs.disabled = ''; }
+        else attrs.href = v.href;
+        var item = el(v.roadmap ? 'button' : 'a', attrs, [
           el('span', { text: v.label }),
           v.roadmap ? el('span', { class: 'road', text: 'ROADMAP' }) : null
         ]);
-        item.addEventListener('click', function () {
+        item.addEventListener('click', function (e) {
           if (v.roadmap) return;
           closePalette();
-          if (v.href.indexOf('/console?view=') === 0 && typeof global.go === 'function') {
+          if (v.href.indexOf('/console?view=') === 0 && typeof global.go === 'function' && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
+            e.preventDefault();
             global.go(v.href.split('view=')[1]);
-          } else {
-            location.href = v.href;
           }
         });
         list.appendChild(item);
@@ -361,8 +482,32 @@
     }
     inp.addEventListener('input', function () { render(inp.value); });
     ov.addEventListener('click', function (e) { if (e.target === ov) closePalette(); });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePalette(); });
-    box.appendChild(inp); box.appendChild(list); ov.appendChild(box);
+    ov.addEventListener('keydown', function (e) {
+      if (e.isComposing || e.keyCode === 229) return;
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closePalette(); return; }
+      var items = Array.prototype.slice.call(list.querySelectorAll('a[href]'));
+      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && (e.target === inp || items.indexOf(e.target) >= 0) && items.length) {
+        e.preventDefault();
+        var index = items.indexOf(document.activeElement);
+        if (index < 0) index = e.key === 'ArrowDown' ? 0 : items.length - 1;
+        else index = (index + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+        items[index].focus();
+      } else if (e.key === 'Enter' && e.target === inp && items.length) {
+        e.preventDefault(); items[0].click();
+      } else if (e.key === 'Tab') {
+        var focusable = Array.prototype.slice.call(ov.querySelectorAll('input, button:not([disabled]), a[href]'));
+        var first = focusable[0], last = focusable[focusable.length - 1];
+        if (e.shiftKey && (document.activeElement === first || focusable.indexOf(document.activeElement) < 0)) {
+          e.preventDefault(); last.focus();
+        } else if (!e.shiftKey && (document.activeElement === last || focusable.indexOf(document.activeElement) < 0)) {
+          e.preventDefault(); first.focus();
+        }
+      }
+    });
+    document.addEventListener('focusin', function (e) {
+      if (ov.classList.contains('open') && !ov.contains(e.target)) inp.focus();
+    });
+    box.appendChild(head); box.appendChild(list); ov.appendChild(box);
     document.body.appendChild(ov);
     render('');
     return ov;
@@ -473,6 +618,7 @@
     root.classList.add('szl-estate-grid');
     if (compact) root.classList.add('is-compact');
     root.setAttribute('data-szl-estate', compact ? 'compact' : 'full');
+    root.setAttribute('aria-busy', 'true');
     root.innerHTML = '<div class="szl-empty" data-kind="unknown"><span class="szl-empty__k">UNKNOWN</span>'
       + '<span class="szl-empty__d">probing Hub listing…</span></div>';
     fetchJson(opts.endpoint || '/api/a11oy/v1/models/series-a', 10000).then(function (d) {
@@ -486,9 +632,11 @@
         + '<span class="szl-holo-lambda">Λ = Conjecture 1 · catalog LOCKED-PROVEN is not Lean-8</span></div>');
       parts.push('<h4 class="szl-estate-h">Models</h4><div class="szl-estate-tiles">');
       models.forEach(function (c) { parts.push(renderCard(c, compact)); });
+      if (!models.length) parts.push('<div class="szl-empty" data-kind="unknown"><span class="szl-empty__k">NO ENTRIES REPORTED</span><span class="szl-empty__d">No models were returned by this inventory source.</span></div>');
       parts.push('</div><h4 class="szl-estate-h">Kernels</h4><div class="szl-estate-tiles">');
       kernels.forEach(function (c) { parts.push(renderCard(c, compact)); });
       road.forEach(function (c) { parts.push(renderRoadmap(c)); });
+      if (!kernels.length && !road.length) parts.push('<div class="szl-empty" data-kind="unknown"><span class="szl-empty__k">NO ENTRIES REPORTED</span><span class="szl-empty__d">No kernels were returned by this inventory source.</span></div>');
       parts.push('</div>');
       if (!compact) {
         parts.push('<p class="szl-estate-foot">Killinchu-named Hub IDs are outside this inventory. '
@@ -498,9 +646,12 @@
         parts.push('<p class="szl-estate-foot"><a href="/estate">Open models + kernels</a></p>');
       }
       root.innerHTML = parts.join('');
+      root.setAttribute('aria-busy', 'false');
     }).catch(function () {
       root.innerHTML = '<div class="szl-empty" data-kind="unavailable"><span class="szl-empty__k">UNAVAILABLE</span>'
         + '<span class="szl-empty__d">Hub listing could not be fetched. No inventory is invented.</span></div>';
+      root.setAttribute('aria-busy', 'false');
+      root.firstChild.appendChild(el('button', { class: 'szl-empty__retry', type: 'button', text: 'Retry inventory', onclick: function () { mountEstate(root, opts); } }));
     });
   }
 
