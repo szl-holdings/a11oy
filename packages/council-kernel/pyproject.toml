@@ -13,6 +13,7 @@ authors = [
   { name = "SZL Holdings" }
 ]
 dependencies = []
+classifiers = ["Private :: Do Not Upload"]
 
 [tool.setuptools]
 package-dir = { "" = "src" }
