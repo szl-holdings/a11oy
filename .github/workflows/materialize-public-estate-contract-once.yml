@@ -7,15 +7,15 @@ on:
     paths:
       - .github/workflows/materialize-public-estate-contract-once.yml
 
-permissions:
-  contents: write
-
+permissions: read-all
 concurrency:
   group: materialize-public-estate-contract-once
   cancel-in-progress: false
 
 jobs:
   materialize:
+    permissions:
+      contents: write
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:

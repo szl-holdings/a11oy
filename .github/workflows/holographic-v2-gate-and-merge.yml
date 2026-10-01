@@ -4,19 +4,19 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
-permissions:
-  actions: read
-  checks: read
-  contents: write
-  pull-requests: write
-  statuses: read
-
+permissions: read-all
 concurrency:
   group: holographic-v2-gate-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
   gate-and-merge:
+    permissions:
+      actions: read
+      checks: read
+      contents: write
+      pull-requests: write
+      statuses: read
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.head_ref == 'feat/holographic-experience-v2-20260902' &&

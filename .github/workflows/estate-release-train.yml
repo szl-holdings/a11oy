@@ -43,11 +43,7 @@ name: Estate release train
         type: string
         default: ""
 
-permissions:
-  actions: write
-  contents: read
-  issues: write
-
+permissions: read-all
 concurrency:
   # PRs only observe. Do not queue them behind up to 50 minutes of canonical repair.
   # Preserve the existing canonical writer/incident serialization group exactly.
@@ -60,6 +56,10 @@ env:
 
 jobs:
   verify:
+    permissions:
+      actions: write
+      contents: read
+      issues: write
     if: >-
       github.event_name != 'workflow_run' ||
       github.event.workflow_run.conclusion == 'success'

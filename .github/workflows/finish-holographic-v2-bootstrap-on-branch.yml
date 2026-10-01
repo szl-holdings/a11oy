@@ -7,19 +7,19 @@ on:
     paths:
       - ".github/workflows/finish-holographic-v2-bootstrap-on-branch.yml"
 
-permissions:
-  actions: read
-  checks: read
-  contents: write
-  pull-requests: write
-  statuses: read
-
+permissions: read-all
 concurrency:
   group: finish-holographic-v2-bootstrap
   cancel-in-progress: false
 
 jobs:
   finish:
+    permissions:
+      actions: read
+      checks: read
+      contents: write
+      pull-requests: write
+      statuses: read
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:

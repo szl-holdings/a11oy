@@ -19,12 +19,12 @@ name: Apply router source-authority alignment
       - scripts/align_router_source_authority.py
       - .github/workflows/apply-router-source-authority-alignment.yml
 
-permissions:
-  contents: write
-  pull-requests: write
-
+permissions: read-all
 jobs:
   apply:
+    permissions:
+      contents: write
+      pull-requests: write
     name: Apply exact authority rewrite
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -66,6 +66,9 @@ jobs:
           git push origin HEAD:fix/router-source-authority-alignment-20260908
 
   validate:
+    permissions:
+      contents: write
+      pull-requests: write
     name: Validate canonical router ownership
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
