@@ -23,17 +23,17 @@ on:
         required: false
         default: "900"
 
-permissions:
-  contents: read
-  actions: write
-  issues: write
-
+permissions: read-all
 concurrency:
   group: hf-estate-recovery-v2
   cancel-in-progress: false
 
 jobs:
   recover:
+    permissions:
+      contents: read
+      actions: write
+      issues: write
     name: Recover every non-folded SZLHOLDINGS Space
     runs-on: ubuntu-latest
     timeout-minutes: 35

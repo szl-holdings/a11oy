@@ -11,8 +11,7 @@ name: Reviewed public inventory refresh
         description: Exact maintenance-branch source revision
         type: string
         required: true
-permissions:
-  contents: read
+permissions: read-all
 concurrency:
   group: public-inventory-refresh-${{ github.ref }}
   cancel-in-progress: false

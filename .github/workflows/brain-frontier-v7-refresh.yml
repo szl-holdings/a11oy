@@ -14,7 +14,6 @@ on:
 
 permissions:
   contents: read
-
 concurrency:
   group: brain-frontier-v7-refresh
   cancel-in-progress: false

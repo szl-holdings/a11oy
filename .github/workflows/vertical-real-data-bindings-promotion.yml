@@ -8,18 +8,18 @@ on:
       - .github/workflows/vertical-real-data-bindings-promotion.yml
   workflow_dispatch:
 
-permissions:
-  actions: read
-  checks: read
-  contents: write
-  pull-requests: write
-
+permissions: read-all
 concurrency:
   group: vertical-real-data-bindings-promotion
   cancel-in-progress: true
 
 jobs:
   promote:
+    permissions:
+      actions: read
+      checks: read
+      contents: write
+      pull-requests: write
     name: Promote exact green vertical binding head
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-24.04

@@ -7,15 +7,15 @@ name: Materialize Command Centre v2 operational source once
     paths:
       - .github/workflows/materialize-command-v2-operational-once.yml
 
-permissions:
-  contents: write
-
+permissions: read-all
 concurrency:
   group: materialize-command-v2-operational-once
   cancel-in-progress: false
 
 jobs:
   materialize:
+    permissions:
+      contents: write
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:

@@ -7,15 +7,15 @@ on:
       - .github/workflows/cleanup-transient-probe-branches-once.yml
   workflow_dispatch: {}
 
-permissions:
-  contents: write
-
+permissions: read-all
 concurrency:
   group: cleanup-transient-probe-branches-once
   cancel-in-progress: false
 
 jobs:
   cleanup:
+    permissions:
+      contents: write
     name: Delete exact transient probe refs
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04

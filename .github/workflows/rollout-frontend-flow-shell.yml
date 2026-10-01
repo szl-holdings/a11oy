@@ -13,16 +13,16 @@ on:
         type: boolean
         default: false
 
-permissions:
-  contents: write
-  pull-requests: write
-
+permissions: read-all
 concurrency:
   group: rollout-frontend-flow-shell
   cancel-in-progress: false
 
 jobs:
   rollout:
+    permissions:
+      contents: write
+      pull-requests: write
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:

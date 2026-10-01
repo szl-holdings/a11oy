@@ -7,12 +7,12 @@ name: LLM Router flagship amendment
       - docs/series-a/LLM_ROUTER_FLAGSHIP_AMENDMENT_20260908.md
       - .github/workflows/llm-router-flagship-amendment.yml
 
-permissions:
-  contents: write
-  pull-requests: write
-
+permissions: read-all
 jobs:
   validate:
+    permissions:
+      contents: write
+      pull-requests: write
     name: Validate flagship authority chain
     if: github.event.pull_request.head.ref == 'fix/llm-router-flagship-amendment-20260908'
     runs-on: ubuntu-latest

@@ -15,16 +15,16 @@ on:
       - "tests/test_aegis_proof_cells_engine.mjs"
       - "tests/test_aegis_proof_cells_live.py"
 
-permissions:
-  contents: write
-  pull-requests: write
-
+permissions: read-all
 concurrency:
   group: aegis-proof-cells-promotion-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
   request-protected-auto-merge:
+    permissions:
+      contents: write
+      pull-requests: write
     if: >-
       github.repository == 'szl-holdings/a11oy' &&
       github.event.pull_request.draft == false &&
