@@ -147,6 +147,9 @@ COPY szl_quantum_utility.py ./
 # Wave 18 numerical-engine frontier. These are only the Apache-2.0 host contract
 # … (full rationale: docs/DOCKERFILE_NOTES.md §6)
 COPY szl_numerics_adapter.py ./
+# Public Steward services/provenance dependency: fixed read-only bytes from
+# exact canonical Estate OS source. No private audit store or model adapter.
+COPY a11oy_steward_surface.py steward_public.py steward-public.json steward-source-lock.json ./
 COPY szl_numerics_dataset.py ./
 COPY szl_numerics_experiment.py ./
 COPY numerics/ ./numerics/

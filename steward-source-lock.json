@@ -1,0 +1,7 @@
+{
+  "schema_version": "szl.frontier-steward.dependency/v1",
+  "repository": "szl-holdings/szl-estate-os",
+  "revision": "a714d60b01a8680a8f08bd41978151964e828d42",
+  "module_sha256": "c1f889d9e0dd07d7f0edec3c152d3256ae4d7751491997a429ff3bbcbb283a8b",
+  "projection_sha256": "dc914d4ded88c92f78fe8c722ccd9ffba4dc79623750f096a3261cf69a05b3c7"
+}
