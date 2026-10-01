@@ -33,7 +33,7 @@ Markdown / other:
   Pydantic models — it breaks model validation at runtime.
 - **Register new API routes before the SPA catch-all** or they fall through to an HTML 200.
 - Match the surrounding file's style. UI follows the founder **SZL KANCHAY** design system
-  (szl-brand `kanchay/` 1.1.0 and its `DESIGN_DIRECTION.md`): vendor `szl-design-system.css`
+  (szl-brand `kanchay/` 1.1.1 and its `DESIGN_DIRECTION.md`): vendor `szl-design-system.css`
   (plus `szl-console.css` on operator surfaces) byte-for-byte into one `szl/` folder per served
   root (main Space: `console/assets/szl/`, served at `/assets/szl/`), link it before the page's
   own sheet, and build with its tokens and classes. Dark operator is `:root`; light marketing is

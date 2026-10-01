@@ -600,6 +600,15 @@ except Exception as _gdw_frontier_error:  # pragma: no cover - fail one surface 
     }
 
 
+# Services layer: the public Steward namespace is reserved before either
+# catch-all. Its pinned package may be unavailable or stale, but its reader
+# still rejects non-GET requests rather than forwarding them to the proxy.
+# No model call, signing, receipt write, or live estate collection occurs here.
+import a11oy_steward_surface as _steward_surface
+
+_STEWARD_SURFACE_STATUS = _steward_surface.register(app)
+
+
 # Governed Graph Operations (2026-08-01): a deterministic, non-effecting
 # topology analyzer for bounded loop nodes, real data/control edges, fan-in
 # completeness, independent verification, hidden resource conflicts, budgets,
@@ -951,10 +960,8 @@ except Exception as _a11oy_ti_e:  # pragma: no cover
 # live/cached/unreachable labels. Same resilience pattern as evidence module.
 # Additive, try/except-guarded, registered EARLY (before the SPA catch-all). Pure stdlib.
 try:
-    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
-        from szl_substrate import szl_readiness as _szl_readiness  # single source of truth
-    except Exception:
-        import szl_readiness as _szl_readiness
+    # Bind selection to the Docker-copied, shared-source-checked module.
+    import szl_readiness as _szl_readiness
     _szl_readiness.register(app, ns="a11oy")
     print("[a11oy] Operational Readiness registered: /api/a11oy/v1/readiness", file=__import__("sys").stderr)
 except Exception as _szl_rd_e:  # pragma: no cover

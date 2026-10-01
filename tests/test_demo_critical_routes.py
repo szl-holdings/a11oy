@@ -37,6 +37,8 @@ import serve  # noqa: E402
 # /api/a11oy/v1/compute-pool — see szl_backend_hardening.register(); either satisfies
 # the substring match.)
 DEMO_CRITICAL_ROUTES = [
+    "/api/a11oy/v1/steward/status",           # pinned public evidence, honestly 503 when stale
+    "/api/a11oy/v1/steward/proposals",        # current deterministic proposals only; no execution
     "/api/a11oy/v1/energy/operator/status",   # #460 — already restored once
     "/api/a11oy/v1/energy/ledger",            # 2026-06-16 restore
     "/api/a11oy/v1/energy/projection",        # 2026-06-16 restore
@@ -212,6 +214,26 @@ def test_frontier_now_routes_are_owned_and_precede_production_catchalls():
         assert index < spa_index
         if path.startswith("/api/a11oy/"):
             assert index < api_proxy_index
+
+
+def test_public_steward_routes_are_read_only_json_before_catchalls():
+    """Missing evidence may be unavailable; missing registration is a regression."""
+    from starlette.testclient import TestClient
+
+    client = TestClient(serve.app, follow_redirects=False)
+    for leaf in ("status", "proposals"):
+        path = "/api/a11oy/v1/steward/" + leaf
+        response = client.get(path)
+        assert response.status_code in (200, 503)
+        value = response.json()
+        assert value["schema_version"] == "szl.a11oy.steward.surface/v1"
+        assert value["production_ready"] is False
+        assert value["model_invoked"] is False
+        assert value["storage_writes"] == 0
+        assert client.post(path, json={}).status_code == 405
+    unknown = client.get("/api/a11oy/v1/steward/unknown")
+    assert unknown.status_code == 404
+    assert unknown.json()["state"] == "NOT_FOUND"
 
 
 def test_investor_alias_is_307_onto_console_view_not_404():
