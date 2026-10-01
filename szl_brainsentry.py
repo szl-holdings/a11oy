@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import re
 import json
+import math
 import hashlib
 import datetime
 
@@ -96,6 +97,104 @@ RULES = [
 _COMPILED = [(r, re.compile(r["pattern"], re.IGNORECASE)) for r in RULES]
 
 
+# --------------------------------------------------------------------------- #
+# CVSS v3.1 base-score enrichment (FIRST.org spec, deterministic + transparent).
+# This is the alert-enrichment step top AI SOC platforms converge on: parse
+# a CVSS vector present in a signal, compute the standard base score, and fold
+# the severity into ranking. Pure arithmetic over published weights — fully
+# auditable, never a black box. An unparseable vector is NEVER scored.
+# --------------------------------------------------------------------------- #
+CVSS_V31_WEIGHTS = {
+    "AV": {"N": 0.85, "A": 0.62, "L": 0.55, "P": 0.20},
+    "AC": {"L": 0.77, "H": 0.44},
+    "PR": {"N": 0.85, "L": 0.62, "H": 0.27},   # scope-unchanged values; changed handled below
+    "UI": {"N": 0.85, "R": 0.62},
+    "CIA": {"H": 0.56, "L": 0.22, "N": 0.0},
+}
+_PR_SCOPE_CHANGED = {"N": 0.85, "L": 0.68, "H": 0.50}  # per FIRST.org v3.1 Table 14
+_CVSS_VECTOR_RE = re.compile(r"CVSS:3\.[01]/[A-Za-z:/-]+", re.IGNORECASE)
+_CVE_RE = re.compile(r"\bCVE-\d{4}-\d{4,8}\b", re.IGNORECASE)
+
+
+def _roundup(value: float) -> float:
+    """CVSS v3.1 Roundup: smallest number with one decimal >= value (spec section 7.1)."""
+    int_input = round(value * 100000)
+    if int_input % 10000 == 0:
+        return int_input / 100000.0
+    return (math.floor(int_input / 10000) + 1) / 10.0
+
+
+def parse_cvss_v31(vector: str) -> dict | None:
+    """Parse a CVSS v3.1 vector string into its metrics. Returns None for anything
+    malformed — never a guessed or partial score."""
+    if not vector:
+        return None
+    parts = vector.strip().upper().split("/")
+    if not parts or not parts[0].startswith("CVSS:3."):
+        return None
+    metrics = {}
+    for p in parts[1:]:
+        if ":" not in p:
+            return None
+        k, v = p.split(":", 1)
+        metrics[k] = v
+    required = ["AV", "AC", "PR", "UI", "S", "C", "I", "A"]
+    allowed = {
+        "AV": set("NALP"), "AC": set("LH"), "PR": set("NLH"), "UI": set("NR"),
+        "S": set("UC"), "C": set("HLN"), "I": set("HLN"), "A": set("HLN"),
+    }
+    for k in required:
+        if k not in metrics or metrics[k] not in allowed[k]:
+            return None
+    return metrics
+
+
+def cvss_v31_base_score(vector: str) -> dict | None:
+    """Compute the CVSS v3.1 base score per the FIRST.org specification. Returns
+    {score, severity, metrics} or None when the vector is unparseable (never fabricated)."""
+    m = parse_cvss_v31(vector)
+    if m is None:
+        return None
+    scope_changed = m["S"] == "C"
+    pr_w = (_PR_SCOPE_CHANGED if scope_changed else CVSS_V31_WEIGHTS["PR"])[m["PR"]]
+    av = CVSS_V31_WEIGHTS["AV"][m["AV"]]
+    ac = CVSS_V31_WEIGHTS["AC"][m["AC"]]
+    ui = CVSS_V31_WEIGHTS["UI"][m["UI"]]
+    c = CVSS_V31_WEIGHTS["CIA"][m["C"]]
+    i = CVSS_V31_WEIGHTS["CIA"][m["I"]]
+    a = CVSS_V31_WEIGHTS["CIA"][m["A"]]
+
+    iss = 1.0 - (1.0 - c) * (1.0 - i) * (1.0 - a)
+    if scope_changed:
+        impact = 7.52 * (iss - 0.029) - 3.25 * (iss - 0.02) ** 15
+    else:
+        impact = 6.42 * iss
+    exploitability = 8.22 * av * ac * pr_w * ui
+    if impact <= 0:
+        score = 0.0
+    elif scope_changed:
+        score = min(1.08 * (impact + exploitability), 10.0)
+    else:
+        score = min(impact + exploitability, 10.0)
+    score = _roundup(score)
+    if score <= 0.0:
+        sev = "NONE"
+    elif score < 4.0:
+        sev = "LOW"
+    elif score < 7.0:
+        sev = "MEDIUM"
+    elif score < 9.0:
+        sev = "HIGH"
+    else:
+        sev = "CRITICAL"
+    return {"score": score, "severity": sev, "metrics": m,
+            "note": "CVSS v3.1 base score per FIRST.org; deterministic arithmetic over the published weights, fully auditable."}
+
+
+# CVSS severity -> transparent triage weight (deterministic; shown in the result).
+CVSS_SEVERITY_WEIGHT = {"CRITICAL": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1, "NONE": 0}
+
+
 def _priority(score: int) -> str:
     if score >= 9:
         return PRIORITY_CRITICAL
@@ -133,21 +232,47 @@ def _doctrine_block(note: str = "", label_top: str = LBL_MODELED) -> dict:
 
 
 def triage_signal(signal: str) -> dict:
-    """Score one signal by transparent rules. Returns the score, priority, and EVERY rule that
-    fired (auditable). Never claims malice — only ranks for human review."""
+    """Score one signal by transparent rules + CVSS enrichment. Returns the score,
+    priority, EVERY rule that fired, and any CVE/CVSS enrichment (auditable).
+    Never claims malice — only ranks for human review."""
     matched = []
     score = 0
     for rule, rx in _COMPILED:
         if rx.search(signal or ""):
             matched.append({"rule_id": rule["id"], "weight": rule["weight"], "why": rule["why"]})
             score += rule["weight"]
-    return {
+
+    # --- enrichment (the step top AI SOC platforms converge on) ---
+    enrichment = {}
+    cves = _CVE_RE.findall(signal or "")
+    if cves:
+        enrichment["cve_ids"] = sorted({c.upper() for c in cves})
+    vm = _CVSS_VECTOR_RE.search(signal or "")
+    if vm:
+        cvss = cvss_v31_base_score(vm.group(0))
+        if cvss is not None:
+            enrichment["cvss"] = {"vector": vm.group(0), "score": cvss["score"],
+                                  "severity": cvss["severity"]}
+            # deterministic, transparent: the CVSS severity adds its published weight
+            score += CVSS_SEVERITY_WEIGHT[cvss["severity"]]
+            enrichment["cvss_weight_added"] = CVSS_SEVERITY_WEIGHT[cvss["severity"]]
+        else:
+            # vector present but malformed -> recorded honestly, never scored
+            enrichment["cvss"] = {"vector": vm.group(0), "score": None, "severity": None,
+                                  "note": "vector present but unparseable; NOT scored, never fabricated"}
+    if enrichment:
+        enrichment["source"] = "transparent: CVE pattern + FIRST.org CVSS v3.1 arithmetic"
+
+    out = {
         "signal_sha256": hashlib.sha256((signal or "").encode("utf-8")).hexdigest()[:16],
         "score": score,
         "priority": _priority(score),
         "matched_rules": matched,
         "matched_count": len(matched),
     }
+    if enrichment:
+        out["enrichment"] = enrichment
+    return out
 
 
 def triage(signals) -> dict:
@@ -217,14 +342,18 @@ def handle_info(ns: str = "a11oy") -> dict:
         "label": LBL_MODELED,
         "title": "Brain Sentry — defensive-cyber signal triage (blue-team, transparent)",
         "what": ("scores and ranks raw security signals (log lines, alerts, indicators) by "
-                 "transparent, auditable defensive rules so an analyst reviews the riskiest first. "
-                 "RANKS and EXPLAINS only — takes no action, blocks nothing, attacks nothing."),
+                 "transparent, auditable defensive rules + CVE/CVSS v3.1 enrichment (the "
+                 "alert-enrichment step that top AI SOC platforms converge on), so an analyst "
+                 "reviews the riskiest first. RANKS and EXPLAINS only — takes no action, blocks "
+                 "nothing, attacks nothing."),
         "posture": "DEFENSIVE-BLUE-TEAM-ONLY — not offensive tooling, not counter-UAS, not weapons",
         "priorities": [PRIORITY_CRITICAL, PRIORITY_HIGH, PRIORITY_MEDIUM, PRIORITY_LOW, PRIORITY_INFO],
         "rule_families": [{"id": r["id"], "weight": r["weight"], "why": r["why"]} for r in RULES],
-        "honesty": ("scores are a MODELED sum of transparent rule weights; every matched rule is "
-                    "returned; no signals -> UNAVAILABLE; the surface never claims malice and never "
-                    "acts — adjudication is human-required."),
+        "honesty": ("scores are a MODELED sum of transparent rule weights + the CVSS v3.1 "
+                    "severity weight when a parseable vector is present (FIRST.org arithmetic, "
+                    "fully auditable; an unparseable vector is recorded and NEVER scored); every "
+                    "matched rule is returned; no signals -> UNAVAILABLE; the surface never claims "
+                    "malice and never acts — adjudication is human-required."),
         "endpoints": {
             "info": f"GET  /api/{ns}/v1/brain/sentry/info",
             "triage": f"POST /api/{ns}/v1/brain/sentry/triage  (body: signals[])",
