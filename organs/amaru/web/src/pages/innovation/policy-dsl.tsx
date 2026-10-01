@@ -265,7 +265,7 @@ export default function PolicyDslPage() {
               value={dslContent}
               onChange={(e) => { setDslContent(e.target.value); setEvalResults(null); }}
               rows={18}
-              className="w-full font-mono text-[11px] bg-ground text-ink border border-line rounded-lg p-3 resize-y focus-visible:outline-none focus-visible:border-focus focus-visible:shadow-[var(--shadow-focus)] leading-relaxed"
+              className="input input--mono text-[11px] bg-ground p-3 resize-y leading-relaxed"
               spellCheck={false}
             />
             <div className="flex gap-2 mt-2">

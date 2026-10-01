@@ -150,7 +150,7 @@ export default function AudienceSqlPage() {
                 value={sql}
                 onChange={(e) => { setSql(e.target.value); setPreviewRun(null); }}
                 rows={8}
-                className="w-full font-mono text-[12px] bg-ground text-ink border border-line rounded-lg p-3 resize-y focus-visible:outline-none focus-visible:border-focus focus-visible:shadow-[var(--shadow-focus)]"
+                className="input input--mono text-[12px] bg-ground p-3 resize-y"
                 spellCheck={false}
               />
               <div className="flex gap-2">
