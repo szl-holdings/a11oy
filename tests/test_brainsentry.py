@@ -83,3 +83,50 @@ def test_rule_families_are_defensive_mitre_flavored():
 def test_selftest_passes():
     out = bs._selftest()
     assert out["ok"] is True and out["checks"] >= 7
+
+
+# ---- CVSS v3.1 enrichment (FIRST.org arithmetic, deterministic + auditable) ----
+
+def test_cvss_reference_vectors_exact():
+    # FIRST.org spec examples
+    r = bs.cvss_v31_base_score("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H")
+    assert r["score"] == 9.8 and r["severity"] == "CRITICAL"
+    r2 = bs.cvss_v31_base_score("CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:N/A:N")
+    assert r2["score"] == 3.1 and r2["severity"] == "LOW"
+    r3 = bs.cvss_v31_base_score("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H")
+    assert r3["score"] == 10.0 and r3["severity"] == "CRITICAL"  # scope-changed formula
+
+
+def test_cvss_malformed_never_scored():
+    assert bs.cvss_v31_base_score("CVSS:3.1/AV:N/garbage") is None
+    assert bs.cvss_v31_base_score("") is None
+    assert bs.cvss_v31_base_score("not a vector") is None
+    assert bs.parse_cvss_v31("CVSS:3.1/AV:Q/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H") is None
+
+
+def test_triage_enrichment_cve_and_cvss():
+    sig = ("alert: exploit attempt CVE-2026-12345 "
+           "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H union select from users")
+    t = bs.triage_signal(sig)
+    e = t["enrichment"]
+    assert e["cve_ids"] == ["CVE-2026-12345"]
+    assert e["cvss"]["score"] == 9.8 and e["cvss"]["severity"] == "CRITICAL"
+    assert e["cvss_weight_added"] == 4  # deterministic, shown
+    assert t["score"] > 4  # injection rule (4) + cvss critical weight (4)
+    # still auditable: rules also returned
+    assert "web-injection" in [m["rule_id"] for m in t["matched_rules"]]
+
+
+def test_triage_malformed_vector_recorded_not_scored():
+    t = bs.triage_signal("scanner output CVSS:3.1/AV:N/garbage benign text")
+    e = t.get("enrichment", {})
+    assert e.get("cvss", {}).get("score") is None  # recorded, never fabricated
+    assert "cvss_weight_added" not in e
+    assert t["score"] == 0  # nothing fabricated
+
+
+def test_benign_signal_still_informational_with_enrichment():
+    t = bs.triage_signal("CVE-2024-0001 noted in report CVSS:3.1/AV:L/AC:H/PR:H/UI:R/S:U/C:L/I:N/A:N")
+    # LOW severity (1.8) adds weight 1 -> REVIEW-LOW, not critical
+    assert t["enrichment"]["cvss"]["severity"] == "LOW"
+    assert t["priority"] == bs.PRIORITY_LOW
