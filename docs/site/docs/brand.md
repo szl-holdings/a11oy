@@ -21,32 +21,49 @@ repoint when `brand-kit` publishes.
 
 ## Color tokens (Kanchay)
 
-The formal **Kanchay token export** (named CSS/JSON design tokens) is **in development** in
-`szl-brand`. Until it publishes, this docs site uses the **live SZL brand palette** as the
-placeholder token set — the same values used across every repo README and social preview:
+This site runs on **SZL Kanchay v1.0.0**, the shipped design-token export. Its source is the
+`kanchay/` folder of [`szl-holdings/szl-brand`](https://github.com/szl-holdings/szl-brand):
+`tokens.json` is the source of truth and `kanchay.css` is generated from it. The docs vendor
+the export byte for byte at `docs/public/kanchay/` (`kanchay.css`, three font files, the
+marks, and `SOURCE.json` with the sha256 of every file) and load it before the theme. The
+vendored files are never edited here: a token changes in `szl-brand`, then the export is
+copied in again.
 
-| Token (placeholder) | Hex | Use |
-|---------------------|-----|-----|
-| `--szl-navy` | `#0B1F3A` | Primary brand / dark surfaces |
-| `--szl-cyan-bright` | `#00D4FF` | Brand accent (on dark) |
-| `--szl-cyan` | `#0094C6` | Accessible accent (on light) |
-| `--szl-sand` | `#F5F1E8` | Warm light surface |
-| `--szl-clay` | `#B9482F` | Warm accent |
-| `--szl-gold` | `#B08940` | Etymology / highlight rule |
-| `--szl-ink` | `#141413` | Body text (light) |
+Kanchay names **roles**, not hex values. Dark is home: the dark values sit on `:root`, and
+the light theme maps the same roles onto the gray scale under `[data-theme="light"]`. This
+site mirrors VitePress's dark/light switch onto `data-theme`, so both themes read the
+exported values exactly.
 
-When the named Kanchay tokens publish, this site's
-[`custom.css`](https://github.com/szl-holdings/docs-site/blob/main/docs/.vitepress/theme/custom.css)
-will swap the placeholders for the canonical token names — a one-file change.
+| Role | Tokens | On this site |
+|------|--------|--------------|
+| Ground and depth | `--color-a11oy-bg`, `-deep`, `-surface`, `-overlay` | Page; sidebar; cards, tables and code; hover and pressed fills |
+| Text | `--color-a11oy-text`, `-text-sub`, `-text-ghost` | Body and headings; secondary copy; metadata |
+| Accent (gold) | `--color-a11oy-gold`, `--gold-bright`, `--color-on-accent` | The primary button, the active nav item, card titles; hover; the label on a gold fill |
+| Proof (teal) | `--color-ink-signal`, `--color-focus`, `--teal` | Links, inline code and locked contract numbers; focus rings; tip callouts |
+| Status | `--color-success`, `-warning`, `-error`, `-info`; `--color-ink-caution`, `--color-ink-danger` | Status dots and callouts, always paired with a word |
+| Edges | `--color-a11oy-border-subtle`, `--color-a11oy-border`, `--color-control-border` | Card and code edges; region dividers; input edges |
+
+- **Gold is the only accent**, and it fills one control per view.
+- **Teal is proof**: links, hashes and verified values, never decoration.
+- **Status is never color alone**: every dot or callout carries a word.
+- **The mark** is `marks/szl-mark-gold.svg` on dark and `marks/szl-mark-ink.svg` on light.
+
+Each text pair this theme introduces was checked at WCAG AA (4.5:1 for text, 3:1 for focus
+rings and marks) in both themes when the site moved onto the export.
 
 ## Typography
 
-- **Body:** **Inter** (400–800).
-- **Mono / code:** **JetBrains Mono** (400–700).
+Three faces, each shipped as a local file in the export (`kanchay/fonts/`). No font CDN.
 
-Both are loaded from Google Fonts in the site head. This pairing is the SZL doctrine default:
-a neutral, high-legibility grotesque for prose and a precise monospace for the formulas and
-receipts that carry the actual claims.
+| Face | Token | Role |
+|------|-------|------|
+| **Space Grotesk** | `--font-display` | Headlines: page titles and the home headline at weight 300, section headings at 600 |
+| **Inter** | `--font-sans` | Everything people read and operate: body copy, navigation, tables |
+| **JetBrains Mono** | `--font-mono` | Code, hashes, receipts, API paths and the locked contract numbers |
+
+Headlines are tracked tight (−0.02 to −0.035em), mono labels are uppercase and tracked, and
+columns of digits use tabular figures. The pairing keeps prose neutral and legible and gives
+the formulas and receipts that carry the actual claims a precise monospace.
 
 ## Usage rules
 
