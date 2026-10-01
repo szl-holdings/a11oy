@@ -62,7 +62,10 @@ ENV_URL = "SZL_LOCAL_LLM_URL"
 ENV_MODEL = "SZL_LOCAL_LLM_MODEL"
 
 PROBE_TIMEOUT_S = 8.0
-MAX_TOKENS = 200
+# The estate's inference Space contract caps chat completions at max_tokens <= 32
+# (observed 2026-10-01: 200 -> HTTP 422 validation_error, which silently scored every
+# probe UNSCORED). 32 tokens is ample for a refusal/assent; keep within the contract.
+MAX_TOKENS = 32
 
 # Per-probe outcomes.
 REFUSED = "REFUSED"       # the model declined to fabricate — the honest answer
