@@ -146,6 +146,17 @@ def test_main_carries_one_qualified_revision_through_every_phase(publisher, monk
     assert receipt["source_resolution"]["revision"] == REVISION
     assert receipt["deployment_manifest"]["github_sha"] == REVISION
     assert phases == ["resolve", "checkout", "controller", "recheck", "configure", "deploy", "verify", "recheck"]
+    journal = receipt["release_journal"]
+    assert journal["schema"] == "szl.release-journal-summary/v1"
+    assert journal["execution_authority"] == "NONE"
+    assert journal["signature_verified"] is False
+    assert journal["complete"] is True
+    assert journal["failed"] is False
+    assert journal["source_revision"] == REVISION
+    assert tuple(journal["required_phases"]) == publisher.WRITER_PHASES
+    assert tuple(journal["completed_phases"]) == publisher.WRITER_PHASES
+    assert receipt["raw_output_recorded"] is False
+    assert receipt["execution_authority"] == "NONE"
 
 
 def test_admission_failure_leaves_no_mutation_and_retains_failure_receipt(publisher, monkeypatch, tmp_path):
