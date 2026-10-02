@@ -1,5 +1,6 @@
-// Fonts come from the vendored SZL Kanchay export (public/kanchay/kanchay.css,
-// linked in config.mjs), so extend the default theme without its bundled Inter.
+// Math is emitted as native MathML at build time; no math webfonts load.
+// Type comes from the SZL KANCHAY system font stacks (public/szl/
+// szl-design-system.css), so extend the default theme without its bundled webfont.
 import DefaultTheme from 'vitepress/theme-without-fonts'
 import './custom.css'
 

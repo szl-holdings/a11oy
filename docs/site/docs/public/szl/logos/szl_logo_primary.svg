@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" role="img" aria-label="SZL Holdings">
+  <title>SZL Holdings</title>
+  <desc>SZL monogram with tilted orbital ellipse, coral node, and lambda motif, on deep-space navy. Sovereign governed AI with provable provenance.</desc>
+  <defs>
+    <linearGradient id="orbit" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#E9EEF6"/>
+      <stop offset="0.5" stop-color="#9AA7BD"/>
+      <stop offset="1" stop-color="#5C6B86"/>
+    </linearGradient>
+    <radialGradient id="node" cx="0.38" cy="0.34" r="0.75">
+      <stop offset="0" stop-color="#F0917E"/>
+      <stop offset="0.55" stop-color="#DF735F"/>
+      <stop offset="1" stop-color="#C4543F"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="1200" fill="#030F29"/>
+  <g transform="rotate(-22 657.0 502.0)"><ellipse cx="657.0" cy="502.0" rx="432" ry="196" fill="none" stroke="url(#orbit)" stroke-width="7" stroke-linecap="round" opacity="0.95"/></g>
+  <path d="M 500 402 C 476 374 344 374 334 416 C 324 458 396 480.0 409.0 502.0 C 476 526.0 512 540 476 582 C 464 620 358 626 310 606 " fill="none" stroke="#FFFFFF" stroke-width="70" stroke-linecap="butt" stroke-linejoin="round"/>
+  <g fill="#FFFFFF"><path d="M 534 372 L 732 372 L 732 444 L 636 568 L 732 568 L 732 632 L 534 632 L 534 560 L 630 436 L 534 436 Z"/><path d="M 762 372 L 830 372 L 830 568 L 1014 568 L 954 632 L 762 632 Z"/></g>
+  <circle cx="937.9" cy="264.3" r="33" fill="url(#node)"/>
+  <path d="M 657.0 678 L 694.0 766 L 675.0 766 L 657.0 710.3 L 639.0 766 L 620.0 766 Z" fill="url(#orbit)" opacity="0.96"/>
+<path d="M245.6 910.1 L216.8 910.1 L213.2 913.0 L213.2 926.9 L216.8 930.4 L238.4 930.4 L242.0 933.9 L242.0 949.0 L238.4 951.9 L209.6 951.9" fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M275.6 910.1 L311.6 910.1 L275.6 951.9 L311.6 951.9" fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M348.7 910.1 L348.7 951.9 L377.5 951.9" fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M466.3 910.1 L466.3 951.9" fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M495.0 910.1 L495.0 951.9" fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M466.3 931.0 L495.0 931.0" fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M534.0 913.6 L534.0 948.4 L540.6 951.9 L552.6 951.9 L559.2 948.4 L559.2 913.6 L552.6 910.1 L540.6 910.1 L534.0 913.6" fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M601.8 910.1 L601.8 951.9 L630.6 951.9" fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M666.0 910.1 L666.0 951.9 L682.1 951.9 L691.1 943.8 L691.1 918.2 L682.1 910.1 L666.0 910.1" fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M744.5 910.1 L744.5 951.9" fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M796.1 951.9 L796.1 910.1 L824.9 951.9 L824.9 910.1" fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M890.8 917.1 L886.0 910.1 L870.4 910.1 L863.8 915.9 L863.8 946.1 L870.4 951.9 L884.8 951.9 L890.8 946.7 L890.8 931.0 L877.6 931.0" fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M960.4 910.1 L931.6 910.1 L928.0 913.0 L928.0 926.9 L931.6 930.4 L953.2 930.4 L956.8 933.9 L956.8 949.0 L953.2 951.9 L924.4 951.9" fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
