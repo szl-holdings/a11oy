@@ -60,11 +60,25 @@ def self_contained(path: Path) -> bool:
     return relative(path) in SELF_CONTAINED_PATHS
 
 
+def opted_out(path: Path) -> bool:
+    """Return True when a document opts out of the global JavaScript rail."""
+    try:
+        head = path.read_text(encoding="utf-8")[:4096]
+    except (OSError, UnicodeError):
+        return False
+    return "data-szl-flow-opt-out" in head
+
+
 def candidates() -> list[Path]:
     found: set[Path] = set()
     for rel in EXACT:
         path = ROOT / rel
-        if path.is_file() and not source_managed(path) and not self_contained(path):
+        if (
+            path.is_file()
+            and not source_managed(path)
+            and not self_contained(path)
+            and not opted_out(path)
+        ):
             found.add(path)
     for pattern in GLOBS:
         for path in ROOT.glob(pattern):
@@ -73,6 +87,7 @@ def candidates() -> list[Path]:
                 and not (set(path.relative_to(ROOT).parts) & EXCLUDE_PARTS)
                 and not source_managed(path)
                 and not self_contained(path)
+                and not opted_out(path)
             ):
                 found.add(path)
     return sorted(found)
