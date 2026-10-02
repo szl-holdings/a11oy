@@ -56,6 +56,7 @@ def configured(monkeypatch, tmp_path):
                  "A11OY_RECEIPT_KEY_PEM", "A11OY_RECEIPT_KEY_PATH", "A11OY_RECEIPT_KEY_DIR",
                  "A11OY_ATELIER_CREDENTIALS_JSON", "A11OY_ATELIER_NAMESPACE",
                  "A11OY_ATELIER_XAI_API_KEY", "XAI_API_KEY", "A11OY_ATELIER_LEDGER_PATH",
+                 "A11OY_ATELIER_REQUIRED_MOUNT",
                  "SZL_GROK_MODEL", "A11OY_ATELIER_MODEL", "SZL_GIT_SHA"):
         monkeypatch.delenv(name, raising=False)
     key = ec.generate_private_key(ec.SECP256R1())
@@ -346,6 +347,32 @@ def test_invalid_ledger_path_prevents_provider(configured, monkeypatch, tmp_path
     response = post(configured)
     assert response.status_code == 503 and response.json()["code"] == "LEDGER_UNAVAILABLE"
     assert not configured["calls"]
+
+
+def test_required_mount_is_checked_before_provider_and_without_get_side_effects(configured, monkeypatch, tmp_path):
+    mount = tmp_path / "mounted"
+    mount.mkdir()
+    ledger = mount / "atelier" / "receipts.jsonl"
+    monkeypatch.setenv("A11OY_ATELIER_REQUIRED_MOUNT", str(mount))
+    monkeypatch.setenv("A11OY_ATELIER_LEDGER_PATH", str(ledger))
+    monkeypatch.setattr(atelier.os.path, "ismount", lambda candidate: candidate == str(mount))
+    health = configured["client"].get(f"{atelier.PREFIX}/health")
+    assert health.status_code == 200 and health.json()["configured"]["ledger"] is True
+    assert not ledger.exists() and not configured["calls"]
+    assert post(configured).status_code == 200
+    assert ledger.exists() and len(configured["calls"]) == 1
+
+    monkeypatch.setenv("A11OY_ATELIER_LEDGER_PATH", str(tmp_path / "outside.jsonl"))
+    outside = post(configured)
+    assert outside.status_code == 503 and outside.json()["code"] == "LEDGER_UNAVAILABLE"
+    assert len(configured["calls"]) == 1
+    assert not (tmp_path / "outside.jsonl").exists()
+
+    monkeypatch.setenv("A11OY_ATELIER_LEDGER_PATH", str(ledger))
+    monkeypatch.setattr(atelier.os.path, "ismount", lambda _candidate: False)
+    unmounted = post(configured)
+    assert unmounted.status_code == 503 and unmounted.json()["code"] == "LEDGER_UNAVAILABLE"
+    assert len(configured["calls"]) == 1
 
 
 def test_storage_preflight_failure_prevents_provider(configured, monkeypatch):
