@@ -51,7 +51,7 @@ def test_source_owned_publisher_is_exact_reviewable_and_non_destructive() -> Non
         'HF_REPOSITORY = "SZLHOLDINGS/lyte"',
         'ORIGIN = "https://szlholdings-lyte.hf.space"',
         'SOURCE_VARIABLE = "LYTE_SOURCE_REVISION"',
-        'CONTROLLER_REVISION = "7b4b43fd4efa0dbcc9667fe29e3e8f9e1a756c5f"',
+        'CONTROLLER_REVISION = "163a61fd9759e5ecc3c2daf13e528f7b281ff81d"',
         'CONTROLLER_BLOB_SHA1 = "3fa968416a3623d66b5b5b64abf8b830cc854e1c"',
         '"--dockerfile-path"', '"Dockerfile"', '"--require-default-branch-tip"',
         '"--prune"', '"--restart-space"', '"--attest"',

@@ -53,7 +53,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: szl-holdings/.github
-          ref: 7b4b43fd4efa0dbcc9667fe29e3e8f9e1a756c5f
+          ref: 163a61fd9759e5ecc3c2daf13e528f7b281ff81d
           path: .release-controller-peer
           persist-credentials: false
           fetch-depth: 1
