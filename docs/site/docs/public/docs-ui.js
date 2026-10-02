@@ -14,12 +14,23 @@
     }
   }
   updateAppearance();
-  for (const button of document.querySelectorAll('.VPSwitchAppearance')) {
+  function bindAppearance(button) {
     button.addEventListener('click', () => {
       const dark = root.classList.toggle('dark');
       try { localStorage.setItem('vitepress-theme-appearance', dark ? 'dark' : 'light'); } catch {}
       updateAppearance();
     });
+  }
+  for (const button of document.querySelectorAll('.VPSwitchAppearance')) bindAppearance(button);
+
+  for (const flyout of document.querySelectorAll('.VPFlyout')) {
+    const button = flyout.querySelector(':scope > button');
+    if (!button) continue;
+    const close = () => button.setAttribute('aria-expanded', 'false');
+    button.addEventListener('click', () => button.setAttribute('aria-expanded', String(button.getAttribute('aria-expanded') !== 'true')));
+    flyout.addEventListener('keydown', event => { if (event.key === 'Escape') { close(); button.focus(); } });
+    flyout.addEventListener('focusout', event => { if (!flyout.contains(event.relatedTarget)) close(); });
+    document.addEventListener('click', event => { if (!flyout.contains(event.target)) close(); });
   }
 
   function dialog(title, id) {
@@ -57,10 +68,41 @@
     }
   }
   menu.append(menuBody);
+  const appearance = document.querySelector('.VPSwitchAppearance')?.cloneNode(true);
+  if (appearance) {
+    const label = document.createElement('p'); label.textContent = 'Appearance';
+    appearance.setAttribute('aria-label', 'Toggle color theme');
+    menu.append(label, appearance); bindAppearance(appearance); updateAppearance();
+  }
   const hamburger = document.querySelector('.VPNavBarHamburger');
   if (hamburger) {
     hamburger.addEventListener('click', () => { menu.showModal(); hamburger.setAttribute('aria-expanded', 'true'); });
     menu.addEventListener('close', () => hamburger.setAttribute('aria-expanded', 'false'));
+  }
+
+  const sidebarButton = document.querySelector('.VPLocalNav button.menu');
+  if (sidebarButton) {
+    const sidebar = dialog('Section navigation', 'docs-sidebar');
+    const links = document.createElement('nav'); links.setAttribute('aria-label', 'Section navigation');
+    for (const link of document.querySelectorAll('.VPSidebar a')) links.append(link.cloneNode(true));
+    sidebar.append(links); sidebarButton.setAttribute('aria-controls', sidebar.id);
+    sidebarButton.addEventListener('click', () => { sidebar.showModal(); sidebarButton.setAttribute('aria-expanded', 'true'); });
+    sidebar.addEventListener('close', () => sidebarButton.setAttribute('aria-expanded', 'false'));
+  }
+  for (const button of document.querySelectorAll('.VPLocalNavOutlineDropdown button')) {
+    if (button.textContent.trim() === 'Return to top') button.addEventListener('click', () => {
+      window.scrollTo({top:0,left:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
+    });
+  }
+  for (const item of document.querySelectorAll('.VPSidebarItem.collapsible')) {
+    const heading = item.querySelector(':scope > .item');
+    heading.setAttribute('aria-expanded', String(!item.classList.contains('collapsed')));
+    function toggle(event) {
+      if (event.target.closest('a') || (event.type === 'keydown' && !['Enter',' '].includes(event.key))) return;
+      event.preventDefault();
+      const collapsed = item.classList.toggle('collapsed'); heading.setAttribute('aria-expanded', String(!collapsed));
+    }
+    heading.addEventListener('click', toggle); heading.addEventListener('keydown', toggle);
   }
 
   const search = dialog('Search documentation', 'docs-search');

@@ -335,7 +335,7 @@ html :where(.VPNav, .VPLocalNav, .VPNavScreen, .VPSidebar, .VPDocAside, .VPDocFo
   font-family: var(--font-body);
 }
 .docs-popover::backdrop { background: color-mix(in srgb, var(--bg) 80%, transparent); }
-.docs-popover :is(button, input, summary) { min-height: 44px; }
+.docs-popover :is(button, input, summary) { min-width: 44px; min-height: 44px; }
 .docs-popover h2 { margin: 0 0 var(--space-4); font-size: var(--text-xl); }
 .docs-popover .docs-close { float: right; padding: var(--space-2) var(--space-4); border: var(--border-hairline) solid var(--text-ghost); border-radius: var(--radius-sm); }
 .docs-popover label { display: block; margin-block: var(--space-3); }
@@ -379,6 +379,10 @@ html :where(.VPNav, .VPLocalNav, .VPNavScreen, .VPSidebar, .VPDocAside, .VPDocFo
 .VPFeatures .VPFeature .title {
   font-family: var(--font-display);
   letter-spacing: var(--tracking-tight);
+}
+.VPFeatures .VPFeature .details {
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
 }
 
 /* --- Typography rhythm --- */
