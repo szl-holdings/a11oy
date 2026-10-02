@@ -50,6 +50,18 @@ def _stale_last_good(symbol: str) -> dict:
     }
 
 
+def _stale_source(value: dict) -> dict:
+    return {
+        "value": value,
+        "freshness": {
+            "status": "stale",
+            "age_s": 90.0,
+            "fetched_at": 1786449500,
+            "error": "HTTPStatusError: 503",
+        },
+    }
+
+
 def _payload(response) -> dict:
     return json.loads(response.body)
 
@@ -114,3 +126,58 @@ def test_finance_feed_omits_yahoo_misses_and_keeps_official_spy(monkeypatch) -> 
     assert body["equities_official"]["SPY"]["freshness"]["status"] == "live"
     assert body["equities_official"]["SPY"]["freshness"]["fetched_at"]
     assert "omitted" in body["equities_note"]
+
+
+def test_defense_and_finance_routes_preserve_last_good_source_evidence(monkeypatch) -> None:
+    monkeypatch.setattr(vertical, "feed_cisa_kev", lambda *a: _live("KEV"))
+    monkeypatch.setattr(vertical, "feed_nvd", lambda *a, **k: _stale_source({"count": 2}))
+    monkeypatch.setattr(vertical, "feed_yahoo", lambda symbol: _live(symbol))
+    monkeypatch.setattr(vertical, "feed_polygon", lambda symbol: (
+        _live(symbol, official=True) if symbol == "SPY"
+        else _stale_source({"symbol": symbol, "price": 1.0})
+    ))
+    monkeypatch.setattr(vertical, "feed_coinbase", lambda pair: _live(pair, official=True))
+    monkeypatch.setattr(vertical, "feed_fx", lambda *a: _stale_source({"rates": {"EUR": 0.8}}))
+
+    app = FastAPI()
+    vertical.register(app)
+    defense = _payload(asyncio.run(_endpoint(app, "/api/a11oy/v1/vert/defense/feed")()))
+    finance = _payload(asyncio.run(_endpoint(app, "/api/a11oy/v1/vert/finance/feed")()))
+
+    for source in (
+        defense["nvd"], finance["equities_official"]["AAPL"],
+        finance["equities_official"]["MSFT"],
+        finance["equities_official"]["NVDA"], finance["fintech_cve"],
+        finance["fx"],
+    ):
+        assert source["value"] is not None
+        assert source["freshness"]["status"] == "cached"
+        assert source["freshness"]["fetched_at"] == 1786449500
+        assert source["freshness"]["error"] == "HTTPStatusError: 503"
+
+
+def test_finance_route_marks_missing_fx_as_canonical_unavailable(monkeypatch) -> None:
+    monkeypatch.setattr(vertical, "feed_yahoo", lambda symbol: _live(symbol))
+    monkeypatch.setattr(vertical, "feed_polygon", lambda symbol: _live(symbol, official=True))
+    monkeypatch.setattr(vertical, "feed_coinbase", lambda pair: _live(pair, official=True))
+    monkeypatch.setattr(vertical, "feed_nvd", lambda *a, **k: _live("CVE"))
+    monkeypatch.setattr(vertical, "feed_fx", lambda *a: {
+        "value": None,
+        "freshness": {
+            "status": "unavailable",
+            "fetched_at": 1786449500,
+            "error": "TimeoutError: upstream FX unavailable",
+        },
+    })
+
+    app = FastAPI()
+    vertical.register(app)
+    finance = _payload(asyncio.run(_endpoint(app, "/api/a11oy/v1/vert/finance/feed")()))
+    assert finance["fx"] == {
+        "value": None,
+        "freshness": {
+            "status": "UNAVAILABLE",
+            "fetched_at": 1786449500,
+            "error": "TimeoutError: upstream FX unavailable",
+        },
+    }

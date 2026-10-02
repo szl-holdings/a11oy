@@ -1871,7 +1871,9 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
             (feed_cisa_kev, (limit,), {}),
             (feed_nvd, (min(limit, 20),), {}),
         ])
-        return JSONResponse({"vertical": "defense", "kev": kev, "nvd": nvd,
+        return JSONResponse({"vertical": "defense",
+                             "kev": _readiness_public_source(kev),
+                             "nvd": _readiness_public_source(nvd),
                              "sources_cited": cited_leaders("defense"), "doctrine": DOCTRINE})
 
     @app.get(base + "/defense/kpi", include_in_schema=False)
@@ -1909,13 +1911,16 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
         cursor += len(crypto_pairs)
         cve, fx = values[cursor:cursor + 2]
         return JSONResponse({"vertical": "finance",
-                             "equities_official": official,
+                             "equities_official": {symbol: _readiness_public_source(entry)
+                                                   for symbol, entry in official.items()},
                              "equities": _finance_public_series(eq),
                              "equities_note": ("equities_official = Polygon.io (official, key-gated); "
                                                "equities = Yahoo v8 (unofficial fallback); "
                                                "Yahoo misses are omitted, not stamped unavailable"),
-                             "crypto": crypto,
-                             "fx": fx, "fintech_cve": cve,
+                             "crypto": {pair: _readiness_public_source(entry)
+                                        for pair, entry in crypto.items()},
+                             "fx": _readiness_public_source(fx),
+                             "fintech_cve": _readiness_public_source(cve),
                              "sources_cited": cited_leaders("finance"), "doctrine": DOCTRINE})
 
     # ---- LEGAL ----
