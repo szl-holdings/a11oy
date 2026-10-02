@@ -172,6 +172,15 @@ def test_managed_runtime_binds_atelier_receipts_to_existing_data_mount() -> None
     )
 
 
+def test_managed_inference_receipts_use_the_required_writable_mount() -> None:
+    path = Path(config.SERIES_A_VARIABLES["SZL_GOVERN_INFER_LOG"])
+    assert path.parent == Path(config.DATA_MOUNT)
+    assert path.name == ".szl_govern_infer.jsonl"
+    assert config.plan_variables({}, {config.CANONICAL_SIGNING_SECRET})[
+        "SZL_GOVERN_INFER_LOG"
+    ] == path.as_posix()
+
+
 def test_managed_runtime_sets_durable_outbox_only_gdw_contract() -> None:
     assert config.GDW_VARIABLES == {
         "GDW_PRODUCTION_MODE": "1",
