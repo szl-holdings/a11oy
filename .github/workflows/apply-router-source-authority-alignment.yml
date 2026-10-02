@@ -1,31 +1,36 @@
-name: Apply router source-authority alignment
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+name: Validate router source-authority alignment
 
 "on":
   push:
-    branches:
-      - fix/router-source-authority-alignment-20260908
-    paths:
-      - scripts/align_router_source_authority.py
-      - .github/workflows/apply-router-source-authority-alignment.yml
+    branches: [main]
   pull_request:
     branches: [main]
-    paths:
-      - szl_brain.py
-      - organs/amaru/szl_brain.py
-      - organs/sentra/szl_brain.py
-      - szl_llm_registry.py
-      - a11oy_code.py
-      - src/pages/A11oyCode.tsx
-      - scripts/align_router_source_authority.py
-      - .github/workflows/apply-router-source-authority-alignment.yml
+  merge_group:
 
-permissions: read-all
+permissions:
+  contents: read
+
+concurrency:
+  group: router-source-authority-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  apply:
-    permissions:
-      contents: write
-      pull-requests: write
   validate:
-    permissions:
-      contents: read
-      pull-requests: read
+    name: Declared router source authority
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Exercise fail-closed declaration checks
+        run: python -B -m unittest discover -s tests -p test_router_source_authority_alignment.py -v
+      - name: Validate this source tree without writes
+        run: python -B scripts/align_router_source_authority.py --check
