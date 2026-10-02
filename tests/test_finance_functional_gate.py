@@ -99,7 +99,7 @@ def test_no_raw_transport_error_or_upstream_body_is_retained(witness):
     assert all(not row["accepted"] for row in result["probes"])
 
 
-def test_missing_public_version_route_blocks_finance_publication(witness):
+def test_missing_public_version_route_fails_finance_qualification(witness):
     gate, request, _ = witness
     def missing_version(path, content):
         if path == "/version":
