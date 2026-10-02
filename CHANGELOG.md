@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - offline receipt verification boundaries
+- Restore browser-local DSSE P-256 verification against a supplied public key,
+  with exact decoded payload bytes and an optional independently supplied digest.
+- Keep signer trust and parent-chain evidence separate from signature validity;
+  online verification remains explicit and uses the deployment's runtime keys.
+- Bound inputs and online requests, and invalidate results when inputs change.
+
 ### Added - Foundation Confirmation trial workbench handoff
 - `/research/confirmation/workbench` redirects only to the separate synthetic CPU
   model workbench. The Frontier research block links fresh exploratory trials,
