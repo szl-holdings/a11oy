@@ -581,6 +581,12 @@ def _publish_and_readback(
 
     expected = _files(folder)
     _manifest_is_bound(expected, repo_id, repo_type, source_revision)
+    if repo_type == "dataset" and repo_id == DATASET_REPO:
+        protected_payload = sorted(set(expected) & EXTERNAL_DATASET_SHA256.keys())
+        if protected_payload:
+            raise PublicationError(
+                f"refusing externally owned dataset payload files: {protected_payload!r}"
+            )
 
     note_operation("repo_exists")
     existed = api.repo_exists(repo_id=repo_id, repo_type=repo_type, token=token)

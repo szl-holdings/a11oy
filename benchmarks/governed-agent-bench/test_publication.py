@@ -419,6 +419,46 @@ class PublicationTests(unittest.TestCase):
         self.assertEqual(set(files), set(inventory))
         self.assertEqual(set(inventory), set(api.remote))
 
+    def test_externally_owned_audit_in_payload_fails_before_hub_call(self):
+        publisher = _load_publisher()
+        audit_name = "PROMOTION_READINESS_AUDIT.json"
+
+        class FakeApi:
+            def repo_exists(self, **_):
+                raise AssertionError("protected payload reached the Hub API")
+
+        fake_hub = types.ModuleType("huggingface_hub")
+        fake_hub.CommitOperationAdd = object
+        fake_hub.hf_hub_download = lambda **_: None
+
+        with tempfile.TemporaryDirectory() as tmp:
+            payload = Path(tmp) / "payload"
+            _write_manifested_payload(payload, publisher)
+            audit_body = b'{"overwrite_allowed":true,"production_ready":true}\n'
+            (payload / audit_name).write_bytes(audit_body)
+            manifest_path = payload / "publication-manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["files"].append(
+                {
+                    "path": audit_name,
+                    "bytes": len(audit_body),
+                    "sha256": hashlib.sha256(audit_body).hexdigest(),
+                }
+            )
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            with patch.dict(sys.modules, {"huggingface_hub": fake_hub}):
+                with self.assertRaisesRegex(
+                    publisher.PublicationError, "externally owned dataset payload files"
+                ):
+                    publisher._publish_and_readback(
+                        FakeApi(),
+                        publisher.DATASET_REPO,
+                        "dataset",
+                        payload,
+                        "a" * 40,
+                        "test-token",
+                    )
+
     def test_external_audit_change_fails_before_any_commit(self):
         publisher = _load_publisher()
         audit_name = "PROMOTION_READINESS_AUDIT.json"
