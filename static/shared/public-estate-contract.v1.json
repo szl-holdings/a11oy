@@ -131,7 +131,21 @@
       "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
+      "id": "SZLHOLDINGS/foundation-confirmation-v2",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
       "id": "SZLHOLDINGS/gdw-frontier",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/governed-receipt-verifier",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",
@@ -177,6 +191,13 @@
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/README",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "ORG_CARD",
       "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {

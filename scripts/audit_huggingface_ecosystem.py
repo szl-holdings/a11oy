@@ -15,6 +15,13 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Callable
 
+try:
+    from scripts.hf_public_inventory import reserved_readme
+except ModuleNotFoundError:
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from hf_public_inventory import reserved_readme
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = REPO_ROOT / "docs" / "huggingface-ecosystem-manifest.json"
@@ -104,7 +111,13 @@ def api_items(kind: str) -> list[dict[str, Any]]:
             item_id = item.get("id") or item.get("modelId")
             if not isinstance(item_id, str) or not item_id:
                 raise ValueError(f"Hugging Face {kind} API item has no repository id")
+            if item.get('private') is not False:
+                raise ValueError(f"Hugging Face {kind} visibility is not explicitly public")
             items[item_id] = item
+    if kind == 'spaces' and f'{ORG}/README' not in items:
+        reserved, _ = reserved_readme(ORG)
+        if reserved is not None:
+            items[f'{ORG}/README'] = dict(reserved)
     return sorted(items.values(), key=lambda item: item.get("id", ""))
 
 

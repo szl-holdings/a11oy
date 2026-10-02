@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedBy": "scripts/audit_huggingface_ecosystem.py",
-  "observedAt": "2026-09-30T21:07:31Z",
+  "observedAt": "2026-10-02T01:04:24Z",
   "org": "SZLHOLDINGS",
   "inventoryScope": {
     "visibility": "public-only",
@@ -19,9 +19,9 @@
     "https://huggingface.co/api/spaces?author=SZLHOLDINGS&limit=100&full=true"
   ],
   "counts": {
-    "models": 50,
+    "models": 46,
     "datasets": 35,
-    "spaces": 31
+    "spaces": 34
   },
   "guardrails": [
     "Do not present Counsel, Terra, or Carlota Jo as active demo surfaces.",
@@ -71,9 +71,9 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "9fc2f7bebeaf4b3d6d26f7a2a1788a27f8c9ed52",
-        "lastModified": "2026-09-28T21:01:46.000Z",
-        "cardSemanticSha256": "1a3b4a932dd8ce73cd5d4112bd78078c84854ebea116fd2f1326075243ba903f",
+        "sha": "e4c5d6c00876ae02b78bfd720560a31b91ad1b76",
+        "lastModified": "2026-10-01T19:30:50.000Z",
+        "cardSemanticSha256": "c12a5d39023e2e1046995ab2f4d0b3657cff86f21ace6850754dc399732a54eb",
         "createdAt": "2026-08-28T16:21:00.000Z",
         "tags": [
           "peft",
@@ -97,37 +97,6 @@
         "claimStatus": "inventory",
         "evidenceUrls": [
           "https://huggingface.co/SZLHOLDINGS/KHIPU-R2"
-        ],
-        "unsafeFlags": []
-      },
-      {
-        "id": "SZLHOLDINGS/KILLINCHU-EYE",
-        "repoType": "model",
-        "private": false,
-        "gated": false,
-        "disabled": false,
-        "sdk": null,
-        "license": "apache-2.0",
-        "sha": "8c99bc40d709265725a76f778f2f17379cd029af",
-        "lastModified": "2026-09-28T17:01:40.000Z",
-        "cardSemanticSha256": "69a5fbda826b0846ed54ff0254e8542e86f82c066f22f5e4bb2fcef39b03cdcb",
-        "createdAt": "2026-08-28T16:21:47.000Z",
-        "tags": [
-          "other",
-          "governed-ai",
-          "cuas",
-          "killinchu",
-          "szl-holdings",
-          "doctrine-v11",
-          "roadmap",
-          "alias",
-          "test-fixture",
-          "license:apache-2.0",
-          "region:us"
-        ],
-        "claimStatus": "inventory",
-        "evidenceUrls": [
-          "https://huggingface.co/SZLHOLDINGS/KILLINCHU-EYE"
         ],
         "unsafeFlags": []
       },
@@ -233,8 +202,8 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "904af1413275086c797790c5487a854580feb0de",
-        "lastModified": "2026-09-29T15:29:52.000Z",
+        "sha": "d7be50555a8866ff766cb5df26292f0bad90b956",
+        "lastModified": "2026-10-01T01:26:11.000Z",
         "cardSemanticSha256": null,
         "cardObservation": {
           "state": "ACCESS_RESTRICTED",
@@ -277,9 +246,9 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "724d251459cc987f33985c5799f5f3a9e02f4cd2",
-        "lastModified": "2026-09-29T15:29:53.000Z",
-        "cardSemanticSha256": "524bf51877a028db5173083fc15a145eae90c9d2dab89104b95b87dce9a2cf9e",
+        "sha": "5bb86ea84e3505bce03231f3cd097608138741db",
+        "lastModified": "2026-10-01T19:30:53.000Z",
+        "cardSemanticSha256": "4d4bd419532036031f4a731b5933a0196ab866e49e19aa181238dac2e9e9e286",
         "createdAt": "2026-07-14T19:28:28.000Z",
         "tags": [
           "transformers",
@@ -316,8 +285,8 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "7c39154b22ccb5e2151b4dd53e0d36965dfbc920",
-        "lastModified": "2026-09-29T15:29:50.000Z",
+        "sha": "d9731f1d586c7f615790163a759dc0f14872b523",
+        "lastModified": "2026-10-01T01:26:08.000Z",
         "cardSemanticSha256": "da11ea54f74cb9246d8f6adea67c9168e20893ac4eb97335772b2036b62b4e70",
         "createdAt": "2026-07-15T01:19:11.000Z",
         "tags": [
@@ -384,35 +353,6 @@
         "unsafeFlags": []
       },
       {
-        "id": "SZLHOLDINGS/SZLHOLDINGS",
-        "repoType": "model",
-        "private": false,
-        "gated": false,
-        "disabled": false,
-        "sdk": null,
-        "license": "apache-2.0",
-        "sha": "32fa1ca46f913a669174fbcad7cca46d983bf5fc",
-        "lastModified": "2026-09-29T02:24:03.000Z",
-        "cardSemanticSha256": "29aaaeb62f6e3df0e14c5e0fe31803362ec0fc017e387c376ce473d83ceac1d7",
-        "createdAt": "2026-08-14T00:45:23.000Z",
-        "tags": [
-          "historical",
-          "org-stub",
-          "not-a-checkpoint",
-          "szl-holdings",
-          "not-a-model",
-          "license:apache-2.0",
-          "region:us"
-        ],
-        "claimStatus": "inventory",
-        "evidenceUrls": [
-          "https://huggingface.co/SZLHOLDINGS/SZLHOLDINGS"
-        ],
-        "unsafeFlags": [
-          "org-profile-duplicate-review"
-        ]
-      },
-      {
         "id": "SZLHOLDINGS/TinyKhipu-Nano",
         "repoType": "model",
         "private": false,
@@ -451,9 +391,9 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "e04bd728f20857c75e7c831d19d7190affd29133",
-        "lastModified": "2026-09-28T17:01:41.000Z",
-        "cardSemanticSha256": "3f48a5903f8b2830d693823835d0884ee2ccdf2fc4257950e9d79253cc42fb48",
+        "sha": "432646a22d37e6c43f9fa8580365d9f718cfea50",
+        "lastModified": "2026-10-01T00:18:38.000Z",
+        "cardSemanticSha256": "87685c7918099513cbb4a0c22fb7d0ca7f7d692fec61bf61318e1582570a6eb1",
         "createdAt": "2026-08-28T16:21:46.000Z",
         "tags": [
           "peft",
@@ -549,9 +489,9 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "7fe3872fcb78ec8f5cc2f0c7464538b50b34e4b2",
-        "lastModified": "2026-09-24T12:31:53.000Z",
-        "cardSemanticSha256": "4429068fc58ab8d46fa5a5efc3bbe6f7e9be93e4ff6e149f0efd2e62841d886a",
+        "sha": "8f7d67af9c2f8315dc3a63afa9ebf23a3f60ca01",
+        "lastModified": "2026-09-30T23:42:01.000Z",
+        "cardSemanticSha256": "69ae9899c3c7924b83ea243be0396ad1eaa4115baad703556ff94343a17bc8a6",
         "createdAt": "2026-08-29T13:30:41.000Z",
         "tags": [
           "peft",
@@ -577,36 +517,6 @@
         "unsafeFlags": []
       },
       {
-        "id": "SZLHOLDINGS/chakana",
-        "repoType": "model",
-        "private": false,
-        "gated": false,
-        "disabled": false,
-        "sdk": null,
-        "license": "apache-2.0",
-        "sha": "503cf50d56f786b4ea4e950c18c556e976b484d2",
-        "lastModified": "2026-09-28T17:01:43.000Z",
-        "cardSemanticSha256": "f6088f52bfdc5141f6fdf7316854f52a3e4356a6440c69cdbf62ab26c187591b",
-        "createdAt": "2026-08-28T16:26:40.000Z",
-        "tags": [
-          "other",
-          "governed-ai",
-          "szl-holdings",
-          "doctrine-v11",
-          "roadmap",
-          "software",
-          "reference",
-          "test-fixture",
-          "license:apache-2.0",
-          "region:us"
-        ],
-        "claimStatus": "inventory",
-        "evidenceUrls": [
-          "https://huggingface.co/SZLHOLDINGS/chakana"
-        ],
-        "unsafeFlags": []
-      },
-      {
         "id": "SZLHOLDINGS/chaski",
         "repoType": "model",
         "private": false,
@@ -614,9 +524,9 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "90b99063731a8c9e7d4567bfa44231b081ba2932",
-        "lastModified": "2026-09-29T15:27:43.000Z",
-        "cardSemanticSha256": "ab9d4f2750d690bf7e4805c2ab1320296727ec5ae405fd08abdedc3afb007c72",
+        "sha": "9b2c93e838bb6fa72733ee0199e9a8c80aba2a2d",
+        "lastModified": "2026-10-01T21:14:53.000Z",
+        "cardSemanticSha256": "bcbf09094074716e5dc5523abc0c25ca78aca6f2cf8d8c9235ad5ac2eb0c7a83",
         "createdAt": "2026-08-28T16:26:38.000Z",
         "tags": [
           "transformers",
@@ -651,9 +561,9 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "8c9d4782b76e55377e00fba249c6938000dca423",
-        "lastModified": "2026-09-29T15:28:13.000Z",
-        "cardSemanticSha256": "b8023323c5d527cd02ea5bb93bfd77c6bf40783c6cd12a0ba37be55881611ae8",
+        "sha": "4a02db923cb7f5ec4c741cd4cabafc4e21e1991e",
+        "lastModified": "2026-10-01T21:15:22.000Z",
+        "cardSemanticSha256": "32f27d63428c14148a5331ac71ccf380bd519b3088713d2bf8cda259e6906f62",
         "createdAt": "2026-08-28T17:33:30.000Z",
         "tags": [
           "peft",
@@ -688,9 +598,9 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "a5fbffcccabcc77ae87bf3740358a02f91a7c27b",
-        "lastModified": "2026-09-29T15:28:47.000Z",
-        "cardSemanticSha256": "fae16314701b1457d7e9473f13d3e94e0fa77cf65bc8365b91dc0d6651c2e83a",
+        "sha": "fa003918ba8cf7b85d751c7038e3c10e85c93057",
+        "lastModified": "2026-10-01T21:15:51.000Z",
+        "cardSemanticSha256": "aa838e7706b1b4691637f916b7f1a0dfdef31b49a6a774f09aa39beefc0796ed",
         "createdAt": "2026-08-28T23:02:30.000Z",
         "tags": [
           "peft",
@@ -704,6 +614,7 @@
           "trl",
           "unsloth",
           "proposal-only",
+          "research-only",
           "conversational",
           "en",
           "base_model:Qwen/Qwen3.5-0.8B",
@@ -713,6 +624,39 @@
         "claimStatus": "inventory",
         "evidenceUrls": [
           "https://huggingface.co/SZLHOLDINGS/chaski-r2"
+        ],
+        "unsafeFlags": []
+      },
+      {
+        "id": "SZLHOLDINGS/chaski-r4",
+        "repoType": "model",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": null,
+        "license": "apache-2.0",
+        "sha": "34ea953fa62467c096998a47e788d89c4a166fa5",
+        "lastModified": "2026-10-01T21:16:24.000Z",
+        "cardSemanticSha256": "c38312c6f8ca371890f8c1867287752c5115ad919bce48d20a533f34e7fd75fa",
+        "createdAt": "2026-10-01T19:25:10.000Z",
+        "tags": [
+          "peft",
+          "safetensors",
+          "base_model:adapter:Qwen/Qwen3.5-0.8B",
+          "lora",
+          "sft",
+          "transformers",
+          "experimental",
+          "research-only",
+          "text-generation",
+          "en",
+          "base_model:Qwen/Qwen3.5-0.8B",
+          "license:apache-2.0",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/SZLHOLDINGS/chaski-r4"
         ],
         "unsafeFlags": []
       },
@@ -759,9 +703,9 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "90af1d3c2d3e79e60d8e1c82fa99a723e6888b90",
-        "lastModified": "2026-09-24T12:31:52.000Z",
-        "cardSemanticSha256": "d8696dbd3f7dc5fdaa042f3c7756f6bcff79f189688fedad669efb49594fa370",
+        "sha": "7e388efb6e332c8c28e94bdf266293baf437fb64",
+        "lastModified": "2026-09-30T23:42:00.000Z",
+        "cardSemanticSha256": "bc2325f4d91e2e46a90b9c466f75fdf682bbec253e8fa41880edbdac6cebd411",
         "createdAt": "2026-08-29T16:55:03.000Z",
         "tags": [
           "peft",
@@ -839,36 +783,6 @@
         "unsafeFlags": []
       },
       {
-        "id": "SZLHOLDINGS/qantu",
-        "repoType": "model",
-        "private": false,
-        "gated": false,
-        "disabled": false,
-        "sdk": null,
-        "license": "apache-2.0",
-        "sha": "d1b5621d3403745d38d420a52f05ea47d06327f0",
-        "lastModified": "2026-09-28T17:01:50.000Z",
-        "cardSemanticSha256": "6b766fe95fcc6fec229f431d7aed7b06675217de4fdfd6581be976311d308e08",
-        "createdAt": "2026-08-28T16:26:39.000Z",
-        "tags": [
-          "other",
-          "governed-ai",
-          "szl-holdings",
-          "doctrine-v11",
-          "roadmap",
-          "software",
-          "reference",
-          "test-fixture",
-          "license:apache-2.0",
-          "region:us"
-        ],
-        "claimStatus": "inventory",
-        "evidenceUrls": [
-          "https://huggingface.co/SZLHOLDINGS/qantu"
-        ],
-        "unsafeFlags": []
-      },
-      {
         "id": "SZLHOLDINGS/szl-block-kv",
         "repoType": "model",
         "private": false,
@@ -902,9 +816,9 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "f3c0f37eb1dc6e724a242942939eb2de663329b2",
-        "lastModified": "2026-09-30T04:14:07.000Z",
-        "cardSemanticSha256": "debaac8ad3997a3708517f38b2bd8229fc3b35fe9a19a07f3ef8addbafc8e994",
+        "sha": "74caaabb4a001fb3d2e8a346c1114008ad9c4f5d",
+        "lastModified": "2026-09-30T21:35:12.000Z",
+        "cardSemanticSha256": "3c94de8e7071d97c74b80fec54adcfca5eaf73d04b7d38f1b7868a40e09af481",
         "createdAt": "2026-06-24T16:45:09.000Z",
         "tags": [
           "kernels",
@@ -959,9 +873,9 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "8bfdf0f62dd9415d95231769ddbfee9a7b427a03",
-        "lastModified": "2026-09-30T03:22:15.000Z",
-        "cardSemanticSha256": "4427fe3492f1f30228cddd956012f192029c487464dd047d2409dadb9ac342ff",
+        "sha": "937c8460ed1a77bb817be41cd8a1c39369ffb8bd",
+        "lastModified": "2026-09-30T21:35:39.000Z",
+        "cardSemanticSha256": "b7877b8e1641f521bf61ab907fc13fd75cd9718d9fdf4a03df95d4626c5b2051",
         "createdAt": "2026-07-12T11:55:07.000Z",
         "tags": [
           "kernels",
@@ -1023,9 +937,9 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "8cf56667bcf3613e7ea8317338a71a1004ac9acb",
-        "lastModified": "2026-09-30T02:53:40.000Z",
-        "cardSemanticSha256": "006c698b7772173acfb723907605efad760571a591b77b9344d7524ce8b8706d",
+        "sha": "52576849d074aa7d251219241fe12888b02f1edd",
+        "lastModified": "2026-09-30T21:36:06.000Z",
+        "cardSemanticSha256": "4a904424024d1dfa64630b4fd1f71d71b43c5572cd11231e50d85e92cefc1c2d",
         "createdAt": "2026-06-24T16:45:09.000Z",
         "tags": [
           "kernels",
@@ -1053,9 +967,9 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "6a1178954b5d60bd3936f1b34a187ba1f513ef4d",
-        "lastModified": "2026-09-30T02:53:42.000Z",
-        "cardSemanticSha256": "3abde2ccfcf29a528bdcfb9646a61c0287acd9b9a89a940ea01838b4743eae78",
+        "sha": "11001d7f7451bf624489a61693cb9fa3bb0b9eea",
+        "lastModified": "2026-09-30T21:36:35.000Z",
+        "cardSemanticSha256": "f1e93e8c09c3cda685c023e0162aa89698a3c5d2e226078872ce1fb4e5d19c60",
         "createdAt": "2026-07-12T11:50:20.000Z",
         "tags": [
           "kernels",
@@ -1113,8 +1027,8 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "3e392359ccae7deabefdb1621d6e08849f2df83a",
-        "lastModified": "2026-09-30T20:43:30.000Z",
+        "sha": "ff665ef57b9e0a83dc0a1581312b4c3a1d42db7e",
+        "lastModified": "2026-10-02T00:29:31.000Z",
         "cardSemanticSha256": "e8504799bf31a9f12dc3689c95520c9cc6651f95b1df943e0528267d3ac3286d",
         "createdAt": "2026-08-29T01:17:03.000Z",
         "tags": [
@@ -1259,9 +1173,9 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "7dee9c9c31735cef2935397bf0a6f464b565344b",
-        "lastModified": "2026-09-30T02:53:45.000Z",
-        "cardSemanticSha256": "74d5ed8c40a6f56a4b1d085de0f724b241c3e85de7e53200f8c4218081e95bd1",
+        "sha": "ea49dcae37ea15e155b77f837f21a668871c6673",
+        "lastModified": "2026-09-30T21:37:04.000Z",
+        "cardSemanticSha256": "e188187b7f416e6920cbb62bc0fecc245beab995fa3b05e4cfa1b92b9bd9f4e9",
         "createdAt": "2026-07-12T11:50:23.000Z",
         "tags": [
           "kernels",
@@ -1416,9 +1330,9 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "910343a2293f6bee8cc6e23f6cd16a981b92a155",
-        "lastModified": "2026-09-29T05:03:05.000Z",
-        "cardSemanticSha256": "600d1772c5cfe69d82fd6266f92766443cdaeb4438b01e223fd0fc4c262e4bd1",
+        "sha": "f4b28d75e1bdbbbf299bb8f5beceb8f141f38baf",
+        "lastModified": "2026-09-30T23:42:01.000Z",
+        "cardSemanticSha256": "1b50e409f5ba42c6ded16024c5e4b7c6c46e9a55a835c028f3e8caf60ab72fb4",
         "createdAt": "2026-08-29T13:43:09.000Z",
         "tags": [
           "peft",
@@ -1511,27 +1425,25 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "24b5c44494434e88b89d9915daad32f1f8e8d03d",
-        "lastModified": "2026-09-23T11:34:03.000Z",
-        "cardSemanticSha256": "62c2c0df49449e5ef6bd60d4e20e8fdaed867338d9e36bdfba260d208ae49cd9",
+        "sha": "5414c4abcbebe2b37638b47ca1257968c03b2255",
+        "lastModified": "2026-09-30T22:21:29.000Z",
+        "cardSemanticSha256": "c9dd02220befd01b040fde4519b58aa84544534e9196da5b7bb2224765baf8a8",
         "createdAt": "2026-09-20T23:30:55.000Z",
         "tags": [
-          "transformers",
-          "safetensors",
           "peft",
+          "safetensors",
           "lora",
           "triage",
-          "classification",
+          "structured-output",
           "refusal-preserving",
+          "unsloth",
           "evaluation-harness",
-          "blocked-release",
-          "reference-artifact",
-          "text-classification",
+          "text-generation",
+          "conversational",
           "en",
-          "base_model:Qwen/Qwen3.5-0.8B-Base",
-          "base_model:adapter:Qwen/Qwen3.5-0.8B-Base",
+          "base_model:Qwen/Qwen3.5-0.8B",
+          "base_model:adapter:Qwen/Qwen3.5-0.8B",
           "license:apache-2.0",
-          "endpoints_compatible",
           "region:us"
         ],
         "claimStatus": "inventory",
@@ -1576,62 +1488,35 @@
         "unsafeFlags": []
       },
       {
-        "id": "SZLHOLDINGS/tinku",
+        "id": "SZLHOLDINGS/szl-triage-retrain",
         "repoType": "model",
         "private": false,
         "gated": false,
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "0a33bd6f75b1d1b54ab962a480765edbf5283990",
-        "lastModified": "2026-09-28T17:02:00.000Z",
-        "cardSemanticSha256": "0bb2d8e5132e6f87efeb78edf373e06ee166476517f8d1953108d3262ca6aea3",
-        "createdAt": "2026-08-28T16:26:45.000Z",
+        "sha": "c078b86bafd81ddf055c3af775ed8b43398164c5",
+        "lastModified": "2026-10-01T23:59:21.000Z",
+        "cardSemanticSha256": "62d7f6365997671ea6d3f2d517c0a6e3446d82291f64a761c6a7bdb9e92d866e",
+        "createdAt": "2026-10-01T20:54:40.000Z",
         "tags": [
-          "other",
-          "governed-ai",
           "szl-holdings",
-          "doctrine-v11",
-          "roadmap",
-          "software",
-          "reference",
-          "test-fixture",
+          "triage",
+          "refusal-preserving",
+          "retrain-target",
+          "hub-job",
+          "experimental",
+          "research-only",
+          "not-promotable",
+          "en",
+          "base_model:Qwen/Qwen3.5-0.8B",
+          "base_model:finetune:Qwen/Qwen3.5-0.8B",
           "license:apache-2.0",
           "region:us"
         ],
         "claimStatus": "inventory",
         "evidenceUrls": [
-          "https://huggingface.co/SZLHOLDINGS/tinku"
-        ],
-        "unsafeFlags": []
-      },
-      {
-        "id": "SZLHOLDINGS/waman",
-        "repoType": "model",
-        "private": false,
-        "gated": false,
-        "disabled": false,
-        "sdk": null,
-        "license": "apache-2.0",
-        "sha": "a48b979a765c4f60b497204db2a418dbf0c957ff",
-        "lastModified": "2026-09-28T17:02:02.000Z",
-        "cardSemanticSha256": "59ebcfc7ab20154c6cb1680dc613a86f66b3f8557cc3b24dbfae810b4d107c3b",
-        "createdAt": "2026-08-28T16:26:39.000Z",
-        "tags": [
-          "other",
-          "governed-ai",
-          "szl-holdings",
-          "doctrine-v11",
-          "roadmap",
-          "software",
-          "reference",
-          "test-fixture",
-          "license:apache-2.0",
-          "region:us"
-        ],
-        "claimStatus": "inventory",
-        "evidenceUrls": [
-          "https://huggingface.co/SZLHOLDINGS/waman"
+          "https://huggingface.co/SZLHOLDINGS/szl-triage-retrain"
         ],
         "unsafeFlags": []
       }
@@ -1958,8 +1843,8 @@
         "disabled": false,
         "sdk": null,
         "license": "other",
-        "sha": "4357be4aae0d6a232ae1b03611137fd25e576e78",
-        "lastModified": "2026-09-30T21:02:35.000Z",
+        "sha": "b48c43c3acbd1f13d808390fa23078404e3e8f4c",
+        "lastModified": "2026-10-02T01:03:48.000Z",
         "cardSemanticSha256": "7b09277401ed789f6ac2885e5307b621780e0d6b4a6369f7e00e0cdc7e9d68b1",
         "createdAt": "2026-06-12T11:38:04.000Z",
         "tags": [
@@ -2211,8 +2096,8 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "c5a30d199c2235094e3af270617e4d28cd2712a0",
-        "lastModified": "2026-09-30T20:45:32.000Z",
+        "sha": "6e80dcc92ea4df5f8739eb7d9ad615c7e4a4e180",
+        "lastModified": "2026-10-01T01:55:53.000Z",
         "cardSemanticSha256": "429c1c713015c0b256c7c5f0fa4d355794253d92ad555c8f6392c6367ca0d0a0",
         "createdAt": "2026-06-01T13:06:04.000Z",
         "tags": [
@@ -2469,8 +2354,8 @@
         "disabled": false,
         "sdk": null,
         "license": "cc-by-4.0",
-        "sha": "4dd520c761d96917c8477ffcb8459e45c9233b3d",
-        "lastModified": "2026-09-30T12:37:04.000Z",
+        "sha": "e0c21566358e7bb85dc9c95b14b562da36d4fa2a",
+        "lastModified": "2026-10-01T12:37:07.000Z",
         "cardSemanticSha256": "534e1346300c2a4f48eb14250953d21610830b3d70a8548c70056b9626dd84d5",
         "createdAt": "2026-06-02T02:15:41.000Z",
         "tags": [
@@ -2889,6 +2774,28 @@
     ],
     "spaces": [
       {
+        "id": "SZLHOLDINGS/README",
+        "repoType": "space",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": "static",
+        "license": "apache-2.0",
+        "sha": "258c8ce1811e5dc0b41b10e194fc3625b750d846",
+        "lastModified": "2026-10-02T00:28:31.000Z",
+        "cardSemanticSha256": "d030c25cd1fe92811dc823e4cad95fdb43fd659f3b58bbb6554932349a754cf1",
+        "createdAt": "2026-05-30T08:16:05.000Z",
+        "tags": [
+          "static",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/spaces/SZLHOLDINGS/README"
+        ],
+        "unsafeFlags": []
+      },
+      {
         "id": "SZLHOLDINGS/a11oy",
         "repoType": "space",
         "private": false,
@@ -2896,8 +2803,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "155c304f52c77c32c0d3e72cea21241161f758a5",
-        "lastModified": "2026-09-30T04:58:08.000Z",
+        "sha": "76df9762ea79282afdb17a76235b9730ecee9e4a",
+        "lastModified": "2026-10-01T20:47:53.000Z",
         "cardSemanticSha256": "e0d52b36c73f9869e29ed60283f98924300502d719cc1b5d1f1363bad6db1145",
         "createdAt": "2026-06-03T21:58:01.000Z",
         "tags": [
@@ -2924,8 +2831,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "f37b5e9a96116d66bb5e08827b3fdf54ca7257a4",
-        "lastModified": "2026-09-30T20:40:45.000Z",
+        "sha": "0d5869374bb82d19eaf57d954a7baf32ba69932a",
+        "lastModified": "2026-10-02T00:54:32.000Z",
         "cardSemanticSha256": "ab65cab2c9c259688da079c9c16534a5e486325ada876ecc4c5d2ab05f7a3c23",
         "createdAt": "2026-09-04T21:10:09.000Z",
         "tags": [
@@ -2978,9 +2885,9 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "17330503066c8edccc9a9c80034d4bc5be4d9a95",
-        "lastModified": "2026-09-30T03:55:27.000Z",
-        "cardSemanticSha256": "17b0f6e8a39d6ddd262ebaae3f8de28c863563abed81f684df4e4e602906a8bf",
+        "sha": "e0bb1b5d4b94bf10e6b2864ef96d9259976ed73a",
+        "lastModified": "2026-10-01T19:04:13.000Z",
+        "cardSemanticSha256": "f050f8ec4cdb0150b1572527f519fd7fb352df67af4b2bf0ae476c034ac98acf",
         "createdAt": "2026-09-04T01:29:50.000Z",
         "tags": [
           "docker",
@@ -3006,8 +2913,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "95c6a83ae175e32167b45c298d4dfcf630540356",
-        "lastModified": "2026-09-30T05:50:49.000Z",
+        "sha": "7cee10701d65352ec93535c947224c1027fa86bd",
+        "lastModified": "2026-10-01T21:01:31.000Z",
         "cardSemanticSha256": "be1b601ad2084b078c760089b31a59c71434a78af4c9596b21f43df938ea748b",
         "createdAt": "2026-09-02T21:47:52.000Z",
         "tags": [
@@ -3020,6 +2927,28 @@
         "claimStatus": "inventory",
         "evidenceUrls": [
           "https://huggingface.co/spaces/SZLHOLDINGS/finance"
+        ],
+        "unsafeFlags": []
+      },
+      {
+        "id": "SZLHOLDINGS/foundation-confirmation-v2",
+        "repoType": "space",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": "static",
+        "license": "apache-2.0",
+        "sha": "e841f10bc031f63674cd5dd58332a1d183fecaf7",
+        "lastModified": "2026-10-01T01:03:11.000Z",
+        "cardSemanticSha256": "b0bc59fd1cfeb0cf2b2bfecde29afb98419d6c67ad9f9a456b0641483da6be9d",
+        "createdAt": "2026-10-01T00:20:23.000Z",
+        "tags": [
+          "static",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/spaces/SZLHOLDINGS/foundation-confirmation-v2"
         ],
         "unsafeFlags": []
       },
@@ -3046,6 +2975,28 @@
         "unsafeFlags": []
       },
       {
+        "id": "SZLHOLDINGS/governed-receipt-verifier",
+        "repoType": "space",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": "static",
+        "license": "apache-2.0",
+        "sha": "0e71dc7963c704ca98fec03321234c1b6e09913a",
+        "lastModified": "2026-10-01T01:23:03.000Z",
+        "cardSemanticSha256": "e87d80fa79a5bc5bf1a0781b18292e1e2e4c5577004fd8238c2534b46c7791eb",
+        "createdAt": "2026-10-01T00:54:52.000Z",
+        "tags": [
+          "static",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/spaces/SZLHOLDINGS/governed-receipt-verifier"
+        ],
+        "unsafeFlags": []
+      },
+      {
         "id": "SZLHOLDINGS/holographic-unify",
         "repoType": "space",
         "private": false,
@@ -3053,8 +3004,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "91f91d2e6ae09770c3f85ab7c6dcb46cca14d0d4",
-        "lastModified": "2026-09-29T19:30:12.000Z",
+        "sha": "77b1e14c9ba7c546f047234589e4726d615bc615",
+        "lastModified": "2026-10-01T02:09:42.000Z",
         "cardSemanticSha256": "0c0559d050c68d0b4dd6425024fd8c235109d288302ad8f5edce753a39ccbb47",
         "createdAt": "2026-09-08T04:14:11.000Z",
         "tags": [
@@ -3103,9 +3054,9 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "d56cfa32711e874b6efe003526c44bceaf90f134",
-        "lastModified": "2026-09-29T16:04:29.000Z",
-        "cardSemanticSha256": "516631424586fd36ec0b7e4b4f59b49cb6cd90f0814be1d9d4128b548a8c9d61",
+        "sha": "f17c9066d81e799ab8d27f212cdc50d2fc2fe17e",
+        "lastModified": "2026-10-01T19:51:42.000Z",
+        "cardSemanticSha256": "24c93ef6fbad26bdcdf72003fae372fce8e166cb00bab47f4be10b969e035643",
         "createdAt": "2026-09-04T16:43:27.000Z",
         "tags": [
           "docker",
@@ -3125,8 +3076,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "0e85963fb4671910e279a88d6bd0d218ec81ea13",
-        "lastModified": "2026-09-30T20:07:38.000Z",
+        "sha": "0f3c25bdff25f1a4ebe52e1e313b59e3d63e5c42",
+        "lastModified": "2026-09-30T22:07:47.000Z",
         "cardSemanticSha256": "1605f9135f35d9f6c2eb583d3a6190854bf16400b302de57291cc991becc1ddf",
         "createdAt": "2026-06-01T05:46:37.000Z",
         "tags": [
@@ -3211,9 +3162,9 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "332ad01ebd55256ebb91f01ba424d33cdc38f488",
-        "lastModified": "2026-09-30T02:59:02.000Z",
-        "cardSemanticSha256": "1b0525c80ab6d06c22ef08f931761f554713e56f839dac558f7667cab45bd15c",
+        "sha": "bdc6a4d5fa6313e2c530e763a2713e33486df174",
+        "lastModified": "2026-09-30T21:35:00.000Z",
+        "cardSemanticSha256": "440013479e2cc0affa69e44de7acc9eb9dd64efe9ead797d4537db91413ed180",
         "createdAt": "2026-09-30T01:31:00.000Z",
         "tags": [
           "docker",
@@ -3280,8 +3231,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "80eb13c8330b5fa697909f87244b9cc039847256",
-        "lastModified": "2026-09-30T20:55:56.000Z",
+        "sha": "21bd996a494e2ccaa1fa96e9fbc926faa8003e25",
+        "lastModified": "2026-10-01T19:51:27.000Z",
         "cardSemanticSha256": "266a96cda0fd3b598c74ffabd03d6f4cb02b73152fe6ad278c28c9f12a04223e",
         "createdAt": "2026-09-07T20:03:57.000Z",
         "tags": [
@@ -3376,8 +3327,8 @@
         "disabled": false,
         "sdk": "gradio",
         "license": "apache-2.0",
-        "sha": "a64e56c0f4099f752afd5a28100d05040f350457",
-        "lastModified": "2026-09-29T21:03:41.000Z",
+        "sha": "f20b359bfffa87959169b6ffd58359d64246dcba",
+        "lastModified": "2026-10-01T19:21:56.000Z",
         "cardSemanticSha256": "9ad6668c2b7227077b7e205630a2d7981388275c3690553a9e75babb077af4d2",
         "createdAt": "2026-09-04T01:54:30.000Z",
         "tags": [
@@ -3403,8 +3354,8 @@
         "disabled": false,
         "sdk": "static",
         "license": "apache-2.0",
-        "sha": "639a0faf0acd321daf214af9759322ea64e3c7ca",
-        "lastModified": "2026-09-29T20:49:48.000Z",
+        "sha": "f78662e30d51bb30f696e286c31bf008ebe6f12b",
+        "lastModified": "2026-10-01T01:28:45.000Z",
         "cardSemanticSha256": "9306ab16316e972730a91c9ee44fc7048f9834d858e631b84ced27fde23283b9",
         "createdAt": "2026-09-29T02:07:36.000Z",
         "tags": [
@@ -3425,9 +3376,9 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "cc0744f46d26508bdde6c5ab728e71c65c6b86c1",
-        "lastModified": "2026-09-30T08:42:35.000Z",
-        "cardSemanticSha256": "c870137491003646240aac057d8323d67bf353df1e27a262d791fdcd4cc758ba",
+        "sha": "8bdf8c8ce97c45a3eb3f31e1bc54a85ebf4f7119",
+        "lastModified": "2026-10-01T01:40:05.000Z",
+        "cardSemanticSha256": "fac1ceee51e1278fabec2ef23631211f4436b81ae290ecc11d9089ef792bc5c4",
         "createdAt": "2026-09-30T04:17:12.000Z",
         "tags": [
           "docker",
@@ -3451,8 +3402,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "2965c0a2e74a880a88fe94c97455da6890e814fd",
-        "lastModified": "2026-09-29T21:11:54.000Z",
+        "sha": "c1ac092f950dc4715eceeb243299d4d8dfed1735",
+        "lastModified": "2026-10-01T02:58:59.000Z",
         "cardSemanticSha256": "c4d1981cf7cdcf55d503e09fd49ef39f9e939ba6707ab67667e882ad3c9c78e5",
         "createdAt": "2026-09-04T13:48:34.000Z",
         "tags": [
@@ -3479,8 +3430,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "d2e3cf53be99374b0ea452d6be3a08ab751b9416",
-        "lastModified": "2026-09-30T20:43:36.000Z",
+        "sha": "22ce0cdb2fcee2c000eeea9cf4799cc20679f8f0",
+        "lastModified": "2026-10-02T00:29:45.000Z",
         "cardSemanticSha256": "24de8ccabbe9ce4314420311f4fde541a7e553a19b9aadac8dfe11f899b932f0",
         "createdAt": "2026-09-08T04:49:19.000Z",
         "tags": [
@@ -3526,9 +3477,9 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "bdc5af2ee3a9df79476bf9494ecde2912c17cfd4",
-        "lastModified": "2026-09-05T16:28:17.000Z",
-        "cardSemanticSha256": "2b2b6922a7a32a7713e483686711f957163f2ca0bafe07d1347e6751ac522615",
+        "sha": "f0d439fa0dfe2cd6c5b99f4735d779c951ff7fca",
+        "lastModified": "2026-10-01T01:23:59.000Z",
+        "cardSemanticSha256": "8bad0f3c118cbc4796dc85b2a8268e49aaf2a229cac5e83321f6d7460f83f81c",
         "createdAt": "2026-09-04T16:18:13.000Z",
         "tags": [
           "docker",
@@ -3622,8 +3573,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "0d0c9e5c0e57abc32f32e5c1fbb1a1ceb17e1454",
-        "lastModified": "2026-09-30T04:03:54.000Z",
+        "sha": "2084cefa3292fe9d53f60a8cc2bf8209fc93b9f1",
+        "lastModified": "2026-10-02T00:55:21.000Z",
         "cardSemanticSha256": "365b42ff5f4f72985667378fc6cf8cc726d95857e4fc2db8b1abdb106765f5d4",
         "createdAt": "2026-09-03T22:26:50.000Z",
         "tags": [

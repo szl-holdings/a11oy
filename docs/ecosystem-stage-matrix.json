@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-09-30T21:07:31Z",
+  "observedAt": "2026-10-02T01:04:24Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -26,9 +26,9 @@
   "machineGeneratedCounts": {
     "githubReadinessEntries": 19,
     "huggingFacePublic": {
-      "models": 50,
+      "models": 46,
       "datasets": 35,
-      "spaces": 31
+      "spaces": 34
     },
     "huggingFaceScope": {
       "visibility": "public-only",
@@ -789,16 +789,6 @@
       ]
     },
     {
-      "id": "SZLHOLDINGS/KILLINCHU-EYE",
-      "repoType": "model",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/SZLHOLDINGS/KILLINCHU-EYE"
-      ]
-    },
-    {
       "id": "SZLHOLDINGS/MiniEmbed-Nano",
       "repoType": "model",
       "stage": "inventory",
@@ -869,18 +859,6 @@
       ]
     },
     {
-      "id": "SZLHOLDINGS/SZLHOLDINGS",
-      "repoType": "model",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [
-        "org-profile-duplicate-review"
-      ],
-      "evidenceUrls": [
-        "https://huggingface.co/SZLHOLDINGS/SZLHOLDINGS"
-      ]
-    },
-    {
       "id": "SZLHOLDINGS/TinyKhipu-Nano",
       "repoType": "model",
       "stage": "inventory",
@@ -931,16 +909,6 @@
       ]
     },
     {
-      "id": "SZLHOLDINGS/chakana",
-      "repoType": "model",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/SZLHOLDINGS/chakana"
-      ]
-    },
-    {
       "id": "SZLHOLDINGS/chaski",
       "repoType": "model",
       "stage": "inventory",
@@ -968,6 +936,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/chaski-r2"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-r4",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/chaski-r4"
       ]
     },
     {
@@ -1008,16 +986,6 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/oac-system-health-v1"
-      ]
-    },
-    {
-      "id": "SZLHOLDINGS/qantu",
-      "repoType": "model",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/SZLHOLDINGS/qantu"
       ]
     },
     {
@@ -1251,23 +1219,13 @@
       ]
     },
     {
-      "id": "SZLHOLDINGS/tinku",
+      "id": "SZLHOLDINGS/szl-triage-retrain",
       "repoType": "model",
       "stage": "inventory",
       "private": false,
       "unsafeFlags": [],
       "evidenceUrls": [
-        "https://huggingface.co/SZLHOLDINGS/tinku"
-      ]
-    },
-    {
-      "id": "SZLHOLDINGS/waman",
-      "repoType": "model",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/SZLHOLDINGS/waman"
+        "https://huggingface.co/SZLHOLDINGS/szl-triage-retrain"
       ]
     },
     {
@@ -1623,6 +1581,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/README",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/README"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/a11oy",
       "repoType": "space",
       "stage": "inventory",
@@ -1673,6 +1641,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/foundation-confirmation-v2",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/foundation-confirmation-v2"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/gdw-frontier",
       "repoType": "space",
       "stage": "inventory",
@@ -1680,6 +1658,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/gdw-frontier"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/governed-receipt-verifier",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/governed-receipt-verifier"
       ]
     },
     {
