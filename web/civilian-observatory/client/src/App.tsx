@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { Link, Route, Router, Switch, useLocation } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
 import { QueryClientProvider, useMutation, useQuery } from "@tanstack/react-query";
-import { ArrowDownToLine, ArrowRight, ArrowUpRight, Check, ChevronRight, CircleHelp, CloudSun, FileCheck2, FlaskConical, FolderGit2, GitBranch, Globe2, LayoutDashboard, Loader2, LockKeyhole, Moon, Network, RefreshCw, Search, ShieldCheck, Sun, X } from "lucide-react";
+import { ArrowDownToLine, ArrowRight, ArrowUpRight, Check, ChevronRight, CircleHelp, CloudSun, FileCheck2, FlaskConical, FolderGit2, GitBranch, Globe2, LayoutDashboard, Loader2, LockKeyhole, Moon, Network, RefreshCw, Search, ShieldCheck, Sun } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
