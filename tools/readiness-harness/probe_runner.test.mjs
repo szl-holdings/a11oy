@@ -316,3 +316,21 @@ test("canonical unavailable freshness.status is not a doctrine lie", () => {
   };
   assert.equal(evaluateEndpointLabels(200, spec, rootUnavailable).ok, false);
 });
+
+test("Python feed unavailable envelope is honest only with null evidence and a failure clock", () => {
+  const spec = { degradedRules: { allowStatuses: [200], allowLabels: ["live", "cached"] } };
+  const fx = {
+    value: null,
+    freshness: {
+      status: "unavailable",
+      fetched_at: 1790910000.25,
+      error: "HTTPStatusError: upstream 503",
+    },
+  };
+  const body = { fx };
+  assert.equal(evaluateEndpointLabels(200, spec, body).ok, true);
+  assert.equal(evaluateEndpointLabels(200, spec, { fx: { ...fx, value: {} } }).ok, false);
+  assert.equal(evaluateEndpointLabels(200, spec, { fx: { ...fx, freshness: { ...fx.freshness, error: "" } } }).ok, false);
+  assert.equal(evaluateEndpointLabels(200, spec, { fx: { ...fx, freshness: { ...fx.freshness, fetched_at: "bad" } } }).ok, false);
+  assert.equal(evaluateEndpointLabels(200, spec, { fx: { ...fx, freshness: { ...fx.freshness, status: "stale" } } }).ok, false);
+});
