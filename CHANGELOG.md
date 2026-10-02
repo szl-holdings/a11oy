@@ -9,19 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added - civilian evidence and review surface
-- FACT: Add `/civilian/` and a reserved GET-only Python namespace for public
-  vulnerability evidence, exact-scope web-header observations, official weather
-  alerts, and a dated public repository inventory. Empty and failed observations
-  remain unavailable; source times and digests are retained.
-- FACT: Review exports are unsigned checksum bundles. Response rehearsals have
-  zero external action adapters and load no models.
-- FACT: Package bytes, isolated UI reconstruction, scope rejection, cache leases,
-  and parent route-table compatibility have regression checks. The existing
-  canonical publisher remains the only automatic Space writer.
-- BLOCKED: This addition does not qualify models, grant scan authority, change
-  operator permissions, or establish government or emergency-service readiness.
-
 ### Fixed - evaluation results require governed selected-model execution
 - Live evaluation now uses the existing canonical router after governance and
   binds the selected registry model, eligible plan, provider and completion.
@@ -446,6 +433,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   parity is named-RED (baseline controller is unchanged; candidate changes
   that controller and Dockerfile). That RED is the gate, not a skip. PR 1363
   remains HOLD.
+
+### Added - civilian evidence and review surface
+- FACT: Add `/civilian/` and a reserved GET-only Python namespace for public
+  vulnerability evidence, exact-scope web-header observations, official weather
+  alerts, and a dated public repository inventory. Empty and failed observations
+  remain unavailable; source times and digests are retained.
+- FACT: Review exports are unsigned checksum bundles. Response rehearsals have
+  zero external action adapters and load no models.
+- FACT: Package bytes, isolated UI reconstruction, scope rejection, cache leases,
+  and parent route-table compatibility have regression checks. The existing
+  canonical publisher remains the only automatic Space writer.
+- BLOCKED: This addition does not qualify models, grant scan authority, change
+  operator permissions, or establish government or emergency-service readiness.
 
 ## [1.1.0] — 2026-07-13
 
