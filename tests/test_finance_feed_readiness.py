@@ -14,11 +14,45 @@ Do not expand probe allowLabels. Official Polygon SPY stays required.
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
+from pathlib import Path
+import shutil
+import subprocess
 
 from fastapi import FastAPI
+import pytest
 
 import a11oy_vertical_feeds as vertical
+
+
+_ROOT = Path(__file__).resolve().parents[1]
+_PROBE = """
+import fs from 'node:fs';
+import {validateSchema, evaluateEndpointLabels, evaluateFreshness}
+  from './tools/readiness-harness/probe_runner.mjs';
+const {path, body, nowMs} = JSON.parse(fs.readFileSync(0, 'utf8'));
+const tabs = JSON.parse(fs.readFileSync('tools/readiness-harness/tabs.json', 'utf8'));
+const spec = tabs.endpoints[path];
+const schema = validateSchema(spec.schema, body);
+const labels = evaluateEndpointLabels(200, spec, body);
+const freshness = evaluateFreshness(path, spec, body, nowMs);
+process.stdout.write(JSON.stringify({
+  schemaOk: schema.ok, labelsOk: labels.ok, freshOk: freshness.freshOk,
+}));
+"""
+
+
+def _probe(path: str, body: dict, now_s: int = 1786449600) -> dict:
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js is required for the shipped readiness evaluator")
+    result = subprocess.run(
+        [node, "--input-type=module", "-e", _PROBE],
+        input=json.dumps({"path": path, "body": body, "nowMs": now_s * 1000}),
+        text=True, capture_output=True, check=True, cwd=_ROOT, timeout=10,
+    )
+    return json.loads(result.stdout)
 
 
 def _live(symbol: str, official: bool = False) -> dict:
@@ -129,8 +163,11 @@ def test_finance_feed_omits_yahoo_misses_and_keeps_official_spy(monkeypatch) -> 
 
 
 def test_defense_and_finance_routes_preserve_last_good_source_evidence(monkeypatch) -> None:
-    monkeypatch.setattr(vertical, "feed_cisa_kev", lambda *a: _live("KEV"))
-    monkeypatch.setattr(vertical, "feed_nvd", lambda *a, **k: _stale_source({"count": 2}))
+    monkeypatch.setattr(vertical, "feed_cisa_kev", lambda *a: {
+        "value": {"items": []},
+        "freshness": {"status": "live", "fetched_at": 1786449600},
+    })
+    monkeypatch.setattr(vertical, "feed_nvd", lambda *a, **k: _stale_source({"items": []}))
     monkeypatch.setattr(vertical, "feed_yahoo", lambda symbol: _live(symbol))
     monkeypatch.setattr(vertical, "feed_polygon", lambda symbol: (
         _live(symbol, official=True) if symbol == "SPY"
@@ -154,6 +191,22 @@ def test_defense_and_finance_routes_preserve_last_good_source_evidence(monkeypat
         assert source["freshness"]["status"] == "cached"
         assert source["freshness"]["fetched_at"] == 1786449500
         assert source["freshness"]["error"] == "HTTPStatusError: 503"
+
+    defense_path = "/api/a11oy/v1/vert/defense/feed"
+    finance_path = "/api/a11oy/v1/vert/finance/feed"
+    assert _probe(defense_path, defense) == {
+        "schemaOk": True, "labelsOk": True, "freshOk": True,
+    }
+    assert _probe(finance_path, finance) == {
+        "schemaOk": True, "labelsOk": True, "freshOk": True,
+    }
+    old = copy.deepcopy(finance)
+    old["fx"]["freshness"]["fetched_at"] = 1786440000
+    assert _probe(finance_path, old)["freshOk"] is False
+    for section, symbol in (("equities_official", "AAPL"), ("crypto", "ETH-USD")):
+        aged = copy.deepcopy(finance)
+        aged[section][symbol]["freshness"]["fetched_at"] = 1786440000
+        assert _probe(finance_path, aged)["freshOk"] is False
 
 
 def test_finance_route_marks_missing_fx_as_canonical_unavailable(monkeypatch) -> None:
@@ -181,3 +234,34 @@ def test_finance_route_marks_missing_fx_as_canonical_unavailable(monkeypatch) ->
             "error": "TimeoutError: upstream FX unavailable",
         },
     }
+    finance_path = "/api/a11oy/v1/vert/finance/feed"
+    assert _probe(finance_path, finance) == {
+        "schemaOk": True, "labelsOk": True, "freshOk": True,
+    }
+    for missing in ("fetched_at", "error"):
+        malformed = copy.deepcopy(finance)
+        del malformed["fx"]["freshness"][missing]
+        assert _probe(finance_path, malformed)["labelsOk"] is False
+
+
+def test_finance_route_does_not_launder_clockless_stale_equity(monkeypatch) -> None:
+    monkeypatch.setattr(vertical, "feed_yahoo", lambda symbol: _live(symbol))
+
+    def polygon(symbol: str) -> dict:
+        if symbol != "AAPL":
+            return _live(symbol, official=True)
+        clockless = _stale_source({"symbol": symbol, "price": 1.0})
+        del clockless["freshness"]["fetched_at"]
+        return clockless
+
+    monkeypatch.setattr(vertical, "feed_polygon", polygon)
+    monkeypatch.setattr(vertical, "feed_coinbase", lambda pair: _live(pair, official=True))
+    monkeypatch.setattr(vertical, "feed_nvd", lambda *a, **k: _live("CVE"))
+    monkeypatch.setattr(vertical, "feed_fx", lambda *a: _live("USD", official=True))
+
+    app = FastAPI()
+    vertical.register(app)
+    finance_path = "/api/a11oy/v1/vert/finance/feed"
+    finance = _payload(asyncio.run(_endpoint(app, finance_path)()))
+    assert finance["equities_official"]["AAPL"]["freshness"]["status"] == "stale"
+    assert _probe(finance_path, finance)["labelsOk"] is False
