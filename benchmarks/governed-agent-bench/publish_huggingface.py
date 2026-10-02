@@ -536,6 +536,12 @@ def _publish_and_readback(
 
     expected = _files(folder)
     _manifest_is_bound(expected, repo_id, repo_type, source_revision)
+    if repo_type == "dataset":
+        reserved = sorted(set(expected) & DATASET_EXTERNAL_SIDECARS)
+        if reserved:
+            raise PublicationError(
+                f"dataset bundle attempts to overwrite external sidecar: {reserved!r}"
+            )
 
     def mark(operation: str) -> None:
         if on_operation is not None:

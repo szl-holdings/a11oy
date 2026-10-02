@@ -445,6 +445,66 @@ class PublicationTests(unittest.TestCase):
                         "SZLHOLDINGS/governed-agent-bench",
                     )
 
+    def test_dataset_bundle_cannot_overwrite_external_sidecar(self):
+        publisher = _load_publisher()
+
+        class FakeApi:
+            repo_exists_calls = 0
+            commit_calls = 0
+
+            def repo_exists(self, **_):
+                self.repo_exists_calls += 1
+                return True
+
+            def create_commit(self, **_):
+                self.commit_calls += 1
+                raise AssertionError("reserved sidecar must never be committed")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            payload = Path(tmp) / "payload"
+            _write_manifested_payload(payload, publisher)
+            name = "PROMOTION_READINESS_AUDIT.json"
+            body = json.dumps(
+                {
+                    "asset_type": "dataset",
+                    "repository_id": "SZLHOLDINGS/governed-agent-bench",
+                    "destination_path": name,
+                    "overwrite_allowed": False,
+                }
+            ).encode()
+            (payload / name).write_bytes(body)
+            manifest_path = payload / "publication-manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["files"].append(
+                {
+                    "path": name,
+                    "bytes": len(body),
+                    "sha256": hashlib.sha256(body).hexdigest(),
+                }
+            )
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            fake_hub = types.ModuleType("huggingface_hub")
+            fake_hub.CommitOperationAdd = object
+            fake_hub.CommitOperationDelete = object
+            fake_hub.hf_hub_download = lambda **_: None
+            api = FakeApi()
+            with patch.dict(sys.modules, {"huggingface_hub": fake_hub}):
+                with self.assertRaisesRegex(
+                    publisher.PublicationError,
+                    "dataset bundle attempts to overwrite external sidecar",
+                ):
+                    publisher._publish_and_readback(
+                        api,
+                        "SZLHOLDINGS/governed-agent-bench",
+                        "dataset",
+                        payload,
+                        "a" * 40,
+                        "test-token",
+                    )
+            self.assertEqual(api.repo_exists_calls, 0)
+            self.assertEqual(api.commit_calls, 0)
+
     def test_local_manifest_must_bind_source_and_target(self):
         publisher = _load_publisher()
         with tempfile.TemporaryDirectory() as tmp:
