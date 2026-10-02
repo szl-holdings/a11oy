@@ -19,9 +19,9 @@ It is where investors, design partners, and engineers go to understand what SZL 
 
 **[Open the live demo →](https://docs.szlholdings.com)**
 
-[![demo screenshot](https://raw.githubusercontent.com/szl-holdings/szl-brand/main/kit/logos/png/kanchay-512.png)](https://docs.szlholdings.com)
+[![SZL Holdings](./docs/public/szl/logos/szl_logo_primary.svg)](https://docs.szlholdings.com)
 
-<sub>_Screenshot: SZL Holdings kanchay mark — replace with a live capture of the running surface._</sub>
+<sub>_The SZL Holdings orbit mark ([usage](https://github.com/szl-holdings/szl-brand/blob/main/kit/logos/LOGO_USAGE.md))._</sub>
 
 ## ⚡ Quick start (30 seconds)
 
@@ -154,14 +154,14 @@ szl_docs_site/
 ├── package.json                 # scripts + deps
 ├── docs/
 │   ├── .vitepress/
-│   │   ├── config.mjs           # nav, sidebar, search, KaTeX, Mermaid, kanchay.css link
+│   │   ├── config.mjs           # nav, sidebar, search, KaTeX, Mermaid, design-system link
 │   │   ├── theme/
-│   │   │   ├── index.js         # extends DefaultTheme (without its bundled fonts)
-│   │   │   └── custom.css       # maps VitePress variables onto SZL Kanchay roles
+│   │   │   ├── index.js         # extends DefaultTheme without webfonts; native MathML
+│   │   │   └── custom.css       # maps VitePress variables onto SZL KANCHAY roles
 │   │   └── dist/                # build output (generated — do not edit by hand)
 │   ├── public/
-│   │   ├── img/                 # images; szl-mark.svg (currentColor mark)
-│   │   └── kanchay/             # SZL Kanchay v1.0.0 export, vendored (never edit)
+│   │   ├── img/                 # page images and screenshots (add as needed)
+│   │   └── szl/                 # SZL KANCHAY 1.1.1 bundle + orbit logos, vendored (never edit)
 │   ├── index.md                 # Home (hero, what is SZL, 5 flagships, CTAs)
 │   ├── quickstart.md
 │   ├── flagships/               # index + a11oy, amaru, sentra, killinchu, rosie
@@ -214,10 +214,11 @@ npm run docs:preview
    automatically. Add a language hint (` ```python `, ` ```ts `, ` ```bash `).
 6. **Images / screenshots:** drop files in `docs/public/img/` and reference them as
    `/img/yourfile.png` (the `public/` prefix is stripped at build).
-7. **Brand colors and fonts** come from the SZL Kanchay export vendored at `docs/public/kanchay/`
-   (tokens, local fonts, marks; see `SOURCE.json`). `docs/.vitepress/theme/custom.css` maps
-   VitePress variables onto Kanchay roles. To change a token, change `tokens.json` in
-   `szl-holdings/szl-brand` and copy the regenerated export in again; never edit vendored files.
+7. **Brand colors, type and logos** come from the SZL KANCHAY 1.1.1 bundle vendored at
+   `docs/public/szl/` (`szl-design-system.css`, the orbit logos, `SOURCE.json`), copied byte for
+   byte from `szl-holdings/szl-brand` `kanchay/`. `docs/.vitepress/theme/custom.css` maps VitePress
+   variables onto its roles. To change a token, change it in `szl-brand` `kit/` and copy the
+   bundle in again; never edit vendored files.
 8. Run `npm run docs:build`, eyeball with `npm run docs:preview`, then deploy.
 
 ### Editing the LOCKED contract numbers
@@ -252,6 +253,12 @@ This was a deliberate trade: MPA loses VitePress's instant in-page SPA navigatio
 nav click is a real page load), which is an acceptable cost for a documentation site that
 must survive being served behind an opaque proxy.
 
+MPA also omits Vue event handlers. `docs/public/docs-ui.js` progressively enhances the
+existing appearance, navigation, search and copy controls in the static output only;
+development and SPA keep VitePress's own handlers. The post-build step generates a local
+`docs-search.json` from the public HTML. Search fetches only that same-origin index and
+results remain ordinary relocatable links; no external search service or font is loaded.
+
 - **Current preview host:** the Perplexity `deploy_website` flow uploads
   `docs/.vitepress/dist/` and serves it at a `pplx.app` proxy URL.
 - **Production target:** `docs.szlholdings.com` at the domain root. Because the build is
@@ -275,9 +282,9 @@ contract. NO BANDAID. Math-grounded, Quechua-rooted.
 
 ## SZL Holdings
 
-![SZL Holdings](./docs/public/img/szl-mark.svg)
+![SZL Holdings](./docs/public/szl/logos/szl_logo_primary.svg)
 
-*Amaru — the Inca avatar of SZL Holdings. Animated mark (400×400, 16fps loop). Signed Yachay.*
+*The SZL Holdings orbit mark ([usage](https://github.com/szl-holdings/szl-brand/blob/main/kit/logos/LOGO_USAGE.md)). Signed Yachay.*
 
 
 </details>
@@ -291,4 +298,3 @@ contract. NO BANDAID. Math-grounded, Quechua-rooted.
 Cite this work via [`CITATION.cff`](CITATION.cff). Math foundations: [szl-papers](https://github.com/szl-holdings/szl-papers) · [lutar-lean](https://github.com/szl-holdings/lutar-lean) (kernel `c7c0ba17`).
 
 <sub>Λ Conjecture 1 (not a theorem) · 749/14/163 v11 LOCKED (kernel `c7c0ba17`) · SLSA Build L2 on all 5 organ images (L3 not claimed; bundle artifact not yet attested) · proved formulas = 8 {F1,F4,F7,F11,F12,F18,F19,F22} · Section 889 = 5 vendors · [SZL Holdings](https://szlholdings.com) · Apache-2.0 code · CC-BY-4.0 papers</sub>
-
