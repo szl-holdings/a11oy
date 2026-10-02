@@ -29,6 +29,10 @@
  h1{font-size:16px;margin:0;letter-spacing:.4px}
  .badge{display:inline-block;font:10.5px ui-monospace,monospace;padding:2px 7px;border-radius:6px;
   border:1px solid var(--line);color:var(--gold);background:#10171f;white-space:nowrap}
+ header .header-action{display:inline-flex;align-items:center;justify-content:center;
+  min-width:44px;min-height:44px;padding:8px 12px}
+ header a:focus-visible,header button:focus-visible,#fallback a:focus-visible{
+  outline:2px solid var(--proof);outline-offset:2px}
  #backend{color:var(--teal)}
  /* Nav = a pinned ★ Featured row (flagships incl. Atlas, always visible) above a row of
     collapsible CATEGORY dropdowns. Replaces the old flat wall of ~84 pills so the flagship
@@ -91,8 +95,25 @@
  #stage-wrap{position:relative;flex:1 1 auto;min-height:0;width:100%}
  #stage{position:absolute;inset:0}
  #stage canvas{display:block;width:100%;height:100%;touch-action:none}
- #fallback{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
-  text-align:center;color:var(--para);padding:24px;font:13px ui-monospace,monospace}
+ #fallback{position:absolute;inset:0;z-index:2;display:none;align-items:center;justify-content:center;
+  overflow-y:auto;color:var(--para);padding:24px;font:13px/1.6 ui-sans-serif,system-ui,Segoe UI,Roboto,Arial}
+ .fallback-panel{width:min(100%,720px);padding:clamp(18px,4vw,32px);border:1px solid var(--line);
+  border-radius:12px;background:var(--panel)}
+ .fallback-panel h2{margin:4px 0 12px;color:var(--cream);font-size:clamp(20px,3vw,28px)}
+ .fallback-panel p{margin:10px 0}
+ .fallback-status{color:var(--gold);font:12px ui-monospace,monospace;letter-spacing:.3px}
+ #fallback-surface{color:var(--cream);overflow-wrap:anywhere}
+ .fallback-links{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin:18px 0}
+ .fallback-links a{display:flex;align-items:center;min-height:44px;padding:9px 12px;border:1px solid var(--line);
+  border-radius:8px;background:#101b25;color:var(--teal);text-decoration:underline;text-underline-offset:3px}
+ .fallback-links a:hover{border-color:var(--proof);color:var(--cream)}
+ body[data-renderer-unavailable="true"]{height:auto;min-height:100vh;min-height:100dvh;overflow-y:auto}
+ body[data-renderer-unavailable="true"] #stage-wrap{flex:1 0 auto;min-height:0}
+ body[data-renderer-unavailable="true"] #fallback{position:relative;min-height:360px;overflow:visible}
+ body[data-renderer-unavailable="true"] .evidence-rail{position:relative;left:auto;right:auto;bottom:auto;
+  width:auto;margin:12px}
+ body[data-renderer-unavailable="true"] :is(.surface-search,.navmode,.tab,.catbtn){min-height:44px}
+ :is(.navmode,.tab,.catbtn):focus-visible{outline:2px solid var(--proof);outline-offset:2px}
  #surface-caption{padding:4px 14px;border-top:1px solid var(--line);background:#060c14;
   color:var(--para);font:10.5px ui-monospace,monospace;letter-spacing:.2px;flex:0 0 auto;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:6}
@@ -108,6 +129,7 @@ footer{padding:6px 14px;border-top:1px solid var(--line);flex:0 0 auto;
   h1{font-size:14px;flex:1 1 100%}
   /* Keep only the essential badges visible; hide the noisier ones on small screens. */
   header .badge{font-size:9.5px;padding:2px 6px}
+  header .header-action{padding:8px 12px}
   #three-rev-badge,#cdn-badge{display:none}
   .tabs{padding:7px 10px;gap:5px}
   .navtools{grid-template-columns:minmax(0,1fr) auto}
@@ -123,6 +145,8 @@ footer{padding:6px 14px;border-top:1px solid var(--line);flex:0 0 auto;
   footer{font-size:9px;padding:5px 10px}
   /* Give the 3D stage a guaranteed usable share of the screen on phones (100dvh-safe). */
   #stage-wrap{min-height:46vh}
+  #fallback{padding:12px}
+  .fallback-links{grid-template-columns:1fr}
  }
  @media (max-width:640px) and (orientation:landscape){
   #stage-wrap{min-height:56vh}
@@ -195,6 +219,7 @@ footer{padding:6px 14px;border-top:1px solid var(--line);flex:0 0 auto;
  .evidence-rail__links a{border:1px solid var(--line);border-radius:6px;padding:4px 7px}
  @media (max-width:640px){.evidence-rail{right:8px;left:8px;bottom:42px;width:auto}.evidence-rail__panel{max-height:38vh;overflow:auto}}
  @media (prefers-reduced-motion:reduce){.evidence-rail *{scroll-behavior:auto!important;transition:none!important}}
+ @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
 
 </style>
   <link rel="stylesheet" href="/assets/brain-frontier-v7.css" data-szl-brain-frontier-v7="style" />
@@ -204,13 +229,13 @@ footer{padding:6px 14px;border-top:1px solid var(--line);flex:0 0 auto;
  <h1>A11oy Holographic Operations</h1>
  <span class="badge" id="estate-observation-badge" data-state="UNVERIFIED">Evidence status: UNVERIFIED</span>
  <span class="badge" id="backend">renderer: …</span>
- <button class="badge" id="gpu-toggle" title="Toggle WebGPU compute path (falls back to WebGL2 if the browser/driver can't provide a WebGPU device). WebGPU is not production-safe on all platforms — doctrine." style="cursor:pointer;background:#10171f">⚡ WebGPU: off</button>
+ <button class="badge header-action" id="gpu-toggle" title="Toggle WebGPU compute path (falls back to WebGL2 if the browser/driver can't provide a WebGPU device). WebGPU is not production-safe on all platforms — doctrine." style="cursor:pointer;background:#10171f">⚡ WebGPU: off</button>
  <span class="badge" id="three-rev-badge">three r<span id="three-rev">…</span></span>
  <span class="badge" id="cdn-badge">0 runtime CDN</span>
  <span class="badge">Λ = Conjecture 1</span>
- <button class="badge" id="intro-reopen" title="Reopen the landing overview (Brain · frontier estate · public verify)">◇ intro</button>
- <a href="/verify" class="badge" title="Public receipt verifier — paste a signed Khipu receipt / DSSE envelope for a PASS/FAIL panel">✓ verify</a>
- <a href="/" style="margin-left:auto;font:11px ui-monospace,monospace">← a11oy</a>
+ <button class="badge header-action" id="intro-reopen" title="Reopen the landing overview (Brain · frontier estate · public verify)">◇ intro</button>
+ <a href="/verify" class="badge header-action" title="Public receipt verifier — paste a signed Khipu receipt / DSSE envelope for a PASS/FAIL panel">✓ verify</a>
+ <a href="/" class="header-action" style="margin-left:auto;font:11px ui-monospace,monospace">← a11oy</a>
 </header>
 <nav class="tabs" id="tabs" aria-label="Estate surface command center" data-browse="false">
  <div class="navtools">
@@ -230,8 +255,22 @@ footer{padding:6px 14px;border-top:1px solid var(--line);flex:0 0 auto;
 </nav>
 <div id="stage-wrap">
  <div id="stage"></div>
- <div id="fallback">3D unavailable on this device — the holographic estate needs a WebGL2 or WebGPU canvas.<br>
-  All underlying data is still available as JSON at the per-surface endpoints.</div>
+  <section id="fallback" aria-labelledby="fallback-title" tabindex="-1">
+   <div class="fallback-panel">
+    <p class="fallback-status" role="status">3D renderer: UNAVAILABLE</p>
+    <h2 id="fallback-title">Explore the estate in 2D</h2>
+    <p>The 3D renderer could not start in this browser session. The selected surface and its source data have not been verified here.</p>
+    <p>Selected surface: <strong id="fallback-surface">Loading surface</strong></p>
+    <nav class="fallback-links" aria-label="2D source and receipt links">
+     <a href="/api/a11oy/v1/frontier-index/catalog">Surface catalog and source endpoints (JSON)</a>
+     <a href="/api/a11oy/v1/holographic/info">3D registry metadata (JSON)</a>
+     <a href="/api/a11oy/v1/readiness/tab-matrix?view=summary">Readiness summary (JSON)</a>
+     <a href="/api/build-info">Build revision (JSON)</a>
+     <a href="/verify">Verify a supplied receipt</a>
+    </nav>
+    <p>Catalog and readiness labels describe source status. Receipt verification requires a supplied receipt.</p>
+   </div>
+  </section>
  <!-- Landing overlay (Dev4): coherent honest entry over the live estate. -->
   <div id="intro" role="dialog" aria-modal="true" tabindex="-1" aria-label="a11oy holographic estate — landing overview" hidden>
   <div class="intro-eyebrow">SZL Holdings · Doctrine v11 · Λ = Conjecture 1</div>
@@ -445,6 +484,9 @@ document.getElementById("three-rev").textContent = THREE.REVISION;
 let stage = null;
 let current = null;       // { def, instance }
 let loadToken = 0;
+let rendererUnavailable = false;
+let selectedSurfaceId = null;
+let stageBootPromise = null;
 
 // WebGPU opt-in: seeded from ?webgpu=1, flippable live via the header toggle. WebGPU is not
 // production-safe on all browsers/drivers yet (doctrine) so WebGL2 stays the default; the
@@ -453,22 +495,36 @@ let wantWebGPU = /[?&]webgpu=1\b/.test(location.search);
 
 async function ensureStage() {
   if (stage) return stage;
-  try {
-    stage = await szl3d.boot(stageEl, {
-      bloom: { strength: 0.85, radius: 0.5, threshold: 0.18 },
-      cameraPos: [0, 5, 16],
-      forceWebGL: !wantWebGPU,
-    });
-    document.getElementById("backend").textContent = "renderer: " + stage.backend.toUpperCase();
-    _syncGpuToggle();
-    stage.start();
-  } catch (e) {
-    fallbackEl.style.display = "flex";
-    document.getElementById("backend").textContent = "renderer: UNAVAILABLE";
-    console.error("[holographic] stage boot failed:", e);
-    throw e;
-  }
-  return stage;
+  if (stageBootPromise) return stageBootPromise;
+  // One boot at a time: quick Browse selections must not race two renderers.
+  stageBootPromise = (async () => {
+    try {
+      stage = await szl3d.boot(stageEl, {
+        bloom: { strength: 0.85, radius: 0.5, threshold: 0.18 },
+        cameraPos: [0, 5, 16],
+        forceWebGL: !wantWebGPU,
+      });
+      document.getElementById("backend").textContent = "renderer: " + stage.backend.toUpperCase();
+      _syncGpuToggle();
+      stage.start();
+      return stage;
+    } catch (e) {
+      try { if (stage && stage.dispose) stage.dispose(); } catch (_) {}
+      stage = null;
+      rendererUnavailable = true;
+      document.body.dataset.rendererUnavailable = "true";
+      fallbackEl.style.display = "flex";
+      document.getElementById("backend").textContent = "renderer: UNAVAILABLE";
+      // A first-visit intro can cover the fallback; close it when the renderer fails.
+      if (window.__SZL3D_SHELL__?.closeIntro) window.__SZL3D_SHELL__.closeIntro();
+      fallbackEl.focus({ preventScroll: true });
+      console.error("[holographic] stage boot failed:", e);
+      throw e;
+    } finally {
+      stageBootPromise = null;
+    }
+  })();
+  return stageBootPromise;
 }
 
 function _syncGpuToggle() {
@@ -484,7 +540,8 @@ function _syncGpuToggle() {
 // re-mount the active surface. Used by the header WebGPU toggle so users can engage the
 // compute path on capable browsers without editing the URL.
 async function rebootStage() {
-  const active = current ? current.def.id : (SURFACES[0] && SURFACES[0].id);
+  if (stageBootPromise) { try { await stageBootPromise; } catch (_) {} }
+  const active = selectedSurfaceId || (SURFACES[0] && SURFACES[0].id);
   try { if (current && current.instance && current.instance.unmount) current.instance.unmount(); } catch (_) {}
   current = null;
   try { if (stage && stage.dispose) stage.dispose(); } catch (_) {}
@@ -493,6 +550,8 @@ async function rebootStage() {
   // a fresh boot() appends a new one. Remove the orphaned canvas(es) here so a toggle
   // never accumulates duplicate canvases / leaked contexts.
   try { stageEl.querySelectorAll("canvas").forEach((c) => c.remove()); } catch (_) {}
+  rendererUnavailable = false;
+  delete document.body.dataset.rendererUnavailable;
   fallbackEl.style.display = "none";
   await selectSurface(active, "none");
 }
@@ -512,6 +571,7 @@ function clearScene() {
 async function selectSurface(id, historyMode = "replace") {
   const def = SURFACES.find((s) => s.id === id);
   if (!def) return;
+  selectedSurfaceId = id;
   if (current && current.def && current.def.id === id) {
     _highlight(id);
     if (historyMode === "replace" && location.hash !== "#" + id) {
@@ -524,11 +584,25 @@ async function selectSurface(id, historyMode = "replace") {
   // the ★ Featured row and inside its category panel), auto-open the active category, and
   // proof-teal-flag the owning dropdown button.
   _highlight(id);
+  document.getElementById("fallback-surface").textContent = def.title;
   // one-line honest caption: the FULL verbatim title of the active surface (hover for wrap-free read)
   { const cap = document.getElementById("surface-caption");
     if (cap) { cap.textContent = def.title; cap.title = def.title; } }
 
-  await ensureStage();
+  // Keep Browse surfaces useful in 2D without retrying a failed renderer on every selection.
+  if (rendererUnavailable) {
+    if (historyMode === "push") history.pushState(null, "", "#" + id);
+    else if (historyMode === "replace") history.replaceState(null, "", "#" + id);
+    return;
+  }
+  try { await ensureStage(); }
+  catch (_) {
+    if (token !== loadToken) return;
+    if (historyMode === "push") history.pushState(null, "", "#" + id);
+    else if (historyMode === "replace") history.replaceState(null, "", "#" + id);
+    return;
+  }
+  if (token !== loadToken) return;
   // tear down previous
   if (current && current.instance && current.instance.unmount) {
     try { current.instance.unmount(); } catch (_) {}
@@ -792,7 +866,7 @@ function _makeTab(s, feat) {
     _setBrowser(false);
     openCategory(catOf(s), false);
     // On the mobile horizontal strips, keep the tapped tab in view.
-    try { b.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" }); } catch (_) {}
+    try { b.scrollIntoView({ behavior: window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", inline: "center", block: "nearest" }); } catch (_) {}
   });
   b.addEventListener("keydown", (ev) => {
     if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(ev.key)) return;
@@ -1070,7 +1144,7 @@ window.addEventListener("hashchange", () => {
   try { seen = sessionStorage.getItem("szl3d_intro_seen") === "1"; } catch (_) {}
   const force = /[?&]intro=1\b/.test(location.search);
   const deepLink = SURFACES.some((s) => s.id === initial);
-  if (force || (!seen && !deepLink)) openIntro();
+  if (!rendererUnavailable && (force || (!seen && !deepLink))) openIntro();
   else introEl.hidden = true;
 
   window.__SZL3D_SHELL__.openIntro = openIntro;
