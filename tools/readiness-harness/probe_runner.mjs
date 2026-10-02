@@ -179,8 +179,9 @@ function valueAtPath(obj, path) {
 }
 
 // Source wrappers use value=null when an upstream has never produced evidence.
-// That state is schema-valid only when it is the exact canonical UNAVAILABLE
-// envelope: a measured failure clock plus a non-empty error. It never converts
+// That state is schema-valid only when it is an exact unavailable envelope
+// (including the lowercase status emitted by Python feeds): a measured failure
+// clock plus a non-empty error. It never converts
 // absence into an empty result set and it remains subject to the endpoint's
 // independent label, citation, freshness, and HTTP-status gates.
 function isCanonicalUnavailableSource(source) {
@@ -196,7 +197,7 @@ function isCanonicalUnavailableSource(source) {
     && freshness !== null
     && typeof freshness === "object"
     && !Array.isArray(freshness)
-    && freshness.status === "UNAVAILABLE"
+    && (freshness.status === "UNAVAILABLE" || freshness.status === "unavailable")
     && toDate(freshness.fetched_at) !== null
     && typeof freshness.error === "string"
     && freshness.error.trim().length > 0
