@@ -236,12 +236,36 @@ def test_finance_route_marks_missing_fx_as_canonical_unavailable(monkeypatch) ->
     }
     finance_path = "/api/a11oy/v1/vert/finance/feed"
     assert _probe(finance_path, finance) == {
-        "schemaOk": True, "labelsOk": True, "freshOk": True,
+        "schemaOk": True, "labelsOk": True, "freshOk": False,
     }
     for missing in ("fetched_at", "error"):
         malformed = copy.deepcopy(finance)
         del malformed["fx"]["freshness"][missing]
         assert _probe(finance_path, malformed)["labelsOk"] is False
+
+
+def test_defense_route_blocks_missing_required_source(monkeypatch) -> None:
+    monkeypatch.setattr(vertical, "feed_cisa_kev", lambda *a: {
+        "value": None,
+        "freshness": {
+            "status": "unavailable",
+            "fetched_at": 1786449500,
+            "error": "TimeoutError: CISA KEV unavailable",
+        },
+    })
+    monkeypatch.setattr(vertical, "feed_nvd", lambda *a, **k: {
+        "value": {"items": []},
+        "freshness": {"status": "live", "fetched_at": 1786449600},
+    })
+
+    app = FastAPI()
+    vertical.register(app)
+    path = "/api/a11oy/v1/vert/defense/feed"
+    defense = _payload(asyncio.run(_endpoint(app, path)()))
+    assert defense["kev"]["freshness"]["status"] == "UNAVAILABLE"
+    assert _probe(path, defense) == {
+        "schemaOk": True, "labelsOk": True, "freshOk": False,
+    }
 
 
 def test_finance_route_does_not_launder_clockless_stale_equity(monkeypatch) -> None:
