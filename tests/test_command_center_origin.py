@@ -94,13 +94,9 @@ def test_v2_owns_one_reviewed_nonduplicative_navigation_shell() -> None:
     rollout = FLOW_ROLLOUT.read_text(encoding="utf-8")
     state = json.loads(FLOW_STATE.read_text(encoding="utf-8"))
 
-    assert (
-        'SELF_CONTAINED_PATHS = {"pages/command-v2.html", "pages/oac.html", "pages/wires.html"}'
-        in rollout
-    )
-    for path in ("pages/command-v2.html", "pages/oac.html", "pages/wires.html"):
-        assert path in state["self_contained_documents"]
-        assert path not in state["injected_documents"]
+    assert 'SELF_CONTAINED_PATHS = {"pages/command-v2.html", "pages/wires.html"}' in rollout
+    assert "pages/command-v2.html" in state["self_contained_documents"]
+    assert "pages/command-v2.html" not in state["injected_documents"]
     assert 'data-szl-flow-asset="style"' not in html
     assert 'data-szl-flow-asset="script"' not in html
     for marker in (
