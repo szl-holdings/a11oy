@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-10-02T01:04:24Z",
+  "observedAt": "2026-10-02T02:39:25Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -34,7 +34,7 @@
       "visibility": "public-only",
       "authenticated": false,
       "privateAssetsIncluded": false,
-      "countMeaning": "Items returned by the author-filtered public APIs; not the authenticated organization total.",
+      "countMeaning": "Anonymous author-filtered public API membership, supplemented by the reserved SZLHOLDINGS/README Space when publicly observable; each repository is counted once. Not the authenticated organization total.",
       "cardEvidenceBoundary": "Gated repositories are inventoried from public API metadata only. Their cardObservation is ACCESS_RESTRICTED and cardSemanticSha256 is null; metadataSha256 is not a README or weight digest. No access request, authentication, or protected download is attempted. Restricted revisions remain exact-pinned in --check.",
       "revisionFields": "Every item has sha and lastModified snapshot evidence. Ungated cards have a cardSemanticSha256 claim digest at observedAt; gated cards have explicit restricted metadata evidence. --check verifies retained revisions, rejects card and curated-tag drift, and ignores only complete, valid later source-only revision changes and Hugging Face-generated dataset size, modality, format, or library tags."
     },

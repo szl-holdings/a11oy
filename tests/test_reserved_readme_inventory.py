@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Offline reserved-Space regressions; fixtures are not live inventory proof."""
 import io
+import json
 from pathlib import Path
 import sys
 import unittest
@@ -29,6 +30,69 @@ def getter(response, *, listed=False):
 
 
 class ReservedReadmeTests(unittest.TestCase):
+    def emitter_manifest(self, *, listed=False, reserved_get=None):
+        def fetch_page(url):
+            return ([ROW] if listed and '/api/spaces?' in url else [], None)
+
+        def supplement(org):
+            if reserved_get is None:
+                raise AssertionError('unexpected reserved README request')
+            return public.reserved_readme(org, reserved_get)
+
+        with patch.object(audit, 'fetch_page', side_effect=fetch_page), \
+             patch.object(audit, 'fetch_card_markdown', return_value='# Public Space\n'), \
+             patch.object(audit, 'reserved_readme', side_effect=supplement) as request:
+            manifest = audit.build_manifest(observed_at='2026-10-02T01:04:24Z')
+        return manifest, request
+
+    def test_emitter_manifest_records_supplemental_public_endpoint_once(self):
+        manifest, request = self.emitter_manifest(
+            reserved_get=getter({'status': 200, 'json': ROW}))
+        request.assert_called_once_with(ORG)
+        self.assertEqual(manifest['counts'], {'models': 0, 'datasets': 0, 'spaces': 1})
+        self.assertEqual([row['id'] for row in manifest['inventory']['spaces']], [ROW['id']])
+        self.assertEqual(manifest['publicApiEndpoints'].count(URL), 1)
+        self.assertEqual(manifest['publicApiEndpoints'][-1], URL)
+        meaning = manifest['inventoryScope']['countMeaning'].lower()
+        for term in ('anonymous', 'author-filtered', 'reserved', 'readme', 'once'):
+            self.assertIn(term, meaning)
+
+    def test_emitter_manifest_does_not_infer_reserved_request_from_listed_row(self):
+        manifest, request = self.emitter_manifest(listed=True)
+        request.assert_not_called()
+        self.assertEqual(manifest['counts']['spaces'], 1)
+        self.assertEqual([row['id'] for row in manifest['inventory']['spaces']], [ROW['id']])
+        self.assertNotIn(URL, manifest['publicApiEndpoints'])
+
+    def test_emitter_manifest_records_negative_reserved_observations_without_details(self):
+        for response in ({'status': 404},
+                         {'status': 200, 'json': {**ROW, 'private': True,
+                          'private_detail': 'never retain'}}):
+            with self.subTest(status=response['status']):
+                manifest, request = self.emitter_manifest(reserved_get=getter(response))
+                request.assert_called_once_with(ORG)
+                self.assertEqual(manifest['counts']['spaces'], 0)
+                self.assertEqual(manifest['inventory']['spaces'], [])
+                self.assertEqual(manifest['publicApiEndpoints'].count(URL), 1)
+                rendered = json.dumps(manifest)
+                self.assertNotIn('private_detail', rendered)
+                self.assertNotIn('never retain', rendered)
+
+    def test_emitter_manifest_refuses_invalid_or_unavailable_reserved_metadata(self):
+        invalid = ({'status': 401}, {'status': 500},
+                   {'status': 200, 'json': []},
+                   {'status': 200, 'json': {**ROW, 'id': 'other/README'}},
+                   {'status': 200, 'json': {**ROW, 'private': None}})
+        for response in invalid:
+            with self.subTest(response=response), self.assertRaises(public.InventoryError):
+                self.emitter_manifest(reserved_get=getter(response))
+
+        def unavailable(_):
+            raise TimeoutError('private.example/token')
+
+        with self.assertRaises(TimeoutError):
+            self.emitter_manifest(reserved_get=unavailable)
+
     def test_supplemental_public_metadata_counts_once_in_both_membership_collectors(self):
         get = getter({'status': 200, 'json': ROW, 'response_sha256': 'b' * 64})
         for collect in (public.collect, release.hf_inventory):

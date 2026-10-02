@@ -1,13 +1,13 @@
 {
   "schemaVersion": 2,
   "generatedBy": "scripts/audit_huggingface_ecosystem.py",
-  "observedAt": "2026-10-02T01:04:24Z",
+  "observedAt": "2026-10-02T02:39:25Z",
   "org": "SZLHOLDINGS",
   "inventoryScope": {
     "visibility": "public-only",
     "authenticated": false,
     "privateAssetsIncluded": false,
-    "countMeaning": "Items returned by the author-filtered public APIs; not the authenticated organization total.",
+    "countMeaning": "Anonymous author-filtered public API membership, supplemented by the reserved SZLHOLDINGS/README Space when publicly observable; each repository is counted once. Not the authenticated organization total.",
     "cardEvidenceBoundary": "Gated repositories are inventoried from public API metadata only. Their cardObservation is ACCESS_RESTRICTED and cardSemanticSha256 is null; metadataSha256 is not a README or weight digest. No access request, authentication, or protected download is attempted. Restricted revisions remain exact-pinned in --check.",
     "revisionFields": "Every item has sha and lastModified snapshot evidence. Ungated cards have a cardSemanticSha256 claim digest at observedAt; gated cards have explicit restricted metadata evidence. --check verifies retained revisions, rejects card and curated-tag drift, and ignores only complete, valid later source-only revision changes and Hugging Face-generated dataset size, modality, format, or library tags."
   },
@@ -16,7 +16,8 @@
   "publicApiEndpoints": [
     "https://huggingface.co/api/models?author=SZLHOLDINGS&limit=100&full=true",
     "https://huggingface.co/api/datasets?author=SZLHOLDINGS&limit=100&full=true",
-    "https://huggingface.co/api/spaces?author=SZLHOLDINGS&limit=100&full=true"
+    "https://huggingface.co/api/spaces?author=SZLHOLDINGS&limit=100&full=true",
+    "https://huggingface.co/api/spaces/SZLHOLDINGS/README"
   ],
   "counts": {
     "models": 46,
@@ -1027,8 +1028,8 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "ff665ef57b9e0a83dc0a1581312b4c3a1d42db7e",
-        "lastModified": "2026-10-02T00:29:31.000Z",
+        "sha": "c8fd82d2d8921eb8828a6eca5e0f60410b752e13",
+        "lastModified": "2026-10-02T02:03:23.000Z",
         "cardSemanticSha256": "e8504799bf31a9f12dc3689c95520c9cc6651f95b1df943e0528267d3ac3286d",
         "createdAt": "2026-08-29T01:17:03.000Z",
         "tags": [
@@ -1634,8 +1635,8 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "99c45c0989676f9a842a707ab5af60f1e2de99ce",
-        "lastModified": "2026-09-28T17:01:42.000Z",
+        "sha": "43ef814f40a30a6b8eccf341ec8625998f263559",
+        "lastModified": "2026-10-02T02:18:31.000Z",
         "cardSemanticSha256": "fd10c82f6650219f20844a2a7bd38702f2b2bce45be40cbcdcfa13de00dd6b5e",
         "createdAt": "2026-06-01T05:49:40.000Z",
         "tags": [
@@ -1666,8 +1667,8 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "9773c4c6fc6f48849f99e009b8ff7410a632c7fd",
-        "lastModified": "2026-09-28T17:01:45.000Z",
+        "sha": "fcad1433cfa18da7f9ffc6f62f29b3a165187eb7",
+        "lastModified": "2026-10-02T02:18:35.000Z",
         "cardSemanticSha256": "9421d18c0d006442f39cffd49080763dbd8e6de0d66e61de27ece0447b36e896",
         "createdAt": "2026-06-01T05:49:43.000Z",
         "tags": [
@@ -1843,8 +1844,8 @@
         "disabled": false,
         "sdk": null,
         "license": "other",
-        "sha": "b48c43c3acbd1f13d808390fa23078404e3e8f4c",
-        "lastModified": "2026-10-02T01:03:48.000Z",
+        "sha": "b455e3a89cb495de3b05670bda433a2b350f51e7",
+        "lastModified": "2026-10-02T02:39:18.000Z",
         "cardSemanticSha256": "7b09277401ed789f6ac2885e5307b621780e0d6b4a6369f7e00e0cdc7e9d68b1",
         "createdAt": "2026-06-12T11:38:04.000Z",
         "tags": [
@@ -2531,8 +2532,8 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "e24c1e718ffe0ee989da7230a922b0065035b1b0",
-        "lastModified": "2026-09-28T17:01:59.000Z",
+        "sha": "df7b1a4b7c2296bf0db8c7bbd5ceb12834d44cc6",
+        "lastModified": "2026-10-02T02:18:33.000Z",
         "cardSemanticSha256": "d75b38977605bb3f2cc20a50c32d8d69b1236734e21192faafd194225283628e",
         "createdAt": "2026-06-01T05:49:41.000Z",
         "tags": [
@@ -2803,8 +2804,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "76df9762ea79282afdb17a76235b9730ecee9e4a",
-        "lastModified": "2026-10-01T20:47:53.000Z",
+        "sha": "8b84739e497262b30d263ff00409bcb77d5ec513",
+        "lastModified": "2026-10-02T02:36:39.000Z",
         "cardSemanticSha256": "e0d52b36c73f9869e29ed60283f98924300502d719cc1b5d1f1363bad6db1145",
         "createdAt": "2026-06-03T21:58:01.000Z",
         "tags": [
@@ -2913,8 +2914,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "7cee10701d65352ec93535c947224c1027fa86bd",
-        "lastModified": "2026-10-01T21:01:31.000Z",
+        "sha": "706fc7243f25b4b4938d213a90eb9b8405e3a6fd",
+        "lastModified": "2026-10-02T01:51:18.000Z",
         "cardSemanticSha256": "be1b601ad2084b078c760089b31a59c71434a78af4c9596b21f43df938ea748b",
         "createdAt": "2026-09-02T21:47:52.000Z",
         "tags": [
@@ -3231,8 +3232,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "21bd996a494e2ccaa1fa96e9fbc926faa8003e25",
-        "lastModified": "2026-10-01T19:51:27.000Z",
+        "sha": "f03b4cab3f7c40c87e01b5e4e3bedaea2e1bfb8b",
+        "lastModified": "2026-10-02T01:40:22.000Z",
         "cardSemanticSha256": "266a96cda0fd3b598c74ffabd03d6f4cb02b73152fe6ad278c28c9f12a04223e",
         "createdAt": "2026-09-07T20:03:57.000Z",
         "tags": [
@@ -3253,8 +3254,8 @@
         "disabled": false,
         "sdk": "static",
         "license": null,
-        "sha": "c83c3fde0f35beb03dc32545f05592ce14d7e837",
-        "lastModified": "2026-09-30T02:37:43.000Z",
+        "sha": "97acd8c474daa66535ad540ef8335ac00cd462ba",
+        "lastModified": "2026-10-02T01:34:07.000Z",
         "cardSemanticSha256": "83deaff1dcfae91e556a6af2634337af9e8fc7354001a51e801d117da1b0db2c",
         "createdAt": "2026-09-30T01:58:59.000Z",
         "tags": [
@@ -3327,9 +3328,9 @@
         "disabled": false,
         "sdk": "gradio",
         "license": "apache-2.0",
-        "sha": "f20b359bfffa87959169b6ffd58359d64246dcba",
-        "lastModified": "2026-10-01T19:21:56.000Z",
-        "cardSemanticSha256": "9ad6668c2b7227077b7e205630a2d7981388275c3690553a9e75babb077af4d2",
+        "sha": "abcc27a5123a449749cf667ce93bfa5370c5e71b",
+        "lastModified": "2026-10-02T02:29:58.000Z",
+        "cardSemanticSha256": "29fed5364618ecb10655c87e4c5d7b9049193e2546d0e8816c37dcc793872c1a",
         "createdAt": "2026-09-04T01:54:30.000Z",
         "tags": [
           "gradio",
@@ -3430,8 +3431,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "22ce0cdb2fcee2c000eeea9cf4799cc20679f8f0",
-        "lastModified": "2026-10-02T00:29:45.000Z",
+        "sha": "3d0366b80b3e265ddcec532ada161a2f3d39ee36",
+        "lastModified": "2026-10-02T02:03:29.000Z",
         "cardSemanticSha256": "24de8ccabbe9ce4314420311f4fde541a7e553a19b9aadac8dfe11f899b932f0",
         "createdAt": "2026-09-08T04:49:19.000Z",
         "tags": [
@@ -3595,9 +3596,9 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "8a6a273b3081a9783e50ecfacdd2e4cca05ea024",
-        "lastModified": "2026-09-24T21:48:16.000Z",
-        "cardSemanticSha256": "c52510f83fbd96806c9ade72d8923b922354b9129d73591b519c3a2b8d7f3df3",
+        "sha": "e463677bc88e75e7dbdd1b44dcb23aee5c333cb9",
+        "lastModified": "2026-10-02T02:29:57.000Z",
+        "cardSemanticSha256": "f5ce16fac550bdaf23cbad542b1ecd0a80ab9771ed612c02abe926b63f8bd950",
         "createdAt": "2026-09-05T15:56:10.000Z",
         "tags": [
           "docker",
