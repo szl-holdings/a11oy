@@ -51,6 +51,8 @@ DEMO_CRITICAL_ROUTES = [
     "/orbital",                               # MODELED orbital demo PAGE (renders topology+projection)
     "/api/a11oy/v1/frontier/manifest",        # honest roll-up of every live capability (composed)
     "/frontier",                              # unified ecosystem showcase PAGE (renders the manifest roll-up)
+    "/research/confirmation",                 # frozen failed research evidence handoff
+    "/research/confirmation/workbench",       # fixed separate synthetic CPU trial workbench handoff
     "/api/a11oy/v1/agent/code/compose",       # GCAK — gated cell compose (hard gate before exec)
     "/api/a11oy/v1/agent/code/inspect",       # GCAK — read-only persistent-var inspect (no receipt)
     "/api/a11oy/v1/agent/code/status",        # GCAK — kernel + gate status
@@ -144,6 +146,26 @@ def test_no_demo_critical_route_dropped_as_a_set():
         if not any(expected in p for p in paths)
     ]
     assert not missing, f"demo-critical routes missing from the assembled table: {missing}"
+
+
+def test_confirmation_handoffs_are_owned_before_the_spa_catchall():
+    routes = list(serve.app.router.routes)
+    catchall = next(i for i, route in enumerate(routes) if getattr(route, 'path', None) == '/{full_path:path}')
+    for path, destination in (
+        ('/research/confirmation', 'https://a11oy.net/experiments/confirmation/'),
+        ('/research/confirmation/workbench', 'https://szlholdings-szl-foundation-confirmation.hf.space'),
+    ):
+        owned = [(i, route) for i, route in enumerate(routes) if getattr(route, 'path', None) == path]
+        assert len(owned) == 1
+        index, route = owned[0]
+        assert index < catchall
+        assert route.endpoint.__module__ == 'a11oy_frontier_page'
+        assert 'GET' in route.methods and 'POST' not in route.methods
+        from starlette.testclient import TestClient
+        response = TestClient(serve.app, follow_redirects=False).get(path + '?url=https://example.invalid')
+        assert response.status_code == 307
+        assert response.headers['location'] == destination
+        assert not response.headers.get('set-cookie')
 
 
 @pytest.mark.parametrize(
