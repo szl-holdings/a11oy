@@ -64,6 +64,8 @@ exercises a hanging descendant and an output flood through the real runner.
 These are offline integration tests. Live publication, runtime/browser journeys,
 production storage acceptance and provider quality require separate evidence.
 
-The controller adoption depends on protected acceptance of
-[the controller transaction change](https://github.com/szl-holdings/.github/pull/808).
-An offline test against that immutable candidate does not authorize its release.
+The controller is pinned to the protected merge of
+[the controller transaction change](https://github.com/szl-holdings/.github/pull/808),
+`163a61fd9759e5ecc3c2daf13e528f7b281ff81d`, with independently verified Git blob
+`3fa968416a3623d66b5b5b64abf8b830cc854e1c`. Its protected source acceptance and
+offline CLI proof do not establish publication or runtime acceptance.
