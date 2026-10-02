@@ -1,0 +1,94 @@
+<!-- SPDX-License-Identifier: Apache-2.0
+(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->
+<!doctype html>
+<html lang="en" data-surface="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; worker-src 'none'">
+  <title>OAC System Health Lab · A11oy</title>
+  <meta name="description" content="A read-only, dated release handoff for synthetic OAC numeric telemetry scoring. No patient data, clinical use, or device control.">
+  <link rel="canonical" href="https://a-11-oy.com/oac">
+  <link rel="stylesheet" href="/assets/szl/szl-design-system.css">
+  <style>
+    body{margin:0;background:var(--bg);color:var(--text);font:1rem/1.6 var(--font-body)}
+    .shell{max-width:72rem;margin-inline:auto;padding-inline:clamp(1.25rem,4vw,3rem)}
+    .topbar{display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;padding-block:1rem;border-bottom:1px solid var(--border)}
+    .brand{font-weight:700;text-decoration:none;color:var(--text)}
+    nav,.actions{display:flex;gap:.75rem;flex-wrap:wrap}
+    a{color:var(--link);text-underline-offset:.2em;display:inline-flex;align-items:center;min-height:44px;overflow-wrap:anywhere}
+    a:focus-visible{outline:3px solid var(--focus);outline-offset:4px}
+    .skip{position:absolute;inset-inline-start:1rem;inset-block-start:-6rem;background:var(--surface);padding:1rem;z-index:10}
+    .skip:focus{inset-block-start:1rem}
+    .hero{position:relative;isolation:isolate;overflow:hidden;padding-block:clamp(3rem,8vw,6rem)}
+    .hero::before{content:"";position:absolute;z-index:-1;inset:1rem 0 1rem 40%;border:1px solid var(--hairline);border-radius:var(--radius-2xl);background:radial-gradient(circle at 70% 30%,color-mix(in srgb,var(--color-yuyay-100) 20%,transparent),transparent 48%),linear-gradient(135deg,var(--surface-alt),var(--surface));transform:skewY(-4deg)}
+    .eyebrow{font:.75rem/1.6 var(--font-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--text-sub)}
+    h1{max-width:18ch;font-size:clamp(2.5rem,6vw,4.5rem);line-height:1.05;letter-spacing:-.04em;margin:.75rem 0 1.25rem}
+    h2{font-size:clamp(1.5rem,3vw,2rem);line-height:1.2;margin:0 0 1rem}
+    h3{font-size:1.1rem;margin:0 0 .5rem}
+    .intro{max-width:54ch;font-size:1.25rem;color:var(--text-sub)}
+    .badge{display:inline-block;padding:.35rem .7rem;border:1px solid var(--border);border-radius:var(--radius-full);font:.75rem/1.5 var(--font-mono);background:var(--surface)}
+    .badges{display:flex;gap:.5rem;flex-wrap:wrap;margin-block:1.5rem}
+    .button{padding:.7rem 1.1rem;background:var(--accent);color:var(--accent-ink);border:1px solid var(--accent);border-radius:var(--radius-md);font-weight:600;text-decoration:none}
+    .note{color:var(--text-sub);max-width:76ch;font-size:.95rem}
+    .section{padding-block:2.5rem;border-top:1px solid var(--border)}
+    .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}
+    .card{border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--surface);padding:1.25rem;min-width:0}
+    .card p{margin-bottom:0;color:var(--text-sub)}
+    dl{display:grid;grid-template-columns:minmax(9rem,1fr) minmax(0,3fr);gap:.75rem 1rem;margin-block:1.5rem}
+    dt{color:var(--text-sub)}dd{margin:0;min-width:0}code,.mono{font-family:var(--font-mono);font-size:.85rem;overflow-wrap:anywhere}
+    ul{padding-inline-start:1.25rem}li{margin-block:.5rem}
+    footer{padding-block:2rem;border-top:1px solid var(--border);color:var(--text-sub);font-size:.85rem}
+    @media(max-width:700px){.grid{grid-template-columns:1fr}dl{grid-template-columns:1fr;gap:.25rem}dd{margin-bottom:.75rem}.actions{flex-direction:column;align-items:flex-start}.hero::before{inset:1rem 0 1rem 15%;opacity:.45}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+  </style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to OAC release context</a>
+<header class="shell topbar">
+  <a class="brand" href="/">A11oy / OAC</a>
+  <nav aria-label="Origin navigation"><a href="https://a-11-oy.com" aria-current="true">Product</a><a href="https://a11oy.net">Proof</a></nav>
+</header>
+<main id="main" class="shell">
+  <section class="hero" aria-labelledby="title">
+    <p class="eyebrow">OAC System Health Lab · synthetic research</p>
+    <h1 id="title">Score telemetry.<br>Keep the evidence in view.</h1>
+    <p class="intro">A bounded lab for synthetic numeric telemetry scoring. Inspect the source and publication record before opening the demonstration.</p>
+    <div class="badges" aria-label="Evidence status"><span class="badge">SNAPSHOT · 2026-10-02 UTC</span><span class="badge">SOURCE-VERIFIED · at release</span><span class="badge">NOT_PROBED · current provider state</span><span class="badge">SAMPLE · synthetic inputs</span></div>
+    <div class="actions"><a class="button" href="https://a11oy.net/oac/">Read the release record ↗</a><a href="https://szlholdings-oac-system-health-lab.hf.space" rel="noreferrer noopener">Open existing mutable demo ↗</a></div>
+    <p class="note">The demo is an external, mutable destination—not an embedded or pinned release. This page does not probe it, execute a score, or forward requests. Do not enter patient or specimen information. OAC is not a production or clinical result path.</p>
+  </section>
+  <section class="section" aria-labelledby="scope">
+    <p class="eyebrow">01 / bounded purpose</p><h2 id="scope">A lab, with clear limits.</h2>
+    <div class="grid">
+      <article class="card"><h3>Synthetic scoring only</h3><p>Inputs are synthetic numeric telemetry. Outputs are bounded lab scores, not diagnoses, real-world system certification, or validated safety decisions.</p></article>
+      <article class="card"><h3>Not an action path</h3><p>This is not clinical software and not device control. This page has no scoring form, proxy, secret access, or connection to equipment.</p></article>
+      <article class="card"><h3>Traceable artifacts</h3><p>The release pins an existing model, synthetic dataset, Space, and Python source. No new training is initiated. The current state of the mutable demo is not asserted by this static page.</p></article>
+    </div>
+  </section>
+  <section class="section" aria-labelledby="lineage">
+    <p class="eyebrow">02 / release lineage · dated observation</p><h2 id="lineage">A source-qualified snapshot, not a live promise.</h2>
+    <p class="note">The linked publication run completed with a synthetic witness. A separate release readback matched the OAC Space payload bytes to Forge and observed the exact source in the running Space. These are dated release observations; this static page does not recheck provider state, deployment parity, or runtime behavior on each visit.</p>
+    <dl>
+      <dt>Forge source</dt><dd><a href="https://github.com/szl-holdings/szl-forge/tree/234a2dfb4c511318febfd20ca2f695fa9cb2ea8c"><code>234a2dfb4c511318febfd20ca2f695fa9cb2ea8c</code></a></dd>
+      <dt>Publication run</dt><dd><a href="https://github.com/szl-holdings/szl-forge/actions/runs/36966679696">36966679696 · exact-head run ↗</a></dd>
+      <dt>HF Space revision</dt><dd><a href="https://huggingface.co/spaces/SZLHOLDINGS/oac-system-health-lab/tree/4bf4d94161c0d135af6b5a3bc25f45b06f6e3979"><code>4bf4d94161c0d135af6b5a3bc25f45b06f6e3979</code></a></dd>
+      <dt>Model revision</dt><dd><a href="https://huggingface.co/SZLHOLDINGS/oac-system-health-v1/tree/dd7d109813abcd90c5250106dc2eabd2804e7ac3"><code>dd7d109813abcd90c5250106dc2eabd2804e7ac3</code></a></dd>
+      <dt>Synthetic dataset</dt><dd><a href="https://huggingface.co/datasets/SZLHOLDINGS/oac-clinical-transport-observability-synthetic/tree/f7ab6170bf78138b187b8cb707d374a25ad85375"><code>f7ab6170bf78138b187b8cb707d374a25ad85375</code></a></dd>
+    </dl>
+    <p class="note">A repository revision is a source identity, not a clinical validation, model qualification, or guarantee that the mutable demo still serves the same bytes today.</p>
+  </section>
+  <section class="section" aria-labelledby="checks">
+    <p class="eyebrow">03 / synthetic witness · release-time only</p><h2 id="checks">What was actually checked.</h2>
+    <ul>
+      <li>The pinned Forge run reported a successful OAC Space publication and synthetic witness.</li>
+      <li>The release readback reported <code>/readyz</code> READY and <code>/api/build-info</code> source <code>234a2dfb4c511318febfd20ca2f695fa9cb2ea8c</code>.</li>
+      <li>Healthy and degraded synthetic scoring probes passed; a clinical-like input field was refused without an echo. These are bounded test cases, not a patient-data trial.</li>
+    </ul>
+    <p class="note">The checks do not establish clinical validity, device safety, customer workloads, production authorization, continuous uptime, or today's mutable demo state. A private laboratory-approved device/LIS integration and site validation are separate work.</p>
+  </section>
+</main>
+<footer class="shell">SZL Holdings · Read-only OAC handoff · No new training, provider publication, patient-data processing, or device action is performed by this page.</footer>
+</body>
+</html>
