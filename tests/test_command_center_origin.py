@@ -91,10 +91,11 @@ def test_v2_is_additive_source_derived_and_mobile_safe() -> None:
 
 def test_v2_owns_one_reviewed_nonduplicative_navigation_shell() -> None:
     html = V2_PAGE.read_text(encoding="utf-8")
-    rollout = FLOW_ROLLOUT.read_text(encoding="utf-8")
+    self_contained = runpy.run_path(str(FLOW_ROLLOUT))["SELF_CONTAINED_PATHS"]
     state = json.loads(FLOW_STATE.read_text(encoding="utf-8"))
 
-    assert 'SELF_CONTAINED_PATHS = {"pages/command-v2.html", "pages/wires.html"}' in rollout
+    assert {"pages/command-v2.html", "pages/wires.html"}.issubset(self_contained)
+    assert self_contained == set(state["self_contained_documents"])
     assert "pages/command-v2.html" in state["self_contained_documents"]
     assert "pages/command-v2.html" not in state["injected_documents"]
     assert 'data-szl-flow-asset="style"' not in html
