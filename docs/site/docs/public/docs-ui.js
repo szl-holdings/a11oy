@@ -125,9 +125,9 @@
   }
   function renderSearch() {
     results.replaceChildren();
-    const terms = input.value.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
+    const terms = input.value.toLowerCase().trim().split(/\s+/).filter(Boolean);
     if (!terms.length) { status.textContent = 'Enter terms to search this site.'; return; }
-    const matches = pages.filter(page => terms.every(term => (page.title + ' ' + page.text).toLocaleLowerCase().includes(term))).slice(0, 12);
+    const matches = pages.filter(page => terms.every(term => (page.title + ' ' + page.text).toLowerCase().includes(term))).slice(0, 12);
     status.textContent = matches.length ? `${matches.length} results shown` : 'No matching pages';
     for (const page of matches) {
       const row = document.createElement('li'), link = document.createElement('a');

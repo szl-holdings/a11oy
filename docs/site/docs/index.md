@@ -103,7 +103,7 @@ Beyond the five flagships, two repositories carry the load-bearing evidence:
 - **[Quickstart](/quickstart)** — five minutes to a first call against each flagship.
 - **[Architecture](/architecture)** — the 7-organ anatomy and the master action-selection operator.
 - **[Anatomy + Organs](/anatomy/)** — the twelve organs, each with its Quechua etymology, function, formula, and Lean stub.
-- **3D Showcases** — interactive Anatomy-3D and Rosie-3D.
+- **3D showcases** — see [Status](/status) for Anatomy-3D availability. The former Rosie-3D showcase is **UNAVAILABLE**.
 - **[Proof](/proof)** — Lean kernel, data lake, and Zenodo DOIs.
 - **[Changelog](/changelog)** — aggregated v1.0.0 release notes (Keep a Changelog).
 - **[UDS — Deploy & Hand-off](/uds)** — sign-verify-deploy a flagship as a UDS payload.
