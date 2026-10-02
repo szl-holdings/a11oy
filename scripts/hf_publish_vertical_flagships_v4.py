@@ -43,6 +43,7 @@ COMBINED_RECEIPT = Path("hf-vertical-services-receipt.json")
 PUBLIC_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance", "lyte")
 GENERATED_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance")
 SOURCE_OWNED_FLAGSHIP_SLUGS = ("lyte",)
+SELECTABLE_GENERATED_SCOPES = ("terra", "counsel")
 FOLDED_INTO_KILLINCHU = ("vessels",)
 KILLINCHU_SPACE = "SZLHOLDINGS/killinchu"
 SENTRA_SPACE = "SZLHOLDINGS/sentra"
@@ -200,15 +201,24 @@ def run_publisher(
     *,
     source_revision_override: str | None = None,
     finance_only: bool = False,
+    selected_slug: str | None = None,
 ) -> tuple[int, str | None, tuple[str, ...] | None]:
     admitted: tuple[str, ...] | None = None
     try:
+        if selected_slug is not None and (
+            selected_slug not in SELECTABLE_GENERATED_SCOPES or finance_only
+            or name != "szl_flagship_v4"
+        ):
+            raise RuntimeError("unauthorized selected publication scope")
         module = load_module(name, path)
         if name == "szl_flagship_v4":
             admitted = constrain_public_flagships(module)
             if finance_only:
                 module.FLAGSHIPS = tuple(row for row in module.FLAGSHIPS if row["slug"] == "finance")
                 admitted = ("finance",)
+            elif selected_slug is not None:
+                module.FLAGSHIPS = tuple(row for row in module.FLAGSHIPS if row["slug"] == selected_slug)
+                admitted = (selected_slug,)
         if source_revision_override is not None:
             if SHA40.fullmatch(source_revision_override) is None:
                 raise RuntimeError("source revision override is not a full Git SHA")
@@ -367,6 +377,85 @@ def publish_finance_only(space_guard_module) -> int:
     return 0 if receipt["complete"] else 1
 
 
+def selected_generated_preflight(scope: str) -> str:
+    """Bind a single generated Space to the current protected A11oy source."""
+    if scope not in SELECTABLE_GENERATED_SCOPES:
+        raise RuntimeError("unauthorized selected publication scope")
+    revision = os.environ.get("GITHUB_SHA", "")
+    if SHA40.fullmatch(revision) is None or revision == "0" * 40:
+        raise RuntimeError("selected publisher requires a bound source revision")
+    run_id = os.environ.get("GITHUB_RUN_ID", "")
+    if not run_id.isdigit() or int(run_id) <= 0:
+        raise RuntimeError("selected publisher requires a positive workflow run id")
+    head = _github_json("/repos/szl-holdings/a11oy/commits/main")
+    if head.get("sha") != revision:
+        raise RuntimeError("selected publisher source is no longer current main")
+    return revision
+
+
+def publish_selected_generated(scope: str, space_guard_module) -> int:
+    """Publish one existing Terra or Counsel Space and verify its live receipt."""
+    try:
+        revision = selected_generated_preflight(scope)
+        code, error, admitted = run_publisher(
+            "szl_flagship_v4", FLAGSHIP_IMPL, selected_slug=scope
+        )
+        receipt = read_receipt(FLAGSHIP_RECEIPT) or {}
+        try:
+            source_still_current = (
+                _github_json("/repos/szl-holdings/a11oy/commits/main").get("sha")
+                == revision
+            )
+        except Exception as exc:
+            source_still_current = False
+            receipt["postflight_error"] = type(exc).__name__
+        rows = receipt.get("rows")
+        verified_row = (
+            isinstance(rows, list)
+            and len(rows) == 1
+            and isinstance(rows[0], dict)
+            and rows[0].get("id") == f"SZLHOLDINGS/{scope}"
+            and rows[0].get("source_revision") == revision
+            and rows[0].get("workflow_run_id") == int(os.environ["GITHUB_RUN_ID"])
+            and rows[0].get("operational") is True
+        )
+        receipt.update(
+            publication_scope=scope,
+            source_revision=revision,
+            existing_space_guard=space_guard_module.guard_report(),
+            generated_flagship_slugs=list(admitted or ()),
+            sibling_publications=0,
+            delete_operations=0,
+            secret_values_recorded=False,
+            source_still_current=source_still_current,
+        )
+        receipt["complete"] = bool(
+            receipt.get("complete") is True
+            and code == 0
+            and error is None
+            and admitted == (scope,)
+            and verified_row
+            and source_still_current
+        )
+        if error:
+            receipt["entrypoint_error"] = error
+    except Exception as exc:
+        receipt = {
+            "schema": "szl.hf-selected-flagship/v1",
+            "publication_scope": scope,
+            "complete": False,
+            "error": type(exc).__name__,
+            "detail": str(exc),
+            "secret_values_recorded": False,
+            "delete_operations": 0,
+        }
+    FLAGSHIP_RECEIPT.write_text(
+        json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    print(json.dumps(receipt, indent=2, sort_keys=True))
+    return 0 if receipt["complete"] else 1
+
+
 def lyte_receipt_is_complete(receipt: dict[str, Any]) -> bool:
     resolution = receipt.get("source_resolution")
     revision = receipt.get("source_revision")
@@ -416,12 +505,14 @@ def main() -> int:
 
     github_token_source = normalize_github_token_alias()
     scope = os.environ.get("SZL_FLAGSHIP_SCOPE", "estate")
-    if scope not in ("estate", "finance", "lyte"):
+    if scope not in ("estate", "finance", "lyte", *SELECTABLE_GENERATED_SCOPES):
         raise RuntimeError("unknown publication scope")
     if scope == "finance":
         return publish_finance_only(space_guard_module)
     if scope == "lyte":
         return publish_lyte_only(space_guard_module)
+    if scope in SELECTABLE_GENERATED_SCOPES:
+        return publish_selected_generated(scope, space_guard_module)
     flagship_code, flagship_error, admitted = run_publisher(
         "szl_flagship_v4",
         FLAGSHIP_IMPL,
