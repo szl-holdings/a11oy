@@ -138,6 +138,16 @@ def _ledger_path():
             or path.is_dir() or path.is_symlink()
             or any(parent.is_symlink() for parent in path.parents)):
         raise AtelierFailure("LEDGER_UNAVAILABLE")
+    required = os.environ.get("A11OY_ATELIER_REQUIRED_MOUNT", "").strip()
+    if required:
+        mount = Path(required)
+        if (not mount.is_absolute() or mount == Path(mount.anchor)
+                or mount.is_symlink() or not os.path.ismount(str(mount))):
+            raise AtelierFailure("LEDGER_UNAVAILABLE")
+        try:
+            path.resolve(strict=False).relative_to(mount.resolve(strict=True))
+        except (OSError, ValueError):
+            raise AtelierFailure("LEDGER_UNAVAILABLE") from None
     return str(path)
 
 
