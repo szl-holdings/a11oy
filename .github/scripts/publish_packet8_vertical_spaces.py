@@ -9,9 +9,12 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
 import re
-from pathlib import Path
+import subprocess
+import tarfile
+from pathlib import Path, PurePosixPath
 
 SPACES = []
 RETIRED_SPACE_IDS = frozenset({
@@ -37,26 +40,53 @@ def source_receipt(root: Path, source_sha: str) -> dict:
     }:
         raise RuntimeError("Packet 8 writer inventory is no longer retired")
 
-    archives = []
-    for slug in ARCHIVED_SOURCE_SLUGS:
-        folder = root / "huggingface" / "spaces" / slug
-        if not folder.is_dir() or folder.is_symlink():
-            raise RuntimeError(f"archived source folder unavailable: {slug}")
-        files = []
-        for path in sorted(folder.rglob("*")):
-            if path.is_symlink():
-                raise RuntimeError(f"archived source symlink refused: {slug}")
-            if not path.is_file() or "__pycache__" in path.parts or path.suffix == ".pyc":
+    root = root.resolve()
+    def git(*args: str) -> bytes:
+        try:
+            return subprocess.run(
+                ["git", *args], cwd=root, check=True, capture_output=True,
+            ).stdout
+        except subprocess.CalledProcessError as exc:
+            raise RuntimeError("archived Git revision unavailable") from exc
+
+    if Path(git("rev-parse", "--show-toplevel").decode().strip()).resolve() != root:
+        raise RuntimeError("root must be the Git repository top level")
+    if git("cat-file", "-t", source_sha).strip() != b"commit":
+        raise RuntimeError("source_sha must name a Git commit")
+    archive_bytes = git(
+        "archive", "--format=tar", source_sha,
+        *(f"huggingface/spaces/{slug}" for slug in ARCHIVED_SOURCE_SLUGS),
+    )
+    files_by_slug: dict[str, list[dict]] = {
+        slug: [] for slug in ARCHIVED_SOURCE_SLUGS
+    }
+    with tarfile.open(fileobj=io.BytesIO(archive_bytes), mode="r:") as archive:
+        for member in archive:
+            if member.isdir():
                 continue
-            raw = path.read_bytes()
-            files.append({
-                "path": path.relative_to(folder).as_posix(),
+            parts = PurePosixPath(member.name).parts
+            if (not member.isfile() or len(parts) < 4
+                    or parts[:2] != ("huggingface", "spaces")
+                    or parts[2] not in files_by_slug):
+                raise RuntimeError("archived source contains an unexpected entry")
+            raw_file = archive.extractfile(member)
+            if raw_file is None:
+                raise RuntimeError("archived source file unavailable")
+            raw = raw_file.read()
+            files_by_slug[parts[2]].append({
+                "path": PurePosixPath(*parts[3:]).as_posix(),
                 "bytes": len(raw),
                 "sha256": hashlib.sha256(raw).hexdigest(),
             })
+
+    archives = []
+    for slug, files in files_by_slug.items():
         if not files:
             raise RuntimeError(f"archived source folder is empty: {slug}")
-        archives.append({"space_id": f"SZLHOLDINGS/{slug}", "files": files})
+        archives.append({
+            "space_id": f"SZLHOLDINGS/{slug}",
+            "files": sorted(files, key=lambda item: item["path"]),
+        })
 
     return {
         "schema": "szl.packet8-source-archive/v1",
