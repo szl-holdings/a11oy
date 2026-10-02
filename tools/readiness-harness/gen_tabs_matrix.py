@@ -62,12 +62,14 @@ STATE_VOCABULARY = {
 # liesIf: response shapes that count as a "lie" (stale/mock/uncited) -> fail.
 def ep(method="GET", schema=None, sla=None, citations=False,
        allow_statuses=(200,), allow_labels=("live", "cached"),
-       lies_if=("mock", "fabricated", "placeholder"), note=""):
+       lies_if=("mock", "fabricated", "placeholder"), note="",
+       unavailable_blocks_readiness=False):
     return {
         "method": method,
         "schema": schema,
         "freshnessSLA": sla,
         "citationsRequired": citations,
+        **({"unavailableBlocksReadiness": True} if unavailable_blocks_readiness else {}),
         "degradedRules": {
             "allowStatuses": list(allow_statuses),
             "allowLabels": list(allow_labels),
@@ -261,10 +263,12 @@ ENDPOINTS = {
     "/api/a11oy/v1/vertical-packs": ep(schema="generic_obj", sla=None),
     "/api/a11oy/v1/vert/defense/feed": ep(
         schema="vert_defense_feed", sla=HOUR, citations=True,
+        unavailable_blocks_readiness=True,
         allow_labels=("live", "cached", "reference"),
         note="Canonical Defense / Gov renderer feed: CISA KEV + NVD with cited leaders."),
     "/api/a11oy/v1/vert/finance/feed": ep(
         schema="vert_finance_feed", sla=HOUR, citations=True,
+        unavailable_blocks_readiness=True,
         allow_labels=("live", "cached", "reference", "unofficial-fallback"),
         note="Live Yahoo/macro finance feed; cold-burst 404 tolerated, re-probe."),
     "/api/a11oy/v1/vert/legal/feed": ep(
@@ -552,7 +556,15 @@ SCHEMAS = {
         "requiredPaths": [
             "equities_official.SPY.freshness.status",
             "equities_official.SPY.freshness.fetched_at",
+            "equities_official.AAPL.freshness.status",
+            "equities_official.AAPL.freshness.fetched_at",
+            "equities_official.MSFT.freshness.status",
+            "equities_official.MSFT.freshness.fetched_at",
+            "equities_official.NVDA.freshness.status",
+            "equities_official.NVDA.freshness.fetched_at",
             "crypto.BTC-USD.freshness.status", "crypto.BTC-USD.freshness.fetched_at",
+            "crypto.ETH-USD.freshness.status", "crypto.ETH-USD.freshness.fetched_at",
+            "crypto.SOL-USD.freshness.status", "crypto.SOL-USD.freshness.fetched_at",
             "fx.freshness.status", "fx.freshness.fetched_at",
             "fintech_cve.freshness.status", "fintech_cve.freshness.fetched_at",
         ],
@@ -560,8 +572,18 @@ SCHEMAS = {
             "equities_official": "object", "equities": "object", "crypto": "object",
             "equities_official.SPY.freshness.status": "string",
             "equities_official.SPY.freshness.fetched_at": "timestamp",
+            "equities_official.AAPL.freshness.status": "string",
+            "equities_official.AAPL.freshness.fetched_at": "timestamp",
+            "equities_official.MSFT.freshness.status": "string",
+            "equities_official.MSFT.freshness.fetched_at": "timestamp",
+            "equities_official.NVDA.freshness.status": "string",
+            "equities_official.NVDA.freshness.fetched_at": "timestamp",
             "crypto.BTC-USD.freshness.status": "string",
             "crypto.BTC-USD.freshness.fetched_at": "timestamp",
+            "crypto.ETH-USD.freshness.status": "string",
+            "crypto.ETH-USD.freshness.fetched_at": "timestamp",
+            "crypto.SOL-USD.freshness.status": "string",
+            "crypto.SOL-USD.freshness.fetched_at": "timestamp",
             "fx.freshness.status": "string", "fx.freshness.fetched_at": "timestamp",
             "fintech_cve.freshness.status": "string",
             "fintech_cve.freshness.fetched_at": "timestamp",
