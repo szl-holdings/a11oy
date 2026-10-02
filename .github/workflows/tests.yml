@@ -731,7 +731,10 @@ jobs:
         # UNAVAILABLE+reason (never a fabricated green tile), the build is a pure read, and
         # /frontier renders its surface list FROM this endpoint. A future regression that
         # drifts, pads, or hardcodes labels becomes a red gate. Fully offline. Λ = Conjecture 1.
-        run: pytest test_frontier_surfaces.py -q
+        run: >-
+          pytest test_frontier_surfaces.py
+          tests/test_frontier_manifest_readiness.py
+          tests/test_frontier_health_rollup.py -q
 
   python-v4-fleet-federation:
     name: V4 fleet peer-health federates live standalone Spaces, honestly (pytest, offline)
