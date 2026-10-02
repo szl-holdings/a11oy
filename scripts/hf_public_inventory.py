@@ -13,6 +13,7 @@ import json
 import re
 from typing import Any, Callable, Mapping
 from urllib.parse import parse_qs, urlsplit
+from urllib.error import HTTPError
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
 KINDS = ('models', 'datasets', 'spaces')
@@ -70,15 +71,30 @@ def public_get(url: str) -> Mapping[str, Any]:
     parsed = urlsplit(url)
     org = parse_qs(parsed.query).get('author', [''])[0]
     kind = parsed.path.removeprefix('/api/')
-    if kind not in KINDS or not ORG.fullmatch(org):
-        raise InventoryError('UNSAFE_PUBLIC_ENDPOINT')
-    validate_url(url, org, kind)
+    reserved = re.fullmatch(r'/api/spaces/([A-Za-z0-9][A-Za-z0-9_.-]*)/README', parsed.path)
+    if reserved:
+        validate_reserved_url(url, reserved[1])
+    else:
+        if kind not in KINDS or not ORG.fullmatch(org):
+            raise InventoryError('UNSAFE_PUBLIC_ENDPOINT')
+        validate_url(url, org, kind)
     request = Request(url, headers={
         'User-Agent': 'SZL-Public-Membership/1', 'Accept': 'application/json',
         'Cache-Control': 'no-cache, no-store',
     })
     opener = build_opener(ProxyHandler({}), NoRedirect())
-    with opener.open(request, timeout=20) as response:
+    try:
+        response = opener.open(request, timeout=20)
+    except HTTPError as exc:
+        if not reserved or exc.code != 404 or exc.geturl() != url:
+            raise InventoryError('HTTP_UNAVAILABLE') from exc
+        raw = exc.read(MAX_BYTES + 1)
+        exc.close()
+        if len(raw) > MAX_BYTES:
+            raise InventoryError('RESPONSE_BYTE_BUDGET')
+        return {'status': 404, 'json': None, 'link': None,
+                'response_sha256': hashlib.sha256(raw).hexdigest()}
+    with response:
         if response.status != 200 or response.geturl() != url:
             raise InventoryError('UNEXPECTED_HTTP_RESPONSE')
         raw = response.read(MAX_BYTES + 1)
@@ -92,6 +108,39 @@ def public_get(url: str) -> Mapping[str, Any]:
         raise InventoryError('INVALID_JSON_RESPONSE') from exc
     return {'status': 200, 'json': body, 'link': link,
             'response_sha256': hashlib.sha256(raw).hexdigest()}
+
+
+def validate_reserved_url(url: str, org: str) -> None:
+    if (not isinstance(org, str) or not ORG.fullmatch(org)
+            or url != f'https://huggingface.co/api/spaces/{org}/README'):
+        raise InventoryError('UNSAFE_RESERVED_ENDPOINT')
+
+
+def reserved_readme(org: str, get: Callable[[str], Mapping[str, Any]] = public_get
+                    ) -> tuple[Mapping[str, Any] | None, dict[str, Any]]:
+    """Observe the one reserved Space omitted by the provider's author listing.
+
+    A 404 or explicit private disposition excludes it from this public scope.
+    Other failures cannot support a complete public membership observation.
+    """
+    url = f'https://huggingface.co/api/spaces/{org}/README'
+    validate_reserved_url(url, org)
+    response = get(url)
+    evidence = {'status': response.get('status'),
+                'response_sha256': response.get('response_sha256', response.get('sha256'))}
+    if response.get('status') == 404:
+        return None, {**evidence, 'state': 'NOT_PUBLICLY_OBSERVABLE'}
+    if response.get('status') != 200:
+        raise InventoryError('RESERVED_README_HTTP_UNAVAILABLE')
+    row = response.get('json')
+    if (not isinstance(row, Mapping) or row.get('id') != f'{org}/README'
+            or response.get('link') or response.get('redirect')):
+        raise InventoryError('INVALID_RESERVED_README_METADATA')
+    if row.get('private') is True:
+        return None, {**evidence, 'state': 'EXPLICITLY_NON_PUBLIC'}
+    if row.get('private') is not False:
+        raise InventoryError('RESERVED_README_VISIBILITY_UNKNOWN')
+    return row, {**evidence, 'state': 'PUBLIC_METADATA', 'id': f'{org}/README'}
 
 
 def validate_url(url: str, org: str, kind: str) -> None:
@@ -172,6 +221,18 @@ def collect(org: str, get: Callable[[str], Mapping[str, Any]] = public_get) -> d
                               'response_sha256': response.get('response_sha256'),
                               'has_next': continuation is not None})
                 url = continuation
+            if kind == 'spaces':
+                name = f'{org}/README'
+                if name in members:
+                    result['reserved_readme_evidence'] = {'state': 'AUTHOR_LIST', 'id': name}
+                else:
+                    row, evidence = reserved_readme(org, get)
+                    result['reserved_readme_evidence'] = evidence
+                    if row is not None:
+                        if len(members) >= MAX_ITEMS:
+                            raise InventoryError('ITEM_BUDGET')
+                        members[name] = {'id': name, 'sha': row.get('sha'),
+                                         'last_modified': row.get('lastModified'), 'private': False}
             result['items'][kind] = [members[name] for name in sorted(members)]
             result['counts'][kind] = len(members)
         except Exception as exc:

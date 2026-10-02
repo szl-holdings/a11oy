@@ -26,6 +26,13 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+try:
+    from scripts.hf_public_inventory import InventoryError, public_get, reserved_readme
+except ModuleNotFoundError:
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from hf_public_inventory import InventoryError, public_get, reserved_readme
+
 SCHEMA = "szl.estate-release-train.receipt/v1"
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
 PROFILE_COUNTS = re.compile(
@@ -326,7 +333,7 @@ def hf_inventory(
     foreign namespaces and non-list bodies fail closed. This listing is not
     authenticated whole-organization membership.
     """
-    getter = fetch if fetch_fn is None else fetch_fn
+    getter = public_get if fetch_fn is None else fetch_fn
     result: dict[str, Any] = {
         "organization": org,
         "counts": {},
@@ -361,10 +368,7 @@ def hf_inventory(
                 if len(seen_urls) >= MAX_INVENTORY_PAGES:
                     raise _inventory_error("PAGE_BUDGET")
                 seen_urls.add(url)
-                try:
-                    response = getter(url, huggingface=True)
-                except TypeError:
-                    response = getter(url)
+                response = getter(url)
                 if response.get("status") != 200:
                     raise _inventory_error("HTTP_UNAVAILABLE")
                 rows = response.get("json")
@@ -384,6 +388,8 @@ def hf_inventory(
                         raise _inventory_error("FOREIGN_OR_MALFORMED_ID")
                     if name in members:
                         raise _inventory_error("DUPLICATE_ID")
+                    if row.get('private') is not False:
+                        raise _inventory_error('VISIBILITY_NOT_EXPLICITLY_PUBLIC')
                     members[name] = {
                         "id": name,
                         "sha": row.get("sha"),
@@ -399,16 +405,32 @@ def hf_inventory(
                     {
                         "index": len(pages) + 1,
                         "count": len(rows),
-                        "response_sha256": response.get("sha256"),
+                        "response_sha256": response.get("response_sha256", response.get("sha256")),
                         "has_next": continuation is not None,
                     }
                 )
                 url = continuation
+            if kind == 'spaces':
+                if time.monotonic() - started > MAX_INVENTORY_SECONDS:
+                    raise _inventory_error('INVENTORY_TIME_BUDGET')
+                name = f'{org}/README'
+                if name in members:
+                    result['reserved_readme_evidence'] = {'state': 'AUTHOR_LIST', 'id': name}
+                else:
+                    row, evidence = reserved_readme(org, getter)
+                    result['reserved_readme_evidence'] = evidence
+                    if time.monotonic() - started > MAX_INVENTORY_SECONDS:
+                        raise _inventory_error('INVENTORY_TIME_BUDGET')
+                    if row is not None:
+                        if len(members) >= MAX_INVENTORY_ITEMS:
+                            raise _inventory_error('ITEM_BUDGET')
+                        members[name] = {'id': name, 'sha': row.get('sha'),
+                                         'last_modified': row.get('lastModified'), 'private': False}
             state = "COMPLETE"
             result["items"][kind] = [members[name] for name in sorted(members)]
             result["counts"][kind] = len(members)
-        except AlignmentError as exc:
-            message = str(exc)
+        except Exception as exc:
+            message = str(exc) if isinstance(exc, (AlignmentError, InventoryError)) else type(exc).__name__
             if message in {"PAGE_BUDGET", "ITEM_BUDGET", "INVENTORY_TIME_BUDGET"}:
                 state = "PARTIAL"
             else:
