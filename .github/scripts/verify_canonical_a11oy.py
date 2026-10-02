@@ -108,6 +108,7 @@ SERIES_A_VARIABLES = {
     "SZL_LAKE_DIR": "/data/a11oy/khipu",
     "A11OY_ATELIER_LEDGER_PATH": "/data/a11oy/atelier/turn-receipts-v1.jsonl",
     "A11OY_ATELIER_REQUIRED_MOUNT": "/data",
+    "SZL_GOVERN_INFER_LOG": "/data/.szl_govern_infer.jsonl",
 }
 ROUTES = {
     "livez": "/api/livez",

@@ -55,16 +55,22 @@ def clamp01(n: float) -> float:
 
 
 def lambda_of(axes: dict[str, float], energy_available: bool = False) -> float:
+    """Weighted geometric mean over the software axes; exactly 0.0 if any axis is 0.
+
+    Non-compensatory per szl.lambda/v1: a zeroed axis is a veto, not a very low
+    score. The previous ``max(1e-6, ...)`` floor returned 0.023478339 with one
+    axis at 0.0 and let four strong axes partially rescue a vetoed one. Weights
+    are the declared relative weights normalised by their sum (identical to the
+    contract call with w_k / sum(w)); ``fsum`` keeps the value independent of
+    axis order. Lambda remains Conjecture 1.
+    """
     keys = [k for k in AXIS_WEIGHTS if energy_available or k != "energy"]
-    log = 0.0
-    wsum = 0.0
-    for k in keys:
-        w = AXIS_WEIGHTS[k]
-        v = max(1e-6, clamp01(axes[k]))
-        log += w * math.log(v)
-        wsum += w
-    raw = math.exp(log / wsum) if wsum else 0.0
-    return min(TRUST_CEILING, raw)
+    vals = [clamp01(axes[k]) for k in keys]
+    if not keys or any(v == 0.0 for v in vals):
+        return 0.0
+    wsum = math.fsum(AXIS_WEIGHTS[k] for k in keys)
+    log = math.fsum(AXIS_WEIGHTS[k] / wsum * math.log(v) for k, v in zip(keys, vals))
+    return min(TRUST_CEILING, math.exp(log))
 
 
 def gate(lam: float) -> str:
