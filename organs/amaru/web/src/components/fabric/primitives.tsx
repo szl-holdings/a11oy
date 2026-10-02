@@ -2,7 +2,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import type { GovernanceState, SeverityLevel } from '@/data/fabric/types';
 
-/* Founder KANCHAY v1.1.0 operator components (szl-console.css): .page-head, .stat +
+/* Founder KANCHAY v1.1.1 operator components (szl-console.css): .page-head, .stat +
    .metric, .card, .toolbar, .scrim/.drawer, .sev, .dot, .meter, .spark, .heat.
    Identity stays neutral; status pairs a status ink or mark with a word. The legacy
    'gold' tone renders neutral (gold is reserved for premium moments). */

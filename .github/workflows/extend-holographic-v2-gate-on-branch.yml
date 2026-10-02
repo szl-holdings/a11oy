@@ -7,11 +7,11 @@ on:
     paths:
       - ".github/workflows/extend-holographic-v2-gate-on-branch.yml"
 
-permissions:
-  contents: write
-
+permissions: read-all
 jobs:
   extend:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

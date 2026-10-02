@@ -16,17 +16,17 @@ on:
       - szl_spaces_surface.py
   workflow_dispatch:
 
-permissions:
-  contents: read
-  actions: write
-  issues: write
-
+permissions: read-all
 concurrency:
   group: hf-estate-terminal-verification
   cancel-in-progress: false
 
 jobs:
   verify:
+    permissions:
+      contents: read
+      actions: write
+      issues: write
     name: Require every non-folded Space to reach RUNNING
     runs-on: ubuntu-latest
     timeout-minutes: 30

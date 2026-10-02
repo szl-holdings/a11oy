@@ -310,8 +310,12 @@ class ExecutedWorkflowTests(unittest.TestCase):
         self.assertIn("publish_vertical_flagships=true", args)
         for child, run_id in (("hf", 1001), ("edge", 1002)):
             records = self.records(child)
+            expected = ["UNKNOWN_AFTER_ATTEMPT", "DISPATCH_BOUND"]
+            if child == "hf":
+                expected.append("CHILD_STAGE_VERIFIED")
+            expected.append("CHILD_COMPLETION_VERIFIED")
             self.assertEqual([record["state"] for record in records],
-                             ["UNKNOWN_AFTER_ATTEMPT", "DISPATCH_BOUND", "CHILD_COMPLETION_VERIFIED"])
+                             expected)
             self.assertEqual(records[-1]["run_id"], run_id)
             self.assertEqual(records[-1]["source_revision"], SHA)
         forwarded = next(arg.split("=", 1)[1] for arg in args if arg.startswith("vertical_plan_json="))

@@ -104,6 +104,10 @@ RUN pip install --no-cache-dir \
 COPY packages/receipt-substrate/src /app/a11oy-src/packages/receipt-substrate/src
 COPY packages/policy/src/gates /app/a11oy-src/packages/policy/src/gates
 
+# serve.py installs this package at boot; root-module COPY guards do not cover it.
+# Propagation works without an exporter; collector delivery remains a separate gate.
+COPY vsp_otel/__init__.py vsp_otel/middleware.py ./vsp_otel/
+
 # Copy the pre-built SPA (Brand Orchestration Layer) to the static root.
 # index.html + assets/* are served directly at / and /assets/*; unknown GET -> index.html.
 COPY console/ ./static/
@@ -143,6 +147,9 @@ COPY szl_quantum_utility.py ./
 # Wave 18 numerical-engine frontier. These are only the Apache-2.0 host contract
 # … (full rationale: docs/DOCKERFILE_NOTES.md §6)
 COPY szl_numerics_adapter.py ./
+# Public Steward services/provenance dependency: fixed read-only bytes from
+# exact canonical Estate OS source. No private audit store or model adapter.
+COPY a11oy_steward_surface.py steward_public.py steward-public.json steward-source-lock.json ./
 COPY szl_numerics_dataset.py ./
 COPY szl_numerics_experiment.py ./
 COPY numerics/ ./numerics/

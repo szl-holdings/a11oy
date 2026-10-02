@@ -566,7 +566,13 @@ def main() -> int:
             row["error"] = f"{type(exc).__name__}: {exc}"
         rows.append(row)
 
-    deadline = time.time() + 900
+    # 1800s: observed on 2026-10-01 (run 36801125124) the finance Space finished its
+    # rebuild ~40s AFTER the previous 900s deadline while fully healthy on every probe
+    # (readyz 200, root 200, marker present) — the deadline, not the deploy, was the
+    # failure. The loop early-exits the moment every vertical passes, so a generous
+    # deadline only costs wall-time when a rebuild is genuinely slow; a tight one fails
+    # healthy deploys.
+    deadline = time.time() + 1800
     pending = {row["id"].split("/", 1)[1] for row in rows if "error" not in row}
     while pending and time.time() < deadline:
         for slug in tuple(pending):

@@ -27,17 +27,25 @@ export default withMermaid(defineConfig({
   ignoreDeadLinks: true,
 
   head: [
-    ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
-    ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
-    ['link', {
-      rel: 'stylesheet',
-      href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap'
-    }],
+    // SZL Kanchay v1.0.0 design tokens, vendored byte for byte at
+    // docs/public/kanchay/ (served at ./kanchay/; fix-relative-paths.mjs
+    // depth-corrects the href on nested pages). Carries every color/type
+    // token and the local @font-face rules: no font CDN.
+    ['link', { rel: 'stylesheet', href: './kanchay/kanchay.css' }],
+    // kanchay.css keeps dark roles on :root and light roles under
+    // [data-theme="light"]; VitePress toggles `.dark` on <html>. Mirror the
+    // class onto data-theme (initially, and on every toggle) so custom.css
+    // reads the exported role values exactly in both themes.
+    ['script', { id: 'kanchay-theme-sync' },
+      ';(() => { const r = document.documentElement; const s = () => r.setAttribute(\'data-theme\', r.classList.contains(\'dark\') ? \'dark\' : \'light\'); s(); new MutationObserver(s).observe(r, { attributes: true, attributeFilter: [\'class\'] }) })()'],
     ['link', {
       rel: 'stylesheet',
       href: 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css'
     }],
-    ['meta', { name: 'theme-color', content: '#0B1F3A' }]
+    // Browser chrome tint. A meta value cannot reference a CSS variable, so
+    // these are the kanchay.css values of --color-a11oy-bg (dark / light).
+    ['meta', { name: 'theme-color', media: '(prefers-color-scheme: dark)', content: '#0a0f1e' }],
+    ['meta', { name: 'theme-color', media: '(prefers-color-scheme: light)', content: '#f5f7fa' }]
   ],
 
   markdown: {
@@ -50,11 +58,13 @@ export default withMermaid(defineConfig({
   },
 
   themeConfig: {
-    // Navbar logo: committed static szl-mark.svg at /img/szl-mark.svg.
-    // (Previously pointed at szl-avatar-animated.gif, which was never
-    // committed to the repo and rendered broken — repointed to the
-    // existing asset.)
-    logo: '/img/szl-mark.svg',
+    // Navbar logo: the SZL mark from the vendored Kanchay export. An <img>
+    // cannot inherit currentColor, so use the colored files: gold on dark,
+    // ink on light. (No alt: the site title beside it names it.)
+    logo: {
+      light: '/kanchay/marks/szl-mark-ink.svg',
+      dark: '/kanchay/marks/szl-mark-gold.svg'
+    },
     siteTitle: 'SZL Holdings',
 
     nav: [

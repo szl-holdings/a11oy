@@ -8,10 +8,13 @@ browser-safety, API-schema, and evidence contracts are release-ready.
 /command-v2 remains additive; /console and host-root /brain retain their owners.
 """
 import fnmatch
+import itertools
 import json
 import posixpath
 import runpy
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 LEGACY_SPA = ROOT / "pages" / "command-center.html"
@@ -195,6 +198,54 @@ def test_module_selftest_if_starlette_present() -> None:
     import a11oy_command_center as module
 
     module._selftest()
+
+
+@pytest.mark.parametrize("order", list(itertools.permutations(range(3))))
+def test_v2_owns_its_response_through_real_injectors(order) -> None:
+    from starlette.applications import Starlette
+    from starlette.testclient import TestClient
+    import a11oy_command_center as module
+
+    helpers = runpy.run_path(str(ROOT / "tests" / "test_model_pretraining_response_ownership.py"))
+    injectors = helpers["factories"](ROOT)
+    app = Starlette()
+    module.register(app)
+    for index in order:
+        app.add_middleware(injectors[index])
+    with TestClient(app) as client:
+        response = client.get("/command-v2")
+        assert response.status_code == 200
+        assert response.headers.get("cache-control") == "no-store, no-transform"
+        assert response.content == V2_PAGE.read_bytes()
+        head = client.head("/command-v2")
+        assert head.status_code == 200 and head.content == b""
+        assert head.headers["cache-control"] == response.headers["cache-control"]
+        legacy = client.get("/killinchu", headers={"Cache-Control": "no-transform"})
+        assert b"a11oy-operator-widget.js" in legacy.content
+        assert b'data-view-grc="grc"' in legacy.content
+        assert "no-transform" not in legacy.headers.get("cache-control", "")
+
+
+@pytest.mark.parametrize("replacement", [
+    '<link rel="canonical" href="https://huggingface.co/spaces/SZLHOLDINGS/killinchu">',
+    '<link rel="canonical" href="https://a-11-oy.com/killinchu"><iframe src="https://example.invalid"></iframe>',
+    '<link rel="canonical" href="https://a-11-oy.com/killinchu"><meta http-equiv="refresh" content="0;url=https://example.invalid">',
+    '<link rel="canonical" href="https://a-11-oy.com/killinchu"><link rel="canonical" href="https://example.invalid">',
+])
+def test_module_selftest_rejects_replaced_origin_document(monkeypatch, tmp_path, replacement):
+    import a11oy_command_center as module
+
+    original_page = module._page
+    page = original_page("killinchu.html")
+    canonical = 'rel="canonical" href="https://a-11-oy.com/killinchu"'
+    source = page.read_text(encoding="utf-8")
+    assert canonical in source
+    altered = tmp_path / "killinchu.html"
+    altered.write_text(source.replace('<link ' + canonical + '/>', replacement), encoding="utf-8")
+    assert altered.read_text(encoding="utf-8") != source
+    monkeypatch.setattr(module, "_page", lambda name: altered if name == "killinchu.html" else original_page(name))
+    with pytest.raises(AssertionError):
+        module._selftest()
 
 
 def test_dormant_elite_route_fails_closed_if_backend_is_registered() -> None:

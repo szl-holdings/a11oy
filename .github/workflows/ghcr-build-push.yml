@@ -6,15 +6,15 @@ on:
     tags: ["v*", "uds-v*"]
   workflow_dispatch:
 
-permissions:
-  contents: read
-  packages: write
-  id-token: write
-  attestations: write
-  artifact-metadata: write
-
+permissions: read-all
 jobs:
   build-push:
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:

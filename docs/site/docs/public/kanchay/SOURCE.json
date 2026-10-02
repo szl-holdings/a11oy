@@ -1,0 +1,24 @@
+{
+  "name": "szl-kanchay",
+  "version": "1.0.0",
+  "canonical": "szl-holdings/szl-brand (kanchay/)",
+  "license": {
+    "code": "Apache-2.0",
+    "fonts": "SIL Open Font License 1.1 (Inter, JetBrains Mono, Space Grotesk)"
+  },
+  "sha256": {
+    "kanchay-components.css": "77a6493edc9a25392caf36a97bdb51f767b8add2936c1511fbe006bbb1031f66",
+    "kanchay-components.d.ts": "b4e64979b6bde104ae09fa635b689449a2799f50388d9a53205123318d45eb3e",
+    "kanchay-components.js": "fb752628ad9fa13637fa221cd3424a68993bc7e96a2b47dfda0382065d15bdd3",
+    "kanchay.css": "d083a2ca219f29164d793e243b466320f27a37080b30384f93a8c0db6313d98b",
+    "tokens.json": "fa38f7e6d4ba519620648c80bef57a6180e0469c6477a61b9a6b9f6b7d3234ed",
+    "fonts/Inter-latin.woff2": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62",
+    "fonts/JetBrainsMono-latin.woff2": "83c005d49d8a6a50474c73a5a36ac0468076e9c4a29da7bdb14995d80560a5be",
+    "fonts/SpaceGrotesk-latin.woff2": "0640890476fc1198ab4de571fb658de443c4d85b66466ec09534a8737ab1ce9d",
+    "fonts/Syncopate-400.woff2": "b57f964dfec15bc7e94db5c8930e02d2f4031c284a8e852b23b81a29450dbd14",
+    "fonts/Syncopate-700.woff2": "8a462650535a7d255dd037dc3ca7eefde4b2b988bb110736290dbd7b74a83fea",
+    "marks/szl-mark-gold.svg": "464bca2ecb33f3e26924b0c78a1960e88c9f4e5fb591be6b8dfcc682800fd08c",
+    "marks/szl-mark-ink.svg": "60a6a01acc1b4d94b93612376ce7d3bf0cbf52db083e86d1266384ac582c577d",
+    "marks/szl-mark.svg": "d77c2332207256219cc1876106aae9e071d60a46fbb4c8facf086d52925efb3a"
+  }
+}

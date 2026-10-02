@@ -7,15 +7,15 @@ on:
       - ".github/workflows/rollout-holographic-experience-v2.yml"
   workflow_dispatch:
 
-permissions:
-  contents: write
-
+permissions: read-all
 concurrency:
   group: rollout-holographic-experience-v2
   cancel-in-progress: false
 
 jobs:
   bind:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

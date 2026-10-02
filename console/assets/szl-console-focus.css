@@ -1,0 +1,139 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+ * Console shell and System Health. Palette, type and spacing use vendored SZL tokens.
+ */
+html[data-console-style="restrained"] {
+  --bg:var(--color-space-900); --bg-deep:var(--color-space-900);
+  --ground:var(--bg); --void:var(--bg); --panel:var(--surface); --panel2:var(--surface-alt);
+  --rail:var(--surface); --cream:var(--text); --paragraph:var(--text-sub);
+  --muted:var(--text-sub); --dim:var(--text-sub); --gray:var(--text-sub);
+  --gold:var(--text); --gold-bright:var(--text); --gold-line:var(--border);
+  --teal:var(--link); --proof:var(--link) !important; --teal-line:var(--border);
+  --lattice:var(--text-sub); --mono:var(--font-mono); --display:var(--font-display);
+  --f1:var(--text-xs); --f2:var(--text-base); --f3:var(--text-lg);
+  --f4:var(--text-xl); --f5:var(--text-2xl); --f6:var(--text-3xl);
+  --f7:var(--text-4xl); --f8:var(--text-5xl); --f9:var(--text-6xl);
+  --health-ok:var(--color-success-light); --health-warning:var(--color-warning-light);
+  --health-error:var(--color-error-light);
+  --szl-holo-bg:var(--bg) !important; --szl-holo-bg-deep:var(--bg-deep) !important;
+  --szl-holo-surface:var(--surface) !important; --szl-holo-surface-2:var(--surface-alt) !important;
+  --szl-holo-ink:var(--text) !important; --szl-holo-muted:var(--text-sub) !important;
+  --szl-holo-faint:var(--text-sub) !important;
+  --szl-holo-accent:var(--accent) !important; --szl-holo-accent-2:var(--accent) !important;
+  --szl-holo-line:var(--border); --szl-holo-line-soft:var(--border);
+  --szl-holo-font:var(--font-body); --szl-holo-mono:var(--font-mono);
+  --szl-holo-space-1:var(--space-2); --szl-holo-space-2:var(--space-4);
+  --szl-holo-space-3:var(--space-6); --szl-holo-space-4:var(--space-8);
+  --szl-holo-space-5:var(--space-12);
+  background:var(--bg);
+}
+html[data-console-style="restrained"][data-surface="light"] {
+  --bg:var(--color-gray-50); --bg-deep:var(--color-gray-50);
+  --health-ok:var(--color-success-strong); --health-warning:var(--color-hatun-800);
+  --health-error:var(--color-yawar-700);
+}
+html[data-console-style] body {
+  background:var(--bg) !important; color:var(--text); font-family:var(--font-body);
+}
+html[data-console-style] body::before,
+html[data-console-style] body::after,
+html[data-console-style][data-view="fleet"] .content::before,
+html[data-console-style][data-view="fleet"] .content::after { display:none !important; }
+html[data-console-style] .szl-proof { color:var(--link) !important; }
+html[data-console-style] .side .mark {
+  color:var(--text); background:var(--surface-raised) !important;
+  box-shadow:none; border:1px solid var(--border);
+}
+html[data-console-style] :is(#szl-holo-ambient,.szl-holo-progress,.side .ico) { display:none !important; }
+html[data-console-style] :is(.szl-hbar,.side,.szl-overflow-menu,.szl-pal,.szl-pal-panel) {
+  background:var(--surface) !important; background-image:none !important;
+  color:var(--text); border-color:var(--border) !important; box-shadow:none !important;
+  backdrop-filter:none !important;
+}
+html[data-console-style] :is(.szl-hbar,.side,.szl-pal)::before,
+html[data-console-style] :is(.szl-hbar,.side,.szl-pal)::after { display:none !important; }
+html[data-console-style] .szl-hbar { padding:var(--space-2) var(--space-4) !important; gap:var(--space-2) !important; }
+html[data-console-style] .szl-hbar-zone { padding:0; gap:var(--space-2); border:0; }
+html[data-console-style] :is(.szl-origins,.szl-hbar-switch,.szl-hbar-live) { gap:var(--space-2); }
+html[data-console-style] :is(.szl-hbar-crumb,.szl-hbar-crumb .now) {
+  color:var(--text-sub); font-size:var(--text-xs); letter-spacing:var(--tracking-normal);
+}
+html[data-console-style] :is(.szl-hbar button,.szl-hbar a,.szl-pal button,.szl-pal a,.side button,.side a,.side [role="button"]) {
+  min-width:44px !important; min-height:44px !important;
+  padding:var(--space-2) var(--space-3); font-size:var(--text-sm) !important;
+  font-family:var(--font-body); letter-spacing:var(--tracking-normal); text-transform:none;
+  color:var(--text); background:transparent; border-color:var(--border);
+}
+html[data-console-style] :is(.szl-origin.is-on,.side .nav-item.active) {
+  color:var(--text) !important; background:var(--surface-raised) !important;
+  border-color:var(--accent) !important; box-shadow:none !important;
+}
+html[data-console-style] :is(.szl-hbar a:hover,.szl-hbar button:hover,.side .nav-item:hover,.szl-pal-item:hover,.szl-pal-item.active) {
+  background:var(--surface-raised) !important; color:var(--text) !important;
+}
+html[data-console-style] .szl-chip {
+  background:var(--surface) !important; border-color:var(--border) !important;
+  color:var(--text-sub) !important; box-shadow:none !important; backdrop-filter:none;
+  font-size:var(--text-xs); padding:var(--space-1) var(--space-2); gap:var(--space-2);
+}
+html[data-console-style] .szl-chip--live .szl-dot { background:var(--health-ok); box-shadow:none; }
+html[data-console-style] .side { padding:var(--space-4) !important; }
+html[data-console-style] .side .nav-item { margin:0 0 var(--space-1); gap:var(--space-2); }
+html[data-console-style] :is(.nav-group,.side-foot) { color:var(--text-sub) !important; font-size:var(--text-xs) !important; }
+html[data-console-style] .szl-pal-input {
+  color:var(--text); background:var(--surface); font:inherit; font-size:var(--text-base); min-height:44px;
+}
+html[data-console-style] :is(.szl-pal-hint,.szl-pal-sub,.szl-pal-empty) { color:var(--text-sub); font-size:var(--text-sm); }
+html[data-console-style] :is(a,button,input,[tabindex]):focus-visible {
+  outline:var(--border-focus) solid var(--focus) !important; outline-offset:var(--space-1);
+  box-shadow:none !important;
+}
+html[data-console-style] .skip-link { min-height:44px; padding:var(--space-3); background:var(--surface); color:var(--text); }
+html[data-console-style][data-view="fleet"] .content {
+  padding:var(--space-8) !important; background:var(--bg) !important; color:var(--text);
+}
+html[data-console-style][data-view="fleet"] :is(#vbody,.view-head,.view-sub) { max-width:var(--container); }
+html[data-console-style][data-view="fleet"] :is(.view-title,.view-sub,.view-badge) {
+  font-family:var(--font-body); color:var(--text);
+}
+html[data-console-style][data-view="fleet"] .view-title { font-size:var(--text-3xl); line-height:var(--leading-snug); }
+html[data-console-style][data-view="fleet"] .view-sub { font-size:var(--text-base); color:var(--text-sub); margin:var(--space-4) 0 var(--space-8); }
+html[data-console-style][data-view="fleet"] .view-badge { color:var(--text-sub); background:transparent; border-color:var(--border); font-size:var(--text-xs); padding:var(--space-1) var(--space-2); }
+html[data-console-style][data-view="fleet"] :is(.card,.health-evidence) {
+  background:var(--surface) !important; background-image:none !important;
+  box-shadow:none !important; border:1px solid var(--border) !important;
+  border-radius:var(--radius-lg); padding:var(--space-6); margin:0 0 var(--space-6);
+}
+html[data-console-style][data-view="fleet"] .card::before,
+html[data-console-style][data-view="fleet"] .card::after { display:none !important; }
+html[data-console-style][data-view="fleet"] .card-h { padding:0 0 var(--space-4); margin:0; border-color:var(--border); }
+html[data-console-style][data-view="fleet"] h2 { font-size:var(--text-lg); margin:0; }
+html[data-console-style] .health-overview { display:flex; flex-wrap:wrap; gap:var(--space-8); margin:0 0 var(--space-8); }
+html[data-console-style] .health-metric { flex:1 1 12rem; }
+html[data-console-style] .health-metric .k { color:var(--text-sub); font-size:var(--text-sm); }
+html[data-console-style] .health-metric .v { font-size:var(--text-2xl); font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+html[data-console-style] .health-label { display:inline-block; color:var(--text); font-size:var(--text-xs); font-weight:var(--weight-semibold); border-left:var(--border-focus) solid var(--accent); padding-left:var(--space-2); }
+html[data-console-style] .health-evidence p { color:var(--text-sub); font-size:var(--text-sm); margin:var(--space-3) 0 0; }
+html[data-console-style] .health-list { list-style:none; margin:0; padding:0; }
+html[data-console-style] .health-list li { display:flex; align-items:center; justify-content:space-between; gap:var(--space-4); padding:var(--space-4) 0; border-bottom:1px solid var(--border); }
+html[data-console-style] .health-service { display:grid; gap:var(--space-1); min-width:0; }
+html[data-console-style] .health-service strong { font-size:var(--text-base); overflow-wrap:anywhere; }
+html[data-console-style] .health-service span { font-size:var(--text-sm); color:var(--text-sub); }
+html[data-console-style] .health-status { flex-shrink:0; color:var(--text-sub); font-size:var(--text-sm); }
+html[data-console-style] .health-status[data-status="ok"] { color:var(--health-ok); }
+html[data-console-style] .health-status[data-status="warning"] { color:var(--health-warning); }
+html[data-console-style] .health-status[data-status="error"] { color:var(--health-error); }
+html[data-console-style] .health-note { color:var(--text-sub); font-size:var(--text-sm); margin:var(--space-4) 0 0; }
+html[data-console-style] #fl-grid { padding:var(--space-2) 0; }
+@media(max-width:820px) {
+  html[data-console-style][data-view="fleet"] .content { padding:var(--space-6) var(--space-4) !important; }
+  html[data-console-style] .szl-hbar .menu-btn { margin-right:var(--space-2); }
+  html[data-console-style] .health-overview { gap:var(--space-4); }
+  html[data-console-style] .health-metric { flex-basis:8rem; }
+  html[data-console-style][data-view="fleet"] :is(.card,.health-evidence) { padding:var(--space-4); }
+}
+@media(prefers-reduced-motion:reduce) {
+  html[data-console-style] :is(.szl-hbar,.side,.szl-pal,.content) *,
+  html[data-console-style] :is(.szl-hbar,.side,.szl-pal,.content) *::before,
+  html[data-console-style] :is(.szl-hbar,.side,.szl-pal,.content) *::after { animation:none !important; transition:none !important; scroll-behavior:auto !important; }
+}

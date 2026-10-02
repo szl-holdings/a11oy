@@ -12,6 +12,20 @@ permissions:
   packages: read
 
 jobs:
+  python-energy-measurement:
+    name: Energy exporter measurement and null-evidence contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install exact core test dependencies
+        run: pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Reject missing, invalid, and offline measurements through real routes
+        run: python -m pytest tests/test_energy_live_measurement_contract.py -q
+
   test:
     name: Run tests
     runs-on: ubuntu-latest
@@ -304,6 +318,10 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.11"
+      # Execute the real SDA widget contract from the existing pytest target.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
       - name: Install test deps (FastAPI TestClient over a real hardened app)
         run: |
           # szl_be_hardening builds a FastAPI app; httpx backs Starlette TestClient.
@@ -316,7 +334,7 @@ jobs:
         # data surface (POST /api/<organ>/v1/be/echo) keyed off RATE_LIMIT_PER_MIN and
         # asserts /healthz stays exempt — so a regression that throttles a health probe,
         # drops the limiter, or breaks an envelope becomes a red gate.
-        run: pytest tests/test_be_hardening.py tests/test_experimental_software_labs.py -q
+        run: pytest tests/test_be_hardening.py tests/test_experimental_software_labs.py tests/test_szl_spaces_inventory.py -q
 
   python-energy-egress-scrub:
     name: Energy /metrics private-address egress guard (pytest, offline)
@@ -405,6 +423,11 @@ jobs:
         # writers must never race under any automatic trigger. The negative fixture proves this
         # guard detects a second mutation-capable workflow instead of always passing.
         run: python3 tests/test_hf_single_writer.py
+      - name: Prove queued source admission fails closed before provider writes
+        run: |
+          python3 scripts/test_hf_exact_main_ownership.py
+          python3 tests/test_hf_sync_supersession_contract.py
+          python3 tests/test_hf_manual_prerequisites_workflow.py
 
   theorem-manifest-honesty-selftest:
     name: Theorem-manifest honesty-guard self-test (stdlib, network-free)
@@ -708,7 +731,10 @@ jobs:
         # UNAVAILABLE+reason (never a fabricated green tile), the build is a pure read, and
         # /frontier renders its surface list FROM this endpoint. A future regression that
         # drifts, pads, or hardcodes labels becomes a red gate. Fully offline. Λ = Conjecture 1.
-        run: pytest test_frontier_surfaces.py -q
+        run: >-
+          pytest test_frontier_surfaces.py
+          tests/test_frontier_manifest_readiness.py
+          tests/test_frontier_health_rollup.py -q
 
   python-v4-fleet-federation:
     name: V4 fleet peer-health federates live standalone Spaces, honestly (pytest, offline)

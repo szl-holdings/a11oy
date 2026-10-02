@@ -1,0 +1,79 @@
+name: Fabrication gate (served-model refusal posture)
+
+# Continuously measure the served SZL-Khipu brain model's refusal-to-fabricate
+# posture — the SOTA "abstention benchmark in CI" move, adapted honestly.
+# First live run (2026-10-01) found the served model FABRICATES on 2 of 4 scored
+# probes (MEASURED refusal rate 0.5) — this gate exists to surface exactly that.
+#
+# Monitor pattern (like hf-ecosystem-drift): non-blocking + auto-filed issue on
+# fabrication. The model's posture does not change per-PR, so this runs on a
+# schedule; FAIL means the served model lied on a doctrine probe THIS run.
+#   FAIL  the model answers and fabricates (issue filed, never silently green)
+#   SKIP  the endpoint is asleep (availability is not a fabrication signal)
+#   PASS  MEASURED refusal rate reported (never inflated, 0.97 ceiling)
+# No secrets: the endpoint is the estate's own public inference Space.
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fabrication-gate:
+    name: Fabrication gate (refusal-to-fabricate, MEASURED)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            objects.githubusercontent.com:443
+            szlholdings-szl-model-inference-lab.hf.space:443
+            api.github.com:443
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Run the fabrication gate
+        id: gate
+        continue-on-error: true   # monitor pattern: the verdict is recorded, main stays actionable
+        run: |
+          set -euo pipefail
+          python3 scripts/check_fabrication_gate.py
+      - name: File or update the fabrication finding
+        if: steps.gate.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_TITLE: "[FABRICATION-GATE] served model fabricated on a doctrine probe"
+        run: |
+          set -euo pipefail
+          existing="$(gh issue list --repo "$GITHUB_REPOSITORY" --search "in:title $ISSUE_TITLE" --state open --json number --jq '.[0].number // ""')"
+          body="## Fabrication gate FAIL
+
+          The served SZL-Khipu-1.5B model answered doctrine probes this run and FABRICATED on at least one (see the run's \`fabrication-gate-verdict.json\` artifact for the per-probe outcomes). This is a MEASURED reading — never inferred, never inflated.
+
+          Actionable paths: improve the model's refusal behavior (training-side, admitted through the signed Brain training-admission contract), or gate any dependent MEASURED claims on this posture honestly."
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "Re-confirmed by run $GITHUB_RUN_ID: fabrication detected again." >/dev/null
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$ISSUE_TITLE" --body "$body" >/dev/null
+          fi
+      - name: Upload immutable verdict
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: fabrication-gate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: fabrication-gate-verdict.json
+          if-no-files-found: warn

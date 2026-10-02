@@ -1,4 +1,4 @@
-/* amaru console — SZL KANCHAY v1.1.0 (founder direction), dark operator surface.
+/* amaru console — SZL KANCHAY v1.1.1 (founder direction), dark operator surface.
    The vendored founder files (public/szl/, byte-identical) are imported into cascade
    layers below Tailwind's utilities: tokens + base + components in `base`, the operator
    console layer in `components`. That keeps them first in the cascade (as linking them

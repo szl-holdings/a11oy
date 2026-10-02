@@ -13,6 +13,7 @@ dependencies = [
     "pydantic>=2.7.0",
     "httpx>=0.27.0",
 ]
+classifiers = ["Private :: Do Not Upload"]
 
 [project.optional-dependencies]
 dev = [

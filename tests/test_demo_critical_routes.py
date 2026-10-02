@@ -37,6 +37,8 @@ import serve  # noqa: E402
 # /api/a11oy/v1/compute-pool — see szl_backend_hardening.register(); either satisfies
 # the substring match.)
 DEMO_CRITICAL_ROUTES = [
+    "/api/a11oy/v1/steward/status",           # pinned public evidence, honestly 503 when stale
+    "/api/a11oy/v1/steward/proposals",        # current deterministic proposals only; no execution
     "/api/a11oy/v1/energy/operator/status",   # #460 — already restored once
     "/api/a11oy/v1/energy/ledger",            # 2026-06-16 restore
     "/api/a11oy/v1/energy/projection",        # 2026-06-16 restore
@@ -49,6 +51,8 @@ DEMO_CRITICAL_ROUTES = [
     "/orbital",                               # MODELED orbital demo PAGE (renders topology+projection)
     "/api/a11oy/v1/frontier/manifest",        # honest roll-up of every live capability (composed)
     "/frontier",                              # unified ecosystem showcase PAGE (renders the manifest roll-up)
+    "/research/confirmation",                 # frozen failed research evidence handoff
+    "/research/confirmation/workbench",       # fixed separate synthetic CPU trial workbench handoff
     "/api/a11oy/v1/agent/code/compose",       # GCAK — gated cell compose (hard gate before exec)
     "/api/a11oy/v1/agent/code/inspect",       # GCAK — read-only persistent-var inspect (no receipt)
     "/api/a11oy/v1/agent/code/status",        # GCAK — kernel + gate status
@@ -144,6 +148,26 @@ def test_no_demo_critical_route_dropped_as_a_set():
     assert not missing, f"demo-critical routes missing from the assembled table: {missing}"
 
 
+def test_confirmation_handoffs_are_owned_before_the_spa_catchall():
+    routes = list(serve.app.router.routes)
+    catchall = next(i for i, route in enumerate(routes) if getattr(route, 'path', None) == '/{full_path:path}')
+    for path, destination in (
+        ('/research/confirmation', 'https://a11oy.net/experiments/confirmation/'),
+        ('/research/confirmation/workbench', 'https://szlholdings-szl-foundation-confirmation.hf.space'),
+    ):
+        owned = [(i, route) for i, route in enumerate(routes) if getattr(route, 'path', None) == path]
+        assert len(owned) == 1
+        index, route = owned[0]
+        assert index < catchall
+        assert route.endpoint.__module__ == 'a11oy_frontier_page'
+        assert 'GET' in route.methods and 'POST' not in route.methods
+        from starlette.testclient import TestClient
+        response = TestClient(serve.app, follow_redirects=False).get(path + '?url=https://example.invalid')
+        assert response.status_code == 307
+        assert response.headers['location'] == destination
+        assert not response.headers.get('set-cookie')
+
+
 @pytest.mark.parametrize(
     "path",
     (
@@ -212,6 +236,26 @@ def test_frontier_now_routes_are_owned_and_precede_production_catchalls():
         assert index < spa_index
         if path.startswith("/api/a11oy/"):
             assert index < api_proxy_index
+
+
+def test_public_steward_routes_are_read_only_json_before_catchalls():
+    """Missing evidence may be unavailable; missing registration is a regression."""
+    from starlette.testclient import TestClient
+
+    client = TestClient(serve.app, follow_redirects=False)
+    for leaf in ("status", "proposals"):
+        path = "/api/a11oy/v1/steward/" + leaf
+        response = client.get(path)
+        assert response.status_code in (200, 503)
+        value = response.json()
+        assert value["schema_version"] == "szl.a11oy.steward.surface/v1"
+        assert value["production_ready"] is False
+        assert value["model_invoked"] is False
+        assert value["storage_writes"] == 0
+        assert client.post(path, json={}).status_code == 405
+    unknown = client.get("/api/a11oy/v1/steward/unknown")
+    assert unknown.status_code == 404
+    assert unknown.json()["state"] == "NOT_FOUND"
 
 
 def test_investor_alias_is_307_onto_console_view_not_404():

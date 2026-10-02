@@ -3,13 +3,14 @@ on:
   push:
     branches: [feat/honesty-first-paint-no-live-badge]
   workflow_dispatch:
-permissions:
-  contents: write
+permissions: read-all
 concurrency:
   group: restore-landing-honesty-once
   cancel-in-progress: false
 jobs:
   restore:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/feat/honesty-first-paint-no-live-badge'
     steps:
