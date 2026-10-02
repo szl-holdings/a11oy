@@ -12,6 +12,7 @@ Importing this module performs no network or provider mutation.
 from __future__ import annotations
 
 import importlib.util
+import os
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -228,6 +229,23 @@ def observation_passes(row: dict[str, Any], *, source_revision: str, workflow_ru
 
 _BASE.observe_flagship = observe_flagship
 _BASE.observation_passes = observation_passes
+
+
+def upload_text(api: Any, repo_id: str, path: str, content: str) -> Any:
+    """Bind every generated Hub commit title to the tested GitHub source."""
+    source_revision = os.getenv("GITHUB_SHA", "").strip().lower()
+    if len(source_revision) != 40 or any(ch not in "0123456789abcdef" for ch in source_revision):
+        raise RuntimeError("flagship upload requires an exact 40-hex GITHUB_SHA")
+    return api.upload_file(
+        path_or_fileobj=content.encode("utf-8"),
+        path_in_repo=path,
+        repo_id=repo_id,
+        repo_type="space",
+        commit_message=f"feat(domain-v4): publish {path} from szl-holdings/a11oy@{source_revision}",
+    )
+
+
+_BASE.upload_text = upload_text
 
 
 def readme(item: dict[str, Any]) -> str:
