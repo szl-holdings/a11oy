@@ -323,6 +323,15 @@ if CFG.get("slug") == "finance":
         body,code=_finance_get("providers")
         return JSONResponse(body,status_code=code,headers={"Cache-Control":"private, no-store","X-Content-Type-Options":"nosniff"})
 
+    @app.get("/version")
+    def finance_version():
+        revision=CFG.get("source_revision")
+        return JSONResponse({"schema":"szl.finance.version/v1",
+            "version":revision,"source_repository":CFG.get("source_repository"),
+            "source_revision":revision,"hf_repository":CFG.get("hf_repository"),
+            "model_revision":None,"execution_enabled":False},
+            headers={"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"})
+
     @app.get("/api/finance/overview")
     def finance_overview_projection():
         body,code=_finance_get("overview")

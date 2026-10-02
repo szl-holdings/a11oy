@@ -35,6 +35,11 @@ def witness():
         if path == "/api/build-info":
             body = {"schema": "szl.build-info/v1", "source_repository": "szl-holdings/a11oy",
                     "source_revision": REVISION, "hf_repository": "SZLHOLDINGS/finance"}
+        elif path == "/version":
+            body = {"schema": "szl.finance.version/v1", "version": REVISION,
+                    "source_repository": "szl-holdings/a11oy", "source_revision": REVISION,
+                    "hf_repository": "SZLHOLDINGS/finance", "model_revision": None,
+                    "execution_enabled": False}
         elif path == "/api/finance/providers":
             body = client.registry()
         elif path.endswith("signals/AAPL?origin=fixture"):
@@ -63,13 +68,15 @@ def test_all_public_functional_contracts_accept_only_exact_source(witness):
     result = gate.observe_finance(REVISION, request=request)
     assert result["complete"] is True
     assert result["live_coinbase_verified"] is True
-    assert len(result["probes"]) == 9
+    assert len(result["probes"]) == 10
     assert result["receipt_authenticity_established"] is False
     assert all(row["accepted"] for row in result["probes"])
 
 
 @pytest.mark.parametrize("path,mutate", [
     ("/api/build-info", lambda b: {**b, "source_revision": "2" * 40}),
+    ("/version", lambda b: {**b, "version": "2" * 40}),
+    ("/version", lambda b: {**b, "model_revision": "unverified-model"}),
     ("/api/finance/v2/signals/AAPL?origin=fixture", lambda b: {"ok": False, "error": "CANONICAL_INTERNAL_ERROR"}),
     ("/api/finance/v2/signals/BTC-USD", lambda b: {**b, "truth_label": "MEASURED"}),
     ("/api/finance/providers", lambda b: {**b, "sources": b["sources"][:-1]}),
@@ -90,6 +97,17 @@ def test_no_raw_transport_error_or_upstream_body_is_retained(witness):
     assert result["complete"] is False
     assert "secret" not in json.dumps(result)
     assert all(not row["accepted"] for row in result["probes"])
+
+
+def test_missing_public_version_route_fails_finance_qualification(witness):
+    gate, request, _ = witness
+    def missing_version(path, content):
+        if path == "/version":
+            return 404, json.dumps({"detail": "Not Found"}).encode()
+        return request(path, content)
+    result = gate.observe_finance(REVISION, request=missing_version)
+    assert result["complete"] is False
+    assert next(row for row in result["probes"] if row["label"] == "version")["accepted"] is False
 
 
 def test_automatic_projection_follows_relock_and_shares_existing_writer():

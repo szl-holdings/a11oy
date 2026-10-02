@@ -475,7 +475,9 @@ def test_generated_finance_projection_preserves_canonical_data_and_no_secret_for
     proxy = load_module("finance_projection_test", root / "scripts/hf_finance_read_proxy.py")
     # Exercise the actual generated application code, not a copied proxy.
     generator = load_module("flagship_base_test", root / "scripts/_hf_publish_vertical_flagships_v4_impl_base.py")
-    cfg = {"slug": "finance", "title": "PURIQ", "upstream": "unused", "hf_repository": "SZLHOLDINGS/finance", "source_revision": "1" * 40}
+    cfg = {"slug": "finance", "title": "PURIQ", "upstream": "unused",
+           "source_repository": "szl-holdings/a11oy", "hf_repository": "SZLHOLDINGS/finance",
+           "source_revision": "1" * 40}
     (tmp_path / "config.json").write_text(json.dumps(cfg))
     (tmp_path / "index.html").write_text("<main>fixture</main>")
     (tmp_path / "panels.html").write_text("<main>fixture</main>")
@@ -502,6 +504,14 @@ def test_generated_finance_projection_preserves_canonical_data_and_no_secret_for
     from types import SimpleNamespace
     namespace["httpx"] = SimpleNamespace(Client=ProxyClient)
     http = TestClient(namespace["app"])
+    version = http.get("/version")
+    assert version.status_code == 200
+    assert version.json() == {"schema": "szl.finance.version/v1", "version": "1" * 40,
+                              "source_repository": "szl-holdings/a11oy", "source_revision": "1" * 40,
+                              "hf_repository": "SZLHOLDINGS/finance", "model_revision": None,
+                              "execution_enabled": False}
+    assert version.headers["cache-control"] == "no-store"
+    assert called == []
     reply = http.get("/api/finance/observations/coinbase-ticker?product=BTC-USD", headers={"Authorization": "private-fixture"})
     assert reply.status_code == 200 and reply.json() == payload
     assert "Authorization" not in called[0][2]
@@ -531,6 +541,19 @@ def test_publisher_overlay_keeps_finance_on_existing_writer_and_base_unchanged()
     assert row["source"].endswith("a11oy/tree/main/verticals/puriq-markets")
     assert "Public finance projection" in overlay.APP
     assert overlay.TERRA_FORGE_GENERATOR == "szl-vertical-forge/0.2.2"
+
+
+def test_version_route_is_finance_only(tmp_path, monkeypatch):
+    root = Path(__file__).resolve().parents[1]
+    proxy = load_module("finance_projection_isolation", root / "scripts/hf_finance_read_proxy.py")
+    generator = load_module("flagship_isolation_base", root / "scripts/_hf_publish_vertical_flagships_v4_impl_base.py")
+    (tmp_path / "config.json").write_text(json.dumps({"slug": "terra", "title": "Terra"}))
+    (tmp_path / "index.html").write_text("fixture")
+    (tmp_path / "panels.html").write_text("fixture")
+    monkeypatch.chdir(tmp_path)
+    namespace = {"__name__": "generated_terra_without_finance_version"}
+    exec(compile(proxy.augment(generator.APP), "terra_app", "exec"), namespace)
+    assert TestClient(namespace["app"]).get("/version").status_code == 404
 
 
 def test_oversized_identifiers_are_rejected_not_truncated_to_another_asset():
