@@ -35,9 +35,7 @@ SOURCE_MANAGED_PATHS = {"pages/integrations.html"}
 # the global journey rail would recreate stacked navigation rather than improve
 # discoverability, so each exclusion is explicit and machine-recorded. Command
 # v2 owns a top rail, room rail, command palette, and responsive mobile dock.
-# OAC is a read-only release handoff with its own compact origin navigation;
-# injecting the global JavaScript rail would violate its no-script contract.
-SELF_CONTAINED_PATHS = {"pages/command-v2.html", "pages/oac.html", "pages/wires.html"}
+SELF_CONTAINED_PATHS = {"pages/command-v2.html", "pages/wires.html"}
 SOURCE_BOUNDARY_MARKERS = ("DO NOT EDIT HERE.", "VENDORED FROM ")
 
 
@@ -62,11 +60,25 @@ def self_contained(path: Path) -> bool:
     return relative(path) in SELF_CONTAINED_PATHS
 
 
+def opted_out(path: Path) -> bool:
+    """Return True when a document opts out of the global JavaScript rail."""
+    try:
+        head = path.read_text(encoding="utf-8")[:4096]
+    except (OSError, UnicodeError):
+        return False
+    return "data-szl-flow-opt-out" in head
+
+
 def candidates() -> list[Path]:
     found: set[Path] = set()
     for rel in EXACT:
         path = ROOT / rel
-        if path.is_file() and not source_managed(path) and not self_contained(path):
+        if (
+            path.is_file()
+            and not source_managed(path)
+            and not self_contained(path)
+            and not opted_out(path)
+        ):
             found.add(path)
     for pattern in GLOBS:
         for path in ROOT.glob(pattern):
@@ -75,6 +87,7 @@ def candidates() -> list[Path]:
                 and not (set(path.relative_to(ROOT).parts) & EXCLUDE_PARTS)
                 and not source_managed(path)
                 and not self_contained(path)
+                and not opted_out(path)
             ):
                 found.add(path)
     return sorted(found)
