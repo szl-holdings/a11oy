@@ -44,6 +44,8 @@ jobs:
         run: node scripts/test_holo_lab_security.mjs
       - name: Killinchu on-origin status truth contract
         run: node --test tests/test_killinchu_status_page.cjs
+      - name: Offline DSSE receipt verification and stale-result boundaries
+        run: node --test tests/test_public_verify_page.cjs
       - name: Enable corepack and install pnpm 10.33.3
         run: |
           corepack enable
