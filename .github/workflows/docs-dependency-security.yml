@@ -54,6 +54,9 @@ jobs:
       - name: Audit the installed docs dependency tree
         working-directory: docs/site
         run: npm audit
+      - name: Verify parsed search text extraction
+        working-directory: docs/site
+        run: node --test plain-text.test.mjs
       - name: Build docs and diagram integration
         working-directory: docs/site
         run: npm run docs:build
