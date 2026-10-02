@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Sidecar for tools/readiness-harness/probe_runner.mjs.
-// Nested freshness.status=UNAVAILABLE is honest only on the exact
-// canonical unavailable envelope. Do not expand allowLabels.
+// Nested freshness.status=UNAVAILABLE or unavailable is honest only on an
+// exact canonical unavailable envelope. Do not expand allowLabels.
 
 export function sourceOwningFreshnessStatus(body, path, valueAtPath) {
   const text = String(path || "");
