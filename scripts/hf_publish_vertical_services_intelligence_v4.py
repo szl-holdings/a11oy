@@ -57,6 +57,7 @@ INTELLIGENCE_ALIASES = {
 }
 
 MODEL_ASSETS = {
+    "khipu-gguf-public": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF",
     "khipu-1.5b": "SZLHOLDINGS/SZL-Khipu-1.5B",
     "receipt-agent": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2",
     "a11oy-mini": "SZLHOLDINGS/A11OY-MINI",
@@ -118,6 +119,29 @@ def request_text(base: ModuleType, path: str) -> tuple[int, str]:
             return response.status, response.read().decode("utf-8", errors="replace")
     except urllib.error.HTTPError as exc:
         return exc.code, exc.read().decode("utf-8", errors="replace")
+
+
+def profile_models_match(vertical: str, rows: Any) -> bool:
+    """Match the exact source-owned role/repository set, including Finance's demo.
+
+    This checks declared bindings only; it does not invoke or qualify a model.
+    """
+    expected = {"khipu-1.5b", "receipt-agent", "a11oy-mini"}
+    if vertical == "finance":
+        expected.add("khipu-gguf-public")
+    if vertical not in CANONICAL_VERTICALS or not isinstance(rows, list) or len(rows) != len(expected):
+        return False
+    observed = set()
+    for row in rows:
+        if not isinstance(row, dict):
+            return False
+        alias = row.get("alias")
+        if (not isinstance(alias, str) or alias not in expected or alias in observed
+                or row.get("repo_id") != MODEL_ASSETS[alias]
+                or row.get("credential_value_exposed") is not False):
+            return False
+        observed.add(alias)
+    return observed == expected
 
 
 def verify_intelligence(base: ModuleType) -> dict[str, Any]:
@@ -201,7 +225,7 @@ def verify_intelligence(base: ModuleType) -> dict[str, Any]:
             profile_status == 200
             and profile.get("vertical") == vertical
             and len(profile.get("tasks", {})) == 4
-            and len(model_rows) == 3
+            and profile_models_match(vertical, model_rows)
             and len(kernel_rows) >= 5
             and len(profile.get("novel_capabilities", [])) == 3
             and policy.get("caller_supplied_model_endpoints_allowed") is False
