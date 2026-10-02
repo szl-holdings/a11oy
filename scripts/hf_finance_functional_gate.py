@@ -77,6 +77,17 @@ def observe_finance(revision, *, request=read):
             if body.get("error"):
                 error = body["error"]
                 row["response_error"] = error if isinstance(error, str) and re.fullmatch(r"[A-Z][A-Z0-9_]{0,95}", error) else "UNEXPECTED_ERROR"
+                boundary = body.get("upstream_response")
+                if isinstance(boundary, dict):
+                    status_code = boundary.get("http_status")
+                    media = boundary.get("media_type")
+                    host = boundary.get("redirect_host")
+                    if type(status_code) is int and 100 <= status_code <= 599:
+                        row["upstream_http_status"] = status_code
+                    if media in ("JSON", "HTML", "TEXT", "OTHER", "MISSING"):
+                        row["upstream_media_type"] = media
+                    if isinstance(host, str) and len(host) <= 253 and re.fullmatch(r"[a-z0-9.-]+", host):
+                        row["upstream_redirect_host"] = host
             if operation:
                 if status != 200:
                     raise ValueError("ANALYTICS_UNAVAILABLE")
@@ -97,6 +108,13 @@ def observe_finance(revision, *, request=read):
           check=lambda status, body: status == 200 and body.get("schema") == "szl.build-info/v1"
               and body.get("source_repository") == "szl-holdings/a11oy"
               and body.get("source_revision") == revision and body.get("hf_repository") == "SZLHOLDINGS/finance")
+    probe("version", "version", path="/version",
+          check=lambda status, body: status == 200 and body.get("schema") == "szl.finance.version/v1"
+              and body.get("version") == revision and body.get("source_revision") == revision
+              and body.get("source_repository") == "szl-holdings/a11oy"
+              and body.get("hf_repository") == "SZLHOLDINGS/finance"
+              and "model_revision" in body and body["model_revision"] is None
+              and body.get("execution_enabled") is False)
     probe("providers", "providers", check=lambda status, body: len(body.get("sources", [])) == 16)
     fixture = probe("synthetic-signals", "analytics/v2/signals/AAPL", operation="signals", query=(("origin", "fixture"),))
     probe("synthetic-quote", "analytics/v2/quote/AAPL", operation="quote", query=(("origin", "fixture"),))

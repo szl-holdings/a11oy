@@ -18,7 +18,7 @@ if CFG.get("slug") == "finance":
     import math as _finance_math
     import re as _finance_re
     import time as _finance_time
-    from urllib.parse import urlencode as _finance_urlencode
+    from urllib.parse import urlencode as _finance_urlencode, urlsplit as _finance_urlsplit
     _FINANCE_ORIGIN = "https://szlholdings-a11oy.hf.space"
     _FINANCE_PREFIX = "/api/a11oy/v1/finance/"
     _FINANCE_COMPONENT = __COMPONENT_BINDING__
@@ -27,6 +27,23 @@ if CFG.get("slug") == "finance":
 
     def _finance_unavailable(code, status=503):
         return {"ok":False,"state":"UNAVAILABLE","error":code,"execution_enabled":False},status
+
+    def _finance_upstream_rejected(response, mime):
+        body,status=_finance_unavailable("CANONICAL_SOURCE_UNAVAILABLE")
+        location=response.headers.get("location","")
+        host=None
+        if isinstance(location,str) and len(location)<=2048:
+            try:
+                candidate=_finance_urlsplit(location).hostname
+                if candidate and len(candidate)<=253 and _finance_re.fullmatch(r"[a-z0-9.-]+",candidate):
+                    host=candidate
+            except ValueError:
+                pass
+        media="JSON" if mime=="application/json" or mime.startswith("application/") and mime.endswith("+json") else "HTML" if mime=="text/html" else "TEXT" if mime.startswith("text/") else "OTHER" if mime else "MISSING"
+        code=response.status_code
+        body["upstream_response"]={"http_status":code if type(code) is int and 100<=code<=599 else None,
+            "media_type":media,"redirect_host":host}
+        return body,status
 
     def _finance_json(raw):
         def pairs(items):
@@ -198,7 +215,7 @@ if CFG.get("slug") == "finance":
                 with client.stream(method,target,headers={"Accept":"application/json","Accept-Encoding":"identity","Content-Type":"application/json","User-Agent":"SZL-Finance-Projection/1.1"},**options) as response:
                     mime=response.headers.get("content-type","").split(";",1)[0].strip().lower()
                     if response.status_code not in (200,403,404,422,503) or not (mime=="application/json" or mime.startswith("application/") and mime.endswith("+json")):
-                        return _finance_unavailable("CANONICAL_SOURCE_UNAVAILABLE")
+                        return _finance_upstream_rejected(response,mime)
                     if response.headers.get("content-encoding","identity").lower() not in ("","identity"):
                         return _finance_unavailable("CANONICAL_ENCODING_DENIED")
                     declared=response.headers.get("content-length")
@@ -322,6 +339,15 @@ if CFG.get("slug") == "finance":
     def finance_provider_projection():
         body,code=_finance_get("providers")
         return JSONResponse(body,status_code=code,headers={"Cache-Control":"private, no-store","X-Content-Type-Options":"nosniff"})
+
+    @app.get("/version")
+    def finance_version():
+        revision=CFG.get("source_revision")
+        return JSONResponse({"schema":"szl.finance.version/v1",
+            "version":revision,"source_repository":CFG.get("source_repository"),
+            "source_revision":revision,"hf_repository":CFG.get("hf_repository"),
+            "model_revision":None,"execution_enabled":False},
+            headers={"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"})
 
     @app.get("/api/finance/overview")
     def finance_overview_projection():

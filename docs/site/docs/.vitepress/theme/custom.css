@@ -2,127 +2,127 @@
    (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 */
 
 /* ============================================================================
-   SZL Holdings documentation theme on SZL Kanchay v1.0.0.
-   Math-grounded, Quechua-rooted, zero mysticism. Dark + light.
+   SZL Holdings documentation theme on SZL KANCHAY 1.1.1 (founder direction).
+   Math-grounded, Quechua-rooted, zero mysticism. The docs are the dark
+   operator surface; VitePress light mode is the design system's light surface.
 
-   Tokens come from ../../public/kanchay/kanchay.css, vendored byte for byte
-   from szl-holdings/szl-brand (kanchay/) and linked from config.mjs `head`.
-   It carries every token (dark roles on :root, light roles under
-   [data-theme="light"]) and the local @font-face rules for Space Grotesk,
-   Inter and JetBrains Mono.
-
-   Theme switch: VitePress toggles `.dark` on <html>. The inline head script
-   `kanchay-theme-sync` (config.mjs) mirrors that class onto `data-theme`, so
-   each role below resolves to the exported dark or light value. No value is
-   restated here: this file holds no color or font literal, only var(--...)
-   tokens and color-mix() washes of them.
+   Tokens come from ../../public/szl/szl-design-system.css, vendored byte for
+   byte from szl-holdings/szl-brand (kanchay/) and loaded before this file.
+   Its :root is the dark operator surface and [data-surface="light"] flips the
+   same roles to their light values. The inline head script `szl-surface-sync`
+   (config.mjs) sets data-surface="light" whenever VitePress is not in `.dark`,
+   so every role below resolves to the exact founder value in both modes; the
+   few per-surface choices sit in explicit [data-surface="light"] blocks, by
+   token. No color or font literal lives here: only var(--...) tokens and
+   color-mix() washes of them. Type is the system font stacks; no webfonts.
    ========================================================================== */
 
-/* --- VitePress variables -> Kanchay roles (both themes) --- */
+/* --- VitePress variables -> KANCHAY roles --- */
 :root,
 .dark {
-  /* Type */
-  --vp-font-family-base: var(--font-sans);
+  /* Type: device font stacks */
+  --vp-font-family-base: var(--font-body);
   --vp-font-family-mono: var(--font-mono);
 
-  /* Grounds: page, recessed (sidebar, inputs), raised (cards, tables, menus) */
-  --vp-c-bg: var(--color-a11oy-bg);
-  --vp-c-bg-alt: var(--color-a11oy-deep);
-  --vp-c-bg-elv: var(--color-a11oy-surface);
-  --vp-c-bg-soft: var(--color-a11oy-surface);
+  /* Neutrals carry the page: ground, recessed (sidebar, inputs), cards, menus */
+  --vp-c-bg: var(--bg);
+  --vp-c-bg-alt: var(--bg-deep);
+  --vp-c-bg-soft: var(--surface);
+  --vp-c-bg-elv: var(--surface-raised);
 
-  /* Edges: control edges; dividers between regions (nav, sidebar, sections,
-     table cells). Card and code edges use --color-a11oy-border-subtle below. */
-  --vp-c-border: var(--color-control-border);
-  --vp-c-divider: var(--color-a11oy-border);
-  --vp-c-gutter: var(--color-a11oy-border);
+  /* Edges: control edges >= 3:1, silver hairline dividers, region seams */
+  --vp-c-border: var(--text-ghost);
+  --vp-c-divider: var(--hairline);
+  --vp-c-gutter: var(--border);
 
   /* Text */
-  --vp-c-text-1: var(--color-a11oy-text);
-  --vp-c-text-2: var(--color-a11oy-text-sub);
-  --vp-c-text-3: var(--color-a11oy-text-ghost);
-  --vp-c-neutral: var(--color-a11oy-text);
-  --vp-c-neutral-inverse: var(--color-a11oy-bg);
+  --vp-c-text-1: var(--text);
+  --vp-c-text-2: var(--text-sub);
+  --vp-c-text-3: var(--text-ghost);
+  --vp-c-neutral: var(--text);
+  --vp-c-neutral-inverse: var(--bg);
 
-  /* Neutral fills: hover and pressed */
-  --vp-c-default-1: var(--color-a11oy-border);
-  --vp-c-default-2: var(--color-a11oy-overlay);
-  --vp-c-default-3: var(--color-a11oy-overlay);
-  --vp-c-default-soft: color-mix(in srgb, var(--color-a11oy-overlay) 55%, transparent);
+  /* Neutral fills: hover, pressed, soft grounds */
+  --vp-c-default-1: var(--border);
+  --vp-c-default-2: var(--surface-raised);
+  --vp-c-default-3: var(--surface);
+  --vp-c-default-soft: color-mix(in srgb, var(--text) 7%, transparent);
 
-  /* Brand = gold, the only accent: primary action, active nav, card titles */
-  --vp-c-brand-1: var(--color-a11oy-gold);
-  --vp-c-brand-2: var(--gold-bright);
-  --vp-c-brand-3: var(--color-a11oy-gold);
-  --vp-c-brand-soft: color-mix(in srgb, var(--color-a11oy-gold) 12%, transparent);
+  /* Mostly neutral, one coral moment. VitePress's text-level "brand" (active
+     nav text, sidebar and outline active states) is the strongest neutral.
+     Coral is only the primary-action fill (--vp-button-brand-*) and the
+     active-nav marker below. Prose links re-point to teal in .vp-doc. */
+  --vp-c-brand-1: var(--text);
+  --vp-c-brand-2: var(--text);
+  --vp-c-brand-3: var(--accent);
+  --vp-c-brand-soft: var(--vp-c-default-soft);
 
-  /* Callouts. Links and code inside tip / note / important blocks are teal
-     ink (proof); warning and danger keep their status inks. Washes are 10%
-     so the doubled code chip inside a block stays >= 5:1 in both themes. */
-  --vp-c-tip-1: var(--color-ink-signal);
-  --vp-c-tip-2: var(--color-a11oy-text);
-  --vp-c-tip-3: var(--teal);
-  --vp-c-tip-soft: color-mix(in srgb, var(--teal) 10%, transparent);
-  --vp-c-note-1: var(--color-ink-signal);
-  --vp-c-note-2: var(--color-a11oy-text);
-  --vp-c-note-3: var(--color-info);
-  --vp-c-note-soft: color-mix(in srgb, var(--color-info) 10%, transparent);
-  --vp-c-important-1: var(--color-ink-signal);
-  --vp-c-important-2: var(--color-a11oy-text);
-  --vp-c-important-3: var(--color-a11oy-gold);
-  --vp-c-important-soft: color-mix(in srgb, var(--color-a11oy-gold) 10%, transparent);
+  /* Callouts: neutral grounds with teal links for info / tip / note /
+     important; warning and danger sit on 10% status washes (inks per surface
+     below) and always carry their title word. */
+  --vp-c-tip-1: var(--link);
+  --vp-c-tip-2: var(--link-hover);
+  --vp-c-tip-3: var(--link);
+  --vp-c-tip-soft: var(--vp-c-default-soft);
+  --vp-c-note-1: var(--link);
+  --vp-c-note-2: var(--link-hover);
+  --vp-c-note-3: var(--link);
+  --vp-c-note-soft: var(--vp-c-default-soft);
+  --vp-c-important-1: var(--link);
+  --vp-c-important-2: var(--link-hover);
+  --vp-c-important-3: var(--link);
+  --vp-c-important-soft: var(--vp-c-default-soft);
   --vp-c-success-1: var(--color-success);
-  --vp-c-success-2: var(--color-a11oy-text);
+  --vp-c-success-2: var(--color-success);
   --vp-c-success-3: var(--color-success);
   --vp-c-success-soft: color-mix(in srgb, var(--color-success) 10%, transparent);
-  --vp-c-warning-1: var(--color-ink-caution);
-  --vp-c-warning-2: var(--color-a11oy-text);
   --vp-c-warning-3: var(--color-warning);
   --vp-c-warning-soft: color-mix(in srgb, var(--color-warning) 10%, transparent);
-  --vp-c-danger-1: var(--color-ink-danger);
-  --vp-c-danger-2: var(--color-a11oy-text);
   --vp-c-danger-3: var(--color-error);
   --vp-c-danger-soft: color-mix(in srgb, var(--color-error) 10%, transparent);
-  --vp-c-caution-1: var(--color-ink-danger);
-  --vp-c-caution-2: var(--color-a11oy-text);
   --vp-c-caution-3: var(--color-error);
   --vp-c-caution-soft: color-mix(in srgb, var(--color-error) 10%, transparent);
+  --vp-custom-block-font-size: var(--text-base);
+  --vp-custom-block-code-font-size: var(--text-sm);
 
-  /* Code: inline code and code links are teal ink */
-  --vp-code-color: var(--color-ink-signal);
-  --vp-code-link-color: var(--color-ink-signal);
-  --vp-code-link-hover-color: var(--color-a11oy-text);
-  --vp-code-lang-color: var(--color-a11oy-text-sub);
+  /* Code: neutral inline code, teal code links, dark wells (see below) */
+  --vp-code-color: var(--text);
+  --vp-code-link-color: var(--link);
+  --vp-code-link-hover-color: var(--link-hover);
+  --vp-code-block-bg: var(--bg-deep);
+  --vp-code-block-color: var(--text-sub);
+  --vp-code-lang-color: var(--text-ghost);
 
-  /* Buttons: one gold fill (brand), secondary on overlay (alt) */
+  /* Buttons: coral primary (.btn-primary), secondary alt (.btn-secondary)
+     with a >= 3:1 edge */
   --vp-button-brand-border: transparent;
-  --vp-button-brand-text: var(--color-on-accent);
-  --vp-button-brand-bg: var(--color-a11oy-gold);
+  --vp-button-brand-text: var(--accent-ink);
   --vp-button-brand-hover-border: transparent;
-  --vp-button-brand-hover-text: var(--color-on-accent);
-  --vp-button-brand-hover-bg: var(--gold-bright);
+  --vp-button-brand-hover-text: var(--accent-ink);
   --vp-button-brand-active-border: transparent;
-  --vp-button-brand-active-text: var(--color-on-accent);
-  --vp-button-brand-active-bg: var(--gold-bright);
-  --vp-button-alt-border: transparent;
-  --vp-button-alt-text: var(--color-a11oy-text);
-  --vp-button-alt-bg: var(--color-a11oy-overlay);
-  --vp-button-alt-hover-border: transparent;
-  --vp-button-alt-hover-text: var(--color-a11oy-text);
-  --vp-button-alt-hover-bg: color-mix(in srgb, var(--color-a11oy-overlay) 80%, transparent);
-  --vp-button-alt-active-border: transparent;
-  --vp-button-alt-active-text: var(--color-a11oy-text);
-  --vp-button-alt-active-bg: color-mix(in srgb, var(--color-a11oy-overlay) 80%, transparent);
+  --vp-button-brand-active-text: var(--accent-ink);
+  --vp-button-alt-border: var(--text-ghost);
+  --vp-button-alt-text: var(--text);
+  --vp-button-alt-bg: transparent;
+  --vp-button-alt-hover-border: var(--text-sub);
+  --vp-button-alt-hover-text: var(--text);
+  --vp-button-alt-hover-bg: color-mix(in srgb, var(--text) 6%, transparent);
+  --vp-button-alt-active-border: var(--text-sub);
+  --vp-button-alt-active-text: var(--text);
+  --vp-button-alt-active-bg: color-mix(in srgb, var(--text) 6%, transparent);
 
-  /* Home hero: a light headline in text color, no gradient, no glow */
-  --vp-home-hero-name-color: var(--color-a11oy-text);
+  /* Home hero: a bold headline in text color; no gradient, no glow */
+  --vp-home-hero-name-color: var(--text);
   --vp-home-hero-name-background: transparent;
   --vp-home-hero-image-background-image: none;
   --vp-home-hero-image-filter: none;
 
+  /* Navigation */
+  --vp-nav-logo-height: 32px;
+
   /* Local search */
-  --vp-local-search-highlight-bg: color-mix(in srgb, var(--color-a11oy-gold) 22%, transparent);
-  --vp-local-search-highlight-text: var(--color-a11oy-text);
+  --vp-local-search-highlight-bg: color-mix(in srgb, var(--text) 16%, transparent);
+  --vp-local-search-highlight-text: var(--text);
 
   /* Depth: borders first; shadows only on what floats */
   --vp-shadow-1: var(--shadow-sm);
@@ -132,108 +132,296 @@
   --vp-shadow-5: var(--shadow-xl);
 }
 
-/* Code blocks: Shiki's github-light / github-dark syntax colors are tuned for
-   a white and a near-black well, so light sits on the raised surface and dark
-   on the recessed ground (the highest-contrast role in each theme). */
+/* Per-surface picks. Status inks are the scale steps szl-console.css uses for
+   --ink-warn / --ink-bad. The primary action keeps its label >= 4.5:1: on the
+   light surface white on --accent is 4.48:1 and on --accent-hover 3.11:1, so
+   light uses --accent-press throughout; on dark, --accent-press would drop the
+   navy label to 4.24:1, so press stays on --accent. */
 :root {
-  --vp-code-block-bg: var(--color-a11oy-surface);
+  --vp-c-warning-1: var(--color-warning-light);
+  --vp-c-warning-2: var(--color-hatun-100);
+  --vp-c-danger-1: var(--color-error-light);
+  --vp-c-danger-2: var(--color-yawar-100);
+  --vp-c-caution-1: var(--color-error-light);
+  --vp-c-caution-2: var(--color-yawar-100);
+  --vp-button-brand-bg: var(--accent);
+  --vp-button-brand-hover-bg: var(--accent-hover);
+  --vp-button-brand-active-bg: var(--accent);
 }
-.dark {
-  --vp-code-block-bg: var(--color-a11oy-deep);
+[data-surface="light"] {
+  --vp-c-warning-1: var(--color-hatun-800);
+  --vp-c-warning-2: var(--color-hatun-900);
+  --vp-c-danger-1: var(--color-yawar-600);
+  --vp-c-danger-2: var(--color-yawar-700);
+  --vp-c-caution-1: var(--color-yawar-600);
+  --vp-c-caution-2: var(--color-yawar-700);
+  --vp-button-brand-bg: var(--accent-press);
+  --vp-button-brand-hover-bg: var(--accent-press);
+  --vp-button-brand-active-bg: var(--accent-press);
+}
+[data-surface="light"] .VPButton.brand:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* --- Code blocks stay dark on both surfaces ---
+   Dark: the --bg-deep well. Light: the well re-points at the dark operator
+   values by scale step (space-900 ground, gray-200 text, gray-400 labels,
+   gray-800 / -700 / -600 controls).
+   Syntax colors: Shiki emits var(--shiki-*) (config.mjs). They follow the
+   design system's code block (.code .tok-*: comment --text-ghost, key --link,
+   string --color-success-light, number --premium), fixed at their dark operator
+   values by scale step because the well is dark on both surfaces. */
+:root {
+  --shiki-foreground: var(--color-gray-200);
+  --shiki-token-comment: var(--color-gray-400);
+  --shiki-token-keyword: var(--color-yuyay-200);
+  --shiki-token-link: var(--color-yuyay-200);
+  --shiki-token-string: var(--color-success-light);
+  --shiki-token-string-expression: var(--color-success-light);
+  --shiki-token-constant: var(--color-hatun-300);
+  --shiki-token-function: var(--color-gray-50);
+  --shiki-token-parameter: var(--color-gray-200);
+  --shiki-token-punctuation: var(--color-gray-200);
+}
+[data-surface="light"] .vp-doc div[class*='language-'] {
+  --vp-code-block-bg: var(--color-space-900);
+  --vp-code-block-color: var(--color-gray-200);
+  --vp-code-lang-color: var(--color-gray-400);
+  --vp-code-line-highlight-color: color-mix(in srgb, var(--color-gray-50) 8%, transparent);
+  --vp-code-copy-code-bg: var(--color-gray-800);
+  --vp-code-copy-code-border-color: var(--color-gray-600);
+  --vp-code-copy-code-hover-bg: var(--color-gray-700);
+  --vp-code-copy-code-hover-border-color: var(--color-gray-600);
+  --vp-code-copy-code-active-text: var(--color-gray-200);
 }
 @media (min-width: 640px) {
   .vp-doc div[class*='language-'] {
-    border: var(--border-hairline) solid var(--color-a11oy-border-subtle);
+    border: var(--border-hairline) solid var(--border);
+  }
+  [data-surface="light"] .vp-doc div[class*='language-'] {
+    border-color: var(--color-gray-600);
   }
 }
 
-/* --- Prose: links are teal ink (proof), not gold ---
-   VitePress colors content links from --vp-c-brand-1/-2; re-point them inside
-   .vp-doc only, so the chrome (nav, sidebar, buttons) keeps the gold brand. */
+/* --- Prose: links are teal (--link), underlined ---
+   VitePress colors content links from --vp-c-brand-1/-2; re-point them
+   inside .vp-doc only, so the chrome keeps its neutral active states. */
 .vp-doc {
-  --vp-c-brand-1: var(--color-ink-signal);
-  --vp-c-brand-2: var(--color-a11oy-text);
+  --vp-c-brand-1: var(--link);
+  --vp-c-brand-2: var(--link-hover);
+}
+/* Callouts: links stay teal and inline code stays neutral in every callout
+   type (VitePress would tint both with the callout's status color). */
+.vp-doc .custom-block code {
+  color: var(--vp-code-color);
+}
+.vp-doc .custom-block a,
+.vp-doc .custom-block a > code {
+  color: var(--link);
+}
+.vp-doc .custom-block a:hover,
+.vp-doc .custom-block a:hover > code {
+  color: var(--link-hover);
+}
+.vp-doc p,
+.vp-doc li {
+  line-height: var(--leading-normal);
+}
+/* The doc footer's "Edit this page" link and prev / next pager are links too. */
+.VPDocFooter {
+  --vp-c-brand-1: var(--link);
+  --vp-c-brand-2: var(--link-hover);
 }
 
-::selection {
-  background: color-mix(in srgb, var(--color-a11oy-gold) 22%, transparent);
-  color: var(--color-a11oy-text);
-}
-
-/* --- Focus: one teal ring on every interactive element --- */
-:is(a, button, summary, input, select, textarea, [tabindex]:not([tabindex='-1'])):focus-visible {
-  outline: var(--border-focus) solid var(--color-focus);
+/* --- Focus ---
+   Drawn by the design system's base rule in --focus (--shadow-focus); the
+   vendored bundle owns that ring, so a re-vendor updates it everywhere.
+   VitePress gives buttons and its search button their own outline in the
+   browser's ring color (button:focus-visible, .DocSearch-Button:focus), which
+   outranks the base rule's zero specificity in every bundle version. On those
+   controls only, the outline is the one KANCHAY 1.1.1 draws: solid --focus. */
+html :is(button, .DocSearch-Button):focus-visible {
+  outline: var(--border-thick) solid var(--focus);
   outline-offset: 2px;
 }
-
-/* Skip link: gold fill with on-accent text while focused */
-.VPSkipLink {
-  --vp-c-brand-1: var(--color-on-accent);
-  --vp-c-bg: var(--color-a11oy-gold);
+/* The local search field: a >= 3:1 control edge at rest, --focus when focused. */
+html .VPLocalSearchBox .search-bar {
+  border-color: var(--vp-c-border);
+}
+html .VPLocalSearchBox .search-bar:focus-within {
+  border-color: var(--focus);
 }
 
-/* --- Headlines: Space Grotesk --- */
+/* --- Keep VitePress's own components intact ---
+   szl-design-system.css ships a base layer and generic helpers named
+   .container and .nav, class names VitePress also uses inside its
+   components. Revert only what the design system adds there, at a
+   specificity below VitePress's scoped component rules. */
+html .container {
+  width: revert;
+  max-width: revert;
+  margin-inline: revert;
+  padding-inline: revert;
+}
+html .nav {
+  position: revert;
+  top: revert;
+  z-index: revert;
+  display: revert;
+  align-items: revert;
+  gap: revert;
+  height: revert;
+  padding-inline: revert;
+  background: revert;
+  -webkit-backdrop-filter: revert;
+  backdrop-filter: revert;
+  border-bottom: revert;
+}
+html :where(.VPNav, .VPLocalNav, .VPNavScreen, .VPSidebar, .VPDocAside, .VPDocFooter, .VPFooter, .VPHero, .VPFeatures) p {
+  max-width: revert;
+}
+html :where(.VPNav, .VPLocalNav, .VPNavScreen, .VPSidebar, .VPDocAside, .VPDocFooter, .VPFooter, .VPHero, .VPFeatures) a:hover {
+  text-decoration: inherit;
+}
+
+/* --- Navigation: the active top-nav item carries the coral marker --- */
+.VPNavBar .VPNavBarTitle .title {
+  font-family: var(--font-display);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-tight);
+}
+.VPNavBarTitle .title .logo {
+  margin-right: var(--space-4);
+}
+.VPNavBarMenuLink.active,
+.VPNavBarMenuGroup.active {
+  position: relative;
+}
+.VPNavBarMenuLink.active::after,
+.VPNavBarMenuGroup.active::after {
+  content: "";
+  position: absolute;
+  left: var(--space-3);
+  right: var(--space-3);
+  bottom: 0;
+  height: var(--border-thick);
+  border-radius: var(--radius-full);
+  background: var(--accent);
+}
+/* On the home page the hero's primary action is the one coral moment, so the
+   active "Home" item carries no marker there. (The site builds in MPA mode,
+   where VPNavBar never gets its client-side `home` class; the content root's
+   server-rendered `is-home` class is used instead.) */
+.Layout:has(.VPContent.is-home) .VPNavBarMenuLink.active::after {
+  content: none;
+}
+
+/* Eight navigation groups need more room than VitePress's 768px breakpoint.
+   Keep its existing mobile menu available through tablet widths. */
+@media (min-width: 768px) and (max-width: 1279px) {
+  html .VPNav .VPNavBarMenu { display: none; }
+  html .VPNav .VPNavBarHamburger { display: flex; }
+}
+
+.docs-popover {
+  width: min(42rem, calc(100% - 2rem));
+  max-height: calc(100% - 2rem);
+  padding: var(--space-6);
+  color: var(--text);
+  background: var(--surface);
+  border: var(--border-hairline) solid var(--border);
+  border-radius: var(--radius-lg);
+  font-family: var(--font-body);
+}
+.docs-popover::backdrop { background: color-mix(in srgb, var(--bg) 80%, transparent); }
+.docs-popover :is(button, input, summary) { min-width: 44px; min-height: 44px; }
+.docs-popover h2 { margin: 0 0 var(--space-4); font-size: var(--text-xl); }
+.docs-popover .docs-close { float: right; padding: var(--space-2) var(--space-4); border: var(--border-hairline) solid var(--text-ghost); border-radius: var(--radius-sm); }
+.docs-popover label { display: block; margin-block: var(--space-3); }
+.docs-popover input { width: 100%; padding: var(--space-3); color: var(--text); background: var(--bg); border: var(--border-hairline) solid var(--text-ghost); border-radius: var(--radius-sm); }
+.docs-popover nav a { display: block; min-height: 44px; padding: var(--space-3); color: var(--link); }
+.docs-popover summary { padding: var(--space-3); cursor: pointer; }
+.docs-popover details a { margin-left: var(--space-4); }
+.docs-search-results { padding-left: var(--space-5); }
+.docs-search-results a { display: inline-block; min-height: 44px; padding-block: var(--space-3); color: var(--link); }
+
+@media (pointer: coarse) {
+  html .VPNav :is(button, .VPSocialLink),
+  html .VPLocalNav button,
+  html .vp-doc button.copy { min-width: 44px; min-height: 44px; }
+  html .VPSwitchAppearance .check { top: 50%; margin-top: -9px; }
+}
+
+/* --- Home hero: headline in text color, bold, tight tracking --- */
 .VPHero .heading .name,
 .VPHero .heading .text {
   font-family: var(--font-display);
-  font-weight: 300;
-  letter-spacing: -0.035em;
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-tight);
 }
-/* The mark SVG declares 32x32; let it fill VitePress's hero image slot
-   (192 / 256 / 320px by breakpoint) instead of sitting at icon size. */
+/* The orbit mark appears once, filling VitePress's hero image slot
+   (192 / 256 / 320px by breakpoint; the full logo minimum is 120px). */
 .VPHero .image-container .image-src {
   width: 100%;
   height: auto;
 }
-.VPNavBar .VPNavBarTitle .title {
-  font-family: var(--font-display);
-  letter-spacing: -0.01em;
-}
+
+/* --- Feature cards read as .card --- */
 .VPFeatures .item .VPFeature {
-  border-color: var(--color-a11oy-border-subtle);
-  border-radius: var(--radius-md);
+  border-color: var(--border);
+  border-radius: var(--radius-lg);
+}
+.VPFeatures .item .VPFeature.link:hover {
+  border-color: var(--border-subtle);
+  box-shadow: var(--shadow-md);
 }
 .VPFeatures .VPFeature .title {
   font-family: var(--font-display);
-  letter-spacing: -0.02em;
-  color: var(--color-a11oy-gold);
+  letter-spacing: var(--tracking-tight);
+}
+.VPFeatures .VPFeature .details {
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
 }
 
 /* --- Typography rhythm --- */
 .vp-doc h1,
 .vp-doc h2,
-.vp-doc h3 {
+.vp-doc h3,
+.vp-doc h4 {
   font-family: var(--font-display);
+  letter-spacing: var(--tracking-tight);
   text-wrap: balance;
 }
-.vp-doc h1 { font-weight: 300; letter-spacing: -0.025em; }
-.vp-doc h2 { font-weight: 600; letter-spacing: -0.025em; border-top: var(--border-hairline) solid var(--vp-c-divider); padding-top: 1.6rem; }
-.vp-doc h3 { font-weight: 600; letter-spacing: -0.02em; }
+.vp-doc h1 { font-weight: var(--weight-bold); }
+.vp-doc h2 { font-weight: var(--weight-semibold); border-top: var(--border-hairline) solid var(--vp-c-divider); padding-top: 1.6rem; }
+.vp-doc h3 { font-weight: var(--weight-semibold); }
 
-/* KaTeX display blocks: keep tidy, allow horizontal scroll on small screens */
-.vp-doc .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.4rem 0; }
+/* Native MathML display blocks remain scrollable on small screens. */
+.vp-doc .katex-block { overflow-x: auto; overflow-y: hidden; padding: 0.4rem 0; }
 .vp-doc mjx-container, .vp-doc .katex { font-size: 1.04em; }
 
 /* --- Quechua etymology callout: a hairline panel, no colored edge --- */
 .quechua {
-  border: var(--border-hairline) solid var(--color-a11oy-border-subtle);
-  background: var(--color-a11oy-surface);
+  border: var(--border-hairline) solid var(--border);
+  background: var(--surface);
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-md);
   margin: var(--space-5) 0;
-  font-size: 0.95rem;
+  font-size: var(--text-base);
 }
-.quechua strong { color: var(--color-a11oy-gold); }
+.quechua strong { color: var(--text); }
 
-/* --- Locked-number chips: contract values read as proof (teal ink) --- */
+/* --- Locked-number chips: mono, tabular, neutral (like .chip / .receipt) --- */
 .locked {
   display: inline-block;
   font-family: var(--font-mono);
-  font-size: 0.82em;
-  font-variant-numeric: tabular-nums;
-  background: color-mix(in srgb, var(--teal) 10%, transparent);
-  color: var(--color-ink-signal);
-  border: var(--border-hairline) solid var(--teal-line);
+  font-size: 0.875em;
+  font-variant-numeric: tabular-nums lining-nums;
+  background: var(--surface-alt);
+  color: var(--text);
+  border: var(--border-hairline) solid var(--border);
   border-radius: var(--radius-sm);
   padding: 0.05rem 0.45rem;
   white-space: nowrap;
@@ -243,20 +431,54 @@
 .showcase-frame {
   width: 100%;
   aspect-ratio: 16 / 9;
-  border: var(--border-hairline) solid var(--color-a11oy-border-subtle);
+  border: var(--border-hairline) solid var(--border);
   border-radius: var(--radius-md);
   overflow: hidden;
-  background: var(--color-a11oy-deep);
+  background: var(--bg-deep);
   margin: 1.2rem 0;
 }
 .showcase-frame iframe { width: 100%; height: 100%; border: 0; display: block; }
 
+/* --- Mesh diagram node status (mesh.md `live` / `inproc` / `roadmap`
+   classes; ROADMAP nodes are also dashed there) ---
+   Mermaid cannot read var() in a classDef, so the colors live here. Its theme
+   rules are scoped by the diagram's id, hence !important. Each stroke is
+   >= 3:1 against the node fill (--surface) on both surfaces. */
+:root {
+  --mesh-live: var(--color-success-light);
+  --mesh-inproc: var(--color-info-light);
+  --mesh-roadmap: var(--color-warning-light);
+}
+[data-surface="light"] {
+  --mesh-live: var(--color-success-strong);
+  --mesh-inproc: var(--color-info);
+  --mesh-roadmap: var(--color-hatun-700);
+}
+.mermaid .node:is(.live, .inproc, .roadmap) :is(rect, polygon) {
+  fill: var(--surface) !important;
+}
+.mermaid .node.live :is(rect, polygon) { stroke: var(--mesh-live) !important; }
+.mermaid .node.inproc :is(rect, polygon) { stroke: var(--mesh-inproc) !important; }
+.mermaid .node.roadmap :is(rect, polygon) { stroke: var(--mesh-roadmap) !important; }
+.mermaid .node:is(.live, .inproc, .roadmap) .nodeLabel {
+  color: var(--text) !important;
+}
+
 /* --- Status dots (always beside a status word) --- */
 .dot { display: inline-block; width: .6rem; height: .6rem; border-radius: var(--radius-full); margin-right: .4rem; vertical-align: middle; }
 .dot.green { background: var(--color-success); }
-.dot.amber { background: var(--color-ink-caution); }
-.dot.gray  { background: var(--color-a11oy-text-ghost); }
+.dot.amber { background: var(--color-warning); }
+.dot.gray  { background: var(--text-ghost); }
+[data-surface="light"] .dot.amber { background: var(--color-hatun-800); }
 
 /* Tables breathe a little more; digits line up */
-.vp-doc table { display: table; width: 100%; font-variant-numeric: tabular-nums; }
+.vp-doc table { display: table; width: 100%; font-variant-numeric: tabular-nums lining-nums; }
 .vp-doc tr:nth-child(2n) { background: var(--vp-c-bg-soft); }
+
+/* Below the sidebar breakpoint a wide table scrolls inside its own box
+   (VitePress's default) and a long locked value (a hash) may wrap, so the
+   page itself never scrolls sideways. */
+@media (max-width: 959px) {
+  .vp-doc table { display: block; overflow-x: auto; }
+  .locked { white-space: normal; overflow-wrap: anywhere; }
+}
