@@ -242,7 +242,8 @@ def test_finance_aggregate_selects_ecb_cache_when_frankfurter_is_stale(monkeypat
     primary_key = vertical._variant_cache_key(
         "fx_USD", base="USD", symbols="EUR,GBP,JPY,CAD,CHF")
     cache.put(primary_key, {"date": "old"}, ttl=600, status="stale")
-    cache.put("fx_ecb_usd_reference", {"date": "today"}, ttl=600)
+    cache.put("fx_ecb_usd_reference",
+              {"date": datetime.now(timezone.utc).date().isoformat()}, ttl=600)
     finance = vertical._vertical_feed_state("finance")
     fx = [child for child in finance["children"]
           if child["source_id"] in {"fx_USD", "fx_ecb_usd_reference"}]
@@ -261,6 +262,33 @@ def test_finance_aggregate_ignores_successful_adhoc_fx_variant(monkeypatch) -> N
     fx = next(child for child in finance["children"]
               if child["source_id"] == "fx_USD")
     assert fx["status"] == "unavailable"
+
+
+def test_finance_aggregate_rejects_transport_live_but_expired_fx(monkeypatch) -> None:
+    cache = vertical._Cache()
+    monkeypatch.setattr(vertical, "_CACHE", cache)
+    old = (datetime.now(timezone.utc).date() - timedelta(days=8)).isoformat()
+    primary_key = vertical._variant_cache_key(
+        "fx_USD", base="USD", symbols="EUR,GBP,JPY,CAD,CHF")
+    cache.put(primary_key, {"date": old, "rates": {"EUR": 0.8}}, ttl=600)
+    cache.put("fx_ecb_usd_reference", {"date": old, "rates": {"EUR": 0.8}}, ttl=600)
+    fx = next(child for child in vertical._vertical_feed_state("finance")["children"]
+              if child["source_id"] == "fx_USD")
+    assert fx["status"] == "unavailable"
+    assert fx["freshness"]["observation_age_days"] == 8
+
+
+def test_finance_aggregate_selects_valid_ecb_when_primary_observation_expires(monkeypatch) -> None:
+    cache = vertical._Cache()
+    monkeypatch.setattr(vertical, "_CACHE", cache)
+    today = datetime.now(timezone.utc).date()
+    primary_key = vertical._variant_cache_key(
+        "fx_USD", base="USD", symbols="EUR,GBP,JPY,CAD,CHF")
+    cache.put(primary_key, {"date": (today - timedelta(days=8)).isoformat()}, ttl=600)
+    cache.put("fx_ecb_usd_reference", {"date": today.isoformat()}, ttl=600)
+    fx = next(child for child in vertical._vertical_feed_state("finance")["children"]
+              if child["source_id"] == "fx_ecb_usd_reference")
+    assert fx["status"] == "live"
 
 
 def test_finance_cached_reference_expires_at_day_boundary() -> None:

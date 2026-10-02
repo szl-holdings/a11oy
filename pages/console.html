@@ -8931,8 +8931,10 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       try{
         var d=await getJSON(DBASE+'/finance/macro');
         var fx=(d.fx&&d.fx.value)||{}, rates=(d.rates&&d.rates.value)||{}; var ri=rates.items||[];
-        var fxFresh=(d.fx&&d.fx.freshness)||{}, fxVia=fx.source_url?(fx.source_url.indexOf('data-api.ecb.europa.eu')>=0?'ECB direct':'Frankfurter'):'source unavailable';
-        T('deva-m-fx-source',(fxFresh.status||'unavailable')+' · '+fxVia+' · '+(fx.date||'no observation'));
+        var fxFresh=(d.fx&&d.fx.freshness)||{}, fxHasRates=Object.keys(fx.rates||{}).length>0;
+        var fxVia=fx.source_url?(fx.source_url.indexOf('data-api.ecb.europa.eu')>=0?'ECB direct':'Frankfurter'):(fxHasRates?'Frankfurter':'source unavailable');
+        var fxLabel=fxHasRates&&(fxFresh.status==='live'||fxFresh.status==='cached'||fxFresh.status==='reference')?'reference':(fxFresh.status||'unavailable');
+        T('deva-m-fx-source',fxLabel+' · '+fxVia+' · '+(fx.date||'no observation'));
         var kp='';
         var top=ri[0]||{}; kp+='<div class="kpi"><div class="k">'+esc((top.security||'rate').slice(0,12))+'</div><div class="v teal">'+(top.rate!=null?top.rate+'%':'\u2014')+'</div><div class="d">latest avg</div></div>';
         Object.keys(fx.rates||{}).slice(0,3).forEach(function(k){ kp+='<div class="kpi"><div class="k">USD/'+esc(k)+'</div><div class="v">'+esc(fx.rates[k])+'</div><div class="d">'+esc(fx.date||'')+'</div></div>'; });

@@ -815,9 +815,9 @@ def _vertical_feed_state(vertical: str) -> dict[str, Any]:
         if vertical == "finance" and source_id == "fx_USD":
             # This vertical always requests this exact pair set. A successful
             # ad-hoc FX query must not make its default finance feed look live.
-            freshness = _CACHE.freshness(_variant_cache_key(
+            freshness = _fx_cached_health(_variant_cache_key(
                 "fx_USD", base="USD", symbols="EUR,GBP,JPY,CAD,CHF"))
-            backup = _CACHE.freshness_latest("fx_ecb_usd_reference")
+            backup = _fx_cached_health("fx_ecb_usd_reference")
             if (freshness.get("status") not in {"live", "cached"}
                     and backup.get("status") in {"live", "cached"}):
                 selected_source_id = "fx_ecb_usd_reference"
@@ -848,6 +848,22 @@ def _vertical_feed_state(vertical: str) -> dict[str, Any]:
         "children_live": sum(child["status"] == "live" for child in child_states),
         "children": child_states,
     }
+
+
+def _fx_cached_health(key: str) -> dict[str, Any]:
+    """Reflect observation age as well as transport cache age in FX health."""
+    freshness = _CACHE.freshness(key)
+    if freshness.get("status") not in {"live", "cached"}:
+        return freshness
+    record = _CACHE.get(key)
+    if not record or not isinstance(record.get("value"), dict):
+        return {**freshness, "status": "unavailable",
+                "error": "FX cached observation is absent"}
+    presented = _fx_reference_result({"value": record["value"],
+                                      "freshness": freshness})
+    if presented["freshness"]["status"] == "reference":
+        return freshness
+    return presented["freshness"]
 
 
 # ===========================================================================
