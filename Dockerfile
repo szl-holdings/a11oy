@@ -633,6 +633,11 @@ COPY organ_integrity.py ./organ_integrity.py
 COPY a11oy_n25_organs.py ./a11oy_n25_organs.py
 COPY szl_organ_integrity.py ./szl_organ_integrity.py
 
+# Services: source-bound civilian public observations.  The canonical
+# Dockerfile-derived publisher includes this package; no second writer is added.
+COPY a11oy_civilian_observatory.py ./a11oy_civilian_observatory.py
+COPY civilian_observatory/ ./civilian_observatory/
+
 # AYLLU COUNCIL WALL (2026-07-21): /api/ayllu/wall + /ayllu/wall — server-side
 # per-request DSSE re-verification of committed council decision receipts,
 # fetched from the public GitHub repo. Fail-closed; key honesty in-band.
