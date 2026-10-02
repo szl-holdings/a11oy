@@ -1,0 +1,74 @@
+name: Civilian observatory contract
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "civilian_observatory/**"
+      - "a11oy_civilian_observatory.py"
+      - "web/civilian-observatory/**"
+      - "tests/test_civilian_observatory.py"
+      - "scripts/build_civilian_manifest.py"
+      - ".github/workflows/civilian-observatory-contract.yml"
+      - "serve.py"
+      - "Dockerfile"
+  push:
+    branches: [main]
+    paths:
+      - "civilian_observatory/**"
+      - "a11oy_civilian_observatory.py"
+      - "web/civilian-observatory/**"
+      - "tests/test_civilian_observatory.py"
+      - "scripts/build_civilian_manifest.py"
+      - ".github/workflows/civilian-observatory-contract.yml"
+      - "serve.py"
+      - "Dockerfile"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    name: Civilian read-only scope and payload contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
+      - name: Install the existing hash-locked test closure
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Verify exact public runtime package bytes
+        run: python scripts/build_civilian_manifest.py --check
+      - name: Exercise scope, missing evidence, integrity, and non-execution
+        run: python -m pytest tests/test_civilian_observatory.py -q
+      - name: Check again with the canonical runtime framework pins
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check --no-cache-dir \
+            "$(sed -n '/^fastapi==/p' requirements-runtime.txt)" \
+            "$(sed -n '/^starlette==/p' requirements-runtime.txt)" \
+            "$(sed -n '/^httpx==/p' requirements-runtime.txt)"
+          python -m pytest tests/test_civilian_observatory.py -q
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/civilian-observatory/package-lock.json
+      - name: Install the isolated interface dependency closure
+        working-directory: web/civilian-observatory
+        run: npm ci --ignore-scripts
+      - name: Check and test the interface contracts
+        working-directory: web/civilian-observatory
+        run: |
+          npm run check
+          npm test
+      - name: Rebuild the same-origin interface
+        working-directory: web/civilian-observatory
+        env:
+          VITE_OBSERVATORY_API_ROOT: /api/a11oy/v1/civilian
+        run: npm run build
+      - name: Require the checked-in UI to match its source build
+        run: diff -qr web/civilian-observatory/dist/public civilian_observatory/static
