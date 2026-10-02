@@ -1,0 +1,94 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+name: Proof HTML Cloudflare RUM admission
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/proof-cloudflare-rum.yml'
+      - 'scripts/proof_cloudflare_rum.py'
+      - 'tests/test_proof_cloudflare_rum.py'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Audit only, or disable injection for the one admitted a11oy.net property'
+        type: choice
+        options: [audit, apply]
+        default: audit
+        required: true
+      expected_settings_sha256:
+        description: 'Apply requires the exact settings hash from the previous successful audit'
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-proof-rum-a11oy-net
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - name: Check out exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Exercise network-free refusal and preservation controls
+        run: |
+          python -B -m unittest tests.test_proof_cloudflare_rum -v
+          git diff --check
+
+  provider:
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'szl-holdings/a11oy' && github.ref == 'refs/heads/main'
+    needs: contract
+    environment: production
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - name: Check out exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Admit and record the one existing property
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          RUM_MODE: ${{ inputs.mode }}
+          EXPECTED_SETTINGS_SHA256: ${{ inputs.expected_settings_sha256 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          python -B scripts/proof_cloudflare_rum.py \
+            --mode "$RUM_MODE" \
+            --expected-settings-sha256 "$EXPECTED_SETTINGS_SHA256" \
+            --output-directory /tmp/a11oy-net-proof-rum
+      - name: Preserve the unsigned audit or mutation receipt even on failure
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: a11oy-net-proof-rum-${{ github.run_id }}-${{ github.run_attempt }}
+          path: /tmp/a11oy-net-proof-rum
+          if-no-files-found: error
+          retention-days: 90
