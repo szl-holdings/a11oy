@@ -17,11 +17,43 @@ import asyncio
 import copy
 import json
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+import shutil
+import subprocess
 
 from fastapi import FastAPI
 import pytest
 
 import a11oy_vertical_feeds as vertical
+
+
+_ROOT = Path(__file__).resolve().parents[1]
+_PROBE = """
+import fs from 'node:fs';
+import {validateSchema, evaluateEndpointLabels, evaluateFreshness}
+  from './tools/readiness-harness/probe_runner.mjs';
+const {path, body, nowMs} = JSON.parse(fs.readFileSync(0, 'utf8'));
+const tabs = JSON.parse(fs.readFileSync('tools/readiness-harness/tabs.json', 'utf8'));
+const spec = tabs.endpoints[path];
+const schema = validateSchema(spec.schema, body);
+const labels = evaluateEndpointLabels(200, spec, body);
+const freshness = evaluateFreshness(path, spec, body, nowMs);
+process.stdout.write(JSON.stringify({
+  schemaOk: schema.ok, labelsOk: labels.ok, freshOk: freshness.freshOk,
+}));
+"""
+
+
+def _probe(path: str, body: dict, now_s: int = 1786449600) -> dict:
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js is required for the shipped readiness evaluator")
+    result = subprocess.run(
+        [node, "--input-type=module", "-e", _PROBE],
+        input=json.dumps({"path": path, "body": body, "nowMs": now_s * 1000}),
+        text=True, capture_output=True, check=True, cwd=_ROOT, timeout=10,
+    )
+    return json.loads(result.stdout)
 
 
 def _live(symbol: str, official: bool = False) -> dict:
@@ -49,6 +81,18 @@ def _stale_last_good(symbol: str) -> dict:
             "age_s": 90.0,
             "fetched_at": 1786449500,
             "error": "HTTPStatusError: 429",
+        },
+    }
+
+
+def _stale_source(value: dict) -> dict:
+    return {
+        "value": value,
+        "freshness": {
+            "status": "stale",
+            "age_s": 90.0,
+            "fetched_at": 1786449500,
+            "error": "HTTPStatusError: 503",
         },
     }
 
@@ -225,9 +269,12 @@ def test_finance_cached_reference_expires_at_day_boundary() -> None:
         "value": {"date": old, "observation_age_days": 7, "rates": {"EUR": 0.8}},
         "freshness": {"status": "cached", "fetched_at": 1786449600},
     })
-    assert result["freshness"]["status"] == "stale"
-    assert result["value"]["observation_age_days"] == 8
+    assert result["freshness"]["status"] == "unavailable"
+    assert result["value"] is None
+    assert result["freshness"]["observation_age_days"] == 8
+    assert result["freshness"]["last_observation_date"] == old
     assert "too old" in result["freshness"]["error"]
+    assert vertical._readiness_public_clocked_source(result)["freshness"]["status"] == "UNAVAILABLE"
 
 
 def test_finance_fx_preserves_both_errors_when_sources_fail(monkeypatch) -> None:
@@ -263,6 +310,29 @@ def test_finance_fx_falls_back_when_cached_primary_observation_ages_out(monkeypa
     assert len(calls) == 2
     assert result["freshness"]["status"] == "reference"
     assert result["value"]["source_url"] == vertical._ECB_USD_FX_URL
+
+
+def test_finance_route_accepts_attributed_ecb_fallback_under_shipped_probe(monkeypatch) -> None:
+    def fake_fetch(key, url, ttl, parser=None, timeout_s=None):
+        if "frankfurter.dev" in url:
+            return _unavailable("Frankfurter timeout")
+        return {"value": parser(_ecb_fx_fixture()),
+                "freshness": {"status": "live", "fetched_at": 1786449600}}
+
+    monkeypatch.setattr(vertical, "_cached_fetch", fake_fetch)
+    monkeypatch.setattr(vertical, "feed_yahoo", lambda symbol: _live(symbol))
+    monkeypatch.setattr(vertical, "feed_polygon", lambda symbol: _live(symbol, official=True))
+    monkeypatch.setattr(vertical, "feed_coinbase", lambda pair: _live(pair, official=True))
+    monkeypatch.setattr(vertical, "feed_nvd", lambda *a, **k: _live("CVE"))
+    app = FastAPI()
+    vertical.register(app)
+    path = "/api/a11oy/v1/vert/finance/feed"
+    body = _payload(asyncio.run(_endpoint(app, path)()))
+    assert body["fx"]["freshness"]["status"] == "reference"
+    assert body["fx"]["value"]["source_url"] == vertical._ECB_USD_FX_URL
+    assert _probe(path, body) == {
+        "schemaOk": True, "labelsOk": True, "freshOk": True,
+    }
 
 
 @pytest.mark.parametrize("primary", [
@@ -343,3 +413,132 @@ def test_finance_fx_rejects_invalid_ecb_fallback_without_inventing_rates(
     assert result["freshness"]["status"] == "unavailable"
     assert result["freshness"]["error"] == primary["freshness"]["error"]
     assert result["freshness"]["fallback_error"] == "ECB payload rejected"
+
+
+def test_defense_and_finance_routes_preserve_last_good_source_evidence(monkeypatch) -> None:
+    monkeypatch.setattr(vertical, "feed_cisa_kev", lambda *a: {
+        "value": {"items": []},
+        "freshness": {"status": "live", "fetched_at": 1786449600},
+    })
+    monkeypatch.setattr(vertical, "feed_nvd", lambda *a, **k: _stale_source({"items": []}))
+    monkeypatch.setattr(vertical, "feed_yahoo", lambda symbol: _live(symbol))
+    monkeypatch.setattr(vertical, "feed_polygon", lambda symbol: (
+        _live(symbol, official=True) if symbol == "SPY"
+        else _stale_source({"symbol": symbol, "price": 1.0})
+    ))
+    monkeypatch.setattr(vertical, "feed_coinbase", lambda pair: _live(pair, official=True))
+    monkeypatch.setattr(vertical, "feed_fx", lambda *a: _stale_source({"rates": {"EUR": 0.8}}))
+
+    app = FastAPI()
+    vertical.register(app)
+    defense = _payload(asyncio.run(_endpoint(app, "/api/a11oy/v1/vert/defense/feed")()))
+    finance = _payload(asyncio.run(_endpoint(app, "/api/a11oy/v1/vert/finance/feed")()))
+
+    for source in (
+        defense["nvd"], finance["equities_official"]["AAPL"],
+        finance["equities_official"]["MSFT"],
+        finance["equities_official"]["NVDA"], finance["fintech_cve"],
+        finance["fx"],
+    ):
+        assert source["value"] is not None
+        assert source["freshness"]["status"] == "cached"
+        assert source["freshness"]["fetched_at"] == 1786449500
+        assert source["freshness"]["error"] == "HTTPStatusError: 503"
+
+    defense_path = "/api/a11oy/v1/vert/defense/feed"
+    finance_path = "/api/a11oy/v1/vert/finance/feed"
+    assert _probe(defense_path, defense) == {
+        "schemaOk": True, "labelsOk": True, "freshOk": True,
+    }
+    assert _probe(finance_path, finance) == {
+        "schemaOk": True, "labelsOk": True, "freshOk": True,
+    }
+    old = copy.deepcopy(finance)
+    old["fx"]["freshness"]["fetched_at"] = 1786440000
+    assert _probe(finance_path, old)["freshOk"] is False
+    for section, symbol in (("equities_official", "AAPL"), ("crypto", "ETH-USD")):
+        aged = copy.deepcopy(finance)
+        aged[section][symbol]["freshness"]["fetched_at"] = 1786440000
+        assert _probe(finance_path, aged)["freshOk"] is False
+
+
+def test_finance_route_marks_missing_fx_as_canonical_unavailable(monkeypatch) -> None:
+    monkeypatch.setattr(vertical, "feed_yahoo", lambda symbol: _live(symbol))
+    monkeypatch.setattr(vertical, "feed_polygon", lambda symbol: _live(symbol, official=True))
+    monkeypatch.setattr(vertical, "feed_coinbase", lambda pair: _live(pair, official=True))
+    monkeypatch.setattr(vertical, "feed_nvd", lambda *a, **k: _live("CVE"))
+    monkeypatch.setattr(vertical, "feed_fx", lambda *a: {
+        "value": None,
+        "freshness": {
+            "status": "unavailable",
+            "fetched_at": 1786449500,
+            "error": "TimeoutError: upstream FX unavailable",
+        },
+    })
+
+    app = FastAPI()
+    vertical.register(app)
+    finance = _payload(asyncio.run(_endpoint(app, "/api/a11oy/v1/vert/finance/feed")()))
+    assert finance["fx"] == {
+        "value": None,
+        "freshness": {
+            "status": "UNAVAILABLE",
+            "fetched_at": 1786449500,
+            "error": "TimeoutError: upstream FX unavailable",
+        },
+    }
+    finance_path = "/api/a11oy/v1/vert/finance/feed"
+    assert _probe(finance_path, finance) == {
+        "schemaOk": True, "labelsOk": True, "freshOk": False,
+    }
+    for missing in ("fetched_at", "error"):
+        malformed = copy.deepcopy(finance)
+        del malformed["fx"]["freshness"][missing]
+        assert _probe(finance_path, malformed)["labelsOk"] is False
+
+
+def test_defense_route_blocks_missing_required_source(monkeypatch) -> None:
+    monkeypatch.setattr(vertical, "feed_cisa_kev", lambda *a: {
+        "value": None,
+        "freshness": {
+            "status": "unavailable",
+            "fetched_at": 1786449500,
+            "error": "TimeoutError: CISA KEV unavailable",
+        },
+    })
+    monkeypatch.setattr(vertical, "feed_nvd", lambda *a, **k: {
+        "value": {"items": []},
+        "freshness": {"status": "live", "fetched_at": 1786449600},
+    })
+
+    app = FastAPI()
+    vertical.register(app)
+    path = "/api/a11oy/v1/vert/defense/feed"
+    defense = _payload(asyncio.run(_endpoint(app, path)()))
+    assert defense["kev"]["freshness"]["status"] == "UNAVAILABLE"
+    assert _probe(path, defense) == {
+        "schemaOk": True, "labelsOk": True, "freshOk": False,
+    }
+
+
+def test_finance_route_does_not_launder_clockless_stale_equity(monkeypatch) -> None:
+    monkeypatch.setattr(vertical, "feed_yahoo", lambda symbol: _live(symbol))
+
+    def polygon(symbol: str) -> dict:
+        if symbol != "AAPL":
+            return _live(symbol, official=True)
+        clockless = _stale_source({"symbol": symbol, "price": 1.0})
+        del clockless["freshness"]["fetched_at"]
+        return clockless
+
+    monkeypatch.setattr(vertical, "feed_polygon", polygon)
+    monkeypatch.setattr(vertical, "feed_coinbase", lambda pair: _live(pair, official=True))
+    monkeypatch.setattr(vertical, "feed_nvd", lambda *a, **k: _live("CVE"))
+    monkeypatch.setattr(vertical, "feed_fx", lambda *a: _live("USD", official=True))
+
+    app = FastAPI()
+    vertical.register(app)
+    finance_path = "/api/a11oy/v1/vert/finance/feed"
+    finance = _payload(asyncio.run(_endpoint(app, finance_path)()))
+    assert finance["equities_official"]["AAPL"]["freshness"]["status"] == "stale"
+    assert _probe(finance_path, finance)["labelsOk"] is False
