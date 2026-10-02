@@ -3,18 +3,18 @@ layout: home
 
 hero:
   name: SZL Holdings
-  text: Governed AI, proven in Lean.
-  tagline: A math-grounded, Quechua-rooted anatomy for agentic AI. Twelve organs, five flagships, one action-selection operator — every act gated, bounded, and receipted.
+  text: Governed AI. Evidence you can inspect.
+  tagline: Documentation for a11oy and killinchu, with formal proof, source checks, receipt verification and deployment boundaries stated separately.
   image:
-    light: /kanchay/marks/szl-mark-ink.svg
-    dark: /kanchay/marks/szl-mark-gold.svg
+    dark: /szl/logos/szl_logo_mono_white.svg
+    light: /szl/logos/szl_logo_mono_navy.svg
     alt: SZL Holdings
   actions:
     - theme: brand
       text: Quickstart →
       link: /quickstart
     - theme: alt
-      text: The 5 Flagships
+      text: Products and frontier roles
       link: /flagships/
     - theme: alt
       text: PURIQ Doctrine
@@ -31,19 +31,19 @@ hero:
 
 features:
   - title: a11oy — execution fabric
-    details: The seven-layer governed agentic execution substrate. Policy, measurement, knowledge-graph, and QEC-integrity packages with a Lean-verified termination + Λ-monotonicity proof.
+    details: Governed agentic execution source. Policy, measurement, knowledge-graph and QEC-integrity packages; formal claims retain their stated assumptions.
     link: /flagships/a11oy
-  - title: amaru — provenance anchor
-    details: Cardano-anchored governance-receipt minting with Shor-encoded provenance and bounded-loop convergence (Banach contraction).
+  - title: Provenance Anchor — frontier role
+    details: Source and model documentation for governance-receipt anchoring. Publication and deployed readiness require their own evidence.
     link: /flagships/amaru
-  - title: sentra — drift detector
-    details: Kitaev-surface posture-drift detection on a Λ-axis-governed observability fiber. Cyber-resilience domain pack.
+  - title: Policy — frontier role
+    details: Posture-drift detection and policy research documentation. The mathematical model and deployed behavior have separate qualification boundaries.
     link: /flagships/sentra
   - title: killinchu — drone intelligence
-    details: Formally-governed counter-UAS rule engine. Real Remote-ID / ADS-B / MAVLink ingest, haversine geofence, 13-axis Λ-gate, DSSE Khipu receipts.
+    details: Counter-UAS rule-engine source with Remote-ID / ADS-B / MAVLink parsing, geofence checks, 13-axis admission and DSSE receipts. Runtime qualification is separate.
     link: /flagships/killinchu
-  - title: rosie — receipt orchestration
-    details: QEC-admission-controlled receipt DAG with CSS ingress and a kernel-verified summation invariant. The Khipu-indexed audit surface.
+  - title: Operator — frontier role
+    details: Receipt-orchestration source and formal models. Conditional invariants, source checks and deployed receipt verification are documented separately.
     link: /flagships/rosie
 ---
 
@@ -103,7 +103,7 @@ Beyond the five flagships, two repositories carry the load-bearing evidence:
 - **[Quickstart](/quickstart)** — five minutes to a first call against each flagship.
 - **[Architecture](/architecture)** — the 7-organ anatomy and the master action-selection operator.
 - **[Anatomy + Organs](/anatomy/)** — the twelve organs, each with its Quechua etymology, function, formula, and Lean stub.
-- **[3D Showcases](/anatomy/3d-showcases)** — interactive Anatomy-3D and Rosie-3D.
+- **3D showcases** — see [Status](/status) for Anatomy-3D availability. The former Rosie-3D showcase is **UNAVAILABLE**.
 - **[Proof](/proof)** — Lean kernel, data lake, and Zenodo DOIs.
 - **[Changelog](/changelog)** — aggregated v1.0.0 release notes (Keep a Changelog).
 - **[UDS — Deploy & Hand-off](/uds)** — sign-verify-deploy a flagship as a UDS payload.

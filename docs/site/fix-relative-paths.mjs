@@ -16,8 +16,10 @@
 
 import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { plainText } from './plain-text.mjs'
 
-const DIST = new URL('./docs/.vitepress/dist/', import.meta.url).pathname
+const DIST = fileURLToPath(new URL('./docs/.vitepress/dist/', import.meta.url))
 
 function walk(dir, out = []) {
   for (const name of readdirSync(dir)) {
@@ -43,6 +45,7 @@ function fixDirIndex(html) {
 
 const files = walk(DIST)
 let changed = 0
+const searchPages = []
 
 for (const file of files) {
   const rel = relative(DIST, file)
@@ -60,10 +63,22 @@ for (const file of files) {
   // 2) explicit directory-index links (all pages, including root)
   html = fixDirIndex(html)
 
+  if (rel !== '404.html') {
+    const main = html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i)
+    searchPages.push({
+      href: rel.split(sep).join('/'),
+      title: plainText(html.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || rel),
+      text: plainText(main?.[1] || html)
+    })
+  }
+
   if (html !== before) {
     writeFileSync(file, html)
     changed++
   }
 }
+
+// Static MPA search: same-origin public documentation, no external service.
+writeFileSync(join(DIST, 'docs-search.json'), JSON.stringify(searchPages))
 
 console.log(`fix-relative-paths: rewrote ${changed} HTML file(s) of ${files.length} total.`)

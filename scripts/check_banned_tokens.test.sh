@@ -99,6 +99,30 @@ echo '{"abstract":"a seamless breakthrough with unprecedented results"}' > "$H/w
 : > "$H/clean.md"
 expect_pass "exact-file allowlist entry exempts just that file" "$H"
 
+# CSS identifiers have syntax boundaries; neither prose nor the whole file is exempt.
+I="$TMP/css"; mkdir -p "$I"
+: > "$I/.doctrine-allowlist"
+printf ':root { --leading-mono: 1.5; }\n.code { line-height: var(--leading-mono); }\n' > "$I/token.css"
+expect_pass "CSS custom-property declaration and reference are identifiers" "$I"
+
+for sample in \
+  '.code { line-height: var(--leading-mono); } /* leading product */' \
+  '.code { line-height: var(--leading-mono); } /* seamless product */' \
+  '/* var(--leading-mono) */' \
+  '/* comment\nvar(--leading-mono)\n*/' \
+  '.code { content: "var(--leading-mono)"; }' \
+  '.code { line-height: my-var(--leading-mono); }' \
+  '.code { line-height: var(--leading-mono prose); }' \
+  '.code { line-height: var(--leading-mono)-leading; }'; do
+  printf '%b\n' "$sample" > "$I/token.css"
+  expect_fail "CSS syntax exception retains prohibited prose: $sample" "$I"
+done
+printf 'A leading-mono product uses var(--leading-mono).\n' > "$I/token.css"
+expect_fail "bare CSS-file prose is still scanned" "$I"
+rm "$I/token.css"
+printf 'var(--leading-mono)\n' > "$I/prose.md"
+expect_fail "custom-property spelling in prose stays scanned" "$I"
+
 echo "-----------------------------------------------------------------------"
 echo "banned-token guard self-test: ${PASS} passed, ${FAIL} failed"
 [ "$FAIL" -eq 0 ] || exit 1
