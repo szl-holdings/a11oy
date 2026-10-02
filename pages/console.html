@@ -7682,12 +7682,14 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       '<div class="kpis" id="vf-fin-kpis"><div class="row mono dim">polling markets\u2026</div></div>'+
       '<div class="grid2"><div class="card"><div class="card-h"><span class="card-t">Equities &amp; index</span><span class="card-ep" id="vf-fin-fresh">live · Yahoo v8</span></div><div id="vf-fin-eq"></div></div>'+
         '<div class="card"><div class="card-h"><span class="card-t">Crypto spot</span><span class="card-ep">live · Coinbase</span></div><div id="vf-fin-cx"></div></div></div>'+
-      '<div class="grid2"><div class="card"><div class="card-h"><span class="card-t">FX rates (USD base)</span><span class="card-ep">live · Frankfurter/ECB</span></div><div id="vf-fin-fx"></div></div>'+
+      '<div class="grid2"><div class="card"><div class="card-h"><span class="card-t">FX rates (USD base)</span><span class="card-ep" id="vf-fin-fx-source">ECB reference rates</span></div><div id="vf-fin-fx"></div></div>'+
         '<div class="card"><div class="card-h"><span class="card-t">Fintech-relevant CVEs</span><span class="card-ep">live · NVD</span></div><div id="vf-fin-cve"></div></div></div>';
     _vertPoll(async function(){
       try{
         var d=await window.getJSON(VBASE+'/finance/feed');
         var eq=d.equities||{}, cx=d.crypto||{}, fx=(d.fx&&d.fx.value)||{}, cve=(d.fintech_cve&&d.fintech_cve.value)||{};
+        var fxFresh=(d.fx&&d.fx.freshness)||{}, fxVia=fx.source_url?(fx.source_url.indexOf('data-api.ecb.europa.eu')>=0?'ECB direct':'Frankfurter'):'source unavailable';
+        window.setHTML('vf-fin-fx-source',window.esc(fxFresh.status||'unavailable')+' · '+window.esc(fxVia)+' · '+window.esc(fx.date||'no observation'));
         var kpis='';
         ['SPY','NVDA','^VIX'].forEach(function(s){ var v=(eq[s]&&eq[s].value)||{}; var dlt=(v.price!=null&&v.prevClose)?((v.price-v.prevClose)/v.prevClose*100):null;
           kpis+='<div class="kpi"><div class="k">'+window.esc(s)+'</div><div class="v">'+(v.price!=null?money(v.price):'\u2014')+'</div><div class="d '+(dlt>=0?'':'warn')+'">'+(dlt!=null?(dlt>=0?'+':'')+dlt.toFixed(2)+'%':'')+'</div></div>'; });
@@ -8922,13 +8924,15 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       '<div class="kpis" id="deva-m-kpis"><div class="row mono dim">polling macro\u2026</div></div>'+
       card('3D yield / rate surface \u2014 security type \u00d7 recent records', dl()+'live \u00b7 Treasury fiscaldata \u00b7 echarts-gl \u00b7 <span id="deva-m-stamp" class="mono dim" style="font-size:10px"></span>', box3d('deva-m-surface',380))+
       '<div class="grid2">'+
-        card('FX rates (USD base)','live \u00b7 Frankfurter / ECB','<div id="deva-m-fx"></div>')+
+        card('FX rates (USD base)','<span id="deva-m-fx-source">ECB reference rates</span>','<div id="deva-m-fx"></div>')+
         card('Treasury average interest rates','live \u00b7 fiscaldata.treasury.gov','<div id="deva-m-rates"></div>')+
       '</div>'+HON;
     poll(async function(){
       try{
         var d=await getJSON(DBASE+'/finance/macro');
         var fx=(d.fx&&d.fx.value)||{}, rates=(d.rates&&d.rates.value)||{}; var ri=rates.items||[];
+        var fxFresh=(d.fx&&d.fx.freshness)||{}, fxVia=fx.source_url?(fx.source_url.indexOf('data-api.ecb.europa.eu')>=0?'ECB direct':'Frankfurter'):'source unavailable';
+        T('deva-m-fx-source',(fxFresh.status||'unavailable')+' · '+fxVia+' · '+(fx.date||'no observation'));
         var kp='';
         var top=ri[0]||{}; kp+='<div class="kpi"><div class="k">'+esc((top.security||'rate').slice(0,12))+'</div><div class="v teal">'+(top.rate!=null?top.rate+'%':'\u2014')+'</div><div class="d">latest avg</div></div>';
         Object.keys(fx.rates||{}).slice(0,3).forEach(function(k){ kp+='<div class="kpi"><div class="k">USD/'+esc(k)+'</div><div class="v">'+esc(fx.rates[k])+'</div><div class="d">'+esc(fx.date||'')+'</div></div>'; });
