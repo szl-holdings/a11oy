@@ -346,6 +346,13 @@ html :where(.VPNav, .VPLocalNav, .VPNavScreen, .VPSidebar, .VPDocAside, .VPDocFo
 .docs-search-results { padding-left: var(--space-5); }
 .docs-search-results a { display: inline-block; min-height: 44px; padding-block: var(--space-3); color: var(--link); }
 
+@media (pointer: coarse) {
+  html .VPNav :is(button, .VPSocialLink),
+  html .VPLocalNav button,
+  html .vp-doc button.copy { min-width: 44px; min-height: 44px; }
+  html .VPSwitchAppearance .check { top: 50%; margin-top: -9px; }
+}
+
 /* --- Home hero: headline in text color, bold, tight tracking --- */
 .VPHero .heading .name,
 .VPHero .heading .text {
