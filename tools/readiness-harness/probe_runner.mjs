@@ -271,27 +271,46 @@ function collectFreshnessTimestamps(spec, body, isArenaHistory) {
     return {
       timestamps: timestamp ? [timestamp] : [],
       missingPaths: timestamp ? [] : ["latest_run_at"],
+      unavailablePaths: [],
     };
   }
 
   // Aggregate schemas declare every response-affecting child clock. Grade those
   // exact clocks so a convenient root timestamp cannot mask a missing sibling.
+  // A canonical UNAVAILABLE envelope remains an honest API representation, but
+  // it is not observed source evidence and must fail a required release probe.
   const requiredPaths = requiredFreshnessTimestampPaths(spec);
   if (requiredPaths.length) {
     const timestamps = [];
     const missingPaths = [];
+    const unavailablePaths = [];
+    const suffix = ".freshness.fetched_at";
     for (const path of requiredPaths) {
+      const sourcePath = path === "freshness.fetched_at"
+        ? ""
+        : (path.endsWith(suffix) ? path.slice(0, -suffix.length) : null);
+      const source = sourcePath === ""
+        ? { found: true, value: body }
+        : (sourcePath === null
+          ? { found: false, value: undefined }
+          : valueAtPath(body, sourcePath));
+      if (spec?.unavailableBlocksReadiness === true
+          && source.found && isCanonicalUnavailableSource(source.value)) {
+        unavailablePaths.push(sourcePath || "<root>");
+        continue;
+      }
       const candidate = valueAtPath(body, path);
       const timestamp = candidate.found ? toDate(candidate.value) : null;
       if (timestamp) timestamps.push(timestamp);
       else missingPaths.push(path);
     }
-    return { timestamps, missingPaths };
+    return { timestamps, missingPaths, unavailablePaths };
   }
 
   return {
     timestamps: findTimestamps(body),
     missingPaths: [],
+    unavailablePaths: [],
   };
 }
 
@@ -311,15 +330,17 @@ function evaluateFreshness(path, spec, body, nowMs = Date.now()) {
   // not evidence that a run occurred. Require its explicit latest-run clock.
   const evidence = searchable
     ? collectFreshnessTimestamps(spec, body, isArenaHistory)
-    : { timestamps: [], missingPaths: [] };
-  const { timestamps, missingPaths } = evidence;
-  if (missingPaths.length || timestamps.length === 0) {
+    : { timestamps: [], missingPaths: [], unavailablePaths: [] };
+  const { timestamps, missingPaths, unavailablePaths } = evidence;
+  if (unavailablePaths.length || missingPaths.length || timestamps.length === 0) {
     return {
       checked: true, freshOk: false, ageSec: null,
       freshnessMissing: true,
-      freshnessReason: missingPaths.length
-        ? `freshness timestamp missing: ${missingPaths.join(", ")}`
-        : null,
+      freshnessReason: unavailablePaths.length
+        ? `required source unavailable: ${unavailablePaths.join(", ")}`
+        : (missingPaths.length
+          ? `freshness timestamp missing: ${missingPaths.join(", ")}`
+          : null),
       isArenaHistory,
     };
   }
