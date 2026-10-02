@@ -198,11 +198,12 @@ def test_both_actual_vertical_jobs_share_one_non_cancelling_writer_lifecycle():
     manual = (ROOT / ".github/workflows/hf-publish-vertical-flagships.yml").read_text()
     canonical = (ROOT / ".github/workflows/hf-sync.yml").read_text()
     group = "    concurrency:\n      group: hf-vertical-estate\n      cancel-in-progress: false"
-    assert group in manual and group in canonical
+    assert manual.count(group) == 1 and canonical.count(group) == 2
     assert "  group: hf-publish-vertical-flagships\n" in manual
     assert "  group: sync-relock-canonical-a11oy\n" in canonical
     assert "github.event_name == 'workflow_dispatch' && inputs.publish_vertical_flagships" in canonical
     assert "options: [finance, lyte, estate]" in manual
+    assert "SZL_FLAGSHIP_SCOPE: finance" in canonical
     assert "hf-lyte-release-evidence/" in manual and "hf-lyte-release-evidence/" in canonical
 
 

@@ -317,7 +317,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     concurrency:
-      group: hf-publish-vertical-flagships
+      group: hf-vertical-estate
       cancel-in-progress: false
     env:
       GITHUB_TOKEN: ${{ github.token }}

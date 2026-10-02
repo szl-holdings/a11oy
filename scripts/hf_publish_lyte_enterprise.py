@@ -61,7 +61,7 @@ RELEASE_PHASES = (
 )
 
 CONTROLLER_REPOSITORY = "szl-holdings/.github"
-CONTROLLER_REVISION = "7b4b43fd4efa0dbcc9667fe29e3e8f9e1a756c5f"
+CONTROLLER_REVISION = "163a61fd9759e5ecc3c2daf13e528f7b281ff81d"
 CONTROLLER_PATH = ".github/scripts/hf_deploy_from_dockerfile.py"
 CONTROLLER_BLOB_SHA1 = "3fa968416a3623d66b5b5b64abf8b830cc854e1c"
 USER_AGENT = "SZLHOLDINGS-Lyte-Enterprise-Publisher/4.0"

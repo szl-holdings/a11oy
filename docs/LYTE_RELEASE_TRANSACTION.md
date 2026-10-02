@@ -1,8 +1,9 @@
 # Source-owned Lyte publication transaction
 
 The existing A11oy publisher owns the Lyte projection on Hugging Face. Its
-focused `lyte` workflow input preserves sibling Spaces. The manual publisher
-and the opt-in canonical vertical job share `hf-vertical-estate` job concurrency
+focused `lyte` workflow input preserves sibling Spaces. The manual publisher,
+the opt-in canonical vertical job and the canonical Finance projection share
+`hf-vertical-estate` job concurrency
 through publication, source binding, restart and verification. They do not
 cancel an in-flight writer. The canonical product deployment retains its
 independent lifecycle.
