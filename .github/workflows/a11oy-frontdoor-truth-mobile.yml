@@ -4,12 +4,14 @@ on:
   pull_request:
     paths:
     - a11oy_landing.html
+    - static/3d/holographic.html
     - serve.py
     - szl_runtime_contracts.py
     - config/a11oy-frontdoor/PATCH_SPEC.json
     - scripts/repair_a11oy_frontdoor.py
     - scripts/check_a11oy_frontdoor_truth.py
     - tests/test_a11oy_frontdoor_truth.py
+    - tests/test_receipt_2d_fallback_contract.py
     - tests/test_runtime_contracts.py
     - .github/workflows/a11oy-frontdoor-truth-mobile.yml
   push:
@@ -17,10 +19,12 @@ on:
     - main
     paths:
     - a11oy_landing.html
+    - static/3d/holographic.html
     - serve.py
     - szl_runtime_contracts.py
     - scripts/check_a11oy_frontdoor_truth.py
     - tests/test_a11oy_frontdoor_truth.py
+    - tests/test_receipt_2d_fallback_contract.py
     - tests/test_runtime_contracts.py
   merge_group:
     types:
@@ -52,4 +56,4 @@ jobs:
           python3 -m py_compile serve.py szl_runtime_contracts.py
           python3 -m pytest -q tests/test_runtime_contracts.py -k build_info
       - name: Run front-door regression tests
-        run: python3 -m unittest -v tests/test_a11oy_frontdoor_truth.py
+        run: python3 -m unittest -v tests/test_a11oy_frontdoor_truth.py tests/test_receipt_2d_fallback_contract.py
