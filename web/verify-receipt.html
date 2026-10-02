@@ -1,18 +1,29 @@
 <!DOCTYPE html>
 <!--
-  a11oy · VERIFY A RECEIPT — 9-step wire + --demo math.
+  a11oy · VERIFY A RECEIPT — the public "trust-us -> verify-the-receipt" flow.
   © 2026 Lutar, Stephen P. — SZL Holdings. SPDX-License-Identifier: Apache-2.0
 
-  PUBLIC, NO-LOGIN. Paste a DSSE/SZL receipt or a receipt id.
-  Server: POST /api/a11oy/v1/verify/receipt (ECDSA / payload digest / chain).
-  This page ALSO prints the architecture 9-step wire and the locked --demo table.
-  Labels: VERIFIED | MISMATCH | UNSIGNED-LOCAL | UNAVAILABLE | BLOCKED | ADMITTED | CONJECTURE | MEASURED.
-  Product a-11-oy.com · proof a11oy.net · never a11oy.com.
+  PUBLIC, NO-LOGIN. Offline DSSE verification uses exact payload bytes, a supplied
+  P-256 public key, and an explicit expected key id. It establishes signature
+  validity under that key, not trusted identity, authorization, or chain validity.
+  Online runtime verification is a separate explicit POST to the existing API.
+  Every check is shown HONESTLY:
+    VERIFIED  — the check ran and passed
+    MISMATCH  — the check ran and FAILED (bad signature / tampered payload / broken chain)
+    UNSIGNED-LOCAL — the envelope carries no signature (nothing to verify; not faked)
+    UNAVAILABLE — the check could not be RUN here (no key / receipt not in this process's DAG)
+
+  0 runtime CDN: system fonts only, no external scripts. Nothing is fabricated.
+  Λ = Conjecture 1
+  (never a theorem); this surface adds NOTHING to the locked-8 (749/14/163 @ c7c0ba17);
+  trust ceiling never 100%. Shareable links: /verify?receipt=<id> and
+  /verify?envelope=<base64url(JSON envelope)>.
 -->
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="canonical" href="https://a-11-oy.com/verify"/>
 <title>a11oy · Verify a Receipt — don't trust us, verify it</title>
 <style>
   :root{
@@ -33,6 +44,8 @@
   .wrap{max-width:1080px;margin:0 auto;padding:22px}
   section{margin:0 0 24px}
   .eyebrow{color:var(--acc);font-size:11px;letter-spacing:.16em;text-transform:uppercase;margin-bottom:6px}
+  h2{font-size:16px;letter-spacing:.3px;margin:0 0 10px}
+  p{margin:0 0 12px}
   .hook{font-size:24px;line-height:1.35;font-weight:700;margin:6px 0 12px}
   .hook .em{color:var(--acc)}
   .lede{font-size:14px;color:#cdd8e6}
@@ -49,6 +62,9 @@
        font:600 13px/1 ui-monospace,Menlo,monospace;cursor:pointer;letter-spacing:.3px;min-height:44px}
   button.ghost{background:transparent;color:var(--acc2);border:1px solid var(--line)}
   button:disabled{opacity:.5;cursor:default}
+  :focus-visible{outline:3px solid var(--acc);outline-offset:3px}
+  .wrap,.chk,.row{min-width:0;overflow-wrap:anywhere}
+  .offline-key{min-height:100px}
   .pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:11px;
         border:1px solid var(--line);white-space:nowrap;font-weight:600}
   .pill.ok{color:var(--ok);border-color:#163a1f;background:#0e2113}
@@ -63,6 +79,10 @@
   .chk .h{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
   .chk .name{font-weight:600}
   .chk .detail{color:var(--mut);font-size:12px;margin-top:6px}
+  .kv{color:var(--mut);font-size:11px;margin-top:6px;word-break:break-all}
+  .kv b{color:var(--ink);font-weight:600}
+  .share{margin-top:12px;padding:12px 14px;border:1px dashed var(--line);border-radius:8px;background:var(--panel2)}
+  .share .l{display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap}
   .muted{color:var(--mut);font-size:12px}
   pre{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;
       overflow:auto;font-size:11px;color:#bcd;max-height:280px}
@@ -80,8 +100,8 @@
 <body>
 <header>
   <h1>Verify a Receipt <span class="pill ok">PUBLIC · NO LOGIN</span></h1>
-  <div class="sub">Don't trust us — <b>verify the receipt</b>. Prints the same facts
-     <code>szl_frontier_verify.py --demo</code> prints. Nothing is fabricated.</div>
+  <div class="sub">Check a DSSE signature locally with a supplied public key, or explicitly request
+    online runtime verification. Signature validity, signer identity, and chain integrity are separate checks.</div>
   <div class="nav">
     <a href="/">← home</a>
     <a href="/signature-is-not-proof">signature-is-not-proof</a>
@@ -91,14 +111,21 @@
     <a href="https://a11oy.net" target="_blank" rel="noopener">proof · a11oy.net</a>
   </div>
 </header>
-<div class="wrap">
+
+<main class="wrap">
   <section>
     <div class="hook">A signature you can't check is <span class="em">just a claim</span>.<br/>
       Here you can <span class="em">check it yourself.</span></div>
-    <p class="lede">Nine-step fail-closed wire. AM is witness. Only GM may ALLOW.
-      τ = 0.80 is POLICY, not a theorem. TypeSafe composite scoring is arithmetic — it may feed axes, it must not admit.
-      Product: <a href="https://a-11-oy.com">a-11-oy.com</a> · proof: <a href="https://a11oy.net">a11oy.net</a> · never a11oy.com.</p>
+    <p class="lede">Offline verification runs <b>ECDSA-P256 / SHA-256 over DSSE PAE</b> in this browser.
+      Paste the public key and expected key id obtained from a source you trust. The receipt and key stay
+      in this browser during the offline check. A valid signature under a supplied key does not establish
+      the signer's identity, authorization, or the truth of the payload.</p>
+    <p class="muted">This is the interactive product tool at <b>a-11-oy.com</b>.
+      The separate public RECORD registry is <a href="https://a11oy.net/record/">a11oy.net</a>.
+      Offline chain verification is UNAVAILABLE here; the optional online check can inspect the runtime's
+      in-memory Khipu ledger.</p>
   </section>
+
   <section class="card" id="demoCard">
     <div class="eyebrow">Math demo · τ = 0.80 POLICY · equal-weight n=4</div>
     <p class="muted">G = exp(Σ log xᵢ / n). Admit iff G ≥ 0.80 ∧ min &gt; 0. dang ≔ (AM ≥ τ) ∧ (GM &lt; τ).
@@ -113,63 +140,88 @@
   </section>
   <section class="card">
     <label for="env">DSSE / SZL receipt envelope (paste JSON, or a base64url share payload)</label>
-    <textarea id="env" placeholder='{"payloadType":"application/vnd.szl.khipu+json","payload":"...","signatures":[{"sig":"...","keyid":"szlholdings-cosign"}]}'></textarea>
-    <label for="rid">…or a receipt id / seal digest (walks the hash-chain)</label>
-    <input id="rid" type="text" placeholder="e.g. a 64-hex Khipu seal digest"/>
+    <textarea id="env" maxlength="262144" spellcheck="false" aria-describedby="inputLimits" placeholder='{"payloadType":"application/vnd.szl.khipu+json","payload":"...","signatures":[{"sig":"...","keyid":"szlholdings-cosign"}]}'></textarea>
+    <p id="inputLimits" class="muted">Maximum 256 KiB of UTF-8 input, 128 KiB decoded payload, and 16 signatures.
+      Use a DSSE envelope directly; other receipt formats are not converted or guessed.</p>
+    <label for="publicKey">Public verification key — PEM, P-256 (offline only)</label>
+    <textarea id="publicKey" class="offline-key" maxlength="4096" spellcheck="false" placeholder="-----BEGIN PUBLIC KEY-----"></textarea>
+    <label for="expectedKeyId">Expected key id selection hint (offline only; not authenticated by DSSE)</label>
+    <input id="expectedKeyId" type="text" maxlength="256" spellcheck="false" autocomplete="off"/>
+    <label for="expectedDigest">Expected SHA-256 of decoded payload bytes — optional (offline only)</label>
+    <input id="expectedDigest" type="text" maxlength="71" spellcheck="false" autocomplete="off" placeholder="64 hex characters, optionally prefixed sha256:"/>
+    <p class="muted">The optional digest must refer to the exact decoded DSSE payload bytes, not a receipt id,
+      chain seal, or a reserialized inner object. Obtain the expected digest independently.</p>
+    <label for="rid">Receipt id / seal digest — online runtime lookup only</label>
+    <input id="rid" type="text" maxlength="256" spellcheck="false" placeholder="e.g. a 64-hex Khipu seal digest"/>
     <div class="row">
-      <button id="go">Verify</button>
+      <button id="go">Verify offline</button>
+      <button id="goOnline" class="ghost">Verify online runtime</button>
       <button id="loadAxes" class="ghost">Load hidden_weak axes</button>
       <button id="loadFriend" class="ghost">Load false_friend axes</button>
       <button id="loadLambda" class="ghost">Load Λ-proven claim</button>
       <button id="tamper" class="ghost">Tamper payload</button>
       <button id="clear" class="ghost">Clear</button>
-      <span id="status" class="muted"></span>
+      <span id="status" class="muted" role="status" aria-live="polite" aria-atomic="true"></span>
     </div>
+    <p class="muted">The math table and loaded axes are a local demonstration with τ = 0.80 policy.
+      They do not authorize execution. The current runtime verifier reports signature, payload digest,
+      and hash-chain checks; it does not validate the axes or a Λ claim. Λ remains Conjecture 1.</p>
+    <p class="muted">Online verification sends the envelope and/or receipt id to this product host.
+      It does not send the supplied public key. It uses runtime and retained organization keys;
+      a missing chain remains UNAVAILABLE after a runtime restart.</p>
   </section>
+
   <section id="result" class="card hide">
     <div class="eyebrow">Result</div>
-    <div id="verdict" class="verdict">—</div>
+    <div id="verdict" class="verdict" tabindex="-1">—</div>
     <div id="verdictNote" class="muted"></div>
     <div id="checks" class="checks"></div>
-    <details style="margin-top:12px"><summary class="muted">raw verifier response</summary><pre id="raw"></pre></details>
+
+    <div id="share" class="share hide">
+      <div class="muted"><b>Shareable verify links</b> — hand these to an investor/auditor to re-verify themselves:</div>
+      <div class="l"><span class="pill mut">by receipt id</span> <code id="shareId">—</code>
+        <button class="ghost" data-copy="shareId">copy</button></div>
+      <div class="l"><span class="pill mut">self-contained</span> <code id="shareEnv">—</code>
+        <button class="ghost" data-copy="shareEnv">copy</button></div>
+    </div>
+
+    <details style="margin-top:12px">
+      <summary class="muted">Verification details and scope</summary>
+      <pre id="raw"></pre>
+    </details>
   </section>
+
   <section class="card">
     <div class="eyebrow">How to read the honest labels</div>
-    <p class="muted"><span class="pill ok">VERIFIED</span> crypto ran and passed.
-      <span class="pill warn">ADMITTED</span> GM ≥ τ (software, not a sensor).
-      <span class="pill ok">MEASURED</span> NVML/RAPL.
-      <span class="pill err">MISMATCH</span> failed.
-      <span class="pill err">BLOCKED</span> Λ treated as proven.
-      <span class="pill warn">UNSIGNED-LOCAL</span> no signature.
-      <span class="pill mut">UNAVAILABLE</span> could not run.
-      <span class="pill mut">CONJECTURE</span> Λ uniqueness stays open.</p>
+    <p class="muted"><span class="pill ok">VERIFIED</span> the check ran and passed. &nbsp;
+      <span class="pill err">MISMATCH</span> the check ran and FAILED (bad signature, tampered payload, or broken chain). &nbsp;
+      <span class="pill warn">UNSIGNED-LOCAL</span> the envelope carries no signature — nothing to verify (never faked). &nbsp;
+      <span class="pill mut">UNAVAILABLE</span> evidence needed for this check is absent or the mechanism is unsupported here.</p>
+    <p class="muted"><b>PARTIAL</b> means at least one check passed while another remains unavailable.
+      Offline results remain PARTIAL when signature and optional payload digest checks pass:
+      trusted signer identity and parent-chain verification are not established.</p>
     <div class="foot">
-      Λ = <b>Conjecture 1</b>. Adds nothing to locked-8 (749/14/163 @ c7c0ba17).
-      Trust ceiling never 100%. Rekor / SCITT / C2PA / OTS / OMS / ZK stay UNAVAILABLE until a bundle is present.
-      Jev / TypeSafe scores may feed axes. They cannot grant ALLOW.
-      The server checks a signature against this deployment's runtime key at <a href="/cosign.pub">/cosign.pub</a> first, then against the other public keys it retains, which include the szl-holdings/.github org key.
-      VERIFIED means one of those keys verified the signature. In the raw verifier response, the signature check's signatures[] names which key (verified_by or verified_by_keyid).
-      /cosign.pub is published by this deployment itself, so it is not an independent trust anchor.
+      Λ = <b>Conjecture 1</b> (never a theorem). This verifier adds <b>nothing</b> to the locked-8
+      (749/14/163 @ kernel c7c0ba17). Trust ceiling is never 100%. The signature is checked against the
+      supplied public key for offline checks; obtain trusted key provenance independently.
+      Runtime receipt key metadata is available at
+      <a href="/api/a11oy/v1/govern/verifying-key">/api/a11oy/v1/govern/verifying-key</a>;
+      compare its fingerprint with an independently authenticated source.
+      Online POST verification tries this deployment's runtime key at <a href="/cosign.pub">/cosign.pub</a> first, then retained keys.
+      The signature check in the raw response names the verifying key using verified_by or verified_by_keyid.
+      This deployment publishes /cosign.pub itself; it is not an independent trust anchor.
+      Key rotation can require a different historically trusted key. In-memory Khipu chains reset on a Space restart,
+      so a hash-chain check can honestly read UNAVAILABLE for an older receipt id.
     </div>
   </section>
-</div>
+</main>
+
 <script>
 (function(){
   var $ = function(id){ return document.getElementById(id); };
   var API = "/api/a11oy/v1/verify/receipt";
+
   var POLICY = 0.80;
-  var NAMES = {
-    schema: "1 · Schema / parse",
-    pae: "2 · PAE SHA-256",
-    signature: "3 · ECDSA-P256",
-    payload_digest: "3b · payload re-hash vs declared digest",
-    hash_chain: "4 · prev → digest (ORDER, not non-equivocation)",
-    rekor: "5 · Rekor / SCITT",
-    gate: "6 · Geometric-mean gate",
-    energy: "7 · Energy",
-    lambda_posture: "8 · Λ posture",
-    optional_tiers: "9 · Optional tiers"
-  };
   function gmAm(scores){
     var gm=0, am=0, mn=Infinity, i;
     for(i=0;i<scores.length;i++){ am += scores[i]; if(scores[i]<mn) mn=scores[i]; }
@@ -217,78 +269,296 @@
     }, null, 2);
   }
   function pillClass(status){
-    if(status === "VERIFIED" || status === "MEASURED") return "ok";
-    if(status === "ADMITTED" || status === "UNSIGNED-LOCAL") return "warn";
-    if(status === "MISMATCH" || status === "BLOCKED") return "err";
-    return "mut";
+    if(status === "VERIFIED") return "ok";
+    if(status === "MISMATCH") return "err";
+    if(status === "UNSIGNED-LOCAL") return "warn";
+    return "mut"; // UNAVAILABLE / unknown
+  }
+  function verdictClass(v){
+    v = (v||"").toUpperCase();
+    if(v === "PASS") return "pass";
+    if(v === "FAIL") return "fail";
+    if(v === "PARTIAL") return "partial";
+    return "inconclusive";
   }
   function esc(s){ return String(s==null?"":s).replace(/[&<>]/g,function(c){
     return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c]; }); }
+
+  function kvline(label, val){
+    if(val === undefined || val === null || val === "") return "";
+    return '<div class="kv"><b>'+esc(label)+':</b> '+esc(val)+'</div>';
+  }
+
   function renderCheck(c){
     var st = c.status || "UNAVAILABLE";
-    return '<div class="chk"><div class="h"><span class="name">'+esc(NAMES[c.check]||c.check)+
+    var extra = "";
+    extra += kvline("keyid_expected", c.keyid_expected);
+    extra += kvline("pub_fingerprint_sha256", c.pub_fingerprint_sha256);
+    extra += kvline("declared_payload_digest", c.declared_payload_digest);
+    extra += kvline("recomputed_payload_sha256", c.recomputed_payload_sha256);
+    extra += kvline("organ", c.organ);
+    extra += kvline("seq", c.seq);
+    extra += kvline("digest_matches", c.digest_matches);
+    extra += kvline("chain_to_genesis_verified", c.chain_to_genesis_verified);
+    extra += kvline("links_checked", c.links_checked);
+    extra += kvline("broken_link", c.broken_link);
+    var names = {signature:"1 · ECDSA-P256 signature",
+                 payload_digest:"2 · payload digest comparison",
+                 hash_chain:"3 · hash-chain to genesis",
+                 signer_identity:"4 · trusted signer identity",
+                 payload_schema:"5 · payload schema and policy"};
+    return '<div class="chk"><div class="h"><span class="name">'+esc(names[c.check]||c.check)+
       '</span><span class="pill '+pillClass(st)+'">'+esc(st)+'</span></div>'+
-      '<div class="detail">'+esc(c.detail||"")+'</div></div>';
+      '<div class="detail">'+esc(c.detail||"")+'</div>'+extra+'</div>';
   }
+
+  function origin(){ return window.location.origin; }
+
   function renderResult(res){
     $("result").classList.remove("hide");
     var v = res.verdict || "INCONCLUSIVE";
-    $("verdict").textContent = v;
-    $("verdict").className = "verdict " + (v==="PASS"?"pass":v==="FAIL"?"fail":"partial");
-    $("verdictNote").textContent = res.ok === false ? (res.detail || "no input") : ("input: "+(res.input||"?"));
-    var wrap = $("checks"); wrap.innerHTML = "";
+    var vd = $("verdict");
+    vd.textContent = v;
+    vd.className = "verdict " + verdictClass(v);
+    $("verdictNote").textContent = res.ok === false
+      ? (res.detail || "no input")
+      : ("input: " + (res.input||"?") + (res.payloadType ? "  ·  payloadType: "+res.payloadType : ""));
+    var wrap = $("checks");
+    wrap.innerHTML = "";
     (res.checks||[]).forEach(function(c){ wrap.insertAdjacentHTML("beforeend", renderCheck(c)); });
+
+    // Shareable links
+    var sl = res.shareable_link || {};
+    var hasShare = sl.by_receipt_id || sl.by_envelope;
+    if(hasShare){
+      $("share").classList.remove("hide");
+      $("shareId").textContent  = sl.by_receipt_id ? (origin()+sl.by_receipt_id) : "(no receipt id in envelope)";
+      $("shareEnv").textContent = sl.by_envelope  ? (origin()+sl.by_envelope)  : "(envelope too large for a URL)";
+    } else {
+      $("share").classList.add("hide");
+    }
     $("raw").textContent = JSON.stringify(res, null, 2);
+    $("result").scrollIntoView({behavior:"auto", block:"start"});
   }
-  function doVerify(body){
-    $("status").textContent = "verifying…"; $("go").disabled = true;
-    fetch(API, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)})
-      .then(function(r){ return r.json().then(function(j){ return {j:j}; }); })
-      .then(function(x){ $("status").textContent = ""; $("go").disabled=false; renderResult(x.j); })
-      .catch(function(e){ $("status").textContent = "network error: "+e; $("go").disabled=false; });
+
+  var sequence = 0, pending = null;
+  var encoder = new TextEncoder();
+  var MAX_INPUT = 262144, MAX_PAYLOAD = 131072, TIMEOUT_MS = 10000;
+  function invalidate(message){
+    sequence += 1;
+    if(pending){ pending.abort(); pending = null; }
+    $("result").classList.add("hide"); $("share").classList.add("hide");
+    $("raw").textContent = ""; $("checks").innerHTML = "";
+    $("verdict").textContent = "—"; $("verdict").className = "verdict";
+    $("shareId").textContent = ""; $("shareEnv").textContent = "";
+    $("status").textContent = message || "";
+    $("go").disabled = false; $("goOnline").disabled = false;
+    return sequence;
   }
-  $("go").addEventListener("click", function(){
-    var env = $("env").value.trim(), rid = $("rid").value.trim(), body = {};
-    if(env) body.envelope = env; if(rid) body.receipt_id = rid;
-    if(!body.envelope && !body.receipt_id){ $("status").textContent = "paste an envelope or a receipt id first"; return; }
-    doVerify(body);
+  function decode64(value, limit){
+    if(typeof value !== "string" || value.length > Math.ceil(limit / 3) * 4 + 4 ||
+       !/^[A-Za-z0-9+/_-]*={0,2}$/.test(value) || value.length % 4 === 1){
+      throw new Error("Invalid or oversized base64 input");
+    }
+    var normalized = value.replace(/-/g,"+").replace(/_/g,"/");
+    var raw = atob(normalized);
+    if(raw.length > limit || btoa(raw).replace(/=+$/,"") !== normalized.replace(/=+$/,"")){
+      throw new Error("Noncanonical or oversized base64 input");
+    }
+    return Uint8Array.from(raw, function(c){return c.charCodeAt(0);});
+  }
+  function parseEnvelope(text){
+    if(!text || encoder.encode(text).length > MAX_INPUT) throw new Error("Envelope required; maximum 256 KiB");
+    var json = text;
+    if(text.trim()[0] !== "{") json = new TextDecoder("utf-8",{fatal:true}).decode(decode64(text, MAX_INPUT));
+    var env = JSON.parse(json);
+    if(!env || Array.isArray(env) || typeof env.payloadType !== "string" || !env.payloadType ||
+       encoder.encode(env.payloadType).length > 1024 || typeof env.payload !== "string" ||
+       !Array.isArray(env.signatures) || env.signatures.length > 16){
+      throw new Error("Expected an explicit DSSE payloadType, base64 payload and up to 16 signatures");
+    }
+    env.signatures.forEach(function(sig){
+      if(!sig || typeof sig !== "object" || typeof sig.sig !== "string" ||
+         (sig.keyid !== undefined && (typeof sig.keyid !== "string" || sig.keyid.length > 256))){
+        throw new Error("Malformed DSSE signature entry");
+      }
+    });
+    return {envelope:env, payload:decode64(env.payload,MAX_PAYLOAD)};
+  }
+  function pae(type, payload){
+    var typeBytes = encoder.encode(type);
+    var start = encoder.encode("DSSEv1 " + typeBytes.length + " ");
+    var middle = encoder.encode(" " + payload.length + " ");
+    var out = new Uint8Array(start.length + typeBytes.length + middle.length + payload.length);
+    out.set(start); out.set(typeBytes,start.length); out.set(middle,start.length+typeBytes.length);
+    out.set(payload,start.length+typeBytes.length+middle.length); return out;
+  }
+  function p256Signature(bytes){
+    // WebCrypto uses fixed-width r || s. SZL/cosign receipts may contain ASN.1 DER.
+    if(bytes.length === 64) return bytes;
+    if(bytes.length < 8 || bytes.length > 72 || bytes[0] !== 48 || bytes[1] !== bytes.length-2){
+      throw new Error("Unsupported P-256 signature encoding");
+    }
+    var pos=2, out=new Uint8Array(64);
+    for(var i=0;i<2;i++){
+      if(bytes[pos++] !== 2) throw new Error("Invalid DER integer");
+      var length=bytes[pos++];
+      if(!length || length>33 || pos+length>bytes.length || bytes[pos]&128) throw new Error("Invalid DER scalar");
+      var integer=bytes.slice(pos,pos+length); pos+=length;
+      if(integer.length>1 && integer[0]===0){
+        if(!(integer[1]&128)) throw new Error("Noncanonical DER scalar");
+        integer=integer.slice(1);
+      }
+      if(integer.length>32) throw new Error("Oversized DER scalar");
+      out.set(integer, i*32+32-integer.length);
+    }
+    if(pos !== bytes.length) throw new Error("Trailing DER data");
+    return out;
+  }
+  function hex(bytes){return Array.from(new Uint8Array(bytes),function(b){return b.toString(16).padStart(2,"0");}).join("");}
+  function check(name,status,detail){return {check:name,status:status,detail:detail};}
+  function overall(checks){
+    var states=checks.map(function(c){return c.status;});
+    if(states.includes("MISMATCH")) return "FAIL";
+    if(states.includes("VERIFIED")) return states.every(function(s){return s==="VERIFIED";}) ? "PASS" : "PARTIAL";
+    return "INCONCLUSIVE";
+  }
+  async function offline(inputs){
+    var decoded=parseEnvelope(inputs.envelope), env=decoded.envelope, payload=decoded.payload;
+    var checks=[], signature=check("signature","UNAVAILABLE","Supply a public P-256 key and matching key id hint.");
+    if(!window.crypto || !window.crypto.subtle) throw new Error("WebCrypto unavailable; use a secure context");
+    var digest=hex(await window.crypto.subtle.digest("SHA-256",payload));
+    var expected=inputs.digest.replace(/^sha256:/i,"").toLowerCase();
+    if(expected && !/^[a-f0-9]{64}$/.test(expected)) throw new Error("Expected payload digest must be 64 hexadecimal characters");
+    if(!env.signatures.length){
+      signature=check("signature","UNSIGNED-LOCAL","No signature is present. A payload hash cannot establish a signer.");
+    } else if(inputs.publicKey && inputs.keyid){
+      if(inputs.publicKey.length>4096 || inputs.keyid.length>256) throw new Error("Key or key id exceeds input limit");
+      var match=/^-----BEGIN PUBLIC KEY-----\s*([A-Za-z0-9+/=\s]+)\s*-----END PUBLIC KEY-----$/.exec(inputs.publicKey);
+      if(!match) throw new Error("Only a public SPKI PEM is accepted; never paste a private key");
+      var spki=decode64(match[1].replace(/\s/g,""),2048);
+      var candidates=env.signatures.filter(function(s){return s.keyid === inputs.keyid;});
+      if(candidates.length !== 1) throw new Error("Expected exactly one matching key id; missing or ambiguous selection");
+      var key=await window.crypto.subtle.importKey("spki",spki,{name:"ECDSA",namedCurve:"P-256"},false,["verify"]);
+      var verified=await window.crypto.subtle.verify({name:"ECDSA",hash:"SHA-256"},key,
+        p256Signature(decode64(candidates[0].sig,80)),pae(env.payloadType,payload));
+      signature=check("signature",verified?"VERIFIED":"MISMATCH",
+        verified?"Exact DSSE PAE signature verifies under the supplied key. Key id is an unauthenticated selection hint; trusted identity and authorization are not established.":"Signature does not verify under the supplied key.");
+      signature.pub_fingerprint_sha256=hex(await window.crypto.subtle.digest("SHA-256",spki));
+    }
+    checks.push(signature);
+    checks.push(Object.assign(check("payload_digest",expected?(expected===digest?"VERIFIED":"MISMATCH"):"UNAVAILABLE",
+      expected?"Compared the exact decoded payload bytes with your separately supplied digest.":"SHA-256 computed; no independent expected digest supplied."),{recomputed_payload_sha256:digest,declared_payload_digest:expected||null}));
+    checks.push(check("hash_chain","UNAVAILABLE","No parent-chain mechanism or runtime ledger is verified by this offline check."));
+    checks.push(check("signer_identity","UNAVAILABLE","Supplied-key verification does not bind a trusted person, organization, or authority."));
+    checks.push(check("payload_schema","UNAVAILABLE","Only signature bytes and the optional digest are checked. Payload type and business semantics require their own schema and policy validation."));
+    return {ok:true,input:"offline supplied-key check",payloadType:env.payloadType,verdict:overall(checks),checks:checks,
+      evidence:{value:signature.status,evidenceClass:"MEASURED",runtimeState:"NOT_PROBED",authorization:"UNKNOWN",
+        signerState:env.signatures.length?"SIGNED_UNVERIFIED":"UNSIGNED",source:"User-supplied envelope and public key; local WebCrypto",
+        sourceRevision:null,observedAt:new Date().toISOString(),method:"ECDSA-P256/SHA-256 DSSE PAE; optional raw-payload SHA-256",
+        bound:"Does not establish trusted signer identity, authorization, payload truth/schema, chain continuity or production readiness."}};
+  }
+  function validateOnline(res){
+    if(!res || res.ok !== true || !Array.isArray(res.checks) || res.checks.length !== 3) throw new Error("Malformed or unavailable verifier response");
+    var names=["signature","payload_digest","hash_chain"];
+    names.forEach(function(name){if(res.checks.filter(function(c){return c && c.check===name;}).length!==1) throw new Error("Missing or ambiguous verifier check");});
+    if(res.checks.some(function(c){return !["VERIFIED","MISMATCH","UNSIGNED-LOCAL","UNAVAILABLE"].includes(c.status);})) throw new Error("Unknown verifier status");
+    if(res.verdict!==overall(res.checks)) throw new Error("Verifier verdict conflicts with its checks");
+    return res;
+  }
+  async function run(mode){
+    var id=invalidate("Verifying…"), inputs=readInputs(), timer;
+    $("go").disabled=true; $("goOnline").disabled=true;
+    try{
+      if(mode==="offline" && !inputs.envelope) throw new Error("Paste an envelope for offline verification");
+      if(inputs.envelope && encoder.encode(inputs.envelope).length>MAX_INPUT) throw new Error("Envelope exceeds 256 KiB");
+      if(inputs.receipt_id && !/^[A-Za-z0-9._:\-]{1,256}$/.test(inputs.receipt_id)) throw new Error("Invalid receipt id");
+      var result;
+      if(mode==="offline") result=await offline(inputs);
+      else{
+        if(!inputs.envelope && !inputs.receipt_id) throw new Error("Paste an envelope or receipt id first");
+        pending=new AbortController(); var controller=pending;
+        var body={}; if(inputs.envelope) body.envelope=inputs.envelope; if(inputs.receipt_id) body.receipt_id=inputs.receipt_id;
+        result=await Promise.race([
+          fetch(API,{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json"},body:JSON.stringify(body),signal:controller.signal})
+            .then(async function(response){if(!response.ok) throw new Error("Runtime returned HTTP "+response.status); return validateOnline(await response.json());}),
+          new Promise(function(_,reject){timer=setTimeout(function(){controller.abort();reject(new Error("Runtime verification timed out"));},TIMEOUT_MS);})
+        ]);
+      }
+      if(id !== sequence) return;
+      renderResult(result); $("status").textContent=mode==="offline"?"Offline checks complete; inspect the scope of each result.":"Runtime checks complete.";
+    }catch(error){
+      if(id===sequence){invalidate("UNAVAILABLE — "+error.message);}
+    }finally{
+      clearTimeout(timer);
+      if(id===sequence){pending=null;$("go").disabled=false;$("goOnline").disabled=false;}
+    }
+  }
+
+  function readInputs(){
+    var env = $("env").value.trim();
+    var rid = $("rid").value.trim();
+    var body = {publicKey:$("publicKey").value.trim(),keyid:$("expectedKeyId").value.trim(),digest:$("expectedDigest").value.trim()};
+    if(env) body.envelope = env;
+    if(rid) body.receipt_id = rid;
+    return body;
+  }
+
+  $("go").addEventListener("click", function(){return run("offline");});
+  $("goOnline").addEventListener("click", function(){return run("online");});
+  ["env","rid","publicKey","expectedKeyId","expectedDigest"].forEach(function(id){
+    $(id).addEventListener("input",function(){invalidate("Inputs changed; verify again.");});
   });
   $("clear").addEventListener("click", function(){
-    $("env").value=""; $("rid").value=""; $("result").classList.add("hide"); $("status").textContent="";
+    invalidate(); ["env","rid","publicKey","expectedKeyId","expectedDigest"].forEach(function(id){$(id).value="";});
+    history.replaceState(null,"","/verify");
   });
-  $("loadAxes").addEventListener("click", function(){
-    $("env").value = axesEnvelope("hidden_weak", [0.95,0.95,0.95,0.40]);
-    $("status").textContent = "hidden_weak loaded — expect dang / DENY at 0.80";
-  });
-  $("loadFriend").addEventListener("click", function(){
-    $("env").value = axesEnvelope("false_friend", [0.95,0.92,0.90,0.55]);
-    $("status").textContent = "false_friend loaded — GM still ≥ 0.80, NOT dang";
-  });
-  $("loadLambda").addEventListener("click", function(){
-    $("env").value = axesEnvelope("lambda_proven", [0.95,0.92,0.88,0.90], {lambda_posture:"Λ is a proven theorem"});
-    $("status").textContent = "Λ-proven claim loaded — step 8 must BLOCKED";
-  });
-  $("tamper").addEventListener("click", function(){
-    var raw = $("env").value.trim();
-    if(!raw){ $("status").textContent = "paste or load an envelope first"; return; }
+
+  function loadDemo(id, axes, extra){
+    invalidate("Unsigned math demonstration loaded. Choose a verification mode; no authorization granted.");
+    $("env").value=axesEnvelope(id,axes,extra);
+    $("rid").value="";
+  }
+  $("loadAxes").addEventListener("click",function(){loadDemo("hidden_weak",[0.95,0.95,0.95,0.40]);});
+  $("loadFriend").addEventListener("click",function(){loadDemo("false_friend",[0.95,0.92,0.90,0.55]);});
+  $("loadLambda").addEventListener("click",function(){loadDemo("lambda_proven",[0.95,0.92,0.88,0.90],{lambda_posture:"Λ is a proven theorem"});});
+  $("tamper").addEventListener("click",function(){
+    invalidate();
     try{
-      var obj = JSON.parse(raw);
-      var env = obj.payload && obj.payload.envelope ? obj.payload.envelope : obj;
-      if(typeof env.payload === "string" && env.payload.length > 20){
-        var p = env.payload;
-        env.payload = p.slice(0,20) + (p[20]==="A"?"B":"A") + p.slice(21);
-        $("env").value = JSON.stringify(obj, null, 2);
-        $("status").textContent = "one-byte flip — Verify; PAE/sig should MISMATCH";
-      } else $("status").textContent = "no envelope.payload string to flip";
-    } catch(e){ $("status").textContent = "could not parse JSON to tamper"; }
+      var decoded=parseEnvelope($("env").value.trim());
+      if(!decoded.payload.length) throw new Error("Payload is empty");
+      decoded.payload[0]^=1;
+      decoded.envelope.payload=btoa(Array.from(decoded.payload,function(b){return String.fromCharCode(b);}).join(""));
+      $("env").value=JSON.stringify(decoded.envelope,null,2);
+      $("status").textContent="One decoded payload byte changed. Reverify; a valid signature should now mismatch.";
+    }catch(error){$("status").textContent="UNAVAILABLE — "+error.message;}
   });
-  (function(){
-    var q = new URLSearchParams(location.search);
-    var receipt = q.get("receipt"), envelope = q.get("envelope");
-    if(typeof envelope === "string" && /^[A-Za-z0-9_-]{1,8192}$/.test(envelope)){
-      $("env").value = envelope; doVerify({envelope: envelope});
-    } else if(typeof receipt === "string" && /^[A-Za-z0-9._:-]{1,256}$/.test(receipt)){
-      $("rid").value = receipt; doVerify({receipt_id: receipt});
+
+  // copy buttons
+  document.addEventListener("click", function(e){
+    var t = e.target;
+    if(t && t.getAttribute && t.getAttribute("data-copy")){
+      var txt = $(t.getAttribute("data-copy")).textContent;
+      if(!navigator.clipboard){$("status").textContent="Clipboard unavailable; select and copy the link.";return;}
+      var copySequence=sequence;
+      navigator.clipboard.writeText(txt).then(function(){if(copySequence===sequence)$("status").textContent="Link copied.";},function(){if(copySequence===sequence)$("status").textContent="Clipboard unavailable; select and copy the link.";});
+    }
+  });
+
+  // Populate, without transmitting, a shareable link: /verify?receipt=<id> or /verify?envelope=<b64url>
+  (function fromQuery(){
+    var q = new URLSearchParams(window.location.search);
+    var receipt = q.get("receipt");
+    var envelope = q.get("envelope");
+    // Bound URL input before showing it. Verification always requires an explicit action.
+    var validEnvelope = typeof envelope === "string" && /^[A-Za-z0-9_\-]{1,8192}$/.test(envelope);
+    var validReceipt  = typeof receipt  === "string" && /^[A-Za-z0-9._:\-]{1,256}$/.test(receipt);
+    if(validEnvelope){
+      $("env").value = envelope;
+      $("status").textContent="Envelope loaded. Choose offline or online verification; nothing submitted.";
+    } else if(validReceipt){
+      $("rid").value = receipt;
+      $("status").textContent="Receipt id loaded. Online verification requires an explicit click.";
     }
   })();
 })();
