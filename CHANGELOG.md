@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   model workbench. The Frontier research block links fresh exploratory trials,
   explains on-demand availability and temporary receipt retention, and preserves
   the frozen registered experiment's FAILED result.
+- Retain that exact qualified laboratory in both governed Space lifecycle policies,
+  so consolidation does not privatize the advertised workbench. Other inventory-only
+  and unknown Spaces keep their existing pause/private policy.
 
 
 ### Fixed - evaluation results require governed selected-model execution
