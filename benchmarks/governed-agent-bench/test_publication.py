@@ -6,6 +6,7 @@ import ast
 import hashlib
 import importlib.util
 import json
+import re
 import sys
 import tempfile
 import types
@@ -78,6 +79,48 @@ def _write_manifested_payload(
 
 
 class PublicationTests(unittest.TestCase):
+    def test_dataset_viewer_configs_separate_cases_and_reference_submissions(self):
+        builder = _load_builder()
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp)
+            builder.build(output, "a" * 40, "2026-07-28T12:00:00Z")
+            dataset = output / "dataset"
+            card = (dataset / "README.md").read_text(encoding="utf-8")
+            self.assertTrue(card.startswith("---\n"))
+            frontmatter = card.split("---\n", 2)[1]
+            config_yaml = frontmatter.split("configs:\n", 1)[1]
+            configs = re.findall(
+                r"(?ms)^- config_name: ([\w-]+)\n(.*?)(?=^- config_name: |\Z)",
+                config_yaml,
+            )
+            self.assertEqual(
+                [name for name, _ in configs],
+                ["default", "reference-submissions"],
+            )
+            expected_paths = {
+                "default": "cases.jsonl",
+                "reference-submissions": "submissions/reference-conformance.jsonl",
+            }
+            for name, block in configs:
+                self.assertIn("  - split: train\n", block)
+                paths = re.findall(r'^    path: "([^"]+)"$', block, re.MULTILINE)
+                self.assertEqual(paths, [expected_paths[name]])
+                self.assertTrue((dataset / paths[0]).is_file())
+            self.assertIn("  default: true\n", configs[0][1])
+
+            case = json.loads(
+                (dataset / "cases.jsonl").read_text(encoding="utf-8").splitlines()[0]
+            )
+            reference = json.loads(
+                (dataset / "submissions/reference-conformance.jsonl")
+                .read_text(encoding="utf-8")
+                .splitlines()[0]
+            )
+            self.assertIn("axis", case)
+            self.assertNotIn("final_state", case)
+            self.assertIn("final_state", reference)
+            self.assertNotIn("axis", reference)
+
     def test_bundle_is_hash_closed_and_truth_labeled(self):
         builder = _load_builder()
         publisher = _load_publisher()
