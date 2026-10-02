@@ -72,7 +72,7 @@ def test_v2_is_additive_source_derived_and_mobile_safe() -> None:
     assert "min-height:44px" in html
     assert "prefers-reduced-motion" in html
     assert "forced-colors" in html
-    assert "aria-modal=\"true\"" in html
+    assert 'aria-modal="true"' in html
     assert "cdnjs" not in html and "googleapis" not in html and "jsdelivr" not in html
     for endpoint in (
         "/api/a11oy/v1/honest",
@@ -94,9 +94,13 @@ def test_v2_owns_one_reviewed_nonduplicative_navigation_shell() -> None:
     rollout = FLOW_ROLLOUT.read_text(encoding="utf-8")
     state = json.loads(FLOW_STATE.read_text(encoding="utf-8"))
 
-    assert 'SELF_CONTAINED_PATHS = {"pages/command-v2.html", "pages/wires.html"}' in rollout
-    assert "pages/command-v2.html" in state["self_contained_documents"]
-    assert "pages/command-v2.html" not in state["injected_documents"]
+    assert (
+        'SELF_CONTAINED_PATHS = {"pages/command-v2.html", "pages/oac.html", "pages/wires.html"}'
+        in rollout
+    )
+    for path in ("pages/command-v2.html", "pages/oac.html", "pages/wires.html"):
+        assert path in state["self_contained_documents"]
+        assert path not in state["injected_documents"]
     assert 'data-szl-flow-asset="style"' not in html
     assert 'data-szl-flow-asset="script"' not in html
     for marker in (
