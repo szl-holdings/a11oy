@@ -35,9 +35,9 @@ SOURCE_MANAGED_PATHS = {"pages/integrations.html"}
 # the global journey rail would recreate stacked navigation rather than improve
 # discoverability, so each exclusion is explicit and machine-recorded. Command
 # v2 owns a top rail, room rail, command palette, and responsive mobile dock.
-# OAC is a read-only release handoff with its own compact origin navigation;
-# injecting the global JavaScript rail would violate its no-script contract.
-SELF_CONTAINED_PATHS = {"pages/command-v2.html", "pages/oac.html", "pages/wires.html"}
+# OAC is a no-script read-only handoff: it opts out via data-szl-flow-opt-out
+# instead of joining SELF_CONTAINED_PATHS (which records JS-owned shells).
+SELF_CONTAINED_PATHS = {"pages/command-v2.html", "pages/wires.html"}
 SOURCE_BOUNDARY_MARKERS = ("DO NOT EDIT HERE.", "VENDORED FROM ")
 
 
