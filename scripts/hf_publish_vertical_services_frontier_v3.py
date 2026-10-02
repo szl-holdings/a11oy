@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
-import json
+import re
 import secrets
 import time
 import urllib.error
@@ -135,6 +135,27 @@ def request_text(base: ModuleType, path: str) -> tuple[int, str]:
             return response.status, response.read().decode("utf-8", errors="replace")
     except urllib.error.HTTPError as exc:
         return exc.code, exc.read().decode("utf-8", errors="replace")
+
+
+def hatun_review_payload(receipt: Any) -> dict[str, Any]:
+    """Migrate only an observed, finance-scoped payload to Hatun v2 admission.
+
+    A receipt handle is not its payload digest. Missing evidence stays empty;
+    the runtime then abstains and the publication check remains failed.
+    """
+    digest = receipt.get("payload_sha256") if isinstance(receipt, dict) else None
+    qualified_pointer = bool(
+        isinstance(receipt, dict) and receipt.get("state") == "OBSERVED"
+        and receipt.get("vertical") == "finance"
+        and receipt.get("connector_id") == "polymarket-markets"
+        and isinstance(digest, str) and re.fullmatch(r"[0-9a-f]{64}", digest)
+    )
+    return {
+        "intent": "review the source-bound public market evidence",
+        "requested_action": "market.review",
+        "axes": {"evidence": 0.95, "freshness": 0.92, "reversibility": 0.97},
+        "evidence_sha256": [digest] if qualified_pointer else [],
+    }
 
 
 def verify_frontier(base: ModuleType) -> dict[str, Any]:
@@ -265,7 +286,7 @@ def verify_frontier(base: ModuleType) -> dict[str, Any]:
             ("person_level_prospecting",),
         ),
     )
-    evidence_ref = ""
+    evidence_receipt = None
     for vertical, connector, parameters, false_fields in boundary_requests:
         status, body = base.request_json(
             f"/api/verticals/{vertical}/connectors/{connector}/fetch",
@@ -283,10 +304,8 @@ def verify_frontier(base: ModuleType) -> dict[str, Any]:
             "state": receipt.get("state"),
             "boundaries": {field: observation.get(field) for field in false_fields},
         }
-        if connector == "polymarket-markets" and isinstance(
-            receipt.get("receipt_id"), str
-        ):
-            evidence_ref = receipt["receipt_id"]
+        if connector == "polymarket-markets" and status == 200:
+            evidence_receipt = receipt
         if (
             status != 200
             or receipt.get("state") != "OBSERVED"
@@ -307,19 +326,13 @@ def verify_frontier(base: ModuleType) -> dict[str, Any]:
     if brain_status != 200 or not isinstance(memory_count, int) or memory_count < 2:
         failures.append("puriq: Second-Brain session memory did not observe receipts")
 
+    hatun_payload = hatun_review_payload(evidence_receipt)
+    if not hatun_payload["evidence_sha256"]:
+        failures.append("puriq: observed payload digest unavailable")
     hatun_status, hatun = base.request_json(
         "/api/verticals/puriq/hatun/evaluate",
         method="POST",
-        payload={
-            "intent": "review the source-bound public market evidence",
-            "requested_action": "market.review",
-            "axes": {
-                "evidence": 0.95,
-                "freshness": 0.92,
-                "reversibility": 0.97,
-            },
-            "evidence_refs": [evidence_ref or "receipt-unavailable"],
-        },
+        payload=hatun_payload,
         headers=headers,
     )
     if (
@@ -329,6 +342,10 @@ def verify_frontier(base: ModuleType) -> dict[str, Any]:
         or hatun.get("can_authorize") is not False
         or hatun.get("can_execute") is not False
         or hatun.get("effectors_enabled") is not False
+        or hatun.get("evidence_sha256") != hatun_payload["evidence_sha256"]
+        or hatun.get("evidence_fresh_at_review") is not True
+        or hatun.get("legacy_references_qualify") is not False
+        or hatun.get("session_observation_count") != 1
         or "Conjecture 1" not in str(hatun.get("lambda_status"))
     ):
         failures.append("puriq: Hatun review boundary did not close")

@@ -44,6 +44,8 @@ jobs:
         run: node scripts/test_holo_lab_security.mjs
       - name: Killinchu on-origin status truth contract
         run: node --test tests/test_killinchu_status_page.cjs
+      - name: Offline DSSE receipt verification and stale-result boundaries
+        run: node --test tests/test_public_verify_page.cjs
       - name: Enable corepack and install pnpm 10.33.3
         run: |
           corepack enable
@@ -731,7 +733,10 @@ jobs:
         # UNAVAILABLE+reason (never a fabricated green tile), the build is a pure read, and
         # /frontier renders its surface list FROM this endpoint. A future regression that
         # drifts, pads, or hardcodes labels becomes a red gate. Fully offline. Λ = Conjecture 1.
-        run: pytest test_frontier_surfaces.py -q
+        run: >-
+          pytest test_frontier_surfaces.py
+          tests/test_frontier_manifest_readiness.py
+          tests/test_frontier_health_rollup.py -q
 
   python-v4-fleet-federation:
     name: V4 fleet peer-health federates live standalone Spaces, honestly (pytest, offline)

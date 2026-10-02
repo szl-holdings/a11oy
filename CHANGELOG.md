@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - offline receipt verification boundaries
+- Restore browser-local DSSE P-256 verification against a supplied public key,
+  with exact decoded payload bytes and an optional independently supplied digest.
+- Keep signer trust and parent-chain evidence separate from signature validity;
+  online verification remains explicit and uses the deployment's runtime keys.
+- Bound inputs and online requests, and invalidate results when inputs change.
+
+### Added - Foundation Confirmation trial workbench handoff
+- `/research/confirmation/workbench` redirects only to the separate synthetic CPU
+  model workbench. The Frontier research block links fresh exploratory trials,
+  explains on-demand availability and temporary receipt retention, and preserves
+  the frozen registered experiment's FAILED result.
+- Retain that exact qualified laboratory in both governed Space lifecycle policies,
+  so consolidation does not privatize the advertised workbench. Other inventory-only
+  and unknown Spaces keep their existing pause/private policy.
+
+
 ### Fixed - evaluation results require governed selected-model execution
 - Live evaluation now uses the existing canonical router after governance and
   binds the selected registry model, eligible plan, provider and completion.

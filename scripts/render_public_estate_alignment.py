@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -89,7 +90,16 @@ def inventory_only_spaces(contract: dict[str, Any]) -> list[str]:
             raise ContractError("inventory-only Hub classification drifted")
         if row.get("governedKeep") is not False:
             raise ContractError("inventory-only Space cannot be a governed keeper")
-        if row.get("disposition") != "FOLD":
+        if row.get('id') == 'SZLHOLDINGS/README':
+            if row.get('disposition') != 'ORG_CARD':
+                raise ContractError('reserved README must retain its ORG_CARD disposition')
+            try:
+                org_cards = re.findall(r'^org_card:([^\n]*)$', KEEP_POLICY.read_text(encoding='utf-8'), re.MULTILINE)
+            except OSError as exc:
+                raise ContractError('canonical org-card policy unavailable') from exc
+            if org_cards != [' SZLHOLDINGS/README']:
+                raise ContractError('canonical org-card policy must identify only SZLHOLDINGS/README')
+        elif row.get("disposition") != "FOLD":
             raise ContractError("inventory-only Space must retain its FOLD disposition")
         if row.get("policySource") != KEEP_POLICY.relative_to(ROOT).as_posix():
             raise ContractError("inventory-only Space must cite the canonical keep policy")
@@ -211,6 +221,7 @@ def validate(contract: dict[str, Any], manifest: dict[str, Any]) -> dict[str, An
         "internalEngines": len(engines),
         "huggingFaceTopologyBindings": topology,
         "huggingFaceInventoryOnly": inventory_only,
+        "huggingFaceOrgCard": 'SZLHOLDINGS/README' if 'SZLHOLDINGS/README' in inventory_only else None,
         "governedKeepSet": governed_keep,
         "governedKeepPolicySource": KEEP_POLICY.relative_to(ROOT).as_posix(),
         "keepPolicySha256": hashlib.sha256(KEEP_POLICY.read_bytes()).hexdigest(),
@@ -237,12 +248,15 @@ def _body_lines(contract: dict[str, Any]) -> list[str]:
 def _inventory_policy_line(evidence: dict[str, Any]) -> str:
     inventory_only = ", ".join(
         f"`{space}`" for space in evidence["huggingFaceInventoryOnly"]
+        if space != evidence['huggingFaceOrgCard']
     )
+    org_card = (f" Reserved organization card (not a governed keeper): `{evidence['huggingFaceOrgCard']}`."
+                if evidence['huggingFaceOrgCard'] else '')
     return (
         "Measured Hub inventory is observational and is not the governed keep-list. "
         f"Inventory-only / FOLD (not governed keepers): {inventory_only}. "
         "Canonical keep policy: "
-        f"`{evidence['governedKeepPolicySource']}`."
+        f"`{evidence['governedKeepPolicySource']}`." + org_card
     )
 
 

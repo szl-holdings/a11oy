@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from scripts.hf_keep_policy import load_keep_ids
 
@@ -58,23 +59,25 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         topology = alignment.topology_spaces(self.contract)
         inventory_only = alignment.inventory_only_spaces(self.contract)
         observed = alignment.measured_spaces(self.manifest)
-        self.assertEqual(len(topology), 13)
+        self.assertEqual(len(topology), 14)
         self.assertEqual(
             inventory_only,
             [
                 "SZLHOLDINGS/ayllu",
+                "SZLHOLDINGS/foundation-confirmation-v2",
                 "SZLHOLDINGS/gdw-frontier",
+                "SZLHOLDINGS/governed-receipt-verifier",
                 "SZLHOLDINGS/holographic-unify",
                 "SZLHOLDINGS/immune",
                 "SZLHOLDINGS/immune-lattice",
                 "SZLHOLDINGS/llm-router-live",
                 "SZLHOLDINGS/oac-system-health-lab",
                 "SZLHOLDINGS/prove-it",
+                "SZLHOLDINGS/README",
                 "SZLHOLDINGS/szl-atelier",
                 "SZLHOLDINGS/szl-bench-suite",
                 "SZLHOLDINGS/szl-brand-campaign",
                 "SZLHOLDINGS/szl-forge-lab",
-                "SZLHOLDINGS/szl-foundation-confirmation",
                 "SZLHOLDINGS/szl-khipu",
                 "SZLHOLDINGS/szl-marketing-1.1",
                 "SZLHOLDINGS/szl-typesafe-triage",
@@ -157,7 +160,7 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         organization_keepers = [
             item for item in governed if item.startswith("SZLHOLDINGS/")
         ]
-        self.assertEqual(len(organization_keepers), 7)
+        self.assertEqual(len(organization_keepers), 8)
         self.assertNotIn("SZLHOLDINGS/ayllu", governed)
         self.assertEqual(governed, load_keep_ids(alignment.KEEP_POLICY))
         self.assertEqual(
@@ -209,6 +212,46 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         overlap["laboratorySurfaces"].append("SZLHOLDINGS/ayllu")
         with self.assertRaisesRegex(alignment.ContractError, "cannot be topology bindings"):
             alignment.validate(overlap, self.manifest)
+
+    def test_reserved_org_card_requires_exact_existing_policy_and_no_promotion(self) -> None:
+        row = next(r for r in self.contract['inventoryOnlyHuggingFaceRepositories']
+                   if r['id'] == 'SZLHOLDINGS/README')
+        self.assertEqual(row['disposition'], 'ORG_CARD')
+        self.assertIs(row['governedKeep'], False)
+        self.assertNotIn(row['id'], alignment.governed_keep_spaces())
+        self.assertNotIn(row['id'], alignment.topology_spaces(self.contract))
+        policy = alignment.KEEP_POLICY.read_text(encoding='utf-8')
+        for value in (policy.replace('org_card: SZLHOLDINGS/README', ''),
+                      policy.replace('org_card: SZLHOLDINGS/README', 'org_card: other/README'),
+                      policy + '\norg_card: SZLHOLDINGS/README\n'):
+            with self.subTest(value=value), patch.object(Path, 'read_text', return_value=value):
+                with self.assertRaisesRegex(alignment.ContractError, 'canonical org-card policy'):
+                    alignment.validate(self.contract, self.manifest)
+        with patch.object(Path, 'read_text', side_effect=OSError('missing')):
+            with self.assertRaisesRegex(alignment.ContractError, 'canonical org-card policy unavailable'):
+                alignment.inventory_only_spaces(self.contract)
+        for repo_id, disposition in (('SZLHOLDINGS/README', 'FOLD'),
+                                     ('SZLHOLDINGS/governed-receipt-verifier', 'ORG_CARD')):
+            changed = copy.deepcopy(self.contract)
+            next(r for r in changed['inventoryOnlyHuggingFaceRepositories'] if r['id'] == repo_id)['disposition'] = disposition
+            with self.subTest(repo_id=repo_id), self.assertRaises(alignment.ContractError):
+                alignment.validate(changed, self.manifest)
+        rendered = alignment.render_huggingface(self.contract, self.evidence)
+        fold_text, org_text = rendered.split(' Reserved organization card', 1)
+        self.assertNotIn('`SZLHOLDINGS/README`', fold_text)
+        self.assertIn('`SZLHOLDINGS/README`', org_text)
+
+    def test_new_observed_spaces_remain_inventory_only_and_fail_closed_if_undeclared(self) -> None:
+        for repo_id in ('SZLHOLDINGS/foundation-confirmation-v2', 'SZLHOLDINGS/governed-receipt-verifier'):
+            row = next(r for r in self.contract['inventoryOnlyHuggingFaceRepositories'] if r['id'] == repo_id)
+            self.assertEqual(row['classification'], 'INVENTORY_ONLY')
+            self.assertEqual(row['disposition'], 'FOLD')
+            self.assertIs(row['governedKeep'], False)
+            self.assertNotIn(repo_id, alignment.governed_keep_spaces())
+            missing = copy.deepcopy(self.contract)
+            missing['inventoryOnlyHuggingFaceRepositories'].remove(row)
+            with self.assertRaisesRegex(alignment.ContractError, 'undeclared='):
+                alignment.validate(missing, self.manifest)
 
     def test_quoted_keeper_ids_are_normalized_before_overlap_checks(self) -> None:
         policy = alignment.KEEP_POLICY.read_text(encoding="utf-8").replace(

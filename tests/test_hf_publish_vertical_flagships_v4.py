@@ -67,6 +67,35 @@ def load_base():
     return load_module("szl_hf_flagship_v4_base_test", BASE_SCRIPT)
 
 
+def test_generated_hub_commit_title_binds_exact_source(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = load_overlay()
+    assert module._BASE.upload_text is module.upload_text
+    calls = []
+
+    class FakeHub:
+        def upload_file(self, **kwargs):
+            calls.append(kwargs)
+            return SimpleNamespace(oid="b" * 40)
+
+    source_revision = "a" * 40
+    monkeypatch.setenv("GITHUB_SHA", source_revision)
+    module.upload_text(FakeHub(), "SZLHOLDINGS/sentra", "README.md", "# Sentra\n")
+    assert calls == [{
+        "path_or_fileobj": b"# Sentra\n",
+        "path_in_repo": "README.md",
+        "repo_id": "SZLHOLDINGS/sentra",
+        "repo_type": "space",
+        "commit_message": (
+            "feat(domain-v4): publish README.md from "
+            f"szl-holdings/a11oy@{source_revision}"
+        ),
+    }]
+    monkeypatch.setenv("GITHUB_SHA", "not-a-revision")
+    with pytest.raises(RuntimeError, match="exact 40-hex GITHUB_SHA"):
+        module.upload_text(FakeHub(), "SZLHOLDINGS/sentra", "README.md", "# Sentra\n")
+    assert len(calls) == 1
+
+
 def by_slug(module) -> dict[str, dict]:
     return {row["slug"]: row for row in module.FLAGSHIPS}
 
@@ -448,4 +477,3 @@ def test_livebar_and_sentra_iris_stay_closed_without_a_receipt() -> None:
     assert "iris-aperture" in sentra
     assert "html[data-iris=open] .iris-aperture{transform:scale(.42)}" in module.DOMAIN_CSS["sentra"]
     assert "scale(1)" not in module.DOMAIN_CSS["sentra"]
-

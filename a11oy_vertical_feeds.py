@@ -1758,6 +1758,20 @@ def _readiness_public_source(entry: Any) -> Any:
     return out
 
 
+def _readiness_public_clocked_source(entry: Any) -> Any:
+    """Only project a last-good value when its source supplied a valid clock."""
+    if isinstance(entry, dict) and entry.get("value") is not None:
+        freshness = entry.get("freshness")
+        if isinstance(freshness, dict) and str(freshness.get("status") or "").strip().lower() == "stale":
+            observed_at = freshness.get("fetched_at")
+            if (isinstance(observed_at, bool)
+                    or not isinstance(observed_at, (int, float))
+                    or not math.isfinite(observed_at)
+                    or observed_at <= 0):
+                return entry
+    return _readiness_public_source(entry)
+
+
 # Post-deploy readiness warming. The hf-sync gate probes the canonical space
 # seconds after a cold restart; a single bounded upstream attempt inside one
 # request cannot absorb cold-egress transients, so an env-enabled daemon keeps
@@ -1871,7 +1885,9 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
             (feed_cisa_kev, (limit,), {}),
             (feed_nvd, (min(limit, 20),), {}),
         ])
-        return JSONResponse({"vertical": "defense", "kev": kev, "nvd": nvd,
+        return JSONResponse({"vertical": "defense",
+                             "kev": _readiness_public_clocked_source(kev),
+                             "nvd": _readiness_public_clocked_source(nvd),
                              "sources_cited": cited_leaders("defense"), "doctrine": DOCTRINE})
 
     @app.get(base + "/defense/kpi", include_in_schema=False)
@@ -1909,13 +1925,16 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
         cursor += len(crypto_pairs)
         cve, fx = values[cursor:cursor + 2]
         return JSONResponse({"vertical": "finance",
-                             "equities_official": official,
+                             "equities_official": {symbol: _readiness_public_clocked_source(entry)
+                                                   for symbol, entry in official.items()},
                              "equities": _finance_public_series(eq),
                              "equities_note": ("equities_official = Polygon.io (official, key-gated); "
                                                "equities = Yahoo v8 (unofficial fallback); "
                                                "Yahoo misses are omitted, not stamped unavailable"),
-                             "crypto": crypto,
-                             "fx": fx, "fintech_cve": cve,
+                             "crypto": {pair: _readiness_public_clocked_source(entry)
+                                        for pair, entry in crypto.items()},
+                             "fx": _readiness_public_clocked_source(fx),
+                             "fintech_cve": _readiness_public_clocked_source(cve),
                              "sources_cited": cited_leaders("finance"), "doctrine": DOCTRINE})
 
     # ---- LEGAL ----

@@ -335,10 +335,12 @@ const observed = {
 };
 const finance = {
   vertical: "finance",
-  equities_official: { SPY: structuredClone(observed) },
+  equities_official: Object.fromEntries(
+    ["SPY", "AAPL", "MSFT", "NVDA"].map(symbol => [symbol, structuredClone(observed)])),
   equities: { SPY: structuredClone(observed) },
   equities_note: "official plus fallback",
-  crypto: { "BTC-USD": structuredClone(observed) },
+  crypto: Object.fromEntries(
+    ["BTC-USD", "ETH-USD", "SOL-USD"].map(pair => [pair, structuredClone(observed)])),
   fx: structuredClone(observed),
   fintech_cve: structuredClone(observed),
   sources_cited: [{ url: "https://example.test/source" }],

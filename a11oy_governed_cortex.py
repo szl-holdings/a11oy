@@ -606,6 +606,28 @@ def _extract_output(result: Any) -> str:
     return _sanitize_output(message.get("content"))
 
 
+def _citation_grammar(evidence: Mapping[str, Any]) -> Any:
+    """Constrain the model's first tokens to a supplied public evidence handle."""
+    import llama_cpp
+
+    handles = []
+    for item in evidence["items"]:
+        handle = item["node_id"]
+        if not isinstance(handle, str) or not handle or any(
+            char in handle for char in "[]\r\n\x00"
+        ):
+            raise CortexBoundaryError("owned_model_evidence_handle_invalid", 502)
+        if handle not in handles:
+            handles.append(handle)
+    if not handles:
+        raise CortexBoundaryError("second_brain_returned_no_usable_handles")
+    # A literal is sampled by the model, not attached after generation. The
+    # existing citation validator still rejects any later unsupported handle.
+    choices = " | ".join(json.dumps(f"[{handle}]", ensure_ascii=False) for handle in handles)
+    grammar = f'root ::= ({choices}) " " body\nbody ::= [^\\r\\n]+\n'
+    return llama_cpp.LlamaGrammar.from_string(grammar, verbose=False)
+
+
 def _generate(
     prompt: str,
     evidence: Mapping[str, Any],
@@ -620,12 +642,15 @@ def _generate(
     try:
         result = model.create_chat_completion(
             messages=_compose_messages(prompt, evidence, formulas),
+            grammar=_citation_grammar(evidence),
             max_tokens=max_new_tokens,
             temperature=0.15,
             top_p=0.9,
             repeat_penalty=1.05,
             stream=False,
         )
+    except CortexBoundaryError:
+        raise
     except Exception as exc:
         raise CortexBoundaryError(
             f"owned_model_generation_failed:{type(exc).__name__}", 502
