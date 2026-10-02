@@ -131,11 +131,14 @@ def test_oac_page_is_bounded_accessible_and_has_no_execution_path():
         assert superseded not in source
 
 
-def test_oac_is_explicitly_self_contained_in_product_flow_rollout():
+def test_oac_opts_out_of_product_flow_rollout():
     from scripts import rollout_frontend_flow_shell as flow
 
     state = json.loads((ROOT / "docs" / "frontend-flow-shell-state.json").read_text(encoding="utf-8"))
-    assert flow.self_contained(PAGE)
-    assert "pages/oac.html" in state["self_contained_documents"]
+    source = PAGE.read_text(encoding="utf-8")
+    assert "data-szl-flow-opt-out" in source
+    assert flow.opted_out(PAGE)
+    assert not flow.self_contained(PAGE)
+    assert "pages/oac.html" not in state["self_contained_documents"]
     assert "pages/oac.html" not in state["injected_documents"]
     assert PAGE not in flow.candidates()
