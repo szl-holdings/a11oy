@@ -575,6 +575,7 @@ def validate_readiness_summary(
         "lies",
         "unreachable",
         "throttled",
+        "degraded",
     )
     counts = [summary.get(field) for field in fields]
     if not all(
@@ -597,6 +598,8 @@ def validate_readiness_summary(
         raise RelockError("readiness verdict contains unreachable required endpoints")
     if summary["throttled"] != 0:
         raise RelockError("readiness verdict contains throttled required endpoints")
+    if summary["degraded"] != 0:
+        raise RelockError("readiness verdict contains unavailable required sources")
     p95_worst = summary.get("p95_worst")
     if (
         not isinstance(p95_worst, (int, float))

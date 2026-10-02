@@ -3669,6 +3669,7 @@ try:
                     "lies",
                     "unreachable",
                     "throttled",
+                    "degraded",
                 )
             ]
             try:
@@ -3687,6 +3688,7 @@ try:
                 and _counts[0] > 0
                 and _counts[0] - _counts[2] > 0
                 and sum(_counts[1:]) == _counts[0]
+                and all(value == 0 for value in _counts[3:])
             )
             _p95 = (
                 _candidate_summary.get("p95_worst")

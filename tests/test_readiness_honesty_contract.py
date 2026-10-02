@@ -61,11 +61,12 @@ def test_runtime_variable_requires_exact_source_and_canonical_origin(
         "sourceRevision": source_sha,
         "summary": {
             "endpoints": 5,
-            "ok": 4,
+            "ok": 5,
             "skippedStateChanging": 0,
             "lies": 0,
             "unreachable": 0,
-            "throttled": 1,
+            "throttled": 0,
+            "degraded": 0,
             "p95_worst": 1806,
         },
     }
@@ -85,6 +86,19 @@ def test_runtime_variable_requires_exact_source_and_canonical_origin(
     assert accepted["probe_verdict_available"] is True
     assert accepted["verdict_source_revision"] == source_sha
     assert accepted["verdict_base"] == origin
+
+    for failure in ("lies", "unreachable", "throttled", "degraded"):
+        verdict["summary"].update(ok=4, **{failure: 1})
+        monkeypatch.setenv(
+            "SZL_PROBE_VERDICT_JSON",
+            json.dumps(verdict, separators=(",", ":")),
+        )
+        rejected = client.get(
+            "/api/a11oy/v1/readiness/tab-matrix?view=summary"
+        ).json()
+        assert rejected["probe_verdict_available"] is False
+        assert rejected["verdict_summary"] is None
+        verdict["summary"].update(ok=5, **{failure: 0})
 
     verdict["base"] = "https://unrelated.example"
     monkeypatch.setenv(

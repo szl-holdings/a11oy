@@ -470,6 +470,12 @@ function evaluateEndpointLabels(httpStatus, spec, body) {
   const allowed = new Set(allowLabels.map((value) => String(value).trim().toLowerCase()));
   const lieSet = new Set(liesIf.map((value) => String(value).trim().toLowerCase()));
   const labels = findEvidenceLabels(body, [...allowLabels, ...liesIf]);
+  const requiredSourcePaths = Object.entries(
+    SCHEMAS[spec.schema]?.requiredPathTypes || {},
+  ).filter(([path, type]) => type === "array"
+    && isCanonicalUnavailableItemsEnvelope(body, path));
+  const unavailableSources = [...new Set(requiredSourcePaths.map(([path]) =>
+    unavailableEnvelopePrefix(path) || "$"))];
   // OBSERVED is a valid supplemental counter label, but never a substitute for
   // the root LIVE/CACHED availability label. Inspecting these fields makes a
   // MODELED or unknown counter fail without broadening allowLabels.
@@ -496,6 +502,7 @@ function evaluateEndpointLabels(httpStatus, spec, body) {
     labels,
     disallowed,
     lie,
+    unavailableSources,
   };
 }
 
@@ -699,7 +706,8 @@ async function probeEndpoint(path, spec) {
       path, method, status: null, error: null, skipped: true,
       required: spec.required !== false,
       skipReason: "state-changing contract skipped; require --allow-state-changing and A11OY_READINESS_MUTATION_AUTHORIZED=1",
-      throttled: false, unreachable: false, p50: null, p95: null, samples: 0,
+        throttled: false, unreachable: false, p50: null, p95: null, samples: 0,
+        degraded: false, unavailableSources: [], runtimeState: "NOT_PROBED",
       schemaOk: null, citationOk: null, labelPolicyOk: null,
       evidenceLabels: [], freshOk: null, ageSec: null,
       citationsRequired: !!spec.citationsRequired,
@@ -783,11 +791,16 @@ async function probeEndpoint(path, spec) {
     lies.push("evidence label not allowed: " + disallowedLabels.slice(0, 5)
       .map((entry) => `${entry.path}="${entry.value}"`).join(", "));
   }
+  const unavailableSources = labelPolicy.unavailableSources || [];
 
   return {
     path, method, status: last.status, error: last.error || null,
     required: spec.required !== false,
     throttled, unreachable,
+    degraded: !inconclusive && unavailableSources.length > 0,
+    unavailableSources,
+    runtimeState: lies.length ? "ERROR" : inconclusive ? "UNAVAILABLE"
+      : unavailableSources.length ? "DEGRADED" : "RUNNING",
     p50: Math.round(percentile(lat, 50)), p95: Math.round(percentile(lat, 95)),
     samples: lat.length, schemaOk: schema.ok, citationOk,
     labelPolicyOk: labelPolicy.ok,
@@ -830,12 +843,17 @@ function summarizeReleaseGate(results, expectedCount) {
   const requiredThrottled = Array.isArray(results)
     ? results.filter((r) => !r?.skipped && r?.required !== false && r?.throttled).length
     : 0;
+  const requiredDegraded = Array.isArray(results)
+    ? results.filter((r) => !r?.skipped && r?.required !== false && r?.degraded).length
+    : 0;
   return {
     complete,
     lies,
     requiredUnreachable,
     requiredThrottled,
-    blocked: !complete || lies > 0 || requiredUnreachable > 0 || requiredThrottled > 0,
+    requiredDegraded,
+    blocked: !complete || lies > 0 || requiredUnreachable > 0
+      || requiredThrottled > 0 || requiredDegraded > 0,
   };
 }
 
@@ -876,6 +894,8 @@ async function main() {
   const lies = results.filter((r) => r.lie);
   const unreachable = results.filter((r) => r.unreachable && !r.lie);
   const throttled = results.filter((r) => r.throttled && !r.lie && !r.unreachable);
+  const degraded = results.filter((r) => r.degraded && !r.lie
+    && !r.unreachable && !r.throttled);
   const verdict = {
     schema: "szl.readiness-verdict/v1",
     harness: "a11oy-readiness probe",
@@ -891,25 +911,28 @@ async function main() {
     sourceRevisionAfterStatus: sourceAfter.status,
     summary: {
       endpoints: results.length,
-      ok: results.filter((r) => !r.skipped && !r.lie && !r.unreachable && !r.throttled).length,
+      ok: results.filter((r) => !r.skipped && !r.lie && !r.unreachable
+        && !r.throttled && !r.degraded).length,
       skippedStateChanging: results.filter((r) => r.skipped).length,
       lies: lies.length,
       unreachable: unreachable.length,
       throttled: throttled.length,
+      degraded: degraded.length,
       p95_worst: Math.max(0, ...results.map((r) => r.p95 || 0)),
     },
     results,
   };
   writeFileSync(OUT, JSON.stringify(verdict, null, 2) + "\n");
   for (const r of results) {
-    const tag = r.skipped ? "skip" : r.lie ? "LIE " : r.unreachable ? "DOWN" : r.throttled ? "thr " : "ok  ";
+    const tag = r.skipped ? "skip" : r.lie ? "LIE " : r.unreachable ? "DOWN" : r.throttled ? "thr " : r.degraded ? "DEGR" : "ok  ";
     let why = "";
     if (r.skipped) why = "  -> " + r.skipReason;
     else if (r.lie) why = "  -> " + r.lies.join("; ");
     else if (r.unreachable) why = `  -> unreachable (${r.error || "status " + r.status})`;
+    else if (r.degraded) why = `  -> unavailable sources: ${r.unavailableSources.join(", ")}`;
     console.error(`  ${tag} ${r.status ?? "-"} p50=${r.p50 ?? "-"}ms p95=${r.p95 ?? "-"}ms ${r.path}${why}`);
   }
-  console.error(`[probe] ${verdict.summary.ok}/${verdict.summary.endpoints} clean, ${verdict.summary.skippedStateChanging} state-changing skipped, ${lies.length} lies, ${unreachable.length} unreachable, ${throttled.length} throttled. wrote ${OUT}`);
+  console.error(`[probe] ${verdict.summary.ok}/${verdict.summary.endpoints} clean, ${verdict.summary.skippedStateChanging} state-changing skipped, ${lies.length} lies, ${unreachable.length} unreachable, ${throttled.length} throttled, ${degraded.length} degraded. wrote ${OUT}`);
   // Release mode fails on doctrine lies, required endpoint outages, and required
   // throttling: HTTP 429 is honest evidence of an inconclusive probe, not a pass.
   // --report-only (and its legacy --soft alias) exists only to preserve the full
@@ -931,6 +954,7 @@ export {
   findTimestamp,
   observeBuildRevision,
   pool,
+  probeEndpoint,
   releaseExitCode,
   summarizeReleaseGate,
   validateRouterStatsSemantic,

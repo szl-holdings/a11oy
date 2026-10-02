@@ -660,7 +660,7 @@ function _hasObservedEvidence(readiness, revision, nowMs = Date.now()) {
   const verdict = readiness?.verdict_summary;
   if (!verdict || typeof verdict !== "object") return false;
   const counts = [
-    "endpoints", "ok", "skippedStateChanging", "lies", "unreachable", "throttled",
+    "endpoints", "ok", "skippedStateChanging", "lies", "unreachable", "throttled", "degraded",
   ]
     .map((field) => verdict[field]);
   if (!counts.every((value) => Number.isInteger(value) && value >= 0)) return false;
@@ -671,6 +671,9 @@ function _hasObservedEvidence(readiness, revision, nowMs = Date.now()) {
     endpoints > 0 &&
     executed > 0 &&
     verdict.lies === 0 &&
+    verdict.unreachable === 0 &&
+    verdict.throttled === 0 &&
+    verdict.degraded === 0 &&
     outcomes.reduce((total, value) => total + value, 0) === endpoints
   );
 }
