@@ -62,12 +62,14 @@ STATE_VOCABULARY = {
 # liesIf: response shapes that count as a "lie" (stale/mock/uncited) -> fail.
 def ep(method="GET", schema=None, sla=None, citations=False,
        allow_statuses=(200,), allow_labels=("live", "cached"),
-       lies_if=("mock", "fabricated", "placeholder"), note=""):
+       lies_if=("mock", "fabricated", "placeholder"), note="",
+       unavailable_blocks_readiness=False):
     return {
         "method": method,
         "schema": schema,
         "freshnessSLA": sla,
         "citationsRequired": citations,
+        "unavailableBlocksReadiness": unavailable_blocks_readiness,
         "degradedRules": {
             "allowStatuses": list(allow_statuses),
             "allowLabels": list(allow_labels),
@@ -261,10 +263,12 @@ ENDPOINTS = {
     "/api/a11oy/v1/vertical-packs": ep(schema="generic_obj", sla=None),
     "/api/a11oy/v1/vert/defense/feed": ep(
         schema="vert_defense_feed", sla=HOUR, citations=True,
+        unavailable_blocks_readiness=True,
         allow_labels=("live", "cached", "reference"),
         note="Canonical Defense / Gov renderer feed: CISA KEV + NVD with cited leaders."),
     "/api/a11oy/v1/vert/finance/feed": ep(
         schema="vert_finance_feed", sla=HOUR, citations=True,
+        unavailable_blocks_readiness=True,
         allow_labels=("live", "cached", "reference", "unofficial-fallback"),
         note="Live Yahoo/macro finance feed; cold-burst 404 tolerated, re-probe."),
     "/api/a11oy/v1/vert/legal/feed": ep(
