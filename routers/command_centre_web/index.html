@@ -40,7 +40,7 @@
       </section>
       <section id="work" class="work panel">
         <div class="section-head"><div><p class="eyebrow">01 · Work</p><h2>Think with Atelier.</h2></div><span class="label">External provider · bounded single turn</span></div>
-        <p class="muted">Grok 4.7 supplies text. SZL controls authentication, policy checks and signed receipts. No tools run here. No server-side conversation history is retained.</p>
+        <p class="muted">Grok 4.7 supplies text. SZL controls authentication, policy checks and signed receipts. No tools run here. Atelier's receipt ledger keeps metadata and content-derived hashes, not prompt or answer text; hashes are not anonymization. <code>store: false</code> disables xAI's stateful history; xAI's separate API audit retention is 30 days by default unless the team has Zero Data Retention.</p>
         <form id="turn-form">
           <label for="operator-key">Atelier operator credential</label>
           <div class="key-row"><input id="operator-key" type="password" autocomplete="off" spellcheck="false" placeholder="Operator credential, not your xAI API key"><button id="forget-key" type="button" class="secondary">Forget</button></div>

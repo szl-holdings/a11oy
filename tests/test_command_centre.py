@@ -38,6 +38,16 @@ def test_owned_page_and_security_headers(client, path):
     assert client.head(path).status_code == 200
 
 
+def test_owned_page_states_provider_retention_boundary(client):
+    page = client.get('/a11oy/atelier').text
+    assert 'store: false' in page
+    assert 'API audit retention is 30 days by default' in page
+    assert 'No server-side conversation history is retained' not in page
+    runbook = (centre.ROOT.parents[1] / 'docs' / 'ATELIER_COMMAND_CENTRE.md').read_text(encoding='utf-8')
+    assert 'Provider storage is disabled' not in runbook
+    assert 'x-zero-data-retention' in runbook
+
+
 @pytest.mark.parametrize('path', ['/command-centre/app.js', '/command-centre/style.css',
                                  '/command-centre/szl/szl-design-system.css',
                                  '/command-centre/szl/szl-console.css'])

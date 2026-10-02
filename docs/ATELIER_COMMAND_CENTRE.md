@@ -65,13 +65,19 @@ Its verified signed outcome must be persisted before a completed answer is retur
 The model defaults to `grok-4.7`; `grok-4.6` is the explicit rollback. A caller
 override takes precedence over `SZL_GROK_MODEL`, legacy `A11OY_ATELIER_MODEL`, then
 the default. Unknown choices are denied before provider work. Low, medium, high
-and xhigh reasoning controls are preserved. Provider storage is disabled. Tools,
-redirects and private-network routing are not enabled. Provider timeout is bounded
-to the existing transport's maximum and no request is automatically retried.
+and xhigh reasoning controls are preserved. `store: false` disables xAI's
+stateful Responses history for this single-turn route, not its separate API audit
+retention. [xAI says](https://docs.x.ai/developers/faq/security) API requests and
+responses are retained for 30 days by default unless team-wide Zero Data Retention
+is enabled; Atelier has not verified that team setting or the
+`x-zero-data-retention` response header. Tools, redirects and private-network
+routing are not enabled. Provider timeout is bounded to the existing transport's
+maximum and no request is automatically retried.
 
 This interface follows the official [Grok 4.7 developer contract](https://docs.x.ai/developers/grok-4-7).
 Grok remains xAI's external inference provider. Only final assistant text is used;
-encrypted provider reasoning and summaries are not displayed, persisted or replayed.
+Atelier does not display, persist or replay encrypted provider reasoning or
+summaries.
 Provider output never authorizes tools or production actions.
 
 ## Runtime configuration
@@ -103,6 +109,80 @@ provider key is never requested by the browser. Configuration health is read-onl
 always `inference_verified:false`, and cannot create a ledger or mint a signature.
 Its ledger flag checks the required mount when configured; a receipt write and
 restart recovery are still required to demonstrate durability.
+
+### Manual operator enrollment
+
+`scripts/enroll_hf_atelier_operator.py` is a Windows-only, manually invoked
+services-layer helper for one **new** Atelier credential. It is not part of
+`hf-sync.yml`, does not publish source, and does not install an xAI provider key.
+Run it only from a clean protected-main checkout after exact-main publication.
+Its read-only plan checks current GitHub main, a successful latest `hf-sync.yml`
+run at that SHA, and the canonical Space revision and secret-name metadata.
+It uses a one-row, `total_count`-checked workflow-run query for the exact
+protected-main SHA, plus separate status-filtered queries for `queued`,
+`in_progress`, `requested`, `waiting`, `pending`, and `action_required`. This
+avoids an unrelated completed-run backlog hiding an older live writer. These
+multiple reads are not atomic; a passing snapshot is not a global lock or an
+exact-HF-byte attestation. It refuses a
+registry visible in either precheck because the Hub does not reveal its secret
+value for a safe merge or rotation. Hub secret writes have no compare-and-set:
+a concurrent actor can create or replace the same name after the last precheck,
+so this helper cannot guarantee that it never overwrites a concurrent write.
+
+```powershell
+py -3 -B scripts/enroll_hf_atelier_operator.py plan
+py -3 -B scripts/enroll_hf_atelier_operator.py apply --expected-main-sha <plan-protected_main_sha> --expected-space-sha <plan-space_sha> --key-id atelier-operator-YYYYMMDD
+```
+
+`apply` rechecks both revisions and the writer before and after local vault
+creation. It generates a fresh 48-byte random bearer, puts the raw value only
+in a current-Windows-user DPAPI vault under `%LOCALAPPDATA%\SZL Holdings\A11oy`,
+and installs only its SHA-256 digest in a strict version-one
+`A11OY_ATELIER_CREDENTIALS_JSON` Space secret. It never prints the bearer. The
+vault uses exclusive creation and is preserved if a provider call has an
+ambiguous outcome; do not retry by deleting or overwriting it. After waiting
+for Hub metadata to settle, inspect the secret name. If it remains absent,
+take a fresh `plan` snapshot and explicitly use `resume` with the same key ID
+and newly observed SHAs. `resume` decrypts the same DPAPI vault, rechecks the
+idle writer and secret-name absence twice, and resubmits the same digest-only
+registry; it never generates a new bearer or proceeds while a registry is
+visible in its prechecks. A concurrent external writer remains a race without
+a Hub CAS, so this is a manual recovery path, not an automatic retry.
+
+```powershell
+py -3 -B scripts/enroll_hf_atelier_operator.py resume --expected-main-sha <fresh-plan-protected_main_sha> --expected-space-sha <fresh-plan-space_sha> --key-id atelier-operator-YYYYMMDD
+```
+
+A reported
+`SECRET_NAME_PRESENT_DIGEST_UNVERIFIED` is secret-name readback, not a tested
+browser login or successful model call. Rotation of an existing secret is a
+separate governed operation.
+
+For a deliberate browser handoff, the local operator may run:
+
+```powershell
+py -3 -B scripts/enroll_hf_atelier_operator.py copy --key-id atelier-operator-YYYYMMDD --acknowledge-clipboard-risk
+```
+
+`copy` first checks current protected-main publication, idle publisher, Space
+revision, absence of a variable collision, and presence of the registry secret
+name. It checks them again after decrypting the vault and refuses to copy on a
+revision change or vanished name. This prevents a held or failed install with
+no visible remote secret from silently becoming a browser handoff. A secret
+name cannot prove that its hidden value contains this vault's digest, that it
+has not been concurrently replaced, or that login will succeed; the command
+reports `NAME_PRESENT_DIGEST_UNVERIFIED` and does not claim readiness.
+
+After those checks, `copy` places the bearer on the Windows clipboard without
+writing it to stdout, arguments, a URL or the repository.
+Paste it into the command centre's in-memory operator field, then replace the
+clipboard contents with nonsecret text and use Forget when finished. Clipboard
+history, sync and manager software may still retain a copy; disable or account
+for them before using `copy`. DPAPI protects the bearer at rest against other
+Windows users, not against compromise of the current account or process memory.
+Do not paste the bearer in chat, issues, logs or scripts. A real authenticated
+governed turn and signed receipt still require separately installed provider
+authority and live verification.
 
 ## Bounds and honest status
 
