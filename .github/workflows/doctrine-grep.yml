@@ -6,8 +6,8 @@ name: Doctrine — banned-token grep gate
 # Design:
 #   - The banned-token pattern is stored as a shell variable (data), not prose,
 #     so this workflow file does not trip its own check.
-#   - Tailwind utility classes (leading-{none,tight,snug,normal,relaxed,loose,N})
-#     are excluded via a second grep that strips those matches before evaluation.
+#   - The second pass preserves the historical Tailwind utility suppression and
+#     distinguishes real CSS custom-property identifiers from prohibited prose.
 #   - Files listed in .doctrine-allowlist are excluded from the scan. That file
 #     is the only legitimate way to opt a path out; self-granted exemptions
 #     (e.g. __doctrine-scanner-exempt keys in package.json) are NOT honoured
@@ -102,13 +102,11 @@ jobs:
           # Two-pass strategy for the word "leading":
           #   Pass 1 — all banned tokens except bare "leading"; these are always
           #            flagged regardless of Tailwind context on the same line.
-          #   Pass 2 — bare \bleading\b only; Tailwind leading-* classes on the
-          #            same line suppress the hit (per-line filter is correct here
-          #            because a line with only "leading-tight" is fine, but a line
-          #            with only bare "leading" as a marketing word is not).
+          #   Pass 2 — the authoritative lexical matcher preserves Tailwind
+          #            behavior and omits only CSS property identifier spans.
+          #            Comments, strings and other prose remain scanned.
           # -----------------------------------------------------------------------
           BANNED_NO_LEADING='(revolutionary|unprecedented|world-class|seamless|industry-leading|cutting-edge|game-changing|breakthrough|best-in-class|immaculate|state-of-the-art|premier|Bo11y|Bolly|Jarvis|Wayne Slaughter)'
-          TAILWIND_LEADING_RE='leading-(none|tight|snug|normal|relaxed|loose|[0-9]+)'
 
           HITS_FILE=/tmp/doctrine_hits.txt
           > "$HITS_FILE"
@@ -122,13 +120,18 @@ jobs:
               >> "$HITS_FILE" \
               || true
 
-            # Pass 2: bare \bleading\b — suppress lines that contain a Tailwind
-            # leading-* class (those are utility classes, not marketing prose).
-            grep -nHEi '\bleading\b' "$file" \
-              | grep -vEi "$TAILWIND_LEADING_RE" \
-              >> "$HITS_FILE" \
-              || true
           done < /tmp/changed_files.txt
+
+          # Pass 2 uses the same lexical CSS identifier distinction as the full
+          # guard. Pass 1 remains an independent grep of every other banned token.
+          python3 - >> "$HITS_FILE" <<'PY'
+          from pathlib import Path
+          from scripts.check_banned_tokens import scan_file
+          for file in Path('/tmp/changed_files.txt').read_text().splitlines():
+              if Path(file).is_file():
+                  for line, text in scan_file(file, leading_only=True):
+                      print(f'{file}:{line}:{text}')
+          PY
 
           # Count hits (non-empty lines).
           HIT_COUNT=$(wc -l < "$HITS_FILE" 2>/dev/null | tr -d ' \n' || echo 0)

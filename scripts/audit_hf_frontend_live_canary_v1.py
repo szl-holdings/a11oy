@@ -449,10 +449,32 @@ def audit(
                         return false;
                       };
                       const selectors = ['button', '[role="button"]', '.btn', '.button', 'a[class*="btn"]', 'a[class*="button"]', 'header nav a', 'nav .cta'];
+                      const measureTarget = (el) => {
+                        const bounds = effectiveBounds(el);
+                        let measuredBounds = bounds;
+                        let hitArea = hasMinimumHitArea(el, bounds);
+                        const rect = el.getBoundingClientRect();
+                        const clippedAtViewport = rect.left < 0 || rect.top < 0 || rect.right > window.innerWidth || rect.bottom > window.innerHeight;
+                        if (hitArea === false && (bounds.width < 44 || bounds.height < 44) && clippedAtViewport) {
+                          const originalX = window.scrollX;
+                          const originalY = window.scrollY;
+                          try {
+                            window.scrollBy({
+                              left: rect.left + rect.width / 2 - window.innerWidth / 2,
+                              top: rect.top + rect.height / 2 - window.innerHeight / 2,
+                              behavior: 'instant',
+                            });
+                            measuredBounds = effectiveBounds(el);
+                            hitArea = hasMinimumHitArea(el, measuredBounds);
+                          } finally {
+                            window.scrollTo({left: originalX, top: originalY, behavior: 'instant'});
+                          }
+                        }
+                        return {bounds: measuredBounds, hitArea};
+                      };
                       const nodes = [...new Set(selectors.flatMap(selector => [...document.querySelectorAll(selector)]))].filter(actionable);
                       const undersized = nodes.map((el) => {
-                        const bounds = effectiveBounds(el);
-                        const hitArea = hasMinimumHitArea(el, bounds);
+                        const {bounds, hitArea} = measureTarget(el);
                         return {
                           tag: el.tagName,
                           text: (el.innerText || el.getAttribute('aria-label') || '').trim().slice(0, 80),

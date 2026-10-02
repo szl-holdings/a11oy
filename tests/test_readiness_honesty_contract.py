@@ -35,9 +35,12 @@ def test_static_matrix_cannot_be_reported_as_a_deployment_verdict() -> None:
 def test_landing_reads_matrix_and_probe_availability_separately() -> None:
     landing = (ROOT / "a11oy_landing.html").read_text(encoding="utf-8")
 
-    assert "if(!d.matrix_available)" in landing
-    assert "Boolean(d.probe_verdict_available)" in landing
-    assert 'checked ? "REACHABLE" : "SNAPSHOT"' in landing
+    assert "d.matrix_available !== true" in landing
+    assert "d.probe_verdict_available === false" in landing
+    assert "d.probe_verdict_available !== true" in landing
+    assert '"unreachable","throttled","degraded"' in landing
+    assert "v.lies+v.unreachable+v.throttled+v.degraded" in landing
+    assert 'failed ? "DEGRADED" : "OBSERVED"' in landing
     assert "static contract; deployment probe pending" in landing
     assert ".data-state.amber" in landing
     for state in ("CACHED", "STALE_CACHE", "SNAPSHOT", "MODELED", "OBSERVED", "AVAILABLE", "DEGRADED"):

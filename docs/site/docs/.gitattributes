@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+#
+# public/szl/ is the vendored SZL KANCHAY 1.1.1 bundle (szl-holdings/szl-brand
+# kanchay/). Keep its bytes exactly as shipped so they match SOURCE.json
+# (-eol also clears the root "* text=auto eol=lf" rule).
+public/szl/** -text -eol

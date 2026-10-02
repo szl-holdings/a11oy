@@ -19,9 +19,9 @@ cross-pod · `ROADMAP` = v0.4.0, not shipped. **Honesty over checklist.**
 
 ```mermaid
 flowchart TB
-    classDef live fill:#0f3a2e,stroke:#5ad1c0,color:#e8eef7;
-    classDef inproc fill:#2a3550,stroke:#7aa2ff,color:#e8eef7;
-    classDef roadmap fill:#3a2f0f,stroke:#e0c060,color:#e8eef7;
+    classDef live stroke-width:2px;
+    classDef inproc stroke-width:2px;
+    classDef roadmap stroke-width:2px,stroke-dasharray:6 4;
 
     subgraph BODY["SZL UDS substrate — anatomy"]
       direction TB

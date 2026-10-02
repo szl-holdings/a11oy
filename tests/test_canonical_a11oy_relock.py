@@ -684,6 +684,7 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
                 False,
                 False,
                 False,
+                False,
             ],
         )
 

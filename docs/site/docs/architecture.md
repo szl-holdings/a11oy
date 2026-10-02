@@ -44,8 +44,8 @@ P(x,t) = \operatorname*{arg\,max}_{a \in \mathcal{A}} \Big[\; \Lambda(x)\cdot \m
 
 The operator and each organ's proof obligation are defined in
 [Doctrine v11 + v12](/doctrine/v11-v12) and proven (or honestly `sorry`-tagged) in the
-[Lean kernel](/proof). See the [3D showcases](/anatomy/3d-showcases) for interactive
-renderings of the spine, heart, and Khipu DAG.
+[Lean kernel](/proof). See [Status](/status) for 3D showcase availability.
+The former Rosie-3D showcase is **UNAVAILABLE**.
 
 ## How a request flows
 

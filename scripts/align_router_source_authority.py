@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
-"""Align A11oy router adapters with the canonical szl-router repository.
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+"""Read-only check of A11oy's declared router source ownership.
 
-The script is deliberately exact-string based. It refuses to silently continue
-when an expected legacy statement is absent, which prevents a broad or ambiguous
-rewrite of unrelated product documentation.
+The original one-shot header migration is complete. This check rejects missing,
+ambiguous, or retired declarations without rewriting a working tree. It verifies
+declared ownership only; the governed consumer contract independently verifies
+the integration with pinned szl-router source.
 """
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
+import sys
 
 
 LEGACY_PLATFORM = (
@@ -21,97 +26,72 @@ CANONICAL_ROUTER = (
     "enter A11oy only through an explicit source-bound integration."
 )
 
+# Exact declarations keep this guard scoped to the completed migration.
+REQUIREMENTS = {
+    "szl_brain.py": ((CANONICAL_ROUTER,), (LEGACY_PLATFORM, "szl-holdings/platform/packages/llm-router/")),
+    "organs/amaru/szl_brain.py": ((CANONICAL_ROUTER,), (LEGACY_PLATFORM, "szl-holdings/platform/packages/llm-router/")),
+    "organs/sentra/szl_brain.py": ((CANONICAL_ROUTER,), (LEGACY_PLATFORM, "szl-holdings/platform/packages/llm-router/")),
+    "szl_llm_registry.py": (
+        (
+            "szl_llm_registry — A11oy is the portfolio model registry and operator forum; szl-holdings/szl-router is the canonical routing-runtime source.",
+            "  1. A11oy catalogs approved model routes; szl-router owns runtime routing and provider fallback.",
+        ),
+        (
+            "szl_llm_registry — a11oy is THE LLM Hub for the SZL ecosystem.",
+            "  1. a11oy holds ALL the LLMs — explicit, real, no mocked entries.",
+        ),
+    ),
+    "a11oy_code.py": (
+        ("a11oy.code — the integrated 7-tier organ-mapped view of the canonical szl-holdings/szl-router runtime.",),
+        ("a11oy.code — the 7-tier organ-mapped LLM router baked into the anatomy.",),
+    ),
+    "src/pages/A11oyCode.tsx": (
+        ("// a11oy.code — integrated 7-tier view of the canonical szl-holdings/szl-router runtime (Doctrine v11 §14).",),
+        ("// a11oy.code — 7-tier organ-mapped LLM router UI (Doctrine v11 §14).",),
+    ),
+}
+
 
 class AlignmentError(RuntimeError):
     pass
 
 
-def replace_exact(path: Path, old: str, new: str, *, required: bool = True) -> bool:
-    text = path.read_text(encoding="utf-8")
-    if old not in text:
-        if required:
-            raise AlignmentError(f"expected legacy statement is absent in {path}")
-        return False
-    updated = text.replace(old, new)
-    path.write_text(updated, encoding="utf-8", newline="\n")
-    return True
+def check_alignment(root: Path) -> tuple[str, ...]:
+    root = root.resolve()
+    failures: list[str] = []
+    for relative, (required, retired) in REQUIREMENTS.items():
+        candidate = root / relative
+        try:
+            resolved = candidate.resolve(strict=True)
+            if not resolved.is_relative_to(root) or not candidate.is_file():
+                raise AlignmentError("target is not a regular file within the source tree")
+            text = candidate.read_text(encoding="utf-8")
+        except (OSError, UnicodeError, AlignmentError) as exc:
+            failures.append(f"{relative}: unavailable source ({type(exc).__name__})")
+            continue
+        for declaration in required:
+            count = text.count(declaration)
+            if count != 1:
+                failures.append(f"{relative}: expected one canonical declaration, found {count}")
+        if any(declaration in text for declaration in retired):
+            failures.append(f"{relative}: retired source declaration remains")
+    if failures:
+        raise AlignmentError("\n".join(failures))
+    return tuple(REQUIREMENTS)
 
 
-def main() -> int:
-    changed: list[str] = []
-
-    for candidate in (
-        Path("szl_brain.py"),
-        Path("organs/amaru/szl_brain.py"),
-        Path("organs/sentra/szl_brain.py"),
-    ):
-        if candidate.exists() and replace_exact(
-            candidate,
-            LEGACY_PLATFORM,
-            CANONICAL_ROUTER,
-            required=(candidate == Path("szl_brain.py")),
-        ):
-            changed.append(str(candidate))
-
-    registry = Path("szl_llm_registry.py")
-    if not registry.exists():
-        raise AlignmentError("szl_llm_registry.py is missing")
-    replace_exact(
-        registry,
-        "szl_llm_registry — a11oy is THE LLM Hub for the SZL ecosystem.",
-        (
-            "szl_llm_registry — A11oy is the portfolio model registry and operator "
-            "forum; szl-holdings/szl-router is the canonical routing-runtime source."
-        ),
-    )
-    replace_exact(
-        registry,
-        "  1. a11oy holds ALL the LLMs — explicit, real, no mocked entries.",
-        (
-            "  1. A11oy catalogs approved model routes; szl-router owns runtime "
-            "routing and provider fallback."
-        ),
-    )
-    changed.append(str(registry))
-
-    code = Path("a11oy_code.py")
-    if not code.exists():
-        raise AlignmentError("a11oy_code.py is missing")
-    replace_exact(
-        code,
-        "a11oy.code — the 7-tier organ-mapped LLM router baked into the anatomy.",
-        (
-            "a11oy.code — the integrated 7-tier organ-mapped view of the canonical "
-            "szl-holdings/szl-router runtime."
-        ),
-    )
-    changed.append(str(code))
-
-    source_page = Path("src/pages/A11oyCode.tsx")
-    if source_page.exists():
-        text = source_page.read_text(encoding="utf-8")
-        marker = "// a11oy.code — 7-tier organ-mapped LLM router UI (Doctrine v11 §14)."
-        replacement = (
-            "// a11oy.code — integrated 7-tier view of the canonical "
-            "szl-holdings/szl-router runtime (Doctrine v11 §14)."
-        )
-        if marker in text:
-            source_page.write_text(
-                text.replace(marker, replacement),
-                encoding="utf-8",
-                newline="\n",
-            )
-            changed.append(str(source_page))
-
-    if LEGACY_PLATFORM in Path("szl_brain.py").read_text(encoding="utf-8"):
-        raise AlignmentError("root A11oy router adapter still names the retired platform path")
-    if "a11oy is THE LLM Hub" in registry.read_text(encoding="utf-8"):
-        raise AlignmentError("A11oy registry still claims canonical runtime ownership")
-    if not changed:
-        raise AlignmentError("no source-authority files changed")
-
-    print("aligned router source authority:")
-    for path in changed:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--check", action="store_true", help="validate without writes (also the default)")
+    parser.add_argument("--root", type=Path, default=Path.cwd(), help="A11oy source tree (default: current directory)")
+    args = parser.parse_args(argv)
+    try:
+        paths = check_alignment(args.root)
+    except AlignmentError as exc:
+        print(f"Router source authority is not aligned:\n{exc}", file=sys.stderr)
+        return 1
+    print("Declared router source authority is aligned:")
+    for path in paths:
         print(f"- {path}")
     return 0
 

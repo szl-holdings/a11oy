@@ -689,14 +689,18 @@ class _Cache:
 _CACHE = _Cache()
 
 
-def _client() -> httpx.Client:
+def _client(timeout_s: Optional[float] = None) -> httpx.Client:
     # Redirect following is disabled so an HTTPS source cannot downgrade to an
     # attacker-controlled HTTP Location after the initial URL policy check.
-    return httpx.Client(timeout=_source_http_timeout_s(), headers=UA, follow_redirects=False)
+    timeout = _source_http_timeout_s()
+    if timeout_s is not None:
+        timeout = min(timeout, timeout_s)
+    return httpx.Client(timeout=timeout, headers=UA, follow_redirects=False)
 
 
-def _flight_wait_failure(rec: Optional[dict[str, Any]]) -> dict[str, Any]:
-    error = f"single-flight wait exceeded {_source_http_timeout_s():g}s source budget"
+def _flight_wait_failure(rec: Optional[dict[str, Any]], timeout_s: Optional[float] = None) -> dict[str, Any]:
+    budget = min(_source_http_timeout_s(), timeout_s) if timeout_s is not None else _source_http_timeout_s()
+    error = f"single-flight wait exceeded {budget:g}s source budget"
     observed_at = time.time()
     if rec:
         return {"value": rec["value"], "freshness": {
@@ -729,7 +733,8 @@ def _refresh_failure(rec: Optional[dict[str, Any]], exc: BaseException) -> dict[
     }}
 
 
-def _cached_fetch(key: str, url: str, ttl: float, parser=None, label="live", headers=None) -> dict[str, Any]:
+def _cached_fetch(key: str, url: str, ttl: float, parser=None, label="live", headers=None,
+                  timeout_s: Optional[float] = None) -> dict[str, Any]:
     """Return {value, freshness}. Serve warm cache if within TTL; else refetch.
     On error keep last-good and mark 'stale' — never fabricate. Concurrent
     refreshes for one key are coalesced into exactly one upstream operation."""
@@ -746,9 +751,10 @@ def _cached_fetch(key: str, url: str, ttl: float, parser=None, label="live", hea
 
     flight, is_leader = _CACHE.claim_refresh(key)
     if not is_leader:
-        if not flight.event.wait(_source_http_timeout_s() + 1.0):
-            return _flight_wait_failure(rec)
-        return flight.result if flight.result is not None else _flight_wait_failure(rec)
+        budget = min(_source_http_timeout_s(), timeout_s) if timeout_s is not None else _source_http_timeout_s()
+        if not flight.event.wait(budget + 1.0):
+            return _flight_wait_failure(rec, timeout_s)
+        return flight.result if flight.result is not None else _flight_wait_failure(rec, timeout_s)
 
     # A caller can read an expired record, lose the scheduler, and claim just
     # after the preceding leader publishes and retires. Recheck after claiming
@@ -764,7 +770,7 @@ def _cached_fetch(key: str, url: str, ttl: float, parser=None, label="live", hea
 
     result: Optional[dict[str, Any]] = None
     try:
-        with _client() as cl:
+        with _client(timeout_s) if timeout_s is not None else _client() as cl:
             data = _source_json_with_bounded_retry(cl, url, headers=headers)
         val = parser(data) if parser else data
         _CACHE.put(key, val, ttl, status="live")
@@ -804,11 +810,22 @@ def _vertical_feed_state(vertical: str) -> dict[str, Any]:
     """Aggregate the latest observed cache state without performing I/O."""
     child_states = []
     for source_id in _VERTICAL_FEED_CACHE_KEYS.get(vertical, ()):
+        selected_source_id = source_id
         freshness = _CACHE.freshness_latest(source_id)
+        if vertical == "finance" and source_id == "fx_USD":
+            # This vertical always requests this exact pair set. A successful
+            # ad-hoc FX query must not make its default finance feed look live.
+            freshness = _fx_cached_health(_variant_cache_key(
+                "fx_USD", base="USD", symbols="EUR,GBP,JPY,CAD,CHF"))
+            backup = _fx_cached_health("fx_ecb_usd_reference")
+            if (freshness.get("status") not in {"live", "cached"}
+                    and backup.get("status") in {"live", "cached"}):
+                selected_source_id = "fx_ecb_usd_reference"
+                freshness = backup
         status = freshness.get("status", "unavailable")
         if status == "empty":
             status = "unavailable"
-        child_states.append({"source_id": source_id, "status": status,
+        child_states.append({"source_id": selected_source_id, "status": status,
                              "freshness": freshness})
 
     statuses = [child["status"] for child in child_states]
@@ -831,6 +848,22 @@ def _vertical_feed_state(vertical: str) -> dict[str, Any]:
         "children_live": sum(child["status"] == "live" for child in child_states),
         "children": child_states,
     }
+
+
+def _fx_cached_health(key: str) -> dict[str, Any]:
+    """Reflect observation age as well as transport cache age in FX health."""
+    freshness = _CACHE.freshness(key)
+    if freshness.get("status") not in {"live", "cached"}:
+        return freshness
+    record = _CACHE.get(key)
+    if not record or not isinstance(record.get("value"), dict):
+        return {**freshness, "status": "unavailable",
+                "error": "FX cached observation is absent"}
+    presented = _fx_reference_result({"value": record["value"],
+                                      "freshness": freshness})
+    if presented["freshness"]["status"] == "reference":
+        return freshness
+    return presented["freshness"]
 
 
 # ===========================================================================
@@ -1409,17 +1442,168 @@ def feed_coinbase(pair: str) -> dict[str, Any]:
                          url, ttl=20, parser=parse)
 
 
+_ECB_USD_FX_URL = (
+    "https://data-api.ecb.europa.eu/service/data/EXR/"
+    "D.USD+GBP+JPY+CAD+CHF.EUR.SP00.A?lastNObservations=1&format=jsondata"
+)
+_ECB_USD_FX_CURRENCIES = frozenset({"USD", "GBP", "JPY", "CAD", "CHF"})
+_FX_REFERENCE_MAX_AGE_DAYS = 7
+_FX_SOURCE_TIMEOUT_S = 5.0
+
+
+def _fx_observation_age_days(observed_date: str, *, enforce_limit: bool = True) -> int:
+    if not isinstance(observed_date, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", observed_date):
+        raise ValueError("FX observation date is invalid")
+    age_days = (datetime.now(timezone.utc).date()
+                - datetime.strptime(observed_date, "%Y-%m-%d").date()).days
+    if enforce_limit and not 0 <= age_days <= _FX_REFERENCE_MAX_AGE_DAYS:
+        raise ValueError("FX observation date is future or too old")
+    return age_days
+
+
+def _fx_reference_result(result: dict[str, Any]) -> dict[str, Any]:
+    """Expose a fetched reference observation without calling it a live price."""
+    freshness = result.get("freshness") or {}
+    if freshness.get("status") not in {"live", "cached"}:
+        return result
+    value = dict(result["value"])
+    try:
+        age_days = _fx_observation_age_days(value["date"], enforce_limit=False)
+    except (KeyError, ValueError):
+        age_days = None
+    value["observation_age_days"] = age_days
+    if age_days is None or not 0 <= age_days <= _FX_REFERENCE_MAX_AGE_DAYS:
+        # An aged observation must fail the required Finance readiness gate.
+        # The route projects stale last-good values as cached, so exclude an
+        # observation that is past the ECB reference window entirely.
+        return {"value": None,
+                "freshness": {**freshness, "status": "unavailable",
+                              "last_observation_date": value.get("date"),
+                              "observation_age_days": age_days,
+                              "error": "FX observation date is future or too old"}}
+    return {"value": value,
+            "freshness": {**freshness, "status": "reference",
+                          "retrieval_status": freshness["status"],
+                          "observation_date": value["date"]}}
+
+
+def _parse_ecb_usd_fx(data: dict[str, Any]) -> dict[str, Any]:
+    """Derive same-date USD crosses from official EUR reference observations."""
+    if data["header"]["sender"]["id"] != "ECB":
+        raise ValueError("ECB FX sender is unverified")
+    dimensions = data["structure"]["dimensions"]
+    series_dimensions = dimensions["series"]
+    names = [dimension["id"] for dimension in series_dimensions]
+    if names != ["FREQ", "CURRENCY", "CURRENCY_DENOM", "EXR_TYPE", "EXR_SUFFIX"]:
+        raise ValueError("ECB FX series dimensions changed")
+    observation_dimensions = dimensions["observation"]
+    if len(observation_dimensions) != 1 or observation_dimensions[0]["id"] != "TIME_PERIOD":
+        raise ValueError("ECB FX observation dimension changed")
+    dates = observation_dimensions[0]["values"]
+    series = data["dataSets"][0]["series"]
+    if len(series) != len(_ECB_USD_FX_CURRENCIES):
+        raise ValueError("ECB FX currency series are incomplete")
+
+    rates: dict[str, float] = {}
+    observed_dates: set[str] = set()
+    for key, entry in series.items():
+        parts = key.split(":")
+        if any(not re.fullmatch(r"[0-9]+", part) for part in parts):
+            raise ValueError("ECB FX series key is invalid")
+        indices = [int(part) for part in parts]
+        if len(indices) != len(series_dimensions):
+            raise ValueError("ECB FX series key changed")
+        labels = [dimension["values"][index]["id"]
+                  for dimension, index in zip(series_dimensions, indices)]
+        frequency, currency, denominator, rate_type, suffix = labels
+        if (frequency, denominator, rate_type, suffix) != ("D", "EUR", "SP00", "A"):
+            raise ValueError("ECB FX series is not a daily EUR reference rate")
+        if currency not in _ECB_USD_FX_CURRENCIES or currency in rates:
+            raise ValueError("ECB FX currency series is unexpected or duplicated")
+        observations = entry["observations"]
+        if len(observations) != 1:
+            raise ValueError("ECB FX series lacks one latest observation")
+        date_index, values = next(iter(observations.items()))
+        if not re.fullmatch(r"[0-9]+", date_index):
+            raise ValueError("ECB FX observation index is invalid")
+        observation_date = dates[int(date_index)]["id"]
+        _fx_observation_age_days(observation_date)
+        observed_dates.add(observation_date)
+        value = values[0]
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError("ECB FX rate is not numeric")
+        rate = float(value)
+        if not math.isfinite(rate) or rate <= 0:
+            raise ValueError("ECB FX rate is not positive and finite")
+        rates[currency] = rate
+
+    if set(rates) != _ECB_USD_FX_CURRENCIES or len(observed_dates) != 1:
+        raise ValueError("ECB FX rates are incomplete or mixed-date")
+    observed_date = next(iter(observed_dates))
+    age_days = _fx_observation_age_days(observed_date)
+    usd_per_eur = rates["USD"]
+    crosses = {"EUR": 1.0 / usd_per_eur,
+               **{currency: rates[currency] / usd_per_eur
+                  for currency in ("GBP", "JPY", "CAD", "CHF")}}
+    if any(not math.isfinite(rate) or rate <= 0 for rate in crosses.values()):
+        raise ValueError("ECB FX derived USD cross is not positive and finite")
+    return {
+        "base": "USD",
+        "date": observed_date,
+        "observation_age_days": age_days,
+        "rates": crosses,
+        "source": "ECB direct; USD crosses calculated from EUR reference rates",
+        "source_url": _ECB_USD_FX_URL,
+        "leader": "European Central Bank (ECB)",
+        "data_kind": "reference",
+    }
+
+
 def feed_fx(base: str = "USD", symbols: str = "EUR,GBP,JPY,CAD,CHF") -> dict[str, Any]:
     base = _bounded_text(base, "USD", 8).upper()
     symbols = _bounded_text(symbols, "EUR,GBP,JPY,CAD,CHF", 80).upper()
     url = f"https://api.frankfurter.dev/v1/latest?base={base}&symbols={symbols}"
     def parse(d):
-        return {"base": d.get("base"), "date": d.get("date"),
-                "rates": d.get("rates", {}),
-                "source": "ECB euro reference rates (via Frankfurter)",
-                "leader": "European Central Bank (ECB)", "data_kind": "live"}
-    return _cached_fetch(_variant_cache_key("fx_" + base, base=base, symbols=symbols),
-                         url, ttl=600, parser=parse)
+        expected = set(symbols.split(",")) - {base}
+        if d.get("base") != base or not expected or any(
+                not re.fullmatch(r"[A-Z]{3}", currency) for currency in expected):
+            raise ValueError("Frankfurter FX base or requested currencies are invalid")
+        age_days = _fx_observation_age_days(d.get("date"))
+        observed_rates = d.get("rates")
+        if not isinstance(observed_rates, dict) or set(observed_rates) != expected:
+            raise ValueError("Frankfurter FX rates are incomplete")
+        rates = {}
+        for currency, observed_rate in observed_rates.items():
+            if isinstance(observed_rate, bool) or not isinstance(observed_rate, (int, float)):
+                raise ValueError("Frankfurter FX rate is not numeric")
+            rate = float(observed_rate)
+            if not math.isfinite(rate) or rate <= 0:
+                raise ValueError("Frankfurter FX rate is not positive and finite")
+            rates[currency] = rate
+        return {"base": base, "date": d["date"],
+                "observation_age_days": age_days, "rates": rates,
+                "source": "USD crosses of ECB EUR reference rates served by Frankfurter",
+                "source_url": url,
+                "leader": "European Central Bank (ECB)", "data_kind": "reference"}
+    primary = _cached_fetch(_variant_cache_key("fx_" + base, base=base, symbols=symbols),
+                            url, ttl=600, parser=parse, timeout_s=_FX_SOURCE_TIMEOUT_S)
+    primary = _fx_reference_result(primary)
+    if (primary.get("freshness") or {}).get("status") == "reference":
+        return primary
+    if base != "USD" or symbols != "EUR,GBP,JPY,CAD,CHF":
+        return primary
+    backup = _cached_fetch("fx_ecb_usd_reference", _ECB_USD_FX_URL,
+                           ttl=600, parser=_parse_ecb_usd_fx,
+                           timeout_s=_FX_SOURCE_TIMEOUT_S)
+    backup = _fx_reference_result(backup)
+    if (backup.get("freshness") or {}).get("status") == "reference":
+        return backup
+    return {**primary, "freshness": {
+        **primary.get("freshness", {}),
+        "fallback_source": "ECB direct",
+        "fallback_status": (backup.get("freshness") or {}).get("status", "unavailable"),
+        "fallback_error": str((backup.get("freshness") or {}).get("error", ""))[:160],
+    }}
 
 
 def feed_polygon(symbol: str) -> dict[str, Any]:
@@ -1659,10 +1843,10 @@ CITED_LEADERS: dict[str, list[dict[str, str]]] = {
          "leader": "MITRE", "url": "https://attack.mitre.org/", "data_kind": "reference"},
     ],
     "finance": [
-        {"source": "Euro foreign-exchange reference rates (served via Frankfurter)",
+        {"source": "Euro foreign-exchange reference rates (Frankfurter or direct ECB)",
          "leader": "European Central Bank (ECB)",
          "url": "https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/index.en.html",
-         "data_kind": "live"},
+         "data_kind": "reference"},
         {"source": "Spot crypto prices",
          "leader": "Coinbase", "url": "https://docs.cdp.coinbase.com/", "data_kind": "live"},
         {"source": "v8 chart endpoint (yfinance-equivalent)",
@@ -1756,6 +1940,20 @@ def _readiness_public_source(entry: Any) -> Any:
         fresh["status"] = "cached"
     out["freshness"] = fresh
     return out
+
+
+def _readiness_public_clocked_source(entry: Any) -> Any:
+    """Only project a last-good value when its source supplied a valid clock."""
+    if isinstance(entry, dict) and entry.get("value") is not None:
+        freshness = entry.get("freshness")
+        if isinstance(freshness, dict) and str(freshness.get("status") or "").strip().lower() == "stale":
+            observed_at = freshness.get("fetched_at")
+            if (isinstance(observed_at, bool)
+                    or not isinstance(observed_at, (int, float))
+                    or not math.isfinite(observed_at)
+                    or observed_at <= 0):
+                return entry
+    return _readiness_public_source(entry)
 
 
 # Post-deploy readiness warming. The hf-sync gate probes the canonical space
@@ -1871,7 +2069,9 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
             (feed_cisa_kev, (limit,), {}),
             (feed_nvd, (min(limit, 20),), {}),
         ])
-        return JSONResponse({"vertical": "defense", "kev": kev, "nvd": nvd,
+        return JSONResponse({"vertical": "defense",
+                             "kev": _readiness_public_clocked_source(kev),
+                             "nvd": _readiness_public_clocked_source(nvd),
                              "sources_cited": cited_leaders("defense"), "doctrine": DOCTRINE})
 
     @app.get(base + "/defense/kpi", include_in_schema=False)
@@ -1909,13 +2109,16 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
         cursor += len(crypto_pairs)
         cve, fx = values[cursor:cursor + 2]
         return JSONResponse({"vertical": "finance",
-                             "equities_official": official,
+                             "equities_official": {symbol: _readiness_public_clocked_source(entry)
+                                                   for symbol, entry in official.items()},
                              "equities": _finance_public_series(eq),
                              "equities_note": ("equities_official = Polygon.io (official, key-gated); "
                                                "equities = Yahoo v8 (unofficial fallback); "
                                                "Yahoo misses are omitted, not stamped unavailable"),
-                             "crypto": crypto,
-                             "fx": fx, "fintech_cve": cve,
+                             "crypto": {pair: _readiness_public_clocked_source(entry)
+                                        for pair, entry in crypto.items()},
+                             "fx": _readiness_public_clocked_source(fx),
+                             "fintech_cve": _readiness_public_clocked_source(cve),
                              "sources_cited": cited_leaders("finance"), "doctrine": DOCTRINE})
 
     # ---- LEGAL ----
@@ -2046,7 +2249,7 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
                        "sources": ["CISA KEV", "NVD CVE", "UDS mesh bridge"],
                        "routes": ["/feed", "/kpi", "/govern", "/ledger", "/roi"]},
         "finance":    {"label": "Finance",           "absorbed": None,
-                       "sources": ["Polygon.io (official, key-gated)", "Yahoo v8 (unofficial fallback)", "Coinbase", "Frankfurter ECB FX", "fintech CVE"],
+                       "sources": ["Polygon.io (official, key-gated)", "Yahoo v8 (unofficial fallback)", "Coinbase", "ECB reference FX (Frankfurter or direct)", "fintech CVE"],
                        "routes": ["/feed", "/govern", "/ledger", "/roi"]},
         "legal":      {"label": "Legal",             "absorbed": "Counsel",
                        "sources": ["Federal Register", "CourtListener"],

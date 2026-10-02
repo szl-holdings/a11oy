@@ -23,11 +23,11 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from huggingface_hub import HfApi
 
-from szl_release_guard import run_bounded as guard_run_bounded, strict_json
+from szl_release_guard import run_bounded as guard_run_bounded, strict_json, ReleaseJournal, digest
 
 SOURCE_REPOSITORY = "szl-holdings/lyte-services"
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
@@ -48,11 +48,24 @@ CONTRACT_PATH = Path(__file__).resolve().with_name("lyte_enterprise_live_contrac
 DEFAULT_COMMAND_TIMEOUT_S = 600
 ATTEST_COMMAND_TIMEOUT_S = 2400
 PHASE_JOURNAL: list[dict[str, Any]] = []
+# Existing writer order. Journal is not an authorization source.
+# bind-source (ensure_runtime_configuration) stays before publish-files
+# (deploy_with_controller) until the image-marker strategy is reviewed.
+WRITER_PHASES = (
+    "qualify-source",
+    "checkout-source",
+    "controller-preflight",
+    "recheck-source",
+    "bind-source",
+    "publish-files",
+    "verify-existing",
+    "verify-source-again",
+)
 
 CONTROLLER_REPOSITORY = "szl-holdings/.github"
-CONTROLLER_REVISION = "c889276e51e7d954c4bba8b216f86fc7577721fa"
+CONTROLLER_REVISION = "10cb5f7665ab5469c876c3418888a71f521fd76b"
 CONTROLLER_PATH = ".github/scripts/hf_deploy_from_dockerfile.py"
-CONTROLLER_BLOB_SHA1 = "9d5b90b8bbf04e6d46ef0f971fc65604e1323b1b"
+CONTROLLER_BLOB_SHA1 = "1ee1af44f9dde1b3cd760bf9ee7fedf54f0ac915"
 USER_AGENT = "SZLHOLDINGS-Lyte-Enterprise-Publisher/4.0"
 
 # API version and package version are distinct. The current 4.0.0 application
@@ -151,6 +164,35 @@ def require_current_source(revision: str) -> None:
 
 def journal(phase: str, **extra: Any) -> None:
     PHASE_JOURNAL.append({"ts": utc_now(), "phase": phase, **extra})
+
+
+def publisher_revision() -> str:
+    """Identify the publisher bytes. GITHUB_SHA in CI; writer blob locally."""
+    env = (os.getenv("GITHUB_SHA") or "").strip().lower()
+    if SHA40.fullmatch(env):
+        return env
+    return git_blob_sha1(Path(__file__).read_bytes())
+
+
+def phase_evidence(phase: str, payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Public callback metadata only: no logs, tokens, or process output."""
+    public = {
+        "schema": "szl.lyte-phase-evidence/v1",
+        "phase": phase,
+        "payload": dict(payload),
+        "raw_output_recorded": False,
+        "signature_verified": False,
+        "execution_authority": "NONE",
+    }
+    return {
+        "executed": True,
+        "passed": True,
+        "reason_code": "OBSERVED_PASS",
+        "evidence_sha256": digest(public),
+        "raw_output_recorded": False,
+        "signature_verified": False,
+        "execution_authority": "NONE",
+    }
 
 
 def run_bounded(
@@ -360,6 +402,8 @@ def verify_contract(*, revision: str) -> dict[str, Any]:
 def main() -> int:
     token, token_source = token_from_env()
     os.environ["HF_TOKEN"] = token
+    publisher_sha = publisher_revision()
+    release: ReleaseJournal | None = None
     receipt: dict[str, Any] = {
         "schema": "szl.hf-lyte-enterprise-publication/v3", "generated_at": utc_now(),
         "source_repository": SOURCE_REPOSITORY, "source_revision": "UNRESOLVED",
@@ -371,6 +415,9 @@ def main() -> int:
         "space_created": False, "delete_operations": 0, "complete": False,
         "release_guard_runner": "szl_release_guard.run_bounded",
         "execution_authority": "NONE",
+        "signature_verified": False,
+        "raw_output_recorded": False,
+        "publisher_revision": publisher_sha,
     }
     try:
         revision, receipt["source_resolution"] = resolve_verified_source_tip()
@@ -379,29 +426,108 @@ def main() -> int:
         with tempfile.TemporaryDirectory(prefix="szl-lyte-enterprise-") as td:
             root = Path(td)
             source, controller, manifest = root / "source", root / "controller.py", root / "manifest.json"
-            checkout_exact_source(source, revision=revision)
-            fetch_pinned_controller(controller)
-            require_current_source(revision)
+            release = ReleaseJournal(
+                root / "release-journal",
+                source=revision,
+                publisher=publisher_sha,
+                phases=WRITER_PHASES,
+            )
+
+            def qualify() -> Mapping[str, Any]:
+                return phase_evidence("qualify-source", {
+                    "source_revision": revision,
+                    "verified_commit": receipt["source_resolution"].get("verified_commit") is True,
+                    "repository": SOURCE_REPOSITORY,
+                })
+
+            release.perform("qualify-source", qualify)
+
+            def checkout() -> Mapping[str, Any]:
+                checkout_exact_source(source, revision=revision)
+                return phase_evidence("checkout-source", {
+                    "source_revision": revision,
+                    "detached": True,
+                })
+
+            release.perform("checkout-source", checkout)
+
+            def controller_preflight() -> Mapping[str, Any]:
+                fetch_pinned_controller(controller)
+                return phase_evidence("controller-preflight", {
+                    "controller_revision": CONTROLLER_REVISION,
+                    "controller_blob_sha1": CONTROLLER_BLOB_SHA1,
+                })
+
+            release.perform("controller-preflight", controller_preflight)
+
+            def recheck() -> Mapping[str, Any]:
+                require_current_source(revision)
+                return phase_evidence("recheck-source", {"source_revision": revision})
+
+            release.perform("recheck-source", recheck)
+
             # Verify source and controller bytes before any runtime configuration write.
             # Do not reorder configuration vs deploy until the image-marker strategy is reviewed.
-            receipt["configuration"] = ensure_runtime_configuration(api, revision=revision)
-            try:
-                deploy_with_controller(source, controller, manifest, revision=revision)
-                receipt["deployment_manifest"] = json.loads(manifest.read_text(encoding="utf-8"))
-            except Exception:
-                if manifest.exists():
-                    FAILED_MANIFEST_PATH.write_bytes(manifest.read_bytes())
-                    receipt["retained_manifest"] = str(FAILED_MANIFEST_PATH.resolve())
-                    journal("manifest_retained", path=receipt["retained_manifest"])
-                raise
-        receipt["verification"] = verify_contract(revision=revision)
-        require_current_source(revision)
-        receipt["complete"] = receipt["verification"]["complete"]
+            def bind() -> Mapping[str, Any]:
+                config = ensure_runtime_configuration(api, revision=revision)
+                receipt["configuration"] = config
+                return phase_evidence("bind-source", {
+                    "space_created": config.get("space_created") is True,
+                    "space_preexisted": config.get("space_preexisted") is True,
+                    "source_variable": SOURCE_VARIABLE,
+                    "secret_values_read": False,
+                    "secret_values_written": False,
+                })
+
+            release.perform("bind-source", bind)
+
+            def publish() -> Mapping[str, Any]:
+                try:
+                    deploy_with_controller(source, controller, manifest, revision=revision)
+                    manifest_obj = json.loads(manifest.read_text(encoding="utf-8"))
+                    receipt["deployment_manifest"] = manifest_obj
+                    return phase_evidence("publish-files", {
+                        "manifest_sha256": digest(manifest_obj),
+                    })
+                except Exception:
+                    if manifest.exists():
+                        FAILED_MANIFEST_PATH.write_bytes(manifest.read_bytes())
+                        receipt["retained_manifest"] = str(FAILED_MANIFEST_PATH.resolve())
+                        journal("manifest_retained", path=receipt["retained_manifest"])
+                    raise
+
+            release.perform("publish-files", publish)
+
+            def verify() -> Mapping[str, Any]:
+                verification = verify_contract(revision=revision)
+                receipt["verification"] = verification
+                if verification.get("complete") is not True:
+                    raise RuntimeError("Lyte live contract is incomplete")
+                return phase_evidence("verify-existing", {"contract_complete": True})
+
+            release.perform("verify-existing", verify)
+
+            def recheck_final() -> Mapping[str, Any]:
+                require_current_source(revision)
+                return phase_evidence("verify-source-again", {"source_revision": revision})
+
+            release.perform("verify-source-again", recheck_final)
+            summary = release.summary()
+            receipt["complete"] = (
+                receipt.get("verification", {}).get("complete") is True
+                and summary.get("complete") is True
+            )
     except Exception as exc:
         receipt["error"] = f"{type(exc).__name__}: {exc}"
         journal("error", error=receipt["error"])
     finally:
         receipt["phase_journal"] = list(PHASE_JOURNAL)
+        if release is not None:
+            summary = release.summary()
+            receipt["release_journal"] = summary
+            receipt["signature_verified"] = summary.get("signature_verified") is True
+            receipt["execution_authority"] = summary.get("execution_authority") or "NONE"
+            receipt["raw_output_recorded"] = False
         receipt["finished_at"] = utc_now()
         RECEIPT_PATH.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         print(json.dumps(receipt, indent=2, sort_keys=True))

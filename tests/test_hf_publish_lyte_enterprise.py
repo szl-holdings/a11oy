@@ -51,8 +51,8 @@ def test_source_owned_publisher_is_exact_reviewable_and_non_destructive() -> Non
         'HF_REPOSITORY = "SZLHOLDINGS/lyte"',
         'ORIGIN = "https://szlholdings-lyte.hf.space"',
         'SOURCE_VARIABLE = "LYTE_SOURCE_REVISION"',
-        'CONTROLLER_REVISION = "c889276e51e7d954c4bba8b216f86fc7577721fa"',
-        'CONTROLLER_BLOB_SHA1 = "9d5b90b8bbf04e6d46ef0f971fc65604e1323b1b"',
+        'CONTROLLER_REVISION = "10cb5f7665ab5469c876c3418888a71f521fd76b"',
+        'CONTROLLER_BLOB_SHA1 = "1ee1af44f9dde1b3cd760bf9ee7fedf54f0ac915"',
         '"--dockerfile-path"', '"Dockerfile"', '"--require-default-branch-tip"',
         '"--prune"', '"--restart-space"', '"--attest"',
         'with_name("lyte_enterprise_live_contract.py")',
@@ -96,6 +96,49 @@ def test_lyte_writer_uses_release_guard_runner() -> None:
             assert "run_bounded" in names
             imported = True
     assert imported, "publisher must import run_bounded from szl_release_guard"
+
+
+def test_lyte_writer_records_existing_phases_on_release_journal() -> None:
+    """Journal.perform wraps the same writer; it is not a second publisher."""
+    source = PUBLISHER.read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    imported = set()
+    for node in tree.body:
+        if isinstance(node, ast.ImportFrom) and node.module == "szl_release_guard":
+            imported.update(alias.name for alias in node.names)
+    assert {"run_bounded", "ReleaseJournal", "digest"} <= imported
+    assert "ReleaseJournal(" in source
+    assert ".perform(" in source
+    phases = module_constant(PUBLISHER, "WRITER_PHASES")
+    assert phases == (
+        "qualify-source",
+        "checkout-source",
+        "controller-preflight",
+        "recheck-source",
+        "bind-source",
+        "publish-files",
+        "verify-existing",
+        "verify-source-again",
+    )
+    assert phases.index("bind-source") < phases.index("publish-files")
+    main = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "main")
+    calls = []
+    for node in ast.walk(main):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            calls.append((node.lineno, node.func.id))
+    calls.sort()
+    positions = {name: line for line, name in calls}
+    assert positions["ensure_runtime_configuration"] < positions["deploy_with_controller"]
+    assert positions["ReleaseJournal"] < positions["ensure_runtime_configuration"]
+    assert source.count("HfApi(") == 1
+    assert "api.create_repo" not in source
+    assert "create_repo(" not in source
+    assert "api.delete_repo" not in source
+    assert 'HF_REPOSITORY = "SZLHOLDINGS/lyte"' in source
+    assert '"signature_verified": False' in source
+    assert '"raw_output_recorded": False' in source
+    assert '"execution_authority": "NONE"' in source
+    assert "9ce4e6b5f36fe0b094a07308abe3665cd2a210c1" not in source
 
 
 def test_lyte_live_admission_requires_business_observability_and_non_authority() -> None:
