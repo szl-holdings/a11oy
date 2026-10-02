@@ -72,6 +72,16 @@ tags:
 - evaluation
 - receipts
 - rollback
+configs:
+- config_name: default
+  default: true
+  data_files:
+  - split: train
+    path: "cases.jsonl"
+- config_name: reference-submissions
+  data_files:
+  - split: train
+    path: "submissions/reference-conformance.jsonl"
 ---
 
 # governed-agent-bench v0
@@ -93,6 +103,10 @@ It measures five governability axes:
 - Scores: **COMPUTED**
 - Receipt verification: **STRUCTURE_ONLY**
 - Cryptographic verification: **false**
+
+The Dataset Viewer keeps benchmark cases in `default/train` and the reference
+submission in `reference-submissions/train`. The latter is a conformance
+fixture, not an eligible model submission.
 
 The reference result proves that the evaluator and known-good fixture close
 their deterministic contract. It is not a model-quality or production claim.
