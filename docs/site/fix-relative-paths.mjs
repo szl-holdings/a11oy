@@ -17,6 +17,7 @@
 import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { plainText } from './plain-text.mjs'
 
 const DIST = fileURLToPath(new URL('./docs/.vitepress/dist/', import.meta.url))
 
@@ -45,15 +46,6 @@ function fixDirIndex(html) {
 const files = walk(DIST)
 let changed = 0
 const searchPages = []
-
-function plainText(html) {
-  return html.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&#(\d+);/g, (_, value) => String.fromCodePoint(Number(value)))
-    .replace(/&#x([\da-f]+);/gi, (_, value) => String.fromCodePoint(parseInt(value, 16)))
-    .replace(/&(amp|lt|gt|quot|apos|nbsp);/g, (_, key) => ({ amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' })[key])
-    .replace(/\s+/g, ' ').trim()
-}
 
 for (const file of files) {
   const rel = relative(DIST, file)

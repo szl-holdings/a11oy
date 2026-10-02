@@ -23,9 +23,9 @@ org on legitimate content:
      marketing prose and (b) does NOT red-gate harvested third-party corpus text
      or line-wrapped content.
 
-This module keeps the EXACT token semantics of the original gate (same ban-list,
-same Tailwind `leading-*` suppression) so it never WEAKENS the gate — it only makes
-the allowlist matching correct and adds a self-test (scripts/check_banned_tokens.test.sh).
+This module retains the original ban-list and Tailwind suppression. CSS custom
+property identifiers are recognized only in declarations and var() references;
+comments, strings, other tokens, and prose on the same line remain scanned.
 
 Token policy (unchanged from doctrine-grep.yml)
 -----------------------------------------------
@@ -35,6 +35,8 @@ Token policy (unchanged from doctrine-grep.yml)
       state-of-the-art, premier, Bo11y, Bolly, Jarvis, Wayne Slaughter
   * bare `leading` is flagged UNLESS the same line carries a Tailwind
       leading-{none,tight,snug,normal,relaxed,loose,N} utility class.
+  * in .css files, a custom-property identifier in a declaration or var()
+      reference is a code identifier; only that identifier is omitted.
 
 Allowlist (.doctrine-allowlist) — robust semantics
 --------------------------------------------------
@@ -77,6 +79,53 @@ LEADING_RE = re.compile(r"\bleading\b", re.IGNORECASE)
 TAILWIND_LEADING_RE = re.compile(
     r"leading-(none|tight|snug|normal|relaxed|loose|[0-9]+)", re.IGNORECASE
 )
+CSS_PROPERTY_RE = re.compile(
+    r"(?:^|[;{])\s*(--[A-Za-z_][A-Za-z0-9_-]*)(?=\s*:)|"
+    r"(?<![A-Za-z0-9_-])var\(\s*(--[A-Za-z_][A-Za-z0-9_-]*)(?=\s*[,\)])",
+    re.MULTILINE,
+)
+
+
+def css_without_property_identifiers(source: str) -> str:
+    """Mask identifier spans, using a lexical view that excludes comments/strings."""
+    lexical = list(source)
+    i = 0
+    state = None
+    while i < len(source):
+        if state == "comment":
+            if source[i:i + 2] == "*/":
+                lexical[i:i + 2] = "  "
+                state = None
+                i += 2
+                continue
+            if source[i] != "\n":
+                lexical[i] = " "
+        elif state:
+            if source[i] != "\n":
+                lexical[i] = " "
+            if source[i] == "\\" and i + 1 < len(source):
+                if source[i + 1] != "\n":
+                    lexical[i + 1] = " "
+                i += 2
+                continue
+            if source[i] == state:
+                state = None
+        elif source[i:i + 2] == "/*":
+            lexical[i:i + 2] = "  "
+            state = "comment"
+            i += 2
+            continue
+        elif source[i] in ("\"", "'"):
+            state = source[i]
+            lexical[i] = " "
+        i += 1
+
+    result = list(source)
+    for match in CSS_PROPERTY_RE.finditer("".join(lexical)):
+        group = 1 if match.group(1) else 2
+        start, end = match.span(group)
+        result[start:end] = " " * (end - start)
+    return "".join(result)
 
 
 def norm(p: str) -> str:
@@ -159,17 +208,20 @@ def list_repo_files(root: str, files_from):
         return acc
 
 
-def scan_file(path: str):
+def scan_file(path: str, *, leading_only: bool = False):
     """Return list of (lineno, text) hits for one file."""
     hits = []
     try:
         with open(path, "r", encoding="utf-8", errors="replace") as fh:
-            for i, line in enumerate(fh, 1):
-                line = line.rstrip("\n")
-                if BANNED_NO_LEADING.search(line):
+            source = fh.read()
+            lexical = (css_without_property_identifiers(source)
+                       if path.lower().endswith(".css") else source)
+            for i, (line, code_line) in enumerate(
+                    zip(source.split('\n'), lexical.split('\n')), 1):
+                if not leading_only and BANNED_NO_LEADING.search(line):
                     hits.append((i, line))
                     continue
-                if LEADING_RE.search(line) and not TAILWIND_LEADING_RE.search(line):
+                if LEADING_RE.search(code_line) and not TAILWIND_LEADING_RE.search(line):
                     hits.append((i, line))
     except (IsADirectoryError, PermissionError):
         pass
