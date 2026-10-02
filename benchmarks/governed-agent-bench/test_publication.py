@@ -278,6 +278,15 @@ class PublicationTests(unittest.TestCase):
 
         class FakeApi:
             def __init__(self):
+                self.revision = "a" * 40
+                self.sidecar = json.dumps(
+                    {
+                        "asset_type": "dataset",
+                        "repository_id": "SZLHOLDINGS/governed-agent-bench",
+                        "destination_path": "PROMOTION_READINESS_AUDIT.json",
+                        "overwrite_allowed": False,
+                    }
+                ).encode()
                 self.remote = {
                     "publication-manifest.json": json.dumps(
                         {
@@ -288,6 +297,7 @@ class PublicationTests(unittest.TestCase):
                         }
                     ).encode(),
                     "stale.txt": b"must disappear",
+                    "PROMOTION_READINESS_AUDIT.json": self.sidecar,
                 }
                 self.deleted = []
                 self.commit_calls = 0
@@ -298,8 +308,9 @@ class PublicationTests(unittest.TestCase):
             def list_repo_files(self, **_):
                 return sorted(self.remote)
 
-            def create_commit(self, operations, **_):
+            def create_commit(self, operations, **kwargs):
                 self.commit_calls += 1
+                assert kwargs["parent_commit"] == self.revision
                 for operation in operations:
                     if isinstance(operation, CommitOperationDelete):
                         self.deleted.append(operation.path_in_repo)
@@ -308,10 +319,11 @@ class PublicationTests(unittest.TestCase):
                         self.remote[operation.path_in_repo] = (
                             operation.path_or_fileobj.getvalue()
                         )
-                return types.SimpleNamespace(oid="b" * 40)
+                self.revision = "b" * 40
+                return types.SimpleNamespace(oid=self.revision)
 
             def repo_info(self, **_):
-                return types.SimpleNamespace(sha="b" * 40)
+                return types.SimpleNamespace(sha=self.revision)
 
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
@@ -332,7 +344,7 @@ class PublicationTests(unittest.TestCase):
             fake_hub.hf_hub_download = hf_hub_download
 
             with patch.dict(sys.modules, {"huggingface_hub": fake_hub}):
-                revision, files, action, inventory = (
+                revision, files, action, inventory, preserved = (
                     publisher._publish_and_readback(
                         api,
                         "SZLHOLDINGS/governed-agent-bench",
@@ -349,6 +361,10 @@ class PublicationTests(unittest.TestCase):
         self.assertEqual(api.deleted, ["stale.txt"])
         self.assertEqual(inventory, sorted(api.remote))
         self.assertNotIn("stale.txt", inventory)
+        self.assertEqual(
+            preserved, {"PROMOTION_READINESS_AUDIT.json": api.sidecar}
+        )
+        self.assertIn("PROMOTION_READINESS_AUDIT.json", inventory)
         self.assertEqual(set(files), set(inventory))
 
     def test_remote_publication_refuses_foreign_repository(self):
@@ -362,6 +378,10 @@ class PublicationTests(unittest.TestCase):
             @staticmethod
             def list_repo_files(**_):
                 return ["publication-manifest.json"]
+
+            @staticmethod
+            def repo_info(**_):
+                return types.SimpleNamespace(sha="a" * 40)
 
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
@@ -397,6 +417,32 @@ class PublicationTests(unittest.TestCase):
                         payload,
                         "a" * 40,
                         "test-token",
+                    )
+
+    def test_external_dataset_audit_must_be_valid_and_non_overwritable(self):
+        publisher = _load_publisher()
+        for document in (
+            {
+                "asset_type": "dataset",
+                "repository_id": "wrong/repo",
+                "destination_path": "PROMOTION_READINESS_AUDIT.json",
+                "overwrite_allowed": False,
+            },
+            {
+                "asset_type": "dataset",
+                "repository_id": "SZLHOLDINGS/governed-agent-bench",
+                "destination_path": "PROMOTION_READINESS_AUDIT.json",
+                "overwrite_allowed": True,
+            },
+        ):
+            with self.subTest(document=document):
+                with self.assertRaisesRegex(
+                    publisher.PublicationError, "external sidecar identity mismatch"
+                ):
+                    publisher._validate_external_sidecar(
+                        "PROMOTION_READINESS_AUDIT.json",
+                        json.dumps(document).encode(),
+                        "SZLHOLDINGS/governed-agent-bench",
                     )
 
     def test_local_manifest_must_bind_source_and_target(self):
@@ -961,6 +1007,7 @@ class PublicationTests(unittest.TestCase):
             _source_revision,
             _token,
             on_revision=None,
+            on_operation=None,
         ):
             if repo_type == "dataset":
                 if on_revision is not None:
@@ -970,6 +1017,7 @@ class PublicationTests(unittest.TestCase):
                     {"leaderboard.json": {"bytes": 1, "sha256": "0" * 64}},
                     "published",
                     ["leaderboard.json"],
+                    {},
                 )
             raise publisher.PublicationError("space failed closed")
 
@@ -1018,6 +1066,56 @@ class PublicationTests(unittest.TestCase):
             self.assertEqual(receipt["publication_state"], "NOT_LIVE")
             self.assertEqual(receipt["dataset"]["revision"], "b" * 40)
             self.assertEqual(receipt["failure"]["stage"], "space_publication")
+
+    def test_provider_error_receipt_records_only_safe_operation_and_status(self):
+        publisher = _load_publisher()
+
+        class FakeBadRequestError(Exception):
+            def __init__(self):
+                super().__init__("private-provider-response-containing-a-token")
+                self.response = types.SimpleNamespace(status_code=400)
+
+        def fake_publish(*_args, on_operation=None, **_kwargs):
+            if on_operation is not None:
+                on_operation("create_commit")
+            raise FakeBadRequestError()
+
+        fake_hub = types.ModuleType("huggingface_hub")
+        fake_hub.HfApi = lambda token: object()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bundle = root / "bundle"
+            _load_builder().build(bundle, "a" * 40, "2026-07-28T12:00:00Z")
+            receipt_path = root / "publication-receipt.json"
+            with (
+                patch.dict(sys.modules, {"huggingface_hub": fake_hub}),
+                patch.dict(publisher.os.environ, {"HF_TOKEN": "test-token"}),
+                patch.object(
+                    publisher, "_publish_and_readback", side_effect=fake_publish
+                ),
+            ):
+                with self.assertRaises(publisher.PublicationError):
+                    publisher.publish(
+                        bundle,
+                        "a" * 40,
+                        "SZLHOLDINGS/governed-agent-bench",
+                        "SZLHOLDINGS/governed-agent-bench",
+                        receipt_path,
+                    )
+            body = receipt_path.read_text(encoding="utf-8")
+            receipt = json.loads(body)
+            self.assertEqual(
+                receipt["failure"],
+                {
+                    "stage": "dataset_publication",
+                    "operation": "create_commit",
+                    "error_type": "FakeBadRequestError",
+                    "http_status": 400,
+                },
+            )
+            self.assertNotIn("private-provider-response", body)
+            self.assertNotIn("test-token", body)
 
 
 if __name__ == "__main__":

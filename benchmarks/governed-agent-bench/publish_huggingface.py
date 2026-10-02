@@ -34,6 +34,7 @@ SPACE_RUNTIME_FAILURE_STAGES = {
     "NO_APP_FILE",
     "RUNTIME_ERROR",
 }
+DATASET_EXTERNAL_SIDECARS = frozenset({"PROMOTION_READINESS_AUDIT.json"})
 
 
 class PublicationError(RuntimeError):
@@ -135,6 +136,24 @@ def _remote_manifest_is_owned(
             raise PublicationError(
                 f"refusing to replace foreign {repo_type} repository: {repo_id}"
             )
+
+
+def _validate_external_sidecar(name: str, body: bytes, repo_id: str) -> None:
+    """Preserve an independently published audit without adopting its claims."""
+    if name not in DATASET_EXTERNAL_SIDECARS or len(body) > 256 * 1024:
+        raise PublicationError(f"unsupported external sidecar: {name}")
+    try:
+        document = json.loads(body)
+    except (UnicodeError, json.JSONDecodeError) as exc:
+        raise PublicationError(f"external sidecar is invalid: {name}") from exc
+    if (
+        not isinstance(document, dict)
+        or document.get("asset_type") != "dataset"
+        or document.get("repository_id") != repo_id
+        or document.get("destination_path") != name
+        or document.get("overwrite_allowed") is not False
+    ):
+        raise PublicationError(f"external sidecar identity mismatch: {name}")
 
 
 def _require_declared_source(path: Path, source_revision: str) -> None:
@@ -511,19 +530,34 @@ def _publish_and_readback(
     source_revision: str,
     token: str,
     on_revision: Callable[[str, str], None] | None = None,
+    on_operation: Callable[[str], None] | None = None,
 ):
     from huggingface_hub import CommitOperationAdd, CommitOperationDelete, hf_hub_download
 
     expected = _files(folder)
     _manifest_is_bound(expected, repo_id, repo_type, source_revision)
 
+    def mark(operation: str) -> None:
+        if on_operation is not None:
+            on_operation(operation)
+
+    mark("repo_exists")
     existed = api.repo_exists(repo_id=repo_id, repo_type=repo_type, token=token)
     if existed:
+        mark("repo_info")
+        parent_revision = api.repo_info(
+            repo_id=repo_id, repo_type=repo_type, token=token
+        ).sha
+        if not isinstance(parent_revision, str) or not SHA_RE.fullmatch(parent_revision):
+            raise PublicationError(
+                f"Hub returned an invalid parent revision: {repo_type}:{repo_id}"
+            )
+        mark("remote_inventory")
         remote_files = set(
             api.list_repo_files(
                 repo_id=repo_id,
                 repo_type=repo_type,
-                revision="main",
+                revision=parent_revision,
                 token=token,
             )
         )
@@ -532,11 +566,12 @@ def _publish_and_readback(
                 raise PublicationError(
                     f"refusing to replace unmanaged {repo_type} repository: {repo_id}"
                 )
+            mark("remote_ownership_manifest")
             owner_path = hf_hub_download(
                 repo_id=repo_id,
                 repo_type=repo_type,
                 filename="publication-manifest.json",
-                revision="main",
+                revision=parent_revision,
                 token=token,
                 force_download=True,
             )
@@ -548,6 +583,7 @@ def _publish_and_readback(
                 ) from exc
             _remote_manifest_is_owned(owner, repo_id, repo_type)
     else:
+        mark("create_repo")
         create_kwargs = {
             "repo_id": repo_id,
             "repo_type": repo_type,
@@ -560,24 +596,51 @@ def _publish_and_readback(
             token=token,
             **create_kwargs,
         )
+        mark("repo_info")
+        parent_revision = api.repo_info(
+            repo_id=repo_id, repo_type=repo_type, token=token
+        ).sha
+        if not isinstance(parent_revision, str) or not SHA_RE.fullmatch(parent_revision):
+            raise PublicationError(
+                f"Hub returned an invalid parent revision: {repo_type}:{repo_id}"
+            )
+        mark("remote_inventory")
         remote_files = set(
             api.list_repo_files(
                 repo_id=repo_id,
                 repo_type=repo_type,
-                revision="main",
+                revision=parent_revision,
                 token=token,
             )
         )
 
-    expected_names = set(expected)
+    preserved: dict[str, bytes] = {}
+    if repo_type == "dataset":
+        for name in sorted(remote_files & DATASET_EXTERNAL_SIDECARS):
+            mark("external_sidecar_read")
+            sidecar_path = hf_hub_download(
+                repo_id=repo_id,
+                repo_type=repo_type,
+                filename=name,
+                revision=parent_revision,
+                token=token,
+                force_download=True,
+            )
+            body = Path(sidecar_path).read_bytes()
+            _validate_external_sidecar(name, body, repo_id)
+            preserved[name] = body
+
+    expected_inventory = expected | preserved
+    expected_names = set(expected_inventory)
     current_is_exact = remote_files == expected_names
     if current_is_exact:
-        for name, body in expected.items():
+        for name, body in expected_inventory.items():
+            mark("current_file_readback")
             path = hf_hub_download(
                 repo_id=repo_id,
                 repo_type=repo_type,
                 filename=name,
-                revision="main",
+                revision=parent_revision,
                 token=token,
                 force_download=True,
             )
@@ -586,11 +649,7 @@ def _publish_and_readback(
                 break
 
     if current_is_exact:
-        revision = api.repo_info(
-            repo_id=repo_id,
-            repo_type=repo_type,
-            token=token,
-        ).sha
+        revision = parent_revision
         action = "already_exact"
     else:
         stale = sorted(remote_files - expected_names)
@@ -599,11 +658,13 @@ def _publish_and_readback(
             for name, body in expected.items()
         ]
         operations.extend(CommitOperationDelete(path_in_repo=name) for name in stale)
+        mark("create_commit")
         commit = api.create_commit(
             repo_id=repo_id,
             repo_type=repo_type,
             operations=operations,
             commit_message="publish governed-agent-bench from protected GitHub source",
+            parent_commit=parent_revision,
             token=token,
         )
         revision = commit.oid
@@ -616,6 +677,7 @@ def _publish_and_readback(
     if on_revision is not None:
         on_revision(revision, action)
 
+    mark("immutable_inventory")
     observed_inventory = set(
         api.list_repo_files(
             repo_id=repo_id,
@@ -633,7 +695,8 @@ def _publish_and_readback(
         )
 
     observed = {}
-    for name, body in expected.items():
+    for name, body in expected_inventory.items():
+        mark("immutable_file_readback")
         path = hf_hub_download(
             repo_id=repo_id,
             repo_type=repo_type,
@@ -649,7 +712,7 @@ def _publish_and_readback(
             "bytes": len(readback),
             "sha256": hashlib.sha256(readback).hexdigest(),
         }
-    return revision, observed, action, sorted(observed_inventory)
+    return revision, observed, action, sorted(observed_inventory), preserved
 
 
 def _utc_now() -> str:
@@ -674,6 +737,7 @@ def _repo_receipt(
     files: dict[str, object] | None = None,
     public_readback: dict[str, object] | None = None,
     verification: str = "PENDING",
+    external_files: dict[str, bytes] | None = None,
 ) -> dict[str, object]:
     return {
         "repo_id": repo_id,
@@ -683,6 +747,10 @@ def _repo_receipt(
         "inventory": inventory,
         "files": files,
         "public_readback": public_readback,
+        "preserved_external_files": {
+            name: {"bytes": len(body), "sha256": hashlib.sha256(body).hexdigest()}
+            for name, body in (external_files or {}).items()
+        },
     }
 
 
@@ -750,6 +818,12 @@ def publish(
     _write_receipt(receipt_path, receipt)
 
     stage = "credential_preflight"
+    operation = "credential_preflight"
+
+    def operation_observed(value: str) -> None:
+        nonlocal operation
+        operation = value
+
     try:
         token = os.environ.get("HF_TOKEN") or os.environ.get(
             "HUGGINGFACE_HUB_TOKEN"
@@ -777,11 +851,13 @@ def publish(
             _write_receipt(receipt_path, receipt)
 
         stage = "dataset_publication"
+        operation = "dataset_bundle_validation"
         (
             dataset_revision,
             dataset_files,
             dataset_action,
             dataset_inventory,
+            dataset_external_files,
         ) = _publish_and_readback(
             api,
             dataset_repo,
@@ -790,14 +866,16 @@ def publish(
             source_revision,
             token,
             on_revision=dataset_revision_observed,
+            on_operation=operation_observed,
         )
 
         stage = "dataset_public_readback"
+        operation = "dataset_public_readback"
         dataset_public = _wait_for_public_repository(
             dataset_repo,
             "dataset",
             dataset_revision,
-            _files(dataset),
+            _files(dataset) | dataset_external_files,
             dataset_timeout_seconds,
             poll_interval_seconds,
         )
@@ -811,10 +889,12 @@ def publish(
             verification=(
                 "VERIFIED_AUTHENTICATED_AND_PUBLIC_IMMUTABLE_READBACK"
             ),
+            external_files=dataset_external_files,
         )
         receipt["status"] = "PARTIAL_DATASET_PUBLIC_VERIFIED_SPACE_PENDING"
         _write_receipt(receipt_path, receipt)
 
+        operation = "space_bundle_resolution"
         with tempfile.TemporaryDirectory(
             prefix="governed-agent-bench-space-"
         ) as tmp:
@@ -862,11 +942,13 @@ def publish(
                 _write_receipt(receipt_path, receipt)
 
             stage = "space_publication"
+            operation = "space_bundle_validation"
             (
                 space_revision,
                 space_files,
                 space_action,
                 space_inventory,
+                _space_external_files,
             ) = _publish_and_readback(
                 api,
                 space_repo,
@@ -875,6 +957,7 @@ def publish(
                 source_revision,
                 token,
                 on_revision=space_revision_observed,
+                on_operation=operation_observed,
             )
             receipt["space"] = _repo_receipt(
                 space_repo,
@@ -888,6 +971,7 @@ def publish(
             _write_receipt(receipt_path, receipt)
 
             stage = "space_public_runtime_readback"
+            operation = "space_public_runtime_readback"
             space_public = _wait_for_public_space(
                 space_repo,
                 space_revision,
@@ -925,8 +1009,13 @@ def publish(
         )
         receipt["failure"] = {
             "stage": stage,
+            "operation": operation,
             "error_type": type(exc).__name__,
         }
+        response = getattr(exc, "response", None)
+        http_status = getattr(response, "status_code", None)
+        if type(http_status) is int and 400 <= http_status < 600:
+            receipt["failure"]["http_status"] = http_status
         _write_receipt(receipt_path, receipt)
         if isinstance(exc, PublicationError):
             raise
