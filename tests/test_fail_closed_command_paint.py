@@ -152,13 +152,15 @@ def test_holographic_and_landing_catch_cannot_paint_live_or_measured() -> None:
     assert 'setLabel("brain-lbl", "live", "LIVE")' not in holo
     assert 'setLabel("estate-lbl", "live", "LIVE")' not in holo
     assert 'setLabel("brain-lbl", "reachable", "REACHABLE")' in holo
-    assert 'setLabel("estate-lbl", "reachable", "REACHABLE")' in holo
+    # Registry listing is metadata, not origin reachability (see test_receipt_2d_fallback_contract).
+    assert 'setLabel("estate-lbl", "reachable", "REACHABLE")' not in holo
+    assert 'setLabel("estate-lbl", "metadata", "REGISTRY · UNVERIFIED")' in holo
     catch_brain = holo.split("async function loadBrain()", 1)[1].split("async function loadEstate()", 1)[0]
     catch_estate = holo.split("async function loadEstate()", 1)[1].split("let introReturnFocus", 1)[0]
     assert 'setLabel("brain-lbl", "degraded", "NO-LIVE-DATA")' in catch_brain
     assert 'setLabel("brain-lbl", "live", "LIVE")' not in catch_brain
     assert "MEASURED" not in catch_brain
-    assert 'setLabel("estate-lbl", "degraded", "MANIFEST")' in catch_estate
+    assert 'setLabel("estate-lbl", "degraded", "MANIFEST · UNVERIFIED")' in catch_estate
     assert 'setLabel("estate-lbl", "live", "LIVE")' not in catch_estate
     assert 'pulseState("health", "REACHABLE"' in landing
     assert 'pulseState("health", "UNAVAILABLE"' in landing
