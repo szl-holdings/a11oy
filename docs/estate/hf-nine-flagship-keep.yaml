@@ -1,5 +1,6 @@
 as_of: "2026-09-04"
 state: APPLY
+policy_amended_at: "2026-10-01"
 policy_version: cyber-resilience-consolidation-v2
 product: https://a-11-oy.com/products/
 proof: https://a11oy.net
@@ -33,6 +34,19 @@ keep:
   - id: SZLHOLDINGS/david-leads
     owner_class: organization
     role: insurance
+  - id: SZLHOLDINGS/szl-foundation-confirmation
+    owner_class: organization
+    role: exploratory_synthetic_cpu_trials
+    source: szl-holdings/szl-forge
+    source_path: spaces/szl-foundation-confirmation
+    live_origin: https://szlholdings-szl-foundation-confirmation.hf.space
+    product_path: /research/confirmation/workbench
+    registered_scientific_gate: FAILED
+    wider_system_qualified: false
+    qualification_source_revision: b961baae9a4ff6d7091fe9c685448be2a2357945
+    qualification_hf_revision: 8bdf8c8ce97c45a3eb3f31e1bc54a85ebf4f7119
+    qualification_workflow: https://github.com/szl-holdings/szl-forge/actions/runs/36802030123
+    qualification_scope: three_public_model_trials_and_receipt_hash_readbacks
   - id: betterwithage/anatomy
     owner_class: creator_profile
     role: living_system_atlas

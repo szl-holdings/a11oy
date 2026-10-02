@@ -465,7 +465,13 @@ def _page_html(ns: str) -> str:
         The shared-bias gain criterion passed; the clean-sensor guard and overall registered gate failed.
         The learned selector did not outperform the strongest simple control.</p>
       <p class="sub"><a href="/research/confirmation">Explore recorded evidence and fixed-trace prices &rarr;</a></p>
-      <p class="sub">This link opens a frozen evidence replay. It adds no inference action or runtime capability to this surface.</p>
+      <p class="sub">This link opens a frozen evidence replay. The registered result remains <strong>FAILED</strong>.</p>
+      <h3>Run a fresh exploratory trial</h3>
+      <p class="sub"><a href="/research/confirmation/workbench">Open the CPU model workbench &rarr;</a></p>
+      <p class="sub">Fresh model trials run on demand in a separate synthetic CPU workbench, which may sleep when idle.
+        These exploratory runs do not change the frozen experiment or qualify the wider system.</p>
+      <p class="sub">The workbench keeps at most 128 receipts in process memory for up to 24 hours.
+        Export receipts you want to retain: older records may be evicted, and restarting the workbench discards them.</p>
     </section>
 
     <section id="fashion-section" aria-labelledby="fashion-h">
@@ -1049,6 +1055,10 @@ def register(app, ns: str = "a11oy") -> str:
     @app.get("/research/confirmation", include_in_schema=False)
     async def confirmation_research():  # noqa: ANN202
         return RedirectResponse("https://a11oy.net/experiments/confirmation/", status_code=307)
+
+    @app.get("/research/confirmation/workbench", include_in_schema=False)
+    async def confirmation_workbench():  # noqa: ANN202
+        return RedirectResponse("https://szlholdings-szl-foundation-confirmation.hf.space", status_code=307)
 
     @app.get("/frontier", include_in_schema=False)
     async def frontier_page():  # noqa: ANN202
