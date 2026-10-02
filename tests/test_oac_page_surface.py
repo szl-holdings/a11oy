@@ -4,6 +4,7 @@
 """OAC is a static, read-only release handoff, not a scoring or proxy route."""
 
 from html.parser import HTMLParser
+import json
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -128,3 +129,13 @@ def test_oac_page_is_bounded_accessible_and_has_no_execution_path():
         assert identity in source
     for superseded in ("5b3dfdf9beafe0d6d1e6043ca005ec4b17c45204", "456801e7313e09b62c74fa68be5c165ecf12d79c"):
         assert superseded not in source
+
+
+def test_oac_is_explicitly_self_contained_in_product_flow_rollout():
+    from scripts import rollout_frontend_flow_shell as flow
+
+    state = json.loads((ROOT / "docs" / "frontend-flow-shell-state.json").read_text(encoding="utf-8"))
+    assert flow.self_contained(PAGE)
+    assert "pages/oac.html" in state["self_contained_documents"]
+    assert "pages/oac.html" not in state["injected_documents"]
+    assert PAGE not in flow.candidates()
