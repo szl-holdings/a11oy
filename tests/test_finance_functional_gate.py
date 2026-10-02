@@ -92,6 +92,45 @@ def test_no_raw_transport_error_or_upstream_body_is_retained(witness):
     assert all(not row["accepted"] for row in result["probes"])
 
 
+@pytest.mark.parametrize("status,mime,location,expected", [
+    (403, "text/html; charset=utf-8", "https://user:secret@edge.example/path?token=secret", {"http_status": 403, "media_type": "HTML", "redirect_host": "edge.example"}),
+    (302, "application/json", "https://edge.example/path", {"http_status": 302, "media_type": "JSON", "redirect_host": "edge.example"}),
+    (200, "text/plain", "https://[invalid", {"http_status": 200, "media_type": "TEXT", "redirect_host": None}),
+    (200, "application/x-secret", "https://" + "x" * 300 + "/secret", {"http_status": 200, "media_type": "OTHER", "redirect_host": None}),
+    (200, "", "", {"http_status": 200, "media_type": "MISSING", "redirect_host": None}),
+])
+def test_emitted_upstream_rejection_reports_only_bounded_metadata(projection, status, mime, location, expected):
+    http, state = projection
+    state.update(status=status, headers={"content-type": mime, "location": location}, raw=b"arbitrary secret body")
+    reply = http.get("/api/finance/providers")
+    assert reply.status_code == 503
+    assert reply.json()["error"] == "CANONICAL_SOURCE_UNAVAILABLE"
+    assert reply.json()["upstream_response"] == expected
+    assert reply.json()["execution_enabled"] is False
+    assert "secret" not in reply.text and "arbitrary" not in reply.text
+    assert len(state["calls"]) == 1
+
+
+def test_functional_gate_preserves_sanitized_upstream_boundary_and_rejects_raw_fields(witness):
+    gate, request, states = witness
+    path = "/api/finance/providers"
+    states[path] = lambda _: {"error": "CANONICAL_SOURCE_UNAVAILABLE", "upstream_response": {
+        "http_status": 403, "media_type": "HTML", "redirect_host": "edge.example", "body": "secret"}}
+    first = gate.observe_finance(REVISION, request=request)
+    row = next(row for row in first["probes"] if row["label"] == "providers")
+    assert not first["complete"] and not row["accepted"]
+    assert row["upstream_http_status"] == 403 and row["upstream_media_type"] == "HTML"
+    assert row["upstream_redirect_host"] == "edge.example"
+    assert "secret" not in json.dumps(first)
+    states[path] = lambda _: {"error": "CANONICAL_SOURCE_UNAVAILABLE", "upstream_response": {
+        "http_status": True, "media_type": "secret", "redirect_host": "edge.example/?token=secret"}}
+    second = gate.observe_finance(REVISION, request=request)
+    row = next(row for row in second["probes"] if row["label"] == "providers")
+    assert not second["complete"] and not row["accepted"]
+    assert not any(key.startswith("upstream_") for key in row)
+    assert "secret" not in json.dumps(second)
+
+
 def test_automatic_projection_follows_relock_and_shares_existing_writer():
     import yaml
     workflow = yaml.safe_load((ROOT / ".github/workflows/hf-sync.yml").read_text())
