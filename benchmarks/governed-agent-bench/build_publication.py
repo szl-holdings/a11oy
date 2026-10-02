@@ -64,6 +64,16 @@ def _dataset_readme(source_revision: str) -> str:
     return f"""---
 license: apache-2.0
 pretty_name: governed-agent-bench
+configs:
+- config_name: default
+  default: true
+  data_files:
+  - split: train
+    path: cases.jsonl
+- config_name: reference-submissions
+  data_files:
+  - split: train
+    path: submissions/reference-conformance.jsonl
 task_categories:
 - other
 tags:
@@ -98,6 +108,14 @@ The reference result proves that the evaluator and known-good fixture close
 their deterministic contract. It is not a model-quality or production claim.
 The public leaderboard contains zero eligible model submissions until an exact
 submission is evaluated and published with its receipt.
+
+## Dataset Viewer
+
+The default `train` split contains only the synthetic benchmark cases. The
+`reference-submissions` configuration contains the separate known-good action
+traces. They have different schemas and must not be loaded as one split. The
+scoring result and publication records remain downloadable repository files,
+not benchmark examples.
 
 ## Reproduce
 

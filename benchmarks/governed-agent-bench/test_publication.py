@@ -78,6 +78,32 @@ def _write_manifested_payload(
 
 
 class PublicationTests(unittest.TestCase):
+    def test_dataset_viewer_configs_keep_cases_and_submissions_separate(self):
+        builder = _load_builder()
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp)
+            builder.build(output, "a" * 40, "2026-07-28T12:00:00Z")
+            readme = (output / "dataset" / "README.md").read_text(
+                encoding="utf-8"
+            )
+
+            metadata = readme.split("---", 2)[1]
+            self.assertEqual(metadata.count("config_name:"), 2)
+            self.assertIn(
+                "configs:\n"
+                "- config_name: default\n"
+                "  default: true\n"
+                "  data_files:\n"
+                "  - split: train\n"
+                "    path: cases.jsonl\n"
+                "- config_name: reference-submissions\n"
+                "  data_files:\n"
+                "  - split: train\n"
+                "    path: submissions/reference-conformance.jsonl\n",
+                metadata,
+            )
+            self.assertIn("different schemas", readme)
+
     def test_bundle_is_hash_closed_and_truth_labeled(self):
         builder = _load_builder()
         publisher = _load_publisher()
