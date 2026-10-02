@@ -97,6 +97,13 @@ def observe_finance(revision, *, request=read):
           check=lambda status, body: status == 200 and body.get("schema") == "szl.build-info/v1"
               and body.get("source_repository") == "szl-holdings/a11oy"
               and body.get("source_revision") == revision and body.get("hf_repository") == "SZLHOLDINGS/finance")
+    probe("version", "version", path="/version",
+          check=lambda status, body: status == 200 and body.get("schema") == "szl.finance.version/v1"
+              and body.get("version") == revision and body.get("source_revision") == revision
+              and body.get("source_repository") == "szl-holdings/a11oy"
+              and body.get("hf_repository") == "SZLHOLDINGS/finance"
+              and "model_revision" in body and body["model_revision"] is None
+              and body.get("execution_enabled") is False)
     probe("providers", "providers", check=lambda status, body: len(body.get("sources", [])) == 16)
     fixture = probe("synthetic-signals", "analytics/v2/signals/AAPL", operation="signals", query=(("origin", "fixture"),))
     probe("synthetic-quote", "analytics/v2/quote/AAPL", operation="quote", query=(("origin", "fixture"),))
