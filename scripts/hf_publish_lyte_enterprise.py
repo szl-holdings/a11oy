@@ -50,9 +50,9 @@ ATTEST_COMMAND_TIMEOUT_S = 2400
 PHASE_JOURNAL: list[dict[str, Any]] = []
 
 CONTROLLER_REPOSITORY = "szl-holdings/.github"
-CONTROLLER_REVISION = "c889276e51e7d954c4bba8b216f86fc7577721fa"
+CONTROLLER_REVISION = "10cb5f7665ab5469c876c3418888a71f521fd76b"
 CONTROLLER_PATH = ".github/scripts/hf_deploy_from_dockerfile.py"
-CONTROLLER_BLOB_SHA1 = "9d5b90b8bbf04e6d46ef0f971fc65604e1323b1b"
+CONTROLLER_BLOB_SHA1 = "1ee1af44f9dde1b3cd760bf9ee7fedf54f0ac915"
 USER_AGENT = "SZLHOLDINGS-Lyte-Enterprise-Publisher/4.0"
 
 # API version and package version are distinct. The current 4.0.0 application
