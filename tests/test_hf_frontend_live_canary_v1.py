@@ -296,6 +296,127 @@ def test_hit_area_coverage_search_is_exact_reusable_and_bounded() -> None:
     }
 
 
+def test_viewport_clipped_target_is_remeasured_without_weakening_hit_test() -> None:
+    tree = ast.parse(SCRIPT.read_text(encoding="utf-8"))
+    probes = [
+        node.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Constant)
+        and isinstance(node.value, str)
+        and "const measureTarget" in node.value
+    ]
+    assert len(probes) == 1
+    source = probes[0]
+    hit_scan = source[
+        source.index("const effectiveBounds") : source.index("const actionable")
+    ]
+    measure = source[source.index("const measureTarget") : source.index("const nodes")]
+
+    program = """
+const run = (config) => {
+  class Element {
+    contains(other) { return other === this; }
+  }
+  const window = {
+    innerWidth: 360, innerHeight: 800, devicePixelRatio: 1,
+    scrollX: 0, scrollY: 0, scrollCalls: 0,
+    scrollBy({left, top}) {
+      this.scrollCalls += 1;
+      this.scrollX = Math.max(0, Math.min(1000, this.scrollX + left));
+      this.scrollY = Math.max(0, Math.min(config.maxScroll ?? 1000, this.scrollY + top));
+    },
+    scrollTo({left, top}) { this.scrollX = left; this.scrollY = top; },
+  };
+  const target = new Element();
+  const overlay = new Element();
+  const parent = new Element();
+  const top = () => config.top - (config.fixed ? 0 : window.scrollY);
+  const rect = () => ({
+    left: 20, right: 20 + config.size, width: config.size,
+    top: top(), bottom: top() + config.size, height: config.size,
+  });
+  target.getBoundingClientRect = rect;
+  target.parentElement = config.innerClip ? parent : null;
+  parent.parentElement = null;
+  parent.getBoundingClientRect = () => ({
+    left: 20, right: 20 + config.size,
+    top: top(), bottom: top() + 30,
+  });
+  const getComputedStyle = (node) => ({
+    contain: 'none', clipPath: 'none',
+    overflowX: 'visible', overflowY: node === parent ? 'hidden' : 'visible',
+  });
+  const inside = (box, x, y) => x >= box.left && x < box.right && y >= box.top && y < box.bottom;
+  const document = {
+    elementFromPoint(x, y) {
+      if (x < 0 || x >= window.innerWidth || y < 0 || y >= window.innerHeight) return null;
+      if (!inside(rect(), x, y)) return null;
+      if (config.innerClip && !inside(parent.getBoundingClientRect(), x, y)) return null;
+      if (config.overlay && y >= top() + 20 && y < top() + 28) return overlay;
+      return target;
+    },
+  };
+  /* HIT_SCAN */
+  /* MEASURE */
+  const observed = measureTarget(target);
+  return {
+    width: observed.bounds.width,
+    height: observed.bounds.height,
+    hitArea: observed.hitArea,
+    scrollCalls: window.scrollCalls,
+    scrollRestored: window.scrollX === 0 && window.scrollY === 0,
+  };
+};
+const results = {
+  scrollableEdge: run({top: 790, size: 48}),
+  fixedEdge: run({top: 790, size: 48, fixed: true}),
+  noScrollEdge: run({top: 790, size: 48, maxScroll: 0}),
+  innerClip: run({top: 790, size: 48, innerClip: true}),
+  genuinelySmall: run({top: 100, size: 40}),
+  overlay: run({top: 100, size: 48, overlay: true}),
+  revealedOverlay: run({top: 790, size: 48, overlay: true}),
+};
+process.stdout.write(JSON.stringify(results));
+""".replace("/* HIT_SCAN */", hit_scan).replace("/* MEASURE */", measure)
+    completed = subprocess.run(
+        ["node", "-e", program],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    observed = json.loads(completed.stdout)
+    assert observed == {
+        "scrollableEdge": {
+            "width": 48, "height": 48, "hitArea": True,
+            "scrollCalls": 1, "scrollRestored": True,
+        },
+        "fixedEdge": {
+            "width": 48, "height": 10, "hitArea": False,
+            "scrollCalls": 1, "scrollRestored": True,
+        },
+        "noScrollEdge": {
+            "width": 48, "height": 10, "hitArea": False,
+            "scrollCalls": 1, "scrollRestored": True,
+        },
+        "innerClip": {
+            "width": 48, "height": 30, "hitArea": False,
+            "scrollCalls": 1, "scrollRestored": True,
+        },
+        "genuinelySmall": {
+            "width": 40, "height": 40, "hitArea": False,
+            "scrollCalls": 0, "scrollRestored": True,
+        },
+        "overlay": {
+            "width": 48, "height": 48, "hitArea": False,
+            "scrollCalls": 0, "scrollRestored": True,
+        },
+        "revealedOverlay": {
+            "width": 48, "height": 48, "hitArea": False,
+            "scrollCalls": 1, "scrollRestored": True,
+        },
+    }
+
+
 def test_identity_contract_accepts_exact_source_and_running_runtime() -> None:
     source = "a" * 40
     hf_sha = "b" * 40
