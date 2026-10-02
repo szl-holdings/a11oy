@@ -15,11 +15,20 @@ RUNTIME_LAYER_BUDGET = 110
 # aa11d167572da80452e1247815b1a0e08bbd9ba206f4d859b0b26f8d84ffc48e.
 # Steward adds only its four named adapter/reader/projection/lock files, batched
 # into one COPY; no original source is removed and the layer budget is unchanged.
-# Preserve the explicit allowlist and unchanged layer budget, not a broad COPY.
-COPY_SOURCE_ALLOWLIST_COUNT = 583
+# The civilian services surface adds exactly its registrar and package directory.
+# Preserve every prior source and the unchanged layer budget, not a broad COPY.
+COPY_SOURCE_ALLOWLIST_COUNT = 585
 COPY_SOURCE_ALLOWLIST_SHA256 = (
+    "4ca6083c0625d01db45342bf15badb633427c4550c6f1896b30c3b95926f0641"
+)
+PRE_CIVILIAN_ALLOWLIST_COUNT = 583
+PRE_CIVILIAN_ALLOWLIST_SHA256 = (
     "b7b71ddc06c69e136240ff67cf62e4377ff8216a1d74bfa65adcffd856728755"
 )
+CIVILIAN_COPY_ADDITIONS = {
+    "a11oy_civilian_observatory.py",
+    "civilian_observatory/",
+}
 
 
 def _logical_instructions() -> list[tuple[int, str]]:
@@ -93,3 +102,17 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
     assert hashlib.sha256(encoded_allowlist).hexdigest() == COPY_SOURCE_ALLOWLIST_SHA256
     assert "load: ${{ github.event_name == 'pull_request' }}" in workflow
     assert "Smoke test image (PR builds — loaded into local daemon)" in workflow
+
+
+def test_civilian_packaging_preserves_every_previous_source() -> None:
+    sources = {
+        source
+        for _line, instruction in _logical_instructions()
+        if instruction.upper().startswith("COPY ")
+        for source in _copy_sources(instruction)
+    }
+    assert CIVILIAN_COPY_ADDITIONS <= sources
+    previous = sources - CIVILIAN_COPY_ADDITIONS
+    encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
+    assert len(previous) == PRE_CIVILIAN_ALLOWLIST_COUNT
+    assert hashlib.sha256(encoded).hexdigest() == PRE_CIVILIAN_ALLOWLIST_SHA256
