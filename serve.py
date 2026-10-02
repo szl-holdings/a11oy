@@ -5415,19 +5415,33 @@ def _frontier_liveness_signal(ttl: float = 30.0) -> dict:
     try:
         import szl_frontier_manifest as _szl_fm_health
         manifest = _szl_fm_health.build_manifest()
-        summary = manifest.get("summary", {}) if isinstance(manifest, dict) else {}
-        total = int(summary.get("tiles", 0) or 0)
-        degraded = summary.get("degraded_tiles", []) or []
-        degraded_n = len(degraded)
-        live_n = max(total - degraded_n, 0)
+        summary = manifest["summary"]
+        total = summary["tiles"]
+        source = summary["source_reachability"]
+        readiness = summary["operational_readiness"]
+        live = readiness["ready_tiles"]
+        blocked = readiness["blocked_tiles"]
+        degraded = [row["name"] for row in blocked]
+        # The manifest distinguishes readable sources from operating capabilities.
+        # A stopped operator or MODELED tile can be reachable without being live.
+        # Missing/inconsistent readiness evidence must never become an ok rollup.
+        if (type(total) is not int or total < 0
+                or not isinstance(live, list) or not isinstance(blocked, list)
+                or type(readiness["ready"]) is not bool
+                or total != len(live) + len(blocked)
+                or readiness["ready"] != (bool(total) and not blocked)):
+            raise ValueError("frontier operational readiness evidence is inconsistent")
+        degraded_n = len(blocked)
+        live_n = len(live)
         val = {
-            # honest: a down sub-source is a degraded tile, not a fake OK.
-            "status": "ok" if degraded_n == 0 else "degraded",
+            "status": "ok" if readiness["ready"] else "degraded",
             "endpoints_total": total,
             "endpoints_live": live_n,
             "endpoints_degraded": degraded_n,
             "degraded_tiles": degraded[:12],
-            "all_sources_live": bool(summary.get("all_sources_live", degraded_n == 0)),
+            "all_sources_live": readiness["ready"],
+            "source_reachability": source,
+            "operational_readiness": readiness,
         }
     except Exception as exc:
         val = {"status": "unavailable", "endpoints_total": None,

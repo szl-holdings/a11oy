@@ -40,18 +40,18 @@ class LivingAnatomyFlagshipPolicyTest(unittest.TestCase):
                 self.assertNotIn("- id: SZLHOLDINGS/anatomy", policy)
 
     def test_canonical_fleet_count_separates_org_and_creator_authority(self) -> None:
-        self.assertIn("spaces_public_target_org: 7", self.series_a)
-        self.assertIn("spaces_private_target_org: 50", self.series_a)
+        self.assertIn("spaces_public_target_org: 8", self.series_a)
+        self.assertIn("spaces_private_target_org: 49", self.series_a)
         self.assertIn("spaces_public_target_creator: 1", self.series_a)
-        self.assertIn("spaces_public_target_total: 8", self.series_a)
+        self.assertIn("spaces_public_target_total: 9", self.series_a)
         series_keep = self.series_a.split("keep:", 1)[1].split(
             "retire_into_killinchu:", 1
         )[0]
         estate_keep = self.estate.split("keep:", 1)[1].split(
             "retire_into_killinchu:", 1
         )[0]
-        self.assertEqual(7, series_keep.count("- id: SZLHOLDINGS/"))
-        self.assertEqual(7, estate_keep.count("- id: SZLHOLDINGS/"))
+        self.assertEqual(8, series_keep.count("- id: SZLHOLDINGS/"))
+        self.assertEqual(8, estate_keep.count("- id: SZLHOLDINGS/"))
         self.assertEqual(1, series_keep.count("- id: betterwithage/"))
         self.assertEqual(1, estate_keep.count("- id: betterwithage/"))
 
