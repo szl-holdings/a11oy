@@ -59,7 +59,7 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         topology = alignment.topology_spaces(self.contract)
         inventory_only = alignment.inventory_only_spaces(self.contract)
         observed = alignment.measured_spaces(self.manifest)
-        self.assertEqual(len(topology), 13)
+        self.assertEqual(len(topology), 14)
         self.assertEqual(
             inventory_only,
             [
@@ -78,7 +78,6 @@ class PublicEstateAlignmentTests(unittest.TestCase):
                 "SZLHOLDINGS/szl-bench-suite",
                 "SZLHOLDINGS/szl-brand-campaign",
                 "SZLHOLDINGS/szl-forge-lab",
-                "SZLHOLDINGS/szl-foundation-confirmation",
                 "SZLHOLDINGS/szl-khipu",
                 "SZLHOLDINGS/szl-marketing-1.1",
                 "SZLHOLDINGS/szl-typesafe-triage",
@@ -161,7 +160,7 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         organization_keepers = [
             item for item in governed if item.startswith("SZLHOLDINGS/")
         ]
-        self.assertEqual(len(organization_keepers), 7)
+        self.assertEqual(len(organization_keepers), 8)
         self.assertNotIn("SZLHOLDINGS/ayllu", governed)
         self.assertEqual(governed, load_keep_ids(alignment.KEEP_POLICY))
         self.assertEqual(
