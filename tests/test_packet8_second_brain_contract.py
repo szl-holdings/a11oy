@@ -1,18 +1,21 @@
 # SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
+import json
 import py_compile
+import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SPACES = ("terra-assurance", "puriq-markets", "counsel-assurance")
-RETIRED = ("aegis-assurance",)
+RETIRED = ("aegis-assurance", "terra-assurance", "puriq-markets", "counsel-assurance")
 SUBSTRATE_SHA = "ad2e04374717ef79dbf7dbb91aea5a8480ed10c3"
 LOCKED = ("F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22")
 PUBLISHER = ROOT / ".github" / "scripts" / "publish_packet8_vertical_spaces.py"
 
 
-def test_active_packet8_adapters_install_same_pinned_substrate_and_brain() -> None:
+def test_archived_packet8_adapters_retain_pinned_substrate_and_brain() -> None:
     canonical_app = None
     canonical_brain = None
     for name in SPACES:
@@ -49,11 +52,32 @@ def test_packet8_second_brain_never_claims_production_or_formula_authority() -> 
         assert 'status":"OPEN"' in brain or '"status": "OPEN"' in brain
 
 
-def test_aegis_source_is_preserved_but_cannot_be_republished() -> None:
+def test_packet8_sources_are_preserved_but_cannot_be_republished(tmp_path: Path) -> None:
     for name in RETIRED:
         assert (ROOT / "huggingface" / "spaces" / name).is_dir()
     publisher = PUBLISHER.read_text(encoding="utf-8")
-    assert 'RETIRED_SPACE_IDS = frozenset({"SZLHOLDINGS/aegis-assurance"})' in publisher
-    assert '"space_id": "SZLHOLDINGS/aegis-assurance"' not in publisher.split("SPACES = [", 1)[1]
-    assert "retired Space reached Packet 8 publisher" in publisher
+    assert "SPACES = []" in publisher
+    assert '"state": "WRITER_RETIRED"' in publisher
+    assert not (ROOT / ".github" / "workflows" / "hf-packet8-vertical-spaces.yml").exists()
+    for forbidden_call in ("create_repo(", "upload_folder(", "update_repo_settings(", "restart_space("):
+        assert forbidden_call not in publisher
+    for name in RETIRED:
+        assert f'"SZLHOLDINGS/{name}"' in publisher
+        assert f'"space_id": "SZLHOLDINGS/{name}"' not in publisher.split("SPACES = [", 1)[1]
+    assert "Packet 8 writer inventory is no longer retired" in publisher
     py_compile.compile(str(PUBLISHER), doraise=True)
+
+    output = tmp_path / "packet8-archive.json"
+    subprocess.run(
+        [sys.executable, str(PUBLISHER), "--root", str(ROOT),
+         "--source-sha", "a" * 40, "--output", str(output)],
+        check=True, capture_output=True, text=True,
+    )
+    receipt = json.loads(output.read_text(encoding="utf-8"))
+    assert receipt["state"] == "WRITER_RETIRED"
+    assert receipt["provider_mutations"] == 0
+    assert receipt["provider_deletion_claimed"] is False
+    assert {row["space_id"] for row in receipt["archives"]} == {
+        f"SZLHOLDINGS/{name}" for name in RETIRED
+    }
+    assert all(row["files"] for row in receipt["archives"])
