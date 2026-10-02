@@ -30,7 +30,7 @@ class ConfirmationRetentionPolicyTest(unittest.TestCase):
                 kept = load_keep_ids(policy)
                 self.assertEqual(kept.count(SPACE), 1)
                 self.assertEqual(len([x for x in kept if x.startswith('SZLHOLDINGS/')]), 8)
-                self.assertIn('betterwithage/anatomy', kept)
+                self.assertEqual(len(kept), 9)
                 for folded in ('SZLHOLDINGS/yarqa', 'SZLHOLDINGS/szl-forge-lab', 'SZLHOLDINGS/unknown-new-space'):
                     self.assertNotIn(folded, kept)
                 text = policy.read_text(encoding='utf-8')
