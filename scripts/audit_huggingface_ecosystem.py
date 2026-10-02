@@ -15,6 +15,13 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Callable
 
+try:
+    from scripts.hf_public_inventory import reserved_readme
+except ModuleNotFoundError:
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from hf_public_inventory import reserved_readme
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = REPO_ROOT / "docs" / "huggingface-ecosystem-manifest.json"
@@ -29,6 +36,14 @@ RFC3339_UTC_RE = re.compile(
 RETRY_ATTEMPTS = 6
 MAX_RETRY_DELAY = 60.0
 RETRYABLE_HTTP_CODES = frozenset({429, 500, 502, 503, 504})
+
+
+class ApiItems(list[dict[str, Any]]):
+    """Public rows with the endpoints actually consulted to enumerate them."""
+
+    def __init__(self, rows: list[dict[str, Any]], endpoints: list[str]) -> None:
+        super().__init__(rows)
+        self.endpoints = endpoints
 
 
 def retry_delay(error: BaseException, attempt: int) -> float:
@@ -84,17 +99,19 @@ def fetch_page(url: str) -> tuple[Any, str | None]:
     return data, next_url
 
 
-def api_items(kind: str) -> list[dict[str, Any]]:
+def api_items(kind: str) -> ApiItems:
     url: str | None = (
         f"https://huggingface.co/api/{kind}?author={ORG}"
         f"&limit={PAGE_LIMIT}&full=true"
     )
     items: dict[str, dict[str, Any]] = {}
     seen_urls: set[str] = set()
+    endpoints: list[str] = []
     while url:
         if url in seen_urls:
             raise RuntimeError(f"Pagination loop from Hugging Face {kind} API: {url}")
         seen_urls.add(url)
+        endpoints.append(url)
         data, url = fetch_page(url)
         if not isinstance(data, list):
             raise TypeError(f"Expected list from Hugging Face {kind} API")
@@ -104,8 +121,15 @@ def api_items(kind: str) -> list[dict[str, Any]]:
             item_id = item.get("id") or item.get("modelId")
             if not isinstance(item_id, str) or not item_id:
                 raise ValueError(f"Hugging Face {kind} API item has no repository id")
+            if item.get('private') is not False:
+                raise ValueError(f"Hugging Face {kind} visibility is not explicitly public")
             items[item_id] = item
-    return sorted(items.values(), key=lambda item: item.get("id", ""))
+    if kind == 'spaces' and f'{ORG}/README' not in items:
+        endpoints.append(f'https://huggingface.co/api/spaces/{ORG}/README')
+        reserved, _ = reserved_readme(ORG)
+        if reserved is not None:
+            items[f'{ORG}/README'] = dict(reserved)
+    return ApiItems(sorted(items.values(), key=lambda item: item.get("id", "")), endpoints)
 
 
 def observed_at_now() -> str:
@@ -526,9 +550,20 @@ def unsafe_flags(item_id: str, repo_type: str, tags: list[Any], card: dict[str, 
 
 
 def build_manifest(*, observed_at: str | None) -> dict[str, Any]:
-    models = [item_summary(item, "model") for item in api_items("models")]
-    datasets = [item_summary(item, "dataset") for item in api_items("datasets")]
-    spaces = [item_summary(item, "space") for item in api_items("spaces")]
+    model_rows = api_items("models")
+    models = [item_summary(item, "model") for item in model_rows]
+    dataset_rows = api_items("datasets")
+    datasets = [item_summary(item, "dataset") for item in dataset_rows]
+    space_rows = api_items("spaces")
+    spaces = [item_summary(item, "space") for item in space_rows]
+    public_api_endpoints = [
+        endpoint
+        for kind, rows in (("models", model_rows), ("datasets", dataset_rows), ("spaces", space_rows))
+        for endpoint in getattr(rows, "endpoints", [
+            f"https://huggingface.co/api/{kind}?author={ORG}"
+            f"&limit={PAGE_LIMIT}&full=true"
+        ])
+    ]
     observed_at = observed_at or observed_at_now()
     counts = {
         "models": len(models),
@@ -544,7 +579,11 @@ def build_manifest(*, observed_at: str | None) -> dict[str, Any]:
             "visibility": "public-only",
             "authenticated": False,
             "privateAssetsIncluded": False,
-            "countMeaning": "Items returned by the author-filtered public APIs; not the authenticated organization total.",
+            "countMeaning": (
+                "Anonymous author-filtered public API membership, supplemented by "
+                "the reserved SZLHOLDINGS/README Space when publicly observable; "
+                "each repository is counted once. Not the authenticated organization total."
+            ),
             "cardEvidenceBoundary": (
                 "Gated repositories are inventoried from public API metadata only. "
                 "Their cardObservation is ACCESS_RESTRICTED and cardSemanticSha256 "
@@ -564,11 +603,7 @@ def build_manifest(*, observed_at: str | None) -> dict[str, Any]:
         },
         "canonicalGitHubRepo": "https://github.com/szl-holdings/a11oy",
         "canonicalRule": "GitHub releases, CI, manifests, checksums, and DOI records are canonical; Hugging Face is a generated discovery and diligence mirror.",
-        "publicApiEndpoints": [
-            f"https://huggingface.co/api/models?author={ORG}&limit={PAGE_LIMIT}&full=true",
-            f"https://huggingface.co/api/datasets?author={ORG}&limit={PAGE_LIMIT}&full=true",
-            f"https://huggingface.co/api/spaces?author={ORG}&limit={PAGE_LIMIT}&full=true",
-        ],
+        "publicApiEndpoints": public_api_endpoints,
         "counts": counts,
         "guardrails": [
             "Do not present Counsel, Terra, or Carlota Jo as active demo surfaces.",
