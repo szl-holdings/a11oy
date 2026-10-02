@@ -7,8 +7,9 @@ szl_five_space.py — BIND_AS_A11OY_PACKAGE status surface.
 Five named spaces: Command · Loop · Queue · Memory · Ledger.
 This module is the in-tree bind, not a second flagship and not a dump of a
 Vite hologram onto serve.py. The tab at /five-space is a 0-CDN hologram.
-Receipts sealed here are UNSIGNED-honest and browser-local SAMPLE.
-They are not the lasting RECORD. RECORD lives on a11oy.net/five-space/.
+The browser-local SAMPLE ledger is UNSIGNED-honest. Status reads project only
+an unsigned content hash; they never append or sign a Khipu receipt.
+Neither is the lasting RECORD. RECORD lives on a11oy.net/five-space/.
 
 Honesty (Doctrine v11 LOCKED):
   - Operator is STRUCTURAL-ONLY (named spaces, local compile).
@@ -24,7 +25,7 @@ Endpoints (dual-registered under /api/{ns}/v1/five-space/* and /v1/five-space/*)
   GET /healthz  — process liveness + bind identity.
   GET /status   — deterministic honest roll-up. No network. No fabricated LIVE.
 
-Stdlib + optional szl_khipu. Additive; try/except-guarded by the caller.
+Stdlib only. Additive; try/except-guarded by the caller.
 """
 from __future__ import annotations
 
@@ -32,7 +33,7 @@ import hashlib
 import json
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 _ORGAN_NAME = "Five-space operator"
 _KHIPU_ORGAN = "five-space-operator"
@@ -93,47 +94,36 @@ _SPACES: List[Dict[str, str]] = [
 
 
 def _unsigned_receipt(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """UNSIGNED-honest hash. Not Cosign. proven_trust stays false."""
+    """Read-only content hash, not an appended chain entry or verified signature."""
     blob = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     digest = hashlib.sha3_256(blob).hexdigest()
     return {
         "receipt_type": _RECEIPT_TYPE,
         "organ": _KHIPU_ORGAN,
+        "ns": "a11oy",
+        "seq": None,
         "digest": digest,
+        "prev": None,
+        "payload_digest": digest,
         "alg": "sha3_256",
+        "digest_kind": "CONTENT-HASH-ONLY",
         "signature": None,
         "signed": False,
+        "signature_verified": False,
+        "signature_status": "UNSIGNED",
+        "signature_verification": "UNAVAILABLE",
         "kind": "UNSIGNED-honest",
         "proven_trust": False,
-        "note": "Hash-linked only. Not Cosign. Not DSSE. proven_trust stays false.",
+        "chain_verified": None,
+        "chain_status": "UNAVAILABLE",
+        "chain_depth": None,
+        "head_digest": None,
+        "note": (
+            "Unsigned content hash only. No receipt was appended by this read. "
+            "No hash-chain or cryptographic signature verification is claimed. "
+            "Not Cosign. Not DSSE. proven_trust stays false."
+        ),
     }
-
-
-def _khipu_receipt(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    try:
-        import szl_khipu  # type: ignore
-
-        dag = szl_khipu.get_dag(_KHIPU_ORGAN, ns="a11oy")
-        r = dag.emit("five-space.status", payload)
-        signed = bool(r.get("signature"))
-        return {
-            "receipt_type": _RECEIPT_TYPE,
-            "organ": _KHIPU_ORGAN,
-            "ns": "a11oy",
-            "seq": r.get("seq"),
-            "digest": r.get("digest"),
-            "prev": r.get("prev"),
-            "payload_digest": r.get("payload_digest"),
-            "signature": r.get("signature"),
-            "signed": signed,
-            "kind": "UNSIGNED-honest" if not signed else "HASH-LINKED",
-            "proven_trust": False,
-            "chain_verified": r.get("chain_verified"),
-            "chain_depth": dag.depth(),
-            "head_digest": dag.head(),
-        }
-    except Exception:
-        return None
 
 
 def healthz() -> Dict[str, Any]:
@@ -221,7 +211,7 @@ def status() -> Dict[str, Any]:
         "sovereign": False,
         "energy_joule": "UNAVAILABLE",
     }
-    payload["khipu_receipt"] = _khipu_receipt(receipt_body) or _unsigned_receipt(receipt_body)
+    payload["khipu_receipt"] = _unsigned_receipt(receipt_body)
     return payload
 
 
@@ -294,10 +284,12 @@ def _selftest() -> Dict[str, Any]:
     assert s["spaces"][4]["honesty"] == "UNSIGNED-honest"
     assert "a11oy.com" in s["honesty"]["never"]
     assert s["khipu_receipt"]["proven_trust"] is False
-    assert s["khipu_receipt"].get("signed") is False or s["khipu_receipt"]["kind"] in (
-        "UNSIGNED-honest",
-        "HASH-LINKED",
-    )
+    assert s["khipu_receipt"]["signed"] is False
+    assert s["khipu_receipt"]["signature_verified"] is False
+    assert s["khipu_receipt"]["kind"] == "UNSIGNED-honest"
+    assert s["khipu_receipt"]["digest_kind"] == "CONTENT-HASH-ONLY"
+    assert s["khipu_receipt"]["chain_verified"] is None
+    assert s["khipu_receipt"]["chain_status"] == "UNAVAILABLE"
     assert s["state"] != "LIVE"
     assert s["state"] != "RUNNING"
     assert s["locked_proven"]["count"] == 8
