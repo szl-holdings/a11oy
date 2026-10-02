@@ -65,13 +65,19 @@ Its verified signed outcome must be persisted before a completed answer is retur
 The model defaults to `grok-4.7`; `grok-4.6` is the explicit rollback. A caller
 override takes precedence over `SZL_GROK_MODEL`, legacy `A11OY_ATELIER_MODEL`, then
 the default. Unknown choices are denied before provider work. Low, medium, high
-and xhigh reasoning controls are preserved. Provider storage is disabled. Tools,
-redirects and private-network routing are not enabled. Provider timeout is bounded
-to the existing transport's maximum and no request is automatically retried.
+and xhigh reasoning controls are preserved. `store: false` disables xAI's
+stateful Responses history for this single-turn route, not its separate API audit
+retention. [xAI says](https://docs.x.ai/developers/faq/security) API requests and
+responses are retained for 30 days by default unless team-wide Zero Data Retention
+is enabled; Atelier has not verified that team setting or the
+`x-zero-data-retention` response header. Tools, redirects and private-network
+routing are not enabled. Provider timeout is bounded to the existing transport's
+maximum and no request is automatically retried.
 
 This interface follows the official [Grok 4.7 developer contract](https://docs.x.ai/developers/grok-4-7).
 Grok remains xAI's external inference provider. Only final assistant text is used;
-encrypted provider reasoning and summaries are not displayed, persisted or replayed.
+Atelier does not display, persist or replay encrypted provider reasoning or
+summaries.
 Provider output never authorizes tools or production actions.
 
 ## Runtime configuration

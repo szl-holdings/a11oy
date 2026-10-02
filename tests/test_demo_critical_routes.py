@@ -37,6 +37,11 @@ import serve  # noqa: E402
 # /api/a11oy/v1/compute-pool — see szl_backend_hardening.register(); either satisfies
 # the substring match.)
 DEMO_CRITICAL_ROUTES = [
+    "/civilian",                               # independent civilian evidence view
+    "/api/a11oy/v1/civilian/health",            # GET-only, model-free runtime contract
+    "/api/a11oy/v1/civilian/overview",          # public observations, no effectors
+    "/oac",                                    # read-only synthetic lab handoff
+    "/oac/",                                   # explicit trailing-slash path
     "/api/a11oy/v1/steward/status",           # pinned public evidence, honestly 503 when stale
     "/api/a11oy/v1/steward/proposals",        # current deterministic proposals only; no execution
     "/api/a11oy/v1/energy/operator/status",   # #460 — already restored once

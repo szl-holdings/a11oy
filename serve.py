@@ -608,6 +608,13 @@ import a11oy_steward_surface as _steward_surface
 
 _STEWARD_SURFACE_STATUS = _steward_surface.register(app)
 
+# Services layer: civilian public evidence and non-effecting review.  The
+# complete namespace is reserved before both fallback routers.  No action,
+# model-training, signing, operator-auth exception, or private data route is added.
+import a11oy_civilian_observatory as _civilian_observatory
+
+_CIVILIAN_OBSERVATORY_STATUS = _civilian_observatory.register(app)
+
 
 # Governed Graph Operations (2026-08-01): a deterministic, non-effecting
 # topology analyzer for bounded loop nodes, real data/control edges, fan-in
@@ -13558,6 +13565,36 @@ async def _energy3d_app_js() -> Response:
 
 # --- Doctrine v13 organ page routes (ADDITIVE; explicit, win over SPA catch-all) ---
 PAGES_DIR = _SZL_SRC_ROOT / "pages" if (_SZL_SRC_ROOT / "pages").is_dir() else Path("/app/pages")
+
+# The OAC page is a static release handoff, never a scoring or device-control route.
+@app.api_route("/oac", methods=["GET", "HEAD"])
+@app.api_route("/oac/", methods=["GET", "HEAD"])
+async def oac_page() -> Response:
+    page = PAGES_DIR / "oac.html"
+    headers = {
+        "Cache-Control": "no-store, no-transform",
+        "Content-Security-Policy": (
+            "default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; "
+            "img-src 'self'; font-src 'self'; connect-src 'none'; frame-src 'none'; "
+            "object-src 'none'; base-uri 'none'; form-action 'none'; worker-src 'none'; "
+            "frame-ancestors 'self';"
+        ),
+        "Referrer-Policy": "no-referrer",
+    }
+    if page.is_file():
+        return FileResponse(page, media_type="text/html", headers=headers)
+    return JSONResponse({"status": "UNAVAILABLE", "reason": "OAC page missing"},
+                        status_code=404, headers=headers)
+
+
+@app.api_route("/oac", methods=["POST", "PUT", "PATCH", "DELETE", "OPTIONS", "TRACE", "CONNECT"])
+@app.api_route("/oac/", methods=["POST", "PUT", "PATCH", "DELETE", "OPTIONS", "TRACE", "CONNECT"])
+async def oac_method_denied() -> Response:
+    return JSONResponse(
+        {"status": "METHOD_NOT_ALLOWED", "reason": "OAC is a read-only static handoff"},
+        status_code=405, headers={"Allow": "GET, HEAD", "Cache-Control": "no-store",
+                                  "Access-Control-Allow-Methods": "GET, HEAD"},
+    )
 
 # === ADDITIVE (Yachay CTO + Perplexity Computer Agent, 2026-06-02): wire orphaned ===
 # === genius pages that were BUILT but never registered (fell to SPA shell = a lie). ===
