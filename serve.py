@@ -608,6 +608,13 @@ import a11oy_steward_surface as _steward_surface
 
 _STEWARD_SURFACE_STATUS = _steward_surface.register(app)
 
+# Services layer: civilian public evidence and non-effecting review.  The
+# complete namespace is reserved before both fallback routers.  No action,
+# model-training, signing, operator-auth exception, or private data route is added.
+import a11oy_civilian_observatory as _civilian_observatory
+
+_CIVILIAN_OBSERVATORY_STATUS = _civilian_observatory.register(app)
+
 
 # Governed Graph Operations (2026-08-01): a deterministic, non-effecting
 # topology analyzer for bounded loop nodes, real data/control edges, fan-in
