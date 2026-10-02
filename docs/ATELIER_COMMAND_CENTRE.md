@@ -85,7 +85,11 @@ committed key or a chat message:
 - `A11OY_ATELIER_XAI_API_KEY`: server-side provider credential; `XAI_API_KEY` is a
   compatibility fallback. This is not the operator credential used by the browser.
 - `A11OY_ATELIER_LEDGER_PATH`: explicit absolute path on the verified persistent
-  runtime volume. No implicit temporary ledger is admitted for a turn.
+  runtime volume. The canonical controller binds
+  `/data/a11oy/atelier/turn-receipts-v1.jsonl`; no implicit temporary ledger is
+  admitted for a turn.
+- `A11OY_ATELIER_REQUIRED_MOUNT`: `/data` in production. The route refuses a
+  ledger path outside that attached mount before any provider request.
 - Existing shared persistent signer configuration: canonical runtime signing key
   loader and production persistent-signing requirement remain authoritative.
 - Optional model variables above. A model list or configured key is not proof of
@@ -97,6 +101,8 @@ The browser holds the operator credential only in page memory and provides a
 Forget control. It does not retain it in browser storage or put it in a URL. The
 provider key is never requested by the browser. Configuration health is read-only,
 always `inference_verified:false`, and cannot create a ledger or mint a signature.
+Its ledger flag checks the required mount when configured; a receipt write and
+restart recovery are still required to demonstrate durability.
 
 ## Bounds and honest status
 
