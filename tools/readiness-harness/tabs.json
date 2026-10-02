@@ -3,7 +3,7 @@
   "doctrine": "v11",
   "organ": "a11oy",
   "consoleRoute": "/console",
-  "generatedAt": "2026-09-03T00:00:00Z",
+  "generatedAt": "2026-10-02T00:00:00Z",
   "generator": "tools/readiness-harness/gen_tabs_matrix.py",
   "stateVocabulary": {
     "LIVE": "Fetched from a running source during this session; reachability is not proof of correctness.",
@@ -1007,6 +1007,7 @@
       "schema": "vert_defense_feed",
       "freshnessSLA": 3600,
       "citationsRequired": true,
+      "unavailableBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1029,6 +1030,7 @@
       "schema": "vert_finance_feed",
       "freshnessSLA": 3600,
       "citationsRequired": true,
+      "unavailableBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -2379,8 +2381,18 @@
       "requiredPaths": [
         "equities_official.SPY.freshness.status",
         "equities_official.SPY.freshness.fetched_at",
+        "equities_official.AAPL.freshness.status",
+        "equities_official.AAPL.freshness.fetched_at",
+        "equities_official.MSFT.freshness.status",
+        "equities_official.MSFT.freshness.fetched_at",
+        "equities_official.NVDA.freshness.status",
+        "equities_official.NVDA.freshness.fetched_at",
         "crypto.BTC-USD.freshness.status",
         "crypto.BTC-USD.freshness.fetched_at",
+        "crypto.ETH-USD.freshness.status",
+        "crypto.ETH-USD.freshness.fetched_at",
+        "crypto.SOL-USD.freshness.status",
+        "crypto.SOL-USD.freshness.fetched_at",
         "fx.freshness.status",
         "fx.freshness.fetched_at",
         "fintech_cve.freshness.status",
@@ -2392,8 +2404,18 @@
         "crypto": "object",
         "equities_official.SPY.freshness.status": "string",
         "equities_official.SPY.freshness.fetched_at": "timestamp",
+        "equities_official.AAPL.freshness.status": "string",
+        "equities_official.AAPL.freshness.fetched_at": "timestamp",
+        "equities_official.MSFT.freshness.status": "string",
+        "equities_official.MSFT.freshness.fetched_at": "timestamp",
+        "equities_official.NVDA.freshness.status": "string",
+        "equities_official.NVDA.freshness.fetched_at": "timestamp",
         "crypto.BTC-USD.freshness.status": "string",
         "crypto.BTC-USD.freshness.fetched_at": "timestamp",
+        "crypto.ETH-USD.freshness.status": "string",
+        "crypto.ETH-USD.freshness.fetched_at": "timestamp",
+        "crypto.SOL-USD.freshness.status": "string",
+        "crypto.SOL-USD.freshness.fetched_at": "timestamp",
         "fx.freshness.status": "string",
         "fx.freshness.fetched_at": "timestamp",
         "fintech_cve.freshness.status": "string",
