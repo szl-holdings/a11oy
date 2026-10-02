@@ -294,7 +294,8 @@ function collectFreshnessTimestamps(spec, body, isArenaHistory) {
         : (sourcePath === null
           ? { found: false, value: undefined }
           : valueAtPath(body, sourcePath));
-      if (source.found && isCanonicalUnavailableSource(source.value)) {
+      if (spec?.unavailableBlocksReadiness === true
+          && source.found && isCanonicalUnavailableSource(source.value)) {
         unavailablePaths.push(sourcePath || "<root>");
         continue;
       }
