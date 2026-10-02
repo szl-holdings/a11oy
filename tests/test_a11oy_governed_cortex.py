@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import os
 import tempfile
+import types
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -365,6 +366,46 @@ class CortexContractTests(unittest.TestCase):
         self.assertIn("[source:paper:version-2:abc123]", messages[1]["content"])
         output = "[source:paper:version-2:abc123] This is an advisory proposal."
         self.assertEqual(cortex._extract_citations(output, evidence), ["source:paper:version-2:abc123"])
+
+    def test_generation_samples_a_citation_from_supplied_public_handles(self):
+        evidence = fake_evidence()
+        evidence["items"].append(
+            {**evidence["items"][0], "node_id": "source:paper:version-2:abc123"}
+        )
+        model = mock.Mock()
+        output = "[source:paper:version-2:abc123] Lambda remains Conjecture 1, advisory only."
+        model.create_chat_completion.return_value = {
+            "choices": [{"message": {"content": output}}],
+            "usage": {"prompt_tokens": 120, "completion_tokens": 22},
+        }
+        grammar_type = types.SimpleNamespace(
+            from_string=mock.Mock(side_effect=lambda rule, verbose: types.SimpleNamespace(rule=rule))
+        )
+        with (
+            mock.patch.object(cortex, "_load_model", return_value=(model, fake_identity())),
+            mock.patch.dict("sys.modules", {"llama_cpp": types.SimpleNamespace(LlamaGrammar=grammar_type)}),
+        ):
+            generated, _, metrics = cortex._generate("Lambda status", evidence, {}, 64)
+        self.assertEqual(generated, output)
+        self.assertEqual(metrics["completion_tokens"], 22)
+        rule = model.create_chat_completion.call_args.kwargs["grammar"].rule
+        self.assertIn('"[node-a]"', rule)
+        self.assertIn('"[source:paper:version-2:abc123]"', rule)
+        self.assertNotIn("invented-node", rule)
+        self.assertIn("body ::=", rule)
+
+    def test_generation_rejects_bracketed_evidence_handle_before_model_call(self):
+        evidence = fake_evidence()
+        evidence["items"][0]["node_id"] = "node-[unsafe]"
+        model = mock.Mock()
+        with (
+            mock.patch.object(cortex, "_load_model", return_value=(model, fake_identity())),
+            mock.patch.dict("sys.modules", {"llama_cpp": types.SimpleNamespace(LlamaGrammar=mock.Mock())}),
+        ):
+            with self.assertRaises(cortex.CortexBoundaryError) as caught:
+                cortex._generate("Lambda status", evidence, {}, 64)
+        self.assertEqual(caught.exception.code, "owned_model_evidence_handle_invalid")
+        model.create_chat_completion.assert_not_called()
 
     def test_oversized_unknown_citation_cannot_hide_beside_a_valid_handle(self):
         with self.assertRaises(cortex.CortexBoundaryError) as caught:
