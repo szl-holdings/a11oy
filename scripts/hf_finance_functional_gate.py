@@ -77,6 +77,17 @@ def observe_finance(revision, *, request=read):
             if body.get("error"):
                 error = body["error"]
                 row["response_error"] = error if isinstance(error, str) and re.fullmatch(r"[A-Z][A-Z0-9_]{0,95}", error) else "UNEXPECTED_ERROR"
+                boundary = body.get("upstream_response")
+                if isinstance(boundary, dict):
+                    status_code = boundary.get("http_status")
+                    media = boundary.get("media_type")
+                    host = boundary.get("redirect_host")
+                    if type(status_code) is int and 100 <= status_code <= 599:
+                        row["upstream_http_status"] = status_code
+                    if media in ("JSON", "HTML", "TEXT", "OTHER", "MISSING"):
+                        row["upstream_media_type"] = media
+                    if isinstance(host, str) and len(host) <= 253 and re.fullmatch(r"[a-z0-9.-]+", host):
+                        row["upstream_redirect_host"] = host
             if operation:
                 if status != 200:
                     raise ValueError("ANALYTICS_UNAVAILABLE")
