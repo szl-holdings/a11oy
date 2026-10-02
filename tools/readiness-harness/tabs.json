@@ -1007,6 +1007,7 @@
       "schema": "vert_defense_feed",
       "freshnessSLA": 3600,
       "citationsRequired": true,
+      "unavailableBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1029,6 +1030,7 @@
       "schema": "vert_finance_feed",
       "freshnessSLA": 3600,
       "citationsRequired": true,
+      "unavailableBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
