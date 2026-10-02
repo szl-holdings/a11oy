@@ -453,7 +453,7 @@
     checks.push(check("signer_identity","UNAVAILABLE","Supplied-key verification does not bind a trusted person, organization, or authority."));
     checks.push(check("payload_schema","UNAVAILABLE","Only signature bytes and the optional digest are checked. Payload type and business semantics require their own schema and policy validation."));
     return {ok:true,input:"offline supplied-key check",payloadType:env.payloadType,verdict:overall(checks),checks:checks,
-      evidence:{value:signature.status,evidenceClass:"MEASURED",runtimeState:"NOT_PROBED",authorization:"UNKNOWN",
+      evidence:{value:signature.status,evidenceClass:"REPORTED",runtimeState:"NOT_PROBED",authorization:"UNKNOWN",
         signerState:env.signatures.length?"SIGNED_UNVERIFIED":"UNSIGNED",source:"User-supplied envelope and public key; local WebCrypto",
         sourceRevision:null,observedAt:new Date().toISOString(),method:"ECDSA-P256/SHA-256 DSSE PAE; optional raw-payload SHA-256",
         bound:"Does not establish trusted signer identity, authorization, payload truth/schema, chain continuity or production readiness."}};

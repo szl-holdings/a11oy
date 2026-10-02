@@ -74,6 +74,27 @@ test('URL-safe payload/signature and share encoding verify exact bytes',async()=
 test('missing signature is unsigned even with a supplied key',async()=>{
   const h=setup(), env=fixture();env.signatures=[];fill(h,env);await h.click('go');assert.equal(h.result().evidence.signerState,'UNSIGNED');assert.equal(h.result().verdict,'INCONCLUSIVE');
 });
+
+for (const kind of ['verified signature', 'unsigned envelope', 'missing public key']) {
+  test(`local ${kind} is reported evidence without a live measurement claim`, async () => {
+    const h = setup(), env = fixture();
+    if (kind === 'unsigned envelope') env.signatures = [];
+    fill(h, env);
+    if (kind === 'missing public key') h.get('publicKey').value = '';
+    await h.click('go');
+    const result = h.result();
+    const expected = {
+      'verified signature': 'VERIFIED',
+      'unsigned envelope': 'UNSIGNED-LOCAL',
+      'missing public key': 'UNAVAILABLE'
+    };
+    assert.equal(result.checks[0].status, expected[kind]);
+    assert.equal(result.evidence.evidenceClass, 'REPORTED');
+    assert.equal(result.evidence.runtimeState, 'NOT_PROBED');
+    assert.equal(result.evidence.authorization, 'UNKNOWN');
+    assert.match(result.evidence.bound, /Does not establish trusted signer identity/);
+  });
+}
 for(const kind of ['missing type','missing signatures','duplicate key','wrong key','oversize','bad base64','private pem']) test(`${kind} cannot preserve a prior verification`,async()=>{
   const h=setup();fill(h);await h.click('go');assert.equal(h.result().checks[0].status,'VERIFIED');let env=fixture();
   if(kind==='missing type')delete env.payloadType;
