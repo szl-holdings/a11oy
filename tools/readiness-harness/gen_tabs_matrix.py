@@ -69,7 +69,7 @@ def ep(method="GET", schema=None, sla=None, citations=False,
         "schema": schema,
         "freshnessSLA": sla,
         "citationsRequired": citations,
-        "unavailableBlocksReadiness": unavailable_blocks_readiness,
+        **({"unavailableBlocksReadiness": True} if unavailable_blocks_readiness else {}),
         "degradedRules": {
             "allowStatuses": list(allow_statuses),
             "allowLabels": list(allow_labels),
