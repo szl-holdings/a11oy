@@ -54,6 +54,11 @@ jobs:
           sudo install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks
           gitleaks version
 
+      - name: Verify public-digest exception cannot hide credentials
+        env:
+          SZL_TEST_GITLEAKS_BINARY: /usr/local/bin/gitleaks
+        run: python3 -I -B tests/test_gitleaks_public_source_digest.py -v
+
       - name: Run gitleaks detect (current tree)
         run: |
           set -euo pipefail
