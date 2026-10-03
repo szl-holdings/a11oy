@@ -1216,6 +1216,123 @@ const FRONTIER_CARDS=`<div class="card" style="border-left:3px solid #c9b787"><d
 const LAMBDA_FRONTIER_CARDS=`<div class="grid2"><div class="card" style="border-left:3px solid #c9b787"><div class="card-h"><span class="card-t">\u039b conditional uniqueness \u2014 CUT-2</span><span class="card-ep">Wave&nbsp;12 \u00b7 PR#202</span></div><code class="mono" style="color:var(--cream);font-size:11.5px">Lutar.Round13.lambda_unique_of_separable</code> <span class="badge" style="color:#c9b787;border:1px solid rgba(201,183,135,.4);background:rgba(201,183,135,.08)">EXPERIMENTAL \u00b7 CI-GREEN</span> <span class="badge" style="color:#5fb3a3;border:1px solid var(--teal-line);background:var(--teal-soft)">#print axioms clean</span><div class="mono dim" style="font-size:11px;line-height:1.6;margin-top:.45rem">Under {A1,A2,A3,A5 + slice-multiplicativity (separability)}, \u039b is the <b>unique</b> aggregator \u2014 a theorem, axiom-free (no A6 gate). This takes \u039b <i>off bare conjecture</i> (conditionally), machine-checked.</div><div class="honesty" style="margin-top:.55rem"><b>\u039b unconditional stays Conjecture&nbsp;1.</b> Unconditional uniqueness over A1\u2013A5 is machine-checked <b>FALSE</b> (maxAgg &amp; min satisfy A1\u2013A5 but \u2260 \u039b). Advisory, never a pass/fail oracle.</div></div><div class="card" style="border-left:3px solid #c9b787"><div class="card-h"><span class="card-t">DPO KL\u22650 on the simplex \u2014 CF-22</span><span class="card-ep">Wave&nbsp;15 \u00b7 PR#205</span></div><code class="mono" style="color:var(--cream);font-size:11.5px">dpo_klDivergence_nonneg_on_simplex</code> <span class="badge" style="color:#c9b787;border:1px solid rgba(201,183,135,.4);background:rgba(201,183,135,.08)">EXPERIMENTAL \u00b7 CI-GREEN</span> <span class="badge" style="color:#5fb3a3;border:1px solid var(--teal-line);background:var(--teal-soft)">#print axioms clean</span><div class="mono dim" style="font-size:11px;line-height:1.6;margin-top:.45rem">KL divergence \u2265 0 holds <b>on the probability simplex</b> \u2014 an axiom-free, conditional repair of the DPO KL term used in preference optimisation.</div><div class="honesty" style="margin-top:.55rem"><b>The unconditional DPO KL\u22650 axiom stays FALSE-as-stated</b> (no simplex constraint); the honest token is left untouched. Experimental CI-green \u2014 never folded into the locked-8.</div></div><div class="card" style="border-left:3px solid #c9b787"><div class="card-h"><span class="card-t">geoBin full Acz\u00e9l mean axioms \u2014 CF-24</span><span class="card-ep">Wave&nbsp;16 \u00b7 PR#206</span></div><code class="mono" style="color:var(--cream);font-size:11.5px">geoBin_idem / geoBin_comm / geoBin_homog / geoBin_mono_left</code> <span class="badge" style="color:#c9b787;border:1px solid rgba(201,183,135,.4);background:rgba(201,183,135,.08)">EXPERIMENTAL \u00b7 CI-GREEN</span> <span class="badge" style="color:#5fb3a3;border:1px solid var(--teal-line);background:var(--teal-soft)">#print axioms clean</span><div class="mono dim" style="font-size:11px;line-height:1.6;margin-top:.45rem">The geometric-mean witness <code>geoBin</code> is machine-certified idempotent, commutative, positively-homogeneous and monotone (atop Wave15 bisymmetry) \u2014 the exact hypothesis bundle Acz\u00e9l\u2019s quasi-arithmetic representation consumes. Real CUT-1 progress toward the \u039b uniqueness representation theorem.</div><div class="honesty" style="margin-top:.55rem"><b>\u039b unconditional stays Conjecture&nbsp;1.</b> The full Acz\u00e9l\u2013Maksa representation (generator construction) is a multi-week roadmap, not proven. Experimental CI-green \u2014 never folded into the locked-8.</div></div><div class="card" style="border-left:3px solid #c9b787"><div class="card-h"><span class="card-t">\u039b scale-invariance / normalization-invariance \u2014 CF-25</span><span class="card-ep">Wave&nbsp;16 \u00b7 PR#206</span></div><code class="mono" style="color:var(--cream);font-size:11.5px">lambda_scale_axes / lambda_normalization_invariant</code> <span class="badge" style="color:#c9b787;border:1px solid rgba(201,183,135,.4);background:rgba(201,183,135,.08)">EXPERIMENTAL \u00b7 CI-GREEN</span> <span class="badge" style="color:#5fb3a3;border:1px solid var(--teal-line);background:var(--teal-soft)">#print axioms clean</span><div class="mono dim" style="font-size:11px;line-height:1.6;margin-top:.45rem"><code>\u039b(c\u2299x) = \u039b(c)\u00b7\u039b(x)</code>: \u039b of a Hadamard product factors as the product of \u039b\u2019s, so per-organ rescalings that preserve the geometric-mean budget leave the fused trust score unchanged (MPP normalization-invariance). Genuinely new \u2014 beyond the uniform-scale A2 axiom.</div><div class="honesty" style="margin-top:.55rem">A genuine new theorem about the in-tree \u039b, not a restatement of A2 (which covers only the uniform scale). Advisory \u2014 never a pass/fail oracle; experimental CI-green, never folded into the locked-8.</div></div></div>`;
 
 
+/* source-runtime-evidence:begin — public GETs only; no readiness roll-up. */
+const SOURCE_RUNTIME_ENDPOINTS=Object.freeze({
+  build:'/api/build-info',
+  series:'/api/a11oy/v1/series-a/status',
+  steward:'/api/a11oy/v1/steward/status'
+});
+const SOURCE_RUNTIME_SHA=/^[0-9a-f]{40}$/;
+const SOURCE_RUNTIME_LIMIT=65536;
+let sourceRuntimeRefreshSequence=0;
+function sourceRuntimeValidSha(value){return typeof value==='string' && SOURCE_RUNTIME_SHA.test(value) && !/^0{40}$/.test(value);}
+function sourceRuntimeRecord(value){return value!==null && typeof value==='object' && !Array.isArray(value);}
+function sourceRuntimeDate(value){
+  if(typeof value!=='string' || !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)$/.test(value)) return NaN;
+  return Date.parse(value);
+}
+async function sourceRuntimeRead(path,fetcher){
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),8000);
+  try{
+    const response=await fetcher(path,{
+      method:'GET',credentials:'omit',mode:'same-origin',redirect:'error',cache:'no-store',
+      headers:{Accept:'application/json'},signal:controller.signal
+    });
+    if(!response || !response.ok) return {ok:false,reason:'HTTP_UNAVAILABLE'};
+    if(!/^application\/json(?:\s*;|$)/i.test(response.headers.get('content-type')||'')) return {ok:false,reason:'NON_JSON_RESPONSE'};
+    const declared=response.headers.get('content-length');
+    if(declared!==null && (!/^\d+$/.test(declared) || Number(declared)>SOURCE_RUNTIME_LIMIT)) return {ok:false,reason:'RESPONSE_TOO_LARGE'};
+    if(!response.body || typeof response.body.getReader!=='function') return {ok:false,reason:'BODY_UNAVAILABLE'};
+    const reader=response.body.getReader(),chunks=[];
+    let total=0;
+    for(;;){
+      const part=await reader.read();
+      if(part.done) break;
+      if(!part.value || typeof part.value.byteLength!=='number') return {ok:false,reason:'BODY_UNAVAILABLE'};
+      total+=part.value.byteLength;
+      if(total>SOURCE_RUNTIME_LIMIT){controller.abort();try{void reader.cancel().catch(()=>{});}catch(_e){}return {ok:false,reason:'RESPONSE_TOO_LARGE'};}
+      chunks.push(part.value);
+    }
+    const bytes=new Uint8Array(total);
+    let offset=0;
+    for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
+    const payload=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));
+    return sourceRuntimeRecord(payload)?{ok:true,payload}:{ok:false,reason:'INVALID_JSON_OBJECT'};
+  }catch(_e){return {ok:false,reason:'QUERY_FAILED'};}
+  finally{clearTimeout(timer);}
+}
+function sourceRuntimeBuild(read){
+  const p=read.payload,b=p&&p.build;
+  if(!read.ok || !sourceRuntimeRecord(p) || p.status!=='OBSERVED' || p.receipt_minted!==false ||
+      !sourceRuntimeRecord(b) || b.state!=='OBSERVED' || !sourceRuntimeValidSha(b.revision) ||
+      !['env:SZL_GIT_SHA','env:A11OY_GIT_SHA'].includes(b.revision_source))
+    return {state:'UNAVAILABLE',note:'Source-bound build contract unavailable',revision:null};
+  return {state:'OBSERVED',note:'Environment-bound source revision',revision:b.revision};
+}
+function sourceRuntimeSeries(read,build,nowMs){
+  const p=read.payload;
+  if(!read.ok || !sourceRuntimeRecord(p) || p.schema!=='szl.series-a-status/v1' || p.terminal!==true ||
+      !['PENDING','UNAVAILABLE','STALE','OBSERVED','BLOCKED'].includes(p.state))
+    return {state:'UNAVAILABLE',note:'Series A status contract unavailable'};
+  if(p.state!=='OBSERVED') return {state:p.state,note:'Reported status; no readiness claim'};
+  const expiry=sourceRuntimeDate(p.valid_until);
+  if(!Number.isFinite(expiry)) return {state:'UNAVAILABLE',note:'Validity window missing'};
+  if(expiry<=nowMs) return {state:'STALE',note:'Validity window expired or local clock ahead'};
+  if(!build.revision || !sourceRuntimeValidSha(p.source_revision) || p.source_revision!==build.revision)
+    return {state:'UNAVAILABLE',note:'Source revision not bound to this build'};
+  if(!sourceRuntimeRecord(p.storage) || p.storage.persistence_required!==true ||
+      p.storage.mount_verified!==true || !Array.isArray(p.critical_failures) || p.critical_failures.length)
+    return {state:'UNAVAILABLE',note:'Persistence or critical-failure evidence unavailable'};
+  return {state:'OBSERVED',note:'Current source-bound status; no release claim'};
+}
+function sourceRuntimeSteward(read){
+  const p=read.payload;
+  if(!read.ok || !sourceRuntimeRecord(p) || p.schema_version!=='szl.a11oy.steward.surface/v1' ||
+      p.scope!=='PUBLIC_READ_ONLY' || p.production_ready!==false ||
+      !['CURRENT','STALE','INVALID','UNAVAILABLE'].includes(p.state))
+    return {state:'UNAVAILABLE',note:'Public steward projection unavailable'};
+  if(p.state==='CURRENT' && (p.snapshot_current!==true || !sourceRuntimeRecord(p.source) ||
+      p.source.repository!=='szl-holdings/szl-estate-os' || !sourceRuntimeValidSha(p.source.revision)))
+    return {state:'UNAVAILABLE',note:'Public projection source binding unavailable'};
+  return {state:p.state,note:'Public projection only; production readiness false'};
+}
+async function sourceRuntimeCollect(fetcher,nowMs){
+  const [buildRead,seriesRead,stewardRead]=await Promise.all([
+    sourceRuntimeRead(SOURCE_RUNTIME_ENDPOINTS.build,fetcher),
+    sourceRuntimeRead(SOURCE_RUNTIME_ENDPOINTS.series,fetcher),
+    sourceRuntimeRead(SOURCE_RUNTIME_ENDPOINTS.steward,fetcher)
+  ]);
+  const build=sourceRuntimeBuild(buildRead);
+  const completedAtMs=typeof nowMs==='function'?nowMs():(typeof nowMs==='number'?nowMs:Date.now());
+  return {build,series:sourceRuntimeSeries(seriesRead,build,completedAtMs),steward:sourceRuntimeSteward(stewardRead)};
+}
+async function sourceRuntimeEvidenceRefresh(){
+  const sequence=++sourceRuntimeRefreshSequence;
+  for(const key of ['build','series','steward']){
+    const badge=el('source-runtime-'+key+'-state'),detail=el('source-runtime-'+key+'-detail');
+    if(badge){badge.textContent='CHECKING';badge.className='badge b-gold';}
+    if(detail) detail.textContent='Reading public contract…';
+  }
+  const link=el('source-runtime-commit');
+  if(link){link.hidden=true;link.removeAttribute('href');}
+  const evidence=await sourceRuntimeCollect(fetch,Date.now);
+  if(sequence!==sourceRuntimeRefreshSequence) return;
+  for(const key of ['build','series','steward']){
+    const row=evidence[key],badge=el('source-runtime-'+key+'-state'),detail=el('source-runtime-'+key+'-detail');
+    if(badge){badge.textContent=row.state;badge.className='badge '+(row.state==='UNAVAILABLE'||row.state==='BLOCKED'||row.state==='INVALID'?'b-err':'b-gold');}
+    if(detail) detail.textContent=row.note;
+  }
+  if(link && evidence.build.revision){
+    link.href='https://github.com/szl-holdings/a11oy/commit/'+evidence.build.revision;
+    link.textContent='Source commit '+evidence.build.revision.slice(0,12);
+    link.hidden=false;
+  }
+  const observed=el('source-runtime-observed');
+  if(observed) observed.textContent='Browser read: '+new Date().toISOString();
+}
+/* source-runtime-evidence:end */
+
 const VIEWS={
   command:{title:'Command Center',badge:'LIVE',sub:'One pane of glass over the whole governed-AI platform \u2014 live service health, the connected system map, trust posture, and a verifiable audit trail.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
@@ -6686,6 +6803,19 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           +'<div class="card-h"><span class="card-t">Models + kernels</span><span class="card-ep mono">Hub listing · REPORTED</span></div>'
           +'<div id="szl-series-a-cards"></div></section>'
           +card('Service health','live probe · <span id="cc-stamp" class="mono dim" style="font-size:10px"></span>','<div class="brain-note" style="margin:.1rem 0 .5rem"><b>How to read Services up.</b> The count below comes from /observability/summary mesh_reach. A reachable service is reported UP; undeployed services remain unavailable. This probe does not establish application readiness, inference quality, quorum, or signature verification.</div><div id="cc-fleet">'+skelRows(4)+'</div>')
+          +'<section class="card" id="source-runtime-evidence" aria-label="Source and runtime evidence">'
+          +'<div class="card-h"><span class="card-t">Source &amp; runtime evidence</span><span class="card-ep">public GET · read only</span></div>'
+          +'<div class="row"><span>Build identity</span><span class="badge b-gold" id="source-runtime-build-state">NOT_EVALUATED</span><span class="spacer mono dim" id="source-runtime-build-detail">Waiting for browser read</span></div>'
+          +'<div class="row"><span>Series A control plane</span><span class="badge b-gold" id="source-runtime-series-state">NOT_EVALUATED</span><span class="spacer mono dim" id="source-runtime-series-detail">Waiting for browser read</span></div>'
+          +'<div class="row"><span>Public steward projection</span><span class="badge b-gold" id="source-runtime-steward-state">NOT_EVALUATED</span><span class="spacer mono dim" id="source-runtime-steward-detail">Waiting for browser read</span></div>'
+          +'<div class="btns"><a class="btn" href="https://github.com/szl-holdings/a11oy" target="_blank" rel="noopener noreferrer">Source repository · link only</a>'
+          +'<a class="btn" id="source-runtime-commit" target="_blank" rel="noopener noreferrer" hidden></a>'
+          +'<a class="btn" href="https://huggingface.co/spaces/SZLHOLDINGS/a11oy" target="_blank" rel="noopener noreferrer">Hugging Face Space · link only</a>'
+          +'<a class="btn" href="https://a-11-oy.com" target="_blank" rel="noopener noreferrer">Product domain · link only</a>'
+          +'<a class="btn" href="https://a11oy.net" target="_blank" rel="noopener noreferrer">Proof domain · link only</a>'
+          +'<button class="btn" type="button" onclick="sourceRuntimeEvidenceRefresh()">Refresh evidence</button></div>'
+          +'<div class="brain-note" id="source-runtime-observed">No browser read yet</div>'
+          +'<div class="brain-note">Each state comes from this browser session. These links do not verify provider parity, proof-domain health, or production readiness.</div></section>'
           +'<div class="grid2 szl-below-fold">'
           +card('Trust posture (13-axis Λ)','live '+window.a11oyPoweredBy(['F19','F1']),'<div class="chartbox"><canvas id="cc-radar"></canvas></div>')
           +card('Governed throughput by vertical','live · auto-poll','<div class="chartbox"><canvas id="cc-bars"></canvas></div>')
@@ -6693,6 +6823,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           +'<div class="card"><div class="card-h"><span class="card-t">Governance engine — powered by the proven formulas</span><span class="card-ep">honest maturity labels</span></div>'
           +'<div id="cc-formulas"></div></div>'
           +HON;
+        void sourceRuntimeEvidenceRefresh();
         // formulas instilled
         H('cc-formulas', window.a11oyFormula('F1')+window.a11oyFormula('F19')+window.a11oyFormula('F11')+window.a11oyFormula('F18')+window.a11oyFormula('F12'));
         // BATCH3-hero-fix live-fill (FIX-1 endpoint repoint): runs AFTER paint, non-blocking, HONEST-degrade.
