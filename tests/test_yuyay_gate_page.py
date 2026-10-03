@@ -16,7 +16,7 @@ def test_yuyay_gate_page_is_software_and_cannot_allow_alone() -> None:
     assert "Lambda is never a theorem" in text
     assert "Jev never ALLOW-alone" in text
     assert 'decision:"ALLOW"' not in text
-    assert "bo11y sku" in text
+    assert 'tok("bo","11y sku")' in text
     assert "yuyay13" in text
     assert "engage_admissible:0" in text
     assert "conjecture_1:\"OPEN\"" in text
