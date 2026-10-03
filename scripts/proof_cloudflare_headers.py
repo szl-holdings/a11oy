@@ -32,7 +32,7 @@ except ModuleNotFoundError:  # Direct script invocation from the native workflow
 DOMAIN = "a11oy.net"
 PHASE = "http_response_headers_transform"
 RULE_REF = "a11oy_net_canonical_security_headers"
-PROOF_REVISION = "e802eb90dede8f5d2b90f2aff4ba43730c70a870"
+PROOF_REVISION = "03cca1dc1fe40cfa6642922881103c6040de8c79"
 HEADERS_SHA256 = "8793a1bdfbbd87d0da962efc2bb2a23367fb1415d64463691bbe88dd3e347b4c"
 POLICY = Path(__file__).resolve().parents[1] / "ops" / "proof-security-headers.json"
 HEADERS = frozenset({"content-security-policy", "strict-transport-security",
