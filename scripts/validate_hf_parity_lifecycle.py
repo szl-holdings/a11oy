@@ -27,6 +27,11 @@ SELECTOR = "select_hf_candidate_admission.py"
 VERIFIER = "verify_hf_repository_parity.py"
 TOOLS_PIN = "0816263f1e83734658d6e5a8a7cd3834f36a2054"
 POST_DEPLOY_CALL = "uses: ./.github/workflows/hf-module-drift.yml"
+TERMINAL_AUTHORIZATION_JOB = "terminal-source-authorization"
+TERMINAL_AUTHORIZATION_NEEDS = (
+    "needs: [post-deployment-parity, publish-vertical-flagships, "
+    "publish-finance-projection]"
+)
 
 
 def active_source(text: str) -> str:
@@ -140,6 +145,47 @@ def validate_text(workflow: str, sync_workflow: str) -> list[str]:
         "hf-sync must await the local parity workflow after publication",
         errors,
     )
+
+    terminal = job_block(sync_workflow, TERMINAL_AUTHORIZATION_JOB)
+    if not terminal:
+        errors.append("terminal exact-main authorization job is missing")
+    require(
+        terminal,
+        "name: Re-authorize exact protected main after all publication proofs",
+        "terminal exact-main authorization name drifted",
+        errors,
+    )
+    require(
+        terminal,
+        TERMINAL_AUTHORIZATION_NEEDS,
+        "terminal exact-main authorization must wait for parity and publication leaves",
+        errors,
+    )
+    for token, error in (
+        (
+            "scripts/hf_exact_main_ownership.py",
+            "terminal exact-main authorization helper is missing",
+        ),
+        (
+            '--expected-sha "$GITHUB_SHA"',
+            "terminal exact-main authorization is not bound to the workflow source",
+        ),
+        (
+            "terminal-source-authorization.json",
+            "terminal exact-main authorization receipt is missing",
+        ),
+        (
+            "steps.terminal_owner.outputs.publish",
+            "terminal exact-main authorization output is not enforced",
+        ),
+        (
+            "CURRENT_MAIN:-false",
+            "terminal exact-main authorization does not fail closed",
+        ),
+    ):
+        require(terminal, token, error, errors)
+    forbid(terminal, "secrets.", "terminal exact-main authorization must not receive secrets", errors)
+    forbid(terminal, "HF_TOKEN", "terminal exact-main authorization must stay provider-read-only", errors)
     forbid(
         sync_workflow,
         "gh workflow run hf-module-drift.yml",
@@ -156,6 +202,9 @@ def validate_text(workflow: str, sync_workflow: str) -> list[str]:
     call_index = sync_workflow.find(POST_DEPLOY_CALL)
     if deploy_index < 0 or call_index < 0 or call_index <= deploy_index:
         errors.append("awaited post-deployment parity must appear after the governed publication job")
+    terminal_index = sync_workflow.find(f"  {TERMINAL_AUTHORIZATION_JOB}:")
+    if call_index < 0 or terminal_index < 0 or terminal_index <= call_index:
+        errors.append("terminal exact-main authorization must appear after awaited parity")
 
     return errors
 

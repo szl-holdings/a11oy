@@ -199,6 +199,38 @@ echo 'Canonical A11oy is source-bound, singleton, and route-operational.' '''
         or "if" in parity
     ):
         raise WorkflowContractError("parity must follow successful verification")
+    terminal = jobs["terminal-source-authorization"]
+    terminal_condition = "${{ always() && needs.post-deployment-parity.result == 'success' && (needs.publish-vertical-flagships.result == 'success' || needs.publish-vertical-flagships.result == 'skipped') && (needs.publish-finance-projection.result == 'success' || needs.publish-finance-projection.result == 'skipped') }}"
+    if (
+        terminal.get("needs")
+        != [
+            "post-deployment-parity",
+            "publish-vertical-flagships",
+            "publish-finance-projection",
+        ]
+        or terminal.get("if") != terminal_condition
+        or terminal.get("permissions") != {"contents": "read"}
+    ):
+        raise WorkflowContractError("terminal source authorization dependencies drifted")
+    terminal_owner = named_step(
+        terminal, "Re-authorize exact protected main after awaited parity"
+    )
+    terminal_receipt = named_step(terminal, "Retain terminal source authorization")
+    terminal_enforce = named_step(
+        terminal, "Enforce exact protected-main ownership as the final gate"
+    )
+    if (
+        "scripts/hf_exact_main_ownership.py" not in terminal_owner.get("run", "")
+        or '--expected-sha "$GITHUB_SHA"' not in terminal_owner.get("run", "")
+        or terminal_owner.get("env") != {"GITHUB_TOKEN": "${{ github.token }}"}
+        or terminal_receipt.get("if") != "always()"
+        or terminal_receipt.get("with", {}).get("if-no-files-found") != "error"
+        or terminal_enforce.get("if") != "always()"
+        or terminal_enforce.get("env")
+        != {"CURRENT_MAIN": "${{ steps.terminal_owner.outputs.publish }}"}
+        or "CURRENT_MAIN:-false" not in terminal_enforce.get("run", "")
+    ):
+        raise WorkflowContractError("terminal source authorization must fail closed")
     return jobs
 
 
@@ -347,6 +379,17 @@ class ManualPrerequisiteWorkflowTests(unittest.TestCase):
         self.assertEqual(parity["permissions"], {"contents": "read"})
         self.assertIn("relock", jobs["publish-finance-projection"]["needs"])
         self.assertIn("inputs.publish_vertical_flagships", jobs["publish-vertical-flagships"]["if"])
+        terminal = jobs["terminal-source-authorization"]
+        self.assertEqual(
+            terminal["needs"],
+            [
+                "post-deployment-parity",
+                "publish-vertical-flagships",
+                "publish-finance-projection",
+            ],
+        )
+        self.assertIn("needs.post-deployment-parity.result == 'success'", terminal["if"])
+        self.assertEqual(terminal["permissions"], {"contents": "read"})
 
     def test_comment_only_or_weakened_source_plan_and_exit_gates_are_rejected(self):
         cases = (

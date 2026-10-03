@@ -107,12 +107,20 @@ class RepositoryBoundDriftWorkflowTests(unittest.TestCase):
         self.assertNotIn("gh workflow run hf-module-drift.yml", self.sync)
         enforce = self.sync.index("Enforce exact live state")
         awaited = self.sync.index("post-deployment-parity:")
+        terminal = self.sync.index("terminal-source-authorization:")
         self.assertLess(enforce, awaited)
+        self.assertLess(awaited, terminal)
         self.assertIn("needs: relock", self.sync[awaited:])
         self.assertIn(
             "uses: ./.github/workflows/hf-module-drift.yml",
             self.sync[awaited:],
         )
+        self.assertIn(
+            "needs: [post-deployment-parity, publish-vertical-flagships, publish-finance-projection]",
+            self.sync[terminal:],
+        )
+        self.assertIn("scripts/hf_exact_main_ownership.py", self.sync[terminal:])
+        self.assertIn("CURRENT_MAIN:-false", self.sync[terminal:])
         self.assertIn("workflow_call:", self.drift)
         self.assertIn("if: github.event_name != 'pull_request'", self.repository_job)
 

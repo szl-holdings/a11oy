@@ -643,3 +643,53 @@ jobs:
     permissions:
       contents: read
     uses: ./.github/workflows/hf-module-drift.yml
+
+  terminal-source-authorization:
+    name: Re-authorize exact protected main after all publication proofs
+    needs: [post-deployment-parity, publish-vertical-flagships, publish-finance-projection]
+    if: ${{ always() && needs.post-deployment-parity.result == 'success' && (needs.publish-vertical-flagships.result == 'success' || needs.publish-vertical-flagships.result == 'skipped') && (needs.publish-finance-projection.result == 'success' || needs.publish-finance-projection.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout the immutable completed source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Re-authorize exact protected main after awaited parity
+        id: terminal_owner
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B scripts/hf_exact_main_ownership.py \
+            --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+            --receipt "$RUNNER_TEMP/terminal-source-authorization.json" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Retain terminal source authorization
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: terminal-source-authorization-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/terminal-source-authorization.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Enforce exact protected-main ownership as the final gate
+        if: always()
+        env:
+          CURRENT_MAIN: ${{ steps.terminal_owner.outputs.publish }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${CURRENT_MAIN:-false}" != 'true' ]; then
+            echo '::error::Completed A11oy publication is no longer exact protected main.'
+            exit 3
+          fi
+          echo 'Completed A11oy publication remains exact protected main.'
