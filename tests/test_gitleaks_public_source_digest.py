@@ -4,9 +4,9 @@
 Set SZL_TEST_GITLEAKS_BINARY to the checksum-verified CI scanner executable.
 Only disposable generated credentials are used; scanner output is never printed.
 """
+import hashlib
 import os
 from pathlib import Path
-import secrets
 import subprocess
 import tempfile
 import unittest
@@ -14,6 +14,11 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 BINARY = os.environ.get("SZL_TEST_GITLEAKS_BINARY")
 PUBLIC_DIGEST = "1ee6a88e37d522c5404ac04ac90eadcbfc6f7e59140a778d03275832e217e2cf"
+
+
+def disposable_credential():
+    """Stable synthetic positive control; no credential bytes are committed."""
+    return hashlib.sha256(b"szl-gitleaks-positive-control-v1").hexdigest()
 
 
 @unittest.skipUnless(BINARY, "actual scanner not configured; NOT VERIFIED")
@@ -35,20 +40,20 @@ class PublicDigestScannerBoundary(unittest.TestCase):
             '{\n  "szl_operator_auth.py": "' + PUBLIC_DIGEST + '"\n}\n'), 0)
 
     def test_adjacent_disposable_credential_remains_detected(self):
-        credential = secrets.token_hex(32)
+        credential = disposable_credential()
         self.assertEqual(self.scan(
             '{\n  "szl_operator_auth.py": "' + PUBLIC_DIGEST
             + '",\n  "private_api_key": "' + credential + '"\n}\n'), 1)
 
     def test_same_line_disposable_credential_cannot_borrow_public_exemption(self):
-        credential = secrets.token_hex(32)
+        credential = disposable_credential()
         self.assertEqual(self.scan(
             '{\n  "szl_operator_auth.py": "' + PUBLIC_DIGEST
             + '", "private_api_key": "' + credential + '"\n}\n'), 1)
 
     def test_other_auth_named_value_is_not_exempt(self):
         self.assertEqual(self.scan(
-            '{\n  "other_auth.py": "' + secrets.token_hex(32) + '"\n}\n'), 1)
+            '{\n  "other_auth.py": "' + disposable_credential() + '"\n}\n'), 1)
 
 
 if __name__ == "__main__":
