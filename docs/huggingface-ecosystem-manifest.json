@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedBy": "scripts/audit_huggingface_ecosystem.py",
-  "observedAt": "2026-10-02T23:31:42Z",
+  "observedAt": "2026-10-03T00:37:46Z",
   "org": "SZLHOLDINGS",
   "inventoryScope": {
     "visibility": "public-only",
@@ -20,7 +20,7 @@
     "https://huggingface.co/api/spaces/SZLHOLDINGS/README"
   ],
   "counts": {
-    "models": 46,
+    "models": 47,
     "datasets": 36,
     "spaces": 34
   },
@@ -874,8 +874,8 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "937c8460ed1a77bb817be41cd8a1c39369ffb8bd",
-        "lastModified": "2026-09-30T21:35:39.000Z",
+        "sha": "355695fe22ec9361283cf19790166cf0d2093bcd",
+        "lastModified": "2026-10-02T23:52:39.000Z",
         "cardSemanticSha256": "b7877b8e1641f521bf61ab907fc13fd75cd9718d9fdf4a03df95d4626c5b2051",
         "createdAt": "2026-07-12T11:55:07.000Z",
         "tags": [
@@ -968,8 +968,8 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "11001d7f7451bf624489a61693cb9fa3bb0b9eea",
-        "lastModified": "2026-09-30T21:36:35.000Z",
+        "sha": "637570f292911337c0acf6047e2fd3803de01d57",
+        "lastModified": "2026-10-03T00:03:13.000Z",
         "cardSemanticSha256": "f1e93e8c09c3cda685c023e0162aa89698a3c5d2e226078872ce1fb4e5d19c60",
         "createdAt": "2026-07-12T11:50:20.000Z",
         "tags": [
@@ -1358,6 +1358,27 @@
         "claimStatus": "inventory",
         "evidenceUrls": [
           "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3"
+        ],
+        "unsafeFlags": []
+      },
+      {
+        "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-authenticated",
+        "repoType": "model",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": null,
+        "license": null,
+        "sha": "af86a187f507a5423f5236c7cf77cf48ca67d077",
+        "lastModified": "2026-10-03T00:12:14.000Z",
+        "cardSemanticSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "createdAt": "2026-10-03T00:12:14.000Z",
+        "tags": [
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-authenticated"
         ],
         "unsafeFlags": []
       },
@@ -1844,8 +1865,8 @@
         "disabled": false,
         "sdk": null,
         "license": "other",
-        "sha": "cb16052003c73fc644b007caac8ceedc2539bf84",
-        "lastModified": "2026-10-02T23:31:31.000Z",
+        "sha": "e9155e4fbf72ca2e970518a03d54c3d4ba9d6341",
+        "lastModified": "2026-10-03T00:37:35.000Z",
         "cardSemanticSha256": "7b09277401ed789f6ac2885e5307b621780e0d6b4a6369f7e00e0cdc7e9d68b1",
         "createdAt": "2026-06-12T11:38:04.000Z",
         "tags": [
@@ -2467,9 +2488,9 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "d8f8fec38361d988fddebec0be7898138af15275",
-        "lastModified": "2026-10-02T22:35:35.000Z",
-        "cardSemanticSha256": "daedca6193e4d8cba132976e8a967e977f5b4e170180748793ab7d04fb0a07f0",
+        "sha": "76e90b85678b501d14090c2964f50c01907dfe1b",
+        "lastModified": "2026-10-03T00:34:36.000Z",
+        "cardSemanticSha256": "aa40230f0e7cb49010d278d4d408ec486a578a94afdeae6d383c97a2accfb9c1",
         "createdAt": "2026-10-02T22:35:35.000Z",
         "tags": [
           "language:en",
@@ -2830,8 +2851,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "92343c7c194a9fca629beb4b9d3d2c9995853b3c",
-        "lastModified": "2026-10-02T23:22:13.000Z",
+        "sha": "c113b44793ed23eae58b5e3ea4671cf80db1e618",
+        "lastModified": "2026-10-03T00:17:06.000Z",
         "cardSemanticSha256": "ca660dbe7380ddb89158145feb591fcf12aa06f5c6eff1660b23a8f8185b110d",
         "createdAt": "2026-06-03T21:58:01.000Z",
         "tags": [
@@ -2940,8 +2961,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "880f3bbba2de44a3a23951914a1a48c8cc573d49",
-        "lastModified": "2026-10-02T23:16:02.000Z",
+        "sha": "cca78d0eb5bbf0a1cd2fa8bcd4b99d680b2e7e94",
+        "lastModified": "2026-10-03T00:29:41.000Z",
         "cardSemanticSha256": "be1b601ad2084b078c760089b31a59c71434a78af4c9596b21f43df938ea748b",
         "createdAt": "2026-09-02T21:47:52.000Z",
         "tags": [
@@ -3103,8 +3124,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "99e870d5b8a35dc5f28c7aa7b1a494b4ffd4da5c",
-        "lastModified": "2026-10-02T03:28:46.000Z",
+        "sha": "cb75b5b52baca1650a82991fd335a310043aabf3",
+        "lastModified": "2026-10-03T00:35:27.000Z",
         "cardSemanticSha256": "1605f9135f35d9f6c2eb583d3a6190854bf16400b302de57291cc991becc1ddf",
         "createdAt": "2026-06-01T05:46:37.000Z",
         "tags": [
@@ -3429,9 +3450,9 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "ef6604ec9c591e3321de0964128abe8bda1d82a9",
-        "lastModified": "2026-10-02T22:27:18.000Z",
-        "cardSemanticSha256": "c4d1981cf7cdcf55d503e09fd49ef39f9e939ba6707ab67667e882ad3c9c78e5",
+        "sha": "04a615b1a110b16057aa1342ab606fbbac9416eb",
+        "lastModified": "2026-10-03T00:12:59.000Z",
+        "cardSemanticSha256": "3135cbf9dcbf5e84cfbc00d756238ca9bbcb87871776783a7179e041164766ae",
         "createdAt": "2026-09-04T13:48:34.000Z",
         "tags": [
           "docker",
@@ -3600,9 +3621,9 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "4856aba5ac39a6bc2808e251098aee24283dff8c",
-        "lastModified": "2026-10-02T23:15:17.000Z",
-        "cardSemanticSha256": "365b42ff5f4f72985667378fc6cf8cc726d95857e4fc2db8b1abdb106765f5d4",
+        "sha": "cd145689c0e1a78d628a32160754fdf2bbd81037",
+        "lastModified": "2026-10-03T00:05:35.000Z",
+        "cardSemanticSha256": "de21da66a59a548d3be83cc914e3e947cf3a3f4100941f2318d66c537eaf0a84",
         "createdAt": "2026-09-03T22:26:50.000Z",
         "tags": [
           "docker",
