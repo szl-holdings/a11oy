@@ -431,12 +431,18 @@ def _tile_compute_fabric() -> dict:
     )
 
 
-def _tile_governance() -> dict:
-    try:  # prefer the extracted substrate package; fall back to local copy
-        from szl_substrate import szl_restraint as rs
-    except Exception:
-        import szl_restraint as rs
-    info = rs.info()
+def _tile_governance(app=None) -> dict:
+    if app is not None:
+        # Read the exact restraint implementation that registered this app's
+        # route. A different importable package must not lend it readiness.
+        reader = getattr(app.state, "szl_restraint_info_reader", None)
+        info = reader() if callable(reader) else {}
+    else:
+        try:  # preserve module-level CLI behavior without an app instance
+            from szl_substrate import szl_restraint as rs
+        except Exception:
+            import szl_restraint as rs
+        info = rs.info()
     doctrine = info.get("doctrine", {}) or {}
     crypto_ready, crypto_reasons, crypto_evidence = _runtime_signature_readiness(info)
     status = ("OK (runtime signer healthy; receipt signature cryptographically verified)"
@@ -630,25 +636,30 @@ _TILE_SPECS: list[tuple[Callable[[], dict], str, str, dict]] = [
 _MANIFEST_TTL = 20.0  # seconds
 
 
-def _manifest_cache():
-    """Lazily build (and memoize) the module-level manifest TTLCache.
+def _manifest_cache(app=None):
+    """Use a per-app cache for HTTP requests; retain a module cache for CLI callers.
 
     Reuses szl_backend_hardening.TTLCache. Lazy so importing this module never hard-
     depends on the helper at import time (the manifest still works if it is absent —
     see build_manifest's fallback)."""
-    cache = getattr(_manifest_cache, "_cache", None)
+    cache = (getattr(app.state, "szl_frontier_manifest_cache", None)
+             if app is not None else getattr(_manifest_cache, "_cache", None))
     if cache is None:
         import szl_backend_hardening as bh
         cache = bh.TTLCache(ttl=_MANIFEST_TTL)
-        _manifest_cache._cache = cache  # type: ignore[attr-defined]
+        if app is not None:
+            app.state.szl_frontier_manifest_cache = cache
+        else:
+            _manifest_cache._cache = cache  # type: ignore[attr-defined]
     return cache
 
 
-def _build_manifest() -> dict:
+def _build_manifest(app=None) -> dict:
     """Compose the live manifest. 200 with surviving tiles even if a sub-source is down."""
     tiles: list[dict] = []
     for fn, name, category, prov in _TILE_SPECS:
-        tile, err = _safe(fn)
+        producer = (lambda: _tile_governance(app)) if fn is _tile_governance else fn
+        tile, err = _safe(producer)
         tiles.append(tile if tile is not None
                      else _unavailable_tile(name, category, prov, err or "unknown error"))
 
@@ -743,23 +754,39 @@ def _build_manifest() -> dict:
     }
 
 
-def build_manifest() -> dict:
+def build_manifest(app=None) -> dict:
     """Cached entrypoint: serve the last real composition for _MANIFEST_TTL seconds.
 
     A GET re-walks every tile at most once per TTL window; within it the prior real
     manifest is returned verbatim (with a `cached_at` stamp). The cache is honest — it
     only ever holds the output of a real _build_manifest() call. If the TTL helper is
     unavailable for any reason, fall back to composing fresh (correctness over caching)."""
+    compose = lambda: _build_manifest(app)
     try:
-        return _manifest_cache().get_or_compute(_build_manifest)
+        cache = _manifest_cache(app)
+        snapshot = cache.get_or_compute(compose)
+        if app is not None:
+            # A cached READY must not outlive its signer/verifier observation.
+            # This is a read-only recheck: it never mints or verifies a receipt.
+            live, _ = _safe(lambda: _tile_governance(app))
+            cached = next((tile for tile in snapshot.get("capabilities", [])
+                           if tile.get("category") == "governance"), {})
+            live_ready = live.get("signature_verified") is True if live else False
+            cached_ready = cached.get("signature_verified") is True
+            live_identity = (live.get("signer_health") or {}).get("signer_identity") if live else None
+            cached_identity = (cached.get("signer_health") or {}).get("signer_identity")
+            if (live_ready, live_identity) != (cached_ready, cached_identity):
+                cache.invalidate()
+                snapshot = cache.get_or_compute(compose)
+        return snapshot
     except Exception:  # noqa: BLE001 — caching is an optimization, never a correctness gate
-        return _build_manifest()
+        return compose()
 
 
-def handle_manifest() -> dict:
+def handle_manifest(app=None) -> dict:
     """GET /frontier/manifest — handler used by FastAPI and __main__."""
     try:
-        return build_manifest()
+        return build_manifest(app)
     except Exception as exc:  # never 500: honest degraded response
         return {
             "ok": False,
@@ -783,7 +810,7 @@ def register(app, ns: str = "a11oy") -> str:
     @app.get(f"{base}/manifest")
     async def _frontier_manifest():
         """One honest roll-up of every live capability with its label + provenance pointer."""
-        return JSONResponse(handle_manifest())
+        return JSONResponse(handle_manifest(app))
 
     return "frontier-manifest-wired:1"
 
