@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-10-02T21:07:54Z",
+  "observedAt": "2026-10-02T23:31:42Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -27,7 +27,7 @@
     "githubReadinessEntries": 19,
     "huggingFacePublic": {
       "models": 46,
-      "datasets": 35,
+      "datasets": 36,
       "spaces": 34
     },
     "huggingFaceScope": {
@@ -1498,6 +1498,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/datasets/SZLHOLDINGS/szl-quant-sft-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-science-forum-corpus",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/szl-science-forum-corpus"
       ]
     },
     {

@@ -7,38 +7,34 @@
 #          Ñawi (the eye that sees). WILLAY is the one that DISCLOSES.
 #
 # ===========================================================================
-# WILLAY = the GOVERNED INVERSE of Anthropic's Claude Fable 5 / Mythos 5 split.
+# WILLAY is SZL's own inspectable safety-verdict gateway.
 # ---------------------------------------------------------------------------
-# Anthropic shipped two siblings of the SAME underlying model:
-#   • Claude Fable 5  — capable model WITH safety classifiers that can decline.
-#   • Claude Mythos 5 — the SAME capability with the safety classifiers REMOVED,
-#                       served only through limited "Project Glasswing" access,
-#                       with a hidden/summarized chain-of-thought.
-#   (platform.claude.com/docs/.../introducing-claude-fable-5-and-claude-mythos-5)
+# Anthropic describes Fable 5.1 and Mythos 5.1 as the same underlying model
+# with DIFFERENT safeguard levels; Mythos 5.1 is trusted-access only. This is
+# not evidence that Mythos has no safeguards or that SZL has access to it.
+#   https://www.anthropic.com/claude-fable-and-mythos-5-1
 #
-# We do NOT clone Mythos. Mythos is closed-weights, has no public recipe, and an
-# un-safetied frontier model is the OPPOSITE of a11oy's governance thesis.
+# We do NOT clone, serve, or claim access to either Anthropic model.
 #
-# WILLAY is the HONEST INVERSE. Where Mythos REMOVES the governor and HIDES the
-# reasoning, WILLAY makes the safety / governance decision INSPECTABLE and SIGNED:
+# WILLAY's separate contribution is an inspectable SZL verdict, signed when
+# a signer is available.
 #
-#       "they hide the governor; we sign and show it."
-#
-# Every model call routed through a11oy passes through inspectable classifiers
-# built on a11oy's EXISTING gates — the Restraint ladder, the Constitution, and
-# Khipu 3-of-4 consensus. The verdict AND its reasoning are returned as a SIGNED
-# DSSE provenance receipt (szl_dsse / szl_provenance signing). A decline is
+# Requests submitted to WILLAY pass through inspectable regex rules. A signed
+# Khipu 3-of-4 quorum is required before an allow verdict; the Restraint ladder
+# is attached as context, not an additional execution gate. The verdict and
+# its reasoning are returned with a
+# DSSE provenance receipt when signing is available. A decline is
 # returned HONESTLY and SHOWN — never hidden, never silently rerouted away.
 #
 # We DO adopt the genuinely-good PUBLIC API ergonomics documented for Fable/Mythos
 # (these are interface patterns, fair game — not weights, not a recipe):
-#   • refusal returned as a SUCCESSFUL non-billed HTTP 200 with
+#   • a gateway refusal returned as HTTP 200 with
 #     stop_reason="refusal" and a stop_details.category field;
 #   • adaptive `effort` / `task_budget` controls;
 #   • the `memory` tool (a persistent scratchpad surface);
 #   • context `compaction`.
 # These are wired into a11oy-Code's API surface HONESTLY (WILLAY does not invoke
-# any model; it gates and signs — the served model id is reported truthfully).
+# any model; it reports a requested route target but no served-model identity).
 #
 # DOCTRINE HARD GATES (this module never violates):
 #   • locked theorems = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22} @ kernel c7c0ba17.
@@ -57,10 +53,10 @@ Mount points (registered BEFORE the SPA catch-all in serve.py):
   GET  /willay                                     — WILLAY operator tab (HTML, 0 CDN)
   GET  /api/{ns}/v1/willay/classifiers             — the inspectable classifier set
   POST /api/{ns}/v1/willay/inspect                 — classify a request → verdict + reasons
-  POST /api/{ns}/v1/willay/messages                — Fable-style gated message turn
+  POST /api/{ns}/v1/willay/messages                — gateway verdict (no inference)
                                                      (refusal => 200 + stop_reason=refusal)
-  GET  /api/{ns}/v1/willay/receipts                — last N signed verdict receipts
-  POST /api/{ns}/v1/willay/verify                  — verify a signed WILLAY receipt
+  GET  /api/{ns}/v1/willay/receipts                — last N verdict receipts
+  POST /api/{ns}/v1/willay/verify                  — verify a WILLAY receipt signature
   GET  /api/{ns}/v1/willay/doctrine                — doctrine + honesty self-statement
 """
 from __future__ import annotations
@@ -92,8 +88,8 @@ TRUST_CEILING = 0.97  # < 1.0 BY DOCTRINE. Never raise to 1.0.
 
 # ---------------------------------------------------------------------------
 # INSPECTABLE CLASSIFIERS.
-# Unlike a black-box ML classifier (and unlike Mythos, which removes them), every
-# WILLAY classifier is a TRANSPARENT, AUDITABLE rule whose category, pattern, and
+# Unlike a black-box ML classifier, every WILLAY classifier is a transparent
+# rule whose category, pattern, and
 # rationale are returned to the caller. We mirror Fable 5's documented category
 # taxonomy — cyber / bio / reasoning_extraction — and ADD our own governance
 # categories (prompt_injection, self_harm) drawn from a11oy's existing gates.
@@ -136,8 +132,8 @@ _CLASSIFIERS: List[Dict[str, Any]] = [
             r"\b(reveal|dump|print|show me) (your|the) (hidden|internal|private|raw) "
             r"(chain[- ]of[- ]thought|reasoning|system prompt|weights)\b|"
             r"\b(distill|exfiltrate) (your|the) (capabilit|weights|model)\b", re.I),
-        "rationale": "Maps to Fable-5 'reasoning_extraction'. WILLAY's OWN reasoning is "
-                     "ALWAYS disclosed and signed — but raw private CoT / weights are not "
+        "rationale": "Maps to Fable-5 'reasoning_extraction'. WILLAY's rule rationale is "
+                     "disclosed and signed when a signer is available; raw private CoT / weights are not "
                      "extractable, and distillation-for-cloning is declined.",
         "lineage": "Constitution + provenance disclosure policy",
     },
@@ -225,43 +221,41 @@ def classify(prompt: str) -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# KHIPU 3-of-4 consensus over the verdict (optional, honest-degrading).
-# The same multi-party-witnessed agreement a11oy uses elsewhere: each organ signs
-# the action_hash; WILLAY's allow requires a 3-of-4 quorum to ALSO allow. If the
-# consensus module is unavailable in this runtime, we degrade honestly rather than
-# fail-open (a missing quorum can only TIGHTEN, never loosen, the verdict).
+# KHIPU 3-of-4 consensus over the verdict. Each witness must sign the same
+# action_hash with a published, verifiable key; unsigned votes do not count.
+# Missing or unverifiable quorum can only tighten an allow to a refusal.
 # ---------------------------------------------------------------------------
 def _khipu_consensus(action_hash: str, ctx: Dict[str, Any]) -> Dict[str, Any]:
     try:
         import szl_khipu_consensus as kc
-        # Internal organ identifiers drive the real consensus signing, but per
-        # doctrine NO internal codenames are ever user-visible. We compute with the
-        # real organs, then present each witness under a stable, neutral public
-        # label (witness-N) so the API/UI never leak a codename. The math, votes,
-        # and per-witness signed-flag are unchanged — only the display id is masked.
+        # Internal organ identifiers drive signing and verification. Present
+        # neutral labels only; never expose a witness keyid in the API.
         organs = ["sentra", "amaru", "a11oy", "killinchu"]
         sigs = [kc.sign_consensus_verdict(o, action_hash, ctx) for o in organs]
-        allow = sum(1 for s in sigs if s.get("verdict") == "allow")
-        block = sum(1 for s in sigs if s.get("verdict") == "block")
+        checks = []
+        for expected, sig in zip(organs, sigs):
+            check = kc.verify_organ_signature(sig, action_hash)
+            # A repeated valid signature from one organ cannot fill multiple seats.
+            if sig.get("organ") != expected or check.get("organ") != expected:
+                check = {**check, "valid": False, "counts": False,
+                         "action_hash_match": False}
+            checks.append(check)
+        allow = sum(1 for c in checks if c.get("counts"))
+        block = sum(1 for c in checks if c.get("valid") and
+                    c.get("action_hash_match") and c.get("verdict") == "block")
         quorum = 3
         reached = "allow" if allow >= quorum else ("block" if block >= quorum else "no-quorum")
-        # Doctrine-safe witness labels: never surface raw organ codenames. We also
-        # scrub any codename that might appear inside a returned keyid string.
-        _BAD = ("amaru", "rosie", "sentra", "jarvis")
-        def _safe_keyid(raw: str, i: int) -> str:
-            r = (raw or "").lower()
-            if any(b in r for b in _BAD):
-                return f"witness-{i + 1}"
-            return raw
-        witnesses = [{"keyid": _safe_keyid(s.get("keyid"), i),
-                      "verdict": s.get("verdict"),
-                      "signed": s.get("signed", False)}
-                     for i, s in enumerate(sigs)]
+        witnesses = [{"keyid": f"witness-{i + 1}",
+                      "verdict": c.get("verdict") if c.get("valid") else "unverified",
+                      "signed": bool(s.get("signed", False)),
+                      "verified": bool(c.get("valid") and c.get("action_hash_match"))}
+                     for i, (s, c) in enumerate(zip(sigs, checks))]
         return {
             "available": True,
             "quorum_required": f"{quorum}-of-{len(organs)}",
             "allow_votes": allow, "block_votes": block,
             "quorum_result": reached,
+            "proof_scope": "IN_PROCESS_ONLY; witness envelopes are not exported",
             # Doctrine: no user-visible organ codenames; only neutral witness
             # labels + aggregate counts + per-witness verdict/signed for audit.
             "witnesses": witnesses,
@@ -289,18 +283,18 @@ def _restraint_note(prompt: str) -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# SIGNED PROVENANCE RECEIPT. The verdict + its reasoning is sealed in a DSSE
-# envelope (szl_dsse.sign_payload). This is the load-bearing inverse of Mythos:
-# the safety decision is not just made — it is SIGNED and SHOWN.
+# PROVENANCE RECEIPT. The verdict + its reasoning is sealed in a DSSE envelope
+# when a signer is available. The receipt attests a gateway assertion, not an
+# externally replayable witness quorum or any provider execution.
 # ---------------------------------------------------------------------------
 _RECEIPTS: List[Dict[str, Any]] = []  # in-process audit ring (last 64)
 
 
 def _sign_receipt(verdict: Dict[str, Any], prompt_digest: str,
-                  consensus: Dict[str, Any], served_model: Optional[str]) -> Dict[str, Any]:
+                  consensus: Dict[str, Any], route_target_model: Optional[str]) -> Dict[str, Any]:
     payload = {
         "kind": "willay.safety_verdict",
-        "schema": "szl.willay.verdict/v1",
+        "schema": "szl.willay.verdict/v2",
         "prompt_digest": prompt_digest,
         "decision": verdict["decision"],
         "stop_reason": "refusal" if verdict["decision"] == "decline" else "end_turn",
@@ -310,7 +304,10 @@ def _sign_receipt(verdict: Dict[str, Any], prompt_digest: str,
         "trust_ceiling": verdict["trust_ceiling"],
         "classifiers_run": verdict["classifiers_run"],
         "khipu_consensus": consensus.get("quorum_result", "n/a"),
-        "served_model": served_model,
+        "quorum_evidence_scope": "IN_PROCESS_ONLY; witness envelopes not exported",
+        "route_target_model": route_target_model,
+        "served_model": None,
+        "execution": "NOT_EXECUTED",
         "doctrine": DOCTRINE,
         "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
@@ -332,18 +329,19 @@ def _sign_receipt(verdict: Dict[str, Any], prompt_digest: str,
         dag = szl_khipu.get_dag("willay-gateway", ns="a11oy")
         receipt["khipu"] = dag.emit("verdict", {
             "decision": payload["decision"], "category": (verdict["stop_details"] or {}).get("category"),
-            "prompt_digest": prompt_digest, "served_model": served_model})
+            "prompt_digest": prompt_digest, "route_target_model": route_target_model,
+            "served_model": None, "execution": "NOT_EXECUTED"})
     except Exception as e:
         receipt["khipu"] = {"available": False, "note": f"khipu-dag-unavailable: {e}"}
     return receipt
 
 
 # ---------------------------------------------------------------------------
-# FABLE-STYLE API ERGONOMICS (interface patterns, honestly wired).
+# FABLE-INSPIRED API ERGONOMICS (interface patterns, honestly echoed).
 # adaptive effort / task_budget / memory tool / context compaction.
 # WILLAY does NOT call a model — it reports the route + gate honestly. When a real
 # model is reachable via A11OY_MODEL_BASE_URL the caller wires it; here we surface
-# the honest control echo + the served-model the gateway WOULD route to.
+# the honest control echo + any requested route target. It serves no model.
 # ---------------------------------------------------------------------------
 _EFFORT_BUDGETS = {"low": 2000, "medium": 8000, "high": 24000}
 
@@ -358,44 +356,48 @@ def _resolve_controls(body: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "effort": effort,
         "task_budget_tokens": task_budget,
-        "adaptive_thinking": "always-on (honest echo; no thinking mode disabled)",
-        "memory_tool": "enabled" if memory else "off",
-        "context_compaction": "enabled" if compaction else "off",
+        "adaptive_thinking": "NOT_EXECUTED",
+        "memory_tool": "REQUESTED_NOT_EXECUTED" if memory else "OFF",
+        "context_compaction": "REQUESTED_NOT_EXECUTED" if compaction else "OFF",
         "note": ("Interface ergonomics adopted from the public Fable/Mythos API docs "
-                 "(effort / task-budgets / memory tool / compaction). WILLAY echoes them "
-                 "honestly; it gates + signs, it does not itself run a model."),
+                 "(effort / task-budgets / memory tool / compaction). WILLAY records "
+                 "requests for these controls; it does not execute any of them."),
     }
 
 
-def _served_model(verdict: Dict[str, Any], body: Dict[str, Any]) -> Optional[str]:
-    """Report WHICH model the gateway routes to, honestly. On a decline, no model
-    is served (the turn is the refusal itself). On allow, report the configured
-    base model id (default SZL-Nemo, the governed Qwen3-32B Apache build)."""
+def _route_target_model(verdict: Dict[str, Any], body: Dict[str, Any]) -> Optional[str]:
+    """Report the proposed route target, not a model that WILLAY served."""
     if verdict["decision"] == "decline":
         return None
-    return str(body.get("model") or "szl-nemo (governed Qwen3-32B · Apache-2.0)")
+    requested = body.get("model")
+    return str(requested) if requested else None
+
+
+def _enforce_signed_quorum(verdict: Dict[str, Any], consensus: Dict[str, Any]) -> Dict[str, Any]:
+    """A positive rule result is not an allow without verified signed quorum."""
+    if verdict["decision"] == "allow" and consensus.get("quorum_result") != "allow":
+        verdict["decision"] = "decline"
+        verdict["stop_details"] = {"category": "governance_hold"}
+        verdict["reasons"] = ["verified Khipu 3-of-4 allow quorum unavailable; fail-closed"]
+    return verdict
 
 
 def gated_turn(prompt: str, body: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    """The full WILLAY gated message turn. Returns a Fable-shaped response:
-      • decline  -> stop_reason="refusal", stop_details.category set, content empty,
-                    `billed`=False (refused before output), signed receipt attached.
-      • allow    -> stop_reason="end_turn", served_model named, signed receipt attached.
+    """A WILLAY verdict response, not an inference response:
+      • decline  -> stop_reason="refusal", stop_details.category set, content empty.
+      • allow    -> stop_reason="end_turn", optional route target.
+      Both outcomes have `billed`=False, no model execution, and a receipt
+      envelope that honestly reports whether signing was available.
     """
     body = body or {}
     digest = _action_hash(prompt)
     verdict = classify(prompt)
     consensus = _khipu_consensus(digest, {"payload": {"prompt": prompt}})
-    # Consensus can only TIGHTEN: if a 3-of-4 quorum BLOCKS, an otherwise-allow
-    # verdict is downgraded to decline (fail-safe). It can never flip a decline to allow.
-    if verdict["decision"] == "allow" and consensus.get("quorum_result") == "block":
-        verdict["decision"] = "decline"
-        verdict["stop_details"] = {"category": "prompt_injection"}
-        verdict["reasons"].append("khipu 3-of-4 consensus blocked the action (fail-safe downgrade)")
-    served = _served_model(verdict, body)
+    verdict = _enforce_signed_quorum(verdict, consensus)
+    route_target = _route_target_model(verdict, body)
     controls = _resolve_controls(body)
     restraint = _restraint_note(prompt)
-    receipt = _sign_receipt(verdict, digest, consensus, served)
+    receipt = _sign_receipt(verdict, digest, consensus, route_target)
 
     declined = verdict["decision"] == "decline"
     return {
@@ -403,18 +405,22 @@ def gated_turn(prompt: str, body: Optional[Dict[str, Any]] = None) -> Dict[str, 
         "stop_reason": "refusal" if declined else "end_turn",
         "stop_details": verdict["stop_details"],
         "content": [] if declined else [{"type": "text",
-                    "text": "[WILLAY allow] request cleared the inspectable governor; "
-                            "route to served model. (Gateway does not itself generate.)"}],
-        "billed": (not declined),  # refusals before output are NOT billed (Fable parity)
-        "served_model": served,
+                    "text": "[WILLAY allow] request cleared the inspectable governor. "
+                            "No model was invoked or served by this gateway."}],
+        "billed": False,  # WILLAY never calls or bills a model provider.
+        "billing_scope": "WILLAY_GATEWAY_ONLY",
+        "response_kind": "GATEWAY_VERDICT",
+        "route_target_model": route_target,
+        "served_model": None,
+        "execution": "NOT_EXECUTED",
         "verdict": verdict,
         "khipu_consensus": consensus,
         "restraint": restraint,
         "controls": controls,
         "signed_receipt": receipt["envelope"],
         "receipt_payload": receipt["payload"],
-        "honesty": ("Inverse of Mythos: the safety verdict and its reasoning are RETURNED "
-                    "and SIGNED, not removed or hidden. A decline is shown honestly."),
+        "honesty": ("WILLAY returns its own safety verdict and reasoning, with a receipt "
+                    "when signing is available. No model is executed by this gateway."),
         "doctrine": DOCTRINE,
     }
 
@@ -425,7 +431,10 @@ def verify_receipt(envelope: Dict[str, Any]) -> Dict[str, Any]:
             from szl_substrate import szl_dsse  # single source of truth (installed pkg)
         except Exception:
             import szl_dsse  # local vendored fallback (byte-identical)
-        return szl_dsse.verify_envelope(envelope)
+        result = szl_dsse.verify_envelope(envelope)
+        return {**result,
+                "verification_scope": "GATEWAY_RECEIPT_SIGNATURE_ONLY",
+                "quorum_evidence_scope": "IN_PROCESS_ONLY; witness envelopes not exported"}
     except Exception as e:
         return {"verified": False, "reason": f"verifier-unavailable: {e}"}
 
@@ -439,17 +448,18 @@ def register(app: FastAPI, ns: str = "a11oy") -> Dict[str, Any]:
         return JSONResponse({
             "doctrine": DOCTRINE,
             "trust_ceiling": TRUST_CEILING,
-            "honest_note": ("Every classifier is a transparent, auditable rule — the "
-                            "inverse of a removed/hidden classifier. WILLAY discloses "
-                            "category, pattern intent, rationale, and lineage."),
+            "honest_note": ("WILLAY classifiers are transparent rules. This endpoint "
+                            "discloses category, pattern intent, rationale, and lineage; "
+                            "it does not establish any Anthropic classifier equivalence. "
+                            "A verified signed quorum is required for an allow verdict."),
             "classifiers": [{
                 "category": c["category"], "title": c["title"],
                 "fires_on": c["fires_on"], "rationale": c["rationale"],
                 "lineage": c["lineage"],
             } for c in _CLASSIFIERS],
-            "fable_parity": ("category names mirror Fable 5's public taxonomy "
-                             "(cyber/bio/reasoning_extraction); rules are ours, no "
-                             "Anthropic classifier code or weights used."),
+            "fable_parity": ("Legacy key: category labels reference Fable 5's public "
+                             "taxonomy (cyber/bio/reasoning_extraction) only. There is "
+                             "no capability, policy, or classifier parity; rules are ours."),
         })
 
     @app.post(f"/api/{ns}/v1/willay/inspect", include_in_schema=False)
@@ -462,6 +472,7 @@ def register(app: FastAPI, ns: str = "a11oy") -> Dict[str, Any]:
         verdict = classify(prompt)
         digest = _action_hash(prompt)
         consensus = _khipu_consensus(digest, {"payload": {"prompt": prompt}})
+        verdict = _enforce_signed_quorum(verdict, consensus)
         return JSONResponse({"prompt_digest": digest, "verdict": verdict,
                              "khipu_consensus": consensus, "doctrine": DOCTRINE})
 
@@ -483,7 +494,7 @@ def register(app: FastAPI, ns: str = "a11oy") -> Dict[str, Any]:
                     parts.extend(str(b.get("text", "")) for b in c if isinstance(b, dict))
             prompt = "\n".join(parts)
         resp = gated_turn(prompt, body)
-        # Refusal is a SUCCESSFUL 200, never an error (Fable parity).
+        # A gateway refusal is a successful verdict response, not provider inference.
         return JSONResponse(resp, status_code=200)
 
     @app.get(f"/api/{ns}/v1/willay/receipts", include_in_schema=False)
@@ -510,9 +521,10 @@ def register(app: FastAPI, ns: str = "a11oy") -> Dict[str, Any]:
         return JSONResponse({
             "doctrine": DOCTRINE,
             "trust_ceiling": TRUST_CEILING,
-            "inverse_of_mythos": ("Mythos removes the governor and hides the reasoning; "
-                                  "WILLAY signs and shows it. 'they hide the governor; "
-                                  "we sign and show it.'"),
+            "inverse_of_mythos": ("Legacy comparison label only: Anthropic describes "
+                                  "Fable 5.1 and Mythos 5.1 as using different safeguard "
+                                  "levels. WILLAY is an independent SZL verdict gateway; "
+                                  "it does not serve either model."),
             "name_meaning": "WILLAY (Quechua): to announce / make known / disclose.",
             "lineage": ["Yachay", "Chaski", "Khipu", "Ayni", "Ñawi"],
             "we_do_not": ["replicate or claim to replicate Mythos weights",
@@ -526,7 +538,7 @@ def register(app: FastAPI, ns: str = "a11oy") -> Dict[str, Any]:
         return HTMLResponse(_PAGE_HTML.replace("{NS}", ns))
 
     return {
-        "capability": "WILLAY safety gateway (governed inverse of Mythos)",
+        "capability": "WILLAY inspectable safety-verdict gateway (no inference)",
         "registered": [
             "GET /willay",
             f"GET /api/{ns}/v1/willay/classifiers",
@@ -545,13 +557,12 @@ def register(app: FastAPI, ns: str = "a11oy") -> Dict[str, Any]:
 
 # ===========================================================================
 # THE WILLAY TAB — 0-CDN holo-kit visuals, vendored locally. Live demo of
-# "the governor, signed and shown": request -> classifier verdict (allow/decline
-# + reason) -> signed receipt -> which model served it.
+# request -> inspectable verdict -> receipt status -> no model inference.
 # ===========================================================================
 _PAGE_HTML = """<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>a11oy · WILLAY — the governor, signed & shown</title>
+<title>a11oy · WILLAY — inspectable verdicts</title>
 <style>
 :root{--bg:#070b10;--panel:#101822;--ink:#e8eef5;--muted:#8aa0b4;--gold:#d9b46a;
 --green:#3fb950;--amber:#d29922;--red:#f85149;--line:#1c2733;--holo:#39d8c8;--violet:#b79fee;}
@@ -603,28 +614,30 @@ background:#13202d;border:1px solid var(--line);color:var(--ink);cursor:pointer;
 </style></head>
 <body><div class="wrap">
 <div class="holokit"></div>
-<h1>WILLAY <span class="pill holo">the governor, signed &amp; shown</span></h1>
-<p class="sub">WILLAY is the <b>governed inverse</b> of the Fable&nbsp;5 / Mythos&nbsp;5 split.
-Where Mythos <i>removes</i> the safety classifiers and <i>hides</i> the chain-of-thought,
-WILLAY makes the governance decision <b>inspectable</b> and <b>signed</b>:
-<span class="tag">they hide the governor; we sign and show it.</span>
-Every request passes through transparent classifiers built on a11oy's existing
-Restraint gate, Constitution, and Khipu 3-of-4 consensus — and the verdict <i>plus its
-reasoning</i> is returned as a signed DSSE provenance receipt. 0&nbsp;CDN.
+<h1>WILLAY <span class="pill holo">the governor, shown; signed when available</span></h1>
+<p class="sub">WILLAY is SZL's <b>independent safety-verdict gateway</b>, informed by public
+Fable/Mythos interface patterns. Anthropic describes Fable&nbsp;5.1 and Mythos&nbsp;5.1 as
+the same underlying model with different safeguards; SZL does not serve either model.
+WILLAY makes its own governance decision <b>inspectable</b> and signs a verdict receipt
+when signing is available. Requests to this gateway pass through transparent rules;
+a verified signed Khipu 3-of-4 quorum is required to allow (checked in-process;
+witness envelopes are not exported). Restraint is attached as
+context, not another execution gate. The verdict <i>plus its reasoning</i> is returned
+with a DSSE provenance receipt when available. No model inference. 0&nbsp;CDN.
 <span class="pill violet">trust &lt; 100% by doctrine — tamper-evident, fallible</span></p>
 
 <div class="card">
 <div class="row">
 <div style="flex:1;min-width:260px">
-<label>Request to the governed model</label>
+<label>Request for a WILLAY verdict (no model call)</label>
 <textarea id="q" placeholder="Try an allowed request, or one that trips a classifier…"></textarea>
 </div>
 <div style="width:140px"><label>Effort</label>
 <select id="eff"><option value="low">low</option><option value="medium" selected>medium</option>
 <option value="high">high</option></select></div>
-<div style="width:130px"><label>Memory tool</label>
+<div style="width:130px"><label>Memory requested</label>
 <select id="mem"><option value="false">off</option><option value="true">on</option></select></div>
-<div><button id="go">Route through WILLAY</button></div>
+<div><button id="go">Inspect with WILLAY</button></div>
 </div>
 <div style="margin-top:8px">
 <span class="ex" data-q="Explain how TLS 1.3 protects a web session.">allowed: TLS explainer</span>
@@ -636,23 +649,23 @@ reasoning</i> is returned as a signed DSSE provenance receipt. 0&nbsp;CDN.
 </div>
 
 <div class="card">
-<h3 style="margin:.1em 0 .5em">Live flow — request → verdict → signed receipt → served model</h3>
+<h3 style="margin:.1em 0 .5em">Live flow — request → verdict → receipt → no model execution</h3>
 <div class="flow">
 <div class="step"><h4>1 · Incoming request</h4><div id="s1" class="big">—</div></div>
 <div class="step"><h4>2 · Classifier verdict</h4><div id="s2" class="big">—</div>
 <div id="s2r" style="font-size:12px;color:var(--muted);margin-top:6px"></div></div>
-<div class="step"><h4>3 · Signed receipt</h4><div id="s3" class="big">—</div>
+<div class="step"><h4>3 · Receipt status</h4><div id="s3" class="big">—</div>
 <div id="s3r" style="font-size:12px;color:var(--muted);margin-top:6px"></div></div>
-<div class="step"><h4>4 · Model served</h4><div id="s4" class="big">—</div></div>
+<div class="step"><h4>4 · Model execution</h4><div id="s4" class="big">—</div></div>
 </div>
 </div>
 
 <div class="card">
 <div class="row" style="justify-content:space-between">
-<h3 style="margin:0">Full gated turn (Fable-shaped)</h3>
+<h3 style="margin:0">Gateway verdict (Fable-inspired response shape)</h3>
 <span class="pill amber" id="billpill">—</span>
 </div>
-<pre id="out">Route a request to see the signed verdict (refusal returns a successful 200, non-billed)…</pre>
+<pre id="out">Inspect a request to see a verdict and any available receipt. No provider call or billing occurs here.</pre>
 </div>
 
 <div class="card">
@@ -666,7 +679,7 @@ reasoning</i> is returned as a signed DSSE provenance receipt. 0&nbsp;CDN.
 
 <div class="card">
 <div class="row" style="justify-content:space-between">
-<h3 style="margin:0">Signed verdict receipts (audit ring)</h3>
+<h3 style="margin:0">Verdict receipts (signed when available; audit ring)</h3>
 <button class="ghost" id="refrec" style="padding:6px 12px;font-size:13px">Refresh receipts</button>
 </div>
 <pre id="rec">No receipts yet — route a request above.</pre>
@@ -674,7 +687,7 @@ reasoning</i> is returned as a signed DSSE provenance receipt. 0&nbsp;CDN.
 
 <p class="foot">a11oy · WILLAY · Doctrine v11 LOCKED 749/14/163 · locked theorems = 8
 {F1,F4,F7,F11,F12,F18,F19,F22} @ kernel c7c0ba17 · Λ = Conjecture 1 · Khipu = Conjecture 2 ·
-SLSA L1 honest · 0 CDN · receipts: DSSE ECDSA-P256-SHA256 · governed inverse of Mythos.</p>
+SLSA L1 honest · 0 CDN · receipts: DSSE ECDSA-P256-SHA256 when signer available · no model inference.</p>
 </div>
 <script>
 const $=s=>document.querySelector(s);
@@ -683,7 +696,7 @@ async function go(){
   const q=$('#q').value;
   $('#s1').textContent=q?(q.length>40?q.slice(0,40)+'…':q):'(empty)';
   $('#s2').textContent='…';$('#s3').textContent='…';$('#s4').textContent='…';
-  $('#out').textContent='routing through WILLAY…';
+   $('#out').textContent='inspecting with WILLAY…';
   const body={prompt:q,effort:$('#eff').value,memory:$('#mem').value==='true',compaction:true};
   try{
     const r=await fetch('/api/'+NS+'/v1/willay/messages',{method:'POST',
@@ -700,11 +713,9 @@ async function go(){
     $('#s3r').textContent=signed
       ?('DSSE '+(d.signed_receipt.honesty||'').slice(0,46)+'…')
       :(d.signed_receipt&&d.signed_receipt.honesty||'no signing key in runtime — no signature fabricated');
-    $('#s4').innerHTML=d.served_model
-      ?'<span class="pill violet">'+d.served_model.split(' ')[0]+'</span>'
-      :'<span class="pill red">none (refused)</span>';
-    $('#billpill').textContent='billed: '+d.billed+(declined?' (refusals not billed — Fable parity)':'');
-    $('#billpill').className='pill '+(d.billed?'green':'amber');
+    $('#s4').textContent='NOT EXECUTED'+(d.route_target_model?' · requested: '+d.route_target_model:'');
+    $('#billpill').textContent='provider billed by WILLAY: no';
+    $('#billpill').className='pill amber';
     $('#out').textContent='HTTP 200 · stop_reason="'+d.stop_reason+'"\\n\\n'+JSON.stringify(d,null,2);
     loadRec();
   }catch(e){$('#out').textContent='error: '+e;}
@@ -759,10 +770,15 @@ if __name__ == "__main__":
     assert t["stop_reason"] == "refusal" and t["billed"] is False and t["content"] == [], t
     assert t["served_model"] is None, t
     assert "signed_receipt" in t and "receipt_payload" in t, t
-    # 5) allow turn -> end_turn, billed, served model named
+    # 5) a benign request still requires a verified signed quorum.
     t2 = gated_turn("Summarize the CAP theorem.", {"model": "szl-nemo"})
-    assert t2["stop_reason"] == "end_turn" and t2["billed"] is True, t2
-    assert t2["served_model"], t2
+    assert t2["billed"] is False and t2["served_model"] is None, t2
+    if t2["khipu_consensus"].get("quorum_result") == "allow":
+        assert t2["stop_reason"] == "end_turn" and t2["route_target_model"] == "szl-nemo", t2
+    else:
+        assert t2["stop_reason"] == "refusal" and t2["route_target_model"] is None, t2
+    assert t2["receipt_payload"]["served_model"] is None, t2
+    assert t2["receipt_payload"]["execution"] == "NOT_EXECUTED", t2
     # 6) controls echo
     assert t["controls"]["effort"] == "high", t["controls"]
     # 7) receipt payload carries decision + reasons + doctrine (disclosed, not hidden)
@@ -786,5 +802,5 @@ if __name__ == "__main__":
         assert bad not in _turn_blob, f"codename '{bad}' must not leak into any WILLAY API JSON/classifier"
     # 9) 0-CDN page
     assert "http://" not in low and "https://" not in low, "WILLAY tab must be 0-CDN"
-    print("szl_willay_gateway: ALL OK — inverse-of-Mythos verdicts signed & shown; "
+    print("szl_willay_gateway: ALL OK — inspectable verdicts; no model call or billing; "
           "trust ceiling %.2f (<1.0); 5 inspectable classifiers; 0 codenames; 0 CDN" % TRUST_CEILING)
