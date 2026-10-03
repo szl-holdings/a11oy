@@ -4,7 +4,9 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from scripts.witness_command_release import InlineScripts, read_allowed, relay_readonly, require_revision
+from scripts.witness_command_release import (
+    InlineScripts, expected_blocked_edge_config, read_allowed, relay_readonly, require_revision,
+)
 
 
 class ReleaseWitnessBoundaryTests(unittest.TestCase):
@@ -73,6 +75,36 @@ class ReleaseWitnessBoundaryTests(unittest.TestCase):
         response.body.return_value = b"x" * 2_000_001
         relay_readonly(route, blocked, requests)
         self.assertEqual(blocked[0]["reason"], "RESPONSE_TOO_LARGE")
+
+    def test_edge_speculation_config_is_blocked_and_narrowly_classified(self):
+        route = Mock(request=SimpleNamespace(method="GET", url="https://a-11-oy.com/cdn-cgi/speculation"))
+        blocked, requests = [], []
+        relay_readonly(route, blocked, requests)
+        route.abort.assert_called_once_with()
+        route.fetch.assert_not_called()
+        self.assertFalse(read_allowed("GET", route.request.url))
+        self.assertTrue(expected_blocked_edge_config(
+            blocked, {"speculation-rules": '"/cdn-cgi/speculation"'},
+        ))
+        for candidate, headers in (
+            (blocked, {}),
+            (blocked, {"speculation-rules": '"/other"'}),
+            (blocked * 2, {"speculation-rules": '"/cdn-cgi/speculation"'}),
+            ([{**blocked[0], "edge_speculation_config": False}],
+             {"speculation-rules": '"/cdn-cgi/speculation"'}),
+        ):
+            with self.subTest(candidate=candidate, headers=headers):
+                self.assertFalse(expected_blocked_edge_config(candidate, headers))
+
+        for url in ("https://a-11-oy.com/cdn-cgi/speculation?x=1",
+                    "https://a-11-oy.com/other"):
+            with self.subTest(url=url):
+                other_route = Mock(request=SimpleNamespace(method="GET", url=url))
+                other_blocked = []
+                relay_readonly(other_route, other_blocked, [])
+                self.assertFalse(expected_blocked_edge_config(
+                    other_blocked, {"speculation-rules": '"/cdn-cgi/speculation"'},
+                ))
 
 
 if __name__ == "__main__":
