@@ -1,4 +1,4 @@
-"""Regression coverage for the public KEEP-5 FLOCK door inventory.
+"""Regression coverage for configured doors and current public keep policy.
 
 These tests are deliberately offline: runtime health remains the responsibility of the
 honest probe endpoint, while this suite locks identity, destinations, and the
@@ -8,6 +8,7 @@ snapshots and are not rewritten here as live claims.
 """
 
 import hashlib
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -36,7 +37,7 @@ UNIFY_EXPECTED = (
     "szl-constellation",
 )
 
-FOLDED_PII = ("david-leads", "anatomy", "szl-real-estate")
+FOLDED_PII = ("anatomy", "szl-real-estate")
 
 
 def _rows(records):
@@ -51,12 +52,25 @@ def test_audited_inventory_is_exact_and_in_lockstep():
     assert proxy.SPACE_INVENTORY is not surface.SPACES
     assert len({row[0] for row in EXPECTED}) == 5
     assert len({row[1] for row in EXPECTED}) == 5
+    assert len(surface.PUBLIC_ORG_KEEP_POLICY) == 8
+    assert {"counsel", "david-leads", "finance", "terra"} <= surface.PUBLIC_ORG_KEEP_POLICY
+    assert {"immune", "vertical-services"}.isdisjoint(surface.PUBLIC_ORG_KEEP_POLICY)
+    policy = (Path(__file__).parents[1] / surface.PUBLIC_ORG_KEEP_POLICY_SOURCE).read_text(
+        encoding="utf-8"
+    )
+    keep_block = policy.split("keep:\n", 1)[1].split("retire_into_killinchu:", 1)[0]
+    names = set(re.findall(r"^  - id: SZLHOLDINGS/([^\n]+)$", keep_block, re.M))
+    assert names == surface.PUBLIC_ORG_KEEP_POLICY
+    assert 'policy_amended_at: "2026-10-01"' in policy
     assert not {"cathedral", "energy", "khipu-constellation"} & set(proxy.ALL_SPACES)
     assert "governed-agent-bench" not in {row[0] for row in EXPECTED}
     assert "cosmos" not in {row[0] for row in EXPECTED}
     for name in FOLDED_PII:
         assert name not in {row[0] for row in EXPECTED}
         assert name in {sp["name"] for sp in surface.FOLD_SPACES}
+    policy_compat = {sp["name"] for sp in surface.FOLD_SPACES
+                     if sp["action"] == "KEEP_POLICY"}
+    assert policy_compat == surface.PUBLIC_ORG_KEEP_POLICY - {row[0] for row in EXPECTED}
     assert tuple(sp["slug"] for sp in surface.UNIFY_SPACES) == UNIFY_EXPECTED
     assert surface.UNIFY_TARGET == 4
     for name in UNIFY_EXPECTED:
@@ -99,6 +113,10 @@ def test_every_audited_shortcut_hands_off_to_an_isolated_origin():
     assert proxy._canonical_target("szl-khipu") == "https://a-11-oy.com/khipu"
     assert proxy._canonical_target("governed-agent-bench") == "https://a11oy.net/record"
     assert proxy._canonical_target("governed-receipt-verifier") == "https://a11oy.net/record"
+    assert proxy._canonical_target("counsel") == "https://szlholdings-counsel.hf.space"
+    assert proxy._canonical_target("szl-foundation-confirmation") == (
+        "https://szlholdings-szl-foundation-confirmation.hf.space"
+    )
 
 
 def test_unknown_identifiers_fail_closed():
@@ -129,8 +147,9 @@ def test_tiles_and_fallback_render_every_audited_title_without_runtime_claims():
         assert dest in tiles
         assert title in fallback
         assert name in fallback
-    assert "Public Hub cut is 5 KEEP" in tiles
-    assert "Public Hub cut is 5 KEEP" in fallback
+    assert "5 configured runtime doors are probed" in tiles
+    assert "current organization keep policy lists 8 Spaces" in tiles
+    assert "5 configured runtime doors" in fallback
     assert "stage: <span>pending</span>" in tiles
     assert ">CHECKING</strong>" in tiles
     assert "never LIVE/RUNNING/PASS" in tiles
@@ -157,7 +176,10 @@ def test_tiles_and_fallback_render_every_audited_title_without_runtime_claims():
     assert "not a trainer" in forge
     assert "Occupancy UNAVAILABLE" in tiles
     assert 'data-fold="cosmos"' in tiles
-    assert 'data-fold="david-leads"' in tiles
+    assert 'data-policy-keep="david-leads"' in tiles
+    assert 'data-policy-keep="szl-foundation-confirmation"' in tiles
+    assert 'data-fold="david-leads"' not in tiles
+    assert "Registered scientific gate FAILED" in tiles
     assert 'data-fold="anatomy"' in tiles
     assert 'data-fold="nexus"' in tiles
     assert "a11oy.net/spaces.json" in tiles
@@ -195,6 +217,12 @@ def test_registered_shortcuts_redirect_without_proxying_content():
     )
     assert client.get("/spaces/killinchu").headers["location"] == (
         "https://szlholdings-killinchu.hf.space/elite"
+    )
+    assert client.get("/spaces/finance").headers["location"] == (
+        "https://szlholdings-finance.hf.space"
+    )
+    assert client.get("/spaces/szl-foundation-confirmation").headers["location"] == (
+        "https://szlholdings-szl-foundation-confirmation.hf.space"
     )
     assert client.get("/spaces/szl-khipu").headers["location"] == (
         "https://a-11-oy.com/khipu"
@@ -236,6 +264,27 @@ def test_health_aggregate_and_cache_states_are_explicit():
     assert cached["state"] == "CACHED"
     assert cached["cached_state"] == "LIVE"
     assert source["state"] == "LIVE", "cache labeling must not mutate the stored payload"
+
+
+def test_visible_nonkeepers_degrade_overall_even_when_runtime_doors_are_live(monkeypatch):
+    import asyncio
+
+    async def inventory(_client):
+        return {"state": "DEGRADED", "canonical_count": 8,
+                "observed_count": 9, "missing": [], "unexpected": ["extra"]}
+
+    async def runtime(_client, sp):
+        return {"name": sp["name"], "app_reachable": True, "stage": "RUNNING"}
+
+    monkeypatch.setattr(surface, "_resolve_client", lambda: None)
+    monkeypatch.setattr(surface, "_probe_inventory", inventory)
+    monkeypatch.setattr(surface, "_probe_one", runtime)
+    monkeypatch.setattr(surface, "_HEALTH_CACHE", {"ts": 0.0, "payload": None})
+    result = asyncio.run(surface.spaces_health())
+    assert result["configured_runtime"]["state"] == "LIVE"
+    assert result["configured_runtime"]["count"] == 5
+    assert result["inventory"]["state"] == "DEGRADED"
+    assert result["state"] == "DEGRADED"
 
 
 def test_anatomy_and_sda_health_use_exact_api_contract_routes():
@@ -340,7 +389,7 @@ def test_inventory_set_equality_detects_missing_and_unexpected_spaces():
         async def get(self, *_args, **_kwargs):
             return Response(self._names)
 
-    canonical = [row[0] for row in EXPECTED]
+    canonical = sorted(surface.PUBLIC_ORG_KEEP_POLICY)
     exact = asyncio.run(surface._probe_inventory(Client(canonical)))
     exact_with_profile = asyncio.run(
         surface._probe_inventory(Client(canonical + ["README"]))
@@ -349,6 +398,8 @@ def test_inventory_set_equality_detects_missing_and_unexpected_spaces():
         surface._probe_inventory(Client(canonical[1:] + ["README", "rogue-space"]))
     )
     assert exact["state"] == "LIVE"
+    assert exact["canonical_count"] == 8
+    assert exact["configured_runtime_count"] == 5
     assert exact["missing"] == exact["unexpected"] == []
     assert exact_with_profile["state"] == "LIVE"
     assert exact_with_profile["observed_count"] == len(canonical)
@@ -379,7 +430,8 @@ def test_inventory_http_and_schema_failures_are_unavailable():
 
     non_200 = asyncio.run(surface._probe_inventory(Client(503, {"error": "busy"})))
     malformed = asyncio.run(surface._probe_inventory(Client(200, {"spaces": []})))
-    canonical = [{"id": "SZLHOLDINGS/" + row[0]} for row in EXPECTED]
+    canonical = [{"id": "SZLHOLDINGS/" + name}
+                 for name in sorted(surface.PUBLIC_ORG_KEEP_POLICY)]
     malformed_entries = [
         canonical + [None],
         canonical + [{}],
@@ -522,8 +574,12 @@ def test_unify_ledger_is_bind_not_a_hub_space():
     assert [row["slug"] for row in ledger["keep"]] == [row[1] for row in EXPECTED]
     assert [row["slug"] for row in ledger["unify"]] == list(UNIFY_EXPECTED)
     assert {row["slug"] for row in ledger["fold"]} >= {
-        "immune-lattice", "counsel", "ayllu", "sentra", "finance", "terra", "david-leads",
+        "immune-lattice", "ayllu", "sentra",
     }
+    assert {row["slug"] for row in ledger["fold"]}.isdisjoint(surface.PUBLIC_ORG_KEEP_POLICY)
+    assert {row["slug"] for row in ledger["policy_keep"]} == surface.PUBLIC_ORG_KEEP_POLICY
+    assert len(ledger["configured_runtime_doors"]) == 5
+    assert "Current organization keep policy" in page
     assert "Never LIVE/RUNNING/PASS" in page
     assert "winner=null" in page
     assert "proven_trust=false" in page
