@@ -8,10 +8,12 @@ on:
       - 'scripts/alert_channel_canary.py'
       - 'scripts/managed_alert_endpoint.py'
       - 'scripts/managed_alert_env.sh'
+      - 'scripts/resolve_cloudflare_relay_account.py'
       - 'tests/test_alert_channel_canary.py'
       - 'tests/test_alert_channel_static_registry_contract.py'
       - 'tests/test_managed_alert_endpoint.py'
       - 'tests/test_managed_alert_transport_workflows.py'
+      - 'tests/test_resolve_cloudflare_relay_account.py'
   push:
     branches: [main]
     paths:
@@ -20,10 +22,12 @@ on:
       - 'scripts/alert_channel_canary.py'
       - 'scripts/managed_alert_endpoint.py'
       - 'scripts/managed_alert_env.sh'
+      - 'scripts/resolve_cloudflare_relay_account.py'
       - 'tests/test_alert_channel_canary.py'
       - 'tests/test_alert_channel_static_registry_contract.py'
       - 'tests/test_managed_alert_endpoint.py'
       - 'tests/test_managed_alert_transport_workflows.py'
+      - 'tests/test_resolve_cloudflare_relay_account.py'
   workflow_dispatch:
 
 permissions:
@@ -61,6 +65,7 @@ jobs:
             tests/test_alert_channel_static_registry_contract.py \
             tests/test_managed_alert_endpoint.py \
             tests/test_managed_alert_transport_workflows.py \
+            tests/test_resolve_cloudflare_relay_account.py \
             -q
 
   deploy:
@@ -72,7 +77,6 @@ jobs:
     timeout-minutes: 15
     env:
       CI: 'true'
-      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN || secrets.CLOUDFLARE_TOKEN }}
     steps:
       - name: Harden runner
@@ -93,18 +97,16 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
-      - name: Require Cloudflare deployment configuration
+      - name: Require Cloudflare deployment token
         shell: bash
         run: |
           set -euo pipefail
-          if [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
-            echo "::error::No Cloudflare account ID is configured for the relay deployment."
-            exit 1
-          fi
           if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
             echo "::error::No Cloudflare API token is configured for the relay deployment."
             exit 1
           fi
+      - name: Resolve account from active owned Cloudflare zones
+        run: python scripts/resolve_cloudflare_relay_account.py
       - name: Deploy the exact source-controlled Worker and custom domain
         shell: bash
         run: >-
