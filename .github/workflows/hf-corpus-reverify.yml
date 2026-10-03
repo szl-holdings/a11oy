@@ -119,9 +119,11 @@ jobs:
 
       - name: Re-verify published a11oy receipts
         id: guard
+        # The corpus is public. Read it anonymously so an unrelated/stale CI
+        # write credential cannot break the read-only integrity check.
         env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+          HF_TOKEN: ''
+          HF_ORG_TOKEN: ''
         run: |
           set +e
           python3 scripts/check_hf_corpus_reverify.py \
