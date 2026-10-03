@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - release process source contracts
+- Match the documented release trigger to `release.published` and preserve
+  `a11oy.net` as a separate proof/registry origin. This documentation correction
+  does not change runtime authorization, release gates, or verification status.
+
 ### Fixed - proof HTML provider injection admission
 - Add a read-only default Cloudflare RUM audit for the exact `a11oy.net` property.
   A separate manual apply requires the previous settings hash, permits one
