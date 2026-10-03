@@ -6,7 +6,8 @@ EVERY frontier endpoint declared by the surface .js fetch URLs + the registered
 route table, asserting the governance invariants that the doctrine requires:
 
   1. GOOD REQUEST does not crash: status is 200 (or an HONEST, labelled 503
-     UNAVAILABLE) — NEVER a 500, NEVER a bare 422 on known-good input. This is
+     UNAVAILABLE); an anonymous request to an operator-only route must be
+     refused with 401. NEVER a 500 or bare 422 on known-good input. This is
      exactly the "silent-degrade / 422" regression class the brief calls out.
   2. HONEST LABEL: if the response carries any honesty-label field
      (label / honesty_label / fidelity_label / data_label / honesty_badge …),
@@ -92,18 +93,9 @@ CORE_FRONTIER = (
     "/trackfusion/associate", "/frontier/edgefusion", "/frontier/agentmem",
 )
 
-# Endpoints whose handler lives in the shared szl-substrate package (imported by
-# BOTH apps via `from szl_substrate import ...`). A bug in one of these is NOT fixable
-# inside a11oy/killinchu — it belongs to the substrate repo (Dev 2's domain). We keep
-# the invariant enforced but record the current known gap as a non-strict xfail so the
-# CI gate opens GREEN and auto-flips to a hard failure once substrate is fixed.
-# Tracked gap: szl_substrate.szl_restraint._evaluate 500s on a non-object JSON body
-# (should be an honest 400). The local a11oy/killinchu szl_restraint.py is a
-# byte-identical fallback that is NOT the runtime handler (serve.py prefers the
-# installed szl-substrate copy), so it is intentionally left untouched here to keep
-# the a11oy<->killinchu shared-file parity ratchet green; the real fix belongs in
-# the substrate repo (Dev 2), and this xfail auto-flips to a hard failure once it lands.
-SUBSTRATE_KNOWN_500_ON_LIST_BODY = ("/restraint/evaluate",)
+# Optional szl-substrate imports may shadow local modules in some images. Do not
+# xfail a 500 on restraint: regardless of import origin, anonymous callers must
+# be rejected before body parsing and a handler crash is a release blocker.
 
 # Canonical advisory-Λ field names whose numeric value is the Trust-bounded score.
 # Other lambda_* fields (cap, floor, raw_*, *_value clamped source, counts, beta,
@@ -169,11 +161,76 @@ def _request(entry, override_query=None, override_body=None):
 
 
 IDS = [f"{e['method']} {e['path']}" for e in MANIFEST]
+RESTRAINT_EVALUATE = "/api/a11oy/v1/restraint/evaluate"
+
+
+def test_restraint_operator_route_is_mounted_and_rejects_authenticated_list(monkeypatch):
+    """An auth-middleware 401 alone cannot prove the handler is mounted or safe."""
+    assert any(
+        getattr(route, "path", None) == RESTRAINT_EVALUATE
+        and "POST" in (getattr(route, "methods", None) or ())
+        for route in serve.app.routes
+    ), "restraint evaluate POST route must be mounted on the real app"
+    mounted = next(route for route in serve.app.routes
+                   if getattr(route, "path", None) == RESTRAINT_EVALUATE
+                   and "POST" in (getattr(route, "methods", None) or ()))
+    assert mounted.endpoint.__module__ == "szl_restraint"
+    token = "synthetic-restraint-contract-test-only"
+    monkeypatch.setenv("A11OY_CODE_ADMIN_KEY", token)
+    response = client.post(
+        RESTRAINT_EVALUATE,
+        json=[1, 2, 3],
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 400, (
+        "authenticated non-object restraint input must be rejected before "
+        f"evaluation, never crash or sign: {response.status_code} {response.text[:200]}"
+    )
+
+
+def test_restraint_signer_identity_tracks_actual_private_key_without_signing(monkeypatch):
+    before = serve._a11oy_restraint_identity()
+    if serve._A11OY_PRIV is not None:
+        assert before == {"keyid": serve._A11OY_KEYID}
+    monkeypatch.setattr(serve, "_A11OY_PRIV", None)
+    assert serve._a11oy_restraint_identity() is None
+
+
+def test_restraint_mounted_route_verifies_disposable_operator_receipt(monkeypatch):
+    from hashlib import sha256
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+
+    key = ec.generate_private_key(ec.SECP256R1())
+    public = key.public_key().public_bytes(
+        serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo
+    ).decode("ascii")
+    keyid = sha256(public.strip().encode("ascii")).hexdigest()
+    token = "synthetic-restraint-integration-only"
+    monkeypatch.setenv("A11OY_CODE_ADMIN_KEY", token)
+    monkeypatch.setattr(serve, "_A11OY_PRIV", key)
+    monkeypatch.setattr(serve, "_A11OY_PUB_PEM", public)
+    monkeypatch.setattr(serve, "_A11OY_KEYID", keyid)
+    monkeypatch.setattr(serve, "_A11OY_LEGACY_RAW_PEM_KEYID",
+                        sha256(public.encode("ascii")).hexdigest())
+    response = client.post(
+        RESTRAINT_EVALUATE,
+        json={"task": "add a cache"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200, response.text[:300]
+    receipt = response.json()["signed_receipt"]
+    verdict = serve._a11oy_loop_verify(receipt)
+    assert verdict["signature_valid"] is True
+    assert verdict["keyid_verified"] == keyid
+    info = client.get("/api/a11oy/v1/restraint/info").json()
+    assert info["signer_health"]["ready"] is True
+    assert info["signer_health"]["identity"] == keyid
 
 
 @pytest.mark.parametrize("entry", MANIFEST, ids=IDS)
 def test_frontier_endpoint_good_request_never_crashes(entry):
-    """GOOD input -> 200 or honest 503; NEVER 500, NEVER bare 422 (silent-degrade)."""
+    """GOOD input -> 200/503, or 401 for an operator-only route; never 500/422."""
     r = _request(entry)
     assert r.status_code != 500, (
         f"{entry['path']} returned 500 on KNOWN-GOOD input — unhandled crash "
@@ -183,6 +240,13 @@ def test_frontier_endpoint_good_request_never_crashes(entry):
         f"{entry['path']} returned 422 on KNOWN-GOOD input — schema/silent-degrade "
         f"regression: {r.text[:300]}"
     )
+    if entry["method"] == "POST" and entry["path"].endswith("/restraint/evaluate"):
+        assert r.status_code == 401, (
+            f"{entry['path']} must refuse an anonymous evaluation before signing: "
+            f"{r.status_code} {r.text[:200]}"
+        )
+        assert r.json().get("status") == "BLOCKED"
+        return
     # Honest degrade to 503 UNAVAILABLE is allowed; anything else must be 200.
     assert r.status_code in (200, 503), (
         f"{entry['path']} unexpected status {r.status_code} on good input: {r.text[:200]}"
@@ -324,16 +388,6 @@ def _bad_variants(entry):
 def test_frontier_endpoint_bad_input_never_500(entry):
     """Malformed/unknown input must degrade HONESTLY (<500), never crash with a 500."""
     for label, r in _bad_variants(entry):
-        if (
-            label == "wrong-type-body"
-            and any(s in entry["path"] for s in SUBSTRATE_KNOWN_500_ON_LIST_BODY)
-            and r.status_code == 500
-        ):
-            pytest.xfail(
-                f"{entry['path']} wrong-type body 500 lives in szl-substrate "
-                f"(szl_restraint._evaluate) — substrate-repo fix, not a11oy/killinchu. "
-                f"Invariant still enforced for every other endpoint."
-            )
         # A 500 is a hard crash — always forbidden. An honest, labelled 503 UNAVAILABLE
         # is an acceptable degrade (e.g. optional data file absent), not a crash.
         assert r.status_code != 500, (

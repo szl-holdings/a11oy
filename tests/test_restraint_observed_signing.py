@@ -46,6 +46,15 @@ class _TestKey:
         self.keyid = sha256(public.strip()).hexdigest()
         self.sign_calls = 0
         self.verify_calls = 0
+        self.available = True
+
+    def identity(self):
+        return {"keyid": self.keyid} if self.available else None
+
+    def attach(self, app):
+        app.state.szl_sign_receipt = self.sign
+        app.state.szl_verify_receipt = self.verify
+        app.state.szl_restraint_identity_fn = self.identity
 
     def sign(self, payload):
         self.sign_calls += 1
@@ -120,8 +129,7 @@ class RestraintObservedSigning(unittest.TestCase):
             with self.subTest(middleware=middleware):
                 app, client = self._app(middleware=middleware)
                 key = _TestKey()
-                app.state.szl_sign_receipt = key.sign
-                app.state.szl_verify_receipt = key.verify
+                key.attach(app)
                 for headers in ({}, {"Authorization": "Bearer wrong"}):
                     response = client.post(PATH, headers=headers, json={"task": "add a cache"})
                     self.assertEqual(response.status_code, 401, response.text)
@@ -141,8 +149,7 @@ class RestraintObservedSigning(unittest.TestCase):
         before = client.get("/api/a11oy/v1/restraint/info").json()
         self.assertFalse(before["signer_health"]["ready"])
         self.assertFalse(frontier._tile_governance(app)["signature_verified"])
-        app.state.szl_sign_receipt = key.sign
-        app.state.szl_verify_receipt = key.verify
+        key.attach(app)
         self.assertEqual(key.sign_calls, 0)
 
         response = client.post(PATH, headers=HEADERS, json={"task": "add a cache"})
@@ -202,13 +209,11 @@ class RestraintObservedSigning(unittest.TestCase):
     def test_new_app_process_observation_starts_unverified(self):
         app, client = self._app()
         key = _TestKey()
-        app.state.szl_sign_receipt = key.sign
-        app.state.szl_verify_receipt = key.verify
+        key.attach(app)
         self.assertEqual(client.post(PATH, headers=HEADERS,
                                      json={"task": "add a cache"}).status_code, 200)
         new_app, new_client = self._app()
-        new_app.state.szl_sign_receipt = key.sign
-        new_app.state.szl_verify_receipt = key.verify
+        key.attach(new_app)
         self.assertFalse(new_client.get("/api/a11oy/v1/restraint/info").json()
                          ["receipt_verification"]["cryptographically_verified"])
         self.assertFalse(frontier._tile_governance(new_app)["signature_verified"])
@@ -226,8 +231,7 @@ class RestraintObservedSigning(unittest.TestCase):
             self.assertEqual((cache_a.compositions, cache_b.compositions), (1, 1))
 
             key = _TestKey()
-            app_b.state.szl_sign_receipt = key.sign
-            app_b.state.szl_verify_receipt = key.verify
+            key.attach(app_b)
             self.assertEqual(client_b.post(PATH, headers=HEADERS,
                                            json={"task": "add a cache"}).status_code, 200)
             self.assertTrue(self._governance(client_b)["signature_verified"])
@@ -257,8 +261,7 @@ class RestraintObservedSigning(unittest.TestCase):
         self.assertIsNotNone(cache_b.peek())
 
         key = _TestKey()
-        app_b.state.szl_sign_receipt = key.sign
-        app_b.state.szl_verify_receipt = key.verify
+        key.attach(app_b)
         self.assertEqual(client_b.post(PATH, headers=HEADERS,
                                        json={"task": "add a cache"}).status_code, 200)
         self.assertTrue(self._governance(client_b)["signature_verified"])
@@ -291,8 +294,7 @@ class RestraintObservedSigning(unittest.TestCase):
         with patch.dict(sys.modules, {"szl_substrate": substrate}):
             app, client = self._app()
             key = _TestKey()
-            app.state.szl_sign_receipt = key.sign
-            app.state.szl_verify_receipt = key.verify
+            key.attach(app)
             self.assertEqual(client.post(PATH, headers=HEADERS,
                                          json={"task": "add a cache"}).status_code, 200)
             self.assertTrue(self._governance(client)["signature_verified"])
@@ -300,6 +302,30 @@ class RestraintObservedSigning(unittest.TestCase):
             unregistered = FastAPI()
             frontier.register(unregistered)
             self.assertFalse(self._governance(TestClient(unregistered))["signature_verified"])
+
+    def test_readiness_drops_on_key_loss_or_rotation_without_get_signing(self):
+        app, client = self._app()
+        key = _TestKey()
+        key.attach(app)
+        self.assertEqual(client.post(PATH, headers=HEADERS,
+                                     json={"task": "add a cache"}).status_code, 200)
+        self.assertTrue(self._governance(client)["signature_verified"])
+        sign_calls = key.sign_calls
+        key.available = False
+        self.assertFalse(client.get("/api/a11oy/v1/restraint/info").json()
+                         ["signer_health"]["ready"])
+        self.assertFalse(self._governance(client)["signature_verified"])
+        key.available = True
+        old_identity = key.keyid
+        key.keyid = "rotated-public-identity"
+        current = client.get("/api/a11oy/v1/restraint/info").json()
+        self.assertFalse(current["signer_health"]["ready"])
+        self.assertEqual(current["signer_health"]["last_verified_identity"], old_identity)
+        self.assertFalse(self._governance(client)["signature_verified"])
+        self.assertEqual(key.sign_calls, sign_calls)
+        app.state.szl_restraint_identity_fn = None
+        self.assertFalse(client.get("/api/a11oy/v1/restraint/info").json()
+                         ["signer_health"]["ready"])
 
 
 if __name__ == "__main__":

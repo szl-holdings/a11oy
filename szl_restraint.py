@@ -597,6 +597,20 @@ def info(app=None) -> Dict[str, Any]:
                 and observation.get("verifier") is verifier)
     identity = observation.get("keyid") if observed else None
     receipt_digest = observation.get("receipt_sha256") if observed else None
+    identity_reader = (getattr(app.state, "szl_restraint_identity_override", None)
+                       if app is not None else None)
+    if identity_reader is None and app is not None:
+        identity_reader = getattr(app.state, "szl_restraint_identity_fn", None)
+    current_identity = None
+    if callable(identity_reader):
+        try:
+            current = identity_reader()
+            if isinstance(current, dict) and isinstance(current.get("keyid"), str):
+                current_identity = current["keyid"] or None
+        except Exception:
+            pass
+    ready = bool(observed and current_identity is not None
+                 and current_identity == identity)
     return {
         "service": "a11oy.restraint",
         "what": ("a governed frugality advisor for the a11oy Code agent: before "
@@ -633,9 +647,11 @@ def info(app=None) -> Dict[str, Any]:
         "doctrine": {"version": DOCTRINE, "kernel_commit": KERNEL_COMMIT, "locked": LOCKED,
                      "lambda": "Conjecture 1 (OPEN) advisory floor < 1.0",
                      "slsa": "L1 honest; L2/L3 roadmap", "runtime_cdn": 0,
-                     "signed_receipts": bool(observed), "visible_codenames": 0},
+                     "signed_receipts": ready, "visible_codenames": 0},
         "signer_health": {"observed_this_process": bool(observed),
-                          "ready": bool(observed), "identity": identity},
+                          "ready": ready, "identity": current_identity,
+                          "last_verified_identity": identity,
+                          "identity_checked": current_identity is not None},
         "receipt_verification": {
             "observed_this_process": bool(observed),
             "cryptographically_verified": bool(observed),
@@ -653,12 +669,14 @@ def info(app=None) -> Dict[str, Any]:
 
 def register(app, ns: str = "a11oy", sign_fn: Optional[Callable[[Any], dict]] = None,
              verify_fn=None, signer_label: str = "in-image key",
-             exporter_sample_fn: Optional[Callable[[], Any]] = None):
+             exporter_sample_fn: Optional[Callable[[], Any]] = None,
+             identity_fn=None):
     from starlette.routing import Route
     from starlette.responses import JSONResponse
 
     app.state.szl_restraint_signer_override = sign_fn
     app.state.szl_restraint_verifier_override = verify_fn
+    app.state.szl_restraint_identity_override = identity_fn
     app.state.szl_restraint_observation = None
     # Bind the frontier reader to the actual route module registered on this app.
     # A separately installed substrate copy must not supply unrelated readiness.
