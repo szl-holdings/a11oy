@@ -69,7 +69,6 @@ def test_every_managed_secret_consumer_uses_the_normalizer_in_its_own_step() -> 
             block = "\n".join(lines[start:end])
             assert PRELUDE in block, f"{path}: unmanaged alert secret consumer"
             before = "\n".join(lines[:start])
-            job_prefix = before.rsplit("\n  ", 1)[-1]
             # Either the same job already checked out the repository or the
             # repair inserted a dedicated immutable checkout before this step.
             assert "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" in before
@@ -84,3 +83,26 @@ def test_relay_workflow_deploys_and_requires_a_real_post_deploy_canary() -> None
     assert "alert_channel_canary.py" in value
     assert "--send" in value
     assert "Enforce real delivery health" in value
+
+
+def test_relay_deployment_resolves_account_id_before_wrangler() -> None:
+    value = (WORKFLOW_DIR / "alert-relay-worker.yml").read_text(encoding="utf-8")
+    deploy = value.split("\n  deploy:\n", 1)[1]
+    assert "if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'" in deploy
+    assert "    environment: production\n" in deploy
+    assert deploy.index("environment: production") < deploy.index("CLOUDFLARE_API_TOKEN")
+    assert deploy.index("No Cloudflare API token is configured") < deploy.index(
+        "python scripts/resolve_cloudflare_relay_account.py"
+    )
+    assert deploy.index("python scripts/resolve_cloudflare_relay_account.py") < deploy.index(
+        "wrangler@4.128.0 deploy"
+    )
+
+
+def test_relay_account_resolver_changes_trigger_the_workflow() -> None:
+    value = (WORKFLOW_DIR / "alert-relay-worker.yml").read_text(encoding="utf-8")
+    pull_request = value.split("  pull_request:\n", 1)[1].split("  push:\n", 1)[0]
+    push = value.split("  push:\n", 1)[1].split("  workflow_dispatch:\n", 1)[0]
+    for trigger in (pull_request, push):
+        assert "'scripts/resolve_cloudflare_relay_account.py'" in trigger
+        assert "'tests/test_resolve_cloudflare_relay_account.py'" in trigger
