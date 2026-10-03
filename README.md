@@ -66,6 +66,15 @@ is a failed verification, not a display error.
 | SLSA | L1 honest · L2 build-attested · L3 roadmap |
 | License | Apache-2.0 |
 
+## Civilian evidence surface
+
+The additive civilian interface is defined at [`/civilian/`](https://a-11-oy.com/civilian/)
+with GET-only public observations under `/api/a11oy/v1/civilian/`. Availability
+requires the canonical publisher to deploy the matching source revision; a
+source link is not deployment evidence. This service loads no model, grants
+no action authority, and changes no model release gate. See
+[`docs/CIVILIAN_OBSERVATORY.md`](docs/CIVILIAN_OBSERVATORY.md) for scope and tests.
+
 ## Live surfaces
 
 Measured 2026-09-04: the apex `a-11-oy.com` serves the Space runtime

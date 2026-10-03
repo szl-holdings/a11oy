@@ -13,21 +13,57 @@ permissions:
 jobs:
   sbom:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install Syft
+        shell: bash
         run: |
-          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin v1.5.0
+          set -euo pipefail
+          syft_dir="$(mktemp -d)"
+          trap 'rm -rf -- "$syft_dir"' EXIT
+          archive="$syft_dir/syft_1.5.0_linux_amd64.tar.gz"
+          curl --fail --location --silent --show-error \
+            --proto '=https' --proto-redir '=https' \
+            --retry 3 --connect-timeout 10 --max-time 120 --max-filesize 25000000 \
+            --output "$archive" \
+            'https://github.com/anchore/syft/releases/download/v1.5.0/syft_1.5.0_linux_amd64.tar.gz'
+          # Anchore's v1.5.0 release checksums bind the exact asset before extraction.
+          printf '%s  %s\n' \
+            '3d10023d46dfaf0fe75288df207b478b43597f7d2fff553f58430817166bd478' "$archive" | sha256sum --check --status
+          tar -xzf "$archive" -C "$syft_dir" syft
+          mkdir -p "$RUNNER_TEMP/syft-bin"
+          install -m 0755 "$syft_dir/syft" "$RUNNER_TEMP/syft-bin/syft"
+          printf '%s\n' "$RUNNER_TEMP/syft-bin" >> "$GITHUB_PATH"
       - name: Generate SPDX SBOM
+        shell: bash
+        env:
+          SYFT_CHECK_FOR_APP_UPDATE: 'false'
         run: |
+          set -euo pipefail
           syft . -o spdx-json > sbom.spdx.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("sbom.spdx.json")
+          if not path.is_file() or path.stat().st_size == 0:
+              raise SystemExit("SPDX SBOM missing or empty")
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          if not isinstance(payload, dict) or payload.get("spdxVersion") != "SPDX-2.3":
+              raise SystemExit("SPDX version missing")
+          if payload.get("SPDXID") != "SPDXRef-DOCUMENT":
+              raise SystemExit("SPDX document identifier missing")
+          if not isinstance(payload.get("packages"), list) or not payload["packages"]:
+              raise SystemExit("SPDX packages missing or empty")
+          PY
           echo "SBOM generated: $(wc -l < sbom.spdx.json) lines"
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: sbom-spdx
           path: sbom.spdx.json
+          if-no-files-found: error
           retention-days: 90
     permissions:
       contents: read
-      id-token: write

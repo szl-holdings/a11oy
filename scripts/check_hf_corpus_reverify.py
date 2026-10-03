@@ -292,6 +292,16 @@ def fetch_corpus(cfg, token):
     return records, head
 
 
+def emit_summary(code, report, out_path):
+    """Print and retain a redacted receipt even when the source read fails."""
+    summary = {"guard": "hf-corpus-reverify", "exit": code, "report": report}
+    text = json.dumps(summary, indent=2)
+    print(text)
+    if out_path:
+        with open(out_path, "w", encoding="utf-8") as fh:
+            fh.write(text + "\n")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default=os.path.join(
@@ -306,11 +316,21 @@ def main(argv=None):
 
     try:
         records, head = fetch_corpus(cfg, token)
-    except AuthError as e:
-        print("REVERIFY ERROR — auth: %s" % e)
+    except AuthError:
+        emit_summary(EXIT_ERROR, {
+            "checked": None, "verified": None, "soft_pass": False,
+            "source_state": "UNAVAILABLE",
+            "findings": ["corpus read denied (HTTP 401/403)"],
+        }, args.summary_out)
+        print("REVERIFY ERROR — corpus read denied (HTTP 401/403)")
         return EXIT_ERROR
-    except Unreachable as e:
-        print("REVERIFY ERROR — unreachable: %s" % e)
+    except Unreachable:
+        emit_summary(EXIT_ERROR, {
+            "checked": None, "verified": None, "soft_pass": False,
+            "source_state": "UNAVAILABLE",
+            "findings": ["corpus read unavailable or malformed"],
+        }, args.summary_out)
+        print("REVERIFY ERROR — corpus read unavailable or malformed")
         return EXIT_ERROR
 
     # DOCUMENTED MULTI-KEY TRUST SET: verify each receipt against the key it was
@@ -348,12 +368,7 @@ def main(argv=None):
         quarantine=cfg.get("quarantine"),
     )
     report["pubkey"] = pub_note
-    summary = {"guard": "hf-corpus-reverify", "exit": code, "report": report}
-    text = json.dumps(summary, indent=2)
-    print(text)
-    if args.summary_out:
-        with open(args.summary_out, "w", encoding="utf-8") as fh:
-            fh.write(text + "\n")
+    emit_summary(code, report, args.summary_out)
     if code == EXIT_OK:
         q = report.get("quarantined") or []
         qnote = (" (%d documented orphan(s) quarantined per Incident %s)"

@@ -36,11 +36,13 @@
       <section class="status-grid" aria-label="Observed runtime status">
         <article><p class="eyebrow">Python source</p><p id="source-state">Not observed yet</p><code id="source-sha">—</code><a href="https://github.com/szl-holdings/a11oy">Canonical GitHub ↗</a></article>
         <article><p class="eyebrow">Grok connection</p><p id="grok-state">Not observed yet</p><small id="grok-detail">Configuration is not successful inference.</small></article>
+        <article><p class="eyebrow">Local open-weight model</p><p id="local-state">Not observed yet</p><small id="local-detail">No provider key; this lane is available only from a configured local runtime.</small></article>
+        <article><p class="eyebrow">Public CPU demonstration</p><p id="cpu-state">Not observed yet</p><small id="cpu-detail">Separate SZL Khipu lab; public data only and upstream execution records are unsigned.</small></article>
         <article><p class="eyebrow">HF inventory</p><p id="inventory-state">Not observed yet</p><small id="inventory-detail">Public snapshot, not qualification.</small></article>
       </section>
       <section id="work" class="work panel">
         <div class="section-head"><div><p class="eyebrow">01 · Work</p><h2>Think with Atelier.</h2></div><span class="label">External provider · bounded single turn</span></div>
-        <p class="muted">Grok 4.7 supplies text. SZL controls authentication, policy checks and signed receipts. No tools run here. No server-side conversation history is retained.</p>
+        <p class="muted">Grok 4.7 supplies text. SZL controls authentication, policy checks and signed receipts. No tools run here. Atelier's receipt ledger keeps metadata and content-derived hashes, not prompt or answer text; hashes are not anonymization. <code>store: false</code> disables xAI's stateful history; xAI's separate API audit retention is 30 days by default unless the team has Zero Data Retention.</p>
         <form id="turn-form">
           <label for="operator-key">Atelier operator credential</label>
           <div class="key-row"><input id="operator-key" type="password" autocomplete="off" spellcheck="false" placeholder="Operator credential, not your xAI API key"><button id="forget-key" type="button" class="secondary">Forget</button></div>
@@ -59,10 +61,51 @@
         <details id="receipt-panel" hidden><summary>Inspect outcome and receipt</summary><pre id="receipt"></pre></details>
         <p class="fine">No automatic retries. A timeout can leave provider execution uncertain; check the outcome before sending another request. Encrypted provider reasoning is not displayed or replayed. Energy is UNAVAILABLE without a measured exporter delta.</p>
       </section>
+      <section id="local-work" class="work panel local-work">
+        <div class="section-head"><div><p class="eyebrow">01 · Work · local</p><h2>Think on this computer.</h2></div><span class="label">Open weights · no provider API key</span></div>
+        <p class="muted">A separately configured loopback runtime can use an installed Ollama model without an xAI key. This is not Grok. The public website cannot reach your workstation; this form stays disabled unless its own server reports local configuration ready. The operator credential, policy gate, persistent signer and receipt ledger are still required. Model text is advisory and runs no tools.</p>
+        <form id="local-turn-form">
+          <label for="local-operator-key">Local Atelier operator credential</label>
+          <div class="key-row"><input id="local-operator-key" type="password" autocomplete="off" spellcheck="false" placeholder="Local operator credential"><button id="local-forget-key" type="button" class="secondary">Forget</button></div>
+          <small>Held only in this page’s memory. Never enter a model-provider key here.</small>
+          <label for="local-prompt">What are we working on locally?</label>
+          <textarea id="local-prompt" rows="6" maxlength="32000" required placeholder="Describe one task or ask one question. Do not include secrets or restricted information."></textarea>
+          <div class="controls local-controls">
+            <label>Configured model<input id="local-model" type="text" value="Not configured" readonly></label>
+            <label>Data classification<select id="local-classification"><option>PUBLIC</option><option>INTERNAL</option><option>RESTRICTED</option><option>SECRET</option></select></label>
+            <button id="local-send" type="submit" disabled>Send local request</button>
+          </div>
+        </form>
+        <p id="local-turn-status" role="status" aria-live="polite">No local request has been sent.</p>
+        <div id="local-answer" class="answer" aria-label="Local model answer" hidden></div>
+        <details id="local-receipt-panel" hidden><summary>Inspect local outcome and receipt</summary><pre id="local-receipt"></pre></details>
+        <p class="fine">No automatic retries. Local output is not proof of model quality, factual accuracy or action authority. Configuration readiness is not a successful inference; a completed, signed turn is separate evidence.</p>
+      </section>
+      <section id="cpu-work" class="work panel cpu-work">
+        <div class="section-head"><div><p class="eyebrow">01 · Work · public demonstration</p><h2>Try the SZL CPU lab.</h2></div><span class="label">No provider API key · 32-token ceiling</span></div>
+        <p class="muted">This is a separate, best-effort SZL Khipu 1.5B demonstration, not Grok and not the local Ollama model. Send <strong>public, non-sensitive text only</strong>; do not include personal, regulated or secret data. Atelier still requires its operator credential and policy gate, and signs its own decision and observed outcome. The lab's execution record is <strong>UNSIGNED</strong>, and a signed Atelier receipt does not prove the lab's answer is correct or its remote execution independently attested. The lab permits one concurrent request and may be unavailable.</p>
+        <form id="cpu-turn-form">
+          <label for="cpu-operator-key">Atelier operator credential</label>
+          <div class="key-row"><input id="cpu-operator-key" type="password" autocomplete="off" spellcheck="false" placeholder="Atelier operator credential, not a provider key"><button id="cpu-forget-key" type="button" class="secondary">Forget</button></div>
+          <small>Held only in this page's memory. Never send a provider API key to the public CPU lab.</small>
+          <label for="cpu-prompt">Public question for the CPU lab</label>
+          <textarea id="cpu-prompt" rows="4" maxlength="1200" required placeholder="Ask one short public question. No sensitive information."></textarea>
+          <label class="cpu-public-ack"><input id="cpu-public-ack" type="checkbox" required> I confirm this exact prompt is safe to disclose to the public SZL CPU lab. Automated checks cannot reliably detect all personal, confidential or secret data.</label>
+          <div class="controls cpu-controls">
+            <label>Fixed model<input id="cpu-model" type="text" value="Not configured" readonly></label>
+            <label>Classification<input type="text" value="PUBLIC only" readonly></label>
+            <button id="cpu-send" type="submit" disabled>Send bounded demo request</button>
+          </div>
+        </form>
+        <p id="cpu-turn-status" role="status" aria-live="polite">No CPU lab request has been sent.</p>
+        <div id="cpu-answer" class="answer" aria-label="CPU lab model answer" hidden></div>
+        <details id="cpu-receipt-panel" hidden><summary>Inspect Atelier outcome and unsigned lab record hash</summary><pre id="cpu-receipt"></pre></details>
+        <p class="fine">One request, no automatic retry or tool execution. A timeout can leave the lab outcome uncertain. The upstream lab is a best-effort public demo without an SLA; <a href="https://huggingface.co/spaces/SZLHOLDINGS/szl-model-inference-lab">inspect its independent source and limits</a>.</p>
+      </section>
       <section id="operate"><div class="section-head"><div><p class="eyebrow">02 · Operate</p><h2>Existing tools, connected.</h2></div><span class="label">Navigation is not action authorization</span></div><div id="operate-links" class="link-grid"></div></section>
       <section id="verify"><div class="section-head"><div><p class="eyebrow">03 · Verify</p><h2>Follow the source.</h2></div></div><ol class="release-order"><li>Protected GitHub Python source</li><li>Canonical Hugging Face publication</li><li>Product and proof verification</li></ol><div id="verify-links" class="link-grid"></div><p class="fine">The source reported by this process must be checked against protected GitHub main and the publisher’s byte-attestation receipt. A running Space or HTTP 200 does not prove inference.</p></section>
       <section id="artifacts"><div class="section-head"><div><p class="eyebrow">04 · Artifacts</p><h2>The SZL estate.</h2></div></div><div id="artifact-links" class="link-grid"></div><p class="fine">Existing models, kernels, Spaces and datasets keep their own source bindings. This integration creates no SZL-owned Grok weights or training dataset.</p></section>
-      <section id="study"><div class="section-head"><div><p class="eyebrow">05 · Study</p><h2>Study widely. Build independently.</h2></div><span class="label">Research intake · not deployment admission</span></div><p id="study-summary" class="muted">Research snapshot not observed yet.</p><div id="study-models" class="link-grid"></div><p class="fine">Popularity is not quality. Provider listings are not successful inference. Declared card licenses still need version-specific review. We study cited public work, implement our own interfaces and mathematics, and require held-out evidence before claiming an improvement. Muse identity remains unconfirmed; Jev is advisory, never permission to act.</p><a href="/api/a11oy/v1/command-centre/study">Inspect the full pinned intake and evaluation protocol ↗</a></section>
+      <section id="study"><div class="section-head"><div><p class="eyebrow">05 · Study</p><h2>Study widely. Build independently.</h2></div><span class="label">Research intake · not deployment admission</span></div><p id="study-summary" class="muted">Research snapshot not observed yet.</p><div id="study-models" class="link-grid"></div><p class="fine">Popularity is not quality. Provider listings are not successful inference. Declared card licenses still need version-specific review. We study cited public work, implement our own interfaces and mathematics, and require held-out evidence before claiming an improvement. Muse identity remains unconfirmed; Jev is advisory, never permission to act.</p><a href="/api/a11oy/v1/command-centre/study">Inspect the full pinned intake and evaluation protocol ↗</a><h3>2026-10-02 · no-key open-weight shortlist</h3><div class="link-grid"><a class="link-card" href="https://huggingface.co/Qwen/Qwen3.5-4B/tree/851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"><strong>Qwen3.5-4B · 8 GB study target</strong><span>Apache-2.0 card · exact Hub revision · not downloaded or qualified here</span></a><a class="link-card" href="https://huggingface.co/Qwen/Qwen3.5-9B/tree/c202236235762e1c871ad0ccb60c8ee5ba337b9a"><strong>Qwen3.5-9B · 16 GB study target</strong><span>Apache-2.0 card · exact Hub revision · not downloaded or qualified here</span></a></div><p class="fine">The installed local qwen3:4b-instruct is a separate Ollama artifact. We do not claim it is byte-derived from either Hub checkpoint, and local inference alone does not prove superiority.</p></section>
       <footer>Doctrine v11 · 8 locked-proven formulas · Λ is Conjecture 1, advisory.<br><a href="/atelier">Model walk</a> · <a href="/atelier/frontier">Research workbench</a> · <a href="https://a11oy.net">Proof room</a></footer>
     </main>
   </div>

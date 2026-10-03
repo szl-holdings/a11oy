@@ -1,23 +1,8 @@
 <!doctype html>
 <!-- SPDX-License-Identifier: Apache-2.0
      (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->
-<!--
-  a11oy — front door (scroll narrative). Served at the Space root "/" by serve.py.
-  SOVEREIGN: Three.js r160 (MIT) vendored in-image at /hero/vendor3d. 0 runtime CDN.
-  Fonts (Space Grotesk / JetBrains Mono) vendored at /vendor/fonts/*.woff2.
-  HONESTY DOCTRINE v11 LOCKED — every figure is fetched live and labelled honestly
-  (REACHABLE / MEASURED / MODELED / SNAPSHOT / UNAVAILABLE). Nothing is fabricated. Λ = Conjecture 1 (advisory, NOT a theorem,
-  never 1.0, NEVER green). Locked-proven Lean kernel = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}.
-  The genome registry (144 entries) is grouped into 4 honesty tiers — a different, larger set.
-  Receipt chain integrity and DSSE signing are separate. Signing is claimed only when persistent signer evidence is ACTIVE and verification passes. Read-only routes never mint receipts.
-  DOM/sections owned by Dev 1. The #hero-canvas boot is now a dependency-free WebGL
-  GPU-particle flow field (particle state in a float texture, advected each frame by a
-  curl-noise fragment shader) — no library, 0 CDN. Three.js r160 stays vendored in-image
-  at /hero/vendor3d for the frontier 3D surfaces. Monochrome only. No purple. a-11-oy.com remains the
-  canonical governed-inference product; a11oy.net is a separately attested estate cockpit.
-  © Stephen P. Lutar Jr. (ORCID 0009-0001-0110-4173) · Apache-2.0
--->
-<html lang="en" data-szl-shell-owner="homepage" data-szl-public-experience-v3="true" data-szl-space-holo-v2="true" data-szl-living-command-fabric-v1="true" data-szl-zoom-tier="normal">
+<!-- a11oy product front door. Illustrations are labeled; runtime values remain bound to observed sources. -->
+<html lang="en" data-szl-shell-owner="homepage" data-szl-redesign-v4="true" data-szl-public-experience-v3="true" data-szl-space-holo-v2="true" data-szl-living-command-fabric-v1="true" data-szl-zoom-tier="normal">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -26,16 +11,9 @@
 <link rel="canonical" href="https://a-11-oy.com/" />
 <meta property="og:type" content="website" />
 <meta property="og:url" content="https://a-11-oy.com/" />
-<meta property="og:title" content="a11oy — The Living Command Fabric" />
-<meta property="og:description" content="One governed intelligence fabric. Five public domain bodies. Six internal engines. Eight locked-proven formula bindings. Every consequential action remains evidence-bound, policy-gated and receipt-verifiable." />
-<meta property="og:image" content="https://a-11-oy.com/social-preview-v5.png" />
-<meta property="og:image:type" content="image/png" />
-<meta property="og:image:width" content="1280" />
-<meta property="og:image:height" content="640" />
-<meta property="og:image:alt" content="a11oy — evidence-labelled ecosystem and Anatomy v5" />
-<meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:image" content="https://a-11-oy.com/social-preview-v5.png" />
-<meta name="twitter:image:alt" content="a11oy — evidence-labelled ecosystem and Anatomy v5" />
+<meta property="og:title" content="a11oy — Make AI decisions inspectable" />
+<meta property="og:description" content="Inspect the evidence, policy, decision and receipt path behind governed AI actions." />
+<meta name="twitter:card" content="summary" />
 <link rel="icon" type="image/svg+xml" href="/social-preview-v5.svg" />
 <script type="application/ld+json">
 {
@@ -689,193 +667,504 @@ html[data-szl-zoom-tier="high"] .szl-flow-rail,html[data-szl-zoom-tier="extreme"
 @media(forced-colors:active){.audience-paths a{forced-color-adjust:auto}}
 </style>
 <style id="szl-homepage-shell">
-/* This route owns its shell. Shared assets still enhance the other surfaces. */
+/* Homepage-only visual system. Other product surfaces keep their own shell. */
 html[data-szl-shell-owner="homepage"] {
-  --gold:#c9b787!important;--proof:#5fb3a3!important;--sub:#b3bcb9;--ghost:#a1aaa6;
-  --border:rgba(201,183,135,.22);--szl-flow-accent:#5fb3a3;
-  --szl-holo-accent:#5fb3a3;--szl-holo-accent-2:#c9b787;
-  scroll-padding-top:88px;scroll-padding-bottom:24px;
+  --szl-paper:#F2F0E9;
+  --szl-white:#FBFAF6;
+  --szl-graphite:#111419;
+  --szl-stage:#1A2028;
+  --szl-blue:#8CAFE3;
+  --szl-rule:#D4D2CB;
+  --szl-muted:#59616A;
+  --maxw:1280px;
+  scroll-padding-top:90px;
 }
 html[data-szl-shell-owner="homepage"] body {
-  padding-bottom:0;background:#070b0c!important;
-  background-image:radial-gradient(ellipse at 85% 5%,rgba(95,179,163,.07),transparent 42%)!important;
-  color:#eef1ed!important;font-family:var(--sans);
+  background:var(--szl-paper)!important;
+  background-image:none!important;
+  color:var(--szl-graphite)!important;
+  font-family:var(--sans);
 }
+html[data-szl-shell-owner="homepage"] .wrap {max-width:var(--maxw);padding-inline:32px}
+html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {
+  outline:3px solid #4272B3;outline-offset:4px;
+}
+html[data-szl-shell-owner="homepage"] .skip-link {background:var(--szl-graphite);color:var(--szl-paper)}
 html[data-szl-shell-owner="homepage"] .origin-banner {
-  display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:0 5px;
-  padding:0 24px;min-height:44px;font-size:11px;background:#0c1011;
+  display:flex;align-items:center;justify-content:center;gap:4px 8px;flex-wrap:wrap;
+  min-height:36px;padding:6px 24px;background:#E8E6DF;color:#3C454F;
+  border-bottom:1px solid var(--szl-rule);font:500 11px/1.4 var(--mono);letter-spacing:.01em;
 }
+html[data-szl-shell-owner="homepage"] .origin-banner a {color:#1C3D70;text-underline-offset:3px}
 html[data-szl-shell-owner="homepage"] header.nav {
-  background:rgba(7,11,12,.96)!important;border-color:var(--border)!important;
+  position:sticky;top:0;background:rgba(242,240,233,.96)!important;
+  border-bottom:1px solid var(--szl-rule);backdrop-filter:blur(18px);
 }
-html[data-szl-shell-owner="homepage"] .nav .wrap {height:auto;min-height:68px!important;gap:16px}
-html[data-szl-shell-owner="homepage"] .brand {flex-shrink:0}
-html[data-szl-shell-owner="homepage"] .brand .sub {color:var(--gold)!important;font-size:10px;letter-spacing:.1em}
-html[data-szl-shell-owner="homepage"] .brand svg {filter:none}
-html[data-szl-shell-owner="homepage"] .nav nav a {padding:8px;font-size:12px;border-radius:4px!important}
-html[data-szl-shell-owner="homepage"] .hero {min-height:0!important;align-items:start}
-html[data-szl-shell-owner="homepage"] .hero .wrap {
-  width:100%;padding-top:clamp(32px,4vw,56px)!important;padding-bottom:48px!important;
+html[data-szl-shell-owner="homepage"] .nav .wrap {min-height:72px;height:auto;gap:28px}
+html[data-szl-shell-owner="homepage"] .brand {gap:10px;flex-shrink:0;color:var(--szl-graphite)}
+html[data-szl-shell-owner="homepage"] .brand-mark {
+  display:grid;place-items:center;width:31px;height:31px;border:1px solid var(--szl-graphite);
+  font:700 17px/1 var(--head);letter-spacing:-.1em;
 }
-html[data-szl-shell-owner="homepage"] .hero-inner.nv-copy {max-width:none!important}
-html[data-szl-shell-owner="homepage"] .hero .vision-kicker {
-  margin:0 0 16px;gap:8px 14px;font-size:10px!important;line-height:1.5;letter-spacing:.06em;
+html[data-szl-shell-owner="homepage"] .brand-name {font:700 23px/1 var(--head);letter-spacing:-.055em}
+html[data-szl-shell-owner="homepage"] .brand .sub {
+  display:block;margin:4px 0 0!important;color:#515B67;font:600 9px/1.2 var(--mono);
+  text-transform:uppercase;letter-spacing:.11em;
 }
-html[data-szl-shell-owner="homepage"] .hero .eyebrow {
-  font-size:10px;letter-spacing:.06em!important;padding:6px 10px;margin-bottom:20px;
-  border-color:var(--border)!important;background:rgba(95,179,163,.04)!important;
+html[data-szl-shell-owner="homepage"] .nav nav {gap:3px}
+html[data-szl-shell-owner="homepage"] .nav nav a {
+  min-width:44px;min-height:44px;padding:10px 12px;border-radius:0;
+  color:#333B43;font:600 12px/1.2 var(--sans);letter-spacing:.015em;
 }
-html[data-szl-shell-owner="homepage"] .eyebrow .dot {animation:none;box-shadow:none!important}
+html[data-szl-shell-owner="homepage"] .nav nav a:hover {color:#111419;background:#E7E5DE}
+html[data-szl-shell-owner="homepage"] .nav nav .nav-console {
+  margin-left:10px;padding:11px 16px;border:1px solid var(--szl-graphite);
+  background:var(--szl-graphite);color:var(--szl-paper);
+}
+html[data-szl-shell-owner="homepage"] .nav nav .nav-console:hover {background:#303946;color:#fff}
+html[data-szl-shell-owner="homepage"] .menu-toggle {
+  border:1px solid var(--szl-graphite);border-radius:0;background:transparent;
+  color:var(--szl-graphite);font:600 12px var(--mono);
+}
+html[data-szl-shell-owner="homepage"] .hero {
+  min-height:0!important;display:block;overflow:visible;background:var(--szl-paper);
+}
+html[data-szl-shell-owner="homepage"] .hero::after {content:none!important}
+html[data-szl-shell-owner="homepage"] .hero .wrap {padding-top:clamp(72px,8vw,128px);padding-bottom:clamp(80px,9vw,138px)}
+html[data-szl-shell-owner="homepage"] .hero-grid {
+  display:grid;grid-template-columns:minmax(0,1.04fr) minmax(0,.96fr);
+  align-items:center;gap:clamp(40px,5vw,86px);
+}
+html[data-szl-shell-owner="homepage"] .hero-copy {min-width:0}
+html[data-szl-shell-owner="homepage"] .hero-overline,
+html[data-szl-shell-owner="homepage"] .section-overline {
+  margin:0 0 24px;color:#4D5864;font:600 11px/1.4 var(--mono);
+  letter-spacing:.16em;text-transform:uppercase;
+}
+html[data-szl-shell-owner="homepage"] .hero-overline::before,
+html[data-szl-shell-owner="homepage"] .section-overline::before {
+  content:"";display:inline-block;width:22px;height:1px;margin:0 12px 4px 0;background:currentColor;
+}
+html[data-szl-shell-owner="homepage"] .hero p.hero-overline {color:#4D5864!important;font-size:11px!important}
 html[data-szl-shell-owner="homepage"] .hero h1.title {
-  font-size:clamp(34px,4.2vw,58px)!important;line-height:1.08!important;
-  letter-spacing:-.035em!important;font-weight:600!important;max-width:20ch!important;margin:0 0 20px;
+  max-width:11ch;margin:0 0 30px;color:var(--szl-graphite);
+  font:600 clamp(56px,6.5vw,96px)/.98 var(--head);
+  letter-spacing:-.072em;text-shadow:none;text-wrap:balance;
+  font-size:clamp(56px,6.5vw,96px)!important;line-height:.98!important;
+  letter-spacing:-.072em!important;max-width:11ch!important;text-shadow:none!important;font-weight:600!important;
 }
-html[data-szl-shell-owner="homepage"] .hero h1 .grad {color:var(--gold);font-weight:600}
+html[data-szl-shell-owner="homepage"] .hero h1.title em {
+  color:#354C6B;font-style:normal;
+}
 html[data-szl-shell-owner="homepage"] .hero p.lede {
-  font-size:16px!important;line-height:1.65;max-width:65ch!important;margin:0 0 24px;
+  max-width:48ch;margin:0 0 30px;color:#3C454F;
+  font:400 clamp(17px,1.55vw,21px)/1.55 var(--sans);text-shadow:none;
+  color:#3C454F!important;font-size:clamp(17px,1.55vw,21px)!important;
+  max-width:48ch!important;text-shadow:none!important;
 }
-html[data-szl-shell-owner="homepage"] .cta-row {gap:10px;margin-bottom:28px}
-html[data-szl-shell-owner="homepage"] .btn {
-  padding:11px 15px!important;border-radius:4px!important;font-size:12px;white-space:normal;text-align:center;
+html[data-szl-shell-owner="homepage"] .hero .cta-row {display:flex;align-items:center;gap:16px 24px;flex-wrap:wrap;margin-bottom:0}
+html[data-szl-shell-owner="homepage"] .hero-artifact,
+html[data-szl-shell-owner="homepage"] .text-link {
+  display:inline-flex;align-items:center;justify-content:center;gap:12px;
+  min-height:52px;padding:13px 20px;border:1px solid var(--szl-graphite);
+  color:var(--szl-white);background:var(--szl-graphite);
+  font:600 13px/1.25 var(--mono);letter-spacing:.01em;
+  transition:background .2s ease,transform .2s ease;
 }
-html[data-szl-shell-owner="homepage"] .btn-primary {
-  background:#c9b787!important;color:#111614!important;border-color:#c9b787!important;box-shadow:none!important;
+html[data-szl-shell-owner="homepage"] .hero-artifact:hover,
+html[data-szl-shell-owner="homepage"] .text-link:hover {background:#2C3A4B;transform:translateY(-2px)}
+html[data-szl-shell-owner="homepage"] .hero-tool {
+  display:inline-flex;align-items:center;min-height:52px;border-bottom:1px solid #59616A;
+  color:#283545;font:600 13px/1.3 var(--sans);
 }
-html[data-szl-shell-owner="homepage"] .btn-primary:hover {background:#ddd0ae!important;border-color:#ddd0ae!important}
-html[data-szl-shell-owner="homepage"] .btn-lattice {
-  background:rgba(95,179,163,.06)!important;border-color:#5fb3a3!important;color:#bdE2d9!important;box-shadow:none!important;
+html[data-szl-shell-owner="homepage"] .hero-tool:hover {border-color:#111419}
+html[data-szl-shell-owner="homepage"] .artifact-note {
+  margin:16px 0 0;color:#59616A;font:500 11px/1.6 var(--mono);
 }
-html[data-szl-shell-owner="homepage"] .btn-ghost {color:var(--sub)!important;border-color:var(--border)!important}
-html[data-szl-shell-owner="homepage"] .hero-stats .stat {padding:12px 10px}
-html[data-szl-shell-owner="homepage"] .hero-stats .stat .l {font-size:10px;letter-spacing:.05em;line-height:1.5}
-html[data-szl-shell-owner="homepage"] .nv-panel {
-  background:linear-gradient(150deg,rgba(95,179,163,.06),rgba(201,183,135,.025))!important;
-  border:1px solid var(--border)!important;border-radius:8px!important;box-shadow:0 18px 54px rgba(0,0,0,.16);
+html[data-szl-shell-owner="homepage"] .hero p.artifact-note {color:#59616A!important;font-size:11px!important}
+html[data-szl-shell-owner="homepage"] .specimen-wrap {position:relative;isolation:isolate;padding:24px 0 26px 28px}
+html[data-szl-shell-owner="homepage"] .specimen-wrap::before {
+  content:"";position:absolute;z-index:-2;inset:7% -2% 3% 15%;
+  border:1px solid #8398AF;background:linear-gradient(135deg,#A6BFDF30,#879AAD14);
+  transform:translate(14px,-12px);box-shadow:0 34px 60px -45px #263B59;
 }
-html[data-szl-shell-owner="homepage"] .hero .nv-panel .nv-src {font-size:11px!important;line-height:1.6}
-html[data-szl-shell-owner="homepage"] .hero-scrim {background:linear-gradient(90deg,rgba(7,11,12,.96),rgba(7,11,12,.8))!important}
-html[data-szl-shell-owner="homepage"] #hero-canvas {opacity:.22}
-html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2px solid #c9b787;outline-offset:4px}
-@media(min-width:1101px) {
-  html[data-szl-shell-owner="homepage"] .hero-inner.nv-copy {grid-column:1 / span 8}
-  html[data-szl-shell-owner="homepage"] .nv-panel {grid-column:9 / span 4;margin-top:4px}
+html[data-szl-shell-owner="homepage"] .specimen-wrap::after {
+  content:"";position:absolute;z-index:-1;inset:1% 5% 10% 7%;
+  border:1px solid #9CB7D7;background:#D6E1EC50;transform:translate(-10px,16px);
 }
+html[data-szl-shell-owner="homepage"] .specimen-card {
+  position:relative;min-height:530px;padding:28px;background:var(--szl-graphite);
+  color:#F2F0E9;border:1px solid #3B4552;box-shadow:0 32px 60px -40px #10141B;
+  transition:transform .25s ease,box-shadow .25s ease;
+}
+html[data-szl-shell-owner="homepage"] .specimen-wrap:hover .specimen-card {
+  transform:translateY(-4px);box-shadow:0 42px 72px -40px #10141B;
+}
+html[data-szl-shell-owner="homepage"] .specimen-top,
+html[data-szl-shell-owner="homepage"] .specimen-bottom {
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  color:#ADB9C8;font:600 10px/1.5 var(--mono);letter-spacing:.09em;text-transform:uppercase;
+}
+html[data-szl-shell-owner="homepage"] .specimen-top {padding-bottom:22px;border-bottom:1px solid #39414B}
+html[data-szl-shell-owner="homepage"] .specimen-status {color:var(--szl-blue)}
+html[data-szl-shell-owner="homepage"] .specimen-card h2 {
+  max-width:18ch;margin:28px 0 26px;color:#F2F0E9;
+  font:500 clamp(27px,2.7vw,39px)/1.08 var(--head);letter-spacing:-.045em;
+}
+html[data-szl-shell-owner="homepage"] .specimen-input {
+  margin:0 0 20px;padding:18px;border:1px solid #465362;background:#1D252F;
+}
+html[data-szl-shell-owner="homepage"] .specimen-input span,
+html[data-szl-shell-owner="homepage"] .specimen-row span {
+  display:block;color:#A3AFBF;font:600 10px/1.4 var(--mono);letter-spacing:.1em;text-transform:uppercase;
+}
+html[data-szl-shell-owner="homepage"] .specimen-input strong {
+  display:block;margin-top:9px;color:#EAECEB;font:500 17px/1.35 var(--sans);
+}
+html[data-szl-shell-owner="homepage"] .specimen-row {
+  display:grid;grid-template-columns:98px minmax(0,1fr);gap:10px;
+  align-items:start;padding:11px 2px;border-bottom:1px solid #343E4A;
+}
+html[data-szl-shell-owner="homepage"] .specimen-row b {
+  color:#E1E5E8;font:500 12px/1.45 var(--mono);overflow-wrap:anywhere;
+}
+html[data-szl-shell-owner="homepage"] .specimen-row b.specimen-blocked {color:var(--szl-blue)}
+html[data-szl-shell-owner="homepage"] .specimen-bottom {
+  align-items:flex-start;margin-top:24px;letter-spacing:0;text-transform:none;
+}
+html[data-szl-shell-owner="homepage"] .specimen-bottom a {
+  flex-shrink:0;color:var(--szl-blue);text-decoration:underline;text-underline-offset:4px;
+}
+html[data-szl-shell-owner="homepage"] .workstage {
+  padding:clamp(76px,9vw,132px) 0;background:var(--szl-graphite);color:#F2F0E9;
+}
+html[data-szl-shell-owner="homepage"] .workstage .section-overline,
+html[data-szl-shell-owner="homepage"] .research-band .section-overline {color:var(--szl-blue)}
+html[data-szl-shell-owner="homepage"] .section-heading {
+  display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:60px;
+  align-items:end;margin-bottom:58px;
+}
+html[data-szl-shell-owner="homepage"] .section-heading h2,
+html[data-szl-shell-owner="homepage"] .usecases h2,
+html[data-szl-shell-owner="homepage"] .research-band h2,
+html[data-szl-shell-owner="homepage"] .evidence-intro h2 {
+  margin:0;font:500 clamp(38px,4vw,60px)/1.08 var(--head);letter-spacing:-.055em;
+}
+html[data-szl-shell-owner="homepage"] .section-heading p,
+html[data-szl-shell-owner="homepage"] .usecases-intro,
+html[data-szl-shell-owner="homepage"] .research-intro,
+html[data-szl-shell-owner="homepage"] .evidence-intro p {
+  max-width:56ch;margin:0;color:#ABB6C4;font-size:16px;line-height:1.65;
+}
+html[data-szl-shell-owner="homepage"] .workflow {
+  display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1px;margin:0;padding:1px;
+  list-style:none;background:#45515F;
+}
+html[data-szl-shell-owner="homepage"] .workflow li {
+  min-width:0;min-height:242px;padding:24px 20px;background:#19212A;
+}
+html[data-szl-shell-owner="homepage"] .workflow-index {
+  display:flex;justify-content:space-between;align-items:center;color:var(--szl-blue);
+  font:600 11px var(--mono);letter-spacing:.08em;
+}
+html[data-szl-shell-owner="homepage"] .workflow li:not(:last-child) .workflow-index::after {content:"→";font-size:18px}
+html[data-szl-shell-owner="homepage"] .workflow h3 {
+  margin:44px 0 11px;color:#F2F0E9;font:500 22px/1.15 var(--head);letter-spacing:-.025em;
+}
+html[data-szl-shell-owner="homepage"] .workflow p {margin:0;color:#B7C1CE;font-size:13px;line-height:1.58}
+html[data-szl-shell-owner="homepage"] .workflow-foot {
+  display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:24px 0 0;
+  color:#AAB6C5;font:500 11px/1.5 var(--mono);
+}
+html[data-szl-shell-owner="homepage"] .workflow-foot a {color:var(--szl-blue);text-decoration:underline;text-underline-offset:4px}
+html[data-szl-shell-owner="homepage"] .usecases {
+  padding:clamp(80px,9vw,136px) 0;background:var(--szl-paper);color:var(--szl-graphite);
+}
+html[data-szl-shell-owner="homepage"] .usecases-header {
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.8fr);align-items:end;
+  gap:48px;margin-bottom:56px;
+}
+html[data-szl-shell-owner="homepage"] .usecases-intro {color:#4B5661}
+html[data-szl-shell-owner="homepage"] .story-list {border-top:1px solid #AEB3B5}
+html[data-szl-shell-owner="homepage"] .story-row {
+  display:grid;grid-template-columns:82px minmax(0,.7fr) minmax(0,1fr) 122px;
+  align-items:start;gap:24px;padding:32px 0;border-bottom:1px solid #B9BCBA;
+}
+html[data-szl-shell-owner="homepage"] .story-number {color:#566371;font:600 12px var(--mono)}
+html[data-szl-shell-owner="homepage"] .story-row h3 {
+  margin:0 0 8px;font:500 clamp(24px,2.5vw,34px)/1.15 var(--head);letter-spacing:-.04em;
+}
+html[data-szl-shell-owner="homepage"] .story-tag {
+  color:#4E5D6B;font:600 10px/1.5 var(--mono);letter-spacing:.06em;text-transform:uppercase;
+}
+html[data-szl-shell-owner="homepage"] .story-row p {max-width:54ch;margin:0;color:#414B54;font-size:15px;line-height:1.6}
+html[data-szl-shell-owner="homepage"] .story-row a {
+  display:inline-flex;justify-content:flex-end;align-items:center;min-height:44px;
+  color:#1D416A;font:600 12px var(--mono);text-decoration:underline;text-underline-offset:4px;
+}
+html[data-szl-shell-owner="homepage"] .research-band {
+  padding:clamp(78px,8vw,122px) 0;background:#E4E9EC;color:var(--szl-graphite);
+  border-top:1px solid #CCD3D7;border-bottom:1px solid #CCD3D7;
+}
+html[data-szl-shell-owner="homepage"] .research-grid {
+  display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:clamp(42px,6vw,96px);
+}
+html[data-szl-shell-owner="homepage"] .research-band .section-overline {color:#345A8A}
+html[data-szl-shell-owner="homepage"] .research-intro {margin-top:24px;color:#43505C}
+html[data-szl-shell-owner="homepage"] .research-links {border-top:1px solid #A8B6C0}
+html[data-szl-shell-owner="homepage"] .research-links a {
+  display:flex;justify-content:space-between;align-items:center;gap:16px;min-height:74px;
+  border-bottom:1px solid #A8B6C0;color:#152333;font:500 17px/1.35 var(--head);
+}
+html[data-szl-shell-owner="homepage"] .research-links a:hover {padding-left:6px;color:#1C4D85}
+html[data-szl-shell-owner="homepage"] .research-links span {font:600 10px var(--mono);color:#506575;text-transform:uppercase}
+html[data-szl-shell-owner="homepage"] .deep-record {
+  --ink:#F2F0E9;--sub:#B1BCC9;--ghost:#93A2B2;--proof:#8CAFE3;
+  --lattice:#B7C9E2;--gold:#F2F0E9;--border:#3B4652;
+  --deep:#171E26;--surface:#1E2731;
+  background:var(--szl-graphite);color:var(--ink);
+}
+html[data-szl-shell-owner="homepage"] .deep-record .kick {color:var(--szl-blue)}
+html[data-szl-shell-owner="homepage"] .deep-record :where(.card,.tier,.vcard,.leg,.body-card,.organ-cell,.pulse-card,.estate-cell) {
+  border-color:#3D4A58;
+}
+html[data-szl-shell-owner="homepage"] .evidence-intro {
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.9fr);gap:48px;
+  align-items:end;margin-bottom:36px;
+}
+html[data-szl-shell-owner="homepage"] .evidence-intro p {color:#B8C3D0}
+html[data-szl-shell-owner="homepage"] .evidence-overview {padding-top:100px;padding-bottom:100px}
+html[data-szl-shell-owner="homepage"] .evidence-grid {
+  display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:28px;align-items:start;
+}
+html[data-szl-shell-owner="homepage"] .evidence-signal {
+  padding:28px;border:1px solid #3C4A59;background:#1A222C;
+}
+html[data-szl-shell-owner="homepage"] .evidence-signal h3 {
+  margin:0 0 12px;font:500 25px/1.2 var(--head);letter-spacing:-.035em;
+}
+html[data-szl-shell-owner="homepage"] .evidence-signal p {margin:0 0 22px;color:#B1BDCB;font-size:14px;line-height:1.6}
+html[data-szl-shell-owner="homepage"] .evidence-signal a {color:var(--szl-blue);text-decoration:underline;text-underline-offset:4px}
+html[data-szl-shell-owner="homepage"] .evidence-overview .nv-panel {
+  margin:0;background:#1D2630;border:1px solid #48586A;border-radius:0;
+  box-shadow:none;grid-column:auto;
+}
+html[data-szl-shell-owner="homepage"] .evidence-overview .hero-stats {
+  margin-top:22px;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;
+  border:1px solid #465262;background:#465262;
+}
+html[data-szl-shell-owner="homepage"] .evidence-overview .stat {
+  padding:16px 14px;border:0;border-radius:0;background:#1B232D;
+}
+html[data-szl-shell-owner="homepage"] .evidence-overview .stat .k {color:#E7ECEF}
+html[data-szl-shell-owner="homepage"] .evidence-overview .stat .k.gray {color:#BAC5D2}
+html[data-szl-shell-owner="homepage"] .evidence-overview .stat .l {color:#BAC5D2;line-height:1.45}
+html[data-szl-shell-owner="homepage"] .evidence-overview .stat-note {color:#A9B7C7}
+html[data-szl-shell-owner="homepage"] .evidence-overview .stat a {color:var(--szl-blue)}
+html[data-szl-shell-owner="homepage"] .company-band {
+  padding:84px 0;border-top:1px solid #3B4652;border-bottom:1px solid #3B4652;
+}
+html[data-szl-shell-owner="homepage"] .company-band .wrap {
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:72px;
+}
+html[data-szl-shell-owner="homepage"] .company-band h2 {
+  margin:0;font:500 clamp(34px,3.5vw,52px)/1.1 var(--head);letter-spacing:-.05em;
+}
+html[data-szl-shell-owner="homepage"] .company-band p {margin:0 0 20px;color:#B6C1CE;line-height:1.65}
+html[data-szl-shell-owner="homepage"] .company-band a {color:var(--szl-blue);text-decoration:underline;text-underline-offset:4px}
+html[data-szl-shell-owner="homepage"] footer {
+  background:#0D1015;color:#F2F0E9;border-top:1px solid #38404B;
+}
+html[data-szl-shell-owner="homepage"] footer .brand {color:#F2F0E9}
+html[data-szl-shell-owner="homepage"] footer .brand .sub {color:#B4C2D2}
 @media(max-width:1100px) {
-  html[data-szl-shell-owner="homepage"] header.nav.nav-open {position:relative;top:auto}
-  html[data-szl-shell-owner="homepage"] .nav .wrap {position:relative;flex-wrap:wrap;padding-inline:20px;gap:0}
-  html[data-szl-shell-owner="homepage"] .nav .brand {flex:1;min-width:0;max-width:calc(100% - 64px)}
-  html[data-szl-shell-owner="homepage"] .nav .brand .sub {white-space:normal;line-height:1.3;max-width:180px}
-  html[data-szl-shell-owner="homepage"] .menu-toggle {display:inline-flex;position:static;margin-left:auto;flex:0 0 48px}
+  html[data-szl-shell-owner="homepage"] .nav .wrap {position:relative;padding-inline:24px;min-height:68px}
+  html[data-szl-shell-owner="homepage"] .menu-toggle {display:inline-flex;margin-left:auto;min-width:48px}
   html[data-szl-shell-owner="homepage"] .nav #site-nav {display:none}
-  html[data-szl-shell-owner="homepage"] .nav.nav-open #site-nav {
-    display:flex;position:static;flex:1 0 100%;width:100%;max-height:60vh;overflow-y:auto;
-    padding:8px 0 16px;gap:4px;background:transparent;border:0;
+  html[data-szl-shell-owner="homepage"] header.nav.nav-open #site-nav {
+    position:absolute;display:flex;flex-direction:column;align-items:stretch;
+    top:100%;left:0;right:0;margin:0;padding:10px 24px 20px;
+    background:var(--szl-paper);border-bottom:1px solid var(--szl-rule);
+    box-shadow:0 22px 32px -28px #111419;
   }
-  html[data-szl-shell-owner="homepage"] .nav.nav-open #site-nav a {min-height:44px;justify-content:flex-start}
+  html[data-szl-shell-owner="homepage"] header.nav.nav-open #site-nav a {
+    display:flex;justify-content:flex-start;min-height:48px;max-width:none;
+    margin:0;padding:10px 12px;color:#111419;
+  }
+  html[data-szl-shell-owner="homepage"] header.nav.nav-open #site-nav .nav-console {color:#F2F0E9}
+  html[data-szl-shell-owner="homepage"] .hero-grid {grid-template-columns:1fr;gap:56px}
+  html[data-szl-shell-owner="homepage"] .hero h1.title {max-width:13ch}
+  html[data-szl-shell-owner="homepage"] .specimen-wrap {max-width:700px}
+  html[data-szl-shell-owner="homepage"] .workflow {grid-template-columns:repeat(3,minmax(0,1fr))}
+  html[data-szl-shell-owner="homepage"] .workflow li {min-height:208px}
+  html[data-szl-shell-owner="homepage"] .evidence-grid {grid-template-columns:1fr}
 }
 @media(max-width:760px) {
-  html[data-szl-shell-owner="homepage"] .origin-banner {padding:6px 20px;font-size:10px;line-height:1.5}
-  html[data-szl-shell-owner="homepage"] .hero .wrap {padding-top:28px!important;padding-bottom:36px!important}
-  html[data-szl-shell-owner="homepage"] .hero h1.title {font-size:clamp(32px,8.7vw,48px)!important;max-width:20ch!important}
-  html[data-szl-shell-owner="homepage"] .hero p.lede {font-size:15px!important}
-  html[data-szl-shell-owner="homepage"] .hero .vision-kicker span {min-height:20px;padding-block:2px}
-  html[data-szl-shell-owner="homepage"] .hero .eyebrow {font-size:9px;line-height:1.5;letter-spacing:.02em!important}
-  html[data-szl-shell-owner="homepage"] .cta-row {display:grid;grid-template-columns:1fr 1fr}
-  html[data-szl-shell-owner="homepage"] .cta-row .btn:last-child {grid-column:1 / -1}
-  html[data-szl-shell-owner="homepage"] .nv-panel {margin-top:8px}
+  html[data-szl-shell-owner="homepage"] .wrap,
+  html[data-szl-shell-owner="homepage"] .nav .wrap {padding-inline:22px}
+  html[data-szl-shell-owner="homepage"] .origin-banner {padding:8px 20px;font-size:10px}
+  html[data-szl-shell-owner="homepage"] .hero .wrap {padding-top:68px;padding-bottom:82px}
+  html[data-szl-shell-owner="homepage"] .hero h1.title {font-size:clamp(50px,12vw,76px)!important;max-width:12ch!important}
+  html[data-szl-shell-owner="homepage"] .hero p.lede {font-size:17px!important}
+  html[data-szl-shell-owner="homepage"] .specimen-wrap {padding:15px 10px 17px 14px}
+  html[data-szl-shell-owner="homepage"] .specimen-card {min-height:0;padding:23px}
+  html[data-szl-shell-owner="homepage"] .specimen-bottom {flex-wrap:wrap}
+  html[data-szl-shell-owner="homepage"] .section-heading,
+  html[data-szl-shell-owner="homepage"] .usecases-header,
+  html[data-szl-shell-owner="homepage"] .research-grid,
+  html[data-szl-shell-owner="homepage"] .evidence-intro,
+  html[data-szl-shell-owner="homepage"] .company-band .wrap {grid-template-columns:1fr;gap:22px}
+  html[data-szl-shell-owner="homepage"] .section-heading {margin-bottom:36px}
+  html[data-szl-shell-owner="homepage"] .workflow {grid-template-columns:1fr}
+  html[data-szl-shell-owner="homepage"] .workflow li {min-height:0;padding:22px}
+  html[data-szl-shell-owner="homepage"] .workflow li:not(:last-child) .workflow-index::after {content:"↓"}
+  html[data-szl-shell-owner="homepage"] .workflow h3 {margin-top:22px}
+  html[data-szl-shell-owner="homepage"] .story-row {grid-template-columns:38px minmax(0,1fr);gap:10px 12px;padding:26px 0}
+  html[data-szl-shell-owner="homepage"] .story-row p,
+  html[data-szl-shell-owner="homepage"] .story-row a {grid-column:2}
+  html[data-szl-shell-owner="homepage"] .story-row a {justify-content:flex-start}
+  html[data-szl-shell-owner="homepage"] .evidence-overview {padding-top:80px;padding-bottom:80px}
+  html[data-szl-shell-owner="homepage"] .evidence-overview .hero-stats {grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:480px) {
+  html[data-szl-shell-owner="homepage"] .hero .cta-row {display:block}
+  html[data-szl-shell-owner="homepage"] .hero-artifact {display:flex;width:100%;min-height:52px}
+  html[data-szl-shell-owner="homepage"] .hero-tool {margin-top:8px}
+  html[data-szl-shell-owner="homepage"] .specimen-row {grid-template-columns:80px minmax(0,1fr)}
+  html[data-szl-shell-owner="homepage"] .specimen-card h2 {font-size:29px}
 }
 @media(prefers-reduced-motion:reduce) {
-  html[data-szl-shell-owner="homepage"] *,html[data-szl-shell-owner="homepage"] *::before,
-  html[data-szl-shell-owner="homepage"] *::after {animation:none!important;transition:none!important}
+  html[data-szl-shell-owner="homepage"] *,
+  html[data-szl-shell-owner="homepage"] *::before,
+  html[data-szl-shell-owner="homepage"] *::after {
+    scroll-behavior:auto!important;animation:none!important;transition:none!important;
+  }
+  html[data-szl-shell-owner="homepage"] .specimen-wrap:hover .specimen-card,
+  html[data-szl-shell-owner="homepage"] .hero-artifact:hover {transform:none}
 }
 @media(forced-colors:active) {
-  html[data-szl-shell-owner="homepage"] .btn {forced-color-adjust:auto;border:1px solid ButtonText!important}
+  html[data-szl-shell-owner="homepage"] .specimen-card,
+  html[data-szl-shell-owner="homepage"] .workflow li,
+  html[data-szl-shell-owner="homepage"] .hero-artifact {border:1px solid CanvasText}
 }
 </style></head>
 <body>
 <a class="skip-link" href="#main">Skip to main content</a>
 
-<!-- audit 2026-08-30: origin disambiguation banner (static, slim). This origin = product; receipts, spec and conformance = a11oy.net. Never the colliding a11oy&#46;com brand (entity-encoded per the identity-lock gate). -->
 <div class="origin-banner" role="note">
-  a-11-oy.com is the product surface — receipts, spec and conformance live at
-  <a href="https://a11oy.net" target="_blank" rel="noopener">a11oy.net</a>.
+  Product: a-11-oy.com <span aria-hidden="true">/</span>
+  Proof index: <a href="https://a11oy.net" rel="noopener">a11oy.net</a>
 </div>
 
-<!-- ============================ NAV ============================ -->
 <header class="nav">
   <div class="wrap">
     <a class="brand" href="/" aria-label="a11oy home">
-      <svg width="30" height="30" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e8e8ea"/></linearGradient></defs>
-        <circle cx="16" cy="16" r="13" stroke="url(#lg)" stroke-width="2"/>
-        <circle cx="16" cy="16" r="5" fill="url(#lg)"/>
-        <path d="M16 3v8M16 21v8M3 16h8M21 16h8" stroke="url(#lg)" stroke-width="1.6" opacity=".7"/>
-      </svg>
-      <span>a11oy<span class="sub" style="margin-left:9px">Living Command Fabric</span></span>
+      <span class="brand-mark" aria-hidden="true">a.</span>
+      <span><span class="brand-name">a11oy</span><span class="sub">SZL Holdings / software &amp; research</span></span>
     </a>
-    <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Open menu" aria-controls="site-nav" aria-expanded="false">☰</button>
+    <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Open menu" aria-controls="site-nav" aria-expanded="false">Menu</button>
     <nav class="nav-links" id="site-nav" aria-label="Primary navigation">
-      <a class="hide-sm" href="#products">Products</a>
-      <a class="hide-sm" href="/lyte">LYTE</a>
-      <a href="/holographic">Holo</a>
-      <a href="/frontier-now">Frontier</a>
-      <a href="/immune">IMMUNE</a>
-      <a class="hide-sm" href="/trust">Evidence</a>
-      <a class="hide-sm" href="https://a11oy.net" target="_blank" rel="noopener noreferrer">Proof registry ↗</a>
-      <a class="btn btn-primary" href="/console" aria-label="Open the command center"><span class="nav-cta-full">Command</span><span class="nav-cta-short" aria-hidden="true">Command center</span> →</a>
+      <a href="#platform">Platform</a>
+      <a href="#use-cases">Use cases</a>
+      <a href="#research">Research</a>
+      <a href="#evidence">Evidence</a>
+      <a href="#company">Company</a>
+      <a class="nav-console" href="/console"><span class="nav-cta-full">Command</span><span class="nav-cta-short">Console</span> <span aria-hidden="true">↗</span></a>
     </nav>
   </div>
 </header>
 <main id="main">
 
-<!-- ====================== (1) HERO — canvas + boot owned by Dev 2 ====================== -->
-<section class="hero">
-  <canvas id="hero-canvas"></canvas>
-  <div class="hero-scrim" aria-hidden="true"></div>
-  <div class="hero-fallback" id="hero-fallback"></div>
-  <div class="wrap">
-   <div class="nv-grid">
-    <div class="hero-inner nv-copy">
-      <p class="vision-kicker" aria-label="One fabric, five public domain bodies, eight locked formula bindings">
-        <span>ONE FABRIC</span><span>FIVE PUBLIC DOMAIN BODIES</span><span>EIGHT LOCKED FORMULA BINDINGS</span>
-      </p>
-      <span class="eyebrow"><span class="dot"></span> Policy-gated · evidence-bound · offline-verifiable</span>
-      <!-- audit 2026-08-30: single buyer sentence as the hero (estate audit first-fold fix) -->
-      <h1 class="title">Governed AI actions. <span class="grad">Receipts you can verify.</span></h1>
-      <p class="lede">Inspect governed state changes as hash-chained receipts. <b>Check a supplied receipt in the public verifier</b>.
-        The interface says <b>SIGNED</b> only when persistent signer evidence is active and verification passes;
-        otherwise it reports HASH-LINKED, UNSIGNED, DISABLED, or UNAVAILABLE.
-        A policy denial remains <b>BLOCKED</b>.</p>
-      <!-- audit 2026-08-30: exactly three buyer CTAs. The mailto reuses the existing contact address already published in pages/pricing.html. -->
+<section class="hero" aria-labelledby="hero-title">
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <p class="hero-overline">A11OY / GOVERNED INTELLIGENCE</p>
+      <h1 class="title" id="hero-title">Make AI decisions <em>inspectable.</em></h1>
+      <p class="lede">A request enters with its evidence. Policy can stop it. A decision keeps its reasons, and a written change can carry a receipt someone else can check.</p>
       <div class="cta-row">
-        <a class="btn btn-primary" href="/verify">Verify a receipt</a>
-        <a class="btn btn-lattice" href="https://github.com/szl-holdings/governed-receipt-spec" target="_blank" rel="noopener">Read the spec</a>
-        <a class="btn btn-ghost" href="mailto:hello@a-11-oy.com?subject=Evidence%20pilot">Book an evidence pilot</a>
+        <a class="hero-artifact" href="https://github.com/szl-holdings/a11oy/blob/de4b748a2e34b0c592b35ef205360dfa34b6555c/examples/offline-verify-sample/bundle.json" rel="noopener">Inspect the sample receipt <span aria-hidden="true">↗</span></a>
+        <a class="hero-tool" href="/verify">Verify a receipt</a>
       </div>
-      <div class="hero-stats">
-        <div class="stat">
-          <div class="k proof" id="hs-receipts">—</div>
-          <div class="l">Receipts in the chain <span id="hs-receipts-chip"></span><br><span class="stat-note">ledger depth — a mechanism check, not customer traction <span id="hs-receipts-hist"></span></span></div>
-        </div>
-        <div class="stat">
-          <div class="k gray" id="hs-lambda">Conjecture 1</div>
-          <div class="l">Λ trust gate · advisory bound</div>
-        </div>
-        <div class="stat">
-          <div class="k" id="hs-proven">8</div>
-          <div class="l">Locked Lean-proven theorems<br><span class="stat-note">a proof of rigor, not a traction number</span></div>
-        </div>
-        <div class="stat" id="overclaim-counter">
-          <div class="k gray" id="hs-overclaims">—</div>
-          <div class="l">Overclaims caught by CI <span id="hs-overclaims-chip"><span class="chip gray" style="margin-left:6px"><span class="dot"></span>SAMPLE · STALE SNAPSHOT 2026-07-25 · SOURCE UNAVAILABLE</span></span><br><span class="stat-note">Observed correction time (<span id="hs-overclaim-sample">source unavailable</span>): <span id="hs-overclaim-time">—</span> · <a href="https://github.com/szl-holdings/platform/blob/main/docs/OVERCLAIM_LEDGER.md">open ledger</a></span></div>
-        </div>
-      </div>
+      <p class="artifact-note">SAMPLE · committed offline fixture · ephemeral demonstration key</p>
     </div>
+    <aside class="specimen-wrap" aria-label="Illustrative decision path">
+      <div class="specimen-card">
+        <div class="specimen-top"><span>MODELED SPECIMEN / illustrative</span><span class="specimen-status">not live</span></div>
+        <h2>A decision, with its reasons attached.</h2>
+        <div class="specimen-input"><span>INPUT / proposed action</span><strong>“May this change proceed?”</strong></div>
+        <div class="specimen-row"><span>Policy</span><b>Human approval required</b></div>
+        <div class="specimen-row"><span>Decision</span><b class="specimen-blocked">BLOCKED pending approval</b></div>
+        <div class="specimen-row"><span>Receipt</span><b>No write; no receipt minted</b></div>
+        <div class="specimen-row"><span>Check</span><b>Supply a receipt to verify independently</b></div>
+        <div class="specimen-bottom"><span>Illustrative states; separate from the sample fixture.</span><a href="https://github.com/szl-holdings/a11oy/blob/de4b748a2e34b0c592b35ef205360dfa34b6555c/docs/verify-offline.md" rel="noopener">Read verification steps ↗</a></div>
+      </div>
+    </aside>
+  </div>
+</section>
 
-    <!-- Instrument panel — the live receipt / attest read.
-         Every row ships as UNAVAILABLE and is only overwritten by a value this
-         request actually returned. Nothing here is fabricated or cached. -->
+<section class="workstage" id="platform" aria-labelledby="platform-title">
+  <div class="wrap">
+    <p class="section-overline">THE PLATFORM / A CHECKABLE PATH</p>
+    <div class="section-heading">
+      <h2 id="platform-title">From request to a reason you can inspect.</h2>
+      <p>Each stage names the source of authority. A read does not create a receipt; a state change can be recorded only after its gates are met.</p>
+    </div>
+    <ol class="workflow">
+      <li><span class="workflow-index">01 / INPUT</span><h3>Input</h3><p>Attach the request and available source evidence. Missing evidence remains visible.</p></li>
+      <li><span class="workflow-index">02 / POLICY</span><h3>Policy</h3><p>Apply doctrine, scope, and human authority before an action proceeds.</p></li>
+      <li><span class="workflow-index">03 / DECISION</span><h3>Decision</h3><p>Return the outcome and reasons, including an explicit BLOCKED state.</p></li>
+      <li><span class="workflow-index">04 / RECEIPT</span><h3>Receipt</h3><p>Record a governed write in a hash chain. Integrity and signer state stay separate.</p></li>
+      <li><span class="workflow-index">05 / CHECK</span><h3>Independent check</h3><p>Use a supplied bundle and the offline verifier to examine the disclosed record.</p></li>
+    </ol>
+    <p class="workflow-foot"><span>WORKFLOW DIAGRAM · conceptual, not a live transaction</span><a href="/trust">Read the trust contract ↗</a></p>
+  </div>
+</section>
+
+<section class="usecases" id="use-cases" aria-labelledby="use-cases-title">
+  <div class="wrap">
+    <p class="section-overline">SOFTWARE / INTERFACES / RESEARCH</p>
+    <div class="usecases-header">
+      <h2 id="use-cases-title">One discipline across different surfaces.</h2>
+      <p class="usecases-intro">These are distinct views and research paths. Their links expose the current surface; opening one does not establish model readiness or operational status.</p>
+    </div>
+    <div class="story-list">
+      <article class="story-row"><span class="story-number">01</span><div><h3>Second Brain</h3><span class="story-tag">RESEARCH SURFACE</span></div><p>Retrieves evidence handles for a proposal and abstains when retrieval misses. Production certification is not implied.</p><a href="/brain">Explore evidence handles ↗</a></article>
+      <article class="story-row"><span class="story-number">02</span><div><h3>Living Anatomy</h3><span class="story-tag">ENGINEERING VIEW</span></div><p>Maps the system as shared organs and gates. The anatomy is an interface metaphor, not a live health reading.</p><a href="/living-anatomy">Explore the map ↗</a></article>
+      <article class="story-row"><span class="story-number">03</span><div><h3>Holographic</h3><span class="story-tag">VISUAL INTERFACE</span></div><p>Places evidence and system relationships in a spatial view. Motion and depth do not prove agent activity.</p><a href="/holographic">Open spatial view ↗</a></article>
+      <article class="story-row"><span class="story-number">04</span><div><h3>Killinchu</h3><span class="story-tag">SIMULATED EFFECTS</span></div><p>Supports observation and decision rehearsal with human authority. Effectors remain simulated on this surface.</p><a href="/killinchu">Open the surface ↗</a></article>
+    </div>
+  </div>
+</section>
+
+<section class="research-band" id="research" aria-labelledby="research-title">
+  <div class="wrap research-grid">
+    <div>
+      <p class="section-overline">RESEARCH / THE CLAIM BOUNDARY</p>
+      <h2 id="research-title">The math is readable. The limits are too.</h2>
+      <p class="research-intro">The locked Lean results prove narrow kernel properties. They do not by themselves prove receipt replay integrity or a deployment’s readiness. Unconditional Λ uniqueness remains Conjecture 1.</p>
+    </div>
+    <div class="research-links" aria-label="Research and source links">
+      <a href="https://github.com/szl-holdings/lutar-lean" rel="noopener">Lean proof source <span>OPEN ↗</span></a>
+      <a href="https://github.com/szl-holdings/a11oy" rel="noopener">Product source and tests <span>OPEN ↗</span></a>
+      <a href="/trust">Trust center and claim status <span>OPEN ↗</span></a>
+      <a href="https://a11oy.net" rel="noopener">Separate proof index · a11oy.net <span>OPEN ↗</span></a>
+    </div>
+  </div>
+</section>
+
+<div class="deep-record">
+<section class="evidence-overview wrap" id="evidence" aria-labelledby="evidence-title">
+  <p class="section-overline" style="color:#8CAFE3">EVIDENCE / THIS SESSION</p>
+  <div class="evidence-intro">
+    <h2 id="evidence-title">Read the observed state.</h2>
+    <p>The instrument below starts UNAVAILABLE and changes only when its read-only sources answer. Reachability, receipt-chain integrity, and signer verification are separate claims.</p>
+  </div>
+  <div class="evidence-grid">
+    <div class="evidence-signal">
+      <h3>Evidence before status.</h3>
+      <p>Runtime values are context, not customer metrics. A failed probe stays visible. A supplied receipt belongs in the verifier, while the independent RECORD index stays at a11oy.net.</p>
+      <a href="/api/a11oy/v1/honest">Open honest status JSON ↗</a>
+    </div>
     <aside class="nv-panel" id="nv-panel" aria-label="Runtime instrument panel">
       <div class="nv-head">
         <span class="nv-eyebrow">Runtime · instrument</span>
@@ -904,8 +1193,25 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
         Receipt records · signer state separate. SIGNED is written only when the attestation
         API reports a signature that is both present and verified.</p>
     </aside>
-   </div>
   </div>
+  <div class="hero-stats">
+        <div class="stat">
+          <div class="k proof" id="hs-receipts">—</div>
+          <div class="l">Receipts in the chain <span id="hs-receipts-chip"></span><br><span class="stat-note">ledger depth — a mechanism check, not customer traction <span id="hs-receipts-hist"></span></span></div>
+        </div>
+        <div class="stat">
+          <div class="k gray" id="hs-lambda">Conjecture 1</div>
+          <div class="l">Λ trust gate · advisory bound</div>
+        </div>
+        <div class="stat">
+          <div class="k" id="hs-proven">8</div>
+          <div class="l">Locked Lean-proven theorems<br><span class="stat-note">a proof of rigor, not a traction number</span></div>
+        </div>
+        <div class="stat" id="overclaim-counter">
+          <div class="k gray" id="hs-overclaims">—</div>
+          <div class="l">Overclaims caught by CI <span id="hs-overclaims-chip"><span class="chip gray" style="margin-left:6px"><span class="dot"></span>SAMPLE · STALE SNAPSHOT 2026-07-25 · SOURCE UNAVAILABLE</span></span><br><span class="stat-note">Observed correction time (<span id="hs-overclaim-sample">source unavailable</span>): <span id="hs-overclaim-time">—</span> · <a href="https://github.com/szl-holdings/platform/blob/main/docs/OVERCLAIM_LEDGER.md">open ledger</a></span></div>
+        </div>
+      </div>
 </section>
 
 <!-- ====================== (1b) HONESTY STRIP ====================== -->
@@ -1017,6 +1323,7 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
       <div class="lam"><span class="val" id="v-core">—</span><span class="cap">advisory Λ</span><span id="v-core-chip"></span></div>
       <div class="golinks">
         <a class="go" href="/console">Open /console →</a>
+        <a class="go" href="/civilian/" aria-label="Open the read-only Civilian Observatory">Civilian evidence →</a>
         <a class="go" href="https://huggingface.co/spaces/SZLHOLDINGS/a11oy" rel="noopener">Space →</a>
       </div>
     </article>
@@ -1277,7 +1584,15 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
 <a href="/static/3d/holographic.html" aria-label="Open the A11oy operator experience"><span>Users and operators</span><strong>Run the governed experience</strong><small>Explore evidence-labelled operational surfaces and defensive workbenches.</small></a>
 <a href="https://github.com/szl-holdings/a11oy" target="_blank" rel="noopener" aria-label="Open the A11oy source repository"><span>Developers</span><strong>Inspect source and contracts</strong><small>Review APIs, tests, deployment authority, and reproducible evidence.</small></a>
 <a href="https://a11oy.net/status/" target="_blank" rel="noopener" aria-label="Open the independently attested estate status"><span>Investors and diligence</span><strong>Verify operating status</strong><small>Separate observed deployment evidence from modeled claims and roadmap work.</small></a>
-</div></section></main>
+</div></section>
+<section class="company-band" id="company" aria-labelledby="company-title">
+  <div class="wrap">
+    <div><p class="section-overline" style="color:#8CAFE3">SZL HOLDINGS / COMPANY</p><h2 id="company-title">Software, math, and research under one evidence standard.</h2></div>
+    <div><p>SZL publishes product source, research, and a separate proof index so a visitor can inspect each claim at its own level. A product route, source repository, and independently maintained RECORD answer different questions.</p><a href="https://github.com/szl-holdings" rel="noopener">Explore SZL source ↗</a></div>
+  </div>
+</section>
+</div>
+</main>
 <footer>
   <div class="wrap">
     <div class="cols">
@@ -1296,14 +1611,16 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
         <p class="muted" style="margin:12px 0 0">Not affiliated with a11oy&#46;com.</p>
       </div>
       <div class="lk"><strong style="color:var(--ink)">Products</strong>
-        <a href="/console">a11oy Command</a>
+        <a href="/console" aria-label="Open the command center"><span>Command center</span> →</a>
+        <a href="/holographic">Holo</a>
+        <a href="/frontier-now">Frontier</a>
         <a href="/killinchu">killinchu · vertical</a>
         <a href="https://huggingface.co/collections/SZLHOLDINGS/szl-flagship-models-6a9315c1c853da528726dd8d" rel="noopener">Forge / own-metal</a>
         <a href="/lyte">LYTE lattice · BIND package</a>
         <a href="/five-space">Five-space operator · BIND package</a>
         <a href="/verify">Verify a receipt</a></div>
       <div class="lk"><strong style="color:var(--ink)">Evidence</strong>
-        <a href="https://a11oy.net" rel="noopener">Proof registry · a11oy.net</a>
+        <a href="https://a11oy.net" rel="noopener">Proof registry ↗</a>
         <a href="/trust">Trust center</a>
         <a href="/api/a11oy/v1/ledger">Receipt ledger</a>
         <a href="/api/a11oy/v1/honest">Honest status (JSON)</a>
@@ -1339,351 +1656,6 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
   "three": "/hero/vendor3d/three.module.min.js",
   "three/addons/": "/hero/vendor3d/"
 } }
-</script>
-
-<!-- ===================== HERO BOOT — GPU PARTICLE FLOW FIELD =====================
-  "Compute you can see." A real GPU particle system: N particle states live in a
-  floating-point texture; every frame a fragment shader advects each particle
-  through a divergence-free curl-noise flow field and writes the new state to a
-  ping-ponged texture. A second pass reads that texture in the VERTEX shader
-  (vertex texture fetch) and draws one small white point per particle, additively,
-  over a trail buffer that is faded each frame.
-
-  Technique adapted from the public-domain state-in-a-texture GPU particle
-  approach demonstrated by skeeto/webgl-particles (https://github.com/skeeto/webgl-particles).
-  Reimplemented here in plain WebGL with no library and NO CDN — a11oy ships 0
-  runtime CDN. Three.js r160 stays vendored in-image at /hero/vendor3d for the
-  frontier 3D surfaces; the hero no longer needs it.
-
-  MONOCHROME ONLY: white points on black. No colour is written anywhere.
-  Mobile-safe: half the grid below 820px CSS px, DPR capped at 2, paused when the
-  hero scrolls out of view or the tab is hidden.
-  prefers-reduced-motion: no simulation at all — a sparse STATIC point field is
-  painted once on a 2D canvas.
-================================================================================ -->
-<script>
-(function(){
-  "use strict";
-  var canvas = document.getElementById("hero-canvas");
-  var fallback = document.getElementById("hero-fallback");
-  if(!canvas) return;
-
-  function useFallback(){
-    try{ canvas.style.display = "none"; }catch(e){}
-    if(fallback) fallback.style.display = "block";
-  }
-
-  var reduce = false;
-  try{ reduce = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(e){}
-
-  /* ---------- reduced motion: one static, sparse 2D point field ---------- */
-  function staticField(){
-    var ctx = null;
-    try{ ctx = canvas.getContext("2d"); }catch(e){}
-    if(!ctx){ useFallback(); return; }
-    function paint(){
-      var dpr = Math.min(window.devicePixelRatio || 1, 2);
-      var w = canvas.clientWidth || 1200, h = canvas.clientHeight || 700;
-      canvas.width = Math.max(1, Math.round(w * dpr));
-      canvas.height = Math.max(1, Math.round(h * dpr));
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      var n = w < 820 ? 420 : 900, s = 1;
-      for(var i = 0; i < n; i++){
-        s = (s * 1103515245 + 12345) & 0x7fffffff;
-        var x = (s / 0x7fffffff);
-        s = (s * 1103515245 + 12345) & 0x7fffffff;
-        var y = (s / 0x7fffffff);
-        var a = 0.10 + 0.34 * (1.0 - Math.abs(y - 0.5) * 2.0) * (0.35 + 0.65 * x);
-        ctx.fillStyle = "rgba(255,255,255," + a.toFixed(3) + ")";
-        ctx.fillRect(Math.round(x * canvas.width), Math.round(y * canvas.height),
-                     Math.max(1, Math.round(dpr)), Math.max(1, Math.round(dpr)));
-      }
-    }
-    paint();
-    var t = null;
-    window.addEventListener("resize", function(){ clearTimeout(t); t = setTimeout(paint, 220); });
-  }
-  if(reduce){ staticField(); return; }
-
-  /* ---------- WebGL context + float render-target capability ---------- */
-  var opts = { alpha:true, antialias:false, depth:false, stencil:false,
-               premultipliedAlpha:false, preserveDrawingBuffer:false, powerPreference:"low-power" };
-  var gl = null, isGL2 = false;
-  try{ gl = canvas.getContext("webgl2", opts); isGL2 = !!gl; }catch(e){}
-  if(!gl){ try{ gl = canvas.getContext("webgl", opts) || canvas.getContext("experimental-webgl", opts); }catch(e){} }
-  if(!gl){ staticField(); return; }
-
-  // vertex texture fetch is mandatory for the render pass
-  if(gl.getParameter(gl.MAX_VERTEX_TEXTURE_IMAGE_UNITS) < 1){ staticField(); return; }
-
-  var stateType = null, stateInternal = null;
-  if(isGL2){
-    if(gl.getExtension("EXT_color_buffer_float")){
-      stateType = gl.FLOAT; stateInternal = gl.RGBA32F;
-    }else if(gl.getExtension("EXT_color_buffer_half_float")){
-      stateType = gl.HALF_FLOAT; stateInternal = gl.RGBA16F;
-    }
-  }else{
-    if(gl.getExtension("OES_texture_float")){
-      gl.getExtension("OES_texture_float_linear");
-      gl.getExtension("WEBGL_color_buffer_float");
-      stateType = gl.FLOAT; stateInternal = gl.RGBA;
-    }
-  }
-  if(stateType === null){ staticField(); return; }
-
-  /* ---------- shader plumbing ---------- */
-  function sh(type, src){
-    var s = gl.createShader(type);
-    gl.shaderSource(s, src); gl.compileShader(s);
-    if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s) || "shader");
-    return s;
-  }
-  function prog(vs, fs){
-    var p = gl.createProgram();
-    gl.attachShader(p, sh(gl.VERTEX_SHADER, vs));
-    gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs));
-    gl.linkProgram(p);
-    if(!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p) || "link");
-    return p;
-  }
-
-  var QUAD_VS =
-    "attribute vec2 a_q;varying vec2 v_uv;" +
-    "void main(){v_uv=a_q*0.5+0.5;gl_Position=vec4(a_q,0.0,1.0);}";
-
-  // divergence-free 2D curl of a value-noise potential = the flow field
-  var NOISE =
-    "float h11(float p){p=fract(p*0.1031);p*=p+33.33;p*=p+p;return fract(p);}" +
-    "vec3 h33(vec3 p){p=vec3(dot(p,vec3(127.1,311.7,74.7)),dot(p,vec3(269.5,183.3,246.1)),dot(p,vec3(113.5,271.9,124.6)));" +
-    "return -1.0+2.0*fract(sin(p)*43758.5453123);}" +
-    "float gnoise(vec3 p){vec3 i=floor(p),f=fract(p);vec3 u=f*f*(3.0-2.0*f);" +
-    "return mix(mix(mix(dot(h33(i+vec3(0.,0.,0.)),f-vec3(0.,0.,0.)),dot(h33(i+vec3(1.,0.,0.)),f-vec3(1.,0.,0.)),u.x)," +
-    "mix(dot(h33(i+vec3(0.,1.,0.)),f-vec3(0.,1.,0.)),dot(h33(i+vec3(1.,1.,0.)),f-vec3(1.,1.,0.)),u.x),u.y)," +
-    "mix(mix(dot(h33(i+vec3(0.,0.,1.)),f-vec3(0.,0.,1.)),dot(h33(i+vec3(1.,0.,1.)),f-vec3(1.,0.,1.)),u.x)," +
-    "mix(dot(h33(i+vec3(0.,1.,1.)),f-vec3(0.,1.,1.)),dot(h33(i+vec3(1.,1.,1.)),f-vec3(1.,1.,1.)),u.x),u.y),u.z);}" +
-    "vec2 curl(vec2 q,float t){float e=0.045;" +
-    "float a=gnoise(vec3(q+vec2(0.0,e),t));float b=gnoise(vec3(q-vec2(0.0,e),t));" +
-    "float c=gnoise(vec3(q+vec2(e,0.0),t));float d=gnoise(vec3(q-vec2(e,0.0),t));" +
-    "return vec2(a-b,d-c)/(2.0*e);}";
-
-  var SIM_FS =
-    "precision highp float;" + NOISE +
-    "uniform sampler2D u_state;uniform float u_time;uniform float u_dt;uniform float u_aspect;" +
-    "varying vec2 v_uv;" +
-    "void main(){vec4 s=texture2D(u_state,v_uv);vec2 p=s.xy;float life=s.z;float seed=s.w;" +
-    "vec2 q=vec2(p.x*u_aspect,p.y);" +
-    "vec2 v=curl(q*1.55,u_time*0.030);" +
-    "v+=curl(q*3.90,u_time*0.052)*0.22;" +   // second octave = finer filaments
-    "v=normalize(v/8.0+vec2(0.62,0.0));" +   // unit speed + steady left-to-right compute drift
-    "p+=vec2(v.x/u_aspect,v.y)*u_dt*0.00295;" +
-    "life-=u_dt*(0.0034+0.0052*seed);" +
-    "if(life<=0.0||p.x<-0.06||p.x>1.06||p.y<-0.06||p.y>1.06){" +
-    "  float k=seed*137.13+floor(u_time*6.0)*0.618;" +
-    "  p=vec2(h11(k),h11(k+7.77));life=1.0;}" +
-    "gl_FragColor=vec4(p,life,seed);}";
-
-  var DRAW_VS =
-    "precision highp float;attribute float a_i;uniform sampler2D u_state;" +
-    "uniform vec2 u_dim;uniform float u_size;varying float v_a;" +
-    "void main(){float x=mod(a_i,u_dim.x);float y=floor(a_i/u_dim.x);" +
-    "vec2 uv=(vec2(x,y)+0.5)/u_dim;vec4 s=texture2D(u_state,uv);" +
-    "v_a=smoothstep(0.0,0.10,s.z)*smoothstep(1.0,0.88,s.z);" +
-    "gl_Position=vec4(s.xy*2.0-1.0,0.0,1.0);gl_PointSize=u_size;}";
-
-  var DRAW_FS =
-    "precision mediump float;varying float v_a;uniform float u_gain;" +
-    "void main(){float m=smoothstep(0.5,0.08,length(gl_PointCoord-0.5));" +
-    "float c=v_a*m*u_gain;gl_FragColor=vec4(c,c,c,1.0);}";
-
-  var FADE_FS =
-    "precision mediump float;uniform float u_fade;varying vec2 v_uv;" +
-    "void main(){gl_FragColor=vec4(0.0,0.0,0.0,u_fade);}";
-
-  var COPY_FS =
-    "precision mediump float;uniform sampler2D u_tex;varying vec2 v_uv;" +
-    "void main(){gl_FragColor=texture2D(u_tex,v_uv);}";
-
-  var pSim, pDraw, pFade, pCopy;
-  try{
-    pSim  = prog(QUAD_VS, SIM_FS);
-    pDraw = prog(DRAW_VS, DRAW_FS);
-    pFade = prog(QUAD_VS, FADE_FS);
-    pCopy = prog(QUAD_VS, COPY_FS);
-  }catch(e){ staticField(); return; }
-
-  /* ---------- buffers ---------- */
-  var quadBuf = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
-
-  // particle grid: 256x256 = 65,536 points on desktop, 128x128 = 16,384 on small screens
-  var side = (canvas.clientWidth || 1200) < 820 ? 128 : 256;
-  var COUNT = side * side;
-
-  var idxBuf = gl.createBuffer();
-  var idx = new Float32Array(COUNT);
-  for(var i = 0; i < COUNT; i++) idx[i] = i;
-  gl.bindBuffer(gl.ARRAY_BUFFER, idxBuf);
-  gl.bufferData(gl.ARRAY_BUFFER, idx, gl.STATIC_DRAW);
-
-  function tex(w, h, internal, format, type, data){
-    var t = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, t);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texImage2D(gl.TEXTURE_2D, 0, internal, w, h, 0, format, type, data || null);
-    return t;
-  }
-  function fbo(t){
-    var f = gl.createFramebuffer();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, f);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
-    var ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    return ok ? f : null;
-  }
-
-  // seed state: uniform positions, staggered lifetimes, per-particle seed
-  var seed = new Float32Array(COUNT * 4);
-  var r = 2463534242;
-  function rnd(){ r ^= r << 13; r ^= r >>> 17; r ^= r << 5; return ((r >>> 0) / 4294967296); }
-  for(var j = 0; j < COUNT; j++){
-    seed[j*4    ] = rnd();
-    seed[j*4 + 1] = rnd();
-    seed[j*4 + 2] = rnd();          // life
-    seed[j*4 + 3] = rnd();          // seed
-  }
-  var seedData = seed;
-  if(stateType !== gl.FLOAT){
-    // HALF_FLOAT upload path: convert to Uint16 half-precision
-    var half = new Uint16Array(COUNT * 4), fb = new Float32Array(1), ib = new Int32Array(fb.buffer);
-    for(var k = 0; k < seed.length; k++){
-      fb[0] = seed[k]; var x = ib[0];
-      var s2 = (x >>> 16) & 0x8000, e = ((x >>> 23) & 0xff) - 112, m = x & 0x7fffff;
-      half[k] = (e <= 0) ? s2 : (e >= 31 ? (s2 | 0x7c00) : (s2 | (e << 10) | (m >> 13)));
-    }
-    seedData = half;
-  }
-
-  var texA = tex(side, side, stateInternal, gl.RGBA, stateType, seedData);
-  var texB = tex(side, side, stateInternal, gl.RGBA, stateType, null);
-  var fboA = fbo(texA), fboB = fbo(texB);
-  if(!fboA || !fboB){ staticField(); return; }
-
-  var trailTex = null, trailFbo = null, W = 0, H = 0, DPR = 1;
-
-  function resize(){
-    DPR = Math.min(window.devicePixelRatio || 1, 2);
-    var cw = canvas.clientWidth || 1200, ch = canvas.clientHeight || 700;
-    var nw = Math.max(1, Math.round(cw * DPR)), nh = Math.max(1, Math.round(ch * DPR));
-    if(nw === W && nh === H) return;
-    W = nw; H = nh; canvas.width = W; canvas.height = H;
-    if(trailFbo) gl.deleteFramebuffer(trailFbo);
-    if(trailTex) gl.deleteTexture(trailTex);
-    trailTex = tex(W, H, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, null);
-    trailFbo = fbo(trailTex);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, trailFbo);
-    gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-  }
-  resize();
-  if(!trailFbo){ staticField(); return; }
-
-  function bindQuad(p){
-    var loc = gl.getAttribLocation(p, "a_q");
-    gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
-    gl.enableVertexAttribArray(loc);
-    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-  }
-
-  var uSimState = gl.getUniformLocation(pSim, "u_state"),
-      uSimTime  = gl.getUniformLocation(pSim, "u_time"),
-      uSimDt    = gl.getUniformLocation(pSim, "u_dt"),
-      uSimAsp   = gl.getUniformLocation(pSim, "u_aspect"),
-      uDrawSt   = gl.getUniformLocation(pDraw, "u_state"),
-      uDrawDim  = gl.getUniformLocation(pDraw, "u_dim"),
-      uDrawSize = gl.getUniformLocation(pDraw, "u_size"),
-      uDrawGain = gl.getUniformLocation(pDraw, "u_gain"),
-      uFade     = gl.getUniformLocation(pFade, "u_fade"),
-      uCopyTex  = gl.getUniformLocation(pCopy, "u_tex"),
-      aIdx      = gl.getAttribLocation(pDraw, "a_i");
-
-  var t0 = 0, running = true, visible = true, raf = 0, lost = false;
-
-  canvas.addEventListener("webglcontextlost", function(ev){
-    ev.preventDefault(); lost = true; cancelAnimationFrame(raf); useFallback();
-  }, false);
-
-  // pause when off-screen (mobile battery) and when the tab is hidden
-  try{
-    var io = new IntersectionObserver(function(en){ visible = en[0].isIntersecting; },
-      { rootMargin: "120px" });
-    io.observe(canvas);
-  }catch(e){}
-  document.addEventListener("visibilitychange", function(){ running = !document.hidden; });
-
-  var rt = null;
-  window.addEventListener("resize", function(){ clearTimeout(rt); rt = setTimeout(resize, 200); });
-
-  function frame(now){
-    raf = requestAnimationFrame(frame);
-    if(lost) return;
-    if(!running || !visible){ t0 = now; return; }
-    if(!t0) t0 = now;
-    var dt = Math.min((now - t0) / 16.6667, 2.5); t0 = now;
-    var time = now * 0.001;
-
-    // 1) advect every particle in the state texture (GPU, one fragment per particle)
-    gl.disable(gl.BLEND);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, fboB);
-    gl.viewport(0, 0, side, side);
-    gl.useProgram(pSim); bindQuad(pSim);
-    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texA);
-    gl.uniform1i(uSimState, 0);
-    gl.uniform1f(uSimTime, time);
-    gl.uniform1f(uSimDt, dt);
-    gl.uniform1f(uSimAsp, W / Math.max(1, H));
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-    var sw = texA; texA = texB; texB = sw;
-    var fw = fboA; fboA = fboB; fboB = fw;
-
-    // 2) fade the trail buffer, then add this frame's points
-    gl.bindFramebuffer(gl.FRAMEBUFFER, trailFbo);
-    gl.viewport(0, 0, W, H);
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-    gl.useProgram(pFade); bindQuad(pFade);
-    gl.uniform1f(uFade, 0.052);
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-
-    gl.blendFunc(gl.ONE, gl.ONE);
-    gl.useProgram(pDraw);
-    gl.bindBuffer(gl.ARRAY_BUFFER, idxBuf);
-    gl.enableVertexAttribArray(aIdx);
-    gl.vertexAttribPointer(aIdx, 1, gl.FLOAT, false, 0, 0);
-    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texA);
-    gl.uniform1i(uDrawSt, 0);
-    gl.uniform2f(uDrawDim, side, side);
-    gl.uniform1f(uDrawSize, Math.max(1.0, 1.5 * DPR));
-    gl.uniform1f(uDrawGain, 0.82);
-    gl.drawArrays(gl.POINTS, 0, COUNT);
-
-    // 3) present
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.viewport(0, 0, W, H);
-    gl.disable(gl.BLEND);
-    gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.useProgram(pCopy); bindQuad(pCopy);
-    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, trailTex);
-    gl.uniform1i(uCopyTex, 0);
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-  }
-  raf = requestAnimationFrame(frame);
-  window.__a11oyHero = { ok:true, kind:"gpu-particle-flow-field", particles:COUNT };
-})();
 </script>
 
 <!-- ============ HERO INSTRUMENT PANEL — honest by default ============
