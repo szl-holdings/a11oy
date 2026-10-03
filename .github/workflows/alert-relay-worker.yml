@@ -65,9 +65,10 @@ jobs:
 
   deploy:
     name: Deploy exact relay and prove one real delivery
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: test
     runs-on: ubuntu-latest
+    environment: production
     timeout-minutes: 15
     env:
       CI: 'true'

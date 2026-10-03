@@ -91,6 +91,9 @@ def test_relay_deployment_requires_explicit_account_id_before_wrangler() -> None
     deploy = value.split("\n  deploy:\n", 1)[1]
     account_binding = "CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}"
     account_guard = 'if [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then'
+    assert "if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'" in deploy
+    assert "    environment: production\n" in deploy
+    assert deploy.index("environment: production") < deploy.index("CLOUDFLARE_API_TOKEN")
     assert deploy.index(account_binding) < deploy.index(account_guard)
     assert deploy.index(account_guard) < deploy.index("wrangler@4.128.0 deploy")
     assert "No Cloudflare account ID is configured" in deploy
