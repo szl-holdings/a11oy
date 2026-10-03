@@ -292,12 +292,23 @@ def normalize_github_token_alias() -> str:
     return "unavailable"
 
 
+def _github_workflow_token() -> str | None:
+    """Use the existing read credential for own-repository source checks."""
+    return (
+        os.getenv("GITHUB_TOKEN", "").strip()
+        or os.getenv("GH_TOKEN", "").strip()
+        or None
+    )
+
+
 def finance_preflight() -> dict[str, Any]:
     """Require the canonical backend component before writing its public view."""
     revision = os.environ.get("GITHUB_SHA", "")
     if SHA40.fullmatch(revision) is None or revision == "0" * 40:
         raise RuntimeError("Finance requires a bound canonical source revision")
-    head = _github_json("/repos/szl-holdings/a11oy/commits/main")
+    head = _github_json(
+        "/repos/szl-holdings/a11oy/commits/main", token=_github_workflow_token()
+    )
     if head.get("sha") != revision:
         raise RuntimeError("Finance publisher source is no longer current main")
     request = urllib.request.Request(
@@ -387,7 +398,9 @@ def selected_generated_preflight(scope: str) -> str:
     run_id = os.environ.get("GITHUB_RUN_ID", "")
     if not run_id.isdigit() or int(run_id) <= 0:
         raise RuntimeError("selected publisher requires a positive workflow run id")
-    head = _github_json("/repos/szl-holdings/a11oy/commits/main")
+    head = _github_json(
+        "/repos/szl-holdings/a11oy/commits/main", token=_github_workflow_token()
+    )
     if head.get("sha") != revision:
         raise RuntimeError("selected publisher source is no longer current main")
     return revision
@@ -403,7 +416,10 @@ def publish_selected_generated(scope: str, space_guard_module) -> int:
         receipt = read_receipt(FLAGSHIP_RECEIPT) or {}
         try:
             source_still_current = (
-                _github_json("/repos/szl-holdings/a11oy/commits/main").get("sha")
+                _github_json(
+                    "/repos/szl-holdings/a11oy/commits/main",
+                    token=_github_workflow_token(),
+                ).get("sha")
                 == revision
             )
         except Exception as exc:
