@@ -201,3 +201,12 @@ html[data-console-style][data-view="estate"] .szl-estate-h { margin:var(--space-
 html[data-console-style][data-view="estate"] .szl-holo-act { gap:var(--space-3); }
 html[data-console-style][data-view="estate"] .szl-holo-facts { gap:var(--space-2); }
 html[data-console-style][data-view="estate"] .szl-holo-chip { margin-right:var(--space-2); border-radius:var(--radius-lg); }
+
+/* Legacy decoration fixes pane heights to an obsolete header size and hides overflow. */
+html[data-console-style]:is([data-view="fleet"],[data-view="readiness"],[data-view="estate"]) .app {
+  min-height:0 !important; height:calc(100dvh - var(--szl-console-header-height,68px)) !important;
+  flex:0 0 auto; overflow:hidden;
+}
+html[data-console-style]:is([data-view="fleet"],[data-view="readiness"],[data-view="estate"]) .content {
+  min-height:0; height:100% !important; overflow-y:auto !important; overflow-x:hidden !important;
+}

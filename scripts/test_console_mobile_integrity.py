@@ -167,6 +167,14 @@ def run(output, premium_only=False):
                             check(f"{view} {theme} flat surfaces at {width}px", not measurements["gradients"], measurements["gradients"])
                             if view == "estate":
                                 check(f"estate {theme} flat title at {width}px", page.locator(".szl-holo-title").evaluate("e=>getComputedStyle(e).backgroundImage==='none' && getComputedStyle(e).webkitTextFillColor!=='transparent'"))
+                            pane = page.locator('.content').bounding_box()
+                            tall = page.locator('.content').evaluate("e=>e.scrollHeight>e.clientHeight+1")
+                            if tall:
+                                page.mouse.move(pane["x"] + pane["width"] / 2, pane["y"] + min(100, pane["height"] / 2))
+                                page.mouse.wheel(0, 500)
+                                page.wait_for_timeout(100)
+                                check(f"{view} {theme} user scroll at {width}px", page.locator('.content').evaluate("e=>e.scrollTop>0"))
+                                page.locator('.content').evaluate("e=>e.scrollTop=0")
                             scroll_roots = page.evaluate("() => ['html','body','.app','.content'].map(selector=>{const e=document.querySelector(selector); return {selector,height:e.scrollHeight,client:e.clientHeight,overflow:getComputedStyle(e).overflowY};})")
                             height = max(r["height"] for r in scroll_roots)
                             step = 500
