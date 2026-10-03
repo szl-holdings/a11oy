@@ -138,6 +138,8 @@ jobs:
           tests/test_gdw_bench_tools.py
           tests/test_gdw_transient_recovery.py
           tests/test_atelier_grok.py
+          tests/test_atelier_grok_local.py
+          tests/test_run_local_atelier.py
           tests/test_command_centre.py
           tests/test_jev_gate.py
           tests/test_jev_fail_closed.py

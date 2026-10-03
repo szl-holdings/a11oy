@@ -20,6 +20,7 @@ VOCABULARY = (
 )
 BASE = "7ccf04fb65f060115fb01392c739bb4e6c2fe5b8"
 DIGEST = "sha256:5f3f48219d0c74f29ebfd6df6d7b8b68903daf6772cf6483124f458a3beca416"
+WEB_REVISION = "f2f8df6f89056e9104587674ccec0855dd5b177a"
 
 
 def document(title: str, status: str, body: str, generated_at: str) -> str:
@@ -83,7 +84,7 @@ Verified results:
 - **MEASURED:** existing GHCR artifact `{DIGEST}` independently verifies to source `{BASE}`, run 30187276319, Rekor 2255395975.
 - **DEPLOYED / MEASURED:** A11oy runtime build-info matches protected main `{a11oy_live}`.
 - **DEPLOYED / MEASURED:** Killinchu runtime build-info matches protected main `{killinchu_live}`; `/code`, `/chat`, and the honest endpoint return HTTP 200.
-- **MEASURED:** the canonical web application builds and typechecks from the immutable `vendor/platform` gitlink without no-op package stubs.
+- **PREPARED IN A PR:** the canonical web source is pinned at `{WEB_REVISION}`. Its exact-source CI build and typecheck must be inspected separately; an admitted build artifact does not establish runtime API binding or deployment.
 - **{backup_status}:** {backup_evidence}
 - **BLOCKED:** cloud identity, an owned staging cluster, admission negative controls, controlled GPU benchmarks, exact new-builder evidence, and an end-to-end staging release.
 
@@ -97,7 +98,7 @@ The separately owned canonical governance implementation is PR #317 with zero hu
         "ARCHITECTURE.md": document(
             "Architecture",
             "IMPLEMENTED NOT DEPLOYED",
-            """
+            f"""
 ```text
 untrusted proposal
   -> strict schema
@@ -113,7 +114,7 @@ untrusted proposal
 
 The authorization plane, execution plane, build plane, admission plane, and observability plane are separate. Telemetry can record a decision but cannot authorize it. Production identity is an exact tuple of source commit, artifact digest, model/tokenizer revisions when applicable, runtime, environment, and observation time.
 
-The repository's operational Hugging Face surface is `pnpm payload:huggingface`; the diligence demo is `pnpm test:doctrine` in `web/packages/a11oy-core`. The canonical web application is the immutable `vendor/platform` gitlink at `6e0dc7b423fbcfb2c165348e60b41cd55a9b9ace`, using its declared `pnpm@10.26.1` toolchain and `@workspace/a11oy` artifact. A clean production build and typecheck are **MEASURED**. The partial root `web/` mirror is **RETIRED** as an application build target and remains only for doctrine, historical, and static sources.
+The repository's operational Hugging Face surface is `pnpm payload:huggingface`; the diligence demo is `pnpm test:doctrine` in `web/packages/a11oy-core`. The canonical web application is the immutable `vendor/platform` gitlink at `{WEB_REVISION}`, using its declared `pnpm@10.26.1` toolchain and `@workspace/a11oy` artifact. The existing CI job builds and typechecks this exact source before retaining a bounded artifact manifest. The current Python runtime does not implement the frontend's GraphQL or Atelier contracts; runtime handoff is **BLOCKED**. The shipped operator console remains a separate source. The partial root `web/` mirror is **RETIRED** as an application build target and remains only for doctrine, historical, and static sources.
 """,
             generated,
         ),
@@ -125,7 +126,7 @@ Threats covered locally include unknown actions, mutable targets, missing approv
 
 Supply-chain and staging threats are **PREPARED IN A PR**: digest-only signing, exact-source provenance, a warning-mode Sigstore identity policy, and an unsigned negative fixture. They are not **DEPLOYED**.
 
-Residual high risks are absent owned-cluster admission evidence, unavailable controlled GPU infrastructure, missing exact artifacts from the proposed reusable builder, unavailable telemetry backends, and the lack of independent formal-statement review. A11oy and Killinchu live source identity and the canonical web build are no longer open mismatch findings.
+Residual high risks are absent owned-cluster admission evidence, unavailable controlled GPU infrastructure, missing exact artifacts from the proposed reusable builder, unavailable telemetry backends, and the lack of independent formal-statement review. Historical A11oy and Killinchu source identity observations remain dated evidence. The refreshed web pin needs its own build evidence, and its runtime API binding remains **BLOCKED**.
 """,
             generated,
         ),
@@ -353,7 +354,7 @@ High-severity blockers:
 2. No exact SBOM, scan, signature, and SLSA-native cross-verification output exists from the proposed reusable builder — owner `@szl-holdings/release-maintainers`.
 3. No controlled GPU environment is available for paired vLLM/SGLang measurement — owner `@szl-holdings/performance-maintainers`.
 
-Additional blockers are independent Lean statement review, collector/access-control deployment, and complete staging trace evidence. The former Killinchu runtime and web-build findings are closed. Machine-readable detail is in `audit/risk-register.json`.
+Additional blockers are independent Lean statement review, collector/access-control deployment, complete staging trace evidence, and the refreshed frontend's missing runtime API binding. Historical Killinchu observations do not establish current frontend readiness. Machine-readable detail is in `audit/risk-register.json`.
 """,
             generated,
         ),
@@ -378,7 +379,8 @@ This execution is accepted as **PREPARED IN A PR** implementation progress, not 
 | OTel GenAI redaction and mandatory sampling | MEASURED locally; backend BLOCKED |
 | Live A11oy identity | MEASURED MATCH |
 | Live Killinchu identity/source completeness | DEPLOYED / MEASURED MATCH |
-| Canonical web application build and typecheck | MEASURED PASS |
+| Refreshed canonical web build and typecheck | PREPARED IN A PR; inspect exact-source CI |
+| Canonical web GraphQL and Atelier runtime binding | BLOCKED; API contracts unavailable |
 | Independent reproducibility/review | BLOCKED |
 
 Production enforcement and traffic cutover are stopped. Unresolved high-severity findings block production.
