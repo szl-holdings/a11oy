@@ -2628,7 +2628,7 @@
     "tag": "evidence-backed",
     "lean_ref": null,
     "powers": "PHASE 3 org-wide ONE chain; consumed by szl-trust verification layers, vsp-otel span receipts, all flagship /khipu surfaces",
-    "notes": "F4/F22 family (Khipu hash-chain). Restart-durable via os.fsync. No Lean theorem binds THIS schema directly; the proven DSSE seal binding is F18 (Lutar/Receipt.lean::dsse_seal_binding) which covers the DSSE envelope, not the lake wrapper.",
+    "notes": "F4/F22 family (Khipu hash-chain). Restart-durable via os.fsync. No Lean theorem binds THIS schema directly. The former F18 DSSE seal-binding anchor is absent from the cited lutar-lean source; F18 is a Reed-Solomon parity-count surrogate, not a proof of this envelope or lake wrapper.",
     "_quadrant": "Q4"
   },
   {
@@ -2731,9 +2731,9 @@
       }
     ],
     "tag": "evidence-backed",
-    "lean_ref": "Lutar/Receipt.lean::dsse_seal_binding (F18 — proves DSSE seal binding, not this wrapper schema)",
-    "powers": "Binds the 8 locked-proven formulas + Theorem U to a verifiable on-disk anchor for PHASE 3",
-    "notes": "honesty.locked_set listed here as [F1,F11,F12,F18,F19] (5) — NOTE this is the 5 already-proven canonical anchors, NOT the full locked set of 8 {F1,F4,F7,F11,F12,F18,F19,F22}. Drift between the 5-anchor receipt field and the 8-locked doctrine count; flagged.",
+    "lean_ref": null,
+    "powers": "Carries a signed on-disk anchor for PHASE 3; this row does not establish a Lean proof of DSSE binding or a complete eight-formula binding",
+    "notes": "honesty.locked_set lists [F1,F11,F12,F18,F19] (5), not the full locked set of 8 {F1,F4,F7,F11,F12,F18,F19,F22}. The former F18 DSSE seal-binding Lean reference is absent from the cited source; F18 is a Reed-Solomon parity-count surrogate. The five-versus-eight receipt drift remains flagged.",
     "_quadrant": "Q4"
   },
   {
@@ -2806,9 +2806,9 @@
       }
     ],
     "tag": "evidence-backed",
-    "lean_ref": "Lutar/Receipt.lean::dsse_seal_binding (F18 — DSSE seal binding proven; this PAE is a concrete impl, not the proven artifact)",
+    "lean_ref": null,
     "powers": "Signed, chained, transparency-logged spans for PHASE 3 org-wide Λ observability",
-    "notes": "DRIFT (PAE encoding): vsp-otel uses ASCII-decimal-length DSSEv1 PAE; szl-build-env/dsse_verify.py uses BINARY 8-byte little-endian length prefix (struct.pack('<Q', len(s))) with payload_type 'application/vnd.szl.receipt+json'. Two incompatible PAE/serialization conventions across the org — receipts signed by one will NOT verify under the other. HIGH-PRIORITY DRIFT.",
+    "notes": "DRIFT (PAE encoding): vsp-otel uses ASCII-decimal-length DSSEv1 PAE; szl-build-env/dsse_verify.py uses BINARY 8-byte little-endian length prefix (struct.pack('<Q', len(s))) with payload_type 'application/vnd.szl.receipt+json'. Two incompatible PAE/serialization conventions across the org — receipts signed by one will NOT verify under the other. HIGH-PRIORITY DRIFT. The former F18 DSSE seal-binding Lean reference is absent; this implementation has no verified Lean binding in this row.",
     "_quadrant": "Q4"
   },
   {
@@ -2840,10 +2840,10 @@
         "line": "101,126,168,192,223 (gate wiring, /metrics, /health)"
       }
     ],
-    "tag": "SEMANTIC-VERIFIED",
-    "lean_ref": "Lutar/Soundness.lean::gate_pass_implies_lambda_floor (F1) + Lutar/Lambda.lean::lambda_geomean_wellformed (F19) + Lutar/Gates.lean::policy_gate_monotone (F12)",
+    "tag": "evidence-backed",
+    "lean_ref": null,
     "powers": "PHASE 3 org-wide Λ enforcement at the observability layer; the floor that all governed spans must clear",
-    "notes": "The GATE SOUNDNESS (gate pass implies Λ floor) is F1 LOCKED-PROVEN; Λ aggregator well-formedness is F19 LOCKED-PROVEN; monotone gate is F12 LOCKED-PROVEN. HOWEVER Λ-UNIQUENESS remains Conjecture 1 (OPEN) — code at dsse_processor.py:224 honestly stamps ATTR_LAMBDA_AXIS='Conjecture 1'. The geometric-mean aggregation is proven well-formed but its uniqueness is NOT. Do not over-read: the gate mechanism is proven, Λ-as-the-unique-aggregator is not. | RECLASSIFIED: cited non-existent anchor file; downgraded per verified lutar-lean.",
+    "notes": "The former F1 soundness, F19 geometric-mean well-formedness, and F12 monotone-gate Lean anchors are absent from the cited lutar-lean source. The locked F1/F19/F12 declarations prove different conservative surrogates, not this collector gate. This row is evidence-backed by the cited runtime code, not a verified theorem over it. Λ-uniqueness remains Conjecture 1 (OPEN); dsse_processor.py:224 stamps ATTR_LAMBDA_AXIS='Conjecture 1'.",
     "_quadrant": "Q4"
   },
   {
@@ -2915,10 +2915,10 @@
         "line": "(layer descriptions)"
       }
     ],
-    "tag": "SEMANTIC-VERIFIED",
-    "lean_ref": "Lutar/Receipt.lean::dsse_seal_binding (F18 — DSSE seal binding, underpins layer 4)",
+    "tag": "evidence-backed",
+    "lean_ref": null,
     "powers": "PHASE 3 trust establishment over the ONE chain",
-    "notes": "Layer 4 (DSSE/ECDSA-P256) binding is F18 LOCKED-PROVEN. DSSE classical EUF-CMA backing cited as Lutar.Round10.CryptoDSSE.dsse_classical_euf_cma (PR #179) — CONDITIONAL EUF-CMA, so treat the crypto-hardness as evidence-backed/conditional, NOT unconditionally proven. Layers 1,2,3,5 and Khipu BFT 3-of-4 are evidence-backed (3-of-4 rests on OPEN Conjecture 2). | RECLASSIFIED: cited non-existent anchor file; downgraded per verified lutar-lean.",
+    "notes": "The former F18 DSSE seal-binding Lean anchor is absent from the cited source; locked F18 proves a Reed-Solomon parity-count surrogate, not layer 4 cryptographic binding. DSSE classical EUF-CMA backing cited as Lutar.Round10.CryptoDSSE.dsse_classical_euf_cma (PR #179) is CONDITIONAL, not an unconditional proof of this pipeline. All five layers remain evidence-backed; Khipu BFT 3-of-4 is advisory and rests on OPEN Conjecture 2.",
     "_quadrant": "Q4"
   },
   {
@@ -3060,17 +3060,17 @@
         "line": "(Λ = weighted geometric mean D2; A1/A2/A4 via Lutar/Axioms.lean)"
       }
     ],
-    "tag": "SEMANTIC-VERIFIED",
-    "lean_ref": "Lutar/Lambda.lean::lambda_geomean_wellformed (F19, well-formedness of the geomean aggregator). Theorem U = lambda_unique_of_separable (conditional). Conjecture 1 has NO Lean proof and must NEVER be tagged LOCKED-PROVEN.",
-    "powers": "PHASE 3 org-wide Λ: the aggregator is proven well-formed (F19) and conditionally unique (Theorem U); its unconditional uniqueness is OPEN",
-    "notes": "TAGGING DISCIPLINE: F19 (geomean well-formed) is LOCKED-PROVEN. Theorem U (conditional uniqueness) is proven axiom-free. Conjecture 1 (unconditional uniqueness) is OPEN and machine-checked-false-as-stated — NEVER LOCKED-PROVEN. overclaim-guard CI fails any text that calls Conjecture 1 proven or claims Λ uniqueness without the Theorem U qualifier. | RECLASSIFIED: cited non-existent anchor file; downgraded per verified lutar-lean.",
+    "tag": "evidence-backed",
+    "lean_ref": null,
+    "powers": "PHASE 3 org-wide Λ: the deployed aggregator is evidence-backed; conditional uniqueness is cataloged separately as Theorem U, while unconditional uniqueness remains OPEN",
+    "notes": "TAGGING DISCIPLINE: the former F19 geometric-mean well-formedness Lean anchor is absent from the cited source; locked F19 is a Bekenstein-additivity surrogate, not a proof of this aggregate. Theorem U's conditional claim is cataloged separately as SV-THEOREM-U. Conjecture 1 (unconditional uniqueness) is OPEN and machine-checked-false-as-stated — NEVER LOCKED-PROVEN. This cross-reference row is evidence-backed, not an additional verified theorem.",
     "_quadrant": "Q4"
   },
   {
     "id": "Q4-DOCTRINE-03",
-    "name": "Locked-proven 8-formula set + anchor formulas",
-    "meaning": "The exactly-8 locked-proven formulas, machine-enforced, with the 5 canonical anchor decls.",
-    "math": "Locked set = {F1,F4,F7,F11,F12,F18,F19,F22}; count enforced by Lutar.Wave8.AxiomDisclosure.locked_count_eight. Anchors: F1=Lutar/Soundness.lean::gate_pass_implies_lambda_floor; F11=Lutar/STL.lean::stl_robustness_sound; F12=Lutar/Gates.lean::policy_gate_monotone; F18=Lutar/Receipt.lean::dsse_seal_binding; F19=Lutar/Lambda.lean::lambda_geomean_wellformed",
+    "name": "Locked-proven 8-formula set and source-bound scope",
+    "meaning": "The exactly-eight locked-proven formula IDs are reported by /honest; this catalog overview does not establish the five formerly claimed governance-theorem anchors.",
+    "math": "Locked set = {F1,F4,F7,F11,F12,F18,F19,F22}; count enforced by Lutar.Wave8.AxiomDisclosure.locked_count_eight. The five former governance anchor file paths are absent at the cited lutar-lean revision; see the individual F rows for the conservative surrogate meanings.",
     "inputs": "lutar-lean Lutar/ corpus @ c7c0ba17",
     "outputs": "8 locked-proven formula decls; CI count assertion",
     "locations": [
@@ -3085,10 +3085,10 @@
         "line": "(8 locked-proven {F1,F4,F7,F11,F12,F18,F19,F22}; locked_count_eight)"
       }
     ],
-    "tag": "SEMANTIC-VERIFIED",
-    "lean_ref": "F1 Lutar/Soundness.lean::gate_pass_implies_lambda_floor; F11 Lutar/STL.lean::stl_robustness_sound; F12 Lutar/Gates.lean::policy_gate_monotone; F18 Lutar/Receipt.lean::dsse_seal_binding; F19 Lutar/Lambda.lean::lambda_geomean_wellformed; (F4,F7,F22 locked but specific decls not re-verified by DEV4 — see notes)",
-    "powers": "The proven floor under PHASE 3 org-wide Λ + the ONE chain",
-    "notes": "HONEST SCOPE: F12 (Kuramoto) and F19 (Bekenstein-related) prove the ADDITIVE FRAGMENT ONLY, not the full nonlinear/physical model (per lutar-lean PROVEN_FORMULAS.md). DEV4 verified the 5 anchor decls against docs/proof.md but did NOT directly open lutar-lean (Q1 dev owns it) to confirm F4/F7/F22 decl names — those 3 are tagged LOCKED-PROVEN on doctrine authority + docs, not on a DEV4-cited Lean file+line. Recommend Q1 dev confirm F4/F7/F22 exact decls. | RECLASSIFIED: cited non-existent anchor file; downgraded per verified lutar-lean.",
+    "tag": "evidence-backed",
+    "lean_ref": null,
+    "powers": "Catalogs the locked-eight ID set without claiming those formulas prove the PHASE 3 Λ floor or DSSE chain",
+    "notes": "HONEST SCOPE: the five formerly claimed governance anchor files and declarations are absent from lutar-lean at the cited c7c0ba17 revision. The individual F rows describe conservative surrogate meanings; for example F12 is Kuramoto additivity and F19 is Bekenstein additivity, not the full nonlinear/physical models or governance properties. The /honest kernel count remains eight. This overview is evidence-backed, not a new verified theorem or replacement proof.",
     "_quadrant": "Q4"
   },
   {
@@ -3424,7 +3424,7 @@
   {
     "id": "SV-RECEIPT",
     "name": "Receipt transduction invariant",
-    "meaning": "round-trip preserves body (1 sorry — SEMANTIC not locked)",
+    "meaning": "Under the explicit round-trip identity g ∘ f = id, receipt_transduction_invariant preserves contentId; body preservation is a separate corollary.",
     "math": "",
     "inputs": "",
     "outputs": "",
@@ -3432,13 +3432,13 @@
       {
         "repo": "lutar-lean",
         "file": "Lutar/Transduction/ReceiptInvariant.lean",
-        "line": ""
+        "line": "23-29 (contentId theorem); 32-38 (body corollary)"
       }
     ],
     "tag": "SEMANTIC-VERIFIED",
     "lean_ref": "Lutar/Transduction/ReceiptInvariant.lean::receipt_transduction_invariant",
     "powers": "org-wide Λ trust posture",
-    "notes": "Verified real (0-sorry unless noted); NOT in locked-8 baseline.",
+    "notes": "Pinned lutar-lean c7c0ba17 source contains explicit by proofs and no sorry in either declaration. Both results require the round-trip premise h_round; neither is a cryptographic or runtime binding. NOT in the locked-8 baseline.",
     "_quadrant": "CANON"
   },
   {

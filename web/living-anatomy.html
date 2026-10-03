@@ -29,7 +29,9 @@ a{color:inherit;text-decoration:none;}
 .topbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;padding:.5rem 1.1rem;background:rgba(10,10,10,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--gold-line);font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);}
 .topbar .sep{color:var(--dim);}
 .topbar .live{display:inline-flex;align-items:center;gap:.4rem;color:var(--cream);}
-.live-dot{width:6px;height:6px;border-radius:50%;background:var(--live);box-shadow:0 0 6px var(--live);animation:pulse 2.2s ease-in-out infinite;}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 6px var(--gold);animation:pulse 2.2s ease-in-out infinite;}
+.live-dot.observed{background:var(--teal);box-shadow:0 0 6px var(--teal);}
+.live-dot.unavailable{background:var(--orange);box-shadow:0 0 6px var(--orange);animation:none;}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
 .switcher{margin-left:auto;display:flex;align-items:center;gap:.3rem;}
 .flag{padding:.22rem .55rem;border-radius:6px;border:1px solid transparent;color:var(--muted);transition:.15s;}
@@ -91,7 +93,7 @@ h1{font-size:1.7rem;font-weight:600;margin:.2rem 0 .3rem;letter-spacing:-.01em;}
 <body>
 <div class="topbar">
   <span>SZL HOLDINGS</span><span class="sep">/</span><span>a11oy</span><span class="sep">/</span><span>LIVING ANATOMY</span>
-  <span class="sep">/</span><span class="live"><span class="live-dot"></span><span id="livelbl">LIVE · RT</span></span>
+  <span class="sep">/</span><span class="live"><span class="live-dot" id="liveDot" aria-hidden="true"></span><span id="livelbl" role="status" aria-live="polite">CONNECTING</span></span>
   <span class="switcher">
     <a class="flag" href="/fleet-c2">Fleet C2</a>
     <a class="flag active" href="/living-anatomy">Living Anatomy</a>
@@ -175,6 +177,10 @@ function paint(id, text, color){
   el.textContent=text;
   if(color) el.style.color=color;
 }
+function setHeaderState(state, sha){
+  $('livelbl').textContent=state+(sha?' · '+sha:'');
+  $('liveDot').className='live-dot '+state.toLowerCase();
+}
 function setView(v,btn){
   var f=document.getElementById('scene'); if(!f) return;
   if(v==='holo'){ f.src=HOLO; } else { f.src=ANATOMY+"#"+v; }
@@ -196,12 +202,13 @@ async function load(){
     // honest: no live read => say so; never fake a quorum
     paint('c_mesh', 'UNREACHABLE', 'var(--orange)');
   }
-  // confirm a11oy live
+  // Observe the same-origin honesty contract; a successful read is not runtime readiness.
   const honest=await getJSON(A+"/honest");
-  if(honest&&honest.locked_formula_count!=null){
+  if(honest&&Number.isInteger(honest.locked_formula_count)){
     paint('c_locked', String(honest.locked_formula_count), 'var(--green)');
-    $('livelbl').textContent='LIVE · '+String((honest.git_sha||'').slice(0,8)||'RT');
-  } else { $('livelbl').textContent='LIVE'; }
+    const sha=typeof honest.git_sha==='string'&&/^[0-9a-f]{7,40}$/i.test(honest.git_sha)?honest.git_sha.slice(0,8):'';
+    setHeaderState('OBSERVED',sha);
+  } else { setHeaderState('UNAVAILABLE'); }
   const brain=await getJSON(A+"/brain");
   const second=await getJSON(A+"/second-brain");
   if(brain||second){ paint('c_brain','REACHABLE','var(--teal)'); var mb=$('m_brain'); if(mb) mb.textContent=second?'ALIAS+BRAIN':'BRAIN'; }

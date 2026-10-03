@@ -107,7 +107,7 @@ def test_second_brain_is_a_compound_model_not_a_false_weight_claim():
             "built": True,
             "document_count": 575,
             "chunk_count": 575,
-            "brain_handle_count": 9465,
+            "brain_handle_count": 17,
             "training_authority_rows": 0,
             "integrity_state": "VERIFIED_ON_REHYDRATE",
             "generation_id": "test-generation",
@@ -120,7 +120,19 @@ def test_second_brain_is_a_compound_model_not_a_false_weight_claim():
     assert runtime["signer_ready_this_request"] is True
     assert runtime["hard_boundaries"]["index_is_model_weights"] is False
     assert runtime["training_boundary"]["raw_brain_nodes_admitted_to_gradients"] == 0
-    assert runtime["memory"]["brain_handle_count"] == 9465
+    assert runtime["memory"]["brain_handle_count"] == 17
+    assert runtime["memory"]["brain_handle_count_source"] == "RUNTIME_RAG_STATUS"
+    assert manifest["brain_training_policy"]["raw_nodes_observed"] == 9465
+    assert runtime["training_boundary"]["raw_brain_nodes_observed"] == (
+        manifest["brain_training_policy"]["raw_nodes_observed"]
+    )
+    assert runtime["training_boundary"]["raw_brain_nodes_observation_source"] == (
+        "model_release/szl-khipu-second-brain.json"
+        "#brain_training_policy.raw_nodes_observed"
+    )
+    assert runtime["training_boundary"][
+        "raw_brain_nodes_observed_is_runtime_index_count"
+    ] is False
     assert runtime["memory"]["training_authority_rows"] == 0
     assert runtime["memory"]["integrity_state"] == "VERIFIED_ON_REHYDRATE"
     assert runtime["training_boundary"]["admission_engine"] == (

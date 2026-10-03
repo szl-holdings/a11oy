@@ -661,6 +661,12 @@ class GateMiddleware(unittest.TestCase):
 # persistence, or their own credential registry. A NEW route caught by the keyword
 # net must be gated in PROTECTED_ROUTES or reviewed here; the test fails otherwise.
 REVIEWED_PUBLIC_WRITE_ROUTES = {
+    "/api/a11oy/v1/atelier/turn":
+        "own gdw_auth credential registry (atelier:write); anonymous refusal tested in test_atelier_grok.py",
+    "/api/a11oy/v1/atelier/local/turn":
+        "own gdw_auth credential registry (atelier:write); anonymous refusal tested in test_atelier_grok_local.py",
+    "/api/a11oy/v1/atelier/cpu-lab/turn":
+        "own gdw_auth credential registry (atelier:write); anonymous refusal tested in test_atelier_grok_cpu_lab.py",
     "/api/a11oy/chaski/onboard/step": "session-scoped onboarding step (in-memory, per session id)",
     "/api/a11oy/code/chat/stream": "anonymous: model-only, tools disabled, never persisted",
     "/api/a11oy/v1/agent/cycle": "own credential registry (gdw_auth) + A11OY_OUROBOROS flag",
