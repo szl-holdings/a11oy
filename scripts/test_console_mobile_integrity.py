@@ -24,29 +24,96 @@ VIEWS = ("command", "lambda", "chain", "replay", "govern", "estate", "cve", "kev
 WIDTHS = (320, 360, 390, 768, 1024, 1440)
 
 
+def static_fixture_path(path, root=ROOT):
+    if path in ("/console", "/console/"):
+        base, file = root / "pages", root / "pages/console.html"
+    else:
+        routes = (("/vendor/", "static-vendor"), ("/assets/", "console/assets"), ("/static/shared/", "static/shared"))
+        match = next(((prefix, directory) for prefix, directory in routes if path.startswith(prefix)), None)
+        if match is None:
+            return None
+        prefix, directory = match
+        base = root / directory
+        file = base / path.removeprefix(prefix)
+    return file if base.resolve().is_relative_to(root.resolve()) and file.resolve().is_relative_to(base.resolve()) and file.is_file() else None
+
+
 class StaticHandler(BaseHTTPRequestHandler):
     def log_message(self, *_args):
         pass
 
     def do_GET(self):
         path = urlsplit(self.path).path
-        if path in ("/console", "/console/"):
-            file = ROOT / "pages/console.html"
-        elif path.startswith("/vendor/"):
-            file = ROOT / "static-vendor" / path.removeprefix("/vendor/")
-        elif path.startswith("/assets/"):
-            file = ROOT / "console/assets" / path.removeprefix("/assets/")
-        elif path.startswith("/static/shared/"):
-            file = ROOT / path.lstrip("/")
-        else:
-            file = ROOT / "__missing__"
-        if not file.resolve().is_relative_to(ROOT) or not file.is_file():
+        file = static_fixture_path(path)
+        if file is None:
             self.send_error(404)
             return
         self.send_response(200)
         self.send_header("Content-Type", mimetypes.guess_type(file)[0] or "application/octet-stream")
         self.end_headers()
         self.wfile.write(file.read_bytes())
+
+
+def initial_fixture_state():
+    return {"energy": {}, "ledger": "rows", "lambda": .9191, "status_mode": "rows", "estate_mode": "rows"}
+
+
+def fixture_receipts():
+    return [
+        {"seq": 2, "hash": "b" * 64, "prev_hash": "a" * 64, "vertical": "software", "action": "Review fixture findings", "simulated": True},
+        {"seq": 1, "hash": "a" * 64, "vertical": "software", "action": "Read fixture manifest", "simulated": True},
+    ]
+
+
+def fixture_payload(path, query_string, method, state, rows, premium_only=False):
+    payload = None
+    if method == "GET":
+        if path == "/healthz":
+            payload = {"status": "ok"}
+        elif path == "/api/a11oy/v1/honest":
+            payload = {"locked_formula_count": 8, "locked_formula_ids": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]}
+        elif path == "/api/a11oy/v1/lambda":
+            payload = {"lambda": state["lambda"], "lambda_floor": .9, "pass": True, "axes": []}
+        elif path == "/api/a11oy/v1/lambda/org":
+            payload = {"lambda_org": state["lambda"], "pass": True, "inputs": {"class": "SUPPLIED"}}
+        elif path == "/api/a11oy/v1/energy/operator/status":
+            payload = state["energy"]
+        elif path == "/api/a11oy/v1/wow/ledger":
+            query = parse_qs(query_string)
+            if query.get("advance") == ["0"] and state["ledger"] != "error":
+                payload = {"chain_depth": 2 if state["ledger"] == "rows" else 0, "receipts": rows if state["ledger"] == "rows" else [], "window_verified": True, "final_hash": "b" * 64, "verticals_in_window": {"software": 2}}
+        elif path == "/api/a11oy/v1/observability/summary" and state["status_mode"] != "error":
+            payload = {"dag_depth": 2, "mesh_reach": {"core": {"status": "ok", "name": "Fixture core"}, "missing": {"status": "unavailable", "name": "Fixture missing"}}}
+            if state["status_mode"] == "rows":
+                payload["capabilities"] = [{"id": "fixture", "name": "TEST FIXTURE service", "status": "ok", "latency_ms": 0}, {"id": "missing", "name": "TEST FIXTURE missing latency", "status": "unavailable"}]
+            elif state["status_mode"] == "empty":
+                payload["capabilities"] = []
+        elif path == "/api/a11oy/v1/readiness" and state["status_mode"] != "error":
+            payload = {"source": "TEST FIXTURE", "summary": {}, "sections": []}
+            if state["status_mode"] == "rows":
+                payload["sections"] = [{"id": "fixture", "title": "TEST FIXTURE repository", "kind": "kv", "fields": [{"k": "Repository identity", "v": "fixture-only/" + "long-repository-name-" * 8}]}]
+                if premium_only:
+                    payload["sections"].append({"id": "http", "title": "TEST FIXTURE transport", "kind": "endpoints", "endpoints": [
+                        {"title": "Reported observation", "url": "https://example.invalid/reported", "liveness": {"reachable": True, "http_status": 200}},
+                        {"title": "Malformed observation", "url": "https://example.invalid/malformed", "liveness": {"reachable": "false", "http_status": 200}},
+                        {"title": "Missing observation", "url": "https://example.invalid/missing"},
+                    ]})
+            elif state["status_mode"] == "malformed":
+                payload = {}
+        elif path == "/api/a11oy/v1/bounties" and state["status_mode"] != "error":
+            payload = {"source": "TEST FIXTURE", "bounties": []} if state["status_mode"] != "malformed" else {}
+        elif path == "/api/a11oy/v1/policy/decisions/feed":
+            payload = {"verdicts": [], "total_buffered": 14}
+        elif path == "/api/a11oy/v1/models/series-a":
+            if state["estate_mode"] != "error":
+                payload = {"cards": [], "roadmap_kernels": []}
+                if premium_only and state["estate_mode"] == "rows":
+                    payload["cards"] = [{"id": "fixture", "lane": "model", "title": "TEST FIXTURE model", "hub_id": "fixture/" + "long-name-" * 12, "hub_href": "https://example.invalid/model", "evidence_class": "REPORTED", "listing": {"label": "REPORTED"}, "artifacts": {"label": "UNAVAILABLE", "note": "Fixture only; no model is downloaded or evaluated."}}]
+        elif path == "/api/a11oy/v1/formulas/selftest":
+            payload = {"unifying": {"governed_run_sound": {"P4_replay_determinism": True}}}
+        elif path in ("/api/a11oy/v1/gates", "/api/a11oy/v1/policy/gates"):
+            payload = {"gates": []}
+    return payload
 
 
 def run(output, premium_only=False):
@@ -57,15 +124,12 @@ def run(output, premium_only=False):
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     origin = "http://127.0.0.1:" + str(server.server_port)
-    state = {"energy": {}, "ledger": "rows", "lambda": .9191, "status_mode": "rows", "estate_mode": "rows"}
+    state = initial_fixture_state()
     requests = []
     failures = []
     checks = []
     errors = []
-    rows = [
-        {"seq": 2, "hash": "b" * 64, "prev_hash": "a" * 64, "vertical": "software", "action": "Review fixture findings", "simulated": True},
-        {"seq": 1, "hash": "a" * 64, "vertical": "software", "action": "Read fixture manifest", "simulated": True},
-    ]
+    rows = fixture_receipts()
 
     def check(name, condition, detail=None):
         checks.append({"name": name, "passed": bool(condition), "detail": detail})
@@ -80,53 +144,7 @@ def run(output, premium_only=False):
             route.continue_()
             return
         requests.append({"path": url.path, "query": url.query, "method": req.method, "source": "TEST FIXTURE"})
-        payload = None
-        if req.method == "GET" and local:
-            if url.path == "/healthz":
-                payload = {"status": "ok"}
-            elif url.path == "/api/a11oy/v1/honest":
-                payload = {"locked_formula_count": 8, "locked_formula_ids": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]}
-            elif url.path == "/api/a11oy/v1/lambda":
-                payload = {"lambda": state["lambda"], "lambda_floor": .9, "pass": True, "axes": []}
-            elif url.path == "/api/a11oy/v1/lambda/org":
-                payload = {"lambda_org": state["lambda"], "pass": True, "inputs": {"class": "SUPPLIED"}}
-            elif url.path == "/api/a11oy/v1/energy/operator/status":
-                payload = state["energy"]
-            elif url.path == "/api/a11oy/v1/wow/ledger":
-                query = parse_qs(url.query)
-                if query.get("advance") == ["0"] and state["ledger"] != "error":
-                    payload = {"chain_depth": 2 if state["ledger"] == "rows" else 0, "receipts": rows if state["ledger"] == "rows" else [], "window_verified": True, "final_hash": "b" * 64, "verticals_in_window": {"software": 2}}
-            elif url.path == "/api/a11oy/v1/observability/summary" and state["status_mode"] != "error":
-                payload = {"dag_depth": 2, "mesh_reach": {"core": {"status": "ok", "name": "Fixture core"}, "missing": {"status": "unavailable", "name": "Fixture missing"}}}
-                if state["status_mode"] == "rows":
-                    payload["capabilities"] = [{"id": "fixture", "name": "TEST FIXTURE service", "status": "ok", "latency_ms": 0}, {"id": "missing", "name": "TEST FIXTURE missing latency", "status": "unavailable"}]
-                elif state["status_mode"] == "empty":
-                    payload["capabilities"] = []
-            elif url.path == "/api/a11oy/v1/readiness" and state["status_mode"] != "error":
-                payload = {"source": "TEST FIXTURE", "summary": {}, "sections": []}
-                if state["status_mode"] == "rows":
-                    payload["sections"] = [{"id": "fixture", "title": "TEST FIXTURE repository", "kind": "kv", "fields": [{"k": "Repository identity", "v": "fixture-only/" + "long-repository-name-" * 8}]}]
-                    if premium_only:
-                        payload["sections"].append({"id": "http", "title": "TEST FIXTURE transport", "kind": "endpoints", "endpoints": [
-                            {"title": "Reported observation", "url": "https://example.invalid/reported", "liveness": {"reachable": True, "http_status": 200}},
-                            {"title": "Malformed observation", "url": "https://example.invalid/malformed", "liveness": {"reachable": "false", "http_status": 200}},
-                            {"title": "Missing observation", "url": "https://example.invalid/missing"},
-                        ]})
-                elif state["status_mode"] == "malformed":
-                    payload = {}
-            elif url.path == "/api/a11oy/v1/bounties" and state["status_mode"] != "error":
-                payload = {"source": "TEST FIXTURE", "bounties": []} if state["status_mode"] != "malformed" else {}
-            elif url.path == "/api/a11oy/v1/policy/decisions/feed":
-                payload = {"verdicts": [], "total_buffered": 14}
-            elif url.path == "/api/a11oy/v1/models/series-a":
-                if state["estate_mode"] != "error":
-                    payload = {"cards": [], "roadmap_kernels": []}
-                    if premium_only and state["estate_mode"] == "rows":
-                        payload["cards"] = [{"id": "fixture", "lane": "model", "title": "TEST FIXTURE model", "hub_id": "fixture/" + "long-name-" * 12, "hub_href": "https://example.invalid/model", "evidence_class": "REPORTED", "listing": {"label": "REPORTED"}, "artifacts": {"label": "UNAVAILABLE", "note": "Fixture only; no model is downloaded or evaluated."}}]
-            elif url.path == "/api/a11oy/v1/formulas/selftest":
-                payload = {"unifying": {"governed_run_sound": {"P4_replay_determinism": True}}}
-            elif url.path in ("/api/a11oy/v1/gates", "/api/a11oy/v1/policy/gates"):
-                payload = {"gates": []}
+        payload = fixture_payload(url.path, url.query, req.method, state, rows, premium_only) if local else None
         route.fulfill(status=200 if payload is not None else 503, content_type="application/json", body=json.dumps(payload if payload is not None else {"available": False, "state": "UNAVAILABLE", "source": "TEST: no network permitted"}))
 
     try:
