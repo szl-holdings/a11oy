@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_PLATFORM_SHA = "6e0dc7b423fbcfb2c165348e60b41cd55a9b9ace"
+EXPECTED_PLATFORM_SHA = "f2f8df6f89056e9104587674ccec0855dd5b177a"
 
 
 def _submodule_head() -> str:

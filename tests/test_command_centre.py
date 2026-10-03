@@ -69,9 +69,11 @@ def test_manifest_has_source_order_not_mutation_or_inference(client, monkeypatch
     assert data['authorities']['source'] == 'szl-holdings/a11oy'
     assert data['release_order'][0] == 'protected_github_source'
     assert data['release_order'][1] == 'canonical_hf_publication'
-    assert len(data['surfaces']) == 17
+    assert len(data['surfaces']) == 18
     assert all(s['href'].startswith(('/', 'https://')) for s in data['surfaces'])
     assert any(s['href'] == '/command-v2' for s in data['surfaces'])
+    assert any(s['href'] == 'https://huggingface.co/spaces/SZLHOLDINGS/szl-model-inference-lab'
+               and 'unsigned' in s['boundary'] for s in data['surfaces'])
 
 
 @pytest.mark.parametrize('sha', ['', 'main', 'a' * 39, 'A' * 40, '<script>'])
@@ -134,6 +136,15 @@ def test_get_does_not_call_provider_or_store_credentials():
     assert 'textContent' in code
     assert 'reasoning_effort' in code
     assert 'window.confirm' in code
+    assert "json('/api/a11oy/v1/atelier/local/health')" in code
+    assert "json('/api/a11oy/v1/atelier/local/turn'" in code
+    assert "json('/api/a11oy/v1/atelier/cpu-lab/health')" in code
+    assert "json('/api/a11oy/v1/atelier/cpu-lab/turn'" in code
+    assert "declared: 'PUBLIC'" in code
+    assert 'public_share_acknowledged: true' in code
+    assert "el('cpu-public-ack').checked = false" in code
+    assert 'szlholdings-szl-model-inference-lab.hf.space' not in code
+    assert 'localStorage' not in code
 
 
 def test_css_has_existing_design_system():
@@ -168,6 +179,12 @@ def test_owned_assets_emit_body_not_zero_copy_pathsend(client):
     response = client.get('/command-centre')
     assert '</html>' in response.text
     assert 'id="turn-form"' in response.text
+    assert 'id="local-turn-form"' in response.text
+    assert 'id="cpu-turn-form"' in response.text
+    assert 'id="cpu-public-ack"' in response.text
+    assert 'unsigned lab record' in response.text
+    assert 'maxlength="1200"' in response.text
+    assert 'This is not Grok' in response.text
     assert 'id="study-models"' in response.text
     assert 'FileResponse(' not in inspect.getsource(centre)
 

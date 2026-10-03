@@ -70,6 +70,13 @@ _BASE.DOMAIN_CSS["sentra"] = r''':root{--bg:#030506;--panel:rgba(7,12,15,.92);--
 _BASE.DOMAIN_HTML = dict(getattr(_BASE, "DOMAIN_HTML", {}))
 _BASE.DOMAIN_HTML["sentra"] = '''<div class="domain"><section class="panel verification" aria-label="Illustrative receipt verification graph"><span class="illus">Illustrative — schematic, not live data</span><span class="iris" aria-hidden="true"><span class="iris-ring"><span class="iris-aperture"></span></span></span><span class="path x1"></span><span class="path x2"></span><span class="path x3"></span><div class="node n1">RECEIPT</div><div class="node n2">SIGNATURE</div><div class="node n3">DIGEST</div><div class="node n4">CHAIN</div></section><aside class="panel queue"><span class="illus">Illustrative — schematic, not live data</span><div class="mono">VERIFICATION EVIDENCE QUEUE</div><div class="incident"><span class="sev">CONTRACT</span><span>The live upstream describes the public verifier and its supported checks; it does not claim a receipt verdict.</span></div><div class="incident"><span class="sev">VERDICT</span><span>PASS requires an actual caller-supplied receipt and successful signature, payload-digest, and hash-chain checks.</span></div><div class="incident"><span class="sev">SCOPE</span><span>This read-only surface performs no admission or approval. Immune engine migration remains UNVERIFIED until its contracts and runtime parity are proven.</span></div></aside></div>'''
 
+_BASE.DOMAIN_HTML["sentra"] += '''<section id="sentra-verifier-handoff" class="panel queue" style="margin-top:14px" aria-labelledby="sentra-verifier-title">
+<h2 id="sentra-verifier-title">Verify a receipt</h2>
+<p>Open the existing verifier to paste a receipt and a public key. Offline checks run in your browser. Online checks require a separate explicit action.</p>
+<a id="sentra-open-verifier" href="https://szlholdings-a11oy.hf.space/verify" target="_blank" rel="noopener noreferrer">Open receipt verifier</a>
+<p>Trust scope: a supplied public key proves only the check against that key. Runtime keys are REPO_DECLARED until pinned out of band. Independent validation: UNKNOWN. Receipt integrity does not prove output truth, signer authority, authorization, admission, approval, or production readiness.</p>
+</section>'''
+
 _PROBE_LIVE = (
     '{"status":"LIVE" if r.is_success else "UNAVAILABLE","http_status":r.status_code,'
     '"latency_ms":round((time.time()-started)*1000,1),"source":CFG["upstream"],"data":body}'

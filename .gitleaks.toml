@@ -62,6 +62,11 @@ regexes = [
   # Content-addressed public source digest, not a credential. Keep this bound
   # to the single gdw_auth manifest row; other 64-hex values remain scanned.
   '''^\s*"gdw_auth\.py"\s*:\s*"[0-9a-f]{64}",?\s*$''',
+  # Public source digest row, not a credential. Exact module/path context and
+  # a complete 64-hex JSON row only; the required paired payload validator
+  # independently proves the digest against both source files. No file/path
+  # exclusion or generic 64-hex exemption is added.
+  '''^\s*"szl_operator_auth\.py"\s*:\s*"[0-9a-f]{64}",?\s*$''',
 ]
 
 # Stopwords — exempt specific DOCUMENTED non-secret literals by their value,

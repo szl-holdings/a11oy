@@ -857,7 +857,7 @@ def _destination_ledger_card(sp: dict[str, str], kind: str) -> str:
         raise ValueError("unsupported destination ledger kind")
     name = sp["name"]
     title = html_escape(sp["title"])
-    dest = html_escape(canonical_url(name), quote=True)
+    dest = html_escape(sp["dest"], quote=True)
     honesty = html_escape(
         "KEEP · current org policy · runtime UNPROBED here"
         if kind == "KEEP_POLICY" else

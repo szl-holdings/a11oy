@@ -10,9 +10,9 @@ PROVENANCE (honest, not invented):
     (github.com/DietrichGebert/ponytail, MIT, © 2026 DietrichGebert). We studied
     Ponytail's SKILL.md and benchmark methodology and RE-IMPLEMENTED the idea on
     our own stack — we did NOT bulk-copy its files. a11oy Restraint is Ponytail
-    *governed* (every restraint decision becomes a signed DSSE receipt + Λ-scored)
-    and *measured* (we reproduce the code-reduction / cost / speed numbers on OUR
-    stack rather than repeating Ponytail's). Ponytail's published numbers
+    *governed* (the operator-authorized route requires a verified DSSE receipt)
+    and offers a measurement harness (OUR code-reduction / cost / speed numbers
+    require an actual model run, never a fixture). Ponytail's published numbers
     (80-94% less code, 47-77% cheaper, 3-6x faster, median across Haiku/Sonnet/
     Opus) are CITED as Ponytail's, never claimed as ours.
 
@@ -28,9 +28,9 @@ WHAT THIS MODULE DOES (all real, deterministic):
        Intensity lite/full/ultra changes how aggressively rungs 1/5/6 fire.
     2. Emits `restraint:` ceiling comments (our honest rename of Ponytail's
        `ponytail:`) naming the upgrade path for each deliberate simplification.
-    3. GOVERNED: every decision -> a signed DSSE receipt (caller passes the host's
-       REAL in-image ECDSA-P256 signer _a11oy_sign_receipt) + a Λ trust score
-       (Conjecture 1 is OPEN, advisory floor < 1.0; we never call it proven).
+    3. GOVERNED: operator-authorized route decisions require an observed,
+       cryptographically verified host DSSE receipt before the response is returned.
+       Λ is advisory (Conjecture 1 is OPEN; never called proven).
     4. MEASURED: a promptfoo-style benchmark harness with two arms — no-skill
        baseline vs a11oy-restraint — over Ponytail's five everyday tasks. Numbers
        are labelled MEASURED only when an actual run is wired; otherwise SAMPLE /
@@ -53,6 +53,8 @@ ADDITIVE, self-contained, try/except-guarded by serve.py. Touches nothing else.
 """
 from __future__ import annotations
 
+import base64
+import json
 import math
 import re
 import time
@@ -535,10 +537,83 @@ def _aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     }
 
 
-def info() -> Dict[str, Any]:
+def _runtime_callbacks(app):
+    if app is None:
+        return None, None
+    signer = getattr(app.state, "szl_restraint_signer_override", None)
+    verifier = getattr(app.state, "szl_restraint_verifier_override", None)
+    if signer is None:
+        signer = getattr(app.state, "szl_sign_receipt", None)
+    if verifier is None:
+        verifier = getattr(app.state, "szl_verify_receipt", None)
+    return (signer if callable(signer) else None,
+            verifier if callable(verifier) else None)
+
+
+def _verified_decision_receipt(envelope, receipt_payload, verifier):
+    """Accept only a signed, payload-bound DSSE envelope verified by the host key."""
+    if not isinstance(envelope, dict) or envelope.get("signed") is not True:
+        return None
+    if (envelope.get("_dsse") != "DSSEv1"
+            or envelope.get("payloadType") != "application/vnd.szl.receipt+json"):
+        return None
+    signatures = envelope.get("signatures")
+    if not isinstance(signatures, list) or not signatures:
+        return None
+    try:
+        encoded = envelope["payload"]
+        if not isinstance(encoded, str):
+            return None
+        signed_payload = json.loads(base64.b64decode(encoded, validate=True))
+        if not isinstance(signed_payload, dict):
+            return None
+        identity = signed_payload.pop("_signing_identity", None)
+        if not isinstance(identity, dict) or signed_payload != receipt_payload:
+            return None
+        verdict = verifier(envelope)
+        if not isinstance(verdict, dict) or verdict.get("signature_valid") is not True:
+            return None
+        keyid = verdict.get("keyid_verified")
+        if (not isinstance(keyid, str) or not keyid
+                or identity.get("keyid") != keyid
+                or not any(isinstance(sig, dict) and sig.get("keyid") == keyid
+                           and isinstance(sig.get("sig"), str) and sig["sig"]
+                           for sig in signatures)):
+            return None
+    except Exception:
+        return None
+    digest = sha256(json.dumps(envelope, sort_keys=True, separators=(",", ":"),
+                               ensure_ascii=False).encode("utf-8")).hexdigest()
+    return {"keyid": keyid, "receipt_sha256": digest}
+
+
+def info(app=None) -> Dict[str, Any]:
+    signer, verifier = _runtime_callbacks(app)
+    observation = (getattr(app.state, "szl_restraint_observation", None)
+                   if app is not None else None)
+    observed = (isinstance(observation, dict)
+                and signer is not None and verifier is not None
+                and observation.get("signer") is signer
+                and observation.get("verifier") is verifier)
+    identity = observation.get("keyid") if observed else None
+    receipt_digest = observation.get("receipt_sha256") if observed else None
+    identity_reader = (getattr(app.state, "szl_restraint_identity_override", None)
+                       if app is not None else None)
+    if identity_reader is None and app is not None:
+        identity_reader = getattr(app.state, "szl_restraint_identity_fn", None)
+    current_identity = None
+    if callable(identity_reader):
+        try:
+            current = identity_reader()
+            if isinstance(current, dict) and isinstance(current.get("keyid"), str):
+                current_identity = current["keyid"] or None
+        except Exception:
+            pass
+    ready = bool(observed and current_identity is not None
+                 and current_identity == identity)
     return {
         "service": "a11oy.restraint",
-        "what": ("a GOVERNED + MEASURED frugality gate for the a11oy Code agent: before "
+        "what": ("a governed frugality advisor for the a11oy Code agent: before "
                  "emitting a diff the agent descends a 6-rung ladder and stops at the first "
                  "rung that holds, marking deliberate simplifications with `restraint:` "
                  "ceiling comments that name the upgrade path."),
@@ -549,8 +624,10 @@ def info() -> Dict[str, Any]:
             "ultra": "YAGNI-extremist: deletion before addition; rung 1 fires on speculation.",
         },
         "never_simplify": list(NEVER_SIMPLIFY),
-        "governed": ("every decision -> a signed DSSE receipt (host in-image ECDSA-P256 "
-                     "signer) + an advisory Λ score. Conjecture 1 is OPEN; Λ kept < 1.0."),
+        "governed": ("operator-authorized evaluation requires a DSSE receipt verified "
+                     "against the host ECDSA-P256 key before a decision is returned; "
+                     "without that observation it remains BLOCKED. Λ is advisory; "
+                     "Conjecture 1 is OPEN."),
         "measured": ("two-arm benchmark (baseline vs a11oy-restraint) ported from Ponytail's "
                      "promptfoo methodology; MEASURED only when a model run is wired, else "
                      "SAMPLE/ROADMAP."),
@@ -561,16 +638,27 @@ def info() -> Dict[str, Any]:
             "license": PONYTAIL_LICENSE,
             "stars": "4.6k",
             "relation": "adopted + governed (NOT invented here). Idea & ladder are Ponytail's.",
-            "our_differentiators": ["signed DSSE receipts per decision", "Λ trust scoring",
+            "our_differentiators": ["verified DSSE receipt gate on operator decisions", "Λ trust scoring",
                                     "measured-on-our-stack benchmarks", "J/token energy tie-in"],
             "citation": ("a11oy Restraint adopts the 6-rung ladder + lite/full/ultra intensity "
                          "from the open-source Ponytail skill (MIT, © 2026 DietrichGebert) and "
-                         "adds governance (signed receipts + Λ) and honest measurement."),
+                         "adds a receipt-verification gate, advisory Λ, and honest measurement."),
         },
         "doctrine": {"version": DOCTRINE, "kernel_commit": KERNEL_COMMIT, "locked": LOCKED,
                      "lambda": "Conjecture 1 (OPEN) advisory floor < 1.0",
                      "slsa": "L1 honest; L2/L3 roadmap", "runtime_cdn": 0,
-                     "signed_receipts": True, "visible_codenames": 0},
+                     "signed_receipts": ready, "visible_codenames": 0},
+        "signer_health": {"observed_this_process": bool(observed),
+                          "ready": ready, "identity": current_identity,
+                          "last_verified_identity": identity,
+                          "identity_checked": current_identity is not None},
+        "receipt_verification": {
+            "observed_this_process": bool(observed),
+            "cryptographically_verified": bool(observed),
+            "signature_count": 1 if observed else 0,
+            "method": "ECDSA-P256-SHA256 DSSE PAE" if observed else None,
+            "receipt_sha256": receipt_digest,
+        },
     }
 
 
@@ -581,9 +669,18 @@ def info() -> Dict[str, Any]:
 
 def register(app, ns: str = "a11oy", sign_fn: Optional[Callable[[Any], dict]] = None,
              verify_fn=None, signer_label: str = "in-image key",
-             exporter_sample_fn: Optional[Callable[[], Any]] = None):
+             exporter_sample_fn: Optional[Callable[[], Any]] = None,
+             identity_fn=None):
     from starlette.routing import Route
     from starlette.responses import JSONResponse
+
+    app.state.szl_restraint_signer_override = sign_fn
+    app.state.szl_restraint_verifier_override = verify_fn
+    app.state.szl_restraint_identity_override = identity_fn
+    app.state.szl_restraint_observation = None
+    # Bind the frontier reader to the actual route module registered on this app.
+    # A separately installed substrate copy must not supply unrelated readiness.
+    app.state.szl_restraint_info_reader = lambda: info(app)
 
     def _sample():
         if exporter_sample_fn is None:
@@ -595,18 +692,45 @@ def register(app, ns: str = "a11oy", sign_fn: Optional[Callable[[Any], dict]] = 
 
     async def _evaluate(request):
         try:
+            from szl_operator_auth import operator_refusal
+            refusal = operator_refusal(request, "Restraint evaluation")
+        except Exception:
+            return JSONResponse({"ok": False, "status": "BLOCKED",
+                                 "reason": "OPERATOR_GATE_UNAVAILABLE"}, status_code=503)
+        if refusal is not None:
+            return refusal
+        try:
             b = await request.json()
         except Exception:
             b = {}
+        if not isinstance(b, dict):
+            return JSONResponse({"error": "provide a JSON object"}, status_code=400)
         task = b.get("task") or b.get("prompt") or b.get("query") or ""
         intensity = b.get("intensity") or "full"
         lang = b.get("lang")
-        if not task:
+        if not isinstance(task, str) or not task:
             return JSONResponse({"error": "provide a 'task' (the thing the code agent is about to build)",
                                  "example": {"task": "add a cache for these API responses", "intensity": "full"}},
                                 status_code=400)
-        out = evaluate(task, intensity=intensity, lang=lang, sign_fn=sign_fn,
-                       exporter_sample=_sample())
+        signer, verifier = _runtime_callbacks(request.app)
+        if signer is None or verifier is None:
+            request.app.state.szl_restraint_observation = None
+            return JSONResponse({"ok": False, "status": "BLOCKED",
+                                 "reason": "SIGNER_OR_VERIFIER_UNAVAILABLE"}, status_code=503)
+        try:
+            out = evaluate(task, intensity=intensity, lang=lang, sign_fn=signer,
+                           exporter_sample=_sample())
+            verified = _verified_decision_receipt(out.get("signed_receipt"),
+                                                  out["receipt_payload"], verifier)
+        except Exception:
+            verified = None
+        if verified is None:
+            request.app.state.szl_restraint_observation = None
+            return JSONResponse({"ok": False, "status": "BLOCKED",
+                                 "reason": "SIGNED_RECEIPT_VERIFICATION_FAILED"}, status_code=503)
+        request.app.state.szl_restraint_observation = {
+            "signer": signer, "verifier": verifier, **verified,
+        }
         out["signer_label"] = signer_label
         return JSONResponse(out)
 
@@ -620,7 +744,7 @@ def register(app, ns: str = "a11oy", sign_fn: Optional[Callable[[Any], dict]] = 
         return JSONResponse(benchmark(intensity=intensity, run_arm=None))
 
     async def _info(request):
-        return JSONResponse(info())
+        return JSONResponse(info(request.app))
 
     routes = [
         Route("/api/%s/v1/restraint/evaluate" % ns, _evaluate, methods=["POST"], name="%s_restraint_eval" % ns),
