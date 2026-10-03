@@ -142,7 +142,7 @@ def test_local_turn_is_single_bounded_no_key_call_with_signed_metadata(configure
     assert len(configured["probes"]) == 1
     tags_url, tags_options = configured["probes"][0]
     assert tags_url == "http://127.0.0.1:11434/api/tags"
-    assert tags_options["method"] == "GET" and tags_options["timeout"] == 4.0
+    assert tags_options["method"] == "GET" and tags_options["timeout"] == 10.0
     assert tags_options["allow_private"] is True and tags_options["max_redirects"] == 0
     assert len(configured["calls"]) == 1
     url, options, sent = configured["calls"][0]
@@ -397,9 +397,30 @@ def test_digest_probe_failure_is_signed_and_blocks_inference(configured, result)
     assert response.status_code == 503
     assert response.json()["code"] == "LOCAL_MODEL_DIGEST_UNAVAILABLE"
     assert len(probes) == 1 and not configured["calls"]
+    assert probes[0][1]["timeout"] == 10.0
     decision, outcome = [row["payload"] for row in assert_signed(response, configured)]
     assert decision["model_digest_expected"] == DIGEST
     assert "model_digest_observed_before_call" not in outcome
+    assert outcome["provider_outcome_uncertain"] is False
+
+
+def test_digest_probe_exception_fails_closed_without_inference(configured):
+    probes = configured["probes"]
+
+    def timed_out(url, **kwargs):
+        probes.append((url, kwargs))
+        raise TimeoutError("local tags took too long")
+
+    configured["monkeypatch"].setattr(atelier.szl_provider_http, "http_json", timed_out)
+    response = post(configured)
+    assert response.status_code == 503
+    assert response.json()["code"] == "LOCAL_MODEL_DIGEST_UNAVAILABLE"
+    assert response.json()["retry_safe"] is False
+    assert len(probes) == 1 and probes[0][1]["timeout"] == 10.0
+    assert not configured["calls"]
+    decision, outcome = [row["payload"] for row in assert_signed(response, configured)]
+    assert decision["phase"] == "DECISION"
+    assert outcome["state"] == "UNAVAILABLE"
     assert outcome["provider_outcome_uncertain"] is False
 
 
