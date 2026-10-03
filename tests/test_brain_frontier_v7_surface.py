@@ -104,6 +104,91 @@ if (globalThis.__brainFrontierV7Test.validatePayload(payload)) process.exit(13);
     assert completed.returncode == 0, completed.stderr or completed.stdout
 
 
+def test_client_accepts_only_the_bound_optional_forum_pilot() -> None:
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js is unavailable")
+    source = read("console/assets/brain-frontier-v7.js")
+    marker = "\n})();"
+    assert source.count(marker) == 1
+    instrumented = source.replace(
+        marker,
+        "\n  globalThis.__brainFrontierV7Test = { validatePayload, verifySnapshot, canonicalJson };"
+        + marker,
+    )
+    harness = f'''\
+import {{ readFileSync }} from "node:fs";
+import {{ webcrypto }} from "node:crypto";
+globalThis.window = {{
+  crypto: webcrypto,
+  location: {{ origin: "https://a-11-oy.com" }},
+  matchMedia: () => ({{ matches: false, addEventListener() {{}} }}),
+}};
+globalThis.document = {{ readyState: "loading", addEventListener() {{}} }};
+{instrumented}
+const {{ validatePayload, verifySnapshot, canonicalJson }} = globalThis.__brainFrontierV7Test;
+const payload = JSON.parse(readFileSync(process.env.BF7_SNAPSHOT, "utf8"));
+if (!validatePayload(payload)) throw new Error("legacy snapshot rejected");
+const pilot = {{
+  ...payload.handles.at(-1),
+  repository: "szl-holdings/szl-science-forum-corpus",
+  path: "dataset/sources.public.jsonl",
+  kind: "forum-insight",
+  admission: "DISCOVERED_REVIEW_REQUIRED",
+}};
+delete pilot.quantDomain;
+payload.handles[payload.handles.length - 1] = pilot;
+const {{ snapshot_sha256, ...body }} = payload;
+const digest = await webcrypto.subtle.digest("SHA-256", new TextEncoder().encode(canonicalJson(body)));
+payload.snapshot_sha256 = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+if (!validatePayload(payload) || !await verifySnapshot(payload)) throw new Error("bound pilot rejected");
+const changes = [
+  {{ repository: "szl-holdings/a11oy" }},
+  {{ repository: "external/forum-corpus" }},
+  {{ path: "dataset/other.public.jsonl" }},
+  {{ kind: "source-document" }},
+  {{ kind: "invented-kind" }},
+  {{ admission: "OPEN_NOT_EXECUTION_AUTHORITY" }},
+  {{ quantDomain: "domain-0" }},
+  {{ candidateState: "PROMOTED" }},
+  {{ contentAccess: "PUBLIC" }},
+  {{ authority: "ALLOWED" }},
+  {{ revision: "main" }},
+  {{ sha256: "not-a-digest" }},
+  {{ content: "must not expose candidate content" }},
+];
+for (const change of changes) {{
+  const invalid = structuredClone(payload);
+  invalid.handles[invalid.handles.length - 1] = {{ ...pilot, ...change }};
+  if (validatePayload(invalid)) throw new Error(`expanded forum contract: ${{JSON.stringify(change)}}`);
+}}
+const multiple = structuredClone(payload);
+multiple.handles[multiple.handles.length - 2] = {{ ...pilot, nodeId: multiple.handles.at(-2).nodeId }};
+if (validatePayload(multiple)) throw new Error("multiple forum pilots accepted");
+const missingRequired = structuredClone(payload);
+missingRequired.handles = missingRequired.handles.map((handle) => handle.repository === "szl-holdings/anatomy"
+  ? {{ ...handle, repository: "szl-holdings/a11oy" }} : handle);
+if (validatePayload(missingRequired)) throw new Error("required repository omitted");
+payload.handles.at(-1).title += " tampered";
+if (!validatePayload(payload) || await verifySnapshot(payload)) throw new Error("digest tampering accepted");
+'''
+    environment = os.environ.copy()
+    environment["BF7_SNAPSHOT"] = str(
+        ROOT / "console" / "assets" / "brain-frontier-v7.json"
+    )
+    completed = subprocess.run(
+        [node, "--input-type=module", "-"],
+        input=harness,
+        text=True,
+        encoding="utf-8",
+        capture_output=True,
+        env=environment,
+        timeout=20,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr or completed.stdout
+
+
 def test_surface_is_accessible_mobile_safe_and_not_another_global_navigation() -> None:
     source = read("console/assets/brain-frontier-v7.js")
     css = read("console/assets/brain-frontier-v7.css")

@@ -10,7 +10,9 @@
   const HANDLE_ID = /^frontier:[0-9a-f]{32}$/;
   const REVISION = /^[0-9a-f]{40}$/;
   const DIGEST = /^[0-9a-f]{64}$/;
-  const SOURCE_REPOSITORIES = new Set([
+  const FORUM_REPOSITORY = "szl-holdings/szl-science-forum-corpus";
+  const FORUM_PATH = "dataset/sources.public.jsonl";
+  const REQUIRED_SOURCE_REPOSITORIES = new Set([
     "szl-holdings/szl-formulas",
     "szl-holdings/anatomy",
     "szl-holdings/szl-ouroboros",
@@ -19,9 +21,10 @@
     "szl-holdings/szl-nemo",
     "szl-holdings/szl-kernels",
   ]);
+  const SOURCE_REPOSITORIES = new Set([...REQUIRED_SOURCE_REPOSITORIES, FORUM_REPOSITORY]);
   const HANDLE_KINDS = new Set([
     "formula-authority", "quant-domain", "attributed-formula", "executable-formula",
-    "python-contract", "estate-authority", "estate-surface", "source-document",
+    "python-contract", "estate-authority", "estate-surface", "source-document", "forum-insight",
   ]);
   const HANDLE_ADMISSIONS = new Set([
     "DISCOVERED_REVIEW_REQUIRED",
@@ -85,6 +88,11 @@
     if (!HANDLE_KINDS.has(handle.kind)) return false;
     if (!safeTitle(handle.title) || !safePath(handle.path)) return false;
     if (!HANDLE_ADMISSIONS.has(handle.admission)) return false;
+    if (handle.kind === "forum-insight" || handle.repository === FORUM_REPOSITORY) {
+      if (handle.kind !== "forum-insight" || handle.repository !== FORUM_REPOSITORY
+        || handle.path !== FORUM_PATH || handle.admission !== "DISCOVERED_REVIEW_REQUIRED"
+        || Object.hasOwn(handle, "quantDomain")) return false;
+    }
     if (Object.hasOwn(handle, "quantDomain") && !safeDomain(handle.quantDomain)) return false;
     if (handle.kind === "quant-domain" && !safeDomain(handle.quantDomain)) return false;
     if (handle.candidateState !== "DISCOVERED_REVIEW_REQUIRED") return false;
@@ -105,9 +113,10 @@
     if (!payload.handles.every(validateHandle)) return false;
     if (new Set(payload.handles.map((handle) => handle.nodeId)).size !== 72) return false;
     const repositories = new Set(payload.handles.map((handle) => handle.repository));
-    if (![...SOURCE_REPOSITORIES].every((repository) => repositories.has(repository))) return false;
+    if (![...REQUIRED_SOURCE_REPOSITORIES].every((repository) => repositories.has(repository))) return false;
     if (payload.selected_handle_count !== payload.handles.length) return false;
     const kindCount = (kind) => payload.handles.filter((handle) => handle.kind === kind).length;
+    if (kindCount("forum-insight") > 1) return false;
     if (kindCount("formula-authority") !== 1 || kindCount("attributed-formula") !== 30
       || kindCount("executable-formula") !== 21 || kindCount("quant-domain") !== 9) return false;
     const domains = new Set(payload.handles.filter((handle) => handle.kind === "quant-domain")

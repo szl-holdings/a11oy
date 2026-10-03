@@ -9,6 +9,8 @@ import pytest
 from scripts.materialize_brain_frontier_v7 import (
     ANATOMY_REPOSITORY,
     FORMULA_REPOSITORY,
+    FORUM_PATH,
+    FORUM_REPOSITORY,
     MaterializationError,
     OUROBOROS_REPOSITORY,
     build_snapshot,
@@ -93,6 +95,80 @@ def dependencies() -> dict[str, str]:
         FORMULA_REPOSITORY: "3" * 40,
         OUROBOROS_REPOSITORY: "4" * 40,
     }
+
+
+def forum_fixture(*, selected: bool = False) -> tuple[bytes, bytes]:
+    state_raw, candidates_raw = fixture()
+    rows = [json.loads(line) for line in candidates_raw.splitlines()]
+    if selected:
+        rows = rows[:71]
+    pilot = row(82, "forum-insight", repository=FORUM_REPOSITORY)
+    pilot["source_path"] = FORUM_PATH
+    pilot["admission"] = "DISCOVERED_REVIEW_REQUIRED"
+    rows.append(pilot)
+    candidates = b"".join(canonical_bytes(item) + b"\n" for item in rows)
+    state = json.loads(state_raw)
+    state["source_count"] = 8
+    state["candidate_count"] = len(rows)
+    state["candidate_set_sha256"] = hashlib.sha256(candidates).hexdigest()
+    return json.dumps(state).encode(), candidates
+
+
+@pytest.mark.parametrize("selected", [False, True])
+def test_reviewed_forum_pilot_is_optional_bounded_and_handles_only(selected: bool) -> None:
+    state_raw, candidates_raw = forum_fixture(selected=selected)
+    snapshot = build_snapshot("5" * 40, state_raw, candidates_raw, dependencies())
+    assert snapshot == build_snapshot("5" * 40, state_raw, candidates_raw, dependencies())
+    assert snapshot["selected_handle_count"] == len(snapshot["handles"]) == 72
+    pilot_handles = [handle for handle in snapshot["handles"] if handle["kind"] == "forum-insight"]
+    assert len(pilot_handles) == int(selected)
+    if selected:
+        assert pilot_handles[0]["repository"] == FORUM_REPOSITORY
+        assert pilot_handles[0]["path"] == FORUM_PATH
+        assert pilot_handles[0]["admission"] == "DISCOVERED_REVIEW_REQUIRED"
+        assert pilot_handles[0]["contentAccess"] == "HANDLES_ONLY"
+        assert pilot_handles[0]["authority"] == "NONE"
+    assert snapshot["formula_atlas"]["locked_proven_formula_count"] == 8
+    assert all(snapshot["authority"][key] == "NONE" for key in (
+        "training", "promotion", "execution", "merge", "provider_mutation",
+    ))
+    assert '"content"' not in json.dumps(snapshot)
+
+
+@pytest.mark.parametrize("field,value", [
+    ("source_repository", "szl-holdings/a11oy"),
+    ("source_repository", "external/forum-corpus"),
+    ("source_path", "dataset/other.public.jsonl"),
+    ("source_kind", "source-document"),
+    ("source_kind", "invented-kind"),
+    ("admission", "REFERENCE_AND_CONSTRAINT_INPUT_ONLY"),
+    ("quant_domain", "domain-0"),
+    ("candidate_state", "PROMOTED"),
+    ("content_access", "PUBLIC"),
+    ("source_revision", "main"),
+    ("content_sha256", "0" * 64),
+])
+def test_forum_pilot_cannot_expand_source_or_authority(field: str, value: str) -> None:
+    state_raw, candidates_raw = forum_fixture()
+    rows = [json.loads(line) for line in candidates_raw.splitlines()]
+    rows[-1][field] = value
+    candidates = b"".join(canonical_bytes(item) + b"\n" for item in rows)
+    state = json.loads(state_raw)
+    state["candidate_set_sha256"] = hashlib.sha256(candidates).hexdigest()
+    with pytest.raises(MaterializationError):
+        validate_frontier(json.dumps(state).encode(), candidates)
+
+
+def test_forum_pilot_count_cannot_silently_expand() -> None:
+    state_raw, candidates_raw = forum_fixture()
+    rows = [json.loads(line) for line in candidates_raw.splitlines()]
+    rows.append(rows[-1] | {"id": f"frontier:{83:032x}"})
+    candidates = b"".join(canonical_bytes(item) + b"\n" for item in rows)
+    state = json.loads(state_raw)
+    state["candidate_count"] = len(rows)
+    state["candidate_set_sha256"] = hashlib.sha256(candidates).hexdigest()
+    with pytest.raises(MaterializationError, match="forum pilot count"):
+        validate_frontier(json.dumps(state).encode(), candidates)
 
 
 def test_snapshot_is_handles_only_deterministic_and_exact() -> None:
