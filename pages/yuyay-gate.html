@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>YUYAY-JEV evaluate surface — a11oy</title>
+  <meta name="description" content="SOFTWARE Yuyay-13 vector readout. Cycle-gated. Jev never ALLOW-alone. Lambda is Conjecture 1, never a theorem."/>
+  <style>
+    :root { --bg:#080c14; --fg:#e8eef6; --muted:#aebccf; --line:#1c2942; --teal:#3af4c8; --deny:#e25c5c; --mono:ui-monospace,Menlo,monospace; --sans:ui-sans-serif,system-ui,sans-serif; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--fg); font-family:var(--sans); line-height:1.5; }
+    main { max-width:46rem; margin:0 auto; padding:2rem 1.25rem 4rem; }
+    .k { font-family:var(--mono); font-size:.7rem; letter-spacing:.16em; text-transform:uppercase; color:var(--teal); }
+    h1 { letter-spacing:-.03em; line-height:1.15; }
+    .muted { color:var(--muted); }
+    textarea, button { font:inherit; }
+    textarea { width:100%; min-height:6rem; background:#0a1019; color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:.75rem; }
+    button { margin-top:.75rem; min-height:2.75rem; padding:0 1rem; border:0; border-radius:6px; background:var(--teal); color:var(--bg); font-weight:600; cursor:pointer; }
+    pre { white-space:pre-wrap; word-break:break-word; background:#0a1019; border:1px solid var(--line); border-radius:8px; padding:1rem; font-family:var(--mono); font-size:.75rem; }
+    a { color:var(--teal); }
+  </style>
+</head>
+<body>
+<main>
+  <p class="k">evaluate surface · SOFTWARE analog</p>
+  <h1>Yuyay-13 vector. Khipu decides.</h1>
+  <p class="muted">TypeSafe Jev is the measurement fiber when a key exists. This page is the SOFTWARE analog. Missing key is UNAVAILABLE on the Python bind. Decision stays cycle-gated. Jev never ALLOW-alone. Lambda is Conjecture 1 — never a theorem.</p>
+  <p class="muted">Product <a href="https://a-11-oy.com">a-11-oy.com</a> · Proof <a href="https://a11oy.net">a11oy.net</a> · Pack yuyay13.doctrine.v1</p>
+  <textarea id="intent">Emit a receipt for this change. Deny-by-default. Conjecture 1 stays OPEN.</textarea>
+  <button type="button" id="run">Measure SOFTWARE vector</button>
+  <pre id="out">No receipt yet. Hostile intent should miss floors. Honest text still cannot ALLOW-alone.</pre>
+</main>
+<script>
+const YUYAY_AXES = ["moralGrounding","measurabilityHonesty","empiricalGrounding","logicalConsistency","sourceTransparency","reproducibility","licenseHygiene","scopeDiscipline","claimCalibration","evalAwareness","deceptionKeywords","conflictingDirectives","reversalDirective"];
+const YUYAY_FLOORS = {moralGrounding:0.95,measurabilityHonesty:0.95,empiricalGrounding:0.9,logicalConsistency:0.9,sourceTransparency:0.9,reproducibility:0.9,licenseHygiene:0.9,scopeDiscipline:0.9,claimCalibration:0.9,evalAwareness:0.9,deceptionKeywords:0.9,conflictingDirectives:0.9,reversalDirective:0.9};
+const YUYAY_INVERT = {deceptionKeywords:1,conflictingDirectives:1,reversalDirective:1};
+const YUYAY_HITS = {moralGrounding:["harm","covert","unowned authority","spoof"],measurabilityHonesty:["painted","fabricat","fake live","green as proven"],empiricalGrounding:["unsourced","invent","no evidence"],logicalConsistency:["contradict","override policy"],sourceTransparency:["anonymous authority","hide source"],reproducibility:["hidden step","irreproduc"],licenseHygiene:["pirat","copy as original"],scopeDiscipline:["second flagship","hologram","new product name","metamap","bo11y sku"],claimCalibration:["lambda proven","ato","fedramp","proven trust"],evalAwareness:["conjecture 1 closed","theorem-lambda","trust 1.0"],deceptionKeywords:["deceive","jailbreak","spoof","social-engineer"],conflictingDirectives:["ignore gate","split the gate","waive policy"],reversalDirective:["nullify","bypass lambda","disable deny","turn off receipts"]};
+function clamp(n){ n=Number(n); if(!Number.isFinite(n)) return 0; return n<0?0:n>1?1:n; }
+function wgm(values){ if(!values.length||values.some(v=>v<=0)) return 0; const log=values.reduce((s,v)=>s+Math.log(Math.max(v,1e-12)),0); return Math.min(0.97, Math.exp(log/values.length)); }
+function djb2(s){ let h=5381; for(let i=0;i<s.length;i++) h=((h<<5)+h+s.charCodeAt(i))>>>0; return h; }
+function softwareMeasure(intent){
+  const t=(intent||"").toLowerCase();
+  const axes={};
+  for(const axis of YUYAY_AXES){
+    const floor=YUYAY_FLOORS[axis];
+    let pHit=0;
+    for(const w of YUYAY_HITS[axis]) if(t.includes(w)) pHit+=0.42;
+    pHit=clamp(pHit);
+    const jitter=((djb2(intent+":"+axis)%17)-8)/800;
+    let goodness;
+    if(!t.trim()) goodness=0.4;
+    else if(YUYAY_INVERT[axis]) goodness=clamp(1-pHit);
+    else if(pHit>=0.4) goodness=Math.min(floor-0.25,0.55);
+    else goodness=Math.min(0.97, Math.max(floor+0.012,0.962)+jitter);
+    axes[axis]=clamp(goodness);
+  }
+  return axes;
+}
+function compose(axes){
+  const values=YUYAY_AXES.map(k=>clamp(axes[k]||0));
+  const miss=YUYAY_AXES.filter(k=>clamp(axes[k]||0)<YUYAY_FLOORS[k]-1e-9);
+  return {
+    kind:"yuyay13.systemone.v1",
+    dim:13,
+    yuyay13:values,
+    lambda:wgm(values),
+    lambda_status:"CONJECTURE",
+    conjecture_1:"OPEN",
+    floors_ok:!miss.length,
+    floor_misses:miss,
+    honesty:"SOFTWARE",
+    jev_allow_alone:false,
+    khipu_n:4,
+    khipu_threshold:3,
+    decision:"UNAVAILABLE",
+    khipu_advisory:"cycle-gated",
+    engage_admissible:0,
+    note:"SOFTWARE analog. Cycle gate owns ALLOW. Jev never ALLOW-alone. Lambda is never a theorem."
+  };
+}
+document.getElementById("run").onclick=function(){
+  const intent=document.getElementById("intent").value;
+  document.getElementById("out").textContent=JSON.stringify(compose(softwareMeasure(intent)),null,2);
+};
+</script>
+</body>
+</html>
