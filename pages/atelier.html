@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Atelier — 40 Hub models · a11oy</title>
-<meta name="description" content="Walk all 40 SZLHOLDINGS Hub models. Unique cuts, receipted Python, fail-closed kernels. Declared product surface on a-11-oy.com."/>
+<title>Atelier — curated 40-entry Hub snapshot · a11oy</title>
+<meta name="description" content="Explore a curated 40-entry SZLHOLDINGS Hub snapshot dated 2026-09-29. This fixed selection includes software and roadmap cards; it is not a live or complete Hub inventory."/>
 <link rel="canonical" href="https://a-11-oy.com/atelier"/>
 <!-- SPDX-License-Identifier: Apache-2.0 · © 2026 SZL Holdings · Doctrine v11 · 0 runtime CDN.
      Honest name: Atelier. NEVER a codename. GET /atelier is a declared product surface.
@@ -157,11 +157,12 @@ pre {
   <span id="/forge" hidden></span>
   <span id="/grid" hidden></span>
   <p class="honest">
-    <b>Honest.</b> 40 Hub ids. Nano silhouettes MEASURED in-browser from shipped NumPy.
+    <b>Honest.</b> Curated 40-entry Hub snapshot dated 2026-09-29, not a live or complete inventory. Nano silhouettes MEASURED in-browser from shipped NumPy.
     1.5B numbers SIGNED, not retrained here. Energy UNAVAILABLE. Lambda = Conjecture 1 OPEN.
     Proof copy <a href="https://a11oy.net/atelier/">a11oy.net/atelier</a>.
     Canonical Space <a href="https://huggingface.co/spaces/SZLHOLDINGS/szl-atelier">SZLHOLDINGS/szl-atelier</a>.
-    Source <a href="https://github.com/szl-holdings/szl-atelier">szl-holdings/szl-atelier</a>.
+    Space source <a href="https://github.com/szl-holdings/szl-atelier">szl-holdings/szl-atelier</a>.
+    <a href="https://github.com/szl-holdings/a11oy/blob/0f389189edf9930068f1dfbe9cdda851ca197dda/pages/atelier.html">Curated catalog source</a>.
     Doctrine v11 LOCKED · Apache-2.0.
   </p>
   <footer class="foot">
@@ -178,6 +179,8 @@ pre {
 <script type="application/json" id="atelier-models">{
   "doctrine": "v11 LOCKED \u00b7 749/14/163 \u00b7 \u039b = Conjecture 1 OPEN",
   "n": 40,
+  "snapshot_date": "2026-09-29",
+  "snapshot_source": "https://github.com/szl-holdings/a11oy/blob/0f389189edf9930068f1dfbe9cdda851ca197dda/pages/atelier.html",
   "models": [
     {
       "slug": "miniembed-nano",
@@ -2245,8 +2248,8 @@ pre {
       "name": "szl-atelier Space",
       "kind": "space",
       "href": "https://huggingface.co/spaces/SZLHOLDINGS/szl-atelier",
-      "oneLiner": "Walk all 40 Hub models. Unique cuts. Kernel playgrounds in the browser.",
-      "cut": "Leaders ship one demo Space. We shipped the whole catalog as a walk you can fail-close.",
+      "oneLiner": "Walk this curated 40-entry Hub snapshot. Unique cuts. Kernel playgrounds in the browser.",
+      "cut": "This dated selection is a walk you can fail-close; it is not the full Hub catalog.",
       "when": "live now",
       "evidence": "Hub Space RUNNING \u00b7 a11oy.net/atelier \u00b7 a-11-oy.com/atelier"
     },
@@ -2350,8 +2353,8 @@ function renderWalk() {
     <section class="row" style="justify-content:space-between;align-items:flex-end">
       <div>
         <p class="kicker">SZL Holdings · Hugging Face</p>
-        <h1 class="hero">Forty models. Walk them.</h1>
-        <p class="lede">${n} Hub ids. ${playable} playable here. Silhouette from Anthropic, NVIDIA, Unsloth — cut is original SZL.</p>
+        <h1 class="hero">${n} curated entries. Walk them.</h1>
+        <p class="lede">Fixed Hub snapshot dated ${esc(DATA.snapshot_date)}. ${playable} playable here. Silhouette from Anthropic, NVIDIA, Unsloth — cut is original SZL. This is not the current Hub inventory.</p>
       </div>
       <div class="row">
         <a class="chip mute" href="#/grid">Grid</a>
@@ -2505,7 +2508,8 @@ function renderGrid() {
     groups.set(m.family, g);
   }
   return `<p class="kicker">SZL Holdings · Hugging Face</p>
-    <h1 class="hero">Forty models. Grid.</h1>
+    <h1 class="hero">${DATA.models.length} curated entries. Grid.</h1>
+    <p class="lede">Snapshot dated ${esc(DATA.snapshot_date)}. Newer Hub additions are outside this fixed selection.</p>
     ${[...groups.entries()]
       .map(
         ([fam, list]) => `
@@ -2564,7 +2568,7 @@ function renderBench() {
 function renderNew() {
   return `<p class="kicker">Not Hub model ids</p>
     <h1 class="hero">A bunch of new ones</h1>
-    <p class="lede">The Hub still has forty model ids. Today’s new work is GitHub organs, datasets, and Spaces. Publishing the empty seat is honest. Inventing a forty-first checkpoint is not.</p>
+    <p class="lede">The 40 entries shown here are a curated snapshot dated ${esc(DATA.snapshot_date)}, not a count of the current Hub. These other assets have their own evidence labels; an empty card is not a trained checkpoint.</p>
     <div class="grid two" style="margin-top:2rem">
       ${DATA.estate
         .map(

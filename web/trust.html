@@ -417,6 +417,26 @@ function kernelFromHonest(h){
   return {count, ids};
 }
 
+/* ---------- fail-closed guard for the five absent legacy Lean anchor files ---------- */
+const absentLeanAnchorFiles=[
+  'Lutar/Soundness.lean::', 'Lutar/STL.lean::', 'Lutar/Gates.lean::',
+  'Lutar/Receipt.lean::', 'Lutar/Lambda.lean::'
+];
+function hasAbsentLeanAnchor(value){
+  return typeof value==='string'&&absentLeanAnchorFiles.some(path=>value.includes(path));
+}
+function semanticRowHasUsableRef(e){
+  if(!e||e.tag!=='SEMANTIC-VERIFIED'||typeof e.lean_ref!=='string'||!e.lean_ref.includes('::'))return false;
+  return ![e.name,e.meaning,e.math,e.lean_ref].some(hasAbsentLeanAnchor);
+}
+function semanticDisplayState(entries,reportedCount){
+  const tagged=entries.filter(e=>e&&e.tag==='SEMANTIC-VERIFIED');
+  const rows=tagged.filter(semanticRowHasUsableRef);
+  const withheld=tagged.length-rows.length;
+  const count=Number.isInteger(reportedCount)&&reportedCount===tagged.length&&withheld===0?rows.length:null;
+  return {rows,withheld,count};
+}
+
 /* Kernel locked-proven (#cnt-locked, locked-8 rows) from /honest. Genome catalog is not the kernel. */
 (async function loadTiers(){
   let kernelCount=null, kernelIds=[];
@@ -437,8 +457,11 @@ function kernelFromHonest(h){
     const kernel=(h&&h.locked_formula_count===8)?8:null;
     $('cnt-locked').firstChild.nodeValue=(kernel==null?'N/A':kernel);
     const g=await getJSON('/api/a11oy/v1/genome');
+    if(!g||!Array.isArray(g.entries))throw new Error('invalid genome entries');
     const tc=g.tier_counts||{};
-    $('cnt-semantic').firstChild.nodeValue=(tc['SEMANTIC-VERIFIED']??'N/A');
+    const entries=g.entries;
+    const semantic=semanticDisplayState(entries,tc['SEMANTIC-VERIFIED']);
+    $('cnt-semantic').firstChild.nodeValue=(semantic.count==null?'N/A':semantic.count);
     $('cnt-evidence').firstChild.nodeValue=(tc['evidence-backed']??'N/A');
     $('cnt-conjecture').firstChild.nodeValue=(tc['CONJECTURE']??'N/A');
     const genomeLp=tc['LOCKED-PROVEN'];
@@ -448,11 +471,10 @@ function kernelFromHonest(h){
     if(gTotEl) gTotEl.textContent=(g.count==null)?'N/A':g.count;
     const naExtra=(tc['honest-N/A']!=null)?(' · '+tc['honest-N/A']+' honest-N/A'):'';
     const cat=tc['LOCKED-PROVEN'];
-    $('genome-src').textContent='Kernel locked_formula_count='+(kernel==null?'N/A':kernel)+' from /api/a11oy/v1/honest {F1,F4,F7,F11,F12,F18,F19,F22}. Genome catalog LOCKED-PROVEN='+(cat??'N/A')+' (catalog, not kernel). Lean-8 is not genome-144. Genome entries: '+(g.count??'?')+naExtra+'.';
-    $('d-genome').classList.add('up');
+    $('genome-src').textContent='Kernel locked_formula_count='+(kernel==null?'N/A':kernel)+' from /api/a11oy/v1/honest {F1,F4,F7,F11,F12,F18,F19,F22}. Genome catalog LOCKED-PROVEN='+(cat??'N/A')+' (catalog, not kernel). Lean-8 is not genome-144. Genome entries: '+(g.count??'?')+naExtra+'.'+(semantic.count==null?' SEMANTIC-VERIFIED source binding unavailable or inconsistent; affected rows withheld and semantic count N/A.':'');
+    $('d-genome').classList.add(semantic.count==null?'down':'up');
 
     const allowed=new Set(kernelIds);
-    const entries=g.entries||[];
     const seen=new Set();const locked=[];
     for(const e of entries){
       const id=e.id||'';
@@ -468,7 +490,8 @@ function kernelFromHonest(h){
       $('locked8-rows').innerHTML = locked.length? locked.map(e=>{
         const proves=esc(e.meaning||e.math||'');
         const notC=e.notes&&/not\b/i.test(e.notes)?('<div class="notclaim">NOT: '+esc(e.notes)+'</div>'):'';
-        const lean=e.lean_ref?('<div class="lean">Lean: <b>'+esc(e.lean_ref)+'</b></div>'):'';
+        const lean=e.lean_ref&&!hasAbsentLeanAnchor(e.lean_ref)?('<div class="lean">Lean: <b>'+esc(e.lean_ref)+'</b></div>')
+          :(hasAbsentLeanAnchor(e.lean_ref)?'<div class="notclaim">Lean declaration withheld: absent legacy anchor.</div>':'');
         return '<div class="frow"><div class="id">'+esc(e.id)+'</div><div>'+
           '<div class="name">'+esc((e.name||'').replace(/^F\d+\s*·?\s*/,''))+'</div>'+
           (proves?'<div class="proves">'+proves+'</div>':'')+notC+lean+'</div></div>';
@@ -476,14 +499,15 @@ function kernelFromHonest(h){
     }
 
     // SEMANTIC-VERIFIED rows (catalog)
-    const sem=entries.filter(e=>e.tag==='SEMANTIC-VERIFIED');
-    $('semantic-rows').innerHTML = sem.length? sem.map(e=>{
+    const sem=semantic.rows;
+    const withheld=semantic.withheld?'<div class="frow sem"><div class="id">N/A</div><div><div class="notclaim">'+semantic.withheld+' SEMANTIC-VERIFIED row(s) withheld: missing or absent Lean reference.</div></div></div>':'';
+    $('semantic-rows').innerHTML = withheld+(sem.length? sem.map(e=>{
       const proves=esc(e.meaning||e.math||'');
       const lean=e.lean_ref?('<div class="lean">Lean: <b>'+esc(e.lean_ref)+'</b></div>'):'';
       return '<div class="frow sem"><div class="id">'+esc(e.id||'·')+'</div><div>'+
         '<div class="name">'+esc(e.name||'')+'</div>'+
         (proves?'<div class="proves">'+proves+'</div>':'')+lean+'</div></div>';
-    }).join('') : '<div class="frow sem"><div class="id">N/A</div><div><div class="name">No SEMANTIC-VERIFIED entries returned — genome unavailable.</div></div></div>';
+    }).join('') : '<div class="frow sem"><div class="id">N/A</div><div><div class="name">No source-bound SEMANTIC-VERIFIED entries available.</div></div></div>');
   }catch(e){
     $('genome-src').textContent='Honest/genome probe UNAVAILABLE ('+e.message+') — counts shown as N/A, never fabricated.';
     for(const id of ['cnt-semantic','cnt-evidence','cnt-conjecture'])
@@ -492,6 +516,7 @@ function kernelFromHonest(h){
     if(kernelIds.length){
       $('locked8-rows').innerHTML='<div class="frow"><div class="id">N/A</div><div><div class="name">Genome unavailable — kernel ids from /honest are '+kernelIds.map(esc).join(', ')+' but catalog rows were not loaded.</div></div></div>';
     }
+    $('semantic-rows').innerHTML='<div class="frow sem"><div class="id">N/A</div><div><div class="name">SEMANTIC-VERIFIED rows unavailable — genome probe failed.</div></div></div>';
   }
 })();
 

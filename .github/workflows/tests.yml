@@ -46,6 +46,12 @@ jobs:
         run: node --test tests/test_killinchu_status_page.cjs
       - name: Offline DSSE receipt verification and stale-result boundaries
         run: node --test tests/test_public_verify_page.cjs
+      - name: Living Anatomy and Anatomy v5 page truth contracts
+        run: node --test tests/test_site_truth_pages.cjs
+      - name: Trust semantic anchor truth contract
+        run: node --test tests/test_trust_semantic_guard.cjs
+      - name: Fabric public RAG read-only truth contract
+        run: node --test tests/test_fabric_rag_truth.cjs
       - name: Enable corepack and install pnpm 10.33.3
         run: |
           corepack enable

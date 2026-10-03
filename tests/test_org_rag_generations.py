@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import threading
 from pathlib import Path
 
 import a11oy_org_rag as rag
@@ -12,7 +14,12 @@ def _reset_runtime(monkeypatch, db_path: Path) -> None:
     monkeypatch.setattr(rag, "_GRAPH", rag.OrgGraph())
     monkeypatch.setattr(rag, "_BUILD_META", {"built": False})
     monkeypatch.setattr(rag, "_REHYDRATE_ATTEMPTED", False)
-    monkeypatch.setattr(rag, "_maybe_embedder", lambda: None)
+    monkeypatch.setattr(rag, "_BUILD_STATE", {
+        "phase": "idle", "started": None, "finished": None,
+        "last_seed": None, "last_full": None, "error": None,
+    })
+    monkeypatch.setattr(rag, "_build_thread", None)
+    monkeypatch.setattr(rag, "_maybe_embedder", lambda load=True: None)
 
 
 def _write_ledger(path: Path, count: int = 3) -> Path:
@@ -137,7 +144,74 @@ def test_rehydrate_detects_tampering_and_requires_rebuild(monkeypatch, tmp_path)
     assert refused["i_dont_know"] is True
 
 
-def test_m1_release_manifest_reports_all_9464_handles_without_copying_fixture(tmp_path):
+def test_rehydrate_and_query_use_readonly_published_generation(monkeypatch, tmp_path):
+    db_path = tmp_path / "rag.sqlite3"
+    _reset_runtime(monkeypatch, db_path)
+    conn = rag._db()
+    rag._init_schema(conn)
+    generation_id = rag._begin_generation(conn, "sealed")
+    graph = _stage(conn, generation_id, "side effect free retrieval evidence")
+    rag._persist_runtime_state(
+        conn, graph,
+        {"built": True, "mode": "sealed", "ts": 1.0, "repos": 1, "chunks": 1},
+        generation_id,
+    )
+    conn.close()
+    before_hash = hashlib.sha256(db_path.read_bytes()).hexdigest()
+    before_mtime = db_path.stat().st_mtime_ns
+
+    _reset_runtime(monkeypatch, db_path)
+    monkeypatch.setattr(rag, "_db", lambda: (_ for _ in ()).throw(
+        AssertionError("writer connection used by read")))
+    monkeypatch.setattr(rag, "_init_schema", lambda _conn: (_ for _ in ()).throw(
+        AssertionError("schema initialization used by read")))
+    embedder_calls: list[bool] = []
+    monkeypatch.setattr(rag, "_maybe_embedder",
+                        lambda load=True: embedder_calls.append(load) or None)
+
+    assert rag.status()["generation_id"] == generation_id
+    result = rag.query("side effect free retrieval", k=2)
+    assert result["ok"] is True
+    assert embedder_calls == [False]
+    assert hashlib.sha256(db_path.read_bytes()).hexdigest() == before_hash
+    assert db_path.stat().st_mtime_ns == before_mtime
+
+
+def test_seed_bootstrap_is_single_flight_and_receipts_once(monkeypatch, tmp_path):
+    _reset_runtime(monkeypatch, tmp_path / "missing.sqlite3")
+    entered = threading.Event()
+    release = threading.Event()
+    calls: list[str] = []
+    receipts: list[tuple[str, dict]] = []
+    monkeypatch.setattr(rag, "status", lambda: {"built": False})
+
+    def fake_seed(emit_receipt=None):
+        calls.append("seed")
+        entered.set()
+        assert release.wait(timeout=5)
+        receipt = emit_receipt("org_rag.index.seed", {"built": True})
+        return {"ok": True, "generation_id": "gen-test",
+                "khipu_hash": receipt["hash"]}
+
+    def emit(kind, body):
+        receipts.append((kind, body))
+        return {"hash": "receipt-test"}
+
+    monkeypatch.setattr(rag, "build_seed_index", fake_seed)
+    first = rag.start_seed_bootstrap(emit_receipt=emit)
+    assert entered.wait(timeout=5)
+    second = rag.start_seed_bootstrap(emit_receipt=emit)
+    assert first["phase"] == second["phase"] == "seeding"
+    assert calls == ["seed"]
+    release.set()
+    assert rag._build_thread is not None
+    rag._build_thread.join(timeout=5)
+    assert not rag._build_thread.is_alive()
+    assert receipts == [("org_rag.index.seed", {"built": True})]
+    assert rag.build_state()["phase"] == "seed"
+
+
+def test_m1_release_manifest_reports_all_9465_handles_without_copying_fixture(tmp_path):
     # This reads the versioned ledger once; the generation tests above stay tiny.
     verified = rag._verify_m1_ledger(rag._M1_LEDGER_DEFAULT)
     assert verified["manifest_verified"] is True
