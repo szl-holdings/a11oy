@@ -8,7 +8,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-MANIFEST = ROOT / ".github" / "shared-source-payload-manifest.json"
+# Keep this prior proof independent of the next paired admission manifest.
+MANIFEST = ROOT / ".github" / "shared-source-payloads" / "runtime-boundary-1994-v2.json"
 FORBIDDEN_TRANSIENTS = (
     ROOT / "sitecustomize.py",
     ROOT / ".github" / "workflows" / "_sync_runtime_boundary_attribution_once.yml",
