@@ -134,6 +134,9 @@ def test_get_does_not_call_provider_or_store_credentials():
     assert 'textContent' in code
     assert 'reasoning_effort' in code
     assert 'window.confirm' in code
+    assert "json('/api/a11oy/v1/atelier/local/health')" in code
+    assert "json('/api/a11oy/v1/atelier/local/turn'" in code
+    assert 'localStorage' not in code
 
 
 def test_css_has_existing_design_system():
@@ -168,6 +171,8 @@ def test_owned_assets_emit_body_not_zero_copy_pathsend(client):
     response = client.get('/command-centre')
     assert '</html>' in response.text
     assert 'id="turn-form"' in response.text
+    assert 'id="local-turn-form"' in response.text
+    assert 'This is not Grok' in response.text
     assert 'id="study-models"' in response.text
     assert 'FileResponse(' not in inspect.getsource(centre)
 
