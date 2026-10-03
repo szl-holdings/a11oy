@@ -9,7 +9,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from scripts.hf_existing_space_guard import SpaceGuardError
+from scripts.hf_existing_space_guard import (
+    SpaceGuardError, require_existing_public_space,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -117,6 +119,30 @@ def test_unverified_public_target_blocks_before_writer(publisher, monkeypatch, s
     assert publisher.publish_selected_generated(slug, guard) == 1
     receipt = json.loads(publisher.FLAGSHIP_RECEIPT.read_text())
     assert receipt["complete"] is False
+    assert receipt["error"] == "SpaceGuardError"
+    assert "synthetic-writer" not in json.dumps(receipt)
+
+
+def test_provider_echoed_token_never_enters_failure_receipt(publisher, monkeypatch):
+    monkeypatch.setattr(publisher, "_github_json", lambda *args, **kwargs: {"sha": REVISION})
+    module = SimpleNamespace(_BASE=SimpleNamespace(
+        token_from_env=lambda: ("synthetic-writer", "HF_ORG_TOKEN")
+    ))
+    monkeypatch.setattr(publisher, "load_module", lambda *args: module)
+
+    class EchoApi:
+        def __init__(self, token):
+            self.token = token
+
+        def repo_info(self, **kwargs):
+            return SimpleNamespace(id=self.token, private=False)
+
+    guard = SimpleNamespace(require_existing_public_space=lambda rid, token:
+        require_existing_public_space(rid, token, api_class=EchoApi))
+    monkeypatch.setattr(publisher, "run_publisher", lambda *args, **kwargs: pytest.fail("write attempted"))
+
+    assert publisher.publish_selected_generated("sentra", guard) == 1
+    receipt = json.loads(publisher.FLAGSHIP_RECEIPT.read_text())
     assert receipt["error"] == "SpaceGuardError"
     assert "synthetic-writer" not in json.dumps(receipt)
 

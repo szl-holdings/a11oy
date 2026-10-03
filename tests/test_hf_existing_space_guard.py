@@ -81,6 +81,18 @@ def test_selected_public_target_preflight_rejects_identity_mismatch():
     assert FakeApi.create_calls == []
 
 
+def test_selected_public_target_preflight_omits_provider_echoed_token():
+    FakeApi = api_class(observed=SimpleNamespace(id="synthetic-writer", private=False))
+
+    with pytest.raises(SpaceGuardError, match="identity mismatch") as caught:
+        require_existing_public_space(
+            "SZLHOLDINGS/sentra", "synthetic-writer", api_class=FakeApi
+        )
+
+    assert "synthetic-writer" not in str(caught.value)
+    assert FakeApi.create_calls == []
+
+
 def test_selected_public_target_preflight_sanitizes_provider_error():
     class LeakyApi:
         def __init__(self, token):

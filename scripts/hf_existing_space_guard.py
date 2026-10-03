@@ -82,7 +82,7 @@ def _observe_existing_space(
     observed_id = getattr(info, "id", None) or getattr(info, "repo_id", None)
     if not isinstance(observed_id, str) or observed_id.casefold() != repo_id.casefold():
         raise SpaceGuardError(
-            f"provider identity mismatch: expected {repo_id}, observed {observed_id!r}"
+            f"provider identity mismatch for Space {repo_id}"
         )
 
     observed_private = getattr(info, "private", None)
