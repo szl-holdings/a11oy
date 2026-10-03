@@ -218,6 +218,7 @@ def success_session(origin: str, source_sha: str) -> FakeSession:
         "series_a_status": {
             "schema": "szl.series-a-status/v1",
             "state": "OBSERVED",
+            "critical_failures": [],
             "terminal": True,
             "source_revision": source_sha,
             "signing_key_source": "persistent:env:SZL_COSIGN_PRIVATE_PEM",
@@ -903,6 +904,25 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
                     self.contract,
                 )
 
+    def test_series_a_status_rejects_blocked_or_critical_estate(self) -> None:
+        status_url = self.origin + relock.ROUTES["series_a_status"]
+        for update in (
+            {"state": "BLOCKED"},
+            {"critical_failures": ["github_inventory_unavailable"]},
+            {"critical_failures": None},
+        ):
+            session = success_session(self.origin, self.source)
+            session.responses[("GET", status_url)]._payload.update(update)
+            with self.subTest(update=update), self.assertRaisesRegex(
+                relock.RelockError,
+                "estate state",
+            ):
+                relock.evaluate_once(
+                    FakeApi(self.source),
+                    session,
+                    self.contract,
+                )
+
     def test_stale_runtime_revision_fails_closed(self) -> None:
         api = FakeApi(self.source)
         api.runtime_sha = "c" * 40
@@ -1086,10 +1106,12 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
         self.assertIn('code="${EXIT_CODE:-2}"', enforce)
         self.assertIn('if [ "$code" -ne 0 ]; then', enforce)
         self.assertIn('exit "$code"', enforce)
+        self.assertIn('CURRENT_MAIN: ${{ steps.post_deploy_owner.outputs.publish }}', enforce)
+        self.assertIn('if [ "${CURRENT_MAIN:-false}" != \'true\' ]; then', enforce)
         self.assertNotIn("continue-on-error", enforce)
         self.assertLess(
             relock_job.index("Enforce exact live state"),
-            relock_job.index("Trigger strict post-deployment GitHub/HF parity"),
+            relock_job.index("Await strict live and repository parity"),
         )
 
     def test_required_routes_and_pruning_remain_enforced(self) -> None:

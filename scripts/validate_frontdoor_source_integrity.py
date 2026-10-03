@@ -46,6 +46,7 @@ REQUIRED_WORKFLOW_TOKENS = (
     "  pull_request:",
     "  schedule:",
     "  workflow_dispatch:",
+    "  workflow_call:",
     "  hf-module-drift:",
     "  hf-runtime-live:",
     "  hf-repository-parity:",
@@ -573,6 +574,7 @@ def _validate_trigger_and_runtime(workflow: str) -> list[str]:
         "schedule:",
         "- cron: '37 6 * * 1'",
         "workflow_dispatch:",
+        "workflow_call:",
     ]:
         errors.append("HF drift workflow trigger set and schedule must be canonical")
 
