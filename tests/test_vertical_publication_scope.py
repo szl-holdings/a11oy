@@ -85,6 +85,19 @@ def test_selected_scope_uses_one_writer_and_verifies_one_row(publisher, monkeypa
 
 
 @pytest.mark.parametrize("slug", ["terra", "sentra", "counsel"])
+def test_selected_scope_installs_existing_only_guard(publisher, monkeypatch, slug):
+    installs = []
+    guard = SimpleNamespace(install_existing_space_guard=lambda **kwargs: installs.append(kwargs))
+    monkeypatch.setenv("SZL_FLAGSHIP_SCOPE", slug)
+    monkeypatch.setattr(publisher, "load_module", lambda *args: guard)
+    monkeypatch.setattr(publisher, "normalize_github_token_alias", lambda: "NONE")
+    monkeypatch.setattr(publisher, "publish_selected_generated", lambda scope, loaded: 0)
+
+    assert publisher.main() == 0
+    assert installs == [{"require_existing": True}]
+
+
+@pytest.mark.parametrize("slug", ["terra", "sentra", "counsel"])
 def test_moved_main_blocks_before_any_publication(publisher, monkeypatch, slug):
     monkeypatch.setattr(publisher, "_github_json", lambda *args, **kwargs: {"sha": "b" * 40})
     monkeypatch.setattr(publisher, "run_publisher", lambda *args, **kwargs: pytest.fail("write attempted"))

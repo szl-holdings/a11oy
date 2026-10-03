@@ -517,12 +517,15 @@ def main() -> int:
         "szl_hf_existing_space_guard",
         SPACE_GUARD_IMPL,
     )
-    space_guard_module.install_existing_space_guard()
-
-    github_token_source = normalize_github_token_alias()
     scope = os.environ.get("SZL_FLAGSHIP_SCOPE", "estate")
     if scope not in ("estate", "finance", "lyte", *SELECTABLE_GENERATED_SCOPES):
         raise RuntimeError("unknown publication scope")
+    if scope in SELECTABLE_GENERATED_SCOPES:
+        space_guard_module.install_existing_space_guard(require_existing=True)
+    else:
+        space_guard_module.install_existing_space_guard()
+
+    github_token_source = normalize_github_token_alias()
     if scope == "finance":
         return publish_finance_only(space_guard_module)
     if scope == "lyte":

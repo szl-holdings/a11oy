@@ -82,6 +82,54 @@ def test_only_exact_404_delegates_to_original_create():
     assert guard_report(FakeApi)["missing_spaces_delegated_to_create"] == 1
 
 
+def test_required_existing_space_blocks_exact_404_without_create_call():
+    FakeApi = api_class(error_status=404)
+    install_existing_space_guard(FakeApi, require_existing=True)
+
+    with pytest.raises(SpaceGuardError, match="required existing Space is absent"):
+        FakeApi().create_repo(
+            repo_id="SZLHOLDINGS/sentra",
+            repo_type="space",
+            space_sdk="docker",
+            exist_ok=True,
+            private=False,
+        )
+
+    assert FakeApi.create_calls == []
+    assert guard_report(FakeApi)["missing_spaces_blocked"] == 1
+    assert guard_report(FakeApi)["missing_spaces_delegated_to_create"] == 0
+
+
+def test_required_existing_space_reuses_exact_public_target():
+    FakeApi = api_class(
+        observed=SimpleNamespace(id="SZLHOLDINGS/sentra", private=False)
+    )
+    install_existing_space_guard(FakeApi, require_existing=True)
+
+    result = FakeApi().create_repo(
+        repo_id="SZLHOLDINGS/sentra", repo_type="space", exist_ok=True,
+        private=False,
+    )
+
+    assert result.id == "SZLHOLDINGS/sentra"
+    assert FakeApi.create_calls == []
+    assert guard_report(FakeApi)["require_existing"] is True
+
+
+@pytest.mark.parametrize("repo_type,exist_ok", [("space", False), ("model", True)])
+def test_required_existing_mode_blocks_unexpected_create_calls(repo_type, exist_ok):
+    FakeApi = api_class(error_status=404)
+    install_existing_space_guard(FakeApi, require_existing=True)
+
+    with pytest.raises(SpaceGuardError, match="cannot create a new repository"):
+        FakeApi().create_repo(
+            repo_id="SZLHOLDINGS/unexpected", repo_type=repo_type, exist_ok=exist_ok,
+        )
+
+    assert FakeApi.create_calls == []
+    assert FakeApi.info_calls == []
+
+
 @pytest.mark.parametrize("status", [401, 403, 409, 429, 500, 503])
 def test_non_404_provider_failures_never_become_creation(status):
     FakeApi = api_class(error_status=status)
