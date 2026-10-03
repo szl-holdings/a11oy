@@ -7,7 +7,7 @@ sdk: docker
 app_port: 7860
 pinned: true
 license: apache-2.0
-short_description: "sentra — deny-by-default policy immune system; signed verdicts"
+short_description: "Historical module; current Sentra assurance surface publishes from A11oy"
 tags:
   - governance
   - agentic-ai
@@ -16,12 +16,16 @@ tags:
   - immune-system
   - slsa-l1
   - apache-2.0
-ecosystem-stage: "operational"
+ecosystem-stage: "historical-source"
 ---
 
 # sentra 🛡️
 
-> **⚠️ Archived — retired & consolidated into [szl-holdings/a11oy](https://github.com/szl-holdings/a11oy).** The `sentra` codename has been retired; its capabilities now ship as the **Sentinel** vertical inside the a11oy flagship. The standalone `szl-holdings/sentra` GitHub repository and the `szlholdings-sentra.hf.space` Hugging Face Space **no longer exist**. The clone URLs, Space links, badges, and deploy commands below are preserved for historical reference only and are **not live** — use [szl-holdings/a11oy](https://github.com/szl-holdings/a11oy) instead.
+> **DECLARED current role — Sentra assurance command.** The [owner directive](../../governance/owner-directives/2026-09-04-sentra.yaml) keeps `SZLHOLDINGS/sentra` as the sole assurance flagship. The [public estate contract](../../governance/public-estate.v1.json) names A11oy as its deployment source. Its generated public surface comes from [the flagship renderer](../../scripts/hf_publish_vertical_flagships_v4_impl.py), rather than this preserved satellite module's `serve.py`. [Open the Sentra surface](https://szlholdings-sentra.hf.space/) and inspect `/api/build-info` and `/api/source` for the actual declared deployment revision.
+
+> **Receipt workflow.** [Open the existing A11oy verifier](https://szlholdings-a11oy.hf.space/verify) to paste a receipt and a public key. Offline checks run in the browser; online checks require a separate explicit action. Runtime key trust is REPO_DECLARED until pinned out of band. Independent validation is UNKNOWN. Receipt integrity does not establish output truth, signer authority, authorization, admission, approval, or production readiness. Immune engine migration into Sentra remains UNKNOWN until its contracts and runtime parity are verified.
+
+> **Historical reference below.** The retained module examples, image tags, endpoint commands and signing claims describe an older implementation. Their applicability to the generated public surface is UNKNOWN until separately verified. They are preserved source context, not instructions to deploy the current flagship or evidence of current production readiness. Use the canonical A11oy publisher; preserve its single-writer boundary.
 
 > **Deny-by-default policy immune system. 8 gates. Every verdict signed, traced, and chained.**
 

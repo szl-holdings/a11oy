@@ -4,6 +4,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import importlib.util
+from html.parser import HTMLParser
 import shutil
 import sys
 from pathlib import Path
@@ -193,6 +194,45 @@ def test_sentra_binds_to_read_only_public_receipt_verifier() -> None:
     assert "PASS requires an actual caller-supplied receipt" in panel
     assert "performs no admission or approval" in panel
     assert "vert/cyber/feed" not in sentra["upstream"]
+
+
+def test_sentra_verifier_handoff_is_fixed_navigation_with_explicit_trust_scope() -> None:
+    module = load_overlay()
+    rendered = module.html(by_slug(module)["sentra"])
+
+    class HandoffParser(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.links = []
+
+        def handle_starttag(self, tag, attrs):
+            values = dict(attrs)
+            if tag == "a" and values.get("id") == "sentra-open-verifier":
+                self.links.append(values)
+
+    parser = HandoffParser()
+    parser.feed(rendered)
+    assert len(parser.links) == 1
+    link = parser.links[0]
+    assert link["href"] == "https://szlholdings-a11oy.hf.space/verify"
+    assert set(link["rel"].split()) == {"noopener", "noreferrer"}
+    assert link["target"] == "_blank"
+    assert not any(name.startswith("on") for name in link)
+
+    start = rendered.index('<section id="sentra-verifier-handoff"')
+    end = rendered.index("</section>", start) + len("</section>")
+    handoff = rendered[start:end]
+    assert "Offline checks run in your browser" in handoff
+    assert "Online checks require a separate explicit action" in handoff
+    assert "Runtime keys are REPO_DECLARED until pinned out of band" in handoff
+    assert "Independent validation: UNKNOWN" in handoff
+    assert "output truth, signer authority, authorization, admission, approval" in handoff
+    for forbidden in ("<script", "<form", "<iframe", "prefetch", "preload", "envelope=", "receipt="):
+        assert forbidden not in handoff
+    assert 'data-iris="closed"' in rendered
+    assert "root.dataset.iris='closed'" in rendered
+    for slug in {row["slug"] for row in module.FLAGSHIPS} - {"sentra"}:
+        assert 'id="sentra-open-verifier"' not in module.html(by_slug(module)[slug])
 
 
 def test_public_verifier_manifest_is_a_real_read_only_route() -> None:
