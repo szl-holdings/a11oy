@@ -115,7 +115,8 @@ byte-derived from the cited Hub revisions. No quantized local benchmark or
 provenance conversion was established here. The installed `qwen3:4b-instruct`
 on the 8 GB laptop is the immediate no-download runtime candidate; its exact
 Ollama digest is recorded at launch, not silently equated with either Hub
-checkpoint. The current C: free-space constraint precludes a safe new pull.
+checkpoint. C: free-space pressure precluded a new pull at that snapshot; a
+later disk reading does not by itself authorize or qualify a different model.
 
 [GLM-4.7-Flash's 19 GB Q4_K_M tag](https://ollama.com/library/glm-4.7-flash/tags)
 does not fit the local storage/VRAM envelope despite only 3B active parameters.
@@ -123,6 +124,48 @@ does not fit the local storage/VRAM envelope despite only 3B active parameters.
 requires prior written authorization for commercial use, so it is not a
 commercial no-key default. Public cards and leaderboards are research inputs;
 none qualify an SZL model or establish that our software exceeds them.
+
+## No-provider-key public CPU demonstration
+
+The separate `NO_PROVIDER_KEY_PUBLIC_CPU_LAB` lane uses the existing
+[SZL Model Inference Lab](https://huggingface.co/spaces/SZLHOLDINGS/szl-model-inference-lab)
+and its pinned Khipu 1.5B GGUF. This is **not** Grok, the workstation's Ollama
+runtime, a production-quality model promotion, or anonymous public compute.
+The lab's own human-facing page remains available independently. Its API is
+unauthenticated and requires no xAI, Hugging Face, or other provider key, but
+Atelier's proxy still requires a separate `atelier:write` operator bearer,
+exact `PUBLIC` classification, doctrine/policy allow, explicit per-request
+acknowledgement that the text may be disclosed to the public lab, a persistent
+signer and a durable decision/outcome ledger. Do not put an actual provider
+credential in the operator field or send private, regulated, personal, or
+secret prompts. Known-secret patterns are rejected as defense in depth, but
+classification and pattern checks are not comprehensive data-loss prevention;
+the operator must review each exact prompt before submitting it.
+
+`GET /api/a11oy/v1/atelier/cpu-lab/health` is read-only local configuration
+health: it does not contact the lab, write a ledger, attest mount durability,
+or verify remote identity. A locally ready status is permission to *attempt*
+a turn, not proof that the lab is running or can answer.
+`POST /api/a11oy/v1/atelier/cpu-lab/turn` is a distinct bounded route. The
+server accepts no caller URL or model override, verifies the expected lab
+identity after a signed decision, then makes at most one no-redirect HTTPS
+inference call. It permits at most 1,200 input characters and 32 output tokens,
+while the lab separately enforces an 800 formatted-token prompt ceiling, one
+concurrent request and best-effort 45-second budget. Lab rejection, mismatch or
+timeout is not retried or silently replaced with another model. Atelier signs
+its **observed** decision and outcome; the lab's own execution record remains
+**UNSIGNED**. Neither wrapper nor a single successful turn establishes
+independent remote-execution attestation, answer accuracy, sustained capacity,
+privacy outside this source, or an SLA.
+
+The hosted Space needs `A11OY_ATELIER_CREDENTIALS_JSON` to activate this lane.
+The manual enrollment helper below is the scoped way to install that digest-only
+registry after exact-main publication and an idle sole writer. The CPU lane
+needs no `A11OY_ATELIER_XAI_API_KEY`; the Grok lane still does. A configured
+credential or HTTP 200 health response is not functional inference proof:
+verify a completed, signed live CPU turn separately. The browser talks only
+to same-origin Atelier routes, never directly to the lab, so policy and receipt
+checks are not bypassed by the command centre.
 
 ## Runtime configuration
 
