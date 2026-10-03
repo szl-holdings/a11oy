@@ -1311,7 +1311,7 @@ async function sourceRuntimeEvidenceRefresh(){
   const sequence=++sourceRuntimeRefreshSequence;
   for(const key of ['build','series','steward']){
     const badge=el('source-runtime-'+key+'-state'),detail=el('source-runtime-'+key+'-detail');
-    if(badge){badge.textContent='CHECKING';badge.className='badge b-gold';}
+    if(badge){badge.textContent='CHECKING';badge.className='badge';}
     if(detail) detail.textContent='Reading public contract…';
   }
   const link=el('source-runtime-commit');
@@ -1320,7 +1320,7 @@ async function sourceRuntimeEvidenceRefresh(){
   if(sequence!==sourceRuntimeRefreshSequence) return;
   for(const key of ['build','series','steward']){
     const row=evidence[key],badge=el('source-runtime-'+key+'-state'),detail=el('source-runtime-'+key+'-detail');
-    if(badge){badge.textContent=row.state;badge.className='badge '+(row.state==='UNAVAILABLE'||row.state==='BLOCKED'||row.state==='INVALID'?'b-err':'b-gold');}
+    if(badge){badge.textContent=row.state;badge.className='badge '+(row.state==='UNAVAILABLE'||row.state==='BLOCKED'||row.state==='INVALID'?'b-err':'');}
     if(detail) detail.textContent=row.note;
   }
   if(link && evidence.build.revision){
@@ -6805,9 +6805,9 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           +card('Service health','live probe · <span id="cc-stamp" class="mono dim" style="font-size:10px"></span>','<div class="brain-note" style="margin:.1rem 0 .5rem"><b>How to read Services up.</b> The count below comes from /observability/summary mesh_reach. A reachable service is reported UP; undeployed services remain unavailable. This probe does not establish application readiness, inference quality, quorum, or signature verification.</div><div id="cc-fleet">'+skelRows(4)+'</div>')
           +'<section class="card" id="source-runtime-evidence" aria-label="Source and runtime evidence">'
           +'<div class="card-h"><span class="card-t">Source &amp; runtime evidence</span><span class="card-ep">public GET · read only</span></div>'
-          +'<div class="row"><span>Build identity</span><span class="badge b-gold" id="source-runtime-build-state">NOT_EVALUATED</span><span class="spacer mono dim" id="source-runtime-build-detail">Waiting for browser read</span></div>'
-          +'<div class="row"><span>Series A control plane</span><span class="badge b-gold" id="source-runtime-series-state">NOT_EVALUATED</span><span class="spacer mono dim" id="source-runtime-series-detail">Waiting for browser read</span></div>'
-          +'<div class="row"><span>Public steward projection</span><span class="badge b-gold" id="source-runtime-steward-state">NOT_EVALUATED</span><span class="spacer mono dim" id="source-runtime-steward-detail">Waiting for browser read</span></div>'
+          +'<div class="row"><span>Build identity</span><span class="badge" id="source-runtime-build-state">NOT_EVALUATED</span><span class="spacer mono dim" id="source-runtime-build-detail">Waiting for browser read</span></div>'
+          +'<div class="row"><span>Series A control plane</span><span class="badge" id="source-runtime-series-state">NOT_EVALUATED</span><span class="spacer mono dim" id="source-runtime-series-detail">Waiting for browser read</span></div>'
+          +'<div class="row"><span>Public steward projection</span><span class="badge" id="source-runtime-steward-state">NOT_EVALUATED</span><span class="spacer mono dim" id="source-runtime-steward-detail">Waiting for browser read</span></div>'
           +'<div class="btns"><a class="btn" href="https://github.com/szl-holdings/a11oy" target="_blank" rel="noopener noreferrer">Source repository · link only</a>'
           +'<a class="btn" id="source-runtime-commit" target="_blank" rel="noopener noreferrer" hidden></a>'
           +'<a class="btn" href="https://huggingface.co/spaces/SZLHOLDINGS/a11oy" target="_blank" rel="noopener noreferrer">Hugging Face Space · link only</a>'
