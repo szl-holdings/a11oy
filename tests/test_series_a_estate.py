@@ -144,6 +144,10 @@ def test_series_a_bind_is_reported_or_unavailable_never_operational(monkeypatch)
             assert card["hub_id"] == "SZLHOLDINGS/WILLAY"
             assert card.get("github") is None
             assert card["github_label"] == "UNAVAILABLE"
+            assert "self-description" in card["one_line"]
+            assert "historical qualification failed" in card["one_line"]
+            assert "Not a qualified refusal specialist" in card["not"]
+            assert "deployment BLOCKED" in card["not"]
         elif card["id"] == "a11oy-mini":
             assert card["hub_id"] == "SZLHOLDINGS/A11OY-MINI"
             assert card["github"] == "https://github.com/szl-holdings/szl-forge/tree/main/a11oy_mini"
