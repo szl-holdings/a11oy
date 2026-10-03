@@ -16,15 +16,26 @@ RUNTIME_LAYER_BUDGET = 110
 # Steward adds only its four named adapter/reader/projection/lock files, batched
 # into one COPY; no original source is removed and the layer budget is unchanged.
 # The civilian services surface adds exactly its registrar and package directory.
+# The public HF inventory repair adds exactly three reviewed docs sources; the
+# prior 585-source allowlist remains pinned separately below.
 # Preserve every prior source and the unchanged layer budget, not a broad COPY.
-COPY_SOURCE_ALLOWLIST_COUNT = 585
+COPY_SOURCE_ALLOWLIST_COUNT = 588
 COPY_SOURCE_ALLOWLIST_SHA256 = (
+    "371fbd0b54830459ce3096248a7ca33e4ffded466a5f538fd5996b3513947bf9"
+)
+PRE_CIVILIAN_ALLOWLIST_COUNT = 586
+PRE_CIVILIAN_ALLOWLIST_SHA256 = (
+    "4c312d5120c7920fe90a197fb47bcde5034699e24993862f88162b1502b063bb"
+)
+PRE_HF_DOCS_ALLOWLIST_COUNT = 585
+PRE_HF_DOCS_ALLOWLIST_SHA256 = (
     "4ca6083c0625d01db45342bf15badb633427c4550c6f1896b30c3b95926f0641"
 )
-PRE_CIVILIAN_ALLOWLIST_COUNT = 583
-PRE_CIVILIAN_ALLOWLIST_SHA256 = (
-    "b7b71ddc06c69e136240ff67cf62e4377ff8216a1d74bfa65adcffd856728755"
-)
+HF_DOCS_COPY_ADDITIONS = {
+    "docs/huggingface-ecosystem-manifest.json",
+    "docs/huggingface-ecosystem-manifest.schema.json",
+    "docs/huggingface.md",
+}
 CIVILIAN_COPY_ADDITIONS = {
     "a11oy_civilian_observatory.py",
     "civilian_observatory/",
@@ -116,3 +127,17 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
     assert len(previous) == PRE_CIVILIAN_ALLOWLIST_COUNT
     assert hashlib.sha256(encoded).hexdigest() == PRE_CIVILIAN_ALLOWLIST_SHA256
+
+
+def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
+    sources = {
+        source
+        for _line, instruction in _logical_instructions()
+        if instruction.upper().startswith("COPY ")
+        for source in _copy_sources(instruction)
+    }
+    assert HF_DOCS_COPY_ADDITIONS <= sources
+    previous = sources - HF_DOCS_COPY_ADDITIONS
+    encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
+    assert len(previous) == PRE_HF_DOCS_ALLOWLIST_COUNT
+    assert hashlib.sha256(encoded).hexdigest() == PRE_HF_DOCS_ALLOWLIST_SHA256

@@ -8,6 +8,9 @@ on:
     paths:
       - "governance-evidence-plane/**"
 
+permissions:
+  contents: read
+
 jobs:
   frontier_spin:
     name: frontier-operational-probe

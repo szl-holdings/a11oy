@@ -35,7 +35,7 @@ def test_missing_build_facts_stay_null_unknown(monkeypatch):
     assert result["immutable_for_process"] is True
 
 
-def test_observable_build_facts_are_normalized_and_matched(monkeypatch):
+def test_observable_build_facts_do_not_prove_cross_repository_alignment(monkeypatch):
     _clear(monkeypatch)
     sha = "1" * 40
     monkeypatch.setenv("A11OY_SOURCE_COMMIT", sha)
@@ -44,7 +44,11 @@ def test_observable_build_facts_are_normalized_and_matched(monkeypatch):
     monkeypatch.setenv("A11OY_IMAGE_DIGEST", "sha256:" + "3" * 64)
     monkeypatch.setenv("A11OY_DEPLOYED_AT", "2026-07-16T20:30:00-04:00")
     result = source.build_attestation_v2("SZLHOLDINGS/a11oy", {}, "UNKNOWN")
-    assert result["alignment_state"] == "MATCH"
+    assert result["source_commit"]["value"] == sha
+    assert result["deployed_commit"]["value"] == sha
+    # Equal SHA strings in separate Git repositories are not a verified
+    # source-to-HF byte-binding receipt.
+    assert result["alignment_state"] == "UNKNOWN"
     assert result["build_digest"]["value"] == "sha256:" + "2" * 64
     assert result["deploy_timestamp"]["value"] == "2026-07-17T00:30:00Z"
 
