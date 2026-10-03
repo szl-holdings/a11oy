@@ -46,6 +46,7 @@ LOCAL_MODEL_ENV = "A11OY_ATELIER_LOCAL_MODEL"
 LOCAL_MODEL_DIGEST_ENV = "A11OY_ATELIER_LOCAL_MODEL_DIGEST"
 LOCAL_PROVIDER = "local_ollama"
 LOCAL_MODE = "NO_KEY_LOCAL"
+LOCAL_TAGS_TIMEOUT_S = 10.0
 CPU_LAB_PROVIDER = "szl_cpu_lab"
 CPU_LAB_MODE = "NO_PROVIDER_KEY_PUBLIC_CPU_LAB"
 CPU_LAB_ORIGIN = "https://szlholdings-szl-model-inference-lab.hf.space"
@@ -544,7 +545,7 @@ def _local_observed_digest(url, model):
     tags_url = url[: -len("/api/chat")] + "/api/tags"
     try:
         document, code = szl_provider_http.http_json(
-            tags_url, method="GET", timeout=4.0, max_response_bytes=1_048_576,
+            tags_url, method="GET", timeout=LOCAL_TAGS_TIMEOUT_S, max_response_bytes=1_048_576,
             max_redirects=0, allow_private=True,
         )
     except Exception:

@@ -38,6 +38,7 @@ HOST = "127.0.0.1"
 PORT = 19090
 OLLAMA_TAGS_URL = "http://127.0.0.1:11434/api/tags"
 OLLAMA_CHAT_URL = "http://127.0.0.1:11434/api/chat"
+OLLAMA_TAGS_TIMEOUT_S = 10.0
 DEFAULT_MODEL = "qwen3:4b-instruct"
 MIN_FREE_BYTES = 1_500_000_000
 VAULT_MAGIC = b"A11OY-ATELIER-LOCAL-DPAPI-V1\x00"
@@ -239,7 +240,7 @@ def _installed_model_digest(model: str, expected_digest: str | None = None,
     request = urllib.request.Request(OLLAMA_TAGS_URL, method="GET",
                                      headers={"Accept": "application/json"})
     try:
-        with client.open(request, timeout=3) as response:
+        with client.open(request, timeout=OLLAMA_TAGS_TIMEOUT_S) as response:
             if response.status != 200:
                 raise LocalHold("OLLAMA_UNAVAILABLE")
             raw = response.read(MAX_TAGS_BYTES + 1)
