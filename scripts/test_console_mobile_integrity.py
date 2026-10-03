@@ -167,15 +167,19 @@ def run(output, premium_only=False):
                             check(f"{view} {theme} flat surfaces at {width}px", not measurements["gradients"], measurements["gradients"])
                             if view == "estate":
                                 check(f"estate {theme} flat title at {width}px", page.locator(".szl-holo-title").evaluate("e=>getComputedStyle(e).backgroundImage==='none' && getComputedStyle(e).webkitTextFillColor!=='transparent'"))
-                            height = page.evaluate("document.querySelector('.content').scrollHeight")
-                            for offset in range(800, height, 800):
-                                page.evaluate("y=>document.querySelector('.content').scrollTo(0,y)", offset)
+                            scroll_roots = page.evaluate("() => ['html','body','.app','.content'].map(selector=>{const e=document.querySelector(selector); return {selector,height:e.scrollHeight,client:e.clientHeight,overflow:getComputedStyle(e).overflowY};})")
+                            height = max(r["height"] for r in scroll_roots)
+                            step = 500
+                            for offset in range(int(step), height, int(step)):
+                                page.evaluate("y=>['html','body','.app','.content'].forEach(s=>document.querySelector(s).scrollTop=y)", offset)
                                 measurements = page.evaluate(MEASURE)
                                 contrast_failures = [t for t in measurements["texts"] if t["ratio"] < 4.5]
                                 check(f"{view} {theme} lower text contrast at {width}px/{offset}", not contrast_failures, contrast_failures)
+                            moved = page.evaluate("() => ['html','body','.app','.content'].some(s=>document.querySelector(s).scrollTop>0)")
+                            check(f"{view} {theme} lower content reachable at {width}px", moved or height <= 900, scroll_roots)
                             if width == 390:
                                 page.screenshot(path=str(output / f"premium-{view}-{theme}-{width}-lower.png"))
-                            page.evaluate("document.querySelector('.content').scrollTo(0,0)")
+                            page.evaluate("()=>['html','body','.app','.content'].forEach(s=>document.querySelector(s).scrollTop=0)")
                             if width in (390, 1280):
                                 page.screenshot(path=str(output / f"premium-{view}-{theme}-{width}.png"))
                 page.set_viewport_size({"width": 390, "height": 844})
