@@ -43,7 +43,7 @@ COMBINED_RECEIPT = Path("hf-vertical-services-receipt.json")
 PUBLIC_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance", "lyte")
 GENERATED_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance")
 SOURCE_OWNED_FLAGSHIP_SLUGS = ("lyte",)
-SELECTABLE_GENERATED_SCOPES = ("terra", "counsel")
+SELECTABLE_GENERATED_SCOPES = ("terra", "sentra", "counsel")
 FOLDED_INTO_KILLINCHU = ("vessels",)
 KILLINCHU_SPACE = "SZLHOLDINGS/killinchu"
 SENTRA_SPACE = "SZLHOLDINGS/sentra"
@@ -407,7 +407,7 @@ def selected_generated_preflight(scope: str) -> str:
 
 
 def publish_selected_generated(scope: str, space_guard_module) -> int:
-    """Publish one existing Terra or Counsel Space and verify its live receipt."""
+    """Publish one existing generated Space and verify its live receipt."""
     try:
         revision = selected_generated_preflight(scope)
         code, error, admitted = run_publisher(

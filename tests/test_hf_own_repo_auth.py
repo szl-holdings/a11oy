@@ -106,14 +106,14 @@ class OwnRepositoryAuthentication(unittest.TestCase):
         self.check_finance_request({}, None)
 
     def test_selected_preflights_use_authenticated_actual_requests(self) -> None:
-        for scope in ("terra", "counsel"):
+        for scope in ("terra", "sentra", "counsel"):
             with self.subTest(scope=scope), patch.dict(
                 os.environ, {**self.environment, "GH_TOKEN": "synthetic-cli"}, clear=True
             ), patch.object(
                 self.module.urllib.request, "urlopen", self.response_reader([REVISION])
             ):
                 self.assertEqual(self.module.selected_generated_preflight(scope), REVISION)
-        self.assertEqual(len(self.requests), 2)
+        self.assertEqual(len(self.requests), 3)
         self.assertTrue(all(
             request.get_header("Authorization") == "Bearer synthetic-cli"
             for request in self.requests

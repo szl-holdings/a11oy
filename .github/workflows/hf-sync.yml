@@ -311,6 +311,9 @@ jobs:
     needs: [manual-prerequisites, deploy]
     runs-on: ubuntu-latest
     timeout-minutes: 50
+    concurrency:
+      group: hf-publish-vertical-flagships
+      cancel-in-progress: false
     env:
       HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
       HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
