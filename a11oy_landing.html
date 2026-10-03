@@ -762,7 +762,7 @@ html[data-szl-shell-owner="homepage"] .hero p.lede {
   color:#3C454F!important;font-size:clamp(17px,1.55vw,21px)!important;
   max-width:48ch!important;text-shadow:none!important;
 }
-html[data-szl-shell-owner="homepage"] .hero-actions {display:flex;align-items:center;gap:16px 24px;flex-wrap:wrap}
+html[data-szl-shell-owner="homepage"] .hero .cta-row {display:flex;align-items:center;gap:16px 24px;flex-wrap:wrap;margin-bottom:0}
 html[data-szl-shell-owner="homepage"] .hero-artifact,
 html[data-szl-shell-owner="homepage"] .text-link {
   display:inline-flex;align-items:center;justify-content:center;gap:12px;
@@ -1027,7 +1027,7 @@ html[data-szl-shell-owner="homepage"] footer .brand .sub {color:#B4C2D2}
   html[data-szl-shell-owner="homepage"] .evidence-overview .hero-stats {grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:480px) {
-  html[data-szl-shell-owner="homepage"] .hero-actions {display:block}
+  html[data-szl-shell-owner="homepage"] .hero .cta-row {display:block}
   html[data-szl-shell-owner="homepage"] .hero-artifact {display:flex;width:100%;min-height:52px}
   html[data-szl-shell-owner="homepage"] .hero-tool {margin-top:8px}
   html[data-szl-shell-owner="homepage"] .specimen-row {grid-template-columns:80px minmax(0,1fr)}
@@ -1081,9 +1081,9 @@ html[data-szl-shell-owner="homepage"] footer .brand .sub {color:#B4C2D2}
       <p class="hero-overline">A11OY / GOVERNED INTELLIGENCE</p>
       <h1 class="title" id="hero-title">Make AI decisions <em>inspectable.</em></h1>
       <p class="lede">A request enters with its evidence. Policy can stop it. A decision keeps its reasons, and a written change can carry a receipt someone else can check.</p>
-      <div class="hero-actions">
+      <div class="cta-row">
         <a class="hero-artifact" href="https://github.com/szl-holdings/a11oy/blob/de4b748a2e34b0c592b35ef205360dfa34b6555c/examples/offline-verify-sample/bundle.json" rel="noopener">Inspect the sample receipt <span aria-hidden="true">↗</span></a>
-        <a class="hero-tool" href="/verify">Open the verifier tool <span aria-hidden="true">↗</span></a>
+        <a class="hero-tool" href="/verify">Verify a receipt</a>
       </div>
       <p class="artifact-note">SAMPLE · committed offline fixture · ephemeral demonstration key</p>
     </div>
@@ -1620,7 +1620,7 @@ html[data-szl-shell-owner="homepage"] footer .brand .sub {color:#B4C2D2}
         <a href="/five-space">Five-space operator · BIND package</a>
         <a href="/verify">Verify a receipt</a></div>
       <div class="lk"><strong style="color:var(--ink)">Evidence</strong>
-        <a href="https://a11oy.net" rel="noopener">Proof registry · a11oy.net</a>
+        <a href="https://a11oy.net" rel="noopener">Proof registry ↗</a>
         <a href="/trust">Trust center</a>
         <a href="/api/a11oy/v1/ledger">Receipt ledger</a>
         <a href="/api/a11oy/v1/honest">Honest status (JSON)</a>
