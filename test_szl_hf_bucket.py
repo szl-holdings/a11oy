@@ -14,14 +14,17 @@
 # Run by file path (the module is shipped flat next to serve.py):
 #   python3 test_szl_hf_bucket.py
 #
+import json
 import os
 import sys
 import tempfile
+import types
 import unittest
+from unittest.mock import Mock, patch
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from szl_hf_bucket import HFBucket, Transport, SCHEMA  # noqa: E402
+from szl_hf_bucket import BucketError, HFBucket, Transport, SCHEMA, _HFTransport  # noqa: E402
 
 
 class _HTTPError(Exception):
@@ -42,31 +45,72 @@ class FakeTransport(Transport):
         self.unreachable = False   # hard failure (offline)
         self.read_status = 503
         self.commit_status = 429
+        self.tip = "0" * 40
+        self.versions = {}
+        self.snapshots = []
+        self.read_revisions = []
+        self.list_revisions = []
+        self.parents = []
+        self.before_commit = None
+        self.after_snapshot = None
+        self.lost_responses = 0
+        self.empty_responses = 0
+        self.offline_after_commit = False
 
-    def read_file(self, path):
+    def snapshot(self):
+        if self.unreachable:
+            raise ConnectionError("network is unreachable")
+        tip = self.tip
+        self.versions[tip] = dict(self.files)
+        self.snapshots.append(tip)
+        if self.after_snapshot:
+            callback, self.after_snapshot = self.after_snapshot, None
+            callback()
+        return tip
+
+    def read_file(self, path, *, revision=None):
         if self.unreachable:
             raise ConnectionError("network is unreachable")
         if self.fail_reads > 0:
             self.fail_reads -= 1
             raise _HTTPError(self.read_status)
-        return self.files.get(path)
+        self.read_revisions.append(revision)
+        return (self.versions[revision] if revision is not None else self.files).get(path)
 
-    def list_files(self, prefix):
+    def list_files(self, prefix, *, revision=None):
         if self.unreachable:
             raise ConnectionError("network is unreachable")
         pref = prefix.rstrip("/") + "/"
-        return sorted(p for p in self.files if p.startswith(pref))
+        self.list_revisions.append(revision)
+        files = self.versions[revision] if revision is not None else self.files
+        return sorted(p for p in files if p.startswith(pref))
 
-    def commit(self, operations, message):
+    def commit(self, operations, message, *, parent_commit):
+        self.parents.append(parent_commit)
+        if self.before_commit:
+            callback, self.before_commit = self.before_commit, None
+            callback()
         if self.unreachable:
             raise ConnectionError("network is unreachable")
+        if parent_commit != self.tip:
+            raise _HTTPError(409)
         if self.fail_commits > 0:
             self.fail_commits -= 1
             raise _HTTPError(self.commit_status)
         for path, blob in operations:
             self.files[path] = blob
         self.commits += 1
-        return "oid%d" % self.commits
+        self.tip = "%040x" % self.commits
+        if self.offline_after_commit:
+            self.unreachable = True
+            raise ConnectionError("response lost after commit")
+        if self.lost_responses:
+            self.lost_responses -= 1
+            raise _HTTPError(503)
+        if self.empty_responses:
+            self.empty_responses -= 1
+            return ""
+        return self.tip
 
 
 def _mk(tmp, transport, **kw):
@@ -82,7 +126,9 @@ def _mk(tmp, transport, **kw):
 
 class BucketSelfTest(unittest.TestCase):
     def setUp(self):
-        self._tmp = tempfile.mkdtemp(prefix="hfbtest_")
+        temporary = tempfile.TemporaryDirectory(prefix="hfbtest_")
+        self.addCleanup(temporary.cleanup)
+        self._tmp = temporary.name
 
     def test_idempotent_append_one_entry(self):
         t = FakeTransport()
@@ -210,6 +256,298 @@ class BucketSelfTest(unittest.TestCase):
         self.assertEqual(b2.status()["pending"], 1)  # saw the queued file
         b2.flush_queue(force=True)
         self.assertEqual(len(b2.read_all()), 1)
+
+
+class BucketSnapshotTest(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(prefix="hfbsnapshot_")
+        self.addCleanup(temporary.cleanup)
+        self._tmp = temporary.name
+
+    def _two_writers(self, *, other_day=None):
+        transport = FakeTransport()
+        first = _mk(os.path.join(self._tmp, "first"), transport, source="first")
+        second = _mk(os.path.join(self._tmp, "second"), transport, source="second")
+        first.append(first.make_record({"writer": 1}, ts="2026-01-02T00:00:00Z"))
+        second.append(second.make_record(
+            {"writer": 2}, ts=(other_day or "2026-01-02") + "T00:00:00Z"
+        ))
+        return transport, first, second
+
+    def _assert_count(self, transport, expected):
+        head = json.loads(transport.files["data/head.json"])
+        actual = sum(
+            len([line for line in transport.files[path].splitlines() if line.strip()])
+            for path in head["shards"]
+        )
+        self.assertEqual(head["count"], actual)
+        self.assertEqual(actual, expected)
+
+    def test_same_shard_conflict_remerges_both_writers(self):
+        t, first, second = self._two_writers()
+        t.before_commit = lambda: second.flush_queue(force=True)
+        out = first.flush_queue(force=True)
+        self.assertEqual(out["committed"], 1)
+        self.assertEqual(out["pending"], 0)
+        self.assertEqual(t.commits, 2)
+        self.assertEqual({r["source"] for r in first.read_all()}, {"first", "second"})
+        self._assert_count(t, 2)
+        self.assertNotEqual(t.parents[0], t.parents[-1])
+
+    def test_snapshot_stays_pinned_when_main_moves_before_reads(self):
+        t, first, second = self._two_writers()
+        t.after_snapshot = lambda: second.flush_queue(force=True)
+        out = first.flush_queue(force=True)
+        self.assertEqual(out["pending"], 0)
+        self.assertEqual(t.commits, 2)
+        self.assertTrue(all(rev is not None for rev in t.read_revisions))
+        self.assertTrue(all(rev is not None for rev in t.list_revisions))
+        self.assertEqual(set(t.read_revisions), set(t.snapshots))
+        self._assert_count(t, 2)
+
+    def test_new_peer_shard_is_in_rebuilt_head(self):
+        t, first, second = self._two_writers(other_day="2026-01-03")
+        t.before_commit = lambda: second.flush_queue(force=True)
+        first.flush_queue(force=True)
+        self.assertEqual(
+            json.loads(t.files["data/head.json"])["shards"],
+            ["data/2026-01-02.ndjson", "data/2026-01-03.ndjson"],
+        )
+        self._assert_count(t, 2)
+
+    def test_conflict_exhaustion_retains_queue_and_no_success(self):
+        t = FakeTransport()
+        t.fail_commits, t.commit_status = 99, 409
+        b = _mk(self._tmp, t, max_retries=3)
+        b.append({"n": 1})
+        out = b.flush_queue(force=True)
+        self.assertEqual(out["pending"], 1)
+        self.assertEqual(out["state"], "unreachable")
+        self.assertIsNone(out["last_commit"])
+        self.assertEqual(len(t.snapshots), 3)
+        self.assertEqual(t.commits, 0)
+
+    def test_lost_response_reconciles_without_replaying_replacement(self):
+        t = FakeTransport()
+        t.lost_responses = 1
+        b = _mk(self._tmp, t)
+        b.append({"n": 1})
+        out = b.flush_queue(force=True)
+        self.assertEqual(out["committed"], 0)
+        self.assertEqual(out["deduped"], 1)
+        self.assertEqual(out["pending"], 0)
+        self.assertIsNone(out["last_commit"])
+        self.assertEqual(t.commits, 1)
+        self.assertEqual(len(t.parents), 1)
+        self._assert_count(t, 1)
+
+    def test_empty_commit_response_is_reconciled_as_ambiguous(self):
+        t = FakeTransport()
+        t.empty_responses = 1
+        b = _mk(self._tmp, t)
+        b.append({"n": 1})
+        out = b.flush_queue(force=True)
+        self.assertEqual(out["deduped"], 1)
+        self.assertEqual(out["pending"], 0)
+        self.assertIsNone(out["last_commit"])
+        self.assertEqual(t.commits, 1)
+
+    def test_lost_response_does_not_overwrite_later_peer_append(self):
+        t, first, second = self._two_writers()
+        t.lost_responses = 1
+
+        def arrange_later_writer():
+            t.after_snapshot = lambda: second.flush_queue(force=True)
+
+        t.before_commit = arrange_later_writer
+        out = first.flush_queue(force=True)
+        self.assertEqual(out["deduped"], 1)
+        self.assertEqual(out["pending"], 0)
+        self.assertEqual(t.commits, 2)
+        self._assert_count(t, 2)
+        self.assertEqual({r["source"] for r in first.read_all()}, {"first", "second"})
+
+    def test_lost_response_and_unreadable_head_keeps_queue_until_recovery(self):
+        t = FakeTransport()
+        t.offline_after_commit = True
+        b = _mk(self._tmp, t)
+        b.append({"n": 1})
+        out = b.flush_queue(force=True)
+        self.assertEqual(out["pending"], 1)
+        self.assertEqual(out["state"], "unreachable")
+        self.assertIsNone(out["last_commit"])
+        self.assertEqual(t.commits, 1)
+        t.unreachable, t.offline_after_commit = False, False
+        recovered = b.flush_queue(force=True)
+        self.assertEqual(recovered["deduped"], 1)
+        self.assertEqual(recovered["pending"], 0)
+        self.assertEqual(t.commits, 1)
+
+    def test_commit_denial_is_not_retried(self):
+        t = FakeTransport()
+        t.fail_commits, t.commit_status = 99, 403
+        b = _mk(self._tmp, t)
+        b.append({"n": 1})
+        self.assertEqual(b.flush_queue(force=True)["pending"], 1)
+        self.assertEqual(len(t.snapshots), 1)
+        self.assertEqual(t.commits, 0)
+
+    def test_missing_snapshot_contract_cannot_fall_back_to_unguarded_write(self):
+        t = FakeTransport()
+        t.snapshot = lambda: "main"
+        b = _mk(self._tmp, t)
+        b.append({"n": 1})
+        out = b.flush_queue(force=True)
+        self.assertEqual(out["pending"], 1)
+        self.assertEqual(out["state"], "unreachable")
+        self.assertEqual(t.parents, [])
+        self.assertEqual(t.read_revisions, [])
+
+    def test_listing_failure_never_drops_untouched_shards_from_head(self):
+        t, first, second = self._two_writers(other_day="2026-01-03")
+        second.flush_queue(force=True)
+        before = dict(t.files)
+        t.list_files = Mock(side_effect=_HTTPError(404))
+        out = first.flush_queue(force=True)
+        self.assertEqual(out["pending"], 1)
+        self.assertEqual(t.files, before)
+        self.assertEqual(t.list_files.call_count, 1)
+
+    def test_existing_shard_bytes_are_preserved_including_whitespace(self):
+        t = FakeTransport()
+        old = b'  {"id": "older", "ts": "2026-01-02T00:00:00Z"}  \r\n\r\n'
+        t.files["data/2026-01-02.ndjson"] = old
+        b = _mk(self._tmp, t)
+        b.append(b.make_record({"n": 1}, ts="2026-01-02T00:00:01Z"))
+        b.flush_queue(force=True)
+        self.assertTrue(t.files["data/2026-01-02.ndjson"].startswith(old))
+        self._assert_count(t, 2)
+
+    def test_invalid_existing_shard_is_never_replaced(self):
+        for blob in (b'{"id":"older"}\ninvalid\n', b"\xff\n", b"[]\n"):
+            with self.subTest(blob=blob):
+                t = FakeTransport()
+                t.files["data/2026-01-02.ndjson"] = blob
+                b = _mk(self._tmp, t)
+                b.append(b.make_record({"n": 1}, ts="2026-01-02T00:00:00Z"))
+                out = b.flush_queue(force=True)
+                self.assertEqual(out["pending"], 1)
+                self.assertEqual(t.files["data/2026-01-02.ndjson"], blob)
+                self.assertEqual(t.commits, 0)
+                self.assertEqual(len(t.snapshots), 1)
+
+    def test_listed_shard_missing_at_snapshot_is_not_empty(self):
+        t = FakeTransport()
+        t.list_files = lambda prefix, **kwargs: ["data/2026-01-02.ndjson"]
+        b = _mk(self._tmp, t)
+        b.append(b.make_record({"n": 1}, ts="2026-01-02T00:00:00Z"))
+        self.assertEqual(b.flush_queue(force=True)["pending"], 1)
+        self.assertEqual(t.commits, 0)
+
+
+class HFTransportContractTest(unittest.TestCase):
+    def setUp(self):
+        self.transport = _HFTransport("org/bucket", None, revision="release")
+        self.api = Mock()
+        self.transport._api = self.api
+        self.sha = "a" * 40
+
+    def test_resolves_exact_sha_and_passes_parent_guard_to_sdk(self):
+        self.api.repo_info.return_value = types.SimpleNamespace(sha=self.sha)
+        self.assertEqual(self.transport.snapshot(), self.sha)
+        self.api.repo_info.assert_called_once_with(
+            repo_id="org/bucket", repo_type="dataset", revision="release", token=None,
+        )
+        self.api.list_repo_files.return_value = ["data/a.ndjson"]
+        self.transport.list_files("data", revision=self.sha)
+        self.assertEqual(self.api.list_repo_files.call_args.kwargs["revision"], self.sha)
+        with tempfile.NamedTemporaryFile(delete=False) as handle:
+            handle.write(b"existing")
+            filename = handle.name
+        self.addCleanup(os.remove, filename)
+        self.api.hf_hub_download.return_value = filename
+        self.assertEqual(self.transport.read_file("data/a.ndjson", revision=self.sha), b"existing")
+        self.assertEqual(self.api.hf_hub_download.call_args.kwargs["revision"], self.sha)
+        sdk = types.ModuleType("huggingface_hub")
+        sdk.CommitOperationAdd = Mock()
+        self.api.create_commit.return_value = types.SimpleNamespace(oid="b" * 40)
+        with patch.dict(sys.modules, {"huggingface_hub": sdk}):
+            self.assertEqual(
+                self.transport.commit([("data/a.ndjson", b"new")], "append", parent_commit=self.sha),
+                "b" * 40,
+            )
+        kwargs = self.api.create_commit.call_args.kwargs
+        self.assertEqual(kwargs["parent_commit"], self.sha)
+        self.assertEqual(kwargs["revision"], "release")
+        self.assertIs(kwargs["create_pr"], False)
+
+    def test_only_file_entry_not_found_is_empty(self):
+        for name in ("EntryNotFoundError", "RemoteEntryNotFoundError"):
+            self.api.hf_hub_download.side_effect = type(name, (Exception,), {})()
+            self.assertIsNone(self.transport.read_file("data/new.ndjson", revision=self.sha))
+        for name in ("RepositoryNotFoundError", "RevisionNotFoundError", "HTTPError"):
+            error = type(name, (Exception,), {})()
+            error.response = types.SimpleNamespace(status_code=404)
+            self.api.hf_hub_download.side_effect = error
+            with self.assertRaises(BucketError):
+                self.transport.read_file("data/new.ndjson", revision=self.sha)
+            self.api.list_repo_files.side_effect = error
+            with self.assertRaises(BucketError):
+                self.transport.list_files("data", revision=self.sha)
+
+    def test_invalid_snapshot_and_parent_are_denied_before_write(self):
+        for sha in (None, "", "main", "a" * 7):
+            self.api.repo_info.return_value = types.SimpleNamespace(sha=sha)
+            with self.assertRaises(BucketError):
+                self.transport.snapshot()
+            with self.assertRaises(BucketError):
+                self.transport.commit([], "append", parent_commit=sha)
+        self.api.create_commit.assert_not_called()
+
+    def test_wrapped_sdk_conflict_restarts_snapshot_and_parent_guard(self):
+        self._sdk_conflict_refreshes_parent(409)
+
+    def test_wrapped_sdk_precondition_conflict_refreshes_parent(self):
+        self._sdk_conflict_refreshes_parent(412)
+
+    def _sdk_conflict_refreshes_parent(self, status):
+        new_sha = "b" * 40
+        self.api.repo_info.side_effect = [
+            types.SimpleNamespace(sha=self.sha), types.SimpleNamespace(sha=new_sha),
+        ]
+        self.api.list_repo_files.return_value = []
+        self.api.hf_hub_download.side_effect = type("EntryNotFoundError", (Exception,), {})()
+        self.api.create_commit.side_effect = [
+            _HTTPError(status), types.SimpleNamespace(oid="c" * 40),
+        ]
+        sdk = types.ModuleType("huggingface_hub")
+        sdk.CommitOperationAdd = Mock()
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(sys.modules, {"huggingface_hub": sdk}):
+                bucket = _mk(directory, self.transport)
+                bucket.append({"n": 1})
+                out = bucket.flush_queue(force=True)
+        self.assertEqual(out["committed"], 1)
+        self.assertEqual(out["pending"], 0)
+        self.assertEqual(
+            [call.kwargs["parent_commit"] for call in self.api.create_commit.call_args_list],
+            [self.sha, new_sha],
+        )
+        self.assertEqual(
+            [call.kwargs["revision"] for call in self.api.hf_hub_download.call_args_list],
+            [self.sha, new_sha],
+        )
+
+    def test_wrapped_http_denial_keeps_queue_without_retry(self):
+        self.api.repo_info.side_effect = _HTTPError(401)
+        with tempfile.TemporaryDirectory() as directory:
+            bucket = _mk(directory, self.transport)
+            bucket.append({"n": 1})
+            out = bucket.flush_queue(force=True)
+            self.assertEqual(out["pending"], 1)
+            self.assertEqual(out["state"], "unreachable")
+        self.assertEqual(self.api.repo_info.call_count, 1)
+        self.api.create_commit.assert_not_called()
 
 
 if __name__ == "__main__":

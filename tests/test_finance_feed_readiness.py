@@ -116,6 +116,23 @@ def test_refresh_failure_without_cache_stamps_fetched_at() -> None:
     assert payload["freshness"]["fetched_at"] > 0
 
 
+def test_nvd_feed_uses_configured_key_only_in_request_header(monkeypatch) -> None:
+    observed = {}
+
+    def fake_fetch(key, url, **kwargs):
+        observed.update(key=key, url=url, **kwargs)
+        return {"value": {"items": []}, "freshness": {"status": "live"}}
+
+    monkeypatch.setenv("NVD_API_KEY", "test-nvd-key")
+    monkeypatch.setattr(vertical, "_cached_fetch", fake_fetch)
+
+    vertical.feed_nvd(12, keyword="financial")
+
+    assert observed["headers"] == {"apiKey": "test-nvd-key"}
+    assert "test-nvd-key" not in observed["url"]
+    assert "keywordSearch=financial" in observed["url"]
+
+
 def test_finance_public_series_omits_unavailable_and_promotes_stale_cache() -> None:
     public = vertical._finance_public_series({
         "SPY": _unavailable(),
