@@ -171,9 +171,11 @@ def run(output, premium_only=False):
                             tall = page.locator('.content').evaluate("e=>e.scrollHeight>e.clientHeight+1")
                             if tall:
                                 page.mouse.move(pane["x"] + pane["width"] / 2, pane["y"] + min(100, pane["height"] / 2))
+                                point = page.evaluate("p=>{const e=document.elementFromPoint(p.x,p.y);return e?{tag:e.tagName,classes:e.className}:null}", {"x": pane["x"] + pane["width"] / 2, "y": pane["y"] + min(100, pane["height"] / 2)})
                                 page.mouse.wheel(0, 500)
-                                page.wait_for_timeout(100)
-                                check(f"{view} {theme} user scroll at {width}px", page.locator('.content').evaluate("e=>e.scrollTop>0"))
+                                page.wait_for_timeout(250)
+                                scroll_state = page.locator('.content').evaluate("e=>({top:e.scrollTop,height:e.scrollHeight,client:e.clientHeight,overflow:getComputedStyle(e).overflowY})")
+                                check(f"{view} {theme} user scroll at {width}px", scroll_state["top"] > 0, {"pane": pane, "pointer_element": point, "scroll": scroll_state})
                                 page.locator('.content').evaluate("e=>e.scrollTop=0")
                             scroll_roots = page.evaluate("() => ['html','body','.app','.content'].map(selector=>{const e=document.querySelector(selector); return {selector,height:e.scrollHeight,client:e.clientHeight,overflow:getComputedStyle(e).overflowY};})")
                             height = max(r["height"] for r in scroll_roots)
