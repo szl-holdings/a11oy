@@ -4,6 +4,7 @@
 (() => {
   const el = (id) => document.getElementById(id);
   let ready = false, sending = false, uncertain = false;
+  let localReady = false, localSending = false, localUncertain = false;
 
   async function json(url, options = {}, timeout = 15000) {
     const controller = new AbortController();
@@ -46,11 +47,13 @@
   }
 
   async function refresh() {
-    el('refresh').disabled = true; ready = false; el('send').disabled = true;
+    el('refresh').disabled = true; ready = false; localReady = false;
+    el('send').disabled = true; el('local-send').disabled = true;
     const results = await Promise.allSettled([
       json('/api/a11oy/v1/command-centre/manifest'), json('/api/build-info'),
       json('/api/a11oy/v1/atelier/health'), json('/api/a11oy/v1/command-centre/inventory'),
       json('/api/a11oy/v1/command-centre/study'),
+      json('/api/a11oy/v1/atelier/local/health'),
     ]);
     if (results[0].status === 'fulfilled' && results[0].value.ok && Array.isArray(results[0].value.value.surfaces)) {
       links(results[0].value.value.surfaces);
@@ -81,12 +84,28 @@
       if (results[4].status !== 'fulfilled' || !results[4].value.ok) throw new Error('STUDY_UNAVAILABLE');
       study(results[4].value.value);
     } catch (_error) { el('study-summary').textContent = 'Research snapshot unavailable. No model admission or benchmark result assumed.'; el('study-models').replaceChildren(); }
-    el('send').disabled = !ready || sending; el('refresh').disabled = false;
+    const localHealth = results[5];
+    if (localHealth.status === 'fulfilled' && localHealth.value.ok) {
+      const value = localHealth.value.value;
+      localReady = value.ready === true && value.mode === 'NO_KEY_LOCAL';
+      el('local-state').textContent = localReady ? 'Configured · inference not yet witnessed' : 'Unavailable · local gates remain';
+      const blockers = Array.isArray(value.blockers) ? value.blockers.join(' · ') : 'No completed local turn established';
+      el('local-detail').textContent = `${value.model || 'No model selected'} · ${blockers || 'A signed completed turn is still required.'}`;
+      el('local-model').value = typeof value.model === 'string' && value.model ? value.model : 'Not configured';
+    } else {
+      el('local-state').textContent = 'Local health unavailable';
+      el('local-detail').textContent = 'No local model readiness or inference assumed.';
+      el('local-model').value = 'Not configured';
+    }
+    el('send').disabled = !ready || sending;
+    el('local-send').disabled = !localReady || localSending;
+    el('refresh').disabled = false;
   }
 
   el('refresh').addEventListener('click', refresh);
   el('forget-key').addEventListener('click', () => { el('operator-key').value = ''; });
-  window.addEventListener('pagehide', () => { el('operator-key').value = ''; });
+  el('local-forget-key').addEventListener('click', () => { el('local-operator-key').value = ''; });
+  window.addEventListener('pagehide', () => { el('operator-key').value = ''; el('local-operator-key').value = ''; });
   el('turn-form').addEventListener('submit', async (event) => {
     event.preventDefault(); if (sending || !ready) return;
     const credential = el('operator-key').value.trim();
@@ -112,6 +131,35 @@
     } catch (_error) {
       uncertain = true; el('turn-status').textContent = 'Request outcome uncertain. The provider may have executed it. No automatic retry was made; confirm before sending another request.';
     } finally { sending = false; el('send').disabled = !ready; }
+  });
+  el('local-turn-form').addEventListener('submit', async (event) => {
+    event.preventDefault(); if (localSending || !localReady) return;
+    const credential = el('local-operator-key').value.trim();
+    if (!credential || /\s/.test(credential) || credential.length > 4096) { el('local-turn-status').textContent = 'Enter the local Atelier operator credential.'; return; }
+    if (localUncertain && !window.confirm('The previous local request may have executed. Send a new request?')) return;
+    localUncertain = false; localSending = true; el('local-send').disabled = true;
+    el('local-answer').hidden = true; el('local-answer').textContent = '';
+    el('local-receipt-panel').hidden = true; el('local-receipt').textContent = '';
+    el('local-turn-status').textContent = 'Checking authorization and policy, then making at most one local model request…';
+    try {
+      const response = await json('/api/a11oy/v1/atelier/local/turn', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${credential}` },
+        body: JSON.stringify({ prompt: el('local-prompt').value, declared: el('local-classification').value, max_output_tokens: 768 }),
+      }, 130000);
+      const { answer, ...evidence } = response.value;
+      el('local-receipt').textContent = JSON.stringify(evidence, null, 2);
+      el('local-receipt-panel').hidden = false;
+      if (response.ok && response.value.state === 'COMPLETED' && typeof answer === 'string' && answer.trim()) {
+        el('local-answer').textContent = answer; el('local-answer').hidden = false;
+        el('local-turn-status').textContent = 'Local model text received. Inspect the signed outcome receipt below.';
+      } else {
+        localUncertain = response.status >= 500;
+        el('local-turn-status').textContent = `No completed local answer · ${response.value.code || response.value.state || `HTTP ${response.status}`}. No automatic retry was made.`;
+      }
+    } catch (_error) {
+      localUncertain = true;
+      el('local-turn-status').textContent = 'Local request outcome uncertain. No automatic retry was made; confirm before sending another request.';
+    } finally { localSending = false; el('local-send').disabled = !localReady; }
   });
   refresh();
 })();
