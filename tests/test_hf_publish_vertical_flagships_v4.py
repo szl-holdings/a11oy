@@ -528,10 +528,7 @@ _TX_COMMIT = "c" * 40
 
 
 def _load_transaction_fixture(path):
-    spec = importlib.util.spec_from_file_location("sentra_contract_" + Path(path).stem, Path(path))
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return load_module("sentra_contract_" + Path(path).stem, Path(path))
 
 
 @pytest.fixture
@@ -652,6 +649,9 @@ class _SentraFixtureApi:
 def sentra_transaction(sentra_wrapper, monkeypatch, tmp_path):
     renderer = _load_transaction_fixture("scripts/hf_publish_vertical_flagships_v4_impl.py")
     api = _SentraFixtureApi(sentra_wrapper)
+    fake_hub = ModuleType("huggingface_hub")
+    fake_hub.CommitOperationAdd = lambda **kwargs: SimpleNamespace(**kwargs)
+    monkeypatch.setitem(sys.modules, "huggingface_hub", fake_hub)
     monkeypatch.setattr(sentra_wrapper, "FLAGSHIP_RECEIPT", tmp_path / "_transaction_receipt.json")
     monkeypatch.setattr(sentra_wrapper, "_sentra_source_admission", lambda: _TX_SOURCE)
     monkeypatch.setattr(sentra_wrapper, "load_module", lambda name, path: renderer)
