@@ -7,6 +7,7 @@ from __future__ import annotations
 import importlib.util
 import pathlib
 import re
+import shlex
 import sys
 import textwrap
 import unittest
@@ -156,6 +157,22 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
         self.assertTrue(self.fixture_contract(
             workflow, ownership_helper=helper))
         self.assertFalse(self.fixture_contract(workflow))
+
+    def test_public_hf_inventory_docs_enter_runtime_and_space_copy_set(self) -> None:
+        dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+        runtime = dockerfile.split(" AS runtime\n", 1)[1]
+        copies = [shlex.split(instruction) for instruction in CHECKER.logical_lines(runtime)
+                  if re.match(r"^COPY\s+", instruction)]
+        for source in (
+            "docs/huggingface-ecosystem-manifest.json",
+            "docs/huggingface-ecosystem-manifest.schema.json",
+            "docs/huggingface.md",
+        ):
+            with self.subTest(source=source):
+                self.assertTrue((ROOT / source).is_file())
+                destinations = [tokens[-1] for tokens in copies if source in tokens[1:-1]]
+                self.assertEqual(["./docs/"], destinations)
+        self.assertTrue(self.strict_contract(self.reviewed_workflow))
 
     def test_source_admission_cannot_hide_changed_helper_or_arbitrary_skip(self) -> None:
         workflow = (ROOT / ".github/workflows/hf-sync.yml").read_text(encoding="utf-8")
