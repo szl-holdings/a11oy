@@ -151,6 +151,8 @@ PROTECTED_ROUTES = (
     (r"/api/a11oy/khipu/sign", "Receipt signing", "sign"),
     (r"/api/a11oy/v1/brain/receipt/sign", "Receipt signing", "sign"),
     (r"/api/a11oy/v1/provenance/pqc/sign", "Receipt signing", "sign"),
+    (r"/api/a11oy/v1/restraint/evaluate", "Restraint receipt signing", "sign"),
+    (r"/api/killinchu/v1/restraint/evaluate", "Restraint receipt signing", "sign"),
     # -- control plane and persistent writes ------------------------------------
     (r"(/api/a11oy)?/v1/energy/operator/(start|stop)", "Energy operator control", "state"),
     (r"/api/a11oy/v1/spend/(record|cap)", "Spend ledger writes", "state"),
