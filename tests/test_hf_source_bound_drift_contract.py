@@ -83,7 +83,7 @@ class RepositoryBoundDriftWorkflowTests(unittest.TestCase):
             self.drift,
         )
         self.assertIn("An unmerged candidate", self.drift)
-        self.assertIn("only then dispatches this workflow", self.drift)
+        self.assertIn("only then awaits this workflow", self.drift)
         self.assertIn("source-probe-path: /api/build-info", self.live_job)
         self.assertNotIn("source-probe-path", self.repository_job)
 
@@ -102,15 +102,31 @@ class RepositoryBoundDriftWorkflowTests(unittest.TestCase):
         self.assertNotIn("hf-relock-evidence", self.sync)
         self.assertNotIn("check_hf_runtime_revision", self.sync)
 
-    def test_successful_deploy_dispatches_strict_live_and_repository_parity(self) -> None:
-        self.assertIn("actions: write", self.sync)
+    def test_successful_deploy_awaits_strict_live_and_repository_parity(self) -> None:
+        self.assertNotIn("actions: write", self.sync)
+        self.assertNotIn("gh workflow run hf-module-drift.yml", self.sync)
         enforce = self.sync.index("Enforce exact live state")
-        dispatch = self.sync.index("Trigger strict post-deployment GitHub/HF parity")
-        self.assertLess(enforce, dispatch)
+        awaited = self.sync.index("post-deployment-parity:")
+        terminal = self.sync.index("terminal-source-authorization:")
+        self.assertLess(enforce, awaited)
+        self.assertLess(awaited, terminal)
+        self.assertIn("needs: relock", self.sync[awaited:])
         self.assertIn(
-            'gh workflow run hf-module-drift.yml --repo "$GITHUB_REPOSITORY" --ref main',
-            self.sync,
+            "uses: ./.github/workflows/hf-module-drift.yml",
+            self.sync[awaited:],
         )
+        self.assertIn(
+            "needs: [post-deployment-parity, publish-vertical-flagships, publish-finance-projection]",
+            self.sync[terminal:],
+        )
+        self.assertIn("scripts/hf_exact_main_ownership.py", self.sync[terminal:])
+        self.assertEqual(
+            self.sync[terminal:].count("scripts/hf_exact_main_ownership.py"),
+            2,
+        )
+        self.assertIn("terminal-source-authorization-final.json", self.sync[terminal:])
+        self.assertIn("grep -Fqx 'publish=true'", self.sync[terminal:])
+        self.assertIn("workflow_call:", self.drift)
         self.assertIn("if: github.event_name != 'pull_request'", self.repository_job)
 
     def test_every_main_push_enters_deployment_before_strict_post_deploy_parity(

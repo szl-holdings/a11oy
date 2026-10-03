@@ -202,7 +202,7 @@ def test_lyte_only_scope_uses_existing_writer_and_rejects_failed_or_unbound_rece
 
 def test_workflow_exposes_focused_scope_and_retains_partial_lyte_manifest():
     workflow = (ROOT / ".github/workflows/hf-publish-vertical-flagships.yml").read_text()
-    assert "options: [finance, lyte, terra, counsel, estate]" in workflow
+    assert "options: [finance, lyte, terra, sentra, counsel, estate]" in workflow
     assert "hf-lyte-enterprise-manifest.failed.json" in workflow
     contract = (ROOT / ".github/workflows/hf-lyte-enterprise-contract.yml").read_text()
     assert contract.count("tests/test_lyte_publisher_source_resolution.py") == 2
