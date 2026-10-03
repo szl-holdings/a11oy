@@ -19,12 +19,25 @@ const paths = {
   steward: '/api/a11oy/v1/steward/status',
 };
 
+function inlineScriptBodies(source) {
+  return [...source.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script\s*>/gi)].map(match => match[1]);
+}
+
 test('the changed inline scripts parse as shipped browser JavaScript', () => {
-  const bodies = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map(match => match[1]);
+  const bodies = inlineScriptBodies(html);
   const relevant = bodies.filter(body => body.includes('source-runtime-evidence:begin') ||
     body.includes("V.command={ title:'Command Center', badge:'LIVE · AUTO-POLL'"));
   assert.equal(relevant.length, 2);
   for (const body of relevant) assert.doesNotThrow(() => new Script(body));
+});
+
+test('script parsing accepts valid whitespace before closing tag delimiters', () => {
+  for (const closing of ['</script >', '</script\t>', '</script\r\n>']) {
+    const source = '<script>const first=1;' + closing + '<script>const second=2;' + closing;
+    const bodies = inlineScriptBodies(source);
+    assert.deepEqual(bodies, ['const first=1;', 'const second=2;']);
+    for (const body of bodies) assert.doesNotThrow(() => new Script(body));
+  }
 });
 
 function reader(fetch, el = () => null) {
