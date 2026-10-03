@@ -24,6 +24,8 @@ SECOND_BRAIN_REPOSITORY = "szl-holdings/szl-second-brain"
 ANATOMY_REPOSITORY = "szl-holdings/anatomy"
 FORMULA_REPOSITORY = "szl-holdings/szl-formulas"
 OUROBOROS_REPOSITORY = "szl-holdings/szl-ouroboros"
+FORUM_REPOSITORY = "szl-holdings/szl-science-forum-corpus"
+FORUM_PATH = "dataset/sources.public.jsonl"
 STATE_PATH = "data/frontier-state.v1.json"
 CANDIDATES_PATH = "data/frontier-candidates.public.jsonl"
 API_ORIGIN = "https://api.github.com"
@@ -42,6 +44,7 @@ ALLOWED_SOURCE_REPOSITORIES = {
     "szl-holdings/szl-forge",
     "szl-holdings/szl-nemo",
     "szl-holdings/szl-kernels",
+    FORUM_REPOSITORY,
 }
 KIND_ORDER = {
     "formula-authority": 0,
@@ -52,6 +55,7 @@ KIND_ORDER = {
     "estate-authority": 5,
     "estate-surface": 6,
     "source-document": 7,
+    "forum-insight": 8,
 }
 SAFE_DOMAIN = re.compile(r"[a-z0-9][a-z0-9_-]{0,79}")
 SAFE_PATH_SEGMENT = re.compile(r"[A-Za-z0-9_.-]+")
@@ -102,6 +106,14 @@ def validate_metadata(row: dict[str, Any]) -> None:
     admission = row.get("admission")
     if admission not in ALLOWED_ADMISSIONS:
         raise MaterializationError("frontier candidate admission is invalid")
+    # Second Brain PR #28 adds one review-required pilot, not arbitrary forum sources.
+    if kind == "forum-insight" or row.get("source_repository") == FORUM_REPOSITORY:
+        if (kind != "forum-insight"
+                or row.get("source_repository") != FORUM_REPOSITORY
+                or path != FORUM_PATH
+                or admission != "DISCOVERED_REVIEW_REQUIRED"
+                or "quant_domain" in row):
+            raise MaterializationError("frontier forum pilot binding is invalid")
     domain = row.get("quant_domain")
     if "quant_domain" in row or kind == "quant-domain":
         if not isinstance(domain, str) or not SAFE_DOMAIN.fullmatch(domain):
@@ -252,6 +264,8 @@ def validate_frontier(
         raise MaterializationError("frontier candidate-set digest mismatch")
     if type(state.get("candidate_count")) is not int or len(rows) != state["candidate_count"]:
         raise MaterializationError("frontier candidate count mismatch")
+    if kinds["forum-insight"] > 1:
+        raise MaterializationError("frontier forum pilot count drifted")
     if kinds["formula-authority"] != 1:
         raise MaterializationError("formula authority is missing")
     if kinds["attributed-formula"] != 30:
