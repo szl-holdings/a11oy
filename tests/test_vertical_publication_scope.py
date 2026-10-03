@@ -9,6 +9,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from scripts.hf_existing_space_guard import SpaceGuardError
+
 
 ROOT = Path(__file__).resolve().parents[1]
 ENTRYPOINT = ROOT / "scripts/hf_publish_vertical_flagships_v4.py"
@@ -62,6 +64,7 @@ def test_selected_renderer_refuses_unauthorized_target(publisher, monkeypatch, s
 def test_selected_scope_uses_one_writer_and_verifies_one_row(publisher, monkeypatch, slug):
     calls = []
     monkeypatch.setattr(publisher, "_github_json", lambda *args, **kwargs: {"sha": REVISION})
+    monkeypatch.setattr(publisher, "selected_generated_space_preflight", lambda *args: None)
 
     def run(name, path, **kwargs):
         calls.append((name, path, kwargs))
@@ -82,6 +85,40 @@ def test_selected_scope_uses_one_writer_and_verifies_one_row(publisher, monkeypa
     assert receipt["sibling_publications"] == 0
     assert receipt["delete_operations"] == 0
     assert receipt["secret_values_recorded"] is False
+
+
+def test_selected_target_preflight_uses_generated_writer_credential(publisher, monkeypatch):
+    module = SimpleNamespace(_BASE=SimpleNamespace(
+        token_from_env=lambda: ("synthetic-writer", "HF_ORG_TOKEN")
+    ))
+    monkeypatch.setattr(publisher, "load_module", lambda *args: module)
+    observed = []
+    guard = SimpleNamespace(require_existing_public_space=lambda *args: observed.append(args))
+
+    publisher.selected_generated_space_preflight("sentra", guard)
+
+    assert observed == [("SZLHOLDINGS/sentra", "synthetic-writer")]
+
+
+@pytest.mark.parametrize("slug", ["terra", "sentra", "counsel"])
+def test_unverified_public_target_blocks_before_writer(publisher, monkeypatch, slug):
+    monkeypatch.setattr(publisher, "_github_json", lambda *args, **kwargs: {"sha": REVISION})
+    module = SimpleNamespace(_BASE=SimpleNamespace(
+        token_from_env=lambda: ("synthetic-writer", "HF_ORG_TOKEN")
+    ))
+    monkeypatch.setattr(publisher, "load_module", lambda *args: module)
+
+    def reject(*args):
+        raise SpaceGuardError("public visibility is unconfirmed")
+
+    guard = SimpleNamespace(require_existing_public_space=reject)
+    monkeypatch.setattr(publisher, "run_publisher", lambda *args, **kwargs: pytest.fail("write attempted"))
+
+    assert publisher.publish_selected_generated(slug, guard) == 1
+    receipt = json.loads(publisher.FLAGSHIP_RECEIPT.read_text())
+    assert receipt["complete"] is False
+    assert receipt["error"] == "SpaceGuardError"
+    assert "synthetic-writer" not in json.dumps(receipt)
 
 
 @pytest.mark.parametrize("slug", ["terra", "sentra", "counsel"])
@@ -121,6 +158,7 @@ def test_unbound_source_blocks_before_any_publication(publisher, monkeypatch, re
 def test_main_moving_during_publication_cannot_produce_complete_receipt(publisher, monkeypatch):
     seen = iter([REVISION, "b" * 40])
     monkeypatch.setattr(publisher, "_github_json", lambda *args, **kwargs: {"sha": next(seen)})
+    monkeypatch.setattr(publisher, "selected_generated_space_preflight", lambda *args: None)
 
     def run(*args, **kwargs):
         publisher.FLAGSHIP_RECEIPT.write_text(json.dumps({
@@ -141,6 +179,7 @@ def test_main_moving_during_publication_cannot_produce_complete_receipt(publishe
 @pytest.mark.parametrize("wrong_row", ["sibling", "stale", "nonoperational", "wrong_run", "extra_row"])
 def test_selected_scope_rejects_unverified_receipt(publisher, monkeypatch, slug, wrong_row):
     monkeypatch.setattr(publisher, "_github_json", lambda *args, **kwargs: {"sha": REVISION})
+    monkeypatch.setattr(publisher, "selected_generated_space_preflight", lambda *args: None)
     row = {"id": f"SZLHOLDINGS/{slug}", "source_revision": REVISION,
            "workflow_run_id": int(RUN_ID), "operational": True}
     if wrong_row == "sibling":

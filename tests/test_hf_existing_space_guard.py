@@ -8,6 +8,7 @@ from scripts.hf_existing_space_guard import (
     SpaceGuardError,
     guard_report,
     install_existing_space_guard,
+    require_existing_public_space,
 )
 
 
@@ -22,6 +23,9 @@ def api_class(*, observed=None, error_status=None):
         create_calls = []
         info_calls = []
 
+        def __init__(self, token=None):
+            self.token = token
+
         def repo_info(self, **kwargs):
             type(self).info_calls.append(kwargs)
             if error_status is not None:
@@ -33,6 +37,67 @@ def api_class(*, observed=None, error_status=None):
             return {"created": True, "args": args, "kwargs": kwargs}
 
     return FakeApi
+
+
+def test_selected_public_target_preflight_accepts_matching_public_space():
+    FakeApi = api_class(observed=SimpleNamespace(id="SZLHOLDINGS/sentra", private=False))
+
+    require_existing_public_space("SZLHOLDINGS/sentra", "synthetic-writer", api_class=FakeApi)
+
+    assert FakeApi.info_calls == [{
+        "repo_id": "SZLHOLDINGS/sentra", "repo_type": "space",
+        "token": "synthetic-writer",
+    }]
+    assert FakeApi.create_calls == []
+
+
+@pytest.mark.parametrize("private", [True, None])
+def test_selected_public_target_preflight_rejects_private_or_unknown(private):
+    FakeApi = api_class(observed=SimpleNamespace(id="SZLHOLDINGS/sentra", private=private))
+
+    with pytest.raises(SpaceGuardError):
+        require_existing_public_space("SZLHOLDINGS/sentra", "synthetic-writer", api_class=FakeApi)
+
+    assert FakeApi.create_calls == []
+
+
+@pytest.mark.parametrize("status", [404, 401, 403])
+def test_selected_public_target_preflight_rejects_missing_or_denied(status):
+    FakeApi = api_class(error_status=status)
+
+    with pytest.raises(SpaceGuardError) as caught:
+        require_existing_public_space("SZLHOLDINGS/sentra", "synthetic-writer", api_class=FakeApi)
+
+    assert "synthetic-writer" not in str(caught.value)
+    assert FakeApi.create_calls == []
+
+
+def test_selected_public_target_preflight_rejects_identity_mismatch():
+    FakeApi = api_class(observed=SimpleNamespace(id="OTHER/sentra", private=False))
+
+    with pytest.raises(SpaceGuardError, match="identity mismatch"):
+        require_existing_public_space("SZLHOLDINGS/sentra", "synthetic-writer", api_class=FakeApi)
+
+    assert FakeApi.create_calls == []
+
+
+def test_selected_public_target_preflight_sanitizes_provider_error():
+    class LeakyApi:
+        def __init__(self, token):
+            self.token = token
+
+        def repo_info(self, **kwargs):
+            error = ProviderError(403)
+            error.args = (f"provider echoed {self.token}",)
+            raise error
+
+    with pytest.raises(SpaceGuardError) as caught:
+        require_existing_public_space(
+            "SZLHOLDINGS/sentra", "synthetic-writer", api_class=LeakyApi
+        )
+
+    assert "synthetic-writer" not in str(caught.value)
+    assert "HTTP 403" in str(caught.value)
 
 
 def test_existing_public_space_is_reused_without_create_call():

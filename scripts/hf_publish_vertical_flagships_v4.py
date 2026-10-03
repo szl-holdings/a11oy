@@ -406,10 +406,18 @@ def selected_generated_preflight(scope: str) -> str:
     return revision
 
 
+def selected_generated_space_preflight(scope: str, space_guard_module) -> None:
+    """Use the generated writer's credential to prove its one target is public."""
+    module = load_module("szl_flagship_v4_token_source", FLAGSHIP_IMPL)
+    token, _ = module._BASE.token_from_env()
+    space_guard_module.require_existing_public_space(f"SZLHOLDINGS/{scope}", token)
+
+
 def publish_selected_generated(scope: str, space_guard_module) -> int:
     """Publish one existing generated Space and verify its live receipt."""
     try:
         revision = selected_generated_preflight(scope)
+        selected_generated_space_preflight(scope, space_guard_module)
         code, error, admitted = run_publisher(
             "szl_flagship_v4", FLAGSHIP_IMPL, selected_slug=scope
         )

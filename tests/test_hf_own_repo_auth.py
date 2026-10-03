@@ -59,8 +59,15 @@ class OwnRepositoryAuthentication(unittest.TestCase):
         self.module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(self.module)
         self.requests = []
-        self.environment = {"GITHUB_SHA": REVISION, "GITHUB_RUN_ID": "7"}
-        self.guard = SimpleNamespace(guard_report=lambda: {"existing_only": True})
+        self.environment = {
+            "GITHUB_SHA": REVISION, "GITHUB_RUN_ID": "7",
+            "HF_ORG_TOKEN": "synthetic-writer",
+        }
+        self.hf_checks = []
+        self.guard = SimpleNamespace(
+            guard_report=lambda: {"existing_only": True},
+            require_existing_public_space=lambda *args: self.hf_checks.append(args),
+        )
 
     def response_reader(self, revisions):
         remaining = iter(revisions)
@@ -153,12 +160,14 @@ class OwnRepositoryAuthentication(unittest.TestCase):
         self.assertTrue(receipt["complete"])
         self.assertTrue(receipt["source_still_current"])
         self.assertEqual(calls, [("szl_flagship_v4", {"selected_slug": "terra"})])
+        self.assertEqual(self.hf_checks, [("SZLHOLDINGS/terra", "synthetic-writer")])
         self.assertEqual(len(self.requests), 2)
         self.assertTrue(all(
             request.get_header("Authorization") == "Bearer synthetic-canonical"
             for request in self.requests
         ))
         self.assertNotIn("synthetic-canonical", json.dumps(receipt))
+        self.assertNotIn("synthetic-writer", json.dumps(receipt))
 
     def test_moved_main_before_publication_keeps_zero_effects(self) -> None:
         code, receipt, calls = self.run_selected([MOVED_REVISION])

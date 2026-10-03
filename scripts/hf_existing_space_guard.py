@@ -93,6 +93,32 @@ def _observe_existing_space(
     return info
 
 
+def require_existing_public_space(
+    repo_id: str, token: str, *, api_class: type[Any] = HfApi
+) -> None:
+    """Admit a selected writer only when its exact target is provably public."""
+    _repo_id((), {"repo_id": repo_id})
+    if not isinstance(token, str) or not token.strip():
+        raise SpaceGuardError("Hugging Face writer token is unavailable")
+    try:
+        api = api_class(token=token)
+        info = _observe_existing_space(
+            api, repo_id=repo_id, token=token, requested_private=False
+        )
+    except SpaceGuardError:
+        raise
+    except Exception as exc:
+        status = http_status(exc)
+        cause = f"HTTP {status}" if status is not None else type(exc).__name__
+        raise SpaceGuardError(
+            f"unable to verify existing public Space {repo_id}: {cause}"
+        ) from exc
+    if info is None:
+        raise SpaceGuardError(f"required existing public Space is absent: {repo_id}")
+    if getattr(info, "private", None) is not False:
+        raise SpaceGuardError(f"public visibility is unconfirmed for Space {repo_id}")
+
+
 def install_existing_space_guard(
     api_class: type[Any] = HfApi, *, require_existing: bool = False
 ) -> dict[str, Any]:
@@ -183,4 +209,5 @@ __all__ = [
     "guard_report",
     "http_status",
     "install_existing_space_guard",
+    "require_existing_public_space",
 ]
