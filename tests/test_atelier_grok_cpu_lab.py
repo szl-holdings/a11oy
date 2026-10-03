@@ -51,6 +51,38 @@ def identity_document(**changes):
     return identity
 
 
+@pytest.fixture
+def protected_release_identity():
+    # Forge 85f1067 release.json matches HF commit 614d904 byte-for-byte.
+    identity = identity_document()
+    identity["space"]["release_id"] = (
+        "brain13-1d3960c-controller-9f227f6-atlas-d7b08cde")
+    identity["space"]["release_manifest_sha256"] = (
+        "d1170d8265c523352f800d3c68dbb701b8220bca3db5403a8de94258f5a5613c")
+    return identity
+
+
+@pytest.mark.parametrize("changed_field", [
+    None, "release_id", "release_manifest_sha256",
+])
+def test_protected_cpu_release_binding_stays_exact(
+        monkeypatch, protected_release_identity, changed_field):
+    identity = protected_release_identity
+    if changed_field:
+        identity["space"][changed_field] = "unapproved-release"
+    monkeypatch.setattr(
+        atelier.szl_provider_http, "http_json", lambda *args, **kwargs: (identity, None))
+    if changed_field:
+        with pytest.raises(atelier.AtelierFailure) as failure:
+            atelier._cpu_lab_identity()
+        assert failure.value.code == "CPU_LAB_IDENTITY_MISMATCH"
+    else:
+        observed = atelier._cpu_lab_identity()
+        assert observed["release_id_observed_before_call"] == identity["space"]["release_id"]
+        assert observed["release_manifest_observed_before_call"] == (
+            identity["space"]["release_manifest_sha256"])
+
+
 def completion_document(request_body, answer=ANSWER):
     messages = request_body["messages"]
     max_tokens = request_body["max_completion_tokens"]
