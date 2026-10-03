@@ -51,9 +51,12 @@ def load_policy(path: Path = POLICY) -> dict[str, Any]:
 
 
 def validate_policy(value: Any) -> dict[str, Any]:
-    need(isinstance(value, dict) and set(value) == {"schema", "domain",
+    need(isinstance(value, dict) and set(value) == {"SPDX-License-Identifier", "copyright", "schema", "domain",
          "source_repository", "source_revision", "source_path", "source_sha256",
          "source_text", "rule"}, "Unexpected policy structure")
+    need(value["SPDX-License-Identifier"] == "Apache-2.0"
+         and value["copyright"] == "(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+         "Policy license metadata differs")
     need(value["schema"] == "szl.cloudflare.proof-headers-policy/v1"
          and value["domain"] == DOMAIN
          and value["source_repository"] == "szl-holdings/a11oy-net"
