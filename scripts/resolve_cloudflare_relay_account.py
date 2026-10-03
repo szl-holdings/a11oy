@@ -17,7 +17,7 @@ from http.client import HTTPException
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 ZONES = ("a-11-oy.com", "a11oy.net")
 ACCOUNT_ID = re.compile(r"[0-9a-fA-F]{32}\Z")
@@ -61,6 +61,13 @@ class AccountResolutionError(ValueError):
         if self.status is not None:
             fields.append(f"status={self.status}")
         return " ".join(fields) + "."
+
+
+class NoRedirectHandler(HTTPRedirectHandler):
+    """Keep the bearer token on the exact Cloudflare API request only."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
 
 
 def account_from_zone(payload: object, expected_name: str) -> str:
@@ -107,7 +114,7 @@ def fetch_zone(token: str, name: str) -> object:
             f"https://api.cloudflare.com/client/v4/zones?{query}",
             headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
         )
-        with urlopen(request, timeout=15) as response:
+        with build_opener(NoRedirectHandler()).open(request, timeout=15) as response:
             content = response.read(MAX_RESPONSE_BYTES + 1)
     except HTTPError as error:
         raise AccountResolutionError(

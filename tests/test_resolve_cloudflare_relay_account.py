@@ -3,8 +3,11 @@ from __future__ import annotations
 import json
 from http.client import BadStatusLine
 from io import BytesIO
+from types import SimpleNamespace
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlparse
+from urllib.request import HTTPSHandler, ProxyHandler, build_opener
+from urllib.response import addinfourl
 
 import pytest
 
@@ -12,6 +15,14 @@ from scripts import resolve_cloudflare_relay_account as resolver
 
 ACCOUNT = "a" * 32
 OTHER_ACCOUNT = "b" * 32
+
+
+def stub_opener(monkeypatch: pytest.MonkeyPatch, open_request) -> None:
+    def create_opener(handler):
+        assert isinstance(handler, resolver.NoRedirectHandler)
+        return SimpleNamespace(open=open_request)
+
+    monkeypatch.setattr(resolver, "build_opener", create_opener)
 
 
 def zone(name: str, account: str = ACCOUNT, status: str = "active") -> dict:
@@ -81,14 +92,13 @@ def test_fetch_filters_exact_active_zone(monkeypatch: pytest.MonkeyPatch) -> Non
         }
         return BytesIO(json.dumps(zone("a11oy.net")).encode("utf-8"))
 
-    monkeypatch.setattr(resolver, "urlopen", fake_open)
+    stub_opener(monkeypatch, fake_open)
     assert resolver.fetch_zone("synthetic-token", "a11oy.net") == zone("a11oy.net")
 
 
 def test_fetch_rejects_oversized_response(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        resolver,
-        "urlopen",
+    stub_opener(
+        monkeypatch,
         lambda _request, timeout: BytesIO(b"x" * (resolver.MAX_RESPONSE_BYTES + 1)),
     )
     with pytest.raises(resolver.AccountResolutionError, match="RESPONSE_TOO_LARGE"):
@@ -192,7 +202,7 @@ def test_http_error_logs_only_public_zone_status_and_category(
             BytesIO(f'{{"account":"{ACCOUNT}"}}'.encode("utf-8")),
         )
 
-    monkeypatch.setattr(resolver, "urlopen", fake_open)
+    stub_opener(monkeypatch, fake_open)
     assert resolver.main() == 1
     assert not env_path.exists()
     output = capsys.readouterr()
@@ -223,7 +233,7 @@ def test_transport_error_does_not_log_exception_reason_or_export_account(
     def fake_open(request, timeout):
         raise error
 
-    monkeypatch.setattr(resolver, "urlopen", fake_open)
+    stub_opener(monkeypatch, fake_open)
     assert resolver.main() == 1
     assert not env_path.exists()
     output = capsys.readouterr()
@@ -231,3 +241,45 @@ def test_transport_error_does_not_log_exception_reason_or_export_account(
         "::error::Cloudflare relay account preflight failed: "
         "zone=a-11-oy.com category=TRANSPORT_ERROR.\n"
     )
+
+
+def test_cross_host_redirect_does_not_forward_token_or_export_account(
+    monkeypatch: pytest.MonkeyPatch, tmp_path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    secret = "synthetic-token-private"
+    env_path = tmp_path / "github-env"
+    monkeypatch.setenv("CLOUDFLARE_API_TOKEN", secret)
+    monkeypatch.setenv("GITHUB_ENV", str(env_path))
+    requests: list[tuple[str, str | None]] = []
+
+    class SyntheticHTTPSHandler(HTTPSHandler):
+        def https_open(self, request):
+            requests.append((request.full_url, request.get_header("Authorization")))
+            if len(requests) != 1:
+                raise AssertionError("The redirect reached a second host")
+            response = addinfourl(
+                BytesIO(b"redirect body must not be logged"),
+                {"location": "https://other.example/collect"},
+                request.full_url,
+                code=302,
+            )
+            response.msg = "Found"
+            return response
+
+    def synthetic_opener(handler):
+        assert isinstance(handler, resolver.NoRedirectHandler)
+        return build_opener(ProxyHandler({}), handler, SyntheticHTTPSHandler())
+
+    monkeypatch.setattr(resolver, "build_opener", synthetic_opener)
+    assert resolver.main() == 1
+    assert len(requests) == 1
+    assert urlparse(requests[0][0]).netloc == "api.cloudflare.com"
+    assert requests[0][1] == f"Bearer {secret}"
+    assert not env_path.exists()
+    output = capsys.readouterr()
+    assert output.out == ""
+    assert output.err == (
+        "::error::Cloudflare relay account preflight failed: "
+        "zone=a-11-oy.com category=HTTP_STATUS status=302.\n"
+    )
+    assert secret not in output.err
