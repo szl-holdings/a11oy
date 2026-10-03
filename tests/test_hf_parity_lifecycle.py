@@ -120,6 +120,24 @@ class HFParityLifecycleTests(unittest.TestCase):
             any("must appear after awaited parity" in error for error in errors_for(sync=reordered))
         )
 
+        final_read = (
+            "          python3 -B scripts/hf_exact_main_ownership.py \\\n"
+            '            --repository "$GITHUB_REPOSITORY" '
+            '--expected-sha "$GITHUB_SHA" \\\n'
+            '            --receipt "$RUNNER_TEMP/'
+            'terminal-source-authorization-final.json" \\\n'
+            '            --github-output "$RUNNER_TEMP/'
+            'terminal-source-authorization-final.out"\n'
+        )
+        self.assertIn(final_read, SYNC)
+        cached_only = SYNC.replace(final_read, "", 1)
+        self.assertTrue(
+            any(
+                "must perform two live readbacks" in error
+                for error in errors_for(sync=cached_only)
+            )
+        )
+
     def test_lifecycle_marker_is_mandatory_and_unique(self) -> None:
         missing = WORKFLOW.replace(
             "# lifecycle: post-deployment-repository-parity/v1\n", "", 1

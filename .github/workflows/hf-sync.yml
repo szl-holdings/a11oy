@@ -681,14 +681,18 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-      - name: Enforce exact protected-main ownership as the final gate
+      - name: Re-read and enforce exact protected-main ownership as the final step
         if: always()
         env:
-          CURRENT_MAIN: ${{ steps.terminal_owner.outputs.publish }}
+          GITHUB_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          if [ "${CURRENT_MAIN:-false}" != 'true' ]; then
+          python3 -B scripts/hf_exact_main_ownership.py \
+            --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+            --receipt "$RUNNER_TEMP/terminal-source-authorization-final.json" \
+            --github-output "$RUNNER_TEMP/terminal-source-authorization-final.out"
+          if ! grep -Fqx 'publish=true' "$RUNNER_TEMP/terminal-source-authorization-final.out"; then
             echo '::error::Completed A11oy publication is no longer exact protected main.'
             exit 3
           fi

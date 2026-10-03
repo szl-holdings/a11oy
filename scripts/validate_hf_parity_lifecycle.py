@@ -175,15 +175,21 @@ def validate_text(workflow: str, sync_workflow: str) -> list[str]:
             "terminal exact-main authorization receipt is missing",
         ),
         (
-            "steps.terminal_owner.outputs.publish",
-            "terminal exact-main authorization output is not enforced",
+            "terminal-source-authorization-final.json",
+            "terminal exact-main authorization final receipt is missing",
         ),
         (
-            "CURRENT_MAIN:-false",
-            "terminal exact-main authorization does not fail closed",
+            "grep -Fqx 'publish=true'",
+            "terminal exact-main authorization final result is not enforced",
         ),
     ):
         require(terminal, token, error, errors)
+    if terminal.count("scripts/hf_exact_main_ownership.py") != 2:
+        errors.append("terminal exact-main authorization must perform two live readbacks")
+    final_step = "Re-read and enforce exact protected-main ownership as the final step"
+    final_step_index = terminal.find(final_step)
+    if final_step_index < 0 or terminal.find("\n      - name:", final_step_index) >= 0:
+        errors.append("terminal exact-main re-read must be the last executable step")
     forbid(terminal, "secrets.", "terminal exact-main authorization must not receive secrets", errors)
     forbid(terminal, "HF_TOKEN", "terminal exact-main authorization must stay provider-read-only", errors)
     forbid(

@@ -217,7 +217,7 @@ echo 'Canonical A11oy is source-bound, singleton, and route-operational.' '''
     )
     terminal_receipt = named_step(terminal, "Retain terminal source authorization")
     terminal_enforce = named_step(
-        terminal, "Enforce exact protected-main ownership as the final gate"
+        terminal, "Re-read and enforce exact protected-main ownership as the final step"
     )
     if (
         "scripts/hf_exact_main_ownership.py" not in terminal_owner.get("run", "")
@@ -227,8 +227,14 @@ echo 'Canonical A11oy is source-bound, singleton, and route-operational.' '''
         or terminal_receipt.get("with", {}).get("if-no-files-found") != "error"
         or terminal_enforce.get("if") != "always()"
         or terminal_enforce.get("env")
-        != {"CURRENT_MAIN": "${{ steps.terminal_owner.outputs.publish }}"}
-        or "CURRENT_MAIN:-false" not in terminal_enforce.get("run", "")
+        != {"GITHUB_TOKEN": "${{ github.token }}"}
+        or "scripts/hf_exact_main_ownership.py" not in terminal_enforce.get("run", "")
+        or '--expected-sha "$GITHUB_SHA"' not in terminal_enforce.get("run", "")
+        or "terminal-source-authorization-final.json"
+        not in terminal_enforce.get("run", "")
+        or "grep -Fqx 'publish=true'" not in terminal_enforce.get("run", "")
+        or terminal.get("steps", [])[-1].get("name")
+        != "Re-read and enforce exact protected-main ownership as the final step"
     ):
         raise WorkflowContractError("terminal source authorization must fail closed")
     return jobs

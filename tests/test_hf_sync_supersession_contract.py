@@ -397,7 +397,7 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
         receipt = step_block(terminal, "Retain terminal source authorization")
         enforce = step_block(
             terminal,
-            "Enforce exact protected-main ownership as the final gate",
+            "Re-read and enforce exact protected-main ownership as the final step",
         )
         self.assertEqual(
             jobs["terminal-source-authorization"]["needs"],
@@ -414,10 +414,14 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
         self.assertNotIn("secrets.", terminal)
         self.assertIn("if: always()", receipt)
         self.assertIn("if-no-files-found: error", receipt)
-        self.assertIn("steps.terminal_owner.outputs.publish", enforce)
-        self.assertIn("CURRENT_MAIN:-false", enforce)
+        self.assertIn("scripts/hf_exact_main_ownership.py", enforce)
+        self.assertIn('--expected-sha "$GITHUB_SHA"', enforce)
+        self.assertIn("terminal-source-authorization-final.json", enforce)
+        self.assertIn("grep -Fqx 'publish=true'", enforce)
+        self.assertEqual(terminal.count("scripts/hf_exact_main_ownership.py"), 2)
         self.assertLess(terminal.index(owner), terminal.index(receipt))
         self.assertLess(terminal.index(receipt), terminal.index(enforce))
+        self.assertEqual(terminal.rstrip().splitlines()[-1], "          echo 'Completed A11oy publication remains exact protected main.'")
 
     def test_actual_admission_outputs_deny_stale_and_uncertain_provider_jobs(self) -> None:
         # Exercise the helper consumed by both job conditions. These are injected

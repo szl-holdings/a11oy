@@ -120,7 +120,12 @@ class RepositoryBoundDriftWorkflowTests(unittest.TestCase):
             self.sync[terminal:],
         )
         self.assertIn("scripts/hf_exact_main_ownership.py", self.sync[terminal:])
-        self.assertIn("CURRENT_MAIN:-false", self.sync[terminal:])
+        self.assertEqual(
+            self.sync[terminal:].count("scripts/hf_exact_main_ownership.py"),
+            2,
+        )
+        self.assertIn("terminal-source-authorization-final.json", self.sync[terminal:])
+        self.assertIn("grep -Fqx 'publish=true'", self.sync[terminal:])
         self.assertIn("workflow_call:", self.drift)
         self.assertIn("if: github.event_name != 'pull_request'", self.repository_job)
 
