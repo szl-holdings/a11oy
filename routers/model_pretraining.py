@@ -128,7 +128,7 @@ def build_projection(raw: bytes) -> bytes:
     """Derive only needed public model metadata from the existing inventory.
 
     No second author list is maintained. CI checks these bytes against the
-    canonical manifest; the image already copies routers/data, not all docs.
+    canonical manifest; the image also copies the reviewed public HF docs.
     """
     value = parse_manifest(raw)
     fields = ("id", "repoType", "private", "sha", "lastModified", "tags", "gated",
@@ -149,8 +149,9 @@ def build_projection(raw: bytes) -> bytes:
 def decode_projection(raw: bytes) -> tuple[bytes, str]:
     """Check the packaged projection schema; the source digest is build-declared.
 
-    Runtime does not possess/re-hash the complete original docs manifest. This
-    method never turns that declared source digest into a signature/attestation.
+    Runtime now possesses the complete public docs manifest, but this decoder
+    does not re-hash it at request time. The declared source digest is not a
+    signature or an independent attestation.
     """
     try:
         value = decode_json(raw)

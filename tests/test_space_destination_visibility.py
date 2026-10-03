@@ -57,6 +57,14 @@ class CardTests(unittest.TestCase):
         text = unescape(self.card(self.record, "UNIFY"))
         self.assertIn("UNIFY · PLANNED · provider state UNOBSERVED", text)
 
+    def test_policy_keeper_is_unprobed_and_not_a_fold_plan(self):
+        self.record["dest"] = "https://szlholdings-counsel.hf.space"
+        doc = Document(self.card(self.record, "KEEP_POLICY"))
+        text = " ".join(doc.text)
+        self.assertIn("KEEP · current org policy · runtime UNPROBED here", text)
+        self.assertNotIn("FOLD · PLANNED", text)
+        self.assertEqual([a["href"] for t, a in doc.tags if t == "a"][0], self.record["dest"])
+
     def test_no_paused_or_private_status_in_default_card(self):
         markup = self.card(self.record, "FOLD")
         self.assertNotIn("PAUSED", markup)
@@ -136,7 +144,8 @@ class FullSurfaceTests(unittest.TestCase):
         from unittest.mock import patch
         s = self.surface
         with patch.object(s, "_resolve_client", side_effect=AssertionError("no probe")):
-            for kind, records in (("FOLD", s.FOLD_SPACES), ("UNIFY", s.UNIFY_SPACES)):
+            for kind, records in (("FOLD", [row for row in s.FOLD_SPACES if row["action"] == "FOLD"]),
+                                  ("UNIFY", s.UNIFY_SPACES)):
                 for record in records:
                     with self.subTest(kind=kind, slug=record["slug"]):
                         doc = Document(s._destination_ledger_card(record, kind))
@@ -160,7 +169,9 @@ class FullSurfaceTests(unittest.TestCase):
         doc = Document(s._tiles_page("a11oy").decode("utf-8"))
         text = " ".join(doc.text)
         self.assertEqual(text.count("PLANNED · provider state UNOBSERVED"),
-                         len(s.FOLD_SPACES) + len(s.UNIFY_SPACES))
+                         sum(row["action"] == "FOLD" for row in s.FOLD_SPACES) + len(s.UNIFY_SPACES))
+        self.assertEqual(text.count("KEEP · current org policy · runtime UNPROBED here"),
+                         len(s.PUBLIC_ORG_KEEP_POLICY - {row["name"] for row in s.SPACES}))
         self.assertIn("Fold plan · provider state UNOBSERVED", text)
         for false_claim in ("Hub (private)", "PAUSED + PRIVATE", "Hub Space is PAUSED+PRIVATE",
                             "Hub Space re-privatized", "Unmapped RUNNING Space", "Not public Hub."):

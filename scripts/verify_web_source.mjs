@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const sourcePath = resolve(repoRoot, 'vendor', 'platform');
-const expectedCommit = '6e0dc7b423fbcfb2c165348e60b41cd55a9b9ace';
+const expectedCommit = 'f2f8df6f89056e9104587674ccec0855dd5b177a';
 const expectedUrl = 'https://github.com/szl-holdings/platform.git';
 
 function fail(message) {

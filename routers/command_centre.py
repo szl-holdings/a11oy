@@ -31,6 +31,7 @@ SURFACES = (
     ("operate", "Receipts", "/verify", "Existing receipt verifier; a signature is not inference proof"),
     ("operate", "Atelier model walk", "/atelier", "Retained model discovery surface"),
     ("operate", "Atelier research", "/atelier/frontier", "Independent capability synthesis and MODELED evaluations"),
+    ("operate", "SZL public CPU lab", "https://huggingface.co/spaces/SZLHOLDINGS/szl-model-inference-lab", "Separate best-effort public Khipu demonstration; unsigned execution, no sensitive prompts"),
     ("verify", "Python source", "https://github.com/szl-holdings/a11oy", "Canonical product source: szl-holdings/a11oy"),
     ("verify", "Publication runs", "https://github.com/szl-holdings/a11oy/actions/workflows/hf-sync.yml", "Sole canonical Space publisher; inspect exact source and receipts"),
     ("verify", "Canonical runtime", "https://huggingface.co/spaces/SZLHOLDINGS/a11oy", "Python product runtime, not the separate artifact discovery Space"),
@@ -52,7 +53,7 @@ def manifest():
         "authorities": {"source": "szl-holdings/a11oy", "artifacts": "SZLHOLDINGS", "product": "https://a-11-oy.com", "proof": "https://a11oy.net", "publisher": "hf-sync.yml"},
         "release_order": ["protected_github_source", "canonical_hf_publication", "product_and_proof_verification"],
         "surfaces": [{"lane": lane, "title": title, "href": href, "boundary": boundary} for lane, title, href, boundary in SURFACES],
-        "boundaries": ["Navigation does not authorize an action", "Grok is third-party inference, not SZL-owned weights", "Python chat is bounded single-turn; platform encrypted Turn Capsule is a separate source boundary", "Runtime metadata and HTTP 200 do not establish model inference"],
+        "boundaries": ["Navigation does not authorize an action", "Grok is third-party inference, not SZL-owned weights", "Public CPU lab is a separate unsigned best-effort demonstration, not Grok or local Ollama", "Python chat is bounded single-turn; platform encrypted Turn Capsule is a separate source boundary", "Runtime metadata and HTTP 200 do not establish model inference"],
     }
 
 
