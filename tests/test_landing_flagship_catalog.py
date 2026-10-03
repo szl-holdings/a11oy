@@ -1,11 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
-"""Front-door product site: three flagships, Hub catalog, fail-closed honesty.
-
-NVIDIA-style public site — one hero, three products, collections as catalog
-not a zoo. Λ uniqueness stays Conjecture 1. No 40 fake SKUs. No invented
-GPU joules. 44px hit targets. Vendored three.js only.
-"""
+"""Front-door product site: task-first entry, catalog, and fail-closed honesty."""
 from pathlib import Path
 import re
 
@@ -23,15 +18,12 @@ COLLECTIONS = (
 HONESTY = ("REACHABLE", "MEASURED", "REPORTED", "ROADMAP", "SOFTWARE", "UNAVAILABLE", "SIMULATED")
 
 
-def test_nav_is_flagships_not_surface_sprawl() -> None:
+def test_nav_is_task_first_not_surface_sprawl() -> None:
     nav = re.search(r'<nav\b[^>]*\bid="site-nav"[^>]*>(.*?)</nav>', FRONT, re.S).group(1)
-    assert 'href="#products"' in nav
+    for anchor in ("#platform", "#use-cases", "#research", "#evidence", "#company"):
+        assert f'href="{anchor}"' in nav
     assert 'href="/console"' in nav
     assert nav.count('href="/console"') == 1
-    assert 'href="/holographic"' in nav
-    assert 'href="/frontier-now"' in nav
-    assert 'href="/immune"' in nav
-    assert "https://a11oy.net" in nav
     assert "#anatomy" not in nav
     assert "#vertical-bodies" not in nav
     for sprawl in ("/ecosystem", "/anatomy-v5", "/observability", "/console#arena", "#surfaces"):
@@ -55,8 +47,6 @@ def test_three_products_max() -> None:
 
 def test_lyte_is_bound_package_not_flagship() -> None:
     """LYTE binds onto the product door as a package. Not a fourth flagship."""
-    nav = re.search(r'<nav\b[^>]*\bid="site-nav"[^>]*>(.*?)</nav>', FRONT, re.S).group(1)
-    assert 'href="/lyte"' in nav
     assert 'id="bind-lyte"' in FRONT
     assert "LYTE lattice" in FRONT
     assert "BIND package" in FRONT
@@ -92,8 +82,12 @@ def test_honesty_chips_are_fail_closed() -> None:
 
 def test_proof_link_is_a11oy_net() -> None:
     assert 'href="https://a11oy.net"' in FRONT
-    hero_cta = FRONT.split('class="cta-row"', 1)[1].split("</div>", 1)[0]
-    assert "a11oy.net" in hero_cta
+    assert 'Proof index: <a href="https://a11oy.net"' in FRONT
+    hero = FRONT.split('<section class="hero"', 1)[1].split('</section>', 1)[0]
+    assert 'examples/offline-verify-sample/bundle.json' in hero
+    assert 'SAMPLE · committed offline fixture' in hero
+    assert 'href="/verify"' in hero
+    assert 'MODELED SPECIMEN / illustrative' in hero
 
 
 def test_no_threejs_cdn_on_front_door() -> None:
