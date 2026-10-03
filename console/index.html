@@ -328,6 +328,15 @@ function _b64ToBytes(b64){const bin=atob(String(b64||'').replace(/-/g,'+').repla
 function _concat(arrs){let n=0;arrs.forEach(a=>n+=a.length);const out=new Uint8Array(n);let o=0;arrs.forEach(a=>{out.set(a,o);o+=a.length;});return out;}
 function _derToRaw(der){let i=0;if(der[i++]!==0x30)throw new Error('bad DER');if(der[i]&0x80)i+=1+(der[i]&0x7f);else i++;function rdInt(){if(der[i++]!==0x02)throw new Error('bad int');let len=der[i++];let v=der.slice(i,i+len);i+=len;while(v.length>32&&v[0]===0)v=v.slice(1);const p=new Uint8Array(32);p.set(v,32-v.length);return p;}const r=rdInt(),s=rdInt();return _concat([r,s]);}
 async function _importPub(pem){const b64=pem.replace(/-----[^-]+-----/g,'').replace(/\s+/g,'');const der=_b64ToBytes(b64);return crypto.subtle.importKey('spki',der.buffer,{name:'ECDSA',namedCurve:'P-256'},false,['verify']);}
+function requireSampleExport(env){
+  if(!env || env.state!=='SAMPLE' || env.data_kind!=='sample' ||
+     env.operational!==false || env.receipt_minted!==false)
+    throw new Error('receipt export did not declare SAMPLE evidence');
+  if(env.signed!==true || !env.payload ||
+     !Array.isArray(env.signatures) || !env.signatures.length)
+    throw new Error('SAMPLE signature unavailable');
+  return env;
+}
 async function verifyReceipt(env, pubPem, tamper){const enc=new TextEncoder();const ptype=env.payloadType||'application/vnd.szl.receipt+json';let body=_b64ToBytes(env.payload);if(tamper){body=body.slice();body[0]=body[0]^0xff;}const tb=enc.encode('DSSEv1 '),pb=enc.encode(' '+ptype+' '),lp=enc.encode(String(ptype.length)),lb=enc.encode(String(body.length)+' ');const pae=_concat([tb,lp,pb,lb,body]);const dig=await crypto.subtle.digest('SHA-256',pae);const paeSha=Array.from(new Uint8Array(dig)).map(b=>b.toString(16).padStart(2,'0')).join('');const sigDer=_b64ToBytes((env.signatures&&env.signatures[0]||{}).sig||'');const raw=_derToRaw(sigDer);const key=await _importPub(pubPem);const ok=await crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'},key,raw.buffer,pae.buffer);return {ok, paeSha256:paeSha, keyid:(env.signatures&&env.signatures[0]||{}).keyid||'\u2014'};}
 async function getText(p){const r=await fetch(p);if(!r.ok)throw new Error('HTTP '+r.status);return r.text();}
 // ECharts dark theme registered once; all panels inherit gold/teal-on-#0a0a0a
@@ -573,7 +582,7 @@ trustspace:{title:'Trust Space',badge:'3D POINT-CLOUD',sub:'Every trust dimensio
         <div class="row"><button class="btn" onclick="window.rekor_verify()">Verify a real Rekor inclusion proof</button></div>
         <div id="rk-vout" style="margin-top:.6rem"><div class="row mono dim">Recomputes the Merkle root from a real public entry's leaf + audit path (RFC 6962) \u2014 never trusting the server's verdict.</div></div>
         <div class="brain-note">Adapts Sigstore/Chainguard transparency UX. The root shown is the <b>live, independently-verifiable</b> public Rekor log (1.9B+ entries). Honest: a11oy's own receipts use its in-image DSSE+khipu chain; public-log submission of a11oy receipts is <b>ROADMAP</b>. Merkle math mirrors Lean F15.</div></div>
-      <div class="honesty"><b>Verify it yourself.</b> a11oy signs receipts with its own in-image ECDSA P-256 key. Fetch the public key at <span class="mono">/cosign.pub</span> and a signed envelope at <span class="mono">/api/a11oy/v1/receipt/export</span>, then verify the signature \u2014 here, in your browser, or offline with openssl. A single tampered byte fails verification. The key is ephemeral and resets on every rebuild.</div>`;window.receipts_load();}},
+      <div class="honesty"><b>Verify a prebuilt SAMPLE envelope.</b> A signed prebuilt SAMPLE envelope is available only when this process has a signer. Fetch the public key at <span class="mono">/cosign.pub</span> and the SAMPLE envelope at <span class="mono">/api/a11oy/v1/receipt/export</span>, then verify the signature \u2014 here, in your browser, or offline with openssl. A single tampered byte fails verification. A valid signature authenticates only this prebuilt SAMPLE artifact; it does not prove an operational action. GET never mints a signature. The key is ephemeral and resets on every rebuild.</div>`;window.receipts_load();}},
 
   /* PROOF-BINDING (cite-in-code-only): the Knowledge Ontology entity-link graph
    (axioms -> theorems -> formulas) is bounded by F-G2's EXPRESSIVITY CEILING:
@@ -1200,11 +1209,11 @@ window.rekor_log_load=rekor_log_load;window.rekor_verify=rekor_verify;
 // tamper=true flips a payload byte to demonstrate verification FAILS.
 async function receipts_verify(tamper,quiet){const out=el('rc-vout');
   try{if(out&&!quiet)out.innerHTML='<div class="row mono dim">fetching public key + signed envelope\u2026</div>';
-    const pem=await getText(API+'/cosign.pub');const env=await getJSON(API+'/v1/receipt/export');
+    const pem=await getText(API+'/cosign.pub');const env=requireSampleExport(await getJSON(API+'/v1/receipt/export'));
     const res=await verifyReceipt(env,pem,tamper);
     const pass=res.ok;const cls=pass?'b-live':'b-err';const word=pass?'PASS':'FAIL';
     setHTML('rc-verify',`<span class="${pass?'live':'warn'}">${pass?'verified':'invalid'}</span>`);
-    if(out)out.innerHTML=`<div class="row"><span class="badge ${cls}">${word}</span><span>${tamper?'Tampered receipt \u2014 signature rejected (expected)':'Genuine receipt \u2014 signature verified in your browser'}</span></div>`+
+    if(out)out.innerHTML=`<div class="row"><span class="badge ${cls}">${word}</span><span>${tamper?'Tampered receipt \u2014 signature rejected (expected)':'Prebuilt SAMPLE envelope - signature verified in your browser'}</span></div>`+
       `<div class="row"><span>Key id</span><span class="spacer mono dim">${esc(res.keyid)}</span></div>`+
       `<div class="row"><span>PAE SHA-256</span><span class="spacer mono dim">${esc(res.paeSha256.slice(0,32))}\u2026</span></div>`+
       `<div class="row mono dim">${tamper?'A single flipped byte breaks the signature \u2014 exactly as it should.':'Algorithm: ECDSA P-256 / SHA-256 over the DSSE pre-auth encoding (PAE).'}</div>`;
@@ -1379,7 +1388,7 @@ async function chain_load(){
   }catch(e){const h=el('ch-3d');if(h)h.innerHTML='<div class="row mono dim" style="padding:1rem">live command-log unavailable: '+esc(e.message)+'</div>';setOut('ch-raw','retry: '+e.message);}
   try{const led=await orgGet('core','/api/a11oy/v1/operator/ledger');setTxt('ch-led',led.count??(led.receipts||[]).length);}catch(e){setTxt('ch-led','\u2014');}
   // verify a11oy's DSSE signature in-browser so the chain shows a real, checked signature
-  try{const pem=await getText(API+'/cosign.pub');const env=await getJSON(API+'/v1/receipt/export');const res=await verifyReceipt(env,pem,false);setHTML('ch-sig',res.ok?'<span class="live">verified</span>':'<span class="warn">invalid</span>');}catch(e){setHTML('ch-sig','<span class="warn">\u2014</span>');}}
+  try{const pem=await getText(API+'/cosign.pub');const env=requireSampleExport(await getJSON(API+'/v1/receipt/export'));const res=await verifyReceipt(env,pem,false);setHTML('ch-sig',res.ok?'<span class="live">verified</span>':'<span class="warn">invalid</span>');}catch(e){setHTML('ch-sig','<span class="warn">\u2014</span>');}}
 
 // Reciprocity (Ayni) \u2014 live, event-sourced from signed receipts (/v1/ayni,/v1/tinkuy)
 async function ayni_load(){
