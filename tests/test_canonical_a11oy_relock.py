@@ -212,6 +212,7 @@ def success_session(origin: str, source_sha: str) -> FakeSession:
                 "lies": 0,
                 "unreachable": 0,
                 "throttled": 0,
+                "degraded": 0,
                 "p95_worst": 1806,
             },
         },
@@ -335,6 +336,15 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
                     "unreachable required endpoints|throttled required endpoints",
                 ):
                     relock.evaluate_once(FakeApi(self.source), session, self.contract)
+
+    def test_relock_rejects_unavailable_required_sources(self) -> None:
+        session = success_session(self.origin, self.source)
+        readiness_url = self.origin + relock.ROUTES["readiness"]
+        readiness = session.responses[("GET", readiness_url)]._payload
+        readiness["verdict_summary"].update(ok=4, degraded=1)
+
+        with self.assertRaisesRegex(relock.RelockError, "unavailable required sources"):
+            relock.evaluate_once(FakeApi(self.source), session, self.contract)
 
     def test_relock_allows_explicitly_skipped_state_changes_with_passing_reads(self) -> None:
         session = success_session(self.origin, self.source)
@@ -529,11 +539,12 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
             "verdict_expected_base": "https://szlholdings-a11oy.hf.space",
             "verdict_summary": {
                 "endpoints": 5,
-                "ok": 4,
+                "ok": 5,
                 "skippedStateChanging": 0,
                 "lies": 0,
                 "unreachable": 0,
-                "throttled": 1,
+                "throttled": 0,
+                "degraded": 0,
                 "p95_worst": 1806,
             },
         }
@@ -570,6 +581,18 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
                         **valid["verdict_summary"],
                         "ok": 3,
                         "lies": 1,
+                    },
+                },
+                "revision": "a" * 40,
+            },
+            {
+                "name": "required source degraded",
+                "readiness": {
+                    **valid,
+                    "verdict_summary": {
+                        **valid["verdict_summary"],
+                        "ok": 4,
+                        "degraded": 1,
                     },
                 },
                 "revision": "a" * 40,
@@ -623,6 +646,7 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
                         "lies": 0,
                         "unreachable": 0,
                         "throttled": 0,
+                        "degraded": 0,
                         "p95_worst": 0,
                     },
                 },
@@ -649,6 +673,7 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
             json.loads(result.stdout),
             [
                 True,
+                False,
                 False,
                 False,
                 False,
@@ -817,6 +842,7 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
                     "lies": 0,
                     "unreachable": 0,
                     "throttled": 0,
+                    "degraded": 0,
                     "p95_worst": 0,
                 }
             },

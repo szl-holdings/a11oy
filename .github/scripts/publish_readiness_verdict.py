@@ -28,6 +28,7 @@ COUNT_FIELDS = (
     "lies",
     "unreachable",
     "throttled",
+    "degraded",
 )
 
 
@@ -106,6 +107,8 @@ def compact_verdict(
         raise VerdictError("probe summary contains unreachable required endpoints")
     if summary["throttled"] != 0:
         raise VerdictError("probe summary contains throttled required endpoints")
+    if summary["degraded"] != 0:
+        raise VerdictError("probe summary contains unavailable required sources")
     p95_worst = summary.get("p95_worst")
     if (
         not isinstance(p95_worst, (int, float))
