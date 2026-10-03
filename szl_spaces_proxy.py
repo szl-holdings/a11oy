@@ -8,8 +8,9 @@ executing another Space inside the a11oy or Killinchu origin:
 
 * ``GET/HEAD /spaces`` renders a minimal fallback index when the richer tiles
   surface is not registered.
-* ``GET/HEAD /spaces/{name}`` returns a no-store 307 to the audited Space's
-  canonical Hugging Face application origin.
+* ``GET/HEAD /spaces/{name}`` returns a no-store 307 to the audited
+  destination. Current policy keepers outside the five runtime probes hand off
+  to their isolated Hugging Face application origins.
 * ``GET/HEAD /spaces/{name}/{path}`` preserves the suffix and raw query string
   in the same no-store 307 handoff.
 
@@ -33,6 +34,7 @@ from typing import Any
 from urllib.parse import quote, urlsplit, urlunsplit
 
 from szl_spaces_surface import FOLD_SPACES as _FOLD_SPACES
+from szl_spaces_surface import PUBLIC_ORG_KEEP_POLICY as _PUBLIC_ORG_KEEP_POLICY
 from szl_spaces_surface import SPACES as _CANONICAL_SPACES
 from szl_spaces_surface import UNIFY_SPACES as _UNIFY_SPACES
 from szl_spaces_surface import canonical_url as _destination_url
@@ -106,7 +108,14 @@ def _fallback_index() -> bytes:
                 'style="color:#7c8794;text-decoration:none">View repository &#8599;</a>'
                 % html.escape(hf_repo_url(record["slug"]), quote=True)
             )
-        honesty_raw = record.get("honesty") or ""
+        role = (
+            "current org policy keeper; runtime unprobed here"
+            if record.get("action") == "KEEP_POLICY"
+            else "legacy runtime door outside current org keep policy"
+            if record in SPACE_INVENTORY and record["name"] not in _PUBLIC_ORG_KEEP_POLICY
+            else ""
+        )
+        honesty_raw = "; ".join(part for part in (role, record.get("honesty") or "") if part)
         honesty = (
             ' <small style="color:#c9a23a">%s</small>' % html.escape(honesty_raw)
             if honesty_raw
@@ -116,7 +125,7 @@ def _fallback_index() -> bytes:
             '<li style="margin:.4rem 0"><strong style="color:#e7eef6">%s</strong> '
             '<small style="color:#697787">%s &middot; %s</small>%s '
             '&middot; <a href="%s" rel="noopener" target="_blank" '
-            'style="color:#d4a444;text-decoration:none">Open canonical app &#8599;</a> '
+            'style="color:#d4a444;text-decoration:none">Open destination &#8599;</a> '
             '&middot; %s</li>'
             % (title, name, sdk, honesty, canonical, repository_html)
         )
@@ -131,8 +140,9 @@ def _fallback_index() -> bytes:
         'font:15px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:2rem">'
         '<main style="max-width:760px;margin:0 auto">'
         '<h1 style="color:#e7eef6">Hugging Face Spaces</h1>'
-        f'<p style="color:#8a96a3">Public Hub cut is {len(SPACE_INVENTORY)} KEEP. '
-        'Folded Spaces open on existing product and proof destinations. Legacy '
+        f'<p style="color:#8a96a3">{len(SPACE_INVENTORY)} configured runtime doors; '
+        f'current organization keep policy lists {len(_PUBLIC_ORG_KEEP_POLICY)} Spaces. '
+        'These scopes differ. Fold plans open on existing product and proof destinations. Legacy '
         '<code>/spaces/&lt;slug&gt;</code> links are no-store 307 handoffs; no upstream '
         'response bytes or cookies cross this application. /verify is not cloned.</p>'
         '<ul style="list-style:none;padding:0">' + "".join(rows) + "</ul>"
@@ -274,6 +284,10 @@ if __name__ == "__main__":
     assert _canonical_target("nexus") == "https://a-11-oy.com/nexus"
     assert _canonical_target("szl-khipu") == "https://a-11-oy.com/khipu"
     assert _canonical_target("governed-receipt-verifier") == "https://a11oy.net/record"
+    assert _canonical_target("counsel") == "https://szlholdings-counsel.hf.space"
+    assert _canonical_target("szl-foundation-confirmation") == (
+        "https://szlholdings-szl-foundation-confirmation.hf.space"
+    )
     try:
         hf_url("notreal")
         raise AssertionError("unknown Space identifier must fail closed")
@@ -330,6 +344,6 @@ if __name__ == "__main__":
     assert cosmos.headers["location"] == "https://a-11-oy.com/living-anatomy"
 
     print(
-        "szl_spaces_proxy: ALL OK (5 KEEP + fold + unify dest handoffs; "
+        "szl_spaces_proxy: ALL OK (5 configured runtime doors + policy + fold + unify handoffs; "
         "path/query preserved; no-store; no upstream bytes/Set-Cookie)"
     )
