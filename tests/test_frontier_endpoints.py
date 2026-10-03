@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 
 import pytest
 
@@ -175,7 +176,7 @@ def test_restraint_operator_route_is_mounted_and_rejects_authenticated_list(monk
                    if getattr(route, "path", None) == RESTRAINT_EVALUATE
                    and "POST" in (getattr(route, "methods", None) or ()))
     assert mounted.endpoint.__module__ == "szl_restraint"
-    token = "synthetic-restraint-contract-test-only"
+    token = secrets.token_urlsafe(32)
     monkeypatch.setenv("A11OY_CODE_ADMIN_KEY", token)
     response = client.post(
         RESTRAINT_EVALUATE,
@@ -206,7 +207,7 @@ def test_restraint_mounted_route_verifies_disposable_operator_receipt(monkeypatc
         serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo
     ).decode("ascii")
     keyid = sha256(public.strip().encode("ascii")).hexdigest()
-    token = "synthetic-restraint-integration-only"
+    token = secrets.token_urlsafe(32)
     monkeypatch.setenv("A11OY_CODE_ADMIN_KEY", token)
     monkeypatch.setattr(serve, "_A11OY_PRIV", key)
     monkeypatch.setattr(serve, "_A11OY_PUB_PEM", public)

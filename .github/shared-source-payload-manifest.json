@@ -1,1 +1,10 @@
-{"files":{"szl_operator_auth.py":"1ee6a88e37d522c5404ac04ac90eadcbfc6f7e59140a778d03275832e217e2cf","szl_restraint.py":"f8cb46ae49066785fd3b7a4ef74635d1559a0772711ba3d26e169b6eb99c62b0","szl_spaces_proxy.py":"d3d79e9ca6dfe551001e4dab4d3eaa09fbcac83e5dcfc578069eb65e7992d380","szl_spaces_surface.py":"b56a1225f883bc25430ab559e72b187e5eed53ffa1fefd5a69ae98fa71ba179a"},"payload_id":"restraint-active-signer-space-policy-20261003-v1","schema":"szl-shared-source-payload/v1"}
+{
+  "files": {
+    "szl_operator_auth.py": "1ee6a88e37d522c5404ac04ac90eadcbfc6f7e59140a778d03275832e217e2cf",
+    "szl_restraint.py": "f8cb46ae49066785fd3b7a4ef74635d1559a0772711ba3d26e169b6eb99c62b0",
+    "szl_spaces_proxy.py": "d3d79e9ca6dfe551001e4dab4d3eaa09fbcac83e5dcfc578069eb65e7992d380",
+    "szl_spaces_surface.py": "b56a1225f883bc25430ab559e72b187e5eed53ffa1fefd5a69ae98fa71ba179a"
+  },
+  "payload_id": "restraint-active-signer-space-policy-20261003-v1",
+  "schema": "szl-shared-source-payload/v1"
+}
