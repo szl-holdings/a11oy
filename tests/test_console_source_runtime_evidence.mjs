@@ -20,7 +20,7 @@ const paths = {
 };
 
 function inlineScriptBodies(source) {
-  return [...source.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script\s*>/gi)].map(match => match[1]);
+  return [...source.matchAll(/<script(?:[\s/][^>]*)?>([\s\S]*?)<\/script(?:[\s/][^>]*)?>/gi)].map(match => match[1]);
 }
 
 test('the changed inline scripts parse as shipped browser JavaScript', () => {
@@ -31,8 +31,8 @@ test('the changed inline scripts parse as shipped browser JavaScript', () => {
   for (const body of relevant) assert.doesNotThrow(() => new Script(body));
 });
 
-test('script parsing accepts valid whitespace before closing tag delimiters', () => {
-  for (const closing of ['</script >', '</script\t>', '</script\r\n>']) {
+test('script parsing handles browser-accepted closing tags with whitespace and attributes', () => {
+  for (const closing of ['</script >', '</script\t>', '</script\r\n>', '</script\t\n bar>', '</script foo="bar">', '</script/>', '</SCRIPT >']) {
     const source = '<script>const first=1;' + closing + '<script>const second=2;' + closing;
     const bodies = inlineScriptBodies(source);
     assert.deepEqual(bodies, ['const first=1;', 'const second=2;']);
