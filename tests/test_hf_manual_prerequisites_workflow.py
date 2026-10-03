@@ -171,16 +171,33 @@ python -B scripts/check_hf_manual_prerequisites.py \
             raise WorkflowContractError("finance source gate: " + name)
     relock = jobs["relock"]
     enforce = named_step(relock, "Enforce exact live state")
-    parity = named_step(relock, "Trigger strict post-deployment GitHub/HF parity")
     expected_enforce = r'''code="${EXIT_CODE:-2}"
 if [ "$code" -ne 0 ]; then
   echo "::error::Canonical A11oy relock failed with exit ${code}."
   exit "$code"
 fi
+if [ "${CURRENT_MAIN:-false}" != 'true' ]; then
+  echo '::error::Canonical A11oy relock source is no longer current protected main.'
+  exit 3
+fi
 echo 'Canonical A11oy is source-bound, singleton, and route-operational.' '''
-    if compact(enforce.get("run", "")) != compact(expected_enforce) or enforce.get("if") != "always()":
+    expected_enforce_env = {
+        "EXIT_CODE": "${{ steps.verify.outputs.exit_code }}",
+        "CURRENT_MAIN": "${{ steps.post_deploy_owner.outputs.publish }}",
+    }
+    if (
+        compact(enforce.get("run", "")) != compact(expected_enforce)
+        or enforce.get("if") != "always()"
+        or enforce.get("env") != expected_enforce_env
+    ):
         raise WorkflowContractError("actual verification exit must be enforced")
-    if relock["steps"].index(enforce) >= relock["steps"].index(parity) or "if" in parity:
+    parity = jobs["post-deployment-parity"]
+    if (
+        parity.get("needs") != "relock"
+        or parity.get("uses") != "./.github/workflows/hf-module-drift.yml"
+        or parity.get("permissions") != {"contents": "read"}
+        or "if" in parity
+    ):
         raise WorkflowContractError("parity must follow successful verification")
     return jobs
 
@@ -320,14 +337,14 @@ class ManualPrerequisiteWorkflowTests(unittest.TestCase):
 
     def test_enforcement_finance_opt_in_and_parity_remain_ordered(self):
         jobs = assert_manual_step_contract(self.source)
-        steps = jobs["relock"]["steps"]
         enforce = named_step(jobs["relock"], "Enforce exact live state")
-        parity = named_step(jobs["relock"], "Trigger strict post-deployment GitHub/HF parity")
-        self.assertLess(steps.index(enforce), steps.index(parity))
+        parity = jobs["post-deployment-parity"]
         self.assertIn('code="${EXIT_CODE:-2}"', enforce["run"])
         self.assertIn('exit "$code"', enforce["run"])
         self.assertNotIn("if", parity)
-        self.assertEqual(parity["run"], 'gh workflow run hf-module-drift.yml --repo "$GITHUB_REPOSITORY" --ref main')
+        self.assertEqual(parity["needs"], "relock")
+        self.assertEqual(parity["uses"], "./.github/workflows/hf-module-drift.yml")
+        self.assertEqual(parity["permissions"], {"contents": "read"})
         self.assertIn("relock", jobs["publish-finance-projection"]["needs"])
         self.assertIn("inputs.publish_vertical_flagships", jobs["publish-vertical-flagships"]["if"])
 

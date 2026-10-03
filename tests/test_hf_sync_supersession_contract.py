@@ -125,6 +125,7 @@ def assert_manual_dependency_graph(source: str) -> dict:
         "publish-finance-projection": ["manual-prerequisites", "relock"],
         "readiness-verdict": ["manual-prerequisites", "runtime-config"],
         "relock": ["manual-prerequisites", "runtime-config", "readiness-verdict"],
+        "post-deployment-parity": ["relock"],
     }
     if set(jobs) != set(dependencies):
         raise WorkflowContractError("job set requires review")
@@ -353,6 +354,28 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
         self.assertIn("if: always()", receipt)
         self.assertIn("if-no-files-found: error", receipt)
         self.assertIn("canonical-source-admission-${{ github.run_id }}-${{ github.run_attempt }}", receipt)
+
+    def test_post_deploy_relock_rejects_a_source_that_became_stale(self) -> None:
+        job = job_block(
+            self.workflow,
+            "Prove exact live source, runtime, routes, and singleton state",
+        )
+        owner = step_block(
+            job,
+            "Re-admit exact current main after live verification",
+        )
+        evidence = step_block(job, "Upload immutable relock evidence")
+        enforce = step_block(job, "Enforce exact live state")
+        self.assertIn("id: post_deploy_owner", owner)
+        self.assertIn("scripts/hf_exact_main_ownership.py", owner)
+        self.assertIn('--expected-sha "$GITHUB_SHA"', owner)
+        self.assertIn("GITHUB_TOKEN: ${{ github.token }}", owner)
+        self.assertIn("post-deploy-source-admission.json", evidence)
+        owner_output = "steps.post_deploy_owner.outputs.publish"
+        self.assertIn(owner_output, enforce)
+        self.assertIn("CURRENT_MAIN:-false", enforce)
+        self.assertLess(job.index("Evaluate the canonical application contract"), job.index(owner))
+        self.assertLess(job.index(owner), job.index(enforce))
 
     def test_actual_admission_outputs_deny_stale_and_uncertain_provider_jobs(self) -> None:
         # Exercise the helper consumed by both job conditions. These are injected

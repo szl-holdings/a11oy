@@ -72,19 +72,26 @@ def test_direct_push_trigger_is_rejected_as_a_publication_race() -> None:
     assert any("must not run directly on push" in error for error in errors)
 
 
-def test_missing_hf_sync_post_deploy_dispatch_fails_closed() -> None:
-    mutated = SYNC.replace(validator.POST_DEPLOY_DISPATCH, "echo parity-dispatch-removed", 1)
+def test_missing_hf_sync_post_deploy_call_fails_closed() -> None:
+    mutated = SYNC.replace(validator.POST_DEPLOY_CALL, "uses: ./missing.yml", 1)
     errors = errors_for(sync=mutated)
-    assert any("must dispatch the parity workflow" in error for error in errors)
+    assert any("must await the local parity workflow" in error for error in errors)
     assert any("must appear after the governed publication job" in error for error in errors)
 
 
-def test_dispatch_before_deployment_is_rejected() -> None:
-    dispatch = validator.POST_DEPLOY_DISPATCH
-    mutated = SYNC.replace(dispatch, "echo post-deploy-placeholder", 1)
-    mutated = dispatch + "\n" + mutated
+def test_awaited_call_before_deployment_is_rejected() -> None:
+    call = validator.POST_DEPLOY_CALL
+    mutated = SYNC.replace(call, "uses: ./missing.yml", 1)
+    mutated = call + "\n" + mutated
     errors = errors_for(sync=mutated)
     assert any("must appear after the governed publication job" in error for error in errors)
+
+
+def test_fire_and_forget_dispatch_is_rejected() -> None:
+    mutated = SYNC + "\n# active mutation fixture\n" + (
+        'gh workflow run hf-module-drift.yml --repo "$GITHUB_REPOSITORY" --ref main\n'
+    )
+    assert any("must not fire-and-forget" in error for error in errors_for(sync=mutated))
 
 
 def test_lifecycle_marker_is_mandatory_and_unique() -> None:
