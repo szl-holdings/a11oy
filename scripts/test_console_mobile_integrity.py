@@ -167,8 +167,15 @@ def run(output, premium_only=False):
                             check(f"{view} {theme} flat surfaces at {width}px", not measurements["gradients"], measurements["gradients"])
                             if view == "estate":
                                 check(f"estate {theme} flat title at {width}px", page.locator(".szl-holo-title").evaluate("e=>getComputedStyle(e).backgroundImage==='none' && getComputedStyle(e).webkitTextFillColor!=='transparent'"))
+                            height = page.evaluate("document.documentElement.scrollHeight")
+                            for offset in range(800, height, 800):
+                                page.evaluate("y=>scrollTo(0,y)", offset)
+                                measurements = page.evaluate(MEASURE)
+                                contrast_failures = [t for t in measurements["texts"] if t["ratio"] < 4.5]
+                                check(f"{view} {theme} lower text contrast at {width}px/{offset}", not contrast_failures, contrast_failures)
+                            page.evaluate("scrollTo(0,0)")
                             if width in (390, 1280):
-                                page.screenshot(path=str(output / f"premium-{view}-{theme}-{width}.png"))
+                                page.screenshot(path=str(output / f"premium-{view}-{theme}-{width}.png"), full_page=True)
                 page.set_viewport_size({"width": 390, "height": 844})
                 page.evaluate("go('readiness')")
                 page.wait_for_timeout(350)
