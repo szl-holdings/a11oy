@@ -43,7 +43,7 @@ COMBINED_RECEIPT = Path("hf-vertical-services-receipt.json")
 PUBLIC_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance", "lyte")
 GENERATED_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance")
 SOURCE_OWNED_FLAGSHIP_SLUGS = ("lyte",)
-SELECTABLE_GENERATED_SCOPES = ("terra", "counsel")
+SELECTABLE_GENERATED_SCOPES = ("terra", "sentra", "counsel")
 FOLDED_INTO_KILLINCHU = ("vessels",)
 KILLINCHU_SPACE = "SZLHOLDINGS/killinchu"
 SENTRA_SPACE = "SZLHOLDINGS/sentra"
@@ -406,10 +406,18 @@ def selected_generated_preflight(scope: str) -> str:
     return revision
 
 
+def selected_generated_space_preflight(scope: str, space_guard_module) -> None:
+    """Use the generated writer's credential to prove its one target is public."""
+    module = load_module("szl_flagship_v4_token_source", FLAGSHIP_IMPL)
+    token, _ = module._BASE.token_from_env()
+    space_guard_module.require_existing_public_space(f"SZLHOLDINGS/{scope}", token)
+
+
 def publish_selected_generated(scope: str, space_guard_module) -> int:
-    """Publish one existing Terra or Counsel Space and verify its live receipt."""
+    """Publish one existing generated Space and verify its live receipt."""
     try:
         revision = selected_generated_preflight(scope)
+        selected_generated_space_preflight(scope, space_guard_module)
         code, error, admitted = run_publisher(
             "szl_flagship_v4", FLAGSHIP_IMPL, selected_slug=scope
         )
@@ -517,12 +525,15 @@ def main() -> int:
         "szl_hf_existing_space_guard",
         SPACE_GUARD_IMPL,
     )
-    space_guard_module.install_existing_space_guard()
-
-    github_token_source = normalize_github_token_alias()
     scope = os.environ.get("SZL_FLAGSHIP_SCOPE", "estate")
     if scope not in ("estate", "finance", "lyte", *SELECTABLE_GENERATED_SCOPES):
         raise RuntimeError("unknown publication scope")
+    if scope in SELECTABLE_GENERATED_SCOPES:
+        space_guard_module.install_existing_space_guard(require_existing=True)
+    else:
+        space_guard_module.install_existing_space_guard()
+
+    github_token_source = normalize_github_token_alias()
     if scope == "finance":
         return publish_finance_only(space_guard_module)
     if scope == "lyte":
