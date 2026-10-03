@@ -48,11 +48,26 @@ def test_exact_installed_tag_and_digest_without_pull():
                          {"name": local.DEFAULT_MODEL, "model": local.DEFAULT_MODEL,
                           "digest": digest}])
     assert local._installed_model_digest(local.DEFAULT_MODEL, digest, opener) == digest
-    assert opener.requests == [(local.OLLAMA_TAGS_URL, "GET", 3)]
+    assert opener.requests == [(local.OLLAMA_TAGS_URL, "GET", 10.0)]
     with pytest.raises(local.LocalHold, match="LOCAL_MODEL_NOT_INSTALLED"):
         local._installed_model_digest("qwen3:4b-instruct-2507", opener=opener)
     with pytest.raises(local.LocalHold, match="LOCAL_MODEL_DIGEST_MISMATCH"):
         local._installed_model_digest(local.DEFAULT_MODEL, "c" * 64, opener)
+
+
+def test_installed_tag_timeout_holds_without_pull():
+    class TimeoutOpener:
+        def __init__(self):
+            self.requests = []
+
+        def open(self, request, timeout):
+            self.requests.append((request.full_url, request.get_method(), timeout))
+            raise TimeoutError("local tags took too long")
+
+    opener = TimeoutOpener()
+    with pytest.raises(local.LocalHold, match="OLLAMA_UNAVAILABLE"):
+        local._installed_model_digest(local.DEFAULT_MODEL, opener=opener)
+    assert opener.requests == [(local.OLLAMA_TAGS_URL, "GET", 10.0)]
 
 
 def test_vault_is_encrypted_and_reused_without_changing_identity(tmp_path, monkeypatch):
