@@ -1,1 +1,8 @@
-{"files":{"szl_spaces_proxy.py":"d3d79e9ca6dfe551001e4dab4d3eaa09fbcac83e5dcfc578069eb65e7992d380","szl_spaces_surface.py":"b56a1225f883bc25430ab559e72b187e5eed53ffa1fefd5a69ae98fa71ba179a"},"payload_id":"space-health-policy-20261003-v1","schema":"szl-shared-source-payload/v1"}
+{
+  "files": {
+    "szl_hf_bucket.py": "61d68be3de5ac474e03b902df1ef27462d462a2037abf8d16b08d701498d5acc",
+    "test_szl_hf_bucket.py": "324a0be61b52dc68a0abd708f4c2ed0c5d9fe779a182411fee30df86aa5f6d06"
+  },
+  "payload_id": "hf-raw-shard-parent-20261002-v1",
+  "schema": "szl-shared-source-payload/v1"
+}

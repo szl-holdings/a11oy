@@ -1375,7 +1375,11 @@ def feed_nvd(limit: int = 25, keyword: str | None = None) -> dict[str, Any]:
         for o in out:
             sevcount[o["severity"]] = sevcount.get(o["severity"], 0) + 1
         return {"totalResults": d.get("totalResults", 0), "items": out, "sevcount": sevcount}
-    return _cached_fetch(key, url, ttl=240, parser=parse)
+    # NVD v2 accepts API keys in the request header. Keep the key out of the
+    # URL and cache key so it cannot leak through public freshness errors.
+    api_key = (os.environ.get("NVD_API_KEY") or "").strip()
+    headers = {"apiKey": api_key} if api_key else None
+    return _cached_fetch(key, url, ttl=240, parser=parse, headers=headers)
 
 
 def feed_fedregister(limit: int = 20, term: str | None = None) -> dict[str, Any]:

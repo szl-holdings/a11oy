@@ -2430,10 +2430,8 @@ except Exception as _anat3d_e:  # pragma: no cover
 # stayed in-image but unwired, so the live endpoint 404'd. Restores the missing wiring
 # (additive, try/except-guarded).
 try:
-    try:  # prefer the extracted substrate package; fall back to local vendored copy
-        from szl_substrate import szl_restraint as _szl_restraint
-    except Exception:
-        import szl_restraint as _szl_restraint
+    # This route's operator/receipt contract is tied to the reviewed shipped module.
+    import szl_restraint as _szl_restraint
     _szl_restraint.register(app, ns="a11oy")
     print("[a11oy] Restraint registered: /api/a11oy/v1/restraint/{info,evaluate,bench}", file=__import__("sys").stderr)
 except Exception as _szl_rs_e:  # pragma: no cover
@@ -9875,6 +9873,27 @@ def _a11oy_sign_receipt(payload_obj) -> dict:
 # lazily after startup. This removes the previous always-UNSIGNED Council path
 # without re-registering duplicate routes or committing any key material.
 app.state.szl_sign_receipt = _a11oy_sign_receipt
+
+
+def _a11oy_restraint_identity():
+    """Read current private/public key agreement without producing a signature."""
+    try:
+        if _A11OY_PRIV is None or not _A11OY_PUB_PEM:
+            return None
+        from cryptography.hazmat.primitives import serialization
+        public = _A11OY_PRIV.public_key().public_bytes(
+            serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo
+        ).strip()
+        keyid = _hashv2.sha256(public).hexdigest()
+        if (keyid != _A11OY_KEYID
+                or public != _A11OY_PUB_PEM.strip().encode("ascii")):
+            return None
+        return {"keyid": keyid}
+    except Exception:
+        return None
+
+
+app.state.szl_restraint_identity_fn = _a11oy_restraint_identity
 
 
 def _a11oy_pubkey_fpr() -> str:
