@@ -66,15 +66,24 @@ DEFAULT_MAX_BACKOFF = 60.0     # seconds: backoff ceiling
 class BucketError(Exception):
     """Internal transport error. Never propagates into the app request path."""
 
+    def __init__(self, message: str, *, retryable: Optional[bool] = None):
+        super().__init__(message)
+        self.retryable = retryable
+
 
 def _is_retryable(exc: Exception) -> bool:
-    """True for transient HF failures (HTTP 429 / 5xx) worth retrying."""
+    """Retry conflicts and transient failures, preserving wrapped HTTP status."""
+    retryable = getattr(exc, "retryable", None)
+    if retryable is not None:
+        return bool(retryable)
     status = getattr(exc, "status_code", None)
     if status is None:
         resp = getattr(exc, "response", None)
         status = getattr(resp, "status_code", None)
     if isinstance(status, int):
-        return status == 429 or 500 <= status <= 599
+        return status in (409, 412, 429) or 500 <= status <= 599
+    if exc.__cause__ is not None:
+        return _is_retryable(exc.__cause__)
     # Connection/DNS/timeout style failures are "unreachable" - also retryable.
     return True
 
@@ -99,15 +108,18 @@ def _sanitize(repo_id: str) -> str:
 # Transport abstraction (so the self-test can inject a network-free fake)
 # --------------------------------------------------------------------------- #
 class Transport:
-    """Minimal append-only transport contract over a HF Dataset repo."""
+    """Writes require an immutable read snapshot and an atomic parent guard."""
 
-    def read_file(self, path: str) -> Optional[bytes]:
+    def snapshot(self) -> str:
         raise NotImplementedError
 
-    def list_files(self, prefix: str) -> List[str]:
+    def read_file(self, path: str, *, revision: Optional[str] = None) -> Optional[bytes]:
         raise NotImplementedError
 
-    def commit(self, operations: List[Tuple[str, bytes]], message: str) -> str:
+    def list_files(self, prefix: str, *, revision: Optional[str] = None) -> List[str]:
+        raise NotImplementedError
+
+    def commit(self, operations: List[Tuple[str, bytes]], message: str, *, parent_commit: str) -> str:
         raise NotImplementedError
 
 
@@ -130,47 +142,48 @@ class _HFTransport(Transport):
             self._api = HfApi(token=self._token)
         return self._api
 
-    def read_file(self, path: str) -> Optional[bytes]:
+    def snapshot(self) -> str:
         api = self._hf()
         try:
-            from huggingface_hub.utils import EntryNotFoundError
-        except Exception:  # pragma: no cover
-            EntryNotFoundError = tuple()  # type: ignore
+            info = api.repo_info(
+                repo_id=self._repo_id, repo_type=self._repo_type,
+                revision=self._revision, token=self._token,
+            )
+        except Exception as exc:
+            raise BucketError("snapshot failed: %r" % (exc,)) from exc
+        return _require_commit(getattr(info, "sha", None))
+
+    def read_file(self, path: str, *, revision: Optional[str] = None) -> Optional[bytes]:
+        api = self._hf()
         try:
             local = api.hf_hub_download(
                 repo_id=self._repo_id, repo_type=self._repo_type,
-                filename=path, revision=self._revision, token=self._token,
+                filename=path, revision=revision or self._revision, token=self._token,
             )
         except Exception as exc:
-            # "Not found" is a normal first-write condition, not an error.
+            # Only a missing file is empty. A missing/inaccessible repo or
+            # revision must never become an empty shard replacement.
             name = exc.__class__.__name__
-            if isinstance(EntryNotFoundError, type) and isinstance(exc, EntryNotFoundError):
-                return None
-            if name in ("EntryNotFoundError", "RepositoryNotFoundError"):
-                return None
-            status = getattr(getattr(exc, "response", None), "status_code", None)
-            if status == 404:
+            if name in ("EntryNotFoundError", "RemoteEntryNotFoundError"):
                 return None
             raise BucketError("read_file(%s) failed: %r" % (path, exc)) from exc
         with open(local, "rb") as fh:
             return fh.read()
 
-    def list_files(self, prefix: str) -> List[str]:
+    def list_files(self, prefix: str, *, revision: Optional[str] = None) -> List[str]:
         api = self._hf()
         try:
-            files = api.list_repo_files(repo_id=self._repo_id, repo_type=self._repo_type, revision=self._revision)
+            files = api.list_repo_files(
+                repo_id=self._repo_id, repo_type=self._repo_type,
+                revision=revision or self._revision,
+            )
         except Exception as exc:
-            name = exc.__class__.__name__
-            if name == "RepositoryNotFoundError":
-                return []
-            status = getattr(getattr(exc, "response", None), "status_code", None)
-            if status == 404:
-                return []
             raise BucketError("list_files failed: %r" % (exc,)) from exc
         pref = prefix.rstrip("/") + "/"
         return sorted(f for f in files if f.startswith(pref))
 
-    def commit(self, operations: List[Tuple[str, bytes]], message: str) -> str:
+    def commit(self, operations: List[Tuple[str, bytes]], message: str, *, parent_commit: str) -> str:
+        _require_commit(parent_commit)
         api = self._hf()
         try:
             from huggingface_hub import CommitOperationAdd
@@ -180,11 +193,15 @@ class _HFTransport(Transport):
         try:
             info = api.create_commit(
                 repo_id=self._repo_id, repo_type=self._repo_type, revision=self._revision,
-                operations=ops, commit_message=message,
+                operations=ops, commit_message=message, parent_commit=parent_commit,
+                create_pr=False,
             )
         except Exception as exc:
             raise BucketError("commit failed: %r" % (exc,)) from exc
-        return getattr(info, "oid", "") or ""
+        oid = getattr(info, "oid", None)
+        if not isinstance(oid, str) or not re.fullmatch(r"[0-9a-f]{40}", oid):
+            raise BucketError("commit returned no immutable commit id; outcome is unknown")
+        return oid
 
 
 # --------------------------------------------------------------------------- #
@@ -388,9 +405,7 @@ class HFBucket:
                 return self._status_locked(extra={"error_kind": "unexpected"})
 
     def _commit_pending(self, pending: List[str]) -> Tuple[int, int]:
-        """Read affected shards, append the new (non-duplicate) records, and
-        write everything + head.json in ONE Hub commit. Retries transient
-        failures with exponential backoff. Raises BucketError on give-up."""
+        """Retry the complete snapshot/read/merge/guarded-write transaction."""
         # Load queued records.
         records: List[Dict[str, Any]] = []
         for rid in pending:
@@ -408,6 +423,20 @@ class HFBucket:
             shard = self._shard_for(rec)
             by_shard.setdefault(shard, []).append(rec)
 
+        committed, deduped, oid = self._with_retry(
+            lambda: self._commit_snapshot(by_shard)
+        )
+        if oid is not None:
+            self._last_commit = oid
+        self._drop_queue(records)
+        for rec in records:
+            self._committed_ids.add(rec["id"])
+        return committed, deduped
+
+    def _commit_snapshot(self, by_shard: Dict[str, List[Dict[str, Any]]]) -> Tuple[int, int, Optional[str]]:
+        parent = _require_commit(self._transport.snapshot())
+        live_shards = set(self._list_shards(revision=parent))
+        all_shards = sorted(live_shards | set(by_shard))
         operations: List[Tuple[str, bytes]] = []
         committed = 0
         deduped = 0
@@ -415,47 +444,34 @@ class HFBucket:
         last_id = None
         last_ts = None
 
-        # Read current shards (with retry), append new records, dedup at commit time.
-        for shard, recs in sorted(by_shard.items()):
-            existing_bytes = self._with_retry(lambda s=shard: self._transport.read_file(s)) or b""
-            existing_ids = set()
-            lines: List[str] = []
-            for line in existing_bytes.decode("utf-8").splitlines():
-                line = line.strip()
-                if not line:
-                    continue
-                lines.append(line)
-                try:
-                    existing_ids.add(json.loads(line)["id"])
-                except Exception:
-                    pass
-            for rec in recs:
+        for shard in all_shards:
+            existing_bytes = self._transport.read_file(shard, revision=parent)
+            if existing_bytes is None and shard in live_shards:
+                raise BucketError("listed shard is missing at the snapshot: %s" % shard, retryable=False)
+            existing_bytes = existing_bytes or b""
+            existing = _parse_shard_for_write(existing_bytes)
+            existing_ids = {rec["id"] for rec in existing}
+            additions: List[bytes] = []
+            for rec in by_shard.get(shard, []):
                 if rec["id"] in existing_ids:
                     deduped += 1
                     continue
                 existing_ids.add(rec["id"])
-                lines.append(json.dumps(rec, sort_keys=True, separators=(",", ":"), ensure_ascii=False))
+                additions.append(_canonical_bytes(rec))
+                existing.append(rec)
                 committed += 1
-            payload = ("\n".join(lines) + "\n").encode("utf-8") if lines else b""
-            operations.append((shard, payload))
-
-        # Compute head/chain-state across ALL shards (bounded: count + tip).
-        all_shards = self._list_shards_with_pending(set(by_shard))
-        for shard in all_shards:
-            if shard in by_shard:
-                blob = operations_lookup(operations, shard)
-            else:
-                blob = self._with_retry(lambda s=shard: self._transport.read_file(s)) or b""
-            for line in blob.decode("utf-8").splitlines():
-                line = line.strip()
-                if not line:
-                    continue
+            if additions:
+                separator = b"\n" if existing_bytes and not existing_bytes.endswith(b"\n") else b""
+                payload = existing_bytes + separator + b"\n".join(additions) + b"\n"
+                operations.append((shard, payload))
+            for rec in existing:
                 total_count += 1
-                try:
-                    obj = json.loads(line)
-                    last_id, last_ts = obj.get("id"), obj.get("ts")
-                except Exception:
-                    pass
+                last_id, last_ts = rec["id"], rec.get("ts")
+
+        if committed == 0:
+            # A pinned snapshot has observed every queued record already stored.
+            # This also reconciles a commit whose response was lost.
+            return 0, deduped, None
 
         head = {
             "schema": "szl.hf.bucket.head/v1",
@@ -469,23 +485,11 @@ class HFBucket:
         }
         operations.append((self._head_path(), _canonical_bytes(head) + b"\n"))
 
-        if committed == 0:
-            # Everything queued was already in its shard: just refresh head, drop
-            # the queue files, and mark them committed. Still a real (tiny) commit
-            # only if head changed; otherwise skip the network entirely.
-            self._drop_queue(records)
-            for rec in records:
-                self._committed_ids.add(rec["id"])
-            return 0, deduped
-
         msg = "bucket: append %d record(s) from %s [%s]" % (committed, self.source, self.prefix)
-        oid = self._with_retry(lambda: self._transport.commit(operations, msg))
-        self._last_commit = oid
-        # Success: remove queued files, remember committed ids.
-        self._drop_queue(records)
-        for rec in records:
-            self._committed_ids.add(rec["id"])
-        return committed, deduped
+        oid = self._transport.commit(operations, msg, parent_commit=parent)
+        if not isinstance(oid, str) or not re.fullmatch(r"[0-9a-f]{40}", oid):
+            raise BucketError("commit returned no immutable commit id; outcome is unknown")
+        return committed, deduped, oid
 
     def _drop_queue(self, records: List[Dict[str, Any]]) -> None:
         for rec in records:
@@ -501,8 +505,7 @@ class HFBucket:
                 return fn()
             except BucketError as exc:
                 last = exc
-                cause = exc.__cause__ or exc
-                if not _is_retryable(cause) or attempt == self.max_retries - 1:
+                if not _is_retryable(exc) or attempt == self.max_retries - 1:
                     raise
             except Exception as exc:
                 last = exc
@@ -526,16 +529,9 @@ class HFBucket:
     def _head_path(self) -> str:
         return "%s/head.json" % self.prefix
 
-    def _list_shards(self) -> List[str]:
-        files = self._transport.list_files(self.prefix)
+    def _list_shards(self, *, revision: Optional[str] = None) -> List[str]:
+        files = self._transport.list_files(self.prefix, revision=revision)
         return sorted(f for f in files if f.endswith(".ndjson"))
-
-    def _list_shards_with_pending(self, pending_shards: set) -> List[str]:
-        try:
-            live = set(self._list_shards())
-        except BucketError:
-            live = set()
-        return sorted(live | set(pending_shards))
 
     # ----- reads ----------------------------------------------------------- #
     def read_recent(self, n: int = 50) -> List[Dict[str, Any]]:
@@ -703,6 +699,28 @@ class HFBucket:
 # --------------------------------------------------------------------------- #
 # Helpers
 # --------------------------------------------------------------------------- #
+def _require_commit(value: Any) -> str:
+    if not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{40}", value):
+        raise BucketError("an exact immutable 40-character commit id is required", retryable=False)
+    return value
+
+
+def _parse_shard_for_write(blob: bytes) -> List[Dict[str, Any]]:
+    """Refuse a replacement when the existing shard cannot be safely counted."""
+    records: List[Dict[str, Any]] = []
+    try:
+        for line in blob.decode("utf-8").splitlines():
+            if not line.strip():
+                continue
+            rec = json.loads(line)
+            if not isinstance(rec, dict) or not isinstance(rec.get("id"), str) or not rec["id"]:
+                raise ValueError("shard record lacks a non-empty string id")
+            records.append(rec)
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise BucketError("existing shard is invalid; refusing replacement", retryable=False) from exc
+    return records
+
+
 def _parse_ndjson(blob: bytes) -> List[Dict[str, Any]]:
     out: List[Dict[str, Any]] = []
     for line in blob.decode("utf-8").splitlines():
