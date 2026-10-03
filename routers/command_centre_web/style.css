@@ -46,8 +46,11 @@ form > small { display: block; font-size: .72rem; margin: .5rem 0 1.4rem; }
 .controls button { min-height: 49px; }
 #turn-status { font-size: .85rem; margin-top: 1.4rem; }
 #local-turn-status { font-size: .85rem; margin-top: 1.4rem; }
-.local-work { margin-top: 1rem; }
-.local-controls { grid-template-columns: 1fr 1fr auto; }
+#cpu-turn-status { font-size: .85rem; margin-top: 1.4rem; }
+.local-work, .cpu-work { margin-top: 1rem; }
+.local-controls, .cpu-controls { grid-template-columns: 1fr 1fr auto; }
+.cpu-public-ack { display: flex; align-items: flex-start; gap: .7rem; margin: .9rem 0; }
+.cpu-public-ack input { width: 1.1rem; height: 1.1rem; min-height: 0; flex: none; margin: .15rem 0 0; accent-color: var(--accent); }
 .answer { border-left: 2px solid var(--border); background: var(--bg-deep); padding: 1.2rem; white-space: pre-wrap; overflow-wrap: anywhere; }
 pre { font: .75rem/1.6 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 24rem; overflow: auto; }
 summary { cursor: pointer; padding: 1rem 0; min-height: 44px; }
@@ -59,6 +62,6 @@ section:not(.status-grid):not(.work) { margin-top: 3rem; }
 .link-card span { display: block; color: var(--text-sub); font-size: .78rem; margin-top: .4rem; }
 .release-order { display: flex; flex-wrap: wrap; gap: 2rem; padding: 1rem 1.5rem; color: var(--text-sub); font-size: .8rem; }
 footer { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--border-subtle); color: var(--text-sub); font-size: .75rem; }
-@media (max-width: 1000px) { .controls, .local-controls { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 1000px) { .controls, .local-controls, .cpu-controls { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 760px) { .shell { display: block; } .rail { position: static; height: auto; padding: 1rem 1.25rem; border-right: 0; border-bottom: 1px solid var(--border-subtle); } .identity span { display: inline; padding-left: .5rem; } .rail > .eyebrow, .rail-foot { display: none; } nav { grid-template-columns: repeat(3, 1fr); margin-top: .5rem; gap: .25rem; } nav a { font-size: .72rem; } main { padding-top: 2rem; } .status-grid { grid-template-columns: 1fr; } .link-grid { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
