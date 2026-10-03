@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-10-02T21:07:54Z",
+  "observedAt": "2026-10-03T00:31:25Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -26,8 +26,8 @@
   "machineGeneratedCounts": {
     "githubReadinessEntries": 19,
     "huggingFacePublic": {
-      "models": 46,
-      "datasets": 35,
+      "models": 47,
+      "datasets": 36,
       "spaces": 34
     },
     "huggingFaceScope": {
@@ -1179,6 +1179,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-authenticated",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-authenticated"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-training-scripts",
       "repoType": "model",
       "stage": "inventory",
@@ -1498,6 +1508,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/datasets/SZLHOLDINGS/szl-quant-sft-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-science-forum-corpus",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/szl-science-forum-corpus"
       ]
     },
     {

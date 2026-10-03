@@ -4,8 +4,9 @@
 """szl_spaces_surface.py — console "Spaces" surface (health API + tiles + nav).
 
 ADDITIVE, self-contained, SHARED across a11oy + killinchu. The console companion to
-the canonical handoff module: a health view of the public KEEP-5 FLOCK doors plus a
-clean tiles page, Unify flock ledger, and ONE idempotent nav item, following the
+the canonical handoff module: a health view of five configured runtime doors
+alongside the current eight-org visibility policy, plus a clean tiles page,
+Unify flock ledger, and ONE idempotent nav item, following the
 additive-injector pattern (a11oy_nav_wireup.py / killinchu_nav_wireup.py).
 
 ROUTES (additive, inserted at the FRONT of the router so they beat the SPA + Node-proxy
@@ -24,7 +25,8 @@ catch-alls — same route-to-front idiom as a11oy_hf_assets.py):
   GET/HEAD /spaces                 -> a clean tiles page (one card per Space: honest
         title, live status dot fed by /health, destination on product/proof/Hub,
         and a separate huggingface.co repository link).
-        Folded and Unify Spaces render as a destination ledger, not live Hub probes.
+        Policy keepers outside the five-door runtime roster and Fold/Unify plans
+        render separately without claiming a live Hub probe.
         First paint is pending/CHECKING — never LIVE/RUNNING/PASS. No upstream app
         executes inside the a11oy or Killinchu origin. Pure inline markup, 0 browser
         CDN. Status dots are filled by a tiny inline fetch of the SAME-ORIGIN /health
@@ -70,12 +72,10 @@ SPACE_TILE_ORIGIN_MODE = "canonical-isolated-hf/v1"
 PRODUCT = "https://a-11-oy.com"
 PROOF = "https://a11oy.net"
 
-# Public Hub KEEP set — FLOCK five doors. README is a profile card, not an
-# application Space. Atlas keep-7 (18:05Z) and KEEP-6 (2026-08-30) are prior
-# snapshots and are not rewritten here as live claims. Folded and Unify Spaces
-# are destination ledger only and are not health-probed here. Destinations are
-# existing product and proof paths. RECORD: https://a11oy.net/spaces.json.
-# /verify is not cloned. Occupancy stays UNAVAILABLE. pause+private, never delete.
+# Legacy five-door runtime probe roster. README is a profile card, not an
+# application Space. The current organization keep policy is declared below;
+# it has eight names and must not be conflated with this narrower probe roster.
+# RECORD: https://a11oy.net/spaces.json. /verify is not cloned.
 # Hub write is off in-repo. Do not create Space SZLHOLDINGS/unify.
 SPACES: list[dict[str, str]] = [
     {"name": "a11oy", "slug": "a11oy", "title": "a11oy — Command Center", "sdk": "docker",
@@ -91,6 +91,19 @@ SPACES: list[dict[str, str]] = [
 ]
 KEEP_TARGET = 5
 
+# Current organization visibility policy, amended 2026-10-01 in
+# docs/estate/hf-nine-flagship-keep.yaml. The five configured runtime tiles above
+# are a narrower, older probe roster. Keep the scopes distinct: a reachable tile
+# does not clear public visibility drift, and a policy keeper is not necessarily
+# qualified to run a workload (notably the Confirmation laboratory).
+PUBLIC_ORG_KEEP_POLICY = frozenset({
+    "a11oy", "killinchu", "terra", "counsel", "finance", "lyte",
+    "david-leads", "szl-foundation-confirmation",
+})
+PUBLIC_ORG_KEEP_POLICY_SOURCE = "docs/estate/hf-nine-flagship-keep.yaml"
+
+# Compatibility handoff registry. Current policy keepers that were once placed
+# in this fold ledger carry action KEEP_POLICY and are rendered separately.
 FOLD_SPACES: list[dict[str, str]] = [
     {"name": "llm-router-live", "slug": "llm-router-live", "title": "SZL LLM Router", "sdk": "docker",
      "action": "FOLD", "sink": "product", "dest": PRODUCT,
@@ -141,8 +154,8 @@ FOLD_SPACES: list[dict[str, str]] = [
      "action": "FOLD", "sink": "proof", "dest": PROOF + "/ayllu/",
      "why": "Counsel showcase already lives on the proof origin. Does not run the council."},
     {"name": "counsel", "slug": "counsel", "title": "counsel", "sdk": "docker",
-     "action": "FOLD", "sink": "ayllu", "dest": PROOF + "/ayllu/",
-     "why": "Duplicate of ayllu. One lab URL."},
+     "action": "KEEP_POLICY", "sink": "policy", "dest": "https://szlholdings-counsel.hf.space",
+     "why": "Current organization keep policy; runtime is not probed in this tile roster."},
     {"name": "experiments", "slug": "experiments", "title": "experiments", "sdk": "docker",
      "action": "FOLD", "sink": "proof", "dest": PROOF + "/experiments/",
      "why": "Experimental split-outs already have a proof path. Not locked-8."},
@@ -194,9 +207,9 @@ FOLD_SPACES: list[dict[str, str]] = [
      "action": "FOLD", "sink": "proof", "dest": PROOF + "/record/",
      "why": "Evidence wall is RECORD. Studio is not a third origin."},
     {"name": "david-leads", "slug": "david-leads", "title": "David Leads — Sovereign Insurance Intelligence", "sdk": "docker",
-     "action": "FOLD", "sink": "product", "dest": PRODUCT,
-     "honesty": "PII/leads stay private",
-     "why": "Insurance vertical is not a flagship. Planned disposition: pause and make private, never delete. Provider state is not observed here."},
+     "action": "KEEP_POLICY", "sink": "policy", "dest": "https://szlholdings-david-leads.hf.space",
+     "honesty": "Do not publish lead records",
+     "why": "Current organization keep policy; runtime and data privacy are not probed here."},
     {"name": "anatomy", "slug": "anatomy", "title": "SZL Living Anatomy", "sdk": "docker",
      "action": "FOLD", "sink": "product", "dest": PRODUCT + "/anatomy-v5",
      "why": "Plan: use product /anatomy-v5 and /living-anatomy, not a second origin. Provider visibility is not observed here."},
@@ -208,12 +221,18 @@ FOLD_SPACES: list[dict[str, str]] = [
      "action": "FOLD", "sink": "vertical-services", "dest": PRODUCT + "/spaces#verticals",
      "why": "SENTRA is a vertical, not a flagship. Folds into vertical-services."},
     {"name": "finance", "slug": "finance", "title": "finance", "sdk": "docker",
-     "action": "FOLD", "sink": "vertical-services", "dest": PRODUCT + "/spaces#verticals",
-     "why": "Finance is a vertical, not a flagship. Folds into vertical-services."},
+     "action": "KEEP_POLICY", "sink": "policy", "dest": "https://szlholdings-finance.hf.space",
+     "why": "Current organization keep policy; runtime is not probed in this tile roster."},
     {"name": "terra", "slug": "terra", "title": "terra", "sdk": "docker",
-     "action": "FOLD", "sink": "vertical-services", "dest": PRODUCT + "/spaces#verticals",
+     "action": "KEEP_POLICY", "sink": "policy", "dest": "https://szlholdings-terra.hf.space",
      "honesty": "Occupancy UNAVAILABLE",
-     "why": "Terra is a vertical, not a flagship. Folds into vertical-services."},
+     "why": "Current organization keep policy; occupancy and runtime are not probed here."},
+    {"name": "szl-foundation-confirmation", "slug": "szl-foundation-confirmation",
+     "title": "Foundation Confirmation — exploratory CPU trials", "sdk": "docker",
+     "action": "KEEP_POLICY", "sink": "policy",
+     "dest": "https://szlholdings-szl-foundation-confirmation.hf.space",
+     "honesty": "Registered scientific gate FAILED; wider system unqualified",
+     "why": "Current organization keep policy; laboratory status is not qualification."},
     {"name": "szl-khipu", "slug": "szl-khipu", "title": "szl-khipu", "sdk": "docker",
      "action": "FOLD", "sink": "product", "dest": PRODUCT + "/khipu",
      "why": "Not a FLOCK door. Evaluate on product /khipu. RECORD on a11oy.net/khipu/."},
@@ -257,9 +276,7 @@ UNIFY_SPACES: list[dict[str, str]] = [
      "why": "Constellation is not a fifth door. Unify into a11oy."},
 ]
 UNIFY_TARGET = 4
-FLOCK_FOLD_SLUGS = (
-    "immune-lattice", "counsel", "ayllu", "sentra", "finance", "terra", "david-leads",
-)
+FLOCK_FOLD_SLUGS = ("immune-lattice", "ayllu", "sentra")
 ARCHIVE_SPACES: list[dict[str, str]] = [
     {"name": "second-brain", "slug": "second-brain", "title": "second-brain", "sdk": "docker",
      "action": "ARCHIVE", "dest": "",
@@ -324,6 +341,11 @@ def hf_repo_url(name: str) -> str:
 def canonical_url(name: str) -> str:
     """Operator destination: product, proof, or Hub. Not a quality claim."""
     record = _space_record(name)
+    # Compatibility links for policy keepers that the legacy five-door runtime
+    # roster does not probe must lead to their isolated Hub app, not an obsolete
+    # fold destination on product or proof.
+    if record["name"] in PUBLIC_ORG_KEEP_POLICY and record["name"] not in _SPACE_BY_NAME:
+        return hf_url(name)
     dest = record.get("dest") or ""
     return dest if dest else hf_url(name)
 
@@ -448,7 +470,13 @@ def _apply_hf_runtime(result: dict[str, Any], data: Any) -> None:
 
 
 async def _probe_inventory(client: Any) -> dict[str, Any]:
-    """Compare the canonical application set with the public Hub Spaces API set."""
+    """Compare current org keep policy with public Hub application Spaces."""
+    scope = {
+        "schema": "szl.hf-space-inventory/v1",
+        "canonical_count": len(PUBLIC_ORG_KEEP_POLICY),
+        "policy_source": PUBLIC_ORG_KEEP_POLICY_SOURCE,
+        "configured_runtime_count": len(SPACES),
+    }
     status = None
     data = None
     via = None
@@ -476,26 +504,23 @@ async def _probe_inventory(client: Any) -> dict[str, Any]:
             via = "urllib"
         except Exception as exc:
             return {
-                "schema": "szl.hf-space-inventory/v1",
+                **scope,
                 "state": "UNAVAILABLE",
-                "canonical_count": len(_SPACE_BY_NAME),
                 "error": type(exc).__name__,
             }
 
     if status != 200:
         return {
-            "schema": "szl.hf-space-inventory/v1",
+            **scope,
             "state": "UNAVAILABLE",
-            "canonical_count": len(_SPACE_BY_NAME),
             "http_status": status,
             "source": via,
             "error": "hub_api_http_status",
         }
     if not isinstance(data, list):
         return {
-            "schema": "szl.hf-space-inventory/v1",
+            **scope,
             "state": "UNAVAILABLE",
-            "canonical_count": len(_SPACE_BY_NAME),
             "http_status": status,
             "source": via,
             "error": "hub_api_schema",
@@ -506,9 +531,8 @@ async def _probe_inventory(client: Any) -> dict[str, Any]:
         identity = item.get("id") if isinstance(item, dict) else None
         if not isinstance(identity, str) or not identity.startswith(_ORG + "/"):
             return {
-                "schema": "szl.hf-space-inventory/v1",
+                **scope,
                 "state": "UNAVAILABLE",
-                "canonical_count": len(_SPACE_BY_NAME),
                 "http_status": status,
                 "source": via,
                 "error": "hub_api_schema",
@@ -517,9 +541,8 @@ async def _probe_inventory(client: Any) -> dict[str, Any]:
         name = identity.split("/", 1)[1]
         if not name or "/" in name:
             return {
-                "schema": "szl.hf-space-inventory/v1",
+                **scope,
                 "state": "UNAVAILABLE",
-                "canonical_count": len(_SPACE_BY_NAME),
                 "http_status": status,
                 "source": via,
                 "error": "hub_api_schema",
@@ -527,13 +550,12 @@ async def _probe_inventory(client: Any) -> dict[str, Any]:
             }
         if name != "README":
             observed.add(name)
-    expected = set(_SPACE_BY_NAME)  # public KEEP 5, not folded/unify/private
+    expected = PUBLIC_ORG_KEEP_POLICY  # README is an org card, not an application Space.
     missing = sorted(expected - observed)
     unexpected = sorted(observed - expected)
     return {
-        "schema": "szl.hf-space-inventory/v1",
+        **scope,
         "state": "LIVE" if not missing and not unexpected else "DEGRADED",
-        "canonical_count": len(expected),
         "observed_count": len(observed),
         "missing": missing,
         "unexpected": unexpected,
@@ -765,7 +787,7 @@ def _aggregate_health_state(spaces: list[dict[str, Any]]) -> str:
 
 
 async def spaces_health() -> dict[str, Any]:
-    """Aggregate honest health for the public KEEP-5 FLOCK doors (short TTL cache)."""
+    """Keep five runtime probes separate from eight-org visibility policy."""
     now = time.monotonic()
     if _HEALTH_CACHE["payload"] is not None and (now - _HEALTH_CACHE["ts"]) < _HEALTH_CACHE_TTL:
         cached = _HEALTH_CACHE["payload"]
@@ -787,20 +809,27 @@ async def spaces_health() -> dict[str, Any]:
     )
     inventory = results[0]
     spaces = list(results[1:])
-    aggregate_state = _aggregate_health_state(spaces)
+    runtime_state = _aggregate_health_state(spaces)
+    aggregate_state = runtime_state
     if aggregate_state == "LIVE" and inventory["state"] != "LIVE":
         aggregate_state = "DEGRADED"
 
     payload = {
         "state": aggregate_state,
         "count": len(spaces),
+        "configured_runtime": {
+            "state": runtime_state,
+            "count": len(spaces),
+            "names": [sp["name"] for sp in SPACES],
+            "scope": "configured five-door runtime probes; not the organization keep policy",
+        },
         "inventory": inventory,
         "spaces": spaces,
         "labels": {
-            "state": "Fresh: LIVE only when every app is reachable and HF reports RUNNING; otherwise DEGRADED or UNAVAILABLE. TTL reuse is CACHED with cached_state.",
+            "state": "Fresh overall LIVE requires configured runtime LIVE and public organization inventory LIVE. TTL reuse is CACHED with cached_state.",
             "space_state": "LIVE requires app_reachable:true plus HF stage RUNNING and every configured exact API contract LIVE; partial evidence is DEGRADED",
             "contract_state": "Killinchu, Anatomy, and SDA validate exact stable JSON markers on their public dependency routes; a root-page 200 cannot override a failed contract",
-            "inventory": "LIVE only when the public KEEP-5 FLOCK door set exactly equals the unauthenticated Hub API set; folded and Unify Spaces are destination-ledger only and are not in this set; README is a special organization surface, not an application Space",
+            "inventory": "Current eight-org keep policy is compared with the unauthenticated Hub author list; extra public Spaces remain DEGRADED. README is a special organization card, not an application Space. Runtime probes cover only five configured doors.",
             "custom_domain": "HF API provider state; PENDING remains DEGRADED even when a separate edge currently routes traffic",
             "stage": "HF API runtime.stage (https://huggingface.co/api/spaces/SZLHOLDINGS/<name>)",
             "app_reachable": "REAL server-side HEAD/GET probe of the canonical Space app",
@@ -818,23 +847,28 @@ async def spaces_health() -> dict[str, Any]:
 
 
 def _destination_ledger_card(sp: dict[str, str], kind: str) -> str:
-    """Render a consolidation PLAN; this function has no provider observation.
+    """Render a declared policy or consolidation plan, without a live probe.
 
     A declared FOLD/UNIFY action is not a successful mutation. Keep destination
     navigation usable without implying that a Space is private, paused or live.
     Scope notes cannot suppress the explicit unobserved-provider label.
     """
-    if kind not in {"FOLD", "UNIFY"}:
-        raise ValueError("destination ledger kind must be FOLD or UNIFY")
+    if kind not in {"FOLD", "UNIFY", "KEEP_POLICY"}:
+        raise ValueError("unsupported destination ledger kind")
     name = sp["name"]
     title = html_escape(sp["title"])
-    dest = html_escape(sp["dest"], quote=True)
-    honesty = html_escape("%s · PLANNED · provider state UNOBSERVED" % kind)
+    dest = html_escape(canonical_url(name), quote=True)
+    honesty = html_escape(
+        "KEEP · current org policy · runtime UNPROBED here"
+        if kind == "KEEP_POLICY" else
+        "%s · PLANNED · provider state UNOBSERVED" % kind
+    )
     if sp.get("honesty"):
         honesty += " · Scope note: " + html_escape(sp["honesty"])
     why = html_escape(sp.get("why") or "")
     sink = html_escape(sp.get("sink") or "")
-    attr = "data-fold" if kind == "FOLD" else "data-unify"
+    attr = {"FOLD": "data-fold", "UNIFY": "data-unify",
+            "KEEP_POLICY": "data-policy-keep"}[kind]
     if sp.get("hub_unreadable"):
         hub = ('<span class="sp-hf">Hub repository not publicly readable (checked %s); link removed</span>'
                % html_escape(sp["hub_unreadable"]))
@@ -867,6 +901,12 @@ def unify_ledger() -> dict[str, Any]:
         "certified": False,
         "hub_write": False,
         "hub_space_created": False,
+        "policy_source": PUBLIC_ORG_KEEP_POLICY_SOURCE,
+        "policy_keep": [{"slug": name, "act": "KEEP_POLICY", "dest": canonical_url(name)}
+                        for name in sorted(PUBLIC_ORG_KEEP_POLICY)],
+        "configured_runtime_doors": [sp["slug"] for sp in SPACES],
+        # Keep the v1 field for consumers; it describes the five configured
+        # runtime doors, not the current eight-org visibility policy.
         "keep": [{"slug": sp["slug"], "act": "KEEP", "dest": sp["dest"]} for sp in SPACES],
         "fold": [
             {"slug": sp["slug"], "act": "FOLD", "into": sp.get("sink") or sp["dest"]}
@@ -879,7 +919,7 @@ def unify_ledger() -> dict[str, Any]:
         "doctrine": _DOCTRINE,
         "note": (
             "Product tab on a-11-oy.com. GitHub is source. Hub is the registry. "
-            "a11oy.net is RECORD. Never LIVE/RUNNING/PASS. This is a consolidation plan, not a provider observation. Planned disposition: pause+private, never delete. "
+            "a11oy.net is RECORD. Never LIVE/RUNNING/PASS. This is a consolidation plan, not a provider observation. Retirement needs every current policy gate. "
             "Do not create Space SZLHOLDINGS/unify."
         ),
     }
@@ -931,10 +971,14 @@ def _unify_page(ns: str = "a11oy") -> bytes:
         ' &middot; winner=null &middot; proven_trust=false</p>'
         '<p class="sp-sub"><strong>Product tab on a-11-oy.com.</strong> GitHub is source. '
         'Hub is the registry. a11oy.net is RECORD. Never LIVE/RUNNING/PASS. '
-        'Planned disposition: pause+private, never delete. Provider state UNOBSERVED. Do not create Space SZLHOLDINGS/unify.</p>'
+        'Retirement needs every current policy gate. Provider state UNOBSERVED. Do not create Space SZLHOLDINGS/unify.</p>'
         '<p class="sp-nav">Nav: <a href="/lyte">/lyte</a> &middot; '
         '<a href="/spaces">/spaces</a> &middot; <a href="/console">/console</a></p>'
-        '<h2>KEEP</h2>'
+        '<h2>Current organization keep policy</h2>'
+        '<table><thead><tr><th>slug</th><th>act</th><th>dest</th></tr></thead><tbody>'
+        + _rows(ledger["policy_keep"], "dest") +
+        '</tbody></table>'
+        '<h2>Five configured runtime doors</h2>'
         '<table><thead><tr><th>slug</th><th>act</th><th>dest</th></tr></thead><tbody>'
         + _rows(ledger["keep"], "dest") +
         '</tbody></table>'
@@ -973,24 +1017,29 @@ def _tiles_page(ns: str) -> bytes:
         title = sp["title"]
         primary = canonical_url(name)
         primary_label = "Open destination"
-        honesty = html_escape(sp.get("honesty") or "PUBLIC · KEEP")
+        current_keeper = name in PUBLIC_ORG_KEEP_POLICY
+        role = "POLICY KEEP" if current_keeper else "LEGACY RUNTIME DOOR"
+        honesty = html_escape(sp.get("honesty") or role)
         honesty_html = '<div class="sp-honesty">%s</div>' % honesty
         cards.append(
             '<article class="sp-card" data-space="%s">'
             '<header class="sp-head">'
             '<span class="sp-dot" data-dot="%s" title="status">&#9679;</span>'
             '<h2 class="sp-title">%s</h2></header>'
-            '<div class="sp-kind">%s &middot; %s &middot; KEEP</div>'
+            '<div class="sp-kind">%s &middot; %s &middot; %s</div>'
             '%s'
             '<div class="sp-stage" data-stage="%s">stage: <span>pending</span></div>'
             '<div class="sp-links">'
             '<a class="sp-open" href="%s" rel="noopener">%s &#8599;</a>'
             '<a class="sp-hf" href="%s" rel="noopener" target="_blank">View Hub repository &#8599;</a>'
             '</div></article>'
-            % (slug, slug, title, name, sp["sdk"], honesty_html, slug,
+            % (slug, slug, title, name, sp["sdk"], role, honesty_html, slug,
                html_escape(primary, quote=True), primary_label, hf_repo_url(name))
         )
-    fold_cards = [_destination_ledger_card(sp, "FOLD") for sp in FOLD_SPACES]
+    policy_cards = [_destination_ledger_card(sp, "KEEP_POLICY") for sp in FOLD_SPACES
+                    if sp["name"] in PUBLIC_ORG_KEEP_POLICY]
+    fold_cards = [_destination_ledger_card(sp, "FOLD") for sp in FOLD_SPACES
+                  if sp["name"] not in PUBLIC_ORG_KEEP_POLICY]
     unify_cards = [_destination_ledger_card(sp, "UNIFY") for sp in UNIFY_SPACES]
     html = (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
@@ -1037,9 +1086,10 @@ def _tiles_page(ns: str) -> bytes:
         '</style></head>'
         '<body><main class="sp-wrap">'
         '<h1 class="sp-h1">Hugging Face Spaces</h1>'
-        f'<p class="sp-sub">Public Hub cut is {len(SPACES)} KEEP FLOCK doors. '
-        'Folded and Unify Spaces are destination ledger only and open on existing '
-        '<code>a-11-oy.com</code> and <code>a11oy.net</code> paths. Health probes the public 5 only. '
+        f'<p class="sp-sub">{len(SPACES)} configured runtime doors are probed; '
+        f'the current organization keep policy lists {len(PUBLIC_ORG_KEEP_POLICY)} Spaces. '
+        'These are separate scopes. The public Hub inventory is DEGRADED while extra '
+        'nonkeeper Spaces are visible. Runtime reachability does not qualify a model or laboratory. '
         'First paint is CHECKING/pending — never LIVE/RUNNING/PASS. '
         'Legacy <code>/spaces/<slug></code> links are no-store 307 handoffs to those destinations. '
         'RECORD: <a href="https://a11oy.net/spaces.json" rel="noopener">a11oy.net/spaces.json</a>. '
@@ -1047,20 +1097,24 @@ def _tiles_page(ns: str) -> bytes:
         '<p class="sp-health">Estate health: '
         '<strong id="sp-estate-health" class="checking" aria-live="polite">CHECKING</strong></p>'
         '<div class="sp-grid">' + "".join(cards) + '</div>'
+        '<h2 class="sp-h2">Current policy keepers outside these runtime probes</h2>'
+        '<p class="sp-sub">Declared in the 2026-10-01 organization policy. '
+        'These cards link to isolated Hub applications and make no runtime or qualification claim.</p>'
+        '<div class="sp-grid">' + "".join(policy_cards) + '</div>'
         '<h2 class="sp-h2" id="verticals">Fold plan · provider state UNOBSERVED</h2>'
-        f'<p class="sp-sub">{len(FOLD_SPACES)} planned folds into product and proof destinations. '
+        f'<p class="sp-sub">{len(fold_cards)} planned folds into product and proof destinations. '
         'Current Hub visibility and runtime are not observed by this ledger. '
         f'Hub repository links are omitted for the {len(HUB_UNREADABLE)} Spaces the unauthenticated Hub API '
         f'answered HTTP 401 for on {HUB_UNREADABLE_CHECKED} (dated check, not a live probe). '
         'Reachability of a destination is never quality. '
-        'sentra, finance, terra fold into vertical-services. '
+        'The current policy keeps finance and terra; sentra remains a fold plan. '
         'second-brain is ARCHIVE / HISTORICAL.</p>'
         '<div class="sp-grid">' + "".join(fold_cards) + '</div>'
         '<h2 class="sp-h2">Unify stragglers &rarr; a11oy</h2>'
         f'<p class="sp-sub">{len(UNIFY_SPACES)} Spaces are planned to fold into <a href="/unify">/unify</a> '
         'and a11oy /console. Destination ledger only. Not live-probed.</p>'
         '<div class="sp-grid">' + "".join(unify_cards) + '</div>'
-        '<p class="sp-foot">Status dot & stage on KEEP tiles are filled from the same-origin '
+        '<p class="sp-foot">Status dot & stage on configured runtime tiles are filled from the same-origin '
         '<code>/api/' + ns + '/v1/spaces/health</code> endpoint (real server-side probe '
         '+ HF API). Honest: a grey/amber dot means starting or unknown, never a faked up. '
         'Folded and Unify tiles are not live-probed. winner=null. proven_trust=false.</p>'
@@ -1228,7 +1282,7 @@ def register(app, ns: str = "a11oy") -> str:
     app.add_middleware(_make_injector())
 
     print("[%s] Spaces surface registered: /api/%s/v1/spaces/health + /spaces (tiles, "
-          "%d KEEP) + GET /unify + GET /a11oy/unify + nav injector [moved %d routes to front]"
+          "%d configured runtime doors) + GET /unify + GET /a11oy/unify + nav injector [moved %d routes to front]"
           % (ns, ns, len(SPACES), len(new)), file=sys.stderr)
     return "ok: %d spaces, health + tiles + unify + nav, %d routes" % (len(SPACES), len(new))
 
@@ -1282,7 +1336,10 @@ if __name__ == "__main__":
     assert b"/api/a11oy/v1/spaces/health" in tp, "tiles must fetch the health endpoint"
     assert b"http://" not in tp, "tiles must be 0 CDN (no http://)"
     assert b'href="/spaces/' not in tp, "tiles must not execute an app under this origin"
-    assert b"Public Hub cut is 5 KEEP" in tp
+    assert b"5 configured runtime doors are probed" in tp
+    assert b"current organization keep policy lists 8 Spaces" in tp
+    assert b'data-policy-keep="david-leads"' in tp
+    assert b'data-fold="david-leads"' not in tp
     assert b"stage: <span>pending</span>" in tp
     assert b">CHECKING</strong>" in tp
     assert b"/verify is not cloned" in tp
@@ -1390,6 +1447,6 @@ if __name__ == "__main__":
     assert 'data-nav-spaces="hf1"' not in c.get("/spaces").text, "/spaces must not be nav-injected"
     assert 'data-nav-spaces="hf1"' not in c.get("/unify").text, "/unify must not be nav-injected"
 
-    print("szl_spaces_surface: ALL OK (5 KEEP FLOCK doors; 4 UNIFY stragglers; "
+    print("szl_spaces_surface: ALL OK (5 runtime doors; 8 policy keepers; 4 UNIFY stragglers; "
           "honest degrade; tiles 0-CDN + no-store; nav idempotent + additive; "
           "/spaces and /unify not self-injected)")
