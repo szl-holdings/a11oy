@@ -114,9 +114,20 @@ jobs:
       # into a new prefix of the existing private evidence bucket. It cannot
       # restart a Space, change originals, repair SQLite, or admit deployment.
       - name: Preserve stopped private stores before any runtime mutation
+        id: preserve_stores
         run: >-
           python -B scripts/preserve_hf_gdw_store.py
           --output "${{ runner.temp }}/gdw-store-preservation.json"
+      # The verified incident capture is an immutable, source-pinned input.
+      # This read-only follow-up runs after the acquisition guard's expected
+      # blocked exit. Candidate bytes stay private and are never promoted.
+      - name: Qualify the pinned private capture without admitting restore
+        if: ${{ always() && steps.preserve_stores.outcome == 'failure' }}
+        run: >-
+          python -B scripts/qualify_gdw_store_recovery.py
+          --capture-report docs/operations/evidence/gdw-capture-37223162231.json
+          --historical-anchors docs/operations/evidence/gdw-recovery-historical-anchors.json
+          --output "${{ runner.temp }}/gdw-store-recovery-qualification.json"
       - name: Retain metadata checks and fail closed on UNKNOWN authority
         shell: bash
         run: |
@@ -144,6 +155,7 @@ jobs:
           path: |
             ${{ runner.temp }}/manual-prerequisites.json
             ${{ runner.temp }}/gdw-store-preservation.json
+            ${{ runner.temp }}/gdw-store-recovery-qualification.json
           if-no-files-found: error
           retention-days: 90
 
