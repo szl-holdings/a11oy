@@ -39,7 +39,11 @@ from typing import Any, Dict, List, Optional
 # Make the voter package importable from /app (HF Space root)
 _HERE = Path(__file__).parent.resolve()
 _VOTERS_PKG = _HERE / "packages" / "inference" / "src" / "voters"
-for _p in [str(_HERE), str(_VOTERS_PKG.parent.parent.parent)]:
+_IMPORT_PATHS = [str(_HERE), str(_VOTERS_PKG.parent.parent.parent)]
+if os.environ.get("GDW_DURABLE_STORAGE") == "private-dataset-v1":
+    from gdw_durable_source import managed_import_paths
+    _IMPORT_PATHS = managed_import_paths(_IMPORT_PATHS)
+for _p in _IMPORT_PATHS:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
@@ -65,6 +69,9 @@ except ImportError:
     # Fallback: direct path import when sys.path includes the repo root
     import importlib.util as _ilu
     _vp = str(_VOTERS_PKG / "__init__.py")
+    if os.environ.get("GDW_DURABLE_STORAGE") == "private-dataset-v1":
+        from gdw_durable_source import managed_import_file
+        _vp = managed_import_file(_vp)
     _spec = _ilu.spec_from_file_location("voters_pkg", _vp)
     _mod = _ilu.module_from_spec(_spec)
     _spec.loader.exec_module(_mod)

@@ -13,7 +13,7 @@ from urllib.request import Request as UrlRequest
 from urllib.request import urlopen
 
 from fastapi import Header, HTTPException, Query, Request
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field, ValidationError
 
 from gdw_attention import AttentionFeatures, choose_attention_mode
@@ -26,6 +26,7 @@ from gdw_auth import (
 )
 from gdw_proofs import build_proof_payload, sha256_json
 from gdw_runtime import drain_once, runtime_health
+import gdw_durable_runtime as durable_storage
 from gdw_telemetry import GDWTelemetry
 from gdw_workspace import (
     GDWConfigurationError,
@@ -275,7 +276,10 @@ def _write_readiness(
             blockers.append("JOURNAL_MODE_MISMATCH")
         if storage.get("persistence_required") is not True:
             blockers.append("PERSISTENCE_NOT_REQUIRED")
-        if storage.get("mount_verified") is not True:
+        if durable_storage.enabled():
+            if not durable_storage.ready(storage):
+                blockers.append("DURABLE_STORAGE_UNVERIFIED")
+        elif storage.get("mount_verified") is not True:
             blockers.append("PERSISTENT_MOUNT_UNVERIFIED")
         expected_synchronous = {"FULL": 2, "NORMAL": 1}.get(
             storage.get("synchronous_requested")
@@ -376,7 +380,8 @@ def _require_transient_recovery_runtime(
         runtime.get("startup_state") == "READY"
         and runtime.get("evidence_label") == "VERIFIED"
         and storage.get("persistence_required") is True
-        and storage.get("mount_verified") is True
+        and (durable_storage.ready(storage) if durable_storage.enabled()
+             else storage.get("mount_verified") is True)
         and storage.get("journal_mode_requested") == "DELETE"
         and storage.get("journal_mode_observed") == "DELETE"
         and storage.get("synchronous_requested") == "FULL"
@@ -422,9 +427,36 @@ def _public_runtime_health(runtime: dict) -> dict:
                 "sqlite_integrity",
                 "schema_version",
                 "database_generation_id",
+                "durable_storage",
+                "durability_authority",
             )
             if key in storage
         }
+        witness = storage.get("managed_admission")
+        fields = {"schema", "mode", "source_revision", "admission_sha256", "qualification_sha256",
+                  "dataset_revision", "operation_id", "writer_epoch", "generations",
+                  "actual_host_full_state_ack_ms", "startup_state", "throughput_claim"}
+        if (type(witness) is dict and set(witness) == fields
+                and witness.get("schema") == "szl.gdw-managed-runtime/v1"
+                and witness.get("mode") == "private-dataset-v1"
+                and witness.get("startup_state") == "RESTORED_AND_ACKNOWLEDGED"
+                and witness.get("throughput_claim") == "NOT_CLAIMED"
+                and type(witness.get("writer_epoch")) is int and witness["writer_epoch"] >= 1
+                and type(witness.get("actual_host_full_state_ack_ms")) is int
+                and 1 <= witness["actual_host_full_state_ack_ms"] <= 60000
+                and all(type(witness[key]) is str
+                    and re.fullmatch(r"[0-9a-f]{" + str(length) + r"}", witness[key]) is not None
+                    and witness[key] != "0" * length for key, length in (
+                        ("source_revision", 40), ("dataset_revision", 40), ("operation_id", 32),
+                        ("admission_sha256", 64), ("qualification_sha256", 64)))
+                and type(witness.get("generations")) is dict and set(witness["generations"]) == {"gdw", "series_a"}
+                and type(witness["generations"]["gdw"]) is str
+                and re.fullmatch(r"[0-9a-f]{32}", witness["generations"]["gdw"]) is not None
+                and witness["generations"]["gdw"] != "0" * 32
+                and type(witness["generations"]["series_a"]) is str
+                and re.fullmatch(r"store_[0-9a-f]{32}", witness["generations"]["series_a"]) is not None
+                and witness["generations"]["series_a"] != "store_" + "0" * 32):
+            public_storage["managed_admission"] = json.loads(json.dumps(witness))
     drain = runtime.get("drain")
     public_drain = None
     if isinstance(drain, dict):
@@ -919,6 +951,10 @@ def _atomic_receipt(
 def register(app, ns: str = "a11oy"):
     prefix = f"/api/{ns}/v1/gdw"
 
+    @app.exception_handler(durable_storage.DurableStorageUnavailable)
+    async def durable_storage_unavailable(_request, _error):
+        return JSONResponse(status_code=503, content={"detail": "Durable storage is unavailable"})
+
     @app.get(prefix + "/healthz")
     @app.get("/v1/gdw/healthz")
     def gdw_healthz():
@@ -1075,7 +1111,7 @@ def register(app, ns: str = "a11oy"):
                 governance=governance,
                 limit=limit,
             )
-        except GDWConfigurationError as exc:
+        except (GDWConfigurationError, durable_storage.DurableStorageUnavailable) as exc:
             if str(exc) == "recovery_id was already used with different content":
                 raise HTTPException(
                     status_code=409,
@@ -1517,7 +1553,7 @@ def register(app, ns: str = "a11oy"):
                 status_code=409,
                 detail="GDW object is outside its active lifecycle",
             ) from exc
-        except GDWConfigurationError as exc:
+        except (GDWConfigurationError, durable_storage.DurableStorageUnavailable) as exc:
             raise HTTPException(
                 status_code=503,
                 detail="GDW durable workspace is unavailable",

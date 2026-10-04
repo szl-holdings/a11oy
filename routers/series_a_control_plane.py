@@ -30,6 +30,7 @@ from typing import Any, AsyncIterator, Callable, Mapping
 from urllib.parse import urlsplit
 
 import httpx
+import gdw_durable_runtime as durable_storage
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
 
@@ -232,7 +233,7 @@ class Store:
     def __init__(self, requested_path: str | None = None) -> None:
         self.persistent_required = _enabled(
             "A11OY_REQUIRE_PERSISTENT_STORAGE"
-        )
+        ) or durable_storage.enabled()
         self.required_mount = (
             os.environ.get("A11OY_SERIES_A_REQUIRE_MOUNT") or ""
         ).strip()
@@ -247,6 +248,13 @@ class Store:
             or os.environ.get("A11OY_SERIES_A_DB")
             or "/data/series-a/control-plane.sqlite3"
         )
+        if durable_storage.enabled():
+            gate = durable_storage.require_gate()
+            if Path(primary).resolve() != gate.paths["series_a"]:
+                raise durable_storage.DurableStorageUnavailable("UNADMITTED_STORE_PATH")
+            if self.required_mount or self.journal_mode != "DELETE":
+                raise durable_storage.DurableStorageUnavailable("LOCAL_STORAGE_CONTRACT_REQUIRED")
+            return str(gate.paths["series_a"])
         if self.required_mount:
             mount = Path(self.required_mount).resolve()
             candidate = Path(primary).resolve()
@@ -280,6 +288,8 @@ class Store:
         raise RuntimeError("no writable SQLite location")
 
     def connect(self) -> sqlite3.Connection:
+        if durable_storage.enabled():
+            return durable_storage.connect("series_a", Path(self.path))
         connection = sqlite3.connect(self.path, timeout=30)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys=ON")
@@ -296,6 +306,11 @@ class Store:
         return connection
 
     def _init(self) -> None:
+        if durable_storage.enabled():
+            status = self.storage_status()
+            if status["instance_id"] != durable_storage.require_gate().writer.head.value["snapshots"]["series_a"]["generation"]:
+                raise durable_storage.DurableStorageUnavailable("RESTORED_STORE_IDENTITY_MISMATCH")
+            return
         with self.lock, self.connect() as db:
             db.executescript(
                 """
@@ -369,7 +384,11 @@ class Store:
             head = db.execute(
                 "SELECT receipt_hash FROM receipts ORDER BY sequence DESC LIMIT 1"
             ).fetchone()
+            managed = durable_storage.require_gate().managed_status() if durable_storage.enabled() else None
         return {
+            **({"durable_storage": durable_storage.MODE,
+                "durability_authority": "verified-private-dataset-head", "managed_admission": managed}
+               if durable_storage.enabled() else {}),
             "persistence_required": self.persistent_required,
             "required_mount": self.required_mount or None,
             "mount_verified": bool(
@@ -490,7 +509,8 @@ class Store:
         # Keep status and exact-hash lookup in one SQLite read transaction so a
         # restart proof cannot combine evidence from different storage views.
         with self.lock, self.connect() as db:
-            db.execute("BEGIN")
+            if not db.in_transaction:
+                db.execute("BEGIN")
             metadata = {
                 row["key"]: row["value"]
                 for row in db.execute(
@@ -511,7 +531,11 @@ class Store:
                    WHERE receipt_hash=?""",
                 (receipt_hash,),
             ).fetchone()
+            managed = durable_storage.require_gate().managed_status() if durable_storage.enabled() else None
         storage = {
+            **({"durable_storage": durable_storage.MODE,
+                "durability_authority": "verified-private-dataset-head", "managed_admission": managed}
+               if durable_storage.enabled() else {}),
             "persistence_required": self.persistent_required,
             "required_mount": self.required_mount or None,
             "mount_verified": bool(
@@ -1606,6 +1630,8 @@ class Service:
                     {"passport_digest": digest, "reason_codes": reasons},
                     self.signer,
                 )
+            except durable_storage.DurableStorageUnavailable:
+                raise
             except RuntimeError as exc:
                 raise HTTPException(
                     status_code=409,
@@ -1633,6 +1659,8 @@ class Service:
                     {"passport_digest": digest, "reason_codes": reasons},
                     self.signer,
                 )
+            except durable_storage.DurableStorageUnavailable:
+                raise
             except RuntimeError as exc:
                 raise HTTPException(
                     status_code=409,
@@ -1654,6 +1682,8 @@ class Service:
                 self.runtime_boot_id,
                 started,
             )
+        except durable_storage.DurableStorageUnavailable:
+            raise
         except RuntimeError as exc:
             raise HTTPException(
                 status_code=409,
@@ -1861,6 +1891,10 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
 
     service = Service(db_path)
     prefix = f"/api/{ns}/v1/series-a"
+
+    @app.exception_handler(durable_storage.DurableStorageUnavailable)
+    async def durable_storage_unavailable(_request, _error):
+        return JSONResponse(status_code=503, content={"detail": "Durable storage is unavailable"})
 
     async def page(request: Request) -> Response:
         if request.method == "HEAD":

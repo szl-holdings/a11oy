@@ -154,8 +154,18 @@ jobs:
     name: GDW authenticated durability and promotion contract
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      GDW_COPY_PUBLISHER_SCRIPT: ${{ github.workspace }}/.gdw-source-publisher/.github/scripts/hf_deploy_from_dockerfile.py
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Read the exact canonical COPY parser
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: szl-holdings/.github
+          ref: e3ec47ad2e99a535839afe0f30fefbd8973d52da
+          path: .gdw-source-publisher
+          persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
@@ -168,6 +178,18 @@ jobs:
           tests/test_gdw_auth.py
           tests/test_gdw_auth_compat.py
           tests/test_gdw_runtime.py
+          tests/test_gdw_durable_runtime.py
+          tests/test_gdw_durable_artifacts.py
+          tests/test_gdw_durable_storage.py
+          tests/test_gdw_durable_startup.py
+          tests/test_gdw_durable_guard.py
+          tests/test_gdw_runtime_base_probe.py
+          tests/test_gdw_legacy_startup_probe.py
+          tests/test_gdw_durable_acquisition.py
+          tests/test_gdw_acquisition_evidence.py
+          tests/test_gdw_durable_source.py
+          tests/test_gdw_managed_imports.py
+          tests/test_gdw_installed_source_builder.py
           tests/test_hf_gdw_preservation.py
           tests/test_gdw_store_recovery.py
           tests/test_gdw_orphan_forensics.py

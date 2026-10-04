@@ -14,11 +14,18 @@ reports (Series-A restart persistence, GDW write/drain/pinned receipt) and
 exits 0 only when both are exact PASS reports with the reviewed bounds. The
 retained ``--blocked-proof`` mode is still used by the standalone
 ``series-a-restart-proof.yml`` workflow and always exits 1.
+
+Explicit ``--managed-acquisition`` additionally re-reads the immutable private
+admission and each native dataset witness through the fixed reviewed helper.
+Both proofs must bind the same source, qualification and database generations.
+A managed configuration report cannot substitute for either live proof.
 """
 
 import argparse
+import importlib.util
 import json
 import re
+import time
 from pathlib import Path
 
 MAX_REPORT_BYTES = 16 * 1024
@@ -198,7 +205,52 @@ def _gdw_passed(report):
     )
 
 
-def inspect_live_proof(path, kind, exit_code, source_sha):
+def load_managed_proof_context(receipt_path, *, source_revision, deadline):
+    """Fixed sibling performs actual immutable dataset/admission readback."""
+    path = Path(__file__).resolve().with_name("configure_hf_gdw_runtime.py")
+    spec = importlib.util.spec_from_file_location("_hf_aggregate_managed_context", path)
+    if spec is None or spec.loader is None:
+        raise ValueError("managed admission is unavailable")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.load_managed_proof_context(receipt_path, source_revision=source_revision,
+                                            deadline=deadline)
+
+
+def _managed_proof_binding(report, kind, context):
+    payload = report if kind == "series_a" else report.get("evidence")
+    present = (type(payload) is dict and any(key in payload for key in
+               ("managed_identity", "managed_admission")))
+    if context is None:
+        return not present
+    try:
+        identity = context.identity
+        if (not present or type(payload.get("managed_identity")) is not dict
+                or payload["managed_identity"] != identity
+                or report.get("source_revision") != identity["source_revision"]):
+            return False
+        generation = identity["generations"][kind]
+        witness = context.validate(payload.get("managed_admission"), label=kind, generation=generation)
+        if kind == "gdw":
+            return (payload.get("database_generation_id") == generation
+                    and payload.get("runtime_source_revision") == identity["source_revision"])
+        # The top-level witness must be the exact final observation, and both
+        # sides of the restart retain the admitted generation and native HEAD.
+        for name in ("before", "after"):
+            captured = report.get(name)
+            storage = captured.get("storage") if type(captured) is dict else None
+            if (type(storage) is not dict or storage.get("instance_id") != generation
+                    or captured.get("source_revision") != identity["source_revision"]):
+                return False
+            observed = context.validate(storage.get("managed_admission"), label=kind, generation=generation)
+            if name == "after" and observed != witness:
+                return False
+        return True
+    except Exception:
+        return False
+
+
+def inspect_live_proof(path, kind, exit_code, source_sha, *, managed_context=None):
     """Admit one live-proof report only when it is a bounded, exact PASS."""
     passed = False
     valid = False
@@ -228,16 +280,19 @@ def inspect_live_proof(path, kind, exit_code, source_sha):
             and report.get("credential_authority_state") == "VERIFIED"
             and _bounds_ok(report.get("bounds"))
             and (_series_a_passed(report) if kind == "series_a" else _gdw_passed(report))
+            and _managed_proof_binding(report, kind, managed_context)
         )
-    except (OSError, ValueError, UnicodeError, RecursionError, KeyError):
+    except (OSError, ValueError, UnicodeError, RecursionError, KeyError, TypeError):
         valid = passed = False
     return {"report_valid": bool(valid), "state": "PROVEN" if passed else "UNPROVEN"}
 
 
-def live_proof_admission(series_a, gdw, source_sha, series_exit, gdw_exit):
-    source_valid = type(source_sha) is str and re.fullmatch(r"[0-9a-f]{40}", source_sha) is not None
-    series_result = inspect_live_proof(series_a, "series_a", series_exit, source_sha)
-    gdw_result = inspect_live_proof(gdw, "gdw", gdw_exit, source_sha)
+def live_proof_admission(series_a, gdw, source_sha, series_exit, gdw_exit, *, managed_context=None):
+    source_valid = (type(source_sha) is str and re.fullmatch(r"[0-9a-f]{40}", source_sha) is not None
+                    and source_sha != "0" * 40)
+    series_result = inspect_live_proof(series_a, "series_a", series_exit, source_sha,
+                                       managed_context=managed_context)
+    gdw_result = inspect_live_proof(gdw, "gdw", gdw_exit, source_sha, managed_context=managed_context)
     admitted = (source_valid and series_result["state"] == "PROVEN"
                 and gdw_result["state"] == "PROVEN")
     return {
@@ -252,6 +307,7 @@ def live_proof_admission(series_a, gdw, source_sha, series_exit, gdw_exit):
         "secret_values_read": False,
         "secret_values_written": False,
         "diagnostic_code": "LIVE_PROOFS_ADMITTED" if admitted else "LIVE_PROOFS_UNPROVEN",
+        **({"managed_identity": managed_context.identity} if admitted and managed_context is not None else {}),
     }
 
 
@@ -281,12 +337,36 @@ def main(argv=None):
     parser.add_argument("--gdw-proof")
     parser.add_argument("--series-a-proof-exit", type=int)
     parser.add_argument("--gdw-proof-exit", type=int)
+    parser.add_argument("--managed-acquisition", type=Path)
+    parser.add_argument("--managed-deadline-seconds", type=float, default=120)
     args = parser.parse_args(argv)
+    if args.managed_acquisition is not None and not args.admit_live_proofs:
+        parser.error("managed acquisition is valid only with actual live proof admission")
     if args.admit_live_proofs:
         if args.blocked_proof or args.series_a_proof is None or args.gdw_proof is None:
             parser.error("live proof admission requires both proof report paths")
-        report = live_proof_admission(args.series_a_proof, args.gdw_proof, args.source_sha,
-                                      args.series_a_proof_exit, args.gdw_proof_exit)
+        context = None
+        try:
+            if args.managed_acquisition is not None:
+                if not 0 < args.managed_deadline_seconds <= 120:
+                    raise ValueError("managed deadline is invalid")
+                deadline = time.monotonic() + args.managed_deadline_seconds
+                context = load_managed_proof_context(args.managed_acquisition,
+                    source_revision=args.source_sha, deadline=deadline)
+            report = live_proof_admission(args.series_a_proof, args.gdw_proof, args.source_sha,
+                args.series_a_proof_exit, args.gdw_proof_exit, managed_context=context)
+            if context is not None and time.monotonic() >= deadline:
+                raise ValueError("managed deadline expired")
+        except Exception:
+            # Never fall back to legacy admission after an explicit managed
+            # provider/record failure, or persist provider exception details.
+            report = live_proof_admission(None, None, args.source_sha, 1, 1)
+        finally:
+            if context is not None:
+                try:
+                    context.close()
+                except Exception:
+                    report = live_proof_admission(None, None, args.source_sha, 1, 1)
         output = Path(args.output)
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")

@@ -1338,6 +1338,197 @@ def test_main_pass_report_is_compact_and_admissible(monkeypatch, tmp_path):
     assert checker.inspect_live_proof(output, "gdw", 0, "c" * 40)["state"] == "UNPROVEN"
 
 
+def _managed_fixture():
+    spec = importlib.util.spec_from_file_location(
+        "gdw_managed_context_test", SCRIPT.with_name("configure_hf_gdw_runtime.py"))
+    config = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(config)
+    admission = {"source": {"revision": SOURCE_SHA},
+                 "qualification": {"report_sha256": "b" * 64},
+                 "snapshots": {"gdw": {"generation": GENERATION_ID},
+                               "series_a": {"generation": "store_" + "d" * 32}}}
+    value = {"operation_id": "e" * 32, "kind": "COMMIT", "epoch": 2,
+             "qualification_sha256": "f" * 64, "source_revision": SOURCE_SHA,
+             "snapshots": admission["snapshots"]}
+    head = SimpleNamespace(revision="1" * 40, body=b"immutable-head", value=value)
+    reads = []
+
+    def read_at(revision, operation, deadline):
+        reads.append((revision, operation, deadline))
+        return head, head.body
+
+    backend = SimpleNamespace(read_at=read_at)
+    context = config.ManagedProofContext(admission, "f" * 64, backend,
+                                        deadline=proof.time.monotonic() + 30)
+    witness = {"schema": "szl.gdw-managed-runtime/v1", "mode": "private-dataset-v1",
+               **context.identity, "dataset_revision": head.revision,
+               "operation_id": value["operation_id"], "writer_epoch": 2,
+               "actual_host_full_state_ack_ms": 500,
+               "startup_state": "RESTORED_AND_ACKNOWLEDGED", "throughput_claim": "NOT_CLAIMED"}
+    return context, witness, backend, reads
+
+
+def _managed_transport(monkeypatch, witness, *, events=None, mutate_health=None):
+    events = [] if events is None else events
+
+    def request(method, url, **_kwargs):
+        events.append((method, url))
+        value = _live_response(method, url)
+        if url.endswith("/gdw/healthz"):
+            value["persistence"]["storage"].update({
+                "durable_storage": "private-dataset-v1",
+                "durability_authority": "verified-private-dataset-head",
+                "required_mount": None, "mount_verified": False,
+                "persistence_required": True, "managed_admission": witness})
+            if mutate_health:
+                mutate_health(value)
+        return 200, value
+
+    monkeypatch.setattr(proof, "_TRANSPORT", SimpleNamespace(request=request, sleep=lambda _s: None))
+    return events
+
+
+def test_managed_gdw_native_requests_validate_before_each_write_and_report(monkeypatch):
+    context, witness, _backend, reads = _managed_fixture()
+    events = _managed_transport(monkeypatch, witness)
+    report = proof.prove(origin=proof.bounds.CANONICAL_ORIGIN, source_sha=SOURCE_SHA,
+                         operator_token="x" * 48, require_signed_receipt=False,
+                         managed_context=context)
+    assert report["managed_identity"] == context.identity
+    assert report["managed_admission"] == witness
+    assert proof._summary(report)["managed_admission"] == witness
+    writes = [i for i, event in enumerate(events) if event[0] == "POST"]
+    assert writes
+    for i in writes:
+        assert events[i - 1] == ("GET", proof.bounds.CANONICAL_ORIGIN + proof.GDW_PREFIX + "healthz")
+    assert len(reads) >= len(writes) + 2
+    assert all(read[:2] == (witness["dataset_revision"], witness["operation_id"]) for read in reads)
+    assert proof._MANAGED_CONTEXT is None and proof._MANAGED_LATEST is None
+
+
+@pytest.mark.parametrize("fault", ["no_context", "missing_witness", "admission", "qualification",
+                                  "source", "epoch", "generation", "history", "ack_bool",
+                                  "unacknowledged", "closed_context", "malformed_storage"])
+def test_managed_gdw_refuses_unverified_authority_before_writes(fault, monkeypatch):
+    context, witness, backend, reads = _managed_fixture()
+    if fault == "admission":
+        witness["admission_sha256"] = "9" * 64
+    elif fault == "qualification":
+        witness["qualification_sha256"] = witness["admission_sha256"]
+    elif fault == "source":
+        witness["source_revision"] = "9" * 40
+    elif fault == "epoch":
+        witness["writer_epoch"] = 3
+    elif fault == "generation":
+        witness["generations"]["gdw"] = "9" * 32
+    elif fault == "history":
+        original = backend.read_at
+        backend.read_at = lambda *args: (original(*args)[0], b"different-history")
+    elif fault == "ack_bool":
+        witness["actual_host_full_state_ack_ms"] = True
+    elif fault == "unacknowledged":
+        witness["startup_state"] = "PLANNED"
+    elif fault == "closed_context":
+        context.close()
+    elif fault == "missing_witness":
+        witness = None
+
+    def mutate(value):
+        if fault == "malformed_storage":
+            value["persistence"] = ["not-a-storage-record"]
+
+    events = _managed_transport(monkeypatch, witness, mutate_health=mutate)
+    with pytest.raises(proof.ProofBoundaryError) as caught:
+        proof.prove(origin=proof.bounds.CANONICAL_ORIGIN, source_sha=SOURCE_SHA,
+                    operator_token="x" * 48, require_signed_receipt=False,
+                    managed_context=None if fault == "no_context" else context)
+    assert caught.value.code == "EFFECT_SCOPE_REJECTED"
+    assert all(event[0] == "GET" for event in events)
+    assert proof._MANAGED_CONTEXT is None and proof._MANAGED_LATEST is None
+    if fault == "no_context":
+        assert reads == []
+
+
+def test_managed_gdw_rechecks_native_history_after_initial_health(monkeypatch):
+    context, witness, backend, reads = _managed_fixture()
+    events = []
+    original = backend.read_at
+
+    def read_at(*args):
+        head, history = original(*args)
+        if len(reads) > 2:
+            return head, b"lost-authority"
+        return head, history
+
+    backend.read_at = read_at
+    _managed_transport(monkeypatch, witness, events=events)
+    with pytest.raises(proof.ProofBoundaryError) as caught:
+        proof.prove(origin=proof.bounds.CANONICAL_ORIGIN, source_sha=SOURCE_SHA,
+                    operator_token="x" * 48, require_signed_receipt=False, managed_context=context)
+    assert caught.value.code == "EFFECT_SCOPE_REJECTED"
+    assert len(reads) == 3
+    assert all(method == "GET" for method, _url in events)
+
+
+def test_managed_cli_loader_failure_precedes_transport_and_is_sanitized(monkeypatch, tmp_path):
+    monkeypatch.setenv("GDW_OPERATOR_TOKEN", "synthetic-gdw-token-with-more-than-32-bytes")
+    calls = []
+
+    def reject(path, *, source_revision, deadline):
+        calls.append((path, source_revision, deadline))
+        raise RuntimeError("sensitive provider response")
+
+    monkeypatch.setattr(proof, "load_managed_proof_context", reject)
+    output, locator = tmp_path / "proof.json", tmp_path / "locator.json"
+    assert proof.main(["--source-sha", SOURCE_SHA, "--output", str(output),
+                       "--managed-acquisition", str(locator)],
+                      transport_factory=lambda **_k: pytest.fail("transport before admission")) == 1
+    assert len(calls) == 1 and calls[0][:2] == (locator, SOURCE_SHA)
+    assert "sensitive" not in output.read_text()
+    assert json.loads(output.read_text())["status"] == "FAIL"
+    assert proof._TRANSPORT is None
+
+
+def test_managed_cli_keeps_loader_time_in_deadline_and_closes_context(monkeypatch, tmp_path):
+    monkeypatch.setenv("GDW_OPERATOR_TOKEN", "synthetic-gdw-token-with-more-than-32-bytes")
+    now = [10.0]
+    monkeypatch.setattr(proof.time, "monotonic", lambda: now[0])
+    closed = []
+    context = SimpleNamespace(close=lambda: closed.append(True))
+
+    def load(_path, *, source_revision, deadline):
+        assert source_revision == SOURCE_SHA and deadline == 70.0
+        now[0] += 20
+        return context
+
+    def factory(*, deadline_seconds):
+        assert deadline_seconds == 40
+        return SimpleNamespace()
+
+    def run(**kwargs):
+        assert kwargs["managed_context"] is context
+        raise proof.ProofBoundaryError("DEADLINE_EXHAUSTED")
+
+    monkeypatch.setattr(proof, "load_managed_proof_context", load)
+    monkeypatch.setattr(proof, "prove", run)
+    output = tmp_path / "proof.json"
+    assert proof.main(["--source-sha", SOURCE_SHA, "--output", str(output),
+                       "--managed-acquisition", str(tmp_path / "locator.json"),
+                       "--deadline-seconds", "60"], transport_factory=factory) == 1
+    assert closed == [True]
+    assert json.loads(output.read_text())["diagnostic_code"] == "DEADLINE_EXHAUSTED"
+    assert proof._TRANSPORT is None
+
+
+def test_managed_cli_native_loader_refuses_invalid_locator_before_effects(monkeypatch, tmp_path):
+    monkeypatch.setenv("GDW_OPERATOR_TOKEN", "synthetic-gdw-token-with-more-than-32-bytes")
+    locator, output = tmp_path / "locator.json", tmp_path / "proof.json"
+    locator.write_text("{}\n")
+    assert proof.main(["--source-sha", SOURCE_SHA, "--output", str(output),
+                       "--managed-acquisition", str(locator)],
+                      transport_factory=lambda **_k: pytest.fail("invalid locator admitted")) == 1
+    assert json.loads(output.read_text())["status"] == "FAIL"
+    assert proof._TRANSPORT is None
 RUN_CONTEXT = "123456789:2"
 
 

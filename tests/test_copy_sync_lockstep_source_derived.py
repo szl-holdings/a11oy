@@ -47,9 +47,33 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             "docs/operations/evidence/gdw-capture-37223162231.json",
             "docs/operations/evidence/gdw-recovery-historical-anchors.json",
             "ayllu/keys/council-runtime-2026-07-21.pub",
+            "scripts/acquire_gdw_durable_storage.py",
+            "scripts/gdw_acquisition_evidence.py",
+            "scripts/build_gdw_installed_source_manifest.py",
+            "scripts/probe_gdw_runtime_base.py",
+            "scripts/probe_gdw_legacy_startup.py",
+            "scripts/prove_hf_series_a_restart.py",
+            "scripts/prove_hf_gdw_runtime.py",
+            "scripts/hf_live_proof_bounds.py",
+            "gdw_durable_storage.py",
+            "gdw_durable_startup.py",
+            "gdw_durable_runtime.py",
+            "gdw_durable_source.py",
+            "gdw_durable_guard.py",
+            "gdw_durable_image.py",
+            "gdw_durable_artifacts.py",
+            "gdw_auth.py",
+            "gdw_workspace.py",
+            "gdw_proofs.py",
+            "szl_dsse.py",
+            "a11oy_signing_key.py",
+            "szl_content_address.py",
+            "szl_corpus_publish.py",
+            "szl_formulas.py",
+            "szl_hf_bucket.py",
         )}
-        cls.deploy_needs = "[source-admission, manual-prerequisites, resume-paused-space]"
-        cls.deploy_if = "${{ needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && needs.resume-paused-space.result == 'success' }}"
+        cls.deploy_needs = "[source-admission, manual-prerequisites, durable-acquisition, resume-paused-space]"
+        cls.deploy_if = "${{ always() && needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && ((needs.manual-prerequisites.outputs.mode == 'managed-recovery' && needs.durable-acquisition.result == 'success') || (needs.manual-prerequisites.outputs.mode != 'managed-recovery' && needs.resume-paused-space.result == 'success')) }}"
 
     @classmethod
     def fixture_job(cls, name: str) -> str:
@@ -73,7 +97,8 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
         # Actual workflow and bypass mutations use strict_contract unchanged.
         if "\n  source-admission:\n" not in workflow:
             jobs = "".join(self.fixture_job(name) + "\n" for name in (
-                "source-admission", "manual-prerequisites", "resume-paused-space"))
+                "source-admission", "manual-prerequisites", "durable-acquisition",
+                "resume-paused-space", "runtime-config"))
             workflow = workflow.replace("\njobs:\n", "\njobs:\n" + jobs, 1)
             workflow = workflow.replace("\n  deploy:\n", "\n  deploy:\n"
                 + "    needs: " + self.deploy_needs + "\n"
@@ -99,6 +124,8 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
     def test_missing_extra_duplicate_or_reordered_deploy_dependencies_fail(self) -> None:
         for value in ("[source-admission, resume-paused-space]", "[manual-prerequisites, resume-paused-space]",
                       "[source-admission, manual-prerequisites]", "[]",
+                      "[source-admission, manual-prerequisites, resume-paused-space]",
+                      "[source-admission, manual-prerequisites, durable-acquisition]",
                       "[source-admission, manual-prerequisites, resume-paused-space, arbitrary]",
                       "[source-admission, manual-prerequisites, resume-paused-space, source-admission]",
                       "[manual-prerequisites, source-admission, resume-paused-space]"):
@@ -223,7 +250,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
         mutations = (
             ("needs: [source-admission, manual-prerequisites]", "needs: source-admission"),
             ("needs: [source-admission, manual-prerequisites]", "needs: [manual-prerequisites]"),
-            ("if: ${{ needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' }}", "if: true"),
+            ("if: ${{ needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && needs.manual-prerequisites.outputs.mode != 'managed-recovery' }}", "if: true"),
             ("    runs-on:", "    continue-on-error: true\n    runs-on:"),
         )
         for before, after in mutations:
@@ -231,8 +258,81 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                 self.assertIn(before, resume)
                 self.assertFalse(self.strict_contract(self.reviewed_workflow.replace(resume, resume.replace(before, after), 1)))
 
+    def test_acquisition_and_managed_runtime_job_effects_are_exactly_bound(self) -> None:
+        cases = {
+            "durable-acquisition": (
+                ("needs: [source-admission, manual-prerequisites]", "needs: source-admission"),
+                ("needs.manual-prerequisites.outputs.mode == 'managed-recovery'", "true"),
+                ("    timeout-minutes: 20", "    continue-on-error: true\n    timeout-minutes: 20"),
+                ("      actions: read", "      actions: write"),
+                ("ref: e3ec47ad2e99a535839afe0f30fefbd8973d52da", "ref: main"),
+                ('"huggingface_hub==1.31.0"', '"huggingface_hub==1.23.0"'),
+                ("scripts/acquire_gdw_durable_storage.py --acquire", "scripts/unknown.py --acquire"),
+                ('--source-artifact-id "${{ needs.source-admission.outputs.artifact_id }}"', '--source-artifact-id "1"'),
+                ('--qualification-artifact-sha256 "${{ needs.manual-prerequisites.outputs.artifact_sha256 }}"', '--qualification-artifact-sha256 "unreviewed"'),
+                ("scripts/configure_hf_gdw_runtime.py", "scripts/configure_hf_series_a_runtime.py"),
+                ("--managed-deadline-seconds 120", "--managed-deadline-seconds 120 --force"),
+                ("${{ runner.temp }}/gdw-managed-configuration.json", "${{ runner.temp }}/**"),
+                ("--output \"$RUNNER_TEMP/gdw-managed-configuration.json\"", "--output \"$RUNNER_TEMP/gdw-managed-configuration.json\" || true"),
+            ),
+            "runtime-config": (
+                ("needs: [manual-prerequisites, durable-acquisition, deploy]", "needs: [manual-prerequisites, deploy]"),
+                ("needs.durable-acquisition.result == 'success'", "true"),
+                ("--fetch-locator", "--acquire"),
+                ('--acquisition-artifact-id "${{ needs.durable-acquisition.outputs.artifact_id }}"', '--acquisition-artifact-id "1"'),
+                ('--managed-acquisition "$RUNNER_TEMP/gdw-durable-acquisition.json"', ""),
+                ("needs.manual-prerequisites.outputs.mode != 'managed-recovery'", "true"),
+                ("${{ env.LIVE_PROOF_ADMISSION_REPORT }}", "${{ runner.temp }}/**"),
+            ),
+        }
+        for name, mutations in cases.items():
+            job = self.fixture_job(name)
+            for before, after in mutations:
+                with self.subTest(job=name, before=before):
+                    self.assertIn(before, job)
+                    changed = self.reviewed_workflow.replace(job, job.replace(before, after, 1), 1)
+                    self.assertFalse(self.strict_contract(changed))
+
+    def test_native_authority_and_private_storage_boundaries_require_reviewed_source(self) -> None:
+        cases = (
+            ("scripts/acquire_gdw_durable_storage.py", b"evidence.require_active_acquisition()", b"pass"),
+            ("scripts/acquire_gdw_durable_storage.py", b"reproduced == selected", b"True"),
+            ("scripts/acquire_gdw_durable_storage.py", b"backend.empty_parent(deadline)", b"pass"),
+            ("scripts/acquire_gdw_durable_storage.py", b"import gdw_durable_storage as storage", b"import unknown_storage as storage"),
+            ("scripts/gdw_acquisition_evidence.py", b'self.run.get("status") == "in_progress"', b"True"),
+            ("scripts/gdw_acquisition_evidence.py", b'branch.get("protected") is True', b"True"),
+            ("scripts/gdw_acquisition_evidence.py", b'"ARTIFACT_MEMBER_MISMATCH"', b'"UNREVIEWED_DECODER"'),
+            ("gdw_durable_storage.py", b"parent_commit=parent", b"parent_commit=None"),
+            ("gdw_durable_storage.py", b"if not 200 <= response.status_code < 300:", b"if False:"),
+        )
+        for path, before, after in cases:
+            with self.subTest(path=path, before=before):
+                self.assertIn(before, self.manual_helpers[path])
+                changed = dict(self.manual_helpers)
+                changed[path] = changed[path].replace(before, after, 1)
+                self.assertFalse(self.strict_contract(self.reviewed_workflow, manual_helpers=changed))
+        for path in ("scripts/gdw_acquisition_evidence.py", "scripts/build_gdw_installed_source_manifest.py"):
+            changed = dict(self.manual_helpers)
+            changed[path] = b"\xff\xfeunreviewed source"
+            self.assertFalse(self.strict_contract(self.reviewed_workflow, manual_helpers=changed))
+
+    def test_prerequisite_classifier_cannot_become_a_generic_authority_or_sdk_upgrade(self) -> None:
+        job = self.fixture_job("manual-prerequisites")
+        for before, after in (
+            ("--classify-prerequisites", "--acquire"),
+            ("scripts/acquire_gdw_durable_storage.py", "scripts/unreviewed_classifier.py"),
+            ('"huggingface_hub==1.23.0"', '"huggingface_hub==1.31.0"'),
+            ("mode: ${{ steps.recovery_mode.outputs.mode }}", "mode: managed-recovery"),
+            ("steps.recovery_mode.outcome == 'success'", "true"),
+            ("        id: recovery_mode\n", "        id: recovery_mode\n        continue-on-error: true\n"),
+        ):
+            with self.subTest(before=before):
+                self.assertIn(before, job)
+                self.assertFalse(self.strict_contract(self.reviewed_workflow.replace(job, job.replace(before, after, 1), 1)))
+
     def test_missing_duplicate_jobs_and_duplicate_controller_fields_fail(self) -> None:
-        for name in ("source-admission", "manual-prerequisites", "resume-paused-space", "deploy"):
+        for name in ("source-admission", "manual-prerequisites", "durable-acquisition",
+                     "resume-paused-space", "runtime-config", "deploy"):
             job = self.fixture_job(name)
             self.assertFalse(self.strict_contract(self.reviewed_workflow.replace(job, "", 1)))
             self.assertFalse(self.strict_contract(self.reviewed_workflow + "\n" + job))

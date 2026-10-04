@@ -444,15 +444,36 @@ def assert_preflight_order(source: str) -> None:
     from tests.test_hf_sync_supersession_contract import assert_manual_dependency_graph
     jobs = assert_manual_dependency_graph(source)
     job = jobs["manual-prerequisites"]
-    assert job["env"]["HF_TOKEN"] == "${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}"
+    assert job["env"] == {"HF_TOKEN": "${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}"}
     steps = job["steps"]
     capture = [index for index, step in enumerate(steps) if "scripts/preserve_hf_gdw_store.py" in step.get("run", "")]
+    qualify = [index for index, step in enumerate(steps) if "scripts/qualify_gdw_store_recovery.py" in step.get("run", "")]
+    classify = [index for index, step in enumerate(steps) if "scripts/acquire_gdw_durable_storage.py" in step.get("run", "")]
     manual = [index for index, step in enumerate(steps) if "scripts/configure_hf_series_a_runtime.py" in step.get("run", "")]
-    assert len(capture) == len(manual) == 1 and capture[0] < manual[0]
-    assert "if" not in steps[capture[0]] and "continue-on-error" not in steps[capture[0]]
+    assert len(capture) == len(qualify) == len(classify) == len(manual) == 1
+    assert capture[0] < qualify[0] < classify[0] < manual[0]
+    preservation, qualification = steps[capture[0]], steps[qualify[0]]
+    classifier, metadata = steps[classify[0]], steps[manual[0]]
+    assert "if" not in preservation and preservation.get("continue-on-error") is True
+    assert preservation["id"] == "preserve_stores"
+    assert qualification["id"] == "qualify_stores" and qualification.get("continue-on-error") is True
+    assert qualification["if"] == "${{ always() && steps.preserve_stores.outcome == 'failure' }}"
+    assert set(classifier) == {"name", "id", "if", "run"}
+    assert classifier["id"] == "recovery_mode" and classifier["if"] == "${{ always() }}"
+    assert " ".join(classifier["run"].split()) == (
+        "python -B scripts/acquire_gdw_durable_storage.py --classify-prerequisites "
+        '--preservation "${{ runner.temp }}/gdw-store-preservation.json" '
+        '--qualification "${{ runner.temp }}/gdw-store-recovery-qualification.json" '
+        '--github-output "$GITHUB_OUTPUT" '
+        '--output "${{ runner.temp }}/manual-prerequisites.json"'
+    )
+    assert set(metadata) == {"name", "if", "shell", "run"}
+    assert metadata["shell"] == "bash" and metadata["run"].count("--check-only") == 2
+    assert metadata["if"] == "${{ steps.recovery_mode.outputs.mode != 'managed-recovery' && steps.recovery_mode.outcome == 'success' }}"
     uploads = [step for step in steps if "actions/upload-artifact@" in step.get("uses", "")]
     assert len(uploads) == 1 and uploads[0]["if"] == "always()"
-    assert tuple(line.strip() for line in uploads[0]["with"]["path"].splitlines() if line.strip()) == (
+    assert uploads[0]["with"]["if-no-files-found"] == "error"
+    assert tuple(uploads[0]["with"]["path"].splitlines()) == (
         "${{ runner.temp }}/manual-prerequisites.json",
         "${{ runner.temp }}/gdw-store-preservation.json",
         "${{ runner.temp }}/gdw-store-recovery-qualification.json",
@@ -473,6 +494,74 @@ def test_workflow_rejects_preflight_after_live_runtime_qualification():
     source = source[:start] + source[end:]
     position = source.index("      - name: Retain bounded prerequisite decision")
     changed = source[:position] + capture + source[position:]
+    with pytest.raises(AssertionError):
+        assert_preflight_order(changed)
+
+
+@pytest.mark.parametrize(("moving", "before"), [
+    ("Qualify the pinned private capture without admitting restore",
+     "Preserve stopped private stores before any runtime mutation"),
+    ("Classify the exact native candidate without admitting deployment",
+     "Qualify the pinned private capture without admitting restore"),
+    ("Retain metadata checks and fail closed on UNKNOWN authority",
+     "Classify the exact native candidate without admitting deployment"),
+])
+def test_workflow_rejects_each_reversed_prerequisite_boundary(moving, before):
+    from tests.test_hf_sync_supersession_contract import job_block, step_block
+    source = (ROOT / ".github/workflows/hf-sync.yml").read_text()
+    job = job_block(source, "Check manual authority prerequisites before provider writes")
+    moved, target = step_block(job, moving), step_block(job, before)
+    changed = job.replace(moved, "", 1).replace(target, moved + "\n" + target, 1)
+    assert changed != job
+    with pytest.raises(AssertionError):
+        assert_preflight_order(source.replace(job, changed, 1))
+
+
+@pytest.mark.parametrize(("original", "replacement"), [
+    ("--classify-prerequisites", "--acquire"),
+    ('--preservation "${{ runner.temp }}/gdw-store-preservation.json"',
+     '--preservation "${{ runner.temp }}/unreviewed-preservation.json"'),
+    ('--qualification "${{ runner.temp }}/gdw-store-recovery-qualification.json"',
+     '--qualification "${{ runner.temp }}/unreviewed-qualification.json"'),
+    ('--github-output "$GITHUB_OUTPUT"', '--github-output "$GITHUB_OUTPUT" || true'),
+    ("        if: ${{ always() }}\n", "        if: success()\n"),
+])
+def test_workflow_rejects_classifier_effects_substitution_and_skip(original, replacement):
+    from tests.test_hf_sync_supersession_contract import job_block, step_block
+    source = (ROOT / ".github/workflows/hf-sync.yml").read_text()
+    job = job_block(source, "Check manual authority prerequisites before provider writes")
+    classifier = step_block(job, "Classify the exact native candidate without admitting deployment")
+    assert original in classifier
+    changed = source.replace(classifier, classifier.replace(original, replacement, 1), 1)
+    with pytest.raises(AssertionError):
+        assert_preflight_order(changed)
+
+
+@pytest.mark.parametrize("replacement", [
+    "",
+    "        if: ${{ steps.recovery_mode.outputs.mode != 'managed-recovery' }}\n",
+    "        if: ${{ steps.recovery_mode.outputs.mode == 'managed-recovery' && steps.recovery_mode.outcome == 'success' }}\n",
+    "        if: ${{ always() }}\n",
+])
+def test_workflow_requires_successful_nonmanaged_classification_before_metadata_checks(replacement):
+    source = (ROOT / ".github/workflows/hf-sync.yml").read_text()
+    original = "        if: ${{ steps.recovery_mode.outputs.mode != 'managed-recovery' && steps.recovery_mode.outcome == 'success' }}\n"
+    assert original in source
+    with pytest.raises(AssertionError):
+        assert_preflight_order(source.replace(original, replacement, 1))
+
+
+@pytest.mark.parametrize("step_name", [
+    "Preserve stopped private stores before any runtime mutation",
+    "Qualify the pinned private capture without admitting restore",
+])
+def test_workflow_requires_both_reviewed_blocked_steps_to_reach_the_classifier(step_name):
+    from tests.test_hf_sync_supersession_contract import job_block, step_block
+    source = (ROOT / ".github/workflows/hf-sync.yml").read_text()
+    job = job_block(source, "Check manual authority prerequisites before provider writes")
+    step = step_block(job, step_name)
+    assert "        continue-on-error: true\n" in step
+    changed = source.replace(step, step.replace("        continue-on-error: true\n", "", 1), 1)
     with pytest.raises(AssertionError):
         assert_preflight_order(changed)
 

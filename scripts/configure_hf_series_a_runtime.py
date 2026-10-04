@@ -12,6 +12,11 @@ The script is intentionally narrow:
   key against the pinned runtime key (``scripts/verify_installed_authority.py``);
 * its report contains names, public fingerprints and topology, never secret
   material.
+
+The explicit managed entrypoint delegates one first-cutover attempt for both
+stores to the GDW coordinator. It is an alternative to that CLI, never a second
+sequential application. Managed predeploy reports leave signing authority
+unproven until startup and native live proof.
 """
 
 from __future__ import annotations
@@ -46,8 +51,8 @@ SERIES_A_VARIABLES = {
     "A11OY_SERIES_A_REQUIRE_MOUNT": DATA_MOUNT,
     "A11OY_SERIES_A_STARTUP_REFRESH": "1",
     "A11OY_SERIES_A_REFRESH_INTERVAL_SECONDS": "240",
-    # SQLite WAL requires shared-memory semantics that are not portable across
-    # network filesystems. The rollback journal is the conservative NFS choice.
+    # Legacy mount contract only. A rollback journal does not establish
+    # bucket-mount fsync durability; qualified recovery owns the cutover.
     "A11OY_SERIES_A_SQLITE_JOURNAL": "DELETE",
     "SZL_ENERGY_LEDGER_PATH": "/data/a11oy/energy/ledger.jsonl",
     "SZL_LAKE_DIR": "/data/a11oy/khipu",
@@ -121,6 +126,7 @@ class RuntimeConfigError(RuntimeError):
             "LEGACY_PRINCIPAL_CONFLICT", "PERSISTENT_STORAGE_UNAVAILABLE",
             "SPACE_CLIENT_UNAVAILABLE", "INSTALLED_AUTHORITY_UNKNOWN",
             "HF_CONTROL_CREDENTIAL_MISSING", "CHECK_MODE_MALFORMED",
+            "MANAGED_STORAGE_UNAVAILABLE", "MANAGED_OUTCOME_UNCERTAIN",
             *INSTALLED_AUTHORITY_DIAGNOSTICS,
         }
         self.diagnostic_code = diagnostic_code if diagnostic_code in allowed else "PREREQUISITES_UNAVAILABLE"
@@ -319,6 +325,14 @@ def plan_variables(
 ) -> dict[str, str]:
     """Return only drifted variables after checking secret-name collisions."""
 
+    # The export-mode guard is installed before any other managed variable.
+    # A legacy invocation must not remove that first cutover barrier while the
+    # remaining managed configuration is deliberately incomplete.
+    export_mode = _value(current.get("GDW_PROOF_EXPORT_MODE"), "value", "")
+    if (_value(current.get("GDW_DURABLE_STORAGE"), "value", "")
+            or (export_mode and export_mode != "outbox")):
+        raise RuntimeConfigError("qualified durable storage cannot be replaced by the legacy mount contract")
+
     secrets = set(secret_names)
     collisions = sorted(set(desired) & secrets)
     if collisions:
@@ -501,16 +515,50 @@ def configure(
     }
 
 
+def configure_managed(receipt_path: Path, *, source_revision: str, deadline: float,
+                      check_only: bool, repo_id: str, bucket: str) -> dict[str, Any]:
+    """Alternative entrypoint for the single, shared first-cutover attempt."""
+    try:
+        if repo_id != CANONICAL_SPACE or bucket != CANONICAL_BUCKET:
+            raise RuntimeConfigError("canonical managed storage is required")
+        path = Path(__file__).resolve().with_name("configure_hf_gdw_runtime.py")
+        spec = importlib.util.spec_from_file_location("_series_a_managed_config", path)
+        if spec is None or spec.loader is None:
+            raise RuntimeConfigError("managed storage qualification is unavailable")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module.configure_managed(receipt_path, source_revision=source_revision,
+            deadline=deadline, check_only=check_only, repo_id=repo_id)
+    except RuntimeConfigError:
+        raise
+    except BaseException as error:
+        code = getattr(error, "diagnostic_code", "MANAGED_STORAGE_UNAVAILABLE")
+        raise RuntimeConfigError("managed storage qualification is unavailable",
+            diagnostic_code=code if code in {"MANAGED_STORAGE_UNAVAILABLE", "MANAGED_OUTCOME_UNCERTAIN"}
+            else "MANAGED_STORAGE_UNAVAILABLE") from None
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo-id", default=CANONICAL_SPACE)
     parser.add_argument("--bucket", default=CANONICAL_BUCKET)
     parser.add_argument("--output")
     parser.add_argument("--check-only", action="store_true")
+    parser.add_argument("--managed-acquisition", type=Path)
+    parser.add_argument("--source-sha")
+    parser.add_argument("--managed-deadline-seconds", type=float, default=120)
     args = parser.parse_args(argv)
     try:
-        report = configure(repo_id=args.repo_id, bucket=args.bucket,
-                           token=os.environ.get("HF_TOKEN", ""), check_only=args.check_only)
+        if args.managed_acquisition is not None or args.source_sha is not None:
+            if args.managed_acquisition is None or args.source_sha is None:
+                raise RuntimeConfigError("managed storage qualification is unavailable",
+                                         diagnostic_code="MANAGED_STORAGE_UNAVAILABLE")
+            report = configure_managed(args.managed_acquisition, source_revision=args.source_sha,
+                deadline=time.monotonic() + args.managed_deadline_seconds,
+                check_only=args.check_only, repo_id=args.repo_id, bucket=args.bucket)
+        else:
+            report = configure(repo_id=args.repo_id, bucket=args.bucket,
+                               token=os.environ.get("HF_TOKEN", ""), check_only=args.check_only)
     except RuntimeConfigError as error:
         report = {"schema": "szl.hf-series-a-runtime-config/v1", "repo_id": CANONICAL_SPACE,
                   "state": "SETUP_REQUIRED", "credential_authority_state": "UNKNOWN",
@@ -523,7 +571,7 @@ def main(argv: list[str] | None = None) -> int:
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(encoded, encoding="utf-8")
     print(encoded, end="")
-    return 1 if report.get("state") == "SETUP_REQUIRED" else 0
+    return 1 if report.get("state") in {"SETUP_REQUIRED", "ADMISSION_VERIFIED_CONFIGURATION_PENDING"} else 0
 
 
 if __name__ == "__main__":

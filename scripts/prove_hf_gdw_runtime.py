@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import base64
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -53,6 +54,51 @@ _WRITE_PATHS = (
     GDW_PREFIX + "recovery/transient-effects",
 )
 _TRANSPORT: bounds.BoundedTransport | None = None
+_MANAGED_CONTEXT: Any = None
+_MANAGED_LATEST: dict | None = None
+
+
+def load_managed_proof_context(receipt_path: Path, *, source_revision: str,
+                               deadline: float) -> Any:
+    """Use the fixed sibling to independently verify immutable provider authority."""
+    path = Path(__file__).resolve().with_name("configure_hf_gdw_runtime.py")
+    spec = importlib.util.spec_from_file_location("gdw_managed_proof_config", path)
+    if spec is None or spec.loader is None:
+        raise ProofBoundaryError("EFFECT_SCOPE_REJECTED")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.load_managed_proof_context(
+        receipt_path, source_revision=source_revision, deadline=deadline)
+
+
+def _managed_health(health: dict) -> dict | None:
+    """Validate every managed health observation, including pre-write readbacks."""
+    global _MANAGED_LATEST
+    persistence = health.get("persistence") if isinstance(health, dict) else None
+    storage = persistence.get("storage") if isinstance(persistence, dict) else None
+    if not isinstance(storage, dict):
+        if _MANAGED_CONTEXT is not None:
+            raise ProofBoundaryError("EFFECT_SCOPE_REJECTED")
+        return None
+    present = any(key in storage for key in
+                  ("durable_storage", "managed_admission", "durability_authority"))
+    if _MANAGED_CONTEXT is None:
+        if present:
+            raise ProofBoundaryError("EFFECT_SCOPE_REJECTED")
+        return None
+    try:
+        if (storage.get("durable_storage") != "private-dataset-v1"
+                or storage.get("durability_authority") != "verified-private-dataset-head"
+                or storage.get("required_mount") is not None
+                or storage.get("mount_verified") is not False
+                or storage.get("persistence_required") is not True
+                or storage.get("journal_mode_observed") != "DELETE"):
+            raise ValueError("managed health contract")
+        _MANAGED_LATEST = _MANAGED_CONTEXT.validate(storage.get("managed_admission"),
+            label="gdw", generation=storage.get("database_generation_id"))
+        return _MANAGED_LATEST
+    except Exception:
+        raise ProofBoundaryError("EFFECT_SCOPE_REJECTED") from None
 
 
 class TransientRequestError(ProofBoundaryError):
@@ -119,6 +165,12 @@ def request_json(
     if kwargs:
         raise TypeError("unsupported request options")
     _check_gdw_scope(method, url)
+    if method == "POST" and _MANAGED_CONTEXT is not None:
+        # The immutable witness is refreshed next to every governed write,
+        # including idempotent replay/recovery paths; an earlier healthy read
+        # cannot authorize a later write after admission or writer loss.
+        request_json("GET", bounds.CANONICAL_ORIGIN + GDW_PREFIX + "healthz",
+                     attempts=_POLL_ATTEMPTS)
     try:
         _status, value = _transport().request(
             method, url, token=token, headers=headers, json_body=payload,
@@ -128,6 +180,8 @@ def request_json(
         if exc.code == "TRANSIENT_RETRY_EXHAUSTED":
             raise TransientRequestError(http_status=exc.http_status) from None
         raise
+    if method == "GET" and url.split("?", 1)[0] == bounds.CANONICAL_ORIGIN + GDW_PREFIX + "healthz":
+        _managed_health(value)
     return value
 
 
@@ -188,6 +242,7 @@ def _global_integrity_is_complete(
 
 
 def _health_is_write_ready(health: dict, database_generation_id: str) -> bool:
+    _managed_health(health)
     return (
         health.get("status") == "REAL"
         and health.get("write_ready") is True
@@ -812,6 +867,7 @@ def _prove_drain_convergence(
             health = request_json(
                 "GET", health_url, attempts=_POLL_ATTEMPTS
             )
+            _managed_health(health)
             last_health = health
             global_integrity = request_json(
                 "GET",
@@ -1025,6 +1081,7 @@ def prove_restart(
             candidate = request_json(
                 "GET", health_url, attempts=_POLL_ATTEMPTS
             )
+            _managed_health(candidate)
             persistence = candidate.get("persistence") or {}
             storage = persistence.get("storage") or {}
             if (
@@ -1158,7 +1215,7 @@ def prove_signed_receipt(
     }
 
 
-def prove(
+def _prove(
     *,
     origin: str,
     source_sha: str,
@@ -1198,6 +1255,8 @@ def prove(
             except Exception as health_exc:  # noqa: BLE001
                 _reraise_hard(health_exc)
                 candidate = {}
+            if candidate:
+                _managed_health(candidate)
             candidate_global = request_json(
                 "GET",
                 f"{base}/api/a11oy/v1/gdw/integrity/global",
@@ -1406,8 +1465,34 @@ def prove(
     }
 
 
+def prove(*, origin: str, source_sha: str, operator_token: str,
+          require_signed_receipt: bool = True, managed_context: Any = None) -> dict:
+    """Bind one proof to one independently verified managed authority context."""
+    global _MANAGED_CONTEXT, _MANAGED_LATEST
+    if _MANAGED_CONTEXT is not None:
+        raise ProofBoundaryError("EFFECT_SCOPE_REJECTED")
+    if managed_context is not None and managed_context.identity.get("source_revision") != source_sha:
+        raise ProofBoundaryError("EFFECT_SCOPE_REJECTED")
+    _MANAGED_CONTEXT, _MANAGED_LATEST = managed_context, None
+    try:
+        result = _prove(origin=origin, source_sha=source_sha, operator_token=operator_token,
+                        require_signed_receipt=require_signed_receipt)
+        if managed_context is not None:
+            final_health = request_json("GET", bounds.CANONICAL_ORIGIN + GDW_PREFIX + "healthz",
+                                        attempts=_POLL_ATTEMPTS)
+            _managed_health(final_health)
+            if _MANAGED_LATEST is None:
+                raise ProofBoundaryError("EFFECT_SCOPE_REJECTED")
+            result["managed_identity"] = dict(managed_context.identity)
+            result["managed_admission"] = dict(_MANAGED_LATEST)
+        return result
+    finally:
+        _MANAGED_CONTEXT, _MANAGED_LATEST = None, None
+
+
 SCHEMA = "szl.hf-gdw-live-proof/v1"
-# The only credential this proof reads (the existing hf-sync secret name).
+# Existing live GDW bearer. Explicit managed mode also uses HF_TOKEN through
+# the fixed immutable-admission reader; neither credential enters the report.
 GDW_TOKEN_NAME = "GDW_OPERATOR_TOKEN"
 MAX_REPORT_BYTES = 12 * 1024
 MAX_UPSTREAM_TERMINAL_AGE_SECONDS = 120
@@ -1526,6 +1611,9 @@ def _summary(result: dict) -> dict:
                         "replayed_calls", "last_status")
         },
         "signed_receipt": result.get("signed_receipt"),
+        **({"managed_identity": result["managed_identity"],
+            "managed_admission": result["managed_admission"]}
+           if "managed_identity" in result else {}),
     })
 
 
@@ -1561,12 +1649,14 @@ def main(argv: list | None = None, *, transport_factory: Any = None) -> int:
     parser.add_argument("--origin", default=bounds.CANONICAL_ORIGIN)
     parser.add_argument("--source-sha", required=True)
     parser.add_argument("--output", required=True)
+    parser.add_argument("--managed-acquisition", type=Path)
     parser.add_argument("--deadline-seconds", type=int, default=DEFAULT_DEADLINE_SECONDS)
     parser.add_argument("--run-context", help="GitHub workflow run ID and attempt, ID:ATTEMPT")
     parser.add_argument("--series-a-proof", help="Bounded same-job Series-A proof report")
     args = parser.parse_args(argv)
     source = str(args.source_sha or "").strip().lower()
     token = ""
+    managed_context = None
     failure_evidence: dict[str, Any] = {}
     deadline_seconds = min(max(1, int(args.deadline_seconds)), MAX_DEADLINE_SECONDS)
     try:
@@ -1588,10 +1678,18 @@ def main(argv: list | None = None, *, transport_factory: Any = None) -> int:
             token = ""
             code = 1
         else:
+            deadline = time.monotonic() + deadline_seconds
+            if args.managed_acquisition is not None:
+                managed_context = load_managed_proof_context(
+                    args.managed_acquisition, source_revision=source, deadline=deadline)
+                if time.monotonic() >= deadline:
+                    raise ProofBoundaryError("DEADLINE_EXHAUSTED")
             make_transport = transport_factory or bounds.BoundedTransport
-            configure_transport(make_transport(deadline_seconds=deadline_seconds))
+            configure_transport(make_transport(deadline_seconds=(deadline - time.monotonic())
+                                if managed_context is not None else deadline_seconds))
             result = prove(origin=bounds.CANONICAL_ORIGIN, source_sha=source,
-                           operator_token=token, require_signed_receipt=True)
+                           operator_token=token, require_signed_receipt=True,
+                           **({"managed_context": managed_context} if managed_context is not None else {}))
             report = _report(source=source, status="PASS", code="LIVE_PROOF_PASSED",
                              evidence=_summary(result), deadline_seconds=deadline_seconds)
             code = 0
@@ -1604,6 +1702,12 @@ def main(argv: list | None = None, *, transport_factory: Any = None) -> int:
         code = 1
     finally:
         configure_transport(None)
+        if managed_context is not None:
+            try:
+                managed_context.close()
+            except Exception:
+                report = _report(source=source, status="FAIL", code="EFFECT_SCOPE_REJECTED", evidence={})
+                code = 1
     if args.run_context is not None and bounds.WORKFLOW_RUN_CONTEXT.fullmatch(args.run_context):
         report["workflow_run_context"] = args.run_context
     encoded = json.dumps(report, sort_keys=True)

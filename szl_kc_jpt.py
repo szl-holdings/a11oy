@@ -293,6 +293,9 @@ def _spine_search_dirs() -> List[str]:
     here = _os.path.dirname(_os.path.abspath(__file__))
     cands: List[str] = [here]
     env = (_os.environ.get("A11OY_SPINE_DIRS") or "").strip()
+    if _os.environ.get("GDW_DURABLE_STORAGE") == "private-dataset-v1":
+        from gdw_durable_source import managed_import_paths
+        return managed_import_paths([here] + [p for p in env.split(_os.pathsep) if p.strip()])
     if env:
         cands.extend(p for p in env.split(_os.pathsep) if p.strip())
     # sibling deploy trees that are known to carry the spine (best-effort, guarded).

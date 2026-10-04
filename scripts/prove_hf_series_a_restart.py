@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -41,6 +42,43 @@ DEFAULT_DEADLINE_SECONDS = 20 * 60
 MAX_DEADLINE_SECONDS = 20 * 60
 MAX_POLL_ATTEMPTS = 90
 MAX_RETRY_SECONDS = 30
+
+
+def load_managed_proof_context(receipt_path: Path, *, source_revision: str,
+                               deadline: float) -> Any:
+    """Load only the fixed sibling's immutable-provider admission verifier."""
+    path = Path(__file__).resolve().with_name("configure_hf_gdw_runtime.py")
+    spec = importlib.util.spec_from_file_location("series_a_managed_proof_config", path)
+    if spec is None or spec.loader is None:
+        raise ProofBoundaryError("EFFECT_SCOPE_REJECTED")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.load_managed_proof_context(
+        receipt_path, source_revision=source_revision, deadline=deadline)
+
+
+def _managed_storage(storage: Any, source_revision: str, context: Any) -> dict | None:
+    """A mode label cannot replace independently read immutable authority."""
+    present = isinstance(storage, Mapping) and any(
+        key in storage for key in ("durable_storage", "managed_admission", "durability_authority"))
+    if context is None:
+        if present:
+            raise ProofBoundaryError("EFFECT_SCOPE_REJECTED")
+        return None
+    try:
+        if (not isinstance(storage, Mapping)
+                or storage.get("durable_storage") != "private-dataset-v1"
+                or storage.get("durability_authority") != "verified-private-dataset-head"
+                or storage.get("required_mount") is not None
+                or storage.get("mount_verified") is not False
+                or storage.get("persistence_required") is not True
+                or storage.get("journal_mode") != "DELETE"
+                or context.identity["source_revision"] != source_revision):
+            raise ValueError("managed storage contract")
+        return context.validate(storage.get("managed_admission"), label="series_a",
+                                generation=storage.get("instance_id"))
+    except Exception:
+        raise ProofBoundaryError("EFFECT_SCOPE_REJECTED") from None
 
 
 class RestartProofError(RuntimeError):
@@ -340,6 +378,7 @@ def capture(
     origin: str,
     expected_source: str,
     deadline: float | None = None,
+    *, managed_context: Any = None,
 ) -> dict[str, Any]:
     if deadline is None:
         deadline = time.monotonic() + DEFAULT_DEADLINE_SECONDS
@@ -365,16 +404,20 @@ def capture(
     key.raise_for_status()
     storage = status.get("storage")
     build_record = build.get("build")
+    managed = _managed_storage(storage, expected_source, managed_context)
     if (
         status.get("schema") != "szl.series-a-status/v1"
         or str(status.get("source_revision") or "").lower() != expected_source
         or status.get("signing_key_source") != EXPECTED_SIGNER
-        or status.get("database") != EXPECTED_DATABASE
+        or (managed is None and status.get("database") != EXPECTED_DATABASE)
+        or (managed is not None and (not isinstance(status.get("database"), str)
+                or not status["database"].startswith("/")
+                or ".." in Path(status["database"]).parts))
         or BOOT_ID.fullmatch(str(status.get("runtime_boot_id") or "")) is None
         or not isinstance(storage, Mapping)
         or storage.get("persistence_required") is not True
-        or storage.get("required_mount") != "/data"
-        or storage.get("mount_verified") is not True
+        or (managed is None and storage.get("required_mount") != "/data")
+        or (managed is None and storage.get("mount_verified") is not True)
         or storage.get("journal_mode") != "DELETE"
         or STORE_ID.fullmatch(str(storage.get("instance_id") or "")) is None
         or not isinstance(storage.get("created_at"), str)
@@ -410,6 +453,10 @@ def capture(
             "chain_head": chain_head,
             "mount_verified": storage["mount_verified"],
             "journal_mode": storage["journal_mode"],
+            **({"durable_storage": "private-dataset-v1",
+                "durability_authority": "verified-private-dataset-head",
+                "persistence_required": True, "required_mount": None,
+                "managed_admission": managed} if managed is not None else {}),
         },
     }
 
@@ -418,6 +465,7 @@ def observe_boot_id(
     session: HttpSession,
     origin: str,
     deadline: float,
+    *, managed_context: Any = None, expected_source: str | None = None,
 ) -> str | None:
     """Observe the current boot identity even when its contract is unavailable."""
 
@@ -428,6 +476,8 @@ def observe_boot_id(
         )
     )
     _check_deadline(deadline)
+    _managed_storage(status.get("storage"), expected_source or str(status.get("source_revision") or ""),
+                     managed_context)
     boot_id = str(status.get("runtime_boot_id") or "")
     return boot_id if BOOT_ID.fullmatch(boot_id) is not None else None
 
@@ -442,13 +492,14 @@ def await_capture(
     retry_seconds: int,
     context: str,
     previous_boot_id: str | None = None,
+    managed_context: Any = None,
 ) -> dict[str, Any]:
     """Poll until the restarted public runtime exposes the required contract."""
 
     last_error: Exception | None = None
     for attempt in range(max(1, attempts)):
         try:
-            candidate = capture(session, origin, expected_source, deadline)
+            candidate = capture(session, origin, expected_source, deadline, managed_context=managed_context)
             if (
                 previous_boot_id is not None
                 and candidate["runtime_boot_id"] == previous_boot_id
@@ -470,6 +521,7 @@ def await_capture(
 def validate_continuity(
     before: Mapping[str, Any],
     after: Mapping[str, Any],
+    *, managed_context: Any = None,
 ) -> None:
     if before.get("source_revision") != after.get("source_revision"):
         raise RestartProofError("source revision changed across restart")
@@ -477,14 +529,18 @@ def validate_continuity(
         raise RestartProofError("signing source changed across restart")
     if before.get("public_key_sha256") != after.get("public_key_sha256"):
         raise RestartProofError("public signing identity changed across restart")
-    if before.get("database") != after.get("database"):
-        raise RestartProofError("database path changed across restart")
     before_storage = before.get("storage")
     after_storage = after.get("storage")
     if not isinstance(before_storage, Mapping) or not isinstance(
         after_storage, Mapping
     ):
         raise RestartProofError("storage evidence is absent")
+    managed_before = _managed_storage(before_storage, str(before.get("source_revision") or ""), managed_context)
+    managed_after = _managed_storage(after_storage, str(after.get("source_revision") or ""), managed_context)
+    if (managed_before is None) != (managed_after is None):
+        raise ProofBoundaryError("EFFECT_SCOPE_REJECTED")
+    if managed_before is None and before.get("database") != after.get("database"):
+        raise RestartProofError("database path changed across restart")
     if before_storage.get("instance_id") != after_storage.get("instance_id"):
         raise RestartProofError("database instance changed across restart")
     if before_storage.get("created_at") != after_storage.get("created_at"):
@@ -503,8 +559,9 @@ def validate_restart(
     before: Mapping[str, Any],
     after: Mapping[str, Any],
     receipt_hashes: set[str],
+    *, managed_context: Any = None,
 ) -> None:
-    validate_continuity(before, after)
+    validate_continuity(before, after, managed_context=managed_context)
     if before.get("runtime_boot_id") == after.get("runtime_boot_id"):
         raise RestartProofError("runtime boot identity did not change across restart")
     if (
@@ -526,6 +583,7 @@ def recovery_capture(
     expected_source: str,
     expected_head: str,
     expected_sequence: int,
+    managed_context: Any = None,
 ) -> dict[str, Any]:
     if payload.get("schema") != "szl.series-a-receipt-recovery/v1":
         raise RestartProofError("exact receipt recovery schema is invalid")
@@ -541,6 +599,7 @@ def recovery_capture(
     item = payload.get("item")
     if not isinstance(storage, Mapping) or not isinstance(item, Mapping):
         raise RestartProofError("exact receipt recovery record is incomplete")
+    managed = _managed_storage(storage, expected_source, managed_context)
     if item.get("receipt_hash") != expected_head:
         raise RestartProofError("exact receipt recovery returned the wrong hash")
     if item.get("sequence") != expected_sequence:
@@ -569,7 +628,7 @@ def recovery_capture(
         "signing_key_source": payload.get("signing_key_source"),
         "public_key_sha256": payload.get("public_key_sha256"),
         "database": payload.get("database"),
-        "storage": dict(storage),
+        "storage": {**dict(storage), **({"managed_admission": managed} if managed is not None else {})},
     }
 
 
@@ -606,6 +665,7 @@ def capture_pre_restart_receipt(
     before: Mapping[str, Any],
     deadline: float,
     evidence: dict[str, Any] | None = None,
+    managed_context: Any = None,
 ) -> dict[str, Any]:
     before_storage = before.get("storage")
     if not isinstance(before_storage, Mapping):
@@ -635,12 +695,13 @@ def capture_pre_restart_receipt(
         expected_source=source_sha,
         expected_head=expected_head,
         expected_sequence=expected_sequence,
+        managed_context=managed_context,
     )
     if captured.get("runtime_boot_id") != before.get("runtime_boot_id"):
         raise RestartProofError(
             "pre-restart exact receipt came from a different runtime"
         )
-    validate_continuity(before, captured)
+    validate_continuity(before, captured, managed_context=managed_context)
     return captured
 
 
@@ -655,6 +716,7 @@ def await_receipt_recovery(
     attempts: int,
     retry_seconds: int,
     evidence: dict[str, Any] | None = None,
+    managed_context: Any = None,
 ) -> dict[str, Any]:
     before_storage = before.get("storage")
     if not isinstance(before_storage, Mapping):
@@ -671,7 +733,7 @@ def await_receipt_recovery(
 
     last_error: Exception | None = None
     current_after = dict(after)
-    validate_continuity(before, current_after)
+    validate_continuity(before, current_after, managed_context=managed_context)
     retry_evidence: list[dict[str, Any]] = []
     if evidence is not None:
         evidence["post_restart_recovery_attempts"] = retry_evidence
@@ -693,8 +755,9 @@ def await_receipt_recovery(
                 expected_source=source_sha,
                 expected_head=expected_head,
                 expected_sequence=expected_sequence,
+                managed_context=managed_context,
             )
-            validate_restart(before, current_after, {expected_head})
+            validate_restart(before, current_after, {expected_head}, managed_context=managed_context)
             retry_evidence[-1]["recovered"] = True
             return current_after
         except Exception as exc:  # noqa: BLE001 - bounded recovery polling
@@ -822,6 +885,8 @@ def prove(
     deadline_seconds: int = DEFAULT_DEADLINE_SECONDS,
     evidence: dict[str, Any] | None = None,
     require_running_source: bool = True,
+    managed_context: Any = None,
+    deadline: float | None = None,
 ) -> dict[str, Any]:
     if (
         attempts < 1
@@ -840,7 +905,14 @@ def prove(
         raise ProofBoundaryError("DESTINATION_REJECTED")
     if SHA40.fullmatch(str(source_sha or "")) is None:
         raise RestartProofError("source revision is not canonical", code="INVALID_ARGUMENTS")
-    deadline = time.monotonic() + deadline_seconds
+    if deadline is None:
+        deadline = time.monotonic() + deadline_seconds
+    elif (type(deadline) not in (int, float)
+          or not 0 < deadline - time.monotonic() <= deadline_seconds):
+        raise RestartProofError("shared deadline exceeds polling bounds", code="INVALID_ARGUMENTS")
+    _check_deadline(deadline)
+    if managed_context is not None and managed_context.identity.get("source_revision") != source_sha:
+        raise ProofBoundaryError("EFFECT_SCOPE_REJECTED")
     trace = evidence if evidence is not None else {}
     trace.update(
         {
@@ -851,7 +923,8 @@ def prove(
         }
     )
 
-    pre_activation_boot_id = observe_boot_id(session, origin, deadline)
+    pre_activation_boot_id = observe_boot_id(session, origin, deadline,
+        managed_context=managed_context, expected_source=source_sha)
     trace["pre_activation_runtime_boot_id"] = pre_activation_boot_id
     # Hub variable writes are configuration-plane state. Explicitly restart
     # before sampling so the public process is proved against the just-converged
@@ -886,6 +959,7 @@ def prove(
         retry_seconds=retry_seconds,
         context="configured runtime was not observed after activation restart",
         previous_boot_id=pre_activation_boot_id,
+        managed_context=managed_context,
     )
     trace["before"] = before
     startup_error: Exception | None = None
@@ -896,7 +970,7 @@ def prove(
         for _ in range(max(1, attempts)):
             _sleep_with_deadline(deadline, retry_seconds)
             try:
-                candidate = capture(session, origin, source_sha, deadline)
+                candidate = capture(session, origin, source_sha, deadline, managed_context=managed_context)
                 before = candidate
                 trace["before"] = before
                 if before["storage"]["receipt_count"] > 0:
@@ -922,6 +996,7 @@ def prove(
         before,
         deadline,
         evidence=trace,
+        managed_context=managed_context,
     )
     trace["pre_restart_exact_recovery"] = pre_restart_recovery
     _check_deadline(deadline)
@@ -954,7 +1029,7 @@ def prove(
     after: dict[str, Any] | None = None
     for _ in range(max(1, attempts)):
         try:
-            candidate = capture(session, origin, source_sha, deadline)
+            candidate = capture(session, origin, source_sha, deadline, managed_context=managed_context)
             if candidate["runtime_boot_id"] == before["runtime_boot_id"]:
                 raise RestartProofError(
                     "runtime boot identity did not change across restart"
@@ -983,6 +1058,7 @@ def prove(
         attempts=attempts,
         retry_seconds=retry_seconds,
         evidence=trace,
+        managed_context=managed_context,
     )
     trace["after"] = after
     trace["phase"] = "complete"
@@ -1015,6 +1091,9 @@ def prove(
         ],
         "before": before,
         "after": after,
+        **({"managed_identity": dict(managed_context.identity),
+            "managed_admission": after["storage"]["managed_admission"]}
+           if managed_context is not None else {}),
         "proof": {
             "source_stable": True,
             "activation_runtime_transition_observed": True,
@@ -1155,9 +1234,9 @@ def pass_report(result: Mapping[str, Any], *, deadline_seconds: int, effects: li
     return report
 
 
-# The only credential this proof reads. Its value is placed in one
-# Authorization header for huggingface.co/api/spaces/SZLHOLDINGS/a11oy and is
-# never printed, logged or persisted.
+# The only credential this proof reads. It authorizes the fixed canonical
+# Space control API and, in explicit managed mode, the immutable private
+# dataset admission reader. Its value is never printed, logged or persisted.
 HF_TOKEN_NAME = "HF_TOKEN"
 
 
@@ -1169,6 +1248,7 @@ def main(argv: list[str] | None = None, *, transport_factory: Any = None) -> int
     parser.add_argument("--origin", default=bounds.CANONICAL_ORIGIN)
     parser.add_argument("--source-sha", required=True)
     parser.add_argument("--output", required=True)
+    parser.add_argument("--managed-acquisition", type=Path)
     parser.add_argument("--attempts", type=int, default=MAX_POLL_ATTEMPTS)
     parser.add_argument("--retry-seconds", type=int, default=10)
     parser.add_argument("--deadline-seconds", type=int, default=DEFAULT_DEADLINE_SECONDS)
@@ -1178,6 +1258,7 @@ def main(argv: list[str] | None = None, *, transport_factory: Any = None) -> int
     output = Path(args.output)
     evidence: dict[str, Any] = {}
     token = ""
+    managed_context = None
     try:
         if SHA40.fullmatch(source) is None:
             raise RestartProofError("source revision is not canonical", code="INVALID_ARGUMENTS")
@@ -1192,8 +1273,14 @@ def main(argv: list[str] | None = None, *, transport_factory: Any = None) -> int
             print(encoded, end="")
             return 1
         deadline_seconds = min(max(1, args.deadline_seconds), MAX_DEADLINE_SECONDS)
+        deadline = time.monotonic() + deadline_seconds
+        if args.managed_acquisition is not None:
+            managed_context = load_managed_proof_context(
+                args.managed_acquisition, source_revision=source, deadline=deadline)
+            _check_deadline(deadline)
         make_transport = transport_factory or bounds.BoundedTransport
-        transport = make_transport(deadline_seconds=deadline_seconds)
+        transport = make_transport(deadline_seconds=(deadline - time.monotonic())
+                                   if managed_context is not None else deadline_seconds)
         api = bounds.ScopedSpaceControl(transport, token, bounds.CANONICAL_SPACE)
         session = HttpSession(transport)
         result = prove(
@@ -1207,6 +1294,8 @@ def main(argv: list[str] | None = None, *, transport_factory: Any = None) -> int
             deadline_seconds=deadline_seconds,
             evidence=evidence,
             require_running_source=True,
+            **({"managed_context": managed_context, "deadline": deadline}
+               if managed_context is not None else {}),
         )
         report = pass_report(result, deadline_seconds=deadline_seconds, effects=api.effects)
         report["source_revision"] = source
@@ -1221,6 +1310,14 @@ def main(argv: list[str] | None = None, *, transport_factory: Any = None) -> int
             secrets=(token,) if token else (),
         )
         code = 1
+    finally:
+        if managed_context is not None:
+            try:
+                managed_context.close()
+            except Exception:
+                report = failure_report(repo_id=bounds.CANONICAL_SPACE, origin=None,
+                    source_revision=source, evidence={}, error=ProofBoundaryError("EFFECT_SCOPE_REJECTED"))
+                code = 1
     if args.run_context is not None and bounds.WORKFLOW_RUN_CONTEXT.fullmatch(args.run_context):
         report["workflow_run_context"] = args.run_context
     encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"

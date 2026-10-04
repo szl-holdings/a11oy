@@ -43,6 +43,7 @@ import types
 import time
 import tempfile
 import pathlib
+import os
 
 # ─────────────────────────────────────────────────────────────────────────────
 # RUNNER — loads each module file and calls its main()
@@ -126,6 +127,9 @@ def _write_modules(tmp_dir: pathlib.Path) -> None:
 
 
 def _load_module(path: pathlib.Path, mod_name: str) -> types.ModuleType:
+    if os.environ.get("GDW_DURABLE_STORAGE") == "private-dataset-v1":
+        from gdw_durable_source import reject_managed_generated_source
+        reject_managed_generated_source()
     spec = importlib.util.spec_from_file_location(mod_name, path)
     if spec is None or spec.loader is None:
         raise ImportError(f"Cannot load {path}")
@@ -168,6 +172,9 @@ def _run_module(name: str, path: pathlib.Path) -> tuple[int, int]:
 
 
 def _run_all() -> None:
+    if os.environ.get("GDW_DURABLE_STORAGE") == "private-dataset-v1":
+        from gdw_durable_source import reject_managed_generated_source
+        reject_managed_generated_source()
     print("=" * 70)
     print("OUROBOROS_RUN_ALL.py — Ouroboros Thesis v14 through v19.0")
     print("Author: Lutar, Stephen P. — ORCID 0009-0001-0110-4173")

@@ -599,17 +599,22 @@ SOURCE_DERIVED_CONTROLLER_REVISIONS = frozenset({
 })
 
 
-REVIEWED_SOURCE_ADMISSION_JOB_SHA256 = "e9777064159bf0d120e9f18931e98c8f832b9e163b7b358908c92921ee69a668"
+REVIEWED_SOURCE_ADMISSION_JOB_SHA256 = "13304ef0f4d96cae7d534f42a5068b373b2fda1c0200d01a2a83f1e1bab581e6"
 REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee8395e042853ded04deb7d170189"
-# The reviewed acquisition writes only new private preservation objects and
-# blocks deployment. Its read-only follow-up qualifies disposable copies from
-# one fixed capture. Exact helper and reference bytes require fresh review;
-# these pins grant no other prerequisite effect, restore, or live publication.
-REVIEWED_MANUAL_PREREQUISITES_JOB_SHA256 = "f6139c3220f6431cadf7710b0f2be39110b2a25055e7fe7d6863b20b7a161332"
+# These exact jobs and their complete local helper/reference closure admit one
+# reviewed first-cutover path: preserve originals, qualify disposable copies,
+# classify the native reports, then acquire private managed storage in the
+# active canonical job. Source/main and paused-state checks precede writes;
+# an existing dataset HEAD prevents bootstrap. The separate managed proof job
+# still requires actual deployment and runtime verification. No hash below
+# grants authority to a local selector, arbitrary helper or additional effect.
+REVIEWED_MANUAL_PREREQUISITES_JOB_SHA256 = "e67be67c86a16cd2872cbb9563918b693f8e5188f42fb2958bcef6449cf52b0b"
+REVIEWED_DURABLE_ACQUISITION_JOB_SHA256 = "b4bff6f85a8cc8f67b85bfc016d139820dbfe5b1bf4aa318f6cb8d36256c058b"
+REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "2876ed4107ccefa4ae14901d0acfe904a6a60c610ea8d66be3913883b454f9ef"
 REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
-    "scripts/check_hf_manual_prerequisites.py": "b270ec5dc9b5bf969876009866f10fc7ff324c30da07d004c95feabeef4926d8",
-    "scripts/configure_hf_series_a_runtime.py": "c29699fa7e66b4cfa627f33d9f516b39204e0eb68d5fb2a7d354e0c11d2ab14f",
-    "scripts/configure_hf_gdw_runtime.py": "e5eb45181c8265972ee2aaf47e329ffb2c885edc9b3c90553aa5a152e42603e8",
+    "scripts/check_hf_manual_prerequisites.py": "3390924bd039b8377d1c54824e85f77bb06953bf4165c78e85bc9ddfbc7382ec",
+    "scripts/configure_hf_series_a_runtime.py": "a5b6bd2968fe16d762eb241744bd4897ae05e72c85bc79d38ad33aaea90feb0d",
+    "scripts/configure_hf_gdw_runtime.py": "3d56f13dccc09089fda4b4edc6b3e232c383ffd9b8416efe0f943e9cd87672e0",
     # Installed-authority verifier imported by both configure helpers.
     "scripts/verify_installed_authority.py": "2d9465f393dbaa08754b02d6295abade1134a7dbc843cdab48a6ad70867fb68e",
     # Its local ownership import is independently bound above by
@@ -623,14 +628,42 @@ REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
     "docs/operations/evidence/gdw-capture-37223162231.json": "5ff7b2be5d07850b560c1909be128521217ea70b959d238ff9d3f0f68a98b5c3",
     "docs/operations/evidence/gdw-recovery-historical-anchors.json": "5850da876784da5d2a08532f1c70246e5be38ef623ff6c7378009049da4a273b",
     "ayllu/keys/council-runtime-2026-07-21.pub": "f8ee566d8f1e8ee8a9bb7eba37c24c18ae73605542fc29f7d3e5366ef75562fe",
+    # The exact acquisition, managed configuration and live-proof entrypoints
+    # include these local imports and fixed dynamic loaders. Runtime-installed
+    # application bytes and the remote publisher have their own source-bound
+    # manifest contract; this map binds the code that verifies that contract.
+    "scripts/acquire_gdw_durable_storage.py": "8176dccd7d9402af45947fa8276f18f21be3803bd52375783df88753a6d73a26",
+    "scripts/gdw_acquisition_evidence.py": "7c15e3c774f7bbbee71c9da2255ea92a9d13c5320398c8a8134f1542d1795525",
+    "scripts/build_gdw_installed_source_manifest.py": "022955dd62e7f780e97b2650f5e86d68a3d1565738257a8ec76b18db1f75a8ec",
+    "scripts/probe_gdw_runtime_base.py": "7b3d823498915edfbb8801230a33d8d0777be1c4fc9b583ecb9a75594510da0f",
+    "scripts/probe_gdw_legacy_startup.py": "c0384d47e5d22a856eba2e5fbe284f866e43affd9deb0f1d97148c44389649c0",
+    "scripts/prove_hf_series_a_restart.py": "9091569edb44d6e9d5dcc578ab2c53054aa2fc61de9c962da256dfd186dbd398",
+    "scripts/prove_hf_gdw_runtime.py": "317b4c2629241f312a9e497a0ad8fe7f06cc86426093a6593165c844acefd866",
+    "scripts/hf_live_proof_bounds.py": "74a53d7e90bf03f3ad896fd5fe21c3eaefa2ddb6452029332353f08f41693f3b",
+    "gdw_durable_storage.py": "f22e97c2801b8115b455a150398076132dd8adf83ad3dbf44da04d350567ce72",
+    "gdw_durable_startup.py": "54965688ea52866431aa7995dff221966e89cb460bda75894e1d70d791cd2e1c",
+    "gdw_durable_runtime.py": "2a01da4857dd411aaace8cabb74df27252fe8316aebbb4fef39b56bc778a724f",
+    "gdw_durable_source.py": "60a73652c1a4c9fffded55e79534c61840896fbff6438feded569589bde26e14",
+    "gdw_durable_guard.py": "33062e1fc067f037d1df3d8f6038d6b8eab72356923f8fb18c22b2697f1b9ae3",
+    "gdw_durable_image.py": "bbe71d8aa53494d5e22eac029cf4ecb378cbcb7ac3017b349d373c1d6c27142d",
+    "gdw_durable_artifacts.py": "627efa379baacdd7ac1660c7f3bc9249b46444a83448d2c7fc51c3e8eb12a5e9",
+    "gdw_auth.py": "c692593e02873f7b71b9a108fa42a9c2ae7f29d455596d9dd0a4236145297e89",
+    "gdw_workspace.py": "967652dadaf814afd0caabcc05a037f2f6a941e90b891b4edca25cee748655c8",
+    "gdw_proofs.py": "445c9cc5cd38a1660ef815b81ad0f65f68b996b30a479f2c606a12dd8679cc8c",
+    "szl_dsse.py": "e095670051088929365f3eb4c76716122148d8f6b898db52f0e27867c221608c",
+    "a11oy_signing_key.py": "3315e58f39e0727590ecd6545f4f125d40b2ff0eea9f5fced15539da5d764d5c",
+    "szl_content_address.py": "211b69d47fbbddf496fcfdedb0311e6fe6b67b67428100dd27ce7ce1f7247b10",
+    "szl_corpus_publish.py": "8be4bc2fd5c4365345fef932c75f6b07a7dcfe5c4de09aed4d3a28e2b62609dc",
+    "szl_formulas.py": "5208ac277e1e9da37c0a07a55c8b4153d1ecc7082bd3d5ccfd11b962b9db08ed",
+    "szl_hf_bucket.py": "61d68be3de5ac474e03b902df1ef27462d462a2037abf8d16b08d701498d5acc",
 }
 REVIEWED_RESUME_GATES = {
     "needs": "[source-admission, manual-prerequisites]",
-    "if": "${{ needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' }}",
+    "if": "${{ needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && needs.manual-prerequisites.outputs.mode != 'managed-recovery' }}",
 }
 REVIEWED_DEPLOY_GATES = {
-    "needs": "[source-admission, manual-prerequisites, resume-paused-space]",
-    "if": "${{ needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && needs.resume-paused-space.result == 'success' }}",
+    "needs": "[source-admission, manual-prerequisites, durable-acquisition, resume-paused-space]",
+    "if": "${{ always() && needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && ((needs.manual-prerequisites.outputs.mode == 'managed-recovery' && needs.durable-acquisition.result == 'success') || (needs.manual-prerequisites.outputs.mode != 'managed-recovery' && needs.resume-paused-space.result == 'success')) }}",
 }
 
 
@@ -659,8 +692,10 @@ def direct_job_gates(block_lines, job_indent):
 def job_has_source_derived_deploy_contract(block_lines, job_indent, *,
                                          admission_verified=False,
                                          prerequisites_verified=False,
-                                         resume_verified=False):
-    """Recognize only the reviewed prerequisite and successful-resume graph."""
+                                         resume_verified=False,
+                                         acquisition_verified=False,
+                                         runtime_verified=False):
+    """Recognize only the exact reviewed prerequisite and conditional deploy graph."""
     property_indents = []
     for raw in block_lines[1:]:
         stripped = raw.strip()
@@ -709,6 +744,7 @@ def job_has_source_derived_deploy_contract(block_lines, job_indent, *,
     if not controller_seen or not pinned_controller or with_index is None:
         return False
     if not (admission_verified and prerequisites_verified and resume_verified
+            and acquisition_verified and runtime_verified
             and gates == REVIEWED_DEPLOY_GATES):
         # Empty gates and the former source-only gate cannot bypass prerequisites.
         return False
@@ -762,9 +798,10 @@ def has_source_derived_deploy_contract(hf_sync_text, *, ownership_helper=None,
     pin, stale ref, wrong destination, comment, step, unrelated workflow, or
     arbitrary skipped deploy job from satisfying CHECK 3. Ownership admission
     requires reviewed workflow and helper bytes plus the adjacent provider guard.
-    Recognition proves the COPY source contract, never credential authority or
-    live publication: the pinned prerequisite summary admits only a verified
-    installed-authority report (served runtime key == pinned runtime key).
+    Recognition proves the COPY source contract, never a provider result or live
+    publication. The exact first-cutover classifier emits only candidate-only
+    metadata; the separate source-pinned acquisition must verify native evidence,
+    paused originals and an absent HEAD before acknowledging private bootstrap.
     """
     jobs = workflow_job_blocks(hf_sync_text)
     if len({job_id for job_id, _lines, _indent in jobs}) != len(jobs):
@@ -794,13 +831,28 @@ def has_source_derived_deploy_contract(hf_sync_text, *, ownership_helper=None,
                if job_id == "resume-paused-space"]
     resume_verified = (len(resumes) == 1
                        and direct_job_gates(*resumes[0]) == REVIEWED_RESUME_GATES)
+    acquisitions = [lines for job_id, lines, _indent in jobs
+                    if job_id == "durable-acquisition"]
+    acquisition_verified = (
+        len(acquisitions) == 1
+        and hashlib.sha256("\n".join(acquisitions[0]).strip().encode("utf-8")).hexdigest()
+        == REVIEWED_DURABLE_ACQUISITION_JOB_SHA256
+    )
+    runtimes = [lines for job_id, lines, _indent in jobs if job_id == "runtime-config"]
+    runtime_verified = (
+        len(runtimes) == 1
+        and hashlib.sha256("\n".join(runtimes[0]).strip().encode("utf-8")).hexdigest()
+        == REVIEWED_RUNTIME_CONFIG_JOB_SHA256
+    )
     deploys = [(lines, indent) for job_id, lines, indent in jobs if job_id == "deploy"]
     return (workflow_has_unfiltered_main_push(hf_sync_text)
             and len(deploys) == 1
             and job_has_source_derived_deploy_contract(
                 *deploys[0], admission_verified=admission_verified,
                 prerequisites_verified=prerequisites_verified,
-                resume_verified=resume_verified)
+                resume_verified=resume_verified,
+                acquisition_verified=acquisition_verified,
+                runtime_verified=runtime_verified)
     )
 
 

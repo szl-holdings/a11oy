@@ -49,7 +49,12 @@ except Exception:  # pragma: no cover
 
 # Make sibling modules importable whether they sit beside this file or on path.
 _HERE = os.path.dirname(os.path.abspath(__file__))
-for _p in (_HERE, os.path.dirname(_HERE)):
+if os.environ.get("GDW_DURABLE_STORAGE") == "private-dataset-v1":
+    from gdw_durable_source import managed_import_paths
+    _IMPORT_PATHS = managed_import_paths([_HERE])
+else:
+    _IMPORT_PATHS = (_HERE, os.path.dirname(_HERE))
+for _p in _IMPORT_PATHS:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
