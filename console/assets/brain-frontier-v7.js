@@ -10,7 +10,11 @@
   const HANDLE_ID = /^frontier:[0-9a-f]{32}$/;
   const REVISION = /^[0-9a-f]{40}$/;
   const DIGEST = /^[0-9a-f]{64}$/;
-  const SOURCE_REPOSITORIES = new Set([
+  const FORUM_REPOSITORY = "szl-holdings/szl-science-forum-corpus";
+  const FORUM_PATH = "dataset/sources.public.jsonl";
+  const RESEARCH_REPOSITORIES = new Set(["public-metadata/arxiv", "public-metadata/crossref"]);
+  const METADATA_REVISION_KIND = "metadata-capture-sha256";
+  const REQUIRED_SOURCE_REPOSITORIES = new Set([
     "szl-holdings/szl-formulas",
     "szl-holdings/anatomy",
     "szl-holdings/szl-ouroboros",
@@ -19,9 +23,12 @@
     "szl-holdings/szl-nemo",
     "szl-holdings/szl-kernels",
   ]);
+  const SOURCE_REPOSITORIES = new Set([...REQUIRED_SOURCE_REPOSITORIES, FORUM_REPOSITORY,
+    ...RESEARCH_REPOSITORIES]);
   const HANDLE_KINDS = new Set([
     "formula-authority", "quant-domain", "attributed-formula", "executable-formula",
-    "python-contract", "estate-authority", "estate-surface", "source-document",
+    "python-contract", "estate-authority", "estate-surface", "source-document", "forum-insight",
+    "research-metadata",
   ]);
   const HANDLE_ADMISSIONS = new Set([
     "DISCOVERED_REVIEW_REQUIRED",
@@ -78,13 +85,27 @@
 
   function validateHandle(handle) {
     if (!exactKeys(handle, ["nodeId", "title", "sha256", "repository", "revision", "path",
-      "kind", "admission", "candidateState", "contentAccess", "authority"], ["quantDomain"])) return false;
+      "kind", "admission", "candidateState", "contentAccess", "authority"], ["quantDomain", "revisionKind"])) return false;
     if (!matches(handle.nodeId, HANDLE_ID)) return false;
-    if (!matches(handle.sha256, DIGEST) || !matches(handle.revision, REVISION)) return false;
+    if (!matches(handle.sha256, DIGEST)) return false;
     if (!SOURCE_REPOSITORIES.has(handle.repository)) return false;
     if (!HANDLE_KINDS.has(handle.kind)) return false;
-    if (!safeTitle(handle.title) || !safePath(handle.path)) return false;
+    if (handle.kind === "research-metadata" || RESEARCH_REPOSITORIES.has(handle.repository)) {
+      if (handle.kind !== "research-metadata" || !RESEARCH_REPOSITORIES.has(handle.repository)
+        || handle.revisionKind !== METADATA_REVISION_KIND || !matches(handle.revision, DIGEST)
+        || !safeTitle(handle.title) || handle.admission !== "DISCOVERED_REVIEW_REQUIRED"
+        || Object.hasOwn(handle, "quantDomain")) return false;
+      const identifier = handle.repository === "public-metadata/arxiv"
+        ? /^\d{4}\.\d{4,5}v[1-9]\d{0,2}$/ : /^10\.\d{4,9}\/[a-z0-9._;()/:-]{1,180}$/;
+      if (!matches(handle.path, identifier)) return false;
+    } else if (!matches(handle.revision, REVISION) || Object.hasOwn(handle, "revisionKind")
+      || !safeTitle(handle.title) || !safePath(handle.path)) return false;
     if (!HANDLE_ADMISSIONS.has(handle.admission)) return false;
+    if (handle.kind === "forum-insight" || handle.repository === FORUM_REPOSITORY) {
+      if (handle.kind !== "forum-insight" || handle.repository !== FORUM_REPOSITORY
+        || handle.path !== FORUM_PATH || handle.admission !== "DISCOVERED_REVIEW_REQUIRED"
+        || Object.hasOwn(handle, "quantDomain")) return false;
+    }
     if (Object.hasOwn(handle, "quantDomain") && !safeDomain(handle.quantDomain)) return false;
     if (handle.kind === "quant-domain" && !safeDomain(handle.quantDomain)) return false;
     if (handle.candidateState !== "DISCOVERED_REVIEW_REQUIRED") return false;
@@ -105,9 +126,10 @@
     if (!payload.handles.every(validateHandle)) return false;
     if (new Set(payload.handles.map((handle) => handle.nodeId)).size !== 72) return false;
     const repositories = new Set(payload.handles.map((handle) => handle.repository));
-    if (![...SOURCE_REPOSITORIES].every((repository) => repositories.has(repository))) return false;
+    if (![...REQUIRED_SOURCE_REPOSITORIES].every((repository) => repositories.has(repository))) return false;
     if (payload.selected_handle_count !== payload.handles.length) return false;
     const kindCount = (kind) => payload.handles.filter((handle) => handle.kind === kind).length;
+    if (kindCount("forum-insight") > 2) return false;
     if (kindCount("formula-authority") !== 1 || kindCount("attributed-formula") !== 30
       || kindCount("executable-formula") !== 21 || kindCount("quant-domain") !== 9) return false;
     const domains = new Set(payload.handles.filter((handle) => handle.kind === "quant-domain")
@@ -338,7 +360,7 @@
             <span>${escapeHtml(compactRepo(handle.repository))}</span>
             <span>${escapeHtml(handle.kind)}</span>
             ${domain}
-            <span>${escapeHtml(short(handle.revision, 8))}</span>
+            <span>${handle.revisionKind === METADATA_REVISION_KIND ? "Metadata SHA-256 " : "Git "}${escapeHtml(short(handle.revision, 8))}</span>
             <span>${escapeHtml(short(handle.sha256, 8))}</span>
           </div>
         </div>
