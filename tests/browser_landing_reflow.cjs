@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+// (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
 // Render the exact landing source/assets with unavailable provider fixtures.
 const assert = require('node:assert/strict');
 const { createServer } = require('node:http');
@@ -85,6 +86,7 @@ async function main() {
         if (errors.length) failures.push('page JavaScript error');
         results.push({ variant, width, ...layout, errors, failures });
         if (width === 320 || failures.length) await page.screenshot({ path: resolve(output, `${variant}-${width}.png`), fullPage: false });
+        if (width <= 375) await page.locator('#nv-panel').screenshot({ path: resolve(output, `${variant}-${width}-instrument.png`) });
         if (variant === 'candidate' && width === 320) {
           await page.locator('#menu-toggle').click();
           assert.equal(await page.locator('#menu-toggle').getAttribute('aria-expanded'), 'true');
