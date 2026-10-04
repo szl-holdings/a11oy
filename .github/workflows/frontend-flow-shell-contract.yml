@@ -14,6 +14,7 @@ on:
     - docs/frontend-flow-shell-state.json
     - scripts/rollout_frontend_flow_shell.py
     - tests/test_frontend_flow_shell.py
+    - tests/browser_landing_reflow.cjs
     - tests/test_cloudflare_product_edge.py
     - scripts/repair_cloudflare_product_edge.py
     - cloudflare/**
@@ -35,6 +36,7 @@ on:
     - docs/frontend-flow-shell-state.json
     - scripts/rollout_frontend_flow_shell.py
     - tests/test_frontend_flow_shell.py
+    - tests/browser_landing_reflow.cjs
     - tests/test_cloudflare_product_edge.py
     - scripts/repair_cloudflare_product_edge.py
     - cloudflare/**
@@ -49,6 +51,50 @@ permissions:
   contents: read
 
 jobs:
+  landing-browser:
+    name: Homepage source reflow
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Fetch the immutable comparison base
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          LANDING_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$LANDING_BASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          git fetch --no-tags --depth=1 origin "$LANDING_BASE_SHA"
+          git cat-file -e "${LANDING_BASE_SHA}:a11oy_landing.html"
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+      - name: Install isolated browser test dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/landing-browser" --no-audit --no-fund playwright@1.63.0
+          "$RUNNER_TEMP/landing-browser/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Compare exact source reflow against its base
+        shell: bash
+        env:
+          LANDING_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          NODE_PATH="$RUNNER_TEMP/landing-browser/node_modules" \
+            LANDING_EVIDENCE_DIR="$RUNNER_TEMP/landing-browser-evidence" \
+            node tests/browser_landing_reflow.cjs
+      - name: Retain source measurements and screenshots
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: landing-reflow-${{ github.sha }}
+          path: ${{ runner.temp }}/landing-browser-evidence/
+          if-no-files-found: error
+
   contract:
     runs-on: ubuntu-latest
     timeout-minutes: 10
