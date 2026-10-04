@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   query route, and bind the shared retrieval/auth files to the matching peer PR.
 - Run the RAG, Ayllu, and route contracts with a hashed dependency extension in CI.
 
+### Fixed - typed Brain frontier research metadata
+- Accept the two source-bound, operator-reviewed forum summaries and bounded
+  arXiv/Crossref metadata captures from Second Brain. Validate the exact metadata
+  projection, source identity, capture digest, and review-only authority.
+- Distinguish metadata SHA-256 revisions from Git commits in the public instrument.
+  Keep its 72 handles, 61 formula handles, seven reserved repositories, and the
+  existing limits on public content and execution authority.
+
 ### Fixed - frontier health app observation
 - Pass the registered application to the frontier health manifest so its governance
   rollup reads that process's restraint observation. Missing signer readiness,
