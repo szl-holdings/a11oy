@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-10-04T21:11:11Z",
+  "observedAt": "2026-10-04T21:50:08Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
