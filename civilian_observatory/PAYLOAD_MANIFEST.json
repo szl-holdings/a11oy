@@ -1,0 +1,32 @@
+{
+  "external_effectors": [],
+  "files": {
+    "__init__.py": "c8f27b3f462f69bd3c9a91f1668651f94bf27b643d9337536a6e9f1b83aafe86",
+    "app.py": "c05e59272632d441f8c7924ec0d0ec72d1f94cb453d9d80e8670450a143d18ef",
+    "core.py": "5532020e4513a3b38672c79ff52a96f9acaea796cb18e26857d59d713e78dd67",
+    "data/estate.json": "9e0866bb222dac9657e2084f62edb33a9ebe87459ce115aee652ec145914752e",
+    "feeds.py": "897f3c89d1e27cac1381900bf000df8b21cec1a35557fb9d90c268cb8eb49dd5",
+    "static/assets/dependencies-BcVPsqH8.js": "650a7cd23aa3c6854dc14ef9533ea19cb43410682599e47d9dd1cef3e8d8743b",
+    "static/assets/dependencies-DyqX6lRK.css": "4c3f4aaa0186c9cddb26d6d595b0efbaf79ff1a05d1ac87039faea46ba3bfea8",
+    "static/assets/geist-cyrillic-ext-wght-normal-DjL33-gN.woff2": "2317fa4bb293c9c0b110e18315d529235c47a0ddd3338cea3d8c7955e927899e",
+    "static/assets/geist-cyrillic-wght-normal-BEAKL7Jp.woff2": "6894439694946a589d157ece003086960a6a4013d74a813dab7602efdb3d8c09",
+    "static/assets/geist-latin-ext-wght-normal-DC-KSUi6.woff2": "824f485b5d26e2f2da3c2b236132ece1bc8e4e43373452950bb0e40548b4313f",
+    "static/assets/geist-latin-wght-normal-BgDaEnEv.woff2": "19f9c92546aa300c312235e3125af1b81394d8db9a4bc4a425cd5b641d2d54e1",
+    "static/assets/geist-mono-cyrillic-ext-wght-normal-X_5orZeX.woff2": "cd8800999070b729e1cc0bf7a48da6c3ac096a044251171b9a7574b56d96d4b4",
+    "static/assets/geist-mono-cyrillic-wght-normal-DiZS0aHC.woff2": "4866787fc952dbdbd591d6923d67bc21c2d894b93f34ab69d0cdf25d47bfb2df",
+    "static/assets/geist-mono-latin-ext-wght-normal-Bwz-egvJ.woff2": "1a189eb997c3e2ece68373e387afaec9e8617424186c4b1ab3cff7c54ba6223b",
+    "static/assets/geist-mono-latin-wght-normal-XN7g48iV.woff2": "684ad5b531f81d43c1e8c7038262d5db7cdc1f68006e04d6c7769efa8d33c8cc",
+    "static/assets/geist-mono-symbols2-wght-normal-CO5SzqOn.woff2": "5bb66d8319ba1602bb2eb67dce8d79c2b4687be8ce183a0574433e949b3c60ad",
+    "static/assets/geist-mono-vietnamese-wght-normal-DadHysG0.woff2": "d39b60889a94a527a7f73c7988a2d6efb6c081614aef683b0b386c02d74c2175",
+    "static/assets/geist-vietnamese-wght-normal-6IgcOCM7.woff2": "8fa40e5d248247735eb97a0bd593b8852440430600d6ba01364c31fe0abc1fe1",
+    "static/assets/index-CwYbzABL.css": "9308ee88d2eb9566a453d80952322dfe0a7eb1b71fa16559aaed918881645ab4",
+    "static/assets/index-DNqQ9R4W.js": "7e7e5475f7a43664db50583df83e2825b26490e5304eaa1d2e88e150ab7cf443",
+    "static/favicon.svg": "99a23f6e8a7ea28df458c9c2b91e41fa978158c69e288b0c7f732463d524ed6a",
+    "static/index.html": "1522d0aeafaea19faf9ea7c70d891fe6df6a4394fef97e383010c47ad39c9605",
+    "static/third-party-notices.txt": "13b18d2dfecdcb585eb8bfff62a6e44be061d2d53fb4842c496f1ba11427382c"
+  },
+  "model_loaded": false,
+  "schema": "szl.civilian.payload.v1",
+  "trust": "UNSIGNED_SOURCE_HASHES",
+  "version": "0.2.0"
+}

@@ -106,6 +106,9 @@ SERIES_A_VARIABLES = {
     "A11OY_SERIES_A_SQLITE_JOURNAL": "DELETE",
     "SZL_ENERGY_LEDGER_PATH": "/data/a11oy/energy/ledger.jsonl",
     "SZL_LAKE_DIR": "/data/a11oy/khipu",
+    "A11OY_ATELIER_LEDGER_PATH": "/data/a11oy/atelier/turn-receipts-v1.jsonl",
+    "A11OY_ATELIER_REQUIRED_MOUNT": "/data",
+    "SZL_GOVERN_INFER_LOG": "/data/.szl_govern_infer.jsonl",
 }
 ROUTES = {
     "livez": "/api/livez",
@@ -726,9 +729,13 @@ def validate_route(
         )
     elif name == "series_a_status":
         storage = payload.get("storage")
+        critical_failures = payload.get("critical_failures")
         if (
             payload.get("schema") != "szl.series-a-status/v1"
             or payload.get("terminal") is not True
+            or payload.get("state") != "OBSERVED"
+            or not isinstance(critical_failures, list)
+            or critical_failures
             or str(payload.get("source_revision") or "").lower() != source_sha
             or payload.get("signing_key_source")
             != "persistent:env:SZL_COSIGN_PRIVATE_PEM"
@@ -754,7 +761,7 @@ def validate_route(
             or storage.get("last_receipt_sequence") < storage.get("receipt_count")
         ):
             raise RelockError(
-                "Series-A signer or persistent storage contract is incomplete"
+                "Series-A estate state, signer, or persistent storage contract is incomplete"
             )
         chain_head = storage.get("chain_head")
         receipt_count = storage["receipt_count"]
@@ -764,6 +771,8 @@ def validate_route(
         elif re.fullmatch(r"[0-9a-f]{64}", str(chain_head or "")) is None:
             raise RelockError("Series-A receipt chain head is invalid")
         evidence["source_bound"] = True
+        evidence["estate_state"] = payload["state"]
+        evidence["critical_failures"] = list(critical_failures)
         evidence["signing_key_source"] = payload["signing_key_source"]
         evidence["storage"] = dict(storage)
     return evidence

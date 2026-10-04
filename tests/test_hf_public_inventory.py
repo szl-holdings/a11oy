@@ -22,9 +22,15 @@ def get_empty(url):
     return {'status': 200, 'json': [], 'link': None}
 
 
+def collect_fixture(get):
+    def absent_reserved(url):
+        return {'status': 404} if url.endswith('/README') else get(url)
+    return m.collect('SZLHOLDINGS', absent_reserved)
+
+
 def fixture(rows=None):
     rows = [row()] if rows is None else rows
-    inventory = m.collect('SZLHOLDINGS', lambda u: {'status': 200, 'json': copy.deepcopy(rows)})
+    inventory = collect_fixture( lambda u: {'status': 200, 'json': copy.deepcopy(rows)})
     manifest = {'org': 'SZLHOLDINGS', 'counts': dict(inventory['counts']),
                 'inventoryScope': {'visibility': 'public-only', 'authenticated': False, 'privateAssetsIncluded': False},
                 'inventory': {k: copy.deepcopy(rows) for k in m.KINDS}}
@@ -33,35 +39,35 @@ def fixture(rows=None):
 
 class PublicInventoryTests(unittest.TestCase):
     def test_empty_list_is_observed_zero(self):
-        result = m.collect('SZLHOLDINGS', get_empty)
+        result = collect_fixture( get_empty)
         self.assertTrue(result['observed'])
         self.assertEqual(result['counts'], dict.fromkeys(m.KINDS, 0))
 
     def test_object_200_is_unknown_not_zero(self):
-        result = m.collect('SZLHOLDINGS', lambda u: {'status': 200, 'json': {'error': 'oops'}})
+        result = collect_fixture( lambda u: {'status': 200, 'json': {'error': 'oops'}})
         self.assertFalse(result['observed'])
         self.assertEqual(result['counts'], dict.fromkeys(m.KINDS, None))
 
     def test_http_and_network_failures_never_zero(self):
         for status in (None, 401, 403, 429, 500, 302):
             with self.subTest(status=status):
-                result = m.collect('SZLHOLDINGS', lambda u: {'status': status, 'json': []})
+                result = collect_fixture( lambda u: {'status': status, 'json': []})
                 self.assertFalse(result['observed'])
                 self.assertIsNone(result['counts']['spaces'])
         def unavailable(_):
             raise TimeoutError('https://private.example/token-do-not-log')
-        self.assertNotIn('private.example', json.dumps(m.collect('SZLHOLDINGS', unavailable)))
+        self.assertNotIn('private.example', json.dumps(collect_fixture( unavailable)))
 
     def test_visibility_requires_explicit_false(self):
         for value in (None, True, 0, 'false'):
             with self.subTest(value=value):
-                result = m.collect('SZLHOLDINGS', lambda u: {'status': 200, 'json': [row(private=value)]})
+                result = collect_fixture( lambda u: {'status': 200, 'json': [row(private=value)]})
                 self.assertFalse(result['observed'])
                 self.assertEqual(result['items']['models'], [])
 
     def test_foreign_namespace_and_duplicate_rejected(self):
         for rows in ([row(id='other/model')], [row(), row()], [None], [row(id='../model')]):
-            self.assertFalse(m.collect('SZLHOLDINGS', lambda u: {'status': 200, 'json': rows})['observed'])
+            self.assertFalse(collect_fixture( lambda u: {'status': 200, 'json': rows})['observed'])
 
     def test_gated_disabled_and_reserved_readme_still_inventory(self):
         rows = [row('README'), row('gated', gated=True), row('disabled', disabled=True)]
@@ -70,7 +76,7 @@ class PublicInventoryTests(unittest.TestCase):
         self.assertTrue(m.compare_manifest(inventory, manifest, counts)['aligned'])
 
     def test_private_labs_not_silently_mixed_into_public_count(self):
-        result = m.collect('SZLHOLDINGS', lambda u: {'status': 200, 'json': [row('visible'), row('private-staging', private=True)]})
+        result = collect_fixture( lambda u: {'status': 200, 'json': [row('visible'), row('private-staging', private=True)]})
         self.assertFalse(result['observed'])
         self.assertNotIn('private-staging', json.dumps(result))
 
@@ -79,7 +85,7 @@ class PublicInventoryTests(unittest.TestCase):
             if 'cursor=' in url:
                 return {'status': 200, 'json': [row('last')], 'link': None}
             return {'status': 200, 'json': [row('first')], 'link': f'<{url}&cursor=page2>; rel="next"'}
-        result = m.collect('SZLHOLDINGS', get)
+        result = collect_fixture( get)
         self.assertTrue(result['observed'])
         self.assertEqual(result['counts']['models'], 2)
         self.assertEqual(len(result['page_evidence']['models']), 2)
@@ -89,7 +95,7 @@ class PublicInventoryTests(unittest.TestCase):
             if 'cursor=' in url:
                 return {'status': 503, 'json': []}
             return {'status': 200, 'json': [row()], 'link': f'<{url}&cursor=p2>; rel="next"'}
-        result = m.collect('SZLHOLDINGS', get)
+        result = collect_fixture( get)
         self.assertIsNone(result['counts']['models'])
         self.assertEqual(result['items']['models'], [])
         self.assertEqual(len(result['page_evidence']['models']), 1)
@@ -97,7 +103,7 @@ class PublicInventoryTests(unittest.TestCase):
     def test_duplicates_across_pages_rejected(self):
         def get(url):
             return {'status': 200, 'json': [row()], 'link': None if 'cursor=' in url else f'<{url}&cursor=p2>; rel="next"'}
-        self.assertFalse(m.collect('SZLHOLDINGS', get)['observed'])
+        self.assertFalse(collect_fixture( get)['observed'])
 
     def test_redirect_refused(self):
         with self.assertRaises(m.InventoryError):
@@ -122,7 +128,7 @@ class PublicInventoryTests(unittest.TestCase):
     def test_pagination_cycles_bounded(self):
         def get(url):
             return {'status': 200, 'json': [row()], 'link': f'<{url}>; rel="next"'}
-        self.assertFalse(m.collect('SZLHOLDINGS', get)['observed'])
+        self.assertFalse(collect_fixture( get)['observed'])
 
     def test_page_budget_is_unknown(self):
         counter = 0
@@ -132,9 +138,9 @@ class PublicInventoryTests(unittest.TestCase):
             base = url.split('&cursor=')[0]
             return {'status': 200, 'json': [row(str(counter))], 'link': f'<{base}&cursor={counter}>; rel="next"'}
         with patch.object(m, 'MAX_PAGES', 2):
-            result = m.collect('SZLHOLDINGS', get)
+            result = collect_fixture( get)
         self.assertFalse(result['observed'])
-        self.assertEqual(counter, 6)
+        self.assertEqual(counter, 2 * len(m.KINDS))
 
     def test_no_hidden_auth_headers_even_with_env_secrets(self):
         class Response:
@@ -216,7 +222,7 @@ class PublicInventoryTests(unittest.TestCase):
         self.assertTrue(m.compare_manifest(inventory, manifest, counts)['aligned'])
 
     def test_returned_scope_cannot_mutate_global_predicate(self):
-        inventory = m.collect('SZLHOLDINGS', get_empty)
+        inventory = collect_fixture( get_empty)
         inventory['scope']['kinds'].append('buckets')
         self.assertEqual(m.PREDICATE['kinds'], list(m.KINDS))
 
@@ -307,6 +313,12 @@ class PublicInventoryTests(unittest.TestCase):
         self.assertIn('test "$state" = ALIGNED', text)
         self.assertIn('if [ "$state" = ALIGNED ] && [ "$inventory_state" = ALIGNED ]; then', text)
         self.assertIn('reports/hf-public-inventory-preflight.json', text)
+
+
+try:
+    from tests.test_reserved_readme_inventory import ReservedReadmeTests
+except ModuleNotFoundError:
+    from test_reserved_readme_inventory import ReservedReadmeTests
 
 
 if __name__ == '__main__': unittest.main()

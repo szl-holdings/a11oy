@@ -190,6 +190,8 @@ def test_main_carries_one_qualified_revision_through_every_phase(publisher, monk
     monkeypatch.setattr(publisher, "token_from_env", lambda: ("fixture", "FIXTURE"))
     monkeypatch.setattr(publisher, "HfApi", lambda **kwargs: object())
     monkeypatch.setenv("GITHUB_SHA", "b" * 40)
+    monkeypatch.setenv("GITHUB_RUN_ID", "12345")
+    monkeypatch.setenv("GITHUB_RUN_ATTEMPT", "1")
     phases = []
     def resolve():
         phases.append("resolve")
@@ -225,6 +227,17 @@ def test_main_carries_one_qualified_revision_through_every_phase(publisher, monk
     assert phases == ["resolve", "checkout", "controller", "preflight", "recheck", "deploy",
                       "recheck", "configure", "recheck", "restart", "attest", "verify", "recheck"]
     assert receipt["release_journal"]["complete"] is True
+    journal = receipt["release_journal"]
+    assert journal["schema"] == "szl.release-journal-summary/v1"
+    assert journal["execution_authority"] == "NONE"
+    assert journal["signature_verified"] is False
+    assert journal["complete"] is True
+    assert journal["failed"] is False
+    assert journal["source_revision"] == REVISION
+    assert tuple(journal["required_phases"]) == publisher.RELEASE_PHASES
+    assert tuple(journal["completed_phases"]) == publisher.RELEASE_PHASES
+    assert receipt["raw_output_recorded"] is False
+    assert receipt["execution_authority"] == "NONE"
 
 
 def test_admission_failure_leaves_no_mutation_and_retains_failure_receipt(publisher, monkeypatch, tmp_path):
@@ -271,7 +284,7 @@ def test_lyte_only_scope_uses_existing_writer_and_rejects_failed_or_unbound_rece
 
 def test_workflow_exposes_focused_scope_and_retains_partial_lyte_manifest():
     workflow = (ROOT / ".github/workflows/hf-publish-vertical-flagships.yml").read_text()
-    assert "options: [finance, lyte, estate]" in workflow
+    assert "options: [finance, lyte, terra, sentra, counsel, estate]" in workflow
     assert "hf-lyte-enterprise-manifest.failed.json" in workflow
     contract = (ROOT / ".github/workflows/hf-lyte-enterprise-contract.yml").read_text()
     assert contract.count("tests/test_lyte_publisher_source_resolution.py") == 2

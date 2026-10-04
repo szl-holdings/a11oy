@@ -21,9 +21,11 @@ consequential authority.
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 import os
 import re
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -43,12 +45,16 @@ COMBINED_RECEIPT = Path("hf-vertical-services-receipt.json")
 PUBLIC_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance", "lyte")
 GENERATED_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance")
 SOURCE_OWNED_FLAGSHIP_SLUGS = ("lyte",)
+SELECTABLE_GENERATED_SCOPES = ("terra", "sentra", "counsel")
 FOLDED_INTO_KILLINCHU = ("vessels",)
 KILLINCHU_SPACE = "SZLHOLDINGS/killinchu"
 SENTRA_SPACE = "SZLHOLDINGS/sentra"
 VERTICAL_SERVICES_REPOSITORY = "szl-holdings/vertical-services"
 GITHUB_API = "https://api.github.com"
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
+SENTRA_FILES = ("app.py", "Dockerfile", "requirements.txt", "config.json", "index.html", "panels.html", "README.md")
+SENTRA_MAX_FILE_BYTES = 512 * 1024
+SENTRA_DOCTRINE_CHECKS = ("Banned-token scan (Doctrine v7 §1)", "overclaim / Governed surfaces are honest (Theorem U citation rule)")
 
 # Historical identifiers stay visible for receipt readers and protected
 # regression tests. They are documentation strings, not active topology.
@@ -200,15 +206,24 @@ def run_publisher(
     *,
     source_revision_override: str | None = None,
     finance_only: bool = False,
+    selected_slug: str | None = None,
 ) -> tuple[int, str | None, tuple[str, ...] | None]:
     admitted: tuple[str, ...] | None = None
     try:
+        if selected_slug is not None and (
+            selected_slug not in SELECTABLE_GENERATED_SCOPES or finance_only
+            or name != "szl_flagship_v4"
+        ):
+            raise RuntimeError("unauthorized selected publication scope")
         module = load_module(name, path)
         if name == "szl_flagship_v4":
             admitted = constrain_public_flagships(module)
             if finance_only:
                 module.FLAGSHIPS = tuple(row for row in module.FLAGSHIPS if row["slug"] == "finance")
                 admitted = ("finance",)
+            elif selected_slug is not None:
+                module.FLAGSHIPS = tuple(row for row in module.FLAGSHIPS if row["slug"] == selected_slug)
+                admitted = (selected_slug,)
         if source_revision_override is not None:
             if SHA40.fullmatch(source_revision_override) is None:
                 raise RuntimeError("source revision override is not a full Git SHA")
@@ -282,12 +297,23 @@ def normalize_github_token_alias() -> str:
     return "unavailable"
 
 
+def _github_workflow_token() -> str | None:
+    """Use the existing read credential for own-repository source checks."""
+    return (
+        os.getenv("GITHUB_TOKEN", "").strip()
+        or os.getenv("GH_TOKEN", "").strip()
+        or None
+    )
+
+
 def finance_preflight() -> dict[str, Any]:
     """Require the canonical backend component before writing its public view."""
     revision = os.environ.get("GITHUB_SHA", "")
     if SHA40.fullmatch(revision) is None or revision == "0" * 40:
         raise RuntimeError("Finance requires a bound canonical source revision")
-    head = _github_json("/repos/szl-holdings/a11oy/commits/main")
+    head = _github_json(
+        "/repos/szl-holdings/a11oy/commits/main", token=_github_workflow_token()
+    )
     if head.get("sha") != revision:
         raise RuntimeError("Finance publisher source is no longer current main")
     request = urllib.request.Request(
@@ -367,6 +393,288 @@ def publish_finance_only(space_guard_module) -> int:
     return 0 if receipt["complete"] else 1
 
 
+def selected_generated_preflight(scope: str) -> str:
+    """Bind a single generated Space to the current protected A11oy source."""
+    if scope not in SELECTABLE_GENERATED_SCOPES:
+        raise RuntimeError("unauthorized selected publication scope")
+    revision = os.environ.get("GITHUB_SHA", "")
+    if SHA40.fullmatch(revision) is None or revision == "0" * 40:
+        raise RuntimeError("selected publisher requires a bound source revision")
+    run_id = os.environ.get("GITHUB_RUN_ID", "")
+    if not run_id.isdigit() or int(run_id) <= 0:
+        raise RuntimeError("selected publisher requires a positive workflow run id")
+    head = _github_json(
+        "/repos/szl-holdings/a11oy/commits/main", token=_github_workflow_token()
+    )
+    if head.get("sha") != revision:
+        raise RuntimeError("selected publisher source is no longer current main")
+    return revision
+
+
+def selected_generated_space_preflight(scope: str, space_guard_module) -> None:
+    """Use the generated writer's credential to prove its one target is public."""
+    module = load_module("szl_flagship_v4_token_source", FLAGSHIP_IMPL)
+    token, _ = module._BASE.token_from_env()
+    space_guard_module.require_existing_public_space(f"SZLHOLDINGS/{scope}", token)
+
+
+class SentraPublicationError(RuntimeError):
+    def __init__(self, message: str, http_status: int | None = None):
+        super().__init__(message)
+        self.http_status = http_status
+
+
+class _SentraNoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise SentraPublicationError("GitHub source admission redirected", int(code))
+
+
+def _sentra_github_json(path: str) -> dict[str, Any]:
+    """Read authenticated source evidence without credential fallback."""
+    token = _github_workflow_token()
+    if not token or not path.startswith("/repos/szl-holdings/a11oy/") or ".." in path or "#" in path:
+        raise SentraPublicationError("Authenticated A11oy source evidence is unavailable")
+    request = urllib.request.Request(GITHUB_API + path, headers={
+        "Accept": "application/vnd.github+json", "Authorization": f"Bearer {token}",
+        "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "szl-sentra-publication/1",
+        "Cache-Control": "no-cache",
+    })
+    try:
+        with urllib.request.build_opener(_SentraNoRedirect).open(request, timeout=20) as response:
+            body = response.read(2 * 1024 * 1024 + 1)
+    except urllib.error.HTTPError as exc:
+        raise SentraPublicationError("GitHub source admission returned an HTTP error", exc.code) from exc
+    if len(body) > 2 * 1024 * 1024:
+        raise SentraPublicationError("GitHub source evidence exceeded its bound")
+    payload = json.loads(body)
+    if not isinstance(payload, dict):
+        raise SentraPublicationError("GitHub source evidence is not an object")
+    return payload
+
+
+def _sentra_source_admission() -> str:
+    revision = os.environ.get("GITHUB_SHA", "")
+    if (SHA40.fullmatch(revision) is None or revision == "0" * 40
+            or os.environ.get("GITHUB_REF") != "refs/heads/main"
+            or os.environ.get("GITHUB_REPOSITORY") != "szl-holdings/a11oy"
+            or not os.environ.get("GITHUB_RUN_ID", "").isdigit()
+            or int(os.environ["GITHUB_RUN_ID"]) <= 0):
+        raise SentraPublicationError("Sentra requires an exact main workflow source")
+    branch = _sentra_github_json("/repos/szl-holdings/a11oy/branches/main")
+    protection = branch.get("protection") or {}
+    policy = protection.get("required_status_checks") or {}
+    if (branch.get("commit", {}).get("sha") != revision or branch.get("protected") is not True
+            or protection.get("enabled") is not True):
+        raise SentraPublicationError("Sentra source is not current protected main")
+    checks = policy.get("checks")
+    if not isinstance(checks, list) or not checks:
+        raise SentraPublicationError("Required source-check policy is unavailable")
+    required = {}
+    for check in checks:
+        if (not isinstance(check, dict) or not isinstance(check.get("context"), str)
+                or not check["context"] or type(check.get("app_id")) is not int
+                or check["context"] in required):
+            raise SentraPublicationError("Required source-check authority is unavailable")
+        required[check["context"]] = check["app_id"]
+    if set(policy.get("contexts") or ()) != set(required):
+        raise SentraPublicationError("Required source-check policy is inconsistent")
+    if any(name in required and required[name] != 15368 for name in SENTRA_DOCTRINE_CHECKS):
+        raise SentraPublicationError("Doctrine source-check authority is inconsistent")
+    required.update({name: 15368 for name in SENTRA_DOCTRINE_CHECKS})
+    commit = _sentra_github_json(f"/repos/szl-holdings/a11oy/commits/{revision}")
+    signature = commit.get("commit", {}).get("verification") or {}
+    if commit.get("sha") != revision or signature.get("verified") is not True or signature.get("reason") != "valid":
+        raise SentraPublicationError("Sentra source signature is unverified")
+    observed: dict[str, list[dict[str, Any]]] = {name: [] for name in required}
+    for page in range(1, 5):
+        payload = _sentra_github_json(
+            f"/repos/szl-holdings/a11oy/commits/{revision}/check-runs?filter=latest&per_page=100&page={page}")
+        total = payload.get("total_count")
+        rows = payload.get("check_runs")
+        if type(total) is not int or not 0 <= total <= 400 or not isinstance(rows, list):
+            raise SentraPublicationError("Source-check inventory is unavailable or unbounded")
+        for check in rows:
+            name = check.get("name")
+            if name in required and check.get("app", {}).get("id") == required[name]:
+                observed[name].append(check)
+        if page * 100 >= total:
+            break
+    if any(not rows or any(row.get("head_sha") != revision or row.get("status") != "completed"
+                           or row.get("conclusion") != "success" for row in rows)
+           for rows in observed.values()):
+        raise SentraPublicationError("Required exact-source checks are unresolved")
+    return revision
+
+
+def _sentra_target(api: Any, *, running: bool = True) -> dict[str, Any]:
+    info = api.space_info(SENTRA_SPACE)
+    runtime = getattr(info, "runtime", None)
+    result = {"id": getattr(info, "id", None), "sha": getattr(info, "sha", None),
+              "private": getattr(info, "private", None), "sdk": getattr(info, "sdk", None),
+              "hardware": str(getattr(runtime, "hardware", "")),
+              "requested_hardware": str(getattr(runtime, "requested_hardware", "")),
+              "storage": getattr(runtime, "storage", None)}
+    if (result["id"] != SENTRA_SPACE or result["private"] is not False or result["sdk"] != "docker"
+            or result["hardware"] != "cpu-basic" or result["requested_hardware"] != "cpu-basic"
+            or not isinstance(result["sha"], str) or SHA40.fullmatch(result["sha"]) is None
+            or (running and str(getattr(runtime, "stage", "")) != "RUNNING")):
+        raise SentraPublicationError("Existing public Docker cpu-basic Sentra authority is unavailable")
+    inventory = api.list_repo_files(SENTRA_SPACE, repo_type="space", revision=result["sha"])
+    if set(inventory) != set(SENTRA_FILES) | {".gitattributes"}:
+        raise SentraPublicationError("Sentra file inventory differs from the admitted contract")
+    return result
+
+
+def _sentra_file_bytes(revision: str, path: str) -> bytes:
+    if SHA40.fullmatch(revision) is None or path not in (*SENTRA_FILES, ".gitattributes"):
+        raise SentraPublicationError("Sentra readback path is outside the immutable contract")
+    request = urllib.request.Request(
+        f"https://huggingface.co/spaces/{SENTRA_SPACE}/resolve/{revision}/{path}",
+        headers={"User-Agent": "szl-sentra-publication/1", "Cache-Control": "no-cache"})
+    with urllib.request.urlopen(request, timeout=20) as response:
+        body = response.read(SENTRA_MAX_FILE_BYTES + 1)
+    if len(body) > SENTRA_MAX_FILE_BYTES:
+        raise SentraPublicationError("Sentra immutable file exceeded its bound")
+    return body
+
+
+def publish_sentra_existing() -> int:
+    """Change one existing Space ref once; retain partial-write evidence on failure."""
+    receipt: dict[str, Any] = {
+        "schema": "szl.hf-selected-flagship/v1", "publication_scope": "sentra",
+        "state": "BLOCKED", "complete": False, "rows": [],
+        "provider_write_attempted": False, "provider_write_confirmed": False,
+        "sibling_publications": 0, "delete_operations": 0, "explicit_restarts": 0,
+        "settings_changes": 0, "secret_changes": 0, "secret_values_recorded": False,
+        "receipt_signature_state": "UNAVAILABLE", "key_trust": "REPO_DECLARED",
+        "independent_validation": "UNKNOWN", "runtime_state": "UNKNOWN",
+    }
+    try:
+        revision = _sentra_source_admission()
+        module = load_module("szl_sentra_transaction_renderer", FLAGSHIP_IMPL)
+        files, row = module.render_sentra_payload(revision, int(os.environ["GITHUB_RUN_ID"]))
+        if (tuple(files) != SENTRA_FILES or any(not isinstance(body, bytes) or len(body) > SENTRA_MAX_FILE_BYTES
+                                               for body in files.values())
+                or sum(map(len, files.values())) > 2 * 1024 * 1024):
+            raise SentraPublicationError("Sentra renderer exceeded its fixed-file contract")
+        receipt.update(source_revision=revision, generated_flagship_slugs=["sentra"], rows=[row],
+                       file_sha256={path: hashlib.sha256(body).hexdigest() for path, body in files.items()})
+        token, token_source = module._BASE.token_from_env()
+        api = module._BASE.HfApi(token=token)
+        target = _sentra_target(api)
+        receipt.update(provider_parent_sha=target["sha"], admitted_target=target, token_source_name=token_source)
+        api.auth_check(repo_id=SENTRA_SPACE, repo_type="space", write=True)
+        attributes = _sentra_file_bytes(target["sha"], ".gitattributes")
+        if _sentra_source_admission() != revision or _sentra_target(api) != target:
+            raise SentraPublicationError("Sentra admission changed before its commit")
+        from huggingface_hub import CommitOperationAdd
+        operations = [CommitOperationAdd(path_in_repo=path, path_or_fileobj=body) for path, body in files.items()]
+        receipt["provider_write_attempted"] = True
+        commit = api.create_commit(repo_id=SENTRA_SPACE, repo_type="space", revision="main",
+                                   parent_commit=target["sha"], operations=operations,
+                                   commit_message=f"fix(sentra): publish admitted a11oy@{revision}")
+        published = getattr(commit, "oid", None)
+        if not isinstance(published, str) or SHA40.fullmatch(published) is None:
+            raise SentraPublicationError("Provider commit outcome is ambiguous")
+        receipt.update(provider_write_confirmed=True, provider_commit_sha=published)
+        if any(_sentra_file_bytes(published, path) != body for path, body in files.items()):
+            raise SentraPublicationError("Sentra immutable file readback differs")
+        if _sentra_file_bytes(published, ".gitattributes") != attributes:
+            raise SentraPublicationError("Sentra retained attributes changed")
+        after = _sentra_target(api, running=False)
+        if after != {**target, "sha": published}:
+            raise SentraPublicationError("Sentra target changed during immutable readback")
+        receipt["immutable_readback_complete"] = True
+        deadline = time.monotonic() + 1800
+        while time.monotonic() < deadline:
+            module.observe_flagship(row)
+            if (module.observation_passes(row, source_revision=revision, workflow_run_id=os.environ["GITHUB_RUN_ID"])
+                    and row.get("build_info", {}).get("hf_revision") == published):
+                break
+            time.sleep(15)
+        else:
+            raise SentraPublicationError("Sentra exact runtime adoption is unavailable")
+        if _sentra_source_admission() != revision or _sentra_target(api) != {**target, "sha": published}:
+            raise SentraPublicationError("Sentra source or target was superseded after publication")
+        row.update(operational=True, actions=["single_content_commit", "immutable_readback"])
+        receipt.update(state="MEASURED", runtime_state="MEASURED", source_still_current=True, complete=True)
+    except Exception as exc:
+        receipt["error"] = str(exc) if isinstance(exc, SentraPublicationError) else type(exc).__name__
+        response = getattr(exc, "response", None)
+        receipt["http_status"] = (getattr(exc, "http_status", None)
+                                  or getattr(response, "status_code", None) or getattr(exc, "code", None))
+    FLAGSHIP_RECEIPT.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(json.dumps(receipt, sort_keys=True))
+    return 0 if receipt["complete"] else 1
+
+
+def publish_selected_generated(scope: str, space_guard_module) -> int:
+    """Publish one existing generated Space and verify its live receipt."""
+    try:
+        revision = selected_generated_preflight(scope)
+        selected_generated_space_preflight(scope, space_guard_module)
+        code, error, admitted = run_publisher(
+            "szl_flagship_v4", FLAGSHIP_IMPL, selected_slug=scope
+        )
+        receipt = read_receipt(FLAGSHIP_RECEIPT) or {}
+        try:
+            source_still_current = (
+                _github_json(
+                    "/repos/szl-holdings/a11oy/commits/main",
+                    token=_github_workflow_token(),
+                ).get("sha")
+                == revision
+            )
+        except Exception as exc:
+            source_still_current = False
+            receipt["postflight_error"] = type(exc).__name__
+        rows = receipt.get("rows")
+        verified_row = (
+            isinstance(rows, list)
+            and len(rows) == 1
+            and isinstance(rows[0], dict)
+            and rows[0].get("id") == f"SZLHOLDINGS/{scope}"
+            and rows[0].get("source_revision") == revision
+            and rows[0].get("workflow_run_id") == int(os.environ["GITHUB_RUN_ID"])
+            and rows[0].get("operational") is True
+        )
+        receipt.update(
+            publication_scope=scope,
+            source_revision=revision,
+            existing_space_guard=space_guard_module.guard_report(),
+            generated_flagship_slugs=list(admitted or ()),
+            sibling_publications=0,
+            delete_operations=0,
+            secret_values_recorded=False,
+            source_still_current=source_still_current,
+        )
+        receipt["complete"] = bool(
+            receipt.get("complete") is True
+            and code == 0
+            and error is None
+            and admitted == (scope,)
+            and verified_row
+            and source_still_current
+        )
+        if error:
+            receipt["entrypoint_error"] = error
+    except Exception as exc:
+        receipt = {
+            "schema": "szl.hf-selected-flagship/v1",
+            "publication_scope": scope,
+            "complete": False,
+            "error": type(exc).__name__,
+            "detail": str(exc),
+            "secret_values_recorded": False,
+            "delete_operations": 0,
+        }
+    FLAGSHIP_RECEIPT.write_text(
+        json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    print(json.dumps(receipt, indent=2, sort_keys=True))
+    return 0 if receipt["complete"] else 1
+
+
 def lyte_receipt_is_complete(receipt: dict[str, Any]) -> bool:
     resolution = receipt.get("source_resolution")
     revision = receipt.get("source_revision")
@@ -412,16 +720,23 @@ def main() -> int:
         "szl_hf_existing_space_guard",
         SPACE_GUARD_IMPL,
     )
-    space_guard_module.install_existing_space_guard()
+    scope = os.environ.get("SZL_FLAGSHIP_SCOPE", "estate")
+    if scope not in ("estate", "finance", "lyte", *SELECTABLE_GENERATED_SCOPES):
+        raise RuntimeError("unknown publication scope")
+    if scope in SELECTABLE_GENERATED_SCOPES:
+        space_guard_module.install_existing_space_guard(require_existing=True)
+    else:
+        space_guard_module.install_existing_space_guard()
 
     github_token_source = normalize_github_token_alias()
-    scope = os.environ.get("SZL_FLAGSHIP_SCOPE", "estate")
-    if scope not in ("estate", "finance", "lyte"):
-        raise RuntimeError("unknown publication scope")
+    if scope == "sentra":
+        return publish_sentra_existing()
     if scope == "finance":
         return publish_finance_only(space_guard_module)
     if scope == "lyte":
         return publish_lyte_only(space_guard_module)
+    if scope in SELECTABLE_GENERATED_SCOPES:
+        return publish_selected_generated(scope, space_guard_module)
     flagship_code, flagship_error, admitted = run_publisher(
         "szl_flagship_v4",
         FLAGSHIP_IMPL,

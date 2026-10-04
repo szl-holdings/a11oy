@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -89,7 +90,16 @@ def inventory_only_spaces(contract: dict[str, Any]) -> list[str]:
             raise ContractError("inventory-only Hub classification drifted")
         if row.get("governedKeep") is not False:
             raise ContractError("inventory-only Space cannot be a governed keeper")
-        if row.get("disposition") != "FOLD":
+        if row.get('id') == 'SZLHOLDINGS/README':
+            if row.get('disposition') != 'ORG_CARD':
+                raise ContractError('reserved README must retain its ORG_CARD disposition')
+            try:
+                org_cards = re.findall(r'^org_card:([^\n]*)$', KEEP_POLICY.read_text(encoding='utf-8'), re.MULTILINE)
+            except OSError as exc:
+                raise ContractError('canonical org-card policy unavailable') from exc
+            if org_cards != [' SZLHOLDINGS/README']:
+                raise ContractError('canonical org-card policy must identify only SZLHOLDINGS/README')
+        elif row.get("disposition") != "FOLD":
             raise ContractError("inventory-only Space must retain its FOLD disposition")
         if row.get("policySource") != KEEP_POLICY.relative_to(ROOT).as_posix():
             raise ContractError("inventory-only Space must cite the canonical keep policy")
@@ -195,7 +205,7 @@ def validate(contract: dict[str, Any], manifest: dict[str, Any]) -> dict[str, An
         raise ContractError("Hub manifest counts are missing")
     if counts.get("spaces") != len(observed):
         raise ContractError("Hub Space count does not match inventory")
-    for key in ("models", "datasets", "spaces"):
+    for key in ("models", "datasets", "spaces", "kernels"):
         if not isinstance(counts.get(key), int) or counts[key] < 0:
             raise ContractError(f"invalid Hub count: {key}")
 
@@ -211,6 +221,7 @@ def validate(contract: dict[str, Any], manifest: dict[str, Any]) -> dict[str, An
         "internalEngines": len(engines),
         "huggingFaceTopologyBindings": topology,
         "huggingFaceInventoryOnly": inventory_only,
+        "huggingFaceOrgCard": 'SZLHOLDINGS/README' if 'SZLHOLDINGS/README' in inventory_only else None,
         "governedKeepSet": governed_keep,
         "governedKeepPolicySource": KEEP_POLICY.relative_to(ROOT).as_posix(),
         "keepPolicySha256": hashlib.sha256(KEEP_POLICY.read_bytes()).hexdigest(),
@@ -237,12 +248,15 @@ def _body_lines(contract: dict[str, Any]) -> list[str]:
 def _inventory_policy_line(evidence: dict[str, Any]) -> str:
     inventory_only = ", ".join(
         f"`{space}`" for space in evidence["huggingFaceInventoryOnly"]
+        if space != evidence['huggingFaceOrgCard']
     )
+    org_card = (f" Reserved organization card (not a governed keeper): `{evidence['huggingFaceOrgCard']}`."
+                if evidence['huggingFaceOrgCard'] else '')
     return (
         "Measured Hub inventory is observational and is not the governed keep-list. "
         f"Inventory-only / FOLD (not governed keepers): {inventory_only}. "
         "Canonical keep policy: "
-        f"`{evidence['governedKeepPolicySource']}`."
+        f"`{evidence['governedKeepPolicySource']}`." + org_card
     )
 
 
@@ -257,8 +271,10 @@ def render_github(contract: dict[str, Any], evidence: dict[str, Any]) -> str:
         "GitHub is canonical source, and Hugging Face is the generated runtime and artifact estate.",
         "",
         f"**Measured Hub inventory:** {counts['spaces']} public Spaces · "
-        f"{counts['models']} models · {counts['datasets']} datasets "
+        f"{counts['models']} model repositories · {counts['kernels']} native kernels · "
+        f"{counts['datasets']} datasets "
         f"as of `{evidence['huggingFaceObservedAt']}`.",
+        "Repository namespaces can share project names; these counts do not establish trained-model totals or readiness.",
         _inventory_policy_line(evidence),
         "",
         "### Five public domain bodies",
@@ -290,13 +306,15 @@ def render_huggingface(contract: dict[str, Any], evidence: dict[str, Any]) -> st
         "<!-- BEGIN SZL PUBLIC ESTATE — GENERATED -->",
         "# SZL Holdings on Hugging Face",
         "",
-        "This organization is the generated model, dataset, and runtime estate for "
+        "This organization is the generated model, kernel, dataset, and runtime estate for "
         "[A11oy](https://a-11-oy.com). Canonical source and release evidence live in "
         "[GitHub](https://github.com/szl-holdings); public proof lives at "
         "[a11oy.net](https://a11oy.net).",
         "",
-        f"**Current public inventory:** {counts['spaces']} Spaces · {counts['models']} models · "
+        f"**Current public inventory:** {counts['spaces']} Spaces · {counts['models']} model repositories · "
+        f"{counts['kernels']} native kernels · "
         f"{counts['datasets']} datasets (`{evidence['huggingFaceObservedAt']}`).",
+        "Repository namespaces can share project names; these counts do not establish trained-model totals or readiness.",
         _inventory_policy_line(evidence),
         "",
         "## Product bodies",
@@ -323,6 +341,7 @@ def render_proof(contract: dict[str, Any], evidence: dict[str, Any]) -> str:
         "",
         "This proof surface follows the A11oy public-estate contract. Product, GitHub source, "
         "Hugging Face runtime, and evidence state are distinct and must agree before a lane is called current.",
+        "Repository namespaces can share project names; these counts do not establish trained-model totals or readiness.",
         _inventory_policy_line(evidence),
         "",
         "| Product body | GitHub source | Hugging Face runtime | Truth class |",

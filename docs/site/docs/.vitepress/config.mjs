@@ -1,5 +1,7 @@
 import { defineConfig } from 'vitepress'
 import { withMermaid } from 'vitepress-plugin-mermaid'
+// Shiki is VitePress's own highlighter (locked in package-lock.json).
+import { createCssVariablesTheme } from 'shiki'
 import katexPlugin from '@vscode/markdown-it-katex'
 const katex = katexPlugin.default || katexPlugin
 
@@ -26,45 +28,61 @@ export default withMermaid(defineConfig({
   lastUpdated: true,
   ignoreDeadLinks: true,
 
+  // Docs are the dark operator surface by default (SZL KANCHAY, founder
+  // direction). VitePress light mode maps to the design system's light surface.
+  appearance: 'dark',
+
   head: [
-    // SZL Kanchay v1.0.0 design tokens, vendored byte for byte at
-    // docs/public/kanchay/ (served at ./kanchay/; fix-relative-paths.mjs
-    // depth-corrects the href on nested pages). Carries every color/type
-    // token and the local @font-face rules: no font CDN.
-    ['link', { rel: 'stylesheet', href: './kanchay/kanchay.css' }],
-    // kanchay.css keeps dark roles on :root and light roles under
-    // [data-theme="light"]; VitePress toggles `.dark` on <html>. Mirror the
-    // class onto data-theme (initially, and on every toggle) so custom.css
-    // reads the exported role values exactly in both themes.
-    ['script', { id: 'kanchay-theme-sync' },
-      ';(() => { const r = document.documentElement; const s = () => r.setAttribute(\'data-theme\', r.classList.contains(\'dark\') ? \'dark\' : \'light\'); s(); new MutationObserver(s).observe(r, { attributes: true, attributeFilter: [\'class\'] }) })()'],
-    ['link', {
-      rel: 'stylesheet',
-      href: 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css'
-    }],
-    // Browser chrome tint. A meta value cannot reference a CSS variable, so
-    // these are the kanchay.css values of --color-a11oy-bg (dark / light).
-    ['meta', { name: 'theme-color', media: '(prefers-color-scheme: dark)', content: '#0a0f1e' }],
-    ['meta', { name: 'theme-color', media: '(prefers-color-scheme: light)', content: '#f5f7fa' }]
+    // SZL KANCHAY 1.1.1 design system, vendored byte for byte at
+    // docs/public/szl/ (served at ./szl/; fix-relative-paths.mjs depth-corrects
+    // the href on nested pages). transformHtml below moves this link in front
+    // of the theme stylesheet so the design system loads first. System font
+    // stacks only: no webfont, no font CDN.
+    ['link', { rel: 'stylesheet', href: './szl/szl-design-system.css' }],
+    // MPA has no Vue hydration. Enhance its existing controls locally.
+    ['script', { defer: '', src: './docs-ui.js' }],
+    // szl-design-system.css keeps the dark operator surface on :root and the
+    // light surface under [data-surface="light"]; VitePress toggles `.dark` on
+    // <html>. Mirror it (initially and on every toggle): not dark -> light.
+    ['script', { id: 'szl-surface-sync' },
+      ';(() => { const r = document.documentElement; const s = () => { if (r.classList.contains(\'dark\')) r.removeAttribute(\'data-surface\'); else r.setAttribute(\'data-surface\', \'light\') }; s(); new MutationObserver(s).observe(r, { attributes: true, attributeFilter: [\'class\'] }) })()'],
+    // Orbit favicons from the vendored logo suite (LOGO_USAGE.md).
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: './szl/logos/szl_favicon_square.svg' }],
+    ['link', { rel: 'icon', type: 'image/png', sizes: '32x32', href: './szl/logos/szl_favicon_32.png' }],
+    ['link', { rel: 'apple-touch-icon', sizes: '180x180', href: './szl/logos/szl_favicon_180.png' }],
+    // Browser chrome tint. A meta value cannot reference a CSS variable: this
+    // is --bg of the dark operator surface (--color-space-900).
+    ['meta', { name: 'theme-color', content: '#030F29' }]
   ],
+
+  // VitePress renders `head` entries after its own stylesheet. Move the design
+  // system link in front of it so the tokens and base load first and the theme
+  // (VitePress + custom.css) overrides them. Build-time only; `vitepress dev`
+  // keeps the head order above.
+  transformHtml(html) {
+    const link = '<link rel="stylesheet" href="./szl/szl-design-system.css">'
+    const at = html.indexOf('<link rel="preload stylesheet"')
+    if (at < 0 || html.indexOf(link) < at) return html
+    return html.slice(0, at) + link + '\n    ' + html.slice(at).replace(link, '')
+  },
 
   markdown: {
     math: false,
     config: (md) => {
-      md.use(katex)
+      // Native MathML keeps formulas without loading any webfonts.
+      md.use(katex, { output: 'mathml' })
     },
-    theme: { light: 'github-light', dark: 'github-dark' },
+    // Code blocks stay dark on both surfaces. Syntax colors are CSS variables
+    // (--shiki-*) that custom.css maps onto the design system's code palette,
+    // so no highlighter theme hex reaches the page.
+    theme: createCssVariablesTheme({ name: 'szl-code' }),
     lineNumbers: false
   },
 
   themeConfig: {
-    // Navbar logo: the SZL mark from the vendored Kanchay export. An <img>
-    // cannot inherit currentColor, so use the colored files: gold on dark,
-    // ink on light. (No alt: the site title beside it names it.)
-    logo: {
-      light: '/kanchay/marks/szl-mark-ink.svg',
-      dark: '/kanchay/marks/szl-mark-gold.svg'
-    },
+    // The text title keeps the navbar neutral. The page's primary action or
+    // active-nav marker is its one coral moment; a colored logo adds another.
+    logo: false,
     siteTitle: 'SZL Holdings',
 
     nav: [
@@ -85,7 +103,6 @@ export default withMermaid(defineConfig({
         items: [
           { text: 'Architecture (7 organs)', link: '/architecture' },
           { text: 'Mesh — nervous system', link: '/mesh' },
-          { text: '3D Showcases', link: '/anatomy/3d-showcases' },
           { text: 'Anatomy + Organs', link: '/anatomy/' },
           { text: 'PURIQ Doctrine', link: '/doctrine/puriq' },
           { text: 'Doctrine v11 + v12', link: '/doctrine/v11-v12' }
@@ -137,8 +154,7 @@ export default withMermaid(defineConfig({
           text: 'Anatomy',
           items: [
             { text: 'Anatomy + Organs', link: '/anatomy/' },
-            { text: 'Mesh — nervous system', link: '/mesh' },
-            { text: '3D Showcases', link: '/anatomy/3d-showcases' }
+            { text: 'Mesh — nervous system', link: '/mesh' }
           ]
         },
         {
@@ -260,6 +276,9 @@ export default withMermaid(defineConfig({
   },
 
   mermaid: {
-    theme: 'neutral'
+    theme: 'neutral',
+    // Diagrams render inline, so the design system's body stack applies
+    // (mermaid's own default face is not the brand's).
+    fontFamily: 'var(--font-body)'
   }
 }))

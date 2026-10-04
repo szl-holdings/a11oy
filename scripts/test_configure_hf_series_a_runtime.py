@@ -162,6 +162,25 @@ def test_managed_runtime_enables_periodic_freshness_before_ttl() -> None:
     ) < 300
 
 
+def test_managed_runtime_binds_atelier_receipts_to_existing_data_mount() -> None:
+    assert config.SERIES_A_VARIABLES["A11OY_ATELIER_LEDGER_PATH"] == (
+        "/data/a11oy/atelier/turn-receipts-v1.jsonl"
+    )
+    assert config.SERIES_A_VARIABLES["A11OY_ATELIER_REQUIRED_MOUNT"] == "/data"
+    assert config.SERIES_A_VARIABLES["A11OY_ATELIER_LEDGER_PATH"].startswith(
+        config.SERIES_A_VARIABLES["A11OY_ATELIER_REQUIRED_MOUNT"] + "/"
+    )
+
+
+def test_managed_inference_receipts_use_the_required_writable_mount() -> None:
+    path = Path(config.SERIES_A_VARIABLES["SZL_GOVERN_INFER_LOG"])
+    assert path.parent == Path(config.DATA_MOUNT)
+    assert path.name == ".szl_govern_infer.jsonl"
+    assert config.plan_variables({}, {config.CANONICAL_SIGNING_SECRET})[
+        "SZL_GOVERN_INFER_LOG"
+    ] == path.as_posix()
+
+
 def test_managed_runtime_sets_durable_outbox_only_gdw_contract() -> None:
     assert config.GDW_VARIABLES == {
         "GDW_PRODUCTION_MODE": "1",

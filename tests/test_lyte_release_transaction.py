@@ -98,6 +98,8 @@ def test_preflight_manifest_requires_source_target_marker_and_complete_digest(wr
 def install_main_fixture(writer, monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("GITHUB_SHA", PUBLISHER)
+    monkeypatch.setenv("GITHUB_RUN_ID", "12345")
+    monkeypatch.setenv("GITHUB_RUN_ATTEMPT", "1")
     monkeypatch.setattr(writer, "token_from_env", lambda: ("fixture-only-token", "FIXTURE"))
     monkeypatch.setattr(writer, "HfApi", lambda **kwargs: object())
     monkeypatch.setattr(writer, "resolve_verified_source_tip", lambda: (SOURCE, {
@@ -127,7 +129,8 @@ def install_main_fixture(writer, monkeypatch, tmp_path):
 
 
 @pytest.mark.parametrize("function,expected_calls", [
-    ("controller_preflight", []), ("snapshot_previous", []),
+    ("checkout_exact_source", []), ("fetch_pinned_controller", []),
+    ("controller_preflight", []), ("admit_fresh_operation", []), ("snapshot_previous", []),
     ("require_current_source", []), ("require_current_publisher", []),
     ("deploy_with_controller", []), ("require_published_commit", ["publish"]),
     ("ensure_runtime_configuration", ["publish"]),
@@ -175,6 +178,95 @@ def test_success_requires_all_real_phase_callbacks_and_durable_event_chain(write
     assert len(receipt["release_plan"]["operation_id"]) == 64
 
 
+def test_operation_identity_does_not_change_with_attempt_or_evidence_directory(writer, monkeypatch, tmp_path):
+    monkeypatch.setenv("GITHUB_RUN_ID", "12345")
+    monkeypatch.setenv("GITHUB_RUN_ATTEMPT", "1")
+    first = writer.operation_identity(revision=SOURCE, publisher=PUBLISHER, manifest_sha256="e" * 64)
+    monkeypatch.setenv("GITHUB_RUN_ATTEMPT", "2")
+    monkeypatch.chdir(tmp_path)
+    assert writer.operation_identity(revision=SOURCE, publisher=PUBLISHER, manifest_sha256="e" * 64) == first
+    monkeypatch.setenv("GITHUB_RUN_ID", "67890")
+    assert writer.operation_identity(revision=SOURCE, publisher=PUBLISHER, manifest_sha256="e" * 64) != first
+
+
+@pytest.mark.parametrize("attempt", ["2", "3", "0", "", "01", "not-an-attempt"])
+def test_fresh_runner_without_prior_intent_cannot_retry_or_snapshot_new_parent(writer, monkeypatch, tmp_path, attempt):
+    calls = install_main_fixture(writer, monkeypatch, tmp_path)
+    monkeypatch.setenv("GITHUB_RUN_ATTEMPT", attempt)
+    monkeypatch.setattr(writer, "snapshot_previous", lambda *args: pytest.fail("retry refreshed parent"))
+    assert writer.main() == 1
+    receipt = json.loads(writer.RECEIPT_PATH.read_text())
+    assert receipt["state"] == "OUTCOME_UNCERTAIN"
+    assert receipt["reconciliation_required"] is True and receipt["complete"] is False
+    assert "release_plan" not in receipt and calls == []
+    assert "admit-operation" not in receipt["release_journal"]["completed_phases"]
+
+
+@pytest.mark.parametrize("reconciled", [False, True])
+@pytest.mark.parametrize("failed_phase", ["publish", "bind"])
+def test_second_invocation_reconciles_same_intent_and_never_replays_any_mutation(
+    writer, monkeypatch, tmp_path, reconciled, failed_phase,
+):
+    calls = install_main_fixture(writer, monkeypatch, tmp_path)
+    snapshots = []
+    monkeypatch.setattr(writer, "snapshot_previous", lambda *args: snapshots.append(PARENT) or {
+        "expected_hf_parent": PARENT})
+    def publish(*args, **kwargs):
+        calls.append("publish")
+        kwargs["intent"].write_text(json.dumps({"operation_id": kwargs["plan"]["operation_id"]}))
+        if failed_phase == "publish":
+            raise writer.OutcomeUncertain("fixture-private-provider-error")
+    monkeypatch.setattr(writer, "deploy_with_controller", publish)
+    if failed_phase == "bind":
+        def bind(*args, **kwargs):
+            calls.append("bind")
+            raise writer.OutcomeUncertain("fixture-private-variable-error")
+        monkeypatch.setattr(writer, "ensure_runtime_configuration", bind)
+    assert writer.main() == 1
+    first = json.loads(writer.RECEIPT_PATH.read_text())
+    intent = Path(first["transaction_journal"])
+    retained = intent.read_bytes()
+    assert first["state"] == "OUTCOME_UNCERTAIN"
+    before = list(calls)
+    monkeypatch.setenv("GITHUB_RUN_ATTEMPT", "2")
+    monkeypatch.setattr(writer, "snapshot_previous", lambda *args: pytest.fail("retry changed the HF parent"))
+    reconciliation = []
+    def reconcile(command):
+        assert command[2:] == ["--reconcile-transaction", str(intent.relative_to(tmp_path)),
+                               "--hf-repo", writer.HF_REPOSITORY]
+        reconciliation.append(command)
+        if not reconciled:
+            raise RuntimeError("fixture-private-reconciliation-failure")
+    monkeypatch.setattr(writer, "run_checked", reconcile)
+    assert writer.main() == 1
+    second = json.loads(writer.RECEIPT_PATH.read_text())
+    assert second["state"] == ("REPLAY_HELD" if reconciled else "OUTCOME_UNCERTAIN")
+    assert second["reconciliation_required"] is (not reconciled)
+    assert second["complete"] is False and second["release_journal"]["failed"] is True
+    assert first["release_evidence_directory"] != second["release_evidence_directory"]
+    assert first["transaction_journal"] == second["transaction_journal"]
+    assert "release_plan" not in second
+    assert calls == before and snapshots == [PARENT] and len(reconciliation) == 1
+    assert intent.read_bytes() == retained
+    assert "fixture-private" not in json.dumps(second)
+
+
+@pytest.mark.parametrize("kind", ["invalid-json", "wrong-operation", "symlink", "other-operation"])
+def test_retained_evidence_ambiguity_cannot_be_treated_as_fresh_admission(writer, monkeypatch, tmp_path, kind):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("GITHUB_RUN_ATTEMPT", "1")
+    operation = "e" * 64
+    intent = writer.EVIDENCE_DIRECTORY / "operations" / ("operation-" + operation + ".json")
+    intent.parent.mkdir(parents=True)
+    if kind == "invalid-json": intent.write_text("{broken")
+    elif kind == "wrong-operation": intent.write_text(json.dumps({"operation_id": "f" * 64}))
+    elif kind == "symlink": intent.symlink_to(tmp_path / "missing")
+    else: intent.with_name("operation-other.json").write_text("{}")
+    monkeypatch.setattr(writer, "run_checked", lambda *args: pytest.fail("unbound evidence reached controller"))
+    with pytest.raises(writer.OutcomeUncertain):
+        writer.admit_fresh_operation(tmp_path / "controller.py", operation=operation, intent=intent)
+
+
 @pytest.mark.parametrize("observed", [None, "e" * 40, SOURCE])
 def test_source_binding_requires_provider_metadata_readback(writer, observed):
     calls = []
@@ -202,7 +294,7 @@ def test_both_actual_vertical_jobs_share_one_non_cancelling_writer_lifecycle():
     assert "  group: hf-publish-vertical-flagships\n" in manual
     assert "  group: sync-relock-canonical-a11oy\n" in canonical
     assert "github.event_name == 'workflow_dispatch' && inputs.publish_vertical_flagships" in canonical
-    assert "options: [finance, lyte, estate]" in manual
+    assert "options: [finance, lyte, terra, sentra, counsel, estate]" in manual
     assert "SZL_FLAGSHIP_SCOPE: finance" in canonical
     assert "hf-lyte-release-evidence/" in manual and "hf-lyte-release-evidence/" in canonical
 
@@ -234,6 +326,73 @@ def test_real_pinned_controller_cli_derives_identical_marker_projection_twice(wr
     writer.reset_generated_marker(source, revision=SOURCE)
     run(writer.controller_publish_command(source, controller, manifest, revision=SOURCE) + ["--dry-run"])
     assert writer.read_manifest(manifest, revision=SOURCE)["manifest_sha256"] == first["manifest_sha256"]
+
+
+@pytest.mark.parametrize("scenario", ["confirmed", "superseded", "missing-marker", "wrong-parent", "wrong-bytes"])
+def test_retained_replay_uses_actual_pinned_controller_read_only_reconciliation(
+    writer, monkeypatch, tmp_path, capsys, scenario,
+):
+    """Actual parser/reconciler; only provider reads are fixture responses."""
+    peer = os.getenv("SZL_RELEASE_CONTROLLER_ROOT")
+    if not peer:
+        pytest.skip("pinned controller checkout is required for actual CLI proof")
+    path = Path(peer) / ".github/scripts/hf_deploy_from_dockerfile.py"
+    assert writer.git_blob_sha1(path.read_bytes()) == writer.CONTROLLER_BLOB_SHA1
+    spec = importlib.util.spec_from_file_location("pinned_lyte_reconciler_fixture", path)
+    controller = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(controller)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("GITHUB_RUN_ATTEMPT", "2")
+    operation = "e" * 64
+    content = b"fixture-only-app"
+    manifest = {"hf_repo": writer.HF_REPOSITORY, "files": {"app.py": {
+        "size": len(content), "sha256": hashlib.sha256(content).hexdigest()}}}
+    manifest_sha = controller.manifest_identity(manifest)
+    intent = writer.EVIDENCE_DIRECTORY / "operations" / ("operation-" + operation + ".json")
+    intent.parent.mkdir(parents=True)
+    record = {"schema": "szl.hf-deploy-operation/v1", "operation_id": operation,
+              "expected_parent": PARENT, "manifest_sha256": manifest_sha,
+              "manifest": manifest, "pruned": [], "state": "OUTCOME_UNCERTAIN"}
+    record["intent_sha256"] = controller.intent_identity(record)
+    intent.write_text(json.dumps(record))
+    retained = intent.read_bytes()
+    message = "\n".join(["SZL-Operation-ID: " + operation,
+                          "SZL-Manifest-SHA256: " + manifest_sha,
+                          "SZL-Expected-Parent: " + PARENT])
+    history = [{"id": COMMIT, "message": message}, {"id": PARENT, "message": "prior"}]
+    if scenario == "superseded": history.insert(0, {"id": "f" * 40, "message": "newer"})
+    elif scenario == "missing-marker": history[0]["message"] = "unrelated"
+    elif scenario == "wrong-parent": history[1]["id"] = "f" * 40
+    reads = []
+    def http(url, **kwargs):
+        assert url == controller.HF_HOST + "/api/spaces/" + writer.HF_REPOSITORY + "/commits/main"
+        assert kwargs.get("method", "GET") == "GET" and kwargs.get("data") is None
+        reads.append("history")
+        return 200, json.dumps(history).encode()
+    def resolve(repo, target, revision):
+        assert (repo, target, revision) == (writer.HF_REPOSITORY, "app.py", COMMIT)
+        reads.append("immutable-file")
+        return 200, (b"different" if scenario == "wrong-bytes" else content)
+    monkeypatch.setattr(controller, "_http", http)
+    monkeypatch.setattr(controller, "hf_resolve", resolve)
+    monkeypatch.setattr(controller, "deploy", lambda *args: pytest.fail("reconcile attempted publication"))
+    monkeypatch.setattr(controller, "restart_from_manifest", lambda *args: pytest.fail("reconcile attempted restart"))
+    def run(command):
+        assert command[:2] == [sys.executable, str(path)]
+        if controller.main(command[2:]) != 0:
+            raise RuntimeError("fixture controller held reconciliation")
+    monkeypatch.setattr(writer, "run_checked", run)
+    expected = writer.PublicationReplayHeld if scenario == "confirmed" else writer.OutcomeUncertain
+    with pytest.raises(expected):
+        writer.admit_fresh_operation(path, operation=operation, intent=intent)
+    assert reads and reads[0] == "history"
+    assert intent.read_bytes() == retained
+    result = json.loads(capsys.readouterr().out)
+    assert result["state"] == {
+        "confirmed": "CONFIRMED", "superseded": "SUPERSEDED",
+        "missing-marker": "OUTCOME_UNCERTAIN", "wrong-parent": "OUTCOME_UNCERTAIN",
+        "wrong-bytes": "HOLD_BYTE_MISMATCH",
+    }[scenario]
 
 
 @pytest.mark.skipif(os.name != "posix", reason="the release runner explicitly requires POSIX process groups")

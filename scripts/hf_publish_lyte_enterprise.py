@@ -23,7 +23,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from huggingface_hub import HfApi
 
@@ -55,7 +55,8 @@ PHASE_JOURNAL: list[dict[str, Any]] = []
 EVIDENCE_DIRECTORY = Path("hf-lyte-release-evidence")
 SOURCE_MARKER = "source_revision.txt"
 RELEASE_PHASES = (
-    "qualify-source", "controller-preflight", "snapshot-previous", "recheck-source",
+    "qualify-source", "checkout-source", "controller-preflight", "admit-operation",
+    "snapshot-previous", "recheck-source",
     "publish-files", "confirm-publication", "bind-source", "restart",
     "attest-runtime", "verify-existing", "verify-source-again",
 )
@@ -73,6 +74,10 @@ class SourceSuperseded(RuntimeError):
 
 class OutcomeUncertain(RuntimeError):
     """A mutation may have happened; reconcile its retained intent before retry."""
+
+
+class PublicationReplayHeld(RuntimeError):
+    """A prior publication was reconciled; no phase may replay automatically."""
 
 # API version and package version are distinct. The current 4.0.0 application
 # owns /api/lyte/v2; the removed v3 application must never be its smoke target.
@@ -236,6 +241,35 @@ def require_current_publisher(revision: str) -> None:
 
 def journal(phase: str, **extra: Any) -> None:
     PHASE_JOURNAL.append({"ts": utc_now(), "phase": phase, **extra})
+
+
+def publisher_revision() -> str:
+    """Identify the publisher bytes. GITHUB_SHA in CI; writer blob locally."""
+    env = (os.getenv("GITHUB_SHA") or "").strip().lower()
+    if SHA40.fullmatch(env):
+        return env
+    return git_blob_sha1(Path(__file__).read_bytes())
+
+
+def phase_evidence(phase: str, payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Public callback metadata only: no logs, tokens, or process output."""
+    public = {
+        "schema": "szl.lyte-phase-evidence/v1",
+        "phase": phase,
+        "payload": dict(payload),
+        "raw_output_recorded": False,
+        "signature_verified": False,
+        "execution_authority": "NONE",
+    }
+    return {
+        "executed": True,
+        "passed": True,
+        "reason_code": "OBSERVED_PASS",
+        "evidence_sha256": digest(public),
+        "raw_output_recorded": False,
+        "signature_verified": False,
+        "execution_authority": "NONE",
+    }
 
 
 def run_bounded(
@@ -573,6 +607,58 @@ def deploy_with_controller(
         raise
 
 
+def operation_identity(*, revision: str, publisher: str, manifest_sha256: str) -> str:
+    """One identity per explicit Actions run, independent of retry observations."""
+    run_id = os.getenv("GITHUB_RUN_ID", "")
+    if re.fullmatch(r"[1-9][0-9]{0,19}", run_id) is None:
+        raise RuntimeError("canonical Actions run identity is required")
+    if (SHA40.fullmatch(revision) is None or SHA40.fullmatch(publisher) is None
+            or SHA64.fullmatch(manifest_sha256) is None):
+        raise RuntimeError("exact operation source and manifest are required")
+    return digest({
+        "schema": "szl.lyte-operation-identity/v1", "run_id": run_id,
+        "publisher": publisher, "source": revision, "hf_repository": HF_REPOSITORY,
+        "controller_revision": CONTROLLER_REVISION, "manifest_sha256": manifest_sha256,
+    })
+
+
+def admit_fresh_operation(controller: Path, *, operation: str, intent: Path) -> dict[str, Any]:
+    """Never turn retained or missing retry evidence into a fresh write plan.
+
+    Actions attempts use fresh filesystems. Absence of a journal on attempt 2+
+    therefore cannot prove that attempt 1 did not write. Reconciliation is
+    read-only and a confirmed commit still does not authorize replaying source
+    binding or restart. A separately dispatched run is an operator decision,
+    not automatic recovery or a claim of global exactly-once publication.
+    """
+    if intent.parent.is_symlink() or EVIDENCE_DIRECTORY.is_symlink():
+        raise OutcomeUncertain("REPLAY_EVIDENCE_DIRECTORY_INVALID")
+    intent.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    retained = list(intent.parent.glob("*.json"))
+    if retained:
+        if len(retained) != 1 or retained[0] != intent or intent.is_symlink():
+            raise OutcomeUncertain("OTHER_RETAINED_OPERATION_REQUIRES_RECONCILIATION")
+        try:
+            with intent.open("rb") as handle:
+                previous = strict_json(handle.read(2_000_001))
+            if not isinstance(previous, dict) or previous.get("operation_id") != operation:
+                raise ValueError("retained operation identity mismatch")
+            run_checked([
+                sys.executable, str(controller), "--reconcile-transaction", str(intent),
+                "--hf-repo", HF_REPOSITORY,
+            ])
+        except Exception as exc:
+            raise OutcomeUncertain("RETAINED_OPERATION_RECONCILIATION_REQUIRED") from exc
+        journal("replay_held", operation_id=operation, reconciliation="CONFIRMED",
+                remote_writes=0, execution_authority="NONE")
+        raise PublicationReplayHeld("CONFIRMED_PUBLICATION_CANNOT_BE_REPLAYED")
+    # Do not infer first attempt from a missing, malformed or zero value.
+    if os.getenv("GITHUB_RUN_ATTEMPT", "") != "1":
+        raise OutcomeUncertain("PRIOR_ATTEMPT_EVIDENCE_REQUIRED")
+    return {"operation_id": operation, "fresh_attempt": True, "remote_writes": 0,
+            "automatic_replay_permitted": False}
+
+
 def restart_with_controller(controller: Path, manifest: Path) -> None:
     try:
         run_checked([
@@ -606,6 +692,8 @@ def main() -> int:
     PHASE_JOURNAL.clear()
     token, token_source = token_from_env()
     os.environ["HF_TOKEN"] = token
+    publisher_sha = publisher_revision()
+    release: ReleaseJournal | None = None
     receipt: dict[str, Any] = {
         "schema": "szl.hf-lyte-enterprise-publication/v3", "generated_at": utc_now(),
         "source_repository": SOURCE_REPOSITORY, "source_revision": "UNRESOLVED",
@@ -618,6 +706,8 @@ def main() -> int:
         "release_guard_runner": "szl_release_guard.run_bounded",
         "execution_authority": "NONE",
         "state": "PREPARE", "reconciliation_required": False,
+        "signature_verified": False, "raw_output_recorded": False,
+        "publisher_revision": publisher_sha,
     }
     try:
         revision, receipt["source_resolution"] = resolve_verified_source_tip()
@@ -644,17 +734,18 @@ def main() -> int:
         with tempfile.TemporaryDirectory(prefix="szl-lyte-enterprise-") as td:
             root = Path(td)
             source, controller, manifest = root / "source", root / "controller.py", root / "manifest.json"
-            checkout_exact_source(source, revision=revision)
-            fetch_pinned_controller(controller)
-            preflight = phase("controller-preflight", lambda: controller_preflight(
-                source, controller, manifest, revision=revision))
+            phase("checkout-source", lambda: checkout_exact_source(source, revision=revision))
+            def preflight_controller():
+                fetch_pinned_controller(controller)
+                return controller_preflight(source, controller, manifest, revision=revision)
+            preflight = phase("controller-preflight", preflight_controller)
+            operation = operation_identity(revision=revision, publisher=publisher,
+                                           manifest_sha256=preflight["manifest_sha256"])
+            intent = EVIDENCE_DIRECTORY / "operations" / ("operation-" + operation + ".json")
+            receipt["transaction_journal"] = str(intent.resolve())
+            receipt["operation_admission"] = phase("admit-operation", lambda: admit_fresh_operation(
+                controller, operation=operation, intent=intent))
             previous = phase("snapshot-previous", lambda: snapshot_previous(api))
-            operation = digest({"publisher": publisher, "source": revision,
-                                "run_id": os.getenv("GITHUB_RUN_ID", ""),
-                                "run_attempt": os.getenv("GITHUB_RUN_ATTEMPT", ""),
-                                "manifest_sha256": preflight["manifest_sha256"],
-                                "expected_parent": previous["expected_hf_parent"],
-                                "journal_identity": release.directory.name})
             plan = {
                 "schema": "szl.lyte-release-plan/v1", "source_repository": SOURCE_REPOSITORY,
                 "source_revision": revision, "publisher_revision": publisher,
@@ -666,8 +757,7 @@ def main() -> int:
             }
             immutable_json(release.directory, plan)
             receipt["release_plan"] = plan
-            intent = release.directory.resolve() / ("operation-" + operation + ".json")
-            receipt["transaction_journal"] = str(intent)
+            intent = intent.resolve()
             def recheck():
                 require_current_source(revision)
                 require_current_publisher(publisher)
@@ -719,18 +809,26 @@ def main() -> int:
         causes = [exc]
         while causes[-1].__cause__ is not None:
             causes.append(causes[-1].__cause__)
-        cause = next((item for item in causes if isinstance(item, (SourceSuperseded, OutcomeUncertain))), causes[-1])
+        cause = next((item for item in causes if isinstance(item, (
+            SourceSuperseded, OutcomeUncertain, PublicationReplayHeld))), causes[-1])
         receipt["state"] = ("SUPERSEDED" if isinstance(cause, SourceSuperseded) else
+                            "REPLAY_HELD" if isinstance(cause, PublicationReplayHeld) else
                             "OUTCOME_UNCERTAIN" if isinstance(cause, OutcomeUncertain) else "FAILED")
         receipt["reconciliation_required"] = receipt["state"] == "OUTCOME_UNCERTAIN"
         # Provider exceptions can contain tokens or presigned URLs. Retain fixed
         # reason/phase evidence and process digests, never arbitrary error text.
         receipt["error"] = type(cause).__name__
-        if "release" in locals():
+        if release is not None:
             receipt["release_journal"] = release.summary()
         journal("error", error_type=receipt["error"], state=receipt["state"])
     finally:
         receipt["phase_journal"] = list(PHASE_JOURNAL)
+        if release is not None:
+            summary = release.summary()
+            receipt["release_journal"] = summary
+            receipt["signature_verified"] = summary.get("signature_verified") is True
+            receipt["execution_authority"] = summary.get("execution_authority") or "NONE"
+            receipt["raw_output_recorded"] = False
         receipt["finished_at"] = utc_now()
         RECEIPT_PATH.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         print(json.dumps(receipt, indent=2, sort_keys=True))

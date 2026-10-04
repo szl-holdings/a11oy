@@ -251,7 +251,8 @@ pins in the `RUN` line let Dependabot bump the audit file without the image (#23
 # serves /api/a11oy/v1/factory/status over the real a11oy_factory engine +
 # agentic brain. MUST be COPY'd or serve.py's guarded imports fall back
 # (merged-but-not-live) AND hf-sync would not mirror them. Per-file COPY.
-# WILLAY — governed inverse of Fable 5 / Mythos 5 (safety verdicts signed & shown).
+# WILLAY — inspectable SZL safety-verdict gateway; receipts are signed when available,
+# and this route does not execute a model or provide an external witness-quorum proof.
 # szl_willay_gateway.py serves /willay + /api/a11oy/v1/willay/*; a11oy_willay_nav.py
 # attaches the idempotent /console nav injector. MUST be COPY'd or serve.py's guarded
 # imports fall back and /willay 404s. Per-file COPY (this Dockerfile uses no COPY . .).

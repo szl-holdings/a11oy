@@ -608,6 +608,13 @@ import a11oy_steward_surface as _steward_surface
 
 _STEWARD_SURFACE_STATUS = _steward_surface.register(app)
 
+# Services layer: civilian public evidence and non-effecting review.  The
+# complete namespace is reserved before both fallback routers.  No action,
+# model-training, signing, operator-auth exception, or private data route is added.
+import a11oy_civilian_observatory as _civilian_observatory
+
+_CIVILIAN_OBSERVATORY_STATUS = _civilian_observatory.register(app)
+
 
 # Governed Graph Operations (2026-08-01): a deterministic, non-effecting
 # topology analyzer for bounded loop nodes, real data/control edges, fan-in
@@ -2423,10 +2430,8 @@ except Exception as _anat3d_e:  # pragma: no cover
 # stayed in-image but unwired, so the live endpoint 404'd. Restores the missing wiring
 # (additive, try/except-guarded).
 try:
-    try:  # prefer the extracted substrate package; fall back to local vendored copy
-        from szl_substrate import szl_restraint as _szl_restraint
-    except Exception:
-        import szl_restraint as _szl_restraint
+    # This route's operator/receipt contract is tied to the reviewed shipped module.
+    import szl_restraint as _szl_restraint
     _szl_restraint.register(app, ns="a11oy")
     print("[a11oy] Restraint registered: /api/a11oy/v1/restraint/{info,evaluate,bench}", file=__import__("sys").stderr)
 except Exception as _szl_rs_e:  # pragma: no cover
@@ -5377,7 +5382,6 @@ def _ledger_storage_signal(ttl: float = 15.0) -> dict:
 # Both are guarded + cached (never block the health path, never crash it, never
 # fabricate). Λ = Conjecture 1; no label is upgraded here.
 _SIGNER_HEALTH_CACHE: dict = {}
-_FRONTIER_HEALTH_CACHE: dict = {}
 
 
 def _signer_availability_signal(ttl: float = 30.0) -> dict:
@@ -5407,14 +5411,10 @@ def _signer_availability_signal(ttl: float = 30.0) -> dict:
     return val
 
 
-def _frontier_liveness_signal(ttl: float = 30.0) -> dict:
-    now = _hz_time.time()
-    ca = _FRONTIER_HEALTH_CACHE.get("checked_at")
-    if ca is not None and (now - ca) < ttl:
-        return _FRONTIER_HEALTH_CACHE.get("value", {})
+def _frontier_liveness_signal() -> dict:
     try:
         import szl_frontier_manifest as _szl_fm_health
-        manifest = _szl_fm_health.build_manifest()
+        manifest = _szl_fm_health.build_manifest(app)
         summary = manifest["summary"]
         total = summary["tiles"]
         source = summary["source_reachability"]
@@ -5447,7 +5447,6 @@ def _frontier_liveness_signal(ttl: float = 30.0) -> dict:
         val = {"status": "unavailable", "endpoints_total": None,
                "endpoints_live": None,
                "error": f"{type(exc).__name__}: {exc}"}
-    _FRONTIER_HEALTH_CACHE.update({"checked_at": now, "value": val})
     return val
 
 
@@ -9870,6 +9869,27 @@ def _a11oy_sign_receipt(payload_obj) -> dict:
 app.state.szl_sign_receipt = _a11oy_sign_receipt
 
 
+def _a11oy_restraint_identity():
+    """Read current private/public key agreement without producing a signature."""
+    try:
+        if _A11OY_PRIV is None or not _A11OY_PUB_PEM:
+            return None
+        from cryptography.hazmat.primitives import serialization
+        public = _A11OY_PRIV.public_key().public_bytes(
+            serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo
+        ).strip()
+        keyid = _hashv2.sha256(public).hexdigest()
+        if (keyid != _A11OY_KEYID
+                or public != _A11OY_PUB_PEM.strip().encode("ascii")):
+            return None
+        return {"keyid": keyid}
+    except Exception:
+        return None
+
+
+app.state.szl_restraint_identity_fn = _a11oy_restraint_identity
+
+
 def _a11oy_pubkey_fpr() -> str:
     if not _A11OY_PUB_PEM:
         return "—"
@@ -10258,24 +10278,10 @@ def _a11oy_build_sample_export() -> dict:
 _A11OY_SAMPLE_EXPORT = _a11oy_build_sample_export()
 
 
-_A11OY_LIVE_EMPTY_EXPORT = {
-    "state": "live",
-    "data_kind": "live",
-    "operational": True,
-    "receipt_minted": False,
-    "signature_state": "UNSIGNED",
-    "payload": None,
-    "honesty": ("Live empty export: no operational receipt has been minted in "
-                "this process. GET is read-only and never invokes the signer. "
-                "The deterministic SAMPLE envelope remains at "
-                "GET /api/a11oy/v2/command-log."),
-}
-
-
 @app.get("/api/a11oy/v1/receipt/export")
 @app.get("/receipt/export")
 async def a11oy_receipt_export_v2() -> JSONResponse:
-    return JSONResponse(_jsonv2.loads(_jsonv2.dumps(_A11OY_LIVE_EMPTY_EXPORT)))
+    return JSONResponse(_jsonv2.loads(_jsonv2.dumps(_A11OY_SAMPLE_EXPORT)))
 
 
 # ---- /receipt/{rid}/canonical — exact preimage bytes so a browser can re-hash & MATCH (B2) ----
@@ -13558,6 +13564,36 @@ async def _energy3d_app_js() -> Response:
 
 # --- Doctrine v13 organ page routes (ADDITIVE; explicit, win over SPA catch-all) ---
 PAGES_DIR = _SZL_SRC_ROOT / "pages" if (_SZL_SRC_ROOT / "pages").is_dir() else Path("/app/pages")
+
+# The OAC page is a static release handoff, never a scoring or device-control route.
+@app.api_route("/oac", methods=["GET", "HEAD"])
+@app.api_route("/oac/", methods=["GET", "HEAD"])
+async def oac_page() -> Response:
+    page = PAGES_DIR / "oac.html"
+    headers = {
+        "Cache-Control": "no-store, no-transform",
+        "Content-Security-Policy": (
+            "default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; "
+            "img-src 'self'; font-src 'self'; connect-src 'none'; frame-src 'none'; "
+            "object-src 'none'; base-uri 'none'; form-action 'none'; worker-src 'none'; "
+            "frame-ancestors 'self';"
+        ),
+        "Referrer-Policy": "no-referrer",
+    }
+    if page.is_file():
+        return FileResponse(page, media_type="text/html", headers=headers)
+    return JSONResponse({"status": "UNAVAILABLE", "reason": "OAC page missing"},
+                        status_code=404, headers=headers)
+
+
+@app.api_route("/oac", methods=["POST", "PUT", "PATCH", "DELETE", "OPTIONS", "TRACE", "CONNECT"])
+@app.api_route("/oac/", methods=["POST", "PUT", "PATCH", "DELETE", "OPTIONS", "TRACE", "CONNECT"])
+async def oac_method_denied() -> Response:
+    return JSONResponse(
+        {"status": "METHOD_NOT_ALLOWED", "reason": "OAC is a read-only static handoff"},
+        status_code=405, headers={"Allow": "GET, HEAD", "Cache-Control": "no-store",
+                                  "Access-Control-Allow-Methods": "GET, HEAD"},
+    )
 
 # === ADDITIVE (Yachay CTO + Perplexity Computer Agent, 2026-06-02): wire orphaned ===
 # === genius pages that were BUILT but never registered (fell to SPA shell = a lie). ===

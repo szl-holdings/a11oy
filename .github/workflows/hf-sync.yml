@@ -35,7 +35,6 @@ on:
 
 permissions:
   contents: read
-  actions: write
 
 concurrency:
   group: sync-relock-canonical-a11oy
@@ -589,12 +588,26 @@ jobs:
           echo "exit_code=${code}" >> "$GITHUB_OUTPUT"
           exit 0
 
+      - name: Re-admit exact current main after live verification
+        id: post_deploy_owner
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B scripts/hf_exact_main_ownership.py \
+            --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+            --receipt "$RUNNER_TEMP/post-deploy-source-admission.json" \
+            --github-output "$GITHUB_OUTPUT"
+
       - name: Upload immutable relock evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: canonical-a11oy-relock-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ env.REPORT_PATH }}
+          path: |
+            ${{ env.REPORT_PATH }}
+            ${{ runner.temp }}/post-deploy-source-admission.json
           if-no-files-found: error
           retention-days: 90
 
@@ -615,13 +628,76 @@ jobs:
         if: always()
         env:
           EXIT_CODE: ${{ steps.verify.outputs.exit_code }}
+          CURRENT_MAIN: ${{ steps.post_deploy_owner.outputs.publish }}
         run: |
           code="${EXIT_CODE:-2}"
           if [ "$code" -ne 0 ]; then
             echo "::error::Canonical A11oy relock failed with exit ${code}."
             exit "$code"
           fi
+          if [ "${CURRENT_MAIN:-false}" != 'true' ]; then
+            echo '::error::Canonical A11oy relock source is no longer current protected main.'
+            exit 3
+          fi
           echo 'Canonical A11oy is source-bound, singleton, and route-operational.'
 
-      - name: Trigger strict post-deployment GitHub/HF parity
-        run: gh workflow run hf-module-drift.yml --repo "$GITHUB_REPOSITORY" --ref main
+  post-deployment-parity:
+    name: Await strict live and repository parity
+    needs: relock
+    permissions:
+      contents: read
+    uses: ./.github/workflows/hf-module-drift.yml
+
+  terminal-source-authorization:
+    name: Re-authorize exact protected main after all publication proofs
+    needs: [post-deployment-parity, publish-vertical-flagships, publish-finance-projection]
+    if: ${{ always() && needs.post-deployment-parity.result == 'success' && (needs.publish-vertical-flagships.result == 'success' || needs.publish-vertical-flagships.result == 'skipped') && (needs.publish-finance-projection.result == 'success' || needs.publish-finance-projection.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout the immutable completed source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Re-authorize exact protected main after awaited parity
+        id: terminal_owner
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B scripts/hf_exact_main_ownership.py \
+            --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+            --receipt "$RUNNER_TEMP/terminal-source-authorization.json" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Retain terminal source authorization
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: terminal-source-authorization-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/terminal-source-authorization.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Re-read and enforce exact protected-main ownership as the final step
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B scripts/hf_exact_main_ownership.py \
+            --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+            --receipt "$RUNNER_TEMP/terminal-source-authorization-final.json" \
+            --github-output "$RUNNER_TEMP/terminal-source-authorization-final.out"
+          if ! grep -Fqx 'publish=true' "$RUNNER_TEMP/terminal-source-authorization-final.out"; then
+            echo '::error::Completed A11oy publication is no longer exact protected main.'
+            exit 3
+          fi
+          echo 'Completed A11oy publication remains exact protected main.'

@@ -35,6 +35,26 @@ source variable changes. Variable metadata is read back independently. The
 writer then restarts, attests immutable bytes and the running revision, verifies
 the semantic Lyte contract, and rechecks source and target once more.
 
+The operation identity includes the original Actions run ID and exact producer,
+publisher, controller, destination and manifest. It excludes the run attempt,
+random phase-journal directory and freshly observed HF parent. Its intent path
+is stable under `hf-lyte-release-evidence/operations/`. Admission runs before
+the previous-parent snapshot. An existing intent invokes the pinned controller's
+read-only reconciliation and then holds: even `CONFIRMED` cannot authorize an
+automatic replay of source binding or restart. Ambiguous or malformed retained
+evidence also holds.
+
+Actions reruns have fresh filesystems, so an absent journal cannot establish
+that the earlier attempt performed no mutation. Every attempt after the first
+therefore returns `OUTCOME_UNCERTAIN` without a fresh plan or provider writes
+when its original intent is unavailable. There is no automatic artifact restore
+or recovery path. The operator must retain the original terminal artifact and
+use the pinned read-only reconciliation command; confirmed replay is reported
+as `REPLAY_HELD`, not runtime success. This deliberately blocks even a rerun
+whose earlier attempt failed before publication. A separately dispatched run
+is an explicit new operation and requires an operator reconciliation decision;
+the publisher does not claim a global ledger across independent workflow runs.
+
 The existing `ReleaseJournal` records each phase and its evidence digest on
 disk. The workflow uploads its complete evidence directory on terminal runs.
 This event chain is unsigned local evidence; it is neither an independent

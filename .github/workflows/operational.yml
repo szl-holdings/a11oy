@@ -34,6 +34,7 @@ on:
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'tests/dependency-overrides.test.mjs'
+      - 'tests/test_canonical_web_artifact.py'
       - 'packages/**/package.json'
       - 'packages/**/package-lock.json'
       - '.github/workflows/huggingface.yml'
@@ -67,6 +68,7 @@ on:
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'tests/dependency-overrides.test.mjs'
+      - 'tests/test_canonical_web_artifact.py'
       - 'packages/**/package.json'
       - 'packages/**/package-lock.json'
       - '.github/workflows/huggingface.yml'
@@ -148,3 +150,17 @@ jobs:
         run: |
           pnpm build:web
           pnpm typecheck:web
+      - name: Verify bounded artifact admission and negative controls
+        run: python3 -B tests/test_canonical_web_artifact.py
+      - name: Stage exact canonical web output for review only
+        run: >-
+          python3 -B scripts/create_canonical_web_artifact.py
+          --expected-source-sha "$GITHUB_SHA"
+          --output "$RUNNER_TEMP/canonical-web-review"
+      - name: Retain source-bound web output with deployment blocked
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: canonical-web-review-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/canonical-web-review/
+          if-no-files-found: error
+          retention-days: 14

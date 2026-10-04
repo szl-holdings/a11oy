@@ -186,6 +186,9 @@ COPY research/ ./research/
 # routers/ — Wave-K Dev4 serve.py decomposition (first bounded slice). serve.py
 # … (full rationale: docs/DOCKERFILE_NOTES.md §8)
 COPY routers/ ./routers/
+# The canonical HF sync publishes Dockerfile COPY sources. Keep these public
+# inventory docs in the same source-derived Space set as the runtime.
+COPY docs/huggingface-ecosystem-manifest.json docs/huggingface-ecosystem-manifest.schema.json docs/huggingface.md ./docs/
 # Genome registry served to the console Genome panel + /api/a11oy/v1/genome.
 # Per-file COPY (this Dockerfile uses no `COPY . .`); a missing line -> the endpoint
 # degrades to an honest labeled 503 (never a faked payload), the panel shows it.
@@ -632,6 +635,11 @@ COPY a11oy_ecosystem_atlas.py ./a11oy_ecosystem_atlas.py
 COPY organ_integrity.py ./organ_integrity.py
 COPY a11oy_n25_organs.py ./a11oy_n25_organs.py
 COPY szl_organ_integrity.py ./szl_organ_integrity.py
+
+# Services: source-bound civilian public observations.  The canonical
+# Dockerfile-derived publisher includes this package; no second writer is added.
+COPY a11oy_civilian_observatory.py ./a11oy_civilian_observatory.py
+COPY civilian_observatory/ ./civilian_observatory/
 
 # AYLLU COUNCIL WALL (2026-07-21): /api/ayllu/wall + /ayllu/wall — server-side
 # per-request DSSE re-verification of committed council decision receipts,

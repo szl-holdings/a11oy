@@ -41,4 +41,4 @@ a single opaque step.
 - DSSE signatures are **PLACEHOLDER**; the receipt's SHA-256 chain is real (see
   [Compliance](/compliance)).
 
-> This flow is the live, runnable counterpart to the [Quickstart killinchu step](/quickstart#_4-killinchu-decode-a-remote-id-frame).
+> This flow is the live, runnable counterpart to the [Quickstart killinchu step](/quickstart#_2-·-killinchu-—-decode-a-remote-id-frame).

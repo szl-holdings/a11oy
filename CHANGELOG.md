@@ -9,6 +9,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - typed Brain frontier research metadata
+- Accept the two source-bound, operator-reviewed forum summaries and bounded
+  arXiv/Crossref metadata captures from Second Brain. Validate the exact metadata
+  projection, source identity, capture digest, and review-only authority.
+- Distinguish metadata SHA-256 revisions from Git commits in the public instrument.
+  Keep its 72 handles, 61 formula handles, seven reserved repositories, and the
+  existing limits on public content and execution authority.
+
+### Fixed - complete public Hugging Face namespace inventory
+- Count native kernel repositories in their own namespace, alongside models,
+  datasets and Spaces. A shared name in two namespaces remains two repositories,
+  and the counts do not imply unique projects, trained models or readiness.
+- Use anonymous, origin-bound, bounded pagination for the canonical collector,
+  retain the public README Space, and carry the predicate through source refresh
+  and the profile release contract.
+
+### Fixed - frontier health app observation
+- Pass the registered application to the frontier health manifest so its governance
+  rollup reads that process's restraint observation. Missing signer readiness,
+  unverified receipts, and placeholder signatures continue to block readiness.
+- Use the manifest's app-aware cache directly so a cached health verdict cannot
+  outlive the manifest's signer readiness and identity recheck.
+
+### Fixed - proof HTML provider injection admission
+- Add a read-only default Cloudflare RUM audit for the exact `a11oy.net` property.
+  A separate manual apply requires the previous settings hash, permits one
+  `auto_install: false` update, and verifies preservation by provider readback.
+  Exact public proof delivery remains a separate verification gate.
+
+### Fixed - offline receipt verification boundaries
+- Restore browser-local DSSE P-256 verification against a supplied public key,
+  with exact decoded payload bytes and an optional independently supplied digest.
+- Keep signer trust and parent-chain evidence separate from signature validity;
+  online verification remains explicit and uses the deployment's runtime keys.
+- Bound inputs and online requests, and invalidate results when inputs change.
+
 ### Added - Foundation Confirmation trial workbench handoff
 - `/research/confirmation/workbench` redirects only to the separate synthetic CPU
   model workbench. The Frontier research block links fresh exploratory trials,
@@ -443,6 +479,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   parity is named-RED (baseline controller is unchanged; candidate changes
   that controller and Dockerfile). That RED is the gate, not a skip. PR 1363
   remains HOLD.
+
+### Added - civilian evidence and review surface
+- FACT: Add `/civilian/` and a reserved GET-only Python namespace for public
+  vulnerability evidence, exact-scope web-header observations, official weather
+  alerts, and a dated public repository inventory. Empty and failed observations
+  remain unavailable; source times and digests are retained.
+- FACT: Review exports are unsigned checksum bundles. Response rehearsals have
+  zero external action adapters and load no models.
+- FACT: Package bytes, isolated UI reconstruction, scope rejection, cache leases,
+  and parent route-table compatibility have regression checks. The existing
+  canonical publisher remains the only automatic Space writer.
+- BLOCKED: This addition does not qualify models, grant scan authority, change
+  operator permissions, or establish government or emergency-service readiness.
 
 ## [1.1.0] — 2026-07-13
 

@@ -51,6 +51,9 @@ SERIES_A_VARIABLES = {
     "A11OY_SERIES_A_SQLITE_JOURNAL": "DELETE",
     "SZL_ENERGY_LEDGER_PATH": "/data/a11oy/energy/ledger.jsonl",
     "SZL_LAKE_DIR": "/data/a11oy/khipu",
+    "A11OY_ATELIER_LEDGER_PATH": "/data/a11oy/atelier/turn-receipts-v1.jsonl",
+    "A11OY_ATELIER_REQUIRED_MOUNT": DATA_MOUNT,
+    "SZL_GOVERN_INFER_LOG": "/data/.szl_govern_infer.jsonl",
 }
 GDW_VARIABLES = {
     "GDW_PRODUCTION_MODE": "1",

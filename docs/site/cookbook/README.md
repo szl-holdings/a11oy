@@ -145,6 +145,6 @@ Preferred citation: [The Ouroboros Substrate (v18.0)](https://doi.org/10.5281/ze
 
 ## SZL Holdings
 
-![SZL Holdings](../docs/public/img/szl-mark.svg)
+![SZL Holdings](../docs/public/szl/logos/szl_logo_primary.svg)
 
-*Amaru — the Inca avatar of SZL Holdings. Animated mark (400×400, 16fps loop). Signed Yachay.*
+*The SZL Holdings orbit mark ([usage](https://github.com/szl-holdings/szl-brand/blob/main/kit/logos/LOGO_USAGE.md)). Signed Yachay.*

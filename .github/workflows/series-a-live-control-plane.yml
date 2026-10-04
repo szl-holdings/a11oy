@@ -10,8 +10,12 @@ on:
       - routers/__init__.py
       - scripts/configure_hf_series_a_runtime.py
       - scripts/prove_hf_series_a_restart.py
+      - scripts/enroll_hf_atelier_operator.py
       - scripts/test_configure_hf_series_a_runtime.py
       - scripts/test_prove_hf_series_a_restart.py
+      - scripts/test_enroll_hf_atelier_operator.py
+      - docs/ATELIER_COMMAND_CENTRE.md
+      - gdw_auth.py
       - tests/test_canonical_a11oy_relock.py
       - tests/test_series_a_control_plane.py
       - tests/test_series_a_github_read_binding.py
@@ -48,8 +52,8 @@ jobs:
         run: python -m pip install --disable-pip-version-check 'fastapi==0.137.1' 'starlette==1.3.1' 'httpx==0.28.1' 'cryptography==50.0.0' 'huggingface_hub==1.23.0' 'pytest==9.0.2'
       - name: Compile and test
         run: |
-          python -m compileall -q .github/scripts/verify_canonical_a11oy.py routers/series_a_control_plane.py scripts/configure_hf_series_a_runtime.py scripts/prove_hf_series_a_restart.py scripts/test_configure_hf_series_a_runtime.py scripts/test_prove_hf_series_a_restart.py tests/test_canonical_a11oy_relock.py tests/test_series_a_control_plane.py tests/test_series_a_github_read_binding.py
-          python -m pytest -q scripts/test_configure_hf_series_a_runtime.py scripts/test_prove_hf_series_a_restart.py tests/test_canonical_a11oy_relock.py tests/test_series_a_control_plane.py tests/test_series_a_github_read_binding.py
+          python -m compileall -q .github/scripts/verify_canonical_a11oy.py routers/series_a_control_plane.py scripts/configure_hf_series_a_runtime.py scripts/prove_hf_series_a_restart.py scripts/enroll_hf_atelier_operator.py scripts/test_configure_hf_series_a_runtime.py scripts/test_prove_hf_series_a_restart.py scripts/test_enroll_hf_atelier_operator.py tests/test_canonical_a11oy_relock.py tests/test_series_a_control_plane.py tests/test_series_a_github_read_binding.py
+          python -m pytest -q scripts/test_configure_hf_series_a_runtime.py scripts/test_prove_hf_series_a_restart.py scripts/test_enroll_hf_atelier_operator.py tests/test_canonical_a11oy_relock.py tests/test_series_a_control_plane.py tests/test_series_a_github_read_binding.py
           git diff --check
       - name: Prove no mock framework imports
         run: |

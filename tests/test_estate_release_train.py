@@ -270,7 +270,7 @@ class EstateReleaseTrainTests(unittest.TestCase):
     def _profile_fixture(self):
         config = json.loads((ROOT / "config/estate-release-train.v1.json").read_text())
         scope = config["public_inventory_scope"]
-        counts = {"spaces": 23, "models": 49, "datasets": 34}
+        counts = {"spaces": 23, "models": 49, "datasets": 34, "kernels": 14}
         record = {
             "schema": "szl.public-profile-inventory/v1", "counts": counts,
             "scope": scope, "scope_sha256": release.canonical_sha256(scope),
@@ -333,7 +333,7 @@ class EstateReleaseTrainTests(unittest.TestCase):
         config, record, manifest, blob = self._profile_fixture()
         result, files = self._profile_observation(config, record, manifest, blob, record["counts"])
         self.assertTrue(result["aligned"])
-        self.assertEqual(result["declared_counts"], {"spaces": 23, "models": 49, "datasets": 34})
+        self.assertEqual(result["declared_counts"], {"spaces": 23, "models": 49, "datasets": 34, "kernels": 14})
         # README is deliberately not fetched: its historical 21/46/35 paragraph
         # cannot supply a current declaration or override the selected record.
         self.assertEqual(files.call_count, 3)
@@ -376,7 +376,7 @@ class EstateReleaseTrainTests(unittest.TestCase):
                 self.assertIn("HF_PROFILE_INVENTORY_SOURCE_BINDING_MISMATCH_OR_UNAVAILABLE", result["blockers"])
 
     def _profile_contract_for_text(self, text, observed=None, manifest=None):
-        counts = {"spaces": 23, "models": 49, "datasets": 34}
+        counts = {"spaces": 23, "models": 49, "datasets": 34, "kernels": 14}
         sha = "f" * 40
         config = {"profile": {"repository": "szl-holdings/.github", "path": "profile/README.md"}}
         with (
@@ -437,7 +437,7 @@ class EstateReleaseTrainTests(unittest.TestCase):
 
     def test_profile_current_declaration_still_requires_manifest_and_observed_equality(self):
         config, record, manifest, blob = self._profile_fixture()
-        different = {"spaces": 24, "models": 49, "datasets": 34}
+        different = {"spaces": 24, "models": 49, "datasets": 34, "kernels": 14}
         for kwargs in ({"observed": different}, {"manifest": different}):
             with self.subTest(kwargs=kwargs):
                 current = {**manifest, "json": {**manifest["json"],
@@ -446,7 +446,7 @@ class EstateReleaseTrainTests(unittest.TestCase):
                     config, record, current, blob,
                     kwargs.get("observed", record["counts"]), pinned=manifest,
                 )
-                self.assertEqual(result["declared_counts"], {"spaces": 23, "models": 49, "datasets": 34})
+                self.assertEqual(result["declared_counts"], {"spaces": 23, "models": 49, "datasets": 34, "kernels": 14})
                 self.assertFalse(result["aligned"])
                 self.assertIn("HF_INVENTORY_COUNT_MISMATCH_OR_UNAVAILABLE", result["blockers"])
 
@@ -478,9 +478,15 @@ def _row(name: str = "a11oy", **kwargs: object) -> dict[str, object]:
     return {"id": f"SZLHOLDINGS/{name}", "sha": "1" * 40, "private": False, **kwargs}
 
 
+def inventory_fixture(org, get):
+    def absent_reserved(url, **kw):
+        return {'status': 404} if url.endswith('/README') else get(url, **kw)
+    return release.hf_inventory(org, absent_reserved)
+
+
 class InventoryAndIdentityContractTests(unittest.TestCase):
     def test_object_200_is_unavailable_not_zero(self) -> None:
-        result = release.hf_inventory(
+        result = inventory_fixture(
             "SZLHOLDINGS",
             lambda url, **kw: {"status": 200, "json": {"items": []}, "link": None},
         )
@@ -490,7 +496,7 @@ class InventoryAndIdentityContractTests(unittest.TestCase):
         self.assertEqual(result["errors"]["models"], "INVALID_LIST_RESPONSE")
 
     def test_empty_list_is_observed_zero(self) -> None:
-        result = release.hf_inventory(
+        result = inventory_fixture(
             "SZLHOLDINGS",
             lambda url, **kw: {"status": 200, "json": [], "link": None},
         )
@@ -509,13 +515,13 @@ class InventoryAndIdentityContractTests(unittest.TestCase):
                 "link": f'<{next_url}>; rel="next"',
             }
 
-        result = release.hf_inventory("SZLHOLDINGS", getter)
+        result = inventory_fixture("SZLHOLDINGS", getter)
         self.assertTrue(result["observed"])
         self.assertEqual(result["counts"]["models"], 2)
         self.assertEqual(len(result["page_evidence"]["models"]), 2)
 
     def test_duplicate_id_and_wrong_namespace_unavailable(self) -> None:
-        dup = release.hf_inventory(
+        dup = inventory_fixture(
             "SZLHOLDINGS",
             lambda url, **kw: {
                 "status": 200,
@@ -525,7 +531,7 @@ class InventoryAndIdentityContractTests(unittest.TestCase):
         )
         self.assertFalse(dup["observed"])
         self.assertEqual(dup["errors"]["models"], "DUPLICATE_ID")
-        foreign = release.hf_inventory(
+        foreign = inventory_fixture(
             "SZLHOLDINGS",
             lambda url, **kw: {
                 "status": 200,
@@ -536,7 +542,7 @@ class InventoryAndIdentityContractTests(unittest.TestCase):
         self.assertEqual(foreign["errors"]["models"], "FOREIGN_OR_MALFORMED_ID")
 
     def test_authorization_failure_is_not_zero(self) -> None:
-        result = release.hf_inventory(
+        result = inventory_fixture(
             "SZLHOLDINGS",
             lambda url, **kw: {"status": 401, "json": [], "link": None},
         )
@@ -566,7 +572,7 @@ class InventoryAndIdentityContractTests(unittest.TestCase):
         original = release.MAX_INVENTORY_PAGES
         release.MAX_INVENTORY_PAGES = 2
         try:
-            result = release.hf_inventory("SZLHOLDINGS", getter)
+            result = inventory_fixture("SZLHOLDINGS", getter)
         finally:
             release.MAX_INVENTORY_PAGES = original
         self.assertFalse(result["observed"])

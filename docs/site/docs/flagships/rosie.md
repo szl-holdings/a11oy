@@ -88,7 +88,7 @@ verifyDualAttestation(root)   // P6 + P8 of A8: two distinct signers required
 ## Source & evidence
 
 - **Repo:** [`a11oy`](https://github.com/szl-holdings/a11oy)
-- **Live 3D showcase:** [Rosie-3D](/anatomy/3d-showcases#rosie-3d)
+- **Former 3D showcase:** Rosie-3D — **UNAVAILABLE**. See [Status](/status).
 - **Proof:** `Lutar/Khipu/SummationInvariant.lean` in [`lutar-lean`](https://github.com/szl-holdings/lutar-lean)
 - **DOI:** [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)
 - **License:** Apache-2.0
