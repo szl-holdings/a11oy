@@ -92,7 +92,7 @@ jobs:
               'delta': {k: {
                   'added': sorted({r['id'] for r in current['inventory'][k]} - {r['id'] for r in previous['inventory'][k]}),
                   'removed': sorted({r['id'] for r in previous['inventory'][k]} - {r['id'] for r in current['inventory'][k]}),
-              } for k in ('models','datasets','spaces')},
+              } for k in ('models','datasets','spaces','kernels')},
               'output_sha256': {p: hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in outputs},
               'previous_manifest_sha256': hashlib.sha256((root/'previous-manifest.json').read_bytes()).hexdigest(),
               'provider_mutations': False, 'production_authorization': False,

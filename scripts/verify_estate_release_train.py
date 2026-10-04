@@ -27,11 +27,11 @@ import urllib.parse
 import urllib.request
 
 try:
-    from scripts.hf_public_inventory import InventoryError, public_get, reserved_readme
+    from scripts.hf_public_inventory import KINDS, PREDICATE, InventoryError, public_get, reserved_readme
 except ModuleNotFoundError:
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from hf_public_inventory import InventoryError, public_get, reserved_readme
+    from hf_public_inventory import KINDS, PREDICATE, InventoryError, public_get, reserved_readme
 
 SCHEMA = "szl.estate-release-train.receipt/v1"
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
@@ -54,7 +54,7 @@ SOURCE_KEYS = (
     "commit_sha",
     "revision",
 )
-INVENTORY_KINDS = ("models", "datasets", "spaces")
+INVENTORY_KINDS = KINDS
 MAX_INVENTORY_PAGES = 20
 MAX_INVENTORY_ITEMS = 2_000
 MAX_INVENTORY_SECONDS = 90
@@ -827,7 +827,7 @@ def profile_inventory_contract(
         record
         and record.get("schema") == "szl.public-profile-inventory/v1"
         and isinstance(expected_scope, Mapping)
-        and expected_scope.get("id") == "hf-public-author-membership/v1"
+        and expected_scope == PREDICATE
         and expected_scope.get("authentication") == "none"
         and expected_scope.get("visibility") == "public-only"
         and record.get("scope") == expected_scope
