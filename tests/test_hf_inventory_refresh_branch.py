@@ -21,7 +21,7 @@ def fixture():
     value={'schemaVersion':2,'org':'SZLHOLDINGS','generatedBy':'scripts/audit_huggingface_ecosystem.py',
            'observedAt':'2026-09-13T12:00:00Z','inventoryScope':{'visibility':'public-only','authenticated':False,'privateAssetsIncluded':False},
            'inventory':{},'counts':{}}
-    for kind in ('model','dataset','space'):
+    for kind in ('model','dataset','space','kernel'):
         value['inventory'][kind+'s']=[{'id':'SZLHOLDINGS/item','repoType':kind,'private':False,'sha':'b'*40}]
         value['counts'][kind+'s']=1
     return value
@@ -40,7 +40,7 @@ def artifact(name='huggingface-ecosystem-manifest.candidate.json'):
 
 
 class CandidateTests(unittest.TestCase):
-    def test_valid_all_three_scopes(self): self.assertEqual(M.validate_candidate(raw(fixture()),now=NOW)['counts']['models'],1)
+    def test_valid_all_four_namespaces(self): self.assertEqual(M.validate_candidate(raw(fixture()),now=NOW)['counts']['models'],1)
     def test_missing_scope(self):
         v=fixture(); del v['inventory']['spaces']
         with self.assertRaises(M.PreparationError): M.validate_candidate(raw(v),now=NOW)
