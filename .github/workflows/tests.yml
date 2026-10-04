@@ -16,6 +16,13 @@ jobs:
     name: Estate RAG lifecycle and read-only route contracts
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    env:
+      # The assembled app captures these paths at import, before individual
+      # tests run. Hosted runners must use isolated writable storage too.
+      A11OY_CODE_DB: ${{ runner.temp }}/a11oy-rag-contract/code.db
+      A11OY_CODE_SANDBOX: ${{ runner.temp }}/a11oy-rag-contract/sandbox
+      A11OY_REACT_DB: ${{ runner.temp }}/a11oy-rag-contract/react.sqlite3
+      A11OY_AGENT_REFLECT_DB: ${{ runner.temp }}/a11oy-rag-contract/reflect.db
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
