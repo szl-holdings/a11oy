@@ -3,13 +3,17 @@
 // Render the exact landing source/assets with unavailable provider fixtures.
 const assert = require('node:assert/strict');
 const { createServer } = require('node:http');
-const { readFileSync, mkdirSync, writeFileSync } = require('node:fs');
-const { resolve } = require('node:path');
+const { readFileSync, mkdirSync, mkdtempSync, writeFileSync } = require('node:fs');
+const { tmpdir } = require('node:os');
+const { join, resolve } = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { chromium } = require('playwright');
 
 const root = resolve(__dirname, '..');
-const output = process.env.LANDING_EVIDENCE_DIR || '/tmp/landing-browser-evidence';
+const requestedOutput = process.env.LANDING_EVIDENCE_DIR;
+const output = requestedOutput
+  ? resolve(requestedOutput)
+  : mkdtempSync(join(tmpdir(), 'szl-landing-browser-evidence-'));
 const base = process.env.LANDING_BASE_SHA || '';
 if (base) assert.match(base, /^[0-9a-f]{40}$/);
 const source = readFileSync(resolve(root, 'a11oy_landing.html'), 'utf8');
