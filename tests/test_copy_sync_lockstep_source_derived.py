@@ -5,6 +5,7 @@ from __future__ import annotations
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 
 import importlib.util
+import json
 import pathlib
 import re
 import shlex
@@ -41,6 +42,10 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             "scripts/configure_hf_gdw_runtime.py",
             "scripts/verify_installed_authority.py",
             "scripts/preserve_hf_gdw_store.py",
+            "scripts/qualify_gdw_store_recovery.py",
+            "docs/operations/evidence/gdw-capture-37223162231.json",
+            "docs/operations/evidence/gdw-recovery-historical-anchors.json",
+            "ayllu/keys/council-runtime-2026-07-21.pub",
         )}
         cls.deploy_needs = "[source-admission, manual-prerequisites, resume-paused-space]"
         cls.deploy_if = "${{ needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && needs.resume-paused-space.result == 'success' }}"
@@ -158,6 +163,55 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             ("            ${{ runner.temp }}/gdw-store-preservation.json\n", "            ${{ runner.temp }}/**\n"),
         )
         for original, replacement in cases:
+            with self.subTest(replacement=replacement):
+                self.assertIn(original, self.reviewed_workflow)
+                self.assertFalse(self.strict_contract(self.reviewed_workflow.replace(original, replacement, 1)))
+
+    def test_recovery_implementation_and_all_reference_inputs_are_byte_bound(self) -> None:
+        path = "scripts/qualify_gdw_store_recovery.py"
+        source = self.manual_helpers[path]
+        for original, replacement in (
+            (b"import preserve_hf_gdw_store as preservation", b"import unreviewed_provider as preservation"),
+            (b'_value(bucket, "private") is not True', b"False"),
+            (b"require_owned_source()", b"pass  # removed ownership check"),
+            (b'return 0 if report["state"] == "LOGICAL_CONTINUITY_VERIFIED" else 2',
+             b'return 0 if report["state"] == "LOGICAL_CONTINUITY_VERIFIED" else 0'),
+        ):
+            with self.subTest(original=original):
+                self.assertIn(original, source)
+                changed = dict(self.manual_helpers)
+                changed[path] = source.replace(original, replacement, 1)
+                self.assertFalse(self.strict_contract(self.reviewed_workflow, manual_helpers=changed))
+        capture_path = "docs/operations/evidence/gdw-capture-37223162231.json"
+        capture = json.loads(self.manual_helpers[capture_path])
+        capture["private_manifest"]["sha256"] = "0" * 64
+        anchors_path = "docs/operations/evidence/gdw-recovery-historical-anchors.json"
+        anchors = json.loads(self.manual_helpers[anchors_path])
+        anchors["capture_report_sha256"] = "0" * 64
+        # Valid JSON substitutions must fail even when every helper is unchanged.
+        for reference_path, value in ((capture_path, capture), (anchors_path, anchors)):
+            with self.subTest(reference_path=reference_path):
+                changed = dict(self.manual_helpers)
+                changed[reference_path] = json.dumps(value, sort_keys=True).encode()
+                self.assertFalse(self.strict_contract(self.reviewed_workflow, manual_helpers=changed))
+        key_path = "ayllu/keys/council-runtime-2026-07-21.pub"
+        changed = dict(self.manual_helpers)
+        changed[key_path] += b"\n# unreviewed verification input\n"
+        self.assertFalse(self.strict_contract(self.reviewed_workflow, manual_helpers=changed))
+
+    def test_recovery_step_inputs_condition_and_artifact_scope_are_byte_bound(self) -> None:
+        marker = "      - name: Qualify the pinned private capture without admitting restore\n"
+        for original, replacement in (
+            ("scripts/qualify_gdw_store_recovery.py", "scripts/unreviewed_recovery.py"),
+            ("docs/operations/evidence/gdw-capture-37223162231.json", "docs/operations/evidence/unreviewed-capture.json"),
+            ("docs/operations/evidence/gdw-recovery-historical-anchors.json", "docs/operations/evidence/unreviewed-anchors.json"),
+            ("${{ always() && steps.preserve_stores.outcome == 'failure' }}", "always()"),
+            ("        id: preserve_stores\n", "        id: unreviewed_preservation\n"),
+            (marker, marker + "        continue-on-error: true\n"),
+            (marker, marker + "        env:\n          HF_TOKEN: unreviewed-authority\n"),
+            ('--output "${{ runner.temp }}/gdw-store-recovery-qualification.json"', '--output "${{ runner.temp }}/gdw-store-recovery-qualification.json" || true'),
+            ("            ${{ runner.temp }}/gdw-store-recovery-qualification.json\n", "            ${{ runner.temp }}/**\n"),
+        ):
             with self.subTest(replacement=replacement):
                 self.assertIn(original, self.reviewed_workflow)
                 self.assertFalse(self.strict_contract(self.reviewed_workflow.replace(original, replacement, 1)))

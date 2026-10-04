@@ -1,0 +1,1530 @@
+{
+  "$comment": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "authority": {
+    "deployment": false,
+    "promotion": false,
+    "qualification": false,
+    "routing": false
+  },
+  "generated_at": "2026-10-04T16:23:10.390796+00:00",
+  "inventory_source": {
+    "model_ids_sha256": "07586b13420c30216620f527d3617af9fa957ac656ffc4775f09865d4998843e",
+    "path": "docs/huggingface-ecosystem-manifest.json"
+  },
+  "max_observation_age_seconds": 86400,
+  "models": [
+    {
+      "assessment": {
+        "artifact_class": "gguf_bundle",
+        "hub_revision": "7ea56236ea7988b3915b5ef07548cb2c3930a3cf",
+        "observed_at": "2026-10-04T15:31:57.871502+00:00",
+        "qualification_note": "HOLD; native R2 envelope results do not clear semantic failures. Legacy and R2 GGUF files coexist; select exact R2 text/projector pair.",
+        "request_disposition": "FOLLOWUP_GGUF_BACKEND_REVIEW",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/A11OY-MINI/blob/7ea56236ea7988b3915b5ef07548cb2c3930a3cf/README.md",
+        "suggested_route": "Local llama.cpp / Ollama route or a specifically confirmed GGUF backend; multimodal projector must match exact model."
+      },
+      "id": "SZLHOLDINGS/A11OY-MINI",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "1347e0ca8162dc981c9f8bd921e5d2a6da0a28369515a51bd58f8bd03cd1e053",
+        "error": null,
+        "hub_revision": "7ea56236ea7988b3915b5ef07548cb2c3930a3cf",
+        "observed_at": "2026-10-04T16:22:20.567960+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/A11OY-MINI?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "e4c5d6c00876ae02b78bfd720560a31b91ad1b76",
+        "observed_at": "2026-10-04T15:31:57.872521+00:00",
+        "qualification_note": "publication_eligible=false. Research adapter and separate merged runtime; current merged bytes have no independently replayed held-out qualification in this audit.",
+        "request_disposition": "REQUEST_PROVIDER_REVIEW_RESEARCH_ONLY",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/KHIPU-R2/blob/e4c5d6c00876ae02b78bfd720560a31b91ad1b76/README.md",
+        "suggested_route": "Provider may review explicit merged Transformers checkpoint; qualify exact served bytes before any deployment integration."
+      },
+      "id": "SZLHOLDINGS/KHIPU-R2",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "ff3d20343ee85d1d35a8847c9d6cbf7bd23b57b6a79f9f554ca855b1750c97da",
+        "error": null,
+        "hub_revision": "e4c5d6c00876ae02b78bfd720560a31b91ad1b76",
+        "observed_at": "2026-10-04T16:22:20.606778+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/KHIPU-R2?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [
+          {
+            "author": "betterwithage",
+            "body_sha256": "a75d64a77af5c57746534805240acd093ae703f9ea96c423ad442ba627e903b8",
+            "discussion_number": 12786,
+            "evidence_kind": "VERIFIED_SUBMISSION",
+            "model_id": "SZLHOLDINGS/KHIPU-R2",
+            "model_revision": "e4c5d6c00876ae02b78bfd720560a31b91ad1b76",
+            "readback_at": "2026-10-04T15:56:33.794121+00:00",
+            "readback_body_sha256": "67f7356e28eb216bf34c015bb769ca4ed96aa6a63b4fcb87dfc50139791698a8",
+            "readback_normalization": "HUB_REMOVED_ONE_TERMINAL_NEWLINE",
+            "recorded_status": "open",
+            "requested_at": "2026-10-04T15:56:33.674221+00:00",
+            "url": "https://huggingface.co/spaces/huggingface/InferenceSupport/discussions/12786"
+          }
+        ],
+        "state": "REQUESTED"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "numpy_model_bundle",
+        "hub_revision": "70557d12b91ca556939e559e540b70fb3c2c9e5b",
+        "observed_at": "2026-10-04T15:31:57.873108+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/MiniEmbed-Nano/blob/70557d12b91ca556939e559e540b70fb3c2c9e5b/README.md",
+        "suggested_route": "Use the source-controlled NumPy/CPU model API or its Space; requires a custom inference handler rather than generic text generation."
+      },
+      "id": "SZLHOLDINGS/MiniEmbed-Nano",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "1ff23f5fbcef46c95d80808ae0619c057c9576dc4274c04721d1e2ff29ac2198",
+        "error": null,
+        "hub_revision": "70557d12b91ca556939e559e540b70fb3c2c9e5b",
+        "observed_at": "2026-10-04T16:22:20.621148+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/MiniEmbed-Nano?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "numpy_model_bundle",
+        "hub_revision": "4631d0fb54ad90423c3ae76f812ff4d0e80fbfdf",
+        "observed_at": "2026-10-04T15:31:57.873579+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/Moons-Nano/blob/4631d0fb54ad90423c3ae76f812ff4d0e80fbfdf/README.md",
+        "suggested_route": "Use the source-controlled NumPy/CPU model API or its Space; requires a custom inference handler rather than generic text generation."
+      },
+      "id": "SZLHOLDINGS/Moons-Nano",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "46000a760070a5177b0d02dbf1e37591502546fdb9cb94175ab9c33611d25287",
+        "error": null,
+        "hub_revision": "4631d0fb54ad90423c3ae76f812ff4d0e80fbfdf",
+        "observed_at": "2026-10-04T16:22:20.618502+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/Moons-Nano?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "numpy_model_bundle",
+        "hub_revision": "dc10582bfe9d09dc935b0be0a6faa043c38f721c",
+        "observed_at": "2026-10-04T15:31:57.874465+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/ReceiptAgent-Nano/blob/dc10582bfe9d09dc935b0be0a6faa043c38f721c/README.md",
+        "suggested_route": "Use the source-controlled NumPy/CPU model API or its Space; requires a custom inference handler rather than generic text generation."
+      },
+      "id": "SZLHOLDINGS/ReceiptAgent-Nano",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "db9652098cd08abcc986754da7a8ef0a80e61174c95580fd6e51a98ca4103f04",
+        "error": null,
+        "hub_revision": "dc10582bfe9d09dc935b0be0a6faa043c38f721c",
+        "observed_at": "2026-10-04T16:22:26.593758+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/ReceiptAgent-Nano?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "7fea926b22a99e0e9704d3500741467ae357eec2",
+        "observed_at": "2026-10-04T15:31:57.876023+00:00",
+        "qualification_note": "Current public API metadata is visible, but immutable config, tokenizer config and adapter config each returned HTTP 401 twice. Current bytes/readiness remain unverified.",
+        "request_disposition": "HOLD_PUBLIC_ASSET_ACCESS",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent/blob/7fea926b22a99e0e9704d3500741467ae357eec2/README.md",
+        "suggested_route": "Provider may review explicit merged Transformers checkpoint; qualify exact served bytes before any deployment integration."
+      },
+      "id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "0c85302243fdf75fc750960adfa864c50f77c1b4873118913f0d1b377c3537de",
+        "error": null,
+        "hub_revision": "7fea926b22a99e0e9704d3500741467ae357eec2",
+        "observed_at": "2026-10-04T16:22:26.583433+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [
+          {
+            "author": "betterwithage",
+            "body_sha256": null,
+            "discussion_number": 11056,
+            "evidence_kind": "PRIOR_DISCUSSION",
+            "model_id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
+            "model_revision": null,
+            "readback_at": null,
+            "readback_body_sha256": null,
+            "readback_normalization": null,
+            "recorded_status": "open",
+            "requested_at": null,
+            "url": "https://huggingface.co/spaces/huggingface/InferenceSupport/discussions/11056"
+          }
+        ],
+        "state": "PRIOR_DISCUSSION_RECORDED"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "fe1b7dbf81162e586e4dd32845ed17f048b54329",
+        "observed_at": "2026-10-04T15:32:07.513304+00:00",
+        "qualification_note": "publication_eligible=false; recorded abstention 2/6 remains the release blocker. Current tensor/evaluation equivalence is not established by a card or config read.",
+        "request_disposition": "REQUEST_PROVIDER_REVIEW_RESEARCH_ONLY",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Khipu-1.5B/blob/fe1b7dbf81162e586e4dd32845ed17f048b54329/README.md",
+        "suggested_route": "Provider may review explicit merged Transformers checkpoint; qualify exact served bytes before any deployment integration."
+      },
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "807ded92057fae7b4f9c69fcfb98c2cf874cbe07b088863bda1fd9e51f23152e",
+        "error": null,
+        "hub_revision": "fe1b7dbf81162e586e4dd32845ed17f048b54329",
+        "observed_at": "2026-10-04T16:22:26.588978+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [
+          {
+            "author": "betterwithage",
+            "body_sha256": "351353c6fc35ea786cc2c482954784e23e382220535d8669e72a946ad20112a3",
+            "discussion_number": 12781,
+            "evidence_kind": "VERIFIED_SUBMISSION",
+            "model_id": "SZLHOLDINGS/SZL-Khipu-1.5B",
+            "model_revision": "fe1b7dbf81162e586e4dd32845ed17f048b54329",
+            "readback_at": "2026-10-04T15:56:31.455467+00:00",
+            "readback_body_sha256": "c91d7f96f90ad75dc5452dcbc6d24257f11a8e5f92dd7eefb99a6e40880185c0",
+            "readback_normalization": "HUB_REMOVED_ONE_TERMINAL_NEWLINE",
+            "recorded_status": "open",
+            "requested_at": "2026-10-04T15:51:03.839603+00:00",
+            "url": "https://huggingface.co/spaces/huggingface/InferenceSupport/discussions/12781"
+          }
+        ],
+        "state": "REQUESTED"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "gguf_bundle",
+        "hub_revision": "0737ae93c009322e4deffbe89ff34d2155a1b6c1",
+        "observed_at": "2026-10-04T15:32:07.455314+00:00",
+        "qualification_note": "Derived deployment format of SZL-Khipu-1.5B; quantization does not clear the parent model abstention/promotion boundary. Prefer one parent support request first.",
+        "request_disposition": "DEFER_DUPLICATE_PARENT_REQUEST",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Khipu-1.5B-GGUF/blob/0737ae93c009322e4deffbe89ff34d2155a1b6c1/README.md",
+        "suggested_route": "Local llama.cpp / Ollama route or a specifically confirmed GGUF backend; multimodal projector must match exact model."
+      },
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "e18d2120f7161ab78db30dfa3040ab67f50adea8bd542b1da4d0da5a7f480c9b",
+        "error": null,
+        "hub_revision": "0737ae93c009322e4deffbe89ff34d2155a1b6c1",
+        "observed_at": "2026-10-04T16:22:26.596111+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B-GGUF?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "gguf_bundle",
+        "hub_revision": "942c02dd4e94f2cb7cfb0432a051c2db2219ee79",
+        "observed_at": "2026-10-04T15:32:07.510706+00:00",
+        "qualification_note": "Research candidate; card retains NOT YET RUN and publication_eligible=false pending improvement on original abstention 2/6. No new eligible evaluation inferred from files.",
+        "request_disposition": "HOLD_UNEVALUATED_CANDIDATE",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Khipu-1.5B-abstain/blob/942c02dd4e94f2cb7cfb0432a051c2db2219ee79/README.md",
+        "suggested_route": "Local llama.cpp / Ollama route or a specifically confirmed GGUF backend; multimodal projector must match exact model."
+      },
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B-abstain",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "4856c675954b28587d378d86561364667dfad73c371e314bd0f6cd8385601105",
+        "error": null,
+        "hub_revision": "942c02dd4e94f2cb7cfb0432a051c2db2219ee79",
+        "observed_at": "2026-10-04T16:22:34.256206+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B-abstain?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "numpy_model_bundle",
+        "hub_revision": "47ff3cc34ed8c0c1a255abff1f784d01c03e8b67",
+        "observed_at": "2026-10-04T15:32:07.513623+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/TinyKhipu-Nano/blob/47ff3cc34ed8c0c1a255abff1f784d01c03e8b67/README.md",
+        "suggested_route": "Use the source-controlled NumPy/CPU model API or its Space; requires a custom inference handler rather than generic text generation."
+      },
+      "id": "SZLHOLDINGS/TinyKhipu-Nano",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "a0a482c68b5fb48af51c2ec8ae01bed83c7b9f95c0fefe051a5d7889b1ca9e32",
+        "error": null,
+        "hub_revision": "47ff3cc34ed8c0c1a255abff1f784d01c03e8b67",
+        "observed_at": "2026-10-04T16:22:34.251690+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/TinyKhipu-Nano?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "96a0ac5c5c26e89f732b72d747b3577e1ea5236f",
+        "observed_at": "2026-10-04T15:32:07.513882+00:00",
+        "qualification_note": "Historical scoped research/evaluation records; root adapter and merged checkpoint are distinct forms. No new current-byte or deployment qualification established here.",
+        "request_disposition": "REQUEST_PROVIDER_REVIEW_RESEARCH_ONLY",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/WILLAY/blob/96a0ac5c5c26e89f732b72d747b3577e1ea5236f/README.md",
+        "suggested_route": "Provider may review explicit merged Transformers checkpoint; qualify exact served bytes before any deployment integration."
+      },
+      "id": "SZLHOLDINGS/WILLAY",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "277bcb223f2cb91bde14a05c0fffac40a4eef66eea8982d07eed343a31fada67",
+        "error": null,
+        "hub_revision": "96a0ac5c5c26e89f732b72d747b3577e1ea5236f",
+        "observed_at": "2026-10-04T16:22:34.283042+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/WILLAY?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [
+          {
+            "author": "betterwithage",
+            "body_sha256": "e13fd1f0a764d0da5fdfe40422f151ca1c8a9029692b67d17e9d1246007c64ec",
+            "discussion_number": 12790,
+            "evidence_kind": "VERIFIED_SUBMISSION",
+            "model_id": "SZLHOLDINGS/WILLAY",
+            "model_revision": "96a0ac5c5c26e89f732b72d747b3577e1ea5236f",
+            "readback_at": "2026-10-04T15:56:36.454225+00:00",
+            "readback_body_sha256": "083d6e3d84a378c6a6eb81cebeeea4463a3795dc19a30f7e569f29b9060c5caf",
+            "readback_normalization": "HUB_REMOVED_ONE_TERMINAL_NEWLINE",
+            "recorded_status": "open",
+            "requested_at": "2026-10-04T15:56:35.895093+00:00",
+            "url": "https://huggingface.co/spaces/huggingface/InferenceSupport/discussions/12790"
+          }
+        ],
+        "state": "REQUESTED"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "kernel_library",
+        "hub_revision": "d6aeb4f24655c07acc155eed7acade5ad249724f",
+        "observed_at": "2026-10-04T15:32:07.521386+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/YARQA-ATTN/blob/d6aeb4f24655c07acc155eed7acade5ad249724f/README.md",
+        "suggested_route": "Use documented native kernel/library API or an existing demonstration Space; not a standalone hosted generative model."
+      },
+      "id": "SZLHOLDINGS/YARQA-ATTN",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "d9c3db68a7c4dffdc6a2153b3aa756f7d3a58114d449e60a3d37c1fb89e63a20",
+        "error": null,
+        "hub_revision": "d6aeb4f24655c07acc155eed7acade5ad249724f",
+        "observed_at": "2026-10-04T16:22:34.232168+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/YARQA-ATTN?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "non_provider_artifact",
+        "hub_revision": "41a9a71d782adb6effd4a0af69dc684d5acded08",
+        "observed_at": "2026-10-04T15:32:16.911597+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/a11oy-v19-substrate/blob/41a9a71d782adb6effd4a0af69dc684d5acded08/README.md",
+        "suggested_route": "Use the repository-specific software, diagnostic or development route; no standalone neural checkpoint is advertised."
+      },
+      "id": "SZLHOLDINGS/a11oy-v19-substrate",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "14776b3f4ec1f246c2bbb8f2729bb0532c36a91a8b675da163d7f02bacd8f076",
+        "error": null,
+        "hub_revision": "41a9a71d782adb6effd4a0af69dc684d5acded08",
+        "observed_at": "2026-10-04T16:22:38.833035+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/a11oy-v19-substrate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [
+          {
+            "author": "betterwithage",
+            "body_sha256": null,
+            "discussion_number": 10649,
+            "evidence_kind": "PRIOR_DISCUSSION",
+            "model_id": "SZLHOLDINGS/a11oy-v19-substrate",
+            "model_revision": null,
+            "readback_at": null,
+            "readback_body_sha256": null,
+            "readback_normalization": null,
+            "recorded_status": "open",
+            "requested_at": null,
+            "url": "https://huggingface.co/spaces/huggingface/InferenceSupport/discussions/10649"
+          }
+        ],
+        "state": "PRIOR_DISCUSSION_RECORDED"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "8f7d67af9c2f8315dc3a63afa9ebf23a3f60ca01",
+        "observed_at": "2026-10-04T15:32:16.953124+00:00",
+        "qualification_note": "Research-only, not promotable. Canonical held-out 2/5 overall FAIL and refusal regression remain; merged repair record is not a new behavioral pass.",
+        "request_disposition": "REQUEST_PROVIDER_REVIEW_RESEARCH_ONLY",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/brain-navigator-r2/blob/8f7d67af9c2f8315dc3a63afa9ebf23a3f60ca01/README.md",
+        "suggested_route": "Provider may review explicit merged Transformers checkpoint; qualify exact served bytes before any deployment integration."
+      },
+      "id": "SZLHOLDINGS/brain-navigator-r2",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "73ea7881fc94a875c086cffab754d5d95110a88db7f93526fc69112523f5975e",
+        "error": null,
+        "hub_revision": "8f7d67af9c2f8315dc3a63afa9ebf23a3f60ca01",
+        "observed_at": "2026-10-04T16:22:38.883798+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/brain-navigator-r2?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [
+          {
+            "author": "betterwithage",
+            "body_sha256": "694e73c8eb06a4f080d1a6573c2232f6d21df22f16bd9f1dceb4c03e52aeb23b",
+            "discussion_number": 12782,
+            "evidence_kind": "VERIFIED_SUBMISSION",
+            "model_id": "SZLHOLDINGS/brain-navigator-r2",
+            "model_revision": "8f7d67af9c2f8315dc3a63afa9ebf23a3f60ca01",
+            "readback_at": "2026-10-04T15:56:32.019263+00:00",
+            "readback_body_sha256": "8c4161a55646dc9e8c39341a42808af6a6e0039e9a4936f795a31a96438d98b2",
+            "readback_normalization": "HUB_REMOVED_ONE_TERMINAL_NEWLINE",
+            "recorded_status": "open",
+            "requested_at": "2026-10-04T15:56:31.894122+00:00",
+            "url": "https://huggingface.co/spaces/huggingface/InferenceSupport/discussions/12782"
+          }
+        ],
+        "state": "REQUESTED"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "375330cb5768ff5c8d1902aa5e7c820f67953c90",
+        "observed_at": "2026-10-04T15:32:16.995610+00:00",
+        "qualification_note": "publication_eligible=false; historical named-N run failed both release gates. Conditional-generation full checkpoint and separate LoRA must not be confused.",
+        "request_disposition": "REQUEST_PROVIDER_REVIEW_RESEARCH_ONLY",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/chaski/blob/375330cb5768ff5c8d1902aa5e7c820f67953c90/README.md",
+        "suggested_route": "Provider may review explicit merged Transformers checkpoint; qualify exact served bytes before any deployment integration."
+      },
+      "id": "SZLHOLDINGS/chaski",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "e139dbeeabd46066582da9989851166b5419c0545c1e714535f4747ee91635b3",
+        "error": null,
+        "hub_revision": "375330cb5768ff5c8d1902aa5e7c820f67953c90",
+        "observed_at": "2026-10-04T16:22:38.881709+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [
+          {
+            "author": "betterwithage",
+            "body_sha256": "96dcbe808cc14f62a8d82fe0734929eb092c642fbb1ab25ba019b2673ac62999",
+            "discussion_number": 12783,
+            "evidence_kind": "VERIFIED_SUBMISSION",
+            "model_id": "SZLHOLDINGS/chaski",
+            "model_revision": "375330cb5768ff5c8d1902aa5e7c820f67953c90",
+            "readback_at": "2026-10-04T15:56:32.446610+00:00",
+            "readback_body_sha256": "7082b30d26117f5088b267022dc3df089e5fabfba343b61b761610d44751b1ac",
+            "readback_normalization": "HUB_REMOVED_ONE_TERMINAL_NEWLINE",
+            "recorded_status": "open",
+            "requested_at": "2026-10-04T15:56:32.326058+00:00",
+            "url": "https://huggingface.co/spaces/huggingface/InferenceSupport/discussions/12783"
+          }
+        ],
+        "state": "REQUESTED"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "0e324a93761abb7069ce0e40597780e734bf342b",
+        "observed_at": "2026-10-04T15:32:16.960837+00:00",
+        "qualification_note": "publication_eligible=false; canonical held-out 1/5 overall FAIL. Separate 50/50 experiment; do not substitute Chaski or R2 evidence.",
+        "request_disposition": "REQUEST_PROVIDER_REVIEW_RESEARCH_ONLY",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/chaski-5050/blob/0e324a93761abb7069ce0e40597780e734bf342b/README.md",
+        "suggested_route": "Provider may review explicit merged Transformers checkpoint; qualify exact served bytes before any deployment integration."
+      },
+      "id": "SZLHOLDINGS/chaski-5050",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "e986a2dfdaeb01172c8c3c5a3c752588714e69e498f32a3f964d45dc02b3a44c",
+        "error": null,
+        "hub_revision": "0e324a93761abb7069ce0e40597780e734bf342b",
+        "observed_at": "2026-10-04T16:22:38.883290+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-5050?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [
+          {
+            "author": "betterwithage",
+            "body_sha256": "8c9e1d31f370a71c88cbe55a8a073bfc147f2b85df176c1c76f75aa7f64c52a6",
+            "discussion_number": 12784,
+            "evidence_kind": "VERIFIED_SUBMISSION",
+            "model_id": "SZLHOLDINGS/chaski-5050",
+            "model_revision": "0e324a93761abb7069ce0e40597780e734bf342b",
+            "readback_at": "2026-10-04T15:56:32.862375+00:00",
+            "readback_body_sha256": "967c6e1d5c2082a3002310646e3dc1eb64a78df28f4bbf8c7854bd6d86afdec8",
+            "readback_normalization": "HUB_REMOVED_ONE_TERMINAL_NEWLINE",
+            "recorded_status": "open",
+            "requested_at": "2026-10-04T15:56:32.742315+00:00",
+            "url": "https://huggingface.co/spaces/huggingface/InferenceSupport/discussions/12784"
+          }
+        ],
+        "state": "REQUESTED"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "83734cf80a2ca306f090b40a2e1fd23db2ddda45",
+        "observed_at": "2026-10-04T15:32:16.962329+00:00",
+        "qualification_note": "HOLD, not promotable. Canonical held-out 1/5 FAIL remains despite later named-N adapter envelope results. Merged runtime needs its own byte-bound gate.",
+        "request_disposition": "REQUEST_PROVIDER_REVIEW_RESEARCH_ONLY",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/chaski-r2/blob/83734cf80a2ca306f090b40a2e1fd23db2ddda45/README.md",
+        "suggested_route": "Provider may review explicit merged Transformers checkpoint; qualify exact served bytes before any deployment integration."
+      },
+      "id": "SZLHOLDINGS/chaski-r2",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "952d99aed91f9db3c9aa49d39f8626c2895a8de2159615b77219052a73d17e2f",
+        "error": null,
+        "hub_revision": "83734cf80a2ca306f090b40a2e1fd23db2ddda45",
+        "observed_at": "2026-10-04T16:22:43.219554+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r2?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [
+          {
+            "author": "betterwithage",
+            "body_sha256": "33bc16c82eebc6a46b4802620ef8115d1daf54aba6a09efeb6bb4786c20e9f81",
+            "discussion_number": 12785,
+            "evidence_kind": "VERIFIED_SUBMISSION",
+            "model_id": "SZLHOLDINGS/chaski-r2",
+            "model_revision": "83734cf80a2ca306f090b40a2e1fd23db2ddda45",
+            "readback_at": "2026-10-04T15:56:33.258377+00:00",
+            "readback_body_sha256": "53d0b67eeec97e0d05cfed181d9cca7e78ad7a927e5e243ea0e3d9b15d9cef32",
+            "readback_normalization": "HUB_REMOVED_ONE_TERMINAL_NEWLINE",
+            "recorded_status": "open",
+            "requested_at": "2026-10-04T15:56:33.142256+00:00",
+            "url": "https://huggingface.co/spaces/huggingface/InferenceSupport/discussions/12785"
+          }
+        ],
+        "state": "REQUESTED"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "6275945fab2515ee41019eb60703c6b5dbdf5640",
+        "observed_at": "2026-10-04T15:32:16.991237+00:00",
+        "qualification_note": "NOT_PROMOTABLE; receipt C reports 192/192 applied tensors and 5/5 + 6/6 named-N envelopes. Earlier non-comparable/mismatched receipts remain; base runtime/adapter deployment must be pinned separately.",
+        "request_disposition": "FOLLOWUP_PROVIDER_ADAPTER_REVIEW",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/chaski-r4/blob/6275945fab2515ee41019eb60703c6b5dbdf5640/README.md",
+        "suggested_route": "Requires provider-supported LoRA serving with exact base revision, adapter hash, tokenizer and runtime; alternatively a separately receipted merge."
+      },
+      "id": "SZLHOLDINGS/chaski-r4",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "5f85ef6e6abd0a145a6f229077e48f135077c2e8c00116e62daf3fb67e66b542",
+        "error": null,
+        "hub_revision": "6275945fab2515ee41019eb60703c6b5dbdf5640",
+        "observed_at": "2026-10-04T16:22:43.221466+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r4?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "kernel_library",
+        "hub_revision": "5049f8ec259a5356d5b8eeaf11b85d3e9c1fea74",
+        "observed_at": "2026-10-04T15:32:26.066134+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/governed-inference-meter/blob/5049f8ec259a5356d5b8eeaf11b85d3e9c1fea74/README.md",
+        "suggested_route": "Use documented native kernel/library API or an existing demonstration Space; not a standalone hosted generative model."
+      },
+      "id": "SZLHOLDINGS/governed-inference-meter",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "b2494204b9a4465df85b0076c983f2eafcd015ea7a995669ef1eb46f7c8f3464",
+        "error": null,
+        "hub_revision": "5049f8ec259a5356d5b8eeaf11b85d3e9c1fea74",
+        "observed_at": "2026-10-04T16:22:43.267678+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/governed-inference-meter?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "7e388efb6e332c8c28e94bdf266293baf437fb64",
+        "observed_at": "2026-10-04T15:32:26.104310+00:00",
+        "qualification_note": "Not promotable; canonical held-out 1/5 FAIL. Training/merge records do not establish current merged-byte behavior.",
+        "request_disposition": "REQUEST_PROVIDER_REVIEW_RESEARCH_ONLY",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/khipu-r3/blob/7e388efb6e332c8c28e94bdf266293baf437fb64/README.md",
+        "suggested_route": "Provider may review explicit merged Transformers checkpoint; qualify exact served bytes before any deployment integration."
+      },
+      "id": "SZLHOLDINGS/khipu-r3",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "9044c24f66953ac1010843f146a6135c69836c2621a100077cd0fd63ded35e07",
+        "error": null,
+        "hub_revision": "7e388efb6e332c8c28e94bdf266293baf437fb64",
+        "observed_at": "2026-10-04T16:22:43.220181+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-r3?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [
+          {
+            "author": "betterwithage",
+            "body_sha256": "a6f2fcf87a434e2303536625289ae5310630d67d6433d32dfe344b3ceadd2377",
+            "discussion_number": 12787,
+            "evidence_kind": "VERIFIED_SUBMISSION",
+            "model_id": "SZLHOLDINGS/khipu-r3",
+            "model_revision": "7e388efb6e332c8c28e94bdf266293baf437fb64",
+            "readback_at": "2026-10-04T15:56:34.418165+00:00",
+            "readback_body_sha256": "aab516579efdea5db56a9b673543408c55d04231d31e16f8db2734ddfa9f5c65",
+            "readback_normalization": "HUB_REMOVED_ONE_TERMINAL_NEWLINE",
+            "recorded_status": "open",
+            "requested_at": "2026-10-04T15:56:34.082476+00:00",
+            "url": "https://huggingface.co/spaces/huggingface/InferenceSupport/discussions/12787"
+          }
+        ],
+        "state": "REQUESTED"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "non_provider_artifact",
+        "hub_revision": "8a6cd25ed8121af4e99118cd874bb89f50cff981",
+        "observed_at": "2026-10-04T15:32:26.121230+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/oac-clinical-transport-health-v1/blob/8a6cd25ed8121af4e99118cd874bb89f50cff981/README.md",
+        "suggested_route": "Use the repository-specific software, diagnostic or development route; no standalone neural checkpoint is advertised."
+      },
+      "id": "SZLHOLDINGS/oac-clinical-transport-health-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "316a831383e10802f9c9a1e9c077ffef81d87a467d2074c2c69afe0582d2b59e",
+        "error": null,
+        "hub_revision": "8a6cd25ed8121af4e99118cd874bb89f50cff981",
+        "observed_at": "2026-10-04T16:22:47.082932+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/oac-clinical-transport-health-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "non_provider_artifact",
+        "hub_revision": "dd7d109813abcd90c5250106dc2eabd2804e7ac3",
+        "observed_at": "2026-10-04T15:32:26.136078+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/oac-system-health-v1/blob/dd7d109813abcd90c5250106dc2eabd2804e7ac3/README.md",
+        "suggested_route": "Use the repository-specific software, diagnostic or development route; no standalone neural checkpoint is advertised."
+      },
+      "id": "SZLHOLDINGS/oac-system-health-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "e845f7df091f4656096ff9bf465b2496a55784f1811ec242fa2bfd9ce780e8b2",
+        "error": null,
+        "hub_revision": "dd7d109813abcd90c5250106dc2eabd2804e7ac3",
+        "observed_at": "2026-10-04T16:22:47.036384+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/oac-system-health-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "kernel_library",
+        "hub_revision": "b5e86e4038e630eda94e3bd83cee1c5729d6d826",
+        "observed_at": "2026-10-04T15:32:26.137476+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-block-kv/blob/b5e86e4038e630eda94e3bd83cee1c5729d6d826/README.md",
+        "suggested_route": "Use documented native kernel/library API or an existing demonstration Space; not a standalone hosted generative model."
+      },
+      "id": "SZLHOLDINGS/szl-block-kv",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "45914bec2360244e4ae1386c6d8c51e6cc9b5bfcfb899b5ef3574e17d4fdbc58",
+        "error": null,
+        "hub_revision": "b5e86e4038e630eda94e3bd83cee1c5729d6d826",
+        "observed_at": "2026-10-04T16:22:47.073249+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-block-kv?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "kernel_library",
+        "hub_revision": "74caaabb4a001fb3d2e8a346c1114008ad9c4f5d",
+        "observed_at": "2026-10-04T15:32:26.137906+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-blocked/blob/74caaabb4a001fb3d2e8a346c1114008ad9c4f5d/README.md",
+        "suggested_route": "Use documented native kernel/library API or an existing demonstration Space; not a standalone hosted generative model."
+      },
+      "id": "SZLHOLDINGS/szl-blocked",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "8750dcd90614fa0297d65f2c98979f25a9e901b82c209eceb2e429bd4574d528",
+        "error": null,
+        "hub_revision": "74caaabb4a001fb3d2e8a346c1114008ad9c4f5d",
+        "observed_at": "2026-10-04T16:22:47.108354+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-blocked?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "non_provider_artifact",
+        "hub_revision": "9146d35730139f8b7797dc40b4d5be5547387f1b",
+        "observed_at": "2026-10-04T15:32:38.662091+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-energy-attest/blob/9146d35730139f8b7797dc40b4d5be5547387f1b/README.md",
+        "suggested_route": "Use the repository-specific software, diagnostic or development route; no standalone neural checkpoint is advertised."
+      },
+      "id": "SZLHOLDINGS/szl-energy-attest",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "262478d912c031893c6c1768711ba6c76deb164e8833c6e8789100b5ce7a9787",
+        "error": null,
+        "hub_revision": "9146d35730139f8b7797dc40b4d5be5547387f1b",
+        "observed_at": "2026-10-04T16:22:51.199825+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-energy-attest?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "kernel_library",
+        "hub_revision": "d3f2dbbb7c59bef13cf1b755edf487bfb2960653",
+        "observed_at": "2026-10-04T15:32:38.666891+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-formulas/blob/d3f2dbbb7c59bef13cf1b755edf487bfb2960653/README.md",
+        "suggested_route": "Use documented native kernel/library API or an existing demonstration Space; not a standalone hosted generative model."
+      },
+      "id": "SZLHOLDINGS/szl-formulas",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "0dad0210bb5f825364a083393fff700963d4af27f369238f7f202181110803db",
+        "error": null,
+        "hub_revision": "d3f2dbbb7c59bef13cf1b755edf487bfb2960653",
+        "observed_at": "2026-10-04T16:22:51.201752+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-formulas?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "kernel_library",
+        "hub_revision": "5abbd073ff159385be1f4e51c9fee4613cf52513",
+        "observed_at": "2026-10-04T15:32:38.667794+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-governed-norm/blob/5abbd073ff159385be1f4e51c9fee4613cf52513/README.md",
+        "suggested_route": "Use documented native kernel/library API or an existing demonstration Space; not a standalone hosted generative model."
+      },
+      "id": "SZLHOLDINGS/szl-governed-norm",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "5c9e0f21678cdcedba36cb045137a3e096008e06cda5d0d530c8b3a96c477cfa",
+        "error": null,
+        "hub_revision": "5abbd073ff159385be1f4e51c9fee4613cf52513",
+        "observed_at": "2026-10-04T16:22:51.245551+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-governed-norm?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [
+          {
+            "author": "betterwithage",
+            "body_sha256": null,
+            "discussion_number": 10652,
+            "evidence_kind": "PRIOR_DISCUSSION",
+            "model_id": "SZLHOLDINGS/szl-governed-norm",
+            "model_revision": null,
+            "readback_at": null,
+            "readback_body_sha256": null,
+            "readback_normalization": null,
+            "recorded_status": "open",
+            "requested_at": null,
+            "url": "https://huggingface.co/spaces/huggingface/InferenceSupport/discussions/10652"
+          }
+        ],
+        "state": "PRIOR_DISCUSSION_RECORDED"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "kernel_library",
+        "hub_revision": "52576849d074aa7d251219241fe12888b02f1edd",
+        "observed_at": "2026-10-04T15:32:38.668387+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-govsign/blob/52576849d074aa7d251219241fe12888b02f1edd/README.md",
+        "suggested_route": "Use documented native kernel/library API or an existing demonstration Space; not a standalone hosted generative model."
+      },
+      "id": "SZLHOLDINGS/szl-govsign",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "b766529af64ca89d881112c354af579c99ff0a2642d482ddf3f490ae25bad8bc",
+        "error": null,
+        "hub_revision": "52576849d074aa7d251219241fe12888b02f1edd",
+        "observed_at": "2026-10-04T16:22:51.205405+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-govsign?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "kernel_library",
+        "hub_revision": "acfc77fbd3da15bb2a7957f11b3a9c8d81bf4a2c",
+        "observed_at": "2026-10-04T15:32:38.669006+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-invariants/blob/acfc77fbd3da15bb2a7957f11b3a9c8d81bf4a2c/README.md",
+        "suggested_route": "Use documented native kernel/library API or an existing demonstration Space; not a standalone hosted generative model."
+      },
+      "id": "SZLHOLDINGS/szl-invariants",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "95c5eafcf7839ddd0e8ffc5c795aa73e3c4d171d7a848db1b1a3a85bca007b4a",
+        "error": null,
+        "hub_revision": "acfc77fbd3da15bb2a7957f11b3a9c8d81bf4a2c",
+        "observed_at": "2026-10-04T16:22:55.220875+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-invariants?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "kernel_library",
+        "hub_revision": "72df0342e34a1f198dd9c428cca072e9b1389ccd",
+        "observed_at": "2026-10-04T15:32:38.709591+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-kernels/blob/72df0342e34a1f198dd9c428cca072e9b1389ccd/README.md",
+        "suggested_route": "Use documented native kernel/library API or an existing demonstration Space; not a standalone hosted generative model."
+      },
+      "id": "SZLHOLDINGS/szl-kernels",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "91d8dc993c04780d0fdb13a78276e4ca37f60900cd5326473316dc9806191081",
+        "error": null,
+        "hub_revision": "72df0342e34a1f198dd9c428cca072e9b1389ccd",
+        "observed_at": "2026-10-04T16:22:55.201332+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-kernels?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [
+          {
+            "author": "betterwithage",
+            "body_sha256": null,
+            "discussion_number": 11166,
+            "evidence_kind": "PRIOR_DISCUSSION",
+            "model_id": "SZLHOLDINGS/szl-kernels",
+            "model_revision": null,
+            "readback_at": null,
+            "readback_body_sha256": null,
+            "readback_normalization": null,
+            "recorded_status": "open",
+            "requested_at": null,
+            "url": "https://huggingface.co/spaces/huggingface/InferenceSupport/discussions/11166"
+          }
+        ],
+        "state": "PRIOR_DISCUSSION_RECORDED"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "numpy_model_bundle",
+        "hub_revision": "ee635354cb0b3d71965b17a227a374e40071e110",
+        "observed_at": "2026-10-04T15:32:49.692013+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-khipu/blob/ee635354cb0b3d71965b17a227a374e40071e110/README.md",
+        "suggested_route": "Use the source-controlled NumPy/CPU model API or its Space; requires a custom inference handler rather than generic text generation."
+      },
+      "id": "SZLHOLDINGS/szl-khipu",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "d7919e72542a49ce35c3076c55ac337daacf169b3e0c8e84970fc68652f40e5b",
+        "error": null,
+        "hub_revision": "ee635354cb0b3d71965b17a227a374e40071e110",
+        "observed_at": "2026-10-04T16:22:55.224015+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-khipu?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "kernel_library",
+        "hub_revision": "594bc58eb0f691f53f8493fa032be9ee8aab9ff3",
+        "observed_at": "2026-10-04T15:32:49.689555+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-khipu-kernels/blob/594bc58eb0f691f53f8493fa032be9ee8aab9ff3/README.md",
+        "suggested_route": "Use documented native kernel/library API or an existing demonstration Space; not a standalone hosted generative model."
+      },
+      "id": "SZLHOLDINGS/szl-khipu-kernels",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "7fe3366b6a97c1b7905b2de698626956cff6fa4f8b2068e57519f22c8efd0a74",
+        "error": null,
+        "hub_revision": "594bc58eb0f691f53f8493fa032be9ee8aab9ff3",
+        "observed_at": "2026-10-04T16:22:55.235956+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-khipu-kernels?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "kernel_library",
+        "hub_revision": "f0c518b22f488e9f008deed27765c9fced32001e",
+        "observed_at": "2026-10-04T15:32:49.704792+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-lambda-gate/blob/f0c518b22f488e9f008deed27765c9fced32001e/README.md",
+        "suggested_route": "Use documented native kernel/library API or an existing demonstration Space; not a standalone hosted generative model."
+      },
+      "id": "SZLHOLDINGS/szl-lambda-gate",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "9d6d8f9c2ec0147aa8f32d302b8987bd868954cbad9ed9879d8dcf0bb75434d0",
+        "error": null,
+        "hub_revision": "f0c518b22f488e9f008deed27765c9fced32001e",
+        "observed_at": "2026-10-04T16:22:58.878108+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-lambda-gate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "kernel_library",
+        "hub_revision": "654a01aaaf86d06471f019cf2f84305703ccc260",
+        "observed_at": "2026-10-04T15:32:49.709448+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-maskmod/blob/654a01aaaf86d06471f019cf2f84305703ccc260/README.md",
+        "suggested_route": "Use documented native kernel/library API or an existing demonstration Space; not a standalone hosted generative model."
+      },
+      "id": "SZLHOLDINGS/szl-maskmod",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "a528c57239d6181b4ec3fca38fd38a312a24b235be0135d8b78fabfcee97f060",
+        "error": null,
+        "hub_revision": "654a01aaaf86d06471f019cf2f84305703ccc260",
+        "observed_at": "2026-10-04T16:22:58.875585+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-maskmod?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "non_provider_artifact",
+        "hub_revision": "8ba68dcf72f0b9e40c8114e5dd4e341aa7fac7b7",
+        "observed_at": "2026-10-04T15:32:49.713107+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-nemo/blob/8ba68dcf72f0b9e40c8114e5dd4e341aa7fac7b7/README.md",
+        "suggested_route": "Use the repository-specific software, diagnostic or development route; no standalone neural checkpoint is advertised."
+      },
+      "id": "SZLHOLDINGS/szl-nemo",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "1e02e7361a979f8c3e02cc677b9d14d5553151a8cd035de67ba1c20e507222fd",
+        "error": null,
+        "hub_revision": "8ba68dcf72f0b9e40c8114e5dd4e341aa7fac7b7",
+        "observed_at": "2026-10-04T16:22:58.852850+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-nemo?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [
+          {
+            "author": "betterwithage",
+            "body_sha256": null,
+            "discussion_number": 11021,
+            "evidence_kind": "PRIOR_DISCUSSION",
+            "model_id": "SZLHOLDINGS/szl-nemo",
+            "model_revision": null,
+            "readback_at": null,
+            "readback_body_sha256": null,
+            "readback_normalization": null,
+            "recorded_status": "open",
+            "requested_at": null,
+            "url": "https://huggingface.co/spaces/huggingface/InferenceSupport/discussions/11021"
+          }
+        ],
+        "state": "PRIOR_DISCUSSION_RECORDED"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "kernel_library",
+        "hub_revision": "ea49dcae37ea15e155b77f837f21a668871c6673",
+        "observed_at": "2026-10-04T15:32:49.714335+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-ouroboros/blob/ea49dcae37ea15e155b77f837f21a668871c6673/README.md",
+        "suggested_route": "Use documented native kernel/library API or an existing demonstration Space; not a standalone hosted generative model."
+      },
+      "id": "SZLHOLDINGS/szl-ouroboros",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "e07619c720012d2fce04e6ec121c7d08d9be04eabdb97770f54dacd80fc88ec7",
+        "error": null,
+        "hub_revision": "ea49dcae37ea15e155b77f837f21a668871c6673",
+        "observed_at": "2026-10-04T16:22:58.889873+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-ouroboros?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "kernel_library",
+        "hub_revision": "4e688726df8de19f2eafd1382d448fdf37e475d0",
+        "observed_at": "2026-10-04T15:33:00.108204+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-provctl/blob/4e688726df8de19f2eafd1382d448fdf37e475d0/README.md",
+        "suggested_route": "Use documented native kernel/library API or an existing demonstration Space; not a standalone hosted generative model."
+      },
+      "id": "SZLHOLDINGS/szl-provctl",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "ab6a764bd405a753d4b2645a9ed152ae77639abe9802cb6f906cd250db7e299a",
+        "error": null,
+        "hub_revision": "4e688726df8de19f2eafd1382d448fdf37e475d0",
+        "observed_at": "2026-10-04T16:23:02.831254+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-provctl?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "kernel_library",
+        "hub_revision": "e1383537e2dd74316a07fcbb683352af62dd24b0",
+        "observed_at": "2026-10-04T15:33:00.109558+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receipt-attn/blob/e1383537e2dd74316a07fcbb683352af62dd24b0/README.md",
+        "suggested_route": "Use documented native kernel/library API or an existing demonstration Space; not a standalone hosted generative model."
+      },
+      "id": "SZLHOLDINGS/szl-receipt-attn",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "9dd6bd1be557cae509c3e7ba71ffc08db317e6691e9466996732216d3618d19e",
+        "error": null,
+        "hub_revision": "e1383537e2dd74316a07fcbb683352af62dd24b0",
+        "observed_at": "2026-10-04T16:23:02.808677+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receipt-attn?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "fcb1f08c3925daeabcdca4c90c637a775a8ea7ca",
+        "observed_at": "2026-10-04T15:33:00.143713+00:00",
+        "qualification_note": "Historical 2026-07-29 publicationEligible=true is bounded to its named release, with autonomyEligible=false. Later adapter/current Hub head does not inherit an unmeasured hosted-runtime qualification.",
+        "request_disposition": "FOLLOWUP_PROVIDER_ADAPTER_REVIEW",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2/blob/fcb1f08c3925daeabcdca4c90c637a775a8ea7ca/README.md",
+        "suggested_route": "Requires provider-supported LoRA serving with exact base revision, adapter hash, tokenizer and runtime; alternatively a separately receipted merge."
+      },
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "f557c6ff36358cad50c2abc0351a5653b91534f4339235191b4e57a07c7d1e4c",
+        "error": null,
+        "hub_revision": "fcb1f08c3925daeabcdca4c90c637a775a8ea7ca",
+        "observed_at": "2026-10-04T16:23:02.788763+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "0ef9ed208b66c258e1d11e9112f0721c3b5c7565",
+        "observed_at": "2026-10-04T15:33:00.109807+00:00",
+        "qualification_note": "HOLD; publication_eligible=false and promotion effect NONE. Derived merged-runtime results must remain bound to their exact source and bytes.",
+        "request_disposition": "REQUEST_PROVIDER_REVIEW_RESEARCH_ONLY",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged/blob/0ef9ed208b66c258e1d11e9112f0721c3b5c7565/README.md",
+        "suggested_route": "Provider may review explicit merged Transformers checkpoint; qualify exact served bytes before any deployment integration."
+      },
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "357db72db551ad6c103ba9ea94ef35041408f4ffc631600ec92c391c855da32d",
+        "error": null,
+        "hub_revision": "0ef9ed208b66c258e1d11e9112f0721c3b5c7565",
+        "observed_at": "2026-10-04T16:23:02.822332+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [
+          {
+            "author": "betterwithage",
+            "body_sha256": "23421f091ed4c5f57f3811b573f503b28e897a90fec82989a9ddaee946eaaa0a",
+            "discussion_number": 12788,
+            "evidence_kind": "VERIFIED_SUBMISSION",
+            "model_id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged",
+            "model_revision": "0ef9ed208b66c258e1d11e9112f0721c3b5c7565",
+            "readback_at": "2026-10-04T15:56:34.986721+00:00",
+            "readback_body_sha256": "c6f87678f89baacea7d21a06765d7331ee0568178a48bbfd637259cd051f4567",
+            "readback_normalization": "HUB_REMOVED_ONE_TERMINAL_NEWLINE",
+            "recorded_status": "open",
+            "requested_at": "2026-10-04T15:56:34.858230+00:00",
+            "url": "https://huggingface.co/spaces/huggingface/InferenceSupport/discussions/12788"
+          }
+        ],
+        "state": "REQUESTED"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "d674c37cae7127021ba36820ea7a6774cec06255",
+        "observed_at": "2026-10-04T15:33:00.148956+00:00",
+        "qualification_note": "Separate non-release research placeholder, not promotable; development 12/12 is not held-out or release clearance. Authenticated v3 target is a different, currently empty repository.",
+        "request_disposition": "REQUEST_PROVIDER_REVIEW_RESEARCH_ONLY",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3/blob/d674c37cae7127021ba36820ea7a6774cec06255/README.md",
+        "suggested_route": "Provider may review explicit merged Transformers checkpoint; qualify exact served bytes before any deployment integration."
+      },
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "ead0bd68d566ed3c793051d289ede53d6c2b89036088d0e9b309adef4dd5773f",
+        "error": null,
+        "hub_revision": "d674c37cae7127021ba36820ea7a6774cec06255",
+        "observed_at": "2026-10-04T16:23:06.687420+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [
+          {
+            "author": "betterwithage",
+            "body_sha256": "88e1535fc9f905ff280de43df89d29ef12b8dbee8e8247108ef593d7790a4813",
+            "discussion_number": 12789,
+            "evidence_kind": "VERIFIED_SUBMISSION",
+            "model_id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3",
+            "model_revision": "d674c37cae7127021ba36820ea7a6774cec06255",
+            "readback_at": "2026-10-04T15:56:35.630190+00:00",
+            "readback_body_sha256": "21fc845a79c08f06eb1154c44842850afd3fb68be5a14b3b40ea770cbad86235",
+            "readback_normalization": "HUB_REMOVED_ONE_TERMINAL_NEWLINE",
+            "recorded_status": "open",
+            "requested_at": "2026-10-04T15:56:35.474313+00:00",
+            "url": "https://huggingface.co/spaces/huggingface/InferenceSupport/discussions/12789"
+          }
+        ],
+        "state": "REQUESTED"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "non_provider_artifact",
+        "hub_revision": "af86a187f507a5423f5236c7cf77cf48ca67d077",
+        "observed_at": "2026-10-04T15:33:00.147066+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-authenticated/blob/af86a187f507a5423f5236c7cf77cf48ca67d077/README.md",
+        "suggested_route": "Use the repository-specific software, diagnostic or development route; no standalone neural checkpoint is advertised."
+      },
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-authenticated",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "eb144584705db7ee6b8c948ffa765e191fff114b265eb6fd1c0eaf26aaae0406",
+        "error": null,
+        "hub_revision": "af86a187f507a5423f5236c7cf77cf48ca67d077",
+        "observed_at": "2026-10-04T16:23:06.699159+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-authenticated?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "non_provider_artifact",
+        "hub_revision": "923bc096c1e9f93daece720315c078ef5020fe68",
+        "observed_at": "2026-10-04T15:33:13.786694+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-training-scripts/blob/923bc096c1e9f93daece720315c078ef5020fe68/README.md",
+        "suggested_route": "Use the repository-specific software, diagnostic or development route; no standalone neural checkpoint is advertised."
+      },
+      "id": "SZLHOLDINGS/szl-training-scripts",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "35fd0bd49ffdb0d9d3996bc91f63f17a9094572ef962298ed33907b650913e0b",
+        "error": null,
+        "hub_revision": "923bc096c1e9f93daece720315c078ef5020fe68",
+        "observed_at": "2026-10-04T16:23:06.664468+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-training-scripts?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "non_provider_artifact",
+        "hub_revision": "b6ec192000d38e6a29787410f8bc077266b62a22",
+        "observed_at": "2026-10-04T15:33:13.807168+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-triage-linear-development-v1/blob/b6ec192000d38e6a29787410f8bc077266b62a22/README.md",
+        "suggested_route": "Use the repository-specific software, diagnostic or development route; no standalone neural checkpoint is advertised."
+      },
+      "id": "SZLHOLDINGS/szl-triage-linear-development-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "db5610f7322c16ceba7c1754cb1c5994ae9b3d5fe1f4e30621fbd41f1d2a1a4a",
+        "error": null,
+        "hub_revision": "b6ec192000d38e6a29787410f8bc077266b62a22",
+        "observed_at": "2026-10-04T16:23:06.653811+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-triage-linear-development-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "d1b3d6e7b1cff8767b74371f5b9562e5c4a7c0d5",
+        "observed_at": "2026-10-04T15:33:13.809182+00:00",
+        "qualification_note": "Clinical reference artifact; explicit do-not-deploy/not-promotable contamination/corpus-leakage blocker. Behavioral pass is not deployment clearance.",
+        "request_disposition": "HOLD_CLINICAL_RELEASE",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora/blob/d1b3d6e7b1cff8767b74371f5b9562e5c4a7c0d5/README.md",
+        "suggested_route": "Requires provider-supported LoRA serving with exact base revision, adapter hash, tokenizer and runtime; alternatively a separately receipted merge."
+      },
+      "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "5b628462e687a93a9ed8afb29c969201982c64bf075658f30ec3c7ae94ee82dc",
+        "error": null,
+        "hub_revision": "d1b3d6e7b1cff8767b74371f5b9562e5c4a7c0d5",
+        "observed_at": "2026-10-04T16:23:10.355451+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "96546ad212115e80012fb1ccb93cdab912d00538",
+        "observed_at": "2026-10-04T15:33:13.808979+00:00",
+        "qualification_note": "Clinical reference research; release BLOCKED 11/12, contamination/leakage finding retained, NOT_PROMOTABLE. Legacy single-run 66/66 does not clear the five-seed release gate.",
+        "request_disposition": "HOLD_CLINICAL_RELEASE",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-study5/blob/96546ad212115e80012fb1ccb93cdab912d00538/README.md",
+        "suggested_route": "Requires provider-supported LoRA serving with exact base revision, adapter hash, tokenizer and runtime; alternatively a separately receipted merge."
+      },
+      "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-study5",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "520d714be5e3468f1d2d6e7f355c96bdc01a1cb5c37339deb4d70c074239708b",
+        "error": null,
+        "hub_revision": "96546ad212115e80012fb1ccb93cdab912d00538",
+        "observed_at": "2026-10-04T16:23:10.310795+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-study5?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "non_provider_artifact",
+        "hub_revision": "c078b86bafd81ddf055c3af775ed8b43398164c5",
+        "observed_at": "2026-10-04T15:33:13.809573+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-triage-retrain/blob/c078b86bafd81ddf055c3af775ed8b43398164c5/README.md",
+        "suggested_route": "Use the repository-specific software, diagnostic or development route; no standalone neural checkpoint is advertised."
+      },
+      "id": "SZLHOLDINGS/szl-triage-retrain",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "b3d235c413a3dc0669ad8fbc59c7c2c8cd2e4204352cca0bdda116edb0469311",
+        "error": null,
+        "hub_revision": "c078b86bafd81ddf055c3af775ed8b43398164c5",
+        "observed_at": "2026-10-04T16:23:10.390219+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-triage-retrain?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    }
+  ],
+  "organization": "SZLHOLDINGS",
+  "schema": "szl.model-inference-support/v1",
+  "scope": "PUBLIC_MODEL_NAMESPACE_ONLY",
+  "unmatched_prior_requests": [
+    {
+      "author": "betterwithage",
+      "body_sha256": null,
+      "discussion_number": 11072,
+      "evidence_kind": "PRIOR_DISCUSSION",
+      "model_id": "SZLHOLDINGS/SZL-Khipu-1.5B-BrainNavigator",
+      "model_revision": null,
+      "readback_at": null,
+      "readback_body_sha256": null,
+      "readback_normalization": null,
+      "recorded_status": "open",
+      "requested_at": null,
+      "url": "https://huggingface.co/spaces/huggingface/InferenceSupport/discussions/11072"
+    }
+  ]
+}
