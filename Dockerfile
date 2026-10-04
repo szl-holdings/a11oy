@@ -189,6 +189,8 @@ COPY routers/ ./routers/
 # The canonical HF sync publishes Dockerfile COPY sources. Keep these public
 # inventory docs in the same source-derived Space set as the runtime.
 COPY docs/huggingface-ecosystem-manifest.json docs/huggingface-ecosystem-manifest.schema.json docs/huggingface.md ./docs/
+COPY docs/model-inference-support.json ./docs/
+COPY a11oy_model_support.py ./
 # Genome registry served to the console Genome panel + /api/a11oy/v1/genome.
 # Per-file COPY (this Dockerfile uses no `COPY . .`); a missing line -> the endpoint
 # degrades to an honest labeled 503 (never a faked payload), the panel shows it.
@@ -673,7 +675,8 @@ ARG SZL_GIT_SHA=unknown
 ARG SZL_BUILD_TIME=unknown
 ENV SZL_GIT_SHA=${SZL_GIT_SHA} \
     SZL_BUILD_TIME=${SZL_BUILD_TIME} \
-    A11OY_ORG_RAG_DB=/app/data/a11oy_org_rag.db
+    A11OY_ORG_RAG_DB=/app/data/a11oy_org_rag.db \
+    A11OY_ORG_RAG_AUTOSTART=1
 
 # Post-deploy readiness feed warming: keep the default legal evidence views
 # (CourtListener/Federal Register/SEC EDGAR) warm from boot so the hf-sync

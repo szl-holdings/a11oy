@@ -100,9 +100,10 @@ ORG = os.environ.get("SZL_GITHUB_ORG", "szl-holdings")
 HF_ORG = os.environ.get("SZL_HF_ORG", "SZLHOLDINGS")
 RAG_DB_PATH = os.environ.get("A11OY_ORG_RAG_DB", "/app/data/a11oy_org_rag.db")
 GITHUB_API = "https://api.github.com"
-# Per the founder doctrine the platform injects the GitHub token at the network
-# layer; the env var below may also carry it on Hetzner / local runs.
-_GH_ENV_KEYS = ("CUSTOM_CRED_API_GITHUB_COM_TOKEN", "GITHUB_TOKEN", "GH_TOKEN")
+# Prefer the canonical runtime's optional public reader; retain local/CI aliases.
+# Credential presence is not an authorization or corpus-completeness claim.
+_GH_ENV_KEYS = ("A11OY_GITHUB_PUBLIC_READ_TOKEN", "CUSTOM_CRED_API_GITHUB_COM_TOKEN",
+                "GITHUB_TOKEN", "GH_TOKEN")
 # File extensions worth indexing as code/text (skip binaries).
 _TEXT_EXT = {".py", ".ts", ".tsx", ".js", ".jsx", ".lean", ".md", ".json", ".yaml",
              ".yml", ".toml", ".cfg", ".txt", ".html", ".css", ".sh", ".rs", ".go"}
@@ -306,10 +307,46 @@ _BUILD_META: dict[str, Any] = {"built": False, "ts": None, "repos": 0, "chunks":
 def _db() -> sqlite3.Connection:
     Path(RAG_DB_PATH).parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(RAG_DB_PATH, timeout=15)
+    try:
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA busy_timeout=15000")
+        # WAL readers can create or modify -wal/-shm files even with mode=ro.
+        # Only a lifecycle/operator writer may migrate the journal. Rollback
+        # journaling keeps reads free of those writes; readers can delay a
+        # writer's commit within the same bounded SQLite busy timeout.
+        mode = conn.execute("PRAGMA journal_mode=DELETE").fetchone()[0]
+        if mode != "delete":
+            raise RuntimeError("Brain writer could not enable rollback journaling")
+        conn.execute("PRAGMA synchronous=FULL")
+        return conn
+    except BaseException:
+        conn.close()
+        raise
+
+
+class _ReadIndexUnavailable(RuntimeError):
+    storage_state = "LEGACY_WAL_REQUIRES_LIFECYCLE_WRITE"
+
+
+def _db_readonly() -> sqlite3.Connection:
+    """Read the published index without creating a database or changing schema."""
+    path = Path(RAG_DB_PATH).resolve()
+    if not path.is_file():
+        raise FileNotFoundError(str(path))
+    # Inspect without SQLite first: opening a legacy WAL index can create its
+    # sidecars before query_only is set. Never migrate or use immutable=1 on a
+    # mutable generation; an explicit writer must perform this conversion.
+    with path.open("rb") as source:
+        header = source.read(100)
+    if header[:16] == b"SQLite format 3\x00" and 2 in header[18:20]:
+        raise _ReadIndexUnavailable(
+            "legacy WAL Brain index requires an explicit lifecycle/operator "
+            "write before read-only retrieval"
+        )
+    conn = sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=15)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA busy_timeout=15000")
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA synchronous=FULL")
+    conn.execute("PRAGMA query_only=ON")
     return conn
 
 
@@ -641,8 +678,7 @@ def _rehydrate_runtime_state() -> bool:
     try:
         if not os.path.exists(RAG_DB_PATH):
             return False
-        conn = _db()
-        _init_schema(conn)
+        conn = _db_readonly()
         conn.execute("BEGIN")
         generation_id = _active_generation(conn)
         if not generation_id:
@@ -705,6 +741,15 @@ def _rehydrate_runtime_state() -> bool:
         _BUILD_META["rehydrated_from_sqlite"] = True
         _BUILD_META["rehydrated_at"] = time.time()
         return True
+    except _ReadIndexUnavailable as exc:
+        _BUILD_META = {
+            "built": False, "ts": None, "repos": 0, "chunks": 0,
+            "rehydration_state": "UNAVAILABLE",
+            "integrity_state": "UNAVAILABLE",
+            "storage_state": exc.storage_state,
+            "honest_error": str(exc),
+        }
+        return False
     except Exception as exc:
         _BUILD_META = {
             "built": False, "ts": None, "repos": 0, "chunks": 0,
@@ -891,12 +936,13 @@ def build_index(repos: list[str] | None = None, max_files_per_repo: int = 120,
         return out
 
 
-def _maybe_embedder() -> Callable[[str], list[float]] | None:
+def _maybe_embedder(load: bool = True) -> Callable[[str], list[float]] | None:
     """Return an embed(text)->vec callable using szl_rag's BAAI/bge model if it
     loads in this runtime; else None (honest degrade to FTS5-only)."""
     try:
         import szl_rag
-        szl_rag._ensure_loaded()
+        if load:
+            szl_rag._ensure_loaded()
         if not szl_rag._state.get("ready"):
             return None
         model = szl_rag._state["model"]
@@ -928,9 +974,8 @@ def corpus_embedder() -> Callable[[str], list[float]] | None:
 def dense_vector_count() -> int:
     """COUNT(*) of dense vectors in org_vectors. Honest 0 on any error / no DB."""
     try:
-        conn = _db()
+        conn = _db_readonly()
         try:
-            _init_schema(conn)
             generation_id = _active_generation(conn)
             row = (conn.execute(
                 "SELECT COUNT(*) AS n FROM org_vectors_gen WHERE generation_id=?",
@@ -946,9 +991,8 @@ def dense_vector_count() -> int:
 def chunk_count() -> int:
     """COUNT(*) of lexical chunks in org_chunks. Honest 0 on any error / no DB."""
     try:
-        conn = _db()
+        conn = _db_readonly()
         try:
-            _init_schema(conn)
             generation_id = _active_generation(conn)
             row = (conn.execute(
                 "SELECT COUNT(*) AS n FROM org_chunks_gen WHERE generation_id=?",
@@ -970,9 +1014,8 @@ def next_unembedded_chunks(limit: int = 4) -> list[dict[str, Any]]:
         return []
     out: list[dict[str, Any]] = []
     try:
-        conn = _db()
+        conn = _db_readonly()
         try:
-            _init_schema(conn)
             generation_id = _active_generation(conn)
             if generation_id:
                 rows = conn.execute(
@@ -1400,7 +1443,11 @@ def build_seed_index(emit_receipt: Callable[[str, dict], dict] | None = None) ->
         meta = {
             "built": (chunk_count > 0 or brain_handles["count"] > 0),
             "mode": "seed", "ts": time.time(), "org": ORG,
-            "repos": len({s for s in per_cat}), "chunks": chunk_count, "files": files_ok,
+            "repos": conn.execute(
+                "SELECT COUNT(DISTINCT repo) AS n FROM org_chunks_gen WHERE generation_id=?",
+                (generation_id,),
+            ).fetchone()["n"],
+            "chunks": chunk_count, "files": files_ok,
             "fts5": has_fts5, "dense": embed_fn is not None,
             "node_count": len(graph.nodes), "edge_count": len(graph.edges),
             "build_ms": round((time.time() - t0) * 1000, 1),
@@ -1563,8 +1610,60 @@ def build_full_corpus(emit_receipt: Callable[[str, dict], dict] | None = None,
 
 # Background build state (receipted refresh tick) ----------------------------- #
 _BUILD_STATE: dict[str, Any] = {"phase": "idle", "started": None, "finished": None,
-                                "last_full": None, "error": None}
+                                "last_seed": None, "last_full": None, "error": None}
 _build_thread: "threading.Thread | None" = None
+
+
+def start_seed_bootstrap(
+    emit_receipt: Callable[[str, dict], dict] | None = None,
+) -> dict[str, Any]:
+    """Start one receipted seed build at application boot, never from a GET.
+
+    A verified published generation is reused without a write.  The worker
+    owns any index and receipt mutation, and a second bootstrap is a no-op.
+    """
+    global _build_thread
+    current = status()
+    if current.get("built"):
+        return {"ok": True, "phase": "rehydrated", "wrote": False,
+                "generation_id": current.get("generation_id"),
+                "mode": current.get("mode")}
+    with _lock:
+        current = status()
+        if current.get("built"):
+            return {"ok": True, "phase": "rehydrated", "wrote": False,
+                    "generation_id": current.get("generation_id"),
+                    "mode": current.get("mode")}
+        if _build_thread is not None and _build_thread.is_alive():
+            return {"ok": True, "phase": _BUILD_STATE.get("phase") or "seeding",
+                    "wrote": False, "note": "Brain index build already in flight"}
+        _BUILD_STATE.update({"phase": "seeding", "started": time.time(),
+                             "finished": None, "error": None})
+
+        def _run_seed() -> None:
+            try:
+                result = build_seed_index(emit_receipt=emit_receipt)
+                finished = time.time()
+                _BUILD_STATE.update({
+                    "phase": "seed" if result.get("ok") else "error",
+                    "finished": finished,
+                    "last_seed": finished if result.get("ok") else None,
+                    "error": None if result.get("ok") else result.get("honest_error"),
+                    "khipu_hash": result.get("khipu_hash"),
+                    "generation_id": result.get("generation_id"),
+                })
+            except Exception as exc:  # pragma: no cover - lifecycle boundary
+                _BUILD_STATE.update({
+                    "phase": "error", "finished": time.time(),
+                    "error": f"{type(exc).__name__}: {str(exc)[:240]}",
+                })
+
+        _build_thread = threading.Thread(
+            target=_run_seed, name="a11oy-org-rag-seed", daemon=True
+        )
+        _build_thread.start()
+        return {"ok": True, "phase": "seeding", "wrote": False,
+                "note": "receipted seed initialization started by application lifecycle"}
 
 
 def start_background_build(emit_receipt: Callable[[str, dict], dict] | None = None,
@@ -1574,8 +1673,9 @@ def start_background_build(emit_receipt: Callable[[str, dict], dict] | None = No
     while building is a no-op that reports the in-flight phase."""
     global _build_thread
     with _lock:
-        if _BUILD_STATE["phase"] == "building" and _build_thread and _build_thread.is_alive():
-            return {"ok": True, "phase": "building", "note": "full build already in flight"}
+        if _build_thread and _build_thread.is_alive():
+            return {"ok": True, "phase": _BUILD_STATE.get("phase") or "building",
+                    "note": "index build already in flight"}
         # Always lay down a fresh labeled seed synchronously first.
         seed = build_seed_index(emit_receipt=emit_receipt) if seed_first else {}
         _BUILD_STATE.update({"phase": "building", "started": time.time(),
@@ -1642,31 +1742,51 @@ def _lambda(axis: list[float]) -> float:
 
 def query(q: str, k: int = 6, repo: str | None = None,
           hyde_text: str | None = None,
-          emit_receipt: Callable[[str, dict], dict] | None = None) -> dict[str, Any]:
+          emit_receipt: Callable[[str, dict], dict] | None = None,
+          load_embedder: bool = False) -> dict[str, Any]:
     """Two-stage Λ-weighted agentic-RAG query.
 
     Returns grounded chunks (above the Λ relevance floor) each with M2M
     ``file{path,sha256}`` evidence, plus an ``i_dont_know`` flag when support is
     too low.  ``hyde_text`` (optional) is a hypothetical answer used for dense
-    recall (HyDE) instead of the bare query."""
+    recall (HyDE) instead of the bare query.  By default this uses only the
+    published index and an already loaded embedder, with no model load or write.
+    An explicit command path may opt into model loading and receipt emission.
+    """
     _rehydrate_runtime_state()
     if not _BUILD_META.get("built"):
         return {"ok": False, "i_dont_know": True,
-                "honest_error": "org index not built — call /api/a11oy/code/rag/index first",
+                "honest_error": _BUILD_META.get("honest_error") or
+                "org index not built — call /api/a11oy/code/rag/index first",
+                "integrity_state": _BUILD_META.get("integrity_state", "UNAVAILABLE"),
+                "storage_state": _BUILD_META.get("storage_state"),
                 "query": q, "chunks": []}
     with _SNAPSHOT_LOCK:
-        conn = _db()
-        _init_schema(conn)
-        conn.execute("BEGIN")
-        generation_id = _active_generation(conn)
-        graph_snapshot = _GRAPH
-        meta_snapshot = dict(_BUILD_META)
+        conn = None
+        try:
+            conn = _db_readonly()
+            conn.execute("BEGIN")
+            generation_id = _active_generation(conn)
+            graph_snapshot = _GRAPH
+            meta_snapshot = dict(_BUILD_META)
+        except Exception as exc:
+            if conn is not None:
+                conn.close()
+            if isinstance(exc, _ReadIndexUnavailable):
+                return {"ok": False, "i_dont_know": True, "query": q,
+                        "chunks": [], "integrity_state": "UNAVAILABLE",
+                        "storage_state": exc.storage_state,
+                        "honest_error": str(exc)}
+            return {"ok": False, "i_dont_know": True, "query": q,
+                    "chunks": [], "integrity_state": "FAILED_CLOSED",
+                    "honest_error": ("published Brain index unavailable for read: "
+                                     f"{type(exc).__name__}")}
     if generation_id and generation_id != meta_snapshot.get("generation_id"):
         conn.close()
         return {"ok": False, "i_dont_know": True, "query": q, "chunks": [],
                 "honest_error": "Brain generation/graph snapshot mismatch; retry after rebuild",
                 "integrity_state": "FAILED_CLOSED"}
-    embed_fn = _maybe_embedder()
+    embed_fn = _maybe_embedder(load=load_embedder)
     recall_text = hyde_text or q
     # Stage 1: lexical recall (FTS5 or LIKE fallback).
     rows: list[dict[str, Any]] = []

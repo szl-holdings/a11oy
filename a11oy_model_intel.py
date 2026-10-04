@@ -45,6 +45,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 import httpx
+import a11oy_model_support
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
@@ -689,6 +690,21 @@ def _download_sort_value(value: Any) -> int:
     return max(parsed, 0)
 
 
+def get_inference_support() -> dict[str, Any]:
+    """Dated source observations only; no inference, signing, or provider calls."""
+    return a11oy_model_support.public_status()
+
+
+def _support_by_id(snapshot):
+    return {row["id"]: row for row in snapshot.get("models", [])}
+
+
+def _support_record(by_id, model_id):
+    return by_id.get(model_id) or {
+        "id": model_id, "state": "UNAVAILABLE", "reason": "NO_VALID_SOURCE_RECORD",
+    }
+
+
 def get_szl_estate() -> dict[str, Any]:
     """Merge live no-key Hub metadata with the pinned estate classification.
 
@@ -749,6 +765,11 @@ def get_szl_estate() -> dict[str, Any]:
             "delete_authorized": False,
         })
 
+    inference_support = get_inference_support()
+    support_by_id = _support_by_id(inference_support)
+    for row in merged:
+        row["inference_support"] = _support_record(support_by_id, row["repository_id"])
+
     freshness = feed.get("freshness") or {}
     freshness_status = freshness.get("status")
     if not live_rows:
@@ -778,6 +799,12 @@ def get_szl_estate() -> dict[str, Any]:
             "revision_drift": sum(item.get("classification_state") == "REVISION_DRIFT_REVIEW_REQUIRED" for item in merged),
         },
         "freshness": freshness,
+        "inference_support_source": {
+            "state": inference_support["state"],
+            "endpoint": "/api/a11oy/v1/models/inference-support",
+            "summary": inference_support.get("summary"),
+            "authority": inference_support["authority"],
+        },
         "downloadsAreAdoptionSignalNotQuality": True,
         "zeroDownloadsAuthorizeDeletion": False,
         "qualificationAuthority": False,
@@ -973,6 +1000,8 @@ def get_series_a_estate() -> dict[str, Any]:
     model_fresh = models_feed.get("freshness") or {}
     space_fresh = space_feed.get("freshness") or {}
 
+    inference_support = get_inference_support()
+    support_by_id = _support_by_id(inference_support)
     cards: list[dict[str, Any]] = []
     for spec in SERIES_A_CARDS:
         hub_id = spec.get("hub_id")
@@ -991,6 +1020,8 @@ def get_series_a_estate() -> dict[str, Any]:
                 live = detail["value"]
                 freshness = detail.get("freshness") or freshness
         card = _series_a_bind_card(spec, live, freshness)
+        if spec.get("hub_kind") == "model":
+            card["inference_support"] = _support_record(support_by_id, hub_id)
         related_id = spec.get("expect_gguf_on")
         if related_id:
             related = live_models.get(related_id) or {}
@@ -1133,12 +1164,19 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
         payload = get_series_a_estate()
         return JSONResponse(payload)
 
+    @app.get(base + "/inference-support", include_in_schema=False)
+    @app.get("/v1/models/inference-support", include_in_schema=False)
+    def _models_inference_support():
+        payload = get_inference_support()
+        return JSONResponse(payload, status_code=200 if payload["state"] != "UNAVAILABLE" else 503,
+                            headers={"Cache-Control": "no-store"})
+
     @app.get(base + "/info", include_in_schema=False)
     @app.get("/v1/models/info", include_in_schema=False)
     async def _models_info():
         return JSONResponse({"module": "a11oy_model_intel", "base": base,
                              "endpoints": ["/leaderboard", "/hub", "/pareto", "/frontier-adoption",
-                                           "/estate", "/series-a", "/info"],
+                                           "/estate", "/series-a", "/inference-support", "/info"],
                              "cited": CITED, "locked": LOCKED, "doctrine": DOCTRINE,
                              "honesty": "Live external model intel; advisory quality signal, "
                                         "never a proof. SAMPLE/ROADMAP labelled where not live."})

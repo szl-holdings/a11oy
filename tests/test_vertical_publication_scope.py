@@ -154,10 +154,15 @@ def test_selected_scope_installs_existing_only_guard(publisher, monkeypatch, slu
     monkeypatch.setenv("SZL_FLAGSHIP_SCOPE", slug)
     monkeypatch.setattr(publisher, "load_module", lambda *args: guard)
     monkeypatch.setattr(publisher, "normalize_github_token_alias", lambda: "NONE")
-    monkeypatch.setattr(publisher, "publish_selected_generated", lambda scope, loaded: 0)
+    routed = []
+    monkeypatch.setattr(publisher, "publish_selected_generated",
+                        lambda scope, loaded: routed.append(("generated", scope)) or 0)
+    monkeypatch.setattr(publisher, "publish_sentra_existing",
+                        lambda: routed.append(("sentra-existing", "sentra")) or 0)
 
     assert publisher.main() == 0
     assert installs == [{"require_existing": True}]
+    assert routed == [("sentra-existing" if slug == "sentra" else "generated", slug)]
 
 
 @pytest.mark.parametrize("slug", ["terra", "sentra", "counsel"])

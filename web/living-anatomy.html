@@ -29,7 +29,9 @@ a{color:inherit;text-decoration:none;}
 .topbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;padding:.5rem 1.1rem;background:rgba(10,10,10,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--gold-line);font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);}
 .topbar .sep{color:var(--dim);}
 .topbar .live{display:inline-flex;align-items:center;gap:.4rem;color:var(--cream);}
-.live-dot{width:6px;height:6px;border-radius:50%;background:var(--live);box-shadow:0 0 6px var(--live);animation:pulse 2.2s ease-in-out infinite;}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 6px var(--gold);animation:pulse 2.2s ease-in-out infinite;}
+.live-dot.observed{background:var(--teal);box-shadow:0 0 6px var(--teal);}
+.live-dot.unavailable{background:var(--orange);box-shadow:0 0 6px var(--orange);animation:none;}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
 .switcher{margin-left:auto;display:flex;align-items:center;gap:.3rem;}
 .flag{padding:.22rem .55rem;border-radius:6px;border:1px solid transparent;color:var(--muted);transition:.15s;}
@@ -91,7 +93,7 @@ h1{font-size:1.7rem;font-weight:600;margin:.2rem 0 .3rem;letter-spacing:-.01em;}
 <body>
 <div class="topbar">
   <span>SZL HOLDINGS</span><span class="sep">/</span><span>a11oy</span><span class="sep">/</span><span>LIVING ANATOMY</span>
-  <span class="sep">/</span><span class="live"><span class="live-dot"></span><span id="livelbl">LIVE · RT</span></span>
+  <span class="sep">/</span><span class="live"><span class="live-dot" id="liveDot" aria-hidden="true"></span><span id="livelbl" role="status" aria-live="polite">CONNECTING</span></span>
   <span class="switcher">
     <a class="flag" href="/fleet-c2">Fleet C2</a>
     <a class="flag active" href="/living-anatomy">Living Anatomy</a>
@@ -106,7 +108,7 @@ h1{font-size:1.7rem;font-weight:600;margin:.2rem 0 .3rem;letter-spacing:-.01em;}
     <div class="card"><div class="lbl">Locked-proven</div><div class="big" style="color:var(--green)" id="c_locked">8</div><div class="sub">F1 F4 F7 F11 F12 F18 F19 F22 @ c7c0ba17</div></div>
     <div class="card"><div class="lbl">Λ (trust)</div><div class="big" style="color:var(--orange)">Conjecture 1</div><div class="sub">advisory · NOT a theorem</div></div>
     <div class="card"><div class="lbl">Consensus mesh</div><div class="big" id="c_mesh" style="color:var(--teal)">—</div><div class="sub">Byzantine = Conjecture 2 OPEN</div></div>
-    <div class="card"><div class="lbl">Second Brain</div><div class="big" id="c_brain" style="color:var(--teal)">—</div><div class="sub">same-origin /brain · fail-closed</div></div>
+    <div class="card"><div class="lbl">Second Brain</div><div class="big" id="c_brain" style="color:var(--teal)">—</div><div class="sub">same-origin /command/brain · fail-closed</div></div>
     <div class="card"><div class="lbl">Formula registry</div><div class="big" id="c_formulas" style="color:var(--teal)">—</div><div class="sub">locked-8 spine · live /api/a11oy/v1/formulas</div></div>
     <div class="card"><div class="lbl">Ouroboros</div><div class="big" id="c_ouro" style="color:var(--teal)">—</div><div class="sub">bounded loop · not convergence proof</div></div>
   </div>
@@ -120,7 +122,7 @@ h1{font-size:1.7rem;font-weight:600;margin:.2rem 0 .3rem;letter-spacing:-.01em;}
       <span style="flex:1"></span>
       <button class="iconbtn" onclick="goFs()">⛶ Fullscreen</button>
       <a class="iconbtn" href="/holographic">Open /holographic</a>
-      <a class="iconbtn" href="/brain">Open /brain</a>
+      <a class="iconbtn" href="/brain">Open Hickok /brain</a>
     </div>
     <div class="embed" id="embed"><iframe id="scene" src="/holographic#brain" title="a11oy same-origin holographic Second Brain" loading="lazy" referrerpolicy="no-referrer" allowfullscreen allow="fullscreen"></iframe></div>
     <p class="hint">Default scene is same-origin <b style="color:var(--cream)">/holographic#brain</b> (Second Brain surface on this origin). Estate / council / organism chips load the creator-profile anatomy Space as a separate origin and may paint UNAVAILABLE. Inside the same-origin scene: drag to orbit · scroll to zoom · ⟲ resets · ▦ estate lens toggles the honesty panel.</p>
@@ -138,7 +140,7 @@ h1{font-size:1.7rem;font-weight:600;margin:.2rem 0 .3rem;letter-spacing:-.01em;}
     <h2>The same organism — the other two surfaces<span class="meta">one anatomy, cross-linked</span></h2>
     <div class="links">
       <a class="linkcard" href="/holographic"><div class="lt">/holographic — same-origin 3D holo</div><div class="ls">brain-frontier v7 · Second Brain handles on this origin</div></a>
-      <a class="linkcard" href="/brain"><div class="lt">/brain — Second Brain dual-stream</div><div class="ls">evidence handles · not a claim the index is a model</div></a>
+      <a class="linkcard" href="/command/brain"><div class="lt">/command/brain — Second Brain evidence handles</div><div class="ls">query or abstain · not a claim the index is a model</div></a>
       <a class="linkcard" href="/formulas"><div class="lt">/formulas — named-formula registry / Codex</div><div class="ls">live /api/a11oy/v1/formulas · locked-8 spine stays 8</div></a>
       <a class="linkcard" href="/ouroboros"><div class="lt">/ouroboros — bounded loop</div><div class="ls">aliases /formulas · runner present is not convergence</div></a>
       <a class="linkcard" href="/hatun-mcp"><div class="lt">/hatun-mcp — tool plane</div><div class="ls">maps Hatun onto brain, anatomy, ouroboros, formula codex</div></a>
@@ -156,7 +158,7 @@ h1{font-size:1.7rem;font-weight:600;margin:.2rem 0 .3rem;letter-spacing:-.01em;}
       <div class="organ"><div class="nm">Nervous system — consensus mesh (both)</div><div class="tref">Khipu Conjecture 2 · Byzantine quorum safety</div><span class="mat" style="background:rgba(255,138,92,.12);color:var(--orange)">conjecture (OPEN)</span><div class="desc">The quorum is read live, but Byzantine safety is Conjecture 2 — OPEN. We surface the live quorum, not a proof.</div></div>
       <div class="organ"><div class="nm">Field node — counter-UAS body (killinchu)</div><div class="tref">CUT-2 conditional · threshold-policy · @ 044eb098</div><span class="mat" style="background:rgba(245,196,81,.12);color:var(--yellow)">conditional (CI-green)</span><div class="desc">The field organ runs governed interdiction; its threshold policy is conditional/experimental, CI-green on main — labeled, not locked.</div></div>
       <div class="organ"><div class="nm">Circulatory — signed receipt bus (both)</div><div class="tref">DSSE / ECDSA-P256 · hash-chain + Merkle audit (A5 measured)</div><span class="mat" style="background:rgba(91,200,255,.12);color:var(--blue)">measured</span><div class="desc">Every decision flows as a genuinely signed receipt. Deterministic replay is axiom A5 — measured, not a theorem.</div></div>
-      <div class="organ"><div class="nm">Second Brain — evidence handles</div><div class="tref">GET /brain · GET /api/a11oy/v1/brain · compound retrieval, not a fine-tune</div><span class="mat" id="m_brain" style="background:rgba(91,200,255,.12);color:var(--blue)">probing</span><div class="desc" id="d_brain">Same-origin Second Brain surface. Live label is whatever /api/a11oy/v1/brain returns this request. Missing endpoint stays UNAVAILABLE. No invented handles.</div></div>
+      <div class="organ"><div class="nm">Second Brain — evidence handles</div><div class="tref">GET /command/brain · GET /api/a11oy/v1/brain · compound retrieval, not a fine-tune</div><span class="mat" id="m_brain" style="background:rgba(91,200,255,.12);color:var(--blue)">probing</span><div class="desc" id="d_brain">Same-origin Second Brain surface. Live label is whatever /api/a11oy/v1/brain returns this request. Missing endpoint stays UNAVAILABLE. No invented handles.</div></div>
       <div class="organ"><div class="nm">Ouroboros — bounded cycle</div><div class="tref">GET /api/a11oy/v1/ouroboros · POST run-all is bounded</div><span class="mat" id="m_ouro" style="background:rgba(91,200,255,.12);color:var(--blue)">probing</span><div class="desc" id="d_ouro">Loop tax is bounded. Convergence is advisory. Λ stays Conjecture 1. A present runner is not a proof the cycle closed.</div></div>
       <div class="organ"><div class="nm">Codex — formula invariants</div><div class="tref">GET /formulas · GET /api/a11oy/v1/formulas · locked-8 {F1,F4,F7,F11,F12,F18,F19,F22}</div><span class="mat" id="m_formulas" style="background:rgba(91,200,255,.12);color:var(--blue)">probing</span><div class="desc" id="d_formulas">Registry may list more named formulas than the locked-8 spine. Extra rows stay labelled. Locked-8 never inflates.</div></div>
     </div>
@@ -174,6 +176,10 @@ function paint(id, text, color){
   var el=$(id); if(!el) return;
   el.textContent=text;
   if(color) el.style.color=color;
+}
+function setHeaderState(state, sha){
+  $('livelbl').textContent=state+(sha?' · '+sha:'');
+  $('liveDot').className='live-dot '+state.toLowerCase();
 }
 function setView(v,btn){
   var f=document.getElementById('scene'); if(!f) return;
@@ -196,12 +202,13 @@ async function load(){
     // honest: no live read => say so; never fake a quorum
     paint('c_mesh', 'UNREACHABLE', 'var(--orange)');
   }
-  // confirm a11oy live
+  // Observe the same-origin honesty contract; a successful read is not runtime readiness.
   const honest=await getJSON(A+"/honest");
-  if(honest&&honest.locked_formula_count!=null){
+  if(honest&&Number.isInteger(honest.locked_formula_count)){
     paint('c_locked', String(honest.locked_formula_count), 'var(--green)');
-    $('livelbl').textContent='LIVE · '+String((honest.git_sha||'').slice(0,8)||'RT');
-  } else { $('livelbl').textContent='LIVE'; }
+    const sha=typeof honest.git_sha==='string'&&/^[0-9a-f]{7,40}$/i.test(honest.git_sha)?honest.git_sha.slice(0,8):'';
+    setHeaderState('OBSERVED',sha);
+  } else { setHeaderState('UNAVAILABLE'); }
   const brain=await getJSON(A+"/brain");
   const second=await getJSON(A+"/second-brain");
   if(brain||second){ paint('c_brain','REACHABLE','var(--teal)'); var mb=$('m_brain'); if(mb) mb.textContent=second?'ALIAS+BRAIN':'BRAIN'; }
