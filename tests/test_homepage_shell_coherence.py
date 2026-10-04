@@ -84,6 +84,17 @@ class HomepageShellCoherence(unittest.TestCase):
         for endpoint in ("/api/a11oy/healthz", "/api/a11oy/v1/frontier/surfaces", "/api/a11oy/v1/attest/manifest"):
             self.assertIn(endpoint, evidence)
 
+    def test_evidence_handle_navigation_targets_the_query_surface(self):
+        command = (ROOT / "a11oy_command_center.py").read_text(encoding="utf-8")
+        hickok = (ROOT / "a11oy_v4_hickok.py").read_text(encoding="utf-8")
+        anatomy = (ROOT / "web/living-anatomy.html").read_text(encoding="utf-8")
+        self.assertIn('("/command/brain", "second-brain.html")', command)
+        self.assertIn('PAGES_DIR / "brain-dual.html"', hickok)
+        self.assertIn('href="/command/brain">Explore evidence handles', self.html)
+        self.assertIn('href="/command/brain"><div class="lt">/command/brain — Second Brain evidence handles', anatomy)
+        self.assertIn('href="/brain">Open Hickok /brain', anatomy)
+        self.assertNotIn('href="/brain">Explore evidence handles', self.html)
+
 
 if __name__ == "__main__":
     unittest.main()

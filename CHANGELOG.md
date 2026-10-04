@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - estate retrieval lifecycle and shared source parity
+- Initialize the bounded estate seed index through the deployment lifecycle and
+  reuse verified generations. Public retrieval reads the published index without
+  creating storage, loading a model, or signing; missing indexes remain unavailable.
+- Recognize the runtime's optional public GitHub reader and report repository
+  counts from indexed sources. Keep receipt creation on the operator-gated estate
+  query route, and bind the shared retrieval/auth files to the matching peer PR.
+- Run the RAG, Ayllu, and route contracts with a hashed dependency extension in CI.
+- Use fully durable rollback journaling so retrieval never creates WAL sidecars.
+  Legacy WAL indexes stay unavailable until an explicit lifecycle/operator write
+  migrates them; readers may delay writer commits within the existing busy timeout.
+
 ### Fixed - typed Brain frontier research metadata
 - Accept the two source-bound, operator-reviewed forum summaries and bounded
   arXiv/Crossref metadata captures from Second Brain. Validate the exact metadata
