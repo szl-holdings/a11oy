@@ -33,6 +33,15 @@ executes positive controls with the bundled data and negative controls with
 missing, nonnumeric, nonfinite, out-of-range and malformed in-memory data. The
 checked-in model inventory and bundled measurements are preserved.
 
+The [second hosted run](https://github.com/szl-holdings/a11oy/actions/runs/37219765062)
+passed all 16 candidate source cases and all 121 Atelier evidence controls.
+Screenshot review still found Atelier's article confined to the sidebar column
+and a mobile More destination obscured by the status row. The desktop sidebar
+rule now follows its mobile default, the action zone paints above the status
+zone, and the More menu scrolls within the available viewport height. The same
+source check now verifies desktop column geometry and the first and last More
+keyboard destinations by hit testing, with fresh screenshots required.
+
 `tools/check_shared_shell_source_browser.py` loads each of those real sources,
 their local CSS and JavaScript, and vendored font bytes through an intercepted
 browser context. It never contacts a live provider. All provider requests receive

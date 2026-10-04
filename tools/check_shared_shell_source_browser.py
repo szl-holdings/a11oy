@@ -259,6 +259,12 @@ def run_case(browser, output, name, source_path, route_path, width, height, css,
             failures.append("shared shell or card text escapes viewport")
         if layout["liveChips"]:
             failures.append("unavailable fixture produced a live shell chip")
+        if name == "atelier" and width >= 1024:
+            sidebar = page.locator(".walk > .side").bounding_box()
+            article = page.locator(".walk > article").bounding_box()
+            result["atelier_walk"] = {"sidebar": sidebar, "article": article}
+            if not sidebar or not article or article["x"] < sidebar["x"] + sidebar["width"] or article["width"] < sidebar["width"] * 2:
+                failures.append("Atelier desktop article occupies the sidebar column")
         if any(control["width"] < 44 or control["height"] < 44 for control in layout["controls"]):
             failures.append("shared shell action target is below 44px")
         if any(control["left"] < -1 or control["right"] > width + 1 for control in layout["controls"]):
@@ -278,10 +284,30 @@ def run_case(browser, output, name, source_path, route_path, width, height, css,
         menu = page.locator(".szl-overflow.open .szl-overflow-menu")
         menu_box = menu.bounding_box()
         result["more_menu"] = menu_box
-        if not menu_box or menu_box["x"] < -1 or menu_box["x"] + menu_box["width"] > width + 1:
+        if not menu_box or menu_box["x"] < -1 or menu_box["x"] + menu_box["width"] > width + 1 or menu_box["y"] < -1 or menu_box["y"] + menu_box["height"] > height + 1:
             failures.append("More menu escapes viewport")
+        visible_menu_item = """element => {
+          const box = element.getBoundingClientRect();
+          const menu = element.closest('.szl-overflow-menu').getBoundingClientRect();
+          const uncovered = [box.top + 1, box.y + box.height / 2, box.bottom - 1].every(y => {
+            const hit = document.elementFromPoint(box.x + box.width / 2, y);
+            return hit === element || element.contains(hit);
+          });
+          return box.top >= menu.top && box.bottom <= Math.min(menu.bottom, innerHeight) + 1 &&
+            uncovered;
+        }"""
+        first_visible = menu.locator("a").first.evaluate(visible_menu_item)
+        if not first_visible:
+            failures.append("More menu first keyboard destination is clipped or covered")
         if width == 320:
             page.screenshot(path=str(output / (slug + "-more.png")), full_page=False)
+        page.keyboard.press("End")
+        last_visible = menu.locator("a").last.evaluate(visible_menu_item)
+        result["more_menu_keyboard"] = {"first_visible": first_visible, "last_visible": last_visible}
+        if not last_visible:
+            failures.append("More menu last keyboard destination is clipped or covered")
+        if width == 320:
+            page.screenshot(path=str(output / (slug + "-more-last.png")), full_page=False)
         page.keyboard.press("Escape")
         if more.get_attribute("aria-expanded") != "false":
             failures.append("More menu Escape closing failed")

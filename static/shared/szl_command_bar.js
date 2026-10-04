@@ -245,11 +245,14 @@
       moreBtn.setAttribute('aria-expanded', 'true');
       moreMenu.style.left = '';
       moreMenu.style.right = '0';
+      moreMenu.style.maxHeight = '';
       var menuRect = moreMenu.getBoundingClientRect();
       var viewportWidth = document.documentElement.clientWidth || global.innerWidth;
+      var viewportHeight = document.documentElement.clientHeight || global.innerHeight;
       var left = Math.min(Math.max(8, menuRect.left), Math.max(8, viewportWidth - menuRect.width - 8));
       moreMenu.style.right = 'auto';
       moreMenu.style.left = (left - overflow.getBoundingClientRect().left) + 'px';
+      moreMenu.style.maxHeight = Math.max(44, viewportHeight - menuRect.top - 8) + 'px';
       var items = moreMenu.querySelectorAll('a');
       if (items.length && focusLast != null) items[focusLast ? items.length - 1 : 0].focus();
     }
