@@ -45,6 +45,7 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
     def setUp(self) -> None:
         self.original_fetch_page = audit.fetch_page
         self.original_api_items = audit.api_items
+        self.original_public_get = audit.public_get
         self.original_fetch_revision = audit.fetch_revision
         self.original_fetch_card_markdown = audit.fetch_card_markdown
         audit.fetch_card_markdown = (
@@ -54,6 +55,7 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
     def tearDown(self) -> None:
         audit.fetch_page = self.original_fetch_page
         audit.api_items = self.original_api_items
+        audit.public_get = self.original_public_get
         audit.fetch_revision = self.original_fetch_revision
         audit.fetch_card_markdown = self.original_fetch_card_markdown
 
@@ -110,23 +112,41 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
                 self.assertEqual(1, audit.main())
             self.assertEqual(original, output.read_bytes())
 
-    def test_api_items_follows_next_link_and_deduplicates(self) -> None:
+    def test_api_items_follows_scoped_next_link(self) -> None:
+        base = "https://huggingface.co/api/models?author=SZLHOLDINGS&limit=100&full=true"
         pages = {
-            "page-1": ([item("SZLHOLDINGS/b"), item("SZLHOLDINGS/a")], "page-2"),
-            "page-2": ([item("SZLHOLDINGS/b"), item("SZLHOLDINGS/c")], None),
+            base: {"status": 200, "json": [item("SZLHOLDINGS/b"), item("SZLHOLDINGS/a")],
+                   "link": f'<{base}&cursor=next>; rel="next"'},
+            base + "&cursor=next": {"status": 200, "json": [item("SZLHOLDINGS/c")]},
         }
+        audit.public_get = pages.__getitem__
+        self.assertEqual([entry["id"] for entry in audit.api_items("models")],
+                         ["SZLHOLDINGS/a", "SZLHOLDINGS/b", "SZLHOLDINGS/c"])
 
-        def fake_fetch_page(url: str):
-            key = "page-1" if "huggingface.co" in url else url
-            if key == "page-1":
-                self.assertIn("full=true", url)
-            return pages[key]
+    def test_duplicate_private_foreign_and_unbounded_pages_fail_closed(self) -> None:
+        invalid_pages = ([item("SZLHOLDINGS/a")] * 2,
+                         [{**item("SZLHOLDINGS/a"), "private": True}],
+                         [item("other/a")], [item("SZLHOLDINGS/a")] * 101)
+        for rows in invalid_pages:
+            with self.subTest(rows=len(rows)):
+                audit.public_get = lambda url: {"status": 200, "json": rows}
+                with self.assertRaises(audit.InventoryError):
+                    audit.api_items("models")
+        audit.public_get = lambda url: {"status": 200, "json": [],
+            "link": '<https://example.com/api/models?author=SZLHOLDINGS&limit=100&full=true>; rel="next"'}
+        with self.assertRaises(audit.InventoryError):
+            audit.api_items("models")
 
-        audit.fetch_page = fake_fetch_page
-        self.assertEqual(
-            [entry["id"] for entry in audit.api_items("models")],
-            ["SZLHOLDINGS/a", "SZLHOLDINGS/b", "SZLHOLDINGS/c"],
-        )
+    def test_same_id_in_model_and_native_kernel_namespace_remains_distinct(self) -> None:
+        rows = [item("SZLHOLDINGS/shared-name")]
+        audit.api_items = lambda kind: rows if kind in {"models", "kernels"} else []
+        manifest = audit.build_manifest(observed_at="2026-07-26T00:00:00Z")
+        self.assertEqual(manifest["counts"], {"models": 1, "datasets": 0, "spaces": 0, "kernels": 1})
+        self.assertEqual(manifest["inventory"]["models"][0]["repoType"], "model")
+        kernel = manifest["inventory"]["kernels"][0]
+        self.assertEqual(kernel["repoType"], "kernel")
+        self.assertEqual(kernel["evidenceUrls"], ["https://huggingface.co/kernels/SZLHOLDINGS/shared-name"])
+        self.assertIn("not a unique-project", manifest["inventoryScope"]["countMeaning"])
 
     def test_live_fetch_retries_transient_transport_failure(self) -> None:
         calls = 0
@@ -264,9 +284,9 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
             "datasets": [item("SZLHOLDINGS/dataset")],
             "spaces": [item("SZLHOLDINGS/space")],
         }
-        audit.api_items = lambda kind: fixtures[kind]
+        audit.api_items = lambda kind: fixtures.get(kind, [])
         manifest = audit.build_manifest(observed_at="2026-07-26T00:00:00Z")
-        self.assertEqual(manifest["counts"], {"models": 1, "datasets": 1, "spaces": 1})
+        self.assertEqual(manifest["counts"], {"models": 1, "datasets": 1, "spaces": 1, "kernels": 0})
         self.assertEqual(manifest["inventoryScope"]["visibility"], "public-only")
         self.assertFalse(manifest["inventoryScope"]["authenticated"])
         self.assertTrue(
@@ -294,7 +314,7 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
             "datasets": [item("SZLHOLDINGS/dataset")],
             "spaces": [item("SZLHOLDINGS/space")],
         }
-        audit.api_items = lambda kind: fixtures[kind]
+        audit.api_items = lambda kind: fixtures.get(kind, [])
         fixtures["datasets"][0]["tags"] = [
             "size_categories:n<1K",
             "modality:text",
@@ -335,7 +355,7 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
             "datasets": [],
             "spaces": [item("SZLHOLDINGS/recreated-space")],
         }
-        audit.api_items = lambda kind: fixtures[kind]
+        audit.api_items = lambda kind: fixtures.get(kind, [])
         manifest = audit.build_manifest(
             observed_at="2026-07-26T00:00:00Z"
         )
@@ -380,7 +400,7 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
             "datasets": [],
             "spaces": [],
         }
-        audit.api_items = lambda kind: fixtures[kind]
+        audit.api_items = lambda kind: fixtures.get(kind, [])
         card = {"markdown": "# Model\n\nVerified inventory claim.\n"}
         audit.fetch_card_markdown = (
             lambda item_id, repo_type, revision: card["markdown"]
@@ -414,7 +434,7 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
             "datasets": [],
             "spaces": [],
         }
-        audit.api_items = lambda kind: fixtures[kind]
+        audit.api_items = lambda kind: fixtures.get(kind, [])
         audit.fetch_revision = lambda item_id, repo_type, revision: fixture[
             "historical"
         ]

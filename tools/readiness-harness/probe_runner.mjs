@@ -728,8 +728,8 @@ async function probeEndpoint(path, spec) {
       path, method, status: null, error: null, skipped: true,
       required: spec.required !== false,
       skipReason: "state-changing contract skipped; require --allow-state-changing and A11OY_READINESS_MUTATION_AUTHORIZED=1",
-        throttled: false, unreachable: false, p50: null, p95: null, samples: 0,
-        degraded: false, unavailableSources: [], runtimeState: "NOT_PROBED",
+      throttled: false, unreachable: false, p50: null, p95: null, samples: 0,
+      degraded: false, unavailableSources: [], runtimeState: "NOT_PROBED",
       schemaOk: null, citationOk: null, labelPolicyOk: null,
       evidenceLabels: [], freshOk: null, ageSec: null,
       citationsRequired: !!spec.citationsRequired,
@@ -955,8 +955,8 @@ async function main() {
     console.error(`  ${tag} ${r.status ?? "-"} p50=${r.p50 ?? "-"}ms p95=${r.p95 ?? "-"}ms ${r.path}${why}`);
   }
   console.error(`[probe] ${verdict.summary.ok}/${verdict.summary.endpoints} clean, ${verdict.summary.skippedStateChanging} state-changing skipped, ${lies.length} lies, ${unreachable.length} unreachable, ${throttled.length} throttled, ${degraded.length} degraded. wrote ${OUT}`);
-  // Release mode fails on doctrine lies, required endpoint outages, and required
-  // throttling: HTTP 429 is honest evidence of an inconclusive probe, not a pass.
+  // Release mode fails on doctrine lies and required sources that are unreachable,
+  // throttled, or unavailable. HTTP 429 is an inconclusive probe, not a pass.
   // --report-only (and its legacy --soft alias) exists only to preserve the full
   // evidence artifact for a later fail-closed publisher; it never makes the
   // verdict publishable.
