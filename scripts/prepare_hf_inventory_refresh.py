@@ -77,9 +77,9 @@ def validate_candidate(raw: bytes, *, now: datetime) -> dict[str, Any]:
     except (KeyError, TypeError, AttributeError, ValueError) as exc:
         raise PreparationError('invalid observation time') from exc
     inventory,counts=value.get('inventory'),value.get('counts')
-    require(type(inventory) is dict and set(inventory)=={'models','datasets','spaces'}
-            and type(counts) is dict, 'incomplete scope')
-    for plural,kind in (('models','model'),('datasets','dataset'),('spaces','space')):
+    require(type(inventory) is dict and set(inventory)=={'models','datasets','spaces','kernels'}
+            and type(counts) is dict and set(counts)==set(inventory), 'incomplete scope')
+    for plural,kind in (('models','model'),('datasets','dataset'),('spaces','space'),('kernels','kernel')):
         rows=inventory[plural]; seen=set()
         require(type(rows) is list and type(counts.get(plural)) is int
                 and counts[plural]==len(rows) and len(rows)<=5000, 'incomplete count')
@@ -159,7 +159,7 @@ def prepare(source: str, run_id: int, artifact_id: int, archive_digest: str, rep
     import audit_huggingface_ecosystem as collector
     collector.validate_generated_revision_evidence(observed, observed_at=collector.validate_observed_at(observed['observedAt']))
     old=strict((ROOT/CANONICAL).read_bytes())
-    for kind in ('models','datasets','spaces'):
+    for kind in ('models','datasets','spaces','kernels'):
         require(not old.get('inventory',{}).get(kind) or observed['inventory'][kind],
                 'empty replacement requires explicit inventory review')
     if collector.semantic_manifest(old)==collector.semantic_manifest(observed):

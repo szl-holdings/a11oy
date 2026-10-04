@@ -110,18 +110,24 @@
     "human_approval_required": true
   },
   "public_inventory_scope": {
-    "id": "hf-public-author-membership/v1",
+    "id": "hf-public-author-membership/v2",
     "authentication": "none",
     "visibility": "public-only",
     "kinds": [
       "models",
       "datasets",
-      "spaces"
+      "spaces",
+      "kernels"
     ],
     "include_gated_metadata": true,
     "include_disabled_metadata": true,
     "include_reserved_readme_if_public": true,
-    "kernel_policy": "count-once-as-model-repository-not-a-fourth-kind",
+    "kernel_policy": "native-kernel-namespace-separate-from-model-namespace",
+    "identity_key": [
+      "kind",
+      "id"
+    ],
+    "cross_namespace_ids": "may-overlap-not-a-unique-project-or-trained-model-total",
     "collections_and_buckets": "outside-repository-membership-scope",
     "portfolio_and_operational_policy": false
   }
