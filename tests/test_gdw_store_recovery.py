@@ -110,6 +110,18 @@ def unused_pages(path):
     path.write_bytes(data)
 
 
+def detached_freelist_pages(path):
+    unused_pages(path)
+    raw = bytearray(path.read_bytes())
+    size = int.from_bytes(raw[16:18], "big")
+    leaf = len(raw) // size
+    start = len(raw) - 2 * size
+    raw[start + 4:start + 8] = (1).to_bytes(4, "big")
+    raw[start + 8:start + 12] = leaf.to_bytes(4, "big")
+    path.write_bytes(raw)
+    return [leaf - 1, leaf]
+
+
 def qualify(label, originals, tmp_path, **kwargs):
     return q.qualify_database(label, originals[label], tmp_path / "working" / label,
                               GDW_GENERATION if label == "gdw" else SERIES_GENERATION,
@@ -165,7 +177,10 @@ def test_sqlite_never_opens_captured_originals(originals, tmp_path, monkeypatch)
 
 
 @pytest.mark.parametrize("change", ["payload", "sequence", "generation", "schema"])
-def test_candidate_tampering_cannot_be_qualified(originals, tmp_path, monkeypatch, change):
+@pytest.mark.parametrize("detached", [False, True])
+def test_candidate_tampering_cannot_be_qualified(originals, tmp_path, monkeypatch, change, detached):
+    if detached:
+        detached_freelist_pages(originals["series_a"])
     fingerprint = q.logical_fingerprint
     calls = []
     def altered(connection, label, deadline):
@@ -568,6 +583,258 @@ def test_nonzero_forensics_are_bound_to_captured_bytes_and_keep_existing_hold(or
     assert path.read_bytes() == raw and PRIVATE not in json.dumps(report)
 
 
+def test_descriptive_detached_freelist_match_requires_separate_candidate_predicate(originals, tmp_path, monkeypatch):
+    path = originals["gdw"]
+    detached_freelist_pages(path)
+    raw = path.read_bytes()
+    monkeypatch.setattr(q, "detached_freelist_candidate_evidence", lambda *args: False)
+    report = qualify("gdw", originals, tmp_path)
+    forensic = report["unreferenced_page_forensics"]
+    assert forensic["freelist_graph"]["state"] == "STRUCTURALLY_ACCOUNTED"
+    assert forensic["state"] == "HELD" and forensic["candidate_created"] is False
+    assert report["state"] == "UNQUALIFIED" and report["restore_admitted"] is False
+    assert report["diagnostic_code"] == "UNREFERENCED_PAGE_CONTENTS_REQUIRE_REVIEW"
+    assert not (tmp_path / "working" / "gdw" / "candidate.sqlite3").exists()
+    assert path.read_bytes() == raw
+
+
+@pytest.mark.parametrize("label", ["gdw", "series_a"])
+def test_byte_reconstructed_detached_graph_qualifies_only_a_disposable_candidate(originals, tmp_path, label, capsys):
+    path = originals[label]
+    detached_freelist_pages(path)
+    original = path.read_bytes()
+    report = qualify(label, originals, tmp_path)
+    assert report["state"] == "LOGICAL_CONTINUITY_VERIFIED", report
+    assert report["diagnostic_code"] == "RESTORE_CONTRACT_REQUIRED"
+    assert report["candidate_method"] == "SQLITE_VACUUM_INTO_DISPOSABLE_EVALUATION"
+    assert report["detached_freelist_candidate_contract"] == "BYTE_RECONSTRUCTED_DISPOSABLE_ONLY"
+    assert report["restore_admitted"] is False and report["durable_storage_qualified"] is False
+    assert report["inspection_copy_unchanged"] is True
+    assert report["captured_originals_unchanged"] is True
+    assert report["schema_unchanged"] is True and report["receipt_bytes_unchanged"] is True
+    assert report["all_declared_stored_values_unchanged"] is True
+    assert report["database_generation_unchanged"] is True
+    assert report["unreferenced_page_forensics"]["state"] == "HELD"
+    assert report["unreferenced_page_forensics"]["discard_admitted"] is False
+    assert report["unreferenced_page_forensics"]["candidate_created"] is False
+    assert path.read_bytes() == original
+    assert (tmp_path / "working" / label / "inspection" / path.name).read_bytes() == original
+    candidate = tmp_path / "working" / label / "candidate.sqlite3"
+    assert candidate.stat().st_size < len(original)
+    with sqlite3.connect(candidate) as connection:
+        assert connection.execute("PRAGMA integrity_check").fetchall() == [("ok",)]
+        if label == "series_a":
+            assert connection.execute("SELECT seq FROM sqlite_sequence WHERE name='receipts'").fetchone()[0] == 12
+    assert PRIVATE not in json.dumps(report)
+    assert capsys.readouterr() == ("", "")
+
+
+@pytest.fixture
+def detached_witness(originals, tmp_path):
+    path = originals["gdw"]
+    pages = detached_freelist_pages(path)
+    private = tmp_path / "witness"
+    private.mkdir(mode=0o700)
+    copy = private / "inspection.sqlite3"
+    copy.write_bytes(path.read_bytes())
+    deadline = time.monotonic() + 30
+    contents = q.unreferenced_page_contents(copy, pages, deadline)
+    digest = hashlib.sha256(copy.read_bytes()).hexdigest()
+    report = q.orphan_forensic_observation(copy, pages, deadline, digest, contents)
+    assert q.detached_freelist_candidate_evidence(report, pages, contents, digest, deadline) is True
+    return report, pages, contents, digest
+
+
+@pytest.mark.parametrize("location", [
+    ("candidate_created",), ("discard_admitted",), ("restore_admitted",), ("deployment_admitted",),
+    ("provider_writes_performed",), ("private_payloads_emitted",), ("record_equivalence_verified",),
+    ("all_bytes_semantically_explained",), ("inspection_copy_unchanged",),
+    ("native_reachability", "complete"), ("native_reachability", "orphan_set_reconfirmed"),
+    ("freelist_graph", "complete"), ("freelist_graph", "whole_database_accounted"),
+    ("freelist_graph", "orphan_bytes_structurally_accounted"),
+])
+def test_detached_predicate_rejects_changed_or_equal_looking_boolean_fields(detached_witness, location):
+    report, pages, contents, digest = detached_witness
+    target = report
+    for name in location[:-1]: target = target[name]
+    initial = target[location[-1]]
+    for value in (not initial, int(initial), str(initial), None):
+        target[location[-1]] = value
+        assert q.detached_freelist_candidate_evidence(report, pages, contents, digest, time.monotonic() + 10) is False
+
+
+@pytest.mark.parametrize("defect", ["outer_key", "header_key", "graph_key", "native_key", "page_key",
+    "trunk_key", "database_sha", "aggregate_sha", "page_sha", "page_number", "page_count_boolean",
+    "byte_count", "reserved", "pointer_map", "incremental", "attached_head", "attached_count", "attached_digest",
+    "reachable_count", "reachable_types", "native_version", "partial", "graph_state", "classification",
+    "duplicate", "trunk_count", "leaf_count", "root", "next_self", "leaf_self", "leaf_boolean", "extra_leaf",
+    "zero_leaf_list", "extra_trunk", "structure_bytes", "nonzero_bytes", "zero_bytes", "page_nonzero", "companion"])
+def test_detached_predicate_requires_exact_bound_shape_and_page_reconstruction(detached_witness, defect):
+    report, pages, contents, digest = detached_witness
+    graph = report["freelist_graph"]
+    detached = graph["detached_freelist"]
+    if defect.endswith("_key"):
+        target = {"outer_key": report, "header_key": report["database_header"], "graph_key": graph,
+                  "native_key": report["native_reachability"], "page_key": report["pages"][0],
+                  "trunk_key": detached["trunks"][0]}[defect]
+        target["unknown"] = PRIVATE
+    elif defect == "database_sha": report["inspection_sha256"] = "f" * 64
+    elif defect == "aggregate_sha": report["orphan_contents_sha256"] = "f" * 64
+    elif defect == "page_sha": report["pages"][0]["sha256"] = "f" * 64
+    elif defect == "page_number": report["pages"][0]["page_number"] += 1
+    elif defect == "page_count_boolean": report["orphan_page_count"] = True
+    elif defect == "byte_count": report["orphan_byte_count"] += 1
+    elif defect in {"reserved", "pointer_map", "incremental"}:
+        report["database_header"][{"reserved": "reserved_bytes_per_page", "pointer_map": "largest_root_page",
+                                   "incremental": "incremental_vacuum"}[defect]] = 1
+    elif defect == "attached_head": graph["attached_freelist"]["head"] = pages[0]
+    elif defect == "attached_count": graph["attached_freelist"]["page_count"] = 1
+    elif defect == "attached_digest": graph["attached_freelist"]["page_numbers_sha256"] = "f" * 64
+    elif defect == "reachable_count": report["native_reachability"]["reachable_page_count"] -= 1
+    elif defect == "reachable_types": report["native_reachability"]["reachable_page_types"]["leaf"] += 1
+    elif defect == "native_version": report["native_reachability"]["inspector_sqlite_version"] = "0.0.0"
+    elif defect == "partial": report["analysis_state"] = "PARTIAL"
+    elif defect == "graph_state": graph["state"] = "UNCLASSIFIED"
+    elif defect == "classification": report["pages"][0]["structure"]["classification"] = "BTREE_LOCAL_LAYOUT_CONSISTENT"
+    elif defect == "duplicate": report["pages"][0]["reachable_duplicate"]["state"] = "EXACT_FULL_PAGE_MATCH"
+    elif defect == "trunk_count": detached["trunk_count"] = True
+    elif defect == "leaf_count": detached["leaf_count"] += 1
+    elif defect == "root": detached["root_page"] = pages[-1]
+    elif defect == "next_self": detached["trunks"][0]["next_trunk"] = pages[0]
+    elif defect == "leaf_self": detached["trunks"][0]["leaf_pages"] = [pages[0]]
+    elif defect == "leaf_boolean": detached["trunks"][0]["leaf_pages"] = [True]
+    elif defect == "extra_leaf": detached["trunks"][0]["leaf_pages"].append(pages[-1])
+    elif defect == "zero_leaf_list": detached["zero_leaf_pages"] = [pages[0]]
+    elif defect == "extra_trunk": detached["trunks"].append(dict(detached["trunks"][0]))
+    elif defect == "structure_bytes": graph["byte_accounting"]["structural_bytes"] += 1
+    elif defect == "nonzero_bytes": graph["byte_accounting"]["structural_nonzero_bytes"] += 1
+    elif defect == "zero_bytes": graph["byte_accounting"]["zero_padding_and_leaf_bytes"] -= 1
+    elif defect == "page_nonzero": report["pages"][0]["nonzero_byte_count"] += 1
+    else: report["companions"] = "IGNORED"
+    assert q.detached_freelist_candidate_evidence(report, pages, contents, digest, time.monotonic() + 10) is False
+
+
+def test_reconstructed_page_bytes_must_match_independent_aggregate_even_if_page_claims_are_changed(detached_witness):
+    report, pages, contents, digest = detached_witness
+    graph = report["freelist_graph"]
+    detached = graph["detached_freelist"]
+    detached["root_page"] = pages[1]
+    detached["trunks"] = [{"page_number": pages[1], "next_trunk": 0, "leaf_pages": [pages[0]]}]
+    detached["zero_leaf_pages"] = [pages[0]]
+    size = report["database_header"]["page_size"]
+    alternate = {number: bytearray(size) for number in pages}
+    alternate[pages[1]][4:8] = (1).to_bytes(4, "big")
+    alternate[pages[1]][8:12] = pages[0].to_bytes(4, "big")
+    total_nonzero = 0
+    for observation in report["pages"]:
+        raw = alternate[observation["page_number"]]
+        nonzero = size - raw.count(0)
+        total_nonzero += nonzero
+        observation["sha256"] = hashlib.sha256(raw).hexdigest()
+        observation["nonzero_byte_count"] = nonzero
+        observation["structure"]["classification"] = "UNIDENTIFIED_BYTES" if nonzero else "ZERO_FILLED"
+    graph["byte_accounting"]["structural_nonzero_bytes"] = total_nonzero
+    # This is a different internally valid graph with coherent individual page
+    # hashes. The unchanged independently measured aggregate must reject it.
+    assert q.detached_freelist_candidate_evidence(report, pages, contents, digest, time.monotonic() + 10) is False
+
+
+def test_detached_predicate_checks_deadline(detached_witness):
+    report, pages, contents, digest = detached_witness
+    with pytest.raises(q.RecoveryError, match="QUALIFICATION_DEADLINE_EXHAUSTED"):
+        q.detached_freelist_candidate_evidence(report, pages, contents, digest, time.monotonic() - 1)
+
+
+@pytest.mark.parametrize("defect", ["original_bytes", "inspection_bytes", "original_empty_companion", "inspection_empty_companion"])
+def test_detached_candidate_rejects_changed_input_after_native_candidate(originals, tmp_path, monkeypatch, defect):
+    path = originals["gdw"]
+    detached_freelist_pages(path)
+    native = q.logical_fingerprint
+    calls = 0
+    def changed(connection, label, deadline):
+        nonlocal calls
+        calls += 1
+        value = native(connection, label, deadline)
+        if calls == 2:
+            target = path if defect.startswith("original") else tmp_path / "working" / label / "inspection" / path.name
+            if defect.endswith("companion"):
+                target.with_name(target.name + "-journal").write_bytes(b"")
+            else:
+                raw = bytearray(target.read_bytes())
+                raw[-1] ^= 1
+                target.write_bytes(raw)
+        return value
+    monkeypatch.setattr(q, "logical_fingerprint", changed)
+    report = qualify("gdw", originals, tmp_path)
+    assert report["state"] == "UNQUALIFIED" and report["restore_admitted"] is False
+    assert report["diagnostic_code"] in {"DETACHED_FREELIST_INPUT_CHANGED", "CAPTURED_ORIGINAL_CHANGED"}
+    assert "detached_freelist_candidate_contract" not in report
+
+
+def test_native_detached_vacuum_failure_is_retained_as_a_hold(originals, tmp_path, monkeypatch):
+    path = originals["gdw"]
+    detached_freelist_pages(path)
+    before = path.read_bytes()
+    readonly = q.readonly
+    class RejectVacuum:
+        def __init__(self, connection): self.connection = connection
+        def __getattr__(self, name): return getattr(self.connection, name)
+        def execute(self, sql, *args):
+            if sql.startswith("VACUUM INTO"):
+                raise sqlite3.DatabaseError(PRIVATE)
+            return self.connection.execute(sql, *args)
+    monkeypatch.setattr(q, "readonly", lambda path, deadline: RejectVacuum(readonly(path, deadline)))
+    report = qualify("gdw", originals, tmp_path)
+    assert report["state"] == "UNQUALIFIED" and report["restore_admitted"] is False
+    assert report["diagnostic_code"] == "QUALIFICATION_UNAVAILABLE"
+    assert path.read_bytes() == before and PRIVATE not in json.dumps(report)
+    assert not (tmp_path / "working" / "gdw" / "candidate.sqlite3").exists()
+
+
+@pytest.mark.parametrize("entry", ["file", "empty_file", "directory", "dangling_symlink", "existing_symlink"])
+@pytest.mark.parametrize("late", [False, True])
+def test_detached_candidate_destination_is_absent_without_following_links(originals, tmp_path, monkeypatch, entry, late):
+    original = originals["gdw"]
+    detached_freelist_pages(original)
+    original_bytes = original.read_bytes()
+    target = tmp_path / "outside-candidate-target.sqlite3"
+    if entry == "existing_symlink":
+        target.write_bytes(b"owned-existing-canary")
+    expected_target = target.read_bytes() if target.exists() else None
+    require_absent = q._require_absent_candidate
+    calls = 0
+    def placed(candidate):
+        nonlocal calls
+        calls += 1
+        if calls == (2 if late else 1):
+            if entry == "file": candidate.write_bytes(b"owned-existing-candidate")
+            elif entry == "empty_file": candidate.write_bytes(b"")
+            elif entry == "directory": candidate.mkdir()
+            else: candidate.symlink_to(target)
+        require_absent(candidate)
+    monkeypatch.setattr(q, "_require_absent_candidate", placed)
+    report = qualify("gdw", originals, tmp_path)
+    assert calls == (2 if late else 1)
+    assert report["diagnostic_code"] == "CANDIDATE_DESTINATION_EXISTS"
+    assert report["state"] == "UNQUALIFIED" and report["restore_admitted"] is False
+    assert original.read_bytes() == original_bytes
+    if expected_target is None:
+        assert not target.exists()
+    else:
+        assert target.read_bytes() == expected_target
+
+
+@pytest.mark.parametrize("field", ["expected", "observation", "aggregate", "page", "attached"])
+def test_detached_predicate_rejects_placeholder_zero_digest(detached_witness, field):
+    report, pages, contents, digest = detached_witness
+    if field == "expected": digest = "0" * 64
+    elif field == "observation": report["inspection_sha256"] = "0" * 64
+    elif field == "aggregate": contents["contents_sha256"] = report["orphan_contents_sha256"] = "0" * 64
+    elif field == "page": report["pages"][0]["sha256"] = "0" * 64
+    else: report["freelist_graph"]["attached_freelist"]["page_numbers_sha256"] = "0" * 64
+    assert q.detached_freelist_candidate_evidence(report, pages, contents, digest, time.monotonic() + 10) is False
+
+
 def test_exact_reachable_page_duplicate_does_not_admit_discard_or_vacuum(originals, tmp_path):
     path = originals["gdw"]
     with sqlite3.connect(path) as db:
@@ -738,7 +1005,10 @@ def test_source_reviewed_anchor_document_matches_exact_capture_bytes_and_public_
 
 
 @pytest.mark.parametrize("label", ["gdw", "series_a"])
-def test_historical_anchor_is_verified_in_original_and_candidate(originals, tmp_path, historical_fixture, label):
+@pytest.mark.parametrize("detached", [False, True])
+def test_historical_anchor_is_verified_in_original_and_candidate(originals, tmp_path, historical_fixture, label, detached):
+    if detached:
+        detached_freelist_pages(originals[label])
     before = originals[label].read_bytes()
     report = qualify(label, originals, tmp_path, historical_anchors=historical_fixture)
     assert report["state"] == "LOGICAL_CONTINUITY_VERIFIED", report
@@ -924,7 +1194,10 @@ def test_cli_requires_historical_anchor_argument(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize("label", ["gdw", "series_a"])
-def test_history_is_rechecked_after_candidate_logical_fingerprint(originals, tmp_path, historical_fixture, monkeypatch, label):
+@pytest.mark.parametrize("detached", [False, True])
+def test_history_is_rechecked_after_candidate_logical_fingerprint(originals, tmp_path, historical_fixture, monkeypatch, label, detached):
+    if detached:
+        detached_freelist_pages(originals[label])
     verify = q.historical_anchor
     calls = []
     def altered(connection, store, generation, anchors, deadline):

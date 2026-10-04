@@ -373,7 +373,7 @@ def orphan_forensic_observation(database: Path, pages: list[int], deadline: floa
                    "provider_writes_performed", "private_payloads_emitted", "record_comparison",
                    "record_equivalence_verified", "all_bytes_semantically_explained"}
     observed_fields = {"inspection_sha256", "database_header", "orphan_page_count", "orphan_byte_count",
-                       "orphan_contents_sha256", "pages", "native_reachability", "companions",
+                       "orphan_contents_sha256", "pages", "native_reachability", "freelist_graph", "companions",
                        "inspection_copy_unchanged"}
     if (type(report) is not dict or not held_fields <= set(report)
             or set(report) - held_fields - observed_fields
@@ -399,6 +399,185 @@ def orphan_forensic_observation(database: Path, pages: list[int], deadline: floa
         raise RecoveryError("ORPHAN_FORENSIC_INPUT_IDENTITY_MISMATCH")
     check_budget(deadline)
     return report
+
+
+def detached_freelist_candidate_evidence(report: dict, pages: list[int], contents: dict,
+                                        expected_sha256: str, deadline: float) -> bool:
+    """Accept only a complete, byte-reconstructed witness for disposable evaluation.
+
+    Native allocation ownership comes from the exact source-pinned helper. The
+    orphan byte interpretation is independently reconstructed here. Neither
+    source supplies history, restoration, deployment, or durability admission.
+    """
+    def keys(value, names):
+        expected = set(names.split())
+        return type(value) is dict and len(value) == len(expected) and set(value) == expected
+
+    def integer(value, minimum=0, maximum=orphan_forensics.MAX_DATABASE_BYTES):
+        return type(value) is int and minimum <= value <= maximum
+
+    def digest(value):
+        return (type(value) is str and len(value) == 64 and value != "0" * 64
+                and preservation.HEX64.fullmatch(value) is not None)
+
+    check_budget(deadline)
+    if (type(pages) is not list or not 2 <= len(pages) <= orphan_forensics.MAX_ORPHAN_PAGES
+            or any(not integer(number, 2) for number in pages) or len(set(pages)) != len(pages)
+            or not digest(expected_sha256)
+            or not keys(contents, "page_count byte_count contents_sha256 all_zero")
+            or contents["all_zero"] is not False or not digest(contents["contents_sha256"])):
+        return False
+    if not keys(report, "schema state analysis_state diagnostic_code hold_reason candidate_created "
+                "discard_admitted restore_admitted deployment_admitted provider_writes_performed "
+                "private_payloads_emitted record_comparison record_equivalence_verified "
+                "all_bytes_semantically_explained inspection_sha256 database_header orphan_page_count "
+                "orphan_byte_count orphan_contents_sha256 pages native_reachability freelist_graph "
+                "companions inspection_copy_unchanged"):
+        return False
+    if (report["schema"] != "szl.gdw-orphan-page-forensics/v1" or report["state"] != "HELD"
+            or report["analysis_state"] != "COMPLETE"
+            or report["diagnostic_code"] != "FORENSIC_EVIDENCE_REQUIRES_REVIEW"
+            or report["hold_reason"] != "UNREFERENCED_PAGE_CONTENTS_REQUIRE_REVIEW"
+            or report["record_comparison"] != "UNAVAILABLE"
+            or report["companions"] != "ABSENT_OR_EMPTY_VERIFIED"
+            or report["inspection_copy_unchanged"] is not True
+            or not digest(report["inspection_sha256"]) or not digest(report["orphan_contents_sha256"])
+            or report["inspection_sha256"] != expected_sha256
+            or report["orphan_contents_sha256"] != contents["contents_sha256"]
+            or any(report[name] is not False for name in (
+                "candidate_created", "discard_admitted", "restore_admitted", "deployment_admitted",
+                "provider_writes_performed", "private_payloads_emitted", "record_equivalence_verified",
+                "all_bytes_semantically_explained"))):
+        return False
+    header, native, graph = report["database_header"], report["native_reachability"], report["freelist_graph"]
+    if not keys(header, "page_size page_count reserved_bytes_per_page freelist_head freelist_page_count "
+                        "largest_root_page incremental_vacuum") or any(not integer(value) for value in header.values()):
+        return False
+    size, count = header["page_size"], header["page_count"]
+    if (not 512 <= size <= 65536 or size & (size - 1) or count < 1
+            or count * size > min(orphan_forensics.MAX_DATABASE_BYTES, orphan_forensics.LOCK_BYTE_OFFSET)
+            or max(pages) > count or any(header[name] for name in (
+                "reserved_bytes_per_page", "largest_root_page", "incremental_vacuum"))):
+        return False
+    if any(not integer(value) for value in (contents["page_count"], contents["byte_count"],
+                                           report["orphan_page_count"], report["orphan_byte_count"])) \
+            or contents["page_count"] != len(pages) or report["orphan_page_count"] != len(pages) \
+            or contents["byte_count"] != len(pages) * size or report["orphan_byte_count"] != len(pages) * size:
+        return False
+    if (not keys(native, "state scope freelist_pointer_map_and_lock_pages_enumerated orphan_set_reconfirmed "
+                         "complete diagnostic_code reachable_page_count reachable_page_types inspector_sqlite_version")
+            or native["state"] != "OBSERVED" or native["scope"] != "SCHEMA_BTREES_AND_PAYLOAD_OVERFLOW"
+            or native["freelist_pointer_map_and_lock_pages_enumerated"] is not False
+            or native["orphan_set_reconfirmed"] is not True or native["complete"] is not True
+            or native["diagnostic_code"] != "DBSTAT_SCOPE_ENUMERATED"
+            or native["inspector_sqlite_version"] != sqlite3.sqlite_version
+            or not integer(native["reachable_page_count"], 1, count)
+            or not keys(native["reachable_page_types"], "internal leaf overflow")
+            or any(not integer(value, 0, count) for value in native["reachable_page_types"].values())
+            or sum(native["reachable_page_types"].values()) != native["reachable_page_count"]):
+        return False
+    if (not keys(graph, "schema state complete diagnostic_code allocation_scope whole_database_accounted "
+                        "orphan_bytes_structurally_accounted page_count page_size reachable_page_count "
+                        "attached_freelist detached_freelist byte_accounting")
+            or graph["schema"] != "szl.gdw-detached-freelist-layout/v1"
+            or graph["state"] != "STRUCTURALLY_ACCOUNTED" or graph["complete"] is not True
+            or graph["diagnostic_code"] != "UNIQUE_COMPLETE_ZERO_PADDED_DETACHED_FREELIST"
+            or graph["allocation_scope"] != "BTREES_OVERFLOW_ATTACHED_FREELIST_ORPHANS"
+            or graph["whole_database_accounted"] is not True or graph["orphan_bytes_structurally_accounted"] is not True
+            or any(not integer(graph[name]) for name in ("page_count", "page_size", "reachable_page_count"))
+            or graph["page_count"] != count or graph["page_size"] != size
+            or graph["reachable_page_count"] != native["reachable_page_count"]):
+        return False
+    attached, detached, accounting = graph["attached_freelist"], graph["detached_freelist"], graph["byte_accounting"]
+    if (not keys(attached, "head page_count trunk_count leaf_count page_numbers_sha256")
+            or any(not integer(attached[name], 0, count) for name in ("head", "page_count", "trunk_count", "leaf_count"))
+            or not digest(attached["page_numbers_sha256"])
+            or attached["head"] != header["freelist_head"] or attached["page_count"] != header["freelist_page_count"]
+            or attached["trunk_count"] + attached["leaf_count"] != attached["page_count"]
+            or attached["page_count"] + native["reachable_page_count"] + len(pages) != count):
+        return False
+    if attached["page_count"] == 0:
+        if attached["head"] != 0 or attached["page_numbers_sha256"] != hashlib.sha256(b"").hexdigest():
+            return False
+    elif attached["head"] < 2 or attached["head"] in pages or attached["trunk_count"] == 0:
+        return False
+    if (not keys(detached, "root_page page_count trunk_count leaf_count trunks zero_leaf_pages")
+            or any(not integer(detached[name], 1, len(pages)) for name in ("page_count", "trunk_count", "leaf_count"))
+            or not integer(detached["root_page"], 2, count) or detached["root_page"] not in pages
+            or detached["page_count"] != len(pages)
+            or detached["trunk_count"] + detached["leaf_count"] != len(pages)
+            or type(detached["trunks"]) is not list or len(detached["trunks"]) != detached["trunk_count"]
+            or type(detached["zero_leaf_pages"]) is not list
+            or len(detached["zero_leaf_pages"]) != detached["leaf_count"]
+            or any(not integer(number, 2, count) for number in detached["zero_leaf_pages"])):
+        return False
+    reconstructed = {number: bytearray(size) for number in pages}
+    owned, leaves = set(), []
+    current = detached["root_page"]
+    structural_bytes = 0
+    for trunk in detached["trunks"]:
+        check_budget(deadline)
+        if (not keys(trunk, "page_number next_trunk leaf_pages")
+                or not integer(trunk["page_number"], 2, count) or trunk["page_number"] != current
+                or current not in reconstructed or current in owned
+                or not integer(trunk["next_trunk"], 0, count)
+                or (trunk["next_trunk"] and trunk["next_trunk"] not in reconstructed)
+                or type(trunk["leaf_pages"]) is not list
+                or len(trunk["leaf_pages"]) > min(size // 4 - 8, len(pages))):
+            return False
+        owned.add(current)
+        fields = [trunk["next_trunk"], len(trunk["leaf_pages"])]
+        for leaf in trunk["leaf_pages"]:
+            check_budget(deadline)
+            if not integer(leaf, 2, count) or leaf not in reconstructed or leaf in owned:
+                return False
+            owned.add(leaf)
+            leaves.append(leaf)
+            fields.append(leaf)
+        structural_bytes += len(fields) * 4
+        for index, value in enumerate(fields):
+            reconstructed[current][index * 4:index * 4 + 4] = value.to_bytes(4, "big")
+        current = trunk["next_trunk"]
+    if current != 0 or owned != set(pages) or sorted(leaves) != detached["zero_leaf_pages"]:
+        return False
+    if (not keys(accounting, "total_bytes structural_bytes structural_nonzero_bytes zero_padding_and_leaf_bytes")
+            or any(not integer(value) for value in accounting.values())
+            or accounting["total_bytes"] != len(pages) * size
+            or accounting["structural_bytes"] != structural_bytes
+            or accounting["zero_padding_and_leaf_bytes"] != len(pages) * size - structural_bytes):
+        return False
+    if type(report["pages"]) is not list or len(report["pages"]) != len(pages):
+        return False
+    aggregate, nonzero_bytes = hashlib.sha256(), 0
+    for number, observation in zip(sorted(pages), report["pages"], strict=True):
+        check_budget(deadline)
+        raw = reconstructed[number]
+        nonzero = len(raw) - raw.count(0)
+        nonzero_bytes += nonzero
+        if (not keys(observation, "page_number byte_count nonzero_byte_count sha256 structure reachable_duplicate")
+                or any(not integer(observation[name]) for name in ("page_number", "byte_count", "nonzero_byte_count"))
+                or observation["page_number"] != number or observation["byte_count"] != size
+                or observation["nonzero_byte_count"] != nonzero
+                or not digest(observation["sha256"])
+                or observation["sha256"] != hashlib.sha256(raw).hexdigest()):
+            return False
+        layout, duplicate = observation["structure"], observation["reachable_duplicate"]
+        if (not keys(layout, "classification local_layout_validated overflow_chain_validation record_decoding")
+                or layout["classification"] != ("UNIDENTIFIED_BYTES" if nonzero else "ZERO_FILLED")
+                or layout["local_layout_validated"] is not False
+                or layout["overflow_chain_validation"] != "NOT_PERFORMED" or layout["record_decoding"] != "NOT_PERFORMED"
+                or not keys(duplicate, "state comparison_complete reachable_match_count reachable_match_page_numbers_sha256 "
+                                      "reachable_match_page_types")
+                or duplicate["state"] != "NO_FULL_PAGE_MATCH" or duplicate["comparison_complete"] is not True
+                or type(duplicate["reachable_match_count"]) is not int or duplicate["reachable_match_count"] != 0
+                or duplicate["reachable_match_page_numbers_sha256"] != hashlib.sha256(b"").hexdigest()
+                or not keys(duplicate["reachable_match_page_types"], "internal leaf overflow")
+                or any(type(value) is not int or value != 0 for value in duplicate["reachable_match_page_types"].values())):
+            return False
+        aggregate.update(number.to_bytes(8, "big"))
+        aggregate.update(raw)
+    check_budget(deadline)
+    return nonzero_bytes == accounting["structural_nonzero_bytes"] and aggregate.hexdigest() == contents["contents_sha256"]
 
 
 def _bindings_match(value: Mapping[str, Any], expected: Mapping[str, Any]) -> bool:
@@ -607,6 +786,48 @@ def receipt_continuity(connection: sqlite3.Connection, label: str, store_generat
     return counts
 
 
+def _input_identities(database: Path, deadline: float) -> dict:
+    observed = {}
+    for suffix in preservation.SUFFIXES:
+        check_budget(deadline)
+        try:
+            metadata = database.with_name(database.name + suffix).lstat()
+        except FileNotFoundError:
+            observed[suffix] = None
+        else:
+            observed[suffix] = orphan_forensics._token(metadata)
+    return observed
+
+
+def _require_absent_candidate(candidate: Path) -> None:
+    try:
+        candidate.lstat()
+    except FileNotFoundError:
+        return
+    # Path.exists() follows symlinks and misses a dangling destination. Any
+    # directory entry, including a dangling symlink, is an occupied candidate.
+    raise RecoveryError("CANDIDATE_DESTINATION_EXISTS")
+
+
+def _detached_vacuum(connection: sqlite3.Connection, original: Path, inspected: Path,
+                     candidate: Path, expected_sha256: str, header: dict, deadline: float) -> None:
+    # Hold both no-follow snapshots across the only operation that may create
+    # candidate bytes. Each context verifies complete bytes, path identity and
+    # every companion afterward. SQLite retains URI mode=ro for its source.
+    try:
+        with orphan_forensics._snapshot(original, deadline) as (captured, captured_sha), \
+                orphan_forensics._snapshot(inspected, deadline) as (inspection, inspection_sha):
+            if (captured_sha != expected_sha256 or inspection_sha != expected_sha256
+                    or captured != inspection or orphan_forensics._header(inspection) != header):
+                raise RecoveryError("DETACHED_FREELIST_INPUT_CHANGED")
+            check_budget(deadline)
+            _require_absent_candidate(candidate)
+            connection.execute("PRAGMA query_only=OFF")
+            connection.execute("VACUUM INTO ?", (str(candidate),))
+    except orphan_forensics.ForensicsError as exc:
+        raise RecoveryError(exc.code) from None
+
+
 def qualify_database(label: str, original: Path, working: Path, expected_generation: str,
                      deadline: float, *, historical_anchors: dict | None = None) -> dict:
     result: dict[str, Any] = {"state": "UNQUALIFIED", "restore_admitted": False,
@@ -618,6 +839,9 @@ def qualify_database(label: str, original: Path, working: Path, expected_generat
         inspected = working / "inspection" / original.name
         inspected.parent.mkdir(mode=0o700)
         originals = {}
+        captured_identities = {}
+        detached_candidate = False
+        inspection_identities = None
         companions = {suffix: {"present": False} for suffix in preservation.SUFFIXES if suffix}
         result["companions"] = companions
         for suffix in preservation.SUFFIXES:
@@ -625,10 +849,12 @@ def qualify_database(label: str, original: Path, working: Path, expected_generat
             try:
                 metadata = source.lstat()
             except FileNotFoundError:
+                captured_identities[suffix] = None
                 continue
             if not stat.S_ISREG(metadata.st_mode) or metadata.st_size > preservation.MAX_FILE_BYTES:
                 raise RecoveryError("CAPTURED_FILE_UNAVAILABLE")
             originals[source] = preservation._sha(source)
+            captured_identities[suffix] = orphan_forensics._token(metadata)
             if suffix:
                 companions[suffix] = {"present": True, "size": metadata.st_size,
                                       "sha256": originals[source]}
@@ -663,17 +889,24 @@ def qualify_database(label: str, original: Path, working: Path, expected_generat
                 raise RecoveryError("ORIGINAL_RECEIPT_BINDINGS_INVALID")
             original_anchor = historical_anchor(connection, label, observed_generation, historical_anchors, deadline)
             result["original_historical_anchor"] = original_anchor
-            # Retained rows and the historical anchor remain useful evidence
-            # even when nonzero orphan contents forbid candidate evaluation.
+            # The helper remains descriptive and HELD. Only the separate
+            # reconstructed-byte predicate may allow disposable evaluation.
             if status["classification"] == "UNREFERENCED_PAGES" \
                     and not result["unreferenced_page_contents"]["all_zero"]:
+                inspection_identities = _input_identities(inspected, deadline)
                 result["unreferenced_page_forensics"] = orphan_forensic_observation(
                     inspected, unreferenced_pages, deadline, originals[original],
                     result["unreferenced_page_contents"])
-                raise RecoveryError("UNREFERENCED_PAGE_CONTENTS_REQUIRE_REVIEW")
+                if not detached_freelist_candidate_evidence(
+                        result["unreferenced_page_forensics"], unreferenced_pages,
+                        result["unreferenced_page_contents"], originals[original], deadline):
+                    raise RecoveryError("UNREFERENCED_PAGE_CONTENTS_REQUIRE_REVIEW")
+                if (_input_identities(original, deadline) != captured_identities
+                        or _input_identities(inspected, deadline) != inspection_identities):
+                    raise RecoveryError("DETACHED_FREELIST_INPUT_CHANGED")
+                detached_candidate = True
             candidate = working / "candidate.sqlite3"
-            if candidate.exists():
-                raise RecoveryError("CANDIDATE_DESTINATION_EXISTS")
+            _require_absent_candidate(candidate)
             check_budget(deadline)
             if status["classification"] == "OK":
                 result["candidate_method"] = "SQLITE_NATIVE_BACKUP"
@@ -685,10 +918,13 @@ def qualify_database(label: str, original: Path, working: Path, expected_generat
                     target.close()
             else:
                 result["candidate_method"] = "SQLITE_VACUUM_INTO_DISPOSABLE_EVALUATION"
-                # URI mode=ro still protects this disposable source. query_only
-                # must be disabled for SQLite to create a distinct INTO file.
-                connection.execute("PRAGMA query_only=OFF")
-                connection.execute("VACUUM INTO ?", (str(candidate),))
+                if detached_candidate:
+                    _detached_vacuum(connection, original, inspected, candidate, originals[original],
+                                     result["unreferenced_page_forensics"]["database_header"], deadline)
+                else:
+                    # URI mode=ro still protects this disposable source.
+                    connection.execute("PRAGMA query_only=OFF")
+                    connection.execute("VACUUM INTO ?", (str(candidate),))
         finally:
             connection.close()
         check_budget(deadline)
@@ -709,6 +945,13 @@ def qualify_database(label: str, original: Path, working: Path, expected_generat
             raise RecoveryError("CANDIDATE_LOGICAL_CONTINUITY_FAILED")
         if any(preservation._sha(path) != digest for path, digest in originals.items()):
             raise RecoveryError("CAPTURED_ORIGINAL_CHANGED")
+        if detached_candidate:
+            if (_input_identities(original, deadline) != captured_identities
+                    or _input_identities(inspected, deadline) != inspection_identities
+                    or preservation._sha(inspected) != originals[original]):
+                raise RecoveryError("DETACHED_FREELIST_INPUT_CHANGED")
+            result["detached_freelist_candidate_contract"] = "BYTE_RECONSTRUCTED_DISPOSABLE_ONLY"
+            result["inspection_copy_unchanged"] = True
         check_budget(deadline)
         candidate_sha256 = preservation._sha(candidate)
         candidate_bytes = candidate.stat().st_size
