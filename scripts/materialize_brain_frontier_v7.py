@@ -15,8 +15,10 @@ import os
 import re
 import tempfile
 import urllib.error
+import urllib.parse
 import urllib.request
 from collections import Counter
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +26,14 @@ SECOND_BRAIN_REPOSITORY = "szl-holdings/szl-second-brain"
 ANATOMY_REPOSITORY = "szl-holdings/anatomy"
 FORMULA_REPOSITORY = "szl-holdings/szl-formulas"
 OUROBOROS_REPOSITORY = "szl-holdings/szl-ouroboros"
+FORUM_REPOSITORY = "szl-holdings/szl-science-forum-corpus"
+FORUM_PATH = "dataset/sources.public.jsonl"
+MAX_FORUM_PILOTS = 2
+MAX_RESEARCH_RECORDS = 96
+METADATA_REVISION_KIND = "metadata-capture-sha256"
+RESEARCH_REPOSITORIES = {"public-metadata/arxiv", "public-metadata/crossref"}
+ARXIV_IDENTIFIER = re.compile(r"^\d{4}\.\d{4,5}v[1-9]\d{0,2}$")
+DOI_IDENTIFIER = re.compile(r"^10\.\d{4,9}/[a-z0-9._;()/:-]{1,180}$")
 STATE_PATH = "data/frontier-state.v1.json"
 CANDIDATES_PATH = "data/frontier-candidates.public.jsonl"
 API_ORIGIN = "https://api.github.com"
@@ -42,7 +52,8 @@ ALLOWED_SOURCE_REPOSITORIES = {
     "szl-holdings/szl-forge",
     "szl-holdings/szl-nemo",
     "szl-holdings/szl-kernels",
-}
+    FORUM_REPOSITORY,
+} | RESEARCH_REPOSITORIES
 KIND_ORDER = {
     "formula-authority": 0,
     "quant-domain": 1,
@@ -52,10 +63,16 @@ KIND_ORDER = {
     "estate-authority": 5,
     "estate-surface": 6,
     "source-document": 7,
+    "forum-insight": 8,
+    "research-metadata": 9,
 }
 SAFE_DOMAIN = re.compile(r"[a-z0-9][a-z0-9_-]{0,79}")
 SAFE_PATH_SEGMENT = re.compile(r"[A-Za-z0-9_.-]+")
 UNSAFE_TITLE = re.compile(r"[\x00-\x1f\x7f-\x9f\ud800-\udfff]")
+SECRET_LIKE_METADATA = re.compile(
+    r"-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----|"
+    r"\b(?:sk-|gh[pousr]_|hf_)[A-Za-z0-9_-]{24,}\b|\bAKIA[0-9A-Z]{16}\b"
+)
 ALLOWED_ADMISSIONS = {
     "DISCOVERED_REVIEW_REQUIRED",
     "EXECUTABLE_CONSTRAINT_REVIEW_REQUIRED",
@@ -85,8 +102,119 @@ def sha256_bytes(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
 
 
+def research_text(value: Any) -> bool:
+    """Accept only the producer's bounded, sanitized scalar projection."""
+    return (isinstance(value, str) and 0 < len(value) <= 240
+            and not UNSAFE_TITLE.search(value)
+            and not SECRET_LIKE_METADATA.search(value)
+            and " ".join(re.sub(r"<[^>]{0,512}>", " ", value).split()) == value)
+
+
+def research_timestamp(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).tzinfo is not None
+    except ValueError:
+        return False
+
+
+def research_candidate_text(value: str, *, limit: int = 1600) -> str:
+    """Match Second Brain make_candidate's bounded public projection."""
+    value = value.replace("\x00", " ").replace("\r", "\n")
+    value = "\n".join(line.rstrip() for line in value.splitlines())
+    return re.sub(r"\n{3,}", "\n\n", value).strip()[:limit]
+
+
+def validate_research_metadata(row: dict[str, Any]) -> None:
+    """Verify metadata captures as metadata, never as Git or admission receipts.
+
+    The source file is bound to an exact Second Brain Git revision. These nested
+    captures bind normalized public metadata, not independently attested API bytes;
+    no paper text, remote URL, or metadata-provided instruction is fetched or run.
+    """
+    provenance = row.get("provenance")
+    provenance_keys = {"provider", "identifier", "capture_sha256", "response_sha256",
+                       "response_bytes", "request_url", "observed_at",
+                       "source_authentication", "metadata"}
+    if not isinstance(provenance, dict) or set(provenance) != provenance_keys:
+        raise MaterializationError("research metadata provenance is invalid")
+    metadata = provenance["metadata"]
+    metadata_keys = {"provider", "identifier", "canonical_url", "title", "authors",
+                     "published", "updated", "categories", "licence_urls",
+                     "metadata_licence", "full_text_licence"}
+    if not isinstance(metadata, dict) or set(metadata) != metadata_keys:
+        raise MaterializationError("research metadata projection is invalid")
+    provider, identifier = metadata["provider"], metadata["identifier"]
+    if (not isinstance(provider, str) or provider not in {"arxiv", "crossref"} or not isinstance(identifier, str)
+            or not (ARXIV_IDENTIFIER if provider == "arxiv" else DOI_IDENTIFIER).fullmatch(identifier)
+            or provenance["provider"] != provider or provenance["identifier"] != identifier
+            or row.get("source_repository") != f"public-metadata/{provider}"
+            or row.get("source_path") != identifier
+            or row.get("source_kind") != "research-metadata"
+            or row.get("source_revision_kind") != METADATA_REVISION_KIND
+            or row.get("admission") != "DISCOVERED_REVIEW_REQUIRED"
+            or "quant_domain" in row):
+        raise MaterializationError("research metadata source binding is invalid")
+    prefix = "https://arxiv.org/abs/" if provider == "arxiv" else "https://doi.org/"
+    if (metadata["canonical_url"] != prefix + identifier
+            or not research_text(metadata["title"])
+            or row.get("title") != research_candidate_text(metadata["title"], limit=180)
+            or metadata["full_text_licence"] != "NOT_INFERRED"):
+        raise MaterializationError("research metadata title, URL, or rights binding is invalid")
+    for field, bound in (("authors", 32), ("categories", 12), ("licence_urls", 8)):
+        values = metadata[field]
+        if not isinstance(values, list) or len(values) > bound or not all(research_text(value) for value in values):
+            raise MaterializationError("research metadata scalar bound is invalid")
+    if provider == "arxiv":
+        requests = {"https://export.arxiv.org/api/query?" + urllib.parse.urlencode(
+            {"id_list": item, "max_results": 1}) for item in (identifier, identifier.split("v")[0])}
+        if (metadata["metadata_licence"] != "CC0-1.0"
+                or not research_timestamp(metadata["published"])
+                or not research_timestamp(metadata["updated"])):
+            raise MaterializationError("research arXiv date or licence binding is invalid")
+    else:
+        requests = {"https://api.crossref.org/works/" + urllib.parse.quote(identifier, safe="")}
+        if metadata["metadata_licence"] != "NOT_DECLARED_BY_RESPONSE" or metadata["updated"] is not None:
+            raise MaterializationError("research Crossref revision or licence was inferred")
+        published = metadata["published"]
+        if published is not None:
+            if not isinstance(published, str) or not re.fullmatch(r"\d{4}(?:-\d{2})?(?:-\d{2})?", published):
+                raise MaterializationError("research publication date is invalid")
+            fields = [int(field) for field in published.split("-")]
+            try:
+                date(*(fields + [1] * (3 - len(fields))))
+            except ValueError as exc:
+                raise MaterializationError("research publication date is invalid") from exc
+    if (not isinstance(provenance["request_url"], str) or provenance["request_url"] not in requests
+            or not research_timestamp(provenance["observed_at"])
+            or not isinstance(provenance["response_sha256"], str)
+            or not HEX_64.fullmatch(provenance["response_sha256"])
+            or type(provenance["response_bytes"]) is not int
+            or not 0 < provenance["response_bytes"] <= 256 * 1024
+            or provenance["source_authentication"] != "PUBLIC_HTTPS_METADATA_NOT_INDEPENDENT_ATTESTATION"):
+        raise MaterializationError("research metadata response receipt is invalid")
+    measured = sha256_bytes(canonical_bytes(metadata))
+    if row.get("source_revision") != measured or provenance["capture_sha256"] != measured:
+        raise MaterializationError("research metadata capture digest mismatch")
+    content = "\n".join((metadata["title"], "Authors: " + ", ".join(metadata["authors"]),
+                         "Identifier: " + identifier, "Publication date: " + str(metadata["published"]),
+                         "Categories: " + ", ".join(metadata["categories"]),
+                         "Metadata licence: " + metadata["metadata_licence"],
+                         "Full text licence: NOT_INFERRED", "Source: " + metadata["canonical_url"]))
+    if row.get("content") != research_candidate_text(content):
+        raise MaterializationError("research metadata content projection mismatch")
+
+
 def validate_metadata(row: dict[str, Any]) -> None:
     """Accept the same bounded, scalar metadata that the browser can display."""
+    if (row.get("source_kind") == "research-metadata"
+            or (isinstance(row.get("source_repository"), str)
+                and row["source_repository"] in RESEARCH_REPOSITORIES)):
+        validate_research_metadata(row)
+        return
+    if "source_revision_kind" in row:
+        raise MaterializationError("Git source cannot claim a metadata revision kind")
     title = row.get("title")
     if (not isinstance(title, str) or not title.strip() or len(title) > 180
             or UNSAFE_TITLE.search(title)):
@@ -102,6 +230,14 @@ def validate_metadata(row: dict[str, Any]) -> None:
     admission = row.get("admission")
     if admission not in ALLOWED_ADMISSIONS:
         raise MaterializationError("frontier candidate admission is invalid")
+    # Second Brain binds two operator-reviewed summaries to this one fixed source.
+    if kind == "forum-insight" or row.get("source_repository") == FORUM_REPOSITORY:
+        if (kind != "forum-insight"
+                or row.get("source_repository") != FORUM_REPOSITORY
+                or path != FORUM_PATH
+                or admission != "DISCOVERED_REVIEW_REQUIRED"
+                or "quant_domain" in row):
+            raise MaterializationError("frontier forum pilot binding is invalid")
     domain = row.get("quant_domain")
     if "quant_domain" in row or kind == "quant-domain":
         if not isinstance(domain, str) or not SAFE_DOMAIN.fullmatch(domain):
@@ -230,7 +366,8 @@ def validate_frontier(
         if repository not in ALLOWED_SOURCE_REPOSITORIES:
             raise MaterializationError("frontier source repository is outside the allowlist")
         revision = str(row.get("source_revision") or "")
-        if not HEX_40.fullmatch(revision):
+        revision_pattern = HEX_64 if row.get("source_kind") == "research-metadata" else HEX_40
+        if not revision_pattern.fullmatch(revision):
             raise MaterializationError("frontier source revision is not exact")
         if row.get("candidate_state") != "DISCOVERED_REVIEW_REQUIRED":
             raise MaterializationError("frontier candidate was promoted")
@@ -252,6 +389,10 @@ def validate_frontier(
         raise MaterializationError("frontier candidate-set digest mismatch")
     if type(state.get("candidate_count")) is not int or len(rows) != state["candidate_count"]:
         raise MaterializationError("frontier candidate count mismatch")
+    if kinds["forum-insight"] > MAX_FORUM_PILOTS:
+        raise MaterializationError("frontier forum pilot count drifted")
+    if kinds["research-metadata"] > MAX_RESEARCH_RECORDS:
+        raise MaterializationError("frontier research metadata count exceeded its bound")
     if kinds["formula-authority"] != 1:
         raise MaterializationError("formula authority is missing")
     if kinds["attributed-formula"] != 30:
@@ -351,6 +492,8 @@ def select_handles(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         }
         if row.get("quant_domain"):
             handle["quantDomain"] = row["quant_domain"]
+        if row["source_kind"] == "research-metadata":
+            handle["revisionKind"] = METADATA_REVISION_KIND
         handles.append(handle)
     return handles
 
