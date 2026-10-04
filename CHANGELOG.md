@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - model-namespace payload card presentation
+
+- Add the shared SZL mark, Command Lab and source links, software artifact type,
+  and visible qualification limits to the A11oy payload card. Preserve its complete
+  original metadata and technical body; retain the existing manual payload writer
+  and all deployment, doctrine and publication gates.
+
 ### Changed - source-owned Hugging Face card presentation
 
 - Lead the A11oy card with the shared SZL mark, clear exploration and build paths,

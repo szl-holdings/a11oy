@@ -1,0 +1,94 @@
+{
+  "_notice": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "schema": "szl.hf.model-payload-card-presentation.v1",
+  "source_repository": "szl-holdings/a11oy",
+  "source_revision_before_presentation": "45094f7eca0b5818e51d594e0d4ad8efec47d35c",
+  "cards": [
+    {
+      "kind": "models",
+      "repo_id": "SZLHOLDINGS/a11oy-v19-substrate",
+      "source_repository": "szl-holdings/a11oy",
+      "source_revision_before_presentation": "45094f7eca0b5818e51d594e0d4ad8efec47d35c",
+      "source_path": "huggingface/README.md",
+      "source_url": "https://github.com/szl-holdings/a11oy/blob/45094f7eca0b5818e51d594e0d4ad8efec47d35c/huggingface/README.md",
+      "presentation": {
+        "kind": "models",
+        "repo_id": "SZLHOLDINGS/a11oy-v19-substrate",
+        "hub_revision": "41a9a71d782adb6effd4a0af69dc684d5acded08",
+        "title": "A11oy \u00b7 Governed Substrate",
+        "summary": "Review the software, deployment manifests and retained verification evidence behind A11oy\u2019s governed execution substrate.",
+        "artifact_type": "Software and diligence payload",
+        "stage": "Source package \u00b7 runtime admission remains separate",
+        "build_url": "https://github.com/szl-holdings/a11oy",
+        "evidence_url": "https://github.com/szl-holdings/a11oy/blob/45094f7eca0b5818e51d594e0d4ad8efec47d35c/huggingface/README.md",
+        "visible_limits": [
+          "This distribution contains software and evidence; it provides no standalone neural weights or Transformers inference checkpoint.",
+          "Published documentation does not establish current service availability, measured energy, compliance or a new verified release.",
+          "Deployment retains the existing doctrine, payload-manifest, ecosystem and source-publication checks. The detailed source below preserves its dated context."
+        ]
+      },
+      "before_sha256": "7f1b6fd57b987b2fe768096fab3d328b15addf2909bc7c273ace53a605345bf1",
+      "after_sha256": "a0130da7f79e667300f1da01c160d36d8fc56b3dfaa47ca5e5890d3c62ae5bfb",
+      "front_matter_sha256": "e8bcd0bf063e540b7dfacdd111ebdc3130d6faddfd02e2b4fda3ff038d705748",
+      "preserved_body_sha256": "fbdf226d6580f7d79fdbc0198b9ba59795e5dc1e2f0a4d8f5d322ace5bb7ba7e",
+      "bytes_before": 6787,
+      "bytes_after": 8715,
+      "front_matter_preserved": true,
+      "original_body_preserved": true,
+      "publisher_repository": "szl-holdings/a11oy",
+      "publisher_workflow": ".github/workflows/huggingface.yml",
+      "publisher_path": "scripts/publish_huggingface_payload.py",
+      "stager_path": "scripts/prepare_huggingface_payload.py",
+      "publication_trigger": "MANUAL_BROAD_PAYLOAD_WORKFLOW_DISPATCH",
+      "publication_state": "SOURCE_CANDIDATE_ONLY_NO_PAYLOAD_EVENT",
+      "publication_boundary": "The established manual workflow packages software, deployment manifests and evidence. This presentation does not execute it or claim a card-only publisher. The separate canonical A11oy Space preservation/parity gates remain intact.",
+      "artifact_or_owner_contracts_changed": false,
+      "stager_publisher_workflow_changed": false,
+      "provider_observation": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "14776b3f4ec1f246c2bbb8f2729bb0532c36a91a8b675da163d7f02bacd8f076",
+        "error": null,
+        "hub_revision": "41a9a71d782adb6effd4a0af69dc684d5acded08",
+        "observed_at": "2026-10-04T16:22:38.833035+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/a11oy-v19-substrate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "provider_support": {
+        "requests": [
+          {
+            "author": "betterwithage",
+            "body_sha256": null,
+            "discussion_number": 10649,
+            "evidence_kind": "PRIOR_DISCUSSION",
+            "model_id": "SZLHOLDINGS/a11oy-v19-substrate",
+            "model_revision": null,
+            "readback_at": null,
+            "readback_body_sha256": null,
+            "readback_normalization": null,
+            "recorded_status": "open",
+            "requested_at": null,
+            "url": "https://huggingface.co/spaces/huggingface/InferenceSupport/discussions/10649"
+          }
+        ],
+        "state": "PRIOR_DISCUSSION_RECORDED"
+      },
+      "provider_source_file": "docs/model-inference-support.json",
+      "provider_source_capture_sha256": "21ec68cc11aca8da10987c764bd6f980e834b8f3470ebc9e06836d89850cab37",
+      "source_body_distinct_from_hub_body": true,
+      "central_apply_allowed": false,
+      "provider_source_repository": "szl-holdings/a11oy",
+      "provider_source_revision": "9881e41db44c352c5cf072322c7e268de15399d5",
+      "provider_source_url": "https://github.com/szl-holdings/a11oy/blob/9881e41db44c352c5cf072322c7e268de15399d5/docs/model-inference-support.json",
+      "provider_source_admission": "OPEN_SOURCE_PR_2539_AT_CAPTURE; no runtime source admission inferred",
+      "hub_observation": {
+        "hub_revision": "41a9a71d782adb6effd4a0af69dc684d5acded08",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/a11oy-v19-substrate/resolve/41a9a71d782adb6effd4a0af69dc684d5acded08/README.md",
+        "observed_at": "2026-10-04T16:08:25.291180+00:00",
+        "state": "EXACT_PUBLIC_CARD",
+        "sha256": "5868a07952d1868adcd7ef53486c19212f1bc084f3390ade22705b51c086634f",
+        "bytes": 7464
+      }
+    }
+  ]
+}

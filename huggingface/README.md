@@ -14,6 +14,33 @@ tags:
 pretty_name: A11oy Governed Agentic Execution Fabric
 ---
 
+<p><a href="https://huggingface.co/spaces/SZLHOLDINGS/szl-command-lab"><img src="https://raw.githubusercontent.com/szl-holdings/.github/main/profile/assets/szl/logos/szl_mark_holographic.svg" alt="SZL Holdings" width="112" /></a></p>
+
+# A11oy · Governed Substrate
+
+Review the software, deployment manifests and retained verification evidence behind A11oy’s governed execution substrate.
+
+**Artifact:** Software and diligence payload · **Stage:** Source package · runtime admission remains separate
+
+[Explore in Command Lab](https://huggingface.co/spaces/SZLHOLDINGS/szl-command-lab) · [Build](https://github.com/szl-holdings/a11oy) · [Evidence](https://github.com/szl-holdings/a11oy/blob/45094f7eca0b5818e51d594e0d4ad8efec47d35c/huggingface/README.md)
+
+**Inference Providers:** no provider listed ([Hub observation](https://huggingface.co/api/models/SZLHOLDINGS/a11oy-v19-substrate?expand[]=inferenceProviderMapping&expand[]=sha), 2026-10-04T16:22:38.833035+00:00).
+
+[Prior provider compatibility discussion](https://huggingface.co/spaces/huggingface/InferenceSupport/discussions/10649). Provider adoption and artifact qualification remain separate.
+
+## Before you use it
+
+- This distribution contains software and evidence; it provides no standalone neural weights or Transformers inference checkpoint.
+- Published documentation does not establish current service availability, measured energy, compliance or a new verified release.
+- Deployment retains the existing doctrine, payload-manifest, ecosystem and source-publication checks. The detailed source below preserves its dated context.
+
+<details>
+<summary>Technical details and original evidence</summary>
+
+The retained source below is exact and may contain historical observations. Its dates, use restrictions, licenses and evidence boundaries continue to apply.
+
+<!-- SZL-PRESERVED-TECHNICAL-BODY:START -->
+
 # A11oy — governed execution fabric
 
 **A11oy is not a model checkpoint.** It is a governed execution substrate:
@@ -169,3 +196,7 @@ or overwrite them with the tracked files in this packet before sharing the mirro
 The canonical release, CI, and provenance records remain in GitHub. Hugging Face
 is used as a public discovery and distribution surface for the Series-A review
 packet and operator payload metadata.
+
+<!-- SZL-PRESERVED-TECHNICAL-BODY:END -->
+
+</details>
