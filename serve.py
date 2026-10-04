@@ -5393,7 +5393,6 @@ def _ledger_storage_signal(ttl: float = 15.0) -> dict:
 # Both are guarded + cached (never block the health path, never crash it, never
 # fabricate). Λ = Conjecture 1; no label is upgraded here.
 _SIGNER_HEALTH_CACHE: dict = {}
-_FRONTIER_HEALTH_CACHE: dict = {}
 
 
 def _signer_availability_signal(ttl: float = 30.0) -> dict:
@@ -5420,14 +5419,10 @@ def _signer_availability_signal(ttl: float = 30.0) -> dict:
     return val
 
 
-def _frontier_liveness_signal(ttl: float = 30.0) -> dict:
-    now = _hz_time.time()
-    ca = _FRONTIER_HEALTH_CACHE.get("checked_at")
-    if ca is not None and (now - ca) < ttl:
-        return _FRONTIER_HEALTH_CACHE.get("value", {})
+def _frontier_liveness_signal() -> dict:
     try:
         import szl_frontier_manifest as _szl_fm_health
-        manifest = _szl_fm_health.build_manifest()
+        manifest = _szl_fm_health.build_manifest(app)
         summary = manifest["summary"]
         total = summary["tiles"]
         source = summary["source_reachability"]
@@ -5460,7 +5455,6 @@ def _frontier_liveness_signal(ttl: float = 30.0) -> dict:
         val = {"status": "unavailable", "endpoints_total": None,
                "endpoints_live": None,
                "error": f"{type(exc).__name__}: {exc}"}
-    _FRONTIER_HEALTH_CACHE.update({"checked_at": now, "value": val})
     return val
 
 

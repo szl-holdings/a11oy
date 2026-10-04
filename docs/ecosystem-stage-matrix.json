@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-10-03T09:09:58Z",
+  "observedAt": "2026-10-03T11:25:22Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -27,7 +27,7 @@
     "githubReadinessEntries": 19,
     "huggingFacePublic": {
       "models": 47,
-      "datasets": 36,
+      "datasets": 37,
       "spaces": 34
     },
     "huggingFaceScope": {
@@ -1518,6 +1518,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/datasets/SZLHOLDINGS/szl-science-forum-corpus"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-second-brain-frontier-candidates",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/szl-second-brain-frontier-candidates"
       ]
     },
     {

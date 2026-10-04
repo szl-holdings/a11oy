@@ -100,9 +100,10 @@ ORG = os.environ.get("SZL_GITHUB_ORG", "szl-holdings")
 HF_ORG = os.environ.get("SZL_HF_ORG", "SZLHOLDINGS")
 RAG_DB_PATH = os.environ.get("A11OY_ORG_RAG_DB", "/app/data/a11oy_org_rag.db")
 GITHUB_API = "https://api.github.com"
-# Per the founder doctrine the platform injects the GitHub token at the network
-# layer; the env var below may also carry it on Hetzner / local runs.
-_GH_ENV_KEYS = ("CUSTOM_CRED_API_GITHUB_COM_TOKEN", "GITHUB_TOKEN", "GH_TOKEN")
+# Prefer the canonical runtime's optional public reader; retain local/CI aliases.
+# Credential presence is not an authorization or corpus-completeness claim.
+_GH_ENV_KEYS = ("A11OY_GITHUB_PUBLIC_READ_TOKEN", "CUSTOM_CRED_API_GITHUB_COM_TOKEN",
+                "GITHUB_TOKEN", "GH_TOKEN")
 # File extensions worth indexing as code/text (skip binaries).
 _TEXT_EXT = {".py", ".ts", ".tsx", ".js", ".jsx", ".lean", ".md", ".json", ".yaml",
              ".yml", ".toml", ".cfg", ".txt", ".html", ".css", ".sh", ".rs", ".go"}
@@ -1409,7 +1410,11 @@ def build_seed_index(emit_receipt: Callable[[str, dict], dict] | None = None) ->
         meta = {
             "built": (chunk_count > 0 or brain_handles["count"] > 0),
             "mode": "seed", "ts": time.time(), "org": ORG,
-            "repos": len({s for s in per_cat}), "chunks": chunk_count, "files": files_ok,
+            "repos": conn.execute(
+                "SELECT COUNT(DISTINCT repo) AS n FROM org_chunks_gen WHERE generation_id=?",
+                (generation_id,),
+            ).fetchone()["n"],
+            "chunks": chunk_count, "files": files_ok,
             "fts5": has_fts5, "dense": embed_fn is not None,
             "node_count": len(graph.nodes), "edge_count": len(graph.edges),
             "build_ms": round((time.time() - t0) * 1000, 1),

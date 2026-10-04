@@ -61,6 +61,34 @@ def _stage(conn, generation_id: str, title: str) -> rag.OrgGraph:
     return graph
 
 
+def test_seed_reader_uses_canonical_runtime_alias_and_keeps_anonymous_fallback(monkeypatch):
+    for name in rag._GH_ENV_KEYS:
+        monkeypatch.delenv(name, raising=False)
+    assert rag._gh_token() == ""
+    monkeypatch.setenv("GITHUB_TOKEN", "test-local-reader")
+    assert rag._gh_token() == "test-local-reader"
+    monkeypatch.setenv("A11OY_GITHUB_PUBLIC_READ_TOKEN", "test-canonical-public-reader")
+    assert rag._gh_token() == "test-canonical-public-reader"
+
+
+def test_seed_repository_count_measures_indexed_sources_not_declared_categories(monkeypatch, tmp_path):
+    _reset_runtime(monkeypatch, tmp_path / "seed.sqlite3")
+    monkeypatch.setattr(rag, "SZL_CORPUS", {
+        "one": {"label": "One", "seed": ["README.md"], "gh_repos": ["one-repo"]},
+        "two": {"label": "Two", "seed": ["POLICY.md"], "gh_repos": ["one-repo"]},
+        "unavailable": {"label": "Unavailable", "seed": ["missing.md"], "gh_repos": ["missing-repo"]},
+    })
+    monkeypatch.setattr(rag, "_gh_raw", lambda repo, path, token:
+                        f"Real fixture bytes for {path}" if repo == "one-repo" else None)
+    monkeypatch.setattr(rag, "_resolve_m1_ledger", lambda: None)
+    result = rag.build_seed_index()
+    assert result["built"] is True
+    assert result["repos"] == 1
+    assert result["files"] == result["chunks"] == 2
+    assert result["per_category"]["unavailable"] == {"files": 0, "chunks": 0}
+    assert rag.status()["repos"] == 1
+
+
 def test_brain_handles_are_searchable_but_never_training_authority(monkeypatch, tmp_path):
     _reset_runtime(monkeypatch, tmp_path / "rag.sqlite3")
     ledger = _write_ledger(tmp_path / "brain-ingest-ledger.jsonl")

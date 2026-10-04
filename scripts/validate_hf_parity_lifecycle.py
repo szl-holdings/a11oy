@@ -8,8 +8,8 @@ three-stage lifecycle:
 
 1. pull_request: prove the already-deployed protected base;
 2. hf-sync: publish and relock exact merged main;
-3. schedule/manual/post-deploy dispatch: prove Hub bytes and served source both
-   equal the exact protected main revision.
+3. schedule/manual/awaited post-deploy call: prove Hub bytes and served source
+   both equal the exact protected main revision.
 
 This script is standard-library only and performs no network or provider write.
 """
@@ -26,8 +26,11 @@ MARKER = "lifecycle: post-deployment-repository-parity/v1"
 SELECTOR = "select_hf_candidate_admission.py"
 VERIFIER = "verify_hf_repository_parity.py"
 TOOLS_PIN = "0816263f1e83734658d6e5a8a7cd3834f36a2054"
-POST_DEPLOY_DISPATCH = (
-    'gh workflow run hf-module-drift.yml --repo "$GITHUB_REPOSITORY" --ref main'
+POST_DEPLOY_CALL = "uses: ./.github/workflows/hf-module-drift.yml"
+TERMINAL_AUTHORIZATION_JOB = "terminal-source-authorization"
+TERMINAL_AUTHORIZATION_NEEDS = (
+    "needs: [post-deployment-parity, publish-vertical-flagships, "
+    "publish-finance-projection]"
 )
 
 
@@ -73,7 +76,12 @@ def validate_text(workflow: str, sync_workflow: str) -> list[str]:
     trigger_prefix = workflow.split("\npermissions:", 1)[0]
     if "\n  push:" in trigger_prefix:
         errors.append("hf-module-drift must not run directly on push before publication")
-    for token in ("  pull_request:", "  schedule:", "  workflow_dispatch:"):
+    for token in (
+        "  pull_request:",
+        "  schedule:",
+        "  workflow_dispatch:",
+        "  workflow_call:",
+    ):
         require(trigger_prefix, token, f"workflow trigger missing {token.strip()}", errors)
 
     base = job_block(workflow, "hf-module-drift")
@@ -116,16 +124,93 @@ def validate_text(workflow: str, sync_workflow: str) -> list[str]:
     forbid(repository, "--base-ref", "post-deployment parity must compare exact main directly with the Hub", errors)
     forbid(repository, SELECTOR, "post-deployment parity must not invoke the historical candidate selector", errors)
 
+    awaited = job_block(sync_workflow, "post-deployment-parity")
+    if not awaited:
+        errors.append("awaited post-deployment parity job is missing")
     require(
+        awaited,
+        "name: Await strict live and repository parity",
+        "awaited post-deployment parity name drifted",
+        errors,
+    )
+    require(
+        awaited,
+        "needs: relock",
+        "post-deployment parity must wait for the relock job",
+        errors,
+    )
+    require(
+        awaited,
+        POST_DEPLOY_CALL,
+        "hf-sync must await the local parity workflow after publication",
+        errors,
+    )
+
+    terminal = job_block(sync_workflow, TERMINAL_AUTHORIZATION_JOB)
+    if not terminal:
+        errors.append("terminal exact-main authorization job is missing")
+    require(
+        terminal,
+        "name: Re-authorize exact protected main after all publication proofs",
+        "terminal exact-main authorization name drifted",
+        errors,
+    )
+    require(
+        terminal,
+        TERMINAL_AUTHORIZATION_NEEDS,
+        "terminal exact-main authorization must wait for parity and publication leaves",
+        errors,
+    )
+    for token, error in (
+        (
+            "scripts/hf_exact_main_ownership.py",
+            "terminal exact-main authorization helper is missing",
+        ),
+        (
+            '--expected-sha "$GITHUB_SHA"',
+            "terminal exact-main authorization is not bound to the workflow source",
+        ),
+        (
+            "terminal-source-authorization.json",
+            "terminal exact-main authorization receipt is missing",
+        ),
+        (
+            "terminal-source-authorization-final.json",
+            "terminal exact-main authorization final receipt is missing",
+        ),
+        (
+            "grep -Fqx 'publish=true'",
+            "terminal exact-main authorization final result is not enforced",
+        ),
+    ):
+        require(terminal, token, error, errors)
+    if terminal.count("scripts/hf_exact_main_ownership.py") != 2:
+        errors.append("terminal exact-main authorization must perform two live readbacks")
+    final_step = "Re-read and enforce exact protected-main ownership as the final step"
+    final_step_index = terminal.find(final_step)
+    if final_step_index < 0 or terminal.find("\n      - name:", final_step_index) >= 0:
+        errors.append("terminal exact-main re-read must be the last executable step")
+    forbid(terminal, "secrets.", "terminal exact-main authorization must not receive secrets", errors)
+    forbid(terminal, "HF_TOKEN", "terminal exact-main authorization must stay provider-read-only", errors)
+    forbid(
         sync_workflow,
-        POST_DEPLOY_DISPATCH,
-        "hf-sync must dispatch the parity workflow against protected main after publication",
+        "gh workflow run hf-module-drift.yml",
+        "hf-sync must not fire-and-forget the parity workflow",
+        errors,
+    )
+    forbid(
+        sync_workflow,
+        "actions: write",
+        "hf-sync no longer needs workflow-dispatch write authority",
         errors,
     )
     deploy_index = sync_workflow.find("Deploy, source-bind, and attest exact surface")
-    dispatch_index = sync_workflow.find(POST_DEPLOY_DISPATCH)
-    if deploy_index < 0 or dispatch_index < 0 or dispatch_index <= deploy_index:
-        errors.append("post-deployment parity dispatch must appear after the governed publication job")
+    call_index = sync_workflow.find(POST_DEPLOY_CALL)
+    if deploy_index < 0 or call_index < 0 or call_index <= deploy_index:
+        errors.append("awaited post-deployment parity must appear after the governed publication job")
+    terminal_index = sync_workflow.find(f"  {TERMINAL_AUTHORIZATION_JOB}:")
+    if call_index < 0 or terminal_index < 0 or terminal_index <= call_index:
+        errors.append("terminal exact-main authorization must appear after awaited parity")
 
     return errors
 

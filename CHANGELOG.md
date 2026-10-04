@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - estate retrieval lifecycle and shared source parity
+- Initialize the bounded estate seed index through the deployment lifecycle and
+  reuse verified generations. Public retrieval reads the published index without
+  creating storage, loading a model, or signing; missing indexes remain unavailable.
+- Recognize the runtime's optional public GitHub reader and report repository
+  counts from indexed sources. Keep receipt creation on the operator-gated estate
+  query route, and bind the shared retrieval/auth files to the matching peer PR.
+- Run the RAG, Ayllu, and route contracts with a hashed dependency extension in CI.
+
+### Fixed - frontier health app observation
+- Pass the registered application to the frontier health manifest so its governance
+  rollup reads that process's restraint observation. Missing signer readiness,
+  unverified receipts, and placeholder signatures continue to block readiness.
+- Use the manifest's app-aware cache directly so a cached health verdict cannot
+  outlive the manifest's signer readiness and identity recheck.
+
 ### Fixed - proof HTML provider injection admission
 - Add a read-only default Cloudflare RUM audit for the exact `a11oy.net` property.
   A separate manual apply requires the previous settings hash, permits one

@@ -7,10 +7,14 @@ import argparse
 import json
 import os
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
 ACTIVE_STAGES = frozenset({"RUNNING", "BUILDING", "RUNNING_BUILDING"})
+STARTING_STAGE = "RUNNING_APP_STARTING"
+STARTING_RECHECKS = 12
+STARTING_RECHECK_SECONDS = 10
 
 
 def _stage(value: object) -> str:
@@ -47,6 +51,22 @@ def resume_if_paused(
     if stage in ACTIVE_STAGES:
         report["action"] = "ALREADY_ACTIVE"
         return
+
+    if stage == STARTING_STAGE:
+        # A previous publish can still be starting when this queued source runs.
+        # Observe only this known transition; never restart or reallocate it.
+        for attempt in range(1, STARTING_RECHECKS + 1):
+            time.sleep(STARTING_RECHECK_SECONDS)
+            runtime = api.get_space_runtime(repo_id=repo_id)
+            stage = _stage(getattr(runtime, "stage", None))
+            report["rechecks"] = attempt
+            report["final_stage"] = stage
+            if stage in ACTIVE_STAGES:
+                report["action"] = "ALREADY_ACTIVE"
+                return
+            if stage != STARTING_STAGE:
+                break
+        raise RuntimeError(f"canonical Space did not become active after rechecks: {stage}")
 
     raise RuntimeError(f"canonical Space is neither paused nor active: {stage}")
 

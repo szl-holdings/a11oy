@@ -12,6 +12,8 @@ Importing this module performs no network or provider mutation.
 from __future__ import annotations
 
 import importlib.util
+import hashlib
+import json
 import os
 from pathlib import Path
 from types import ModuleType
@@ -258,6 +260,44 @@ _BASE.upload_text = upload_text
 def readme(item: dict[str, Any]) -> str:
     _sync_contract()
     return _BASE.readme(item)
+
+
+def render_sentra_payload(
+    source_revision: str, workflow_run_id: int
+) -> tuple[dict[str, bytes], dict[str, Any]]:
+    """Render the existing seven-file contract without entering its writer."""
+    if (len(source_revision) != 40
+            or any(ch not in "0123456789abcdef" for ch in source_revision)
+            or source_revision == "0" * 40):
+        raise ValueError("Sentra requires an exact source revision")
+    if type(workflow_run_id) is not int or workflow_run_id <= 0:
+        raise ValueError("Sentra requires a positive workflow run id")
+    matches = [item for item in FLAGSHIPS if item["slug"] == "sentra"]
+    if len(matches) != 1:
+        raise ValueError("Sentra renderer inventory is ambiguous")
+    item = matches[0]
+    page = html(item)
+    card = readme(item)
+    page_sha = hashlib.sha256(page.encode("utf-8")).hexdigest()
+    artifacts = artifact_digest(APP, DOCKER, REQ, page, page, card, "null")
+    config = json.dumps({
+        "slug": "sentra", "title": item["title"], "vertical": item["vertical"],
+        "product_source": item["source"], "source_repository": DEPLOYMENT_SOURCE_REPOSITORY,
+        "source_revision": source_revision, "workflow_run_id": workflow_run_id,
+        "hf_repository": "SZLHOLDINGS/sentra", "artifact_set_sha256": artifacts,
+        "landing_sha256": page_sha, "panels_sha256": page_sha, "forge": None,
+        "upstream": item["upstream"], "public_experience": PUBLIC_EXPERIENCE_VERSION,
+    }, indent=2, sort_keys=True) + "\n"
+    files = {path: content.encode("utf-8") for path, content in (
+        ("app.py", APP), ("Dockerfile", DOCKER), ("requirements.txt", REQ),
+        ("config.json", config), ("index.html", page), ("panels.html", page), ("README.md", card),
+    )}
+    row = {"id": "SZLHOLDINGS/sentra", "slug": "sentra", "source": item["source"],
+           "source_revision": source_revision, "workflow_run_id": workflow_run_id,
+           "artifact_set_sha256": artifacts, "landing_sha256": page_sha,
+           "panels_sha256": page_sha, "forge": None,
+           "root_marker": PUBLIC_EXPERIENCE_MARKER, "actions": []}
+    return files, row
 
 
 def main() -> int:

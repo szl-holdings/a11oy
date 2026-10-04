@@ -14,7 +14,7 @@ name: HF Space module-drift guard
 #
 # Pushes do not run this workflow because they race publication. Every main
 # push enters hf-sync without a path filter; hf-sync deploys, restarts, relocks,
-# and only then dispatches this workflow against protected main.
+# and only then awaits this workflow against protected main.
 #
 # The historical selector `select_hf_candidate_admission.py` remains available
 # for explicit forensic replay, but this lifecycle workflow never invokes it.
@@ -25,6 +25,7 @@ on:
   schedule:
     - cron: '37 6 * * 1'
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read

@@ -743,6 +743,18 @@ class ServeAppGate(unittest.TestCase):
                                    if m - {"GET", "HEAD", "OPTIONS"}},
                                   key=lambda item: (item[0], sorted(item[1])))
         cls.client = TestClient(serve.app)
+        # The shared table also owns a Killinchu-namespaced receipt endpoint.
+        # Verify that entry against its real registered handler, not an A11oy
+        # alias invented solely to satisfy the inventory test.
+        import szl_restraint
+        peer = FastAPI()
+        szl_restraint.register(peer, ns="killinchu")
+        cls.peer_write_routes = [
+            (route.path, frozenset(route.methods)) for route in peer.routes
+            if getattr(route, "methods", None)
+            and set(route.methods) - {"GET", "HEAD", "OPTIONS"}
+        ]
+        cls.peer_client = TestClient(peer)
 
     @staticmethod
     def _sample(path):
@@ -775,9 +787,22 @@ class ServeAppGate(unittest.TestCase):
         import re
         for pattern, action, _category in opauth.PROTECTED_ROUTES:
             rx = re.compile(r"\A" + pattern + r"\Z")
+            owner_routes = self.peer_write_routes if pattern.startswith("/api/killinchu/") else self.write_routes
             with self.subTest(pattern=pattern):
-                self.assertTrue(any(rx.match(self._sample(p)) for p, _m in self.write_routes),
+                self.assertTrue(any(rx.match(self._sample(p)) for p, _m in owner_routes),
                                 f"{pattern} ({action}) matches no registered write route")
+
+    def test_shared_peer_receipt_handler_refuses_unauthorized_side_effects(self):
+        import szl_restraint
+        with patch.object(szl_restraint, "evaluate") as evaluate:
+            for headers in ({}, {"Authorization": "Bearer wrong"}):
+                response = self.peer_client.post(
+                    "/api/killinchu/v1/restraint/evaluate", headers=headers,
+                    json={"task": "inspect recorded metadata", "two_person_attested": True},
+                )
+                self.assertEqual(response.status_code, 401)
+                self.assertEqual(response.json()["status"], "BLOCKED")
+            evaluate.assert_not_called()
 
     def test_every_protected_route_refuses_anonymous_and_wrong_bearer(self):
         routes = self._protected_real_routes()
