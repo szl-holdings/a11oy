@@ -84,6 +84,29 @@ configs:
     path: "submissions/reference-conformance.jsonl"
 ---
 
+<p><a href="https://huggingface.co/spaces/SZLHOLDINGS/szl-command-lab"><img src="https://raw.githubusercontent.com/szl-holdings/.github/main/profile/assets/szl/logos/szl_mark_holographic.svg" alt="SZL Holdings" width="112" /></a></p>
+
+# Governed Agent Bench
+
+Inspect a public reference dataset for five agent-governance axes, with deterministic fixture scoring and source-bound publication evidence.
+
+**Artifact:** Synthetic benchmark cases and reference conformance fixture · **Stage:** SAMPLE corpus; COMPUTED reference conformance
+
+[Explore in Command Lab](https://huggingface.co/spaces/SZLHOLDINGS/szl-command-lab) · [Build](https://github.com/szl-holdings/a11oy/tree/{source_revision}/benchmarks/governed-agent-bench) · [Evidence](https://github.com/szl-holdings/a11oy/blob/{source_revision}/benchmarks/governed-agent-bench/README.md)
+
+## Before you use it
+
+- Corpus is SAMPLE and reference scores are COMPUTED. Receipts are checked for structure only; cryptographic verification is false.
+- The reference fixture is not an eligible model submission. The publisher lists zero eligible model submissions.
+- Source preservation and publication do not establish model quality, production readiness or deployment approval.
+
+<details>
+<summary>Technical details and original evidence</summary>
+
+The retained source below is exact and may contain historical observations. Its dates, use restrictions, licenses and evidence boundaries continue to apply.
+
+<!-- SZL-PRESERVED-TECHNICAL-BODY:START -->
+
 # governed-agent-bench v0
 
 This dataset is the immutable public mirror of
@@ -122,6 +145,10 @@ python score.py submissions/reference-conformance.jsonl --strict
 The canonical source, schema, evaluator, reference submission, result, and
 publication manifest are all included in this dataset revision. The companion
 Space is <https://huggingface.co/spaces/{SPACE_REPO}>.
+
+<!-- SZL-PRESERVED-TECHNICAL-BODY:END -->
+
+</details>
 """
 
 
