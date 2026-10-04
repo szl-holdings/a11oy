@@ -140,7 +140,7 @@ class PublicInventoryTests(unittest.TestCase):
         with patch.object(m, 'MAX_PAGES', 2):
             result = collect_fixture( get)
         self.assertFalse(result['observed'])
-        self.assertEqual(counter, 6)
+        self.assertEqual(counter, 2 * len(m.KINDS))
 
     def test_no_hidden_auth_headers_even_with_env_secrets(self):
         class Response:

@@ -32,14 +32,14 @@ def getter(response, *, listed=False):
 class ReservedReadmeTests(unittest.TestCase):
     def emitter_manifest(self, *, listed=False, reserved_get=None):
         def fetch_page(url):
-            return ([ROW] if listed and '/api/spaces?' in url else [], None)
+            return {"status": 200, "json": [ROW] if listed and '/api/spaces?' in url else []}
 
         def supplement(org):
             if reserved_get is None:
                 raise AssertionError('unexpected reserved README request')
             return public.reserved_readme(org, reserved_get)
 
-        with patch.object(audit, 'fetch_page', side_effect=fetch_page), \
+        with patch.object(audit, 'public_get', side_effect=fetch_page), \
              patch.object(audit, 'fetch_card_markdown', return_value='# Public Space\n'), \
              patch.object(audit, 'reserved_readme', side_effect=supplement) as request:
             manifest = audit.build_manifest(observed_at='2026-10-02T01:04:24Z')
@@ -49,10 +49,10 @@ class ReservedReadmeTests(unittest.TestCase):
         manifest, request = self.emitter_manifest(
             reserved_get=getter({'status': 200, 'json': ROW}))
         request.assert_called_once_with(ORG)
-        self.assertEqual(manifest['counts'], {'models': 0, 'datasets': 0, 'spaces': 1})
+        self.assertEqual(manifest['counts'], {'models': 0, 'datasets': 0, 'spaces': 1, 'kernels': 0})
         self.assertEqual([row['id'] for row in manifest['inventory']['spaces']], [ROW['id']])
         self.assertEqual(manifest['publicApiEndpoints'].count(URL), 1)
-        self.assertEqual(manifest['publicApiEndpoints'][-1], URL)
+        self.assertEqual(manifest['publicApiEndpoints'][-2], URL)
         meaning = manifest['inventoryScope']['countMeaning'].lower()
         for term in ('anonymous', 'author-filtered', 'reserved', 'readme', 'once'):
             self.assertIn(term, meaning)
@@ -99,7 +99,7 @@ class ReservedReadmeTests(unittest.TestCase):
             with self.subTest(collect=collect.__name__):
                 result = collect(ORG, get)
                 self.assertTrue(result['observed'])
-                self.assertEqual(result['counts'], {'models': 0, 'datasets': 0, 'spaces': 1})
+                self.assertEqual(result['counts'], {'models': 0, 'datasets': 0, 'spaces': 1, 'kernels': 0})
                 self.assertEqual(result['items']['spaces'][0]['id'], ROW['id'])
                 self.assertEqual(result['reserved_readme_evidence']['state'], 'PUBLIC_METADATA')
                 self.assertEqual(result['reserved_readme_evidence']['response_sha256'], 'b' * 64)
@@ -113,7 +113,7 @@ class ReservedReadmeTests(unittest.TestCase):
             self.assertTrue(result['observed'])
             self.assertEqual(result['counts']['spaces'], 1)
             self.assertEqual(result['reserved_readme_evidence']['state'], 'AUTHOR_LIST')
-        with patch.object(audit, 'fetch_page', return_value=([ROW], None)), \
+        with patch.object(audit, 'public_get', return_value={'status': 200, 'json': [ROW]}), \
              patch.object(audit, 'reserved_readme') as supplemental:
             self.assertEqual(audit.api_items('spaces'), [ROW])
             supplemental.assert_not_called()
@@ -163,10 +163,10 @@ class ReservedReadmeTests(unittest.TestCase):
                 self.assertIsNone(result['counts']['spaces'])
 
     def test_emitter_uses_same_reserved_observation_without_modifying_metadata(self):
-        with patch.object(audit, 'fetch_page', return_value=([], None)), \
+        with patch.object(audit, 'public_get', return_value={'status': 200, 'json': []}), \
              patch.object(audit, 'reserved_readme', return_value=(ROW, {'state': 'PUBLIC_METADATA'})):
             self.assertEqual(audit.api_items('spaces'), [ROW])
-        with patch.object(audit, 'fetch_page', return_value=([], None)), \
+        with patch.object(audit, 'public_get', return_value={'status': 200, 'json': []}), \
              patch.object(audit, 'reserved_readme', side_effect=public.InventoryError('HTTP_UNAVAILABLE')):
             with self.assertRaises(public.InventoryError):
                 audit.api_items('spaces')
@@ -197,7 +197,7 @@ class ReservedReadmeTests(unittest.TestCase):
              patch.object(release, 'fetch') as authenticated:
             result = release.hf_inventory(ORG)
         self.assertTrue(result['observed'])
-        self.assertEqual(get.call_count, 4)
+        self.assertEqual(get.call_count, len(public.KINDS) + 1)
         authenticated.assert_not_called()
 
     def test_reserved_response_malformed_json_and_byte_budget_fail_closed(self):
