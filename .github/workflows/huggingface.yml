@@ -4,20 +4,35 @@ on:
   workflow_dispatch:
     inputs:
       repo_id:
-        description: Hugging Face repository id
+        description: Fixed existing A11oy model repository
+        type: choice
+        options:
+          - SZLHOLDINGS/a11oy-v19-substrate
         required: true
         default: SZLHOLDINGS/a11oy-v19-substrate
       repo_type:
         description: Hugging Face repository type
+        type: choice
+        options:
+          - model
         required: true
         default: model
+      expected_revision:
+        description: Exact current 40-character Hub parent revision reviewed by the operator
+        required: true
+      apply:
+        description: Apply the full additive payload after all existing evidence checks (false only plans)
+        type: boolean
+        required: true
+        default: false
 
 permissions:
   contents: read
 
 jobs:
   publish:
-    name: Build and upload payload
+    name: Build and reconcile the fixed payload
+    if: github.repository == 'szl-holdings/a11oy' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -63,10 +78,17 @@ jobs:
       - name: Install Hugging Face client
         run: python -m pip install --upgrade huggingface_hub
 
-      - name: Upload payload
+      - name: Prove additive publisher controls offline
+        run: python3 -m unittest discover -s tests -p test_publish_huggingface_payload.py
+
+      - name: Plan or apply the parent-bound payload
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: >-
-          python3 scripts/publish_huggingface_payload.py
-          --repo-id "${{ inputs.repo_id }}"
-          --repo-type "${{ inputs.repo_type }}"
+          TARGET_REPO_ID: ${{ inputs.repo_id }}
+          TARGET_REPO_TYPE: ${{ inputs.repo_type }}
+          EXPECTED_REVISION: ${{ inputs.expected_revision }}
+          APPLY_PAYLOAD: ${{ inputs.apply }}
+        run: |
+          args=(--repo-id "$TARGET_REPO_ID" --repo-type "$TARGET_REPO_TYPE" --expected-revision "$EXPECTED_REVISION")
+          if [[ "$APPLY_PAYLOAD" == 'true' ]]; then args+=(--apply); fi
+          python3 scripts/publish_huggingface_payload.py "${args[@]}"

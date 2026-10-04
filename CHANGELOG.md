@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - additive, parent-bound A11oy model payload publication
+
+- Replace the existing publisher's separate prune/upload operations with one
+  explicit-parent additive commit to the fixed model repository. Default to a
+  read-only plan, retain the existing BOM and provider attributes byte for byte,
+  and reject other unmanaged paths before mutation.
+- Require current signed canonical source and exact existing-stager closure,
+  then verify every resulting file at the immutable Hub commit. Keep existing
+  workflow and local CLI entry points, credentials and qualification gates.
+
 ### Changed - model-namespace payload card presentation
 
 - Add the shared SZL mark, Command Lab and source links, software artifact type,
