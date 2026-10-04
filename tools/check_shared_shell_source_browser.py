@@ -104,6 +104,85 @@ LAYOUT = """() => {
 }"""
 
 
+ATELIER_EVIDENCE = """async () => {
+  const saved = NANO;
+  const root = document.querySelector('#play');
+  const original = DATA.models[idx];
+  const observations = [];
+  const cases = [
+    {play:'moons', key:'moons', metric:'holdoutAcc', bounded:true, expected:'holdout 0.8875 MEASURED'},
+    {play:'tell', key:'willay', metric:'holdoutAcc', bounded:true, expected:'holdout 1.0000 SYNTHETIC'},
+    {play:'courier', slug:'chaski', key:'chaski', metric:'holdoutAcc', bounded:true, expected:'holdout 0.9808 SYNTHETIC'},
+    {play:'courier', slug:'chaski-5050', key:'chaski5050', metric:'holdoutAcc', bounded:true, expected:'holdout 0.9808 SYNTHETIC'},
+    {play:'courier', slug:'chaski-r2', key:'chaskiR2', metric:'holdoutAcc', bounded:true, expected:'holdout 1.0000 SYNTHETIC'},
+    {play:'lambda', key:'lambdaGate', metric:'lambdaStar', bounded:true, expected:'λ* 0.6279'},
+    {play:'embed', key:'miniEmbed', metric:'retrievalHitAt2', bounded:true, expected:'bundled hit@2 0.40'},
+    {play:'ouroboros', key:'kernelMeasures', metric:'ouroborosModelMs', expected:'modelMs=1120 REPORTED sample'},
+    {play:'ouroboros', key:'kernelMeasures', metric:'ouroborosOverheadMs', expected:'overhead=180 DERIVED'},
+    {play:'attn', key:'kernelMeasures', metric:'receiptAttnResidual', expected:'residual=2.220e-16'},
+  ];
+  async function observe(test, control, unavailable) {
+    await mountPlay(root, test);
+    if (test.play === 'moons') document.querySelector('#cv').click();
+    const detail = document.querySelector('#g').innerText;
+    const label = document.querySelector('#g .lbl')?.textContent || detail;
+    if (unavailable) {
+      if (!label.startsWith('UNAVAILABLE') || /\\bMEASURED\\b/.test(detail))
+        throw new Error(test.key + '/' + control + ' fabricated an available observation: ' + detail);
+    } else if (!detail.includes(test.expected) || !detail.includes('bundled NumPy snapshot')) {
+      throw new Error(test.key + '/' + control + ' lost its bundled observation scope: ' + detail);
+    }
+    observations.push({play:test.play, key:test.key, metric:test.metric, control, state:unavailable?'UNAVAILABLE':'BUNDLED'});
+  }
+  try {
+    for (const test of cases) {
+      NANO = structuredClone(saved);
+      await observe(test, 'bundled', false);
+      NANO = null;
+      await observe(test, 'missing bundle', true);
+      const invalid = [['missing', undefined], ['null', null], ['string', '0.8875'],
+        ['NaN', NaN], ['infinity', Infinity], ['negative infinity', -Infinity], ['negative', -1]];
+      if (test.bounded) invalid.push(['above one', 1.1]);
+      for (const [control, value] of invalid) {
+        NANO = structuredClone(saved);
+        NANO[test.key][test.metric] = value;
+        await observe(test, control, true);
+      }
+      if (['tell','courier'].includes(test.play)) {
+        for (const value of [null, [[1]], Array.from({length:5}, () => Array(8).fill(NaN))]) {
+          NANO = structuredClone(saved);
+          NANO[test.key].w1 = value;
+          await observe(test, 'invalid weights', true);
+        }
+      }
+      if (test.play === 'embed') {
+        for (const value of [null, [[1]], Array.from({length:64}, () => Array(12).fill(NaN)), Array.from({length:64}, () => Array(12).fill(0))]) {
+          NANO = structuredClone(saved);
+          NANO.miniEmbed.table = value;
+          await observe(test, 'invalid embedding table or vector', true);
+        }
+      }
+      if (test.play === 'moons') {
+        for (const value of [null, [], [{x:NaN, y:0, yTrue:1}]]) {
+          NANO = structuredClone(saved);
+          NANO.moons.cloud = value;
+          await observe(test, 'invalid cloud', true);
+        }
+        for (const [key, value] of [['trainedAt', undefined], ['trainedAt', 'invalid'], ['trainedAt', 0], ['label', undefined], ['label', 'UNAVAILABLE']]) {
+          NANO = structuredClone(saved);
+          NANO[key] = value;
+          await observe(test, 'missing or invalid measurement provenance', true);
+        }
+      }
+    }
+  } finally {
+    NANO = saved;
+    await mountPlay(root, original);
+  }
+  return {scope:'Actual source callbacks; mutated in-memory bundle only', observations};
+}"""
+
+
 def run_case(browser, output, name, source_path, route_path, width, height, css, variant, fonts):
     context = browser.new_context(
         viewport={"width": width, "height": height}, reduced_motion="reduce",
@@ -167,6 +246,8 @@ def run_case(browser, output, name, source_path, route_path, width, height, css,
         page.evaluate("() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
         if name == "estate":
             page.wait_for_function("document.querySelector('.szl-estate-grid')?.getAttribute('aria-busy') === 'false'")
+        if name == "atelier":
+            page.wait_for_function("document.querySelector('#app h1')?.textContent.trim().length > 0")
         layout = page.evaluate(LAYOUT)
         result["layout"] = layout
         failures = result["failures"]
@@ -196,8 +277,11 @@ def run_case(browser, output, name, source_path, route_path, width, height, css,
             failures.append("More menu keyboard opening failed")
         menu = page.locator(".szl-overflow.open .szl-overflow-menu")
         menu_box = menu.bounding_box()
+        result["more_menu"] = menu_box
         if not menu_box or menu_box["x"] < -1 or menu_box["x"] + menu_box["width"] > width + 1:
             failures.append("More menu escapes viewport")
+        if width == 320:
+            page.screenshot(path=str(output / (slug + "-more.png")), full_page=False)
         page.keyboard.press("Escape")
         if more.get_attribute("aria-expanded") != "false":
             failures.append("More menu Escape closing failed")
@@ -213,6 +297,14 @@ def run_case(browser, output, name, source_path, route_path, width, height, css,
             box = page.locator(".szl-pal").bounding_box()
             if not box or box["x"] < 0 or box["x"] + box["width"] > width:
                 failures.append("command palette escapes viewport")
+            layers = palette.evaluate("""element => ({
+              palette: Number(getComputedStyle(element).zIndex),
+              navigation: [...document.querySelectorAll('.szl-flow-rail,.szl-flow-progress,.szl-flow-announcement,.szl-holo-rail,.szl-holo-progress')]
+                .map(node => Number(getComputedStyle(node).zIndex) || 0),
+            })""")
+            result.setdefault("palette_layers", {})[theme] = layers
+            if layers["palette"] <= max(layers["navigation"], default=0):
+                failures.append("page navigation paints above command palette backdrop")
             items = page.locator(".szl-pal-list a").all()
             first, second = items[0].bounding_box(), items[1].bounding_box()
             if not first or not second or second["y"] < first["y"] + first["height"] - 1:
@@ -232,6 +324,12 @@ def run_case(browser, output, name, source_path, route_path, width, height, css,
             failures.append("forced-colors emulation failed")
         if page.locator(".szl-hbar").evaluate("element => getComputedStyle(element, '::before').display") != "none":
             failures.append("shell decoration survives forced-colors")
+        if name == "atelier":
+            if variant == "candidate" and width == 320:
+                result["atelier_evidence_controls"] = page.evaluate(ATELIER_EVIDENCE)
+            with page.expect_request(lambda request: request.is_navigation_request() and request.url == ORIGIN + "/console?view=investor"):
+                page.locator("#inv-toggle").click()
+            result["investor_destination"] = "/console?view=investor"
         if errors:
             failures.append("page JavaScript errors")
         if missing_assets:

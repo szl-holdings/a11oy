@@ -11,6 +11,28 @@ legacy console, model estate and Atelier. Atelier's generic `nav` rules can also
 turn the actual command palette's `nav.szl-pal-list` into columns. The palette now
 declares a column flex layout in its existing component rule.
 
+The first [hosted source run](https://github.com/szl-holdings/a11oy/actions/runs/37218043775)
+passed all four component widths and 11 of 16 source cases. It retained two
+remaining failures: the console More menu escaped at 320px, and Atelier's main
+script contained a Python `or` inside a JavaScript template expression. The menu
+now clamps its horizontal position to the actual viewport; the template uses the
+JavaScript fallback operator. Shared investor navigation also only invokes the
+console's view router, since Atelier has a different global `go` function for
+model selection. The source check now requires Atelier's main content to render
+and verifies its investor destination. Visual review also found the bottom flow
+navigation painting above the palette backdrop. The palette now uses the
+existing global layer token, and the browser check compares its layer with page
+navigation. Fresh hosted results remain required.
+
+Repairing Atelier boot also makes its toy callbacks reachable. Missing bundled
+metrics and malformed weights must produce UNAVAILABLE; they cannot substitute a
+fixed accuracy, probability, embedding, threshold, timing or residual. Valid
+bundled NumPy observations retain their timestamp and synthetic/sample scope;
+the toy callbacks do not establish live model quality. The source browser check
+executes positive controls with the bundled data and negative controls with
+missing, nonnumeric, nonfinite, out-of-range and malformed in-memory data. The
+checked-in model inventory and bundled measurements are preserved.
+
 `tools/check_shared_shell_source_browser.py` loads each of those real sources,
 their local CSS and JavaScript, and vendored font bytes through an intercepted
 browser context. It never contacts a live provider. All provider requests receive

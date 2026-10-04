@@ -122,7 +122,7 @@ html:not([data-operator="1"]) [data-view="energyGrid"]{display:none!important;}
 .szl-empty[data-kind="permission"] .szl-empty__k{color:var(--szl-shell-unknown);border-color:var(--szl-shell-line);}
 .szl-empty__retry{appearance:none;background:var(--szl-shell-panel);border:1px solid var(--szl-shell-line);border-radius:7px;
   color:var(--szl-shell-accent);font:inherit;padding:8px 12px;min-height:44px;cursor:pointer;}
-.szl-pal-ov{position:fixed;inset:0;z-index:220;background:rgba(8,12,20,.85);backdrop-filter:blur(4px);display:none;
+.szl-pal-ov{position:fixed;inset:0;z-index:calc(var(--szl-holo-z-rail,10000) + 4);background:rgba(8,12,20,.85);backdrop-filter:blur(4px);display:none;
   align-items:flex-start;justify-content:center;padding:16px;box-sizing:border-box;overflow:auto;overscroll-behavior:contain;}
 .szl-pal-ov.open{display:flex;}
 .szl-pal{margin-top:min(8vh,64px);width:min(560px,100%);background:var(--szl-shell-panel);border:1px solid var(--szl-shell-line);border-radius:14px;overflow:hidden;}
