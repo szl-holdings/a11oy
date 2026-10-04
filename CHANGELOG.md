@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - governed benchmark dataset card
+
+- Add the shared SZL mark, source links and visible evidence labels to the
+  canonical dataset card. Preserve its original metadata and technical body,
+  sample/reference boundary, benchmark data and existing publication gates.
+
 ### Changed - model-namespace payload card presentation
 
 - Add the shared SZL mark, Command Lab and source links, software artifact type,

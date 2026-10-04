@@ -1,0 +1,208 @@
+{
+  "schema": "szl.source-card-presentation/v1",
+  "spdx_license_identifier": "Apache-2.0",
+  "copyright": "2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "source_repository": "szl-holdings/a11oy",
+  "source_revision": "4c80a9a1e0cbce4d2cdc3c263acbcf54707ee5e1",
+  "cards": [
+    {
+      "kind": "datasets",
+      "repo_id": "SZLHOLDINGS/governed-agent-bench",
+      "source_path": "benchmarks/governed-agent-bench/build_publication.py::_dataset_readme",
+      "source_url": "https://github.com/szl-holdings/a11oy/blob/4c80a9a1e0cbce4d2cdc3c263acbcf54707ee5e1/benchmarks/governed-agent-bench/build_publication.py",
+      "canonical_publisher": "https://github.com/szl-holdings/a11oy/blob/4c80a9a1e0cbce4d2cdc3c263acbcf54707ee5e1/.github/workflows/governed-agent-bench.yml",
+      "publication_state": "SOURCE_REVIEW_PENDING",
+      "publication_trigger": "EXISTING_MAIN_PUSH_COMPLETE_DATASET_AND_LEADERBOARD_PUBLICATION",
+      "presentation": {
+        "title": "Governed Agent Bench",
+        "summary": "Inspect a public reference dataset for five agent-governance axes, with deterministic fixture scoring and source-bound publication evidence.",
+        "artifact_type": "Synthetic benchmark cases and reference conformance fixture",
+        "stage": "SAMPLE corpus; COMPUTED reference conformance",
+        "build_url": "https://github.com/szl-holdings/a11oy/tree/{source_revision}/benchmarks/governed-agent-bench",
+        "evidence_url": "https://github.com/szl-holdings/a11oy/blob/{source_revision}/benchmarks/governed-agent-bench/README.md",
+        "visible_limits": [
+          "Corpus is SAMPLE and reference scores are COMPUTED. Receipts are checked for structure only; cryptographic verification is false.",
+          "The reference fixture is not an eligible model submission. The publisher lists zero eligible model submissions.",
+          "Source preservation and publication do not establish model quality, production readiness or deployment approval."
+        ]
+      },
+      "source_before_sha256": "5022c410ac89be542afad65dd90d060892eb35f8eb39bf6fe7e30372660aa388",
+      "source_after_sha256": "95a621341fc525f3774ee65a5838957618f19d7bb8c8800355f032124cba0b2a",
+      "expected_hub_card_sha256": null,
+      "hub_card_hash_scope": "Final README binds the admitted source_revision; template/source hashes and dated rendered cases are not final Hub hashes.",
+      "front_matter_preserved": true,
+      "original_body_preserved": true,
+      "renderer_template_preservation": {
+        "before_sha256": "f09d80ca99e4b278b8797c08ae78056c106cdf1869b148f2d951ca5a7c50ef70",
+        "after_sha256": "71776fd675a8b33b32d7386aede593aafc4c169df7f3bf97a2ec2485aca19c22",
+        "front_matter_sha256": "b8b8c1a7d924863057704c4f5ab593fc6e2867dc5cf58cd8541f94ec6ca8c43c",
+        "preserved_body_sha256": "218d90347d6086aedf52e74403ecfd6c645eb7d80e6e6b0c6fd4f2547b5b535f",
+        "bytes_before": 1709,
+        "bytes_after": 3265,
+        "front_matter_preserved": true,
+        "original_body_preserved": true
+      },
+      "rendered_preservation": [
+        {
+          "source_revision": "4c80a9a1e0cbce4d2cdc3c263acbcf54707ee5e1",
+          "proof": {
+            "before_sha256": "1a3869ba222f1a9f8361b0a43ca3465bc1919f49cde0f19459b8250f0f6e813a",
+            "after_sha256": "4fa816301b78a8fbb554e2afefd603ef9e45fb6878041554061f500893fd5c49",
+            "front_matter_sha256": "b8b8c1a7d924863057704c4f5ab593fc6e2867dc5cf58cd8541f94ec6ca8c43c",
+            "preserved_body_sha256": "998af53a49b6a9d1bce90f0021c3a8ea17c353d4f7ed6af1da47cd9430cd05f6",
+            "bytes_before": 1775,
+            "bytes_after": 3377,
+            "front_matter_preserved": true,
+            "original_body_preserved": true
+          }
+        },
+        {
+          "source_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "proof": {
+            "before_sha256": "8980d543f8bea63062b010c51f7ac2845329850423de4be70588a99863a3df67",
+            "after_sha256": "62b6c5be35dcf27f1dfbaa9112b64822b13309342eb1eb30435522fa28759261",
+            "front_matter_sha256": "b8b8c1a7d924863057704c4f5ab593fc6e2867dc5cf58cd8541f94ec6ca8c43c",
+            "preserved_body_sha256": "f9374f82806393549b50188be5c32e630b32f42a8922499136752b521a10183f",
+            "bytes_before": 1775,
+            "bytes_after": 3377,
+            "front_matter_preserved": true,
+            "original_body_preserved": true
+          }
+        },
+        {
+          "source_revision": "0000000000000000000000000000000000000000",
+          "proof": {
+            "before_sha256": "ab9a38dcd246ef8ee6660464e4bddafe88389dd8a31fa499f55fd6ef25c122b2",
+            "after_sha256": "cb96e368b04c4c7ac8429892bf6555cd5874f905c1b10c1320f1add042fb3b98",
+            "front_matter_sha256": "b8b8c1a7d924863057704c4f5ab593fc6e2867dc5cf58cd8541f94ec6ca8c43c",
+            "preserved_body_sha256": "d7a1e248fedd4c9c564d73370bd1e3b075cdc2374a940d5154639617e7ea7fd2",
+            "bytes_before": 1775,
+            "bytes_after": 3377,
+            "front_matter_preserved": true,
+            "original_body_preserved": true
+          }
+        }
+      ],
+      "non_card_module_ast_preserved": true,
+      "companion_space_card_preserved": true,
+      "provider_or_runtime_promotion": false,
+      "benchmark_data_or_algorithm_changed": false
+    }
+  ],
+  "protected_source_files": [
+    {
+      "path": ".github/requirements/governed-agent-bench-publish.txt",
+      "bytes": 1676,
+      "sha256": "fa75e30bbd80934eaca882c3fd3344de70aad3f27d7f35d4722fc684086226c2",
+      "unchanged": true
+    },
+    {
+      "path": ".github/workflows/governed-agent-bench.yml",
+      "bytes": 6878,
+      "sha256": "de4d7efbf8ecd3c0b657d1abb79aaacca3a5ebb7d0289a868059b49afbab361d",
+      "unchanged": true
+    },
+    {
+      "path": "LICENSE",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "unchanged": true
+    },
+    {
+      "path": "benchmarks/benchmark-map.json",
+      "bytes": 6888,
+      "sha256": "1ed5b6762a99bd60bbbc582c84080f83d3cd18f7c687a4e3a7fb72bcc5ab79d3",
+      "unchanged": true
+    },
+    {
+      "path": "benchmarks/governed-agent-bench/README.md",
+      "bytes": 3897,
+      "sha256": "ba3bc051cae1cc832dfa2e2489cea95b9bf196b3c80098e1c7a79f54e5bcce20",
+      "unchanged": true
+    },
+    {
+      "path": "benchmarks/governed-agent-bench/cases.jsonl",
+      "bytes": 6642,
+      "sha256": "d1ff64d9f227c90a3629e7c19c6bbcc9ce0d3c770c6301785c0636b744257a2a",
+      "unchanged": true
+    },
+    {
+      "path": "benchmarks/governed-agent-bench/fixtures/false_green.jsonl",
+      "bytes": 1758,
+      "sha256": "77c92591c00cc8fa346414cdef68ead9e5a48e86e78a70f032961e66b90df6db",
+      "unchanged": true
+    },
+    {
+      "path": "benchmarks/governed-agent-bench/fixtures/passing.jsonl",
+      "bytes": 3451,
+      "sha256": "4f479f7b57c818afc6dfd1a4c3b7901b28e9afd2f3037190e783bbb017b686cf",
+      "unchanged": true
+    },
+    {
+      "path": "benchmarks/governed-agent-bench/huggingface/app.py",
+      "bytes": 3549,
+      "sha256": "0553b4b52a4bd91c1ac04679ba9124558efe75656af8c9da5618da756dfed707",
+      "unchanged": true
+    },
+    {
+      "path": "benchmarks/governed-agent-bench/huggingface/requirements.txt",
+      "bytes": 35,
+      "sha256": "495b872c4f7fb6258f6217414f18213bf1e263168f8dbad29acf6dddd0eed00c",
+      "unchanged": true
+    },
+    {
+      "path": "benchmarks/governed-agent-bench/manifest.json",
+      "bytes": 1732,
+      "sha256": "ba2cf62ed8f8c31c9f4777039ce8a8befcb00484f846850a435b0186ee7a6675",
+      "unchanged": true
+    },
+    {
+      "path": "benchmarks/governed-agent-bench/publish_huggingface.py",
+      "bytes": 38459,
+      "sha256": "b9506a7cc0d2ff53ff84e7546c73f9d057156ec7cf81aefd4f9a967c85da91c6",
+      "unchanged": true
+    },
+    {
+      "path": "benchmarks/governed-agent-bench/schema.json",
+      "bytes": 5006,
+      "sha256": "a01ebb6b27daf8b87fcdba79248eb07754e8b39541f8f59d9f1dc2f1f84aff56",
+      "unchanged": true
+    },
+    {
+      "path": "benchmarks/governed-agent-bench/score.py",
+      "bytes": 12022,
+      "sha256": "aaeeb85d238367ea1d3fad2cca9caac0179de4ff1bfca53477ad268d07a66a9a",
+      "unchanged": true
+    },
+    {
+      "path": "benchmarks/governed-agent-bench/test_publication.py",
+      "bytes": 50023,
+      "sha256": "0670b80ce335dcf18d876167d8a0dc865ddeaaba87fafe469116a7b074b2e239",
+      "unchanged": true
+    },
+    {
+      "path": "benchmarks/governed-agent-bench/test_score.py",
+      "bytes": 4659,
+      "sha256": "2f39ba60b591c7a6e7d41a47500309e19335342e5dc8561e412b989b8bc2430b",
+      "unchanged": true
+    },
+    {
+      "path": "scripts/test_validate_benchmark_map.py",
+      "bytes": 6506,
+      "sha256": "529a5f9e80b79bf154fd4bf0f0e58cb9b6eb4faa761c129751a82a7a25486e87",
+      "unchanged": true
+    },
+    {
+      "path": "scripts/validate_benchmark_map.py",
+      "bytes": 6648,
+      "sha256": "81519ef566cbddc24255411856bab9a86f2f7b84fb37e1a8455427ad573302b6",
+      "unchanged": true
+    }
+  ],
+  "protected_external_dataset_sha256": {
+    "PROMOTION_READINESS_AUDIT.json": "f5525aebcd1996ca12a21355adf2d1c1e38e8363c99234f165baf46689de80b0"
+  },
+  "new_publisher_authority": false,
+  "provider_action_performed": false,
+  "model_evaluation_or_training_performed": false
+}
