@@ -125,8 +125,14 @@ python3 -B scripts/hf_exact_main_ownership.py \
     if compact(admission_run) != compact(expected_admission) or "secrets." in json.dumps(admission):
         raise WorkflowContractError("source admission must remain read only")
     job = jobs["manual-prerequisites"]
-    if [step.get("name") for step in job["steps"]] != ["Checkout the immutable admitted source", "Set up Python", "Install exact metadata client", "Retain metadata checks and fail closed on UNKNOWN authority", "Retain bounded prerequisite decision"]:
-        raise WorkflowContractError("manual job must not gain effects")
+    if [step.get("name") for step in job["steps"]] != ["Checkout the immutable admitted source", "Set up Python", "Install exact metadata client", "Preserve stopped private stores before any runtime mutation", "Retain metadata checks and fail closed on UNKNOWN authority", "Retain bounded prerequisite decision"]:
+        raise WorkflowContractError("manual job permits only the reviewed preservation effect before qualification")
+    preservation = named_step(job, "Preserve stopped private stores before any runtime mutation")
+    expected_preservation = 'python -B scripts/preserve_hf_gdw_store.py --output "${{ runner.temp }}/gdw-store-preservation.json"'
+    if (set(preservation) != {"name", "run"}
+            or compact(preservation.get("run", "")) != expected_preservation
+            or job.get("env") != {"HF_TOKEN": "${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}"}):
+        raise WorkflowContractError("preservation step must retain its exact invocation and credential scope")
     step = named_step(job, "Retain metadata checks and fail closed on UNKNOWN authority")
     expected = r'''set +e
 python -B scripts/configure_hf_series_a_runtime.py \
@@ -149,6 +155,12 @@ python -B scripts/check_hf_manual_prerequisites.py \
     receipt = named_step(job, "Retain bounded prerequisite decision")
     if receipt.get("if") != "always()" or receipt.get("with", {}).get("if-no-files-found") != "error":
         raise WorkflowContractError("manual decision must be retained")
+    artifact_paths = receipt.get("with", {}).get("path", "")
+    if not isinstance(artifact_paths, str) or tuple(artifact_paths.splitlines()) != (
+        "${{ runner.temp }}/manual-prerequisites.json",
+        "${{ runner.temp }}/gdw-store-preservation.json",
+    ):
+        raise WorkflowContractError("preservation artifacts must retain the exact public metadata allowlist")
     # The GDW operator credential may appear exactly once: as the step-level
     # env of the bounded GDW proof step. Anywhere else it is a removed effect.
     scanned = source.replace(ADMITTED_GDW_SECRET_LINE, "", 1)
@@ -315,6 +327,68 @@ class ManualPrerequisiteWorkflowTests(unittest.TestCase):
         jobs = assert_manual_step_contract(self.source)
         self.assertNotIn("secrets.", json.dumps(jobs["source-admission"]))
         self.assertEqual(jobs["manual-prerequisites"]["permissions"], {"contents": "read"})
+
+    def test_preservation_invocation_has_no_unknown_helper_overrides_or_failure_bypass(self):
+        marker = "      - name: Preserve stopped private stores before any runtime mutation\n"
+        cases = (
+            ("scripts/preserve_hf_gdw_store.py", "scripts/unreviewed_preservation.py"),
+            ("scripts/preserve_hf_gdw_store.py", "scripts/preserve_hf_gdw_store.py --bucket SZLHOLDINGS/another-bucket"),
+            ("scripts/preserve_hf_gdw_store.py", "scripts/preserve_hf_gdw_store.py --overwrite"),
+            ('--output "${{ runner.temp }}/gdw-store-preservation.json"', '--output "${{ runner.temp }}/gdw-store-preservation.json" || true'),
+            (marker, marker + "        if: false\n"),
+            (marker, marker + "        continue-on-error: true\n"),
+            (marker, marker + "        shell: python\n"),
+            (marker, marker + "        working-directory: unreviewed-source\n"),
+            (marker, marker + "        env:\n          HF_TOKEN: alternate-authority\n"),
+        )
+        for original, replacement in cases:
+            with self.subTest(replacement=replacement):
+                self.assertIn(original, self.source)
+                with self.assertRaisesRegex(WorkflowContractError, "preservation|step failure bypass"):
+                    assert_manual_step_contract(self.source.replace(original, replacement, 1))
+
+    def test_preservation_cannot_be_removed_duplicated_moved_or_joined_by_another_effect(self):
+        start = self.source.index("      - name: Preserve stopped private stores")
+        end = self.source.index("      - name: Retain metadata checks", start)
+        block = self.source[start:end]
+        removed = self.source[:start] + self.source[end:]
+        receipt = "      - name: Retain bounded prerequisite decision\n"
+        candidates = (
+            removed,
+            self.source.replace(block, block + block, 1),
+            removed.replace(receipt, block + receipt, 1),
+            self.source.replace(block, block + "      - name: Unreviewed provider effect\n        run: python scripts/unreviewed.py\n", 1),
+        )
+        for index, candidate in enumerate(candidates):
+            with self.subTest(index=index), self.assertRaisesRegex(WorkflowContractError, "reviewed preservation effect"):
+                assert_manual_step_contract(candidate)
+
+    def test_preservation_artifacts_cannot_include_raw_captures_or_duplicate_paths(self):
+        original = "            ${{ runner.temp }}/gdw-store-preservation.json\n"
+        self.assertIn(original, self.source)
+        candidates = (
+            "            ${{ runner.temp }}/**\n",
+            "            /tmp/szl-private-store-*\n",
+            "",
+            original + original,
+            original + "            ${{ runner.temp }}/private-capture.sqlite3\n",
+        )
+        for replacement in candidates:
+            with self.subTest(replacement=replacement), self.assertRaisesRegex(WorkflowContractError, "public metadata allowlist"):
+                assert_manual_step_contract(self.source.replace(original, replacement, 1))
+
+    def test_preservation_job_cannot_gain_alternate_credentials(self):
+        start = self.source.index("  manual-prerequisites:\n")
+        end = self.source.index("  resume-paused-space:\n", start)
+        block = self.source[start:end]
+        original = "      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}\n"
+        self.assertIn(original, block)
+        for replacement in (
+            "      HF_TOKEN: ${{ secrets.ALTERNATE_TOKEN }}\n",
+            original + "      UNREVIEWED_EFFECT_TOKEN: ${{ secrets.EXTRA_TOKEN }}\n",
+        ):
+            with self.subTest(replacement=replacement), self.assertRaisesRegex(WorkflowContractError, "credential scope"):
+                assert_manual_step_contract(self.source.replace(block, block.replace(original, replacement, 1), 1))
 
     def test_removed_checker_check_only_and_exit_propagation_are_detected(self):
         cases = (
