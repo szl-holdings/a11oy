@@ -18,6 +18,8 @@ RUNTIME_LAYER_BUDGET = 110
 # The civilian services surface adds exactly its registrar and package directory.
 # The public HF inventory repair adds exactly three reviewed docs sources; the
 # prior 585-source allowlist remains pinned separately below.
+# Model support adds only its runtime reader and source catalog. Each baseline
+# below excludes those two named additions so its historical digest is retained.
 # Preserve every prior source and the unchanged layer budget, not a broad COPY.
 COPY_SOURCE_ALLOWLIST_COUNT = 588
 COPY_SOURCE_ALLOWLIST_SHA256 = (
@@ -39,6 +41,10 @@ HF_DOCS_COPY_ADDITIONS = {
 CIVILIAN_COPY_ADDITIONS = {
     "a11oy_civilian_observatory.py",
     "civilian_observatory/",
+}
+MODEL_SUPPORT_COPY_ADDITIONS = {
+    "a11oy_model_support.py",
+    "docs/model-inference-support.json",
 }
 
 
@@ -108,6 +114,8 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
     }
     assert "." not in copy_sources
     assert "./" not in copy_sources
+    assert MODEL_SUPPORT_COPY_ADDITIONS <= copy_sources
+    copy_sources -= MODEL_SUPPORT_COPY_ADDITIONS
     encoded_allowlist = ("\n".join(sorted(copy_sources)) + "\n").encode("utf-8")
     assert len(copy_sources) == COPY_SOURCE_ALLOWLIST_COUNT
     assert hashlib.sha256(encoded_allowlist).hexdigest() == COPY_SOURCE_ALLOWLIST_SHA256
@@ -123,7 +131,8 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
         for source in _copy_sources(instruction)
     }
     assert CIVILIAN_COPY_ADDITIONS <= sources
-    previous = sources - CIVILIAN_COPY_ADDITIONS
+    assert MODEL_SUPPORT_COPY_ADDITIONS <= sources
+    previous = sources - CIVILIAN_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
     assert len(previous) == PRE_CIVILIAN_ALLOWLIST_COUNT
     assert hashlib.sha256(encoded).hexdigest() == PRE_CIVILIAN_ALLOWLIST_SHA256
@@ -137,7 +146,8 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
         for source in _copy_sources(instruction)
     }
     assert HF_DOCS_COPY_ADDITIONS <= sources
-    previous = sources - HF_DOCS_COPY_ADDITIONS
+    assert MODEL_SUPPORT_COPY_ADDITIONS <= sources
+    previous = sources - HF_DOCS_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
     assert len(previous) == PRE_HF_DOCS_ALLOWLIST_COUNT
     assert hashlib.sha256(encoded).hexdigest() == PRE_HF_DOCS_ALLOWLIST_SHA256

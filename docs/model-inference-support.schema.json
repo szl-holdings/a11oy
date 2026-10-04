@@ -1,0 +1,557 @@
+{
+  "$comment": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173. Cross-field source identities, canonical digests, ordering, exact inventory coverage and timestamps are also enforced by a11oy_model_support.validate_document.",
+  "$defs": {
+    "assessment": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_class": {
+          "enum": [
+            "gguf_bundle",
+            "non_provider_artifact",
+            "standalone_weight_bundle",
+            "adapter_bundle",
+            "kernel_library",
+            "numpy_model_bundle"
+          ]
+        },
+        "hub_revision": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        },
+        "observed_at": {
+          "format": "date-time",
+          "maxLength": 40,
+          "type": "string"
+        },
+        "qualification_note": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "pattern": "^[^\\u0000-\\u0008\\u000b-\\u001f]*$",
+          "type": "string"
+        },
+        "request_disposition": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "pattern": "^[^\\u0000-\\u0008\\u000b-\\u001f]*$",
+          "type": "string"
+        },
+        "source_url": {
+          "pattern": "^https://huggingface\\.co/SZLHOLDINGS/[A-Za-z0-9][A-Za-z0-9._-]{0,95}/blob/[0-9a-f]{40}/README\\.md$",
+          "type": "string"
+        },
+        "suggested_route": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "pattern": "^[^\\u0000-\\u0008\\u000b-\\u001f]*$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "hub_revision",
+        "observed_at",
+        "source_url",
+        "artifact_class",
+        "qualification_note",
+        "request_disposition",
+        "suggested_route"
+      ],
+      "type": "object"
+    },
+    "inference": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "else": {
+            "properties": {
+              "capture_sha256": {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              "error": {
+                "type": "null"
+              },
+              "hub_revision": {
+                "pattern": "^[0-9a-f]{40}$",
+                "type": "string"
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "state": {
+                "const": "UNAVAILABLE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "capture_sha256": {
+                "type": "null"
+              },
+              "error": {
+                "type": "string"
+              },
+              "hub_revision": {
+                "type": "null"
+              },
+              "providers": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "else": {
+            "properties": {
+              "providers": {
+                "maxItems": 0
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "state": {
+                "const": "PROVIDER_MAPPING_REPORTED"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "providers": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "capture_kind": {
+          "const": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION"
+        },
+        "capture_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "enum": [
+            "HTTP_ERROR",
+            "TIMEOUT",
+            "NETWORK_ERROR",
+            "INVALID_RESPONSE",
+            null
+          ]
+        },
+        "hub_revision": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{40}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observed_at": {
+          "format": "date-time",
+          "maxLength": 40,
+          "type": "string"
+        },
+        "providers": {
+          "items": {
+            "$ref": "#/$defs/provider"
+          },
+          "maxItems": 80,
+          "type": "array"
+        },
+        "source_url": {
+          "pattern": "^https://huggingface\\.co/api/models/SZLHOLDINGS/[A-Za-z0-9][A-Za-z0-9._-]{0,95}\\?expand\\[\\]=inferenceProviderMapping&expand\\[\\]=sha$",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "NO_PROVIDER_MAPPING",
+            "PROVIDER_MAPPING_REPORTED",
+            "UNAVAILABLE"
+          ]
+        }
+      },
+      "required": [
+        "state",
+        "providers",
+        "observed_at",
+        "hub_revision",
+        "source_url",
+        "capture_sha256",
+        "capture_kind",
+        "error"
+      ],
+      "type": "object"
+    },
+    "model": {
+      "additionalProperties": false,
+      "properties": {
+        "assessment": {
+          "$ref": "#/$defs/assessment"
+        },
+        "id": {
+          "pattern": "^SZLHOLDINGS/[A-Za-z0-9][A-Za-z0-9._-]{0,95}$",
+          "type": "string"
+        },
+        "inference": {
+          "$ref": "#/$defs/inference"
+        },
+        "repo_type": {
+          "const": "model"
+        },
+        "support": {
+          "additionalProperties": false,
+          "properties": {
+            "requests": {
+              "items": {
+                "$ref": "#/$defs/request"
+              },
+              "maxItems": 32,
+              "type": "array"
+            },
+            "state": {
+              "enum": [
+                "REQUESTED",
+                "PRIOR_DISCUSSION_RECORDED",
+                "NO_RECORDED_REQUEST"
+              ]
+            }
+          },
+          "required": [
+            "state",
+            "requests"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "repo_type",
+        "assessment",
+        "inference",
+        "support"
+      ],
+      "type": "object"
+    },
+    "provider": {
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "pattern": "^[a-z0-9][a-z0-9-]{0,79}$",
+          "type": "string"
+        },
+        "provider_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\u0000-\\u0008\\u000b-\\u001f]*$",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "live",
+            "staging"
+          ]
+        },
+        "task": {
+          "pattern": "^[a-z0-9][a-z0-9-]{0,79}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "status",
+        "task",
+        "provider_id"
+      ],
+      "type": "object"
+    },
+    "request": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "else": {
+            "properties": {
+              "body_sha256": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "model_revision": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "readback_at": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "readback_body_sha256": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "readback_normalization": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "requested_at": {
+                "not": {
+                  "type": "null"
+                }
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "evidence_kind": {
+                "const": "PRIOR_DISCUSSION"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "body_sha256": {
+                "type": "null"
+              },
+              "model_revision": {
+                "type": "null"
+              },
+              "readback_at": {
+                "type": "null"
+              },
+              "readback_body_sha256": {
+                "type": "null"
+              },
+              "readback_normalization": {
+                "type": "null"
+              },
+              "requested_at": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "author": {
+          "maxLength": 80,
+          "minLength": 1,
+          "pattern": "^[^\\u0000-\\u0008\\u000b-\\u001f]*$",
+          "type": "string"
+        },
+        "body_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "discussion_number": {
+          "maximum": 999999999,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "evidence_kind": {
+          "enum": [
+            "VERIFIED_SUBMISSION",
+            "PRIOR_DISCUSSION"
+          ]
+        },
+        "model_id": {
+          "pattern": "^SZLHOLDINGS/[A-Za-z0-9][A-Za-z0-9._-]{0,95}$",
+          "type": "string"
+        },
+        "model_revision": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{40}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "readback_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "maxLength": 40,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "readback_body_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "readback_normalization": {
+          "enum": [
+            "EXACT",
+            "HUB_REMOVED_ONE_TERMINAL_NEWLINE",
+            null
+          ]
+        },
+        "recorded_status": {
+          "enum": [
+            "open",
+            "closed"
+          ]
+        },
+        "requested_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "maxLength": 40,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "url": {
+          "pattern": "^https://huggingface\\.co/spaces/huggingface/InferenceSupport/discussions/[1-9][0-9]*$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model_id",
+        "discussion_number",
+        "url",
+        "author",
+        "recorded_status",
+        "evidence_kind",
+        "model_revision",
+        "requested_at",
+        "readback_at",
+        "body_sha256",
+        "readback_body_sha256",
+        "readback_normalization"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "$comment": {
+      "const": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173"
+    },
+    "authority": {
+      "additionalProperties": false,
+      "properties": {
+        "deployment": {
+          "const": false
+        },
+        "promotion": {
+          "const": false
+        },
+        "qualification": {
+          "const": false
+        },
+        "routing": {
+          "const": false
+        }
+      },
+      "required": [
+        "routing",
+        "qualification",
+        "promotion",
+        "deployment"
+      ],
+      "type": "object"
+    },
+    "generated_at": {
+      "format": "date-time",
+      "maxLength": 40,
+      "type": "string"
+    },
+    "inventory_source": {
+      "additionalProperties": false,
+      "properties": {
+        "model_ids_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "path": {
+          "const": "docs/huggingface-ecosystem-manifest.json"
+        }
+      },
+      "required": [
+        "path",
+        "model_ids_sha256"
+      ],
+      "type": "object"
+    },
+    "max_observation_age_seconds": {
+      "const": 86400
+    },
+    "models": {
+      "items": {
+        "$ref": "#/$defs/model"
+      },
+      "maxItems": 500,
+      "minItems": 1,
+      "type": "array"
+    },
+    "organization": {
+      "const": "SZLHOLDINGS"
+    },
+    "schema": {
+      "const": "szl.model-inference-support/v1"
+    },
+    "scope": {
+      "const": "PUBLIC_MODEL_NAMESPACE_ONLY"
+    },
+    "unmatched_prior_requests": {
+      "items": {
+        "$ref": "#/$defs/request"
+      },
+      "maxItems": 100,
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema",
+    "generated_at",
+    "organization",
+    "scope",
+    "inventory_source",
+    "max_observation_age_seconds",
+    "authority",
+    "models",
+    "unmatched_prior_requests",
+    "$comment"
+  ],
+  "title": "Dated public model provider and support-request observations",
+  "type": "object"
+}
