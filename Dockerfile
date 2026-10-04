@@ -673,7 +673,8 @@ ARG SZL_GIT_SHA=unknown
 ARG SZL_BUILD_TIME=unknown
 ENV SZL_GIT_SHA=${SZL_GIT_SHA} \
     SZL_BUILD_TIME=${SZL_BUILD_TIME} \
-    A11OY_ORG_RAG_DB=/app/data/a11oy_org_rag.db
+    A11OY_ORG_RAG_DB=/app/data/a11oy_org_rag.db \
+    A11OY_ORG_RAG_AUTOSTART=1
 
 # Post-deploy readiness feed warming: keep the default legal evidence views
 # (CourtListener/Federal Register/SEC EDGAR) warm from boot so the hf-sync

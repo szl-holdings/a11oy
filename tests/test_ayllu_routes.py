@@ -90,8 +90,81 @@ def test_second_brain_route_exposes_compound_runtime_boundary(monkeypatch):
     assert body["ready_for_grounded_navigation"] is True
     assert body["profile"]["artifact_binding"] == "UNBOUND"
     assert body["memory"]["brain_handle_count"] == 9465
+    assert body["memory"]["brain_handle_count_source"] == "RUNTIME_RAG_STATUS"
     assert body["memory"]["training_authority_rows"] == 0
+    assert body["training_boundary"]["raw_brain_nodes_observed"] == 9465
+    assert body["training_boundary"][
+        "raw_brain_nodes_observed_is_runtime_index_count"
+    ] is False
+    assert body["signer_ready_this_request"] is False
     assert body["hard_boundaries"]["model_can_read_raw_node_content"] is False
+
+
+@pytest.mark.parametrize(
+    ("signer_status", "expected_ready"),
+    [
+        (None, False),
+        ({"status": "ABSENT", "signing_available": False,
+          "scheme": "UNAVAILABLE"}, False),
+        ({"status": "DSSE-LIVE", "signing_available": True,
+          "scheme": "DSSEv1 / ECDSA-P256"}, True),
+        ({"status": "DSSE-LIVE", "signing_available": False,
+          "scheme": "DSSEv1 / ECDSA-P256"}, False),
+        ({"status": "DSSE-LIVE", "signing_available": 1,
+          "scheme": "DSSEv1 / ECDSA-P256"}, False),
+        ({"status": "DSSE-LIVE", "signing_available": True,
+          "scheme": "UNAVAILABLE"}, False),
+        ("not a status mapping", False),
+    ],
+)
+def test_second_brain_signer_readiness_uses_pure_status_provider(
+    monkeypatch, signer_status, expected_ready
+):
+    monkeypatch.setattr(
+        a11oy_ayllu._backend,
+        "backend_status",
+        lambda: {"forge_profiles": {"profiles": {}}},
+    )
+    import a11oy_org_rag
+
+    monkeypatch.setattr(a11oy_org_rag, "status", lambda: {"built": False})
+
+    calls = {"receipt": 0}
+
+    def _must_not_sign(*_args, **_kwargs):
+        calls["receipt"] += 1
+        raise AssertionError("second-brain GET invoked the receipt signer")
+
+    app = FastAPI()
+    a11oy_ayllu.register(app, ns="a11oy")
+    app.state.szl_sign_receipt = _must_not_sign
+    if signer_status is not None:
+        app.state.szl_signer_status = lambda: signer_status
+    response = TestClient(app).get("/api/a11oy/v1/ayllu/second-brain")
+    assert response.status_code == 200
+    assert response.json()["signer_ready_this_request"] is expected_ready
+    assert calls["receipt"] == 0
+
+
+def test_second_brain_signer_status_provider_error_fails_closed(monkeypatch):
+    monkeypatch.setattr(
+        a11oy_ayllu._backend,
+        "backend_status",
+        lambda: {"forge_profiles": {"profiles": {}}},
+    )
+    import a11oy_org_rag
+
+    monkeypatch.setattr(a11oy_org_rag, "status", lambda: {"built": False})
+
+    def _failed_status():
+        raise RuntimeError("status unavailable")
+
+    app = FastAPI()
+    a11oy_ayllu.register(app, ns="a11oy")
+    app.state.szl_signer_status = _failed_status
+    response = TestClient(app).get("/api/a11oy/v1/ayllu/second-brain")
+    assert response.status_code == 200
+    assert response.json()["signer_ready_this_request"] is False
 
 
 def test_page_and_lounge_are_200():

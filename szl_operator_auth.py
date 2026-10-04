@@ -150,6 +150,7 @@ PROTECTED_ROUTES = (
     (r"/khipu/sign", "Receipt signing", "sign"),
     (r"/api/a11oy/khipu/sign", "Receipt signing", "sign"),
     (r"/api/a11oy/v1/brain/receipt/sign", "Receipt signing", "sign"),
+    (r"/api/a11oy/v1/rag/estate/query", "Estate RAG answer receipt signing", "sign"),
     (r"/api/a11oy/v1/provenance/pqc/sign", "Receipt signing", "sign"),
     (r"/api/a11oy/v1/restraint/evaluate", "Restraint receipt signing", "sign"),
     (r"/api/killinchu/v1/restraint/evaluate", "Restraint receipt signing", "sign"),
