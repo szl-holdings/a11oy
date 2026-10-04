@@ -112,7 +112,7 @@ jobs:
       - name: Install exact core test dependencies
         run: pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Prove payload closure, canonical bytes, and path containment
-        run: pytest tests/test_prepare_huggingface_payload.py -q
+        run: pytest tests/test_prepare_huggingface_payload.py tests/test_publish_huggingface_payload.py tests/test_huggingface_payload_license_truth.py tests/test_payload_manifest_cross_platform.py -q
 
   frontdoor-source-integrity:
     name: HF workflow shape and public UTF-8 integrity
