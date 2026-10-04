@@ -14,6 +14,26 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "hf-sync.yml"
 HELPER = ROOT / "scripts" / "hf_exact_main_ownership.py"
 TARGET_JOB = "Publish and live-verify six domain-native flagship Spaces"
+REVIEWED_MANUAL_FAILURE_STEPS = (
+    {
+        "name": "Preserve stopped private stores before any runtime mutation",
+        "id": "preserve_stores",
+        "continue-on-error": True,
+        "run": 'python -B scripts/preserve_hf_gdw_store.py --output "${{ runner.temp }}/gdw-store-preservation.json"',
+    },
+    {
+        "name": "Qualify the pinned private capture without admitting restore",
+        "id": "qualify_stores",
+        "if": "${{ always() && steps.preserve_stores.outcome == 'failure' }}",
+        "continue-on-error": True,
+        "run": (
+            "python -B scripts/qualify_gdw_store_recovery.py "
+            "--capture-report docs/operations/evidence/gdw-capture-37223162231.json "
+            "--historical-anchors docs/operations/evidence/gdw-recovery-historical-anchors.json "
+            '--output "${{ runner.temp }}/gdw-store-recovery-qualification.json"'
+        ),
+    },
+)
 
 
 class WorkflowContractError(AssertionError):
@@ -118,9 +138,10 @@ def assert_manual_dependency_graph(source: str) -> dict:
     dependencies = {
         "source-admission": [],
         "manual-prerequisites": ["source-admission"],
+        "durable-acquisition": ["source-admission", "manual-prerequisites"],
         "resume-paused-space": ["source-admission", "manual-prerequisites"],
-        "deploy": ["source-admission", "manual-prerequisites", "resume-paused-space"],
-        "runtime-config": ["manual-prerequisites", "deploy"],
+        "deploy": ["source-admission", "manual-prerequisites", "durable-acquisition", "resume-paused-space"],
+        "runtime-config": ["manual-prerequisites", "durable-acquisition", "deploy"],
         "publish-vertical-flagships": ["manual-prerequisites", "deploy"],
         "publish-finance-projection": ["manual-prerequisites", "relock"],
         "readiness-verdict": ["manual-prerequisites", "runtime-config"],
@@ -136,8 +157,10 @@ def assert_manual_dependency_graph(source: str) -> dict:
         raise WorkflowContractError("job set requires review")
     conditions = {
         "manual-prerequisites": "${{ needs.source-admission.outputs.publish == 'true' }}",
-        "resume-paused-space": "${{ needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' }}",
-        "deploy": "${{ needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && needs.resume-paused-space.result == 'success' }}",
+        "durable-acquisition": "${{ needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && needs.manual-prerequisites.outputs.mode == 'managed-recovery' }}",
+        "resume-paused-space": "${{ needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && needs.manual-prerequisites.outputs.mode != 'managed-recovery' }}",
+        "deploy": "${{ always() && needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && ((needs.manual-prerequisites.outputs.mode == 'managed-recovery' && needs.durable-acquisition.result == 'success') || (needs.manual-prerequisites.outputs.mode != 'managed-recovery' && needs.resume-paused-space.result == 'success')) }}",
+        "runtime-config": "${{ always() && needs.manual-prerequisites.result == 'success' && needs.durable-acquisition.result == 'success' && needs.deploy.result == 'success' }}",
         "publish-vertical-flagships": "${{ needs.manual-prerequisites.result == 'success' && github.event_name == 'workflow_dispatch' && inputs.publish_vertical_flagships }}",
         "publish-finance-projection": "${{ needs.manual-prerequisites.result == 'success' && (github.event_name == 'push' || !inputs.publish_vertical_flagships) }}",
         "terminal-source-authorization": "${{ always() && needs.post-deployment-parity.result == 'success' && (needs.publish-vertical-flagships.result == 'success' || needs.publish-vertical-flagships.result == 'skipped') && (needs.publish-finance-projection.result == 'success' || needs.publish-finance-projection.result == 'skipped') }}",
@@ -157,7 +180,15 @@ def assert_manual_dependency_graph(source: str) -> dict:
             raise WorkflowContractError("duplicate step id: " + name)
         for step in job.get("steps", []):
             if "continue-on-error" in step:
-                raise WorkflowContractError("step failure bypass: " + name)
+                # Only these complete, fixed manual steps can tolerate failure.
+                # Their reports still pass through the mandatory classifier and
+                # active native acquisition before any managed deployment.
+                reviewed = dict(step)
+                if isinstance(reviewed.get("run"), str):
+                    reviewed["run"] = " ".join(reviewed["run"].split())
+                if (name != "manual-prerequisites"
+                        or reviewed not in REVIEWED_MANUAL_FAILURE_STEPS):
+                    raise WorkflowContractError("step failure bypass: " + name)
     for name in jobs:
         if name in ("source-admission", "manual-prerequisites"):
             continue
@@ -279,9 +310,10 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
         for method in ("POST", "PUT", "PATCH", "DELETE"):
             self.assertNotIn(f'method="{method}"', helper)
 
-    def test_both_initial_provider_jobs_require_successful_owned_admission(self) -> None:
+    def test_initial_provider_jobs_require_successful_owned_admission(self) -> None:
         jobs = assert_manual_dependency_graph(self.workflow)
         for name in (
+            "Acquire qualified private storage through the canonical publisher",
             "Resume the canonical Space without changing its allocation",
             "Deploy, source-bind, and attest exact surface",
         ):
@@ -289,35 +321,74 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
                 job = job_block(self.workflow, name)
                 self.assertIn("needs.source-admission.outputs.publish == 'true'", job)
                 self.assertIn("needs.manual-prerequisites.result == 'success'", job)
-                self.assertNotRegex(job, r"(?m)^    if:.*always\(")
+                if name != "Deploy, source-bind, and attest exact surface":
+                    self.assertNotRegex(job, r"(?m)^    if:.*always\(")
                 self.assertNotIn("continue-on-error", job)
         deploy = job_block(self.workflow, "Deploy, source-bind, and attest exact surface")
         self.assertIn("require-default-branch-tip: true", deploy)
         self.assertIn("ref: ${{ github.sha }}", deploy)
         self.assertIn("cancel-in-progress: false", self.workflow)
         self.assertIn("resume-paused-space", jobs["deploy"]["needs"])
+        self.assertIn("durable-acquisition", jobs["deploy"]["needs"])
+        # The reviewed always() only permits evaluation after the other mode's
+        # job is skipped; each branch still requires its own successful effect.
+        self.assertIn("needs.durable-acquisition.result == 'success'", jobs["deploy"]["if"])
+        self.assertIn("needs.resume-paused-space.result == 'success'", jobs["deploy"]["if"])
+        self.assertEqual(jobs["runtime-config"]["needs"],
+                         ["manual-prerequisites", "durable-acquisition", "deploy"])
 
     def test_every_effect_job_requires_the_complete_dependency_graph(self) -> None:
         assert_manual_dependency_graph(self.workflow)
 
     def test_deleted_or_bypassed_dependency_gates_are_rejected(self) -> None:
         mutations = (
-            ("    needs: [source-admission, manual-prerequisites]\n", "    needs: source-admission\n", "dependency gate: resume-paused-space"),
-            ("    needs: [source-admission, manual-prerequisites, resume-paused-space]\n", "    needs: [source-admission, manual-prerequisites]\n", "dependency gate: deploy"),
-            ("    needs: [manual-prerequisites, runtime-config]\n", "    needs: runtime-config\n", "dependency gate: readiness-verdict"),
-            ("    needs: [manual-prerequisites, relock]\n", "    needs: manual-prerequisites\n", "dependency gate: publish-finance-projection"),
-            ("    if: ${{ needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' }}\n", "    if: always()\n", "condition gate: resume-paused-space"),
-            ("    if: ${{ needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && needs.resume-paused-space.result == 'success' }}\n", "", "condition gate: deploy"),
-            ("    needs: [manual-prerequisites, deploy]\n", "    needs: deploy\n", "dependency gate: runtime-config"),
-            ("    if: ${{ needs.manual-prerequisites.result == 'success' && github.event_name == 'workflow_dispatch' && inputs.publish_vertical_flagships }}\n", "    if: ${{ needs.manual-prerequisites.result == 'success' || inputs.publish_vertical_flagships }}\n", "condition gate: publish-vertical-flagships"),
-            ("    needs: [manual-prerequisites, runtime-config, readiness-verdict]\n", "    needs: [runtime-config, readiness-verdict]\n", "dependency gate: relock"),
-            ("    needs: [post-deployment-parity, publish-vertical-flagships, publish-finance-projection]\n", "    needs: post-deployment-parity\n", "dependency gate: terminal-source-authorization"),
+            ("Acquire qualified private storage through the canonical publisher", "    needs: [source-admission, manual-prerequisites]\n", "    needs: source-admission\n", "dependency gate: durable-acquisition"),
+            ("Resume the canonical Space without changing its allocation", "    needs: [source-admission, manual-prerequisites]\n", "    needs: source-admission\n", "dependency gate: resume-paused-space"),
+            ("Deploy, source-bind, and attest exact surface", "    needs: [source-admission, manual-prerequisites, durable-acquisition, resume-paused-space]\n", "    needs: [source-admission, manual-prerequisites]\n", "dependency gate: deploy"),
+            ("Probe and ingest exact post-deploy readiness verdict", "    needs: [manual-prerequisites, runtime-config]\n", "    needs: runtime-config\n", "dependency gate: readiness-verdict"),
+            ("Rebind and functionally verify the existing Finance projection", "    needs: [manual-prerequisites, relock]\n", "    needs: manual-prerequisites\n", "dependency gate: publish-finance-projection"),
+            ("Resume the canonical Space without changing its allocation", "    if: ${{ needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && needs.manual-prerequisites.outputs.mode != 'managed-recovery' }}\n", "    if: always()\n", "condition gate: resume-paused-space"),
+            ("Deploy, source-bind, and attest exact surface", "    if: ${{ always() && needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && ((needs.manual-prerequisites.outputs.mode == 'managed-recovery' && needs.durable-acquisition.result == 'success') || (needs.manual-prerequisites.outputs.mode != 'managed-recovery' && needs.resume-paused-space.result == 'success')) }}\n", "", "condition gate: deploy"),
+            ("Verify post-deploy configuration and bounded live proofs", "    needs: [manual-prerequisites, durable-acquisition, deploy]\n", "    needs: deploy\n", "dependency gate: runtime-config"),
+            (TARGET_JOB, "    if: ${{ needs.manual-prerequisites.result == 'success' && github.event_name == 'workflow_dispatch' && inputs.publish_vertical_flagships }}\n", "    if: ${{ needs.manual-prerequisites.result == 'success' || inputs.publish_vertical_flagships }}\n", "condition gate: publish-vertical-flagships"),
+            ("Prove exact live source, runtime, routes, and singleton state", "    needs: [manual-prerequisites, runtime-config, readiness-verdict]\n", "    needs: [runtime-config, readiness-verdict]\n", "dependency gate: relock"),
+            ("Re-authorize exact protected main after all publication proofs", "    needs: [post-deployment-parity, publish-vertical-flagships, publish-finance-projection]\n", "    needs: post-deployment-parity\n", "dependency gate: terminal-source-authorization"),
         )
-        for original, replacement, diagnostic in mutations:
+        for name, original, replacement, diagnostic in mutations:
             with self.subTest(diagnostic=diagnostic):
-                self.assertIn(original, self.workflow)
-                changed = self.workflow.replace(original, replacement, 1)
+                target = job_block(self.workflow, name)
+                self.assertIn(original, target)
+                changed = self.workflow.replace(target, target.replace(original, replacement, 1), 1)
                 with self.assertRaisesRegex(WorkflowContractError, re.escape(diagnostic)):
+                    assert_manual_dependency_graph(changed)
+
+    def test_mode_gates_reject_reversed_modes_and_skipped_acquisition(self) -> None:
+        mutations = (
+            ("Acquire qualified private storage through the canonical publisher",
+             "needs.manual-prerequisites.outputs.mode == 'managed-recovery'",
+             "needs.manual-prerequisites.outputs.mode != 'managed-recovery'", "durable-acquisition"),
+            ("Resume the canonical Space without changing its allocation",
+             "needs.manual-prerequisites.outputs.mode != 'managed-recovery'",
+             "needs.manual-prerequisites.outputs.mode == 'managed-recovery'", "resume-paused-space"),
+            ("Deploy, source-bind, and attest exact surface",
+             "needs.durable-acquisition.result == 'success'",
+             "needs.durable-acquisition.result == 'skipped'", "deploy"),
+            ("Deploy, source-bind, and attest exact surface",
+             "needs.manual-prerequisites.outputs.mode == 'managed-recovery'",
+             "needs.manual-prerequisites.outputs.mode != 'managed-recovery'", "deploy"),
+            ("Verify post-deploy configuration and bounded live proofs",
+             "needs.durable-acquisition.result == 'success'",
+             "(needs.durable-acquisition.result == 'success' || needs.durable-acquisition.result == 'skipped')",
+             "runtime-config"),
+            ("Verify post-deploy configuration and bounded live proofs",
+             " && needs.durable-acquisition.result == 'success'", "", "runtime-config"),
+        )
+        for name, original, replacement, key in mutations:
+            with self.subTest(job=key, replacement=replacement):
+                target = job_block(self.workflow, name)
+                self.assertIn(original, target)
+                changed = self.workflow.replace(target, target.replace(original, replacement, 1), 1)
+                with self.assertRaisesRegex(WorkflowContractError, "condition gate: " + key):
                     assert_manual_dependency_graph(changed)
 
     def test_duplicate_jobs_properties_and_step_ids_are_rejected(self) -> None:
@@ -326,10 +397,11 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
             ("    needs: source-admission\n", "    needs: source-admission\n    needs: deploy\n", "duplicate mapping key: needs"),
             ("    if: ${{ needs.source-admission.outputs.publish == 'true' }}\n", "    if: ${{ needs.source-admission.outputs.publish == 'true' }}\n    if: always()\n", "duplicate mapping key: if"),
             ("        id: owner\n", "        id: owner\n        id: forged\n", "duplicate mapping key: id"),
-            ("      - name: Retain the source admission decision\n", "      - name: Retain the source admission decision\n        id: owner\n", "duplicate step id: source-admission"),
+            ("        id: source_artifact\n", "        id: owner\n", "duplicate step id: source-admission"),
         )
         for original, replacement, diagnostic in mutations:
             with self.subTest(diagnostic=diagnostic):
+                self.assertIn(original, self.workflow)
                 changed = self.workflow.replace(original, replacement, 1)
                 with self.assertRaisesRegex(WorkflowContractError, re.escape(diagnostic)):
                     assert_manual_dependency_graph(changed)
@@ -339,11 +411,42 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
             (self.workflow + "\n  unreviewed-job:\n    runs-on: ubuntu-latest\n", "job set requires review"),
             (self.workflow.replace("  manual-prerequisites:\n", "  removed-prerequisites:\n", 1), "job set requires review"),
             (self.workflow.replace("  deploy:\n", "  deploy:\n    continue-on-error: true\n", 1), "job failure bypass: deploy"),
+            (self.workflow.replace("  durable-acquisition:\n", "  durable-acquisition:\n    continue-on-error: true\n", 1), "job failure bypass: durable-acquisition"),
             (self.workflow.replace("      - name: Require main and classify current source ownership\n", "      - name: Require main and classify current source ownership\n        continue-on-error: true\n", 1), "step failure bypass: source-admission"),
+            (self.workflow.replace("      - name: Classify the exact native candidate without admitting deployment\n", "      - name: Classify the exact native candidate without admitting deployment\n        continue-on-error: true\n", 1), "step failure bypass: manual-prerequisites"),
+            (self.workflow.replace("      - name: Verify native artifacts, pause exactly, and acquire private storage\n", "      - name: Verify native artifacts, pause exactly, and acquire private storage\n        continue-on-error: true\n", 1), "step failure bypass: durable-acquisition"),
         )
         for changed, diagnostic in cases:
             with self.subTest(diagnostic=diagnostic), self.assertRaisesRegex(WorkflowContractError, re.escape(diagnostic)):
                 assert_manual_dependency_graph(changed)
+
+    def test_only_complete_reviewed_manual_step_shapes_can_tolerate_failure(self) -> None:
+        document = workflow_document(self.workflow)
+        admitted = [(name, step["name"]) for name, job in document["jobs"].items()
+                    for step in job.get("steps", []) if "continue-on-error" in step]
+        self.assertEqual(admitted, [
+            ("manual-prerequisites", step["name"]) for step in REVIEWED_MANUAL_FAILURE_STEPS])
+        manual = job_block(self.workflow, "Check manual authority prerequisites before provider writes")
+        for reviewed in REVIEWED_MANUAL_FAILURE_STEPS:
+            original = step_block(manual, reviewed["name"])
+            replacements = (
+                original.replace("continue-on-error: true", "continue-on-error: false", 1),
+                original.replace("continue-on-error: true", "continue-on-error: 'true'", 1),
+                original.replace("        run: >-\n", "        env:\n          HF_TOKEN: unreviewed\n        run: >-\n", 1),
+                original.replace("python -B scripts/", "python -B unreviewed/", 1),
+                original.replace("id: " + reviewed["id"], "id: unreviewed", 1),
+            )
+            for replacement in replacements:
+                with self.subTest(step=reviewed["id"], replacement=replacement):
+                    self.assertNotEqual(original, replacement)
+                    changed = self.workflow.replace(original, replacement, 1)
+                    with self.assertRaisesRegex(WorkflowContractError, "step failure bypass: manual-prerequisites"):
+                        assert_manual_dependency_graph(changed)
+        original = step_block(manual, REVIEWED_MANUAL_FAILURE_STEPS[0]["name"])
+        marker = "      - name: Verify native artifacts, pause exactly, and acquire private storage\n"
+        changed = self.workflow.replace(marker, original + "\n" + marker, 1)
+        with self.assertRaisesRegex(WorkflowContractError, "step failure bypass: durable-acquisition"):
+            assert_manual_dependency_graph(changed)
 
     def test_admission_is_read_only_source_bound_and_retained(self) -> None:
         job = job_block(self.workflow, "Admit the queued source before provider mutation")

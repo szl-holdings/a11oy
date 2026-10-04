@@ -18,6 +18,7 @@ from gdw_proofs import (
     sha256_json,
 )
 from gdw_workspace import GDWWorkspace
+import gdw_durable_runtime as durable_storage
 
 
 if __name__ == "__main__":
@@ -131,6 +132,26 @@ def storage_contract(
         values.get("GDW_PROOF_EXPORT_MODE") or "outbox"
     ).strip().lower()
 
+    if durable_storage.enabled(values):
+        gate = durable_storage.require_gate()
+        if (database != gate.paths["gdw"] or required_mount_text
+                or journal_mode != "DELETE" or synchronous != "FULL"
+                or proof_export_mode != "outbox"):
+            raise GDWRuntimeError("LOCAL_STORAGE_CONTRACT_REQUIRED")
+        return {
+            "persistence_required": True,
+            "required_mount": None,
+            "mount_verified": False,
+            "database_path": str(database),
+            "proof_dir": str(proof_dir),
+            "receipt_projection_dir": str(receipt_dir),
+            "journal_mode_requested": journal_mode,
+            "synchronous_requested": synchronous,
+            "proof_export_mode": proof_export_mode,
+            "durable_storage": durable_storage.MODE,
+            "durability_authority": "verified-private-dataset-head",
+        }
+
     if journal_mode not in ALLOWED_JOURNAL_MODES:
         raise GDWRuntimeError(
             "GDW_SQLITE_JOURNAL must be one of "
@@ -194,6 +215,29 @@ def prepare_runtime(
     database = Path(contract["database_path"])
     proof_dir = Path(contract["proof_dir"])
     receipt_dir = Path(contract["receipt_projection_dir"])
+
+    if contract.get("durable_storage") == durable_storage.MODE:
+        # The coordinator has restored, qualified and claimed both stores. No
+        # provisioning, migration or legacy requeue precedes durable activation.
+        workspace = GDWWorkspace(str(database), production=True)
+        with workspace.transaction() as connection:
+            integrity = str(connection.execute("PRAGMA integrity_check").fetchone()[0])
+        if integrity != "ok":
+            raise GDWRuntimeError("GDW restored SQLite integrity check failed")
+        observed = {
+            **contract,
+            "journal_mode_observed": "DELETE",
+            "synchronous_observed": 2,
+            "sqlite_integrity": integrity,
+            "schema_version": workspace.schema_version(),
+            "database_generation_id": workspace.database_generation_id,
+            "workspace_path": str(workspace.path),
+            "legacy_link_failures_requeued": 0,
+        }
+        with _STATE_LOCK:
+            _STATE.update(startup_state="READY", evidence_label="VERIFIED",
+                          storage=observed, prepared_at=_now(), error=None)
+        return observed
 
     try:
         _verify_writable_directory(database.parent)
@@ -664,32 +708,46 @@ def runtime_health() -> dict[str, Any]:
     """Return secret-free observed inputs for the GDW health route."""
 
     with _STATE_LOCK:
-        return json.loads(json.dumps(_STATE))
+        result = json.loads(json.dumps(_STATE))
+    if durable_storage.enabled() and result.get("startup_state") == "READY":
+        result.setdefault("storage", {})["managed_admission"] = durable_storage.require_gate().managed_status()
+    return result
 
 
 def main() -> int:
+    coordinator = None
+    supervisor = None
     try:
-        prepare_runtime()
-    except Exception as exc:
-        with _STATE_LOCK:
-            _STATE.update(
-                {
-                    "startup_state": "BLOCKED",
-                    "evidence_label": "VERIFIED",
-                    "error": f"{type(exc).__name__}: {str(exc)[:240]}",
-                }
-            )
-        raise
+        try:
+            if durable_storage.enabled():
+                import gdw_durable_startup as coordinator
 
-    supervisor = OutboxSupervisor.from_environment()
-    supervisor.start()
-    try:
+                coordinator.activate()
+            prepare_runtime()
+        except Exception as exc:
+            with _STATE_LOCK:
+                _STATE.update(
+                    {
+                        "startup_state": "BLOCKED",
+                        "evidence_label": "VERIFIED",
+                        "error": f"{type(exc).__name__}: {str(exc)[:240]}",
+                    }
+                )
+            raise
+
+        supervisor = OutboxSupervisor.from_environment()
+        supervisor.start()
         runpy.run_path(
             str(Path(__file__).with_name("serve.py")),
             run_name="__main__",
         )
     finally:
-        supervisor.stop()
+        try:
+            if supervisor is not None:
+                supervisor.stop()
+        finally:
+            if coordinator is not None:
+                coordinator.close()
     return 0
 
 

@@ -141,6 +141,10 @@ _MODULE_CANDIDATES = {
 
 
 def _ensure_on_path(kind: str) -> None:
+    if os.environ.get("GDW_DURABLE_STORAGE") == "private-dataset-v1":
+        # The deployed copies remain importable; developer siblings are outside
+        # the first-cutover installed source inventory.
+        return
     for d in _SIBLING_DIRS.get(kind, []):
         if os.path.isdir(d) and d not in sys.path:
             sys.path.insert(0, d)

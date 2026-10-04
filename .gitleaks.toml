@@ -92,3 +92,15 @@ paths = [
   '''.*/testdata/.*''',
   '''.*\.test\.key$''',
 ]
+
+# This one immutable public-source SHA is not signing material. Both the exact
+# checker path and the complete literal row must match; all other findings from
+# the inherited generic-api-key rule, including adjacent values, remain scanned.
+[[rules]]
+id = "generic-api-key"
+[[rules.allowlists]]
+description = "Exact reviewed a11oy_signing_key.py source identity in source admission"
+condition = "AND"
+regexTarget = "line"
+paths = ['''^tools/check_copy_sync_lockstep\.py$''']
+regexes = ['''^\s*"a11oy_signing_key\.py": "3315e58f39e0727590ecd6545f4f125d40b2ff0eea9f5fced15539da5d764d5c",\s*$''']

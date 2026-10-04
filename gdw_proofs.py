@@ -9,6 +9,7 @@ import stat
 import tempfile
 import threading
 import time
+import gdw_durable_runtime as durable_storage
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Dict, Iterator
@@ -242,14 +243,20 @@ def _export_json_artifact_unlocked(
     filename: str,
     payload: Dict[str, Any],
     owner_id: str,
+    *,
+    private: bool = False,
 ) -> Dict[str, Any]:
     if type(owner_id) is not str or not owner_id:
         raise ValueError("owner_id is required for artifact isolation")
-    root.mkdir(parents=True, exist_ok=True)
+    root.mkdir(mode=0o700 if private else 0o777, parents=True, exist_ok=True)
+    if private:
+        durable_storage._private_directory(root)
     root = root.resolve()
     owner_scope = hashlib.sha256(owner_id.encode("utf-8")).hexdigest()[:32]
     owner_candidate = root / owner_scope
-    owner_candidate.mkdir(parents=True, exist_ok=True)
+    owner_candidate.mkdir(mode=0o700 if private else 0o777, parents=True, exist_ok=True)
+    if private:
+        durable_storage._private_directory(owner_candidate)
     owner_root = owner_candidate.resolve()
     if owner_root.parent != root or owner_root.name != owner_scope:
         raise ValueError("artifact owner scope escapes the configured root")
@@ -372,6 +379,16 @@ def _export_json_artifact(
     payload: Dict[str, Any],
     owner_id: str,
 ) -> Dict[str, Any]:
+    if durable_storage.enabled():
+        gate = durable_storage.require_gate()
+        with gate.lock, _ARTIFACT_QUOTA_LOCK:
+            gate._verify()
+            physical_root = gate.artifacts.local_root(root)
+            artifact = _export_json_artifact_unlocked(
+                physical_root, filename, payload, owner_id, private=True
+            )
+            artifact["path"] = str(root / artifact["owner_scope"] / filename)
+            return artifact
     with _ARTIFACT_QUOTA_LOCK:
         return _export_json_artifact_unlocked(
             root,

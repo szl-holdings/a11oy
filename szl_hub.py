@@ -271,8 +271,11 @@ def _kernel_extend_sys_path() -> None:
     extra = os.environ.get("SZL_KERNEL_PATHS", "")
     if not extra:
         return
-    for raw in extra.split(os.pathsep):
-        path = raw.strip()
+    paths = [raw.strip() for raw in extra.split(os.pathsep) if raw.strip()]
+    if os.environ.get("GDW_DURABLE_STORAGE") == "private-dataset-v1":
+        from gdw_durable_source import managed_import_paths
+        paths = managed_import_paths(paths)
+    for path in paths:
         if path and path not in sys.path:
             sys.path.insert(0, path)
 

@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterator, Optional, Tuple
 
 import szl_dsse
+import gdw_durable_runtime as durable_storage
 
 
 SCHEMA_VERSION = 4
@@ -516,6 +517,8 @@ class GDWWorkspace:
         return SCHEMA_VERSION
 
     def _connect(self) -> sqlite3.Connection:
+        if durable_storage.enabled():
+            return durable_storage.connect("gdw", self.path)
         connection = sqlite3.connect(
             str(self.path),
             timeout=30.0,
@@ -1043,6 +1046,17 @@ class GDWWorkspace:
         return generation_id
 
     def _initialise(self) -> None:
+        if durable_storage.enabled():
+            if self.journal_mode != "DELETE" or self.synchronous_mode != "FULL":
+                raise GDWConfigurationError("LOCAL_STORAGE_CONTRACT_REQUIRED")
+            # Recovery qualification owns schema migration. Runtime startup must
+            # preserve the restored generation and may not initialise a store.
+            connection = self._connect()
+            try:
+                self.database_generation_id = self._validate_schema(connection)
+            finally:
+                connection.close()
+            return
         with _SCHEMA_LOCK:
             if not self.path.exists():
                 if self.production:
@@ -1111,11 +1125,12 @@ class GDWWorkspace:
         with _PROCESS_WRITE_LOCK:
             connection = self._connect()
             try:
-                connection.execute("BEGIN IMMEDIATE")
+                if not connection.in_transaction:
+                    connection.execute("BEGIN IMMEDIATE")
                 yield connection
-                connection.execute("COMMIT")
+                connection.commit()
             except Exception:
-                connection.execute("ROLLBACK")
+                connection.rollback()
                 raise
             finally:
                 connection.close()
@@ -1649,6 +1664,8 @@ class GDWWorkspace:
     def artifact_binding_errors(
         row: Dict[str, Any],
         artifact: Any,
+        *,
+        physical_path: Optional[Path] = None,
     ) -> list[str]:
         errors = []
         if not isinstance(artifact, dict):
@@ -1686,6 +1703,10 @@ class GDWWorkspace:
             return errors
         if observed_path != expected_path:
             errors.append("artifact_path_mismatch")
+        if physical_path is not None:
+            observed_path = physical_path
+        elif durable_storage.enabled():
+            observed_path = durable_storage.require_gate().artifacts.resolve(observed_path)
         if not observed_path.is_file():
             errors.append("artifact_missing")
             return errors

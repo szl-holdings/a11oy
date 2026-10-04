@@ -22,6 +22,12 @@ ROOT = SCRIPT.resolve().parent.parent
 PINNED_PEM = (ROOT / verifier.PINNED_SIGNING_PUBLIC_KEY_PATH).read_bytes()
 
 
+@pytest.mark.parametrize("mode", ["private-dataset-v1", "unknown-successor"])
+def test_legacy_plan_cannot_downgrade_activated_durable_storage(mode):
+    with pytest.raises(config.RuntimeConfigError, match="cannot be replaced"):
+        config.plan_variables({"GDW_DURABLE_STORAGE": {"value": mode}}, set())
+
+
 def offline_get(_url):
     raise OSError("offline fixture: no network")
 
@@ -653,3 +659,43 @@ def test_check_only_cli_emits_bounded_failed_report_without_read_token(monkeypat
                 "variables": "CREDENTIAL_METADATA_UNAVAILABLE",
                 "volumes": "PERSISTENT_STORAGE_UNAVAILABLE"}
     assert_setup_required(report, api, expected[failing_read])
+
+
+@pytest.mark.parametrize("mode", ["durable-private-dataset-v1", "unknown-successor"])
+def test_legacy_plan_preserves_guard_before_managed_variables_exist(mode):
+    with pytest.raises(config.RuntimeConfigError, match="cannot be replaced"):
+        config.plan_variables(
+            {"GDW_PROOF_EXPORT_MODE": {"value": mode}}, set(),
+            {"GDW_PROOF_EXPORT_MODE": "outbox"},
+        )
+
+
+@pytest.mark.parametrize("arguments", [["--source-sha", "a" * 40], ["--managed-acquisition", "missing.json"]])
+def test_incomplete_managed_cli_cannot_reach_legacy_or_alternative_managed_entry(monkeypatch, capsys, arguments):
+    monkeypatch.setattr(config, "configure", lambda **_kw: pytest.fail("legacy configuration reached"))
+    monkeypatch.setattr(config, "configure_managed", lambda *_a, **_kw: pytest.fail("incomplete managed request reached"))
+    assert config.main(arguments) == 1
+    assert json.loads(capsys.readouterr().out)["diagnostic_code"] == "MANAGED_STORAGE_UNAVAILABLE"
+
+
+@pytest.mark.parametrize("field,value", [("repo_id", "other/space"), ("bucket", "other/bucket")])
+def test_managed_alternative_entry_rejects_resource_change_before_loading_helper(monkeypatch, field, value):
+    kwargs = {"repo_id": config.CANONICAL_SPACE, "bucket": config.CANONICAL_BUCKET}
+    kwargs[field] = value
+    monkeypatch.setattr(config.importlib.util, "spec_from_file_location", lambda *_a: pytest.fail("invalid scope loaded helper"))
+    with pytest.raises(config.RuntimeConfigError):
+        config.configure_managed(Path("absent"), source_revision="a" * 40,
+            deadline=config.time.monotonic() + 2, check_only=False, **kwargs)
+
+
+def test_managed_alternative_entry_delegates_one_pair_attempt(monkeypatch, capsys):
+    calls = []
+    def admitted(*args, **kwargs):
+        calls.append((args, kwargs))
+        return {"state": "CONFIGURATION_VERIFIED", "converged": True, "runtime_proven": False}
+    monkeypatch.setattr(config, "configure_managed", admitted)
+    monkeypatch.setattr(config, "configure", lambda **_kw: pytest.fail("legacy configuration reached"))
+    assert config.main(["--managed-acquisition", "locator.json", "--source-sha", "a" * 40]) == 0
+    assert len(calls) == 1 and calls[0][0] == (Path("locator.json"),)
+    assert calls[0][1]["source_revision"] == "a" * 40 and calls[0][1]["check_only"] is False
+    assert calls[0][1]["repo_id"] == config.CANONICAL_SPACE and calls[0][1]["bucket"] == config.CANONICAL_BUCKET

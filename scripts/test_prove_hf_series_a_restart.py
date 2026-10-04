@@ -891,3 +891,216 @@ def test_main_redirect_on_space_control_is_a_fixed_code_without_body(monkeypatch
     assert all(url.startswith(("https://szlholdings-a11oy.hf.space/api/",
                                "https://huggingface.co/api/spaces/SZLHOLDINGS/a11oy"))
                for url in seen)
+
+
+# The runtime witness is accepted only through the real shared verifier. All
+# provider authority in these tests is a synthetic immutable HEAD/history pair.
+def _managed_fixture():
+    spec = importlib.util.spec_from_file_location(
+        "series_managed_context_test", SCRIPT.with_name("configure_hf_gdw_runtime.py"))
+    config = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(config)
+    admission = {
+        "source": {"revision": "a" * 40},
+        "qualification": {"report_sha256": "b" * 64},
+        "snapshots": {"gdw": {"generation": "c" * 32},
+                      "series_a": {"generation": "store_" + "1" * 32}},
+    }
+    value = {"operation_id": "e" * 32, "kind": "COMMIT", "epoch": 2,
+             "qualification_sha256": "f" * 64, "source_revision": "a" * 40,
+             "snapshots": admission["snapshots"]}
+    head = SimpleNamespace(revision="1" * 40, body=b"immutable-head", value=value)
+    reads = []
+
+    def read_at(revision, operation, deadline):
+        reads.append((revision, operation, deadline))
+        return head, head.body
+
+    backend = SimpleNamespace(read_at=read_at)
+    context = config.ManagedProofContext(admission, "f" * 64, backend,
+                                        deadline=proof.time.monotonic() + 30)
+    witness = {"schema": "szl.gdw-managed-runtime/v1", "mode": "private-dataset-v1",
+               **context.identity, "dataset_revision": head.revision,
+               "operation_id": value["operation_id"], "writer_epoch": 2,
+               "actual_host_full_state_ack_ms": 500,
+               "startup_state": "RESTORED_AND_ACKNOWLEDGED", "throughput_claim": "NOT_CLAIMED"}
+    return context, witness, backend, reads
+
+
+class ManagedSession(Session):
+    def __init__(self, witness):
+        super().__init__("a" * 40)
+        self.witness = witness
+        self.statuses = [self.managed(record) for record in self.statuses]
+
+    def managed(self, record):
+        record["database"] = "/tmp/managed-" + record["runtime_boot_id"] + "/series-a.sqlite3"
+        record["storage"].update({"durable_storage": "private-dataset-v1",
+                                  "durability_authority": "verified-private-dataset-head",
+                                  "required_mount": None, "mount_verified": False,
+                                  "managed_admission": self.witness})
+        return record
+
+    def recovery_record(self):
+        return self.managed(super().recovery_record())
+
+
+def _managed_prove(api, session, context):
+    return proof.prove(api=api, session=session, repo_id="SZLHOLDINGS/a11oy",
+                       origin=proof.bounds.CANONICAL_ORIGIN, source_sha="a" * 40,
+                       attempts=2, retry_seconds=0, managed_context=context)
+
+
+def test_managed_restart_recovers_exact_receipt_across_fresh_local_paths(monkeypatch):
+    context, witness, _backend, reads = _managed_fixture()
+    monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
+    api = Api()
+    report = _managed_prove(api, ManagedSession(witness), context)
+    assert report["ok"] is True
+    assert report["before"]["database"] != report["after"]["database"]
+    assert report["before"]["storage"]["instance_id"] == report["after"]["storage"]["instance_id"]
+    assert report["proof"]["pre_restart_chain_head_recovered"] is True
+    assert report["proof"]["activation_stop_the_world"] is True
+    assert report["proof"]["durability_stop_the_world"] is True
+    assert report["managed_identity"] == context.identity
+    assert report["managed_admission"] == witness
+    assert len(api.pause_calls) == len(api.calls) == 2
+    assert len(reads) >= 6
+    assert all(read[:2] == (witness["dataset_revision"], witness["operation_id"]) for read in reads)
+    bounded = proof.pass_report(report, deadline_seconds=60, effects=[])
+    assert bounded["managed_admission"] == witness
+    assert len(json.dumps(bounded).encode()) < proof.MAX_REPORT_BYTES
+
+
+@pytest.mark.parametrize("fault", ["no_context", "missing_witness", "admission", "qualification",
+                                  "source", "epoch", "generation", "history", "ack_bool",
+                                  "unacknowledged", "closed_context"])
+def test_managed_restart_rejects_unverified_authority_before_pause(fault, monkeypatch):
+    context, witness, backend, reads = _managed_fixture()
+    if fault == "admission":
+        witness["admission_sha256"] = "9" * 64
+    elif fault == "qualification":
+        witness["qualification_sha256"] = witness["admission_sha256"]
+    elif fault == "source":
+        witness["source_revision"] = "9" * 40
+    elif fault == "epoch":
+        witness["writer_epoch"] = 3
+    elif fault == "generation":
+        witness["generations"]["series_a"] = "store_" + "9" * 32
+    elif fault == "history":
+        original = backend.read_at
+        backend.read_at = lambda *args: (original(*args)[0], b"different-history")
+    elif fault == "ack_bool":
+        witness["actual_host_full_state_ack_ms"] = True
+    elif fault == "unacknowledged":
+        witness["startup_state"] = "PLANNED"
+    elif fault == "closed_context":
+        context.close()
+    elif fault == "missing_witness":
+        witness = None
+    session = ManagedSession(witness)
+    api = Api()
+    monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
+    with pytest.raises(proof.ProofBoundaryError) as caught:
+        _managed_prove(api, session, None if fault == "no_context" else context)
+    assert caught.value.code == "EFFECT_SCOPE_REJECTED"
+    assert api.pause_calls == api.calls == []
+    if fault == "no_context":
+        assert reads == []
+
+
+@pytest.mark.parametrize("fault", ["created_at", "instance_id", "envelope", "sequence"])
+def test_managed_restart_keeps_identity_and_exact_receipt_checks(fault, monkeypatch):
+    context, witness, _backend, _reads = _managed_fixture()
+    session = ManagedSession(witness)
+    original = session.recovery_record
+
+    def recovery():
+        record = original()
+        if fault in {"created_at", "instance_id"}:
+            record["storage"][fault] = "changed"
+        elif fault == "envelope":
+            record["item"]["envelope"] = {"payload": "substituted"}
+        else:
+            record["item"]["sequence"] = 0
+        return record
+
+    session.recovery_record = recovery
+    api = Api()
+    monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)
+    with pytest.raises((proof.RestartProofError, proof.ProofBoundaryError)):
+        _managed_prove(api, session, context)
+    # Initial activation is permitted; no durability restart follows a bad
+    # exact-receipt or creation/generation witness.
+    assert len(api.pause_calls) == len(api.calls) == 1
+
+
+def test_managed_cli_loader_failure_has_no_transport_or_provider_text(monkeypatch, tmp_path):
+    monkeypatch.setenv("HF_TOKEN", "synthetic-private-hf-token")
+    calls = []
+
+    def reject(path, *, source_revision, deadline):
+        calls.append((path, source_revision, deadline))
+        raise RuntimeError("sensitive provider response")
+
+    monkeypatch.setattr(proof, "load_managed_proof_context", reject)
+    output = tmp_path / "proof.json"
+    locator = tmp_path / "locator.json"
+    assert proof.main(["--source-sha", "a" * 40, "--output", str(output),
+                       "--managed-acquisition", str(locator)],
+                      transport_factory=lambda **_k: pytest.fail("transport before admission")) == 1
+    assert len(calls) == 1 and calls[0][:2] == (locator, "a" * 40)
+    assert "sensitive" not in output.read_text()
+    assert json.loads(output.read_text())["status"] == "FAIL"
+
+
+def test_managed_cli_keeps_loader_time_in_deadline_and_closes_context(monkeypatch, tmp_path):
+    monkeypatch.setenv("HF_TOKEN", "synthetic-private-hf-token")
+    now = [10.0]
+    monkeypatch.setattr(proof.time, "monotonic", lambda: now[0])
+    closed = []
+    context = SimpleNamespace(close=lambda: closed.append(True))
+
+    def load(_path, *, source_revision, deadline):
+        assert source_revision == "a" * 40 and deadline == 70.0
+        now[0] += 20
+        return context
+
+    def factory(*, deadline_seconds):
+        assert deadline_seconds == 40
+        return SimpleNamespace()
+
+    def run(**kwargs):
+        assert kwargs["managed_context"] is context and kwargs["deadline"] == 70.0
+        raise proof.ProofBoundaryError("DEADLINE_EXHAUSTED")
+
+    monkeypatch.setattr(proof, "load_managed_proof_context", load)
+    monkeypatch.setattr(proof, "prove", run)
+    output = tmp_path / "proof.json"
+    assert proof.main(["--source-sha", "a" * 40, "--output", str(output),
+                       "--managed-acquisition", str(tmp_path / "locator.json"),
+                       "--deadline-seconds", "60"], transport_factory=factory) == 1
+    assert closed == [True]
+    assert json.loads(output.read_text())["diagnostic_code"] == "DEADLINE_EXHAUSTED"
+
+
+def test_managed_explicit_deadline_cannot_expand_restart_budget():
+    context, witness, _backend, reads = _managed_fixture()
+    api = Api()
+    with pytest.raises(proof.RestartProofError) as caught:
+        proof.prove(api=api, session=ManagedSession(witness), repo_id="SZLHOLDINGS/a11oy",
+                    origin=proof.bounds.CANONICAL_ORIGIN, source_sha="a" * 40,
+                    attempts=2, retry_seconds=0, deadline_seconds=60,
+                    deadline=proof.time.monotonic() + 600, managed_context=context)
+    assert caught.value.code == "INVALID_ARGUMENTS"
+    assert api.pause_calls == api.calls == reads == []
+
+
+def test_managed_cli_native_loader_refuses_invalid_locator_before_effects(monkeypatch, tmp_path):
+    monkeypatch.setenv("HF_TOKEN", "synthetic-private-hf-token")
+    locator, output = tmp_path / "locator.json", tmp_path / "proof.json"
+    locator.write_text("{}\n")
+    assert proof.main(["--source-sha", "a" * 40, "--output", str(output),
+                       "--managed-acquisition", str(locator)],
+                      transport_factory=lambda **_k: pytest.fail("invalid locator admitted")) == 1
+    assert json.loads(output.read_text())["status"] == "FAIL"
