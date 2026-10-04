@@ -60,6 +60,16 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 2
+      - name: Fetch the immutable comparison base
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          LANDING_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$LANDING_BASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          git fetch --no-tags --depth=1 origin "$LANDING_BASE_SHA"
+          git cat-file -e "${LANDING_BASE_SHA}:a11oy_landing.html"
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "24"

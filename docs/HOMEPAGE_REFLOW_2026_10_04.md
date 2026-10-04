@@ -29,6 +29,10 @@ the compact navigation. On a PR it retains the same measurements for the base
 HTML as a before/after control. Instrument screenshots retain the status footer
 at both compact widths in addition to the header screenshots.
 
+The job fetches its exact event base commit explicitly. A moving main branch can
+put that commit beyond a shallow merge checkout; comparison must retain the
+recorded baseline rather than silently substituting another revision.
+
 The read-only `Homepage source reflow` job in `frontend-flow-shell-contract.yml`
 retains JSON measurements and screenshots. Its candidate result must pass before
 merge; live publisher and postdeployment evidence remain separate.
