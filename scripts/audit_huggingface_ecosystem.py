@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 import datetime as dt
 import hashlib
 import json
@@ -16,11 +18,11 @@ from pathlib import Path
 from typing import Any, Callable
 
 try:
-    from scripts.hf_public_inventory import reserved_readme
+    from scripts.hf_public_inventory import KINDS, MAX_PAGES, MAX_ITEMS, InventoryError, REPO, public_get, next_url, reserved_readme
 except ModuleNotFoundError:
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from hf_public_inventory import reserved_readme
+    from hf_public_inventory import KINDS, MAX_PAGES, MAX_ITEMS, InventoryError, REPO, public_get, next_url, reserved_readme
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -100,6 +102,9 @@ def fetch_page(url: str) -> tuple[Any, str | None]:
 
 
 def api_items(kind: str) -> ApiItems:
+    """Enumerate one public namespace without inheriting credentials or redirects."""
+    if kind not in KINDS:
+        raise InventoryError("UNSUPPORTED_NAMESPACE")
     url: str | None = (
         f"https://huggingface.co/api/{kind}?author={ORG}"
         f"&limit={PAGE_LIMIT}&full=true"
@@ -108,28 +113,37 @@ def api_items(kind: str) -> ApiItems:
     seen_urls: set[str] = set()
     endpoints: list[str] = []
     while url:
-        if url in seen_urls:
-            raise RuntimeError(f"Pagination loop from Hugging Face {kind} API: {url}")
+        if url in seen_urls or len(seen_urls) >= MAX_PAGES:
+            raise InventoryError("PAGINATION_CYCLE_OR_BUDGET")
         seen_urls.add(url)
         endpoints.append(url)
-        data, url = fetch_page(url)
-        if not isinstance(data, list):
-            raise TypeError(f"Expected list from Hugging Face {kind} API")
+        response = public_get(url)
+        if response.get("status") != 200:
+            raise InventoryError("HTTP_UNAVAILABLE")
+        data = response.get("json")
+        if not isinstance(data, list) or len(data) > PAGE_LIMIT:
+            raise InventoryError("INVALID_LIST_PAGE")
         for item in data:
             if not isinstance(item, dict):
-                raise TypeError(f"Expected object item from Hugging Face {kind} API")
+                raise InventoryError("INVALID_REPOSITORY_ROW")
             item_id = item.get("id") or item.get("modelId")
-            if not isinstance(item_id, str) or not item_id:
-                raise ValueError(f"Hugging Face {kind} API item has no repository id")
-            if item.get('private') is not False:
-                raise ValueError(f"Hugging Face {kind} visibility is not explicitly public")
-            items[item_id] = item
-    if kind == 'spaces' and f'{ORG}/README' not in items:
-        endpoints.append(f'https://huggingface.co/api/spaces/{ORG}/README')
+            if (not isinstance(item_id, str) or not REPO.fullmatch(item_id)
+                    or not item_id.startswith(f"{ORG}/") or item_id in items):
+                raise InventoryError("DUPLICATE_OR_FOREIGN_REPOSITORY")
+            if item.get("private") is not False:
+                raise InventoryError("PUBLIC_VISIBILITY_UNOBSERVED")
+            items[item_id] = {**item, "id": item_id}
+            if len(items) > MAX_ITEMS:
+                raise InventoryError("ITEM_BUDGET")
+        url = next_url(response.get("link"), ORG, kind)
+    if kind == "spaces" and f"{ORG}/README" not in items:
+        endpoints.append(f"https://huggingface.co/api/spaces/{ORG}/README")
         reserved, _ = reserved_readme(ORG)
         if reserved is not None:
-            items[f'{ORG}/README'] = dict(reserved)
-    return ApiItems(sorted(items.values(), key=lambda item: item.get("id", "")), endpoints)
+            items[f"{ORG}/README"] = dict(reserved)
+            if len(items) > MAX_ITEMS:
+                raise InventoryError("ITEM_BUDGET")
+    return ApiItems(sorted(items.values(), key=lambda item: item["id"]), endpoints)
 
 
 def observed_at_now() -> str:
@@ -167,7 +181,7 @@ def validate_observed_at(
 def fetch_revision(
     item_id: str, repo_type: str, revision: str
 ) -> dict[str, Any]:
-    plural = {"model": "models", "dataset": "datasets", "space": "spaces"}[
+    plural = {"model": "models", "dataset": "datasets", "space": "spaces", "kernel": "kernels"}[
         repo_type
     ]
     encoded_id = urllib.parse.quote(item_id, safe="/")
@@ -191,7 +205,7 @@ def fetch_card_markdown(
     card so creating a card later is still detected as a semantic change.
     """
 
-    prefix = {"model": "", "dataset": "datasets/", "space": "spaces/"}[
+    prefix = {"model": "", "dataset": "datasets/", "space": "spaces/", "kernel": "kernels/"}[
         repo_type
     ]
     encoded_id = urllib.parse.quote(item_id, safe="/")
@@ -298,6 +312,7 @@ def validate_snapshot_revisions(
         ("models", "model"),
         ("datasets", "dataset"),
         ("spaces", "space"),
+        ("kernels", "kernel"),
     ):
         live_items = {
             item.get("id"): item
@@ -418,7 +433,7 @@ def validate_generated_revision_evidence(
 ) -> None:
     """Require complete revision evidence that existed by the observation time."""
 
-    for plural in ("models", "datasets", "spaces"):
+    for plural in KINDS:
         for item in manifest.get("inventory", {}).get(plural, []):
             item_id = item.get("id") if isinstance(item, dict) else None
             if not isinstance(item_id, str) or not item_id:
@@ -443,7 +458,7 @@ def validate_generated_revision_evidence(
 
 
 def evidence_url(item_id: str, repo_type: str) -> str:
-    prefix = {"model": "", "dataset": "datasets/", "space": "spaces/"}[repo_type]
+    prefix = {"model": "", "dataset": "datasets/", "space": "spaces/", "kernel": "kernels/"}[repo_type]
     return f"https://huggingface.co/{prefix}{item_id}"
 
 
@@ -466,7 +481,7 @@ def semantic_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
     still fails closed. A write refreshes every snapshot field.
     """
     stable = json.loads(json.dumps(manifest))
-    for repo_type in ("models", "datasets", "spaces"):
+    for repo_type in KINDS:
         for item in stable.get("inventory", {}).get(repo_type, []):
             # A restricted README is unobserved: never ignore revision drift.
             if item.get("gated") is not True:
@@ -551,14 +566,19 @@ def unsafe_flags(item_id: str, repo_type: str, tags: list[Any], card: dict[str, 
 
 def build_manifest(*, observed_at: str | None) -> dict[str, Any]:
     model_rows = api_items("models")
-    models = [item_summary(item, "model") for item in model_rows]
     dataset_rows = api_items("datasets")
-    datasets = [item_summary(item, "dataset") for item in dataset_rows]
     space_rows = api_items("spaces")
-    spaces = [item_summary(item, "space") for item in space_rows]
+    kernel_rows = api_items("kernels")
+    # Bound the observation window without unbounded task or worker fan-out.
+    # executor.map preserves the provider-independent sorted input order.
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        models = list(executor.map(partial(item_summary, repo_type="model"), model_rows))
+        datasets = list(executor.map(partial(item_summary, repo_type="dataset"), dataset_rows))
+        spaces = list(executor.map(partial(item_summary, repo_type="space"), space_rows))
+        kernels = list(executor.map(partial(item_summary, repo_type="kernel"), kernel_rows))
     public_api_endpoints = [
         endpoint
-        for kind, rows in (("models", model_rows), ("datasets", dataset_rows), ("spaces", space_rows))
+        for kind, rows in (("models", model_rows), ("datasets", dataset_rows), ("spaces", space_rows), ("kernels", kernel_rows))
         for endpoint in getattr(rows, "endpoints", [
             f"https://huggingface.co/api/{kind}?author={ORG}"
             f"&limit={PAGE_LIMIT}&full=true"
@@ -569,6 +589,7 @@ def build_manifest(*, observed_at: str | None) -> dict[str, Any]:
         "models": len(models),
         "datasets": len(datasets),
         "spaces": len(spaces),
+        "kernels": len(kernels),
     }
     return {
         "schemaVersion": 2,
@@ -582,7 +603,10 @@ def build_manifest(*, observed_at: str | None) -> dict[str, Any]:
             "countMeaning": (
                 "Anonymous author-filtered public API membership, supplemented by "
                 "the reserved SZLHOLDINGS/README Space when publicly observable; "
-                "each repository is counted once. Not the authenticated organization total."
+                "each (namespace, repository ID) is counted once. Native kernels use the "
+                "kernels API separately from model repositories, including legacy kernel "
+                "mirrors. Cross-namespace IDs may overlap; the sum is not a unique-project "
+                "or trained-model total. Not the authenticated organization total."
             ),
             "cardEvidenceBoundary": (
                 "Gated repositories are inventoried from public API metadata only. "
@@ -615,6 +639,7 @@ def build_manifest(*, observed_at: str | None) -> dict[str, Any]:
             "models": models,
             "datasets": datasets,
             "spaces": spaces,
+            "kernels": kernels,
         },
         "recommendedActions": [
             {
