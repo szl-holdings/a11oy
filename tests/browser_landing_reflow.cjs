@@ -6,7 +6,7 @@ const { createServer } = require('node:http');
 const { readFileSync, mkdirSync, mkdtempSync, writeFileSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { join, resolve } = require('node:path');
-const { execFileSync } = require('node:child_process');
+const { spawnSync } = require('node:child_process');
 const { chromium } = require('playwright');
 
 const root = resolve(__dirname, '..');
@@ -22,9 +22,25 @@ const files = new Map([
   ['/static/landing-honest-bind.js', 'static/landing-honest-bind.js'],
 ].map(([url, path]) => [url, readFileSync(resolve(root, path))]));
 
+function observeBaseline(revision) {
+  if (!revision) return { state: 'NOT_REQUESTED', html: null, reason: null };
+  const result = spawnSync('git', ['show', `${revision}:a11oy_landing.html`], {
+    cwd: root,
+    encoding: 'utf8',
+    maxBuffer: 8 * 1024 * 1024,
+  });
+  if (result.status === 0) return { state: 'OBSERVED', html: result.stdout, reason: null };
+  return {
+    state: 'UNAVAILABLE',
+    html: null,
+    reason: 'BASE_FILE_UNAVAILABLE',
+  };
+}
+
 async function main() {
   mkdirSync(output, { recursive: true });
   const results = [];
+  const baseline = observeBaseline(base);
   let html = source;
   const server = createServer((request, response) => {
     const path = new URL(request.url, 'http://127.0.0.1').pathname;
@@ -45,8 +61,9 @@ async function main() {
   let browser;
   try {
     browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_PATH });
-    for (const variant of base ? ['baseline', 'candidate'] : ['candidate']) {
-      html = variant === 'baseline' ? execFileSync('git', ['show', `${base}:a11oy_landing.html`], { cwd: root, encoding: 'utf8' }) : source;
+    const variants = baseline.html ? ['baseline', 'candidate'] : ['candidate'];
+    for (const variant of variants) {
+      html = variant === 'baseline' ? baseline.html : source;
       for (const width of [320, 375, 768, 1440]) {
         const page = await browser.newPage({ viewport: { width, height: 1000 }, reducedMotion: 'reduce' });
         const errors = [];
@@ -103,10 +120,10 @@ async function main() {
   } finally {
     if (browser) await browser.close();
     await new Promise(resolve => server.close(resolve));
-    writeFileSync(resolve(output, 'landing-reflow-results.json'), JSON.stringify({ observed_at: new Date().toISOString(), scope: 'LOCAL_SOURCE_BROWSER_UNAVAILABLE_PROVIDER_FIXTURES', base_sha: base || null, results }, null, 2) + '\n');
+    writeFileSync(resolve(output, 'landing-reflow-results.json'), JSON.stringify({ observed_at: new Date().toISOString(), scope: 'LOCAL_SOURCE_BROWSER_UNAVAILABLE_PROVIDER_FIXTURES', base_sha: base || null, baseline_state: baseline.state, baseline_reason: baseline.reason, results }, null, 2) + '\n');
   }
   const failures = results.filter(row => row.variant === 'candidate' && row.failures.length);
-  console.log(JSON.stringify(results.map(row => ({ variant: row.variant, width: row.width, failures: row.failures })), null, 2));
+  console.log(JSON.stringify({ baseline_state: baseline.state, baseline_reason: baseline.reason, results: results.map(row => ({ variant: row.variant, width: row.width, failures: row.failures })) }, null, 2));
   assert.deepEqual(failures, [], 'candidate must fit without obscuring identity or shrinking controls');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });
