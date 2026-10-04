@@ -255,11 +255,54 @@ def upload_text(api: Any, repo_id: str, path: str, content: str) -> Any:
 
 
 _BASE.upload_text = upload_text
+_base_readme = _BASE.readme
 
 
 def readme(item: dict[str, Any]) -> str:
+    """Present the four generated cards without changing their original evidence."""
     _sync_contract()
-    return _BASE.readme(item)
+    original = _base_readme(item)
+    if item["slug"] not in ("terra", "sentra", "counsel", "finance"):
+        return original
+    boundary = original.index("\n---\n", 4) + len("\n---\n")
+    front_matter, body = original[:boundary], original[boundary:]
+    descriptions = {
+        "terra": "Inspect property evidence, ownership context and underwriting assumptions in a governed decision workspace.",
+        "sentra": "Inspect receipt-verification contracts and hand an explicit receipt to the existing verifier.",
+        "counsel": "Organize matter research, drafting and cited evidence in a workspace with explicit verification boundaries.",
+        "finance": "Inspect financial observations, modeled scenarios and decision evidence with their provenance and limits.",
+    }
+    lead = f'''\n<!-- szl:card-presentation:v1 -->
+<p><a href="https://huggingface.co/spaces/SZLHOLDINGS/szl-command-lab"><img src="https://raw.githubusercontent.com/szl-holdings/.github/main/profile/assets/szl/logos/szl_mark_holographic.svg" alt="SZL Holdings" width="112" /></a></p>
+
+# {item['title']}
+
+{descriptions[item['slug']]}
+
+**Artifact:** Domain application over the shared vertical runtime
+
+**Stage:** Capability-specific evidence required
+
+[**Explore Command Lab →**](https://huggingface.co/spaces/SZLHOLDINGS/szl-command-lab) · [**Build with the source →**](https://github.com/szl-holdings/a11oy) · [**Open this workspace →**](https://huggingface.co/spaces/SZLHOLDINGS/{item['slug']})
+
+## Use limits
+
+- An HTTP success establishes reachability only. Inspect the returned evidence state before relying on a result.
+- Observed evidence, modeled analysis and human approval remain separate. This card grants no action authority.
+- A receipt-integrity check does not establish output accuracy, signer authority or operational readiness.
+
+<details>
+<summary>Technical documentation and original publication evidence</summary>
+
+<!-- szl:preserved-source-body:start -->
+'''
+    return (front_matter + lead + body
+            + "\n<!-- szl:preserved-source-body:end -->\n\n</details>\n")
+
+
+# The existing base publisher calls its own module globals. Bind the reviewed
+# presentation there too, so every generated card follows the same source path.
+_BASE.readme = readme
 
 
 def render_sentra_payload(
