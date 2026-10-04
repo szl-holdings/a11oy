@@ -9,6 +9,7 @@ import json
 import os
 import sqlite3
 import stat
+import struct
 import subprocess
 import sys
 import time
@@ -84,6 +85,223 @@ def assert_held(report):
     assert PRIVATE not in json.dumps(report)
     assert "private_table" not in json.dumps(report)
     assert "private_index" not in json.dumps(report)
+
+
+def detached_freelist_database(tmp_path, *, page_size=512, graph=None, page_count=2,
+                               attached_freelist=False):
+    """Owned fixture only: validate SQLite's freelist interpretation, then detach."""
+    database, _ = native_database(tmp_path / "inspection", page_size=page_size,
+                                  count=15 if attached_freelist else 3,
+                                  payload_size=page_size + 200, index=False)
+    if attached_freelist:
+        with sqlite3.connect(database) as connection:
+            connection.execute("PRAGMA secure_delete=OFF")
+            connection.execute("DELETE FROM private_table WHERE id>3")
+            connection.commit()
+            assert connection.execute("PRAGMA freelist_count").fetchone()[0] > 0
+    data = database.read_bytes()
+    first = len(data) // page_size + 1
+    graph = {0: (None, [1])} if graph is None else graph
+    raw_pages = [bytearray(page_size) for _ in range(page_count)]
+    for index, (next_index, leaves) in graph.items():
+        numbers = [0 if next_index is None else first + next_index, len(leaves)]
+        numbers.extend(first + leaf for leaf in leaves)
+        struct.pack_into(">" + "I" * len(numbers), raw_pages[index], 0, *numbers)
+    pages = append_pages(database, raw_pages)
+    # On a separate owned control, the exact same pages are a valid attached
+    # freelist. The production helper never performs these header edits.
+    if not attached_freelist:
+        control = bytearray(database.read_bytes())
+        struct.pack_into(">II", control, 32, pages[0], len(pages))
+        connection = sqlite3.connect(":memory:")
+        try:
+            connection.deserialize(bytes(control))
+            assert connection.execute("PRAGMA integrity_check").fetchall() == [("ok",)]
+            assert connection.execute("PRAGMA freelist_count").fetchone()[0] == len(pages)
+        finally:
+            connection.close()
+    return database, pages
+
+
+def assert_structural_freelist(report, pages):
+    assert_held(report)
+    graph = report["freelist_graph"]
+    assert graph["state"] == "STRUCTURALLY_ACCOUNTED", report
+    assert graph["complete"] is True
+    assert graph["whole_database_accounted"] is True
+    assert graph["orphan_bytes_structurally_accounted"] is True
+    detached = graph["detached_freelist"]
+    assert detached["page_count"] == len(pages)
+    assert sorted([item["page_number"] for item in detached["trunks"]]
+                  + detached["zero_leaf_pages"]) == sorted(pages)
+    assert (graph["reachable_page_count"] + graph["attached_freelist"]["page_count"]
+            + detached["page_count"]) == graph["page_count"]
+    totals = graph["byte_accounting"]
+    assert totals["structural_bytes"] + totals["zero_padding_and_leaf_bytes"] == totals["total_bytes"]
+    assert totals["structural_nonzero_bytes"] == sum(page["nonzero_byte_count"] for page in report["pages"])
+
+
+def test_incident_page_layout_is_bound_by_complete_known_hashes():
+    trunk = bytearray(4096)
+    struct.pack_into(">III", trunk, 0, 0, 1, 363)
+    assert hashlib.sha256(trunk).hexdigest() == "5c26ffe5a3bd323afcb044bb29873be650603ff02a455413406c11c289844ea1"
+    assert hashlib.sha256(bytes(4096)).hexdigest() == "ad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7"
+    aggregate = hashlib.sha256((362).to_bytes(8, "big") + trunk
+                               + (363).to_bytes(8, "big") + bytes(4096)).hexdigest()
+    assert aggregate == "7087cd8401554bf5dd4a1a162c2f0753d26457fe04126e66dfbc06f4c0483ba9"
+
+
+@pytest.mark.parametrize("page_size", [512, 4096, 65536])
+@pytest.mark.parametrize("multiple_trunks", [False, True])
+def test_native_freelist_graph_with_complete_zero_byte_accounting_stays_held(tmp_path, page_size, multiple_trunks):
+    graph = {0: (2, [1]), 2: (None, [3, 4])} if multiple_trunks else None
+    database, pages = detached_freelist_database(tmp_path, page_size=page_size,
+                                                graph=graph, page_count=5 if multiple_trunks else 2)
+    before = database.read_bytes()
+    entries = sorted(database.parent.iterdir())
+    report = inspect(database, pages[::-1])
+    assert_structural_freelist(report, pages)
+    assert report["database_header"]["freelist_head"] == 0
+    assert report["database_header"]["freelist_page_count"] == 0
+    assert report["database_header"]["largest_root_page"] == 0
+    assert report["database_header"]["incremental_vacuum"] == 0
+    assert report["freelist_graph"]["attached_freelist"]["page_count"] == 0
+    assert database.read_bytes() == before
+    assert sorted(database.parent.iterdir()) == entries
+
+
+def test_native_attached_freelist_and_detached_graph_are_fully_disjoint(tmp_path):
+    database, pages = detached_freelist_database(tmp_path, attached_freelist=True)
+    before = database.read_bytes()
+    report = inspect(database, pages)
+    assert_structural_freelist(report, pages)
+    attached = report["freelist_graph"]["attached_freelist"]
+    assert attached["page_count"] > 0 and attached["trunk_count"] > 0
+    assert attached["head"] == int.from_bytes(before[32:36], "big")
+    assert attached["page_count"] == int.from_bytes(before[36:40], "big")
+    assert database.read_bytes() == before
+
+
+def test_native_secure_delete_freelist_can_be_described_after_owned_header_detachment(tmp_path):
+    database, _ = native_database(tmp_path / "inspection", count=20, payload_size=700, index=False)
+    with sqlite3.connect(database) as connection:
+        connection.execute("PRAGMA secure_delete=ON")
+        connection.execute("DELETE FROM private_table WHERE id>3")
+        connection.commit()
+        free_count = connection.execute("PRAGMA freelist_count").fetchone()[0]
+        assert 2 <= free_count <= f.MAX_ORPHAN_PAGES
+        active = {row[0] for row in connection.execute("SELECT pageno FROM dbstat('main')")}
+    data = bytearray(database.read_bytes())
+    page_count = len(data) // 512
+    pages = sorted(set(range(1, page_count + 1)) - active)
+    assert len(pages) == free_count
+    data[32:40] = bytes(8)  # Owned synthetic damage only, never production input.
+    database.write_bytes(data)
+    report = inspect(database, pages)
+    assert_structural_freelist(report, pages)
+    assert database.read_bytes() == data
+
+
+@pytest.mark.parametrize("defect", ["next_self", "next_out_of_range", "next_reachable", "next_leaf",
+    "leaf_self", "leaf_zero", "leaf_out_of_range", "leaf_reachable", "duplicate_leaf",
+    "capacity", "nonzero_tail", "nonzero_leaf", "undeclared_pointer"])
+def test_detached_graph_defects_never_gain_structural_accounting(tmp_path, defect):
+    database, pages = detached_freelist_database(tmp_path)
+    data = bytearray(database.read_bytes())
+    start = (pages[0] - 1) * 512
+    if defect.startswith("next_"):
+        value = {"next_self": pages[0], "next_out_of_range": pages[-1] + 1,
+                 "next_reachable": 1, "next_leaf": pages[1]}[defect]
+        struct.pack_into(">I", data, start, value)
+    elif defect.startswith("leaf_"):
+        value = {"leaf_self": pages[0], "leaf_zero": 0,
+                 "leaf_out_of_range": pages[-1] + 1, "leaf_reachable": 2}[defect]
+        struct.pack_into(">I", data, start + 8, value)
+    elif defect == "duplicate_leaf":
+        struct.pack_into(">III", data, start + 4, 2, pages[1], pages[1])
+    elif defect == "capacity":
+        struct.pack_into(">I", data, start + 4, 2**32 - 1)
+    elif defect == "nonzero_tail":
+        data[start + 511] = 1
+    elif defect == "nonzero_leaf":
+        data[-1] = 1
+    else:
+        struct.pack_into(">I", data, start + 4, 0)
+    database.write_bytes(data)
+    report = inspect(database, pages)
+    assert_held(report)
+    assert report["freelist_graph"]["state"] == "UNCLASSIFIED"
+    assert report["freelist_graph"]["complete"] is False
+    assert database.read_bytes() == data
+
+
+@pytest.mark.parametrize("defect", ["disconnected_zero", "disconnected_graph", "cycle", "duplicate_owner"])
+def test_detached_graph_must_have_one_complete_acyclic_ownership_graph(tmp_path, defect):
+    database, pages = detached_freelist_database(tmp_path, graph={0: (2, [1]), 2: (None, [3])}, page_count=4)
+    data = bytearray(database.read_bytes())
+    first = (pages[0] - 1) * 512
+    second = (pages[2] - 1) * 512
+    if defect in {"disconnected_zero", "disconnected_graph"}:
+        struct.pack_into(">I", data, first, 0)
+        if defect == "disconnected_zero":
+            data[second:second + 512] = bytes(512)
+    elif defect == "cycle":
+        struct.pack_into(">I", data, second, pages[0])
+    else:
+        struct.pack_into(">I", data, second + 8, pages[1])
+    database.write_bytes(data)
+    report = inspect(database, pages)
+    assert_held(report)
+    assert report["freelist_graph"]["state"] == "UNCLASSIFIED"
+    assert database.read_bytes() == data
+
+
+@pytest.mark.parametrize("field", ["largest_root_page", "incremental_vacuum", "reserved_bytes_per_page"])
+def test_allocator_modes_outside_the_reviewed_scope_are_not_classified(tmp_path, field):
+    database, pages = detached_freelist_database(tmp_path)
+    data = database.read_bytes()
+    header = f._header(data)
+    header[field] = 1
+    with sqlite3.connect(database) as connection:
+        reachable = {row[0]: row[1] for row in connection.execute("SELECT pageno,pagetype FROM dbstat('main')")}
+    result = f._freelist_graph(data, tuple(pages), header, reachable, time.monotonic() + 10)
+    assert result["state"] == "UNCLASSIFIED" and result["complete"] is False
+
+
+@pytest.mark.parametrize("defect", ["missing_reachable", "reachable_orphan", "missing_page_one",
+    "attached_count", "attached_cycle", "attached_reachable", "attached_orphan"])
+def test_full_database_partition_and_attached_freelist_are_mandatory(tmp_path, defect):
+    database, pages = detached_freelist_database(tmp_path, attached_freelist=True)
+    data = bytearray(database.read_bytes())
+    header = f._header(data)
+    with sqlite3.connect(database) as connection:
+        reachable = {row[0]: row[1] for row in connection.execute("SELECT pageno,pagetype FROM dbstat('main')")}
+    if defect == "missing_reachable": del reachable[next(number for number in reachable if number != 1)]
+    elif defect == "reachable_orphan": reachable[pages[0]] = "leaf"
+    elif defect == "missing_page_one": del reachable[1]
+    elif defect == "attached_count": header["freelist_page_count"] += 1
+    elif defect == "attached_reachable": header["freelist_head"] = 2
+    elif defect == "attached_orphan": header["freelist_head"] = pages[0]
+    else: struct.pack_into(">I", data, (header["freelist_head"] - 1) * 512, header["freelist_head"])
+    result = f._freelist_graph(bytes(data), tuple(pages), header, reachable, time.monotonic() + 10)
+    assert result["state"] == "UNCLASSIFIED" and result["complete"] is False
+
+
+def test_unconfirmed_native_scope_cannot_produce_allocator_evidence(tmp_path, monkeypatch):
+    database, pages = detached_freelist_database(tmp_path)
+    monkeypatch.setattr(f, "_native", lambda *args: ({"complete": False}, {}))
+    report = inspect(database, pages)
+    assert_held(report)
+    assert report["analysis_state"] == "PARTIAL"
+    assert report["freelist_graph"]["state"] == "UNAVAILABLE"
+
+
+def test_zero_pages_alone_do_not_gain_the_new_detached_graph_interpretation(tmp_path):
+    database, _ = native_database(tmp_path / "inspection", count=1, payload_size=50, index=False)
+    pages = append_pages(database, [bytes(512), bytes(512)])
+    report = inspect(database, pages)
+    assert_held(report)
+    assert report["freelist_graph"]["state"] == "UNCLASSIFIED"
 
 
 @pytest.mark.parametrize("kind", ["leaf", "internal", "overflow"])
