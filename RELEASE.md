@@ -9,9 +9,9 @@ This repo ships via `.github/workflows/release.yml` (OPS WAVE A, item 13).
 1. **Freeze source and metadata** — merge a test-clean commit to `main`; ensure
    `CITATION.cff`, `.zenodo.json`, `CHANGELOG.md`, package version, and release
    notes agree.
-2. **Create the GitHub tag and release** — the current workflow is triggered by
-   the GitHub `release.created` event. A push to `main` alone does **not** create
-   a release.
+2. **Create and publish the GitHub tag and release** — the current workflow is
+   triggered by the GitHub `release.published` event. Creating an unpublished
+   draft release or pushing to `main` alone does **not** trigger that event.
 3. **Attach evidence** — `.github/workflows/release.yml` generates a CycloneDX
    SBOM, GitHub build/SBOM attestations, Sigstore keyless DSSE receipt signatures,
    and uploads the resulting assets to the release.
@@ -19,9 +19,9 @@ This repo ships via `.github/workflows/release.yml` (OPS WAVE A, item 13).
    is enabled, Zenodo archives the immutable release and returns a version DOI.
    Read that DOI back from Zenodo and verify it resolves before adding it to the
    release identity. Never type or predict a DOI.
-5. **Publish product links** — after DOI readback, update the version DOI on
-   `a-11-oy.com`; `a11oy.net` remains a permanent redirect to the canonical
-   domain.
+5. **Publish product and proof links** — after DOI readback, update the version
+   DOI on `a-11-oy.com`. Keep `a11oy.net` as the separate proof/registry origin,
+   consistent with `szl_release_identity.py`; it is not a product redirect.
 
 ## Verifying a release
 
