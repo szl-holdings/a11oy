@@ -164,7 +164,9 @@ for (const change of changes) {{
 }}
 const multiple = structuredClone(payload);
 multiple.handles[multiple.handles.length - 2] = {{ ...pilot, nodeId: multiple.handles.at(-2).nodeId }};
-if (validatePayload(multiple)) throw new Error("multiple forum pilots accepted");
+if (!validatePayload(multiple)) throw new Error("two bound forum pilots rejected");
+multiple.handles[multiple.handles.length - 3] = {{ ...pilot, nodeId: multiple.handles.at(-3).nodeId }};
+if (validatePayload(multiple)) throw new Error("third forum pilot accepted");
 const missingRequired = structuredClone(payload);
 missingRequired.handles = missingRequired.handles.map((handle) => handle.repository === "szl-holdings/anatomy"
   ? {{ ...handle, repository: "szl-holdings/a11oy" }} : handle);
@@ -185,6 +187,70 @@ if (!validatePayload(payload) || await verifySnapshot(payload)) throw new Error(
         env=environment,
         timeout=20,
         check=False,
+    )
+    assert completed.returncode == 0, completed.stderr or completed.stdout
+
+
+def test_client_distinguishes_metadata_capture_revisions_from_git() -> None:
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js is unavailable")
+    source = read("console/assets/brain-frontier-v7.js")
+    marker = "\n})();"
+    instrumented = source.replace(
+        marker,
+        "\n  globalThis.__brainFrontierV7Test = { validatePayload, verifySnapshot, canonicalJson, renderCard };"
+        + marker,
+    )
+    harness = f'''\
+import {{ readFileSync }} from "node:fs";
+import {{ webcrypto }} from "node:crypto";
+globalThis.window = {{
+  crypto: webcrypto, location: {{ origin: "https://a-11-oy.com" }},
+  matchMedia: () => ({{ matches: false, addEventListener() {{}} }}),
+}};
+globalThis.document = {{ readyState: "loading", addEventListener() {{}} }};
+{instrumented}
+const {{ validatePayload, verifySnapshot, canonicalJson, renderCard }} = globalThis.__brainFrontierV7Test;
+const original = JSON.parse(readFileSync(process.env.BF7_SNAPSHOT, "utf8"));
+for (const [provider, path] of [["arxiv", "2401.01234v2"], ["crossref", "10.1234/example(2026)"]]) {{
+  const payload = structuredClone(original);
+  const handle = {{ ...payload.handles.at(-1),
+    kind: "research-metadata", repository: `public-metadata/${{provider}}`, path,
+    revisionKind: "metadata-capture-sha256", revision: "a".repeat(64),
+    admission: "DISCOVERED_REVIEW_REQUIRED", title: "Synthetic metadata fixture",
+  }};
+  delete handle.quantDomain;
+  payload.handles[payload.handles.length - 1] = handle;
+  const {{ snapshot_sha256, ...body }} = payload;
+  const digest = await webcrypto.subtle.digest("SHA-256", new TextEncoder().encode(canonicalJson(body)));
+  payload.snapshot_sha256 = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  if (!validatePayload(payload) || !await verifySnapshot(payload)) throw new Error("typed metadata rejected");
+  if (!renderCard(handle).includes("Metadata SHA-256 ")) throw new Error("metadata revision mislabeled");
+  for (const change of [
+    {{ revisionKind: "git-commit" }}, {{ revision: "a".repeat(40) }}, {{ revisionKind: undefined }},
+    {{ repository: "public-metadata/unknown" }}, {{ repository: "szl-holdings/a11oy" }},
+    {{ kind: "source-document" }}, {{ path: "https://attacker.invalid/source" }},
+    {{ path: "2401.01234" }}, {{ title: "x".repeat(241) }}, {{ quantDomain: "domain-0" }},
+    {{ admission: "OPEN_NOT_EXECUTION_AUTHORITY" }}, {{ authority: "ALLOWED" }},
+    {{ content: "private candidate content" }}, {{ provenance: {{ metadata: {{}} }} }},
+  ]) {{
+    const invalid = structuredClone(payload);
+    invalid.handles[invalid.handles.length - 1] = {{ ...handle, ...change }};
+    if (validatePayload(invalid)) throw new Error(`metadata contract expanded: ${{JSON.stringify(change)}}`);
+  }}
+  const unbound = structuredClone(original);
+  unbound.handles.at(-1).revisionKind = "metadata-capture-sha256";
+  if (validatePayload(unbound)) throw new Error("Git source retyped as metadata");
+  payload.handles.at(-1).revision = "b".repeat(64);
+  if (!validatePayload(payload) || await verifySnapshot(payload)) throw new Error("metadata digest tampering accepted");
+}}
+'''
+    environment = os.environ.copy()
+    environment["BF7_SNAPSHOT"] = str(ROOT / "console" / "assets" / "brain-frontier-v7.json")
+    completed = subprocess.run(
+        [node, "--input-type=module", "-"], input=harness, text=True, encoding="utf-8",
+        capture_output=True, env=environment, timeout=20, check=False,
     )
     assert completed.returncode == 0, completed.stderr or completed.stdout
 

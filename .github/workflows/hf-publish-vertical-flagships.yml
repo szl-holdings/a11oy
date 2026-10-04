@@ -10,7 +10,7 @@ on:
       scope:
         description: Explicit publication scope; single-target choices preserve sibling Spaces.
         type: choice
-        options: [finance, lyte, terra, counsel, estate]
+        options: [finance, lyte, terra, sentra, counsel, estate]
         default: finance
 
 permissions:

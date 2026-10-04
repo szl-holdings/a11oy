@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from urllib.parse import quote, urlencode
 from typing import Any
 
 import pytest
@@ -11,6 +12,7 @@ from scripts.materialize_brain_frontier_v7 import (
     FORMULA_REPOSITORY,
     FORUM_PATH,
     FORUM_REPOSITORY,
+    METADATA_REVISION_KIND,
     MaterializationError,
     OUROBOROS_REPOSITORY,
     build_snapshot,
@@ -97,15 +99,16 @@ def dependencies() -> dict[str, str]:
     }
 
 
-def forum_fixture(*, selected: bool = False) -> tuple[bytes, bytes]:
+def forum_fixture(*, selected: bool = False, count: int = 1) -> tuple[bytes, bytes]:
     state_raw, candidates_raw = fixture()
     rows = [json.loads(line) for line in candidates_raw.splitlines()]
     if selected:
-        rows = rows[:71]
-    pilot = row(82, "forum-insight", repository=FORUM_REPOSITORY)
-    pilot["source_path"] = FORUM_PATH
-    pilot["admission"] = "DISCOVERED_REVIEW_REQUIRED"
-    rows.append(pilot)
+        rows = rows[:72 - count]
+    for index in range(count):
+        pilot = row(82 + index, "forum-insight", repository=FORUM_REPOSITORY)
+        pilot["source_path"] = FORUM_PATH
+        pilot["admission"] = "DISCOVERED_REVIEW_REQUIRED"
+        rows.append(pilot)
     candidates = b"".join(canonical_bytes(item) + b"\n" for item in rows)
     state = json.loads(state_raw)
     state["source_count"] = 8
@@ -115,13 +118,14 @@ def forum_fixture(*, selected: bool = False) -> tuple[bytes, bytes]:
 
 
 @pytest.mark.parametrize("selected", [False, True])
-def test_reviewed_forum_pilot_is_optional_bounded_and_handles_only(selected: bool) -> None:
-    state_raw, candidates_raw = forum_fixture(selected=selected)
+@pytest.mark.parametrize("count", [1, 2])
+def test_reviewed_forum_pilot_is_optional_bounded_and_handles_only(selected: bool, count: int) -> None:
+    state_raw, candidates_raw = forum_fixture(selected=selected, count=count)
     snapshot = build_snapshot("5" * 40, state_raw, candidates_raw, dependencies())
     assert snapshot == build_snapshot("5" * 40, state_raw, candidates_raw, dependencies())
     assert snapshot["selected_handle_count"] == len(snapshot["handles"]) == 72
     pilot_handles = [handle for handle in snapshot["handles"] if handle["kind"] == "forum-insight"]
-    assert len(pilot_handles) == int(selected)
+    assert len(pilot_handles) == count * int(selected)
     if selected:
         assert pilot_handles[0]["repository"] == FORUM_REPOSITORY
         assert pilot_handles[0]["path"] == FORUM_PATH
@@ -160,15 +164,169 @@ def test_forum_pilot_cannot_expand_source_or_authority(field: str, value: str) -
 
 
 def test_forum_pilot_count_cannot_silently_expand() -> None:
-    state_raw, candidates_raw = forum_fixture()
+    state_raw, candidates_raw = forum_fixture(count=2)
     rows = [json.loads(line) for line in candidates_raw.splitlines()]
-    rows.append(rows[-1] | {"id": f"frontier:{83:032x}"})
+    rows.append(rows[-1] | {"id": f"frontier:{84:032x}"})
     candidates = b"".join(canonical_bytes(item) + b"\n" for item in rows)
     state = json.loads(state_raw)
     state["candidate_count"] = len(rows)
     state["candidate_set_sha256"] = hashlib.sha256(candidates).hexdigest()
     with pytest.raises(MaterializationError, match="forum pilot count"):
         validate_frontier(json.dumps(state).encode(), candidates)
+
+
+def research_fixture(*, provider: str = "arxiv", selected: bool = False) -> tuple[bytes, bytes]:
+    """Synthetic public metadata with real binding rules, never an external receipt."""
+    state_raw, candidates_raw = fixture()
+    rows = [json.loads(line) for line in candidates_raw.splitlines()]
+    if selected:
+        rows = rows[:71]
+    identifier = "2401.01234v2" if provider == "arxiv" else "10.1234/example(2026)"
+    metadata = {
+        "provider": provider, "identifier": identifier,
+        "canonical_url": ("https://arxiv.org/abs/" if provider == "arxiv" else "https://doi.org/") + identifier,
+        "title": "Synthetic metadata contract fixture", "authors": ["Test Author"],
+        "published": "2026-10-01T00:00:00Z" if provider == "arxiv" else "2026-10",
+        "updated": "2026-10-02T00:00:00Z" if provider == "arxiv" else None,
+        "categories": ["cs.AI"] if provider == "arxiv" else [], "licence_urls": [],
+        "metadata_licence": "CC0-1.0" if provider == "arxiv" else "NOT_DECLARED_BY_RESPONSE",
+        "full_text_licence": "NOT_INFERRED",
+    }
+    capture_sha = hashlib.sha256(canonical_bytes(metadata)).hexdigest()
+    content = "\n".join((metadata["title"], "Authors: " + ", ".join(metadata["authors"]),
+                         "Identifier: " + identifier, "Publication date: " + str(metadata["published"]),
+                         ("Categories: " + ", ".join(metadata["categories"])).rstrip(),
+                         "Metadata licence: " + metadata["metadata_licence"],
+                         "Full text licence: NOT_INFERRED", "Source: " + metadata["canonical_url"]))
+    candidate = row(90, "research-metadata", repository=f"public-metadata/{provider}")
+    candidate.update({
+        "title": metadata["title"], "source_path": identifier, "source_revision": capture_sha,
+        "source_revision_kind": METADATA_REVISION_KIND,
+        "content": content, "content_sha256": hashlib.sha256(content.encode()).hexdigest(),
+        "admission": "DISCOVERED_REVIEW_REQUIRED",
+        "provenance": {
+            "provider": provider, "identifier": identifier, "metadata": metadata,
+            "capture_sha256": capture_sha, "response_sha256": "a" * 64, "response_bytes": 512,
+            "request_url": ("https://export.arxiv.org/api/query?" + urlencode({"id_list": identifier, "max_results": 1})
+                            if provider == "arxiv" else "https://api.crossref.org/works/" + quote(identifier, safe="")),
+            "observed_at": "2026-10-03T00:00:00Z",
+            "source_authentication": "PUBLIC_HTTPS_METADATA_NOT_INDEPENDENT_ATTESTATION",
+        },
+    })
+    rows.append(candidate)
+    return encode_frontier(json.loads(state_raw), rows)
+
+
+def encode_frontier(state: dict[str, Any], rows: list[dict[str, Any]]) -> tuple[bytes, bytes]:
+    candidates = b"".join(canonical_bytes(item) + b"\n" for item in rows)
+    state = state | {"candidate_count": len(rows), "candidate_set_sha256": hashlib.sha256(candidates).hexdigest()}
+    return json.dumps(state).encode(), candidates
+
+
+@pytest.mark.parametrize("provider", ["arxiv", "crossref"])
+@pytest.mark.parametrize("selected", [False, True])
+def test_research_capture_is_typed_and_handles_only(provider: str, selected: bool) -> None:
+    state_raw, candidates_raw = research_fixture(provider=provider, selected=selected)
+    snapshot = build_snapshot("5" * 40, state_raw, candidates_raw, dependencies())
+    assert snapshot == build_snapshot("5" * 40, state_raw, candidates_raw, dependencies())
+    handles = [handle for handle in snapshot["handles"] if handle["kind"] == "research-metadata"]
+    assert len(handles) == int(selected)
+    if selected:
+        assert handles[0]["revisionKind"] == METADATA_REVISION_KIND
+        assert len(handles[0]["revision"]) == 64
+        assert handles[0]["repository"] == f"public-metadata/{provider}"
+        assert handles[0]["contentAccess"] == "HANDLES_ONLY"
+        assert handles[0]["authority"] == "NONE"
+    assert len(snapshot["handles"]) == 72
+    assert sum(handle["kind"] in {"formula-authority", "attributed-formula", "executable-formula", "quant-domain"}
+               for handle in snapshot["handles"]) == 61
+    assert '"provenance"' not in json.dumps(snapshot)
+    assert '"metadata"' not in json.dumps(snapshot)
+    assert '"content"' not in json.dumps(snapshot)
+
+
+@pytest.mark.parametrize("path,value", [
+    ("source_repository", "szl-holdings/szl-formulas"),
+    ("source_repository", "public-metadata/unknown"),
+    ("source_kind", "source-document"),
+    ("source_path", "2401.01234"),
+    ("source_revision", "1" * 40),
+    ("source_revision_kind", "git-commit"),
+    ("title", "Unbound title"),
+    ("content", "Unbound content"),
+    ("admission", "REFERENCE_AND_CONSTRAINT_INPUT_ONLY"),
+    ("quant_domain", "domain-0"),
+    ("provenance.provider", "crossref"),
+    ("provenance.identifier", "2401.01234v1"),
+    ("provenance.capture_sha256", "0" * 64),
+    ("provenance.response_sha256", "1" * 40),
+    ("provenance.response_bytes", 0),
+    ("provenance.response_bytes", True),
+    ("provenance.response_bytes", 262145),
+    ("provenance.observed_at", "2026-10-03"),
+    ("provenance.request_url", "https://attacker.invalid/metadata"),
+    ("provenance.request_url", ["https://export.arxiv.org/api/query"]),
+    ("provenance.source_authentication", "INDEPENDENTLY_ATTESTED"),
+    ("provenance.metadata.canonical_url", "https://attacker.invalid/paper"),
+    ("provenance.metadata.full_text_licence", "CC-BY-4.0"),
+    ("provenance.metadata.metadata_licence", "NOT_DECLARED_BY_RESPONSE"),
+    ("provenance.metadata.authors", ["Author"] * 33),
+    ("provenance.metadata.title", "<b>Unnormalized</b>"),
+    ("provenance.metadata.provider", ["arxiv"]),
+    ("provenance.metadata.authors", ["hf_" + "a" * 30]),
+    ("provenance.metadata.updated", None),
+])
+def test_research_binding_rejects_semantic_tampering_after_rehash(path: str, value: Any) -> None:
+    state_raw, candidates_raw = research_fixture()
+    rows = [json.loads(line) for line in candidates_raw.splitlines()]
+    target = rows[-1]
+    parts = path.split(".")
+    for part in parts[:-1]:
+        target = target[part]
+    target[parts[-1]] = value
+    # Refresh outer digests to prove the semantic binding, not just file hashing.
+    rows[-1]["content_sha256"] = hashlib.sha256(rows[-1]["content"].encode()).hexdigest()
+    if path.startswith("provenance.metadata."):
+        capture = hashlib.sha256(canonical_bytes(rows[-1]["provenance"]["metadata"])).hexdigest()
+        rows[-1]["source_revision"] = rows[-1]["provenance"]["capture_sha256"] = capture
+    with pytest.raises(MaterializationError):
+        validate_frontier(*encode_frontier(json.loads(state_raw), rows))
+
+
+def test_git_source_cannot_be_retyped_as_a_metadata_capture() -> None:
+    state_raw, candidates_raw = fixture()
+    rows = [json.loads(line) for line in candidates_raw.splitlines()]
+    rows[0]["source_revision_kind"] = METADATA_REVISION_KIND
+    with pytest.raises(MaterializationError, match="Git source"):
+        validate_frontier(*encode_frontier(json.loads(state_raw), rows))
+
+
+def test_research_projection_uses_producer_title_and_content_bounds() -> None:
+    state_raw, candidates_raw = research_fixture()
+    rows = [json.loads(line) for line in candidates_raw.splitlines()]
+    candidate = rows[-1]
+    metadata = candidate["provenance"]["metadata"]
+    old_title = metadata["title"]
+    metadata["title"] = "A" * 240
+    metadata["authors"] = ["B" * 240] * 32
+    candidate["title"] = "A" * 180
+    candidate["content"] = candidate["content"].replace(old_title, metadata["title"]).replace(
+        "Authors: Test Author", "Authors: " + ", ".join(metadata["authors"]))[:1600]
+    candidate["content_sha256"] = hashlib.sha256(candidate["content"].encode()).hexdigest()
+    candidate["source_revision"] = candidate["provenance"]["capture_sha256"] = hashlib.sha256(canonical_bytes(metadata)).hexdigest()
+    validate_frontier(*encode_frontier(json.loads(state_raw), rows))
+    candidate["title"] = metadata["title"]
+    with pytest.raises(MaterializationError, match="title"):
+        validate_frontier(*encode_frontier(json.loads(state_raw), rows))
+
+
+def test_research_capture_count_remains_bounded() -> None:
+    state_raw, candidates_raw = research_fixture()
+    rows = [json.loads(line) for line in candidates_raw.splitlines()]
+    candidate = rows[-1]
+    rows.extend(candidate | {"id": f"frontier:{100 + index:032x}"} for index in range(96))
+    with pytest.raises(MaterializationError, match="research metadata count"):
+        validate_frontier(*encode_frontier(json.loads(state_raw), rows))
 
 
 def test_snapshot_is_handles_only_deterministic_and_exact() -> None:
