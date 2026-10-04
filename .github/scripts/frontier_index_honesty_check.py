@@ -38,6 +38,13 @@ accept a truthful entry. This is the org guard pattern (cf.
 constellation-honesty-guard.yml / eval-arena-negative-control.yml): a guard that cannot
 catch planted drift is not trusted on real data.
 
+The real-app contract is offline: before importing serve.py, a process-lifetime
+CPython audit hook denies Internet sockets and DNS. Remote fetches take their
+actual unavailable paths; no payload or backend label is mocked. This prevents
+the two independent probes from observing different mutable upstream snapshots.
+Production network/cache/label behavior and separate live liveness gates are
+unchanged. This is a test I/O boundary, not a sandbox for untrusted Python code.
+
 Doctrine v11: read-only; imports serve.py in-process (no network, no CDN); asserts
 Λ = Conjecture 1 stays advisory and trust ceiling ≤ 0.97; adds nothing to the locked-8.
 """
@@ -46,6 +53,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import socket
 import sys
 
 # serve.py lives at the repo root. When this script is run directly, sys.path[0] is the
@@ -71,6 +79,40 @@ CATALOG_PATH = "/api/a11oy/v1/frontier-index/catalog"
 
 # Banned "dishonest green" tokens that must never appear as a catalog label.
 _BANNED_LABELS = ("VERIFIED", "1.0", "100%", "GUARANTEED", "PROVEN-TRUE")
+
+
+# The checker promises an offline app contract. An audit hook covers imported
+# urllib/httpx/socket clients and worker threads before they resolve or connect;
+# unlike a response fixture, it cannot supply an invented successful payload.
+# AF_UNIX socketpairs used by the in-process asyncio/TestClient path stay usable.
+# Events: https://docs.python.org/3.11/library/audit_events.html
+_NETWORK_GUARD_INSTALLED = False
+_BLOCKED_NETWORK_ATTEMPTS: dict[str, int] = {}
+_DNS_EVENTS = frozenset({
+    "socket.getaddrinfo", "socket.gethostbyaddr", "socket.gethostbyname",
+    "socket.getnameinfo",
+})
+_SOCKET_IO_EVENTS = frozenset({"socket.connect", "socket.sendto", "socket.sendmsg"})
+_INET_FAMILIES = frozenset({socket.AF_INET, socket.AF_INET6})
+
+
+def _deny_network_access(event: str, args: tuple) -> None:
+    denied = event in _DNS_EVENTS
+    if event == "socket.__new__":
+        denied = args[1] in _INET_FAMILIES
+    elif event in _SOCKET_IO_EVENTS:
+        denied = getattr(args[0], "family", None) in _INET_FAMILIES
+    if denied:
+        _BLOCKED_NETWORK_ATTEMPTS[event] = _BLOCKED_NETWORK_ATTEMPTS.get(event, 0) + 1
+        raise PermissionError(f"frontier contract denies outbound network: {event}")
+
+
+def _install_no_network_guard() -> None:
+    """Keep the real-app contract offline for this process, including its threads."""
+    global _NETWORK_GUARD_INSTALLED
+    if not _NETWORK_GUARD_INSTALLED:
+        sys.addaudithook(_deny_network_access)
+        _NETWORK_GUARD_INSTALLED = True
 
 
 # ---------------------------------------------------------------------------
@@ -335,6 +377,8 @@ def _selftest() -> int:
     backends = {
         "/toy/good": {"label": "MODELED", "citations": ["arXiv:2401.00001"]},
         "/toy/measured": {"label": "MEASURED"},
+        "/toy/live": {"label": "LIVE"},
+        "/toy/sample": {"label": "SAMPLE"},
     }
 
     def toy_probe(ep):
@@ -398,10 +442,25 @@ def _selftest() -> int:
         print(f"  [5] FAIL: fabricated citation was NOT rejected: {vio}")
         failures += 1
 
+    # Preserve exact equality even for the external-fetch labels that exposed
+    # the old temporal race. Offline enforcement must not excuse either drift.
+    for number, claim, endpoint, expected_drift in (
+        (6, "LIVE", "/toy/live", False),
+        (7, "LIVE", "/toy/sample", True),
+        (8, "SAMPLE", "/toy/live", True),
+    ):
+        vio = find_violations(catalog_with(claim, endpoint), toy_probe)
+        accepted = any("DRIFT" in item for item in vio) if expected_drift else not vio
+        if accepted:
+            print(f"  [{number}] exact {claim} versus {endpoint} label contract  OK")
+        else:
+            print(f"  [{number}] FAIL: exact label contract changed: {vio}")
+            failures += 1
+
     if failures:
         print(f"\nSELFTEST FAILED: {failures} negative-control case(s) not caught")
         return 1
-    print("\nselftest ok: the honesty checker rejects planted drift on all 5 controls")
+    print("\nselftest ok: the honesty checker passed all 8 positive/negative controls")
     return 0
 
 
@@ -410,7 +469,8 @@ def _selftest() -> int:
 # ---------------------------------------------------------------------------
 
 def _live_check() -> int:
-    print("frontier_index_honesty_check (live) — booting serve.py in-process")
+    _install_no_network_guard()
+    print("frontier_index_honesty_check — booting real serve.py with outbound network denied")
     try:
         import serve  # noqa: F401 — importing wires the FastAPI app + all routes
     except Exception as exc:
@@ -440,6 +500,9 @@ def _live_check() -> int:
         n_native = _count_native_labelled(catalog)
         print(f"  independently re-derivable a11oy-native labels: {n_native}")
         violations = find_violations(catalog, lambda ep: probe_backend(app, client, ep))
+
+    print("  denied network operations (no URLs/payloads): "
+          + json.dumps(_BLOCKED_NETWORK_ATTEMPTS, sort_keys=True))
 
     if n_native == 0:
         print("\nFAIL: the catalog exposes NO a11oy-native labelled surface to re-derive; "
