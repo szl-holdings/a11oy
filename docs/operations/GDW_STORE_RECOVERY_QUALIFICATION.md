@@ -57,6 +57,30 @@ Nonzero orphan pages require further review because they may contain otherwise
 unaccounted data. A saturated integrity result, a foreign-key violation, a schema
 outside the known store, or an invalid receipt binding stops evaluation.
 
+Canonical run `37226932409`, at source
+`ada55417536f43af6ed0a32304774910a50fb42b`, observed that the two GDW orphan
+pages contain nonzero bytes. The safe qualification report has SHA-256
+`31a14b1079e398272bd19361e3970c4d03d927d8caef36093bebeec2adff7909`.
+It therefore produced no GDW candidate. Reachable GDW receipt bindings and the
+exact historical signed audit remained verifiable; Series A passed logical
+continuity checks. Those observations do not explain the orphan bytes.
+
+The source-owned orphan forensic helper adds bounded descriptive evidence on
+that existing hold branch. It reads only the disposable inspection copy,
+deserializes fixed bytes into an in-memory SQLite connection, reconfirms the
+orphan set, and uses native `dbstat` reachability when available. It reports
+local page-layout classifications, counts and digests, and compares every byte
+of selected orphan pages with fully enumerated reachable pages. It never emits
+page bytes, row values, schema names or arbitrary SQLite diagnostics. The
+qualifier binds the helper's full-input and selected-page hashes to the same
+captured bytes before attaching that evidence to its existing safe report.
+
+Even an exact full-page duplicate remains a descriptive observation: record
+equivalence and permission to discard are false. Unavailable or incomplete
+native reachability is labeled explicitly. Every nonzero-page result retains
+the existing no-candidate, no-restore and no-deployment hold; this extension
+cannot enable `VACUUM`, `.recover`, object publication or a runtime restart.
+
 The candidate must pass SQLite integrity and foreign-key checks. Its schema,
 declared column metadata, every declared stored value, duplicate-row multiplicity,
 `sqlite_sequence`, generation, receipt bytes and checked receipt bindings must

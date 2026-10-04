@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Any
 
 import preserve_hf_gdw_store as preservation
+import gdw_orphan_forensics as orphan_forensics
 
 SCHEMA = "szl.gdw-store-recovery-qualification/v1"
 DEADLINE_SECONDS = 90
@@ -363,6 +364,43 @@ def unreferenced_page_contents(database: Path, pages: list[int], deadline: float
         os.close(descriptor)
 
 
+def orphan_forensic_observation(database: Path, pages: list[int], deadline: float,
+                               expected_sha256: str, contents: dict) -> dict:
+    """Bind descriptive evidence to the same bytes without changing admission."""
+    report = orphan_forensics.inspect_orphan_pages(database, pages, deadline=deadline)
+    held_fields = {"schema", "state", "analysis_state", "diagnostic_code", "hold_reason",
+                   "candidate_created", "discard_admitted", "restore_admitted", "deployment_admitted",
+                   "provider_writes_performed", "private_payloads_emitted", "record_comparison",
+                   "record_equivalence_verified", "all_bytes_semantically_explained"}
+    observed_fields = {"inspection_sha256", "database_header", "orphan_page_count", "orphan_byte_count",
+                       "orphan_contents_sha256", "pages", "native_reachability", "companions",
+                       "inspection_copy_unchanged"}
+    if (type(report) is not dict or not held_fields <= set(report)
+            or set(report) - held_fields - observed_fields
+            or report["schema"] != "szl.gdw-orphan-page-forensics/v1"
+            or report["state"] != "HELD" or report["hold_reason"] != "UNREFERENCED_PAGE_CONTENTS_REQUIRE_REVIEW"
+            or report["analysis_state"] not in {"COMPLETE", "PARTIAL", "UNAVAILABLE"}
+            or report["record_comparison"] != "UNAVAILABLE"
+            or any(report[key] is not False for key in (
+                "candidate_created", "discard_admitted", "restore_admitted", "deployment_admitted",
+                "provider_writes_performed", "private_payloads_emitted", "record_equivalence_verified",
+                "all_bytes_semantically_explained"))):
+        raise RecoveryError("ORPHAN_FORENSIC_RESULT_UNQUALIFIED")
+    if report["analysis_state"] == "UNAVAILABLE":
+        if set(report) != held_fields:
+            raise RecoveryError("ORPHAN_FORENSIC_RESULT_UNQUALIFIED")
+    elif (set(report) != held_fields | observed_fields or report["inspection_sha256"] != expected_sha256
+            or report["orphan_contents_sha256"] != contents["contents_sha256"]
+            or type(report["orphan_page_count"]) is not int
+            or report["orphan_page_count"] != contents["page_count"]
+            or type(report["orphan_byte_count"]) is not int
+            or report["orphan_byte_count"] != contents["byte_count"]
+            or report["inspection_copy_unchanged"] is not True):
+        raise RecoveryError("ORPHAN_FORENSIC_INPUT_IDENTITY_MISMATCH")
+    check_budget(deadline)
+    return report
+
+
 def _bindings_match(value: Mapping[str, Any], expected: Mapping[str, Any]) -> bool:
     return all(key in value and type(value[key]) is type(item) and value[key] == item
                for key, item in expected.items())
@@ -629,6 +667,9 @@ def qualify_database(label: str, original: Path, working: Path, expected_generat
             # even when nonzero orphan contents forbid candidate evaluation.
             if status["classification"] == "UNREFERENCED_PAGES" \
                     and not result["unreferenced_page_contents"]["all_zero"]:
+                result["unreferenced_page_forensics"] = orphan_forensic_observation(
+                    inspected, unreferenced_pages, deadline, originals[original],
+                    result["unreferenced_page_contents"])
                 raise RecoveryError("UNREFERENCED_PAGE_CONTENTS_REQUIRE_REVIEW")
             candidate = working / "candidate.sqlite3"
             if candidate.exists():
