@@ -40,6 +40,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             "scripts/configure_hf_series_a_runtime.py",
             "scripts/configure_hf_gdw_runtime.py",
             "scripts/verify_installed_authority.py",
+            "scripts/preserve_hf_gdw_store.py",
         )}
         cls.deploy_needs = "[source-admission, manual-prerequisites, resume-paused-space]"
         cls.deploy_if = "${{ needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && needs.resume-paused-space.result == 'success' }}"
@@ -125,6 +126,41 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             self.assertFalse(self.strict_contract(self.reviewed_workflow, manual_helpers=helpers))
         self.assertTrue(self.strict_contract(self.reviewed_workflow, manual_helpers={
             path: data.replace(b"\n", b"\r\n") for path, data in self.manual_helpers.items()}))
+
+    def test_preservation_target_privacy_and_no_admission_implementation_are_byte_bound(self) -> None:
+        path = "scripts/preserve_hf_gdw_store.py"
+        source = self.manual_helpers[path]
+        cases = (
+            (b'BUCKET = "SZLHOLDINGS/szl-evidence"', b'BUCKET = "SZLHOLDINGS/public"'),
+            (b'PRIVATE_PREFIX = "a11oy/incident-preservation/v1"', b'PRIVATE_PREFIX = "a11oy/gdw"'),
+            (b'_value(bucket, "private") is not True', b'False'),
+            (b"if occupied:", b"if False:"),
+            (b"require_owned_source()", b"pass  # ownership check removed"),
+            (b"return 2\n", b"return 0\n"),
+        )
+        for original, replacement in cases:
+            with self.subTest(original=original):
+                self.assertIn(original, source)
+                changed = dict(self.manual_helpers)
+                changed[path] = source.replace(original, replacement, 1)
+                self.assertFalse(self.strict_contract(self.reviewed_workflow, manual_helpers=changed))
+        # The helper's one local source import has a separate required digest.
+        self.assertFalse(self.strict_contract(
+            self.reviewed_workflow, ownership_helper=self.ownership + b"\n# unreviewed transitive edit\n"))
+
+    def test_preservation_workflow_overrides_and_private_artifact_widening_are_byte_bound(self) -> None:
+        marker = "      - name: Preserve stopped private stores before any runtime mutation\n"
+        cases = (
+            ("scripts/preserve_hf_gdw_store.py", "scripts/unknown_preservation.py"),
+            (marker, marker + "        if: false\n"),
+            (marker, marker + "        env:\n          HF_TOKEN: unreviewed-authority\n"),
+            ('--output "${{ runner.temp }}/gdw-store-preservation.json"', '--output "${{ runner.temp }}/gdw-store-preservation.json" || true'),
+            ("            ${{ runner.temp }}/gdw-store-preservation.json\n", "            ${{ runner.temp }}/**\n"),
+        )
+        for original, replacement in cases:
+            with self.subTest(replacement=replacement):
+                self.assertIn(original, self.reviewed_workflow)
+                self.assertFalse(self.strict_contract(self.reviewed_workflow.replace(original, replacement, 1)))
 
     def test_resume_requires_the_exact_source_and_manual_success_graph(self) -> None:
         resume = self.fixture_job("resume-paused-space")
