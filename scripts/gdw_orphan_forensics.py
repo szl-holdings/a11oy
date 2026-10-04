@@ -8,8 +8,8 @@ an in-memory deserialization of fixed bytes, never a filesystem database path.
 The result cannot admit a candidate, discard, restore, or deployment. Local
 page layout and whole-page equality do not establish record equivalence.
 
-Format references: https://www.sqlite.org/fileformat.html (sections 1.3, 1.6,
-1.7), https://www.sqlite.org/dbstat.html, and SQLite's btree.c minimum cell size:
+Format references: https://www.sqlite.org/fileformat2.html (sections 1.3-1.7),
+https://www.sqlite.org/dbstat.html, and SQLite's btree.c minimum cell size:
 https://www3.sqlite.org/matrix/ev/src/btree.html .
 """
 from __future__ import annotations
@@ -26,12 +26,14 @@ from pathlib import Path
 from typing import Any
 
 SCHEMA = "szl.gdw-orphan-page-forensics/v1"
+FREELIST_SCHEMA = "szl.gdw-detached-freelist-layout/v1"
 MAX_DATABASE_BYTES = 64 * 1024 * 1024
 MAX_ORPHAN_PAGES = 99
 MAX_INTEGRITY_FINDINGS = 100
 MAX_NATIVE_VALUE_BYTES = 1024 * 1024
 READ_CHUNK_BYTES = 1024 * 1024
 MAX_ANALYSIS_SECONDS = 60
+LOCK_BYTE_OFFSET = 1073741824
 _PAGE_TYPES = {2: "INDEX_INTERIOR", 5: "TABLE_INTERIOR", 10: "INDEX_LEAF", 13: "TABLE_LEAF"}
 _SIDECARS = ("-journal", "-wal", "-shm")
 _CODES = {
@@ -182,7 +184,11 @@ def _header(data: bytes) -> dict[str, int]:
         # Deserialization does not accept WAL images. Never rewrite the header
         # or ignore companion bytes to make an image inspectable.
         raise ForensicsError("SQLITE_WAL_MODE_UNSUPPORTED")
-    return {"page_size": page_size, "page_count": page_count, "reserved_bytes_per_page": reserved}
+    return {"page_size": page_size, "page_count": page_count, "reserved_bytes_per_page": reserved,
+            "freelist_head": int.from_bytes(data[32:36], "big"),
+            "freelist_page_count": int.from_bytes(data[36:40], "big"),
+            "largest_root_page": int.from_bytes(data[52:56], "big"),
+            "incremental_vacuum": int.from_bytes(data[64:68], "big")}
 
 
 class _LayoutError(Exception):
@@ -426,6 +432,136 @@ def _page(data: bytes, number: int, size: int) -> bytes:
     return data[(number - 1) * size:number * size]
 
 
+class _FreelistError(Exception):
+    pass
+
+
+def _freelist_unclassified(code: str, *, unavailable: bool = False) -> dict:
+    return {"schema": FREELIST_SCHEMA, "state": "UNAVAILABLE" if unavailable else "UNCLASSIFIED",
+            "complete": False, "diagnostic_code": code}
+
+
+def _freelist_walk(data: bytes, root: int, allowed: set[int], header: dict,
+                   deadline: float, *, zero_padded: bool) -> tuple[list[dict], set[int]]:
+    """Walk one ownership graph; every reference is checked before reading it."""
+    size = header["page_size"]
+    # Current SQLite writers leave the last six trunk slots unused for old
+    # reader compatibility. Require that narrower layout for detached evidence.
+    capacity = size // 4 - (8 if zero_padded else 2)
+    current = root
+    owned: set[int] = set()
+    trunks = []
+    while current:
+        _budget(deadline)
+        if current not in allowed or current in owned:
+            raise _FreelistError
+        owned.add(current)
+        raw = _page(data, current, size)
+        next_trunk = int.from_bytes(raw[:4], "big")
+        count = int.from_bytes(raw[4:8], "big")
+        if count > capacity or (next_trunk and next_trunk not in allowed):
+            raise _FreelistError
+        end = 8 + count * 4
+        if zero_padded and any(raw[end:]):
+            raise _FreelistError
+        leaves = []
+        for offset in range(8, end, 4):
+            _budget(deadline)
+            leaf = int.from_bytes(raw[offset:offset + 4], "big")
+            if leaf not in allowed or leaf in owned:
+                raise _FreelistError
+            if zero_padded and any(_page(data, leaf, size)):
+                raise _FreelistError
+            owned.add(leaf)
+            leaves.append(leaf)
+        trunks.append({"page_number": current, "next_trunk": next_trunk, "leaf_pages": leaves})
+        current = next_trunk
+    _budget(deadline)
+    return trunks, owned
+
+
+def _freelist_graph(data: bytes, pages: tuple[int, ...], header: dict,
+                    reachable: dict[int, str], deadline: float) -> dict:
+    """Describe a unique zero-padded detached graph, without granting admission.
+
+    Native integrity and dbstat must already have completely confirmed their
+    respective sets. This covers allocator classes only for the narrow header
+    modes below. An incomplete or plausible local layout is never a match.
+    """
+    _budget(deadline)
+    if header["reserved_bytes_per_page"]:
+        return _freelist_unclassified("RESERVED_PAGE_BYTES_UNSUPPORTED")
+    if header["largest_root_page"] or header["incremental_vacuum"]:
+        return _freelist_unclassified("POINTER_MAP_MODE_UNSUPPORTED")
+    if len(data) > LOCK_BYTE_OFFSET:
+        return _freelist_unclassified("LOCK_BYTE_PAGE_UNSUPPORTED")
+    count = header["page_count"]
+    orphan_set = set(pages)
+    reachable_set = set(reachable)
+    universe = set(range(1, count + 1))
+    if (1 not in reachable_set or not reachable_set <= universe or not orphan_set <= universe
+            or 1 in orphan_set or orphan_set & reachable_set):
+        return _freelist_unclassified("PAGE_OWNERSHIP_CONFLICT")
+    head, total = header["freelist_head"], header["freelist_page_count"]
+    if (not 0 <= total < count or bool(head) != bool(total)
+            or (head and not 2 <= head <= count)):
+        return _freelist_unclassified("ATTACHED_FREELIST_UNQUALIFIED")
+    try:
+        attached_trunks, attached_pages = _freelist_walk(
+            data, head, universe - reachable_set - orphan_set, header, deadline, zero_padded=False)
+    except _FreelistError:
+        return _freelist_unclassified("ATTACHED_FREELIST_UNQUALIFIED")
+    if len(attached_pages) != total:
+        return _freelist_unclassified("ATTACHED_FREELIST_COUNT_MISMATCH")
+    if reachable_set | attached_pages | orphan_set != universe:
+        return _freelist_unclassified("DATABASE_PAGE_ACCOUNTING_INCOMPLETE")
+    matches = []
+    for root in pages:
+        _budget(deadline)
+        try:
+            trunks, owned = _freelist_walk(data, root, orphan_set, header, deadline, zero_padded=True)
+        except _FreelistError:
+            continue
+        # At least one actual leaf pointer excludes an arbitrary zero page from
+        # this new interpretation. The existing all-zero policy is separate.
+        if owned == orphan_set and sum(len(item["leaf_pages"]) for item in trunks) > 0:
+            matches.append(trunks)
+    if len(matches) != 1:
+        return _freelist_unclassified("NO_UNIQUE_COMPLETE_ZERO_PADDED_GRAPH")
+    trunks = matches[0]
+    leaves = sorted(leaf for item in trunks for leaf in item["leaf_pages"])
+    structural_bytes = sum(8 + 4 * len(item["leaf_pages"]) for item in trunks)
+    total_bytes = len(pages) * header["page_size"]
+    nonzero_bytes = 0
+    for number in pages:
+        _budget(deadline)
+        raw = _page(data, number, header["page_size"])
+        nonzero_bytes += len(raw) - raw.count(0)
+    attached_digest = hashlib.sha256()
+    for number in sorted(attached_pages):
+        _budget(deadline)
+        attached_digest.update(number.to_bytes(8, "big"))
+    result = {
+        "schema": FREELIST_SCHEMA, "state": "STRUCTURALLY_ACCOUNTED", "complete": True,
+        "diagnostic_code": "UNIQUE_COMPLETE_ZERO_PADDED_DETACHED_FREELIST",
+        "allocation_scope": "BTREES_OVERFLOW_ATTACHED_FREELIST_ORPHANS",
+        "whole_database_accounted": True, "orphan_bytes_structurally_accounted": True,
+        "page_count": count, "page_size": header["page_size"],
+        "reachable_page_count": len(reachable_set),
+        "attached_freelist": {"head": head, "page_count": total,
+            "trunk_count": len(attached_trunks), "leaf_count": total - len(attached_trunks),
+            "page_numbers_sha256": attached_digest.hexdigest()},
+        "detached_freelist": {"root_page": trunks[0]["page_number"], "page_count": len(pages),
+            "trunk_count": len(trunks), "leaf_count": len(leaves),
+            "trunks": trunks, "zero_leaf_pages": leaves},
+        "byte_accounting": {"total_bytes": total_bytes, "structural_bytes": structural_bytes,
+            "structural_nonzero_bytes": nonzero_bytes,
+            "zero_padding_and_leaf_bytes": total_bytes - structural_bytes},
+    }
+    _budget(deadline)
+    return result
+
+
 def _duplicates(data: bytes, pages: tuple[int, ...], reachable: dict[int, str],
                 size: int, deadline: float) -> dict[int, dict]:
     candidates = {}
@@ -496,15 +632,18 @@ def inspect_orphan_pages(inspection_copy: Path | str, orphan_pages: list[int] | 
                                      "structure": _layout(raw, number, header, deadline),
                                      "reachable_duplicate": {"state": "NOT_PERFORMED", "comparison_complete": False}})
             native, reachable = _native(data, pages, header, deadline)
+            freelist = _freelist_unclassified("NATIVE_PAGE_ACCOUNTING_UNAVAILABLE", unavailable=True)
             if native["complete"]:
                 duplicates = _duplicates(data, pages, reachable, header["page_size"], deadline)
                 for observation in observations:
                     observation["reachable_duplicate"] = duplicates[observation["page_number"]]
+                freelist = _freelist_graph(data, pages, header, reachable, deadline)
             report.update(analysis_state="COMPLETE" if native["complete"] else "PARTIAL",
                           inspection_sha256=digest, database_header=header, orphan_page_count=len(pages),
                           orphan_byte_count=len(pages) * header["page_size"],
                           orphan_contents_sha256=combined.hexdigest(), pages=observations,
-                          native_reachability=native, companions="ABSENT_OR_EMPTY_VERIFIED")
+                          native_reachability=native, freelist_graph=freelist,
+                          companions="ABSENT_OR_EMPTY_VERIFIED")
             _budget(deadline)
         report["inspection_copy_unchanged"] = True
         _budget(deadline)
