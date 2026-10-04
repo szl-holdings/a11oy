@@ -5065,6 +5065,18 @@ async def startup() -> None:
             f"{_series_a_startup_error!r}",
             file=sys.stderr,
         )
+    # Index creation is a lifecycle write.  The shipped image opts in; local
+    # TestClient imports and public GETs never silently seed or sign an index.
+    if os.environ.get("A11OY_ORG_RAG_AUTOSTART") == "1":
+        try:
+            bootstrap = _rag_engine.start_seed_bootstrap(
+                emit_receipt=_rag_emit_receipt
+            )
+            print(f"[a11oy] Brain index bootstrap: {bootstrap.get('phase')}",
+                  file=sys.stderr)
+        except Exception as _rag_boot_error:
+            print("[a11oy] Brain index bootstrap failed honestly: "
+                  f"{_rag_boot_error!r}", file=sys.stderr)
     if A11OY_SERVE_SCRIPT.exists():
         try:
             # FIX (Yachay 2026-06-02 / v1 :8081 503 repair): the previous launch used
@@ -5372,9 +5384,8 @@ def _ledger_storage_signal(ttl: float = 15.0) -> dict:
 # ADDITIVE (waveL Dev2 — release-engineering observability rollup): two more tiny
 # cached, guarded probes so /healthz reports an HONEST release rollup alongside the
 # durable-ledger storage-pressure signal:
-#   (a) DSSE SIGNER AVAILABILITY — is the cosign/DSSE private key present in this
-#       Space (live signing) or are we emitting UNSIGNED-LOCAL envelopes? Read
-#       straight from szl_dsse.signing_available(); never fabricated.
+#   (a) DSSE SIGNER AVAILABILITY — inspect the same process key used by
+#       _a11oy_sign_receipt, without signing or mutating state on a health GET.
 #   (b) FRONTIER-ENDPOINT LIVENESS COUNT — how many governed-provenance frontier
 #       tiles are live vs degraded, read from szl_frontier_manifest's already-
 #       cached, real-probe-only manifest summary. A down sub-source is reported
@@ -5390,19 +5401,16 @@ def _signer_availability_signal(ttl: float = 30.0) -> dict:
     if ca is not None and (now - ca) < ttl:
         return _SIGNER_HEALTH_CACHE.get("value", {})
     try:
-        import szl_dsse as _szl_dsse_health
-        available = bool(_szl_dsse_health.signing_available())
-        val = {
-            # honest label: DSSE-LIVE only when a real private key is present in
-            # this Space; otherwise UNSIGNED-LOCAL (receipts explicitly unsigned).
-            "status": "DSSE-LIVE" if available else "UNSIGNED-LOCAL",
-            "signing_available": available,
-            "scheme": "DSSEv1 / ECDSA-P256 (cosign keyless OIDC at release)",
-        }
-        try:
-            val["public_key_fingerprint"] = _szl_dsse_health.public_key_fingerprint()
-        except Exception:
-            pass
+        provider = getattr(app.state, "szl_signer_status", None)
+        if not callable(provider):
+            raise RuntimeError("a11oy runtime signer status provider absent")
+        val = provider()
+        if not isinstance(val, dict) or not isinstance(val.get("signing_available"), bool):
+            raise ValueError("a11oy runtime signer status invalid")
+        if val.get("status") not in {"DSSE-LIVE", "ABSENT", "UNAVAILABLE"}:
+            raise ValueError("a11oy runtime signer label invalid")
+        if (val["signing_available"] is True) != (val["status"] == "DSSE-LIVE"):
+            raise ValueError("a11oy runtime signer status contradictory")
     except Exception as exc:
         val = {"status": "UNAVAILABLE", "signing_available": False,
                "scheme": "UNAVAILABLE",
@@ -5500,7 +5508,7 @@ def _brain_health_signal(ttl: float = 30.0) -> dict:
 @app.api_route("/api/a11oy/healthz", methods=["GET", "HEAD"])
 async def healthz() -> JSONResponse:
     # QHAPAQ 2026-08-28: this rollup.signer is the only health JSON that may
-    # stamp DSSE-LIVE (live probe of szl_dsse.signing_available). Other /healthz
+    # stamp DSSE-LIVE (pure status of the actual a11oy runtime key). Other /healthz
     # bodies must stay ABSENT/UNAVAILABLE — never copy this stamp.
     dep = await _healthz_dep_ping()
     _ca = dep.get("checked_at")
@@ -9112,15 +9120,15 @@ except Exception as _sc_e:  # pragma: no cover - additive, defensive
 #     source gh:<repo>|hf:<space>|bundled:<repo>@<sha> + path + sha256) and an
 #     HONEST confidence derived from the grounded chunks' Λ scores — capped
 #     strictly BELOW 1.0 (trust never 100%; Λ is Conjecture 1, NOT a theorem).
-#   * Emits a Khipu/DSSE provenance receipt over the query+grounding via the
-#     in-image signer (real ECDSA-P256 when the key is present, else honestly
-#     labeled UNSIGNED — no signature fabricated).
+#   * GET retrieval is read-only. Explicit estate POST can emit one response-only
+#     DSSE answer receipt (real ECDSA-P256 when keyed, else honestly UNSIGNED).
 #   * Carries the governed envelope (gov_envelope): status REAL when grounded,
 #     DEGRADED when i_dont_know or the index could not build (honest BLOCKED
 #     beats fake green) — so it passes the operator-reason envelope guard.
 # Routes (registered BEFORE the SPA catch-all so they resolve LOCALLY):
 #   GET  /api/a11oy/v1/rag/query?q=...   — governed RAG answer (also descriptor on bare GET)
-#   POST /api/a11oy/v1/rag/query {q|question, k?, repo?}  — governed RAG answer
+#   POST /api/a11oy/v1/rag/estate/query {q|question, k?, repo?} — estate answer
+#   POST /api/a11oy/v1/rag/query remains owned by szl_governed_rag.
 #   GET  /api/a11oy/v1/rag/status        — index build state + corpus manifest (governed)
 #   GET  /org/rag                        — alias of GET /api/a11oy/v1/rag/query
 # Marker: a11oy-govern-rag-powerd2.
@@ -9130,16 +9138,14 @@ try:
         from szl_substrate import a11oy_org_rag as _rag_engine  # single source of truth
     except Exception:
         import a11oy_org_rag as _rag_engine
-    import threading as _rag_threading
-    from fastapi import Request as _RAGRequest
+    from fastapi import Request as _RAGRequest, Query as _RAGQuery
     from fastapi.responses import JSONResponse as _RAGJSON
-
-    _RAG_BUILD_LOCK = _rag_threading.RLock()
 
     def _rag_emit_receipt(kind, body):
         """Emit a governed provenance receipt over a RAG event. Uses the in-image
         DSSE signer when available (real ECDSA-P256), else an honest UNSIGNED
-        marker — NEVER a fabricated signature. Returns {hash, signed, dsse}."""
+        marker — NEVER a fabricated signature. Returns {hash, signed, dsse}.
+        This response object is not a durable Khipu/forum ingestion receipt."""
         rec = {"schema": "szl.a11oy.org_rag/v1", "kind": kind, "organ": "a11oy",
                "doctrine": "v11", "lambda_status": "Conjecture 1 (NOT a theorem)",
                "body": body}
@@ -9159,21 +9165,13 @@ try:
                            "honesty": "UNSIGNED — signer unavailable in this runtime (%s); no signature fabricated." % type(_se).__name__}
         return out
 
-    def _rag_ensure_index():
-        """Lazy, thread-safe REAL seed-index build (idempotent). Honest: returns the
-        engine's labeled build meta; never claims a built index it didn't build."""
-        st = _rag_engine.status()
-        if st.get("built"):
-            return st
-        with _RAG_BUILD_LOCK:
-            st = _rag_engine.status()
-            if st.get("built"):
-                return st
-            try:
-                return _rag_engine.build_seed_index(emit_receipt=_rag_emit_receipt)
-            except Exception as _be:
-                return {"built": False,
-                        "honest_error": "seed index build failed: %s" % type(_be).__name__}
+    def _rag_index_status():
+        """Read index status without building, signing, or changing storage."""
+        try:
+            return _rag_engine.status()
+        except Exception as exc:
+            return {"built": False, "honest_error":
+                    "index status unavailable: %s" % type(exc).__name__}
 
     def _rag_confidence(grounded):
         """Honest confidence from the grounded chunks' Λ scores. Λ is a geometric
@@ -9186,7 +9184,7 @@ try:
         top = max(float(c.get("lambda", 0.0)) for c in grounded)
         return round(min(0.99, top), 4)
 
-    def _rag_answer(q, k=6, repo=None):
+    def _rag_answer(q, k=6, repo=None, receipted=False):
         """Run the governed RAG query and synthesize a CITED answer. Returns a
         payload dict ready for gov_envelope, plus an honest status string."""
         q = (q or "").strip()
@@ -9198,8 +9196,12 @@ try:
                             "doctrine, lean). Ask the doctrine — e.g. 'what is F7?', "
                             "'what is Λ?', 'prove F7' — and get a CITED answer grounded "
                             "in real indexed bytes, with honest confidence (trust never "
-                            "100%) and a signed-or-honestly-UNSIGNED provenance receipt."),
-                "method": ("GET ?q=<question>[&k=][&repo=] or POST {q|question, k?, repo?}. "
+                            "100%). Explicit estate POST may return one signed-or-honestly-"
+                            "UNSIGNED response receipt (not durably ingested); GET never "
+                            "mints one."),
+                "method": ("Public read-only GET ?q=<question>[&k=][&repo=]. "
+                           "Operator-only POST /api/a11oy/v1/rag/estate/query "
+                           "{q|question, k?, repo?} may return a response receipt. "
                            "Bare GET returns this descriptor."),
                 "examples": ["what is F7?", "what is Λ?", "prove F7",
                              "what are the locked-8 formulas?"],
@@ -9208,10 +9210,10 @@ try:
                               "relevance floor => i_dont_know (Self-RAG; never fabricates)."),
                 "corpus": _rag_engine.corpus_manifest(),
             }
-            return desc, "REAL", [{"endpoint": "/api/a11oy/v1/rag/query (POST/GET ?q=) — governed RAG over the estate corpus",
+            return desc, "REAL", [{"endpoint": "GET /api/a11oy/v1/rag/query and POST /api/a11oy/v1/rag/estate/query — estate index",
                                    "data": {"live": True}}]
 
-        idx = _rag_ensure_index()
+        idx = _rag_index_status()
         if not idx.get("built"):
             payload = {
                 "query": q,
@@ -9221,14 +9223,26 @@ try:
                 "grounded": False,
                 "i_dont_know": True,
                 "index": {"built": False, "mode": idx.get("mode"),
-                          "honest_error": idx.get("honest_error")},
+                          "honest_error": idx.get("honest_error"),
+                          "storage_state": idx.get("storage_state"),
+                          "build_state": idx.get("build_state")},
                 "confidence": 0.0,
+                "receipt_state": "NOT_MINTED_INDEX_UNAVAILABLE",
                 "honesty": ("BLOCKED-and-honest: index unbuilt; no answer/citation fabricated "
                             "(Zero-Bandaid Law). honest BLOCKED beats fake green."),
             }
             return payload, "DEGRADED", []
 
-        res = _rag_engine.query(q, k=int(k or 6), repo=repo, emit_receipt=_rag_emit_receipt)
+        res = _rag_engine.query(q, k=int(k or 6), repo=repo,
+                                emit_receipt=None, load_embedder=receipted)
+        if not res.get("ok"):
+            return ({"query": q, "answer": None, "grounded": False,
+                     "i_dont_know": True, "confidence": 0.0,
+                     "integrity_state": res.get("integrity_state") or "FAILED_CLOSED",
+                     "storage_state": res.get("storage_state"),
+                     "honest_error": res.get("honest_error") or "published Brain read failed",
+                     "receipt_state": "NOT_MINTED_INDEX_UNAVAILABLE"},
+                    "UNAVAILABLE", [])
         chunks = res.get("chunks", []) or []
         idk = bool(res.get("i_dont_know")) or not chunks
 
@@ -9265,7 +9279,9 @@ try:
                               "dense_used": res.get("dense_used")},
                 "honesty": ("i_dont_know is first-class — below-Λ-floor chunks never enter the "
                             "answer (P3 non-interference). No citation fabricated."),
-                "receipt_hash": res.get("khipu_hash"),
+                "receipt_hash": None,
+                "receipt_state": ("NOT_MINTED_NO_GROUNDED_ANSWER" if receipted
+                                  else "NOT_MINTED_ON_READ"),
             }
             return payload, "REAL", []
 
@@ -9305,22 +9321,43 @@ try:
             "honesty": ("Every cited source was actually retrieved from the indexed corpus; "
                         "each carries its real path + sha256 + corpus category. No source is "
                         "claimed that wasn't retrieved."),
-            "receipt_hash": res.get("khipu_hash"),
+            "receipt_hash": None,
+            "receipt_state": "PENDING" if receipted else "NOT_MINTED_ON_READ",
         }
-        rcpt = _rag_emit_receipt("org_rag.answer",
-                                 {"query": q[:160], "grounded": len(chunks),
-                                  "confidence": confidence,
-                                  "top_citation": citations[0]["citation"] if citations else None})
-        payload["receipt"] = {"hash": rcpt.get("hash"), "signed": rcpt.get("signed"),
-                              "dsse": rcpt.get("dsse")}
+        if receipted:
+            import hashlib as _rag_hashlib
+            rcpt = _rag_emit_receipt("org_rag.answer", {
+                "query_sha256": _rag_hashlib.sha256(q.encode("utf-8")).hexdigest(),
+                "answer_sha256": _rag_hashlib.sha256(lead.encode("utf-8")).hexdigest(),
+                "evidence_set_sha256": res.get("evidence_set_sha256"),
+                "grounded": len(chunks), "confidence": confidence,
+            })
+            payload["receipt_hash"] = rcpt.get("hash")
+            payload["receipt_state"] = "SIGNED" if rcpt.get("signed") else "UNSIGNED"
+            payload["receipt"] = {"hash": rcpt.get("hash"),
+                                  "signed": rcpt.get("signed"),
+                                  "dsse": rcpt.get("dsse")}
         return payload, "REAL", citations
 
-    @app.get("/api/a11oy/v1/rag/query")
-    async def _rag_query_get(q: str = "", k: int = 6, repo: str = ""):
-        payload, st, cites = _rag_answer(q, k=k, repo=(repo or None))
-        return _RAGJSON(gov_envelope(payload, status=st, citations=cites))
+    def _rag_response(payload, status, citations):
+        unavailable = (status == "UNAVAILABLE" or
+                       (isinstance(payload.get("index"), dict) and
+                        payload["index"].get("built") is False))
+        phase = ((payload.get("index") or {}).get("build_state") or {}).get("phase")
+        headers = {"Retry-After": "5"} if unavailable and phase == "seeding" else None
+        return _RAGJSON(gov_envelope(payload, status=status, citations=citations),
+                        status_code=503 if unavailable else 200, headers=headers)
 
-    @app.post("/api/a11oy/v1/rag/query")
+    @app.get("/api/a11oy/v1/rag/query")
+    async def _rag_query_get(
+        q: str = _RAGQuery(default="", max_length=1024),
+        k: int = _RAGQuery(default=6, ge=1, le=20),
+        repo: str = _RAGQuery(default="", max_length=256),
+    ):
+        payload, st, cites = _rag_answer(q, k=k, repo=(repo or None))
+        return _rag_response(payload, st, cites)
+
+    @app.post("/api/a11oy/v1/rag/estate/query")
     async def _rag_query_post(request: _RAGRequest):
         try:
             body = await request.json()
@@ -9331,13 +9368,23 @@ try:
         q = body.get("q") or body.get("question") or body.get("query") or ""
         k = body.get("k", 6)
         repo = body.get("repo") or None
-        payload, st, cites = _rag_answer(q, k=k, repo=repo)
-        return _RAGJSON(gov_envelope(payload, status=st, citations=cites))
+        if (not isinstance(q, str) or not q.strip() or len(q) > 1024 or
+                isinstance(k, bool) or not isinstance(k, int) or not 1 <= k <= 20 or
+                (repo is not None and (not isinstance(repo, str) or len(repo) > 256))):
+            return _RAGJSON({"error": "invalid estate RAG query bounds",
+                             "limits": {"q_max_length": 1024, "k_min": 1, "k_max": 20,
+                                        "repo_max_length": 256}}, status_code=400)
+        payload, st, cites = _rag_answer(q, k=k, repo=repo, receipted=True)
+        return _rag_response(payload, st, cites)
 
     @app.get("/org/rag")
-    async def _rag_query_alias(q: str = "", k: int = 6, repo: str = ""):
+    async def _rag_query_alias(
+        q: str = _RAGQuery(default="", max_length=1024),
+        k: int = _RAGQuery(default=6, ge=1, le=20),
+        repo: str = _RAGQuery(default="", max_length=256),
+    ):
         payload, st, cites = _rag_answer(q, k=k, repo=(repo or None))
-        return _RAGJSON(gov_envelope(payload, status=st, citations=cites))
+        return _rag_response(payload, st, cites)
 
     @app.get("/api/a11oy/v1/rag/status")
     async def _rag_status_get():
@@ -9348,12 +9395,18 @@ try:
         built = bool(st.get("built"))
         return _RAGJSON(gov_envelope(
             {"index": st, "corpus": _rag_engine.corpus_manifest(),
-             "data_kind": "live", "index_built": built},
-            status="REAL",
+             "data_kind": "runtime_observation", "index_built": built,
+             "query_endpoint": "/api/a11oy/v1/rag/query",
+             "query_method": "GET",
+             "receipt_endpoint": "/api/a11oy/v1/rag/estate/query",
+             "receipt_method": "POST",
+             "receipt_authority": "operator"},
+            status="REAL" if built else "DEGRADED",
             citations=[{"endpoint": "a11oy_org_rag.status() + corpus_manifest()",
                         "data": {"built": built, "mode": st.get("mode")}}]))
 
-    print("[a11oy] governed RAG mounted: GET/POST /api/a11oy/v1/rag/query, "
+    print("[a11oy] estate RAG mounted: GET /api/a11oy/v1/rag/query, "
+          "POST /api/a11oy/v1/rag/estate/query, "
           "GET /org/rag, GET /api/a11oy/v1/rag/status (ask-the-doctrine over the "
           "estate corpus; cited + governed)", flush=True)
 except Exception as _rag_e:  # pragma: no cover - additive, defensive
@@ -9862,11 +9915,34 @@ def _a11oy_sign_receipt(payload_obj) -> dict:
     return env
 
 
+def _a11oy_signer_status() -> dict:
+    """Pure status of the key that _a11oy_sign_receipt actually uses."""
+    key_present = _A11OY_PRIV is not None
+    verifiable = key_present and bool(_A11OY_PUB_PEM)
+    persistent = (isinstance(_A11OY_KEY_SOURCE, str)
+                  and _A11OY_KEY_SOURCE.startswith("persistent:"))
+    return {
+        "status": "DSSE-LIVE" if verifiable else (
+            "UNAVAILABLE" if key_present else "ABSENT"),
+        "signing_available": bool(verifiable),
+        "scheme": "DSSEv1 / ECDSA-P256-SHA256" if verifiable else "UNAVAILABLE",
+        "public_key_fingerprint": _A11OY_KEYID if _A11OY_PUB_PEM else None,
+        "key_scope": ("DEPLOYMENT_PERSISTENT" if persistent else
+                      "PROCESS_BOOT_EPHEMERAL" if _A11OY_KEY_SOURCE == "ephemeral"
+                      else "UNAVAILABLE"),
+        "key_source": _A11OY_KEY_SOURCE,
+        "key_lifetime": ("UNTIL_SECRET_ROTATION" if persistent else
+                         "UNTIL_PROCESS_RESTART" if _A11OY_KEY_SOURCE == "ephemeral"
+                         else "UNAVAILABLE"),
+    }
+
+
 # Ayllu registers earlier in this module, before the shared signer exists.
 # Expose the signer through app.state so its request handlers can resolve it
 # lazily after startup. This removes the previous always-UNSIGNED Council path
 # without re-registering duplicate routes or committing any key material.
 app.state.szl_sign_receipt = _a11oy_sign_receipt
+app.state.szl_signer_status = _a11oy_signer_status
 
 
 def _a11oy_restraint_identity():
@@ -14731,6 +14807,22 @@ def api_a11oy_v4_fleet() -> JSONResponse:
 async def warhacker_page() -> Response:
     # RETIRED 2026-06-27: archived per founder (BRIEF.md: "warhacker is ARCHIVED").
     return _PTG_Redirect(url="/console#arena", status_code=307)
+
+
+@app.api_route("/governed-loops", methods=["GET", "HEAD"])
+async def governed_loops_alias() -> Response:
+    """Keep existing Brain/Mesh navigation bound to the actual loop surface."""
+    return _PTG_Redirect(url="/agent-loop", status_code=307)
+
+
+@app.api_route("/upgrades", methods=["GET", "HEAD"])
+async def upgrades_page() -> Response:
+    """Serve the shipped upgrade ledger instead of a generic SPA shell."""
+    page = PAGES_DIR / "upgrades.html"
+    if page.is_file():
+        return FileResponse(page, media_type="text/html")
+    return JSONResponse({"state": "UNAVAILABLE", "reason": "upgrades page absent"},
+                        status_code=503)
 
 
 # ---------------------------------------------------------------------------

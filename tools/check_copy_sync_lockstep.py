@@ -601,10 +601,11 @@ SOURCE_DERIVED_CONTROLLER_REVISIONS = frozenset({
 
 REVIEWED_SOURCE_ADMISSION_JOB_SHA256 = "e9777064159bf0d120e9f18931e98c8f832b9e163b7b358908c92921ee69a668"
 REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee8395e042853ded04deb7d170189"
-# The reviewed acquisition step writes only new private preservation objects and
-# always blocks deployment. Any job or helper edit requires a fresh review; this
-# pin is not permission for another prerequisite effect or live publication.
-REVIEWED_MANUAL_PREREQUISITES_JOB_SHA256 = "224d3318cc7e633100fdb5c17eac2dc849d9c9e74ea33d522864bc5cb5d2492a"
+# The reviewed acquisition writes only new private preservation objects and
+# blocks deployment. Its read-only follow-up qualifies disposable copies from
+# one fixed capture. Exact helper and reference bytes require fresh review;
+# these pins grant no other prerequisite effect, restore, or live publication.
+REVIEWED_MANUAL_PREREQUISITES_JOB_SHA256 = "f6139c3220f6431cadf7710b0f2be39110b2a25055e7fe7d6863b20b7a161332"
 REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
     "scripts/check_hf_manual_prerequisites.py": "b270ec5dc9b5bf969876009866f10fc7ff324c30da07d004c95feabeef4926d8",
     "scripts/configure_hf_series_a_runtime.py": "c29699fa7e66b4cfa627f33d9f516b39204e0eb68d5fb2a7d354e0c11d2ab14f",
@@ -614,6 +615,13 @@ REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
     # Its local ownership import is independently bound above by
     # REVIEWED_SOURCE_ADMISSION_HELPER_SHA256, in the same admission decision.
     "scripts/preserve_hf_gdw_store.py": "fa2bccf6f627b932bbe9d5fcedc4d0ad9c4ef675b88d0be5facc3369630a3721",
+    # The qualifier imports only the separately pinned preservation helper
+    # locally. Its capture, continuity anchors and verification key are bound
+    # as inputs too; a data-only substitution cannot retain source admission.
+    "scripts/qualify_gdw_store_recovery.py": "e3638f6a35c3545ed916a26d5706f6107eede60fa705b9de9a5b571c2678f820",
+    "docs/operations/evidence/gdw-capture-37223162231.json": "5ff7b2be5d07850b560c1909be128521217ea70b959d238ff9d3f0f68a98b5c3",
+    "docs/operations/evidence/gdw-recovery-historical-anchors.json": "5850da876784da5d2a08532f1c70246e5be38ef623ff6c7378009049da4a273b",
+    "ayllu/keys/council-runtime-2026-07-21.pub": "f8ee566d8f1e8ee8a9bb7eba37c24c18ae73605542fc29f7d3e5366ef75562fe",
 }
 REVIEWED_RESUME_GATES = {
     "needs": "[source-admission, manual-prerequisites]",

@@ -83,7 +83,7 @@ th{color:var(--mut);font-weight:600}
 
 <div class="card">
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-    <div class="note">Live sources (no fabrication): <code>/api/a11oy/v1/compute-pool-hardened</code> · <code>/api/a11oy/v1/energy/operator/status</code> · <code>/api/a11oy/v1/honest</code> · <code>/api/a11oy/provenance</code> · <span class="hl">live-work</span> (K-Verify · Govern-RAG · cheapest-watt, each probed independently, honestly PENDING until deployed)</div>
+    <div class="note">Live sources (no fabrication): <code>/api/a11oy/v1/compute-pool-hardened</code> · <code>/api/a11oy/v1/energy/operator/status</code> · <code>/api/a11oy/v1/honest</code> · <code>/api/a11oy/provenance</code> · <span class="hl">live-work</span> (K-Verify · Govern-RAG · cheapest-watt, each probed independently; an unbuilt RAG index is SEEDING or UNAVAILABLE, not ready)</div>
     <button class="refresh" onclick="loadAll()">↻ refresh live</button>
   </div>
   <div class="stamp" id="stamp" style="margin-top:8px">loading live fabric state…</div>
@@ -97,7 +97,7 @@ th{color:var(--mut);font-weight:600}
 
 <h2>2 · Live work — the fabric DOES verifiable work</h2>
 <div class="card">
-  <p class="note" style="margin:0 0 12px">The mesh does not just <i>prove it exists</i> — it does governed, receipted work. Three new capabilities surface here <b>as they go live</b>. Each tile probes its own endpoint independently via <code>Promise.allSettled</code>: a capability that is not yet deployed renders an honest <span style="color:var(--warn);font-weight:700">PENDING</span> with the reason — <b>never a fabricated result</b>.</p>
+  <p class="note" style="margin:0 0 12px">The mesh does not just <i>prove it exists</i> — it does governed, receipted work. Three new capabilities surface here <b>as they go live</b>. Each tile probes its own endpoint independently via <code>Promise.allSettled</code>: a capability that is not ready renders an honest <span style="color:var(--warn);font-weight:700">PENDING, SEEDING, or UNAVAILABLE</span> with the reason — <b>never a fabricated result</b>.</p>
   <div class="work" id="work">
     <div class="wk" id="wk-kverify">
       <h3>K-Verify · governed inference</h3>
@@ -106,7 +106,7 @@ th{color:var(--mut);font-weight:600}
     </div>
     <div class="wk" id="wk-rag">
       <h3>Govern-RAG · ask the doctrine</h3>
-      <p class="cap">Ask a question; the fabric answers <b>only</b> from its own governed corpus, with citations. No corpus hit = honest "insufficient grounding," never a guess.</p>
+      <p class="cap">When the index is built and the read-only query route is advertised, ask a question; the fabric answers <b>only</b> from its own governed corpus, with citations. No corpus hit = honest "insufficient grounding," never a guess.</p>
       <div class="qa" id="rag-qa" style="display:none">
         <input id="rag-q" type="text" placeholder="e.g. How many formulas are locked, and at what kernel?" autocomplete="off">
         <button id="rag-ask" type="button" onclick="askRag()">ask</button>
@@ -171,7 +171,7 @@ th{color:var(--mut);font-weight:600}
 </div>
 
 <div class="foot" id="foot">
-HONEST: all numbers above carry an explicit label — LIVE (real backend wired) · MEASURED (on-box exporter) · MODELED (deterministic, labeled) · ROADMAP (vision, not deployed). No fused/combined VRAM is claimed anywhere — nodes scale horizontally (placement + load-balance); memory does not merge across the network. The <b>live-work</b> tiles surface a capability only when its endpoint returns a real result this sweep; otherwise they render an honest PENDING and never fabricate. Orbital is analogy/ROADMAP; SZL does not run satellites. Reachability is a real TCP probe, never fabricated. trust &lt; 100% · tamper-EVIDENT not tamper-proof · Λ = Conjecture 1 · locked = 8 {F1,F4,F7,F11,F12,F18,F19,F22} @ kernel <code id="kernel">c7c0ba17</code> (749/14/163). SLSA L1 honest · L2 attested · L3 roadmap. Canonical numbers <a href="https://github.com/szl-holdings/.github/blob/main/.github/data/lean_numbers.json" target="_blank" rel="noopener">lean_numbers.json</a>.
+HONEST: all numbers above carry an explicit label — LIVE (real backend wired) · MEASURED (on-box exporter) · MODELED (deterministic, labeled) · ROADMAP (vision, not deployed). No fused/combined VRAM is claimed anywhere — nodes scale horizontally (placement + load-balance); memory does not merge across the network. The <b>live-work</b> tiles surface a capability only when its endpoint is ready this sweep; otherwise they report PENDING, SEEDING, or UNAVAILABLE and never fabricate. Orbital is analogy/ROADMAP; SZL does not run satellites. Reachability is a real TCP probe, never fabricated. trust &lt; 100% · tamper-EVIDENT not tamper-proof · Λ = Conjecture 1 · locked = 8 {F1,F4,F7,F11,F12,F18,F19,F22} @ kernel <code id="kernel">c7c0ba17</code> (749/14/163). SLSA L1 honest · L2 attested · L3 roadmap. Canonical numbers <a href="https://github.com/szl-holdings/.github/blob/main/.github/data/lean_numbers.json" target="_blank" rel="noopener">lean_numbers.json</a>.
 </div>
 </div>
 
@@ -303,8 +303,7 @@ function renderOrbit(pool, energy){
 var KV_EPS   = ['/api/a11oy/v1/kverify/summary','/api/a11oy/v1/kverify/status','/api/a11oy/v1/k-verify/summary','/api/a11oy/v1/k-verify/status','/api/a11oy/v1/verify/run/last','/api/a11oy/v1/kverify/last'];
 var RAG_EPS  = ['/api/a11oy/v1/rag/status','/api/a11oy/v1/rag/last','/api/a11oy/v1/govern-rag/status','/api/a11oy/rag/status','/api/a11oy/v1/rag/health'];
 var WATT_EPS = ['/api/a11oy/v1/energy/cheapest-watt','/api/a11oy/v1/routing/cheapest-watt','/api/a11oy/v1/energy/routing/last','/api/a11oy/v1/route/cheapest/last','/api/a11oy/v1/energy/routing/decision'];
-var RAG_ASK_EPS = ['/api/a11oy/v1/rag/query','/api/a11oy/v1/rag/ask','/api/a11oy/v1/govern-rag/ask','/api/a11oy/rag/query'];
-var RAG_ASK_URL = null; // resolved once a status probe identifies a live RAG surface
+var RAG_ASK_URL = null; // read-only GET route, enabled only by a built index's status contract
 
 function pendingHTML(why){ return '<span class="pending">PENDING<span class="why">'+(why||'endpoint not yet live — shown honestly, not fabricated')+'</span></span>'; }
 function shortHash(h){ if(!h) return null; h=String(h); return h.length>20 ? h.slice(0,10)+'…'+h.slice(-6) : h; }
@@ -349,14 +348,30 @@ function renderKVerify(hit){
   return true;
 }
 
+function ragNotReadyHTML(idx, reason){
+  var state = (idx && idx.build_state) || {};
+  var phase = String(state.phase || '').toLowerCase();
+  var seeding = phase==='seeding' || phase==='building';
+  var why = reason || state.error || (idx && (idx.honest_error || idx.honest_note)) ||
+    (seeding ? 'Govern-RAG index build in progress; ask-box disabled until index.built is true.' : 'Govern-RAG index is not built in this runtime; ask-box disabled.');
+  return '<span class="pending">'+(seeding?'SEEDING':'UNAVAILABLE')+'<span class="why">'+escapeHTML(why)+'</span></span>';
+}
+
 function renderRag(hit){
   var el = $('rag-state'); var qa = $('rag-qa');
-  if(!hit){ qa.style.display='none'; el.innerHTML = pendingHTML('Govern-RAG endpoint not live this sweep — ask-box activates when it is'); RAG_ASK_URL=null; return false; }
+  var askButton = $('rag-ask'); var question = $('rag-q');
+  RAG_ASK_URL = null;
+  qa.style.display='none'; askButton.disabled=true; question.disabled=true;
+  if(!hit){ el.innerHTML = ragNotReadyHTML(null, 'Govern-RAG status endpoint unavailable this sweep.'); return false; }
   var d = hit.data || {};
-  // Resolve an ask URL: explicit field, sibling of the status path, or default candidate.
-  RAG_ASK_URL = d.query_endpoint || d.ask_endpoint || hit.url.replace(/\/(status|health|last)$/,'/query') || RAG_ASK_EPS[0];
-  qa.style.display='flex';
   var idx = d.index || {};
+  if(idx.built !== true){ el.innerHTML = ragNotReadyHTML(idx); return false; }
+  if(d.query_endpoint!=='/api/a11oy/v1/rag/query' || d.query_method!=='GET'){
+    el.innerHTML = ragNotReadyHTML(null, 'Index built, but the public read-only GET query route is not advertised; ask-box disabled.');
+    return false;
+  }
+  RAG_ASK_URL = d.query_endpoint;
+  qa.style.display='flex'; askButton.disabled=false; question.disabled=false;
   var chunks = idx.chunks || (d.corpus && d.corpus.chunks) || null;
   var files  = idx.files  || null;
   var repos  = idx.repos  || null;
@@ -367,7 +382,7 @@ function renderRag(hit){
   if(chunks!=null) stat.push(fmt(chunks)+' chunks');
   if(files!=null)  stat.push(fmt(files)+' files');
   if(repos!=null)  stat.push(fmt(repos)+' repos');
-  var html = '<div class="sub2">governed corpus indexed: <b>'+(stat.length?stat.join(' · '):'ready')+'</b> '+L('LIVE')+'</div>';
+  var html = '<div class="sub2">governed corpus index built: <b>'+(stat.length?stat.join(' · '):'counts unavailable')+'</b> '+L('LIVE','INDEX BUILT')+'</div>';
   // Only show a 'last answer' if it carries a real grounded answer string (status citations are not answers).
   if(lastA && typeof lastA==='string'){
     html += '<div class="ans">'+(lastQ?'<b>Q:</b> '+escapeHTML(lastQ)+'<br>':'')+'<b>A:</b> '+escapeHTML(String(lastA))+'</div>';
@@ -384,12 +399,14 @@ async function askRag(){
   var q = ($('rag-q')||{}).value || ''; q = q.trim();
   var btn = $('rag-ask'); var el = $('rag-state');
   if(!q){ return; }
-  if(!RAG_ASK_URL){ el.innerHTML = pendingHTML('RAG query endpoint not live'); return; }
+  if(!RAG_ASK_URL){ return; } // preserve the SEEDING/UNAVAILABLE status from the latest probe
+  var askURL = RAG_ASK_URL;
   btn.disabled = true; var prev = el.innerHTML; el.innerHTML = '<div class="sub2">asking the governed corpus…</div>';
   try {
-    var r = await fetch(RAG_ASK_URL, {method:'POST', headers:{'content-type':'application/json','accept':'application/json'}, body: JSON.stringify({question:q, query:q})});
+    var r = await fetch(askURL+'?'+new URLSearchParams({q:q}).toString(), {method:'GET', headers:{'accept':'application/json'}, cache:'no-store'});
     if(!r.ok) throw new Error('HTTP '+r.status);
     var d = await r.json();
+    if(RAG_ASK_URL!==askURL) return; // a newer status sweep revoked readiness
     var ans = d.answer || d.response || (d.last && d.last.answer) || null;
     var cites = d.citations || d.sources || (d.last && d.last.citations) || null;
     var grounded = (d.grounded!==false) && ans;
@@ -404,8 +421,8 @@ async function askRag(){
     }
     el.innerHTML = html;
   } catch(e){
-    el.innerHTML = '<div class="err">RAG query error: '+escapeHTML(String(e))+'</div>';
-  } finally { btn.disabled = false; }
+    if(RAG_ASK_URL===askURL) el.innerHTML = '<div class="err">RAG query error: '+escapeHTML(String(e))+'</div>';
+  } finally { btn.disabled = !RAG_ASK_URL; }
 }
 
 function renderWatt(hit){
@@ -484,7 +501,7 @@ async function loadAll(){
     var errs = results.filter(function(r){return r.status==='rejected';});
     var ts = pool.cached_at || new Date().toISOString();
     $('stamp').innerHTML = 'live as of <code>'+ts+'</code> · '+L('LIVE','4 ENDPOINTS WIRED') +
-      ' · live work: <b>'+workLive+'/3</b> capabilities surfaced'+(workLive<3?' <span class="note">('+(3-workLive)+' honestly PENDING)</span>':'') +
+      ' · live work: <b>'+workLive+'/3</b> capabilities surfaced'+(workLive<3?' <span class="note">('+(3-workLive)+' not ready this sweep)</span>':'') +
       (errs.length ? ' <span class="err">· '+errs.length+' source(s) unavailable (shown honestly empty)</span>' : '');
   } catch(e){
     $('stamp').innerHTML = '<span class="err">fabric load error: '+e+'</span>';

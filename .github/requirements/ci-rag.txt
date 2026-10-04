@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# RAG route imports require the existing runtime multipart parser; retain the
+# exact core test lock and verify the pure-Python wheel bytes for this extension.
+-r ci-core.txt
+python-multipart==0.0.32 \
+    --hash=sha256:ff6d3f776f16878c894e52e107296ffc890e913c611b1a4ec6c44e2821fe2e23
