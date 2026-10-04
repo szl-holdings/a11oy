@@ -601,13 +601,19 @@ SOURCE_DERIVED_CONTROLLER_REVISIONS = frozenset({
 
 REVIEWED_SOURCE_ADMISSION_JOB_SHA256 = "e9777064159bf0d120e9f18931e98c8f832b9e163b7b358908c92921ee69a668"
 REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee8395e042853ded04deb7d170189"
-REVIEWED_MANUAL_PREREQUISITES_JOB_SHA256 = "a9964f07ecc715f1a3340086493aafc4b87c488ac1e7689d6439dc2832ff44ca"
+# The reviewed acquisition step writes only new private preservation objects and
+# always blocks deployment. Any job or helper edit requires a fresh review; this
+# pin is not permission for another prerequisite effect or live publication.
+REVIEWED_MANUAL_PREREQUISITES_JOB_SHA256 = "224d3318cc7e633100fdb5c17eac2dc849d9c9e74ea33d522864bc5cb5d2492a"
 REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
     "scripts/check_hf_manual_prerequisites.py": "b270ec5dc9b5bf969876009866f10fc7ff324c30da07d004c95feabeef4926d8",
     "scripts/configure_hf_series_a_runtime.py": "c29699fa7e66b4cfa627f33d9f516b39204e0eb68d5fb2a7d354e0c11d2ab14f",
     "scripts/configure_hf_gdw_runtime.py": "e5eb45181c8265972ee2aaf47e329ffb2c885edc9b3c90553aa5a152e42603e8",
     # Installed-authority verifier imported by both configure helpers.
     "scripts/verify_installed_authority.py": "2d9465f393dbaa08754b02d6295abade1134a7dbc843cdab48a6ad70867fb68e",
+    # Its local ownership import is independently bound above by
+    # REVIEWED_SOURCE_ADMISSION_HELPER_SHA256, in the same admission decision.
+    "scripts/preserve_hf_gdw_store.py": "fa2bccf6f627b932bbe9d5fcedc4d0ad9c4ef675b88d0be5facc3369630a3721",
 }
 REVIEWED_RESUME_GATES = {
     "needs": "[source-admission, manual-prerequisites]",
