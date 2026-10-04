@@ -42,6 +42,12 @@ zone, and the More menu scrolls within the available viewport height. The same
 source check now verifies desktop column geometry and the first and last More
 keyboard destinations by hit testing, with fresh screenshots required.
 
+The [geometry and hit-test run](https://github.com/szl-holdings/a11oy/actions/runs/37220655733)
+confirmed those fixes and retained two failures where the fixed bottom dock
+covered the final More destination at 320px. The shared header now rises above
+fixed navigation only while More is open, using the existing layer token and
+remaining below the command palette. The same hit-test assertions remain.
+
 `tools/check_shared_shell_source_browser.py` loads each of those real sources,
 their local CSS and JavaScript, and vendored font bytes through an intercepted
 browser context. It never contacts a live provider. All provider requests receive

@@ -237,11 +237,13 @@
 
     function closeMore(restore) {
       overflow.classList.remove('open');
+      root.classList.remove('szl-more-open');
       moreBtn.setAttribute('aria-expanded', 'false');
       if (restore) moreBtn.focus();
     }
     function openMore(focusLast) {
       overflow.classList.add('open');
+      root.classList.add('szl-more-open');
       moreBtn.setAttribute('aria-expanded', 'true');
       moreMenu.style.left = '';
       moreMenu.style.right = '0';
