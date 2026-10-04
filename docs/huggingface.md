@@ -1,137 +1,156 @@
 # Hugging Face publishing
 
-A11oy publishes a Hugging Face payload as a discovery and diligence mirror. The
-canonical source, release tags, SBOMs, SLSA provenance, and CI checks remain on
-GitHub.
+A11oy publishes a discovery and diligence payload to the fixed existing model
+repository `SZLHOLDINGS/a11oy-v19-substrate`. It is a source and deployment
+documentation package, with no model weights or inference qualification. GitHub
+remains the canonical source for release tags, SBOMs, provenance and CI checks.
 
 ## Payload contents
 
-Run:
+The existing stager creates `dist/huggingface/a11oy/`:
 
 ```bash
-pnpm hf:ecosystem:write
 pnpm payload:huggingface
 ```
 
-The command writes `dist/huggingface/a11oy/` with:
+The folder contains the model card, showcase and diligence documents, receipt
+samples, the public ecosystem inventory, selected canonical source documents,
+deployment manifest closure, build inputs and source-bound metadata. It is a
+complete package operation; publishing its card also updates the other declared
+payload files.
 
-- a Hugging Face model card (`README.md`);
-- showcase, investor, verification, quickstart, deep-dive, and receipt-sample files;
-- `HF_ECOSYSTEM_MANIFEST.json`, generated from the public Hugging Face API;
-- source README, roadmap, changelog, and repo map;
-- deployment payload metadata under `payloads/deploy/`;
-- `a11oy-metadata.json` with source commit and verification commands.
+The publisher regenerates this same projection in an isolated temporary folder
+and requires exact path and byte equality with the prepared folder. It checks
+the source revision and the card's existing Apache-2.0 license against the
+canonical license. Do not commit generated `dist/` files.
 
-The publisher prunes stale remote files by default before uploading the
-generated folder. This prevents old unsupported model-wrapper files, stale
-product names, or non-reproducible hand edits from surviving on Hugging Face.
+## One existing writer, one exact parent
 
-## Ecosystem audit
+`scripts/publish_huggingface_payload.py` serves both the existing manual
+workflow and the local operator CLI. Both accept only the fixed model target
+and require the exact current 40-character Hub parent revision. The default is
+a read-only plan; mutation requires explicit `--apply`.
 
-Run:
+The publisher requires a clean checkout of the currently observed canonical
+GitHub main commit and native valid signature evidence. It refuses dirty input,
+ignored/untracked files inside copied source trees, source-tree symlinks,
+index flags that conceal or omit tracked files, malformed paths and oversized
+inventories. Canonical main is observed again
+immediately before an apply. That observation is dated evidence, not an atomic
+lock on a different provider.
+
+The read-only plan lists every payload path, size and SHA-256 digest, plus the
+exact parent bytes of any existing `bom/model-bom.cdx.json` and
+`.gitattributes`. Those two paths remain outside this payload writer's
+body set. Preserving them does not assert who owns them. Other remote paths
+absent from the prepared package stop the operation for separate source review.
+
+An apply submits one add/update-only Hub commit bound to the selected parent.
+It never creates a repository, deletes a file, changes visibility, accepts
+gating terms, restarts a Space or rebases after a parent conflict. It then reads
+the complete file inventory and every expected byte at the returned immutable
+commit, including the preserved BOM/provider files. A readback failure is
+reported as unverified even if the commit already exists. A successful receipt
+does not establish model deployment, inference or runtime readiness.
+
+The previous default pruning behavior and the `--no-delete-stale` switch
+are retired. An old invocation without an explicit parent now fails before a
+Hub mutation.
+
+## Ecosystem evidence
 
 ```bash
 pnpm hf:ecosystem:write
 pnpm hf:ecosystem:audit
 ```
 
-The generated [`huggingface-ecosystem-manifest.json`](huggingface-ecosystem-manifest.json)
-records the anonymous, author-filtered public `SZLHOLDINGS` Hugging Face
-inventory, current public counts, source links, guardrails, and unsafe flags.
-It does not count private repositories and must not be presented as the
-authenticated organization total. The write command records the real UTC
-observation time after collecting complete `sha` and `lastModified` evidence
-for every public item. The audit compares live content while retaining that
-timestamp and rejects incomplete, malformed, or non-monotonic revision changes.
-It ignores only valid later revision changes while still failing on membership
-or card-semantic drift; rerun the write command to refresh the snapshot. Keep
-this file GitHub-backed; do not hand-edit Hugging Face cards with counts that
-cannot be regenerated.
+The write command records actual anonymous, author-filtered public inventory,
+repository types, source links, guardrails, card semantics and UTC observation
+time. Private repositories are outside this predicate. The audit rejects
+incomplete/malformed evidence, membership or card-semantic drift and invalid
+revision changes. Keep the generated manifest and derived documents reviewed
+in GitHub; do not silently overwrite them during a publication.
+
+## Existing manual GitHub workflow
+
+Use the existing **Publish Hugging Face Payload** workflow
+(`.github/workflows/huggingface.yml`) on canonical `main`.
+Its existing doctrine, ecosystem, readiness, payload, stage-matrix and schema
+guards remain ahead of publication. The same offline additive-publisher
+regressions run before the provider step. The workflow uses the existing
+repository `HF_TOKEN` secret and `contents: read`; this change introduces
+no credential or GitHub write permission.
+
+| Input | Value |
+| --- | --- |
+| `repo_id` | `SZLHOLDINGS/a11oy-v19-substrate` (only allowed target) |
+| `repo_type` | `model` (only allowed type) |
+| `expected_revision` | Freshly observed, operator-reviewed full Hub commit SHA |
+| `apply` | `false` for a plan; `true` for the full additive package |
+
+A plan or apply can fail because source evidence changed, the selected parent
+advanced, the credential is unavailable, a remote path is unaccounted for, or
+another existing validation is unsatisfied. None of those failures authorizes a
+second writer, a different token, a skipped guard or an automatic retry.
+
+## Existing local operator CLI
+
+The same helper is available locally with its source and payload guards.
+Start from a clean, signed, current canonical main checkout,
+use the existing authorized HF credential, and run the existing validation
+sequence before staging or publication:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm test:doctrine
+pnpm typecheck:doctrine
+pnpm build:doctrine
+pnpm ecosystem:audit
+pnpm ecosystem:readiness
+pnpm payload:verify
+pnpm hf:ecosystem:audit
+python3 scripts/build_ecosystem_stage_matrix.py --check
+node scripts/validate_huggingface_ecosystem_schema.mjs
+pnpm payload:huggingface
+python3 -m unittest discover -s tests -p test_publish_huggingface_payload.py
+```
+
+With `huggingface_hub` installed, record and review the actual parent and
+plan using the existing helper:
+
+```bash
+python3 scripts/publish_huggingface_payload.py \
+  --repo-id SZLHOLDINGS/a11oy-v19-substrate \
+  --repo-type model \
+  --expected-revision "$REVIEWED_HUB_PARENT"
+```
+
+Only an authorized operator applies the reviewed package by adding
+`--apply` with the same parent. The helper's source, closure and license
+checks are enforced in both modes; the operator must also retain evidence that
+the preceding doctrine/ecosystem validation sequence passed. A main or Hub
+revision change requires fresh review, never an automatic replacement parent.
 
 ## Operational bundle
-
-Run:
 
 ```bash
 pnpm payload:bundle
 pnpm payload:bundle:verify
 ```
 
-The bundle command is Python-native. It builds doctrine package outputs, refreshes
-`deploy/MANIFEST.json`, prepares the Hugging Face payload, and writes:
+The existing bundle builder compiles the doctrine packages, refreshes the
+deployment manifest and produces the operational tarball plus checksum. The
+Doctrine Build workflow retains its artifact publication behavior. Bundle
+generation and model-payload publication remain distinct actions.
 
-- `dist/payload/a11oy-operational-payload.tar.gz`
-- `dist/payload/a11oy-operational-payload.tar.gz.sha256`
+## Naming and qualification
 
-The Doctrine Build workflow uploads those files as the
-`a11oy-operational-payload` GitHub Actions artifact on every matching PR or main
-push. Do not paste Hugging Face tokens into chat or commit them to the repo; use
-GitHub secret `HF_TOKEN` for live publishing.
+The package uses canonical GitHub ecosystem names. Existing readiness reports
+and their funded-roadmap/excluded classifications remain authoritative. Card
+presentation, a public repository, a provider support request or a successful
+byte-preserving upload never upgrades those classifications.
 
-## Publish from GitHub Actions
+## API contract references
 
-Add repository secret `HF_TOKEN` with write access to the target Hugging Face
-organization or user namespace. Then run the `Publish Hugging Face Payload`
-workflow manually.
-
-Recommended inputs:
-
-| Input | Value |
-| --- | --- |
-| `repo_id` | `SZLHOLDINGS/a11oy-v19-substrate` |
-| `repo_type` | `model` |
-
-The workflow creates the target repo if needed and uploads
-`dist/huggingface/a11oy/`.
-
-## Local publish
-
-For local operator publishing:
-
-```bash
-pnpm install
-pnpm test:doctrine
-pnpm typecheck:doctrine
-pnpm build:doctrine
-pnpm ecosystem:audit
-pnpm hf:ecosystem:audit
-pnpm payload:manifest
-pnpm hf:ecosystem:write
-pnpm payload:huggingface
-python -m pip install --upgrade huggingface_hub
-python - <<'PY'
-import os
-from huggingface_hub import HfApi
-
-api = HfApi(token=os.environ["HF_TOKEN"])
-api.create_repo("SZLHOLDINGS/a11oy-v19-substrate", repo_type="model", exist_ok=True)
-api.upload_folder(
-    repo_id="SZLHOLDINGS/a11oy-v19-substrate",
-    repo_type="model",
-    folder_path="dist/huggingface/a11oy",
-    commit_message="publish a11oy operational payload",
-)
-PY
-```
-
-Do not commit `dist/`; the payload is generated from tracked source and deploy
-metadata.
-
-## Direct publish helper
-
-When `HF_TOKEN` is available in the environment, publish the prepared payload with:
-
-```bash
-pnpm payload:publish:huggingface -- --repo-id SZLHOLDINGS/a11oy-v19-substrate --repo-type model
-```
-
-The helper does not print the token. GitHub Actions remains the preferred path
-for secrets. Pass `--no-delete-stale` only for emergency diagnostics; normal
-publishes should prune remote files that are absent from `dist/huggingface/a11oy/`.
-
-## Naming policy
-
-The A11oy Hugging Face packet uses the real GitHub ecosystem names and does not
-use stale KORA, LUMINA, PARAGON, or active Lyte framing. Counsel, Terra, and
-Carlota Jo are marked as funded-roadmap/excluded in the readiness report rather
-than presented as live demo surfaces.
+- [Hub commit API and parent binding](https://huggingface.co/docs/huggingface_hub/package_reference/hf_api#huggingface_hub.HfApi.create_commit)
+- [Immutable revision file downloads](https://huggingface.co/docs/huggingface_hub/package_reference/file_download#huggingface_hub.hf_hub_download)

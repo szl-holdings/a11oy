@@ -177,8 +177,11 @@ def main() -> int:
         ],
         "demoReceiptSample": "DEMO_RECEIPT_SAMPLE.jsonl",
         "publishHygiene": {
-            "deleteStaleRemoteFiles": True,
-            "staleLegacyFiles": ["EVAL_TRACE_SAMPLE.jsonl"],
+            "deleteStaleRemoteFiles": False,
+            "preserveRemoteFiles": [".gitattributes", "bom/model-bom.cdx.json"],
+            "rejectUnmanagedRemoteFiles": True,
+            "requireExpectedParent": True,
+            "verifyImmutableBytes": True,
         },
     }
 
