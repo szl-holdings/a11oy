@@ -133,6 +133,7 @@ jobs:
           tests/test_gdw_auth.py
           tests/test_gdw_auth_compat.py
           tests/test_gdw_runtime.py
+          tests/test_hf_gdw_preservation.py
           tests/test_gdw_workspace_v2.py
           tests/test_gdw_attention.py
           tests/test_gdw_bench_tools.py
