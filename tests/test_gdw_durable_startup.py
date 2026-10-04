@@ -15,8 +15,8 @@ import gdw_durable_startup as startup
 import gdw_durable_source as source
 import gdw_durable_guard as guard
 import gdw_durable_image as image
-from test_gdw_durable_source import manifest as source_manifest, install_image
-from test_gdw_durable_guard import fixture as guard_fixture
+from tests.test_gdw_durable_source import manifest as source_manifest, install_image
+from tests.test_gdw_durable_guard import fixture as guard_fixture
 
 
 def workflow():
@@ -382,8 +382,8 @@ def test_actual_health_projection_is_consumed_by_immutable_managed_proof(native_
     from fastapi.testclient import TestClient
     import gdw_runtime
     import gdw_durable_runtime as durable
-    import prove_hf_gdw_runtime as proof
-    from configure_hf_gdw_runtime import ManagedProofContext
+    from scripts import prove_hf_gdw_runtime as proof
+    from scripts.configure_hf_gdw_runtime import ManagedProofContext
     from routers import gdw_frontier
     state = native_startup
     startup.activate()
@@ -573,7 +573,7 @@ def test_canonical_publisher_full_image_and_all_source_python_paths_are_bound():
     import importlib.util
     import tempfile
     import time
-    from build_gdw_installed_source_manifest import build_manifest, _git
+    from scripts.build_gdw_installed_source_manifest import build_manifest, _git
     import gdw_durable_storage as storage
 
     root = Path(startup.__file__).resolve().parent

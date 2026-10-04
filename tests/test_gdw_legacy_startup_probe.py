@@ -3,7 +3,7 @@
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
 """Synthetic legacy-container readback and native bounded-file controls.
 
-Run with PYTHONPATH=tests:scripts:. after integration. Docker, subprocess and
+Run with the native pytest command from the repository root. Docker, subprocess and
 network execution are denied; every Python 3.14 report below is a fixture.
 """
 
@@ -20,7 +20,13 @@ from types import SimpleNamespace
 
 import pytest
 
-import probe_gdw_legacy_startup as probe
+# The CLI imports its sibling by bare name. Bind only that exact module while
+# loading it, without granting the whole scripts directory ambient import scope.
+import sys
+from unittest.mock import patch
+from scripts import probe_gdw_runtime_base as base
+with patch.dict(sys.modules, {"probe_gdw_runtime_base": base}):
+    from scripts import probe_gdw_legacy_startup as probe
 
 
 MANIFEST = "c" * 64

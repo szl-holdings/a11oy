@@ -12,12 +12,25 @@ from types import SimpleNamespace
 
 import pytest
 
-import acquire_gdw_durable_storage as acquisition
+from scripts import acquire_gdw_durable_storage as acquisition
 import gdw_durable_storage as storage
 import gdw_durable_guard as guard
-import preserve_hf_gdw_store as preservation
-from test_gdw_durable_startup import admission
-from test_gdw_durable_runtime import stores
+from scripts import preserve_hf_gdw_store as preservation
+from tests.test_gdw_durable_startup import admission
+from tests.test_gdw_durable_runtime import stores
+
+
+@pytest.fixture(autouse=True)
+def cli_sibling_modules(monkeypatch):
+    """Reproduce exact CLI sibling imports without PYTHONPATH or network effects."""
+    import sys
+    import importlib
+    # Loading the qualifier needs these two exact siblings first. monkeypatch
+    # restores all aliases after each test; application imports are unchanged.
+    for name in ("preserve_hf_gdw_store", "gdw_orphan_forensics",
+                 "qualify_gdw_store_recovery", "gdw_acquisition_evidence"):
+        module = importlib.import_module("scripts." + name)
+        monkeypatch.setitem(sys.modules, name, module)
 
 
 def fixture():
@@ -265,11 +278,11 @@ def test_pause_transport_requires_2xx_and_never_retries(outcome):
 @pytest.fixture
 def native_acquisition(stores, tmp_path, monkeypatch):
     """Real acquisition/core/stores/artifact path; only archived evidence and Hub are synthetic."""
-    import qualify_gdw_store_recovery as recovery
+    from scripts import qualify_gdw_store_recovery as recovery
     import gdw_durable_runtime as durable
-    from test_gdw_durable_artifacts import exported
-    from test_gdw_durable_storage import ObjectAPI
-    from test_gdw_durable_guard import fixture as guard_fixture
+    from tests.test_gdw_durable_artifacts import exported
+    from tests.test_gdw_durable_storage import ObjectAPI
+    from tests.test_gdw_durable_guard import fixture as guard_fixture
     from routers.series_a_control_plane import ReceiptSigner
 
     signer = ReceiptSigner.__new__(ReceiptSigner)

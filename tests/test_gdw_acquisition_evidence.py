@@ -13,7 +13,7 @@ import zipfile
 import httpx
 import pytest
 
-import gdw_acquisition_evidence as evidence
+from scripts import gdw_acquisition_evidence as evidence
 
 
 @pytest.mark.parametrize("raw", [b'{"x":1e999}', b'{"nested":[{"x":-1e999}]}',

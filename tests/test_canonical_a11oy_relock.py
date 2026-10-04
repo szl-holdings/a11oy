@@ -1025,7 +1025,7 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
         runtime_config = self.workflow.split(
             "  runtime-config:", 1
         )[1].split("\n  deploy:", 1)[0]
-        self.assertIn("needs: [manual-prerequisites, deploy]", runtime_config)
+        self.assertIn("needs: [manual-prerequisites, durable-acquisition, deploy]", runtime_config)
         readiness_verdict = self.workflow.split(
             "  readiness-verdict:", 1
         )[1].split("\n  relock:", 1)[0]

@@ -12,7 +12,7 @@ import sys
 import pytest
 
 import gdw_durable_source as source
-from test_gdw_durable_source import install_image, verify
+from tests.test_gdw_durable_source import install_image, verify
 
 ROOT = Path(__file__).resolve().parents[1]
 
