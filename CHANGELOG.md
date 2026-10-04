@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - typed Brain frontier research metadata
+- Accept the two source-bound, operator-reviewed forum summaries and bounded
+  arXiv/Crossref metadata captures from Second Brain. Validate the exact metadata
+  projection, source identity, capture digest, and review-only authority.
+- Distinguish metadata SHA-256 revisions from Git commits in the public instrument.
+  Keep its 72 handles, 61 formula handles, seven reserved repositories, and the
+  existing limits on public content and execution authority.
+
+### Fixed - complete public Hugging Face namespace inventory
+- Count native kernel repositories in their own namespace, alongside models,
+  datasets and Spaces. A shared name in two namespaces remains two repositories,
+  and the counts do not imply unique projects, trained models or readiness.
+- Use anonymous, origin-bound, bounded pagination for the canonical collector,
+  retain the public README Space, and carry the predicate through source refresh
+  and the profile release contract.
+
+### Fixed - frontier health app observation
+- Pass the registered application to the frontier health manifest so its governance
+  rollup reads that process's restraint observation. Missing signer readiness,
+  unverified receipts, and placeholder signatures continue to block readiness.
+- Use the manifest's app-aware cache directly so a cached health verdict cannot
+  outlive the manifest's signer readiness and identity recheck.
+
 ### Fixed - proof HTML provider injection admission
 - Add a read-only default Cloudflare RUM audit for the exact `a11oy.net` property.
   A separate manual apply requires the previous settings hash, permits one

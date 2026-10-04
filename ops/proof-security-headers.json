@@ -1,0 +1,54 @@
+{
+  "SPDX-License-Identifier": "Apache-2.0",
+  "copyright": "(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "schema": "szl.cloudflare.proof-headers-policy/v1",
+  "domain": "a11oy.net",
+  "source_repository": "szl-holdings/a11oy-net",
+  "source_revision": "03cca1dc1fe40cfa6642922881103c6040de8c79",
+  "source_path": "_headers",
+  "source_sha256": "8793a1bdfbbd87d0da962efc2bb2a23367fb1415d64463691bbe88dd3e347b4c",
+  "source_text": "/*\n  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-+iQGpHyQDYdPUtStKUJn+V08k/nIMBjPtmX5670FaHw=' 'sha256-N0YAsWSKHr+cRinGeza2dSlvp+unKvILVN/6jQ4CB+4='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://huggingface.co https://a-11-oy.com; font-src 'self' data:; manifest-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'none'; worker-src 'none'; upgrade-insecure-requests\n  Strict-Transport-Security: max-age=63072000; includeSubDomains\n  Referrer-Policy: no-referrer\n  X-Content-Type-Options: nosniff\n  X-Frame-Options: DENY\n  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()\n  Cross-Origin-Opener-Policy: same-origin\n  Cross-Origin-Resource-Policy: same-origin\n",
+  "rule": {
+    "ref": "a11oy_net_canonical_security_headers",
+    "description": "a11oy.net canonical security headers from szl-holdings/a11oy-net _headers at 03cca1dc1fe40cfa6642922881103c6040de8c79",
+    "expression": "(http.host eq \"a11oy.net\")",
+    "action": "rewrite",
+    "action_parameters": {
+      "headers": {
+        "content-security-policy": {
+          "operation": "set",
+          "value": "default-src 'self'; script-src 'self' 'sha256-+iQGpHyQDYdPUtStKUJn+V08k/nIMBjPtmX5670FaHw=' 'sha256-N0YAsWSKHr+cRinGeza2dSlvp+unKvILVN/6jQ4CB+4='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://huggingface.co https://a-11-oy.com; font-src 'self' data:; manifest-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'none'; worker-src 'none'; upgrade-insecure-requests"
+        },
+        "strict-transport-security": {
+          "operation": "set",
+          "value": "max-age=63072000; includeSubDomains"
+        },
+        "referrer-policy": {
+          "operation": "set",
+          "value": "no-referrer"
+        },
+        "x-content-type-options": {
+          "operation": "set",
+          "value": "nosniff"
+        },
+        "x-frame-options": {
+          "operation": "set",
+          "value": "DENY"
+        },
+        "permissions-policy": {
+          "operation": "set",
+          "value": "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+        },
+        "cross-origin-opener-policy": {
+          "operation": "set",
+          "value": "same-origin"
+        },
+        "cross-origin-resource-policy": {
+          "operation": "set",
+          "value": "same-origin"
+        }
+      }
+    },
+    "enabled": true
+  }
+}

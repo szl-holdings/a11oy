@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Public Hub membership evidence, never a fleet, rights, or readiness policy.
 
-All three counts use the same explicit anonymous/public predicate. HTTP 200 with
+All four repository-namespace counts use the same explicit anonymous/public predicate. HTTP 200 with
 malformed JSON is UNKNOWN, not zero. Pagination is bounded and restricted to the
 original Hub endpoint. Same-cardinality substitutions remain visible as ID deltas.
 Authenticated official-inventory-v2 totals are a separate observation scope.
@@ -16,19 +16,21 @@ from urllib.parse import parse_qs, urlsplit
 from urllib.error import HTTPError
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
-KINDS = ('models', 'datasets', 'spaces')
+KINDS = ('models', 'datasets', 'spaces', 'kernels')
 MAX_BYTES = 2_000_000
 MAX_PAGES = 20
 MAX_ITEMS = 2_000
 PREDICATE = {
-    'id': 'hf-public-author-membership/v1',
+    'id': 'hf-public-author-membership/v2',
     'authentication': 'none',
     'visibility': 'public-only',
     'kinds': list(KINDS),
     'include_gated_metadata': True,
     'include_disabled_metadata': True,
     'include_reserved_readme_if_public': True,
-    'kernel_policy': 'count-once-as-model-repository-not-a-fourth-kind',
+    'kernel_policy': 'native-kernel-namespace-separate-from-model-namespace',
+    'identity_key': ['kind', 'id'],
+    'cross_namespace_ids': 'may-overlap-not-a-unique-project-or-trained-model-total',
     'collections_and_buckets': 'outside-repository-membership-scope',
     'portfolio_and_operational_policy': False,
 }

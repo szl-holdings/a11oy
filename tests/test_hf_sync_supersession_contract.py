@@ -125,6 +125,12 @@ def assert_manual_dependency_graph(source: str) -> dict:
         "publish-finance-projection": ["manual-prerequisites", "relock"],
         "readiness-verdict": ["manual-prerequisites", "runtime-config"],
         "relock": ["manual-prerequisites", "runtime-config", "readiness-verdict"],
+        "post-deployment-parity": ["relock"],
+        "terminal-source-authorization": [
+            "post-deployment-parity",
+            "publish-vertical-flagships",
+            "publish-finance-projection",
+        ],
     }
     if set(jobs) != set(dependencies):
         raise WorkflowContractError("job set requires review")
@@ -134,6 +140,7 @@ def assert_manual_dependency_graph(source: str) -> dict:
         "deploy": "${{ needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && needs.resume-paused-space.result == 'success' }}",
         "publish-vertical-flagships": "${{ needs.manual-prerequisites.result == 'success' && github.event_name == 'workflow_dispatch' && inputs.publish_vertical_flagships }}",
         "publish-finance-projection": "${{ needs.manual-prerequisites.result == 'success' && (github.event_name == 'push' || !inputs.publish_vertical_flagships) }}",
+        "terminal-source-authorization": "${{ always() && needs.post-deployment-parity.result == 'success' && (needs.publish-vertical-flagships.result == 'success' || needs.publish-vertical-flagships.result == 'skipped') && (needs.publish-finance-projection.result == 'success' || needs.publish-finance-projection.result == 'skipped') }}",
     }
     for name, required in dependencies.items():
         job = jobs[name]
@@ -304,6 +311,7 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
             ("    needs: [manual-prerequisites, deploy]\n", "    needs: deploy\n", "dependency gate: runtime-config"),
             ("    if: ${{ needs.manual-prerequisites.result == 'success' && github.event_name == 'workflow_dispatch' && inputs.publish_vertical_flagships }}\n", "    if: ${{ needs.manual-prerequisites.result == 'success' || inputs.publish_vertical_flagships }}\n", "condition gate: publish-vertical-flagships"),
             ("    needs: [manual-prerequisites, runtime-config, readiness-verdict]\n", "    needs: [runtime-config, readiness-verdict]\n", "dependency gate: relock"),
+            ("    needs: [post-deployment-parity, publish-vertical-flagships, publish-finance-projection]\n", "    needs: post-deployment-parity\n", "dependency gate: terminal-source-authorization"),
         )
         for original, replacement, diagnostic in mutations:
             with self.subTest(diagnostic=diagnostic):
@@ -353,6 +361,67 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
         self.assertIn("if: always()", receipt)
         self.assertIn("if-no-files-found: error", receipt)
         self.assertIn("canonical-source-admission-${{ github.run_id }}-${{ github.run_attempt }}", receipt)
+
+    def test_post_deploy_relock_rejects_a_source_that_became_stale(self) -> None:
+        job = job_block(
+            self.workflow,
+            "Prove exact live source, runtime, routes, and singleton state",
+        )
+        owner = step_block(
+            job,
+            "Re-admit exact current main after live verification",
+        )
+        evidence = step_block(job, "Upload immutable relock evidence")
+        enforce = step_block(job, "Enforce exact live state")
+        self.assertIn("id: post_deploy_owner", owner)
+        self.assertIn("scripts/hf_exact_main_ownership.py", owner)
+        self.assertIn('--expected-sha "$GITHUB_SHA"', owner)
+        self.assertIn("GITHUB_TOKEN: ${{ github.token }}", owner)
+        self.assertIn("post-deploy-source-admission.json", evidence)
+        owner_output = "steps.post_deploy_owner.outputs.publish"
+        self.assertIn(owner_output, enforce)
+        self.assertIn("CURRENT_MAIN:-false", enforce)
+        self.assertLess(job.index("Evaluate the canonical application contract"), job.index(owner))
+        self.assertLess(job.index(owner), job.index(enforce))
+
+    def test_terminal_authorization_follows_all_publication_proofs(self) -> None:
+        jobs = assert_manual_dependency_graph(self.workflow)
+        terminal = job_block(
+            self.workflow,
+            "Re-authorize exact protected main after all publication proofs",
+        )
+        owner = step_block(
+            terminal,
+            "Re-authorize exact protected main after awaited parity",
+        )
+        receipt = step_block(terminal, "Retain terminal source authorization")
+        enforce = step_block(
+            terminal,
+            "Re-read and enforce exact protected-main ownership as the final step",
+        )
+        self.assertEqual(
+            jobs["terminal-source-authorization"]["needs"],
+            [
+                "post-deployment-parity",
+                "publish-vertical-flagships",
+                "publish-finance-projection",
+            ],
+        )
+        self.assertIn("scripts/hf_exact_main_ownership.py", owner)
+        self.assertIn('--expected-sha "$GITHUB_SHA"', owner)
+        self.assertIn("GITHUB_TOKEN: ${{ github.token }}", owner)
+        self.assertNotIn("HF_TOKEN", terminal)
+        self.assertNotIn("secrets.", terminal)
+        self.assertIn("if: always()", receipt)
+        self.assertIn("if-no-files-found: error", receipt)
+        self.assertIn("scripts/hf_exact_main_ownership.py", enforce)
+        self.assertIn('--expected-sha "$GITHUB_SHA"', enforce)
+        self.assertIn("terminal-source-authorization-final.json", enforce)
+        self.assertIn("grep -Fqx 'publish=true'", enforce)
+        self.assertEqual(terminal.count("scripts/hf_exact_main_ownership.py"), 2)
+        self.assertLess(terminal.index(owner), terminal.index(receipt))
+        self.assertLess(terminal.index(receipt), terminal.index(enforce))
+        self.assertEqual(terminal.rstrip().splitlines()[-1], "          echo 'Completed A11oy publication remains exact protected main.'")
 
     def test_actual_admission_outputs_deny_stale_and_uncertain_provider_jobs(self) -> None:
         # Exercise the helper consumed by both job conditions. These are injected
