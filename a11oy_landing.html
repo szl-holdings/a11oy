@@ -949,6 +949,7 @@ html[data-szl-shell-owner="homepage"] .evidence-overview .nv-panel {
   margin:0;background:#1D2630;border:1px solid #48586A;border-radius:0;
   box-shadow:none;grid-column:auto;
 }
+html[data-szl-shell-owner="homepage"] .evidence-overview .nv-foot {flex-wrap:wrap}
 html[data-szl-shell-owner="homepage"] .evidence-overview .hero-stats {
   margin-top:22px;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;
   border:1px solid #465262;background:#465262;
@@ -978,8 +979,14 @@ html[data-szl-shell-owner="homepage"] footer {
 html[data-szl-shell-owner="homepage"] footer .brand {color:#F2F0E9}
 html[data-szl-shell-owner="homepage"] footer .brand .sub {color:#B4C2D2}
 @media(max-width:1100px) {
-  html[data-szl-shell-owner="homepage"] .nav .wrap {position:relative;padding-inline:24px;min-height:68px}
-  html[data-szl-shell-owner="homepage"] .menu-toggle {display:inline-flex;margin-left:auto;min-width:48px}
+  html[data-szl-shell-owner="homepage"] .nav .wrap {position:relative;padding-inline:24px;min-height:68px;gap:12px}
+  /* Keep the full identity readable beside the 48px menu at narrow widths. */
+  html[data-szl-shell-owner="homepage"] .nav .brand {flex:1 1 0;min-inline-size:0}
+  html[data-szl-shell-owner="homepage"] .nav .brand-mark {flex:0 0 31px}
+  html[data-szl-shell-owner="homepage"] .nav .brand > span:not(.brand-mark) {min-inline-size:0}
+  html[data-szl-shell-owner="homepage"] .nav .brand-name {white-space:nowrap}
+  html[data-szl-shell-owner="homepage"] .nav .brand .sub {white-space:normal;overflow-wrap:normal;text-wrap:balance}
+  html[data-szl-shell-owner="homepage"] .menu-toggle {display:inline-flex;flex:0 0 48px;margin-left:auto;min-width:48px}
   html[data-szl-shell-owner="homepage"] .nav #site-nav {display:none}
   html[data-szl-shell-owner="homepage"] header.nav.nav-open #site-nav {
     position:absolute;display:flex;flex-direction:column;align-items:stretch;
@@ -1128,7 +1135,7 @@ html[data-szl-shell-owner="homepage"] footer .brand .sub {color:#B4C2D2}
       <p class="usecases-intro">These are distinct views and research paths. Their links expose the current surface; opening one does not establish model readiness or operational status.</p>
     </div>
     <div class="story-list">
-      <article class="story-row"><span class="story-number">01</span><div><h3>Second Brain</h3><span class="story-tag">RESEARCH SURFACE</span></div><p>Retrieves evidence handles for a proposal and abstains when retrieval misses. Production certification is not implied.</p><a href="/brain">Explore evidence handles ↗</a></article>
+      <article class="story-row"><span class="story-number">01</span><div><h3>Second Brain</h3><span class="story-tag">RESEARCH SURFACE</span></div><p>Retrieves evidence handles for a proposal and abstains when retrieval misses. Production certification is not implied.</p><a href="/command/brain">Explore evidence handles ↗</a></article>
       <article class="story-row"><span class="story-number">02</span><div><h3>Living Anatomy</h3><span class="story-tag">ENGINEERING VIEW</span></div><p>Maps the system as shared organs and gates. The anatomy is an interface metaphor, not a live health reading.</p><a href="/living-anatomy">Explore the map ↗</a></article>
       <article class="story-row"><span class="story-number">03</span><div><h3>Holographic</h3><span class="story-tag">VISUAL INTERFACE</span></div><p>Places evidence and system relationships in a spatial view. Motion and depth do not prove agent activity.</p><a href="/holographic">Open spatial view ↗</a></article>
       <article class="story-row"><span class="story-number">04</span><div><h3>Killinchu</h3><span class="story-tag">SIMULATED EFFECTS</span></div><p>Supports observation and decision rehearsal with human authority. Effectors remain simulated on this surface.</p><a href="/killinchu">Open the surface ↗</a></article>
@@ -1640,8 +1647,8 @@ html[data-szl-shell-owner="homepage"] footer .brand .sub {color:#B4C2D2}
       theorems {F1,F4,F7,F11,F12,F18,F19,F22}; the 144-entry genome registry is a separate, larger
       set graded across four honesty tiers. The Λ trust gate is <b>Conjecture&nbsp;1</b> — an
       advisory bound, never a theorem and never 1.0. Receipt-chain integrity and DSSE signing are
-      distinct states; signing is claimed only when persistent signer evidence is active and verification
-      passes. Read-only routes never mint receipts. Energy is MEASURED only with a live exporter delta,
+      distinct states; SIGNED is displayed only when persistent signer evidence is active and verification passes.
+      Read-only routes must not mint receipts; verify the deployed boundary. Energy is MEASURED only with a live exporter delta,
       otherwise honest SAMPLE — this page does not invent live GPU joules.
       Hub collections are a catalog, not a zoo; ROADMAP cards are not trained SKUs. Supply
       chain is SLSA L1 honest (L2 build-attested); FedRAMP / IL5 / ATO accreditation is ROADMAP.

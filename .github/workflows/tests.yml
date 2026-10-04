@@ -12,6 +12,35 @@ permissions:
   packages: read
 
 jobs:
+  python-estate-rag:
+    name: Estate RAG lifecycle and read-only route contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install exact RAG route test dependencies
+        run: pip install --require-hashes -r .github/requirements/ci-rag.txt
+      - name: Verify published-index reads, lifecycle writes, and authority boundaries
+        env:
+          # The assembled app captures these paths at import. The runner
+          # context is available at step scope, after the job is assigned.
+          A11OY_CODE_DB: ${{ runner.temp }}/a11oy-rag-contract/code.db
+          A11OY_CODE_SANDBOX: ${{ runner.temp }}/a11oy-rag-contract/sandbox
+          A11OY_REACT_DB: ${{ runner.temp }}/a11oy-rag-contract/react.sqlite3
+          A11OY_AGENT_REFLECT_DB: ${{ runner.temp }}/a11oy-rag-contract/reflect.db
+        run: >-
+          python -m pytest -q
+          tests/test_org_rag_generations.py
+          tests/test_rag_route_readonly.py
+          tests/test_ayllu_model_binding.py
+          tests/test_ayllu_routes.py
+          tests/test_atelier_curated_snapshot.py
+          tests/test_site_route_aliases.py
+          tests/test_operator_auth_code_routes.py
+
   python-energy-measurement:
     name: Energy exporter measurement and null-evidence contract
     runs-on: ubuntu-latest
@@ -46,6 +75,12 @@ jobs:
         run: node --test tests/test_killinchu_status_page.cjs
       - name: Offline DSSE receipt verification and stale-result boundaries
         run: node --test tests/test_public_verify_page.cjs
+      - name: Living Anatomy and Anatomy v5 page truth contracts
+        run: node --test tests/test_site_truth_pages.cjs
+      - name: Trust semantic anchor truth contract
+        run: node --test tests/test_trust_semantic_guard.cjs
+      - name: Fabric public RAG read-only truth contract
+        run: node --test tests/test_fabric_rag_truth.cjs
       - name: Enable corepack and install pnpm 10.33.3
         run: |
           corepack enable
@@ -134,6 +169,7 @@ jobs:
           tests/test_gdw_auth_compat.py
           tests/test_gdw_runtime.py
           tests/test_hf_gdw_preservation.py
+          tests/test_gdw_store_recovery.py
           tests/test_gdw_workspace_v2.py
           tests/test_gdw_attention.py
           tests/test_gdw_bench_tools.py
@@ -949,10 +985,17 @@ jobs:
         # every planted drift is REJECTED, while a truthful catalog is accepted. If this step
         # ever passes a lie, the checker is broken and the live gate below cannot be trusted.
         run: python3 .github/scripts/frontier_index_honesty_check.py --selftest
-      - name: Live honesty gate — catalog labels re-derived independently against backends
+      - name: Prove offline transport denial and independent label comparison
+        run: python3 -m pytest -q tests/test_frontier_index_honesty_network.py
+      - name: Offline app contract — catalog labels re-derived independently against backends
         # WAVE Q DEV 5: the Frontier Index (GET /api/a11oy/v1/frontier-index/catalog) claims,
         # per surface, the honest label its OWN backend emits — its promise is "honest by
-        # construction". This gate boots the REAL app in-process (no mocks, no network),
+        # construction". This gate boots the REAL app in-process (no payload mocks).
+        # A process-lifetime socket/DNS audit hook is installed before serve.py imports;
+        # external fetches take their actual unavailable paths, including in worker
+        # threads. This prevents two independent probes observing different upstream
+        # snapshots across a cache expiry. Production cache/labels remain unchanged.
+        # With Internet access denied before app startup, the check
         # fetches the catalog, and for EVERY surface the catalog calls a11oy-native with a
         # concrete label + endpoint, RE-DERIVES that label independently — different code
         # (this script imports nothing from szl_frontier_index) and a different probe path (a

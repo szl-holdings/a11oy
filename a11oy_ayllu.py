@@ -30,6 +30,7 @@ import os
 import threading
 import time
 import uuid
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -1214,6 +1215,26 @@ def register(app, ns: str = "a11oy") -> str:
         except Exception:
             return None
 
+    def _runtime_signer_ready(request: "Request") -> bool:
+        """Read the host's signer capability without minting a receipt on GET."""
+        try:
+            provider = getattr(request.app.state, "szl_signer_status", None)
+            if not callable(provider):
+                return False
+            observed = provider()
+            if not isinstance(observed, Mapping):
+                return False
+            scheme = observed.get("scheme")
+            return (
+                observed.get("signing_available") is True
+                and observed.get("status") == "DSSE-LIVE"
+                and isinstance(scheme, str)
+                and bool(scheme.strip())
+                and scheme != "UNAVAILABLE"
+            )
+        except Exception:
+            return False
+
     async def _roster(request: "Request") -> "JSONResponse":
         backend = _backend.backend_status()
         return JSONResponse({
@@ -1249,7 +1270,7 @@ def register(app, ns: str = "a11oy") -> str:
             namespace=ns,
             backend_status=_backend.backend_status(),
             rag_status=rag,
-            signer_ready=callable(getattr(request.app.state, "szl_sign_receipt", None)),
+            signer_ready=_runtime_signer_ready(request),
         ))
 
     async def _council_manifest(request: "Request") -> "JSONResponse":

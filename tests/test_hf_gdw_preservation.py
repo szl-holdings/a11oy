@@ -452,8 +452,11 @@ def assert_preflight_order(source: str) -> None:
     assert "if" not in steps[capture[0]] and "continue-on-error" not in steps[capture[0]]
     uploads = [step for step in steps if "actions/upload-artifact@" in step.get("uses", "")]
     assert len(uploads) == 1 and uploads[0]["if"] == "always()"
-    assert {line.strip() for line in uploads[0]["with"]["path"].splitlines() if line.strip()} == {
-        "${{ runner.temp }}/manual-prerequisites.json", "${{ runner.temp }}/gdw-store-preservation.json"}
+    assert tuple(line.strip() for line in uploads[0]["with"]["path"].splitlines() if line.strip()) == (
+        "${{ runner.temp }}/manual-prerequisites.json",
+        "${{ runner.temp }}/gdw-store-preservation.json",
+        "${{ runner.temp }}/gdw-store-recovery-qualification.json",
+    )
 
 
 def test_existing_native_dependency_gate_and_private_artifact_boundary():
@@ -479,3 +482,18 @@ def test_workflow_rejects_wildcard_private_artifact_upload():
     changed = source.replace("${{ runner.temp }}/gdw-store-preservation.json", "${{ runner.temp }}/**")
     with pytest.raises(AssertionError):
         assert_preflight_order(changed)
+
+
+@pytest.mark.parametrize("replacement", [
+    "            ${{ runner.temp }}/**\n",
+    "            ${{ runner.temp }}/gdw-store-recovery-qualification.json\n"
+    "            ${{ runner.temp }}/candidate.sqlite3\n",
+    "            ${{ runner.temp }}/gdw-store-recovery-qualification.json\n"
+    "            ${{ runner.temp }}/gdw-store-recovery-qualification.json\n",
+])
+def test_workflow_rejects_widened_or_duplicate_recovery_artifacts(replacement):
+    source = (ROOT / ".github/workflows/hf-sync.yml").read_text()
+    original = "            ${{ runner.temp }}/gdw-store-recovery-qualification.json\n"
+    assert original in source
+    with pytest.raises(AssertionError):
+        assert_preflight_order(source.replace(original, replacement, 1))

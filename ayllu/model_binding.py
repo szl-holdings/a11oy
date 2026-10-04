@@ -19,6 +19,11 @@ SECOND_BRAIN_SCHEMA = "szl.khipu.compound-second-brain.v1"
 FAMILY_ID = "SZL-Forge-1.5B"
 COMPUTE_PLANE = "SZL-Yupaq"
 BINDING_STATE = "PROFILE_AWARE_LOCAL_ROUTING_ARTIFACT_BINDING_PARTIAL"
+CANONICAL_RAW_BRAIN_NODES_OBSERVED = 9_465
+CANONICAL_RAW_BRAIN_NODES_SOURCE = (
+    "model_release/szl-khipu-second-brain.json"
+    "#brain_training_policy.raw_nodes_observed"
+)
 
 _ALL_COMPUTE_OPERATIONS = (
     "formula.org_lambda.weighted_geomean",
@@ -249,6 +254,7 @@ def second_brain_binding(
     """
     backend = copy.deepcopy(dict(backend_status or {}))
     rag = copy.deepcopy(dict(rag_status or {}))
+    runtime_indexed_handle_count = rag.get("brain_handle_count") or 0
     profile_runtime = (
         (backend.get("forge_profiles") or {}).get("profiles") or {}
     ).get("BrainNavigator-v1") or {}
@@ -288,7 +294,8 @@ def second_brain_binding(
             "corpus_chunk_count": rag.get(
                 "corpus_chunk_count", rag.get("chunk_count", rag.get("chunks"))
             ),
-            "brain_handle_count": rag.get("brain_handle_count", 0),
+            "brain_handle_count": runtime_indexed_handle_count,
+            "brain_handle_count_source": "RUNTIME_RAG_STATUS",
             "brain_handle_plane": rag.get("brain_handle_plane"),
             "training_authority_rows": rag.get("training_authority_rows", 0),
             "node_count": rag.get("node_count"),
@@ -300,9 +307,10 @@ def second_brain_binding(
             "corpus": rag.get("corpus"),
             "index_mode": rag.get("mode"),
             "scope_boundary": (
-                "Corpus chunks and the canonical 9,464-node Brain handle plane are "
-                "separate, independently counted retrieval planes. Handles preserve "
-                "source and quarantine metadata and grant no gradient authority."
+                "Corpus chunks, the canonical 9,465-node release observation, and "
+                "the current runtime Brain handle plane are separate, independently "
+                "counted planes. Handles preserve source and quarantine metadata and "
+                "grant no gradient authority."
             ),
             "evidence_access": "HANDLES_ONLY_TO_MODEL; CONTENT_STAYS_IN_CONTROLLER",
         },
@@ -321,7 +329,9 @@ def second_brain_binding(
             "abstain_when_ungrounded": True,
         },
         "training_boundary": {
-            "raw_brain_nodes_observed": 9464,
+            "raw_brain_nodes_observed": CANONICAL_RAW_BRAIN_NODES_OBSERVED,
+            "raw_brain_nodes_observation_source": CANONICAL_RAW_BRAIN_NODES_SOURCE,
+            "raw_brain_nodes_observed_is_runtime_index_count": False,
             "raw_brain_nodes_admitted_to_gradients": 0,
             "admission_is_row_level": True,
             "admission_engine": "szl_brain_training_admission.py",
@@ -403,6 +413,8 @@ def _canonical_sha256(value: Any) -> str:
 
 __all__ = [
     "BINDING_STATE",
+    "CANONICAL_RAW_BRAIN_NODES_OBSERVED",
+    "CANONICAL_RAW_BRAIN_NODES_SOURCE",
     "COMPUTE_PLANE",
     "FAMILY_ID",
     "SCHEMA",
