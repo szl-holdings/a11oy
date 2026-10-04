@@ -17,6 +17,8 @@ sys.path.insert(0, str(ROOT))
 from scripts.preview_command_observations import ASSETS, ORIGIN, READ_PATHS
 
 ALLOWED_PATHS = READ_PATHS | frozenset(ASSETS) | {"/command-v2"}
+EDGE_SPECULATION_URL = ORIGIN + "/cdn-cgi/speculation"
+EDGE_SPECULATION_HEADER = '"/cdn-cgi/speculation"'
 
 
 def read_allowed(method, url):
@@ -40,6 +42,15 @@ def require_revision(data, expected):
         raise ValueError("LIVE_SOURCE_REVISION_NOT_MATCHED")
 
 
+def expected_blocked_edge_config(blocked, page_headers):
+    # Cloudflare Speed Brain advertises this browser GET via the response header.
+    return (
+        len(blocked) == 1
+        and blocked[0].get("edge_speculation_config") is True
+        and page_headers.get("speculation-rules") == EDGE_SPECULATION_HEADER
+    )
+
+
 def relay_readonly(route, blocked, requests):
     request = route.request
     requests.append((request.method, request.url))
@@ -58,7 +69,14 @@ def relay_readonly(route, blocked, requests):
             else:
                 route.fulfill(response=response, body=body)
                 return
-    blocked.append({"method": request.method, "host": parsed.hostname, "path": parsed.path, "reason": reason})
+    blocked.append({
+        "method": request.method, "host": parsed.hostname, "path": parsed.path,
+        "reason": reason,
+        "edge_speculation_config": (
+            reason == "OUTSIDE_GET_ALLOWLIST" and request.method == "GET"
+            and request.url == EDGE_SPECULATION_URL
+        ),
+    })
     route.abort()
 
 
@@ -170,7 +188,9 @@ def main():
             report["source_after"] = source_readback()
             assert not errors, "BROWSER_SCRIPT_ERROR"
             assert all(method == "GET" for method, _ in requests), "WRITE_REQUEST_ATTEMPTED"
-            assert not report["blocked_requests"], "UNEXPECTED_NETWORK_REQUEST"
+            blocked = report["blocked_requests"]
+            assert not blocked or expected_blocked_edge_config(blocked, response.headers), "UNEXPECTED_NETWORK_REQUEST"
+            report["edge_speculation_config_blocked"] = bool(blocked)
             report["state"] = "PASS"
             context.close()
             browser.close()

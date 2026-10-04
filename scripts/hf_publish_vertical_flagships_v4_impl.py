@@ -12,6 +12,8 @@ Importing this module performs no network or provider mutation.
 from __future__ import annotations
 
 import importlib.util
+import hashlib
+import json
 import os
 from pathlib import Path
 from types import ModuleType
@@ -69,6 +71,13 @@ _BASE.DOMAIN_CSS["sentra"] = r''':root{--bg:#030506;--panel:rgba(7,12,15,.92);--
 
 _BASE.DOMAIN_HTML = dict(getattr(_BASE, "DOMAIN_HTML", {}))
 _BASE.DOMAIN_HTML["sentra"] = '''<div class="domain"><section class="panel verification" aria-label="Illustrative receipt verification graph"><span class="illus">Illustrative — schematic, not live data</span><span class="iris" aria-hidden="true"><span class="iris-ring"><span class="iris-aperture"></span></span></span><span class="path x1"></span><span class="path x2"></span><span class="path x3"></span><div class="node n1">RECEIPT</div><div class="node n2">SIGNATURE</div><div class="node n3">DIGEST</div><div class="node n4">CHAIN</div></section><aside class="panel queue"><span class="illus">Illustrative — schematic, not live data</span><div class="mono">VERIFICATION EVIDENCE QUEUE</div><div class="incident"><span class="sev">CONTRACT</span><span>The live upstream describes the public verifier and its supported checks; it does not claim a receipt verdict.</span></div><div class="incident"><span class="sev">VERDICT</span><span>PASS requires an actual caller-supplied receipt and successful signature, payload-digest, and hash-chain checks.</span></div><div class="incident"><span class="sev">SCOPE</span><span>This read-only surface performs no admission or approval. Immune engine migration remains UNVERIFIED until its contracts and runtime parity are proven.</span></div></aside></div>'''
+
+_BASE.DOMAIN_HTML["sentra"] += '''<section id="sentra-verifier-handoff" class="panel queue" style="margin-top:14px" aria-labelledby="sentra-verifier-title">
+<h2 id="sentra-verifier-title">Verify a receipt</h2>
+<p>Open the existing verifier to paste a receipt and a public key. Offline checks run in your browser. Online checks require a separate explicit action.</p>
+<a id="sentra-open-verifier" href="https://szlholdings-a11oy.hf.space/verify" target="_blank" rel="noopener noreferrer">Open receipt verifier</a>
+<p>Trust scope: a supplied public key proves only the check against that key. Runtime keys are REPO_DECLARED until pinned out of band. Independent validation: UNKNOWN. Receipt integrity does not prove output truth, signer authority, authorization, admission, approval, or production readiness.</p>
+</section>'''
 
 _PROBE_LIVE = (
     '{"status":"LIVE" if r.is_success else "UNAVAILABLE","http_status":r.status_code,'
@@ -251,6 +260,44 @@ _BASE.upload_text = upload_text
 def readme(item: dict[str, Any]) -> str:
     _sync_contract()
     return _BASE.readme(item)
+
+
+def render_sentra_payload(
+    source_revision: str, workflow_run_id: int
+) -> tuple[dict[str, bytes], dict[str, Any]]:
+    """Render the existing seven-file contract without entering its writer."""
+    if (len(source_revision) != 40
+            or any(ch not in "0123456789abcdef" for ch in source_revision)
+            or source_revision == "0" * 40):
+        raise ValueError("Sentra requires an exact source revision")
+    if type(workflow_run_id) is not int or workflow_run_id <= 0:
+        raise ValueError("Sentra requires a positive workflow run id")
+    matches = [item for item in FLAGSHIPS if item["slug"] == "sentra"]
+    if len(matches) != 1:
+        raise ValueError("Sentra renderer inventory is ambiguous")
+    item = matches[0]
+    page = html(item)
+    card = readme(item)
+    page_sha = hashlib.sha256(page.encode("utf-8")).hexdigest()
+    artifacts = artifact_digest(APP, DOCKER, REQ, page, page, card, "null")
+    config = json.dumps({
+        "slug": "sentra", "title": item["title"], "vertical": item["vertical"],
+        "product_source": item["source"], "source_repository": DEPLOYMENT_SOURCE_REPOSITORY,
+        "source_revision": source_revision, "workflow_run_id": workflow_run_id,
+        "hf_repository": "SZLHOLDINGS/sentra", "artifact_set_sha256": artifacts,
+        "landing_sha256": page_sha, "panels_sha256": page_sha, "forge": None,
+        "upstream": item["upstream"], "public_experience": PUBLIC_EXPERIENCE_VERSION,
+    }, indent=2, sort_keys=True) + "\n"
+    files = {path: content.encode("utf-8") for path, content in (
+        ("app.py", APP), ("Dockerfile", DOCKER), ("requirements.txt", REQ),
+        ("config.json", config), ("index.html", page), ("panels.html", page), ("README.md", card),
+    )}
+    row = {"id": "SZLHOLDINGS/sentra", "slug": "sentra", "source": item["source"],
+           "source_revision": source_revision, "workflow_run_id": workflow_run_id,
+           "artifact_set_sha256": artifacts, "landing_sha256": page_sha,
+           "panels_sha256": page_sha, "forge": None,
+           "root_marker": PUBLIC_EXPERIENCE_MARKER, "actions": []}
+    return files, row
 
 
 def main() -> int:

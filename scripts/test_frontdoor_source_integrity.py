@@ -29,6 +29,7 @@ on:
   schedule:
     - cron: '37 6 * * 1'
   workflow_dispatch:
+  workflow_call:
 permissions:
   contents: read
 concurrency:

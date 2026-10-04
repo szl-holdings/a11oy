@@ -52,12 +52,14 @@ class HomepageShellCoherence(unittest.TestCase):
 
     def test_responsive_rules_are_page_scoped(self):
         self.assertEqual(self.css.count("{"), self.css.count("}"))
-        for selector in re.findall(r'([^{}]+)\{', self.css):
+        css_without_comments = re.sub(r'/\*.*?\*/', '', self.css, flags=re.S)
+        for selector in re.findall(r'([^{}]+)\{', css_without_comments):
             if not selector.strip().startswith("@"):
                 self.assertIn('html[data-szl-shell-owner="homepage"]', selector)
-        for contract in ("font-size:clamp(34px,4.2vw,58px)", "@media(max-width:760px)",
+        for contract in ("font-size:clamp(56px,6.5vw,96px)", "@media(max-width:760px)",
                          "@media(max-width:1100px)", "prefers-reduced-motion", "forced-colors",
-                         "--gold:#c9b787", "--proof:#5fb3a3", "padding-bottom:0"):
+                         "--szl-paper:#F2F0E9", "--szl-graphite:#111419", "--szl-blue:#8CAFE3",
+                         ".hero::after {content:none!important}"):
             self.assertIn(contract, self.css)
 
     def test_disclosure_closes_on_escape_outside_focus_and_resize(self):
@@ -68,14 +70,19 @@ class HomepageShellCoherence(unittest.TestCase):
             self.assertIn(contract, menu)
 
     def test_evidence_states_and_offline_verification_remain_explicit(self):
-        hero = self.html.split('<section class="hero">', 1)[1].split("</section>", 1)[0]
-        for label in ("SIGNED", "HASH-LINKED", "UNSIGNED", "DISABLED", "UNAVAILABLE", "BLOCKED", "Conjecture 1"):
-            self.assertIn(label, hero)
-        self.assertIn("persistent signer evidence is active and verification passes", hero)
-        title = hero.split('<h1 class="title">', 1)[1].split("</h1>", 1)[0]
+        hero = self.html.split('<section class="hero"', 1)[1].split("</section>", 1)[0]
+        evidence = self.html.split('id="evidence"', 1)[1].split("</section>", 1)[0]
+        self.assertIn('Make AI decisions <em>inspectable.</em>', hero)
+        self.assertIn('MODELED SPECIMEN / illustrative', hero)
+        self.assertIn('SAMPLE · committed offline fixture', hero)
+        self.assertIn('BLOCKED pending approval', hero)
+        for label in ("SIGNED", "UNAVAILABLE", "Conjecture 1"):
+            self.assertIn(label, evidence)
+        self.assertIn("SIGNED is written only when the attestation", evidence)
+        title = hero.split('<h1 class="title"', 1)[1].split("</h1>", 1)[0]
         self.assertNotIn("signed", title.lower())
         for endpoint in ("/api/a11oy/healthz", "/api/a11oy/v1/frontier/surfaces", "/api/a11oy/v1/attest/manifest"):
-            self.assertIn(endpoint, hero)
+            self.assertIn(endpoint, evidence)
 
 
 if __name__ == "__main__":

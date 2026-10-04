@@ -20,6 +20,21 @@ The clean web-application build boundary is the independently released
 that repository's pinned pnpm version and lockfile before building
 `vendor/platform/artifacts/a11oy`.
 
+The `canonical-web` job in **Operational Validation** retains the verified
+static output as `canonical-web-review-<run-id>-<attempt>`, with a Python-generated
+manifest binding the A11oy source revision, platform gitlink, package/toolchain,
+and each admitted file's size and SHA-256. Source maps are excluded. Missing
+entrypoints, unsafe file types/links, oversized output, and unresolved local
+entrypoint references fail artifact admission.
+
+This build artifact is a release input. The current Python image still ships
+the tracked `console/` operator surface. The canonical React application also
+requires `/api/graphql`, `/api/graphql/ws`, and an Atelier request contract
+which this Python runtime does not implement. Artifact metadata therefore
+keeps runtime API binding `UNAVAILABLE` and deployment `BLOCKED`. The existing
+`hf-sync.yml` remains the automatic Hugging Face writer; runtime admission needs
+those API contracts and exact artifact/source read-back within that publisher.
+
 The root `web/` tree is a retained historical mirror used by the doctrine
 package boundary and static-source audits; it is not the canonical SPA build
 target. A module-graph audit found 495 unresolved local imports in that mirror,

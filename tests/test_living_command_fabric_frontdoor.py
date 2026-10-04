@@ -28,8 +28,9 @@ class LivingCommandFabricContract(unittest.TestCase):
 
     def test_existing_buyer_and_runtime_truth_contracts_are_preserved(self) -> None:
         for literal in (
-            "Governed AI actions.",
-            "Receipts you can verify.",
+            "Make AI decisions <em>inspectable.</em>",
+            "MODELED SPECIMEN / illustrative",
+            "SAMPLE · committed offline fixture",
             "only when persistent signer evidence is active and verification passes",
             'id="nv-panel"',
             'id="nv-signer"',
@@ -49,9 +50,6 @@ class LivingCommandFabricContract(unittest.TestCase):
             'id="anatomy"',
             'id="vertical-bodies"',
             "One intelligence fabric. Five public domain bodies. Six internal engines. One evidence bloodstream.",
-            "ONE FABRIC",
-            "FIVE PUBLIC DOMAIN BODIES",
-            "EIGHT LOCKED FORMULA BINDINGS",
             "WILLAY/policy veto",
         ):
             with self.subTest(literal=literal):

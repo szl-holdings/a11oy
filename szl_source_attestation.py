@@ -110,7 +110,6 @@ def build_attestation_v2(
         (
             "A11OY_SOURCE_COMMIT",
             "SZL_GIT_SHA",
-            "SPACE_COMMIT_SHA",
             "GITHUB_SHA",
             "VERCEL_GIT_COMMIT_SHA",
         ),
@@ -125,11 +124,13 @@ def build_attestation_v2(
         ("A11OY_DEPLOYED_AT", "DEPLOYED_AT", "SZL_BUILD_TIME"), _timestamp
     )
 
+    # These are commits in separate Git repositories, not comparable identities.
+    # Equal strings do not prove deployment of the source bytes, and different
+    # strings do not prove a conflict. A separately verified source -> HF
+    # publication byte-binding receipt is required before claiming alignment.
+    # This read-only surface does not verify such a receipt, so fail closed.
     computed_alignment = "UNKNOWN"
-    if source_commit and deployed_commit:
-        computed_alignment = "MATCH" if source_commit == deployed_commit else "CONFLICT"
-    # The legacy caller label cannot override measured parity. If either commit is
-    # absent, computed alignment remains UNKNOWN rather than inheriting a claim.
+    # A legacy caller label is not publication evidence.
     del alignment_state
 
     payload = SourceDeployAttestation(
@@ -150,7 +151,8 @@ def build_attestation_v2(
         },
         limits=[
             "Null/UNKNOWN means the runtime did not expose that immutable build fact.",
-            "Repository identity alone does not establish deployed artifact equivalence.",
+            "GitHub and Hugging Face commit SHAs belong to separate histories; their equality or inequality does not establish source/deployment alignment.",
+            "Alignment requires a separately verified source-to-HF publication byte-binding receipt; none is verified by this surface.",
             "This surface does not represent the separate Replit TypeScript control plane.",
         ],
     )
@@ -193,8 +195,8 @@ def build_attestation(
             "revision_state": "MEASURED" if revision else "UNAVAILABLE",
             "measurement_method": "SPACE_REPOSITORY_COMMIT" if revision else "UNAVAILABLE",
         },
-        # A caller-supplied label is not evidence.  Preserve the v1 field while
-        # deriving its value only from the two independently observed commits.
+        # A caller-supplied label or a direct comparison of cross-repository
+        # commit SHAs is not evidence. Preserve the v1 field, fail closed.
         "alignment_state": v2["alignment_state"],
         "attestation_state": "UNSIGNED_STRUCTURAL",
         "claims": {

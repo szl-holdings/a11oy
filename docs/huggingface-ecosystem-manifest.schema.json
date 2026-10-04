@@ -75,7 +75,8 @@
       "required": [
         "models",
         "datasets",
-        "spaces"
+        "spaces",
+        "kernels"
       ],
       "properties": {
         "models": {
@@ -87,6 +88,10 @@
           "minimum": 0
         },
         "spaces": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "kernels": {
           "type": "integer",
           "minimum": 0
         }
@@ -103,7 +108,8 @@
       "required": [
         "models",
         "datasets",
-        "spaces"
+        "spaces",
+        "kernels"
       ],
       "properties": {
         "models": {
@@ -113,6 +119,9 @@
           "$ref": "#/$defs/items"
         },
         "spaces": {
+          "$ref": "#/$defs/items"
+        },
+        "kernels": {
           "$ref": "#/$defs/items"
         }
       }
@@ -159,7 +168,8 @@
             "enum": [
               "model",
               "dataset",
-              "space"
+              "space",
+              "kernel"
             ]
           },
           "private": {

@@ -1,0 +1,62 @@
+{
+  "schema": "szl.hf-public-space-dispositions/v1",
+  "receipt_effect": "OBSERVATION_ONLY",
+  "collection": {
+    "observed_at_utc": "2026-10-03T02:36:51Z",
+    "visibility_scope": "anonymous public SZLHOLDINGS application Spaces; README organization card excluded",
+    "source_repository": "szl-holdings/a11oy",
+    "source_revision": "a7a3c6045251672a5983fae517716754c8f177a8",
+    "keep_policy_path": "docs/estate/hf-nine-flagship-keep.yaml",
+    "keep_policy_git_blob": "e377fed2e927c8ad044a0ec84de34b18e9dd9652",
+    "inventory_source_path": "szl_spaces_surface.py",
+    "inventory_source_git_blob": "063aad1b2c2a6b2ca1e80488af7d9be1a4517ff6",
+    "public_application_spaces": 33,
+    "organization_policy_keepers": 8,
+    "missing_keepers": 0,
+    "unexpected_public_spaces": 25,
+    "inventory_state": "DEGRADED",
+    "runtime_scope": "Configured runtime probes are a separate observation. This receipt does not attest runtime readiness or scientific qualification."
+  },
+  "class_counts": {
+    "runtime_policy_conflict": 2,
+    "retirement_candidate": 1,
+    "source_hub_conflict": 4,
+    "public_showcase": 18
+  },
+  "review_gates": {
+    "resolve_runtime_policy": "Reconcile the configured runtime door with the eight-Space keep policy, then verify any source-owned migration or policy amendment separately.",
+    "retirement_reference_audit": "Check inbound references, canonical application behavior, and the retained FAILED scientific result before a separately authorized visibility decision.",
+    "resolve_source_hub_conflict": "Source owner must reconcile the A11oy handoff ledger with the current Hub card and publication contract; do not infer a completed migration.",
+    "complete_fold": "Verify the stated destination, source and Hub bindings, and inbound links before a separately reviewed visibility decision.",
+    "complete_unify": "Verify the product destination and source-owned replacement before a separately reviewed visibility decision.",
+    "parity_audit_before_fold": "Complete Channel A/B parity review and honor the Hub card's do-not-delete instruction before any disposition.",
+    "review_public_showcase": "Confirm the source owner, public purpose, and source-to-Hub binding before considering a scoped public-showcase policy exception."
+  },
+  "items": [
+    {"id":"SZLHOLDINGS/ayllu","hub_revision":"0d5869374bb82d19eaf57d954a7baf32ba69932a","class":"source_hub_conflict","source_action":"FOLD","review_gate":"resolve_source_hub_conflict","admitted_to_keep":false,"evidence_note":"A11oy folds to proof; the Hub card describes a live Legal Matter Command."},
+    {"id":"SZLHOLDINGS/foundation-confirmation-v2","hub_revision":"0033e0220aa77f158cb392936fd25a5da8758285","class":"retirement_candidate","source_action":"UNLISTED","review_gate":"retirement_reference_audit","admitted_to_keep":false,"evidence_note":"The Hub card calls this a retired duplicate and points to SZLHOLDINGS/szl-foundation-confirmation; the registered scientific result remains FAILED."},
+    {"id":"SZLHOLDINGS/gdw-frontier","hub_revision":"e296dad2966a19580b4dc206b32fb016a9715575","class":"source_hub_conflict","source_action":"UNLISTED","review_gate":"resolve_source_hub_conflict","admitted_to_keep":false,"evidence_note":"The Hub card calls this a production witness target; the A11oy keep and handoff ledgers omit it."},
+    {"id":"SZLHOLDINGS/governed-receipt-verifier","hub_revision":"0e71dc7963c704ca98fec03321234c1b6e09913a","class":"public_showcase","source_action":"FOLD","review_gate":"complete_fold","admitted_to_keep":false},
+    {"id":"SZLHOLDINGS/holographic-unify","hub_revision":"77b1e14c9ba7c546f047234589e4726d615bc615","class":"public_showcase","source_action":"UNLISTED","review_gate":"review_public_showcase","admitted_to_keep":false},
+    {"id":"SZLHOLDINGS/immune","hub_revision":"003b3762f7cf1a9cd34eab29b2cfe0ac903cc6e8","class":"runtime_policy_conflict","source_action":"CONFIGURED_RUNTIME_KEEP__POLICY_MIGRATION_REQUIRED","review_gate":"resolve_runtime_policy","admitted_to_keep":false},
+    {"id":"SZLHOLDINGS/immune-lattice","hub_revision":"aa8adcc23fad248fa5bc9c8402cfa2286c440644","class":"public_showcase","source_action":"FOLD__PARITY_AUDIT_REQUIRED","review_gate":"parity_audit_before_fold","admitted_to_keep":false},
+    {"id":"SZLHOLDINGS/llm-router-live","hub_revision":"507274d6d390360957ad8ed9ee7672cb9ab64038","class":"source_hub_conflict","source_action":"FOLD","review_gate":"resolve_source_hub_conflict","admitted_to_keep":false,"evidence_note":"A11oy calls the status Space stale; its Hub card calls it the public router product and status surface."},
+    {"id":"SZLHOLDINGS/oac-system-health-lab","hub_revision":"4bf4d94161c0d135af6b5a3bc25f45b06f6e3979","class":"public_showcase","source_action":"UNLISTED","review_gate":"review_public_showcase","admitted_to_keep":false,"evidence_note":"Synthetic operational telemetry preview, not qualified model weights."},
+    {"id":"SZLHOLDINGS/prove-it","hub_revision":"4c43d85d03bd42828b93cf45adb274f7e5213ec5","class":"public_showcase","source_action":"UNLISTED","review_gate":"review_public_showcase","admitted_to_keep":false},
+    {"id":"SZLHOLDINGS/sentra","hub_revision":"f16c6f3ba66722f9ce3442a4da2135f5d09b043d","class":"source_hub_conflict","source_action":"FOLD__POLICY_MIGRATION_REQUIRED","review_gate":"resolve_source_hub_conflict","admitted_to_keep":false,"evidence_note":"The current source publisher emits a public read-only CHAPAQ receipt-verifier shell; this does not prove engine migration."},
+    {"id":"SZLHOLDINGS/szl-atelier","hub_revision":"f03b4cab3f7c40c87e01b5e4e3bedaea2e1bfb8b","class":"public_showcase","source_action":"FOLD","review_gate":"complete_fold","admitted_to_keep":false},
+    {"id":"SZLHOLDINGS/szl-bench-suite","hub_revision":"97acd8c474daa66535ad540ef8335ac00cd462ba","class":"public_showcase","source_action":"UNLISTED","review_gate":"review_public_showcase","admitted_to_keep":false,"evidence_note":"Static evidence surface; it does not run benchmarks."},
+    {"id":"SZLHOLDINGS/szl-brand-campaign","hub_revision":"c0094515e1d12ba2e7103572b633cbf7d907d993","class":"public_showcase","source_action":"UNLISTED","review_gate":"review_public_showcase","admitted_to_keep":false},
+    {"id":"SZLHOLDINGS/szl-command-lab","hub_revision":"477dd12f84b4e92f93b95afe0cb3543da379f2b0","class":"public_showcase","source_action":"UNIFY","review_gate":"complete_unify","admitted_to_keep":false},
+    {"id":"SZLHOLDINGS/szl-constellation","hub_revision":"ccf599654b3ef1df881b11c55b590c6dd99ae5af","class":"public_showcase","source_action":"UNIFY","review_gate":"complete_unify","admitted_to_keep":false},
+    {"id":"SZLHOLDINGS/szl-forge-lab","hub_revision":"f78662e30d51bb30f696e286c31bf008ebe6f12b","class":"public_showcase","source_action":"FOLD","review_gate":"complete_fold","admitted_to_keep":false},
+    {"id":"SZLHOLDINGS/szl-frontier","hub_revision":"0e05cb1404cb3cf3fab957edc2959fcd0932c471","class":"public_showcase","source_action":"UNIFY","review_gate":"complete_unify","admitted_to_keep":false,"evidence_note":"The Hub card identifies a public memory-plane source projection, not a second product flagship."},
+    {"id":"SZLHOLDINGS/szl-khipu","hub_revision":"512c3afe145e8b45291693b2ecd79d03f8177388","class":"public_showcase","source_action":"FOLD","review_gate":"complete_fold","admitted_to_keep":false},
+    {"id":"SZLHOLDINGS/szl-marketing-1.1","hub_revision":"77b3e70533e0116ba6b6b434c18e34e322ef3b3b","class":"public_showcase","source_action":"UNLISTED","review_gate":"review_public_showcase","admitted_to_keep":false},
+    {"id":"SZLHOLDINGS/szl-model-inference-lab","hub_revision":"f0d439fa0dfe2cd6c5b99f4735d779c951ff7fca","class":"public_showcase","source_action":"UNIFY","review_gate":"complete_unify","admitted_to_keep":false,"evidence_note":"Public bounded CPU demonstration; no production model promotion is inferred."},
+    {"id":"SZLHOLDINGS/szl-typesafe-triage","hub_revision":"57f7041be9dbcd065f72d4af97c7236717094777","class":"public_showcase","source_action":"UNLISTED","review_gate":"review_public_showcase","admitted_to_keep":false,"evidence_note":"Deterministic triage engine; learned-model promotion remains HOLD."},
+    {"id":"SZLHOLDINGS/the-grid","hub_revision":"9a094766b514568fc42e65d036fc70f79976c5e1","class":"public_showcase","source_action":"UNLISTED","review_gate":"review_public_showcase","admitted_to_keep":false,"evidence_note":"Public exhibit; not an A11oy runtime keeper."},
+    {"id":"SZLHOLDINGS/vertical-services","hub_revision":"cd145689c0e1a78d628a32160754fdf2bbd81037","class":"runtime_policy_conflict","source_action":"CONFIGURED_RUNTIME_KEEP__POLICY_UNLISTED","review_gate":"resolve_runtime_policy","admitted_to_keep":false},
+    {"id":"SZLHOLDINGS/yarqa","hub_revision":"e463677bc88e75e7dbdd1b44dcb23aee5c333cb9","class":"public_showcase","source_action":"FOLD","review_gate":"complete_fold","admitted_to_keep":false}
+  ]
+}

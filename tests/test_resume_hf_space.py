@@ -4,6 +4,7 @@ import importlib.util
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / ".github" / "scripts" / "resume_hf_space.py"
@@ -14,9 +15,11 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RecordingApi:
-    def __init__(self, stage: str, response_stage: str = "BUILDING") -> None:
+    def __init__(self, stage: str, response_stage: str = "BUILDING",
+                 later_stages: list[str] | None = None) -> None:
         self.stage = stage
         self.response_stage = response_stage
+        self.later_stages = list(later_stages or [])
         self.restart_calls: list[dict[str, object]] = []
         self.runtime_reads: list[str] = []
         self.pause_calls: list[dict[str, object]] = []
@@ -24,6 +27,8 @@ class RecordingApi:
     def get_space_runtime(self, *, repo_id: str):
         self.runtime_reads.append(repo_id)
         self.repo_id = repo_id
+        if len(self.runtime_reads) > 1 and self.later_stages:
+            self.stage = self.later_stages.pop(0)
         return SimpleNamespace(stage=SimpleNamespace(value=self.stage))
 
     def restart_space(self, **kwargs):
@@ -83,6 +88,64 @@ class ResumeHfSpaceTests(unittest.TestCase):
                 )
                 self.assertEqual(api.restart_calls, [])
                 self.assertEqual(report["action"], "ALREADY_ACTIVE")
+                self.assertEqual(api.pause_calls, [])
+
+    def test_starting_space_waits_for_active_without_provider_effect(self) -> None:
+        api = RecordingApi("RUNNING_APP_STARTING", later_stages=[
+            "RUNNING_APP_STARTING", "RUNNING",
+        ])
+        report: dict[str, object] = {}
+
+        with patch.object(MODULE.time, "sleep") as sleep:
+            MODULE.resume_if_paused(api, repo_id="SZLHOLDINGS/a11oy", report=report)
+
+        self.assertEqual(report, {
+            "observed_stage": "RUNNING_APP_STARTING",
+            "final_stage": "RUNNING",
+            "rechecks": 2,
+            "action": "ALREADY_ACTIVE",
+        })
+        self.assertEqual(api.runtime_reads, ["SZLHOLDINGS/a11oy"] * 3)
+        self.assertEqual(sleep.call_count, 2)
+        sleep.assert_any_call(10)
+        self.assertEqual(api.restart_calls, [])
+        self.assertEqual(api.pause_calls, [])
+
+    def test_starting_space_times_out_fail_closed_without_provider_effect(self) -> None:
+        api = RecordingApi("RUNNING_APP_STARTING")
+        report: dict[str, object] = {}
+
+        with patch.object(MODULE.time, "sleep") as sleep:
+            with self.assertRaisesRegex(RuntimeError, "did not become active"):
+                MODULE.resume_if_paused(
+                    api, repo_id="SZLHOLDINGS/a11oy", report=report,
+                )
+
+        self.assertEqual(report["observed_stage"], "RUNNING_APP_STARTING")
+        self.assertEqual(report["final_stage"], "RUNNING_APP_STARTING")
+        self.assertEqual(report["rechecks"], MODULE.STARTING_RECHECKS)
+        self.assertNotIn("action", report)
+        self.assertEqual(len(api.runtime_reads), MODULE.STARTING_RECHECKS + 1)
+        self.assertEqual(sleep.call_count, MODULE.STARTING_RECHECKS)
+        self.assertEqual(api.restart_calls, [])
+        self.assertEqual(api.pause_calls, [])
+
+    def test_starting_space_rejects_paused_or_error_transition(self) -> None:
+        for final_stage in ("PAUSED", "RUNTIME_ERROR", "UNKNOWN"):
+            with self.subTest(final_stage=final_stage):
+                api = RecordingApi("RUNNING_APP_STARTING", later_stages=[final_stage])
+                report: dict[str, object] = {}
+                with patch.object(MODULE.time, "sleep") as sleep:
+                    with self.assertRaisesRegex(RuntimeError, "did not become active"):
+                        MODULE.resume_if_paused(
+                            api, repo_id="SZLHOLDINGS/a11oy", report=report,
+                        )
+                self.assertEqual(report["final_stage"], final_stage)
+                self.assertEqual(report["rechecks"], 1)
+                self.assertNotIn("action", report)
+                self.assertEqual(len(api.runtime_reads), 2)
+                sleep.assert_called_once_with(10)
+                self.assertEqual(api.restart_calls, [])
                 self.assertEqual(api.pause_calls, [])
 
     def test_unexpected_runtime_stage_fails_closed(self) -> None:

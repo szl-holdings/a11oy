@@ -270,7 +270,7 @@ class EstateReleaseTrainTests(unittest.TestCase):
     def _profile_fixture(self):
         config = json.loads((ROOT / "config/estate-release-train.v1.json").read_text())
         scope = config["public_inventory_scope"]
-        counts = {"spaces": 23, "models": 49, "datasets": 34}
+        counts = {"spaces": 23, "models": 49, "datasets": 34, "kernels": 14}
         record = {
             "schema": "szl.public-profile-inventory/v1", "counts": counts,
             "scope": scope, "scope_sha256": release.canonical_sha256(scope),
@@ -333,7 +333,7 @@ class EstateReleaseTrainTests(unittest.TestCase):
         config, record, manifest, blob = self._profile_fixture()
         result, files = self._profile_observation(config, record, manifest, blob, record["counts"])
         self.assertTrue(result["aligned"])
-        self.assertEqual(result["declared_counts"], {"spaces": 23, "models": 49, "datasets": 34})
+        self.assertEqual(result["declared_counts"], {"spaces": 23, "models": 49, "datasets": 34, "kernels": 14})
         # README is deliberately not fetched: its historical 21/46/35 paragraph
         # cannot supply a current declaration or override the selected record.
         self.assertEqual(files.call_count, 3)
@@ -376,7 +376,7 @@ class EstateReleaseTrainTests(unittest.TestCase):
                 self.assertIn("HF_PROFILE_INVENTORY_SOURCE_BINDING_MISMATCH_OR_UNAVAILABLE", result["blockers"])
 
     def _profile_contract_for_text(self, text, observed=None, manifest=None):
-        counts = {"spaces": 23, "models": 49, "datasets": 34}
+        counts = {"spaces": 23, "models": 49, "datasets": 34, "kernels": 14}
         sha = "f" * 40
         config = {"profile": {"repository": "szl-holdings/.github", "path": "profile/README.md"}}
         with (
@@ -437,7 +437,7 @@ class EstateReleaseTrainTests(unittest.TestCase):
 
     def test_profile_current_declaration_still_requires_manifest_and_observed_equality(self):
         config, record, manifest, blob = self._profile_fixture()
-        different = {"spaces": 24, "models": 49, "datasets": 34}
+        different = {"spaces": 24, "models": 49, "datasets": 34, "kernels": 14}
         for kwargs in ({"observed": different}, {"manifest": different}):
             with self.subTest(kwargs=kwargs):
                 current = {**manifest, "json": {**manifest["json"],
@@ -446,7 +446,7 @@ class EstateReleaseTrainTests(unittest.TestCase):
                     config, record, current, blob,
                     kwargs.get("observed", record["counts"]), pinned=manifest,
                 )
-                self.assertEqual(result["declared_counts"], {"spaces": 23, "models": 49, "datasets": 34})
+                self.assertEqual(result["declared_counts"], {"spaces": 23, "models": 49, "datasets": 34, "kernels": 14})
                 self.assertFalse(result["aligned"])
                 self.assertIn("HF_INVENTORY_COUNT_MISMATCH_OR_UNAVAILABLE", result["blockers"])
 

@@ -12,13 +12,20 @@ Run by file path:  python3 test_check_hf_corpus_reverify.py
 from __future__ import annotations
 
 import base64
+import io
+import json
 import os
 import sys
+import tempfile
+from contextlib import redirect_stdout
+from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import szl_corpus_guard_common as common  # noqa: E402
 import check_hf_corpus_reverify as rv  # noqa: E402
+import emit_corpus_guard_findings as finding_renderer  # noqa: E402
 from szl_corpus_guard_common import EXIT_OK, EXIT_VIOLATION  # noqa: E402
 
 FAILURES = []
@@ -136,6 +143,7 @@ def main():
     real_crypto_path()
     real_multi_key_path()
     fetch_corpus_shard_path()
+    public_read_error_paths()
 
     print()
     if FAILURES:
@@ -182,6 +190,53 @@ def fetch_corpus_shard_path():
           all("receipts/receipts/" not in u for u in requested))
     check("fetch_corpus enumerates the real shard -> 1 record",
           len(records) == 1)
+
+
+def public_read_error_paths():
+    """An anonymous read denial or outage must fail with a redacted summary."""
+    with tempfile.TemporaryDirectory() as tmp:
+        for error, expected in (
+            (common.AuthError("sensitive diagnostic"), "corpus read denied"),
+            (common.Unreachable("sensitive diagnostic"), "corpus read unavailable"),
+        ):
+            summary_path = Path(tmp) / "reverify-summary.json"
+            seen_tokens = []
+
+            def fail_read(cfg, token):
+                seen_tokens.append(token)
+                raise error
+
+            output = io.StringIO()
+            with patch.dict(os.environ, {"HF_TOKEN": "", "HF_ORG_TOKEN": ""}), \
+                    patch.object(rv, "fetch_corpus", side_effect=fail_read), \
+                    redirect_stdout(output):
+                code = rv.main(["--summary-out", str(summary_path)])
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            check("anonymous %s fails with redacted summary" % expected,
+                  code == common.EXIT_ERROR and seen_tokens == [None]
+                  and summary["exit"] == common.EXIT_ERROR
+                  and summary["report"]["source_state"] == "UNAVAILABLE"
+                  and expected in summary["report"]["findings"][0]
+                  and "sensitive diagnostic" not in summary_path.read_text(encoding="utf-8")
+                  and "sensitive diagnostic" not in output.getvalue())
+            finding_output = io.StringIO()
+            with redirect_stdout(finding_output):
+                finding_renderer.main([str(summary_path)])
+            check("%s summary renders an actionable incident finding" % expected,
+                  expected in finding_output.getvalue()
+                  and "sensitive diagnostic" not in finding_output.getvalue())
+
+        # A public 404/empty corpus is a real floor violation, not a soft pass.
+        output = io.StringIO()
+        with patch.dict(os.environ, {"HF_TOKEN": "", "HF_ORG_TOKEN": ""}), \
+                patch.object(rv, "fetch_corpus", return_value=([], None)), \
+                patch.object(common, "fetch_text", return_value=None), \
+                redirect_stdout(output):
+            code = rv.main(["--summary-out", str(summary_path)])
+        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        check("anonymous empty corpus preserves the receipt floor",
+              code == common.EXIT_VIOLATION and summary["exit"] == common.EXIT_VIOLATION
+              and "empty corpus but floor=2" in summary["report"]["findings"])
 
 
 def q_payload(uid, key_sha256):
