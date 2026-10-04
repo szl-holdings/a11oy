@@ -307,11 +307,25 @@ _BUILD_META: dict[str, Any] = {"built": False, "ts": None, "repos": 0, "chunks":
 def _db() -> sqlite3.Connection:
     Path(RAG_DB_PATH).parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(RAG_DB_PATH, timeout=15)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA busy_timeout=15000")
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA synchronous=FULL")
-    return conn
+    try:
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA busy_timeout=15000")
+        # WAL readers can create or modify -wal/-shm files even with mode=ro.
+        # Only a lifecycle/operator writer may migrate the journal. Rollback
+        # journaling keeps reads free of those writes; readers can delay a
+        # writer's commit within the same bounded SQLite busy timeout.
+        mode = conn.execute("PRAGMA journal_mode=DELETE").fetchone()[0]
+        if mode != "delete":
+            raise RuntimeError("Brain writer could not enable rollback journaling")
+        conn.execute("PRAGMA synchronous=FULL")
+        return conn
+    except BaseException:
+        conn.close()
+        raise
+
+
+class _ReadIndexUnavailable(RuntimeError):
+    storage_state = "LEGACY_WAL_REQUIRES_LIFECYCLE_WRITE"
 
 
 def _db_readonly() -> sqlite3.Connection:
@@ -319,6 +333,16 @@ def _db_readonly() -> sqlite3.Connection:
     path = Path(RAG_DB_PATH).resolve()
     if not path.is_file():
         raise FileNotFoundError(str(path))
+    # Inspect without SQLite first: opening a legacy WAL index can create its
+    # sidecars before query_only is set. Never migrate or use immutable=1 on a
+    # mutable generation; an explicit writer must perform this conversion.
+    with path.open("rb") as source:
+        header = source.read(100)
+    if header[:16] == b"SQLite format 3\x00" and 2 in header[18:20]:
+        raise _ReadIndexUnavailable(
+            "legacy WAL Brain index requires an explicit lifecycle/operator "
+            "write before read-only retrieval"
+        )
     conn = sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=15)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA busy_timeout=15000")
@@ -717,6 +741,15 @@ def _rehydrate_runtime_state() -> bool:
         _BUILD_META["rehydrated_from_sqlite"] = True
         _BUILD_META["rehydrated_at"] = time.time()
         return True
+    except _ReadIndexUnavailable as exc:
+        _BUILD_META = {
+            "built": False, "ts": None, "repos": 0, "chunks": 0,
+            "rehydration_state": "UNAVAILABLE",
+            "integrity_state": "UNAVAILABLE",
+            "storage_state": exc.storage_state,
+            "honest_error": str(exc),
+        }
+        return False
     except Exception as exc:
         _BUILD_META = {
             "built": False, "ts": None, "repos": 0, "chunks": 0,
@@ -1723,7 +1756,10 @@ def query(q: str, k: int = 6, repo: str | None = None,
     _rehydrate_runtime_state()
     if not _BUILD_META.get("built"):
         return {"ok": False, "i_dont_know": True,
-                "honest_error": "org index not built — call /api/a11oy/code/rag/index first",
+                "honest_error": _BUILD_META.get("honest_error") or
+                "org index not built — call /api/a11oy/code/rag/index first",
+                "integrity_state": _BUILD_META.get("integrity_state", "UNAVAILABLE"),
+                "storage_state": _BUILD_META.get("storage_state"),
                 "query": q, "chunks": []}
     with _SNAPSHOT_LOCK:
         conn = None
@@ -1736,6 +1772,11 @@ def query(q: str, k: int = 6, repo: str | None = None,
         except Exception as exc:
             if conn is not None:
                 conn.close()
+            if isinstance(exc, _ReadIndexUnavailable):
+                return {"ok": False, "i_dont_know": True, "query": q,
+                        "chunks": [], "integrity_state": "UNAVAILABLE",
+                        "storage_state": exc.storage_state,
+                        "honest_error": str(exc)}
             return {"ok": False, "i_dont_know": True, "query": q,
                     "chunks": [], "integrity_state": "FAILED_CLOSED",
                     "honest_error": ("published Brain index unavailable for read: "

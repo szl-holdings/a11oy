@@ -9224,6 +9224,7 @@ try:
                 "i_dont_know": True,
                 "index": {"built": False, "mode": idx.get("mode"),
                           "honest_error": idx.get("honest_error"),
+                          "storage_state": idx.get("storage_state"),
                           "build_state": idx.get("build_state")},
                 "confidence": 0.0,
                 "receipt_state": "NOT_MINTED_INDEX_UNAVAILABLE",
@@ -9238,6 +9239,7 @@ try:
             return ({"query": q, "answer": None, "grounded": False,
                      "i_dont_know": True, "confidence": 0.0,
                      "integrity_state": res.get("integrity_state") or "FAILED_CLOSED",
+                     "storage_state": res.get("storage_state"),
                      "honest_error": res.get("honest_error") or "published Brain read failed",
                      "receipt_state": "NOT_MINTED_INDEX_UNAVAILABLE"},
                     "UNAVAILABLE", [])

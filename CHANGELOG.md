@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   counts from indexed sources. Keep receipt creation on the operator-gated estate
   query route, and bind the shared retrieval/auth files to the matching peer PR.
 - Run the RAG, Ayllu, and route contracts with a hashed dependency extension in CI.
+- Use fully durable rollback journaling so retrieval never creates WAL sidecars.
+  Legacy WAL indexes stay unavailable until an explicit lifecycle/operator write
+  migrates them; readers may delay writer commits within the existing busy timeout.
 
 ### Fixed - typed Brain frontier research metadata
 - Accept the two source-bound, operator-reviewed forum summaries and bounded
@@ -25,6 +28,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Distinguish metadata SHA-256 revisions from Git commits in the public instrument.
   Keep its 72 handles, 61 formula handles, seven reserved repositories, and the
   existing limits on public content and execution authority.
+
+### Fixed - complete public Hugging Face namespace inventory
+- Count native kernel repositories in their own namespace, alongside models,
+  datasets and Spaces. A shared name in two namespaces remains two repositories,
+  and the counts do not imply unique projects, trained models or readiness.
+- Use anonymous, origin-bound, bounded pagination for the canonical collector,
+  retain the public README Space, and carry the predicate through source refresh
+  and the profile release contract.
 
 ### Fixed - frontier health app observation
 - Pass the registered application to the frontier health manifest so its governance

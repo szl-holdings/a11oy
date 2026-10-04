@@ -1,12 +1,17 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
 """Atomic-generation and retrieval-only Brain-handle regression tests."""
 from __future__ import annotations
 
 import json
 import hashlib
+import sqlite3
 import threading
 from pathlib import Path
 
 import a11oy_org_rag as rag
+import pytest
 
 
 def _reset_runtime(monkeypatch, db_path: Path) -> None:
@@ -59,6 +64,14 @@ def _stage(conn, generation_id: str, title: str) -> rag.OrgGraph:
         generation_id=generation_id,
     )
     return graph
+
+
+def _storage_fingerprint(directory: Path) -> dict:
+    return {
+        path.name: (hashlib.sha256(path.read_bytes()).hexdigest(),
+                    path.stat().st_mtime_ns)
+        for path in directory.iterdir() if path.is_file()
+    }
 
 
 def test_seed_reader_uses_canonical_runtime_alias_and_keeps_anonymous_fallback(monkeypatch):
@@ -187,6 +200,8 @@ def test_rehydrate_and_query_use_readonly_published_generation(monkeypatch, tmp_
     conn.close()
     before_hash = hashlib.sha256(db_path.read_bytes()).hexdigest()
     before_mtime = db_path.stat().st_mtime_ns
+    before_files = _storage_fingerprint(tmp_path)
+    assert set(before_files) == {"rag.sqlite3"}
 
     _reset_runtime(monkeypatch, db_path)
     monkeypatch.setattr(rag, "_db", lambda: (_ for _ in ()).throw(
@@ -203,6 +218,156 @@ def test_rehydrate_and_query_use_readonly_published_generation(monkeypatch, tmp_
     assert embedder_calls == [False]
     assert hashlib.sha256(db_path.read_bytes()).hexdigest() == before_hash
     assert db_path.stat().st_mtime_ns == before_mtime
+    assert _storage_fingerprint(tmp_path) == before_files
+
+
+@pytest.mark.parametrize("existing_sidecars", [False, True])
+def test_legacy_wal_reads_are_unavailable_without_creating_or_changing_files(
+    monkeypatch, tmp_path, existing_sidecars,
+):
+    db_path = tmp_path / "legacy.sqlite3"
+    _reset_runtime(monkeypatch, db_path)
+    writer = rag._db()
+    rag._init_schema(writer)
+    generation_id = rag._begin_generation(writer, "legacy")
+    graph = _stage(writer, generation_id, "published legacy evidence")
+    rag._persist_runtime_state(
+        writer, graph,
+        {"built": True, "mode": "legacy", "ts": 1.0, "repos": 1, "chunks": 1},
+        generation_id,
+    )
+    writer.close()
+
+    legacy = sqlite3.connect(db_path)
+    assert legacy.execute("PRAGMA journal_mode=WAL").fetchone()[0] == "wal"
+    legacy.execute("SELECT * FROM org_active_generation").fetchall()
+    if not existing_sidecars:
+        legacy.close()
+    before = _storage_fingerprint(tmp_path)
+    expected = {"legacy.sqlite3"}
+    if existing_sidecars:
+        expected |= {"legacy.sqlite3-wal", "legacy.sqlite3-shm"}
+    assert set(before) == expected
+
+    try:
+        _reset_runtime(monkeypatch, db_path)
+        state = rag.status()
+        assert state["built"] is False
+        assert state["integrity_state"] == "UNAVAILABLE"
+        assert state["storage_state"] == "LEGACY_WAL_REQUIRES_LIFECYCLE_WRITE"
+        result = rag.query("published legacy", k=1)
+        assert result["ok"] is False
+        assert result["storage_state"] == "LEGACY_WAL_REQUIRES_LIFECYCLE_WRITE"
+        assert rag.chunk_count() == rag.dense_vector_count() == 0
+        assert rag.next_unembedded_chunks() == []
+        assert _storage_fingerprint(tmp_path) == before
+    finally:
+        if existing_sidecars:
+            legacy.close()
+
+
+def test_lifecycle_seed_migrates_legacy_wal_before_readonly_retrieval(monkeypatch, tmp_path):
+    db_path = tmp_path / "legacy.sqlite3"
+    legacy = sqlite3.connect(db_path)
+    legacy.execute("PRAGMA journal_mode=WAL")
+    legacy.execute("CREATE TABLE legacy_marker(value TEXT)")
+    legacy.commit()
+    legacy.close()
+    _reset_runtime(monkeypatch, db_path)
+    monkeypatch.setattr(rag, "SZL_CORPUS", {
+        "one": {"label": "One", "seed": ["README.md"], "gh_repos": ["a11oy"]},
+    })
+    monkeypatch.setattr(rag, "_gh_raw", lambda *_args: "migrated lifecycle evidence")
+    monkeypatch.setattr(rag, "_resolve_m1_ledger", lambda: None)
+    receipts = []
+
+    assert rag.status()["storage_state"] == "LEGACY_WAL_REQUIRES_LIFECYCLE_WRITE"
+    started = rag.start_seed_bootstrap(
+        emit_receipt=lambda kind, payload: receipts.append((kind, payload)) or {},
+    )
+    assert started["phase"] == "seeding"
+    rag._build_thread.join(timeout=5)
+    assert not rag._build_thread.is_alive()
+    assert rag.build_state()["phase"] == "seed"
+    assert len(receipts) == 1
+    assert receipts[0][0] == "org_rag.index.seed"
+    assert db_path.read_bytes()[18:20] == b"\x01\x01"
+    before = _storage_fingerprint(tmp_path)
+    assert set(before) == {"legacy.sqlite3"}
+    assert rag.query("migrated lifecycle", k=1)["grounded_count"] == 1
+    assert _storage_fingerprint(tmp_path) == before
+
+
+def test_rollback_reader_snapshot_stays_coherent_during_successor_publication(
+    monkeypatch, tmp_path,
+):
+    _reset_runtime(monkeypatch, tmp_path / "rag.sqlite3")
+    writer = rag._db()
+    rag._init_schema(writer)
+    first = rag._begin_generation(writer, "first")
+    first_graph = _stage(writer, first, "original snapshot evidence")
+    rag._persist_runtime_state(
+        writer, first_graph,
+        {"built": True, "mode": "first", "ts": 1.0, "repos": 1, "chunks": 1},
+        first,
+    )
+    successor = rag._begin_generation(writer, "successor")
+    successor_graph = _stage(writer, successor, "successor published evidence")
+    writer.commit()
+    assert writer.execute("PRAGMA synchronous").fetchone()[0] == 2
+    assert writer.execute("PRAGMA busy_timeout").fetchone()[0] == 15_000
+    writer.close()
+
+    reader = rag._db_readonly()
+    reader.execute("BEGIN")
+    assert rag._active_generation(reader) == first
+    assert reader.execute("PRAGMA busy_timeout").fetchone()[0] == 15_000
+    publishing = threading.Event()
+    completed = threading.Event()
+    errors = []
+    original_digest = rag._generation_digest
+
+    def observe_digest(connection, generation_id, graph_data):
+        result = original_digest(connection, generation_id, graph_data)
+        publishing.set()
+        return result
+
+    monkeypatch.setattr(rag, "_generation_digest", observe_digest)
+
+    def publish():
+        connection = None
+        try:
+            connection = rag._db()
+            rag._persist_runtime_state(
+                connection, successor_graph,
+                {"built": True, "mode": "successor", "ts": 2.0, "repos": 1, "chunks": 1},
+                successor,
+            )
+        except Exception as exc:
+            errors.append(exc)
+        finally:
+            if connection is not None:
+                connection.close()
+            completed.set()
+
+    thread = threading.Thread(target=publish)
+    thread.start()
+    try:
+        assert publishing.wait(timeout=5)
+        assert not completed.is_set()
+        assert rag._active_generation(reader) == first
+        assert reader.execute(
+            "SELECT body FROM org_chunks_gen WHERE generation_id=?", (first,),
+        ).fetchone()[0] == "original snapshot evidence"
+    finally:
+        reader.close()
+        thread.join(timeout=5)
+    assert not thread.is_alive()
+    assert completed.is_set()
+    assert errors == []
+    result = rag.query("successor published", k=1)
+    assert result["generation_id"] == successor
+    assert result["grounded_count"] == 1
 
 
 def test_seed_bootstrap_is_single_flight_and_receipts_once(monkeypatch, tmp_path):

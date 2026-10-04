@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
 """The public Brain GET is a read; only an explicit POST can mint an answer receipt."""
 from __future__ import annotations
 
@@ -129,4 +132,22 @@ def test_rag_missing_index_returns_503_without_a_lazy_write(monkeypatch):
     assert response.status_code == 503
     assert response.headers["retry-after"] == "5"
     assert response.json()["index"]["built"] is False
+    assert response.json()["receipt_state"] == "NOT_MINTED_INDEX_UNAVAILABLE"
+
+
+def test_rag_legacy_wal_reports_typed_unavailable_without_query_or_receipt(monkeypatch):
+    import serve
+
+    monkeypatch.setattr(serve._rag_engine, "status", lambda: {
+        "built": False, "storage_state": "LEGACY_WAL_REQUIRES_LIFECYCLE_WRITE",
+        "honest_error": "legacy WAL requires an explicit lifecycle/operator write",
+    })
+    monkeypatch.setattr(serve._rag_engine, "query", lambda *_a, **_k: (
+        (_ for _ in ()).throw(AssertionError("legacy index read ran"))))
+    monkeypatch.setattr(serve, "_rag_emit_receipt", lambda *_a, **_k: (
+        (_ for _ in ()).throw(AssertionError("legacy index read minted receipt"))))
+    client = TestClient(serve.app, raise_server_exceptions=False)
+    response = client.get("/api/a11oy/v1/rag/query", params={"q": "legacy evidence"})
+    assert response.status_code == 503
+    assert response.json()["index"]["storage_state"] == "LEGACY_WAL_REQUIRES_LIFECYCLE_WRITE"
     assert response.json()["receipt_state"] == "NOT_MINTED_INDEX_UNAVAILABLE"
