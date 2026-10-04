@@ -21,6 +21,32 @@ models: [SZLHOLDINGS/SZL-Khipu-1.5B, SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent]
 datasets: [SZLHOLDINGS/a11oy-verifiable-corpus, SZLHOLDINGS/szl-lake]
 ---
 
+<!-- szl:card-presentation:v1 -->
+<p><a href="https://huggingface.co/spaces/SZLHOLDINGS/szl-command-lab"><img src="https://raw.githubusercontent.com/szl-holdings/.github/main/profile/assets/szl/logos/szl_mark_holographic.svg" alt="SZL Holdings" width="112" /></a></p>
+
+# A11oy
+
+Inspect governed AI workflows, the policy that admits an action, and the evidence returned with it. Start with a capability, then check its current source and status.
+
+**Artifact:** Governed workflow application and source
+
+**Stage:** Capability-specific checks required
+
+[**Explore Command Lab →**](https://huggingface.co/spaces/SZLHOLDINGS/szl-command-lab) · [**Build with the source →**](https://github.com/szl-holdings/a11oy) · [**Inspect exact source →**](https://github.com/szl-holdings/a11oy/blob/5e014855a274825f4d46ce91cb3396cabd20f99a/README.md)
+
+[Open the application](https://a-11-oy.com) · [Current capability evidence](https://a-11-oy.com/api/a11oy/v1/honest)
+
+## Use limits
+
+- A running Space or successful HTTP response does not certify a capability or authorize an action.
+- Check current signing, storage and capability evidence before relying on an output.
+- Λ uniqueness remains Conjecture 1. The eight locked formulas do not establish general system correctness.
+
+<details>
+<summary>Technical documentation, original evidence and reproduction</summary>
+
+<!-- szl:preserved-source-body:start -->
+
 <!--
   a11oy README lead · 2026-09-04 honest runtime URLs
   This repository is SOURCE for the product origin https://a-11-oy.com
@@ -288,3 +314,7 @@ One sovereign substrate, many organs — every decision carries a hash-chained, 
 [🤗 all Spaces](https://huggingface.co/SZLHOLDINGS)
 
 <sub>Doctrine v11 · Λ = Conjecture 1, never green · honest by design · public data only.</sub>
+
+<!-- szl:preserved-source-body:end -->
+
+</details>

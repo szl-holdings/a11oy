@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - source-owned Hugging Face card presentation
+
+- Lead the A11oy card with the shared SZL mark, clear exploration and build paths,
+  and visible capability limits. Preserve all original front matter and technical
+  documentation within an expandable source section. The canonical publisher and
+  runtime qualification rules are unchanged.
+- Apply the same presentation to the existing generated Terra, Sentra, Counsel
+  and Finance cards, retaining exact prior card metadata and evidence.
+
 ### Fixed - typed Brain frontier research metadata
 - Accept the two source-bound, operator-reviewed forum summaries and bounded
   arXiv/Crossref metadata captures from Second Brain. Validate the exact metadata
