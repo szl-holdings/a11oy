@@ -550,6 +550,88 @@ def test_nonzero_orphan_pages_are_preserved_for_review_without_vacuum(originals,
     assert not (tmp_path / "working" / label / "candidate.sqlite3").exists()
 
 
+def test_nonzero_forensics_are_bound_to_captured_bytes_and_keep_existing_hold(originals, tmp_path):
+    path = originals["gdw"]
+    unused_pages(path)
+    raw = bytearray(path.read_bytes())
+    raw[-len(PRIVATE):] = PRIVATE.encode()
+    path.write_bytes(raw)
+    report = qualify("gdw", originals, tmp_path)
+    forensic = report["unreferenced_page_forensics"]
+    assert forensic["inspection_sha256"] == hashlib.sha256(raw).hexdigest()
+    assert forensic["orphan_contents_sha256"] == report["unreferenced_page_contents"]["contents_sha256"]
+    assert forensic["orphan_page_count"] == 2
+    assert forensic["state"] == "HELD" and forensic["candidate_created"] is False
+    assert report["diagnostic_code"] == "UNREFERENCED_PAGE_CONTENTS_REQUIRE_REVIEW"
+    assert report["state"] == "UNQUALIFIED" and report["restore_admitted"] is False
+    assert not (tmp_path / "working" / "gdw" / "candidate.sqlite3").exists()
+    assert path.read_bytes() == raw and PRIVATE not in json.dumps(report)
+
+
+def test_exact_reachable_page_duplicate_does_not_admit_discard_or_vacuum(originals, tmp_path):
+    path = originals["gdw"]
+    with sqlite3.connect(path) as db:
+        if db.execute("SELECT sqlite_compileoption_used('ENABLE_DBSTAT_VTAB')").fetchone() != (1,):
+            pytest.skip("native dbstat is unavailable in this interpreter")
+        page = db.execute("SELECT pageno FROM dbstat('main') WHERE name='receipts' AND pagetype='leaf'").fetchone()[0]
+    raw = bytearray(path.read_bytes())
+    page_size = int.from_bytes(raw[16:18], "big")
+    duplicate = raw[(page - 1) * page_size:page * page_size]
+    assert any(duplicate)
+    raw[28:32] = (len(raw) // page_size + 1).to_bytes(4, "big")
+    raw.extend(duplicate)
+    path.write_bytes(raw)
+    report = qualify("gdw", originals, tmp_path)
+    forensic = report["unreferenced_page_forensics"]
+    assert forensic["native_reachability"]["complete"] is True
+    assert forensic["pages"][0]["reachable_duplicate"]["state"] == "EXACT_FULL_PAGE_MATCH"
+    assert forensic["record_equivalence_verified"] is False
+    assert forensic["discard_admitted"] is False and forensic["candidate_created"] is False
+    assert report["state"] == "UNQUALIFIED"
+    assert report["diagnostic_code"] == "UNREFERENCED_PAGE_CONTENTS_REQUIRE_REVIEW"
+    assert not (tmp_path / "working" / "gdw" / "candidate.sqlite3").exists()
+
+
+@pytest.mark.parametrize("defect", ["database_identity", "page_identity", "candidate", "payload", "shape"])
+def test_forensic_report_cannot_substitute_identity_or_admission(originals, tmp_path, monkeypatch, defect):
+    path = originals["gdw"]
+    unused_pages(path)
+    raw = bytearray(path.read_bytes())
+    raw[-len(PRIVATE):] = PRIVATE.encode()
+    path.write_bytes(raw)
+    native = q.orphan_forensics.inspect_orphan_pages
+    def changed(*args, **kwargs):
+        value = native(*args, **kwargs)
+        if defect == "database_identity": value["inspection_sha256"] = "f" * 64
+        elif defect == "page_identity": value["orphan_contents_sha256"] = "f" * 64
+        elif defect == "candidate": value["candidate_created"] = True
+        elif defect == "payload": value["unreviewed_private_field"] = PRIVATE
+        else: value = {"private_error": PRIVATE}
+        return value
+    monkeypatch.setattr(q.orphan_forensics, "inspect_orphan_pages", changed)
+    report = qualify("gdw", originals, tmp_path)
+    assert report["state"] == "UNQUALIFIED" and report["restore_admitted"] is False
+    assert report["diagnostic_code"] in {"ORPHAN_FORENSIC_INPUT_IDENTITY_MISMATCH", "ORPHAN_FORENSIC_RESULT_UNQUALIFIED"}
+    assert "unreferenced_page_forensics" not in report
+    assert PRIVATE not in json.dumps(report)
+    assert not (tmp_path / "working" / "gdw" / "candidate.sqlite3").exists()
+
+
+def test_unavailable_forensics_retains_reachable_evidence_and_recovery_hold(originals, tmp_path, monkeypatch):
+    path = originals["gdw"]
+    unused_pages(path)
+    raw = bytearray(path.read_bytes())
+    raw[-len(PRIVATE):] = PRIVATE.encode()
+    path.write_bytes(raw)
+    monkeypatch.setattr(q.orphan_forensics, "inspect_orphan_pages",
+                        lambda *args, **kwargs: q.orphan_forensics._held("DBSTAT_UNAVAILABLE"))
+    report = qualify("gdw", originals, tmp_path)
+    assert report["unreferenced_page_forensics"]["analysis_state"] == "UNAVAILABLE"
+    assert report["original_receipts"]["binding_errors"] == 0
+    assert report["diagnostic_code"] == "UNREFERENCED_PAGE_CONTENTS_REQUIRE_REVIEW"
+    assert report["state"] == "UNQUALIFIED" and report["restore_admitted"] is False
+
+
 @pytest.mark.parametrize("pages", [[0], [-1], [10**20], [True], [1, 1], list(range(1, 101))])
 def test_orphan_page_reader_rejects_unbounded_or_ambiguous_page_numbers(originals, pages):
     with pytest.raises(q.RecoveryError, match="UNREFERENCED_PAGE_CONTENTS_REQUIRE_REVIEW"):
