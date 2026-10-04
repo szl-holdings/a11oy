@@ -205,7 +205,7 @@ def validate(contract: dict[str, Any], manifest: dict[str, Any]) -> dict[str, An
         raise ContractError("Hub manifest counts are missing")
     if counts.get("spaces") != len(observed):
         raise ContractError("Hub Space count does not match inventory")
-    for key in ("models", "datasets", "spaces"):
+    for key in ("models", "datasets", "spaces", "kernels"):
         if not isinstance(counts.get(key), int) or counts[key] < 0:
             raise ContractError(f"invalid Hub count: {key}")
 
@@ -271,8 +271,10 @@ def render_github(contract: dict[str, Any], evidence: dict[str, Any]) -> str:
         "GitHub is canonical source, and Hugging Face is the generated runtime and artifact estate.",
         "",
         f"**Measured Hub inventory:** {counts['spaces']} public Spaces · "
-        f"{counts['models']} models · {counts['datasets']} datasets "
+        f"{counts['models']} model repositories · {counts['kernels']} native kernels · "
+        f"{counts['datasets']} datasets "
         f"as of `{evidence['huggingFaceObservedAt']}`.",
+        "Repository namespaces can share project names; these counts do not establish trained-model totals or readiness.",
         _inventory_policy_line(evidence),
         "",
         "### Five public domain bodies",
@@ -304,13 +306,15 @@ def render_huggingface(contract: dict[str, Any], evidence: dict[str, Any]) -> st
         "<!-- BEGIN SZL PUBLIC ESTATE — GENERATED -->",
         "# SZL Holdings on Hugging Face",
         "",
-        "This organization is the generated model, dataset, and runtime estate for "
+        "This organization is the generated model, kernel, dataset, and runtime estate for "
         "[A11oy](https://a-11-oy.com). Canonical source and release evidence live in "
         "[GitHub](https://github.com/szl-holdings); public proof lives at "
         "[a11oy.net](https://a11oy.net).",
         "",
-        f"**Current public inventory:** {counts['spaces']} Spaces · {counts['models']} models · "
+        f"**Current public inventory:** {counts['spaces']} Spaces · {counts['models']} model repositories · "
+        f"{counts['kernels']} native kernels · "
         f"{counts['datasets']} datasets (`{evidence['huggingFaceObservedAt']}`).",
+        "Repository namespaces can share project names; these counts do not establish trained-model totals or readiness.",
         _inventory_policy_line(evidence),
         "",
         "## Product bodies",
@@ -337,6 +341,7 @@ def render_proof(contract: dict[str, Any], evidence: dict[str, Any]) -> str:
         "",
         "This proof surface follows the A11oy public-estate contract. Product, GitHub source, "
         "Hugging Face runtime, and evidence state are distinct and must agree before a lane is called current.",
+        "Repository namespaces can share project names; these counts do not establish trained-model totals or readiness.",
         _inventory_policy_line(evidence),
         "",
         "| Product body | GitHub source | Hugging Face runtime | Truth class |",
