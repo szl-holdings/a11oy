@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - typed Brain frontier research metadata
+- Accept the two source-bound, operator-reviewed forum summaries and bounded
+  arXiv/Crossref metadata captures from Second Brain. Validate the exact metadata
+  projection, source identity, capture digest, and review-only authority.
+- Distinguish metadata SHA-256 revisions from Git commits in the public instrument.
+  Keep its 72 handles, 61 formula handles, seven reserved repositories, and the
+  existing limits on public content and execution authority.
+
 ### Fixed - complete public Hugging Face namespace inventory
 - Count native kernel repositories in their own namespace, alongside models,
   datasets and Spaces. A shared name in two namespaces remains two repositories,
