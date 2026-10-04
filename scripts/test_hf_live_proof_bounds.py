@@ -96,6 +96,16 @@ def test_bounds_are_the_reviewed_constants():
     assert bounds.PINNED_RUNTIME_KEY_PATH == "ayllu/keys/council-runtime-2026-07-21.pub"
 
 
+def test_provider_error_is_typed_and_cannot_be_absorbed_by_polling():
+    error = bounds.ProofBoundaryError("PROVIDER_TERMINAL_STATE")
+    assert bounds.is_hard_failure(error) is True
+    assert bounds.diagnostic_code(error, "RESTART_PROOF_TIMEOUT") == "PROVIDER_TERMINAL_STATE"
+    assert str(error) == "PROVIDER_TERMINAL_STATE"
+    assert bounds.TERMINAL_PROVIDER_ERROR_STAGES == {
+        "RUNTIME_ERROR", "BUILD_ERROR", "CONFIG_ERROR", "NO_APP_FILE",
+    }
+
+
 @pytest.mark.parametrize("status", [301, 302, 303, 307, 308])
 def test_redirect_status_is_rejected_without_following(status):
     t, opener, _ = transport([http_error(SPACE_URL, status)])

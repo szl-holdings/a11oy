@@ -80,8 +80,8 @@ td { padding: 0.65rem 0.75rem; border-top: 1px solid var(--line); }
 .mono { font-family: var(--font-mono); font-size: 12px; }
 .muted { color: var(--muted); }
 .walk { display: grid; gap: 2rem; }
-@media (min-width: 1024px) { .walk { grid-template-columns: 220px 1fr; } .side { display: block; } }
 .side { display: none; position: sticky; top: 5rem; max-height: calc(100dvh - 6rem); overflow: auto; }
+@media (min-width: 1024px) { .walk { grid-template-columns: 220px minmax(0, 1fr); } .side { display: block; } }
 .side button {
   width: 100%; min-height: 44px; text-align: left; background: transparent; border: 0;
   color: var(--muted); font: inherit; font-size: 12px; padding: 0 0.5rem; border-radius: 4px;
@@ -157,8 +157,10 @@ pre {
   <span id="/forge" hidden></span>
   <span id="/grid" hidden></span>
   <p class="honest">
-    <b>Honest.</b> Curated 40-entry Hub snapshot dated 2026-09-29, not a live or complete inventory. Nano silhouettes MEASURED in-browser from shipped NumPy.
-    1.5B numbers SIGNED, not retrained here. Energy UNAVAILABLE. Lambda = Conjecture 1 OPEN.
+    <b>Honest.</b> Curated 40-entry Hub snapshot dated 2026-09-29, not a live or complete inventory.
+    Bundled NumPy samples and interactive toy illustrations.
+    Catalog labels describe saved records; this page does not retrain models or verify signatures.
+    Energy UNAVAILABLE. Lambda = Conjecture 1 OPEN.
     Proof copy <a href="https://a11oy.net/atelier/">a11oy.net/atelier</a>.
     Canonical Space <a href="https://huggingface.co/spaces/SZLHOLDINGS/szl-atelier">SZLHOLDINGS/szl-atelier</a>.
     Space source <a href="https://github.com/szl-holdings/szl-atelier">szl-holdings/szl-atelier</a>.
@@ -2452,7 +2454,7 @@ function pythonOf(m) {
     return `# ${mod} — loop_tax. ms MEASURED, overhead DERIVED, joules never invented.\nfrom szl_khipu.ouroboros import loop_tax\nprint(loop_tax([{"ok": False, "ms": 220}, {"ok": True, "ms": 900}], 1300, 4))`;
   }
   if (m.weights === "full" || m.weights === "adapter") {
-    return `# receipted Unsloth. Sign BEFORE merge. GGUF is derived.\n# github.com/szl-holdings/szl-forge  +  ${mod}\n# base = ${m.base or "Qwen/Qwen2.5-1.5B-Instruct"}\n# dataset SHA-256 + LoRA r + seed + final_loss → training_receipt.json`;
+    return `# receipted Unsloth. Sign BEFORE merge. GGUF is derived.\n# github.com/szl-holdings/szl-forge  +  ${mod}\n# base = ${m.base || "Qwen/Qwen2.5-1.5B-Instruct"}\n# dataset SHA-256 + LoRA r + seed + final_loss → training_receipt.json`;
   }
   if (m.evidence === "ROADMAP" || m.evidence === "STUB") {
     return `# ${m.name} is ${m.evidence}. There is nothing to fit.\n# Publishing the empty seat is the point. Do not load ${m.hf} as transformers.`;
@@ -2625,6 +2627,10 @@ function softmax(z) {
 }
 
 function mlpForward(x, w1, b1, w2, b2) {
+  if (!Array.isArray(x) || !x.every(Number.isFinite) ||
+      !Array.isArray(b1) || !b1.length || !b1.every(Number.isFinite) ||
+      !Array.isArray(b2) || !b2.length || !b2.every(Number.isFinite) ||
+      !finiteMatrix(w1, x.length, b1.length) || !finiteMatrix(w2, b1.length, b2.length)) return null;
   const hidden = b1.map((bias, j) => {
     let s = bias;
     for (let i = 0; i < x.length; i++) s += x[i] * w1[i][j];
@@ -2635,7 +2641,23 @@ function mlpForward(x, w1, b1, w2, b2) {
     for (let j = 0; j < hidden.length; j++) s += hidden[j] * w2[j][k];
     return s;
   });
-  return softmax(logits);
+  const probabilities = softmax(logits);
+  return probabilities.every((value) => finiteMetric(value, 0, 1)) ? probabilities : null;
+}
+
+function finiteMetric(value, minimum = 0, maximum = Infinity) {
+  return Number.isFinite(value) && value >= minimum && value <= maximum;
+}
+
+function finiteMatrix(value, rows, columns) {
+  return Array.isArray(value) && value.length === rows && value.every((row) =>
+    Array.isArray(row) && row.length === columns && row.every(Number.isFinite));
+}
+
+function snapshotSource(key) {
+  const stamp = NANO?.[key];
+  return typeof stamp === "string" && Number.isFinite(Date.parse(stamp))
+    ? `bundled NumPy snapshot ${stamp}` : "bundled NumPy snapshot · date UNAVAILABLE";
 }
 
 function wgm(x) {
@@ -2660,8 +2682,12 @@ function mountPlay(root, m) {
     const run = () => {
       const t = Number($("#trust").value);
       $("#trust-v").textContent = t.toFixed(2);
-      const lam = NANO?.lambdaGate?.lambdaStar ?? 0.6279;
-      gate($("#g"), t >= lam ? "OPEN" : "CLOSED", t >= lam, `λ* ${lam} · false-open is the metric`);
+      const lam = NANO?.lambdaGate?.lambdaStar;
+      if (!finiteMetric(lam, 0, 1) || !finiteMetric(t, 0, 1)) {
+        gate($("#g"), "UNAVAILABLE", false, "Bundled threshold or input is missing or invalid. Λ remains advisory.");
+        return;
+      }
+      gate($("#g"), t >= lam ? "OPEN" : "CLOSED", t >= lam, `λ* ${lam} · ${snapshotSource("trainedAt")} · 1-D illustration, not a proof`);
     };
     $("#trust").oninput = run;
     run();
@@ -2759,7 +2785,12 @@ function mountPlay(root, m) {
       ];
       const steps = attempts.length;
       const exit = steps > max ? "budgetExhausted" : "converged";
-      gate($("#g"), exit, exit === "converged", `modelMs=1120 MEASURED · overhead=180 DERIVED · joules UNAVAILABLE`);
+      const sample = NANO?.kernelMeasures;
+      if (!finiteMetric(sample?.ouroborosModelMs) || !finiteMetric(sample?.ouroborosOverheadMs) || sample?.ouroborosOverheadLabel !== "DERIVED") {
+        gate($("#g"), "UNAVAILABLE", false, "Bundled loop timing sample is missing or invalid. Joules UNAVAILABLE.");
+        return;
+      }
+      gate($("#g"), exit, exit === "converged", `modelMs=${sample.ouroborosModelMs} REPORTED sample · overhead=${sample.ouroborosOverheadMs} DERIVED · ${snapshotSource("kernelMeasuredAt")} · joules UNAVAILABLE`);
     };
     $("#budget").oninput = run;
     run();
@@ -2777,10 +2808,14 @@ function mountPlay(root, m) {
         return v;
       });
       const pack = NANO?.willay;
-      const p = pack ? mlpForward(x, pack.w1, pack.b1, pack.w2, pack.b2) : [0.5, 0.5];
+      const p = pack ? mlpForward(x, pack.w1, pack.b1, pack.w2, pack.b2) : null;
+      const acc = pack?.holdoutAcc;
+      if (!p || p.length !== 2 || !finiteMetric(acc, 0, 1)) {
+        gate($("#g"), "UNAVAILABLE", false, "Bundled toy weights or holdout result are missing or invalid.");
+        return;
+      }
       const tell = p[1] > p[0];
-      const acc = pack?.holdoutAcc ?? 1;
-      gate($("#g"), tell ? "TELL" : "SILENCE", tell, `P(TELL)=${p[1].toFixed(3)} · holdout ${acc.toFixed(4)} SYNTHETIC · not a 0.5B substitute`);
+      gate($("#g"), tell ? "TELL" : "SILENCE", tell, `P(TELL)=${p[1].toFixed(3)} · holdout ${acc.toFixed(4)} SYNTHETIC · ${snapshotSource("cohortTrainedAt")} · not a 0.5B substitute`);
     };
     labels.forEach((_, i) => ($("#t" + i).oninput = run));
     run();
@@ -2801,11 +2836,14 @@ function mountPlay(root, m) {
         $("#c" + i + "-v").textContent = v.toFixed(2);
         return v;
       });
-      const p = pack ? mlpForward(x, pack.w1, pack.b1, pack.w2, pack.b2) : [x[0] < 0.5 ? 0.8 : 0.2, x[0] < 0.5 ? 0.2 : 0.8];
-      const carry = p[1] > p[0];
+      const p = pack ? mlpForward(x, pack.w1, pack.b1, pack.w2, pack.b2) : null;
       const acc = pack?.holdoutAcc;
-      const ev = acc === 1 ? "SYNTHETIC" : "MEASURED";
-      gate($("#g"), carry ? "CARRY" : "DROP", carry, `P(CARRY)=${p[1].toFixed(3)} · holdout ${acc != null ? acc.toFixed(4) : "—"} ${ev} · authorship never the courier`);
+      if (!p || p.length !== 2 || !finiteMetric(acc, 0, 1)) {
+        gate($("#g"), "UNAVAILABLE", false, "Bundled toy weights or holdout result are missing or invalid.");
+        return;
+      }
+      const carry = p[1] > p[0];
+      gate($("#g"), carry ? "CARRY" : "DROP", carry, `P(CARRY)=${p[1].toFixed(3)} · holdout ${acc.toFixed(4)} SYNTHETIC · ${snapshotSource("cohortTrainedAt")} · authorship never the courier`);
     };
     labels.forEach((_, i) => ($("#c" + i).oninput = run));
     run();
@@ -2829,9 +2867,16 @@ function mountPlay(root, m) {
     return;
   }
   if (kind === "embed") {
-    root.innerHTML = `<div class="panel"><h3 class="kicker">The vector is the SHA-256 receipt of the token.</h3>
+    root.innerHTML = `<div class="panel"><h3 class="kicker">Bundled token embeddings. SHA-256 chooses each token bucket.</h3>
       <input type="text" id="q" value="knot the run" aria-label="phrase" /><div id="bars" class="row" style="height:64px;align-items:flex-end;margin-top:1rem"></div><div id="g"></div></div>`;
     const run = async () => {
+      const pack = NANO?.miniEmbed;
+      const table = pack?.table;
+      if (pack?.V !== 64 || pack?.d !== 12 || !finiteMatrix(table, 64, 12) || !finiteMetric(pack?.retrievalHitAt2, 0, 1)) {
+        $("#bars").textContent = "";
+        gate($("#g"), "UNAVAILABLE", false, "Bundled embedding weights or sample retrieval result are missing or invalid.");
+        return;
+      }
       const q = $("#q").value || "_";
       const toks = q.toLowerCase().replaceAll(",", " ").split(/\s+/);
       const ids = [];
@@ -2839,21 +2884,21 @@ function mountPlay(root, m) {
         const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t));
         ids.push(new DataView(buf).getUint32(0) % 64);
       }
-      const table = NANO?.miniEmbed?.table;
-      let vec;
-      if (table) {
-        vec = Array(12).fill(0);
-        for (const id of ids) for (let d = 0; d < 12; d++) vec[d] += table[id][d];
-        vec = vec.map((v) => v / ids.length);
-        const n = Math.hypot(...vec) || 1;
-        vec = vec.map((v) => v / n);
-      } else vec = ids.map((id) => (id / 64) * 2 - 1).slice(0, 12);
+      let vec = Array(12).fill(0);
+      for (const id of ids) for (let d = 0; d < 12; d++) vec[d] += table[id][d];
+      vec = vec.map((v) => v / ids.length);
+      const n = Math.hypot(...vec);
+      if (!Number.isFinite(n) || n <= 0) {
+        $("#bars").textContent = "";
+        gate($("#g"), "UNAVAILABLE", false, "Bundled embedding produced an invalid vector.");
+        return;
+      }
+      vec = vec.map((v) => v / n);
       $("#bars").innerHTML = vec.map((v) => `<span style="flex:1;background:#c8c2b4;height:${Math.max(8, (v + 1) * 50)}%;border-radius:2px"></span>`).join("");
-      gate($("#g"), "RECEIPT", true, `V=64 d=12 · hit@2 SAMPLE 0.40 · Hub analogy UNAVAILABLE`);
+      gate($("#g"), "SAMPLE", true, `V=64 d=12 · bundled hit@2 ${pack.retrievalHitAt2.toFixed(2)} on five doctrine pairs · ${snapshotSource("trainedAt")} · Hub analogy UNAVAILABLE`);
     };
     $("#q").oninput = () => run();
-    run();
-    return;
+    return run();
   }
   if (kind === "khipu" || kind === "receipt") {
     const labels = kind === "khipu" ? ["overlap", "handles", "adversary", "density"] : ["authority", "evidence", "risk", "novelty"];
@@ -2867,10 +2912,10 @@ function mountPlay(root, m) {
       });
       if (kind === "khipu") {
         const abstain = x[2] > 0.5 || x[0] < 0.3;
-        gate($("#g"), abstain ? "ABSTAIN" : "NAVIGATE", true, "atelier MLP silhouette — 1.5B abstain is still 2/6 SIGNED");
+        gate($("#g"), abstain ? "ABSTAIN" : "NAVIGATE", true, "interactive rule illustration · no model inference or signature verification");
       } else {
         const lab = x[2] > 0.6 ? "DENY" : x[3] > 0.7 ? "ESCALATE" : x[1] < 0.3 ? "ABSTAIN" : "ALLOW";
-        gate($("#g"), lab, lab !== "ALLOW" || x[2] < 0.3, "atelier MLP · kernel labels are ALLOW/WARN/BLOCKED/ESCALATE");
+        gate($("#g"), lab, lab !== "ALLOW" || x[2] < 0.3, "interactive rule illustration · kernel labels are ALLOW/WARN/BLOCKED/ESCALATE");
       }
     };
     labels.forEach((_, i) => ($("#k" + i).oninput = run));
@@ -2882,7 +2927,10 @@ function mountPlay(root, m) {
       <canvas id="cv" width="640" height="360"></canvas><p class="mono muted" id="g"></p></div>`;
     const cv = $("#cv");
     const ctx = cv.getContext("2d");
-    const cloud = NANO?.moons?.cloud ?? [];
+    const points = NANO?.moons?.cloud;
+    const hasCloud = Array.isArray(points) && points.length > 0 && points.every((p) =>
+      p && Number.isFinite(p.x) && Number.isFinite(p.y) && (p.yTrue === 0 || p.yTrue === 1));
+    const cloud = hasCloud ? points : [];
     const draw = (pick) => {
       ctx.fillStyle = "#121214";
       ctx.fillRect(0, 0, 640, 360);
@@ -2908,11 +2956,19 @@ function mountPlay(root, m) {
       }
     };
     draw();
-    cv.onclick = (e) => {
+    const report = (e) => {
+      const acc = NANO?.moons?.holdoutAcc;
+      if (!hasCloud || !finiteMetric(acc, 0, 1) || NANO?.label !== "MEASURED" ||
+          typeof NANO?.trainedAt !== "string" || !Number.isFinite(Date.parse(NANO.trainedAt))) {
+        $("#g").textContent = "UNAVAILABLE · bundled two-moons sample, holdout result or provenance is missing or invalid.";
+        return;
+      }
       const r = cv.getBoundingClientRect();
-      const acc = NANO?.moons?.holdoutAcc ?? 0.8875;
-      $("#g").textContent = `holdout ${acc.toFixed(4)} · click (${((e.clientX - r.left) / r.width).toFixed(2)}, ${((e.clientY - r.top) / r.height).toFixed(2)}) · MEASURED`;
+      const click = e ? ` · click (${((e.clientX - r.left) / r.width).toFixed(2)}, ${((e.clientY - r.top) / r.height).toFixed(2)})` : "";
+      $("#g").textContent = `holdout ${acc.toFixed(4)} MEASURED on a synthetic two-moons sample · ${snapshotSource("trainedAt")}${click}`;
     };
+    cv.onclick = report;
+    report();
     return;
   }
   if (kind === "formulas") {
@@ -2968,7 +3024,12 @@ function mountPlay(root, m) {
   if (kind === "attn") {
     root.innerHTML = `<div class="panel"><h3 class="kicker">Tiled online-softmax residual vs naive.</h3>
       <div id="g"></div></div>`;
-    gate($("#g"), "RESIDUAL ~ 0", true, "tiled matches naive within float · KERNEL silhouette, not a FlashAttention claim");
+    const residual = NANO?.kernelMeasures?.receiptAttnResidual;
+    if (!finiteMetric(residual)) {
+      gate($("#g"), "UNAVAILABLE", false, "Bundled attention residual is missing or invalid.");
+      return;
+    }
+    gate($("#g"), "BUNDLED RESULT", true, `residual=${residual.toExponential(3)} · ${snapshotSource("kernelMeasuredAt")} · no browser attention benchmark`);
     return;
   }
   if (kind === "seat") {

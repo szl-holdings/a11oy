@@ -19,6 +19,13 @@ HF_ORG = "SZLHOLDINGS"
 GITHUB_ORG = "szl-holdings"
 HF_SPACES_API = "https://huggingface.co/api/spaces"
 GITHUB_API = "https://api.github.com"
+HF_PAGE_SIZE = 100
+MAX_HF_PAGES = 20
+MAX_HF_SPACES = 2000
+MAX_HF_PAGE_BYTES = 4 * 1024 * 1024
+MAX_SOURCE_RESPONSE_BYTES = 4 * 1024 * 1024
+MAX_LINK_HEADER_BYTES = 16384
+REPO_NAME_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")
 GITHUB_URL_RE = re.compile(
     r"https?://github\.com/(?P<owner>[A-Za-z0-9_.-]+)/(?P<repo>[A-Za-z0-9_.-]+)",
     re.IGNORECASE,
@@ -34,10 +41,33 @@ SOURCE_FIELD_KEYS = {
     "repo_url",
 }
 WORKFLOW_NAME_TOKENS = ("hf", "hugging", "space", "deploy", "publish")
-SHA40 = re.compile(r"^[0-9a-f]{40}$")
+SHA40 = re.compile(r"^(?!0{40}$)[0-9a-f]{40}$")
+SOURCE_PROSE_PREFIXES = (
+    re.compile(
+        r"^(?:[-*+]\s+)?(?:\*\*|__)?"
+        r"(?:canonical source|source repository|github source of record)"
+        r"(?:\*\*|__)?\s*:(?:\*\*|__)?\s*(.*)$",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"^(?:[-*+]\s+)?(?:\*\*|__)?"
+        r"(?:the canonical source is|this space is published from)"
+        r"(?:\*\*|__)?(?:\s+(.*)|$)",
+        re.IGNORECASE,
+    ),
+)
+SOURCE_EXPRESSION_RE = re.compile(
+    r"\[[^\]\n]+\]\([^()\s]+\)|`[^`\n]+`|<https?://[^<>\s]+>|"
+    r"https?://[^\s)<>]+|[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9_.-]+",
+    re.IGNORECASE,
+)
 
 
 class SourceMapError(RuntimeError):
+    pass
+
+
+class SourceDeclarationError(SourceMapError):
     pass
 
 
@@ -57,7 +87,10 @@ def _headers(*, github: bool = False) -> dict[str, str]:
 def _request(url: str, *, github: bool = False, timeout: int = 45) -> bytes:
     request = urllib.request.Request(url, headers=_headers(github=github))
     with urllib.request.urlopen(request, timeout=timeout) as response:
-        return response.read()
+        content = response.read(MAX_SOURCE_RESPONSE_BYTES + 1)
+        if len(content) > MAX_SOURCE_RESPONSE_BYTES:
+            raise SourceMapError("source evidence response exceeds the byte limit")
+        return content
 
 
 def _request_json(url: str, *, github: bool = False) -> Any:
@@ -68,7 +101,7 @@ def _safe_request_json(url: str, *, github: bool = False) -> tuple[int, Any]:
     try:
         return 200, _request_json(url, github=github)
     except urllib.error.HTTPError as error:
-        body = error.read().decode("utf-8", "replace")
+        body = error.read(MAX_SOURCE_RESPONSE_BYTES).decode("utf-8", "replace")
         try:
             payload: Any = json.loads(body)
         except json.JSONDecodeError:
@@ -80,26 +113,138 @@ def _safe_request_bytes(url: str) -> tuple[int, bytes]:
     try:
         return 200, _request(url)
     except urllib.error.HTTPError as error:
-        return error.code, error.read()
+        return error.code, error.read(MAX_SOURCE_RESPONSE_BYTES)
+
+
+class _RejectPaginationRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise SourceMapError("Hugging Face Spaces pagination attempted a redirect")
+
+
+def _request_hf_space_page(url: str) -> tuple[Any, str | None]:
+    request = urllib.request.Request(url, headers=_headers())
+    opener = urllib.request.build_opener(_RejectPaginationRedirect())
+    with opener.open(request, timeout=45) as response:
+        if response.status != 200:
+            raise SourceMapError(f"Hugging Face Spaces API returned HTTP {response.status}")
+        raw = response.read(MAX_HF_PAGE_BYTES + 1)
+        if len(raw) > MAX_HF_PAGE_BYTES:
+            raise SourceMapError("Hugging Face Spaces page exceeds the byte limit")
+        links = response.headers.get_all("Link", [])
+        return json.loads(raw.decode("utf-8", errors="strict")), ",".join(links) if links else None
+
+
+def _validated_hf_page_url(url: str, author: str) -> str:
+    if not isinstance(url, str) or not url.isascii() or len(url) > MAX_LINK_HEADER_BYTES or any(
+        character.isspace() or ord(character) < 32 or ord(character) == 127
+        for character in url
+    ):
+        raise SourceMapError("Hugging Face Spaces pagination URL is malformed")
+    if re.search(r"%(?![0-9a-fA-F]{2})", url):
+        raise SourceMapError("Hugging Face Spaces pagination URL has invalid percent encoding")
+    parts = urllib.parse.urlsplit(url)
+    if (
+        parts.scheme != "https"
+        or parts.netloc != "huggingface.co"
+        or parts.path != "/api/spaces"
+        or parts.fragment
+    ):
+        raise SourceMapError("Hugging Face Spaces pagination changed origin or path")
+    try:
+        pairs = urllib.parse.parse_qsl(
+            parts.query, keep_blank_values=True, strict_parsing=True,
+            encoding="utf-8", errors="strict", max_num_fields=4,
+        )
+    except ValueError as error:
+        raise SourceMapError("Hugging Face Spaces pagination query is malformed") from error
+    query = dict(pairs)
+    required = {"author": author, "limit": str(HF_PAGE_SIZE), "full": "true"}
+    if (
+        len(pairs) != len(query)
+        or set(query) - {"author", "limit", "full", "cursor"}
+        or any(query.get(key) != value for key, value in required.items())
+        or ("cursor" in query and (
+            not query["cursor"]
+            or any(ord(character) < 32 or ord(character) == 127 for character in query["cursor"])
+        ))
+    ):
+        raise SourceMapError("Hugging Face Spaces pagination changed the query scope")
+    return f"{HF_SPACES_API}?{urllib.parse.urlencode(sorted(query.items()))}"
+
+
+def _next_hf_page(link_header: str | None, author: str) -> str | None:
+    if link_header is None:
+        return None
+    if (
+        not isinstance(link_header, str)
+        or not link_header.isascii()
+        or not link_header.strip()
+        or len(link_header) > MAX_LINK_HEADER_BYTES
+        or any(character in "\r\n\x00" for character in link_header)
+    ):
+        raise SourceMapError("Hugging Face Spaces Link header is malformed or oversized")
+    next_url: str | None = None
+    for part in link_header.split(","):
+        match = re.fullmatch(
+            r'\s*<([^<>\s]+)>\s*;\s*rel=(?:"([a-z ]+)"|([a-z]+))\s*', part
+        )
+        if not match:
+            raise SourceMapError("Hugging Face Spaces Link header is malformed")
+        url = _validated_hf_page_url(match.group(1), author)
+        relations = (match.group(2) or match.group(3)).split()
+        if not relations or any(
+            relation not in {"next", "prev", "first", "last"}
+            for relation in relations
+        ):
+            raise SourceMapError("Hugging Face Spaces Link header has an unsupported relation")
+        if "next" in relations:
+            if next_url is not None or relations.count("next") != 1:
+                raise SourceMapError("Hugging Face Spaces Link header repeats the next relation")
+            next_url = url
+    return next_url
 
 
 def fetch_spaces(author: str = HF_ORG) -> list[dict[str, Any]]:
-    query = urllib.parse.urlencode({"author": author, "limit": 100, "full": "true"})
-    payload = _request_json(f"{HF_SPACES_API}?{query}")
-    if not isinstance(payload, list):
-        raise SourceMapError("Hugging Face Spaces API did not return a list")
-    prefix = author.lower() + "/"
-    records = [
-        item
-        for item in payload
-        if isinstance(item, dict)
-        and isinstance(item.get("id"), str)
-        and item["id"].lower().startswith(prefix)
-    ]
-    records.sort(key=lambda item: item["id"].lower())
+    if not isinstance(author, str) or not REPO_NAME_RE.fullmatch(author):
+        raise SourceMapError("Hugging Face Spaces author is invalid")
+    query = urllib.parse.urlencode({"author": author, "limit": HF_PAGE_SIZE, "full": "true"})
+    url: str | None = _validated_hf_page_url(f"{HF_SPACES_API}?{query}", author)
+    records: list[dict[str, Any]] = []
+    seen_pages: set[str] = set()
+    seen_ids: set[str] = set()
+    while url is not None:
+        if url in seen_pages:
+            raise SourceMapError("Hugging Face Spaces pagination repeated a page")
+        if len(seen_pages) >= MAX_HF_PAGES:
+            raise SourceMapError("Hugging Face Spaces pagination exceeds the page limit")
+        seen_pages.add(url)
+        payload, link_header = _request_hf_space_page(url)
+        if not isinstance(payload, list) or len(payload) > HF_PAGE_SIZE:
+            raise SourceMapError("Hugging Face Spaces API returned an invalid or oversized page")
+        for item in payload:
+            space_id = item.get("id") if isinstance(item, dict) else None
+            if not isinstance(space_id, str) or space_id.count("/") != 1:
+                raise SourceMapError("Hugging Face Spaces API returned an invalid repository ID")
+            owner, name = space_id.split("/")
+            if owner.lower() != author.lower() or not REPO_NAME_RE.fullmatch(name):
+                raise SourceMapError("Hugging Face Spaces API returned an out-of-scope repository")
+            if str(item.get("author", author)).lower() != author.lower():
+                raise SourceMapError(f"{space_id} has conflicting author metadata")
+            if item.get("private") is not False:
+                raise SourceMapError(f"{space_id} has no confirmed public visibility")
+            require_sha40(item.get("sha"), label=f"{space_id} Hugging Face repository revision")
+            if space_id.lower() in seen_ids:
+                raise SourceMapError(f"Hugging Face Spaces pagination repeated repository {space_id}")
+            seen_ids.add(space_id.lower())
+            records.append(item)
+            if len(records) > MAX_HF_SPACES:
+                raise SourceMapError("Hugging Face Spaces pagination exceeds the repository limit")
+        url = _next_hf_page(link_header, author)
+        if not payload and url is not None:
+            raise SourceMapError("Hugging Face Spaces pagination returned an empty nonterminal page")
     if not records:
         raise SourceMapError(f"no public Spaces were returned for {author}")
-    return records
+    return sorted(records, key=lambda item: item["id"].lower())
 
 
 def require_sha40(value: object, *, label: str) -> str:
@@ -126,21 +271,87 @@ def fetch_space_readme(repo_id: str, revision: str) -> tuple[int, bytes, str]:
     return last_status, b"", candidates[0]
 
 
-def parse_front_matter(text: str) -> dict[str, str]:
-    if not text.startswith("---\n"):
-        return {}
-    end = text.find("\n---\n", 4)
-    if end < 0:
-        return {}
-    values: dict[str, str] = {}
-    for line in text[4:end].splitlines():
-        match = re.match(r"^([A-Za-z0-9_-]+)\s*:\s*(.*?)\s*$", line)
+def _front_matter_parts(text: str) -> tuple[list[str], list[str]]:
+    lines = text.removeprefix("\ufeff").splitlines()
+    if not lines or lines[0] != "---":
+        return [], lines
+    for index, line in enumerate(lines[1:], 1):
+        if line == "---":
+            return lines[1:index], lines[index + 1 :]
+    raise SourceDeclarationError("README front matter has no closing delimiter")
+
+
+def _source_scalar(value: str) -> str:
+    value = value.strip()
+    if value.startswith('"'):
+        try:
+            scalar, end = json.JSONDecoder().raw_decode(value)
+        except ValueError as error:
+            raise SourceDeclarationError("source metadata has an invalid quoted scalar") from error
+        if not isinstance(scalar, str) or (
+            value[end:].strip() and not value[end:].lstrip().startswith("#")
+        ):
+            raise SourceDeclarationError("source metadata must contain one string scalar")
+        return scalar
+    if value.startswith("'"):
+        match = re.fullmatch(r"'((?:[^']|'')*)'\s*(?:#.*)?", value)
         if not match:
+            raise SourceDeclarationError("source metadata has an invalid quoted scalar")
+        return match.group(1).replace("''", "'")
+    value = re.split(r"\s+#", value, maxsplit=1)[0].strip()
+    if not value or value[0] in "#|>!&*[{":
+        raise SourceDeclarationError("source metadata must contain a plain or quoted repository scalar")
+    return value
+
+
+def parse_front_matter(text: str) -> dict[str, str]:
+    lines, _ = _front_matter_parts(text)
+    values: dict[str, str] = {}
+    parent = ""
+    child_indent: int | None = None
+    for line in lines:
+        if not line.strip() or line.lstrip().startswith("#"):
             continue
-        value = match.group(2).strip()
-        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-            value = value[1:-1]
-        values[match.group(1).lower()] = value.strip()
+        match = re.match(r"^([ \t]*)([A-Za-z0-9_-]+|<<)\s*:\s*(.*?)\s*$", line)
+        if not match:
+            if (
+                parent and parent != "szl" and parent not in SOURCE_FIELD_KEYS
+                and re.match(r"^-\s", line)
+            ):
+                continue
+            if parent == "szl" or line == line.lstrip():
+                raise SourceDeclarationError("source metadata has unsupported YAML key syntax")
+            continue
+        whitespace, key, value = match.groups()
+        key = key.lower()
+        if not whitespace:
+            parent = key
+            child_indent = None
+            path = key
+        elif not parent:
+            raise SourceDeclarationError("source metadata has no unindented root mapping")
+        elif parent == "szl":
+            if "\t" in whitespace:
+                raise SourceDeclarationError("szl source metadata uses ambiguous indentation")
+            if child_indent is None:
+                child_indent = len(whitespace)
+            if len(whitespace) != child_indent:
+                raise SourceDeclarationError("szl source metadata must be a single-level mapping")
+            path = f"szl.{key}"
+        else:
+            continue
+        if key == "<<":
+            raise SourceDeclarationError("source metadata cannot inherit YAML merge keys")
+        if path == "szl":
+            if path in values or (value and not value.startswith("#")):
+                raise SourceDeclarationError("szl source metadata must be one block mapping")
+            values[path] = ""
+        elif key in SOURCE_FIELD_KEYS:
+            if path in values:
+                raise SourceDeclarationError(f"source metadata repeats {path}")
+            values[path] = _source_scalar(value)
+        else:
+            values[path] = value.strip("\"'").strip()
     return values
 
 
@@ -155,23 +366,140 @@ def _clean_repo_token(value: str) -> str:
     return value.rstrip(".,);]}>\"'").removesuffix(".git")
 
 
-def extract_explicit_github_repositories(
-    readme: str,
-    front_matter: dict[str, str],
-    github_org: str = GITHUB_ORG,
+def extract_github_repository_references(
+    readme: str, github_org: str = GITHUB_ORG,
 ) -> list[str]:
     candidates: set[str] = set()
-    searchable = [readme]
-    searchable.extend(
-        value for key, value in front_matter.items() if key in SOURCE_FIELD_KEYS
+    for match in GITHUB_URL_RE.finditer(readme):
+        owner = match.group("owner")
+        repo = _clean_repo_token(match.group("repo"))
+        if owner.lower() == github_org.lower() and repo:
+            candidates.add(f"{github_org}/{repo}".lower())
+    return sorted(candidates)
+
+
+def _declared_repository(value: str, github_org: str) -> str:
+    value = value.strip()
+    markdown = re.fullmatch(r"\[[^\]\n]+\]\(([^()\s]+)\)", value)
+    if markdown:
+        value = markdown.group(1)
+    elif len(value) > 1 and (value[0], value[-1]) in {("`", "`"), ("<", ">")}:
+        value = value[1:-1]
+    if value.startswith(("https://", "http://")):
+        try:
+            url = urllib.parse.urlsplit(value)
+        except ValueError as error:
+            raise SourceDeclarationError("declared source repository URL is malformed") from error
+        if url.netloc.lower() != "github.com" or any(character.isspace() for character in value):
+            raise SourceDeclarationError("declared source is not a GitHub repository URL")
+        parts = url.path.strip("/").split("/")
+        if len(parts) < 2:
+            raise SourceDeclarationError("declared source URL has no repository")
+        owner, repo = parts[:2]
+    else:
+        parts = value.split("/")
+        if len(parts) != 2:
+            raise SourceDeclarationError("declared source is not an owner/repository identifier")
+        owner, repo = parts
+    repo = repo.removesuffix(".git")
+    if owner.lower() != github_org.lower():
+        raise SourceDeclarationError(f"declared source is outside {github_org}")
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+", repo) or repo in {".", ".."}:
+        raise SourceDeclarationError("declared source repository name is invalid")
+    return f"{github_org}/{repo}".lower()
+
+
+def _prose_source_declarations(readme: str) -> list[tuple[str, str]]:
+    _, body = _front_matter_parts(readme)
+    # Code examples, quotations and comments are references, not owner assertions.
+    prose = re.sub(r"<!--.*?(?:-->|\Z)", "", "\n".join(body), flags=re.DOTALL)
+    prose = re.sub(
+        r"<(pre|code|script|style|blockquote)\b[^>]*>.*?(?:</\1\s*>|\Z)",
+        "", prose, flags=re.DOTALL | re.IGNORECASE,
     )
-    for text in searchable:
-        for match in GITHUB_URL_RE.finditer(text):
-            owner = match.group("owner")
-            repo = _clean_repo_token(match.group("repo"))
-            if owner.lower() == github_org.lower() and repo:
-                candidates.add(f"{github_org}/{repo}")
-    return sorted(candidates, key=str.lower)
+    body = prose.splitlines()
+    visible: list[str] = []
+    fence: tuple[str, int] | None = None
+    for line in body:
+        stripped = line.lstrip()
+        fence_match = re.match(r"^ {0,3}(`{3,}|~{3,})", line)
+        if fence_match:
+            marker = fence_match.group(1)
+            if fence is None:
+                fence = (marker[0], len(marker))
+            elif (
+                marker[0] == fence[0]
+                and len(marker) >= fence[1]
+                and not line[fence_match.end():].strip()
+            ):
+                fence = None
+            visible.append("")
+        elif fence is not None or stripped.startswith(">") or line.startswith(("    ", "\t")):
+            visible.append("")
+        else:
+            visible.append(line.strip())
+    declarations: list[tuple[str, str]] = []
+    for index, line in enumerate(visible):
+        match = next(
+            (matched for pattern in SOURCE_PROSE_PREFIXES if (matched := pattern.match(line))),
+            None,
+        )
+        if match is None:
+            continue
+        paragraph = [match.group(1) or ""]
+        for continuation in visible[index + 1 :]:
+            if not continuation or re.match(r"^(?:#|[-*+]\s|\d+\.\s)", continuation):
+                break
+            paragraph.append(continuation)
+        declarations.append((f"body_declaration:{len(declarations) + 1}", " ".join(paragraph).strip()))
+    return declarations
+
+
+def extract_source_declarations(
+    readme: str, front_matter: dict[str, str], github_org: str = GITHUB_ORG,
+) -> tuple[list[dict[str, str]], list[str], list[str]]:
+    declarations = [
+        (f"front_matter:{key}", value)
+        for key, value in front_matter.items()
+        if key in SOURCE_FIELD_KEYS or key.removeprefix("szl.") in SOURCE_FIELD_KEYS
+    ]
+    declarations.extend(_prose_source_declarations(readme))
+    observed: list[dict[str, str]] = []
+    repositories: set[str] = set()
+    errors: list[str] = []
+    for location, raw_value in declarations:
+        observed.append({"location": location, "value": raw_value})
+        try:
+            if location.startswith("front_matter:"):
+                repositories.add(_declared_repository(raw_value, github_org))
+                continue
+            value = re.sub(
+                r"^public(?: Apache-2\.0)? repository\s+", "", raw_value,
+                flags=re.IGNORECASE,
+            )
+            value = re.split(r"(?<=[.!?])\s+", value, maxsplit=1)[0]
+            expression = SOURCE_EXPRESSION_RE.match(value)
+            if expression is None:
+                raise SourceDeclarationError("source declaration does not begin with a repository")
+            repositories.add(_declared_repository(expression.group().rstrip(".,;"), github_org))
+            tail = value[expression.end():].strip()
+            if (
+                re.match(r"^(?:[,;&/]|and\b|or\b)", tail, re.IGNORECASE)
+                or GITHUB_URL_RE.search(tail)
+            ):
+                raise SourceDeclarationError("source declaration contains more than one possible owner")
+        except SourceDeclarationError as error:
+            errors.append(f"{location}: {error}")
+    return observed, sorted(repositories), sorted(errors)
+
+
+def extract_explicit_github_repositories(
+    readme: str, front_matter: dict[str, str], github_org: str = GITHUB_ORG,
+) -> list[str]:
+    _, repositories, errors = extract_source_declarations(readme, front_matter, github_org)
+    if errors:
+        raise SourceDeclarationError("; ".join(errors))
+    return repositories
 
 
 def inferred_repo_candidates(space_id: str) -> list[str]:
@@ -313,29 +641,39 @@ def select_source_mapping(
     space_id: str,
     explicit: Iterable[str],
     resolver: Callable[[str], dict[str, Any] | None],
+    *,
+    declaration_errors: Iterable[str] = (),
 ) -> dict[str, Any]:
-    explicit_list = list(dict.fromkeys(explicit))
+    explicit_list = sorted({candidate.lower() for candidate in explicit})
     verified_explicit: list[dict[str, Any]] = []
     missing_explicit: list[str] = []
     for candidate in explicit_list:
         resolved = resolver(candidate)
-        if resolved:
+        if resolved and str(resolved.get("full_name", "")).lower() == candidate:
             verified_explicit.append(resolved)
         else:
             missing_explicit.append(candidate)
 
+    if list(declaration_errors):
+        return {
+            "state": "DIVERGENT",
+            "evidence": "INVALID_SOURCE_DECLARATION",
+            "canonical": None,
+            "candidates": verified_explicit,
+            "missing_candidates": missing_explicit,
+        }
     if len(verified_explicit) == 1 and not missing_explicit:
         return {
             "state": "EXACT",
-            "evidence": "README_OR_CARD_EXPLICIT_URL",
+            "evidence": "README_OR_CARD_SOURCE_DECLARATION",
             "canonical": verified_explicit[0],
             "candidates": verified_explicit,
             "missing_candidates": [],
         }
     if verified_explicit or missing_explicit:
         return {
-            "state": "DIVERGENT" if len(verified_explicit) != 1 or missing_explicit else "EXACT",
-            "evidence": "MULTIPLE_OR_UNRESOLVED_EXPLICIT_URLS",
+            "state": "DIVERGENT",
+            "evidence": "MULTIPLE_OR_UNRESOLVED_SOURCE_DECLARATIONS",
             "canonical": None,
             "candidates": verified_explicit,
             "missing_candidates": missing_explicit,
@@ -344,7 +682,7 @@ def select_source_mapping(
     inferred_resolved: list[dict[str, Any]] = []
     for candidate in inferred_repo_candidates(space_id):
         resolved = resolver(candidate)
-        if resolved:
+        if resolved and str(resolved.get("full_name", "")).lower() == candidate.lower():
             inferred_resolved.append(resolved)
     deduped = {
         str(item["full_name"]).lower(): item for item in inferred_resolved
@@ -446,9 +784,18 @@ def build_source_map(
                 ) from error
         else:
             readme = ""
-        front = parse_front_matter(readme) if status == 200 else {}
-        explicit = extract_explicit_github_repositories(readme, front)
-        mapping = select_source_mapping(space_id, explicit, cached_resolver)
+        front: dict[str, str] = {}
+        declarations: list[dict[str, str]] = []
+        explicit: list[str] = []
+        declaration_errors: list[str] = []
+        try:
+            front = parse_front_matter(readme)
+            declarations, explicit, declaration_errors = extract_source_declarations(readme, front)
+        except SourceDeclarationError as error:
+            declaration_errors = [str(error)]
+        mapping = select_source_mapping(
+            space_id, explicit, cached_resolver, declaration_errors=declaration_errors,
+        )
         candidates = mapping.get("candidates")
         if not isinstance(candidates, list) or not all(
             isinstance(candidate, dict) for candidate in candidates
@@ -515,7 +862,10 @@ def build_source_map(
                     else None,
                     "front_matter_keys": sorted(front),
                 },
+                "github_repository_references": extract_github_repository_references(readme),
                 "explicit_github_repositories": explicit,
+                "source_declarations": declarations,
+                "source_declaration_errors": declaration_errors,
                 "source_mapping": mapping,
                 "workflow_candidates": workflows,
             }

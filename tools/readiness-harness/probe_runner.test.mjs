@@ -8,6 +8,9 @@ import {
   evaluateFreshness,
   findEvidenceLabels,
   findTimestamp,
+  probeEndpoint,
+  releaseExitCode,
+  summarizeReleaseGate,
   validateRouterStatsSemantic,
   validateSchema,
 } from "./probe_runner.mjs";
@@ -315,6 +318,81 @@ test("canonical unavailable freshness.status is not a doctrine lie", () => {
     },
   };
   assert.equal(evaluateEndpointLabels(200, spec, rootUnavailable).ok, false);
+});
+
+const unavailableContracts = [
+  ["/api/a11oy/v1/vert/realestate/feed", "hpd_litigations", {
+    vertical: "realestate", sources_cited: [{ url: "https://data.cityofnewyork.us/" }],
+    doctrine: {},
+  }, ["dob_violations", "rates"]],
+  ["/api/a11oy/v1/deva/re/pulse", "hpd", { tab: "pulse", doctrine: {} }, ["dob", "rates"]],
+  ["/api/a11oy/v1/deva/re/distress?limit=1", "hpd", { tab: "distress", doctrine: {} }, []],
+];
+
+function sourceResponse(sourcePath, base, siblings, fetchedAt) {
+  const body = structuredClone(base);
+  body[sourcePath] = {
+    value: null,
+    freshness: {
+      status: "UNAVAILABLE", fetched_at: fetchedAt, error: "bounded upstream timeout",
+    },
+  };
+  for (const name of siblings) {
+    body[name] = {
+      value: { items: [{ id: "observed-fixture" }] },
+      freshness: { status: "live", fetched_at: fetchedAt },
+    };
+  }
+  return body;
+}
+
+test("required canonical source absence is honest DEGRADED and blocks release", () => {
+  for (const [path, sourcePath, base, siblings] of unavailableContracts) {
+    const spec = readinessMatrix.endpoints[path];
+    const body = sourceResponse(sourcePath, base, siblings, "2026-09-12T09:00:00Z");
+    assert.equal(validateSchema(spec.schema, body).ok, true);
+    const labels = evaluateEndpointLabels(200, spec, body);
+    assert.equal(labels.ok, true);
+    assert.equal(labels.lie, null);
+    assert.deepEqual(labels.unavailableSources, [sourcePath]);
+    const gate = summarizeReleaseGate([{
+      path, required: true, lie: false, degraded: labels.unavailableSources.length > 0,
+    }], 1);
+    assert.equal(gate.lies, 0);
+    assert.equal(gate.requiredDegraded, 1);
+    assert.equal(releaseExitCode(gate), 1);
+    assert.equal(evaluateFreshness(path, spec, body,
+      Date.parse("2026-09-12T09:01:00Z")).freshOk, true);
+    assert.equal(evaluateFreshness(path, spec, body,
+      Date.parse("2026-09-12T11:00:00Z")).freshOk, false);
+    body[sourcePath] = {
+      value: { items: [] },
+      freshness: { status: "live", fetched_at: "2026-09-12T09:00:00Z" },
+    };
+    assert.equal(validateSchema(spec.schema, body).ok, true);
+    assert.deepEqual(evaluateEndpointLabels(200, spec, body).unavailableSources, []);
+  }
+});
+
+test("HTTP probe retains required source absence in the release result", async () => {
+  const [path, sourcePath, base, siblings] = unavailableContracts[2];
+  const body = sourceResponse(sourcePath, base, siblings, new Date().toISOString());
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify(body), {
+    status: 200, headers: { "Content-Type": "application/json" },
+  });
+  try {
+    const result = await probeEndpoint(path, readinessMatrix.endpoints[path]);
+    assert.equal(result.lie, false);
+    assert.equal(result.schemaOk, true);
+    assert.equal(result.freshOk, true);
+    assert.equal(result.degraded, true);
+    assert.equal(result.runtimeState, "DEGRADED");
+    assert.deepEqual(result.unavailableSources, [sourcePath]);
+    assert.equal(releaseExitCode(summarizeReleaseGate([result], 1)), 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("Python feed unavailable envelope is honest only with null evidence and a failure clock", () => {

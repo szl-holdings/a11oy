@@ -24,6 +24,9 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     timeout-minutes: 50
+    concurrency:
+      group: hf-vertical-estate
+      cancel-in-progress: false
     env:
       GITHUB_TOKEN: ${{ github.token }}
       GH_TOKEN: ${{ github.token }}
@@ -74,5 +77,6 @@ jobs:
             hf-vertical-flagships-receipt.json
             hf-lyte-enterprise-receipt.json
             hf-lyte-enterprise-manifest.failed.json
+            hf-lyte-release-evidence/
           if-no-files-found: error
           retention-days: 180

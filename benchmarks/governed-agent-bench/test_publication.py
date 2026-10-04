@@ -1184,6 +1184,7 @@ class PublicationTests(unittest.TestCase):
             _token,
             on_revision=None,
             on_operation=None,
+            on_diagnostic=None,
         ):
             if on_operation is not None:
                 on_operation("create_commit")
@@ -1245,6 +1246,173 @@ class PublicationTests(unittest.TestCase):
             self.assertEqual(receipt["dataset"]["revision"], "b" * 40)
             self.assertEqual(receipt["failure"]["stage"], "space_publication")
             self.assertEqual(receipt["failure"]["operation"], "create_commit")
+
+    def test_repo_exists_400_records_read_only_diagnostics_without_secrets(self):
+        publisher = _load_publisher()
+        secret = "hf_secret-token-must-not-appear"
+
+        class BadRequestError(RuntimeError):
+            response = types.SimpleNamespace(
+                status_code=400,
+                text=secret,
+                headers={"authorization": secret},
+            )
+
+        class InvalidTokenError(RuntimeError):
+            response = types.SimpleNamespace(status_code=401, text=secret)
+
+        class AccessDeniedError(RuntimeError):
+            response = types.SimpleNamespace(status_code=403, text=secret)
+
+        class FakeApi:
+            def __init__(self):
+                self.calls = []
+
+            def repo_exists(self, **kwargs):
+                self.calls.append("repo_exists")
+                self_ref.assertEqual(kwargs["token"], secret)
+                raise BadRequestError(secret)
+
+            def whoami(self, **kwargs):
+                self.calls.append("whoami")
+                self_ref.assertEqual(kwargs["token"], secret)
+                raise InvalidTokenError(secret)
+
+            def repo_info(self, **kwargs):
+                self.calls.append("repo_info")
+                self_ref.assertIs(kwargs["token"], False)
+                return {"token": secret}
+
+            def auth_check(self, **kwargs):
+                self.calls.append("auth_check")
+                self_ref.assertEqual(kwargs["token"], secret)
+                self_ref.assertIs(kwargs["write"], True)
+                raise AccessDeniedError(secret)
+
+            def create_repo(self, **_kwargs):
+                self_ref.fail("repository creation must not follow a failed preflight")
+
+            def create_commit(self, **_kwargs):
+                self_ref.fail("publication must not follow a failed preflight")
+
+        self_ref = self
+        api = FakeApi()
+        fake_hub = types.ModuleType("huggingface_hub")
+        fake_hub.HfApi = lambda token: api
+        fake_hub.CommitOperationAdd = object
+        fake_hub.hf_hub_download = lambda **_kwargs: self.fail("no download expected")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bundle = root / "bundle"
+            _load_builder().build(bundle, "a" * 40, "2026-07-28T12:00:00Z")
+            receipt_path = root / "receipt.json"
+            with (
+                patch.dict(sys.modules, {"huggingface_hub": fake_hub}),
+                patch.dict(publisher.os.environ, {"HF_TOKEN": secret}),
+            ):
+                with self.assertRaisesRegex(
+                    publisher.PublicationError,
+                    "dataset_publication:repo_exists failed closed: BadRequestError HTTP 400",
+                ):
+                    publisher.publish(
+                        bundle,
+                        "a" * 40,
+                        publisher.DATASET_REPO,
+                        publisher.DATASET_REPO,
+                        receipt_path,
+                    )
+            body = receipt_path.read_text(encoding="utf-8")
+            receipt = json.loads(body)
+
+        self.assertEqual(
+            api.calls, ["repo_exists", "whoami", "repo_info", "auth_check"]
+        )
+        self.assertEqual(receipt["publication_state"], "NOT_LIVE")
+        self.assertIsNone(receipt["dataset"])
+        self.assertIsNone(receipt["space"])
+        self.assertEqual(
+            receipt["failure"],
+            {
+                "stage": "dataset_publication",
+                "operation": "repo_exists",
+                "error_type": "BadRequestError",
+                "http_status": 400,
+                "read_only_diagnostics": {
+                    "token_identity": {
+                        "state": "ERROR",
+                        "error_type": "InvalidTokenError",
+                        "http_status": 401,
+                    },
+                    "anonymous_repo_info": {"state": "OK"},
+                    "token_write_access": {
+                        "state": "ERROR",
+                        "error_type": "AccessDeniedError",
+                        "http_status": 403,
+                    },
+                },
+            },
+        )
+        self.assertNotIn(secret, body)
+        self.assertNotIn("authorization", body)
+
+    def test_repo_exists_non400_failure_does_not_run_diagnostic_probes(self):
+        publisher = _load_publisher()
+
+        class ServiceUnavailableError(RuntimeError):
+            response = types.SimpleNamespace(status_code=503)
+
+        class FakeApi:
+            def __init__(self):
+                self.calls = []
+
+            def repo_exists(self, **_kwargs):
+                self.calls.append("repo_exists")
+                raise ServiceUnavailableError("provider unavailable")
+
+            def whoami(self, **_kwargs):
+                self.calls.append("whoami")
+
+            def repo_info(self, **_kwargs):
+                self.calls.append("repo_info")
+
+            def auth_check(self, **_kwargs):
+                self.calls.append("auth_check")
+
+        api = FakeApi()
+        fake_hub = types.ModuleType("huggingface_hub")
+        fake_hub.HfApi = lambda token: api
+        fake_hub.CommitOperationAdd = object
+        fake_hub.hf_hub_download = lambda **_kwargs: self.fail("no download expected")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bundle = root / "bundle"
+            _load_builder().build(bundle, "a" * 40, "2026-07-28T12:00:00Z")
+            receipt_path = root / "receipt.json"
+            with (
+                patch.dict(sys.modules, {"huggingface_hub": fake_hub}),
+                patch.dict(publisher.os.environ, {"HF_TOKEN": "test-token"}),
+            ):
+                with self.assertRaises(publisher.PublicationError):
+                    publisher.publish(
+                        bundle,
+                        "a" * 40,
+                        publisher.DATASET_REPO,
+                        publisher.DATASET_REPO,
+                        receipt_path,
+                    )
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(api.calls, ["repo_exists"])
+        self.assertEqual(
+            receipt["failure"],
+            {
+                "stage": "dataset_publication",
+                "operation": "repo_exists",
+                "error_type": "ServiceUnavailableError",
+                "http_status": 503,
+            },
+        )
 
     def test_http_failure_receipt_records_safe_operation_without_response_body(self):
         publisher = _load_publisher()

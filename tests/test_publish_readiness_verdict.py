@@ -30,6 +30,7 @@ def valid_verdict(now: datetime) -> dict:
             "lies": 0,
             "unreachable": 0,
             "throttled": 0,
+            "degraded": 0,
             "p95_worst": 1806,
         },
         "results": [{"path": "/not-published"}],
@@ -101,6 +102,25 @@ def test_compact_verdict_rejects_doctrine_lies() -> None:
 
     with pytest.raises(publisher.VerdictError, match="doctrine lies"):
         compact(payload, now)
+
+
+@pytest.mark.parametrize("value", [True, -1, 1.5, "1", None])
+def test_compact_verdict_rejects_invalid_degraded_counts(value: object) -> None:
+    now = datetime(2026, 7, 26, 6, 0, tzinfo=timezone.utc)
+    payload = valid_verdict(now)
+    payload["summary"]["degraded"] = value
+    with pytest.raises(publisher.VerdictError, match="counts"):
+        compact(payload, now)
+
+
+def test_unavailable_required_source_cannot_be_published_as_ready() -> None:
+    now = datetime(2026, 7, 26, 6, 0, tzinfo=timezone.utc)
+    payload = valid_verdict(now)
+    payload["summary"].update(ok=4, degraded=1)
+    with pytest.raises(publisher.VerdictError, match="unavailable required sources"):
+        compact(payload, now)
+    payload["summary"].update(ok=5, degraded=0)
+    assert compact(payload, now)["summary"]["degraded"] == 0
 
 
 def test_compact_verdict_rejects_all_unreachable_release_evidence() -> None:

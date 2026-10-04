@@ -563,6 +563,44 @@ def _wait_for_public_space(
     )
 
 
+def _http_status(exc: Exception) -> int | None:
+    status = getattr(getattr(exc, "response", None), "status_code", None)
+    return status if type(status) is int and 400 <= status <= 599 else None
+
+
+def _diagnose_repo_exists_400(api, repo_id: str, repo_type: str, token: str) -> dict[str, object]:
+    """Probe only read endpoints; never retain their payloads or exception messages."""
+    probes = (
+        ("token_identity", lambda: api.whoami(token=token)),
+        (
+            "anonymous_repo_info",
+            lambda: api.repo_info(repo_id=repo_id, repo_type=repo_type, token=False),
+        ),
+        (
+            "token_write_access",
+            lambda: api.auth_check(
+                repo_id=repo_id, repo_type=repo_type, token=token, write=True
+            ),
+        ),
+    )
+    diagnostic: dict[str, object] = {}
+    for operation, probe in probes:
+        try:
+            probe()
+        except Exception as exc:
+            result: dict[str, object] = {
+                "state": "ERROR",
+                "error_type": type(exc).__name__,
+            }
+            status = _http_status(exc)
+            if status is not None:
+                result["http_status"] = status
+        else:
+            result = {"state": "OK"}
+        diagnostic[operation] = result
+    return diagnostic
+
+
 def _publish_and_readback(
     api,
     repo_id: str,
@@ -572,6 +610,7 @@ def _publish_and_readback(
     token: str,
     on_revision: Callable[[str, str], None] | None = None,
     on_operation: Callable[[str], None] | None = None,
+    on_diagnostic: Callable[[dict[str, object]], None] | None = None,
 ):
     from huggingface_hub import CommitOperationAdd, hf_hub_download
 
@@ -589,7 +628,12 @@ def _publish_and_readback(
             )
 
     note_operation("repo_exists")
-    existed = api.repo_exists(repo_id=repo_id, repo_type=repo_type, token=token)
+    try:
+        existed = api.repo_exists(repo_id=repo_id, repo_type=repo_type, token=token)
+    except Exception as exc:
+        if _http_status(exc) == 400 and on_diagnostic is not None:
+            on_diagnostic(_diagnose_repo_exists_400(api, repo_id, repo_type, token))
+        raise
     if not existed:
         create_kwargs = {
             "repo_id": repo_id,
@@ -838,10 +882,15 @@ def publish(
 
     stage = "credential_preflight"
     operation = "credential_preflight"
+    repo_exists_diagnostic: dict[str, object] | None = None
 
     def observed_operation(value: str) -> None:
         nonlocal operation
         operation = value
+
+    def observed_diagnostic(value: dict[str, object]) -> None:
+        nonlocal repo_exists_diagnostic
+        repo_exists_diagnostic = value
 
     try:
         token = os.environ.get("HF_TOKEN") or os.environ.get(
@@ -886,6 +935,7 @@ def publish(
             token,
             on_revision=dataset_revision_observed,
             on_operation=observed_operation,
+            on_diagnostic=observed_diagnostic,
         )
 
         stage = "dataset_public_readback"
@@ -975,6 +1025,7 @@ def publish(
                 token,
                 on_revision=space_revision_observed,
                 on_operation=observed_operation,
+                on_diagnostic=observed_diagnostic,
             )
             receipt["space"] = _repo_receipt(
                 space_repo,
@@ -1029,10 +1080,11 @@ def publish(
             "operation": operation,
             "error_type": type(exc).__name__,
         }
-        response = getattr(exc, "response", None)
-        status_code = getattr(response, "status_code", None)
-        if type(status_code) is int and 400 <= status_code <= 599:
+        status_code = _http_status(exc)
+        if status_code is not None:
             receipt["failure"]["http_status"] = status_code
+        if repo_exists_diagnostic is not None:
+            receipt["failure"]["read_only_diagnostics"] = repo_exists_diagnostic
         _write_receipt(receipt_path, receipt)
         if isinstance(exc, PublicationError):
             raise

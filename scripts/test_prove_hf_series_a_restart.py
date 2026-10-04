@@ -716,6 +716,110 @@ def test_restart_proof_times_out_when_the_space_never_reaches_running(monkeypatc
     assert proof._code(excinfo.value) == "RESTART_PROOF_TIMEOUT"
 
 
+@pytest.mark.parametrize("phase", ["activation", "durability"])
+@pytest.mark.parametrize("stage", ["RUNTIME_ERROR", "BUILD_ERROR", "CONFIG_ERROR", "NO_APP_FILE"])
+def test_terminal_provider_stage_ends_existing_read_loop_without_more_calls(monkeypatch, phase, stage):
+    calls = []
+    evidence = {}
+
+    class RuntimeApi:
+        def get_space_runtime(self, **kwargs):
+            calls.append(kwargs)
+            return {"runtime": {"stage": stage, "errorMessage": "private provider traceback"}}
+
+    class NoApplicationReads:
+        def get(self, *_args, **_kwargs):
+            pytest.fail("terminal provider state must not read the application")
+
+    monkeypatch.setattr(proof.time, "sleep", lambda _s: pytest.fail("terminal state must not sleep"))
+    with pytest.raises(proof.ProofBoundaryError) as excinfo:
+        proof.await_running_source(
+            RuntimeApi(), NoApplicationReads(), repo_id=proof.bounds.CANONICAL_SPACE,
+            origin=proof.bounds.CANONICAL_ORIGIN, expected_source="a" * 40,
+            deadline=proof.time.monotonic() + 60, attempts=30, retry_seconds=10,
+            phase=phase, evidence=evidence,
+        )
+    assert excinfo.value.code == "PROVIDER_TERMINAL_STATE"
+    assert calls == [{"repo_id": proof.bounds.CANONICAL_SPACE}]
+    terminal = evidence["terminal_provider_state"]
+    assert terminal["stage"] == stage and terminal["phase"] == phase
+    assert terminal["attempt"] == 1
+    assert terminal["expected_source_revision"] == "a" * 40
+    assert terminal["runtime_source_verified"] is False
+    assert "private provider" not in json.dumps(evidence)
+
+
+@pytest.mark.parametrize("stage", [
+    "BUILDING", "APP_STARTING", "RUNNING_BUILDING", "RUNNING_APP_STARTING",
+    "PAUSED", "STOPPED", "UNKNOWN", "RUNTIME_ERROR_ADDITIONAL", "unrecognized stage",
+])
+def test_intermediate_or_unrecognized_stage_keeps_source_verification(monkeypatch, stage):
+    stages = iter([stage, "RUNNING"])
+    reads = []
+    evidence = {}
+
+    class RuntimeApi:
+        def get_space_runtime(self, **_kwargs):
+            reads.append("runtime")
+            return {"stage": next(stages)}
+
+    class HonestSession:
+        def get(self, url, **_kwargs):
+            reads.append("honest")
+            assert url == proof.bounds.CANONICAL_ORIGIN + proof.HONEST_ROUTE
+            return Response(url, value={"git_sha": "a" * 40})
+
+    monkeypatch.setattr(proof.time, "sleep", lambda _s: None)
+    result = proof.await_running_source(
+        RuntimeApi(), HonestSession(), repo_id=proof.bounds.CANONICAL_SPACE,
+        origin=proof.bounds.CANONICAL_ORIGIN, expected_source="a" * 40,
+        deadline=proof.time.monotonic() + 60, attempts=2, retry_seconds=0,
+        phase="activation", evidence=evidence,
+    )
+    assert result == {"stage": "RUNNING", "git_sha": "a" * 40, "attempts": 2}
+    assert reads == ["runtime", "runtime", "honest"]
+    assert "terminal_provider_state" not in evidence
+
+
+def test_expired_deadline_does_not_become_a_terminal_provider_observation(monkeypatch):
+    clock = iter([0.0, 2.0])
+    monkeypatch.setattr(proof.time, "monotonic", lambda: next(clock))
+    evidence = {}
+    api = SimpleNamespace(get_space_runtime=lambda **_k: {"stage": "RUNTIME_ERROR"})
+    with pytest.raises(proof.RestartProofError) as excinfo:
+        proof.await_running_source(
+            api, None, repo_id=proof.bounds.CANONICAL_SPACE,
+            origin=proof.bounds.CANONICAL_ORIGIN, expected_source="a" * 40,
+            deadline=1.0, attempts=30, retry_seconds=10, phase="activation", evidence=evidence,
+        )
+    assert excinfo.value.code == "RESTART_PROOF_TIMEOUT"
+    assert "terminal_provider_state" not in evidence
+
+
+def test_terminal_evidence_survives_a_full_observation_buffer(monkeypatch):
+    stages = iter(["APP_STARTING"] * 32 + ["RUNTIME_ERROR"])
+    api = SimpleNamespace(get_space_runtime=lambda **_k: {"stage": next(stages)})
+    evidence = {"activation_running_source_observations": [
+        {"stage": "APP_STARTING", "detail": "a" * 150} for _ in range(32)
+    ]}
+    monkeypatch.setattr(proof.time, "sleep", lambda _s: None)
+    with pytest.raises(proof.ProofBoundaryError) as excinfo:
+        proof.await_running_source(
+            api, None, repo_id=proof.bounds.CANONICAL_SPACE,
+            origin=proof.bounds.CANONICAL_ORIGIN, expected_source="a" * 40,
+            deadline=proof.time.monotonic() + 60, attempts=90, retry_seconds=0,
+            phase="durability", evidence=evidence,
+        )
+    report = proof.failure_report(
+        repo_id=proof.bounds.CANONICAL_SPACE, origin=proof.bounds.CANONICAL_ORIGIN,
+        source_revision="a" * 40, evidence=evidence, error=excinfo.value,
+    )
+    assert len(evidence["durability_running_source_observations"]) == 32
+    assert report["evidence"]["terminal_provider_state"]["attempt"] == 33
+    assert report["diagnostic_code"] == "PROVIDER_TERMINAL_STATE"
+    assert len(json.dumps(report).encode()) <= proof.MAX_REPORT_BYTES
+
+
 def test_pass_report_is_admitted_only_as_an_exact_bounded_pass(monkeypatch, tmp_path) -> None:
     source = "a" * 40
     monkeypatch.setattr(proof.time, "sleep", lambda _seconds: None)

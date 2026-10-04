@@ -55,6 +55,13 @@ What is **not** a lie (to keep the gate honest):
 - honesty prose anywhere in the body (e.g. "never fabricated") — only explicit **label fields** are inspected, never raw substrings,
 - an honest `SAMPLE` / `CACHED` / `DEGRADED` chip — those are truthful labels.
 
+A canonical `UNAVAILABLE` envelope is truthful negative evidence, not a doctrine
+lie. When a schema-required source exposes that envelope, the probe records
+`runtimeState: DEGRADED` and its `unavailableSources` instead of counting the
+endpoint as clean. A required degraded endpoint blocks release and the compact
+verdict publisher; the server and canonical verifier also reject a degraded
+summary. Recovery requires an observed source response, not a disabled probe.
+
 ## Live serving
 
 The matrix is also served by the running console at:

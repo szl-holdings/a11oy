@@ -9,6 +9,13 @@ on:
     - pages/**
     - web/**
     - console/**
+    - static/shared/szl_command_bar.css
+    - static/shared/szl_command_bar.js
+    - tools/check_holographic_shell_browser.py
+    - tools/check_shared_shell_source_browser.py
+    - tests/test_holographic_shell_contract.py
+    - tests/test_command_bar_hit_target_contract.py
+    - _vendor_blobs.py
     - spaces/**
     - docs/frontend-theme-registry-v1.json
     - docs/frontend-flow-shell-state.json
@@ -31,6 +38,13 @@ on:
     - pages/**
     - web/**
     - console/**
+    - static/shared/szl_command_bar.css
+    - static/shared/szl_command_bar.js
+    - tools/check_holographic_shell_browser.py
+    - tools/check_shared_shell_source_browser.py
+    - tests/test_holographic_shell_contract.py
+    - tests/test_command_bar_hit_target_contract.py
+    - _vendor_blobs.py
     - spaces/**
     - docs/frontend-theme-registry-v1.json
     - docs/frontend-flow-shell-state.json
@@ -51,6 +65,54 @@ permissions:
   contents: read
 
 jobs:
+  shared-shell-browser:
+    name: Shared shell source qualification
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Fetch the immutable stylesheet comparison base
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          SHELL_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$SHELL_BASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          git fetch --no-tags --depth=1 origin "$SHELL_BASE_SHA"
+          git cat-file -e "${SHELL_BASE_SHA}:static/shared/szl_command_bar.css"
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Install the existing pinned browser test runner
+        run: |
+          python -m pip install --disable-pip-version-check 'playwright==1.57.0'
+          python -m playwright install --with-deps chromium
+      - name: Verify component and actual source-page behavior
+        shell: bash
+        env:
+          SHELL_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tests -p test_holographic_shell_contract.py -v
+          python -m unittest discover -s tests -p test_command_bar_hit_target_contract.py -v
+          browser_bin="$(python -c 'from playwright.sync_api import sync_playwright; p=sync_playwright().start(); print(p.chromium.executable_path); p.stop()')"
+          python tools/check_holographic_shell_browser.py --chromium "$browser_bin" --output "$RUNNER_TEMP/shared-shell-evidence/component"
+          baseline=()
+          if [[ -n "$SHELL_BASE_SHA" ]]; then baseline=(--base "$SHELL_BASE_SHA"); fi
+          python tools/check_shared_shell_source_browser.py --chromium "$browser_bin" --output "$RUNNER_TEMP/shared-shell-evidence/source" "${baseline[@]}"
+      - name: Retain source observations and screenshots
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: shared-shell-${{ github.sha }}
+          path: ${{ runner.temp }}/shared-shell-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
   landing-browser:
     name: Homepage source reflow
     runs-on: ubuntu-latest

@@ -46,3 +46,5 @@ khipu/**/*.ndjson
 # Space appends to it at runtime, so live divergence there is expected runtime state.
 !spaces/immune/dist/
 !spaces/immune/dist/**
+.release-controller-peer/
+hf-lyte-release-evidence/
