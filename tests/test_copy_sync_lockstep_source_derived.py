@@ -42,6 +42,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             "scripts/configure_hf_gdw_runtime.py",
             "scripts/verify_installed_authority.py",
             "scripts/preserve_hf_gdw_store.py",
+            "scripts/gdw_orphan_forensics.py",
             "scripts/qualify_gdw_store_recovery.py",
             "docs/operations/evidence/gdw-capture-37223162231.json",
             "docs/operations/evidence/gdw-recovery-historical-anchors.json",
@@ -172,6 +173,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
         source = self.manual_helpers[path]
         for original, replacement in (
             (b"import preserve_hf_gdw_store as preservation", b"import unreviewed_provider as preservation"),
+            (b"import gdw_orphan_forensics as orphan_forensics", b"import unreviewed_forensics as orphan_forensics"),
             (b'_value(bucket, "private") is not True', b"False"),
             (b"require_owned_source()", b"pass  # removed ownership check"),
             (b'return 0 if report["state"] == "LOGICAL_CONTINUITY_VERIFIED" else 2',
