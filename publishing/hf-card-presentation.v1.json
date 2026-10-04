@@ -117,11 +117,13 @@
       "front_matter_preserved": true,
       "original_body_preserved": true,
       "provider_or_runtime_promotion": false,
-      "publication_trigger": "MANUAL_EXACT_MAIN_SCOPE",
+      "publication_trigger": "PROTECTED_MAIN_PUSH_AFTER_RELOCK_OR_MANUAL_EXACT_MAIN_SCOPE",
       "dispatch_workflow": "https://github.com/szl-holdings/a11oy/blob/5e014855a274825f4d46ce91cb3396cabd20f99a/.github/workflows/hf-publish-vertical-flagships.yml",
       "workflow_inputs": {
         "scope": "finance"
-      }
+      },
+      "automatic_job": "publish-finance-projection",
+      "automatic_scope": "finance"
     }
   ]
 }
