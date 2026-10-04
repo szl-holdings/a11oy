@@ -125,14 +125,26 @@ python3 -B scripts/hf_exact_main_ownership.py \
     if compact(admission_run) != compact(expected_admission) or "secrets." in json.dumps(admission):
         raise WorkflowContractError("source admission must remain read only")
     job = jobs["manual-prerequisites"]
-    if [step.get("name") for step in job["steps"]] != ["Checkout the immutable admitted source", "Set up Python", "Install exact metadata client", "Preserve stopped private stores before any runtime mutation", "Retain metadata checks and fail closed on UNKNOWN authority", "Retain bounded prerequisite decision"]:
-        raise WorkflowContractError("manual job permits only the reviewed preservation effect before qualification")
+    if [step.get("name") for step in job["steps"]] != ["Checkout the immutable admitted source", "Set up Python", "Install exact metadata client", "Preserve stopped private stores before any runtime mutation", "Qualify the pinned private capture without admitting restore", "Retain metadata checks and fail closed on UNKNOWN authority", "Retain bounded prerequisite decision"]:
+        raise WorkflowContractError("manual job permits only the reviewed preservation effect and read-only qualification")
     preservation = named_step(job, "Preserve stopped private stores before any runtime mutation")
     expected_preservation = 'python -B scripts/preserve_hf_gdw_store.py --output "${{ runner.temp }}/gdw-store-preservation.json"'
-    if (set(preservation) != {"name", "run"}
+    if (set(preservation) != {"name", "id", "run"}
+            or preservation.get("id") != "preserve_stores"
             or compact(preservation.get("run", "")) != expected_preservation
             or job.get("env") != {"HF_TOKEN": "${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}"}):
         raise WorkflowContractError("preservation step must retain its exact invocation and credential scope")
+    recovery = named_step(job, "Qualify the pinned private capture without admitting restore")
+    expected_recovery = (
+        "python -B scripts/qualify_gdw_store_recovery.py "
+        "--capture-report docs/operations/evidence/gdw-capture-37223162231.json "
+        "--historical-anchors docs/operations/evidence/gdw-recovery-historical-anchors.json "
+        '--output "${{ runner.temp }}/gdw-store-recovery-qualification.json"'
+    )
+    if (set(recovery) != {"name", "if", "run"}
+            or recovery.get("if") != "${{ always() && steps.preserve_stores.outcome == 'failure' }}"
+            or compact(recovery.get("run", "")) != expected_recovery):
+        raise WorkflowContractError("recovery qualification must retain its exact read-only invocation and failed-preservation condition")
     step = named_step(job, "Retain metadata checks and fail closed on UNKNOWN authority")
     expected = r'''set +e
 python -B scripts/configure_hf_series_a_runtime.py \
@@ -159,6 +171,7 @@ python -B scripts/check_hf_manual_prerequisites.py \
     if not isinstance(artifact_paths, str) or tuple(artifact_paths.splitlines()) != (
         "${{ runner.temp }}/manual-prerequisites.json",
         "${{ runner.temp }}/gdw-store-preservation.json",
+        "${{ runner.temp }}/gdw-store-recovery-qualification.json",
     ):
         raise WorkflowContractError("preservation artifacts must retain the exact public metadata allowlist")
     # The GDW operator credential may appear exactly once: as the step-level
@@ -349,7 +362,7 @@ class ManualPrerequisiteWorkflowTests(unittest.TestCase):
 
     def test_preservation_cannot_be_removed_duplicated_moved_or_joined_by_another_effect(self):
         start = self.source.index("      - name: Preserve stopped private stores")
-        end = self.source.index("      - name: Retain metadata checks", start)
+        end = self.source.index("      - name: Qualify the pinned private capture", start)
         block = self.source[start:end]
         removed = self.source[:start] + self.source[end:]
         receipt = "      - name: Retain bounded prerequisite decision\n"
@@ -360,8 +373,64 @@ class ManualPrerequisiteWorkflowTests(unittest.TestCase):
             self.source.replace(block, block + "      - name: Unreviewed provider effect\n        run: python scripts/unreviewed.py\n", 1),
         )
         for index, candidate in enumerate(candidates):
+            with self.subTest(index=index), self.assertRaisesRegex(WorkflowContractError, "reviewed preservation effect|duplicate step id"):
+                assert_manual_step_contract(candidate)
+
+    def test_recovery_qualification_cannot_change_inputs_condition_or_gain_overrides(self):
+        marker = "      - name: Qualify the pinned private capture without admitting restore\n"
+        condition = "${{ always() && steps.preserve_stores.outcome == 'failure' }}"
+        cases = (
+            ("scripts/qualify_gdw_store_recovery.py", "scripts/unknown_recovery.py"),
+            ("--capture-report docs/operations/evidence/gdw-capture-37223162231.json", "--capture-report https://unreviewed.example/capture.json"),
+            ("--capture-report docs/operations/evidence/gdw-capture-37223162231.json", "--capture-report ${{ runner.temp }}/gdw-store-preservation.json"),
+            ("--historical-anchors docs/operations/evidence/gdw-recovery-historical-anchors.json", "--historical-anchors docs/operations/evidence/unreviewed-anchors.json"),
+            ("--historical-anchors docs/operations/evidence/gdw-recovery-historical-anchors.json", ""),
+            ('--output "${{ runner.temp }}/gdw-store-recovery-qualification.json"', '--output "${{ runner.temp }}/gdw-store-recovery-qualification.json" --restore'),
+            ('--output "${{ runner.temp }}/gdw-store-recovery-qualification.json"', '--output "${{ runner.temp }}/gdw-store-recovery-qualification.json" || true'),
+            (condition, "always()"),
+            (condition, "${{ always() && steps.preserve_stores.outcome == 'success' }}"),
+            (condition, "${{ always() && steps.unknown.outcome == 'failure' }}"),
+            (marker, marker + "        continue-on-error: true\n"),
+            (marker, marker + "        shell: python\n"),
+            (marker, marker + "        working-directory: unreviewed-source\n"),
+            (marker, marker + "        env:\n          HF_TOKEN: alternate-authority\n"),
+            ("        id: preserve_stores\n", "        id: unreviewed_preservation\n"),
+        )
+        for original, replacement in cases:
+            with self.subTest(replacement=replacement):
+                self.assertIn(original, self.source)
+                with self.assertRaisesRegex(WorkflowContractError, "recovery qualification|preservation step|step failure bypass"):
+                    assert_manual_step_contract(self.source.replace(original, replacement, 1))
+
+    def test_recovery_qualification_cannot_be_removed_duplicated_or_reordered(self):
+        start = self.source.index("      - name: Qualify the pinned private capture")
+        end = self.source.index("      - name: Retain metadata checks", start)
+        block = self.source[start:end]
+        removed = self.source[:start] + self.source[end:]
+        preservation = "      - name: Preserve stopped private stores"
+        receipt = "      - name: Retain bounded prerequisite decision\n"
+        candidates = (
+            removed,
+            self.source.replace(block, block + block, 1),
+            removed.replace(preservation, block + preservation, 1),
+            removed.replace(receipt, block + receipt, 1),
+        )
+        for index, candidate in enumerate(candidates):
             with self.subTest(index=index), self.assertRaisesRegex(WorkflowContractError, "reviewed preservation effect"):
                 assert_manual_step_contract(candidate)
+
+    def test_recovery_artifact_cannot_export_private_candidates_or_extra_files(self):
+        original = "            ${{ runner.temp }}/gdw-store-recovery-qualification.json\n"
+        self.assertIn(original, self.source)
+        for replacement in (
+            "            ${{ runner.temp }}/**\n",
+            "            /tmp/szl-gdw-recovery-*\n",
+            "",
+            original + original,
+            original + "            ${{ runner.temp }}/candidate.sqlite3\n",
+        ):
+            with self.subTest(replacement=replacement), self.assertRaisesRegex(WorkflowContractError, "public metadata allowlist"):
+                assert_manual_step_contract(self.source.replace(original, replacement, 1))
 
     def test_preservation_artifacts_cannot_include_raw_captures_or_duplicate_paths(self):
         original = "            ${{ runner.temp }}/gdw-store-preservation.json\n"
