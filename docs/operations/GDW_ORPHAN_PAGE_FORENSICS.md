@@ -59,6 +59,36 @@ rows, duplicate page numbers, or interrupted enumeration cannot yield a complete
 comparison. Object names, schema text, traversal paths, and SQLite error strings
 are not included in the report.
 
+### Detached freelist layout
+
+The separate `freelist_graph` observation combines that native scope with a
+bounded allocator traversal. It reads the attached freelist head/count and
+pointer-map settings from header offsets 32/36/52/64 in the same immutable
+snapshot. Its first supported scope requires zero reserved bytes per page,
+no pointer-map mode, and no lock-byte page. The 64 MiB input bound is below the
+1 GiB lock-byte boundary. Unsupported modes remain unclassified.
+
+The complete attached freelist must match its header count and have no cycles,
+duplicate ownership, invalid references or overlap with native reachable/orphan
+pages. Reachable, attached-free and orphan sets must form a complete disjoint
+partition of the database. Attached free-page payloads are not exported.
+
+For the exact orphan set, the helper considers at most 99 possible roots and
+requires one complete connected trunk chain. Every next/leaf pointer must refer
+to an exclusively owned orphan page. Trunks must leave their undeclared bytes
+zero, including SQLite's six compatibility slots; all detached leaf pages must
+be entirely zero. At least one leaf pointer is required. A disconnected graph,
+nonzero padding, nonzero leaf, unowned page, cycle or duplicate rejects the
+interpretation. The result reports bounded pointer metadata and structural/zero
+byte counts. It does not emit the original page contents.
+
+`STRUCTURALLY_ACCOUNTED` describes this layout only. The helper still returns
+`HELD` with every candidate/discard/restore/deployment field false. This evidence
+does not establish transaction history, pre-capture losslessness, later writes
+or record equivalence. The qualifier independently owns candidate policy: its
+[reviewed disposable-only exception](GDW_STORE_RECOVERY_QUALIFICATION.md#byte-bound-detached-freelist-exception)
+reconstructs and hashes every selected page before permitting any candidate.
+
 Full-page equality is checked against the completely enumerated reachable set.
 SHA256 only selects possible matches; the helper then compares every byte,
 including unused and reserved bytes. File offsets are derived from the validated
@@ -87,7 +117,8 @@ PYTHONPATH=tests:scripts:. python -B -m pytest -q tests/test_gdw_orphan_forensic
 ## Primary references
 
 - [SQLite database file format](https://www.sqlite.org/fileformat.html), sections
-  1.3, 1.6, and 1.7.
+  1.3 through 1.7, including header freelist fields, pointer-map settings,
+  lock-byte pages and the complete trunk/leaf format.
 - [SQLite DBSTAT virtual table](https://www.sqlite.org/dbstat.html), scope and
   per-page output.
 - [SQLite deserialization interface](https://www.sqlite.org/c3ref/deserialize.html),

@@ -52,9 +52,10 @@ ignore. Absent or zero-byte companions are recorded explicitly.
 A healthy database is evaluated using SQLite's native backup API. A database
 whose **complete, bounded** integrity result contains only unreferenced pages is
 eligible for a separate `VACUUM INTO` evaluation only if every referenced orphan
-page is present, within the file's declared page bounds, and entirely zero.
-Nonzero orphan pages require further review because they may contain otherwise
-unaccounted data. A saturated integrity result, a foreign-key violation, a schema
+page is present and within the file's declared page bounds. The pages must be
+entirely zero or satisfy the separately reviewed detached-freelist contract
+below. Other nonzero pages remain held because their bytes are not accounted
+for by that contract. A saturated integrity result, a foreign-key violation, a schema
 outside the known store, or an invalid receipt binding stops evaluation.
 
 Canonical run `37226932409`, at source
@@ -77,9 +78,47 @@ captured bytes before attaching that evidence to its existing safe report.
 
 Even an exact full-page duplicate remains a descriptive observation: record
 equivalence and permission to discard are false. Unavailable or incomplete
-native reachability is labeled explicitly. Every nonzero-page result retains
-the existing no-candidate, no-restore and no-deployment hold; this extension
-cannot enable `VACUUM`, `.recover`, object publication or a runtime restart.
+native reachability is labeled explicitly. The helper always retains its own
+`HELD` state and false admission flags. A separate qualifier predicate owns the
+limited permission to evaluate a disposable candidate.
+
+### Byte-bound detached-freelist exception
+
+Canonical forensic run `37231392324`, at source
+`92e270786f4647169ff28d348ceffb35779b33b3`, produced safe report SHA-256
+`ff7baa26fc2d254b7ad252de276211df67bf59d172aff3cd1b56f8a11671e16a`.
+Page 362's complete SHA-256 equals a synthetic 4096-byte page with only three
+big-endian integers `(0, 1, 363)` at offsets 0, 4 and 8. Page 363 equals a
+4096-byte zero page. This supports a detached freelist layout; it does not
+establish transaction history or pre-capture completeness. The next native
+qualification must independently establish the remaining allocator conditions
+from the unchanged preserved capture.
+
+The source-pinned helper must confirm the complete native orphan set, enumerate
+all reachable b-tree/overflow pages, traverse the entire attached freelist from
+header offsets 32/36 and match its page count. This first allocator scope excludes
+reserved page bytes, pointer-map modes and lock-byte pages. Reachable, attached
+free and orphan pages must be a complete disjoint partition. Exactly one
+connected detached trunk chain must own every orphan page once, with no invalid
+reference, cycle, duplicate ownership or unexplained page. Every undeclared
+trunk byte and every detached leaf byte must be zero.
+
+The qualifier requires the exact reviewed metadata shape and primitive types.
+It independently reconstructs every orphan page from that bounded trunk/leaf
+witness and zero padding, then matches each page's SHA-256, nonzero count, and
+the existing page-number-framed aggregate digest and byte count. It also rejects
+a reachable full-page duplicate, incomplete native observation, changed input
+identity or unsupported allocator mode. The inspection and captured originals
+remain protected by no-follow descriptors and full rehashes while native SQLite
+creates the candidate. Every companion's identity and absent/empty status must
+remain unchanged through the final comparisons. Any existing candidate directory
+entry, including a dangling symlink, rejects creation.
+
+Only `VACUUM INTO` on the existing URI `mode=ro` inspection connection may create
+the new private disposable candidate. No original or inspection header, freelist
+pointer or byte is patched. A native SQLite failure remains unqualified. Success
+records `BYTE_RECONSTRUCTED_DISPOSABLE_ONLY`; it does not admit `.recover`, object
+publication, restoration, deletion of captures, runtime restart or deployment.
 
 The candidate must pass SQLite integrity and foreign-key checks. Its schema,
 declared column metadata, every declared stored value, duplicate-row multiplicity,
@@ -132,6 +171,8 @@ remote transaction commit acknowledgement.
 ## Primary implementation references
 
 - [SQLite online backup API](https://www.sqlite.org/backup.html)
+- [SQLite file format, allocator headers and freelist pages](https://www.sqlite.org/fileformat2.html)
+- [SQLite VACUUM INTO and rowid limits](https://www.sqlite.org/lang_vacuum.html)
 - [SQLite recovery limitations](https://www.sqlite.org/recovery.html)
 - [SQLite database files over a network](https://www.sqlite.org/useovernet.html)
 - [Hugging Face bucket access and managed Space mounts](https://huggingface.co/docs/hub/en/storage-buckets-access)

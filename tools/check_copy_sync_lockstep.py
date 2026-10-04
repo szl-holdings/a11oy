@@ -618,8 +618,8 @@ REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
     # The qualifier's local preservation and descriptive forensic imports are
     # separately pinned. Its capture, continuity anchors and verification key
     # are bound too; a data-only substitution cannot retain source admission.
-    "scripts/gdw_orphan_forensics.py": "9d5fd1eb38feb4674cb8c0506faf446e5b0b82dc10b4a3cc6c2ce1f77f7d38f0",
-    "scripts/qualify_gdw_store_recovery.py": "855e55bb891635c116e839fda8df792b8a93be4d89241f1b1cfb651eaa02954c",
+    "scripts/gdw_orphan_forensics.py": "6b68913196304b4dce26e0d9685ae93e146a401c9e2720f1401153c4a177e28e",
+    "scripts/qualify_gdw_store_recovery.py": "f3c0541213a22fbd5ef60a3421e971a803fdf880f3ef25542d734ad4f976ea47",
     "docs/operations/evidence/gdw-capture-37223162231.json": "5ff7b2be5d07850b560c1909be128521217ea70b959d238ff9d3f0f68a98b5c3",
     "docs/operations/evidence/gdw-recovery-historical-anchors.json": "5850da876784da5d2a08532f1c70246e5be38ef623ff6c7378009049da4a273b",
     "ayllu/keys/council-runtime-2026-07-21.pub": "f8ee566d8f1e8ee8a9bb7eba37c24c18ae73605542fc29f7d3e5366ef75562fe",
