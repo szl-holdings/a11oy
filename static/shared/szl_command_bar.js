@@ -175,7 +175,8 @@
       id: 'inv-toggle',
       text: 'Investor view',
       onclick: function () {
-        if (typeof global.go === 'function') global.go('investor');
+        // Other consumers define unrelated go functions; only the console owns view routing.
+        if (consoleTheme && typeof global.go === 'function') global.go('investor');
         else location.href = '/console?view=investor';
       }
     });
@@ -236,18 +237,24 @@
 
     function closeMore(restore) {
       overflow.classList.remove('open');
+      root.classList.remove('szl-more-open');
       moreBtn.setAttribute('aria-expanded', 'false');
       if (restore) moreBtn.focus();
     }
     function openMore(focusLast) {
       overflow.classList.add('open');
+      root.classList.add('szl-more-open');
       moreBtn.setAttribute('aria-expanded', 'true');
       moreMenu.style.left = '';
       moreMenu.style.right = '0';
-      if (moreMenu.getBoundingClientRect().left < 8) {
-        moreMenu.style.right = 'auto';
-        moreMenu.style.left = '0';
-      }
+      moreMenu.style.maxHeight = '';
+      var menuRect = moreMenu.getBoundingClientRect();
+      var viewportWidth = document.documentElement.clientWidth || global.innerWidth;
+      var viewportHeight = document.documentElement.clientHeight || global.innerHeight;
+      var left = Math.min(Math.max(8, menuRect.left), Math.max(8, viewportWidth - menuRect.width - 8));
+      moreMenu.style.right = 'auto';
+      moreMenu.style.left = (left - overflow.getBoundingClientRect().left) + 'px';
+      moreMenu.style.maxHeight = Math.max(44, viewportHeight - menuRect.top - 8) + 'px';
       var items = moreMenu.querySelectorAll('a');
       if (items.length && focusLast != null) items[focusLast ? items.length - 1 : 0].focus();
     }
@@ -472,7 +479,7 @@
         item.addEventListener('click', function (e) {
           if (v.roadmap) return;
           closePalette();
-          if (v.href.indexOf('/console?view=') === 0 && typeof global.go === 'function' && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
+          if (consoleTheme && v.href.indexOf('/console?view=') === 0 && typeof global.go === 'function' && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
             e.preventDefault();
             global.go(v.href.split('view=')[1]);
           }

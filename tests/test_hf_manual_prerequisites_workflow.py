@@ -49,12 +49,15 @@ BOUNDED_RUNS = {
     "series_a": r'''set +e
 python -B scripts/prove_hf_series_a_restart.py \
   --repo-id "$CANONICAL_SPACE" --origin "$CANONICAL_ORIGIN" \
+  --run-context "${{ github.run_id }}:${{ github.run_attempt }}" \
   --source-sha "${{ github.sha }}" --output "$SERIES_A_LIVE_REPORT"
 code=$?
 echo "exit_code=$code" >> "$GITHUB_OUTPUT"
 exit "$code"''',
     "gdw": r'''set +e
 python -B scripts/prove_hf_gdw_runtime.py \
+  --series-a-proof "$SERIES_A_LIVE_REPORT" \
+  --run-context "${{ github.run_id }}:${{ github.run_attempt }}" \
   --origin "$CANONICAL_ORIGIN" \
   --source-sha "${{ github.sha }}" --output "$GDW_LIVE_REPORT"
 code=$?
@@ -286,7 +289,7 @@ def assert_blocked_restart_workflow(source):
 
 
 PROOF_SECRET_NAMES = {"prove_hf_series_a_restart.py": "HF_TOKEN", "prove_hf_gdw_runtime.py": "GDW_OPERATOR_TOKEN"}
-PERMITTED_PROOF_IMPORTS = {"__future__", "argparse", "base64", "hashlib", "json", "os", "re", "sys", "time", "datetime", "pathlib", "typing", "urllib", "hf_live_proof_bounds"}
+PERMITTED_PROOF_IMPORTS = {"__future__", "argparse", "base64", "hashlib", "json", "os", "re", "stat", "sys", "time", "datetime", "pathlib", "typing", "urllib", "hf_live_proof_bounds"}
 FORBIDDEN_PROVIDER_EFFECTS = ("delete_space_secret", "add_space_secret", "add_space_variable", "delete_space_variable", "delete_space_storage", "request_space_storage", "request_space_hardware", "upload_file", "delete_repo", "factory_reboot=True")
 
 
@@ -482,6 +485,8 @@ class ManualPrerequisiteWorkflowTests(unittest.TestCase):
 
     def test_weakened_bounded_live_proof_steps_are_rejected(self):
         cases = (
+            ('            --series-a-proof "$SERIES_A_LIVE_REPORT" \\\n', '', "gdw"),
+            ('--run-context "${{ github.run_id }}:${{ github.run_attempt }}"', '--run-context "1:1"', "series-a"),
             ('          exit "$code"\n\n      # Writes only', '          exit 0\n\n      # Writes only', "series-a"),
             ('--origin "$CANONICAL_ORIGIN" \\\n            --source-sha "${{ github.sha }}" --output "$GDW_LIVE_REPORT"', '--origin "https://a-11-oy.com" \\\n            --source-sha "${{ github.sha }}" --output "$GDW_LIVE_REPORT"', "gdw"),
             ('--admit-live-proofs \\', '--admit-live-proofs || true \\', "admission"),

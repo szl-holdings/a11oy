@@ -14,6 +14,11 @@ UPLOAD = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
 TITLE = "Preserve source-bound Lyte failure diagnostics"
 CONDITION = "${{ always() && hashFiles('hf-lyte-enterprise-manifest.failed.json') != '' }}"
 FILES = ("hf-lyte-enterprise-manifest.failed.json", "hf-lyte-enterprise-receipt.json")
+AGGREGATE_TITLE = "Upload immutable vertical publication receipt"
+AGGREGATE_FILES = (
+    "hf-vertical-flagships-receipt.json", "hf-lyte-enterprise-receipt.json",
+    "hf-lyte-enterprise-manifest.failed.json", "hf-lyte-release-evidence/",
+)
 
 
 def step(document, name):
@@ -45,6 +50,25 @@ def validate_retention(document):
     )
     if observed != expected:
         raise ValueError("native diagnostics artifact contract changed")
+    return observed
+
+
+def validate_aggregate_retention(document):
+    """Admit the exact transaction evidence alongside the aggregate receipt."""
+    observed = step(document, AGGREGATE_TITLE)
+    expected = (
+        "        if: ${{ always() && steps.exact_main_owner.outputs.publish == 'true' && "
+        "steps.vertical_plan.outputs.vertical_flagships == 'true' }}\n"
+        "        uses: " + UPLOAD + " # v7.0.1\n"
+        "        with:\n"
+        "          name: hf-vertical-flagships-${{ github.run_id }}-${{ github.run_attempt }}\n"
+        "          path: |\n"
+        + "".join("            " + path + "\n" for path in AGGREGATE_FILES)
+        + "          if-no-files-found: error\n"
+        "          retention-days: 180\n"
+    )
+    if observed != expected:
+        raise ValueError("aggregate transaction evidence contract changed")
     return observed
 
 
@@ -84,14 +108,24 @@ class LyteFailureEvidenceTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     validate_retention(changed)
 
-    def test_existing_aggregate_archive_scope_is_unchanged(self):
-        aggregate = step(self.hf, "Upload immutable vertical publication receipt")
-        self.assertIn("name: hf-vertical-flagships-${{ github.run_id }}-${{ github.run_attempt }}", aggregate)
-        self.assertIn("path: hf-vertical-flagships-receipt.json\n", aggregate)
-        self.assertIn("if-no-files-found: error", aggregate)
-        self.assertIn("retention-days: 180", aggregate)
-        for path in FILES:
-            self.assertNotIn(path, aggregate)
+    def test_aggregate_archive_retains_exact_transaction_evidence(self):
+        validate_aggregate_retention(self.hf)
+
+    def test_aggregate_archive_cannot_omit_or_broaden_transaction_evidence(self):
+        original = step(self.hf, AGGREGATE_TITLE)
+        changes = [("            " + path + "\n", "") for path in AGGREGATE_FILES]
+        changes += [
+            ("            hf-lyte-release-evidence/", "            **/*.json"),
+            ("            hf-lyte-release-evidence/", "            hf-lyte-release-evidence/\n            .env"),
+            ("if-no-files-found: error", "if-no-files-found: ignore"),
+            ("retention-days: 180", "retention-days: 1"),
+        ]
+        for before, after in changes:
+            with self.subTest(before=before, after=after):
+                self.assertEqual(original.count(before), 1)
+                changed = self.hf.replace(original, original.replace(before, after, 1), 1)
+                with self.assertRaises(ValueError):
+                    validate_aggregate_retention(changed)
 
     def test_explicit_publisher_failure_is_still_enforced(self):
         job = self.hf.split("  publish-vertical-flagships:\n", 1)[1].split("\n  readiness-verdict:\n", 1)[0]

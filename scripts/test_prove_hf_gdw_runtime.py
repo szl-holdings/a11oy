@@ -3,6 +3,8 @@ from __future__ import annotations
 import base64
 import importlib.util
 import json
+import subprocess
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -1334,3 +1336,254 @@ def test_main_pass_report_is_compact_and_admissible(monkeypatch, tmp_path):
         "report_valid": True, "state": "PROVEN"}
     assert checker.inspect_live_proof(output, "gdw", 1, SOURCE_SHA)["state"] == "UNPROVEN"
     assert checker.inspect_live_proof(output, "gdw", 0, "c" * 40)["state"] == "UNPROVEN"
+
+
+RUN_CONTEXT = "123456789:2"
+
+
+def _terminal_series_report(*, phase="activation", stage="RUNTIME_ERROR"):
+    observed = proof.datetime.now(proof.timezone.utc).isoformat()
+    return {
+        "schema": "szl.series-a-restart-proof/v1",
+        "status": "FAIL", "ok": False, "diagnostic_code": "PROVIDER_TERMINAL_STATE",
+        "repo_id": proof.bounds.CANONICAL_SPACE, "requested_repo_id_admitted": True,
+        "origin": proof.bounds.CANONICAL_ORIGIN, "source_revision": SOURCE_SHA,
+        "workflow_run_context": RUN_CONTEXT, "generated_at": observed,
+        "secret_values_recorded": False, "credential_authority_state": "UNKNOWN",
+        "evidence": {
+            "terminal_provider_state": {
+                "stage": stage, "phase": phase, "attempt": 2, "observed_at": observed,
+                "expected_source_revision": SOURCE_SHA, "runtime_source_verified": False,
+            },
+            f"{phase}_restart_requested": True,
+            f"{phase}_restart_control": {
+                "phase": phase, "pause_requested": True, "pause_confirmed": True,
+                "confirmed_pause_stage": "PAUSED", "restart_requested": True,
+                "writer_overlap_prevented": True,
+            },
+        },
+    }
+
+
+@pytest.mark.parametrize("phase", ["activation", "durability"])
+@pytest.mark.parametrize("stage", ["RUNTIME_ERROR", "BUILD_ERROR", "CONFIG_ERROR", "NO_APP_FILE"])
+def test_main_retains_same_run_terminal_failure_before_gdw_requests(monkeypatch, tmp_path, capsys, phase, stage):
+    upstream = tmp_path / "series-a.json"
+    source_report = _terminal_series_report(phase=phase, stage=stage)
+    source_report["evidence"]["provider_error"] = "private provider traceback"
+    source_report["evidence"]["terminal_provider_state"]["errorMessage"] = "private database rows"
+    upstream.write_text(json.dumps(source_report), encoding="utf-8")
+    monkeypatch.setattr(proof, "prove", lambda **_k: pytest.fail("no GDW requests after terminal failure"))
+    monkeypatch.setattr(proof.time, "sleep", lambda _s: pytest.fail("no redundant 600-second wait"))
+    output = tmp_path / "gdw.json"
+    code = proof.main([
+        "--source-sha", SOURCE_SHA, "--output", str(output),
+        "--run-context", RUN_CONTEXT, "--series-a-proof", str(upstream),
+    ], transport_factory=lambda **_k: pytest.fail("no transport before terminal failure"))
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert code == 1 and report["ok"] is False and report["state"] == "FAILED"
+    assert report["diagnostic_code"] == "PROVIDER_TERMINAL_STATE"
+    assert report["workflow_run_context"] == RUN_CONTEXT
+    terminal = report["evidence"]["terminal_provider_state"]
+    assert terminal["stage"] == stage and terminal["phase"] == phase
+    assert terminal["runtime_source_verified"] is False
+    assert set(terminal) == {"stage", "phase", "attempt", "observed_at", "expected_source_revision", "runtime_source_verified"}
+    assert "private" not in output.read_text(encoding="utf-8") + capsys.readouterr().out
+    assert proof._TRANSPORT is None
+
+
+@pytest.mark.parametrize("path,value", [
+    (("schema",), "unrelated/v1"),
+    (("status",), "PASS"),
+    (("ok",), 0),
+    (("diagnostic_code",), "RESTART_PROOF_TIMEOUT"),
+    (("repo_id",), "SZLHOLDINGS/other"),
+    (("requested_repo_id_admitted",), False),
+    (("origin",), "https://untrusted.invalid"),
+    (("source_revision",), "b" * 40),
+    (("workflow_run_context",), "123456789:1"),
+    (("workflow_run_context",), "987654321:2"),
+    (("secret_values_recorded",), True),
+    (("credential_authority_state",), "VERIFIED"),
+    (("evidence",), []),
+    (("evidence", "terminal_provider_state"), {}),
+    (("evidence", "terminal_provider_state", "stage"), "APP_STARTING"),
+    (("evidence", "terminal_provider_state", "stage"), "BUILDING"),
+    (("evidence", "terminal_provider_state", "stage"), []),
+    (("evidence", "terminal_provider_state", "phase"), "unowned"),
+    (("evidence", "terminal_provider_state", "expected_source_revision"), "c" * 40),
+    (("evidence", "terminal_provider_state", "runtime_source_verified"), True),
+    (("evidence", "terminal_provider_state", "attempt"), True),
+    (("evidence", "terminal_provider_state", "attempt"), 0),
+    (("evidence", "terminal_provider_state", "attempt"), 91),
+    (("evidence", "terminal_provider_state", "observed_at"), "2000-01-01T00:00:00+00:00"),
+    (("evidence", "terminal_provider_state", "observed_at"), "2099-01-01T00:00:00+00:00"),
+    (("evidence", "terminal_provider_state", "observed_at"), "2026-10-04T00:00:00"),
+    (("generated_at",), "2000-01-01T00:00:00+00:00"),
+    (("generated_at",), "2099-01-01T00:00:00+00:00"),
+    (("evidence", "activation_restart_requested"), False),
+    (("evidence", "activation_restart_control", "phase"), "durability"),
+    (("evidence", "activation_restart_control", "pause_requested"), False),
+    (("evidence", "activation_restart_control", "pause_confirmed"), False),
+    (("evidence", "activation_restart_control", "confirmed_pause_stage"), "APP_STARTING"),
+    (("evidence", "activation_restart_control", "restart_requested"), False),
+    (("evidence", "activation_restart_control", "writer_overlap_prevented"), False),
+])
+def test_inadmissible_terminal_evidence_keeps_existing_gdw_checks(monkeypatch, tmp_path, path, value):
+    report = _terminal_series_report()
+    target = report
+    for key in path[:-1]:
+        target = target[key]
+    target[path[-1]] = value
+    upstream = tmp_path / "series-a.json"
+    upstream.write_text(json.dumps(report), encoding="utf-8")
+    _assert_existing_gdw_checks(monkeypatch, tmp_path, upstream)
+
+
+def _assert_existing_gdw_checks(monkeypatch, tmp_path, upstream, *, run_context=RUN_CONTEXT):
+    checked = []
+    monkeypatch.setenv("GDW_OPERATOR_TOKEN", "offline-operator-fixture-with-at-least-32-bytes")
+
+    def existing_proof(**kwargs):
+        checked.append(kwargs)
+        assert proof._TRANSPORT is not None
+        raise proof.ProofBoundaryError("RECEIPT_SIGNATURE_INVALID")
+
+    monkeypatch.setattr(proof, "prove", existing_proof)
+    output = tmp_path / "gdw.json"
+    argv = ["--source-sha", SOURCE_SHA, "--output", str(output)]
+    if run_context is not None:
+        argv.extend(["--run-context", run_context])
+    if upstream is not None:
+        argv.extend(["--series-a-proof", str(upstream)])
+    assert proof.main(argv, transport_factory=lambda **_k: object()) == 1
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert len(checked) == 1
+    assert checked[0]["require_signed_receipt"] is True
+    assert checked[0]["source_sha"] == SOURCE_SHA
+    assert report["diagnostic_code"] == "RECEIPT_SIGNATURE_INVALID"
+    assert report["evidence"] == {} and report["ok"] is False
+
+
+@pytest.mark.parametrize("kind", [
+    "missing", "omitted", "malformed", "duplicate", "nested-duplicate",
+    "oversized", "non-object", "non-utf8", "nonfinite", "no-run-context",
+])
+def test_missing_or_malformed_upstream_report_cannot_skip_gdw_checks(monkeypatch, tmp_path, kind):
+    upstream = tmp_path / "series-a.json"
+    raw = json.dumps(_terminal_series_report()).encode()
+    if kind == "malformed":
+        raw = b'{"status":'
+    elif kind == "duplicate":
+        raw = raw[:-1] + b', "status": "FAIL"}'
+    elif kind == "nested-duplicate":
+        raw = raw.replace(b'"stage": "RUNTIME_ERROR"', b'"stage": "APP_STARTING", "stage": "RUNTIME_ERROR"')
+    elif kind == "oversized":
+        raw += b" " * (proof.MAX_REPORT_BYTES + 1)
+    elif kind == "non-object":
+        raw = b'[]'
+    elif kind == "non-utf8":
+        raw = b'\xff'
+    elif kind == "nonfinite":
+        raw = raw[:-1] + b', "extra": NaN}'
+    if kind != "missing":
+        upstream.write_bytes(raw)
+    _assert_existing_gdw_checks(
+        monkeypatch, tmp_path, None if kind == "omitted" else upstream,
+        run_context=None if kind == "no-run-context" else RUN_CONTEXT,
+    )
+
+
+@pytest.mark.parametrize("kind", ["fifo", "symlink", "directory"])
+def test_nonregular_report_falls_through_before_a_blocking_read(tmp_path, kind):
+    upstream = tmp_path / "series-a.json"
+    if kind == "fifo":
+        proof.os.mkfifo(upstream)
+    elif kind == "symlink":
+        target = tmp_path / "target.json"
+        target.write_text(json.dumps(_terminal_series_report()), encoding="utf-8")
+        upstream.symlink_to(target)
+    else:
+        upstream.mkdir()
+    environment = proof.os.environ.copy()
+    environment.pop("GDW_OPERATOR_TOKEN", None)
+    output = tmp_path / "gdw.json"
+    result = subprocess.run([
+        sys.executable, "-B", str(SCRIPT), "--source-sha", SOURCE_SHA,
+        "--run-context", RUN_CONTEXT, "--series-a-proof", str(upstream),
+        "--output", str(output),
+    ], env=environment, capture_output=True, text=True, timeout=3, check=False)
+    assert result.returncode == 1
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["diagnostic_code"] == "SETUP_REQUIRED"
+    assert report["missing_secret_names"] == ["GDW_OPERATOR_TOKEN"]
+    assert report["evidence"] == {} and report["ok"] is False
+
+
+def test_real_series_a_cli_terminal_failure_propagates_to_gdw_without_new_reads(monkeypatch, tmp_path, capsys):
+    series_path = Path(__file__).with_name("prove_hf_series_a_restart.py")
+    spec = importlib.util.spec_from_file_location("series_a_terminal_chain", series_path)
+    series = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(series)
+    monkeypatch.setenv("HF_TOKEN", "offline-hf-token-fixture")
+    monkeypatch.setattr(series.time, "sleep", lambda _s: None)
+    calls = []
+    runtime_stages = iter(["APP_STARTING", "RUNTIME_ERROR"])
+
+    class Response:
+        status = 200
+
+        def __init__(self, url, payload):
+            self.url = url
+            self.raw = json.dumps(payload).encode()
+
+        def read(self, *_args):
+            return self.raw
+
+        def geturl(self):
+            return self.url
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+    class Opener:
+        def open(self, request, **_kwargs):
+            url = request.full_url
+            calls.append((request.get_method(), url))
+            if url.endswith("/series-a/status"):
+                payload = {"runtime_boot_id": "boot_" + "1" * 32}
+            elif url.endswith("/pause"):
+                payload = {"stage": "PAUSED"}
+            elif url.endswith("/restart"):
+                payload = {"stage": "APP_STARTING"}
+            elif url.endswith("/runtime"):
+                payload = {"stage": next(runtime_stages), "errorMessage": "private provider traceback"}
+            else:
+                pytest.fail("unexpected provider or application request")
+            return Response(url, payload)
+
+    upstream = tmp_path / "series-a.json"
+    assert series.main([
+        "--source-sha", SOURCE_SHA, "--run-context", RUN_CONTEXT,
+        "--output", str(upstream), "--attempts", "30", "--retry-seconds", "0",
+    ], transport_factory=lambda **kwargs: series.bounds.BoundedTransport(opener=Opener(), **kwargs)) == 1
+    source_report = json.loads(upstream.read_text(encoding="utf-8"))
+    assert source_report["diagnostic_code"] == "PROVIDER_TERMINAL_STATE"
+    assert source_report["evidence"]["terminal_provider_state"]["attempt"] == 2
+    assert source_report["workflow_run_context"] == RUN_CONTEXT
+    assert [method for method, _url in calls] == ["GET", "POST", "POST", "GET", "GET"]
+    assert source_report["evidence"]["activation_restart_control"]["confirmed_pause_stage"] == "PAUSED"
+    monkeypatch.setattr(proof, "prove", lambda **_k: pytest.fail("no redundant GDW proof after terminal restart"))
+    output = tmp_path / "gdw.json"
+    assert proof.main([
+        "--source-sha", SOURCE_SHA, "--run-context", RUN_CONTEXT,
+        "--series-a-proof", str(upstream), "--output", str(output),
+    ], transport_factory=lambda **_k: pytest.fail("no GDW transport")) == 1
+    gdw_report = json.loads(output.read_text(encoding="utf-8"))
+    assert gdw_report["diagnostic_code"] == "PROVIDER_TERMINAL_STATE"
+    assert gdw_report["evidence"]["terminal_provider_state"] == source_report["evidence"]["terminal_provider_state"]
+    assert len(calls) == 5
+    assert "private provider" not in capsys.readouterr().out

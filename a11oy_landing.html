@@ -2127,7 +2127,7 @@ html[data-szl-shell-owner="homepage"] footer .brand .sub {color:#B4C2D2}
     if(d.probe_verdict_available === false) return ["SNAPSHOT", prefix+"static contract; deployment probe pending."];
     if(d.probe_verdict_available !== true) throw new Error("probe status unavailable");
     const v = d.verdict_summary;
-    const fields = ["endpoints","ok","skippedStateChanging","lies","unreachable","throttled"];
+    const fields = ["endpoints","ok","skippedStateChanging","lies","unreachable","throttled","degraded"];
     const origin = new URL(d.verdict_base);
     if(d.available !== true || !v || !fields.every(k => count(v[k])) || v.endpoints <= v.skippedStateChanging ||
        fields.slice(1).reduce((total,k) => total+v[k], 0) !== v.endpoints ||
@@ -2135,8 +2135,8 @@ html[data-szl-shell-owner="homepage"] footer .brand .sub {color:#B4C2D2}
        !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(d.verdict_checked_at || "") ||
        !Number.isFinite(Date.parse(d.verdict_checked_at)) || origin.origin !== d.verdict_expected_base ||
        origin.pathname !== "/" || origin.search || origin.hash || origin.username || origin.password) throw new Error("probe evidence incomplete");
-    const failed = v.lies+v.unreachable+v.throttled;
-    return [failed ? "DEGRADED" : "OBSERVED", prefix+v.ok+" probe passes · "+failed+" failed/throttled · "+v.skippedStateChanging+" state-changing checks skipped · checked "+d.verdict_checked_at+"."];
+    const failed = v.lies+v.unreachable+v.throttled+v.degraded;
+    return [failed ? "DEGRADED" : "OBSERVED", prefix+v.ok+" probe passes · "+failed+" failed/throttled/degraded · "+v.skippedStateChanging+" state-changing checks skipped · checked "+d.verdict_checked_at+"."];
   }
   function meshPulse(d){
     if(!Array.isArray(d.mesh_organs) || !Array.isArray(d.khipu_nodes)) throw new Error("mesh contract unavailable");

@@ -21,6 +21,14 @@ on:
       - 'tests/test_readiness_blocker_repairs.py'
       - 'tests/test_readiness_runtime_module_selection.py'
       - 'tests/test_cyber_feed_readiness.py'
+      - 'tests/test_readiness_honesty_contract.py'
+      - 'tests/test_publish_readiness_verdict.py'
+      - 'tests/test_canonical_a11oy_relock.py'
+      - 'tests/test_landing_estate_pulse.py'
+      - '.github/scripts/publish_readiness_verdict.py'
+      - '.github/scripts/verify_canonical_a11oy.py'
+      - 'a11oy_landing.html'
+      - 'static/3d/holographic.html'
       - 'pages/console.html'
       - 'szl_readiness.py'
       - '.github/workflows/readiness-harness.yml'
@@ -34,6 +42,14 @@ on:
       - 'tests/test_readiness_blocker_repairs.py'
       - 'tests/test_readiness_runtime_module_selection.py'
       - 'tests/test_cyber_feed_readiness.py'
+      - 'tests/test_readiness_honesty_contract.py'
+      - 'tests/test_publish_readiness_verdict.py'
+      - 'tests/test_canonical_a11oy_relock.py'
+      - 'tests/test_landing_estate_pulse.py'
+      - '.github/scripts/publish_readiness_verdict.py'
+      - '.github/scripts/verify_canonical_a11oy.py'
+      - 'a11oy_landing.html'
+      - 'static/3d/holographic.html'
       - 'pages/console.html'
       - 'szl_readiness.py'
       - '.github/workflows/readiness-harness.yml'
@@ -83,6 +99,11 @@ jobs:
         run: python -B tests/test_readiness_runtime_module_selection.py
       - name: Live-feed readiness regressions
         run: python -m pytest -q tests/test_readiness_blocker_repairs.py tests/test_cyber_feed_readiness.py
+      - name: Required-source readiness and reporting regressions
+        run: >-
+          python -m pytest -q tests/test_readiness_honesty_contract.py
+          tests/test_publish_readiness_verdict.py tests/test_canonical_a11oy_relock.py
+          tests/test_landing_estate_pulse.py
 
   probe:
     name: API probe ("Lies?" verdict)
@@ -107,14 +128,23 @@ jobs:
             node -e '
               const v=require("./"+process.env.HARNESS+"/readiness-verdict.json");
               const s=v.summary||{};
-              let o="## Readiness probe — \"is every tab real?\"\n\n";
+              let o="## Readiness probe — endpoint observations\n\n";
               o+=`base \`${v.base}\` · ${v.checkedAt}\n\n`;
               o+=`source revision: ${v.sourceRevisionStatus||"UNAVAILABLE"}${v.sourceRevision?" `"+v.sourceRevision+"`":""}\n\n`;
-              o+=`| real | lies | unreachable | throttled | endpoints |\n|--:|--:|--:|--:|--:|\n`;
-              o+=`| ${s.ok} | ${s.lies} | ${s.unreachable||0} | ${s.throttled||0} | ${s.endpoints} |\n\n`;
-              const flagged=(v.results||[]).filter(r=>r.lie||r.unreachable);
-              if(flagged.length){o+="### Flagged\n\n";for(const r of flagged){o+=`- \`${r.path}\` — ${r.lie?("LIE: "+r.lies.join("; ")):("unreachable ("+(r.error||r.status)+")")}\n`;}}
-              else o+="All probed endpoints real.\n";
+              o+=`| probe passes | lies | unreachable | throttled | degraded | skipped | endpoints |\n|--:|--:|--:|--:|--:|--:|--:|\n`;
+              o+=`| ${s.ok??"UNAVAILABLE"} | ${s.lies??"UNAVAILABLE"} | ${s.unreachable??"UNAVAILABLE"} | ${s.throttled??"UNAVAILABLE"} | ${s.degraded??"UNAVAILABLE"} | ${s.skippedStateChanging??"UNAVAILABLE"} | ${s.endpoints??"UNAVAILABLE"} |\n\n`;
+              const results=Array.isArray(v.results)?v.results:[];
+              const flagged=results.filter(r=>r.lie||r.unreachable||r.throttled||r.degraded);
+              if(flagged.length){
+                o+="### Flagged\n\n";
+                for(const r of flagged){
+                  const reason=r.lie?"LIE: "+r.lies.join("; ")
+                    :r.unreachable?"unreachable ("+(r.error||r.status)+")"
+                    :r.throttled?"throttled ("+r.status+")"
+                    :"DEGRADED: unavailable sources "+(r.unavailableSources||[]).join(", ");
+                  o+=`- \`${r.path}\` — ${reason}\n`;
+                }
+              } else o+=results.length?"No flagged outcomes in the recorded probe results.\n":"No endpoint results were recorded.\n";
               require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY,o);
             '
           fi

@@ -737,7 +737,8 @@ def await_running_source(
 
     Persistence is never declared from a runtime that is not RUNNING or that
     serves another revision. Exhausting the attempt cap or the shared deadline
-    is ``RESTART_PROOF_TIMEOUT`` (a failure, never a pass).
+    is ``RESTART_PROOF_TIMEOUT`` (a failure, never a pass). An explicit provider
+    error stage ends this proof immediately as ``PROVIDER_TERMINAL_STATE``.
     """
 
     bounds.require_canonical_space(repo_id)
@@ -750,6 +751,26 @@ def await_running_source(
         try:
             _check_deadline(deadline)
             stage = _runtime_stage(api.get_space_runtime(repo_id=repo_id))
+            _check_deadline(deadline)
+            if stage in bounds.TERMINAL_PROVIDER_ERROR_STAGES:
+                # A provider stage does not establish the runtime's source SHA.
+                # Keep only fixed metadata, never its error body or stack trace.
+                terminal = {
+                    "stage": stage,
+                    "phase": phase,
+                    "attempt": attempt + 1,
+                    "observed_at": datetime.now(timezone.utc).isoformat(),
+                    "expected_source_revision": expected_source,
+                    "runtime_source_verified": False,
+                }
+                if evidence is not None:
+                    evidence["terminal_provider_state"] = terminal
+                if len(observations) < 32:
+                    observations.append({
+                        "attempt": attempt + 1, "stage": stage,
+                        "git_sha_matches": False,
+                    })
+                raise ProofBoundaryError("PROVIDER_TERMINAL_STATE")
             if stage == "RUNNING":
                 honest = _json(
                     session.get(
@@ -1023,6 +1044,7 @@ def write_report(path: Path, report: Mapping[str, Any]) -> None:
 MAX_REPORT_BYTES = 12 * 1024
 _EVIDENCE_KEYS = (
     "phase",
+    "terminal_provider_state",
     "pre_activation_runtime_boot_id",
     "activation_restart_control",
     "durability_restart_control",
@@ -1047,6 +1069,15 @@ def _bounded_evidence(evidence: Mapping[str, Any], secrets: tuple[str, ...]) -> 
             } if isinstance(before.get("storage"), Mapping) else None,
         })
     encoded = json.dumps(summary, sort_keys=True)
+    if len(encoded.encode("utf-8")) > MAX_REPORT_BYTES // 2 and "terminal_provider_state" in summary:
+        # Retain the terminal observation and owned restart even if earlier
+        # polling has filled the bounded observation arrays.
+        for phase in ("activation", "durability"):
+            summary.pop(f"{phase}_running_source_observations", None)
+            control = summary.get(f"{phase}_restart_control")
+            if isinstance(control, dict):
+                control.pop("pause_observations", None)
+        encoded = json.dumps(summary, sort_keys=True)
     if len(encoded.encode("utf-8")) > MAX_REPORT_BYTES // 2 or any(
         secret and secret in encoded for secret in secrets
     ):
@@ -1141,6 +1172,7 @@ def main(argv: list[str] | None = None, *, transport_factory: Any = None) -> int
     parser.add_argument("--attempts", type=int, default=MAX_POLL_ATTEMPTS)
     parser.add_argument("--retry-seconds", type=int, default=10)
     parser.add_argument("--deadline-seconds", type=int, default=DEFAULT_DEADLINE_SECONDS)
+    parser.add_argument("--run-context", help="GitHub workflow run ID and attempt, ID:ATTEMPT")
     args = parser.parse_args(argv)
     source = str(args.source_sha or "").strip().lower()
     output = Path(args.output)
@@ -1149,6 +1181,8 @@ def main(argv: list[str] | None = None, *, transport_factory: Any = None) -> int
     try:
         if SHA40.fullmatch(source) is None:
             raise RestartProofError("source revision is not canonical", code="INVALID_ARGUMENTS")
+        if args.run_context is not None and bounds.WORKFLOW_RUN_CONTEXT.fullmatch(args.run_context) is None:
+            raise ProofBoundaryError("INVALID_ARGUMENTS")
         bounds.require_canonical_space(args.repo_id)
         origin = normalize_origin(args.origin)
         token = os.environ.get(HF_TOKEN_NAME, "")
@@ -1187,6 +1221,8 @@ def main(argv: list[str] | None = None, *, transport_factory: Any = None) -> int
             secrets=(token,) if token else (),
         )
         code = 1
+    if args.run_context is not None and bounds.WORKFLOW_RUN_CONTEXT.fullmatch(args.run_context):
+        report["workflow_run_context"] = args.run_context
     encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"
     if token and token in encoded:  # defence in depth; never persist a secret
         report = failure_report(

@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 import re
+import stat
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -1409,6 +1410,99 @@ SCHEMA = "szl.hf-gdw-live-proof/v1"
 # The only credential this proof reads (the existing hf-sync secret name).
 GDW_TOKEN_NAME = "GDW_OPERATOR_TOKEN"
 MAX_REPORT_BYTES = 12 * 1024
+MAX_UPSTREAM_TERMINAL_AGE_SECONDS = 120
+
+
+def _terminal_series_a_evidence(path: str | None, *, source: str,
+                                run_context: str | None) -> dict:
+    """Accept only a fresh same-run failure after an owned canonical restart.
+
+    This local report can stop redundant polling, never admit a live proof.
+    Missing or inadmissible evidence leaves all existing GDW checks active.
+    """
+
+    if not path or not run_context or bounds.WORKFLOW_RUN_CONTEXT.fullmatch(run_context) is None:
+        return {}
+
+    def unique_object(pairs):
+        value = {}
+        for key, item in pairs:
+            if key in value:
+                raise ValueError("duplicate key")
+            value[key] = item
+        return value
+
+    def reject_constant(_value):
+        raise ValueError("non-JSON constant")
+
+    try:
+        # Reject a FIFO/device before reading: this local evidence check runs
+        # before the GDW transport exists and must not create a blocking wait.
+        descriptor = os.open(path, os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW)
+        try:
+            metadata = os.fstat(descriptor)
+            if not stat.S_ISREG(metadata.st_mode) or metadata.st_size > MAX_REPORT_BYTES:
+                return {}
+            raw = os.read(descriptor, MAX_REPORT_BYTES + 1)
+        finally:
+            os.close(descriptor)
+        if len(raw) > MAX_REPORT_BYTES:
+            return {}
+        report = json.loads(raw, object_pairs_hook=unique_object, parse_constant=reject_constant)
+        if not isinstance(report, dict) or any((
+            report.get("schema") != "szl.series-a-restart-proof/v1",
+            report.get("status") != "FAIL",
+            report.get("ok") is not False,
+            report.get("diagnostic_code") != "PROVIDER_TERMINAL_STATE",
+            report.get("repo_id") != bounds.CANONICAL_SPACE,
+            report.get("requested_repo_id_admitted") is not True,
+            report.get("origin") != bounds.CANONICAL_ORIGIN,
+            report.get("source_revision") != source,
+            report.get("workflow_run_context") != run_context,
+            report.get("secret_values_recorded") is not False,
+            report.get("credential_authority_state") != "UNKNOWN",
+        )):
+            return {}
+        evidence = report.get("evidence")
+        terminal = evidence.get("terminal_provider_state") if isinstance(evidence, dict) else None
+        if not isinstance(terminal, dict):
+            return {}
+        phase = terminal.get("phase")
+        if phase not in ("activation", "durability") or any((
+            terminal.get("stage") not in bounds.TERMINAL_PROVIDER_ERROR_STAGES,
+            terminal.get("expected_source_revision") != source,
+            terminal.get("runtime_source_verified") is not False,
+            type(terminal.get("attempt")) is not int,
+        )):
+            return {}
+        if not 1 <= terminal["attempt"] <= 90:
+            return {}
+        control = evidence.get(f"{phase}_restart_control")
+        if not isinstance(control, dict) or any((
+            control.get("phase") != phase,
+            control.get("pause_requested") is not True,
+            control.get("pause_confirmed") is not True,
+            control.get("confirmed_pause_stage") != "PAUSED",
+            control.get("restart_requested") is not True,
+            control.get("writer_overlap_prevented") is not True,
+            evidence.get(f"{phase}_restart_requested") is not True,
+        )):
+            return {}
+        observed = datetime.fromisoformat(terminal["observed_at"])
+        generated = datetime.fromisoformat(report["generated_at"])
+        now = datetime.now(timezone.utc)
+        if observed.utcoffset() is None or generated.utcoffset() is None:
+            return {}
+        if not observed <= generated <= now or not 0 <= (now - observed).total_seconds() <= MAX_UPSTREAM_TERMINAL_AGE_SECONDS:
+            return {}
+        return {
+            key: terminal[key] for key in (
+                "stage", "phase", "attempt", "observed_at",
+                "expected_source_revision", "runtime_source_verified",
+            )
+        } | {"observed_at": observed.astimezone(timezone.utc).isoformat()}
+    except (OSError, ValueError, TypeError, KeyError, RecursionError, OverflowError):
+        return {}
 
 
 def _summary(result: dict) -> dict:
@@ -1468,14 +1562,25 @@ def main(argv: list | None = None, *, transport_factory: Any = None) -> int:
     parser.add_argument("--source-sha", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--deadline-seconds", type=int, default=DEFAULT_DEADLINE_SECONDS)
+    parser.add_argument("--run-context", help="GitHub workflow run ID and attempt, ID:ATTEMPT")
+    parser.add_argument("--series-a-proof", help="Bounded same-job Series-A proof report")
     args = parser.parse_args(argv)
     source = str(args.source_sha or "").strip().lower()
     token = ""
+    failure_evidence: dict[str, Any] = {}
     deadline_seconds = min(max(1, int(args.deadline_seconds)), MAX_DEADLINE_SECONDS)
     try:
         if re.fullmatch(r"[0-9a-f]{40}", source) is None:
             raise ProofBoundaryError("INVALID_ARGUMENTS")
         bounds.require_canonical_origin(args.origin)
+        if args.run_context is not None and bounds.WORKFLOW_RUN_CONTEXT.fullmatch(args.run_context) is None:
+            raise ProofBoundaryError("INVALID_ARGUMENTS")
+        terminal = _terminal_series_a_evidence(
+            args.series_a_proof, source=source, run_context=args.run_context,
+        )
+        if terminal:
+            failure_evidence["terminal_provider_state"] = terminal
+            raise ProofBoundaryError("PROVIDER_TERMINAL_STATE")
         token = os.environ.get(GDW_TOKEN_NAME, "")
         if len(token.strip().encode("utf-8")) < 32:
             report = _report(source=source, status="FAIL", code="SETUP_REQUIRED",
@@ -1494,11 +1599,13 @@ def main(argv: list | None = None, *, transport_factory: Any = None) -> int:
         report = _report(
             source=source, status="FAIL",
             code=bounds.diagnostic_code(exc, "GDW_CONTRACT_FAILED"),
-            evidence={}, deadline_seconds=deadline_seconds,
+            evidence=failure_evidence, deadline_seconds=deadline_seconds,
         )
         code = 1
     finally:
         configure_transport(None)
+    if args.run_context is not None and bounds.WORKFLOW_RUN_CONTEXT.fullmatch(args.run_context):
+        report["workflow_run_context"] = args.run_context
     encoded = json.dumps(report, sort_keys=True)
     if (token and token in encoded) or len(encoded.encode("utf-8")) > MAX_REPORT_BYTES:
         report = _report(source=source, status="FAIL", code="UNEXPECTED_FAILURE", evidence={})

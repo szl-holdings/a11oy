@@ -51,8 +51,8 @@ def test_source_owned_publisher_is_exact_reviewable_and_non_destructive() -> Non
         'HF_REPOSITORY = "SZLHOLDINGS/lyte"',
         'ORIGIN = "https://szlholdings-lyte.hf.space"',
         'SOURCE_VARIABLE = "LYTE_SOURCE_REVISION"',
-        'CONTROLLER_REVISION = "10cb5f7665ab5469c876c3418888a71f521fd76b"',
-        'CONTROLLER_BLOB_SHA1 = "1ee1af44f9dde1b3cd760bf9ee7fedf54f0ac915"',
+        'CONTROLLER_REVISION = "163a61fd9759e5ecc3c2daf13e528f7b281ff81d"',
+        'CONTROLLER_BLOB_SHA1 = "3fa968416a3623d66b5b5b64abf8b830cc854e1c"',
         '"--dockerfile-path"', '"Dockerfile"', '"--require-default-branch-tip"',
         '"--prune"', '"--restart-space"', '"--attest"',
         'with_name("lyte_enterprise_live_contract.py")',
@@ -89,13 +89,12 @@ def test_lyte_writer_uses_release_guard_runner() -> None:
     assert '"execution_authority": "NONE"' in source
     assert '"release_guard_runner": "szl_release_guard.run_bounded"' in source
     tree = ast.parse(source)
-    imported = False
+    imported = set()
     for node in tree.body:
         if isinstance(node, ast.ImportFrom) and node.module == "szl_release_guard":
             names = {alias.name for alias in node.names}
-            assert "run_bounded" in names
-            imported = True
-    assert imported, "publisher must import run_bounded from szl_release_guard"
+            imported.update(names)
+    assert "run_bounded" in imported, "publisher must import run_bounded from szl_release_guard"
 
 
 def test_lyte_writer_records_existing_phases_on_release_journal() -> None:
@@ -109,18 +108,24 @@ def test_lyte_writer_records_existing_phases_on_release_journal() -> None:
     assert {"run_bounded", "ReleaseJournal", "digest"} <= imported
     assert "ReleaseJournal(" in source
     assert ".perform(" in source
-    phases = module_constant(PUBLISHER, "WRITER_PHASES")
+    phases = module_constant(PUBLISHER, "RELEASE_PHASES")
     assert phases == (
         "qualify-source",
         "checkout-source",
         "controller-preflight",
+        "admit-operation",
+        "snapshot-previous",
         "recheck-source",
-        "bind-source",
         "publish-files",
+        "confirm-publication",
+        "bind-source",
+        "restart",
+        "attest-runtime",
         "verify-existing",
         "verify-source-again",
     )
-    assert phases.index("bind-source") < phases.index("publish-files")
+    assert phases.index("admit-operation") < phases.index("snapshot-previous")
+    assert phases.index("publish-files") < phases.index("bind-source")
     main = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "main")
     calls = []
     for node in ast.walk(main):
@@ -128,7 +133,7 @@ def test_lyte_writer_records_existing_phases_on_release_journal() -> None:
             calls.append((node.lineno, node.func.id))
     calls.sort()
     positions = {name: line for line, name in calls}
-    assert positions["ensure_runtime_configuration"] < positions["deploy_with_controller"]
+    assert positions["deploy_with_controller"] < positions["ensure_runtime_configuration"]
     assert positions["ReleaseJournal"] < positions["ensure_runtime_configuration"]
     assert source.count("HfApi(") == 1
     assert "api.create_repo" not in source

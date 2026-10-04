@@ -7,6 +7,8 @@ import sys
 import urllib.parse
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "build_hf_space_source_map_v1.py"
 SPEC = importlib.util.spec_from_file_location("hf_space_source_map_v1", SCRIPT)
@@ -35,12 +37,16 @@ sdk: docker
 source_repo: https://github.com/szl-holdings/example-space
 ---
 See [source](https://github.com/szl-holdings/example-space/tree/main).
+Uses [a library](https://github.com/szl-holdings/dependency).
 Ignore https://github.com/other/example.
 """
     front = MODULE.parse_front_matter(readme)
     assert front["sdk"] == "docker"
     assert MODULE.extract_explicit_github_repositories(readme, front) == [
         "szl-holdings/example-space"
+    ]
+    assert MODULE.extract_github_repository_references(readme) == [
+        "szl-holdings/dependency", "szl-holdings/example-space",
     ]
 
 
@@ -62,13 +68,31 @@ def test_space_readme_is_fetched_from_the_exact_repository_revision(monkeypatch)
     assert f"/raw/{revision}/README.md" in url
 
 
-def test_space_readme_rejects_a_mutable_revision() -> None:
+@pytest.mark.parametrize("revision", ["main", "0" * 40])
+def test_space_readme_rejects_a_mutable_or_missing_revision(revision) -> None:
     try:
-        MODULE.fetch_space_readme("SZLHOLDINGS/example-space", "main")
+        MODULE.fetch_space_readme("SZLHOLDINGS/example-space", revision)
     except MODULE.SourceMapError as error:
         assert "exact 40-character" in str(error)
     else:
-        raise AssertionError("mutable Hugging Face revision was accepted")
+        raise AssertionError("mutable or missing Hugging Face revision was accepted")
+
+
+def test_runtime_zero_revision_is_unavailable() -> None:
+    assert MODULE._runtime_sha({"runtime": {"sha": "0" * 40}}) is None
+    assert MODULE._runtime_sha({"runtime": {"raw": {"sha": "0" * 40}}}) is None
+
+
+def test_zero_cached_github_revision_requires_fresh_immutable_readback(monkeypatch) -> None:
+    observed = []
+    def request(url, *, github):
+        assert github is True
+        observed.append(url)
+        return 200, {"sha": "d" * 40}
+    monkeypatch.setattr(MODULE, "_safe_request_json", request)
+    result = MODULE.bind_github_repo_revision({**_repo("szl-holdings/example-space"), "default_branch_sha": "0" * 40})
+    assert result["default_branch_sha"] == "d" * 40
+    assert observed == ["https://api.github.com/repos/szl-holdings/example-space/commits/main"]
 
 
 def test_source_map_rejects_a_non_utf8_readme() -> None:
@@ -147,8 +171,8 @@ def test_divergent_candidates_omit_mutable_state_without_workflow_discovery() ->
         assert revision == "a" * 40
         return (
             200,
-            b"https://github.com/szl-holdings/source-one\n"
-            b"https://github.com/szl-holdings/source-two\n",
+            b"Canonical source: https://github.com/szl-holdings/source-one\n\n"
+            b"Source repository: https://github.com/szl-holdings/source-two\n",
             "https://example/readme",
         )
 
@@ -194,8 +218,8 @@ def test_divergent_candidate_identity_is_stable_across_branch_advances() -> None
     def readme(space_id: str, revision: str):
         return (
             200,
-            b"https://github.com/szl-holdings/a11oy\n"
-            b"https://github.com/szl-holdings/source-two\n",
+            b"Canonical source: https://github.com/szl-holdings/a11oy\n\n"
+            b"Source repository: https://github.com/szl-holdings/source-two\n",
             "https://example/readme",
         )
 
@@ -229,7 +253,7 @@ def test_source_map_rejects_an_unbound_canonical_candidate() -> None:
     def readme(space_id: str, revision: str):
         return (
             200,
-            b"https://github.com/szl-holdings/source-one\n",
+            b"Canonical source: https://github.com/szl-holdings/source-one\n",
             "https://example/readme",
         )
 
@@ -386,3 +410,373 @@ def test_committed_map_is_bound_to_immutable_repository_revisions() -> None:
         github_ref = canonical["default_branch_sha"]
         assert MODULE.SHA40.fullmatch(github_ref)
         assert space["workflow_candidates"]["github_ref"] == github_ref
+
+
+@pytest.mark.parametrize("readme", [
+    "---\nsource_repo: szl-holdings/example-space # source owner\n---\n",
+    "---\ngithub_repository: 'szl-holdings/example-space'\n---\n",
+    '---\nsource_url: "https://github.com/szl-holdings/example-space" # owner\n---\n',
+    "---\nszl:\n  source_repo: szl-holdings/example-space\n---\n",
+    "---\r\nsdk: docker\r\nszl:\r\n  source_repo: szl-holdings/example-space\r\n---\r\n",
+    "---\ntags:\n- governed-ai\n- szl-holdings\nsource_repo: szl-holdings/example-space\n---\n",
+    "Canonical source: `szl-holdings/example-space`. Public surface: https://example.org.\n",
+    "**Canonical source:** https://github.com/szl-holdings/example-space.\n",
+    "Source repository: https://github.com/szl-holdings/example-space/tree/main/space\n",
+    "The canonical source is\n[`owner`](https://github.com/szl-holdings/example-space).\n",
+    "- GitHub source of record: public Apache-2.0 repository\n  [`owner`](https://github.com/szl-holdings/example-space)\n- Runtime: elsewhere\n",
+    "This Space is published from [owner](https://github.com/szl-holdings/example-space) (`frontier/atelier_v3`) by the committed workflow.\n",
+])
+def test_explicit_metadata_and_narrow_prose_declarations(readme: str) -> None:
+    assert MODULE.extract_explicit_github_repositories(
+        readme, MODULE.parse_front_matter(readme)
+    ) == ["szl-holdings/example-space"]
+
+
+def test_repeated_consistent_declarations_deduplicate_case_and_dot_git() -> None:
+    readme = """---
+source_repo: SZL-Holdings/Example-Space.git
+szl:
+  source_repo: https://github.com/szl-holdings/example-space
+---
+Canonical source: `szl-holdings/example-space`.
+"""
+    assert MODULE.extract_explicit_github_repositories(
+        readme, MODULE.parse_front_matter(readme)
+    ) == ["szl-holdings/example-space"]
+
+
+def _build_from_readme(readme: str, resolver=_repo):
+    return MODULE.build_source_map(
+        [{"id": "SZLHOLDINGS/example-space", "sha": "a" * 40}],
+        lambda space_id, revision: (200, readme.encode(), f"https://example/{revision}/README.md"),
+        resolver,
+        lambda name, revision: {"state": "OBSERVED", "github_ref": revision, "paths": []},
+    )["spaces"][0]
+
+
+def test_generic_links_are_references_and_cannot_create_exact_or_divergent_ownership() -> None:
+    space = _build_from_readme(
+        "Built with https://github.com/szl-holdings/dependency.\n"
+        "Also see https://github.com/szl-holdings/other-library.\n",
+        lambda name: _repo(name) if name == "szl-holdings/example-space" else None,
+    )
+    assert space["source_mapping"]["state"] == "INFERRED"
+    assert space["source_mapping"]["evidence"] == "NORMALIZED_NAME_MATCH"
+    assert space["explicit_github_repositories"] == []
+    assert space["github_repository_references"] == [
+        "szl-holdings/dependency", "szl-holdings/other-library",
+    ]
+
+
+def test_dependencies_do_not_conflict_with_a_declared_owner() -> None:
+    space = _build_from_readme(
+        "Canonical source: https://github.com/szl-holdings/source-one. "
+        "Depends on https://github.com/szl-holdings/dependency.\n"
+    )
+    assert space["source_mapping"]["state"] == "EXACT"
+    assert space["source_mapping"]["canonical"]["full_name"] == "szl-holdings/source-one"
+    assert space["explicit_github_repositories"] == ["szl-holdings/source-one"]
+    assert len(space["github_repository_references"]) == 2
+
+
+def test_examples_quotes_comments_and_unrelated_nested_fields_are_not_owners() -> None:
+    readme = """---
+sdk: docker
+example:
+  source_repo: szl-holdings/not-owner
+---
+```yaml
+Canonical source: https://github.com/szl-holdings/not-owner
+```
+~~~markdown
+Source repository: https://github.com/szl-holdings/not-owner
+~~~
+> Canonical source: https://github.com/szl-holdings/not-owner
+    Canonical source: https://github.com/szl-holdings/not-owner
+<!--
+Canonical source: https://github.com/szl-holdings/not-owner
+-->
+<pre>
+Canonical source: https://github.com/szl-holdings/not-owner
+</pre>
+<blockquote>
+Canonical source: https://github.com/szl-holdings/not-owner
+</blockquote>
+The documentation mentions https://github.com/szl-holdings/not-owner.
+"""
+    space = _build_from_readme(readme, lambda name: None)
+    assert space["source_mapping"]["state"] == "UNAVAILABLE"
+    assert space["source_declarations"] == []
+    assert space["explicit_github_repositories"] == []
+    assert space["github_repository_references"] == ["szl-holdings/not-owner"]
+
+
+@pytest.mark.parametrize("readme", [
+    "---\nsource_repo: szl-holdings/one\nsource_repo: szl-holdings/two\n---\n",
+    "---\nsource_repo: szl-holdings/one\nSOURCE_REPO: szl-holdings/one\n---\n",
+    "---\nszl:\n  source_repo: szl-holdings/one\n  source_repo: szl-holdings/two\n---\n",
+    "---\nszl: {source_repo: szl-holdings/one}\n---\n",
+    "---\nszl:\n  source_repo: szl-holdings/one\nszl:\n  source_repo: szl-holdings/two\n---\n",
+    "---\nsource_repo:\n  - szl-holdings/one\n---\n",
+    "---\nsource_repo: [szl-holdings/one, szl-holdings/two]\n---\n",
+    "---\nsource_repo: >\n  szl-holdings/one\n---\n",
+    "---\nsource_repo: *source_alias\n---\n",
+    "---\n<<: *source_defaults\n---\n",
+    "---\nszl:\n  <<: *source_defaults\n---\n",
+    "---\nszl:\n\tsource_repo: szl-holdings/one\n---\n",
+    "---\nszl:\n  source_repo: szl-holdings/one\n    source_repo: szl-holdings/two\n---\n",
+    "---\nsource_repo: szl-holdings/one\n",
+    "---\nsource_repo: 'szl-holdings/one' junk\n---\n",
+    '---\n"source_repo": szl-holdings/one\n---\nCanonical source: szl-holdings/two\n',
+    "---\n!!str source_repo: szl-holdings/one\n---\nCanonical source: szl-holdings/two\n",
+    "---\n source_repo: szl-holdings/one\n---\nCanonical source: szl-holdings/two\n",
+    "---\nsource_repo: szl-holdings/one or szl-holdings/two\n---\n",
+    "---\nsource_repo: https://github.com/other/one\n---\n",
+    "---\nsource_repo: https://github.com.evil.invalid/szl-holdings/one\n---\n",
+    "---\nsource_repo: https://github.com@evil.invalid/szl-holdings/one\n---\n",
+    "---\nsource_repo: https://[malformed/szl-holdings/one\n---\n",
+    "Canonical source: https://github.com/szl-holdings/one or https://github.com/szl-holdings/two\n",
+    "Canonical source: https://github.com/other/one\n",
+    "Canonical source: pending owner review\n",
+])
+def test_invalid_or_ambiguous_declarations_block_name_fallback_and_workflow_binding(readme: str) -> None:
+    def forbidden(*args):
+        raise AssertionError(f"invalid owner declaration attempted source binding: {args}")
+
+    payload = MODULE.build_source_map(
+        [{"id": "SZLHOLDINGS/example-space", "sha": "a" * 40}],
+        lambda space_id, revision: (200, readme.encode(), "https://example/readme"),
+        _repo,
+        forbidden,
+        forbidden,
+    )
+    space = payload["spaces"][0]
+    assert space["source_mapping"]["state"] == "DIVERGENT"
+    assert space["source_mapping"]["canonical"] is None
+    assert space["source_declaration_errors"]
+    assert space["workflow_candidates"] == {"state": "BLOCKED_SOURCE_MAPPING", "paths": []}
+    assert all(set(candidate) == {"full_name", "html_url"} for candidate in space["source_mapping"]["candidates"])
+
+
+def test_conflicting_metadata_and_prose_are_divergent() -> None:
+    space = _build_from_readme(
+        "---\nsource_repo: szl-holdings/one\n---\n"
+        "Canonical source: `szl-holdings/two`.\n"
+    )
+    assert space["source_mapping"]["state"] == "DIVERGENT"
+    assert space["source_mapping"]["canonical"] is None
+    assert space["explicit_github_repositories"] == ["szl-holdings/one", "szl-holdings/two"]
+    assert space["workflow_candidates"]["state"] == "BLOCKED_SOURCE_MAPPING"
+
+
+def test_explicit_repository_resolution_cannot_change_identity() -> None:
+    mapping = MODULE.select_source_mapping(
+        "SZLHOLDINGS/example-space", ["szl-holdings/declared-owner"],
+        lambda name: _repo("other-org/redirected-owner"),
+    )
+    assert mapping["state"] == "DIVERGENT"
+    assert mapping["canonical"] is None
+    assert mapping["missing_candidates"] == ["szl-holdings/declared-owner"]
+
+
+def test_inferred_repository_resolution_cannot_escape_the_candidate_identity() -> None:
+    mapping = MODULE.select_source_mapping(
+        "SZLHOLDINGS/example-space", [], lambda name: _repo("other-org/example-space"),
+    )
+    assert mapping["state"] == "UNAVAILABLE"
+    assert mapping["canonical"] is None
+
+
+def _space_record(name: str):
+    return {"id": f"SZLHOLDINGS/{name}", "sha": "a" * 40, "private": False}
+
+
+def _page_url(cursor: str | None = None, **changes):
+    query = {"author": "SZLHOLDINGS", "limit": "100", "full": "true"}
+    if cursor is not None:
+        query["cursor"] = cursor
+    query.update(changes)
+    return f"{MODULE.HF_SPACES_API}?{urllib.parse.urlencode(query)}"
+
+
+def test_fetch_spaces_follows_valid_bounded_pagination_without_losing_revisions(monkeypatch) -> None:
+    seen = []
+    pages = [
+        ([_space_record("zeta")], f'<{_page_url("opaque+/=")}>; rel="next"'),
+        ([_space_record("alpha")], None),
+    ]
+
+    def request(url):
+        seen.append(urllib.parse.parse_qs(urllib.parse.urlsplit(url).query))
+        return pages.pop(0)
+
+    monkeypatch.setattr(MODULE, "_request_hf_space_page", request)
+    assert MODULE.fetch_spaces() == [_space_record("alpha"), _space_record("zeta")]
+    assert seen == [
+        {"author": ["SZLHOLDINGS"], "limit": ["100"], "full": ["true"]},
+        {"author": ["SZLHOLDINGS"], "limit": ["100"], "full": ["true"], "cursor": ["opaque+/="]},
+    ]
+
+
+@pytest.mark.parametrize("link", [
+    "",
+    "malformed",
+    f'<{_page_url("next")}>',
+    f'<{_page_url("next")}>; rel="next", <{_page_url("again")}>; rel="next"',
+    f'<{_page_url("next")}>; rel="next next"',
+    f'<{_page_url("next")}>; rel="unknown"',
+    f'<{_page_url("next").replace("https:", "http:")}>; rel="next"',
+    f'<{_page_url("next").replace("huggingface.co", "evil.invalid")}>; rel="next"',
+    f'<{_page_url("next").replace("huggingface.co", "huggingface.co@evil.invalid")}>; rel="next"',
+    f'<{_page_url("next").replace("huggingface.co", "huggingface.co:443")}>; rel="next"',
+    f'<{_page_url("next").replace("/api/spaces", "/api/models")}>; rel="next"',
+    f'<{_page_url("next", author="another-org")}>; rel="next"',
+    f'<{_page_url("next", limit="1000")}>; rel="next"',
+    f'<{_page_url("next", full="false")}>; rel="next"',
+    f'<{_page_url("next", search="partial")}>; rel="next"',
+    f'<{_page_url("next")}&author=SZLHOLDINGS>; rel="next"',
+    f'<{_page_url("next").replace("&full=true", "")}>; rel="next"',
+    f'<{_page_url("")}>; rel="next"',
+    f'<{_page_url("next")}#fragment>; rel="next"',
+    f'<{_page_url("next")}>; rel="next" trailing-junk',
+    f'<{_page_url("next").replace("cursor=next", "cursor=%ZZ")}>; rel="next"',
+    f'<{_page_url("next").replace("cursor=next", "cursor=%0A")}>; rel="next"',
+    f'<{_page_url("next")}>; rel="next"\n',
+    "x" * (MODULE.MAX_LINK_HEADER_BYTES + 1),
+])
+def test_pagination_rejects_malformed_or_out_of_scope_links_before_fetch(monkeypatch, link: str) -> None:
+    seen = []
+
+    def request(url):
+        seen.append(url)
+        assert len(seen) == 1, "unvalidated pagination target was fetched"
+        return [_space_record("first")], link
+
+    monkeypatch.setattr(MODULE, "_request_hf_space_page", request)
+    with pytest.raises(MODULE.SourceMapError):
+        MODULE.fetch_spaces()
+    assert len(seen) == 1
+
+
+@pytest.mark.parametrize("payload", [
+    {}, [None], [{"id": 123}], [{"id": "SZLHOLDINGS/space/extra"}],
+    [{**_space_record("space"), "id": "other/space"}],
+    [{**_space_record("space"), "author": "other"}],
+    [{**_space_record("space"), "private": True}],
+    [{"id": "SZLHOLDINGS/space", "sha": "a" * 40}],
+    [{**_space_record("space"), "private": "false"}],
+    [{**_space_record("space"), "sha": "main"}],
+    [{**_space_record("space"), "sha": "0" * 40}],
+    [_space_record(str(index)) for index in range(101)],
+])
+def test_pagination_rejects_malformed_private_or_unbound_records(monkeypatch, payload) -> None:
+    monkeypatch.setattr(MODULE, "_request_hf_space_page", lambda url: (payload, None))
+    with pytest.raises(MODULE.SourceMapError):
+        MODULE.fetch_spaces()
+
+
+def test_pagination_detects_url_loops_despite_query_reordering(monkeypatch) -> None:
+    seen = []
+
+    def request(url):
+        seen.append(url)
+        return [_space_record("first")], f'<{_page_url()}>; rel="next"'
+
+    monkeypatch.setattr(MODULE, "_request_hf_space_page", request)
+    with pytest.raises(MODULE.SourceMapError, match="repeated a page"):
+        MODULE.fetch_spaces()
+    assert len(seen) == 1
+
+
+def test_pagination_rejects_duplicate_ids_across_pages(monkeypatch) -> None:
+    pages = [
+        ([_space_record("same")], f'<{_page_url("next")}>; rel="next"'),
+        ([_space_record("SAME")], None),
+    ]
+    monkeypatch.setattr(MODULE, "_request_hf_space_page", lambda url: pages.pop(0))
+    with pytest.raises(MODULE.SourceMapError, match="repeated repository"):
+        MODULE.fetch_spaces()
+
+
+def test_pagination_limits_fail_without_returning_a_partial_census(monkeypatch) -> None:
+    monkeypatch.setattr(MODULE, "MAX_HF_PAGES", 1)
+    monkeypatch.setattr(MODULE, "_request_hf_space_page", lambda url: (
+        [_space_record("one")], f'<{_page_url("next")}>; rel="next"',
+    ))
+    with pytest.raises(MODULE.SourceMapError, match="page limit"):
+        MODULE.fetch_spaces()
+    monkeypatch.setattr(MODULE, "MAX_HF_SPACES", 1)
+    monkeypatch.setattr(MODULE, "_request_hf_space_page", lambda url: (
+        [_space_record("one"), _space_record("two")], None,
+    ))
+    with pytest.raises(MODULE.SourceMapError, match="repository limit"):
+        MODULE.fetch_spaces()
+
+
+def test_pagination_rejects_empty_nonterminal_pages_and_an_empty_census(monkeypatch) -> None:
+    monkeypatch.setattr(MODULE, "_request_hf_space_page", lambda url: (
+        [], f'<{_page_url("next")}>; rel="next"',
+    ))
+    with pytest.raises(MODULE.SourceMapError, match="empty nonterminal"):
+        MODULE.fetch_spaces()
+    monkeypatch.setattr(MODULE, "_request_hf_space_page", lambda url: ([], None))
+    with pytest.raises(MODULE.SourceMapError, match="no public Spaces"):
+        MODULE.fetch_spaces()
+
+
+def test_page_reader_bounds_response_bytes_and_rejects_redirects(monkeypatch) -> None:
+    class Response:
+        status = 200
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+        def read(self, limit):
+            assert limit == MODULE.MAX_HF_PAGE_BYTES + 1
+            return b"x" * limit
+
+    class Opener:
+        def open(self, request, timeout):
+            assert timeout == 45
+            return Response()
+
+    def build_opener(handler):
+        assert isinstance(handler, MODULE._RejectPaginationRedirect)
+        with pytest.raises(MODULE.SourceMapError, match="redirect"):
+            handler.redirect_request(None, None, 302, "Found", {}, "https://evil.invalid/")
+        return Opener()
+
+    monkeypatch.setattr(MODULE.urllib.request, "build_opener", build_opener)
+    with pytest.raises(MODULE.SourceMapError, match="byte limit"):
+        MODULE._request_hf_space_page(_page_url())
+
+
+def test_check_mode_still_fails_on_any_snapshot_drift(monkeypatch, tmp_path, capsys) -> None:
+    output = tmp_path / "map.json"
+    output.write_text('{"old":true}\n')
+    monkeypatch.setattr(sys, "argv", [str(SCRIPT), "--check", "--output", str(output)])
+    monkeypatch.setattr(MODULE, "fetch_spaces", lambda: [])
+    monkeypatch.setattr(MODULE, "build_source_map", lambda records: {"summary": {}, "changed": True})
+    assert MODULE.main() == 1
+    assert json.loads(capsys.readouterr().out)["status"] == "DRIFT"
+    assert output.read_text() == '{"old":true}\n'
+
+
+def test_source_evidence_reader_rejects_an_oversized_readme(monkeypatch) -> None:
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+        def read(self, limit):
+            assert limit == MODULE.MAX_SOURCE_RESPONSE_BYTES + 1
+            return b"x" * limit
+
+    monkeypatch.setattr(MODULE.urllib.request, "urlopen", lambda request, timeout: Response())
+    with pytest.raises(MODULE.SourceMapError, match="byte limit"):
+        MODULE.fetch_space_readme("SZLHOLDINGS/example-space", "a" * 40)

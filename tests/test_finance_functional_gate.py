@@ -155,7 +155,7 @@ def test_automatic_projection_follows_relock_and_shares_existing_writer():
     assert job["needs"] == ["manual-prerequisites", "relock"]
     assert job["if"] == "${{ needs.manual-prerequisites.result == 'success' && (github.event_name == 'push' || !inputs.publish_vertical_flagships) }}"
     assert job["env"]["SZL_FLAGSHIP_SCOPE"] == "finance"
-    assert job["concurrency"] == {"group": "hf-publish-vertical-flagships", "cancel-in-progress": False}
+    assert job["concurrency"] == {"group": "hf-vertical-estate", "cancel-in-progress": False}
     text = json.dumps(job)
     assert "hf_exact_main_ownership.py" in text
     assert "hf_publish_vertical_flagships_v4.py" in text
