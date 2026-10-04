@@ -50,6 +50,7 @@ class HuggingFaceResolveTransportV2Tests(unittest.TestCase):
             ("model", "SZLHOLDINGS/model", ""),
             ("dataset", "SZLHOLDINGS/dataset", "datasets/"),
             ("space", "SZLHOLDINGS/space", "spaces/"),
+            ("kernel", "SZLHOLDINGS/kernel", "kernels/"),
         )
         for repo_type, item_id, prefix in cases:
             with self.subTest(repo_type=repo_type):
@@ -62,7 +63,7 @@ class HuggingFaceResolveTransportV2Tests(unittest.TestCase):
                     f"https://huggingface.co/{prefix}{item_id}/"
                     f"resolve/{revision}/README.md",
                 )
-        self.assertEqual(len(calls), 3)
+        self.assertEqual(len(calls), 4)
         self.assertTrue(all("/resolve/" in url for url in calls))
         self.assertTrue(all("/raw/" not in url for url in calls))
 

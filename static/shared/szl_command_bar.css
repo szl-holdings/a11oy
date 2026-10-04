@@ -132,7 +132,7 @@ html:not([data-operator="1"]) [data-view="energyGrid"]{display:none!important;}
 .szl-pal input::placeholder{color:var(--szl-shell-muted);opacity:1;}
 .szl-pal-close{appearance:none;flex:0 0 44px;min-height:44px;border:1px solid var(--szl-shell-line);border-radius:7px;
   background:transparent;color:var(--szl-shell-ink);font-size:24px;margin-right:8px;cursor:pointer;}
-.szl-pal-list{max-height:48vh;overflow:auto;padding:.5rem;}
+.szl-pal-list{display:flex;flex-direction:column;max-height:48vh;overflow:auto;padding:.5rem;}
 .szl-pal-item{appearance:none;display:flex;align-items:center;justify-content:space-between;gap:.7rem;padding:.65rem .8rem;border-radius:8px;
   cursor:pointer;color:var(--szl-shell-copy);font:inherit;font-size:14px;letter-spacing:.02em;text-transform:none;text-decoration:none;
   width:100%;box-sizing:border-box;min-height:44px;background:transparent;border:0;text-align:left;}

@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
 """Source-level shell contracts; not a WCAG or runtime certification."""
 import math
 import re

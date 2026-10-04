@@ -32,7 +32,7 @@ class SequenceTests(unittest.TestCase):
         value={'schemaVersion':2,'org':'SZLHOLDINGS','generatedBy':'scripts/audit_huggingface_ecosystem.py',
             'observedAt':now,'inventoryScope':{'visibility':'public-only','authenticated':False,'privateAssetsIncluded':False},
             'inventory':{},'counts':{}}
-        for kind in ('model','dataset','space'):
+        for kind in ('model','dataset','space','kernel'):
             value['inventory'][kind+'s']=[{'id':'SZLHOLDINGS/item','repoType':kind,'private':False,'sha':'b'*40}]
             value['counts'][kind+'s']=1
         old=json.loads(json.dumps(value)); old['priorRecord']=True

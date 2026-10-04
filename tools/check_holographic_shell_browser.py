@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
 """Offline component browser checks. Not full-site, HF, font or WCAG qualification.
 
 Requires the existing Playwright Python package and a locally installed Chromium.
