@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - model-namespace payload card presentation
+
+- Add the shared SZL mark, Command Lab and source links, software artifact type,
+  and visible qualification limits to the A11oy payload card. Preserve its complete
+  original metadata and technical body; retain the existing manual payload writer
+  and all deployment, doctrine and publication gates.
+
 ### Fixed - typed Brain frontier research metadata
 - Accept the two source-bound, operator-reviewed forum summaries and bounded
   arXiv/Crossref metadata captures from Second Brain. Validate the exact metadata
