@@ -1,0 +1,481 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+from __future__ import annotations
+
+import copy
+import hashlib
+import importlib.util
+import json
+import os
+import sqlite3
+from datetime import datetime, timezone
+from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
+
+ROOT = Path(__file__).resolve().parents[1]
+SPEC = importlib.util.spec_from_file_location("preserve_hf_gdw_store", ROOT / "scripts/preserve_hf_gdw_store.py")
+assert SPEC and SPEC.loader
+p = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(p)
+SOURCE = "a" * 40
+NONCE = "b" * 32
+PRIVATE_ROW = "PRIVATE_PAYLOAD_MUST_NEVER_ENTER_PUBLIC_EVIDENCE"
+PROVIDER_SECRET = "private_provider_error_with_token_hf_do_not_record"
+
+
+def sqlite_fixture(path: Path, label: str) -> bytes:
+    db = sqlite3.connect(path)
+    if label == "gdw":
+        db.execute("CREATE TABLE schema_meta(schema_name TEXT PRIMARY KEY, schema_version INTEGER, database_generation_id TEXT)")
+        db.execute("INSERT INTO schema_meta VALUES('gdw',4,?)", ("c" * 32,))
+        tables = [name for name in p.TABLES[label] if name != "schema_meta"]
+    else:
+        db.execute("CREATE TABLE metadata(key TEXT PRIMARY KEY,value TEXT)")
+        db.execute("INSERT INTO metadata VALUES('storage_instance_id',?)", ("store_" + "d" * 32,))
+        tables = [name for name in p.TABLES[label] if name != "metadata"]
+    for name in tables:
+        db.execute(f'CREATE TABLE "{name}"(id INTEGER PRIMARY KEY,payload TEXT)')
+        db.execute(f'INSERT INTO "{name}"(payload) VALUES(?)', (PRIVATE_ROW,))
+    db.commit()
+    db.close()
+    return path.read_bytes()
+
+
+class FakeHub:
+    endpoint = p.ENDPOINT
+
+    def __init__(self, files: dict[str, bytes]):
+        self.files = dict(files)
+        self.objects = {hashlib.sha256(data).hexdigest(): data for data in files.values()}
+        self.stage = "RUNTIME_ERROR"
+        self.private = True
+        self.revision = "e" * 40
+        self.volumes = [SimpleNamespace(type="bucket", source=p.BUCKET, mount_path="/data",
+                                        read_only=False, path=None, revision=None)]
+        self.calls = []
+        self.batch_calls = []
+        self.download_calls = []
+        self.original_observations = 0
+        self.after_original_observation = None
+        self.batch_behavior = None
+        self.corrupt_copy_download = False
+        self.download_size_mismatch = False
+        self.duplicate = False
+        self.extra_path = False
+
+    def bucket_info(self, *, bucket_id):
+        assert bucket_id == p.BUCKET
+        self.calls.append("bucket_info")
+        return SimpleNamespace(id=bucket_id, private=self.private)
+
+    def space_info(self, *, repo_id):
+        assert repo_id == p.SPACE
+        self.calls.append("space_info")
+        return SimpleNamespace(id=repo_id, sha=self.revision, runtime=SimpleNamespace(volumes=self.volumes))
+
+    def get_space_runtime(self, *, repo_id):
+        assert repo_id == p.SPACE
+        self.calls.append("get_space_runtime")
+        return SimpleNamespace(stage=self.stage)
+
+    def metadata(self, path):
+        data = self.files[path]
+        digest = hashlib.sha256(data).hexdigest()
+        self.objects[digest] = data
+        return SimpleNamespace(type="file", path=path, size=len(data), xet_hash=digest,
+                               mtime=datetime(2026, 10, 4, tzinfo=timezone.utc), uploaded_at=None)
+
+    def get_bucket_paths_info(self, *, bucket_id, paths):
+        assert bucket_id == p.BUCKET
+        self.calls.append("get_bucket_paths_info")
+        if tuple(paths) == p.SOURCE_PATHS:
+            self.original_observations += 1
+        result = [self.metadata(path) for path in paths if path in self.files]
+        if self.duplicate and result:
+            result.append(result[0])
+        if self.extra_path and result:
+            extra = copy.copy(result[0])
+            extra.path = "unrequested/private.db"
+            result.append(extra)
+        if tuple(paths) == p.SOURCE_PATHS and self.after_original_observation:
+            self.after_original_observation(self)
+        return iter(result)
+
+    def download_bucket_files(self, *, bucket_id, files, raise_on_missing_files):
+        assert bucket_id == p.BUCKET and raise_on_missing_files is True
+        self.download_calls.append(files)
+        for info, path in files:
+            # Passing observed BucketFile objects is essential. Resolving a
+            # string path here would silently read a changed mutable object.
+            assert not isinstance(info, str)
+            data = self.objects[info.xet_hash]
+            if self.corrupt_copy_download and "/originals/" in info.path:
+                data = bytes([data[0] ^ 1]) + data[1:] if data else data
+            if self.download_size_mismatch:
+                data += b"unexpected"
+            Path(path).write_bytes(data)
+
+    def batch_bucket_files(self, *, bucket_id, copy=None, add=None):
+        assert bucket_id == p.BUCKET
+        self.batch_calls.append({"copy": copy, "add": add})
+        if self.batch_behavior:
+            self.batch_behavior(self, copy, add)
+            return
+        self.apply_batch(copy, add)
+
+    def apply_batch(self, copies, additions):
+        for kind, source_bucket, digest, target in copies or []:
+            assert kind == "bucket" and source_bucket == p.BUCKET
+            assert target.startswith(p.PRIVATE_PREFIX + "/") and target not in p.SOURCE_PATHS
+            assert target not in self.files, "the helper must not overwrite an existing destination"
+            self.files[target] = self.objects[digest]
+        for data, target in additions or []:
+            assert target.startswith(p.PRIVATE_PREFIX + "/") and target not in self.files
+            self.files[target] = bytes(data)
+
+
+@pytest.fixture
+def hub(tmp_path):
+    files = {path: sqlite_fixture(tmp_path / f"{label}.db", label) for label, path in p.DATABASES.items()}
+    # Preserve companions even when SQLite does not need their contents.
+    files[p.DATABASES["gdw"] + "-journal"] = b"\x00" * 512
+    return FakeHub(files)
+
+
+def run(hub, tmp_path, *, checker=lambda: None, sleep=lambda seconds: None):
+    return p.preserve(hub, source_sha=SOURCE, run_id="37216937874", run_attempt="1",
+                      nonce=NONCE, workspace=tmp_path / "capture", require_owned_source=checker, sleep=sleep)
+
+
+def test_preserves_exact_originals_and_sidecar_absences_then_inspects_real_sqlite(hub, tmp_path):
+    originals = dict(hub.files)
+    report = run(hub, tmp_path)
+    assert report["preservation_state"] == "VERIFIED"
+    assert report["state"] == "BLOCKED"
+    assert report["deployment_admitted"] is False and report["restore_admitted"] is False
+    assert report["diagnostic_code"] == "STORAGE_RECOVERY_REQUIRED"
+    assert {path: hub.files[path] for path in originals} == originals
+    assert report["captured_originals_unchanged_after_inspection"] is True
+    assert len(report["files"]) == 8
+    assert sum(row["present"] for row in report["files"]) == 3
+    assert len(hub.batch_calls) == 2
+    for label in p.DATABASES:
+        inspection = report["databases"][label]
+        assert inspection["integrity"] == "OK" and inspection["inspection_state"] == "COMPLETE"
+        assert inspection["table_counts"]["receipts"] == 1
+        assert inspection["expected_tables_present"] is True
+        assert inspection["journal_mode_observed_on_copy"] == "delete"
+        assert inspection["header"]["write_version"] == 1
+        assert inspection["header"]["sqlite_version_number_last_modified"] > 0
+        assert inspection["runtime_sqlite_version"] == "UNAVAILABLE"
+    assert report["databases"]["gdw"]["database_generation_id"] == "c" * 32
+    assert report["databases"]["series_a"]["database_generation_id"] == "store_" + "d" * 32
+    assert PRIVATE_ROW not in json.dumps(report)
+    manifest = hub.files[report["private_manifest"]["path"]]
+    assert hashlib.sha256(manifest).hexdigest() == report["private_manifest"]["sha256"]
+    assert json.loads(manifest)["restore_admitted"] is False
+
+
+def test_unreferenced_pages_are_preserved_and_classified_without_repair(hub, tmp_path):
+    path = p.DATABASES["gdw"]
+    data = bytearray(hub.files[path])
+    page_size = int.from_bytes(data[16:18], "big")
+    pages = len(data) // page_size
+    data[28:32] = (pages + 2).to_bytes(4, "big")
+    data.extend(b"\x00" * (2 * page_size))
+    hub.files[path] = bytes(data)
+    original = hub.files[path]
+    report = run(hub, tmp_path)
+    assert report["preservation_state"] == "VERIFIED"
+    assert report["databases"]["gdw"]["integrity"] == "FAILED"
+    assert report["databases"]["gdw"]["integrity_classification"] == "UNREFERENCED_PAGES"
+    assert report["databases"]["gdw"]["table_counts"]["receipts"] == 1
+    assert hub.files[path] == original
+    preserved = next(row for row in report["files"] if row["source_path"] == path)
+    assert hub.files[preserved["private_copy_path"]] == original
+    assert report["restore_admitted"] is False
+
+
+def test_sqlite_only_opens_disposable_inspection_paths(hub, tmp_path, monkeypatch):
+    connect = sqlite3.connect
+    opened = []
+    def guarded(database, *args, **kwargs):
+        opened.append(database)
+        assert "/inspection/" in database
+        assert "/captured/" not in database and "/verification/" not in database
+        assert database.endswith("?mode=ro") and kwargs.get("uri") is True
+        return connect(database, *args, **kwargs)
+    monkeypatch.setattr(p.sqlite3, "connect", guarded)
+    assert run(hub, tmp_path)["preservation_state"] == "VERIFIED"
+    assert len(opened) == 2
+
+
+@pytest.mark.parametrize("stage", ["RUNNING", "BUILDING", "STARTING", "SLEEPING", "UNKNOWN", None])
+def test_refuses_capture_when_provider_has_not_reported_stopped(hub, tmp_path, stage):
+    hub.stage = stage
+    report = run(hub, tmp_path)
+    assert report["diagnostic_code"] == "STOPPED_RUNTIME_REQUIRED"
+    assert not hub.download_calls and not hub.batch_calls
+
+
+def test_public_bucket_is_rejected_before_data_access(hub, tmp_path):
+    hub.private = False
+    assert run(hub, tmp_path)["diagnostic_code"] == "PRIVATE_BUCKET_REQUIRED"
+    assert not hub.download_calls and not hub.batch_calls
+
+
+def test_wrong_space_response_identity_is_rejected(hub, tmp_path):
+    original = hub.space_info
+    def wrong(**kwargs):
+        info = original(**kwargs)
+        info.id = "SZLHOLDINGS/other-space"
+        return info
+    hub.space_info = wrong
+    assert run(hub, tmp_path)["diagnostic_code"] == "SPACE_IDENTITY_MISMATCH"
+    assert not hub.download_calls and not hub.batch_calls
+
+
+@pytest.mark.parametrize("change", ["source", "subfolder", "nested_mount", "read_only", "missing"])
+def test_mount_identity_must_match_exact_source_paths(hub, tmp_path, change):
+    if change == "source":
+        hub.volumes[0].source = "SZLHOLDINGS/another-bucket"
+    elif change == "subfolder":
+        hub.volumes[0].path = "subfolder"
+    elif change == "nested_mount":
+        hub.volumes.append(SimpleNamespace(mount_path="/data/a11oy/gdw"))
+    elif change == "read_only":
+        hub.volumes[0].read_only = True
+    else:
+        hub.volumes = []
+    assert run(hub, tmp_path)["diagnostic_code"] == "MOUNT_TOPOLOGY_CONFLICT"
+    assert not hub.download_calls and not hub.batch_calls
+
+
+@pytest.mark.parametrize("change", ["database", "new_sidecar", "removed_sidecar"])
+def test_second_identity_observation_detects_mutation_before_copy(hub, tmp_path, change):
+    def mutate(_seconds):
+        if change == "database":
+            hub.files[p.DATABASES["gdw"]] += b"changed"
+        elif change == "new_sidecar":
+            hub.files[p.DATABASES["gdw"] + "-wal"] = b"new"
+        else:
+            del hub.files[p.DATABASES["gdw"] + "-journal"]
+    report = run(hub, tmp_path, sleep=mutate)
+    assert report["diagnostic_code"] == "ORIGINAL_IDENTITIES_CHANGED"
+    assert not hub.download_calls and not hub.batch_calls
+
+
+def test_missing_database_never_becomes_an_empty_generation(hub, tmp_path):
+    del hub.files[p.DATABASES["gdw"]]
+    assert run(hub, tmp_path)["diagnostic_code"] == "ORIGINAL_DATABASE_MISSING"
+    assert not hub.download_calls and not hub.batch_calls
+
+
+@pytest.mark.parametrize("attribute", ["duplicate", "extra_path"])
+def test_unrequested_or_duplicate_provider_identities_are_blocked(hub, tmp_path, attribute):
+    setattr(hub, attribute, True)
+    assert run(hub, tmp_path)["diagnostic_code"] == "OBJECT_IDENTITY_MALFORMED"
+    assert not hub.batch_calls
+
+
+def test_capture_destination_collision_never_overwrites(hub, tmp_path):
+    prefix = f"{p.PRIVATE_PREFIX}/37216937874-1-{SOURCE}-{NONCE}/originals/"
+    collision = prefix + p.DATABASES["gdw"]
+    hub.files[collision] = b"retained preexisting evidence"
+    assert run(hub, tmp_path)["diagnostic_code"] == "CAPTURE_DESTINATION_EXISTS"
+    assert hub.files[collision] == b"retained preexisting evidence"
+    assert not hub.batch_calls
+
+
+def test_source_ownership_is_rechecked_immediately_before_private_write(hub, tmp_path):
+    calls = 0
+    def check():
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise p.PreservationError("SOURCE_NO_LONGER_CURRENT_MAIN")
+    assert run(hub, tmp_path, checker=check)["diagnostic_code"] == "SOURCE_NO_LONGER_CURRENT_MAIN"
+    assert not hub.batch_calls
+
+
+def test_partial_batch_is_retained_honestly_without_retry_or_rollback(hub, tmp_path):
+    def partial(api, copies, additions):
+        api.apply_batch(copies[:1], additions)
+        raise RuntimeError(PROVIDER_SECRET)
+    hub.batch_behavior = partial
+    originals = dict(hub.files)
+    report = run(hub, tmp_path)
+    assert report["diagnostic_code"] == "PRIVATE_COPY_INCOMPLETE"
+    assert report["private_copy_count"] == 1
+    assert len(hub.batch_calls) == 1
+    assert {path: hub.files[path] for path in originals} == originals
+    assert PROVIDER_SECRET not in json.dumps(report)
+
+
+def test_lost_successful_response_requires_identity_and_byte_readback(hub, tmp_path):
+    def lost(api, copies, additions):
+        api.apply_batch(copies, additions)
+        raise RuntimeError(PROVIDER_SECRET)
+    hub.batch_behavior = lost
+    report = run(hub, tmp_path)
+    assert report["copy_response"] == "UNAVAILABLE"
+    assert report["preservation_state"] == "VERIFIED"
+    assert len(hub.batch_calls) == 2
+    assert PROVIDER_SECRET not in json.dumps(report)
+
+
+def test_byte_verification_rejects_wrong_download_despite_matching_metadata(hub, tmp_path):
+    hub.corrupt_copy_download = True
+    report = run(hub, tmp_path)
+    assert report["diagnostic_code"] == "PRIVATE_COPY_DIGEST_MISMATCH"
+    assert report["preservation_state"] != "VERIFIED"
+    assert len(hub.batch_calls) == 1
+
+
+def test_size_mismatch_fails_before_private_copy(hub, tmp_path):
+    hub.download_size_mismatch = True
+    assert run(hub, tmp_path)["diagnostic_code"] == "CAPTURE_FILE_MISMATCH"
+    assert not hub.batch_calls
+
+
+def test_provider_transition_after_download_blocks_copy(hub, tmp_path):
+    original = hub.download_bucket_files
+    def download(**kwargs):
+        original(**kwargs)
+        hub.stage = "RUNNING"
+    hub.download_bucket_files = download
+    assert run(hub, tmp_path)["diagnostic_code"] == "STOPPED_RUNTIME_REQUIRED"
+    assert not hub.batch_calls
+
+
+def test_exception_text_never_enters_report(hub, tmp_path):
+    def unavailable(**_kwargs):
+        raise RuntimeError(PROVIDER_SECRET)
+    hub.bucket_info = unavailable
+    report = run(hub, tmp_path)
+    assert report["diagnostic_code"] == "PROVIDER_OPERATION_UNAVAILABLE"
+    assert PROVIDER_SECRET not in json.dumps(report)
+
+
+def test_deadline_during_copy_is_not_swallowed_as_a_lost_response(hub, tmp_path):
+    def expire(_api, _copies, _additions):
+        raise p.PreservationError("PRESERVATION_DEADLINE_EXHAUSTED")
+    hub.batch_behavior = expire
+    report = run(hub, tmp_path)
+    assert report["diagnostic_code"] == "PRESERVATION_DEADLINE_EXHAUSTED"
+    assert report["preservation_state"] != "VERIFIED"
+    assert len(hub.batch_calls) == 1
+
+
+def test_authoritative_deadline_survives_sqlite_exception_translation(hub, tmp_path, monkeypatch):
+    now = [0.0]
+    def interrupted(*_args, **_kwargs):
+        now[0] = 1000.0
+        # This is the shape sqlite3 returns after swallowing a Python exception
+        # inside a progress callback, rather than propagating PreservationError.
+        return {"inspection_state": "SQLITE_READ_UNAVAILABLE", "sqlite_error_code": "SQLITE_INTERRUPT"}
+    monkeypatch.setattr(p, "inspect_database", interrupted)
+    report = p.preserve(hub, source_sha=SOURCE, run_id="37216937874", run_attempt="1",
+                        nonce=NONCE, workspace=tmp_path / "capture", require_owned_source=lambda: None,
+                        sleep=lambda _: None, clock=lambda: now[0], deadline=100.0)
+    assert report["diagnostic_code"] == "PRESERVATION_DEADLINE_EXHAUSTED"
+    assert len(hub.batch_calls) == 1  # no manifest write after the expired inspection
+    assert report["preservation_state"] != "VERIFIED"
+
+
+@pytest.mark.parametrize("outcome", [429, 500, 502, 503, 504, 302, "timeout"])
+def test_http_boundary_prevents_sdk_retry_classification(outcome):
+    import httpx
+    attempts = []
+    def handler(request):
+        attempts.append(request)
+        if outcome == "timeout":
+            raise httpx.ReadTimeout(PROVIDER_SECRET, request=request)
+        return httpx.Response(outcome, content=PROVIDER_SECRET.encode())
+    with p.hub_http_client(transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(p.BatchOutcomeUnknown) as exc:
+            client.post(f"{p.ENDPOINT}/api/buckets/{p.BUCKET}/batch", content=b"fixed-private-copy")
+        assert not isinstance(exc.value, httpx.HTTPError)
+        assert str(exc.value) == ""
+    assert len(attempts) == 1
+
+
+def test_http_boundary_keeps_successful_batch_and_read_responses():
+    import httpx
+    def handler(request):
+        return httpx.Response(200 if request.url.path.endswith("/batch") else 503)
+    with p.hub_http_client(transport=httpx.MockTransport(handler)) as client:
+        assert client.post(f"{p.ENDPOINT}/api/buckets/{p.BUCKET}/batch").status_code == 200
+        assert client.get(f"{p.ENDPOINT}/api/buckets/{p.BUCKET}").status_code == 503
+
+
+def test_native_and_python_diagnostic_output_are_suppressed(capfd):
+    with p._private_output():
+        print(PRIVATE_ROW)
+        os.write(1, PROVIDER_SECRET.encode())
+        os.write(2, PRIVATE_ROW.encode())
+    print("safe-public-summary")
+    captured = capfd.readouterr()
+    assert captured.out == "safe-public-summary\n"
+    assert captured.err == ""
+
+
+def test_corrupt_header_is_preserved_without_attempting_automatic_recovery(hub, tmp_path):
+    hub.files[p.DATABASES["gdw"]] = b"malformed database containing " + PRIVATE_ROW.encode()
+    report = run(hub, tmp_path)
+    assert report["preservation_state"] == "VERIFIED"
+    assert report["databases"]["gdw"]["header"]["state"] == "SQLITE_HEADER_INVALID"
+    assert report["databases"]["gdw"]["inspection_state"] == "SQLITE_READ_UNAVAILABLE"
+    assert PRIVATE_ROW not in json.dumps(report)
+
+
+def test_main_refuses_non_github_invocation_and_emits_only_blocked_metadata(tmp_path, monkeypatch, capsys):
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+    output = tmp_path / "public.json"
+    monkeypatch.setattr("sys.argv", ["preserve_hf_gdw_store.py", "--output", str(output)])
+    assert p.main() == 2
+    assert json.loads(output.read_text())["deployment_admitted"] is False
+    assert "BLOCKED" in capsys.readouterr().out
+
+
+def assert_preflight_order(source: str) -> None:
+    from tests.test_hf_sync_supersession_contract import assert_manual_dependency_graph
+    jobs = assert_manual_dependency_graph(source)
+    job = jobs["manual-prerequisites"]
+    assert job["env"]["HF_TOKEN"] == "${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}"
+    steps = job["steps"]
+    capture = [index for index, step in enumerate(steps) if "scripts/preserve_hf_gdw_store.py" in step.get("run", "")]
+    manual = [index for index, step in enumerate(steps) if "scripts/configure_hf_series_a_runtime.py" in step.get("run", "")]
+    assert len(capture) == len(manual) == 1 and capture[0] < manual[0]
+    assert "if" not in steps[capture[0]] and "continue-on-error" not in steps[capture[0]]
+    uploads = [step for step in steps if "actions/upload-artifact@" in step.get("uses", "")]
+    assert len(uploads) == 1 and uploads[0]["if"] == "always()"
+    assert {line.strip() for line in uploads[0]["with"]["path"].splitlines() if line.strip()} == {
+        "${{ runner.temp }}/manual-prerequisites.json", "${{ runner.temp }}/gdw-store-preservation.json"}
+
+
+def test_existing_native_dependency_gate_and_private_artifact_boundary():
+    assert_preflight_order((ROOT / ".github/workflows/hf-sync.yml").read_text())
+    workflow = (ROOT / ".github/workflows/tests.yml").read_text()
+    assert "tests/test_hf_gdw_preservation.py" in workflow
+
+
+def test_workflow_rejects_preflight_after_live_runtime_qualification():
+    source = (ROOT / ".github/workflows/hf-sync.yml").read_text()
+    start = source.index("      - name: Preserve stopped private stores")
+    end = source.index("      - name: Retain metadata checks", start)
+    capture = source[start:end]
+    source = source[:start] + source[end:]
+    position = source.index("      - name: Retain bounded prerequisite decision")
+    changed = source[:position] + capture + source[position:]
+    with pytest.raises(AssertionError):
+        assert_preflight_order(changed)
+
+
+def test_workflow_rejects_wildcard_private_artifact_upload():
+    source = (ROOT / ".github/workflows/hf-sync.yml").read_text()
+    changed = source.replace("${{ runner.temp }}/gdw-store-preservation.json", "${{ runner.temp }}/**")
+    with pytest.raises(AssertionError):
+        assert_preflight_order(changed)
