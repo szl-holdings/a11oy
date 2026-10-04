@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - provider support observations in the model catalog
+- Record public provider mappings and actual support-request evidence for every
+  model-namespace repository in the source inventory. Keep immutable assessment
+  notes, artifact types, prior discussions, and verified submissions separate.
+- Expose the same dated source through model intelligence and its estate/Series A
+  records. Expired or failed provider observations report unavailable; support
+  requests never grant routing, qualification, promotion, or deployment authority.
+- Add a bounded anonymous metadata collector and strict offline identity checks.
+
 ### Fixed - typed Brain frontier research metadata
 - Accept the two source-bound, operator-reviewed forum summaries and bounded
   arXiv/Crossref metadata captures from Second Brain. Validate the exact metadata

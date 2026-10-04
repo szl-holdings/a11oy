@@ -189,6 +189,8 @@ COPY routers/ ./routers/
 # The canonical HF sync publishes Dockerfile COPY sources. Keep these public
 # inventory docs in the same source-derived Space set as the runtime.
 COPY docs/huggingface-ecosystem-manifest.json docs/huggingface-ecosystem-manifest.schema.json docs/huggingface.md ./docs/
+COPY docs/model-inference-support.json ./docs/
+COPY a11oy_model_support.py ./
 # Genome registry served to the console Genome panel + /api/a11oy/v1/genome.
 # Per-file COPY (this Dockerfile uses no `COPY . .`); a missing line -> the endpoint
 # degrades to an honest labeled 503 (never a faked payload), the panel shows it.
