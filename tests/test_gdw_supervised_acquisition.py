@@ -135,7 +135,7 @@ def test_unqualified_native_or_artifact_inputs_cannot_pass(monkeypatch, defect):
     if defect == "prior_run": state["prior_run"]["id"] += 1
     if defect == "prior_attempt": state["prior_run"]["run_attempt"] = 2
     if defect == "prior_job": state["prior_jobs"]["jobs"][0]["id"] += 1
-    if defect == "prior_census": state["prior_jobs"]["total_count"] = 13
+    if defect == "prior_census": state["prior_jobs"]["total_count"] = 14
     if defect == "prior_source_failed": state["prior_jobs"]["jobs"][1]["conclusion"] = "failure"
     if defect == "prior_effect_job": state["prior_jobs"]["jobs"][2]["conclusion"] = "success"
     if defect == "prior_config": state["prior_jobs"]["jobs"][0]["steps"][1]["conclusion"] = "success"
