@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import logging
+import math
 import os
 from pathlib import Path
 import re
@@ -17,14 +18,21 @@ import tempfile
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
-if __package__ in (None, ""):
-    sys.path.insert(0, str(ROOT))
+# Isolated Python removes the script directory; qualification uses these
+# source-owned sibling imports in both direct and package entry modes.
+for _trusted_path in (ROOT / "scripts", ROOT):
+    if str(_trusted_path) not in sys.path:
+        sys.path.insert(0, str(_trusted_path))
 
 SCHEMA = "szl.gdw-artifact-readonly-triage/v2"
 REPOSITORY = "szl-holdings/a11oy"
 WORKFLOW = ".github/workflows/gdw-artifact-readonly-triage.yml"
 MAX_SECONDS = 240
 MAX_EXPECTED_OBJECTS = 4096
+OBJECT_WORKER_SCHEMA = "szl.gdw-artifact-object-worker/v1"
+OBJECT_WORKER_BYTES = 4096
+OBJECT_WORKER_SECONDS = 210
+POST_READBACK_SECONDS = 15
 HEX40 = re.compile(r"[0-9a-f]{40}\Z")
 HEX64 = re.compile(r"[0-9a-f]{64}\Z")
 
@@ -279,6 +287,207 @@ def _file_digest(path, deadline):
     return digest.hexdigest()
 
 
+def _canonical(value):
+    return (json.dumps(value, sort_keys=True, separators=(",", ":"),
+                       ensure_ascii=True, allow_nan=False) + "\n").encode("ascii")
+
+
+def _worker_budget(deadline):
+    require(type(deadline) in (int, float) and math.isfinite(deadline)
+            and time.monotonic() < deadline)
+
+
+def validate_object_worker_request(value, *, now=None):
+    require(type(value) is dict and set(value) == {"schema", "workspace", "source_revision",
+        "run_id", "run_attempt", "candidate_sha256", "deadline"})
+    require(value["schema"] == OBJECT_WORKER_SCHEMA
+        and type(value["workspace"]) is str and 0 < len(value["workspace"]) <= 1024
+        and not any(c in value["workspace"] for c in ("\0", "\n", "\r"))
+        and type(value["source_revision"]) is str and HEX40.fullmatch(value["source_revision"])
+        and value["source_revision"] != "0" * 40
+        and type(value["candidate_sha256"]) is str and HEX64.fullmatch(value["candidate_sha256"])
+        and value["candidate_sha256"] != "0" * 64
+        and type(value["run_id"]) is int and 0 < value["run_id"] < 2**63
+        and type(value["run_attempt"]) is int and value["run_attempt"] == 1)
+    deadline = value["deadline"]
+    require(type(deadline) in (int, float) and math.isfinite(deadline))
+    require(0 < deadline - (time.monotonic() if now is None else now) <= OBJECT_WORKER_SECONDS)
+    return dict(value)
+
+
+def validate_artifact_effect_observation(value):
+    fields = {"expected_object_count", "expected_object_set_sha256", "candidate_unchanged",
+        "all_retained_rows_validated", "classification", "present_object_count", "missing_object_count",
+        "observed_object_set_sha256", "provider_objects_fully_validated", "provider_writes_performed",
+        "historical_writer_attribution"}
+    require(type(value) is dict and set(value) == fields)
+    expected, present, missing = (value[key] for key in
+        ("expected_object_count", "present_object_count", "missing_object_count"))
+    require(type(expected) is int and 0 < expected <= MAX_EXPECTED_OBJECTS
+        and type(present) is int and 0 <= present <= expected
+        and type(missing) is int and 0 <= missing <= expected and present + missing == expected)
+    require(value["candidate_unchanged"] is True and value["all_retained_rows_validated"] is True
+        and value["provider_writes_performed"] is False
+        and value["historical_writer_attribution"] == "NOT_ESTABLISHED"
+        and type(value["provider_objects_fully_validated"]) is bool
+        and value["provider_objects_fully_validated"] is (missing == 0))
+    for key in ("expected_object_set_sha256", "observed_object_set_sha256"):
+        require(type(value[key]) is str and HEX64.fullmatch(value[key]) and value[key] != "0" * 64)
+    classification = ("NO_EXPECTED_OBJECTS_PRESENT_AT_READ_TIME" if not present else
+        "PARTIAL_EXPECTED_OBJECT_SET_PRESENT_AT_READ_TIME" if missing else
+        "ALL_EXPECTED_OBJECTS_PRESENT_AND_VALIDATED_AT_READ_TIME")
+    require(value["classification"] == classification)
+    if not present:
+        require(value["observed_object_set_sha256"] == _aggregate([]))
+    return dict(value)
+
+
+def _held_object_worker_report():
+    return {"schema": OBJECT_WORKER_SCHEMA, "state": "HELD", "source_revision": None,
+        "run_id": None, "run_attempt": None, "candidate_sha256": None,
+        "artifact_effect_observation": None, "provider_writes_performed": False,
+        "retry_admitted": False, "restore_admitted": False, "deployment_admitted": False}
+
+
+def validate_object_worker_report(value):
+    require(type(value) is dict and set(value) == set(_held_object_worker_report())
+        and value["schema"] == OBJECT_WORKER_SCHEMA)
+    require(all(value[key] is False for key in
+        ("provider_writes_performed", "retry_admitted", "restore_admitted", "deployment_admitted")))
+    if value["state"] == "HELD":
+        require(all(value[key] is None for key in ("source_revision", "run_id", "run_attempt",
+            "candidate_sha256", "artifact_effect_observation")))
+        return dict(value)
+    require(value["state"] == "OBSERVED"
+        and type(value["source_revision"]) is str and HEX40.fullmatch(value["source_revision"])
+        and value["source_revision"] != "0" * 40
+        and type(value["candidate_sha256"]) is str and HEX64.fullmatch(value["candidate_sha256"])
+        and value["candidate_sha256"] != "0" * 64
+        and type(value["run_id"]) is int and 0 < value["run_id"] < 2**63
+        and type(value["run_attempt"]) is int and value["run_attempt"] == 1)
+    return dict(value, artifact_effect_observation=validate_artifact_effect_observation(value["artifact_effect_observation"]))
+
+
+def encode_object_worker_report(value):
+    return _canonical(validate_object_worker_report(value))
+
+
+def decode_object_worker_report(raw):
+    from scripts.gdw_acquisition_evidence import strict
+    value = validate_object_worker_report(strict(raw, OBJECT_WORKER_BYTES))
+    require(encode_object_worker_report(value) == raw)
+    return value
+
+
+def _object_worker_paths(workspace, *, before=True):
+    import gdw_durable_storage as storage
+    directory = Path(workspace)
+    require(directory.is_absolute() and directory.resolve() == directory
+        and directory.parent == Path(tempfile.gettempdir()).resolve()
+        and re.fullmatch(r"gdw-readonly-triage-[A-Za-z0-9_-]{6,64}", directory.name))
+    storage._private_directory(directory)
+    database = directory / "capture/working/gdw/candidate.sqlite3"
+    storage._private_path(database, directory)
+    require(not any(os.path.lexists(str(database) + suffix) for suffix in ("-wal", "-shm", "-journal")))
+    if before:
+        require(not os.path.lexists(directory / "artifact-effects"))
+    return directory, database
+
+
+def _candidate_digest(database, directory, deadline):
+    import gdw_durable_storage as storage
+    return storage._file_identity(database, directory, 256 * 1024 * 1024, deadline)["sha256"]
+
+
+def supervised_artifact_effect_observation(workspace, require_source, deadline, *, note=lambda _boundary: None):
+    """Return v2 effects only after the existing supervisor confirms child cleanup."""
+    from scripts import probe_gdw_runtime_base as base
+    try:
+        _worker_budget(deadline)
+        context = native_context(os.environ, os.environ.get("GITHUB_SHA"))
+        directory, database = _object_worker_paths(str(workspace))
+        candidate_digest = _candidate_digest(database, directory, deadline)
+        require_source()
+        child_deadline = min(deadline - POST_READBACK_SECONDS, time.monotonic() + OBJECT_WORKER_SECONDS)
+        request = validate_object_worker_request({"schema": OBJECT_WORKER_SCHEMA, "workspace": str(directory),
+            **context, "candidate_sha256": candidate_digest, "deadline": child_deadline})
+        names = ("HF_TOKEN", "GH_TOKEN", "GITHUB_ACTIONS", "GITHUB_REPOSITORY", "GITHUB_REF",
+            "GITHUB_SHA", "GITHUB_WORKFLOW_REF", "GITHUB_WORKFLOW_SHA", "GITHUB_RUN_ID",
+            "GITHUB_RUN_ATTEMPT", "GITHUB_EVENT_NAME", "GITHUB_JOB")
+        environment = {name: os.environ[name] for name in names if name in os.environ}
+        require(bool(environment.get("HF_TOKEN")) and bool(environment.get("GH_TOKEN")))
+        # Bind the isolated child's temp root to the parent-validated canonical
+        # workspace, never to an unchecked ambient TMPDIR/TEMP value.
+        environment.update(PATH="/usr/local/bin:/usr/bin:/bin", PYTHONDONTWRITEBYTECODE="1",
+                           TMPDIR=str(directory.parent))
+        note("OBJECT_READBACK")
+        raw = base._run([sys.executable, "-I", "-B", str(Path(__file__).resolve()), "--artifact-object-worker"],
+            deadline=child_deadline, limit=OBJECT_WORKER_BYTES, env=environment, cwd=directory,
+            input_bytes=_canonical(request))
+        # _run has killed/reaped its owned process group before these checks.
+        _object_worker_paths(str(directory), before=False)
+        require(_candidate_digest(database, directory, deadline) == candidate_digest)
+        require_source()
+        _worker_budget(child_deadline)
+        report = decode_object_worker_report(raw)
+        require(report["state"] == "OBSERVED" and all(report[key] == request[key]
+            for key in ("source_revision", "run_id", "run_attempt", "candidate_sha256")))
+        return report["artifact_effect_observation"]
+    except BaseException:
+        raise TriageHeld("READ_ONLY_TRIAGE_HELD") from None
+
+
+def _artifact_object_worker_observation(raw):
+    from scripts.gdw_acquisition_evidence import strict
+    import gdw_durable_storage as storage
+    request = validate_object_worker_request(strict(raw, OBJECT_WORKER_BYTES))
+    require(_canonical(request) == raw)
+    deadline = request["deadline"]
+    context = native_context(os.environ, request["source_revision"])
+    require(all(context[key] == request[key] for key in ("source_revision", "run_id", "run_attempt")))
+    require(bool(os.environ.get("HF_TOKEN")) and bool(os.environ.get("GH_TOKEN")))
+    directory, database = _object_worker_paths(request["workspace"])
+    require(_candidate_digest(database, directory, deadline) == request["candidate_sha256"])
+    checkout = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"],
+                              capture_output=True, text=True, timeout=10, check=True)
+    require(checkout.stdout.strip() == request["source_revision"])
+    from scripts import qualify_gdw_store_recovery as recovery
+    with recovery.preservation._private_output():
+        logging.disable(logging.CRITICAL)
+        os.umask(0o077)
+        os.environ.update(HF_HUB_VERBOSITY="error", HF_DEBUG="0", HF_HUB_DISABLE_PROGRESS_BARS="1",
+            HF_HUB_DISABLE_IMPLICIT_TOKEN="1", HF_HUB_DISABLE_TELEMETRY="1",
+            HF_HOME=str(directory / "object-worker-cache"), **trusted_artifact_environment())
+        import requests
+        import huggingface_hub
+        require(huggingface_hub.__version__ == "1.31.0")
+        with requests.Session() as session:
+            session.headers.update(Authorization="Bearer " + os.environ["GH_TOKEN"], Accept="application/vnd.github+json")
+            verify_native(session, context)
+            require(verify_prior_attempt(session).get("prior_native_metadata_verified") is True)
+            def owned():
+                require(github_json(session, "git/ref/heads/main").get("object", {}).get("sha")
+                        == context["source_revision"])
+            api = huggingface_hub.HfApi(endpoint=storage.ENDPOINT, token=os.environ["HF_TOKEN"])
+            effects = artifact_effect_observation(api, database, directory / "artifact-effects", owned, deadline)
+            _object_worker_paths(str(directory), before=False)
+            require(_candidate_digest(database, directory, deadline) == request["candidate_sha256"])
+            owned()
+            _worker_budget(deadline)
+    return {**_held_object_worker_report(), "state": "OBSERVED", **context,
+        "candidate_sha256": request["candidate_sha256"], "artifact_effect_observation": effects}
+
+
+def artifact_object_worker():
+    try:
+        report = _artifact_object_worker_observation(sys.stdin.buffer.read(OBJECT_WORKER_BYTES + 1))
+        report = validate_object_worker_report(report)
+    except BaseException:
+        report = _held_object_worker_report()
+    sys.stdout.buffer.write(encode_object_worker_report(report))
+    return 0 if report["state"] == "OBSERVED" else 2
+
+
 def native_context(env, source):
     require(type(source) is str and HEX40.fullmatch(source) is not None)
     require(env.get("GITHUB_ACTIONS") == "true" and env.get("GITHUB_REPOSITORY") == REPOSITORY
@@ -442,10 +651,8 @@ def observe_capture(api, workspace, require_source, deadline, *, note=lambda _bo
     expected_labels = frozenset(recovery.preservation.DATABASES)
     databases = _qualified_capture_databases(qualified, expected_labels)
     note("LOCAL_ARTIFACTS")
-    candidate = workspace / "capture/working/gdw/candidate.sqlite3"
     note("OBJECT_PLAN")
-    effects = artifact_effect_observation(api, candidate, workspace / "artifact-effects",
-                                          require_source, deadline, note=note)
+    effects = supervised_artifact_effect_observation(workspace, require_source, deadline, note=note)
     require_source()
     note("HEAD_AFTER")
     after = private_head_metadata(api)
@@ -533,4 +740,4 @@ def main():
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(artifact_object_worker() if sys.argv[1:] == ["--artifact-object-worker"] else main())
