@@ -5,8 +5,11 @@
 
 These assertions inspect source, not browser execution or hosted runtime. They
 do not establish deployment, model evaluation, or independent evidence replay.
+Summary-controller behavior is scoped to the v6-owned inline script; the
+existing managed product chrome remains a separate presentation contract.
 """
 
+import ast
 import re
 from html.parser import HTMLParser
 from pathlib import Path
@@ -14,6 +17,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PAGE = ROOT / "pages" / "anatomy-v6.html"
+ROLLOUT_SCRIPT = ROOT / "scripts" / "rollout_frontend_flow_shell.py"
 
 
 class _PageStructure(HTMLParser):
@@ -30,7 +34,25 @@ def _read() -> str:
 
 
 def _script() -> str:
-    return _read().split("<script>", 1)[1].split("</script>", 1)[0]
+    scripts = re.findall(r"<script\b([^>]*)>(.*?)</script\s*>", _read(), re.S)
+    inline_scripts = [
+        source for attrs, source in scripts if not re.search(r"\bsrc\s*=", attrs)
+    ]
+    assert len(inline_scripts) == 1, "one v6-owned summary controller is required"
+    return inline_scripts[0]
+
+
+def _managed_shell_tags() -> dict[str, str]:
+    tree = ast.parse(ROLLOUT_SCRIPT.read_text(encoding="utf-8"))
+    return {
+        target.id: node.value.value
+        for node in tree.body
+        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Constant)
+        for target in node.targets
+        if isinstance(target, ast.Name)
+        and target.id in {"STYLE", "SCRIPT"}
+        and isinstance(node.value.value, str)
+    }
 
 
 def _structure() -> _PageStructure:
@@ -51,7 +73,7 @@ def test_v6_is_an_additive_evidence_page_with_its_own_canonical_path() -> None:
     assert "not a runtime probe" in html
 
 
-def test_page_uses_existing_self_hosted_kanchay_tokens_without_raw_palette() -> None:
+def test_v6_owned_style_uses_self_hosted_kanchay_tokens_without_raw_palette() -> None:
     html = _read()
     structure = _structure()
     stylesheets = [
@@ -59,7 +81,7 @@ def test_page_uses_existing_self_hosted_kanchay_tokens_without_raw_palette() -> 
         for tag, attrs in structure.elements
         if tag == "link" and attrs.get("rel") == "stylesheet"
     ]
-    assert stylesheets == ["/assets/szl/szl-design-system.css"]
+    assert stylesheets == ["/assets/szl/szl-design-system.css", "/assets/szl-flow.css"]
     assert html.index("/assets/szl/szl-design-system.css") < html.index("<style>")
     css = html.split("<style>", 1)[1].split("</style>", 1)[0]
     assert "gradient(" not in css
@@ -77,8 +99,37 @@ def test_page_uses_existing_self_hosted_kanchay_tokens_without_raw_palette() -> 
         assert f"var({token})" in css
     assert css.count("var(--accent)") == 1
     assert "@font-face" not in html
-    assert not any(
-        tag == "script" and attrs.get("src") for tag, attrs in structure.elements
+    sources = [
+        attrs.get("src")
+        for tag, attrs in structure.elements
+        if tag == "script" and attrs.get("src")
+    ]
+    assert sources == ["/assets/szl-flow.js"]
+    assert all(
+        path.startswith("/") and not path.startswith("//")
+        for path in stylesheets + sources
+    )
+
+
+def test_managed_shared_chrome_matches_canonical_rollout_without_opt_out() -> None:
+    html = _read()
+    tags = _managed_shell_tags()
+    assert set(tags) == {"STYLE", "SCRIPT"}
+    for name, marker in (
+        ("STYLE", 'data-szl-flow-asset="style"'),
+        ("SCRIPT", 'data-szl-flow-asset="script"'),
+    ):
+        assert html.count(tags[name]) == 1
+        assert html.count(marker) == 1
+    assert html.index(tags["STYLE"]) < html.index("</head>")
+    assert html.index(tags["SCRIPT"]) < html.index("</body>")
+    assert "data-szl-flow-opt-out" not in html
+    assert (
+        "Shared product navigation and motion chrome are separate presentation" in html
+    )
+    assert (
+        "Their product labels grant no training, promotion, execution, or provider-write authority"
+        in html
     )
 
 
@@ -121,7 +172,7 @@ def test_all_count_fields_start_unavailable_not_at_sample_values() -> None:
     assert "no sample values are substituted" in html
 
 
-def test_only_one_same_origin_get_is_used_without_credentials_or_writes() -> None:
+def test_v6_summary_uses_one_same_origin_get_without_credentials_or_writes() -> None:
     script = _script()
     assert 'const ENDPOINT = "/api/a11oy/v1/anatomy/evidence";' in script
     assert script.count("fetch(") == 1
