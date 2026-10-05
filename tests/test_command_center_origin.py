@@ -189,17 +189,25 @@ def test_elite_quarantine_detects_broad_and_wildcard_copy_sources(tmp_path: Path
     )
     for index, instruction in enumerate(unsafe_instructions):
         dockerfile = tmp_path / f"Dockerfile.{index}"
-        dockerfile.write_text(f"FROM scratch AS runtime\n{instruction}\n", encoding="utf-8")
+        dockerfile.write_text(f"FROM scratch AS runtime\n{instruction}\n", encoding="utf-8", newline="\n")
         sources = _docker_image_sources(dockerfile)
         assert any(_source_can_include(source, elite) for source in sources), instruction
 
 
 def test_elite_quarantine_rejects_unsupported_add(tmp_path: Path) -> None:
     dockerfile = tmp_path / "Dockerfile.add"
-    dockerfile.write_text("FROM scratch AS runtime\nADD . /app\n", encoding="utf-8")
+    dockerfile.write_text("FROM scratch AS runtime\nADD . /app\n", encoding="utf-8", newline="\n")
     with pytest.raises(InstalledSourceError) as rejection:
         _docker_image_sources(dockerfile)
     assert rejection.value.code == "UNSUPPORTED_DOCKER_INSTRUCTION"
+
+
+def test_elite_quarantine_keeps_crlf_source_rejection(tmp_path: Path) -> None:
+    dockerfile = tmp_path / "Dockerfile.crlf"
+    dockerfile.write_bytes(b"FROM scratch AS runtime\r\nCOPY pages/ /app/pages/\r\n")
+    with pytest.raises(InstalledSourceError) as rejection:
+        _docker_image_sources(dockerfile)
+    assert rejection.value.code == "UNSUPPORTED_DOCKER_ESCAPE"
 
 
 def test_module_selftest_if_starlette_present() -> None:
