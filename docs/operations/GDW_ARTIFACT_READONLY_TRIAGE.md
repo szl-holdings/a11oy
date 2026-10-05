@@ -46,3 +46,7 @@ is not an exhaustive bucket audit and cannot establish no historical effects.
 No pause/resume, bootstrap, database reset, snapshot publication, bucket copy,
 upload, dataset commit, deletion, credential change or restored runtime is part
 of its scope. A separately qualified recovery decision remains necessary.
+
+The native observation uses the source-owned LOGICAL_ROOTS for both proof and
+receipt binding, matching the corrected isolated worker admitted in #2571.
+It never inherits caller overrides or moves/relabels captured logical paths.

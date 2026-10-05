@@ -869,6 +869,7 @@ def _reconciliation_report(raw):
 
 def run_native(request: dict, *, _inspect_only=False, _reconcile_only=False) -> dict:
     import tempfile
+    from gdw_durable_artifacts import LOGICAL_ROOTS
     import probe_gdw_runtime_base as base
     _require(type(_inspect_only) is bool and type(_reconcile_only) is bool
         and not (_inspect_only and _reconcile_only), "ACQUISITION_REQUEST_INVALID")
@@ -883,7 +884,9 @@ def run_native(request: dict, *, _inspect_only=False, _reconcile_only=False) -> 
         "GITHUB_REF", "GITHUB_SHA", "GITHUB_WORKFLOW_REF", "GITHUB_WORKFLOW_SHA", "GITHUB_RUN_ID",
         "GITHUB_RUN_ATTEMPT", "GITHUB_EVENT_NAME", "GITHUB_JOB")
     environment = {name: os.environ[name] for name in names if name in os.environ}
-    environment.update(PATH="/usr/local/bin:/usr/bin:/bin", PYTHONDONTWRITEBYTECODE="1")
+    environment.update(PATH="/usr/local/bin:/usr/bin:/bin", PYTHONDONTWRITEBYTECODE="1",
+        GDW_PROOF_DIR=str(LOGICAL_ROOTS["proof_export"]),
+        GDW_RECEIPT_PROJECTION_DIR=str(LOGICAL_ROOTS["receipt_projection"]))
     with tempfile.TemporaryDirectory(prefix="gdw-acquisition-parent-") as temporary:
         try:
             raw = base._run([sys.executable, "-B", str(Path(__file__).resolve()), "--worker"],

@@ -167,6 +167,12 @@ def observe_capture(api, workspace, require_source, deadline):
             "local_artifact_observation": observation}
 
 
+def trusted_artifact_environment():
+    from gdw_durable_artifacts import LOGICAL_ROOTS
+    return {"GDW_PROOF_DIR": str(LOGICAL_ROOTS["proof_export"]),
+            "GDW_RECEIPT_PROJECTION_DIR": str(LOGICAL_ROOTS["receipt_projection"])}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source-sha", required=True)
@@ -203,6 +209,8 @@ def main():
                 from huggingface_hub import HfApi
                 require(huggingface_hub.__version__ == "1.31.0")
                 api = HfApi(endpoint="https://huggingface.co", token=os.environ["HF_TOKEN"])
+                # Match the admitted worker roots; never inherit a caller override.
+                os.environ.update(trusted_artifact_environment())
                 observation = observe_capture(api, Path(directory), owned, time.monotonic() + MAX_SECONDS - 10)
                 result.update(observation)
             result.update(state="OBSERVED", diagnostic_code="READ_ONLY_OBSERVATION_COMPLETE")

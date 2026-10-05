@@ -539,6 +539,119 @@ def invalid_worker_request():
         "publisher_script": PRIVATE_FAILURE}
 
 
+def test_worker_trusted_logical_roots_validate_retained_artifacts(tmp_path, monkeypatch):
+    import subprocess
+    import sys
+    from scripts import probe_gdw_runtime_base as base
+
+    for name in ("HF_TOKEN", "GH_TOKEN"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "untrusted-proofs"))
+    monkeypatch.setenv("GDW_RECEIPT_PROJECTION_DIR", str(tmp_path / "untrusted-receipts"))
+    code = r'''import socket, sys
+network = []
+def deny(*args, **kwargs):
+    network.append('blocked')
+    raise AssertionError('network disabled before target imports')
+socket.socket = socket.create_connection = socket.getaddrinfo = deny
+def audit(event, args):
+    if event.startswith('socket.'):
+        deny()
+sys.addaudithook(audit)
+import hashlib, json, os, sqlite3, time
+from pathlib import Path
+root = Path(sys.argv[1]).resolve()
+sys.path[:0] = [str(root), str(root / 'scripts')]
+from gdw_workspace import GDWWorkspace, _SCHEMA_STATEMENTS, SCHEMA_VERSION
+from gdw_durable_artifacts import ArtifactCache, LOGICAL_ROOTS
+from gdw_durable_runtime import DurableStorageUnavailable
+from scripts import acquire_gdw_durable_storage as acquisition
+
+os.umask(0o077)
+directory = Path.cwd()
+database = directory / 'synthetic.sqlite3'
+owner = 'synthetic-owner'
+scope = hashlib.sha256(owner.encode()).hexdigest()[:32]
+payload = {'proposal_id': 'synthetic-proof', 'namespace': 'synthetic', 'owner_id': owner,
+           'database_generation_id': 'a' * 32, 'synthetic': True}
+identity = hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+payload['payload_sha256'] = identity
+encoded = (json.dumps(payload, indent=2, sort_keys=True) + '\n').encode()
+digest = hashlib.sha256(encoded).hexdigest()
+logical = LOGICAL_ROOTS['proof_export'] / scope / (identity + '.json')
+artifact = {'path': str(logical), 'artifact_identity': identity, 'owner_scope': scope,
+            'immutable': True, 'sha256': digest, 'size': len(encoded)}
+timestamp = '2026-01-01T00:00:00+00:00'
+with sqlite3.connect(database) as connection:
+    for statement in _SCHEMA_STATEMENTS:
+        connection.execute(statement)
+    connection.execute('INSERT INTO schema_meta VALUES(?,?,?,?,?)',
+                       ('gdw', SCHEMA_VERSION, 'a' * 32, timestamp, timestamp))
+    connection.execute('INSERT INTO proof_outbox VALUES(?,?,?,?,?,?,?,?,?,?)',
+        ('synthetic', owner, payload['proposal_id'], json.dumps(payload), identity,
+         'EXPORTED', json.dumps(artifact), timestamp, timestamp, None))
+before = hashlib.sha256(database.read_bytes()).hexdigest()
+cache_directory = directory / 'cache'
+cache_directory.mkdir(mode=0o700)
+calls = []
+def publish(path, object_path, sha256, deadline):
+    data = path.read_bytes()
+    assert data == encoded and sha256 == digest
+    calls.append(object_path)
+    return {'path': object_path, 'sha256': sha256, 'size': len(data), 'xet_hash': 'b' * 64}
+cache = ArtifactCache(cache_directory, publish)
+result = None
+error_code = None
+safe_code = None
+try:
+    result = cache.prepare(database, time.monotonic() + 30)
+except DurableStorageUnavailable as error:
+    error_code = error.args[0]
+    safe_code = acquisition._safe_code(error)
+physical = cache.resolve(logical)
+binding_errors = GDWWorkspace.artifact_binding_errors(
+    {'kind': 'proof_export', 'owner_id': owner, 'intent_sha256': identity},
+    artifact, physical_path=physical)
+receipt_artifact = dict(artifact, path=str(LOGICAL_ROOTS['receipt_projection'] / scope / (identity + '.json')))
+receipt_binding_errors = GDWWorkspace.artifact_binding_errors(
+    {'kind': 'receipt_projection', 'owner_id': owner, 'intent_sha256': identity},
+    receipt_artifact, physical_path=physical)
+assert hashlib.sha256(database.read_bytes()).hexdigest() == before
+assert not network
+print(json.dumps({'case': sys.argv[2], 'error_code': error_code, 'safe_code': safe_code,
+    'result': result, 'proof_binding_errors': binding_errors,
+    'receipt_binding_errors': receipt_binding_errors, 'mock_publication_calls': len(calls),
+    'synthetic_database_unchanged': True, 'network_attempts': len(network), 'actual_provider_calls': 0}))
+'''
+    observed = []
+    class EnvironmentChecked(Exception):
+        pass
+
+    def transport(*args, **kwargs):
+        # Keep the native parent's sanitized environment and private cwd; only
+        # replace the provider worker with a synthetic retained-artifact check.
+        result = subprocess.run([sys.executable, "-I", "-B", "-c", code,
+            str(acquisition.ROOT), "configured_worker"], env=kwargs["env"], cwd=kwargs["cwd"],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20)
+        assert result.returncode == 0, result.stderr.decode()
+        assert result.stderr == b""
+        value = json.loads(result.stdout)
+        assert value["error_code"] is value["safe_code"] is None
+        assert value["proof_binding_errors"] == value["receipt_binding_errors"] == []
+        assert value["result"] == {"verified_count": 1, "reconstructed_count": 1,
+            "reconstruction": "RECONSTRUCTED_FROM_RETAINED_PAYLOAD"}
+        assert value["mock_publication_calls"] == 1
+        assert value["synthetic_database_unchanged"] is True
+        assert value["network_attempts"] == value["actual_provider_calls"] == 0
+        observed.append(value)
+        raise EnvironmentChecked()
+
+    monkeypatch.setattr(base, "_run", transport)
+    with pytest.raises(EnvironmentChecked):
+        acquisition.run_native({})
+    assert len(observed) == 1
+
+
 def test_actual_worker_exit2_propagates_only_closed_held_report(monkeypatch):
     # Invalid selector fails before native imports/provider operations. This
     # launches the actual --worker in its private temporary cwd and uses the
@@ -764,6 +877,7 @@ def supervised_report(monkeypatch):
 
 def test_reconciliation_parent_accepts_only_bound_exit0_under_120_seconds(monkeypatch):
     from scripts import probe_gdw_runtime_base as base
+    from gdw_durable_artifacts import LOGICAL_ROOTS
     report = supervised_report(monkeypatch)
     observed = {}
     def transport(*args, **kwargs):
@@ -779,7 +893,10 @@ def test_reconciliation_parent_accepts_only_bound_exit0_under_120_seconds(monkey
     assert observed["_capture_failure"] is True
     assert set(observed["env"]) <= {"HF_TOKEN", "GH_TOKEN", "GITHUB_ACTIONS", "GITHUB_REPOSITORY",
         "GITHUB_REPOSITORY_ID", "GITHUB_REF", "GITHUB_SHA", "GITHUB_WORKFLOW_REF", "GITHUB_WORKFLOW_SHA",
-        "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "GITHUB_EVENT_NAME", "GITHUB_JOB", "PATH", "PYTHONDONTWRITEBYTECODE"}
+        "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "GITHUB_EVENT_NAME", "GITHUB_JOB", "PATH", "PYTHONDONTWRITEBYTECODE",
+        "GDW_PROOF_DIR", "GDW_RECEIPT_PROJECTION_DIR"}
+    assert observed["env"]["GDW_PROOF_DIR"] == str(LOGICAL_ROOTS["proof_export"])
+    assert observed["env"]["GDW_RECEIPT_PROJECTION_DIR"] == str(LOGICAL_ROOTS["receipt_projection"])
     def exit2(*_a, **_k): raise base._CommandFailed(acquisition.canonical(report))
     monkeypatch.setattr(base, "_run", exit2)
     with pytest.raises(acquisition.AcquisitionBlocked, match="WORKER_FAILURE_REPORT_INVALID"):

@@ -116,3 +116,14 @@ def test_workflow_only_manual_triage_with_fixed_artifact_and_no_publish_path():
     upload = [step for step in job["steps"] if step.get("uses", "").startswith("actions/upload-artifact@")]
     assert len(upload) == 1 and upload[0]["with"]["path"] == "${{ runner.temp }}/gdw-artifact-triage.json"
     assert not any(key in jobs["contract"].get("env", {}) for key in ("HF_TOKEN", "GH_TOKEN"))
+
+
+def test_native_triage_roots_match_reviewed_worker_not_caller(monkeypatch):
+    from gdw_durable_artifacts import LOGICAL_ROOTS
+    monkeypatch.setenv("GDW_PROOF_DIR", "/untrusted/proofs")
+    monkeypatch.setenv("GDW_RECEIPT_PROJECTION_DIR", "/untrusted/receipts")
+    assert triage.trusted_artifact_environment() == {
+        "GDW_PROOF_DIR": str(LOGICAL_ROOTS["proof_export"]),
+        "GDW_RECEIPT_PROJECTION_DIR": str(LOGICAL_ROOTS["receipt_projection"]),
+    }
+    assert "os.environ.update(trusted_artifact_environment())" in Path(triage.__file__).read_text()
