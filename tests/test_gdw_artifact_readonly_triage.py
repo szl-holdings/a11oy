@@ -207,3 +207,33 @@ def test_readonly_boundary_is_a_fixed_enum_not_error_text(boundary):
     with pytest.raises(triage.TriageHeld):
         triage.mark_boundary(record, "private-owner/path?token=example")
     assert record == {"read_boundary": boundary}
+
+
+def test_triage_uses_canonical_private_read_selector_only_at_native_step():
+    workflow = yaml.safe_load((triage.ROOT / triage.WORKFLOW).read_text())
+    canonical = yaml.safe_load((triage.ROOT / ".github/workflows/hf-sync.yml").read_text())
+    expected = "${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}"
+    assert canonical["jobs"]["durable-acquisition"]["env"]["HF_TOKEN"] == expected
+    steps = workflow["jobs"]["triage"]["steps"]
+    readers = [(index, step) for index, step in enumerate(steps)
+               if "scripts/triage_gdw_artifacts_readonly.py --source-sha" in step.get("run", "")]
+    assert len(readers) == 1
+    index, reader = readers[0]
+    assert reader["env"]["HF_TOKEN"] == expected
+    assert reader["env"]["GH_TOKEN"] == "${{ github.token }}"
+
+    # No HF credential binding belongs in PR tests, job-wide environment,
+    # checkout, dependency installation, output, or upload steps.
+    bindings = []
+    def visit(value, path=()):
+        if isinstance(value, dict):
+            for key, child in value.items():
+                visit(child, path + (key,))
+        elif isinstance(value, list):
+            for offset, child in enumerate(value):
+                visit(child, path + (offset,))
+        elif isinstance(value, str) and (
+                "secrets.HF_ORG_TOKEN" in value or "secrets.HF_TOKEN" in value):
+            bindings.append((path, value))
+    visit(workflow)
+    assert bindings == [(("jobs", "triage", "steps", index, "env", "HF_TOKEN"), expected)]
