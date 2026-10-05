@@ -23,14 +23,14 @@ from scripts import gdw_acquisition_evidence as native
 from scripts import inspect_gdw_held_acquisition as inspection
 
 SCHEMA = "szl.gdw-supervised-acquisition-prerequisite/v1"
-PARENT_SOURCE = "47fdc56643051dbcea363807cfc11b528b53cf21"
-INSPECTION_RUN = 37258464744
+PARENT_SOURCE = "bedc2f55a26eb94d7253d2fb67994a2c3d73f3c7"
+INSPECTION_RUN = 37260982314
 INSPECTION_ATTEMPT = 1
-INSPECTION_JOB = 111600448989
-INSPECTION_SOURCE_JOB = 111600409872
-ARTIFACT_ID = 11324090824
-ARCHIVE_SHA256 = "d2718f35e72a34bcd4c747dcaec3a02d975f7b94f2ea40c186c89bde6d023aca"
-REPORT_SHA256 = "4b2d40feceabf2aa98a8c9fd4df1cc143ff22550530bc71d94e860dc142736db"
+INSPECTION_JOB = 111608007531
+INSPECTION_SOURCE_JOB = 111607965035
+ARTIFACT_ID = 11324262380
+ARCHIVE_SHA256 = "cdbd77c0ac4ae2d799acce2df7ef84256df6151492f36f14c03fe635dfa84b1d"
+REPORT_SHA256 = "4c24af3081cfcc78209f631a030026cdc8ee794dac1b1524db0b58809bc50230"
 DATASET_REVISION = "dd34d6b0b20d918cc862888030569d03d99a9b37"
 REPOSITORY_ID = 1225834126
 RECONCILIATION_JOB_KEY = "recovery-reconciliation"
@@ -156,7 +156,7 @@ def _prior_producer(evidence):
 def _inspection_archive(evidence, run, producer):
     """Specialized fixed failed-inspection producer; no general failure bypass."""
     meta = evidence.request(f"/repos/{native.REPOSITORY}/actions/artifacts/{ARTIFACT_ID}")
-    _require(meta.get("size_in_bytes") == 565 and type(meta.get("size_in_bytes")) is int
+    _require(meta.get("size_in_bytes") == 564 and type(meta.get("size_in_bytes")) is int
         and native.timestamp(run.get("run_started_at")) <= native.timestamp(producer.get("started_at"))
         <= native.timestamp(meta.get("created_at")) <= native.timestamp(producer.get("completed_at")),
         "INSPECTION_ARTIFACT_UNQUALIFIED")
@@ -176,7 +176,7 @@ def _inspection_archive(evidence, run, producer):
         archive = bytearray()
         for chunk in response.iter_bytes(chunk_size=1024):
             evidence.budget()
-            _require(len(archive) + len(chunk) <= 565, "INSPECTION_ARTIFACT_UNQUALIFIED")
+            _require(len(archive) + len(chunk) <= 564, "INSPECTION_ARTIFACT_UNQUALIFIED")
             archive.extend(chunk)
     members = native.validate_archive(meta, bytes(archive), artifact_id=ARTIFACT_ID,
         expected_digest=ARCHIVE_SHA256, expected_name=f"canonical-durable-acquisition-{INSPECTION_RUN}-1",
