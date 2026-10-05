@@ -12,6 +12,7 @@ name: Estate release train
       - tests/test_estate_child_completion.py
       - tests/test_hf_public_inventory.py
       - tests/test_estate_pr_concurrency.py
+      - tests/test_estate_workflow_permissions.py
       - tests/test_estate_release_train.py
       - tests/test_estate_repair_dispatch.py
       - tests/test_estate_repair_plan_authority.py
@@ -55,14 +56,108 @@ env:
   ISSUE_TITLE: "[ESTATE-ALIGNMENT] GitHub, Hugging Face and product domain diverged"
 
 jobs:
+  verify-pr:
+    name: Observe proposed release controller (read-only)
+    if: github.event_name == 'pull_request'
+    permissions:
+      actions: read
+      contents: read
+      issues: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact candidate or current protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Prove proposed release-vector controller offline
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/verify_estate_release_train.py
+          python -m py_compile scripts/estate_repair_dispatch.py
+          python tests/test_estate_release_train.py
+          python tests/test_estate_repair_dispatch.py
+          python tests/test_estate_repair_plan_authority.py
+          python tests/test_estate_lyte_failure_evidence.py
+          python tests/test_hf_public_inventory.py
+          python tests/test_estate_pr_concurrency.py
+          python tests/test_estate_workflow_permissions.py
+          python tests/test_estate_child_completion.py
+          python -m json.tool config/estate-release-train.v1.json >/dev/null
+          git diff --check
+
+      - name: Observe the current three-plane estate
+        id: initial
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          EXPLICIT_REPAIR: ${{ github.event_name == 'workflow_dispatch' && inputs.repair }}
+        run: |
+          set -euo pipefail
+          wait_seconds=0
+          if [ "${{ github.event_name }}" != pull_request ] && [ "${EXPLICIT_REPAIR}" != true ]; then
+            wait_seconds=1200
+          fi
+          python scripts/verify_estate_release_train.py \
+            --config config/estate-release-train.v1.json \
+            --output "$REPORT" \
+            --wait-seconds "$wait_seconds" \
+            --poll-seconds 20 \
+            --soft
+          state="$(python -c 'import json; print(json.load(open("reports/estate-release-train.json"))["state"])')"
+          expected_sha="$(python -c 'import json; print(json.load(open("reports/estate-release-train.json"))["source_vector"]["a11oy"])')"
+          echo "state=$state" >> "$GITHUB_OUTPUT"
+          echo "expected_sha=$expected_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Observe one explicit public membership predicate
+        run: |
+          set -euo pipefail
+          python scripts/hf_public_inventory.py \
+            --config config/estate-release-train.v1.json \
+            --manifest docs/huggingface-ecosystem-manifest.json \
+            --estate-report "$REPORT" \
+            --output reports/hf-public-inventory-preflight.json \
+            --soft
+
+      - name: Upload immutable release-vector evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: estate-release-train-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ env.REPORT }}
+            reports/hf-public-inventory-preflight.json
+            ${{ runner.temp }}/estate-repair-dispatch.json
+            reports/estate-child-*.jsonl
+          if-no-files-found: error
+          retention-days: 180
+
+
   verify:
     permissions:
       actions: write
       contents: read
       issues: write
     if: >-
-      github.event_name != 'workflow_run' ||
-      github.event.workflow_run.conclusion == 'success'
+      github.event_name != 'pull_request' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-24.04
     # Explicit repair waits for HF (60m), then edge (20m), then native parity (30m).
     # Observation-only runs retain their original bound. No timeout is success.
@@ -76,7 +171,7 @@ jobs:
       - name: Checkout exact candidate or current protected source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event_name == 'pull_request' && github.sha || 'main' }}
+          ref: ${{ github.sha }}
           fetch-depth: 1
           persist-credentials: false
 
@@ -96,6 +191,7 @@ jobs:
           python tests/test_estate_lyte_failure_evidence.py
           python tests/test_hf_public_inventory.py
           python tests/test_estate_pr_concurrency.py
+          python tests/test_estate_workflow_permissions.py
           python tests/test_estate_child_completion.py
           python -m json.tool config/estate-release-train.v1.json >/dev/null
           git diff --check
