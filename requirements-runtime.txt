@@ -14,14 +14,14 @@
 # huggingface_hub 1.31.0 is the admitted client (docs/CODEX_HF_HUB_131_RUNTIME_ALIGNMENT.md,
 # enforced by tests/test_hf_hub_131_source_contract.py). openai 3.x is not admitted.
 fastapi==0.141.1
-uvicorn[standard]==0.52.4
+uvicorn[standard]==0.54.0
 httpx==0.28.1
-starlette==1.6.0
-huggingface_hub==1.31.0
+starlette==1.7.0
+huggingface_hub==1.33.0
 openai==2.43.0
 python-multipart==0.0.32
-cryptography==50.0.1
+cryptography==50.0.2
 lmdb==2.3.0
 slowapi==0.1.10
 defusedxml==0.7.1
-numpy==2.5.2
+numpy==2.5.3
