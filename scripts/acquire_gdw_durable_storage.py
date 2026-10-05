@@ -61,6 +61,7 @@ _STAGES = frozenset({
     "BOOTSTRAP_BOUNDARY", "POST_BOOTSTRAP_READBACK", "LOCATOR_RENDER",
     "PARENT_WORKER", "PREREQUISITE_CLASSIFICATION", "LOCATOR_FETCH", "OUTPUT_WRITE",
     "HELD_ACQUISITION_INSPECTION",
+    "SUPERVISED_RECONCILIATION",
 })
 _STAGE_STATES = frozenset({"BOUNDARY_ENTERED", "COMPLETION_OBSERVED"})
 _DIAGNOSTICS = frozenset({
@@ -95,6 +96,9 @@ _DIAGNOSTICS = frozenset({
     "PYTHON_IMPORT_UNAVAILABLE", "PYTHON_TYPE_ERROR", "PYTHON_VALUE_ERROR",
     "LOCAL_OS_ERROR", "LOCAL_TIMEOUT", "INITIAL_HEAD_ALREADY_EXISTS",
     "BOOTSTRAP_OBJECT_ALREADY_EXISTS", "STORAGE_OUTCOME_UNCERTAIN",
+    "NATIVE_CONTEXT_UNQUALIFIED", "SOURCE_SUCCESSOR_UNQUALIFIED", "NATIVE_RUN_NOT_UNIQUE",
+    "INSPECTION_PRODUCER_UNQUALIFIED", "INSPECTION_ARTIFACT_UNQUALIFIED",
+    "EXPECTED_ABSENCE_UNVERIFIED", "RECONCILIATION_UNAVAILABLE",
 })
 _FAILURE_FIELDS = frozenset({"schema", "state", "stage", "stage_state", "diagnostic_code",
     "provider_effects", "restore_admitted", "deployment_admitted", "secret_values_recorded"})
@@ -440,7 +444,8 @@ def acquire_pair(api, *, source_context: dict, qualification_context: dict,
                  reference: dict, capture_bytes: bytes, anchors: dict, anchor_bytes: bytes,
                  manifest: dict, base_observation: dict, guard_probe: dict,
                  paused: dict, legacy_observation: dict, workspace: Path,
-                 require_owned_source, deadline: float, operation_factory, _progress=None) -> dict:
+                 require_owned_source, require_prewrite_reconciliation,
+                 deadline: float, operation_factory, _progress=None) -> dict:
     """Reproduce qualified candidates, publish privately and bootstrap exactly once.
 
     No runtime config/restart/restore is performed here. All private working
@@ -499,6 +504,14 @@ def acquire_pair(api, *, source_context: dict, qualification_context: dict,
     def require_paused():
         observed = observe_originals(api, expected_originals, require_owned_source=require_owned_source, deadline=deadline)
         _require(observed["stage"] == "PAUSED", "PAUSED_READBACK_REQUIRED")
+    def require_write():
+        # The accepted prior ABSENT observation is not reusable authority. Its
+        # exact private revision/HEAD absence is reobserved before each object
+        # submission and the absent-only bootstrap. After our own acknowledged
+        # bootstrap, readback uses the existing owned-HEAD contract instead.
+        require_prewrite_reconciliation()
+        require_paused()
+    require_prewrite_reconciliation()
     require_paused()
     workspace = storage._private_directory(workspace)
     progress.complete()
@@ -524,7 +537,7 @@ def acquire_pair(api, *, source_context: dict, qualification_context: dict,
         and _digest(storage._value(info, "sha"), 40), "PRIVATE_FENCE_UNAVAILABLE")
     group = hashlib.sha256(canonical(storage._value(info, "resource_group"))).hexdigest()
     staging = workspace / "objects"; staging.mkdir(mode=0o700)
-    guarded_api = _AdmittedAcquisitionHub(api, require_paused)
+    guarded_api = _AdmittedAcquisitionHub(api, require_write)
     backend = storage.HFDatasetFenceBackend(guarded_api, staging, group, operation_factory)
     backend.empty_parent(deadline)  # An existing HEAD cannot trigger new snapshot publication.
     objects = storage.HFPrivateObjectStore(guarded_api, staging, workspace)
@@ -695,10 +708,18 @@ def _execute_native(request: dict, workspace: Path, deadline: float, *, _progres
     from build_gdw_installed_source_manifest import build_manifest
     from configure_hf_gdw_runtime import managed_space_observation
     from huggingface_hub import CommitOperationAdd
+    import reconcile_gdw_supervised_acquisition as reconciliation
 
     progress.enter("NATIVE_INPUTS")
     evidence = native.NativeEvidence(dict(os.environ), deadline)
     source, qualification_source, preserved, qualified, qualification_bytes = _native_inputs(request, evidence)
+    progress.complete()
+    progress.enter("SUPERVISED_RECONCILIATION")
+    reconciliation.verify_native_prerequisite(evidence)
+    api = storage._hub_api(os.environ.get("HF_TOKEN", ""))
+    def require_reconciled():
+        reconciliation.require_expected_absent(api, evidence, deadline)
+    require_reconciled()
     progress.complete()
     progress.enter("REFERENCE_VALIDATION")
     reference, captured, anchors, historical = _references()
@@ -718,7 +739,6 @@ def _execute_native(request: dict, workspace: Path, deadline: float, *, _progres
         deadline=min(deadline - 40, time.monotonic() + 240), temporary_root=workspace)
     progress.complete()
     progress.enter("LEGACY_PROVIDER_READ")
-    api = storage._hub_api(os.environ.get("HF_TOKEN", ""))
     legacy = managed_space_observation(api)
     guard.validate_environment(legacy["variables"], legacy["secret_names"])
     _require(legacy["space_revision"] == guard.SPACE_REVISION
@@ -730,7 +750,7 @@ def _execute_native(request: dict, workspace: Path, deadline: float, *, _progres
     original = original_identities(reference)
     progress.complete()
     progress.enter("PAUSE_BOUNDARY")
-    paused = pause_qualified_source(api, original, require_owned_source=evidence.require_current_main, deadline=deadline)
+    paused = pause_qualified_source(api, original, require_owned_source=require_reconciled, deadline=deadline)
     progress.complete()
     progress.enter("PAUSE_READBACK")
     after = managed_space_observation(api)
@@ -744,7 +764,8 @@ def _execute_native(request: dict, workspace: Path, deadline: float, *, _progres
         qualified=qualified, qualification_bytes=qualification_bytes, reference=reference, capture_bytes=captured,
         anchors=anchors, anchor_bytes=historical, manifest=manifest, base_observation=expected_base,
         guard_probe=native_guard, paused=paused, legacy_observation=after, workspace=workspace,
-        require_owned_source=evidence.require_current_main, deadline=deadline, operation_factory=CommitOperationAdd, _progress=progress)
+        require_owned_source=evidence.require_current_main, require_prewrite_reconciliation=require_reconciled,
+        deadline=deadline, operation_factory=CommitOperationAdd, _progress=progress)
 
 
 def _worker() -> int:
@@ -757,7 +778,8 @@ def _worker() -> int:
     try:
         request = strict(sys.stdin.buffer.read(MAX_LOCATOR_BYTES + 1), MAX_LOCATOR_BYTES)
         inspect_only = request.get("mode") == "INSPECT_HELD"
-        if inspect_only:
+        reconcile_only = request.get("mode") == "RECONCILE_SUPERVISED"
+        if inspect_only or reconcile_only:
             _require(set(request) == {"mode", "deadline"}, "ACQUISITION_REQUEST_INVALID")
         else:
             _require(set(request) == {"source_artifact_id", "source_artifact_sha256", "qualification_artifact_id",
@@ -766,7 +788,7 @@ def _worker() -> int:
                 _require(type(request[name]) is int and request[name] > 0, "ACQUISITION_ARTIFACT_INVALID")
             for name in ("source_artifact_sha256", "qualification_artifact_sha256"):
                 _require(_digest(request[name], 64), "ACQUISITION_ARTIFACT_INVALID")
-        seconds = INSPECTION_SECONDS if inspect_only else MAX_SECONDS
+        seconds = INSPECTION_SECONDS if inspect_only or reconcile_only else MAX_SECONDS
         _require(type(request["deadline"]) in (int, float) and 0 < request["deadline"] - time.monotonic() <= seconds,
             "ACQUISITION_DEADLINE_INVALID")
         progress.complete()
@@ -787,6 +809,12 @@ def _worker() -> int:
                     progress.enter("HELD_ACQUISITION_INSPECTION")
                     value = inspection.validate_result(inspection.execute_native_inspection(directory, request["deadline"]))
                     progress.complete()
+                elif reconcile_only:
+                    import reconcile_gdw_supervised_acquisition as reconciliation
+                    progress.enter("SUPERVISED_RECONCILIATION")
+                    value = reconciliation.execute_native_reconciliation(directory, request["deadline"])
+                    value = reconciliation.validate_reconciliation_report(canonical(value))
+                    progress.complete()
                 else:
                     value = _execute_native(request, directory, request["deadline"], _progress=progress)
         progress.enter("WORKER_COMPLETION")
@@ -800,14 +828,29 @@ def _worker() -> int:
         return 2
 
 
-def run_native(request: dict, *, _inspect_only=False) -> dict:
+def _reconciliation_report(raw):
+    try:
+        import reconcile_gdw_supervised_acquisition as reconciliation
+        value = reconciliation.validate_reconciliation_report(raw)
+        _require(value["source_revision"] == os.environ.get("GITHUB_SHA")
+            and str(value["run_id"]) == os.environ.get("GITHUB_RUN_ID")
+            and str(value["run_attempt"]) == os.environ.get("GITHUB_RUN_ATTEMPT")
+            and value["job_key"] == os.environ.get("GITHUB_JOB") == "recovery-reconciliation",
+            "WORKER_FAILURE_REPORT_INVALID")
+        return value
+    except BaseException:
+        raise AcquisitionBlocked("WORKER_FAILURE_REPORT_INVALID") from None
+
+
+def run_native(request: dict, *, _inspect_only=False, _reconcile_only=False) -> dict:
     import tempfile
     import probe_gdw_runtime_base as base
-    _require(type(_inspect_only) is bool, "ACQUISITION_REQUEST_INVALID")
-    deadline = time.monotonic() + (INSPECTION_SECONDS if _inspect_only else MAX_SECONDS)
-    if _inspect_only:
+    _require(type(_inspect_only) is bool and type(_reconcile_only) is bool
+        and not (_inspect_only and _reconcile_only), "ACQUISITION_REQUEST_INVALID")
+    deadline = time.monotonic() + (INSPECTION_SECONDS if _inspect_only or _reconcile_only else MAX_SECONDS)
+    if _inspect_only or _reconcile_only:
         _require(request == {}, "ACQUISITION_REQUEST_INVALID")
-        request = {"mode": "INSPECT_HELD", "deadline": deadline - 5}
+        request = {"mode": "INSPECT_HELD" if _inspect_only else "RECONCILE_SUPERVISED", "deadline": deadline - 5}
     else:
         request = dict(request, deadline=deadline - 5)
     # Existing native credentials are inherited only by this private worker.
@@ -835,6 +878,8 @@ def run_native(request: dict, *, _inspect_only=False) -> dict:
             raise _WorkerHeld(error._output) from None
     _budget(deadline)
     _require(not _inspect_only, "WORKER_FAILURE_REPORT_INVALID")
+    if _reconcile_only:
+        return _reconciliation_report(raw)
     return parse_acquisition_locator(raw)
 
 
@@ -856,6 +901,7 @@ def main(argv=None) -> int:
     mode.add_argument("--classify-prerequisites", action="store_true")
     mode.add_argument("--acquire", action="store_true")
     mode.add_argument("--inspect-held-acquisition", action="store_true")
+    mode.add_argument("--reconcile-supervised-acquisition", action="store_true")
     mode.add_argument("--fetch-locator", action="store_true")
     parser.add_argument("--preservation", type=Path)
     parser.add_argument("--qualification", type=Path)
@@ -885,6 +931,14 @@ def main(argv=None) -> int:
                 "ACQUISITION_REQUEST_INVALID")
             run_native({}, _inspect_only=True)
             raise AcquisitionBlocked("WORKER_FAILURE_REPORT_INVALID")
+        elif args.reconcile_supervised_acquisition:
+            _require(all(getattr(args, name) is None for name in (
+                "preservation", "qualification", "source_artifact_id", "source_artifact_sha256",
+                "qualification_artifact_id", "qualification_artifact_sha256", "acquisition_artifact_id",
+                "acquisition_artifact_sha256", "publisher_script"))
+                and args.github_output is not None and args.github_output.is_absolute(),
+                "ACQUISITION_REQUEST_INVALID")
+            value = _reconciliation_report(canonical(run_native({}, _reconcile_only=True)))
         elif args.acquire:
             value = run_native({"source_artifact_id": args.source_artifact_id,
                 "source_artifact_sha256": args.source_artifact_sha256,
@@ -908,6 +962,9 @@ def main(argv=None) -> int:
         if args.classify_prerequisites and args.github_output is not None:
             with args.github_output.open("a", encoding="ascii") as stream:
                 stream.write("mode=managed-recovery\n")
+        if args.reconcile_supervised_acquisition:
+            with args.github_output.open("a", encoding="ascii") as stream:
+                stream.write("admitted=true\n")
         print(json.dumps({"schema": value["schema"], "state": value["state"], "secret_values_recorded": False}))
         return 0
     except BaseException as error:
