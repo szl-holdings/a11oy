@@ -889,3 +889,30 @@ def test_command_count_is_bounded_before_spawning(monkeypatch, tmp_path):
     monkeypatch.setattr(probe, "_run", lambda *_args, **_kwargs: pytest.fail("must not spawn"))
     with pytest.raises(probe.ProbeBlocked, match="COMMAND_BOUND_EXCEEDED"):
         docker.command(["version"], time.monotonic() + 2)
+
+
+@pytest.mark.parametrize("exit_code", [1, 2, 3])
+def test_capture_is_opt_in_exit2_only_and_never_turns_failure_into_success(exit_code):
+    code = "import os,sys;os.write(1,sys.argv[1].encode());os.write(2,b'private stderr');sys.exit(" + str(exit_code) + ")"
+    for capture in (False, True):
+        with pytest.raises(probe.ProbeBlocked, match="RUNTIME_BASE_COMMAND_FAILED") as caught:
+            probe._run([sys.executable, "-I", "-B", "-c", code, PRIVATE],
+                deadline=time.monotonic() + 3, limit=1024, env={"PATH": "/usr/bin:/bin"},
+                _capture_failure=capture)
+        error = caught.value
+        assert PRIVATE not in str(error) + repr(error) + repr(error.args)
+        if capture and exit_code == 2:
+            assert type(error) is probe._CommandFailed and error._output == PRIVATE.encode()
+            assert b"private stderr" not in error._output
+        else:
+            assert type(error) is probe.ProbeBlocked and not hasattr(error, "_output")
+
+
+def test_failure_capture_remains_bounded_on_both_pipes():
+    for descriptor in (1, 2):
+        with pytest.raises(probe.ProbeBlocked, match="OUTPUT_BOUND_EXCEEDED") as caught:
+            probe._run([sys.executable, "-I", "-B", "-c",
+                "import os,sys;os.write(" + str(descriptor) + ",b'x'*100000);sys.exit(2)"],
+                deadline=time.monotonic() + 3, limit=1024, env={"PATH": "/usr/bin:/bin"},
+                _capture_failure=True)
+        assert type(caught.value) is probe.ProbeBlocked and not hasattr(caught.value, "_output")

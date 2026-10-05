@@ -117,6 +117,17 @@ class ProbeBlocked(image.RuntimeBaseBlocked):
         self.cleanup_name = cleanup_name
 
 
+class _CommandFailed(ProbeBlocked):
+    """Private bounded stdout for the acquisition worker's strict decoder only.
+
+    str/repr/args remain the fixed failure code. Stderr is never retained.
+    No output is returned as success, and default callers never receive bytes.
+    """
+    def __init__(self, output):
+        super().__init__("RUNTIME_BASE_COMMAND_FAILED")
+        self._output = output
+
+
 def _remaining(deadline):
     if type(deadline) not in (int, float) or not math.isfinite(deadline):
         raise ProbeBlocked("RUNTIME_BASE_DEADLINE_INVALID")
@@ -126,10 +137,11 @@ def _remaining(deadline):
     return remaining
 
 
-def _run(argv, *, deadline, limit, env, cwd=None, input_bytes=None):
+def _run(argv, *, deadline, limit, env, cwd=None, input_bytes=None, _capture_failure=False):
     """Stream both pipes under one cap; kill the process group and reap on exit."""
     _remaining(deadline)
-    if (type(argv) is not list or not 1 <= len(argv) <= 96
+    if (type(_capture_failure) is not bool
+            or type(argv) is not list or not 1 <= len(argv) <= 96
             or any(type(arg) is not str or "\0" in arg for arg in argv)
             or sum(len(arg.encode("utf-8")) for arg in argv) > 64 * 1024
             or type(limit) is not int or not 1 <= limit <= MAX_METADATA_BYTES
@@ -176,6 +188,8 @@ def _run(argv, *, deadline, limit, env, cwd=None, input_bytes=None):
                     output.extend(data)
         _remaining(deadline)
         if process.returncode != 0:
+            if _capture_failure and process.returncode == 2:
+                raise _CommandFailed(bytes(output))
             raise ProbeBlocked("RUNTIME_BASE_COMMAND_FAILED")
         if input_bytes is not None and written != len(input_bytes):
             raise ProbeBlocked("RUNTIME_BASE_COMMAND_INPUT_REJECTED")

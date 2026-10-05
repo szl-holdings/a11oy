@@ -156,8 +156,8 @@ def assert_manual_dependency_graph(source: str) -> dict:
     if set(jobs) != set(dependencies):
         raise WorkflowContractError("job set requires review")
     conditions = {
-        "manual-prerequisites": "${{ needs.source-admission.outputs.publish == 'true' }}",
-        "durable-acquisition": "${{ needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && needs.manual-prerequisites.outputs.mode == 'managed-recovery' }}",
+        "manual-prerequisites": "${{ github.ref == 'refs/heads/main' && false }}",
+        "durable-acquisition": "${{ always() && needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'skipped' }}",
         "resume-paused-space": "${{ needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && needs.manual-prerequisites.outputs.mode != 'managed-recovery' }}",
         "deploy": "${{ always() && needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && ((needs.manual-prerequisites.outputs.mode == 'managed-recovery' && needs.durable-acquisition.result == 'success') || (needs.manual-prerequisites.outputs.mode != 'managed-recovery' && needs.resume-paused-space.result == 'success')) }}",
         "runtime-config": "${{ always() && needs.manual-prerequisites.result == 'success' && needs.durable-acquisition.result == 'success' && needs.deploy.result == 'success' }}",
@@ -320,8 +320,12 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
             with self.subTest(job=name):
                 job = job_block(self.workflow, name)
                 self.assertIn("needs.source-admission.outputs.publish == 'true'", job)
-                self.assertIn("needs.manual-prerequisites.result == 'success'", job)
-                if name != "Deploy, source-bind, and attest exact surface":
+                if name == "Acquire qualified private storage through the canonical publisher":
+                    self.assertIn("needs.source-admission.result == 'success'", job)
+                    self.assertIn("needs.manual-prerequisites.result == 'skipped'", job)
+                else:
+                    self.assertIn("needs.manual-prerequisites.result == 'success'", job)
+                if name == "Resume the canonical Space without changing its allocation":
                     self.assertNotRegex(job, r"(?m)^    if:.*always\(")
                 self.assertNotIn("continue-on-error", job)
         deploy = job_block(self.workflow, "Deploy, source-bind, and attest exact surface")
@@ -365,8 +369,12 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
     def test_mode_gates_reject_reversed_modes_and_skipped_acquisition(self) -> None:
         mutations = (
             ("Acquire qualified private storage through the canonical publisher",
-             "needs.manual-prerequisites.outputs.mode == 'managed-recovery'",
-             "needs.manual-prerequisites.outputs.mode != 'managed-recovery'", "durable-acquisition"),
+             "needs.manual-prerequisites.result == 'skipped'",
+             "needs.manual-prerequisites.result == 'success'", "durable-acquisition"),
+            ("Acquire qualified private storage through the canonical publisher",
+             "needs.source-admission.result == 'success' && ", "", "durable-acquisition"),
+            ("Check manual authority prerequisites before provider writes",
+             "${{ github.ref == 'refs/heads/main' && false }}", "${{ true }}", "manual-prerequisites"),
             ("Resume the canonical Space without changing its allocation",
              "needs.manual-prerequisites.outputs.mode != 'managed-recovery'",
              "needs.manual-prerequisites.outputs.mode == 'managed-recovery'", "resume-paused-space"),
@@ -395,7 +403,7 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
         mutations = (
             ("  manual-prerequisites:\n", "  manual-prerequisites: {}\n  manual-prerequisites:\n", "duplicate mapping key: manual-prerequisites"),
             ("    needs: source-admission\n", "    needs: source-admission\n    needs: deploy\n", "duplicate mapping key: needs"),
-            ("    if: ${{ needs.source-admission.outputs.publish == 'true' }}\n", "    if: ${{ needs.source-admission.outputs.publish == 'true' }}\n    if: always()\n", "duplicate mapping key: if"),
+            ("    if: ${{ github.ref == 'refs/heads/main' && false }}\n", "    if: ${{ github.ref == 'refs/heads/main' && false }}\n    if: always()\n", "duplicate mapping key: if"),
             ("        id: owner\n", "        id: owner\n        id: forged\n", "duplicate mapping key: id"),
             ("        id: source_artifact\n", "        id: owner\n", "duplicate step id: source-admission"),
         )
@@ -414,7 +422,7 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
             (self.workflow.replace("  durable-acquisition:\n", "  durable-acquisition:\n    continue-on-error: true\n", 1), "job failure bypass: durable-acquisition"),
             (self.workflow.replace("      - name: Require main and classify current source ownership\n", "      - name: Require main and classify current source ownership\n        continue-on-error: true\n", 1), "step failure bypass: source-admission"),
             (self.workflow.replace("      - name: Classify the exact native candidate without admitting deployment\n", "      - name: Classify the exact native candidate without admitting deployment\n        continue-on-error: true\n", 1), "step failure bypass: manual-prerequisites"),
-            (self.workflow.replace("      - name: Verify native artifacts, pause exactly, and acquire private storage\n", "      - name: Verify native artifacts, pause exactly, and acquire private storage\n        continue-on-error: true\n", 1), "step failure bypass: durable-acquisition"),
+            (self.workflow.replace("      - name: Inspect the held prior acquisition without provider mutation\n", "      - name: Inspect the held prior acquisition without provider mutation\n        continue-on-error: true\n", 1), "step failure bypass: durable-acquisition"),
         )
         for changed, diagnostic in cases:
             with self.subTest(diagnostic=diagnostic), self.assertRaisesRegex(WorkflowContractError, re.escape(diagnostic)):
@@ -443,7 +451,7 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
                     with self.assertRaisesRegex(WorkflowContractError, "step failure bypass: manual-prerequisites"):
                         assert_manual_dependency_graph(changed)
         original = step_block(manual, REVIEWED_MANUAL_FAILURE_STEPS[0]["name"])
-        marker = "      - name: Verify native artifacts, pause exactly, and acquire private storage\n"
+        marker = "      - name: Inspect the held prior acquisition without provider mutation\n"
         changed = self.workflow.replace(marker, original + "\n" + marker, 1)
         with self.assertRaisesRegex(WorkflowContractError, "step failure bypass: durable-acquisition"):
             assert_manual_dependency_graph(changed)

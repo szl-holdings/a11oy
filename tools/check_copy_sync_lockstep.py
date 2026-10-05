@@ -604,12 +604,15 @@ REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee
 # These exact jobs and their complete local helper/reference closure admit one
 # reviewed first-cutover path: preserve originals, qualify disposable copies,
 # classify the native reports, then acquire private managed storage in the
-# active canonical job. Source/main and paused-state checks precede writes;
+# active canonical job. This successor temporarily pins that job to read-only
+# inspection of the held d61 attempt, always exit2. The manual capture job and
+# pair configuration step are explicitly disabled; no acquisition retry is
+# admitted. Source/main and paused-state checks still precede acquisition writes;
 # an existing dataset HEAD prevents bootstrap. The separate managed proof job
 # still requires actual deployment and runtime verification. No hash below
 # grants authority to a local selector, arbitrary helper or additional effect.
-REVIEWED_MANUAL_PREREQUISITES_JOB_SHA256 = "e67be67c86a16cd2872cbb9563918b693f8e5188f42fb2958bcef6449cf52b0b"
-REVIEWED_DURABLE_ACQUISITION_JOB_SHA256 = "b4bff6f85a8cc8f67b85bfc016d139820dbfe5b1bf4aa318f6cb8d36256c058b"
+REVIEWED_MANUAL_PREREQUISITES_JOB_SHA256 = "662c8c07458ca2f302fcb9465fd5b8d93b19280c66162362a1283c18921ac802"
+REVIEWED_DURABLE_ACQUISITION_JOB_SHA256 = "ec95ce793c7d879d2595d1854b5d8bc35ba21a398b9be23f6adc0fcf5756ea7f"
 REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "2876ed4107ccefa4ae14901d0acfe904a6a60c610ea8d66be3913883b454f9ef"
 REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
     "scripts/check_hf_manual_prerequisites.py": "3390924bd039b8377d1c54824e85f77bb06953bf4165c78e85bc9ddfbc7382ec",
@@ -632,10 +635,11 @@ REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
     # include these local imports and fixed dynamic loaders. Runtime-installed
     # application bytes and the remote publisher have their own source-bound
     # manifest contract; this map binds the code that verifies that contract.
-    "scripts/acquire_gdw_durable_storage.py": "8176dccd7d9402af45947fa8276f18f21be3803bd52375783df88753a6d73a26",
+    "scripts/acquire_gdw_durable_storage.py": "70cfeb8be2b23fc7864ff250f1197614420b4372890fc78d6ea18021249df987",
+    "scripts/inspect_gdw_held_acquisition.py": "61e0b7d6e8236074ebcbbcc424b34d92f257f0c85608f7adbd640136de9e5dc6",
     "scripts/gdw_acquisition_evidence.py": "7c15e3c774f7bbbee71c9da2255ea92a9d13c5320398c8a8134f1542d1795525",
     "scripts/build_gdw_installed_source_manifest.py": "022955dd62e7f780e97b2650f5e86d68a3d1565738257a8ec76b18db1f75a8ec",
-    "scripts/probe_gdw_runtime_base.py": "7b3d823498915edfbb8801230a33d8d0777be1c4fc9b583ecb9a75594510da0f",
+    "scripts/probe_gdw_runtime_base.py": "231f911d4df34e3e2c5eba25400b605872e6bbfd30183d075fac9f3c6d058a91",
     "scripts/probe_gdw_legacy_startup.py": "c0384d47e5d22a856eba2e5fbe284f866e43affd9deb0f1d97148c44389649c0",
     "scripts/prove_hf_series_a_restart.py": "9091569edb44d6e9d5dcc578ab2c53054aa2fc61de9c962da256dfd186dbd398",
     "scripts/prove_hf_gdw_runtime.py": "317b4c2629241f312a9e497a0ad8fe7f06cc86426093a6593165c844acefd866",

@@ -28,7 +28,7 @@ def cli_sibling_modules(monkeypatch):
     # Loading the qualifier needs these two exact siblings first. monkeypatch
     # restores all aliases after each test; application imports are unchanged.
     for name in ("preserve_hf_gdw_store", "gdw_orphan_forensics",
-                 "qualify_gdw_store_recovery", "gdw_acquisition_evidence"):
+                 "qualify_gdw_store_recovery", "gdw_acquisition_evidence", "probe_gdw_runtime_base", "inspect_gdw_held_acquisition"):
         module = importlib.import_module("scripts." + name)
         monkeypatch.setitem(sys.modules, name, module)
 
@@ -433,3 +433,290 @@ def test_pair_cas_lost_reply_does_not_retry_or_emit_selector(native_acquisition)
     assert len(state.api.commits) == 1
     assert storage.HEAD_PATH in state.api.repositories[state.api.revision]
     assert len(state.api.additions) == 3
+
+
+PRIVATE_FAILURE = "PRIVATE_SYNTHETIC_TOKEN_URL_SQL_NOT_FOR_PUBLIC_OUTPUT"
+
+
+def held_report(stage="PAUSE_BOUNDARY", code="PAUSE_OUTCOME_UNCERTAIN", *, completed=False):
+    progress = acquisition._Progress(stage)
+    if completed:
+        progress.complete()
+    return acquisition._held(progress, acquisition.AcquisitionBlocked(code))
+
+
+@pytest.mark.parametrize("stage", sorted(acquisition._STAGES))
+@pytest.mark.parametrize("completed", [False, True])
+def test_closed_boundary_report_always_preserves_effect_uncertainty(stage, completed):
+    report = held_report(stage, completed=completed)
+    assert acquisition._failure_report(acquisition.canonical(report)) == report
+    assert report["provider_effects"] == "NOT_ESTABLISHED"
+    assert report["restore_admitted"] is report["deployment_admitted"] is False
+    assert report["stage_state"] == ("COMPLETION_OBSERVED" if completed else "BOUNDARY_ENTERED")
+
+
+@pytest.mark.parametrize("code", [PRIVATE_FAILURE, "TOKEN_" + "A" * 64,
+    "https://private.invalid/token", "PAUSE_OUTCOME_UNCERTAIN\n" + PRIVATE_FAILURE])
+def test_exception_regex_shape_or_private_message_never_becomes_a_diagnostic(code):
+    report = acquisition._held(acquisition._Progress("WORKER_EXECUTION"), RuntimeError(code))
+    assert report["diagnostic_code"] == "CANONICAL_ACQUISITION_UNAVAILABLE"
+    assert code.encode() not in acquisition.canonical(report)
+
+
+def test_exception_string_and_attribute_serializers_are_not_invoked():
+    class HostileError(RuntimeError):
+        @property
+        def args(self):
+            raise AssertionError("exception property must not be called")
+        def __str__(self):
+            raise AssertionError("exception must not be formatted")
+    report = acquisition._held(acquisition._Progress("WORKER_EXECUTION"), HostileError(PRIVATE_FAILURE))
+    assert report["diagnostic_code"] == "CANONICAL_ACQUISITION_UNAVAILABLE"
+
+
+@pytest.mark.parametrize("field,value", [
+    ("schema", "unknown"), ("state", "BOOTSTRAP_ACKNOWLEDGED"), ("stage", PRIVATE_FAILURE),
+    ("stage_state", "NO_EFFECTS_OCCURRED"), ("diagnostic_code", PRIVATE_FAILURE),
+    ("diagnostic_code", "TOKEN_" + "A" * 64), ("provider_effects", "NONE"),
+    ("restore_admitted", True), ("restore_admitted", 0), ("deployment_admitted", True),
+    ("secret_values_recorded", True), ("private_payload", PRIVATE_FAILURE),
+])
+def test_parent_rejects_unknown_fields_values_or_any_admission_flag(field, value):
+    report = held_report(); report[field] = value
+    with pytest.raises(acquisition.AcquisitionBlocked, match="WORKER_FAILURE_REPORT_INVALID") as caught:
+        acquisition._WorkerHeld(acquisition.canonical(report))
+    assert PRIVATE_FAILURE not in str(caught.value)
+
+
+@pytest.mark.parametrize("raw", [b"not-json", b"{}", b"[]", b"{\"stage\":NaN}",
+    b"x" * (acquisition.MAX_LOCATOR_BYTES + 1), b"\xff\xfe"])
+def test_parent_rejects_malformed_or_oversized_failure_stdout(raw):
+    with pytest.raises(acquisition.AcquisitionBlocked, match="WORKER_FAILURE_REPORT_INVALID"):
+        acquisition._WorkerHeld(raw)
+
+
+def test_parent_rejects_duplicate_noncanonical_or_extra_output():
+    raw = acquisition.canonical(held_report())
+    for changed in (raw + PRIVATE_FAILURE.encode(), b" " + raw,
+                    raw.replace(b'"state":"HELD"', b'"state":"HELD","state":"HELD"')):
+        with pytest.raises(acquisition.AcquisitionBlocked, match="WORKER_FAILURE_REPORT_INVALID"):
+            acquisition._WorkerHeld(changed)
+
+
+def invalid_worker_request():
+    return {"source_artifact_id": 0, "source_artifact_sha256": "a" * 64,
+        "qualification_artifact_id": 1, "qualification_artifact_sha256": "b" * 64,
+        "publisher_script": PRIVATE_FAILURE}
+
+
+def test_actual_worker_exit2_propagates_only_closed_held_report(monkeypatch):
+    # Invalid selector fails before native imports/provider operations. This
+    # launches the actual --worker in its private temporary cwd and uses the
+    # real bounded subprocess runner, not a mocked success transport.
+    for name in ("HF_TOKEN", "GH_TOKEN"):
+        monkeypatch.delenv(name, raising=False)
+    with pytest.raises(acquisition._WorkerHeld) as caught:
+        acquisition.run_native(invalid_worker_request())
+    report = caught.value.report
+    assert report["stage"] == "WORKER_REQUEST" and report["stage_state"] == "BOUNDARY_ENTERED"
+    assert report["diagnostic_code"] == "ACQUISITION_ARTIFACT_INVALID"
+    assert report["provider_effects"] == "NOT_ESTABLISHED"
+    assert PRIVATE_FAILURE not in repr(caught.value) + str(caught.value) + repr(caught.value.args)
+
+
+def test_actual_cli_writes_only_safe_failure_and_exits2(tmp_path):
+    import subprocess
+    import sys
+    target = tmp_path / "gdw-durable-acquisition.json"
+    result = subprocess.run([sys.executable, "-B", acquisition.__file__, "--acquire",
+        "--source-artifact-id", "0", "--source-artifact-sha256", "a" * 64,
+        "--qualification-artifact-id", "1", "--qualification-artifact-sha256", "b" * 64,
+        "--publisher-script", PRIVATE_FAILURE, "--output", str(target)],
+        env={"PATH": "/usr/bin:/bin", "PYTHONDONTWRITEBYTECODE": "1"},
+        cwd=tmp_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=10)
+    assert result.returncode == 2 and result.stderr == b""
+    report = acquisition._failure_report(target.read_bytes())
+    assert json.loads(result.stdout) == report
+    assert report["stage"] == "WORKER_REQUEST"
+    assert PRIVATE_FAILURE.encode() not in result.stdout + target.read_bytes()
+
+
+def test_outer_report_revalidates_mutated_worker_exception(tmp_path, monkeypatch, capsys):
+    error = acquisition._WorkerHeld(acquisition.canonical(held_report()))
+    error.report["private_payload"] = PRIVATE_FAILURE
+    monkeypatch.setattr(acquisition, "run_native", lambda *_a, **_k: (_ for _ in ()).throw(error))
+    target = tmp_path / "gdw-durable-acquisition.json"
+    assert acquisition.main(["--acquire", "--output", str(target)]) == 2
+    report = acquisition._failure_report(target.read_bytes())
+    assert report["diagnostic_code"] == "WORKER_FAILURE_REPORT_INVALID"
+    assert PRIVATE_FAILURE not in capsys.readouterr().out
+
+
+def test_lost_cas_report_identifies_entered_boundary_without_claiming_no_effect(native_acquisition):
+    state = native_acquisition
+    state.api.lost_commit = True
+    progress = acquisition._Progress("PAIR_VALIDATION")
+    with pytest.raises(storage.StorageBlocked) as caught:
+        acquisition.acquire_pair(state.api, _progress=progress, **state.arguments)
+    report = acquisition._held(progress, caught.value)
+    assert report["stage"] == "BOOTSTRAP_BOUNDARY"
+    assert report["stage_state"] == "BOUNDARY_ENTERED"
+    assert report["diagnostic_code"] == "STORAGE_OUTCOME_UNCERTAIN"
+    assert report["provider_effects"] == "NOT_ESTABLISHED"
+    assert len(state.api.commits) == 1 and storage.HEAD_PATH in state.api.repositories[state.api.revision]
+
+
+@pytest.mark.parametrize("complete", [False, True])
+def test_native_worker_suppresses_private_streams_and_reports_only_owned_phase(tmp_path, complete):
+    import subprocess
+    import sys
+    script = Path(acquisition.__file__).resolve()
+    # This owned harness replaces only the effectful execution function. The
+    # actual worker request validation, private FD suppression, exception
+    # decoder, stdout serialization and exit2 are exercised in a new process.
+    code = """import os,runpy,sys
+from pathlib import Path
+script=Path(sys.argv[1])
+sys.path[:0]=[str(script.parent),str(script.parent.parent)]
+ns=runpy.run_path(str(script),run_name='owned_offline_worker')
+def fail(request,workspace,deadline,*,_progress):
+    _progress.enter('BOOTSTRAP_BOUNDARY')
+    if sys.argv[2]=='1': _progress.complete()
+    print('PRIVATE_SYNTHETIC_TOKEN_URL_SQL_NOT_FOR_PUBLIC_OUTPUT',flush=True)
+    os.write(2,b'PRIVATE_SYNTHETIC_TOKEN_URL_SQL_NOT_FOR_PUBLIC_OUTPUT')
+    raise ns['AcquisitionBlocked']('STORAGE_OUTCOME_UNCERTAIN')
+worker=ns['_worker']
+worker.__globals__['_execute_native']=fail
+raise SystemExit(worker())
+"""
+    request = dict(invalid_worker_request(), source_artifact_id=1, deadline=time.monotonic() + 20)
+    result = subprocess.run([sys.executable, "-I", "-B", "-c", code, str(script), "1" if complete else "0"],
+        input=acquisition.canonical(request), cwd=tmp_path,
+        env={"PATH": "/usr/bin:/bin", "PYTHONDONTWRITEBYTECODE": "1"},
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=10)
+    assert result.returncode == 2 and result.stderr == b""
+    report = acquisition._failure_report(result.stdout)
+    assert report["stage"] == "BOOTSTRAP_BOUNDARY" and report["provider_effects"] == "NOT_ESTABLISHED"
+    assert report["stage_state"] == ("COMPLETION_OBSERVED" if complete else "BOUNDARY_ENTERED")
+    assert report["diagnostic_code"] == "STORAGE_OUTCOME_UNCERTAIN"
+    assert PRIVATE_FAILURE.encode() not in result.stdout
+    assert list(tmp_path.iterdir()) == []
+
+
+def inspection_report(classification="UNAVAILABLE"):
+    from scripts import inspect_gdw_held_acquisition as inspection
+    return inspection._report("b" * 40, classification,
+        revision="c" * 40 if classification in {"ABSENT", "ACKNOWLEDGED"} else None,
+        head_digest="d" * 64 if classification == "ACKNOWLEDGED" else None,
+        admission_digest="e" * 64 if classification == "ACKNOWLEDGED" else None)
+
+
+@pytest.mark.parametrize("classification", ["ABSENT", "ACKNOWLEDGED", "INVALID", "UNAVAILABLE"])
+def test_inspection_exit2_remains_held_even_with_acknowledged_metadata(tmp_path, monkeypatch, capsys, classification):
+    monkeypatch.setenv("GITHUB_SHA", "b" * 40)
+    report = inspection_report(classification)
+    error = acquisition._InspectionHeld(acquisition.canonical(report))
+    monkeypatch.setattr(acquisition, "run_native", lambda *_a, **_k: (_ for _ in ()).throw(error))
+    target = tmp_path / "gdw-durable-acquisition.json"
+    assert acquisition.main(["--inspect-held-acquisition", "--output", str(target)]) == 2
+    assert acquisition._inspection_report(target.read_bytes()) == report
+    assert json.loads(capsys.readouterr().out) == report
+    assert all(report[key] is False for key in ("retry_admitted", "restore_admitted", "deployment_admitted"))
+
+
+@pytest.mark.parametrize("defect", ["other_source", "false_numeric", "extra", "oversize", "noncanonical", "locator"])
+def test_inspection_parent_rejects_wrong_source_noncanonical_or_noninspection_output(monkeypatch, defect):
+    monkeypatch.setenv("GITHUB_SHA", "b" * 40)
+    report = inspection_report()
+    if defect == "other_source": report["source_revision"] = "a" * 40
+    if defect == "false_numeric": report["retry_admitted"] = 0
+    if defect == "extra": report["private"] = PRIVATE_FAILURE
+    raw = acquisition.canonical(report)
+    if defect == "oversize": raw += b" " * 4097
+    if defect == "noncanonical": raw = b" " + raw
+    if defect == "locator":
+        record, head = fixture(); raw = acquisition.canonical(acquisition.locator_for_bootstrap(head, record))
+    with pytest.raises(acquisition.AcquisitionBlocked, match="WORKER_FAILURE_REPORT_INVALID"):
+        acquisition._InspectionHeld(raw)
+
+
+@pytest.mark.parametrize("option,value", [
+    ("--source-artifact-id", "1"), ("--source-artifact-sha256", "a" * 64),
+    ("--qualification-artifact-id", "1"), ("--qualification-artifact-sha256", "a" * 64),
+    ("--acquisition-artifact-id", "1"), ("--acquisition-artifact-sha256", "a" * 64),
+    ("--publisher-script", PRIVATE_FAILURE), ("--preservation", PRIVATE_FAILURE),
+    ("--qualification", PRIVATE_FAILURE), ("--github-output", PRIVATE_FAILURE),
+])
+def test_inspection_cli_rejects_every_other_mode_input_before_worker(tmp_path, monkeypatch, capsys, option, value):
+    monkeypatch.setattr(acquisition, "run_native", lambda *_a, **_k: pytest.fail("override reached worker"))
+    target = tmp_path / "gdw-durable-acquisition.json"
+    assert acquisition.main(["--inspect-held-acquisition", option, value, "--output", str(target)]) == 2
+    assert acquisition._failure_report(target.read_bytes())["diagnostic_code"] == "ACQUISITION_REQUEST_INVALID"
+    assert PRIVATE_FAILURE not in capsys.readouterr().out
+
+
+def test_inspection_parent_enforces_120_seconds_closed_request_and_nonzero_result(monkeypatch):
+    from scripts import probe_gdw_runtime_base as base
+    monkeypatch.setenv("GITHUB_SHA", "b" * 40)
+    observed = {}
+    def transport(*args, **kwargs):
+        observed.update(kwargs)
+        raise base._CommandFailed(acquisition.canonical(inspection_report("ABSENT")))
+    monkeypatch.setattr(base, "_run", transport)
+    start = time.monotonic()
+    with pytest.raises(acquisition._InspectionHeld): acquisition.run_native({}, _inspect_only=True)
+    request = json.loads(observed["input_bytes"])
+    assert set(request) == {"mode", "deadline"} and request["mode"] == "INSPECT_HELD"
+    assert 119 <= observed["deadline"] - start <= 120.1
+    assert observed["deadline"] - request["deadline"] == 5
+    assert observed["_capture_failure"] is True
+    monkeypatch.setattr(base, "_run", lambda *_a, **_k: acquisition.canonical(inspection_report()))
+    with pytest.raises(acquisition.AcquisitionBlocked, match="WORKER_FAILURE_REPORT_INVALID"):
+        acquisition.run_native({}, _inspect_only=True)
+    with pytest.raises(acquisition.AcquisitionBlocked, match="ACQUISITION_REQUEST_INVALID"):
+        acquisition.run_native({"source": "override"}, _inspect_only=True)
+
+
+def test_actual_inspection_worker_suppresses_streams_and_cannot_dispatch_acquisition(tmp_path, monkeypatch):
+    import subprocess
+    import sys
+    monkeypatch.setenv("GITHUB_SHA", "b" * 40)
+    script = Path(acquisition.__file__).resolve()
+    code = """import os,runpy,sys
+from pathlib import Path
+script=Path(sys.argv[1]); sys.path[:0]=[str(script.parent),str(script.parent.parent)]
+import inspect_gdw_held_acquisition as inspection
+ns=runpy.run_path(str(script),run_name='owned_offline_worker')
+def inspect(workspace,deadline):
+    print('PRIVATE_SYNTHETIC_TOKEN_URL_SQL_NOT_FOR_PUBLIC_OUTPUT',flush=True)
+    os.write(2,b'PRIVATE_SYNTHETIC_TOKEN_URL_SQL_NOT_FOR_PUBLIC_OUTPUT')
+    return inspection._report('b'*40,'ABSENT',revision='c'*40)
+def forbidden(*a,**k): raise AssertionError('acquisition must not execute')
+inspection.execute_native_inspection=inspect
+worker=ns['_worker']; worker.__globals__['_execute_native']=forbidden
+raise SystemExit(worker())
+"""
+    request = {"mode": "INSPECT_HELD", "deadline": time.monotonic() + 20}
+    result = subprocess.run([sys.executable, "-I", "-B", "-c", code, str(script)],
+        input=acquisition.canonical(request), cwd=tmp_path,
+        env={"PATH": "/usr/bin:/bin", "PYTHONDONTWRITEBYTECODE": "1"},
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=10)
+    assert result.returncode == 2 and result.stderr == b""
+    assert acquisition._inspection_report(result.stdout) == inspection_report("ABSENT")
+    assert PRIVATE_FAILURE.encode() not in result.stdout
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_actual_inspection_cli_without_native_authority_holds_before_provider(tmp_path):
+    import subprocess
+    import sys
+    target = tmp_path / "gdw-durable-acquisition.json"
+    result = subprocess.run([sys.executable, "-B", acquisition.__file__, "--inspect-held-acquisition",
+        "--output", str(target)], cwd=tmp_path,
+        env={"PATH": "/usr/bin:/bin", "PYTHONDONTWRITEBYTECODE": "1"},
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=10)
+    assert result.returncode == 2 and result.stderr == b""
+    report = acquisition._failure_report(target.read_bytes())
+    assert report["stage"] == "HELD_ACQUISITION_INSPECTION"
+    assert report["diagnostic_code"] == "CANONICAL_CONTEXT_REQUIRED"
+    assert json.loads(result.stdout) == report
