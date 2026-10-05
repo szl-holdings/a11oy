@@ -20,6 +20,7 @@ FIRST_PUSH_JOBS = (
     "resume-paused-space", "deploy", "runtime-config",
     "publish-finance-projection", "readiness-verdict",
 )
+DISABLED_JOBS = ("recovery-reconciliation", "manual-prerequisites")
 REVIEWED_MANUAL_FAILURE_STEPS = (
     {
         "name": "Preserve stopped private stores before any runtime mutation",
@@ -163,9 +164,9 @@ def assert_manual_dependency_graph(source: str) -> dict:
     if set(jobs) != set(dependencies):
         raise WorkflowContractError("job set requires review")
     conditions = {
-        "recovery-reconciliation": "${{ github.event_name == 'push' && github.run_attempt == 1 && needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' }}",
-        "manual-prerequisites": "${{ github.event_name == 'push' && github.run_attempt == 1 && needs.source-admission.outputs.publish == 'true' && needs.recovery-reconciliation.result == 'success' && needs.recovery-reconciliation.outputs.admitted == 'true' }}",
-        "durable-acquisition": "${{ github.event_name == 'push' && github.run_attempt == 1 && needs.source-admission.outputs.publish == 'true' && needs.recovery-reconciliation.result == 'success' && needs.recovery-reconciliation.outputs.admitted == 'true' && needs.manual-prerequisites.result == 'success' && needs.manual-prerequisites.outputs.mode == 'managed-recovery' }}",
+        "recovery-reconciliation": "${{ github.event_name == 'push' && github.run_attempt == 1 && needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' && false }}",
+        "manual-prerequisites": "${{ github.event_name == 'push' && github.run_attempt == 1 && needs.source-admission.outputs.publish == 'true' && needs.recovery-reconciliation.result == 'success' && needs.recovery-reconciliation.outputs.admitted == 'true' && false }}",
+        "durable-acquisition": "${{ github.event_name == 'push' && github.run_attempt == 1 && always() && needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' && needs.recovery-reconciliation.result == 'skipped' && needs.manual-prerequisites.result == 'skipped' }}",
         "resume-paused-space": "${{ github.event_name == 'push' && github.run_attempt == 1 && needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && needs.manual-prerequisites.outputs.mode != 'managed-recovery' }}",
         "deploy": "${{ github.event_name == 'push' && github.run_attempt == 1 && always() && needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && ((needs.manual-prerequisites.outputs.mode == 'managed-recovery' && needs.durable-acquisition.result == 'success') || (needs.manual-prerequisites.outputs.mode != 'managed-recovery' && needs.resume-paused-space.result == 'success')) }}",
         "runtime-config": "${{ github.event_name == 'push' && github.run_attempt == 1 && always() && needs.manual-prerequisites.result == 'success' && needs.durable-acquisition.result == 'success' && needs.deploy.result == 'success' }}",
@@ -190,8 +191,8 @@ def assert_manual_dependency_graph(source: str) -> dict:
         for step in job.get("steps", []):
             if "continue-on-error" in step:
                 # Only these complete, fixed manual steps can tolerate failure.
-                # Their reports still pass through the mandatory classifier and
-                # active native acquisition before any managed deployment.
+                # The disabled job retains its exact classifier and evidence
+                # steps; the inspection job gains no failure bypass.
                 reviewed = dict(step)
                 if isinstance(reviewed.get("run"), str):
                     reviewed["run"] = " ".join(reviewed["run"].split())
@@ -287,6 +288,14 @@ def explicit_condition_allows(job: dict, context: dict) -> bool:
     expression = expression.replace("always()", "True").replace("&&", " and ").replace("||", " or ")
     expression = re.sub(r"!(?!=)", " not ", expression).strip()
     parsed = ast.parse(expression, mode="eval")
+
+    class LiteralBooleans(ast.NodeTransformer):
+        def visit_Name(self, node):
+            if node.id in ("true", "false"):
+                return ast.copy_location(ast.Constant(node.id == "true"), node)
+            return node
+
+    parsed = ast.fix_missing_locations(LiteralBooleans().visit(parsed))
     allowed = (ast.Expression, ast.Constant, ast.BoolOp, ast.And, ast.Or,
                ast.UnaryOp, ast.Not, ast.Compare, ast.Eq, ast.NotEq)
     if any(type(node) not in allowed for node in ast.walk(parsed)):
@@ -299,11 +308,21 @@ def successful_dependency_context(jobs: dict, *, event="push", attempt=1, mode="
     context = {"needs." + name + ".result": "success" for name in jobs}
     context.update({
         "github.event_name": event, "github.run_attempt": attempt,
+        "github.ref": "refs/heads/main",
         "needs.source-admission.outputs.publish": "true",
         "needs.recovery-reconciliation.outputs.admitted": "true",
         "needs.manual-prerequisites.outputs.mode": mode,
         "inputs.publish_vertical_flagships": True,
     })
+    return context
+
+
+def inspection_dependency_context(jobs: dict, **kwargs) -> dict:
+    context = successful_dependency_context(jobs, **kwargs)
+    for name in DISABLED_JOBS:
+        context["needs." + name + ".result"] = "skipped"
+    context["needs.recovery-reconciliation.outputs.admitted"] = ""
+    context["needs.manual-prerequisites.outputs.mode"] = ""
     return context
 
 
@@ -364,11 +383,13 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
                 job = job_block(self.workflow, name)
                 self.assertIn("needs.source-admission.outputs.publish == 'true'", job)
                 self.assertIn("github.event_name == 'push' && github.run_attempt == 1", job)
-                self.assertIn("needs.manual-prerequisites.result == 'success'", job)
                 if name == "Acquire qualified private storage through the canonical publisher":
-                    self.assertIn("needs.recovery-reconciliation.result == 'success'", job)
-                    self.assertIn("needs.recovery-reconciliation.outputs.admitted == 'true'", job)
-                    self.assertIn("needs.manual-prerequisites.outputs.mode == 'managed-recovery'", job)
+                    self.assertIn("needs.source-admission.result == 'success'", job)
+                    self.assertIn("needs.recovery-reconciliation.result == 'skipped'", job)
+                    self.assertIn("needs.manual-prerequisites.result == 'skipped'", job)
+                    self.assertIn("--inspect-held-acquisition", job)
+                else:
+                    self.assertIn("needs.manual-prerequisites.result == 'success'", job)
                 if name == "Resume the canonical Space without changing its allocation":
                     self.assertNotRegex(job, r"(?m)^    if:.*always\(")
                 self.assertNotIn("continue-on-error", job)
@@ -390,19 +411,68 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
 
     def test_reconciliation_requires_success_and_exact_positive_admission_before_copies(self) -> None:
         jobs = assert_manual_dependency_graph(self.workflow)
-        for name in ("manual-prerequisites", "durable-acquisition"):
-            with self.subTest(job=name):
-                self.assertTrue(explicit_condition_allows(jobs[name], successful_dependency_context(jobs)))
-            for result in ("failure", "cancelled", "skipped", ""):
-                context = successful_dependency_context(jobs)
-                context["needs.recovery-reconciliation.result"] = result
-                with self.subTest(job=name, result=result):
-                    self.assertFalse(explicit_condition_allows(jobs[name], context))
-            for output in ("false", "", "HELD", "unknown"):
-                context = successful_dependency_context(jobs)
-                context["needs.recovery-reconciliation.outputs.admitted"] = output
-                with self.subTest(job=name, output=output):
-                    self.assertFalse(explicit_condition_allows(jobs[name], context))
+        manual = jobs["manual-prerequisites"]
+        # Exercise the preserved original predicates independently of the new
+        # literal hold. This hypothetical condition is never the admitted job.
+        predicates = {"if": manual["if"].replace(" && false }}", " }}", 1)}
+        context = successful_dependency_context(jobs)
+        self.assertTrue(explicit_condition_allows(predicates, context))
+        self.assertFalse(explicit_condition_allows(manual, context))
+        for result in ("failure", "cancelled", "skipped", ""):
+            context = successful_dependency_context(jobs)
+            context["needs.recovery-reconciliation.result"] = result
+            with self.subTest(result=result):
+                self.assertFalse(explicit_condition_allows(predicates, context))
+                self.assertFalse(explicit_condition_allows(manual, context))
+        for output in ("false", "", "HELD", "unknown"):
+            context = successful_dependency_context(jobs)
+            context["needs.recovery-reconciliation.outputs.admitted"] = output
+            with self.subTest(output=output):
+                self.assertFalse(explicit_condition_allows(predicates, context))
+                self.assertFalse(explicit_condition_allows(manual, context))
+
+    def test_inspection_requires_owned_source_and_both_literal_holds_skipped(self) -> None:
+        jobs = assert_manual_dependency_graph(self.workflow)
+        inspection = jobs["durable-acquisition"]
+        self.assertTrue(explicit_condition_allows(inspection, inspection_dependency_context(jobs)))
+        for dependency, rejected in (
+            ("source-admission", ("failure", "cancelled", "skipped", "")),
+            ("recovery-reconciliation", ("success", "failure", "cancelled", "")),
+            ("manual-prerequisites", ("success", "failure", "cancelled", "")),
+        ):
+            for result in rejected:
+                context = inspection_dependency_context(jobs)
+                context["needs." + dependency + ".result"] = result
+                with self.subTest(dependency=dependency, result=result):
+                    self.assertFalse(explicit_condition_allows(inspection, context))
+        for output in ("false", "", "HELD", "unknown"):
+            context = inspection_dependency_context(jobs)
+            context["needs.source-admission.outputs.publish"] = output
+            with self.subTest(output=output):
+                self.assertFalse(explicit_condition_allows(inspection, context))
+
+    def test_literal_job_holds_cannot_be_removed_or_reversed(self) -> None:
+        jobs = assert_manual_dependency_graph(self.workflow)
+        for name in DISABLED_JOBS:
+            job = jobs[name]
+            target = job_block(self.workflow, job["name"])
+            context = successful_dependency_context(jobs)
+            self.assertFalse(explicit_condition_allows(job, context), name)
+            for replacement in (" }}", " && true }}"):
+                weakened = job["if"].replace(" && false }}", replacement, 1)
+                with self.subTest(job=name, replacement=replacement):
+                    self.assertNotEqual(job["if"], weakened)
+                    self.assertTrue(explicit_condition_allows({"if": weakened}, context))
+                    changed = self.workflow.replace(target, target.replace(job["if"], weakened, 1), 1)
+                    with self.assertRaisesRegex(WorkflowContractError, "condition gate: " + name):
+                        assert_manual_dependency_graph(changed)
+
+    def test_literal_boolean_evaluator_keeps_strings_and_rejects_executable_nodes(self) -> None:
+        self.assertFalse(explicit_condition_allows({"if": "${{ false }}"}, {}))
+        self.assertTrue(explicit_condition_allows({"if": "${{ true && 'false' != false && 'true' != true }}"}, {}))
+        for condition in ("${{ unreviewed }}", "${{ success() }}", "${{ unreviewed.value }}"):
+            with self.subTest(condition=condition), self.assertRaises(WorkflowContractError):
+                explicit_condition_allows({"if": condition}, {})
 
     def test_full_and_partial_reruns_hold_even_when_successful_jobs_are_reused(self) -> None:
         jobs = assert_manual_dependency_graph(self.workflow)
@@ -410,7 +480,9 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
             event = "workflow_dispatch" if name == "publish-vertical-flagships" else "push"
             mode = "verified-manual" if name == "resume-paused-space" else "managed-recovery"
             first = successful_dependency_context(jobs, event=event, mode=mode)
-            self.assertTrue(explicit_condition_allows(jobs[name], first), name)
+            if name == "durable-acquisition":
+                first = inspection_dependency_context(jobs)
+            self.assertEqual(explicit_condition_allows(jobs[name], first), name not in DISABLED_JOBS, name)
             for attempt in (0, 2, 3):
                 for reused in (False, True):
                     context = successful_dependency_context(jobs, event=event, attempt=attempt, mode=mode)
@@ -427,6 +499,8 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
             for event in ("workflow_dispatch", "pull_request", "schedule"):
                 context = successful_dependency_context(jobs, event=event,
                     mode="verified-manual" if name == "resume-paused-space" else "managed-recovery")
+                if name == "durable-acquisition":
+                    context = inspection_dependency_context(jobs, event=event)
                 with self.subTest(job=name, event=event):
                     self.assertFalse(explicit_condition_allows(jobs[name], context))
         # A fresh dispatch cannot produce successful push-only prerequisites,
@@ -434,6 +508,51 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
         context = successful_dependency_context(jobs, event="workflow_dispatch")
         context["needs.manual-prerequisites.result"] = "skipped"
         self.assertFalse(explicit_condition_allows(jobs["publish-vertical-flagships"], context))
+
+    def test_complete_inspection_graph_cannot_schedule_any_downstream_effect(self) -> None:
+        jobs = assert_manual_dependency_graph(self.workflow)
+        dependencies = {
+            name: ([job["needs"]] if isinstance(job.get("needs"), str) else job.get("needs", []))
+            for name, job in jobs.items()
+        }
+        for event in ("push", "workflow_dispatch"):
+            for attempt in (1, 2):
+                for inspection_result in ("failure", "success"):
+                    context = successful_dependency_context(jobs, event=event, attempt=attempt)
+                    # Model the actual dependency graph, including GitHub's
+                    # implicit success condition when no always() is present.
+                    # The synthetic inspection success must not open a writer.
+                    results, pending = {}, set(jobs)
+                    while pending:
+                        ready = sorted(name for name in pending
+                                       if all(parent in results for parent in dependencies[name]))
+                        self.assertTrue(ready, "cyclic or unresolved dependency graph")
+                        for name in ready:
+                            job = jobs[name]
+                            condition = job.get("if")
+                            allows = condition is None or explicit_condition_allows(job, context)
+                            if condition is None or "always()" not in condition:
+                                allows = allows and all(results[parent] == "success"
+                                                        for parent in dependencies[name])
+                            result = (inspection_result if name == "durable-acquisition" else "success") if allows else "skipped"
+                            results[name] = result
+                            context["needs." + name + ".result"] = result
+                            if name == "manual-prerequisites":
+                                context["needs.manual-prerequisites.outputs.mode"] = ""
+                            if name == "recovery-reconciliation":
+                                context["needs.recovery-reconciliation.outputs.admitted"] = ""
+                            pending.remove(name)
+                    with self.subTest(event=event, attempt=attempt, inspection_result=inspection_result):
+                        self.assertEqual(results["source-admission"], "success")
+                        self.assertEqual(results["durable-acquisition"],
+                                         inspection_result if event == "push" and attempt == 1 else "skipped")
+                        self.assertEqual({name: result for name, result in results.items()
+                                          if name not in ("source-admission", "durable-acquisition")},
+                                         {name: "skipped" for name in jobs
+                                          if name not in ("source-admission", "durable-acquisition")})
+                        pair = next(step for step in jobs["durable-acquisition"]["steps"]
+                                    if step["name"] == "Install the persistent old-source guard and both managed configurations once")
+                        self.assertFalse(explicit_condition_allows(pair, context))
 
     def test_current_attempt_predicates_cannot_be_removed_or_reversed(self) -> None:
         jobs = assert_manual_dependency_graph(self.workflow)
@@ -447,10 +566,14 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
             context = successful_dependency_context(jobs, attempt=2,
                 event="workflow_dispatch" if key == "publish-vertical-flagships" else "push",
                 mode="verified-manual" if key == "resume-paused-space" else "managed-recovery")
+            if key == "durable-acquisition":
+                context = inspection_dependency_context(jobs, attempt=2)
             for weakened in (removed, condition.replace("github.run_attempt == 1", "github.run_attempt != 1", 1)):
                 with self.subTest(job=key, condition=weakened):
                     self.assertNotEqual(condition, weakened)
-                    self.assertTrue(explicit_condition_allows({"if": weakened}, context))
+                    # Disabled jobs remain held even with a weakened attempt
+                    # term, but their strict source contract still rejects it.
+                    self.assertEqual(explicit_condition_allows({"if": weakened}, context), key not in DISABLED_JOBS)
                     changed = self.workflow.replace(target, target.replace(condition, weakened, 1), 1)
                     with self.assertRaisesRegex(WorkflowContractError, "condition gate: " + key):
                         assert_manual_dependency_graph(changed)
@@ -495,18 +618,18 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
         jobs = assert_manual_dependency_graph(self.workflow)
         mutations = (
             ("Acquire qualified private storage through the canonical publisher",
-             "needs.manual-prerequisites.result == 'success'",
-             "needs.manual-prerequisites.result == 'skipped'", "durable-acquisition"),
+             "needs.manual-prerequisites.result == 'skipped'",
+             "needs.manual-prerequisites.result == 'success'", "durable-acquisition"),
             ("Acquire qualified private storage through the canonical publisher",
              "needs.source-admission.outputs.publish == 'true' && ", "", "durable-acquisition"),
             ("Acquire qualified private storage through the canonical publisher",
-             "needs.recovery-reconciliation.result == 'success'",
-             "needs.recovery-reconciliation.result == 'skipped'", "durable-acquisition"),
+             "needs.recovery-reconciliation.result == 'skipped'",
+             "needs.recovery-reconciliation.result == 'success'", "durable-acquisition"),
             ("Acquire qualified private storage through the canonical publisher",
-             "needs.recovery-reconciliation.outputs.admitted == 'true' && ", "", "durable-acquisition"),
+             "needs.source-admission.result == 'success' && ", "", "durable-acquisition"),
             ("Acquire qualified private storage through the canonical publisher",
-             "needs.manual-prerequisites.outputs.mode == 'managed-recovery'",
-             "needs.manual-prerequisites.outputs.mode != 'managed-recovery'", "durable-acquisition"),
+             "needs.manual-prerequisites.result == 'skipped'",
+             "needs.manual-prerequisites.outputs.mode == 'managed-recovery'", "durable-acquisition"),
             ("Check manual authority prerequisites before provider writes",
              jobs["manual-prerequisites"]["if"], "${{ true }}", "manual-prerequisites"),
             ("Check manual authority prerequisites before provider writes",
@@ -561,7 +684,7 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
             (self.workflow.replace("  recovery-reconciliation:\n", "  recovery-reconciliation:\n    continue-on-error: true\n", 1), "job failure bypass: recovery-reconciliation"),
             (self.workflow.replace("      - name: Require main and classify current source ownership\n", "      - name: Require main and classify current source ownership\n        continue-on-error: true\n", 1), "step failure bypass: source-admission"),
             (self.workflow.replace("      - name: Classify the exact native candidate without admitting deployment\n", "      - name: Classify the exact native candidate without admitting deployment\n        continue-on-error: true\n", 1), "step failure bypass: manual-prerequisites"),
-            (self.workflow.replace("      - name: Reconcile again, verify native candidates, and acquire private storage once\n", "      - name: Reconcile again, verify native candidates, and acquire private storage once\n        continue-on-error: true\n", 1), "step failure bypass: durable-acquisition"),
+            (self.workflow.replace("      - name: Inspect the held prior acquisition without provider mutation\n", "      - name: Inspect the held prior acquisition without provider mutation\n        continue-on-error: true\n", 1), "step failure bypass: durable-acquisition"),
             (self.workflow.replace("      - name: Require the fixed inspection and unchanged absent private fence\n", "      - name: Require the fixed inspection and unchanged absent private fence\n        continue-on-error: true\n", 1), "step failure bypass: recovery-reconciliation"),
         )
         for changed, diagnostic in cases:
@@ -591,7 +714,7 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
                     with self.assertRaisesRegex(WorkflowContractError, "step failure bypass: manual-prerequisites"):
                         assert_manual_dependency_graph(changed)
         original = step_block(manual, REVIEWED_MANUAL_FAILURE_STEPS[0]["name"])
-        marker = "      - name: Reconcile again, verify native candidates, and acquire private storage once\n"
+        marker = "      - name: Inspect the held prior acquisition without provider mutation\n"
         changed = self.workflow.replace(marker, original + "\n" + marker, 1)
         with self.assertRaisesRegex(WorkflowContractError, "step failure bypass: durable-acquisition"):
             assert_manual_dependency_graph(changed)
