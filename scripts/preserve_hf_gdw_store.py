@@ -422,6 +422,50 @@ def preserve(api: Any, *, source_sha: str, run_id: str, run_attempt: str,
             # never retry blindly or delete a possibly successful partial copy.
             report["copy_response"] = "UNAVAILABLE"
         copies_raw, copies = paths_info(api, target_paths)
+        report["server_copy_count"] = len(copies)
+        if not copies:
+            # A failed/lost server-side copy that materialized nothing is safe to
+            # recover without retrying the same operation. Re-observe after the
+            # normal stability interval, then upload the already downloaded,
+            # hash-verified bytes into a distinct sub-prefix so a delayed server
+            # copy can never collide with or overwrite the fallback evidence.
+            sleep(OBSERVATION_SECONDS)
+            stable_originals()
+            _, delayed = paths_info(api, target_paths)
+            if delayed:
+                report["private_copy_count"] = len(delayed)
+                raise PreservationError("PRIVATE_COPY_INCOMPLETE")
+            fallback_destinations = {
+                path: f"{prefix}/uploaded-originals/{path}" for path in initial
+            }
+            fallback_paths = tuple(fallback_destinations.values())
+            if any(path in SOURCE_PATHS or not path.startswith(prefix + "/uploaded-originals/")
+                   for path in fallback_paths):
+                raise PreservationError("DESTINATION_OUTSIDE_CAPTURE")
+            _, occupied = paths_info(api, fallback_paths)
+            if occupied:
+                raise PreservationError("CAPTURE_DESTINATION_EXISTS")
+            require_owned_source()
+            stable_originals()
+            check_budget()
+            report["fallback_upload_state"] = "REQUESTED"
+            try:
+                api.batch_bucket_files(
+                    bucket_id=BUCKET,
+                    add=[(local_paths[path], fallback_destinations[path]) for path in initial],
+                )
+                report["fallback_upload_response"] = "RECEIVED"
+            except PreservationError:
+                raise
+            except Exception:
+                # As with the server copy, never retry an uncertain upload. The
+                # only authority is exact destination metadata and byte readback.
+                report["fallback_upload_response"] = "UNAVAILABLE"
+            copies_raw, copies = paths_info(api, fallback_paths)
+            destinations, target_paths = fallback_destinations, fallback_paths
+            report["copy_mode"] = "LOCAL_UPLOAD_FALLBACK"
+        else:
+            report["copy_mode"] = "SERVER_SIDE_XET_COPY"
         report["private_copy_count"] = len(copies)
         if set(copies) != set(target_paths) or any(
                 copies[destinations[path]][key] != initial[path][key]
