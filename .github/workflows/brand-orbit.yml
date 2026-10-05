@@ -1,0 +1,35 @@
+name: SZL orbit asset contract
+
+on:
+  pull_request:
+    paths:
+      - 'console/*orbit*'
+      - 'console/social-preview-v5*.svg'
+      - 'a11oy_landing.html'
+      - 'Dockerfile'
+      - 'tests/test_orbit_identity.py'
+      - '.github/workflows/brand-orbit.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'console/*orbit*'
+      - 'console/social-preview-v5*.svg'
+      - 'a11oy_landing.html'
+      - 'Dockerfile'
+      - 'tests/test_orbit_identity.py'
+      - '.github/workflows/brand-orbit.yml'
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  orbit:
+    name: Validate source-bound SZL orbit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - run: python3 tests/test_orbit_identity.py

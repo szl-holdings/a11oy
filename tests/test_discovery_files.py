@@ -61,7 +61,7 @@ def test_security_txt_is_canonical_and_copied_into_runtime_static_tree() -> None
 def test_social_preview_is_honest_discoverable_and_exact_size() -> None:
     landing = (ROOT / "a11oy_landing.html").read_text(encoding="utf-8")
     dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
-    svg = (ROOT / "console" / "social-preview-v5.svg").read_text(encoding="utf-8")
+    svg = (ROOT / "console" / "social-preview-v5-banner.svg").read_text(encoding="utf-8")
     png = (ROOT / "console" / "social-preview-series-a.png").read_bytes()
 
     assert 'width="1280" height="640" viewBox="0 0 1280 640"' in svg
