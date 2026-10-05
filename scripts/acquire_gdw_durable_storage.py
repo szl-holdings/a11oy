@@ -56,7 +56,7 @@ _STAGES = frozenset({
     "NATIVE_INPUTS", "REFERENCE_VALIDATION", "SOURCE_MANIFEST", "RUNTIME_BASE_CONTEXT",
     "RUNTIME_BASE_OBSERVATION", "LEGACY_PROVIDER_READ", "LEGACY_NATIVE_GUARD",
     "PAUSE_BOUNDARY", "PAUSE_READBACK", "PAIR_VALIDATION", "CANDIDATE_REPRODUCTION",
-    "CANDIDATE_INSPECTION", "PRIVATE_FENCE_CHECK", "ARTIFACT_PUBLICATION",
+    "CANDIDATE_INSPECTION", "ARTIFACT_RECONCILIATION", "PRIVATE_FENCE_CHECK", "ARTIFACT_PUBLICATION",
     "SNAPSHOT_PUBLICATION", "PAIR_ROUNDTRIP", "ADMISSION_VALIDATION",
     "BOOTSTRAP_BOUNDARY", "POST_BOOTSTRAP_READBACK", "LOCATOR_RENDER",
     "PARENT_WORKER", "PREREQUISITE_CLASSIFICATION", "LOCATOR_FETCH", "OUTPUT_WRITE",
@@ -124,6 +124,8 @@ _DIAGNOSTICS = frozenset({
     "NATIVE_CONTEXT_UNQUALIFIED", "SOURCE_SUCCESSOR_UNQUALIFIED", "NATIVE_RUN_NOT_UNIQUE",
     "INSPECTION_PRODUCER_UNQUALIFIED", "INSPECTION_ARTIFACT_UNQUALIFIED",
     "EXPECTED_ABSENCE_UNVERIFIED", "RECONCILIATION_UNAVAILABLE",
+    "ARTIFACT_PLAN_RECONCILIATION_REQUIRED", "ARTIFACT_ABSENCE_CHANGED",
+    "ARTIFACT_RECONCILIATION_UNAVAILABLE",
 })
 _FAILURE_FIELDS = frozenset({"schema", "state", "stage", "stage_state", "diagnostic_code",
     "provider_effects", "restore_admitted", "deployment_admitted", "secret_values_recorded"})
@@ -463,6 +465,58 @@ class _AdmittedAcquisitionHub:
         return self.api.create_commit(repo_id, **kwargs)
 
 
+def verify_reproduced_artifact_absence(api, database, directory, *,
+                                      require_owned_source, require_prewrite_reconciliation, deadline):
+    """Bind the reproduced plan to the native diagnostic before the first add.
+
+    Only the exact admitted paths are queried. Any returned object, malformed
+    response or failed read holds; no prefix listing or cleanup is permitted.
+    This check runs once before publication, never after our own acknowledged adds.
+    """
+    from scripts import reconcile_gdw_supervised_acquisition as reconciliation
+    from scripts import triage_gdw_artifacts_readonly as triage
+    from collections.abc import Iterator
+
+    try:
+        _budget(deadline)
+        _require(storage._value(api, "endpoint") == storage.ENDPOINT,
+                 "ARTIFACT_PLAN_RECONCILIATION_REQUIRED")
+        before = triage._file_digest(database, deadline)
+        pending, summary = triage.local_artifact_plan(database, directory, deadline)
+        _require(summary["expected_object_count"] == reconciliation.EXPECTED_OBJECT_COUNT
+            and summary["expected_object_set_sha256"] == reconciliation.EXPECTED_OBJECT_SET_SHA256
+            and summary["all_retained_rows_validated"] is True
+            and summary["candidate_unchanged"] is True, "ARTIFACT_PLAN_RECONCILIATION_REQUIRED")
+        paths = sorted(pending)
+        require_prewrite_reconciliation()
+        for _ in range(2):
+            _budget(deadline)
+            require_owned_source()
+            info = api.bucket_info(bucket_id=storage.BUCKET)
+            _require(storage._value(info, "id") == storage.BUCKET
+                and storage._value(info, "private") is True, "ARTIFACT_ABSENCE_CHANGED")
+            require_owned_source()
+            for offset in range(0, len(paths), 64):
+                _budget(deadline)
+                require_owned_source()
+                # The SDK accepts exact path batches and omits missing paths.
+                # Reject even an unsolicited result without exposing its contents.
+                found = api.get_bucket_paths_info(bucket_id=storage.BUCKET, paths=paths[offset:offset + 64])
+                _require(type(found) is list or isinstance(found, Iterator), "ARTIFACT_ABSENCE_CHANGED")
+                for _item in found:
+                    raise AcquisitionBlocked("ARTIFACT_ABSENCE_CHANGED")
+                _budget(deadline)
+                require_owned_source()
+        require_prewrite_reconciliation()
+        _require(triage._file_digest(database, deadline) == before,
+                 "ARTIFACT_PLAN_RECONCILIATION_REQUIRED")
+        _budget(deadline)
+    except AcquisitionBlocked:
+        raise
+    except Exception:
+        raise AcquisitionBlocked("ARTIFACT_RECONCILIATION_UNAVAILABLE") from None
+
+
 def acquire_pair(api, *, source_context: dict, qualification_context: dict,
                  qualification_artifact_id: int, qualification_archive_sha256: str,
                  preserved: dict, qualified: dict, qualification_bytes: bytes,
@@ -554,6 +608,11 @@ def acquire_pair(api, *, source_context: dict, qualification_context: dict,
         observed = storage.inspect_snapshot(label, path, workspace, deadline)
         _require(all(observed[key] == selected[label][key] for key in ("size", "sha256", "generation")),
             "CANDIDATE_NATIVE_IDENTITY_MISMATCH")
+    progress.complete()
+    progress.enter("ARTIFACT_RECONCILIATION")
+    verify_reproduced_artifact_absence(api, paths["gdw"], workspace / "reconciled-artifact-plan",
+        require_owned_source=require_owned_source,
+        require_prewrite_reconciliation=require_prewrite_reconciliation, deadline=deadline)
     require_paused()
     progress.complete()
     progress.enter("PRIVATE_FENCE_CHECK")

@@ -1,4 +1,11 @@
-# One supervised canonical acquisition after the refreshed held inspection
+# Historical supervised acquisition after the held inspection
+
+**Historical procedure:** this document describes the earlier metadata-only
+admission. It is not the current recovery instruction. The exact native artifact
+reconciliation and source-bound successor are documented in
+[GDW_RECONCILED_ACQUISITION_20261005.md](GDW_RECONCILED_ACQUISITION_20261005.md).
+Preserve the evidence below as history; do not replay its run or reuse its old
+dataset revision as current authority.
 
 This source proposal permits one narrowly bound canonical recovery run. It does
 not turn the prior inspection into retry, restore or deployment authority.

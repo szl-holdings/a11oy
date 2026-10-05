@@ -16,13 +16,14 @@ only fixed repository GETs, private dataset HEAD metadata reads, and the existin
 read-only fixed-capture qualification into disposable runner storage. Source
 movement or changed dataset metadata holds the result. No old run is replayed.
 
-The production ArtifactCache then validates retained rows and reconstructs
-local artifact bytes from the captured candidate. Its callback always raises
-an observation-only sentinel before any provider call. It never returns a fake
-publication acknowledgement. Because the production routine validates all rows
-before its first callback, reaching that callback establishes local validation,
-not cloud publication. An empty set is named separately. Exact before/after
-candidate digests must agree.
+The production ArtifactCache validates every retained row and reconstructs the
+exact local artifact plan from the captured candidate. The active v2 path then
+uses a credential-isolated supervised child to read only those expected bucket
+paths, validate present objects against their expected size and SHA-256, and
+reobserve the entire expected set. Source, candidate, private HEAD and object
+identity changes hold. The child must be killed/reaped before its closed report
+is accepted; candidate and source are rechecked after cleanup. It has no provider
+writer. The older sentinel callback remains an offline local diagnostic.
 
 The output contains only source/run identity, fixed diagnostic codes, limited
 private HEAD metadata, and false mutation/retry/restoration/deployment flags.
@@ -33,11 +34,13 @@ A four-minute native deadline and six-minute job cap bound execution.
 
 ## Reading the outcome
 
-- `LOCAL_ROWS_VALIDATED_PUBLICATION_NOT_ATTEMPTED`: local row/file qualification
-  completed; provider-specific publication remains untested.
-- `NO_RETAINED_ARTIFACTS`: no callback was needed; this is not an upload receipt.
-- An `ARTIFACT_*` code in the local observation: an actual validation/materialization
-  failure was observed against the disposable candidate, without provider writes.
+- `NO_EXPECTED_OBJECTS_PRESENT_AT_READ_TIME`: all expected exact paths were absent
+  during both reads; unrelated or orphan object absence remains unknown.
+- `PARTIAL_EXPECTED_OBJECT_SET_PRESENT_AT_READ_TIME`: some expected objects were
+  validated; the missing count stays explicit.
+- `ALL_EXPECTED_OBJECTS_PRESENT_AND_VALIDATED_AT_READ_TIME`: all expected bytes and
+  current identities were validated; historical writer attribution remains
+  `NOT_ESTABLISHED`.
 - Top-level HELD: native authority, capture qualification or metadata stability
   could not be established; never infer a private-state resolution.
 
@@ -50,3 +53,11 @@ of its scope. A separately qualified recovery decision remains necessary.
 The native observation uses the source-owned LOGICAL_ROOTS for both proof and
 receipt binding, matching the corrected isolated worker admitted in #2571.
 It never inherits caller overrides or moves/relabels captured logical paths.
+
+Successful supervised v2 run `37357773764` on source
+`f1653a2908f944e37b7de87da36363cc9d661913` observed 224 expected, 0 present, 224
+missing; both captured stores qualified and private HEAD absent at a stable
+revision. Exact archive/report identities and the separately guarded source
+proposal are documented in
+[GDW_RECONCILED_ACQUISITION_20261005.md](GDW_RECONCILED_ACQUISITION_20261005.md).
+The diagnostic's false retry, restore and deployment flags remain unchanged.

@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
-"""Read-only prerequisite for one canonical successor of the held inspection.
+"""Read-only prerequisite for one canonical successor of the artifact triage.
 
 This is not restore or deployment admission. It binds one signed direct source
-successor and its sole push run to the immutable failed-but-inspect-only producer,
-then observes the same private dataset revision and HEAD absence twice. Provider
-objects are never read and no mutation method is used. The caller enforces the
-hard process deadline, private output suppression and the canonical workflow DAG.
+successor and its sole push run to one successful read-only native producer,
+then observes the same private dataset revision and HEAD absence twice. The
+historical expected-set absence is not absence of every bucket object or retry
+authority. Acquisition must bind and reobserve its candidate plan separately.
+No mutation method is used. The caller enforces the hard process deadline,
+private output suppression and the canonical workflow DAG.
 """
 from __future__ import annotations
 
@@ -20,18 +22,24 @@ from urllib.parse import urlsplit
 
 import gdw_durable_storage as storage
 from scripts import gdw_acquisition_evidence as native
-from scripts import inspect_gdw_held_acquisition as inspection
 
-SCHEMA = "szl.gdw-supervised-acquisition-prerequisite/v1"
-PARENT_SOURCE = "a60125af336ea97ac29678a79110c30ec0122e99"
-INSPECTION_RUN = 37262929675
+SCHEMA = "szl.gdw-supervised-acquisition-prerequisite/v2"
+PARENT_SOURCE = "f1653a2908f944e37b7de87da36363cc9d661913"
+INSPECTION_RUN = 37357773764
 INSPECTION_ATTEMPT = 1
-INSPECTION_JOB = 111613776558
-INSPECTION_SOURCE_JOB = 111613728997
-ARTIFACT_ID = 11324359120
-ARCHIVE_SHA256 = "863191708947e38f6d3338e0f99cefff25f19fde55919132dd991e099d7c4513"
-REPORT_SHA256 = "d5f84ce152b3c46d5295792d1db44b0031568079719aa375a04be9750e38dee8"
-DATASET_REVISION = "dd34d6b0b20d918cc862888030569d03d99a9b37"
+INSPECTION_JOB = 111924632435
+INSPECTION_CONTRACT_JOB = 111924448606
+INSPECTION_WORKFLOW = ".github/workflows/gdw-artifact-readonly-triage.yml"
+INSPECTION_WORKFLOW_ID = 375098171
+ARTIFACT_ID = 11365342348
+ARCHIVE_BYTES = 1092
+ARCHIVE_SHA256 = "a6aa374c1878af66e142260a4f2ff9283c3566935dc88f958ce65bcc7265305b"
+REPORT_BYTES = 1814
+REPORT_SHA256 = "9c8ffa25849305a95248d280989ac91e038e00cd04e3a5eb47d7e3b6949dbe37"
+DATASET_REVISION = "fd57865f92240626794729aecdc0827b90796aac"
+EXPECTED_OBJECT_COUNT = 224
+EXPECTED_OBJECT_SET_SHA256 = "7a28c53fa647e639375c6a90d3e34e89fe74bc2004f8161b5f38ac793301be42"
+OBSERVED_OBJECT_SET_SHA256 = "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
 REPOSITORY_ID = 1225834126
 RECONCILIATION_JOB_KEY = "recovery-reconciliation"
 RECONCILIATION_JOB = "Reconcile the held acquisition before provider mutation"
@@ -112,51 +120,72 @@ def _current_context(evidence):
     return job["id"]
 
 
+def _triage_run_binding(run):
+    _require(type(run) is dict and type(run.get("id")) is int and run["id"] == INSPECTION_RUN
+        and type(run.get("run_attempt")) is int and run["run_attempt"] == INSPECTION_ATTEMPT
+        and type(run.get("workflow_id")) is int and run["workflow_id"] == INSPECTION_WORKFLOW_ID
+        and run.get("path") == INSPECTION_WORKFLOW and run.get("event") == "workflow_dispatch"
+        and run.get("head_sha") == PARENT_SOURCE and run.get("head_branch") == "main"
+        and run.get("repository", {}).get("id") == REPOSITORY_ID
+        and run.get("repository", {}).get("full_name") == native.REPOSITORY
+        and run.get("head_repository", {}).get("id") == REPOSITORY_ID
+        and run.get("status") == "completed" and run.get("conclusion") == "success",
+        "INSPECTION_PRODUCER_UNQUALIFIED")
+
+
 def _prior_producer(evidence):
     run = evidence.request(f"/repos/{native.REPOSITORY}/actions/runs/{INSPECTION_RUN}/attempts/1")
-    _run_binding(run, source=PARENT_SOURCE, run_id=INSPECTION_RUN,
-        repository_id=REPOSITORY_ID, active=False)
+    _triage_run_binding(run)
+    # A historical first-attempt endpoint alone must not conceal a later rerun.
+    _triage_run_binding(evidence.request(f"/repos/{native.REPOSITORY}/actions/runs/{INSPECTION_RUN}"))
     listing = evidence.request(f"/repos/{native.REPOSITORY}/actions/runs/{INSPECTION_RUN}/attempts/1/jobs?per_page=100")
     jobs = listing.get("jobs")
-    _require(type(listing.get("total_count")) is int and listing["total_count"] == 13
-        and type(jobs) is list and len(jobs) == 13, "INSPECTION_PRODUCER_UNQUALIFIED")
+    expected = {INSPECTION_CONTRACT_JOB: "contract", INSPECTION_JOB: "triage"}
+    _require(type(listing.get("total_count")) is int and listing["total_count"] == 2
+        and type(jobs) is list and len(jobs) == 2, "INSPECTION_PRODUCER_UNQUALIFIED")
     seen = set()
     producer = None
+    contract = None
     for job in jobs:
         _require(type(job) is dict and _integer(job.get("id")) and job["id"] not in seen
+            and job["id"] in expected and job.get("name") == expected[job["id"]]
             and type(job.get("run_id")) is int and job["run_id"] == INSPECTION_RUN
             and type(job.get("run_attempt")) is int and job["run_attempt"] == 1
-            and job.get("head_sha") == PARENT_SOURCE and job.get("status") == "completed",
+            and job.get("head_sha") == PARENT_SOURCE and job.get("status") == "completed"
+            and job.get("conclusion") == "success",
             "INSPECTION_PRODUCER_UNQUALIFIED")
         seen.add(job["id"])
+        steps = job.get("steps")
+        _require(type(steps) is list and 1 <= len(steps) <= 30
+            and all(type(item) is dict and type(item.get("name")) is str
+                and item.get("status") == "completed" and item.get("conclusion") == "success" for item in steps)
+            and len({item["name"] for item in steps}) == len(steps), "INSPECTION_PRODUCER_UNQUALIFIED")
         if job["id"] == INSPECTION_JOB:
-            _require(job.get("name") == native.ACQUISITION_JOB and job.get("conclusion") == "failure",
-                "INSPECTION_PRODUCER_UNQUALIFIED")
             producer = job
-        elif job["id"] == INSPECTION_SOURCE_JOB:
-            _require(job.get("name") == native.SOURCE_JOB and job.get("conclusion") == "success",
-                "INSPECTION_PRODUCER_UNQUALIFIED")
         else:
-            _require(job.get("conclusion") == "skipped", "INSPECTION_PRODUCER_UNQUALIFIED")
-    _require(producer is not None and INSPECTION_SOURCE_JOB in seen, "INSPECTION_PRODUCER_UNQUALIFIED")
-    steps = producer.get("steps")
-    _require(type(steps) is list and 1 <= len(steps) <= 30
-        and all(type(item) is dict and type(item.get("name")) is str for item in steps)
-        and len({item["name"] for item in steps}) == len(steps), "INSPECTION_PRODUCER_UNQUALIFIED")
-    by_name = {item["name"]: item for item in steps}
-    failed = [item["name"] for item in steps if item.get("conclusion") == "failure"]
-    expected_failure = "Inspect the held prior acquisition without provider mutation"
-    _require(failed == [expected_failure]
-        and by_name.get("Install the persistent old-source guard and both managed configurations once", {}).get("conclusion") == "skipped"
-        and by_name.get("Retain only the immutable selector and safe guarded configuration result", {}).get("conclusion") == "success",
+            contract = job
+    _require(seen == set(expected) and producer is not None and contract is not None,
         "INSPECTION_PRODUCER_UNQUALIFIED")
+    _require(any(item["name"] == "Prove read-only triage boundaries with actual disposable databases"
+        for item in contract["steps"]), "INSPECTION_PRODUCER_UNQUALIFIED")
+    by_name = {item["name"]: item for item in producer["steps"]}
+    _require("Reconcile exact retained artifact objects without provider mutation" in by_name
+        and "Retain only the closed diagnostic record" in by_name,
+        "INSPECTION_PRODUCER_UNQUALIFIED")
+    observed = by_name["Reconcile exact retained artifact objects without provider mutation"]
+    uploaded = by_name["Retain only the closed diagnostic record"]
+    _require(native.timestamp(run.get("run_started_at")) <= native.timestamp(contract.get("started_at"))
+        <= native.timestamp(contract.get("completed_at")) <= native.timestamp(producer.get("started_at"))
+        <= native.timestamp(observed.get("started_at")) <= native.timestamp(observed.get("completed_at"))
+        <= native.timestamp(uploaded.get("started_at")) <= native.timestamp(uploaded.get("completed_at"))
+        <= native.timestamp(producer.get("completed_at")), "INSPECTION_PRODUCER_UNQUALIFIED")
     return run, producer
 
 
 def _inspection_archive(evidence, run, producer):
-    """Specialized fixed failed-inspection producer; no general failure bypass."""
+    """Read exactly the successful native triage ZIP and its closed report."""
     meta = evidence.request(f"/repos/{native.REPOSITORY}/actions/artifacts/{ARTIFACT_ID}")
-    _require(meta.get("size_in_bytes") == 565 and type(meta.get("size_in_bytes")) is int
+    _require(meta.get("size_in_bytes") == ARCHIVE_BYTES and type(meta.get("size_in_bytes")) is int
         and native.timestamp(run.get("run_started_at")) <= native.timestamp(producer.get("started_at"))
         <= native.timestamp(meta.get("created_at")) <= native.timestamp(producer.get("completed_at")),
         "INSPECTION_ARTIFACT_UNQUALIFIED")
@@ -176,19 +205,56 @@ def _inspection_archive(evidence, run, producer):
         archive = bytearray()
         for chunk in response.iter_bytes(chunk_size=1024):
             evidence.budget()
-            _require(len(archive) + len(chunk) <= 565, "INSPECTION_ARTIFACT_UNQUALIFIED")
+            _require(len(archive) + len(chunk) <= ARCHIVE_BYTES, "INSPECTION_ARTIFACT_UNQUALIFIED")
             archive.extend(chunk)
     members = native.validate_archive(meta, bytes(archive), artifact_id=ARTIFACT_ID,
-        expected_digest=ARCHIVE_SHA256, expected_name=f"canonical-durable-acquisition-{INSPECTION_RUN}-1",
+        expected_digest=ARCHIVE_SHA256, expected_name=f"gdw-artifact-readonly-{INSPECTION_RUN}-1",
         source=PARENT_SOURCE, run_id=INSPECTION_RUN, repository_id=REPOSITORY_ID,
-        members=frozenset({"gdw-durable-acquisition.json"}))
-    raw = members["gdw-durable-acquisition.json"]
-    _require(len(raw) == 640 and hashlib.sha256(raw).hexdigest() == REPORT_SHA256,
-        "INSPECTION_ARTIFACT_UNQUALIFIED")
-    report = inspection.validate_inspection_report(raw)
-    _require(report["source_revision"] == PARENT_SOURCE and report["classification"] == "ABSENT"
-        and report["dataset_revision"] == DATASET_REVISION, "INSPECTION_ARTIFACT_UNQUALIFIED")
+        members=frozenset({"gdw-artifact-triage.json"}))
+    validate_triage_report(members["gdw-artifact-triage.json"])
     evidence.budget()
+
+
+def _expected_triage_report():
+    """The entire fixed observation, including its explicit proof limits."""
+    return {
+        "artifact_effect_observation": {
+            "all_retained_rows_validated": True, "candidate_unchanged": True,
+            "classification": "NO_EXPECTED_OBJECTS_PRESENT_AT_READ_TIME",
+            "expected_object_count": EXPECTED_OBJECT_COUNT,
+            "expected_object_set_sha256": EXPECTED_OBJECT_SET_SHA256,
+            "historical_writer_attribution": "NOT_ESTABLISHED",
+            "missing_object_count": EXPECTED_OBJECT_COUNT,
+            "observed_object_set_sha256": OBSERVED_OBJECT_SET_SHA256,
+            "present_object_count": 0, "provider_objects_fully_validated": False,
+            "provider_writes_performed": False},
+        "capture_qualification": "LOGICAL_CONTINUITY_VERIFIED",
+        "captured_originals_unchanged_during_qualification": True,
+        "deployment_admitted": False, "diagnostic_code": "READ_ONLY_OBSERVATION_COMPLETE",
+        "historical_writer_attribution": "NOT_ESTABLISHED", "metadata_stable_during_read": True,
+        "prior_acquisition_archive_sha256": "d290fa69bf530ec3cc27daccfd0daef13904064c2f3a75f73fe2bc71c2515afd",
+        "prior_acquisition_artifact_id": 11325467455,
+        "prior_acquisition_report_sha256": "f4e638d0b73f865add47e16c7de5bdfff9f9ce8b6b505ee4e6debf1098db35a2",
+        "prior_job_id": 111616768413, "prior_native_metadata_verified": True,
+        "prior_provider_effects": "NOT_ESTABLISHED", "prior_run_attempt": 1,
+        "prior_run_id": 37263869028, "prior_source_revision": "62ca4d1506fe95f8bedf2143f5f8b60c786dcd74",
+        "prior_stage": "ARTIFACT_PUBLICATION", "prior_stage_state": "BOUNDARY_ENTERED",
+        "private_bytes_reported": False,
+        "private_head_metadata": {"head_presence": "ABSENT", "revision": DATASET_REVISION},
+        "provider_writes_performed": False, "qualified_database_count": 2,
+        "read_boundary": "COMPLETE", "restore_admitted": False, "retry_admitted": False,
+        "run_attempt": INSPECTION_ATTEMPT, "run_id": INSPECTION_RUN,
+        "schema": "szl.gdw-artifact-readonly-triage/v2", "source_revision": PARENT_SOURCE, "state": "OBSERVED"}
+
+
+def validate_triage_report(raw):
+    value = native.strict(raw, 4096)
+    _require(len(raw) == REPORT_BYTES and hashlib.sha256(raw).hexdigest() == REPORT_SHA256,
+        "INSPECTION_ARTIFACT_UNQUALIFIED")
+    # Canonical bytes also reject extra/missing fields, bool-as-int, and broader
+    # claims even if a future edit were to change only the pinned report digest.
+    _require(storage.canonical(_expected_triage_report()) == raw, "INSPECTION_ARTIFACT_UNQUALIFIED")
+    return value
 
 
 def verify_native_prerequisite(evidence):
@@ -240,10 +306,18 @@ def _report(context):
         "scope": "ONE_SOURCE_ONE_RUN_PREWRITE_ONLY", **context,
         "inspection_source_revision": PARENT_SOURCE, "inspection_run_id": INSPECTION_RUN,
         "inspection_run_attempt": 1, "inspection_job_id": INSPECTION_JOB,
+        "inspection_workflow_path": INSPECTION_WORKFLOW,
         "inspection_artifact_id": ARTIFACT_ID, "inspection_archive_sha256": ARCHIVE_SHA256,
         "inspection_report_sha256": REPORT_SHA256, "dataset_revision": DATASET_REVISION,
+        "inspection_classification": "NO_EXPECTED_OBJECTS_PRESENT_AT_READ_TIME",
+        "inspection_expected_object_count": EXPECTED_OBJECT_COUNT,
+        "inspection_expected_object_set_sha256": EXPECTED_OBJECT_SET_SHA256,
+        "inspection_present_object_count": 0, "inspection_missing_object_count": EXPECTED_OBJECT_COUNT,
+        "inspection_observed_object_set_sha256": OBSERVED_OBJECT_SET_SHA256,
+        "historical_writer_attribution": "NOT_ESTABLISHED", "prior_provider_effects": "NOT_ESTABLISHED",
         "provider_writes_performed": False, "provider_objects_verified": False,
-        "restore_admitted": False, "deployment_admitted": False, "secret_values_recorded": False}
+        "retry_admitted": False, "restore_admitted": False, "deployment_admitted": False,
+        "secret_values_recorded": False}
 
 
 def validate_reconciliation_report(raw):

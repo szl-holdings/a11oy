@@ -294,6 +294,14 @@ def native_acquisition(stores, tmp_path, monkeypatch):
     monkeypatch.setattr(durable, "_GATE", None)
     monkeypatch.delenv("GDW_DURABLE_STORAGE", raising=False)
     original_bytes = {label: path.read_bytes() for label, path in stores.paths.items()}
+    from scripts import triage_gdw_artifacts_readonly as triage
+    from scripts import reconcile_gdw_supervised_acquisition as reconciliation
+    # Synthetic stores bind their own exact plan; native constants remain fixed
+    # to the real 224-object diagnostic in the source under test.
+    _pending, binding = triage.local_artifact_plan(stores.paths["gdw"], tmp_path / "synthetic-plan-binding",
+        time.monotonic() + 10)
+    monkeypatch.setattr(reconciliation, "EXPECTED_OBJECT_COUNT", binding["expected_object_count"])
+    monkeypatch.setattr(reconciliation, "EXPECTED_OBJECT_SET_SHA256", binding["expected_object_set_sha256"])
     workspace = tmp_path / "acquisition"; workspace.mkdir(mode=0o700)
     preserved, report, reference, _old_encoded = qualified_fixture()
     reference["private_manifest"]["xet_hash"] = "6" * 64
@@ -409,9 +417,10 @@ def test_real_pair_artifacts_restore_and_absent_bootstrap_are_acknowledged_toget
     assert state.api.additions[0][0].startswith(storage.ARTIFACT_PREFIX + "/")
     assert all(item[0].startswith(storage.OBJECT_PREFIX + "/") for item in state.api.additions[1:])
     assert state.events.index("private_object") < state.events.index("metadata_cas")
-    # Initial gate + each of three object submissions + the bootstrap CAS. The
+    # Initial gate + two artifact-reconciliation fences + three object submissions
+    # + the bootstrap CAS. The
     # acknowledged own HEAD is then read back, never required to remain absent.
-    assert state.events.count("reconciled") == 5
+    assert state.events.count("reconciled") == 7
     assert admitted["retained_artifacts"]["count"] == 1
     assert admitted["snapshots"]["series_a"]["receipt_count"] == 1
     assert admitted["runtime"]["base_observation"]["final_runtime"] == "FINAL_RUNTIME_NOT_OBSERVED"
@@ -435,6 +444,69 @@ def test_unqualified_pair_never_publishes_private_objects_or_bootstrap(native_ac
     assert state.api.additions == state.api.commits == []
 
 
+@pytest.mark.parametrize("defect", ["count", "set_digest", "present", "late_appearance",
+    "public_bucket", "malformed_empty", "unavailable", "candidate_changed"])
+def test_native_plan_reconciliation_holds_before_any_object_write(native_acquisition, monkeypatch, defect):
+    from scripts import reconcile_gdw_supervised_acquisition as reconciliation
+    state = native_acquisition
+    if defect == "count":
+        monkeypatch.setattr(reconciliation, "EXPECTED_OBJECT_COUNT", reconciliation.EXPECTED_OBJECT_COUNT + 1)
+    if defect == "set_digest":
+        monkeypatch.setattr(reconciliation, "EXPECTED_OBJECT_SET_SHA256", "0" * 64)
+    if defect == "public_bucket": state.api.private = False
+    original = state.api.get_bucket_paths_info
+    observations = 0
+    def observed(*, bucket_id, paths):
+        nonlocal observations
+        if all(path.startswith(storage.ARTIFACT_PREFIX + "/") for path in paths):
+            observations += 1
+            if defect == "present" or defect == "late_appearance" and observations == 2:
+                return [{"untrusted": "PRIVATE_PAIR_ROW"}]
+            if defect == "malformed_empty": return {}
+            if defect == "unavailable": raise RuntimeError("PRIVATE_PAIR_ROW")
+            if defect == "candidate_changed":
+                target = state.arguments["workspace"] / "qualification/working/gdw/candidate.sqlite3"
+                with target.open("ab") as stream: stream.write(b"changed")
+        return original(bucket_id=bucket_id, paths=paths)
+    monkeypatch.setattr(state.api, "get_bucket_paths_info", observed)
+    expected_error = preservation.PreservationError if defect == "public_bucket" else acquisition.AcquisitionBlocked
+    with pytest.raises(expected_error) as caught:
+        acquisition.acquire_pair(state.api, **state.arguments)
+    assert "PRIVATE_PAIR_ROW" not in str(caught.value)
+    assert state.api.additions == state.api.commits == []
+    for label, data in state.originals.items():
+        assert state.paths[label].read_bytes() == data
+
+
+def test_reconciliation_exact_path_batches_cover_both_absence_reads(monkeypatch, tmp_path):
+    from scripts import triage_gdw_artifacts_readonly as triage
+    from scripts import reconcile_gdw_supervised_acquisition as reconciliation
+    count = reconciliation.EXPECTED_OBJECT_COUNT
+    paths = [storage.ARTIFACT_PREFIX + f"/{index:064x}/{index:064x}.json" for index in range(count)]
+    pending = dict.fromkeys(paths)
+    monkeypatch.setattr(triage, "_file_digest", lambda *_: "b" * 64)
+    monkeypatch.setattr(triage, "local_artifact_plan", lambda *_: (pending, {
+        "expected_object_count": count, "expected_object_set_sha256": reconciliation.EXPECTED_OBJECT_SET_SHA256,
+        "all_retained_rows_validated": True, "candidate_unchanged": True}))
+    batches, events = [], []
+    class ReadOnlyAPI:
+        endpoint = storage.ENDPOINT
+        def bucket_info(self, *, bucket_id):
+            assert events[-1] == "source"
+            return {"id": bucket_id, "private": True}
+        def get_bucket_paths_info(self, *, bucket_id, paths):
+            assert events[-1] == "source" and bucket_id == storage.BUCKET
+            assert 1 <= len(paths) <= 64
+            batches.append(list(paths))
+            return []
+    acquisition.verify_reproduced_artifact_absence(ReadOnlyAPI(), tmp_path / "synthetic.db", tmp_path / "plan",
+        require_owned_source=lambda: events.append("source"),
+        require_prewrite_reconciliation=lambda: events.append("fence"), deadline=time.monotonic() + 10)
+    assert [path for batch in batches for path in batch] == paths + paths
+    assert len(batches) == 2 * ((count + 63) // 64)
+    assert events[0] == events[-1] == "fence"
+
+
 def test_changed_fence_before_first_private_submission_is_not_retried(native_acquisition):
     state = native_acquisition
     original = state.arguments["require_prewrite_reconciliation"]
@@ -442,7 +514,7 @@ def test_changed_fence_before_first_private_submission_is_not_retried(native_acq
     def reconcile():
         nonlocal calls
         calls += 1
-        if calls == 2:
+        if calls == 4:
             state.api.reconciliation_changed = True
         original()
     state.arguments["require_prewrite_reconciliation"] = reconcile
@@ -452,7 +524,7 @@ def test_changed_fence_before_first_private_submission_is_not_retried(native_acq
     # no-retry assertions below still bind the actual synthetic API observations.
     with pytest.raises(DurableStorageUnavailable, match="^ARTIFACT_PROVIDER_CALL_UNAVAILABLE$"):
         acquisition.acquire_pair(state.api, **state.arguments)
-    assert calls == 2 and state.api.additions == state.api.commits == []
+    assert calls == 4 and state.api.additions == state.api.commits == []
 
 
 def test_pair_cas_lost_reply_does_not_retry_or_emit_selector(native_acquisition):
