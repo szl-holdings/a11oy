@@ -17,6 +17,19 @@ the local overlay already available to this runtime, exposing counts only.
 No query, private note text, node identifiers, graph harvest, model inference,
 gradient training, file creation, receipt signing or provider request occurs.
 An unreadable overlay is HTTP 503 `UNAVAILABLE`, not fabricated zero counts.
+Only a missing file (including a missing parent directory) represents an empty
+overlay. A directory, another nonregular target, an inaccessible parent, or an
+invalid parent component is an unavailable replay, including after a previous
+empty result was cached. Reads create neither an overlay nor its parent.
+
+For writes without `SZL_BRAIN_OVERLAY`, the existing local-then-temporary-directory
+selection uses an actual append probe on the authorized write path. An existing
+read-only local log therefore does not block a usable temporary fallback. The
+pulse replays the selected target before constructing its receipt, then appends
+and consolidates against that same target. Subsequent readers in that process
+follow the selected target without repeating the probe. The two logs are never
+copied or merged. An explicit `SZL_BRAIN_OVERLAY` remains authoritative; a failure
+there is reported rather than redirected to another log.
 
 The existing self-audit route and indirect loop-health reader now preview
 demotions without applying them. The compatibility `demotions` list is a list

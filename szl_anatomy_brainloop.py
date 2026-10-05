@@ -61,6 +61,7 @@ import json
 import math
 import os
 import re
+import stat
 import tempfile
 import threading
 from datetime import datetime, timezone
@@ -305,25 +306,69 @@ _LOCK = threading.RLock()
 _STATE_CACHE: dict = {"mtime": None, "state": None, "path": None}
 
 
-def _overlay_path() -> str:
-    """Resolve existing storage without creating a file or directory on read."""
-    override = os.environ.get("SZL_BRAIN_OVERLAY")
-    if override:
-        return override
+def _default_overlay_paths() -> tuple:
     here = os.path.dirname(os.path.abspath(__file__))
     local = os.path.join(here, ".szl_brain_overlay.jsonl")
     fallback = os.path.join(tempfile.gettempdir(), ".szl_brain_overlay.jsonl")
+    return local, fallback
+
+
+def _overlay_path() -> str:
+    """Resolve storage without creating a file or directory on read."""
+    override = os.environ.get("SZL_BRAIN_OVERLAY")
+    if override:
+        return override
+    local, fallback = _default_overlay_paths()
+    selected = _STATE_CACHE.get("write_target")
+    if selected and selected[:2] == (local, fallback):
+        return selected[2]
     # Preserve either historical location; a read must not test writability by
-    # appending to the log. The writer remains responsible for filesystem errors.
-    if os.path.isfile(local):
+    # appending to the log. After a writer selects fallback, readers follow it.
+    if _overlay_stat(local) is not None:
         return local
-    if os.path.isfile(fallback):
+    if _overlay_stat(fallback) is not None:
         return fallback
-    return local if os.access(here, os.W_OK) else fallback
+    return local if os.access(os.path.dirname(local), os.W_OK) else fallback
 
 
-def _append_events(events: list) -> None:
-    path = _overlay_path()
+def _write_overlay_path() -> str:
+    """Choose an appendable target only on an authorized write path.
+
+    Preserve the historical local-then-temp fallback and authoritative override;
+    no log is copied or merged when the local target cannot be opened.
+    """
+    override = os.environ.get("SZL_BRAIN_OVERLAY")
+    if override:
+        return override
+    local, fallback = _default_overlay_paths()
+    with _LOCK:
+        for path in (local, fallback):
+            try:
+                _overlay_stat(path)
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                with open(path, "a", encoding="utf-8"):
+                    pass
+            except OSError:
+                if path == fallback:
+                    raise
+                continue
+            _STATE_CACHE["write_target"] = (local, fallback, path)
+            return path
+
+
+def _overlay_stat(path: str):
+    """Only a genuinely missing overlay is an empty replay."""
+    try:
+        info = os.stat(path)
+    except FileNotFoundError:
+        return None
+    if not stat.S_ISREG(info.st_mode):
+        raise OSError("overlay target is not a regular file")
+    return info
+
+
+def _append_events(events: list, *, path: str = None) -> None:
+    path = path if path is not None else _write_overlay_path()
     with _LOCK:
         with open(path, "a", encoding="utf-8") as fh:
             for ev in events:
@@ -339,7 +384,7 @@ def _fold_state(path: str, *, strict: bool = False) -> dict:
         "edges": {},              # (u,v) -> {w_fast,w_slow,count,last_ts}
         "prev_hash": "",
     }
-    if not os.path.isfile(path):
+    if _overlay_stat(path) is None:
         return state
     with open(path, "r", encoding="utf-8") as fh:
         for line in fh:
@@ -425,13 +470,12 @@ def _fold_state(path: str, *, strict: bool = False) -> dict:
     return state
 
 
-def _get_state(*, strict: bool = False) -> dict:
-    path = _overlay_path()
+def _get_state(*, strict: bool = False, path: str = None) -> dict:
+    path = path if path is not None else _overlay_path()
     with _LOCK:
-        try:
-            mtime = os.path.getmtime(path) if os.path.isfile(path) else 0.0
-        except Exception:
-            mtime = 0.0
+        info = _overlay_stat(path)
+        mtime = (info.st_mtime_ns, info.st_ctime_ns, info.st_size,
+                 info.st_dev, info.st_ino) if info is not None else 0
         if (_STATE_CACHE["state"] is not None
                 and _STATE_CACHE["mtime"] == mtime
                 and _STATE_CACHE["path"] == path
@@ -518,14 +562,15 @@ def pulse(query: str, ns: str = "a11oy") -> dict:
                     "computed_at": _now_iso()}
 
         graph = _load_graph(ns)
-        state = _get_state()
+        path = _write_overlay_path()
+        state = _get_state(path=path)
 
         # ---- Stage 2: GROUND -------------------------------------------- #
         if not graph.get("available"):
             energy = _energy_snapshot()
             prev = state.get("prev_hash", "")
             receipt = _make_receipt(query, [], _sha(""), energy, 0, None, prev)
-            _append_events([receipt])
+            _append_events([receipt], path=path)
             return {
                 "ok": True, "kind": "anatomy-brainloop-pulse", "ns": ns,
                 "doctrine": DOCTRINE,
@@ -628,10 +673,10 @@ def pulse(query: str, ns: str = "a11oy") -> dict:
         if reinforced:
             events.append({"ev": "reinforce", "edges": reinforced, "ts": _now_iso()})
 
-        _append_events(events)
+        _append_events(events, path=path)
 
         # Post-write belief maintenance (deterministic tier transitions).
-        _consolidate_tiers(ns)
+        _consolidate_tiers(ns, path=path)
 
         return {
             "ok": True, "kind": "anatomy-brainloop-pulse", "ns": ns,
@@ -668,12 +713,13 @@ def pulse(query: str, ns: str = "a11oy") -> dict:
 # --------------------------------------------------------------------------- #
 # Stage 7 — CONSOLIDATION + belief-tier maintenance (evidence-driven).
 # --------------------------------------------------------------------------- #
-def _consolidate_tiers(ns: str = "a11oy") -> list:
+def _consolidate_tiers(ns: str = "a11oy", *, path: str = None) -> list:
     """Deterministic tier transitions from EVIDENCE (never from salience alone):
       CONJECTURE  -> CORROBORATED   when corroboration >= CORROBORATE_MIN
       CORROBORATED-> LOAD-BEARING   when incident slow-weight >= DELTA_HUB
     A raw CONJECTURE is never auto-upgraded to a theorem by salience (differ. c)."""
-    state = _get_state()
+    path = path if path is not None else _write_overlay_path()
+    state = _get_state(path=path)
     events = []
     for nid, nd in state["nodes"].items():
         if nd.get("quarantined"):
@@ -689,7 +735,7 @@ def _consolidate_tiers(ns: str = "a11oy") -> list:
                                "reason": f"incident slow-weight >= {DELTA_HUB} (hub)",
                                "ts": _now_iso()})
     if events:
-        _append_events(events)
+        _append_events(events, path=path)
     return events
 
 

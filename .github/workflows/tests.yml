@@ -336,6 +336,7 @@ jobs:
           pytest
           tests/test_demo_critical_routes.py
           tests/test_anatomy_read_boundary.py
+          tests/test_anatomy_seed_read_contract.py
           tests/test_anatomy_v6_page_contract.py
           tests/test_anatomy_v5_contract.py
           tests/test_oac_page_surface.py
