@@ -6,8 +6,8 @@ Publication and the resulting native run require source review and protected
 GitHub admission. No provider action was performed while preparing this change.
 
 
-> Refreshed evidence: canonical push run `37260982314`, attempt `1`, on signed
-> protected source `bedc2f55a26eb94d7253d2fb67994a2c3d73f3c7` performed a
+> Refreshed evidence: canonical push run `37262929675`, attempt `1`, on signed
+> protected source `a60125af336ea97ac29678a79110c30ec0122e99` performed a
 > metadata-only inspection. It classified the private durable HEAD as **ABSENT**
 > at dataset revision `dd34d6b0b20d918cc862888030569d03d99a9b37`; provider writes,
 > retry, restore and deployment admission remained false. The 13-job run had only
@@ -25,14 +25,14 @@ root and `git -C` calls did not reproduce a temporary-working-directory defect.
 The closed stage/diagnostic decoder added subsequently remains in place.
 
 The actual read-only successor is source
-`bedc2f55a26eb94d7253d2fb67994a2c3d73f3c7`, run `37260982314`, attempt `1`,
-inspection job `111608007531`. Its source-admission job `111607965035` succeeded;
+`a60125af336ea97ac29678a79110c30ec0122e99`, run `37262929675`, attempt `1`,
+inspection job `111613776558`. Its source-admission job `111613728997` succeeded;
 the inspection exited `2`; all eleven other jobs were skipped, including manual
-preservation and every provider writer. Artifact `11324262380` has exact ZIP
+preservation and every provider writer. Artifact `11324359120` has exact ZIP
 size `564` and SHA-256
-`cdbd77c0ac4ae2d799acce2df7ef84256df6151492f36f14c03fe635dfa84b1d`.
+`863191708947e38f6d3338e0f99cefff25f19fde55919132dd991e099d7c4513`.
 Its sole canonical JSON member is `640` bytes with SHA-256
-`4c24af3081cfcc78209f631a030026cdc8ee794dac1b1524db0b58809bc50230`.
+`d5f84ce152b3c46d5295792d1db44b0031568079719aa375a04be9750e38dee8`.
 That report says **ABSENT / HELD** at private dataset revision
 `dd34d6b0b20d918cc862888030569d03d99a9b37`; provider-object verification, retry,
 restore and deployment admission are all false.

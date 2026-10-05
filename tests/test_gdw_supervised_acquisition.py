@@ -13,9 +13,9 @@ import gdw_durable_storage as storage
 from scripts import gdw_acquisition_evidence as native
 from scripts import reconcile_gdw_supervised_acquisition as supervised
 
-# Exact public metadata-only GitHub artifact11324262380, not private-store bytes.
+# Exact public metadata-only GitHub artifact11324359120, not private-store bytes.
 ARCHIVE = base64.b64decode(
-    "UEsDBBQACAAIAEoeRV0AAAAAAAAAAAAAAAAcAAAAZ2R3LWR1cmFibGUtYWNxdWlzaXRpb24uanNvbmVR0Y7TMBB85zP83EJiO4mdt8BF4qSjnGiExJNle9fUpyQOttPTgfh3FFBRoW+rmR3t7MwPomHyKfkwq3TStKpJO6/juCN21Cl5563OPsykJd3bY38YyI6AzjphVhHPPv3hABiH2hSGFiBLYa2oqRCiYEVVSygYSKmlYc2mxmUMLxPOWW2nc0YgrdNjwh05oYb/bEwBkLTk/nB87N8N6uPh4QvZkSX6ENVTMMoDacuyrCrJKReNvHBxnZXOGaclk7a8RjcFayjnTHJR8guVwhot/vNUXWrBBIqmZq6qCwADZcmM00wKx42puaOM099+wtkDRhXME9qc1Bmjd/7qtb8bz9FnTGrB6EKcrjYiphwi3qYSMceXWzjZE06atCR9H19/hef9CUfYa/tt9clvne39nBa02/jmXJJNEZYtzMdP95+7oVd33dAd+0F96Idumy/pJrQRszrrccWkItoQ4frwTVIGwVJXVZrWaCSHhlYMqDN1IyXX1DJomGN2qz9lnTcP7/uHO/Lz1S9QSwcI3vEP8YoBAACAAgAAUEsBAi0DFAAIAAgASh5FXd7xD/GKAQAAgAIAABwAAAAAAAAAAAAgAICBAAAAAGdkdy1kdXJhYmxlLWFjcXVpc2l0aW9uLmpzb25QSwUGAAAAAAEAAQBKAAAA1AEAAAAA"
+    "UEsDBBQACAAIAFsiRV0AAAAAAAAAAAAAAAAcAAAAZ2R3LWR1cmFibGUtYWNxdWlzaXRpb24uanNvbmVRwY7TMBC98xk+txDbiWPnFthIrLSUFY2QOFkTe0K9SuJgO10tiH9HBhUVehvNmzfz3psfBOzsYnR+0fEErBKkWbZp2hEzQYxudAaS8wtpSPv22B16siMWEkRMOuDZxT+Ytby0YigGVlhFpTFSMCllwYtKKFtwqxSogdeZjevkX2Zcks6nU0JLmhGmiDtyQrD/yZi9RdKQ+8PxsXvX64+Hhy9kR9bgfNBPftDOkoZSWlWqZKWs1QUL26IhJZzXRBp63c0MXrOy5KqUtLxA0W/B4D+mBAXJJcpa8LEShbWDpZQPI3Alx3IYRDkyXrLfevzZWQzaD09oUtRnDG50V9b+TjwHlzDqFcPow3w1ETAmH/A2lYApvNy2oznhDKQh8fv0+qt93p9wsnsw3zYXXf7Z3i1xRZPLN2dKMsOvOczHT/ef277Td23fHrtef+j6NteXdCOagEmfYdow6oDGB3t9+CYpEAVlFYycCwRVg2FK1BJqRWlheIGmoIyhUnl3gpQ1vO8e7sjPV78AUEsHCOaYXLKLAQAAgAIAAFBLAQItAxQACAAIAFsiRV3mmFyyiwEAAIACAAAcAAAAAAAAAAAAIACAgQAAAABnZHctZHVyYWJsZS1hY3F1aXNpdGlvbi5qc29uUEsFBgAAAAABAAEASgAAANUBAAAAAA=="
 )
 
 
@@ -51,7 +51,7 @@ def fixture(monkeypatch, job_key=supervised.RECONCILIATION_JOB_KEY):
              conclusion="success", steps=[])] + [dict(previous_job, id=100 + i, name=f"skipped-{i}",
                 conclusion="skipped", steps=[]) for i in range(11)]}
     meta = {"id": supervised.ARTIFACT_ID, "expired": False,
-        "name": f"canonical-durable-acquisition-{supervised.INSPECTION_RUN}-1", "size_in_bytes": 564,
+        "name": f"canonical-durable-acquisition-{supervised.INSPECTION_RUN}-1", "size_in_bytes": 565,
         "digest": "sha256:" + supervised.ARCHIVE_SHA256, "created_at": "2026-10-05T03:50:21Z",
         "workflow_run": {"id": supervised.INSPECTION_RUN, "head_sha": supervised.PARENT_SOURCE,
             "head_branch": "main", "repository_id": supervised.REPOSITORY_ID,
@@ -92,7 +92,7 @@ def fixture(monkeypatch, job_key=supervised.RECONCILIATION_JOB_KEY):
 @pytest.mark.parametrize("job_key", tuple(supervised.JOB_NAMES))
 def test_real_native_reader_binds_exact_archived_inspection_and_unique_successor(monkeypatch, job_key):
     evidence, state, calls = fixture(monkeypatch, job_key)
-    assert len(ARCHIVE) == 564 and hashlib.sha256(ARCHIVE).hexdigest() == supervised.ARCHIVE_SHA256
+    assert len(ARCHIVE) == 565 and hashlib.sha256(ARCHIVE).hexdigest() == supervised.ARCHIVE_SHA256
     result = supervised.verify_native_prerequisite(evidence)
     assert result == {"source_revision": "a" * 40, "run_id": 900, "run_attempt": 1,
         "job_id": 901, "job_key": job_key}

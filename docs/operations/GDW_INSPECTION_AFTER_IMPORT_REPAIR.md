@@ -48,3 +48,17 @@ mandatory; this document does not predeclare their outcome.
 
 Before admission, close the proposal. After admission, use a reviewed source
 revert; no force push or provider deletion is a rollback mechanism.
+
+## Direct successor binding
+
+The next reviewed successor binds exact inspection source
+`a60125af336ea97ac29678a79110c30ec0122e99`, push run `37262929675`,
+inspection job `111613776558`, source-admission job `111613728997`, and artifact
+`11324359120` (ZIP SHA-256
+`863191708947e38f6d3338e0f99cefff25f19fde55919132dd991e099d7c4513`).
+Its sole 640-byte report has SHA-256
+`d5f84ce152b3c46d5295792d1db44b0031568079719aa375a04be9750e38dee8`
+and retains `ABSENT / HELD`, provider writes false, retry false, restore false,
+and deployment false. This binding authorizes only the existing fail-closed
+same-run reconciliation path after protected admission; it is not evidence that
+an acquisition, restore, restart, or deployment succeeded.
