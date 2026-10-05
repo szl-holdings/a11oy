@@ -31,6 +31,10 @@ LOCATOR_SCHEMA = "szl.gdw-durable-acquisition/v1"
 MAX_LOCATOR_BYTES = 16 * 1024
 MAX_SECONDS = 900
 INSPECTION_SECONDS = 120
+# MODELED no-conflict post-preflight path: 697 core GETs (695 if paused).
+# Reserve 103 additional reads; earlier admitted reads are already reflected
+# in the authoritative remaining-count header, never subtracted twice.
+MINIMUM_PUBLICATION_READ_BUDGET = 800
 ROOT = Path(__file__).resolve().parents[1]
 CAPTURE_REFERENCE = "docs/operations/evidence/gdw-capture-37223162231.json"
 HISTORICAL_REFERENCE = "docs/operations/evidence/gdw-recovery-historical-anchors.json"
@@ -62,6 +66,7 @@ _STAGES = frozenset({
     "PARENT_WORKER", "PREREQUISITE_CLASSIFICATION", "LOCATOR_FETCH", "OUTPUT_WRITE",
     "HELD_ACQUISITION_INSPECTION",
     "SUPERVISED_RECONCILIATION",
+    "FRESH_RETAINED_OBJECT_SCAN", "PUBLICATION_READ_BUDGET",
 })
 _STAGE_STATES = frozenset({"BOUNDARY_ENTERED", "COMPLETION_OBSERVED"})
 _DIAGNOSTICS = frozenset({
@@ -124,6 +129,8 @@ _DIAGNOSTICS = frozenset({
     "NATIVE_CONTEXT_UNQUALIFIED", "SOURCE_SUCCESSOR_UNQUALIFIED", "NATIVE_RUN_NOT_UNIQUE",
     "INSPECTION_PRODUCER_UNQUALIFIED", "INSPECTION_ARTIFACT_UNQUALIFIED",
     "EXPECTED_ABSENCE_UNVERIFIED", "RECONCILIATION_UNAVAILABLE",
+    "SOURCE_ADMISSION_UNQUALIFIED", "RETAINED_OBSERVATION_UNQUALIFIED", "CANDIDATE_SCAN_UNQUALIFIED",
+    "GITHUB_READ_BUDGET_UNAVAILABLE", "GITHUB_READ_BUDGET_INSUFFICIENT",
 })
 _FAILURE_FIELDS = frozenset({"schema", "state", "stage", "stage_state", "diagnostic_code",
     "provider_effects", "restore_admitted", "deployment_admitted", "secret_values_recorded"})
@@ -470,7 +477,7 @@ def acquire_pair(api, *, source_context: dict, qualification_context: dict,
                  manifest: dict, base_observation: dict, guard_probe: dict,
                  paused: dict, legacy_observation: dict, workspace: Path,
                  require_owned_source, require_prewrite_reconciliation,
-                 deadline: float, operation_factory, _progress=None) -> dict:
+                 deadline: float, operation_factory, _progress=None, _fresh_retained_scan=None) -> dict:
     """Reproduce qualified candidates, publish privately and bootstrap exactly once.
 
     No runtime config/restart/restore is performed here. All private working
@@ -493,6 +500,15 @@ def acquire_pair(api, *, source_context: dict, qualification_context: dict,
         and qualification_context["run_id"] == source_context["run_id"]
         and qualification_context["run_attempt"] == source_context["run_attempt"], "QUALIFICATION_SOURCE_CONTEXT_MISMATCH")
     selected = validate_qualified_reports(preserved, qualified, reference, capture_bytes, source_revision)
+    _require(_fresh_retained_scan is not None, "CANDIDATE_SCAN_UNQUALIFIED")
+    import reconcile_gdw_62ca_supervised_acquisition as reconciliation
+    scan = reconciliation.validate_scan_report(canonical(_fresh_retained_scan))
+    _require(scan["source_revision"] == source_revision
+        and scan["run_id"] == source_context["run_id"]
+        and scan["run_attempt"] == source_context["run_attempt"]
+        and scan["job_id"] == source_context["job_id"]
+        and scan["candidates"] == {label: {key: selected[label][key] for key in ("sha256", "size")}
+            for label in storage.LABELS}, "CANDIDATE_SCAN_UNQUALIFIED")
     _require(hashlib.sha256(qualification_bytes).hexdigest() != "0" * 64
         and recovery._json(qualification_bytes) == qualified, "QUALIFICATION_REPORT_BYTES_MISMATCH")
     recovery.validate_historical_anchors(anchors, reference, hashlib.sha256(capture_bytes).hexdigest())
@@ -546,6 +562,8 @@ def acquire_pair(api, *, source_context: dict, qualification_context: dict,
     reproduction["inspector_source_revision"] = source_revision
     reproduced = validate_qualified_reports(preserved, reproduction, reference, capture_bytes, source_revision)
     _require(reproduced == selected, "CANDIDATE_REPRODUCTION_MISMATCH")
+    _require(scan["candidates"] == {label: {key: reproduced[label][key] for key in ("sha256", "size")}
+        for label in storage.LABELS}, "CANDIDATE_SCAN_UNQUALIFIED")
     progress.complete()
     progress.enter("CANDIDATE_INSPECTION")
     paths = {label: workspace / "qualification" / "working" / label / "candidate.sqlite3" for label in storage.LABELS}
@@ -733,7 +751,7 @@ def _execute_native(request: dict, workspace: Path, deadline: float, *, _progres
     from build_gdw_installed_source_manifest import build_manifest
     from configure_hf_gdw_runtime import managed_space_observation
     from huggingface_hub import CommitOperationAdd
-    import reconcile_gdw_supervised_acquisition as reconciliation
+    import reconcile_gdw_62ca_supervised_acquisition as reconciliation
 
     progress.enter("NATIVE_INPUTS")
     evidence = native.NativeEvidence(dict(os.environ), deadline)
@@ -748,9 +766,23 @@ def _execute_native(request: dict, workspace: Path, deadline: float, *, _progres
     progress.complete()
     progress.enter("REFERENCE_VALIDATION")
     reference, captured, anchors, historical = _references()
-    validate_qualified_reports(preserved, qualified, reference, captured, evidence.source)
+    selected = validate_qualified_reports(preserved, qualified, reference, captured, evidence.source)
     publisher = Path(request["publisher_script"])
     _require(publisher.is_absolute() and publisher.name == "hf_deploy_from_dockerfile.py", "PINNED_PUBLISHER_REQUIRED")
+    progress.complete()
+    progress.enter("FRESH_RETAINED_OBJECT_SCAN")
+    scan_workspace = storage._private_directory(workspace) / "fresh-retained-scan"
+    scan_workspace.mkdir(mode=0o700, exist_ok=False)
+    scan = reconciliation.validate_scan_report(canonical(
+        reconciliation.verify_candidate_scan(api, evidence, scan_workspace, deadline)))
+    _require(scan["source_revision"] == evidence.source and scan["run_id"] == evidence.run_id
+        and scan["run_attempt"] == evidence.attempt
+        and scan["job_id"] == source["job_id"]
+        and scan["source_admission_artifact_id"] == request["source_artifact_id"]
+        and scan["source_admission_archive_sha256"] == request["source_artifact_sha256"]
+        and scan["source_admission_sha256"] == source["source_admission_sha256"]
+        and scan["candidates"] == {label: {key: selected[label][key] for key in ("sha256", "size")}
+            for label in storage.LABELS}, "CANDIDATE_SCAN_UNQUALIFIED")
     progress.complete()
     progress.enter("SOURCE_MANIFEST")
     manifest = build_manifest(ROOT, evidence.source, publisher, deadline=deadline)
@@ -774,6 +806,11 @@ def _execute_native(request: dict, workspace: Path, deadline: float, *, _progres
         deadline=min(deadline - 20, time.monotonic() + 150), temporary_root=workspace)
     original = original_identities(reference)
     progress.complete()
+    progress.enter("PUBLICATION_READ_BUDGET")
+    # Preflight only: not a reservation, cached source lease or retry ticket.
+    # Fresh source/fence/original checks still run before every later write.
+    evidence.require_remaining_read_budget(MINIMUM_PUBLICATION_READ_BUDGET)
+    progress.complete()
     progress.enter("PAUSE_BOUNDARY")
     paused = pause_qualified_source(api, original, require_owned_source=require_reconciled, deadline=deadline)
     progress.complete()
@@ -790,7 +827,7 @@ def _execute_native(request: dict, workspace: Path, deadline: float, *, _progres
         anchors=anchors, anchor_bytes=historical, manifest=manifest, base_observation=expected_base,
         guard_probe=native_guard, paused=paused, legacy_observation=after, workspace=workspace,
         require_owned_source=evidence.require_current_main, require_prewrite_reconciliation=require_reconciled,
-        deadline=deadline, operation_factory=CommitOperationAdd, _progress=progress)
+        deadline=deadline, operation_factory=CommitOperationAdd, _progress=progress, _fresh_retained_scan=scan)
 
 
 def _worker() -> int:
@@ -804,7 +841,8 @@ def _worker() -> int:
         request = strict(sys.stdin.buffer.read(MAX_LOCATOR_BYTES + 1), MAX_LOCATOR_BYTES)
         inspect_only = request.get("mode") == "INSPECT_HELD"
         reconcile_only = request.get("mode") == "RECONCILE_SUPERVISED"
-        if inspect_only or reconcile_only:
+        reconcile_62ca = request.get("mode") == "RECONCILE_62CA"
+        if inspect_only or reconcile_only or reconcile_62ca:
             _require(set(request) == {"mode", "deadline"}, "ACQUISITION_REQUEST_INVALID")
         else:
             _require(set(request) == {"source_artifact_id", "source_artifact_sha256", "qualification_artifact_id",
@@ -813,7 +851,7 @@ def _worker() -> int:
                 _require(type(request[name]) is int and request[name] > 0, "ACQUISITION_ARTIFACT_INVALID")
             for name in ("source_artifact_sha256", "qualification_artifact_sha256"):
                 _require(_digest(request[name], 64), "ACQUISITION_ARTIFACT_INVALID")
-        seconds = INSPECTION_SECONDS if inspect_only or reconcile_only else MAX_SECONDS
+        seconds = INSPECTION_SECONDS if inspect_only or reconcile_only or reconcile_62ca else MAX_SECONDS
         _require(type(request["deadline"]) in (int, float) and 0 < request["deadline"] - time.monotonic() <= seconds,
             "ACQUISITION_DEADLINE_INVALID")
         progress.complete()
@@ -840,6 +878,12 @@ def _worker() -> int:
                     value = reconciliation.execute_native_reconciliation(directory, request["deadline"])
                     value = reconciliation.validate_reconciliation_report(canonical(value))
                     progress.complete()
+                elif reconcile_62ca:
+                    import reconcile_gdw_62ca_supervised_acquisition as reconciliation
+                    progress.enter("SUPERVISED_RECONCILIATION")
+                    value = reconciliation.execute_native_reconciliation(directory, request["deadline"])
+                    value = reconciliation.validate_reconciliation_report(canonical(value))
+                    progress.complete()
                 else:
                     value = _execute_native(request, directory, request["deadline"], _progress=progress)
         progress.enter("WORKER_COMPLETION")
@@ -853,9 +897,13 @@ def _worker() -> int:
         return 2
 
 
-def _reconciliation_report(raw):
+def _reconciliation_report(raw, *, _62ca=False):
     try:
-        import reconcile_gdw_supervised_acquisition as reconciliation
+        _require(type(_62ca) is bool, "WORKER_FAILURE_REPORT_INVALID")
+        if _62ca:
+            import reconcile_gdw_62ca_supervised_acquisition as reconciliation
+        else:
+            import reconcile_gdw_supervised_acquisition as reconciliation
         value = reconciliation.validate_reconciliation_report(raw)
         _require(value["source_revision"] == os.environ.get("GITHUB_SHA")
             and str(value["run_id"]) == os.environ.get("GITHUB_RUN_ID")
@@ -867,16 +915,17 @@ def _reconciliation_report(raw):
         raise AcquisitionBlocked("WORKER_FAILURE_REPORT_INVALID") from None
 
 
-def run_native(request: dict, *, _inspect_only=False, _reconcile_only=False) -> dict:
+def run_native(request: dict, *, _inspect_only=False, _reconcile_only=False, _reconcile_62ca_only=False) -> dict:
     import tempfile
     from gdw_durable_artifacts import LOGICAL_ROOTS
     import probe_gdw_runtime_base as base
-    _require(type(_inspect_only) is bool and type(_reconcile_only) is bool
-        and not (_inspect_only and _reconcile_only), "ACQUISITION_REQUEST_INVALID")
-    deadline = time.monotonic() + (INSPECTION_SECONDS if _inspect_only or _reconcile_only else MAX_SECONDS)
-    if _inspect_only or _reconcile_only:
+    modes = (_inspect_only, _reconcile_only, _reconcile_62ca_only)
+    _require(all(type(value) is bool for value in modes) and sum(modes) <= 1, "ACQUISITION_REQUEST_INVALID")
+    deadline = time.monotonic() + (INSPECTION_SECONDS if any(modes) else MAX_SECONDS)
+    if any(modes):
         _require(request == {}, "ACQUISITION_REQUEST_INVALID")
-        request = {"mode": "INSPECT_HELD" if _inspect_only else "RECONCILE_SUPERVISED", "deadline": deadline - 5}
+        selected = "INSPECT_HELD" if _inspect_only else ("RECONCILE_62CA" if _reconcile_62ca_only else "RECONCILE_SUPERVISED")
+        request = {"mode": selected, "deadline": deadline - 5}
     else:
         request = dict(request, deadline=deadline - 5)
     # Existing native credentials are inherited only by this private worker.
@@ -906,8 +955,8 @@ def run_native(request: dict, *, _inspect_only=False, _reconcile_only=False) -> 
             raise _WorkerHeld(error._output) from None
     _budget(deadline)
     _require(not _inspect_only, "WORKER_FAILURE_REPORT_INVALID")
-    if _reconcile_only:
-        return _reconciliation_report(raw)
+    if _reconcile_only or _reconcile_62ca_only:
+        return _reconciliation_report(raw, _62ca=_reconcile_62ca_only)
     return parse_acquisition_locator(raw)
 
 
@@ -930,6 +979,7 @@ def main(argv=None) -> int:
     mode.add_argument("--acquire", action="store_true")
     mode.add_argument("--inspect-held-acquisition", action="store_true")
     mode.add_argument("--reconcile-supervised-acquisition", action="store_true")
+    mode.add_argument("--reconcile-62ca-acquisition", action="store_true")
     mode.add_argument("--fetch-locator", action="store_true")
     parser.add_argument("--preservation", type=Path)
     parser.add_argument("--qualification", type=Path)
@@ -959,14 +1009,17 @@ def main(argv=None) -> int:
                 "ACQUISITION_REQUEST_INVALID")
             run_native({}, _inspect_only=True)
             raise AcquisitionBlocked("WORKER_FAILURE_REPORT_INVALID")
-        elif args.reconcile_supervised_acquisition:
+        elif args.reconcile_supervised_acquisition or args.reconcile_62ca_acquisition:
             _require(all(getattr(args, name) is None for name in (
                 "preservation", "qualification", "source_artifact_id", "source_artifact_sha256",
                 "qualification_artifact_id", "qualification_artifact_sha256", "acquisition_artifact_id",
                 "acquisition_artifact_sha256", "publisher_script"))
                 and args.github_output is not None and args.github_output.is_absolute(),
                 "ACQUISITION_REQUEST_INVALID")
-            value = _reconciliation_report(canonical(run_native({}, _reconcile_only=True)))
+            if args.reconcile_62ca_acquisition:
+                value = _reconciliation_report(canonical(run_native({}, _reconcile_62ca_only=True)), _62ca=True)
+            else:
+                value = _reconciliation_report(canonical(run_native({}, _reconcile_only=True)))
         elif args.acquire:
             value = run_native({"source_artifact_id": args.source_artifact_id,
                 "source_artifact_sha256": args.source_artifact_sha256,
@@ -990,7 +1043,7 @@ def main(argv=None) -> int:
         if args.classify_prerequisites and args.github_output is not None:
             with args.github_output.open("a", encoding="ascii") as stream:
                 stream.write("mode=managed-recovery\n")
-        if args.reconcile_supervised_acquisition:
+        if args.reconcile_supervised_acquisition or args.reconcile_62ca_acquisition:
             with args.github_output.open("a", encoding="ascii") as stream:
                 stream.write("admitted=true\n")
         print(json.dumps({"schema": value["schema"], "state": value["state"], "secret_values_recorded": False}))

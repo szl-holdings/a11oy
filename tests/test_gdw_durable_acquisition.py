@@ -29,7 +29,7 @@ def cli_sibling_modules(monkeypatch):
     # restores all aliases after each test; application imports are unchanged.
     for name in ("preserve_hf_gdw_store", "gdw_orphan_forensics",
                  "qualify_gdw_store_recovery", "gdw_acquisition_evidence", "probe_gdw_runtime_base", "inspect_gdw_held_acquisition", "inspect_gdw_62ca_acquisition",
-                 "reconcile_gdw_supervised_acquisition"):
+                 "reconcile_gdw_supervised_acquisition", "reconcile_gdw_62ca_supervised_acquisition"):
         module = importlib.import_module("scripts." + name)
         monkeypatch.setitem(sys.modules, name, module)
 
@@ -394,7 +394,37 @@ def native_acquisition(stores, tmp_path, monkeypatch):
         require_owned_source=owned, require_prewrite_reconciliation=reconcile,
         deadline=time.monotonic() + 20,
         operation_factory=lambda **kwargs: SimpleNamespace(**kwargs))
+    from scripts import reconcile_gdw_62ca_supervised_acquisition as reconciliation
+    # Synthetic binding only. The real CLI must obtain it through the native
+    # candidate scan; this offline fixture grants no provider authority.
+    scan_context = {"source_revision": record["source"]["revision"], "run_id": record["source"]["run_id"],
+        "run_attempt": 1, "job_id": record["source"]["job_id"], "job_key": "durable-acquisition",
+        "source_admission_artifact_id": 1234, "source_admission_archive_sha256": "a" * 64,
+        "source_admission_sha256": "b" * 64}
+    candidates = {label: {"sha256": row["candidate_sha256"], "size": row["candidate_bytes"]}
+        for label, row in report["databases"].items()}
+    arguments["_fresh_retained_scan"] = reconciliation._scan_report(scan_context, candidates, "c" * 64)
     return SimpleNamespace(api=api, arguments=arguments, events=events, originals=original_bytes, paths=stores.paths)
+
+
+@pytest.mark.parametrize("defect", ["missing", "source", "run", "attempt", "job", "gdw", "series_a", "objects", "historical"])
+def test_pair_cannot_publish_without_exact_native_scan_binding(native_acquisition, defect):
+    state = native_acquisition
+    scan = state.arguments["_fresh_retained_scan"]
+    if defect == "missing": state.arguments.pop("_fresh_retained_scan")
+    if defect == "source": scan["source_revision"] = "c" * 40
+    if defect == "run": scan["run_id"] += 1
+    if defect == "attempt": scan["run_attempt"] = 2
+    if defect == "job": scan["job_id"] += 1
+    if defect in {"gdw", "series_a"}: scan["candidates"][defect]["sha256"] = "d" * 64
+    if defect == "objects": scan["present_object_count"] = 1
+    if defect == "historical":
+        from scripts import reconcile_gdw_62ca_retained_observation as retained
+        state.arguments["_fresh_retained_scan"] = retained._verified_summary()
+    from scripts import reconcile_gdw_62ca_supervised_acquisition as reconciliation
+    with pytest.raises((acquisition.AcquisitionBlocked, reconciliation.ReconciliationHeld)):
+        acquisition.acquire_pair(state.api, **state.arguments)
+    assert state.api.additions == state.api.commits == []
 
 
 def test_real_pair_artifacts_restore_and_absent_bootstrap_are_acknowledged_together(native_acquisition):
@@ -873,6 +903,77 @@ def supervised_report(monkeypatch):
         "GITHUB_RUN_ATTEMPT": "1", "GITHUB_JOB": context["job_key"]}.items():
         monkeypatch.setenv(key, value)
     return reconciliation._report(context)
+
+
+def supervised_62ca_report(monkeypatch):
+    from scripts import reconcile_gdw_62ca_supervised_acquisition as reconciliation
+    context = {"source_revision": "b" * 40, "run_id": 123, "run_attempt": 1,
+        "job_id": 456, "job_key": "recovery-reconciliation",
+        "source_admission_artifact_id": 789, "source_admission_archive_sha256": "c" * 64,
+        "source_admission_sha256": "d" * 64}
+    for key, value in {"GITHUB_SHA": context["source_revision"], "GITHUB_RUN_ID": "123",
+        "GITHUB_RUN_ATTEMPT": "1", "GITHUB_JOB": context["job_key"]}.items():
+        monkeypatch.setenv(key, value)
+    return reconciliation._report(context)
+
+
+def test_62ca_parent_has_distinct_fixed_mode_and_hard_120_second_boundary(monkeypatch):
+    from scripts import probe_gdw_runtime_base as base
+    report = supervised_62ca_report(monkeypatch)
+    observed = {}
+    def transport(*_args, **kwargs):
+        observed.update(kwargs)
+        return acquisition.canonical(report)
+    monkeypatch.setattr(base, "_run", transport)
+    started = time.monotonic()
+    assert acquisition.run_native({}, _reconcile_62ca_only=True) == report
+    request = json.loads(observed["input_bytes"])
+    assert set(request) == {"mode", "deadline"} and request["mode"] == "RECONCILE_62CA"
+    assert 119 <= observed["deadline"] - started <= 120.1
+    assert observed["deadline"] - request["deadline"] == 5
+    assert observed["_capture_failure"] is True
+    assert "PYTHONPATH" not in observed["env"] and "HF_ENDPOINT" not in observed["env"]
+    for options in ({"_inspect_only": True}, {"_reconcile_only": True}, {"_reconcile_62ca_only": 1}):
+        selected = dict(_reconcile_62ca_only=True, **{key: value for key, value in options.items()
+            if key != "_reconcile_62ca_only"})
+        if "_reconcile_62ca_only" in options:
+            selected["_reconcile_62ca_only"] = options["_reconcile_62ca_only"]
+        with pytest.raises(acquisition.AcquisitionBlocked, match="ACQUISITION_REQUEST_INVALID"):
+            acquisition.run_native({}, **selected)
+
+
+@pytest.mark.parametrize("defect", ["source", "run", "attempt", "job", "extra", "historical", "observation", "numeric_flag"])
+def test_62ca_parent_rejects_historical_unbound_or_admitting_reports(monkeypatch, defect):
+    report = supervised_62ca_report(monkeypatch)
+    if defect == "source": report["source_revision"] = "c" * 40
+    if defect == "run": report["run_id"] = 124
+    if defect == "attempt": report["run_attempt"] = 2
+    if defect == "job": report["job_key"] = "durable-acquisition"
+    if defect == "extra": report["private"] = PRIVATE_FAILURE
+    if defect == "numeric_flag": report["restore_admitted"] = 0
+    if defect == "historical": report = supervised_report(monkeypatch)
+    if defect == "observation":
+        from scripts import reconcile_gdw_62ca_retained_observation as retained
+        report = retained._verified_summary()
+    with pytest.raises(acquisition.AcquisitionBlocked, match="WORKER_FAILURE_REPORT_INVALID"):
+        acquisition._reconciliation_report(acquisition.canonical(report), _62ca=True)
+
+
+def test_62ca_cli_emits_native_admitted_only_after_exact_report_validation(tmp_path, monkeypatch):
+    report = supervised_62ca_report(monkeypatch)
+    observed = []
+    def run(request, **options):
+        observed.append((request, options))
+        return report
+    monkeypatch.setattr(acquisition, "run_native", run)
+    output, decision = tmp_path / "62ca.json", tmp_path / "github-output"
+    assert acquisition.main(["--reconcile-62ca-acquisition", "--output", str(output),
+        "--github-output", str(decision)]) == 0
+    assert observed == [({}, {"_reconcile_62ca_only": True})]
+    assert output.read_bytes() == acquisition.canonical(report)
+    assert decision.read_text() == "admitted=true\n"
+    assert report["retained_object_scan_required_before_pause"] is True
+    assert report["provider_writes_performed"] is report["restore_admitted"] is report["deployment_admitted"] is False
 
 
 def test_reconciliation_parent_accepts_only_bound_exit0_under_120_seconds(monkeypatch):

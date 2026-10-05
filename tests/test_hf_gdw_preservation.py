@@ -483,7 +483,7 @@ def assert_preflight_order(source: str) -> None:
     classifier, metadata = steps[classify[0]], steps[manual[0]]
     assert "if" not in preservation and preservation.get("continue-on-error") is True
     assert preservation["id"] == "preserve_stores"
-    assert "--supervised-acquisition" in preservation["run"].split()
+    assert "--supervised-62ca-acquisition" in preservation["run"].split()
     assert qualification["id"] == "qualify_stores" and qualification.get("continue-on-error") is True
     assert qualification["if"] == "${{ always() && steps.preserve_stores.outcome == 'failure' }}"
     assert set(classifier) == {"name", "id", "if", "run"}
@@ -508,8 +508,9 @@ def assert_preflight_order(source: str) -> None:
     )
 
 
+@pytest.mark.parametrize("new_lane", [False, True])
 @pytest.mark.parametrize("reject_at", [None, 1, 2])
-def test_supervised_preservation_reconciles_before_each_batch(hub, tmp_path, monkeypatch, reject_at):
+def test_supervised_preservation_reconciles_before_each_batch(hub, tmp_path, monkeypatch, reject_at, new_lane):
     originals = dict(hub.files)
     observed = []
     def reconcile(api, evidence, deadline):
@@ -520,10 +521,11 @@ def test_supervised_preservation_reconciles_before_each_batch(hub, tmp_path, mon
             raise RuntimeError(PROVIDER_SECRET)
     import scripts as script_package
     replacement = SimpleNamespace(require_expected_absent=reconcile)
-    monkeypatch.setitem(sys.modules, "scripts.reconcile_gdw_supervised_acquisition", replacement)
-    monkeypatch.setattr(script_package, "reconcile_gdw_supervised_acquisition", replacement, raising=False)
+    fence_name = "reconcile_gdw_62ca_supervised_acquisition" if new_lane else "reconcile_gdw_supervised_acquisition"
+    monkeypatch.setitem(sys.modules, "scripts." + fence_name, replacement)
+    monkeypatch.setattr(script_package, fence_name, replacement, raising=False)
     owned = []
-    guarded = p._SupervisedPreservationHub(hub, SOURCE, lambda: owned.append(True), time.monotonic() + 30)
+    guarded = p._SupervisedPreservationHub(hub, SOURCE, lambda: owned.append(True), time.monotonic() + 30, _62ca=new_lane)
     report = p.preserve(guarded, source_sha=SOURCE, run_id="123", run_attempt="1",
         workspace=tmp_path / "guarded", require_owned_source=lambda: owned.append(True),
         sleep=lambda _: None, nonce=NONCE)
@@ -541,11 +543,12 @@ def test_supervised_preservation_reconciles_before_each_batch(hub, tmp_path, mon
             getattr(guarded, name)
 
 
+@pytest.mark.parametrize("flag", ["--supervised-acquisition", "--supervised-62ca-acquisition"])
 @pytest.mark.parametrize("name,value", [
     ("GITHUB_JOB", "durable-acquisition"), ("GITHUB_EVENT_NAME", "workflow_dispatch"),
     ("GITHUB_RUN_ATTEMPT", "2"), ("GITHUB_WORKFLOW_SHA", "f" * 40),
 ])
-def test_supervised_preservation_rerun_or_wrong_job_holds_before_sdk(tmp_path, monkeypatch, name, value):
+def test_supervised_preservation_rerun_or_wrong_job_holds_before_sdk(tmp_path, monkeypatch, name, value, flag):
     environment = {"GITHUB_ACTIONS": "true", "GITHUB_REPOSITORY": "szl-holdings/a11oy",
         "GITHUB_REF": "refs/heads/main", "GITHUB_SHA": SOURCE,
         "GITHUB_JOB": "manual-prerequisites", "GITHUB_EVENT_NAME": "push",
@@ -555,12 +558,23 @@ def test_supervised_preservation_rerun_or_wrong_job_holds_before_sdk(tmp_path, m
     for key, item in environment.items(): monkeypatch.setenv(key, item)
     monkeypatch.setenv(name, value)
     target = tmp_path / "held.json"
-    monkeypatch.setattr(sys, "argv", ["preserve_hf_gdw_store.py", "--supervised-acquisition", "--output", str(target)])
+    monkeypatch.setattr(sys, "argv", ["preserve_hf_gdw_store.py", flag, "--output", str(target)])
     monkeypatch.setitem(sys.modules, "huggingface_hub", None)
     assert p.main() == 2
     raw = target.read_bytes()
     assert json.loads(raw)["diagnostic_code"] == "SOURCE_CONTEXT_INVALID"
     assert PROVIDER_SECRET.encode() not in raw
+
+
+def test_historical_and_62ca_preservation_modes_are_mutually_exclusive(tmp_path, monkeypatch, capsys):
+    output = tmp_path / "never-created.json"
+    monkeypatch.setattr(sys, "argv", ["preserve_hf_gdw_store.py", "--supervised-acquisition",
+        "--supervised-62ca-acquisition", "--output", str(output)])
+    with pytest.raises(SystemExit) as caught:
+        p.main()
+    assert caught.value.code == 2
+    assert not output.exists()
+    assert "not allowed" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("value", [
@@ -693,9 +707,10 @@ def test_workflow_rejects_widened_or_duplicate_recovery_artifacts(replacement):
         assert_preflight_order(source.replace(original, replacement, 1))
 
 
+@pytest.mark.parametrize("new_lane", [False, True])
 @pytest.mark.parametrize("mode", ["script", "module"])
 @pytest.mark.parametrize("reject_at", [None, 1, 2])
-def test_preservation_native_import_context_and_per_batch_fence(tmp_path, mode, reject_at):
+def test_preservation_native_import_context_and_per_batch_fence(tmp_path, mode, reject_at, new_lane):
     """Real subprocess import semantics; synthetic fence and no remote effects."""
     import subprocess
     checkout = tmp_path / "checkout"
@@ -704,7 +719,8 @@ def test_preservation_native_import_context_and_per_batch_fence(tmp_path, mode, 
     (scripts / "__init__.py").write_text("", encoding="utf-8")
     (scripts / "preserve_hf_gdw_store.py").write_bytes((ROOT / "scripts/preserve_hf_gdw_store.py").read_bytes())
     (checkout / "root_marker.py").write_text("VALUE = 'SOURCE_ROOT'\n", encoding="utf-8")
-    (scripts / "reconcile_gdw_supervised_acquisition.py").write_text(
+    fence_name = "reconcile_gdw_62ca_supervised_acquisition" if new_lane else "reconcile_gdw_supervised_acquisition"
+    (scripts / (fence_name + ".py")).write_text(
         "from root_marker import VALUE\n"
         "calls = []\n"
         "reject_at = None\n"
@@ -732,9 +748,9 @@ class Fake:
 fake = Fake()
 owned = []
 try:
-    from scripts import reconcile_gdw_supervised_acquisition as fence
+    from scripts import REVIEWED_FENCE_MODULE as fence
     fence.reject_at = json.loads(sys.argv[1])
-    guarded = p._SupervisedPreservationHub(fake, 'a'*40, lambda: owned.append(True), time.monotonic()+30)
+    guarded = p._SupervisedPreservationHub(fake, 'a'*40, lambda: owned.append(True), time.monotonic()+30, _62ca=NEW_LANE)
     errors = []
     for _ in range(2):
         try: guarded.batch_bucket_files(bucket_id='fixture-only', copy=[])
@@ -744,7 +760,7 @@ try:
     print(json.dumps({'fences':fence.calls,'provider_calls':len(fake.calls),'owned':len(owned),'errors':errors}))
 except Exception as error:
     print(json.dumps({'import_error':type(error).__name__}))
-'''
+'''.replace("REVIEWED_FENCE_MODULE", fence_name).replace("NEW_LANE", str(new_lane))
     (scripts / "entrypoint_probe.py").write_text(driver, encoding="utf-8")
     unrelated = tmp_path / "unrelated"
     unrelated.mkdir()

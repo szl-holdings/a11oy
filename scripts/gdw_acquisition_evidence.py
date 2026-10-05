@@ -148,6 +148,7 @@ class NativeEvidence:
         self.jobs = {}
         self.started = None
         self.run = None
+        self._core_read_budget = None
 
     def budget(self):
         require(time.monotonic() < self.deadline, "NATIVE_EVIDENCE_DEADLINE")
@@ -156,10 +157,21 @@ class NativeEvidence:
         require(path.startswith("/repos/" + REPOSITORY + "/") and "#" not in path,
                 "GITHUB_READ_SCOPE_INVALID")
         self.budget()
+        self._core_read_budget = None
         try:
             with self.client.stream("GET", API + path, headers={"Authorization": "Bearer " + self.token,
                     "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}) as response:
                 require(response.status_code == 200, "GITHUB_READ_UNAVAILABLE")
+                # Transport-observed metadata only. Missing/malformed headers
+                # never become a guessed allowance or a provider-write lease.
+                fields = {name: response.headers.get("x-ratelimit-" + name, "")
+                          for name in ("limit", "remaining", "reset")}
+                if (response.headers.get("x-ratelimit-resource") == "core"
+                        and all(type(value) is str and re.fullmatch(r"[0-9]{1,12}", value)
+                                for value in fields.values())):
+                    parsed = {name: int(value) for name, value in fields.items()}
+                    if 0 <= parsed["remaining"] <= parsed["limit"] <= 100000 and parsed["limit"] > 0:
+                        self._core_read_budget = dict(parsed, path=path, observed=time.monotonic())
                 data = bytearray()
                 for chunk in response.iter_bytes(chunk_size=8192):
                     self.budget()
@@ -177,6 +189,24 @@ class NativeEvidence:
         require(branch.get("name") == "main" and branch.get("protected") is True
                 and type(branch.get("commit")) is dict and branch["commit"].get("sha") == self.source,
                 "PROTECTED_SOURCE_NO_LONGER_CURRENT")
+
+    def require_remaining_read_budget(self, minimum: int) -> dict:
+        """Fresh main GET + response headers before a finite publication boundary.
+
+        This is not a server reservation: concurrent consumers may spend the
+        allowance. Every later write still needs its own source/fence checks;
+        unknown or ambiguous provider outcomes remain terminal, never retried.
+        """
+        require(type(minimum) is int and 1 <= minimum <= 100000, "GITHUB_READ_BUDGET_UNAVAILABLE")
+        self.require_current_main()
+        value = self._core_read_budget
+        require(type(value) is dict and value.get("path") == f"/repos/{REPOSITORY}/branches/main"
+                and 0 <= time.monotonic() - value["observed"] <= 30
+                and value["reset"] > time.time(), "GITHUB_READ_BUDGET_UNAVAILABLE")
+        require(value["remaining"] >= minimum, "GITHUB_READ_BUDGET_INSUFFICIENT")
+        self.budget()
+        return {"minimum_reads": minimum, "remaining_reads_observed": value["remaining"],
+                "server_reservation_established": False, "provider_writes_performed": False}
 
     def observe_run(self) -> None:
         run = self.request(f"/repos/{REPOSITORY}/actions/runs/{self.run_id}/attempts/{self.attempt}")

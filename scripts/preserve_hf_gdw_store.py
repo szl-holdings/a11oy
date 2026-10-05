@@ -545,11 +545,14 @@ class _SupervisedPreservationHub:
     """
     endpoint = ENDPOINT
 
-    def __init__(self, api, source_sha, require_owned_source, deadline):
+    def __init__(self, api, source_sha, require_owned_source, deadline, *, _62ca=False):
         from types import SimpleNamespace
+        if type(_62ca) is not bool:
+            raise PreservationError("SUPERVISED_RECONCILIATION_REQUIRED")
         self._api = api
         self._evidence = SimpleNamespace(source=source_sha, require_current_main=require_owned_source)
         self._deadline = deadline
+        self._62ca = _62ca
 
     def __getattr__(self, name):
         if name in {"bucket_info", "space_info", "get_space_runtime", "get_bucket_paths_info", "download_bucket_files"}:
@@ -558,7 +561,10 @@ class _SupervisedPreservationHub:
 
     def batch_bucket_files(self, **kwargs):
         try:
-            from scripts import reconcile_gdw_supervised_acquisition as reconciliation
+            if self._62ca:
+                from scripts import reconcile_gdw_62ca_supervised_acquisition as reconciliation
+            else:
+                from scripts import reconcile_gdw_supervised_acquisition as reconciliation
             reconciliation.require_expected_absent(self._api, self._evidence, self._deadline)
         except BaseException:
             raise PreservationError("SUPERVISED_RECONCILIATION_REQUIRED") from None
@@ -577,8 +583,11 @@ def _require_supervised_main(source_sha, github_token):
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--supervised-acquisition", action="store_true")
+    supervised = parser.add_mutually_exclusive_group()
+    supervised.add_argument("--supervised-acquisition", action="store_true")
+    supervised.add_argument("--supervised-62ca-acquisition", action="store_true")
     args = parser.parse_args()
+    supervised_acquisition = args.supervised_acquisition or args.supervised_62ca_acquisition
     # No target, repair, resume, overwrite or admission options exist.
     report: dict[str, Any] = {"schema": SCHEMA, "state": "BLOCKED", "deployment_admitted": False,
                               "diagnostic_code": "SOURCE_CONTEXT_INVALID", "secret_values_recorded": False}
@@ -589,7 +598,7 @@ def main() -> int:
                 or os.environ.get("GITHUB_REF") != "refs/heads/main"):
             raise PreservationError("SOURCE_CONTEXT_INVALID")
         source_sha = os.environ.get("GITHUB_SHA", "")
-        if args.supervised_acquisition and (
+        if supervised_acquisition and (
                 os.environ.get("GITHUB_JOB") != "manual-prerequisites"
                 or os.environ.get("GITHUB_EVENT_NAME") != "push"
                 or os.environ.get("GITHUB_RUN_ATTEMPT") != "1"
@@ -603,7 +612,7 @@ def main() -> int:
         from hf_exact_main_ownership import fetch_main_sha
 
         def require_owned_source() -> None:
-            if args.supervised_acquisition:
+            if supervised_acquisition:
                 _require_supervised_main(source_sha, github_token)
                 return
             if _call(fetch_main_sha, "szl-holdings/a11oy", github_token) != source_sha:
@@ -634,8 +643,9 @@ def main() -> int:
                     raise PreservationError("SDK_VERSION_MISMATCH")
                 set_client_factory(hub_http_client)
                 api = huggingface_hub.HfApi(endpoint=ENDPOINT, token=token)
-                if args.supervised_acquisition:
-                    api = _SupervisedPreservationHub(api, source_sha, require_owned_source, deadline)
+                if supervised_acquisition:
+                    api = _SupervisedPreservationHub(api, source_sha, require_owned_source, deadline,
+                        _62ca=args.supervised_62ca_acquisition)
                 report = preserve(api, source_sha=source_sha,
                                   run_id=os.environ.get("GITHUB_RUN_ID", ""),
                                   run_attempt=os.environ.get("GITHUB_RUN_ATTEMPT", ""),

@@ -91,10 +91,15 @@ CLASSIFIER_RUN = '''python -B scripts/acquire_gdw_durable_storage.py --classify-
 --qualification "${{ runner.temp }}/gdw-store-recovery-qualification.json"
 --github-output "$GITHUB_OUTPUT"
 --output "${{ runner.temp }}/manual-prerequisites.json"'''
-RECONCILIATION_RUN = '''python -B scripts/acquire_gdw_durable_storage.py --reconcile-supervised-acquisition
+RECONCILIATION_RUN = '''python -B scripts/acquire_gdw_durable_storage.py --reconcile-62ca-acquisition
 --github-output "$GITHUB_OUTPUT"
 --output "$RUNNER_TEMP/gdw-supervised-reconciliation.json"'''
-ACQUISITION_RUN = '''python -B scripts/acquire_gdw_durable_storage.py --inspect-held-acquisition
+ACQUISITION_RUN = '''python -B scripts/acquire_gdw_durable_storage.py --acquire
+--source-artifact-id "${{ needs.source-admission.outputs.artifact_id }}"
+--source-artifact-sha256 "${{ needs.source-admission.outputs.artifact_sha256 }}"
+--qualification-artifact-id "${{ needs.manual-prerequisites.outputs.artifact_id }}"
+--qualification-artifact-sha256 "${{ needs.manual-prerequisites.outputs.artifact_sha256 }}"
+--publisher-script "$GITHUB_WORKSPACE/.gdw-source-publisher/.github/scripts/hf_deploy_from_dockerfile.py"
 --output "$RUNNER_TEMP/gdw-durable-acquisition.json"'''
 
 PAIR_CONFIGURATION_RUN = '''python -B scripts/configure_hf_gdw_runtime.py
@@ -120,7 +125,7 @@ def exact_step(actual, expected, diagnostic):
 
 
 def assert_reconciliation_contract(jobs):
-    """Retain the disabled preflight's exact read-only authority and manual ABI."""
+    """Bind the fixed-62ca preflight's exact read-only authority and manual ABI."""
     job = jobs["recovery-reconciliation"]
     if (set(job) != {"name", "needs", "if", "runs-on", "timeout-minutes", "permissions", "outputs", "env", "steps"}
             or job["name"] != "Reconcile the held acquisition before provider mutation"
@@ -136,7 +141,7 @@ def assert_reconciliation_contract(jobs):
          "with": {"python-version": "3.12"}},
         {"name": "Install the exact read-only reconciliation ABI",
          "run": 'python -m pip install --disable-pip-version-check --no-cache-dir "huggingface_hub==1.31.0" "requests==2.32.5" "cryptography==50.0.1"'},
-        {"name": "Require the fixed inspection and unchanged absent private fence", "id": "reconciliation",
+        {"name": "Verify fixed 62ca observation and fresh absent private fence", "id": "reconciliation",
          "run": RECONCILIATION_RUN},
         {"name": "Retain the bounded read-only reconciliation decision", "if": "${{ always() }}", "uses": UPLOAD,
          "with": {"name": "canonical-supervised-reconciliation-${{ github.run_id }}-${{ github.run_attempt }}",
@@ -150,7 +155,7 @@ def assert_reconciliation_contract(jobs):
 
 
 def assert_acquisition_contract(jobs):
-    """The native job selects only fixed inspection; its pair stays disabled."""
+    """Bind the one-shot native acquisition and acknowledged pair configuration."""
     job = jobs["durable-acquisition"]
     if (set(job) != {"name", "needs", "if", "runs-on", "timeout-minutes", "permissions", "outputs", "env", "steps"}
             or job["name"] != "Acquire qualified private storage through the canonical publisher"
@@ -171,17 +176,17 @@ def assert_acquisition_contract(jobs):
          "with": {"python-version": "3.12"}},
         {"name": "Install the exact managed acquisition ABI",
          "run": 'python -m pip install --disable-pip-version-check --no-cache-dir "huggingface_hub==1.31.0" "requests==2.32.5" "cryptography==50.0.1"'},
-        {"name": "Inspect the held prior acquisition without provider mutation", "run": ACQUISITION_RUN},
+        {"name": "Reconcile again, verify native candidates, and acquire private storage once", "id": "acquire_pair", "run": ACQUISITION_RUN},
         {"name": "Install the persistent old-source guard and both managed configurations once",
-         "if": "${{ github.ref == 'refs/heads/main' && false }}", "run": PAIR_CONFIGURATION_RUN},
-        {"name": "Retain only the bounded inspection metadata report", "id": "acquisition_artifact",
+         "if": "${{ github.event_name == 'push' && github.run_attempt == 1 && github.ref == 'refs/heads/main' && steps.acquire_pair.outcome == 'success' }}", "run": PAIR_CONFIGURATION_RUN},
+        {"name": "Retain only the bounded acquisition and configuration metadata", "id": "acquisition_artifact",
          "if": "${{ always() }}", "uses": UPLOAD,
          "with": {"name": "canonical-durable-acquisition-${{ github.run_id }}-${{ github.run_attempt }}",
-                  "path": "${{ runner.temp }}/gdw-durable-acquisition.json",
+                  "path": "${{ runner.temp }}/gdw-durable-acquisition.json\n${{ runner.temp }}/gdw-managed-configuration.json",
                   "if-no-files-found": "error", "retention-days": "90"}},
     ]
     if len(job["steps"]) != len(expected_steps):
-        raise WorkflowContractError("acquisition must retain its exact source, held inspection, disabled pair and artifact order")
+        raise WorkflowContractError("acquisition must retain its exact source, acknowledged pair and safe artifact order")
     for actual, expected in zip(job["steps"], expected_steps):
         exact_step(actual, expected, "acquisition exact step contract: " + expected["name"])
     runtime = jobs["runtime-config"]
@@ -288,7 +293,7 @@ python3 -B scripts/hf_exact_main_ownership.py \
         "run": 'python -m pip install --disable-pip-version-check "huggingface_hub==1.23.0" "requests==2.32.5" "cryptography==50.0.1"'},
         "manual interpreter must retain the exact 1.23 metadata dependencies")
     preservation = named_step(job, "Preserve stopped private stores before any runtime mutation")
-    expected_preservation = 'python -B scripts/preserve_hf_gdw_store.py --supervised-acquisition --output "${{ runner.temp }}/gdw-store-preservation.json"'
+    expected_preservation = 'python -B scripts/preserve_hf_gdw_store.py --supervised-62ca-acquisition --output "${{ runner.temp }}/gdw-store-preservation.json"'
     if (set(preservation) != {"name", "id", "continue-on-error", "run"}
             or preservation.get("id") != "preserve_stores"
             or preservation.get("continue-on-error") is not True
@@ -559,18 +564,18 @@ class ManualPrerequisiteWorkflowTests(unittest.TestCase):
         start = self.source.index("  recovery-reconciliation:\n")
         end = self.source.index("  manual-prerequisites:\n", start)
         job = self.source[start:end]
-        marker = "      - name: Require the fixed inspection and unchanged absent private fence\n"
+        marker = "      - name: Verify fixed 62ca observation and fresh absent private fence\n"
         mutations = (
             ("      contents: read\n", "      contents: write\n"),
             ("      actions: read\n", "      actions: write\n"),
             ("      actions: read\n", "      actions: read\n      id-token: write\n"),
             ("${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}", "${{ secrets.ALTERNATE_TOKEN }}"),
             ('      PYTHONDONTWRITEBYTECODE: "1"\n', '      PYTHONDONTWRITEBYTECODE: "1"\n      EXTRA_TOKEN: ${{ secrets.EXTRA_TOKEN }}\n'),
-            ("--reconcile-supervised-acquisition", "--acquire"),
-            ("--reconcile-supervised-acquisition", "--inspect-held-acquisition"),
-            ("--reconcile-supervised-acquisition", "--reconcile-supervised-acquisition --source-artifact-id 1"),
-            ("--reconcile-supervised-acquisition", "--reconcile-supervised-acquisition --retry"),
-            ("--reconcile-supervised-acquisition", "--reconcile-supervised-acquisition --repo-id SZLHOLDINGS/another-space"),
+            ("--reconcile-62ca-acquisition", "--acquire"),
+            ("--reconcile-62ca-acquisition", "--inspect-held-acquisition"),
+            ("--reconcile-62ca-acquisition", "--reconcile-62ca-acquisition --source-artifact-id 1"),
+            ("--reconcile-62ca-acquisition", "--reconcile-62ca-acquisition --retry"),
+            ("--reconcile-62ca-acquisition", "--reconcile-62ca-acquisition --repo-id SZLHOLDINGS/another-space"),
             ('--github-output "$GITHUB_OUTPUT"', '--github-output "$RUNNER_TEMP/forged-admission"'),
             ('--output "$RUNNER_TEMP/gdw-supervised-reconciliation.json"', '--output "$RUNNER_TEMP/gdw-supervised-reconciliation.json" || true'),
             ("scripts/acquire_gdw_durable_storage.py", "scripts/unreviewed_reconciliation.py"),
@@ -617,7 +622,7 @@ class ManualPrerequisiteWorkflowTests(unittest.TestCase):
         start = self.source.index("  recovery-reconciliation:\n")
         end = self.source.index("  manual-prerequisites:\n", start)
         job = self.source[start:end]
-        check_start = job.index("      - name: Require the fixed inspection")
+        check_start = job.index("      - name: Verify fixed 62ca observation")
         check_end = job.index("      - name: Retain the bounded read-only", check_start)
         check = job[check_start:check_end]
         removed = job[:check_start] + job[check_end:]
@@ -637,8 +642,8 @@ class ManualPrerequisiteWorkflowTests(unittest.TestCase):
             ("scripts/preserve_hf_gdw_store.py", "scripts/unreviewed_preservation.py"),
             ("scripts/preserve_hf_gdw_store.py", "scripts/preserve_hf_gdw_store.py --bucket SZLHOLDINGS/another-bucket"),
             ("scripts/preserve_hf_gdw_store.py", "scripts/preserve_hf_gdw_store.py --overwrite"),
-            ("          --supervised-acquisition\n", ""),
-            ("          --supervised-acquisition\n", "          --supervised-acquisition --supervised-acquisition\n"),
+            ("          --supervised-62ca-acquisition\n", ""),
+            ("          --supervised-62ca-acquisition\n", "          --supervised-62ca-acquisition --supervised-62ca-acquisition\n"),
             ('--output "${{ runner.temp }}/gdw-store-preservation.json"', '--output "${{ runner.temp }}/gdw-store-preservation.json" || true'),
             (marker, marker + "        if: false\n"),
             ("        id: preserve_stores\n        continue-on-error: true\n", "        id: preserve_stores\n        continue-on-error: false\n"),
@@ -872,32 +877,37 @@ class ManualPrerequisiteWorkflowTests(unittest.TestCase):
                 with self.assertRaisesRegex(WorkflowContractError, "classifier|metadata cannot emit authority|manual interpreter"):
                     assert_manual_step_contract(self.source.replace(before, after, 1))
 
-    def test_inspection_keeps_native_identity_disabled_pair_and_private_artifact_scope(self):
+    def test_acquisition_keeps_native_same_run_inputs_successful_pair_and_private_artifact_scope(self):
         start = self.source.index("  durable-acquisition:\n")
         end = self.source.index("  resume-paused-space:\n", start)
         job = self.source[start:end]
+        pair_condition = "${{ github.event_name == 'push' && github.run_attempt == 1 && github.ref == 'refs/heads/main' && steps.acquire_pair.outcome == 'success' }}"
         mutations = (
             ("      actions: read", "      actions: write"),
             ("          ref: e3ec47ad2e99a535839afe0f30fefbd8973d52da", "          ref: main"),
-            ("--inspect-held-acquisition", '--inspect-held-acquisition --source-artifact-id "1"'),
-            ("--inspect-held-acquisition", '--inspect-held-acquisition --source-artifact-sha256 "unreviewed"'),
-            ("--inspect-held-acquisition", '--inspect-held-acquisition --qualification-artifact-id "1"'),
-            ("--inspect-held-acquisition", '--inspect-held-acquisition --qualification-artifact-sha256 "unreviewed"'),
-            ("--inspect-held-acquisition", '--inspect-held-acquisition --publisher-script "$GITHUB_WORKSPACE/scripts/unreviewed.py"'),
-            ("--inspect-held-acquisition", '--inspect-held-acquisition --github-output "$GITHUB_OUTPUT"'),
-            ("--inspect-held-acquisition", '--inspect-held-acquisition --retry'),
-            ("scripts/acquire_gdw_durable_storage.py --inspect-held-acquisition", "scripts/unknown.py --inspect-held-acquisition"),
-            ("--inspect-held-acquisition", "--acquire"),
-            ("--inspect-held-acquisition", "--fetch-locator"),
-            ("--inspect-held-acquisition", "--reconcile-supervised-acquisition"),
+            ("--acquire", "--inspect-held-acquisition"),
+            ("--acquire", "--fetch-locator"),
+            ("--acquire", "--reconcile-supervised-acquisition"),
+            ("--acquire", "--reconcile-62ca-acquisition"),
+            ("--acquire", "--acquire --retry"),
+            ('--source-artifact-id "${{ needs.source-admission.outputs.artifact_id }}"', '--source-artifact-id "1"'),
+            ('--source-artifact-sha256 "${{ needs.source-admission.outputs.artifact_sha256 }}"', '--source-artifact-sha256 "unreviewed"'),
+            ('--qualification-artifact-id "${{ needs.manual-prerequisites.outputs.artifact_id }}"', '--qualification-artifact-id "1"'),
+            ('--qualification-artifact-sha256 "${{ needs.manual-prerequisites.outputs.artifact_sha256 }}"', '--qualification-artifact-sha256 "unreviewed"'),
+            ("/.gdw-source-publisher/.github/scripts/hf_deploy_from_dockerfile.py", "/.gdw-source-publisher/scripts/hf_deploy_from_dockerfile.py"),
+            ("scripts/acquire_gdw_durable_storage.py --acquire", "scripts/unknown.py --acquire"),
             ('--output "$RUNNER_TEMP/gdw-durable-acquisition.json"', '--output "$RUNNER_TEMP/gdw-durable-acquisition.json" || true'),
-            ("        if: ${{ github.ref == 'refs/heads/main' && false }}\n", "        if: ${{ always() }}\n"),
-            ("        if: ${{ github.ref == 'refs/heads/main' && false }}\n", ""),
-            ("        if: ${{ github.ref == 'refs/heads/main' && false }}\n", "        if: ${{ github.ref == 'refs/heads/main' && true }}\n"),
+            ("        id: acquire_pair\n", "        id: unknown_acquisition\n"),
+            ("        if: " + pair_condition + "\n", "        if: ${{ always() }}\n"),
+            ("        if: " + pair_condition + "\n", ""),
+            (pair_condition, pair_condition.replace("github.run_attempt == 1", "github.run_attempt >= 1")),
+            (pair_condition, pair_condition.replace("steps.acquire_pair.outcome == 'success'", "true")),
             ("scripts/configure_hf_gdw_runtime.py", "scripts/configure_hf_series_a_runtime.py"),
             ("--managed-deadline-seconds 120", "--managed-deadline-seconds 120 --force"),
             ('--output "$RUNNER_TEMP/gdw-managed-configuration.json"', '--output "$RUNNER_TEMP/gdw-managed-configuration.json" || true'),
-            ("          path: ${{ runner.temp }}/gdw-durable-acquisition.json", "          path: ${{ runner.temp }}/**"),
+            ("            ${{ runner.temp }}/gdw-durable-acquisition.json\n", "            ${{ runner.temp }}/**\n"),
+            ("            ${{ runner.temp }}/gdw-managed-configuration.json\n", ""),
+            ("            ${{ runner.temp }}/gdw-managed-configuration.json\n", "            ${{ runner.temp }}/candidate.sqlite3\n"),
             ("        id: acquisition_artifact", "        id: arbitrary_artifact"),
         )
         for before, after in mutations:
@@ -911,10 +921,10 @@ class ManualPrerequisiteWorkflowTests(unittest.TestCase):
         end = self.source.index("  resume-paused-space:\n", start)
         job = self.source[start:end]
         config_start = job.index("      - name: Install the persistent old-source guard")
-        config_end = job.index("      - name: Retain only the bounded inspection metadata report", config_start)
+        config_end = job.index("      - name: Retain only the bounded acquisition and configuration metadata", config_start)
         config = job[config_start:config_end]
         removed = job[:config_start] + job[config_end:]
-        acquire_marker = "      - name: Inspect the held prior acquisition without provider mutation"
+        acquire_marker = "      - name: Reconcile again, verify native candidates, and acquire private storage once"
         for candidate in (removed, job.replace(config, config + config, 1),
                           removed.replace(acquire_marker, config + acquire_marker, 1)):
             with self.subTest(candidate=candidate), self.assertRaisesRegex(WorkflowContractError, "acquisition"):
