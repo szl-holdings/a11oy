@@ -13,9 +13,9 @@ import gdw_durable_storage as storage
 from scripts import gdw_acquisition_evidence as native
 from scripts import reconcile_gdw_supervised_acquisition as supervised
 
-# Exact public metadata-only GitHub artifact11324262380, not private-store bytes.
+# Exact public metadata-only GitHub artifact11324359120, not private-store bytes.
 ARCHIVE = base64.b64decode(
-    "UEsDBBQACAAIAEoeRV0AAAAAAAAAAAAAAAAcAAAAZ2R3LWR1cmFibGUtYWNxdWlzaXRpb24uanNvbmVR0Y7TMBB85zP83EJiO4mdt8BF4qSjnGiExJNle9fUpyQOttPTgfh3FFBRoW+rmR3t7MwPomHyKfkwq3TStKpJO6/juCN21Cl5563OPsykJd3bY38YyI6AzjphVhHPPv3hABiH2hSGFiBLYa2oqRCiYEVVSygYSKmlYc2mxmUMLxPOWW2nc0YgrdNjwh05oYb/bEwBkLTk/nB87N8N6uPh4QvZkSX6ENVTMMoDacuyrCrJKReNvHBxnZXOGaclk7a8RjcFayjnTHJR8guVwhot/vNUXWrBBIqmZq6qCwADZcmM00wKx42puaOM099+wtkDRhXME9qc1Bmjd/7qtb8bz9FnTGrB6EKcrjYiphwi3qYSMceXWzjZE06atCR9H19/hef9CUfYa/tt9clvne39nBa02/jmXJJNEZYtzMdP95+7oVd33dAd+0F96Idumy/pJrQRszrrccWkItoQ4frwTVIGwVJXVZrWaCSHhlYMqDN1IyXX1DJomGN2qz9lnTcP7/uHO/Lz1S9QSwcI3vEP8YoBAACAAgAAUEsBAi0DFAAIAAgASh5FXd7xD/GKAQAAgAIAABwAAAAAAAAAAAAgAICBAAAAAGdkdy1kdXJhYmxlLWFjcXVpc2l0aW9uLmpzb25QSwUGAAAAAAEAAQBKAAAA1AEAAAAA"
+    "UEsDBBQACAAIAFsiRV0AAAAAAAAAAAAAAAAcAAAAZ2R3LWR1cmFibGUtYWNxdWlzaXRpb24uanNvbmVRwY7TMBC98xk+txDbiWPnFthIrLSUFY2QOFkTe0K9SuJgO10tiH9HBhUVehvNmzfz3psfBOzsYnR+0fEErBKkWbZp2hEzQYxudAaS8wtpSPv22B16siMWEkRMOuDZxT+Ytby0YigGVlhFpTFSMCllwYtKKFtwqxSogdeZjevkX2Zcks6nU0JLmhGmiDtyQrD/yZi9RdKQ+8PxsXvX64+Hhy9kR9bgfNBPftDOkoZSWlWqZKWs1QUL26IhJZzXRBp63c0MXrOy5KqUtLxA0W/B4D+mBAXJJcpa8LEShbWDpZQPI3Alx3IYRDkyXrLfevzZWQzaD09oUtRnDG50V9b+TjwHlzDqFcPow3w1ETAmH/A2lYApvNy2oznhDKQh8fv0+qt93p9wsnsw3zYXXf7Z3i1xRZPLN2dKMsOvOczHT/ef277Td23fHrtef+j6NteXdCOagEmfYdow6oDGB3t9+CYpEAVlFYycCwRVg2FK1BJqRWlheIGmoIyhUnl3gpQ1vO8e7sjPV78AUEsHCOaYXLKLAQAAgAIAAFBLAQItAxQACAAIAFsiRV3mmFyyiwEAAIACAAAcAAAAAAAAAAAAIACAgQAAAABnZHctZHVyYWJsZS1hY3F1aXNpdGlvbi5qc29uUEsFBgAAAAABAAEASgAAANUBAAAAAA=="
 )
 
 
@@ -31,18 +31,18 @@ def fixture(monkeypatch, job_key=supervised.RECONCILIATION_JOB_KEY):
         "event": "push", "head_sha": env["GITHUB_SHA"], "head_branch": "main",
         "repository": {"id": supervised.REPOSITORY_ID, "full_name": native.REPOSITORY},
         "head_repository": {"id": supervised.REPOSITORY_ID},
-        "status": "in_progress", "conclusion": None, "run_started_at": "2026-10-05T00:30:00Z"}
+        "status": "in_progress", "conclusion": None, "run_started_at": "2026-10-05T04:19:00Z"}
     job = {"id": 901, "name": supervised.JOB_NAMES[job_key], "run_id": 900, "run_attempt": 1,
         "head_sha": env["GITHUB_SHA"], "status": "in_progress", "conclusion": None,
-        "started_at": "2026-10-05T00:30:01Z", "completed_at": None}
+        "started_at": "2026-10-05T04:19:01Z", "completed_at": None}
     jobs = {"total_count": 2, "jobs": [job, dict(job, id=902, name=native.SOURCE_JOB,
-        status="completed", conclusion="success", completed_at="2026-10-05T00:30:01Z")]}
+        status="completed", conclusion="success", completed_at="2026-10-05T04:19:01Z")]}
     previous_run = dict(copy.deepcopy(run), id=supervised.INSPECTION_RUN, head_sha=supervised.PARENT_SOURCE,
-        status="completed", conclusion="failure", run_started_at="2026-10-05T03:49:54Z")
+        status="completed", conclusion="failure", run_started_at="2026-10-05T04:18:26Z")
     previous_job = {"id": supervised.INSPECTION_JOB, "run_id": supervised.INSPECTION_RUN,
         "run_attempt": 1, "head_sha": supervised.PARENT_SOURCE, "name": native.ACQUISITION_JOB,
-        "status": "completed", "conclusion": "failure", "started_at": "2026-10-05T03:50:09Z",
-        "completed_at": "2026-10-05T03:50:23Z", "steps": [
+        "status": "completed", "conclusion": "failure", "started_at": "2026-10-05T04:18:42Z",
+        "completed_at": "2026-10-05T04:18:57Z", "steps": [
             {"name": "Inspect the held prior acquisition without provider mutation", "conclusion": "failure"},
             {"name": "Install the persistent old-source guard and both managed configurations once", "conclusion": "skipped"},
             {"name": "Retain only the immutable selector and safe guarded configuration result", "conclusion": "success"}]}
@@ -51,8 +51,8 @@ def fixture(monkeypatch, job_key=supervised.RECONCILIATION_JOB_KEY):
              conclusion="success", steps=[])] + [dict(previous_job, id=100 + i, name=f"skipped-{i}",
                 conclusion="skipped", steps=[]) for i in range(11)]}
     meta = {"id": supervised.ARTIFACT_ID, "expired": False,
-        "name": f"canonical-durable-acquisition-{supervised.INSPECTION_RUN}-1", "size_in_bytes": 564,
-        "digest": "sha256:" + supervised.ARCHIVE_SHA256, "created_at": "2026-10-05T03:50:21Z",
+        "name": f"canonical-durable-acquisition-{supervised.INSPECTION_RUN}-1", "size_in_bytes": 565,
+        "digest": "sha256:" + supervised.ARCHIVE_SHA256, "created_at": "2026-10-05T04:18:55Z",
         "workflow_run": {"id": supervised.INSPECTION_RUN, "head_sha": supervised.PARENT_SOURCE,
             "head_branch": "main", "repository_id": supervised.REPOSITORY_ID,
             "head_repository_id": supervised.REPOSITORY_ID}}
@@ -92,7 +92,7 @@ def fixture(monkeypatch, job_key=supervised.RECONCILIATION_JOB_KEY):
 @pytest.mark.parametrize("job_key", tuple(supervised.JOB_NAMES))
 def test_real_native_reader_binds_exact_archived_inspection_and_unique_successor(monkeypatch, job_key):
     evidence, state, calls = fixture(monkeypatch, job_key)
-    assert len(ARCHIVE) == 564 and hashlib.sha256(ARCHIVE).hexdigest() == supervised.ARCHIVE_SHA256
+    assert len(ARCHIVE) == 565 and hashlib.sha256(ARCHIVE).hexdigest() == supervised.ARCHIVE_SHA256
     result = supervised.verify_native_prerequisite(evidence)
     assert result == {"source_revision": "a" * 40, "run_id": 900, "run_attempt": 1,
         "job_id": 901, "job_key": job_key}

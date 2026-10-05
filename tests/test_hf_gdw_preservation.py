@@ -518,8 +518,10 @@ def test_supervised_preservation_reconciles_before_each_batch(hub, tmp_path, mon
         observed.append(len(hub.batch_calls))
         if len(observed) == reject_at:
             raise RuntimeError(PROVIDER_SECRET)
-    monkeypatch.setitem(sys.modules, "reconcile_gdw_supervised_acquisition",
-        SimpleNamespace(require_expected_absent=reconcile))
+    import scripts as script_package
+    replacement = SimpleNamespace(require_expected_absent=reconcile)
+    monkeypatch.setitem(sys.modules, "scripts.reconcile_gdw_supervised_acquisition", replacement)
+    monkeypatch.setattr(script_package, "reconcile_gdw_supervised_acquisition", replacement, raising=False)
     owned = []
     guarded = p._SupervisedPreservationHub(hub, SOURCE, lambda: owned.append(True), time.monotonic() + 30)
     report = p.preserve(guarded, source_sha=SOURCE, run_id="123", run_attempt="1",
@@ -689,3 +691,75 @@ def test_workflow_rejects_widened_or_duplicate_recovery_artifacts(replacement):
     assert original in source
     with pytest.raises(AssertionError):
         assert_preflight_order(source.replace(original, replacement, 1))
+
+
+@pytest.mark.parametrize("mode", ["script", "module"])
+@pytest.mark.parametrize("reject_at", [None, 1, 2])
+def test_preservation_native_import_context_and_per_batch_fence(tmp_path, mode, reject_at):
+    """Real subprocess import semantics; synthetic fence and no remote effects."""
+    import subprocess
+    checkout = tmp_path / "checkout"
+    scripts = checkout / "scripts"
+    scripts.mkdir(parents=True)
+    (scripts / "__init__.py").write_text("", encoding="utf-8")
+    (scripts / "preserve_hf_gdw_store.py").write_bytes((ROOT / "scripts/preserve_hf_gdw_store.py").read_bytes())
+    (checkout / "root_marker.py").write_text("VALUE = 'SOURCE_ROOT'\n", encoding="utf-8")
+    (scripts / "reconcile_gdw_supervised_acquisition.py").write_text(
+        "from root_marker import VALUE\n"
+        "calls = []\n"
+        "reject_at = None\n"
+        "def require_expected_absent(api, evidence, deadline):\n"
+        "    assert VALUE == 'SOURCE_ROOT'\n"
+        "    evidence.require_current_main()\n"
+        "    calls.append(len(api.calls))\n"
+        "    if len(calls) == reject_at:\n"
+        "        raise RuntimeError('SYNTHETIC_PRIVATE_ERROR_MUST_NOT_ESCAPE')\n",
+        encoding="utf-8",
+    )
+    imported = "import preserve_hf_gdw_store as p" if mode == "script" else "from scripts import preserve_hf_gdw_store as p"
+    driver = imported + "\n" + r'''
+import json, sys, time
+
+def no_network(event, args):
+    if event.startswith('socket.'):
+        raise AssertionError('NETWORK_NOT_PERMITTED')
+sys.addaudithook(no_network)
+class Fake:
+    def __init__(self): self.calls = []
+    def batch_bucket_files(self, **kwargs):
+        self.calls.append(kwargs)
+        return 'SYNTHETIC_ONLY'
+fake = Fake()
+owned = []
+try:
+    from scripts import reconcile_gdw_supervised_acquisition as fence
+    fence.reject_at = json.loads(sys.argv[1])
+    guarded = p._SupervisedPreservationHub(fake, 'a'*40, lambda: owned.append(True), time.monotonic()+30)
+    errors = []
+    for _ in range(2):
+        try: guarded.batch_bucket_files(bucket_id='fixture-only', copy=[])
+        except Exception as error:
+            errors.append({'type':type(error).__name__, 'code':str(error)})
+            break
+    print(json.dumps({'fences':fence.calls,'provider_calls':len(fake.calls),'owned':len(owned),'errors':errors}))
+except Exception as error:
+    print(json.dumps({'import_error':type(error).__name__}))
+'''
+    (scripts / "entrypoint_probe.py").write_text(driver, encoding="utf-8")
+    unrelated = tmp_path / "unrelated"
+    unrelated.mkdir()
+    (unrelated / "root_marker.py").write_text("raise AssertionError('CWD_SHADOW_IMPORTED')\n", encoding="utf-8")
+    environment = {k: v for k, v in os.environ.items() if k.upper() in {"PATH", "SYSTEMROOT", "WINDIR", "TEMP", "TMP"}}
+    environment.update(PYTHONDONTWRITEBYTECODE="1", PYTHONNOUSERSITE="1")
+    command = [sys.executable, "-B"]
+    command += [str(scripts / "entrypoint_probe.py")] if mode == "script" else ["-m", "scripts.entrypoint_probe"]
+    command.append(json.dumps(reject_at))
+    result = subprocess.run(command, cwd=unrelated if mode == "script" else checkout,
+                            env=environment, capture_output=True, text=True, timeout=15)
+    assert result.returncode == 0 and not result.stderr
+    value = json.loads(result.stdout)
+    assert value.get("fences") == ([0] if reject_at == 1 else [0, 1]), value
+    assert value["owned"] == (1 if reject_at == 1 else 2)
+    assert value["provider_calls"] == (2 if reject_at is None else reject_at - 1)
+    assert value["errors"] == ([] if reject_at is None else [{"type":"PreservationError", "code":"SUPERVISED_RECONCILIATION_REQUIRED"}])
+    assert "SYNTHETIC_PRIVATE_ERROR_MUST_NOT_ESCAPE" not in result.stdout
