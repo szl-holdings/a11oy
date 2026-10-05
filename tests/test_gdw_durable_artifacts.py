@@ -204,3 +204,97 @@ def test_all_retained_rows_are_checked_before_any_publication(stores, tmp_path):
     with pytest.raises(durable.DurableStorageUnavailable):
         stores.gate.artifacts.prepare(candidate, time.monotonic() + 10)
     assert len(stores.artifact_publications) == count
+
+
+PRIVATE_DIAGNOSTIC_SENTINEL = "private-owner/payload?credential=do-not-disclose"
+
+
+class _HostileArtifactError(RuntimeError):
+    def __str__(self):
+        raise AssertionError("private error was formatted")
+
+    def __repr__(self):
+        raise AssertionError("private error was represented")
+
+
+@pytest.mark.parametrize("boundary", [
+    "ARTIFACT_DATABASE_OPEN_UNAVAILABLE", "ARTIFACT_SCHEMA_VALIDATION_UNAVAILABLE",
+    "ARTIFACT_ROW_READ_UNAVAILABLE", "ARTIFACT_ROW_VALIDATION_UNAVAILABLE",
+    "ARTIFACT_CACHE_MATERIALIZATION_UNAVAILABLE", "ARTIFACT_NATIVE_BINDING_UNAVAILABLE",
+    "ARTIFACT_PROVIDER_CALL_UNAVAILABLE", "ARTIFACT_PROVIDER_READBACK_UNAVAILABLE",
+])
+def test_artifact_diagnostic_uses_boundary_not_arbitrary_exception(boundary):
+    from gdw_durable_artifacts import _preparation_diagnostic
+    error = _HostileArtifactError(PRIVATE_DIAGNOSTIC_SENTINEL)
+    assert _preparation_diagnostic(error, boundary) == boundary
+    # Even a provider-supplied allowed-looking message is not validation evidence.
+    assert _preparation_diagnostic(RuntimeError("ARTIFACT_RECONSTRUCTION_MISMATCH"), boundary) == boundary
+
+
+def test_artifact_diagnostic_validation_codes_are_closed():
+    from gdw_durable_artifacts import _preparation_diagnostic, _ArtifactValidationBlocked
+    code = "ARTIFACT_RECONSTRUCTION_MISMATCH"
+    assert _preparation_diagnostic(_ArtifactValidationBlocked(code), "ARTIFACT_ROW_VALIDATION_UNAVAILABLE") == code
+    assert _preparation_diagnostic(_ArtifactValidationBlocked(PRIVATE_DIAGNOSTIC_SENTINEL), "invalid") == "ARTIFACT_PERSISTENCE_UNAVAILABLE"
+
+
+@pytest.mark.parametrize("boundary", ["open", "schema", "materialize", "provider"])
+def test_artifact_real_prepare_redacts_private_failures(stores, monkeypatch, boundary):
+    import gdw_durable_artifacts as artifacts
+    from gdw_workspace import GDWWorkspace
+    exported(stores)
+    cache = stores.gate.artifacts
+    calls = []
+    def fail(*args, **kwargs):
+        calls.append(1)
+        raise _HostileArtifactError(PRIVATE_DIAGNOSTIC_SENTINEL)
+    expected = {
+        "open": "ARTIFACT_DATABASE_OPEN_UNAVAILABLE",
+        "schema": "ARTIFACT_SCHEMA_VALIDATION_UNAVAILABLE",
+        "materialize": "ARTIFACT_CACHE_MATERIALIZATION_UNAVAILABLE",
+        "provider": "ARTIFACT_PROVIDER_CALL_UNAVAILABLE",
+    }[boundary]
+    # Undo fault injection before the real storage fixture tears down.
+    with monkeypatch.context() as patch:
+        if boundary == "open": patch.setattr(artifacts.sqlite3, "connect", fail)
+        elif boundary == "schema": patch.setattr(GDWWorkspace, "_validate_schema", fail)
+        elif boundary == "materialize": patch.setattr(cache, "_materialize", fail)
+        else: patch.setattr(cache, "publish", fail)
+        with pytest.raises(durable.DurableStorageUnavailable) as caught:
+            cache.prepare(stores.paths["gdw"], time.monotonic() + 10)
+        assert caught.value.args == (expected,)
+        assert PRIVATE_DIAGNOSTIC_SENTINEL not in str(caught.value)
+        assert caught.value.__suppress_context__ is True
+    assert calls == [1]
+
+
+def test_artifact_bad_readback_reports_fixed_code_without_retry(stores, monkeypatch):
+    exported(stores)
+    cache = stores.gate.artifacts
+    calls = []
+    def bad(*args):
+        calls.append(1)
+        return {"path": PRIVATE_DIAGNOSTIC_SENTINEL, "sha256": "0" * 64}
+    monkeypatch.setattr(cache, "publish", bad)
+    with pytest.raises(durable.DurableStorageUnavailable, match="^ARTIFACT_PUBLICATION_UNVERIFIED$"):
+        cache.prepare(stores.paths["gdw"], time.monotonic() + 10)
+    assert calls == [1]
+
+
+def test_artifact_partial_publication_remains_failure_not_zero_effect_claim(stores, monkeypatch):
+    exported(stores)
+    _queued_proof(stores.gdw, "diagnostic-second-request")
+    assert gdw_runtime.drain_once(limit=1, lease_seconds=30, worker_id="diagnostic-worker", workspace=stores.gdw)["exported"] == 1
+    cache = stores.gate.artifacts
+    original = cache.publish
+    calls = []
+    def partial(*args):
+        calls.append(1)
+        if len(calls) == 2: raise _HostileArtifactError(PRIVATE_DIAGNOSTIC_SENTINEL)
+        return original(*args)
+    monkeypatch.setattr(cache, "publish", partial)
+    before = stores.paths["gdw"].read_bytes()
+    with pytest.raises(durable.DurableStorageUnavailable, match="^ARTIFACT_PROVIDER_CALL_UNAVAILABLE$"):
+        cache.prepare(stores.paths["gdw"], time.monotonic() + 10)
+    assert calls == [1, 1]
+    assert stores.paths["gdw"].read_bytes() == before

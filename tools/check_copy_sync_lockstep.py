@@ -637,7 +637,7 @@ REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
     # include these local imports and fixed dynamic loaders. Runtime-installed
     # application bytes and the remote publisher have their own source-bound
     # manifest contract; this map binds the code that verifies that contract.
-    "scripts/acquire_gdw_durable_storage.py": "e10155802d8a8e8c91f36862540b90fa92e61f45b91d802f193108674f4e8dc9",
+    "scripts/acquire_gdw_durable_storage.py": "6ba3c03acb649abdb2cd0d9260941f83cfcac7376bb8f81f5d2f79b232997ca9",
     "scripts/reconcile_gdw_supervised_acquisition.py": "23dd0478cc06d1881ff7c1469833d0192549807a06d5cf822cf8f6d12fdaa994",
     "scripts/inspect_gdw_held_acquisition.py": "61e0b7d6e8236074ebcbbcc424b34d92f257f0c85608f7adbd640136de9e5dc6",
     "scripts/gdw_acquisition_evidence.py": "7c15e3c774f7bbbee71c9da2255ea92a9d13c5320398c8a8134f1542d1795525",
@@ -653,7 +653,7 @@ REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
     "gdw_durable_source.py": "60a73652c1a4c9fffded55e79534c61840896fbff6438feded569589bde26e14",
     "gdw_durable_guard.py": "33062e1fc067f037d1df3d8f6038d6b8eab72356923f8fb18c22b2697f1b9ae3",
     "gdw_durable_image.py": "bbe71d8aa53494d5e22eac029cf4ecb378cbcb7ac3017b349d373c1d6c27142d",
-    "gdw_durable_artifacts.py": "627efa379baacdd7ac1660c7f3bc9249b46444a83448d2c7fc51c3e8eb12a5e9",
+    "gdw_durable_artifacts.py": "90123c5844de80b647b9f5d017338e4af0d559c6cff33c2c6944f7ffbf69eae3",
     "gdw_auth.py": "c692593e02873f7b71b9a108fa42a9c2ae7f29d455596d9dd0a4236145297e89",
     "gdw_workspace.py": "967652dadaf814afd0caabcc05a037f2f6a941e90b891b4edca25cee748655c8",
     "gdw_proofs.py": "445c9cc5cd38a1660ef815b81ad0f65f68b996b30a479f2c606a12dd8679cc8c",
