@@ -15,7 +15,7 @@ from scripts import reconcile_gdw_supervised_acquisition as supervised
 
 # Exact public metadata-only GitHub artifact11319502797, not private-store bytes.
 ARCHIVE = base64.b64decode(
-    "UEsDBBQACAAIAGIDRV0AAAAAAAAAAAAAAAAcAAAAZ2R3LWR1cmFibGUtYWNxdWlzaXRpb24uanNvbmVRwY7UMAy98xk5z0DTpG3aW2ErsdIyrJgKiVOUxA6TVduUJO1qQfw7KqtBFXOz/Pzs955/EQWji9H5ScaLyouSNNMyDAdiBhWjs86o5PxEGtK+P3ennhwIqKQiJhlwdfEVYwUzRV4wRqGyNQgGpQVaWkWRilyorNYaa602Ns6DfxlxSnI7nRICaawaIh7IBRX8J2P0gKQh96fzY/ehl59PD9/IgczB+SCfvJYOSEMpLYqa51xU9RULyyRVSjjOiTR0390YrMo5ZzUXlF+h6JdgcG8KSqoEEyiqktmizAA0UMq0VawWlmtdcpsznv/V41cHGKTXT2hSlCsGZ93O2r+J5+ASRjljsD6Mu4mAMfmAt6kETOHlth3NBUdFGhJ/Dm+/w/PxggMclfmxuOi2nx3dFGc0W/lupWRj+HkL8/HL/de27+Rd27fnrpefur7d6mu6EU3AJFc1LBhlQOMD7A/fJJVhyXSW0ZJlmhW1FWiV4sbmUHFuMmFYrqsMzLY7qbRp+Ng93JHfb/4AUEsHCD+G/ZqLAQAAgAIAAFBLAQItAxQACAAIAGIDRV0/hv2aiwEAAIACAAAcAAAAAAAAAAAAIACAgQAAAABnZHctZHVyYWJsZS1hY3F1aXNpdGlvbi5qc29uUEsFBgAAAAABAAEASgAAANUBAAAAAA=="
+    "UEsDBBQACAAIAJAZRV0AAAAAAAAAAAAAAAAcAAAAZ2R3LWR1cmFibGUtYWNxdWlzaXRpb24uanNvbmVR0W7UMBB85zP8fAdx7DhO3lIaiUrlqLgIiSfL9q45V0kcbN9VBfHvKK0OHb230cyOdnb2N9Ew+ZR8mFU66LISpJ2P47ghdtQpeeetzj7MpCXdzb7fDWRDQGedMKuIJ59eNQDGQZjClAU0VForRSmlLFhRiQYKBk2jG8Pq1Y3LGJ4nnLNaV+eMQFqnx4QbckANb2JMAZC05G63f+g/DurL7v472ZAl+hDVYzDKA2kppVXV8JLLujlr8TgrnTNOSyYtvWRXB6tLzlnDJeVnKYVjtPjfUYJqySTKWjBXiQLAAKXMOM0a6bgxgruS8fIlTzh5wKiCeUSbkzph9M5fnPZv4in6jEktGF2I08VExJRDxOtWIub4fE0ne8BJk5akX+P7H/C0PeAIW21/Hn3y68+2fk4L2hV+OFGyOsKylvnw9e5bN/Tqthu6fT+oz/3QrfjcbkIbMauTHo+YVEQbIlwuvmqK1w5sJQRnRUXBWNRMMFnU1llKTVVKUzHrypcMWec1w6f+/pb8efcXUEsHCE/7FLaLAQAAgAIAAFBLAQItAxQACAAIAJAZRV1P+xS2iwEAAIACAAAcAAAAAAAAAAAAIACAgQAAAABnZHctZHVyYWJsZS1hY3F1aXNpdGlvbi5qc29uUEsFBgAAAAABAAEASgAAANUBAAAAAA=="
 )
 
 
@@ -38,21 +38,21 @@ def fixture(monkeypatch, job_key=supervised.RECONCILIATION_JOB_KEY):
     jobs = {"total_count": 2, "jobs": [job, dict(job, id=902, name=native.SOURCE_JOB,
         status="completed", conclusion="success", completed_at="2026-10-05T00:30:01Z")]}
     previous_run = dict(copy.deepcopy(run), id=supervised.INSPECTION_RUN, head_sha=supervised.PARENT_SOURCE,
-        status="completed", conclusion="failure", run_started_at="2026-10-05T00:26:39Z")
+        status="completed", conclusion="failure", run_started_at="2026-10-05T03:12:05Z")
     previous_job = {"id": supervised.INSPECTION_JOB, "run_id": supervised.INSPECTION_RUN,
         "run_attempt": 1, "head_sha": supervised.PARENT_SOURCE, "name": native.ACQUISITION_JOB,
-        "status": "completed", "conclusion": "failure", "started_at": "2026-10-05T00:26:52Z",
-        "completed_at": "2026-10-05T00:27:07Z", "steps": [
+        "status": "completed", "conclusion": "failure", "started_at": "2026-10-05T03:12:19Z",
+        "completed_at": "2026-10-05T03:12:35Z", "steps": [
             {"name": "Inspect the held prior acquisition without provider mutation", "conclusion": "failure"},
             {"name": "Install the persistent old-source guard and both managed configurations once", "conclusion": "skipped"},
             {"name": "Retain only the immutable selector and safe guarded configuration result", "conclusion": "success"}]}
-    previous_jobs = {"total_count": 12, "jobs": [previous_job,
+    previous_jobs = {"total_count": 13, "jobs": [previous_job,
         dict(previous_job, id=supervised.INSPECTION_SOURCE_JOB, name=native.SOURCE_JOB,
              conclusion="success", steps=[])] + [dict(previous_job, id=100 + i, name=f"skipped-{i}",
-                conclusion="skipped", steps=[]) for i in range(10)]}
+                conclusion="skipped", steps=[]) for i in range(11)]}
     meta = {"id": supervised.ARTIFACT_ID, "expired": False,
         "name": f"canonical-durable-acquisition-{supervised.INSPECTION_RUN}-1", "size_in_bytes": 565,
-        "digest": "sha256:" + supervised.ARCHIVE_SHA256, "created_at": "2026-10-05T00:27:05Z",
+        "digest": "sha256:" + supervised.ARCHIVE_SHA256, "created_at": "2026-10-05T03:12:32Z",
         "workflow_run": {"id": supervised.INSPECTION_RUN, "head_sha": supervised.PARENT_SOURCE,
             "head_branch": "main", "repository_id": supervised.REPOSITORY_ID,
             "head_repository_id": supervised.REPOSITORY_ID}}
@@ -135,7 +135,7 @@ def test_unqualified_native_or_artifact_inputs_cannot_pass(monkeypatch, defect):
     if defect == "prior_run": state["prior_run"]["id"] += 1
     if defect == "prior_attempt": state["prior_run"]["run_attempt"] = 2
     if defect == "prior_job": state["prior_jobs"]["jobs"][0]["id"] += 1
-    if defect == "prior_census": state["prior_jobs"]["total_count"] = 13
+    if defect == "prior_census": state["prior_jobs"]["total_count"] = 14
     if defect == "prior_source_failed": state["prior_jobs"]["jobs"][1]["conclusion"] = "failure"
     if defect == "prior_effect_job": state["prior_jobs"]["jobs"][2]["conclusion"] = "success"
     if defect == "prior_config": state["prior_jobs"]["jobs"][0]["steps"][1]["conclusion"] = "success"
