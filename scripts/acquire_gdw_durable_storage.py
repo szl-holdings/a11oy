@@ -191,7 +191,7 @@ class _WorkerHeld(AcquisitionBlocked):
 
 def _inspection_report(raw):
     try:
-        import inspect_gdw_held_acquisition as inspection
+        import inspect_gdw_62ca_acquisition as inspection
         value = inspection.validate_inspection_report(raw)
         if canonical(value) != raw or value["source_revision"] != os.environ.get("GITHUB_SHA"):
             raise ValueError()
@@ -830,7 +830,7 @@ def _worker() -> int:
                 progress.complete()
                 progress.enter("WORKER_EXECUTION")
                 if inspect_only:
-                    import inspect_gdw_held_acquisition as inspection
+                    import inspect_gdw_62ca_acquisition as inspection
                     progress.enter("HELD_ACQUISITION_INSPECTION")
                     value = inspection.validate_result(inspection.execute_native_inspection(directory, request["deadline"]))
                     progress.complete()
