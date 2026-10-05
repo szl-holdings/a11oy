@@ -453,7 +453,7 @@ def test_canonical_workflows_still_use_exact_tested_source() -> None:
         "\n  publish-finance-projection:", 1
     )[0]
     assert "needs: [manual-prerequisites, deploy]" in vertical
-    assert "if: ${{ needs.manual-prerequisites.result == 'success' && github.event_name == 'workflow_dispatch' && inputs.publish_vertical_flagships }}" in vertical
+    assert "if: ${{ github.run_attempt == 1 && needs.manual-prerequisites.result == 'success' && github.event_name == 'workflow_dispatch' && inputs.publish_vertical_flagships }}" in vertical
     assert "steps.exact_main_owner.outputs.publish == 'true' && steps.vertical_plan.outputs.vertical_flagships == 'true'" in vertical
     assert 'test "$GITHUB_REF" = refs/heads/main' in sync
     assert "require-default-branch-tip: true" in sync
