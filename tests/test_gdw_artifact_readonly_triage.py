@@ -19,6 +19,7 @@ from scripts import triage_gdw_artifacts_readonly as triage
 from tests.test_gdw_durable_runtime import stores
 from tests.test_gdw_durable_artifacts import exported, copy_database
 from tests.test_gdw_runtime import _queued_proof
+from tests.test_gdw_store_recovery import capture, originals
 
 
 class ReadOnlyArtifactAPI:
@@ -259,10 +260,14 @@ def test_private_head_movement_holds_after_object_observation(monkeypatch, tmp_p
         "state": "LOGICAL_CONTINUITY_VERIFIED",
         "provider_writes_performed": False,
         "originals_mutated": False,
-        "captured_originals_unchanged": True,
-        "all_declared_stored_values_unchanged": True,
         "restore_admitted": False,
         "deployment_admitted": False,
+        "databases": {
+            label: {"state": "LOGICAL_CONTINUITY_VERIFIED",
+                    "captured_originals_unchanged": True,
+                    "all_declared_stored_values_unchanged": True}
+            for label in ("gdw", "series_a")
+        },
     })
     heads = iter([
         {"revision": "a" * 40, "head_presence": "ABSENT"},
@@ -275,6 +280,73 @@ def test_private_head_movement_holds_after_object_observation(monkeypatch, tmp_p
     api = type("SyntheticAPI", (), {"endpoint": "https://huggingface.co"})()
     with pytest.raises(triage.TriageHeld):
         triage.observe_capture(api, tmp_path, lambda: None, time.monotonic() + 10)
+
+
+@pytest.mark.parametrize("defect", [
+    "missing", "extra", "malformed-databases", "malformed-entry",
+    "wrong-state", "false-originals", "false-values", "non-boolean",
+])
+def test_nested_capture_qualification_is_complete_and_strict(defect):
+    item = {"state": "LOGICAL_CONTINUITY_VERIFIED",
+            "captured_originals_unchanged": True,
+            "all_declared_stored_values_unchanged": True}
+    qualified = {"databases": {"gdw": dict(item), "series_a": dict(item)}}
+    if defect == "missing":
+        del qualified["databases"]["series_a"]
+    elif defect == "extra":
+        qualified["databases"]["other"] = dict(item)
+    elif defect == "malformed-databases":
+        qualified["databases"] = []
+    elif defect == "malformed-entry":
+        qualified["databases"]["gdw"] = []
+    elif defect == "wrong-state":
+        qualified["databases"]["gdw"]["state"] = "UNQUALIFIED"
+    elif defect == "false-originals":
+        qualified["databases"]["gdw"]["captured_originals_unchanged"] = False
+    elif defect == "false-values":
+        qualified["databases"]["series_a"]["all_declared_stored_values_unchanged"] = False
+    else:
+        qualified["databases"]["gdw"]["captured_originals_unchanged"] = 1
+    with pytest.raises(triage.TriageHeld):
+        triage._qualified_capture_databases(qualified, frozenset(("gdw", "series_a")))
+
+
+def test_actual_qualifier_shape_reaches_artifact_observation(
+        capture, tmp_path, monkeypatch):
+    monkeypatch.syspath_prepend(str(triage.ROOT / "scripts"))
+    from scripts import acquire_gdw_durable_storage as acquisition
+    from scripts import qualify_gdw_store_recovery as recovery
+
+    hub, reference = capture
+    reference_bytes = recovery.preservation._json_bytes(reference)
+    reads = iter((reference_bytes, b"{}"))
+    monkeypatch.setattr(acquisition, "_read", lambda _path: next(reads))
+    monkeypatch.setattr(recovery, "validate_historical_anchors", lambda *_args: None)
+    qualify = recovery.qualify_capture
+    actual = {}
+    def qualify_without_synthetic_shape(api, current, workspace, owned, deadline, **_kwargs):
+        report = qualify(api, current, workspace, owned, deadline)
+        actual.update(report)
+        return report
+    monkeypatch.setattr(recovery, "qualify_capture", qualify_without_synthetic_shape)
+    monkeypatch.setattr(triage, "private_head_metadata", lambda _api: {
+        "revision": "a" * 40, "head_presence": "ABSENT",
+    })
+    observed = []
+    def effects(_api, database, *_args, **_kwargs):
+        assert database.is_file()
+        observed.append(database)
+        return {"classification": "NO_EXPECTED_OBJECTS_PRESENT_AT_READ_TIME"}
+    monkeypatch.setattr(triage, "artifact_effect_observation", effects)
+
+    result = triage.observe_capture(hub, tmp_path / "actual-shape", lambda: None,
+                                    time.monotonic() + 30)
+    assert actual["state"] == "LOGICAL_CONTINUITY_VERIFIED"
+    assert "captured_originals_unchanged" not in actual
+    assert set(actual["databases"]) == {"gdw", "series_a"}
+    assert len(observed) == 1 and result["qualified_database_count"] == 2
+    assert result["captured_originals_unchanged_during_qualification"] is True
+    assert "captured_originals_unchanged" not in result
 
 
 @pytest.mark.parametrize("method", ["batch_bucket_files", "create_commit", "upload_file",

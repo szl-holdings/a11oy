@@ -405,6 +405,21 @@ def private_head_metadata(api):
     return {"revision": revision, "head_presence": "PRESENT" if items else "ABSENT"}
 
 
+def _qualified_capture_databases(qualified, expected_labels):
+    """Admit only the complete nested qualifier result for both known stores."""
+    require(type(expected_labels) is frozenset
+        and expected_labels == frozenset(("gdw", "series_a")))
+    databases = qualified.get("databases")
+    require(type(databases) is dict and set(databases) == expected_labels)
+    for label in expected_labels:
+        item = databases[label]
+        require(type(item) is dict
+            and item.get("state") == "LOGICAL_CONTINUITY_VERIFIED"
+            and item.get("captured_originals_unchanged") is True
+            and item.get("all_declared_stored_values_unchanged") is True)
+    return databases
+
+
 def observe_capture(api, workspace, require_source, deadline, *, note=lambda _boundary: None):
     note("REFERENCE_READ")
     from scripts import qualify_gdw_store_recovery as recovery
@@ -423,9 +438,9 @@ def observe_capture(api, workspace, require_source, deadline, *, note=lambda _bo
         capture_report_sha256=capture_hash)
     require(qualified.get("state") == "LOGICAL_CONTINUITY_VERIFIED"
         and qualified.get("provider_writes_performed") is False and qualified.get("originals_mutated") is False
-        and qualified.get("captured_originals_unchanged") is True
-        and qualified.get("all_declared_stored_values_unchanged") is True
         and qualified.get("restore_admitted") is False and qualified.get("deployment_admitted") is False)
+    expected_labels = frozenset(recovery.preservation.DATABASES)
+    databases = _qualified_capture_databases(qualified, expected_labels)
     note("LOCAL_ARTIFACTS")
     candidate = workspace / "capture/working/gdw/candidate.sqlite3"
     note("OBJECT_PLAN")
@@ -437,7 +452,8 @@ def observe_capture(api, workspace, require_source, deadline, *, note=lambda _bo
     require_source()
     require(before == after)
     return {"capture_qualification": "LOGICAL_CONTINUITY_VERIFIED",
-            "captured_originals_unchanged": True,
+            "qualified_database_count": len(databases),
+            "captured_originals_unchanged_during_qualification": True,
             "private_head_metadata": after, "metadata_stable_during_read": True,
             "artifact_effect_observation": effects}
 

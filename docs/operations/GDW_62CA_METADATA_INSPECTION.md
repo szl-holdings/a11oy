@@ -95,8 +95,12 @@ artifact-object request, derives the canonical writer's deterministic object
 paths, and admits only that finite exact set to a read-only adapter. Present
 objects are downloaded only into runner-private temporary storage and checked
 against their expected size and SHA256, followed by a second exact identity
-observation. The dataset revision and HEAD presence, protected source, captured
-originals, and candidate digest must remain unchanged across the observation.
+observation. Both expected databases must report logical continuity, unchanged
+captured originals, and unchanged declared stored values during the capture
+qualification interval. The protected source, dataset revision and HEAD
+presence, artifact-object identities, and candidate digest must remain unchanged
+across the later artifact-object observation. The diagnostic does not claim
+that the preserved capture objects were re-observed after that interval.
 
 The uploaded v2 report contains only counts, a closed current-state
 classification, and aggregate identity hashes. It contains no object path,
