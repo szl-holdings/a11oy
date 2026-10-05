@@ -28,7 +28,8 @@ def cli_sibling_modules(monkeypatch):
     # Loading the qualifier needs these two exact siblings first. monkeypatch
     # restores all aliases after each test; application imports are unchanged.
     for name in ("preserve_hf_gdw_store", "gdw_orphan_forensics",
-                 "qualify_gdw_store_recovery", "gdw_acquisition_evidence", "probe_gdw_runtime_base", "inspect_gdw_held_acquisition"):
+                 "qualify_gdw_store_recovery", "gdw_acquisition_evidence", "probe_gdw_runtime_base", "inspect_gdw_held_acquisition",
+                 "reconcile_gdw_supervised_acquisition"):
         module = importlib.import_module("scripts." + name)
         monkeypatch.setitem(sys.modules, name, module)
 
@@ -370,6 +371,10 @@ def native_acquisition(stores, tmp_path, monkeypatch):
     def owned():
         if not api.source_current: raise acquisition.AcquisitionBlocked("SOURCE_SUPERSEDED")
         events.append("owned")
+    def reconcile():
+        events.append("reconciled")
+        if getattr(api, "reconciliation_changed", False) or storage.HEAD_PATH in api.repositories[api.revision]:
+            raise acquisition.AcquisitionBlocked("SUPERVISED_RECONCILIATION_REQUIRED")
     def reproduce(_api, _reference, directory, *_args, **_kwargs):
         assert isinstance(_api, recovery.ReadOnlyCaptureHub)
         for label, data in original_bytes.items():
@@ -386,7 +391,8 @@ def native_acquisition(stores, tmp_path, monkeypatch):
         reference=reference, capture_bytes=captured, anchors={}, anchor_bytes=b"{}\n",
         manifest=record["runtime"]["source_manifest"], base_observation=record["runtime"]["base_observation"],
         guard_probe=probe, paused=pause, legacy_observation=observation, workspace=workspace,
-        require_owned_source=owned, deadline=time.monotonic() + 20,
+        require_owned_source=owned, require_prewrite_reconciliation=reconcile,
+        deadline=time.monotonic() + 20,
         operation_factory=lambda **kwargs: SimpleNamespace(**kwargs))
     return SimpleNamespace(api=api, arguments=arguments, events=events, originals=original_bytes, paths=stores.paths)
 
@@ -403,6 +409,9 @@ def test_real_pair_artifacts_restore_and_absent_bootstrap_are_acknowledged_toget
     assert state.api.additions[0][0].startswith(storage.ARTIFACT_PREFIX + "/")
     assert all(item[0].startswith(storage.OBJECT_PREFIX + "/") for item in state.api.additions[1:])
     assert state.events.index("private_object") < state.events.index("metadata_cas")
+    # Initial gate + each of three object submissions + the bootstrap CAS. The
+    # acknowledged own HEAD is then read back, never required to remain absent.
+    assert state.events.count("reconciled") == 5
     assert admitted["retained_artifacts"]["count"] == 1
     assert admitted["snapshots"]["series_a"]["receipt_count"] == 1
     assert admitted["runtime"]["base_observation"]["final_runtime"] == "FINAL_RUNTIME_NOT_OBSERVED"
@@ -413,16 +422,36 @@ def test_real_pair_artifacts_restore_and_absent_bootstrap_are_acknowledged_toget
         assert (state.arguments["workspace"] / "roundtrip" / (label + ".sqlite3")).read_bytes() == data
 
 
-@pytest.mark.parametrize("defect", ["existing_head", "source_superseded", "not_paused", "candidate_changed"])
+@pytest.mark.parametrize("defect", ["existing_head", "source_superseded", "not_paused", "candidate_changed", "reconciliation_changed"])
 def test_unqualified_pair_never_publishes_private_objects_or_bootstrap(native_acquisition, defect):
     state = native_acquisition
     if defect == "existing_head": state.api.repositories[state.api.revision][storage.HEAD_PATH] = b"prior"
     if defect == "source_superseded": state.api.source_current = False
     if defect == "not_paused": state.api.stage = "RUNTIME_ERROR"
     if defect == "candidate_changed": state.originals["gdw"] += b"changed"
+    if defect == "reconciliation_changed": state.api.reconciliation_changed = True
     with pytest.raises((acquisition.AcquisitionBlocked, storage.StorageBlocked)):
         acquisition.acquire_pair(state.api, **state.arguments)
     assert state.api.additions == state.api.commits == []
+
+
+def test_changed_fence_before_first_private_submission_is_not_retried(native_acquisition):
+    state = native_acquisition
+    original = state.arguments["require_prewrite_reconciliation"]
+    calls = 0
+    def reconcile():
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            state.api.reconciliation_changed = True
+        original()
+    state.arguments["require_prewrite_reconciliation"] = reconcile
+    from gdw_durable_runtime import DurableStorageUnavailable
+    # The retained artifact adapter intentionally closes provider failures to
+    # its own fixed error. No submission occurred and no retry follows it.
+    with pytest.raises(DurableStorageUnavailable, match="ARTIFACT_PERSISTENCE_UNAVAILABLE"):
+        acquisition.acquire_pair(state.api, **state.arguments)
+    assert calls == 2 and state.api.additions == state.api.commits == []
 
 
 def test_pair_cas_lost_reply_does_not_retry_or_emit_selector(native_acquisition):
@@ -720,3 +749,121 @@ def test_actual_inspection_cli_without_native_authority_holds_before_provider(tm
     assert report["stage"] == "HELD_ACQUISITION_INSPECTION"
     assert report["diagnostic_code"] == "CANONICAL_CONTEXT_REQUIRED"
     assert json.loads(result.stdout) == report
+
+
+def supervised_report(monkeypatch):
+    from scripts import reconcile_gdw_supervised_acquisition as reconciliation
+    context = {"source_revision": "b" * 40, "run_id": 123, "run_attempt": 1,
+        "job_id": 456, "job_key": "recovery-reconciliation"}
+    for key, value in {"GITHUB_SHA": context["source_revision"], "GITHUB_RUN_ID": "123",
+        "GITHUB_RUN_ATTEMPT": "1", "GITHUB_JOB": context["job_key"]}.items():
+        monkeypatch.setenv(key, value)
+    return reconciliation._report(context)
+
+
+def test_reconciliation_parent_accepts_only_bound_exit0_under_120_seconds(monkeypatch):
+    from scripts import probe_gdw_runtime_base as base
+    report = supervised_report(monkeypatch)
+    observed = {}
+    def transport(*args, **kwargs):
+        observed.update(kwargs)
+        return acquisition.canonical(report)
+    monkeypatch.setattr(base, "_run", transport)
+    start = time.monotonic()
+    assert acquisition.run_native({}, _reconcile_only=True) == report
+    request = json.loads(observed["input_bytes"])
+    assert set(request) == {"mode", "deadline"} and request["mode"] == "RECONCILE_SUPERVISED"
+    assert 119 <= observed["deadline"] - start <= 120.1
+    assert observed["deadline"] - request["deadline"] == 5
+    assert observed["_capture_failure"] is True
+    assert set(observed["env"]) <= {"HF_TOKEN", "GH_TOKEN", "GITHUB_ACTIONS", "GITHUB_REPOSITORY",
+        "GITHUB_REPOSITORY_ID", "GITHUB_REF", "GITHUB_SHA", "GITHUB_WORKFLOW_REF", "GITHUB_WORKFLOW_SHA",
+        "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "GITHUB_EVENT_NAME", "GITHUB_JOB", "PATH", "PYTHONDONTWRITEBYTECODE"}
+    def exit2(*_a, **_k): raise base._CommandFailed(acquisition.canonical(report))
+    monkeypatch.setattr(base, "_run", exit2)
+    with pytest.raises(acquisition.AcquisitionBlocked, match="WORKER_FAILURE_REPORT_INVALID"):
+        acquisition.run_native({}, _reconcile_only=True)
+    for request, options in (({"source": "override"}, {"_reconcile_only": True}),
+        ({}, {"_inspect_only": True, "_reconcile_only": True})):
+        with pytest.raises(acquisition.AcquisitionBlocked, match="ACQUISITION_REQUEST_INVALID"):
+            acquisition.run_native(request, **options)
+
+
+@pytest.mark.parametrize("defect", ["source", "run", "attempt", "job", "extra", "numeric_flag", "locator", "noncanonical"])
+def test_reconciliation_parent_rejects_unbound_or_admitting_outputs(monkeypatch, defect):
+    report = supervised_report(monkeypatch)
+    if defect == "source": report["source_revision"] = "c" * 40
+    if defect == "run": report["run_id"] = 124
+    if defect == "attempt": report["run_attempt"] = 2
+    if defect == "job": report["job_key"] = "durable-acquisition"
+    if defect == "extra": report["private"] = PRIVATE_FAILURE
+    if defect == "numeric_flag": report["restore_admitted"] = 0
+    raw = acquisition.canonical(report)
+    if defect == "locator":
+        record, head = fixture(); raw = acquisition.canonical(acquisition.locator_for_bootstrap(head, record))
+    if defect == "noncanonical": raw = b" " + raw
+    with pytest.raises(acquisition.AcquisitionBlocked, match="WORKER_FAILURE_REPORT_INVALID"):
+        acquisition._reconciliation_report(raw)
+
+
+def test_reconciliation_cli_emits_admitted_only_after_validated_success(tmp_path, monkeypatch):
+    report = supervised_report(monkeypatch)
+    monkeypatch.setattr(acquisition, "run_native", lambda *_a, **_k: report)
+    output, decision = tmp_path / "reconciliation.json", tmp_path / "github-output"
+    assert acquisition.main(["--reconcile-supervised-acquisition", "--output", str(output),
+        "--github-output", str(decision)]) == 0
+    assert output.read_bytes() == acquisition.canonical(report)
+    assert decision.read_text() == "admitted=true\n"
+    assert report["restore_admitted"] is report["deployment_admitted"] is False
+
+
+@pytest.mark.parametrize("option,value", [
+    ("--source-artifact-id", "1"), ("--source-artifact-sha256", "a" * 64),
+    ("--qualification-artifact-id", "1"), ("--qualification-artifact-sha256", "a" * 64),
+    ("--acquisition-artifact-id", "1"), ("--acquisition-artifact-sha256", "a" * 64),
+    ("--publisher-script", PRIVATE_FAILURE), ("--preservation", PRIVATE_FAILURE),
+    ("--qualification", PRIVATE_FAILURE),
+])
+def test_reconciliation_cli_overrides_hold_without_admitted_output(tmp_path, monkeypatch, option, value):
+    monkeypatch.setattr(acquisition, "run_native", lambda *_a, **_k: pytest.fail("override reached worker"))
+    output, decision = tmp_path / "held.json", tmp_path / "github-output"
+    assert acquisition.main(["--reconcile-supervised-acquisition", option, value, "--output", str(output),
+        "--github-output", str(decision)]) == 2
+    assert acquisition._failure_report(output.read_bytes())["diagnostic_code"] == "ACQUISITION_REQUEST_INVALID"
+    assert not decision.exists()
+
+
+@pytest.mark.parametrize("failure", [False, True])
+def test_actual_reconciliation_worker_suppresses_private_streams_and_never_acquires(tmp_path, monkeypatch, failure):
+    import subprocess
+    import sys
+    report = supervised_report(monkeypatch)
+    script = Path(acquisition.__file__).resolve()
+    code = """import os,runpy,sys
+from pathlib import Path
+script=Path(sys.argv[1]);sys.path[:0]=[str(script.parent),str(script.parent.parent)]
+import reconcile_gdw_supervised_acquisition as reconciliation
+ns=runpy.run_path(str(script),run_name='owned_offline_worker')
+def reconcile(workspace,deadline):
+    print('PRIVATE_SYNTHETIC_TOKEN_URL_SQL_NOT_FOR_PUBLIC_OUTPUT',flush=True)
+    os.write(2,b'PRIVATE_SYNTHETIC_TOKEN_URL_SQL_NOT_FOR_PUBLIC_OUTPUT')
+    if sys.argv[2]=='1': raise reconciliation.SupervisedBlocked('EXPECTED_ABSENCE_UNVERIFIED')
+    return reconciliation._report({'source_revision':'b'*40,'run_id':123,'run_attempt':1,'job_id':456,'job_key':'recovery-reconciliation'})
+def forbidden(*a,**k):raise AssertionError('acquisition must not execute')
+reconciliation.execute_native_reconciliation=reconcile
+worker=ns['_worker'];worker.__globals__['_execute_native']=forbidden
+raise SystemExit(worker())
+"""
+    request = {"mode": "RECONCILE_SUPERVISED", "deadline": time.monotonic() + 20}
+    result = subprocess.run([sys.executable, "-I", "-B", "-c", code, str(script), "1" if failure else "0"],
+        input=acquisition.canonical(request), cwd=tmp_path,
+        env={"PATH": "/usr/bin:/bin", "PYTHONDONTWRITEBYTECODE": "1"},
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=10)
+    assert result.returncode == (2 if failure else 0) and result.stderr == b""
+    if failure:
+        held = acquisition._failure_report(result.stdout)
+        assert held["stage"] == "SUPERVISED_RECONCILIATION"
+        assert held["diagnostic_code"] == "EXPECTED_ABSENCE_UNVERIFIED"
+    else:
+        assert acquisition._reconciliation_report(result.stdout) == report
+    assert PRIVATE_FAILURE.encode() not in result.stdout and list(tmp_path.iterdir()) == []

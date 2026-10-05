@@ -486,9 +486,49 @@ def preserve(api: Any, *, source_sha: str, run_id: str, run_attempt: str,
     return report
 
 
+class _SupervisedPreservationHub:
+    """Retain the reviewed copy ABI, with fresh absence before either batch.
+
+    The preceding read-only job verifies the fixed native inspection and finite
+    source/run authority. This 1.23 adapter rechecks current main and the exact
+    private dataset revision immediately before the copy or manifest add. It
+    neither receives Actions-read permission nor constructs a 1.31 client.
+    """
+    endpoint = ENDPOINT
+
+    def __init__(self, api, source_sha, require_owned_source, deadline):
+        from types import SimpleNamespace
+        self._api = api
+        self._evidence = SimpleNamespace(source=source_sha, require_current_main=require_owned_source)
+        self._deadline = deadline
+
+    def __getattr__(self, name):
+        if name in {"bucket_info", "space_info", "get_space_runtime", "get_bucket_paths_info", "download_bucket_files"}:
+            return getattr(self._api, name)
+        raise PreservationError("SUPERVISED_OPERATION_UNADMITTED")
+
+    def batch_bucket_files(self, **kwargs):
+        import reconcile_gdw_supervised_acquisition as reconciliation
+        try:
+            reconciliation.require_expected_absent(self._api, self._evidence, self._deadline)
+        except BaseException:
+            raise PreservationError("SUPERVISED_RECONCILIATION_REQUIRED") from None
+        return self._api.batch_bucket_files(**kwargs)
+
+
+def _require_supervised_main(source_sha, github_token):
+    from hf_exact_main_ownership import request_json
+    value = _call(request_json, "/repos/szl-holdings/a11oy/branches/main", github_token)
+    if (not isinstance(value, Mapping) or value.get("name") != "main"
+            or value.get("protected") is not True or not isinstance(value.get("commit"), Mapping)
+            or value["commit"].get("sha") != source_sha):
+        raise PreservationError("SOURCE_NO_LONGER_CURRENT_MAIN")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--supervised-acquisition", action="store_true")
     args = parser.parse_args()
     # No target, repair, resume, overwrite or admission options exist.
     report: dict[str, Any] = {"schema": SCHEMA, "state": "BLOCKED", "deployment_admitted": False,
@@ -500,6 +540,13 @@ def main() -> int:
                 or os.environ.get("GITHUB_REF") != "refs/heads/main"):
             raise PreservationError("SOURCE_CONTEXT_INVALID")
         source_sha = os.environ.get("GITHUB_SHA", "")
+        if args.supervised_acquisition and (
+                os.environ.get("GITHUB_JOB") != "manual-prerequisites"
+                or os.environ.get("GITHUB_EVENT_NAME") != "push"
+                or os.environ.get("GITHUB_RUN_ATTEMPT") != "1"
+                or os.environ.get("GITHUB_WORKFLOW_SHA") != source_sha
+                or os.environ.get("GITHUB_WORKFLOW_REF") != "szl-holdings/a11oy/.github/workflows/hf-sync.yml@refs/heads/main"):
+            raise PreservationError("SOURCE_CONTEXT_INVALID")
         token = os.environ.get("HF_TOKEN", "")
         github_token = os.environ.get("GH_TOKEN", "")
         if not token or not github_token:
@@ -507,6 +554,9 @@ def main() -> int:
         from hf_exact_main_ownership import fetch_main_sha
 
         def require_owned_source() -> None:
+            if args.supervised_acquisition:
+                _require_supervised_main(source_sha, github_token)
+                return
             if _call(fetch_main_sha, "szl-holdings/a11oy", github_token) != source_sha:
                 raise PreservationError("SOURCE_NO_LONGER_CURRENT_MAIN")
 
@@ -535,6 +585,8 @@ def main() -> int:
                     raise PreservationError("SDK_VERSION_MISMATCH")
                 set_client_factory(hub_http_client)
                 api = huggingface_hub.HfApi(endpoint=ENDPOINT, token=token)
+                if args.supervised_acquisition:
+                    api = _SupervisedPreservationHub(api, source_sha, require_owned_source, deadline)
                 report = preserve(api, source_sha=source_sha,
                                   run_id=os.environ.get("GITHUB_RUN_ID", ""),
                                   run_attempt=os.environ.get("GITHUB_RUN_ATTEMPT", ""),

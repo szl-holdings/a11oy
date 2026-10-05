@@ -86,12 +86,59 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+  recovery-reconciliation:
+    name: Reconcile the held acquisition before provider mutation
+    needs: source-admission
+    if: ${{ github.event_name == 'push' && github.run_attempt == 1 && needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      admitted: ${{ steps.reconciliation.outputs.admitted }}
+    env:
+      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Checkout the exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Set up the isolated reconciliation interpreter
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install the exact read-only reconciliation ABI
+        run: >-
+          python -m pip install --disable-pip-version-check --no-cache-dir
+          "huggingface_hub==1.31.0" "requests==2.32.5" "cryptography==50.0.1"
+      - name: Require the fixed inspection and unchanged absent private fence
+        id: reconciliation
+        # The helper admits only the signed direct successor of the inspected
+        # source, its unique first push run, and the exact still-absent HEAD.
+        # This step performs metadata reads only, before any new private copy.
+        run: >-
+          python -B scripts/acquire_gdw_durable_storage.py --reconcile-supervised-acquisition
+          --github-output "$GITHUB_OUTPUT"
+          --output "$RUNNER_TEMP/gdw-supervised-reconciliation.json"
+      - name: Retain the bounded read-only reconciliation decision
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: canonical-supervised-reconciliation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/gdw-supervised-reconciliation.json
+          if-no-files-found: error
+          retention-days: 90
+
   manual-prerequisites:
     name: Check manual authority prerequisites before provider writes
-    needs: source-admission
-    # Fixed incident inspection: do not create fresh private captures or claim
-    # fresh qualification. Re-enabling recovery requires a reviewed source change.
-    if: ${{ github.ref == 'refs/heads/main' && false }}
+    needs: [source-admission, recovery-reconciliation]
+    # No capture copy is reachable before the exact read-only native gate. The
+    # 1.23 helper rechecks private HEAD absence again before each of its batches.
+    if: ${{ github.event_name == 'push' && github.run_attempt == 1 && needs.source-admission.outputs.publish == 'true' && needs.recovery-reconciliation.result == 'success' && needs.recovery-reconciliation.outputs.admitted == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -127,6 +174,7 @@ jobs:
         continue-on-error: true
         run: >-
           python -B scripts/preserve_hf_gdw_store.py
+          --supervised-acquisition
           --output "${{ runner.temp }}/gdw-store-preservation.json"
       # The verified incident capture is an immutable, source-pinned input.
       # This read-only follow-up runs after the acquisition guard's expected
@@ -184,8 +232,8 @@ jobs:
 
   durable-acquisition:
     name: Acquire qualified private storage through the canonical publisher
-    needs: [source-admission, manual-prerequisites]
-    if: ${{ always() && needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'skipped' }}
+    needs: [source-admission, recovery-reconciliation, manual-prerequisites]
+    if: ${{ github.event_name == 'push' && github.run_attempt == 1 && needs.source-admission.outputs.publish == 'true' && needs.recovery-reconciliation.result == 'success' && needs.recovery-reconciliation.outputs.admitted == 'true' && needs.manual-prerequisites.result == 'success' && needs.manual-prerequisites.outputs.mode == 'managed-recovery' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -222,15 +270,19 @@ jobs:
         run: >-
           python -m pip install --disable-pip-version-check --no-cache-dir
           "huggingface_hub==1.31.0" "requests==2.32.5" "cryptography==50.0.1"
-      - name: Inspect the held prior acquisition without provider mutation
-        # Inspection always returns HELD/exit2. The configuration step and every
-        # downstream effect remain skipped; a new source review is required to
-        # authorize any retry after the prior private fence is reconciled.
+      - name: Reconcile again, verify native candidates, and acquire private storage once
+        # The worker rechecks the same fixed native inspection and live absent
+        # fence before pause and every private object/metadata submission. A
+        # changed or uncertain fence never triggers a second acquisition.
         run: >-
-          python -B scripts/acquire_gdw_durable_storage.py --inspect-held-acquisition
+          python -B scripts/acquire_gdw_durable_storage.py --acquire
+          --source-artifact-id "${{ needs.source-admission.outputs.artifact_id }}"
+          --source-artifact-sha256 "${{ needs.source-admission.outputs.artifact_sha256 }}"
+          --qualification-artifact-id "${{ needs.manual-prerequisites.outputs.artifact_id }}"
+          --qualification-artifact-sha256 "${{ needs.manual-prerequisites.outputs.artifact_sha256 }}"
+          --publisher-script "$GITHUB_WORKSPACE/.gdw-source-publisher/.github/scripts/hf_deploy_from_dockerfile.py"
           --output "$RUNNER_TEMP/gdw-durable-acquisition.json"
       - name: Install the persistent old-source guard and both managed configurations once
-        if: ${{ github.ref == 'refs/heads/main' && false }}
         # This one coordinator owns the pair. A partial attempt is held; the
         # Series-A helper is an alternative entrypoint, never a second call.
         run: >-
@@ -253,7 +305,7 @@ jobs:
   resume-paused-space:
     name: Resume the canonical Space without changing its allocation
     needs: [source-admission, manual-prerequisites]
-    if: ${{ needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && needs.manual-prerequisites.outputs.mode != 'managed-recovery' }}
+    if: ${{ github.event_name == 'push' && github.run_attempt == 1 && needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && needs.manual-prerequisites.outputs.mode != 'managed-recovery' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -295,7 +347,7 @@ jobs:
   runtime-config:
     name: Verify post-deploy configuration and bounded live proofs
     needs: [manual-prerequisites, durable-acquisition, deploy]
-    if: ${{ always() && needs.manual-prerequisites.result == 'success' && needs.durable-acquisition.result == 'success' && needs.deploy.result == 'success' }}
+    if: ${{ github.event_name == 'push' && github.run_attempt == 1 && always() && needs.manual-prerequisites.result == 'success' && needs.durable-acquisition.result == 'success' && needs.deploy.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -418,7 +470,7 @@ jobs:
   deploy:
     name: Deploy, source-bind, and attest exact surface
     needs: [source-admission, manual-prerequisites, durable-acquisition, resume-paused-space]
-    if: ${{ always() && needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && ((needs.manual-prerequisites.outputs.mode == 'managed-recovery' && needs.durable-acquisition.result == 'success') || (needs.manual-prerequisites.outputs.mode != 'managed-recovery' && needs.resume-paused-space.result == 'success')) }}
+    if: ${{ github.event_name == 'push' && github.run_attempt == 1 && always() && needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && ((needs.manual-prerequisites.outputs.mode == 'managed-recovery' && needs.durable-acquisition.result == 'success') || (needs.manual-prerequisites.outputs.mode != 'managed-recovery' && needs.resume-paused-space.result == 'success')) }}
     uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@e3ec47ad2e99a535839afe0f30fefbd8973d52da
     with:
       hf-repo: SZLHOLDINGS/a11oy
@@ -441,7 +493,7 @@ jobs:
     # Other-Space execute is not product promote. Skip on push until plan complete=true.
     # Explicit opt-in includes this publisher in the requested run completion.
     # Product-only pushes still skip it; canonical product evidence stays separate.
-    if: ${{ needs.manual-prerequisites.result == 'success' && github.event_name == 'workflow_dispatch' && inputs.publish_vertical_flagships }}
+    if: ${{ github.run_attempt == 1 && needs.manual-prerequisites.result == 'success' && github.event_name == 'workflow_dispatch' && inputs.publish_vertical_flagships }}
     needs: [manual-prerequisites, deploy]
     runs-on: ubuntu-latest
     timeout-minutes: 50
@@ -566,7 +618,7 @@ jobs:
     # Finance validates the exact backend SHA, so every successful canonical
     # relock must update it through the same established scoped publisher.
     # An explicitly requested estate publication already owns Finance.
-    if: ${{ needs.manual-prerequisites.result == 'success' && (github.event_name == 'push' || !inputs.publish_vertical_flagships) }}
+    if: ${{ github.event_name == 'push' && github.run_attempt == 1 && needs.manual-prerequisites.result == 'success' && (github.event_name == 'push' || !inputs.publish_vertical_flagships) }}
     needs: [manual-prerequisites, relock]
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -624,6 +676,7 @@ jobs:
   readiness-verdict:
     name: Probe and ingest exact post-deploy readiness verdict
     needs: [manual-prerequisites, runtime-config]
+    if: ${{ github.event_name == 'push' && github.run_attempt == 1 }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:

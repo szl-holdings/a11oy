@@ -604,16 +604,18 @@ REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee
 # These exact jobs and their complete local helper/reference closure admit one
 # reviewed first-cutover path: preserve originals, qualify disposable copies,
 # classify the native reports, then acquire private managed storage in the
-# active canonical job. This successor temporarily pins that job to read-only
-# inspection of the held d61 attempt, always exit2. The manual capture job and
-# pair configuration step are explicitly disabled; no acquisition retry is
-# admitted. Source/main and paused-state checks still precede acquisition writes;
+# active canonical job. The read-only reconciliation job must first bind the
+# exact observed ABSENT inspection, one signed direct successor and its unique
+# first push run. Every preservation/acquisition submission rechecks the fixed
+# private revision and HEAD absence; no generic retry or later-source authority
+# is admitted. Source/main and paused-state checks precede acquisition writes;
 # an existing dataset HEAD prevents bootstrap. The separate managed proof job
 # still requires actual deployment and runtime verification. No hash below
 # grants authority to a local selector, arbitrary helper or additional effect.
-REVIEWED_MANUAL_PREREQUISITES_JOB_SHA256 = "662c8c07458ca2f302fcb9465fd5b8d93b19280c66162362a1283c18921ac802"
-REVIEWED_DURABLE_ACQUISITION_JOB_SHA256 = "ec95ce793c7d879d2595d1854b5d8bc35ba21a398b9be23f6adc0fcf5756ea7f"
-REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "2876ed4107ccefa4ae14901d0acfe904a6a60c610ea8d66be3913883b454f9ef"
+REVIEWED_MANUAL_PREREQUISITES_JOB_SHA256 = "50bfd8b27fc159db706286375e13caaa94c64cb1f0e2cd5f51e280e18a5f9cd7"
+REVIEWED_RECOVERY_RECONCILIATION_JOB_SHA256 = "90039b641009c717c0cb2d0047bb4ccd215bd37c9d65394b1e28ac133db1f3e6"
+REVIEWED_DURABLE_ACQUISITION_JOB_SHA256 = "6431fd393379f29b8d78ecd61784848acaa472b8ffcbe841145162d424437bef"
+REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "bc38f18b2837be0ae4058d66cb9a5cbac911cd6622c1d352d8c773edc2a37944"
 REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
     "scripts/check_hf_manual_prerequisites.py": "3390924bd039b8377d1c54824e85f77bb06953bf4165c78e85bc9ddfbc7382ec",
     "scripts/configure_hf_series_a_runtime.py": "a5b6bd2968fe16d762eb241744bd4897ae05e72c85bc79d38ad33aaea90feb0d",
@@ -622,7 +624,7 @@ REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
     "scripts/verify_installed_authority.py": "2d9465f393dbaa08754b02d6295abade1134a7dbc843cdab48a6ad70867fb68e",
     # Its local ownership import is independently bound above by
     # REVIEWED_SOURCE_ADMISSION_HELPER_SHA256, in the same admission decision.
-    "scripts/preserve_hf_gdw_store.py": "fa2bccf6f627b932bbe9d5fcedc4d0ad9c4ef675b88d0be5facc3369630a3721",
+    "scripts/preserve_hf_gdw_store.py": "12f099cdf7fb5f64c2a5088f10aba917c841bc76bc14aa76c2937ff8a1a2ae02",
     # The qualifier's local preservation and descriptive forensic imports are
     # separately pinned. Its capture, continuity anchors and verification key
     # are bound too; a data-only substitution cannot retain source admission.
@@ -635,7 +637,8 @@ REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
     # include these local imports and fixed dynamic loaders. Runtime-installed
     # application bytes and the remote publisher have their own source-bound
     # manifest contract; this map binds the code that verifies that contract.
-    "scripts/acquire_gdw_durable_storage.py": "70cfeb8be2b23fc7864ff250f1197614420b4372890fc78d6ea18021249df987",
+    "scripts/acquire_gdw_durable_storage.py": "e10155802d8a8e8c91f36862540b90fa92e61f45b91d802f193108674f4e8dc9",
+    "scripts/reconcile_gdw_supervised_acquisition.py": "498813a5dbdb63d3a96bc95089e97899a67b7c161618e44fabeb2efe275df496",
     "scripts/inspect_gdw_held_acquisition.py": "61e0b7d6e8236074ebcbbcc424b34d92f257f0c85608f7adbd640136de9e5dc6",
     "scripts/gdw_acquisition_evidence.py": "7c15e3c774f7bbbee71c9da2255ea92a9d13c5320398c8a8134f1542d1795525",
     "scripts/build_gdw_installed_source_manifest.py": "022955dd62e7f780e97b2650f5e86d68a3d1565738257a8ec76b18db1f75a8ec",
@@ -663,11 +666,11 @@ REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
 }
 REVIEWED_RESUME_GATES = {
     "needs": "[source-admission, manual-prerequisites]",
-    "if": "${{ needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && needs.manual-prerequisites.outputs.mode != 'managed-recovery' }}",
+    "if": "${{ github.event_name == 'push' && github.run_attempt == 1 && needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && needs.manual-prerequisites.outputs.mode != 'managed-recovery' }}",
 }
 REVIEWED_DEPLOY_GATES = {
     "needs": "[source-admission, manual-prerequisites, durable-acquisition, resume-paused-space]",
-    "if": "${{ always() && needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && ((needs.manual-prerequisites.outputs.mode == 'managed-recovery' && needs.durable-acquisition.result == 'success') || (needs.manual-prerequisites.outputs.mode != 'managed-recovery' && needs.resume-paused-space.result == 'success')) }}",
+    "if": "${{ github.event_name == 'push' && github.run_attempt == 1 && always() && needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && ((needs.manual-prerequisites.outputs.mode == 'managed-recovery' && needs.durable-acquisition.result == 'success') || (needs.manual-prerequisites.outputs.mode != 'managed-recovery' && needs.resume-paused-space.result == 'success')) }}",
 }
 
 
@@ -695,6 +698,7 @@ def direct_job_gates(block_lines, job_indent):
 
 def job_has_source_derived_deploy_contract(block_lines, job_indent, *,
                                          admission_verified=False,
+                                         reconciliation_verified=False,
                                          prerequisites_verified=False,
                                          resume_verified=False,
                                          acquisition_verified=False,
@@ -747,7 +751,7 @@ def job_has_source_derived_deploy_contract(block_lines, job_indent, *,
             with_index = index
     if not controller_seen or not pinned_controller or with_index is None:
         return False
-    if not (admission_verified and prerequisites_verified and resume_verified
+    if not (admission_verified and reconciliation_verified and prerequisites_verified and resume_verified
             and acquisition_verified and runtime_verified
             and gates == REVIEWED_DEPLOY_GATES):
         # Empty gates and the former source-only gate cannot bypass prerequisites.
@@ -831,6 +835,12 @@ def has_source_derived_deploy_contract(hf_sync_text, *, ownership_helper=None,
         and hashlib.sha256("\n".join(prerequisites[0]).strip().encode("utf-8")).hexdigest()
         == REVIEWED_MANUAL_PREREQUISITES_JOB_SHA256
     )
+    reconciliations = [lines for job_id, lines, _indent in jobs if job_id == "recovery-reconciliation"]
+    reconciliation_verified = (
+        len(reconciliations) == 1
+        and hashlib.sha256("\n".join(reconciliations[0]).strip().encode("utf-8")).hexdigest()
+        == REVIEWED_RECOVERY_RECONCILIATION_JOB_SHA256
+    )
     resumes = [(lines, indent) for job_id, lines, indent in jobs
                if job_id == "resume-paused-space"]
     resume_verified = (len(resumes) == 1
@@ -853,6 +863,7 @@ def has_source_derived_deploy_contract(hf_sync_text, *, ownership_helper=None,
             and len(deploys) == 1
             and job_has_source_derived_deploy_contract(
                 *deploys[0], admission_verified=admission_verified,
+                reconciliation_verified=reconciliation_verified,
                 prerequisites_verified=prerequisites_verified,
                 resume_verified=resume_verified,
                 acquisition_verified=acquisition_verified,
