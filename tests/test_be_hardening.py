@@ -292,7 +292,10 @@ def test_assurance_attest_status_is_read_only(client, monkeypatch):
     assert body["data_kind"] == "live"
     assert set(body["axes_present"]) == {"build", "model", "runtime"}
     assert body["axes_present"]["model"] is False
-    assert "dsse" not in body
+    assert body["dsse"] is None
+    assert body["signed"] is False
+    assert body["receipt_minted"] is False
+    assert body["export_read_only"] is True
 
 
 def test_assurance_compliance_exposes_canonical_measured_coverage(client):
@@ -309,3 +312,312 @@ def test_forge_ledger_exposes_deployed_summary_contract(client):
     body = client.get(f"/api/{ORGAN}/v1/forge/ledger").json()
     assert set(body) >= {"receipt_chain", "energy_ledger", "data_kind"}
     assert set(body["receipt_chain"]) >= {"depth", "chain_ok", "head", "count"}
+
+
+# ---- passive reads: actual routes, real SQLite, no provider calls -----------
+@pytest.fixture()
+def passive_backend(monkeypatch, tmp_path):
+    import copy
+    import socket
+    import sys
+    import urllib.request
+    import a11oy_signing_key
+    import szl_cheapest_watt as cheapest
+    import szl_dsse
+
+    app = FastAPI()
+    H.harden(app, organ="a11oy", khipu_path=str(tmp_path / "existing.sqlite3"))
+    store = app.state.be_khipu
+    store.emit("fixture.existing", {"evidence_class": "SAMPLE"})
+    ledger = cheapest.CheapestWattLedger()
+    ledger.record({})  # Offline no-choice fixture; no MEASURED input is supplied.
+    monkeypatch.setattr(cheapest, "_LEDGER", ledger)
+    calls = {name: 0 for name in ("sign", "key_loader", "factory", "constructor",
+                                 "record", "emit", "operator", "network",
+                                 "creating_connection", "sql_write")}
+
+    def forbid(name):
+        def blocked(*_args, **_kwargs):
+            calls[name] += 1
+            raise AssertionError(f"passive request called {name}")
+        return blocked
+
+    monkeypatch.setattr(szl_dsse, "sign_payload", forbid("sign"))
+    monkeypatch.setattr(a11oy_signing_key, "load_signing_key", forbid("key_loader"))
+    monkeypatch.setattr(cheapest, "get_ledger", forbid("factory"))
+    monkeypatch.setattr(cheapest, "CheapestWattLedger", forbid("constructor"))
+    monkeypatch.setattr(ledger, "record", forbid("record"))
+    monkeypatch.setattr(store, "emit", forbid("emit"))
+    monkeypatch.setattr(urllib.request, "urlopen", forbid("network"))
+    monkeypatch.setattr(socket, "create_connection", forbid("network"))
+    original_connect = H.sqlite3.connect
+
+    def readonly_connect(*args, **kwargs):
+        if kwargs.get("uri") is not True or "mode=ro" not in str(args[0]):
+            calls["creating_connection"] += 1
+            raise AssertionError("passive request used a creating SQLite connection")
+        db = original_connect(*args, **kwargs)
+        def trace(statement):
+            if not statement.lstrip().upper().startswith("SELECT "):
+                calls["sql_write"] += 1
+        db.set_trace_callback(trace)
+        return db
+
+    monkeypatch.setattr(H.sqlite3, "connect", readonly_connect)
+    # A module that is already loaded must still never be activated or queried.
+    import types
+    operator = types.ModuleType("szl_energy_operator")
+    operator._OPERATOR = types.SimpleNamespace(status=forbid("operator"))
+    operator.register = forbid("operator")
+    operator.start = forbid("operator")
+    monkeypatch.setitem(sys.modules, "szl_energy_operator", operator)
+
+    async def fallback():
+        return HTMLResponse("fallback must not own the API")
+    app.add_api_route("/{remaining:path}", fallback, methods=["GET", "HEAD"])
+
+    # RLock/callback identities are process objects, not mutable evidence.
+    def stable_snapshot():
+        return {
+            "files": {str(p.relative_to(tmp_path)): p.read_bytes()
+                      for p in tmp_path.rglob("*") if p.is_file()},
+            "receipts": copy.deepcopy(store._all(read_only=True)),
+            "memory_receipts": copy.deepcopy(store._mem),
+            "placement": {key: copy.deepcopy(value) for key, value in ledger.__dict__.items()
+                          if key not in {"_lock", "record"}},
+            "loaded_modules": {name: sys.modules.get(name) for name in
+                               ("szl_cheapest_watt", "szl_energy_operator")},
+        }
+
+    with TestClient(app) as http:
+        yield app, http, store, cheapest, ledger, calls, stable_snapshot, tmp_path
+
+
+def _assert_unsigned_read(response):
+    assert response.headers["Cache-Control"] == "no-store"
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    body = response.json()
+    assert body["dsse"] is None
+    assert body["signed"] is False
+    assert body["receipt_minted"] is False
+    assert body["export_read_only"] is True
+    assert body["retained_signature_verified"] is False
+    assert body["retained_attestation_state"] == "UNKNOWN"
+    return body
+
+
+@pytest.mark.parametrize("path,endpoint", [
+    ("assurance/attest", "_assurance_attest"),
+    ("assurance/attest/status", "_assurance_attest_status"),
+    ("energy/cheapest-watt", "_cheapest_watt"),
+])
+@pytest.mark.parametrize("method", ["GET", "HEAD"])
+def test_passive_backend_first_match_preserves_state(passive_backend, path, endpoint, method):
+    from starlette.routing import Match
+
+    app, http, store, _module, ledger, calls, snapshot, _root = passive_backend
+    url = f"/api/a11oy/v1/{path}"
+    scope = {"type": "http", "path": url, "method": method, "root_path": ""}
+    first = next(r for r in app.routes if r.matches(scope)[0] == Match.FULL)
+    assert first.endpoint.__name__ == endpoint
+    before = snapshot()
+    for _ in range(3):
+        response = http.request(method, url)
+        assert response.status_code == 200
+        if method == "HEAD":
+            assert response.content == b""
+            assert response.headers["Cache-Control"] == "no-store"
+        else:
+            body = _assert_unsigned_read(response)
+            if path.startswith("assurance"):
+                assert body["statement"]["khipu_chain"]["depth"] == 1
+                assert body["statement"]["khipu_chain"]["chain_ok"] is True
+                assert body["signing_available"] is None
+                assert body["signing_state"] == "UNKNOWN"
+            else:
+                assert body["decisions_total"] == 1
+                assert body["latest_decision"] == ledger.status()["recent_decisions"][-1]
+                assert body["ledger_state"] == "AVAILABLE"
+    assert snapshot() == before
+    assert all(count == 0 for count in calls.values())
+
+
+@pytest.mark.parametrize("path", ["assurance/attest", "assurance/attest/status"])
+@pytest.mark.parametrize("method", ["GET", "HEAD"])
+@pytest.mark.parametrize("damage", ["missing", "malformed", "broken-chain"])
+def test_passive_attestation_does_not_recreate_or_certify_bad_store(
+    passive_backend, path, method, damage
+):
+    from pathlib import Path
+
+    _app, http, store, _module, _ledger, calls, _snapshot, root = passive_backend
+    database = Path(store._path)
+    if damage == "missing":
+        # A missing binding must stay missing; no deletion of an open file is needed.
+        store._path = str(root / "missing.sqlite3")
+    elif damage == "malformed":
+        database.write_bytes(b"test-owned invalid SQLite")
+    else:
+        import sqlite3
+        # Bypass the read trap only to damage this test-owned fixture beforehand.
+        with sqlite3.Connection(str(database)) as db:
+            db.execute("UPDATE khipu SET digest='broken' WHERE seq=0")
+    before = {str(p.relative_to(root)): p.read_bytes()
+              for p in root.rglob("*") if p.is_file()}
+    response = http.request(method, f"/api/a11oy/v1/{path}")
+    assert response.status_code == (200 if damage == "broken-chain" else 503)
+    assert response.headers["Cache-Control"] == "no-store"
+    if method == "GET":
+        body = _assert_unsigned_read(response)
+        if damage == "broken-chain":
+            assert body["statement"]["khipu_chain"]["chain_ok"] is False
+            assert body["statement"]["khipu_chain"]["first_break_seq"] == 0
+            assert body["axes_present"]["runtime"] is False
+        else:
+            assert body["statement"] is None
+            assert body["observation_state"] == "UNAVAILABLE"
+    else:
+        assert response.content == b""
+    assert {str(p.relative_to(root)): p.read_bytes()
+            for p in root.rglob("*") if p.is_file()} == before
+    assert all(count == 0 for count in calls.values())
+
+
+@pytest.mark.parametrize("state", ["unloaded", "no-ledger", "empty"])
+@pytest.mark.parametrize("method", ["GET", "HEAD"])
+def test_passive_energy_absent_or_empty_never_activates(passive_backend, monkeypatch, state, method):
+    import sys
+
+    _app, http, _store, module, ledger, calls, snapshot, _root = passive_backend
+    if state == "unloaded":
+        monkeypatch.delitem(sys.modules, "szl_cheapest_watt", raising=False)
+    elif state == "no-ledger":
+        monkeypatch.setattr(module, "_LEDGER", None)
+    else:
+        # Reset only test-owned constructor state; this is not a runtime reset.
+        ledger._recent.clear()
+        ledger._count = ledger._placed = ledger._no_choice = 0
+        ledger._head = module.GENESIS_PREV
+    before = snapshot()
+    response = http.request(method, "/api/a11oy/v1/energy/cheapest-watt")
+    assert response.status_code == 200
+    if method == "GET":
+        body = _assert_unsigned_read(response)
+        assert body["latest_decision"] is None
+        assert body["ledger_state"] == ("EMPTY" if state == "empty" else "UNAVAILABLE")
+        if state == "empty":
+            assert body["decisions_total"] == 0
+        else:
+            assert body["data_kind"] == "structural"
+    else:
+        assert response.content == b""
+        assert response.headers["Cache-Control"] == "no-store"
+    assert snapshot() == before
+    assert all(count == 0 for count in calls.values())
+
+
+@pytest.mark.parametrize("state", [None, [], {"recent_decisions": "bad"},
+                                  {"recent_decisions": [None]},
+                                  {"recent_decisions": [], "value": float("nan")},
+                                  {"recent_decisions": [], "value": float("inf")}])
+@pytest.mark.parametrize("method", ["GET", "HEAD"])
+def test_passive_energy_invalid_existing_state_fails_closed(
+    passive_backend, monkeypatch, state, method
+):
+    _app, http, _store, _module, ledger, calls, snapshot, _root = passive_backend
+    monkeypatch.setattr(ledger, "status", lambda: state)
+    before = snapshot()
+    response = http.request(method, "/api/a11oy/v1/energy/cheapest-watt")
+    assert response.status_code == 503
+    assert response.headers["Cache-Control"] == "no-store"
+    if method == "GET":
+        body = _assert_unsigned_read(response)
+        assert body["ledger_state"] == "UNAVAILABLE"
+        assert body["latest_decision"] is None
+    else:
+        assert response.content == b""
+    assert snapshot() == before
+    assert all(count == 0 for count in calls.values())
+
+
+def test_passive_energy_preserves_unverified_historical_payload(passive_backend):
+    import copy
+
+    _app, http, _store, _module, ledger, calls, snapshot, _root = passive_backend
+    historical = ledger._recent[-1]["decision"]
+    historical.update({"signed": True, "dsse": {"signatures": [{"sig": "historical-unverified"}]}})
+    expected = copy.deepcopy(historical)
+    before = snapshot()
+    body = _assert_unsigned_read(http.get("/api/a11oy/v1/energy/cheapest-watt"))
+    assert body["latest_decision"] == expected
+    assert body["recent_decisions"][-1] == expected
+    assert "no retained DSSE attestation retrieved or verified" in body["honesty_retained_attestation"]
+    assert snapshot() == before
+    assert all(count == 0 for count in calls.values())
+
+
+def test_passive_attestation_keeps_explicit_receipt_writer(client):
+    import sqlite3
+
+    before = client.get(f"/api/{ORGAN}/v1/assurance/attest").json()
+    assert before["statement"]["khipu_chain"]["depth"] == 0
+    response = client.post(f"/api/{ORGAN}/v1/be/khipu/append",
+                           json={"action": "fixture.write", "payload": {"evidence_class": "SAMPLE"}})
+    assert response.status_code == 200
+    after = client.get(f"/api/{ORGAN}/v1/assurance/attest").json()
+    assert after["statement"]["khipu_chain"]["depth"] == 1
+    assert after["statement"]["khipu_chain"]["chain_ok"] is True
+    with sqlite3.connect(client._db_path) as db:
+        assert db.execute("SELECT COUNT(*) FROM khipu").fetchone()[0] == 1
+
+
+@pytest.mark.parametrize("path", ["assurance/attest", "assurance/attest/status"])
+@pytest.mark.parametrize("method", ["GET", "HEAD"])
+@pytest.mark.parametrize("sidecars", ["present", "absent"])
+def test_passive_attestation_wal_is_unavailable_without_sidecar_changes(
+    passive_backend, path, method, sidecars
+):
+    import json
+    from pathlib import Path
+    import sqlite3
+
+    _app, http, store, _module, _ledger, calls, _snapshot, root = passive_backend
+    database = Path(store._path)
+    writer = sqlite3.Connection(str(database))
+    try:
+        assert writer.execute("PRAGMA journal_mode=WAL").fetchone()[0] == "wal"
+        writer.execute("PRAGMA wal_autocheckpoint=0")
+        prev = writer.execute("SELECT digest FROM khipu WHERE seq=0").fetchone()[0]
+        payload = {"evidence_class": "SAMPLE", "location": "uncheckpointed WAL fixture"}
+        body = {"organ": store.organ, "ns": store.ns, "seq": 1,
+                "action": "fixture.wal", "payload": payload, "prev": prev}
+        writer.execute(
+            "INSERT INTO khipu(seq,action,payload,prev,digest,ts) VALUES (?,?,?,?,?,?)",
+            (1, body["action"], json.dumps(payload, sort_keys=True), prev,
+             store._digest(body), 1.0),
+        )
+        writer.commit()
+        assert writer.execute("SELECT COUNT(*) FROM khipu").fetchone()[0] == 2
+        assert Path(str(database) + "-wal").stat().st_size > 32
+        if sidecars == "absent":
+            writer.close()  # Normal SQLite close/checkpoint of the test-owned writer.
+            assert not Path(str(database) + "-wal").exists()
+            assert not Path(str(database) + "-shm").exists()
+        assert database.read_bytes()[18:20] == b"\x02\x02"
+        before = {str(p.relative_to(root)): p.read_bytes()
+                  for p in root.rglob("*") if p.is_file()}
+        for _ in range(3):
+            response = http.request(method, f"/api/a11oy/v1/{path}")
+            assert response.status_code == 503
+            assert response.headers["Cache-Control"] == "no-store"
+            if method == "GET":
+                result = _assert_unsigned_read(response)
+                assert result["statement"] is None
+                assert result["observation_state"] == "UNAVAILABLE"
+            else:
+                assert response.content == b""
+            assert {str(p.relative_to(root)): p.read_bytes()
+                    for p in root.rglob("*") if p.is_file()} == before
+        assert all(count == 0 for count in calls.values())
+    finally:
+        writer.close()
