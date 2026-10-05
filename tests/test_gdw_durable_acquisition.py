@@ -867,3 +867,27 @@ raise SystemExit(worker())
     else:
         assert acquisition._reconciliation_report(result.stdout) == report
     assert PRIVATE_FAILURE.encode() not in result.stdout and list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize("code", [
+    "ARTIFACT_DATABASE_OPEN_UNAVAILABLE", "ARTIFACT_SCHEMA_VALIDATION_UNAVAILABLE",
+    "ARTIFACT_ROW_READ_UNAVAILABLE", "ARTIFACT_ROW_VALIDATION_UNAVAILABLE",
+    "ARTIFACT_CACHE_MATERIALIZATION_UNAVAILABLE", "ARTIFACT_NATIVE_BINDING_UNAVAILABLE",
+    "ARTIFACT_PROVIDER_CALL_UNAVAILABLE", "ARTIFACT_PROVIDER_READBACK_UNAVAILABLE",
+    "ARTIFACT_RECONSTRUCTION_MISMATCH", "ARTIFACT_PUBLICATION_UNVERIFIED",
+])
+def test_artifact_failure_survives_held_worker_decoder_without_authority(code):
+    from gdw_durable_runtime import DurableStorageUnavailable
+    report = acquisition._held(acquisition._Progress("ARTIFACT_PUBLICATION"), DurableStorageUnavailable(code))
+    raw = acquisition.canonical(report)
+    decoded = acquisition._failure_report(raw)
+    assert decoded == report
+    assert decoded["diagnostic_code"] == code
+    assert decoded["provider_effects"] == "NOT_ESTABLISHED"
+    assert all(decoded[key] is False for key in ("restore_admitted", "deployment_admitted", "secret_values_recorded"))
+
+
+def test_all_artifact_failure_codes_are_recognized_without_widening_worker_schema():
+    from gdw_durable_artifacts import ARTIFACT_FAILURE_CODES
+    assert ARTIFACT_FAILURE_CODES <= acquisition._DIAGNOSTICS
+    assert len(acquisition._FAILURE_FIELDS) == 9
