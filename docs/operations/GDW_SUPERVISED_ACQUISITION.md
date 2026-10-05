@@ -6,8 +6,8 @@ Publication and the resulting native run require source review and protected
 GitHub admission. No provider action was performed while preparing this change.
 
 
-> Refreshed evidence: canonical push run `37258464744`, attempt `1`, on signed
-> protected source `47fdc56643051dbcea363807cfc11b528b53cf21` performed a
+> Refreshed evidence: canonical push run `37260982314`, attempt `1`, on signed
+> protected source `bedc2f55a26eb94d7253d2fb67994a2c3d73f3c7` performed a
 > metadata-only inspection. It classified the private durable HEAD as **ABSENT**
 > at dataset revision `dd34d6b0b20d918cc862888030569d03d99a9b37`; provider writes,
 > retry, restore and deployment admission remained false. The 13-job run had only
@@ -25,14 +25,14 @@ root and `git -C` calls did not reproduce a temporary-working-directory defect.
 The closed stage/diagnostic decoder added subsequently remains in place.
 
 The actual read-only successor is source
-`47fdc56643051dbcea363807cfc11b528b53cf21`, run `37258464744`, attempt `1`,
-inspection job `111600448989`. Its source-admission job `111600409872` succeeded;
+`bedc2f55a26eb94d7253d2fb67994a2c3d73f3c7`, run `37260982314`, attempt `1`,
+inspection job `111608007531`. Its source-admission job `111607965035` succeeded;
 the inspection exited `2`; all eleven other jobs were skipped, including manual
-preservation and every provider writer. Artifact `11324090824` has exact ZIP
-size `565` and SHA-256
-`d2718f35e72a34bcd4c747dcaec3a02d975f7b94f2ea40c186c89bde6d023aca`.
+preservation and every provider writer. Artifact `11324262380` has exact ZIP
+size `564` and SHA-256
+`cdbd77c0ac4ae2d799acce2df7ef84256df6151492f36f14c03fe635dfa84b1d`.
 Its sole canonical JSON member is `640` bytes with SHA-256
-`4b2d40feceabf2aa98a8c9fd4df1cc143ff22550530bc71d94e860dc142736db`.
+`4c24af3081cfcc78209f631a030026cdc8ee794dac1b1524db0b58809bc50230`.
 That report says **ABSENT / HELD** at private dataset revision
 `dd34d6b0b20d918cc862888030569d03d99a9b37`; provider-object verification, retry,
 restore and deployment admission are all false.
@@ -48,7 +48,7 @@ The new read-only job `recovery-reconciliation` runs after source admission and
 before `manual-prerequisites`. Its helper requires all of the following:
 
 - The exact protected current main is a GitHub-verified, valid signed commit
-  whose sole parent is the inspected source `0e63b001…`.
+  whose sole parent is the inspected source `bedc2f55…`.
 - The workflow source equals `GITHUB_SHA` and `GITHUB_WORKFLOW_SHA`; the event is
   `push`, attempt is integer `1`, repository and workflow are the fixed canonical
   values, and the exact executing job is active with no conclusion.
