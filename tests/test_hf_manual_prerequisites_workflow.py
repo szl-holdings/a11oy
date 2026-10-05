@@ -19,10 +19,17 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
 
-from tests.test_hf_sync_supersession_contract import (
-    ROOT, WORKFLOW, WorkflowContractError, assert_manual_dependency_graph,
-    workflow_document,
-)
+if __package__ in (None, ""):
+    # Native CI invokes this file directly; its sibling is on sys.path.
+    from test_hf_sync_supersession_contract import (
+        ROOT, WORKFLOW, WorkflowContractError, assert_manual_dependency_graph,
+        workflow_document,
+    )
+else:
+    from .test_hf_sync_supersession_contract import (
+        ROOT, WORKFLOW, WorkflowContractError, assert_manual_dependency_graph,
+        workflow_document,
+    )
 
 CHECKER = ROOT / "scripts/check_hf_manual_prerequisites.py"
 RESTART_WORKFLOW = ROOT / ".github/workflows/series-a-restart-proof.yml"
