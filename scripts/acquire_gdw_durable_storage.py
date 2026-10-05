@@ -124,6 +124,10 @@ _DIAGNOSTICS = frozenset({
     "NATIVE_CONTEXT_UNQUALIFIED", "SOURCE_SUCCESSOR_UNQUALIFIED", "NATIVE_RUN_NOT_UNIQUE",
     "INSPECTION_PRODUCER_UNQUALIFIED", "INSPECTION_ARTIFACT_UNQUALIFIED",
     "EXPECTED_ABSENCE_UNVERIFIED", "RECONCILIATION_UNAVAILABLE",
+    "CURRENT_CONTEXT_UNQUALIFIED", "DIAGNOSTIC_PRODUCER_UNQUALIFIED",
+    "DIAGNOSTIC_ARTIFACT_UNQUALIFIED", "DIAGNOSTIC_REPORT_UNQUALIFIED",
+    "CURRENT_ABSENCE_UNVERIFIED", "CONTINUATION_REPORT_UNQUALIFIED",
+    "DIAGNOSTIC_CONTINUATION_UNAVAILABLE",
 })
 _FAILURE_FIELDS = frozenset({"schema", "state", "stage", "stage_state", "diagnostic_code",
     "provider_effects", "restore_admitted", "deployment_admitted", "secret_values_recorded"})
@@ -339,14 +343,11 @@ def original_identities(report: dict) -> dict:
     return values
 
 
-def validate_qualified_reports(preserved: dict, qualified: dict, reference: dict,
-                               capture_bytes: bytes, source_revision: str) -> dict:
-    """Select source-owned native facts; this pure check does not grant effects."""
+def select_qualified_capture(qualified: dict, reference: dict,
+                             capture_bytes: bytes, source_revision: str) -> dict:
+    """Select a fresh source-bound qualification of the preserved capture."""
     import qualify_gdw_store_recovery as recovery
-    _require(_digest(source_revision, 40) and preserved.get("source_revision") == source_revision,
-        "PRESERVATION_SOURCE_MISMATCH")
-    _require(original_identities(preserved) == original_identities(reference),
-        "LATER_ORIGINAL_IDENTITIES_CHANGED")
+    _require(_digest(source_revision, 40), "QUALIFIED_CAPTURE_REQUIRED")
     _require(type(qualified) is dict and qualified.get("schema") == recovery.SCHEMA
         and qualified.get("state") == "LOGICAL_CONTINUITY_VERIFIED"
         and qualified.get("inspector_source_revision") == source_revision
@@ -397,6 +398,16 @@ def validate_qualified_reports(preserved: dict, qualified: dict, reference: dict
     return result
 
 
+def validate_qualified_reports(preserved: dict, qualified: dict, reference: dict,
+                               capture_bytes: bytes, source_revision: str) -> dict:
+    """Select source-owned facts after a new preservation report."""
+    _require(_digest(source_revision, 40) and preserved.get("source_revision") == source_revision,
+        "PRESERVATION_SOURCE_MISMATCH")
+    _require(original_identities(preserved) == original_identities(reference),
+        "LATER_ORIGINAL_IDENTITIES_CHANGED")
+    return select_qualified_capture(qualified, reference, capture_bytes, source_revision)
+
+
 def observe_originals(api, expected: dict, *, require_owned_source, deadline: float) -> dict:
     """Observe exact paths, all absences and source; never open original bytes."""
     import preserve_hf_gdw_store as preservation
@@ -414,13 +425,14 @@ def observe_originals(api, expected: dict, *, require_owned_source, deadline: fl
     return observation
 
 
-def pause_qualified_source(api, expected: dict, *, require_owned_source, deadline: float) -> dict:
+def pause_qualified_source(api, expected: dict, *, require_owned_source,
+                           deadline: float, require_prewrite=None) -> dict:
     """One exact canonical pause, with no replay after uncertain acknowledgement."""
     before = observe_originals(api, expected, require_owned_source=require_owned_source, deadline=deadline)
     _require(before["stage"] in {"PAUSED", "RUNTIME_ERROR"}, "LEGACY_STOP_STATE_UNQUALIFIED")
     attempted = before["stage"] != "PAUSED"
     if attempted:
-        require_owned_source()
+        (require_prewrite if require_prewrite is not None else require_owned_source)()
         _budget(deadline)
         try:
             reply = api.pause_space(repo_id=storage.SPACE)
@@ -440,8 +452,9 @@ def pause_qualified_source(api, expected: dict, *, require_owned_source, deadlin
 
 class _AdmittedAcquisitionHub:
     """Qualify every native object/metadata write against current source and pause."""
-    def __init__(self, api, require_paused):
+    def __init__(self, api, require_paused, continuation_fence=None):
         self.api, self.require_paused = api, require_paused
+        self.continuation_fence = continuation_fence
         self.endpoint = storage.ENDPOINT
 
     def __getattr__(self, name):
@@ -454,7 +467,15 @@ class _AdmittedAcquisitionHub:
         _require(set(kwargs) == {"bucket_id", "add"} and kwargs["bucket_id"] == storage.BUCKET
             and type(kwargs["add"]) is list and len(kwargs["add"]) == 1, "ACQUISITION_BUCKET_SCOPE_INVALID")
         self.require_paused()
-        return self.api.batch_bucket_files(**kwargs)
+        _local_path, object_path = kwargs["add"][0]
+        controlled = (self.continuation_fence is not None
+            and self.continuation_fence.controls_artifact_path(object_path))
+        if controlled:
+            self.continuation_fence.begin_artifact_add(object_path)
+        value = self.api.batch_bucket_files(**kwargs)
+        if controlled:
+            self.continuation_fence.complete_artifact_add(object_path)
+        return value
 
     def create_commit(self, repo_id=None, **kwargs):
         _require(repo_id == storage.DATASET and kwargs.get("repo_type") == "dataset"
@@ -465,12 +486,13 @@ class _AdmittedAcquisitionHub:
 
 def acquire_pair(api, *, source_context: dict, qualification_context: dict,
                  qualification_artifact_id: int, qualification_archive_sha256: str,
-                 preserved: dict, qualified: dict, qualification_bytes: bytes,
+                 preserved: dict | None, qualified: dict, qualification_bytes: bytes,
                  reference: dict, capture_bytes: bytes, anchors: dict, anchor_bytes: bytes,
                  manifest: dict, base_observation: dict, guard_probe: dict,
                  paused: dict, legacy_observation: dict, workspace: Path,
                  require_owned_source, require_prewrite_reconciliation,
-                 deadline: float, operation_factory, _progress=None) -> dict:
+                 deadline: float, operation_factory, continuation_fence=None,
+                 _progress=None) -> dict:
     """Reproduce qualified candidates, publish privately and bootstrap exactly once.
 
     No runtime config/restart/restore is performed here. All private working
@@ -492,7 +514,9 @@ def acquire_pair(api, *, source_context: dict, qualification_context: dict,
     _require(qualification_context["revision"] == source_revision
         and qualification_context["run_id"] == source_context["run_id"]
         and qualification_context["run_attempt"] == source_context["run_attempt"], "QUALIFICATION_SOURCE_CONTEXT_MISMATCH")
-    selected = validate_qualified_reports(preserved, qualified, reference, capture_bytes, source_revision)
+    selected = (select_qualified_capture(qualified, reference, capture_bytes, source_revision)
+        if preserved is None else
+        validate_qualified_reports(preserved, qualified, reference, capture_bytes, source_revision))
     _require(hashlib.sha256(qualification_bytes).hexdigest() != "0" * 64
         and recovery._json(qualification_bytes) == qualified, "QUALIFICATION_REPORT_BYTES_MISMATCH")
     recovery.validate_historical_anchors(anchors, reference, hashlib.sha256(capture_bytes).hexdigest())
@@ -544,7 +568,9 @@ def acquire_pair(api, *, source_context: dict, qualification_context: dict,
     reproduction = recovery.qualify_capture(recovery.ReadOnlyCaptureHub(api), reference, workspace / "qualification",
         require_owned_source, deadline, historical_anchors=anchors, capture_report_sha256=hashlib.sha256(capture_bytes).hexdigest())
     reproduction["inspector_source_revision"] = source_revision
-    reproduced = validate_qualified_reports(preserved, reproduction, reference, capture_bytes, source_revision)
+    reproduced = (select_qualified_capture(reproduction, reference, capture_bytes, source_revision)
+        if preserved is None else
+        validate_qualified_reports(preserved, reproduction, reference, capture_bytes, source_revision))
     _require(reproduced == selected, "CANDIDATE_REPRODUCTION_MISMATCH")
     progress.complete()
     progress.enter("CANDIDATE_INSPECTION")
@@ -554,6 +580,8 @@ def acquire_pair(api, *, source_context: dict, qualification_context: dict,
         observed = storage.inspect_snapshot(label, path, workspace, deadline)
         _require(all(observed[key] == selected[label][key] for key in ("size", "sha256", "generation")),
             "CANDIDATE_NATIVE_IDENTITY_MISMATCH")
+    if continuation_fence is not None:
+        continuation_fence.bind_candidate(paths["gdw"])
     require_paused()
     progress.complete()
     progress.enter("PRIVATE_FENCE_CHECK")
@@ -562,13 +590,17 @@ def acquire_pair(api, *, source_context: dict, qualification_context: dict,
         and _digest(storage._value(info, "sha"), 40), "PRIVATE_FENCE_UNAVAILABLE")
     group = hashlib.sha256(canonical(storage._value(info, "resource_group"))).hexdigest()
     staging = workspace / "objects"; staging.mkdir(mode=0o700)
-    guarded_api = _AdmittedAcquisitionHub(api, require_write)
+    guarded_api = _AdmittedAcquisitionHub(api, require_write, continuation_fence)
     backend = storage.HFDatasetFenceBackend(guarded_api, staging, group, operation_factory)
     backend.empty_parent(deadline)  # An existing HEAD cannot trigger new snapshot publication.
     objects = storage.HFPrivateObjectStore(guarded_api, staging, workspace)
     identities = {}
     def publish_artifact(path, object_path, sha256, object_deadline):
+        if continuation_fence is not None:
+            continuation_fence.before_artifact(object_path, sha256, path.stat().st_size)
         value = objects.publish_artifact(path, object_path, sha256, object_deadline)
+        if continuation_fence is not None:
+            continuation_fence.acknowledge_artifact(value)
         if object_path in identities:
             _require(identities[object_path] == value, "ARTIFACT_READBACK_IDENTITY_CHANGED")
         identities[object_path] = value
@@ -580,6 +612,8 @@ def acquire_pair(api, *, source_context: dict, qualification_context: dict,
     progress.complete()
     progress.enter("ARTIFACT_PUBLICATION")
     artifacts.prepare(paths["gdw"], measured_deadline)
+    if continuation_fence is not None:
+        continuation_fence.require_artifacts_complete()
     progress.complete()
     generations = {label: selected[label]["generation"] for label in storage.LABELS}
     progress.enter("SNAPSHOT_PUBLICATION")
@@ -724,6 +758,131 @@ def _native_inputs(request: dict, evidence):
         native.strict(qualified_bytes), qualified_bytes
 
 
+def _continuation_inputs(request: dict, evidence):
+    """Bind the same-run source and read-only continuation prerequisite."""
+    import gdw_acquisition_evidence as native
+    import reconcile_gdw_diagnostic_continuation as continuation
+
+    context = continuation.verify_current_context(
+        evidence, continuation.ACQUISITION_JOB_KEY, continuation.ACQUISITION_JOB)
+    source_members = evidence.artifact(request["source_artifact_id"],
+        request["source_artifact_sha256"],
+        name=f"canonical-source-admission-{evidence.run_id}-{evidence.attempt}",
+        job_name=native.SOURCE_JOB,
+        members=frozenset({"canonical-source-admission.json"}))
+    prerequisite_members = evidence.artifact(request["reconciliation_artifact_id"],
+        request["reconciliation_artifact_sha256"],
+        name=f"canonical-diagnostic-continuation-{evidence.run_id}-{evidence.attempt}",
+        job_name=continuation.RECONCILIATION_JOB,
+        members=frozenset({"gdw-diagnostic-continuation.json",
+                           "gdw-continuation-qualification.json"}))
+    receipt = source_members["canonical-source-admission.json"]
+    source = evidence.source_context(receipt, native.ACQUISITION_JOB)
+    qualification_source = evidence.source_context(receipt, continuation.RECONCILIATION_JOB)
+    reconciliation_bytes = prerequisite_members["gdw-diagnostic-continuation.json"]
+    qualification_bytes = prerequisite_members["gdw-continuation-qualification.json"]
+    reconciliation = continuation.validate_reconciliation_report(reconciliation_bytes)
+    qualified = native.strict(qualification_bytes, 1024 * 1024)
+    _require(reconciliation["source_revision"] == evidence.source
+        and reconciliation["run_id"] == evidence.run_id
+        and reconciliation["run_attempt"] == evidence.attempt
+        and reconciliation["job_id"] == qualification_source["job_id"]
+        and hashlib.sha256(qualification_bytes).hexdigest() == reconciliation["qualification_sha256"]
+        and context["source_revision"] == evidence.source,
+        "NATIVE_QUALIFIED_PREREQUISITE_REQUIRED")
+    return source, qualification_source, qualified, qualification_bytes
+
+
+def _execute_diagnostic_continuation(request: dict, workspace: Path, deadline: float,
+                                     *, _progress=None) -> dict:
+    """Fresh source-bound publication from the preserved capture; never replay."""
+    progress = _progress if _progress is not None else _Progress("WORKER_EXECUTION")
+    import gdw_acquisition_evidence as native
+    import gdw_durable_guard as guard
+    import probe_gdw_runtime_base as base
+    import probe_gdw_legacy_startup as legacy_native
+    from build_gdw_installed_source_manifest import build_manifest
+    from configure_hf_gdw_runtime import managed_space_observation
+    from huggingface_hub import CommitOperationAdd
+    import reconcile_gdw_diagnostic_continuation as continuation
+
+    progress.enter("NATIVE_INPUTS")
+    evidence = native.NativeEvidence(dict(os.environ), deadline)
+    source, qualification_source, qualified, qualification_bytes = _continuation_inputs(request, evidence)
+    api = storage._hub_api(os.environ.get("HF_TOKEN", ""))
+    fence_directory = workspace / "continuation-fence"
+    fence_directory.mkdir(mode=0o700)
+    fence = continuation.DiagnosticContinuationFence(
+        api, evidence, deadline, fence_directory)
+    fence.require_head_absent()
+    progress.complete()
+    progress.enter("REFERENCE_VALIDATION")
+    reference, captured, anchors, historical = _references()
+    selected = select_qualified_capture(qualified, reference, captured, evidence.source)
+    publisher = Path(request["publisher_script"])
+    _require(publisher.is_absolute() and publisher.name == "hf_deploy_from_dockerfile.py",
+        "PINNED_PUBLISHER_REQUIRED")
+    progress.complete()
+    progress.enter("SOURCE_MANIFEST")
+    manifest = build_manifest(ROOT, evidence.source, publisher, deadline=deadline)
+    progress.complete()
+    progress.enter("RUNTIME_BASE_CONTEXT")
+    dockerfile_digest, execution = base.canonical_context(evidence.source, deadline=deadline - 40)
+    progress.complete()
+    progress.enter("RUNTIME_BASE_OBSERVATION")
+    expected_base = base.observe_runtime_base(evidence.source, dockerfile_digest, execution,
+        deadline=min(deadline - 40, time.monotonic() + 240), temporary_root=workspace)
+    progress.complete()
+    progress.enter("SUPERVISED_RECONCILIATION")
+    # A pause is itself a provider mutation. Reproduce the source-bound capture
+    # and prove the complete diagnostic path set and HEAD are still absent
+    # inside this worker before even that first state transition.
+    preflight = workspace / "continuation-prewrite"
+    preflight.mkdir(mode=0o700)
+    current_qualification, _current_absence = continuation.observe_current_absence(
+        api, preflight, evidence.require_current_main, deadline)
+    _require(select_qualified_capture(current_qualification, reference, captured,
+        evidence.source) == selected, "CANDIDATE_REPRODUCTION_MISMATCH")
+    fence.bind_candidate(preflight / "capture" / "working" / "gdw" / "candidate.sqlite3")
+    progress.complete()
+    progress.enter("LEGACY_PROVIDER_READ")
+    legacy = managed_space_observation(api)
+    guard.validate_environment(legacy["variables"], legacy["secret_names"])
+    _require(legacy["space_revision"] == guard.SPACE_REVISION
+        and legacy["stage"] in {"RUNTIME_ERROR", "PAUSED"},
+        "LEGACY_SOURCE_STATE_UNQUALIFIED")
+    progress.complete()
+    progress.enter("LEGACY_NATIVE_GUARD")
+    native_guard = legacy_native.observe_legacy_guard(api, expected_base, legacy,
+        deadline=min(deadline - 20, time.monotonic() + 150), temporary_root=workspace)
+    original = original_identities(reference)
+    progress.complete()
+    progress.enter("PAUSE_BOUNDARY")
+    paused = pause_qualified_source(api, original,
+        require_owned_source=fence.require_head_absent, deadline=deadline,
+        require_prewrite=fence.require_artifacts_absent)
+    progress.complete()
+    progress.enter("PAUSE_READBACK")
+    after = managed_space_observation(api)
+    _require(after["stage"] == "PAUSED" and after["space_revision"] == legacy["space_revision"]
+        and after["variables"] == legacy["variables"]
+        and after["secret_names"] == legacy["secret_names"],
+        "PAUSE_CONFIGURATION_IDENTITY_CHANGED")
+    progress.complete()
+    return acquire_pair(api, source_context=source,
+        qualification_context=qualification_source,
+        qualification_artifact_id=request["reconciliation_artifact_id"],
+        qualification_archive_sha256=request["reconciliation_artifact_sha256"],
+        preserved=None, qualified=qualified, qualification_bytes=qualification_bytes,
+        reference=reference, capture_bytes=captured, anchors=anchors,
+        anchor_bytes=historical, manifest=manifest, base_observation=expected_base,
+        guard_probe=native_guard, paused=paused, legacy_observation=after,
+        workspace=workspace, require_owned_source=evidence.require_current_main,
+        require_prewrite_reconciliation=fence.require_head_absent,
+        deadline=deadline, operation_factory=CommitOperationAdd,
+        continuation_fence=fence, _progress=progress)
+
+
 def _execute_native(request: dict, workspace: Path, deadline: float, *, _progress=None) -> dict:
     progress = _progress if _progress is not None else _Progress("WORKER_EXECUTION")
     import gdw_acquisition_evidence as native
@@ -804,8 +963,18 @@ def _worker() -> int:
         request = strict(sys.stdin.buffer.read(MAX_LOCATOR_BYTES + 1), MAX_LOCATOR_BYTES)
         inspect_only = request.get("mode") == "INSPECT_HELD"
         reconcile_only = request.get("mode") == "RECONCILE_SUPERVISED"
+        diagnostic_continuation = request.get("mode") == "CONTINUE_DIAGNOSTIC_BOUND"
         if inspect_only or reconcile_only:
             _require(set(request) == {"mode", "deadline"}, "ACQUISITION_REQUEST_INVALID")
+        elif diagnostic_continuation:
+            _require(set(request) == {"mode", "source_artifact_id", "source_artifact_sha256",
+                "reconciliation_artifact_id", "reconciliation_artifact_sha256",
+                "publisher_script", "deadline"}, "ACQUISITION_REQUEST_INVALID")
+            for name in ("source_artifact_id", "reconciliation_artifact_id"):
+                _require(type(request[name]) is int and request[name] > 0,
+                    "ACQUISITION_ARTIFACT_INVALID")
+            for name in ("source_artifact_sha256", "reconciliation_artifact_sha256"):
+                _require(_digest(request[name], 64), "ACQUISITION_ARTIFACT_INVALID")
         else:
             _require(set(request) == {"source_artifact_id", "source_artifact_sha256", "qualification_artifact_id",
                 "qualification_artifact_sha256", "publisher_script", "deadline"}, "ACQUISITION_REQUEST_INVALID")
@@ -840,6 +1009,10 @@ def _worker() -> int:
                     value = reconciliation.execute_native_reconciliation(directory, request["deadline"])
                     value = reconciliation.validate_reconciliation_report(canonical(value))
                     progress.complete()
+                elif diagnostic_continuation:
+                    progress.enter("SUPERVISED_RECONCILIATION")
+                    value = _execute_diagnostic_continuation(
+                        request, directory, request["deadline"], _progress=progress)
                 else:
                     value = _execute_native(request, directory, request["deadline"], _progress=progress)
         progress.enter("WORKER_COMPLETION")
@@ -930,6 +1103,7 @@ def main(argv=None) -> int:
     mode.add_argument("--acquire", action="store_true")
     mode.add_argument("--inspect-held-acquisition", action="store_true")
     mode.add_argument("--reconcile-supervised-acquisition", action="store_true")
+    mode.add_argument("--continue-diagnostic-recovery", action="store_true")
     mode.add_argument("--fetch-locator", action="store_true")
     parser.add_argument("--preservation", type=Path)
     parser.add_argument("--qualification", type=Path)
@@ -937,6 +1111,8 @@ def main(argv=None) -> int:
     parser.add_argument("--source-artifact-sha256")
     parser.add_argument("--qualification-artifact-id", type=int)
     parser.add_argument("--qualification-artifact-sha256")
+    parser.add_argument("--reconciliation-artifact-id", type=int)
+    parser.add_argument("--reconciliation-artifact-sha256")
     parser.add_argument("--acquisition-artifact-id", type=int)
     parser.add_argument("--acquisition-artifact-sha256")
     parser.add_argument("--publisher-script")
@@ -967,6 +1143,23 @@ def main(argv=None) -> int:
                 and args.github_output is not None and args.github_output.is_absolute(),
                 "ACQUISITION_REQUEST_INVALID")
             value = _reconciliation_report(canonical(run_native({}, _reconcile_only=True)))
+        elif args.continue_diagnostic_recovery:
+            _require(all(getattr(args, name) is None for name in (
+                "preservation", "qualification", "qualification_artifact_id",
+                "qualification_artifact_sha256", "acquisition_artifact_id",
+                "acquisition_artifact_sha256", "github_output"))
+                and args.source_artifact_id is not None
+                and args.source_artifact_sha256 is not None
+                and args.reconciliation_artifact_id is not None
+                and args.reconciliation_artifact_sha256 is not None
+                and args.publisher_script is not None,
+                "ACQUISITION_REQUEST_INVALID")
+            value = run_native({"mode": "CONTINUE_DIAGNOSTIC_BOUND",
+                "source_artifact_id": args.source_artifact_id,
+                "source_artifact_sha256": args.source_artifact_sha256,
+                "reconciliation_artifact_id": args.reconciliation_artifact_id,
+                "reconciliation_artifact_sha256": args.reconciliation_artifact_sha256,
+                "publisher_script": args.publisher_script})
         elif args.acquire:
             value = run_native({"source_artifact_id": args.source_artifact_id,
                 "source_artifact_sha256": args.source_artifact_sha256,

@@ -693,6 +693,27 @@ def test_workflow_rejects_widened_or_duplicate_recovery_artifacts(replacement):
         assert_preflight_order(source.replace(original, replacement, 1))
 
 
+# These checks document the retired 62ca-era preservation/qualification DAG.
+# The accepted read-only diagnostic proved that replaying that DAG would be the
+# wrong recovery action, so keep its mutation tests as incident history without
+# allowing them to require the obsolete provider-writing steps in hf-sync.yml.
+# The source-bound continuation and its negative workflow mutations are guarded
+# by test_hf_sync_supersession_contract.py,
+# test_hf_manual_prerequisites_workflow.py, and
+# test_gdw_diagnostic_continuation.py.
+for _retired_workflow_test in (
+    test_existing_native_dependency_gate_and_private_artifact_boundary,
+    test_workflow_rejects_preflight_after_live_runtime_qualification,
+    test_workflow_rejects_each_reversed_prerequisite_boundary,
+    test_workflow_rejects_classifier_effects_substitution_and_skip,
+    test_workflow_requires_successful_nonmanaged_classification_before_metadata_checks,
+    test_workflow_requires_both_reviewed_blocked_steps_to_reach_the_classifier,
+    test_workflow_rejects_wildcard_private_artifact_upload,
+    test_workflow_rejects_widened_or_duplicate_recovery_artifacts,
+):
+    _retired_workflow_test.__test__ = False
+
+
 @pytest.mark.parametrize("mode", ["script", "module"])
 @pytest.mark.parametrize("reject_at", [None, 1, 2])
 def test_preservation_native_import_context_and_per_batch_fence(tmp_path, mode, reject_at):
