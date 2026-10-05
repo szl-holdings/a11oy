@@ -228,7 +228,8 @@ jobs:
           public = json.loads(Path('reports/hf-public-inventory-preflight.json').read_text())
           lines += ['', '### Explicit public inventory predicate',
               f'- State: `{public["state"]}`',
-              f'- Scope: `{public["scope"]["id"]}`; anonymous public-only; kernels counted once as model repositories.',
+              f'- Scope: `{public["scope"]["id"]}`; anonymous public-only; native kernels are a separate repository namespace.',
+              '- Membership identity is `(kind, id)`; cross-namespace totals are not unique-project or trained-model totals.',
               f'- Scope digest: `{public["scope_sha256"]}`',
               f'- Profile counts: `{json.dumps(public.get("declared_counts"), sort_keys=True)}`',
               f'- Manifest counts: `{json.dumps(public.get("manifest_counts"), sort_keys=True)}`',

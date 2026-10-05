@@ -42,11 +42,13 @@ class PublicInventoryTests(unittest.TestCase):
         result = collect_fixture( get_empty)
         self.assertTrue(result['observed'])
         self.assertEqual(result['counts'], dict.fromkeys(m.KINDS, 0))
+        self.assertEqual(result['items'], {kind: [] for kind in m.KINDS})
 
     def test_object_200_is_unknown_not_zero(self):
         result = collect_fixture( lambda u: {'status': 200, 'json': {'error': 'oops'}})
         self.assertFalse(result['observed'])
         self.assertEqual(result['counts'], dict.fromkeys(m.KINDS, None))
+        self.assertEqual(result['items'], dict.fromkeys(m.KINDS, None))
 
     def test_http_and_network_failures_never_zero(self):
         for status in (None, 401, 403, 429, 500, 302):
@@ -63,7 +65,7 @@ class PublicInventoryTests(unittest.TestCase):
             with self.subTest(value=value):
                 result = collect_fixture( lambda u: {'status': 200, 'json': [row(private=value)]})
                 self.assertFalse(result['observed'])
-                self.assertEqual(result['items']['models'], [])
+                self.assertIsNone(result['items']['models'])
 
     def test_foreign_namespace_and_duplicate_rejected(self):
         for rows in ([row(id='other/model')], [row(), row()], [None], [row(id='../model')]):
@@ -97,8 +99,22 @@ class PublicInventoryTests(unittest.TestCase):
             return {'status': 200, 'json': [row()], 'link': f'<{url}&cursor=p2>; rel="next"'}
         result = collect_fixture( get)
         self.assertIsNone(result['counts']['models'])
-        self.assertEqual(result['items']['models'], [])
+        self.assertIsNone(result['items']['models'])
         self.assertEqual(len(result['page_evidence']['models']), 1)
+
+    def test_unavailable_namespace_does_not_erase_observed_empty_namespaces(self):
+        def get(url):
+            if '/api/models?' in url:
+                return {'status': 503, 'json': []}
+            return get_empty(url)
+        result = collect_fixture(get)
+        self.assertFalse(result['observed'])
+        self.assertIsNone(result['items']['models'])
+        self.assertIsNone(result['counts']['models'])
+        self.assertIsNone(result['membership_sha256'])
+        for kind in ('datasets', 'spaces', 'kernels'):
+            self.assertEqual(result['items'][kind], [])
+            self.assertEqual(result['counts'][kind], 0)
 
     def test_duplicates_across_pages_rejected(self):
         def get(url):
@@ -219,7 +235,32 @@ class PublicInventoryTests(unittest.TestCase):
     def test_reordering_is_not_membership_drift(self):
         inventory, manifest, counts = fixture([row('b'), row('a')])
         manifest['inventory']['models'].reverse()
+        inventory['items']['kernels'].reverse()
         self.assertTrue(m.compare_manifest(inventory, manifest, counts)['aligned'])
+
+    def test_observed_flag_cannot_override_missing_or_failed_error_evidence(self):
+        for errors in ({'models': 'HTTP_UNAVAILABLE'}, None, [], False, ''):
+            with self.subTest(errors=errors):
+                inventory, manifest, counts = fixture()
+                inventory['errors'] = errors
+                result = m.compare_manifest(inventory, manifest, counts)
+                self.assertFalse(result['aligned'])
+                self.assertIn('HF_PUBLIC_INVENTORY_UNAVAILABLE', result['blockers'])
+        del inventory['errors']
+        self.assertFalse(m.compare_manifest(inventory, manifest, counts)['aligned'])
+
+    def test_membership_digest_must_bind_observed_namespace_ids(self):
+        for membership_digest in (None, '', '0' * 64, True, []):
+            with self.subTest(membership_digest=membership_digest):
+                inventory, manifest, counts = fixture()
+                inventory['membership_sha256'] = membership_digest
+                result = m.compare_manifest(inventory, manifest, counts)
+                self.assertFalse(result['aligned'])
+                self.assertIn('HF_OBSERVED_MEMBERSHIP_DIGEST_MISMATCH', result['blockers'])
+        inventory, manifest, counts = fixture()
+        inventory['items']['kernels'][0]['id'] = 'SZLHOLDINGS/replaced'
+        manifest['inventory']['kernels'][0]['id'] = 'SZLHOLDINGS/replaced'
+        self.assertFalse(m.compare_manifest(inventory, manifest, counts)['aligned'])
 
     def test_returned_scope_cannot_mutate_global_predicate(self):
         inventory = collect_fixture( get_empty)
