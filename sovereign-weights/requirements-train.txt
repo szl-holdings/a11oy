@@ -10,7 +10,7 @@
 # imports these only on the REAL training path — --dry-run needs none of them.
 transformers>=5.17.0
 peft>=0.21.0
-trl>=1.13.0
+trl>=1.14.0
 datasets>=5.0.1
 accelerate>=1.15.0
 bitsandbytes>=0.50.2
