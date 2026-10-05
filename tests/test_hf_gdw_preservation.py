@@ -135,7 +135,8 @@ class FakeHub:
             self.files[target] = self.objects[digest]
         for data, target in additions or []:
             assert target.startswith(p.PRIVATE_PREFIX + "/") and target not in self.files
-            self.files[target] = bytes(data)
+            payload = Path(data).read_bytes() if isinstance(data, (str, Path)) else bytes(data)
+            self.files[target] = payload
 
 
 @pytest.fixture
@@ -315,6 +316,30 @@ def test_partial_batch_is_retained_honestly_without_retry_or_rollback(hub, tmp_p
     assert {path: hub.files[path] for path in originals} == originals
     assert PROVIDER_SECRET not in json.dumps(report)
 
+
+
+
+def test_zero_server_copy_uses_distinct_verified_local_upload_fallback(hub, tmp_path):
+    def unavailable_copy(api, copies, additions):
+        if copies:
+            raise RuntimeError(PROVIDER_SECRET)
+        api.apply_batch(copies, additions)
+    hub.batch_behavior = unavailable_copy
+    originals = dict(hub.files)
+    report = run(hub, tmp_path)
+    assert report["copy_response"] == "UNAVAILABLE"
+    assert report["server_copy_count"] == 0
+    assert report["copy_mode"] == "LOCAL_UPLOAD_FALLBACK"
+    assert report["fallback_upload_response"] == "RECEIVED"
+    assert report["private_copy_count"] == 3
+    assert report["preservation_state"] == "VERIFIED"
+    assert len(hub.batch_calls) == 3  # failed copy, one fallback upload, manifest
+    assert hub.batch_calls[0]["copy"] and hub.batch_calls[0]["add"] is None
+    assert hub.batch_calls[1]["copy"] is None and hub.batch_calls[1]["add"]
+    assert all("/uploaded-originals/" in row["private_copy_path"]
+               for row in report["files"] if row["present"])
+    assert {path: hub.files[path] for path in originals} == originals
+    assert PROVIDER_SECRET not in json.dumps(report)
 
 def test_lost_successful_response_requires_identity_and_byte_readback(hub, tmp_path):
     def lost(api, copies, additions):
