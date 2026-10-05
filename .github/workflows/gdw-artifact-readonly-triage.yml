@@ -7,7 +7,11 @@ on:
       - '.github/workflows/gdw-artifact-readonly-triage.yml'
       - 'scripts/triage_gdw_artifacts_readonly.py'
       - 'tests/test_gdw_artifact_readonly_triage.py'
+      - 'tests/test_gdw_artifact_readonly_protocol.py'
+      - 'scripts/probe_gdw_runtime_base.py'
+      - 'tests/test_gdw_runtime_base_probe.py'
       - 'gdw_durable_artifacts.py'
+      - 'gdw_durable_storage.py'
       - 'scripts/qualify_gdw_store_recovery.py'
   workflow_dispatch:
     inputs:
@@ -36,7 +40,9 @@ jobs:
       - name: Prove read-only triage boundaries with actual disposable databases
         env:
           PYTHONDONTWRITEBYTECODE: '1'
-        run: python -B -m pytest tests/test_gdw_artifact_readonly_triage.py -q
+        run: >-
+          python -B -m pytest tests/test_gdw_artifact_readonly_triage.py
+          tests/test_gdw_artifact_readonly_protocol.py tests/test_gdw_runtime_base_probe.py -q
   triage:
     needs: contract
     if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && github.sha == inputs.source_sha && github.run_attempt == 1 }}
