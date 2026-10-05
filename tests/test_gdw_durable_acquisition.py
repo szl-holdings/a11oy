@@ -447,9 +447,10 @@ def test_changed_fence_before_first_private_submission_is_not_retried(native_acq
         original()
     state.arguments["require_prewrite_reconciliation"] = reconcile
     from gdw_durable_runtime import DurableStorageUnavailable
-    # The retained artifact adapter intentionally closes provider failures to
-    # its own fixed error. No submission occurred and no retry follows it.
-    with pytest.raises(DurableStorageUnavailable, match="ARTIFACT_PERSISTENCE_UNAVAILABLE"):
+    # The provider-callback boundary includes the prewrite reconciliation fence.
+    # Its closed diagnostic does not imply submission; the zero-write and
+    # no-retry assertions below still bind the actual synthetic API observations.
+    with pytest.raises(DurableStorageUnavailable, match="^ARTIFACT_PROVIDER_CALL_UNAVAILABLE$"):
         acquisition.acquire_pair(state.api, **state.arguments)
     assert calls == 2 and state.api.additions == state.api.commits == []
 
