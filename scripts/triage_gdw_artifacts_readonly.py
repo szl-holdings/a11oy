@@ -416,7 +416,10 @@ def supervised_artifact_effect_observation(workspace, require_source, deadline, 
             "GITHUB_RUN_ATTEMPT", "GITHUB_EVENT_NAME", "GITHUB_JOB")
         environment = {name: os.environ[name] for name in names if name in os.environ}
         require(bool(environment.get("HF_TOKEN")) and bool(environment.get("GH_TOKEN")))
-        environment.update(PATH="/usr/local/bin:/usr/bin:/bin", PYTHONDONTWRITEBYTECODE="1")
+        # Bind the isolated child's temp root to the parent-validated canonical
+        # workspace, never to an unchecked ambient TMPDIR/TEMP value.
+        environment.update(PATH="/usr/local/bin:/usr/bin:/bin", PYTHONDONTWRITEBYTECODE="1",
+                           TMPDIR=str(directory.parent))
         note("OBJECT_READBACK")
         raw = base._run([sys.executable, "-I", "-B", str(Path(__file__).resolve()), "--artifact-object-worker"],
             deadline=child_deadline, limit=OBJECT_WORKER_BYTES, env=environment, cwd=directory,

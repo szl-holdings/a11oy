@@ -725,6 +725,7 @@ def test_supervised_v2_report_requires_cleanup_then_source_and_candidate_checks(
         assert 0 < deadline - time.monotonic() <= triage.OBJECT_WORKER_SECONDS
         assert not {"PYTHONPATH", "PYTHONSTARTUP", "HF_ENDPOINT"} & set(env)
         assert env["PATH"] == "/usr/local/bin:/usr/bin:/bin"
+        assert env["TMPDIR"] == str(workspace.parent)
         request = triage.validate_object_worker_request(json.loads(input_bytes))
         assert triage._canonical(request) == input_bytes and request["source_revision"] == source
         assert request["candidate_sha256"] == hashlib.sha256(database.read_bytes()).hexdigest()
@@ -754,6 +755,41 @@ def test_supervised_v2_report_requires_cleanup_then_source_and_candidate_checks(
             triage.supervised_artifact_effect_observation(workspace, owned, time.monotonic() + 240)
         assert events[:3] == ["candidate", "source", "child"]
         if outcome == "cleanup_failed": assert "cleanup" not in events and events.count("candidate") == 1
+
+
+def test_real_isolated_child_uses_validated_nondefault_temp_root(tmp_path, monkeypatch):
+    from scripts import probe_gdw_runtime_base as base
+    workspace, database = worker_workspace(tmp_path, monkeypatch)
+    worker_environment(monkeypatch)
+    monkeypatch.setenv("TMPDIR", "/untrusted/ambient-temp-root")
+    monkeypatch.setenv("TEMP", "/untrusted/ambient-temp-root")
+    original_run = base._run
+    code = """
+import json, os, runpy, sys, tempfile
+from pathlib import Path
+assert sys.flags.isolated and sys.flags.ignore_environment and sys.dont_write_bytecode
+assert not {'PYTHONPATH', 'PYTHONSTARTUP', 'TEMP', 'HF_ENDPOINT'} & set(os.environ)
+module = runpy.run_path(sys.argv[1], run_name='synthetic_temp_root_transport')
+request = module['validate_object_worker_request'](json.loads(sys.stdin.buffer.read(4097)))
+directory, database = module['_object_worker_paths'](request['workspace'])
+assert Path(tempfile.gettempdir()).resolve() == directory.parent
+assert os.environ['TMPDIR'] == str(directory.parent)
+assert module['_candidate_digest'](database, directory, request['deadline']) == request['candidate_sha256']
+report = {**module['_held_object_worker_report'](), 'state': 'OBSERVED',
+    **{key: request[key] for key in ('source_revision', 'run_id', 'run_attempt', 'candidate_sha256')},
+    'artifact_effect_observation': json.loads(sys.argv[2])}
+sys.stdout.buffer.write(module['encode_object_worker_report'](report))
+"""
+    def run(argv, **kwargs):
+        assert argv[-1] == "--artifact-object-worker"
+        assert kwargs["env"]["TMPDIR"] == str(workspace.parent)
+        return original_run([sys.executable, "-I", "-B", "-c", code,
+            str(Path(triage.__file__).resolve()), json.dumps(synthetic_effects())], **kwargs)
+    monkeypatch.setattr(base, "_run", run)
+    digest = hashlib.sha256(database.read_bytes()).hexdigest()
+    result = triage.supervised_artifact_effect_observation(workspace, lambda: None, time.monotonic() + 30)
+    assert result == synthetic_effects()
+    assert hashlib.sha256(database.read_bytes()).hexdigest() == digest
 
 
 def test_qualified_capture_crosses_real_parent_boundary_with_synthetic_child_wire(tmp_path, monkeypatch):
@@ -790,7 +826,8 @@ def test_qualified_capture_crosses_real_parent_boundary_with_synthetic_child_wir
         events.append("synthetic-child-wire")
         return output.getvalue()
     monkeypatch.setattr(base, "_run", run)
-    result = triage.observe_capture(object(), workspace, lambda: None, time.monotonic() + 240)
+    api = SimpleNamespace(endpoint="https://huggingface.co")
+    result = triage.observe_capture(api, workspace, lambda: None, time.monotonic() + 240)
     assert events == ["qualified-both", "synthetic-child-wire"]
     assert result["qualified_database_count"] == 2
     assert result["captured_originals_unchanged_during_qualification"] is True

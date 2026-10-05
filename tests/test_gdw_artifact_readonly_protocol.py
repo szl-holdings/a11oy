@@ -155,19 +155,23 @@ def test_malformed_or_noncanonical_child_output_is_held(defect):
 
 def test_real_isolated_bootstrap_imports_exact_trusted_qualification_helpers(tmp_path):
     code = """
-import os, runpy, sys
+import os, runpy, subprocess, sys
 from pathlib import Path
 assert sys.flags.isolated and sys.flags.ignore_environment and sys.dont_write_bytecode
 assert 'PYTHONPATH' not in os.environ and 'PYTHONSTARTUP' not in os.environ
 source = Path(sys.argv[1]).resolve()
 root = source.parents[1]
 assert str(root) not in sys.path and str(root / 'scripts') not in sys.path
+assert not {'huggingface_hub', 'requests'} & set(sys.modules)
+# POSIX subprocess itself loads stdlib fcntl. Qualification must not add
+# provider dependencies or new native locking imports beyond that baseline.
+baseline_modules = set(sys.modules)
 runpy.run_path(str(source), run_name='isolated_import_regression')
 from scripts import qualify_gdw_store_recovery as recovery
 assert Path(recovery.__file__).resolve() == root / 'scripts/qualify_gdw_store_recovery.py'
 assert Path(recovery.preservation.__file__).resolve() == root / 'scripts/preserve_hf_gdw_store.py'
 assert Path(recovery.orphan_forensics.__file__).resolve() == root / 'scripts/gdw_orphan_forensics.py'
-assert not {'fcntl', 'huggingface_hub', 'requests'} & set(sys.modules)
+assert not {'fcntl', 'huggingface_hub', 'requests'} & (set(sys.modules) - baseline_modules)
 sys.stdout.buffer.write(b'ISOLATED_IMPORT_READY\\n')
 """
     env = {key: os.environ[key] for key in ("SYSTEMROOT", "WINDIR") if key in os.environ}
