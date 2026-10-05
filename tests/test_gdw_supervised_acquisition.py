@@ -51,7 +51,7 @@ def fixture(monkeypatch, job_key=supervised.RECONCILIATION_JOB_KEY):
              conclusion="success", steps=[])] + [dict(previous_job, id=100 + i, name=f"skipped-{i}",
                 conclusion="skipped", steps=[]) for i in range(11)]}
     meta = {"id": supervised.ARTIFACT_ID, "expired": False,
-        "name": f"canonical-durable-acquisition-{supervised.INSPECTION_RUN}-1", "size_in_bytes": 565,
+        "name": f"canonical-durable-acquisition-{supervised.INSPECTION_RUN}-1", "size_in_bytes": 564,
         "digest": "sha256:" + supervised.ARCHIVE_SHA256, "created_at": "2026-10-05T03:50:21Z",
         "workflow_run": {"id": supervised.INSPECTION_RUN, "head_sha": supervised.PARENT_SOURCE,
             "head_branch": "main", "repository_id": supervised.REPOSITORY_ID,
@@ -92,7 +92,7 @@ def fixture(monkeypatch, job_key=supervised.RECONCILIATION_JOB_KEY):
 @pytest.mark.parametrize("job_key", tuple(supervised.JOB_NAMES))
 def test_real_native_reader_binds_exact_archived_inspection_and_unique_successor(monkeypatch, job_key):
     evidence, state, calls = fixture(monkeypatch, job_key)
-    assert len(ARCHIVE) == 565 and hashlib.sha256(ARCHIVE).hexdigest() == supervised.ARCHIVE_SHA256
+    assert len(ARCHIVE) == 564 and hashlib.sha256(ARCHIVE).hexdigest() == supervised.ARCHIVE_SHA256
     result = supervised.verify_native_prerequisite(evidence)
     assert result == {"source_revision": "a" * 40, "run_id": 900, "run_attempt": 1,
         "job_id": 901, "job_key": job_key}
