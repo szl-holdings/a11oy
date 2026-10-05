@@ -612,9 +612,9 @@ REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee
 # an existing dataset HEAD prevents bootstrap. The separate managed proof job
 # still requires actual deployment and runtime verification. No hash below
 # grants authority to a local selector, arbitrary helper or additional effect.
-REVIEWED_MANUAL_PREREQUISITES_JOB_SHA256 = "3c56b18264b0d81c91607b37d571069a2b80ba640b760f563f8a0861c30103a7"
-REVIEWED_RECOVERY_RECONCILIATION_JOB_SHA256 = "a495272d8bc187e9baee49195f33460f81c1c0862a5de1feba73b792ebd1261d"
-REVIEWED_DURABLE_ACQUISITION_JOB_SHA256 = "b7228a44631e3277d63470f02748b14c022f5d15dcd6e198f9ae36902329943b"
+REVIEWED_MANUAL_PREREQUISITES_JOB_SHA256 = "50bfd8b27fc159db706286375e13caaa94c64cb1f0e2cd5f51e280e18a5f9cd7"
+REVIEWED_RECOVERY_RECONCILIATION_JOB_SHA256 = "90039b641009c717c0cb2d0047bb4ccd215bd37c9d65394b1e28ac133db1f3e6"
+REVIEWED_DURABLE_ACQUISITION_JOB_SHA256 = "6431fd393379f29b8d78ecd61784848acaa472b8ffcbe841145162d424437bef"
 REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "bc38f18b2837be0ae4058d66cb9a5cbac911cd6622c1d352d8c773edc2a37944"
 REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
     "scripts/check_hf_manual_prerequisites.py": "3390924bd039b8377d1c54824e85f77bb06953bf4165c78e85bc9ddfbc7382ec",
@@ -638,7 +638,7 @@ REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
     # application bytes and the remote publisher have their own source-bound
     # manifest contract; this map binds the code that verifies that contract.
     "scripts/acquire_gdw_durable_storage.py": "e10155802d8a8e8c91f36862540b90fa92e61f45b91d802f193108674f4e8dc9",
-    "scripts/reconcile_gdw_supervised_acquisition.py": "dc973e963bff30a77a28aa8a149f985daf678546e8c844586cac78d72144f188",
+    "scripts/reconcile_gdw_supervised_acquisition.py": "23dd0478cc06d1881ff7c1469833d0192549807a06d5cf822cf8f6d12fdaa994",
     "scripts/inspect_gdw_held_acquisition.py": "61e0b7d6e8236074ebcbbcc424b34d92f257f0c85608f7adbd640136de9e5dc6",
     "scripts/gdw_acquisition_evidence.py": "7c15e3c774f7bbbee71c9da2255ea92a9d13c5320398c8a8134f1542d1795525",
     "scripts/build_gdw_installed_source_manifest.py": "022955dd62e7f780e97b2650f5e86d68a3d1565738257a8ec76b18db1f75a8ec",
