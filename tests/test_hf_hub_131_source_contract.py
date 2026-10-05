@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import importlib.util
 import re
 import sys
@@ -125,6 +126,32 @@ def test_synthetic_131_alignment_still_only_reaches_evaluation() -> None:
     assert result["disposition"] == "EVALUATION"
     assert result["productionAuthorized"] is False
     assert result["automaticPromotionAuthorized"] is False
+
+
+def test_historic_133_grouped_bump_is_synthetic_hold() -> None:
+    """Equal audit/image pins cannot admit an unqualified recovery SDK."""
+    result = MODULE.evaluate_runtime_alignment(
+        audit_text="huggingface_hub==1.33.0",
+        docker_text='RUN pip install "huggingface_hub==1.33.0"',
+    )
+    assert result["aligned"] is False
+    assert result["disposition"] == "HOLD"
+    for key in ("productionAuthorized", "automaticPromotionAuthorized",
+                "hubPublicationAuthorized", "sandboxJobCreationAuthorized"):
+        assert result[key] is False
+
+
+def test_managed_storage_sdk_matches_the_admitted_runtime_contract() -> None:
+    """Read the literal without loading provider or database implementations."""
+    tree = ast.parse((ROOT / "gdw_durable_storage.py").read_text(encoding="utf-8"))
+    values = [
+        ast.literal_eval(node.value)
+        for node in tree.body
+        if isinstance(node, ast.Assign)
+        and any(isinstance(target, ast.Name) and target.id == "SDK_VERSION"
+                for target in node.targets)
+    ]
+    assert values == [MODULE.HF_HUB_VERSION]
 
 
 def _runtime_equality_pins(text: str) -> dict[str, str]:
