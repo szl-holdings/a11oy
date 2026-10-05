@@ -57,6 +57,9 @@ updates:
         - vllm
         - unsloth*
         - openai
+        # The managed recovery ABI needs a separately qualified successor.
+        # Keep version/security proposals visible, outside the grouped update.
+        - huggingface-hub
     cooldown:
       default-days: 7
       semver-major-days: 21
