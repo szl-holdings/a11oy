@@ -8,6 +8,8 @@ import importlib.util
 import json
 import os
 import sqlite3
+import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -456,6 +458,7 @@ def assert_preflight_order(source: str) -> None:
     classifier, metadata = steps[classify[0]], steps[manual[0]]
     assert "if" not in preservation and preservation.get("continue-on-error") is True
     assert preservation["id"] == "preserve_stores"
+    assert "--supervised-acquisition" in preservation["run"].split()
     assert qualification["id"] == "qualify_stores" and qualification.get("continue-on-error") is True
     assert qualification["if"] == "${{ always() && steps.preserve_stores.outcome == 'failure' }}"
     assert set(classifier) == {"name", "id", "if", "run"}
@@ -478,6 +481,81 @@ def assert_preflight_order(source: str) -> None:
         "${{ runner.temp }}/gdw-store-preservation.json",
         "${{ runner.temp }}/gdw-store-recovery-qualification.json",
     )
+
+
+@pytest.mark.parametrize("reject_at", [None, 1, 2])
+def test_supervised_preservation_reconciles_before_each_batch(hub, tmp_path, monkeypatch, reject_at):
+    originals = dict(hub.files)
+    observed = []
+    def reconcile(api, evidence, deadline):
+        assert api is hub and evidence.source == SOURCE and deadline > time.monotonic()
+        evidence.require_current_main()
+        observed.append(len(hub.batch_calls))
+        if len(observed) == reject_at:
+            raise RuntimeError(PROVIDER_SECRET)
+    monkeypatch.setitem(sys.modules, "reconcile_gdw_supervised_acquisition",
+        SimpleNamespace(require_expected_absent=reconcile))
+    owned = []
+    guarded = p._SupervisedPreservationHub(hub, SOURCE, lambda: owned.append(True), time.monotonic() + 30)
+    report = p.preserve(guarded, source_sha=SOURCE, run_id="123", run_attempt="1",
+        workspace=tmp_path / "guarded", require_owned_source=lambda: owned.append(True),
+        sleep=lambda _: None, nonce=NONCE)
+    assert observed == ([0, 1] if reject_at != 1 else [0])
+    assert len(hub.batch_calls) == (2 if reject_at is None else reject_at - 1)
+    assert all(hub.files[path] == data for path, data in originals.items())
+    assert report["deployment_admitted"] is report["restore_admitted"] is False
+    if reject_at is None:
+        assert report["preservation_state"] == "VERIFIED"
+    else:
+        assert report["diagnostic_code"] == "SUPERVISED_RECONCILIATION_REQUIRED"
+    assert PROVIDER_SECRET.encode() not in p._json_bytes(report)
+    for name in ("pause_space", "create_commit", "delete_file", "restart_space"):
+        with pytest.raises(p.PreservationError, match="SUPERVISED_OPERATION_UNADMITTED"):
+            getattr(guarded, name)
+
+
+@pytest.mark.parametrize("name,value", [
+    ("GITHUB_JOB", "durable-acquisition"), ("GITHUB_EVENT_NAME", "workflow_dispatch"),
+    ("GITHUB_RUN_ATTEMPT", "2"), ("GITHUB_WORKFLOW_SHA", "f" * 40),
+])
+def test_supervised_preservation_rerun_or_wrong_job_holds_before_sdk(tmp_path, monkeypatch, name, value):
+    environment = {"GITHUB_ACTIONS": "true", "GITHUB_REPOSITORY": "szl-holdings/a11oy",
+        "GITHUB_REF": "refs/heads/main", "GITHUB_SHA": SOURCE,
+        "GITHUB_JOB": "manual-prerequisites", "GITHUB_EVENT_NAME": "push",
+        "GITHUB_RUN_ATTEMPT": "1", "GITHUB_WORKFLOW_SHA": SOURCE,
+        "GITHUB_WORKFLOW_REF": "szl-holdings/a11oy/.github/workflows/hf-sync.yml@refs/heads/main",
+        "HF_TOKEN": PROVIDER_SECRET, "GH_TOKEN": PROVIDER_SECRET}
+    for key, item in environment.items(): monkeypatch.setenv(key, item)
+    monkeypatch.setenv(name, value)
+    target = tmp_path / "held.json"
+    monkeypatch.setattr(sys, "argv", ["preserve_hf_gdw_store.py", "--supervised-acquisition", "--output", str(target)])
+    monkeypatch.setitem(sys.modules, "huggingface_hub", None)
+    assert p.main() == 2
+    raw = target.read_bytes()
+    assert json.loads(raw)["diagnostic_code"] == "SOURCE_CONTEXT_INVALID"
+    assert PROVIDER_SECRET.encode() not in raw
+
+
+@pytest.mark.parametrize("value", [
+    {"name": "main", "protected": True, "commit": {"sha": SOURCE}},
+    {"name": "main", "protected": False, "commit": {"sha": SOURCE}},
+    {"name": "main", "protected": 1, "commit": {"sha": SOURCE}},
+    {"name": "other", "protected": True, "commit": {"sha": SOURCE}},
+    {"name": "main", "protected": True, "commit": {"sha": "e" * 40}},
+    {}, None,
+])
+def test_supervised_manual_owner_requires_actual_protected_main(monkeypatch, value):
+    calls = []
+    def request(path, token):
+        calls.append((path, token))
+        return value
+    monkeypatch.setitem(sys.modules, "hf_exact_main_ownership", SimpleNamespace(request_json=request))
+    if value == {"name": "main", "protected": True, "commit": {"sha": SOURCE}} and value["protected"] is True:
+        p._require_supervised_main(SOURCE, "synthetic-token")
+    else:
+        with pytest.raises(p.PreservationError, match="SOURCE_NO_LONGER_CURRENT_MAIN"):
+            p._require_supervised_main(SOURCE, "synthetic-token")
+    assert calls == [("/repos/szl-holdings/a11oy/branches/main", "synthetic-token")]
 
 
 def test_existing_native_dependency_gate_and_private_artifact_boundary():

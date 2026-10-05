@@ -91,7 +91,15 @@ CLASSIFIER_RUN = '''python -B scripts/acquire_gdw_durable_storage.py --classify-
 --qualification "${{ runner.temp }}/gdw-store-recovery-qualification.json"
 --github-output "$GITHUB_OUTPUT"
 --output "${{ runner.temp }}/manual-prerequisites.json"'''
-ACQUISITION_RUN = '''python -B scripts/acquire_gdw_durable_storage.py --inspect-held-acquisition
+RECONCILIATION_RUN = '''python -B scripts/acquire_gdw_durable_storage.py --reconcile-supervised-acquisition
+--github-output "$GITHUB_OUTPUT"
+--output "$RUNNER_TEMP/gdw-supervised-reconciliation.json"'''
+ACQUISITION_RUN = '''python -B scripts/acquire_gdw_durable_storage.py --acquire
+--source-artifact-id "${{ needs.source-admission.outputs.artifact_id }}"
+--source-artifact-sha256 "${{ needs.source-admission.outputs.artifact_sha256 }}"
+--qualification-artifact-id "${{ needs.manual-prerequisites.outputs.artifact_id }}"
+--qualification-artifact-sha256 "${{ needs.manual-prerequisites.outputs.artifact_sha256 }}"
+--publisher-script "$GITHUB_WORKSPACE/.gdw-source-publisher/.github/scripts/hf_deploy_from_dockerfile.py"
 --output "$RUNNER_TEMP/gdw-durable-acquisition.json"'''
 
 PAIR_CONFIGURATION_RUN = '''python -B scripts/configure_hf_gdw_runtime.py
@@ -116,8 +124,38 @@ def exact_step(actual, expected, diagnostic):
         raise WorkflowContractError(diagnostic)
 
 
+def assert_reconciliation_contract(jobs):
+    """Admit one exact read-only preflight without widening the manual ABI."""
+    job = jobs["recovery-reconciliation"]
+    if (set(job) != {"name", "needs", "if", "runs-on", "timeout-minutes", "permissions", "outputs", "env", "steps"}
+            or job["name"] != "Reconcile the held acquisition before provider mutation"
+            or job["runs-on"] != "ubuntu-latest" or job["timeout-minutes"] != "5"
+            or job["permissions"] != {"contents": "read", "actions": "read"}
+            or job["env"] != {"HF_TOKEN": "${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}", "PYTHONDONTWRITEBYTECODE": "1"}
+            or job["outputs"] != {"admitted": "${{ steps.reconciliation.outputs.admitted }}"}):
+        raise WorkflowContractError("reconciliation authority, permission or output scope changed")
+    expected_steps = [
+        {"name": "Checkout the exact protected source", "uses": CHECKOUT,
+         "with": {"ref": "${{ github.sha }}", "persist-credentials": False, "fetch-depth": "1"}},
+        {"name": "Set up the isolated reconciliation interpreter", "uses": SETUP_PYTHON,
+         "with": {"python-version": "3.12"}},
+        {"name": "Install the exact read-only reconciliation ABI",
+         "run": 'python -m pip install --disable-pip-version-check --no-cache-dir "huggingface_hub==1.31.0" "requests==2.32.5" "cryptography==50.0.1"'},
+        {"name": "Require the fixed inspection and unchanged absent private fence", "id": "reconciliation",
+         "run": RECONCILIATION_RUN},
+        {"name": "Retain the bounded read-only reconciliation decision", "if": "${{ always() }}", "uses": UPLOAD,
+         "with": {"name": "canonical-supervised-reconciliation-${{ github.run_id }}-${{ github.run_attempt }}",
+                  "path": "${{ runner.temp }}/gdw-supervised-reconciliation.json",
+                  "if-no-files-found": "error", "retention-days": "90"}},
+    ]
+    if len(job["steps"]) != len(expected_steps):
+        raise WorkflowContractError("reconciliation must retain its exact source, read-only check and artifact order")
+    for actual, expected in zip(job["steps"], expected_steps):
+        exact_step(actual, expected, "reconciliation exact step contract: " + expected["name"])
+
+
 def assert_acquisition_contract(jobs):
-    """The current native recovery job only inspects the held prior acquisition."""
+    """Only the reconciled native candidate can enter acquisition and its pair."""
     job = jobs["durable-acquisition"]
     if (set(job) != {"name", "needs", "if", "runs-on", "timeout-minutes", "permissions", "outputs", "env", "steps"}
             or job["name"] != "Acquire qualified private storage through the canonical publisher"
@@ -138,8 +176,8 @@ def assert_acquisition_contract(jobs):
          "with": {"python-version": "3.12"}},
         {"name": "Install the exact managed acquisition ABI",
          "run": 'python -m pip install --disable-pip-version-check --no-cache-dir "huggingface_hub==1.31.0" "requests==2.32.5" "cryptography==50.0.1"'},
-        {"name": "Inspect the held prior acquisition without provider mutation", "run": ACQUISITION_RUN},
-        {"name": "Install the persistent old-source guard and both managed configurations once", "if": "${{ github.ref == 'refs/heads/main' && false }}", "run": PAIR_CONFIGURATION_RUN},
+        {"name": "Reconcile again, verify native candidates, and acquire private storage once", "run": ACQUISITION_RUN},
+        {"name": "Install the persistent old-source guard and both managed configurations once", "run": PAIR_CONFIGURATION_RUN},
         {"name": "Retain only the immutable selector and safe guarded configuration result", "id": "acquisition_artifact",
          "if": "${{ always() }}", "uses": UPLOAD,
          "with": {"name": "canonical-durable-acquisition-${{ github.run_id }}-${{ github.run_attempt }}",
@@ -223,6 +261,7 @@ def assert_bounded_live_proof_steps(runtime, source):
 
 def assert_manual_step_contract(source):
     jobs = assert_manual_dependency_graph(source)
+    assert_reconciliation_contract(jobs)
     admission = jobs["source-admission"]
     admission_names = [step.get("name") for step in admission["steps"]]
     if admission_names != ["Checkout the immutable queued source", "Require main and classify current source ownership", "Retain the source admission decision"]:
@@ -243,6 +282,8 @@ python3 -B scripts/hf_exact_main_ownership.py \
     }:
         raise WorkflowContractError("source admission outputs must bind its exact native artifact")
     job = jobs["manual-prerequisites"]
+    if job.get("permissions") != {"contents": "read"}:
+        raise WorkflowContractError("manual authority or permission scope changed")
     if [step.get("name") for step in job["steps"]] != ["Checkout the immutable admitted source", "Set up Python", "Install exact metadata client", "Preserve stopped private stores before any runtime mutation", "Qualify the pinned private capture without admitting restore", "Classify the exact native candidate without admitting deployment", "Retain metadata checks and fail closed on UNKNOWN authority", "Retain bounded prerequisite decision"]:
         raise WorkflowContractError("manual job permits only the reviewed preservation effect, read-only qualification and candidate classifier")
     exact_step(named_step(job, "Set up Python"), {"name": "Set up Python", "uses": SETUP_PYTHON,
@@ -251,7 +292,7 @@ python3 -B scripts/hf_exact_main_ownership.py \
         "run": 'python -m pip install --disable-pip-version-check "huggingface_hub==1.23.0" "requests==2.32.5" "cryptography==50.0.1"'},
         "manual interpreter must retain the exact 1.23 metadata dependencies")
     preservation = named_step(job, "Preserve stopped private stores before any runtime mutation")
-    expected_preservation = 'python -B scripts/preserve_hf_gdw_store.py --output "${{ runner.temp }}/gdw-store-preservation.json"'
+    expected_preservation = 'python -B scripts/preserve_hf_gdw_store.py --supervised-acquisition --output "${{ runner.temp }}/gdw-store-preservation.json"'
     if (set(preservation) != {"name", "id", "continue-on-error", "run"}
             or preservation.get("id") != "preserve_stores"
             or preservation.get("continue-on-error") is not True
@@ -515,6 +556,84 @@ class ManualPrerequisiteWorkflowTests(unittest.TestCase):
         jobs = assert_manual_step_contract(self.source)
         self.assertNotIn("secrets.", json.dumps(jobs["source-admission"]))
         self.assertEqual(jobs["manual-prerequisites"]["permissions"], {"contents": "read"})
+        self.assertEqual(jobs["recovery-reconciliation"]["permissions"], {"contents": "read", "actions": "read"})
+        self.assertEqual(jobs["recovery-reconciliation"]["env"]["HF_TOKEN"], jobs["durable-acquisition"]["env"]["HF_TOKEN"])
+
+    def test_reconciliation_cannot_gain_provider_commands_credentials_or_write_permissions(self):
+        start = self.source.index("  recovery-reconciliation:\n")
+        end = self.source.index("  manual-prerequisites:\n", start)
+        job = self.source[start:end]
+        marker = "      - name: Require the fixed inspection and unchanged absent private fence\n"
+        mutations = (
+            ("      contents: read\n", "      contents: write\n"),
+            ("      actions: read\n", "      actions: write\n"),
+            ("      actions: read\n", "      actions: read\n      id-token: write\n"),
+            ("${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}", "${{ secrets.ALTERNATE_TOKEN }}"),
+            ('      PYTHONDONTWRITEBYTECODE: "1"\n', '      PYTHONDONTWRITEBYTECODE: "1"\n      EXTRA_TOKEN: ${{ secrets.EXTRA_TOKEN }}\n'),
+            ("--reconcile-supervised-acquisition", "--acquire"),
+            ("--reconcile-supervised-acquisition", "--inspect-held-acquisition"),
+            ("--reconcile-supervised-acquisition", "--reconcile-supervised-acquisition --source-artifact-id 1"),
+            ("--reconcile-supervised-acquisition", "--reconcile-supervised-acquisition --retry"),
+            ("--reconcile-supervised-acquisition", "--reconcile-supervised-acquisition --repo-id SZLHOLDINGS/another-space"),
+            ('--github-output "$GITHUB_OUTPUT"', '--github-output "$RUNNER_TEMP/forged-admission"'),
+            ('--output "$RUNNER_TEMP/gdw-supervised-reconciliation.json"', '--output "$RUNNER_TEMP/gdw-supervised-reconciliation.json" || true'),
+            ("scripts/acquire_gdw_durable_storage.py", "scripts/unreviewed_reconciliation.py"),
+            ("          ref: ${{ github.sha }}\n", "          ref: main\n"),
+            ("          persist-credentials: false\n", "          persist-credentials: true\n"),
+            ('"huggingface_hub==1.31.0"', '"huggingface_hub==1.23.0"'),
+            ("      admitted: ${{ steps.reconciliation.outputs.admitted }}\n", "      admitted: 'true'\n"),
+            (marker, marker + "        if: always()\n"),
+            (marker, marker + "        continue-on-error: true\n"),
+            (marker, marker + "        working-directory: unreviewed\n"),
+            (marker, marker + "        env:\n          HF_TOKEN: alternate\n"),
+        )
+        for before, after in mutations:
+            with self.subTest(before=before, after=after):
+                self.assertIn(before, job)
+                changed = self.source.replace(job, job.replace(before, after, 1), 1)
+                with self.assertRaisesRegex(WorkflowContractError, "reconciliation"):
+                    assert_manual_step_contract(changed)
+
+    def test_reconciliation_retains_only_its_same_attempt_safe_decision(self):
+        start = self.source.index("  recovery-reconciliation:\n")
+        end = self.source.index("  manual-prerequisites:\n", start)
+        job = self.source[start:end]
+        path = "          path: ${{ runner.temp }}/gdw-supervised-reconciliation.json\n"
+        mutations = (
+            (path, "          path: ${{ runner.temp }}/**\n"),
+            (path, "          path: /tmp/szl-private-store-*\n"),
+            (path, "          path: |\n            ${{ runner.temp }}/gdw-supervised-reconciliation.json\n            ${{ runner.temp }}/candidate.sqlite3\n"),
+            (path, "          path: |\n            ${{ runner.temp }}/gdw-supervised-reconciliation.json\n            ${{ runner.temp }}/gdw-supervised-reconciliation.json\n"),
+            (path, ""),
+            ("canonical-supervised-reconciliation-${{ github.run_id }}-${{ github.run_attempt }}", "canonical-supervised-reconciliation-${{ github.run_id }}-1"),
+            ("        if: ${{ always() }}\n", ""),
+            ("          if-no-files-found: error\n", "          if-no-files-found: ignore\n"),
+            ("          retention-days: 90\n", "          retention-days: 1\n"),
+        )
+        for before, after in mutations:
+            with self.subTest(before=before, after=after):
+                self.assertIn(before, job)
+                changed = self.source.replace(job, job.replace(before, after, 1), 1)
+                with self.assertRaisesRegex(WorkflowContractError, "reconciliation"):
+                    assert_manual_step_contract(changed)
+
+    def test_reconciliation_cannot_be_removed_duplicated_reordered_or_joined_by_a_publisher(self):
+        start = self.source.index("  recovery-reconciliation:\n")
+        end = self.source.index("  manual-prerequisites:\n", start)
+        job = self.source[start:end]
+        check_start = job.index("      - name: Require the fixed inspection")
+        check_end = job.index("      - name: Retain the bounded read-only", check_start)
+        check = job[check_start:check_end]
+        removed = job[:check_start] + job[check_end:]
+        candidates = (
+            removed,
+            job.replace(check, check + check, 1),
+            removed.replace("      - name: Checkout the exact protected source", check + "      - name: Checkout the exact protected source", 1),
+            job.replace(check, check + "      - name: Unreviewed publisher\n        run: python .github/scripts/hf_deploy.py\n", 1),
+        )
+        for index, candidate in enumerate(candidates):
+            with self.subTest(index=index), self.assertRaisesRegex(WorkflowContractError, "reconciliation"):
+                assert_manual_step_contract(self.source.replace(job, candidate, 1))
 
     def test_preservation_invocation_has_no_unknown_helper_overrides_or_failure_bypass(self):
         marker = "      - name: Preserve stopped private stores before any runtime mutation\n"
@@ -522,6 +641,8 @@ class ManualPrerequisiteWorkflowTests(unittest.TestCase):
             ("scripts/preserve_hf_gdw_store.py", "scripts/unreviewed_preservation.py"),
             ("scripts/preserve_hf_gdw_store.py", "scripts/preserve_hf_gdw_store.py --bucket SZLHOLDINGS/another-bucket"),
             ("scripts/preserve_hf_gdw_store.py", "scripts/preserve_hf_gdw_store.py --overwrite"),
+            ("          --supervised-acquisition\n", ""),
+            ("          --supervised-acquisition\n", "          --supervised-acquisition --supervised-acquisition\n"),
             ('--output "${{ runner.temp }}/gdw-store-preservation.json"', '--output "${{ runner.temp }}/gdw-store-preservation.json" || true'),
             (marker, marker + "        if: false\n"),
             ("        id: preserve_stores\n        continue-on-error: true\n", "        id: preserve_stores\n        continue-on-error: false\n"),
@@ -633,6 +754,11 @@ class ManualPrerequisiteWorkflowTests(unittest.TestCase):
         ):
             with self.subTest(replacement=replacement), self.assertRaisesRegex(WorkflowContractError, "credential scope"):
                 assert_manual_step_contract(self.source.replace(block, block.replace(original, replacement, 1), 1))
+        permissions = "    permissions:\n      contents: read\n"
+        self.assertIn(permissions, block)
+        with self.assertRaisesRegex(WorkflowContractError, "manual authority or permission scope"):
+            assert_manual_step_contract(self.source.replace(block, block.replace(
+                permissions, permissions + "      actions: read\n", 1), 1))
 
     def test_removed_checker_check_only_and_exit_propagation_are_detected(self):
         cases = (
@@ -757,13 +883,17 @@ class ManualPrerequisiteWorkflowTests(unittest.TestCase):
         mutations = (
             ("      actions: read", "      actions: write"),
             ("          ref: e3ec47ad2e99a535839afe0f30fefbd8973d52da", "          ref: main"),
-            ("--inspect-held-acquisition", "--inspect-held-acquisition --source-artifact-id 1"),
-            ("--inspect-held-acquisition", "--inspect-held-acquisition --qualification-artifact-sha256 unreviewed"),
-            ("scripts/acquire_gdw_durable_storage.py --inspect-held-acquisition", "scripts/unknown.py --inspect-held-acquisition"),
-            ("--inspect-held-acquisition", "--acquire"),
-            ("--inspect-held-acquisition", "--fetch-locator"),
+            ('--source-artifact-id "${{ needs.source-admission.outputs.artifact_id }}"', '--source-artifact-id "1"'),
+            ('--source-artifact-sha256 "${{ needs.source-admission.outputs.artifact_sha256 }}"', '--source-artifact-sha256 "unreviewed"'),
+            ('--qualification-artifact-id "${{ needs.manual-prerequisites.outputs.artifact_id }}"', '--qualification-artifact-id "1"'),
+            ('--qualification-artifact-sha256 "${{ needs.manual-prerequisites.outputs.artifact_sha256 }}"', '--qualification-artifact-sha256 "unreviewed"'),
+            ('--publisher-script "$GITHUB_WORKSPACE/.gdw-source-publisher/.github/scripts/hf_deploy_from_dockerfile.py"', '--publisher-script "$GITHUB_WORKSPACE/scripts/unreviewed.py"'),
+            ("scripts/acquire_gdw_durable_storage.py --acquire", "scripts/unknown.py --acquire"),
+            ("--acquire", "--inspect-held-acquisition"),
+            ("--acquire", "--fetch-locator"),
+            ("--acquire", "--reconcile-supervised-acquisition"),
             ('--output "$RUNNER_TEMP/gdw-durable-acquisition.json"', '--output "$RUNNER_TEMP/gdw-durable-acquisition.json" || true'),
-            ("        if: ${{ github.ref == 'refs/heads/main' && false }}", "        if: ${{ always() }}"),
+            ("      - name: Install the persistent old-source guard and both managed configurations once\n", "      - name: Install the persistent old-source guard and both managed configurations once\n        if: ${{ always() }}\n"),
             ("scripts/configure_hf_gdw_runtime.py", "scripts/configure_hf_series_a_runtime.py"),
             ("--managed-deadline-seconds 120", "--managed-deadline-seconds 120 --force"),
             ('--output "$RUNNER_TEMP/gdw-managed-configuration.json"', '--output "$RUNNER_TEMP/gdw-managed-configuration.json" || true'),
@@ -775,6 +905,20 @@ class ManualPrerequisiteWorkflowTests(unittest.TestCase):
                 self.assertIn(before, job)
                 with self.assertRaisesRegex(WorkflowContractError, "acquisition"):
                     assert_manual_step_contract(self.source.replace(job, job.replace(before, after, 1), 1))
+
+    def test_pair_configuration_cannot_precede_acquisition_or_be_repeated(self):
+        start = self.source.index("  durable-acquisition:\n")
+        end = self.source.index("  resume-paused-space:\n", start)
+        job = self.source[start:end]
+        config_start = job.index("      - name: Install the persistent old-source guard")
+        config_end = job.index("      - name: Retain only the immutable selector", config_start)
+        config = job[config_start:config_end]
+        removed = job[:config_start] + job[config_end:]
+        acquire_marker = "      - name: Reconcile again, verify native candidates, and acquire private storage once"
+        for candidate in (removed, job.replace(config, config + config, 1),
+                          removed.replace(acquire_marker, config + acquire_marker, 1)):
+            with self.subTest(candidate=candidate), self.assertRaisesRegex(WorkflowContractError, "acquisition"):
+                assert_manual_step_contract(self.source.replace(job, candidate, 1))
 
     def test_managed_runtime_selector_cannot_acquire_or_repeat_configuration(self):
         start = self.source.index("  runtime-config:\n")

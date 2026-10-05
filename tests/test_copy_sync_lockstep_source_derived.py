@@ -49,6 +49,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             "ayllu/keys/council-runtime-2026-07-21.pub",
             "scripts/acquire_gdw_durable_storage.py",
             "scripts/inspect_gdw_held_acquisition.py",
+            "scripts/reconcile_gdw_supervised_acquisition.py",
             "scripts/gdw_acquisition_evidence.py",
             "scripts/build_gdw_installed_source_manifest.py",
             "scripts/probe_gdw_runtime_base.py",
@@ -74,7 +75,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             "szl_hf_bucket.py",
         )}
         cls.deploy_needs = "[source-admission, manual-prerequisites, durable-acquisition, resume-paused-space]"
-        cls.deploy_if = "${{ always() && needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && ((needs.manual-prerequisites.outputs.mode == 'managed-recovery' && needs.durable-acquisition.result == 'success') || (needs.manual-prerequisites.outputs.mode != 'managed-recovery' && needs.resume-paused-space.result == 'success')) }}"
+        cls.deploy_if = "${{ github.event_name == 'push' && github.run_attempt == 1 && always() && needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && ((needs.manual-prerequisites.outputs.mode == 'managed-recovery' && needs.durable-acquisition.result == 'success') || (needs.manual-prerequisites.outputs.mode != 'managed-recovery' && needs.resume-paused-space.result == 'success')) }}"
 
     @classmethod
     def fixture_job(cls, name: str) -> str:
@@ -98,7 +99,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
         # Actual workflow and bypass mutations use strict_contract unchanged.
         if "\n  source-admission:\n" not in workflow:
             jobs = "".join(self.fixture_job(name) + "\n" for name in (
-                "source-admission", "manual-prerequisites", "durable-acquisition",
+                "source-admission", "recovery-reconciliation", "manual-prerequisites", "durable-acquisition",
                 "resume-paused-space", "runtime-config"))
             workflow = workflow.replace("\njobs:\n", "\njobs:\n" + jobs, 1)
             workflow = workflow.replace("\n  deploy:\n", "\n  deploy:\n"
@@ -251,7 +252,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
         mutations = (
             ("needs: [source-admission, manual-prerequisites]", "needs: source-admission"),
             ("needs: [source-admission, manual-prerequisites]", "needs: [manual-prerequisites]"),
-            ("if: ${{ needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && needs.manual-prerequisites.outputs.mode != 'managed-recovery' }}", "if: true"),
+            ("if: ${{ github.event_name == 'push' && github.run_attempt == 1 && needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && needs.manual-prerequisites.outputs.mode != 'managed-recovery' }}", "if: true"),
             ("    runs-on:", "    continue-on-error: true\n    runs-on:"),
         )
         for before, after in mutations:
@@ -261,21 +262,30 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
 
     def test_acquisition_and_managed_runtime_job_effects_are_exactly_bound(self) -> None:
         cases = {
+            "recovery-reconciliation": (
+                ("needs: source-admission", "needs: []"),
+                ("github.run_attempt == 1", "github.run_attempt >= 1"),
+                ("github.event_name == 'push'", "true"),
+                ("      actions: read", "      actions: write"),
+                ("--reconcile-supervised-acquisition", "--acquire"),
+                ('--github-output "$GITHUB_OUTPUT"', '--github-output "$GITHUB_OUTPUT" --source-artifact-id 1'),
+                ("${{ runner.temp }}/gdw-supervised-reconciliation.json", "${{ runner.temp }}/**"),
+            ),
             "durable-acquisition": (
-                ("needs: [source-admission, manual-prerequisites]", "needs: source-admission"),
-                ("needs.manual-prerequisites.result == 'skipped'", "true"),
-                ("needs.source-admission.result == 'success' && ", ""),
-                ("        if: ${{ github.ref == 'refs/heads/main' && false }}", "        if: ${{ always() }}"),
+                ("needs: [source-admission, recovery-reconciliation, manual-prerequisites]", "needs: source-admission"),
+                ("needs.manual-prerequisites.result == 'success'", "true"),
+                ("needs.recovery-reconciliation.result == 'success' && ", ""),
+                ("github.run_attempt == 1", "github.run_attempt >= 1"),
                 ("    timeout-minutes: 20", "    continue-on-error: true\n    timeout-minutes: 20"),
                 ("      actions: read", "      actions: write"),
                 ("ref: e3ec47ad2e99a535839afe0f30fefbd8973d52da", "ref: main"),
                 ('"huggingface_hub==1.31.0"', '"huggingface_hub==1.23.0"'),
-                ("scripts/acquire_gdw_durable_storage.py --inspect-held-acquisition", "scripts/unknown.py --inspect-held-acquisition"),
-                ("--inspect-held-acquisition", "--acquire"),
-                ("--inspect-held-acquisition", "--fetch-locator"),
+                ("scripts/acquire_gdw_durable_storage.py --acquire", "scripts/unknown.py --acquire"),
+                ("--acquire", "--inspect-held-acquisition"),
+                ("--acquire", "--fetch-locator"),
                 ('--output "$RUNNER_TEMP/gdw-durable-acquisition.json"', '--output "$RUNNER_TEMP/gdw-durable-acquisition.json" || true'),
-                ("--inspect-held-acquisition", "--inspect-held-acquisition --source-artifact-id 1"),
-                ("--inspect-held-acquisition", "--inspect-held-acquisition --qualification-artifact-sha256 unreviewed"),
+                ('--source-artifact-id "${{ needs.source-admission.outputs.artifact_id }}"', '--source-artifact-id "1"'),
+                ('--qualification-artifact-sha256 "${{ needs.manual-prerequisites.outputs.artifact_sha256 }}"', '--qualification-artifact-sha256 unreviewed'),
                 ("scripts/configure_hf_gdw_runtime.py", "scripts/configure_hf_series_a_runtime.py"),
                 ("--managed-deadline-seconds 120", "--managed-deadline-seconds 120 --force"),
                 ("${{ runner.temp }}/gdw-managed-configuration.json", "${{ runner.temp }}/**"),
@@ -299,18 +309,29 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                     changed = self.reviewed_workflow.replace(job, job.replace(before, after, 1), 1)
                     self.assertFalse(self.strict_contract(changed))
 
-    def test_inspection_cannot_reenable_preservation_or_fresh_qualification(self) -> None:
+    def test_preservation_cannot_bypass_reconciliation_or_first_attempt(self) -> None:
         job = self.fixture_job("manual-prerequisites")
-        self.assertIn("    if: ${{ github.ref == 'refs/heads/main' && false }}", job)
-        for condition in ("${{ true }}", "${{ needs.source-admission.outputs.publish == 'true' }}", "${{ always() }}"):
-            with self.subTest(condition=condition):
-                changed = job.replace("${{ github.ref == 'refs/heads/main' && false }}", condition, 1)
+        for before, after in (
+            ("needs.recovery-reconciliation.result == 'success'", "true"),
+            ("needs.recovery-reconciliation.outputs.admitted == 'true'", "true"),
+            ("github.run_attempt == 1", "github.run_attempt >= 1"),
+            ("--supervised-acquisition", ""),
+        ):
+            with self.subTest(before=before):
+                self.assertIn(before, job)
+                changed = job.replace(before, after, 1)
                 self.assertFalse(self.strict_contract(self.reviewed_workflow.replace(job, changed, 1)))
 
     def test_native_authority_and_private_storage_boundaries_require_reviewed_source(self) -> None:
         cases = (
             ("scripts/acquire_gdw_durable_storage.py", b"evidence.require_active_acquisition()", b"pass"),
             ("scripts/acquire_gdw_durable_storage.py", b"reproduced == selected", b"True"),
+            ("scripts/acquire_gdw_durable_storage.py", b"reconciliation.verify_native_prerequisite(evidence)", b"pass"),
+            ("scripts/preserve_hf_gdw_store.py", b"reconciliation.require_expected_absent(self._api, self._evidence, self._deadline)", b"pass"),
+            ("scripts/reconcile_gdw_supervised_acquisition.py", b'listing["total_count"] == 1', b"True"),
+            ("scripts/reconcile_gdw_supervised_acquisition.py", b'parents[0].get("sha") == PARENT_SOURCE', b"True"),
+            ("scripts/reconcile_gdw_supervised_acquisition.py", b'len(raw) == 640 and hashlib.sha256(raw).hexdigest() == REPORT_SHA256', b"True"),
+            ("scripts/reconcile_gdw_supervised_acquisition.py", b'type(paths) is list and not paths', b"True"),
             ("scripts/acquire_gdw_durable_storage.py", b'value["diagnostic_code"] in _DIAGNOSTICS', b"True"),
             ("scripts/acquire_gdw_durable_storage.py", b"return 2 if inspect_only else 0", b"return 0"),
             ("scripts/probe_gdw_runtime_base.py", b"if _capture_failure and process.returncode == 2:", b"if True:"),
@@ -348,7 +369,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                 self.assertFalse(self.strict_contract(self.reviewed_workflow.replace(job, job.replace(before, after, 1), 1)))
 
     def test_missing_duplicate_jobs_and_duplicate_controller_fields_fail(self) -> None:
-        for name in ("source-admission", "manual-prerequisites", "durable-acquisition",
+        for name in ("source-admission", "recovery-reconciliation", "manual-prerequisites", "durable-acquisition",
                      "resume-paused-space", "runtime-config", "deploy"):
             job = self.fixture_job(name)
             self.assertFalse(self.strict_contract(self.reviewed_workflow.replace(job, "", 1)))
