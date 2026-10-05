@@ -156,7 +156,7 @@ def _prior_producer(evidence):
 def _inspection_archive(evidence, run, producer):
     """Specialized fixed failed-inspection producer; no general failure bypass."""
     meta = evidence.request(f"/repos/{native.REPOSITORY}/actions/artifacts/{ARTIFACT_ID}")
-    _require(meta.get("size_in_bytes") == 565 and type(meta.get("size_in_bytes")) is int
+    _require(meta.get("size_in_bytes") == 564 and type(meta.get("size_in_bytes")) is int
         and native.timestamp(run.get("run_started_at")) <= native.timestamp(producer.get("started_at"))
         <= native.timestamp(meta.get("created_at")) <= native.timestamp(producer.get("completed_at")),
         "INSPECTION_ARTIFACT_UNQUALIFIED")
@@ -176,7 +176,7 @@ def _inspection_archive(evidence, run, producer):
         archive = bytearray()
         for chunk in response.iter_bytes(chunk_size=1024):
             evidence.budget()
-            _require(len(archive) + len(chunk) <= 565, "INSPECTION_ARTIFACT_UNQUALIFIED")
+            _require(len(archive) + len(chunk) <= 564, "INSPECTION_ARTIFACT_UNQUALIFIED")
             archive.extend(chunk)
     members = native.validate_archive(meta, bytes(archive), artifact_id=ARTIFACT_ID,
         expected_digest=ARCHIVE_SHA256, expected_name=f"canonical-durable-acquisition-{INSPECTION_RUN}-1",
