@@ -4,6 +4,7 @@
 """Synthetic fixtures verify read/write separation, not deployed model quality."""
 
 import copy
+import errno
 import json
 import re
 import shlex
@@ -112,6 +113,161 @@ def test_existing_fallback_overlay_is_preserved(monkeypatch, tmp_path):
     assert not (tmp_path / "repo").exists()
 
 
+@pytest.mark.parametrize("existing_fallback", [False, True])
+@pytest.mark.parametrize("graph_available", [False, True])
+def test_authorized_pulse_uses_appendable_fallback_chain(
+    overlay, monkeypatch, client, existing_fallback, graph_available
+):
+    monkeypatch.delenv("SZL_BRAIN_OVERLAY", raising=False)
+    local = overlay.parent / "repo" / ".szl_brain_overlay.jsonl"
+    local.parent.mkdir()
+    fallback = overlay.parent / ".szl_brain_overlay.jsonl"
+    monkeypatch.setattr(brain, "__file__", str(local.parent / "module.py"))
+    monkeypatch.setattr(brain.tempfile, "gettempdir", lambda: str(overlay.parent))
+    local_receipt = brain._make_receipt("local", [], "local answer", {}, 0, None, "")
+    local.write_text(json.dumps(local_receipt) + "\n", encoding="utf-8")
+    local_before = local.read_bytes(), local.stat().st_mtime_ns
+    expected_prev = ""
+    if existing_fallback:
+        receipt = brain._make_receipt("fallback", [], "fallback answer", {}, 0, None, "")
+        node = {"ev": "node", "id": "overlay:fallback", "tier": "CONJECTURE",
+                "receipt_hash": receipt["receipt_hash"], "corroboration": 2}
+        fallback.write_text(json.dumps(receipt) + "\n" + json.dumps(node) + "\n",
+                            encoding="utf-8")
+        expected_prev = receipt["receipt_hash"]
+
+    graph = {"available": graph_available,
+             "nodes": [{"id": "source:one", "title": "query"},
+                       {"id": "source:two", "title": "query second"}],
+             "links": [{"source": "source:one", "target": "source:two"}]}
+
+    real_open = open
+
+    def read_only_local(path, mode="r", *args, **kwargs):
+        if str(path) == str(local) and "a" in mode:
+            raise OSError(errno.EROFS, "fixture read-only deployment volume")
+        return real_open(path, mode, *args, **kwargs)
+
+    with (
+        patch("builtins.open", side_effect=read_only_local),
+        patch.object(brain, "_load_graph", return_value=graph),
+        patch.object(brain, "_energy_snapshot", return_value={"label": "UNAVAILABLE"}),
+        patch.object(brain, "_sovereign_answer", return_value={"available": False,
+                     "text": None, "tokens": 0, "label": "UNAVAILABLE"}),
+    ):
+        for _ in range(2):
+            response = client.post(
+                "/api/a11oy/v1/anatomy/pulse",
+                headers={"Authorization": "Bearer fixture-not-a-real-secret"},
+                json={"q": "query"},
+            )
+            assert response.status_code == 200
+            out = response.json()
+            assert out["ok"] is True
+            assert out["receipt"]["prev_hash"] == expected_prev
+            expected_prev = out["receipt"]["receipt_hash"]
+
+        fallback_before = fallback.read_bytes(), fallback.stat().st_mtime_ns
+        with patch.object(brain, "_write_overlay_path", side_effect=AssertionError("GET writer")):
+            for leaf in ("evidence", "self-audit"):
+                summary = client.get("/api/a11oy/v1/anatomy/" + leaf)
+                assert summary.status_code == 200
+                audit = summary.json().get("audit", summary.json())
+                assert audit["chain_ok"] is True
+                assert audit["receipts_checked"] == 2 + int(existing_fallback)
+        assert (fallback.read_bytes(), fallback.stat().st_mtime_ns) == fallback_before
+
+    assert brain._overlay_path() == str(fallback)
+    assert (local.read_bytes(), local.stat().st_mtime_ns) == local_before
+    if existing_fallback and graph_available:
+        # Post-pulse tier maintenance must fold and append against the fallback too.
+        assert brain._get_state(strict=True)["nodes"]["overlay:fallback"]["tier"] == "CORROBORATED"
+
+
+def test_unwritable_explicit_overlay_does_not_redirect_to_fallback(
+    overlay, monkeypatch, client
+):
+    overlay.write_text("", encoding="utf-8")
+    fallback_dir = overlay.parent / "unused-fallback"
+    monkeypatch.setattr(brain.tempfile, "gettempdir", lambda: str(fallback_dir))
+    real_open = open
+
+    def read_only_override(path, mode="r", *args, **kwargs):
+        if str(path) == str(overlay) and "a" in mode:
+            raise OSError(errno.EROFS, "fixture read-only deployment volume")
+        return real_open(path, mode, *args, **kwargs)
+
+    with (
+        patch("builtins.open", side_effect=read_only_override),
+        patch.object(brain, "_load_graph", return_value={"available": False}),
+        patch.object(brain, "_energy_snapshot", return_value={"label": "UNAVAILABLE"}),
+    ):
+        response = client.post(
+            "/api/a11oy/v1/anatomy/pulse",
+            headers={"Authorization": "Bearer fixture-not-a-real-secret"},
+            json={"q": "query"},
+        )
+    assert response.json()["ok"] is False
+    assert overlay.read_bytes() == b""
+    assert not fallback_dir.exists()
+
+
+@pytest.mark.parametrize("invalid_target", ["directory", "parent-file"])
+def test_invalid_overlay_target_is_unavailable_without_writes(
+    overlay, monkeypatch, client, invalid_target
+):
+    # First populate the empty replay cache; invalid storage must not reuse it.
+    assert client.get("/api/a11oy/v1/anatomy/evidence").status_code == 200
+    if invalid_target == "directory":
+        overlay.mkdir()
+        target = overlay
+    else:
+        overlay.write_text("parent is a file", encoding="utf-8")
+        target = overlay / "private-overlay.jsonl"
+        monkeypatch.setenv("SZL_BRAIN_OVERLAY", str(target))
+    before = overlay.stat().st_mtime_ns
+    with (
+        patch.object(brain, "_append_events", side_effect=AssertionError("GET append")),
+        patch.object(brain.os, "makedirs", side_effect=AssertionError("GET mkdir")),
+    ):
+        for leaf in ("evidence", "self-audit"):
+            response = client.get("/api/a11oy/v1/anatomy/" + leaf)
+            assert response.status_code == 503
+            out = response.json()
+            assert out.get("evidence_class", out.get("label")) == "UNAVAILABLE"
+            assert out["storage_writes"] == 0
+            assert "audit" not in out and "overlay" not in out and "chain_ok" not in out
+            assert str(target) not in response.text
+        assert client.head("/api/a11oy/v1/anatomy/evidence").status_code == 503
+    assert overlay.stat().st_mtime_ns == before
+
+
+def test_inaccessible_overlay_parent_cannot_reuse_empty_cached_summary(
+    overlay, client
+):
+    assert client.get("/api/a11oy/v1/anatomy/evidence").status_code == 200
+    real_stat = brain.os.stat
+
+    def inaccessible_parent(path, *args, **kwargs):
+        if str(path) == str(overlay):
+            raise PermissionError(errno.EACCES, "private parent cannot be traversed")
+        return real_stat(path, *args, **kwargs)
+
+    # Inject the OS error because privileged test runners can traverse chmod(0).
+    with (
+        patch.object(brain.os, "stat", side_effect=inaccessible_parent),
+        patch.object(brain, "_append_events", side_effect=AssertionError("GET append")),
+        patch.object(brain.os, "makedirs", side_effect=AssertionError("GET mkdir")),
+    ):
+        for leaf in ("evidence", "self-audit"):
+            response = client.get("/api/a11oy/v1/anatomy/" + leaf)
+            assert response.status_code == 503
+            assert response.json()["storage_writes"] == 0
+            assert "audit" not in response.json() and "chain_ok" not in response.json()
+            assert "private parent" not in response.text
+    assert not overlay.exists()
+
+
 def test_indirect_loop_health_has_no_append(overlay):
     _broken_overlay(overlay)
     before = overlay.read_bytes(), overlay.stat().st_mtime_ns
@@ -150,6 +306,9 @@ def test_denied_pulse_has_no_inference_or_write(overlay, client, header):
         patch.object(brain, "pulse", side_effect=AssertionError("anonymous pulse")),
         patch.object(
             brain, "_append_events", side_effect=AssertionError("anonymous write")
+        ),
+        patch.object(
+            brain, "_write_overlay_path", side_effect=AssertionError("anonymous writer probe")
         ),
     ):
         response = client.post(
