@@ -129,7 +129,8 @@ def test_native_triage_roots_match_reviewed_worker_not_caller(monkeypatch):
     assert "os.environ.update(trusted_artifact_environment())" in Path(triage.__file__).read_text()
 
 
-def test_native_main_reaches_readonly_observation_with_real_private_output_context(monkeypatch, tmp_path, capfd):
+@pytest.mark.parametrize("observation_fails", [False, True])
+def test_native_main_reaches_readonly_observation_with_real_private_output_context(monkeypatch, tmp_path, capfd, observation_fails):
     import logging
     import os
     import sys
@@ -166,12 +167,15 @@ def test_native_main_reaches_readonly_observation_with_real_private_output_conte
         assert kwargs == {"endpoint": "https://huggingface.co", "token": "synthetic-hf-token"}
         calls.append("read-client")
         return object()
-    def observation(api, directory, owned, deadline):
+    def observation(api, directory, owned, deadline, *, note):
+        note("CAPTURE_QUALIFICATION")
         # The real private-output manager must hide Python and native fd output.
         os.write(1, b"private-capture-test-marker\n")
         os.write(2, b"private-capture-test-marker\n")
         assert directory.is_dir() and not output.exists()
         calls.append("observation")
+        if observation_fails:
+            raise RuntimeError("private-capture-test-marker")
         return {"capture_qualification": "SYNTHETIC_TEST_ONLY"}
     monkeypatch.setitem(sys.modules, "requests", SimpleNamespace(Session=Session))
     monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(__version__="1.31.0", HfApi=api_factory))
@@ -179,7 +183,7 @@ def test_native_main_reaches_readonly_observation_with_real_private_output_conte
     monkeypatch.setattr(triage, "observe_capture", observation)
     disabled = logging.root.manager.disable
     try:
-        assert triage.main() == 0
+        assert triage.main() == (2 if observation_fails else 0)
     finally:
         logging.disable(disabled)
     assert calls == ["native-identity", "read-client", "observation"]
@@ -187,6 +191,19 @@ def test_native_main_reaches_readonly_observation_with_real_private_output_conte
     assert "private-capture-test-marker" not in captured.out + captured.err
     assert "synthetic-hf-token" not in captured.out + captured.err
     record = json.loads(output.read_text())
-    assert record["state"] == "OBSERVED" and record["capture_qualification"] == "SYNTHETIC_TEST_ONLY"
+    assert record["state"] == ("HELD" if observation_fails else "OBSERVED")
+    assert record["read_boundary"] == ("CAPTURE_QUALIFICATION" if observation_fails else "COMPLETE")
+    if not observation_fails:
+        assert record["capture_qualification"] == "SYNTHETIC_TEST_ONLY"
     assert record["provider_writes_performed"] is record["restore_admitted"] is record["deployment_admitted"] is False
     assert "recovery._private_output()" not in Path(triage.__file__).read_text()
+
+
+@pytest.mark.parametrize("boundary", sorted(triage.READ_BOUNDARIES))
+def test_readonly_boundary_is_a_fixed_enum_not_error_text(boundary):
+    record = {}
+    triage.mark_boundary(record, boundary)
+    assert record == {"read_boundary": boundary}
+    with pytest.raises(triage.TriageHeld):
+        triage.mark_boundary(record, "private-owner/path?token=example")
+    assert record == {"read_boundary": boundary}

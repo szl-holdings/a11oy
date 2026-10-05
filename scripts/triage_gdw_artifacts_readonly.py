@@ -31,6 +31,15 @@ class TriageHeld(RuntimeError):
     pass
 
 
+READ_BOUNDARIES = frozenset(('CONTEXT', 'CHECKOUT', 'NATIVE_AUTHORITY', 'PRIVATE_OUTPUT', 'SDK_IMPORT', 'TRUSTED_ROOTS', 'REFERENCE_READ', 'HEAD_BEFORE', 'CAPTURE_QUALIFICATION', 'LOCAL_ARTIFACTS', 'HEAD_AFTER', 'COMPLETE'))
+
+
+def mark_boundary(record, boundary):
+    if type(boundary) is not str or boundary not in READ_BOUNDARIES:
+        raise TriageHeld("READ_ONLY_TRIAGE_HELD")
+    record["read_boundary"] = boundary
+
+
 class _PublicationNotAttempted(BaseException):
     """Observation-only sentinel: never returns a fabricated publication receipt."""
 
@@ -141,7 +150,8 @@ def private_head_metadata(api):
     return {"revision": revision, "head_presence": "PRESENT" if items else "ABSENT"}
 
 
-def observe_capture(api, workspace, require_source, deadline):
+def observe_capture(api, workspace, require_source, deadline, *, note=lambda _boundary: None):
+    note("REFERENCE_READ")
     from scripts import qualify_gdw_store_recovery as recovery
     from scripts import acquire_gdw_durable_storage as acquisition
     reference_bytes = acquisition._read(ROOT / acquisition.CAPTURE_REFERENCE)
@@ -150,16 +160,20 @@ def observe_capture(api, workspace, require_source, deadline):
     capture_hash = hashlib.sha256(reference_bytes).hexdigest()
     recovery.validate_historical_anchors(anchors, reference, capture_hash)
     require_source()
+    note("HEAD_BEFORE")
     before = private_head_metadata(api)
+    note("CAPTURE_QUALIFICATION")
     qualified = recovery.qualify_capture(recovery.ReadOnlyCaptureHub(api), reference,
         workspace / "capture", require_source, deadline, historical_anchors=anchors,
         capture_report_sha256=capture_hash)
     require(qualified.get("state") == "LOGICAL_CONTINUITY_VERIFIED"
         and qualified.get("provider_writes_performed") is False and qualified.get("originals_mutated") is False
         and qualified.get("restore_admitted") is False and qualified.get("deployment_admitted") is False)
+    note("LOCAL_ARTIFACTS")
     observation = local_artifact_observation(workspace / "capture/working/gdw/candidate.sqlite3",
                                              workspace / "local-artifacts", deadline)
     require_source()
+    note("HEAD_AFTER")
     after = private_head_metadata(api)
     require(before == after)
     return {"capture_qualification": "LOGICAL_CONTINUITY_VERIFIED",
@@ -181,13 +195,15 @@ def main():
     result = {"schema": SCHEMA, "state": "HELD", "diagnostic_code": "READ_ONLY_TRIAGE_HELD",
               "provider_writes_performed": False, "restore_admitted": False,
               "deployment_admitted": False, "retry_admitted": False,
-              "prior_provider_effects": "NOT_ESTABLISHED", "private_bytes_reported": False}
+              "prior_provider_effects": "NOT_ESTABLISHED", "private_bytes_reported": False,
+              "read_boundary": "CONTEXT"}
     output = Path(args.output)
     old_mask = os.umask(0o077)
     try:
         context = native_context(os.environ, args.source_sha)
         require(output == Path(os.environ.get("RUNNER_TEMP", "")) / "gdw-artifact-triage.json")
         require(bool(os.environ.get("HF_TOKEN")) and bool(os.environ.get("GH_TOKEN")))
+        mark_boundary(result, "CHECKOUT")
         checkout = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"],
                                   capture_output=True, text=True, timeout=10, check=True)
         require(checkout.stdout.strip() == args.source_sha)
@@ -198,21 +214,27 @@ def main():
         from scripts import qualify_gdw_store_recovery as recovery
         with requests.Session() as session:
             session.headers.update(Authorization="Bearer " + os.environ["GH_TOKEN"], Accept="application/vnd.github+json")
+            mark_boundary(result, "NATIVE_AUTHORITY")
             verify_native(session, context)
             def owned():
                 require(github_json(session, "git/ref/heads/main").get("object", {}).get("sha") == args.source_sha)
+            mark_boundary(result, "PRIVATE_OUTPUT")
             with recovery.preservation._private_output(), tempfile.TemporaryDirectory(prefix="gdw-readonly-triage-") as directory:
                 logging.disable(logging.CRITICAL)
                 os.environ.update(HF_HUB_VERBOSITY="error", HF_DEBUG="0", HF_HUB_DISABLE_PROGRESS_BARS="1",
                                   HF_HOME=str(Path(directory) / "hub-cache"))
+                mark_boundary(result, "SDK_IMPORT")
                 import huggingface_hub
                 from huggingface_hub import HfApi
                 require(huggingface_hub.__version__ == "1.31.0")
                 api = HfApi(endpoint="https://huggingface.co", token=os.environ["HF_TOKEN"])
                 # Match the admitted worker roots; never inherit a caller override.
+                mark_boundary(result, "TRUSTED_ROOTS")
                 os.environ.update(trusted_artifact_environment())
-                observation = observe_capture(api, Path(directory), owned, time.monotonic() + MAX_SECONDS - 10)
+                observation = observe_capture(api, Path(directory), owned, time.monotonic() + MAX_SECONDS - 10,
+                                              note=lambda boundary: mark_boundary(result, boundary))
                 result.update(observation)
+            mark_boundary(result, "COMPLETE")
             result.update(state="OBSERVED", diagnostic_code="READ_ONLY_OBSERVATION_COMPLETE")
     except BaseException:
         # Never expose a provider/SQLite exception message or private report body.
