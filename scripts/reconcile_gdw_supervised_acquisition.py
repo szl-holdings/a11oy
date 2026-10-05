@@ -23,15 +23,15 @@ from scripts import gdw_acquisition_evidence as native
 from scripts import inspect_gdw_held_acquisition as inspection
 
 SCHEMA = "szl.gdw-supervised-acquisition-prerequisite/v1"
-PARENT_SOURCE = "0e63b001630b359f8efaa4cf2d744c08c32b70dc"
-INSPECTION_RUN = 37247543538
+PARENT_SOURCE = "47fdc56643051dbcea363807cfc11b528b53cf21"
+INSPECTION_RUN = 37258464744
 INSPECTION_ATTEMPT = 1
-INSPECTION_JOB = 111568333469
-INSPECTION_SOURCE_JOB = 111568304241
-ARTIFACT_ID = 11319502797
-ARCHIVE_SHA256 = "8a099f20d3d85927bda80e2c702a645b9f8ac01314fbceaf244f616933be0b9e"
-REPORT_SHA256 = "e093e8a7b02c170d076f49b3094721eb576e154b020716b73dfaec2b5d1336e5"
-DATASET_REVISION = "353c525331d7f9d83d6fd16fa1e1828a09bbe9ba"
+INSPECTION_JOB = 111600448989
+INSPECTION_SOURCE_JOB = 111600409872
+ARTIFACT_ID = 11324090824
+ARCHIVE_SHA256 = "d2718f35e72a34bcd4c747dcaec3a02d975f7b94f2ea40c186c89bde6d023aca"
+REPORT_SHA256 = "4b2d40feceabf2aa98a8c9fd4df1cc143ff22550530bc71d94e860dc142736db"
+DATASET_REVISION = "dd34d6b0b20d918cc862888030569d03d99a9b37"
 REPOSITORY_ID = 1225834126
 RECONCILIATION_JOB_KEY = "recovery-reconciliation"
 RECONCILIATION_JOB = "Reconcile the held acquisition before provider mutation"
@@ -118,8 +118,8 @@ def _prior_producer(evidence):
         repository_id=REPOSITORY_ID, active=False)
     listing = evidence.request(f"/repos/{native.REPOSITORY}/actions/runs/{INSPECTION_RUN}/attempts/1/jobs?per_page=100")
     jobs = listing.get("jobs")
-    _require(type(listing.get("total_count")) is int and listing["total_count"] == 12
-        and type(jobs) is list and len(jobs) == 12, "INSPECTION_PRODUCER_UNQUALIFIED")
+    _require(type(listing.get("total_count")) is int and listing["total_count"] == 13
+        and type(jobs) is list and len(jobs) == 13, "INSPECTION_PRODUCER_UNQUALIFIED")
     seen = set()
     producer = None
     for job in jobs:
