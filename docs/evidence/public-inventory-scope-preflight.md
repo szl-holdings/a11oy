@@ -36,8 +36,9 @@ binds that input digest, collector/config/manifest bytes, profile/source revisio
 and public page evidence. The comparator requires an explicitly empty error map
 and verifies the membership digest against sorted IDs in each namespace before
 reporting alignment. The checkout identity is not a runtime attestation.
-Existing canonical writers, schedules, permissions, runtime/quality/fallback gates
-and the legacy verifier are unchanged. This is read-only membership validation,
+Both membership collectors retain null evidence on failures. Existing canonical
+writers, schedules, permissions and runtime/quality/fallback gates are unchanged.
+This is read-only membership validation,
 not model inference or production authorization.
 
 Tests: `python tests/test_hf_public_inventory.py` (offline fixtures). The native
