@@ -5,9 +5,12 @@ name: Sync and Relock Canonical Hugging Face Space
 # the immutable runtime, binds the exact checked-out Git SHA, and verifies the live
 # build-info contract. This caller retains only A11oy-specific terminal evidence.
 # The main-push trigger intentionally has no path filter: every Dockerfile source
-# change must enter deployment before the strict parity dispatch.
+# change enters this canonical workflow; this checkpoint retains the inspection hold.
 #
-# Promote path: push to main writes Space SZLHOLDINGS/a11oy (szlholdings-a11oy.hf.space).
+# This reviewed source selects a bounded read-only inspection after admission.
+# Preservation, reconciliation and pair configuration are literally disabled;
+# the inspection exits HELD, so downstream publication cannot become eligible.
+# The permanent target remains Space SZLHOLDINGS/a11oy (szlholdings-a11oy.hf.space).
 # Staging Space ≠ prod DNS. GitHub main SHA and Space runtime SHA can drift;
 # do not claim they match. This workflow does not change DNS. Apex a-11-oy.com
 # stays Cloudflare orange-cloud (proxied). HF custom domain stays
@@ -89,7 +92,9 @@ jobs:
   recovery-reconciliation:
     name: Reconcile the held acquisition before provider mutation
     needs: source-admission
-    if: ${{ github.event_name == 'push' && github.run_attempt == 1 && needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' }}
+    # The 62ca attempt entered artifact publication with effects unknown.
+    # This source cannot reuse the old absence result as retry authority.
+    if: ${{ github.event_name == 'push' && github.run_attempt == 1 && needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' && false }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -136,9 +141,9 @@ jobs:
   manual-prerequisites:
     name: Check manual authority prerequisites before provider writes
     needs: [source-admission, recovery-reconciliation]
-    # No capture copy is reachable before the exact read-only native gate. The
-    # 1.23 helper rechecks private HEAD absence again before each of its batches.
-    if: ${{ github.event_name == 'push' && github.run_attempt == 1 && needs.source-admission.outputs.publish == 'true' && needs.recovery-reconciliation.result == 'success' && needs.recovery-reconciliation.outputs.admitted == 'true' }}
+    # Preserve the original authority predicates and exact 1.23.0 helper bytes.
+    # The literal hold makes all private capture copies unreachable in this source.
+    if: ${{ github.event_name == 'push' && github.run_attempt == 1 && needs.source-admission.outputs.publish == 'true' && needs.recovery-reconciliation.result == 'success' && needs.recovery-reconciliation.outputs.admitted == 'true' && false }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -233,7 +238,9 @@ jobs:
   durable-acquisition:
     name: Acquire qualified private storage through the canonical publisher
     needs: [source-admission, recovery-reconciliation, manual-prerequisites]
-    if: ${{ github.event_name == 'push' && github.run_attempt == 1 && needs.source-admission.outputs.publish == 'true' && needs.recovery-reconciliation.result == 'success' && needs.recovery-reconciliation.outputs.admitted == 'true' && needs.manual-prerequisites.result == 'success' && needs.manual-prerequisites.outputs.mode == 'managed-recovery' }}
+    # Retain the native job identity and dependency graph. Only the owned first
+    # push may inspect through both literal holds; successful copies cannot enter.
+    if: ${{ github.event_name == 'push' && github.run_attempt == 1 && always() && needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' && needs.recovery-reconciliation.result == 'skipped' && needs.manual-prerequisites.result == 'skipped' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -270,35 +277,29 @@ jobs:
         run: >-
           python -m pip install --disable-pip-version-check --no-cache-dir
           "huggingface_hub==1.31.0" "requests==2.32.5" "cryptography==50.0.1"
-      - name: Reconcile again, verify native candidates, and acquire private storage once
-        # The worker rechecks the same fixed native inspection and live absent
-        # fence before pause and every private object/metadata submission. A
-        # changed or uncertain fence never triggers a second acquisition.
+      - name: Inspect the held prior acquisition without provider mutation
+        # The separate fixed 62ca reader binds the native failure artifact
+        # before bounded dataset metadata reads; prior private effects stay unknown.
+        # Every result exits 2/HELD; no acquisition, retry or locator is admitted.
         run: >-
-          python -B scripts/acquire_gdw_durable_storage.py --acquire
-          --source-artifact-id "${{ needs.source-admission.outputs.artifact_id }}"
-          --source-artifact-sha256 "${{ needs.source-admission.outputs.artifact_sha256 }}"
-          --qualification-artifact-id "${{ needs.manual-prerequisites.outputs.artifact_id }}"
-          --qualification-artifact-sha256 "${{ needs.manual-prerequisites.outputs.artifact_sha256 }}"
-          --publisher-script "$GITHUB_WORKSPACE/.gdw-source-publisher/.github/scripts/hf_deploy_from_dockerfile.py"
+          python -B scripts/acquire_gdw_durable_storage.py --inspect-held-acquisition
           --output "$RUNNER_TEMP/gdw-durable-acquisition.json"
       - name: Install the persistent old-source guard and both managed configurations once
-        # This one coordinator owns the pair. A partial attempt is held; the
-        # Series-A helper is an alternative entrypoint, never a second call.
+        # Inspection never supplies an acquisition locator. Keep the existing
+        # pair command literally disabled even if a prior step's result changes.
+        if: ${{ github.ref == 'refs/heads/main' && false }}
         run: >-
           python -B scripts/configure_hf_gdw_runtime.py
           --managed-acquisition "$RUNNER_TEMP/gdw-durable-acquisition.json"
           --source-sha "$GITHUB_SHA" --managed-deadline-seconds 120
           --output "$RUNNER_TEMP/gdw-managed-configuration.json"
-      - name: Retain only the immutable selector and safe guarded configuration result
+      - name: Retain only the bounded inspection metadata report
         id: acquisition_artifact
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: canonical-durable-acquisition-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            ${{ runner.temp }}/gdw-durable-acquisition.json
-            ${{ runner.temp }}/gdw-managed-configuration.json
+          path: ${{ runner.temp }}/gdw-durable-acquisition.json
           if-no-files-found: error
           retention-days: 90
 

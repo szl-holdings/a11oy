@@ -188,6 +188,7 @@ jobs:
           tests/test_gdw_durable_acquisition.py
           tests/test_gdw_acquisition_evidence.py
           tests/test_gdw_held_acquisition_inspection.py
+          tests/test_gdw_62ca_acquisition_inspection.py
           tests/test_gdw_supervised_acquisition.py
           tests/test_gdw_durable_source.py
           tests/test_gdw_managed_imports.py

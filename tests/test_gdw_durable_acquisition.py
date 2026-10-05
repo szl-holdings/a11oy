@@ -28,7 +28,7 @@ def cli_sibling_modules(monkeypatch):
     # Loading the qualifier needs these two exact siblings first. monkeypatch
     # restores all aliases after each test; application imports are unchanged.
     for name in ("preserve_hf_gdw_store", "gdw_orphan_forensics",
-                 "qualify_gdw_store_recovery", "gdw_acquisition_evidence", "probe_gdw_runtime_base", "inspect_gdw_held_acquisition",
+                 "qualify_gdw_store_recovery", "gdw_acquisition_evidence", "probe_gdw_runtime_base", "inspect_gdw_held_acquisition", "inspect_gdw_62ca_acquisition",
                  "reconcile_gdw_supervised_acquisition"):
         module = importlib.import_module("scripts." + name)
         monkeypatch.setitem(sys.modules, name, module)
@@ -747,11 +747,11 @@ raise SystemExit(worker())
 
 
 def inspection_report(classification="UNAVAILABLE"):
-    from scripts import inspect_gdw_held_acquisition as inspection
+    from scripts import inspect_gdw_62ca_acquisition as inspection
     return inspection._report("b" * 40, classification,
         revision="c" * 40 if classification in {"ABSENT", "ACKNOWLEDGED"} else None,
         head_digest="d" * 64 if classification == "ACKNOWLEDGED" else None,
-        admission_digest="e" * 64 if classification == "ACKNOWLEDGED" else None)
+        admission_digest="e" * 64 if classification == "ACKNOWLEDGED" else None, prior_verified=True)
 
 
 @pytest.mark.parametrize("classification", ["ABSENT", "ACKNOWLEDGED", "INVALID", "UNAVAILABLE"])
@@ -828,12 +828,12 @@ def test_actual_inspection_worker_suppresses_streams_and_cannot_dispatch_acquisi
     code = """import os,runpy,sys
 from pathlib import Path
 script=Path(sys.argv[1]); sys.path[:0]=[str(script.parent),str(script.parent.parent)]
-import inspect_gdw_held_acquisition as inspection
+import inspect_gdw_62ca_acquisition as inspection
 ns=runpy.run_path(str(script),run_name='owned_offline_worker')
 def inspect(workspace,deadline):
     print('PRIVATE_SYNTHETIC_TOKEN_URL_SQL_NOT_FOR_PUBLIC_OUTPUT',flush=True)
     os.write(2,b'PRIVATE_SYNTHETIC_TOKEN_URL_SQL_NOT_FOR_PUBLIC_OUTPUT')
-    return inspection._report('b'*40,'ABSENT',revision='c'*40)
+    return inspection._report('b'*40,'ABSENT',revision='c'*40,prior_verified=True)
 def forbidden(*a,**k): raise AssertionError('acquisition must not execute')
 inspection.execute_native_inspection=inspect
 worker=ns['_worker']; worker.__globals__['_execute_native']=forbidden
