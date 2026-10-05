@@ -301,9 +301,11 @@ DOCTRINE_FACTS = [
     ("What are the three belief tiers for graph write-back?",
      "CONJECTURE → CORROBORATED → LOAD-BEARING. A write-back only enters if a "
      "validation gate passes (dedupe, provenance present, not low-confidence); "
-     "otherwise it is quarantined, never silently added. A receipt-replay "
-     "self-audit can DEMOTE a node if its receipt no longer verifies. Source: "
-     "OPERATIONAL_BRAIN_CHARTER.md."),
+     "otherwise it is quarantined, never silently added. Receipt-replay "
+     "self-audit is a read-only preview of proposed demotions; it does not change "
+     "belief tiers or repair the receipt chain. Applying proposals through a "
+     "separately authorized, receipted write path is ROADMAP. Source: "
+     "docs/ANATOMY_V6_EVIDENCE_BOUNDARY.md."),
     ("Can I present a Λ-advisory salience as truth?",
      "No. Λ-advisory salience is capped at 0.97 and never presented as truth; a "
      "CONJECTURE stays a CONJECTURE. Source: OPERATIONAL_BRAIN_CHARTER.md."),

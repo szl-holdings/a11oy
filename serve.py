@@ -2350,7 +2350,8 @@ except Exception as _brain_command_e:  # pragma: no cover
 # cycle (ground via Personalized-PageRank -> answer on the sovereign mesh IF reachable
 # -> hash-chained RECEIPT -> GATED write-back -> Hebbian reinforce), GET .../salience
 # exposes the current belief-tiered load-bearing knowledge, GET .../self-audit replays
-# the receipt chain and DEMOTES any node whose backing receipt no longer verifies.
+# the receipt chain and previews proposed demotions without applying them. Applying
+# proposals through a separately authorized, receipted write path is ROADMAP.
 # Pure stdlib; degrades to the graph builder's own salience when Wave-1 szl_brain_api
 # is absent. Registered BEFORE the SPA catch-all so the JSON routes resolve locally.
 try:

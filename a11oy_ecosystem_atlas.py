@@ -332,6 +332,7 @@ def register(app: Any, ns: str = "a11oy") -> str:
 
     atlas_page = _PAGES_DIR / "ecosystem.html"
     anatomy_page = _PAGES_DIR / "anatomy-v5.html"
+    anatomy_evidence_page = _PAGES_DIR / "anatomy-v6.html"
 
     async def _api(request: Any = None) -> JSONResponse:
         return JSONResponse(await asyncio.to_thread(atlas_payload))
@@ -346,6 +347,11 @@ def register(app: Any, ns: str = "a11oy") -> str:
             return FileResponse(anatomy_page, media_type="text/html")
         return JSONResponse({"error": "anatomy v5 page unavailable"}, status_code=503)
 
+    async def _anatomy_evidence_page(request: Any = None) -> Any:
+        if anatomy_evidence_page.is_file():
+            return FileResponse(anatomy_evidence_page, media_type="text/html")
+        return JSONResponse({"error": "anatomy v6 evidence view unavailable"}, status_code=503)
+
     page_paths = (
         "/ecosystem",
         "/models",
@@ -357,8 +363,9 @@ def register(app: Any, ns: str = "a11oy") -> str:
     routes = [Route(f"/api/{ns}/v1/ecosystem/atlas", _api, methods=["GET"])]
     routes.extend(Route(path, _atlas_page, methods=["GET", "HEAD"]) for path in page_paths)
     routes.append(Route("/anatomy-v5", _anatomy_page, methods=["GET", "HEAD"]))
+    routes.append(Route("/anatomy-v6", _anatomy_evidence_page, methods=["GET", "HEAD"]))
     app.router.routes[0:0] = routes
-    return f"ok: atlas API + {len(page_paths)} deep-link pages + Anatomy v5"
+    return f"ok: atlas API + {len(page_paths)} deep-link pages + Anatomy v5 + v6 evidence view"
 
 
 if __name__ == "__main__":

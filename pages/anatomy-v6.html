@@ -1,0 +1,337 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0
+(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A read-only A11oy Anatomy v6 evidence view: modeled receipt-audit and overlay summaries, with source, runtime, evaluation, and authority kept separate.">
+  <title>Anatomy v6 evidence view | a11oy</title>
+  <link rel="canonical" href="https://a-11-oy.com/anatomy-v6">
+  <link rel="stylesheet" href="/assets/szl/szl-design-system.css">
+  <style>
+    .page-shell { max-width: var(--container); margin-inline: auto; padding-inline: var(--space-6); }
+    .skip-link { position: absolute; inset-block-start: var(--space-2); inset-inline-start: var(--space-4); z-index: var(--z-max); padding: var(--space-3) var(--space-4); background: var(--surface); border: var(--border-hairline) solid var(--border); transform: translateY(-180%); }
+    .skip-link:focus { transform: none; }
+    .site-header { border-block-end: var(--border-hairline) solid var(--hairline); }
+    .header-inner { display: flex; align-items: center; justify-content: space-between; gap: var(--space-6); min-height: var(--space-20); }
+    .brand { color: var(--text); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-tight); }
+    .brand small { margin-inline-start: var(--space-3); color: var(--text-sub); font-weight: var(--weight-regular); }
+    .primary-nav { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2) var(--space-6); }
+    .primary-nav a, .footer-links a { display: inline-flex; align-items: center; min-height: var(--target-size-coarse); font-size: var(--text-sm); }
+    .hero { padding-block: var(--space-20) var(--space-12); }
+    .version-label { display: inline-flex; align-items: center; gap: var(--space-3); margin-block-end: var(--space-6); font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+    .version-label::before { content: ""; width: var(--space-2); height: var(--space-2); border-radius: var(--radius-full); background: var(--accent); }
+    h1 { max-width: 17ch; font-size: clamp(var(--text-3xl), 5.5vw, var(--text-5xl)); letter-spacing: var(--tracking-tight); margin-block-end: var(--space-6); }
+    .hero .lead { max-width: 62ch; }
+    .boundary-note { max-width: var(--measure); font-size: var(--text-sm); margin-block: var(--space-6) 0; }
+    .evidence-lanes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: var(--border-hairline) solid var(--border); border-radius: var(--radius-lg); overflow: hidden; margin-block-end: var(--space-12); }
+    .lane { min-width: 0; padding: var(--space-6); background: var(--surface); }
+    .lane + .lane { border-inline-start: var(--border-hairline) solid var(--border); }
+    .lane-number { display: block; color: var(--text-ghost); font-family: var(--font-mono); font-size: var(--text-xs); margin-block-end: var(--space-4); }
+    .lane h3 { font-size: var(--text-lg); margin-block-end: var(--space-3); }
+    .lane p { font-size: var(--text-sm); margin-block: var(--space-4) 0; }
+    .evidence-label { display: inline-block; font-family: var(--font-mono); font-size: var(--text-xs); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-caps); color: var(--text); }
+    .section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-8); margin-block-end: var(--space-6); }
+    .section-heading h2 { font-size: var(--text-2xl); margin-block-end: var(--space-2); }
+    .section-heading p { margin-block-end: 0; font-size: var(--text-sm); }
+    .refresh-button { flex-shrink: 0; min-height: var(--target-size-coarse); padding: var(--space-3) var(--space-5); border: var(--border-hairline) solid var(--border); border-radius: var(--radius-md); background: var(--surface); color: var(--text); font-family: var(--font-body); font-size: var(--text-sm); font-weight: var(--weight-semibold); cursor: pointer; touch-action: manipulation; }
+    .refresh-button:hover { background: var(--surface-raised); }
+    .refresh-button:disabled { cursor: wait; opacity: .6; }
+    .request-status { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-3) var(--space-5); min-height: var(--space-12); padding-block: var(--space-4); border-block: var(--border-hairline) solid var(--hairline); margin-block-end: var(--space-6); }
+    .request-status p { margin: 0; font-size: var(--text-sm); }
+    .summary-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: var(--space-6); }
+    .summary-panel { min-width: 0; border: var(--border-hairline) solid var(--border); border-radius: var(--radius-lg); padding: var(--space-6); background: var(--surface); }
+    .summary-panel h3 { font-size: var(--text-xl); margin-block-end: var(--space-2); }
+    .summary-panel > p { font-size: var(--text-sm); }
+    .metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: var(--space-6) 0; gap: var(--space-6); }
+    .metrics > div { min-width: 0; }
+    .metrics dt { font-size: var(--text-sm); color: var(--text-sub); margin-block-end: var(--space-2); }
+    .metrics dd { margin: 0; font-family: var(--font-mono); font-size: var(--text-lg); color: var(--text); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+    .chain-readout { padding-block-start: var(--space-4); border-block-start: var(--border-hairline) solid var(--hairline); font-size: var(--text-sm); }
+    .chain-readout strong { display: block; font-family: var(--font-mono); font-size: var(--text-xs); margin-block-end: var(--space-2); }
+    .chain-readout p { margin-block-end: 0; font-size: var(--text-sm); }
+    .metadata { display: grid; grid-template-columns: minmax(7rem, .2fr) minmax(0, 1fr); gap: var(--space-3) var(--space-6); font-size: var(--text-sm); margin-block: var(--space-6) var(--space-12); }
+    .metadata dt { color: var(--text-sub); }
+    .metadata dd { margin: 0; overflow-wrap: anywhere; }
+    .policy-section { padding-block: var(--space-8); border-block-start: var(--border-hairline) solid var(--hairline); }
+    .policy-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-8); }
+    .policy-grid h3 { font-size: var(--text-lg); }
+    .policy-grid p { font-size: var(--text-sm); }
+    .policy-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3) var(--space-6); font-size: var(--text-sm); }
+    .policy-fields dt { color: var(--text-sub); }
+    .policy-fields dd { margin: 0; font-family: var(--font-mono); }
+    .companion-note { padding: var(--space-6); background: var(--surface); border-inline-start: var(--border-thick) solid var(--border); margin-block: var(--space-8) var(--space-16); }
+    .companion-note h2 { font-size: var(--text-lg); margin-block-end: var(--space-3); }
+    .companion-note p { font-size: var(--text-sm); margin-block-end: var(--space-2); }
+    .site-footer { border-block-start: var(--border-hairline) solid var(--hairline); padding-block: var(--space-8); }
+    .footer-inner { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-8); }
+    .site-footer p { font-size: var(--text-xs); margin: 0; }
+    .footer-links { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-6); }
+    noscript p { padding: var(--space-4); border: var(--border-hairline) solid var(--border); }
+    @media (max-width: 960px) {
+      .evidence-lanes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .lane:nth-child(3) { border-inline-start: 0; }
+      .lane:nth-child(n + 3) { border-block-start: var(--border-hairline) solid var(--border); }
+      .summary-grid { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (max-width: 640px) {
+      .page-shell { padding-inline: var(--space-4); }
+      .header-inner { align-items: flex-start; flex-direction: column; gap: var(--space-2); padding-block: var(--space-4); }
+      .hero { padding-block: var(--space-12) var(--space-8); }
+      .evidence-lanes, .policy-grid { grid-template-columns: minmax(0, 1fr); }
+      .lane + .lane { border-inline-start: 0; border-block-start: var(--border-hairline) solid var(--border); }
+      .section-heading, .footer-inner { flex-direction: column; gap: var(--space-4); }
+      .metrics { gap: var(--space-4); }
+      .metadata { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
+      .metadata dd + dt { margin-block-start: var(--space-3); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+    }
+  </style>
+  <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to evidence</a>
+  <header class="site-header">
+    <div class="page-shell header-inner">
+      <a class="brand" href="/">a11oy <small>evidence / anatomy</small></a>
+      <nav class="primary-nav" aria-label="Primary navigation">
+        <a href="/anatomy-v5">Anatomy v5</a>
+        <a href="/brain">Brain</a>
+        <a href="/ecosystem">Ecosystem</a>
+        <a href="https://a11oy.net" target="_blank" rel="noopener noreferrer">Proof surface ↗</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main" class="page-shell">
+    <section class="hero" aria-labelledby="page-title">
+      <p class="version-label">A11oy Anatomy / v6 evidence view</p>
+      <h1 id="page-title">See the structure.<br>Keep the boundary.</h1>
+      <p class="lead">A read-only view of the second-brain receipt audit and modeled overlay. Summary counts are inspectable; private content, model training, and execution are outside this view.</p>
+      <p class="boundary-note"><span class="evidence-label">MODELED</span> · This is an additive A11oy evidence view, not a new model release, an evaluation result, or a version change to the canonical Anatomy companion.</p>
+    </section>
+
+    <section aria-labelledby="lanes-title">
+      <h2 id="lanes-title" class="eyebrow">Four lanes. No implied promotion.</h2>
+      <div class="evidence-lanes">
+        <article class="lane" aria-labelledby="source-title">
+          <span class="lane-number" aria-hidden="true">01 / source</span>
+          <h3 id="source-title">Source contract</h3>
+          <span class="evidence-label">DECLARED</span>
+          <p>This page reads the <a href="/api/a11oy/v1/anatomy/evidence">v6 summary endpoint</a>. A source contract does not establish deployment or provider publication.</p>
+        </article>
+        <article class="lane" aria-labelledby="runtime-title">
+          <span class="lane-number" aria-hidden="true">02 / runtime</span>
+          <h3 id="runtime-title">Runtime summary</h3>
+          <span id="runtime-state" class="evidence-label">UNAVAILABLE</span>
+          <p id="runtime-note">No validated summary has been received. Endpoint reachability is not model quality or estate-wide health.</p>
+        </article>
+        <article class="lane" aria-labelledby="eval-title">
+          <span class="lane-number" aria-hidden="true">03 / evaluation</span>
+          <h3 id="eval-title">Held-out evaluation</h3>
+          <span class="evidence-label">UNKNOWN</span>
+          <p>No held-out evaluation is supplied by this contract. Receipt and graph counts are not model scores, training evidence, or scientific validation.</p>
+        </article>
+        <article class="lane" aria-labelledby="authority-title">
+          <span class="lane-number" aria-hidden="true">04 / authority</span>
+          <h3 id="authority-title">Decision authority</h3>
+          <span class="evidence-label">DECLARED</span>
+          <p>Required authority is NONE for training, promotion, execution, and provider writes. The page rejects a summary that broadens this boundary.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="summary" aria-labelledby="summary-title" aria-busy="false">
+      <div class="section-heading">
+        <div>
+          <h2 id="summary-title">Inspect the summary</h2>
+          <p>Each summary refresh performs one same-origin GET. No background polling or write action by the summary controller.</p>
+        </div>
+        <button id="refresh-evidence" class="refresh-button" type="button" aria-describedby="refresh-note">Refresh read-only summary</button>
+      </div>
+      <p id="refresh-note" class="boundary-note">Counts are cleared while a request is pending or unavailable; no sample values are substituted.</p>
+      <p class="boundary-note">Shared product navigation and motion chrome are separate presentation. Their product labels grant no training, promotion, execution, or provider-write authority to this v6 summary view.</p>
+      <div class="request-status" role="status" aria-live="polite" aria-atomic="true">
+        <span id="request-state" class="evidence-label">UNAVAILABLE</span>
+        <p id="request-message">No summary loaded. JavaScript is required to request the read-only endpoint.</p>
+      </div>
+      <noscript><p>UNAVAILABLE · JavaScript is disabled. You can <a href="/api/a11oy/v1/anatomy/evidence">inspect the summary endpoint directly</a>; this page will not invent counts.</p></noscript>
+      <div class="summary-grid">
+        <article class="summary-panel" aria-labelledby="audit-title">
+          <h3 id="audit-title">Receipt audit</h3>
+          <p>Process-local audit summary. Proposed demotions are findings, not applied changes.</p>
+          <dl class="metrics">
+            <div><dt>Receipts checked</dt><dd id="receipts-checked" data-evidence-count>UNAVAILABLE</dd></div>
+            <div><dt>Proposed demotions</dt><dd id="proposed-demotions" data-evidence-count>UNAVAILABLE</dd></div>
+            <div><dt>Broken receipts</dt><dd id="broken-receipts" data-evidence-count>UNAVAILABLE</dd></div>
+          </dl>
+          <div class="chain-readout">
+            <strong id="chain-state">UNAVAILABLE</strong>
+            <p>An internally consistent chain is not an independent signature check, trusted-key binding, or authorization.</p>
+          </div>
+        </article>
+        <article class="summary-panel" aria-labelledby="overlay-title">
+          <h3 id="overlay-title">Modeled overlay</h3>
+          <p>Aggregate structure only. No node identifiers, private queries, receipt bodies, or source text are displayed.</p>
+          <dl class="metrics">
+            <div><dt>Nodes</dt><dd id="overlay-nodes" data-evidence-count>UNAVAILABLE</dd></div>
+            <div><dt>Reinforced edges</dt><dd id="reinforced-edges" data-evidence-count>UNAVAILABLE</dd></div>
+          </dl>
+          <p>Reinforced edges describe the modeled overlay. They do not establish learning, causal findings, or permission to act.</p>
+        </article>
+      </div>
+      <dl class="metadata">
+        <dt>Evidence scope</dt><dd id="evidence-scope">UNAVAILABLE</dd>
+        <dt>Computed at</dt><dd id="computed-at">UNAVAILABLE</dd>
+        <dt>Contract</dt><dd><code>szl.anatomy.evidence/v6</code> · <code>SUMMARY_ONLY</code></dd>
+      </dl>
+    </section>
+
+    <section class="policy-section" aria-labelledby="policy-title">
+      <h2 id="policy-title" class="eyebrow">Required read boundary / DECLARED</h2>
+      <div class="policy-grid">
+        <article>
+          <h3>Reading is not acting</h3>
+          <p>The response must declare READ_ONLY, zero storage writes, no receipt minted on GET, no model invocation, and no gradient training. A missing field or a changed boundary makes the summary UNAVAILABLE.</p>
+          <a href="/api/a11oy/v1/second-brain">Inspect the existing second-brain endpoint</a>
+        </article>
+        <article aria-labelledby="authority-fields-title">
+          <h3 id="authority-fields-title">No authority is granted</h3>
+          <dl class="policy-fields">
+            <dt>Training</dt><dd>NONE</dd>
+            <dt>Promotion</dt><dd>NONE</dd>
+            <dt>Execution</dt><dd>NONE</dd>
+            <dt>Provider write</dt><dd>NONE</dd>
+          </dl>
+        </article>
+      </div>
+    </section>
+
+    <aside class="companion-note" aria-labelledby="companion-title">
+      <h2 id="companion-title">Separate surface, separate version</h2>
+      <p>The canonical <a href="https://betterwithage-anatomy.hf.space" target="_blank" rel="noopener noreferrer">Anatomy companion ↗</a> is already v7. This A11oy v6 evidence view does not replace, rename, or downgrade that companion.</p>
+      <p>That link is navigation, not a runtime probe or a claim about the companion’s current availability.</p>
+    </aside>
+  </main>
+  <footer class="site-footer">
+    <div class="page-shell footer-inner">
+      <p>Doctrine v11 LOCKED · Source ≠ runtime ≠ evaluation ≠ authorization.<br>Local summary inspection is not deployment, certification, or independent witness.</p>
+      <nav class="footer-links" aria-label="Evidence navigation">
+        <a href="/anatomy-v5">Existing v5 view</a>
+        <a href="https://betterwithage-anatomy.hf.space" target="_blank" rel="noopener noreferrer">Canonical Anatomy · v7 ↗</a>
+        <a href="/ecosystem">Estate map</a>
+        <a href="https://a11oy.net" target="_blank" rel="noopener noreferrer">Proof surface ↗</a>
+      </nav>
+    </div>
+  </footer>
+  <script>
+    (() => {
+      "use strict";
+
+      const ENDPOINT = "/api/a11oy/v1/anatomy/evidence";
+      const EXPECTED_SCHEMA = "szl.anatomy.evidence/v6";
+      const MAX_RESPONSE_CHARS = 16384;
+      const countIds = ["receipts-checked", "proposed-demotions", "broken-receipts", "overlay-nodes", "reinforced-edges"];
+      const refreshButton = document.getElementById("refresh-evidence");
+      const summary = document.getElementById("summary");
+
+      const setText = (id, value) => {
+        document.getElementById(id).textContent = String(value);
+      };
+      const isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+      const hasExactKeys = (value, keys) => isRecord(value) &&
+        Object.keys(value).length === keys.length &&
+        keys.every((key) => Object.prototype.hasOwnProperty.call(value, key));
+      const isCount = (value) => Number.isSafeInteger(value) && value >= 0;
+      const isBoundedText = (value, limit) => typeof value === "string" &&
+        value.length > 0 && value.length <= limit && value.trim() === value &&
+        !/[\u0000-\u001f\u007f]/.test(value);
+
+      function validateEvidence(data) {
+        if (!hasExactKeys(data, ["schema", "evidence_class", "mode", "content_access", "storage_writes", "receipt_minted_on_get", "model_invoked", "gradient_training", "authority", "audit", "overlay", "scope", "computed_at"])) return false;
+        if (data.schema !== EXPECTED_SCHEMA || data.evidence_class !== "MODELED" ||
+            data.mode !== "READ_ONLY" || data.content_access !== "SUMMARY_ONLY" ||
+            data.storage_writes !== 0 || data.receipt_minted_on_get !== false ||
+            data.model_invoked !== false || data.gradient_training !== false) return false;
+        if (!hasExactKeys(data.authority, ["training", "promotion", "execution", "provider_write"]) ||
+            !Object.values(data.authority).every((value) => value === "NONE")) return false;
+        if (!hasExactKeys(data.audit, ["chain_ok", "receipts_checked", "proposed_demotions", "broken_receipts"]) ||
+            typeof data.audit.chain_ok !== "boolean" ||
+            !isCount(data.audit.receipts_checked) || !isCount(data.audit.proposed_demotions) ||
+            !isCount(data.audit.broken_receipts)) return false;
+        if (!hasExactKeys(data.overlay, ["nodes", "reinforced_edges"]) ||
+            !isCount(data.overlay.nodes) || !isCount(data.overlay.reinforced_edges)) return false;
+        return isBoundedText(data.scope, 512) && isBoundedText(data.computed_at, 80) &&
+          Number.isFinite(Date.parse(data.computed_at));
+      }
+
+      function clearEvidence() {
+        countIds.forEach((id) => setText(id, "UNAVAILABLE"));
+        ["chain-state", "evidence-scope", "computed-at", "runtime-state"].forEach((id) => setText(id, "UNAVAILABLE"));
+        setText("runtime-note", "No validated summary has been received. Endpoint reachability is not model quality or estate-wide health.");
+      }
+
+      function renderEvidence(data) {
+        setText("receipts-checked", data.audit.receipts_checked);
+        setText("proposed-demotions", data.audit.proposed_demotions);
+        setText("broken-receipts", data.audit.broken_receipts);
+        setText("overlay-nodes", data.overlay.nodes);
+        setText("reinforced-edges", data.overlay.reinforced_edges);
+        setText("chain-state", data.audit.chain_ok ? "MODELED · CHAIN CONSISTENT" : "MODELED · CHAIN BROKEN");
+        setText("evidence-scope", data.scope);
+        setText("computed-at", data.computed_at);
+        setText("runtime-state", "MODELED");
+        setText("runtime-note", "A validated read-only summary was received. These modeled counts do not establish provider publication, model quality, or estate-wide health.");
+        setText("request-state", "MODELED");
+        setText("request-message", "Summary contract validated. Findings remain read-only; no demotions or other changes were applied.");
+      }
+
+      async function refreshEvidence() {
+        if (refreshButton.disabled) return;
+        refreshButton.disabled = true;
+        summary.setAttribute("aria-busy", "true");
+        clearEvidence();
+        setText("request-state", "UNAVAILABLE");
+        setText("request-message", "Request pending. Counts are unavailable until the complete contract is validated.");
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+        try {
+          const response = await fetch(ENDPOINT, {
+            method: "GET",
+            mode: "same-origin",
+            credentials: "omit",
+            cache: "no-store",
+            redirect: "error",
+            headers: { "Accept": "application/json" },
+            signal: controller.signal
+          });
+          if (!response.ok) throw new Error("request unavailable");
+          const contentType = (response.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+          if (contentType !== "application/json") throw new Error("not a JSON summary");
+          const raw = await response.text();
+          if (raw.length > MAX_RESPONSE_CHARS) throw new Error("summary exceeds display limit");
+          const data = JSON.parse(raw);
+          if (!validateEvidence(data)) throw new Error("invalid summary contract");
+          renderEvidence(data);
+        } catch (error) {
+          clearEvidence();
+          setText("request-state", "UNAVAILABLE");
+          setText("request-message", error.name === "AbortError"
+            ? "Summary request timed out. No counts or stronger evidence state were substituted. You can retry the read-only request."
+            : "The summary could not be validated or retrieved. No counts or stronger evidence state were substituted. You can retry the read-only request.");
+        } finally {
+          clearTimeout(timeout);
+          summary.setAttribute("aria-busy", "false");
+          refreshButton.disabled = false;
+        }
+      }
+
+      refreshButton.addEventListener("click", refreshEvidence);
+      refreshEvidence();
+    })();
+  </script>
+  <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
+</body>
+</html>
