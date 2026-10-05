@@ -88,8 +88,8 @@ and they do not probe an old or paused service.
 
 `scripts/build_gdw_installed_source_manifest.py` uses the exact public COPY
 parser and expander from `szl-holdings/.github` at
-`e3ec47ad2e99a535839afe0f30fefbd8973d52da`, script SHA-256
-`eecf0ad2095ff345e009a24ba22a574efc974925fc88dd492377628c13b8e663`.
+`fc71ae973a0f31b8e9ee793fc8545a354448d451`, script SHA-256
+`f2f7a6c1296493d034eebed596f4176c2928470a4ed7e23620da6cacf19b16e7`.
 It compiles only the parser, expander and their exception class from the pinned
 AST. Publisher mutations, application imports, provider calls and credential
 reads are outside this helper. Git reads are bounded to local immutable objects;

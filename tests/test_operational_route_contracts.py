@@ -75,7 +75,7 @@ def test_permanent_sync_uses_the_reusable_source_bound_authority() -> None:
         encoding="utf-8"
     )
     for required in (
-        "uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@e3ec47ad2e99a535839afe0f30fefbd8973d52da",
+        "uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451",
         "ref: ${{ github.sha }}",
         "source-revision-variable: SZL_GIT_SHA",
         "source-revision-probe-path: /api/build-info",
@@ -88,9 +88,11 @@ def test_permanent_sync_uses_the_reusable_source_bound_authority() -> None:
         "/atelier/frontier",
         "/api/a11oy/v1/atelier/frontier/registry",
         "/api/a11oy/v1/atelier/frontier/evaluate",
-        "needs: deploy",
-        'RELOCK_ISSUE: "1043"',
-        "Trigger strict post-deployment GitHub/HF parity",
+        "needs: [manual-prerequisites, deploy]",
+        "needs: [manual-prerequisites, runtime-config, readiness-verdict]",
+        "Re-admit exact current main after live verification",
+        "Retain the verification outcome without issue mutation",
+        "Enforce exact live state",
     ):
         assert required in workflow
 
@@ -98,6 +100,8 @@ def test_permanent_sync_uses_the_reusable_source_bound_authority() -> None:
         "/",
         "/api/livez",
         "/api/build-info",
+        "/api/a11oy/v1/honest",
+        "/api/a11oy/healthz",
         "/api/a11oy/v1/brain/capabilities",
         "/api/a11oy/v1/readiness/tab-matrix?view=summary",
         "/api/a11oy/v1/series-a/status",
@@ -107,6 +111,7 @@ def test_permanent_sync_uses_the_reusable_source_bound_authority() -> None:
         "/assets/brain-frontier-v7.css",
         "/assets/brain-frontier-v7.js",
         "/assets/brain-frontier-v7.json",
+        "/static/landing-honest-bind.js",
         "/atelier/frontier",
         "/api/a11oy/v1/atelier/frontier/registry",
         (

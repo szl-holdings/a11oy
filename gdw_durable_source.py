@@ -34,9 +34,9 @@ MAX_SCAN_ENTRIES = 16_384
 MAX_VERIFY_SECONDS = 30
 PUBLISHER = {
     "repository": "szl-holdings/.github",
-    "revision": "e3ec47ad2e99a535839afe0f30fefbd8973d52da",
+    "revision": "fc71ae973a0f31b8e9ee793fc8545a354448d451",
     "script_path": ".github/scripts/hf_deploy_from_dockerfile.py",
-    "script_sha256": "eecf0ad2095ff345e009a24ba22a574efc974925fc88dd492377628c13b8e663",
+    "script_sha256": "f2f7a6c1296493d034eebed596f4176c2928470a4ed7e23620da6cacf19b16e7",
 }
 # This mandatory floor is additional to the complete derived inventory, not a
 # replacement for the COPY/import closure or permission to omit other files.
