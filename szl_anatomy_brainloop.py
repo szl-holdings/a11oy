@@ -36,8 +36,8 @@ THREE DIFFERENTIATORS (all implemented):
   (a) every write-back carries a real energy + provenance RECEIPT — the graph
       grows ONLY through auditable metered inference (an ungated write is
       QUARANTINED, never written load-bearing).
-  (b) an active receipt-replay SELF-AUDIT that DEMOTES a node's belief tier if
-      its backing receipt no longer verifies (tamper-evident belief).
+  (b) a read-only receipt-replay SELF-AUDIT that proposes demotions when a
+      backing receipt no longer verifies. Applying proposals is not a GET.
   (c) Λ-advisory salience is NEVER presented as truth (capped <= 0.97); a raw
       CONJECTURE is never auto-upgraded to a theorem by salience alone.
 
@@ -306,20 +306,20 @@ _STATE_CACHE: dict = {"mtime": None, "state": None, "path": None}
 
 
 def _overlay_path() -> str:
+    """Resolve existing storage without creating a file or directory on read."""
     override = os.environ.get("SZL_BRAIN_OVERLAY")
     if override:
         return override
     here = os.path.dirname(os.path.abspath(__file__))
-    for cand in (here, tempfile.gettempdir()):
-        try:
-            os.makedirs(cand, exist_ok=True)
-            probe = os.path.join(cand, ".szl_brain_overlay.jsonl")
-            with open(probe, "a", encoding="utf-8"):
-                pass
-            return probe
-        except Exception:
-            continue
-    return os.path.join(tempfile.gettempdir(), ".szl_brain_overlay.jsonl")
+    local = os.path.join(here, ".szl_brain_overlay.jsonl")
+    fallback = os.path.join(tempfile.gettempdir(), ".szl_brain_overlay.jsonl")
+    # Preserve either historical location; a read must not test writability by
+    # appending to the log. The writer remains responsible for filesystem errors.
+    if os.path.isfile(local):
+        return local
+    if os.path.isfile(fallback):
+        return fallback
+    return local if os.access(here, os.W_OK) else fallback
 
 
 def _append_events(events: list) -> None:
@@ -331,7 +331,7 @@ def _append_events(events: list) -> None:
         _STATE_CACHE["mtime"] = None  # invalidate
 
 
-def _fold_state(path: str) -> dict:
+def _fold_state(path: str, *, strict: bool = False) -> dict:
     """Replay the append-only log into current overlay state."""
     state = {
         "receipts": [],           # ordered hash chain
@@ -349,8 +349,35 @@ def _fold_state(path: str) -> dict:
             try:
                 ev = json.loads(line)
             except Exception:
+                if strict:
+                    raise ValueError("overlay contains invalid JSON") from None
                 continue
+            if strict and (not isinstance(ev, dict) or ev.get("ev") not in {
+                    "receipt", "node", "corroborate", "promote", "demote", "reinforce"}):
+                raise ValueError("overlay contains an unsupported event")
             kind = ev.get("ev")
+            if strict:
+                if kind == "receipt" and not (
+                        isinstance(ev.get("prev_hash"), str)
+                        and isinstance(ev.get("receipt_hash"), str) and ev["receipt_hash"]):
+                    raise ValueError("overlay contains a malformed receipt")
+                if kind in ("node", "corroborate", "promote", "demote"):
+                    if not isinstance(ev.get("id"), str) or not ev["id"]:
+                        raise ValueError("overlay event lacks a node identity")
+                    if kind != "node" and ev["id"] not in state["nodes"]:
+                        raise ValueError("overlay event references a missing node")
+                    if kind in ("node", "promote", "demote") and ev.get("tier") not in _TIER_ORDER:
+                        raise ValueError("overlay event contains an unsupported tier")
+                    if kind == "node" and not (
+                            isinstance(ev.get("receipt_hash"), str) and ev["receipt_hash"]):
+                        raise ValueError("overlay node lacks its receipt reference")
+                if kind == "reinforce":
+                    edges = ev.get("edges")
+                    if not isinstance(edges, list) or any(
+                            not isinstance(pair, list) or len(pair) != 2
+                            or not all(isinstance(nid, str) and nid for nid in pair)
+                            for pair in edges):
+                        raise ValueError("overlay contains malformed reinforcement edges")
             if kind == "receipt":
                 state["receipts"].append(ev)
                 state["prev_hash"] = ev.get("receipt_hash", state["prev_hash"])
@@ -398,7 +425,7 @@ def _fold_state(path: str) -> dict:
     return state
 
 
-def _get_state() -> dict:
+def _get_state(*, strict: bool = False) -> dict:
     path = _overlay_path()
     with _LOCK:
         try:
@@ -407,10 +434,11 @@ def _get_state() -> dict:
             mtime = 0.0
         if (_STATE_CACHE["state"] is not None
                 and _STATE_CACHE["mtime"] == mtime
-                and _STATE_CACHE["path"] == path):
+                and _STATE_CACHE["path"] == path
+                and _STATE_CACHE.get("strict", False) == strict):
             return _STATE_CACHE["state"]
-        state = _fold_state(path)
-        _STATE_CACHE.update({"mtime": mtime, "state": state, "path": path})
+        state = _fold_state(path, strict=strict)
+        _STATE_CACHE.update({"mtime": mtime, "state": state, "path": path, "strict": strict})
         return state
 
 
@@ -665,22 +693,20 @@ def _consolidate_tiers(ns: str = "a11oy") -> list:
     return events
 
 
-def self_audit(ns: str = "a11oy") -> dict:
-    """Differentiator (b): receipt-replay SELF-AUDIT that DEMOTES a node's belief
-    tier when its backing receipt no longer verifies (tamper-evident belief)."""
-    state = _get_state()
+def _audit_state(state: dict) -> dict:
+    """Preview one already-read overlay; no demotion, receipt or storage write."""
     prev = ""
     ok_hashes = set()
     broken = []
     for i, entry in enumerate(state["receipts"]):
-        if _verify_receipt(entry, prev):
+        # A locally matching link after a broken prefix is not a valid chain.
+        if not broken and _verify_receipt(entry, prev):
             ok_hashes.add(entry.get("receipt_hash"))
         else:
             broken.append({"index": i, "receipt_hash": entry.get("receipt_hash")})
         prev = entry.get("receipt_hash", prev)
 
     demotions = []
-    events = []
     for nid, nd in state["nodes"].items():
         rh = nd.get("receipt_hash")
         if not rh:
@@ -694,25 +720,66 @@ def self_audit(ns: str = "a11oy") -> dict:
             else:
                 new_tier = TIER_CONJECTURE
                 quarantined = True
-            events.append({"ev": "demote", "id": nid, "tier": new_tier,
-                           "quarantined": quarantined,
-                           "reason": "backing receipt failed self-audit replay",
-                           "ts": _now_iso()})
             demotions.append({"id": nid, "from": cur, "to": new_tier,
                               "quarantined": quarantined})
-    if events:
-        _append_events(events)
     return {
         "ok": not broken,
-        "label": LABEL_MEASURED,  # this IS a real replay over the real chain
+        "label": LABEL_MODELED,
         "receipts_checked": len(state["receipts"]),
         "chain_ok": not broken,
         "broken": broken,
         "demotions": demotions,
-        "note": ("receipt-replay self-audit; a node whose backing receipt no "
-                 "longer verifies is DEMOTED one belief tier (differentiator b)."),
+        "demotions_applied": False,
+        "storage_writes": 0,
+        "receipt_minted_on_get": False,
+        "signature_verification": "UNAVAILABLE",
+        "authorization": "NONE",
+        "note": ("read-only hash-chain replay; demotions are proposals, not "
+                 "applied changes. Hash consistency is not signature verification "
+                 "or authorization. Applying proposals requires a separate "
+                 "governed write path (ROADMAP)."),
         "computed_at": _now_iso(),
     }
+
+
+def self_audit(ns: str = "a11oy") -> dict:
+    """Read-only preview, including when called by loop-health GET consumers."""
+    with _LOCK:
+        return _audit_state(_get_state(strict=True))
+
+
+def evidence_snapshot(ns: str = "a11oy") -> dict:
+    """A11oy v6 summary only; no graph harvest, inference or private note text."""
+    with _LOCK:
+        state = _get_state(strict=True)
+        audit = _audit_state(state)
+        return {
+            "schema": "szl.anatomy.evidence/v6",
+            "evidence_class": LABEL_MODELED,
+            "mode": "READ_ONLY",
+            "content_access": "SUMMARY_ONLY",
+            "storage_writes": 0,
+            "receipt_minted_on_get": False,
+            "model_invoked": False,
+            "gradient_training": False,
+            "authority": {name: "NONE" for name in (
+                "training", "promotion", "execution", "provider_write")},
+            "audit": {
+                "chain_ok": audit["chain_ok"],
+                "receipts_checked": audit["receipts_checked"],
+                "broken_receipts": len(audit["broken"]),
+                "proposed_demotions": len(audit["demotions"]),
+            },
+            "overlay": {
+                "nodes": len(state["nodes"]),
+                "reinforced_edges": len(state["edges"]),
+            },
+            "scope": ("A11oy local overlay hash-chain summary, not an estate "
+                      "audit, model evaluation or deployment witness. Existing "
+                      "second-brain retrieval remains external to model weights. "
+                      "The separate creator-profile Anatomy v7 is unchanged."),
+            "computed_at": audit["computed_at"],
+        }
 
 
 # --------------------------------------------------------------------------- #
@@ -844,6 +911,10 @@ def register(app, ns: str = "a11oy") -> list:
 
     async def _pulse_handler(request: fastapi.Request):
         from starlette.responses import JSONResponse
+        from szl_operator_auth import operator_refusal
+        refusal = operator_refusal(request, "Anatomy pulse (inference and overlay write)")
+        if refusal is not None:
+            return refusal
         q = ""
         try:
             q = request.query_params.get("q", "") or ""
@@ -866,7 +937,28 @@ def register(app, ns: str = "a11oy") -> list:
 
     async def _audit_handler(request: fastapi.Request):
         from starlette.responses import JSONResponse
-        return JSONResponse(self_audit(ns=ns))
+        try:
+            body = self_audit(ns=ns)
+        except (OSError, ValueError, TypeError, KeyError, AttributeError, IndexError):
+            return JSONResponse({"label": LABEL_UNAVAILABLE, "storage_writes": 0,
+                                 "receipt_minted_on_get": False,
+                                 "note": "overlay replay unavailable"}, status_code=503)
+        return JSONResponse(body)
+
+    async def _evidence_handler(request: fastapi.Request):
+        from starlette.responses import JSONResponse
+        try:
+            body = evidence_snapshot(ns=ns)
+        except (OSError, ValueError, TypeError, KeyError, AttributeError, IndexError):
+            return JSONResponse({
+                "schema": "szl.anatomy.evidence/v6",
+                "evidence_class": LABEL_UNAVAILABLE,
+                "reason": "overlay replay unavailable; no summary was substituted",
+                "storage_writes": 0,
+                "model_invoked": False,
+                "receipt_minted_on_get": False,
+            }, status_code=503, headers={"Cache-Control": "no-store"})
+        return JSONResponse(body, headers={"Cache-Control": "no-store"})
 
     async def _evidence_receipt_handler(request: fastapi.Request):
         from starlette.responses import JSONResponse
@@ -878,6 +970,7 @@ def register(app, ns: str = "a11oy") -> list:
         (f"{base}/pulse", _pulse_handler, ["POST"]),
         (f"{base}/salience", _salience_handler, ["GET"]),
         (f"{base}/self-audit", _audit_handler, ["GET"]),
+        (f"{base}/evidence", _evidence_handler, ["GET", "HEAD"]),
         (f"{base}/evidence-receipt/{{node_id:path}}", _evidence_receipt_handler, ["GET"]),
     ]
     router = getattr(app, "router", None)
