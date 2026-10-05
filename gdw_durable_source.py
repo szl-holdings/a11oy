@@ -304,15 +304,6 @@ def _read_identity(root_fd, entry, deadline):
         os.close(parent)
 
 
-def _observe_identity(root_fd, name, deadline):
-    parts = name.split("/")
-    parent = _open_directory(root_fd, parts[:-1], deadline)
-    try:
-        _deadline(deadline)
-        return _stat_identity(os.stat(parts[-1], dir_fd=parent, follow_symlinks=False))
-    finally:
-        os.close(parent)
-
 
 def _require_absent(root_fd, name, deadline):
     parts = name.split("/")
@@ -394,8 +385,12 @@ def verify_installed_source(manifest: dict, source_root: Path, source_revision: 
         for name in value["absent_modules"]:
             _require_absent(root_fd, name, deadline)
         directories = _scan_source_tree(root_fd, identities, deadline)
+        entries = {entry["path"]: entry for entry in value["installed_files"]}
+        # Re-hash at the final boundary rather than trusting timestamp-only
+        # identity. Some supported filesystems can preserve a same-size
+        # overwrite inside one timestamp tick.
         for name, identity in identities.items():
-            if _observe_identity(root_fd, name, deadline) != identity:
+            if _read_identity(root_fd, entries[name], deadline) != identity:
                 raise SourceBlocked("SOURCE_FILE_CHANGED")
         for name in value["absent_modules"]:
             _require_absent(root_fd, name, deadline)
@@ -406,7 +401,8 @@ def verify_installed_source(manifest: dict, source_root: Path, source_revision: 
                     raise SourceBlocked("SOURCE_DIRECTORY_CHANGED")
             finally:
                 os.close(descriptor)
-        if _observe_identity(install_fd, "requirements-runtime.txt", deadline) != input_identity:
+        if (_read_identity(install_fd, dict(build_input, path="requirements-runtime.txt"), deadline)
+                != input_identity):
             raise SourceBlocked("SOURCE_INSTALL_INPUT_CHANGED")
         for root, expected in ((source_root, root_identity), (runtime_install_root, install_identity)):
             descriptor = _open_root(root, deadline)

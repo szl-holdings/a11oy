@@ -152,21 +152,37 @@ def _read_file(root: Path, relative: str, limit: int, deadline: float) -> bytes:
         before = os.fstat(descriptor)
         if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1 or not 0 <= before.st_size <= limit:
             raise InstalledSourceError("SOURCE_FILE_UNQUALIFIED")
-        data = bytearray()
-        while True:
-            _remaining(deadline)
-            chunk = os.read(descriptor, min(1024 * 1024, limit + 1 - len(data)))
-            if not chunk:
-                break
-            data.extend(chunk)
-            if len(data) > limit:
-                raise InstalledSourceError("SOURCE_FILE_LIMIT_EXCEEDED")
+        def read_once() -> bytes:
+            data = bytearray()
+            while True:
+                _remaining(deadline)
+                chunk = os.read(descriptor, min(1024 * 1024, limit + 1 - len(data)))
+                if not chunk:
+                    break
+                data.extend(chunk)
+                if len(data) > limit:
+                    raise InstalledSourceError("SOURCE_FILE_LIMIT_EXCEEDED")
+            return bytes(data)
+
+        data = read_once()
         after = os.fstat(descriptor)
         path_after = os.stat(name, dir_fd=parent, follow_symlinks=False)
         if len(data) != before.st_size or _identity(before) != _identity(after) or _identity(before) != _identity(path_after):
             raise InstalledSourceError("SOURCE_FILE_CHANGED")
+
+        # Metadata timestamps can have coarse granularity. Re-read the same
+        # no-follow descriptor so a same-size overwrite cannot hide inside an
+        # unchanged inode/mtime/ctime tuple.
         _remaining(deadline)
-        return bytes(data)
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        confirmed = read_once()
+        final = os.fstat(descriptor)
+        path_final = os.stat(name, dir_fd=parent, follow_symlinks=False)
+        if (confirmed != data or _identity(before) != _identity(final)
+                or _identity(before) != _identity(path_final)):
+            raise InstalledSourceError("SOURCE_FILE_CHANGED")
+        _remaining(deadline)
+        return data
     except OSError:
         raise InstalledSourceError("SOURCE_FILE_UNAVAILABLE") from None
     finally:
