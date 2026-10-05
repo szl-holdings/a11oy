@@ -601,20 +601,18 @@ SOURCE_DERIVED_CONTROLLER_REVISIONS = frozenset({
 
 REVIEWED_SOURCE_ADMISSION_JOB_SHA256 = "13304ef0f4d96cae7d534f42a5068b373b2fda1c0200d01a2a83f1e1bab581e6"
 REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee8395e042853ded04deb7d170189"
-# These exact jobs and their complete local helper/reference closure admit one
-# reviewed first-cutover path: preserve originals, qualify disposable copies,
-# classify the native reports, then acquire private managed storage in the
-# active canonical job. The read-only reconciliation job must first bind the
-# exact observed ABSENT inspection, one signed direct successor and its unique
-# first push run. Every preservation/acquisition submission rechecks the fixed
-# private revision and HEAD absence; no generic retry or later-source authority
-# is admitted. Source/main and paused-state checks precede acquisition writes;
-# an existing dataset HEAD prevents bootstrap. The separate managed proof job
-# still requires actual deployment and runtime verification. No hash below
-# grants authority to a local selector, arbitrary helper or additional effect.
-REVIEWED_MANUAL_PREREQUISITES_JOB_SHA256 = "50bfd8b27fc159db706286375e13caaa94c64cb1f0e2cd5f51e280e18a5f9cd7"
-REVIEWED_RECOVERY_RECONCILIATION_JOB_SHA256 = "90039b641009c717c0cb2d0047bb4ccd215bd37c9d65394b1e28ac133db1f3e6"
-REVIEWED_DURABLE_ACQUISITION_JOB_SHA256 = "6431fd393379f29b8d78ecd61784848acaa472b8ffcbe841145162d424437bef"
+# These exact jobs and their complete local helper/reference closure recognize
+# the fixed 62ca inspection checkpoint. Reconciliation and preservation retain
+# their authority predicates under literal false gates. The canonical job uses
+# only the fixed native failure/artifact and private metadata reader, exiting 2;
+# pair configuration is independently disabled. Downstream success predicates
+# remain intact, so even an unexpected inspection success cannot publish.
+# The original d61 reader, a601 retry pins, diagnostics and logical-root fix are
+# preserved. These hashes establish source coverage and an explicit publication
+# hold, never provider-object verification, retry, restore or deployment authority.
+REVIEWED_MANUAL_PREREQUISITES_JOB_SHA256 = "3c56b18264b0d81c91607b37d571069a2b80ba640b760f563f8a0861c30103a7"
+REVIEWED_RECOVERY_RECONCILIATION_JOB_SHA256 = "9e1671f8e63388f188271a6ccc80980cd2df3f0e082bcb0c799e064b074b5265"
+REVIEWED_DURABLE_ACQUISITION_JOB_SHA256 = "ca96d877aa7e4bea1c9c7ebdd704a24e67d18bd1808603e99d8d94c46a8e3720"
 REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "bc38f18b2837be0ae4058d66cb9a5cbac911cd6622c1d352d8c773edc2a37944"
 REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
     "scripts/check_hf_manual_prerequisites.py": "3390924bd039b8377d1c54824e85f77bb06953bf4165c78e85bc9ddfbc7382ec",
@@ -637,9 +635,10 @@ REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
     # include these local imports and fixed dynamic loaders. Runtime-installed
     # application bytes and the remote publisher have their own source-bound
     # manifest contract; this map binds the code that verifies that contract.
-    "scripts/acquire_gdw_durable_storage.py": "8eb25ca02271b12d2c8fcb58315536fd616b7ffdcf9235b370be7c68f1d7f509",
+    "scripts/acquire_gdw_durable_storage.py": "76aec0e12028ed1b3e9a09ef8e09531b816531440bf51427c97324bec64dd823",
     "scripts/reconcile_gdw_supervised_acquisition.py": "23dd0478cc06d1881ff7c1469833d0192549807a06d5cf822cf8f6d12fdaa994",
     "scripts/inspect_gdw_held_acquisition.py": "61e0b7d6e8236074ebcbbcc424b34d92f257f0c85608f7adbd640136de9e5dc6",
+    "scripts/inspect_gdw_62ca_acquisition.py": "d444b298495fc253205287f873f3e0a2b2eeb15eab686ea404983ea61fef97eb",
     "scripts/gdw_acquisition_evidence.py": "7c15e3c774f7bbbee71c9da2255ea92a9d13c5320398c8a8134f1542d1795525",
     "scripts/build_gdw_installed_source_manifest.py": "022955dd62e7f780e97b2650f5e86d68a3d1565738257a8ec76b18db1f75a8ec",
     "scripts/probe_gdw_runtime_base.py": "231f911d4df34e3e2c5eba25400b605872e6bbfd30183d075fac9f3c6d058a91",
@@ -807,9 +806,9 @@ def has_source_derived_deploy_contract(hf_sync_text, *, ownership_helper=None,
     arbitrary skipped deploy job from satisfying CHECK 3. Ownership admission
     requires reviewed workflow and helper bytes plus the adjacent provider guard.
     Recognition proves the COPY source contract, never a provider result or live
-    publication. The exact first-cutover classifier emits only candidate-only
-    metadata; the separate source-pinned acquisition must verify native evidence,
-    paused originals and an absent HEAD before acknowledging private bootstrap.
+    publication. This exact checkpoint retains that complete source coverage
+    while its provider writers are unreachable. Only the fixed 62ca inspection
+    can run; its metadata report never establishes object effects or retry safety.
     """
     jobs = workflow_job_blocks(hf_sync_text)
     if len({job_id for job_id, _lines, _indent in jobs}) != len(jobs):
@@ -1071,7 +1070,7 @@ def main():
         if not base.endswith(mirror_exts):
             continue  # only the served text asset types hf-sync owns
         if source_derived_deploy:
-            continue  # reusable deployer publishes the exact Dockerfile source set
+            continue  # exact source coverage is preserved while publication is explicitly held
         if f in image_only:
             continue  # explicitly declared image-only (baked, not mirrored)
         if hf_sync_present and gha_path_matches(f, mirror_explicit, mirror_globs):
@@ -1099,7 +1098,7 @@ def main():
     print(f"local modules reachable from serve.py imports: {len(reached_with_serve)}")
     if hf_sync_present:
         if source_derived_deploy:
-            print("hf-sync deployment contract: pinned Dockerfile-derived reusable deploy")
+            print("hf-sync source coverage: pinned Dockerfile-derived controller; reviewed INSPECT_ONLY publication hold")
         else:
             print(f"hf-sync legacy mirror set: {len(mirror_explicit)} explicit + "
                   f"{len(mirror_globs)} glob(s)")
@@ -1118,7 +1117,8 @@ def main():
             print(f"::error::  {msg}")
         return 1
 
-    print("\nOK: COPY <-> serve.py imports <-> hf-sync mirror are in lockstep.")
+    print("\nOK: COPY <-> serve.py imports <-> hf-sync source coverage are in lockstep. "
+          "Provider publication remains HELD; live parity is not established by this guard.")
     return 0
 
 
