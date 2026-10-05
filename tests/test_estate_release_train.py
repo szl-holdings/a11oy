@@ -115,6 +115,52 @@ class EstateReleaseTrainTests(unittest.TestCase):
             cloudflare_other_path.result()["semantic_sha256"],
         )
 
+    def test_semantic_html_beacon_variants_remain_product_drift(self) -> None:
+        baseline = release.SemanticHTML()
+        baseline.feed('<title>A11oy</title><script src="/app.js"></script>')
+        beacon = (
+            "https://static.cloudflareinsights.com/"
+            "beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495"
+        )
+        urls = (
+            beacon + "?",
+            beacon + "#",
+            beacon + "?changed=true",
+            beacon + "#changed",
+            " " + beacon,
+            beacon.replace("https://", "http://"),
+            beacon.replace(".com/", ".com:443/"),
+            beacon.replace(".com/", ".com.evil.example/"),
+            beacon + "/extra.js",
+            beacon.rsplit("/", 1)[0] + "/arbitrary/extra.js",
+            beacon.rsplit("/", 1)[0] + "/",
+            beacon[:-1] + "6",
+            "/changed-product.js",
+        )
+        tags = [f'<script src="{url}"></script>' for url in urls]
+        tags.extend(
+            (
+                f'<script src="{beacon}" onload="changed()"></script>',
+                f'<script src="{beacon}" onerror="changed()"></script>',
+                f'<script src="{beacon}" type="module"></script>',
+                f'<script src="{beacon}" async></script>',
+                f'<script src="{beacon}" data-cf-beacon="unknown"></script>',
+                f'<script src="{beacon}" integrity="unknown"></script>',
+                f'<script src="{beacon}" src="{beacon}"></script>',
+                f'<script src="/changed-product.js" src="{beacon}"></script>',
+                f'<script src="{beacon}" src="/changed-product.js"></script>',
+            )
+        )
+        for tag in tags:
+            with self.subTest(tag=tag):
+                changed = release.SemanticHTML()
+                changed.feed('<title>A11oy</title><script src="/app.js"></script>' + tag)
+                self.assertNotEqual(
+                    baseline.result()["semantic_sha256"],
+                    changed.result()["semantic_sha256"],
+                )
+                self.assertEqual(changed.result()["provider_scripts"], [])
+
     def test_semantic_html_retains_exact_cloudflare_webmcp_as_provider_evidence(self) -> None:
         baseline = release.SemanticHTML()
         baseline.feed('<title>A11oy</title><script src="/app.js"></script>')

@@ -563,12 +563,13 @@ def probe_source(origin: str, paths: Sequence[str]) -> dict[str, Any]:
 def _is_provider_injected_script(
     src: str, attrs: Sequence[tuple[str, str | None]] = ()
 ) -> bool:
-    """Identify only the known Cloudflare beacon and exact observed WebMCP tag.
+    """Identify only the admitted beacon fixture and exact observed WebMCP tag.
 
     The apex is served through Cloudflare, while the canonical Hugging Face Space
     is not. Cloudflare may therefore append its own external analytics beacon to
     otherwise byte-equivalent product HTML. That provider-owned script is not an
-    SZL product asset and must not create product/Space semantic drift.
+    SZL product asset. Only the exact src-only beacon fixture is excluded here;
+    new versions or metadata remain drift until independently justified at source.
     Cloudflare also injects its WebMCP bridge when the zone's webmcp_enabled
     setting is on; see its zone-setting contract:
     https://developers.cloudflare.com/api/resources/zones/subresources/settings/
@@ -578,13 +579,11 @@ def _is_provider_injected_script(
     in the product semantic contract and continue to fail parity.
     """
     parsed = urllib.parse.urlsplit(src)
-    if (
-        parsed.scheme == "https"
-        and parsed.netloc == "static.cloudflareinsights.com"
-        and parsed.path.startswith("/beacon.min.js/")
-        and not parsed.query
-        and not parsed.fragment
-    ):
+    beacon = (
+        "https://static.cloudflareinsights.com/"
+        "beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495"
+    )
+    if src == beacon and len(attrs) == 1 and dict(attrs) == {"src": src}:
         return True
     return bool(
         parsed.scheme == "https"
