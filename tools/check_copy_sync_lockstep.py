@@ -638,7 +638,7 @@ REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
     # application bytes and the remote publisher have their own source-bound
     # manifest contract; this map binds the code that verifies that contract.
     "scripts/acquire_gdw_durable_storage.py": "e10155802d8a8e8c91f36862540b90fa92e61f45b91d802f193108674f4e8dc9",
-    "scripts/reconcile_gdw_supervised_acquisition.py": "4e4aee4d6925743cdbaa5bfb6219201ae2707324132036659afd3218812fd75b",
+    "scripts/reconcile_gdw_supervised_acquisition.py": "dc973e963bff30a77a28aa8a149f985daf678546e8c844586cac78d72144f188",
     "scripts/inspect_gdw_held_acquisition.py": "61e0b7d6e8236074ebcbbcc424b34d92f257f0c85608f7adbd640136de9e5dc6",
     "scripts/gdw_acquisition_evidence.py": "7c15e3c774f7bbbee71c9da2255ea92a9d13c5320398c8a8134f1542d1795525",
     "scripts/build_gdw_installed_source_manifest.py": "022955dd62e7f780e97b2650f5e86d68a3d1565738257a8ec76b18db1f75a8ec",
