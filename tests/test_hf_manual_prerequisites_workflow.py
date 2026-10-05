@@ -19,10 +19,17 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
 
-from test_hf_sync_supersession_contract import (
-    ROOT, WORKFLOW, WorkflowContractError, assert_manual_dependency_graph,
-    workflow_document,
-)
+if __package__ in (None, ""):
+    # Native CI invokes this file directly; its sibling is on sys.path.
+    from test_hf_sync_supersession_contract import (
+        ROOT, WORKFLOW, WorkflowContractError, assert_manual_dependency_graph,
+        workflow_document,
+    )
+else:
+    from .test_hf_sync_supersession_contract import (
+        ROOT, WORKFLOW, WorkflowContractError, assert_manual_dependency_graph,
+        workflow_document,
+    )
 
 CHECKER = ROOT / "scripts/check_hf_manual_prerequisites.py"
 RESTART_WORKFLOW = ROOT / ".github/workflows/series-a-restart-proof.yml"
@@ -84,13 +91,9 @@ CLASSIFIER_RUN = '''python -B scripts/acquire_gdw_durable_storage.py --classify-
 --qualification "${{ runner.temp }}/gdw-store-recovery-qualification.json"
 --github-output "$GITHUB_OUTPUT"
 --output "${{ runner.temp }}/manual-prerequisites.json"'''
-ACQUISITION_RUN = '''python -B scripts/acquire_gdw_durable_storage.py --acquire
---source-artifact-id "${{ needs.source-admission.outputs.artifact_id }}"
---source-artifact-sha256 "${{ needs.source-admission.outputs.artifact_sha256 }}"
---qualification-artifact-id "${{ needs.manual-prerequisites.outputs.artifact_id }}"
---qualification-artifact-sha256 "${{ needs.manual-prerequisites.outputs.artifact_sha256 }}"
---publisher-script "$GITHUB_WORKSPACE/.gdw-source-publisher/.github/scripts/hf_deploy_from_dockerfile.py"
+ACQUISITION_RUN = '''python -B scripts/acquire_gdw_durable_storage.py --inspect-held-acquisition
 --output "$RUNNER_TEMP/gdw-durable-acquisition.json"'''
+
 PAIR_CONFIGURATION_RUN = '''python -B scripts/configure_hf_gdw_runtime.py
 --managed-acquisition "$RUNNER_TEMP/gdw-durable-acquisition.json"
 --source-sha "$GITHUB_SHA" --managed-deadline-seconds 120
@@ -114,7 +117,7 @@ def exact_step(actual, expected, diagnostic):
 
 
 def assert_acquisition_contract(jobs):
-    """Only the reviewed native first-cutover job may acknowledge private storage."""
+    """The current native recovery job only inspects the held prior acquisition."""
     job = jobs["durable-acquisition"]
     if (set(job) != {"name", "needs", "if", "runs-on", "timeout-minutes", "permissions", "outputs", "env", "steps"}
             or job["name"] != "Acquire qualified private storage through the canonical publisher"
@@ -135,8 +138,8 @@ def assert_acquisition_contract(jobs):
          "with": {"python-version": "3.12"}},
         {"name": "Install the exact managed acquisition ABI",
          "run": 'python -m pip install --disable-pip-version-check --no-cache-dir "huggingface_hub==1.31.0" "requests==2.32.5" "cryptography==50.0.1"'},
-        {"name": "Verify native artifacts, pause exactly, and acquire private storage", "run": ACQUISITION_RUN},
-        {"name": "Install the persistent old-source guard and both managed configurations once", "run": PAIR_CONFIGURATION_RUN},
+        {"name": "Inspect the held prior acquisition without provider mutation", "run": ACQUISITION_RUN},
+        {"name": "Install the persistent old-source guard and both managed configurations once", "if": "${{ github.ref == 'refs/heads/main' && false }}", "run": PAIR_CONFIGURATION_RUN},
         {"name": "Retain only the immutable selector and safe guarded configuration result", "id": "acquisition_artifact",
          "if": "${{ always() }}", "uses": UPLOAD,
          "with": {"name": "canonical-durable-acquisition-${{ github.run_id }}-${{ github.run_attempt }}",
@@ -754,9 +757,13 @@ class ManualPrerequisiteWorkflowTests(unittest.TestCase):
         mutations = (
             ("      actions: read", "      actions: write"),
             ("          ref: e3ec47ad2e99a535839afe0f30fefbd8973d52da", "          ref: main"),
-            ('--source-artifact-id "${{ needs.source-admission.outputs.artifact_id }}"', '--source-artifact-id "1"'),
-            ('--qualification-artifact-sha256 "${{ needs.manual-prerequisites.outputs.artifact_sha256 }}"', '--qualification-artifact-sha256 "unreviewed"'),
-            ("scripts/acquire_gdw_durable_storage.py --acquire", "scripts/unknown.py --acquire"),
+            ("--inspect-held-acquisition", "--inspect-held-acquisition --source-artifact-id 1"),
+            ("--inspect-held-acquisition", "--inspect-held-acquisition --qualification-artifact-sha256 unreviewed"),
+            ("scripts/acquire_gdw_durable_storage.py --inspect-held-acquisition", "scripts/unknown.py --inspect-held-acquisition"),
+            ("--inspect-held-acquisition", "--acquire"),
+            ("--inspect-held-acquisition", "--fetch-locator"),
+            ('--output "$RUNNER_TEMP/gdw-durable-acquisition.json"', '--output "$RUNNER_TEMP/gdw-durable-acquisition.json" || true'),
+            ("        if: ${{ github.ref == 'refs/heads/main' && false }}", "        if: ${{ always() }}"),
             ("scripts/configure_hf_gdw_runtime.py", "scripts/configure_hf_series_a_runtime.py"),
             ("--managed-deadline-seconds 120", "--managed-deadline-seconds 120 --force"),
             ('--output "$RUNNER_TEMP/gdw-managed-configuration.json"', '--output "$RUNNER_TEMP/gdw-managed-configuration.json" || true'),

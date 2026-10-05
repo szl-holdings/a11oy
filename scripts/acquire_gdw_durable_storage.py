@@ -30,6 +30,7 @@ import gdw_durable_storage as storage
 LOCATOR_SCHEMA = "szl.gdw-durable-acquisition/v1"
 MAX_LOCATOR_BYTES = 16 * 1024
 MAX_SECONDS = 900
+INSPECTION_SECONDS = 120
 ROOT = Path(__file__).resolve().parents[1]
 CAPTURE_REFERENCE = "docs/operations/evidence/gdw-capture-37223162231.json"
 HISTORICAL_REFERENCE = "docs/operations/evidence/gdw-recovery-historical-anchors.json"
@@ -46,6 +47,135 @@ class AcquisitionBlocked(RuntimeError):
     def __init__(self, code: str):
         self.code = code if type(code) is str and re.fullmatch(r"[A-Z][A-Z0-9_]{0,79}", code) else "ACQUISITION_UNAVAILABLE"
         super().__init__(self.code)
+
+
+# Diagnostic metadata is descriptive only. Entering or completing a boundary
+# cannot establish absence of an earlier provider effect or authorize a retry.
+_STAGES = frozenset({
+    "WORKER_REQUEST", "WORKER_SETUP", "WORKER_EXECUTION", "WORKER_COMPLETION",
+    "NATIVE_INPUTS", "REFERENCE_VALIDATION", "SOURCE_MANIFEST", "RUNTIME_BASE_CONTEXT",
+    "RUNTIME_BASE_OBSERVATION", "LEGACY_PROVIDER_READ", "LEGACY_NATIVE_GUARD",
+    "PAUSE_BOUNDARY", "PAUSE_READBACK", "PAIR_VALIDATION", "CANDIDATE_REPRODUCTION",
+    "CANDIDATE_INSPECTION", "PRIVATE_FENCE_CHECK", "ARTIFACT_PUBLICATION",
+    "SNAPSHOT_PUBLICATION", "PAIR_ROUNDTRIP", "ADMISSION_VALIDATION",
+    "BOOTSTRAP_BOUNDARY", "POST_BOOTSTRAP_READBACK", "LOCATOR_RENDER",
+    "PARENT_WORKER", "PREREQUISITE_CLASSIFICATION", "LOCATOR_FETCH", "OUTPUT_WRITE",
+    "HELD_ACQUISITION_INSPECTION",
+})
+_STAGE_STATES = frozenset({"BOUNDARY_ENTERED", "COMPLETION_OBSERVED"})
+_DIAGNOSTICS = frozenset({
+    "CANONICAL_ACQUISITION_UNAVAILABLE", "WORKER_FAILURE_REPORT_INVALID",
+    "ACQUISITION_REQUEST_INVALID", "ACQUISITION_ARTIFACT_INVALID",
+    "ACQUISITION_DEADLINE_INVALID", "ACQUISITION_DEADLINE_EXHAUSTED",
+    "CANONICAL_CONTEXT_REQUIRED", "CANONICAL_CONTEXT_INVALID", "CANONICAL_SOURCE_INVALID",
+    "GITHUB_READ_CREDENTIAL_REQUIRED", "GITHUB_READ_UNAVAILABLE", "GITHUB_READ_BYTE_BOUND",
+    "PROTECTED_SOURCE_NO_LONGER_CURRENT", "CANONICAL_RUN_UNQUALIFIED",
+    "CANONICAL_RUN_TIME_INVALID", "CANONICAL_JOB_IDENTITY_INVALID", "CANONICAL_JOB_UNAVAILABLE",
+    "CANONICAL_ACQUISITION_JOB_REQUIRED", "CANONICAL_ACQUISITION_RUN_NOT_ACTIVE",
+    "CANONICAL_ACQUISITION_JOB_NOT_ACTIVE", "CANONICAL_ACQUISITION_JOB_TIME_INVALID",
+    "ARTIFACT_PRODUCER_UNQUALIFIED", "ARTIFACT_ATTEMPT_TIME_MISMATCH",
+    "ARTIFACT_DOWNLOAD_REDIRECT_REQUIRED", "ARTIFACT_DOWNLOAD_DESTINATION_INVALID",
+    "ARTIFACT_DOWNLOAD_UNAVAILABLE", "ARTIFACT_DOWNLOAD_BYTE_BOUND",
+    "ARTIFACT_METADATA_MISMATCH", "ARTIFACT_RUN_MISMATCH", "ARTIFACT_ARCHIVE_MISMATCH",
+    "ARTIFACT_MEMBER_MISMATCH", "CANONICAL_SOURCE_RECEIPT_UNQUALIFIED",
+    "NATIVE_QUALIFIED_PREREQUISITE_REQUIRED", "QUALIFIED_CAPTURE_REQUIRED",
+    "QUALIFIED_CANDIDATE_REQUIRED", "LATER_ORIGINAL_IDENTITIES_CHANGED",
+    "CHECKOUT_DIFFERS_FROM_SOURCE_REVISION", "COPY_CHECKOUT_MEMBERSHIP_CHANGED",
+    "SOURCE_DEADLINE_EXCEEDED", "PINNED_PUBLISHER_REQUIRED",
+    "PUBLISHER_SOURCE_IDENTITY_MISMATCH", "RUNTIME_BASE_COMMAND_FAILED",
+    "RUNTIME_BASE_COMMAND_UNAVAILABLE", "RUNTIME_BASE_COMMAND_INPUT_REJECTED",
+    "RUNTIME_BASE_OUTPUT_BOUND_EXCEEDED", "RUNTIME_BASE_DEADLINE_EXHAUSTED",
+    "RUNTIME_BASE_PROCESS_CLEANUP_UNCONFIRMED", "RUNTIME_BASE_DOCKERFILE_BASE_UNQUALIFIED",
+    "RUNTIME_BASE_DOCKERFILE_SYNTAX_UNQUALIFIED", "LEGACY_SOURCE_STATE_UNQUALIFIED",
+    "LEGACY_SOURCE_CHANGED", "LEGACY_NATIVE_CASES_UNQUALIFIED", "ORIGINAL_PRESENCE_CHANGED",
+    "ORIGINAL_IDENTITIES_CHANGED", "PAUSE_OUTCOME_UNCERTAIN", "PAUSED_READBACK_REQUIRED",
+    "PAUSE_CONFIGURATION_IDENTITY_CHANGED", "CANDIDATE_REPRODUCTION_MISMATCH",
+    "CANDIDATE_NATIVE_IDENTITY_MISMATCH", "PRIVATE_FENCE_UNAVAILABLE",
+    "ARTIFACT_READBACK_IDENTITY_CHANGED", "BOOTSTRAP_LOCATOR_BINDING_FAILED",
+    "PYTHON_IMPORT_UNAVAILABLE", "PYTHON_TYPE_ERROR", "PYTHON_VALUE_ERROR",
+    "LOCAL_OS_ERROR", "LOCAL_TIMEOUT", "INITIAL_HEAD_ALREADY_EXISTS",
+    "BOOTSTRAP_OBJECT_ALREADY_EXISTS", "STORAGE_OUTCOME_UNCERTAIN",
+})
+_FAILURE_FIELDS = frozenset({"schema", "state", "stage", "stage_state", "diagnostic_code",
+    "provider_effects", "restore_admitted", "deployment_admitted", "secret_values_recorded"})
+
+
+class _Progress:
+    def __init__(self, stage):
+        self.enter(stage)
+
+    def enter(self, stage):
+        if type(stage) is not str or stage not in _STAGES:
+            raise AcquisitionBlocked("WORKER_FAILURE_REPORT_INVALID")
+        self.stage, self.state = stage, "BOUNDARY_ENTERED"
+
+    def complete(self):
+        self.state = "COMPLETION_OBSERVED"
+
+
+def _safe_code(error):
+    # Never format an exception, serialize attributes, or accept a regex-shaped
+    # provider value. Only these source-owned literal codes may leave the worker.
+    args = BaseException.args.__get__(error)
+    if type(args) is tuple and len(args) == 1 and type(args[0]) is str and args[0] in _DIAGNOSTICS:
+        return args[0]
+    for kind, code in ((ImportError, "PYTHON_IMPORT_UNAVAILABLE"), (TypeError, "PYTHON_TYPE_ERROR"),
+                       (ValueError, "PYTHON_VALUE_ERROR"), (TimeoutError, "LOCAL_TIMEOUT"),
+                       (OSError, "LOCAL_OS_ERROR")):
+        if isinstance(error, kind):
+            return code
+    return "CANONICAL_ACQUISITION_UNAVAILABLE"
+
+
+def _held(progress, error):
+    return {"schema": LOCATOR_SCHEMA, "state": "HELD", "stage": progress.stage,
+        "stage_state": progress.state, "diagnostic_code": _safe_code(error),
+        "provider_effects": "NOT_ESTABLISHED", "restore_admitted": False,
+        "deployment_admitted": False, "secret_values_recorded": False}
+
+
+def _failure_report(raw):
+    from gdw_acquisition_evidence import strict
+    try:
+        value = strict(raw, MAX_LOCATOR_BYTES)
+        valid = (set(value) == _FAILURE_FIELDS and value.get("schema") == LOCATOR_SCHEMA
+            and value.get("state") == "HELD" and type(value.get("stage")) is str
+            and value["stage"] in _STAGES and type(value.get("stage_state")) is str
+            and value["stage_state"] in _STAGE_STATES and type(value.get("diagnostic_code")) is str
+            and value["diagnostic_code"] in _DIAGNOSTICS
+            and value.get("provider_effects") == "NOT_ESTABLISHED"
+            and all(value.get(key) is False for key in
+                ("restore_admitted", "deployment_admitted", "secret_values_recorded")))
+        if not valid or canonical(value) != raw:
+            raise ValueError()
+        return value
+    except BaseException:
+        raise AcquisitionBlocked("WORKER_FAILURE_REPORT_INVALID") from None
+
+
+class _WorkerHeld(AcquisitionBlocked):
+    def __init__(self, raw):
+        report = _failure_report(raw)
+        super().__init__(report["diagnostic_code"])
+        self.report = report
+
+
+def _inspection_report(raw):
+    try:
+        import inspect_gdw_held_acquisition as inspection
+        value = inspection.validate_inspection_report(raw)
+        if canonical(value) != raw or value["source_revision"] != os.environ.get("GITHUB_SHA"):
+            raise ValueError()
+        return value
+    except BaseException:
+        raise AcquisitionBlocked("WORKER_FAILURE_REPORT_INVALID") from None
+
+
+class _InspectionHeld(AcquisitionBlocked):
+    def __init__(self, raw):
+        report = _inspection_report(raw)
+        super().__init__("CANONICAL_ACQUISITION_UNAVAILABLE")
+        self.report = report
 
 
 def canonical(value: Any) -> bytes:
@@ -310,7 +440,7 @@ def acquire_pair(api, *, source_context: dict, qualification_context: dict,
                  reference: dict, capture_bytes: bytes, anchors: dict, anchor_bytes: bytes,
                  manifest: dict, base_observation: dict, guard_probe: dict,
                  paused: dict, legacy_observation: dict, workspace: Path,
-                 require_owned_source, deadline: float, operation_factory) -> dict:
+                 require_owned_source, deadline: float, operation_factory, _progress=None) -> dict:
     """Reproduce qualified candidates, publish privately and bootstrap exactly once.
 
     No runtime config/restart/restore is performed here. All private working
@@ -324,6 +454,8 @@ def acquire_pair(api, *, source_context: dict, qualification_context: dict,
     import qualify_gdw_store_recovery as recovery
     from gdw_durable_artifacts import ArtifactCache
 
+    progress = _progress if _progress is not None else _Progress("PAIR_VALIDATION")
+    progress.enter("PAIR_VALIDATION")
     source_revision = source_context["revision"]
     startup._workflow(source_context)
     startup._workflow(qualification_context)
@@ -369,11 +501,15 @@ def acquire_pair(api, *, source_context: dict, qualification_context: dict,
         _require(observed["stage"] == "PAUSED", "PAUSED_READBACK_REQUIRED")
     require_paused()
     workspace = storage._private_directory(workspace)
+    progress.complete()
+    progress.enter("CANDIDATE_REPRODUCTION")
     reproduction = recovery.qualify_capture(recovery.ReadOnlyCaptureHub(api), reference, workspace / "qualification",
         require_owned_source, deadline, historical_anchors=anchors, capture_report_sha256=hashlib.sha256(capture_bytes).hexdigest())
     reproduction["inspector_source_revision"] = source_revision
     reproduced = validate_qualified_reports(preserved, reproduction, reference, capture_bytes, source_revision)
     _require(reproduced == selected, "CANDIDATE_REPRODUCTION_MISMATCH")
+    progress.complete()
+    progress.enter("CANDIDATE_INSPECTION")
     paths = {label: workspace / "qualification" / "working" / label / "candidate.sqlite3" for label in storage.LABELS}
     # Check both closed native candidate identities before any publication.
     for label, path in paths.items():
@@ -381,6 +517,8 @@ def acquire_pair(api, *, source_context: dict, qualification_context: dict,
         _require(all(observed[key] == selected[label][key] for key in ("size", "sha256", "generation")),
             "CANDIDATE_NATIVE_IDENTITY_MISMATCH")
     require_paused()
+    progress.complete()
+    progress.enter("PRIVATE_FENCE_CHECK")
     info = api.dataset_info(storage.DATASET, revision="main", expand=["sha", "private", "resourceGroup"])
     _require(storage._value(info, "id") == storage.DATASET and storage._value(info, "private") is True
         and _digest(storage._value(info, "sha"), 40), "PRIVATE_FENCE_UNAVAILABLE")
@@ -401,9 +539,15 @@ def acquire_pair(api, *, source_context: dict, qualification_context: dict,
     artifacts = ArtifactCache(artifact_directory, publish_artifact)
     started = time.monotonic()
     measured_deadline = min(deadline, started + 300)
+    progress.complete()
+    progress.enter("ARTIFACT_PUBLICATION")
     artifacts.prepare(paths["gdw"], measured_deadline)
+    progress.complete()
     generations = {label: selected[label]["generation"] for label in storage.LABELS}
+    progress.enter("SNAPSHOT_PUBLICATION")
     snapshots = objects.publish_snapshots(paths, generations, measured_deadline)
+    progress.complete()
+    progress.enter("PAIR_ROUNDTRIP")
     restored_directory = workspace / "roundtrip"; restored_directory.mkdir(mode=0o700)
     restored = {label: restored_directory / (label + ".sqlite3") for label in storage.LABELS}
     objects.restore_snapshots(snapshots, restored, measured_deadline)
@@ -454,6 +598,8 @@ def acquire_pair(api, *, source_context: dict, qualification_context: dict,
             "total_bytes": sum(item["size"] for item in artifact_rows), "identities_sha256": artifact_digest,
             "native_bindings_state": "VERIFIED", "reconstruction": "RECONSTRUCTED_FROM_RETAINED_PAYLOAD"},
         "latency": latency_receipt}
+    progress.complete()
+    progress.enter("ADMISSION_VALIDATION")
     encoded = canonical(admission)
     startup.parse_admission(encoded)
     proposal = {"schema": storage.SCHEMA, "space": storage.SPACE, "dataset": storage.DATASET, "bucket": storage.BUCKET,
@@ -461,10 +607,18 @@ def acquire_pair(api, *, source_context: dict, qualification_context: dict,
         "previous_manifest_sha256": None, "source_revision": source_revision,
         "qualification_sha256": hashlib.sha256(encoded).hexdigest(), "snapshots": snapshots}
     require_paused()
+    progress.complete()
+    progress.enter("BOOTSTRAP_BOUNDARY")
     head = storage.bootstrap(backend, proposal, encoded, deadline)
+    progress.complete()
+    progress.enter("POST_BOOTSTRAP_READBACK")
     require_paused()
     _budget(deadline)
-    return locator_for_bootstrap(head, admission)
+    progress.complete()
+    progress.enter("LOCATOR_RENDER")
+    locator = locator_for_bootstrap(head, admission)
+    progress.complete()
+    return locator
 
 
 def _read(path: Path, bound: int = 1024 * 1024) -> bytes:
@@ -532,7 +686,8 @@ def _native_inputs(request: dict, evidence):
         native.strict(qualified_bytes), qualified_bytes
 
 
-def _execute_native(request: dict, workspace: Path, deadline: float) -> dict:
+def _execute_native(request: dict, workspace: Path, deadline: float, *, _progress=None) -> dict:
+    progress = _progress if _progress is not None else _Progress("WORKER_EXECUTION")
     import gdw_acquisition_evidence as native
     import gdw_durable_guard as guard
     import probe_gdw_runtime_base as base
@@ -541,37 +696,55 @@ def _execute_native(request: dict, workspace: Path, deadline: float) -> dict:
     from configure_hf_gdw_runtime import managed_space_observation
     from huggingface_hub import CommitOperationAdd
 
+    progress.enter("NATIVE_INPUTS")
     evidence = native.NativeEvidence(dict(os.environ), deadline)
     source, qualification_source, preserved, qualified, qualification_bytes = _native_inputs(request, evidence)
+    progress.complete()
+    progress.enter("REFERENCE_VALIDATION")
     reference, captured, anchors, historical = _references()
     validate_qualified_reports(preserved, qualified, reference, captured, evidence.source)
     publisher = Path(request["publisher_script"])
     _require(publisher.is_absolute() and publisher.name == "hf_deploy_from_dockerfile.py", "PINNED_PUBLISHER_REQUIRED")
+    progress.complete()
+    progress.enter("SOURCE_MANIFEST")
     manifest = build_manifest(ROOT, evidence.source, publisher, deadline=deadline)
+    progress.complete()
+    progress.enter("RUNTIME_BASE_CONTEXT")
     # canonical_context verifies this exact checkout/Dockerfile/FROM/native job.
     dockerfile_digest, execution = base.canonical_context(evidence.source, deadline=deadline - 40)
+    progress.complete()
+    progress.enter("RUNTIME_BASE_OBSERVATION")
     expected_base = base.observe_runtime_base(evidence.source, dockerfile_digest, execution,
         deadline=min(deadline - 40, time.monotonic() + 240), temporary_root=workspace)
+    progress.complete()
+    progress.enter("LEGACY_PROVIDER_READ")
     api = storage._hub_api(os.environ.get("HF_TOKEN", ""))
     legacy = managed_space_observation(api)
     guard.validate_environment(legacy["variables"], legacy["secret_names"])
     _require(legacy["space_revision"] == guard.SPACE_REVISION
         and legacy["stage"] in {"RUNTIME_ERROR", "PAUSED"}, "LEGACY_SOURCE_STATE_UNQUALIFIED")
+    progress.complete()
+    progress.enter("LEGACY_NATIVE_GUARD")
     native_guard = legacy_native.observe_legacy_guard(api, expected_base, legacy,
         deadline=min(deadline - 20, time.monotonic() + 150), temporary_root=workspace)
     original = original_identities(reference)
+    progress.complete()
+    progress.enter("PAUSE_BOUNDARY")
     paused = pause_qualified_source(api, original, require_owned_source=evidence.require_current_main, deadline=deadline)
+    progress.complete()
+    progress.enter("PAUSE_READBACK")
     after = managed_space_observation(api)
     _require(after["stage"] == "PAUSED" and after["space_revision"] == legacy["space_revision"]
         and after["variables"] == legacy["variables"] and after["secret_names"] == legacy["secret_names"],
         "PAUSE_CONFIGURATION_IDENTITY_CHANGED")
+    progress.complete()
     return acquire_pair(api, source_context=source, qualification_context=qualification_source,
         qualification_artifact_id=request["qualification_artifact_id"],
         qualification_archive_sha256=request["qualification_artifact_sha256"], preserved=preserved,
         qualified=qualified, qualification_bytes=qualification_bytes, reference=reference, capture_bytes=captured,
         anchors=anchors, anchor_bytes=historical, manifest=manifest, base_observation=expected_base,
         guard_probe=native_guard, paused=paused, legacy_observation=after, workspace=workspace,
-        require_owned_source=evidence.require_current_main, deadline=deadline, operation_factory=CommitOperationAdd)
+        require_owned_source=evidence.require_current_main, deadline=deadline, operation_factory=CommitOperationAdd, _progress=progress)
 
 
 def _worker() -> int:
@@ -580,16 +753,24 @@ def _worker() -> int:
     import preserve_hf_gdw_store as preservation
     from gdw_acquisition_evidence import strict
     value = None
+    progress = _Progress("WORKER_REQUEST")
     try:
         request = strict(sys.stdin.buffer.read(MAX_LOCATOR_BYTES + 1), MAX_LOCATOR_BYTES)
-        _require(set(request) == {"source_artifact_id", "source_artifact_sha256", "qualification_artifact_id",
-            "qualification_artifact_sha256", "publisher_script", "deadline"}, "ACQUISITION_REQUEST_INVALID")
-        for name in ("source_artifact_id", "qualification_artifact_id"):
-            _require(type(request[name]) is int and request[name] > 0, "ACQUISITION_ARTIFACT_INVALID")
-        for name in ("source_artifact_sha256", "qualification_artifact_sha256"):
-            _require(_digest(request[name], 64), "ACQUISITION_ARTIFACT_INVALID")
-        _require(type(request["deadline"]) in (int, float) and 0 < request["deadline"] - time.monotonic() <= MAX_SECONDS,
+        inspect_only = request.get("mode") == "INSPECT_HELD"
+        if inspect_only:
+            _require(set(request) == {"mode", "deadline"}, "ACQUISITION_REQUEST_INVALID")
+        else:
+            _require(set(request) == {"source_artifact_id", "source_artifact_sha256", "qualification_artifact_id",
+                "qualification_artifact_sha256", "publisher_script", "deadline"}, "ACQUISITION_REQUEST_INVALID")
+            for name in ("source_artifact_id", "qualification_artifact_id"):
+                _require(type(request[name]) is int and request[name] > 0, "ACQUISITION_ARTIFACT_INVALID")
+            for name in ("source_artifact_sha256", "qualification_artifact_sha256"):
+                _require(_digest(request[name], 64), "ACQUISITION_ARTIFACT_INVALID")
+        seconds = INSPECTION_SECONDS if inspect_only else MAX_SECONDS
+        _require(type(request["deadline"]) in (int, float) and 0 < request["deadline"] - time.monotonic() <= seconds,
             "ACQUISITION_DEADLINE_INVALID")
+        progress.complete()
+        progress.enter("WORKER_SETUP")
         os.umask(0o077)
         logging.disable(logging.CRITICAL)
         os.environ.update(HF_HUB_DISABLE_PROGRESS_BARS="1", HF_HUB_DISABLE_TELEMETRY="1",
@@ -599,22 +780,36 @@ def _worker() -> int:
             os.environ.update(HF_HOME=str(directory / "cache"), HF_HUB_CACHE=str(directory / "cache" / "hub"),
                 HF_XET_CACHE=str(directory / "cache" / "xet"))
             with preservation._private_output():
-                value = _execute_native(request, directory, request["deadline"])
+                progress.complete()
+                progress.enter("WORKER_EXECUTION")
+                if inspect_only:
+                    import inspect_gdw_held_acquisition as inspection
+                    progress.enter("HELD_ACQUISITION_INSPECTION")
+                    value = inspection.validate_result(inspection.execute_native_inspection(directory, request["deadline"]))
+                    progress.complete()
+                else:
+                    value = _execute_native(request, directory, request["deadline"], _progress=progress)
+        progress.enter("WORKER_COMPLETION")
         _budget(request["deadline"])
         sys.stdout.buffer.write(canonical(value))
-        return 0
-    except BaseException:
-        # Include no exception text, provider response, input path, token, private
-        # SQL value or arbitrary JSON in either public stream.
-        sys.stdout.write('{"schema":"szl.gdw-durable-acquisition/v1","state":"HELD","diagnostic_code":"CANONICAL_ACQUISITION_UNAVAILABLE"}\n')
+        progress.complete()
+        return 2 if inspect_only else 0
+    except BaseException as error:
+        # Only closed metadata survives; the worker still fails with exit2.
+        sys.stdout.buffer.write(canonical(_held(progress, error)))
         return 2
 
 
-def run_native(request: dict) -> dict:
+def run_native(request: dict, *, _inspect_only=False) -> dict:
     import tempfile
     import probe_gdw_runtime_base as base
-    deadline = time.monotonic() + MAX_SECONDS
-    request = dict(request, deadline=deadline - 5)
+    _require(type(_inspect_only) is bool, "ACQUISITION_REQUEST_INVALID")
+    deadline = time.monotonic() + (INSPECTION_SECONDS if _inspect_only else MAX_SECONDS)
+    if _inspect_only:
+        _require(request == {}, "ACQUISITION_REQUEST_INVALID")
+        request = {"mode": "INSPECT_HELD", "deadline": deadline - 5}
+    else:
+        request = dict(request, deadline=deadline - 5)
     # Existing native credentials are inherited only by this private worker.
     names = ("HF_TOKEN", "GH_TOKEN", "GITHUB_ACTIONS", "GITHUB_REPOSITORY", "GITHUB_REPOSITORY_ID",
         "GITHUB_REF", "GITHUB_SHA", "GITHUB_WORKFLOW_REF", "GITHUB_WORKFLOW_SHA", "GITHUB_RUN_ID",
@@ -622,9 +817,24 @@ def run_native(request: dict) -> dict:
     environment = {name: os.environ[name] for name in names if name in os.environ}
     environment.update(PATH="/usr/local/bin:/usr/bin:/bin", PYTHONDONTWRITEBYTECODE="1")
     with tempfile.TemporaryDirectory(prefix="gdw-acquisition-parent-") as temporary:
-        raw = base._run([sys.executable, "-B", str(Path(__file__).resolve()), "--worker"],
-            deadline=deadline, limit=MAX_LOCATOR_BYTES, env=environment, cwd=temporary, input_bytes=canonical(request))
+        try:
+            raw = base._run([sys.executable, "-B", str(Path(__file__).resolve()), "--worker"],
+                deadline=deadline, limit=MAX_LOCATOR_BYTES, env=environment, cwd=temporary,
+                input_bytes=canonical(request), _capture_failure=True)
+        except base._CommandFailed as error:
+            _budget(deadline)
+            if _inspect_only:
+                try:
+                    raise _InspectionHeld(error._output) from None
+                except _InspectionHeld:
+                    raise
+                except AcquisitionBlocked:
+                    # The worker may have failed before returning an inspection.
+                    # Its only alternative is the same closed diagnostic report.
+                    pass
+            raise _WorkerHeld(error._output) from None
     _budget(deadline)
+    _require(not _inspect_only, "WORKER_FAILURE_REPORT_INVALID")
     return parse_acquisition_locator(raw)
 
 
@@ -645,6 +855,7 @@ def main(argv=None) -> int:
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--classify-prerequisites", action="store_true")
     mode.add_argument("--acquire", action="store_true")
+    mode.add_argument("--inspect-held-acquisition", action="store_true")
     mode.add_argument("--fetch-locator", action="store_true")
     parser.add_argument("--preservation", type=Path)
     parser.add_argument("--qualification", type=Path)
@@ -658,10 +869,22 @@ def main(argv=None) -> int:
     parser.add_argument("--github-output", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
+    progress = _Progress("PARENT_WORKER")
     try:
         if args.classify_prerequisites:
+            progress.enter("PREREQUISITE_CLASSIFICATION")
             _require(args.preservation is not None and args.qualification is not None, "PREREQUISITE_INPUT_REQUIRED")
             value = classify_prerequisites(args.preservation, args.qualification, os.environ.get("GITHUB_SHA", ""))
+        elif args.inspect_held_acquisition:
+            # Fixed source-owned reconciliation only; no caller-supplied prior
+            # source, run, provider path, publisher or artifact override exists.
+            _require(all(getattr(args, name) is None for name in (
+                "preservation", "qualification", "source_artifact_id", "source_artifact_sha256",
+                "qualification_artifact_id", "qualification_artifact_sha256", "acquisition_artifact_id",
+                "acquisition_artifact_sha256", "publisher_script", "github_output")),
+                "ACQUISITION_REQUEST_INVALID")
+            run_native({}, _inspect_only=True)
+            raise AcquisitionBlocked("WORKER_FAILURE_REPORT_INVALID")
         elif args.acquire:
             value = run_native({"source_artifact_id": args.source_artifact_id,
                 "source_artifact_sha256": args.source_artifact_sha256,
@@ -669,6 +892,7 @@ def main(argv=None) -> int:
                 "qualification_artifact_sha256": args.qualification_artifact_sha256,
                 "publisher_script": args.publisher_script})
         else:
+            progress.enter("LOCATOR_FETCH")
             import gdw_acquisition_evidence as native
             evidence = native.NativeEvidence(dict(os.environ), time.monotonic() + 60)
             evidence.observe_run()
@@ -678,15 +902,22 @@ def main(argv=None) -> int:
             value = parse_acquisition_locator(members["gdw-durable-acquisition.json"])
             _require(value["source_revision"] == evidence.source, "ACQUISITION_SOURCE_MISMATCH")
             evidence.require_current_main()
+        progress.complete()
+        progress.enter("OUTPUT_WRITE")
         _write_output(args.output, value)
         if args.classify_prerequisites and args.github_output is not None:
             with args.github_output.open("a", encoding="ascii") as stream:
                 stream.write("mode=managed-recovery\n")
         print(json.dumps({"schema": value["schema"], "state": value["state"], "secret_values_recorded": False}))
         return 0
-    except BaseException:
-        value = {"schema": LOCATOR_SCHEMA, "state": "HELD", "diagnostic_code": "CANONICAL_ACQUISITION_UNAVAILABLE",
-            "restore_admitted": False, "deployment_admitted": False, "secret_values_recorded": False}
+    except BaseException as error:
+        value = _held(progress, error)
+        if type(error) in {_WorkerHeld, _InspectionHeld}:
+            try:
+                decode = _inspection_report if type(error) is _InspectionHeld else _failure_report
+                value = decode(canonical(error.report))
+            except BaseException:
+                value = _held(progress, AcquisitionBlocked("WORKER_FAILURE_REPORT_INVALID"))
         try:
             if not os.path.lexists(args.output): _write_output(args.output, value)
         except BaseException:

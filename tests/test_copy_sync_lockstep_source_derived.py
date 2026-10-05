@@ -48,6 +48,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             "docs/operations/evidence/gdw-recovery-historical-anchors.json",
             "ayllu/keys/council-runtime-2026-07-21.pub",
             "scripts/acquire_gdw_durable_storage.py",
+            "scripts/inspect_gdw_held_acquisition.py",
             "scripts/gdw_acquisition_evidence.py",
             "scripts/build_gdw_installed_source_manifest.py",
             "scripts/probe_gdw_runtime_base.py",
@@ -262,14 +263,19 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
         cases = {
             "durable-acquisition": (
                 ("needs: [source-admission, manual-prerequisites]", "needs: source-admission"),
-                ("needs.manual-prerequisites.outputs.mode == 'managed-recovery'", "true"),
+                ("needs.manual-prerequisites.result == 'skipped'", "true"),
+                ("needs.source-admission.result == 'success' && ", ""),
+                ("        if: ${{ github.ref == 'refs/heads/main' && false }}", "        if: ${{ always() }}"),
                 ("    timeout-minutes: 20", "    continue-on-error: true\n    timeout-minutes: 20"),
                 ("      actions: read", "      actions: write"),
                 ("ref: e3ec47ad2e99a535839afe0f30fefbd8973d52da", "ref: main"),
                 ('"huggingface_hub==1.31.0"', '"huggingface_hub==1.23.0"'),
-                ("scripts/acquire_gdw_durable_storage.py --acquire", "scripts/unknown.py --acquire"),
-                ('--source-artifact-id "${{ needs.source-admission.outputs.artifact_id }}"', '--source-artifact-id "1"'),
-                ('--qualification-artifact-sha256 "${{ needs.manual-prerequisites.outputs.artifact_sha256 }}"', '--qualification-artifact-sha256 "unreviewed"'),
+                ("scripts/acquire_gdw_durable_storage.py --inspect-held-acquisition", "scripts/unknown.py --inspect-held-acquisition"),
+                ("--inspect-held-acquisition", "--acquire"),
+                ("--inspect-held-acquisition", "--fetch-locator"),
+                ('--output "$RUNNER_TEMP/gdw-durable-acquisition.json"', '--output "$RUNNER_TEMP/gdw-durable-acquisition.json" || true'),
+                ("--inspect-held-acquisition", "--inspect-held-acquisition --source-artifact-id 1"),
+                ("--inspect-held-acquisition", "--inspect-held-acquisition --qualification-artifact-sha256 unreviewed"),
                 ("scripts/configure_hf_gdw_runtime.py", "scripts/configure_hf_series_a_runtime.py"),
                 ("--managed-deadline-seconds 120", "--managed-deadline-seconds 120 --force"),
                 ("${{ runner.temp }}/gdw-managed-configuration.json", "${{ runner.temp }}/**"),
@@ -293,10 +299,21 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                     changed = self.reviewed_workflow.replace(job, job.replace(before, after, 1), 1)
                     self.assertFalse(self.strict_contract(changed))
 
+    def test_inspection_cannot_reenable_preservation_or_fresh_qualification(self) -> None:
+        job = self.fixture_job("manual-prerequisites")
+        self.assertIn("    if: ${{ github.ref == 'refs/heads/main' && false }}", job)
+        for condition in ("${{ true }}", "${{ needs.source-admission.outputs.publish == 'true' }}", "${{ always() }}"):
+            with self.subTest(condition=condition):
+                changed = job.replace("${{ github.ref == 'refs/heads/main' && false }}", condition, 1)
+                self.assertFalse(self.strict_contract(self.reviewed_workflow.replace(job, changed, 1)))
+
     def test_native_authority_and_private_storage_boundaries_require_reviewed_source(self) -> None:
         cases = (
             ("scripts/acquire_gdw_durable_storage.py", b"evidence.require_active_acquisition()", b"pass"),
             ("scripts/acquire_gdw_durable_storage.py", b"reproduced == selected", b"True"),
+            ("scripts/acquire_gdw_durable_storage.py", b'value["diagnostic_code"] in _DIAGNOSTICS', b"True"),
+            ("scripts/acquire_gdw_durable_storage.py", b"return 2 if inspect_only else 0", b"return 0"),
+            ("scripts/probe_gdw_runtime_base.py", b"if _capture_failure and process.returncode == 2:", b"if True:"),
             ("scripts/acquire_gdw_durable_storage.py", b"backend.empty_parent(deadline)", b"pass"),
             ("scripts/acquire_gdw_durable_storage.py", b"import gdw_durable_storage as storage", b"import unknown_storage as storage"),
             ("scripts/gdw_acquisition_evidence.py", b'self.run.get("status") == "in_progress"', b"True"),

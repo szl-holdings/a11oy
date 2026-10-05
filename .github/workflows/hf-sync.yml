@@ -89,7 +89,9 @@ jobs:
   manual-prerequisites:
     name: Check manual authority prerequisites before provider writes
     needs: source-admission
-    if: ${{ needs.source-admission.outputs.publish == 'true' }}
+    # Fixed incident inspection: do not create fresh private captures or claim
+    # fresh qualification. Re-enabling recovery requires a reviewed source change.
+    if: ${{ github.ref == 'refs/heads/main' && false }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -183,7 +185,7 @@ jobs:
   durable-acquisition:
     name: Acquire qualified private storage through the canonical publisher
     needs: [source-admission, manual-prerequisites]
-    if: ${{ needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && needs.manual-prerequisites.outputs.mode == 'managed-recovery' }}
+    if: ${{ always() && needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'skipped' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -220,16 +222,15 @@ jobs:
         run: >-
           python -m pip install --disable-pip-version-check --no-cache-dir
           "huggingface_hub==1.31.0" "requests==2.32.5" "cryptography==50.0.1"
-      - name: Verify native artifacts, pause exactly, and acquire private storage
+      - name: Inspect the held prior acquisition without provider mutation
+        # Inspection always returns HELD/exit2. The configuration step and every
+        # downstream effect remain skipped; a new source review is required to
+        # authorize any retry after the prior private fence is reconciled.
         run: >-
-          python -B scripts/acquire_gdw_durable_storage.py --acquire
-          --source-artifact-id "${{ needs.source-admission.outputs.artifact_id }}"
-          --source-artifact-sha256 "${{ needs.source-admission.outputs.artifact_sha256 }}"
-          --qualification-artifact-id "${{ needs.manual-prerequisites.outputs.artifact_id }}"
-          --qualification-artifact-sha256 "${{ needs.manual-prerequisites.outputs.artifact_sha256 }}"
-          --publisher-script "$GITHUB_WORKSPACE/.gdw-source-publisher/.github/scripts/hf_deploy_from_dockerfile.py"
+          python -B scripts/acquire_gdw_durable_storage.py --inspect-held-acquisition
           --output "$RUNNER_TEMP/gdw-durable-acquisition.json"
       - name: Install the persistent old-source guard and both managed configurations once
+        if: ${{ github.ref == 'refs/heads/main' && false }}
         # This one coordinator owns the pair. A partial attempt is held; the
         # Series-A helper is an alternative entrypoint, never a second call.
         run: >-
