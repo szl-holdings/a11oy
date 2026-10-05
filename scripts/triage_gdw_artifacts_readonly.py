@@ -201,7 +201,7 @@ def main():
             verify_native(session, context)
             def owned():
                 require(github_json(session, "git/ref/heads/main").get("object", {}).get("sha") == args.source_sha)
-            with recovery._private_output(), tempfile.TemporaryDirectory(prefix="gdw-readonly-triage-") as directory:
+            with recovery.preservation._private_output(), tempfile.TemporaryDirectory(prefix="gdw-readonly-triage-") as directory:
                 logging.disable(logging.CRITICAL)
                 os.environ.update(HF_HUB_VERBOSITY="error", HF_DEBUG="0", HF_HUB_DISABLE_PROGRESS_BARS="1",
                                   HF_HOME=str(Path(directory) / "hub-cache"))
