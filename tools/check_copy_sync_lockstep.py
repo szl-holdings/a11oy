@@ -624,7 +624,7 @@ REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
     "scripts/verify_installed_authority.py": "2d9465f393dbaa08754b02d6295abade1134a7dbc843cdab48a6ad70867fb68e",
     # Its local ownership import is independently bound above by
     # REVIEWED_SOURCE_ADMISSION_HELPER_SHA256, in the same admission decision.
-    "scripts/preserve_hf_gdw_store.py": "12f099cdf7fb5f64c2a5088f10aba917c841bc76bc14aa76c2937ff8a1a2ae02",
+    "scripts/preserve_hf_gdw_store.py": "d1a563f87fa0f502770a02b12956c49043a066005ecc3500457de0a85d1a86ae",
     # The qualifier's local preservation and descriptive forensic imports are
     # separately pinned. Its capture, continuity anchors and verification key
     # are bound too; a data-only substitution cannot retain source admission.

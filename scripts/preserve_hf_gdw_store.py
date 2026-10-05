@@ -34,6 +34,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+# Native scripts/ entrypoints do not otherwise expose the repository root.
+# Resolve from this checked-out file, never from the working directory.
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 SCHEMA = "szl.hf-private-store-preservation/v1"
 SPACE = "SZLHOLDINGS/a11oy"
 BUCKET = "SZLHOLDINGS/szl-evidence"
@@ -508,8 +513,8 @@ class _SupervisedPreservationHub:
         raise PreservationError("SUPERVISED_OPERATION_UNADMITTED")
 
     def batch_bucket_files(self, **kwargs):
-        import reconcile_gdw_supervised_acquisition as reconciliation
         try:
+            from scripts import reconcile_gdw_supervised_acquisition as reconciliation
             reconciliation.require_expected_absent(self._api, self._evidence, self._deadline)
         except BaseException:
             raise PreservationError("SUPERVISED_RECONCILIATION_REQUIRED") from None
