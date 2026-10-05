@@ -601,19 +601,20 @@ SOURCE_DERIVED_CONTROLLER_REVISIONS = frozenset({
 
 REVIEWED_SOURCE_ADMISSION_JOB_SHA256 = "13304ef0f4d96cae7d534f42a5068b373b2fda1c0200d01a2a83f1e1bab581e6"
 REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee8395e042853ded04deb7d170189"
-# These exact jobs and their complete local helper/reference closure recognize
-# the reviewed inspection-only source. Reconciliation and preservation retain
-# their authority predicates under literal false gates. The active canonical
-# job selects only the fixed held-acquisition metadata inspection, which exits
-# 2; paired configuration is independently disabled. Downstream jobs retain
-# their successful manual/acquisition requirements and first-attempt guards.
-# The unchanged helpers still bind the fixed prior evidence, private revision,
-# absence, native authority and bootstrap checks; none is relaxed for inspection.
-# These hashes recognize the COPY source contract, never retry, restore,
-# deployment authority, a local selector or a generic skipped effect job.
-REVIEWED_MANUAL_PREREQUISITES_JOB_SHA256 = "3c56b18264b0d81c91607b37d571069a2b80ba640b760f563f8a0861c30103a7"
-REVIEWED_RECOVERY_RECONCILIATION_JOB_SHA256 = "a495272d8bc187e9baee49195f33460f81c1c0862a5de1feba73b792ebd1261d"
-REVIEWED_DURABLE_ACQUISITION_JOB_SHA256 = "b7228a44631e3277d63470f02748b14c022f5d15dcd6e198f9ae36902329943b"
+# These exact jobs and their complete local helper/reference closure admit one
+# reviewed first-cutover path: preserve originals, qualify disposable copies,
+# classify the native reports, then acquire private managed storage in the
+# active canonical job. The read-only reconciliation job must first bind the
+# exact observed ABSENT inspection, one signed direct successor and its unique
+# first push run. Every preservation/acquisition submission rechecks the fixed
+# private revision and HEAD absence; no generic retry or later-source authority
+# is admitted. Source/main and paused-state checks precede acquisition writes;
+# an existing dataset HEAD prevents bootstrap. The separate managed proof job
+# still requires actual deployment and runtime verification. No hash below
+# grants authority to a local selector, arbitrary helper or additional effect.
+REVIEWED_MANUAL_PREREQUISITES_JOB_SHA256 = "50bfd8b27fc159db706286375e13caaa94c64cb1f0e2cd5f51e280e18a5f9cd7"
+REVIEWED_RECOVERY_RECONCILIATION_JOB_SHA256 = "90039b641009c717c0cb2d0047bb4ccd215bd37c9d65394b1e28ac133db1f3e6"
+REVIEWED_DURABLE_ACQUISITION_JOB_SHA256 = "6431fd393379f29b8d78ecd61784848acaa472b8ffcbe841145162d424437bef"
 REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "bc38f18b2837be0ae4058d66cb9a5cbac911cd6622c1d352d8c773edc2a37944"
 REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
     "scripts/check_hf_manual_prerequisites.py": "3390924bd039b8377d1c54824e85f77bb06953bf4165c78e85bc9ddfbc7382ec",
@@ -637,7 +638,7 @@ REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
     # application bytes and the remote publisher have their own source-bound
     # manifest contract; this map binds the code that verifies that contract.
     "scripts/acquire_gdw_durable_storage.py": "e10155802d8a8e8c91f36862540b90fa92e61f45b91d802f193108674f4e8dc9",
-    "scripts/reconcile_gdw_supervised_acquisition.py": "657d630d7719416a2041772ee8249b384aeb7c2a4a58abc112eff8f57d105af6",
+    "scripts/reconcile_gdw_supervised_acquisition.py": "dc973e963bff30a77a28aa8a149f985daf678546e8c844586cac78d72144f188",
     "scripts/inspect_gdw_held_acquisition.py": "61e0b7d6e8236074ebcbbcc424b34d92f257f0c85608f7adbd640136de9e5dc6",
     "scripts/gdw_acquisition_evidence.py": "7c15e3c774f7bbbee71c9da2255ea92a9d13c5320398c8a8134f1542d1795525",
     "scripts/build_gdw_installed_source_manifest.py": "022955dd62e7f780e97b2650f5e86d68a3d1565738257a8ec76b18db1f75a8ec",
@@ -806,10 +807,9 @@ def has_source_derived_deploy_contract(hf_sync_text, *, ownership_helper=None,
     arbitrary skipped deploy job from satisfying CHECK 3. Ownership admission
     requires reviewed workflow and helper bytes plus the adjacent provider guard.
     Recognition proves the COPY source contract, never a provider result or live
-    publication. The exact reviewed incident source selects a metadata-only
-    inspection that exits HELD, with preservation and configuration disabled.
-    Its unchanged effect helpers and downstream conditions remain source-bound;
-    a generic dead job or altered absence/retry check is not admitted.
+    publication. The exact first-cutover classifier emits only candidate-only
+    metadata; the separate source-pinned acquisition must verify native evidence,
+    paused originals and an absent HEAD before acknowledging private bootstrap.
     """
     jobs = workflow_job_blocks(hf_sync_text)
     if len({job_id for job_id, _lines, _indent in jobs}) != len(jobs):
