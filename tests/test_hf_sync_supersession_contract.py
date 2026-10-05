@@ -833,5 +833,182 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
                 self.assertIs(report["secret_values_recorded"], False)
 
 
+# The predecessor contract intentionally held recovery after the ambiguous
+# acquisition.  The accepted v2 diagnostic replaced that state.  Keep the old
+# cases above as incident history, but collect only the successor contract.
+HFSyncSupersessionContractTests.__test__ = False
+
+
+def assert_manual_dependency_graph(source: str) -> dict:
+    jobs = workflow_document(source).get("jobs", {})
+    dependencies = {
+        "source-admission": [],
+        "recovery-reconciliation": ["source-admission"],
+        "manual-prerequisites": ["source-admission", "recovery-reconciliation"],
+        "durable-acquisition": ["source-admission", "recovery-reconciliation", "manual-prerequisites"],
+        "resume-paused-space": ["source-admission", "manual-prerequisites"],
+        "deploy": ["source-admission", "manual-prerequisites", "durable-acquisition", "resume-paused-space"],
+        "runtime-config": ["manual-prerequisites", "durable-acquisition", "deploy"],
+        "publish-vertical-flagships": ["manual-prerequisites", "deploy"],
+        "publish-finance-projection": ["manual-prerequisites", "relock"],
+        "readiness-verdict": ["manual-prerequisites", "runtime-config"],
+        "relock": ["manual-prerequisites", "runtime-config", "readiness-verdict"],
+        "post-deployment-parity": ["relock"],
+        "terminal-source-authorization": ["post-deployment-parity", "publish-vertical-flagships", "publish-finance-projection"],
+    }
+    if set(jobs) != set(dependencies):
+        raise WorkflowContractError("job set requires review")
+    conditions = {
+        "recovery-reconciliation": "${{ github.event_name == 'push' && github.run_attempt == 1 && needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' }}",
+        "manual-prerequisites": "${{ github.event_name == 'push' && github.run_attempt == 1 && needs.source-admission.outputs.publish == 'true' && needs.recovery-reconciliation.result == 'success' && needs.recovery-reconciliation.outputs.admitted == 'true' }}",
+        "durable-acquisition": "${{ github.event_name == 'push' && github.run_attempt == 1 && always() && needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' && needs.recovery-reconciliation.result == 'success' && needs.recovery-reconciliation.outputs.admitted == 'true' && needs.manual-prerequisites.result == 'success' && needs.manual-prerequisites.outputs.mode == 'managed-recovery' }}",
+        "publish-finance-projection": "${{ github.event_name == 'push' && github.run_attempt == 1 && needs.manual-prerequisites.result == 'success' && false }}",
+    }
+    for name, required in dependencies.items():
+        actual = jobs[name].get("needs", [])
+        actual = [actual] if isinstance(actual, str) else actual
+        if actual != required:
+            raise WorkflowContractError("dependency gate: " + name)
+    for name, condition in conditions.items():
+        if jobs[name].get("if") != condition:
+            raise WorkflowContractError("condition gate: " + name)
+
+    recovery = jobs["recovery-reconciliation"]
+    if (recovery.get("name") != "Reconcile the accepted diagnostic before fresh continuation"
+            or recovery.get("permissions") != {"contents": "read", "actions": "read"}
+            or recovery.get("env") != {
+                "HF_TOKEN": "${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}",
+                "PYTHONDONTWRITEBYTECODE": "1"}
+            or recovery.get("outputs") != {
+                "admitted": "${{ steps.reconciliation.outputs.admitted }}",
+                "artifact_id": "${{ steps.reconciliation_artifact.outputs.artifact-id }}",
+                "artifact_sha256": "${{ steps.reconciliation_artifact.outputs.artifact-digest }}"}):
+        raise WorkflowContractError("diagnostic reconciliation authority")
+    recovery_steps = recovery.get("steps", [])
+    if [step.get("name") for step in recovery_steps] != [
+        "Checkout the exact protected source",
+        "Set up the isolated diagnostic reconciliation interpreter",
+        "Install the exact read-only diagnostic ABI",
+        "Requalify the fixed capture and exact empty provider namespace",
+        "Retain only the bounded continuation prerequisite",
+    ] or any(step.get("continue-on-error") is not None for step in recovery_steps):
+        raise WorkflowContractError("diagnostic reconciliation step order")
+    run = recovery_steps[3]
+    compact = " ".join(run.get("run", "").split())
+    required = "python -B scripts/reconcile_gdw_diagnostic_continuation.py --reconcile --github-output \"$GITHUB_OUTPUT\" --output \"$RUNNER_TEMP/gdw-diagnostic-continuation.json\" --qualification-output \"$RUNNER_TEMP/gdw-continuation-qualification.json\""
+    if set(run) != {"name", "id", "run"} or run.get("id") != "reconciliation" or compact != required:
+        raise WorkflowContractError("diagnostic reconciliation invocation")
+    upload = recovery_steps[4]
+    if (upload.get("id") != "reconciliation_artifact" or upload.get("if") != "${{ always() }}"
+            or upload.get("with") != {
+                "name": "canonical-diagnostic-continuation-${{ github.run_id }}-${{ github.run_attempt }}",
+                "path": "${{ runner.temp }}/gdw-diagnostic-continuation.json\n${{ runner.temp }}/gdw-continuation-qualification.json",
+                "if-no-files-found": "error", "retention-days": "90"}):
+        raise WorkflowContractError("diagnostic reconciliation artifact allowlist")
+
+    manual = jobs["manual-prerequisites"]
+    if (manual.get("name") != "Classify the diagnostic-bound continuation without provider writes"
+            or manual.get("permissions") != {"contents": "read", "actions": "read"}
+            or "env" in manual or manual.get("outputs") != {
+                "mode": "${{ steps.recovery_mode.outputs.mode }}"}):
+        raise WorkflowContractError("classification authority")
+    names = [step.get("name") for step in manual.get("steps", [])]
+    if names != ["Checkout the immutable admitted source", "Set up Python",
+                 "Read the same-run closed continuation prerequisite",
+                 "Classify the exact diagnostic-bound candidate without admitting replay",
+                 "Retain the closed classification decision"]:
+        raise WorkflowContractError("classification step order")
+    if any(step.get("continue-on-error") is not None for step in manual["steps"]):
+        raise WorkflowContractError("classification failure bypass")
+    if manual["steps"][2].get("with") != {
+            "artifact-ids": "${{ needs.recovery-reconciliation.outputs.artifact_id }}",
+            "path": "${{ runner.temp }}/diagnostic-continuation"}:
+        raise WorkflowContractError("classification artifact selector")
+    classify = " ".join(manual["steps"][3].get("run", "").split())
+    if "scripts/reconcile_gdw_diagnostic_continuation.py --classify" not in classify or "--retry" in classify:
+        raise WorkflowContractError("classification invocation")
+    if manual["steps"][4].get("with", {}).get("path") != "${{ runner.temp }}/manual-prerequisites.json":
+        raise WorkflowContractError("classification artifact allowlist")
+
+    acquisition = jobs["durable-acquisition"]
+    if acquisition.get("permissions") != {"contents": "read", "actions": "read"}:
+        raise WorkflowContractError("acquisition permission scope")
+    steps = acquisition.get("steps", [])
+    names = [step.get("name") for step in steps]
+    if names != ["Checkout the exact protected source", "Read the existing immutable COPY publisher",
+                 "Set up the isolated acquisition interpreter", "Install the exact managed acquisition ABI",
+                 "Continue once from the accepted diagnostic and verified capture",
+                 "Install the persistent old-source guard and both managed configurations once",
+                 "Retain only the immutable selector and guarded configuration result"]:
+        raise WorkflowContractError("continuation acquisition step order")
+    if any(step.get("continue-on-error") is not None for step in steps):
+        raise WorkflowContractError("continuation failure bypass")
+    command = " ".join(steps[4].get("run", "").split())
+    for token in ("--continue-diagnostic-recovery", "needs.source-admission.outputs.artifact_id",
+                  "needs.recovery-reconciliation.outputs.artifact_id",
+                  ".gdw-source-publisher/.github/scripts/hf_deploy_from_dockerfile.py"):
+        if token not in command:
+            raise WorkflowContractError("continuation acquisition selector")
+    publisher_checkout = steps[1].get("with", {})
+    if publisher_checkout != {
+            "repository": "szl-holdings/.github",
+            "ref": "fc71ae973a0f31b8e9ee793fc8545a354448d451",
+            "path": ".gdw-source-publisher",
+            "persist-credentials": False,
+            "fetch-depth": "1"}:
+        raise WorkflowContractError("continuation publisher checkout")
+    checkout_path = publisher_checkout.get("path")
+    expected_script = f"{checkout_path}/.github/scripts/hf_deploy_from_dockerfile.py"
+    if (checkout_path != ".gdw-source-publisher"
+            or f"${{{{ github.workspace }}}}/{expected_script}" not in command):
+        raise WorkflowContractError("continuation publisher checkout mapping")
+    if any(token in command for token in ("--acquire ", "--inspect-held-acquisition", "--retry", "--restore")):
+        raise WorkflowContractError("continuation replay path")
+    if "if" in steps[5]:
+        raise WorkflowContractError("managed configuration must follow acknowledged continuation")
+    if steps[6].get("with", {}).get("path") != (
+            "${{ runner.temp }}/gdw-durable-acquisition.json\n"
+            "${{ runner.temp }}/gdw-managed-configuration.json"):
+        raise WorkflowContractError("acquisition artifact allowlist")
+    return jobs
+
+
+class HFSyncSupersessionContractTests(unittest.TestCase):
+    def setUp(self):
+        self.source = WORKFLOW.read_text(encoding="utf-8")
+
+    def test_exact_successor_graph(self):
+        assert_manual_dependency_graph(self.source)
+
+    def test_effect_jobs_require_first_push_and_owned_source(self):
+        jobs = assert_manual_dependency_graph(self.source)
+        for name in ("recovery-reconciliation", "manual-prerequisites", "durable-acquisition"):
+            condition = jobs[name]["if"]
+            self.assertIn("github.event_name == 'push'", condition)
+            self.assertIn("github.run_attempt == 1", condition)
+            self.assertIn("needs.source-admission.outputs.publish == 'true'", condition)
+
+    def test_gate_mutations_fail(self):
+        mutations = (
+            ("github.run_attempt == 1", "github.run_attempt >= 1"),
+            ("needs.recovery-reconciliation.outputs.admitted == 'true'", "true"),
+            ("needs.manual-prerequisites.outputs.mode == 'managed-recovery'", "true"),
+            ("--continue-diagnostic-recovery", "--acquire"),
+            ("--qualification-output \"$RUNNER_TEMP/gdw-continuation-qualification.json\"", "--retry"),
+            ("      actions: read\n", "      actions: write\n"),
+            ("needs.manual-prerequisites.result == 'success' && false", "needs.manual-prerequisites.result == 'success' && true"),
+        )
+        for before, after in mutations:
+            with self.subTest(before=before):
+                self.assertIn(before, self.source)
+                with self.assertRaises(WorkflowContractError):
+                    assert_manual_dependency_graph(self.source.replace(before, after, 1))
+
+    def test_dispatch_cannot_enter_recovery_effects(self):
+        jobs = assert_manual_dependency_graph(self.source)
+        for name in ("recovery-reconciliation", "manual-prerequisites", "durable-acquisition"):
+            self.assertEqual(jobs[name]["if"].count("github.event_name == 'push'"), 1)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

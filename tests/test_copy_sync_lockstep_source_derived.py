@@ -48,6 +48,9 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             "docs/operations/evidence/gdw-recovery-historical-anchors.json",
             "ayllu/keys/council-runtime-2026-07-21.pub",
             "scripts/acquire_gdw_durable_storage.py",
+            "scripts/reconcile_gdw_diagnostic_continuation.py",
+            "scripts/triage_gdw_artifacts_readonly.py",
+            "docs/operations/gdw-diagnostic-continuation-side-effects.md",
             "scripts/inspect_gdw_held_acquisition.py",
             "scripts/inspect_gdw_62ca_acquisition.py",
             "scripts/reconcile_gdw_supervised_acquisition.py",
@@ -147,7 +150,8 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
 
     def test_manual_job_and_each_metadata_helper_are_bound(self) -> None:
         job = self.fixture_job("manual-prerequisites")
-        self.assertFalse(self.strict_contract(self.reviewed_workflow.replace(job, job.replace("--check-only", ""), 1)))
+        self.assertFalse(self.strict_contract(self.reviewed_workflow.replace(
+            job, job.replace("--classify", "--reconcile", 1))))
         for path in self.manual_helpers:
             with self.subTest(path=path):
                 changed = dict(self.manual_helpers)
@@ -184,14 +188,14 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
         self.assertFalse(self.strict_contract(
             self.reviewed_workflow, ownership_helper=self.ownership + b"\n# unreviewed transitive edit\n"))
 
-    def test_preservation_workflow_overrides_and_private_artifact_widening_are_byte_bound(self) -> None:
-        marker = "      - name: Preserve stopped private stores before any runtime mutation\n"
+    def test_reconciliation_workflow_overrides_and_artifact_widening_are_byte_bound(self) -> None:
+        marker = "      - name: Requalify the fixed capture and exact empty provider namespace\n"
         cases = (
-            ("scripts/preserve_hf_gdw_store.py", "scripts/unknown_preservation.py"),
-            (marker, marker + "        if: false\n"),
+            ("scripts/reconcile_gdw_diagnostic_continuation.py", "scripts/unknown_reconciliation.py"),
+            (marker, marker + "        continue-on-error: true\n"),
             (marker, marker + "        env:\n          HF_TOKEN: unreviewed-authority\n"),
-            ('--output "${{ runner.temp }}/gdw-store-preservation.json"', '--output "${{ runner.temp }}/gdw-store-preservation.json" || true'),
-            ("            ${{ runner.temp }}/gdw-store-preservation.json\n", "            ${{ runner.temp }}/**\n"),
+            ('--output "$RUNNER_TEMP/gdw-diagnostic-continuation.json"', '--output "$RUNNER_TEMP/gdw-diagnostic-continuation.json" || true'),
+            ("            ${{ runner.temp }}/gdw-diagnostic-continuation.json\n", "            ${{ runner.temp }}/**\n"),
         )
         for original, replacement in cases:
             with self.subTest(replacement=replacement):
@@ -231,18 +235,18 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
         changed[key_path] += b"\n# unreviewed verification input\n"
         self.assertFalse(self.strict_contract(self.reviewed_workflow, manual_helpers=changed))
 
-    def test_recovery_step_inputs_condition_and_artifact_scope_are_byte_bound(self) -> None:
-        marker = "      - name: Qualify the pinned private capture without admitting restore\n"
+    def test_classification_inputs_condition_and_artifact_scope_are_byte_bound(self) -> None:
+        marker = "      - name: Classify the exact diagnostic-bound candidate without admitting replay\n"
         for original, replacement in (
-            ("scripts/qualify_gdw_store_recovery.py", "scripts/unreviewed_recovery.py"),
-            ("docs/operations/evidence/gdw-capture-37223162231.json", "docs/operations/evidence/unreviewed-capture.json"),
-            ("docs/operations/evidence/gdw-recovery-historical-anchors.json", "docs/operations/evidence/unreviewed-anchors.json"),
-            ("${{ always() && steps.preserve_stores.outcome == 'failure' }}", "always()"),
-            ("        id: preserve_stores\n", "        id: unreviewed_preservation\n"),
+            ("scripts/reconcile_gdw_diagnostic_continuation.py", "scripts/unreviewed_classifier.py"),
+            ('artifact-ids: ${{ needs.recovery-reconciliation.outputs.artifact_id }}', "artifact-ids: 1"),
+            ('--reconciliation "${{ runner.temp }}/diagnostic-continuation/gdw-diagnostic-continuation.json"', '--reconciliation "${{ runner.temp }}/unreviewed.json"'),
+            ('--qualification "${{ runner.temp }}/diagnostic-continuation/gdw-continuation-qualification.json"', '--qualification "${{ runner.temp }}/unreviewed.json"'),
+            ("        id: recovery_mode\n", "        id: unreviewed_classifier\n"),
             (marker, marker + "        continue-on-error: true\n"),
             (marker, marker + "        env:\n          HF_TOKEN: unreviewed-authority\n"),
-            ('--output "${{ runner.temp }}/gdw-store-recovery-qualification.json"', '--output "${{ runner.temp }}/gdw-store-recovery-qualification.json" || true'),
-            ("            ${{ runner.temp }}/gdw-store-recovery-qualification.json\n", "            ${{ runner.temp }}/**\n"),
+            ('--output "${{ runner.temp }}/manual-prerequisites.json"', '--output "${{ runner.temp }}/manual-prerequisites.json" || true'),
+            ("          path: ${{ runner.temp }}/manual-prerequisites.json\n", "          path: ${{ runner.temp }}/**\n"),
         ):
             with self.subTest(replacement=replacement):
                 self.assertIn(original, self.reviewed_workflow)
@@ -267,36 +271,43 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                 ("needs: source-admission", "needs: []"),
                 ("github.run_attempt == 1", "github.run_attempt >= 1"),
                 ("github.event_name == 'push'", "true"),
-                (" && false }}", " }}"),
-                (" && false }}", " && true }}"),
+                ("needs.source-admission.result == 'success'", "true"),
+                ("needs.source-admission.outputs.publish == 'true'", "true"),
                 ("      actions: read", "      actions: write"),
-                ("--reconcile-supervised-acquisition", "--acquire"),
+                ("--reconcile", "--classify"),
                 ('--github-output "$GITHUB_OUTPUT"', '--github-output "$GITHUB_OUTPUT" --source-artifact-id 1'),
-                ("${{ runner.temp }}/gdw-supervised-reconciliation.json", "${{ runner.temp }}/**"),
+                ("${{ runner.temp }}/gdw-diagnostic-continuation.json", "${{ runner.temp }}/**"),
+            ),
+            "manual-prerequisites": (
+                ("needs: [source-admission, recovery-reconciliation]", "needs: source-admission"),
+                ("needs.recovery-reconciliation.result == 'success'", "true"),
+                ("needs.recovery-reconciliation.outputs.admitted == 'true'", "true"),
+                ("github.run_attempt == 1", "github.run_attempt >= 1"),
+                ("--classify", "--reconcile"),
+                ("${{ runner.temp }}/manual-prerequisites.json", "${{ runner.temp }}/**"),
             ),
             "durable-acquisition": (
                 ("needs: [source-admission, recovery-reconciliation, manual-prerequisites]", "needs: source-admission"),
-                ("needs.manual-prerequisites.result == 'skipped'", "true"),
-                ("needs.recovery-reconciliation.result == 'skipped' && ", ""),
+                ("needs.manual-prerequisites.result == 'success'", "true"),
+                ("needs.manual-prerequisites.outputs.mode == 'managed-recovery'", "true"),
+                ("needs.recovery-reconciliation.result == 'success'", "true"),
+                ("needs.recovery-reconciliation.outputs.admitted == 'true'", "true"),
                 ("needs.source-admission.result == 'success' && ", ""),
                 ("needs.source-admission.outputs.publish == 'true'", "true"),
                 ("github.run_attempt == 1", "github.run_attempt >= 1"),
                 ("    timeout-minutes: 20", "    continue-on-error: true\n    timeout-minutes: 20"),
                 ("      actions: read", "      actions: write"),
-                ("ref: e3ec47ad2e99a535839afe0f30fefbd8973d52da", "ref: main"),
+                ("ref: fc71ae973a0f31b8e9ee793fc8545a354448d451", "ref: main"),
                 ('"huggingface_hub==1.31.0"', '"huggingface_hub==1.23.0"'),
-                ("scripts/acquire_gdw_durable_storage.py --inspect-held-acquisition", "scripts/unknown.py --inspect-held-acquisition"),
-                ("--inspect-held-acquisition", "--acquire"),
-                ("--inspect-held-acquisition", "--fetch-locator"),
-                ("--inspect-held-acquisition", "--reconcile-supervised-acquisition"),
+                ("scripts/acquire_gdw_durable_storage.py --continue-diagnostic-recovery", "scripts/unknown.py --continue-diagnostic-recovery"),
+                ("--continue-diagnostic-recovery", "--acquire"),
+                ("--continue-diagnostic-recovery", "--fetch-locator"),
+                ("--continue-diagnostic-recovery", "--reconcile-supervised-acquisition"),
                 ('--output "$RUNNER_TEMP/gdw-durable-acquisition.json"', '--output "$RUNNER_TEMP/gdw-durable-acquisition.json" || true'),
-                ("--inspect-held-acquisition", '--inspect-held-acquisition --source-artifact-id "1"'),
-                ("--inspect-held-acquisition", '--inspect-held-acquisition --qualification-artifact-sha256 unreviewed'),
-                ("--inspect-held-acquisition", '--inspect-held-acquisition --publisher-script scripts/unreviewed.py'),
-                ("--inspect-held-acquisition", '--inspect-held-acquisition --github-output "$GITHUB_OUTPUT"'),
-                ("--inspect-held-acquisition", '--inspect-held-acquisition --retry'),
-                ("        if: ${{ github.ref == 'refs/heads/main' && false }}\n", ""),
-                ("        if: ${{ github.ref == 'refs/heads/main' && false }}\n", "        if: ${{ github.ref == 'refs/heads/main' && true }}\n"),
+                ('--source-artifact-id "${{ needs.source-admission.outputs.artifact_id }}"', '--source-artifact-id "1"'),
+                ('--reconciliation-artifact-id "${{ needs.recovery-reconciliation.outputs.artifact_id }}"', '--reconciliation-artifact-id "1"'),
+                ('--publisher-script "${{ github.workspace }}/.gdw-source-publisher/.github/scripts/hf_deploy_from_dockerfile.py"', '--publisher-script scripts/unreviewed.py'),
+                ("--continue-diagnostic-recovery", '--continue-diagnostic-recovery --retry'),
                 ("scripts/configure_hf_gdw_runtime.py", "scripts/configure_hf_series_a_runtime.py"),
                 ("--managed-deadline-seconds 120", "--managed-deadline-seconds 120 --force"),
                 ("${{ runner.temp }}/gdw-durable-acquisition.json", "${{ runner.temp }}/**"),
@@ -320,15 +331,16 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                     changed = self.reviewed_workflow.replace(job, job.replace(before, after, 1), 1)
                     self.assertFalse(self.strict_contract(changed))
 
-    def test_preservation_cannot_bypass_reconciliation_or_first_attempt(self) -> None:
+    def test_classification_cannot_bypass_reconciliation_or_first_attempt(self) -> None:
         job = self.fixture_job("manual-prerequisites")
         for before, after in (
+            ("needs: [source-admission, recovery-reconciliation]", "needs: source-admission"),
             ("needs.recovery-reconciliation.result == 'success'", "true"),
             ("needs.recovery-reconciliation.outputs.admitted == 'true'", "true"),
             ("github.run_attempt == 1", "github.run_attempt >= 1"),
-            (" && false }}", " }}"),
-            (" && false }}", " && true }}"),
-            ("--supervised-acquisition", ""),
+            ("github.event_name == 'push'", "true"),
+            ("--classify", "--reconcile"),
+            ('artifact-ids: ${{ needs.recovery-reconciliation.outputs.artifact_id }}', "artifact-ids: 1"),
         ):
             with self.subTest(before=before):
                 self.assertIn(before, job)
@@ -370,11 +382,10 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
     def test_prerequisite_classifier_cannot_become_a_generic_authority_or_sdk_upgrade(self) -> None:
         job = self.fixture_job("manual-prerequisites")
         for before, after in (
-            ("--classify-prerequisites", "--acquire"),
-            ("scripts/acquire_gdw_durable_storage.py", "scripts/unreviewed_classifier.py"),
-            ('"huggingface_hub==1.23.0"', '"huggingface_hub==1.31.0"'),
+            ("--classify", "--reconcile"),
+            ("scripts/reconcile_gdw_diagnostic_continuation.py", "scripts/unreviewed_classifier.py"),
+            ('artifact-ids: ${{ needs.recovery-reconciliation.outputs.artifact_id }}', "artifact-ids: 1"),
             ("mode: ${{ steps.recovery_mode.outputs.mode }}", "mode: managed-recovery"),
-            ("steps.recovery_mode.outcome == 'success'", "true"),
             ("        id: recovery_mode\n", "        id: recovery_mode\n        continue-on-error: true\n"),
         ):
             with self.subTest(before=before):
@@ -389,7 +400,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             self.assertFalse(self.strict_contract(self.reviewed_workflow + "\n" + job))
         deploy = self.fixture_job("deploy")
         for header in ("    needs: " + self.deploy_needs + "\n", "    if: " + self.deploy_if + "\n",
-                       "    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@e3ec47ad2e99a535839afe0f30fefbd8973d52da\n",
+                       "    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451\n",
                        "    <<: *hidden\n", "    continue-on-error: true\n"):
             self.assertFalse(self.strict_contract(self.reviewed_workflow.replace(deploy,
                 deploy.replace("  deploy:\n", "  deploy:\n" + header, 1), 1)))
@@ -442,7 +453,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             """
             jobs:
               deploy:
-                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@e3ec47ad2e99a535839afe0f30fefbd8973d52da
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
                 with:
                   hf-repo: SZLHOLDINGS/a11oy
                   ref: ${{ github.sha }}
@@ -461,7 +472,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             """
             jobs:
               deploy:
-                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@e3ec47ad2e99a535839afe0f30fefbd8973d52da
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
                 with:
                   hf-repo: SZLHOLDINGS/a11oy
                   ref: ${{ github.sha }}
@@ -484,7 +495,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             """
             jobs:
               deploy:
-                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@e3ec47ad2e99a535839afe0f30fefbd8973d52da
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
             """,
             """
             jobs:
@@ -509,7 +520,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             """
             jobs:
               deploy:
-                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@e3ec47ad2e99a535839afe0f30fefbd8973d52da
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
                 with:
                   hf-repo: SZLHOLDINGS/a11oy
                   ref: ${{ github.sha }}
@@ -528,7 +539,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
               INERT_DEPLOY_EXAMPLE: |
                 jobs:
                   deploy:
-                    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@e3ec47ad2e99a535839afe0f30fefbd8973d52da
+                    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
                     with:
                       hf-repo: SZLHOLDINGS/a11oy
                       ref: ${{ github.sha }}
@@ -553,7 +564,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                   - run: echo no-op
               deploy:
                 name: Exact source-derived deployment
-                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@e3ec47ad2e99a535839afe0f30fefbd8973d52da
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
                 with:
                   hf-repo: SZLHOLDINGS/a11oy
                   ref: ${{ github.sha }}
@@ -616,7 +627,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                     """
                     jobs:
                       deploy:
-                        uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@e3ec47ad2e99a535839afe0f30fefbd8973d52da
+                        uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
                         with:
                     """
                 )
@@ -642,7 +653,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                 jobs:
                   deploy:
                     {condition_entry}
-                    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@e3ec47ad2e99a535839afe0f30fefbd8973d52da
+                    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
                     with:
                       hf-repo: SZLHOLDINGS/a11oy
                       ref: ${{{{ github.sha }}}}
@@ -671,7 +682,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                       - run: echo skipped
                   deploy:
                     {needs_entry}
-                    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@e3ec47ad2e99a535839afe0f30fefbd8973d52da
+                    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
                     with:
                       hf-repo: SZLHOLDINGS/a11oy
                       ref: ${{{{ github.sha }}}}
@@ -694,7 +705,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             """
             jobs:
               deploy:
-                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@e3ec47ad2e99a535839afe0f30fefbd8973d52da
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
                 with:
                   hf-repo: SZLHOLDINGS/a11oy
                   ref: ${{ github.sha }}
@@ -753,7 +764,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             """
             jobs:
               deploy:
-                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@e3ec47ad2e99a535839afe0f30fefbd8973d52da
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
                 with:
                   hf-repo: SZLHOLDINGS/a11oy
                   ref: ${{ github.sha }}
@@ -838,7 +849,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             """
             jobs:
               deploy:
-                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@e3ec47ad2e99a535839afe0f30fefbd8973d52da
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
                 with:
                   hf-repo: SZLHOLDINGS/a11oy
                   ref: ${{ github.sha }}

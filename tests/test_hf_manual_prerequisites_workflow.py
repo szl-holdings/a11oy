@@ -936,6 +936,100 @@ class ManualPrerequisiteWorkflowTests(unittest.TestCase):
                     assert_manual_step_contract(self.source.replace(job, job.replace(before, after, 1), 1))
 
 
+# The predecessor workflow class above records the deliberately held acquisition
+# contract.  The accepted read-only v2 diagnostic superseded that exact state.
+ManualPrerequisiteWorkflowTests.__test__ = False
+
+
+class ManualPrerequisiteWorkflowTests(unittest.TestCase):
+    def setUp(self):
+        self.source = WORKFLOW.read_text(encoding="utf-8")
+        self.jobs = assert_manual_dependency_graph(self.source)
+
+    def test_no_preservation_or_ambiguous_acquisition_replay(self):
+        recovery = self.jobs["recovery-reconciliation"]
+        manual = self.jobs["manual-prerequisites"]
+        acquisition = self.jobs["durable-acquisition"]
+        selected = json.dumps([recovery, manual, acquisition], sort_keys=True)
+        self.assertNotIn("preserve_hf_gdw_store.py", selected)
+        self.assertNotIn("--supervised-acquisition", selected)
+        self.assertNotIn("--inspect-held-acquisition", selected)
+        self.assertNotIn("--reconcile-supervised-acquisition", selected)
+        self.assertNotIn("--retry", selected)
+        self.assertNotIn("--restore", selected)
+
+    def test_only_native_read_step_receives_hf_credential(self):
+        expected = "${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}"
+        bindings = []
+        def visit(value, path=()):
+            if isinstance(value, dict):
+                for key, child in value.items():
+                    visit(child, path + (key,))
+            elif isinstance(value, list):
+                for index, child in enumerate(value):
+                    visit(child, path + (index,))
+            elif isinstance(value, str) and (
+                    "secrets.HF_ORG_TOKEN" in value or "secrets.HF_TOKEN" in value):
+                bindings.append((path, value))
+        visit({name: self.jobs[name] for name in (
+            "recovery-reconciliation", "manual-prerequisites", "durable-acquisition")})
+        self.assertEqual([value for _path, value in bindings], [expected, expected])
+        self.assertNotIn("env", self.jobs["manual-prerequisites"])
+
+    def test_closed_artifact_allowlists_exclude_candidates_and_captures(self):
+        recovery = self.jobs["recovery-reconciliation"]["steps"][-1]["with"]["path"]
+        manual = self.jobs["manual-prerequisites"]["steps"][-1]["with"]["path"]
+        acquisition = self.jobs["durable-acquisition"]["steps"][-1]["with"]["path"]
+        self.assertEqual(set(recovery.splitlines()), {
+            "${{ runner.temp }}/gdw-diagnostic-continuation.json",
+            "${{ runner.temp }}/gdw-continuation-qualification.json"})
+        self.assertEqual(manual, "${{ runner.temp }}/manual-prerequisites.json")
+        self.assertEqual(set(acquisition.splitlines()), {
+            "${{ runner.temp }}/gdw-durable-acquisition.json",
+            "${{ runner.temp }}/gdw-managed-configuration.json"})
+        self.assertNotRegex(recovery + manual + acquisition,
+            r"candidate\.sqlite|capture-|private-store|hub-cache|/\*\*|\\\*\\\*")
+
+    def test_managed_configuration_requires_acknowledged_locator(self):
+        steps = self.jobs["durable-acquisition"]["steps"]
+        continuation = next(index for index, step in enumerate(steps)
+            if step.get("name") == "Continue once from the accepted diagnostic and verified capture")
+        configuration = next(index for index, step in enumerate(steps)
+            if step.get("name") == "Install the persistent old-source guard and both managed configurations once")
+        self.assertLess(continuation, configuration)
+        self.assertNotIn("if", steps[configuration])
+        self.assertIn('--managed-acquisition "$RUNNER_TEMP/gdw-durable-acquisition.json"',
+                      steps[configuration]["run"])
+
+    def test_unknown_metadata_cannot_gain_an_authority_output(self):
+        for before, after in (
+            ("outputs.mode == 'managed-recovery'", "outputs.mode != 'managed-recovery'"),
+            ("outputs.admitted == 'true'", "outputs.admitted != 'true'"),
+            ("gdw-continuation-qualification.json", "candidate.sqlite3"),
+            ("actions: read", "actions: write"),
+        ):
+            with self.subTest(after=after):
+                candidate = self.source.replace(before, after, 1)
+                with self.assertRaises(WorkflowContractError):
+                    assert_manual_dependency_graph(candidate)
+
+    def test_removed_credentials_and_external_coordination_stay_removed(self):
+        for token in ("DOCS_READ_TOKEN", "--github-read-token", "--operator-token",
+                      "--capacity-donor", "gh issue", "issues: write",
+                      "add_space_secret", "delete_space_secret"):
+            self.assertNotIn(token, self.source)
+
+    def test_unrelated_finance_publisher_is_unreachable(self):
+        job = self.jobs["publish-finance-projection"]
+        self.assertEqual(job["if"],
+            "${{ github.event_name == 'push' && github.run_attempt == 1 && "
+            "needs.manual-prerequisites.result == 'success' && false }}")
+        with self.assertRaises(WorkflowContractError):
+            assert_manual_dependency_graph(self.source.replace(
+                "needs.manual-prerequisites.result == 'success' && false",
+                "needs.manual-prerequisites.result == 'success' && true", 1))
+
+
 class PureAggregateWorkflowBoundaryTests(unittest.TestCase):
     def checker_namespace(self):
         # Legacy/predeploy remains pure parsing. Explicit managed live admission

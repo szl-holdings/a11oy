@@ -227,7 +227,8 @@ def test_expiration_after_last_read_never_returns_success(monkeypatch):
         builder._derive(REVISION, tree, read, FixedExpansion(SOURCES), 110.0)
 
 
-@pytest.mark.parametrize("data", [b"", b"def deploy(): pass\n", b"x" * 65537, "not bytes"])
+@pytest.mark.parametrize("data", [b"", b"def deploy(): pass\n",
+                                  b"x" * (builder.MAX_PUBLISHER_BYTES + 1), "not bytes"])
 def test_unpinned_publisher_fails_before_definition_execution(data, monkeypatch):
     monkeypatch.setattr(builder, "exec", lambda *_: pytest.fail("untrusted exec"), raising=False)
     with pytest.raises(builder.InstalledSourceError, match="PUBLISHER_SOURCE_IDENTITY_MISMATCH"):

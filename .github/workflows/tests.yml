@@ -165,7 +165,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: szl-holdings/.github
-          ref: e3ec47ad2e99a535839afe0f30fefbd8973d52da
+          ref: fc71ae973a0f31b8e9ee793fc8545a354448d451
           path: .gdw-source-publisher
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -188,6 +188,7 @@ jobs:
           tests/test_gdw_runtime_base_probe.py
           tests/test_gdw_legacy_startup_probe.py
           tests/test_gdw_durable_acquisition.py
+          tests/test_gdw_diagnostic_continuation.py
           tests/test_gdw_acquisition_evidence.py
           tests/test_gdw_held_acquisition_inspection.py
           tests/test_gdw_62ca_acquisition_inspection.py

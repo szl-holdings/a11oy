@@ -562,6 +562,38 @@ def test_missing_native_installed_key_is_rejected_without_key_generation(tmp_pat
     assert observed == ["1"]
 
 
+def test_canonical_publisher_keeps_hub_token_out_of_public_smoke(monkeypatch):
+    """Bind the adopted publisher's management/app credential boundary."""
+    import importlib.util
+    import os
+
+    configured = os.environ.get("GDW_COPY_PUBLISHER_SCRIPT")
+    assert configured, "GDW_COPY_PUBLISHER_SCRIPT must identify the exact pinned canonical publisher"
+    specification = importlib.util.spec_from_file_location(
+        "_gdw_credential_bound_publisher", configured)
+    publisher = importlib.util.module_from_spec(specification)
+    specification.loader.exec_module(publisher)
+    monkeypatch.setenv("HF_TOKEN", "offline-boundary-token")
+
+    with pytest.raises(publisher._ReadContractError,
+                       match="Hub authentication cannot enter another origin"):
+        publisher._http(
+            "https://szlholdings-a11oy.hf.space/health",
+            headers=publisher._auth_headers(), retries=1, follow_redirects=False)
+
+    calls = []
+
+    def public_read(url, *, headers, retries, follow_redirects):
+        calls.append((url, headers, retries, follow_redirects))
+        return 200, b"healthy"
+
+    monkeypatch.setattr(publisher, "_http", public_read)
+    assert publisher.probe_smoke_routes(
+        "SZLHOLDINGS/a11oy", ["/health"], retries=1, delay=0) == []
+    assert calls == [("https://szlholdings-a11oy.hf.space/health",
+                      {"Cache-Control": "no-cache"}, 1, False)]
+
+
 def test_canonical_publisher_full_image_and_all_source_python_paths_are_bound():
     """Use the immutable native publisher, not a replacement COPY fixture.
 
