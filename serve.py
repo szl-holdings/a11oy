@@ -11524,7 +11524,15 @@ except Exception as _b2_e:
 # ============================================================================
 try:
     import sys as _ac_sys
-    import a11oy_code as _a11oy_code_router
+    import importlib.util as _ac_import_util
+    # Bind the same admitted flat router in source and Docker. The flagship
+    # a11oy_code/ package otherwise shadows a11oy_code.py in a full checkout.
+    _ac_router_spec = _ac_import_util.spec_from_file_location(
+        "_szl_a11oy_code_router", Path(__file__).with_name("a11oy_code.py"))
+    if _ac_router_spec is None or _ac_router_spec.loader is None:
+        raise ImportError("admitted a11oy.code router unavailable")
+    _a11oy_code_router = _ac_import_util.module_from_spec(_ac_router_spec)
+    _ac_router_spec.loader.exec_module(_a11oy_code_router)
 
     # Open-weight roster (real HF repo ids + licenses). Primary first; the rest
     # are graceful fallbacks tried in order on error/timeout. Server-side only.
@@ -11609,7 +11617,7 @@ try:
     # SZLHOLDINGS/second-brain HF Space (/api/v1/retrieve) and, ONLY on a LIVE
     # well-formed response, that API's citation HANDLES (nodeId + short note +
     # sha256, verbatim) plus the API's OWN honesty string are prepended to the
-    # outbound messages as one extra system message. The upstream API is a
+    # outbound messages as untrusted user/data context, never system policy. The upstream API is a
     # lexical-overlap ranker over a PUBLIC 575-chunk projection
     # (content_access=HANDLES_ONLY) — it is NOT semantic retrieval and it is NOT
     # the private 9464-node brain graph, and neither this code nor its labels
@@ -11634,11 +11642,11 @@ try:
         return (os.environ.get("SZL_SECOND_BRAIN_RAG") or "").strip().lower() in ("1", "true", "yes")
 
     def _ac_second_brain_augment(query, messages):
-        """The ONE gated seam: optionally prepend second-brain citation handles.
+        """The ONE gated seam: optionally attach untrusted citation-handle data.
 
         Returns (messages, meta). Flag OFF -> (messages UNCHANGED, None): the
         caller's behavior is byte-identical to before this seam existed. Flag
-        ON + LIVE -> (one citation system message prepended, meta status=LIVE
+        ON + LIVE -> (one untrusted data message before the user's query, meta status=LIVE
         with the API fields verbatim). Flag ON + any failure -> (messages
         UNCHANGED, meta status=UNAVAILABLE used=False). Never raises, never
         fabricates a handle, never claims retrieval that did not happen."""
@@ -11655,29 +11663,37 @@ try:
                               "error": "bridge module not importable in this image"}
         try:
             _sb_res = _ac_sb_retrieve(query)
+            if (getattr(_sb_res, "status", None) == "LIVE"
+                    and getattr(_sb_res, "query", None) == query.strip()
+                    and getattr(_sb_res, "handles", None)
+                    and callable(_ac_sb_format)):
+                _cite = _ac_sb_format(_sb_res)
+                if _cite:
+                    # Upstream text is NEVER elevated into the system policy role.
+                    if (not isinstance(_cite, str) or len(_cite.encode("utf-8")) > 65536
+                            or not isinstance(messages, list) or not messages
+                            or messages[-1].get("role") != "user"):
+                        raise ValueError("invalid citation context or message seam")
+                    _corpus = getattr(_sb_res, "corpus_n", None)
+                    _label = ("citation handles from a public %s-chunk lexical index, "
+                              "not semantic retrieval, not the full brain graph"
+                              % (_corpus if isinstance(_corpus, int) else "public"))
+                    _meta = {**base_meta, "status": "LIVE", "used": True, "label": _label,
+                             "schema": getattr(_sb_res, "schema", None),
+                             "handles": _sb_res.handles,
+                             "scores": getattr(_sb_res, "scores", []),
+                             "honesty": getattr(_sb_res, "honesty", ""),
+                             "corpus_n": _corpus,
+                             "content_access": getattr(_sb_res, "content_access", None),
+                             "content_hash_verification": "UNKNOWN"}
+                    return (messages[:-1] + [{"role": "user", "content": _cite}]
+                            + messages[-1:]), _meta
+            return messages, {**base_meta, "status": "UNAVAILABLE", "used": False,
+                              "error": (getattr(_sb_res, "error", None)
+                                        or "no validated handles returned")}
         except Exception as _sb_exc:  # fail-closed: a bridge bug never breaks inference
             return messages, {**base_meta, "status": "UNAVAILABLE", "used": False,
                               "error": "bridge raised: %s" % type(_sb_exc).__name__}
-        if (getattr(_sb_res, "status", None) == "LIVE"
-                and getattr(_sb_res, "handles", None)
-                and callable(_ac_sb_format)):
-            _cite = _ac_sb_format(_sb_res)
-            if _cite:
-                _corpus = getattr(_sb_res, "corpus_n", None)
-                _label = ("citation handles from a public %s-chunk lexical index, "
-                          "not semantic retrieval, not the full brain graph"
-                          % (_corpus if isinstance(_corpus, int) else "public"))
-                _meta = {**base_meta, "status": "LIVE", "used": True, "label": _label,
-                         "schema": getattr(_sb_res, "schema", None),
-                         "handles": _sb_res.handles,          # VERBATIM from the API
-                         "scores": getattr(_sb_res, "scores", []),   # VERBATIM
-                         "honesty": getattr(_sb_res, "honesty", ""),  # VERBATIM
-                         "corpus_n": _corpus,
-                         "content_access": getattr(_sb_res, "content_access", None)}
-                return ([{"role": "system", "content": _cite}] + messages), _meta
-        return messages, {**base_meta, "status": "UNAVAILABLE", "used": False,
-                          "error": (getattr(_sb_res, "error", None)
-                                    or "no LIVE handles returned")}
 
     def _ac_hf_chat(messages, max_tokens=640, want_model=None):
         """Call the OpenAI-compatible HF Router server-side, 2x retry + roster
@@ -11782,8 +11798,8 @@ try:
                 "runnable code when relevant.")},
             {"role": "user", "content": query},
         ]
-        # SECOND-BRAIN seam (SZL_SECOND_BRAIN_RAG=1): may prepend ONE citation
-        # system message; with the flag unset this returns (messages, None)
+        # SECOND-BRAIN seam (SZL_SECOND_BRAIN_RAG=1): may attach ONE untrusted
+        # user/data message; with the flag unset this returns (messages, None)
         # untouched — zero behavior change.
         messages, _sb_meta = _ac_second_brain_augment(query, messages)
         res = _ac_hf_chat(messages)
@@ -11808,12 +11824,30 @@ try:
         return fail, "generative_error", _fail_meta
 
     async def _ac_route_impl(request: "Request", auto: bool):
+        # Reuse the byte-pinned shared principal; no body can confer authority.
+        # This gate precedes body parsing, inference, retrieval and receipt emission.
+        try:
+            from szl_operator_auth import operator_refusal
+            refusal = operator_refusal(request, "a11oy.code.completion")
+        except Exception:
+            return JSONResponse({"status": "BLOCKED", "error": "operator authorization unavailable"},
+                                status_code=503)
+        if refusal is not None:
+            return refusal
         body, _err = await _safe_json_body(request)
         if _err is not None:
             return _err
         if not isinstance(body, dict):
             body = {}
-        query = (body.get("query") or body.get("prompt") or body.get("message") or "").strip()
+        query = body.get("query") or body.get("prompt") or body.get("message") or ""
+        if not isinstance(query, str):
+            return JSONResponse({"error": "query must be a string"}, status_code=400)
+        try:
+            if len(query.encode("utf-8")) > 8192:
+                return JSONResponse({"error": "query exceeds 8192 UTF-8 bytes"}, status_code=400)
+        except UnicodeError:
+            return JSONResponse({"error": "query must be valid UTF-8"}, status_code=400)
+        query = query.strip()
         if not query:
             return JSONResponse({"error": "missing 'query'"}, status_code=400)
         axis_scores = body.get("axis_scores")
@@ -11866,9 +11900,13 @@ try:
             "roster": _ac_open_weight_roster(),
             "tiers": [t["tier"] for t in _a11oy_code_router.TIERS],
             "doctrine": "v11",
-            "honesty": ("Tier selection, organ routing, Λ-signal and the signed receipt are "
-                        "real deterministic math. Text completion is LIVE when HF_TOKEN is "
-                        "present, else an honest deterministic stub — never a fake answer."),
+            "evidence_class": "DECLARED",
+            "runtime_verification": "UNKNOWN",
+            "signature_verification": "UNKNOWN",
+            "honesty": ("This GET reports configured routing and inference mode only. "
+                        "A present credential is not successful inference or signer readiness. "
+                        "It performs no model probe and emits no receipt. Routing is deterministic; "
+                        "runtime and signature verification require separate evidence."),
         })
 
     @app.get("/api/a11oy/v1/code/index")

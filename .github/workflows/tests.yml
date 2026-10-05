@@ -40,6 +40,8 @@ jobs:
           tests/test_atelier_curated_snapshot.py
           tests/test_site_route_aliases.py
           tests/test_operator_auth_code_routes.py
+          tests/test_second_brain_bridge.py
+          tests/test_code_completion_boundaries.py
 
   python-energy-measurement:
     name: Energy exporter measurement and null-evidence contract
