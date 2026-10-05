@@ -80,6 +80,36 @@ All reports retain `prior_provider_effects: NOT_ESTABLISHED`, false provider-obj
 verification and false retry/restore/deployment flags. `provider_writes_performed`
 describes this read-only inspection, not the prior attempt.
 
+## Exact retained-artifact reconciliation
+
+The separate manual `gdw-artifact-readonly-triage.yml` contract can narrow the
+remaining artifact-object ambiguity without changing the fixed inspector above.
+It accepts only the exact current protected-main SHA on attempt 1, verifies its
+signed commit and active native run, and re-verifies the fixed 62ca run, complete
+job census, failed acquisition step, and safe failed-acquisition artifact
+identity before any private provider read.
+
+The runner reconstructs the current qualified GDW candidate in disposable
+private storage. It validates every retained exported row before the first
+artifact-object request, derives the canonical writer's deterministic object
+paths, and admits only that finite exact set to a read-only adapter. Present
+objects are downloaded only into runner-private temporary storage and checked
+against their expected size and SHA256, followed by a second exact identity
+observation. The dataset revision and HEAD presence, protected source, captured
+originals, and candidate digest must remain unchanged across the observation.
+
+The uploaded v2 report contains only counts, a closed current-state
+classification, and aggregate identity hashes. It contains no object path,
+owner ID, payload, captured database, secret, or provider error text. The
+classifications are limited to `ALL_EXPECTED_OBJECTS_PRESENT_AND_VALIDATED_AT_READ_TIME`,
+`PARTIAL_EXPECTED_OBJECT_SET_PRESENT_AT_READ_TIME`, and
+`NO_EXPECTED_OBJECTS_PRESENT_AT_READ_TIME`. They concern only the exact retained
+set justified by the current candidate. Bucket history and historical writer
+identity are not available through this API, so every result retains
+`historical_writer_attribution: NOT_ESTABLISHED` and
+`prior_provider_effects: NOT_ESTABLISHED`. None is retry, restore, publication,
+or deployment authority.
+
 The preservation report last explicitly observed `RUNTIME_ERROR` at
 `2026-10-05T04:32:14.881806+00:00`. The acquisition source requires a PAUSED
 readback before entering artifact publication; that is sequencing evidence.

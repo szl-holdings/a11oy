@@ -5,6 +5,7 @@
 
 import ast
 import hashlib
+import inspect
 import json
 from pathlib import Path
 import sqlite3
@@ -13,9 +14,66 @@ import time
 import pytest
 import yaml
 
+import gdw_runtime
 from scripts import triage_gdw_artifacts_readonly as triage
 from tests.test_gdw_durable_runtime import stores
 from tests.test_gdw_durable_artifacts import exported, copy_database
+from tests.test_gdw_runtime import _queued_proof
+
+
+class ReadOnlyArtifactAPI:
+    endpoint = "https://huggingface.co"
+
+    def __init__(self, objects, *, reported_size_delta=0, move_after_download=False,
+                 failure=None):
+        self.objects = dict(objects)
+        self.reported_size_delta = reported_size_delta
+        self.move_after_download = move_after_download
+        self.failure = failure
+        self.calls = []
+        self.downloaded = False
+
+    def bucket_info(self, *, bucket_id):
+        self.calls.append(("bucket_info", bucket_id))
+        return {"id": bucket_id, "private": True}
+
+    def get_bucket_paths_info(self, *, bucket_id, paths):
+        self.calls.append(("get_bucket_paths_info", tuple(paths)))
+        if self.failure:
+            raise RuntimeError(self.failure)
+        path = paths[0]
+        if path not in self.objects:
+            return []
+        data = self.objects[path]
+        suffix = "b" if self.move_after_download and self.downloaded else "a"
+        return [{"path": path, "type": "file", "size": len(data) + self.reported_size_delta,
+                 "xet_hash": suffix * 64}]
+
+    def download_bucket_files(self, *, bucket_id, files, raise_on_missing_files):
+        self.calls.append(("download_bucket_files", len(files), raise_on_missing_files))
+        assert raise_on_missing_files is True and len(files) == 1
+        observed, target = files[0]
+        Path(target).write_bytes(self.objects[observed["path"]])
+        self.downloaded = True
+
+
+def retained_candidate(stores, tmp_path, *, count=1):
+    exported(stores)
+    if count == 2:
+        _queued_proof(stores.gdw, request_id="request-2")
+        report = gdw_runtime.drain_once(limit=1, lease_seconds=30,
+                                        worker_id="artifact-fixture-2", workspace=stores.gdw)
+        assert report["exported"] == 1 and report["failed"] == 0
+    return copy_database(stores, tmp_path)
+
+
+def planned_objects(stores, database, tmp_path):
+    pending, summary = triage.local_artifact_plan(
+        database, tmp_path / "private-plan", time.monotonic() + 10,
+        logical_roots=stores.gate.artifacts.roots,
+    )
+    return pending, summary, {path: physical.read_bytes()
+                              for path, (physical, _digest, _size) in pending.items()}
 
 
 def test_retained_rows_reach_blocked_callback_without_upload_or_database_change(stores, tmp_path):
@@ -54,6 +112,205 @@ def test_empty_retained_set_does_not_claim_artifact_publication(stores, tmp_path
     assert observed["publication_callback_reached"] is False
 
 
+def test_complete_retained_set_is_planned_without_calling_publisher(stores, tmp_path):
+    database = retained_candidate(stores, tmp_path)
+    before = database.read_bytes()
+    count = len(stores.artifact_publications)
+    pending, summary, objects = planned_objects(stores, database, tmp_path)
+    assert len(pending) == summary["expected_object_count"] == len(objects) == 1
+    assert summary["all_retained_rows_validated"] is summary["candidate_unchanged"] is True
+    assert len(summary["expected_object_set_sha256"]) == 64
+    assert len(stores.artifact_publications) == count
+    assert database.read_bytes() == before
+
+
+def test_prepare_remains_the_only_artifact_publication_entrypoint():
+    from gdw_durable_artifacts import ArtifactCache
+    assert ".publish(" not in inspect.getsource(ArtifactCache._validated_objects)
+    assert inspect.getsource(ArtifactCache.prepare).count("self.publish(") == 1
+
+
+@pytest.mark.parametrize("presence,classification", [
+    ("all", "ALL_EXPECTED_OBJECTS_PRESENT_AND_VALIDATED_AT_READ_TIME"),
+    ("none", "NO_EXPECTED_OBJECTS_PRESENT_AT_READ_TIME"),
+    ("partial", "PARTIAL_EXPECTED_OBJECT_SET_PRESENT_AT_READ_TIME"),
+])
+def test_exact_current_object_set_is_classified_without_writer_attribution(
+        stores, tmp_path, presence, classification):
+    database = retained_candidate(stores, tmp_path, count=2)
+    pending, _summary, objects = planned_objects(stores, database, tmp_path)
+    assert len(objects) == 2
+    if presence == "none":
+        objects = {}
+    elif presence == "partial":
+        objects = {next(iter(objects.items()))[0]: next(iter(objects.items()))[1]}
+    api = ReadOnlyArtifactAPI(objects)
+    before = database.read_bytes()
+    result = triage.artifact_effect_observation(
+        api, database, tmp_path / "effect-observation", lambda: None,
+        time.monotonic() + 10, logical_roots=stores.gate.artifacts.roots,
+    )
+    assert result["classification"] == classification
+    assert result["present_object_count"] == len(objects)
+    assert result["missing_object_count"] == len(pending) - len(objects)
+    assert result["provider_objects_fully_validated"] is (presence == "all")
+    assert result["historical_writer_attribution"] == "NOT_ESTABLISHED"
+    assert result["provider_writes_performed"] is False
+    assert database.read_bytes() == before
+    serialized = json.dumps(result)
+    assert all(path not in serialized for path in pending)
+    assert "owner" not in serialized and "payload" not in serialized
+    assert not any(call[0] == "download_bucket_files" for call in api.calls) if presence == "none" else True
+
+
+def test_all_rows_validate_before_first_provider_read(stores, tmp_path):
+    database = retained_candidate(stores, tmp_path, count=2)
+    with sqlite3.connect(database) as connection:
+        rows = connection.execute(
+            "SELECT rowid,artifact_json FROM effect_outbox WHERE status='EXPORTED' ORDER BY rowid"
+        ).fetchall()
+        assert len(rows) == 2
+        changed = json.loads(rows[-1][1])
+        changed["sha256"] = "0" * 64
+        connection.execute("UPDATE effect_outbox SET artifact_json=? WHERE rowid=?",
+                           (json.dumps(changed), rows[-1][0]))
+    api = ReadOnlyArtifactAPI({})
+    with pytest.raises(Exception):
+        triage.artifact_effect_observation(
+            api, database, tmp_path / "invalid-effect-observation", lambda: None,
+            time.monotonic() + 10, logical_roots=stores.gate.artifacts.roots,
+        )
+    assert api.calls == []
+
+
+def test_mismatched_identity_blocks_before_any_private_download(stores, tmp_path):
+    database = retained_candidate(stores, tmp_path)
+    _pending, _summary, objects = planned_objects(stores, database, tmp_path)
+    api = ReadOnlyArtifactAPI(objects, reported_size_delta=1)
+    with pytest.raises(triage.TriageHeld):
+        triage.artifact_effect_observation(
+            api, database, tmp_path / "mismatch-observation", lambda: None,
+            time.monotonic() + 10, logical_roots=stores.gate.artifacts.roots,
+        )
+    assert not any(call[0] == "download_bucket_files" for call in api.calls)
+
+
+def test_object_identity_movement_during_readback_is_held(stores, tmp_path):
+    database = retained_candidate(stores, tmp_path)
+    _pending, _summary, objects = planned_objects(stores, database, tmp_path)
+    api = ReadOnlyArtifactAPI(objects, move_after_download=True)
+    with pytest.raises(triage.TriageHeld):
+        triage.artifact_effect_observation(
+            api, database, tmp_path / "moving-object-observation", lambda: None,
+            time.monotonic() + 10, logical_roots=stores.gate.artifacts.roots,
+        )
+    assert any(call[0] == "download_bucket_files" for call in api.calls)
+
+
+def test_missing_object_appearance_during_observation_is_held(stores, tmp_path):
+    database = retained_candidate(stores, tmp_path)
+    _pending, _summary, objects = planned_objects(stores, database, tmp_path)
+    class AppearingAPI(ReadOnlyArtifactAPI):
+        def __init__(self, values):
+            super().__init__(values)
+            self.observations = 0
+        def get_bucket_paths_info(self, *, bucket_id, paths):
+            self.observations += 1
+            if self.observations == 1:
+                self.calls.append(("get_bucket_paths_info", tuple(paths)))
+                return []
+            return super().get_bucket_paths_info(bucket_id=bucket_id, paths=paths)
+    api = AppearingAPI(objects)
+    with pytest.raises(triage.TriageHeld):
+        triage.artifact_effect_observation(
+            api, database, tmp_path / "appearing-object-observation", lambda: None,
+            time.monotonic() + 10, logical_roots=stores.gate.artifacts.roots,
+        )
+    assert not any(call[0] == "download_bucket_files" for call in api.calls)
+
+
+def test_source_movement_interrupts_exact_path_reads(stores, tmp_path):
+    database = retained_candidate(stores, tmp_path)
+    _pending, _summary, objects = planned_objects(stores, database, tmp_path)
+    calls = 0
+    def source():
+        nonlocal calls
+        calls += 1
+        if calls == 3:
+            raise triage.TriageHeld("READ_ONLY_TRIAGE_HELD")
+    api = ReadOnlyArtifactAPI(objects)
+    with pytest.raises(triage.TriageHeld):
+        triage.artifact_effect_observation(
+            api, database, tmp_path / "moving-source-observation", source,
+            time.monotonic() + 10, logical_roots=stores.gate.artifacts.roots,
+        )
+    assert not any(call[0] == "download_bucket_files" for call in api.calls)
+
+
+def test_private_head_movement_holds_after_object_observation(monkeypatch, tmp_path):
+    monkeypatch.syspath_prepend(str(triage.ROOT / "scripts"))
+    from scripts import acquire_gdw_durable_storage as acquisition
+    from scripts import qualify_gdw_store_recovery as recovery
+
+    monkeypatch.setattr(acquisition, "_read", lambda _path: b"{}")
+    monkeypatch.setattr(recovery, "_json", lambda _raw: {})
+    monkeypatch.setattr(recovery, "validate_historical_anchors", lambda *_args: None)
+    monkeypatch.setattr(recovery, "qualify_capture", lambda *_args, **_kwargs: {
+        "state": "LOGICAL_CONTINUITY_VERIFIED",
+        "provider_writes_performed": False,
+        "originals_mutated": False,
+        "captured_originals_unchanged": True,
+        "all_declared_stored_values_unchanged": True,
+        "restore_admitted": False,
+        "deployment_admitted": False,
+    })
+    heads = iter([
+        {"revision": "a" * 40, "head_presence": "ABSENT"},
+        {"revision": "b" * 40, "head_presence": "ABSENT"},
+    ])
+    monkeypatch.setattr(triage, "private_head_metadata", lambda _api: next(heads))
+    monkeypatch.setattr(triage, "artifact_effect_observation", lambda *_args, **_kwargs: {
+        "classification": "NO_EXPECTED_OBJECTS_PRESENT_AT_READ_TIME",
+    })
+    api = type("SyntheticAPI", (), {"endpoint": "https://huggingface.co"})()
+    with pytest.raises(triage.TriageHeld):
+        triage.observe_capture(api, tmp_path, lambda: None, time.monotonic() + 10)
+
+
+@pytest.mark.parametrize("method", ["batch_bucket_files", "create_commit", "upload_file",
+                                    "delete_file", "pause_space", "restart_space"])
+def test_exact_object_reader_exposes_no_mutation_method(stores, tmp_path, method):
+    database = retained_candidate(stores, tmp_path)
+    pending, _summary, _objects = planned_objects(stores, database, tmp_path)
+    admitted = {path: (digest, size)
+                for path, (_physical, digest, size) in pending.items()}
+    directory = tmp_path / "reader"
+    directory.mkdir(mode=0o700)
+    reader = triage.ReadOnlyArtifactHub(ReadOnlyArtifactAPI({}), admitted, directory,
+                                        lambda: None, time.monotonic() + 10)
+    with pytest.raises(AttributeError):
+        getattr(reader, method)
+
+
+def test_exact_object_reader_rejects_unplanned_path_before_sdk(stores, tmp_path):
+    database = retained_candidate(stores, tmp_path)
+    pending, _summary, _objects = planned_objects(stores, database, tmp_path)
+    admitted = {path: (digest, size)
+                for path, (_physical, digest, size) in pending.items()}
+    api = ReadOnlyArtifactAPI({})
+    directory = tmp_path / "reader-unplanned"
+    directory.mkdir(mode=0o700)
+    reader = triage.ReadOnlyArtifactHub(api, admitted, directory,
+                                        lambda: None, time.monotonic() + 10)
+    unplanned = "a11oy/durable-artifacts/v1/" + "0" * 64 + "/" + "0" * 64 + ".json"
+    with pytest.raises(triage.TriageHeld):
+        reader.observe(unplanned)
+    with pytest.raises(triage.TriageHeld):
+        reader.download({"path": unplanned, "type": "file", "size": 1,
+                         "xet_hash": "a" * 64}, directory / "unplanned.json")
+    assert api.calls == []
+
+
 def environment():
     source = "a" * 40
     return source, {"GITHUB_ACTIONS": "true", "GITHUB_REPOSITORY": triage.REPOSITORY,
@@ -61,6 +318,80 @@ def environment():
         "GITHUB_RUN_ATTEMPT": "1", "GITHUB_JOB": "triage", "GITHUB_SHA": source,
         "GITHUB_WORKFLOW_SHA": source, "GITHUB_RUN_ID": "900",
         "GITHUB_WORKFLOW_REF": f"{triage.REPOSITORY}/{triage.WORKFLOW}@refs/heads/main"}
+
+
+def prior_native_metadata():
+    expected = {
+        111616471901: ("Admit the queued source before provider mutation", "success"),
+        111616522098: ("Reconcile the held acquisition before provider mutation", "success"),
+        111616609573: ("Check manual authority prerequisites before provider writes", "success"),
+        triage.PRIOR_JOB: ("Acquire qualified private storage through the canonical publisher", "failure"),
+        111616769593: ("Resume the canonical Space without changing its allocation", "skipped"),
+        111616946613: ("Deploy, source-bind, and attest exact surface", "skipped"),
+        111616947075: ("Verify post-deploy configuration and bounded live proofs", "skipped"),
+        111616947443: ("Publish and live-verify six domain-native flagship Spaces", "skipped"),
+        111616948013: ("Probe and ingest exact post-deploy readiness verdict", "skipped"),
+        111616948054: ("Prove exact live source, runtime, routes, and singleton state", "skipped"),
+        111616948338: ("Rebind and functionally verify the existing Finance projection", "skipped"),
+        111616948584: ("Re-authorize exact protected main after all publication proofs", "skipped"),
+        111616948662: ("Await strict live and repository parity", "skipped"),
+    }
+    jobs = []
+    for job_id, (name, conclusion) in expected.items():
+        steps = []
+        if job_id == triage.PRIOR_JOB:
+            steps = [
+                {"name": "Reconcile again, verify native candidates, and acquire private storage once",
+                 "status": "completed", "conclusion": "failure"},
+                {"name": "Install the persistent old-source guard and both managed configurations once",
+                 "status": "completed", "conclusion": "skipped"},
+                {"name": "Retain only the immutable selector and safe guarded configuration result",
+                 "status": "completed", "conclusion": "success"},
+            ]
+        jobs.append({"id": job_id, "name": name, "conclusion": conclusion, "status": "completed",
+                     "head_sha": triage.PRIOR_SOURCE, "run_id": triage.PRIOR_RUN,
+                     "run_attempt": triage.PRIOR_ATTEMPT, "steps": steps})
+    return {
+        "run": {"id": triage.PRIOR_RUN, "run_attempt": 1, "head_sha": triage.PRIOR_SOURCE,
+                "head_branch": "main", "event": "push", "path": ".github/workflows/hf-sync.yml",
+                "status": "completed", "conclusion": "failure",
+                "repository": {"id": 1225834126, "full_name": triage.REPOSITORY},
+                "head_repository": {"id": 1225834126}},
+        "jobs": {"total_count": len(jobs), "jobs": jobs},
+        "artifact": {"id": triage.PRIOR_ARTIFACT,
+                     "name": f"canonical-durable-acquisition-{triage.PRIOR_RUN}-1",
+                     "size_in_bytes": triage.PRIOR_ARTIFACT_BYTES, "expired": False,
+                     "digest": "sha256:" + triage.PRIOR_ARTIFACT_SHA256,
+                     "workflow_run": {"id": triage.PRIOR_RUN, "repository_id": 1225834126,
+                                      "head_repository_id": 1225834126, "head_branch": "main",
+                                      "head_sha": triage.PRIOR_SOURCE}},
+    }
+
+
+@pytest.mark.parametrize("defect", [None, "artifact_digest", "job_conclusion", "run_source"])
+def test_prior_ambiguous_attempt_requires_exact_native_metadata(monkeypatch, defect):
+    state = prior_native_metadata()
+    if defect == "artifact_digest": state["artifact"]["digest"] = "sha256:" + "0" * 64
+    if defect == "job_conclusion":
+        next(job for job in state["jobs"]["jobs"] if job["id"] == triage.PRIOR_JOB)["conclusion"] = "success"
+    if defect == "run_source": state["run"]["head_sha"] = "0" * 40
+    def response(_session, suffix):
+        if suffix.startswith("actions/runs/") and suffix.endswith("jobs?per_page=100"):
+            return state["jobs"]
+        if suffix.startswith("actions/runs/"):
+            return state["run"]
+        if suffix == f"actions/artifacts/{triage.PRIOR_ARTIFACT}":
+            return state["artifact"]
+        raise AssertionError(suffix)
+    monkeypatch.setattr(triage, "github_json", response)
+    if defect is not None:
+        with pytest.raises(triage.TriageHeld):
+            triage.verify_prior_attempt(object())
+    else:
+        result = triage.verify_prior_attempt(object())
+        assert result["prior_native_metadata_verified"] is True
+        assert result["prior_stage"] == "ARTIFACT_PUBLICATION"
+        assert result["prior_stage_state"] == "BOUNDARY_ENTERED"
 
 
 @pytest.mark.parametrize("key,value", [("GITHUB_ACTIONS", "false"), ("GITHUB_REPOSITORY", "other/repo"),
@@ -90,7 +421,8 @@ def test_triage_source_has_no_provider_mutator_and_uses_real_readonly_qualificat
     source = Path(triage.__file__).read_text()
     tree = ast.parse(source)
     calls = {node.func.attr for node in ast.walk(tree) if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)}
-    assert not calls & {"pause_space", "restart_space", "resume_space", "add_bucket_files", "copy_bucket_files",
+    assert not calls & {"pause_space", "restart_space", "resume_space", "batch_bucket_files",
+        "add_bucket_files", "copy_bucket_files",
         "delete_repo", "delete_file", "create_commit", "upload_file", "upload_folder", "sync_bucket", "publish_artifact"}
     assert "recovery.ReadOnlyCaptureHub(api)" in source
     assert "qualified.get(\"provider_writes_performed\") is False" in source
@@ -163,6 +495,9 @@ def test_native_main_reaches_readonly_observation_with_real_private_output_conte
     def verified(session, context):
         assert context["source_revision"] == source
         calls.append("native-identity")
+    def prior(session):
+        calls.append("prior-attempt")
+        return {"prior_native_metadata_verified": True}
     def api_factory(**kwargs):
         assert kwargs == {"endpoint": "https://huggingface.co", "token": "synthetic-hf-token"}
         calls.append("read-client")
@@ -180,13 +515,14 @@ def test_native_main_reaches_readonly_observation_with_real_private_output_conte
     monkeypatch.setitem(sys.modules, "requests", SimpleNamespace(Session=Session))
     monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(__version__="1.31.0", HfApi=api_factory))
     monkeypatch.setattr(triage, "verify_native", verified)
+    monkeypatch.setattr(triage, "verify_prior_attempt", prior)
     monkeypatch.setattr(triage, "observe_capture", observation)
     disabled = logging.root.manager.disable
     try:
         assert triage.main() == (2 if observation_fails else 0)
     finally:
         logging.disable(disabled)
-    assert calls == ["native-identity", "read-client", "observation"]
+    assert calls == ["native-identity", "prior-attempt", "read-client", "observation"]
     captured = capfd.readouterr()
     assert "private-capture-test-marker" not in captured.out + captured.err
     assert "synthetic-hf-token" not in captured.out + captured.err
