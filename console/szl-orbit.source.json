@@ -1,0 +1,15 @@
+{
+  "schema": "szl.brand-projection.v1",
+  "source_repository": "szl-holdings/szl-brand",
+  "source_commit": "2594f7f726cb14c6f123a948ad1c2d1d39ac9497",
+  "source_path": "kit/logos/orbit-v2/szl-orbit.svg",
+  "source_blob_sha": "b9eaa9d496e98b97ae24de93d7f04c248d9261be",
+  "sha256": "84a23d7b2a6dd198378ded91e52c545df2943fd33cbc4a67dd4184e94f4d94fb",
+  "destination_path": "console/szl-orbit.svg",
+  "favicon_compatibility_path": "console/social-preview-v5.svg",
+  "preserved_banner_path": "console/social-preview-v5-banner.svg",
+  "preserved_banner_blob_sha": "b3ddb97637d6d4a055ac3b449b68223366bdc742",
+  "product_name": "a11oy",
+  "live_deployment": "NOT_ATTESTED",
+  "scope": "Parent SZL identity and existing native homepage favicon binding only. Product navigation marks, vertical icons, social PNG and historical evidence remain unchanged."
+}
