@@ -166,8 +166,13 @@ class ArtifactCache:
             temporary.unlink(missing_ok=True)
         return path, True
 
-    def prepare(self, database: Path, deadline: float) -> dict[str, Any]:
-        """Bind every retained exported artifact before acknowledging its DB."""
+    def _validated_objects(self, database: Path, deadline: float) -> tuple[dict, dict[str, Any]]:
+        """Reconstruct and validate the complete retained set before provider access.
+
+        The returned object paths and local paths are private working data for a
+        caller-owned provider adapter. They must never be copied into a public
+        diagnostic record. ``prepare`` remains the only publication entrypoint.
+        """
         from gdw_workspace import (
             GDWWorkspace, _canonical_timestamp, _exported_effect_lifecycle,
             _EXPORTED_EFFECT_COMPACTED,
@@ -242,6 +247,19 @@ class ArtifactCache:
                     pending[object_path] = (physical_path, digest, len(encoded))
                     report["reconstructed_count"] += int(reconstructed)
                     boundary = "ARTIFACT_ROW_READ_UNAVAILABLE"
+            _deadline(deadline)
+            return pending, report
+        except Exception as error:
+            raise DurableStorageUnavailable(_preparation_diagnostic(error, boundary)) from None
+        finally:
+            if connection is not None:
+                connection.close()
+
+    def prepare(self, database: Path, deadline: float) -> dict[str, Any]:
+        """Bind every retained exported artifact before acknowledging its DB."""
+        pending, report = self._validated_objects(database, deadline)
+        boundary = "ARTIFACT_PROVIDER_CALL_UNAVAILABLE"
+        try:
             # Validate all retained rows before making any provider call. A bad
             # later row cannot cause partial publication of an unqualified set.
             for object_path, (physical_path, digest, size) in pending.items():
@@ -260,6 +278,3 @@ class ArtifactCache:
             return dict(report)
         except Exception as error:
             raise DurableStorageUnavailable(_preparation_diagnostic(error, boundary)) from None
-        finally:
-            if connection is not None:
-                connection.close()
