@@ -65,6 +65,12 @@ def test_restrained_aliases_re_resolve_on_nested_surfaces():
     assert "background" not in body
     assert "--bg:" not in body
 
+    assert "--color-space-900" not in FOCUS_CSS and "--color-gray-50" not in FOCUS_CSS
+    assert "--bg:var(--color-graphite-900)" in _rule(FOCUS_CSS, 'html[data-console-style="restrained"]')
+    assert "--bg:var(--color-paper-100)" in _rule(
+        FOCUS_CSS, 'html[data-console-style="restrained"][data-surface="light"]'
+    )
+
     light = _rule(
         FOCUS_CSS,
         'html[data-console-style="restrained"][data-surface="light"],\n'
@@ -73,18 +79,18 @@ def test_restrained_aliases_re_resolve_on_nested_surfaces():
     assert "--health-ok:var(--color-success-strong)" in light
 
 
-def test_every_vendored_kanchay_copy_is_bundle_1_2_0():
+def test_every_vendored_kanchay_copy_is_bundle_1_3_0():
     design = {
         (ROOT / copy / "szl-design-system.css").read_bytes() for copy in KANCHAY_COPIES
     }
     assert len(design) == 1
     css = design.pop().decode("utf-8")
-    assert "KANCHAY Design System v1.2.0" in css
+    assert "KANCHAY Design System v1.3.0" in css
     assert ':root, [data-surface="dark"] {' in css
 
     for copy in KANCHAY_COPIES:
         source = json.loads((ROOT / copy / "SOURCE.json").read_text(encoding="utf-8"))
-        assert source["version"] == "1.2.0", copy
+        assert source["version"] == "1.3.0", copy
         for name, digest in source["sha256"].items():
             path = ROOT / copy / name
             if path.exists():

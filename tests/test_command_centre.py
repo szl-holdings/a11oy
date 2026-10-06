@@ -198,8 +198,8 @@ def test_missing_page_is_unavailable(client, monkeypatch, tmp_path):
 
 def test_vendor_exception_is_byte_bound_not_application_exemption():
     provenance = json.loads((centre.ROOT / 'szl' / 'SOURCE.json').read_text(encoding='utf-8'))
-    assert provenance['version'] == '1.2.0'
-    assert provenance['source_commit'] == '20b551bb94f505b1c550d97fe1e8ee047f4d865a'
+    assert provenance['version'] == '1.3.0'
+    assert provenance['source_commit'] == '48344c27292dfefb7bb61823742ffda7fdd951ac'
     for name, digest in provenance['sha256'].items():
         assert hashlib.sha256((centre.ROOT / 'szl' / name).read_bytes()).hexdigest() == digest
     from scripts.check_banned_tokens import Allowlist
