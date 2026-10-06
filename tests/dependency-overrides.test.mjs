@@ -259,3 +259,40 @@ test('the actually installed Ajv URI parser normalizes encoded uppercase host oc
   assert.equal(uri.parse('https://EXAMPLE.com/a%2Fb').host, 'example.com');
   assert.equal(uri.normalize('https://example.com/a%2Fb'), 'https://example.com/a%2Fb', 'reserved path octets remain data');
 });
+
+test('every source-map-js resolution uses the reviewed GHSA-68fv-2mgg-jv7q patch', () => {
+  const pkg = JSON.parse(source('package.json'));
+  const workspace = yaml.load(source('pnpm-workspace.yaml'));
+  const lock = yaml.load(source('pnpm-lock.yaml'));
+  for (const policy of [pkg.overrides, pkg.pnpm.overrides, workspace.overrides, lock.overrides]) {
+    assert.equal(policy['source-map-js'], '1.2.2');
+  }
+  for (const section of ['packages', 'snapshots']) {
+    const copies = Object.keys(lock[section]).filter((key) => key.startsWith('source-map-js@'));
+    assert.deepEqual(copies, ['source-map-js@1.2.2'], `${section}: inspect every resolved copy`);
+  }
+  assert.equal(lock.packages['source-map-js@1.2.2'].resolution.integrity,
+    'sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw==');
+  for (const [key, snapshot] of Object.entries(lock.snapshots)) {
+    if (snapshot.dependencies?.['source-map-js']) {
+      assert.equal(snapshot.dependencies['source-map-js'], '1.2.2', key);
+    }
+  }
+});
+
+test('the installed PostCSS source-map dependency preserves ordinary mapping round trips', () => {
+  const knowledgeRequire = createRequire(new URL('../packages/a11oy-knowledge/package.json', import.meta.url));
+  const vitestRequire = createRequire(knowledgeRequire.resolve('vitest/package.json'));
+  const viteRequire = createRequire(vitestRequire.resolve('vite/package.json'));
+  const postcssRequire = createRequire(viteRequire.resolve('postcss/package.json'));
+  assert.equal(postcssRequire('source-map-js/package.json').version, '1.2.2');
+  const { SourceMapGenerator, SourceMapConsumer } = postcssRequire('source-map-js');
+  const generator = new SourceMapGenerator({ file: 'output.css' });
+  generator.addMapping({ generated: { line: 1, column: 0 },
+    original: { line: 3, column: 2 }, source: 'input.css', name: 'color' });
+  generator.setSourceContent('input.css', '.sample { color: blue; }');
+  const consumer = new SourceMapConsumer(generator.toJSON());
+  assert.deepEqual(consumer.originalPositionFor({ line: 1, column: 0 }),
+    { source: 'input.css', line: 3, column: 2, name: 'color' });
+  assert.equal(consumer.sourceContentFor('input.css'), '.sample { color: blue; }');
+});
