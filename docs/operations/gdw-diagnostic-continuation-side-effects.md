@@ -6,32 +6,32 @@
 This manifest describes every reachable provider mutation in the single
 main-push transition introduced after the
 accepted read-only diagnostic run
-[`37318344262`](https://github.com/szl-holdings/a11oy/actions/runs/37318344262).
+[`37406817882`](https://github.com/szl-holdings/a11oy/actions/runs/37406817882).
 It is not a claim that the failed historical acquisition had no provider
 effects. Historical provider effects and writer attribution remain
 `NOT_ESTABLISHED`.
 
 ## Fixed authority and scope
 
-- Accepted diagnostic source: protected, signed main
-  `1b2775485b05915662624c947004cd887b21cf5d`.
-- Transition predecessor: protected, signed descendant
-  `e97df96f1a228b866287f17d8792bea8d82b415d`. The effectful source must be
-  this commit's signed direct child; the ancestry comparison must retain the
-  accepted diagnostic source as its merge base.
-- The predecessor's automatic run
-  [`37401397483`](https://github.com/szl-holdings/a11oy/actions/runs/37401397483)
-  stopped in read-only artifact-namespace observation. Artifact `11385362377`
-  records `provider_writes_performed=false`; pause, acquisition, bootstrap,
-  configuration, deployment, and parity all skipped.
-  The isolated observer omitted the reviewed canonical artifact-root bindings,
-  so native retained-row validation held before its first provider read. The
-  successor binds those roots inside the credential-isolated child rather than
-  inheriting any caller-selected path.
-- Diagnostic artifact: `11349341865`, archive SHA-256
-  `055c8200399d6f27e7fee4b0a371e775803dc62daf9cdbb396ae445524025d21`,
+- Accepted diagnostic source and transition predecessor: protected, signed main
+  `f4a1a45f153cf5a4c42f768e2dd2e089730358d8`. The effectful source must be
+  this commit's signed direct child.
+- That predecessor's automatic first-attempt run
+  [`37405820542`](https://github.com/szl-holdings/a11oy/actions/runs/37405820542)
+  entered artifact publication and stopped after its five-minute publication
+  budget. Its closed artifact `11387128425` records
+  `ARTIFACT_PROVIDER_CALL_UNAVAILABLE`, `ARTIFACT_PUBLICATION`,
+  `BOUNDARY_ENTERED`, and `provider_effects=NOT_ESTABLISHED`; every later
+  acquisition, bootstrap, configuration, deployment, and parity job skipped.
+- The exact-source read-only diagnostic
+  [`37406817882`](https://github.com/szl-holdings/a11oy/actions/runs/37406817882)
+  then downloaded and validated every object it found without provider mutation.
+  It observed 72 exact retained objects and 152 missing objects from the planned
+  224-object set. It did not establish who wrote the 72 objects.
+- Diagnostic artifact: `11386978354`, archive SHA-256
+  `01ecf2e4c12fa67af581e6563fb84d64371d2c6725cd49fc51cd5583ac1f798a`,
   closed report SHA-256
-  `ecfc526f3e68775934e0f0c448670cc3c0c0bd899072ed579bb6d26ae0e4d250`.
+  `76705ff024fb0e85c101569fc81e25fafe2958805df7bcb9b8f7daf001d867ce`.
 - Existing Space: `SZLHOLDINGS/a11oy` only.
 - Existing private dataset and bucket: `SZLHOLDINGS/szl-evidence` only. Their
   privacy metadata must read back as private; this transition does not create,
@@ -93,35 +93,42 @@ emits the qualification receipt or an admission output.
    review. Once the acknowledged bootstrap advances the dataset revision,
    downstream reviewed configuration and deployment boundaries use their own
    current-parent and readback contracts.
-6. All 224 content-addressed retained-artifact paths derived from the freshly
-   reproduced candidate are absent. The continuation proves the entire owned
-   `a11oy/durable-artifacts/v1` prefix is empty with one bounded lazy listing,
-   which is stronger than checking only those 224 paths and avoids hundreds of
-   per-path provider/source requests. Any prefix entry holds the continuation.
-   The exact planned set hash is
+6. The freshly reproduced candidate derives exactly 224 content-addressed
+   retained-artifact paths. The whole owned `a11oy/durable-artifacts/v1` prefix
+   must still contain exactly the 72 diagnostic objects, with exact path, size,
+   and Xet identities, and no other entry. The accepted observed-set hash is
+   `aa01f33429b4311894f6ffd5f1dd083d4fed06381b956c2025269a5011db7b24`;
+   the complete planned-set hash is
    `7a28c53fa647e639375c6a90d3e34e89fe74bc2004f8161b5f38ac793301be42`.
+   Historical writer attribution for those 72 remains `NOT_ESTABLISHED`.
 7. The canonical Space is in `RUNTIME_ERROR` or already `PAUSED`; its revision,
    mount, public variables, secret names, stopped original object identities,
    and native old-runtime rejection guard match the reviewed contract.
 
-The worker binds the complete 224-path set before the native old-runtime guard,
-then rechecks the entire set and absent HEAD immediately before a pause request.
+The worker binds the complete 224-path set and exact 72-object partial namespace
+before the native old-runtime guard, then rechecks both and absent HEAD
+immediately before a pause request.
 The earlier scan is not reused as pause authority after that bounded guard.
 
 After a successful pause readback, the worker reproduces the candidate again,
-recomputes the same 224-path set, and proves every path and HEAD still absent
-immediately before object publication.
+recomputes the same 224-path set, and proves the exact partial namespace and
+absent HEAD remain unchanged immediately before object publication.
 
 ## Allowed effects, in order
 
 1. If the canonical Space is in `RUNTIME_ERROR`, submit one pause request and
    require two `PAUSED` readbacks. If it is already `PAUSED`, submit no pause.
-2. Add exactly the 224 candidate-derived retained-artifact objects under
-   `a11oy/durable-artifacts/v1/`. Before each first add, protected main and the
-   absent HEAD are rechecked and that exact path must still be absent. Each
-   returned object is downloaded privately, byte-hashed, and identity-read back
-   before it becomes worker-owned. The later round-trip pass may only re-read
-   those exact acknowledged identities; it cannot add a second copy.
+2. Preserve the 72 exact pre-existing retained-artifact objects and add only the
+   152 missing candidate-derived objects under `a11oy/durable-artifacts/v1/`.
+   Protected main, absent HEAD, and the complete 72-object namespace are
+   rechecked immediately before one bounded SDK batch submission. The pinned
+   SDK submits these 152 additions in one non-transactional request; an
+   exception or lost reply is never retried. After a synchronous response, all
+   224 objects are downloaded in one grouped readback, byte-hashed, and checked
+   for stable Xet identities. Only the 152 additions can become acknowledged by
+   this worker; the 72 remain pre-existing with writer attribution
+   `NOT_ESTABLISHED`. The later round-trip pass may only re-read the same 224
+   identities and cannot add a second copy.
 3. Add exactly two fresh immutable SQLite snapshot objects, one for `gdw` and
    one for `series_a`, under a new operation-scoped
    `a11oy/durable-store/v1/objects/` prefix. Both closed snapshots are fully
@@ -190,9 +197,10 @@ immediately before object publication.
 
 ## Acknowledgement and partial-failure behavior
 
-- An object is worker-owned only after upload response, private byte download,
-  SHA-256 verification, and stable Xet identity readback. Current emptiness is
-  never used to infer who performed a historical write.
+- A newly added object is worker-acknowledged only after the one batch returns,
+  all 224 private bytes download and pass SHA-256 verification, and the complete
+  Xet identity set remains stable. The 72 pre-existing objects are deliberately
+  kept in a separate set and never relabelled as writes by this worker.
 - A transport timeout, killed worker, malformed response, moved identity,
   changed source, changed original, path collision, dataset-parent conflict, or
   failed readback stops the run. The closed failure record continues to label

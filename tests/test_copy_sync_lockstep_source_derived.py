@@ -189,7 +189,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             self.reviewed_workflow, ownership_helper=self.ownership + b"\n# unreviewed transitive edit\n"))
 
     def test_reconciliation_workflow_overrides_and_artifact_widening_are_byte_bound(self) -> None:
-        marker = "      - name: Requalify the fixed capture and exact empty provider namespace\n"
+        marker = "      - name: Requalify the fixed capture and exact partial provider namespace\n"
         cases = (
             ("scripts/reconcile_gdw_diagnostic_continuation.py", "scripts/unknown_reconciliation.py"),
             (marker, marker + "        continue-on-error: true\n"),

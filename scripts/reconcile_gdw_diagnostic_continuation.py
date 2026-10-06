@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
-"""Admit one fresh continuation from the accepted read-only GDW diagnostic.
+"""Admit one exact continuation from the accepted read-only GDW diagnostic.
 
 The historical acquisition is never retried.  This helper binds its fixed
 read-only successor diagnostic, re-qualifies the preserved capture, and proves
-the exact current retained-artifact set and private HEAD are still absent.  It
-performs no provider mutation.  The effectful worker must repeat these fences
-before its own first write and must never be re-run after an uncertain outcome.
+the exact partial retained-artifact set and absent private HEAD are unchanged.
+It performs no provider mutation.  The effectful worker must repeat these
+fences before its own first write and never treats an uncertain outcome as an
+acknowledged continuation.
 """
 from __future__ import annotations
 
@@ -34,18 +35,20 @@ from scripts import triage_gdw_artifacts_readonly as triage
 
 SCHEMA = "szl.gdw-diagnostic-continuation-prerequisite/v1"
 CLASSIFICATION_SCHEMA = "szl.gdw-diagnostic-continuation-classification/v1"
-DIAGNOSTIC_SOURCE = "1b2775485b05915662624c947004cd887b21cf5d"
-TRANSITION_PARENT_SOURCE = "e97df96f1a228b866287f17d8792bea8d82b415d"
-DIAGNOSTIC_RUN = 37318344262
+DIAGNOSTIC_SOURCE = "f4a1a45f153cf5a4c42f768e2dd2e089730358d8"
+TRANSITION_PARENT_SOURCE = "f4a1a45f153cf5a4c42f768e2dd2e089730358d8"
+DIAGNOSTIC_RUN = 37406817882
 DIAGNOSTIC_ATTEMPT = 1
-DIAGNOSTIC_ARTIFACT = 11349341865
-DIAGNOSTIC_ARTIFACT_BYTES = 1091
-DIAGNOSTIC_ARCHIVE_SHA256 = "055c8200399d6f27e7fee4b0a371e775803dc62daf9cdbb396ae445524025d21"
-DIAGNOSTIC_REPORT_SHA256 = "ecfc526f3e68775934e0f0c448670cc3c0c0bd899072ed579bb6d26ae0e4d250"
-DIAGNOSTIC_DATASET_REVISION = "f5dbdcaea236db3b0d25b8d8cfe8d64369b25d78"
+DIAGNOSTIC_ARTIFACT = 11386978354
+DIAGNOSTIC_ARTIFACT_BYTES = 1103
+DIAGNOSTIC_ARCHIVE_SHA256 = "01ecf2e4c12fa67af581e6563fb84d64371d2c6725cd49fc51cd5583ac1f798a"
+DIAGNOSTIC_REPORT_SHA256 = "76705ff024fb0e85c101569fc81e25fafe2958805df7bcb9b8f7daf001d867ce"
+DIAGNOSTIC_DATASET_REVISION = "ae7fba43175d157e5b897ace06c5fea29d09f79b"
 EXPECTED_OBJECT_COUNT = 224
 EXPECTED_OBJECT_SET_SHA256 = "7a28c53fa647e639375c6a90d3e34e89fe74bc2004f8161b5f38ac793301be42"
-EMPTY_OBJECT_SET_SHA256 = "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+DIAGNOSTIC_PRESENT_OBJECT_COUNT = 72
+DIAGNOSTIC_MISSING_OBJECT_COUNT = 152
+DIAGNOSTIC_OBSERVED_OBJECT_SET_SHA256 = "aa01f33429b4311894f6ffd5f1dd083d4fed06381b956c2025269a5011db7b24"
 RECONCILIATION_JOB_KEY = "recovery-reconciliation"
 RECONCILIATION_JOB = "Reconcile the accepted diagnostic before fresh continuation"
 ACQUISITION_JOB_KEY = native.ACQUISITION_JOB_KEY
@@ -60,9 +63,9 @@ SAFE_DIAGNOSTIC_STAGES = frozenset({
     "CAPTURE_REFERENCES",
     "PREQUALIFICATION_DATASET_STATE",
     "CAPTURE_LOGICAL_CONTINUITY",
-    "ARTIFACT_NAMESPACE_ABSENCE",
+    "ARTIFACT_NAMESPACE_STATE",
     "POSTQUALIFICATION_DATASET_STATE",
-    "FINAL_ABSENCE_CONTRACT",
+    "FINAL_CONTINUATION_CONTRACT",
 })
 
 
@@ -189,12 +192,12 @@ def validate_diagnostic_report(raw):
             "DIAGNOSTIC_REPORT_UNQUALIFIED")
         effects = value.get("artifact_effect_observation")
         _require(type(effects) is dict
-            and effects.get("classification") == "NO_EXPECTED_OBJECTS_PRESENT_AT_READ_TIME"
+            and effects.get("classification") == "PARTIAL_EXPECTED_OBJECT_SET_PRESENT_AT_READ_TIME"
             and effects.get("expected_object_count") == EXPECTED_OBJECT_COUNT
-            and effects.get("missing_object_count") == EXPECTED_OBJECT_COUNT
-            and effects.get("present_object_count") == 0
+            and effects.get("missing_object_count") == DIAGNOSTIC_MISSING_OBJECT_COUNT
+            and effects.get("present_object_count") == DIAGNOSTIC_PRESENT_OBJECT_COUNT
             and effects.get("expected_object_set_sha256") == EXPECTED_OBJECT_SET_SHA256
-            and effects.get("observed_object_set_sha256") == EMPTY_OBJECT_SET_SHA256
+            and effects.get("observed_object_set_sha256") == DIAGNOSTIC_OBSERVED_OBJECT_SET_SHA256
             and effects.get("all_retained_rows_validated") is True
             and effects.get("candidate_unchanged") is True
             and effects.get("provider_objects_fully_validated") is False
@@ -389,7 +392,7 @@ def _artifact_object_worker_observation(raw):
     # captured rows, matching the accepted read-only diagnostic worker.
     os.environ.update(triage.trusted_artifact_environment())
     api = storage._hub_api(os.environ.get("HF_TOKEN", ""))
-    effects = triage.artifact_namespace_absence(api, candidate,
+    effects = triage.artifact_namespace_observation(api, candidate,
         workspace / "artifact-effects", evidence.require_current_main, request["deadline"])
     _workspace, _candidate, after = _object_workspace(workspace, request["deadline"])
     _require(after == digest, "CURRENT_ABSENCE_UNVERIFIED")
@@ -414,7 +417,7 @@ def artifact_object_worker():
 
 
 def observe_current_absence(api, workspace, evidence, deadline):
-    """Reproduce the fixed capture and bind it to verified protected source."""
+    """Reproduce the fixed capture and bind its exact partial provider set."""
     from scripts import acquire_gdw_durable_storage as acquisition
     from scripts import qualify_gdw_store_recovery as recovery
     with _diagnostic_stage("CURRENT_SOURCE_AUTHORITY"):
@@ -443,22 +446,22 @@ def observe_current_absence(api, workspace, evidence, deadline):
             "CURRENT_ABSENCE_UNVERIFIED")
         databases = triage._qualified_capture_databases(qualified,
             frozenset(recovery.preservation.DATABASES))
-    with _diagnostic_stage("ARTIFACT_NAMESPACE_ABSENCE"):
+    with _diagnostic_stage("ARTIFACT_NAMESPACE_STATE"):
         effects = supervised_artifact_absence(workspace / "capture", require_source, deadline)
     with _diagnostic_stage("POSTQUALIFICATION_DATASET_STATE"):
         require_source()
         after = triage.private_head_metadata(api)
         require_source()
-    with _diagnostic_stage("FINAL_ABSENCE_CONTRACT"):
+    with _diagnostic_stage("FINAL_CONTINUATION_CONTRACT"):
         _require(before == after and storage._revision(before.get("revision"))
             and before.get("head_presence") == "ABSENT"
             and len(databases) == 2
-            and effects.get("classification") == "NO_EXPECTED_OBJECTS_PRESENT_AT_READ_TIME"
+            and effects.get("classification") == "PARTIAL_EXPECTED_OBJECT_SET_PRESENT_AT_READ_TIME"
             and effects.get("expected_object_count") == EXPECTED_OBJECT_COUNT
-            and effects.get("missing_object_count") == EXPECTED_OBJECT_COUNT
-            and effects.get("present_object_count") == 0
+            and effects.get("missing_object_count") == DIAGNOSTIC_MISSING_OBJECT_COUNT
+            and effects.get("present_object_count") == DIAGNOSTIC_PRESENT_OBJECT_COUNT
             and effects.get("expected_object_set_sha256") == EXPECTED_OBJECT_SET_SHA256
-            and effects.get("observed_object_set_sha256") == EMPTY_OBJECT_SET_SHA256
+            and effects.get("observed_object_set_sha256") == DIAGNOSTIC_OBSERVED_OBJECT_SET_SHA256
             and effects.get("all_retained_rows_validated") is True
             and effects.get("candidate_unchanged") is True
             and effects.get("provider_writes_performed") is False,
@@ -471,14 +474,15 @@ def observe_current_absence(api, workspace, evidence, deadline):
         "head_presence": "ABSENT",
         "expected_object_count": EXPECTED_OBJECT_COUNT,
         "expected_object_set_sha256": EXPECTED_OBJECT_SET_SHA256,
-        "present_object_count": 0,
-        "missing_object_count": EXPECTED_OBJECT_COUNT,
+        "present_object_count": DIAGNOSTIC_PRESENT_OBJECT_COUNT,
+        "missing_object_count": DIAGNOSTIC_MISSING_OBJECT_COUNT,
+        "observed_object_set_sha256": DIAGNOSTIC_OBSERVED_OBJECT_SET_SHA256,
     }
 
 
 def _report(context, qualification_sha256, dataset_revision):
     return {"schema": SCHEMA, "state": "PREREQUISITE_VERIFIED",
-        "scope": "ONE_SIGNED_SUCCESSOR_ONE_RUN_FRESH_CONTINUATION_ONLY", **context,
+        "scope": "ONE_SIGNED_SUCCESSOR_ONE_RUN_PARTIAL_CONTINUATION_ONLY", **context,
         "diagnostic_source_revision": DIAGNOSTIC_SOURCE,
         "diagnostic_run_id": DIAGNOSTIC_RUN, "diagnostic_run_attempt": DIAGNOSTIC_ATTEMPT,
         "diagnostic_artifact_id": DIAGNOSTIC_ARTIFACT,
@@ -487,7 +491,9 @@ def _report(context, qualification_sha256, dataset_revision):
         "dataset_revision": dataset_revision, "head_presence": "ABSENT",
         "expected_object_count": EXPECTED_OBJECT_COUNT,
         "expected_object_set_sha256": EXPECTED_OBJECT_SET_SHA256,
-        "present_object_count": 0, "missing_object_count": EXPECTED_OBJECT_COUNT,
+        "present_object_count": DIAGNOSTIC_PRESENT_OBJECT_COUNT,
+        "missing_object_count": DIAGNOSTIC_MISSING_OBJECT_COUNT,
+        "observed_object_set_sha256": DIAGNOSTIC_OBSERVED_OBJECT_SET_SHA256,
         "qualification_sha256": qualification_sha256,
         "historical_provider_effects": "NOT_ESTABLISHED",
         "historical_writer_attribution": "NOT_ESTABLISHED",
@@ -569,6 +575,7 @@ class DiagnosticContinuationFence:
         self.dataset_revision = dataset_revision
         self.expected = None
         self.bind_count = 0
+        self.preexisting = {}
         self.acknowledged = {}
         self.pending = {}
 
@@ -605,11 +612,53 @@ class DiagnosticContinuationFence:
         except Exception:
             raise ContinuationBlocked("CURRENT_ABSENCE_UNVERIFIED") from None
 
+    def _namespace(self):
+        """Return only exact candidate identities from the whole owned prefix."""
+        try:
+            _require(type(self.expected) is dict
+                and len(self.expected) == EXPECTED_OBJECT_COUNT,
+                "CURRENT_ABSENCE_UNVERIFIED")
+            storage._deadline(self.deadline)
+            metadata = self.api.bucket_info(bucket_id=storage.BUCKET)
+            _require(storage._value(metadata, "id") == storage.BUCKET
+                and storage._value(metadata, "private") is True,
+                "CURRENT_ABSENCE_UNVERIFIED")
+            observed = {}
+            rows = []
+            for item in self.api.list_bucket_tree(
+                    bucket_id=storage.BUCKET, prefix=storage.ARTIFACT_PREFIX,
+                    recursive=True):
+                storage._deadline(self.deadline)
+                path = storage._value(item, "path")
+                expected = self.expected.get(path)
+                xet_hash = storage._value(item, "xet_hash")
+                _require(expected is not None and path not in observed
+                    and storage._value(item, "type") == "file"
+                    and storage._value(item, "size") == expected[1]
+                    and storage._digest(xet_hash),
+                    "CURRENT_ABSENCE_UNVERIFIED")
+                observed[path] = (expected[0], expected[1], xet_hash)
+                rows.append({"path": path, "sha256": expected[0],
+                             "size": expected[1], "xet_hash": xet_hash})
+                _require(len(rows) <= EXPECTED_OBJECT_COUNT,
+                    "CURRENT_ABSENCE_UNVERIFIED")
+            rows.sort(key=lambda row: row["path"])
+            metadata = self.api.bucket_info(bucket_id=storage.BUCKET)
+            _require(storage._value(metadata, "id") == storage.BUCKET
+                and storage._value(metadata, "private") is True,
+                "CURRENT_ABSENCE_UNVERIFIED")
+            storage._deadline(self.deadline)
+            return observed, triage._aggregate(rows)
+        except ContinuationBlocked:
+            raise
+        except Exception:
+            raise ContinuationBlocked("CURRENT_ABSENCE_UNVERIFIED") from None
+
     def bind_candidate(self, database):
-        """Freeze the exact diagnostic set and prove every path still absent."""
+        """Freeze the exact candidate and bind the accepted partial namespace."""
         self.require_head_absent()
-        _require(not self.acknowledged and not self.pending
-            and type(self.bind_count) is int and self.bind_count < 2,
+        _require(not self.pending and type(self.bind_count) is int
+            and self.bind_count < 2,
             "CURRENT_ABSENCE_UNVERIFIED")
         self.bind_count += 1
         pending, plan = triage.local_artifact_plan(database,
@@ -625,16 +674,23 @@ class DiagnosticContinuationFence:
         _require(self.expected is None or self.expected == expected,
             "CURRENT_ABSENCE_UNVERIFIED")
         self.expected = expected
-        self.require_artifacts_absent()
+        if self.bind_count == 1:
+            observed, digest = self._namespace()
+            _require(len(observed) == DIAGNOSTIC_PRESENT_OBJECT_COUNT
+                and digest == DIAGNOSTIC_OBSERVED_OBJECT_SET_SHA256
+                and not self.preexisting and not self.acknowledged,
+                "CURRENT_ABSENCE_UNVERIFIED")
+            self.preexisting = observed
+        self.require_artifacts_stable()
 
-    def require_artifacts_absent(self):
-        """Recheck the complete bound namespace at an immediate write boundary."""
+    def require_artifacts_stable(self):
+        """Recheck the complete acknowledged namespace at a write boundary."""
         _require(type(self.expected) is dict and len(self.expected) == EXPECTED_OBJECT_COUNT
-            and not self.acknowledged and not self.pending,
-            "CURRENT_ABSENCE_UNVERIFIED")
+            and not self.pending, "CURRENT_ABSENCE_UNVERIFIED")
         self.require_head_absent()
-        for path in sorted(self.expected):
-            _require(self._artifact(path) is None, "CURRENT_ABSENCE_UNVERIFIED")
+        observed, _digest = self._namespace()
+        _require(observed == {**self.preexisting, **self.acknowledged},
+            "CURRENT_ABSENCE_UNVERIFIED")
         self.require_head_absent()
 
     def controls_artifact_path(self, path):
@@ -651,11 +707,12 @@ class DiagnosticContinuationFence:
             "CURRENT_ABSENCE_UNVERIFIED")
         _require(not self.pending, "CURRENT_ABSENCE_UNVERIFIED")
         self.require_head_absent()
-        if path in self.acknowledged:
+        retained = {**self.preexisting, **self.acknowledged}
+        if path in retained:
             current = self._artifact(path)
             _require(current is not None
-                and storage._value(current, "size") == self.acknowledged[path][1]
-                and storage._value(current, "xet_hash") == self.acknowledged[path][2],
+                and storage._value(current, "size") == retained[path][1]
+                and storage._value(current, "xet_hash") == retained[path][2],
                 "CURRENT_ABSENCE_UNVERIFIED")
             self.pending[path] = {"mode": "READBACK", "attempted": False,
                                   "completed": False}
@@ -689,7 +746,7 @@ class DiagnosticContinuationFence:
             and (record.get("sha256"), record.get("size")) == self.expected[path]
             and storage._digest(record.get("xet_hash")), "CURRENT_ABSENCE_UNVERIFIED")
         state = self.pending.get(path)
-        if path in self.acknowledged:
+        if path in self.preexisting or path in self.acknowledged:
             _require(state == {"mode": "READBACK", "attempted": False,
                                "completed": False}, "CURRENT_ABSENCE_UNVERIFIED")
         else:
@@ -701,17 +758,94 @@ class DiagnosticContinuationFence:
             and storage._value(current, "xet_hash") == record["xet_hash"],
             "CURRENT_ABSENCE_UNVERIFIED")
         identity = (record["sha256"], record["size"], record["xet_hash"])
-        _require(path not in self.acknowledged or self.acknowledged[path] == identity,
+        retained = self.preexisting.get(path, self.acknowledged.get(path))
+        _require(retained is None or retained == identity,
             "CURRENT_ABSENCE_UNVERIFIED")
         self.require_head_absent()
-        self.acknowledged[path] = identity
+        if path not in self.preexisting:
+            self.acknowledged[path] = identity
         self.pending.pop(path)
 
+    def before_artifacts(self, expected):
+        """Bind one complete readback set before the bounded batch add."""
+        _require(type(expected) is dict and expected == self.expected
+            and not self.pending, "CURRENT_ABSENCE_UNVERIFIED")
+        self.require_artifacts_stable()
+        retained = {**self.preexisting, **self.acknowledged}
+        self.pending = {path: {
+            "mode": "READBACK" if path in retained else "ADD",
+            "attempted": False, "completed": False}
+            for path in sorted(self.expected)}
+        self.require_head_absent()
+
+    def begin_artifact_batch(self, paths):
+        """Fence the SDK's one non-transactional batch at submission."""
+        _require(type(paths) is list and len(paths) == len(set(paths)),
+            "CURRENT_ABSENCE_UNVERIFIED")
+        missing = {path for path, state in self.pending.items()
+                   if state == {"mode": "ADD", "attempted": False,
+                                "completed": False}}
+        _require(set(paths) == missing and 0 < len(paths) <= storage.MAX_ARTIFACT_OBJECTS,
+            "CURRENT_ABSENCE_UNVERIFIED")
+        self.require_head_absent()
+        observed, _digest = self._namespace()
+        _require(observed == {**self.preexisting, **self.acknowledged},
+            "CURRENT_ABSENCE_UNVERIFIED")
+        self.require_head_absent()
+        for path in paths:
+            self.pending[path]["attempted"] = True
+
+    def complete_artifact_batch(self, paths):
+        """Record only a batch whose provider call returned synchronously."""
+        _require(type(paths) is list and len(paths) == len(set(paths)),
+            "CURRENT_ABSENCE_UNVERIFIED")
+        _require(all(self.pending.get(path) == {
+            "mode": "ADD", "attempted": True, "completed": False}
+            for path in paths), "CURRENT_ABSENCE_UNVERIFIED")
+        self.require_head_absent()
+        for path in paths:
+            self.pending[path]["completed"] = True
+
+    def acknowledge_artifacts(self, records):
+        """Accept only an exact full-set hash readback after the batch."""
+        _require(type(records) is dict and set(records) == set(self.expected)
+            and set(self.pending) == set(self.expected),
+            "CURRENT_ABSENCE_UNVERIFIED")
+        identities = {}
+        for path, record in records.items():
+            _require(type(record) is dict and record.get("path") == path
+                and (record.get("sha256"), record.get("size")) == self.expected[path]
+                and storage._digest(record.get("xet_hash")),
+                "CURRENT_ABSENCE_UNVERIFIED")
+            state = self.pending[path]
+            if path in self.preexisting or path in self.acknowledged:
+                _require(state == {"mode": "READBACK", "attempted": False,
+                                   "completed": False},
+                    "CURRENT_ABSENCE_UNVERIFIED")
+            else:
+                _require(state == {"mode": "ADD", "attempted": True,
+                                   "completed": True},
+                    "CURRENT_ABSENCE_UNVERIFIED")
+            identities[path] = (record["sha256"], record["size"],
+                                record["xet_hash"])
+        observed, _digest = self._namespace()
+        _require(observed == identities, "CURRENT_ABSENCE_UNVERIFIED")
+        _require(all(identities[path] == identity
+                     for path, identity in self.preexisting.items()),
+            "CURRENT_ABSENCE_UNVERIFIED")
+        self.require_head_absent()
+        for path, identity in identities.items():
+            if path not in self.preexisting:
+                self.acknowledged[path] = identity
+        self.pending.clear()
+
     def require_artifacts_complete(self):
-        _require(type(self.expected) is dict and set(self.acknowledged) == set(self.expected),
+        _require(type(self.expected) is dict
+            and set(self.preexisting) | set(self.acknowledged) == set(self.expected)
+            and not (set(self.preexisting) & set(self.acknowledged)),
             "CURRENT_ABSENCE_UNVERIFIED")
         _require(not self.pending, "CURRENT_ABSENCE_UNVERIFIED")
-        self.require_head_absent()
+        self.require_artifacts_stable()
 
 
 def _read_file(path, bound):

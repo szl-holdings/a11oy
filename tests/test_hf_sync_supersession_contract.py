@@ -889,7 +889,7 @@ def assert_manual_dependency_graph(source: str) -> dict:
         "Checkout the exact protected source",
         "Set up the isolated diagnostic reconciliation interpreter",
         "Install the exact read-only diagnostic ABI",
-        "Requalify the fixed capture and exact empty provider namespace",
+        "Requalify the fixed capture and exact partial provider namespace",
         "Retain only the bounded continuation prerequisite",
     ] or any(step.get("continue-on-error") is not None for step in recovery_steps):
         raise WorkflowContractError("diagnostic reconciliation step order")

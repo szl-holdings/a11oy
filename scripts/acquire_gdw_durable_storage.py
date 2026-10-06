@@ -458,23 +458,32 @@ class _AdmittedAcquisitionHub:
         self.endpoint = storage.ENDPOINT
 
     def __getattr__(self, name):
-        if name in {"bucket_info", "dataset_info", "get_bucket_paths_info", "download_bucket_files",
-                    "get_paths_info", "hf_hub_download"}:
+        if name in {"bucket_info", "dataset_info", "get_bucket_paths_info", "list_bucket_tree",
+                    "download_bucket_files", "get_paths_info", "hf_hub_download"}:
             return getattr(self.api, name)
         raise AcquisitionBlocked("ACQUISITION_OPERATION_UNADMITTED")
 
     def batch_bucket_files(self, **kwargs):
         _require(set(kwargs) == {"bucket_id", "add"} and kwargs["bucket_id"] == storage.BUCKET
-            and type(kwargs["add"]) is list and len(kwargs["add"]) == 1, "ACQUISITION_BUCKET_SCOPE_INVALID")
+            and type(kwargs["add"]) is list
+            and 1 <= len(kwargs["add"]) <= storage.MAX_ARTIFACT_OBJECTS,
+            "ACQUISITION_BUCKET_SCOPE_INVALID")
         self.require_paused()
-        _local_path, object_path = kwargs["add"][0]
-        controlled = (self.continuation_fence is not None
-            and self.continuation_fence.controls_artifact_path(object_path))
-        if controlled:
-            self.continuation_fence.begin_artifact_add(object_path)
+        object_paths = [item[1] for item in kwargs["add"]
+                        if type(item) is tuple and len(item) == 2]
+        _require(len(object_paths) == len(kwargs["add"])
+            and len(set(object_paths)) == len(object_paths),
+            "ACQUISITION_BUCKET_SCOPE_INVALID")
+        controlled = ([self.continuation_fence.controls_artifact_path(path)
+                       for path in object_paths]
+                      if self.continuation_fence is not None else [])
+        _require(not any(controlled) or all(controlled),
+            "ACQUISITION_BUCKET_SCOPE_INVALID")
+        if controlled and all(controlled):
+            self.continuation_fence.begin_artifact_batch(object_paths)
         value = self.api.batch_bucket_files(**kwargs)
-        if controlled:
-            self.continuation_fence.complete_artifact_add(object_path)
+        if controlled and all(controlled):
+            self.continuation_fence.complete_artifact_batch(object_paths)
         return value
 
     def create_commit(self, repo_id=None, **kwargs):
@@ -605,8 +614,23 @@ def acquire_pair(api, *, source_context: dict, qualification_context: dict,
             _require(identities[object_path] == value, "ARTIFACT_READBACK_IDENTITY_CHANGED")
         identities[object_path] = value
         return value
+    def publish_artifacts(pending, object_deadline):
+        _require(continuation_fence is not None,
+            "ARTIFACT_ADAPTER_REQUIRED")
+        continuation_fence.before_artifacts({
+            path: (digest, size)
+            for path, (_physical, digest, size) in pending.items()})
+        values = objects.publish_artifacts(pending, object_deadline)
+        continuation_fence.acknowledge_artifacts(values)
+        for object_path, value in values.items():
+            if object_path in identities:
+                _require(identities[object_path] == value,
+                    "ARTIFACT_READBACK_IDENTITY_CHANGED")
+            identities[object_path] = value
+        return values
     artifact_directory = workspace / "artifacts"; artifact_directory.mkdir(mode=0o700)
-    artifacts = ArtifactCache(artifact_directory, publish_artifact)
+    artifacts = ArtifactCache(artifact_directory, publish_artifact,
+        publish_many=publish_artifacts if continuation_fence is not None else None)
     started = time.monotonic()
     measured_deadline = min(deadline, started + 300)
     progress.complete()
@@ -864,7 +888,7 @@ def _execute_diagnostic_continuation(request: dict, workspace: Path, deadline: f
     progress.enter("PAUSE_BOUNDARY")
     paused = pause_qualified_source(api, original,
         require_owned_source=fence.require_head_absent, deadline=deadline,
-        require_prewrite=fence.require_artifacts_absent)
+        require_prewrite=fence.require_artifacts_stable)
     progress.complete()
     progress.enter("PAUSE_READBACK")
     after = managed_space_observation(api)

@@ -270,12 +270,12 @@ def artifact_effect_observation(api, database, directory, require_source, deadli
         historical_writer_attribution="NOT_ESTABLISHED")
 
 
-def artifact_namespace_absence(api, database, directory, require_source, deadline, *, logical_roots=None):
-    """Prove the owned artifact prefix is empty with one bounded lazy listing.
+def artifact_namespace_observation(api, database, directory, require_source, deadline, *, logical_roots=None):
+    """Classify the whole owned prefix with one bounded lazy metadata read.
 
-    A fresh continuation cannot accept any pre-existing object under its owned
-    prefix.  Listing that prefix is therefore both stronger and substantially
-    smaller than issuing two exact-path reads for every reconstructed object.
+    Every listed entry must be an exact retained-candidate path with its
+    expected size and a provider content identity. Content acceptance remains
+    bound to a prior source-qualified download diagnostic or a fresh readback.
     """
     import gdw_durable_storage as storage
 
@@ -284,28 +284,58 @@ def artifact_namespace_absence(api, database, directory, require_source, deadlin
     pending, plan = local_artifact_plan(database, directory / "plan", deadline,
                                         logical_roots=logical_roots)
     require(len(pending) == plan["expected_object_count"])
+    expected = {path: (digest, size)
+                for path, (_physical, digest, size) in pending.items()}
     require_source()
     metadata_before = api.bucket_info(bucket_id=storage.BUCKET)
     require(storage._value(metadata_before, "id") == storage.BUCKET
         and storage._value(metadata_before, "private") is True)
     rows = iter(api.list_bucket_tree(bucket_id=storage.BUCKET,
         prefix=storage.ARTIFACT_PREFIX, recursive=True))
-    marker = object()
-    require(next(rows, marker) is marker)
+    present = []
+    seen = set()
+    for row in rows:
+        require(time.monotonic() < deadline)
+        path = storage._value(row, "path")
+        identity = expected.get(path)
+        require(identity is not None and path not in seen
+            and storage._value(row, "type") == "file"
+            and storage._value(row, "size") == identity[1]
+            and storage._digest(storage._value(row, "xet_hash")))
+        seen.add(path)
+        present.append({"path": path, "sha256": identity[0], "size": identity[1],
+                        "xet_hash": storage._value(row, "xet_hash")})
+        require(len(present) <= plan["expected_object_count"])
     require_source()
     metadata_after = api.bucket_info(bucket_id=storage.BUCKET)
     require(storage._value(metadata_after, "id") == storage.BUCKET
         and storage._value(metadata_after, "private") is True
         and _file_digest(database, deadline) == before)
     require_source()
+    present.sort(key=lambda row: row["path"])
+    missing = plan["expected_object_count"] - len(present)
+    # A metadata-only namespace listing never upgrades a complete set to
+    # content-validated. Complete acceptance requires the download/readback
+    # path, so an unexpected already-complete namespace holds here.
+    require(missing > 0)
     return dict(plan,
-        classification="NO_EXPECTED_OBJECTS_PRESENT_AT_READ_TIME",
-        present_object_count=0,
-        missing_object_count=plan["expected_object_count"],
-        observed_object_set_sha256=_aggregate([]),
+        classification=("NO_EXPECTED_OBJECTS_PRESENT_AT_READ_TIME" if not present else
+            "PARTIAL_EXPECTED_OBJECT_SET_PRESENT_AT_READ_TIME"),
+        present_object_count=len(present),
+        missing_object_count=missing,
+        observed_object_set_sha256=_aggregate(present),
         provider_objects_fully_validated=False,
         provider_writes_performed=False,
         historical_writer_attribution="NOT_ESTABLISHED")
+
+
+def artifact_namespace_absence(api, database, directory, require_source, deadline, *, logical_roots=None):
+    """Prove the owned artifact prefix is empty with one bounded lazy listing."""
+    result = artifact_namespace_observation(
+        api, database, directory, require_source, deadline,
+        logical_roots=logical_roots)
+    require(result["classification"] == "NO_EXPECTED_OBJECTS_PRESENT_AT_READ_TIME")
+    return result
 
 
 def _file_digest(path, deadline):
