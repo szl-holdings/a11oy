@@ -1,13 +1,13 @@
 {
   "name": "szl-kanchay",
-  "version": "1.1.0",
+  "version": "1.3.0",
   "source_repository": "https://github.com/szl-holdings/szl-brand",
-  "source_commit": "168c53a0252b55243e3fa75fa5e3c743b8efb806",
-  "copied_from": "a11oy 599d3a4783fe2816a7c5cf15a819453d5cb6c264:landing/szl/szl-design-system.css and organs/amaru/web/public/szl/szl-console.css",
+  "source_commit": "48344c27292dfefb7bb61823742ffda7fdd951ac",
+  "copied_from": "szl-holdings/szl-brand 232b3d88de9bb4c977e6d364b525238e437c499d:kanchay/",
   "spdx_license_identifier": "Apache-2.0",
   "copyright": "2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
   "sha256": {
-    "szl-design-system.css": "9e5e6e3ae2a5c6f5a2a3c6bf4c607406dc39db3fbe9115e91a1865054678493e",
-    "szl-console.css": "7ef6a0908302c6c2d83d637d1aa4fcac36ae2740a5c8e9cac0608c3cdb2c9928"
+    "szl-design-system.css": "08a1346f5cd42052ee416a5de911048f6ac4f71735a4af0f7b2ee1a1ca4ea3a5",
+    "szl-console.css": "57a4ae272d05b31f8486b5ab459f19d603c40ca4f4f22636c9f86824a335f95a"
   }
 }
