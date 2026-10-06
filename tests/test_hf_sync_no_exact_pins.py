@@ -14,7 +14,9 @@ This guard forbids, outside action ``uses:`` pins:
   * ``run_attempt == 1`` (a transient failure must not burn the commit),
   * any reference to the retired incident jobs,
 and requires the deploy job's needs chain to reach source-admission through
-preflight only, with no pause/restart proof or variable write after deploy.
+preflight only, with no pause/restart proof or variable write after deploy, main
+admission before any preflight provider effect, a deploy-window gate, and a
+relock that reads the verdict through the channel the probe job writes.
 """
 
 from __future__ import annotations
@@ -104,6 +106,26 @@ def ancestors(blocks: dict[str, str], name: str) -> set[str]:
     return seen
 
 
+def verdict_channel_violations(blocks: dict[str, str]) -> list[str]:
+    """Relock must read the verdict through the channel the probe job writes.
+
+    The deploy path never writes SZL_PROBE_VERDICT_JSON into the Space (that
+    write restarts it), so the live route serves no verdict. Relock must then
+    re-validate this run's verdict, handed over as the readiness job output.
+    """
+    readiness, relock = blocks.get("readiness-verdict", ""), blocks.get("relock", "")
+    if "--validate-only" not in readiness:
+        return []
+    violations = []
+    if ("verdict: ${{ steps.gate.outputs.verdict }}" not in readiness
+            or '--github-output "$GITHUB_OUTPUT"' not in readiness):
+        violations.append("readiness verdict is not handed to relock")
+    if ("${{ needs.readiness-verdict.outputs.verdict }}" not in relock
+            or "--readiness-verdict-file" not in relock):
+        violations.append("relock requires a served verdict that nothing publishes")
+    return violations
+
+
 def contract_violations(text: str) -> list[str]:
     violations = exact_identity_violations(text)
     if "run_attempt == 1" in text:
@@ -133,6 +155,22 @@ def contract_violations(text: str) -> list[str]:
                     violations.append(f"post-deploy restart or variable write in {name}: {token}")
             if VERDICT_PUBLISH.search(blocks[name]):
                 violations.append(f"post-deploy verdict variable write in {name}")
+            # A post-deploy convergence write restarts the deployed revision;
+            # it must be followed by the read-only wait before any probe.
+            if ("configure_hf_" in blocks[name]
+                    and "await_hf_runtime_serving.py" not in blocks[name]):
+                violations.append(f"post-deploy convergence without a serving wait in {name}")
+        violations.extend(verdict_channel_violations(blocks))
+        preflight = blocks["preflight"]
+        # Admission precedes every provider effect, and the deploy window gates
+        # every write and the deploy itself while SQLite lives on the bucket.
+        if (any(token not in preflight for token in (
+                "id: admit", "configure_hf_series_a_runtime.py", "resume_hf_space.py"))
+                or preflight.index("id: admit") > preflight.index("configure_hf_series_a_runtime.py")
+                or preflight.index("id: admit") > preflight.index("resume_hf_space.py")):
+            violations.append("preflight provider effect before main admission")
+        if "publish: ${{ steps.window.outputs.open == 'true' && steps.owner.outputs.publish == 'true' }}" not in preflight:
+            violations.append("deploy is not gated on an open deploy window")
     if re.search(r"(?m)^\s*exit 3\s*$", text):
         violations.append("superseded run exits red (exit 3)")
     return violations
@@ -202,6 +240,19 @@ class HfSyncNoExactPinsTests(unittest.TestCase):
                 "            --retry-seconds 10\n          python -B scripts/prove_hf_series_a_restart.py --source-sha \"$GITHUB_SHA\"\n", 1),
             "verdict variable write": self.text.replace(
                 "          --validate-only\n", "          --repo-id \"$CANONICAL_SPACE\"\n", 1),
+            "relock without the run verdict": self.text.replace(
+                '            --readiness-verdict-file "$RUNNER_TEMP/run-readiness-verdict.json" \\\n', "", 1),
+            "verdict not handed over": self.text.replace(
+                "    outputs:\n      verdict: ${{ steps.gate.outputs.verdict }}\n", "", 1),
+            "verdict output not written": self.text.replace(
+                '          --github-output "$GITHUB_OUTPUT"\n\n  relock:', "\n  relock:", 1),
+            "convergence without wait": self.text.replace(
+                "          python -B .github/scripts/await_hf_runtime_serving.py\n", "          true\n", 1),
+            "converge before admission": self.text.replace(
+                "        id: admit\n", "        id: late_owner\n", 1),
+            "ungated deploy window": self.text.replace(
+                "      publish: ${{ steps.window.outputs.open == 'true' && steps.owner.outputs.publish == 'true' }}\n",
+                "      publish: ${{ steps.owner.outputs.publish == 'true' }}\n", 1),
             "exit 3": self.text.replace(
                 "            exit 0\n          fi\n          echo 'Canonical A11oy is source-bound",
                 "            exit 3\n          fi\n          echo 'Canonical A11oy is source-bound", 1),
@@ -210,6 +261,20 @@ class HfSyncNoExactPinsTests(unittest.TestCase):
             with self.subTest(case=label):
                 self.assertNotEqual(changed, self.text)
                 self.assertTrue(contract_violations(changed))
+
+    def test_estate_completion_barrier_names_existing_hf_sync_jobs(self) -> None:
+        # A job rename must not silently break the release-train repair gate.
+        import sys
+        sys.path.insert(0, str(ROOT))
+        try:
+            from scripts import estate_child_completion as gate
+        finally:
+            sys.path.remove(str(ROOT))
+        names = set(re.findall(r"(?m)^    name: (.+?)\s*$", self.text))
+        self.assertTrue(gate.HF_SYNC_COMPLETION_JOBS)
+        for required in gate.HF_SYNC_COMPLETION_JOBS:
+            with self.subTest(job=required):
+                self.assertIn(required, names)
 
     def test_uses_pins_and_short_numbers_are_allowed(self) -> None:
         sample = (

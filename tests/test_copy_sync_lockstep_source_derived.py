@@ -39,6 +39,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
         # Independent list of the deploy graph's local helper closure.
         cls.deploy_helpers = {path: (ROOT / path).read_bytes() for path in (
             ".github/scripts/resume_hf_space.py",
+            ".github/scripts/await_hf_runtime_serving.py",
             "scripts/configure_hf_series_a_runtime.py",
             "scripts/configure_hf_gdw_runtime.py",
             "scripts/verify_installed_authority.py",
@@ -147,7 +148,15 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             ('--github-output "$GITHUB_OUTPUT"\n', '--github-output "$GITHUB_OUTPUT" --restart\n'),
             ("echo 'converged=true' >> \"$GITHUB_OUTPUT\"", "echo 'converged=false' >> \"$GITHUB_OUTPUT\""),
             ("scripts/hf_exact_main_ownership.py", "scripts/unreviewed_ownership.py"),
-            ("      publish: ${{ steps.owner.outputs.publish }}", "      publish: 'true'"),
+            ("      publish: ${{ steps.window.outputs.open == 'true' && steps.owner.outputs.publish == 'true' }}",
+             "      publish: ${{ steps.owner.outputs.publish == 'true' }}"),
+            # The deploy window cannot be forced open.
+            ("if [ \"${STAGE:-}\" = 'PAUSED' ] ||", "if true ||"),
+            # Convergence cannot run before main is admitted or with the window shut.
+            ("        id: converge\n        if: ${{ steps.window.outputs.open == 'true' }}\n",
+             "        id: converge\n"),
+            ("        id: runtime\n        if: ${{ steps.admit.outputs.publish == 'true' }}\n",
+             "        id: runtime\n"),
             ("      restart_required: ${{ steps.runtime.outputs.restart_required }}", "      restart_required: 'true'"),
             ('"huggingface_hub==1.31.0"', '"huggingface_hub"'),
             ("          persist-credentials: false\n", "          persist-credentials: true\n"),
@@ -169,6 +178,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             ('            "${mode[@]}" --output "$GDW_CONFIG_REPORT"\n',
              '            "${mode[@]}" --output "$GDW_CONFIG_REPORT"\n          python -B scripts/prove_hf_series_a_restart.py --source-sha "$GITHUB_SHA" --output /tmp/proof.json\n'),
             ("            ${{ env.GDW_CONFIG_REPORT }}\n", "            ${{ runner.temp }}/**\n"),
+            ("python -B .github/scripts/await_hf_runtime_serving.py", "true"),
         )
         for before, after in mutations:
             with self.subTest(after=after):

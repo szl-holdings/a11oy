@@ -6,9 +6,11 @@ import pathlib
 import re
 import subprocess
 import sys
+import tempfile
 import types
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from types import SimpleNamespace
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -974,6 +976,126 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
         with self.assertRaisesRegex(relock.RelockError, "clone reappeared"):
             relock.evaluate_once(api, success_session(self.origin, self.source), self.contract)
 
+    def unserved_summary(self) -> dict:
+        # Exactly what serve.py's tab-matrix summary renders after a deploy
+        # that never wrote SZL_PROBE_VERDICT_JSON for the new SZL_GIT_SHA.
+        return {
+            "layer": "a11oy readiness tab-matrix",
+            "view": "summary",
+            "honest": True,
+            "available": False,
+            "matrix_available": True,
+            "probe_verdict_available": False,
+            "matrix_summary": {},
+            "verdict_summary": None,
+            "verdict_source_revision": None,
+            "verdict_checked_at": None,
+            "verdict_base": None,
+            "verdict_expected_base": self.origin,
+            "checked_at": "2026-10-06T12:00:00Z",
+        }
+
+    def run_verdict(self, **overrides) -> dict:
+        verdict = {
+            "schema": "szl.readiness-verdict/v1",
+            "harness": "a11oy-readiness probe",
+            "doctrine": "v11",
+            "base": self.origin,
+            "checkedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "sourceRevision": self.source,
+            "summary": {
+                "endpoints": 5, "ok": 5, "skippedStateChanging": 0, "lies": 0,
+                "unreachable": 0, "throttled": 0, "degraded": 0, "p95_worst": 1806,
+            },
+        }
+        verdict.update(overrides)
+        return verdict
+
+    def test_unserved_live_verdict_requires_this_runs_verdict(self) -> None:
+        # The deploy path no longer writes the verdict into the Space, so the
+        # live route honestly serves none. Without this run's verdict relock
+        # fails closed; with it, relock re-validates it and passes.
+        with self.assertRaisesRegex(relock.RelockError, "unavailable or source-unbound"):
+            relock.validate_readiness_summary(
+                self.unserved_summary(), self.source, expected_origin=self.origin
+            )
+        evidence = relock.validate_readiness_summary(
+            self.unserved_summary(), self.source, expected_origin=self.origin,
+            run_verdict=self.run_verdict(),
+        )
+        self.assertEqual(evidence["channel"], "run-local")
+        self.assertEqual(evidence["source_revision"], self.source)
+
+    def test_run_verdict_is_revalidated_and_fails_closed(self) -> None:
+        stale = (datetime.now(timezone.utc) - timedelta(days=2)).isoformat().replace("+00:00", "Z")
+        future = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat().replace("+00:00", "Z")
+        base_summary = self.run_verdict()["summary"]
+        cases = {
+            "foreign source": self.run_verdict(sourceRevision="b" * 40),
+            "foreign origin": self.run_verdict(base="https://example.com"),
+            "wrong schema": self.run_verdict(schema="szl.readiness-verdict/v0"),
+            "wrong harness": self.run_verdict(harness="other"),
+            "stale": self.run_verdict(checkedAt=stale),
+            "future": self.run_verdict(checkedAt=future),
+            "lies": self.run_verdict(summary={**base_summary, "ok": 4, "lies": 1}),
+            "unreachable": self.run_verdict(summary={**base_summary, "ok": 4, "unreachable": 1}),
+            "throttled": self.run_verdict(summary={**base_summary, "ok": 4, "throttled": 1}),
+            "degraded": self.run_verdict(summary={**base_summary, "ok": 4, "degraded": 1}),
+            "inconsistent": self.run_verdict(summary={**base_summary, "endpoints": 6}),
+            "missing summary": self.run_verdict(summary=None),
+        }
+        for name, verdict in cases.items():
+            with self.subTest(case=name), self.assertRaises(relock.RelockError):
+                relock.validate_readiness_summary(
+                    self.unserved_summary(), self.source, expected_origin=self.origin,
+                    run_verdict=verdict,
+                )
+
+    def test_run_verdict_never_masks_a_served_foreign_or_dishonest_summary(self) -> None:
+        served_foreign = {
+            **self.unserved_summary(),
+            "available": True,
+            "probe_verdict_available": True,
+            "verdict_source_revision": "b" * 40,
+            "verdict_summary": self.run_verdict()["summary"],
+        }
+        for name, payload in (
+            ("served foreign verdict", served_foreign),
+            ("not honest", {**self.unserved_summary(), "honest": False}),
+            ("matrix unavailable", {**self.unserved_summary(), "matrix_available": False}),
+            ("available without verdict", {**self.unserved_summary(), "available": True}),
+        ):
+            with self.subTest(case=name), self.assertRaises(relock.RelockError):
+                relock.validate_readiness_summary(
+                    payload, self.source, expected_origin=self.origin,
+                    run_verdict=self.run_verdict(),
+                )
+
+    def test_live_relock_passes_with_unserved_verdict_and_this_runs_verdict(self) -> None:
+        session = success_session(self.origin, self.source)
+        url = self.origin + relock.ROUTES["readiness"]
+        session.responses[("GET", url)] = FakeResponse(url, payload=self.unserved_summary())
+        with self.assertRaisesRegex(relock.RelockError, "unavailable or source-unbound"):
+            relock.evaluate_once(FakeApi(self.source), session, self.contract)
+        report = relock.evaluate_once(
+            FakeApi(self.source), session, self.contract, self.run_verdict()
+        )
+        self.assertTrue(report["ok"])
+        self.assertEqual(report["routes"]["readiness"]["verdict"]["channel"], "run-local")
+
+    def test_run_verdict_file_must_be_present_bounded_json(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "verdict.json"
+            for raw in (b"", b"   ", b"[]", b"{not json", b"{" + b" " * 5000 + b"}"):
+                with self.subTest(raw=raw[:12]):
+                    path.write_bytes(raw)
+                    with self.assertRaises(relock.RelockError):
+                        relock.load_run_verdict(str(path))
+            path.write_text(json.dumps(self.run_verdict()), encoding="utf-8")
+            self.assertEqual(relock.load_run_verdict(str(path))["sourceRevision"], self.source)
+            with self.assertRaises(relock.RelockError):
+                relock.load_run_verdict(str(Path(temporary) / "missing.json"))
+
     def test_verifier_source_contains_no_external_mutation(self) -> None:
         source = SCRIPT.read_text(encoding="utf-8")
         for forbidden in (
@@ -1028,6 +1150,13 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
             self.workflow,
         )
         self.assertEqual(self.workflow.count("publish_readiness_verdict.py"), 1)
+        # Relock re-validates this run's verdict, handed over as a job output,
+        # because the live route serves none after a write-free deploy.
+        self.assertIn('--github-output "$GITHUB_OUTPUT"', self.workflow.split("  readiness-verdict:", 1)[1].split("\n  relock:", 1)[0])
+        self.assertIn("verdict: ${{ steps.gate.outputs.verdict }}", self.workflow)
+        relock_block = self.workflow.split("\n  relock:", 1)[1]
+        self.assertIn("RUN_READINESS_VERDICT: ${{ needs.readiness-verdict.outputs.verdict }}", relock_block)
+        self.assertIn('--readiness-verdict-file "$RUNNER_TEMP/run-readiness-verdict.json"', relock_block)
         runtime_config = self.workflow.split(
             "  runtime-config:", 1
         )[1].split("\n  publish-vertical-flagships:", 1)[0]

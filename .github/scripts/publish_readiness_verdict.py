@@ -147,7 +147,16 @@ def main(argv: list[str] | None = None) -> int:
             "but never write a Space variable: a variable write restarts the Space."
         ),
     )
+    parser.add_argument(
+        "--github-output",
+        help=(
+            "With --validate-only, append verdict=<compact JSON> so relock can "
+            "re-validate this run's verdict without a Space write."
+        ),
+    )
     args = parser.parse_args(argv)
+    if args.github_output and not args.validate_only:
+        parser.error("--github-output is only valid with --validate-only")
     if not args.validate_only and not args.repo_id:
         parser.error("--repo-id is required to publish the verdict")
 
@@ -166,6 +175,9 @@ def main(argv: list[str] | None = None) -> int:
     if len(rendered.encode("utf-8")) > 4096:
         raise VerdictError("compact verdict exceeds the Space variable limit")
     if args.validate_only:
+        if args.github_output:
+            with open(args.github_output, "a", encoding="utf-8") as stream:
+                stream.write(f"verdict={rendered}\n")
         print(json.dumps({"validated": True, "space_variable_written": False,
                           "verdict": compact}, sort_keys=True))
         return 0

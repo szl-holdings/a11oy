@@ -8,7 +8,10 @@ name: Sync and Relock Canonical Hugging Face Space
 # change enters this canonical workflow. Every gate is an invariant, never an
 # exact identity: the source must be protected main, the newest main wins and a
 # superseded run ends neutral with a notice, the deploy path starts the Space
-# once, and the live Space must report this exact source afterwards. Pause and
+# once, and the live Space must report this exact source afterwards. Until
+# durable storage lands, a deploy needs an open maintenance window (a PAUSED
+# Space or an operator dispatch with open_deploy_window); otherwise the run
+# writes and deploys nothing and ends with a warning. Pause and
 # restart durability proofs run only in the manual restart-drill.yml.
 # The permanent target remains Space SZLHOLDINGS/a11oy (szlholdings-a11oy.hf.space).
 # Staging Space ≠ prod DNS. GitHub main SHA and Space runtime SHA can drift;
@@ -35,6 +38,11 @@ on:
         required: false
         type: string
         default: ""
+
+      open_deploy_window:
+        description: Operator-attested maintenance window. Until durable storage lands, a deploy onto a running or crashed Space proceeds only when true (a PAUSED Space is itself the window).
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -98,7 +106,7 @@ jobs:
     permissions:
       contents: read
     outputs:
-      publish: ${{ steps.owner.outputs.publish }}
+      publish: ${{ steps.window.outputs.open == 'true' && steps.owner.outputs.publish == 'true' }}
       restart_required: ${{ steps.runtime.outputs.restart_required }}
       converged: ${{ steps.converge.outputs.converged }}
     env:
@@ -114,34 +122,71 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
 
+      # Before any provider effect: a re-run of a superseded source must never
+      # write its older configuration contract over a newer live revision.
+      - name: Require current protected main before any provider effect
+        id: admit
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B scripts/hf_exact_main_ownership.py \
+            --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+            --receipt "$RUNNER_TEMP/preflight-admission.json" \
+            --github-output "$GITHUB_OUTPUT"
+
       - name: Set up Python
+        if: ${{ steps.admit.outputs.publish == 'true' }}
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
 
       - name: Install exact Hugging Face control client
+        if: ${{ steps.admit.outputs.publish == 'true' }}
         run: >-
           python -m pip install --disable-pip-version-check
           "huggingface_hub==1.31.0"
           "requests==2.32.5"
           "cryptography==50.0.1"
 
-      # Never restarts. A serving, crashed or failed-build Space is rebuilt by
-      # the deploy commit itself; only a PAUSED Space needs the publisher's
-      # explicit start after the commit. Either way the deploy starts it once.
+      # Never restarts. A serving Space is rebuilt by the deploy commit; a
+      # paused, crashed or failed-build Space is started once by the publisher
+      # after the commit. Either way the deploy starts the new revision once.
       - name: Classify the runtime stage without restarting it
         id: runtime
+        if: ${{ steps.admit.outputs.publish == 'true' }}
         run: >-
           python -B .github/scripts/resume_hf_space.py
           --repo-id "$CANONICAL_SPACE"
           --output "$PREFLIGHT_REPORT"
           --github-output "$GITHUB_OUTPUT"
 
+      # Until durable storage replaces SQLite on the bucket mount, a deploy
+      # must not overlap a serving writer outside an agreed maintenance window:
+      # the operator pauses the Space, or dispatches with open_deploy_window.
+      - name: Require an open deploy window while SQLite lives on the bucket mount
+        id: window
+        if: ${{ steps.admit.outputs.publish == 'true' }}
+        shell: bash
+        env:
+          STAGE: ${{ steps.runtime.outputs.stage }}
+          DISPATCH_WINDOW: ${{ github.event_name == 'workflow_dispatch' && inputs.open_deploy_window == true }}
+        run: |
+          set -euo pipefail
+          if [ "${STAGE:-}" = 'PAUSED' ] || [ "${DISPATCH_WINDOW:-false}" = 'true' ]; then
+            echo 'open=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "::warning::Deploy window closed (stage=${STAGE:-UNKNOWN}); nothing was written or deployed. Pause the Space, or dispatch hf-sync.yml on main with open_deploy_window=true, inside an agreed maintenance window."
+          echo 'open=false' >> "$GITHUB_OUTPUT"
+
       # Idempotent: a converged Space receives no write. Convergence needs the
       # serving runtime to prove installed authority, so a paused or crashed
       # Space defers it to runtime-config against the deployed revision.
       - name: Converge runtime configuration before the single deploy start
         id: converge
+        if: ${{ steps.window.outputs.open == 'true' }}
         shell: bash
         env:
           CONVERGE: ${{ steps.runtime.outputs.converge }}
@@ -168,6 +213,7 @@ jobs:
 
       - name: Re-admit current protected main immediately before deploy
         id: owner
+        if: ${{ steps.window.outputs.open == 'true' }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
         shell: bash
@@ -179,7 +225,7 @@ jobs:
             --github-output "$GITHUB_OUTPUT"
 
       - name: Skip a superseded source with a notice
-        if: ${{ steps.owner.outputs.publish != 'true' }}
+        if: ${{ steps.admit.outputs.publish != 'true' || (steps.window.outputs.open == 'true' && steps.owner.outputs.publish != 'true') }}
         run: echo '::notice::A newer protected main superseded this source before deploy; that run deploys it.'
 
       - name: Retain secret-free preflight evidence
@@ -191,10 +237,10 @@ jobs:
             ${{ env.PREFLIGHT_REPORT }}
             ${{ env.RUNTIME_CONFIG_REPORT }}
             ${{ env.GDW_CONFIG_REPORT }}
+            ${{ runner.temp }}/preflight-admission.json
             ${{ runner.temp }}/preflight-source-admission.json
           if-no-files-found: error
           retention-days: 90
-
   deploy:
     name: Deploy, source-bind, and attest exact surface
     needs: [source-admission, preflight]
@@ -269,6 +315,17 @@ jobs:
           python -B scripts/configure_hf_gdw_runtime.py \
             --repo-id "$CANONICAL_SPACE" \
             "${mode[@]}" --output "$GDW_CONFIG_REPORT"
+
+      # A convergence write restarts the deployed revision. Read-only: wait
+      # until it is RUNNING and serves this exact source again before probing.
+      - name: Await the deployed revision serving again after any convergence write
+        run: >-
+          python -B .github/scripts/await_hf_runtime_serving.py
+          --repo-id "$CANONICAL_SPACE"
+          --origin "$CANONICAL_ORIGIN"
+          --source-sha "$GITHUB_SHA"
+          --report "$RUNTIME_CONFIG_REPORT"
+          --report "$GDW_CONFIG_REPORT"
 
       - name: Upload secret-free runtime configuration evidence
         if: ${{ always() }}
@@ -407,10 +464,12 @@ jobs:
           retention-days: 180
 
   readiness-verdict:
-    name: Probe the exact post-deploy readiness verdict
+    name: Probe and ingest exact post-deploy readiness verdict
     needs: runtime-config
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    outputs:
+      verdict: ${{ steps.gate.outputs.verdict }}
     env:
       SOURCE_SHA: ${{ github.sha }}
       VERDICT_PATH: /tmp/readiness-verdict.json
@@ -452,14 +511,17 @@ jobs:
 
       # The same fail-closed verdict gate (lies, unreachable, throttled,
       # degraded, stale or foreign source), but no Space variable write: that
-      # write would restart the revision this run just started once.
+      # write would restart the revision this run just started once. The
+      # compact verdict is handed to relock as a job output and re-validated.
       - name: Validate the source-bound verdict without a Space write
+        id: gate
         run: >-
           python .github/scripts/publish_readiness_verdict.py
           --validate-only
           --input "$VERDICT_PATH"
           --expected-origin "$CANONICAL_ORIGIN"
           --expected-source-sha "$SOURCE_SHA"
+          --github-output "$GITHUB_OUTPUT"
 
   relock:
     name: Prove exact live source, runtime, routes, and singleton state
@@ -490,16 +552,22 @@ jobs:
           "huggingface_hub==1.23.0"
           "requests==2.32.5"
 
+      # The live route honestly serves no verdict (the deploy path never writes
+      # one into the Space); relock re-validates this run's verdict instead.
       - name: Evaluate the canonical application contract
         id: verify
         shell: bash
+        env:
+          RUN_READINESS_VERDICT: ${{ needs.readiness-verdict.outputs.verdict }}
         run: |
           set +e
+          printf '%s' "$RUN_READINESS_VERDICT" > "$RUNNER_TEMP/run-readiness-verdict.json"
           python .github/scripts/verify_canonical_a11oy.py \
             --repo-id "$CANONICAL_SPACE" \
             --origin "$CANONICAL_ORIGIN" \
             --source-sha "$SOURCE_SHA" \
             --source-variable SZL_GIT_SHA \
+            --readiness-verdict-file "$RUNNER_TEMP/run-readiness-verdict.json" \
             --output "$REPORT_PATH" \
             --attempts 60 \
             --retry-seconds 10

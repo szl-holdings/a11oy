@@ -2,17 +2,20 @@ name: Canonical A11oy Restart Drill
 
 # Manual-only restart durability drill. The Series-A proof pauses and restarts
 # the live canonical Space and the GDW proof restarts it, so neither runs on the
-# deploy path: hf-sync.yml starts the Space exactly once per deploy. Dispatch
-# only from main, only while that exact main revision is live, and never while
-# an hf-sync deploy is in progress. Every proof is bounded and fails closed.
+# deploy path: hf-sync.yml starts the Space exactly once per deploy. The drill
+# shares hf-sync.yml's concurrency group, so GitHub never runs it alongside a
+# deploy; it also requires that the exact current main revision is the live
+# one, so a deploy the drill displaced from the queue fails it closed instead of
+# being silently skipped. Every proof is bounded and fails closed.
 on:
   workflow_dispatch: {}
 
 permissions:
   contents: read
 
+# Shared with hf-sync.yml on purpose: mutual exclusion with every deploy.
 concurrency:
-  group: restart-drill-canonical-a11oy
+  group: sync-relock-canonical-a11oy
   cancel-in-progress: false
 
 env:
@@ -55,6 +58,21 @@ jobs:
             exit 1
           fi
 
+      - name: Require the exact current main revision to be the live one
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B - "$CANONICAL_ORIGIN/api/build-info" "$GITHUB_SHA" <<'PY'
+          import json, sys, urllib.request
+          url, sha = sys.argv[1], sys.argv[2]
+          request = urllib.request.Request(url, headers={"Cache-Control": "no-cache"})
+          with urllib.request.urlopen(request, timeout=30) as response:
+              build = json.load(response).get("build") or {}
+          if str(build.get("revision") or "").lower() != sha:
+              print("::error::The live Space does not serve current main; deploy it with hf-sync.yml before the drill.")
+              sys.exit(1)
+          PY
+
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
@@ -85,9 +103,26 @@ jobs:
 
       # Writes only in the a11oy GDW namespace; the proof-tagged receipt must
       # verify against ayllu/keys/council-runtime-2026-07-21.pub.
+      - name: Re-require current protected main before the GDW proof
+        id: gdw_owner
+        if: ${{ always() && (steps.series_a_proof.outcome == 'success' || steps.series_a_proof.outcome == 'failure') }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B scripts/hf_exact_main_ownership.py \
+            --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+            --receipt "$RUNNER_TEMP/restart-drill-gdw-admission.json" \
+            --github-output "$RUNNER_TEMP/restart-drill-gdw-admission.out"
+          if ! grep -Fqx 'publish=true' "$RUNNER_TEMP/restart-drill-gdw-admission.out"; then
+            echo '::error::Main moved during the drill; the GDW proof is not run against a superseded revision.'
+            exit 1
+          fi
+
       - name: Prove live GDW write, drain, and receipt integrity (bounded)
         id: gdw_proof
-        if: ${{ always() && (steps.series_a_proof.outcome == 'success' || steps.series_a_proof.outcome == 'failure') }}
+        if: ${{ always() && steps.gdw_owner.outcome == 'success' }}
         shell: bash
         env:
           GDW_OPERATOR_TOKEN: ${{ secrets.GDW_OPERATOR_TOKEN }}
@@ -125,5 +160,6 @@ jobs:
             ${{ env.GDW_LIVE_REPORT }}
             ${{ env.LIVE_PROOF_ADMISSION_REPORT }}
             ${{ runner.temp }}/restart-drill-source-admission.json
+            ${{ runner.temp }}/restart-drill-gdw-admission.json
           if-no-files-found: error
           retention-days: 90

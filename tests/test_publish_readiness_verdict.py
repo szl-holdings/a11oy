@@ -183,3 +183,37 @@ def test_publishing_still_requires_an_explicit_target(tmp_path) -> None:
         publisher.main(["--input", str(tmp_path / "missing.json"),
                         "--expected-origin", "https://szlholdings-a11oy.hf.space",
                         "--expected-source-sha", "a" * 40])
+
+def test_validate_only_hands_the_compact_verdict_to_relock(tmp_path, monkeypatch, capsys) -> None:
+    # relock re-validates this run's verdict from the job output, so the
+    # output must be the exact compact verdict on one line, and a rejected
+    # verdict must never produce one.
+    import json
+    import sys
+
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    probe = tmp_path / "verdict.json"
+    github_output = tmp_path / "github-output"
+    probe.write_text(json.dumps(valid_verdict(now)), encoding="utf-8")
+    monkeypatch.setitem(sys.modules, "huggingface_hub", None)
+    arguments = ["--validate-only", "--input", str(probe),
+                 "--expected-origin", "https://szlholdings-a11oy.hf.space",
+                 "--expected-source-sha", "a" * 40, "--github-output", str(github_output)]
+    assert publisher.main(arguments) == 0
+    capsys.readouterr()
+    lines = github_output.read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 1 and lines[0].startswith("verdict=")
+    handed = json.loads(lines[0][len("verdict="):])
+    assert handed == compact(valid_verdict(now), now)
+
+    github_output.unlink()
+    payload = valid_verdict(now)
+    payload["summary"].update(ok=4, unreachable=1)
+    probe.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(publisher.VerdictError):
+        publisher.main(arguments)
+    assert not github_output.exists()
+
+    with pytest.raises(SystemExit):
+        publisher.main([argument for argument in arguments if argument != "--validate-only"]
+                       + ["--repo-id", "SZLHOLDINGS/a11oy"])

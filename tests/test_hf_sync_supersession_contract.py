@@ -517,11 +517,56 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
         self.assertIn("scripts/hf_exact_main_ownership.py", owner)
         self.assertIn('--expected-sha "$GITHUB_SHA"', owner)
         self.assertIn("set -euo pipefail", owner)
-        self.assertIn("publish: ${{ steps.owner.outputs.publish }}", job)
+        self.assertIn(
+            "publish: ${{ steps.window.outputs.open == 'true' && steps.owner.outputs.publish == 'true' }}",
+            job,
+        )
         self.assertLess(job.index("Converge runtime configuration before the single deploy start"), job.index(owner))
         notice = step_block(job, "Skip a superseded source with a notice")
         self.assertIn("::notice::", notice)
         self.assertNotIn("exit", notice)
+
+    def test_preflight_admits_main_before_any_provider_effect(self) -> None:
+        # A re-run of a superseded source must never converge its older
+        # configuration contract over a newer live revision.
+        job = job_block(self.workflow, "Classify the canonical runtime and converge configuration before deploy")
+        admit = step_block(job, "Require current protected main before any provider effect")
+        self.assertIn("id: admit", admit)
+        self.assertIn("scripts/hf_exact_main_ownership.py", admit)
+        self.assertIn('--expected-sha "$GITHUB_SHA"', admit)
+        self.assertIn("set -euo pipefail", admit)
+        first_effect = min(job.index(token) for token in (
+            "configure_hf_series_a_runtime.py", "configure_hf_gdw_runtime.py",
+            "resume_hf_space.py"))
+        self.assertLess(job.index(admit), first_effect)
+        admitted = "if: ${{ steps.admit.outputs.publish == 'true' }}"
+        for name in ("Set up Python", "Install exact Hugging Face control client",
+                     "Classify the runtime stage without restarting it",
+                     "Require an open deploy window while SQLite lives on the bucket mount"):
+            self.assertIn(admitted, step_block(job, name), name)
+        opened = "if: ${{ steps.window.outputs.open == 'true' }}"
+        for name in ("Converge runtime configuration before the single deploy start",
+                     "Re-admit current protected main immediately before deploy"):
+            self.assertIn(opened, step_block(job, name), name)
+
+    def test_deploy_window_is_closed_by_default_until_durable_storage(self) -> None:
+        job = job_block(self.workflow, "Classify the canonical runtime and converge configuration before deploy")
+        window = step_block(job, "Require an open deploy window while SQLite lives on the bucket mount")
+        self.assertIn("id: window", window)
+        self.assertIn("if [ \"${STAGE:-}\" = 'PAUSED' ] || [ \"${DISPATCH_WINDOW:-false}\" = 'true' ]; then", window)
+        self.assertIn("DISPATCH_WINDOW: ${{ github.event_name == 'workflow_dispatch' && inputs.open_deploy_window == true }}", window)
+        self.assertIn("echo 'open=false' >> \"$GITHUB_OUTPUT\"", window)
+        self.assertIn("::warning::", window)
+        dispatch = workflow_document(self.workflow)["on"]["workflow_dispatch"]["inputs"]
+        self.assertEqual(dispatch["open_deploy_window"]["type"], "boolean")
+        self.assertIs(dispatch["open_deploy_window"]["default"], False)
+        # A closed window leaves preflight green with publish=false: nothing
+        # is written or deployed and the run ends neutral.
+        jobs = assert_deploy_dependency_graph(self.workflow)
+        results = simulate(jobs, outputs={"preflight": {"publish": "false"}})
+        self.assertNotIn("failure", results.values())
+        for name in DEPLOY_PATH[1:]:
+            self.assertEqual(results[name], "skipped", name)
 
     def test_post_deploy_relock_neutralizes_only_a_verified_superseded_source(self) -> None:
         job = job_block(self.workflow, "Prove exact live source, runtime, routes, and singleton state")

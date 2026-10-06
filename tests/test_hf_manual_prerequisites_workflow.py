@@ -98,6 +98,28 @@ else
   echo "::warning::Pre-deploy configuration did not converge (series-a=${series_code}, gdw=${gdw_code}); runtime-config converges against the deployed revision."
   echo 'converged=false' >> "$GITHUB_OUTPUT"
 fi'''
+ADMIT_RUN = r'''set -euo pipefail
+python3 -B scripts/hf_exact_main_ownership.py \
+  --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+  --receipt "$RUNNER_TEMP/preflight-admission.json" \
+  --github-output "$GITHUB_OUTPUT"'''
+WINDOW_RUN = r'''set -euo pipefail
+if [ "${STAGE:-}" = 'PAUSED' ] || [ "${DISPATCH_WINDOW:-false}" = 'true' ]; then
+  echo 'open=true' >> "$GITHUB_OUTPUT"
+  exit 0
+fi
+echo "::warning::Deploy window closed (stage=${STAGE:-UNKNOWN}); nothing was written or deployed. Pause the Space, or dispatch hf-sync.yml on main with open_deploy_window=true, inside an agreed maintenance window."
+echo 'open=false' >> "$GITHUB_OUTPUT"'''
+WINDOW_ENV = {"STAGE": "${{ steps.runtime.outputs.stage }}",
+              "DISPATCH_WINDOW": "${{ github.event_name == 'workflow_dispatch' && inputs.open_deploy_window == true }}"}
+ADMITTED = "${{ steps.admit.outputs.publish == 'true' }}"
+WINDOW_OPEN = "${{ steps.window.outputs.open == 'true' }}"
+AWAIT_RUN = '''python -B .github/scripts/await_hf_runtime_serving.py
+--repo-id "$CANONICAL_SPACE"
+--origin "$CANONICAL_ORIGIN"
+--source-sha "$GITHUB_SHA"
+--report "$RUNTIME_CONFIG_REPORT"
+--report "$GDW_CONFIG_REPORT"'''
 OWNER_RUN = r'''set -euo pipefail
 python3 -B scripts/hf_exact_main_ownership.py \
   --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
@@ -133,7 +155,9 @@ VERDICT_VALIDATE_RUN = '''python .github/scripts/publish_readiness_verdict.py
 --validate-only
 --input "$VERDICT_PATH"
 --expected-origin "$CANONICAL_ORIGIN"
---expected-source-sha "$SOURCE_SHA"'''
+--expected-source-sha "$SOURCE_SHA"
+--github-output "$GITHUB_OUTPUT"'''
+RUN_VERDICT = "${{ needs.readiness-verdict.outputs.verdict }}"
 
 
 def job_strings(value):
@@ -161,28 +185,41 @@ def assert_deploy_path_contract(source):
     if (preflight.get("permissions") != {"contents": "read"}
             or preflight.get("env", {}).get("HF_TOKEN") != HF_CREDENTIAL
             or preflight.get("outputs") != {
-                "publish": "${{ steps.owner.outputs.publish }}",
+                "publish": "${{ steps.window.outputs.open == 'true' && steps.owner.outputs.publish == 'true' }}",
                 "restart_required": "${{ steps.runtime.outputs.restart_required }}",
                 "converged": "${{ steps.converge.outputs.converged }}"}):
         raise WorkflowContractError("preflight authority, permission or output scope changed")
     names = [step.get("name") for step in preflight["steps"]]
-    if names != ["Checkout exact protected source", "Set up Python", "Install exact Hugging Face control client",
+    if names != ["Checkout exact protected source",
+                 "Require current protected main before any provider effect",
+                 "Set up Python", "Install exact Hugging Face control client",
                  "Classify the runtime stage without restarting it",
+                 "Require an open deploy window while SQLite lives on the bucket mount",
                  "Converge runtime configuration before the single deploy start",
                  "Re-admit current protected main immediately before deploy",
                  "Skip a superseded source with a notice", "Retain secret-free preflight evidence"]:
         raise WorkflowContractError("preflight step order")
     exact_step(preflight["steps"][0], EXACT_CHECKOUT, "preflight checkout")
-    exact_step(preflight["steps"][1], PYTHON_312, "preflight interpreter")
-    exact_step(preflight["steps"][2], {"name": names[2], "run": CONTROL_CLIENT}, "preflight control client")
-    exact_step(preflight["steps"][3], {"name": names[3], "id": "runtime", "run": CLASSIFY_RUN},
+    # A superseded (or re-run) source is refused before any provider effect.
+    exact_step(preflight["steps"][1], {"name": names[1], "id": "admit", "shell": "bash",
+                                       "env": {"GITHUB_TOKEN": "${{ github.token }}"}, "run": ADMIT_RUN},
+               "preflight must admit current main before any provider effect")
+    exact_step(preflight["steps"][2], {**PYTHON_312, "if": ADMITTED}, "preflight interpreter")
+    exact_step(preflight["steps"][3], {"name": names[3], "if": ADMITTED, "run": CONTROL_CLIENT},
+               "preflight control client")
+    exact_step(preflight["steps"][4], {"name": names[4], "id": "runtime", "if": ADMITTED, "run": CLASSIFY_RUN},
                "preflight classification must stay read-only")
-    exact_step(preflight["steps"][4], {"name": names[4], "id": "converge", "shell": "bash",
+    exact_step(preflight["steps"][5], {"name": names[5], "id": "window", "if": ADMITTED, "shell": "bash",
+                                       "env": WINDOW_ENV, "run": WINDOW_RUN}, "deploy window")
+    exact_step(preflight["steps"][6], {"name": names[6], "id": "converge", "if": WINDOW_OPEN, "shell": "bash",
                                        "env": {"CONVERGE": "${{ steps.runtime.outputs.converge }}"},
                                        "run": CONVERGE_RUN}, "preflight convergence")
-    exact_step(preflight["steps"][5], {"name": names[5], "id": "owner", "shell": "bash",
+    exact_step(preflight["steps"][7], {"name": names[7], "id": "owner", "if": WINDOW_OPEN, "shell": "bash",
                                        "env": {"GITHUB_TOKEN": "${{ github.token }}"}, "run": OWNER_RUN},
                "preflight must re-admit current main")
+    window_input = workflow_document(source)["on"]["workflow_dispatch"]["inputs"].get("open_deploy_window", {})
+    if window_input.get("type") != "boolean" or window_input.get("default") is not False:
+        raise WorkflowContractError("deploy window must default closed")
 
     deploy = jobs["deploy"]
     inputs = deploy.get("with", {})
@@ -198,13 +235,17 @@ def assert_deploy_path_contract(source):
             or [step.get("name") for step in runtime["steps"]] != [
                 "Checkout exact protected source", "Set up Python", "Install exact Hugging Face control client",
                 "Verify or converge runtime configuration against the deployed revision",
+                "Await the deployed revision serving again after any convergence write",
                 "Upload secret-free runtime configuration evidence"]):
         raise WorkflowContractError("runtime-config step order")
     exact_step(runtime["steps"][3], {
         "name": "Verify or converge runtime configuration against the deployed revision",
         "shell": "bash", "env": {"PREDEPLOY_CONVERGED": "${{ needs.preflight.outputs.converged }}"},
         "run": VERIFY_RUN}, "runtime-config must verify, fail closed")
-    paths = tuple(runtime["steps"][4].get("with", {}).get("path", "").splitlines())
+    exact_step(runtime["steps"][4], {
+        "name": "Await the deployed revision serving again after any convergence write",
+        "run": AWAIT_RUN}, "runtime-config must await the restarted revision")
+    paths = tuple(runtime["steps"][5].get("with", {}).get("path", "").splitlines())
     if paths != ("${{ env.RUNTIME_CONFIG_REPORT }}", "${{ env.GDW_CONFIG_REPORT }}"):
         raise WorkflowContractError("runtime-config artifact allowlist")
 
@@ -222,10 +263,21 @@ def assert_deploy_path_contract(source):
             "Validate the source-bound verdict without a Space write"]:
         raise WorkflowContractError("readiness verdict must stay evidence-only")
     exact_step(readiness["steps"][-1], {"name": "Validate the source-bound verdict without a Space write",
-                                        "run": VERDICT_VALIDATE_RUN},
+                                        "id": "gate", "run": VERDICT_VALIDATE_RUN},
                "readiness verdict gate must fail closed without a Space write")
+    if readiness.get("outputs") != {"verdict": "${{ steps.gate.outputs.verdict }}"}:
+        raise WorkflowContractError("readiness verdict gate must hand its verdict to relock")
 
     relock = jobs["relock"]
+    # The deploy path never writes the verdict into the Space, so relock must
+    # re-validate this run's verdict rather than require a served one.
+    evaluate = named_step(relock, "Evaluate the canonical application contract")
+    evaluate_run = compact(evaluate.get("run", ""))
+    if (relock.get("needs") != ["runtime-config", "readiness-verdict"]
+            or evaluate.get("env") != {"RUN_READINESS_VERDICT": RUN_VERDICT}
+            or 'printf \'%s\' "$RUN_READINESS_VERDICT" > "$RUNNER_TEMP/run-readiness-verdict.json"' not in evaluate_run
+            or '--readiness-verdict-file "$RUNNER_TEMP/run-readiness-verdict.json"' not in evaluate_run):
+        raise WorkflowContractError("relock must re-validate this run's readiness verdict")
     enforce = named_step(relock, "Enforce exact live state")
     expected_enforce = r'''code="${EXIT_CODE:-2}"
 if [ "$code" -ne 0 ]; then
@@ -295,6 +347,27 @@ python -B scripts/check_hf_manual_prerequisites.py --admit-live-proofs \
   --gdw-proof "$GDW_LIVE_REPORT" --gdw-proof-exit "${GDW_PROOF_EXIT:-2}" \
   --source-sha "${{ github.sha }}" --output "$LIVE_PROOF_ADMISSION_REPORT"''',
 }
+DRILL_LIVE_RUN = '''set -euo pipefail
+python3 -B - "$CANONICAL_ORIGIN/api/build-info" "$GITHUB_SHA" <<'PY'
+import json, sys, urllib.request
+url, sha = sys.argv[1], sys.argv[2]
+request = urllib.request.Request(url, headers={"Cache-Control": "no-cache"})
+with urllib.request.urlopen(request, timeout=30) as response:
+    build = json.load(response).get("build") or {}
+if str(build.get("revision") or "").lower() != sha:
+    print("::error::The live Space does not serve current main; deploy it with hf-sync.yml before the drill.")
+    sys.exit(1)
+PY'''
+DRILL_GDW_OWNER_RUN = r'''set -euo pipefail
+python3 -B scripts/hf_exact_main_ownership.py \
+  --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+  --receipt "$RUNNER_TEMP/restart-drill-gdw-admission.json" \
+  --github-output "$RUNNER_TEMP/restart-drill-gdw-admission.out"
+if ! grep -Fqx 'publish=true' "$RUNNER_TEMP/restart-drill-gdw-admission.out"; then
+  echo '::error::Main moved during the drill; the GDW proof is not run against a superseded revision.'
+  exit 1
+fi'''
+GDW_AFTER_OWNER = "${{ always() && steps.gdw_owner.outcome == 'success' }}"
 DRILL_OWNER_RUN = r'''set -euo pipefail
 test "$GITHUB_REF" = refs/heads/main
 python3 -B scripts/hf_exact_main_ownership.py \
@@ -312,7 +385,8 @@ def assert_restart_drill_contract(source):
     document = workflow_document(source)
     if set(document.get("on", {})) != {"workflow_dispatch"}:
         raise WorkflowContractError("restart drill must be manual-only")
-    if document.get("concurrency") != {"group": "restart-drill-canonical-a11oy", "cancel-in-progress": False}:
+    # Shared with hf-sync.yml: GitHub never runs the drill alongside a deploy.
+    if document.get("concurrency") != {"group": "sync-relock-canonical-a11oy", "cancel-in-progress": False}:
         raise WorkflowContractError("restart drill concurrency")
     if document.get("permissions") != {"contents": "read"}:
         raise WorkflowContractError("restart drill permission scope")
@@ -327,8 +401,10 @@ def assert_restart_drill_contract(source):
         raise WorkflowContractError("live proof must be bounded and fail closed: job")
     names = [step.get("name") for step in job.get("steps", [])]
     if names != ["Checkout exact protected source", "Require the drill to target current protected main",
+                 "Require the exact current main revision to be the live one",
                  "Set up Python", "Install exact Hugging Face control client",
                  "Prove live Series-A restart persistence (bounded)",
+                 "Re-require current protected main before the GDW proof",
                  "Prove live GDW write, drain, and receipt integrity (bounded)",
                  "Admit bounded live proof reports and fail closed",
                  "Upload secret-free restart drill evidence"]:
@@ -337,11 +413,16 @@ def assert_restart_drill_contract(source):
     exact_step(steps[0], EXACT_CHECKOUT, "restart drill checkout")
     exact_step(steps[1], {"name": names[1], "shell": "bash", "env": {"GITHUB_TOKEN": "${{ github.token }}"},
                           "run": DRILL_OWNER_RUN}, "restart drill must target current main")
-    exact_step(steps[3], {"name": names[3], "run": CONTROL_CLIENT}, "restart drill control client")
+    exact_step(steps[2], {"name": names[2], "shell": "bash", "run": DRILL_LIVE_RUN},
+               "restart drill must require the live revision")
+    exact_step(steps[4], {"name": names[4], "run": CONTROL_CLIENT}, "restart drill control client")
+    exact_step(steps[6], {"name": names[6], "id": "gdw_owner", "if": DRILL_PROOF_CONDITION, "shell": "bash",
+                          "env": {"GITHUB_TOKEN": "${{ github.token }}"}, "run": DRILL_GDW_OWNER_RUN},
+               "restart drill must re-require current main before gdw")
     for kind, step, step_id, condition, step_env in (
-        ("series-a", steps[4], "series_a_proof", None, None),
-        ("gdw", steps[5], "gdw_proof", DRILL_PROOF_CONDITION, {"GDW_OPERATOR_TOKEN": "${{ secrets.GDW_OPERATOR_TOKEN }}"}),
-        ("admission", steps[6], None, DRILL_PROOF_CONDITION, {
+        ("series-a", steps[5], "series_a_proof", None, None),
+        ("gdw", steps[7], "gdw_proof", GDW_AFTER_OWNER, {"GDW_OPERATOR_TOKEN": "${{ secrets.GDW_OPERATOR_TOKEN }}"}),
+        ("admission", steps[8], None, DRILL_PROOF_CONDITION, {
             "SERIES_A_PROOF_EXIT": "${{ steps.series_a_proof.outputs.exit_code }}",
             "GDW_PROOF_EXIT": "${{ steps.gdw_proof.outputs.exit_code }}"}),
     ):
@@ -350,12 +431,13 @@ def assert_restart_drill_contract(source):
                 or step.get("env") != step_env or step.get("id") != step_id
                 or "continue-on-error" in step or step.get("shell") != "bash"):
             raise WorkflowContractError("live proof must be bounded and fail closed: " + kind)
-    paths = tuple(steps[7].get("with", {}).get("path", "").splitlines())
+    paths = tuple(steps[9].get("with", {}).get("path", "").splitlines())
     if paths != ("${{ env.SERIES_A_LIVE_REPORT }}", "${{ env.GDW_LIVE_REPORT }}",
                  "${{ env.LIVE_PROOF_ADMISSION_REPORT }}",
-                 "${{ runner.temp }}/restart-drill-source-admission.json"):
+                 "${{ runner.temp }}/restart-drill-source-admission.json",
+                 "${{ runner.temp }}/restart-drill-gdw-admission.json"):
         raise WorkflowContractError("live proof reports must be retained")
-    if steps[7].get("if") != "${{ always() }}" or steps[7].get("with", {}).get("if-no-files-found") != "error":
+    if steps[9].get("if") != "${{ always() }}" or steps[9].get("with", {}).get("if-no-files-found") != "error":
         raise WorkflowContractError("live proof reports must be retained")
     scanned = source.replace(ADMITTED_GDW_SECRET_LINE, "", 1)
     for token in ("--blocked-proof", "--managed-acquisition") + REMOVED_CREDENTIAL_TOKENS:
@@ -511,8 +593,14 @@ class DeployPathWorkflowTests(unittest.TestCase):
              '          series_code=0', "preflight convergence"),
             ("echo 'converged=true' >> \"$GITHUB_OUTPUT\"", "echo 'converged=true' >> \"$GITHUB_OUTPUT\" || true", "preflight convergence"),
             ('--receipt "$RUNNER_TEMP/preflight-source-admission.json"', '--receipt /tmp/forged.json', "re-admit current main"),
-            ("      publish: ${{ steps.owner.outputs.publish }}\n      restart_required", "      publish: 'true'\n      restart_required", "output scope"),
-            ("      contents: read\n    outputs:\n      publish: ${{ steps.owner.outputs.publish }}\n      restart_required", "      contents: write\n    outputs:\n      publish: ${{ steps.owner.outputs.publish }}\n      restart_required", "permission"),
+            ("      publish: ${{ steps.window.outputs.open == 'true' && steps.owner.outputs.publish == 'true' }}\n", "      publish: ${{ steps.owner.outputs.publish == 'true' }}\n", "output scope"),
+            ("      contents: read\n    outputs:\n      publish: ${{ steps.window", "      contents: write\n    outputs:\n      publish: ${{ steps.window", "permission"),
+            ("if [ \"${STAGE:-}\" = 'PAUSED' ] ||", "if true ||", "deploy window"),
+            ("        id: converge\n        if: ${{ steps.window.outputs.open == 'true' }}\n", "        id: converge\n", "preflight convergence"),
+            ("        id: runtime\n        if: ${{ steps.admit.outputs.publish == 'true' }}\n", "        id: runtime\n", "preflight classification"),
+            ('--receipt "$RUNNER_TEMP/preflight-admission.json"', '--receipt /tmp/forged.json', "admit current main before any provider effect"),
+            ("        type: boolean\n        default: false\n\npermissions:", "        type: boolean\n        default: true\n\npermissions:", "deploy window must default closed"),
+            ("python -B .github/scripts/await_hf_runtime_serving.py", "true", "runtime-config must await"),
             ('restart-space: ${{ needs.preflight.outputs.restart_required == \'true\' }}', "restart-space: true", "start the Space once"),
             ("require-default-branch-tip: true", "require-default-branch-tip: false", "start the Space once"),
             ("mode=(--check-only)", "mode=(--check-only --unverified)", "runtime-config must verify"),
@@ -522,6 +610,22 @@ class DeployPathWorkflowTests(unittest.TestCase):
                 self.assertIn(original, self.source)
                 with self.assertRaisesRegex(WorkflowContractError, re.escape(diagnostic)):
                     assert_deploy_path_contract(self.source.replace(original, replacement, 1))
+
+    def test_relock_must_revalidate_this_runs_verdict(self):
+        cases = (
+            ('            --readiness-verdict-file "$RUNNER_TEMP/run-readiness-verdict.json" \\\n', ""),
+            ("          RUN_READINESS_VERDICT: ${{ needs.readiness-verdict.outputs.verdict }}\n",
+             "          RUN_READINESS_VERDICT: '{}'\n"),
+        )
+        for original, replacement in cases:
+            with self.subTest(replacement=replacement):
+                self.assertIn(original, self.source)
+                with self.assertRaisesRegex(WorkflowContractError, "relock must re-validate"):
+                    assert_deploy_path_contract(self.source.replace(original, replacement, 1))
+        output = "    outputs:\n      verdict: ${{ steps.gate.outputs.verdict }}\n"
+        self.assertIn(output, self.source)
+        with self.assertRaisesRegex(WorkflowContractError, "hand its verdict to relock"):
+            assert_deploy_path_contract(self.source.replace(output, "", 1))
 
     def test_superseded_relock_is_neutral_but_failed_verification_stays_red(self):
         cases = (
@@ -579,7 +683,11 @@ class RestartDrillWorkflowTests(unittest.TestCase):
              "      LIVE_PROOF_ADMISSION_REPORT: /tmp/live-proof-admission.json\n      GDW_OPERATOR_TOKEN: ${{ secrets.GDW_OPERATOR_TOKEN }}\n", "job"),
             ("          if ! grep -Fqx 'publish=true'", "          if false && ! grep -Fqx 'publish=true'", "current main"),
             ("    timeout-minutes: 45\n", "    timeout-minutes: 45\n    continue-on-error: true\n", "cannot ignore failure"),
-            ("  group: restart-drill-canonical-a11oy\n", "  group: sync-relock-canonical-a11oy\n", "concurrency"),
+            ("  group: sync-relock-canonical-a11oy\n", "  group: restart-drill-canonical-a11oy\n", "concurrency"),
+            ("        if: ${{ always() && steps.gdw_owner.outcome == 'success' }}\n",
+             "        if: ${{ always() && (steps.series_a_proof.outcome == 'success' || steps.series_a_proof.outcome == 'failure') }}\n", "gdw"),
+            ("--receipt \"$RUNNER_TEMP/restart-drill-gdw-admission.json\"", "--receipt /tmp/forged.json", "re-require current main"),
+            ("          if str(build.get(\"revision\") or \"\").lower() != sha:", "          if False:", "live revision"),
         )
         for original, replacement, diagnostic in cases:
             with self.subTest(diagnostic=diagnostic, original=original):
