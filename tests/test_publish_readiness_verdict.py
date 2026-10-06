@@ -149,3 +149,37 @@ def test_compact_verdict_rejects_all_throttled_release_evidence() -> None:
 
     with pytest.raises(publisher.VerdictError, match="throttled required endpoints"):
         compact(payload, now)
+
+
+def test_validate_only_gates_the_verdict_without_any_space_write(tmp_path, monkeypatch, capsys) -> None:
+    # The deploy path validates the fresh verdict but never writes it to a
+    # Space variable, because a variable write restarts the deployed Space.
+    import json
+    import sys
+
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    probe = tmp_path / "verdict.json"
+    probe.write_text(json.dumps(valid_verdict(now)), encoding="utf-8")
+    monkeypatch.delenv("HF_TOKEN", raising=False)
+    monkeypatch.setitem(sys.modules, "huggingface_hub", None)  # any import fails
+    arguments = ["--validate-only", "--input", str(probe),
+                 "--expected-origin", "https://szlholdings-a11oy.hf.space",
+                 "--expected-source-sha", "a" * 40]
+    assert publisher.main(arguments) == 0
+    printed = json.loads(capsys.readouterr().out)
+    assert printed["validated"] is True
+    assert printed["space_variable_written"] is False
+    assert printed["verdict"]["sourceRevision"] == "a" * 40
+
+    payload = valid_verdict(now)
+    payload["summary"].update(ok=4, lies=1)
+    probe.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(publisher.VerdictError, match="doctrine lies"):
+        publisher.main(arguments)
+
+
+def test_publishing_still_requires_an_explicit_target(tmp_path) -> None:
+    with pytest.raises(SystemExit):
+        publisher.main(["--input", str(tmp_path / "missing.json"),
+                        "--expected-origin", "https://szlholdings-a11oy.hf.space",
+                        "--expected-source-sha", "a" * 40])

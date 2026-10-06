@@ -669,7 +669,8 @@ def test_triage_uses_canonical_private_read_selector_only_at_native_step():
     workflow = yaml.safe_load((triage.ROOT / triage.WORKFLOW).read_text())
     canonical = yaml.safe_load((triage.ROOT / ".github/workflows/hf-sync.yml").read_text())
     expected = "${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}"
-    assert canonical["jobs"]["durable-acquisition"]["env"]["HF_TOKEN"] == expected
+    # The canonical deploy preflight binds the same organisation credential.
+    assert canonical["jobs"]["preflight"]["env"]["HF_TOKEN"] == expected
     steps = workflow["jobs"]["triage"]["steps"]
     readers = [(index, step) for index, step in enumerate(steps)
                if "scripts/triage_gdw_artifacts_readonly.py --source-sha" in step.get("run", "")]

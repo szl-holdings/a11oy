@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
-"""Offline workflow, bounded live-proof and blocked CLI boundaries; no network."""
+"""Offline deploy-path, restart-drill, bounded live-proof and CLI boundaries; no network.
+
+The deploy path (hf-sync.yml) converges configuration before its single Space
+start and never pauses or restarts the Space afterwards. The bounded Series-A
+pause/restart and GDW restart proofs run only in the manual restart-drill.yml.
+"""
 
 from __future__ import annotations
 
 import ast
-import builtins
 import hashlib
 import io
 import json
@@ -22,17 +26,18 @@ from unittest import mock
 if __package__ in (None, ""):
     # Native CI invokes this file directly; its sibling is on sys.path.
     from test_hf_sync_supersession_contract import (
-        ROOT, WORKFLOW, WorkflowContractError, assert_manual_dependency_graph,
+        ROOT, WORKFLOW, WorkflowContractError, assert_deploy_dependency_graph,
         workflow_document,
     )
 else:
     from .test_hf_sync_supersession_contract import (
-        ROOT, WORKFLOW, WorkflowContractError, assert_manual_dependency_graph,
+        ROOT, WORKFLOW, WorkflowContractError, assert_deploy_dependency_graph,
         workflow_document,
     )
 
 CHECKER = ROOT / "scripts/check_hf_manual_prerequisites.py"
 RESTART_WORKFLOW = ROOT / ".github/workflows/series-a-restart-proof.yml"
+DRILL_WORKFLOW = ROOT / ".github/workflows/restart-drill.yml"
 PROOFS = (
     ("prove_hf_series_a_restart.py", "szl.series-a-restart-proof/v1", "secret_values_recorded"),
     ("prove_hf_gdw_runtime.py", "szl.hf-gdw-live-proof/v1", "credential_values_recorded"),
@@ -50,63 +55,6 @@ def compact(value):
     return " ".join(value.split())
 
 
-ADMITTED_GDW_SECRET_LINE = "          GDW_OPERATOR_TOKEN: ${{ secrets.GDW_OPERATOR_TOKEN }}\n"
-ADMISSION_CONDITION = "${{ always() && needs.manual-prerequisites.result == 'success' && needs.deploy.result == 'success' }}"
-GDW_CONDITION = ADMISSION_CONDITION[:-3] + " && (steps.series_a_proof.outcome == 'success' || steps.series_a_proof.outcome == 'failure') }}"
-BOUNDED_RUNS = {
-    "series_a": r'''set +e
-python -B scripts/prove_hf_series_a_restart.py \
-  --repo-id "$CANONICAL_SPACE" --origin "$CANONICAL_ORIGIN" \
-  --managed-acquisition "$RUNNER_TEMP/gdw-durable-acquisition.json" \
-  --run-context "${{ github.run_id }}:${{ github.run_attempt }}" \
-  --source-sha "${{ github.sha }}" --output "$SERIES_A_LIVE_REPORT"
-code=$?
-echo "exit_code=$code" >> "$GITHUB_OUTPUT"
-exit "$code"''',
-    "gdw": r'''set +e
-python -B scripts/prove_hf_gdw_runtime.py \
-  --series-a-proof "$SERIES_A_LIVE_REPORT" \
-  --run-context "${{ github.run_id }}:${{ github.run_attempt }}" \
-  --origin "$CANONICAL_ORIGIN" \
-  --managed-acquisition "$RUNNER_TEMP/gdw-durable-acquisition.json" \
-  --source-sha "${{ github.sha }}" --output "$GDW_LIVE_REPORT"
-code=$?
-echo "exit_code=$code" >> "$GITHUB_OUTPUT"
-exit "$code"''',
-    "admission": r'''set -euo pipefail
-python -B scripts/check_hf_manual_prerequisites.py --admit-live-proofs \
-  --managed-acquisition "$RUNNER_TEMP/gdw-durable-acquisition.json" \
-  --series-a-proof "$SERIES_A_LIVE_REPORT" --series-a-proof-exit "${SERIES_A_PROOF_EXIT:-2}" \
-  --gdw-proof "$GDW_LIVE_REPORT" --gdw-proof-exit "${GDW_PROOF_EXIT:-2}" \
-  --source-sha "${{ github.sha }}" --output "$LIVE_PROOF_ADMISSION_REPORT"''',
-}
-
-CHECKOUT = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
-SETUP_PYTHON = "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97"
-UPLOAD = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
-MANAGED_MODE = "managed-recovery"
-LEGACY_MODE_CONDITION = "${{ needs.manual-prerequisites.outputs.mode != 'managed-recovery' }}"
-CLASSIFIER_RUN = '''python -B scripts/acquire_gdw_durable_storage.py --classify-prerequisites
---preservation "${{ runner.temp }}/gdw-store-preservation.json"
---qualification "${{ runner.temp }}/gdw-store-recovery-qualification.json"
---github-output "$GITHUB_OUTPUT"
---output "${{ runner.temp }}/manual-prerequisites.json"'''
-RECONCILIATION_RUN = '''python -B scripts/acquire_gdw_durable_storage.py --reconcile-supervised-acquisition
---github-output "$GITHUB_OUTPUT"
---output "$RUNNER_TEMP/gdw-supervised-reconciliation.json"'''
-ACQUISITION_RUN = '''python -B scripts/acquire_gdw_durable_storage.py --inspect-held-acquisition
---output "$RUNNER_TEMP/gdw-durable-acquisition.json"'''
-
-PAIR_CONFIGURATION_RUN = '''python -B scripts/configure_hf_gdw_runtime.py
---managed-acquisition "$RUNNER_TEMP/gdw-durable-acquisition.json"
---source-sha "$GITHUB_SHA" --managed-deadline-seconds 120
---output "$RUNNER_TEMP/gdw-managed-configuration.json"'''
-FETCH_LOCATOR_RUN = '''python -B scripts/acquire_gdw_durable_storage.py --fetch-locator
---acquisition-artifact-id "${{ needs.durable-acquisition.outputs.artifact_id }}"
---acquisition-artifact-sha256 "${{ needs.durable-acquisition.outputs.artifact_sha256 }}"
---output "$RUNNER_TEMP/gdw-durable-acquisition.json"'''
-
-
 def exact_step(actual, expected, diagnostic):
     """Reject added keys/effects while tolerating only shell whitespace layout."""
     actual, expected = dict(actual), dict(expected)
@@ -119,261 +67,164 @@ def exact_step(actual, expected, diagnostic):
         raise WorkflowContractError(diagnostic)
 
 
-def assert_reconciliation_contract(jobs):
-    """Retain the disabled preflight's exact read-only authority and manual ABI."""
-    job = jobs["recovery-reconciliation"]
-    if (set(job) != {"name", "needs", "if", "runs-on", "timeout-minutes", "permissions", "outputs", "env", "steps"}
-            or job["name"] != "Reconcile the held acquisition before provider mutation"
-            or job["runs-on"] != "ubuntu-latest" or job["timeout-minutes"] != "5"
-            or job["permissions"] != {"contents": "read", "actions": "read"}
-            or job["env"] != {"HF_TOKEN": "${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}", "PYTHONDONTWRITEBYTECODE": "1"}
-            or job["outputs"] != {"admitted": "${{ steps.reconciliation.outputs.admitted }}"}):
-        raise WorkflowContractError("reconciliation authority, permission or output scope changed")
-    expected_steps = [
-        {"name": "Checkout the exact protected source", "uses": CHECKOUT,
-         "with": {"ref": "${{ github.sha }}", "persist-credentials": False, "fetch-depth": "1"}},
-        {"name": "Set up the isolated reconciliation interpreter", "uses": SETUP_PYTHON,
-         "with": {"python-version": "3.12"}},
-        {"name": "Install the exact read-only reconciliation ABI",
-         "run": 'python -m pip install --disable-pip-version-check --no-cache-dir "huggingface_hub==1.31.0" "requests==2.32.5" "cryptography==50.0.1"'},
-        {"name": "Require the fixed inspection and unchanged absent private fence", "id": "reconciliation",
-         "run": RECONCILIATION_RUN},
-        {"name": "Retain the bounded read-only reconciliation decision", "if": "${{ always() }}", "uses": UPLOAD,
-         "with": {"name": "canonical-supervised-reconciliation-${{ github.run_id }}-${{ github.run_attempt }}",
-                  "path": "${{ runner.temp }}/gdw-supervised-reconciliation.json",
-                  "if-no-files-found": "error", "retention-days": "90"}},
-    ]
-    if len(job["steps"]) != len(expected_steps):
-        raise WorkflowContractError("reconciliation must retain its exact source, read-only check and artifact order")
-    for actual, expected in zip(job["steps"], expected_steps):
-        exact_step(actual, expected, "reconciliation exact step contract: " + expected["name"])
-
-
-def assert_acquisition_contract(jobs):
-    """The native job selects only fixed inspection; its pair stays disabled."""
-    job = jobs["durable-acquisition"]
-    if (set(job) != {"name", "needs", "if", "runs-on", "timeout-minutes", "permissions", "outputs", "env", "steps"}
-            or job["name"] != "Acquire qualified private storage through the canonical publisher"
-            or job["runs-on"] != "ubuntu-latest" or job["timeout-minutes"] != "20"
-            or job["permissions"] != {"contents": "read", "actions": "read"}
-            or job["env"] != {"HF_TOKEN": "${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}", "PYTHONDONTWRITEBYTECODE": "1"}
-            or job["outputs"] != {
-                "artifact_id": "${{ steps.acquisition_artifact.outputs.artifact-id }}",
-                "artifact_sha256": "${{ steps.acquisition_artifact.outputs.artifact-digest }}"}):
-        raise WorkflowContractError("acquisition authority, permission or output scope changed")
-    expected_steps = [
-        {"name": "Checkout the exact protected source", "uses": CHECKOUT,
-         "with": {"ref": "${{ github.sha }}", "persist-credentials": False, "fetch-depth": "1"}},
-        {"name": "Read the existing immutable COPY publisher", "uses": CHECKOUT,
-         "with": {"repository": "szl-holdings/.github", "ref": "fc71ae973a0f31b8e9ee793fc8545a354448d451",
-                  "path": ".gdw-source-publisher", "persist-credentials": False, "fetch-depth": "1"}},
-        {"name": "Set up the isolated acquisition interpreter", "uses": SETUP_PYTHON,
-         "with": {"python-version": "3.12"}},
-        {"name": "Install the exact managed acquisition ABI",
-         "run": 'python -m pip install --disable-pip-version-check --no-cache-dir "huggingface_hub==1.31.0" "requests==2.32.5" "cryptography==50.0.1"'},
-        {"name": "Inspect the held prior acquisition without provider mutation", "run": ACQUISITION_RUN},
-        {"name": "Install the persistent old-source guard and both managed configurations once",
-         "if": "${{ github.ref == 'refs/heads/main' && false }}", "run": PAIR_CONFIGURATION_RUN},
-        {"name": "Retain only the bounded inspection metadata report", "id": "acquisition_artifact",
-         "if": "${{ always() }}", "uses": UPLOAD,
-         "with": {"name": "canonical-durable-acquisition-${{ github.run_id }}-${{ github.run_attempt }}",
-                  "path": "${{ runner.temp }}/gdw-durable-acquisition.json",
-                  "if-no-files-found": "error", "retention-days": "90"}},
-    ]
-    if len(job["steps"]) != len(expected_steps):
-        raise WorkflowContractError("acquisition must retain its exact source, held inspection, disabled pair and artifact order")
-    for actual, expected in zip(job["steps"], expected_steps):
-        exact_step(actual, expected, "acquisition exact step contract: " + expected["name"])
-    runtime = jobs["runtime-config"]
-    runtime_names = [
-        "Checkout exact protected source", "Set up Python", "Install exact Hugging Face control client",
-        "Read the exact same-run managed selector without granting local-file authority",
-        "Converge fail-closed runtime configuration", "Converge isolated GDW successor configuration",
-        "Prove live Series-A restart persistence (bounded)", "Prove live GDW write, drain, and receipt integrity (bounded)",
-        "Admit bounded live proof reports and fail closed", "Upload secret-free runtime configuration evidence",
-    ]
-    if ([step.get("name") for step in runtime["steps"]] != runtime_names
-            or runtime.get("permissions") != {"contents": "read", "actions": "read"}):
-        raise WorkflowContractError("managed runtime must retain its exact read, proof and artifact order")
-    exact_step(named_step(runtime, runtime_names[2]), {
-        "name": runtime_names[2],
-        "run": 'python -m pip install --disable-pip-version-check "huggingface_hub==1.31.0" "requests==2.32.5" "cryptography==50.0.1"'},
-        "managed runtime interpreter must remain separate from manual 1.23")
-    exact_step(named_step(runtime, runtime_names[3]), {"name": runtime_names[3], "run": FETCH_LOCATOR_RUN},
-        "managed runtime requires the exact same-run read-only selector")
-    for name, expected in (
-        (runtime_names[4], 'python scripts/configure_hf_series_a_runtime.py --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" --output "$RUNTIME_CONFIG_REPORT"'),
-        (runtime_names[5], 'python scripts/configure_hf_gdw_runtime.py --repo-id "$CANONICAL_SPACE" --output "$GDW_CONFIG_REPORT"'),
-    ):
-        exact_step(named_step(runtime, name), {"name": name, "if": LEGACY_MODE_CONDITION, "run": expected},
-            "managed runtime cannot repeat legacy configuration or add an override")
-    upload = named_step(runtime, runtime_names[-1])
-    expected_paths = tuple("${{ env." + name + " }}" for name in (
-        "RUNTIME_CONFIG_REPORT", "SERIES_A_LIVE_REPORT", "GDW_CONFIG_REPORT", "GDW_LIVE_REPORT", "LIVE_PROOF_ADMISSION_REPORT"))
-    if tuple(upload.get("with", {}).get("path", "").splitlines()) != expected_paths:
-        raise WorkflowContractError("live proof reports must be retained: managed runtime artifact allowlist changed")
-
-
-def assert_bounded_live_proof_steps(runtime, source):
-    """The two live proofs run bounded, fail closed and are admitted by the checker."""
-    env = runtime.get("env", {})
-    if env.get("CANONICAL_SPACE") is not None or "GDW_OPERATOR_TOKEN" in env or "continue-on-error" in runtime:
-        raise WorkflowContractError("live proof must be bounded and fail closed: job")
-    series = named_step(runtime, "Prove live Series-A restart persistence (bounded)")
-    gdw = named_step(runtime, "Prove live GDW write, drain, and receipt integrity (bounded)")
-    admission = named_step(runtime, "Admit bounded live proof reports and fail closed")
-    for kind, step, condition, step_env in (
-        ("series-a", series, None, None),
-        ("gdw", gdw, GDW_CONDITION, {"GDW_OPERATOR_TOKEN": "${{ secrets.GDW_OPERATOR_TOKEN }}"}),
-        ("admission", admission, ADMISSION_CONDITION, {
-            "SERIES_A_PROOF_EXIT": "${{ steps.series_a_proof.outputs.exit_code }}",
-            "GDW_PROOF_EXIT": "${{ steps.gdw_proof.outputs.exit_code }}",
-        }),
-    ):
-        key = {"series-a": "series_a"}.get(kind, kind)
-        if (
-            compact(step.get("run", "")) != compact(BOUNDED_RUNS[key])
-            or step.get("if") != condition
-            or step.get("env") != step_env
-            or "continue-on-error" in step
-            or step.get("shell") != "bash"
-        ):
-            raise WorkflowContractError("live proof must be bounded and fail closed: " + kind)
-    if series.get("id") != "series_a_proof" or gdw.get("id") != "gdw_proof":
-        raise WorkflowContractError("live proof must be bounded and fail closed: ids")
-    steps = runtime["steps"]
-    if not steps.index(series) < steps.index(gdw) < steps.index(admission):
-        raise WorkflowContractError("live proof must be bounded and fail closed: order")
-    upload = named_step(runtime, "Upload secret-free runtime configuration evidence")
-    paths = upload.get("with", {}).get("path", "")
-    for name in ("SERIES_A_LIVE_REPORT", "GDW_LIVE_REPORT", "LIVE_PROOF_ADMISSION_REPORT"):
-        if "${{ env." + name + " }}" not in paths:
-            raise WorkflowContractError("live proof reports must be retained")
-    if "--blocked-proof" in source:
-        raise WorkflowContractError("hf-sync must not fall back to the blocked proof")
-    if source.count("prove_hf_series_a_restart.py") != 1 or source.count("prove_hf_gdw_runtime.py") != 1:
-        raise WorkflowContractError("live proof must be bounded and fail closed: duplicate call")
-
-
-def assert_manual_step_contract(source):
-    jobs = assert_manual_dependency_graph(source)
-    assert_reconciliation_contract(jobs)
-    admission = jobs["source-admission"]
-    admission_names = [step.get("name") for step in admission["steps"]]
-    if admission_names != ["Checkout the immutable queued source", "Require main and classify current source ownership", "Retain the source admission decision"]:
-        raise WorkflowContractError("source admission must remain read only")
-    admission_run = named_step(admission, "Require main and classify current source ownership")["run"]
-    expected_admission = r'''set -euo pipefail
-test "$GITHUB_REF" = refs/heads/main
-python3 -B scripts/hf_exact_main_ownership.py \
-  --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
-  --receipt "$RUNNER_TEMP/canonical-source-admission.json" \
-  --github-output "$GITHUB_OUTPUT"'''
-    if compact(admission_run) != compact(expected_admission) or "secrets." in json.dumps(admission):
-        raise WorkflowContractError("source admission must remain read only")
-    if admission.get("outputs") != {
-        "publish": "${{ steps.owner.outputs.publish }}",
-        "artifact_id": "${{ steps.source_artifact.outputs.artifact-id }}",
-        "artifact_sha256": "${{ steps.source_artifact.outputs.artifact-digest }}",
-    }:
-        raise WorkflowContractError("source admission outputs must bind its exact native artifact")
-    job = jobs["manual-prerequisites"]
-    if job.get("permissions") != {"contents": "read"}:
-        raise WorkflowContractError("manual authority or permission scope changed")
-    if [step.get("name") for step in job["steps"]] != ["Checkout the immutable admitted source", "Set up Python", "Install exact metadata client", "Preserve stopped private stores before any runtime mutation", "Qualify the pinned private capture without admitting restore", "Classify the exact native candidate without admitting deployment", "Retain metadata checks and fail closed on UNKNOWN authority", "Retain bounded prerequisite decision"]:
-        raise WorkflowContractError("manual job permits only the reviewed preservation effect, read-only qualification and candidate classifier")
-    exact_step(named_step(job, "Set up Python"), {"name": "Set up Python", "uses": SETUP_PYTHON,
-        "with": {"python-version": "3.12"}}, "manual interpreter must remain separate and pinned")
-    exact_step(named_step(job, "Install exact metadata client"), {"name": "Install exact metadata client",
-        "run": 'python -m pip install --disable-pip-version-check "huggingface_hub==1.23.0" "requests==2.32.5" "cryptography==50.0.1"'},
-        "manual interpreter must retain the exact 1.23 metadata dependencies")
-    preservation = named_step(job, "Preserve stopped private stores before any runtime mutation")
-    expected_preservation = 'python -B scripts/preserve_hf_gdw_store.py --supervised-acquisition --output "${{ runner.temp }}/gdw-store-preservation.json"'
-    if (set(preservation) != {"name", "id", "continue-on-error", "run"}
-            or preservation.get("id") != "preserve_stores"
-            or preservation.get("continue-on-error") is not True
-            or compact(preservation.get("run", "")) != expected_preservation
-            or job.get("env") != {"HF_TOKEN": "${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}"}):
-        raise WorkflowContractError("preservation step must retain its exact invocation and credential scope")
-    recovery = named_step(job, "Qualify the pinned private capture without admitting restore")
-    expected_recovery = (
-        "python -B scripts/qualify_gdw_store_recovery.py "
-        "--capture-report docs/operations/evidence/gdw-capture-37223162231.json "
-        "--historical-anchors docs/operations/evidence/gdw-recovery-historical-anchors.json "
-        '--output "${{ runner.temp }}/gdw-store-recovery-qualification.json"'
-    )
-    if (set(recovery) != {"name", "id", "if", "continue-on-error", "run"}
-            or recovery.get("id") != "qualify_stores"
-            or recovery.get("continue-on-error") is not True
-            or recovery.get("if") != "${{ always() && steps.preserve_stores.outcome == 'failure' }}"
-            or compact(recovery.get("run", "")) != expected_recovery):
-        raise WorkflowContractError("recovery qualification must retain its exact read-only invocation and failed-preservation condition")
-    classifier = named_step(job, "Classify the exact native candidate without admitting deployment")
-    exact_step(classifier, {"name": "Classify the exact native candidate without admitting deployment",
-        "id": "recovery_mode", "if": "${{ always() }}", "run": CLASSIFIER_RUN},
-        "candidate classifier must validate the exact reports without failure tolerance or overrides")
-    step = named_step(job, "Retain metadata checks and fail closed on UNKNOWN authority")
-    expected = r'''set +e
+CHECKOUT = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+SETUP_PYTHON = "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97"
+UPLOAD = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+HF_CREDENTIAL = "${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}"
+CONTROL_CLIENT = 'python -m pip install --disable-pip-version-check "huggingface_hub==1.31.0" "requests==2.32.5" "cryptography==50.0.1"'
+EXACT_CHECKOUT = {"name": "Checkout exact protected source", "uses": CHECKOUT,
+                  "with": {"ref": "${{ github.sha }}", "persist-credentials": False, "fetch-depth": "1"}}
+PYTHON_312 = {"name": "Set up Python", "uses": SETUP_PYTHON, "with": {"python-version": "3.12"}}
+CLASSIFY_RUN = '''python -B .github/scripts/resume_hf_space.py
+--repo-id "$CANONICAL_SPACE"
+--output "$PREFLIGHT_REPORT"
+--github-output "$GITHUB_OUTPUT"'''
+CONVERGE_RUN = r'''set -uo pipefail
+if [ "${CONVERGE:-false}" != 'true' ]; then
+  echo '::notice::The canonical runtime is not serving; configuration converges against the deployed revision.'
+  echo 'converged=false' >> "$GITHUB_OUTPUT"
+  exit 0
+fi
 python -B scripts/configure_hf_series_a_runtime.py \
-  --repo-id "$CANONICAL_SPACE" --check-only \
-  --output "$RUNNER_TEMP/manual-series-a.json"
+  --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \
+  --output "$RUNTIME_CONFIG_REPORT"
 series_code=$?
 python -B scripts/configure_hf_gdw_runtime.py \
-  --repo-id "$CANONICAL_SPACE" --check-only \
-  --output "$RUNNER_TEMP/manual-gdw.json"
+  --repo-id "$CANONICAL_SPACE" --output "$GDW_CONFIG_REPORT"
 gdw_code=$?
-set -euo pipefail
-python -B scripts/check_hf_manual_prerequisites.py \
-  --series-a "$RUNNER_TEMP/manual-series-a.json" --series-a-exit "$series_code" \
-  --gdw "$RUNNER_TEMP/manual-gdw.json" --gdw-exit "$gdw_code" \
-  --source-sha "$GITHUB_SHA" --output "$RUNNER_TEMP/manual-prerequisites.json"'''
-    if (set(step) != {"name", "if", "shell", "run"} or step.get("shell") != "bash"
-            or compact(step.get("run", "")) != compact(expected)
-            or step.get("if") != "${{ steps.recovery_mode.outputs.mode != 'managed-recovery' && steps.recovery_mode.outcome == 'success' }}"):
-        raise WorkflowContractError("manual aggregate must fail before effects")
-    if job.get("outputs") != {
-        "mode": "${{ steps.recovery_mode.outputs.mode }}",
-        "artifact_id": "${{ steps.prerequisite_artifact.outputs.artifact-id }}",
-        "artifact_sha256": "${{ steps.prerequisite_artifact.outputs.artifact-digest }}",
-    }:
-        raise WorkflowContractError("metadata cannot emit authority")
-    receipt = named_step(job, "Retain bounded prerequisite decision")
-    if receipt.get("if") != "always()" or receipt.get("with", {}).get("if-no-files-found") != "error":
-        raise WorkflowContractError("manual decision must be retained")
-    artifact_paths = receipt.get("with", {}).get("path", "")
-    if not isinstance(artifact_paths, str) or tuple(artifact_paths.splitlines()) != (
-        "${{ runner.temp }}/manual-prerequisites.json",
-        "${{ runner.temp }}/gdw-store-preservation.json",
-        "${{ runner.temp }}/gdw-store-recovery-qualification.json",
-    ):
-        raise WorkflowContractError("preservation artifacts must retain the exact public metadata allowlist")
-    if (set(receipt) != {"name", "id", "if", "uses", "with"}
-            or receipt.get("id") != "prerequisite_artifact" or receipt.get("uses") != UPLOAD
-            or set(receipt.get("with", {})) != {"name", "path", "if-no-files-found", "retention-days"}
-            or receipt["with"].get("name") != "canonical-manual-prerequisites-${{ github.run_id }}-${{ github.run_attempt }}"
-            or receipt["with"].get("retention-days") != "90"):
-        raise WorkflowContractError("manual decision must retain its exact same-run metadata artifact")
-    assert_acquisition_contract(jobs)
-    # The GDW operator credential may appear exactly once: as the step-level
-    # env of the bounded GDW proof step. Anywhere else it is a removed effect.
-    scanned = source.replace(ADMITTED_GDW_SECRET_LINE, "", 1)
-    for token in ("DOCS_READ_TOKEN", "--github-read-token", "--operator-token", "--capacity-donor", "HF_CAPACITY_DONOR", "add_space_secret", "delete_space_secret", "gh issue", "issues: write", "OPERATOR_TOKEN"):
-        if token in scanned:
-            raise WorkflowContractError("removed credential or donor effect: " + token)
-    assert_bounded_live_proof_steps(jobs["runtime-config"], source)
-    document = workflow_document(source)
-    if document["on"]["workflow_dispatch"]["inputs"]["publish_vertical_flagships"]["default"] is not False:
-        raise WorkflowContractError("vertical publication requires explicit opt in")
-    vertical = jobs["publish-vertical-flagships"]
-    owned = "${{ steps.exact_main_owner.outputs.publish == 'true' }}"
-    approved = "${{ steps.exact_main_owner.outputs.publish == 'true' && steps.vertical_plan.outputs.vertical_flagships == 'true' }}"
-    for name, condition in (("Set up Python", owned), ("Require the approved plan for the actual vertical source", owned), ("Install pinned vertical publisher", approved), ("Publish and verify the v4 vertical estate", approved)):
-        if named_step(vertical, name).get("if") != condition:
-            raise WorkflowContractError("vertical source and plan gate: " + name)
-    finance = jobs["publish-finance-projection"]
-    for name in ("Set up Python", "Install the established pinned publisher", "Publish exactly Finance and require public functional evidence"):
-        if named_step(finance, name).get("if") != "${{ steps.owner.outputs.publish == 'true' }}":
-            raise WorkflowContractError("finance source gate: " + name)
+if [ "$series_code" -eq 0 ] && [ "$gdw_code" -eq 0 ]; then
+  echo 'converged=true' >> "$GITHUB_OUTPUT"
+else
+  echo "::warning::Pre-deploy configuration did not converge (series-a=${series_code}, gdw=${gdw_code}); runtime-config converges against the deployed revision."
+  echo 'converged=false' >> "$GITHUB_OUTPUT"
+fi'''
+OWNER_RUN = r'''set -euo pipefail
+python3 -B scripts/hf_exact_main_ownership.py \
+  --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+  --receipt "$RUNNER_TEMP/preflight-source-admission.json" \
+  --github-output "$GITHUB_OUTPUT"'''
+VERIFY_RUN = r'''set -euo pipefail
+mode=()
+if [ "${PREDEPLOY_CONVERGED:-false}" = 'true' ]; then
+  mode=(--check-only)
+else
+  echo '::notice::Configuration was not converged before deploy; converging against the deployed revision.'
+fi
+python -B scripts/configure_hf_series_a_runtime.py \
+  --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \
+  "${mode[@]}" --output "$RUNTIME_CONFIG_REPORT"
+python -B scripts/configure_hf_gdw_runtime.py \
+  --repo-id "$CANONICAL_SPACE" \
+  "${mode[@]}" --output "$GDW_CONFIG_REPORT"'''
+# Post-deploy jobs may read and verify, never restart, pause or write variables.
+POST_DEPLOY_JOBS = ("runtime-config", "readiness-verdict", "relock",
+                    "post-deployment-parity", "terminal-source-authorization")
+RESTART_EFFECT_TOKENS = ("restart_space", "restart-space", "pause_space", "add_space_variable",
+                         "prove_hf_series_a_restart.py",
+                         "prove_hf_gdw_runtime.py", "--managed-acquisition", "acquire_gdw_durable_storage.py",
+                         "reconcile_gdw_diagnostic_continuation.py")
+REMOVED_CREDENTIAL_TOKENS = ("DOCS_READ_TOKEN", "--github-read-token", "--operator-token", "--capacity-donor",
+                             "HF_CAPACITY_DONOR", "add_space_secret", "delete_space_secret", "gh issue",
+                             "issues: write", "OPERATOR_TOKEN", "actions: write")
+
+
+VERDICT_PUBLISH = re.compile(r"publish_readiness_verdict\.py(?!\s+--validate-only\b)")
+VERDICT_VALIDATE_RUN = '''python .github/scripts/publish_readiness_verdict.py
+--validate-only
+--input "$VERDICT_PATH"
+--expected-origin "$CANONICAL_ORIGIN"
+--expected-source-sha "$SOURCE_SHA"'''
+
+
+def job_strings(value):
+    """Yield every decoded string inside a parsed job (shell bodies included)."""
+    if isinstance(value, dict):
+        for child in value.values():
+            yield from job_strings(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from job_strings(child)
+    elif isinstance(value, str):
+        yield value
+
+
+def assert_deploy_path_contract(source):
+    """The deploy path converges first, starts once, then only verifies."""
+    jobs = assert_deploy_dependency_graph(source)
+    admission = jobs["source-admission"]
+    if [step.get("name") for step in admission["steps"]] != [
+            "Checkout the immutable queued source", "Require main and classify current source ownership",
+            "Retain the source admission decision"] or "secrets." in json.dumps(admission):
+        raise WorkflowContractError("source admission must remain read only")
+
+    preflight = jobs["preflight"]
+    if (preflight.get("permissions") != {"contents": "read"}
+            or preflight.get("env", {}).get("HF_TOKEN") != HF_CREDENTIAL
+            or preflight.get("outputs") != {
+                "publish": "${{ steps.owner.outputs.publish }}",
+                "restart_required": "${{ steps.runtime.outputs.restart_required }}",
+                "converged": "${{ steps.converge.outputs.converged }}"}):
+        raise WorkflowContractError("preflight authority, permission or output scope changed")
+    names = [step.get("name") for step in preflight["steps"]]
+    if names != ["Checkout exact protected source", "Set up Python", "Install exact Hugging Face control client",
+                 "Classify the runtime stage without restarting it",
+                 "Converge runtime configuration before the single deploy start",
+                 "Re-admit current protected main immediately before deploy",
+                 "Skip a superseded source with a notice", "Retain secret-free preflight evidence"]:
+        raise WorkflowContractError("preflight step order")
+    exact_step(preflight["steps"][0], EXACT_CHECKOUT, "preflight checkout")
+    exact_step(preflight["steps"][1], PYTHON_312, "preflight interpreter")
+    exact_step(preflight["steps"][2], {"name": names[2], "run": CONTROL_CLIENT}, "preflight control client")
+    exact_step(preflight["steps"][3], {"name": names[3], "id": "runtime", "run": CLASSIFY_RUN},
+               "preflight classification must stay read-only")
+    exact_step(preflight["steps"][4], {"name": names[4], "id": "converge", "shell": "bash",
+                                       "env": {"CONVERGE": "${{ steps.runtime.outputs.converge }}"},
+                                       "run": CONVERGE_RUN}, "preflight convergence")
+    exact_step(preflight["steps"][5], {"name": names[5], "id": "owner", "shell": "bash",
+                                       "env": {"GITHUB_TOKEN": "${{ github.token }}"}, "run": OWNER_RUN},
+               "preflight must re-admit current main")
+
+    deploy = jobs["deploy"]
+    inputs = deploy.get("with", {})
+    if (inputs.get("restart-space") != "${{ needs.preflight.outputs.restart_required == 'true' }}"
+            or inputs.get("require-default-branch-tip") is not True
+            or inputs.get("ref") != "${{ github.sha }}"
+            or inputs.get("source-revision-variable") != "SZL_GIT_SHA"
+            or inputs.get("source-revision-probe-path") != "/api/build-info"):
+        raise WorkflowContractError("deploy must start the Space once and bind exact source")
+
+    runtime = jobs["runtime-config"]
+    if (runtime.get("permissions") != {"contents": "read"}
+            or [step.get("name") for step in runtime["steps"]] != [
+                "Checkout exact protected source", "Set up Python", "Install exact Hugging Face control client",
+                "Verify or converge runtime configuration against the deployed revision",
+                "Upload secret-free runtime configuration evidence"]):
+        raise WorkflowContractError("runtime-config step order")
+    exact_step(runtime["steps"][3], {
+        "name": "Verify or converge runtime configuration against the deployed revision",
+        "shell": "bash", "env": {"PREDEPLOY_CONVERGED": "${{ needs.preflight.outputs.converged }}"},
+        "run": VERIFY_RUN}, "runtime-config must verify, fail closed")
+    paths = tuple(runtime["steps"][4].get("with", {}).get("path", "").splitlines())
+    if paths != ("${{ env.RUNTIME_CONFIG_REPORT }}", "${{ env.GDW_CONFIG_REPORT }}"):
+        raise WorkflowContractError("runtime-config artifact allowlist")
+
+    for name in POST_DEPLOY_JOBS:
+        for text in job_strings(jobs[name]):
+            for token in RESTART_EFFECT_TOKENS:
+                if token in text:
+                    raise WorkflowContractError("post-deploy restart or variable effect: " + name + ": " + token)
+            if VERDICT_PUBLISH.search(text):
+                raise WorkflowContractError("post-deploy restart or variable effect: " + name + ": verdict publish")
+    readiness = jobs["readiness-verdict"]
+    if "HF_TOKEN" in json.dumps(readiness) or [step.get("name") for step in readiness["steps"]] != [
+            "Checkout exact protected source", "Set up Node.js", "Set up Python",
+            "Probe the exact canonical deployment", "Upload immutable full probe evidence",
+            "Validate the source-bound verdict without a Space write"]:
+        raise WorkflowContractError("readiness verdict must stay evidence-only")
+    exact_step(readiness["steps"][-1], {"name": "Validate the source-bound verdict without a Space write",
+                                        "run": VERDICT_VALIDATE_RUN},
+               "readiness verdict gate must fail closed without a Space write")
+
     relock = jobs["relock"]
     enforce = named_step(relock, "Enforce exact live state")
     expected_enforce = r'''code="${EXIT_CODE:-2}"
@@ -382,67 +233,137 @@ if [ "$code" -ne 0 ]; then
   exit "$code"
 fi
 if [ "${CURRENT_MAIN:-false}" != 'true' ]; then
-  echo '::error::Canonical A11oy relock source is no longer current protected main.'
-  exit 3
+  echo '::notice::A newer protected main superseded this verified source; that run deploys and relocks it.'
+  exit 0
 fi
 echo 'Canonical A11oy is source-bound, singleton, and route-operational.' '''
-    expected_enforce_env = {
-        "EXIT_CODE": "${{ steps.verify.outputs.exit_code }}",
-        "CURRENT_MAIN": "${{ steps.post_deploy_owner.outputs.publish }}",
-    }
-    if (
-        compact(enforce.get("run", "")) != compact(expected_enforce)
-        or enforce.get("if") != "always()"
-        or enforce.get("env") != expected_enforce_env
-    ):
+    if (compact(enforce.get("run", "")) != compact(expected_enforce)
+            or enforce.get("if") != "always()"
+            or enforce.get("env") != {"EXIT_CODE": "${{ steps.verify.outputs.exit_code }}",
+                                      "CURRENT_MAIN": "${{ steps.post_deploy_owner.outputs.publish }}"}
+            or relock.get("outputs") != {"current_main": "${{ steps.post_deploy_owner.outputs.publish }}"}):
         raise WorkflowContractError("actual verification exit must be enforced")
     parity = jobs["post-deployment-parity"]
-    if (
-        parity.get("needs") != "relock"
-        or parity.get("uses") != "./.github/workflows/hf-module-drift.yml"
-        or parity.get("permissions") != {"contents": "read"}
-        or "if" in parity
-    ):
+    if (parity.get("needs") != "relock" or parity.get("uses") != "./.github/workflows/hf-module-drift.yml"
+            or parity.get("permissions") != {"contents": "read"}):
         raise WorkflowContractError("parity must follow successful verification")
     terminal = jobs["terminal-source-authorization"]
-    terminal_condition = "${{ always() && needs.post-deployment-parity.result == 'success' && (needs.publish-vertical-flagships.result == 'success' || needs.publish-vertical-flagships.result == 'skipped') && (needs.publish-finance-projection.result == 'success' || needs.publish-finance-projection.result == 'skipped') }}"
-    if (
-        terminal.get("needs")
-        != [
-            "post-deployment-parity",
-            "publish-vertical-flagships",
-            "publish-finance-projection",
-        ]
-        or terminal.get("if") != terminal_condition
-        or terminal.get("permissions") != {"contents": "read"}
-    ):
-        raise WorkflowContractError("terminal source authorization dependencies drifted")
-    terminal_owner = named_step(
-        terminal, "Re-authorize exact protected main after awaited parity"
-    )
-    terminal_receipt = named_step(terminal, "Retain terminal source authorization")
-    terminal_enforce = named_step(
-        terminal, "Re-read and enforce exact protected-main ownership as the final step"
-    )
-    if (
-        "scripts/hf_exact_main_ownership.py" not in terminal_owner.get("run", "")
-        or '--expected-sha "$GITHUB_SHA"' not in terminal_owner.get("run", "")
-        or terminal_owner.get("env") != {"GITHUB_TOKEN": "${{ github.token }}"}
-        or terminal_receipt.get("if") != "always()"
-        or terminal_receipt.get("with", {}).get("if-no-files-found") != "error"
-        or terminal_enforce.get("if") != "always()"
-        or terminal_enforce.get("env")
-        != {"GITHUB_TOKEN": "${{ github.token }}"}
-        or "scripts/hf_exact_main_ownership.py" not in terminal_enforce.get("run", "")
-        or '--expected-sha "$GITHUB_SHA"' not in terminal_enforce.get("run", "")
-        or "terminal-source-authorization-final.json"
-        not in terminal_enforce.get("run", "")
-        or "grep -Fqx 'publish=true'" not in terminal_enforce.get("run", "")
-        or terminal.get("steps", [])[-1].get("name")
-        != "Re-read and enforce exact protected-main ownership as the final step"
-    ):
+    if (terminal.get("permissions") != {"contents": "read"} or "secrets." in json.dumps(terminal)
+            or terminal["steps"][-1].get("name") != "Re-read and enforce exact protected-main ownership as the final step"):
         raise WorkflowContractError("terminal source authorization must fail closed")
+
+    for token in REMOVED_CREDENTIAL_TOKENS:
+        if token in source:
+            raise WorkflowContractError("removed credential or donor effect: " + token)
+    document = workflow_document(source)
+    if document["on"]["workflow_dispatch"]["inputs"]["publish_vertical_flagships"]["default"] is not False:
+        raise WorkflowContractError("vertical publication requires explicit opt in")
+    vertical = jobs["publish-vertical-flagships"]
+    owned = "${{ steps.exact_main_owner.outputs.publish == 'true' }}"
+    approved = "${{ steps.exact_main_owner.outputs.publish == 'true' && steps.vertical_plan.outputs.vertical_flagships == 'true' }}"
+    for name, condition in (("Set up Python", owned), ("Require the approved plan for the actual vertical source", owned),
+                            ("Install pinned vertical publisher", approved), ("Publish and verify the v4 vertical estate", approved)):
+        if named_step(vertical, name).get("if") != condition:
+            raise WorkflowContractError("vertical source and plan gate: " + name)
     return jobs
+
+
+ADMITTED_GDW_SECRET_LINE = "          GDW_OPERATOR_TOKEN: ${{ secrets.GDW_OPERATOR_TOKEN }}\n"
+PROOF_ATTEMPTED = "(steps.series_a_proof.outcome == 'success' || steps.series_a_proof.outcome == 'failure')"
+DRILL_PROOF_CONDITION = "${{ always() && " + PROOF_ATTEMPTED + " }}"
+BOUNDED_RUNS = {
+    "series_a": r'''set +e
+python -B scripts/prove_hf_series_a_restart.py \
+  --repo-id "$CANONICAL_SPACE" --origin "$CANONICAL_ORIGIN" \
+  --run-context "${{ github.run_id }}:${{ github.run_attempt }}" \
+  --source-sha "${{ github.sha }}" --output "$SERIES_A_LIVE_REPORT"
+code=$?
+echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+exit "$code"''',
+    "gdw": r'''set +e
+python -B scripts/prove_hf_gdw_runtime.py \
+  --series-a-proof "$SERIES_A_LIVE_REPORT" \
+  --run-context "${{ github.run_id }}:${{ github.run_attempt }}" \
+  --origin "$CANONICAL_ORIGIN" \
+  --source-sha "${{ github.sha }}" --output "$GDW_LIVE_REPORT"
+code=$?
+echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+exit "$code"''',
+    "admission": r'''set -euo pipefail
+python -B scripts/check_hf_manual_prerequisites.py --admit-live-proofs \
+  --series-a-proof "$SERIES_A_LIVE_REPORT" --series-a-proof-exit "${SERIES_A_PROOF_EXIT:-2}" \
+  --gdw-proof "$GDW_LIVE_REPORT" --gdw-proof-exit "${GDW_PROOF_EXIT:-2}" \
+  --source-sha "${{ github.sha }}" --output "$LIVE_PROOF_ADMISSION_REPORT"''',
+}
+DRILL_OWNER_RUN = r'''set -euo pipefail
+test "$GITHUB_REF" = refs/heads/main
+python3 -B scripts/hf_exact_main_ownership.py \
+  --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+  --receipt "$RUNNER_TEMP/restart-drill-source-admission.json" \
+  --github-output "$RUNNER_TEMP/restart-drill-source-admission.out"
+if ! grep -Fqx 'publish=true' "$RUNNER_TEMP/restart-drill-source-admission.out"; then
+  echo '::error::The restart drill must target the current protected main revision.'
+  exit 1
+fi'''
+
+
+def assert_restart_drill_contract(source):
+    """The manual drill owns every pause/restart proof; it is bounded and fails closed."""
+    document = workflow_document(source)
+    if set(document.get("on", {})) != {"workflow_dispatch"}:
+        raise WorkflowContractError("restart drill must be manual-only")
+    if document.get("concurrency") != {"group": "restart-drill-canonical-a11oy", "cancel-in-progress": False}:
+        raise WorkflowContractError("restart drill concurrency")
+    if document.get("permissions") != {"contents": "read"}:
+        raise WorkflowContractError("restart drill permission scope")
+    jobs = document.get("jobs", {})
+    if set(jobs) != {"restart-drill"}:
+        raise WorkflowContractError("restart drill job set requires review")
+    job = jobs["restart-drill"]
+    if "continue-on-error" in job or "if" in job or job.get("permissions") != {"contents": "read"}:
+        raise WorkflowContractError("restart drill job cannot ignore failure")
+    env = job.get("env", {})
+    if env.get("HF_TOKEN") != HF_CREDENTIAL or "GDW_OPERATOR_TOKEN" in env:
+        raise WorkflowContractError("live proof must be bounded and fail closed: job")
+    names = [step.get("name") for step in job.get("steps", [])]
+    if names != ["Checkout exact protected source", "Require the drill to target current protected main",
+                 "Set up Python", "Install exact Hugging Face control client",
+                 "Prove live Series-A restart persistence (bounded)",
+                 "Prove live GDW write, drain, and receipt integrity (bounded)",
+                 "Admit bounded live proof reports and fail closed",
+                 "Upload secret-free restart drill evidence"]:
+        raise WorkflowContractError("restart drill step order")
+    steps = job["steps"]
+    exact_step(steps[0], EXACT_CHECKOUT, "restart drill checkout")
+    exact_step(steps[1], {"name": names[1], "shell": "bash", "env": {"GITHUB_TOKEN": "${{ github.token }}"},
+                          "run": DRILL_OWNER_RUN}, "restart drill must target current main")
+    exact_step(steps[3], {"name": names[3], "run": CONTROL_CLIENT}, "restart drill control client")
+    for kind, step, step_id, condition, step_env in (
+        ("series-a", steps[4], "series_a_proof", None, None),
+        ("gdw", steps[5], "gdw_proof", DRILL_PROOF_CONDITION, {"GDW_OPERATOR_TOKEN": "${{ secrets.GDW_OPERATOR_TOKEN }}"}),
+        ("admission", steps[6], None, DRILL_PROOF_CONDITION, {
+            "SERIES_A_PROOF_EXIT": "${{ steps.series_a_proof.outputs.exit_code }}",
+            "GDW_PROOF_EXIT": "${{ steps.gdw_proof.outputs.exit_code }}"}),
+    ):
+        key = {"series-a": "series_a"}.get(kind, kind)
+        if (compact(step.get("run", "")) != compact(BOUNDED_RUNS[key]) or step.get("if") != condition
+                or step.get("env") != step_env or step.get("id") != step_id
+                or "continue-on-error" in step or step.get("shell") != "bash"):
+            raise WorkflowContractError("live proof must be bounded and fail closed: " + kind)
+    paths = tuple(steps[7].get("with", {}).get("path", "").splitlines())
+    if paths != ("${{ env.SERIES_A_LIVE_REPORT }}", "${{ env.GDW_LIVE_REPORT }}",
+                 "${{ env.LIVE_PROOF_ADMISSION_REPORT }}",
+                 "${{ runner.temp }}/restart-drill-source-admission.json"):
+        raise WorkflowContractError("live proof reports must be retained")
+    if steps[7].get("if") != "${{ always() }}" or steps[7].get("with", {}).get("if-no-files-found") != "error":
+        raise WorkflowContractError("live proof reports must be retained")
+    scanned = source.replace(ADMITTED_GDW_SECRET_LINE, "", 1)
+    for token in ("--blocked-proof", "--managed-acquisition") + REMOVED_CREDENTIAL_TOKENS:
+        if token in scanned:
+            raise WorkflowContractError("removed credential or donor effect: " + token)
+    if source.count("prove_hf_series_a_restart.py") != 1 or source.count("prove_hf_gdw_runtime.py") != 1:
+        raise WorkflowContractError("live proof must be bounded and fail closed: duplicate call")
+    return job
 
 
 def assert_blocked_restart_workflow(source):
@@ -543,266 +464,141 @@ def bounded_proof_cli_contract(path):
     return tree
 
 
-class ManualPrerequisiteWorkflowTests(unittest.TestCase):
+class DeployPathWorkflowTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.source = WORKFLOW.read_text(encoding="utf-8")
 
-    def test_actual_workflow_metadata_cannot_enable_publication(self):
-        jobs = assert_manual_step_contract(self.source)
+    def test_actual_deploy_path_contract(self):
+        jobs = assert_deploy_path_contract(self.source)
         self.assertNotIn("secrets.", json.dumps(jobs["source-admission"]))
-        self.assertEqual(jobs["manual-prerequisites"]["permissions"], {"contents": "read"})
-        self.assertEqual(jobs["recovery-reconciliation"]["permissions"], {"contents": "read", "actions": "read"})
-        self.assertEqual(jobs["recovery-reconciliation"]["env"]["HF_TOKEN"], jobs["durable-acquisition"]["env"]["HF_TOKEN"])
 
-    def test_reconciliation_cannot_gain_provider_commands_credentials_or_write_permissions(self):
-        start = self.source.index("  recovery-reconciliation:\n")
-        end = self.source.index("  manual-prerequisites:\n", start)
-        job = self.source[start:end]
-        marker = "      - name: Require the fixed inspection and unchanged absent private fence\n"
-        mutations = (
-            ("      contents: read\n", "      contents: write\n"),
-            ("      actions: read\n", "      actions: write\n"),
-            ("      actions: read\n", "      actions: read\n      id-token: write\n"),
-            ("${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}", "${{ secrets.ALTERNATE_TOKEN }}"),
-            ('      PYTHONDONTWRITEBYTECODE: "1"\n', '      PYTHONDONTWRITEBYTECODE: "1"\n      EXTRA_TOKEN: ${{ secrets.EXTRA_TOKEN }}\n'),
-            ("--reconcile-supervised-acquisition", "--acquire"),
-            ("--reconcile-supervised-acquisition", "--inspect-held-acquisition"),
-            ("--reconcile-supervised-acquisition", "--reconcile-supervised-acquisition --source-artifact-id 1"),
-            ("--reconcile-supervised-acquisition", "--reconcile-supervised-acquisition --retry"),
-            ("--reconcile-supervised-acquisition", "--reconcile-supervised-acquisition --repo-id SZLHOLDINGS/another-space"),
-            ('--github-output "$GITHUB_OUTPUT"', '--github-output "$RUNNER_TEMP/forged-admission"'),
-            ('--output "$RUNNER_TEMP/gdw-supervised-reconciliation.json"', '--output "$RUNNER_TEMP/gdw-supervised-reconciliation.json" || true'),
-            ("scripts/acquire_gdw_durable_storage.py", "scripts/unreviewed_reconciliation.py"),
-            ("          ref: ${{ github.sha }}\n", "          ref: main\n"),
-            ("          persist-credentials: false\n", "          persist-credentials: true\n"),
-            ('"huggingface_hub==1.31.0"', '"huggingface_hub==1.23.0"'),
-            ("      admitted: ${{ steps.reconciliation.outputs.admitted }}\n", "      admitted: 'true'\n"),
-            (marker, marker + "        if: always()\n"),
-            (marker, marker + "        continue-on-error: true\n"),
-            (marker, marker + "        working-directory: unreviewed\n"),
-            (marker, marker + "        env:\n          HF_TOKEN: alternate\n"),
-        )
-        for before, after in mutations:
-            with self.subTest(before=before, after=after):
-                self.assertIn(before, job)
-                changed = self.source.replace(job, job.replace(before, after, 1), 1)
-                with self.assertRaisesRegex(WorkflowContractError, "reconciliation"):
-                    assert_manual_step_contract(changed)
+    def test_post_deploy_jobs_cannot_restart_pause_or_write_variables(self):
+        for job_name, marker in (
+            ("runtime-config", '            "${mode[@]}" --output "$GDW_CONFIG_REPORT"\n'),
+            ("relock", "            --retry-seconds 10\n"),
+        ):
+            for injected in (
+                "          python -B scripts/prove_hf_series_a_restart.py --source-sha \"$GITHUB_SHA\" --output /tmp/p.json\n",
+                "          python -B scripts/prove_hf_gdw_runtime.py --source-sha \"$GITHUB_SHA\" --output /tmp/p.json\n",
+                "          python -c 'import huggingface_hub; huggingface_hub.HfApi().restart_space(\"SZLHOLDINGS/a11oy\")'\n",
+                "          python .github/scripts/publish_readiness_verdict.py --input x --repo-id y\n",
+                "          python .github/scripts/publish_readiness_verdict.py\n",
+            ):
+                with self.subTest(job=job_name, injected=injected):
+                    self.assertIn(marker, self.source)
+                    changed = self.source.replace(marker, marker + injected, 1)
+                    with self.assertRaises(WorkflowContractError):
+                        assert_deploy_path_contract(changed)
 
-    def test_reconciliation_retains_only_its_same_attempt_safe_decision(self):
-        start = self.source.index("  recovery-reconciliation:\n")
-        end = self.source.index("  manual-prerequisites:\n", start)
-        job = self.source[start:end]
-        path = "          path: ${{ runner.temp }}/gdw-supervised-reconciliation.json\n"
-        mutations = (
-            (path, "          path: ${{ runner.temp }}/**\n"),
-            (path, "          path: /tmp/szl-private-store-*\n"),
-            (path, "          path: |\n            ${{ runner.temp }}/gdw-supervised-reconciliation.json\n            ${{ runner.temp }}/candidate.sqlite3\n"),
-            (path, "          path: |\n            ${{ runner.temp }}/gdw-supervised-reconciliation.json\n            ${{ runner.temp }}/gdw-supervised-reconciliation.json\n"),
-            (path, ""),
-            ("canonical-supervised-reconciliation-${{ github.run_id }}-${{ github.run_attempt }}", "canonical-supervised-reconciliation-${{ github.run_id }}-1"),
-            ("        if: ${{ always() }}\n", ""),
-            ("          if-no-files-found: error\n", "          if-no-files-found: ignore\n"),
-            ("          retention-days: 90\n", "          retention-days: 1\n"),
-        )
-        for before, after in mutations:
-            with self.subTest(before=before, after=after):
-                self.assertIn(before, job)
-                changed = self.source.replace(job, job.replace(before, after, 1), 1)
-                with self.assertRaisesRegex(WorkflowContractError, "reconciliation"):
-                    assert_manual_step_contract(changed)
-
-    def test_reconciliation_cannot_be_removed_duplicated_reordered_or_joined_by_a_publisher(self):
-        start = self.source.index("  recovery-reconciliation:\n")
-        end = self.source.index("  manual-prerequisites:\n", start)
-        job = self.source[start:end]
-        check_start = job.index("      - name: Require the fixed inspection")
-        check_end = job.index("      - name: Retain the bounded read-only", check_start)
-        check = job[check_start:check_end]
-        removed = job[:check_start] + job[check_end:]
-        candidates = (
-            removed,
-            job.replace(check, check + check, 1),
-            removed.replace("      - name: Checkout the exact protected source", check + "      - name: Checkout the exact protected source", 1),
-            job.replace(check, check + "      - name: Unreviewed publisher\n        run: python .github/scripts/hf_deploy.py\n", 1),
-        )
-        for index, candidate in enumerate(candidates):
-            with self.subTest(index=index), self.assertRaisesRegex(WorkflowContractError, "reconciliation"):
-                assert_manual_step_contract(self.source.replace(job, candidate, 1))
-
-    def test_preservation_invocation_has_no_unknown_helper_overrides_or_failure_bypass(self):
-        marker = "      - name: Preserve stopped private stores before any runtime mutation\n"
+    def test_readiness_verdict_gate_stays_fail_closed_without_a_space_write(self):
         cases = (
-            ("scripts/preserve_hf_gdw_store.py", "scripts/unreviewed_preservation.py"),
-            ("scripts/preserve_hf_gdw_store.py", "scripts/preserve_hf_gdw_store.py --bucket SZLHOLDINGS/another-bucket"),
-            ("scripts/preserve_hf_gdw_store.py", "scripts/preserve_hf_gdw_store.py --overwrite"),
-            ("          --supervised-acquisition\n", ""),
-            ("          --supervised-acquisition\n", "          --supervised-acquisition --supervised-acquisition\n"),
-            ('--output "${{ runner.temp }}/gdw-store-preservation.json"', '--output "${{ runner.temp }}/gdw-store-preservation.json" || true'),
-            (marker, marker + "        if: false\n"),
-            ("        id: preserve_stores\n        continue-on-error: true\n", "        id: preserve_stores\n        continue-on-error: false\n"),
-            (marker, marker + "        shell: python\n"),
-            (marker, marker + "        working-directory: unreviewed-source\n"),
-            (marker, marker + "        env:\n          HF_TOKEN: alternate-authority\n"),
+            ("          --validate-only\n", '          --repo-id "$CANONICAL_SPACE"\n', "post-deploy restart or variable effect"),
+            ('          --expected-source-sha "$SOURCE_SHA"\n', '          --expected-source-sha "$SOURCE_SHA" || true\n', "readiness verdict gate"),
+            ("      - name: Validate the source-bound verdict without a Space write\n",
+             "      - name: Validate the source-bound verdict without a Space write\n        continue-on-error: true\n", "step failure bypass"),
+        )
+        for original, replacement, diagnostic in cases:
+            with self.subTest(replacement=replacement):
+                self.assertIn(original, self.source)
+                with self.assertRaisesRegex(WorkflowContractError, re.escape(diagnostic)):
+                    assert_deploy_path_contract(self.source.replace(original, replacement, 1))
+
+    def test_preflight_classification_and_convergence_cannot_be_weakened(self):
+        cases = (
+            ("python -B .github/scripts/resume_hf_space.py", "python -B .github/scripts/resume_hf_space.py --restart", "preflight classification"),
+            ('          python -B scripts/configure_hf_series_a_runtime.py \\\n            --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \\\n            --output "$RUNTIME_CONFIG_REPORT"\n          series_code=$?',
+             '          series_code=0', "preflight convergence"),
+            ("echo 'converged=true' >> \"$GITHUB_OUTPUT\"", "echo 'converged=true' >> \"$GITHUB_OUTPUT\" || true", "preflight convergence"),
+            ('--receipt "$RUNNER_TEMP/preflight-source-admission.json"', '--receipt /tmp/forged.json', "re-admit current main"),
+            ("      publish: ${{ steps.owner.outputs.publish }}\n      restart_required", "      publish: 'true'\n      restart_required", "output scope"),
+            ("      contents: read\n    outputs:\n      publish: ${{ steps.owner.outputs.publish }}\n      restart_required", "      contents: write\n    outputs:\n      publish: ${{ steps.owner.outputs.publish }}\n      restart_required", "permission"),
+            ('restart-space: ${{ needs.preflight.outputs.restart_required == \'true\' }}', "restart-space: true", "start the Space once"),
+            ("require-default-branch-tip: true", "require-default-branch-tip: false", "start the Space once"),
+            ("mode=(--check-only)", "mode=(--check-only --unverified)", "runtime-config must verify"),
+        )
+        for original, replacement, diagnostic in cases:
+            with self.subTest(diagnostic=diagnostic, replacement=replacement):
+                self.assertIn(original, self.source)
+                with self.assertRaisesRegex(WorkflowContractError, re.escape(diagnostic)):
+                    assert_deploy_path_contract(self.source.replace(original, replacement, 1))
+
+    def test_superseded_relock_is_neutral_but_failed_verification_stays_red(self):
+        cases = (
+            ('            exit "$code"\n          fi\n          if [ "${CURRENT_MAIN', '            exit 0\n          fi\n          if [ "${CURRENT_MAIN'),
+            ("            exit 0\n          fi\n          echo 'Canonical A11oy is source-bound", "            exit 3\n          fi\n          echo 'Canonical A11oy is source-bound"),
+            ("CURRENT_MAIN:-false", "CURRENT_MAIN:-true"),
         )
         for original, replacement in cases:
             with self.subTest(replacement=replacement):
                 self.assertIn(original, self.source)
-                with self.assertRaisesRegex(WorkflowContractError, "preservation|step failure bypass"):
-                    assert_manual_step_contract(self.source.replace(original, replacement, 1))
-
-    def test_preservation_cannot_be_removed_duplicated_moved_or_joined_by_another_effect(self):
-        start = self.source.index("      - name: Preserve stopped private stores")
-        end = self.source.index("      - name: Qualify the pinned private capture", start)
-        block = self.source[start:end]
-        removed = self.source[:start] + self.source[end:]
-        receipt = "      - name: Retain bounded prerequisite decision\n"
-        candidates = (
-            removed,
-            self.source.replace(block, block + block, 1),
-            removed.replace(receipt, block + receipt, 1),
-            self.source.replace(block, block + "      - name: Unreviewed provider effect\n        run: python scripts/unreviewed.py\n", 1),
-        )
-        for index, candidate in enumerate(candidates):
-            with self.subTest(index=index), self.assertRaisesRegex(WorkflowContractError, "reviewed preservation effect|duplicate step id"):
-                assert_manual_step_contract(candidate)
-
-    def test_recovery_qualification_cannot_change_inputs_condition_or_gain_overrides(self):
-        marker = "      - name: Qualify the pinned private capture without admitting restore\n"
-        condition = "${{ always() && steps.preserve_stores.outcome == 'failure' }}"
-        cases = (
-            ("scripts/qualify_gdw_store_recovery.py", "scripts/unknown_recovery.py"),
-            ("--capture-report docs/operations/evidence/gdw-capture-37223162231.json", "--capture-report https://unreviewed.example/capture.json"),
-            ("--capture-report docs/operations/evidence/gdw-capture-37223162231.json", "--capture-report ${{ runner.temp }}/gdw-store-preservation.json"),
-            ("--historical-anchors docs/operations/evidence/gdw-recovery-historical-anchors.json", "--historical-anchors docs/operations/evidence/unreviewed-anchors.json"),
-            ("--historical-anchors docs/operations/evidence/gdw-recovery-historical-anchors.json", ""),
-            ('--output "${{ runner.temp }}/gdw-store-recovery-qualification.json"', '--output "${{ runner.temp }}/gdw-store-recovery-qualification.json" --restore'),
-            ('--output "${{ runner.temp }}/gdw-store-recovery-qualification.json"', '--output "${{ runner.temp }}/gdw-store-recovery-qualification.json" || true'),
-            (condition, "always()"),
-            (condition, "${{ always() && steps.preserve_stores.outcome == 'success' }}"),
-            (condition, "${{ always() && steps.unknown.outcome == 'failure' }}"),
-            ("        id: qualify_stores\n", "        id: unreviewed_qualification\n"),
-            (marker, marker + "        shell: python\n"),
-            (marker, marker + "        working-directory: unreviewed-source\n"),
-            (marker, marker + "        env:\n          HF_TOKEN: alternate-authority\n"),
-            ("        id: preserve_stores\n", "        id: unreviewed_preservation\n"),
-        )
-        for original, replacement in cases:
-            with self.subTest(replacement=replacement):
-                self.assertIn(original, self.source)
-                with self.assertRaisesRegex(WorkflowContractError, "recovery qualification|preservation step|step failure bypass"):
-                    assert_manual_step_contract(self.source.replace(original, replacement, 1))
-
-    def test_recovery_qualification_cannot_be_removed_duplicated_or_reordered(self):
-        start = self.source.index("      - name: Qualify the pinned private capture")
-        end = self.source.index("      - name: Retain metadata checks", start)
-        block = self.source[start:end]
-        removed = self.source[:start] + self.source[end:]
-        preservation = "      - name: Preserve stopped private stores"
-        receipt = "      - name: Retain bounded prerequisite decision\n"
-        candidates = (
-            removed,
-            self.source.replace(block, block + block, 1),
-            removed.replace(preservation, block + preservation, 1),
-            removed.replace(receipt, block + receipt, 1),
-        )
-        for index, candidate in enumerate(candidates):
-            with self.subTest(index=index), self.assertRaisesRegex(WorkflowContractError, "reviewed preservation effect|duplicate step id"):
-                assert_manual_step_contract(candidate)
-
-    def test_recovery_artifact_cannot_export_private_candidates_or_extra_files(self):
-        original = "            ${{ runner.temp }}/gdw-store-recovery-qualification.json\n"
-        self.assertIn(original, self.source)
-        for replacement in (
-            "            ${{ runner.temp }}/**\n",
-            "            /tmp/szl-gdw-recovery-*\n",
-            "",
-            original + original,
-            original + "            ${{ runner.temp }}/candidate.sqlite3\n",
-        ):
-            with self.subTest(replacement=replacement), self.assertRaisesRegex(WorkflowContractError, "public metadata allowlist"):
-                assert_manual_step_contract(self.source.replace(original, replacement, 1))
-
-    def test_preservation_artifacts_cannot_include_raw_captures_or_duplicate_paths(self):
-        original = "            ${{ runner.temp }}/gdw-store-preservation.json\n"
-        self.assertIn(original, self.source)
-        candidates = (
-            "            ${{ runner.temp }}/**\n",
-            "            /tmp/szl-private-store-*\n",
-            "",
-            original + original,
-            original + "            ${{ runner.temp }}/private-capture.sqlite3\n",
-        )
-        for replacement in candidates:
-            with self.subTest(replacement=replacement), self.assertRaisesRegex(WorkflowContractError, "public metadata allowlist"):
-                assert_manual_step_contract(self.source.replace(original, replacement, 1))
-
-    def test_preservation_job_cannot_gain_alternate_credentials(self):
-        start = self.source.index("  manual-prerequisites:\n")
-        end = self.source.index("  resume-paused-space:\n", start)
-        block = self.source[start:end]
-        original = "      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}\n"
-        self.assertIn(original, block)
-        for replacement in (
-            "      HF_TOKEN: ${{ secrets.ALTERNATE_TOKEN }}\n",
-            original + "      UNREVIEWED_EFFECT_TOKEN: ${{ secrets.EXTRA_TOKEN }}\n",
-        ):
-            with self.subTest(replacement=replacement), self.assertRaisesRegex(WorkflowContractError, "credential scope"):
-                assert_manual_step_contract(self.source.replace(block, block.replace(original, replacement, 1), 1))
-        permissions = "    permissions:\n      contents: read\n"
-        self.assertIn(permissions, block)
-        with self.assertRaisesRegex(WorkflowContractError, "manual authority or permission scope"):
-            assert_manual_step_contract(self.source.replace(block, block.replace(
-                permissions, permissions + "      actions: read\n", 1), 1))
-
-    def test_removed_checker_check_only_and_exit_propagation_are_detected(self):
-        cases = (
-            ("scripts/check_hf_manual_prerequisites.py", "scripts/deleted_checker.py"),
-            ('--repo-id "$CANONICAL_SPACE" --check-only', '--repo-id "$CANONICAL_SPACE"'),
-            ("series_code=$?", "series_code=0"),
-            ("gdw_code=$?", "gdw_code=0"),
-            ("set -euo pipefail\n          python -B scripts/check_hf_manual_prerequisites.py", "set +e\n          python -B scripts/check_hf_manual_prerequisites.py"),
-            ('--source-sha "$GITHUB_SHA" --output "$RUNNER_TEMP/manual-prerequisites.json"', '--source-sha "$GITHUB_SHA" --output "$RUNNER_TEMP/manual-prerequisites.json" || true'),
-            ("        if: ${{ steps.recovery_mode.outputs.mode != 'managed-recovery' && steps.recovery_mode.outcome == 'success' }}\n", "        if: false\n"),
-        )
-        for original, replacement in cases:
-            with self.subTest(original=original):
-                self.assertIn(original, self.source)
-                with self.assertRaisesRegex(WorkflowContractError, "manual aggregate must fail before effects"):
-                    assert_manual_step_contract(self.source.replace(original, replacement, 1))
+                with self.assertRaisesRegex(WorkflowContractError, "actual verification exit must be enforced"):
+                    assert_deploy_path_contract(self.source.replace(original, replacement, 1))
 
     def test_credential_forwarding_donor_and_issue_mutations_stay_removed(self):
-        for token in ("DOCS_READ_TOKEN", "--github-read-token", "--operator-token", "--capacity-donor", "gh issue", "issues: write", "add_space_secret", "delete_space_secret"):
+        for token in ("DOCS_READ_TOKEN", "--github-read-token", "--operator-token", "--capacity-donor",
+                      "gh issue", "issues: write", "add_space_secret", "delete_space_secret", "OPERATOR_TOKEN"):
             with self.subTest(token=token), self.assertRaisesRegex(WorkflowContractError, "removed credential or donor effect"):
-                assert_manual_step_contract(self.source + "\n# " + token + "\n")
+                assert_deploy_path_contract(self.source + "\n# " + token + "\n")
+
+    def test_vertical_publication_keeps_owned_source_and_plan_gates(self):
+        before = "        if: ${{ steps.exact_main_owner.outputs.publish == 'true' && steps.vertical_plan.outputs.vertical_flagships == 'true' }}\n        run: python scripts/hf_publish_vertical_flagships_v4.py\n"
+        self.assertIn(before, self.source)
+        changed = self.source.replace(before, "        run: python scripts/hf_publish_vertical_flagships_v4.py\n", 1)
+        with self.assertRaisesRegex(WorkflowContractError, "vertical source and plan gate"):
+            assert_deploy_path_contract(changed)
+
+
+class RestartDrillWorkflowTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.source = DRILL_WORKFLOW.read_text(encoding="utf-8")
+
+    def test_actual_restart_drill_contract(self):
+        assert_restart_drill_contract(self.source)
+
+    def test_restart_drill_is_never_an_automatic_writer(self):
+        for trigger in ("  push:\n    branches: [main]\n", "  schedule:\n    - cron: '0 3 * * 1'\n",
+                        "  workflow_run:\n    workflows: [Sync and Relock Canonical Hugging Face Space]\n"):
+            with self.subTest(trigger=trigger):
+                changed = self.source.replace("on:\n  workflow_dispatch: {}\n", "on:\n  workflow_dispatch: {}\n" + trigger, 1)
+                self.assertNotEqual(changed, self.source)
+                with self.assertRaisesRegex(WorkflowContractError, "manual-only"):
+                    assert_restart_drill_contract(changed)
 
     def test_weakened_bounded_live_proof_steps_are_rejected(self):
         cases = (
             ('            --series-a-proof "$SERIES_A_LIVE_REPORT" \\\n', '', "gdw"),
             ('--run-context "${{ github.run_id }}:${{ github.run_attempt }}"', '--run-context "1:1"', "series-a"),
             ('          exit "$code"\n\n      # Writes only', '          exit 0\n\n      # Writes only', "series-a"),
-            ('--origin "$CANONICAL_ORIGIN" \\\n            --managed-acquisition "$RUNNER_TEMP/gdw-durable-acquisition.json" \\\n            --source-sha "${{ github.sha }}" --output "$GDW_LIVE_REPORT"', '--origin "https://a-11-oy.com" \\\n            --managed-acquisition "$RUNNER_TEMP/gdw-durable-acquisition.json" \\\n            --source-sha "${{ github.sha }}" --output "$GDW_LIVE_REPORT"', "gdw"),
+            ('--origin "$CANONICAL_ORIGIN" \\\n            --source-sha', '--origin "https://a-11-oy.com" \\\n            --source-sha', "gdw"),
             ('--admit-live-proofs \\', '--admit-live-proofs || true \\', "admission"),
-            ("        id: gdw_proof\n", "        id: gdw_proof\n        continue-on-error: true\n", "gdw|step failure bypass"),
-            ("      - name: Admit bounded live proof reports and fail closed\n", "      - name: Admit bounded live proof reports and fail closed\n        continue-on-error: true\n", "admission|step failure bypass"),
+            ("        id: gdw_proof\n", "        id: gdw_proof\n        continue-on-error: true\n", "gdw"),
             ("            ${{ env.LIVE_PROOF_ADMISSION_REPORT }}\n", "", "retained"),
-            ("      GDW_LIVE_REPORT: /tmp/gdw-live-proof.json\n", "      GDW_LIVE_REPORT: /tmp/gdw-live-proof.json\n      GDW_OPERATOR_TOKEN: ${{ secrets.GDW_OPERATOR_TOKEN }}\n", "removed credential"),
+            ("      LIVE_PROOF_ADMISSION_REPORT: /tmp/live-proof-admission.json\n",
+             "      LIVE_PROOF_ADMISSION_REPORT: /tmp/live-proof-admission.json\n      GDW_OPERATOR_TOKEN: ${{ secrets.GDW_OPERATOR_TOKEN }}\n", "job"),
+            ("          if ! grep -Fqx 'publish=true'", "          if false && ! grep -Fqx 'publish=true'", "current main"),
+            ("    timeout-minutes: 45\n", "    timeout-minutes: 45\n    continue-on-error: true\n", "cannot ignore failure"),
+            ("  group: restart-drill-canonical-a11oy\n", "  group: sync-relock-canonical-a11oy\n", "concurrency"),
         )
         for original, replacement, diagnostic in cases:
             with self.subTest(diagnostic=diagnostic, original=original):
                 self.assertIn(original, self.source)
                 with self.assertRaisesRegex(WorkflowContractError, diagnostic):
-                    assert_manual_step_contract(self.source.replace(original, replacement, 1))
+                    assert_restart_drill_contract(self.source.replace(original, replacement, 1))
 
-    def test_blocked_proof_fallback_in_hf_sync_is_rejected(self):
-        changed = self.source.replace(
-            "python -B scripts/prove_hf_gdw_runtime.py \\",
-            "python -B scripts/check_hf_manual_prerequisites.py --blocked-proof gdw \\", 1)
-        with self.assertRaises(WorkflowContractError):
-            assert_manual_step_contract(changed)
+    def test_blocked_proof_fallback_or_managed_selector_is_rejected(self):
+        for before, after in (
+            ("python -B scripts/prove_hf_gdw_runtime.py \\", "python -B scripts/check_hf_manual_prerequisites.py --blocked-proof gdw \\"),
+            ('--origin "$CANONICAL_ORIGIN" \\\n            --source-sha',
+             '--origin "$CANONICAL_ORIGIN" \\\n            --managed-acquisition "$RUNNER_TEMP/gdw-durable-acquisition.json" \\\n            --source-sha'),
+        ):
+            with self.subTest(after=after):
+                self.assertIn(before, self.source)
+                with self.assertRaises(WorkflowContractError):
+                    assert_restart_drill_contract(self.source.replace(before, after, 1))
 
-    def test_standalone_restart_workflow_has_no_provider_or_secret_path(self):
+    def test_standalone_blocked_restart_workflow_has_no_provider_or_secret_path(self):
         source = RESTART_WORKFLOW.read_text(encoding="utf-8")
         assert_blocked_restart_workflow(source)
         cases = (
@@ -814,220 +610,6 @@ class ManualPrerequisiteWorkflowTests(unittest.TestCase):
         for original, replacement, diagnostic in cases:
             with self.subTest(diagnostic=diagnostic), self.assertRaisesRegex(WorkflowContractError, diagnostic):
                 assert_blocked_restart_workflow(source.replace(original, replacement, 1))
-
-    def test_enforcement_finance_opt_in_and_parity_remain_ordered(self):
-        jobs = assert_manual_step_contract(self.source)
-        enforce = named_step(jobs["relock"], "Enforce exact live state")
-        parity = jobs["post-deployment-parity"]
-        self.assertIn('code="${EXIT_CODE:-2}"', enforce["run"])
-        self.assertIn('exit "$code"', enforce["run"])
-        self.assertNotIn("if", parity)
-        self.assertEqual(parity["needs"], "relock")
-        self.assertEqual(parity["uses"], "./.github/workflows/hf-module-drift.yml")
-        self.assertEqual(parity["permissions"], {"contents": "read"})
-        self.assertIn("relock", jobs["publish-finance-projection"]["needs"])
-        self.assertIn("inputs.publish_vertical_flagships", jobs["publish-vertical-flagships"]["if"])
-        terminal = jobs["terminal-source-authorization"]
-        self.assertEqual(
-            terminal["needs"],
-            [
-                "post-deployment-parity",
-                "publish-vertical-flagships",
-                "publish-finance-projection",
-            ],
-        )
-        self.assertIn("needs.post-deployment-parity.result == 'success'", terminal["if"])
-        self.assertEqual(terminal["permissions"], {"contents": "read"})
-
-    def test_comment_only_or_weakened_source_plan_and_exit_gates_are_rejected(self):
-        cases = (
-            ('--github-output "$GITHUB_OUTPUT"\n', '--github-output "$GITHUB_OUTPUT"\n          python .github/scripts/resume_hf_space.py\n', "source admission must remain read only"),
-            ("        default: false\n", "        default: true\n", "vertical publication requires explicit opt in"),
-            ("        if: ${{ steps.exact_main_owner.outputs.publish == 'true' && steps.vertical_plan.outputs.vertical_flagships == 'true' }}\n", "        if: always() # steps.exact_main_owner.outputs.publish == 'true' && steps.vertical_plan.outputs.vertical_flagships == 'true'\n", "vertical source and plan gate"),
-            ('            exit "$code"\n', '            true # exit "$code"\n', "actual verification exit must be enforced"),
-        )
-        for original, replacement, diagnostic in cases:
-            with self.subTest(diagnostic=diagnostic):
-                self.assertIn(original, self.source)
-                with self.assertRaisesRegex(WorkflowContractError, diagnostic):
-                    assert_manual_step_contract(self.source.replace(original, replacement, 1))
-
-    def test_unknown_metadata_cannot_gain_an_authority_output(self):
-        changed = self.source.replace("      mode: ${{ steps.recovery_mode.outputs.mode }}\n",
-            "      mode: ${{ steps.recovery_mode.outputs.mode }}\n      publish: 'true'\n", 1)
-        with self.assertRaisesRegex(WorkflowContractError, "metadata cannot emit authority"):
-            assert_manual_step_contract(changed)
-
-    def test_first_cutover_classifier_cannot_gain_authority_or_skip_verification(self):
-        mutations = (
-            ("--classify-prerequisites", "--acquire"),
-            ('--qualification "${{ runner.temp }}/gdw-store-recovery-qualification.json"', '--qualification "unreviewed.json"'),
-            ("        id: recovery_mode\n", "        id: recovery_mode\n        env:\n          HF_TOKEN: alternate\n"),
-            ("      mode: ${{ steps.recovery_mode.outputs.mode }}", "      mode: managed-recovery"),
-            ('"huggingface_hub==1.23.0"', '"huggingface_hub==1.31.0"'),
-        )
-        for before, after in mutations:
-            with self.subTest(before=before):
-                self.assertIn(before, self.source)
-                with self.assertRaisesRegex(WorkflowContractError, "classifier|metadata cannot emit authority|manual interpreter"):
-                    assert_manual_step_contract(self.source.replace(before, after, 1))
-
-    def test_inspection_keeps_native_identity_disabled_pair_and_private_artifact_scope(self):
-        start = self.source.index("  durable-acquisition:\n")
-        end = self.source.index("  resume-paused-space:\n", start)
-        job = self.source[start:end]
-        mutations = (
-            ("      actions: read", "      actions: write"),
-            ("          ref: fc71ae973a0f31b8e9ee793fc8545a354448d451", "          ref: main"),
-            ("--inspect-held-acquisition", '--inspect-held-acquisition --source-artifact-id "1"'),
-            ("--inspect-held-acquisition", '--inspect-held-acquisition --source-artifact-sha256 "unreviewed"'),
-            ("--inspect-held-acquisition", '--inspect-held-acquisition --qualification-artifact-id "1"'),
-            ("--inspect-held-acquisition", '--inspect-held-acquisition --qualification-artifact-sha256 "unreviewed"'),
-            ("--inspect-held-acquisition", '--inspect-held-acquisition --publisher-script "$GITHUB_WORKSPACE/scripts/unreviewed.py"'),
-            ("--inspect-held-acquisition", '--inspect-held-acquisition --github-output "$GITHUB_OUTPUT"'),
-            ("--inspect-held-acquisition", '--inspect-held-acquisition --retry'),
-            ("scripts/acquire_gdw_durable_storage.py --inspect-held-acquisition", "scripts/unknown.py --inspect-held-acquisition"),
-            ("--inspect-held-acquisition", "--acquire"),
-            ("--inspect-held-acquisition", "--fetch-locator"),
-            ("--inspect-held-acquisition", "--reconcile-supervised-acquisition"),
-            ('--output "$RUNNER_TEMP/gdw-durable-acquisition.json"', '--output "$RUNNER_TEMP/gdw-durable-acquisition.json" || true'),
-            ("        if: ${{ github.ref == 'refs/heads/main' && false }}\n", "        if: ${{ always() }}\n"),
-            ("        if: ${{ github.ref == 'refs/heads/main' && false }}\n", ""),
-            ("        if: ${{ github.ref == 'refs/heads/main' && false }}\n", "        if: ${{ github.ref == 'refs/heads/main' && true }}\n"),
-            ("scripts/configure_hf_gdw_runtime.py", "scripts/configure_hf_series_a_runtime.py"),
-            ("--managed-deadline-seconds 120", "--managed-deadline-seconds 120 --force"),
-            ('--output "$RUNNER_TEMP/gdw-managed-configuration.json"', '--output "$RUNNER_TEMP/gdw-managed-configuration.json" || true'),
-            ("          path: ${{ runner.temp }}/gdw-durable-acquisition.json", "          path: ${{ runner.temp }}/**"),
-            ("        id: acquisition_artifact", "        id: arbitrary_artifact"),
-        )
-        for before, after in mutations:
-            with self.subTest(before=before):
-                self.assertIn(before, job)
-                with self.assertRaisesRegex(WorkflowContractError, "acquisition"):
-                    assert_manual_step_contract(self.source.replace(job, job.replace(before, after, 1), 1))
-
-    def test_pair_configuration_cannot_precede_acquisition_or_be_repeated(self):
-        start = self.source.index("  durable-acquisition:\n")
-        end = self.source.index("  resume-paused-space:\n", start)
-        job = self.source[start:end]
-        config_start = job.index("      - name: Install the persistent old-source guard")
-        config_end = job.index("      - name: Retain only the bounded inspection metadata report", config_start)
-        config = job[config_start:config_end]
-        removed = job[:config_start] + job[config_end:]
-        acquire_marker = "      - name: Inspect the held prior acquisition without provider mutation"
-        for candidate in (removed, job.replace(config, config + config, 1),
-                          removed.replace(acquire_marker, config + acquire_marker, 1)):
-            with self.subTest(candidate=candidate), self.assertRaisesRegex(WorkflowContractError, "acquisition"):
-                assert_manual_step_contract(self.source.replace(job, candidate, 1))
-
-    def test_managed_runtime_selector_cannot_acquire_or_repeat_configuration(self):
-        start = self.source.index("  runtime-config:\n")
-        end = self.source.index("  deploy:\n", start)
-        job = self.source[start:end]
-        for before, after in (
-            ("--fetch-locator", "--acquire"),
-            ('--acquisition-artifact-id "${{ needs.durable-acquisition.outputs.artifact_id }}"', '--acquisition-artifact-id "1"'),
-            (LEGACY_MODE_CONDITION, "always()"),
-            ("            ${{ env.LIVE_PROOF_ADMISSION_REPORT }}", "            ${{ runner.temp }}/**"),
-        ):
-            with self.subTest(before=before):
-                self.assertIn(before, job)
-                with self.assertRaisesRegex(WorkflowContractError, "managed runtime"):
-                    assert_manual_step_contract(self.source.replace(job, job.replace(before, after, 1), 1))
-
-
-# The predecessor workflow class above records the deliberately held acquisition
-# contract.  The accepted read-only v2 diagnostic superseded that exact state.
-ManualPrerequisiteWorkflowTests.__test__ = False
-
-
-class ManualPrerequisiteWorkflowTests(unittest.TestCase):
-    def setUp(self):
-        self.source = WORKFLOW.read_text(encoding="utf-8")
-        self.jobs = assert_manual_dependency_graph(self.source)
-
-    def test_no_preservation_or_ambiguous_acquisition_replay(self):
-        recovery = self.jobs["recovery-reconciliation"]
-        manual = self.jobs["manual-prerequisites"]
-        acquisition = self.jobs["durable-acquisition"]
-        selected = json.dumps([recovery, manual, acquisition], sort_keys=True)
-        self.assertNotIn("preserve_hf_gdw_store.py", selected)
-        self.assertNotIn("--supervised-acquisition", selected)
-        self.assertNotIn("--inspect-held-acquisition", selected)
-        self.assertNotIn("--reconcile-supervised-acquisition", selected)
-        self.assertNotIn("--retry", selected)
-        self.assertNotIn("--restore", selected)
-
-    def test_only_native_read_step_receives_hf_credential(self):
-        expected = "${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}"
-        bindings = []
-        def visit(value, path=()):
-            if isinstance(value, dict):
-                for key, child in value.items():
-                    visit(child, path + (key,))
-            elif isinstance(value, list):
-                for index, child in enumerate(value):
-                    visit(child, path + (index,))
-            elif isinstance(value, str) and (
-                    "secrets.HF_ORG_TOKEN" in value or "secrets.HF_TOKEN" in value):
-                bindings.append((path, value))
-        visit({name: self.jobs[name] for name in (
-            "recovery-reconciliation", "manual-prerequisites", "durable-acquisition")})
-        self.assertEqual([value for _path, value in bindings], [expected, expected])
-        self.assertNotIn("env", self.jobs["manual-prerequisites"])
-
-    def test_closed_artifact_allowlists_exclude_candidates_and_captures(self):
-        recovery = self.jobs["recovery-reconciliation"]["steps"][-1]["with"]["path"]
-        manual = self.jobs["manual-prerequisites"]["steps"][-1]["with"]["path"]
-        acquisition = self.jobs["durable-acquisition"]["steps"][-1]["with"]["path"]
-        self.assertEqual(set(recovery.splitlines()), {
-            "${{ runner.temp }}/gdw-diagnostic-continuation.json",
-            "${{ runner.temp }}/gdw-continuation-qualification.json"})
-        self.assertEqual(manual, "${{ runner.temp }}/manual-prerequisites.json")
-        self.assertEqual(set(acquisition.splitlines()), {
-            "${{ runner.temp }}/gdw-durable-acquisition.json",
-            "${{ runner.temp }}/gdw-managed-configuration.json"})
-        self.assertNotRegex(recovery + manual + acquisition,
-            r"candidate\.sqlite|capture-|private-store|hub-cache|/\*\*|\\\*\\\*")
-
-    def test_managed_configuration_requires_acknowledged_locator(self):
-        steps = self.jobs["durable-acquisition"]["steps"]
-        continuation = next(index for index, step in enumerate(steps)
-            if step.get("name") == "Continue once from the accepted diagnostic and verified capture")
-        configuration = next(index for index, step in enumerate(steps)
-            if step.get("name") == "Install the persistent old-source guard and both managed configurations once")
-        self.assertLess(continuation, configuration)
-        self.assertNotIn("if", steps[configuration])
-        self.assertIn('--managed-acquisition "$RUNNER_TEMP/gdw-durable-acquisition.json"',
-                      steps[configuration]["run"])
-
-    def test_unknown_metadata_cannot_gain_an_authority_output(self):
-        for before, after in (
-            ("outputs.mode == 'managed-recovery'", "outputs.mode != 'managed-recovery'"),
-            ("outputs.admitted == 'true'", "outputs.admitted != 'true'"),
-            ("gdw-continuation-qualification.json", "candidate.sqlite3"),
-            ("actions: read", "actions: write"),
-        ):
-            with self.subTest(after=after):
-                candidate = self.source.replace(before, after, 1)
-                with self.assertRaises(WorkflowContractError):
-                    assert_manual_dependency_graph(candidate)
-
-    def test_removed_credentials_and_external_coordination_stay_removed(self):
-        for token in ("DOCS_READ_TOKEN", "--github-read-token", "--operator-token",
-                      "--capacity-donor", "gh issue", "issues: write",
-                      "add_space_secret", "delete_space_secret"):
-            self.assertNotIn(token, self.source)
-
-    def test_unrelated_finance_publisher_is_unreachable(self):
-        job = self.jobs["publish-finance-projection"]
-        self.assertEqual(job["if"],
-            "${{ github.event_name == 'push' && github.run_attempt == 1 && "
-            "needs.manual-prerequisites.result == 'success' && false }}")
-        with self.assertRaises(WorkflowContractError):
-            assert_manual_dependency_graph(self.source.replace(
-                "needs.manual-prerequisites.result == 'success' && false",
-                "needs.manual-prerequisites.result == 'success' && true", 1))
 
 
 class PureAggregateWorkflowBoundaryTests(unittest.TestCase):

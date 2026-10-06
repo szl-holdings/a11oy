@@ -1001,7 +1001,10 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
             self.workflow,
         )
         self.assertIn("ref: ${{ github.sha }}", self.workflow)
-        self.assertIn("restart-space: true", self.workflow)
+        # One Space start per deploy: only a PAUSED Space is started
+        # explicitly; a serving or crashed Space is rebuilt by the commit.
+        self.assertIn("restart-space: ${{ needs.preflight.outputs.restart_required == 'true' }}", self.workflow)
+        self.assertNotIn("restart-space: true", self.workflow)
         self.assertIn("source-revision-variable: SZL_GIT_SHA", self.workflow)
         self.assertIn("source-revision-probe-path: /api/build-info", self.workflow)
         self.assertIn("HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}", self.workflow)
@@ -1012,29 +1015,31 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
         self.assertNotIn("def probe(", self.workflow)
         self.assertIn("python .github/scripts/verify_canonical_a11oy.py", self.workflow)
 
-    def test_post_deploy_probe_is_ingested_before_relock(self) -> None:
+    def test_post_deploy_probe_is_gated_before_relock_without_a_space_write(self) -> None:
         self.assertIn("readiness-verdict:", self.workflow)
         self.assertIn(
             "node tools/readiness-harness/probe_runner.mjs",
             self.workflow,
         )
+        # The verdict gate still fails closed, but a Space-variable write would
+        # restart the revision this run just started, so it only validates.
         self.assertIn(
-            "python .github/scripts/publish_readiness_verdict.py",
+            "python .github/scripts/publish_readiness_verdict.py\n          --validate-only\n",
             self.workflow,
         )
+        self.assertEqual(self.workflow.count("publish_readiness_verdict.py"), 1)
         runtime_config = self.workflow.split(
             "  runtime-config:", 1
-        )[1].split("\n  deploy:", 1)[0]
-        self.assertIn("needs: [manual-prerequisites, durable-acquisition, deploy]", runtime_config)
+        )[1].split("\n  publish-vertical-flagships:", 1)[0]
+        self.assertIn("needs: [preflight, deploy]", runtime_config)
         readiness_verdict = self.workflow.split(
             "  readiness-verdict:", 1
         )[1].split("\n  relock:", 1)[0]
-        self.assertIn(
-            "needs: [manual-prerequisites, runtime-config]", readiness_verdict
-        )
+        self.assertIn("needs: runtime-config", readiness_verdict)
+        self.assertNotIn("HF_TOKEN", readiness_verdict)
         relock_job = self.workflow.split("  relock:", 1)[1]
         self.assertIn(
-            "needs: [manual-prerequisites, runtime-config, readiness-verdict]",
+            "needs: [runtime-config, readiness-verdict]",
             relock_job,
         )
         self.assertIn("--expected-origin \"$CANONICAL_ORIGIN\"", self.workflow)
@@ -1055,10 +1060,13 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertIn("probe summary contains doctrine lies", publisher)
 
-    def test_runtime_config_runs_bounded_live_proofs_and_retains_evidence(self) -> None:
-        runtime_config = self.workflow.split(
-            "  runtime-config:", 1
-        )[1].split("\n  deploy:", 1)[0]
+    def test_bounded_live_proofs_run_only_in_the_manual_restart_drill(self) -> None:
+        drill = (ROOT / ".github" / "workflows" / "restart-drill.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("on:\n  workflow_dispatch: {}\n", drill)
+        self.assertNotIn("\n  push:", drill)
+        self.assertNotIn("\n  schedule:", drill)
         series_name = "Prove live Series-A restart persistence (bounded)"
         gdw_name = "Prove live GDW write, drain, and receipt integrity (bounded)"
         admit_name = "Admit bounded live proof reports and fail closed"
@@ -1067,7 +1075,8 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
             ("prove_hf_gdw_runtime.py", gdw_name, "GDW_LIVE_REPORT"),
         ):
             with self.subTest(script=script):
-                step = runtime_config.split(f"      - name: {name}\n", 1)[1].split(
+                self.assertNotIn(script, self.workflow)
+                step = drill.split(f"      - name: {name}\n", 1)[1].split(
                     "\n      - name:", 1
                 )[0]
                 self.assertIn(f"python -B scripts/{script}", step)
@@ -1076,24 +1085,18 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
                 self.assertIn(f'--output "${output}"', step)
                 self.assertIn('exit "$code"', step)
                 self.assertNotIn("continue-on-error", step)
-                self.assertIn(f"${{{{ env.{output} }}}}", runtime_config)
-        self.assertNotIn("--blocked-proof", runtime_config)
-        admit = runtime_config.split(f"      - name: {admit_name}\n", 1)[1].split(
+                self.assertIn(f"${{{{ env.{output} }}}}", drill)
+        self.assertNotIn("--blocked-proof", drill)
+        admit = drill.split(f"      - name: {admit_name}\n", 1)[1].split(
             "\n      - name:", 1
         )[0]
         self.assertIn("--admit-live-proofs", admit)
         self.assertIn("set -euo pipefail", admit)
-        self.assertIn("${{ env.LIVE_PROOF_ADMISSION_REPORT }}", runtime_config)
-        self.assertIn(
-            "- name: Upload secret-free runtime configuration evidence\n"
-            "        if: ${{ always() }}",
-            self.workflow,
-        )
-        self.assertIn("if-no-files-found: error", runtime_config)
+        self.assertIn("${{ env.LIVE_PROOF_ADMISSION_REPORT }}", drill)
+        self.assertIn("if-no-files-found: error", drill)
         order = [series_name, gdw_name, admit_name,
-                 "Upload secret-free runtime configuration evidence",
-                 "python .github/scripts/verify_canonical_a11oy.py"]
-        positions = [self.workflow.index(item) for item in order]
+                 "Upload secret-free restart drill evidence"]
+        positions = [drill.index(item) for item in order]
         self.assertEqual(positions, sorted(positions))
 
     def test_immutable_artifacts_are_unique_across_rerun_attempts(self) -> None:

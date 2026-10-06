@@ -148,18 +148,15 @@ def test_functional_gate_preserves_sanitized_upstream_boundary_and_rejects_raw_f
     assert "secret" not in json.dumps(second)
 
 
-def test_recovery_transition_holds_unrelated_finance_projection():
+def test_canonical_deploy_never_publishes_the_unrelated_finance_projection():
+    # The dead "&& false" Finance projection job left hf-sync with the
+    # livelocked recovery graph; Finance publishes only through its own lane.
     import yaml
     workflow = yaml.safe_load((ROOT / ".github/workflows/hf-sync.yml").read_text())
-    job = workflow["jobs"]["publish-finance-projection"]
-    assert job["needs"] == ["manual-prerequisites", "relock"]
-    assert job["if"] == "${{ github.event_name == 'push' && github.run_attempt == 1 && needs.manual-prerequisites.result == 'success' && false }}"
-    assert job["env"]["SZL_FLAGSHIP_SCOPE"] == "finance"
-    assert job["concurrency"] == {"group": "hf-vertical-estate", "cancel-in-progress": False}
-    text = json.dumps(job)
-    assert "hf_exact_main_ownership.py" in text
-    assert "hf_publish_vertical_flagships_v4.py" in text
-    assert "create_repo" not in text
+    assert "publish-finance-projection" not in workflow["jobs"]
+    text = json.dumps(workflow["jobs"])
+    assert "SZL_FLAGSHIP_SCOPE" not in text
+    assert "finance" not in text.lower()
 
 
 def test_existing_publisher_requires_functional_success_for_finance(monkeypatch):
