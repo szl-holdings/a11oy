@@ -472,6 +472,8 @@ def test_passive_attestation_does_not_recreate_or_certify_bad_store(
         if damage == "broken-chain":
             assert body["statement"]["khipu_chain"]["chain_ok"] is False
             assert body["statement"]["khipu_chain"]["first_break_seq"] == 0
+            assert body["statement"]["khipu_chain"]["depth"] == 1
+            assert body["statement"]["khipu_chain"]["head"] == "broken"
             assert body["axes_present"]["runtime"] is False
         else:
             assert body["statement"] is None
@@ -561,6 +563,7 @@ def test_passive_attestation_keeps_explicit_receipt_writer(client):
 
     before = client.get(f"/api/{ORGAN}/v1/assurance/attest").json()
     assert before["statement"]["khipu_chain"]["depth"] == 0
+    assert before["statement"]["khipu_chain"]["head"] == H._GENESIS
     response = client.post(f"/api/{ORGAN}/v1/be/khipu/append",
                            json={"action": "fixture.write", "payload": {"evidence_class": "SAMPLE"}})
     assert response.status_code == 200
@@ -621,3 +624,45 @@ def test_passive_attestation_wal_is_unavailable_without_sidecar_changes(
         assert all(count == 0 for count in calls.values())
     finally:
         writer.close()
+
+
+@pytest.mark.parametrize("path", ["assurance/attest", "assurance/attest/status"])
+def test_passive_attestation_keeps_one_snapshot_during_independent_append(
+    client, monkeypatch, path
+):
+    from concurrent.futures import ThreadPoolExecutor
+
+    store = client.app.state.be_khipu
+    writer = H.DurableKhipu(ORGAN, path=client._db_path)
+    first = writer.emit("fixture.before", {"evidence_class": "SAMPLE"})
+    original_all = store._all
+    snapshots = []
+    committed = []
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        def read_then_append(*, read_only=False):
+            rows = original_all(read_only=read_only)
+            snapshots.append(rows)
+            assert read_only is True
+            if len(snapshots) == 1:
+                # A different store/lock and a different SQLite connection commit
+                # after the observer's SELECT, before it produces the response.
+                committed.append(pool.submit(
+                    writer.emit, "fixture.concurrent", {"evidence_class": "SAMPLE"}
+                ).result(timeout=5))
+            return rows
+
+        monkeypatch.setattr(store, "_all", read_then_append)
+        response = client.get(f"/api/{ORGAN}/v1/{path}")
+
+    body = _assert_unsigned_read(response)
+    chain = body["statement"]["khipu_chain"]
+    assert response.status_code == 200
+    assert committed[0]["prev"] == first["digest"]
+    assert writer.verify() == (True, 2, -1)
+    assert writer.head() == committed[0]["digest"]
+    assert chain["chain_ok"] is True
+    assert chain["depth"] == 1
+    assert chain["head"] == first["digest"]
+    assert chain["head"] != writer.head()
+    assert len(snapshots) == 1

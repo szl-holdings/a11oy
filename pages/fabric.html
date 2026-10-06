@@ -429,32 +429,41 @@ function renderWatt(hit){
   var el = $('watt-state');
   if(!hit){ el.innerHTML = pendingHTML('cheapest-watt routing endpoint not live this sweep'); return false; }
   var d = hit.data || {};
-  // Real shape: latest_decision.decision (nested) -> recent_decisions[0] -> flat fallback.
-  var dec = (d.latest_decision && d.latest_decision.decision) || (d.recent_decisions && d.recent_decisions[0]) || d.decision || d.last || d;
-  if(typeof dec !== 'object' || dec === null) dec = d;
+  // Current observations contain raw decisions; retained callers may wrap one.
+  var candidates = [d.latest_decision, d.recent_decisions && d.recent_decisions[0], d.decision, d.last, d];
+  var dec = d;
+  for(var i=0; i<candidates.length; i++){
+    var candidate = candidates[i];
+    if(candidate && typeof candidate === 'object' && !Array.isArray(candidate)){
+      dec = candidate.decision && typeof candidate.decision === 'object' && !Array.isArray(candidate.decision)
+        ? candidate.decision : candidate;
+      break;
+    }
+  }
+  var sourceLabels = ['MEASURED','REPORTED','DECLARED','SIMULATED','SAMPLE','MODELED','ROADMAP','UNKNOWN','UNAVAILABLE','BLOCKED'];
+  function sourceLabel(value){ return sourceLabels.indexOf(value) >= 0 ? value : 'UNKNOWN'; }
   var node  = dec.chosen_node || dec.node || dec.placed_on || dec.target || null;
   var price = (dec.grid_price_eur_mwh!=null?dec.grid_price_eur_mwh:(dec.price_eur_mwh!=null?dec.price_eur_mwh:(dec.eur_mwh!=null?dec.eur_mwh:null)));
-  var priceL= dec.grid_price_label || 'MEASURED';
+  var priceLabel = sourceLabel(dec.grid_price_label);
   var save  = (dec.saving!=null?dec.saving:(dec.savings_pct!=null?dec.savings_pct:(dec.savings_percent!=null?dec.savings_percent:null)));
-  var saveLabel = dec.saving_label || dec.savings_label || dec.label || null;
+  var saveLabel = sourceLabel(dec.saving_label || dec.savings_label || dec.label);
   var reason = dec.reason || dec.detail || null;
   var chHead = (d.chain && d.chain.head) || dec.receipt_hash || dec.receipt || dec.digest || null;
   var html = '';
-  html += '<div class="big">'+(price!=null?fmt1(price)+' €/MWh':'—')+'</div>';
-  html += '<div class="sub2">live grid price at decision '+(priceL==='MEASURED'?L('MEASURED'):L('LIVE'))+'</div>';
+  html += '<div class="big">'+(price!=null?escapeHTML(fmt1(price))+' €/MWh':'—')+'</div>';
+  html += '<div class="sub2">recorded grid price · source-declared label '+L(priceLabel)+'</div>';
+  html += '<div class="sub2">Retained observation; labels are not independently verified. Current reachability and execution: UNKNOWN.</div>';
   if(node){
-    html += '<hr><div class="sub2">chosen node: <b>'+escapeHTML(node)+'</b> '+L('LIVE','LOWEST-€ REACHABLE')+'</div>';
-    if(save!=null){
-      var sv = (typeof save==='number') ? ((save<=1?(save*100):save).toFixed(1)+'%') : escapeHTML(String(save));
-      var lk = (saveLabel==='MEASURED') ? L('MEASURED') : L('MODELED','ROUTING LAW');
-      html += '<div class="sub2">honest savings vs most-expensive comparable: <b>'+sv+'</b> '+lk+'</div>';
-    }
+    html += '<hr><div class="sub2">recorded chosen node: <b>'+escapeHTML(node)+'</b></div>';
   } else {
-    // No placement this tick is an HONEST outcome, not a gap — surface the reason verbatim.
-    html += '<hr><div class="sub2"><b>no placement this tick</b> '+L('LIVE','HONEST: NO FABRICATED SAVING')+'</div>';
-    if(reason) html += '<div class="sub2">'+escapeHTML(reason)+'</div>';
+    html += '<hr><div class="sub2"><b>no chosen node in the retained record</b></div>';
   }
-  if(chHead){ html += '<div class="receipt">receipt-chain '+shortHash(chHead)+(d.chain&&d.chain.length!=null?' · len '+fmt(d.chain.length):'')+'</div>'; }
+  if(save!=null){
+    var sv = (typeof save==='number') ? ((save<=1?(save*100):save).toFixed(1)+'%') : String(save);
+    html += '<div class="sub2">recorded savings: <b>'+escapeHTML(sv)+'</b> · source-declared label '+L(saveLabel)+'</div>';
+  }
+  if(reason) html += '<div class="sub2">recorded reason: '+escapeHTML(reason)+'</div>';
+  if(chHead){ html += '<div class="receipt">unverified receipt reference '+escapeHTML(shortHash(chHead))+(d.chain&&d.chain.length!=null?' · recorded chain length '+escapeHTML(fmt(d.chain.length)):'')+'</div>'; }
   el.innerHTML = html;
   return true;
 }
