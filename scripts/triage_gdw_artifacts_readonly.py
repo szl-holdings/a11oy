@@ -270,6 +270,44 @@ def artifact_effect_observation(api, database, directory, require_source, deadli
         historical_writer_attribution="NOT_ESTABLISHED")
 
 
+def artifact_namespace_absence(api, database, directory, require_source, deadline, *, logical_roots=None):
+    """Prove the owned artifact prefix is empty with one bounded lazy listing.
+
+    A fresh continuation cannot accept any pre-existing object under its owned
+    prefix.  Listing that prefix is therefore both stronger and substantially
+    smaller than issuing two exact-path reads for every reconstructed object.
+    """
+    import gdw_durable_storage as storage
+
+    before = _file_digest(database, deadline)
+    directory.mkdir(mode=0o700, exist_ok=False)
+    pending, plan = local_artifact_plan(database, directory / "plan", deadline,
+                                        logical_roots=logical_roots)
+    require(len(pending) == plan["expected_object_count"])
+    require_source()
+    metadata_before = api.bucket_info(bucket_id=storage.BUCKET)
+    require(storage._value(metadata_before, "id") == storage.BUCKET
+        and storage._value(metadata_before, "private") is True)
+    rows = iter(api.list_bucket_tree(bucket_id=storage.BUCKET,
+        prefix=storage.ARTIFACT_PREFIX, recursive=True))
+    marker = object()
+    require(next(rows, marker) is marker)
+    require_source()
+    metadata_after = api.bucket_info(bucket_id=storage.BUCKET)
+    require(storage._value(metadata_after, "id") == storage.BUCKET
+        and storage._value(metadata_after, "private") is True
+        and _file_digest(database, deadline) == before)
+    require_source()
+    return dict(plan,
+        classification="NO_EXPECTED_OBJECTS_PRESENT_AT_READ_TIME",
+        present_object_count=0,
+        missing_object_count=plan["expected_object_count"],
+        observed_object_set_sha256=_aggregate([]),
+        provider_objects_fully_validated=False,
+        provider_writes_performed=False,
+        historical_writer_attribution="NOT_ESTABLISHED")
+
+
 def _file_digest(path, deadline):
     import stat
     digest = hashlib.sha256()

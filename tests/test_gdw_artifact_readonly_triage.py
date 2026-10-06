@@ -30,11 +30,12 @@ class ReadOnlyArtifactAPI:
     endpoint = "https://huggingface.co"
 
     def __init__(self, objects, *, reported_size_delta=0, move_after_download=False,
-                 failure=None):
+                 failure=None, prefix_entries=()):
         self.objects = dict(objects)
         self.reported_size_delta = reported_size_delta
         self.move_after_download = move_after_download
         self.failure = failure
+        self.prefix_entries = tuple(prefix_entries)
         self.calls = []
         self.downloaded = False
 
@@ -53,6 +54,12 @@ class ReadOnlyArtifactAPI:
         suffix = "b" if self.move_after_download and self.downloaded else "a"
         return [{"path": path, "type": "file", "size": len(data) + self.reported_size_delta,
                  "xet_hash": suffix * 64}]
+
+    def list_bucket_tree(self, *, bucket_id, prefix, recursive):
+        self.calls.append(("list_bucket_tree", bucket_id, prefix, recursive))
+        if self.failure:
+            raise RuntimeError(self.failure)
+        return (item for item in self.prefix_entries)
 
     def download_bucket_files(self, *, bucket_id, files, raise_on_missing_files):
         self.calls.append(("download_bucket_files", len(files), raise_on_missing_files))
@@ -166,6 +173,35 @@ def test_exact_current_object_set_is_classified_without_writer_attribution(
     assert all(path not in serialized for path in pending)
     assert "owner" not in serialized and "payload" not in serialized
     assert not any(call[0] == "download_bucket_files" for call in api.calls) if presence == "none" else True
+
+
+def test_fresh_namespace_absence_uses_one_lazy_prefix_read(stores, tmp_path):
+    database = retained_candidate(stores, tmp_path, count=2)
+    api = ReadOnlyArtifactAPI({})
+    source_checks = []
+    before = database.read_bytes()
+    result = triage.artifact_namespace_absence(
+        api, database, tmp_path / "prefix-absence", lambda: source_checks.append(True),
+        time.monotonic() + 10, logical_roots=stores.gate.artifacts.roots)
+    assert result["classification"] == "NO_EXPECTED_OBJECTS_PRESENT_AT_READ_TIME"
+    assert result["present_object_count"] == 0
+    assert result["missing_object_count"] == result["expected_object_count"] == 2
+    assert result["provider_writes_performed"] is False
+    assert source_checks == [True, True, True]
+    assert [call[0] for call in api.calls] == [
+        "bucket_info", "list_bucket_tree", "bucket_info"]
+    assert database.read_bytes() == before
+
+
+def test_fresh_namespace_absence_holds_on_any_prefix_entry_without_download(stores, tmp_path):
+    database = retained_candidate(stores, tmp_path)
+    api = ReadOnlyArtifactAPI({}, prefix_entries=({"type": "file"},))
+    with pytest.raises(triage.TriageHeld):
+        triage.artifact_namespace_absence(
+            api, database, tmp_path / "nonempty-prefix", lambda: None,
+            time.monotonic() + 10, logical_roots=stores.gate.artifacts.roots)
+    assert [call[0] for call in api.calls] == ["bucket_info", "list_bucket_tree"]
+    assert not any(call[0] == "download_bucket_files" for call in api.calls)
 
 
 def test_all_rows_validate_before_first_provider_read(stores, tmp_path):

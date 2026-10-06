@@ -16,9 +16,18 @@ effects. Historical provider effects and writer attribution remain
 - Accepted diagnostic source: protected, signed main
   `1b2775485b05915662624c947004cd887b21cf5d`.
 - Transition predecessor: protected, signed descendant
-  `83e368b1814e213e2a4e2fc2a43975d31f19d3de`. The effectful source must be
+  `e97df96f1a228b866287f17d8792bea8d82b415d`. The effectful source must be
   this commit's signed direct child; the ancestry comparison must retain the
   accepted diagnostic source as its merge base.
+- The predecessor's automatic run
+  [`37401397483`](https://github.com/szl-holdings/a11oy/actions/runs/37401397483)
+  stopped in read-only artifact-namespace observation. Artifact `11385362377`
+  records `provider_writes_performed=false`; pause, acquisition, bootstrap,
+  configuration, deployment, and parity all skipped.
+  The isolated observer omitted the reviewed canonical artifact-root bindings,
+  so native retained-row validation held before its first provider read. The
+  successor binds those roots inside the credential-isolated child rather than
+  inheriting any caller-selected path.
 - Diagnostic artifact: `11349341865`, archive SHA-256
   `055c8200399d6f27e7fee4b0a371e775803dc62daf9cdbb396ae445524025d21`,
   closed report SHA-256
@@ -85,7 +94,11 @@ emits the qualification receipt or an admission output.
    downstream reviewed configuration and deployment boundaries use their own
    current-parent and readback contracts.
 6. All 224 content-addressed retained-artifact paths derived from the freshly
-   reproduced candidate are absent. The exact set hash is
+   reproduced candidate are absent. The continuation proves the entire owned
+   `a11oy/durable-artifacts/v1` prefix is empty with one bounded lazy listing,
+   which is stronger than checking only those 224 paths and avoids hundreds of
+   per-path provider/source requests. Any prefix entry holds the continuation.
+   The exact planned set hash is
    `7a28c53fa647e639375c6a90d3e34e89fe74bc2004f8161b5f38ac793301be42`.
 7. The canonical Space is in `RUNTIME_ERROR` or already `PAUSED`; its revision,
    mount, public variables, secret names, stopped original object identities,

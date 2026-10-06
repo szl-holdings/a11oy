@@ -35,7 +35,7 @@ from scripts import triage_gdw_artifacts_readonly as triage
 SCHEMA = "szl.gdw-diagnostic-continuation-prerequisite/v1"
 CLASSIFICATION_SCHEMA = "szl.gdw-diagnostic-continuation-classification/v1"
 DIAGNOSTIC_SOURCE = "1b2775485b05915662624c947004cd887b21cf5d"
-TRANSITION_PARENT_SOURCE = "83e368b1814e213e2a4e2fc2a43975d31f19d3de"
+TRANSITION_PARENT_SOURCE = "e97df96f1a228b866287f17d8792bea8d82b415d"
 DIAGNOSTIC_RUN = 37318344262
 DIAGNOSTIC_ATTEMPT = 1
 DIAGNOSTIC_ARTIFACT = 11349341865
@@ -384,8 +384,12 @@ def _artifact_object_worker_observation(raw):
     _require(all(context[key] == request[key] for key in
         ("source_revision", "run_id", "run_attempt", "job_key")),
         "CURRENT_ABSENCE_UNVERIFIED")
+    # The isolated child deliberately inherits no caller-selected artifact
+    # roots.  Bind the reviewed canonical roots before reconstructing the
+    # captured rows, matching the accepted read-only diagnostic worker.
+    os.environ.update(triage.trusted_artifact_environment())
     api = storage._hub_api(os.environ.get("HF_TOKEN", ""))
-    effects = triage.artifact_effect_observation(api, candidate,
+    effects = triage.artifact_namespace_absence(api, candidate,
         workspace / "artifact-effects", evidence.require_current_main, request["deadline"])
     _workspace, _candidate, after = _object_workspace(workspace, request["deadline"])
     _require(after == digest, "CURRENT_ABSENCE_UNVERIFIED")
@@ -585,10 +589,12 @@ class DiagnosticContinuationFence:
     def _artifact(self, path):
         try:
             rows = self.api.get_bucket_paths_info(bucket_id=storage.BUCKET, paths=[path])
-            _require(type(rows) is list and len(rows) <= 1, "CURRENT_ABSENCE_UNVERIFIED")
-            if not rows:
+            iterator = iter(rows)
+            marker = object()
+            row = next(iterator, marker)
+            _require(next(iterator, marker) is marker, "CURRENT_ABSENCE_UNVERIFIED")
+            if row is marker:
                 return None
-            row = rows[0]
             _require(storage._value(row, "path") == path and storage._value(row, "type") == "file"
                 and type(storage._value(row, "size")) is int
                 and storage._digest(storage._value(row, "xet_hash")),

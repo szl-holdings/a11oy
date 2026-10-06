@@ -636,9 +636,9 @@ REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
     "scripts/acquire_gdw_durable_storage.py": "4d1506accdf700a9f20a0d7a867790bb792a042a5132fbf4580b1aa20f80558e",
     # The successor controller, the isolated native object observer it reuses,
     # and the reviewed side-effect boundary are a single source contract.
-    "scripts/reconcile_gdw_diagnostic_continuation.py": "06016d6e6f134ffa50b19bfa64d0427fbff504440430357ff26bdbceabe07b51",
-    "scripts/triage_gdw_artifacts_readonly.py": "5b9e54bea28a2d3045e1283004eb1807453ca68fc5c3647447437f57e90f75b5",
-    "docs/operations/gdw-diagnostic-continuation-side-effects.md": "19b42447cee43afcaa7c6be3d76c01b48b487263b5a255a8fb5463757b2537bb",
+    "scripts/reconcile_gdw_diagnostic_continuation.py": "cadd0a7276958275602dc44f7239922d1ef0effa12df63232bb263b623de33f1",
+    "scripts/triage_gdw_artifacts_readonly.py": "425d5de393f58e54cc1c6073c0a444d53685944499e86f34346ca42fdc86e42a",
+    "docs/operations/gdw-diagnostic-continuation-side-effects.md": "2b4dd99dff9ddbe57dc10038eac81f089340c3a5e361b80458613d0b9db19d78",
     "scripts/reconcile_gdw_supervised_acquisition.py": "23dd0478cc06d1881ff7c1469833d0192549807a06d5cf822cf8f6d12fdaa994",
     "scripts/inspect_gdw_held_acquisition.py": "61e0b7d6e8236074ebcbbcc424b34d92f257f0c85608f7adbd640136de9e5dc6",
     "scripts/inspect_gdw_62ca_acquisition.py": "d444b298495fc253205287f873f3e0a2b2eeb15eab686ea404983ea61fef97eb",
