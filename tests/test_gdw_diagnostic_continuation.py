@@ -8,7 +8,10 @@ import copy
 import hashlib
 import inspect
 import json
+import os
 from pathlib import Path
+import sqlite3
+import sys
 from types import SimpleNamespace
 import time
 
@@ -184,7 +187,7 @@ class FenceAPI:
                 size, xet = self.objects[path]
                 result.append({"path": path, "type": "file", "size": size,
                                "xet_hash": xet})
-        return result
+        return (item for item in result)
 
 
 class Evidence:
@@ -230,6 +233,95 @@ def test_fence_proves_all_paths_absent_then_accepts_only_its_exact_ack(monkeypat
     with pytest.raises(continuation.ContinuationBlocked):
         fence.before_artifact(path, digest, size)
     assert evidence.calls >= 10
+
+
+def test_fence_artifact_reader_accepts_sdk_shaped_empty_and_present_generators(tmp_path):
+    api, evidence = FenceAPI(), Evidence()
+    directory = tmp_path / "fence"; directory.mkdir(mode=0o700)
+    fence = continuation.DiagnosticContinuationFence(api, evidence,
+        time.monotonic() + 30, directory, api.revision)
+    path = f"{storage.ARTIFACT_PREFIX}/{'a' * 64}/{'b' * 64}.json"
+    assert fence._artifact(path) is None
+    api.objects[path] = (17, "c" * 64)
+    assert fence._artifact(path) == {
+        "path": path, "type": "file", "size": 17, "xet_hash": "c" * 64}
+
+
+@pytest.mark.parametrize("present", [False, True])
+def test_fence_artifact_reader_uses_official_hf_131_mock_transport(tmp_path, present):
+    huggingface_hub = pytest.importorskip("huggingface_hub")
+    httpx = pytest.importorskip("httpx")
+    assert huggingface_hub.__version__ == "1.31.0"
+    from huggingface_hub.utils._http import default_client_factory
+
+    path = f"{storage.ARTIFACT_PREFIX}/{'a' * 64}/{'b' * 64}.json"
+    requests = []
+    payload = ([{"type": "file", "path": path, "size": 17,
+                 "xetHash": "c" * 64, "mtime": "2026-10-06T00:00:00.000Z"}]
+               if present else [])
+
+    def response(request):
+        requests.append(request)
+        assert request.method == "POST"
+        assert request.url.path == (
+            "/api/buckets/SZLHOLDINGS/szl-evidence/paths-info")
+        assert json.loads(request.content) == {"paths": [path]}
+        return httpx.Response(200, json=payload, request=request)
+
+    huggingface_hub.set_client_factory(
+        lambda: httpx.Client(transport=httpx.MockTransport(response)))
+    try:
+        api = huggingface_hub.HfApi(endpoint=storage.ENDPOINT, token=False)
+        directory = tmp_path / "fence"; directory.mkdir(mode=0o700)
+        fence = continuation.DiagnosticContinuationFence(api, Evidence(),
+            time.monotonic() + 30, directory, "c" * 40)
+        observed = fence._artifact(path)
+    finally:
+        huggingface_hub.set_client_factory(default_client_factory)
+    assert len(requests) == 1
+    assert (observed is None) is (not present)
+    if present:
+        assert storage._value(observed, "path") == path
+        assert storage._value(observed, "size") == 17
+        assert storage._value(observed, "xet_hash") == "c" * 64
+
+
+def test_fence_artifact_reader_consumes_at_most_two_generator_rows(tmp_path):
+    path = f"{storage.ARTIFACT_PREFIX}/{'a' * 64}/{'b' * 64}.json"
+    consumed = []
+    class API(FenceAPI):
+        def get_bucket_paths_info(self, **_kwargs):
+            def rows():
+                for index in range(3):
+                    consumed.append(index)
+                    yield {"path": path, "type": "file", "size": 17,
+                           "xet_hash": "c" * 64}
+            return rows()
+    api = API()
+    directory = tmp_path / "fence"; directory.mkdir(mode=0o700)
+    fence = continuation.DiagnosticContinuationFence(api, Evidence(),
+        time.monotonic() + 30, directory, api.revision)
+    with pytest.raises(continuation.ContinuationBlocked):
+        fence._artifact(path)
+    assert consumed == [0, 1]
+
+
+def test_fence_artifact_reader_holds_on_generator_iteration_error(tmp_path):
+    path = f"{storage.ARTIFACT_PREFIX}/{'a' * 64}/{'b' * 64}.json"
+    class API(FenceAPI):
+        def get_bucket_paths_info(self, **_kwargs):
+            def rows():
+                yield {"path": path, "type": "file", "size": 17,
+                       "xet_hash": "c" * 64}
+                raise RuntimeError("private provider detail")
+            return rows()
+    api = API()
+    directory = tmp_path / "fence"; directory.mkdir(mode=0o700)
+    fence = continuation.DiagnosticContinuationFence(api, Evidence(),
+        time.monotonic() + 30, directory, api.revision)
+    with pytest.raises(continuation.ContinuationBlocked) as held:
+        fence._artifact(path)
+    assert str(held.value) == "CURRENT_ABSENCE_UNVERIFIED"
 
 
 def test_fence_rejects_preexisting_expected_object_before_any_ack(monkeypatch, tmp_path):
@@ -446,6 +538,104 @@ def test_object_worker_wire_is_closed_source_bound_and_nonadmitting():
         ("provider_writes_performed", "replay_admitted", "restore_admitted", "deployment_admitted"))
     assert continuation._validate_object_worker_report(
         continuation._held_object_worker_report())["state"] == "HELD"
+
+
+def test_actual_isolated_worker_binds_reviewed_artifact_roots_before_provider_read(
+        native_acquisition, tmp_path, monkeypatch):
+    from gdw_durable_artifacts import LOGICAL_ROOTS
+    from scripts import probe_gdw_runtime_base as base
+
+    state = native_acquisition
+    workspace = tmp_path / "capture"
+    database = workspace / "working/gdw/candidate.sqlite3"
+    database.parent.mkdir(parents=True, mode=0o700)
+    database.write_bytes(state.originals["gdw"])
+    for directory in (workspace, workspace / "working", database.parent):
+        directory.chmod(0o700)
+    database.chmod(0o600)
+
+    def canonical_artifact(kind, identity, encoded):
+        artifact = json.loads(encoded)
+        artifact["path"] = str(
+            LOGICAL_ROOTS[kind] / artifact["owner_scope"] / f"{identity}.json")
+        return json.dumps(artifact, sort_keys=True)
+
+    with sqlite3.connect(database) as connection:
+        for identity, kind, encoded in connection.execute(
+                "SELECT intent_sha256, kind, artifact_json FROM effect_outbox "
+                "WHERE status='EXPORTED'"):
+            connection.execute("UPDATE effect_outbox SET artifact_json=? "
+                "WHERE intent_sha256=?", (canonical_artifact(kind, identity, encoded), identity))
+        for identity, encoded in connection.execute(
+                "SELECT payload_sha256, artifact_json FROM proof_outbox "
+                "WHERE status='EXPORTED'"):
+            connection.execute("UPDATE proof_outbox SET artifact_json=? "
+                "WHERE payload_sha256=?", (canonical_artifact(
+                    "proof_export", identity, encoded), identity))
+
+    for key, value in triage.trusted_artifact_environment().items():
+        monkeypatch.setenv(key, value)
+    _pending, plan = triage.local_artifact_plan(database,
+        tmp_path / "expected-plan", time.monotonic() + 20)
+    assert plan["expected_object_count"] > 0
+
+    source = "a" * 40
+    deadline = time.monotonic() + 20
+    request = {"schema": continuation.OBJECT_WORKER_SCHEMA,
+        "workspace": str(workspace), "source_revision": source,
+        "run_id": 900, "run_attempt": 1,
+        "job_key": continuation.RECONCILIATION_JOB_KEY,
+        "candidate_sha256": hashlib.sha256(database.read_bytes()).hexdigest(),
+        "deadline": deadline}
+    code = r'''
+import os, runpy, sys
+module = runpy.run_path(sys.argv[1], run_name="isolated_continuation_worker")
+worker = module["_artifact_object_worker_observation"]
+scope = worker.__globals__
+scope["EXPECTED_OBJECT_COUNT"] = int(sys.argv[2])
+scope["EXPECTED_OBJECT_SET_SHA256"] = sys.argv[3]
+class Evidence:
+    source = os.environ["GITHUB_SHA"]
+    def require_current_main(self):
+        return None
+scope["native"].NativeEvidence = lambda *_args, **_kwargs: Evidence()
+scope["verify_current_context"] = lambda _evidence, job_key, _job_name: {
+    "source_revision": os.environ["GITHUB_SHA"],
+    "run_id": int(os.environ["GITHUB_RUN_ID"]),
+    "run_attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
+    "job_key": job_key,
+}
+class API:
+    endpoint = "https://huggingface.co"
+    def bucket_info(self, *, bucket_id):
+        return {"id": bucket_id, "private": True}
+    def list_bucket_tree(self, *, bucket_id, prefix, recursive):
+        return iter(())
+scope["storage"]._hub_api = lambda _token: API()
+raise SystemExit(scope["artifact_object_worker"]())
+'''
+    environment = {
+        "PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"),
+        "TMPDIR": str(tmp_path), "HF_TOKEN": "synthetic-hf-token",
+        "GH_TOKEN": "synthetic-gh-token", "GITHUB_ACTIONS": "true",
+        "GITHUB_REPOSITORY": "szl-holdings/a11oy", "GITHUB_REPOSITORY_ID": "1",
+        "GITHUB_REF": "refs/heads/main", "GITHUB_SHA": source,
+        "GITHUB_WORKFLOW_REF": "szl-holdings/a11oy/.github/workflows/hf-sync.yml@refs/heads/main",
+        "GITHUB_WORKFLOW_SHA": source, "GITHUB_RUN_ID": "900",
+        "GITHUB_RUN_ATTEMPT": "1", "GITHUB_EVENT_NAME": "push",
+        "GITHUB_JOB": continuation.RECONCILIATION_JOB_KEY,
+    }
+    assert not {"GDW_PROOF_DIR", "GDW_RECEIPT_PROJECTION_DIR"} & set(environment)
+    raw = base._run([sys.executable, "-I", "-B", "-c", code,
+        str(Path(continuation.__file__).resolve()),
+        str(plan["expected_object_count"]), plan["expected_object_set_sha256"]],
+        deadline=deadline, limit=continuation.OBJECT_WORKER_BYTES,
+        env=environment, cwd=workspace, input_bytes=storage.canonical(request))
+    report = continuation._validate_object_worker_report(
+        continuation.native.strict(raw, continuation.OBJECT_WORKER_BYTES))
+    assert report["state"] == "OBSERVED"
+    assert report["artifact_effect_observation"]["expected_object_count"] == plan[
+        "expected_object_count"]
 
 
 @pytest.mark.parametrize("field,value", [
