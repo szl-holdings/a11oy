@@ -33,12 +33,14 @@ Markdown / other:
   Pydantic models — it breaks model validation at runtime.
 - **Register new API routes before the SPA catch-all** or they fall through to an HTML 200.
 - Match the surrounding file's style. UI follows the founder **SZL KANCHAY** design system
-  (szl-brand `kanchay/` 1.1.1 and its `DESIGN_DIRECTION.md`): vendor `szl-design-system.css`
+  (szl-brand `kanchay/` 1.2.0 and its `DESIGN_DIRECTION.md`): vendor `szl-design-system.css`
   (plus `szl-console.css` on operator surfaces) byte-for-byte into one `szl/` folder per served
   root (main Space: `console/assets/szl/`, served at `/assets/szl/`), link it before the page's
   own sheet, and build with its tokens and classes. Dark operator is `:root`; light marketing is
-  `<html data-surface="light">`. One coral moment per view, gold only for premium, teal only for
-  links and focus, status never colour-only. No colour or font-name literals, no webfonts, no
+  `<html data-surface="light">`. A dark panel inside a light page (or the reverse) declares
+  `data-surface="dark"` (or `"light"`) on its own root so its text, links and focus follow its
+  ground; console aliases re-resolve there via `szl-console-focus.css`. One coral moment per
+  view, gold only for premium, teal only for links and focus, status never colour-only. No colour or font-name literals, no webfonts, no
   CDN. The legacy dark-ground / gold + teal house style is retired.
 - Comments explain *why*, not *what*. Default to none.
 </content>

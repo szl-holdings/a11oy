@@ -1,5 +1,5 @@
 /* ============================================================================
- * SZL HOLDINGS — KANCHAY Design System v1.1.1  ·  szl-design-system.css
+ * SZL HOLDINGS — KANCHAY Design System v1.2.0  ·  szl-design-system.css
  * One self-contained file. 0 runtime CDN. No Google Fonts. No Inter default.
  * No purple gradients. Self-hosted system-font stack only.
  *
@@ -67,7 +67,11 @@
 }
 
 /* --- 2 · SEMANTIC SURFACES — the "polarities" (dark operator default) ------ */
-:root {
+/* A polarity can be declared on any element, not only <html>. A dark panel inside a
+   light page (or a light panel inside a dark one) sets data-surface on its own root,
+   and every role below re-resolves there, so its text, links, focus and status inks
+   follow the panel's ground instead of the page's. */
+:root, [data-surface="dark"] {
   --bg:var(--color-space-900); --bg-deep:#02091c;
   --surface:var(--color-gray-800); --surface-alt:#18202b;
   --surface-raised:var(--color-gray-700);
@@ -80,6 +84,8 @@
   --premium:var(--color-hatun-300);
   --link:var(--color-yuyay-200); --link-hover:var(--color-yuyay-100);
   --focus:var(--color-yuyay-400);
+  --chip-ok:var(--color-success-light); --chip-warn:var(--color-warning-light);
+  --chip-bad:var(--color-error-light);
   color-scheme:dark;
 }
 [data-surface="light"] {
@@ -94,8 +100,16 @@
   --premium:var(--color-hatun-700);
   --link:var(--color-yuyay-700); --link-hover:var(--color-yuyay-800);
   --focus:var(--color-yuyay-600);
+  --chip-ok:var(--color-success-strong); --chip-warn:#6b4f00; --chip-bad:#9f281e;
   color-scheme:light;
 }
+/* Roles derived from a polarity token are re-declared on every surface root so they
+   resolve against that surface, and a nested surface carries its own text color. Only
+   the two polarity values count; data-surface used as a label is left alone. */
+:root, [data-surface="dark"], [data-surface="light"] {
+  --shadow-focus:0 0 0 3px color-mix(in srgb, var(--focus) 55%, transparent);
+}
+:where([data-surface="dark"], [data-surface="light"]) { color:var(--text); }
 
 /* --- 3 · TYPE SCALE — Major Third (1.25), base 16px (KANCHAY scale) -------- */
 :root {
@@ -116,7 +130,6 @@
   --radius-2xl:24px; --radius-full:9999px;
   --shadow-sm:0 1px 2px rgba(0,0,0,.40); --shadow-md:0 2px 8px rgba(0,0,0,.45);
   --shadow-lg:0 8px 24px rgba(0,0,0,.50); --shadow-xl:0 16px 48px rgba(0,0,0,.55);
-  --shadow-focus:0 0 0 3px color-mix(in srgb, var(--focus) 55%, transparent);
   --shadow-glow-hatun:0 0 0 1px var(--color-hatun-500),
                       0 0 16px color-mix(in srgb, var(--color-hatun-400) 30%, transparent);
   --shadow-node:0 0 0 1px var(--color-coral-500),
@@ -290,20 +303,14 @@ hr { border:0; border-top:var(--border-hairline) solid var(--border); margin:var
   font-variant-numeric:tabular-nums lining-nums; }
 .chip::before { content:""; width:.5rem; height:.5rem; border-radius:var(--radius-full);
   background:currentColor; flex:0 0 auto; }
-.chip-proven     { color:var(--color-success-light); }
-.chip-conjecture { color:var(--color-warning-light); }
-.chip-sorry      { color:var(--color-error-light); }
+.chip-proven     { color:var(--chip-ok); }
+.chip-conjecture { color:var(--chip-warn); }
+.chip-sorry      { color:var(--chip-bad); }
 .chip-axiom      { color:var(--link); }
-.chip-live       { color:var(--color-success-light); }
+.chip-live       { color:var(--chip-ok); }
 .chip-sample     { color:var(--text-ghost); }
-.chip-simulated  { color:var(--color-warning-light); }
-.chip-unavailable { color:var(--color-error-light); }
-[data-surface="light"] .chip-proven,
-[data-surface="light"] .chip-live { color:var(--color-success-strong); }
-[data-surface="light"] .chip-conjecture,
-[data-surface="light"] .chip-simulated { color:#6b4f00; }
-[data-surface="light"] .chip-sorry,
-[data-surface="light"] .chip-unavailable { color:#9f281e; }
+.chip-simulated  { color:var(--chip-warn); }
+.chip-unavailable { color:var(--chip-bad); }
 
 /* --- 11 · RECEIPT / PROOF chip (signature component) ----------------------- */
 .receipt { display:inline-flex; align-items:center; gap:var(--space-3);

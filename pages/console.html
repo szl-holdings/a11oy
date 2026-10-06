@@ -6744,7 +6744,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         /* a11oy-overhaul-marker:BATCH3-hero — front-door hero (SPEC_E §2.2). Instant CSS+SVG
            paint, zero-JS-legible, 0 CDN, no external font/image. Live counters fill AFTER
            paint and degrade HONESTLY (never a fabricated number). locked-8 hard-coded; Λ=Conjecture 1. */
-        var HERO_HTML='<section class="hero" aria-label="a11oy front door">'
+        var HERO_HTML='<section class="hero" data-surface="dark" aria-label="a11oy front door">'
           +'<div class="hero-bg" aria-hidden="true">'
           +'<svg class="hero-thread" viewBox="0 0 1200 400" preserveAspectRatio="xMidYMid slice" focusable="false">'
           +'<defs><linearGradient id="etg" x1="0" y1="0" x2="1" y2="1">'
@@ -6759,14 +6759,14 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           +'</svg></div>'
           +'<div class="hero-inner">'
           +'<p class="hero-eyebrow mono">GOVERNED-AI SUBSTRATE \u00b7 SZL HOLDINGS</p>'
-          +'<h1 class="hero-h1">AI that <span class="hero-accent">signs its work</span><br>and refuses to lie.</h1>'
+          +'<h2 class="hero-h1">AI that <span class="hero-accent">signs its work</span><br>and refuses to lie.</h2>'
           +'<p class="hero-sub">The auditable AI substrate for counter-UAS, maritime threat-intel, supply-chain and governance — built for energy-evidence-aware sovereign compute.</p>'
           +'<div class="hero-counters" role="group" aria-label="platform evidence and runtime receipts">'
           +'<div class="hctr"><span class="hctr-k mono">ENERGY <em class="mlabel" id="hero-joules-tag">SAMPLE</em></span>'
           +'<span class="hctr-v mono" id="hero-joules" data-maturity="sample">\u2014 J/tok</span>'
           +'<span class="hctr-d">per-token energy \u00b7 NVML</span></div>'
-          +'<div class="hctr"><span class="hctr-k mono">GOVERNED GATE <em class="mlabel live">LIVE</em></span>'
-          +'<span class="hctr-v mono" id="hero-gate"><span class="rmark" aria-hidden="true"></span>\u2014</span>'
+          +'<div class="hctr"><span class="hctr-k mono">GOVERNED GATE <em class="mlabel" id="hero-gate-tag">PENDING</em></span>'
+          +'<span class="hctr-v mono" id="hero-gate">\u2014</span>'
           +'<span class="hctr-d">P1\u2013P6 deny-by-default result</span></div>'
           +'<div class="hctr"><span class="hctr-k mono">DOCTRINE</span>'
           +'<span class="hctr-v mono"><span class="chip-locked">LOCKED&nbsp;8</span></span>'
@@ -6845,10 +6845,14 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             if(_hj)_hj.setAttribute('data-maturity',label.toLowerCase());
             setTxt('hero-joules', measured?_eh.measured_token_joules.toFixed(2)+' J/tok':(sample?_eh.sample_token_joules.toFixed(2)+' J/tok':'No reading'));
           }catch(_e){ setTxt('hero-joules','No reading'); if(_tagEl){_tagEl.textContent='UNAVAILABLE';_tagEl.classList.remove('live');} if(_hj)_hj.setAttribute('data-maturity','unavailable'); }
+          // The gate label follows this read: OBSERVED once the feed answers, UNAVAILABLE when it does not.
+          // A feed response is an observation, not a liveness claim, so it never mints LIVE.
+          var _gateTag=document.getElementById('hero-gate-tag');
           try{ var _g=await window.getJSON(API+'/v1/policy/decisions/feed?limit=1');
             var _v=((_g&&_g.verdicts)||[])[0];
-            setHTML('hero-gate','<span class="rmark" aria-hidden="true"></span>'+(_v?esc(String(_v.decision||_v.verdict||'').toUpperCase()||'logged'):'no decisions yet'));
-          }catch(_e){ setHTML('hero-gate','<span class="rmark" aria-hidden="true"></span>gate offline \u00b7 honest degrade'); }
+            setHTML('hero-gate',_v?'<span class="rmark" aria-hidden="true"></span>'+esc(String(_v.decision||_v.verdict||'').toUpperCase()||'logged'):'no decisions yet');
+            if(_gateTag)_gateTag.textContent='OBSERVED';
+          }catch(_e){ setTxt('hero-gate','Gate feed unavailable'); if(_gateTag)_gateTag.textContent='UNAVAILABLE'; }
         })();
         // trust radar — FAIL-FAST: short timeout, last-good cache, honest degraded chip (never an endless spinner)
         try{var rL=await gjFast(API+'/v1/lambda');var d=rL.data;var ax=d.axes||[];if(window.radar)window.radar('cc-radar',ax.map(function(a){return a.name;}),ax.map(function(a){return a.score||0;}));T('cc-lam',(d.lambda||0).toFixed?d.lambda.toFixed(3):d.lambda);}
@@ -16816,8 +16820,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 .inv-hero{padding:26px 0 10px;border-bottom:1px solid rgba(255,255,255,.06);}
 .inv-eyebrow{font-family:var(--mono),ui-monospace,monospace;font-size:11px;letter-spacing:.28em;
   text-transform:uppercase;color:#a89868;margin:0 0 14px;}
-.inv-hero h1{font-size:clamp(28px,4.6vw,46px);line-height:1.06;letter-spacing:-.02em;margin:0 0 14px;font-weight:600;}
-.inv-hero h1 .accent{color:#c9b787;}
+.inv-hero h2{font-size:clamp(28px,4.6vw,46px);line-height:1.06;letter-spacing:-.02em;margin:0 0 14px;font-weight:600;}
+.inv-hero h2 .accent{color:#c9b787;}
 .inv-hero p{font-size:clamp(15px,1.5vw,18px);color:#b9bfc8;max-width:60ch;margin:0 0 8px;line-height:1.5;}
 .inv-hero .tag{display:inline-block;margin-top:18px;font-family:var(--mono),ui-monospace,monospace;
   font-size:12.5px;letter-spacing:.02em;color:#5fb3a3;border:1px solid rgba(95,179,163,.35);
@@ -16851,7 +16855,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 .inv-foot b{color:#b9bfc8;font-weight:600;}
 </style>
 
-<div id="inv-overlay" role="dialog" aria-modal="true" aria-label="a11oy — CEO / Investor view">
+<div id="inv-overlay" data-surface="dark" role="dialog" aria-modal="true" aria-label="a11oy — CEO / Investor view">
   <div class="inv-wrap">
     <div class="inv-bar">
       <div class="mark">A</div>
@@ -16862,7 +16866,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 
     <section class="inv-hero">
       <p class="inv-eyebrow">Governed agent change management</p>
-      <h1>AI that signs its work<br><span class="accent">and refuses to lie.</span></h1>
+      <h2>AI that signs its work<br><span class="accent">and refuses to lie.</span></h2>
       <p>Every AI decision arrives with a signed receipt you can verify yourself. The trust math is a
         machine-checked theorem. When the model is not sure, it refuses rather than guesses. It runs
         on your own hardware, air-gapped if you need it.</p>

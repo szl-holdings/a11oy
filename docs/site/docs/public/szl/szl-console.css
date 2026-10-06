@@ -1,6 +1,6 @@
 /* ============================================================================
- * SZL HOLDINGS — KANCHAY operator console layer v1.0.0  ·  szl-console.css
- * ADDITIVE. Load AFTER szl-design-system.css (KANCHAY v1.1.0); uses only its tokens.
+ * SZL HOLDINGS — KANCHAY operator console layer v1.1.0  ·  szl-console.css
+ * ADDITIVE. Load AFTER szl-design-system.css (KANCHAY v1.2.0); uses only its tokens.
  * Adds what operator surfaces need and the base system does not ship: form fields,
  * sidebar navigation, stat tiles, toolbar, drawer, dialog, severity chips, meters,
  * sparkline and heat cells, status dots, skeletons. Dark operator surface first;
@@ -11,7 +11,7 @@
  * ========================================================================== */
 
 /* --- 0 · Status inks: status as text or small marks, AA on each surface ----- */
-:root {
+:root, [data-surface="dark"] {
   --ink-good: var(--color-success-light);
   --ink-warn: var(--color-warning-light);
   --ink-bad: var(--color-error-light);
