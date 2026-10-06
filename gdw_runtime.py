@@ -223,30 +223,32 @@ def _gate_existing_store(
     contract: Mapping[str, Any],
     environ: Mapping[str, str],
 ) -> Optional[dict[str, Any]]:
-    """Classify an existing store read-only before any writer opens it.
+    """Opt-in orphan-page repair of an existing store before any writer opens it.
 
-    Healthy and new stores pass through untouched. Damage that is exactly
-    orphan pages ("Page N: never used") is repaired with preservation when
-    GDW_AUTO_REPAIR_ORPHAN_PAGES is not disabled; any other damage, or any
-    repair failure, raises so the caller degrades instead of serving writes.
+    Off by default: unless GDW_AUTO_REPAIR_ORPHAN_PAGES is explicitly true this
+    returns immediately and the regular writer path (which rolls back a hot
+    journal and runs its own integrity_check) is exactly the pre-repair code.
+    When enabled, SQLite crash recovery runs first (a read-only handle cannot
+    roll back a hot journal), then a read-only integrity classification; damage
+    that is exactly orphan pages AND whose page bytes prove no live data was
+    lost is repaired with preservation. Any other damage, or any repair
+    failure, raises so the caller degrades instead of serving writes.
     """
 
+    if not gdw_sqlite_repair.auto_repair_enabled(environ):
+        return None
     try:
         if not database.is_file() or database.stat().st_size == 0:
             return None
     except OSError:
         return None
+    gdw_sqlite_repair.recover_hot_journal(database)
     report = gdw_sqlite_repair.inspect(database)
     if report["ok"]:
         return None
     observed = "; ".join(report["integrity"][:3])[:240]
     if not report["repairable"]:
         raise GDWRuntimeError(f"GDW SQLite integrity check failed: {observed}")
-    if not gdw_sqlite_repair.auto_repair_enabled(environ):
-        raise GDWRuntimeError(
-            "GDW SQLite integrity check failed (orphan pages only; "
-            f"{gdw_sqlite_repair.AUTO_REPAIR_ENV} disabled): {observed}"
-        )
     mount = contract.get("required_mount")
     try:
         receipt = gdw_sqlite_repair.repair_orphan_pages(
@@ -255,8 +257,13 @@ def _gate_existing_store(
             forbidden_root=Path(mount) if mount else None,
         )
     except Exception as exc:
+        print(
+            "[gdw-runtime] orphan-page repair refused/failed: "
+            f"{type(exc).__name__}: {str(exc)[:500]}",
+            file=sys.stderr,
+        )
         raise GDWRuntimeError(
-            f"GDW orphan-page auto-repair failed: {str(exc)[:200]}"
+            f"GDW orphan-page auto-repair failed: {_error_code(exc)}"
         ) from exc
     summary = {
         "schema": receipt["schema"],
@@ -266,13 +273,16 @@ def _gate_existing_store(
         "original_sha256": receipt["original"]["sha256"],
         "candidate_sha256": receipt["candidate"]["sha256"],
         "logical_sha256": receipt["logical_fingerprint"]["sha256"],
-        "preserved_path": receipt["original"]["preserved_path"],
-        "receipt_path": receipt["receipt_path"],
+        "page_proof": receipt["orphan_page_evidence"]["proof"],
+        # Basenames only: this summary is served on public health routes.
+        "preserved_name": Path(receipt["original"]["preserved_path"]).name,
+        "receipt_name": Path(receipt["receipt_path"]).name,
         "applied_at": receipt["applied_at"],
     }
     print(
         "[gdw-runtime] orphan-page auto-repair APPLIED: "
-        + json.dumps(summary, sort_keys=True),
+        + json.dumps(summary, sort_keys=True)
+        + f" receipt={receipt['receipt_path']}",
         file=sys.stderr,
     )
     with _STATE_LOCK:
@@ -793,14 +803,42 @@ def runtime_health() -> dict[str, Any]:
     return result
 
 
+_ERROR_CODE_CHARS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_")
+
+
+def _error_code(exc: BaseException) -> str:
+    """A stable, path-free code for a failure: its own code, its cause's, or a class name."""
+
+    for candidate in (exc, exc.__cause__):
+        if candidate is None:
+            continue
+        code = getattr(candidate, "code", None)
+        if isinstance(code, str) and code and set(code) <= _ERROR_CODE_CHARS:
+            return code[:80]
+    cause = exc.__cause__
+    return type(cause if cause is not None else exc).__name__
+
+
+def _public_error(exc: BaseException) -> str:
+    """The message head only: no integrity detail, paths or OS error text.
+
+    The full message goes to stderr; this one is served without auth on
+    readiness and GDW health routes.
+    """
+
+    return str(exc).split(": ", 1)[0].strip()[:160] or type(exc).__name__
+
+
 def _record_blocked(exc: BaseException, *, phase: str) -> dict[str, Any]:
     """Record a storage fault as BLOCKED runtime state instead of exiting."""
 
+    public_error = _public_error(exc)
     blocked = {
         "reason": "GDW_STORAGE_BLOCKED",
         "phase": phase,
         "error_class": type(exc).__name__,
-        "error": str(exc)[:240],
+        "error_code": _error_code(exc),
+        "error": public_error,
         "blocked_at": _now(),
         "retry_after_seconds": STORAGE_BLOCKED_RETRY_AFTER_SECONDS,
     }
@@ -809,13 +847,14 @@ def _record_blocked(exc: BaseException, *, phase: str) -> dict[str, Any]:
             {
                 "startup_state": "BLOCKED",
                 "evidence_label": "VERIFIED",
-                "error": f"{type(exc).__name__}: {str(exc)[:240]}",
+                "error": f"{type(exc).__name__}: {public_error}",
                 "blocked": blocked,
             }
         )
     print(
         "[gdw-runtime] storage BLOCKED; serving degraded (GDW writes refused, "
-        "/readyz 503): " + json.dumps(blocked, sort_keys=True),
+        "/readyz 503): " + json.dumps(blocked, sort_keys=True)
+        + f" detail={type(exc).__name__}: {str(exc)[:500]}",
         file=sys.stderr,
     )
     return blocked
@@ -838,7 +877,8 @@ def storage_block() -> Optional[dict[str, Any]]:
             "reason": "GDW_STORAGE_BLOCKED",
             "phase": "storage_preparation",
             "error_class": str(error or "").split(":", 1)[0] or "UNKNOWN",
-            "error": str(error or "")[:240],
+            "error_code": str(error or "").split(":", 1)[0] or "UNKNOWN",
+            "error": str(error or "").split(": ", 1)[-1][:160],
             "blocked_at": None,
             "retry_after_seconds": STORAGE_BLOCKED_RETRY_AFTER_SECONDS,
         }

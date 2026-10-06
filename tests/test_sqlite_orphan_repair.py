@@ -1,10 +1,12 @@
-"""Orphan-page-only SQLite auto-repair: preserves data and the original, refuses
-everything else.
+"""Orphan-page-only SQLite repair: preserves data and the original, refuses
+everything it cannot prove safe.
 
-Orphan pages are produced deterministically: free pages are created by deleting
-rows, then the header freelist pointer (offset 32) and count (offset 36) are
-zeroed so those pages are referenced by nothing. SQLite then reports exactly
-"Page N: never used" for each, which is the 2026-10-04 incident's shape.
+Repairable orphan pages are produced deterministically: free pages are created
+by deleting rows, then the header freelist pointer (offset 32) and count
+(offset 36) are zeroed so those pages are referenced by nothing. SQLite then
+reports exactly "Page N: never used" for each. The same report is produced when
+a lost parent-page update strands committed rows (the reverted-parent fixture
+below); that shape must be refused, never "repaired" into data loss.
 """
 
 import hashlib
@@ -12,6 +14,8 @@ import json
 import os
 import sqlite3
 import struct
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -94,6 +98,54 @@ def _integrity(path: Path) -> list:
         return repair.integrity_lines(connection)
     finally:
         connection.close()
+
+
+def _reverted_parent_store(path: Path) -> dict:
+    """Committed rows stranded by a stale parent page: 'never used' only.
+
+    Commit a table whose root is an interior page, snapshot that root, commit
+    an append that allocates new leaves, then write the stale root back (a lost
+    or torn parent update). The new leaves hold acknowledged rows that are now
+    unreachable, and integrity_check reports only 'Page N: never used'.
+    """
+
+    connection = sqlite3.connect(path)
+    connection.execute("PRAGMA journal_mode=DELETE")
+    connection.execute("CREATE TABLE IF NOT EXISTS ledger(id INTEGER PRIMARY KEY, body TEXT)")
+    connection.executemany(
+        "INSERT INTO ledger(body) VALUES(?)", [("r" * 300,) for _ in range(40)]
+    )
+    connection.commit()
+    root = connection.execute(
+        "SELECT rootpage FROM sqlite_master WHERE name='ledger'"
+    ).fetchone()[0]
+    page_size = connection.execute("PRAGMA page_size").fetchone()[0]
+    connection.close()
+    data = Path(path).read_bytes()
+    stale_root = data[(root - 1) * page_size:root * page_size]
+    assert stale_root[0] == 0x05, "fixture needs an interior table root"
+
+    connection = sqlite3.connect(path)
+    connection.executemany(
+        "INSERT INTO ledger(body) VALUES(?)", [("n" * 300,) for _ in range(24)]
+    )
+    connection.commit()
+    acknowledged = connection.execute("SELECT COUNT(*) FROM ledger").fetchone()[0]
+    connection.close()
+
+    data = bytearray(Path(path).read_bytes())
+    data[(root - 1) * page_size:root * page_size] = stale_root
+    Path(path).write_bytes(bytes(data))
+    lines = _integrity(path)
+    pages = repair.classify_orphan_pages(lines)
+    assert pages, lines
+    connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    try:
+        reachable = connection.execute("SELECT COUNT(*) FROM ledger").fetchone()[0]
+    finally:
+        connection.close()
+    assert reachable < acknowledged
+    return {"pages": pages, "acknowledged": acknowledged, "reachable": reachable}
 
 
 @pytest.fixture
@@ -185,6 +237,8 @@ def test_repair_preserves_logical_content_original_and_receipt(orphan_store, tmp
     assert on_disk["logical_fingerprint"] == healthy
     assert on_disk["post_replace"]["logical_fingerprint_sha256"] == healthy["sha256"]
     assert on_disk["orphan_pages"] == repair.classify_orphan_pages(damaged_lines)
+    assert on_disk["orphan_page_evidence"]["proof"] == "FORMER_FREELIST_CHAIN"
+    assert on_disk["orphan_page_evidence"]["leaf_pages"] > 0
 
     # No staging or scratch residue; nothing was deleted except our temp files.
     assert not database.with_name(database.name + ".repair-tmp").exists()
@@ -268,12 +322,107 @@ def test_post_replace_failure_rolls_back_to_preserved_original(orphan_store, mon
 
 @pytest.mark.parametrize(
     ("value", "expected"),
-    [(None, True), ("", True), ("1", True), ("on", True), ("0", False),
-     ("false", False), ("OFF", False), ("no", False)],
+    [(None, False), ("", False), ("1", True), ("on", True), ("TRUE", True),
+     ("yes", True), ("0", False), ("false", False), ("OFF", False), ("no", False),
+     ("maybe", False)],
 )
-def test_auto_repair_flag_defaults_on(value, expected):
+def test_auto_repair_flag_defaults_off(value, expected):
     environ = {} if value is None else {repair.AUTO_REPAIR_ENV: value}
     assert repair.auto_repair_enabled(environ) is expected
+
+
+def test_reverted_parent_page_is_refused_not_repaired(tmp_path):
+    """Orphan-only output is not proof: stranded committed rows are refused."""
+
+    database = tmp_path / "store" / "gdw.sqlite3"
+    database.parent.mkdir()
+    shape = _reverted_parent_store(database)
+    before = database.read_bytes()
+
+    with pytest.raises(repair.OrphanRepairError) as raised:
+        repair.repair_orphan_pages(database, work_dir=tmp_path / "scratch")
+
+    assert raised.value.code == "ORPHAN_PAGE_CONTENT_UNPROVEN"
+    assert database.read_bytes() == before
+    assert [path.name for path in database.parent.iterdir()] == [database.name]
+    with pytest.raises(repair.OrphanRepairError):
+        repair.orphan_page_evidence(database, shape["pages"])
+
+
+def test_all_zero_orphan_pages_are_proven_and_repaired(orphan_store, tmp_path):
+    database, healthy = orphan_store
+    pages = repair.classify_orphan_pages(_integrity(database))
+    page_size = 4096
+    connection = sqlite3.connect(f"file:{database}?mode=ro", uri=True)
+    try:
+        page_size = connection.execute("PRAGMA page_size").fetchone()[0]
+    finally:
+        connection.close()
+    data = bytearray(database.read_bytes())
+    for page in pages:
+        data[(page - 1) * page_size:page * page_size] = b"\x00" * page_size
+    database.write_bytes(bytes(data))
+    assert repair.classify_orphan_pages(_integrity(database)) == pages
+
+    receipt = repair.repair_orphan_pages(database, work_dir=tmp_path / "scratch")
+
+    assert receipt["status"] == "APPLIED"
+    assert receipt["orphan_page_evidence"]["proof"] == "ALL_ZERO"
+    assert _integrity(database) == ["ok"]
+    assert _fingerprint(database) == healthy
+
+
+def test_same_host_writer_cannot_commit_between_preservation_and_swap(orphan_store, monkeypatch):
+    database, healthy = orphan_store
+    real_write = repair._write_json_durably
+    attempts = []
+
+    def concurrent_writer(path, payload):
+        real_write(path, payload)
+        if payload.get("status") == "PRESERVED_BEFORE_REPLACE" and not attempts:
+            other = sqlite3.connect(database, timeout=0.2)
+            try:
+                other.execute("INSERT INTO owners(id, name) VALUES(999, 'late')")
+                other.commit()
+                attempts.append("COMMITTED")
+            except sqlite3.OperationalError as exc:
+                attempts.append(str(exc))
+            finally:
+                other.close()
+
+    monkeypatch.setattr(repair, "_write_json_durably", concurrent_writer)
+
+    receipt = repair.repair_orphan_pages(database)
+
+    # The write was refused (never acknowledged), so nothing acknowledged is lost.
+    assert attempts == ["database is locked"]
+    assert receipt["status"] == "APPLIED"
+    assert _fingerprint(database) == healthy
+
+
+def test_original_changed_before_swap_aborts_and_keeps_the_live_store(orphan_store, monkeypatch):
+    """A writer that ignores SQLite locks (another host on the mount) is caught."""
+
+    database, _healthy = orphan_store
+    real_write = repair._write_json_durably
+
+    def foreign_commit(path, payload):
+        real_write(path, payload)
+        if payload.get("status") == "PRESERVED_BEFORE_REPLACE":
+            with database.open("r+b") as stream:
+                stream.seek(60)  # user_version: a header write by someone else
+                stream.write(struct.pack(">I", 8))
+
+    monkeypatch.setattr(repair, "_write_json_durably", foreign_commit)
+
+    with pytest.raises(repair.OrphanRepairError) as raised:
+        repair.repair_orphan_pages(database)
+
+    assert raised.value.code == "ORIGINAL_CHANGED_DURING_REPAIR"
+    assert struct.unpack(">I", database.read_bytes()[60:64])[0] == 8  # not swapped
+    receipts = sorted(database.parent.glob("*.json"))
+    assert len(receipts) == 1
+    assert json.loads(receipts[0].read_text())["status"] == "ABORTED_ORIGINAL_CHANGED"
 
 
 # ---- prepare_runtime integration (legacy, non-durable path) ----------------
@@ -321,6 +470,7 @@ def _orphan_gdw_store(monkeypatch, tmp_path):
 
 def test_prepare_runtime_auto_repairs_orphan_pages_and_stays_ready(monkeypatch, tmp_path):
     first, database, healthy = _orphan_gdw_store(monkeypatch, tmp_path)
+    monkeypatch.setenv(repair.AUTO_REPAIR_ENV, "1")
     damaged_sha = _sha(database)
 
     observed = gdw_runtime.prepare_runtime()
@@ -331,28 +481,107 @@ def test_prepare_runtime_auto_repairs_orphan_pages_and_stays_ready(monkeypatch, 
     assert summary["status"] == "APPLIED"
     assert summary["original_sha256"] == damaged_sha
     assert summary["logical_sha256"] == healthy["sha256"]
-    assert Path(summary["preserved_path"]).is_file()
-    assert _sha(Path(summary["preserved_path"])) == damaged_sha
+    assert summary["page_proof"] == "FORMER_FREELIST_CHAIN"
+    # Public summary carries basenames only, never absolute storage paths.
+    assert "preserved_path" not in summary and "receipt_path" not in summary
+    assert os.sep not in summary["preserved_name"]
+    assert _sha(database.parent / summary["preserved_name"]) == damaged_sha
+    assert (database.parent / summary["receipt_name"]).is_file()
     health = gdw_runtime.runtime_health()
     assert health["startup_state"] == "READY"
-    assert health["storage_repair"]["receipt_path"] == summary["receipt_path"]
+    assert health["storage_repair"]["receipt_name"] == summary["receipt_name"]
 
 
-def test_prepare_runtime_refuses_orphan_pages_when_auto_repair_disabled(monkeypatch, tmp_path):
+@pytest.mark.parametrize("flag", [None, "0"])
+def test_prepare_runtime_without_opt_in_runs_the_pre_repair_path(monkeypatch, tmp_path, flag):
+    """Default (and the kill switch) bypasses the whole repair gate."""
+
     _first, database, _healthy = _orphan_gdw_store(monkeypatch, tmp_path)
-    monkeypatch.setenv(repair.AUTO_REPAIR_ENV, "0")
-    before = database.read_bytes()
+    if flag is not None:
+        monkeypatch.setenv(repair.AUTO_REPAIR_ENV, flag)
+    monkeypatch.setattr(
+        repair, "inspect", lambda *_a, **_k: pytest.fail("gate ran without opt-in")
+    )
 
-    with pytest.raises(gdw_runtime.GDWRuntimeError, match="auto-repair|AUTO_REPAIR"):
+    with pytest.raises(gdw_runtime.GDWRuntimeError, match="integrity check failed"):
         gdw_runtime.prepare_runtime()
 
+    assert not list(database.parent.glob("*.orphan-pages-*"))
+    assert repair.classify_orphan_pages(_integrity(database))
+
+
+def test_prepare_runtime_refuses_stranded_rows_even_with_opt_in(monkeypatch, tmp_path):
+    _persistent_environment(monkeypatch, tmp_path)
+    first = gdw_runtime.prepare_runtime()
+    database = Path(first["database_path"])
+    _reverted_parent_store(database)
+    monkeypatch.setenv(repair.AUTO_REPAIR_ENV, "1")
+    before = database.read_bytes()
+
+    with pytest.raises(gdw_runtime.GDWRuntimeError, match="auto-repair failed") as raised:
+        gdw_runtime.prepare_runtime()
+
+    assert "ORPHAN_PAGE_CONTENT_UNPROVEN" in str(raised.value)
     assert database.read_bytes() == before
     assert not list(database.parent.glob("*.orphan-pages-*"))
+
+
+_CRASH_MID_TRANSACTION = """
+import os, sqlite3, sys
+connection = sqlite3.connect(sys.argv[1])
+connection.execute("PRAGMA cache_size=5")
+connection.execute("BEGIN")
+connection.execute("UPDATE crash_filler SET b = randomblob(2000)")
+connection.executemany(
+    "INSERT INTO crash_filler(b) VALUES(?)", [(os.urandom(2000),) for _ in range(100)]
+)
+os._exit(0)  # killed mid-transaction: a hot -journal is left behind
+"""
+
+
+@pytest.mark.parametrize("flag", [None, "1"])
+def test_hot_journal_after_crash_is_recovered_and_ready(monkeypatch, tmp_path, flag):
+    _persistent_environment(monkeypatch, tmp_path)
+    first = gdw_runtime.prepare_runtime()
+    database = Path(first["database_path"])
+    connection = sqlite3.connect(database)
+    connection.execute("CREATE TABLE crash_filler(id INTEGER PRIMARY KEY, b BLOB)")
+    connection.executemany(
+        "INSERT INTO crash_filler(b) VALUES(?)", [(os.urandom(2000),) for _ in range(200)]
+    )
+    connection.commit()
+    connection.close()
+    committed = _fingerprint(database)
+
+    subprocess.run(
+        [sys.executable, "-c", _CRASH_MID_TRANSACTION, str(database)], check=True
+    )
+    journal = database.with_name(database.name + "-journal")
+    assert journal.is_file() and journal.stat().st_size > 0
+    if flag is not None:
+        monkeypatch.setenv(repair.AUTO_REPAIR_ENV, flag)
+    monkeypatch.setattr(
+        gdw_runtime, "_STATE", json.loads(json.dumps(gdw_runtime._STATE))
+    )
+
+    observed = gdw_runtime.prepare_runtime()
+
+    assert observed["sqlite_integrity"] == "ok"
+    assert gdw_runtime.runtime_health()["startup_state"] == "READY"
+    assert not journal.exists() or journal.stat().st_size == 0
+    connection = sqlite3.connect(f"file:{database}?mode=ro", uri=True)
+    try:
+        assert connection.execute("SELECT COUNT(*) FROM crash_filler").fetchone()[0] == 200
+    finally:
+        connection.close()
+    assert observed["orphan_page_repair"] is None
+    assert committed["tables"] == _fingerprint(database)["tables"]
 
 
 def test_prepare_runtime_refuses_other_corruption_before_any_writer_opens(monkeypatch, tmp_path):
     _persistent_environment(monkeypatch, tmp_path)
     first = gdw_runtime.prepare_runtime()
+    monkeypatch.setenv(repair.AUTO_REPAIR_ENV, "1")
     database = Path(first["database_path"])
     connection = sqlite3.connect(database)
     connection.execute("CREATE TABLE incident_filler(id INTEGER PRIMARY KEY, b BLOB)")

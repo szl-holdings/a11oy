@@ -5540,8 +5540,23 @@ async def healthz() -> JSONResponse:
     # itself failing — is a real fault an orchestrator should catch.
     if str(_preflight.get("overall")) == "UNAVAILABLE":
         _degraded_reasons.append("preflight-unavailable")
+    # A boot-time GDW storage fault keeps the process alive (liveness /healthz
+    # 200) instead of crash-looping, so this rollup must carry it: degraded AND
+    # HTTP 503, so the hf-sync deploy smoke (exact-200 per path) fails a deploy
+    # that boots BLOCKED instead of attesting it green.
+    _gdw_storage_block = None
+    _gdw_rt_hz = sys.modules.get("gdw_runtime")
+    if callable(getattr(_gdw_rt_hz, "storage_block", None)):
+        try:
+            _gdw_storage_block = _gdw_rt_hz.storage_block()
+        except Exception as _gsb_e:  # unreadable state is a fault, not ok
+            _gdw_storage_block = {"reason": "GDW_STORAGE_STATE_UNREADABLE",
+                                  "error_class": type(_gsb_e).__name__}
+    if _gdw_storage_block is not None:
+        _degraded_reasons.append("gdw-storage-blocked")
     _overall = "degraded" if _degraded_reasons else "ok"
-    return JSONResponse({
+    _rollup_extra = {"gdw_storage": _gdw_storage_block} if _gdw_storage_block is not None else {}
+    return JSONResponse(status_code=503 if _gdw_storage_block is not None else 200, content={
         "status": _overall,
         "degraded_reasons": _degraded_reasons,
         "service": "a11oy",
@@ -5557,6 +5572,7 @@ async def healthz() -> JSONResponse:
             "sovereign": _sovereign,
             "brain": _brain,
             "preflight": _preflight,
+            **_rollup_extra,
         },
         "storage": _storage,
         "dependency": {"node_backend": {"status": dep.get("status"), "backend_alive": dep.get("backend_alive"), "last_checked_age_s": round(_hz_time.time() - _ca, 1) if _ca else None}},

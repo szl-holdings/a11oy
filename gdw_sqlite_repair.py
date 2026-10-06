@@ -1,28 +1,42 @@
-"""Bounded auto-repair for SQLite stores whose only damage is orphan pages.
+"""Opt-in, proof-gated repair for SQLite stores whose only damage is orphan pages.
 
-A SQLite file whose ``PRAGMA integrity_check`` reports nothing except
-``Page N: never used`` has pages that no b-tree and no freelist references.
-Every row is still reachable, so the logical content is intact. A crash or an
-interrupted copy on a network/FUSE mount can leave a store in this state, and
-the strict boot gate used to refuse it forever (2026-10-04..06: about 41 hours of
-crash-looping on "Page 362/363 never used").
-
-This module repairs exactly that class of damage and nothing else:
+``PRAGMA integrity_check`` reports ``Page N: never used`` for a page that no
+b-tree and no freelist references. That alone does NOT prove nothing was lost:
+if the update to a parent b-tree page is lost or torn (a stale page survives a
+FUSE writeback, or two writers overlap), the newly allocated child pages carry
+committed rows and are reported exactly the same way. A VACUUM copy keeps only
+reachable rows, and a fingerprint over reachable rows is equal by construction,
+so neither can detect that loss. This module therefore repairs only when the
+orphan pages are positively proven to hold no live data, and nothing else:
 
 1. classify the integrity output with a strict grammar (header line plus
    ``Page N: never used`` lines only); any other line is not repairable;
-2. open the original read-only and ``VACUUM INTO`` a candidate in a local temp
-   directory (never on the storage mount);
-3. require candidate ``integrity_check == ok``, an empty
-   ``foreign_key_check`` and a logical fingerprint equal to the original's;
-4. preserve the original byte-for-byte next to the store
+2. read every orphan page's raw bytes and require proof that it held no live
+   data: every orphan page is all-zero, or the orphan set is exactly one
+   well-formed former freelist chain (trunk pages linked to the end, every
+   listed leaf itself an orphan page, at least one leaf, every page not in the
+   chain all-zero). An orphan b-tree page with cells, an overflow page, or
+   anything else unexplained is refused and left for an operator;
+3. hold a SQLite write reservation (``BEGIN IMMEDIATE``) on the original for
+   the whole repair, so no writer on this host can commit between the
+   preservation copy and the swap, and re-check the original's sha256
+   immediately before the swap. (Advisory locks do not reach writers on other
+   hosts of a network/FUSE mount; that is why repair is opt-in and must only
+   be enabled when a single writer is guaranteed, for example while the
+   previous container is BLOCKED or the Space is paused.);
+4. open the original read-only and ``VACUUM INTO`` a candidate in a local temp
+   directory (never on the storage mount); require candidate
+   ``integrity_check == ok``, an empty ``foreign_key_check`` and a logical
+   fingerprint equal to the original's;
+5. preserve the original byte-for-byte next to the store
    (``<db>.orphan-pages-<utc>.<sha256[:12]>.sqlite3``) with a JSON receipt
    (schema ``szl.gdw-orphan-page-restore/v1``);
-5. swap the candidate in through ``<db>.repair-tmp`` + fsync + ``os.replace``
+6. swap the candidate in through ``<db>.repair-tmp`` + fsync + ``os.replace``
    + directory fsync, then re-verify integrity and the fingerprint.
 
-The original is never deleted. Any failure raises :class:`OrphanRepairError`
-and the caller is expected to keep serving in a degraded, write-refusing mode.
+Repair is OFF unless ``GDW_AUTO_REPAIR_ORPHAN_PAGES`` is explicitly true. The
+original is never deleted. Any failure raises :class:`OrphanRepairError` and
+the caller is expected to keep serving in a degraded, write-refusing mode.
 """
 
 from __future__ import annotations
@@ -48,7 +62,8 @@ _ORPHAN_LINE = re.compile(r"Page ([1-9][0-9]{0,9}): never used")
 # truncated, so it is treated as not classifiable rather than as orphan-only.
 MAX_INTEGRITY_ERRORS = 100_000
 _COPY_CHUNK = 1024 * 1024
-_FALSE_VALUES = {"0", "false", "no", "off"}
+_TRUE_VALUES = {"1", "true", "yes", "on"}
+_SQLITE_MAGIC = b"SQLite format 3\x00"
 
 
 class OrphanRepairError(RuntimeError):
@@ -60,11 +75,15 @@ class OrphanRepairError(RuntimeError):
 
 
 def auto_repair_enabled(environ: Optional[Mapping[str, str]] = None) -> bool:
-    """Default ON; only an explicit false-like value disables auto-repair."""
+    """Default OFF; only an explicit true-like value enables repair.
+
+    Enable it only when a single writer is guaranteed (see the module
+    docstring): cross-host writers on a FUSE mount do not see SQLite locks.
+    """
 
     values = os.environ if environ is None else environ
     raw = (values.get(AUTO_REPAIR_ENV) or "").strip().lower()
-    return raw not in _FALSE_VALUES
+    return raw in _TRUE_VALUES
 
 
 def _utc_stamp(now: Optional[datetime] = None) -> str:
@@ -271,6 +290,121 @@ def _within(path: Path, root: Path) -> bool:
     return True
 
 
+def recover_hot_journal(database: Path) -> bool:
+    """Let SQLite run normal crash recovery before any read-only inspection.
+
+    A process killed mid-transaction in DELETE journal mode leaves a hot
+    ``-journal``. A ``mode=ro`` connection cannot roll it back
+    (SQLITE_READONLY_ROLLBACK), so a read-write connection takes and releases
+    a write reservation, which plays the journal back exactly as the regular
+    writer open would. No page is written by this function itself.
+    """
+
+    database = Path(database)
+    if not _sidecars_with_content(database):
+        return False
+    connection = sqlite3.connect(str(database), timeout=30, isolation_level=None)
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        connection.execute("ROLLBACK")
+    finally:
+        connection.close()
+    return True
+
+
+def _u32(data: bytes, offset: int) -> int:
+    return int.from_bytes(data[offset:offset + 4], "big")
+
+
+def orphan_page_evidence(database: Path, pages: Sequence[int]) -> dict[str, Any]:
+    """Prove from raw page bytes that the orphan pages held no live data.
+
+    Accepted proofs: every orphan page is all-zero (``ALL_ZERO``), or the
+    orphan set is one well-formed former freelist chain plus all-zero pages
+    (``FORMER_FREELIST_CHAIN``). Anything else raises
+    ``ORPHAN_PAGE_CONTENT_UNPROVEN``: such pages may be b-tree or overflow
+    pages carrying committed rows that a lost parent update made unreachable.
+    """
+
+    database = Path(database)
+    orphans = sorted(set(int(page) for page in pages))
+    if not orphans:
+        raise OrphanRepairError("ORPHAN_PAGE_CONTENT_UNPROVEN", "no orphan pages")
+    with database.open("rb") as stream:
+        header = stream.read(100)
+        if len(header) < 100 or header[:16] != _SQLITE_MAGIC:
+            raise OrphanRepairError("ORPHAN_PAGE_CONTENT_UNPROVEN", "not a SQLite file")
+        page_size = int.from_bytes(header[16:18], "big")
+        page_size = 65536 if page_size == 1 else page_size
+        usable = page_size - header[20]
+        if page_size < 512 or usable < 480:
+            raise OrphanRepairError("ORPHAN_PAGE_CONTENT_UNPROVEN", "bad page size")
+        file_pages = database.stat().st_size // page_size
+        content: dict[int, bytes] = {}
+        for page in orphans:
+            if page < 2 or page > file_pages:
+                raise OrphanRepairError(
+                    "ORPHAN_PAGE_CONTENT_UNPROVEN", f"page {page} out of range"
+                )
+            stream.seek((page - 1) * page_size)
+            content[page] = stream.read(page_size)
+    orphan_set = set(orphans)
+    zero = {page for page, data in content.items() if data.count(0) == len(data)}
+    nonzero = orphan_set - zero
+    evidence: dict[str, Any] = {
+        "page_size": page_size,
+        "orphan_pages": len(orphans),
+        "zero_pages": len(zero),
+    }
+    if not nonzero:
+        return {**evidence, "proof": "ALL_ZERO"}
+
+    max_leaves = usable // 4 - 2
+    trunks: dict[int, tuple[int, list[int]]] = {}
+    for page in nonzero:
+        data = content[page]
+        count = _u32(data, 4)
+        if count > max_leaves:
+            continue
+        trunks[page] = (
+            _u32(data, 0),
+            [_u32(data, 8 + 4 * index) for index in range(count)],
+        )
+    for head in sorted(trunks):
+        explained: set[int] = set()
+        chain: list[int] = []
+        leaf_total = 0
+        current = head
+        valid = True
+        while current:
+            if current in explained or current not in trunks:
+                valid = False
+                break
+            explained.add(current)
+            chain.append(current)
+            next_trunk, leaves = trunks[current]
+            for leaf in leaves:
+                if leaf not in orphan_set or leaf in explained:
+                    valid = False
+                    break
+                explained.add(leaf)
+            if not valid:
+                break
+            leaf_total += len(leaves)
+            current = next_trunk
+        if valid and leaf_total > 0 and nonzero <= explained:
+            return {
+                **evidence,
+                "proof": "FORMER_FREELIST_CHAIN",
+                "trunk_pages": chain,
+                "leaf_pages": leaf_total,
+            }
+    raise OrphanRepairError(
+        "ORPHAN_PAGE_CONTENT_UNPROVEN",
+        f"{len(nonzero)} non-zero orphan page(s) not explained by a former freelist",
+    )
+
+
 def inspect(database: Path) -> dict[str, Any]:
     """Read-only integrity classification of an existing store."""
 
@@ -325,6 +459,37 @@ def repair_orphan_pages(
     if sidecars:
         raise OrphanRepairError("UNCHECKPOINTED_SIDECAR_PRESENT", ",".join(sidecars))
 
+    # Write reservation for the whole repair: readers (our read-only handles)
+    # proceed, but no writer on this host can commit until the swap is done.
+    guard = sqlite3.connect(str(database), timeout=30, isolation_level=None)
+    try:
+        guard.execute("BEGIN IMMEDIATE")
+        return _repair_reserved(
+            database,
+            label=label,
+            work_dir=work_dir,
+            forbidden_root=forbidden_root,
+            now=now,
+        )
+    finally:
+        try:
+            guard.execute("ROLLBACK")
+        except sqlite3.Error:
+            pass
+        guard.close()
+
+
+def _repair_reserved(
+    database: Path,
+    *,
+    label: str,
+    work_dir: Optional[Path],
+    forbidden_root: Optional[Path],
+    now: Optional[datetime],
+) -> dict[str, Any]:
+    sidecars = _sidecars_with_content(database)
+    if sidecars:
+        raise OrphanRepairError("UNCHECKPOINTED_SIDECAR_PRESENT", ",".join(sidecars))
     original_sha256 = file_sha256(database)
     original_size = database.stat().st_size
     connection = _connect_read_only(database)
@@ -336,6 +501,7 @@ def repair_orphan_pages(
                 "NOT_ORPHAN_PAGE_ONLY",
                 "; ".join(original_integrity[:4])[:240],
             )
+        page_evidence = orphan_page_evidence(database, pages)
         original_fingerprint = logical_fingerprint(connection)
         scratch_parent = Path(work_dir) if work_dir else Path(tempfile.gettempdir())
         scratch_parent.mkdir(parents=True, exist_ok=True)
@@ -402,6 +568,7 @@ def repair_orphan_pages(
             "created_at": datetime.now(timezone.utc).isoformat(),
             "database_path": str(database),
             "orphan_pages": pages,
+            "orphan_page_evidence": page_evidence,
             "original": {
                 "sha256": original_sha256,
                 "size": original_size,
@@ -419,6 +586,13 @@ def repair_orphan_pages(
         }
         _write_json_durably(receipt_path, receipt)
 
+        # Last check before the swap: the original must still be the bytes
+        # that were verified and preserved (a writer that ignores the SQLite
+        # reservation, e.g. on another host of the mount, is caught here).
+        if file_sha256(database) != original_sha256 or _sidecars_with_content(database):
+            receipt["status"] = "ABORTED_ORIGINAL_CHANGED"
+            _write_json_durably(receipt_path, receipt)
+            raise OrphanRepairError("ORIGINAL_CHANGED_DURING_REPAIR", "before swap")
         _replace_live(candidate, database, candidate_sha256)
         try:
             live = _connect_read_only(database)

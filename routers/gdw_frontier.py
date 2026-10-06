@@ -360,6 +360,7 @@ def _storage_blocked_body(block: dict) -> tuple[dict, dict]:
             "startup_state": "BLOCKED",
             "phase": block.get("phase"),
             "error_class": block.get("error_class"),
+            "error_code": block.get("error_code"),
             "error": block.get("error"),
             "blocked_at": block.get("blocked_at"),
             "retry_after_seconds": int(retry_after),

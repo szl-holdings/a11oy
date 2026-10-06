@@ -161,6 +161,43 @@ def test_real_entrypoint_process_survives_missing_mount(tmp_path):
     assert "storage BLOCKED; serving degraded" in result.stderr
 
 
+def test_public_block_never_carries_paths_or_os_error_text():
+    try:
+        try:
+            raise OSError(5, "Input/output error", "/data/a11oy/gdw/gdw.sqlite3.repair-tmp")
+        except OSError as cause:
+            raise gdw_runtime.GDWRuntimeError(
+                "GDW orphan-page auto-repair failed: OSError"
+            ) from cause
+    except gdw_runtime.GDWRuntimeError as exc:
+        gdw_runtime._record_blocked(exc, phase="storage_preparation")
+    block = gdw_runtime.storage_block()
+    assert block["error"] == "GDW orphan-page auto-repair failed"
+    assert block["error_class"] == "GDWRuntimeError"
+    assert block["error_code"] == "OSError"
+    health = gdw_frontier._public_runtime_health(gdw_runtime.runtime_health())
+    public = json.dumps({"block": block, "blocked": health["blocked"],
+                         "error": health["error"]})
+    assert "/data" not in public and "Input/output" not in public
+
+
+def test_repair_refusal_code_is_the_public_error_code():
+    import gdw_sqlite_repair
+
+    try:
+        try:
+            raise gdw_sqlite_repair.OrphanRepairError(
+                "ORPHAN_PAGE_CONTENT_UNPROVEN", "2 non-zero orphan page(s)"
+            )
+        except gdw_sqlite_repair.OrphanRepairError as cause:
+            raise gdw_runtime.GDWRuntimeError(
+                "GDW orphan-page auto-repair failed: ORPHAN_PAGE_CONTENT_UNPROVEN"
+            ) from cause
+    except gdw_runtime.GDWRuntimeError as exc:
+        gdw_runtime._record_blocked(exc, phase="storage_preparation")
+    assert gdw_runtime.storage_block()["error_code"] == "ORPHAN_PAGE_CONTENT_UNPROVEN"
+
+
 # ---- HTTP: liveness 200, readiness 503, GDW writes 503 + Retry-After -------
 @pytest.fixture
 def degraded_client(tmp_path, monkeypatch):
@@ -187,7 +224,9 @@ def test_liveness_stays_up_and_readiness_reports_block(degraded_client):
         assert body["status"] == "degraded"
         assert body["blocked_reason"] == "GDW_STORAGE_BLOCKED"
         assert body["storage"]["startup_state"] == "BLOCKED"
-        assert "Page 362: never used" in body["storage"]["error"]
+        # Public readiness carries the stable message head, not the detail.
+        assert body["storage"]["error"] == "GDW SQLite integrity check failed"
+        assert "Page 362" not in json.dumps(body)
         assert ready.headers["Retry-After"] == str(
             gdw_runtime.STORAGE_BLOCKED_RETRY_AFTER_SECONDS
         )
@@ -257,6 +296,9 @@ def test_assembled_app_readiness_and_liveness_under_block():
 
     client = TestClient(serve.app, raise_server_exceptions=False)
     root_before = client.get("/").status_code
+    rollup_before = client.get("/api/a11oy/healthz")
+    assert rollup_before.status_code == 200
+    assert "gdw-storage-blocked" not in rollup_before.json()["degraded_reasons"]
     _block()
     ready = client.get("/api/a11oy/readyz")
     assert ready.status_code == 503
@@ -266,3 +308,28 @@ def test_assembled_app_readiness_and_liveness_under_block():
     assert client.get("/healthz").status_code == 200
     assert client.get("/readyz").status_code == 503
     assert client.get("/").status_code == root_before
+    # The rollup carries the block as degraded + 503 ...
+    rollup = client.get("/api/a11oy/healthz")
+    assert rollup.status_code == 503
+    assert rollup.json()["status"] == "degraded"
+    assert "gdw-storage-blocked" in rollup.json()["degraded_reasons"]
+    assert rollup.json()["rollup"]["gdw_storage"]["reason"] == "GDW_STORAGE_BLOCKED"
+
+
+def test_hf_sync_smoke_contract_fails_a_blocked_deploy():
+    """The deploy smoke requires exact 200 on every path; one of them must
+    turn non-200 when storage is BLOCKED, or a BLOCKED boot deploys green."""
+
+    import re
+    import serve
+
+    workflow = (ROOT / ".github" / "workflows" / "hf-sync.yml").read_text(encoding="utf-8")
+    match = re.search(r"smoke-paths:\s*'(\[.*?\])'", workflow)
+    assert match, "hf-sync smoke-paths not found"
+    smoke_paths = json.loads(match.group(1))
+    client = TestClient(serve.app, raise_server_exceptions=False)
+    _block()
+    failing = [path for path in smoke_paths
+               if path.startswith("/api/a11oy/healthz")
+               and client.get(path).status_code != 200]
+    assert failing == ["/api/a11oy/healthz"]

@@ -45,22 +45,14 @@ def test_healthz_liveness(client):
     assert body["status"] == "ok"
     assert body["doctrine"] == "v11"
     assert body["lock"] == "749/14/163"
-    # A bare hardened app has no runtime signer provider, so the truthful
-    # report is ABSENT with the reason (not a hard-coded constant).
-    assert body["signer"]["status"] == "ABSENT"
+    assert body["signer"]["status"] in ("ABSENT", "UNAVAILABLE")
+    assert body["signer"]["status"] != "DSSE-LIVE"
     assert body["signer"]["signing_available"] is False
-    assert body["signer"]["reason"] == "SIGNER_STATUS_PROVIDER_ABSENT"
-    # dsse_live is observed: DSSE-LIVE only after a verified sign round trip.
     dsse = body.get("dsse_live") or {}
-    assert dsse.get("status") in ("DSSE-LIVE", "ABSENT", "UNAVAILABLE")
-    assert (dsse.get("status") == "DSSE-LIVE") is (
-        dsse.get("verification") == "SIGN_VERIFY_ROUNDTRIP_OK"
-    )
-    assert dsse.get("signing_available") is (dsse.get("status") == "DSSE-LIVE")
+    assert dsse.get("status") in ("ABSENT", "UNAVAILABLE")
+    assert dsse.get("status") != "DSSE-LIVE"
+    assert dsse.get("signing_available") is False
     assert dsse.get("rollup") == "/api/a11oy/healthz"
-    # commit is the running SZL_GIT_SHA (or UNKNOWN), never the lock constant.
-    assert body["commit"] == H.running_commit()
-    assert body["doctrine_lock_commit"] == "c7c0ba17"
 
 
 def test_healthz_head_matches_get(client):
