@@ -561,6 +561,133 @@ def _make_logger(organ: str) -> logging.Logger:
 
 
 # ===========================================================================
+# health truth helpers (/healthz signer + commit, /readyz storage block)
+# ===========================================================================
+# /healthz used to hard-code signer ABSENT and commit "c7c0ba17" (the doctrine
+# lock commit, not the running source). Both are now observed. The signer comes
+# from the SAME provider /api/a11oy/healthz rollup.signer reads
+# (app.state.szl_signer_status, installed by serve.py), validated with the same
+# rules; a missing, malformed or contradictory provider fails closed and is
+# never reported DSSE-LIVE. No key material is ever read into the response.
+_SIGNER_STATUS_SOURCE = "app.state.szl_signer_status"
+_SIGNER_STATUSES = {"DSSE-LIVE", "ABSENT", "UNAVAILABLE"}
+_SIGNER_PUBLIC_FIELDS = (
+    "status", "signing_available", "scheme", "public_key_fingerprint",
+    "key_scope", "key_lifetime",
+)
+_HEX_FINGERPRINT_CHARS = set("0123456789abcdef")
+_DSSE_PROBE_PAYLOAD_TYPE = "application/vnd.szl.healthz-dsse-probe+json"
+_DSSE_PROBE_TTL_S = 300.0
+_DSSE_PROBE_LOCK = threading.Lock()
+_DSSE_PROBE_CACHE: Dict[str, Any] = {}
+
+
+def running_commit() -> str:
+    """The running source revision from SZL_GIT_SHA, or UNKNOWN. Never a constant."""
+    value = (os.environ.get("SZL_GIT_SHA") or "").strip().lower()
+    if 7 <= len(value) <= 40 and set(value) <= _HEX_FINGERPRINT_CHARS:
+        return value
+    return "UNKNOWN"
+
+
+def runtime_signer_status(app: Any) -> Dict[str, Any]:
+    """Validated signer status from the runtime provider the rollup uses."""
+    provider = getattr(getattr(app, "state", None), "szl_signer_status", None)
+    if not callable(provider):
+        return {"status": "ABSENT", "signing_available": False,
+                "scheme": "UNAVAILABLE", "source": _SIGNER_STATUS_SOURCE,
+                "reason": "SIGNER_STATUS_PROVIDER_ABSENT"}
+    try:
+        value = provider()
+        if not isinstance(value, dict) or not isinstance(value.get("signing_available"), bool):
+            raise ValueError("signer status invalid")
+        if value.get("status") not in _SIGNER_STATUSES:
+            raise ValueError("signer label invalid")
+        if (value["signing_available"] is True) != (value["status"] == "DSSE-LIVE"):
+            raise ValueError("signer status contradictory")
+        if value["status"] == "DSSE-LIVE":
+            fingerprint = value.get("public_key_fingerprint")
+            if (not isinstance(fingerprint, str) or len(fingerprint) < 16
+                    or not set(fingerprint) <= _HEX_FINGERPRINT_CHARS
+                    or "DSSE" not in str(value.get("scheme") or "")):
+                raise ValueError("DSSE-LIVE without a verifiable key identity")
+    except Exception as exc:  # noqa: BLE001 - fail closed, never DSSE-LIVE
+        return {"status": "UNAVAILABLE", "signing_available": False,
+                "scheme": "UNAVAILABLE", "source": _SIGNER_STATUS_SOURCE,
+                "error": type(exc).__name__}
+    public = {key: value[key] for key in _SIGNER_PUBLIC_FIELDS if key in value}
+    public["source"] = _SIGNER_STATUS_SOURCE
+    return public
+
+
+def dsse_live_status(now: Optional[float] = None) -> Dict[str, Any]:
+    """szl_dsse status proven by a sign -> verify round trip (cached).
+
+    DSSE-LIVE is reported only when szl_dsse signs a probe envelope (under a
+    healthz-only payload type, never the Khipu type) and its own verifier
+    accepts the signature against the trusted public key. The envelope and
+    signature are discarded; only the verdict is reported.
+    """
+    current = time.time() if now is None else now
+    with _DSSE_PROBE_LOCK:
+        cached = _DSSE_PROBE_CACHE.get("value")
+        if cached is not None and current - _DSSE_PROBE_CACHE.get("at", 0.0) < _DSSE_PROBE_TTL_S:
+            return dict(cached)
+        result: Dict[str, Any] = {
+            "status": "ABSENT",
+            "signing_available": False,
+            "scheme": "UNAVAILABLE",
+            "verification": "NOT_RUN",
+            "mint": "POST /api/a11oy/khipu/sign",
+            "rollup": "/api/a11oy/healthz",
+            "pubkey": "/cosign.pub",
+        }
+        try:
+            import szl_dsse as _dsse
+            result["public_key_fingerprint"] = _dsse.public_key_fingerprint()
+            if _dsse.signing_available():
+                envelope = _dsse.sign_payload(
+                    {"probe": "szl_be_hardening./healthz", "at": int(current)},
+                    payload_type=_DSSE_PROBE_PAYLOAD_TYPE,
+                )
+                verdict = _dsse.verify_envelope(envelope)
+                if envelope.get("signed") is True and verdict.get("verified") is True:
+                    result.update(status="DSSE-LIVE", signing_available=True,
+                                  scheme="DSSEv1 / ECDSA-P256-SHA256",
+                                  verification="SIGN_VERIFY_ROUNDTRIP_OK")
+                else:
+                    result.update(status="UNAVAILABLE",
+                                  verification="SIGN_VERIFY_ROUNDTRIP_FAILED")
+            else:
+                result["verification"] = "NO_SIGNING_KEY"
+        except Exception as exc:  # noqa: BLE001 - fail closed, never DSSE-LIVE
+            result.update(status="UNAVAILABLE", signing_available=False,
+                          scheme="UNAVAILABLE", verification="ERROR",
+                          error=type(exc).__name__)
+        result["checked_at_epoch_s"] = int(current)
+        _DSSE_PROBE_CACHE.update(at=current, value=dict(result))
+        return result
+
+
+def gdw_storage_block() -> Optional[Dict[str, Any]]:
+    """BLOCKED storage reason from the GDW runtime, if that runtime is loaded.
+
+    gdw_runtime registers itself in sys.modules when it is the entrypoint, so
+    this never imports it (standalone hardened apps have no GDW runtime).
+    """
+    module = sys.modules.get("gdw_runtime")
+    probe = getattr(module, "storage_block", None)
+    if not callable(probe):
+        return None
+    try:
+        block = probe()
+    except Exception as exc:  # noqa: BLE001 - unreadable state is not ready
+        return {"startup_state": "UNKNOWN", "reason": "GDW_STORAGE_STATE_UNREADABLE",
+                "error_class": type(exc).__name__}
+    return dict(block) if isinstance(block, dict) else None
+
+
+# ===========================================================================
 # main entrypoint
 # ===========================================================================
 def harden(app: Any, organ: str, ns: Optional[str] = None,
@@ -643,7 +770,12 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
     @app.exception_handler(StarletteHTTPException)
     async def _http_exc_handler(request: "Request", exc: "StarletteHTTPException"):
         tid = getattr(request.state, "trace_id", uuid.uuid4().hex)
-        return _envelope("http_error", str(exc.detail), tid, exc.status_code)
+        response = _envelope("http_error", str(exc.detail), tid, exc.status_code)
+        # Keep protocol headers the route attached (Retry-After on 503/429,
+        # WWW-Authenticate on 401); the envelope replaces only the body.
+        for name, value in (getattr(exc, "headers", None) or {}).items():
+            response.headers[name] = value
+        return response
 
     @app.exception_handler(RequestValidationError)
     async def _validation_handler(request: "Request", exc: "RequestValidationError"):
@@ -718,52 +850,41 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
 
     # ---- 4: health probes -------------------------------------------------
     # QHAPAQ 2026-08-28: GET 200 / HEAD 405. Include HEAD on the methods set
-    # (Starlette Route GET-only is the usual cause). This liveness body does
-    # NOT share the /api/a11oy/healthz rollup signer — fail closed ABSENT,
-    # never copy DSSE-LIVE.
-    _SIGNER_ABSENT = {
-        "status": "ABSENT",
-        "signing_available": False,
-        "scheme": "UNAVAILABLE",
-    }
-
+    # (Starlette Route GET-only is the usual cause). Liveness stays 200 even
+    # when storage is BLOCKED; readiness (/readyz) carries that fault. The
+    # signer is the validated runtime provider shared with the
+    # /api/a11oy/healthz rollup (fail closed, never an unverified DSSE-LIVE),
+    # and commit is the running SZL_GIT_SHA, not the doctrine lock commit.
     @app.get(f"{base}/healthz", tags=["health"])
     @app.get("/healthz", tags=["health"])
-    async def _healthz():
-        live = {
-            "status": "ABSENT",
-            "signing_available": False,
-            "scheme": "UNAVAILABLE",
-            "mint": "POST /api/a11oy/khipu/sign",
-            "rollup": "/api/a11oy/healthz",
-            "pubkey": "/cosign.pub",
-        }
-        try:
-            import szl_dsse as _dsse
-            # Fingerprint only. This route never stamps DSSE-LIVE; signer stays
-            # ABSENT. Live signing is /api/a11oy/healthz rollup.signer.
-            live["public_key_fingerprint"] = _dsse.public_key_fingerprint()
-        except Exception as exc:  # noqa: BLE001
-            live["error"] = type(exc).__name__
+    async def _healthz(request: "Request"):
         return {
             "status": "ok",
             "organ": organ,
             "doctrine": DOCTRINE,
             "lock": "749/14/163",
-            "commit": "c7c0ba17",
-            "signer": dict(_SIGNER_ABSENT),
-            "dsse_live": live,
+            "commit": running_commit(),
+            "doctrine_lock_commit": DOCTRINE_LOCK["commit"],
+            "signer": runtime_signer_status(request.app),
+            "dsse_live": dsse_live_status(),
         }
 
     @app.get(f"{base}/readyz", tags=["health"])
     @app.get("/readyz", tags=["health"])
     async def _readyz():
         ok, depth, brk = store.verify()
-        body = {"status": "ready" if ok else "degraded", "organ": organ,
+        storage_block = gdw_storage_block()
+        ready = ok and storage_block is None
+        body = {"status": "ready" if ready else "degraded", "organ": organ,
                 "khipu_backend": store.backend, "khipu_durable": store.backend in ("sqlite", "json"),
                 "khipu_depth": depth, "khipu_chain_ok": ok,
                 "khipu_first_break_seq": brk, "doctrine": DOCTRINE}
-        return JSONResponse(body, status_code=200 if ok else 503)
+        headers = None
+        if storage_block is not None:
+            body["storage"] = storage_block
+            body["blocked_reason"] = storage_block.get("reason")
+            headers = {"Retry-After": str(int(storage_block.get("retry_after_seconds") or 60))}
+        return JSONResponse(body, status_code=200 if ready else 503, headers=headers)
 
     _health_head_paths = {
         "/healthz", f"{base}/healthz", "/readyz", f"{base}/readyz",

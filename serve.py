@@ -5641,18 +5641,37 @@ async def readyz() -> JSONResponse:
         operator["reason"] = f"operator_check_error:{type(_eo_ready_e).__name__}"
     service_ready = bool(operator.get("service_ready", False))
     capability_ready = bool(operator.get("ready", False))
+    # A boot-time GDW storage fault keeps the process serving (liveness 200)
+    # but the service is not ready: say so here with the recorded reason.
+    _storage_block = None
+    _gdw_rt_ready = sys.modules.get("gdw_runtime")
+    if callable(getattr(_gdw_rt_ready, "storage_block", None)):
+        try:
+            _storage_block = _gdw_rt_ready.storage_block()
+        except Exception as _sb_e:  # unreadable state is not ready
+            _storage_block = {"reason": "GDW_STORAGE_STATE_UNREADABLE",
+                              "error_class": type(_sb_e).__name__}
+    if _storage_block is not None:
+        service_ready = False
     status = (
         "ready" if service_ready and capability_ready
         else "ready_degraded" if service_ready
         else "not_ready"
     )
+    body = {
+        "status": status,
+        "backend": "local+proxy",
+        "operator": operator,
+    }
+    headers = None
+    if _storage_block is not None:
+        body["storage"] = _storage_block
+        body["blocked_reason"] = _storage_block.get("reason")
+        headers = {"Retry-After": str(int(_storage_block.get("retry_after_seconds") or 60))}
     return JSONResponse(
-        {
-            "status": status,
-            "backend": "local+proxy",
-            "operator": operator,
-        },
+        body,
         status_code=200 if service_ready else 503,
+        headers=headers,
     )
 
 

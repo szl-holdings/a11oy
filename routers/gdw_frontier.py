@@ -25,7 +25,7 @@ from gdw_auth import (
     load_credential_registry,
 )
 from gdw_proofs import build_proof_payload, sha256_json
-from gdw_runtime import drain_once, runtime_health
+from gdw_runtime import drain_once, runtime_health, storage_block
 import gdw_durable_runtime as durable_storage
 from gdw_telemetry import GDWTelemetry
 from gdw_workspace import (
@@ -252,6 +252,9 @@ def _write_readiness(
         "GDW_PRODUCTION_MODE", ""
     ).strip().lower() in {"1", "true", "yes", "on"}
     blockers = []
+    if storage_block() is not None:
+        # An observed boot-time storage fault blocks writes in every mode.
+        blockers.append("RUNTIME_STORAGE_BLOCKED")
     if production:
         storage = runtime.get("storage") or {}
         drain = runtime.get("drain") or {}
@@ -344,7 +347,55 @@ def _write_readiness(
     )
 
 
+def _storage_blocked_body(block: dict) -> tuple[dict, dict]:
+    retry_after = str(int(block.get("retry_after_seconds") or 60))
+    body = {
+        "detail": {
+            "reason": "GDW_STORAGE_BLOCKED",
+            "message": (
+                "GDW storage preparation failed at boot; the service is up "
+                "but GDW writes are refused until storage is repaired and "
+                "the runtime is restarted."
+            ),
+            "startup_state": "BLOCKED",
+            "phase": block.get("phase"),
+            "error_class": block.get("error_class"),
+            "error": block.get("error"),
+            "blocked_at": block.get("blocked_at"),
+            "retry_after_seconds": int(retry_after),
+            "readiness": "/readyz",
+        }
+    }
+    return body, {"Retry-After": retry_after}
+
+
+def _storage_blocked_response() -> Optional[JSONResponse]:
+    """Answer a write route directly while storage is BLOCKED.
+
+    Returned (not raised) so the JSON body and Retry-After header survive any
+    application-level HTTPException envelope handler.
+    """
+
+    block = storage_block()
+    if block is None:
+        return None
+    body, response_headers = _storage_blocked_body(block)
+    return JSONResponse(
+        status_code=503,
+        content=body,
+        headers=response_headers,
+    )
+
+
 def _require_write_ready(namespace: str) -> None:
+    block = storage_block()
+    if block is not None:
+        body, response_headers = _storage_blocked_body(block)
+        raise HTTPException(
+            status_code=503,
+            detail=body["detail"],
+            headers=response_headers,
+        )
     ready, blockers, _, _, _ = _write_readiness(namespace)
     if not ready:
         raise HTTPException(
@@ -429,6 +480,7 @@ def _public_runtime_health(runtime: dict) -> dict:
                 "database_generation_id",
                 "durable_storage",
                 "durability_authority",
+                "orphan_page_repair",
             )
             if key in storage
         }
@@ -507,6 +559,7 @@ def _public_runtime_health(runtime: dict) -> dict:
         "drain": public_drain,
         "prepared_at": runtime.get("prepared_at"),
         "error": runtime.get("error"),
+        "blocked": runtime.get("blocked"),
     }
 
 
@@ -1037,6 +1090,9 @@ def register(app, ns: str = "a11oy"):
             namespace=ns,
             required_scopes=("integrity:global",),
         )
+        blocked = _storage_blocked_response()
+        if blocked is not None:
+            return blocked
         _require_write_ready(ns)
         report = drain_once(limit=limit)
         integrity = _workspace(principal).integrity(global_scope=True)
@@ -1066,6 +1122,9 @@ def register(app, ns: str = "a11oy"):
             namespace=ns,
             required_scopes=("effects:recover", "integrity:global"),
         )
+        blocked = _storage_blocked_response()
+        if blocked is not None:
+            return blocked
         runtime_generation = _require_transient_recovery_runtime(
             ns,
             expected_source_revision,
@@ -1182,6 +1241,9 @@ def register(app, ns: str = "a11oy"):
             namespace=ns,
             required_scopes=("step:write",),
         )
+        blocked = _storage_blocked_response()
+        if blocked is not None:
+            return blocked
         await asyncio.to_thread(_require_write_ready, ns)
         try:
             raw_payload = await request.json()

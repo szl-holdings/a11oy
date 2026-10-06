@@ -427,13 +427,19 @@ def test_empty_compute_fabric_status_is_unavailable(monkeypatch):
 
 
 def test_lean_health_json_signer_is_absent_not_dsse_live():
-    """QHAPAQ: only /api/a11oy/healthz rollup.signer may stamp DSSE-LIVE."""
+    """QHAPAQ: no health JSON stamps DSSE-LIVE without verified signer evidence.
+
+    The static lean probes stay ABSENT. /healthz reports the same validated
+    runtime provider as /api/a11oy/healthz rollup.signer (it previously
+    hard-coded ABSENT while the rollup said DSSE-LIVE), and its dsse_live is
+    DSSE-LIVE only after a szl_dsse sign -> verify round trip.
+    """
     from starlette.testclient import TestClient
 
     import serve
 
     client = TestClient(serve.app, raise_server_exceptions=False)
-    for path in ("/healthz", "/api/health", "/api/a11oy/v1/health"):
+    for path in ("/api/health", "/api/a11oy/v1/health"):
         body = client.get(path).json()
         signer = body.get("signer") or {}
         assert signer.get("status") in ("ABSENT", "UNAVAILABLE"), path
@@ -444,6 +450,27 @@ def test_lean_health_json_signer_is_absent_not_dsse_live():
         if dsse:
             assert dsse.get("status") != "DSSE-LIVE", path
             assert dsse.get("signing_available") is False, path
+
+    healthz = client.get("/healthz").json()
+    signer = healthz["signer"]
+    rollup_signer = client.get("/api/a11oy/healthz").json()["rollup"]["signer"]
+    assert signer["status"] == rollup_signer["status"]
+    assert signer["signing_available"] is rollup_signer["signing_available"]
+    assert signer["source"] == "app.state.szl_signer_status"
+    if signer["status"] == "DSSE-LIVE":
+        assert signer["signing_available"] is True
+        assert "DSSE" in signer["scheme"]
+        assert signer["public_key_fingerprint"] == rollup_signer["public_key_fingerprint"]
+    else:
+        assert signer["signing_available"] is False
+    dsse = healthz["dsse_live"]
+    if dsse["status"] == "DSSE-LIVE":
+        assert dsse["verification"] == "SIGN_VERIFY_ROUNDTRIP_OK"
+        assert dsse["signing_available"] is True
+    else:
+        assert dsse["signing_available"] is False
+    assert healthz["commit"] != "c7c0ba17"
+    assert healthz["doctrine_lock_commit"] == "c7c0ba17"
 
     rollup = client.get("/api/a11oy/healthz").json()["rollup"]["signer"]
     assert "status" in rollup
