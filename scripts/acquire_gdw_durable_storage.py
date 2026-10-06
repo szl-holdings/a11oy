@@ -442,7 +442,7 @@ def pause_qualified_source(api, expected: dict, *, require_owned_source,
             stage = storage._value(stage, "value", stage)
             _require(stage == "PAUSED", "PAUSE_OUTCOME_UNCERTAIN")
             acknowledgement = "ACKNOWLEDGED"
-        except BaseException:
+        except Exception:
             # An unreadable reply cannot authorize a retry. Only two fresh,
             # source-bound observations can establish the required state.
             pass

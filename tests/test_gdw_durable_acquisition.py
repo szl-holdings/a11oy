@@ -308,6 +308,8 @@ def test_pause_transport_requires_2xx_and_never_retries(outcome):
     ("malformed", "PAUSED", "NOT_ESTABLISHED"),
     ("non_paused", "RUNTIME_ERROR", "BLOCKED"),
     ("lost_reply", "PAUSED", "NOT_ESTABLISHED"),
+    ("keyboard_interrupt", "PAUSED", KeyboardInterrupt),
+    ("system_exit", "PAUSED", SystemExit),
 ])
 def test_official_hf_131_pause_response_never_retries_and_requires_readback(
         tmp_path, monkeypatch, outcome, readback_stage, expected):
@@ -333,6 +335,8 @@ def test_official_hf_131_pause_response_never_retries_and_requires_readback(
                 "standardEnvVars": [], "harnesses": {}}, request=request)
         assert request.method == "POST"
         assert request.url.path == "/api/spaces/SZLHOLDINGS/a11oy/pause"
+        if expected in (KeyboardInterrupt, SystemExit):
+            raise expected()
         if outcome == "lost_reply":
             raise httpx.ReadTimeout("synthetic lost reply", request=request)
         if outcome == "malformed":
@@ -346,16 +350,23 @@ def test_official_hf_131_pause_response_never_retries_and_requires_readback(
         {"stage": readback_stage, "hf_revision": guard.SPACE_REVISION},
         {"stage": readback_stage, "hf_revision": guard.SPACE_REVISION},
     ))
+    observation_calls = []
     def observe(_api, _expected, *, require_owned_source, deadline):
         require_owned_source()
         assert deadline > time.monotonic()
+        observation_calls.append(True)
         return next(observations)
     monkeypatch.setattr(acquisition, "observe_originals", observe)
     huggingface_hub.set_client_factory(
         lambda: httpx.Client(transport=httpx.MockTransport(response)))
     try:
         api = huggingface_hub.HfApi(endpoint=storage.ENDPOINT, token=False)
-        if expected == "BLOCKED":
+        if expected in (KeyboardInterrupt, SystemExit):
+            with pytest.raises(expected):
+                acquisition.pause_qualified_source(api, {},
+                    require_owned_source=lambda: None,
+                    deadline=time.monotonic() + 30)
+        elif expected == "BLOCKED":
             with pytest.raises(acquisition.AcquisitionBlocked,
                                match="^PAUSE_OUTCOME_UNCERTAIN$"):
                 acquisition.pause_qualified_source(api, {},
@@ -377,6 +388,7 @@ def test_official_hf_131_pause_response_never_retries_and_requires_readback(
     assert len(pause_requests) == 1
     assert len(agent_requests) == 1
     assert len(requests) == 2
+    assert len(observation_calls) == (1 if expected in (KeyboardInterrupt, SystemExit) else 3)
 
 
 @pytest.fixture
