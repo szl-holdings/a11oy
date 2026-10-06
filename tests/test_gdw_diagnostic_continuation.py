@@ -52,7 +52,7 @@ def diagnostic_report():
         "prior_stage": "ARTIFACT_PUBLICATION", "prior_stage_state": "BOUNDARY_ENTERED",
         "private_bytes_reported": False,
         "private_head_metadata": {"head_presence": "ABSENT",
-                                  "revision": continuation.DATASET_REVISION},
+                                  "revision": continuation.DIAGNOSTIC_DATASET_REVISION},
         "provider_writes_performed": False, "qualified_database_count": 2,
         "read_boundary": "COMPLETE", "restore_admitted": False,
         "retry_admitted": False, "run_attempt": 1,
@@ -60,10 +60,11 @@ def diagnostic_report():
         "source_revision": continuation.DIAGNOSTIC_SOURCE, "state": "OBSERVED"}
 
 
-def reconciliation_report(source="a" * 40, qualification_sha256="b" * 64):
+def reconciliation_report(source="a" * 40, qualification_sha256="b" * 64,
+                          dataset_revision="c" * 40):
     context = {"source_revision": source, "run_id": 900, "run_attempt": 1,
                "job_id": 901, "job_key": continuation.RECONCILIATION_JOB_KEY}
-    return continuation._report(context, qualification_sha256)
+    return continuation._report(context, qualification_sha256, dataset_revision)
 
 
 def test_embedded_diagnostic_receipt_is_the_exact_accepted_closed_record():
@@ -103,8 +104,55 @@ def test_reconciliation_and_classification_are_canonical_nonadmitting_records():
     assert classified["restore_admitted"] is classified["deployment_admitted"] is False
 
 
+def test_reconciliation_main_persists_both_success_receipts(monkeypatch, tmp_path):
+    qualification = storage.canonical({"schema": "fixture", "state": "QUALIFIED"})
+    report = reconciliation_report(
+        qualification_sha256=hashlib.sha256(qualification).hexdigest())
+    monkeypatch.setattr(continuation, "execute_native_reconciliation",
+        lambda *_args: (report, qualification))
+    output = tmp_path / "reconciliation.json"
+    qualification_output = tmp_path / "qualification.json"
+    github_output = tmp_path / "github-output"
+
+    status = continuation.main(["--reconcile", "--github-output", str(github_output),
+        "--output", str(output), "--qualification-output", str(qualification_output)])
+
+    assert status == 0
+    assert output.read_bytes() == storage.canonical(report)
+    assert qualification_output.read_bytes() == qualification
+    assert github_output.read_text(encoding="ascii") == "admitted=true\n"
+
+
+def test_reconciliation_main_persists_safe_held_receipt(monkeypatch, tmp_path):
+    def held(*_args):
+        raise continuation.ContinuationBlocked(
+            "CURRENT_ABSENCE_UNVERIFIED", "CAPTURE_LOGICAL_CONTINUITY")
+
+    monkeypatch.setattr(continuation, "execute_native_reconciliation", held)
+    output = tmp_path / "held.json"
+    github_output = tmp_path / "github-output"
+    qualification_output = tmp_path / "qualification.json"
+    status = continuation.main(["--reconcile", "--github-output", str(github_output),
+        "--output", str(output), "--qualification-output", str(qualification_output)])
+
+    assert status == 2
+    receipt = json.loads(output.read_bytes())
+    assert receipt["state"] == "HELD"
+    assert receipt["diagnostic_code"] == "CURRENT_ABSENCE_UNVERIFIED"
+    assert receipt["diagnostic_stage"] == "CAPTURE_LOGICAL_CONTINUITY"
+    assert all(receipt[key] is False for key in ("provider_writes_performed",
+        "replay_admitted", "restore_admitted", "deployment_admitted",
+        "secret_values_recorded"))
+    assert set(receipt) == {"schema", "state", "diagnostic_code", "diagnostic_stage",
+        "provider_writes_performed", "replay_admitted", "restore_admitted",
+        "deployment_admitted", "secret_values_recorded"}
+    assert not qualification_output.exists()
+    assert not github_output.exists()
+
+
 @pytest.mark.parametrize("field,value", [
     ("scope", "RETRY"), ("diagnostic_run_id", 1), ("head_presence", "PRESENT"),
+    ("dataset_revision", "main"),
     ("expected_object_count", 223), ("provider_writes_performed", True),
     ("replay_admitted", True), ("restore_admitted", True),
 ])
@@ -120,10 +168,11 @@ class FenceAPI:
 
     def __init__(self):
         self.objects = {}
+        self.revision = "c" * 40
 
     def dataset_info(self, repo_id, *, revision, expand):
         return {"id": storage.DATASET, "private": True,
-                "sha": continuation.DATASET_REVISION}
+                "sha": self.revision}
 
     def get_paths_info(self, repo_id, paths, *, repo_type, revision):
         return []
@@ -165,7 +214,7 @@ def test_fence_proves_all_paths_absent_then_accepts_only_its_exact_ack(monkeypat
     monkeypatch.setattr(triage, "local_artifact_plan", lambda *_a, **_k: (pending, plan))
     directory = tmp_path / "fence"; directory.mkdir(mode=0o700)
     fence = continuation.DiagnosticContinuationFence(api, evidence,
-        time.monotonic() + 30, directory)
+        time.monotonic() + 30, directory, api.revision)
     fence.bind_candidate(tmp_path / "candidate.sqlite3")
     path, (_physical, digest, size) = next(iter(pending.items()))
     fence.before_artifact(path, digest, size)
@@ -194,10 +243,28 @@ def test_fence_rejects_preexisting_expected_object_before_any_ack(monkeypatch, t
     api.objects[path] = (size, "c" * 64)
     directory = tmp_path / "fence"; directory.mkdir(mode=0o700)
     fence = continuation.DiagnosticContinuationFence(api, evidence,
-        time.monotonic() + 30, directory)
+        time.monotonic() + 30, directory, api.revision)
     with pytest.raises(continuation.ContinuationBlocked):
         fence.bind_candidate(tmp_path / "candidate.sqlite3")
     assert fence.acknowledged == {}
+
+
+def test_fence_rejects_shared_dataset_revision_movement_before_any_write(
+        monkeypatch, tmp_path):
+    api, evidence = FenceAPI(), Evidence()
+    pending = synthetic_pending()
+    plan = {"expected_object_count": continuation.EXPECTED_OBJECT_COUNT,
+            "expected_object_set_sha256": continuation.EXPECTED_OBJECT_SET_SHA256,
+            "candidate_unchanged": True, "all_retained_rows_validated": True}
+    monkeypatch.setattr(triage, "local_artifact_plan", lambda *_a, **_k: (pending, plan))
+    directory = tmp_path / "fence"; directory.mkdir(mode=0o700)
+    fence = continuation.DiagnosticContinuationFence(api, evidence,
+        time.monotonic() + 30, directory, api.revision)
+    api.revision = "d" * 40
+    with pytest.raises(continuation.ContinuationBlocked):
+        fence.bind_candidate(tmp_path / "candidate.sqlite3")
+    assert api.objects == {}
+    assert fence.bind_count == 0
 
 
 def test_fence_rejects_a_racing_object_that_this_worker_did_not_add(monkeypatch, tmp_path):
@@ -209,7 +276,7 @@ def test_fence_rejects_a_racing_object_that_this_worker_did_not_add(monkeypatch,
     monkeypatch.setattr(triage, "local_artifact_plan", lambda *_a, **_k: (pending, plan))
     directory = tmp_path / "fence"; directory.mkdir(mode=0o700)
     fence = continuation.DiagnosticContinuationFence(api, evidence,
-        time.monotonic() + 30, directory)
+        time.monotonic() + 30, directory, api.revision)
     fence.bind_candidate(tmp_path / "candidate.sqlite3")
     path, (_physical, digest, size) = next(iter(pending.items()))
     fence.before_artifact(path, digest, size)
@@ -229,7 +296,7 @@ def test_fence_rejects_a_second_add_if_acknowledged_object_disappears(monkeypatc
     monkeypatch.setattr(triage, "local_artifact_plan", lambda *_a, **_k: (pending, plan))
     directory = tmp_path / "fence"; directory.mkdir(mode=0o700)
     fence = continuation.DiagnosticContinuationFence(api, evidence,
-        time.monotonic() + 30, directory)
+        time.monotonic() + 30, directory, api.revision)
     fence.bind_candidate(tmp_path / "candidate.sqlite3")
     path, (_physical, digest, size) = next(iter(pending.items()))
     record = {"path": path, "sha256": digest, "size": size, "xet_hash": "c" * 64}
@@ -256,7 +323,7 @@ def test_fence_rejects_an_unplanned_artifact_path_before_sdk_call(monkeypatch, t
     monkeypatch.setattr(triage, "local_artifact_plan", lambda *_a, **_k: (pending, plan))
     directory = tmp_path / "fence"; directory.mkdir(mode=0o700)
     fence = continuation.DiagnosticContinuationFence(api, evidence,
-        time.monotonic() + 30, directory)
+        time.monotonic() + 30, directory, api.revision)
     fence.bind_candidate(tmp_path / "candidate.sqlite3")
     wrapper = acquisition._AdmittedAcquisitionHub(api, lambda: None, fence)
     local = tmp_path / "artifact.json"; local.write_bytes(b"x")
@@ -318,7 +385,7 @@ def current_absence_fixture(monkeypatch, state):
     monkeypatch.setattr(recovery, "qualify_capture", reproduce_without_source)
     monkeypatch.setattr(acquisition, "_read", read_reference)
     monkeypatch.setattr(triage, "private_head_metadata", lambda *_a, **_k: {
-        "revision": continuation.DATASET_REVISION, "head_presence": "ABSENT"})
+        "revision": "c" * 40, "head_presence": "ABSENT"})
     monkeypatch.setattr(continuation, "supervised_artifact_absence",
                         lambda *_a, **_k: object_effects())
     return SimpleNamespace(
@@ -337,6 +404,7 @@ def test_fresh_preflight_qualification_binds_verified_source_before_selection(
         qualified, state.arguments["reference"], state.arguments["capture_bytes"],
         evidence.source)
     assert qualified["inspector_source_revision"] == evidence.source
+    assert observation["dataset_revision"] == "c" * 40
     assert selected == acquisition.select_qualified_capture(
         state.arguments["qualified"], state.arguments["reference"],
         state.arguments["capture_bytes"], evidence.source)
@@ -440,8 +508,8 @@ def test_real_fence_uses_fresh_plan_for_pre_pause_and_acquire_rebind(
                         plan["expected_object_set_sha256"])
 
     contents = state.api.repositories[state.api.revision]
-    state.api.revision = continuation.DATASET_REVISION
-    state.api.repositories = {continuation.DATASET_REVISION: contents}
+    state.api.revision = "c" * 40
+    state.api.repositories = {state.api.revision: contents}
     evidence = SimpleNamespace(
         source=state.arguments["source_context"]["revision"],
         require_current_main=state.arguments["require_owned_source"],
@@ -449,7 +517,8 @@ def test_real_fence_uses_fresh_plan_for_pre_pause_and_acquire_rebind(
     fence_directory = tmp_path / "continuation-fence"
     fence_directory.mkdir(mode=0o700)
     fence = continuation.DiagnosticContinuationFence(
-        state.api, evidence, time.monotonic() + 20, fence_directory)
+        state.api, evidence, time.monotonic() + 20, fence_directory,
+        state.api.revision)
     fence.bind_candidate(candidate)
 
     arguments = dict(state.arguments)

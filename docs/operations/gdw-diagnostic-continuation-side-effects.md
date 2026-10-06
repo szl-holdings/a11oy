@@ -16,7 +16,7 @@ effects. Historical provider effects and writer attribution remain
 - Accepted diagnostic source: protected, signed main
   `1b2775485b05915662624c947004cd887b21cf5d`.
 - Transition predecessor: protected, signed descendant
-  `f1653a2908f944e37b7de87da36363cc9d661913`. The effectful source must be
+  `83e368b1814e213e2a4e2fc2a43975d31f19d3de`. The effectful source must be
   this commit's signed direct child; the ancestry comparison must retain the
   accepted diagnostic source as its merge base.
 - Diagnostic artifact: `11349341865`, archive SHA-256
@@ -58,6 +58,11 @@ fixed historical diagnostic artifact. The later credential-isolated effectful
 worker does not redownload that historical artifact: it validates the exact
 same-run reconciliation artifact and its fixed producer/report constants, then
 independently repeats the live source, capture, HEAD, and object-path checks.
+If reconciliation holds, it persists a closed no-write receipt before exiting.
+That receipt may expose only the fixed diagnostic code and a fixed,
+non-sensitive reconciliation stage; it never includes paths, principals,
+tokens, provider error text, or exception text. A held reconciliation never
+emits the qualification receipt or an admission output.
 
 1. The executing source is the signed direct successor of the fixed transition
    predecessor, the predecessor is a signed descendant of the accepted
@@ -70,8 +75,15 @@ independently repeats the live source, capture, HEAD, and object-path checks.
 4. Both captured databases re-qualify with logical continuity, unchanged
    declared values, unchanged generations and receipts, complete SQLite
    integrity checks, and no provider writes during qualification.
-5. Private dataset revision
-   `f5dbdcaea236db3b0d25b8d8cfe8d64369b25d78` still has no durable HEAD.
+5. The fresh private dataset `main` revision has no durable HEAD. Reconciliation
+   records that exact observed revision; the effectful worker requires the same
+   revision and absent HEAD before its first mutation and throughout every
+   pre-bootstrap acquisition write boundary, through the single absent-parent
+   HEAD/history/admission bootstrap commit. Unrelated movement of the shared
+   evidence dataset before that bootstrap therefore holds the continuation for
+   review. Once the acknowledged bootstrap advances the dataset revision,
+   downstream reviewed configuration and deployment boundaries use their own
+   current-parent and readback contracts.
 6. All 224 content-addressed retained-artifact paths derived from the freshly
    reproduced candidate are absent. The exact set hash is
    `7a28c53fa647e639375c6a90d3e34e89fe74bc2004f8161b5f38ac793301be42`.

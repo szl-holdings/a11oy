@@ -11,6 +11,7 @@ before its own first write and must never be re-run after an uncertain outcome.
 """
 from __future__ import annotations
 
+from contextlib import contextmanager
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -34,14 +35,14 @@ from scripts import triage_gdw_artifacts_readonly as triage
 SCHEMA = "szl.gdw-diagnostic-continuation-prerequisite/v1"
 CLASSIFICATION_SCHEMA = "szl.gdw-diagnostic-continuation-classification/v1"
 DIAGNOSTIC_SOURCE = "1b2775485b05915662624c947004cd887b21cf5d"
-TRANSITION_PARENT_SOURCE = "f1653a2908f944e37b7de87da36363cc9d661913"
+TRANSITION_PARENT_SOURCE = "83e368b1814e213e2a4e2fc2a43975d31f19d3de"
 DIAGNOSTIC_RUN = 37318344262
 DIAGNOSTIC_ATTEMPT = 1
 DIAGNOSTIC_ARTIFACT = 11349341865
 DIAGNOSTIC_ARTIFACT_BYTES = 1091
 DIAGNOSTIC_ARCHIVE_SHA256 = "055c8200399d6f27e7fee4b0a371e775803dc62daf9cdbb396ae445524025d21"
 DIAGNOSTIC_REPORT_SHA256 = "ecfc526f3e68775934e0f0c448670cc3c0c0bd899072ed579bb6d26ae0e4d250"
-DATASET_REVISION = "f5dbdcaea236db3b0d25b8d8cfe8d64369b25d78"
+DIAGNOSTIC_DATASET_REVISION = "f5dbdcaea236db3b0d25b8d8cfe8d64369b25d78"
 EXPECTED_OBJECT_COUNT = 224
 EXPECTED_OBJECT_SET_SHA256 = "7a28c53fa647e639375c6a90d3e34e89fe74bc2004f8161b5f38ac793301be42"
 EMPTY_OBJECT_SET_SHA256 = "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
@@ -53,22 +54,48 @@ MAX_SECONDS = 360
 OBJECT_WORKER_SCHEMA = "szl.gdw-continuation-object-worker/v1"
 OBJECT_WORKER_BYTES = 4096
 OBJECT_WORKER_SECONDS = 300
+SAFE_DIAGNOSTIC_STAGES = frozenset({
+    "PROVIDER_CLIENT_INITIALIZATION",
+    "CURRENT_SOURCE_AUTHORITY",
+    "CAPTURE_REFERENCES",
+    "PREQUALIFICATION_DATASET_STATE",
+    "CAPTURE_LOGICAL_CONTINUITY",
+    "ARTIFACT_NAMESPACE_ABSENCE",
+    "POSTQUALIFICATION_DATASET_STATE",
+    "FINAL_ABSENCE_CONTRACT",
+})
 
 
 class ContinuationBlocked(RuntimeError):
-    def __init__(self, code="DIAGNOSTIC_CONTINUATION_UNAVAILABLE"):
+    def __init__(self, code="DIAGNOSTIC_CONTINUATION_UNAVAILABLE", stage=None):
         self.code = code if type(code) is str and code in {
             "CURRENT_CONTEXT_UNQUALIFIED", "DIAGNOSTIC_PRODUCER_UNQUALIFIED",
             "DIAGNOSTIC_ARTIFACT_UNQUALIFIED", "DIAGNOSTIC_REPORT_UNQUALIFIED",
             "CURRENT_ABSENCE_UNVERIFIED", "CONTINUATION_REPORT_UNQUALIFIED",
             "DIAGNOSTIC_CONTINUATION_UNAVAILABLE",
         } else "DIAGNOSTIC_CONTINUATION_UNAVAILABLE"
+        self.stage = stage if type(stage) is str and stage in SAFE_DIAGNOSTIC_STAGES else None
         super().__init__(self.code)
 
 
 def _require(value, code):
     if value is not True:
         raise ContinuationBlocked(code)
+
+
+@contextmanager
+def _diagnostic_stage(stage):
+    """Expose only a fixed non-sensitive phase when a read-only gate holds."""
+    if stage not in SAFE_DIAGNOSTIC_STAGES:
+        raise ContinuationBlocked()
+    try:
+        yield
+    except ContinuationBlocked as error:
+        if error.stage is not None:
+            raise
+        raise ContinuationBlocked(error.code, stage) from None
+    except Exception:
+        raise ContinuationBlocked("CURRENT_ABSENCE_UNVERIFIED", stage) from None
 
 
 def _integer(value):
@@ -158,7 +185,7 @@ def validate_diagnostic_report(raw):
             and value.get("prior_provider_effects") == "NOT_ESTABLISHED"
             and value.get("historical_writer_attribution") == "NOT_ESTABLISHED"
             and value.get("private_head_metadata") == {
-                "revision": DATASET_REVISION, "head_presence": "ABSENT"},
+                "revision": DIAGNOSTIC_DATASET_REVISION, "head_presence": "ABSENT"},
             "DIAGNOSTIC_REPORT_UNQUALIFIED")
         effects = value.get("artifact_effect_observation")
         _require(type(effects) is dict
@@ -386,49 +413,57 @@ def observe_current_absence(api, workspace, evidence, deadline):
     """Reproduce the fixed capture and bind it to verified protected source."""
     from scripts import acquire_gdw_durable_storage as acquisition
     from scripts import qualify_gdw_store_recovery as recovery
-    source_revision = getattr(evidence, "source", None)
-    require_source = getattr(evidence, "require_current_main", None)
-    _require(storage._revision(source_revision) and callable(require_source),
-        "CURRENT_ABSENCE_UNVERIFIED")
-    reference_bytes = acquisition._read(acquisition.ROOT / acquisition.CAPTURE_REFERENCE)
-    anchor_bytes = acquisition._read(acquisition.ROOT / acquisition.HISTORICAL_REFERENCE)
-    reference, anchors = recovery._json(reference_bytes), recovery._json(anchor_bytes)
-    capture_hash = hashlib.sha256(reference_bytes).hexdigest()
-    recovery.validate_historical_anchors(anchors, reference, capture_hash)
-    require_source()
-    before = triage.private_head_metadata(api)
-    qualified = recovery.qualify_capture(recovery.ReadOnlyCaptureHub(api), reference,
-        workspace / "capture", require_source, deadline, historical_anchors=anchors,
-        capture_report_sha256=capture_hash)
-    _require(qualified.get("state") == "LOGICAL_CONTINUITY_VERIFIED"
-        and qualified.get("provider_writes_performed") is False
-        and qualified.get("originals_mutated") is False
-        and qualified.get("restore_admitted") is False
-        and qualified.get("deployment_admitted") is False,
-        "CURRENT_ABSENCE_UNVERIFIED")
-    databases = triage._qualified_capture_databases(qualified,
-        frozenset(recovery.preservation.DATABASES))
-    effects = supervised_artifact_absence(workspace / "capture", require_source, deadline)
-    require_source()
-    after = triage.private_head_metadata(api)
-    require_source()
-    _require(before == after == {"revision": DATASET_REVISION, "head_presence": "ABSENT"}
-        and len(databases) == 2
-        and effects.get("classification") == "NO_EXPECTED_OBJECTS_PRESENT_AT_READ_TIME"
-        and effects.get("expected_object_count") == EXPECTED_OBJECT_COUNT
-        and effects.get("missing_object_count") == EXPECTED_OBJECT_COUNT
-        and effects.get("present_object_count") == 0
-        and effects.get("expected_object_set_sha256") == EXPECTED_OBJECT_SET_SHA256
-        and effects.get("observed_object_set_sha256") == EMPTY_OBJECT_SET_SHA256
-        and effects.get("all_retained_rows_validated") is True
-        and effects.get("candidate_unchanged") is True
-        and effects.get("provider_writes_performed") is False,
-        "CURRENT_ABSENCE_UNVERIFIED")
-    _require(qualified.get("inspector_source_revision") in (None, source_revision),
-        "CURRENT_ABSENCE_UNVERIFIED")
-    qualified["inspector_source_revision"] = source_revision
+    with _diagnostic_stage("CURRENT_SOURCE_AUTHORITY"):
+        source_revision = getattr(evidence, "source", None)
+        require_source = getattr(evidence, "require_current_main", None)
+        _require(storage._revision(source_revision) and callable(require_source),
+            "CURRENT_ABSENCE_UNVERIFIED")
+    with _diagnostic_stage("CAPTURE_REFERENCES"):
+        reference_bytes = acquisition._read(acquisition.ROOT / acquisition.CAPTURE_REFERENCE)
+        anchor_bytes = acquisition._read(acquisition.ROOT / acquisition.HISTORICAL_REFERENCE)
+        reference, anchors = recovery._json(reference_bytes), recovery._json(anchor_bytes)
+        capture_hash = hashlib.sha256(reference_bytes).hexdigest()
+        recovery.validate_historical_anchors(anchors, reference, capture_hash)
+    with _diagnostic_stage("PREQUALIFICATION_DATASET_STATE"):
+        require_source()
+        before = triage.private_head_metadata(api)
+    with _diagnostic_stage("CAPTURE_LOGICAL_CONTINUITY"):
+        qualified = recovery.qualify_capture(recovery.ReadOnlyCaptureHub(api), reference,
+            workspace / "capture", require_source, deadline, historical_anchors=anchors,
+            capture_report_sha256=capture_hash)
+        _require(qualified.get("state") == "LOGICAL_CONTINUITY_VERIFIED"
+            and qualified.get("provider_writes_performed") is False
+            and qualified.get("originals_mutated") is False
+            and qualified.get("restore_admitted") is False
+            and qualified.get("deployment_admitted") is False,
+            "CURRENT_ABSENCE_UNVERIFIED")
+        databases = triage._qualified_capture_databases(qualified,
+            frozenset(recovery.preservation.DATABASES))
+    with _diagnostic_stage("ARTIFACT_NAMESPACE_ABSENCE"):
+        effects = supervised_artifact_absence(workspace / "capture", require_source, deadline)
+    with _diagnostic_stage("POSTQUALIFICATION_DATASET_STATE"):
+        require_source()
+        after = triage.private_head_metadata(api)
+        require_source()
+    with _diagnostic_stage("FINAL_ABSENCE_CONTRACT"):
+        _require(before == after and storage._revision(before.get("revision"))
+            and before.get("head_presence") == "ABSENT"
+            and len(databases) == 2
+            and effects.get("classification") == "NO_EXPECTED_OBJECTS_PRESENT_AT_READ_TIME"
+            and effects.get("expected_object_count") == EXPECTED_OBJECT_COUNT
+            and effects.get("missing_object_count") == EXPECTED_OBJECT_COUNT
+            and effects.get("present_object_count") == 0
+            and effects.get("expected_object_set_sha256") == EXPECTED_OBJECT_SET_SHA256
+            and effects.get("observed_object_set_sha256") == EMPTY_OBJECT_SET_SHA256
+            and effects.get("all_retained_rows_validated") is True
+            and effects.get("candidate_unchanged") is True
+            and effects.get("provider_writes_performed") is False,
+            "CURRENT_ABSENCE_UNVERIFIED")
+        _require(qualified.get("inspector_source_revision") in (None, source_revision),
+            "CURRENT_ABSENCE_UNVERIFIED")
+        qualified["inspector_source_revision"] = source_revision
     return qualified, {
-        "dataset_revision": DATASET_REVISION,
+        "dataset_revision": before["revision"],
         "head_presence": "ABSENT",
         "expected_object_count": EXPECTED_OBJECT_COUNT,
         "expected_object_set_sha256": EXPECTED_OBJECT_SET_SHA256,
@@ -437,7 +472,7 @@ def observe_current_absence(api, workspace, evidence, deadline):
     }
 
 
-def _report(context, qualification_sha256):
+def _report(context, qualification_sha256, dataset_revision):
     return {"schema": SCHEMA, "state": "PREREQUISITE_VERIFIED",
         "scope": "ONE_SIGNED_SUCCESSOR_ONE_RUN_FRESH_CONTINUATION_ONLY", **context,
         "diagnostic_source_revision": DIAGNOSTIC_SOURCE,
@@ -445,7 +480,7 @@ def _report(context, qualification_sha256):
         "diagnostic_artifact_id": DIAGNOSTIC_ARTIFACT,
         "diagnostic_archive_sha256": DIAGNOSTIC_ARCHIVE_SHA256,
         "diagnostic_report_sha256": DIAGNOSTIC_REPORT_SHA256,
-        "dataset_revision": DATASET_REVISION, "head_presence": "ABSENT",
+        "dataset_revision": dataset_revision, "head_presence": "ABSENT",
         "expected_object_count": EXPECTED_OBJECT_COUNT,
         "expected_object_set_sha256": EXPECTED_OBJECT_SET_SHA256,
         "present_object_count": 0, "missing_object_count": EXPECTED_OBJECT_COUNT,
@@ -466,9 +501,11 @@ def validate_reconciliation_report(raw):
             and context["source_revision"] != DIAGNOSTIC_SOURCE
             and all(_integer(context[key]) for key in ("run_id", "run_attempt", "job_id"))
             and context["run_attempt"] == 1 and context["job_key"] == RECONCILIATION_JOB_KEY
-            and storage._digest(value.get("qualification_sha256")),
+            and storage._digest(value.get("qualification_sha256"))
+            and storage._revision(value.get("dataset_revision")),
             "CONTINUATION_REPORT_UNQUALIFIED")
-        _require(storage.canonical(_report(context, value["qualification_sha256"])) == raw,
+        _require(storage.canonical(_report(context, value["qualification_sha256"],
+            value["dataset_revision"])) == raw,
             "CONTINUATION_REPORT_UNQUALIFIED")
         return value
     except ContinuationBlocked:
@@ -485,15 +522,17 @@ def execute_native_reconciliation(workspace: Path, deadline):
     context = verify_current_context(evidence, RECONCILIATION_JOB_KEY, RECONCILIATION_JOB)
     _diagnostic_artifact(evidence)
     try:
-        api = storage._hub_api(os.environ.get("HF_TOKEN", ""))
-        qualified, _observation = observe_current_absence(api, workspace,
+        with _diagnostic_stage("PROVIDER_CLIENT_INITIALIZATION"):
+            api = storage._hub_api(os.environ.get("HF_TOKEN", ""))
+        qualified, observation = observe_current_absence(api, workspace,
             evidence, deadline)
     except ContinuationBlocked:
         raise
     except Exception:
         raise ContinuationBlocked("CURRENT_ABSENCE_UNVERIFIED") from None
     encoded_qualification = storage.canonical(qualified)
-    report = _report(context, hashlib.sha256(encoded_qualification).hexdigest())
+    report = _report(context, hashlib.sha256(encoded_qualification).hexdigest(),
+        observation["dataset_revision"])
     return validate_reconciliation_report(storage.canonical(report)), encoded_qualification
 
 
@@ -515,13 +554,15 @@ def classify_reconciliation(report_bytes, qualification_bytes, source_revision):
 class DiagnosticContinuationFence:
     """Track only writes acknowledged by this one non-retriable worker."""
 
-    def __init__(self, api, evidence, deadline, workspace):
+    def __init__(self, api, evidence, deadline, workspace, dataset_revision):
         _require(storage._value(api, "endpoint") == storage.ENDPOINT,
             "CURRENT_ABSENCE_UNVERIFIED")
+        _require(storage._revision(dataset_revision), "CURRENT_ABSENCE_UNVERIFIED")
         self.api = api
         self.evidence = evidence
         self.deadline = deadline
         self.workspace = storage._private_directory(workspace)
+        self.dataset_revision = dataset_revision
         self.expected = None
         self.bind_count = 0
         self.acknowledged = {}
@@ -532,7 +573,8 @@ class DiagnosticContinuationFence:
             storage._deadline(self.deadline)
             self.evidence.require_current_main()
             observed = triage.private_head_metadata(self.api)
-            _require(observed == {"revision": DATASET_REVISION, "head_presence": "ABSENT"},
+            _require(observed == {"revision": self.dataset_revision,
+                                  "head_presence": "ABSENT"},
                 "CURRENT_ABSENCE_UNVERIFIED")
             storage._deadline(self.deadline)
         except ContinuationBlocked:
@@ -674,7 +716,7 @@ def _read_file(path, bound):
 
 def _write_file(path, data):
     path = Path(path)
-    _require(path.is_absolute() and type(data) is bytes and data,
+    _require(path.is_absolute() and type(data) is bytes and len(data) > 0,
         "CONTINUATION_REPORT_UNQUALIFIED")
     descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
     try:
@@ -740,6 +782,9 @@ def main(argv=None):
     except BaseException as error:
         code = error.code if type(error) is ContinuationBlocked else "DIAGNOSTIC_CONTINUATION_UNAVAILABLE"
         result["diagnostic_code"] = code
+        stage = error.stage if type(error) is ContinuationBlocked else None
+        if stage is not None:
+            result["diagnostic_stage"] = stage
         try:
             if not os.path.lexists(args.output):
                 _write_file(args.output, storage.canonical(result))
