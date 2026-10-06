@@ -92,3 +92,66 @@ test('ready ask uses only read-only GET with URLSearchParams, never POST', async
   assert.equal(element('rag-ask').disabled, true);
   assert.doesNotMatch(element('rag-state').innerHTML, /INDEX BUILT|LIVE/);
 });
+
+
+function wattFixture() {
+  const start = html.indexOf('function renderWatt(');
+  const end = html.indexOf('function escapeHTML(', start);
+  assert.ok(start > 0 && end > start, 'Fabric decision renderer must be testable');
+  const element = { innerHTML: '' };
+  const context = {
+    $: () => element,
+    L: (_kind, label) => `<label>${label || _kind}</label>`,
+    fmt: value => String(value),
+    fmt1: value => Number(value).toFixed(1),
+    shortHash: value => String(value).slice(0, 12),
+    escapeHTML: value => String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]),
+    pendingHTML: reason => `<span>PENDING ${reason}</span>`,
+  };
+  vm.runInNewContext(html.slice(start, end) + '\n;globalThis.render=renderWatt;', context);
+  return { element, render: context.render };
+}
+
+const samplePlacement = {
+  decision: 'placed', chosen_node: '<sample-node>', grid_price_eur_mwh: 42.5,
+  grid_price_label: 'SAMPLE', savings_pct: 0.125, saving_label: 'MODELED',
+  reason: 'synthetic fixture',
+};
+
+for (const [name, data] of [
+  ['raw latest decision', { latest_decision: samplePlacement }],
+  ['legacy receipt wrapper', { latest_decision: { decision: samplePlacement } }],
+  ['recent decision fallback', { recent_decisions: [samplePlacement] }],
+  ['flat decision fallback', samplePlacement],
+  ['non-object latest fallback', { latest_decision: 'placed', recent_decisions: [samplePlacement] }],
+  ['array latest fallback', { latest_decision: [], recent_decisions: [samplePlacement] }],
+  ['null latest fallback', { latest_decision: null, recent_decisions: [samplePlacement] }],
+  ['malformed wrapped decision', { latest_decision: { ...samplePlacement, decision: [] } }],
+]) {
+  test(`placement renderer preserves fields for ${name}`, () => {
+    const { element, render } = wattFixture();
+    assert.equal(render({ data }), true);
+    assert.match(element.innerHTML, /42\.5/);
+    assert.match(element.innerHTML, /&lt;sample-node&gt;/);
+    assert.match(element.innerHTML, /12\.5%/);
+    assert.doesNotMatch(element.innerHTML, /<sample-node>|no placement this tick/);
+  });
+}
+
+test('raw no-choice decision preserves and escapes its reason', () => {
+  const { element, render } = wattFixture();
+  assert.equal(render({ data: { latest_decision: {
+    decision: 'no-choice', chosen_node: null, reason: '<no eligible sample node>',
+  } } }), true);
+  assert.match(element.innerHTML, /no placement this tick/);
+  assert.match(element.innerHTML, /&lt;no eligible sample node&gt;/);
+  assert.doesNotMatch(element.innerHTML, /<no eligible sample node>/);
+});
+
+
+test('missing placement response preserves the pending state', () => {
+  const { element, render } = wattFixture();
+  assert.equal(render(null), false);
+  assert.match(element.innerHTML, /PENDING/);
+  assert.doesNotMatch(element.innerHTML, /chosen node:/);
+});

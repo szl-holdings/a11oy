@@ -429,9 +429,17 @@ function renderWatt(hit){
   var el = $('watt-state');
   if(!hit){ el.innerHTML = pendingHTML('cheapest-watt routing endpoint not live this sweep'); return false; }
   var d = hit.data || {};
-  // Real shape: latest_decision.decision (nested) -> recent_decisions[0] -> flat fallback.
-  var dec = (d.latest_decision && d.latest_decision.decision) || (d.recent_decisions && d.recent_decisions[0]) || d.decision || d.last || d;
-  if(typeof dec !== 'object' || dec === null) dec = d;
+  // Current observations contain raw decisions; retained callers may wrap one.
+  var candidates = [d.latest_decision, d.recent_decisions && d.recent_decisions[0], d.decision, d.last, d];
+  var dec = d;
+  for(var i=0; i<candidates.length; i++){
+    var candidate = candidates[i];
+    if(candidate && typeof candidate === 'object' && !Array.isArray(candidate)){
+      dec = candidate.decision && typeof candidate.decision === 'object' && !Array.isArray(candidate.decision)
+        ? candidate.decision : candidate;
+      break;
+    }
+  }
   var node  = dec.chosen_node || dec.node || dec.placed_on || dec.target || null;
   var price = (dec.grid_price_eur_mwh!=null?dec.grid_price_eur_mwh:(dec.price_eur_mwh!=null?dec.price_eur_mwh:(dec.eur_mwh!=null?dec.eur_mwh:null)));
   var priceL= dec.grid_price_label || 'MEASURED';

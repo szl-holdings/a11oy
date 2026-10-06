@@ -497,8 +497,17 @@ class DurableKhipu:
 
     def verify(self, *, read_only: bool = False) -> Tuple[bool, int, int]:
         """Re-walk the chain. Returns (ok, depth, first_break_seq | -1)."""
+        ok, depth, brk, _head = self.verify_with_head(read_only=read_only)
+        return ok, depth, brk
+
+    def verify_with_head(self, *, read_only: bool = False) -> Tuple[bool, int, int, str]:
+        """Verify and derive the head from one fetched snapshot of the chain."""
         with self._lock:
+            # The process lock cannot block an independently opened writer.
+            # One SELECT supplies both verification and head, even if another
+            # connection commits after this snapshot has been fetched.
             rows = self._all(read_only=read_only)
+            head = rows[-1]["digest"] if rows else _GENESIS
             prev = _GENESIS
             for i, rec in enumerate(rows):
                 # organ/ns are store-level constants (not persisted per row in the
@@ -507,9 +516,9 @@ class DurableKhipu:
                         "action": rec["action"], "payload": rec["payload"],
                         "prev": rec["prev"]}
                 if rec["prev"] != prev or rec["digest"] != self._digest(body):
-                    return (False, len(rows), i)
+                    return (False, len(rows), i, head)
                 prev = rec["digest"]
-            return (True, len(rows), -1)
+            return (True, len(rows), -1, head)
 
     def tail(self, n: int = 10) -> List[Dict[str, Any]]:
         with self._lock:
@@ -1021,9 +1030,7 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
         Neither /attest nor /attest/status mints a signature. This is an
         unsigned observation, not a retrieved or newly signed attestation.
         """
-        with store._lock:
-            ok, depth, brk = store.verify(read_only=True)
-            head = store.head(read_only=True)
+        ok, depth, brk, head = store.verify_with_head(read_only=True)
         git_sha = os.getenv("SZL_GIT_SHA", "unknown")
         build_time = os.getenv("SZL_BUILD_TIME", "unknown")
         statement = {
