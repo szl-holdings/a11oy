@@ -997,7 +997,7 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
 
     def test_deployment_is_one_exact_pinned_reusable_call(self) -> None:
         self.assertIn(
-            "uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@e3ec47ad2e99a535839afe0f30fefbd8973d52da",
+            "uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451",
             self.workflow,
         )
         self.assertIn("ref: ${{ github.sha }}", self.workflow)

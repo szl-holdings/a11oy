@@ -148,12 +148,12 @@ def test_functional_gate_preserves_sanitized_upstream_boundary_and_rejects_raw_f
     assert "secret" not in json.dumps(second)
 
 
-def test_automatic_projection_follows_relock_and_shares_existing_writer():
+def test_recovery_transition_holds_unrelated_finance_projection():
     import yaml
     workflow = yaml.safe_load((ROOT / ".github/workflows/hf-sync.yml").read_text())
     job = workflow["jobs"]["publish-finance-projection"]
     assert job["needs"] == ["manual-prerequisites", "relock"]
-    assert job["if"] == "${{ github.event_name == 'push' && github.run_attempt == 1 && needs.manual-prerequisites.result == 'success' && (github.event_name == 'push' || !inputs.publish_vertical_flagships) }}"
+    assert job["if"] == "${{ github.event_name == 'push' && github.run_attempt == 1 && needs.manual-prerequisites.result == 'success' && false }}"
     assert job["env"]["SZL_FLAGSHIP_SCOPE"] == "finance"
     assert job["concurrency"] == {"group": "hf-vertical-estate", "cancel-in-progress": False}
     text = json.dumps(job)

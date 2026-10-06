@@ -595,24 +595,22 @@ SOURCE_DERIVED_CONTROLLER_REVISIONS = frozenset({
     # Reviewed reusable-hf-deploy controller that expands Dockerfile COPY
     # sources into the HF payload. A generic 40-hex pin proves immutability,
     # not this capability; additions require an explicit guard review.
-    "e3ec47ad2e99a535839afe0f30fefbd8973d52da",
+    "fc71ae973a0f31b8e9ee793fc8545a354448d451",
 })
 
 
 REVIEWED_SOURCE_ADMISSION_JOB_SHA256 = "13304ef0f4d96cae7d534f42a5068b373b2fda1c0200d01a2a83f1e1bab581e6"
 REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee8395e042853ded04deb7d170189"
 # These exact jobs and their complete local helper/reference closure recognize
-# the fixed 62ca inspection checkpoint. Reconciliation and preservation retain
-# their authority predicates under literal false gates. The canonical job uses
-# only the fixed native failure/artifact and private metadata reader, exiting 2;
-# pair configuration is independently disabled. Downstream success predicates
-# remain intact, so even an unexpected inspection success cannot publish.
-# The original d61 reader, a601 retry pins, diagnostics and logical-root fix are
-# preserved. These hashes establish source coverage and an explicit publication
-# hold, never provider-object verification, retry, restore or deployment authority.
-REVIEWED_MANUAL_PREREQUISITES_JOB_SHA256 = "3c56b18264b0d81c91607b37d571069a2b80ba640b760f563f8a0861c30103a7"
-REVIEWED_RECOVERY_RECONCILIATION_JOB_SHA256 = "9e1671f8e63388f188271a6ccc80980cd2df3f0e082bcb0c799e064b074b5265"
-REVIEWED_DURABLE_ACQUISITION_JOB_SHA256 = "ca96d877aa7e4bea1c9c7ebdd704a24e67d18bd1808603e99d8d94c46a8e3720"
+# the one signed successor authorized by the accepted read-only diagnostic.
+# Reconciliation requalifies the fixed capture and exact empty namespace before
+# the classifier can admit managed recovery. Acquisition then consumes only the
+# same-run closed artifacts, uses the canonical publisher, and has no automatic
+# retry path. These hashes establish source coverage for that bounded transition;
+# they never establish provider success or live restoration.
+REVIEWED_MANUAL_PREREQUISITES_JOB_SHA256 = "b8f8c5b5dd7644ee6bcaa64c63d1c1552110df74879d1cf5ab7a874c0213f315"
+REVIEWED_RECOVERY_RECONCILIATION_JOB_SHA256 = "69d850b44138b79a60a8c37d7284cd0e4b34357ccb9115c2cc97b3e1426c317a"
+REVIEWED_DURABLE_ACQUISITION_JOB_SHA256 = "526b2ef0081c4cff71fed2178ff0c1efd569221e43c829f8e26058013febd12f"
 REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "bc38f18b2837be0ae4058d66cb9a5cbac911cd6622c1d352d8c773edc2a37944"
 REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
     "scripts/check_hf_manual_prerequisites.py": "3390924bd039b8377d1c54824e85f77bb06953bf4165c78e85bc9ddfbc7382ec",
@@ -635,12 +633,17 @@ REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
     # include these local imports and fixed dynamic loaders. Runtime-installed
     # application bytes and the remote publisher have their own source-bound
     # manifest contract; this map binds the code that verifies that contract.
-    "scripts/acquire_gdw_durable_storage.py": "76aec0e12028ed1b3e9a09ef8e09531b816531440bf51427c97324bec64dd823",
+    "scripts/acquire_gdw_durable_storage.py": "cb4e5e18ff5ee37b3a4e57acd71d21f863488dbd4f497bd4460e7ba571606e0f",
+    # The successor controller, the isolated native object observer it reuses,
+    # and the reviewed side-effect boundary are a single source contract.
+    "scripts/reconcile_gdw_diagnostic_continuation.py": "5506d5672ef85e2b8bd8c939e313742801eeadf634547fa1fc51199f10915e41",
+    "scripts/triage_gdw_artifacts_readonly.py": "5b9e54bea28a2d3045e1283004eb1807453ca68fc5c3647447437f57e90f75b5",
+    "docs/operations/gdw-diagnostic-continuation-side-effects.md": "068f71f28fa740ed22cafd30e58d67dca75cb3ab04f2bbeaec329ae4e3f1bec8",
     "scripts/reconcile_gdw_supervised_acquisition.py": "23dd0478cc06d1881ff7c1469833d0192549807a06d5cf822cf8f6d12fdaa994",
     "scripts/inspect_gdw_held_acquisition.py": "61e0b7d6e8236074ebcbbcc424b34d92f257f0c85608f7adbd640136de9e5dc6",
     "scripts/inspect_gdw_62ca_acquisition.py": "d444b298495fc253205287f873f3e0a2b2eeb15eab686ea404983ea61fef97eb",
     "scripts/gdw_acquisition_evidence.py": "7c15e3c774f7bbbee71c9da2255ea92a9d13c5320398c8a8134f1542d1795525",
-    "scripts/build_gdw_installed_source_manifest.py": "a4f58e0a6d59af881a5b03609e5f796e5026e4f3e6a206d194e340cc7dfb3b14",
+    "scripts/build_gdw_installed_source_manifest.py": "6954e77bcf7c4bd19f869596f6dc48896475abd4fd77f5412e4799257c1008ce",
     "scripts/probe_gdw_runtime_base.py": "231f911d4df34e3e2c5eba25400b605872e6bbfd30183d075fac9f3c6d058a91",
     "scripts/probe_gdw_legacy_startup.py": "c0384d47e5d22a856eba2e5fbe284f866e43affd9deb0f1d97148c44389649c0",
     "scripts/prove_hf_series_a_restart.py": "9091569edb44d6e9d5dcc578ab2c53054aa2fc61de9c962da256dfd186dbd398",
@@ -649,7 +652,7 @@ REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
     "gdw_durable_storage.py": "f22e97c2801b8115b455a150398076132dd8adf83ad3dbf44da04d350567ce72",
     "gdw_durable_startup.py": "54965688ea52866431aa7995dff221966e89cb460bda75894e1d70d791cd2e1c",
     "gdw_durable_runtime.py": "2a01da4857dd411aaace8cabb74df27252fe8316aebbb4fef39b56bc778a724f",
-    "gdw_durable_source.py": "37e24e1badeff28d00bbed9d80619acc9080a09bf295061b4dc8130b4cb58321",
+    "gdw_durable_source.py": "b4f4fb0f268e63a1976a14a18bed9774102e2807f3c72506ca7657ed02fcff0d",
     "gdw_durable_guard.py": "33062e1fc067f037d1df3d8f6038d6b8eab72356923f8fb18c22b2697f1b9ae3",
     "gdw_durable_image.py": "bbe71d8aa53494d5e22eac029cf4ecb378cbcb7ac3017b349d373c1d6c27142d",
     "gdw_durable_artifacts.py": "c65ef4533d6fa2d15bb5caa94651746098d841674930803dabf6dbc37a873889",
@@ -806,9 +809,10 @@ def has_source_derived_deploy_contract(hf_sync_text, *, ownership_helper=None,
     arbitrary skipped deploy job from satisfying CHECK 3. Ownership admission
     requires reviewed workflow and helper bytes plus the adjacent provider guard.
     Recognition proves the COPY source contract, never a provider result or live
-    publication. This exact checkpoint retains that complete source coverage
-    while its provider writers are unreachable. Only the fixed 62ca inspection
-    can run; its metadata report never establishes object effects or retry safety.
+    publication. This exact checkpoint retains complete source coverage for the
+    diagnostic-bound, first-attempt continuation. Its source admission and
+    acknowledged write fence constrain the one transition but do not themselves
+    establish provider success, retry safety, or live restoration.
     """
     jobs = workflow_job_blocks(hf_sync_text)
     if len({job_id for job_id, _lines, _indent in jobs}) != len(jobs):
@@ -1098,7 +1102,7 @@ def main():
     print(f"local modules reachable from serve.py imports: {len(reached_with_serve)}")
     if hf_sync_present:
         if source_derived_deploy:
-            print("hf-sync source coverage: pinned Dockerfile-derived controller; reviewed INSPECT_ONLY publication hold")
+            print("hf-sync source coverage: pinned Dockerfile-derived controller; reviewed diagnostic-bound continuation")
         else:
             print(f"hf-sync legacy mirror set: {len(mirror_explicit)} explicit + "
                   f"{len(mirror_globs)} glob(s)")
@@ -1118,7 +1122,7 @@ def main():
         return 1
 
     print("\nOK: COPY <-> serve.py imports <-> hf-sync source coverage are in lockstep. "
-          "Provider publication remains HELD; live parity is not established by this guard.")
+          "This guard establishes source coverage only; provider effects and live parity remain unverified.")
     return 0
 
 

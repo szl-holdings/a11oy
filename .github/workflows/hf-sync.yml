@@ -5,11 +5,11 @@ name: Sync and Relock Canonical Hugging Face Space
 # the immutable runtime, binds the exact checked-out Git SHA, and verifies the live
 # build-info contract. This caller retains only A11oy-specific terminal evidence.
 # The main-push trigger intentionally has no path filter: every Dockerfile source
-# change enters this canonical workflow; this checkpoint retains the inspection hold.
-#
-# This reviewed source selects a bounded read-only inspection after admission.
-# Preservation, reconciliation and pair configuration are literally disabled;
-# the inspection exits HELD, so downstream publication cannot become eligible.
+# change enters this canonical workflow. This one signed successor consumes the
+# accepted read-only diagnostic and performs a fresh, non-retriable continuation
+# from the already verified private capture. It never replays preservation or the
+# ambiguous 62ca acquisition, and it rechecks the exact empty object set before
+# its first provider write.
 # The permanent target remains Space SZLHOLDINGS/a11oy (szlholdings-a11oy.hf.space).
 # Staging Space ≠ prod DNS. GitHub main SHA and Space runtime SHA can drift;
 # do not claim they match. This workflow does not change DNS. Apex a-11-oy.com
@@ -90,18 +90,18 @@ jobs:
           retention-days: 90
 
   recovery-reconciliation:
-    name: Reconcile the held acquisition before provider mutation
+    name: Reconcile the accepted diagnostic before fresh continuation
     needs: source-admission
-    # The 62ca attempt entered artifact publication with effects unknown.
-    # This source cannot reuse the old absence result as retry authority.
-    if: ${{ github.event_name == 'push' && github.run_attempt == 1 && needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' && false }}
+    if: ${{ github.event_name == 'push' && github.run_attempt == 1 && needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     permissions:
       contents: read
       actions: read
     outputs:
       admitted: ${{ steps.reconciliation.outputs.admitted }}
+      artifact_id: ${{ steps.reconciliation_artifact.outputs.artifact-id }}
+      artifact_sha256: ${{ steps.reconciliation_artifact.outputs.artifact-digest }}
     env:
       HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
       PYTHONDONTWRITEBYTECODE: "1"
@@ -112,48 +112,44 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
           fetch-depth: 1
-      - name: Set up the isolated reconciliation interpreter
+      - name: Set up the isolated diagnostic reconciliation interpreter
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
-      - name: Install the exact read-only reconciliation ABI
+      - name: Install the exact read-only diagnostic ABI
         run: >-
           python -m pip install --disable-pip-version-check --no-cache-dir
           "huggingface_hub==1.31.0" "requests==2.32.5" "cryptography==50.0.1"
-      - name: Require the fixed inspection and unchanged absent private fence
+      - name: Requalify the fixed capture and exact empty provider namespace
         id: reconciliation
-        # The helper admits only the signed direct successor of the inspected
-        # source, its unique first push run, and the exact still-absent HEAD.
-        # This step performs metadata reads only, before any new private copy.
         run: >-
-          python -B scripts/acquire_gdw_durable_storage.py --reconcile-supervised-acquisition
+          python -B scripts/reconcile_gdw_diagnostic_continuation.py --reconcile
           --github-output "$GITHUB_OUTPUT"
-          --output "$RUNNER_TEMP/gdw-supervised-reconciliation.json"
-      - name: Retain the bounded read-only reconciliation decision
+          --output "$RUNNER_TEMP/gdw-diagnostic-continuation.json"
+          --qualification-output "$RUNNER_TEMP/gdw-continuation-qualification.json"
+      - name: Retain only the bounded continuation prerequisite
+        id: reconciliation_artifact
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: canonical-supervised-reconciliation-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/gdw-supervised-reconciliation.json
+          name: canonical-diagnostic-continuation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/gdw-diagnostic-continuation.json
+            ${{ runner.temp }}/gdw-continuation-qualification.json
           if-no-files-found: error
           retention-days: 90
 
   manual-prerequisites:
-    name: Check manual authority prerequisites before provider writes
+    name: Classify the diagnostic-bound continuation without provider writes
     needs: [source-admission, recovery-reconciliation]
-    # Preserve the original authority predicates and exact 1.23.0 helper bytes.
-    # The literal hold makes all private capture copies unreachable in this source.
-    if: ${{ github.event_name == 'push' && github.run_attempt == 1 && needs.source-admission.outputs.publish == 'true' && needs.recovery-reconciliation.result == 'success' && needs.recovery-reconciliation.outputs.admitted == 'true' && false }}
+    if: ${{ github.event_name == 'push' && github.run_attempt == 1 && needs.source-admission.outputs.publish == 'true' && needs.recovery-reconciliation.result == 'success' && needs.recovery-reconciliation.outputs.admitted == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
+      actions: read
     outputs:
       mode: ${{ steps.recovery_mode.outputs.mode }}
-      artifact_id: ${{ steps.prerequisite_artifact.outputs.artifact-id }}
-      artifact_sha256: ${{ steps.prerequisite_artifact.outputs.artifact-digest }}
-    env:
-      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
     steps:
       - name: Checkout the immutable admitted source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -165,82 +161,33 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
-      - name: Install exact metadata client
-        # cryptography parses the live runtime public key for the pinned
-        # installed-authority check (scripts/verify_installed_authority.py).
-        run: python -m pip install --disable-pip-version-check "huggingface_hub==1.23.0" "requests==2.32.5" "cryptography==50.0.1"
-      # Incident recovery acquisition runs before live-signer qualification:
-      # that runtime is unavailable when GDW's integrity guard blocks startup.
-      # The helper rechecks exact main and copies only observed Xet identities
-      # into a new prefix of the existing private evidence bucket. It cannot
-      # restart a Space, change originals, repair SQLite, or admit deployment.
-      - name: Preserve stopped private stores before any runtime mutation
-        id: preserve_stores
-        continue-on-error: true
-        run: >-
-          python -B scripts/preserve_hf_gdw_store.py
-          --supervised-acquisition
-          --output "${{ runner.temp }}/gdw-store-preservation.json"
-      # The verified incident capture is an immutable, source-pinned input.
-      # This read-only follow-up runs after the acquisition guard's expected
-      # blocked exit. Candidate bytes stay private and are never promoted.
-      - name: Qualify the pinned private capture without admitting restore
-        id: qualify_stores
-        if: ${{ always() && steps.preserve_stores.outcome == 'failure' }}
-        continue-on-error: true
-        run: >-
-          python -B scripts/qualify_gdw_store_recovery.py
-          --capture-report docs/operations/evidence/gdw-capture-37223162231.json
-          --historical-anchors docs/operations/evidence/gdw-recovery-historical-anchors.json
-          --output "${{ runner.temp }}/gdw-store-recovery-qualification.json"
-      - name: Classify the exact native candidate without admitting deployment
+      - name: Read the same-run closed continuation prerequisite
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ needs.recovery-reconciliation.outputs.artifact_id }}
+          path: ${{ runner.temp }}/diagnostic-continuation
+      - name: Classify the exact diagnostic-bound candidate without admitting replay
         id: recovery_mode
-        if: ${{ always() }}
         run: >-
-          python -B scripts/acquire_gdw_durable_storage.py --classify-prerequisites
-          --preservation "${{ runner.temp }}/gdw-store-preservation.json"
-          --qualification "${{ runner.temp }}/gdw-store-recovery-qualification.json"
+          python -B scripts/reconcile_gdw_diagnostic_continuation.py --classify
+          --reconciliation "${{ runner.temp }}/diagnostic-continuation/gdw-diagnostic-continuation.json"
+          --qualification "${{ runner.temp }}/diagnostic-continuation/gdw-continuation-qualification.json"
           --github-output "$GITHUB_OUTPUT"
           --output "${{ runner.temp }}/manual-prerequisites.json"
-      - name: Retain metadata checks and fail closed on UNKNOWN authority
-        if: ${{ steps.recovery_mode.outputs.mode != 'managed-recovery' && steps.recovery_mode.outcome == 'success' }}
-        shell: bash
-        run: |
-          set +e
-          python -B scripts/configure_hf_series_a_runtime.py \
-            --repo-id "$CANONICAL_SPACE" --check-only \
-            --output "$RUNNER_TEMP/manual-series-a.json"
-          series_code=$?
-          python -B scripts/configure_hf_gdw_runtime.py \
-            --repo-id "$CANONICAL_SPACE" --check-only \
-            --output "$RUNNER_TEMP/manual-gdw.json"
-          gdw_code=$?
-          set -euo pipefail
-          python -B scripts/check_hf_manual_prerequisites.py \
-            --series-a "$RUNNER_TEMP/manual-series-a.json" --series-a-exit "$series_code" \
-            --gdw "$RUNNER_TEMP/manual-gdw.json" --gdw-exit "$gdw_code" \
-            --source-sha "$GITHUB_SHA" --output "$RUNNER_TEMP/manual-prerequisites.json"
-      - name: Retain bounded prerequisite decision
-        id: prerequisite_artifact
-        if: always()
+      - name: Retain the closed classification decision
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: canonical-manual-prerequisites-${{ github.run_id }}-${{ github.run_attempt }}
-          # Exact allowlist: raw captures, SQLite copies and SDK caches stay in
-          # a private TemporaryDirectory and are never Actions artifacts.
-          path: |
-            ${{ runner.temp }}/manual-prerequisites.json
-            ${{ runner.temp }}/gdw-store-preservation.json
-            ${{ runner.temp }}/gdw-store-recovery-qualification.json
+          path: ${{ runner.temp }}/manual-prerequisites.json
           if-no-files-found: error
           retention-days: 90
 
   durable-acquisition:
     name: Acquire qualified private storage through the canonical publisher
     needs: [source-admission, recovery-reconciliation, manual-prerequisites]
-    # Retain the native job identity and dependency graph. Only the owned first
-    # push may inspect through both literal holds; successful copies cannot enter.
-    if: ${{ github.event_name == 'push' && github.run_attempt == 1 && always() && needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' && needs.recovery-reconciliation.result == 'skipped' && needs.manual-prerequisites.result == 'skipped' }}
+    # One first push may continue only after the same-run read-only prerequisite.
+    # Any uncertain provider outcome fails closed and is never automatically rerun.
+    if: ${{ github.event_name == 'push' && github.run_attempt == 1 && always() && needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' && needs.recovery-reconciliation.result == 'success' && needs.recovery-reconciliation.outputs.admitted == 'true' && needs.manual-prerequisites.result == 'success' && needs.manual-prerequisites.outputs.mode == 'managed-recovery' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -263,7 +210,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: szl-holdings/.github
-          ref: e3ec47ad2e99a535839afe0f30fefbd8973d52da
+          ref: fc71ae973a0f31b8e9ee793fc8545a354448d451
           path: .gdw-source-publisher
           persist-credentials: false
           fetch-depth: 1
@@ -272,34 +219,35 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install the exact managed acquisition ABI
-        # The prior preservation/qualification job retains its exact 1.23.0
-        # interpreter. No environment is silently upgraded across those jobs.
+        # This is the same ABI used by the accepted read-only diagnostic and
+        # the immediately preceding reconciliation job.
         run: >-
           python -m pip install --disable-pip-version-check --no-cache-dir
           "huggingface_hub==1.31.0" "requests==2.32.5" "cryptography==50.0.1"
-      - name: Inspect the held prior acquisition without provider mutation
-        # The separate fixed 62ca reader binds the native failure artifact
-        # before bounded dataset metadata reads; prior private effects stay unknown.
-        # Every result exits 2/HELD; no acquisition, retry or locator is admitted.
+      - name: Continue once from the accepted diagnostic and verified capture
         run: >-
-          python -B scripts/acquire_gdw_durable_storage.py --inspect-held-acquisition
+          python -B scripts/acquire_gdw_durable_storage.py --continue-diagnostic-recovery
+          --source-artifact-id "${{ needs.source-admission.outputs.artifact_id }}"
+          --source-artifact-sha256 "${{ needs.source-admission.outputs.artifact_sha256 }}"
+          --reconciliation-artifact-id "${{ needs.recovery-reconciliation.outputs.artifact_id }}"
+          --reconciliation-artifact-sha256 "${{ needs.recovery-reconciliation.outputs.artifact_sha256 }}"
+          --publisher-script "${{ github.workspace }}/.gdw-source-publisher/.github/scripts/hf_deploy_from_dockerfile.py"
           --output "$RUNNER_TEMP/gdw-durable-acquisition.json"
       - name: Install the persistent old-source guard and both managed configurations once
-        # Inspection never supplies an acquisition locator. Keep the existing
-        # pair command literally disabled even if a prior step's result changes.
-        if: ${{ github.ref == 'refs/heads/main' && false }}
         run: >-
           python -B scripts/configure_hf_gdw_runtime.py
           --managed-acquisition "$RUNNER_TEMP/gdw-durable-acquisition.json"
           --source-sha "$GITHUB_SHA" --managed-deadline-seconds 120
           --output "$RUNNER_TEMP/gdw-managed-configuration.json"
-      - name: Retain only the bounded inspection metadata report
+      - name: Retain only the immutable selector and guarded configuration result
         id: acquisition_artifact
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: canonical-durable-acquisition-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/gdw-durable-acquisition.json
+          path: |
+            ${{ runner.temp }}/gdw-durable-acquisition.json
+            ${{ runner.temp }}/gdw-managed-configuration.json
           if-no-files-found: error
           retention-days: 90
 
@@ -472,7 +420,7 @@ jobs:
     name: Deploy, source-bind, and attest exact surface
     needs: [source-admission, manual-prerequisites, durable-acquisition, resume-paused-space]
     if: ${{ github.event_name == 'push' && github.run_attempt == 1 && always() && needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && ((needs.manual-prerequisites.outputs.mode == 'managed-recovery' && needs.durable-acquisition.result == 'success') || (needs.manual-prerequisites.outputs.mode != 'managed-recovery' && needs.resume-paused-space.result == 'success')) }}
-    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@e3ec47ad2e99a535839afe0f30fefbd8973d52da
+    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
     with:
       hf-repo: SZLHOLDINGS/a11oy
       ref: ${{ github.sha }}
@@ -616,10 +564,9 @@ jobs:
 
   publish-finance-projection:
     name: Rebind and functionally verify the existing Finance projection
-    # Finance validates the exact backend SHA, so every successful canonical
-    # relock must update it through the same established scoped publisher.
-    # An explicitly requested estate publication already owns Finance.
-    if: ${{ github.event_name == 'push' && github.run_attempt == 1 && needs.manual-prerequisites.result == 'success' && (github.event_name == 'push' || !inputs.publish_vertical_flagships) }}
+    # This one-shot source transition is authorized only for canonical A11oy
+    # recovery. Finance remains structurally present but unreachable here.
+    if: ${{ github.event_name == 'push' && github.run_attempt == 1 && needs.manual-prerequisites.result == 'success' && false }}
     needs: [manual-prerequisites, relock]
     runs-on: ubuntu-latest
     timeout-minutes: 30
