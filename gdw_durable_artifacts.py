@@ -266,14 +266,22 @@ class ArtifactCache:
             # Validate all retained rows before making any provider call. A bad
             # later row cannot cause partial publication of an unqualified set.
             if not pending:
-                results = {}
+                pass
             elif self.publish_many is None:
-                results = {}
-                for object_path, (physical_path, digest, _size) in pending.items():
+                for object_path, (physical_path, digest, size) in pending.items():
                     _deadline(deadline)
                     boundary = "ARTIFACT_PROVIDER_CALL_UNAVAILABLE"
-                    results[object_path] = self.publish(
+                    result = self.publish(
                         physical_path, object_path, digest, deadline)
+                    boundary = "ARTIFACT_PROVIDER_READBACK_UNAVAILABLE"
+                    _deadline(deadline)
+                    if (not isinstance(result, Mapping)
+                            or result.get("path") != object_path
+                            or result.get("sha256") != digest
+                            or result.get("size") != size
+                            or not HEX64.fullmatch(str(result.get("xet_hash") or ""))):
+                        raise _ArtifactValidationBlocked("ARTIFACT_PUBLICATION_UNVERIFIED")
+                    report["verified_count"] += 1
             else:
                 _deadline(deadline)
                 boundary = "ARTIFACT_PROVIDER_CALL_UNAVAILABLE"
@@ -281,15 +289,17 @@ class ArtifactCache:
                 boundary = "ARTIFACT_PROVIDER_READBACK_UNAVAILABLE"
                 if not isinstance(results, Mapping) or set(results) != set(pending):
                     raise _ArtifactValidationBlocked("ARTIFACT_PUBLICATION_UNVERIFIED")
-            for object_path, (_physical_path, digest, size) in pending.items():
-                boundary = "ARTIFACT_PROVIDER_READBACK_UNAVAILABLE"
-                _deadline(deadline)
-                result = results.get(object_path)
-                if (not isinstance(result, Mapping) or result.get("path") != object_path
-                        or result.get("sha256") != digest or result.get("size") != size
-                        or not HEX64.fullmatch(str(result.get("xet_hash") or ""))):
-                    raise _ArtifactValidationBlocked("ARTIFACT_PUBLICATION_UNVERIFIED")
-                report["verified_count"] += 1
+                for object_path, (_physical_path, digest, size) in pending.items():
+                    boundary = "ARTIFACT_PROVIDER_READBACK_UNAVAILABLE"
+                    _deadline(deadline)
+                    result = results.get(object_path)
+                    if (not isinstance(result, Mapping)
+                            or result.get("path") != object_path
+                            or result.get("sha256") != digest
+                            or result.get("size") != size
+                            or not HEX64.fullmatch(str(result.get("xet_hash") or ""))):
+                        raise _ArtifactValidationBlocked("ARTIFACT_PUBLICATION_UNVERIFIED")
+                    report["verified_count"] += 1
             _deadline(deadline)
             self.last_report = report
             return dict(report)

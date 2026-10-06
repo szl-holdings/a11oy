@@ -296,6 +296,12 @@ def test_fence_artifact_reader_uses_official_hf_131_mock_transport(tmp_path, pre
 
     def response(request):
         requests.append(request)
+        assert request.url.scheme == "https"
+        assert request.url.host == "huggingface.co"
+        assert "authorization" not in request.headers
+        if request.url.path == "/api/agent-harnesses":
+            assert request.method == "GET"
+            return httpx.Response(200, json=[], request=request)
         assert request.method == "POST"
         assert request.url.path == (
             "/api/buckets/SZLHOLDINGS/szl-evidence/paths-info")
@@ -312,7 +318,13 @@ def test_fence_artifact_reader_uses_official_hf_131_mock_transport(tmp_path, pre
         observed = fence._artifact(path)
     finally:
         huggingface_hub.set_client_factory(default_client_factory)
-    assert len(requests) == 1
+    bucket_requests = [request for request in requests if request.url.path == (
+        "/api/buckets/SZLHOLDINGS/szl-evidence/paths-info")]
+    assert len(bucket_requests) == 1
+    assert all(request.url.path in {
+        "/api/agent-harnesses",
+        "/api/buckets/SZLHOLDINGS/szl-evidence/paths-info",
+    } for request in requests)
     assert (observed is None) is (not present)
     if present:
         assert storage._value(observed, "path") == path
@@ -337,6 +349,106 @@ def test_official_hf_131_sends_all_152_missing_additions_in_one_sdk_batch(monkey
     assert calls[0][0] == storage.BUCKET
     assert calls[0][1]["add"] == additions
     assert calls[0][1]["copy"] == calls[0][1]["delete"] == []
+
+
+def test_official_hf_131_batch_uses_one_exact_add_only_http_request():
+    huggingface_hub = pytest.importorskip("huggingface_hub")
+    httpx = pytest.importorskip("httpx")
+    assert huggingface_hub.__version__ == "1.31.0"
+    from huggingface_hub.hf_api import _BucketAddFile
+    from huggingface_hub.utils._http import default_client_factory
+
+    requests = []
+    paths = [f"{storage.ARTIFACT_PREFIX}/{index:064x}/{'a' * 64}.json"
+             for index in range(continuation.DIAGNOSTIC_MISSING_OBJECT_COUNT)]
+
+    def response(request):
+        requests.append(request)
+        assert request.url.scheme == "https"
+        assert request.url.host == "huggingface.co"
+        assert "authorization" not in request.headers
+        if request.url.path == "/api/agent-harnesses":
+            assert request.method == "GET"
+            return httpx.Response(200, json=[], request=request)
+        assert request.method == "POST"
+        assert request.url.path == (
+            "/api/buckets/SZLHOLDINGS/szl-evidence/batch")
+        assert request.headers["content-type"] == "application/x-ndjson"
+        payload = [json.loads(line) for line in request.content.splitlines()]
+        assert len(payload) == continuation.DIAGNOSTIC_MISSING_OBJECT_COUNT
+        assert [item["path"] for item in payload] == paths
+        assert all(set(item) == {
+                       "type", "path", "xetHash", "mtime", "contentType"}
+                   and item["type"] == "addFile"
+                   and item["xetHash"] == "c" * 64
+                   and item["contentType"] == "application/json"
+                   and type(item["mtime"]) is int for item in payload)
+        return httpx.Response(200, json={}, request=request)
+
+    huggingface_hub.set_client_factory(lambda: storage.bounded_hub_client(
+        transport=httpx.MockTransport(response)))
+    try:
+        api = huggingface_hub.HfApi(endpoint=storage.ENDPOINT, token=False)
+        operations = [_BucketAddFile(
+            source=b"x", destination=path, xet_hash="c" * 64, size=1)
+            for path in paths]
+        api._batch_bucket_files(storage.BUCKET, add=operations, token=False)
+    finally:
+        huggingface_hub.set_client_factory(default_client_factory)
+
+    batch_requests = [request for request in requests if request.url.path == (
+        "/api/buckets/SZLHOLDINGS/szl-evidence/batch")]
+    assert len(batch_requests) == 1
+    assert all(request.url.path in {
+        "/api/agent-harnesses",
+        "/api/buckets/SZLHOLDINGS/szl-evidence/batch",
+    } for request in requests)
+
+
+@pytest.mark.parametrize("failure", [
+    "retryable_status", "redirect", "timeout", "malformed_response",
+])
+def test_official_hf_131_batch_ambiguous_failure_is_never_resubmitted(failure):
+    huggingface_hub = pytest.importorskip("huggingface_hub")
+    httpx = pytest.importorskip("httpx")
+    assert huggingface_hub.__version__ == "1.31.0"
+    from huggingface_hub.hf_api import _BucketAddFile
+    from huggingface_hub.utils._http import default_client_factory
+
+    requests = []
+    path = f"{storage.ARTIFACT_PREFIX}/{'a' * 64}/{'b' * 64}.json"
+
+    def response(request):
+        if request.url.path == "/api/agent-harnesses":
+            return httpx.Response(200, json=[], request=request)
+        requests.append(request)
+        assert request.method == "POST"
+        assert request.url.path == (
+            "/api/buckets/SZLHOLDINGS/szl-evidence/batch")
+        if failure == "retryable_status":
+            return httpx.Response(503, request=request)
+        if failure == "redirect":
+            return httpx.Response(307, headers={"location": str(request.url)},
+                                  request=request)
+        if failure == "timeout":
+            raise httpx.ReadTimeout("synthetic ambiguous timeout", request=request)
+        raise httpx.RemoteProtocolError(
+            "synthetic malformed response", request=request)
+
+    huggingface_hub.set_client_factory(lambda: storage.bounded_hub_client(
+        transport=httpx.MockTransport(response)))
+    try:
+        api = huggingface_hub.HfApi(endpoint=storage.ENDPOINT, token=False)
+        operation = _BucketAddFile(
+            source=b"x", destination=path, xet_hash="c" * 64, size=1)
+        with pytest.raises(storage.StorageBlocked,
+                           match="^STORAGE_OUTCOME_UNCERTAIN$"):
+            api._batch_bucket_files(
+                storage.BUCKET, add=[operation], token=False)
+    finally:
+        huggingface_hub.set_client_factory(default_client_factory)
+
+    assert len(requests) == 1
 
 
 def test_fence_artifact_reader_consumes_at_most_two_generator_rows(tmp_path):

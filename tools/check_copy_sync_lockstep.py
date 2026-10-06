@@ -655,7 +655,7 @@ REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
     "gdw_durable_source.py": "b4f4fb0f268e63a1976a14a18bed9774102e2807f3c72506ca7657ed02fcff0d",
     "gdw_durable_guard.py": "33062e1fc067f037d1df3d8f6038d6b8eab72356923f8fb18c22b2697f1b9ae3",
     "gdw_durable_image.py": "bbe71d8aa53494d5e22eac029cf4ecb378cbcb7ac3017b349d373c1d6c27142d",
-    "gdw_durable_artifacts.py": "5058592aa43f450e0ef305df91826a90d2bac8e14ddffbd9467303a44f5cb35a",
+    "gdw_durable_artifacts.py": "f95b52bbe286b855de26ad7ccd769389977f29f47419f1e31ecaf4c4b9072ee0",
     "gdw_auth.py": "c692593e02873f7b71b9a108fa42a9c2ae7f29d455596d9dd0a4236145297e89",
     "gdw_workspace.py": "967652dadaf814afd0caabcc05a037f2f6a941e90b891b4edca25cee748655c8",
     "gdw_proofs.py": "445c9cc5cd38a1660ef815b81ad0f65f68b996b30a479f2c606a12dd8679cc8c",
