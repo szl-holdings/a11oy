@@ -431,21 +431,27 @@ def pause_qualified_source(api, expected: dict, *, require_owned_source,
     before = observe_originals(api, expected, require_owned_source=require_owned_source, deadline=deadline)
     _require(before["stage"] in {"PAUSED", "RUNTIME_ERROR"}, "LEGACY_STOP_STATE_UNQUALIFIED")
     attempted = before["stage"] != "PAUSED"
+    acknowledgement = "NOT_APPLICABLE"
     if attempted:
         (require_prewrite if require_prewrite is not None else require_owned_source)()
         _budget(deadline)
+        acknowledgement = "NOT_ESTABLISHED"
         try:
             reply = api.pause_space(repo_id=storage.SPACE)
             stage = storage._value(reply, "stage")
             stage = storage._value(stage, "value", stage)
             _require(stage == "PAUSED", "PAUSE_OUTCOME_UNCERTAIN")
+            acknowledgement = "ACKNOWLEDGED"
         except BaseException:
-            raise AcquisitionBlocked("PAUSE_OUTCOME_UNCERTAIN") from None
+            # An unreadable reply cannot authorize a retry. Only two fresh,
+            # source-bound observations can establish the required state.
+            pass
     first = observe_originals(api, expected, require_owned_source=require_owned_source, deadline=deadline)
     second = observe_originals(api, expected, require_owned_source=require_owned_source, deadline=deadline)
     _require(first["stage"] == second["stage"] == "PAUSED" and first["hf_revision"] == second["hf_revision"],
-        "PAUSED_READBACK_REQUIRED")
+        "PAUSE_OUTCOME_UNCERTAIN" if acknowledgement == "NOT_ESTABLISHED" else "PAUSED_READBACK_REQUIRED")
     return {"state": "PAUSED_SOURCE_AND_ORIGINAL_IDENTITIES_VERIFIED", "pause_submitted": attempted,
+        "pause_acknowledgement": acknowledgement,
         "space_revision": second["hf_revision"], "observed_at": _utc(),
         "observation_sha256": hashlib.sha256(canonical([before, first, second])).hexdigest()}
 
@@ -534,8 +540,14 @@ def acquire_pair(api, *, source_context: dict, qualification_context: dict,
     base_observation = image.validate_runtime_base_observation(base_observation, source_revision, dockerfile["sha256"])
     _require(base_observation["execution"]["run_id"] == source_context["run_id"]
         and base_observation["execution"]["run_attempt"] == source_context["run_attempt"], "BASE_PROBE_RUN_MISMATCH")
+    pause_submitted = paused.get("pause_submitted")
+    pause_acknowledgement = paused.get("pause_acknowledgement")
     _require(paused.get("state") == "PAUSED_SOURCE_AND_ORIGINAL_IDENTITIES_VERIFIED"
-        and paused.get("space_revision") == guard.SPACE_REVISION, "PAUSED_SOURCE_PROOF_REQUIRED")
+        and paused.get("space_revision") == guard.SPACE_REVISION
+        and type(pause_submitted) is bool
+        and ((pause_submitted and pause_acknowledgement in {"ACKNOWLEDGED", "NOT_ESTABLISHED"})
+             or (not pause_submitted and pause_acknowledgement == "NOT_APPLICABLE")),
+        "PAUSED_SOURCE_PROOF_REQUIRED")
     legacy = {"schema": guard.SCHEMA, "state": "QUALIFIED_LEGACY_STARTUP_GUARD",
         "space_revision": guard.SPACE_REVISION, "image": guard.IMAGE,
         "command": ["python", "gdw_runtime.py"], "working_directory": "/app",

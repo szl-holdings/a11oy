@@ -633,7 +633,7 @@ REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
     # include these local imports and fixed dynamic loaders. Runtime-installed
     # application bytes and the remote publisher have their own source-bound
     # manifest contract; this map binds the code that verifies that contract.
-    "scripts/acquire_gdw_durable_storage.py": "0aeddf2565d0fc6031b500b5936cf7e06e4e10dc3e51f43ecd33bb7890485949",
+    "scripts/acquire_gdw_durable_storage.py": "735389fcf8522e080936d95e17c56027a3ed603831fc846818348f877fc050aa",
     # The successor controller, the isolated native object observer it reuses,
     # and the reviewed side-effect boundary are a single source contract.
     "scripts/reconcile_gdw_diagnostic_continuation.py": "f5b249b884d889b8400898a97f19d2a4d6cf4966b3db2ab3ae0d10d845961c0e",

@@ -1046,4 +1046,5 @@ def test_pause_rechecks_the_complete_namespace_immediately_before_mutation(monke
         require_prewrite=lambda: events.append("complete-namespace"),
         deadline=time.monotonic() + 30)
     assert result["pause_submitted"] is True
+    assert result["pause_acknowledgement"] == "ACKNOWLEDGED"
     assert events == ["complete-namespace", "pause"]

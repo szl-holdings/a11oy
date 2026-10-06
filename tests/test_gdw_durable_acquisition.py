@@ -190,15 +190,42 @@ def test_pause_reads_actual_state_and_unchanged_original_identities(stage, expec
     assert api.pauses == expected_effects
     assert result["state"] == "PAUSED_SOURCE_AND_ORIGINAL_IDENTITIES_VERIFIED"
     assert result["pause_submitted"] is bool(expected_effects)
+    assert result["pause_acknowledgement"] == ("ACKNOWLEDGED" if expected_effects else "NOT_APPLICABLE")
     assert len(source_checks) >= 3
 
 
-def test_lost_pause_acknowledgement_is_not_retried_even_if_provider_paused():
+@pytest.mark.parametrize("reply", ["exception", "malformed"])
+def test_uncertain_pause_reply_uses_stable_readback_without_retry(reply):
     api = PausedAPI(); api.fail = True
+    if reply == "malformed":
+        api.fail = False
+        def malformed(**kwargs):
+            assert kwargs == {"repo_id": storage.SPACE}
+            api.pauses += 1
+            api.stage = "PAUSED"
+            return {}
+        api.pause_space = malformed
+    result = acquisition.pause_qualified_source(api, acquisition.original_identities(qualified_fixture()[2]),
+        require_owned_source=lambda: None, deadline=time.monotonic() + 10)
+    assert api.stage == "PAUSED" and api.pauses == 1
+    assert result["pause_submitted"] is True
+    assert result["pause_acknowledgement"] == "NOT_ESTABLISHED"
+
+
+@pytest.mark.parametrize("reply", ["exception", "malformed"])
+def test_uncertain_pause_reply_without_stable_paused_readback_is_held(reply):
+    api = PausedAPI()
+    def uncertain(**kwargs):
+        assert kwargs == {"repo_id": storage.SPACE}
+        api.pauses += 1
+        if reply == "exception":
+            raise TimeoutError("synthetic lost reply")
+        return {}
+    api.pause_space = uncertain
     with pytest.raises(acquisition.AcquisitionBlocked, match="PAUSE_OUTCOME_UNCERTAIN"):
         acquisition.pause_qualified_source(api, acquisition.original_identities(qualified_fixture()[2]),
             require_owned_source=lambda: None, deadline=time.monotonic() + 10)
-    assert api.stage == "PAUSED" and api.pauses == 1
+    assert api.stage == "RUNTIME_ERROR" and api.pauses == 1
 
 
 @pytest.mark.parametrize("defect", ["running", "changed_original", "source_superseded"])
@@ -276,6 +303,82 @@ def test_pause_transport_requires_2xx_and_never_retries(outcome):
     assert len(calls) == 1
 
 
+@pytest.mark.parametrize("outcome,readback_stage,expected", [
+    ("valid", "PAUSED", "ACKNOWLEDGED"),
+    ("malformed", "PAUSED", "NOT_ESTABLISHED"),
+    ("non_paused", "RUNTIME_ERROR", "BLOCKED"),
+    ("lost_reply", "PAUSED", "NOT_ESTABLISHED"),
+])
+def test_official_hf_131_pause_response_never_retries_and_requires_readback(
+        tmp_path, monkeypatch, outcome, readback_stage, expected):
+    huggingface_hub = pytest.importorskip("huggingface_hub")
+    httpx = pytest.importorskip("httpx")
+    assert huggingface_hub.__version__ == "1.31.0"
+    from huggingface_hub.utils import _detect_agent
+    from huggingface_hub.utils._http import default_client_factory
+
+    monkeypatch.setattr(_detect_agent, "_registry", None)
+    monkeypatch.setattr(_detect_agent.constants, "AGENT_HARNESSES_PATH",
+                        str(tmp_path / "agent-harnesses.json"))
+    requests = []
+
+    def response(request):
+        requests.append(request)
+        assert request.url.scheme == "https"
+        assert request.url.host == "huggingface.co"
+        assert "authorization" not in request.headers
+        if request.url.path == "/api/agent-harnesses":
+            assert request.method == "GET"
+            return httpx.Response(200, json={
+                "standardEnvVars": [], "harnesses": {}}, request=request)
+        assert request.method == "POST"
+        assert request.url.path == "/api/spaces/SZLHOLDINGS/a11oy/pause"
+        if outcome == "lost_reply":
+            raise httpx.ReadTimeout("synthetic lost reply", request=request)
+        if outcome == "malformed":
+            return httpx.Response(200, json={"stage": "PAUSED", "hardware": None}, request=request)
+        stage = "PAUSED" if outcome == "valid" else "RUNTIME_ERROR"
+        return httpx.Response(200, json={"stage": stage,
+            "hardware": {"current": None, "requested": "cpu-basic"}}, request=request)
+
+    observations = iter((
+        {"stage": "RUNTIME_ERROR", "hf_revision": guard.SPACE_REVISION},
+        {"stage": readback_stage, "hf_revision": guard.SPACE_REVISION},
+        {"stage": readback_stage, "hf_revision": guard.SPACE_REVISION},
+    ))
+    def observe(_api, _expected, *, require_owned_source, deadline):
+        require_owned_source()
+        assert deadline > time.monotonic()
+        return next(observations)
+    monkeypatch.setattr(acquisition, "observe_originals", observe)
+    huggingface_hub.set_client_factory(
+        lambda: httpx.Client(transport=httpx.MockTransport(response)))
+    try:
+        api = huggingface_hub.HfApi(endpoint=storage.ENDPOINT, token=False)
+        if expected == "BLOCKED":
+            with pytest.raises(acquisition.AcquisitionBlocked,
+                               match="^PAUSE_OUTCOME_UNCERTAIN$"):
+                acquisition.pause_qualified_source(api, {},
+                    require_owned_source=lambda: None,
+                    deadline=time.monotonic() + 30)
+        else:
+            result = acquisition.pause_qualified_source(api, {},
+                require_owned_source=lambda: None,
+                deadline=time.monotonic() + 30)
+            assert result["pause_submitted"] is True
+            assert result["pause_acknowledgement"] == expected
+    finally:
+        huggingface_hub.set_client_factory(default_client_factory)
+
+    pause_requests = [request for request in requests
+                      if request.url.path == "/api/spaces/SZLHOLDINGS/a11oy/pause"]
+    agent_requests = [request for request in requests
+                      if request.url.path == "/api/agent-harnesses"]
+    assert len(pause_requests) == 1
+    assert len(agent_requests) == 1
+    assert len(requests) == 2
+
+
 @pytest.fixture
 def native_acquisition(stores, tmp_path, monkeypatch):
     """Real acquisition/core/stores/artifact path; only archived evidence and Hub are synthetic."""
@@ -309,7 +412,8 @@ def native_acquisition(stores, tmp_path, monkeypatch):
     report["historical_anchor_reference"]["capture_report_sha256"] = hashlib.sha256(captured).hexdigest()
     record = admission()
     legacy, observation = guard_fixture()
-    pause = {"state": "PAUSED_SOURCE_AND_ORIGINAL_IDENTITIES_VERIFIED", "space_revision": guard.SPACE_REVISION,
+    pause = {"state": "PAUSED_SOURCE_AND_ORIGINAL_IDENTITIES_VERIFIED", "pause_submitted": False,
+        "pause_acknowledgement": "NOT_APPLICABLE", "space_revision": guard.SPACE_REVISION,
         "observed_at": "2026-10-04T17:00:00Z", "observation_sha256": "7" * 64}
     probe = {"state": "PREWRITE_REJECTION_VERIFIED", "scope": guard.PROBE_SCOPE, "python_version": "3.14.0",
         "source_files_sha256": dict(guard.SOURCE_FILES), "source_closure_sha256": legacy["native_probe"]["source_closure_sha256"],
@@ -422,12 +526,14 @@ def test_real_pair_artifacts_restore_and_absent_bootstrap_are_acknowledged_toget
         assert (state.arguments["workspace"] / "roundtrip" / (label + ".sqlite3")).read_bytes() == data
 
 
-@pytest.mark.parametrize("defect", ["existing_head", "source_superseded", "not_paused", "candidate_changed", "reconciliation_changed"])
+@pytest.mark.parametrize("defect", ["existing_head", "source_superseded", "not_paused", "pause_proof",
+    "candidate_changed", "reconciliation_changed"])
 def test_unqualified_pair_never_publishes_private_objects_or_bootstrap(native_acquisition, defect):
     state = native_acquisition
     if defect == "existing_head": state.api.repositories[state.api.revision][storage.HEAD_PATH] = b"prior"
     if defect == "source_superseded": state.api.source_current = False
     if defect == "not_paused": state.api.stage = "RUNTIME_ERROR"
+    if defect == "pause_proof": state.arguments["paused"]["pause_acknowledgement"] = "ACKNOWLEDGED"
     if defect == "candidate_changed": state.originals["gdw"] += b"changed"
     if defect == "reconciliation_changed": state.api.reconciliation_changed = True
     with pytest.raises((acquisition.AcquisitionBlocked, storage.StorageBlocked)):
