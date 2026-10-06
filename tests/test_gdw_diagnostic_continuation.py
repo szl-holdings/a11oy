@@ -282,11 +282,17 @@ def test_fence_artifact_reader_accepts_sdk_shaped_empty_and_present_generators(t
 
 
 @pytest.mark.parametrize("present", [False, True])
-def test_fence_artifact_reader_uses_official_hf_131_mock_transport(tmp_path, present):
+def test_fence_artifact_reader_uses_official_hf_131_mock_transport(
+        tmp_path, monkeypatch, present):
     huggingface_hub = pytest.importorskip("huggingface_hub")
     httpx = pytest.importorskip("httpx")
     assert huggingface_hub.__version__ == "1.31.0"
+    from huggingface_hub.utils import _detect_agent
     from huggingface_hub.utils._http import default_client_factory
+
+    monkeypatch.setattr(_detect_agent, "_registry", None)
+    monkeypatch.setattr(_detect_agent.constants, "AGENT_HARNESSES_PATH",
+                        str(tmp_path / "agent-harnesses.json"))
 
     path = f"{storage.ARTIFACT_PREFIX}/{'a' * 64}/{'b' * 64}.json"
     requests = []
@@ -301,7 +307,8 @@ def test_fence_artifact_reader_uses_official_hf_131_mock_transport(tmp_path, pre
         assert "authorization" not in request.headers
         if request.url.path == "/api/agent-harnesses":
             assert request.method == "GET"
-            return httpx.Response(200, json=[], request=request)
+            return httpx.Response(200, json={
+                "standardEnvVars": [], "harnesses": {}}, request=request)
         assert request.method == "POST"
         assert request.url.path == (
             "/api/buckets/SZLHOLDINGS/szl-evidence/paths-info")
@@ -320,7 +327,10 @@ def test_fence_artifact_reader_uses_official_hf_131_mock_transport(tmp_path, pre
         huggingface_hub.set_client_factory(default_client_factory)
     bucket_requests = [request for request in requests if request.url.path == (
         "/api/buckets/SZLHOLDINGS/szl-evidence/paths-info")]
+    agent_requests = [request for request in requests
+                      if request.url.path == "/api/agent-harnesses"]
     assert len(bucket_requests) == 1
+    assert len(agent_requests) == 1
     assert all(request.url.path in {
         "/api/agent-harnesses",
         "/api/buckets/SZLHOLDINGS/szl-evidence/paths-info",
@@ -351,12 +361,18 @@ def test_official_hf_131_sends_all_152_missing_additions_in_one_sdk_batch(monkey
     assert calls[0][1]["copy"] == calls[0][1]["delete"] == []
 
 
-def test_official_hf_131_batch_uses_one_exact_add_only_http_request():
+def test_official_hf_131_batch_uses_one_exact_add_only_http_request(
+        tmp_path, monkeypatch):
     huggingface_hub = pytest.importorskip("huggingface_hub")
     httpx = pytest.importorskip("httpx")
     assert huggingface_hub.__version__ == "1.31.0"
     from huggingface_hub.hf_api import _BucketAddFile
+    from huggingface_hub.utils import _detect_agent
     from huggingface_hub.utils._http import default_client_factory
+
+    monkeypatch.setattr(_detect_agent, "_registry", None)
+    monkeypatch.setattr(_detect_agent.constants, "AGENT_HARNESSES_PATH",
+                        str(tmp_path / "agent-harnesses.json"))
 
     requests = []
     paths = [f"{storage.ARTIFACT_PREFIX}/{index:064x}/{'a' * 64}.json"
@@ -369,7 +385,8 @@ def test_official_hf_131_batch_uses_one_exact_add_only_http_request():
         assert "authorization" not in request.headers
         if request.url.path == "/api/agent-harnesses":
             assert request.method == "GET"
-            return httpx.Response(200, json=[], request=request)
+            return httpx.Response(200, json={
+                "standardEnvVars": [], "harnesses": {}}, request=request)
         assert request.method == "POST"
         assert request.url.path == (
             "/api/buckets/SZLHOLDINGS/szl-evidence/batch")
@@ -398,7 +415,10 @@ def test_official_hf_131_batch_uses_one_exact_add_only_http_request():
 
     batch_requests = [request for request in requests if request.url.path == (
         "/api/buckets/SZLHOLDINGS/szl-evidence/batch")]
+    agent_requests = [request for request in requests
+                      if request.url.path == "/api/agent-harnesses"]
     assert len(batch_requests) == 1
+    assert len(agent_requests) == 1
     assert all(request.url.path in {
         "/api/agent-harnesses",
         "/api/buckets/SZLHOLDINGS/szl-evidence/batch",
@@ -408,19 +428,32 @@ def test_official_hf_131_batch_uses_one_exact_add_only_http_request():
 @pytest.mark.parametrize("failure", [
     "retryable_status", "redirect", "timeout", "malformed_response",
 ])
-def test_official_hf_131_batch_ambiguous_failure_is_never_resubmitted(failure):
+def test_official_hf_131_batch_ambiguous_failure_is_never_resubmitted(
+        tmp_path, monkeypatch, failure):
     huggingface_hub = pytest.importorskip("huggingface_hub")
     httpx = pytest.importorskip("httpx")
     assert huggingface_hub.__version__ == "1.31.0"
     from huggingface_hub.hf_api import _BucketAddFile
+    from huggingface_hub.utils import _detect_agent
     from huggingface_hub.utils._http import default_client_factory
 
+    monkeypatch.setattr(_detect_agent, "_registry", None)
+    monkeypatch.setattr(_detect_agent.constants, "AGENT_HARNESSES_PATH",
+                        str(tmp_path / "agent-harnesses.json"))
+
     requests = []
+    agent_requests = []
     path = f"{storage.ARTIFACT_PREFIX}/{'a' * 64}/{'b' * 64}.json"
 
     def response(request):
+        assert request.url.scheme == "https"
+        assert request.url.host == "huggingface.co"
+        assert "authorization" not in request.headers
         if request.url.path == "/api/agent-harnesses":
-            return httpx.Response(200, json=[], request=request)
+            agent_requests.append(request)
+            assert request.method == "GET"
+            return httpx.Response(200, json={
+                "standardEnvVars": [], "harnesses": {}}, request=request)
         requests.append(request)
         assert request.method == "POST"
         assert request.url.path == (
@@ -449,6 +482,7 @@ def test_official_hf_131_batch_ambiguous_failure_is_never_resubmitted(failure):
         huggingface_hub.set_client_factory(default_client_factory)
 
     assert len(requests) == 1
+    assert len(agent_requests) == 1
 
 
 def test_fence_artifact_reader_consumes_at_most_two_generator_rows(tmp_path):
