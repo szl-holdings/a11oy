@@ -118,6 +118,15 @@ absent HEAD remain unchanged immediately before object publication.
 
 1. If the canonical Space is in `RUNTIME_ERROR`, submit one pause request and
    require two `PAUSED` readbacks. If it is already `PAUSED`, submit no pause.
+   A parsed `PAUSED` reply alone marks the request `ACKNOWLEDGED`. An ordinary
+   exception, lost reply, malformed reply, or non-`PAUSED` reply leaves its
+   acknowledgement `NOT_ESTABLISHED` and never permits resubmission. Only two
+   fresh observations of the exact legacy revision and unchanged original
+   identities, with both stages `PAUSED`, permit readback-based continuation;
+   all source, namespace, and absent-HEAD fences still apply. This establishes
+   the observed stopped state, not acknowledgement of the uncertain request or
+   attribution of historical effects. `KeyboardInterrupt` and `SystemExit`
+   abort this boundary before any subsequent readback or publication.
 2. Preserve the 72 exact pre-existing retained-artifact objects and add only the
    152 missing candidate-derived objects under `a11oy/durable-artifacts/v1/`.
    Protected main, absent HEAD, and the complete 72-object namespace are
@@ -201,7 +210,8 @@ absent HEAD remain unchanged immediately before object publication.
   all 224 private bytes download and pass SHA-256 verification, and the complete
   Xet identity set remains stable. The 72 pre-existing objects are deliberately
   kept in a separate set and never relabelled as writes by this worker.
-- A transport timeout, killed worker, malformed response, moved identity,
+- Except for the bounded pause-readback case above, a transport timeout or
+  malformed response stops the run. A process-control exception, killed worker, moved identity,
   changed source, changed original, path collision, dataset-parent conflict, or
   failed readback stops the run. The closed failure record continues to label
   provider effects `NOT_ESTABLISHED`; it never fabricates a no-effect result.

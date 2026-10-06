@@ -561,6 +561,15 @@ def test_workflow_only_manual_triage_with_fixed_artifact_and_no_publish_path():
     upload = [step for step in job["steps"] if step.get("uses", "").startswith("actions/upload-artifact@")]
     assert len(upload) == 1 and upload[0]["with"]["path"] == "${{ runner.temp }}/gdw-artifact-triage.json"
     assert not any(key in jobs["contract"].get("env", {}) for key in ("HF_TOKEN", "GH_TOKEN"))
+    assert {"scripts/acquire_gdw_durable_storage.py", "tests/test_gdw_durable_acquisition.py"} <= set(
+        triggers["pull_request"]["paths"])
+    contract_steps = jobs["contract"]["steps"]
+    install = next(i for i, step in enumerate(contract_steps)
+                   if "huggingface_hub==1.31.0" in step.get("run", ""))
+    pause_cases = "tests/test_gdw_durable_acquisition.py::test_official_hf_131_pause_response_never_retries_and_requires_readback"
+    cancellation = "tests/test_gdw_diagnostic_continuation.py::test_pause_process_control_stops_diagnostic_continuation"
+    assert any(pause_cases in step.get("run", "") and cancellation in step["run"]
+               for step in contract_steps[install + 1:])
 
 
 def test_native_triage_roots_match_reviewed_worker_not_caller(monkeypatch):

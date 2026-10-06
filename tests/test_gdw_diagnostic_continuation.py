@@ -1030,6 +1030,70 @@ def test_continuation_fence_failure_precedes_first_provider_write(native_acquisi
     assert state.api.additions == state.api.commits == []
 
 
+@pytest.mark.parametrize("interruption", [KeyboardInterrupt, SystemExit])
+def test_pause_process_control_stops_diagnostic_continuation(
+        monkeypatch, native_acquisition, interruption):
+    import importlib
+    modules = {}
+    for name in ("gdw_acquisition_evidence", "probe_gdw_runtime_base",
+                 "probe_gdw_legacy_startup", "build_gdw_installed_source_manifest",
+                 "configure_hf_gdw_runtime", "reconcile_gdw_diagnostic_continuation"):
+        modules[name] = importlib.import_module("scripts." + name)
+        monkeypatch.setitem(sys.modules, name, modules[name])
+    monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(CommitOperationAdd=SimpleNamespace))
+    state = native_acquisition
+    args = state.arguments
+    events = []
+    evidence = SimpleNamespace(source=args["source_context"]["revision"],
+        require_current_main=lambda: None)
+    monkeypatch.setattr(modules["gdw_acquisition_evidence"], "NativeEvidence",
+        lambda *_a: evidence)
+    monkeypatch.setattr(acquisition, "_continuation_inputs", lambda *_a: (
+        args["source_context"], args["qualification_context"], args["qualified"],
+        args["qualification_bytes"], state.api.revision))
+    monkeypatch.setattr(storage, "_hub_api", lambda *_a: state.api)
+    monkeypatch.setattr(continuation, "DiagnosticContinuationFence", lambda *_a: SimpleNamespace(
+        require_head_absent=lambda: None, bind_candidate=lambda *_a: None,
+        require_artifacts_stable=lambda: None))
+    monkeypatch.setattr(acquisition, "_references", lambda: (
+        args["reference"], args["capture_bytes"], args["anchors"], args["anchor_bytes"]))
+    monkeypatch.setattr(acquisition, "select_qualified_capture", lambda *_a: "same-candidate")
+    monkeypatch.setattr(modules["build_gdw_installed_source_manifest"], "build_manifest",
+        lambda *_a, **_k: args["manifest"])
+    monkeypatch.setattr(modules["probe_gdw_runtime_base"], "canonical_context",
+        lambda *_a, **_k: ("synthetic-digest", {}))
+    monkeypatch.setattr(modules["probe_gdw_runtime_base"], "observe_runtime_base",
+        lambda *_a, **_k: args["base_observation"])
+    monkeypatch.setattr(continuation, "observe_current_absence", lambda *_a: (
+        args["qualified"], {"dataset_revision": state.api.revision}))
+    monkeypatch.setattr(modules["probe_gdw_legacy_startup"], "observe_legacy_guard",
+        lambda *_a, **_k: args["guard_probe"])
+    state.api.stage = "RUNTIME_ERROR"
+    def managed_observation(_api):
+        events.append("managed-observation")
+        return dict(args["legacy_observation"], stage=state.api.stage)
+    monkeypatch.setattr(modules["configure_hf_gdw_runtime"], "managed_space_observation",
+        managed_observation)
+    def runtime(**_kwargs):
+        events.append("runtime-observation")
+        return {"stage": state.api.stage}
+    monkeypatch.setattr(state.api, "get_space_runtime", runtime)
+    def pause(**_kwargs):
+        events.append("pause")
+        state.api.stage = "PAUSED"
+        raise interruption()
+    monkeypatch.setattr(state.api, "pause_space", pause)
+    monkeypatch.setattr(acquisition, "acquire_pair", lambda *_a, **_k: events.append("publication"))
+    with pytest.raises(interruption):
+        acquisition._execute_diagnostic_continuation({
+            "publisher_script": str(args["workspace"] / "hf_deploy_from_dockerfile.py"),
+            "reconciliation_artifact_id": 789, "reconciliation_artifact_sha256": "8" * 64,
+        }, args["workspace"], time.monotonic() + 300)
+    assert events == ["managed-observation", "runtime-observation", "pause"]
+    assert state.api.commits == []
+    assert "private_object" not in state.events and "metadata_cas" not in state.events
+
+
 def test_pause_rechecks_the_complete_namespace_immediately_before_mutation(monkeypatch):
     observations = iter(({"stage": "RUNTIME_ERROR", "hf_revision": "1" * 40},
                          {"stage": "PAUSED", "hf_revision": "1" * 40},
@@ -1046,4 +1110,5 @@ def test_pause_rechecks_the_complete_namespace_immediately_before_mutation(monke
         require_prewrite=lambda: events.append("complete-namespace"),
         deadline=time.monotonic() + 30)
     assert result["pause_submitted"] is True
+    assert result["pause_acknowledgement"] == "ACKNOWLEDGED"
     assert events == ["complete-namespace", "pause"]

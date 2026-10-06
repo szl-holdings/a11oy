@@ -11,6 +11,8 @@ on:
       - 'scripts/probe_gdw_runtime_base.py'
       - 'tests/test_gdw_runtime_base_probe.py'
       - 'tests/test_gdw_diagnostic_continuation.py'
+      - 'scripts/acquire_gdw_durable_storage.py'
+      - 'tests/test_gdw_durable_acquisition.py'
       - 'tests/test_gdw_durable_artifacts.py'
       - 'gdw_durable_artifacts.py'
       - 'gdw_durable_storage.py'
@@ -52,6 +54,8 @@ jobs:
           tests/test_gdw_diagnostic_continuation.py::test_official_hf_131_sends_all_152_missing_additions_in_one_sdk_batch
           tests/test_gdw_diagnostic_continuation.py::test_official_hf_131_batch_uses_one_exact_add_only_http_request
           tests/test_gdw_diagnostic_continuation.py::test_official_hf_131_batch_ambiguous_failure_is_never_resubmitted
+          tests/test_gdw_durable_acquisition.py::test_official_hf_131_pause_response_never_retries_and_requires_readback
+          tests/test_gdw_diagnostic_continuation.py::test_pause_process_control_stops_diagnostic_continuation
           -q
   triage:
     needs: contract
