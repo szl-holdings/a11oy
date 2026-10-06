@@ -633,12 +633,12 @@ REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
     # include these local imports and fixed dynamic loaders. Runtime-installed
     # application bytes and the remote publisher have their own source-bound
     # manifest contract; this map binds the code that verifies that contract.
-    "scripts/acquire_gdw_durable_storage.py": "cb4e5e18ff5ee37b3a4e57acd71d21f863488dbd4f497bd4460e7ba571606e0f",
+    "scripts/acquire_gdw_durable_storage.py": "4d1506accdf700a9f20a0d7a867790bb792a042a5132fbf4580b1aa20f80558e",
     # The successor controller, the isolated native object observer it reuses,
     # and the reviewed side-effect boundary are a single source contract.
-    "scripts/reconcile_gdw_diagnostic_continuation.py": "5506d5672ef85e2b8bd8c939e313742801eeadf634547fa1fc51199f10915e41",
+    "scripts/reconcile_gdw_diagnostic_continuation.py": "06016d6e6f134ffa50b19bfa64d0427fbff504440430357ff26bdbceabe07b51",
     "scripts/triage_gdw_artifacts_readonly.py": "5b9e54bea28a2d3045e1283004eb1807453ca68fc5c3647447437f57e90f75b5",
-    "docs/operations/gdw-diagnostic-continuation-side-effects.md": "068f71f28fa740ed22cafd30e58d67dca75cb3ab04f2bbeaec329ae4e3f1bec8",
+    "docs/operations/gdw-diagnostic-continuation-side-effects.md": "19b42447cee43afcaa7c6be3d76c01b48b487263b5a255a8fb5463757b2537bb",
     "scripts/reconcile_gdw_supervised_acquisition.py": "23dd0478cc06d1881ff7c1469833d0192549807a06d5cf822cf8f6d12fdaa994",
     "scripts/inspect_gdw_held_acquisition.py": "61e0b7d6e8236074ebcbbcc424b34d92f257f0c85608f7adbd640136de9e5dc6",
     "scripts/inspect_gdw_62ca_acquisition.py": "d444b298495fc253205287f873f3e0a2b2eeb15eab686ea404983ea61fef97eb",

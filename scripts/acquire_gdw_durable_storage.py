@@ -790,7 +790,8 @@ def _continuation_inputs(request: dict, evidence):
         and hashlib.sha256(qualification_bytes).hexdigest() == reconciliation["qualification_sha256"]
         and context["source_revision"] == evidence.source,
         "NATIVE_QUALIFIED_PREREQUISITE_REQUIRED")
-    return source, qualification_source, qualified, qualification_bytes
+    return (source, qualification_source, qualified, qualification_bytes,
+            reconciliation["dataset_revision"])
 
 
 def _execute_diagnostic_continuation(request: dict, workspace: Path, deadline: float,
@@ -808,12 +809,13 @@ def _execute_diagnostic_continuation(request: dict, workspace: Path, deadline: f
 
     progress.enter("NATIVE_INPUTS")
     evidence = native.NativeEvidence(dict(os.environ), deadline)
-    source, qualification_source, qualified, qualification_bytes = _continuation_inputs(request, evidence)
+    (source, qualification_source, qualified, qualification_bytes,
+     dataset_revision) = _continuation_inputs(request, evidence)
     api = storage._hub_api(os.environ.get("HF_TOKEN", ""))
     fence_directory = workspace / "continuation-fence"
     fence_directory.mkdir(mode=0o700)
     fence = continuation.DiagnosticContinuationFence(
-        api, evidence, deadline, fence_directory)
+        api, evidence, deadline, fence_directory, dataset_revision)
     fence.require_head_absent()
     progress.complete()
     progress.enter("REFERENCE_VALIDATION")
@@ -839,8 +841,10 @@ def _execute_diagnostic_continuation(request: dict, workspace: Path, deadline: f
     # inside this worker before even that first state transition.
     preflight = workspace / "continuation-prewrite"
     preflight.mkdir(mode=0o700)
-    current_qualification, _current_absence = continuation.observe_current_absence(
+    current_qualification, current_absence = continuation.observe_current_absence(
         api, preflight, evidence, deadline)
+    _require(current_absence["dataset_revision"] == dataset_revision,
+        "NATIVE_QUALIFIED_PREREQUISITE_REQUIRED")
     _require(select_qualified_capture(current_qualification, reference, captured,
         evidence.source) == selected, "CANDIDATE_REPRODUCTION_MISMATCH")
     fence.bind_candidate(preflight / "capture" / "working" / "gdw" / "candidate.sqlite3")
