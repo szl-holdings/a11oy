@@ -6772,6 +6772,16 @@ try:
 except Exception as _abt_e:
     print(f"[a11oy] /about + /security NOT registered: {_abt_e}", file=sys.stderr)
 
+# a11oy_about_security is not in the image, so /about had no page and every retired path
+# below redirected to a JSON 404. Without that module, /about goes to the company page.
+if not any(getattr(_r, "path", None) == "/about" for _r in app.router.routes):
+    from starlette.responses import RedirectResponse as _AboutRedir
+
+    async def _about_to_company():
+        return _AboutRedir(url="/company", status_code=307)
+
+    app.add_api_route("/about", _about_to_company, methods=["GET", "HEAD"], include_in_schema=False)
+
 try:
     import a11oy_code_v4 as _code_v4
     _code_status = _code_v4.register(app, ns="a11oy")
