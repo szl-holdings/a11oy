@@ -29,13 +29,14 @@ def diagnostic_report():
     return {
         "artifact_effect_observation": {
             "all_retained_rows_validated": True, "candidate_unchanged": True,
-            "classification": "NO_EXPECTED_OBJECTS_PRESENT_AT_READ_TIME",
+            "classification": "PARTIAL_EXPECTED_OBJECT_SET_PRESENT_AT_READ_TIME",
             "expected_object_count": continuation.EXPECTED_OBJECT_COUNT,
             "expected_object_set_sha256": continuation.EXPECTED_OBJECT_SET_SHA256,
             "historical_writer_attribution": "NOT_ESTABLISHED",
-            "missing_object_count": continuation.EXPECTED_OBJECT_COUNT,
-            "observed_object_set_sha256": continuation.EMPTY_OBJECT_SET_SHA256,
-            "present_object_count": 0, "provider_objects_fully_validated": False,
+            "missing_object_count": continuation.DIAGNOSTIC_MISSING_OBJECT_COUNT,
+            "observed_object_set_sha256": continuation.DIAGNOSTIC_OBSERVED_OBJECT_SET_SHA256,
+            "present_object_count": continuation.DIAGNOSTIC_PRESENT_OBJECT_COUNT,
+            "provider_objects_fully_validated": False,
             "provider_writes_performed": False},
         "capture_qualification": "LOGICAL_CONTINUITY_VERIFIED",
         "captured_originals_unchanged_during_qualification": True,
@@ -72,7 +73,7 @@ def reconciliation_report(source="a" * 40, qualification_sha256="b" * 64,
 
 def test_embedded_diagnostic_receipt_is_the_exact_accepted_closed_record():
     raw = storage.canonical(diagnostic_report())
-    assert len(raw) == 1814
+    assert len(raw) == 1823
     assert hashlib.sha256(raw).hexdigest() == continuation.DIAGNOSTIC_REPORT_SHA256
     assert continuation.validate_diagnostic_report(raw) == diagnostic_report()
 
@@ -177,6 +178,10 @@ class FenceAPI:
         return {"id": storage.DATASET, "private": True,
                 "sha": self.revision}
 
+    def bucket_info(self, *, bucket_id):
+        assert bucket_id == storage.BUCKET
+        return {"id": bucket_id, "private": True}
+
     def get_paths_info(self, repo_id, paths, *, repo_type, revision):
         return []
 
@@ -188,6 +193,12 @@ class FenceAPI:
                 result.append({"path": path, "type": "file", "size": size,
                                "xet_hash": xet})
         return (item for item in result)
+
+    def list_bucket_tree(self, *, bucket_id, prefix, recursive):
+        assert bucket_id == storage.BUCKET and recursive is True
+        return ({"path": path, "type": "file", "size": self.objects[path][0],
+                 "xet_hash": self.objects[path][1]}
+                for path in sorted(self.objects) if path.startswith(prefix + "/"))
 
 
 class Evidence:
@@ -208,6 +219,28 @@ def synthetic_pending(count=continuation.EXPECTED_OBJECT_COUNT):
     return pending
 
 
+def configure_diagnostic_namespace(monkeypatch, api, pending, present_count=0):
+    """Bind synthetic fence tests to their own exact partial namespace."""
+    rows = []
+    for index, (path, (physical, digest, size)) in enumerate(sorted(pending.items())):
+        if index >= present_count:
+            break
+        if hasattr(api, "seed"):
+            item = api.seed(path, physical.read_bytes())
+            xet_hash = item.xet_hash
+        else:
+            xet_hash = hashlib.sha256(f"xet-{index}".encode()).hexdigest()
+            api.objects[path] = (size, xet_hash)
+        rows.append({"path": path, "sha256": digest, "size": size,
+                     "xet_hash": xet_hash})
+    monkeypatch.setattr(continuation, "DIAGNOSTIC_PRESENT_OBJECT_COUNT", len(rows))
+    monkeypatch.setattr(continuation, "DIAGNOSTIC_MISSING_OBJECT_COUNT",
+                        len(pending) - len(rows))
+    monkeypatch.setattr(continuation, "DIAGNOSTIC_OBSERVED_OBJECT_SET_SHA256",
+                        triage._aggregate(rows))
+    return {row["path"] for row in rows}
+
+
 def test_fence_proves_all_paths_absent_then_accepts_only_its_exact_ack(monkeypatch, tmp_path):
     api, evidence = FenceAPI(), Evidence()
     pending = synthetic_pending()
@@ -215,6 +248,7 @@ def test_fence_proves_all_paths_absent_then_accepts_only_its_exact_ack(monkeypat
             "expected_object_set_sha256": continuation.EXPECTED_OBJECT_SET_SHA256,
             "candidate_unchanged": True, "all_retained_rows_validated": True}
     monkeypatch.setattr(triage, "local_artifact_plan", lambda *_a, **_k: (pending, plan))
+    configure_diagnostic_namespace(monkeypatch, api, pending)
     directory = tmp_path / "fence"; directory.mkdir(mode=0o700)
     fence = continuation.DiagnosticContinuationFence(api, evidence,
         time.monotonic() + 30, directory, api.revision)
@@ -286,6 +320,25 @@ def test_fence_artifact_reader_uses_official_hf_131_mock_transport(tmp_path, pre
         assert storage._value(observed, "xet_hash") == "c" * 64
 
 
+def test_official_hf_131_sends_all_152_missing_additions_in_one_sdk_batch(monkeypatch):
+    huggingface_hub = pytest.importorskip("huggingface_hub")
+    assert huggingface_hub.__version__ == "1.31.0"
+    api = huggingface_hub.HfApi(endpoint=storage.ENDPOINT, token=False)
+    calls = []
+    monkeypatch.setattr(api, "_batch_bucket_files",
+        lambda bucket_id, **kwargs: calls.append((bucket_id, kwargs)))
+    additions = [(b"x", f"{storage.ARTIFACT_PREFIX}/{index:064x}/"
+        f"{'a' * 64}.json") for index in range(continuation.DIAGNOSTIC_MISSING_OBJECT_COUNT)]
+
+    api.batch_bucket_files(storage.BUCKET, add=additions)
+
+    assert len(additions) == 152
+    assert len(calls) == 1
+    assert calls[0][0] == storage.BUCKET
+    assert calls[0][1]["add"] == additions
+    assert calls[0][1]["copy"] == calls[0][1]["delete"] == []
+
+
 def test_fence_artifact_reader_consumes_at_most_two_generator_rows(tmp_path):
     path = f"{storage.ARTIFACT_PREFIX}/{'a' * 64}/{'b' * 64}.json"
     consumed = []
@@ -331,6 +384,7 @@ def test_fence_rejects_preexisting_expected_object_before_any_ack(monkeypatch, t
             "expected_object_set_sha256": continuation.EXPECTED_OBJECT_SET_SHA256,
             "candidate_unchanged": True, "all_retained_rows_validated": True}
     monkeypatch.setattr(triage, "local_artifact_plan", lambda *_a, **_k: (pending, plan))
+    configure_diagnostic_namespace(monkeypatch, api, pending)
     path, (_physical, _digest, size) = next(iter(pending.items()))
     api.objects[path] = (size, "c" * 64)
     directory = tmp_path / "fence"; directory.mkdir(mode=0o700)
@@ -349,6 +403,7 @@ def test_fence_rejects_shared_dataset_revision_movement_before_any_write(
             "expected_object_set_sha256": continuation.EXPECTED_OBJECT_SET_SHA256,
             "candidate_unchanged": True, "all_retained_rows_validated": True}
     monkeypatch.setattr(triage, "local_artifact_plan", lambda *_a, **_k: (pending, plan))
+    configure_diagnostic_namespace(monkeypatch, api, pending)
     directory = tmp_path / "fence"; directory.mkdir(mode=0o700)
     fence = continuation.DiagnosticContinuationFence(api, evidence,
         time.monotonic() + 30, directory, api.revision)
@@ -366,6 +421,7 @@ def test_fence_rejects_a_racing_object_that_this_worker_did_not_add(monkeypatch,
             "expected_object_set_sha256": continuation.EXPECTED_OBJECT_SET_SHA256,
             "candidate_unchanged": True, "all_retained_rows_validated": True}
     monkeypatch.setattr(triage, "local_artifact_plan", lambda *_a, **_k: (pending, plan))
+    configure_diagnostic_namespace(monkeypatch, api, pending)
     directory = tmp_path / "fence"; directory.mkdir(mode=0o700)
     fence = continuation.DiagnosticContinuationFence(api, evidence,
         time.monotonic() + 30, directory, api.revision)
@@ -386,6 +442,7 @@ def test_fence_rejects_a_second_add_if_acknowledged_object_disappears(monkeypatc
             "expected_object_set_sha256": continuation.EXPECTED_OBJECT_SET_SHA256,
             "candidate_unchanged": True, "all_retained_rows_validated": True}
     monkeypatch.setattr(triage, "local_artifact_plan", lambda *_a, **_k: (pending, plan))
+    configure_diagnostic_namespace(monkeypatch, api, pending)
     directory = tmp_path / "fence"; directory.mkdir(mode=0o700)
     fence = continuation.DiagnosticContinuationFence(api, evidence,
         time.monotonic() + 30, directory, api.revision)
@@ -413,6 +470,7 @@ def test_fence_rejects_an_unplanned_artifact_path_before_sdk_call(monkeypatch, t
             "expected_object_set_sha256": continuation.EXPECTED_OBJECT_SET_SHA256,
             "candidate_unchanged": True, "all_retained_rows_validated": True}
     monkeypatch.setattr(triage, "local_artifact_plan", lambda *_a, **_k: (pending, plan))
+    configure_diagnostic_namespace(monkeypatch, api, pending)
     directory = tmp_path / "fence"; directory.mkdir(mode=0o700)
     fence = continuation.DiagnosticContinuationFence(api, evidence,
         time.monotonic() + 30, directory, api.revision)
@@ -424,6 +482,88 @@ def test_fence_rejects_an_unplanned_artifact_path_before_sdk_call(monkeypatch, t
     with pytest.raises(continuation.ContinuationBlocked):
         wrapper.batch_bucket_files(bucket_id=storage.BUCKET, add=[(local, forged)])
     assert api.objects == {}
+
+
+def test_partial_fence_preserves_72_and_acknowledges_only_152_new_objects(
+        monkeypatch, tmp_path):
+    api, evidence = FenceAPI(), Evidence()
+    pending = synthetic_pending()
+    plan = {"expected_object_count": continuation.EXPECTED_OBJECT_COUNT,
+            "expected_object_set_sha256": continuation.EXPECTED_OBJECT_SET_SHA256,
+            "candidate_unchanged": True, "all_retained_rows_validated": True}
+    monkeypatch.setattr(triage, "local_artifact_plan", lambda *_a, **_k: (pending, plan))
+    preexisting = configure_diagnostic_namespace(
+        monkeypatch, api, pending, present_count=72)
+    directory = tmp_path / "fence"; directory.mkdir(mode=0o700)
+    fence = continuation.DiagnosticContinuationFence(api, evidence,
+        time.monotonic() + 30, directory, api.revision)
+
+    fence.bind_candidate(tmp_path / "candidate.sqlite3")
+    expected = {path: (digest, size)
+                for path, (_physical, digest, size) in pending.items()}
+    fence.before_artifacts(expected)
+    missing = sorted(set(pending) - preexisting)
+    fence.begin_artifact_batch(missing)
+    for index, path in enumerate(missing):
+        api.objects[path] = (pending[path][2], hashlib.sha256(
+            f"new-xet-{index}".encode()).hexdigest())
+    fence.complete_artifact_batch(missing)
+    records = {path: {"path": path, "sha256": pending[path][1],
+        "size": pending[path][2], "xet_hash": api.objects[path][1]}
+        for path in pending}
+    fence.acknowledge_artifacts(records)
+    fence.require_artifacts_complete()
+
+    assert len(fence.preexisting) == 72
+    assert set(fence.preexisting) == preexisting
+    assert len(fence.acknowledged) == 152
+    assert set(fence.acknowledged) == set(missing)
+    assert not set(fence.preexisting) & set(fence.acknowledged)
+
+
+def test_partial_batch_lost_reply_cannot_be_retried_or_acknowledged(
+        monkeypatch, tmp_path):
+    class LostReplyAPI(FenceAPI):
+        def __init__(self):
+            super().__init__()
+            self.batch_calls = 0
+        def batch_bucket_files(self, *, bucket_id, add):
+            assert bucket_id == storage.BUCKET
+            self.batch_calls += 1
+            _local, path = add[0]
+            self.objects[path] = (pending[path][2], "e" * 64)
+            raise TimeoutError("private provider response unavailable")
+
+    api, evidence = LostReplyAPI(), Evidence()
+    pending = synthetic_pending()
+    plan = {"expected_object_count": continuation.EXPECTED_OBJECT_COUNT,
+            "expected_object_set_sha256": continuation.EXPECTED_OBJECT_SET_SHA256,
+            "candidate_unchanged": True, "all_retained_rows_validated": True}
+    monkeypatch.setattr(triage, "local_artifact_plan", lambda *_a, **_k: (pending, plan))
+    preexisting = configure_diagnostic_namespace(
+        monkeypatch, api, pending, present_count=72)
+    directory = tmp_path / "fence"; directory.mkdir(mode=0o700)
+    fence = continuation.DiagnosticContinuationFence(api, evidence,
+        time.monotonic() + 30, directory, api.revision)
+    fence.bind_candidate(tmp_path / "candidate.sqlite3")
+    expected = {path: (digest, size)
+                for path, (_physical, digest, size) in pending.items()}
+    fence.before_artifacts(expected)
+    missing = sorted(set(pending) - preexisting)
+    wrapper = acquisition._AdmittedAcquisitionHub(api, lambda: None, fence)
+    local = tmp_path / "artifact.json"; local.write_bytes(b"x")
+    additions = [(local, path) for path in missing]
+
+    with pytest.raises(TimeoutError):
+        wrapper.batch_bucket_files(bucket_id=storage.BUCKET, add=additions)
+    with pytest.raises(continuation.ContinuationBlocked):
+        wrapper.batch_bucket_files(bucket_id=storage.BUCKET, add=additions)
+
+    assert api.batch_calls == 1
+    assert len(fence.preexisting) == 72
+    assert fence.acknowledged == {}
+    assert all(state == {"mode": "ADD", "attempted": True, "completed": False}
+               for path, state in fence.pending.items() if path not in preexisting)
 
 
 def test_reconciliation_source_has_no_provider_mutation_call():
@@ -447,10 +587,10 @@ def object_effects():
     return {"expected_object_count": continuation.EXPECTED_OBJECT_COUNT,
         "expected_object_set_sha256": continuation.EXPECTED_OBJECT_SET_SHA256,
         "candidate_unchanged": True, "all_retained_rows_validated": True,
-        "classification": "NO_EXPECTED_OBJECTS_PRESENT_AT_READ_TIME",
-        "present_object_count": 0,
-        "missing_object_count": continuation.EXPECTED_OBJECT_COUNT,
-        "observed_object_set_sha256": continuation.EMPTY_OBJECT_SET_SHA256,
+        "classification": "PARTIAL_EXPECTED_OBJECT_SET_PRESENT_AT_READ_TIME",
+        "present_object_count": continuation.DIAGNOSTIC_PRESENT_OBJECT_COUNT,
+        "missing_object_count": continuation.DIAGNOSTIC_MISSING_OBJECT_COUNT,
+        "observed_object_set_sha256": continuation.DIAGNOSTIC_OBSERVED_OBJECT_SET_SHA256,
         "provider_objects_fully_validated": False,
         "provider_writes_performed": False,
         "historical_writer_attribution": "NOT_ESTABLISHED"}
@@ -500,7 +640,7 @@ def test_fresh_preflight_qualification_binds_verified_source_before_selection(
     assert selected == acquisition.select_qualified_capture(
         state.arguments["qualified"], state.arguments["reference"],
         state.arguments["capture_bytes"], evidence.source)
-    assert observation["missing_object_count"] == continuation.EXPECTED_OBJECT_COUNT
+    assert observation["missing_object_count"] == continuation.DIAGNOSTIC_MISSING_OBJECT_COUNT
 
 
 def test_reconciliation_serializes_verified_source_for_acquisition_selector(
@@ -654,7 +794,7 @@ def test_effectful_worker_reconciles_before_pause_and_uses_reaped_child():
     source = inspect.getsource(acquisition._execute_diagnostic_continuation)
     assert source.index("continuation.observe_current_absence") < source.index("pause_qualified_source")
     assert source.index("fence.bind_candidate") < source.index("pause_qualified_source")
-    assert "require_prewrite=fence.require_artifacts_absent" in source
+    assert "require_prewrite=fence.require_artifacts_stable" in source
     supervisor = inspect.getsource(continuation.supervised_artifact_absence)
     assert "base._run(" in supervisor and '"--artifact-object-worker"' in supervisor
     assert "_capture_failure=True" in supervisor
@@ -665,21 +805,23 @@ def test_acquire_pair_invokes_continuation_fence_around_every_artifact(native_ac
     calls = []
     class Fence:
         def bind_candidate(self, path): calls.append(("bind", path.name))
-        def before_artifact(self, path, digest, size): calls.append(("before", path, digest, size))
+        def before_artifacts(self, pending): calls.append(("before-many", len(pending)))
         def controls_artifact_path(self, path): return path.startswith(storage.ARTIFACT_PREFIX + "/")
-        def begin_artifact_add(self, path): calls.append(("begin", path))
-        def complete_artifact_add(self, path): calls.append(("added", path))
-        def acknowledge_artifact(self, record): calls.append(("ack", record["path"]))
+        def begin_artifact_batch(self, paths): calls.append(("begin-many", len(paths)))
+        def complete_artifact_batch(self, paths): calls.append(("added-many", len(paths)))
+        def acknowledge_artifacts(self, records): calls.append(("ack-many", len(records)))
         def require_artifacts_complete(self): calls.append(("complete",))
     arguments = dict(state.arguments)
     arguments["preserved"] = None
     locator = acquisition.acquire_pair(state.api, continuation_fence=Fence(), **arguments)
     assert locator["state"] == "BOOTSTRAP_ACKNOWLEDGED"
     assert calls[0] == ("bind", "candidate.sqlite3")
-    assert sum(item[0] == "before" for item in calls) == 2
-    assert sum(item[0] == "begin" for item in calls) == 1
-    assert sum(item[0] == "added" for item in calls) == 1
-    assert sum(item[0] == "ack" for item in calls) == 2
+    object_count = calls[1][1]
+    assert object_count > 0
+    assert calls.count(("before-many", object_count)) == 2
+    assert calls.count(("begin-many", object_count)) == 1
+    assert calls.count(("added-many", object_count)) == 1
+    assert calls.count(("ack-many", object_count)) == 2
     assert calls.count(("complete",)) == 1
 
 
@@ -709,6 +851,7 @@ def test_real_fence_uses_fresh_plan_for_pre_pause_and_acquire_rebind(
     fence = continuation.DiagnosticContinuationFence(
         state.api, evidence, time.monotonic() + 20, fence_directory,
         state.api.revision)
+    configure_diagnostic_namespace(monkeypatch, state.api, pending, present_count=1)
     fence.bind_candidate(candidate)
 
     arguments = dict(state.arguments)
@@ -719,19 +862,20 @@ def test_real_fence_uses_fresh_plan_for_pre_pause_and_acquire_rebind(
     assert fence.bind_count == 2
     assert (fence_directory / "diagnostic-continuation-plan-1").is_dir()
     assert (fence_directory / "diagnostic-continuation-plan-2").is_dir()
-    assert len(fence.acknowledged) == plan["expected_object_count"]
+    assert len(fence.preexisting) == 1
+    assert len(fence.acknowledged) == plan["expected_object_count"] - 1
 
 
 def test_continuation_fence_failure_precedes_first_provider_write(native_acquisition):
     state = native_acquisition
     class Fence:
         def bind_candidate(self, _path): pass
-        def before_artifact(self, *_args):
+        def before_artifacts(self, *_args):
             raise continuation.ContinuationBlocked("CURRENT_ABSENCE_UNVERIFIED")
         def controls_artifact_path(self, _path): pytest.fail("unadmitted provider call")
-        def begin_artifact_add(self, _path): pytest.fail("unadmitted provider call")
-        def complete_artifact_add(self, _path): pytest.fail("unadmitted provider call")
-        def acknowledge_artifact(self, _record): pytest.fail("unadmitted acknowledgement")
+        def begin_artifact_batch(self, _paths): pytest.fail("unadmitted provider call")
+        def complete_artifact_batch(self, _paths): pytest.fail("unadmitted provider call")
+        def acknowledge_artifacts(self, _records): pytest.fail("unadmitted acknowledgement")
         def require_artifacts_complete(self): pytest.fail("unadmitted completion")
     arguments = dict(state.arguments)
     arguments["preserved"] = None

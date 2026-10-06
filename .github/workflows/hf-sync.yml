@@ -8,8 +8,8 @@ name: Sync and Relock Canonical Hugging Face Space
 # change enters this canonical workflow. This one signed successor consumes the
 # accepted read-only diagnostic and performs a fresh, non-retriable continuation
 # from the already verified private capture. It never replays preservation or the
-# ambiguous 62ca acquisition, and it rechecks the exact empty object set before
-# its first provider write.
+# ambiguous 62ca acquisition. It preserves the diagnostic's exact partial object
+# set and rechecks it before its first provider write.
 # The permanent target remains Space SZLHOLDINGS/a11oy (szlholdings-a11oy.hf.space).
 # Staging Space ≠ prod DNS. GitHub main SHA and Space runtime SHA can drift;
 # do not claim they match. This workflow does not change DNS. Apex a-11-oy.com
@@ -120,7 +120,7 @@ jobs:
         run: >-
           python -m pip install --disable-pip-version-check --no-cache-dir
           "huggingface_hub==1.31.0" "requests==2.32.5" "cryptography==50.0.1"
-      - name: Requalify the fixed capture and exact empty provider namespace
+      - name: Requalify the fixed capture and exact partial provider namespace
         id: reconciliation
         run: >-
           python -B scripts/reconcile_gdw_diagnostic_continuation.py --reconcile

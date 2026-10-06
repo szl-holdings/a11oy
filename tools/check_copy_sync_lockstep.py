@@ -603,13 +603,13 @@ REVIEWED_SOURCE_ADMISSION_JOB_SHA256 = "13304ef0f4d96cae7d534f42a5068b373b2fda1c
 REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee8395e042853ded04deb7d170189"
 # These exact jobs and their complete local helper/reference closure recognize
 # the one signed successor authorized by the accepted read-only diagnostic.
-# Reconciliation requalifies the fixed capture and exact empty namespace before
+# Reconciliation requalifies the fixed capture and exact partial namespace before
 # the classifier can admit managed recovery. Acquisition then consumes only the
 # same-run closed artifacts, uses the canonical publisher, and has no automatic
 # retry path. These hashes establish source coverage for that bounded transition;
 # they never establish provider success or live restoration.
 REVIEWED_MANUAL_PREREQUISITES_JOB_SHA256 = "b8f8c5b5dd7644ee6bcaa64c63d1c1552110df74879d1cf5ab7a874c0213f315"
-REVIEWED_RECOVERY_RECONCILIATION_JOB_SHA256 = "69d850b44138b79a60a8c37d7284cd0e4b34357ccb9115c2cc97b3e1426c317a"
+REVIEWED_RECOVERY_RECONCILIATION_JOB_SHA256 = "e45235914cf661fb2c741fe159abb7a6a77bcda54d485de4be9deac832e3fdc1"
 REVIEWED_DURABLE_ACQUISITION_JOB_SHA256 = "526b2ef0081c4cff71fed2178ff0c1efd569221e43c829f8e26058013febd12f"
 REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "bc38f18b2837be0ae4058d66cb9a5cbac911cd6622c1d352d8c773edc2a37944"
 REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
@@ -633,12 +633,12 @@ REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
     # include these local imports and fixed dynamic loaders. Runtime-installed
     # application bytes and the remote publisher have their own source-bound
     # manifest contract; this map binds the code that verifies that contract.
-    "scripts/acquire_gdw_durable_storage.py": "4d1506accdf700a9f20a0d7a867790bb792a042a5132fbf4580b1aa20f80558e",
+    "scripts/acquire_gdw_durable_storage.py": "0aeddf2565d0fc6031b500b5936cf7e06e4e10dc3e51f43ecd33bb7890485949",
     # The successor controller, the isolated native object observer it reuses,
     # and the reviewed side-effect boundary are a single source contract.
-    "scripts/reconcile_gdw_diagnostic_continuation.py": "cadd0a7276958275602dc44f7239922d1ef0effa12df63232bb263b623de33f1",
-    "scripts/triage_gdw_artifacts_readonly.py": "425d5de393f58e54cc1c6073c0a444d53685944499e86f34346ca42fdc86e42a",
-    "docs/operations/gdw-diagnostic-continuation-side-effects.md": "2b4dd99dff9ddbe57dc10038eac81f089340c3a5e361b80458613d0b9db19d78",
+    "scripts/reconcile_gdw_diagnostic_continuation.py": "f5b249b884d889b8400898a97f19d2a4d6cf4966b3db2ab3ae0d10d845961c0e",
+    "scripts/triage_gdw_artifacts_readonly.py": "2ae11a72cf343cf86dc84aa2443cb78db0e6b81eff7337f8df556e363e58c0b3",
+    "docs/operations/gdw-diagnostic-continuation-side-effects.md": "460ce3264311395ef1574450c00abca9946dd4f798169fb738ae248a9c7212e4",
     "scripts/reconcile_gdw_supervised_acquisition.py": "23dd0478cc06d1881ff7c1469833d0192549807a06d5cf822cf8f6d12fdaa994",
     "scripts/inspect_gdw_held_acquisition.py": "61e0b7d6e8236074ebcbbcc424b34d92f257f0c85608f7adbd640136de9e5dc6",
     "scripts/inspect_gdw_62ca_acquisition.py": "d444b298495fc253205287f873f3e0a2b2eeb15eab686ea404983ea61fef97eb",
@@ -649,13 +649,13 @@ REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
     "scripts/prove_hf_series_a_restart.py": "9091569edb44d6e9d5dcc578ab2c53054aa2fc61de9c962da256dfd186dbd398",
     "scripts/prove_hf_gdw_runtime.py": "317b4c2629241f312a9e497a0ad8fe7f06cc86426093a6593165c844acefd866",
     "scripts/hf_live_proof_bounds.py": "74a53d7e90bf03f3ad896fd5fe21c3eaefa2ddb6452029332353f08f41693f3b",
-    "gdw_durable_storage.py": "f22e97c2801b8115b455a150398076132dd8adf83ad3dbf44da04d350567ce72",
+    "gdw_durable_storage.py": "7631833f3df81e14586a29aff5bec8014070b9f44cc8ebc85a276f9f5908922c",
     "gdw_durable_startup.py": "54965688ea52866431aa7995dff221966e89cb460bda75894e1d70d791cd2e1c",
     "gdw_durable_runtime.py": "2a01da4857dd411aaace8cabb74df27252fe8316aebbb4fef39b56bc778a724f",
     "gdw_durable_source.py": "b4f4fb0f268e63a1976a14a18bed9774102e2807f3c72506ca7657ed02fcff0d",
     "gdw_durable_guard.py": "33062e1fc067f037d1df3d8f6038d6b8eab72356923f8fb18c22b2697f1b9ae3",
     "gdw_durable_image.py": "bbe71d8aa53494d5e22eac029cf4ecb378cbcb7ac3017b349d373c1d6c27142d",
-    "gdw_durable_artifacts.py": "c65ef4533d6fa2d15bb5caa94651746098d841674930803dabf6dbc37a873889",
+    "gdw_durable_artifacts.py": "5058592aa43f450e0ef305df91826a90d2bac8e14ddffbd9467303a44f5cb35a",
     "gdw_auth.py": "c692593e02873f7b71b9a108fa42a9c2ae7f29d455596d9dd0a4236145297e89",
     "gdw_workspace.py": "967652dadaf814afd0caabcc05a037f2f6a941e90b891b4edca25cee748655c8",
     "gdw_proofs.py": "445c9cc5cd38a1660ef815b81ad0f65f68b996b30a479f2c606a12dd8679cc8c",

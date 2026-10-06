@@ -51,6 +51,7 @@ MAX_MANIFEST_BYTES = 16 * 1024
 MAX_ADMISSION_BYTES = 512 * 1024
 MAX_SNAPSHOT_BYTES = 256 * 1024 * 1024
 MAX_ARTIFACT_BYTES = 16 * 1024 * 1024
+MAX_ARTIFACT_OBJECTS = 256
 MAX_RECEIPTS = 1_000_000
 MAX_REBASE_ATTEMPTS = 3
 MAX_SEQUENCE = 2**63 - 1
@@ -1012,6 +1013,31 @@ class HFPrivateObjectStore:
         except Exception:
             raise StorageBlocked("PRIVATE_OBJECT_IDENTITY_UNAVAILABLE") from None
 
+    def _artifact_namespace(self, expected: Mapping[str, dict[str, Any]],
+                            deadline: float) -> dict[str, Any]:
+        """Read the whole owned prefix once and reject every unplanned entry."""
+        self._metadata(deadline)
+        observed = {}
+        try:
+            for item in self.api.list_bucket_tree(
+                    bucket_id=BUCKET, prefix=ARTIFACT_PREFIX, recursive=True):
+                _deadline(deadline)
+                path = _value(item, "path")
+                identity = expected.get(path)
+                if (identity is None or path in observed or _value(item, "type") != "file"
+                        or _value(item, "size") != identity["size"]
+                        or not _digest(_value(item, "xet_hash"))):
+                    raise StorageBlocked("PRIVATE_OBJECT_IDENTITY_MALFORMED")
+                observed[path] = item
+                if len(observed) > len(expected):
+                    raise StorageBlocked("PRIVATE_OBJECT_IDENTITY_MALFORMED")
+            _deadline(deadline)
+            return observed
+        except StorageBlocked:
+            raise
+        except Exception:
+            raise StorageBlocked("PRIVATE_OBJECT_IDENTITY_UNAVAILABLE") from None
+
     @staticmethod
     def _identity(value: Any) -> tuple[Any, Any, Any]:
         return (_value(value, "path"), _value(value, "size"), _value(value, "xet_hash"))
@@ -1131,6 +1157,86 @@ class HFPrivateObjectStore:
         if identity["sha256"] != digest:
             raise StorageBlocked("ARTIFACT_DIGEST_MISMATCH")
         return self._publish(frozen, object_path, identity, deadline, artifact=True)
+
+    def publish_artifacts(self, artifacts: Mapping[str, tuple[Path, str, int]],
+                          deadline: float) -> dict[str, dict[str, Any]]:
+        """Publish one fully validated retained set through one bounded add.
+
+        The Hub batch is non-transactional. Any exception remains an uncertain
+        outcome and is never retried here. A later source-bound read-only
+        diagnostic must classify the prefix before another continuation.
+        """
+        if (type(artifacts) is not dict or not 1 <= len(artifacts) <= MAX_ARTIFACT_OBJECTS):
+            raise StorageBlocked("INVALID_PRIVATE_OBJECT")
+        prepared = {}
+        for index, (object_path, value) in enumerate(sorted(artifacts.items())):
+            if type(value) is not tuple or len(value) != 3:
+                raise StorageBlocked("INVALID_PRIVATE_OBJECT")
+            local_path, digest, size = value
+            if not _digest(digest) or not _integer(size, 1) or size > MAX_ARTIFACT_BYTES:
+                raise StorageBlocked("INVALID_PRIVATE_OBJECT")
+            _object_record({"path": object_path, "size": size, "sha256": digest,
+                            "xet_hash": "1" * 64}, artifact=True)
+            frozen = self.directory / f"artifact-set-{index}-{uuid.uuid4().hex}.json"
+            identity = _freeze_file(
+                Path(local_path), frozen, self.root, MAX_ARTIFACT_BYTES, deadline)
+            if identity != {"size": size, "sha256": digest}:
+                raise StorageBlocked("ARTIFACT_DIGEST_MISMATCH")
+            prepared[object_path] = {"path": frozen, **identity}
+
+        observed = self._artifact_namespace(prepared, deadline)
+        missing = [path for path in sorted(prepared) if path not in observed]
+        if missing:
+            for path in missing:
+                identity = prepared[path]
+                if _file_identity(identity["path"], self.root,
+                                  MAX_ARTIFACT_BYTES, deadline) != {
+                                      "size": identity["size"],
+                                      "sha256": identity["sha256"]}:
+                    raise StorageBlocked("PRIVATE_SNAPSHOT_CHANGED_BEFORE_UPLOAD")
+            # The pinned SDK sends <=1000 additions in one non-transactional
+            # batch. This recovery has at most 256 and never retries an
+            # ambiguous request.
+            _safe_call(lambda: self.api.batch_bucket_files(
+                bucket_id=BUCKET,
+                add=[(prepared[path]["path"], path) for path in missing]))
+            for path in missing:
+                identity = prepared[path]
+                if _file_identity(identity["path"], self.root,
+                                  MAX_ARTIFACT_BYTES, deadline) != {
+                                      "size": identity["size"],
+                                      "sha256": identity["sha256"]}:
+                    raise StorageBlocked("PRIVATE_SNAPSHOT_CHANGED_DURING_UPLOAD")
+
+        observed = self._artifact_namespace(prepared, deadline)
+        if set(observed) != set(prepared):
+            raise StorageBlocked("PRIVATE_OBJECT_COMMIT_UNVERIFIED")
+        downloads = []
+        targets = {}
+        for index, path in enumerate(sorted(prepared)):
+            target = self.directory / f"artifact-set-readback-{index}-{uuid.uuid4().hex}.json"
+            _private_path(target, self.root, absent=True)
+            targets[path] = target
+            downloads.append((observed[path], target))
+        _safe_call(lambda: self.api.download_bucket_files(
+            bucket_id=BUCKET, files=downloads, raise_on_missing_files=True))
+        for path, target in targets.items():
+            identity = prepared[path]
+            if _file_identity(target, self.root, MAX_ARTIFACT_BYTES, deadline) != {
+                    "size": identity["size"], "sha256": identity["sha256"]}:
+                raise StorageBlocked("PRIVATE_OBJECT_READBACK_MISMATCH")
+        current = self._artifact_namespace(prepared, deadline)
+        if (set(current) != set(observed)
+                or any(self._identity(current[path]) != self._identity(observed[path])
+                       for path in observed)):
+            raise StorageBlocked("PRIVATE_OBJECT_IDENTITY_CHANGED")
+        self._metadata(deadline)
+        _deadline(deadline)
+        return {path: _object_record({
+            "path": path, "size": prepared[path]["size"],
+            "sha256": prepared[path]["sha256"],
+            "xet_hash": _value(observed[path], "xet_hash")}, artifact=True)
+            for path in sorted(prepared)}
 
 
 MAX_WORKER_MESSAGE_BYTES = 1024 * 1024
