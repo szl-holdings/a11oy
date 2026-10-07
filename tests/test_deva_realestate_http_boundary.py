@@ -169,6 +169,7 @@ def test_ownership_cold_child_fails_closed_without_masking_live_peers(
 @pytest.mark.parametrize("failure", [
     "sec_cold", "child_unavailable_with_value", "child_unavailable_with_clock",
     "child_invalid_status", "child_missing_clock",
+    "child_stale_without_raw_clock",
     "child_invalid_filings", "child_stale_clock", "child_future_clock",
 ])
 def test_ownership_rejects_required_source_contract_failures(
@@ -209,6 +210,10 @@ def test_ownership_rejects_required_source_contract_failures(
             child["freshness"]["status"] = ["live"]
         elif failure == "child_missing_clock":
             del child["freshness"]["fetched_at"]
+        elif failure == "child_stale_without_raw_clock":
+            child["freshness"] = {
+                "status": "stale", "age_s": 45.0, "error": "SEC refresh failed",
+            }
         elif failure == "child_invalid_filings":
             child["value"]["filings"] = "not an observed filing array"
         elif failure == "child_stale_clock":

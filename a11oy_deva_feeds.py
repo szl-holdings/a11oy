@@ -517,7 +517,8 @@ def _ownership_source_ready(raw: Any, source: Any, list_key: str, checked_at: da
     if not isinstance(status, str) or status not in _READINESS_PUBLIC_FRESHNESS:
         return False
     fetched_at = freshness.get("fetched_at")
-    if not isinstance(fetched_at, str):
+    raw_fetched_at = raw["freshness"].get("fetched_at")
+    if not isinstance(fetched_at, str) or raw_fetched_at != fetched_at:
         return False
     try:
         observed_at = datetime.fromisoformat(fetched_at.replace("Z", "+00:00"))
