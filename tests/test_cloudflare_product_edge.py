@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
 import os
 import tempfile
@@ -221,6 +222,93 @@ class ProductEdgeContract(unittest.TestCase):
             with self.assertRaisesRegex(edge.EdgeError, "AMBIGUOUS_WORKER_ROUTE"):
                 edge.fetch_routes("zone", "secret")
 
+    def test_account_script_name_is_absent_or_exact_bytes_only(self) -> None:
+        source = WORKER.read_bytes()
+        script = edge.immutable_script_name(WORKER)
+        with (
+            mock.patch.object(
+                edge, "request_json",
+                return_value={"success": True, "result": []},
+            ),
+            mock.patch.object(edge.urllib.request, "urlopen") as read,
+        ):
+            self.assertEqual(
+                edge.inspect_worker_script("account", "secret", script, source),
+                "absent",
+            )
+            read.assert_not_called()
+
+        with (
+            mock.patch.object(
+                edge, "request_json",
+                return_value={"success": True, "result": [{"id": script}]},
+            ),
+            mock.patch.object(
+                edge.urllib.request, "urlopen", return_value=io.BytesIO(source)
+            ),
+        ):
+            self.assertEqual(
+                edge.inspect_worker_script("account", "secret", script, source),
+                "identical",
+            )
+        with (
+            mock.patch.object(
+                edge, "request_json",
+                return_value={"success": True, "result": [{"id": script}]},
+            ),
+            mock.patch.object(
+                edge.urllib.request, "urlopen", return_value=io.BytesIO(b"foreign")
+            ),
+        ):
+            with self.assertRaisesRegex(edge.EdgeError, "WORKER_SCRIPT_NAME_COLLISION"):
+                edge.inspect_worker_script("account", "secret", script, source)
+
+    def test_incomplete_script_listing_blocks_upload(self) -> None:
+        with mock.patch.object(
+            edge,
+            "request_json",
+            return_value={"success": True, "result": [],
+                          "result_info": {"total_pages": 2}},
+        ):
+            with self.assertRaisesRegex(edge.EdgeError, "AMBIGUOUS_WORKER_SCRIPT"):
+                edge.inspect_worker_script("account", "secret", "script", b"source")
+
+    def test_new_script_upload_is_conditional_create_only(self) -> None:
+        response = io.BytesIO(b'{"success":true,"result":{"id":"new"}}')
+        with mock.patch.object(
+            edge.urllib.request, "urlopen", return_value=response
+        ) as send:
+            edge.upload_worker(
+                "account", "secret", WORKER,
+                script_name=edge.immutable_script_name(WORKER),
+                create_only=True,
+            )
+        request = send.call_args.args[0]
+        self.assertEqual(request.get_method(), "PUT")
+        self.assertEqual(request.get_header("If-none-match"), "*")
+
+    def test_route_drift_preflight_sends_no_post(self) -> None:
+        script = edge.immutable_script_name(WORKER)
+        plan = edge.route_plan(
+            [], dns_is_proxied=True, script_name=script, allow_proxied_create=True
+        )
+        with (
+            mock.patch.object(
+                edge, "fetch_routes",
+                return_value=[{"id": "raced", "pattern": edge.APEX_ROUTE,
+                               "script": "foreign"}],
+            ),
+            mock.patch.object(edge, "request_json") as write,
+        ):
+            with self.assertRaises(edge.RouteMutationError) as raised:
+                edge.apply_route_plan(
+                    "zone", "secret", plan, dry_run=False,
+                    expected_routes=[], guard_live_create=True,
+                )
+        self.assertFalse(raised.exception.request_sent)
+        self.assertIn("ROUTE_STATE_DRIFT_BEFORE_WRITE", str(raised.exception))
+        write.assert_not_called()
+
     def test_live_route_postcondition_requires_exact_script_owner(self) -> None:
         script = edge.immutable_script_name(WORKER)
         plan = edge.route_plan(
@@ -261,6 +349,7 @@ class ProductEdgeContract(unittest.TestCase):
             ) as request,
             mock.patch.object(edge, "fetch_dns_records", return_value=records),
             mock.patch.object(edge, "fetch_routes", return_value=[]),
+            mock.patch.object(edge, "inspect_worker_script", return_value="absent"),
             mock.patch.object(edge, "upload_worker") as upload,
             mock.patch("builtins.print"),
         ):
@@ -268,12 +357,172 @@ class ProductEdgeContract(unittest.TestCase):
             report = json.loads((Path(tmp) / "report.json").read_text())
         self.assertEqual(report["status"], "VALIDATED")
         self.assertFalse(report["dns_mutated"])
+        self.assertEqual(report["worker_script_preflight"], "absent")
         self.assertEqual(
             [row["action"] for row in report["route_plan"]],
             ["create-apex-route", "create-www-route"],
         )
         self.assertTrue(all(call.args[0] == "GET" for call in request.call_args_list))
         upload.assert_not_called()
+
+    def test_script_collision_blocks_without_provider_write(self) -> None:
+        records = [
+            dns_record("apex", edge.ZONE_NAME, "CNAME", proxied=True),
+            dns_record("www", f"www.{edge.ZONE_NAME}", "CNAME", proxied=True),
+        ]
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            mock.patch.dict(os.environ, {"CLOUDFLARE_API_TOKEN": "secret"}, clear=True),
+            mock.patch(
+                "sys.argv", [str(SCRIPT), "--report", str(Path(tmp) / "report.json")]
+            ),
+            mock.patch.object(
+                edge, "request_json",
+                side_effect=[
+                    {"success": True, "result": {"status": "active"}},
+                    {"success": True, "result": [{
+                        "id": "zone-id", "account": {"id": "account-id"}
+                    }]},
+                ],
+            ) as request,
+            mock.patch.object(edge, "fetch_dns_records", return_value=records),
+            mock.patch.object(edge, "fetch_routes", return_value=[]),
+            mock.patch.object(
+                edge, "inspect_worker_script",
+                side_effect=edge.EdgeError("WORKER_SCRIPT_NAME_COLLISION"),
+            ),
+            mock.patch.object(edge, "upload_worker") as upload,
+            mock.patch("builtins.print"),
+        ):
+            self.assertEqual(edge.main(), 1)
+            report = json.loads((Path(tmp) / "report.json").read_text())
+        self.assertEqual(report["status"], "BLOCKED")
+        self.assertIn("WORKER_SCRIPT_NAME_COLLISION", report["error"])
+        self.assertTrue(all(call.args[0] == "GET" for call in request.call_args_list))
+        upload.assert_not_called()
+
+    def test_route_race_after_upload_reports_unknown_without_post(self) -> None:
+        records = [
+            dns_record("apex", edge.ZONE_NAME, "CNAME", proxied=True),
+            dns_record("www", f"www.{edge.ZONE_NAME}", "CNAME", proxied=True),
+        ]
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            mock.patch.dict(os.environ, {"CLOUDFLARE_API_TOKEN": "secret"}, clear=True),
+            mock.patch(
+                "sys.argv", [str(SCRIPT), "--report", str(Path(tmp) / "report.json")]
+            ),
+            mock.patch.object(
+                edge, "request_json",
+                side_effect=[
+                    {"success": True, "result": {"status": "active"}},
+                    {"success": True, "result": [{
+                        "id": "zone-id", "account": {"id": "account-id"}
+                    }]},
+                ],
+            ) as request,
+            mock.patch.object(edge, "fetch_dns_records", return_value=records),
+            mock.patch.object(
+                edge, "fetch_routes",
+                side_effect=[
+                    [], [], [],
+                    [{"id": "raced", "pattern": edge.APEX_ROUTE,
+                      "script": "foreign"}],
+                ],
+            ),
+            mock.patch.object(
+                edge, "inspect_worker_script", side_effect=["absent", "identical"]
+            ),
+            mock.patch.object(edge, "upload_worker") as upload,
+            mock.patch("builtins.print"),
+        ):
+            self.assertEqual(edge.main(), 1)
+            report = json.loads((Path(tmp) / "report.json").read_text())
+        self.assertEqual(report["status"], "UNKNOWN")
+        self.assertIn("ROUTE_STATE_DRIFT_BEFORE_WRITE", report["error"])
+        self.assertFalse(report["dns_mutated"])
+        self.assertTrue(all(call.args[0] == "GET" for call in request.call_args_list))
+        upload.assert_called_once()
+
+    def test_identical_script_retry_skips_upload_before_route_guard(self) -> None:
+        records = [
+            dns_record("apex", edge.ZONE_NAME, "CNAME", proxied=True),
+            dns_record("www", f"www.{edge.ZONE_NAME}", "CNAME", proxied=True),
+        ]
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            mock.patch.dict(os.environ, {"CLOUDFLARE_API_TOKEN": "secret"}, clear=True),
+            mock.patch(
+                "sys.argv", [str(SCRIPT), "--report", str(Path(tmp) / "report.json")]
+            ),
+            mock.patch.object(
+                edge, "request_json",
+                side_effect=[
+                    {"success": True, "result": {"status": "active"}},
+                    {"success": True, "result": [{
+                        "id": "zone-id", "account": {"id": "account-id"}
+                    }]},
+                ],
+            ) as request,
+            mock.patch.object(edge, "fetch_dns_records", return_value=records),
+            mock.patch.object(
+                edge, "fetch_routes",
+                side_effect=[
+                    [], [], [],
+                    [{"id": "raced", "pattern": edge.APEX_ROUTE,
+                      "script": "foreign"}],
+                ],
+            ),
+            mock.patch.object(
+                edge, "inspect_worker_script", return_value="identical"
+            ) as inspect,
+            mock.patch.object(edge, "upload_worker") as upload,
+            mock.patch("builtins.print"),
+        ):
+            self.assertEqual(edge.main(), 1)
+            report = json.loads((Path(tmp) / "report.json").read_text())
+        self.assertEqual(report["status"], "UNKNOWN")
+        self.assertEqual(report["worker_upload_outcome"], "skipped-identical")
+        self.assertEqual(inspect.call_count, 2)
+        upload.assert_not_called()
+        self.assertTrue(all(call.args[0] == "GET" for call in request.call_args_list))
+
+    def test_ambiguous_upload_ack_reports_unknown_without_route_post(self) -> None:
+        records = [
+            dns_record("apex", edge.ZONE_NAME, "CNAME", proxied=True),
+            dns_record("www", f"www.{edge.ZONE_NAME}", "CNAME", proxied=True),
+        ]
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            mock.patch.dict(os.environ, {"CLOUDFLARE_API_TOKEN": "secret"}, clear=True),
+            mock.patch(
+                "sys.argv", [str(SCRIPT), "--report", str(Path(tmp) / "report.json")]
+            ),
+            mock.patch.object(
+                edge, "request_json",
+                side_effect=[
+                    {"success": True, "result": {"status": "active"}},
+                    {"success": True, "result": [{
+                        "id": "zone-id", "account": {"id": "account-id"}
+                    }]},
+                ],
+            ) as request,
+            mock.patch.object(edge, "fetch_dns_records", return_value=records),
+            mock.patch.object(edge, "fetch_routes", return_value=[]),
+            mock.patch.object(edge, "inspect_worker_script", return_value="absent"),
+            mock.patch.object(
+                edge, "upload_worker",
+                side_effect=edge.EdgeError("WORKER_UPLOAD_ACK_LOST"),
+            ) as upload,
+            mock.patch("builtins.print"),
+        ):
+            self.assertEqual(edge.main(), 1)
+            report = json.loads((Path(tmp) / "report.json").read_text())
+        self.assertEqual(report["status"], "UNKNOWN")
+        self.assertEqual(report["worker_upload_outcome"], "UNKNOWN")
+        self.assertFalse(report["dns_mutated"])
+        upload.assert_called_once()
+        self.assertTrue(all(call.args[0] == "GET" for call in request.call_args_list))
 
     def test_failed_proxied_public_proof_rolls_back_only_new_routes(self) -> None:
         script = edge.immutable_script_name(WORKER)
@@ -305,7 +554,10 @@ class ProductEdgeContract(unittest.TestCase):
             mock.patch.object(edge, "fetch_dns_records", return_value=records),
             mock.patch.object(
                 edge, "fetch_routes",
-                side_effect=[[], [], [], [apex, www], [apex], [apex], []],
+                side_effect=[[], [], [], [], [apex], [apex, www], [apex], [apex], []],
+            ),
+            mock.patch.object(
+                edge, "inspect_worker_script", side_effect=["absent", "identical"]
             ),
             mock.patch.object(edge, "upload_worker") as upload,
             mock.patch.object(
@@ -325,6 +577,7 @@ class ProductEdgeContract(unittest.TestCase):
         self.assertEqual(request.call_args_list[-1].args[0], "DELETE")
         self.assertTrue(all("dns_records" not in call.args[1] for call in request.call_args_list))
         upload.assert_called_once()
+        self.assertTrue(upload.call_args.kwargs["create_only"])
 
     def test_known_legacy_routes_are_reconciled_deterministically_when_dns_only(self) -> None:
         current = [
@@ -827,6 +1080,7 @@ class ProductEdgeContract(unittest.TestCase):
                     ),
                 ],
             ),
+            mock.patch.object(edge, "inspect_worker_script", return_value="identical"),
             mock.patch.object(edge, "upload_worker"),
             mock.patch.object(
                 edge,

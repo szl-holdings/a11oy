@@ -14,8 +14,10 @@ records, never changes record names, types, content, TTLs, comments, tags, or
 settings, and rolls back every proxy-state change if public proof fails.
 
 When the web records are already proxied, a missing exact route may be created
-only with a content-addressed Worker script that cannot replace the script on
-an existing route. Existing routes are not changed. Failed public proof rolls
+only with a content-addressed Worker script whose account-wide name is absent
+or has exact source bytes. A new upload uses a create-only precondition, and
+the source is read back before any route write. Existing routes are not changed.
+Failed public proof rolls
 back only newly created routes; an uncertain provider outcome is reported as
 UNKNOWN. Foreign or ambiguous provider state fails closed. Credentials and
 full provider IDs are never written to the receipt.
@@ -84,10 +86,12 @@ class RouteMutationError(EdgeError):
         *,
         results: list[dict[str, Any]],
         attempted: dict[str, Any],
+        request_sent: bool = True,
     ) -> None:
         super().__init__(message)
         self.results = results
         self.attempted = attempted
+        self.request_sent = request_sent
 
 
 def immutable_script_name(worker: Path) -> str:
@@ -190,18 +194,27 @@ def multipart_module(source: bytes) -> tuple[bytes, str]:
 
 
 def upload_worker(
-    account_id: str, bearer: str, worker: Path, *, script_name: str = SCRIPT_NAME
+    account_id: str,
+    bearer: str,
+    worker: Path,
+    *,
+    script_name: str = SCRIPT_NAME,
+    create_only: bool = False,
 ) -> dict[str, Any]:
     body, boundary = multipart_module(worker.read_bytes())
+    headers = {
+        "Authorization": f"Bearer {bearer}",
+        "Accept": "application/json",
+        "Content-Type": f"multipart/form-data; boundary={boundary}",
+    }
+    if create_only:
+        # A concurrent account writer must not turn this PUT into replacement.
+        headers["If-None-Match"] = "*"
     request = urllib.request.Request(
         f"{API}/accounts/{account_id}/workers/scripts/{script_name}",
         data=body,
         method="PUT",
-        headers={
-            "Authorization": f"Bearer {bearer}",
-            "Accept": "application/json",
-            "Content-Type": f"multipart/form-data; boundary={boundary}",
-        },
+        headers=headers,
     )
     try:
         with urllib.request.urlopen(request, timeout=60) as response:
@@ -217,6 +230,46 @@ def upload_worker(
             + json.dumps(value.get("errors") or value, sort_keys=True)[:4000]
         )
     return value
+
+
+def inspect_worker_script(
+    account_id: str, bearer: str, script_name: str, expected_source: bytes
+) -> str:
+    """Prove an account-level name is absent or already has exact source bytes."""
+    value = request_json(
+        "GET", f"/accounts/{account_id}/workers/scripts", bearer=bearer
+    )
+    info = value.get("result_info") or {}
+    try:
+        pages = int(info.get("total_pages") or 1)
+    except (TypeError, ValueError):
+        raise EdgeError("INVALID_WORKER_SCRIPT_PAGINATION") from None
+    if pages != 1:
+        raise EdgeError("AMBIGUOUS_WORKER_SCRIPT_PAGINATION")
+    rows = value.get("result")
+    if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
+        raise EdgeError("INVALID_WORKER_SCRIPT_LIST")
+    names = [row.get("id") for row in rows]
+    if any(not isinstance(name, str) or not name for name in names):
+        raise EdgeError("INVALID_WORKER_SCRIPT_NAME")
+    if len(names) != len(set(names)):
+        raise EdgeError("DUPLICATE_WORKER_SCRIPT_NAME")
+    if script_name not in names:
+        return "absent"
+
+    request = urllib.request.Request(
+        f"{API}/accounts/{account_id}/workers/scripts/{script_name}/content/v2",
+        method="GET",
+        headers={"Authorization": f"Bearer {bearer}"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=45) as response:
+            actual = response.read(len(expected_source) + 1)
+    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as exc:
+        raise EdgeError("WORKER_SCRIPT_READBACK_UNAVAILABLE") from exc
+    if actual != expected_source:
+        raise EdgeError("WORKER_SCRIPT_NAME_COLLISION")
+    return "identical"
 
 
 def _routes_by_pattern(current: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -349,6 +402,8 @@ def apply_route_plan(
     plan: list[dict[str, Any]],
     *,
     dry_run: bool,
+    expected_routes: list[dict[str, Any]] | None = None,
+    guard_live_create: bool = False,
 ) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
     for item in plan:
@@ -377,6 +432,28 @@ def apply_route_plan(
             continue
 
         payload = {"pattern": item["pattern"], "script": item["script"]}
+        if guard_live_create and action.startswith("create-"):
+            if expected_routes is None:
+                raise EdgeError("LIVE_ROUTE_BASELINE_MISSING")
+            try:
+                observed = fetch_routes(zone_id, bearer)
+            except EdgeError as exc:
+                raise RouteMutationError(
+                    "ROUTE_PREFLIGHT_UNAVAILABLE: " + str(exc),
+                    results=results,
+                    attempted=item,
+                    request_sent=False,
+                ) from exc
+            if (
+                route_snapshot(observed) != route_snapshot(expected_routes)
+                or any(row.get("pattern") == item["pattern"] for row in observed)
+            ):
+                raise RouteMutationError(
+                    "ROUTE_STATE_DRIFT_BEFORE_WRITE",
+                    results=results,
+                    attempted=item,
+                    request_sent=False,
+                )
         try:
             if action.startswith("update-"):
                 value = request_json(
@@ -415,6 +492,15 @@ def apply_route_plan(
                 "provider_script": result.get("script") or SCRIPT_NAME,
             }
         )
+        if guard_live_create and action.startswith("create-"):
+            assert expected_routes is not None
+            expected_routes.append(
+                {
+                    "id": str(result["id"]),
+                    "pattern": item["pattern"],
+                    "script": item["script"],
+                }
+            )
     return results
 
 
@@ -999,15 +1085,24 @@ def main() -> int:
             allow_proxied_create=True,
         )
         report["route_plan"] = _public_provider_items(route_actions)
+        live_creates = dns_is_proxied and any(
+            item["action"].startswith("create-") for item in route_actions
+        )
         if dns_is_proxied and any(
             item["script"] == proxied_script for item in route_actions
         ):
             report["script"] = proxied_script
+        upload_needed = live_creates or not dns_is_proxied
+        upload_script = proxied_script if live_creates else SCRIPT_NAME
+        script_state = None
+        if upload_needed:
+            script_state = inspect_worker_script(
+                account_id, bearer, upload_script, args.worker.read_bytes()
+            )
+            report["worker_script_preflight"] = script_state
 
         if not args.dry_run:
-            if dns_is_proxied and any(
-                item["action"].startswith("create-") for item in route_actions
-            ):
+            if live_creates:
                 # Re-read both provider surfaces before the first live write.
                 current_dns_plan, still_proxied = dns_proxy_plan(
                     fetch_dns_records(zone_id, bearer)
@@ -1019,28 +1114,51 @@ def main() -> int:
                     != route_snapshot(routes_current)
                 ):
                     raise EdgeError("PROVIDER_STATE_DRIFT_BEFORE_CUTOVER")
-                upload_worker(
-                    account_id, bearer, args.worker, script_name=proxied_script
-                )
+            if upload_needed:
+                if script_state == "absent":
+                    try:
+                        upload_worker(
+                            account_id, bearer, args.worker,
+                            script_name=upload_script, create_only=True,
+                        )
+                    except EdgeError:
+                        report["status"] = "UNKNOWN"
+                        report["worker_upload_outcome"] = "UNKNOWN"
+                        raise
+                    report["worker_upload_outcome"] = "uploaded"
+                else:
+                    report["worker_upload_outcome"] = "skipped-identical"
+                try:
+                    verified_script = inspect_worker_script(
+                        account_id, bearer, upload_script, args.worker.read_bytes()
+                    )
+                except EdgeError:
+                    report["status"] = "UNKNOWN"
+                    raise
+                if verified_script != "identical":
+                    report["status"] = "UNKNOWN"
+                    raise EdgeError("WORKER_SCRIPT_READBACK_NOT_IDENTICAL")
+            if live_creates:
                 if route_snapshot(fetch_routes(zone_id, bearer)) != route_snapshot(
                     routes_current
                 ):
                     raise EdgeError("ROUTE_STATE_DRIFT_AFTER_WORKER_UPLOAD")
-            elif not dns_is_proxied:
-                upload_worker(account_id, bearer, args.worker)
         try:
             route_results = apply_route_plan(
                 zone_id,
                 bearer,
                 route_actions,
                 dry_run=args.dry_run,
+                expected_routes=list(routes_current) if live_creates else None,
+                guard_live_create=live_creates and not args.dry_run,
             )
         except RouteMutationError as exc:
             if not dns_is_proxied:
                 raise
             route_results = list(exc.results)
-            recovered, unknown = reconcile_uncertain_route(
-                zone_id, bearer, exc.attempted
+            recovered, unknown = (
+                reconcile_uncertain_route(zone_id, bearer, exc.attempted)
+                if exc.request_sent else (None, True)
             )
             if recovered:
                 route_results.append(recovered)
