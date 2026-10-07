@@ -167,51 +167,6 @@ class ProductEdgeContract(unittest.TestCase):
                         allow_proxied_create=True,
                     )
 
-    def test_uncertain_route_post_remains_unknown_after_absent_readbacks(self) -> None:
-        attempted = {
-            "action": "create-apex-route",
-            "pattern": edge.APEX_ROUTE,
-            "script": edge.immutable_script_name(WORKER),
-        }
-        with (
-            mock.patch.object(edge, "fetch_routes", return_value=[]),
-            mock.patch.object(edge.time, "sleep"),
-        ):
-            recovered, unknown = edge.reconcile_uncertain_route(
-                "zone", "secret", attempted
-            )
-        self.assertIsNone(recovered)
-        self.assertTrue(unknown)
-
-    def test_uncertain_route_post_is_recovered_only_for_exact_new_owner(self) -> None:
-        script = edge.immutable_script_name(WORKER)
-        attempted = {
-            "action": "create-apex-route",
-            "pattern": edge.APEX_ROUTE,
-            "script": script,
-        }
-        with mock.patch.object(
-            edge,
-            "fetch_routes",
-            return_value=[{"id": "new-route", "pattern": edge.APEX_ROUTE, "script": script}],
-        ):
-            recovered, unknown = edge.reconcile_uncertain_route(
-                "zone", "secret", attempted
-            )
-        self.assertFalse(unknown)
-        self.assertEqual(recovered["provider_route_id"], "new-route")
-        with mock.patch.object(
-            edge,
-            "fetch_routes",
-            return_value=[{"id": "foreign", "pattern": edge.APEX_ROUTE,
-                           "script": "foreign"}],
-        ):
-            recovered, unknown = edge.reconcile_uncertain_route(
-                "zone", "secret", attempted
-            )
-        self.assertIsNone(recovered)
-        self.assertTrue(unknown)
-
     def test_incomplete_route_listing_fails_closed(self) -> None:
         with mock.patch.object(
             edge,
@@ -523,6 +478,58 @@ class ProductEdgeContract(unittest.TestCase):
         self.assertFalse(report["dns_mutated"])
         upload.assert_called_once()
         self.assertTrue(all(call.args[0] == "GET" for call in request.call_args_list))
+
+    def test_lost_route_ack_never_rolls_back_a_matching_unowned_route(self) -> None:
+        script = edge.immutable_script_name(WORKER)
+        records = [
+            dns_record("apex", edge.ZONE_NAME, "CNAME", proxied=True),
+            dns_record("www", f"www.{edge.ZONE_NAME}", "CNAME", proxied=True),
+        ]
+        apex = {"id": "apex-new", "pattern": edge.APEX_ROUTE, "script": script}
+        same_script_www = {
+            "id": "not-our-www", "pattern": edge.WWW_ROUTE, "script": script
+        }
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            mock.patch.dict(os.environ, {"CLOUDFLARE_API_TOKEN": "secret"}, clear=True),
+            mock.patch(
+                "sys.argv", [str(SCRIPT), "--report", str(Path(tmp) / "report.json")]
+            ),
+            mock.patch.object(
+                edge, "request_json",
+                side_effect=[
+                    {"success": True, "result": {"status": "active"}},
+                    {"success": True, "result": [{
+                        "id": "zone-id", "account": {"id": "account-id"}
+                    }]},
+                    {"success": True, "result": apex},
+                    edge.EdgeError("SECOND_POST_ACK_LOST"),
+                    {"success": True, "result": {}},
+                ],
+            ) as request,
+            mock.patch.object(edge, "fetch_dns_records", return_value=records),
+            mock.patch.object(
+                edge, "fetch_routes",
+                side_effect=[
+                    [], [], [], [], [apex],
+                    [apex, same_script_www], [same_script_www],
+                ],
+            ),
+            mock.patch.object(
+                edge, "inspect_worker_script", side_effect=["absent", "identical"]
+            ),
+            mock.patch.object(edge, "upload_worker"),
+            mock.patch("builtins.print"),
+        ):
+            self.assertEqual(edge.main(), 1)
+            report = json.loads((Path(tmp) / "report.json").read_text())
+        self.assertEqual(report["status"], "UNKNOWN")
+        self.assertTrue(report["route_write_request_sent"])
+        self.assertEqual(report["route_attempted"]["pattern"], edge.WWW_ROUTE)
+        self.assertEqual(report["route_rollback"][0]["state"], "restored-absent")
+        deletes = [call for call in request.call_args_list if call.args[0] == "DELETE"]
+        self.assertEqual(len(deletes), 1)
+        self.assertTrue(deletes[0].args[1].endswith("/apex-new"))
 
     def test_failed_proxied_public_proof_rolls_back_only_new_routes(self) -> None:
         script = edge.immutable_script_name(WORKER)

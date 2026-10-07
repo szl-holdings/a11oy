@@ -544,49 +544,13 @@ def verify_desired_routes(
             raise EdgeError("ROUTE_POSTCONDITION_FAILED: " + item["pattern"])
 
 
-def reconcile_uncertain_route(
-    zone_id: str, bearer: str, attempted: dict[str, Any]
-) -> tuple[dict[str, Any] | None, bool]:
-    """Locate a route whose POST acknowledgement may have been lost."""
-    if not str(attempted.get("action") or "").startswith("create-"):
-        return None, True
-    matches: list[dict[str, Any]] = []
-    for read in range(3):
-        try:
-            matches = [
-                row
-                for row in fetch_routes(zone_id, bearer)
-                if row.get("pattern") == attempted["pattern"]
-            ]
-        except EdgeError:
-            return None, True
-        if matches:
-            break
-        if read < 2:
-            time.sleep(1)
-    if not matches:
-        # A timed-out POST can propagate after a read that still says absent.
-        return None, True
-    if (
-        len(matches) != 1
-        or matches[0].get("script") != attempted["script"]
-        or not matches[0].get("id")
-    ):
-        return None, True
-    return {
-        **attempted,
-        "provider_route_id": str(matches[0]["id"]),
-        "state": "created-unacknowledged",
-    }, False
-
-
 def rollback_created_routes(
     zone_id: str, bearer: str, results: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
     """Delete only the exact routes created by this cutover, with readback."""
     rollback: list[dict[str, Any]] = []
     for item in reversed(results):
-        if item.get("state") not in {"created", "created-unacknowledged"}:
+        if item.get("state") != "created":
             continue
         route_id = str(item.get("provider_route_id") or "")
         if item.get("pattern") not in DESIRED_ROUTES or not route_id:
@@ -1155,25 +1119,15 @@ def main() -> int:
         except RouteMutationError as exc:
             if not dns_is_proxied:
                 raise
+            # A matching post-error route could belong to a concurrent writer.
+            # Never infer authorship from pattern/script or delete it on rollback.
             route_results = list(exc.results)
-            recovered, unknown = (
-                reconcile_uncertain_route(zone_id, bearer, exc.attempted)
-                if exc.request_sent else (None, True)
-            )
-            if recovered:
-                route_results.append(recovered)
             rollback = rollback_created_routes(zone_id, bearer, route_results)
             report["route_results"] = _public_provider_items(route_results)
             report["route_attempted"] = _public_provider_item(exc.attempted)
+            report["route_write_request_sent"] = exc.request_sent
             report["route_rollback"] = _public_provider_items(rollback)
-            failed = any(row["state"] == "rollback-failed" for row in rollback)
-            unknown = unknown or any(
-                row["state"] == "rollback-unknown" for row in rollback
-            )
-            report["status"] = (
-                "UNKNOWN" if unknown else "ROLLBACK_FAILED" if failed else
-                "ROLLED_BACK" if route_results else "BLOCKED"
-            )
+            report["status"] = "UNKNOWN"
             raise EdgeError("ROUTE_WRITE_FAILED: " + str(exc)) from exc
         report["route_results"] = _public_provider_items(route_results)
 
