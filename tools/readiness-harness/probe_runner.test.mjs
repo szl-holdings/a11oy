@@ -412,3 +412,165 @@ test("Python feed unavailable envelope is honest only with null evidence and a f
   assert.equal(evaluateEndpointLabels(200, spec, { fx: { ...fx, freshness: { ...fx.freshness, fetched_at: "bad" } } }).ok, false);
   assert.equal(evaluateEndpointLabels(200, spec, { fx: { ...fx, freshness: { ...fx.freshness, status: "stale" } } }).ok, false);
 });
+
+test("SYNTHETIC HTTP probe blocks a fresh cited but unbuilt RAG index", async () => {
+  const path = "/api/a11oy/v1/rag/status";
+  const body = {
+    status: "DEGRADED",
+    data_kind: "unavailable",
+    index: { built: false, chunks: 0 },
+    index_built: false,
+    corpus: {},
+    fetchedAt: new Date().toISOString(),
+    citations: [{ source: "SYNTHETIC unbuilt RAG status fixture; no deployed API contacted" }],
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify(body), {
+    status: 200, headers: { "Content-Type": "application/json" },
+  });
+  try {
+    const result = await probeEndpoint(path, readinessMatrix.endpoints[path]);
+    assert.equal(result.lie, false);
+    assert.equal(result.schemaOk, true);
+    assert.equal(result.citationOk, true);
+    assert.equal(result.freshOk, true);
+    assert.equal(result.labelPolicyOk, true);
+    assert.equal(result.degraded, true);
+    assert.equal(result.runtimeState, "DEGRADED");
+    assert.deepEqual(result.unavailableSources, ["$"]);
+    const gate = summarizeReleaseGate([result], 1);
+    assert.equal(gate.requiredDegraded, 1);
+    assert.equal(gate.blocked, true);
+    assert.equal(releaseExitCode(gate), 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("admitted negative root scalar labels retain endpoint-level absence", () => {
+  const spec = readinessMatrix.endpoints["/api/a11oy/v1/rag/status"];
+  for (const key of [
+    "status", "state", "label", "mode", "freshness",
+    "data_kind", "datakind", "source_kind", "sourcekind",
+    "evidence_state", "evidencestate",
+  ]) {
+    for (const value of ["degraded", "UNAVAILABLE", " DeGrAdEd "]) {
+      const result = evaluateEndpointLabels(200, spec, { [key]: value });
+      assert.equal(result.ok, true, `${key}=${value}`);
+      assert.equal(result.lie, null, `${key}=${value}`);
+      assert.deepEqual(result.unavailableSources, ["$"], `${key}=${value}`);
+    }
+  }
+});
+
+test("default and unknown root labels remain rejected without a new allowlist", () => {
+  for (const spec of [
+    {},
+    { degradedRules: { allowStatuses: [200], allowLabels: ["live", "cached"] } },
+  ]) {
+    for (const value of ["degraded", "unavailable", "unknown", "vendor-pending"]) {
+      const result = evaluateEndpointLabels(200, spec, { data_kind: value });
+      assert.equal(result.ok, false, value);
+      assert.deepEqual(result.unavailableSources, [], value);
+    }
+  }
+  const ragSpec = readinessMatrix.endpoints["/api/a11oy/v1/rag/status"];
+  for (const value of ["unknown", "vendor-pending"]) {
+    assert.equal(evaluateEndpointLabels(200, ragSpec, { data_kind: value }).ok, false);
+  }
+});
+
+test("nested optional and domain negatives do not speak for root availability", () => {
+  const spec = readinessMatrix.endpoints["/api/a11oy/v1/rag/status"];
+  const body = {
+    status: "LIVE",
+    data_kind: "live",
+    incidents: [{ status: "UNAVAILABLE", state: "degraded", label: "unavailable" }],
+    optional: {
+      data_kind: "unavailable",
+      mode: "degraded",
+      freshness: { status: "DEGRADED" },
+      source: {
+        value: null,
+        freshness: {
+          status: "UNAVAILABLE",
+          fetched_at: new Date().toISOString(),
+          error: "SYNTHETIC optional-source absence",
+        },
+      },
+    },
+  };
+  const result = evaluateEndpointLabels(200, spec, body);
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.unavailableSources, []);
+  assert.deepEqual(evaluateEndpointLabels(200, spec, [{ status: "DEGRADED" }])
+    .unavailableSources, []);
+});
+
+test("SYNTHETIC HTTP probe keeps built live RAG operational evidence unchanged", async () => {
+  const path = "/api/a11oy/v1/rag/status";
+  const body = {
+    status: "REAL", data_kind: "live",
+    index: { built: true, chunks: 1 }, index_built: true, corpus: {},
+    fetchedAt: new Date().toISOString(),
+    citations: [{ source: "SYNTHETIC built RAG status fixture; no deployed API contacted" }],
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify(body), {
+    status: 200, headers: { "Content-Type": "application/json" },
+  });
+  try {
+    const result = await probeEndpoint(path, readinessMatrix.endpoints[path]);
+    assert.equal(result.lie, false);
+    assert.equal(result.schemaOk, true);
+    assert.equal(result.citationOk, true);
+    assert.equal(result.freshOk, true);
+    assert.equal(result.labelPolicyOk, true);
+    assert.equal(result.degraded, false);
+    assert.equal(result.runtimeState, "RUNNING");
+    assert.deepEqual(result.unavailableSources, []);
+    assert.equal(releaseExitCode(summarizeReleaseGate([result], 1)), 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("SYNTHETIC HTTP root-negative evidence does not mask independent failures", async () => {
+  const path = "/api/a11oy/v1/rag/status";
+  const base = {
+    status: "DEGRADED", data_kind: "unavailable",
+    index: { built: false, chunks: 0 }, index_built: false, corpus: {},
+    fetchedAt: new Date().toISOString(),
+    citations: [{ source: "SYNTHETIC negative-evidence fixture; no deployed API contacted" }],
+  };
+  const noCitation = { ...base };
+  delete noCitation.citations;
+  delete noCitation.corpus;
+  const stale = { ...base, fetchedAt: "2000-01-01T00:00:00Z" };
+  const noClock = { ...base };
+  delete noClock.fetchedAt;
+  const originalFetch = globalThis.fetch;
+  try {
+    for (const [body, spec, failedGate, expectedReason] of [
+      [noCitation, readinessMatrix.endpoints[path], "citationOk", /citationsRequired/],
+      [stale, readinessMatrix.endpoints[path], "freshOk", /stale/],
+      [noClock, readinessMatrix.endpoints[path], "freshOk", /freshness timestamp missing/],
+      [base, { ...readinessMatrix.endpoints[path], schema: "text" },
+        "schemaOk", /schema invalid/],
+    ]) {
+      globalThis.fetch = async () => new Response(JSON.stringify(body), {
+        status: 200, headers: { "Content-Type": "application/json" },
+      });
+      const result = await probeEndpoint(path, spec);
+      assert.equal(result[failedGate], false, failedGate);
+      assert.equal(result.lie, true);
+      assert.equal(result.degraded, true);
+      assert.equal(result.runtimeState, "ERROR");
+      assert.deepEqual(result.unavailableSources, ["$"]);
+      assert.ok(result.lies.some((reason) => expectedReason.test(reason)));
+      assert.equal(releaseExitCode(summarizeReleaseGate([result], 1)), 1);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
