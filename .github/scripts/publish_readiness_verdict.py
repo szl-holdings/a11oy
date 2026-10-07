@@ -132,17 +132,36 @@ def compact_verdict(
     }
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", required=True)
-    parser.add_argument("--repo-id", required=True)
+    parser.add_argument("--repo-id")
     parser.add_argument("--expected-origin", required=True)
     parser.add_argument("--expected-source-sha", required=True)
     parser.add_argument("--variable", default=VERDICT_VARIABLE)
-    args = parser.parse_args()
+    parser.add_argument(
+        "--validate-only",
+        action="store_true",
+        help=(
+            "Fail closed on the same verdict gate and print the compact verdict, "
+            "but never write a Space variable: a variable write restarts the Space."
+        ),
+    )
+    parser.add_argument(
+        "--github-output",
+        help=(
+            "With --validate-only, append verdict=<compact JSON> so relock can "
+            "re-validate this run's verdict without a Space write."
+        ),
+    )
+    args = parser.parse_args(argv)
+    if args.github_output and not args.validate_only:
+        parser.error("--github-output is only valid with --validate-only")
+    if not args.validate_only and not args.repo_id:
+        parser.error("--repo-id is required to publish the verdict")
 
     token = os.environ.get("HF_TOKEN")
-    if not token:
+    if not args.validate_only and not token:
         raise VerdictError("HF_TOKEN is required to publish the verdict")
     payload = json.loads(Path(args.input).read_text(encoding="utf-8"))
     if not isinstance(payload, Mapping):
@@ -155,6 +174,13 @@ def main() -> int:
     rendered = json.dumps(compact, sort_keys=True, separators=(",", ":"))
     if len(rendered.encode("utf-8")) > 4096:
         raise VerdictError("compact verdict exceeds the Space variable limit")
+    if args.validate_only:
+        if args.github_output:
+            with open(args.github_output, "a", encoding="utf-8") as stream:
+                stream.write(f"verdict={rendered}\n")
+        print(json.dumps({"validated": True, "space_variable_written": False,
+                          "verdict": compact}, sort_keys=True))
+        return 0
 
     from huggingface_hub import HfApi
 

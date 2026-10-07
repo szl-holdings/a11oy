@@ -601,111 +601,53 @@ SOURCE_DERIVED_CONTROLLER_REVISIONS = frozenset({
 
 REVIEWED_SOURCE_ADMISSION_JOB_SHA256 = "13304ef0f4d96cae7d534f42a5068b373b2fda1c0200d01a2a83f1e1bab581e6"
 REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee8395e042853ded04deb7d170189"
-# These exact jobs and their complete local helper/reference closure recognize
-# the one signed successor authorized by the accepted read-only diagnostic.
-# Reconciliation requalifies the fixed capture and exact partial namespace before
-# the classifier can admit managed recovery. Acquisition then consumes only the
-# same-run closed artifacts, uses the canonical publisher, and has no automatic
-# retry path. These hashes establish source coverage for that bounded transition;
-# they never establish provider success or live restoration.
-REVIEWED_MANUAL_PREREQUISITES_JOB_SHA256 = "b8f8c5b5dd7644ee6bcaa64c63d1c1552110df74879d1cf5ab7a874c0213f315"
-REVIEWED_RECOVERY_RECONCILIATION_JOB_SHA256 = "e45235914cf661fb2c741fe159abb7a6a77bcda54d485de4be9deac832e3fdc1"
-REVIEWED_DURABLE_ACQUISITION_JOB_SHA256 = "526b2ef0081c4cff71fed2178ff0c1efd569221e43c829f8e26058013febd12f"
-REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "bc38f18b2837be0ae4058d66cb9a5cbac911cd6622c1d352d8c773edc2a37944"
-REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
-    "scripts/check_hf_manual_prerequisites.py": "3390924bd039b8377d1c54824e85f77bb06953bf4165c78e85bc9ddfbc7382ec",
+# The deploy path is source-admission -> preflight -> deploy -> runtime-config.
+# Preflight admits current main before any provider effect, reads the runtime
+# stage without restarting it, requires an open deploy window while SQLite lives
+# on the bucket mount, converges idempotent configuration before the single
+# deploy start and re-admits current main;
+# runtime-config verifies (or, when preflight could not, converges) against the
+# deployed revision. Every gate is an invariant (protected main, newest main
+# wins, live source binding), never an exact run, artifact or parent identity.
+# These exact job bodies and their complete local helper closure establish
+# reviewed source coverage only; they never establish provider success.
+REVIEWED_PREFLIGHT_JOB_SHA256 = "1a814a61c58c8abb5cf1b60a7654771bafefdc7c0aa430a2d6b54d1e130f01d0"
+REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "15c55e09b62c6355307a7f73c9452457e63874bf69831cbc4a2d9eb0f97ab1b8"
+REVIEWED_DEPLOY_HELPERS_SHA256 = {
+    # Read-only runtime-stage classifier; it has no provider write path.
+    ".github/scripts/resume_hf_space.py": "26cb21d2f0be37ebe6aa7e3be28f456489560f740f29215edd4b1d957ec53d49",
+    # Read-only wait for the deployed revision after a convergence write.
+    ".github/scripts/await_hf_runtime_serving.py": "2fb80ffe94124f359e55166f51e2c24105033348adc624421619a4311d42b98e",
     "scripts/configure_hf_series_a_runtime.py": "a5b6bd2968fe16d762eb241744bd4897ae05e72c85bc79d38ad33aaea90feb0d",
     "scripts/configure_hf_gdw_runtime.py": "3d56f13dccc09089fda4b4edc6b3e232c383ffd9b8416efe0f943e9cd87672e0",
-    # Installed-authority verifier imported by both configure helpers.
+    # Installed-authority verifier imported by both configure helpers, with
+    # its pinned verification key and static fallback source.
     "scripts/verify_installed_authority.py": "2d9465f393dbaa08754b02d6295abade1134a7dbc843cdab48a6ad70867fb68e",
-    # Its local ownership import is independently bound above by
-    # REVIEWED_SOURCE_ADMISSION_HELPER_SHA256, in the same admission decision.
-    "scripts/preserve_hf_gdw_store.py": "bf6af4a0105492eee618e2ffae00e9072966469f66028d9ceaff575a55332773",
-    # The qualifier's local preservation and descriptive forensic imports are
-    # separately pinned. Its capture, continuity anchors and verification key
-    # are bound too; a data-only substitution cannot retain source admission.
-    "scripts/gdw_orphan_forensics.py": "6b68913196304b4dce26e0d9685ae93e146a401c9e2720f1401153c4a177e28e",
-    "scripts/qualify_gdw_store_recovery.py": "f3c0541213a22fbd5ef60a3421e971a803fdf880f3ef25542d734ad4f976ea47",
-    "docs/operations/evidence/gdw-capture-37223162231.json": "5ff7b2be5d07850b560c1909be128521217ea70b959d238ff9d3f0f68a98b5c3",
-    "docs/operations/evidence/gdw-recovery-historical-anchors.json": "5850da876784da5d2a08532f1c70246e5be38ef623ff6c7378009049da4a273b",
     "ayllu/keys/council-runtime-2026-07-21.pub": "f8ee566d8f1e8ee8a9bb7eba37c24c18ae73605542fc29f7d3e5366ef75562fe",
-    # The exact acquisition, managed configuration and live-proof entrypoints
-    # include these local imports and fixed dynamic loaders. Runtime-installed
-    # application bytes and the remote publisher have their own source-bound
-    # manifest contract; this map binds the code that verifies that contract.
-    "scripts/acquire_gdw_durable_storage.py": "068df8c9fe331329cc30dd14955825f0d17784d3f39c5da3b9406e6f63c63aac",
-    # The successor controller, the isolated native object observer it reuses,
-    # and the reviewed side-effect boundary are a single source contract.
-    "scripts/reconcile_gdw_diagnostic_continuation.py": "f5b249b884d889b8400898a97f19d2a4d6cf4966b3db2ab3ae0d10d845961c0e",
-    "scripts/triage_gdw_artifacts_readonly.py": "2ae11a72cf343cf86dc84aa2443cb78db0e6b81eff7337f8df556e363e58c0b3",
-    "docs/operations/gdw-diagnostic-continuation-side-effects.md": "c84da23c0a5b6cf164dc2dc2a6e9eba0598d9706d76fbf98b9ecccaa0652259c",
-    "scripts/reconcile_gdw_supervised_acquisition.py": "23dd0478cc06d1881ff7c1469833d0192549807a06d5cf822cf8f6d12fdaa994",
-    "scripts/inspect_gdw_held_acquisition.py": "61e0b7d6e8236074ebcbbcc424b34d92f257f0c85608f7adbd640136de9e5dc6",
-    "scripts/inspect_gdw_62ca_acquisition.py": "d444b298495fc253205287f873f3e0a2b2eeb15eab686ea404983ea61fef97eb",
-    "scripts/gdw_acquisition_evidence.py": "7c15e3c774f7bbbee71c9da2255ea92a9d13c5320398c8a8134f1542d1795525",
-    "scripts/build_gdw_installed_source_manifest.py": "6954e77bcf7c4bd19f869596f6dc48896475abd4fd77f5412e4799257c1008ce",
-    "scripts/probe_gdw_runtime_base.py": "231f911d4df34e3e2c5eba25400b605872e6bbfd30183d075fac9f3c6d058a91",
-    "scripts/probe_gdw_legacy_startup.py": "c0384d47e5d22a856eba2e5fbe284f866e43affd9deb0f1d97148c44389649c0",
-    "scripts/prove_hf_series_a_restart.py": "9091569edb44d6e9d5dcc578ab2c53054aa2fc61de9c962da256dfd186dbd398",
-    "scripts/prove_hf_gdw_runtime.py": "317b4c2629241f312a9e497a0ad8fe7f06cc86426093a6593165c844acefd866",
-    "scripts/hf_live_proof_bounds.py": "74a53d7e90bf03f3ad896fd5fe21c3eaefa2ddb6452029332353f08f41693f3b",
-    "gdw_durable_storage.py": "7631833f3df81e14586a29aff5bec8014070b9f44cc8ebc85a276f9f5908922c",
-    "gdw_durable_startup.py": "54965688ea52866431aa7995dff221966e89cb460bda75894e1d70d791cd2e1c",
-    "gdw_durable_runtime.py": "2a01da4857dd411aaace8cabb74df27252fe8316aebbb4fef39b56bc778a724f",
-    "gdw_durable_source.py": "b4f4fb0f268e63a1976a14a18bed9774102e2807f3c72506ca7657ed02fcff0d",
-    "gdw_durable_guard.py": "33062e1fc067f037d1df3d8f6038d6b8eab72356923f8fb18c22b2697f1b9ae3",
-    "gdw_durable_image.py": "bbe71d8aa53494d5e22eac029cf4ecb378cbcb7ac3017b349d373c1d6c27142d",
-    "gdw_durable_artifacts.py": "f95b52bbe286b855de26ad7ccd769389977f29f47419f1e31ecaf4c4b9072ee0",
-    "gdw_auth.py": "c692593e02873f7b71b9a108fa42a9c2ae7f29d455596d9dd0a4236145297e89",
-    "gdw_workspace.py": "967652dadaf814afd0caabcc05a037f2f6a941e90b891b4edca25cee748655c8",
-    "gdw_proofs.py": "445c9cc5cd38a1660ef815b81ad0f65f68b996b30a479f2c606a12dd8679cc8c",
     "szl_dsse.py": "e095670051088929365f3eb4c76716122148d8f6b898db52f0e27867c221608c",
+    # The runtime signer whose served public key the verifier checks.
     "a11oy_signing_key.py": "3315e58f39e0727590ecd6545f4f125d40b2ff0eea9f5fced15539da5d764d5c",
-    "szl_content_address.py": "211b69d47fbbddf496fcfdedb0311e6fe6b67b67428100dd27ce7ce1f7247b10",
-    "szl_corpus_publish.py": "8be4bc2fd5c4365345fef932c75f6b07a7dcfe5c4de09aed4d3a28e2b62609dc",
-    "szl_formulas.py": "5208ac277e1e9da37c0a07a55c8b4153d1ecc7082bd3d5ccfd11b962b9db08ed",
-    "szl_hf_bucket.py": "61d68be3de5ac474e03b902df1ef27462d462a2037abf8d16b08d701498d5acc",
-}
-REVIEWED_RESUME_GATES = {
-    "needs": "[source-admission, manual-prerequisites]",
-    "if": "${{ github.event_name == 'push' && github.run_attempt == 1 && needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && needs.manual-prerequisites.outputs.mode != 'managed-recovery' }}",
 }
 REVIEWED_DEPLOY_GATES = {
-    "needs": "[source-admission, manual-prerequisites, durable-acquisition, resume-paused-space]",
-    "if": "${{ github.event_name == 'push' && github.run_attempt == 1 && always() && needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && ((needs.manual-prerequisites.outputs.mode == 'managed-recovery' && needs.durable-acquisition.result == 'success') || (needs.manual-prerequisites.outputs.mode != 'managed-recovery' && needs.resume-paused-space.result == 'success')) }}",
+    "needs": "[source-admission, preflight]",
+    "if": "${{ needs.source-admission.outputs.publish == 'true' && needs.preflight.result == 'success' && needs.preflight.outputs.publish == 'true' }}",
 }
-
-
-def direct_job_gates(block_lines, job_indent):
-    """Read direct gate properties without accepting merges or masked failures."""
-    indents = [len(raw) - len(raw.lstrip()) for raw in block_lines[1:]
-               if raw.strip() and not raw.strip().startswith("#")
-               and len(raw) - len(raw.lstrip()) > job_indent]
-    if not indents:
-        return None
-    property_indent = min(indents)
-    gates = {}
-    for raw in block_lines[1:]:
-        if len(raw) - len(raw.lstrip()) != property_indent:
-            continue
-        entry = yaml_mapping_entry(raw.strip())
-        if entry and entry[0] in {"<<", "continue-on-error"}:
-            return None
-        if entry and entry[0] in {"if", "needs"}:
-            if entry[0] in gates:
-                return None
-            gates[entry[0]] = entry[1]
-    return gates
+# Incident-only jobs retired with the durable v1 acquisition. Their exact
+# parent, run, artifact and namespace pins livelocked every later main.
+RETIRED_DEPLOY_JOBS = frozenset({
+    "recovery-reconciliation",
+    "manual-prerequisites",
+    "durable-acquisition",
+    "resume-paused-space",
+    "publish-finance-projection",
+})
 
 
 def job_has_source_derived_deploy_contract(block_lines, job_indent, *,
                                          admission_verified=False,
-                                         reconciliation_verified=False,
-                                         prerequisites_verified=False,
-                                         resume_verified=False,
-                                         acquisition_verified=False,
+                                         preflight_verified=False,
                                          runtime_verified=False):
-    """Recognize only the exact reviewed prerequisite and conditional deploy graph."""
+    """Recognize only the exact reviewed admission/preflight deploy graph."""
     property_indents = []
     for raw in block_lines[1:]:
         stripped = raw.strip()
@@ -753,10 +695,9 @@ def job_has_source_derived_deploy_contract(block_lines, job_indent, *,
             with_index = index
     if not controller_seen or not pinned_controller or with_index is None:
         return False
-    if not (admission_verified and reconciliation_verified and prerequisites_verified and resume_verified
-            and acquisition_verified and runtime_verified
+    if not (admission_verified and preflight_verified and runtime_verified
             and gates == REVIEWED_DEPLOY_GATES):
-        # Empty gates and the former source-only gate cannot bypass prerequisites.
+        # Empty gates and a source-only gate cannot bypass the preflight.
         return False
 
     expected_inputs = {
@@ -797,25 +738,27 @@ def job_has_source_derived_deploy_contract(block_lines, job_indent, *,
     )
 
 
+def _job_body_sha256(lines):
+    return hashlib.sha256("\n".join(lines).strip().encode("utf-8")).hexdigest()
+
+
 def has_source_derived_deploy_contract(hf_sync_text, *, ownership_helper=None,
-                                     manual_helpers=None):
+                                     deploy_helpers=None):
     """Return True only for the pinned reusable Dockerfile-derived deploy lane.
 
     The shared controller expands Dockerfile COPY sources and publishes that
     exact set. Requiring a reviewed capability-bearing controller revision,
     canonical destination, exact source SHA, and Dockerfile input in the same
-    reviewed source and manual-prerequisite graph prevents a generic
-    pin, stale ref, wrong destination, comment, step, unrelated workflow, or
-    arbitrary skipped deploy job from satisfying CHECK 3. Ownership admission
-    requires reviewed workflow and helper bytes plus the adjacent provider guard.
-    Recognition proves the COPY source contract, never a provider result or live
-    publication. This exact checkpoint retains complete source coverage for the
-    diagnostic-bound, first-attempt continuation. Its source admission and
-    acknowledged write fence constrain the one transition but do not themselves
-    establish provider success, retry safety, or live restoration.
+    reviewed admission and preflight graph prevents a generic pin, stale ref,
+    wrong destination, comment, step, unrelated workflow, or arbitrary skipped
+    deploy job from satisfying CHECK 3. Ownership admission requires reviewed
+    workflow and helper bytes plus the adjacent provider guard. Recognition
+    proves the COPY source contract, never a provider result or live
+    publication. A retired incident job anywhere in the graph is rejected.
     """
     jobs = workflow_job_blocks(hf_sync_text)
-    if len({job_id for job_id, _lines, _indent in jobs}) != len(jobs):
+    job_ids = [job_id for job_id, _lines, _indent in jobs]
+    if len(set(job_ids)) != len(job_ids) or RETIRED_DEPLOY_JOBS.intersection(job_ids):
         return False
     admissions = [lines for job_id, lines, _indent in jobs if job_id == "source-admission"]
     admission_verified = (
@@ -823,53 +766,33 @@ def has_source_derived_deploy_contract(hf_sync_text, *, ownership_helper=None,
         and isinstance(ownership_helper, bytes)
         and hashlib.sha256(ownership_helper.replace(b"\r\n", b"\n")).hexdigest()
         == REVIEWED_SOURCE_ADMISSION_HELPER_SHA256
-        and hashlib.sha256("\n".join(admissions[0]).strip().encode("utf-8")).hexdigest()
-        == REVIEWED_SOURCE_ADMISSION_JOB_SHA256
+        and _job_body_sha256(admissions[0]) == REVIEWED_SOURCE_ADMISSION_JOB_SHA256
     )
-    prerequisites = [lines for job_id, lines, _indent in jobs
-                     if job_id == "manual-prerequisites"]
-    prerequisites_verified = (
-        len(prerequisites) == 1
-        and type(manual_helpers) is dict
-        and set(manual_helpers) == set(REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256)
-        and all(isinstance(manual_helpers[path], bytes)
-                and hashlib.sha256(manual_helpers[path].replace(b"\r\n", b"\n")).hexdigest() == expected
-                for path, expected in REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256.items())
-        and hashlib.sha256("\n".join(prerequisites[0]).strip().encode("utf-8")).hexdigest()
-        == REVIEWED_MANUAL_PREREQUISITES_JOB_SHA256
+    helpers_verified = (
+        type(deploy_helpers) is dict
+        and set(deploy_helpers) == set(REVIEWED_DEPLOY_HELPERS_SHA256)
+        and all(isinstance(deploy_helpers[path], bytes)
+                and hashlib.sha256(deploy_helpers[path].replace(b"\r\n", b"\n")).hexdigest() == expected
+                for path, expected in REVIEWED_DEPLOY_HELPERS_SHA256.items())
     )
-    reconciliations = [lines for job_id, lines, _indent in jobs if job_id == "recovery-reconciliation"]
-    reconciliation_verified = (
-        len(reconciliations) == 1
-        and hashlib.sha256("\n".join(reconciliations[0]).strip().encode("utf-8")).hexdigest()
-        == REVIEWED_RECOVERY_RECONCILIATION_JOB_SHA256
-    )
-    resumes = [(lines, indent) for job_id, lines, indent in jobs
-               if job_id == "resume-paused-space"]
-    resume_verified = (len(resumes) == 1
-                       and direct_job_gates(*resumes[0]) == REVIEWED_RESUME_GATES)
-    acquisitions = [lines for job_id, lines, _indent in jobs
-                    if job_id == "durable-acquisition"]
-    acquisition_verified = (
-        len(acquisitions) == 1
-        and hashlib.sha256("\n".join(acquisitions[0]).strip().encode("utf-8")).hexdigest()
-        == REVIEWED_DURABLE_ACQUISITION_JOB_SHA256
+    preflights = [lines for job_id, lines, _indent in jobs if job_id == "preflight"]
+    preflight_verified = (
+        helpers_verified
+        and len(preflights) == 1
+        and _job_body_sha256(preflights[0]) == REVIEWED_PREFLIGHT_JOB_SHA256
     )
     runtimes = [lines for job_id, lines, _indent in jobs if job_id == "runtime-config"]
     runtime_verified = (
-        len(runtimes) == 1
-        and hashlib.sha256("\n".join(runtimes[0]).strip().encode("utf-8")).hexdigest()
-        == REVIEWED_RUNTIME_CONFIG_JOB_SHA256
+        helpers_verified
+        and len(runtimes) == 1
+        and _job_body_sha256(runtimes[0]) == REVIEWED_RUNTIME_CONFIG_JOB_SHA256
     )
     deploys = [(lines, indent) for job_id, lines, indent in jobs if job_id == "deploy"]
     return (workflow_has_unfiltered_main_push(hf_sync_text)
             and len(deploys) == 1
             and job_has_source_derived_deploy_contract(
                 *deploys[0], admission_verified=admission_verified,
-                reconciliation_verified=reconciliation_verified,
-                prerequisites_verified=prerequisites_verified,
-                resume_verified=resume_verified,
-                acquisition_verified=acquisition_verified,
+                preflight_verified=preflight_verified,
                 runtime_verified=runtime_verified)
     )
 
@@ -1054,14 +977,14 @@ def main():
         if os.path.isfile(ownership_path):
             with open(ownership_path, "rb") as fh:
                 ownership_helper = fh.read()
-        manual_helpers = {}
-        for helper_path in REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256:
+        deploy_helpers = {}
+        for helper_path in REVIEWED_DEPLOY_HELPERS_SHA256:
             absolute_path = os.path.join(root, helper_path)
             if os.path.isfile(absolute_path):
                 with open(absolute_path, "rb") as fh:
-                    manual_helpers[helper_path] = fh.read()
+                    deploy_helpers[helper_path] = fh.read()
         source_derived_deploy = has_source_derived_deploy_contract(
-            hf_text, ownership_helper=ownership_helper, manual_helpers=manual_helpers)
+            hf_text, ownership_helper=ownership_helper, deploy_helpers=deploy_helpers)
         mirror_explicit, mirror_globs = parse_hf_sync_mirror(hf_text)
         # a11oy mirrors front-door pages/console globs inside the heredoc step.
         if "pages/*.html" in hf_text or "console/*.html" in hf_text:
@@ -1074,7 +997,7 @@ def main():
         if not base.endswith(mirror_exts):
             continue  # only the served text asset types hf-sync owns
         if source_derived_deploy:
-            continue  # exact source coverage is preserved while publication is explicitly held
+            continue  # the pinned controller publishes the exact Dockerfile COPY set
         if f in image_only:
             continue  # explicitly declared image-only (baked, not mirrored)
         if hf_sync_present and gha_path_matches(f, mirror_explicit, mirror_globs):
@@ -1102,7 +1025,7 @@ def main():
     print(f"local modules reachable from serve.py imports: {len(reached_with_serve)}")
     if hf_sync_present:
         if source_derived_deploy:
-            print("hf-sync source coverage: pinned Dockerfile-derived controller; reviewed diagnostic-bound continuation")
+            print("hf-sync source coverage: pinned Dockerfile-derived controller; reviewed admission -> preflight -> deploy graph")
         else:
             print(f"hf-sync legacy mirror set: {len(mirror_explicit)} explicit + "
                   f"{len(mirror_globs)} glob(s)")

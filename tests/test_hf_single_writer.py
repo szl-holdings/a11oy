@@ -866,7 +866,7 @@ jobs: {}
         self.assertIn("cancel-in-progress: false", text)
         self.assertIn("ref: ${{ github.sha }}", text)
         self.assertIn("source-revision-variable: SZL_GIT_SHA", text)
-        self.assertRegex(text, r"(?m)^  runtime-config:\n(?:    [^\n]*\n)*?    needs: \[manual-prerequisites, durable-acquisition, deploy\]$")
+        self.assertRegex(text, r"(?m)^  runtime-config:\n(?:    [^\n]*\n)*?    needs: \[preflight, deploy\]$")
 
     def _python_wrapper_writers(self, source: str, *, files=None, directory="") -> list[str]:
         workflow = """name: delegated Python writer

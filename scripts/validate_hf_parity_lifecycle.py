@@ -29,8 +29,7 @@ TOOLS_PIN = "0816263f1e83734658d6e5a8a7cd3834f36a2054"
 POST_DEPLOY_CALL = "uses: ./.github/workflows/hf-module-drift.yml"
 TERMINAL_AUTHORIZATION_JOB = "terminal-source-authorization"
 TERMINAL_AUTHORIZATION_NEEDS = (
-    "needs: [post-deployment-parity, publish-vertical-flagships, "
-    "publish-finance-projection]"
+    "needs: [relock, post-deployment-parity, publish-vertical-flagships]"
 )
 
 

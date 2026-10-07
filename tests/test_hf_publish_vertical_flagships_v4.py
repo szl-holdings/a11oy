@@ -443,17 +443,18 @@ def test_canonical_workflows_still_use_exact_tested_source() -> None:
     assert "persist-credentials: false" in manual
     for fragment in (
         "publish-vertical-flagships:",
-        "needs: [manual-prerequisites, deploy]",
+        "needs: [source-admission, deploy]",
         "scripts/hf_publish_vertical_flagships_v4.py",
         "ref: ${{ github.sha }}",
         "persist-credentials: false",
     ):
         assert fragment in sync
     vertical = sync.split("  publish-vertical-flagships:", 1)[1].split(
-        "\n  publish-finance-projection:", 1
+        "\n  readiness-verdict:", 1
     )[0]
-    assert "needs: [manual-prerequisites, deploy]" in vertical
-    assert "if: ${{ github.run_attempt == 1 && needs.manual-prerequisites.result == 'success' && github.event_name == 'workflow_dispatch' && inputs.publish_vertical_flagships }}" in vertical
+    assert "needs: [source-admission, deploy]" in vertical
+    assert "if: ${{ needs.source-admission.outputs.publish == 'true' && needs.deploy.result == 'success' && github.event_name == 'workflow_dispatch' && inputs.publish_vertical_flagships }}" in vertical
+    assert "run_attempt == 1" not in vertical
     assert "steps.exact_main_owner.outputs.publish == 'true' && steps.vertical_plan.outputs.vertical_flagships == 'true'" in vertical
     assert 'test "$GITHUB_REF" = refs/heads/main' in sync
     assert "require-default-branch-tip: true" in sync

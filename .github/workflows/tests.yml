@@ -502,6 +502,8 @@ jobs:
           python3 scripts/test_hf_exact_main_ownership.py
           python3 tests/test_hf_sync_supersession_contract.py
           python3 tests/test_hf_manual_prerequisites_workflow.py
+          python3 tests/test_hf_sync_no_exact_pins.py
+          python3 tests/test_resume_hf_space.py
 
   theorem-manifest-honesty-selftest:
     name: Theorem-manifest honesty-guard self-test (stdlib, network-free)
