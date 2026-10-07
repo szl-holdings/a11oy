@@ -76,6 +76,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import sys
 import threading
 import time
 from typing import Any, Optional
@@ -440,10 +441,14 @@ def _register_novelty(app, ns: str = "a11oy") -> list[str]:
 # WHAT IT DOES:
 #   POST /api/a11oy/v1/materials/certify
 #     Accept EITHER explicit {empirical_risk, kl, n, delta} OR a named preset
-#     {family: "oxides"|"intermetallics"|"refractory_hea"} (or {model, family}).
-#     Validate every input FIRST (finite JSON numbers, bounded loss in [0,1],
-#     JSON-integer n >= 8, delta in (0,1), the one admissible risk_units label),
-#     then compute the Maurer (2004) form of the McAllester PAC-Bayes bound by
+#     {family: "oxides"|"intermetallics"|"refractory_hea"} (also {preset} or
+#     {model: <preset name>}) — never both in one body. An optional {model}
+#     label may accompany either form. Validate every field that reaches the
+#     receipt FIRST (finite JSON numbers, bounded loss in [0,1], JSON-integer
+#     n >= 8, delta in (0,1) with 2*sqrt(n)/delta finite in double precision,
+#     the one admissible risk_units label, model a short printable string,
+#     family/preset a known preset name; unknown keys are ignored and never
+#     receipted), then compute the Maurer (2004) form of the McAllester bound by
 #     IMPORTING `pac_bayes_mcallester` from szl_formulas (NOT reimplemented
 #     here). Return {bound, inputs, certificate_text, proof_status} + a SIGNED
 #     Khipu receipt (SZL.Materials.PACBayesCert.v1) into the SHARED szl_khipu DAG
@@ -491,6 +496,13 @@ _PACBAYES_MIN_N = 8
 # n is fed to math.sqrt/math.log as a double; above 2**53 an integer is no longer
 # representable without rounding, and 10**400 overflows float() outright.
 _PACBAYES_MAX_N = 2 ** 53
+# The complexity term evaluates 2*sqrt(n)/delta in double precision before its
+# logarithm is taken; below delta = 2*sqrt(n)/DBL_MAX that quotient is +inf.
+_PACBAYES_DBL_MAX = sys.float_info.max
+# Caller labels that are copied into the signed receipt: `model` is a NAME (a
+# short printable string, not a payload); `family`/`preset` must name a preset.
+_PACBAYES_LABEL_MAX_CHARS = 128
+_PACBAYES_EXPLICIT_KEYS = ("empirical_risk", "kl", "n", "delta")
 
 # Lean backing for the bound — OPEN SORRY / ROADMAP, NOT in locked-8.
 # FIX 3: top-level proof_status label — PACBayesMaterials has 1 open sorry
@@ -545,9 +557,14 @@ def _pacbayes_honesty() -> dict[str, Any]:
         "bound_computation": "closed-form evaluation in IEEE-754 double precision "
                              "(delegated to szl_formulas.pac_bayes_mcallester)",
         "input_contract": "validated BEFORE any receipt: finite JSON numbers, "
-                          "empirical_risk in [0,1], kl >= 0, delta in (0,1), n a "
-                          f"JSON integer with {_PACBAYES_MIN_N} <= n <= 2**53, "
-                          f"risk_units == {_PACBAYES_RISK_UNITS!r}",
+                          "empirical_risk in [0,1], kl >= 0, delta in (0,1) with "
+                          "2*sqrt(n)/delta finite in double precision, n a JSON "
+                          f"integer with {_PACBAYES_MIN_N} <= n <= 2**53, "
+                          f"risk_units == {_PACBAYES_RISK_UNITS!r}, model a "
+                          f"printable label <= {_PACBAYES_LABEL_MAX_CHARS} chars, "
+                          "family/preset a known preset name (either explicit "
+                          "inputs or a preset, never both); unknown keys are "
+                          "ignored and never receipted",
         "statistical_applicability": "NOT established by this surface — prior, "
                                      "posterior, KL and i.i.d. sampling model are the "
                                      "caller's responsibility",
@@ -565,6 +582,51 @@ def _pacbayes_honesty() -> dict[str, Any]:
         "locked8_note": "McAllester PAC-Bayes is NOT added to locked-8 "
                         "(Lean proof is an open SORRY/ROADMAP)",
     }
+
+
+def _pacbayes_short(value: Any, limit: int = 60) -> str:
+    """repr() of a caller value for an error message, truncated so that a 100 kB
+    label is not echoed back on the wire."""
+    text = repr(value)
+    return text if len(text) <= limit else f"{text[:limit]}... [{len(text)} chars]"
+
+
+def _pacbayes_model_label(value: Any) -> Optional[str]:
+    """Optional caller `model` label, copied verbatim into the signed receipt.
+    It is a NAME, not a payload: a non-blank printable JSON string of at most
+    _PACBAYES_LABEL_MAX_CHARS characters. Absent/null -> None. Objects, arrays,
+    booleans and numbers are rejected rather than receipted."""
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(
+            f"model must be a JSON string label (got {type(value).__name__}); it is "
+            "copied into the signed receipt, so objects, arrays, booleans and numbers "
+            "are rejected rather than receipted")
+    if len(value) > _PACBAYES_LABEL_MAX_CHARS:
+        raise ValueError(
+            f"model label must be at most {_PACBAYES_LABEL_MAX_CHARS} characters "
+            f"(got {len(value)})")
+    if not value.strip() or not value.isprintable():
+        raise ValueError(
+            "model label must be a non-blank printable string (no control characters)")
+    return value
+
+
+def _pacbayes_family(value: Any, key: str = "family") -> Optional[str]:
+    """Optional preset selector (`family` or `preset`). Absent/null -> None;
+    otherwise a JSON string naming a known preset, or ValueError."""
+    if value is None:
+        return None
+    known = ", ".join(sorted(_PACBAYES_PRESETS))
+    if not isinstance(value, str):
+        raise ValueError(
+            f"{key} must be a JSON string naming a preset (one of: {known}); got "
+            f"{type(value).__name__}")
+    if value not in _PACBAYES_PRESETS:
+        raise ValueError(
+            f"unknown {key} {_pacbayes_short(value)}: must be one of {known}")
+    return value
 
 
 def _pacbayes_number(name: str, value: Any) -> float:
@@ -610,7 +672,8 @@ def _pacbayes_risk_units(value: Any) -> str:
         return _PACBAYES_RISK_UNITS
     if value != _PACBAYES_RISK_UNITS:
         raise ValueError(
-            f"risk_units must equal {_PACBAYES_RISK_UNITS!r} (got {value!r}): the "
+            f"risk_units must equal {_PACBAYES_RISK_UNITS!r} (got "
+            f"{_pacbayes_short(value)}): the "
             "PAC-Bayes bound is a statement about a loss in [0,1]; a dimensionless "
             "complexity penalty cannot be added to a raw energy error such as "
             "'eV/atom'. Rescale or clip the loss to [0,1] first and disclose it "
@@ -635,57 +698,86 @@ def _validate_pacbayes_inputs(empirical_risk: Any, kl: Any, n: Any,
     if not (0.0 < delta_f < 1.0):
         raise ValueError(
             f"delta must lie in the open interval (0,1) (got {delta_f:g})")
+    # Same arithmetic as the shared formula: 2*sqrt(n)/delta is formed in double
+    # precision before ln() sees it. For delta below 2*sqrt(n)/DBL_MAX it is +inf,
+    # so the bound would be +inf — a caller-input condition, answered 400 here
+    # instead of surfacing as a 500 from the formula.
+    if not math.isfinite(2.0 * math.sqrt(n_i) / delta_f):
+        raise ValueError(
+            f"delta is too small for n = {n_i}: the complexity term 2*sqrt(n)/delta "
+            "overflows IEEE-754 double precision (the smallest admissible delta for "
+            f"this n is about {2.0 * math.sqrt(n_i) / _PACBAYES_DBL_MAX:.4g}); choose "
+            "a larger delta")
     return er, kl_f, n_i, delta_f
 
 
 def _resolve_pacbayes_inputs(body: dict[str, Any]) -> dict[str, Any]:
     """Resolve {empirical_risk,kl,n,delta} either explicitly or from a preset.
 
-    Explicit inputs win if all four are present. Otherwise a {family} (or
-    {model, family}) preset is looked up. Every value — explicit or preset — goes
-    through _validate_pacbayes_inputs, and a caller-supplied risk_units must be
-    the module's normalized dimensionless-loss label. Returns a dict with the
-    four validated inputs plus provenance metadata (source, family, risk_units,
-    input_label). Raises ValueError on bad/missing inputs; nothing is emitted.
+    A body carries EITHER the four explicit inputs (all of them) OR a preset
+    selector (`family`, `preset`, or `model` naming a preset) — never both, so
+    a stray or invalid explicit value can no longer ride along with a preset
+    and be silently ignored. An optional `model` label may accompany either
+    form. Every field that reaches the receipt (the four numbers, risk_units,
+    family, model) is validated here; unknown keys are ignored and never
+    receipted. Returns the validated inputs plus provenance metadata (source,
+    family, model, risk_units, input_label). Raises ValueError on the first
+    violation; nothing is emitted.
     """
-    explicit_keys = ("empirical_risk", "kl", "n", "delta")
-    has_all_explicit = all(k in body and body[k] is not None for k in explicit_keys)
+    present = [k for k in _PACBAYES_EXPLICIT_KEYS if body.get(k) is not None]
     units = _pacbayes_risk_units(body.get("risk_units"))
+    family = _pacbayes_family(body.get("family"), "family")
+    preset = _pacbayes_family(body.get("preset"), "preset")
+    model = _pacbayes_model_label(body.get("model"))
+    known = ", ".join(sorted(_PACBAYES_PRESETS))
 
-    if has_all_explicit:
+    if present:
+        missing = [k for k in _PACBAYES_EXPLICIT_KEYS if k not in present]
+        if missing:
+            raise ValueError(
+                "explicit inputs are all-or-nothing: got "
+                f"{', '.join(present)} but not {', '.join(missing)}")
+        if family is not None or preset is not None:
+            raise ValueError(
+                "supply EITHER explicit {empirical_risk, kl, n, delta} OR a preset "
+                "family — not both in one body (explicit values would otherwise be "
+                "certified under a preset's name)")
         er, kl, n, delta = _validate_pacbayes_inputs(
             body["empirical_risk"], body["kl"], body["n"], body["delta"])
         return {
             "empirical_risk": er, "kl": kl, "n": n, "delta": delta,
             "source": "explicit",
-            "family": body.get("family"),
-            "model": body.get("model"),
+            "family": None,
+            "model": model,
             "risk_units": units,
             "input_label": "CALLER-SUPPLIED — values validated (finite, loss in "
                            f"[0,1], JSON-integer n >= {_PACBAYES_MIN_N}, delta in "
-                           "(0,1)); statistical applicability (prior, posterior, "
-                           "KL, i.i.d. sampling) remains the caller's "
-                           "responsibility; bound evaluation is closed-form in "
-                           "IEEE-754 double precision",
+                           "(0,1) with a finite complexity term); statistical "
+                           "applicability (prior, posterior, KL, i.i.d. sampling) "
+                           "remains the caller's responsibility; bound evaluation "
+                           "is closed-form in IEEE-754 double precision",
         }
 
-    family = body.get("family") or body.get("preset") or body.get("model")
-    if isinstance(family, str) and family in _PACBAYES_PRESETS:
-        p = _PACBAYES_PRESETS[family]
-        er, kl, n, delta = _validate_pacbayes_inputs(
-            p["empirical_risk"], p["kl"], p["n"], p["delta"])
-        return {
-            "empirical_risk": er, "kl": kl, "n": n, "delta": delta,
-            "source": "preset",
-            "family": family,
-            "model": body.get("model"),
-            "risk_units": units,
-            "input_label": p["label"],
-        }
-
-    raise ValueError(
-        "supply either explicit {empirical_risk, kl, n, delta} OR a known "
-        "{family} preset (one of: " + ", ".join(sorted(_PACBAYES_PRESETS)) + ")")
+    if family is not None and preset is not None and family != preset:
+        raise ValueError(f"family ({family}) and preset ({preset}) disagree")
+    selected = family or preset
+    if selected is None and model in _PACBAYES_PRESETS:
+        selected = model  # {model: "<preset name>"} is the documented shorthand
+    if selected is None:
+        raise ValueError(
+            "supply either explicit {empirical_risk, kl, n, delta} OR a known "
+            f"{{family}} preset (one of: {known})")
+    p = _PACBAYES_PRESETS[selected]
+    er, kl, n, delta = _validate_pacbayes_inputs(
+        p["empirical_risk"], p["kl"], p["n"], p["delta"])
+    return {
+        "empirical_risk": er, "kl": kl, "n": n, "delta": delta,
+        "source": "preset",
+        "family": selected,
+        "model": model,
+        "risk_units": units,
+        "input_label": p["label"],
+    }
 
 
 def _do_certify(body: dict[str, Any]) -> dict[str, Any]:
@@ -703,6 +795,13 @@ def _do_certify(body: dict[str, Any]) -> dict[str, Any]:
     # Closed-form evaluation in IEEE-754 double precision, delegated to szl_formulas.
     bound = float(szl_formulas.pac_bayes_mcallester(
         inp["empirical_risk"], inp["kl"], inp["n"], inp["delta"]))
+    # Defence in depth, not a path validated inputs reach: with kl finite and
+    # 2*sqrt(n)/delta finite (both enforced above), kl + ln(2*sqrt(n)/delta) is at
+    # most DBL_MAX + ~710, which rounds to DBL_MAX, so every intermediate of the
+    # shared formula is finite (tests/test_materials_certify_inputs.py sweeps the
+    # corners, kl = DBL_MAX included). The guard stays because the formula module
+    # is shared and byte-locked — this caller does not own its arithmetic — and a
+    # non-finite value must never be receipted.
     if not math.isfinite(bound):
         raise ArithmeticError(
             "PAC-Bayes bound evaluated to a non-finite value; no receipt minted")
@@ -834,8 +933,14 @@ def register_certify(app, ns: str = "a11oy") -> list[str]:
                               "(no truncation, no booleans, no strings)",
                          "delta": "JSON number in (0,1)",
                          "risk_units": f"optional; must equal {_PACBAYES_RISK_UNITS!r}",
+                         "model": "optional; printable string label <= "
+                                  f"{_PACBAYES_LABEL_MAX_CHARS} chars, copied into "
+                                  "the receipt",
                      },
-                     "preset": {"family": sorted(_PACBAYES_PRESETS)},
+                     "preset": {"family": sorted(_PACBAYES_PRESETS),
+                                "note": "either explicit inputs or a preset in one "
+                                        "body, never both; `model` may accompany "
+                                        "either"},
                      "read_only_presets": f"GET {request.url.path}/presets",
                  },
                  "proof_status": _PACBAYES_PROOF_STATUS,

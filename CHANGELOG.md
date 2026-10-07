@@ -21,8 +21,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `"normalized risk (dimensionless, [0,1])"` as `risk_units`; a caller label such
   as `eV/atom` no longer flows into the signed `certificate_text`. The bound is a
   statement about a loss in `[0,1]`.
-- Refuse to emit when the certificate payload is not JSON-serializable with
-  `allow_nan=False` (defence in depth); a non-finite bound is a 500 with no receipt.
+- Reject a `delta` so small that the complexity term `2*sqrt(n)/delta` overflows
+  IEEE-754 double precision (below about `3.1e-308` for `n = 8`, `3.5e-307` for
+  `n = 1000`, `1.1e-300` for `n = 2**53`): HTTP 400 naming the smallest
+  admissible `delta` for that `n`, no receipt. With that check every input the
+  validator accepts yields a finite bound from the shared formula; the
+  non-finite-bound and `json.dumps(allow_nan=False)` guards stay as defence in
+  depth (500, no receipt) against a formula module that changes under this caller.
+- Validate the caller labels that are copied into the signed receipt: `model`
+  must be a non-blank printable string of at most 128 characters (objects,
+  arrays, booleans, numbers and control characters are rejected rather than
+  receipted) and `family`/`preset` must name a preset. A body carries either the
+  four explicit inputs or a preset, never both: stray or invalid explicit keys
+  beside a preset are a 400 instead of being silently ignored, and explicit
+  values are no longer receipted under a preset's name. Unknown keys are ignored
+  and never receipted. Rejection errors echo at most 60 characters of a caller
+  value.
 - Describe the bound as the Maurer (2004) form of the McAllester PAC-Bayes bound
   evaluated in closed form in IEEE-754 double precision; the wire and the source
   no longer call the computation exact, and the certificate's probability
@@ -33,7 +47,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `GET /v1/materials/certify`, with or without query parameters, now answer
   HTTP 405 with a JSON usage body and `Allow: POST`; they used to resolve query
   inputs and mint a receipt on a read path. Use `POST` with a JSON body, or the
-  read-only `GET .../materials/certify/presets`. The CI wiring for
+  read-only `GET .../materials/certify/presets`. The stricter `POST` contract
+  also rejects bodies that mix a preset with explicit keys and non-string
+  `model`/`family`/`preset` values, and the `inputs.family` field of an
+  explicit-input response is now always `null`. The CI wiring for
   `tests/test_materials_certify_inputs.py` is a follow-up on the materials
   governance job.
 
