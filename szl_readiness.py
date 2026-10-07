@@ -956,6 +956,16 @@ _BUILD_LOCKS: Dict[str, Any] = {}
 _SNAPSHOT_STALE = max(_WARM_INTERVAL * 2, _DEPLOY_TTL * 2)
 
 
+def _runtime_source_revision() -> Optional[str]:
+    """Return only the exact protected source identity supplied to this runtime."""
+    revision = (os.environ.get("SZL_GIT_SHA") or "").strip()
+    if len(revision) != 40 or revision == "0" * 40:
+        return None
+    if any(char not in "0123456789abcdef" for char in revision):
+        return None
+    return revision
+
+
 def _assemble_index(ns: str, fresh: bool = False) -> Dict[str, Any]:
     """Build the full readiness index payload for ns. This performs the live
     section reads, so it must only ever run off the request path (warmer /
@@ -993,9 +1003,15 @@ def _build_snapshot(ns: str, fresh: bool = False) -> Dict[str, Any]:
     # A scheduled sweep waits for an in-flight public build; it is never dropped
     # until the next interval, and an older assembly cannot overwrite a new one.
     with build_lock:
+        source_revision = _runtime_source_revision()
         payload = _assemble_index(ns, fresh=fresh)
         with _SNAPSHOT_LOCK:
-            _SNAPSHOT[ns] = {"payload": payload, "_t": time.time(), "at": _now_iso()}
+            _SNAPSHOT[ns] = {
+                "payload": payload,
+                "_t": time.time(),
+                "at": _now_iso(),
+                "source_revision": source_revision,
+            }
     return payload
 
 
@@ -1060,6 +1076,7 @@ def _snapshot_payload(snap: Dict[str, Any]) -> Dict[str, Any]:
         sections.append(section)
     payload.update(sections=sections, summary=_summary(sections), served_from="background-snapshot",
                    snapshot_fetched_at=snap.get("at"),
+                   snapshot_source_revision=snap.get("source_revision"),
                    snapshot_age_seconds=round(age, 1) if age is not None else None, stale=stale)
     return payload
 
@@ -1195,6 +1212,7 @@ def register(app, ns: str = "a11oy") -> None:
                 "summary": payload["summary"],
                 "served_from": "background-snapshot",
                 "snapshot_fetched_at": snap.get("at"),
+                "snapshot_source_revision": payload["snapshot_source_revision"],
                 "snapshot_age_seconds": payload["snapshot_age_seconds"],
                 "stale": payload["stale"],
                 "refresh_triggered": True,
