@@ -9,6 +9,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - materials calibration bound to the served predictor; unknown hull evidence never favorable
+
+- `_Calibrator.conformal_radius` in `szl_materials_predict` returns `math.inf`
+  when the split-conformal rank `ceil((n+1)(1-alpha))` exceeds `n` instead of
+  substituting `max|z|` for the quantile. `predict_property` then abstains:
+  verdict `RED`, `value_eV_atom` and `interval95_eV_atom` `null`, refusal
+  `calibration set too small for a finite split-conformal interval`. The served
+  calibrator is `n=52`, rank `k=51`, so no current output changes; `alpha`
+  outside `(0, 1)` (or a bool or string) now raises `ValueError`.
+- `convex_hull_distance` reports `competing_phases` (embedded phases in the same
+  binary system at a composition other than the query) and
+  `same_composition_phases_excluded`. With zero competing phases it returns
+  `applicable: false` with a reason, `delta_hull_eV_atom: null`, and the
+  energy relative to the elemental endpoints under the informational key
+  `delta_vs_elements_eV_atom`. A non-binary query also carries
+  `delta_hull_eV_atom: null` (the old mismatched `delta_hull` key is gone).
+- `GREEN` now requires a checked hull (`applicable` and a finite delta). An
+  inapplicable or missing hull yields `YELLOW` with the gate reason
+  `hull gate not applicable - plausibility unverified (...)` and a Lambda hull
+  factor of `0.2`; responses and receipts carry `hull_checked`.
+- A `calibration_artifact` (`szl.materials.calibration_artifact/v1`) is built
+  at fit time and returned on `POST /materials/predict`, on
+  `GET /materials/health` once built, and (compact) inside the receipt:
+  `predictor_hash` (sha256 over the fitted standardizer, every member's
+  coefficients and the fit config), `data_hash` (embedded sample),
+  `calibration_state_hash` (actual scores, diagnostic CDF, count and alpha), protocol
+  and split ids, `score_definition`, `alpha`, `n_calibration`, `rank_k`,
+  `unbounded`, `radius_abs_z`, `evaluation_provenance`. The pure helper
+  `validate_calibration_artifact` checks the actual calibrator and current data,
+  including exact metadata types and count/rank/radius/boundedness consistency.
+  Changed scores (even below the displayed radius precision), a changed alpha,
+  malformed or missing metadata, and stale predictor/data bindings fail closed
+  before artifact indexing or receipt construction (HTTP 500, nothing signed
+  or ledgered). Unvalidated artifacts are not echoed in that error response.
+  These hashes establish internal consistency, not authenticity or statistical
+  validity; in-sample calibration does not confer a split-conformal guarantee.
+- Honest wording (option A, no served number changes): the model is a
+  "5-member bootstrap ridge (linear) ensemble"; the deep ensemble UQ pattern
+  (Lakshminarayanan et al. 2017) is cited as prior art, not claimed. Served
+  intervals are described as the symmetric split-conformal |z| radius from an
+  in-sample calibrator; the isotonic CDF fit is labelled a diagnostic and the
+  unused "~95% isotonic" claim is removed. The existing CV coverage (0.9619 on
+  420 held-out predictions, 60 split trials, 52 unique materials) keeps its
+  value and gains a protocol label stating it evaluates split models, not the
+  served pair. A serving-protocol held-out coverage (fit plus in-sample
+  calibration on the kept records, 60 trials holding out 7 of 52, seed 4321;
+  0.9333 on 420 predictions when measured locally) is computed in memory at
+  build time and reported beside it as `serving_protocol_coverage` with its
+  own protocol label. Both are labelled MEASURED in-memory at build time,
+  deterministic and ephemeral.
+
+#### Migration - materials demo preset and verdict semantics (public API change)
+
+- `POST {"demo": "green"}` now predicts Fe2O3 (`{"Fe": 2, "O": 3}`; GREEN,
+  two embedded competing Fe-O phases, `delta_hull_eV_atom` about -0.211)
+  instead of MgO. MgO stays reachable as an explicit composition and answers
+  `YELLOW` with the hull-not-applicable reason: it is the only embedded Mg-O
+  phase, so its hull cannot be checked. Its value and interval are unchanged.
+- Every binary whose system has no other embedded phase (for example Al2O3,
+  CaO, NaCl) and every non-binary composition now answers `YELLOW` at best,
+  never `GREEN`. Verdict headers (`x-szl-materials-verdict`) follow.
+- `convex_hull_gate` always carries `applicable`, `competing_phases` and
+  `delta_hull_eV_atom` (`null` unless applicable); consumers reading the old
+  non-binary key `delta_hull` must switch to `delta_hull_eV_atom`.
+- `calibration` blocks gain `interval_method`, `measured_coverage_protocol`,
+  `uncalibrated_coverage_protocol`, `serving_protocol_coverage`,
+  `serving_protocol_coverage_n`, `serving_protocol_coverage_protocol`,
+  `coverage_measurement`, `coverage_note` and `unique_materials`; existing keys
+  keep their names and values. `measured_coverage` is `null` with a `NOT_RUN`
+  `coverage_note` only when the split protocol cannot run (too few records).
+
 ### Fixed - governed materials predictor inputs and inert read paths
 
 - Reject malformed `composition` counts in `szl_materials_predict` (NaN,
