@@ -180,6 +180,8 @@ jobs:
           tests/test_gdw_auth.py
           tests/test_gdw_auth_compat.py
           tests/test_gdw_runtime.py
+          tests/test_gdw_runtime_degraded_boot.py
+          tests/test_sqlite_orphan_repair.py
           tests/test_gdw_durable_runtime.py
           tests/test_gdw_durable_artifacts.py
           tests/test_gdw_durable_storage.py
@@ -500,6 +502,8 @@ jobs:
           python3 scripts/test_hf_exact_main_ownership.py
           python3 tests/test_hf_sync_supersession_contract.py
           python3 tests/test_hf_manual_prerequisites_workflow.py
+          python3 tests/test_hf_sync_no_exact_pins.py
+          python3 tests/test_resume_hf_space.py
 
   theorem-manifest-honesty-selftest:
     name: Theorem-manifest honesty-guard self-test (stdlib, network-free)

@@ -561,6 +561,29 @@ def _make_logger(organ: str) -> logging.Logger:
 
 
 # ===========================================================================
+# /readyz storage block (GDW runtime BLOCKED state)
+# ===========================================================================
+
+
+def gdw_storage_block() -> Optional[Dict[str, Any]]:
+    """BLOCKED storage reason from the GDW runtime, if that runtime is loaded.
+
+    gdw_runtime registers itself in sys.modules when it is the entrypoint, so
+    this never imports it (standalone hardened apps have no GDW runtime).
+    """
+    module = sys.modules.get("gdw_runtime")
+    probe = getattr(module, "storage_block", None)
+    if not callable(probe):
+        return None
+    try:
+        block = probe()
+    except Exception as exc:  # noqa: BLE001 - unreadable state is not ready
+        return {"startup_state": "UNKNOWN", "reason": "GDW_STORAGE_STATE_UNREADABLE",
+                "error_class": type(exc).__name__}
+    return dict(block) if isinstance(block, dict) else None
+
+
+# ===========================================================================
 # main entrypoint
 # ===========================================================================
 def harden(app: Any, organ: str, ns: Optional[str] = None,
@@ -643,7 +666,12 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
     @app.exception_handler(StarletteHTTPException)
     async def _http_exc_handler(request: "Request", exc: "StarletteHTTPException"):
         tid = getattr(request.state, "trace_id", uuid.uuid4().hex)
-        return _envelope("http_error", str(exc.detail), tid, exc.status_code)
+        response = _envelope("http_error", str(exc.detail), tid, exc.status_code)
+        # Keep protocol headers the route attached (Retry-After on 503/429,
+        # WWW-Authenticate on 401); the envelope replaces only the body.
+        for name, value in (getattr(exc, "headers", None) or {}).items():
+            response.headers[name] = value
+        return response
 
     @app.exception_handler(RequestValidationError)
     async def _validation_handler(request: "Request", exc: "RequestValidationError"):
@@ -720,7 +748,8 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
     # QHAPAQ 2026-08-28: GET 200 / HEAD 405. Include HEAD on the methods set
     # (Starlette Route GET-only is the usual cause). This liveness body does
     # NOT share the /api/a11oy/healthz rollup signer — fail closed ABSENT,
-    # never copy DSSE-LIVE.
+    # never copy DSSE-LIVE. Liveness stays 200 even when GDW storage is
+    # BLOCKED; readiness (/readyz) carries that fault.
     _SIGNER_ABSENT = {
         "status": "ABSENT",
         "signing_available": False,
@@ -759,11 +788,18 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
     @app.get("/readyz", tags=["health"])
     async def _readyz():
         ok, depth, brk = store.verify()
-        body = {"status": "ready" if ok else "degraded", "organ": organ,
+        storage_block = gdw_storage_block()
+        ready = ok and storage_block is None
+        body = {"status": "ready" if ready else "degraded", "organ": organ,
                 "khipu_backend": store.backend, "khipu_durable": store.backend in ("sqlite", "json"),
                 "khipu_depth": depth, "khipu_chain_ok": ok,
                 "khipu_first_break_seq": brk, "doctrine": DOCTRINE}
-        return JSONResponse(body, status_code=200 if ok else 503)
+        headers = None
+        if storage_block is not None:
+            body["storage"] = storage_block
+            body["blocked_reason"] = storage_block.get("reason")
+            headers = {"Retry-After": str(int(storage_block.get("retry_after_seconds") or 60))}
+        return JSONResponse(body, status_code=200 if ready else 503, headers=headers)
 
     _health_head_paths = {
         "/healthz", f"{base}/healthz", "/readyz", f"{base}/readyz",
