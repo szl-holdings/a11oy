@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedBy": "scripts/audit_huggingface_ecosystem.py",
-  "observedAt": "2026-10-07T16:44:12Z",
+  "observedAt": "2026-10-07T17:27:37Z",
   "org": "SZLHOLDINGS",
   "inventoryScope": {
     "visibility": "public-only",
@@ -1865,8 +1865,8 @@
         "disabled": false,
         "sdk": null,
         "license": "other",
-        "sha": "f954c7be3f09d40577cdfc882c5f6c9725c038fd",
-        "lastModified": "2026-10-07T16:41:32.000Z",
+        "sha": "6ef816e9f0a240575f9736452e536245d575d4a7",
+        "lastModified": "2026-10-07T17:26:08.000Z",
         "cardSemanticSha256": "5ca45456406954c54c4084f85567ee9bd0498f2f38eb4894b1b03937d8bf86c2",
         "createdAt": "2026-06-12T11:38:04.000Z",
         "tags": [
@@ -2326,6 +2326,14 @@
         "createdAt": "2026-08-31T03:23:30.000Z",
         "tags": [
           "license:apache-2.0",
+          "size_categories:n<1K",
+          "format:json",
+          "modality:tabular",
+          "modality:text",
+          "library:datasets",
+          "library:pandas",
+          "library:polars",
+          "library:mlcroissant",
           "region:us",
           "governance",
           "receipts",
@@ -2893,8 +2901,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "cc20ea0929bcfb07db0644c5947499fe1a5d5ed2",
-        "lastModified": "2026-10-07T16:41:40.000Z",
+        "sha": "2521a51a074618fec9d298cc341e7dacf760a71a",
+        "lastModified": "2026-10-07T17:14:53.000Z",
         "cardSemanticSha256": "aad7af81f4da84b0062d14a95e8ac5f0d97dc6f6e69a457a14ef79625a8eb636",
         "createdAt": "2026-06-03T21:58:01.000Z",
         "tags": [
@@ -3495,9 +3503,9 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "00b00b71e1726ad286a274c46f1c0dfa12aa54a1",
-        "lastModified": "2026-10-07T16:37:40.000Z",
-        "cardSemanticSha256": "d6dcd500a796fd1450062dbe6f2bc30607ee2c26314dcbe645bdfc3a82e33b94",
+        "sha": "20210aa8027baf174af9c58b98f3cdd4d12a362d",
+        "lastModified": "2026-10-07T17:22:49.000Z",
+        "cardSemanticSha256": "75e81450f10e6ed02dca73db81af3f5e964488c68e06f7e3d63f75ac5ef027a2",
         "createdAt": "2026-09-04T13:48:34.000Z",
         "tags": [
           "docker",
