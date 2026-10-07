@@ -934,7 +934,10 @@ def _assemble_index(ns: str) -> Dict[str, Any]:
     section reads, so it must only ever run off the request path (warmer /
     background build thread)."""
     cfg = _cfg_for(ns)
-    sections = [_SECTIONS[sid](cfg) for sid in _SECTION_ORDER]
+    # A background sweep must renew observations, not assemble a new snapshot
+    # from caches that can expire before the next sweep. Failed reads do not
+    # renew prior clocks; request handlers still serve snapshots without probing.
+    sections = [_SECTIONS[sid](cfg, fresh=True) for sid in _SECTION_ORDER]
     return {
         "layer": "%s operational readiness" % ns,
         "honest": _HONEST,

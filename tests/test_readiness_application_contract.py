@@ -11,7 +11,7 @@ from pathlib import Path
 import sys
 from types import ModuleType
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 import urllib.error
 
 
@@ -78,6 +78,66 @@ class ReadinessContractTests(unittest.TestCase):
         self.assertTrue(self.observe({"status": "ok", "organ": "a11oy"}, health)["contract"]["ready"])
         body = {**self.evidence, "layer": "a11oy evidence & research"}
         self.assertTrue(self.observe(body, api)["contract"]["ready"])
+
+    def background_sections(self):
+        cfg = readiness._killinchu_cfg()
+        cfg["deployment"]["endpoints"] = [self.health, self.endpoint]
+        patch.object(readiness, "_cfg_for", return_value=cfg).start()
+        patch.object(readiness, "_SNAPSHOT", {}).start()
+        sections = {sid: Mock(return_value={"id": sid})
+                    for sid in readiness._SECTION_ORDER}
+        sections["deployment"] = readiness._sec_deployment
+        patch.object(readiness, "_SECTIONS", sections).start()
+
+        def reply(request, **_kwargs):
+            body = ({"status": "ok", "organ": "killinchu"}
+                    if request.full_url == self.health["url"] else self.evidence)
+            return Response(json.dumps(body).encode())
+
+        self.network.side_effect = reply
+        return sections
+
+    def test_background_rebuild_renews_contracts_before_cache_expiry(self):
+        self.background_sections()
+        readiness._build_snapshot("killinchu")
+        self.assertEqual(self.network.call_count, 2)
+        self.clock += readiness._WARM_INTERVAL
+        readiness._build_snapshot("killinchu")
+        self.assertEqual(self.network.call_count, 4)
+        # The original observations have expired, but the second sweep actually
+        # reobserved both contracts; no timestamp is fabricated on a GET.
+        self.clock = 1000.0 + readiness._LIVENESS_TTL + 1
+        snap = readiness._snapshot("killinchu")
+        payload = readiness._snapshot_payload(snap)
+        self.assertTrue(payload["summary"]["application_ready"])
+        for row in payload["sections"][0]["endpoints"]:
+            self.assertEqual(row["liveness"]["checked_at_unix"],
+                             1000.0 + readiness._WARM_INTERVAL)
+
+    def test_failed_background_refresh_cannot_reuse_a_cached_pass(self):
+        self.background_sections()
+        readiness._build_snapshot("killinchu")
+        self.clock += readiness._WARM_INTERVAL
+        self.network.side_effect = TimeoutError("unavailable")
+        readiness._build_snapshot("killinchu")
+        payload = readiness._snapshot_payload(readiness._snapshot("killinchu"))
+        self.assertFalse(payload["summary"]["application_ready"])
+        self.assertEqual(self.network.call_count, 4)
+        for row in payload["sections"][0]["endpoints"]:
+            lv = row["liveness"]
+            self.assertEqual(lv["checked_at_unix"], 1000.0)
+            self.assertEqual(lv["contract"]["reason"], "live_check_failed")
+
+    def test_background_sweep_refreshes_each_source_section(self):
+        sections = {sid: Mock(return_value={"id": sid})
+                    for sid in readiness._SECTION_ORDER}
+        cfg = readiness._killinchu_cfg()
+        with patch.object(readiness, "_cfg_for", return_value=cfg), \
+                patch.object(readiness, "_SECTIONS", sections):
+            readiness._assemble_index("killinchu")
+        for section in sections.values():
+            section.assert_called_once_with(cfg, fresh=True)
+        self.network.assert_not_called()
 
     def test_both_namespace_descriptors_are_bound(self):
         for ns in ("a11oy", "killinchu"):
