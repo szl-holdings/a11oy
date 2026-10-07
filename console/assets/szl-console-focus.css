@@ -2,8 +2,19 @@
  * (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
  * Console shell, System Health, Readiness and Models/Kernels. Palette, type and spacing use vendored SZL tokens.
  */
+/* console.html declares its own :root --bg after KANCHAY, so the canvas is restated here with
+   KANCHAY 1.3.0's graphite and paper tokens. */
 html[data-console-style="restrained"] {
-  --bg:var(--color-space-900); --bg-deep:var(--color-space-900);
+  --bg:var(--color-graphite-900); --bg-deep:var(--color-graphite-950);
+  background:var(--bg);
+}
+html[data-console-style="restrained"][data-surface="light"] {
+  --bg:var(--color-paper-100); --bg-deep:var(--color-paper-200);
+}
+/* Console aliases resolve on <html> and again on every nested dark or light surface, so a
+   dark panel inside the light shell keeps its own ink, links and status colors. */
+html[data-console-style="restrained"],
+html[data-console-style="restrained"] :is([data-surface="dark"],[data-surface="light"]) {
   --ground:var(--bg); --void:var(--bg); --panel:var(--surface); --panel2:var(--surface-alt);
   --rail:var(--surface); --cream:var(--text); --paragraph:var(--text-sub);
   --muted:var(--text-sub); --dim:var(--text-sub); --gray:var(--text-sub);
@@ -25,10 +36,9 @@ html[data-console-style="restrained"] {
   --szl-holo-space-1:var(--space-2); --szl-holo-space-2:var(--space-4);
   --szl-holo-space-3:var(--space-6); --szl-holo-space-4:var(--space-8);
   --szl-holo-space-5:var(--space-12);
-  background:var(--bg);
 }
-html[data-console-style="restrained"][data-surface="light"] {
-  --bg:var(--color-gray-50); --bg-deep:var(--color-gray-50);
+html[data-console-style="restrained"][data-surface="light"],
+html[data-console-style="restrained"] [data-surface="light"] {
   --health-ok:var(--color-success-strong); --health-warning:var(--color-hatun-800);
   --health-error:var(--color-yawar-700);
 }
