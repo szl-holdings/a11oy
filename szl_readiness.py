@@ -44,6 +44,7 @@ Endpoints (per namespace ns):
 from __future__ import annotations
 
 import json
+from functools import wraps
 import math
 import os
 import tempfile
@@ -59,7 +60,11 @@ _GH_API = "https://api.github.com/"
 _HF_API = "https://huggingface.co/api/"
 
 # Optional, env-supplied tokens — NEVER hard-coded. Public GitHub/HF reads work
-# unauthenticated (rate-limited); a token, when present, lifts the limit only.
+# unauthenticated (rate-limited). Reliable five-minute whole-source monitoring
+# needs an authenticated read token with available quota: each scheduled sweep
+# uses 4 GitHub reads, plus up to 2 for comparison/anchor resolution, per organ
+# per worker. Token presence is not quota evidence; failed reads keep their real
+# last-good clocks and may fail the unchanged freshness gate.
 _GH_TOKEN = (os.environ.get("SZL_READINESS_GH_TOKEN")
              or os.environ.get("GITHUB_TOKEN")
              or os.environ.get("GH_TOKEN") or "").strip()
@@ -236,11 +241,29 @@ def _hit(key: str) -> Optional[Dict[str, Any]]:
     return _CACHE.get(key)
 
 
+_SWEEP = threading.local()
+
+
+def _once_per_sweep(reader):
+    """Reuse the exact observation (including failure fallback) within a sweep."""
+    @wraps(reader)
+    def read(*args, **kwargs):
+        observations = getattr(_SWEEP, "observations", None)
+        if observations is None:
+            return reader(*args, **kwargs)
+        key = (reader.__name__, args, tuple(sorted(kwargs.items())))
+        if key not in observations:
+            observations[key] = reader(*args, **kwargs)
+        return observations[key]
+    return read
+
+
 # ---------------------------------------------------------------------------
 # Deployed-app reader: GET the running process's own JSON endpoint, cached,
 # honest. mode: live | cached | unreachable. Never invents a body.
 # ---------------------------------------------------------------------------
 
+@_once_per_sweep
 def _deployed(url: str, fresh: bool = False) -> Dict[str, Any]:
     key = "dep:" + url
     now = time.time()
@@ -270,6 +293,7 @@ def _deployed(url: str, fresh: bool = False) -> Dict[str, Any]:
 # commit existence, branch compare). All cached + honest.
 # ---------------------------------------------------------------------------
 
+@_once_per_sweep
 def _gh_repo(repo: str, branch: str, fresh: bool = False) -> Dict[str, Any]:
     key = "ghrepo:" + repo + "@" + branch
     now = time.time()
@@ -339,6 +363,7 @@ def _gh_runs(repo: str, branch: str, fresh: bool = False) -> Dict[str, Any]:
         return {"conclusion": None, "mode": "unreachable", "error": str(ex)[:140]}
 
 
+@_once_per_sweep
 def _gh_release(repo: str, fresh: bool = False) -> Dict[str, Any]:
     key = "ghrel:" + repo
     now = time.time()
@@ -428,6 +453,7 @@ def _gh_compare(repo: str, base: str, head: str, fresh: bool = False) -> Dict[st
 # Hugging Face Space reader.
 # ---------------------------------------------------------------------------
 
+@_once_per_sweep
 def _hf_space(org: str, name: str, fresh: bool = False) -> Dict[str, Any]:
     key = "hf:" + org + "/" + name
     now = time.time()
@@ -924,17 +950,27 @@ _HONEST = (
 _SNAPSHOT: Dict[str, Dict[str, Any]] = {}
 _SNAPSHOT_LOCK = threading.Lock()
 _BUILDING: set = set()
+_BUILD_LOCKS: Dict[str, Any] = {}
 # A snapshot older than this is honestly flagged stale (the warmer fell behind);
 # generous vs the warm interval so one slow sweep is not mislabelled stale.
 _SNAPSHOT_STALE = max(_WARM_INTERVAL * 2, _DEPLOY_TTL * 2)
 
 
-def _assemble_index(ns: str) -> Dict[str, Any]:
+def _assemble_index(ns: str, fresh: bool = False) -> Dict[str, Any]:
     """Build the full readiness index payload for ns. This performs the live
     section reads, so it must only ever run off the request path (warmer /
     background build thread)."""
     cfg = _cfg_for(ns)
-    sections = [_SECTIONS[sid](cfg) for sid in _SECTION_ORDER]
+    # Scheduled sweeps reobserve inputs beneath the five-minute contract;
+    # request-triggered builds retain the ordinary provider caches. Reuse each
+    # shared reader's result exactly once, including failed refreshes and their
+    # last-good clocks, rather than refetching it for the parity section.
+    previous = getattr(_SWEEP, "observations", None)
+    _SWEEP.observations = {}
+    try:
+        sections = [_SECTIONS[sid](cfg, fresh=fresh) for sid in _SECTION_ORDER]
+    finally:
+        _SWEEP.observations = previous
     return {
         "layer": "%s operational readiness" % ns,
         "honest": _HONEST,
@@ -949,11 +985,17 @@ def _assemble_index(ns: str) -> Dict[str, Any]:
     }
 
 
-def _build_snapshot(ns: str) -> Dict[str, Any]:
+def _build_snapshot(ns: str, fresh: bool = False) -> Dict[str, Any]:
     """Assemble and store the index snapshot for ns (background only)."""
-    payload = _assemble_index(ns)
     with _SNAPSHOT_LOCK:
-        _SNAPSHOT[ns] = {"payload": payload, "_t": time.time(), "at": _now_iso()}
+        build_lock = _BUILD_LOCKS.setdefault(ns, threading.Lock())
+    # Serialize scheduled and request-triggered builds before observing inputs.
+    # A scheduled sweep waits for an in-flight public build; it is never dropped
+    # until the next interval, and an older assembly cannot overwrite a new one.
+    with build_lock:
+        payload = _assemble_index(ns, fresh=fresh)
+        with _SNAPSHOT_LOCK:
+            _SNAPSHOT[ns] = {"payload": payload, "_t": time.time(), "at": _now_iso()}
     return payload
 
 
@@ -1055,7 +1097,7 @@ def _warm_loop() -> None:
         try:
             for ns in list(_WARM_NS):
                 try:
-                    _build_snapshot(ns)
+                    _build_snapshot(ns, fresh=True)
                 except Exception:  # noqa: BLE001
                     pass
                 time.sleep(2)  # polite spacing between organs
