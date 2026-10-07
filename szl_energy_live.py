@@ -37,6 +37,7 @@ from datetime import datetime, timezone
 from starlette.requests import Request
 from starlette.routing import Route
 from starlette.responses import JSONResponse
+from szl_meter_access import meter_access_headers
 
 # Honest labels (mirror szl_governed_api / szl_joules_truth vocabulary).
 LABEL_MEASURED = "MEASURED"
@@ -176,10 +177,11 @@ def _fetch_meter() -> dict:
     except Exception as e:  # pragma: no cover — httpx is a repo dep
         return {"reachable": False, "status": f"offline:httpx-import:{type(e).__name__}"}
     try:
-        with httpx.Client(timeout=METER_TIMEOUT_S, follow_redirects=True) as client:
-            resp = client.get(url, headers={"User-Agent": _UA})
+        auth = meter_access_headers(url)
+        with httpx.Client(timeout=METER_TIMEOUT_S, follow_redirects=not bool(auth)) as client:
+            resp = client.get(url, headers={"User-Agent": _UA, **auth})
         code = resp.status_code
-        if code >= 400:
+        if code >= 400 or (auth and code >= 300):
             return {"reachable": False, "status": f"http-{code}"}
         parsed = parse_meter_metrics(resp.text)
         parsed.update({"reachable": True, "status": "ok"})

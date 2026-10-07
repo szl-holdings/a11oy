@@ -96,9 +96,9 @@ def _read_one_meter(url: str, timeout: float) -> dict:
     Never raises, never caches, never substitutes a previous reading.
     """
     t0 = _time.monotonic()
-    req = urllib.request.Request(url, headers={"User-Agent": METER_UA})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310
+        from szl_meter_access import open_meter_get
+        with open_meter_get(url, timeout=timeout, headers={"User-Agent": METER_UA}) as r:
             body = r.read().decode("utf-8", "replace")
             status = int(getattr(r, "status", 0) or 0)
         doc = _json.loads(body)
