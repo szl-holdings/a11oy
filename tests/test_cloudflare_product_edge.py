@@ -13,6 +13,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "repair_cloudflare_product_edge.py"
 WORKER = ROOT / "cloudflare" / "a11oy-product-root-worker.mjs"
+WORKFLOW = ROOT / ".github" / "workflows" / "repair-cloudflare-product-edge-production.yml"
 spec = importlib.util.spec_from_file_location("edge", SCRIPT)
 assert spec and spec.loader
 edge = importlib.util.module_from_spec(spec)
@@ -39,6 +40,22 @@ def dns_record(
 
 
 class ProductEdgeContract(unittest.TestCase):
+    def test_provider_repair_requires_dispatch_and_production_environment(self) -> None:
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("  pull_request:\n", workflow)
+        self.assertIn("  push:\n", workflow)
+        self.assertIn("  workflow_dispatch:\n", workflow)
+        repair = workflow.split("  repair:\n", 1)[1]
+        self.assertRegex(
+            repair,
+            r"(?m)^    if: github\.event_name == 'workflow_dispatch'$",
+        )
+        self.assertRegex(repair, r"(?m)^    environment: production$")
+        self.assertRegex(
+            repair,
+            r"(?m)^        if: always\(\) && inputs\.dry_run != true$",
+        )
+
     def test_authority_is_exact_apex_and_www_wildcards(self) -> None:
         self.assertEqual(edge.APEX_ROUTE, "a-11-oy.com/*")
         self.assertEqual(edge.WWW_ROUTE, "www.a-11-oy.com/*")
@@ -86,6 +103,228 @@ class ProductEdgeContract(unittest.TestCase):
             [item["state"] for item in results],
             ["already-current", "already-current"],
         )
+
+    def test_proxied_cutover_creates_only_missing_exact_routes_on_new_script(self) -> None:
+        script = edge.immutable_script_name(WORKER)
+        self.assertTrue(script.startswith(edge.PROXIED_SCRIPT_PREFIX))
+        self.assertEqual(script, edge.immutable_script_name(WORKER))
+        plan = edge.route_plan(
+            [],
+            dns_is_proxied=True,
+            script_name=script,
+            allow_proxied_create=True,
+        )
+        self.assertEqual(
+            [(item["action"], item["pattern"], item["script"]) for item in plan],
+            [
+                ("create-apex-route", edge.APEX_ROUTE, script),
+                ("create-www-route", edge.WWW_ROUTE, script),
+            ],
+        )
+        self.assertNotIn("a11oy.net", str(plan))
+
+        existing_www = {
+            "id": "current-www",
+            "pattern": edge.WWW_ROUTE,
+            "script": edge.SCRIPT_NAME,
+        }
+        partial = edge.route_plan(
+            [existing_www],
+            dns_is_proxied=True,
+            script_name=script,
+            allow_proxied_create=True,
+        )
+        self.assertEqual(
+            [item["action"] for item in partial],
+            ["create-apex-route", "verify-www-route"],
+        )
+        self.assertEqual(partial[1]["script"], edge.SCRIPT_NAME)
+
+    def test_proxied_cutover_refuses_overlaps_and_foreign_owners(self) -> None:
+        script = edge.immutable_script_name(WORKER)
+        for rows, marker in (
+            (
+                [{"id": "extra", "pattern": "a-11-oy.com/api/*", "script": "foreign"}],
+                "OVERLAPPING_LIVE_ROUTE",
+            ),
+            (
+                [{"id": "foreign", "pattern": edge.WWW_ROUTE, "script": "foreign"}],
+                "MIXED_LIVE_ROUTE_OWNERSHIP",
+            ),
+            (
+                [{"id": "old", "pattern": edge.LEGACY_APEX_ROOT_ROUTE,
+                  "script": edge.RETIRED_ROOT_SCRIPT}],
+                "OVERLAPPING_LIVE_ROUTE",
+            ),
+        ):
+            with self.subTest(marker=marker):
+                with self.assertRaisesRegex(edge.EdgeError, marker):
+                    edge.route_plan(
+                        rows,
+                        dns_is_proxied=True,
+                        script_name=script,
+                        allow_proxied_create=True,
+                    )
+
+    def test_uncertain_route_post_remains_unknown_after_absent_readbacks(self) -> None:
+        attempted = {
+            "action": "create-apex-route",
+            "pattern": edge.APEX_ROUTE,
+            "script": edge.immutable_script_name(WORKER),
+        }
+        with (
+            mock.patch.object(edge, "fetch_routes", return_value=[]),
+            mock.patch.object(edge.time, "sleep"),
+        ):
+            recovered, unknown = edge.reconcile_uncertain_route(
+                "zone", "secret", attempted
+            )
+        self.assertIsNone(recovered)
+        self.assertTrue(unknown)
+
+    def test_uncertain_route_post_is_recovered_only_for_exact_new_owner(self) -> None:
+        script = edge.immutable_script_name(WORKER)
+        attempted = {
+            "action": "create-apex-route",
+            "pattern": edge.APEX_ROUTE,
+            "script": script,
+        }
+        with mock.patch.object(
+            edge,
+            "fetch_routes",
+            return_value=[{"id": "new-route", "pattern": edge.APEX_ROUTE, "script": script}],
+        ):
+            recovered, unknown = edge.reconcile_uncertain_route(
+                "zone", "secret", attempted
+            )
+        self.assertFalse(unknown)
+        self.assertEqual(recovered["provider_route_id"], "new-route")
+        with mock.patch.object(
+            edge,
+            "fetch_routes",
+            return_value=[{"id": "foreign", "pattern": edge.APEX_ROUTE,
+                           "script": "foreign"}],
+        ):
+            recovered, unknown = edge.reconcile_uncertain_route(
+                "zone", "secret", attempted
+            )
+        self.assertIsNone(recovered)
+        self.assertTrue(unknown)
+
+    def test_incomplete_route_listing_fails_closed(self) -> None:
+        with mock.patch.object(
+            edge,
+            "request_json",
+            return_value={"success": True, "result": [],
+                          "result_info": {"total_pages": 2}},
+        ):
+            with self.assertRaisesRegex(edge.EdgeError, "AMBIGUOUS_WORKER_ROUTE"):
+                edge.fetch_routes("zone", "secret")
+
+    def test_live_route_postcondition_requires_exact_script_owner(self) -> None:
+        script = edge.immutable_script_name(WORKER)
+        plan = edge.route_plan(
+            [], dns_is_proxied=True, script_name=script, allow_proxied_create=True
+        )
+        matching = [
+            {"id": str(index), "pattern": item["pattern"], "script": script}
+            for index, item in enumerate(plan)
+        ]
+        with mock.patch.object(edge, "fetch_routes", return_value=matching):
+            edge.verify_desired_routes("zone", "secret", plan)
+        matching[1] = {**matching[1], "script": "foreign"}
+        with mock.patch.object(edge, "fetch_routes", return_value=matching):
+            with self.assertRaisesRegex(edge.EdgeError, "ROUTE_POSTCONDITION_FAILED"):
+                edge.verify_desired_routes("zone", "secret", plan)
+
+    def test_proxied_dry_run_plans_routes_without_provider_writes(self) -> None:
+        records = [
+            dns_record("apex", edge.ZONE_NAME, "CNAME", proxied=True),
+            dns_record("www", f"www.{edge.ZONE_NAME}", "CNAME", proxied=True),
+        ]
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            mock.patch.dict(os.environ, {"CLOUDFLARE_API_TOKEN": "secret"}, clear=True),
+            mock.patch(
+                "sys.argv",
+                [str(SCRIPT), "--report", str(Path(tmp) / "report.json"), "--dry-run"],
+            ),
+            mock.patch.object(
+                edge,
+                "request_json",
+                side_effect=[
+                    {"success": True, "result": {"status": "active"}},
+                    {"success": True, "result": [{
+                        "id": "zone-id", "account": {"id": "account-id"}
+                    }]},
+                ],
+            ) as request,
+            mock.patch.object(edge, "fetch_dns_records", return_value=records),
+            mock.patch.object(edge, "fetch_routes", return_value=[]),
+            mock.patch.object(edge, "upload_worker") as upload,
+            mock.patch("builtins.print"),
+        ):
+            self.assertEqual(edge.main(), 0)
+            report = json.loads((Path(tmp) / "report.json").read_text())
+        self.assertEqual(report["status"], "VALIDATED")
+        self.assertFalse(report["dns_mutated"])
+        self.assertEqual(
+            [row["action"] for row in report["route_plan"]],
+            ["create-apex-route", "create-www-route"],
+        )
+        self.assertTrue(all(call.args[0] == "GET" for call in request.call_args_list))
+        upload.assert_not_called()
+
+    def test_failed_proxied_public_proof_rolls_back_only_new_routes(self) -> None:
+        script = edge.immutable_script_name(WORKER)
+        records = [
+            dns_record("apex", edge.ZONE_NAME, "CNAME", proxied=True),
+            dns_record("www", f"www.{edge.ZONE_NAME}", "CNAME", proxied=True),
+        ]
+        apex = {"id": "apex-route", "pattern": edge.APEX_ROUTE, "script": script}
+        www = {"id": "www-route", "pattern": edge.WWW_ROUTE, "script": script}
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            mock.patch.dict(os.environ, {"CLOUDFLARE_API_TOKEN": "secret"}, clear=True),
+            mock.patch(
+                "sys.argv", [str(SCRIPT), "--report", str(Path(tmp) / "report.json")]
+            ),
+            mock.patch.object(
+                edge, "request_json",
+                side_effect=[
+                    {"success": True, "result": {"status": "active"}},
+                    {"success": True, "result": [{
+                        "id": "zone-id", "account": {"id": "account-id"}
+                    }]},
+                    {"success": True, "result": apex},
+                    {"success": True, "result": www},
+                    {"success": True, "result": {"id": "www-route"}},
+                    {"success": True, "result": {"id": "apex-route"}},
+                ],
+            ) as request,
+            mock.patch.object(edge, "fetch_dns_records", return_value=records),
+            mock.patch.object(
+                edge, "fetch_routes",
+                side_effect=[[], [], [], [apex, www], [apex], [apex], []],
+            ),
+            mock.patch.object(edge, "upload_worker") as upload,
+            mock.patch.object(
+                edge, "public_probe", side_effect=edge.EdgeError("PUBLIC_PROBE_FAILED")
+            ),
+            mock.patch("builtins.print"),
+        ):
+            self.assertEqual(edge.main(), 1)
+            report = json.loads((Path(tmp) / "report.json").read_text())
+        self.assertEqual(report["status"], "ROLLED_BACK")
+        self.assertFalse(report["dns_mutated"])
+        self.assertEqual(
+            [row["state"] for row in report["route_rollback"]],
+            ["restored-absent", "restored-absent"],
+        )
+        self.assertEqual(request.call_args_list[-2].args[0], "DELETE")
+        self.assertEqual(request.call_args_list[-1].args[0], "DELETE")
+        self.assertTrue(all("dns_records" not in call.args[1] for call in request.call_args_list))
+        upload.assert_called_once()
 
     def test_known_legacy_routes_are_reconciled_deterministically_when_dns_only(self) -> None:
         current = [
@@ -715,7 +954,7 @@ class ProductEdgeContract(unittest.TestCase):
         self.assertNotIn("\n", rendered)
         self.assertLessEqual(len(rendered), 4000)
 
-    def test_public_probe_requires_root_honesty_and_www_contracts(self) -> None:
+    def test_public_probe_requires_root_honesty_www_and_live_aliases(self) -> None:
         observations = [
             {
                 "status": 301,
@@ -749,14 +988,33 @@ class ProductEdgeContract(unittest.TestCase):
                     {"organ": "a11oy", "locked_formula_count": 8}
                 ),
             },
+            {
+                "status": 200,
+                "edge": edge.EDGE_MARKER,
+                "alias": "/spectral->/static/3d/holographic.html",
+                "content_type": "text/html",
+                "body": "<title>A11oy holographic</title>",
+            },
+            {
+                "status": 200,
+                "edge": edge.EDGE_MARKER,
+                "alias": "/controller->/api/a11oy/v1/honest",
+                "content_type": "application/json",
+                "body": json.dumps(
+                    {"organ": "a11oy", "locked_formula_count": 8}
+                ),
+            },
         ]
         with mock.patch.object(edge, "_observation", side_effect=observations):
             result = edge.public_probe(attempts=1)
         self.assertTrue(result["root_verified"])
         self.assertTrue(result["honest_verified"])
         self.assertTrue(result["www_verified"])
+        self.assertTrue(result["spectral_verified"])
+        self.assertTrue(result["controller_verified"])
         self.assertNotIn("body", result["root"])
         self.assertNotIn("body", result["honest"])
+        self.assertNotIn("body", result["spectral"])
 
     def test_public_probe_rejects_missing_edge_marker(self) -> None:
         observations = [
@@ -777,6 +1035,8 @@ class ProductEdgeContract(unittest.TestCase):
                     {"organ": "a11oy", "locked_formula_count": 8}
                 ),
             },
+            {"status": 404, "body": ""},
+            {"status": 404, "body": ""},
         ]
         with (
             mock.patch.object(edge, "_observation", side_effect=observations),
