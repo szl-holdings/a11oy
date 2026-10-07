@@ -645,9 +645,8 @@ def energy_measured(*, opener: Any = None) -> tuple[list[dict[str, Any]], dict[s
             if opener is not None:
                 payload = opener(url, timeout)
             else:
-                import urllib.request
-
-                with urllib.request.urlopen(url, timeout=timeout) as resp:  # noqa: S310
+                from szl_meter_access import open_meter_get
+                with open_meter_get(url, timeout=timeout) as resp:
                     payload = json.loads(resp.read().decode("utf-8", "replace"))
             joules = payload.get("joules") if isinstance(payload, dict) else None
             if isinstance(joules, (int, float)):
