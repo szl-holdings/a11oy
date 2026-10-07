@@ -498,6 +498,7 @@ jobs:
           --samples 1
           --concurrency 2
           --retries 2
+          --await-readiness
           --soft
           --out "$VERDICT_PATH"
 
