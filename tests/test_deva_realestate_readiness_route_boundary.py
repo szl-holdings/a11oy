@@ -58,8 +58,8 @@ def test_all_readiness_evaluated_realestate_sources_cross_public_boundary() -> N
         '"hpd": _readiness_public_source(hpd)',
         '"dob": _readiness_public_source(dob)',
         '"rates": _readiness_public_source(rates)',
-        'sec_public = _readiness_public_source(sec)',
-        'name: _readiness_public_source(value)',
+        'sec_public = _ownership_public_source(sec)',
+        'name: _ownership_public_source(value)',
         '"sec_fts": sec_public',
     )
     for expression in required:

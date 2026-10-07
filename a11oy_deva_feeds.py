@@ -464,7 +464,7 @@ def _readiness_public_source(entry: Any) -> Any:
             public["fetched_at"] = datetime.now(timezone.utc).isoformat()
         if not str(public.get("error") or "").strip():
             public["error"] = "source returned no observed value"
-    elif status == "stale":
+    elif status not in _READINESS_PUBLIC_FRESHNESS:
         if public.get("fetched_at") is None:
             age_s = public.get("age_s")
             if (
@@ -480,6 +480,23 @@ def _readiness_public_source(entry: Any) -> Any:
             public["status"] = "cached"
     out["freshness"] = public
     return out
+
+
+def _ownership_public_source(entry: Any) -> Any:
+    """Keep unsupported ownership evidence visible under a negative label."""
+    if isinstance(entry, dict) and entry.get("value") is not None:
+        freshness = entry.get("freshness")
+        if isinstance(freshness, dict):
+            status = freshness.get("status")
+            if not isinstance(status, str) or status not in _READINESS_PUBLIC_FRESHNESS | {"stale"}:
+                out = dict(entry)
+                public = dict(freshness)
+                public["status"] = "UNAVAILABLE"
+                if not str(public.get("error") or "").strip():
+                    public["error"] = "source returned unsupported freshness status"
+                out["freshness"] = public
+                return out
+    return _readiness_public_source(entry)
 
 
 def _ownership_source_ready(raw: Any, source: Any, list_key: str, checked_at: datetime) -> bool:
@@ -1130,10 +1147,10 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
         sec = values[0]
         raw_subs = dict(zip(reits.keys(), values[1:]))
         subs = {
-            name: _readiness_public_source(value)
+            name: _ownership_public_source(value)
             for name, value in raw_subs.items()
         }
-        sec_public = _readiness_public_source(sec)
+        sec_public = _ownership_public_source(sec)
         checked_at = datetime.now(timezone.utc)
         sources_ready = (
             len(subs) == len(reits)

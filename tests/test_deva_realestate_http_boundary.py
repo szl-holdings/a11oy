@@ -245,8 +245,14 @@ def test_ownership_rejects_required_source_contract_failures(
         )
         assert payload["reits"]["SL Green"]["value"] == original_submissions["0001040971"]["value"]
         if failure in {"child_unavailable_with_value", "child_unavailable_with_clock", "child_invalid_status"}:
-            assert payload["reits"]["SL Green"]["freshness"]["status"] == (
-                original_submissions["0001040971"]["freshness"]["status"]
+            assert payload["reits"]["SL Green"]["freshness"]["status"] == "UNAVAILABLE"
+            assert payload["reits"]["SL Green"]["freshness"]["error"] == (
+                original_submissions["0001040971"]["freshness"].get("error")
+                or "source returned unsupported freshness status"
             )
+            if "fetched_at" in original_submissions["0001040971"]["freshness"]:
+                assert payload["reits"]["SL Green"]["freshness"]["fetched_at"] == (
+                    original_submissions["0001040971"]["freshness"]["fetched_at"]
+                )
     assert sec == original_sec
     assert submissions == original_submissions
