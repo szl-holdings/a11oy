@@ -9432,7 +9432,7 @@ try:
         built = bool(st.get("built"))
         return _RAGJSON(gov_envelope(
             {"index": st, "corpus": _rag_engine.corpus_manifest(),
-             "data_kind": "runtime_observation", "index_built": built,
+             "data_kind": "live" if built else "unavailable", "index_built": built,
              "query_endpoint": "/api/a11oy/v1/rag/query",
              "query_method": "GET",
              "receipt_endpoint": "/api/a11oy/v1/rag/estate/query",
