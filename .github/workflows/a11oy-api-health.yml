@@ -64,7 +64,7 @@ jobs:
             --target "hf=https://szlholdings-a11oy.hf.space" \
             --target "box=https://a-11-oy.com" \
             --summary-file /tmp/a11oy-api-health.json | tee /tmp/probe.log
-          code=$?
+          code=${PIPESTATUS[0]}
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           if [ -f /tmp/a11oy-api-health.json ]; then
             checked=$(python3 -c "import json;print(json.load(open('/tmp/a11oy-api-health.json'))['checked'])")
