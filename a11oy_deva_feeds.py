@@ -482,6 +482,28 @@ def _readiness_public_source(entry: Any) -> Any:
     return out
 
 
+def _ownership_source_ready(source: Any, list_key: str, checked_at: datetime) -> bool:
+    """Require observed, fresh SEC data before the ownership route answers 200."""
+    if not isinstance(source, dict) or not isinstance(source.get("value"), dict):
+        return False
+    if not isinstance(source["value"].get(list_key), list):
+        return False
+    freshness = source.get("freshness")
+    if not isinstance(freshness, dict) or freshness.get("status") not in _READINESS_PUBLIC_FRESHNESS:
+        return False
+    fetched_at = freshness.get("fetched_at")
+    if not isinstance(fetched_at, str):
+        return False
+    try:
+        observed_at = datetime.fromisoformat(fetched_at.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if observed_at.tzinfo is None:
+        return False
+    age_s = (checked_at - observed_at).total_seconds()
+    return -300 <= age_s <= 3600
+
+
 # ===========================================================================
 # GOVERNED TURN — delegate to the proven machinery in a11oy_vertical_feeds.
 # ===========================================================================
@@ -1102,14 +1124,20 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
             name: _readiness_public_source(value)
             for name, value in zip(reits.keys(), values[1:])
         }
-        submissions_available = all(
-            isinstance(child, dict) and child.get("value") is not None
-            for child in subs.values()
+        sec_public = _readiness_public_source(sec)
+        checked_at = datetime.now(timezone.utc)
+        sources_ready = (
+            len(subs) == len(reits)
+            and _ownership_source_ready(sec_public, "items", checked_at)
+            and all(
+                _ownership_source_ready(child, "filings", checked_at)
+                for child in subs.values()
+            )
         )
         return JSONResponse(
-            {"tab": "ownership", "sec_fts": _readiness_public_source(sec),
+            {"tab": "ownership", "sec_fts": sec_public,
              "reits": subs, "doctrine": DOCTRINE},
-            status_code=200 if submissions_available else 503,
+            status_code=200 if sources_ready else 503,
         )
 
     @app.get(base + "/re/deal", include_in_schema=False)

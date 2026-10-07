@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi import FastAPI
@@ -28,9 +28,11 @@ def test_registered_realestate_http_truth_boundary(
     required_feed: str,
     source_state: str,
 ) -> None:
-    source_clock = "2026-09-13T02:40:00+00:00"
+    source_clock = datetime.now(timezone.utc).isoformat()
     raw = {
-        "value": None if source_state == "cold" else {"items": [{"rate": 4.25}]},
+        "value": None if source_state == "cold" else {
+            "items": [{"rate": 4.25}], "filings": [{"form": "10-K"}],
+        },
         "freshness": {
             "status": "unavailable" if source_state == "cold" else source_state,
         },
@@ -116,9 +118,9 @@ def test_ownership_cold_child_fails_closed_without_masking_live_peers(
     monkeypatch: pytest.MonkeyPatch,
     unavailable_cik: str,
 ) -> None:
-    observed_at = "2026-10-07T19:00:00+00:00"
+    observed_at = datetime.now(timezone.utc).isoformat()
     live = {
-        "value": {"items": [{"accession": "observed"}]},
+        "value": {"items": [{"accession": "observed"}], "filings": [{"form": "10-K"}]},
         "freshness": {"status": "live", "fetched_at": observed_at, "age_s": 0.0},
     }
     unavailable = {
@@ -162,3 +164,77 @@ def test_ownership_cold_child_fails_closed_without_masking_live_peers(
     assert observed.tzinfo is not None
     assert before <= observed <= after
     assert unavailable == original_unavailable
+
+
+@pytest.mark.parametrize("failure", [
+    "sec_cold", "child_unavailable_with_value", "child_missing_clock",
+    "child_invalid_filings", "child_stale_clock", "child_future_clock",
+])
+def test_ownership_rejects_required_source_contract_failures(
+    monkeypatch: pytest.MonkeyPatch,
+    failure: str,
+) -> None:
+    observed_at = datetime.now(timezone.utc).isoformat()
+    sec = {
+        "value": {"items": [{"accession": "observed"}]},
+        "freshness": {"status": "live", "fetched_at": observed_at},
+    }
+    cik_to_name = {
+        "0000899689": "Vornado", "0001037540": "Boston Properties",
+        "0001040971": "SL Green", "0000726728": "Realty Income",
+    }
+    submissions = {
+        cik: {
+            "value": {"filings": [{"form": "10-K"}]},
+            "freshness": {"status": "live", "fetched_at": observed_at},
+        }
+        for cik in cik_to_name
+    }
+    if failure == "sec_cold":
+        sec = {
+            "value": None,
+            "freshness": {"status": "unavailable", "error": "SEC search timeout"},
+        }
+    else:
+        child = submissions["0001040971"]
+        if failure == "child_unavailable_with_value":
+            child["freshness"] = {"status": "UNAVAILABLE", "error": "SEC submissions timeout"}
+        elif failure == "child_missing_clock":
+            del child["freshness"]["fetched_at"]
+        elif failure == "child_invalid_filings":
+            child["value"]["filings"] = "not an observed filing array"
+        elif failure == "child_stale_clock":
+            child["freshness"]["fetched_at"] = (
+                datetime.now(timezone.utc) - timedelta(hours=2)
+            ).isoformat()
+        elif failure == "child_future_clock":
+            child["freshness"]["fetched_at"] = (
+                datetime.now(timezone.utc) + timedelta(minutes=6)
+            ).isoformat()
+    original_sec = deepcopy(sec)
+    original_submissions = deepcopy(submissions)
+    monkeypatch.setattr(deva, "feed_sec_realestate", lambda *_args: sec)
+    monkeypatch.setattr(deva, "feed_sec_submissions", lambda cik: submissions[cik])
+
+    app = FastAPI()
+    deva.register(app)
+    with TestClient(app) as client:
+        response = client.get("/api/a11oy/v1/deva/re/ownership")
+
+    assert response.status_code == 503
+    payload = response.json()
+    assert payload["tab"] == "ownership"
+    assert set(payload["reits"]) == set(cik_to_name.values())
+    if failure == "sec_cold":
+        assert payload["sec_fts"]["value"] is None
+        assert payload["sec_fts"]["freshness"]["status"] == "UNAVAILABLE"
+        assert all(child["freshness"]["status"] == "live" for child in payload["reits"].values())
+    else:
+        assert payload["sec_fts"] == original_sec
+        assert all(
+            payload["reits"][name]["freshness"]["status"] == "live"
+            for cik, name in cik_to_name.items() if cik != "0001040971"
+        )
+        assert payload["reits"]["SL Green"]["value"] == original_submissions["0001040971"]["value"]
+    assert sec == original_sec
+    assert submissions == original_submissions
