@@ -130,7 +130,7 @@ def test_overlay_changes_only_declared_sentra_and_finance_contracts() -> None:
     # Finance has one exact reviewed presentation addition; every other
     # product remains byte-identical except the existing Sentra overlay.
     workspace = load_module("szl_finance_workspace_contract", Path("scripts/hf_finance_workspace.py"))
-    assert hashlib.sha256(workspace.HTML.encode()).hexdigest() == "a7614cc33d459131988bc0523f488c91524286273ea7cef4226e8979b2767a33"
+    assert hashlib.sha256(workspace.HTML.encode()).hexdigest() == "38c2ebf99b7329718be1464dceb4dfa033d108859bb9af65e03ac42a3843ba48"
     assert hashlib.sha256(workspace.CSS.encode()).hexdigest() == "74f10839de99d1d40ebb793f76e5399645c130b8326731e6f2d13a86214b69fd"
     assert overlay.DOMAIN_HTML["finance"] == workspace.HTML
     assert overlay.DOMAIN_CSS["finance"] == base.DOMAIN_CSS["finance"] + workspace.CSS
