@@ -1,4 +1,9 @@
-"""Fail-closed GDW storage preparation and supervised outbox draining."""
+"""Fail-closed GDW storage preparation and supervised outbox draining.
+
+Fail-closed means GDW writes are refused while storage is unverified. It never
+means exiting the process: a storage fault is recorded as BLOCKED and the
+application keeps serving (see ``main``).
+"""
 
 import json
 import os
@@ -19,6 +24,7 @@ from gdw_proofs import (
 )
 from gdw_workspace import GDWWorkspace
 import gdw_durable_runtime as durable_storage
+import gdw_sqlite_repair
 
 
 if __name__ == "__main__":
@@ -29,10 +35,16 @@ if __name__ == "__main__":
 
 ALLOWED_JOURNAL_MODES = {"DELETE", "WAL"}
 ALLOWED_SYNCHRONOUS_MODES = {"FULL", "NORMAL"}
+# Seconds a client should wait before retrying a write refused because storage
+# preparation is BLOCKED. Recovery needs an operator or a redeploy, so this is a
+# polite back-off hint, not a promise that the next attempt will succeed.
+STORAGE_BLOCKED_RETRY_AFTER_SECONDS = 60
 _STATE_LOCK = threading.RLock()
 _STATE: dict[str, Any] = {
     "startup_state": "NOT_RUN",
     "evidence_label": "UNAVAILABLE",
+    "blocked": None,
+    "storage_repair": None,
     "drain": {
         "enabled": False,
         "running": False,
@@ -206,11 +218,84 @@ def storage_contract(
     }
 
 
+def _gate_existing_store(
+    database: Path,
+    contract: Mapping[str, Any],
+    environ: Mapping[str, str],
+) -> Optional[dict[str, Any]]:
+    """Opt-in orphan-page repair of an existing store before any writer opens it.
+
+    Off by default: unless GDW_AUTO_REPAIR_ORPHAN_PAGES is explicitly true this
+    returns immediately and the regular writer path (which rolls back a hot
+    journal and runs its own integrity_check) is exactly the pre-repair code.
+    When enabled, SQLite crash recovery runs first (a read-only handle cannot
+    roll back a hot journal), then a read-only integrity classification; damage
+    that is exactly orphan pages AND whose page bytes prove no live data was
+    lost is repaired with preservation. Any other damage, or any repair
+    failure, raises so the caller degrades instead of serving writes.
+    """
+
+    if not gdw_sqlite_repair.auto_repair_enabled(environ):
+        return None
+    try:
+        if not database.is_file() or database.stat().st_size == 0:
+            return None
+    except OSError:
+        return None
+    gdw_sqlite_repair.recover_hot_journal(database)
+    report = gdw_sqlite_repair.inspect(database)
+    if report["ok"]:
+        return None
+    observed = "; ".join(report["integrity"][:3])[:240]
+    if not report["repairable"]:
+        raise GDWRuntimeError(f"GDW SQLite integrity check failed: {observed}")
+    mount = contract.get("required_mount")
+    try:
+        receipt = gdw_sqlite_repair.repair_orphan_pages(
+            database,
+            label="gdw",
+            forbidden_root=Path(mount) if mount else None,
+        )
+    except Exception as exc:
+        print(
+            "[gdw-runtime] orphan-page repair refused/failed: "
+            f"{type(exc).__name__}: {str(exc)[:500]}",
+            file=sys.stderr,
+        )
+        raise GDWRuntimeError(
+            f"GDW orphan-page auto-repair failed: {_error_code(exc)}"
+        ) from exc
+    summary = {
+        "schema": receipt["schema"],
+        "status": receipt["status"],
+        "orphan_page_count": len(receipt["orphan_pages"]),
+        "orphan_pages": receipt["orphan_pages"][:64],
+        "original_sha256": receipt["original"]["sha256"],
+        "candidate_sha256": receipt["candidate"]["sha256"],
+        "logical_sha256": receipt["logical_fingerprint"]["sha256"],
+        "page_proof": receipt["orphan_page_evidence"]["proof"],
+        # Basenames only: this summary is served on public health routes.
+        "preserved_name": Path(receipt["original"]["preserved_path"]).name,
+        "receipt_name": Path(receipt["receipt_path"]).name,
+        "applied_at": receipt["applied_at"],
+    }
+    print(
+        "[gdw-runtime] orphan-page auto-repair APPLIED: "
+        + json.dumps(summary, sort_keys=True)
+        + f" receipt={receipt['receipt_path']}",
+        file=sys.stderr,
+    )
+    with _STATE_LOCK:
+        _STATE["storage_repair"] = summary
+    return summary
+
+
 def prepare_runtime(
     environ: Optional[Mapping[str, str]] = None,
 ) -> dict[str, Any]:
     """Verify durable paths, initialise SQLite, and select the declared journal."""
 
+    values = os.environ if environ is None else environ
     contract = storage_contract(environ)
     database = Path(contract["database_path"])
     proof_dir = Path(contract["proof_dir"])
@@ -236,13 +321,15 @@ def prepare_runtime(
         }
         with _STATE_LOCK:
             _STATE.update(startup_state="READY", evidence_label="VERIFIED",
-                          storage=observed, prepared_at=_now(), error=None)
+                          storage=observed, prepared_at=_now(), error=None,
+                          blocked=None)
         return observed
 
     try:
         _verify_writable_directory(database.parent)
         _verify_writable_directory(proof_dir)
         _verify_writable_directory(receipt_dir)
+        orphan_page_repair = _gate_existing_store(database, contract, values)
         workspace = GDWWorkspace(
             str(database),
             namespace=(os.environ.get("GDW_NAMESPACE") or "a11oy"),
@@ -291,6 +378,7 @@ def prepare_runtime(
             "legacy_link_failures_requeued": (
                 legacy_link_failures_requeued
             ),
+            "orphan_page_repair": orphan_page_repair,
         }
     except GDWRuntimeError:
         raise
@@ -307,6 +395,7 @@ def prepare_runtime(
                 "storage": observed,
                 "prepared_at": _now(),
                 "error": None,
+                "blocked": None,
             }
         )
     return observed
@@ -714,33 +803,131 @@ def runtime_health() -> dict[str, Any]:
     return result
 
 
+_ERROR_CODE_CHARS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_")
+
+
+def _error_code(exc: BaseException) -> str:
+    """A stable, path-free code for a failure: its own code, its cause's, or a class name."""
+
+    for candidate in (exc, exc.__cause__):
+        if candidate is None:
+            continue
+        code = getattr(candidate, "code", None)
+        if isinstance(code, str) and code and set(code) <= _ERROR_CODE_CHARS:
+            return code[:80]
+    cause = exc.__cause__
+    return type(cause if cause is not None else exc).__name__
+
+
+def _public_error(exc: BaseException) -> str:
+    """The message head only: no integrity detail, paths or OS error text.
+
+    The full message goes to stderr; this one is served without auth on
+    readiness and GDW health routes.
+    """
+
+    return str(exc).split(": ", 1)[0].strip()[:160] or type(exc).__name__
+
+
+def _record_blocked(exc: BaseException, *, phase: str) -> dict[str, Any]:
+    """Record a storage fault as BLOCKED runtime state instead of exiting."""
+
+    public_error = _public_error(exc)
+    blocked = {
+        "reason": "GDW_STORAGE_BLOCKED",
+        "phase": phase,
+        "error_class": type(exc).__name__,
+        "error_code": _error_code(exc),
+        "error": public_error,
+        "blocked_at": _now(),
+        "retry_after_seconds": STORAGE_BLOCKED_RETRY_AFTER_SECONDS,
+    }
+    with _STATE_LOCK:
+        _STATE.update(
+            {
+                "startup_state": "BLOCKED",
+                "evidence_label": "VERIFIED",
+                "error": f"{type(exc).__name__}: {public_error}",
+                "blocked": blocked,
+            }
+        )
+    print(
+        "[gdw-runtime] storage BLOCKED; serving degraded (GDW writes refused, "
+        "/readyz 503): " + json.dumps(blocked, sort_keys=True)
+        + f" detail={type(exc).__name__}: {str(exc)[:500]}",
+        file=sys.stderr,
+    )
+    return blocked
+
+
+def storage_block() -> Optional[dict[str, Any]]:
+    """Return the public BLOCKED reason, or None when storage is not blocked.
+
+    Only an observed preparation failure blocks. NOT_RUN (for example serve.py
+    launched directly, or tests) is not a block.
+    """
+
+    with _STATE_LOCK:
+        if _STATE.get("startup_state") != "BLOCKED":
+            return None
+        blocked = dict(_STATE.get("blocked") or {})
+        error = _STATE.get("error")
+    if not blocked:
+        blocked = {
+            "reason": "GDW_STORAGE_BLOCKED",
+            "phase": "storage_preparation",
+            "error_class": str(error or "").split(":", 1)[0] or "UNKNOWN",
+            "error_code": str(error or "").split(":", 1)[0] or "UNKNOWN",
+            "error": str(error or "").split(": ", 1)[-1][:160],
+            "blocked_at": None,
+            "retry_after_seconds": STORAGE_BLOCKED_RETRY_AFTER_SECONDS,
+        }
+    return {"startup_state": "BLOCKED", **blocked}
+
+
+def _serve() -> None:
+    runpy.run_path(
+        str(Path(__file__).with_name("serve.py")),
+        run_name="__main__",
+    )
+
+
 def main() -> int:
+    """Prepare storage, then serve. Storage faults degrade; they never exit.
+
+    A failed preparation (mount missing, integrity failure that is not a
+    repairable orphan-page-only state, durable activation failure, bad outbox
+    configuration) is recorded as startup_state=BLOCKED and the application is
+    still served exactly as on the healthy path. GDW write routes then answer
+    503 with Retry-After, /readyz answers 503 with the reason, and liveness
+    (/healthz, /) stays 200, so the platform never crash-loops the Space.
+    """
+
     coordinator = None
     supervisor = None
     try:
+        storage_ready = False
         try:
             if durable_storage.enabled():
                 import gdw_durable_startup as coordinator
 
                 coordinator.activate()
             prepare_runtime()
+            storage_ready = True
         except Exception as exc:
-            with _STATE_LOCK:
-                _STATE.update(
-                    {
-                        "startup_state": "BLOCKED",
-                        "evidence_label": "VERIFIED",
-                        "error": f"{type(exc).__name__}: {str(exc)[:240]}",
-                    }
-                )
-            raise
+            _record_blocked(exc, phase="storage_preparation")
 
-        supervisor = OutboxSupervisor.from_environment()
-        supervisor.start()
-        runpy.run_path(
-            str(Path(__file__).with_name("serve.py")),
-            run_name="__main__",
-        )
+        if storage_ready:
+            try:
+                supervisor = OutboxSupervisor.from_environment()
+                supervisor.start()
+            except Exception as exc:
+                supervisor = None
+                _record_blocked(exc, phase="outbox_supervisor")
+        else:
+            _set_drain_state(last_outcome="STORAGE_BLOCKED")
+
+        _serve()
     finally:
         try:
             if supervisor is not None:
