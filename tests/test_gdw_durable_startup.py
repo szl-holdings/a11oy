@@ -473,16 +473,24 @@ def test_canonical_entrypoint_orders_coordinator_before_all_runtime_work(monkeyp
 
 
 def test_canonical_entrypoint_does_not_prepare_or_start_after_failed_admission(monkeypatch):
+    # Failed admission still never prepares storage or starts the outbox. It no
+    # longer exits the process (that crash-looped the Space for ~41h on
+    # 2026-10-04..06): the runtime records BLOCKED, serves degraded (GDW writes
+    # 503, /readyz 503) and closes the coordinator on shutdown.
+    import json
     import gdw_runtime
     events = []
+    monkeypatch.setattr(gdw_runtime, "_STATE", json.loads(json.dumps(gdw_runtime._STATE)))
     monkeypatch.setattr(gdw_runtime.durable_storage, "enabled", lambda: True)
     monkeypatch.setattr(startup, "activate", lambda: (_ for _ in ()).throw(startup.AdmissionBlocked("UNAVAILABLE")))
     monkeypatch.setattr(startup, "close", lambda: events.append("closed"))
     monkeypatch.setattr(gdw_runtime, "prepare_runtime", lambda: pytest.fail("prepared before admission"))
     monkeypatch.setattr(gdw_runtime.OutboxSupervisor, "from_environment", lambda: pytest.fail("supervisor before admission"))
-    with pytest.raises(startup.AdmissionBlocked): gdw_runtime.main()
-    assert events == ["closed"]
+    monkeypatch.setattr(gdw_runtime, "_serve", lambda: events.append("served-degraded"))
+    assert gdw_runtime.main() == 0
+    assert events == ["served-degraded", "closed"]
     assert gdw_runtime.runtime_health()["startup_state"] == "BLOCKED"
+    assert gdw_runtime.storage_block()["error_class"] == "AdmissionBlocked"
 
 
 def test_fresh_restore_keeps_the_initial_series_anchor_even_for_a_longer_chain(native_startup):

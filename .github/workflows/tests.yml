@@ -180,6 +180,8 @@ jobs:
           tests/test_gdw_auth.py
           tests/test_gdw_auth_compat.py
           tests/test_gdw_runtime.py
+          tests/test_gdw_runtime_degraded_boot.py
+          tests/test_sqlite_orphan_repair.py
           tests/test_gdw_durable_runtime.py
           tests/test_gdw_durable_artifacts.py
           tests/test_gdw_durable_storage.py
