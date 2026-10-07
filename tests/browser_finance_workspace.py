@@ -252,7 +252,8 @@ def main():
                 evidence = json.loads(page.locator("#fin-analysis-evidence").text_content())
                 check(evidence["operation"] == "portfolio" and evidence["inputs"]["truth_label"] == "UNVERIFIED", "caller input mislabeled")
                 report["cases"].append({"width":width,"name":"v2-fixture-receipt-fractional-portfolio-invalidation","pass":True})
-                page.locator("#fin-research-run").click()
+                with page.expect_response(lambda response: response.url == origin + "/api/finance/research/audit") as audit_response:
+                    page.locator("#fin-research-run").click()
                 expect(page.locator("#fin-research-export")).to_be_enabled()
                 research = json.loads(page.locator("#fin-research-evidence").text_content())
                 check(research["result"]["summary"]["kept_records"] == 2, "research as-of filtering")
@@ -260,7 +261,13 @@ def main():
                 expect(page.locator("#fin-research-robustness")).to_contain_text("SIGN CHANGE")
                 with page.expect_download() as transfer:
                     page.locator("#fin-research-export").click()
-                check(json.loads(Path(transfer.value.path()).read_text()) == research, "research export differs")
+                exported_research = Path(transfer.value.path()).read_bytes()
+                check(exported_research == audit_response.value.body(), "research export changed response bytes")
+                check(page.locator("#fin-research-evidence").text_content() == exported_research.decode("utf-8"), "displayed evidence differs from export")
+                exported_packet = json.loads(exported_research)
+                load("hf_finance_read_proxy").validation_namespace(REVISION)["_finance_check_research"](
+                    exported_packet, audit_response.value.request.post_data_json)
+                check(exported_packet == research, "research export differs")
                 page.locator("#fin-research").screenshot(path=str(args.output/f"finance-research-fixture-{width}.png"))
                 packet = json.loads(page.locator("#fin-research-input").input_value())
                 packet["records"][0]["entity"] = "<img src=x onerror=window.auditInjected=true>"
