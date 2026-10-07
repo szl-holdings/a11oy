@@ -14142,6 +14142,23 @@ async def assurance_page() -> Response:
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
+# Source-level Article 12 mapping. The page is a read-only document, not a
+# compliance decision or a receipt-writing path. A missing page asset must not
+# be disguised as the SPA shell.
+@app.api_route("/eu-ai-act", methods=["GET", "HEAD"], include_in_schema=False)
+async def eu_ai_act_page() -> Response:
+    page = PAGES_DIR / "eu-ai-act.html"
+    if page.is_file():
+        return FileResponse(
+            page, media_type="text/html", headers={"Cache-Control": "no-store"}
+        )
+    return JSONResponse(
+        {"status": "UNAVAILABLE", "reason": "Article 12 page asset is not present"},
+        status_code=404,
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 # /company — SZL Holdings story folded into a-11-oy.com (the holding-company front
 # door: "Governed AI, proven in Lean", the PURIQ doctrine, the five flagships, and
 # the evidence/proof framing). Replaces the retired standalone szlholdings.com site.
