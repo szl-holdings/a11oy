@@ -119,6 +119,8 @@ MEASURED; every action emits a SHA3-256 Khipu receipt (honestly `signed` or `DSS
 | POST | `/api/a11oy/v1/specdec/run` | Spec-decode run; honest **`SPEC-DECODE ROADMAP`** + `measured:UNAVAILABLE` when no same-family pair. |
 | POST | `/api/a11oy/v1/materials/novelty` | Crystal-novelty via isometry-invariant PDD fingerprint + chained receipt. |
 | POST | `/api/a11oy/v1/materials/certify` | PAC-Bayes (McAllester 1999) certified risk bound + receipt. |
+| POST | `/api/a11oy/v1/materials/predict` | Governed formation-energy surrogate; `MODELED` + `SAMPLE`, with an explicit refusal when outside its supported domain. |
+| GET | `/api/a11oy/v1/materials/health` | Read-only predictor status; never fits the surrogate or emits a receipt. |
 | GET | `/api/a11oy/v1/assurance/evidence-pack` | Offline-verifiable auditor pack with `pack_sha3_256` self-digest. |
 | GET | `/api/lake/v1/health` | szl-lake receipt ledger health; per-organ `chain_head`. |
 
@@ -149,14 +151,36 @@ run returns `label:"SPEC-DECODE ROADMAP"`, `measured:"UNAVAILABLE"`, `quality_de
 and a clearly-labelled `accounting_modeled` curve — **no faked speedup**.
 
 ### `POST /materials/novelty` · `POST /materials/certify`
-There is **no** `/materials/predict`. **novelty**: POST a crystal
+**novelty**: POST a crystal
 `{a,b,c,alpha,beta,gamma,sites:[{el,x,y,z}]}`; returns `novel`, a Kurlin-style PDD
 `fingerprint`/`fingerprint_digest`, and a receipt. Fingerprint comparison is **REAL**;
 injectivity is **Conjecture 2 — ROADMAP, NOT proven** (`Lutar/Materials/PDDInjective.lean`).
 **certify**: POST `{empirical_risk,kl,n,delta}` or `{family}` (`intermetallics`/`oxides`/
 `refractory_hea`); returns the McAllester bound `R(Q) ≤ R̂(Q) + sqrt((KL+ln(2√n/δ))/(2n))`.
-Formula **proven on paper**, computation **exact**; **Lean proof is an open SORRY/ROADMAP**
-(`Lutar/Materials/PACBayesMaterials.lean`) — not in locked-8. Presets are `SAMPLE/MODELED`.
+Formula **proven on paper**, computation is a **floating-point evaluation**;
+**Lean proof is an open SORRY/ROADMAP**
+(`Lutar/Materials/PACBayesMaterials.lean`) - not in locked-8. Presets are `SAMPLE/MODELED`.
+
+### `POST /materials/predict` · `GET /materials/health`
+Source contract in `szl_materials_predict.py`, under both `/api/a11oy/v1/materials`
+and `/v1/materials`. POST an object such as
+`{"composition":{"Mg":1,"O":1},"property":"formation_energy"}` or an explicit
+`{"demo":"green"}` / `{"demo":"ood"}` request. The result is a calibrated
+formation-energy surrogate over an embedded sample dataset, labeled **MODELED + SAMPLE**.
+It is not a DFT calculation or a measurement.
+
+Composition counts must convert to finite, non-negative numbers with a positive total;
+booleans, negative values, NaN, infinity and overflow are rejected. Exact zero counts mean
+absent species. Empty, non-object and malformed POST bodies return **400** before fitting,
+signing or ledger writes. `GET /predict` returns **405** with `Allow: POST` and usage guidance.
+Unknown elements with otherwise valid counts retain an explicit **RED** refusal with a receipt.
+
+`options.sign` must be boolean; optional `radius_m` and `energy_j` must be finite and positive.
+`options.sign:false` omits the DSSE signature but still records the prediction in the ledger.
+Demo requests replace the request with the selected preset, including its options.
+`GET /health` reports `calibration.state: NOT_BUILT` until the first valid POST builds the
+surrogate; reading health never triggers fitting. The materials page's summary poll uses
+`GET /materials/certify/presets`; only the explicit Certify action posts a certificate request.
 
 ### `GET /assurance/evidence-pack`
 Returns an envelope `{pack, pack_sha3_256, digest_alg:"sha3_256", digest_canonicalization,

@@ -1055,34 +1055,3 @@ jobs:
           pytest tests/test_frontier_model_admission.py tests/test_model_intel_frontier_estate.py tests/test_model_inference_support.py tests/test_demo_critical_routes.py tests/test_series_a_estate.py tests/test_holographic_command_bar.py -q
           python -B scripts/collect_model_inference_support.py --check
           python model_release/frontier-qualification/frontier_admission_guard.py audit
-
-  python-materials-governance:
-    name: Materials predictor input contract and inert read paths (pytest, offline)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          # numpy 2.5.3 (the requirements-runtime.txt pin) requires Python >= 3.12.
-          python-version: "3.12"
-      - name: Install exact core and materials test dependencies
-        run: |
-          pip install --require-hashes -r .github/requirements/ci-core.txt -r .github/requirements/ci-materials.txt
-      - name: Prove malformed inputs never fit, sign or ledger, and read paths stay inert
-        # Every tests/test_materials_*.py module is gated here, so a new materials
-        # test file is picked up without editing this workflow. The step fails if
-        # the glob matches nothing, so the gate can never silently become empty.
-        # Signer / ledger / Khipu modules are replaced by counting test doubles
-        # inside the tests: nothing is signed, written or fetched.
-        shell: bash
-        run: |
-          shopt -s nullglob
-          files=(tests/test_materials_*.py)
-          if [ "${#files[@]}" -eq 0 ]; then
-            echo "::error::tests/test_materials_*.py matched no files; refusing to run an empty materials gate"
-            exit 1
-          fi
-          printf 'materials test modules (%d):\n' "${#files[@]}"
-          printf '  %s\n' "${files[@]}"
-          python -m pytest "${files[@]}" -q

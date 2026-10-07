@@ -161,7 +161,8 @@ code{font-family:var(--mono);color:var(--teal);}
       <h2>2 · PAC-Bayes Certificate <span class="meta" id="certEp">POST /api/a11oy/v1/materials/certify</span></h2>
       <p class="lede" style="margin:.2rem 0 .6rem;font-size:.86rem;">
         Compute the <b>McAllester PAC-Bayes bound</b> "with prob &ge; 1&minus;&delta;, population risk &le; bound"
-        + a signed certificate. The bound <b>computation is exact</b>; the
+        + a certificate. The bound is a <b>floating-point evaluation</b> of the formula;
+        signing status is reported in the response. The
         <span class="roadmap">McAllester Lean proof is a tracked SORRY</span> (proven-on-paper) —
         <code>Lutar/Materials/PACBayesMaterials.lean</code>.
       </p>
@@ -229,7 +230,7 @@ code{font-family:var(--mono);color:var(--teal);}
         </tr>
         <tr>
           <td>PAC-Bayes (McAllester) bound — <b>computation</b></td>
-          <td><span class="pill green">EXACT / PROVEN-on-paper</span></td>
+          <td><span class="pill blue">Floating-point evaluation; formula proven on paper</span></td>
           <td><code>szl_formulas.pac_bayes_mcallester</code></td>
           <td><code>/materials/certify</code></td>
         </tr>
@@ -401,7 +402,7 @@ async function runCertify(){
       '<div style="margin:.35rem 0;color:var(--paragraph)">'+esc(v.certificate_text || ("with prob ≥ 1−"+body.delta+", population risk ≤ "+(bound==null?"—":bound)))+'</div>'+
       '<div><span style="color:var(--dim)">Khipu receipt</span> <span class="digest">'+esc(rec.digest||"")+'</span> '+
         '<span style="color:var(--dim)">seq '+esc(rec.seq)+' · '+esc(rec.receipt_type||"SZL.Materials.PACBayesCert.v1")+'</span></div>'+
-      '<div style="color:var(--dim);margin-top:.35rem"><span class="roadmap">McAllester Lean proof = SORRY</span> (computation exact) · Lutar/Materials/PACBayesMaterials.lean</div>'+
+      '<div style="color:var(--dim);margin-top:.35rem"><span class="roadmap">McAllester Lean proof = SORRY</span> (floating-point evaluation) · Lutar/Materials/PACBayesMaterials.lean</div>'+
     '</div>';
   loadCards();
 }
