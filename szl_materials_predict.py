@@ -43,10 +43,24 @@
 #     would call it and the SAME governance/calibration wrapper applies; until then
 #     we ship the honest numpy surrogate, labeled clearly.
 #
+# INPUT CONTRACT (receipt-on-WRITE, never on read — AGENTS.md):
+#   - _validate_spec is PURE and runs before the first-use fit: counts must be
+#     finite, non-negative, non-boolean numbers with a finite positive total (an
+#     exact zero means "absent species"); options.sign is a bool; radius_m and
+#     energy_j are finite and > 0. Malformed input => {ok:false} / HTTP 400 with no
+#     fit, no signature, no ledger write. Responses and receipts carry the
+#     SANITIZED counts, never the raw request object.
+#   - /materials/predict is POST-only (GET => 405 + Allow: POST + usage body); an
+#     empty or non-object body is a 400, never a silent demo. /materials/health is
+#     a read: it never fits and reports NOT_BUILT until the first POST.
+#   - An element outside the embedded table is NOT malformed input: it is the honest
+#     hard-OOD refusal (RED verdict WITH a receipt), unchanged.
+#
 # DEPLOY: numpy-only; imports guarded at request time; NEVER raises into startup.
 # Registered BEFORE the /api/a11oy/{path:path} Node-proxy + SPA catch-all (serve.py
 # front-moves these routes to the router head, same proven pattern as the PINN block).
 
+import json
 import math
 import time
 import threading
@@ -181,28 +195,62 @@ _FEATURE_NAMES = (
 # ---------------------------------------------------------------------------
 # Composition parsing + featurization.
 # ---------------------------------------------------------------------------
-def _normalize_comp(comp):
-    """comp: dict element->count (>0). Returns dict element->fraction. Raises
-    ValueError on empty/invalid input or an element outside the embedded table
-    (an unknown element is an honest, hard OOD: we cannot featurize it)."""
+class InvalidCompositionError(ValueError):
+    """Malformed composition NUMERICS: a boolean, non-finite, negative or
+    overflowing count, a non-object/empty composition, or a non-positive total.
+    Deliberately distinct from the unknown-element refusal (a plain ValueError):
+    that one is an honest scientific RED verdict and keeps its receipt, whereas
+    this one is a client error that must never reach the fit, signer or ledger."""
+
+
+def _sanitize_counts(comp):
+    """Numeric contract only (NO element-table check). Returns {element: count}
+    with finite, strictly positive float counts. Exact zeros are dropped — a zero
+    count means the species is absent (contract decision, see CHANGELOG). Raises
+    InvalidCompositionError for everything else."""
     if not isinstance(comp, dict) or not comp:
-        raise ValueError("composition must be a non-empty {element: count} object")
+        raise InvalidCompositionError(
+            "composition must be a non-empty {element: count} object")
     counts = {}
     for el, c in comp.items():
         el = str(el).strip()
+        if isinstance(c, (bool, np.bool_)):
+            raise InvalidCompositionError(
+                "count for %r must be a number, not a boolean" % el)
         try:
             c = float(c)
+        except OverflowError:
+            raise InvalidCompositionError(
+                "count for %r is too large for a finite float" % el)
         except (TypeError, ValueError):
-            raise ValueError("count for %r must be a number" % el)
-        if c <= 0:
+            raise InvalidCompositionError("count for %r must be a number" % el)
+        if not math.isfinite(c):
+            raise InvalidCompositionError("count for %r must be finite" % el)
+        if c < 0:
+            raise InvalidCompositionError("count for %r must not be negative" % el)
+        if c == 0.0:
             continue
+        counts[el] = counts.get(el, 0.0) + c
+    if not counts:
+        raise InvalidCompositionError("composition has no positive element counts")
+    tot = sum(counts.values())
+    if not (math.isfinite(tot) and tot > 0):
+        raise InvalidCompositionError(
+            "composition total count must be finite and positive")
+    return counts
+
+
+def _normalize_comp(comp):
+    """comp: dict element->count. Returns dict element->fraction. Raises
+    InvalidCompositionError on malformed numerics (see _sanitize_counts) and a
+    plain ValueError for an element outside the embedded table (an unknown
+    element is an honest, hard OOD: we cannot featurize it)."""
+    counts = _sanitize_counts(comp)
+    for el in counts:
         if el not in _ELEM:
             raise ValueError(
                 "element %r is outside the embedded SAMPLE element table %s — "
                 "cannot featurize (honest OOD refusal)" % (el, sorted(_ELEM)))
-        counts[el] = counts.get(el, 0.0) + c
-    if not counts:
-        raise ValueError("composition has no positive element counts")
     tot = sum(counts.values())
     return {el: c / tot for el, c in counts.items()}
 
@@ -665,54 +713,138 @@ _DEMOS = {
 }
 
 
+_USAGE_ERROR = "supply {composition} or {demo}"
+
+
+def _validate_spec(spec):
+    """PURE request validation — no fit, no sign, no ledger, no I/O, no _STATE.
+    Resolves a demo, checks the property, sanitizes the composition counts and
+    the options. Returns the normalized spec
+      {"property": str, "composition": {el: finite positive float},
+       "options": {"sign": bool, "radius_m": float > 0, "energy_j": float > 0}}
+    and raises ValueError (InvalidCompositionError for numeric composition faults)
+    carrying a client-facing message. An element OUTSIDE the embedded table is not
+    an error here: the counts pass through so predict_property can refuse it the
+    honest way (RED verdict WITH a receipt), exactly as before. As before, a demo
+    replaces the whole spec, so a demo request ignores caller options."""
+    if not isinstance(spec, dict) or not spec:
+        raise ValueError(_USAGE_ERROR)
+    demo = spec.get("demo")
+    if demo:
+        if not isinstance(demo, str):
+            raise ValueError("demo must be a string: 'green' or 'ood'")
+        d = _DEMOS.get(demo.strip().lower())
+        if d is None:
+            raise ValueError("unknown demo %r; try 'green' or 'ood'" % demo)
+        spec = dict(d)
+
+    prop = spec.get("property") or "formation_energy"
+    if not isinstance(prop, str):
+        raise ValueError("property must be a string")
+    prop = prop.strip().lower()
+    if prop != "formation_energy":
+        raise ValueError(
+            "this SAMPLE surrogate predicts 'formation_energy' (eV/atom) only")
+
+    comp = spec.get("composition") or spec.get("descriptor")
+    if comp is None:
+        raise ValueError(_USAGE_ERROR)
+    counts = _sanitize_counts(comp)
+
+    raw_opts = spec.get("options")
+    if raw_opts is None:
+        raw_opts = {}
+    if not isinstance(raw_opts, dict):
+        raise ValueError("options must be an object")
+    sign = raw_opts.get("sign", True)
+    if not isinstance(sign, bool):
+        raise ValueError("options.sign must be a boolean")
+    opts = {"sign": sign}
+    for key in ("radius_m", "energy_j"):
+        v = raw_opts.get(key, 1.0)
+        bad = "options.%s must be a finite number > 0" % key
+        if isinstance(v, (bool, np.bool_)):
+            raise ValueError(bad)
+        try:
+            v = float(v)
+        except (TypeError, ValueError, OverflowError):
+            raise ValueError(bad)
+        if not (math.isfinite(v) and v > 0):
+            raise ValueError(bad)
+        opts[key] = v
+    return {"property": prop, "composition": counts, "options": opts}
+
+
+def _honesty_from_state():
+    """Honesty block WITHOUT triggering a fit: coverage only once built."""
+    if _STATE.get("built"):
+        return _honesty(_STATE.get("coverage"), _STATE.get("coverage_n"))
+    return _honesty()
+
+
+def _seal(result, payload_core, sign):
+    """Attach receipt + ledger to a FINISHED result. Defence in depth behind
+    _validate_spec: if the response or the receipt payload is not strict JSON
+    (NaN/inf/odd types), fail CLOSED — nothing signed, nothing ledgered — rather
+    than mint a receipt whose bytes could never be re-verified."""
+    try:
+        json.dumps({"response": result, "receipt_payload": payload_core},
+                   allow_nan=False)
+    except (ValueError, TypeError) as e:
+        return {"ok": False, "fail_closed": True,
+                "error": "refusing to sign or ledger: payload is not strict JSON (%s)" % e,
+                "property": result.get("property"),
+                "composition": result.get("composition"),
+                "honesty": _honesty_from_state()}
+    receipt = _build_receipt(payload_core, sign=sign)
+    result["receipt"] = receipt
+    result["ledger"] = _ledger(receipt)
+    return result
+
+
 def predict_property(spec):
     """spec: {composition: {el: count}, property?: 'formation_energy', options?:{}}
-    or {demo: 'green'|'ood'}. Returns the governed result dict."""
-    spec = dict(spec or {})
+    or {demo: 'green'|'ood'}. Returns the governed result dict.
+
+    Order is load-bearing (doctrine: receipt-on-WRITE, never on a malformed
+    request): _validate_spec runs FIRST and is pure, so only a well-formed
+    request reaches the first-use fit (_build), the signer and the ledger.
+    Malformed input returns {ok:false, error, honesty} with none of those side
+    effects; responses and receipts carry the SANITIZED counts, never the raw
+    composition object."""
+    try:
+        v = _validate_spec(spec)
+    except ValueError as ve:
+        return {"ok": False, "error": str(ve), "honesty": _honesty_from_state()}
+    prop, counts, opts = v["property"], v["composition"], v["options"]
+    sign = opts["sign"]
+
     st = _build()
     surr, cal = st["surr"], st["cal"]
     coverage, coverage_n = st["coverage"], st["coverage_n"]
 
-    demo = spec.get("demo")
-    if demo:
-        d = _DEMOS.get(str(demo).strip().lower())
-        if d is None:
-            return {"ok": False, "error": "unknown demo %r; try 'green' or 'ood'" % demo,
-                    "honesty": _honesty(coverage, coverage_n)}
-        spec = dict(d)
-
-    prop = (spec.get("property") or "formation_energy").strip().lower()
-    if prop != "formation_energy":
-        return {"ok": False,
-                "error": "this SAMPLE surrogate predicts 'formation_energy' (eV/atom) only",
-                "honesty": _honesty(coverage, coverage_n)}
-    comp = spec.get("composition") or spec.get("descriptor")
-    opts = dict(spec.get("options") or {})
-    sign = bool(opts.get("sign", True))
-
-    # featurize (unknown element => hard OOD refusal handled here)
+    # featurize: the numeric contract already held in _validate_spec, so the only
+    # ValueError left is the element-table refusal (hard OOD, honest RED + receipt)
     try:
-        x = featurize(comp)
+        x = featurize(counts)
+    except InvalidCompositionError as ve:  # unreachable after validation; fail closed
+        return {"ok": False, "error": str(ve), "honesty": _honesty(coverage, coverage_n)}
     except ValueError as ve:
         result = {
-            "ok": True, "property": prop, "composition": comp,
+            "ok": True, "property": prop, "composition": counts,
             "verdict": "RED",
             "refusal": "OUT-OF-DISTRIBUTION: %s" % ve,
             "value": None, "interval95": None,
             "calibration": calibration_report(),
             "honesty": _honesty(coverage, coverage_n),
         }
-        receipt = _build_receipt({"property": prop, "composition": comp,
-                                  "verdict": "RED", "refusal": result["refusal"]},
-                                 sign=sign)
-        result["receipt"] = receipt
-        result["ledger"] = _ledger(receipt)
-        return result
+        return _seal(result, {"property": prop, "composition": counts,
+                              "verdict": "RED", "refusal": result["refusal"]}, sign)
 
     mu, sigma = surr.predict(x)
     lo, hi = cal.interval(mu, sigma, ALPHA)
     ood = surr.ood_score(x)
-    hull = convex_hull_distance(comp, mu)
+    hull = convex_hull_distance(counts, mu)
 
     # gates
     delta = hull.get("delta_hull_eV_atom")
@@ -725,8 +857,7 @@ def predict_property(spec):
     # Bekenstein F19 check: prior std = spread of dataset targets; posterior = sigma.
     prior_sigma = float(np.std(st["y"]))
     bek = bekenstein_check(prior_sigma, max(sigma, 1e-6),
-                           radius_m=float(opts.get("radius_m", 1.0)),
-                           energy_j=float(opts.get("energy_j", 1.0)))
+                           radius_m=opts["radius_m"], energy_j=opts["energy_j"])
 
     verdict = "GREEN"
     reasons = []
@@ -762,7 +893,7 @@ def predict_property(spec):
     result = {
         "ok": True,
         "property": prop,
-        "composition": comp,
+        "composition": counts,
         "verdict": verdict,
         "value_eV_atom": (None if refuse else round(mu, 5)),
         "ensemble_sigma_eV_atom": round(sigma, 5),
@@ -784,8 +915,8 @@ def predict_property(spec):
     if refuse:
         result["refusal"] = " ; ".join(reasons)
 
-    receipt = _build_receipt({
-        "property": prop, "composition": comp, "verdict": verdict,
+    return _seal(result, {
+        "property": prop, "composition": counts, "verdict": verdict,
         "value_eV_atom": result["value_eV_atom"],
         "interval95_eV_atom": result["interval95_eV_atom"],
         "ensemble_sigma_eV_atom": result["ensemble_sigma_eV_atom"],
@@ -796,10 +927,7 @@ def predict_property(spec):
         "calibration": {"measured_coverage": round(float(coverage), 4),
                         "measured_coverage_n": int(coverage_n),
                         "target_coverage": 1.0 - ALPHA},
-    }, sign=sign)
-    result["receipt"] = receipt
-    result["ledger"] = _ledger(receipt)
-    return result
+    }, sign)
 
 
 # ---------------------------------------------------------------------------
@@ -810,30 +938,62 @@ def register(app, ns="a11oy"):
     from fastapi.responses import JSONResponse
     from fastapi import Request
 
+    # /predict is a governed WRITE (fit, sign, ledger). GET must stay inert, so it
+    # answers 405 + Allow: POST with a usage body instead of running a demo.
+    get_not_allowed = {
+        "ok": False,
+        "error": "GET is not allowed on /materials/predict: predicting fits the "
+                 "surrogate, signs a receipt and writes the ledger, and signing "
+                 "belongs on writes, never on reads. Use POST.",
+        "usage": {
+            "method": "POST",
+            "body": {"composition": {"Mg": 1, "O": 1}, "property": "formation_energy",
+                     "options": {"sign": True, "radius_m": 1.0, "energy_j": 1.0}},
+            "or": {"demo": "green | ood"},
+        },
+        "read_only": "GET /api/%s/v1/materials/health (never fits, never signs)" % ns,
+        "honesty": _honesty(),
+    }
+
+    def _status(out):
+        if out.get("fail_closed"):
+            return 500
+        return 200 if out.get("ok") else 400
+
     async def _predict(request: Request):
         try:
             try:
                 spec = await request.json()
-            except Exception:
-                spec = {}
-            if not isinstance(spec, dict):
-                spec = {}
-            if not spec:
-                spec = {"demo": "green"}
+            except Exception:  # noqa: BLE001 — malformed body is a client error, not a demo
+                spec = None
+            if not isinstance(spec, dict) or not spec:
+                return JSONResponse({"ok": False, "error": _USAGE_ERROR,
+                                     "honesty": _honesty_from_state()},
+                                    status_code=400,
+                                    headers={"x-szl-organ": RECEIPT_ORGAN})
             out = predict_property(spec)
-            code = 200 if out.get("ok") else 400
-            return JSONResponse(out, status_code=code, headers={
+            return JSONResponse(out, status_code=_status(out), headers={
                 "x-szl-materials-verdict": str(out.get("verdict", "NA")),
                 "x-szl-organ": RECEIPT_ORGAN})
         except Exception as e:  # noqa: BLE001
             return JSONResponse({"ok": False, "error": "%r" % e,
-                                 "honesty": _honesty()}, status_code=500)
+                                 "honesty": _honesty_from_state()}, status_code=500)
+
+    async def _predict_get():
+        return JSONResponse(get_not_allowed, status_code=405,
+                            headers={"Allow": "POST", "x-szl-organ": RECEIPT_ORGAN})
 
     async def _health():
-        try:
-            rep = calibration_report()
-        except Exception as e:  # noqa: BLE001
-            rep = {"error": "calibration unavailable (%r)" % e}
+        # Health is a READ: it never fits. Until the first POST /predict builds the
+        # surrogate it says so, keeping ok:true/200 so szl_engine_status stays reachable.
+        if _STATE.get("built"):
+            try:
+                rep = calibration_report()
+            except Exception as e:  # noqa: BLE001
+                rep = {"error": "calibration unavailable (%r)" % e}
+        else:
+            rep = {"state": "NOT_BUILT",
+                   "note": "health never fits; built on first POST /predict"}
         return JSONResponse({
             "ok": True, "organ": RECEIPT_ORGAN,
             "endpoint": "POST /api/%s/v1/materials/predict" % ns,
@@ -857,8 +1017,12 @@ def register(app, ns="a11oy"):
     prefixes = ["/api/%s/v1/materials" % ns, "/v1/materials"]
     routes = []
     for p in prefixes:
-        app.add_api_route("%s/predict" % p, _predict, methods=["POST", "GET"],
+        app.add_api_route("%s/predict" % p, _predict, methods=["POST"],
                           include_in_schema=True)
+        # Same path, GET only: an explicit 405 + Allow: POST + usage body, so a
+        # browser or a curl without -X POST can never trigger a fit or a signature.
+        app.add_api_route("%s/predict" % p, _predict_get, methods=["GET"],
+                          include_in_schema=False)
         app.add_api_route("%s/health" % p, _health, methods=["GET"],
                           include_in_schema=True)
         routes += ["%s/predict" % p, "%s/health" % p]

@@ -112,6 +112,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `tests/test_materials_certify_inputs.py` is a follow-up on the materials
   governance job.
 
+### Fixed - governed materials predictor inputs and inert read paths
+
+- Reject malformed `composition` counts in `szl_materials_predict` (NaN,
+  infinities, booleans, negative counts, integer overflow, an empty or
+  non-object composition, a non-positive total) before any model fit. Such
+  requests answer HTTP 400 `{ok:false, error, honesty}` with no fit, no
+  signature, no receipt and no ledger write. An exact zero count is dropped as
+  an absent species. Responses and receipts now carry the sanitized counts,
+  never the raw request object. The unknown-element out-of-distribution
+  refusal keeps its RED verdict and its receipt.
+- Validate `property` and `options` before the first-use fit (`sign` must be a
+  boolean; `radius_m` and `energy_j` must be finite and positive), and fail
+  closed, signing and ledgering nothing, if a response or receipt payload would
+  not serialize as strict JSON.
+- `GET /materials/health` no longer fits the surrogate on first use. Until the
+  first `POST /materials/predict` it reports
+  `calibration: {state: "NOT_BUILT", note: "health never fits; built on first POST /predict"}`
+  and stays `ok: true` / HTTP 200, so the engine-status skeleton probe is
+  unchanged.
+- The materials page summary poll (`loadCards`, every 12 s per open tab) probes
+  `GET /materials/certify/presets`, which emits nothing, instead of posting a
+  PAC-Bayes certificate that minted one Khipu receipt per tick. The explicit
+  Certify button still posts `/materials/certify`.
+
+#### Migration - `/materials/predict` is POST-only (public API change)
+
+- `GET /api/a11oy/v1/materials/predict` and `GET /v1/materials/predict` now
+  answer HTTP 405 with `Allow: POST` and a JSON usage body. They used to run the
+  `green` demo and sign a receipt on a read path. Send `POST {"demo": "green"}`
+  (or a `composition`) instead; `GET /materials/health` remains the read-only
+  status route.
+- An empty, non-JSON or non-object POST body now answers HTTP 400
+  `supply {composition} or {demo}` instead of silently running the `green` demo.
+- Negative element counts are rejected (HTTP 400) instead of being dropped.
+
 ### Fixed - additive, parent-bound A11oy model payload publication
 
 - Replace the existing publisher's separate prune/upload operations with one
@@ -210,7 +245,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   so consolidation does not privatize the advertised workbench. Other inventory-only
   and unknown Spaces keep their existing pause/private policy.
 
-
 ### Fixed - evaluation results require governed selected-model execution
 - Live evaluation now uses the existing canonical router after governance and
   binds the selected registry model, eligible plan, provider and completion.
@@ -246,7 +280,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Include the existing inventory regressions in the required backend check,
   alongside its previous targets. HTTP metadata does not diagnose an upstream
   cause or qualify every application feature.
-
 
 ### Added - experimental software lab discovery
 - TypeSafe Triage is linked from the product landing and listed separately under
@@ -392,7 +425,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Hunt / isolate / deceive — never strike people. Λ = Conjecture 1.
   This tab cites the lattice; it is not a second COP.
 
-
 ### Fixed - readiness honesty relock
 - The readiness harness now admits truthful `SAMPLE`, `DEGRADED`, and
   `MODELED` endpoint classes only where their source contracts explicitly
@@ -488,7 +520,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   energy-attested-runs is `8/8 SIMULATED` (not MEASURED joules); szl-forge-lab
   is `SNAPSHOT — not a trainer, not Serve Studio`. Shared-file drift stays
   fail-closed (no allowlist).
-
 
 ### Changed - public ecosystem map
 - `/ecosystem` is now an in-app map of command-center surfaces on a-11-oy.com.
