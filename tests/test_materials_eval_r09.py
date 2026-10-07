@@ -1,0 +1,630 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+"""Fail-closed checks for the R09 materials retrospective/OOD evaluator.
+
+Every fixture here is synthetic (data_origin "sample" unless a test needs the
+MEASURED path).  These are software checks of evaluator arithmetic and
+contracts; no model is fit and no benchmark is run.  Stdlib + pytest only.
+"""
+
+import ast
+import copy
+import math
+import pathlib
+
+import pytest
+
+import szl_materials_eval as ev
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+UNIT = "eV/atom"
+
+
+def _rec(rid, group, split, y_true, y_pred, composition=None, **extra):
+    rec = {
+        "id": rid,
+        "group": group,
+        "split": split,
+        "y_true": y_true,
+        "y_pred": y_pred,
+        "unit": UNIT,
+        "data_origin": "sample",
+        "functional": None,
+    }
+    if composition is not None:
+        rec["composition"] = composition
+    rec.update(extra)
+    return rec
+
+
+def _records():
+    # Binary-exact values so MAE and the confusion matrix are exact.
+    return [
+        _rec("tr-1", "Fe-O", "train", 0.0, 0.125, "Fe2O3"),
+        _rec("tr-2", "Fe-O", "train", 0.25, 0.25, "Fe3O4"),
+        _rec("tr-3", "Mn-O", "train", 0.5, None, "MnO2"),
+        _rec("ca-1", "Ti-O", "calibration", 0.125, 0.25, "TiO2"),
+        _rec("te-1", "Al-N", "test", -0.25, -0.125, "AlN"),  # TP, |e| 0.125
+        _rec("te-2", "Al-N", "test", 0.5, -0.25, "Al2N3"),  # FP, |e| 0.75
+        _rec("te-3", "Ga-N", "test", 0.0, 0.25, "GaN"),  # FN, |e| 0.25
+        _rec("te-4", "Ga-N", "test", 0.75, 0.5, "Ga2N"),  # TN, |e| 0.25
+    ]
+
+
+def _task(**discovery):
+    task = {"task_id": "synthetic-ehull-r09", "unit": UNIT, "target": "e_above_hull"}
+    task["discovery"] = {"threshold": 0.0, "missing_policy": "count_as_unstable", **discovery}
+    return task
+
+
+def _provenance(**overrides):
+    prov = {
+        "task_sha256": "1" * 64,
+        "split_sha256": "2" * 64,
+        "hull_sha256": "3" * 64,
+        "model_sha256": "4" * 64,
+        "checkpoint_sha256": "5" * 64,
+        "data_license": "CC-BY-4.0",
+        "code_license": "Apache-2.0",
+        "checkpoint_license": "Apache-2.0",
+        "training_overlap": "none",
+    }
+    prov.update(overrides)
+    return prov
+
+
+def _bundle(records=None, provenance=None, **extra):
+    bundle = {
+        "task": _task(),
+        "records": _records() if records is None else records,
+        "provenance": _provenance() if provenance is None else provenance,
+    }
+    bundle.update(extra)
+    return bundle
+
+
+def _as_dft(records):
+    for rec in records:
+        rec["data_origin"] = "dft"
+        rec["functional"] = "PBE"
+    return records
+
+
+# --- validation ------------------------------------------------------------
+
+
+def test_clean_fixture_validates():
+    report = ev.validate_records(_records(), _task())
+    assert report == {"ok": True, "errors": [], "n_records": 8}
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("y_true", float("nan")),
+        ("y_true", float("inf")),
+        ("y_true", float("-inf")),
+        ("y_true", True),
+        ("y_true", 10**400),
+        ("y_true", "0.5"),
+        ("y_true", None),
+        ("y_pred", float("nan")),
+        ("y_pred", float("inf")),
+        ("y_pred", False),
+    ],
+)
+def test_nan_inf_and_bool_are_rejected(field, value):
+    records = _records()
+    records[4][field] = value
+    report = ev.validate_records(records, _task())
+    assert report["ok"] is False
+    assert any(f".{field} must be" in e and "te-1" in e for e in report["errors"])
+    with pytest.raises(ev.RecordValidationError):
+        ev.regression_metrics(records, _task())
+    result = ev.evaluate(_bundle(records))
+    assert result["status"] == "BLOCKED"
+    assert result["regression"] is None and result["discovery"] is None
+
+
+def test_unit_mismatch_against_task_contract_is_rejected():
+    records = _records()
+    records[5]["unit"] = "meV/atom"
+    report = ev.validate_records(records, _task())
+    assert report["ok"] is False
+    assert any("does not match the task contract unit" in e for e in report["errors"])
+    assert any("records mix units" in e for e in report["errors"])
+    assert ev.evaluate(_bundle(records))["status"] == "BLOCKED"
+
+
+def test_mixed_units_rejected_without_a_task():
+    records = _records()
+    records[0]["unit"] = "eV"
+    report = ev.validate_records(records)
+    assert report["ok"] is False
+    assert any("records mix units" in e for e in report["errors"])
+
+
+@pytest.mark.parametrize(
+    "mutate,needle",
+    [
+        (lambda r: r.update(split="validation"), ".split must be one of"),
+        (lambda r: r.update(group=""), ".group must be a non-empty string"),
+        (lambda r: r.update(id=7), ".id must be a non-empty string"),
+        (lambda r: r.update(data_origin="DFT"), ".data_origin must be one of"),
+        (lambda r: r.update(data_origin="dft"), ".functional is required for a DFT label"),
+        (lambda r: r.pop("y_pred"), ".y_pred must be present"),
+        (lambda r: r.pop("functional"), ".functional must be present"),
+        (lambda r: r.update(composition="fe2o3"), "is not a simple formula"),
+        (lambda r: r.update(composition="Fe0O1"), "non-positive count"),
+        (lambda r: r.update(material_id=""), ".material_id must be null"),
+    ],
+)
+def test_record_contract_violations_are_named(mutate, needle):
+    records = _records()
+    mutate(records[6])
+    report = ev.validate_records(records, _task())
+    assert report["ok"] is False
+    assert any(needle in e for e in report["errors"]), report["errors"]
+
+
+def test_task_contract_violations_block_evaluation():
+    bad = _bundle()
+    bad["task"]["unit"] = "eV"
+    for rec in bad["records"]:
+        rec["unit"] = "eV"
+    result = ev.evaluate(bad)
+    assert result["status"] == "BLOCKED"
+    assert any("task.discovery requires task.unit" in e for e in result["validation"]["errors"])
+    bad = _bundle()
+    bad["task"]["discovery"]["missing_policy"] = "drop"
+    assert ev.evaluate(bad)["status"] == "BLOCKED"
+    bad = _bundle()
+    bad["task"]["discovery"]["threshold"] = True
+    assert ev.evaluate(bad)["status"] == "BLOCKED"
+
+
+@pytest.mark.parametrize("bundle", [None, [], "x", {"records": "x"}, {"task": _task()}])
+def test_evaluate_never_raises_on_garbage(bundle):
+    result = ev.evaluate(bundle)
+    assert result["status"] == "BLOCKED"
+    assert result["validation"]["ok"] is False
+
+
+# --- leakage ---------------------------------------------------------------
+
+
+def test_clean_fixture_has_no_detected_leakage():
+    report = ev.check_leakage(_records())
+    assert report["status"] == "NO_LEAKAGE_DETECTED"
+    assert report["composition_check"] == "RUN"
+    assert report["group_overlap"] == []
+    assert report["duplicate_ids"] == []
+    assert report["composition_overlap"] == []
+
+
+def test_group_leakage_across_splits_blocks_and_withholds_metrics():
+    records = _records()
+    records.append(_rec("te-5", "Fe-O", "test", 0.0, 0.0, "FeO"))
+    report = ev.check_leakage(records)
+    assert report["status"] == "LEAKAGE"
+    assert report["group_overlap"] == [{"group": "Fe-O", "splits": ["train", "test"]}]
+    result = ev.evaluate(_bundle(records))
+    assert result["status"] == "BLOCKED"
+    assert "split leakage detected; metrics withheld" in result["reasons"]
+    assert result["regression"] is None and result["discovery"] is None
+    assert result["held_out_label"] is None
+
+
+def test_duplicate_ids_are_leakage():
+    records = _records()
+    records.append(_rec("te-1", "In-N", "test", 0.0, 0.0, "InN"))
+    report = ev.check_leakage(records)
+    assert report["status"] == "LEAKAGE"
+    assert report["duplicate_ids"] == ["te-1"]
+
+
+def test_reduced_composition_overlap_across_splits_is_leakage():
+    records = _records()
+    # Same reduced composition as tr-1 (Fe2O3) under a different group label.
+    records.append(_rec("te-5", "Fe-O-poly", "test", 0.0, 0.0, "O6Fe4"))
+    report = ev.check_leakage(records)
+    assert report["status"] == "LEAKAGE"
+    assert report["group_overlap"] == []
+    assert report["composition_overlap"] == [
+        {"composition": "Fe:2/5,O:3/5", "splits": ["train", "test"]}
+    ]
+
+
+def test_repeats_inside_one_split_are_trials_not_leakage():
+    records = _records()
+    records.append(_rec("te-5", "Ga-N", "test", 0.0, 0.25, "GaN", material_id="mat-GaN"))
+    records[6]["material_id"] = "mat-GaN"
+    assert ev.check_leakage(records)["status"] == "NO_LEAKAGE_DETECTED"
+    metrics = ev.regression_metrics(records)
+    assert metrics["n_total"] == 5
+    assert metrics["n_unique_materials"] == 4
+    assert metrics["n_repeated_trials"] == 1
+
+
+def test_missing_composition_is_reported_not_assumed_clean():
+    records = _records()
+    del records[0]["composition"]
+    report = ev.check_leakage(records)
+    assert report["composition_check"] == "PARTIAL"
+    assert report["records_without_composition"] == 1
+    result = ev.evaluate(_bundle(records))
+    assert any("composition overlap check PARTIAL" in n for n in result["notes"])
+    for rec in records:
+        rec.pop("composition", None)
+    assert ev.check_leakage(records)["composition_check"] == "NOT_RUN"
+
+
+def test_composition_key_is_canonical_and_reduced():
+    assert ev.composition_key("Fe2O3") == ev.composition_key("O6Fe4") == "Fe:2/5,O:3/5"
+    assert ev.composition_key("Li0.5CoO2") == ev.composition_key("LiCo2O4")
+    assert ev.composition_key("CO") != ev.composition_key("Co")
+    for bad in ("", "Fe2(O3)", "Fe2 O3", "Fe2O3+", "fe"):
+        with pytest.raises(ValueError):
+            ev.composition_key(bad)
+
+
+# --- regression metrics ----------------------------------------------------
+
+
+def test_regression_metrics_exact_values_and_per_group_support():
+    m = ev.regression_metrics(_records(), _task())
+    assert m["split"] == "test" and m["unit"] == UNIT
+    assert (m["n_total"], m["n_predicted"], m["n_missing"]) == (4, 4, 0)
+    assert m["coverage"] == 1.0
+    assert m["mae"] == 0.34375
+    assert m["rmse"] == pytest.approx(math.sqrt(0.703125 / 4))
+    assert m["per_group"] == [
+        {"group": "Al-N", "support": 2, "n_predicted": 2, "n_missing": 0, "mae": 0.4375},
+        {"group": "Ga-N", "support": 2, "n_predicted": 2, "n_missing": 0, "mae": 0.25},
+    ]
+
+
+def test_missing_predictions_are_counted_not_dropped():
+    records = _records()
+    records.append(_rec("te-5", "In-N", "test", -0.125, None, "InN"))
+    m = ev.regression_metrics(records, _task())
+    assert (m["n_total"], m["n_predicted"], m["n_missing"]) == (5, 4, 1)
+    assert m["missing_ids"] == ["te-5"]
+    assert m["coverage"] == 0.8
+    assert m["mae"] == 0.34375
+    assert m["per_group"][-1] == {
+        "group": "In-N",
+        "support": 1,
+        "n_predicted": 0,
+        "n_missing": 1,
+        "mae": ev.UNDEFINED,
+    }
+
+
+def test_zero_predictions_give_undefined_errors_and_unknown_status():
+    records = _records()
+    for rec in records:
+        if rec["split"] == "test":
+            rec["y_pred"] = None
+    m = ev.regression_metrics(records, _task())
+    assert m["n_predicted"] == 0 and m["n_missing"] == 4
+    assert m["mae"] == ev.UNDEFINED and m["rmse"] == ev.UNDEFINED
+    assert m["coverage"] == 0.0
+    result = ev.evaluate(_bundle(records))
+    assert result["status"] == "UNKNOWN"
+    assert "no test-split predictions; error metrics UNDEFINED" in result["reasons"]
+
+
+def test_empty_split_coverage_is_undefined_not_zero():
+    records = [r for r in _records() if r["split"] != "calibration"]
+    m = ev.regression_metrics(records, _task(), split="calibration")
+    assert m["n_total"] == 0
+    assert m["coverage"] == ev.UNDEFINED
+    assert m["mae"] == ev.UNDEFINED
+    with pytest.raises(ValueError):
+        ev.regression_metrics(records, _task(), split="holdout")
+
+
+def test_overflowing_error_is_refused_not_reported_as_inf():
+    records = _records()
+    records[4]["y_true"] = -1.7e308
+    records[4]["y_pred"] = 1.7e308
+    with pytest.raises(ValueError):
+        ev.regression_metrics(records)
+    result = ev.evaluate(_bundle(records))
+    assert result["status"] == "BLOCKED"
+    assert result["reasons"][0].startswith("metric computation refused")
+
+
+# --- discovery metrics -----------------------------------------------------
+
+
+def test_discovery_metrics_exact_confusion_and_daf():
+    d = ev.discovery_metrics(_records())
+    assert d["confusion"] == {"tp": 1, "fp": 1, "fn": 1, "tn": 1}
+    assert (d["precision"], d["recall"], d["f1"]) == (0.5, 0.5, 0.5)
+    assert d["prevalence"] == 0.5
+    assert d["daf"] == 1.0
+    assert d["missing_policy"] == "count_as_unstable" and d["n_missing"] == 0
+
+
+def test_default_policy_counts_missing_as_predicted_unstable_and_reports_it():
+    records = _records()
+    records.append(_rec("te-5", "In-N", "test", -0.125, None, "InN"))
+    d = ev.discovery_metrics(records)
+    assert d["missing_policy"] == "count_as_unstable"
+    assert d["n_missing"] == 1 and d["missing_ids"] == ["te-5"]
+    assert d["missing_counted_as_false_negative"] == 1
+    assert d["confusion"] == {"tp": 1, "fp": 1, "fn": 2, "tn": 1}
+    assert d["n_classified"] == 5
+    assert d["precision"] == 0.5
+    assert d["recall"] == pytest.approx(1 / 3)
+    assert d["f1"] == 0.4
+    assert d["prevalence"] == 0.6
+    assert d["daf"] == pytest.approx(0.5 / 0.6)
+
+
+def test_exclude_policy_still_reports_missing_count():
+    records = _records()
+    records.append(_rec("te-5", "In-N", "test", -0.125, None, "InN"))
+    d = ev.discovery_metrics(records, missing_policy="exclude")
+    assert d["n_missing"] == 1 and d["n_classified"] == 4
+    assert d["confusion"] == {"tp": 1, "fp": 1, "fn": 1, "tn": 1}
+    assert d["missing_counted_as_false_negative"] == 0
+    assert d["prevalence"] == 0.6  # reference prevalence over every test record
+    with pytest.raises(ValueError):
+        ev.discovery_metrics(records, missing_policy="drop")
+
+
+def test_zero_denominators_are_undefined_not_zero():
+    all_unstable = [
+        _rec("te-1", "A", "test", 0.5, 0.25),
+        _rec("te-2", "B", "test", 0.25, 0.5),
+    ]
+    d = ev.discovery_metrics(all_unstable)
+    assert d["confusion"] == {"tp": 0, "fp": 0, "fn": 0, "tn": 2}
+    assert d["precision"] == ev.UNDEFINED
+    assert d["recall"] == ev.UNDEFINED
+    assert d["f1"] == ev.UNDEFINED
+    assert d["prevalence"] == 0.0
+    assert d["daf"] == ev.UNDEFINED
+
+    none_predicted_stable = [_rec("te-1", "A", "test", -0.25, 0.25)]
+    d = ev.discovery_metrics(none_predicted_stable)
+    assert d["precision"] == ev.UNDEFINED
+    assert d["recall"] == 0.0
+    assert d["daf"] == ev.UNDEFINED
+
+    d = ev.discovery_metrics([_rec("tr-1", "A", "train", 0.0, 0.0)])
+    assert d["n_total"] == 0
+    assert d["prevalence"] == ev.UNDEFINED and d["daf"] == ev.UNDEFINED
+
+
+def test_discovery_requires_energy_above_hull_unit_and_finite_threshold():
+    records = _records()
+    for rec in records:
+        rec["unit"] = "eV"
+    with pytest.raises(ev.RecordValidationError):
+        ev.discovery_metrics(records)
+    for bad in (float("nan"), True, "0"):
+        with pytest.raises(ValueError):
+            ev.discovery_metrics(_records(), threshold=bad)
+
+
+# --- budgets and parity ----------------------------------------------------
+
+
+def test_acceleration_factor_fixture_ten_versus_five_is_two():
+    assert ev.acceleration_factor(10, 5) == 2.0
+    assert ev.budget_fraction(10, 5) == 0.5
+    for random_budget, model_budget in ((0, 5), (10, 0), (-10, 5), (True, 5), (10, float("nan"))):
+        with pytest.raises(ValueError):
+            ev.acceleration_factor(random_budget, model_budget)
+    with pytest.raises(ValueError):
+        ev.acceleration_factor(1e308, 1e-308)
+
+
+def _competitor(name, budget=100, relaxed="unrelaxed", overlap="none"):
+    return {
+        "name": name,
+        "candidate_budget": budget,
+        "relaxed_inputs": relaxed,
+        "training_overlap": overlap,
+    }
+
+
+def test_equal_budgets_are_admissible():
+    p = ev.budget_parity([_competitor("szl"), _competitor("baseline-mean")])
+    assert p["parity"] == "EQUAL"
+    assert p["comparison_admissible"] is True
+    assert p["all_held_out"] is True
+    assert p["flags"] == []
+
+
+def test_unequal_budgets_are_flagged():
+    p = ev.budget_parity([_competitor("szl", 100), _competitor("other", 50)])
+    assert p["parity"] == "UNEQUAL"
+    assert "unequal-candidate-budget" in p["flags"]
+    assert p["comparison_admissible"] is False
+    result = ev.evaluate(
+        _bundle(competitors=[_competitor("szl", 100), _competitor("other", 50)])
+    )
+    assert result["budget_parity"]["parity"] == "UNEQUAL"
+    assert any("competitor comparison not admissible" in n for n in result["notes"])
+
+
+def test_relaxation_status_must_match_and_be_known():
+    p = ev.budget_parity([_competitor("a", relaxed="relaxed"), _competitor("b")])
+    assert p["parity"] == "UNEQUAL"
+    assert "relaxed-input-mismatch" in p["flags"] and "relaxed-inputs-used" in p["flags"]
+    p = ev.budget_parity([_competitor("a", relaxed="unknown"), _competitor("b")])
+    assert p["parity"] == "UNKNOWN"
+    assert p["comparison_admissible"] is False
+
+
+def test_overlap_unknown_blocks_held_out_label():
+    p = ev.budget_parity([_competitor("szl"), _competitor("pretrained", overlap="unknown")])
+    labels = {e["name"]: e["held_out_label"] for e in p["entries"]}
+    assert labels == {"szl": "held-out", "pretrained": "overlap-unknown"}
+    assert p["all_held_out"] is False
+    assert "overlap-unknown:pretrained" in p["flags"]
+
+
+def test_single_competitor_parity_is_not_applicable():
+    p = ev.budget_parity([_competitor("szl")])
+    assert p["parity"] == "NOT_APPLICABLE"
+    assert p["comparison_admissible"] is False
+
+
+@pytest.mark.parametrize(
+    "entries",
+    [
+        [],
+        [_competitor("a", budget=True)],
+        [_competitor("a", budget=10.0)],
+        [_competitor("a", relaxed="yes")],
+        [_competitor("a", overlap="maybe")],
+        [_competitor("a"), _competitor("a")],
+    ],
+)
+def test_invalid_competitors_fail_closed(entries):
+    with pytest.raises(ev.RecordValidationError):
+        ev.budget_parity(entries)
+    if entries:
+        assert ev.evaluate(_bundle(competitors=entries))["status"] == "BLOCKED"
+
+
+# --- evaluate: status and provenance --------------------------------------
+
+
+def test_synthetic_sample_bundle_is_labelled_sample():
+    result = ev.evaluate(_bundle())
+    assert result["status"] == "SAMPLE"
+    assert result["held_out_label"] == "held-out"
+    assert result["leakage"]["status"] == "NO_LEAKAGE_DETECTED"
+    assert result["regression"]["mae"] == 0.34375
+    assert result["discovery"]["daf"] == 1.0
+    assert result["claims"] == {
+        "model_fit": False,
+        "benchmark_run": False,
+        "discovery_claim": False,
+        "prospective_evaluation": False,
+    }
+    assert "preprocessing-fold-isolation" in result["not_run"]
+
+
+def test_dft_labelled_bundle_with_complete_provenance_is_measured():
+    result = ev.evaluate(_bundle(records=_as_dft(_records())))
+    assert result["status"] == "MEASURED"
+    assert result["reasons"] == []
+    assert result["provenance"]["complete"] is True
+
+
+@pytest.mark.parametrize("key", ev.REQUIRED_HASHES + ev.REQUIRED_LICENSES)
+def test_missing_provenance_is_unknown_never_pass(key):
+    prov = _provenance()
+    del prov[key]
+    result = ev.evaluate(_bundle(records=_as_dft(_records()), provenance=prov))
+    assert result["status"] == "UNKNOWN"
+    assert result["provenance"]["missing"] == [key]
+    assert any(key in r for r in result["reasons"])
+
+
+@pytest.mark.parametrize(
+    "overrides,field",
+    [
+        ({"model_sha256": "A" * 64}, "invalid"),
+        ({"model_sha256": "4" * 63}, "invalid"),
+        ({"model_sha256": "4" * 64 + "\n"}, "invalid"),
+        ({"model_sha256": 4}, "invalid"),
+        ({"training_overlap": "maybe"}, "invalid"),
+        ({"data_license": "UNKNOWN"}, "missing"),
+        ({"code_license": "  "}, "missing"),
+        ({"checkpoint_license": "n/a"}, "missing"),
+    ],
+)
+def test_malformed_or_placeholder_provenance_is_unknown(overrides, field):
+    result = ev.evaluate(
+        _bundle(records=_as_dft(_records()), provenance=_provenance(**overrides))
+    )
+    assert result["status"] == "UNKNOWN"
+    assert result["provenance"][field]
+
+
+def test_absent_provenance_object_is_unknown():
+    bundle = _bundle(records=_as_dft(_records()))
+    del bundle["provenance"]
+    result = ev.evaluate(bundle)
+    assert result["status"] == "UNKNOWN"
+    assert result["held_out_label"] == "overlap-unknown"
+
+
+@pytest.mark.parametrize(
+    "overlap,label",
+    [(None, "overlap-unknown"), ("unknown", "overlap-unknown"), ("known", "overlap-known")],
+)
+def test_training_overlap_controls_the_held_out_label(overlap, label):
+    prov = _provenance()
+    if overlap is None:
+        del prov["training_overlap"]
+    else:
+        prov["training_overlap"] = overlap
+    result = ev.evaluate(_bundle(records=_as_dft(_records()), provenance=prov))
+    assert result["held_out_label"] == label
+    assert result["status"] == "MEASURED"
+
+
+def test_status_vocabulary_never_contains_pass():
+    bundles = [
+        _bundle(),
+        _bundle(records=_as_dft(_records())),
+        _bundle(provenance={}),
+        _bundle(records=[]),
+        None,
+    ]
+    statuses = {ev.evaluate(b)["status"] for b in bundles}
+    assert statuses <= set(ev.STATUSES)
+    assert "PASS" not in statuses
+    assert ev.evaluate(_bundle(records=[]))["status"] == "UNKNOWN"
+
+
+def test_evaluate_does_not_mutate_its_input():
+    bundle = _bundle(competitors=[_competitor("szl"), _competitor("other")])
+    snapshot = copy.deepcopy(bundle)
+    ev.evaluate(bundle)
+    assert bundle == snapshot
+
+
+def test_records_digest_binds_the_fields_read():
+    first = ev.evaluate(_bundle())["records_sha256"]
+    assert first == ev.evaluate(_bundle())["records_sha256"]
+    assert len(first) == 64
+    changed = _records()
+    changed[4]["y_pred"] = -0.0625
+    assert ev.evaluate(_bundle(records=changed))["records_sha256"] != first
+
+
+# --- module boundary -------------------------------------------------------
+
+
+def test_module_is_stdlib_only_and_side_effect_free():
+    source = (ROOT / "szl_materials_eval.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    imported = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imported.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            imported.add((node.module or "").split(".")[0])
+    assert imported <= {"hashlib", "json", "math", "re", "fractions"}, imported
+    called = {
+        node.func.id
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+    }
+    assert not called & {"open", "exec", "eval", "__import__", "compile"}
+    defined = {n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+    assert "register" not in defined
+    assert source.startswith("#!/usr/bin/env python3\n# SPDX-License-Identifier: Apache-2.0\n")
+    assert "Taxonomy home: governance/" in source

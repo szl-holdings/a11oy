@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - materials retrospective/OOD and discovery evaluator (R09, not wired)
+
+- Add `szl_materials_eval.py`, a stdlib-only, read-only evaluator for sealed
+  materials prediction records. It rejects NaN, infinity, bool and unit
+  mismatches. It reports group, id and reduced-composition leakage across
+  splits and keeps missing predictions in coverage, never dropping them.
+  Regression error comes with per-group support. Discovery metrics run under
+  a declared missing-prediction policy, and every ratio with a zero
+  denominator reads UNDEFINED. Acceleration is `random_budget /
+  model_budget`. Competitor budget parity is checked, and an unknown
+  training overlap blocks the held-out label.
+- `evaluate()` returns MEASURED, SAMPLE, UNKNOWN or BLOCKED and never PASS.
+  If any task, split, hull, model or checkpoint hash or license field is
+  missing, the status is UNKNOWN. The module fits no model, runs no
+  benchmark, makes no discovery claim, and is not imported by `serve.py` or
+  any route. Tests: `tests/test_materials_eval_r09.py`, synthetic fixtures
+  only.
+
 ### Fixed - RAG status evidence scope
 
 - The passive RAG status route labels a stored index `cached`, not `live`, and
