@@ -74,10 +74,10 @@ class OrphanRepairError(RuntimeError):
 
 
 def auto_repair_enabled(environ: Optional[Mapping[str, str]] = None) -> bool:
-    """Default OFF; only an explicit true-like value enables repair.
+    """Default OFF; an explicit true-like value enables runtime classification.
 
-    Enable it only when a single writer is guaranteed (see the module
-    docstring): cross-host writers on a FUSE mount do not see SQLite locks.
+    A damaged store remains BLOCKED even when this flag is true. The flag does
+    not authorize live-file replacement or establish writer quiescence.
     """
 
     values = os.environ if environ is None else environ
