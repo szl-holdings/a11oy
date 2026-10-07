@@ -496,8 +496,17 @@ function evaluateEndpointLabels(httpStatus, spec, body) {
     SCHEMAS[spec.schema]?.requiredPathTypes || {},
   ).filter(([path, type]) => type === "array"
     && isCanonicalUnavailableItemsEnvelope(body, path));
-  const unavailableSources = [...new Set(requiredSourcePaths.map(([path]) =>
-    unavailableEnvelopePrefix(path) || "$"))];
+  // An admitted negative root label is truthful endpoint-level absence, not
+  // operational evidence. Nested optional sources and domain statuses do not
+  // speak for the endpoint; schema-required source envelopes still do.
+  const rootUnavailable = labels.some((entry) =>
+    allowed.has(entry.normalized)
+    && (entry.normalized === "degraded" || entry.normalized === "unavailable")
+    && (ROOT_LABEL_KEY.test(entry.path) || EXPLICIT_EVIDENCE_KEY.test(entry.path)));
+  const unavailableSources = [...new Set([
+    ...requiredSourcePaths.map(([path]) => unavailableEnvelopePrefix(path) || "$"),
+    ...(rootUnavailable ? ["$"] : []),
+  ])];
   // OBSERVED is a valid supplemental counter label, but never a substitute for
   // the root LIVE/CACHED availability label. Inspecting these fields makes a
   // MODELED or unknown counter fail without broadening allowLabels.

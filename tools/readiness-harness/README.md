@@ -62,6 +62,16 @@ endpoint as clean. A required degraded endpoint blocks release and the compact
 verdict publisher; the server and canonical verifier also reject a degraded
 summary. Recovery requires an observed source response, not a disabled probe.
 
+An explicitly admitted `DEGRADED` or `UNAVAILABLE` scalar label at the response
+root also records endpoint-level negative evidence as `unavailableSources: ["$"]`.
+This includes root availability keys (`status`, `state`, `label`, `mode`, scalar
+`freshness`) and explicit evidence-kind keys. A fresh, cited HTTP 200 from an
+unbuilt RAG index therefore stays `DEGRADED` and blocks a required release probe.
+This does not expand any allowed labels: unknown or non-admitted negative labels
+still fail, and schema, citation, HTTP-status, and freshness checks remain
+independent. Nested optional-source and domain labels do not declare root
+availability; the existing schema-required unavailable-source map is unchanged.
+
 ## Live serving
 
 The matrix is also served by the running console at:
