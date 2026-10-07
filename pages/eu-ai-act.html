@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>EU AI Act Article 12 — Record-Keeping, Solved with Receipts | SZL Holdings</title>
-<meta name="description" content="Article 12 of the EU AI Act requires automatic event logging for high-risk AI systems. GovernedAction/v1 receipts map to every required audit-trail field — verifiable offline.">
+<title>EU AI Act Article 12 — Technical Logging Map | SZL Holdings</title>
+<meta name="description" content="A declared technical mapping of selected Article 12 logging considerations to GovernedAction/v1 fields. This is not a compliance or certification claim.">
 <style>
   :root{--cream:#F7F6F2;--ink:#1B474D;--teal:#01696F;--gold:#C8B26A;--line:#d8d4c8}
   *{box-sizing:border-box}html,body{overflow-x:hidden}
@@ -35,71 +35,50 @@
 </head>
 <body>
 <header>
-  <p class="eyebrow">SZL HOLDINGS · HONEST BY DESIGN</p>
-  <h1>EU AI Act Article 12: record-keeping that verifies, not just records.</h1>
-  <p class="lead">Article 12 of Regulation (EU) 2024/1689 requires high-risk AI systems to <em>technically allow the automatic recording of events over the lifetime of the system</em>. Those obligations reached full application for Annex III high-risk systems on <strong>2 August 2026</strong>, and Article 26(6) separately requires deployers to retain the logs under their control for <strong>at least six months</strong>. GovernedAction/v1 — the open receipt format behind every a11oy gated action — was built to be exactly that record: automatic, tamper-evident, and verifiable offline.</p>
+  <p class="eyebrow">SZL HOLDINGS · DECLARED TECHNICAL MAPPING</p>
+  <h1>EU AI Act Article 12: a technical logging map.</h1>
+  <p class="lead">Article 12 of Regulation (EU) 2024/1689 describes logging capabilities for high-risk AI systems. This page maps selected provisions to fields in a self-authored GovernedAction/v1 conformance profile. It does not determine whether a system is high-risk, whether a deployment records and retains the required logs, or whether that system complies with the Act.</p>
   <nav aria-label="Primary">
-    <a class="btn primary" href="/pricing">See the 30-day pilot</a>
-    <a class="btn" href="/verify">Verify a receipt in your browser</a>
-    <a class="btn" href="/compliance">FedRAMP / SOC 2 / IL5 / CMMC path</a>
+    <a class="btn primary" href="https://github.com/szl-holdings/a11oy/blob/main/evidence/conformance/eu-ai-act-article-12.v1.yaml">Read the source profile</a>
+    <a class="btn" href="/compliance">View the compliance roadmap</a>
   </nav>
 </header>
 <main>
-  <h2>The deadline is not upcoming. It passed.</h2>
+  <h2>Application dates in the consolidated text</h2>
   <div class="card">
-    <p><span class="label">MEASURED</span> <strong>2 August 2026</strong> — full application of the high-risk obligations (Articles 9–17 for providers, Article 26 for deployers) under Regulation (EU) 2024/1689. Automatic event logging under Article 12 is now enforceable law for in-scope systems, and deployers carry the mirror duty to keep those logs for at least six months. Maximum penalties under the Act reach €35M or 7% of global turnover for the most serious infringements.</p>
+    <p>As of 7 October 2026, Article 113 of the <a href="https://eur-lex.europa.eu/eli/reg/2024/1689/2026-07-27/eng">consolidated Regulation (EU) 2024/1689</a> schedules Chapter III, Sections 1–3, including Article 12, to apply from <strong>2 December 2027</strong> for Annex III high-risk systems and <strong>2 August 2028</strong> for Annex I high-risk systems. Articles 19(1) and 26(6) describe a minimum six-month retention period for logs under the provider's or deployer's control, subject to applicable Union or national law. The <a href="https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai">European Commission's AI Act timeline</a> reflects those dates.</p>
   </div>
 
-  <h2>Every required audit-trail field, mapped to a receipt field</h2>
-  <p>2026 audit-trail checklists for SOX, HIPAA, the EU AI Act, FFIEC, and PCI DSS v4.0 converge on the same twelve fields. Each maps to a field a GovernedAction/v1 receipt already carries:</p>
+  <h2>What the declared profile checks</h2>
+  <p>The source profile names selected fields and structural validators. A passing structural check would establish only that the supplied artifact has those fields. It would not prove that a deployed system automatically logs every relevant event or retains the logs. The specific minimum fields in Article 12(3) apply to the biometric systems described in Annex III, point 1(a), rather than every high-risk system.</p>
   <table>
-    <thead><tr><th>Required audit-trail field</th><th>GovernedAction/v1 receipt binding</th></tr></thead>
+    <thead><tr><th>Selected consideration</th><th>Profile field and check</th><th>Proof still needed</th></tr></thead>
     <tbody>
-      <tr><td>Timestamp (NTP-synced, UTC)</td><td><code>issued_at</code> — UTC issuance time inside the signed envelope</td></tr>
-      <tr><td>Unique decision ID</td><td><code>action_id</code> — unique per gated action</td></tr>
-      <tr><td>Authenticated human identity</td><td><code>approver</code> — approval tier and identity, where a human gate fired</td></tr>
-      <tr><td>AI system identity and version</td><td><code>subject</code> digest + source revision binding</td></tr>
-      <tr><td>Model identity and version</td><td>Model/provider provenance recorded per response</td></tr>
-      <tr><td>Inputs received, with source attribution</td><td>Evidence references bound into the payload digest</td></tr>
-      <tr><td>Policy, rule, or prompt invoked</td><td><code>policy_gates</code> — the gates traversed, by name and version</td></tr>
-      <tr><td>Reasoning in human-readable language</td><td>Bounded loop trace attached to the receipt</td></tr>
-      <tr><td>Output produced</td><td>Output digest inside the signed subject</td></tr>
-      <tr><td>Action taken downstream</td><td><code>admission</code> result — admitted, held, or denied, with the executed effect</td></tr>
-      <tr><td>Human review / approval identity</td><td>Approval record at the caller's tier</td></tr>
-      <tr><td>Tamper-evident integrity proof</td><td><strong>DSSE envelope, ECDSA P-256 signature, hash-chained ledger</strong> — alter one byte and offline verification fails</td></tr>
+      <tr><td>Event identity</td><td><code>$.receipt_id</code> must be a nonempty string.</td><td>Evidence that events are actually emitted and stored.</td></tr>
+      <tr><td>Period of use, where Article 12(3)(a) applies</td><td><code>$.observation_window.start</code> and <code>.end</code> must be timestamps.</td><td>Evidence that the timestamps bound each real use of the system.</td></tr>
+      <tr><td>Retention</td><td><code>$.retention_days</code> must be at least 180 in the supplied artifact.</td><td>Storage policy, durable records, and a retention readback.</td></tr>
+      <tr><td>Human verifier, where Article 12(3)(d) applies</td><td><code>$.predicate.actor.actor_id</code> must be nonempty.</td><td>Identity and role verification for the actual workflow.</td></tr>
     </tbody>
   </table>
 
-  <h2>Prove it without talking to us</h2>
+  <h2>Evidence boundary</h2>
   <div class="card">
-    <h3>Offline verification, no server in the trust path</h3>
-    <p>Take any receipt to <a href="/verify">/verify</a>. The check runs entirely in your browser against the published keys. Tamper a byte and watch it fail. No SZL server decides anything — that is the difference between a governance <em>dashboard</em> and governance <em>proof</em>.</p>
-  </div>
-  <div class="card">
-    <h3>Adversarial test suite</h3>
-    <p>The GovernedAction/v1 format ships with a public adversarial suite — 64 held proof-of-concept attacks against the receipt claim — plus PASS/FAIL-labeled conformance vectors so you can test your own verifier against ours.</p>
+    <p><span class="label">DECLARED</span> The mapping is recorded in <a href="https://github.com/szl-holdings/a11oy/blob/main/evidence/conformance/eu-ai-act-article-12.v1.yaml">the profile</a> and its <a href="https://github.com/szl-holdings/a11oy/blob/main/tools/demo_harness.py">demo harness</a>. <span class="label">UNKNOWN</span> This page has no deployment-specific readback of automatic capture, durable retention, signing-key trust, or external verification. Those require separate evidence for the system and workflow being assessed.</p>
   </div>
 
-  <h2>Honest boundaries</h2>
+  <h2>Scope</h2>
   <div class="card honest">
     <ul>
-      <li><span class="label roadmap">NOT LEGAL ADVICE</span> SZL Holdings builds technical infrastructure. Whether your system is in scope of Annex III, and what your full obligations are, is a question for your counsel.</li>
-      <li><span class="label roadmap">CONFORMANCE ≠ CERTIFICATION</span> An Article 12 conformance profile is a technical mapping, not a certification. No notified body has certified anything here, and we say so.</li>
-      <li><span class="label">MEASURED</span> Receipts verify offline against published keys today. That specific claim you can test yourself, right now, at /verify.</li>
+      <li>This technical map is not legal advice. Whether a particular system is in scope, and which obligations apply, needs a deployment-specific assessment.</li>
+      <li>The profile is a self-assessment artifact, not an EU conformity assessment or certification.</li>
+      <li>A receipt or verifier result can support an integrity review only after its key, issuer, payload, and storage boundary are independently established. It does not establish that the recorded event is factually correct.</li>
     </ul>
   </div>
 
-  <h2>Start</h2>
-  <p>The 30-day Governed Evidence Pilot wires one of your agent workflows end to end: policy gates on every action, signed hash-chained receipts, ten controls mapped to ISO/IEC 42001, the EU AI Act, and NIST AI RMF, an auditor export bundle, and an external adversarial review — fixed scope, fixed price, measurable acceptance in writing up front.</p>
-  <nav aria-label="Next steps">
-    <a class="btn primary" href="/pricing">Pricing and pilot</a>
-    <a class="btn" href="/assurance">Assurance surface</a>
-    <a class="btn" href="https://a11oy.net">Evidence registry</a>
-  </nav>
 </main>
 <footer>
   <p>SZL Holdings, LLC · Product <a href="/">a-11-oy.com</a> · Evidence <a href="https://a11oy.net">a11oy.net</a> · Source <a href="https://github.com/szl-holdings">github.com/szl-holdings</a></p>
-  <p>Regulatory references: Regulation (EU) 2024/1689, Article 12 (record-keeping), Article 26(6) (deployer log retention). Field mapping reflects commonly published 2026 audit-trail checklists; your obligations depend on your system's classification.</p>
+  <p>Regulatory source: <a href="https://eur-lex.europa.eu/eli/reg/2024/1689/2026-07-27/eng">Regulation (EU) 2024/1689, consolidated 27 July 2026</a>, Articles 12, 19(1), 26(6), and 113.</p>
 </footer>
   <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
   <script src="/assets/szl-holo-v2.js" defer data-szl-holo-asset="script-v2"></script>
