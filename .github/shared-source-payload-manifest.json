@@ -1,10 +1,10 @@
 {
   "files": {
     ".github/workflows/readiness-contract.yml": "775af5a595edc3dad58526041e489b88383fdc19aa2c3a7928a3d66ee92d672b",
-    "szl_readiness.py": "8fe3885a2f00059d8d6cde3b08f5d1f9d2ca1e6c2e234e922d29011fe085b9e3",
+    "szl_readiness.py": "2fb2c51d4044dc437dc5ef83b81566553fd3f9b2b7d5cd47f41e0b158ec0d50e",
     "tests/test_readiness_application_contract.py": "e379e55a400af70025c5d553b25ae43e78282b455ee0c707fe5d28c3c1375c09",
-    "tests/test_readiness_sweep_contract.py": "7502d44845ab5f11b4d0dff21ef70f99456c2983d3a6198fac2a93957731fb21"
+    "tests/test_readiness_sweep_contract.py": "09070b0bfd63610fbdaaa14ce6b51353f50a7658cf5d1189c9de018caf1cdaa5"
   },
-  "payload_id": "readiness-scheduled-observations-20261007-v1",
+  "payload_id": "readiness-github-rate-cooldown-20261007-v1",
   "schema": "szl-shared-source-payload/v1"
 }

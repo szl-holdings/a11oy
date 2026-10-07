@@ -64,7 +64,8 @@ _HF_API = "https://huggingface.co/api/"
 # needs an authenticated read token with available quota: each scheduled sweep
 # uses 4 GitHub reads, plus up to 2 for comparison/anchor resolution, per organ
 # per worker. Token presence is not quota evidence; failed reads keep their real
-# last-good clocks and may fail the unchanged freshness gate.
+# last-good clocks and may fail the unchanged freshness gate. Observed rate
+# limits pause further reads in this process until GitHub's indicated deadline.
 _GH_TOKEN = (os.environ.get("SZL_READINESS_GH_TOKEN")
              or os.environ.get("GITHUB_TOKEN")
              or os.environ.get("GH_TOKEN") or "").strip()
@@ -172,6 +173,8 @@ _DISK = os.environ.get(
 _DISK_LOADED = False
 _WARM_STARTED = False
 _WARM_NS: set = set()
+_GH_RATE_LOCK = threading.Lock()
+_GH_COOLDOWN_UNTIL = 0.0
 
 
 def _now_iso() -> str:
@@ -190,6 +193,40 @@ def _gh_headers() -> Dict[str, str]:
     if _GH_TOKEN:
         h["Authorization"] = "Bearer " + _GH_TOKEN
     return h
+
+
+def _gh_read(url: str, timeout: int = 10) -> bytes:
+    """Avoid repeated GitHub reads during an observed rate-limit window."""
+    global _GH_COOLDOWN_UNTIL
+    with _GH_RATE_LOCK:
+        now = time.time()
+        if now < _GH_COOLDOWN_UNTIL:
+            raise RuntimeError("GitHub API rate-limit cooldown active")
+        try:
+            return _get(url, timeout=timeout, headers=_gh_headers())
+        except urllib.error.HTTPError as ex:
+            headers = ex.headers or {}
+            retry_after = headers.get("Retry-After")
+            remaining = headers.get("X-RateLimit-Remaining")
+            rate_limited = ex.code == 429 or retry_after is not None or remaining == "0"
+            if ex.code in (403, 429) and rate_limited:
+                deadline = None
+                if retry_after is not None:
+                    try:
+                        delay = float(retry_after)
+                        if math.isfinite(delay) and delay >= 0:
+                            deadline = now + max(delay, 1.0)
+                    except (TypeError, ValueError):
+                        pass
+                if deadline is None and remaining == "0":
+                    try:
+                        reset = float(headers.get("X-RateLimit-Reset", ""))
+                        if math.isfinite(reset) and reset > now:
+                            deadline = reset + 1.0
+                    except (TypeError, ValueError):
+                        pass
+                _GH_COOLDOWN_UNTIL = max(_GH_COOLDOWN_UNTIL, deadline or now + 60.0)
+            raise
 
 
 def _hf_headers() -> Dict[str, str]:
@@ -301,11 +338,10 @@ def _gh_repo(repo: str, branch: str, fresh: bool = False) -> Dict[str, Any]:
     if not fresh and hit and now - hit.get("_t", 0) < _GH_TTL:
         return {**hit["v"], "mode": "cached", "fetched_at": hit["at"]}
     try:
-        d = json.loads(_get(_GH_API + "repos/" + repo, timeout=10, headers=_gh_headers()))
+        d = json.loads(_gh_read(_GH_API + "repos/" + repo))
         head_sha = head_date = None
         try:
-            cd = json.loads(_get(_GH_API + "repos/" + repo + "/commits/" + branch,
-                                 timeout=10, headers=_gh_headers()))
+            cd = json.loads(_gh_read(_GH_API + "repos/" + repo + "/commits/" + branch))
             head_sha = cd.get("sha")
             head_date = ((cd.get("commit") or {}).get("committer") or {}).get("date")
         except Exception:  # noqa: BLE001 - HEAD commit is best-effort
@@ -340,8 +376,7 @@ def _gh_runs(repo: str, branch: str, fresh: bool = False) -> Dict[str, Any]:
         return {**hit["v"], "mode": "cached", "fetched_at": hit["at"]}
     try:
         q = urllib.parse.urlencode({"branch": branch, "per_page": 1})
-        d = json.loads(_get(_GH_API + "repos/" + repo + "/actions/runs?" + q,
-                            timeout=10, headers=_gh_headers()))
+        d = json.loads(_gh_read(_GH_API + "repos/" + repo + "/actions/runs?" + q))
         runs = d.get("workflow_runs") or []
         r = runs[0] if runs else {}
         val = {
@@ -371,8 +406,7 @@ def _gh_release(repo: str, fresh: bool = False) -> Dict[str, Any]:
     if not fresh and hit and now - hit.get("_t", 0) < _GH_TTL:
         return {**hit["v"], "mode": "cached", "fetched_at": hit["at"]}
     try:
-        d = json.loads(_get(_GH_API + "repos/" + repo + "/releases/latest",
-                            timeout=10, headers=_gh_headers()))
+        d = json.loads(_gh_read(_GH_API + "repos/" + repo + "/releases/latest"))
         val = {"tag": d.get("tag_name"), "name": d.get("name"),
                "published_at": d.get("published_at"), "url": d.get("html_url"),
                "prerelease": bool(d.get("prerelease"))}
@@ -403,8 +437,7 @@ def _gh_commit_exists(repo: str, sha: str, fresh: bool = False) -> Dict[str, Any
     if not fresh and hit and now - hit.get("_t", 0) < _GH_TTL:
         return {**hit["v"], "mode": "cached", "fetched_at": hit["at"]}
     try:
-        _get(_GH_API + "repos/" + repo + "/commits/" + sha, timeout=10,
-             headers=_gh_headers())
+        _gh_read(_GH_API + "repos/" + repo + "/commits/" + sha)
         val = {"exists": True}
         at = _now_iso()
         _store(key, val, at, live=True)
@@ -436,8 +469,8 @@ def _gh_compare(repo: str, base: str, head: str, fresh: bool = False) -> Dict[st
     if not fresh and hit and now - hit.get("_t", 0) < _GH_TTL:
         return {**hit["v"], "mode": "cached", "fetched_at": hit["at"]}
     try:
-        d = json.loads(_get(_GH_API + "repos/" + repo + "/compare/" + base + "..." + head,
-                            timeout=12, headers=_gh_headers()))
+        d = json.loads(_gh_read(_GH_API + "repos/" + repo + "/compare/" + base + "..." + head,
+                                timeout=12))
         val = {"status": d.get("status"), "ahead_by": d.get("ahead_by"),
                "behind_by": d.get("behind_by"), "total_commits": d.get("total_commits")}
         at = _now_iso()
