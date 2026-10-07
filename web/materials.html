@@ -332,9 +332,11 @@ async function loadCards(){
     document.getElementById("cChain").textContent = "—";
   }
   // probe optional endpoints (built in parallel); show LIVE/DEPLOYING honestly.
-  // /certify has no GET-info route, so probe it with a minimal valid POST (idempotent,
-  // append-only receipt; cheap). /screen liveness is reflected by the /status summary.
-  const cert = await fetchJSON(MAT + "/certify", {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({empirical_risk:0.1,kl:1.0,n:1000,delta:0.05})});
+  // This 12 s summary poll must stay READ-ONLY (doctrine: receipt-on-write, never on
+  // read). GET /certify/presets lists the PAC-Bayes presets and mints nothing, so it is
+  // the liveness probe; only the explicit Certify button posts to /certify. /screen
+  // liveness is reflected by the /status summary.
+  const cert = await fetchJSON(MAT + "/certify/presets");
   setProbe("cCertify", cert.status);
   const scr = await fetchJSON(MAT + "/status");
   setProbe("cScreen", scr.status);
