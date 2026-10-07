@@ -7,6 +7,7 @@ import copy
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import sys
 from types import ModuleType
@@ -286,11 +287,28 @@ class ReadinessContractTests(unittest.TestCase):
         self.assertFalse(summary["application_ready"])
         self.assertFalse(readiness._summary([])["application_ready"])
 
+    def test_snapshot_is_bound_to_the_exact_runtime_source_revision(self):
+        revision = "a" * 40
+        with patch.dict(os.environ, {"SZL_GIT_SHA": revision}, clear=False), \
+                patch.object(readiness, "_SNAPSHOT", {}), \
+                patch.object(readiness, "_BUILD_LOCKS", {}), \
+                patch.object(readiness, "_assemble_index", return_value={"sections": []}):
+            readiness._build_snapshot("a11oy")
+            payload = readiness._snapshot_payload(readiness._snapshot("a11oy"))
+
+        self.assertEqual(payload["snapshot_source_revision"], revision)
+
+    def test_snapshot_source_revision_fails_closed_when_runtime_is_unbound(self):
+        for revision in ("", "unknown", "0" * 40, "A" * 40):
+            with self.subTest(revision=revision), \
+                    patch.dict(os.environ, {"SZL_GIT_SHA": revision}, clear=False):
+                self.assertIsNone(readiness._runtime_source_revision())
+
     def snapshot(self):
         lv = self.observe(self.evidence)
         health = self.observe({"status": "ok", "organ": "killinchu"}, self.health)
         rows = [{"role": "api", "liveness": lv}, {"role": "health", "liveness": health}]
-        return {"_t": self.clock, "at": "snapshot-time",
+        return {"_t": self.clock, "at": "snapshot-time", "source_revision": "a" * 40,
                 "payload": {"organ": "killinchu",
                             "sections": [{"id": "deployment", "endpoints": rows}]}}
 
@@ -458,6 +476,7 @@ class ReadinessContractTests(unittest.TestCase):
                     self.assertFalse(result["summary"]["application_ready"])
                     self.assertEqual(result["summary"]["json_endpoints_ready"], 0)
                     self.assertEqual(result["served_from"], "background-snapshot")
+                    self.assertEqual(result["snapshot_source_revision"], "a" * 40)
             self.network.assert_not_called()
 
 
