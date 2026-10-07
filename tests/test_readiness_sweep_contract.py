@@ -13,6 +13,7 @@ from pathlib import Path
 import threading
 import unittest
 from unittest.mock import patch
+import urllib.error
 
 
 SPEC = importlib.util.spec_from_file_location(
@@ -45,6 +46,7 @@ class ReadinessSweepTests(unittest.TestCase):
         self.replace("_BUILDING", set())
         self.replace("_BUILD_LOCKS", {})
         self.replace("_GH_TOKEN", "")
+        self.replace("_GH_COOLDOWN_UNTIL", 0.0)
         self.replace("_HF_TOKEN", "")
         self.patches.enter_context(patch.object(
             readiness.time, "time", side_effect=lambda: self.clock))
@@ -103,6 +105,69 @@ class ReadinessSweepTests(unittest.TestCase):
             self.repo_url + "/releases/latest",
             self.space_url,
         }
+
+    def test_primary_limit_suppresses_reads_until_observed_reset(self):
+        def rate_limited(url, **kwargs):
+            if url.startswith(readiness._GH_API):
+                raise urllib.error.HTTPError(url, 403, "rate limited", {
+                    "X-RateLimit-Remaining": "0", "X-RateLimit-Reset": "1300"}, None)
+            return self.response(url, **kwargs)
+
+        self.network.side_effect = rate_limited
+        first = self.sections(readiness._assemble_index("a11oy", fresh=True))
+        self.assertEqual([call.args[0] for call in self.network.call_args_list
+                          if call.args[0].startswith(readiness._GH_API)], [self.repo_url])
+        self.assertEqual(first["repo"]["mode"], "unreachable")
+        self.assertEqual(readiness._GH_COOLDOWN_UNTIL, 1301.0)
+
+        self.clock = 1240.0
+        self.network.reset_mock()
+        readiness._assemble_index("a11oy", fresh=True)
+        self.assertFalse(any(call.args[0].startswith(readiness._GH_API)
+                             for call in self.network.call_args_list))
+
+        self.clock = 1301.0
+        self.network.reset_mock()
+        self.network.side_effect = self.response
+        recovered = self.sections(readiness._assemble_index("a11oy", fresh=True))
+        self.assertEqual(recovered["repo"]["mode"], "live")
+        self.assertEqual(len([call for call in self.network.call_args_list
+                              if call.args[0].startswith(readiness._GH_API)]), 4)
+
+    def test_retry_after_preserves_last_good_clocks(self):
+        readiness._assemble_index("a11oy", fresh=True)
+        previous = copy.deepcopy(readiness._CACHE)
+        self.clock = 1240.0
+
+        def rate_limited(url, **kwargs):
+            if url.startswith(readiness._GH_API):
+                raise urllib.error.HTTPError(url, 429, "rate limited",
+                                             {"Retry-After": "30"}, None)
+            return self.response(url, **kwargs)
+
+        self.network.reset_mock()
+        self.network.side_effect = rate_limited
+        sections = self.sections(readiness._assemble_index("a11oy", fresh=True))
+        self.assertEqual([call.args[0] for call in self.network.call_args_list
+                          if call.args[0].startswith(readiness._GH_API)], [self.repo_url])
+        self.assertEqual(readiness._GH_COOLDOWN_UNTIL, 1270.0)
+        self.assertEqual(sections["repo"]["mode"], "cached")
+        self.assertEqual(sections["repo"]["fetched_at"], "1000.0")
+        for key in previous:
+            if key.startswith("gh"):
+                self.assertEqual(readiness._CACHE[key], previous[key])
+
+    def test_non_rate_forbidden_response_does_not_open_cooldown(self):
+        def forbidden(url, **kwargs):
+            if url.startswith(readiness._GH_API):
+                raise urllib.error.HTTPError(url, 403, "forbidden", {}, None)
+            return self.response(url, **kwargs)
+
+        self.network.side_effect = forbidden
+        self.sections(readiness._assemble_index("a11oy", fresh=True))
+        self.assertEqual(readiness._GH_COOLDOWN_UNTIL, 0.0)
+        self.assertEqual(len([call for call in self.network.call_args_list
+                              if call.args[0].startswith(readiness._GH_API)]), 3)
 
     def test_full_forced_sweep_observes_each_shared_input_once(self):
         payload = readiness._assemble_index("a11oy", fresh=True)
