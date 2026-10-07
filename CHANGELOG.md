@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - PAC-Bayes certification inputs validated before any receipt
+
+- Validate every `/materials/certify` input before a Khipu receipt can be
+  minted: `n` must be a JSON integer (no truncation of `1000.9`, no coercion of
+  `true` or `"1000"`) with `8 <= n <= 2**53`, `empirical_risk` in `[0,1]`, `kl`
+  finite and `>= 0`, `delta` in `(0,1)`, and every value finite. A rejected
+  request answers HTTP 400 with the reason and emits nothing; previously a
+  `kl = NaN` request minted a receipt and then failed to serialize.
+- Accept only the normalized dimensionless-loss label
+  `"normalized risk (dimensionless, [0,1])"` as `risk_units`; a caller label such
+  as `eV/atom` no longer flows into the signed `certificate_text`. The bound is a
+  statement about a loss in `[0,1]`.
+- Refuse to emit when the certificate payload is not JSON-serializable with
+  `allow_nan=False` (defence in depth); a non-finite bound is a 500 with no receipt.
+- Describe the bound as the Maurer (2004) form of the McAllester PAC-Bayes bound
+  evaluated in closed form in IEEE-754 double precision; the wire and the source
+  no longer call the computation exact, and the certificate's probability
+  statement is tied to repeated i.i.d. samples from a fixed data-generating
+  distribution. Preset vectors and their bound values are unchanged bit for bit.
+  `szl_formulas.pac_bayes_mcallester` is untouched.
+- Migration note (public API change): `GET /api/a11oy/v1/materials/certify` and
+  `GET /v1/materials/certify`, with or without query parameters, now answer
+  HTTP 405 with a JSON usage body and `Allow: POST`; they used to resolve query
+  inputs and mint a receipt on a read path. Use `POST` with a JSON body, or the
+  read-only `GET .../materials/certify/presets`. The CI wiring for
+  `tests/test_materials_certify_inputs.py` is a follow-up on the materials
+  governance job.
+
 ### Fixed - additive, parent-bound A11oy model payload publication
 
 - Replace the existing publisher's separate prune/upload operations with one
