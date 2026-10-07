@@ -167,7 +167,8 @@ def test_ownership_cold_child_fails_closed_without_masking_live_peers(
 
 
 @pytest.mark.parametrize("failure", [
-    "sec_cold", "child_unavailable_with_value", "child_missing_clock",
+    "sec_cold", "child_unavailable_with_value", "child_unavailable_with_clock",
+    "child_invalid_status", "child_missing_clock",
     "child_invalid_filings", "child_stale_clock", "child_future_clock",
 ])
 def test_ownership_rejects_required_source_contract_failures(
@@ -199,6 +200,13 @@ def test_ownership_rejects_required_source_contract_failures(
         child = submissions["0001040971"]
         if failure == "child_unavailable_with_value":
             child["freshness"] = {"status": "UNAVAILABLE", "error": "SEC submissions timeout"}
+        elif failure == "child_unavailable_with_clock":
+            child["freshness"] = {
+                "status": "unavailable", "fetched_at": observed_at,
+                "error": "SEC submissions timeout",
+            }
+        elif failure == "child_invalid_status":
+            child["freshness"]["status"] = ["live"]
         elif failure == "child_missing_clock":
             del child["freshness"]["fetched_at"]
         elif failure == "child_invalid_filings":
@@ -236,5 +244,9 @@ def test_ownership_rejects_required_source_contract_failures(
             for cik, name in cik_to_name.items() if cik != "0001040971"
         )
         assert payload["reits"]["SL Green"]["value"] == original_submissions["0001040971"]["value"]
+        if failure in {"child_unavailable_with_value", "child_unavailable_with_clock", "child_invalid_status"}:
+            assert payload["reits"]["SL Green"]["freshness"]["status"] == (
+                original_submissions["0001040971"]["freshness"]["status"]
+            )
     assert sec == original_sec
     assert submissions == original_submissions
