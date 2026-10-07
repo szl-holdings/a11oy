@@ -133,13 +133,21 @@ def main():
                     path = parts.path
                     if path == "/favicon.ico":
                         route.fulfill(status=204,body=""); return
-                    if path not in ("/api/source","/api/finance/providers","/api/live") and not path.startswith(("/api/finance/observations/", "/api/finance/v2/")):
+                    if path not in ("/api/source","/api/finance/providers","/api/live","/api/finance/research/audit") and not path.startswith(("/api/finance/observations/", "/api/finance/v2/")):
                         unexpected.append(path); route.abort(); return
                     requests.append({"path":path,"query":parts.query,"method":req.method})
-                    check(req.method == "GET" or req.method == "POST" and path in ("/api/finance/v2/portfolio", "/api/finance/v2/receipts/verify"), "unexpected browser method")
+                    check(req.method == "GET" or req.method == "POST" and path in ("/api/finance/v2/portfolio", "/api/finance/v2/receipts/verify", "/api/finance/research/audit"), "unexpected browser method")
                     check("authorization" not in req.headers and "cookie" not in req.headers, "browser credential forwarded")
                     status = 200
-                    if path.startswith("/api/finance/v2/"):
+                    if path == "/api/finance/research/audit":
+                        research_routes = importlib.import_module("verticals.puriq-markets.runtime.routes")
+                        previous = research_routes.CLIENT
+                        try:
+                            research_routes.CLIENT = transport.FinanceClient(environ={"SZL_GIT_SHA":REVISION})
+                            body = research_routes.research_envelope(req.post_data_json)
+                        finally:
+                            research_routes.CLIENT = previous
+                    elif path.startswith("/api/finance/v2/"):
                         analytics = importlib.import_module("verticals.puriq-markets.runtime.analytics")
                         client = transport.FinanceClient(environ={"SZL_GIT_SHA":REVISION})
                         if path.endswith("/portfolio"):
@@ -244,6 +252,28 @@ def main():
                 evidence = json.loads(page.locator("#fin-analysis-evidence").text_content())
                 check(evidence["operation"] == "portfolio" and evidence["inputs"]["truth_label"] == "UNVERIFIED", "caller input mislabeled")
                 report["cases"].append({"width":width,"name":"v2-fixture-receipt-fractional-portfolio-invalidation","pass":True})
+                page.locator("#fin-research-run").click()
+                expect(page.locator("#fin-research-export")).to_be_enabled()
+                research = json.loads(page.locator("#fin-research-evidence").text_content())
+                check(research["result"]["summary"]["kept_records"] == 2, "research as-of filtering")
+                check(research["result"]["summary"]["kept_zero_records"] == 1, "research suppressed zero became observed")
+                expect(page.locator("#fin-research-robustness")).to_contain_text("SIGN CHANGE")
+                with page.expect_download() as transfer:
+                    page.locator("#fin-research-export").click()
+                check(json.loads(Path(transfer.value.path()).read_text()) == research, "research export differs")
+                page.locator("#fin-research").screenshot(path=str(args.output/f"finance-research-fixture-{width}.png"))
+                packet = json.loads(page.locator("#fin-research-input").input_value())
+                packet["records"][0]["entity"] = "<img src=x onerror=window.auditInjected=true>"
+                packet["expected_entities"][0] = packet["records"][0]["entity"]
+                page.locator("#fin-research-input").fill(json.dumps(packet))
+                check(page.locator("#fin-research-export").is_disabled(), "stale research export retained")
+                page.locator("#fin-research-run").click()
+                expect(page.locator("#fin-research-export")).to_be_enabled()
+                check(page.locator("#fin-research-coverage img").count() == 0 and not page.evaluate("window.auditInjected===true"), "research HTML executed")
+                page.locator("#fin-research-date").fill("2022-01-01")
+                check(page.locator("#fin-research-export").is_disabled(), "date change retained research")
+                check(page.evaluate("Math.max(document.documentElement.scrollWidth,document.body.scrollWidth)-innerWidth") <= 1, "research overflow")
+                report["cases"].append({"width":width,"name":"research-audit-date-zero-sign-export-literal-text","pass":True})
                 # A deliberately delayed browser fixture resolves after a source change.
                 page.evaluate("""()=>{const original=window.fetch;window.fetch=(url,options)=>String(url).includes('/observations/')?new Promise(resolve=>{window.releaseFixture=()=>resolve(new Response(JSON.stringify({schema:'szl.finance.observation/v1'}),{status:200,headers:{'Content-Type':'application/json'}}))}):original(url,options)}""")
                 page.locator("#fin-observe").click()
