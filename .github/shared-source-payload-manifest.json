@@ -3,8 +3,10 @@
     "a11oy_org_rag.py": "3137efc95f529d74a9f25a037af5e45211d70bdce83c5147e896b2f53328beec",
     "szl_hf_bucket.py": "61d68be3de5ac474e03b902df1ef27462d462a2037abf8d16b08d701498d5acc",
     "szl_operator_auth.py": "86ed8b445c05f26c66c8d41dba09fe889970aad0e091090efe795299b9336539",
-    "test_szl_hf_bucket.py": "324a0be61b52dc68a0abd708f4c2ed0c5d9fe779a182411fee30df86aa5f6d06"
+    "szl_readiness.py": "e2ac7dc8ea842ab060095f89af7ec113a72afe0001c53f994e8e11d922a5c568",
+    "test_szl_hf_bucket.py": "324a0be61b52dc68a0abd708f4c2ed0c5d9fe779a182411fee30df86aa5f6d06",
+    "tests/test_readiness_application_contract.py": "420dd9a815d03a4adf4494f844ab9f7aa8b9e4c286d1af6f9003414d8087b53f"
   },
-  "payload_id": "estate-rag-operator-auth-20261004-v2",
+  "payload_id": "estate-readiness-renewal-20261007-v1",
   "schema": "szl-shared-source-payload/v1"
 }
