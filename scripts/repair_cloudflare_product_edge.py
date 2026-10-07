@@ -13,15 +13,19 @@ A/AAAA/CNAME records for the apex and www hosts. It never creates or deletes DNS
 records, never changes record names, types, content, TTLs, comments, tags, or
 settings, and rolls back every proxy-state change if public proof fails.
 
-Live route changes are allowed only while all selected web records are
-unproxied. When they are already proxied, both desired routes must already be
-owned by the current SZL Worker and the route plan becomes a no-op. Foreign or
-ambiguous provider state fails closed. Credentials and full provider IDs are
-never written to the receipt.
+When the web records are already proxied, a missing exact route may be created
+only with a content-addressed Worker script whose account-wide name is absent
+or has exact source bytes. A new upload uses a create-only precondition, and
+the source is read back before any route write. Existing routes are not changed.
+Failed public proof rolls
+back only newly created routes; an uncertain provider outcome is reported as
+UNKNOWN. Foreign or ambiguous provider state fails closed. Credentials and
+full provider IDs are never written to the receipt.
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import secrets
@@ -36,6 +40,7 @@ API = "https://api.cloudflare.com/client/v4"
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_WORKER = ROOT / "cloudflare" / "a11oy-product-root-worker.mjs"
 SCRIPT_NAME = "szl-a11oy-product-edge-v3"
+PROXIED_SCRIPT_PREFIX = "szl-a11oy-product-edge-v4-"
 RETIRED_ROOT_SCRIPT = "szl-a11oy-product-root-v1"
 RETIRED_WWW_SCRIPT = "szl-a11oy-www-redirect-v2"
 KNOWN_SCRIPT_NAMES = frozenset(
@@ -70,6 +75,28 @@ class DnsMutationError(EdgeError):
         super().__init__(message)
         self.results = results
         self.rollback = rollback
+
+
+class RouteMutationError(EdgeError):
+    """A route write may have taken effect without an acknowledgement."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        results: list[dict[str, Any]],
+        attempted: dict[str, Any],
+        request_sent: bool = True,
+    ) -> None:
+        super().__init__(message)
+        self.results = results
+        self.attempted = attempted
+        self.request_sent = request_sent
+
+
+def immutable_script_name(worker: Path) -> str:
+    """Never replace a script that may already serve live traffic."""
+    return PROXIED_SCRIPT_PREFIX + hashlib.sha256(worker.read_bytes()).hexdigest()[:16]
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -166,17 +193,28 @@ def multipart_module(source: bytes) -> tuple[bytes, str]:
     return b"".join(chunks), boundary
 
 
-def upload_worker(account_id: str, bearer: str, worker: Path) -> dict[str, Any]:
+def upload_worker(
+    account_id: str,
+    bearer: str,
+    worker: Path,
+    *,
+    script_name: str = SCRIPT_NAME,
+    create_only: bool = False,
+) -> dict[str, Any]:
     body, boundary = multipart_module(worker.read_bytes())
+    headers = {
+        "Authorization": f"Bearer {bearer}",
+        "Accept": "application/json",
+        "Content-Type": f"multipart/form-data; boundary={boundary}",
+    }
+    if create_only:
+        # A concurrent account writer must not turn this PUT into replacement.
+        headers["If-None-Match"] = "*"
     request = urllib.request.Request(
-        f"{API}/accounts/{account_id}/workers/scripts/{SCRIPT_NAME}",
+        f"{API}/accounts/{account_id}/workers/scripts/{script_name}",
         data=body,
         method="PUT",
-        headers={
-            "Authorization": f"Bearer {bearer}",
-            "Accept": "application/json",
-            "Content-Type": f"multipart/form-data; boundary={boundary}",
-        },
+        headers=headers,
     )
     try:
         with urllib.request.urlopen(request, timeout=60) as response:
@@ -192,6 +230,46 @@ def upload_worker(account_id: str, bearer: str, worker: Path) -> dict[str, Any]:
             + json.dumps(value.get("errors") or value, sort_keys=True)[:4000]
         )
     return value
+
+
+def inspect_worker_script(
+    account_id: str, bearer: str, script_name: str, expected_source: bytes
+) -> str:
+    """Prove an account-level name is absent or already has exact source bytes."""
+    value = request_json(
+        "GET", f"/accounts/{account_id}/workers/scripts", bearer=bearer
+    )
+    info = value.get("result_info") or {}
+    try:
+        pages = int(info.get("total_pages") or 1)
+    except (TypeError, ValueError):
+        raise EdgeError("INVALID_WORKER_SCRIPT_PAGINATION") from None
+    if pages != 1:
+        raise EdgeError("AMBIGUOUS_WORKER_SCRIPT_PAGINATION")
+    rows = value.get("result")
+    if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
+        raise EdgeError("INVALID_WORKER_SCRIPT_LIST")
+    names = [row.get("id") for row in rows]
+    if any(not isinstance(name, str) or not name for name in names):
+        raise EdgeError("INVALID_WORKER_SCRIPT_NAME")
+    if len(names) != len(set(names)):
+        raise EdgeError("DUPLICATE_WORKER_SCRIPT_NAME")
+    if script_name not in names:
+        return "absent"
+
+    request = urllib.request.Request(
+        f"{API}/accounts/{account_id}/workers/scripts/{script_name}/content/v2",
+        method="GET",
+        headers={"Authorization": f"Bearer {bearer}"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=45) as response:
+            actual = response.read(len(expected_source) + 1)
+    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as exc:
+        raise EdgeError("WORKER_SCRIPT_READBACK_UNAVAILABLE") from exc
+    if actual != expected_source:
+        raise EdgeError("WORKER_SCRIPT_NAME_COLLISION")
+    return "identical"
 
 
 def _routes_by_pattern(current: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -210,10 +288,38 @@ def route_plan(
     current: list[dict[str, Any]],
     *,
     dns_is_proxied: bool,
+    script_name: str = SCRIPT_NAME,
+    allow_proxied_create: bool = False,
 ) -> list[dict[str, Any]]:
-    """Return a bounded route plan without changing live foreign traffic."""
+    """Return a bounded route plan without replacing live foreign traffic."""
     by_pattern = _routes_by_pattern(current)
     plan: list[dict[str, Any]] = []
+
+    if dns_is_proxied and allow_proxied_create:
+        desired = [by_pattern.get(pattern) for pattern in DESIRED_ROUTES]
+        missing = any(row is None for row in desired)
+        if missing:
+            # A catch-all route must not be installed over another live Worker.
+            # The dedicated script name is content-addressed so uploading it
+            # cannot change any existing route's runtime.
+            if not script_name.startswith(PROXIED_SCRIPT_PREFIX):
+                raise EdgeError("PROXIED_CUTOVER_REQUIRES_IMMUTABLE_SCRIPT")
+            # Cloudflare route wildcards can match more than their literal host
+            # text suggests; refuse every other route in this exact zone.
+            overlapping = [
+                pattern for pattern in by_pattern if pattern not in DESIRED_ROUTES
+            ]
+            if overlapping:
+                raise EdgeError("OVERLAPPING_LIVE_ROUTE: " + ", ".join(sorted(overlapping)))
+            for row in desired:
+                if row is not None and row.get("script") not in {
+                    script_name,
+                    SCRIPT_NAME,
+                }:
+                    raise EdgeError("MIXED_LIVE_ROUTE_OWNERSHIP")
+        elif all(row is not None and row.get("script") == SCRIPT_NAME for row in desired):
+            # An already working v3 installation is a strict no-op.
+            script_name = SCRIPT_NAME
 
     legacy = by_pattern.get(LEGACY_APEX_ROOT_ROUTE)
     if legacy is not None:
@@ -241,7 +347,7 @@ def route_plan(
     for role, pattern in (("apex", APEX_ROUTE), ("www", WWW_ROUTE)):
         existing = by_pattern.get(pattern)
         if existing is None:
-            if dns_is_proxied:
+            if dns_is_proxied and not allow_proxied_create:
                 raise EdgeError(
                     f"LIVE_ROUTE_MUTATION_BLOCKED: {pattern} is missing while "
                     "DNS is already proxied"
@@ -250,31 +356,33 @@ def route_plan(
                 {
                     "action": f"create-{role}-route",
                     "pattern": pattern,
-                    "script": SCRIPT_NAME,
+                    "script": script_name,
                 }
             )
             continue
 
         script = existing.get("script")
         route_id = existing.get("id")
-        if script not in KNOWN_SCRIPT_NAMES or not route_id:
+        if script not in KNOWN_SCRIPT_NAMES | {script_name} or not route_id:
             raise EdgeError(
                 f"{role.upper()}_ROUTE_CONFLICT: {pattern} is owned by {script!r}"
             )
-        if script == SCRIPT_NAME:
+        if script == script_name or (
+            dns_is_proxied and allow_proxied_create and script == SCRIPT_NAME
+        ):
             plan.append(
                 {
                     "action": f"verify-{role}-route",
                     "pattern": pattern,
                     "route_id": str(route_id),
-                    "script": SCRIPT_NAME,
+                    "script": str(script),
                 }
             )
             continue
         if dns_is_proxied:
             raise EdgeError(
                 f"LIVE_ROUTE_MUTATION_BLOCKED: {pattern} is owned by the "
-                f"retired {script!r} script while DNS is already proxied"
+                f"different {script!r} script while DNS is already proxied"
             )
         plan.append(
             {
@@ -282,7 +390,7 @@ def route_plan(
                 "pattern": pattern,
                 "route_id": str(route_id),
                 "from_script": str(script),
-                "script": SCRIPT_NAME,
+                "script": script_name,
             }
         )
     return plan
@@ -294,6 +402,8 @@ def apply_route_plan(
     plan: list[dict[str, Any]],
     *,
     dry_run: bool,
+    expected_routes: list[dict[str, Any]] | None = None,
+    guard_live_create: bool = False,
 ) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
     for item in plan:
@@ -306,36 +416,74 @@ def apply_route_plan(
             continue
 
         if action == "delete-known-legacy-apex-root":
-            value = request_json(
-                "DELETE",
-                f"/zones/{zone_id}/workers/routes/{item['route_id']}",
-                bearer=bearer,
-            )
+            try:
+                value = request_json(
+                    "DELETE",
+                    f"/zones/{zone_id}/workers/routes/{item['route_id']}",
+                    bearer=bearer,
+                )
+            except EdgeError as exc:
+                raise RouteMutationError(
+                    str(exc), results=results, attempted=item
+                ) from exc
             results.append(
                 {**item, "state": "deleted", "provider_result": value.get("result")}
             )
             continue
 
-        payload = {"pattern": item["pattern"], "script": SCRIPT_NAME}
-        if action.startswith("update-"):
-            value = request_json(
-                "PUT",
-                f"/zones/{zone_id}/workers/routes/{item['route_id']}",
-                bearer=bearer,
-                payload=payload,
-            )
-            state = "updated"
-        elif action.startswith("create-"):
-            value = request_json(
-                "POST",
-                f"/zones/{zone_id}/workers/routes",
-                bearer=bearer,
-                payload=payload,
-            )
-            state = "created"
-        else:  # pragma: no cover - route_plan owns this enum
-            raise EdgeError(f"unsupported route-plan action: {action}")
+        payload = {"pattern": item["pattern"], "script": item["script"]}
+        if guard_live_create and action.startswith("create-"):
+            if expected_routes is None:
+                raise EdgeError("LIVE_ROUTE_BASELINE_MISSING")
+            try:
+                observed = fetch_routes(zone_id, bearer)
+            except EdgeError as exc:
+                raise RouteMutationError(
+                    "ROUTE_PREFLIGHT_UNAVAILABLE: " + str(exc),
+                    results=results,
+                    attempted=item,
+                    request_sent=False,
+                ) from exc
+            if (
+                route_snapshot(observed) != route_snapshot(expected_routes)
+                or any(row.get("pattern") == item["pattern"] for row in observed)
+            ):
+                raise RouteMutationError(
+                    "ROUTE_STATE_DRIFT_BEFORE_WRITE",
+                    results=results,
+                    attempted=item,
+                    request_sent=False,
+                )
+        try:
+            if action.startswith("update-"):
+                value = request_json(
+                    "PUT",
+                    f"/zones/{zone_id}/workers/routes/{item['route_id']}",
+                    bearer=bearer,
+                    payload=payload,
+                )
+                state = "updated"
+            elif action.startswith("create-"):
+                value = request_json(
+                    "POST",
+                    f"/zones/{zone_id}/workers/routes",
+                    bearer=bearer,
+                    payload=payload,
+                )
+                state = "created"
+            else:  # pragma: no cover - route_plan owns this enum
+                raise EdgeError(f"unsupported route-plan action: {action}")
+        except EdgeError as exc:
+            raise RouteMutationError(
+                str(exc), results=results, attempted=item
+            ) from exc
         result = value.get("result") or {}
+        if action.startswith("create-") and not result.get("id"):
+            raise RouteMutationError(
+                "ROUTE_CREATE_ACK_WITHOUT_ID",
+                results=results,
+                attempted=item,
+            )
         results.append(
             {
                 **item,
@@ -344,7 +492,109 @@ def apply_route_plan(
                 "provider_script": result.get("script") or SCRIPT_NAME,
             }
         )
+        if guard_live_create and action.startswith("create-"):
+            assert expected_routes is not None
+            expected_routes.append(
+                {
+                    "id": str(result["id"]),
+                    "pattern": item["pattern"],
+                    "script": item["script"],
+                }
+            )
     return results
+
+
+def fetch_routes(zone_id: str, bearer: str) -> list[dict[str, Any]]:
+    value = request_json(
+        "GET", f"/zones/{zone_id}/workers/routes", bearer=bearer
+    )
+    info = value.get("result_info") or {}
+    try:
+        pages = int(info.get("total_pages") or 1)
+    except (TypeError, ValueError):
+        raise EdgeError("INVALID_WORKER_ROUTE_PAGINATION") from None
+    if pages != 1:
+        raise EdgeError("AMBIGUOUS_WORKER_ROUTE_PAGINATION")
+    rows = value.get("result")
+    if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
+        raise EdgeError("INVALID_WORKER_ROUTE_RESULT")
+    return rows
+
+
+def route_snapshot(routes: list[dict[str, Any]]) -> list[tuple[str, str, str]]:
+    return sorted(
+        (
+            str(row.get("id") or ""),
+            str(row.get("pattern") or ""),
+            str(row.get("script") or ""),
+        )
+        for row in routes
+    )
+
+
+def verify_desired_routes(
+    zone_id: str, bearer: str, plan: list[dict[str, Any]]
+) -> None:
+    by_pattern = _routes_by_pattern(fetch_routes(zone_id, bearer))
+    for item in plan:
+        if item["pattern"] not in DESIRED_ROUTES:
+            continue
+        current = by_pattern.get(item["pattern"])
+        if not current or current.get("script") != item["script"] or not current.get("id"):
+            raise EdgeError("ROUTE_POSTCONDITION_FAILED: " + item["pattern"])
+
+
+def rollback_created_routes(
+    zone_id: str, bearer: str, results: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Delete only the exact routes created by this cutover, with readback."""
+    rollback: list[dict[str, Any]] = []
+    for item in reversed(results):
+        if item.get("state") != "created":
+            continue
+        route_id = str(item.get("provider_route_id") or "")
+        if item.get("pattern") not in DESIRED_ROUTES or not route_id:
+            rollback.append({**item, "state": "rollback-unknown"})
+            continue
+        try:
+            matches = [
+                row
+                for row in fetch_routes(zone_id, bearer)
+                if row.get("pattern") == item["pattern"]
+            ]
+            if not matches:
+                rollback.append({**item, "state": "already-absent"})
+                continue
+            if (
+                len(matches) != 1
+                or str(matches[0].get("id") or "") != route_id
+                or matches[0].get("script") != item["script"]
+            ):
+                rollback.append({**item, "state": "rollback-unknown"})
+                continue
+            try:
+                request_json(
+                    "DELETE",
+                    f"/zones/{zone_id}/workers/routes/{route_id}",
+                    bearer=bearer,
+                )
+            except EdgeError:
+                # A lost DELETE acknowledgement is resolved by fresh readback.
+                pass
+            remaining = [
+                row
+                for row in fetch_routes(zone_id, bearer)
+                if row.get("pattern") == item["pattern"]
+            ]
+            rollback.append(
+                {
+                    **item,
+                    "state": "restored-absent" if not remaining else "rollback-failed",
+                }
+            )
+        except EdgeError:
+            rollback.append({**item, "state": "rollback-unknown"})
+    return rollback
 
 
 def _normalize_dns_name(value: Any) -> str:
@@ -585,6 +835,7 @@ def _observation(url: str, *, follow_redirects: bool = True) -> dict[str, Any]:
                 "status": response.status,
                 "location": response.headers.get("location"),
                 "edge": response.headers.get("x-szl-edge"),
+                "alias": response.headers.get("x-szl-edge-alias"),
                 "content_type": response.headers.get("content-type"),
                 "final_url": response.geturl(),
                 "body": body.decode("utf-8", "replace"),
@@ -595,6 +846,7 @@ def _observation(url: str, *, follow_redirects: bool = True) -> dict[str, Any]:
             "status": exc.code,
             "location": exc.headers.get("location"),
             "edge": exc.headers.get("x-szl-edge"),
+            "alias": exc.headers.get("x-szl-edge-alias"),
             "content_type": exc.headers.get("content-type"),
             "final_url": exc.geturl(),
             "body": body.decode("utf-8", "replace"),
@@ -604,6 +856,7 @@ def _observation(url: str, *, follow_redirects: bool = True) -> dict[str, Any]:
             "status": None,
             "location": None,
             "edge": None,
+            "alias": None,
             "content_type": None,
             "final_url": None,
             "body": "",
@@ -615,7 +868,7 @@ def _public_summary(observation: dict[str, Any]) -> dict[str, Any]:
     """Return only bounded, non-content public evidence for the receipt."""
     return {
         key: observation.get(key)
-        for key in ("status", "location", "edge", "content_type", "final_url", "error")
+        for key in ("status", "location", "edge", "alias", "content_type", "final_url", "error")
         if observation.get(key) is not None
     }
 
@@ -627,10 +880,15 @@ def public_probe(attempts: int = 24) -> dict[str, Any]:
     honest_url = f"https://{ZONE_NAME}/api/a11oy/v1/honest?__szl_edge_probe__=v3"
     last: dict[str, Any] = {}
 
+    spectral_url = f"https://{ZONE_NAME}/spectral?__szl_edge_probe__=v3"
+    controller_url = f"https://{ZONE_NAME}/controller?__szl_edge_probe__=v3"
+
     for attempt in range(1, attempts + 1):
         www = _observation(www_source, follow_redirects=False)
         root = _observation(root_url)
         honest = _observation(honest_url)
+        spectral = _observation(spectral_url)
+        controller = _observation(controller_url)
 
         root_body = str(root.get("body") or "").lower()
         root_ok = (
@@ -653,6 +911,28 @@ def public_probe(attempts: int = 24) -> dict[str, Any]:
             and honest_json.get("locked_formula_count") == 8
         )
 
+        spectral_ok = (
+            spectral.get("status") == 200
+            and spectral.get("edge") == EDGE_MARKER
+            and spectral.get("alias")
+            == "/spectral->/static/3d/holographic.html"
+            and "text/html" in str(spectral.get("content_type") or "")
+        )
+        controller_json: dict[str, Any] = {}
+        try:
+            parsed = json.loads(str(controller.get("body") or ""))
+            if isinstance(parsed, dict):
+                controller_json = parsed
+        except json.JSONDecodeError:
+            controller_json = {}
+        controller_ok = (
+            controller.get("status") == 200
+            and controller.get("edge") == EDGE_MARKER
+            and controller.get("alias") == "/controller->/api/a11oy/v1/honest"
+            and controller_json.get("organ") == "a11oy"
+            and controller_json.get("locked_formula_count") == 8
+        )
+
         www_ok = (
             www.get("status") == 301
             and www.get("location") == www_expected
@@ -669,11 +949,15 @@ def public_probe(attempts: int = 24) -> dict[str, Any]:
                 "locked_formula_count": honest_json.get("locked_formula_count"),
             },
             "honest_verified": honest_ok,
+            "spectral": _public_summary(spectral),
+            "spectral_verified": spectral_ok,
+            "controller": _public_summary(controller),
+            "controller_verified": controller_ok,
             "www": _public_summary(www),
             "www_expected_location": www_expected,
             "www_verified": www_ok,
         }
-        if root_ok and honest_ok and www_ok:
+        if root_ok and honest_ok and www_ok and spectral_ok and controller_ok:
             return last
         time.sleep(min(5, attempt))
 
@@ -755,25 +1039,96 @@ def main() -> int:
         report["dns_initially_proxied"] = dns_is_proxied
         report["dns_plan"] = _public_provider_items(dns_plan)
 
-        routes_current = request_json(
-            "GET",
-            f"/zones/{zone_id}/workers/routes",
-            bearer=bearer,
-        ).get("result") or []
+        routes_current = fetch_routes(zone_id, bearer)
+        proxied_script = immutable_script_name(args.worker)
+        target_script = proxied_script if dns_is_proxied else SCRIPT_NAME
         route_actions = route_plan(
             routes_current,
             dns_is_proxied=dns_is_proxied,
+            script_name=target_script,
+            allow_proxied_create=True,
         )
         report["route_plan"] = _public_provider_items(route_actions)
+        live_creates = dns_is_proxied and any(
+            item["action"].startswith("create-") for item in route_actions
+        )
+        if dns_is_proxied and any(
+            item["script"] == proxied_script for item in route_actions
+        ):
+            report["script"] = proxied_script
+        upload_needed = live_creates or not dns_is_proxied
+        upload_script = proxied_script if live_creates else SCRIPT_NAME
+        script_state = None
+        if upload_needed:
+            script_state = inspect_worker_script(
+                account_id, bearer, upload_script, args.worker.read_bytes()
+            )
+            report["worker_script_preflight"] = script_state
 
         if not args.dry_run:
-            upload_worker(account_id, bearer, args.worker)
-        route_results = apply_route_plan(
-            zone_id,
-            bearer,
-            route_actions,
-            dry_run=args.dry_run,
-        )
+            if live_creates:
+                # Re-read both provider surfaces before the first live write.
+                current_dns_plan, still_proxied = dns_proxy_plan(
+                    fetch_dns_records(zone_id, bearer)
+                )
+                if (
+                    not still_proxied
+                    or current_dns_plan != dns_plan
+                    or route_snapshot(fetch_routes(zone_id, bearer))
+                    != route_snapshot(routes_current)
+                ):
+                    raise EdgeError("PROVIDER_STATE_DRIFT_BEFORE_CUTOVER")
+            if upload_needed:
+                if script_state == "absent":
+                    try:
+                        upload_worker(
+                            account_id, bearer, args.worker,
+                            script_name=upload_script, create_only=True,
+                        )
+                    except EdgeError:
+                        report["status"] = "UNKNOWN"
+                        report["worker_upload_outcome"] = "UNKNOWN"
+                        raise
+                    report["worker_upload_outcome"] = "uploaded"
+                else:
+                    report["worker_upload_outcome"] = "skipped-identical"
+                try:
+                    verified_script = inspect_worker_script(
+                        account_id, bearer, upload_script, args.worker.read_bytes()
+                    )
+                except EdgeError:
+                    report["status"] = "UNKNOWN"
+                    raise
+                if verified_script != "identical":
+                    report["status"] = "UNKNOWN"
+                    raise EdgeError("WORKER_SCRIPT_READBACK_NOT_IDENTICAL")
+            if live_creates:
+                if route_snapshot(fetch_routes(zone_id, bearer)) != route_snapshot(
+                    routes_current
+                ):
+                    raise EdgeError("ROUTE_STATE_DRIFT_AFTER_WORKER_UPLOAD")
+        try:
+            route_results = apply_route_plan(
+                zone_id,
+                bearer,
+                route_actions,
+                dry_run=args.dry_run,
+                expected_routes=list(routes_current) if live_creates else None,
+                guard_live_create=live_creates and not args.dry_run,
+            )
+        except RouteMutationError as exc:
+            if not dns_is_proxied:
+                raise
+            # A matching post-error route could belong to a concurrent writer.
+            # Never infer authorship from pattern/script or delete it on rollback.
+            route_results = list(exc.results)
+            rollback = rollback_created_routes(zone_id, bearer, route_results)
+            report["route_results"] = _public_provider_items(route_results)
+            report["route_attempted"] = _public_provider_item(exc.attempted)
+            report["route_write_request_sent"] = exc.request_sent
+            report["route_rollback"] = _public_provider_items(rollback)
+            report["status"] = "UNKNOWN"
+            raise EdgeError("ROUTE_WRITE_FAILED: " + str(exc)) from exc
         report["route_results"] = _public_provider_items(route_results)
 
         dns_results = apply_dns_proxy_plan(
@@ -793,9 +1148,24 @@ def main() -> int:
         else:
             try:
                 report["probe"] = public_probe()
+                verify_desired_routes(zone_id, bearer, route_actions)
             except EdgeError as exc:
                 rollback = rollback_dns_proxy_plan(zone_id, bearer, dns_results)
                 report["dns_rollback"] = _public_provider_items(rollback)
+                if dns_is_proxied:
+                    route_rollback = rollback_created_routes(
+                        zone_id, bearer, route_results
+                    )
+                    report["route_rollback"] = _public_provider_items(route_rollback)
+                    if route_rollback:
+                        report["status"] = (
+                            "ROLLED_BACK"
+                            if all(
+                                row["state"] in {"restored-absent", "already-absent"}
+                                for row in route_rollback
+                            )
+                            else "ROLLBACK_FAILED"
+                        )
                 if report["dns_mutated"]:
                     report["dns_rollback_succeeded"] = _rollback_succeeded(
                         dns_results,
