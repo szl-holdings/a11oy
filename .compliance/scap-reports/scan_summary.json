@@ -1,3 +1,3 @@
 {"scanner":"OpenSCAP oscap (ubuntu-latest)","content":"scap-security-guide-0.1.73",
  "profile":"xccdf_org.ssgproject.content_profile_stig","image":"registry.access.redhat.com/ubi9/ubi-minimal:9.4","rules_passed":0,"rules_failed":0,
- "score_pct":0,"scanned_at":"2026-10-04T23:37:48Z","commit":"d61a838e8763f560ddbd113bfa398f4bb64f2342"}
+ "score_pct":0,"scanned_at":"2026-10-07T10:56:33Z","commit":"7ebb496ce7a3d5034317ec3ac4736d17688a953a"}
