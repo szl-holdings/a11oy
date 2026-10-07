@@ -1098,8 +1098,19 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
             + [(feed_sec_submissions, (cik,), {}) for cik in reits.values()]
         )
         sec = values[0]
-        subs = dict(zip(reits.keys(), values[1:]))
-        return JSONResponse({"tab": "ownership", "sec_fts": _readiness_public_source(sec), "reits": subs, "doctrine": DOCTRINE})
+        subs = {
+            name: _readiness_public_source(value)
+            for name, value in zip(reits.keys(), values[1:])
+        }
+        submissions_available = all(
+            isinstance(child, dict) and child.get("value") is not None
+            for child in subs.values()
+        )
+        return JSONResponse(
+            {"tab": "ownership", "sec_fts": _readiness_public_source(sec),
+             "reits": subs, "doctrine": DOCTRINE},
+            status_code=200 if submissions_available else 503,
+        )
 
     @app.get(base + "/re/deal", include_in_schema=False)
     async def _re_deal(

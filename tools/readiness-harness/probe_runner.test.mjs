@@ -271,6 +271,50 @@ test("an unavailable source witness blocks as unreachable without becoming a lie
   assert.equal(gate.blocked, true);
 });
 
+test("ownership readiness requires all four REIT source clocks", () => {
+  const path = "/api/a11oy/v1/deva/re/ownership";
+  const spec = readinessMatrix.endpoints[path];
+  const observedAt = "2026-10-07T19:00:00Z";
+  const observed = {
+    value: { filings: [] },
+    freshness: { status: "live", fetched_at: observedAt },
+  };
+  const body = {
+    tab: "ownership",
+    sec_fts: {
+      value: { items: [] },
+      freshness: { status: "live", fetched_at: observedAt },
+    },
+    reits: Object.fromEntries(
+      ["Vornado", "Boston Properties", "SL Green", "Realty Income"]
+        .map((name) => [name, structuredClone(observed)]),
+    ),
+    doctrine: {},
+  };
+  const nowMs = Date.parse("2026-10-07T19:00:30Z");
+  assert.equal(spec.unavailableBlocksReadiness, true);
+  assert.equal(validateSchema(spec.schema, body).ok, true);
+  assert.equal(evaluateFreshness(path, spec, body, nowMs).freshOk, true);
+
+  delete body.reits.Vornado.freshness.fetched_at;
+  assert.equal(validateSchema(spec.schema, body).ok, false);
+  body.reits.Vornado = structuredClone(observed);
+
+  body.reits["SL Green"] = {
+    value: null,
+    freshness: {
+      status: "UNAVAILABLE",
+      fetched_at: observedAt,
+      error: "ReadTimeout: SEC source did not answer",
+    },
+  };
+  assert.equal(validateSchema(spec.schema, body).ok, false);
+  assert.equal(evaluateEndpointLabels(200, spec, body).ok, true);
+  const freshness = evaluateFreshness(path, spec, body, nowMs);
+  assert.equal(freshness.freshOk, false);
+  assert.match(freshness.freshnessReason, /required source unavailable: reits\.SL Green/);
+});
+
 test("tab-matrix schema validates available and truthful unavailable wrappers", () => {
   assert.equal(validateSchema("tab_matrix", {
     matrix_available: true,
