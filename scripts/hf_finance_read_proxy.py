@@ -55,8 +55,9 @@ if CFG.get("slug") == "finance":
             return out
         def finite(value):
             number=float(value)
-            if not _finance_math.isfinite(number):
-                raise ValueError("nonfinite number")
+            if (not _finance_math.isfinite(number)
+                    or number == 0 and any(char in "123456789" for char in value.lower().split("e", 1)[0])):
+                raise ValueError("nonfinite or underflowed number")
             return number
         def invalid(value):
             raise ValueError("nonfinite literal")
@@ -188,18 +189,108 @@ if CFG.get("slug") == "finance":
             if proof is not None and proof.get("origin")=="coinbase":
                 _finance_check_observation(proof.get("observation"), "coinbase-candles", 200)
 
+    def _finance_check_research(body, submitted):
+        _finance_check_identity(body, "szl.finance.research/v1")
+        result = body.get("result")
+        if (body.get("ok") is not True or body.get("state") != "COMPUTED"
+                or body.get("truth_label") != "MODELED" or body.get("operation") != "research-audit"
+                or any(body.get(k) is not True for k in ("advisory_only", "paper_only", "not_financial_advice"))
+                or not isinstance(result, dict) or result.get("schema") != "szl.finance.research-audit/v1"
+                or result.get("truth_label") != "MODELED"
+                or type(result.get("audit_accepted")) is not bool
+                or body.get("inputs_sha256") != _finance_digest(submitted)
+                or _finance_digest(body.get("inputs")) != _finance_digest(submitted)):
+            raise _FinanceBoundaryError("CANONICAL_SCHEMA_INVALID")
+        # A valid unsigned digest proves internal consistency, not these claims.
+        # Enforce the presentation contract before forwarding a canonical result.
+        def require(condition):
+            if not condition:
+                raise _FinanceBoundaryError("CANONICAL_SCHEMA_INVALID")
+        def count(value, maximum=10000):
+            return type(value) is int and 0 <= value <= maximum
+        require(isinstance(submitted, dict) and isinstance(submitted.get("records"), list))
+        require(result.get("as_of") == submitted.get("as_of")
+            and result.get("status") == ("AUDITED" if result["audit_accepted"] else "BLOCKED"))
+        inputs = result.get("inputs")
+        require(isinstance(inputs, dict) and inputs.get("origin") == "caller_supplied"
+            and inputs.get("truth_label") == "SAMPLE"
+            and inputs.get("externally_verified") is False
+            and inputs.get("release_dates_verified") is False
+            and inputs.get("source_url") == submitted.get("source_url"))
+        summary, coverage = result.get("summary"), result.get("coverage")
+        require(isinstance(summary, dict) and isinstance(coverage, dict))
+        summary_counts = ("total_records", "kept_records", "excluded_records", "unique_entity_periods",
+            "duplicate_cells", "observed_records", "suppressed_records", "missing_records",
+            "invalid_records", "null_records", "observed_zero_records", "kept_zero_records",
+            "unknown_release_records", "after_cutoff_records")
+        require(all(count(summary.get(key), 5000) for key in summary_counts))
+        total, kept = summary["total_records"], summary["kept_records"]
+        require(total == len(submitted["records"]) and kept + summary["excluded_records"] == total
+            and summary["kept_zero_records"] <= min(kept, summary["observed_zero_records"]))
+        coverage_counts = ("expected_cells", "recorded_cells", "observed_cells", "missing_cells",
+            "absent_cells", "eligible_cells")
+        require(all(count(coverage.get(key)) for key in coverage_counts))
+        require(coverage["eligible_cells"] <= coverage["observed_cells"] <= coverage["recorded_cells"] <= coverage["expected_cells"]
+            and coverage["observed_cells"] + coverage["missing_cells"] == coverage["expected_cells"]
+            and coverage["recorded_cells"] + coverage["absent_cells"] == coverage["expected_cells"]
+            and coverage["eligible_cells"] == kept
+            and isinstance(coverage.get("cells"), list) and len(coverage["cells"]) <= 1000
+            and type(coverage.get("cells_truncated")) is bool
+            and coverage.get("grid_origin") in ("caller_supplied", "partly_or_fully_inferred"))
+        for cell in coverage["cells"]:
+            require(isinstance(cell, dict) and isinstance(cell.get("entity"), str)
+                and type(cell.get("period")) is int and 1 <= cell["period"] <= 9999
+                and type(cell.get("eligible")) is bool
+                and cell.get("state") in ("observed", "suppressed", "missing", "invalid", "observed_null", "duplicate", "absent"))
+        attrition, robustness = result.get("attrition"), result.get("robustness")
+        require(isinstance(attrition, dict) and isinstance(robustness, dict))
+        for key in ("entities", "groups"):
+            require(isinstance(attrition.get(key), list) and len(attrition[key]) <= 6000)
+            for row in attrition[key]:
+                require(isinstance(row, dict) and all(count(row.get(k), 5000)
+                    for k in ("total_records", "kept_records", "excluded_records")))
+                require(row["kept_records"] + row["excluded_records"] == row["total_records"])
+        require(robustness.get("truth_label") == "REPORTED" and robustness.get("computed") is False
+            and robustness.get("externally_verified") is False
+            and isinstance(robustness.get("specifications"), list)
+            and robustness["specifications"] == submitted.get("specifications", [])
+            and len(robustness["specifications"]) <= 100
+            and type(robustness.get("sign_change")) is bool
+            and robustness.get("small_cluster_threshold") == 30
+            and robustness.get("small_cluster_threshold_kind") == "HEURISTIC_NOT_VALIDITY_TEST"
+            and isinstance(robustness.get("flags"), list) and len(robustness["flags"]) <= 101)
+        require(isinstance(result.get("issues"), list) and len(result["issues"]) <= 64
+            and isinstance(result.get("record_audit"), list) and len(result["record_audit"]) == total)
+        require(all(isinstance(flag, dict) and isinstance(flag.get("code"), str)
+            for flag in [*result["issues"], *robustness["flags"]]))
+        receipt = body.get("receipt")
+        if not isinstance(receipt, dict):
+            raise _FinanceBoundaryError("CANONICAL_RECEIPT_INVALID")
+        unsigned = {k:v for k,v in receipt.items() if k != "receipt_sha256"}
+        content = {k:v for k,v in body.items() if k != "receipt"}
+        if (receipt.get("schema") != "szl.finance.research-receipt/v1"
+                or receipt.get("receipt_sha256") != _finance_digest(unsigned)
+                or receipt.get("payload_sha256") != _finance_digest(content)
+                or receipt.get("source_revision") != body["source_revision"]
+                or receipt.get("signing") != "UNSIGNED_HONEST" or receipt.get("signed") is not False
+                or receipt.get("persistence") != "CALLER_HELD" or receipt.get("authority") != "NONE"):
+            raise _FinanceBoundaryError("CANONICAL_RECEIPT_INVALID")
+
     def _finance_get(kind, query=None, method="GET", content=None):
-        if not _finance_re.fullmatch(r"providers|overview|observations/[a-z][a-z-]{0,79}|analytics/v2/(?:(?:signals|quote)/[A-Z0-9][A-Z0-9.-]{0,23}|portfolio|receipts(?:/verify)?)", kind):
+        if not _finance_re.fullmatch(r"providers|overview|research/audit|observations/[a-z][a-z-]{0,79}|analytics/v2/(?:(?:signals|quote)/[A-Z0-9][A-Z0-9.-]{0,23}|portfolio|receipts(?:/verify)?)", kind):
             return _finance_unavailable("ROUTE_DENIED",404)
         analytics=kind.startswith("analytics/v2/")
-        if method not in ("GET","POST") or method=="POST" and kind not in ("analytics/v2/portfolio","analytics/v2/receipts/verify"):
+        research=kind=="research/audit"
+        if method not in ("GET","POST") or method=="POST" and kind not in ("analytics/v2/portfolio","analytics/v2/receipts/verify","research/audit") or research and method!="POST":
             return _finance_unavailable("ROUTE_DENIED",404)
         if kind.startswith(("observations/alpaca-", "observations/fred-")):
             return _finance_unavailable("USE_PRIVATE_CANONICAL_SOURCE_ENDPOINT",403)
         target = _FINANCE_ORIGIN + _FINANCE_PREFIX + kind
         pairs = list(query or [])
         allowed_parameters={"limit","offset","token_id","interval","fidelity","cursor","series_ticker","ticker","depth","product","granularity","end","count","cik","series_id"}
-        if analytics:
+        if research:
+            allowed_parameters=set()
+        elif analytics:
             allowed_parameters={"origin","benchmark"} if method=="GET" else set()
         if any(k not in allowed_parameters for k,v in pairs):
             return _finance_unavailable("INVALID_PARAMETERS",422)
@@ -244,6 +335,14 @@ if CFG.get("slug") == "finance":
                         allowed_errors={"UNKNOWN_SOURCE","INVALID_PARAMETERS","DUPLICATE_QUERY_PARAMETER","PRIVATE_SOURCE_ACCESS_REQUIRED"}
                         error=body.get("error")
                         return _finance_unavailable(error if error in allowed_errors else "CANONICAL_REQUEST_DENIED",response.status_code)
+                    if research:
+                        if response.status_code!=200:
+                            return _finance_unavailable("CANONICAL_RESEARCH_BLOCKED",response.status_code)
+                        try:
+                            _finance_check_research(body,_finance_json(content))
+                        except (_FinanceBoundaryError,TypeError,AttributeError,ValueError) as exc:
+                            return _finance_unavailable(str(exc) if isinstance(exc,_FinanceBoundaryError) else "CANONICAL_SCHEMA_INVALID")
+                        return body,200
                     if analytics:
                         if response.status_code!=200:
                             return _finance_unavailable("CANONICAL_ANALYTICS_BLOCKED",response.status_code)
@@ -334,6 +433,10 @@ if CFG.get("slug") == "finance":
     @app.post("/api/finance/v2/receipts/verify")
     async def finance_verify_projection(request:_FinanceRequest):
         return await _finance_post(request,"analytics/v2/receipts/verify")
+
+    @app.post("/api/finance/research/audit")
+    async def finance_research_audit_projection(request:_FinanceRequest):
+        return await _finance_post(request,"research/audit")
 
     @app.get("/api/finance/providers")
     def finance_provider_projection():
