@@ -604,15 +604,15 @@ REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee
 # The deploy path is source-admission -> preflight -> deploy -> runtime-config.
 # Preflight admits current main before any provider effect, reads the runtime
 # stage without restarting it, requires an open deploy window while SQLite lives
-# on the bucket mount, converges idempotent configuration before the single
-# deploy start and re-admits current main;
-# runtime-config verifies (or, when preflight could not, converges) against the
-# deployed revision. Every gate is an invariant (protected main, newest main
+# on the bucket mount, re-admits current main before each configuration command,
+# fails on any configuration error, then re-admits current main before deploy;
+# runtime-config re-admits current main before any deferred configuration write
+# against the deployed revision. Every gate is an invariant (protected main, newest main
 # wins, live source binding), never an exact run, artifact or parent identity.
 # These exact job bodies and their complete local helper closure establish
 # reviewed source coverage only; they never establish provider success.
-REVIEWED_PREFLIGHT_JOB_SHA256 = "1a814a61c58c8abb5cf1b60a7654771bafefdc7c0aa430a2d6b54d1e130f01d0"
-REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "15c55e09b62c6355307a7f73c9452457e63874bf69831cbc4a2d9eb0f97ab1b8"
+REVIEWED_PREFLIGHT_JOB_SHA256 = "35b15d9b6e51b8c231c09c343dc77acca58221ad914130f71d5abac6f0dd3618"
+REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "e35a9de60fac0f2d818f6c238491ad465e5b31ca36eec6583d20d85e49d93d63"
 REVIEWED_DEPLOY_HELPERS_SHA256 = {
     # Read-only runtime-stage classifier; it has no provider write path.
     ".github/scripts/resume_hf_space.py": "26cb21d2f0be37ebe6aa7e3be28f456489560f740f29215edd4b1d957ec53d49",
