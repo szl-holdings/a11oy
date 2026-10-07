@@ -605,21 +605,22 @@ REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee
 # Preflight admits current main before any provider effect, reads the runtime
 # stage without restarting it, requires an open deploy window while SQLite lives
 # on the bucket mount, re-admits current main before each configuration command,
-# fails on any configuration error, then re-admits current main before deploy;
+# and each helper re-reads exact main before each provider mutation. Any
+# configuration error fails; current main is re-admitted before deploy;
 # runtime-config re-admits current main before any deferred configuration write
 # against the deployed revision. Every gate is an invariant (protected main, newest main
 # wins, live source binding), never an exact run, artifact or parent identity.
 # These exact job bodies and their complete local helper closure establish
 # reviewed source coverage only; they never establish provider success.
-REVIEWED_PREFLIGHT_JOB_SHA256 = "35b15d9b6e51b8c231c09c343dc77acca58221ad914130f71d5abac6f0dd3618"
-REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "e35a9de60fac0f2d818f6c238491ad465e5b31ca36eec6583d20d85e49d93d63"
+REVIEWED_PREFLIGHT_JOB_SHA256 = "60ac7f0ca7ca201da5390285f5873984fb9c22d81cf13f375c4f82483f4c8bfb"
+REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "911d75d4aa98eb6e0e2e7a732709ff447c064fd3b6cd886b64a4dc7d966a47e6"
 REVIEWED_DEPLOY_HELPERS_SHA256 = {
     # Read-only runtime-stage classifier; it has no provider write path.
     ".github/scripts/resume_hf_space.py": "26cb21d2f0be37ebe6aa7e3be28f456489560f740f29215edd4b1d957ec53d49",
     # Read-only wait for the deployed revision after a convergence write.
     ".github/scripts/await_hf_runtime_serving.py": "2fb80ffe94124f359e55166f51e2c24105033348adc624421619a4311d42b98e",
-    "scripts/configure_hf_series_a_runtime.py": "a5b6bd2968fe16d762eb241744bd4897ae05e72c85bc79d38ad33aaea90feb0d",
-    "scripts/configure_hf_gdw_runtime.py": "3d56f13dccc09089fda4b4edc6b3e232c383ffd9b8416efe0f943e9cd87672e0",
+    "scripts/configure_hf_series_a_runtime.py": "1495ac166237c48e84eadf6b4200ccbcf03dd7d545cc7758ef70db5175c03687",
+    "scripts/configure_hf_gdw_runtime.py": "289c0a3d0896c3b10321e2aa3f4543188e238cf22b1b79d632c98cbf23ba0462",
     # Installed-authority verifier imported by both configure helpers, with
     # its pinned verification key and static fallback source.
     "scripts/verify_installed_authority.py": "2d9465f393dbaa08754b02d6295abade1134a7dbc843cdab48a6ad70867fb68e",

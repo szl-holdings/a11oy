@@ -208,6 +208,7 @@ jobs:
           fi
           python -B scripts/configure_hf_series_a_runtime.py \
             --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \
+            --expected-source-sha "$GITHUB_SHA" \
             --output "$RUNTIME_CONFIG_REPORT"
           python3 -B scripts/hf_exact_main_ownership.py \
             --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
@@ -218,7 +219,8 @@ jobs:
             exit 1
           fi
           python -B scripts/configure_hf_gdw_runtime.py \
-            --repo-id "$CANONICAL_SPACE" --output "$GDW_CONFIG_REPORT"
+            --repo-id "$CANONICAL_SPACE" --expected-source-sha "$GITHUB_SHA" \
+            --output "$GDW_CONFIG_REPORT"
           echo 'converged=true' >> "$GITHUB_OUTPUT"
 
       - name: Re-admit current protected main immediately before deploy
@@ -332,6 +334,7 @@ jobs:
           fi
           python -B scripts/configure_hf_series_a_runtime.py \
             --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \
+            --expected-source-sha "$GITHUB_SHA" \
             "${mode[@]}" --output "$RUNTIME_CONFIG_REPORT"
           if [ "${PREDEPLOY_CONVERGED:-false}" != 'true' ]; then
             python3 -B scripts/hf_exact_main_ownership.py \
@@ -345,6 +348,7 @@ jobs:
           fi
           python -B scripts/configure_hf_gdw_runtime.py \
             --repo-id "$CANONICAL_SPACE" \
+            --expected-source-sha "$GITHUB_SHA" \
             "${mode[@]}" --output "$GDW_CONFIG_REPORT"
 
       # A convergence write restarts the deployed revision. Read-only: wait

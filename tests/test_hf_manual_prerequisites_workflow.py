@@ -95,6 +95,7 @@ if ! grep -Fqx 'publish=true' "$RUNNER_TEMP/preflight-series-config-admission.ou
 fi
 python -B scripts/configure_hf_series_a_runtime.py \
   --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \
+  --expected-source-sha "$GITHUB_SHA" \
   --output "$RUNTIME_CONFIG_REPORT"
 python3 -B scripts/hf_exact_main_ownership.py \
   --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
@@ -105,7 +106,8 @@ if ! grep -Fqx 'publish=true' "$RUNNER_TEMP/preflight-gdw-config-admission.out";
   exit 1
 fi
 python -B scripts/configure_hf_gdw_runtime.py \
-  --repo-id "$CANONICAL_SPACE" --output "$GDW_CONFIG_REPORT"
+  --repo-id "$CANONICAL_SPACE" --expected-source-sha "$GITHUB_SHA" \
+  --output "$GDW_CONFIG_REPORT"
 echo 'converged=true' >> "$GITHUB_OUTPUT"'''
 ADMIT_RUN = r'''set -euo pipefail
 python3 -B scripts/hf_exact_main_ownership.py \
@@ -151,6 +153,7 @@ else
 fi
 python -B scripts/configure_hf_series_a_runtime.py \
   --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \
+  --expected-source-sha "$GITHUB_SHA" \
   "${mode[@]}" --output "$RUNTIME_CONFIG_REPORT"
 if [ "${PREDEPLOY_CONVERGED:-false}" != 'true' ]; then
   python3 -B scripts/hf_exact_main_ownership.py \
@@ -164,6 +167,7 @@ if [ "${PREDEPLOY_CONVERGED:-false}" != 'true' ]; then
 fi
 python -B scripts/configure_hf_gdw_runtime.py \
   --repo-id "$CANONICAL_SPACE" \
+  --expected-source-sha "$GITHUB_SHA" \
   "${mode[@]}" --output "$GDW_CONFIG_REPORT"'''
 # Post-deploy jobs may read and verify, never restart, pause or write variables.
 POST_DEPLOY_JOBS = ("runtime-config", "readiness-verdict", "relock",
@@ -620,7 +624,7 @@ class DeployPathWorkflowTests(unittest.TestCase):
     def test_preflight_classification_and_convergence_cannot_be_weakened(self):
         cases = (
             ("python -B .github/scripts/resume_hf_space.py", "python -B .github/scripts/resume_hf_space.py --restart", "preflight classification"),
-            ('          python -B scripts/configure_hf_series_a_runtime.py \\\n            --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \\\n            --output "$RUNTIME_CONFIG_REPORT"\n',
+            ('          python -B scripts/configure_hf_series_a_runtime.py \\\n            --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \\\n            --expected-source-sha "$GITHUB_SHA" \\\n            --output "$RUNTIME_CONFIG_REPORT"\n',
              '          true\n', "preflight convergence"),
             ('--receipt "$RUNNER_TEMP/preflight-series-config-admission.json"',
              '--receipt /tmp/forged.json', "preflight convergence"),
