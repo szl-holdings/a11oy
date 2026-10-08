@@ -2830,7 +2830,7 @@ function _bootGo(){
   function run(){ if(Object.prototype.hasOwnProperty.call(VIEWS,view)){ go(view); return true; } return false; }
   if(run()) return;
   var n=0, iv=setInterval(function(){
-    if(run()||n++>80){ clearInterval(iv); if(!VIEWS[view]) go(VIEWS.command?'command':'command'); }
+    if(run()||n++>80){ clearInterval(iv); if(!Object.prototype.hasOwnProperty.call(VIEWS,view)) go(VIEWS.command?'command':'command'); }
   },40);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',_bootGo);else setTimeout(_bootGo,0);
