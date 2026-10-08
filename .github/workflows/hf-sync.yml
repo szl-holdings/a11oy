@@ -190,26 +190,38 @@ jobs:
         shell: bash
         env:
           CONVERGE: ${{ steps.runtime.outputs.converge }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
-          set -uo pipefail
+          set -euo pipefail
           if [ "${CONVERGE:-false}" != 'true' ]; then
             echo '::notice::The canonical runtime is not serving; configuration converges against the deployed revision.'
             echo 'converged=false' >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          python3 -B scripts/hf_exact_main_ownership.py \
+            --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+            --receipt "$RUNNER_TEMP/preflight-series-config-admission.json" \
+            --github-output "$RUNNER_TEMP/preflight-series-config-admission.out"
+          if ! grep -Fqx 'publish=true' "$RUNNER_TEMP/preflight-series-config-admission.out"; then
+            echo '::error::Protected main changed before Series-A configuration.'
+            exit 1
+          fi
           python -B scripts/configure_hf_series_a_runtime.py \
             --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \
+            --expected-source-sha "$GITHUB_SHA" \
             --output "$RUNTIME_CONFIG_REPORT"
-          series_code=$?
-          python -B scripts/configure_hf_gdw_runtime.py \
-            --repo-id "$CANONICAL_SPACE" --output "$GDW_CONFIG_REPORT"
-          gdw_code=$?
-          if [ "$series_code" -eq 0 ] && [ "$gdw_code" -eq 0 ]; then
-            echo 'converged=true' >> "$GITHUB_OUTPUT"
-          else
-            echo "::warning::Pre-deploy configuration did not converge (series-a=${series_code}, gdw=${gdw_code}); runtime-config converges against the deployed revision."
-            echo 'converged=false' >> "$GITHUB_OUTPUT"
+          python3 -B scripts/hf_exact_main_ownership.py \
+            --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+            --receipt "$RUNNER_TEMP/preflight-gdw-config-admission.json" \
+            --github-output "$RUNNER_TEMP/preflight-gdw-config-admission.out"
+          if ! grep -Fqx 'publish=true' "$RUNNER_TEMP/preflight-gdw-config-admission.out"; then
+            echo '::error::Protected main changed before GDW configuration.'
+            exit 1
           fi
+          python -B scripts/configure_hf_gdw_runtime.py \
+            --repo-id "$CANONICAL_SPACE" --expected-source-sha "$GITHUB_SHA" \
+            --output "$GDW_CONFIG_REPORT"
+          echo 'converged=true' >> "$GITHUB_OUTPUT"
 
       - name: Re-admit current protected main immediately before deploy
         id: owner
@@ -238,6 +250,8 @@ jobs:
             ${{ env.RUNTIME_CONFIG_REPORT }}
             ${{ env.GDW_CONFIG_REPORT }}
             ${{ runner.temp }}/preflight-admission.json
+            ${{ runner.temp }}/preflight-series-config-admission.json
+            ${{ runner.temp }}/preflight-gdw-config-admission.json
             ${{ runner.temp }}/preflight-source-admission.json
           if-no-files-found: error
           retention-days: 90
@@ -301,6 +315,7 @@ jobs:
         shell: bash
         env:
           PREDEPLOY_CONVERGED: ${{ needs.preflight.outputs.converged }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           mode=()
@@ -308,12 +323,32 @@ jobs:
             mode=(--check-only)
           else
             echo '::notice::Configuration was not converged before deploy; converging against the deployed revision.'
+            python3 -B scripts/hf_exact_main_ownership.py \
+              --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+              --receipt "$RUNNER_TEMP/runtime-series-config-admission.json" \
+              --github-output "$RUNNER_TEMP/runtime-series-config-admission.out"
+            if ! grep -Fqx 'publish=true' "$RUNNER_TEMP/runtime-series-config-admission.out"; then
+              echo '::error::Protected main changed before post-deploy Series-A configuration.'
+              exit 1
+            fi
           fi
           python -B scripts/configure_hf_series_a_runtime.py \
             --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \
+            --expected-source-sha "$GITHUB_SHA" \
             "${mode[@]}" --output "$RUNTIME_CONFIG_REPORT"
+          if [ "${PREDEPLOY_CONVERGED:-false}" != 'true' ]; then
+            python3 -B scripts/hf_exact_main_ownership.py \
+              --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+              --receipt "$RUNNER_TEMP/runtime-gdw-config-admission.json" \
+              --github-output "$RUNNER_TEMP/runtime-gdw-config-admission.out"
+            if ! grep -Fqx 'publish=true' "$RUNNER_TEMP/runtime-gdw-config-admission.out"; then
+              echo '::error::Protected main changed before post-deploy GDW configuration.'
+              exit 1
+            fi
+          fi
           python -B scripts/configure_hf_gdw_runtime.py \
             --repo-id "$CANONICAL_SPACE" \
+            --expected-source-sha "$GITHUB_SHA" \
             "${mode[@]}" --output "$GDW_CONFIG_REPORT"
 
       # A convergence write restarts the deployed revision. Read-only: wait
@@ -335,6 +370,8 @@ jobs:
           path: |
             ${{ env.RUNTIME_CONFIG_REPORT }}
             ${{ env.GDW_CONFIG_REPORT }}
+            ${{ runner.temp }}/runtime-series-config-admission.json
+            ${{ runner.temp }}/runtime-gdw-config-admission.json
           if-no-files-found: error
           retention-days: 90
 
