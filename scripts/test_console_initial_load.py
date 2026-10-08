@@ -112,6 +112,11 @@ def run(output):
         parsed = urlsplit(page.url)
         check('requested canonical URL retained', f'{parsed.scheme}://{parsed.netloc}' == origin and
               parse_qs(parsed.query).get('view') == [expected], page.url)
+        # The command bar copies raw selectors into data-view before bootstrap. Inspect
+        # go()'s settled view/title state, not that presentation attribute's history.
+        rendered = page.evaluate('view=>({requested:window._requestedView,current:document.documentElement.dataset.view,title:document.querySelector(".view-title").textContent,expectedTitle:VIEWS[view].title})', expected)
+        check('registered view rendered correctly', rendered['requested'] == expected and
+              rendered['current'] == expected and rendered['title'] == rendered['expectedTitle'], rendered)
         observed = page.evaluate('window.__qaObservedViews')
         if expected in VIEWS:
             check('no incidental Command Center render', 'command' not in observed, observed)
@@ -123,7 +128,6 @@ def run(output):
             check('denied data remains visibly unavailable', 'UNAVAILABLE' in page.locator('#vbody').inner_text())
         if malformed:
             check('malformed selector never leaves origin', page.url.startswith(origin + '/console'))
-            check('malformed selector rejects inherited registry entries', not any(v in ('__proto__', 'constructor') for v in observed), observed)
         return page
 
     try:
