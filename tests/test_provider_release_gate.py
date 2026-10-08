@@ -39,6 +39,7 @@ PROVIDER_ENV_NAMES.update({
 def clean_runtime(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     for name in PROVIDER_ENV_NAMES:
         monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("A11OY_CODE_ADMIN_KEY", "fixture-operator-secret-not-real")
     log_path = tmp_path / "provider-receipts.jsonl"
     monkeypatch.setenv("SZL_GOVERN_INFER_LOG", str(log_path))
     importlib.reload(governed)
@@ -50,7 +51,9 @@ def clean_runtime(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
 def _client(reg) -> TestClient:
     app = FastAPI()
     reg.register(app)
-    return TestClient(app)
+    client = TestClient(app)
+    client.headers.update({"Authorization": "Bearer fixture-operator-secret-not-real"})
+    return client
 
 
 def test_selected_model_reconciliation_is_exact_and_fail_closed(clean_runtime):

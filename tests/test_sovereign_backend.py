@@ -32,11 +32,18 @@ MODEL_TAG = "llama3-szl-finetuned-q4"
 PROVIDER = "SZL sovereign (Ollama, local, Doctrine-v11 system prompt)"
 
 
-@pytest.fixture(scope="module")
-def client():
+@pytest.fixture
+def client(monkeypatch):
+    monkeypatch.setenv("A11OY_CODE_ADMIN_KEY", "fixture-operator-secret-not-real")
+    for name in ("A11OY_BRAIN_URL", "A11OY_MODEL_BASE_URL",
+                 "A11OY_SOVEREIGN_GATEWAY_URL", "SZL_SOVEREIGN_NODES"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("SZL_LOCAL_LLM_URL", "http://127.0.0.1:59999/v1")
     app = FastAPI()
     reg.register(app)
-    return TestClient(app)
+    test_client = TestClient(app)
+    test_client.headers.update({"Authorization": "Bearer fixture-operator-secret-not-real"})
+    return test_client
 
 
 def test_first_class_backend_registered():
