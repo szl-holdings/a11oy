@@ -115,7 +115,7 @@ def test_oac_page_is_bounded_accessible_and_has_no_execution_path():
     assert "focus-visible" in source
     assert "prefers-reduced-motion" in source
     for label in ("REPORTED", "UNKNOWN", "SAMPLE", "DECLARED", "SIMULATED",
-                  "v2 runtime (not probed)",
+                  "MEASURED · hosted GET readback 2026-10-08 UTC",
                   "synthetic numeric telemetry", "not clinical", "not device control",
                   "No new training", "mutable demo", "not a production or clinical result path",
                   "Do not enter patient or specimen information"):
@@ -126,11 +126,20 @@ def test_oac_page_is_bounded_accessible_and_has_no_execution_path():
         "4bf4d94161c0d135af6b5a3bc25f45b06f6e3979",
         "dd7d109813abcd90c5250106dc2eabd2804e7ac3",
         "f7ab6170bf78138b187b8cb707d374a25ad85375",
-        "6330dea7318effba583a6501346fee590174a39f",
+        "3f7554efaddf086680b25301502c3bf176d83089",
+        "56a00821858825f529c40c7322c2f1584608d6e5",
+        "1c33503830a12c5661fc3ee8cd0a4b3a75451c25",
         "a824a32d91a383d33a1e1e595f11b8362d1b4efa",
     ):
         assert identity in source
-    assert "The mutable demo above belongs to the separate v1 snapshot." in source
+    links = [attrs["href"] for tag, attrs in parser.elements if tag == "a" and "href" in attrs]
+    assert "https://szlholdings-oac-system-health-lab.hf.space/api/v2/readyz" in links
+    assert "https://szlholdings-oac-system-health-lab.hf.space/api/v2/identity" in links
+    assert "HTTP 200" in source and "READY" in source
+    assert "dated, unsigned runtime observation" in source
+    assert "not continuous availability, A11oy product deployment, production readiness" in source
+    assert "The mutable Space opens v1 by default; v2 requires a separate explicit opt-in there." in source
+    assert "This page neither enables v2 nor submits a score." in source
     assert "https://a11oy.net/oac/#v2" in source
     assert "unsigned artifact receipt" in source
     assert "does not authenticate that origin, validate results, or authorize effects" in source
