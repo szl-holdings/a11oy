@@ -18,8 +18,8 @@ from test_console_mobile_integrity import (
     ROOT, fixture_payload, fixture_receipts, initial_fixture_state, static_fixture_path,
 )
 
-SOURCE_REVISION = "7a88f2f4432e9ebd76754632de2a694e99b5596b"
-CONSOLE_SHA256 = "935ba994c576aa8007d0bf7bd6608a6f4a9d93b1c8c5dfd176d17d0f41f78799"
+SOURCE_REVISION = "a84879d3c29bf9f6905fba365d15416a79170788"
+CONSOLE_SHA256 = "ba1e455069836ae92ff7f571932f95021617f7bd3f02e88f0b7d476791960b37"
 VIEWS = ("fleet", "readiness", "estate")
 CSP = (
     "default-src 'none'; script-src 'self' 'unsafe-inline'; "
