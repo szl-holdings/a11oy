@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-10-07T16:44:12Z",
+  "observedAt": "2026-10-08T05:12:13Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -26,7 +26,7 @@
   "machineGeneratedCounts": {
     "githubReadinessEntries": 19,
     "huggingFacePublic": {
-      "models": 47,
+      "models": 48,
       "datasets": 37,
       "spaces": 36,
       "kernels": 14
@@ -977,6 +977,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/oac-clinical-transport-health-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/oac-ops-health-v2",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/oac-ops-health-v2"
       ]
     },
     {
