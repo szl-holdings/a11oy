@@ -43,6 +43,8 @@ jobs:
           tests/test_second_brain_bridge.py
           tests/test_code_completion_boundaries.py
           tests/test_agent_loop_execution_guards.py
+          tests/test_authorized_rag_synthesis.py
+          tests/test_agent_synthesis_status.py
           tests/test_nexus_bind.py
           tests/test_nexus_readonly_evidence.py
 

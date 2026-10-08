@@ -55,6 +55,15 @@ class _Callbacks:
         self.calls.append("model")
         return {"text": "SIMULATED answer", "model": "unit-test", "stub": True}
 
+    async def synthesize(self, **kwargs):
+        # This suite isolates FSM gates. Source/provider admission is explicitly
+        # simulated here; test_authorized_rag_synthesis exercises the real adapter.
+        return {**await self.complete([]), "stub": False, "_expression_authorized": False,
+                "synthesis_admission": {"state": "AUTHORIZED_CONTENT_SUPPLIED", "source_count": 6,
+                    "context_sha256": hashlib.sha256(b"SIMULATED unit boundary").hexdigest(),
+                    "semantic_support_verified": False, "provider_id": "SIMULATED",
+                    "model_id": "unit-test", "trust_domain": "LOCAL"}}
+
     def receipt(self, action, payload):
         self.receipts.append({"action": action, "payload": payload})
         digest = hashlib.sha256(json.dumps(self.receipts[-1], sort_keys=True).encode()).hexdigest()
@@ -65,7 +74,7 @@ class _Callbacks:
         return agent.AgentLoop(
             khipu_emit=self.receipt, puriq_decide=self.gate,
             execute_tool=self.tool, model_complete=self.complete,
-            rag_query=self.retrieve, **kwargs)
+            rag_query=self.retrieve, answer_synthesizer=self.synthesize, **kwargs)
 
 
 class PlanDependencyTests(unittest.TestCase):
@@ -170,16 +179,17 @@ class ExecutionGuardTests(unittest.TestCase):
         self.assertEqual([row["state"] for row in result["steps"]][-2:],
                          [agent.S_VERIFY, agent.S_HALT])
 
-    def test_returned_voice_factor_cannot_release_a_denied_answer(self):
-        calls = _Callbacks()
+    def test_voice_switch_cannot_release_a_below_floor_answer(self):
+        calls = _Callbacks(grounding=_grounding(3))
         with patch.dict(os.environ, {"A11OY_WALLPA_FINALIZE": "1"}), \
              patch.object(agent, "_wallpa_speak_final", return_value={
-                 "wallpa_factor": 0.0, "voice": "SIMULATED"}):
+                 "wallpa_factor": 1.0, "voice": "SIMULATED"}) as voice:
             result = asyncio.run(calls.loop().run("summarize"))
         self.assertFalse(result["ok"])
         self.assertEqual(result["final_state"], agent.S_HALT)
         self.assertNotIn("answer", result)
         self.assertNotIn("agent.finalize", [receipt["action"] for receipt in calls.receipts])
+        voice.assert_not_called()
 
     def test_admitted_synthetic_path_retains_real_fsm_result(self):
         calls = _Callbacks()

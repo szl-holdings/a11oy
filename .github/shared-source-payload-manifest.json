@@ -1,8 +1,12 @@
 {
   "files": {
-    "a11oy_agent_loop.py": "289df7c62ea1d6d0edbb2fb1b5dcc2dfc34b87a12199f21fd3d16feef9adccfb",
-    "tests/test_agent_loop_execution_guards.py": "0e00f7d00d2e5fa698dee4f7e97cecaa9e9c38d0f693c043c1aa0aa804bc5ac9"
+    ".github/shared-source-payloads/agent-loop-execution-guards-20261008-v1.json": "bb60cb1ee4ec606edb79f381ca2235349fbc298f14713bd6a0104958b6eaa8ac",
+    "a11oy_agent_loop.py": "73b7b4663eeecf45abde7ee1d26a57d476f450a56712e6a4b0b38ed41925e743",
+    "a11oy_org_rag.py": "d3b6975c40397aa5135652e5d9a45b31e8de931ef1bbff59047d0c5b127f7aa4",
+    "docs/authorized-rag-synthesis.md": "b2b12e05ccece27b27119ac282da904eee54c5fe95fe18f9e9c34ac7069431dc",
+    "tests/test_agent_loop_execution_guards.py": "79354da68a89a4e16344216e1761ed7597c91ac9590fe2d9f0cb52e5cdf45370",
+    "tests/test_authorized_rag_synthesis.py": "1d299c8d44f2cfcc33a21fa1d2517c58778bbf825eaefcb75485c481ce2e5216"
   },
-  "payload_id": "agent-loop-execution-guards-20261008-v1",
+  "payload_id": "authorized-rag-answer-handoff-20261008-v1",
   "schema": "szl-shared-source-payload/v1"
 }

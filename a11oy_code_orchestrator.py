@@ -3054,12 +3054,15 @@ async def rag_seed(request: Request) -> JSONResponse:
 # ===========================================================================
 @router.get("/agent/status")
 async def agent_status() -> JSONResponse:
-    """Agent availability + guard configuration + recent Reflexion lessons."""
+    """Report content admission separately from inference-backend readiness."""
     if _agent is None:
         return JSONResponse({"available": False, "error": f"a11oy_agent_loop not importable: {_AGENT_IMPORT_ERROR}"},
                             status_code=503)
     return JSONResponse({
-        "available": True,
+        # These routes do not yet have a scoped source/provider controller.
+        # A reachable model or operator credential cannot grant that authority.
+        "available": False,
+        "control_loop_available": True,
         "surface_name": "Chaski",
         "states": [_agent.S_INTAKE, _agent.S_PLAN, _agent.S_RETRIEVE, _agent.S_ACT,
                    _agent.S_OBSERVE, _agent.S_VERIFY, _agent.S_REFLECT,
@@ -3068,7 +3071,9 @@ async def agent_status() -> JSONResponse:
         "guards": {"max_steps": _agent.MAX_STEPS,
                    "max_reflect_depth": _agent.MAX_REFLECT_DEPTH,
                    "lambda_floor": _agent.LAMBDA_FLOOR},
-        "mode": "live" if inference_backend_ready() else "deterministic_stub",
+        "mode": "content_admission_unavailable",
+        "inference_backend_ready": inference_backend_ready(),
+        "synthesis_admission": {"state": "UNAVAILABLE", "reason": "CONTENT_ADMISSION_UNAVAILABLE"},
         "token_secret": _code_secret_name(),
         "recent_reflections": _agent.recent_reflections(limit=10),
     })
@@ -3136,6 +3141,8 @@ async def agent_stream(request: Request):
             yield sse(ev, d)
             await asyncio.sleep(0)
         yield sse("done", {"ok": result.get("ok"), "final_state": result.get("final_state"),
+                           "halt_reason": result.get("halt_reason"),
+                           "synthesis_admission": result.get("synthesis_admission"),
                            "answer": result.get("answer"), "stub": result.get("stub"),
                            "i_dont_know": result.get("i_dont_know"),
                            "step_count": result.get("step_count"),
@@ -3511,14 +3518,15 @@ async def chat_stream(request: Request):
         # truthful. When serving locally (reachability-gated by _serving_base, so
         # it can never overclaim) report the on-box served tag — not the logical
         # router id — plus a sovereign/served_locally flag.
-        _serve_base, _serve_local = _serving_base()
+        _serve_base, _serve_local = (None, False) if agentic else _serving_base()
         # R-RESILIENCE/R-FREEPOWER provenance: report WHO served + the REAL base_url +
         # an energy_source field on EVERY turn (honest plumbing; "grid" today, real
         # value once a stranded-energy node comes online). served_by stays coarse
         # (local-gpu / hf-router); a future LiteLLM proxy can refine to tier-A/B/C/D.
-        _served_by = "local-gpu" if _serve_local else "hf-router"
-        _energy_source = "grid"
-        _route_model = _map_model_for_local(decision["model"]) if _serve_local else decision["model"]
+        _served_by = "NOT_INVOKED" if agentic else ("local-gpu" if _serve_local else "hf-router")
+        _energy_source = None if agentic else "grid"
+        _route_model = (None if agentic else
+                        (_map_model_for_local(decision["model"]) if _serve_local else decision["model"]))
         yield sse("route", {"conversation_id": conv_id, "tier": decision["tier"],
                             "model": _route_model, "license_class": decision["license_class"],
                             "reason": decision["reason"],
@@ -3545,8 +3553,8 @@ async def chat_stream(request: Request):
                     execute_tool=_principal_tool_runner(client, who),
                     model_complete=agent_model_complete, rag_query=_agent_rag_query,
                     two_person_attested=two_person, emit=_agent_emit)
-            except Exception as exc:
-                yield sse("error", {"error": f"agent loop failed: {str(exc)[:300]}"})
+            except Exception:
+                yield sse("error", {"error": "AGENT_LOOP_UNAVAILABLE"})
                 return
             # Drain buffered step events (the loop ran to completion synchronously).
             for ev, data in _queue:
@@ -3559,11 +3567,16 @@ async def chat_stream(request: Request):
                 await asyncio.sleep(0)
             latency_ms = int((time.time() - t0) * 1000)
             y13 = yuyay13_response_score(answer, None, latency_ms)
-            # R0 honesty: a locally-served agentic turn is served by the on-box tag
-            # (and costs nothing). Only remap when we actually served local AND the
-            # finalize step wasn't the no-credential deterministic stub.
-            _ag_local = _serve_local and not result.get("stub")
-            _ag_model = _map_model_for_local(result.get("model")) if _ag_local else result.get("model")
+            # A configured router is not evidence that an admitted model ran.
+            # The fixed synthesis backend supplies destination identity on success.
+            _ag_admission = result.get("synthesis_admission") or {}
+            _ag_invoked = (result.get("ok") is True and result.get("stub") is False
+                           and result.get("final_state") == _agent.S_FINALIZE
+                           and _ag_admission.get("state") == "AUTHORIZED_CONTENT_SUPPLIED")
+            _ag_local = _ag_invoked and _ag_admission.get("trust_domain") == "LOCAL"
+            _ag_model = result.get("model") if _ag_invoked else None
+            _ag_unserved = ("NOT_INVOKED" if result.get("halt_reason") == "CONTENT_ADMISSION_UNAVAILABLE"
+                            else "NOT_CONFIRMED")
             _remember("assistant", answer, model=_ag_model,
                       tier=decision["tier"], latency_ms=latency_ms, cost_usd=0.0,
                       yuyay13=y13, khipu_hash=result.get("khipu_hash"))
@@ -3574,8 +3587,10 @@ async def chat_stream(request: Request):
                                "chain_verified": result.get("chain_verified", True),
                                "mode": "agentic", "agentic": True,
                                "served_locally": _ag_local, "sovereign": _ag_local,
-                               "served_by": ("local-gpu" if _ag_local else "hf-router"),
-                               "base_url": _serve_base, "energy_source": _energy_source,
+                               "served_by": (_ag_admission.get("provider_id") if _ag_invoked else _ag_unserved),
+                               "base_url": None, "energy_source": None,
+                               "ok": result.get("ok"), "halt_reason": result.get("halt_reason"),
+                               "synthesis_admission": result.get("synthesis_admission"),
                                "final_state": result.get("final_state"),
                                "step_count": result.get("step_count"),
                                "i_dont_know": result.get("i_dont_know"),
