@@ -171,17 +171,17 @@ td.bad{color:var(--red);}
       <div class="echart" id="mix_chart" style="height:170px"></div>
       <div class="kv" id="sl_kv" style="display:none">
         <div><span class="k">Signed jobs</span><span class="v" id="sl_jobs">—</span></div>
-        <div><span class="k">Joules MEASURED-billable</span><span class="v" id="sl_meas">—</span> <span class="chip measured">measured</span></div>
-        <div><span class="k">kWh total</span><span class="v" id="sl_kwh">—</span></div>
+        <div><span class="k">Qualified billable joules</span><span class="v" id="sl_meas">—</span> <span class="chip" id="sl_meas_label">unavailable</span></div>
+        <div><span class="k">Qualified billable kWh</span><span class="v" id="sl_kwh">—</span></div>
         <div><span class="k">Receipt chain</span><span class="v" id="sl_chain">—</span></div>
       </div>
-      <div class="empty" id="sl_empty" style="display:none"><b>Signed ledger unavailable.</b> /v1/energy/ledger did not return a chain — showing no measured total (honest empty-state, never a fabricated number).</div>
-      <div class="simnote"><b>Two honesty tiers, never mixed:</b> the <span style="color:var(--warn)">SAMPLE/ESTIMATE</span> joules-est above come from the budget layer (no meter); the <span style="color:var(--green)">MEASURED-billable</span> joules here come only from real NVML deltas in the signed receipt chain. The donut splits MEASURED-billable vs SAMPLE-est headroom — a MODELED composition, not a grid source mix.</div>
+      <div class="empty" id="sl_empty" style="display:none"><b>Signed ledger unavailable.</b> /v1/energy/ledger did not return a chain — showing no qualified billable total.</div>
+      <div class="simnote"><b>Evidence tiers stay separate:</b> the <span style="color:var(--warn)">SAMPLE/ESTIMATE</span> joules-est above come from the budget layer. Historical signed receipts preserve REPORTED input and charge history; they do not prove a direct NVML counter method or exclusive per-job attribution. Qualified billable energy remains UNAVAILABLE pending that evidence.</div>
     </div>
   </div>
 
   <div class="footnote">
-    <b>Honest by design.</b> The Bekenstein gate is <b>F19 (locked-8) / TH6</b>, a machine-checked inequality (EnergyBudgetWitness.lean, 0-sorry) — Σ shannon_bits ≤ Σ output_bytes·8. <b>All joules-est figures are SAMPLE/ESTIMATE</b> (no on-box meter behind the budget layer); only the signed-ledger <code>joules_measured_billable</code> is MEASURED (real NVML deltas). The off-peak/normal/peak window is a <b>client-side clock heuristic, NOT a live tariff feed</b>. <b>No free-energy / perpetual-motion claims</b> — the engine harvests WASTED energy and proves bounded information work; harvest framing is MODELED/SAMPLE. Λ trust = <b>Conjecture 1</b> (advisory, never a theorem). <b>0 runtime CDN</b> — uPlot (MIT) + Apache ECharts (Apache-2.0) served same-origin from <code>/vendor/*</code>; system fonts. Poll ~5s; every value MEASURED-or-labeled, never fabricated.
+    <b>Honest by design.</b> The Bekenstein gate is <b>F19 (locked-8) / TH6</b>, a machine-checked inequality (EnergyBudgetWitness.lean, 0-sorry) — Σ shannon_bits ≤ Σ output_bytes·8. <b>All joules-est figures are SAMPLE/ESTIMATE</b> (no on-box meter behind the budget layer); <code>joules_measured_billable</code> is UNAVAILABLE until direct counter and exclusive-job evidence qualify it. The off-peak/normal/peak window is a <b>client-side clock heuristic, NOT a live tariff feed</b>. <b>No free-energy / perpetual-motion claims</b> — harvest framing is MODELED/SAMPLE. Λ trust = <b>Conjecture 1</b> (advisory, never a theorem). <b>0 runtime CDN</b> — uPlot (MIT) + Apache ECharts (Apache-2.0) served same-origin from <code>/vendor/*</code>; system fonts. Poll ~5s; every value MEASURED-or-labeled, never fabricated.
   </div>
 </div>
 
@@ -319,6 +319,12 @@ let mixChart=null;
 function renderMix(measBillable,sampleEst){
   const el=$('mix_chart'); if(!el||!window.echarts)return;
   if(!mixChart)mixChart=echarts.init(el,null,{renderer:'canvas'});
+  if(measBillable==null){
+    mixChart.setOption({animation:false,
+      title:{text:'billable energy unavailable',left:'center',top:'center',textStyle:{color:'#888',fontSize:11,fontFamily:'ui-monospace,monospace'}},
+      series:[]},true);
+    return;
+  }
   const m=Number(measBillable)||0, s=Number(sampleEst)||0;
   if(m<=0&&s<=0){
     mixChart.setOption({animation:false,
@@ -368,8 +374,9 @@ function renderSignedLedger(sl){
   $('sl_empty').style.display=ok?'none':'block';
   if(!ok)return;
   $('sl_jobs').textContent=sl.jobs!=null?sl.jobs:'—';
-  $('sl_meas').textContent=(sl.joules_measured_billable!=null?fmt(sl.joules_measured_billable,3):'0')+' J';
-  $('sl_kwh').textContent=sl.kwh_total!=null?fmt(sl.kwh_total,6)+' kWh':'—';
+  $('sl_meas').textContent=sl.joules_measured_billable!=null?fmt(sl.joules_measured_billable,3)+' J':'UNAVAILABLE';
+  $('sl_meas_label').textContent=(sl.joules_measured_label||'UNAVAILABLE').toLowerCase();
+  $('sl_kwh').textContent=sl.kwh_total!=null?fmt(sl.kwh_total,6)+' kWh':'UNAVAILABLE';
   const chainOk=sl.chain_ok===true;
   $('sl_chain').innerHTML=`<span style="color:${chainOk?'var(--green)':'var(--red)'}">${chainOk?'OK':'BROKEN'}</span> · len ${sl.chain_length!=null?sl.chain_length:'—'}`;
 }
@@ -420,13 +427,14 @@ async function loadAll(){
     const chain=ledger.chain||ledger;
     sl={available:true,
         jobs:(t.jobs!=null?t.jobs:sl.jobs),
-        joules_measured_billable:(t.joules_measured_billable!=null?t.joules_measured_billable:sl.joules_measured_billable),
-        kwh_total:(t.kwh_total!=null?t.kwh_total:sl.kwh_total),
+        joules_measured_billable:(Object.prototype.hasOwnProperty.call(t,'joules_measured_billable')?t.joules_measured_billable:sl.joules_measured_billable),
+        joules_measured_label:(t.joules_measured_label||sl.joules_measured_label||'UNAVAILABLE'),
+        kwh_total:(Object.prototype.hasOwnProperty.call(t,'kwh_total')?t.kwh_total:sl.kwh_total),
         chain_ok:(chain.ok!=null?chain.ok:(ledger.chain_ok!=null?ledger.chain_ok:sl.chain_ok)),
         chain_length:(chain.length!=null?chain.length:(ledger.chain_length!=null?ledger.chain_length:sl.chain_length))};
   }
   renderSignedLedger(sl);
-  // composition donut: MEASURED-billable vs SAMPLE-est
+  // No composition claim when the billable input is unavailable.
   renderMix(sl&&sl.joules_measured_billable, tj);
 }
 

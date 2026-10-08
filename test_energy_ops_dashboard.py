@@ -96,18 +96,15 @@ def test_all_honesty_chip_states_present():
     assert "function setChip" in p
 
 
-# --------------------------------------- (5) revenue never MEASURED-by-default
-def test_revenue_not_measured_until_charge_clears():
+# --------------------------------------- (5) revenue requires settlement readback
+def test_revenue_stays_unavailable_without_settlement_readback():
     p = _page()
-    # the "real cleared revenue" metric defaults to ZERO and only flips to
-    # MEASURED when realCents > 0 (a cleared charge) — never fabricated.
+    # Historical charge responses do not prove current settled revenue.
     assert 'id="m-real-chip"' in p
-    assert 'realCents > 0 ? "MEASURED" : "ZERO"' in p
-    # earnings-so-far is explicitly MODELED dry-run, not MEASURED
-    assert "dryRunTotal" in p
+    assert 'setChip(document.getElementById("m-real-chip"), "UNAVAILABLE")' in p
     assert 'id="m-earn-chip"' in p
-    # doctrine intent stated on the page
-    assert "until a real" in p.lower() and "charge clears" in p.lower()
+    assert 'document.getElementById("m-earn").textContent = "UNAVAILABLE"' in p
+    assert "historical charge responses are reported, not payment-settlement proof" in p.lower()
 
 
 # ----------------------------------------------- (6) degraded / NO-LIVE-DATA
