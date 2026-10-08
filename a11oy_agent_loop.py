@@ -306,15 +306,18 @@ class PlanNode:
 
 
 def _topo_order(nodes: list[PlanNode]) -> list[str]:
-    """Kahn topological sort. Raises ValueError on a cycle (DAG acyclicity guard)."""
+    """Kahn sort; reject ambiguous identities, missing dependencies and cycles."""
     ids = {n.id for n in nodes}
+    if len(ids) != len(nodes):
+        raise ValueError("plan DAG has a duplicate node id — rejected")
     indeg = {n.id: 0 for n in nodes}
     adj: dict[str, list[str]] = {n.id: [] for n in nodes}
     for n in nodes:
         for d in n.deps:
-            if d in ids:
-                adj[d].append(n.id)
-                indeg[n.id] += 1
+            if d not in ids:
+                raise ValueError(f"plan DAG has an unknown dependency: {n.id} -> {d}")
+            adj[d].append(n.id)
+            indeg[n.id] += 1
     queue = [nid for nid, dg in indeg.items() if dg == 0]
     order: list[str] = []
     while queue:
@@ -584,7 +587,18 @@ class AgentLoop:
             steps.append(env.as_dict())
             _emit("agent_step", env.as_dict())
 
+        def _budget_allows(transitions: int = 1) -> bool:
+            # Always reserve one terminal HALT receipt; never start a tool
+            # without room to observe and verify its result.
+            return step_no + transitions < self.max_steps
+
+        def _budget_halt() -> dict[str, Any]:
+            return self._halt(steps, f"max_steps={self.max_steps} budget reached", task,
+                              partial=bool(steps))
+
         # ---- INTAKE (Yuyay-13 framing) ------------------------------------
+        if not _budget_allows():
+            return _budget_halt()
         step_no += 1
         with _span("agent.intake"):
             env = M2MEnvelope(step=step_no, state=S_INTAKE,
@@ -595,6 +609,8 @@ class AgentLoop:
                 return self._halt(steps, "INTAKE failed Λ gate", task)
 
         # ---- PLAN (build + validate the DAG) ------------------------------
+        if not _budget_allows():
+            return _budget_halt()
         step_no += 1
         with _span("agent.plan"):
             try:
@@ -625,14 +641,14 @@ class AgentLoop:
 
         # ---- execute plan nodes (RETRIEVE / ACT / OBSERVE / VERIFY) -------
         for nid in order:
-            if step_no >= self.max_steps:
-                return self._halt(steps, f"max_steps={self.max_steps} budget reached", task,
-                                  partial=True)
             node = plan_by_id[nid]
 
             # final synthesis node has no tool — handled after the loop.
             if node.tool is None:
                 continue
+
+            if not _budget_allows(1 if node.tool == "rag_query" else 3):
+                return _budget_halt()
 
             # ----- RETRIEVE (only for rag_query nodes) ---------------------
             if node.tool == "rag_query":
@@ -659,7 +675,8 @@ class AgentLoop:
                     support = min(1.0, 0.5 + 0.1 * grounded)
                     env = self._gate_step(env, [support, conf, 0.95 if grounded else 0.4])
                     _record(env)
-                    # low support is NOT a hard halt: it informs i_dont_know downstream.
+                    if not env.gate_allow:
+                        return self._halt(steps, "RETRIEVE failed Λ gate", task)
                 continue
 
             # ----- ACT (one governed tool) + OBSERVE + VERIFY --------------
@@ -676,9 +693,8 @@ class AgentLoop:
                 env.khipu_hash = (gate.get("khipu_receipt") or {}).get("hash")
                 _record(env)
                 if not gate.get("allow"):
-                    # gate denial is honest refusal, not a crash — record + continue.
                     self.lessons.append(f"tool {node.tool} denied: {gate.get('reason')}")
-                    continue
+                    return self._halt(steps, f"ACT denied for {node.tool}", task)
                 tool_res = await self._do_tool(node.tool, node.args)
 
             # OBSERVE
@@ -694,6 +710,8 @@ class AgentLoop:
                                             0.95 if any(e.kind != "i_dont_know" for e in ev) else 0.5,
                                             0.95])
                 _record(env)
+                if not env.gate_allow:
+                    return self._halt(steps, f"OBSERVE failed Λ gate for {node.tool}", task)
 
             # VERIFY (Λ + conformal)
             step_no += 1
@@ -711,7 +729,8 @@ class AgentLoop:
                 env = self._gate_step(env, [0.96 if ok else 0.4, conf,
                                             0.95 if good else 0.5])
                 _record(env)
-                if not env.gate_allow and reflect_depth < self.max_reflect_depth:
+                if (not env.gate_allow and reflect_depth < self.max_reflect_depth
+                        and _budget_allows()):
                     # ----- REFLECT (Reflexion; bounded) -----------------------
                     reflect_depth += 1
                     step_no += 1
@@ -739,12 +758,27 @@ class AgentLoop:
                                      "max_depth": self.max_reflect_depth,
                                      "experimental_banach": banach}
                         _record(renv)
+                if not env.gate_allow:
+                    return self._halt(steps, f"VERIFY failed Λ gate for {node.tool}", task)
 
         # ---- FINALIZE -----------------------------------------------------
+        if not _budget_allows():
+            return _budget_halt()
         step_no += 1
         with _span("agent.finalize"):
             grounded = [e for e in accumulated_evidence if e.kind in ("file", "url", "formula", "test")]
             i_dont_know = len(grounded) == 0
+            conf = _conformal_floor(len(grounded))
+            gate_axes = [0.96, conf, 0.95 if grounded else 0.6]
+            env = M2MEnvelope(step=step_no, state=S_FINALIZE,
+                              intent="synthesize grounded, cited answer",
+                              conformal=conf, note=("i_dont_know" if i_dont_know else "grounded"))
+            # Evidence admission precedes inference and optional expression.
+            # The final gate below also includes any returned voice factor.
+            if not (_lambda(gate_axes) >= self.lambda_floor):
+                env = self._gate_step(env, gate_axes)
+                _record(env)
+                return self._halt(steps, "FINALIZE failed Λ gate", task)
             # Build the model context: task + history + grounded evidence.
             ev_lines = [f"- [{e.kind}] {e.ref}" + (f" (sha256={e.sha256[:12]}…)" if e.sha256 else "")
                         for e in grounded[:10]]
@@ -760,13 +794,12 @@ class AgentLoop:
             except Exception as exc:
                 completion = {"text": f"[honest error: model_complete failed: {str(exc)[:200]}]",
                               "model": "error", "stub": True}
-            conf = _conformal_floor(len(grounded))
             # OPTIONAL Wallpa (VOICE) fold-in — additive, default OFF. When enabled
             # and Wallpa is reachable, the governed answer is expressed and Wallpa's
-            # factor folds in as an extra admissible [0,1] gate axis (can only gate
-            # harder, never inflate). Disabled / unreachable ⇒ honest skip.
+            # factor adds a [0,1] axis. A geometric mean can rise or fall when an
+            # axis is appended; baseline admission was already required above.
+            # Disabled / unreachable ⇒ honest skip.
             wallpa: dict[str, Any] = {"status": "DISABLED"}
-            gate_axes = [0.96, conf, 0.95 if grounded else 0.6]
             if _wallpa_finalize_enabled():
                 spoken = _wallpa_speak_final(completion.get("text", ""))
                 if spoken is None:
@@ -777,11 +810,10 @@ class AgentLoop:
                     wallpa = {"status": "EXPRESSED", **spoken}
                     if isinstance(wf, (int, float)):
                         gate_axes.append(max(0.0, min(1.0, float(wf))))
-            env = M2MEnvelope(step=step_no, state=S_FINALIZE,
-                              intent="synthesize grounded, cited answer",
-                              conformal=conf, note=("i_dont_know" if i_dont_know else "grounded"))
             env = self._gate_step(env, gate_axes)
             _record(env)
+            if not env.gate_allow:
+                return self._halt(steps, "FINALIZE failed Λ gate", task)
             rec = self.khipu_emit("agent.finalize", {
                 "run_id": self.run_id, "steps": step_no, "grounded": len(grounded),
                 "i_dont_know": i_dont_know, "stub": bool(completion.get("stub")),

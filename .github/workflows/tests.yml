@@ -42,6 +42,9 @@ jobs:
           tests/test_operator_auth_code_routes.py
           tests/test_second_brain_bridge.py
           tests/test_code_completion_boundaries.py
+          tests/test_agent_loop_execution_guards.py
+          tests/test_nexus_bind.py
+          tests/test_nexus_readonly_evidence.py
 
   python-energy-measurement:
     name: Energy exporter measurement and null-evidence contract

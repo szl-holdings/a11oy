@@ -1,10 +1,8 @@
 {
   "files": {
-    ".github/workflows/readiness-contract.yml": "775af5a595edc3dad58526041e489b88383fdc19aa2c3a7928a3d66ee92d672b",
-    "szl_readiness.py": "007d3dbb849c69bf1469dc81afa35173390ac03768550e50b499b3df36a9a43d",
-    "tests/test_readiness_application_contract.py": "67f5c56c72028556c79214ee2d34ddec4f1a04a3ceddeaced256dfbd2d14dbc3",
-    "tests/test_readiness_sweep_contract.py": "09070b0bfd63610fbdaaa14ce6b51353f50a7658cf5d1189c9de018caf1cdaa5"
+    "a11oy_agent_loop.py": "289df7c62ea1d6d0edbb2fb1b5dcc2dfc34b87a12199f21fd3d16feef9adccfb",
+    "tests/test_agent_loop_execution_guards.py": "0e00f7d00d2e5fa698dee4f7e97cecaa9e9c38d0f693c043c1aa0aa804bc5ac9"
   },
-  "payload_id": "readiness-exact-source-witness-20261007-v1",
+  "payload_id": "agent-loop-execution-guards-20261008-v1",
   "schema": "szl-shared-source-payload/v1"
 }
