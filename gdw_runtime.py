@@ -220,19 +220,14 @@ def storage_contract(
 
 def _gate_existing_store(
     database: Path,
-    contract: Mapping[str, Any],
     environ: Mapping[str, str],
 ) -> Optional[dict[str, Any]]:
-    """Opt-in orphan-page repair of an existing store before any writer opens it.
+    """Classify an opted-in store, but never replace a live SQLite path.
 
-    Off by default: unless GDW_AUTO_REPAIR_ORPHAN_PAGES is explicitly true this
-    returns immediately and the regular writer path (which rolls back a hot
-    journal and runs its own integrity_check) is exactly the pre-repair code.
-    When enabled, SQLite crash recovery runs first (a read-only handle cannot
-    roll back a hot journal), then a read-only integrity classification; damage
-    that is exactly orphan pages AND whose page bytes prove no live data was
-    lost is repaired with preservation. Any other damage, or any repair
-    failure, raises so the caller degrades instead of serving writes.
+    The repair helper cannot exclude a second writer opening the replaced
+    pathname, and a post-replacement fsync error can leave an unverified live
+    file. Keep the process in degraded mode until a separately governed repair
+    can prove writer quiescence and rollback across that failure boundary.
     """
 
     if not gdw_sqlite_repair.auto_repair_enabled(environ):
@@ -249,45 +244,10 @@ def _gate_existing_store(
     observed = "; ".join(report["integrity"][:3])[:240]
     if not report["repairable"]:
         raise GDWRuntimeError(f"GDW SQLite integrity check failed: {observed}")
-    mount = contract.get("required_mount")
-    try:
-        receipt = gdw_sqlite_repair.repair_orphan_pages(
-            database,
-            label="gdw",
-            forbidden_root=Path(mount) if mount else None,
-        )
-    except Exception as exc:
-        print(
-            "[gdw-runtime] orphan-page repair refused/failed: "
-            f"{type(exc).__name__}: {str(exc)[:500]}",
-            file=sys.stderr,
-        )
-        raise GDWRuntimeError(
-            f"GDW orphan-page auto-repair failed: {_error_code(exc)}"
-        ) from exc
-    summary = {
-        "schema": receipt["schema"],
-        "status": receipt["status"],
-        "orphan_page_count": len(receipt["orphan_pages"]),
-        "orphan_pages": receipt["orphan_pages"][:64],
-        "original_sha256": receipt["original"]["sha256"],
-        "candidate_sha256": receipt["candidate"]["sha256"],
-        "logical_sha256": receipt["logical_fingerprint"]["sha256"],
-        "page_proof": receipt["orphan_page_evidence"]["proof"],
-        # Basenames only: this summary is served on public health routes.
-        "preserved_name": Path(receipt["original"]["preserved_path"]).name,
-        "receipt_name": Path(receipt["receipt_path"]).name,
-        "applied_at": receipt["applied_at"],
-    }
-    print(
-        "[gdw-runtime] orphan-page auto-repair APPLIED: "
-        + json.dumps(summary, sort_keys=True)
-        + f" receipt={receipt['receipt_path']}",
-        file=sys.stderr,
+    raise GDWRuntimeError(
+        "GDW SQLite orphan-page repair BLOCKED: writer quiescence and "
+        "atomic replacement are unproven"
     )
-    with _STATE_LOCK:
-        _STATE["storage_repair"] = summary
-    return summary
 
 
 def prepare_runtime(
@@ -329,7 +289,7 @@ def prepare_runtime(
         _verify_writable_directory(database.parent)
         _verify_writable_directory(proof_dir)
         _verify_writable_directory(receipt_dir)
-        orphan_page_repair = _gate_existing_store(database, contract, values)
+        orphan_page_repair = _gate_existing_store(database, values)
         workspace = GDWWorkspace(
             str(database),
             namespace=(os.environ.get("GDW_NAMESPACE") or "a11oy"),
