@@ -541,8 +541,8 @@ def _fetch_one_meter(url: str, timeout: float) -> Optional[dict]:
     try:
         # Browser-like UA so a Cloudflare-fronted meter (e.g. meter.a-11-oy.com)
         # does not 403 the request behind bot protection. Honest self-probe.
-        req = urllib.request.Request(url, headers={"User-Agent": _PROBE_UA})
-        with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310
+        from szl_meter_access import open_meter_get
+        with open_meter_get(url, timeout=timeout, headers={"User-Agent": _PROBE_UA}) as r:
             return json.loads(r.read().decode("utf-8", "replace"))
     except Exception:  # noqa: BLE001 — unreachable meter => no sample, stay honest
         return None
