@@ -1,4 +1,4 @@
-"""Opt-in, proof-gated repair for SQLite stores whose only damage is orphan pages.
+"""Experimental orphan-page repair helper for isolated SQLite stores.
 
 ``PRAGMA integrity_check`` reports ``Page N: never used`` for a page that no
 b-tree and no freelist references. That alone does NOT prove nothing was lost:
@@ -17,13 +17,11 @@ orphan pages are positively proven to hold no live data, and nothing else:
    listed leaf itself an orphan page, at least one leaf, every page not in the
    chain all-zero). An orphan b-tree page with cells, an overflow page, or
    anything else unexplained is refused and left for an operator;
-3. hold a SQLite write reservation (``BEGIN IMMEDIATE``) on the original for
-   the whole repair, so no writer on this host can commit between the
-   preservation copy and the swap, and re-check the original's sha256
-   immediately before the swap. (Advisory locks do not reach writers on other
-   hosts of a network/FUSE mount; that is why repair is opt-in and must only
-   be enabled when a single writer is guaranteed, for example while the
-   previous container is BLOCKED or the Space is paused.);
+3. hold a SQLite write reservation (``BEGIN IMMEDIATE``) on the original and
+   re-check its sha256 before replacement. This reservation does not protect
+   the new inode after ``os.replace``; a second opener can write to that path
+   while the reservation remains held. Cross-host writers need a separate
+   exclusion proof;
 4. open the original read-only and ``VACUUM INTO`` a candidate in a local temp
    directory (never on the storage mount); require candidate
    ``integrity_check == ok``, an empty ``foreign_key_check`` and a logical
@@ -34,9 +32,10 @@ orphan pages are positively proven to hold no live data, and nothing else:
 6. swap the candidate in through ``<db>.repair-tmp`` + fsync + ``os.replace``
    + directory fsync, then re-verify integrity and the fingerprint.
 
-Repair is OFF unless ``GDW_AUTO_REPAIR_ORPHAN_PAGES`` is explicitly true. The
-original is never deleted. Any failure raises :class:`OrphanRepairError` and
-the caller is expected to keep serving in a degraded, write-refusing mode.
+The runtime does not invoke this helper, even when
+``GDW_AUTO_REPAIR_ORPHAN_PAGES`` is true: writer exclusion and rollback after
+post-replacement fsync failure remain unproven. The original is never deleted.
+This helper is not a qualified production repair procedure.
 """
 
 from __future__ import annotations
@@ -75,10 +74,10 @@ class OrphanRepairError(RuntimeError):
 
 
 def auto_repair_enabled(environ: Optional[Mapping[str, str]] = None) -> bool:
-    """Default OFF; only an explicit true-like value enables repair.
+    """Default OFF; an explicit true-like value enables runtime classification.
 
-    Enable it only when a single writer is guaranteed (see the module
-    docstring): cross-host writers on a FUSE mount do not see SQLite locks.
+    A damaged store remains BLOCKED even when this flag is true. The flag does
+    not authorize live-file replacement or establish writer quiescence.
     """
 
     values = os.environ if environ is None else environ
@@ -459,8 +458,8 @@ def repair_orphan_pages(
     if sidecars:
         raise OrphanRepairError("UNCHECKPOINTED_SIDECAR_PRESENT", ",".join(sidecars))
 
-    # Write reservation for the whole repair: readers (our read-only handles)
-    # proceed, but no writer on this host can commit until the swap is done.
+    # This reserves the original inode only. It cannot exclude a writer that
+    # opens the new inode after os.replace; production runtime blocks this path.
     guard = sqlite3.connect(str(database), timeout=30, isolation_level=None)
     try:
         guard.execute("BEGIN IMMEDIATE")
