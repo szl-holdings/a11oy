@@ -10,7 +10,6 @@ import argparse
 import ast
 import base64
 from dataclasses import dataclass
-from functools import lru_cache
 import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
@@ -48,7 +47,6 @@ def json_response(status, payload):
     return FixtureResponse(status, json.dumps(payload).encode("utf-8"))
 
 
-@lru_cache(maxsize=2)
 def pinned_fonts(root):
     """Read the two real font literals without importing or executing backend code."""
     try:

@@ -13,7 +13,7 @@ from urllib.parse import urlsplit, parse_qs
 
 from playwright.sync_api import sync_playwright
 from console_lighthouse_fixture import (
-    ROOT, CONSOLE_SHA256, SOURCE_REVISION, VENDOR_SOURCE_SHA256, FONT_SHA256, resolve_request, response_headers,
+    ROOT, CONSOLE_SHA256, SOURCE_REVISION, VENDOR_SOURCE_SHA256, FONT_SHA256, pinned_fonts, resolve_request, response_headers,
 )
 from measure_console_lighthouse import capacity, FixtureServer, BoundedFixtureHandler
 from test_console_focused_theme import MEASURE
@@ -40,12 +40,16 @@ def run(output):
     if min(admission.values()) < 2 * 1024**3:
         raise RuntimeError(f'Resource admission failed: {admission}')
     assert hashlib.sha256((ROOT / 'pages/console.html').read_bytes()).hexdigest() == CONSOLE_SHA256
+    fonts, font_error = pinned_fonts(ROOT)
+    if font_error:
+        raise RuntimeError(f'Font source admission failed: {font_error}')
     output.mkdir(parents=True, exist_ok=False)
     server = FixtureServer(('127.0.0.1', 0), BoundedFixtureHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     origin = f'http://127.0.0.1:{server.server_port}'
     checks, requests, errors, measurements, resource_samples = [], [], [], [], []
+    pending_font_responses, font_responses = [], []
     current = {'id': '', 'expected': 'fleet', 'denied': None, 'malformed': False}
     deadline = time.monotonic() + 900
 
@@ -100,6 +104,8 @@ def run(output):
         check_bounds('before navigation')
         page = context.new_page()
         page.on('pageerror', lambda error: errors.append({'case': case, 'error': str(error)}))
+        page.on('response', lambda response: pending_font_responses.append((case, response))
+                if urlsplit(response.url).path.removeprefix('/vendor/') in FONT_SHA256 else None)
         before = len(requests)
         page.goto(origin + target, wait_until='load', timeout=60000)
         check_bounds('after navigation')
@@ -111,6 +117,15 @@ def run(output):
                 page.wait_for_selector(SELECTORS[expected], timeout=15000)
         page.wait_for_timeout(500)
         check_bounds('after initial render')
+        own_fonts = []
+        for response_case, response in pending_font_responses:
+            if response_case == case:
+                name = urlsplit(response.url).path.removeprefix('/vendor/')
+                own_fonts.append({'case': case, 'name': name, 'status': response.status,
+                                  'sha256': hashlib.sha256(response.body()).hexdigest()})
+        font_responses.extend(own_fonts)
+        check('both real pinned fonts loaded', {row['name'] for row in own_fonts} == set(FONT_SHA256)
+              and all(row['status'] == 200 and row['sha256'] == FONT_SHA256[row['name']] for row in own_fonts), own_fonts)
         parsed = urlsplit(page.url)
         check('requested canonical URL retained', f'{parsed.scheme}://{parsed.netloc}' == origin and
               parse_qs(parsed.query).get('view') == [expected], page.url)
@@ -225,6 +240,7 @@ def run(output):
                   'vendor_source_sha256': VENDOR_SOURCE_SHA256, 'font_sha256': FONT_SHA256,
                   'checks': checks, 'errors': errors, 'requests': requests, 'measurements': measurements,
                   'resource_samples': resource_samples, 'deadline_seconds': 900,
+                  'font_source_admitted': True, 'font_responses': font_responses,
                   'completed_capacity': capacity(), 'forced_go_calls': False}
         (output / 'initial-load-report.json').write_text(json.dumps(report, indent=2), encoding='utf-8')
     failed = [c for c in checks if not c['passed']]

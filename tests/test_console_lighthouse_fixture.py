@@ -147,6 +147,23 @@ def test_vendor_literals_are_never_executed(tmp_path, monkeypatch):
     assert not sentinel.exists()
 
 
+@pytest.mark.parametrize("change", ["tamper", "delete"])
+def test_vendor_source_is_revalidated_after_success(tmp_path, change):
+    source = tmp_path / "_vendor_blobs.py"
+    source.write_bytes((qa.ROOT / "_vendor_blobs.py").read_bytes())
+    target = "/vendor/fonts/SpaceGrotesk.woff2"
+    assert fixture.resolve_request(target, "GET", HOST, PORT, root=tmp_path).status == 200
+    if change == "tamper":
+        source.write_text("_B64 = {}")
+    else:
+        source.unlink()
+    response = fixture.resolve_request(target, "GET", HOST, PORT, root=tmp_path)
+    assert response.status == 409
+    assert json.loads(response.body)["state"] == "UNAVAILABLE"
+    source.write_bytes((qa.ROOT / "_vendor_blobs.py").read_bytes())
+    assert fixture.resolve_request(target, "GET", HOST, PORT, root=tmp_path).status == 200
+
+
 def test_headers_block_external_subresources_without_false_runtime_claims():
     response = fixture.resolve_request("/__fixture__/manifest", "GET", HOST, PORT)
     headers = fixture.response_headers(response)
