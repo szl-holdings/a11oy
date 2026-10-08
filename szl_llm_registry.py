@@ -57,6 +57,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from szl_provider_http import http_json as _bounded_http_json
+from szl_operator_auth import operator_refusal
 
 DOCTRINE = "v11"
 _KERNEL = "c7c0ba17"
@@ -941,7 +942,8 @@ def sovereign_mesh_matrix(timeout: float | None = None) -> dict[str, Any]:
     }
 
 
-def sovereign_mesh_generate(prompt: str, timeout: float | None = None) -> dict[str, Any]:
+def sovereign_mesh_generate(prompt: str, timeout: float | None = None,
+                            *, matrix: dict[str, Any] | None = None) -> dict[str, Any]:
     """Own-metal-first generation across the mesh. Probe nodes in order; run a REAL
     guarded generate against the FIRST reachable node; else HONEST UNAVAILABLE.
 
@@ -949,7 +951,10 @@ def sovereign_mesh_generate(prompt: str, timeout: float | None = None) -> dict[s
              matrix, note}. wired/live are True ONLY when a node answered live
     THIS request. NEVER fabricates text or reachability.
     """
-    matrix = sovereign_mesh_matrix()
+    # The POST router may already have probed to decide own-metal-first. Reuse
+    # that same bounded observation so an opt-out cannot generate speculatively.
+    if matrix is None:
+        matrix = sovereign_mesh_matrix()
     sel = matrix.get("selected")
     res: dict[str, Any] = {
         "wired": False, "live": False, "text": None,
@@ -1381,9 +1386,13 @@ def register(app: FastAPI) -> dict:
         runs behind the profile system layer + the SAME Λ-gate, and the response
         carries a SIGNED harness receipt naming the profile (id+version+sha256,
         model_id, Λ axes, provenance). This is the governed analogue of how the
-        leaders attach/switch a persona on a step. Falls back to plain routing if
-        the harness module is unavailable (honest note; never crashes).
+        leaders attach/switch a persona on a step. A missing harness fails closed.
         """
+        # The app-level operator middleware is installed in serve.py. Enforce
+        # the same boundary locally for any alternate app that calls register().
+        refusal = operator_refusal(request, "LLM routing and inference")
+        if refusal is not None:
+            return refusal
         try:
             body = await request.json()
         except Exception:
@@ -1419,14 +1428,13 @@ def register(app: FastAPI) -> dict:
                     "conjecture_note": "Λ = Conjecture 1 — advisory, never 'green'.",
                 })
             except Exception as _he:
-                # honest fallback: harness unavailable — proceed with plain routing
-                _harness_fallback_note = ("harness_profile_id '%s' requested but harness "
-                                          "unavailable (%s); fell back to plain routing."
-                                          % (harness_profile_id, type(_he).__name__))
-            else:
-                _harness_fallback_note = None
-        else:
-            _harness_fallback_note = None
+                # A requested profile is a policy boundary, not an optional
+                # decoration. Never run plain inference after its failure.
+                return JSONResponse({
+                    "ok": False, "status": "UNAVAILABLE",
+                    "error": "requested harness unavailable",
+                    "reason_class": type(_he).__name__,
+                }, status_code=503)
 
         prompt = str(body.get("prompt", ""))
         axis_scores: list[float] = body.get("axis_scores") or [
@@ -1464,6 +1472,11 @@ def register(app: FastAPI) -> dict:
             _sovereign_env_present() and not _any_cloud_wired
             and str(body.get("offline_mode", "")).lower() in ("1", "true", "yes")
         )
+        if _opted_out and (_explicit_sovereign or _offline_pref):
+            return JSONResponse({
+                "ok": False, "status": "BLOCKED",
+                "error": "conflicting sovereign request and local opt-out",
+            }, status_code=400)
         # OWN-METAL-FIRST over the MESH (Wave N, Dev 3): probe the PRIMARY node
         # (SZL_LOCAL_LLM_URL) plus every SZL_SOVEREIGN_NODES tailnet node, short
         # timeout, in own-metal-first order. If ANY node is reachable this request
@@ -1471,13 +1484,18 @@ def register(app: FastAPI) -> dict:
         # caller explicitly requested sovereign we ALSO select it (even when NO node
         # is reachable) so we can return an honest UNAVAILABLE. We fall THROUGH to
         # free/paid ONLY when NO sovereign node is reachable and no explicit intent.
-        _mesh_gen = sovereign_mesh_generate(prompt or _DEFAULT_SOVEREIGN_PROMPT)
-        matrix = _mesh_gen.get("matrix", {})
+        # A caller who selected a non-sovereign route and opted out must not
+        # even probe the private mesh. Otherwise probe metadata first; a probe
+        # alone never runs generation or emits an inference receipt.
+        matrix = (sovereign_mesh_matrix()
+                  if (_explicit_sovereign or _offline_pref or not _opted_out)
+                  else {})
         _mesh_reachable = bool(matrix.get("any_reachable"))
         _own_metal_first = _mesh_reachable and not _opted_out
         _want_sovereign = _explicit_sovereign or _offline_pref or _own_metal_first
         if _want_sovereign:
-            gen = _mesh_gen
+            gen = sovereign_mesh_generate(
+                prompt or _DEFAULT_SOVEREIGN_PROMPT, matrix=matrix)
             _generated = bool(gen.get("live") and gen.get("text"))
             _generation_receipt = {"ok": False, "inference_receipted": False,
                                    "reason": "no successful generation to receipt"}
@@ -1500,8 +1518,10 @@ def register(app: FastAPI) -> dict:
                 configured=_sovereign_env_present(),
                 reachable=_mesh_reachable,
                 model_ready=bool(gen.get("model_ready")),
-                inference_receipted=bool(
-                    _generation_receipt.get("inference_receipted")))
+                inference_receipted=(
+                    _generation_receipt.get("ok") is True
+                    and _generation_receipt.get("inference_receipted") is True
+                    and bool(_generation_receipt.get("receipt_hash"))))
             # Prefer the first-class Wave-M backend id; fall back to legacy alias.
             sov_model = (_MODEL_BY_ID.get(_SOVEREIGN_BACKEND_ID)
                          or _MODEL_BY_ID.get(_SOVEREIGN_LEGACY_ID)
@@ -1530,8 +1550,10 @@ def register(app: FastAPI) -> dict:
                 response_text = gen.get("text") or ""
             elif _generated:
                 sov_reason += ("node generated real text, but durable inference receipt "
-                               "did not verify; provider remains unreceipted.")
-                response_text = gen.get("text") or ""
+                               "did not verify; output withheld and provider remains unreceipted.")
+                response_text = ("[UNAVAILABLE] Provider generated text, but its "
+                                 "durable inference receipt did not verify. "
+                                 "Output withheld; no operational claim.")
             elif _mesh_reachable:
                 sov_reason += ("node %s reachable but did not generate live — honest "
                                "UNAVAILABLE (never fabricate)." % gen.get("base_url"))
@@ -1586,8 +1608,52 @@ def register(app: FastAPI) -> dict:
                 "doctrine": DOCTRINE, "kernel_commit": _KERNEL,
                 "conjecture_note": "Λ = Conjecture 1 — NOT a theorem. CAUCHY_ND sorry open.",
             }
+            _receipt_failed_after_generation = _generated and not _state["operational"]
+            if _receipt_failed_after_generation:
+                # A failed replay may carry arbitrary backend/ledger diagnostics.
+                # Keep the fact that compute happened, but never release its text,
+                # raw provider body, private endpoint, or unverified receipt data.
+                _generation_receipt = {
+                    "ok": False, "inference_receipted": False,
+                    "reason": "durable inference receipt unavailable",
+                }
+                sov_receipt = {k: sov_receipt[k] for k in (
+                    "schema", "ts", "hub", "lambda", "lambda_floor",
+                    "tier_selected", "model_id", "reason", "task_hint",
+                    "own_metal_first", "configured", "reachable", "model_ready",
+                    "generated", "inference_receipted", "operational", "state",
+                    "label", "mesh_node_count", "mesh_reachable_count",
+                    "doctrine", "kernel_commit", "conjecture_note")}
+                sov_enriched = {
+                    "model_id": sov_model.get("model_id"),
+                    "configured": _state["configured"],
+                    "reachable": _state["reachable"],
+                    "model_ready": _state["model_ready"],
+                    "generated": True,
+                    "inference_receipted": False,
+                    "operational": False,
+                    "wired": False,
+                    "honest_stub": True,
+                    "state": _state["state"],
+                    "label": _state["state"],
+                }
+                _local_response = {
+                    "live": bool(gen.get("live")),
+                    "generated": True,
+                    "model_ready": bool(gen.get("model_ready")),
+                }
+                _mesh_response = {k: matrix.get(k) for k in (
+                    "node_count", "reachable_count", "any_reachable")}
+            else:
+                _local_response = {k: gen.get(k) for k in
+                                   ("wired", "live", "generated", "api_style",
+                                    "base_url", "role", "node_index", "model",
+                                    "model_ready", "model_resolution", "note")
+                                   if k in gen}
+                _mesh_response = matrix
             _forum_append(
-                {**sov_receipt, "prompt_preview": prompt[:80] if prompt else "",
+                {**sov_receipt, "prompt_preview": ("" if _receipt_failed_after_generation
+                                                 else prompt[:80] if prompt else ""),
                  "source": "a11oy"},
                 routing_decision=True,
             )
@@ -1605,18 +1671,14 @@ def register(app: FastAPI) -> dict:
                 "routed_via": "%s via sovereign_mesh (%s)" % (
                     sov_model.get("model_id"),
                     gen.get("api_style") if _generated else "honest UNAVAILABLE"),
-                "local": {k: gen.get(k) for k in
-                          ("wired", "live", "generated", "api_style", "base_url", "role",
-                           "node_index", "model", "model_ready", "model_resolution",
-                           "note", "raw")
-                          if k in gen},
-                "sovereign_mesh": matrix,
+                "local": _local_response,
+                "sovereign_mesh": _mesh_response,
                 "doctrine": DOCTRINE,
                 "conjecture_note": "Λ = Conjecture 1 — advisory, never 'green'/theorem.",
             }
-            if _harness_fallback_note:
-                _sov_resp["harness_note"] = _harness_fallback_note
-            return JSONResponse(_sov_resp)
+            return JSONResponse(
+                _sov_resp,
+                status_code=503 if _receipt_failed_after_generation else 200)
         # else: NO sovereign node reachable AND no explicit/offline intent — fall
         # THROUGH to the free/paid tier selection below (honest, no fabrication).
 
@@ -1714,8 +1776,6 @@ def register(app: FastAPI) -> dict:
             "lambda_receipt": receipt,
             "doctrine": DOCTRINE,
         }
-        if _harness_fallback_note:
-            _resp["harness_note"] = _harness_fallback_note
         return JSONResponse(_resp)
 
     # ── GET /api/a11oy/v1/llm/forum ──────────────────────────────────────────
