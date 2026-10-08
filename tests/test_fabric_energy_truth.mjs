@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 const page = readFileSync(new URL('../pages/fabric.html', import.meta.url), 'utf8');
-const inline = page.match(/<script>\s*([\s\S]*?)<\/script>/)?.[1];
+const inline = page.match(/<script>\s*([\s\S]*?)<\/script>/i)?.[1];
 assert.ok(inline, 'fabric inline script exists');
 assert.match(inline, /\nloadAll\(\);\s*$/);
 assert.doesNotMatch(page, /0 J \(unmeasured\)|joules MEASURED per node/);
