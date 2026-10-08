@@ -21,8 +21,8 @@ DESIGN — READS the Brain, never re-computes it, never fabricates:
     HONEST pulse locally from the already-shipped organs:
         - knowledge  ← a11oy_brain_graph (distinct_artifacts / node_count, the honest
                         headline the graph itself publishes; MODELED label)
-        - energy     ← szl_energy_ledger totals (MEASURED joules if the ledger has
-                        real NVML-attested entries, else honest MODELED/UNAVAILABLE)
+        - energy     ← szl_energy_ledger totals (MEASURED joules only with an
+                        explicit verified attribution label; else UNAVAILABLE)
         - surfaces   ← szl3d_holographic.SURFACES count (the lit living body)
     and we tag the pulse `source:"local-fallback"` + `pulse_ok:false` so a consumer
     knows the hub is not yet the source of truth. NEVER a fabricated joule; UNAVAILABLE
@@ -52,6 +52,7 @@ from __future__ import annotations
 import datetime
 import hashlib
 import json
+import math
 from typing import Any, Optional
 
 try:
@@ -138,37 +139,45 @@ def _knowledge_summary(ns: str = "a11oy") -> dict:
 
 
 # --------------------------------------------------------------------------- #
-# Energy summary — MEASURED joules only from the real ledger; MODELED for dry-run
-# projections; UNAVAILABLE when the ledger/telemetry is absent. NEVER fabricate.
+# Energy summary — legacy positive ledger totals do not prove job attribution.
+# Only an explicit verified attribution label can promote joules to MEASURED.
 # --------------------------------------------------------------------------- #
 def _energy_summary() -> dict:
     try:
         import szl_energy_ledger as _el
         ledger = _el.get_ledger()
         t = ledger.totals()
-        joules_measured = t.get("joules_measured_billable", 0.0) or 0.0
+        raw_joules = t.get("joules_measured_billable")
+        try:
+            joules_measured = float(raw_joules)
+        except (TypeError, ValueError):
+            joules_measured = 0.0
         jobs = t.get("jobs", 0) or 0
-        # Honest label selection: MEASURED only when the ledger carries real
-        # NVML-attested billable joules; else MODELED (dry-run projection) if there
-        # are jobs at all; else UNAVAILABLE (nothing harnessed yet — never faked).
-        if joules_measured > 0.0:
-            label = LBL_MEASURED
-        elif jobs > 0:
-            label = LBL_MODELED
-        else:
-            label = LBL_UNAVAILABLE
+        verified = (t.get("joules_measured_label") == LBL_MEASURED
+                    and t.get("attribution_verified") is True
+                    and isinstance(t.get("attribution_method"), str)
+                    and bool(t.get("attribution_method").strip())
+                    and isinstance(t.get("attribution_version"), int)
+                    and not isinstance(t.get("attribution_version"), bool)
+                    and t.get("attribution_version") >= 1
+                    and math.isfinite(joules_measured) and joules_measured > 0.0)
+        label = LBL_MEASURED if verified else LBL_UNAVAILABLE
         return {
             "label": label,
-            "joules_measured_billable": round(float(joules_measured), 6),
-            "kwh_total": t.get("kwh_total"),
+            "joules_measured_billable": round(joules_measured, 6) if verified else None,
+            "joules_measured_label": label,
+            "joules_measured_reason": t.get("joules_measured_reason"),
+            "attribution_method": t.get("attribution_method") if verified else None,
+            "attribution_version": t.get("attribution_version") if verified else None,
+            "kwh_total": t.get("kwh_total") if verified else None,
             "tokens_total": t.get("tokens_total"),
             "jobs": jobs,
-            "would_charge_cents": t.get("would_charge_cents"),  # MODELED dry-run
-            "charged_cents": t.get("charged_cents"),            # MEASURED cleared
+            "would_charge_cents": t.get("would_charge_cents") if verified else None,
+            "charged_cents": t.get("charged_cents") if verified else None,
             "source": "szl_energy_ledger",
-            "note": ("MEASURED = real NVML-attested billable joules in the chain; "
-                     "MODELED = dry-run projection; UNAVAILABLE = no telemetry. "
-                     "Joules are never fabricated."),
+            "note": ("MEASURED requires explicit verified job attribution from the ledger. "
+                     "Legacy positive totals and chain integrity alone are not measurement "
+                     "proof; UNAVAILABLE means no current billable joules are asserted."),
         }
     except Exception as e:
         return {
@@ -362,7 +371,7 @@ def build_subscribe(
             "policy": "equal-share floor over lit surfaces",
             "note": ("MODELED equal-share allocation over the currently lit surfaces "
                      "from the harnessed-energy pool; not a live per-organ meter. "
-                     "UNAVAILABLE when no measured joules are in the ledger."),
+                     "UNAVAILABLE when no verified billable joules are in the ledger."),
         },
         "knowledge": {
             "label": (LBL_MODELED if knowledge.get("distinct_artifacts") is not None else LBL_UNAVAILABLE),
