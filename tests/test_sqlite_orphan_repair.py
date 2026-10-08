@@ -468,28 +468,21 @@ def _orphan_gdw_store(monkeypatch, tmp_path):
     return first, database, healthy
 
 
-def test_prepare_runtime_auto_repairs_orphan_pages_and_stays_ready(monkeypatch, tmp_path):
-    first, database, healthy = _orphan_gdw_store(monkeypatch, tmp_path)
+def test_prepare_runtime_blocks_orphan_pages_without_replacing_live_store(monkeypatch, tmp_path):
+    _first, database, _healthy = _orphan_gdw_store(monkeypatch, tmp_path)
     monkeypatch.setenv(repair.AUTO_REPAIR_ENV, "1")
-    damaged_sha = _sha(database)
+    damaged_bytes = database.read_bytes()
+    monkeypatch.setattr(
+        repair,
+        "repair_orphan_pages",
+        lambda *_a, **_k: pytest.fail("runtime called unsafe live-file replacement"),
+    )
 
-    observed = gdw_runtime.prepare_runtime()
+    with pytest.raises(gdw_runtime.GDWRuntimeError, match="repair BLOCKED"):
+        gdw_runtime.prepare_runtime()
 
-    assert observed["sqlite_integrity"] == "ok"
-    assert observed["database_generation_id"] == first["database_generation_id"]
-    summary = observed["orphan_page_repair"]
-    assert summary["status"] == "APPLIED"
-    assert summary["original_sha256"] == damaged_sha
-    assert summary["logical_sha256"] == healthy["sha256"]
-    assert summary["page_proof"] == "FORMER_FREELIST_CHAIN"
-    # Public summary carries basenames only, never absolute storage paths.
-    assert "preserved_path" not in summary and "receipt_path" not in summary
-    assert os.sep not in summary["preserved_name"]
-    assert _sha(database.parent / summary["preserved_name"]) == damaged_sha
-    assert (database.parent / summary["receipt_name"]).is_file()
-    health = gdw_runtime.runtime_health()
-    assert health["startup_state"] == "READY"
-    assert health["storage_repair"]["receipt_name"] == summary["receipt_name"]
+    assert database.read_bytes() == damaged_bytes
+    assert not list(database.parent.glob("*.orphan-pages-*"))
 
 
 @pytest.mark.parametrize("flag", [None, "0"])
@@ -518,10 +511,10 @@ def test_prepare_runtime_refuses_stranded_rows_even_with_opt_in(monkeypatch, tmp
     monkeypatch.setenv(repair.AUTO_REPAIR_ENV, "1")
     before = database.read_bytes()
 
-    with pytest.raises(gdw_runtime.GDWRuntimeError, match="auto-repair failed") as raised:
+    with pytest.raises(gdw_runtime.GDWRuntimeError, match="repair BLOCKED") as raised:
         gdw_runtime.prepare_runtime()
 
-    assert "ORPHAN_PAGE_CONTENT_UNPROVEN" in str(raised.value)
+    assert "writer quiescence" in str(raised.value)
     assert database.read_bytes() == before
     assert not list(database.parent.glob("*.orphan-pages-*"))
 
