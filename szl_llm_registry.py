@@ -1246,6 +1246,65 @@ def _enrich_model(m: dict, *, probe_local: bool = False) -> dict:
     out["label"] = out["state"]
     return out
 
+
+_PUBLIC_REGISTRY_CATALOG_FIELDS = (
+    "model_id", "display_name", "provider_slug", "tier", "tier_name",
+    "context_window", "modalities", "streaming", "open_weight", "tier_band",
+)
+
+
+def _public_registry_model(enriched: dict) -> dict:
+    """Project an internal routing row into a bounded anonymous catalog row.
+
+    Internal rows retain endpoint, selected/served-model, and receipt-ledger
+    details for POST routing. A public GET has no current source/revision-bound
+    inference proof: a historical receipt and a metadata probe cannot promote
+    this row to operational or assert sovereign ownership.
+    """
+    out = {key: enriched[key] for key in _PUBLIC_REGISTRY_CATALOG_FIELDS
+           if key in enriched}
+    is_sovereign = enriched.get("model_id") in (
+        _SOVEREIGN_LEGACY_ID, _SOVEREIGN_BACKEND_ID)
+    configured = bool(enriched.get("configured"))
+    reachable = bool(enriched.get("reachable"))
+    model_ready = bool(enriched.get("model_ready"))
+    historical_receipt = bool(enriched.get("inference_receipted"))
+    is_local = bool(enriched.get("is_local"))
+    if is_sovereign:
+        # These are declared catalog identities, not proof of owned GPU,
+        # served weights, or the Doctrine wrapper.
+        out["display_name"] = "SZL sovereign route (declared)"
+        out["provider_slug"] = "szl-sovereign"
+        if "local_live" in enriched:
+            public_state = "UNKNOWN" if reachable else "UNAVAILABLE"
+        else:
+            public_state = "UNKNOWN" if configured else "UNAVAILABLE"
+    elif is_local:
+        public_state = "UNKNOWN" if enriched.get("runtime_available") else "UNAVAILABLE"
+    else:
+        public_state = (_STATE_CONFIGURED_UNVERIFIED if configured
+                        else _STATE_OFFLINE_UNTIL_KEYED)
+    out.update({
+        "catalog_evidence": "DECLARED",
+        # A configured sovereign endpoint is not an API key or authenticated
+        # inference; the legacy key bit must not paint it green on public UI.
+        "api_key_wired": bool(enriched.get("api_key_wired")) and not is_sovereign,
+        "configured": configured,
+        "reachable": reachable,
+        "model_ready": model_ready,
+        "is_local": is_local,
+        "historical_inference_receipted": historical_receipt,
+        "receipt_binding": "UNKNOWN" if historical_receipt else "UNAVAILABLE",
+        "inference_receipted": False,
+        "operational": False,
+        "wired": False,
+        "honest_stub": True,
+        "state": public_state,
+        "label": ("UNKNOWN" if (public_state == "UNKNOWN" or
+                                (not is_local and configured)) else "UNAVAILABLE"),
+    })
+    return out
+
 def _seed_forum() -> None:
     """Seed forum with honest boot events."""
     _forum_append({
@@ -1274,61 +1333,55 @@ def register(app: FastAPI) -> dict:
 
     @app.get("/api/a11oy/v1/llm/registry")
     async def llm_registry(probe: int = 0) -> JSONResponse:
-        """Canonical LLM model roster — a11oy is the hub for ALL models.
-
-        Every model carries an honest badge block {wired, provider, env_used,
-        base_url, honest_stub, is_local} computed from _api_key_wired(env_var) at
-        REQUEST time (never hardcoded). `?probe=1` additionally pings the sovereign
-        local node so its badge reports live+served models THIS request.
-        """
+        """Anonymous declared catalog; optional probe returns bounded metadata."""
         do_probe = bool(probe)
-        models = [_enrich_model(m, probe_local=do_probe) for m in MODEL_REGISTRY]
+        models = [_public_registry_model(_enrich_model(m, probe_local=do_probe))
+                  for m in MODEL_REGISTRY]
         wired = [m for m in models if m.get("wired")]
         configured = [m for m in models if m.get("configured")]
         reachable = [m for m in models if m.get("reachable")]
         receipted = [m for m in models if m.get("inference_receipted")]
+        historical_receipts = [m for m in models if m.get("historical_inference_receipted")]
         badges = [{
             "model_id": m["model_id"],
             "wired": bool(m.get("wired")),
             "configured": bool(m.get("configured")),
             "reachable": bool(m.get("reachable")),
             "inference_receipted": bool(m.get("inference_receipted")),
+            "historical_inference_receipted": bool(m.get("historical_inference_receipted")),
+            "receipt_binding": m.get("receipt_binding"),
             "operational": bool(m.get("operational")),
             "state": m.get("state"),
-            "provider": m.get("provider"),
-            "env_used": m.get("env_used"),
-            "base_url": m.get("base_url"),
             "honest_stub": bool(m.get("honest_stub", True)),
             "is_local": bool(m.get("is_local")),
-            **({"label": m.get("label"),
-                "own_metal": bool(m.get("own_metal"))} if m.get("own_metal") else {}),
+            "label": m.get("label"),
         } for m in models]
-        all_stub = (len(wired) == 0)
-        # Wave-M sovereign availability snapshot: honest reachability of the
-        # own-metal backend. `reachable`/`label` come from a real probe only when
-        # ?probe=1; otherwise we honestly report unknown (probe not run).
+        # The probe observes only endpoint/model metadata, not owned GPU,
+        # weights, Doctrine wrapper, or current inference provenance.
         _sov_badge = next((m for m in models if m.get("model_id") == _SOVEREIGN_BACKEND_ID), None)
         sovereign_snapshot = {
             "backend_id": _SOVEREIGN_BACKEND_ID,
             "canonical_model": _SOVEREIGN_MODEL_TAG,
-            "requested_model": (_sov_badge.get("requested_model")
-                                if _sov_badge else _sovereign_model_slug() or None),
-            "selected_model": (_sov_badge.get("selected_model")
-                               if _sov_badge else None),
-            "provider": _SOVEREIGN_PROVENANCE,
-            "url": _sovereign_base(),
+            "catalog_evidence": "DECLARED",
             "env_present": _sovereign_env_present(),
             "probed": do_probe,
             "reachable": (bool(_sov_badge.get("reachable")) if (do_probe and _sov_badge) else None),
-            "label": (_sov_badge.get("label") if (do_probe and _sov_badge)
-                      else "UNPROBED (pass ?probe=1 for THIS-request reachability)"),
-            "state": (_sov_badge.get("state") if (do_probe and _sov_badge)
-                      else "UNPROBED"),
+            "endpoint_reachable": (bool(_sov_badge.get("reachable")) if (do_probe and _sov_badge) else None),
+            "model_ready": (bool(_sov_badge.get("model_ready")) if (do_probe and _sov_badge) else None),
+            "gpu_verified": False,
+            "weights_verified": False,
+            "ownership_proof": "UNAVAILABLE",
+            "label": (_sov_badge.get("label") if _sov_badge else "UNAVAILABLE"),
+            "state": (_sov_badge.get("state") if _sov_badge else "UNAVAILABLE"),
             "inference_receipted": (bool(_sov_badge.get("inference_receipted"))
                                      if (do_probe and _sov_badge) else False),
+            "historical_inference_receipted": (bool(_sov_badge.get("historical_inference_receipted"))
+                                               if (do_probe and _sov_badge) else False),
+            "receipt_binding": (_sov_badge.get("receipt_binding")
+                                if (do_probe and _sov_badge) else "UNAVAILABLE"),
             "operational": (bool(_sov_badge.get("operational"))
                             if (do_probe and _sov_badge) else False),
-            "route_order": "own-metal/sovereign FIRST (when reachable) → free → paid",
+            "route_order": "declared own-metal-first routing preference (not ownership proof)",
             "health_endpoint": "/api/a11oy/v1/llm/sovereign/health",
         }
         return JSONResponse({
@@ -1341,6 +1394,7 @@ def register(app: FastAPI) -> dict:
             "configured_count": len(configured),
             "reachable_count": len(reachable),
             "inference_receipted_count": len(receipted),
+            "historical_inference_receipted_count": len(historical_receipts),
             "operational_count": len(wired),
             "registry_record_count": len(models),
             "unique_backend_count": len(models) - 1,
@@ -1364,25 +1418,22 @@ def register(app: FastAPI) -> dict:
             "doctrine": DOCTRINE,
             "kernel_commit": _KERNEL,
             "honest_note": (
-                ("operational_count=0 — configuration and reachability are not "
-                 "inference proof. Providers remain offline or unreceipted until "
-                 "a successful durable inference receipt verifies.")
-                if all_stub else
-                ("operational_count=%d — every operational provider has an exact "
-                 "served model and a verified durable inference receipt."
-                 % len(wired))),
+                "Public registry is a declared catalog and bounded metadata view. "
+                "Configuration, endpoint reachability, and historical inference "
+                "receipts do not prove a current source-bound operational model."),
         })
 
     # ── GET /api/a11oy/v1/llm/registry/{model_id} ────────────────────────────
 
     @app.get("/api/a11oy/v1/llm/registry/{model_id}")
     async def llm_model_detail(model_id: str) -> JSONResponse:
-        """Single model detail + routing configuration."""
+        """Single public catalog row, without private routing configuration."""
         m = _MODEL_BY_ID.get(model_id)
         if not m:
-            return JSONResponse({"error": f"model_id '{model_id}' not found", "known": list(_MODEL_BY_ID.keys())}, status_code=404)
+            return JSONResponse({"error": "model_id not found",
+                                 "known": list(_MODEL_BY_ID.keys())}, status_code=404)
         return JSONResponse({
-            **_enrich_model(m),
+            **_public_registry_model(_enrich_model(m)),
             "timestamp": _now(),
             "doctrine": DOCTRINE,
         })

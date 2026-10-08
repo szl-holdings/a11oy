@@ -6,12 +6,29 @@ import sys
 import json
 import tempfile
 
+import pytest
+
 # ensure repo root on path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 import szl_llm_registry as reg
+
+
+@pytest.fixture(autouse=True)
+def _restore_runtime_environment():
+    """The module's direct env mutations must not change later route tests."""
+    names = {name for name, _ in reg._PROVIDER_ENV_VARS}
+    names.update({"SZL_LOCAL_LLM_URL", "SZL_LOCAL_LLM_MODEL",
+                  "SZL_GOVERN_INFER_LOG", "A11OY_CODE_LLM_KEY"})
+    before = {name: os.environ.get(name) for name in names}
+    yield
+    for name, value in before.items():
+        if value is None:
+            os.environ.pop(name, None)
+        else:
+            os.environ[name] = value
 
 
 def _fresh_client():
@@ -115,7 +132,7 @@ def test_sovereign_wired_with_mock_node():
         sov = next(b for b in d["badges"] if b["model_id"] == "sovereign_local")
         assert sov["wired"] is False, sov
         assert sov["is_local"] is True, sov
-        assert sov["env_used"] == "SZL_LOCAL_LLM_URL", sov
+        assert "env_used" not in sov, sov  # endpoint configuration stays private
         assert d["wired_count"] == 0, d["wired_count"]
         # route: explicit sovereign selection => REAL text, wired=true
         rt = c.post("/api/a11oy/v1/llm/route",
