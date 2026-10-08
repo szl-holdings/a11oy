@@ -28,9 +28,9 @@ NEW ENDPOINTS (ADDITIVE — registered before Node proxy + SPA catch-all):
   GET  /api/a11oy/v1/llm/registry              — full model roster (all tiers, all providers)
   GET  /api/a11oy/v1/llm/registry/{model_id}   — single model detail + routing config
   POST /api/a11oy/v1/llm/route                 — Λ-gated tier selection + receipt
-  GET  /api/a11oy/v1/llm/forum                 — shared receipt forum (last-N routing events)
+  GET  /api/a11oy/v1/llm/forum                 — bounded public forum projection (no raw receipts)
   POST /api/a11oy/v1/llm/forum/ingest          — ingest a receipt from Operator / organ mirror
-  GET  /api/a11oy/v1/llm/ecosystem-mirror      — manifest for Policy/Reasoning/killinchu to mirror
+  GET  /api/a11oy/v1/llm/ecosystem-mirror      — declared catalog projection for organ mirrors
   GET  /api/a11oy/v1/llm/sovereign/health      — per-node sovereign-mesh reachability matrix (Wave N)
 
 SOVEREIGN MESH (Wave N, Dev 3): SZL_LOCAL_LLM_URL is the PRIMARY own-metal node;
@@ -48,12 +48,13 @@ import hashlib
 import json
 import math
 import os
+import re
 import threading
 import time
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Query, Request
 from fastapi.responses import JSONResponse
 
 from szl_provider_http import http_json as _bounded_http_json
@@ -1322,6 +1323,51 @@ def _seed_forum() -> None:
 
 _seed_forum()
 
+
+_PUBLIC_MODEL_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,79}\Z")
+_PUBLIC_FORUM_SOURCES = frozenset({
+    "a11oy", "operator", "policy", "reasoning", "killinchu",
+    "agent_loop_governed", "eval_arena", "governed_rag", "model_harness",
+})
+
+
+def _public_mirror_model(model: dict) -> dict:
+    """Expose declared catalog identity, never runtime/provider internals."""
+    if type(model) is not dict:
+        raise ValueError("invalid public model record")
+    model_id = model.get("model_id")
+    tier = model.get("tier")
+    mirrors = model.get("ecosystem_mirror", [])
+    if (type(model_id) is not str or not _PUBLIC_MODEL_ID.fullmatch(model_id)
+            or type(tier) is not int or tier < 0 or type(mirrors) is not list
+            or any(type(organ) is not str or organ not in
+                   {"policy", "reasoning", "killinchu", "operator"} for organ in mirrors)
+            or type(model.get("operator_mirrored", False)) is not bool):
+        raise ValueError("invalid public model identity")
+    return {"model_id": model_id, "tier": tier, "evidence_class": "DECLARED"}
+
+
+def _public_forum_source(entry: dict) -> str:
+    """A server-ingested receipt is external even if its author claims a local source."""
+    if entry.get("ingested_by") == "a11oy":
+        return "external"
+    source = entry.get("source")
+    return source if type(source) is str and source in _PUBLIC_FORUM_SOURCES else "other"
+
+
+def _public_forum_event(entry: dict) -> dict:
+    """No raw receipt, prompt, model, hash, URL, or attacker-supplied free text."""
+    if type(entry) is not dict:
+        return {"source": "other", "kind": "forum_record", "verification": "UNAVAILABLE"}
+    source = _public_forum_source(entry)
+    if source == "a11oy" and entry.get("event") == "registry_boot":
+        kind = "registry_boot"
+    elif source == "operator" and entry.get("event") == "forum_join":
+        kind = "forum_join"
+    else:
+        kind = "forum_record"
+    return {"source": source, "kind": kind, "verification": "UNAVAILABLE"}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Route registration
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1793,25 +1839,32 @@ def register(app: FastAPI) -> dict:
     # ── GET /api/a11oy/v1/llm/forum ──────────────────────────────────────────
 
     @app.get("/api/a11oy/v1/llm/forum")
-    async def llm_forum(limit: int = 30, source: str = "") -> JSONResponse:
-        """Shared routing receipt forum — a11oy + Operator + all organs write here."""
+    async def llm_forum(limit: int = Query(default=30, ge=1, le=100),
+                        source: str = "") -> JSONResponse:
+        """Bounded public projection of the in-process forum, not receipt proof."""
+        if source and source not in _PUBLIC_FORUM_SOURCES | {"external", "other"}:
+            return JSONResponse({"state": "UNAVAILABLE", "reason": "invalid_source"},
+                                status_code=400)
         with _FORUM_LOCK:
-            entries = list(_FORUM_LOG)
+            entries = [_public_forum_event(e) for e in _FORUM_LOG]
+            total_events = len(_FORUM_LOG)
         if source:
-            entries = [e for e in entries if e.get("source") == source]
+            entries = [e for e in entries if e["source"] == source]
         entries = list(reversed(entries))[:limit]
 
-        sources_seen = list({e.get("source", "unknown") for e in _FORUM_LOG})
+        sources_seen = sorted({e["source"] for e in entries})
         return JSONResponse({
             "timestamp": _now(),
-            "forum": "a11oy LLM routing receipt forum",
-            "total_events": len(_FORUM_LOG),
+            "forum": "a11oy LLM forum public projection",
+            "total_events": total_events,
             "returned": len(entries),
             "sources": sources_seen,
             "events": entries,
-            "ingest_endpoint": "/api/a11oy/v1/llm/forum/ingest",
+            "receipt_verification": "UNAVAILABLE",
+            "public_projection": True,
+            "ingest_path": "/api/a11oy/v1/llm/forum/ingest",
             "doctrine": DOCTRINE,
-            "honest_note": "Forum is in-process ring (max 500). Resets on rebuild — honest disclosure.",
+            "honest_note": "In-process ring (max 500), reset on rebuild; no authorized raw-receipt read contract is established here.",
         })
 
     # ── POST /api/a11oy/v1/llm/forum/ingest ──────────────────────────────────
@@ -1847,36 +1900,43 @@ def register(app: FastAPI) -> dict:
 
     @app.get("/api/a11oy/v1/llm/ecosystem-mirror")
     async def llm_ecosystem_mirror() -> JSONResponse:
-        """Manifest for Policy/Reasoning/killinchu to mirror a11oy's model access.
+        """Declared catalog projection; no GET probes, receipt reads, or GGUF loads."""
+        try:
+            catalog = [(m, _public_mirror_model(m)) for m in MODEL_REGISTRY]
+        except ValueError:
+            return JSONResponse({"state": "UNAVAILABLE", "reason": "invalid_catalog"},
+                                status_code=503)
 
-        Each organ calls this endpoint to discover which models to register locally,
-        which tier to use for a given Λ-score, and where to emit receipts.
-        """
+        def organ_models(organ: str) -> list[dict]:
+            return [public for model, public in catalog
+                    if organ in model.get("ecosystem_mirror", [])]
+
+        ingest_path = "/api/a11oy/v1/llm/forum/ingest"
+        route_path = "/api/a11oy/v1/llm/route"
         mirror_manifest = {
             "policy": {
-                "models": [_enrich_model(m) for m in MODEL_REGISTRY if "policy" in m.get("ecosystem_mirror", [])],
-                "receipt_ingest_url": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/llm/forum/ingest",
-                "routing_endpoint": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/llm/route",
+                "models": organ_models("policy"),
+                "receipt_ingest_path": ingest_path,
+                "routing_path": route_path,
                 "mirror_policy": "delegate_to_a11oy",
             },
             "reasoning": {
-                "models": [_enrich_model(m) for m in MODEL_REGISTRY if "reasoning" in m.get("ecosystem_mirror", [])],
-                "receipt_ingest_url": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/llm/forum/ingest",
-                "routing_endpoint": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/llm/route",
+                "models": organ_models("reasoning"),
+                "receipt_ingest_path": ingest_path,
+                "routing_path": route_path,
                 "mirror_policy": "delegate_to_a11oy",
             },
             "killinchu": {
-                "models": [_enrich_model(m) for m in MODEL_REGISTRY if "killinchu" in m.get("ecosystem_mirror", [])],
-                "receipt_ingest_url": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/llm/forum/ingest",
-                "routing_endpoint": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/llm/route",
+                "models": organ_models("killinchu"),
+                "receipt_ingest_path": ingest_path,
+                "routing_path": route_path,
                 "mirror_policy": "delegate_to_a11oy",
             },
             "operator": {
-                "models": [_enrich_model(m) for m in MODEL_REGISTRY if m.get("operator_mirrored")],
-                "receipt_ingest_url": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/llm/forum/ingest",
+                "models": [public for model, public in catalog if model.get("operator_mirrored")],
+                "receipt_ingest_path": ingest_path,
                 "wire": "I (operator-companion brain-jack)",
                 "mirror_policy": "shared_forum",
-                "note": "Operator and a11oy share the forum (receipt/decision substrate). Operator ingests via Wire I.",
             },
         }
 
@@ -1884,15 +1944,12 @@ def register(app: FastAPI) -> dict:
             "timestamp": _now(),
             "hub": "a11oy",
             "role": "a11oy is the LLM hub — all organs mirror model-access from here",
-            "total_models": len(MODEL_REGISTRY),
+            "total_models": len(catalog),
             "ecosystem": mirror_manifest,
-            "roadmap": {
-                "cross_space_broker": "OTLP/Grafana/Tempo for span stitching — roadmap (Wire D cross-Space)",
-                "key_injection": "API keys injected per-Space via HF Secrets when Warhacker demo deploys",
-                "uds_sovereign": "sovereign_local ships in szl-mesh v0.4.0 as GGUF zarf artifact",
-            },
+            "catalog_evidence_class": "DECLARED",
+            "runtime_state": "UNKNOWN",
+            "public_projection": True,
             "doctrine": DOCTRINE,
-            "kernel_commit": _KERNEL,
         })
 
     # ── GET /api/a11oy/v1/llm/sovereign/health ────────────────────────────────
