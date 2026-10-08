@@ -1,0 +1,50 @@
+name: Energy truth contracts
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  energy-evidence:
+    name: Energy evidence and attribution contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install exact core test dependencies
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Reject fabricated energy, duplicate receipts, and unverified attribution
+        run: >-
+          python -m pytest -q
+          test_energy_ledger.py
+          test_energy_projection.py
+          test_energy_wire_operator_ledger.py
+          test_szl_energy_operator.py
+          test_energy_ops_dashboard.py
+          test_energy_surface.py
+          test_szl3d_fabric.py
+          tests/test_brain_energy_attribution_contract.py
+          tests/test_energy_downstream_guard.py
+          tests/test_energy_ledger_legacy_truth.py
+          tests/test_energy_ledger_process_safety.py
+          tests/test_energy_live_exactmain.py
+          tests/test_energy_live_measurement_contract.py
+          tests/test_energy_projection_truth.py
+          tests/test_omen_joule_exporter_access.py
+          tests/test_omen_joule_exporter_liveness.py
+          tests/test_synthetic_energy_contract.py
+          tests/test_energy_autostart_readyz.py
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - name: Reject false energy claims in public surfaces
+        run: node --test tests/test_showcase_null_truth.mjs tests/test_fabric_energy_truth.mjs tests/test_energy_ops_truth.mjs
