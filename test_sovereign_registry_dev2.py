@@ -15,6 +15,13 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 import szl_llm_registry as reg
 
+_OPERATOR = "fixture-operator-secret-not-real"
+
+
+@pytest.fixture(autouse=True)
+def _operator_key(monkeypatch):
+    monkeypatch.setenv("A11OY_CODE_ADMIN_KEY", _OPERATOR)
+
 
 @pytest.fixture(autouse=True)
 def _restore_runtime_environment():
@@ -34,7 +41,9 @@ def _restore_runtime_environment():
 def _fresh_client():
     app = FastAPI()
     reg.register(app)
-    return TestClient(app)
+    client = TestClient(app)
+    client.headers.update({"Authorization": "Bearer " + _OPERATOR})
+    return client
 
 
 def test_no_env_all_stubs():
@@ -182,6 +191,7 @@ def test_sovereign_env_set_but_node_dead():
 
 
 if __name__ == "__main__":
+    os.environ["A11OY_CODE_ADMIN_KEY"] = _OPERATOR
     test_no_env_all_stubs()
     test_fake_keys_are_configured_not_wired()
     test_sovereign_wired_with_mock_node()

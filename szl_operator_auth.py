@@ -167,6 +167,7 @@ PROTECTED_ROUTES = (
     (r"/api/a11oy/v1/gov/calibration/log", "Calibration log writes", "state"),
     (r"/api/a11oy/v1/research/(prereg|trial)", "Research registry writes", "state"),
     (r"/api/a11oy/v1/brain/audit/record", "Brain audit writes", "state"),
+    (r"/api/a11oy/v1/llm/route", "LLM routing and inference", "tool"),
     (r"/api/a11oy/v1/llm/forum/ingest", "LLM forum ingest", "state"),
     (r"(/api/lake/v1|/v1/lake)/receipts", "Lake receipt ingest", "state"),
     (r"/api/a11oy/v1/series-a/(refresh|passports/(evaluate|execute))", "Series-A passport writes", "state"),
