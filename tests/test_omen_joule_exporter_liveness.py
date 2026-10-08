@@ -276,15 +276,40 @@ def test_current_main_source_ip_allowlist_is_preserved(remote, expected):
     assert exporter._client_allowed(remote) is expected
 
 
+def _authenticated_handler(monkeypatch, remote):
+    import io
+    import secrets
+    from email.message import Message
+    from types import SimpleNamespace
+    import szl_meter_access as auth
+
+    origin = "https://meter2.a-11-oy.com"
+    key = secrets.token_hex(32)
+    verifier = auth.MeterRequestVerifier(origin, json.dumps({"synthetic-reader": key}))
+    monkeypatch.setenv("SZL_METER_HMAC_TARGETS", json.dumps({origin: {
+        "client_id": "synthetic-reader", "key_hex": key}}))
+    handler = exporter.Handler.__new__(exporter.Handler)
+    handler.server = SimpleNamespace(meter_verifier=verifier)
+    handler.client_address = (remote, 12345)
+    handler.path = "/metrics"
+    handler.headers = Message()
+    handler.headers["Host"] = "meter2.a-11-oy.com"
+    for name, value in auth.meter_request_headers(origin + "/metrics").items():
+        handler.headers[name] = value
+    handler.wfile = io.BytesIO()
+    return handler
+
+
 def test_denied_http_client_gets_403_before_meter_read(monkeypatch):
     def no_meter_read():
         raise AssertionError("denied source must not trigger meter read")
 
     monkeypatch.setattr(exporter, "_meter_json", no_meter_read)
-    handler = exporter.Handler.__new__(exporter.Handler)
-    handler.client_address = ("203.0.113.9", 12345)
+    handler = _authenticated_handler(monkeypatch, "203.0.113.9")
     status = []
-    handler.send_error = lambda code: status.append(code)
+    handler.send_response = lambda code: status.append(code)
+    handler.send_header = lambda *args: None
+    handler.end_headers = lambda: None
     handler.do_GET()
     assert status == [403]
 
@@ -293,9 +318,7 @@ def test_allowed_http_client_keeps_json_route_and_headers(monkeypatch):
     import io
 
     monkeypatch.setattr(exporter, "_meter_json", lambda: {"engines": [], "totals": {"joules": None}})
-    handler = exporter.Handler.__new__(exporter.Handler)
-    handler.client_address = ("127.0.0.1", 12345)
-    handler.wfile = io.BytesIO()
+    handler = _authenticated_handler(monkeypatch, "127.0.0.1")
     statuses = []
     headers = []
     handler.send_response = lambda code: statuses.append(code)
@@ -304,5 +327,5 @@ def test_allowed_http_client_keeps_json_route_and_headers(monkeypatch):
     handler.do_GET()
     assert statuses == [200]
     assert ("Content-Type", "application/json") in headers
-    assert ("Access-Control-Allow-Origin", "*") in headers
+    assert not any(name == "Access-Control-Allow-Origin" for name, _ in headers)
     assert json.loads(handler.wfile.getvalue())["totals"]["joules"] is None

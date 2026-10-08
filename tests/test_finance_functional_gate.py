@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 import pytest
 from .test_finance_release_boundaries import projection
+from .test_finance_signed_verifier import signed
+from .test_finance_signed_prices import signed_envelope, prices, ENV
 
 ROOT = Path(__file__).resolve().parents[1]
 REVISION = "1" * 40
@@ -22,7 +24,7 @@ def load(name):
 
 
 @pytest.fixture
-def witness():
+def witness(signed):
     gate = load("hf_finance_functional_gate")
     client = transport.FinanceClient(environ={"SZL_SOURCE_REVISION": REVISION},
         fetch=lambda plan: json.dumps([[plan.parameters["start"] + i * 86400, 50, 200, 100,
@@ -42,6 +44,10 @@ def witness():
                     "execution_enabled": False}
         elif path == "/api/finance/providers":
             body = client.registry()
+        elif path == "/api/finance/signed-prices/BTC":
+            body = signed_envelope(signed)
+        elif path == "/api/finance/signed-prices/model":
+            body = prices.envelope(ENV, prices.reference.synthetic_demo(), modeled=True)
         elif path.endswith("signals/AAPL?origin=fixture"):
             body = fixture
         elif path.endswith("quote/AAPL?origin=fixture"):
@@ -68,7 +74,8 @@ def test_all_public_functional_contracts_accept_only_exact_source(witness):
     result = gate.observe_finance(REVISION, request=request)
     assert result["complete"] is True
     assert result["live_coinbase_verified"] is True
-    assert len(result["probes"]) == 10
+    assert len(result["probes"]) == 12
+    assert result["signed_price_review_verified"] is True
     assert result["receipt_authenticity_established"] is False
     assert all(row["accepted"] for row in result["probes"])
 
