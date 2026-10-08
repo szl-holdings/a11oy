@@ -16,7 +16,9 @@ import time
 from urllib.parse import urlsplit
 
 from playwright.sync_api import sync_playwright
-from console_lighthouse_fixture import FixtureHandler, SOURCE_REVISION, CONSOLE_SHA256, ROOT
+from console_lighthouse_fixture import (
+    FixtureHandler, SOURCE_REVISION, CONSOLE_SHA256, VENDOR_SOURCE_SHA256, FONT_SHA256, ROOT, pinned_fonts,
+)
 
 
 class BoundedFixtureHandler(FixtureHandler):
@@ -53,17 +55,21 @@ def main():
     binary = Path.home() / 'AppData/Local/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-win64/chrome-headless-shell.exe'
     assert json.loads((tool / 'node_modules/lighthouse/package.json').read_text(encoding='utf-8'))['version'] == '13.5.0'
     assert hashlib.sha256((ROOT / 'pages/console.html').read_bytes()).hexdigest() == CONSOLE_SHA256
+    fonts, font_error = pinned_fonts(ROOT)
+    if font_error:
+        raise RuntimeError(f'Font source admission failed: {font_error}')
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
     server, thread, origin = None, None, None
     observations = [admission]
     child = None
     metadata = {'source_revision': SOURCE_REVISION, 'console_sha256': CONSOLE_SHA256,
+                'vendor_source_sha256': VENDOR_SOURCE_SHA256, 'font_sha256': FONT_SHA256,
                 'mode': args.mode, 'view': args.view, 'resources': observations,
                 'source': 'LOCAL TEST FIXTURE; NOT PRODUCTION'}
     bound_files = [ROOT / 'scripts/measure_console_lighthouse.py', ROOT / 'scripts/console_lighthouse_measure.mjs',
                    ROOT / 'scripts/console_lighthouse_fixture.py', ROOT / 'scripts/test_console_mobile_integrity.py',
-                   ROOT / 'pages/console.html', tool / 'package-lock.json', binary]
+                   ROOT / 'pages/console.html', ROOT / '_vendor_blobs.py', tool / 'package-lock.json', binary]
     for directory in ('static-vendor', 'console/assets', 'static/shared'):
         bound_files.extend(f for f in (ROOT / directory).rglob('*') if f.is_file())
     metadata['source_files'] = [{'path': str(f), 'sha256': hashlib.sha256(f.read_bytes()).hexdigest()}

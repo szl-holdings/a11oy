@@ -12,7 +12,9 @@ import time
 from urllib.parse import urlsplit, parse_qs
 
 from playwright.sync_api import sync_playwright
-from console_lighthouse_fixture import ROOT, CONSOLE_SHA256, SOURCE_REVISION, resolve_request, response_headers
+from console_lighthouse_fixture import (
+    ROOT, CONSOLE_SHA256, SOURCE_REVISION, VENDOR_SOURCE_SHA256, FONT_SHA256, resolve_request, response_headers,
+)
 from measure_console_lighthouse import capacity, FixtureServer, BoundedFixtureHandler
 from test_console_focused_theme import MEASURE
 
@@ -220,6 +222,7 @@ def run(output):
         report = {'source': 'LOCAL LABELLED FIXTURES; not deployed authentication or WCAG certification',
                   'qa_head': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
                   'product_revision': SOURCE_REVISION, 'console_sha256': CONSOLE_SHA256,
+                  'vendor_source_sha256': VENDOR_SOURCE_SHA256, 'font_sha256': FONT_SHA256,
                   'checks': checks, 'errors': errors, 'requests': requests, 'measurements': measurements,
                   'resource_samples': resource_samples, 'deadline_seconds': 900,
                   'completed_capacity': capacity(), 'forced_go_calls': False}

@@ -104,6 +104,49 @@ def test_source_pin_failure_is_explicit(tmp_path):
         assert fixture.resolve_request(target, "GET", HOST, PORT, root=tmp_path).status == 409
 
 
+@pytest.mark.parametrize("name,length", [("SpaceGrotesk", 49256), ("JetBrainsMono", 113672)])
+def test_real_embedded_fonts_have_exact_pinned_bytes(name, length):
+    response = fixture.resolve_request(f"/vendor/fonts/{name}.woff2", "GET", HOST, PORT)
+    assert response.status == 200
+    assert response.content_type == "font/woff2"
+    assert response.body.startswith(b"wOF2")
+    assert len(response.body) == length
+    assert hashlib.sha256(response.body).hexdigest() == fixture.FONT_SHA256[f"fonts/{name}.woff2"]
+    headers = fixture.response_headers(response)
+    assert headers["Cache-Control"] == "no-store"
+    assert "font-src 'self' data:" in headers["Content-Security-Policy"]
+    assert "Access-Control-Allow-Origin" not in headers
+
+
+def test_embedded_font_routes_preserve_transport_guards():
+    target = "/vendor/fonts/SpaceGrotesk.woff2"
+    assert fixture.resolve_request(target, "POST", HOST, PORT).status == 405
+    assert fixture.resolve_request(target, "GET", "example.invalid", PORT).status == 403
+    assert fixture.resolve_request("/vendor/fonts/unknown.woff2", "GET", HOST, PORT).status == 404
+    assert fixture.resolve_request("/vendor/fonts/../SpaceGrotesk.woff2", "GET", HOST, PORT).status == 403
+    assert fixture.resolve_request("/_vendor_blobs.py", "GET", HOST, PORT).status == 404
+
+
+@pytest.mark.parametrize("mode", ["missing", "tampered"])
+def test_embedded_font_source_failures_stay_unavailable(tmp_path, mode):
+    if mode == "tampered":
+        (tmp_path / "_vendor_blobs.py").write_text("_B64 = {}")
+    response = fixture.resolve_request("/vendor/fonts/SpaceGrotesk.woff2", "GET", HOST, PORT, root=tmp_path)
+    assert response.status == 409
+    assert json.loads(response.body)["state"] == "UNAVAILABLE"
+
+
+def test_vendor_literals_are_never_executed(tmp_path, monkeypatch):
+    sentinel = tmp_path / "executed.txt"
+    source = ("_B64 = {'fonts/SpaceGrotesk.woff2': "
+              f"__import__('pathlib').Path({str(sentinel)!r}).write_text('executed')}}").encode()
+    (tmp_path / "_vendor_blobs.py").write_bytes(source)
+    monkeypatch.setattr(fixture, "VENDOR_SOURCE_SHA256", hashlib.sha256(source).hexdigest())
+    response = fixture.resolve_request("/vendor/fonts/SpaceGrotesk.woff2", "GET", HOST, PORT, root=tmp_path)
+    assert response.status == 409
+    assert not sentinel.exists()
+
+
 def test_headers_block_external_subresources_without_false_runtime_claims():
     response = fixture.resolve_request("/__fixture__/manifest", "GET", HOST, PORT)
     headers = fixture.response_headers(response)
@@ -115,6 +158,8 @@ def test_headers_block_external_subresources_without_false_runtime_claims():
     assert payload["source_pin_verified"] is True
     assert payload["runtime_qualified"] is False
     assert payload["source_revision"] == fixture.SOURCE_REVISION
+    assert payload["vendor_source_sha256"] == fixture.VENDOR_SOURCE_SHA256
+    assert payload["font_sha256"] == fixture.FONT_SHA256
 
 
 def test_http_wrapper_uses_pure_resolver_without_socket():
