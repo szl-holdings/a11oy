@@ -116,6 +116,11 @@ _UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like
 
 def _http_json(url: str, payload: dict | None = None, timeout: float = HTTP_TIMEOUT) -> dict:
     data = json.dumps(payload).encode() if payload is not None else None
+    if data is None:
+        from szl_meter_access import open_meter_get
+        with open_meter_get(url, timeout=timeout, headers={
+                "User-Agent": _UA, "Content-Type": "application/json"}) as r:
+            return json.loads(r.read().decode())
     req = urllib.request.Request(
         url, data=data,
         headers={"User-Agent": _UA, "Content-Type": "application/json"},

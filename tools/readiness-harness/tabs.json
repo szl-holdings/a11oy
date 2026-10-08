@@ -1184,6 +1184,7 @@
       "schema": "deva_re_ownership",
       "freshnessSLA": 3600,
       "citationsRequired": false,
+      "unavailableBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -2649,12 +2650,36 @@
       "requiredPaths": [
         "sec_fts.value.items",
         "sec_fts.freshness.status",
-        "sec_fts.freshness.fetched_at"
+        "sec_fts.freshness.fetched_at",
+        "reits.Vornado.value.filings",
+        "reits.Vornado.freshness.status",
+        "reits.Vornado.freshness.fetched_at",
+        "reits.Boston Properties.value.filings",
+        "reits.Boston Properties.freshness.status",
+        "reits.Boston Properties.freshness.fetched_at",
+        "reits.SL Green.value.filings",
+        "reits.SL Green.freshness.status",
+        "reits.SL Green.freshness.fetched_at",
+        "reits.Realty Income.value.filings",
+        "reits.Realty Income.freshness.status",
+        "reits.Realty Income.freshness.fetched_at"
       ],
       "requiredPathTypes": {
         "sec_fts.value.items": "array",
         "sec_fts.freshness.status": "string",
         "sec_fts.freshness.fetched_at": "timestamp",
+        "reits.Vornado.value.filings": "array",
+        "reits.Vornado.freshness.status": "string",
+        "reits.Vornado.freshness.fetched_at": "timestamp",
+        "reits.Boston Properties.value.filings": "array",
+        "reits.Boston Properties.freshness.status": "string",
+        "reits.Boston Properties.freshness.fetched_at": "timestamp",
+        "reits.SL Green.value.filings": "array",
+        "reits.SL Green.freshness.status": "string",
+        "reits.SL Green.freshness.fetched_at": "timestamp",
+        "reits.Realty Income.value.filings": "array",
+        "reits.Realty Income.freshness.status": "string",
+        "reits.Realty Income.freshness.fetched_at": "timestamp",
         "reits": "object",
         "doctrine": "object"
       }

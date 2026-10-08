@@ -15,7 +15,8 @@
 //
 // No external deps — Node >= 18 global fetch only.
 //   node probe_runner.mjs --base https://a-11-oy.com [--samples 5] [--concurrency 3]
-//                         [--report-only] [--out readiness-verdict.json]
+//                         [--await-readiness] [--report-only]
+//                         [--out readiness-verdict.json]
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -54,6 +55,13 @@ const TIMEOUT_MS = boundedIntegerArg("timeout", 15000, { min: 1, max: 120000 });
 const REPORT_ONLY = !!arg("report-only", false) || !!arg("soft", false);
 const OUT = String(arg("out", join(HERE, "readiness-verdict.json")));
 const RETRIES = boundedIntegerArg("retries", 2, { min: 0, max: 10 }); // cold-burst 404s on deep tabs
+const AWAIT_READINESS = arg("await-readiness", false) === true;
+const AWAIT_TIMEOUT_MS = boundedIntegerArg("await-timeout", 180000, {
+  min: 1000, max: 600000,
+});
+const AWAIT_POLL_MS = boundedIntegerArg("await-poll", 2000, {
+  min: 100, max: 30000,
+});
 const SAFE_METHODS = new Set(["GET", "HEAD"]);
 const STATE_CHANGE_AUTHORIZED =
   arg("allow-state-changing", false) === true &&
@@ -65,6 +73,7 @@ const SCHEMAS = matrix.schemas || {};
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const SHA40 = /^[0-9a-f]{40}$/;
+const READINESS_PATH = "/api/a11oy/v1/readiness";
 
 async function fetchBuildRevision() {
   const controller = new AbortController();
@@ -496,8 +505,17 @@ function evaluateEndpointLabels(httpStatus, spec, body) {
     SCHEMAS[spec.schema]?.requiredPathTypes || {},
   ).filter(([path, type]) => type === "array"
     && isCanonicalUnavailableItemsEnvelope(body, path));
-  const unavailableSources = [...new Set(requiredSourcePaths.map(([path]) =>
-    unavailableEnvelopePrefix(path) || "$"))];
+  // An admitted negative root label is truthful endpoint-level absence, not
+  // operational evidence. Nested optional sources and domain statuses do not
+  // speak for the endpoint; schema-required source envelopes still do.
+  const rootUnavailable = labels.some((entry) =>
+    allowed.has(entry.normalized)
+    && (entry.normalized === "degraded" || entry.normalized === "unavailable")
+    && (ROOT_LABEL_KEY.test(entry.path) || EXPLICIT_EVIDENCE_KEY.test(entry.path)));
+  const unavailableSources = [...new Set([
+    ...requiredSourcePaths.map(([path]) => unavailableEnvelopePrefix(path) || "$"),
+    ...(rootUnavailable ? ["$"] : []),
+  ])];
   // OBSERVED is a valid supplemental counter label, but never a substitute for
   // the root LIVE/CACHED availability label. Inspecting these fields makes a
   // MODELED or unknown counter fail without broadening allowLabels.
@@ -720,7 +738,162 @@ async function probeOnce(path, method) {
   }
 }
 
-async function probeEndpoint(path, spec) {
+function readinessAwaitError(message, classification = "lie") {
+  const error = new Error(message);
+  error.awaitFailureClass = classification;
+  return error;
+}
+
+function readinessAwaitStatusClass(status) {
+  if (status === 429) return "throttled";
+  if (status === 0 || status >= 500) return "unreachable";
+  return "lie";
+}
+
+function readinessSourceBinding(body, expectedSourceRevision) {
+  const snapshotSourceRevision = body?.snapshot_source_revision ?? null;
+  const checked = typeof expectedSourceRevision === "string"
+    && SHA40.test(expectedSourceRevision);
+  return {
+    checked,
+    snapshotSourceRevision,
+    ok: checked ? snapshotSourceRevision === expectedSourceRevision : null,
+  };
+}
+
+async function awaitReadiness({
+  request = (path) => probeOnce(path, "GET"),
+  sleepFn = sleep,
+  clock = () => Date.now(),
+  timeoutMs = AWAIT_TIMEOUT_MS,
+  pollMs = AWAIT_POLL_MS,
+  spec = ENDPOINTS[READINESS_PATH],
+  expectedSourceRevision,
+} = {}) {
+  if (!spec || Number(spec.freshnessSLA) !== 300) {
+    throw readinessAwaitError(
+      "readiness waiting requires the canonical 300-second contract",
+    );
+  }
+  if (typeof expectedSourceRevision !== "string" || !SHA40.test(expectedSourceRevision)) {
+    throw readinessAwaitError("readiness waiting requires an exact source revision");
+  }
+
+  const deadline = clock() + timeoutMs;
+  let lastReason = "no source-bound readiness snapshot observed";
+  let lastClass = "lie";
+  while (clock() <= deadline) {
+    const observed = await request(READINESS_PATH);
+    if (observed?.status === 200) {
+      const schema = validateSchema(spec.schema, observed.body);
+      const freshness = evaluateFreshness(READINESS_PATH, spec, observed.body, clock());
+      const source = readinessSourceBinding(observed.body, expectedSourceRevision);
+      const applicationReady = observed.body?.summary?.application_ready === true;
+      const snapshotCurrent = observed.body?.stale === false;
+      if (
+        schema.ok && freshness.freshOk && source.ok
+        && applicationReady && snapshotCurrent
+      ) {
+        return {
+          snapshotFetchedAt: observed.body.snapshot_fetched_at,
+          snapshotSourceRevision: source.snapshotSourceRevision,
+          ageSec: freshness.ageSec,
+        };
+      }
+      lastReason = !schema.ok
+        ? "readiness snapshot schema invalid"
+        : !freshness.freshOk
+          ? (freshness.freshnessReason || `readiness snapshot age ${freshness.ageSec}s`)
+          : !source.ok
+            ? `snapshot source revision ${source.snapshotSourceRevision ?? "UNAVAILABLE"} does not match ${expectedSourceRevision}`
+            : !applicationReady
+              ? "readiness snapshot application contract is not ready"
+              : "readiness snapshot does not explicitly declare stale=false";
+      lastClass = "lie";
+    } else {
+      lastReason = `readiness poll returned status ${observed?.status ?? 0}`;
+      lastClass = readinessAwaitStatusClass(observed?.status ?? 0);
+    }
+    if (clock() >= deadline) break;
+    await sleepFn(pollMs);
+  }
+  throw readinessAwaitError(
+    `readiness wait did not converge: ${lastReason}`,
+    lastClass,
+  );
+}
+
+function retainAwaitFailure(results, error) {
+  const result = results.find((candidate) => candidate?.path === READINESS_PATH);
+  if (!result) throw new Error("readiness probe result is missing");
+  const detail = String(error instanceof Error ? error.message : error)
+    .replace(/[\r\n]+/g, " ").slice(0, 240);
+  const classification = ["lie", "unreachable", "throttled"].includes(
+    error?.awaitFailureClass,
+  ) ? error.awaitFailureClass : "lie";
+  result.awaitFailure = { classification, detail };
+  if (classification === "unreachable") {
+    result.unreachable = true;
+    result.error = detail;
+    result.runtimeState = "UNAVAILABLE";
+  } else if (classification === "throttled") {
+    result.throttled = true;
+    result.error = detail;
+    result.runtimeState = "UNAVAILABLE";
+  } else {
+    result.lie = true;
+    result.freshOk = false;
+    result.runtimeState = "ERROR";
+    result.lies = [...new Set([...(result.lies || []), detail])];
+  }
+  return results;
+}
+
+async function withSourceRevisionBracket(work, {
+  observeSource = () => observeBuildRevision(),
+  soft = REPORT_ONLY,
+} = {}) {
+  const sourceBefore = await observeSource();
+  let value = null;
+  let workError = null;
+  try {
+    value = await work(sourceBefore);
+  } catch (error) {
+    workError = error;
+  }
+  const sourceAfter = await observeSource();
+  let sourceRevisionStatus =
+    sourceBefore.status === "OBSERVED" && sourceAfter.status === "OBSERVED"
+      ? "OBSERVED"
+      : "UNAVAILABLE";
+  let sourceRevisionError = sourceBefore.error || sourceAfter.error || null;
+  if (
+    sourceRevisionStatus === "OBSERVED"
+    && sourceBefore.revision !== sourceAfter.revision
+  ) {
+    sourceRevisionStatus = "DIVERGENT";
+    sourceRevisionError =
+      `deployment revision changed during probe: ${sourceBefore.revision} -> ${sourceAfter.revision}`;
+  }
+  if (workError) throw workError;
+  if (sourceRevisionStatus === "DIVERGENT" && !soft) {
+    throw new Error(sourceRevisionError);
+  }
+  return {
+    value,
+    sourceBefore,
+    sourceAfter,
+    sourceRevisionStatus,
+    sourceRevisionError,
+    sourceRevision: sourceRevisionStatus === "OBSERVED" ? sourceAfter.revision : null,
+  };
+}
+
+async function probeEndpoint(path, spec, {
+  expectedSourceRevision = null,
+  request = probeOnce,
+  sleepFn = sleep,
+} = {}) {
   const method = String(spec.method || "GET").toUpperCase();
   const allow = (spec.degradedRules?.allowStatuses) || [200];
   if (!SAFE_METHODS.has(method) && !STATE_CHANGE_AUTHORIZED) {
@@ -742,20 +915,20 @@ async function probeEndpoint(path, spec) {
   // retry to absorb cold-burst 404/timeout on heavy deep tabs AND 429 rate-limits.
   // 429 gets a longer, growing backoff because it means "you're polling too fast".
   for (let attempt = 0; attempt <= RETRIES; attempt++) {
-    last = await probeOnce(path, method);
+    last = await request(path, method);
     if (allow.includes(last.status)) break;
     if (attempt < RETRIES) {
       // 429 (our own rate-limit) and 0 (timeout/network) both mean "back off harder".
       const slow = last.status === 429 || last.status === 0;
       const backoff = slow ? 3000 * (attempt + 1) : 1200 * (attempt + 1);
-      await sleep(backoff);
+      await sleepFn(backoff);
     }
   }
   lat.push(last.ms);
   // extra timing samples (measure only), polite spacing
   for (let i = 1; i < SAMPLES; i++) {
-    await sleep(400);
-    const r = await probeOnce(path, method);
+    await sleepFn(400);
+    const r = await request(path, method);
     lat.push(r.ms);
     if (allowOk(spec, r.status)) last = allowOk(spec, last.status) ? last : r;
   }
@@ -789,6 +962,16 @@ async function probeEndpoint(path, spec) {
   const {
     freshOk, ageSec, freshnessMissing, freshnessReason, isArenaHistory,
   } = freshness;
+  const readinessChecked = path === READINESS_PATH && statusOk;
+  const sourceBinding = readinessChecked
+    ? readinessSourceBinding(last.body, expectedSourceRevision)
+    : { snapshotSourceRevision: null, ok: null };
+  const readinessApplicationReady = readinessChecked
+    ? last.body?.summary?.application_ready === true
+    : null;
+  const readinessSnapshotCurrent = readinessChecked
+    ? last.body?.stale === false
+    : null;
 
   const lies = [];
   // A bad status is only a doctrine lie if the endpoint actually answered with
@@ -796,6 +979,17 @@ async function probeEndpoint(path, spec) {
   // network drops and 5xx are reachability failures, reported as `unreachable`.
   if (!inconclusive && !statusOk) lies.push(`status ${last.status} not in [${allow}]`);
   if (statusOk && !schema.ok) lies.push(`schema invalid (${spec.schema})`);
+  if (readinessChecked && sourceBinding.checked && !sourceBinding.ok) {
+    lies.push(
+      `snapshot source revision ${sourceBinding.snapshotSourceRevision ?? "UNAVAILABLE"} does not match ${expectedSourceRevision ?? "UNAVAILABLE"}`,
+    );
+  }
+  if (readinessApplicationReady === false) {
+    lies.push("readiness application contract is not ready");
+  }
+  if (readinessSnapshotCurrent === false) {
+    lies.push("readiness snapshot does not explicitly declare stale=false");
+  }
   if (!citationOk) lies.push("citationsRequired but none found");
   if (freshnessMissing) {
     if (isArenaHistory) lies.push("latest eval run timestamp missing");
@@ -829,6 +1023,12 @@ async function probeEndpoint(path, spec) {
     evidenceLabels: labelPolicy.labels.map((entry) => ({
       path: entry.path, value: entry.value,
     })),
+    ...(path === READINESS_PATH ? {
+      applicationReady: readinessApplicationReady,
+      snapshotCurrent: readinessSnapshotCurrent,
+      snapshotSourceRevision: sourceBinding.snapshotSourceRevision,
+      sourceRevisionOk: sourceBinding.ok,
+    } : {}),
     freshOk, ageSec,
     citationsRequired: !!spec.citationsRequired, freshnessSLA: spec.freshnessSLA ?? null,
     lie: lies.length > 0, lies,
@@ -889,29 +1089,52 @@ async function main() {
     throw new Error("readiness matrix contains zero endpoint contracts");
   }
   console.error(`[probe] base=${BASE} endpoints=${paths.length} samples=${SAMPLES} conc=${CONCURRENCY}`);
-  const sourceBefore = await observeBuildRevision();
-  const results = await pool(paths, CONCURRENCY, (p) => probeEndpoint(p, ENDPOINTS[p]));
-  const releaseGate = summarizeReleaseGate(results, paths.length);
-  if (!releaseGate.complete) {
-    throw new Error(`probe completed ${results.length}/${paths.length} endpoint contracts`);
-  }
-  const sourceAfter = await observeBuildRevision();
-  let sourceRevisionStatus =
-    sourceBefore.status === "OBSERVED" && sourceAfter.status === "OBSERVED"
-      ? "OBSERVED"
-      : "UNAVAILABLE";
-  let sourceRevisionError = sourceBefore.error || sourceAfter.error || null;
-  if (
-    sourceRevisionStatus === "OBSERVED" &&
-    sourceBefore.revision !== sourceAfter.revision
-  ) {
-    const message = `deployment revision changed during probe: ${sourceBefore.revision} -> ${sourceAfter.revision}`;
-    if (!REPORT_ONLY) throw new Error(message);
-    sourceRevisionStatus = "DIVERGENT";
-    sourceRevisionError = message;
-  }
-  const sourceRevision =
-    sourceRevisionStatus === "OBSERVED" ? sourceAfter.revision : null;
+  const bracket = await withSourceRevisionBracket(async (sourceBefore) => {
+    let awaitFailure = null;
+    if (AWAIT_READINESS) {
+      try {
+        if (sourceBefore.status !== "OBSERVED") {
+          throw readinessAwaitError(
+            "cannot await readiness without an observed deployment revision",
+            "unreachable",
+          );
+        }
+        const awaited = await awaitReadiness({
+          expectedSourceRevision: sourceBefore.revision,
+        });
+        console.error(
+          `[probe] readiness snapshot for ${awaited.snapshotSourceRevision} observed at ${awaited.snapshotFetchedAt} (age=${awaited.ageSec}s)`,
+        );
+      } catch (error) {
+        awaitFailure = error;
+        if (!REPORT_ONLY) throw error;
+        console.error(
+          `[probe] readiness wait failed closed; retaining full evidence: ${error instanceof Error ? error.message : error}`,
+        );
+      }
+    }
+    const results = await pool(
+      paths,
+      CONCURRENCY,
+      (path) => probeEndpoint(path, ENDPOINTS[path], {
+        expectedSourceRevision: sourceBefore.revision,
+      }),
+    );
+    if (awaitFailure) retainAwaitFailure(results, awaitFailure);
+    const releaseGate = summarizeReleaseGate(results, paths.length);
+    if (!releaseGate.complete) {
+      throw new Error(`probe completed ${results.length}/${paths.length} endpoint contracts`);
+    }
+    return { results, releaseGate };
+  });
+  const { results, releaseGate } = bracket.value;
+  const {
+    sourceBefore,
+    sourceAfter,
+    sourceRevision,
+    sourceRevisionStatus,
+    sourceRevisionError,
+  } = bracket;
 
   const lies = results.filter((r) => r.lie);
   const unreachable = results.filter((r) => r.unreachable && !r.lie);
@@ -969,6 +1192,7 @@ if (fileURLToPath(import.meta.url) === resolve(process.argv[1] || "")) {
 }
 
 export {
+  awaitReadiness,
   boundedIntegerArg,
   evaluateEndpointLabels,
   evaluateFreshness,
@@ -978,7 +1202,9 @@ export {
   pool,
   probeEndpoint,
   releaseExitCode,
+  retainAwaitFailure,
   summarizeReleaseGate,
   validateRouterStatsSemantic,
   validateSchema,
+  withSourceRevisionBracket,
 };

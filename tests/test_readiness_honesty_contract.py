@@ -14,6 +14,24 @@ from fastapi.testclient import TestClient
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_hf_sync_awaits_the_source_bound_readiness_contract_before_probe() -> None:
+    workflow = yaml.safe_load(
+        (ROOT / ".github/workflows/hf-sync.yml").read_text(encoding="utf-8")
+    )
+    steps = workflow["jobs"]["readiness-verdict"]["steps"]
+    command = next(
+        step["run"] for step in steps
+        if step.get("name") == "Probe the exact canonical deployment"
+    )
+    matrix = json.loads(
+        (ROOT / "tools/readiness-harness/tabs.json").read_text(encoding="utf-8")
+    )
+
+    assert "--await-readiness" in command
+    assert "--prime-readiness" not in command
+    assert matrix["endpoints"]["/api/a11oy/v1/readiness"]["freshnessSLA"] == 300
+
+
 @pytest.mark.parametrize(
     ("outcomes", "summary", "expected"),
     [
