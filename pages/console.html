@@ -2624,7 +2624,7 @@ function go(view){
   // current view) — never a thrown TypeError reading .title on a missing VIEWS entry,
   // which could wedge navigation. Guard BEFORE any teardown/DOM mutation so the current
   // view is fully preserved.
-  if(!VIEWS[view]){ console.warn('unknown tab: '+view); return; }
+  if(!Object.prototype.hasOwnProperty.call(VIEWS,view)){ console.warn('unknown tab: '+view); return; }
   // tear down ALL live visuals (Chart.js, ECharts, 3d-force-graph, globe.gl, cytoscape) before switching
   tearDownAll();
   var canonicalCurrent=null;
@@ -2827,7 +2827,7 @@ const start=szlViewFromLocation();
    so deep-links to tabs whose loaders live in a later script block resolve correctly */
 function _bootGo(){
   var view=(typeof szlViewFromLocation==='function'?szlViewFromLocation():start);
-  function run(){ if(VIEWS[view]){ go(view); return true; } return false; }
+  function run(){ if(Object.prototype.hasOwnProperty.call(VIEWS,view)){ go(view); return true; } return false; }
   if(run()) return;
   var n=0, iv=setInterval(function(){
     if(run()||n++>80){ clearInterval(iv); if(!VIEWS[view]) go(VIEWS.command?'command':'command'); }
@@ -6455,6 +6455,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       }};
 
     console.log('[a11oy] BATCH-3 module loaded: command(bar-gauge), ask(bool-cascade), demo(state-timeline), fleet(status-history grid), mesh(cytoscape map), pulse(calendar heatmap+sparkline), feed(live-tail), business(delta cards), verticals(ngraph galaxy), alloy(Chart.js h-bar), mission(gauge cluster), melt(heatmap), deploy(SVG marker timeline), warboard(25-demo 5x5 board: 5 problems x 5)');
+    // Deferred bootstrap owns these initial views; do not replace their query with Command Center.
+    if(typeof start!=='undefined' && ['fleet','readiness','estate'].indexOf(start)>=0) return;
     try{ var cur=(location.hash||'#command').slice(1); if(['command','ask','demo','fleet','mesh','pulse','feed','business','verticals','alloy','mission','melt','deploy','warboard'].indexOf(cur)>=0 && window.go){ window.go(cur); } }catch(e){}
   });
 })();
