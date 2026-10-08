@@ -39,6 +39,7 @@ PROVIDER_ENV_NAMES.update({
 def clean_runtime(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     for name in PROVIDER_ENV_NAMES:
         monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("A11OY_CODE_ADMIN_KEY", "fixture-operator-secret-not-real")
     log_path = tmp_path / "provider-receipts.jsonl"
     monkeypatch.setenv("SZL_GOVERN_INFER_LOG", str(log_path))
     importlib.reload(governed)
@@ -50,7 +51,9 @@ def clean_runtime(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
 def _client(reg) -> TestClient:
     app = FastAPI()
     reg.register(app)
-    return TestClient(app)
+    client = TestClient(app)
+    client.headers.update({"Authorization": "Bearer fixture-operator-secret-not-real"})
+    return client
 
 
 def test_selected_model_reconciliation_is_exact_and_fail_closed(clean_runtime):
@@ -185,10 +188,17 @@ def test_real_generation_creates_durable_receipt_and_survives_restart(
     assert after["chain_ok"] is True
 
     health = client.get("/api/a11oy/v1/llm/sovereign/health").json()
-    assert health["selected_model"] == canonical
+    assert health["selected_model"] is None  # private tag withheld from anonymous GET
+    assert health["model_ready"] is True
     assert health["inference_receipted"] is True
-    assert health["operational"] is True
-    assert health["wired"] is True
+    assert health["receipt_state"]["successful_receipt_count"] == 1
+    assert health["inference_receipt_scope"].startswith("Historical durable receipt")
+    assert health["receipt_binding"] == "UNKNOWN"
+    assert health["operational"] is False
+    assert health["wired"] is False
+    assert health["live"] is False
+    assert health["label"] == "UNKNOWN"  # receipt does not prove GPU ownership
+    assert health["ownership_proof"] == "UNAVAILABLE"
 
 
 def test_model_mismatch_never_generates_or_receipts(clean_runtime, monkeypatch):

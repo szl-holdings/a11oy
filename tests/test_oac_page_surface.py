@@ -115,7 +115,7 @@ def test_oac_page_is_bounded_accessible_and_has_no_execution_path():
     assert "focus-visible" in source
     assert "prefers-reduced-motion" in source
     for label in ("REPORTED", "UNKNOWN", "SAMPLE", "DECLARED", "SIMULATED",
-                  "v2 runtime (not probed)",
+                  "current runtime (not probed by this page)",
                   "synthetic numeric telemetry", "not clinical", "not device control",
                   "No new training", "mutable demo", "not a production or clinical result path",
                   "Do not enter patient or specimen information"):
@@ -128,9 +128,13 @@ def test_oac_page_is_bounded_accessible_and_has_no_execution_path():
         "f7ab6170bf78138b187b8cb707d374a25ad85375",
         "6330dea7318effba583a6501346fee590174a39f",
         "a824a32d91a383d33a1e1e595f11b8362d1b4efa",
+        "3f7554efaddf086680b25301502c3bf176d83089",
+        "1c33503830a12c5661fc3ee8cd0a4b3a75451c25",
     ):
         assert identity in source
-    assert "The mutable demo above belongs to the separate v1 snapshot." in source
+    assert "The default demo above remains the separate v1 experience." in source
+    assert "https://szlholdings-oac-system-health-lab.hf.space/#v2-panel" in source
+    assert "https://github.com/szl-holdings/szl-forge/actions/runs/37728965604" in source
     assert "https://a11oy.net/oac/#v2" in source
     assert "unsigned artifact receipt" in source
     assert "does not authenticate that origin, validate results, or authorize effects" in source

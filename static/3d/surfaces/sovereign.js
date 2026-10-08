@@ -2,19 +2,17 @@
 // © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v11
 //
 // surfaces/sovereign.js — SOVEREIGN LOCAL MODEL (Wave M, Dev 4).
-// An honest 3D status panel for the founder's LOCAL sovereign model — the
-// llama3-based, Doctrine-v11-wrapped model on the Tower (OMEN, RTX 4060 Ti) served by
-// Ollama at SZL_LOCAL_LLM_URL. A central SOVEREIGN CORE glows proof-teal + pulses when
-// the node answered live THIS request (LIVE-SOVEREIGN), and goes dim grey when it did
+// A 3D status panel for a configured model endpoint; this read cannot verify
+// whether the endpoint is on owned hardware or uses declared weights. A central
+// core turns neutral blue when a metadata
+// endpoint answered this request (ownership/GPU still UNKNOWN), and goes dim when it did
 // NOT (UNAVAILABLE — Tower down / off-Tower / unset). Two orbiting nodes show Stage A
 // (system-prompt derivative, NOW) vs Stage B (real LoRA fine-tune, LATER — Dev 3). A
-// seal ring shows the SIGNED-RECEIPT of the check (REAL DSSE in-Space, honest
-// UNSIGNED-LOCAL otherwise). The HUD shows reachability, the doctrine self-test answer
-// ("State your doctrine in one line" → the model's REAL line when reachable, else an
-// honest UNAVAILABLE), and the receipt state.
+// seal ring stays dim because this public GET does not mint a receipt. The HUD
+// shows reachability, Stage A/B context, and explicit no-inference/no-receipt state.
 //
-// HONESTY: the Tower is NOT reachable from CI/cloud, so off-Tower this MUST read
-//   UNAVAILABLE — never a fabricated "reachable" or a fabricated doctrine line
+// HONESTY: an advertised tunnel may answer metadata from a cloud runtime, but
+//   that never verifies ownership, GPU, weights, or a doctrine wrapper
 //   (Zero-Bandaid Law). Λ = Conjecture 1 (advisory, grey, never green), trust ceiling
 //   0.97 (never 1.0). Nothing here touches the locked-8. ZERO PURPLE. Vendored three
 //   via ctx.THREE. Backend: GET /api/a11oy/v1/frontier/sovereign (this Dev's panel),
@@ -31,7 +29,7 @@ const EP_PANEL  = "/api/a11oy/v1/frontier/sovereign";
 const EP_HEALTH = "/api/a11oy/v1/llm/sovereign/health"; // Dev-1 (read when merged)
 
 // data-viz hues — purple BANNED
-const C_LIVE   = 0x3af4c8; // proof-teal (core reachable / LIVE-SOVEREIGN)
+const C_REACH  = 0x45a3ff; // neutral blue: metadata reachability, not GPU proof
 const C_DOWN   = 0x5a6570; // grey (UNAVAILABLE)
 const C_STAGEA = 0x8fdcff; // light blue (Stage A — system-prompt derivative NOW)
 const C_STAGEB = 0xe8c074; // gold (Stage B — real LoRA, roadmap)
@@ -46,13 +44,12 @@ let _core=null,_coreGlow=null,_seal=null,_nodeA=null,_nodeB=null;
 
 const S = {
   label:"UNAVAILABLE", state:"init",
-  reachable:false, baseUrl:null, envPresent:null, apiStyle:null,
-  modelTag:"llama3-szl-finetuned-q4", modelServed:null, modelsLive:[],
-  via:null, dependency:null, reachNote:null,
-  reason:null, reasonText:null, baseSource:null,
+  reachable:false, envPresent:null,
+  modelTag:"llama3-szl-finetuned-q4",
+  reason:null, reasonText:null,
   selftestLabel:"UNAVAILABLE", selftestAnswer:null, selftestPrompt:"State your doctrine in one line",
   activeStage:"UNKNOWN", stageNote:null,
-  signMode:null, signed:null, signerFp:null,
+  receiptMinted:false,
 };
 
 function _clamp01(x){ return x<0?0:(x>1?1:x); }
@@ -68,8 +65,7 @@ function mount(ctx){
   _buildOverlay(ctx);
   _buildScaffold();
 
-  // GET the panel — the CORE poll. It self-probes reachability + runs the doctrine
-  // self-test + signs a receipt server-side. Degrades to honest UNAVAILABLE when down.
+  // GET the panel — a guarded reachability probe only; no generation or signing.
   _polls.push(ctx.live.poll(EP_PANEL, 10000, _onPanel, {
     badge:_badge,
     onState:(m)=>{ S.state=m.state; _paintOverlay(); },
@@ -87,19 +83,11 @@ function _onPanel(j){
   S.label=_readLabel(j);
   const sov=j.sovereign||{};
   S.reachable=(sov.reachable===true);
-  S.baseUrl=sov.base_url||null;
   S.envPresent=(sov.env_present===true);
-  S.apiStyle=sov.api_style||null;
-  S.modelServed=sov.model||null;
-  S.modelsLive=Array.isArray(sov.models_live)?sov.models_live:[];
-  S.via=sov.via||null;
-  S.dependency=sov.dependency||null;
-  S.reachNote=sov.note||null;
   // Honest, machine-readable reason for a non-live sovereign: an unset env var
   // (environment gap) reads differently from a configured-but-silent node.
   S.reason=(sov.unavailable_reason||j.unavailable_reason)||null;
   S.reasonText=(sov.unavailable_reason_text||j.unavailable_reason_text)||null;
-  S.baseSource=sov.base_url_source||null;
   S.modelTag=j.model_tag||S.modelTag;
 
   const st=j.doctrine_selftest||{};
@@ -111,17 +99,14 @@ function _onPanel(j){
   S.activeStage=String(stg.active_stage||"UNKNOWN");
   S.stageNote=stg.active_note||null;
 
-  const sr=j.signed_receipt||{};
-  S.signMode=sr.sign_mode||null;
-  S.signed=(sr.signed===true);
-  S.signerFp=sr.signer_fingerprint||null;
+  S.receiptMinted=((j.receipt_status||{}).receipt_minted===true);
 
   _paintScene();
   _paintOverlay();
 }
 
 function _buildScaffold(){
-  // Sovereign core sphere (teal when live, grey when UNAVAILABLE).
+  // Core sphere (blue for endpoint reachability, grey for UNAVAILABLE).
   const cg=new _THREE.SphereGeometry(CORE_R,36,36);
   const cm=new _THREE.MeshStandardMaterial({ color:C_DOWN,emissive:C_DOWN,emissiveIntensity:0.25,metalness:0.15,roughness:0.4 });
   _core=new _THREE.Mesh(cg,cm); _core.userData={role:"sovereign-core"}; _group.add(_core);
@@ -129,7 +114,7 @@ function _buildScaffold(){
   const gm=new _THREE.MeshBasicMaterial({ color:C_DOWN,transparent:true,opacity:0.08,blending:_THREE.AdditiveBlending,depthWrite:false });
   _coreGlow=new _THREE.Mesh(gg,gm); _group.add(_coreGlow);
 
-  // Receipt seal ring (blue-violet, advisory — brightens when the receipt is signed).
+  // Inactive receipt ring: a public GET never mints a receipt.
   const sg=new _THREE.TorusGeometry(SEAL_R,0.045,18,120);
   const sm=new _THREE.MeshStandardMaterial({ color:C_SEAL,emissive:C_SEAL,emissiveIntensity:0.4,metalness:0.2,roughness:0.35,transparent:true,opacity:0.9 });
   _seal=new _THREE.Mesh(sg,sm); _seal.rotation.x=Math.PI/2; _seal.userData={role:"receipt-seal"}; _group.add(_seal);
@@ -147,18 +132,16 @@ function _mkNode(col){
 
 function _paintScene(){
   const live=S.reachable;
-  const col=live?C_LIVE:C_DOWN;
+  const col=live?C_REACH:C_DOWN;
   if(_core&&_core.material){ _core.material.color.setHex(col); _core.material.emissive.setHex(col);
     _core.material.emissiveIntensity=live?0.55:0.2; }
   if(_coreGlow&&_coreGlow.material){ _coreGlow.material.color.setHex(col); _coreGlow.material.opacity=live?0.16:0.06; }
   // Stage A active when it's the derivative running now; Stage B is roadmap (dim unless its tag is live).
-  const aActive=(S.activeStage==="STAGE_A");
+  const aActive=(S.activeStage==="STAGE_A_TAG_PRESENT");
   const bActive=(S.activeStage==="STAGE_B_TAG_PRESENT");
   if(_nodeA&&_nodeA.material){ _nodeA.material.emissiveIntensity=aActive?0.7:0.22; _nodeA.material.opacity=aActive?1.0:0.55; }
   if(_nodeB&&_nodeB.material){ _nodeB.material.emissiveIntensity=bActive?0.7:0.22; _nodeB.material.opacity=bActive?1.0:0.4; }
-  // Seal ring: brighter + fuller when a REAL DSSE signature is present.
-  const signed=(S.signed===true);
-  if(_seal&&_seal.material){ _seal.material.emissiveIntensity=signed?0.75:0.35; _seal.material.opacity=signed?0.95:0.6; }
+  if(_seal&&_seal.material){ _seal.material.emissiveIntensity=0.2; _seal.material.opacity=0.4; }
 }
 
 function _animate(){
@@ -182,20 +165,19 @@ function _buildOverlay(ctx){
   _overlay=document.createElement("div");
   _overlay.style.cssText="font:12px/1.5 ui-monospace,Menlo,monospace;color:#cfe3ea;";
   _overlay.innerHTML=
-    '<div style="margin-top:2px;color:#8fb3bd;font-size:10.5px">Operator status of the founder\'s <b>LOCAL sovereign model</b> (Ollama on the Tower, Doctrine-v11 system prompt over base llama3.1:8b). The Tower is <b>not reachable from CI/cloud</b>, so off-Tower this reads <b>UNAVAILABLE</b> — never a fabricated live status or doctrine line.</div>'+
-    _row("Reachable","sv-reach")+_row("Model tag","sv-tag")+
-    _row("Served (live)","sv-served")+_row("Endpoint base","sv-base")+
+    '<div style="margin-top:2px;color:#8fb3bd;font-size:10.5px">Read-only metadata status of the configured model endpoint. A reachable tunnel is not proof of an owned GPU, weights, or a Doctrine-v11 wrapper. No inference or receipt is minted by this page.</div>'+
+    _row("Reachable","sv-reach")+_row("Declared model tag","sv-tag")+
     _row("Why not live","sv-reason")+
     '<div id="sv-reasontext" style="margin-top:3px;font-size:10.5px;color:#9fc;line-height:1.5"></div>'+
     '<hr style="border:0;border-top:1px solid #1b3a44;margin:8px 0">'+
-    '<div style="font-size:10.5px;color:#8fb3bd;margin-bottom:3px">Doctrine self-test — “State your doctrine in one line”</div>'+
+    '<div style="font-size:10.5px;color:#8fb3bd;margin-bottom:3px">Doctrine self-test — not run on public GET</div>'+
     _row("Result","sv-stlabel")+
     '<div id="sv-answer" style="margin-top:3px;padding:6px 8px;background:#0b1a20;border:1px solid #1b3a44;border-radius:6px;color:#eaf6f9;font-size:11px;min-height:16px">—</div>'+
     '<hr style="border:0;border-top:1px solid #1b3a44;margin:8px 0">'+
-    _row("Active stage","sv-stage")+_row("Signed receipt","sv-sign")+
+    _row("Active stage","sv-stage")+_row("Receipt on GET","sv-sign")+
     '<div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;font-size:10px;color:#9fc">'+
-      _leg(C_LIVE,"LIVE-SOVEREIGN")+_leg(C_DOWN,"UNAVAILABLE")+
-      _leg(C_STAGEA,"Stage A (now)")+_leg(C_STAGEB,"Stage B (roadmap)")+_leg(C_SEAL,"receipt seal")+
+      _leg(C_REACH,"Endpoint reachable · proof UNKNOWN")+_leg(C_DOWN,"UNAVAILABLE")+
+      _leg(C_STAGEA,"Stage A (declared)")+_leg(C_STAGEB,"Stage B (roadmap)")+_leg(C_SEAL,"no receipt on GET")+
     '</div>'+
     '<div style="margin-top:9px;display:flex;gap:8px;flex-wrap:wrap">'+
       '<button id="sv-plain" style="font:11px ui-monospace;background:#0f2027;color:#9fc;border:1px solid #1b3a44;border-radius:6px;padding:3px 8px;cursor:pointer">Plain language</button>'+
@@ -216,9 +198,9 @@ function _leg(hex,txt){ const c="#"+hex.toString(16).padStart(6,"0"); return '<s
 function _set(id,v){ const e=_overlay&&_overlay.querySelector("#"+id); if(e) e.textContent=v; }
 
 function _stageLabel(s){
-  if(s==="STAGE_A") return "A · system-prompt derivative (now)";
+  if(s==="STAGE_A_TAG_PRESENT") return "A-tag hint · wrapper unverified";
   if(s==="STAGE_B_TAG_PRESENT") return "B-tag present (finetuned tag served)";
-  return "UNKNOWN (node unreachable)";
+  return "UNKNOWN (no supported stage tag observed)";
 }
 
 function _paintOverlay(){
@@ -226,23 +208,19 @@ function _paintOverlay(){
   const missing=(S.state==="missing"||S.state==="error");
   if(_show) _show.setChip("label",S.label||"UNAVAILABLE");
   if(missing){
-    ["sv-reach","sv-tag","sv-served","sv-base","sv-reason","sv-stlabel","sv-stage","sv-sign"].forEach((id)=>_set(id,"NO-LIVE-DATA"));
+    ["sv-reach","sv-tag","sv-reason","sv-stlabel","sv-stage","sv-sign"].forEach((id)=>_set(id,"NO-LIVE-DATA"));
     _set2("sv-reasontext","panel endpoint did not answer this request \u2014 no status inferred.");
     _set2("sv-answer","backend offline — NO-LIVE-DATA (honest, never fabricated).");
     if(_plain)_applyPlain(); return;
   }
-  _set("sv-reach",S.reachable?"YES · LIVE-SOVEREIGN":"NO · UNAVAILABLE");
+  _set("sv-reach",S.reachable?"YES · metadata only; proof UNKNOWN":"NO · UNAVAILABLE");
   _set("sv-tag",S.modelTag||"—");
-  _set("sv-served",(S.reachable&&S.modelServed)?S.modelServed:"— (node unreachable)");
-  _set("sv-base",(S.baseUrl?String(S.baseUrl):"—")+(S.baseSource?" ( "+S.baseSource+" )":""));
   _set("sv-reason",S.reachable?"— (node answered this request)":(S.reason||"UNKNOWN"));
   _set2("sv-reasontext",S.reachable?"":(S.reasonText||""));
   _set("sv-stlabel",S.selftestLabel||"UNAVAILABLE");
-  _set2("sv-answer", S.selftestAnswer
-    ? S.selftestAnswer
-    : "UNAVAILABLE — the Tower did not answer this request; no doctrine line fabricated.");
+  _set2("sv-answer", "UNAVAILABLE — no inference is run by this public GET; no answer claimed.");
   _set("sv-stage",_stageLabel(S.activeStage));
-  _set("sv-sign",(S.signMode||"—")+(S.signed?" ✓ (REAL DSSE)":(S.signMode==="UNSIGNED-LOCAL"?" (unsigned, honest)":"")));
+  _set("sv-sign",S.receiptMinted?"UNEXPECTED — inspect":"NOT MINTED (read-only)");
   if(_plain)_applyPlain();
 }
 
@@ -251,11 +229,11 @@ function _set2(id,v){ const e=_overlay&&_overlay.querySelector("#"+id); if(e) e.
 function _applyPlain(){
   const box=_overlay&&_overlay.querySelector("#sv-plainbox"); if(!box)return;
   box.style.display=_plain?"block":"none";
-  if(_plain) box.innerHTML="This tab is the <b>dashboard for the founder\'s own AI model</b> — the one running on the home Tower (an OMEN PC with an RTX 4060&nbsp;Ti) instead of on someone else\'s cloud. It answers three plain questions honestly. <b>Is it awake?</b> The glowing core is <b>teal when the model is reachable right now</b> and <b>grey when it isn\'t</b>. Because the Tower can\'t be reached from the cloud where this site runs, it will usually read <b>UNAVAILABLE here — and we say so rather than pretend</b>. <b>Does it know who it is?</b> We ask it to \u201cstate its doctrine in one line\u201d and show its <b>real answer when it\u2019s reachable</b>; otherwise we show <b>UNAVAILABLE</b> and invent nothing. <b>Which version is it?</b> <b>Stage&nbsp;A</b> is the quick version (the base model wrapped in a doctrine instruction, running now); <b>Stage&nbsp;B</b> is the real trained version (a LoRA fine-tune, coming later) that will slot in under the same name. Finally we <b>sign a receipt of the check</b> so the result is tamper-evident even when the answer is \u201cunavailable.\u201d Trust is advisory (\u039b, capped at 0.97, never a green stamp), and nothing here touches the locked-8.";
+  if(_plain) box.innerHTML="This public tab reports only whether the sovereign endpoint answered a guarded metadata probe. It does not ask the model to generate text, mint a receipt, or reveal the private backend URL and model inventory. <b>Stage A</b> is the declared system-prompt derivative; <b>Stage B</b> remains a roadmap until separately evidenced. A served tag is only a hint, not proof of LoRA weights. Existing signed receipts are unchanged and must be verified through their governed receipt path. Trust remains advisory (\u039b, capped at 0.97).";
 }
 
 function _infoHTML(){
-  return "<b>What is real vs UNAVAILABLE.</b> This panel calls <code>GET /api/a11oy/v1/frontier/sovereign</code>, which probes the local node <b>server-side</b> (via Dev-1\u2019s <code>szl_llm_registry.sovereign_probe</code>, the same code that backs <code>GET /api/a11oy/v1/llm/sovereign/health</code>; if Dev-1\u2019s PR isn\u2019t merged it probes <code>SZL_LOCAL_LLM_URL</code> directly and records the dependency). <b>Reachable = true only if the node returned a real 2xx JSON THIS request</b> \u2014 never fabricated. The <b>doctrine self-test</b> runs a real generation only when reachable; otherwise it is an honest <b>UNAVAILABLE</b> with the intended prompt + backend id recorded (no invented line \u2014 Zero-Bandaid Law). The <b>signed receipt</b> is a <b>REAL ECDSA-P256 DSSE</b> envelope in-Space (SZL cosign key) and an honest <b>UNSIGNED-LOCAL</b> envelope otherwise \u2014 never a fabricated signature.<br><br><b>Stage A vs Stage B.</b> Stage A = a Doctrine-v11 <b>system-prompt derivative</b> over base <b>llama3.1:8b</b> (behavior from the prompt, no weight change). Stage B = a real <b>4-bit QLoRA fine-tune</b> exported to GGUF + an Ollama <b>ADAPTER</b>, replacing Stage A under the <b>same tag <code>llama3-szl-finetuned-q4</code></b> (Dev&nbsp;3 \u2014 <code>feat/stage-b-lora</code>).<br><br>&bull; Ollama (local OpenAI-compatible serving) \u2014 <a href=\"https://ollama.com\" style=\"color:#3af4c8\">ollama.com</a><br>&bull; Sovereign backend registry (<code>szl-sovereign-local</code>) \u2014 Dev&nbsp;1, <code>feat/sovereign-backend</code><br>&bull; Stage-B LoRA pipeline \u2014 Dev&nbsp;3, <code>feat/stage-b-lora</code><br>&bull; \u039b trust gate = Conjecture&nbsp;1 (lutar-lean; advisory, never green). Nothing here touches the locked-8; trust capped at 0.97, never 100%.";
+  return "<b>Read-only contract.</b> GET <code>/api/a11oy/v1/frontier/sovereign</code> uses the guarded registry metadata probe. Reachable means only that a metadata endpoint answered this request. If the registry helper is unavailable, the result is UNAVAILABLE; no direct fallback request is made. The GET never calls generation or DSSE signing and does not read or reclassify historical receipts. It withholds the private endpoint and served-model inventory. <b>Separate gateway boundary:</b> this status-page repair does not authenticate or secure a directly exposed model tunnel. Stage A/B remains declared context; a served tag is not weight attestation. \u039b remains Conjecture 1 and trust below 1.0.";
 }
 
 function unmount(){
@@ -266,8 +244,7 @@ function unmount(){
   _group=_overlay=null; _core=_coreGlow=_seal=_nodeA=_nodeB=null;
   _badge=null; _plain=false; _frameReg=false; _stage=_THREE=_ctx=null;
   S.label="UNAVAILABLE"; S.state="init"; S.reachable=false; S.selftestAnswer=null;
-  S.selftestLabel="UNAVAILABLE"; S.activeStage="UNKNOWN"; S.signMode=null; S.signed=null;
-  S.modelServed=null; S.modelsLive=[]; S.baseUrl=null;
+  S.selftestLabel="UNAVAILABLE"; S.activeStage="UNKNOWN"; S.receiptMinted=false;
 }
 
 export default { id: ID, title: TITLE, endpoints: [EP_PANEL, EP_HEALTH], mount, unmount };

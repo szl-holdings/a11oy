@@ -591,17 +591,10 @@ def test_courtlistener_interval_is_bounded(monkeypatch) -> None:
         assert vertical._courtlistener_min_interval_s() == 1.0
 
 
-def test_courtlistener_429_is_serialized_retried_and_recovers_live(monkeypatch) -> None:
+def test_courtlistener_429_honors_cooldown_without_repeat_transport(monkeypatch) -> None:
     monkeypatch.setattr(vertical, "_CACHE", vertical._Cache())
     monkeypatch.setattr(vertical, "_COURTLISTENER_NEXT_REQUEST_AT", 0.0)
-    waited: list[str] = []
-    deferred: list[float] = []
-    monkeypatch.setattr(
-        vertical, "_courtlistener_wait_locked", lambda: waited.append("slot")
-    )
-    monkeypatch.setattr(
-        vertical, "_courtlistener_defer_locked", lambda delay: deferred.append(delay)
-    )
+    monkeypatch.setattr(vertical, "_COURTLISTENER_COOLDOWN_UNTIL", 0.0)
 
     class _Response:
         def __init__(self, status: int, payload: dict[str, Any], headers=None) -> None:
@@ -634,22 +627,39 @@ def test_courtlistener_429_is_serialized_retried_and_recovers_live(monkeypatch) 
         def get(self, _url: str, **_kwargs: Any) -> _Response:
             self.calls += 1
             if self.calls == 1:
-                return _Response(429, {}, {"Retry-After": "2"})
+                return _Response(429, {}, {"Retry-After": "3600"})
             return _Response(200, {"results": [{"caseName": "Recovered"}], "count": 1})
 
     client = _Client()
     monkeypatch.setattr(vertical, "_client", lambda: client)
-    result = vertical._cached_fetch(
-        "courtlistener-test",
+    first = vertical._cached_fetch(
+        "courtlistener-test-1",
         "https://www.courtlistener.com/api/rest/v4/search/?q=defense&type=o",
         900.0,
     )
+    second = vertical._cached_fetch(
+        "courtlistener-test-2",
+        "https://www.courtlistener.com/api/rest/v4/search/?q=insurance&type=o",
+        900.0,
+    )
 
+    assert client.calls == 1
+    assert first["value"] is None and second["value"] is None
+    assert first["freshness"]["status"] == "unavailable"
+    assert second["freshness"]["status"] == "unavailable"
+    assert "cooldown active" in second["freshness"]["error"]
+    assert vertical._COURTLISTENER_COOLDOWN_UNTIL - time.monotonic() > 3500
+
+    monkeypatch.setattr(vertical, "_COURTLISTENER_COOLDOWN_UNTIL", 0.0)
+    monkeypatch.setattr(vertical, "_COURTLISTENER_NEXT_REQUEST_AT", 0.0)
+    recovered = vertical._cached_fetch(
+        "courtlistener-test-2",
+        "https://www.courtlistener.com/api/rest/v4/search/?q=insurance&type=o",
+        900.0,
+    )
     assert client.calls == 2
-    assert waited == ["slot", "slot"]
-    assert deferred == [2.0]
-    assert result["value"]["count"] == 1
-    assert result["freshness"]["status"] == "live"
+    assert recovered["value"]["count"] == 1
+    assert recovered["freshness"]["status"] == "live"
 
 
 def test_non_courtlistener_429_is_not_retried(monkeypatch) -> None:

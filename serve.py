@@ -1459,20 +1459,16 @@ except Exception as _szl_fmv_e:  # pragma: no cover
     print(f"[a11oy] Frontier fmverif NOT registered: {_szl_fmv_e!r}", file=__import__("sys").stderr)
 
 # Sovereign Local Model panel (Wave M / Dev 4) — GET /api/a11oy/v1/frontier/sovereign returns
-# the operator status of the founder's LOCAL sovereign model (Ollama on the Tower, Doctrine-v11
-# system prompt over base llama3.1:8b; model tag llama3-szl-finetuned-q4): reachability (prefers
-# Dev-1's szl_llm_registry.sovereign_probe, which backs GET /api/a11oy/v1/llm/sovereign/health;
-# else a direct SZL_LOCAL_LLM_URL probe + honest dependency note), the doctrine self-test
-# ("State your doctrine in one line" → the model's REAL answer when reachable, else honest
-# UNAVAILABLE), Stage A-vs-B status, and a signed receipt of the check (REAL DSSE in-Space,
-# UNSIGNED-LOCAL otherwise). The Tower is NOT reachable from CI/cloud, so off-Tower this
-# degrades to honest UNAVAILABLE — NEVER a fabricated status/answer/signature. Adds NOTHING to
+# read-only status of the configured model endpoint: reachability via the guarded
+# szl_llm_registry.sovereign_probe, Stage A-vs-B declarations, and an explicit
+# no-inference/no-receipt-on-GET status. Private backend URLs and served-model inventory
+# are withheld. Probe failure degrades to UNAVAILABLE without a direct fallback. Adds NOTHING to
 # the locked-8; Λ stays Conjecture 1; trust ceiling 0.97. Additive, try/except-guarded, same
 # register() pattern, registered EARLY (before the SPA catch-all).
 try:
     import szl_sovereign_panel as _szl_sovereign_panel
     _szl_sovereign_panel.register(app, ns="a11oy")
-    print("[a11oy] Frontier sovereign registered: /api/a11oy/v1/frontier/sovereign (LIVE-SOVEREIGN when reachable, else honest UNAVAILABLE)", file=__import__("sys").stderr)
+    print("[a11oy] Frontier sovereign registered: /api/a11oy/v1/frontier/sovereign (metadata-only UNKNOWN when reachable, else UNAVAILABLE)", file=__import__("sys").stderr)
 except Exception as _szl_sov_e:  # pragma: no cover
     print(f"[a11oy] Frontier sovereign NOT registered: {_szl_sov_e!r}", file=__import__("sys").stderr)
 
@@ -5462,10 +5458,10 @@ def _frontier_liveness_signal() -> dict:
 
 # Sovereign local-model rollup signal (Wave M / Dev 4). Compact {reachable, model,
 # label} for the /healthz rollup — a cheap, cached, guarded probe (via
-# szl_sovereign_panel.rollup_signal, which prefers Dev-1's registry probe / falls back
-# to a direct SZL_LOCAL_LLM_URL probe). NEVER blocks or crashes the health path, and
-# NEVER fakes a reachable node: the Tower is unreachable from CI/cloud, so off-Tower
-# this is honestly {reachable:false, label:"UNAVAILABLE"}.
+# szl_sovereign_panel.rollup_signal, which uses the guarded registry probe and
+# fails closed when that helper is unavailable). NEVER blocks or crashes the health path, and
+# NEVER fakes a reachable node. A tunnel may answer from cloud, but reachability
+# does not verify an owned GPU, weights, or the doctrine wrapper.
 _SOVEREIGN_HZ_CACHE: dict = {}
 
 
@@ -5478,8 +5474,8 @@ def _sovereign_health_signal(ttl: float = 30.0) -> dict:
         import szl_sovereign_panel as _szl_sov_hz
         val = _szl_sov_hz.rollup_signal()
     except Exception as exc:  # pragma: no cover — never block healthz; honest UNAVAILABLE
-        val = {"reachable": False, "model": "llama3-szl-finetuned-q4",
-               "label": "UNAVAILABLE", "error": f"{type(exc).__name__}: {exc}"}
+        val = {"reachable": False, "model": "szl-sovereign-local",
+               "label": "UNAVAILABLE", "error": type(exc).__name__}
     _SOVEREIGN_HZ_CACHE.update({"checked_at": now, "value": val})
     return val
 
@@ -5586,8 +5582,8 @@ async def healthz() -> JSONResponse:
         "anchor_formula_gates": 44,
         "hatun_willay": True,
         # Wave M / Dev 4: sovereign local-model rollup signal (honest — never fakes a
-        # reachable node; the Tower is unreachable from CI/cloud so off-Tower this is
-        # {reachable:false, label:"UNAVAILABLE"}). Also mirrored into rollup.sovereign
+        # reachable endpoint; metadata reachability is not sovereign provenance.
+        # Also mirrored into rollup.sovereign
         # so a Wave-L-style rollup consumer finds it in the expected place.
         "sovereign": _sovereign,
         # Wave O / Dev 5: compact Brain rollup — the founder's "Brain powering the

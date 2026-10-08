@@ -6,6 +6,8 @@ import sys
 import json
 import tempfile
 
+import pytest
+
 # ensure repo root on path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -13,11 +15,35 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 import szl_llm_registry as reg
 
+_OPERATOR = "fixture-operator-secret-not-real"
+
+
+@pytest.fixture(autouse=True)
+def _operator_key(monkeypatch):
+    monkeypatch.setenv("A11OY_CODE_ADMIN_KEY", _OPERATOR)
+
+
+@pytest.fixture(autouse=True)
+def _restore_runtime_environment():
+    """The module's direct env mutations must not change later route tests."""
+    names = {name for name, _ in reg._PROVIDER_ENV_VARS}
+    names.update({"SZL_LOCAL_LLM_URL", "SZL_LOCAL_LLM_MODEL",
+                  "SZL_GOVERN_INFER_LOG", "A11OY_CODE_LLM_KEY"})
+    before = {name: os.environ.get(name) for name in names}
+    yield
+    for name, value in before.items():
+        if value is None:
+            os.environ.pop(name, None)
+        else:
+            os.environ[name] = value
+
 
 def _fresh_client():
     app = FastAPI()
     reg.register(app)
-    return TestClient(app)
+    client = TestClient(app)
+    client.headers.update({"Authorization": "Bearer " + _OPERATOR})
+    return client
 
 
 def test_no_env_all_stubs():
@@ -103,16 +129,19 @@ def test_sovereign_wired_with_mock_node():
         # sovereign health: env present + node live + model list real
         h = c.get("/api/a11oy/v1/llm/sovereign/health").json()
         assert h["env_present"] is True, h
-        assert h["live"] is True, h
-        assert reg._SOVEREIGN_MODEL_TAG in h["served_models"], h
+        assert h["endpoint_reachable"] is True, h
+        assert h["live"] is False, h  # metadata GET did not execute a model
+        assert h["model_ready"] is True, h
+        assert h["served_models"] == [], h  # public projection, internal probe stays exact
         assert h["honest_stub"] is True, h
-        assert h["state"] == "REACHABLE_UNRECEIPTED", h
+        assert h["state"] == "UNKNOWN", h
+        assert h["operational"] is False, h
         # Reachability alone does not clear the registry's honest stub.
         d = c.get("/api/a11oy/v1/llm/registry?probe=1").json()
         sov = next(b for b in d["badges"] if b["model_id"] == "sovereign_local")
         assert sov["wired"] is False, sov
         assert sov["is_local"] is True, sov
-        assert sov["env_used"] == "SZL_LOCAL_LLM_URL", sov
+        assert "env_used" not in sov, sov  # endpoint configuration stays private
         assert d["wired_count"] == 0, d["wired_count"]
         # route: explicit sovereign selection => REAL text, wired=true
         rt = c.post("/api/a11oy/v1/llm/route",
@@ -126,9 +155,13 @@ def test_sovereign_wired_with_mock_node():
         assert "[HONEST STUB]" not in rt["response"], rt["response"]
         # router status probe: local node live
         rs = c.get("/api/a11oy/v1/llm/router/status?probe=1").json()
-        assert rs["local_nodes"][0]["live"] is True, rs["local_nodes"]
-        assert reg._SOVEREIGN_MODEL_TAG in rs["local_nodes"][0]["served_models"], rs["local_nodes"]
-        assert rs["local_nodes"][0]["operational"] is True
+        assert rs["local_nodes"][0]["endpoint_reachable"] is True, rs["local_nodes"]
+        assert rs["local_nodes"][0]["live"] is False, rs["local_nodes"]
+        assert rs["local_nodes"][0]["model_ready"] is True, rs["local_nodes"]
+        assert rs["local_nodes"][0]["served_models"] == [], rs["local_nodes"]
+        assert rs["local_nodes"][0]["operational"] is False
+        assert rs["local_nodes"][0]["inference_receipted"] is True
+        assert rs["local_nodes"][0]["receipt_binding"] == "UNKNOWN"
         print("PASS test_sovereign_wired_with_mock_node: sovereign wired+live, REAL text")
     finally:
         reg._http_json = orig
@@ -158,6 +191,7 @@ def test_sovereign_env_set_but_node_dead():
 
 
 if __name__ == "__main__":
+    os.environ["A11OY_CODE_ADMIN_KEY"] = _OPERATOR
     test_no_env_all_stubs()
     test_fake_keys_are_configured_not_wired()
     test_sovereign_wired_with_mock_node()

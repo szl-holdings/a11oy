@@ -521,12 +521,11 @@ def _readiness_warm_interval_s() -> float:
 
 
 def _readiness_warm_targets() -> list:
-    """Default legal views the post-deploy probe (and console) reads."""
+    """Probe-shaped legal views; avoid an extra cold CourtListener request."""
     targets = [
         (feed_courtlistener, ("securities", 1), {}),
         (feed_courtlistener, ("defense", 1), {}),
         (feed_courtlistener, ("insurance", 1), {}),
-        (feed_courtlistener, ("securities", 18), {}),  # exposure graph default seed
         (feed_fedregister, (1, None), {}),
         (feed_fr_agencies, (14, None), {}),
     ]
