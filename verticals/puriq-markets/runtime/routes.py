@@ -7,11 +7,35 @@ from fastapi.responses import JSONResponse
 
 from .sources import SOURCES
 from .transport import FinanceClient, FinanceError, source_revision
-from . import analytics, research
+from . import analytics, research, signed_prices
 
 router = APIRouter()
 CLIENT = FinanceClient()
 PREFIX = "/api/a11oy/v1/finance"
+
+
+@router.get(PREFIX + "/signed-prices/model")
+def finance_signed_price_model(request: Request):
+    if request.query_params:
+        return analytics_failure("INVALID_PARAMETERS")
+    try:
+        return reply(signed_prices.envelope(CLIENT.environ,
+            signed_prices.reference.synthetic_demo(), modeled=True))
+    except FinanceError:
+        return analytics_failure("CANONICAL_SOURCE_UNBOUND", 503)
+
+
+@router.get(PREFIX + "/signed-prices/{symbol_name}")
+def finance_signed_price(symbol_name: str, request: Request):
+    if request.query_params or symbol_name not in ("BTC", "ETH", "SOL"):
+        return analytics_failure("INVALID_PARAMETERS")
+    if source_revision(CLIENT.environ) == "UNBOUND":
+        return analytics_failure("CANONICAL_SOURCE_UNBOUND", 503)
+    try:
+        return reply(signed_prices.envelope(CLIENT.environ,
+            signed_prices.CLIENT.observe(symbol_name)))
+    except signed_prices.SourceUnavailable:
+        return analytics_failure("SIGNED_PRICE_SOURCE_UNAVAILABLE", 503)
 
 
 def analytics_failure(code, status=422):
