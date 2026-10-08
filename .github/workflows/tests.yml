@@ -569,6 +569,8 @@ jobs:
           # workflows use. No signing, so no id-token: write — this only VERIFIES an
           # already-signed receipt against the public Sigstore trust root.
           python -m pip install --require-hashes -r .github/requirements/ci-sigstore.txt
+      - name: Verify quant manifest HTTPS and failure propagation offline
+        run: python -m pytest tests/test_quant_manifest_transport.py -q
       - name: Genuine receipt verifies AND a tampered copy is rejected (no monkeypatch)
         # Integration negative-proof (issue #408): runs scripts/tamper_release_receipt.py
         # on a committed GENUINE receipt fixture and asserts scripts/verify_release_receipts.py
