@@ -1472,6 +1472,11 @@ def register(app: FastAPI) -> dict:
             _sovereign_env_present() and not _any_cloud_wired
             and str(body.get("offline_mode", "")).lower() in ("1", "true", "yes")
         )
+        if _opted_out and (_explicit_sovereign or _offline_pref):
+            return JSONResponse({
+                "ok": False, "status": "BLOCKED",
+                "error": "conflicting sovereign request and local opt-out",
+            }, status_code=400)
         # OWN-METAL-FIRST over the MESH (Wave N, Dev 3): probe the PRIMARY node
         # (SZL_LOCAL_LLM_URL) plus every SZL_SOVEREIGN_NODES tailnet node, short
         # timeout, in own-metal-first order. If ANY node is reachable this request
@@ -1671,7 +1676,9 @@ def register(app: FastAPI) -> dict:
                 "doctrine": DOCTRINE,
                 "conjecture_note": "Λ = Conjecture 1 — advisory, never 'green'/theorem.",
             }
-            return JSONResponse(_sov_resp)
+            return JSONResponse(
+                _sov_resp,
+                status_code=503 if _receipt_failed_after_generation else 200)
         # else: NO sovereign node reachable AND no explicit/offline intent — fall
         # THROUGH to the free/paid tier selection below (honest, no fabrication).
 
