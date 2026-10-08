@@ -259,7 +259,7 @@ jobs:
     name: Deploy, source-bind, and attest exact surface
     needs: [source-admission, preflight]
     if: ${{ needs.source-admission.outputs.publish == 'true' && needs.preflight.result == 'success' && needs.preflight.outputs.publish == 'true' }}
-    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
+    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@4738365705a6a478c0e4c2e94b784ebe5e5e25da
     with:
       hf-repo: SZLHOLDINGS/a11oy
       ref: ${{ github.sha }}
