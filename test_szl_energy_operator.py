@@ -22,9 +22,11 @@ from __future__ import annotations
 import http.server
 import json
 import os
+import secrets
 import tempfile
 import threading
 import time
+from unittest import mock
 
 import szl_energy_operator as OP
 import szl_joules_truth as J
@@ -106,6 +108,12 @@ class _FakeNode:
 
         self._server = http.server.HTTPServer(("127.0.0.1", 0), H)
         self.port = self._server.server_port
+        # Ephemeral fixture capability: native meter transport denies unconfigured
+        # clients. This fake reading remains synthetic, never a hardware receipt.
+        self._auth_env = mock.patch.dict(os.environ, {"SZL_METER_HMAC_TARGETS": json.dumps({
+            f"http://127.0.0.1:{self.port}": {
+                "client_id": "synthetic-operator-test", "key_hex": secrets.token_hex(32)}})})
+        self._auth_env.start()
         self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
         self._thread.start()
         return f"http://127.0.0.1:{self.port}/v1"
@@ -114,6 +122,7 @@ class _FakeNode:
         if self._server:
             self._server.shutdown()
             self._server.server_close()
+            self._auth_env.stop()
 
 
 def _node_cfg(base_url: str) -> OP.NodeCfg:
