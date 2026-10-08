@@ -64,3 +64,21 @@ not establish per-job attribution or qualify energy for billing.
 Synthetic tests use ephemeral in-memory keys and controlled telemetry. Their results
 qualify source authentication behavior; live key provisioning, tunnel policy, runtime
 activation, real meter measurements, and independent replay remain NOT RUN/UNKNOWN.
+
+## Windows owner installation
+
+`install_meter_windows.ps1 -SourceRevision <full-commit-sha>` requires a clean,
+committed checkout matching that revision. It copies the exporter and client helper,
+records their SHA-256 hashes, and creates distinct canonical and local-healthcheck
+client keys only when no private configuration already exists. Keys are encrypted
+with Windows DPAPI for the current user under `%LOCALAPPDATA%\SZL\Meter`, outside
+the repository, with directory access restricted to that user and SYSTEM. Existing
+configuration is preserved; this command does not rotate established keys.
+
+The installed `program\run_meter_windows.ps1` verifies the recorded file hashes,
+decrypts configuration into its process environment, and runs only the authenticated
+`127.0.0.1:9471` exporter. It does not activate a tunnel or change DNS. Run it as the
+same Windows user that performed installation; a SYSTEM task cannot decrypt that
+user's DPAPI data. The canonical client's matching target configuration must be
+provisioned separately through the hosting provider's secret mechanism. Do not
+print decrypted configuration, put keys in command arguments, or commit it.
