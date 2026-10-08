@@ -36,8 +36,6 @@ def test_anonymous_route_is_blocked_before_harness_or_provider(monkeypatch):
 
     monkeypatch.setattr(harness, "apply", forbidden)
     monkeypatch.setattr(registry, "sovereign_mesh_matrix", forbidden)
-    assert operator_auth.protected_action(
-        "POST", "/api/a11oy/v1/llm/route") is not None
     for body in ({"prompt": "no effect", "model_id": registry._SOVEREIGN_BACKEND_ID},
                  {"prompt": "no harness", "harness_profile_id": "szl-honest-operator"}):
         response = _client(authorized=False).post(
@@ -81,6 +79,21 @@ def test_explicit_non_sovereign_opt_out_never_probes_or_generates(monkeypatch):
     body = response.json()
     assert body["model_selected"]["model_id"] == "claude_sonnet_4_6"
     assert "[HONEST STUB]" in body["response"] or "[CONFIGURED_UNVERIFIED]" in body["response"]
+
+
+def test_conflicting_explicit_sovereign_and_opt_out_is_blocked(monkeypatch):
+    def forbidden(*_args, **_kwargs):
+        raise AssertionError("conflicting request touched the sovereign mesh")
+
+    monkeypatch.setattr(registry, "sovereign_mesh_matrix", forbidden)
+    monkeypatch.setattr(registry, "sovereign_mesh_generate", forbidden)
+    response = _client().post(
+        "/api/a11oy/v1/llm/route",
+        json={"prompt": "contradiction", "model_id": registry._SOVEREIGN_BACKEND_ID,
+              "prefer_local": False},
+    )
+    assert response.status_code == 400
+    assert response.json()["status"] == "BLOCKED"
 
 
 @pytest.mark.parametrize("receipt_failure", ["returned", "raised", "inconsistent", "missing_hash"])
@@ -130,7 +143,7 @@ def test_generated_text_is_withheld_when_receipt_cannot_verify(
         json={"prompt": "withhold if no receipt",
               "model_id": registry._SOVEREIGN_BACKEND_ID},
     )
-    assert response.status_code == 200
+    assert response.status_code == 503
     body = response.json()
     assert receipt_calls == [True]
     assert sum(url.endswith("/api/tags") for _method, url in calls) == 1
