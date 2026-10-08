@@ -180,6 +180,7 @@ def test_public_forum_ingest_cannot_inflate_router_counter(monkeypatch):
 
 
 def test_harness_explicit_model_is_counted_under_its_catalog_tier(monkeypatch):
+    monkeypatch.setenv("A11OY_CODE_ADMIN_KEY", "fixture-operator-secret-not-real")
     registry = serve._llm_reg
     monkeypatch.setattr(registry, "_FORUM_LOG", [])
     monkeypatch.setattr(registry, "_ROUTER_DECISIONS_BY_ROUTE", {})
@@ -187,6 +188,7 @@ def test_harness_explicit_model_is_counted_under_its_catalog_tier(monkeypatch):
 
     routed = client.post(
         "/api/a11oy/v1/llm/route",
+        headers={"Authorization": "Bearer fixture-operator-secret-not-real"},
         json={
             "harness_profile_id": "szl-honest-operator",
             "model_id": "gpt_5_4",
@@ -210,6 +212,7 @@ def test_harness_explicit_model_is_counted_under_its_catalog_tier(monkeypatch):
 
 
 def test_plain_llm_route_increments_the_trusted_counter(monkeypatch):
+    monkeypatch.setenv("A11OY_CODE_ADMIN_KEY", "fixture-operator-secret-not-real")
     registry = serve._llm_reg
     monkeypatch.setattr(registry, "_FORUM_LOG", [])
     monkeypatch.setattr(registry, "_ROUTER_DECISIONS_BY_ROUTE", {})
@@ -231,6 +234,7 @@ def test_plain_llm_route_increments_the_trusted_counter(monkeypatch):
 
     routed = client.post(
         "/api/a11oy/v1/llm/route",
+        headers={"Authorization": "Bearer fixture-operator-secret-not-real"},
         json={"prompt": "count this route", "prefer_local": False},
     )
     assert routed.status_code == 200

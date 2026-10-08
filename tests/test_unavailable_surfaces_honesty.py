@@ -11,7 +11,8 @@
 #    the panel MUST read UNAVAILABLE, must name the reason machine-readably, and
 #    must NOT invent a doctrine self-test answer. With the env set AND a node that
 #    answers THIS request (mocked at the registry-probe boundary — never a network
-#    call from CI) the panel MUST go LIVE-SOVEREIGN with the node's real answer.
+#    call from CI) the panel may report reachability, but GET must never invoke
+#    generation or mint a receipt.
 #    Both directions matter: no fabricated live, and no stuck-UNAVAILABLE either.
 #
 # 2. brainreranker — the surface label must reflect what is actually served this
@@ -24,6 +25,7 @@
 # Pure stdlib + pytest + TestClient. No network. Λ stays Conjecture 1.
 
 import importlib
+import json
 import sys
 from pathlib import Path
 
@@ -67,7 +69,6 @@ def test_sovereign_unavailable_when_env_unset(monkeypatch):
     assert "ENVIRONMENT GAP" in payload["unavailable_reason_text"]
     assert payload["sovereign"]["reachable"] is False
     assert payload["sovereign"]["env_present"] is False
-    assert payload["sovereign"]["base_url_source"] == sp.BASE_FROM_DEFAULT
     # No fabricated doctrine line, and no fabricated stage observation.
     assert payload["doctrine_selftest"]["label"] == sp.UNAVAILABLE
     assert payload["doctrine_selftest"]["answer"] is None
@@ -77,49 +78,85 @@ def test_sovereign_unavailable_when_env_unset(monkeypatch):
     assert payload["doctrine"]["trust_ceiling"] < 1.0
 
 
-def test_sovereign_live_when_env_set_and_node_answers(monkeypatch):
-    """Env set + a node that answers THIS request => LIVE-SOVEREIGN with a REAL answer.
-
-    The mock sits at the registry-probe boundary, so the panel's own gating logic
-    (reachable -> self-test -> stage -> receipt) is the thing under test. No network.
-    """
+def test_sovereign_reachable_get_never_generates_or_signs(monkeypatch):
+    """Even repeated reachable reads only probe; no inference or receipt is minted."""
     monkeypatch.setenv("SZL_LOCAL_LLM_URL", "http://tower.local:11434/v1")
+    calls = {"probe": 0, "generate": 0, "sign": 0}
     fake = type(sys)("szl_llm_registry")
-    fake.sovereign_probe = lambda: {
-        "live": True, "models": ["llama3-szl-finetuned-q4"],
-        "base_url": "http://tower.local:11434/v1", "env_present": True,
-        "api_style": "ollama /api", "note": "node live (mock node answered this request)",
-    }
-    fake.sovereign_generate = lambda prompt: {
-        "live": True, "text": "Honest labels, no fabricated measurement.",
-        "model": "llama3-szl-finetuned-q4", "api_style": "ollama /api",
-    }
+    def probe():
+        calls["probe"] += 1
+        return {
+            "live": True, "models": ["llama3-szl-finetuned-q4-private-inventory"],
+            "base_url": "http://private-endpoint.invalid:11434/v1", "env_present": True,
+            "api_style": "ollama /api", "note": "private diagnostic sentinel",
+        }
+    def forbid_generate(*_args, **_kwargs):
+        calls["generate"] += 1
+        raise AssertionError("GET invoked sovereign_generate")
+    def forbid_sign(*_args, **_kwargs):
+        calls["sign"] += 1
+        raise AssertionError("GET invoked DSSE signer")
+    fake.sovereign_probe = probe
+    fake.sovereign_generate = forbid_generate
+    dsse = type(sys)("szl_dsse")
+    dsse.sign_payload = forbid_sign
     monkeypatch.setitem(sys.modules, "szl_llm_registry", fake)
+    monkeypatch.setitem(sys.modules, "szl_dsse", dsse)
 
+    for _ in range(2):
+        payload = sp.build_payload()
+        assert payload["label"] == sp.UNKNOWN
+        assert payload["sovereign"]["reachable"] is True
+        assert payload["gpu_verified"] is False
+        assert payload["weights_verified"] is False
+        assert payload["ownership_proof"] == sp.UNAVAILABLE
+        assert payload["unavailable_reason"] is None
+        assert payload["doctrine_selftest"]["label"] == sp.UNAVAILABLE
+        assert payload["doctrine_selftest"]["answer"] is None
+        assert payload["doctrine_selftest"]["live"] is False
+        assert payload["receipt_status"]["receipt_minted"] is False
+        assert "signed_receipt" not in payload
+        assert payload["stage"]["active_stage"] == "STAGE_B_TAG_PRESENT"
+        assert payload["stage"]["served_models_live"] == []
+        raw = json.dumps(payload)
+        assert "private-endpoint.invalid" not in raw
+        assert "private-inventory" not in raw
+        assert "private diagnostic sentinel" not in raw
+        assert payload["doctrine"]["adds_to_locked_8"] == 0
+    rollup = sp.rollup_signal()
+    assert rollup["reachable"] is True
+    assert rollup["label"] == sp.UNKNOWN
+    assert rollup["gpu_verified"] is False
+    assert rollup["ownership_proof"] == sp.UNAVAILABLE
+    assert rollup["model"] == sp.SOVEREIGN_BACKEND_ID
+    assert calls == {"probe": 3, "generate": 0, "sign": 0}
+
+
+def test_sovereign_guarded_probe_failure_has_no_direct_network_fallback(monkeypatch):
+    """A missing registry helper fails closed instead of fetching a private URL."""
+    monkeypatch.setenv("SZL_LOCAL_LLM_URL", "http://private-endpoint.invalid:11434/v1")
+    monkeypatch.setitem(sys.modules, "szl_llm_registry", type(sys)("szl_llm_registry"))
+    import urllib.request
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *_a, **_k: (_ for _ in ()).throw(
+        AssertionError("unguarded URL fetch")))
     payload = sp.build_payload()
-    assert payload["label"] == sp.LIVE_SOVEREIGN
-    assert payload["unavailable_reason"] is None
-    assert payload["unavailable_reason_text"] is None
-    sov = payload["sovereign"]
-    assert sov["reachable"] is True
-    assert sov["env_present"] is True
-    assert sov["base_url_source"] == sp.BASE_FROM_ENV
-    assert sov["models_live"] == ["llama3-szl-finetuned-q4"]
-    st = payload["doctrine_selftest"]
-    assert st["label"] == sp.LIVE_SOVEREIGN
-    assert st["answer"] == "Honest labels, no fabricated measurement."
-    assert st["live"] is True
-    assert payload["stage"]["active_stage"] == "STAGE_B_TAG_PRESENT"
-    # A live node still does not upgrade the doctrine posture.
-    assert payload["doctrine"]["adds_to_locked_8"] == 0
-    assert payload["doctrine"]["lambda"] == "Conjecture 1"
+    assert payload["label"] == sp.UNAVAILABLE
+    assert payload["sovereign"]["reachable"] is False
+    assert payload["unavailable_reason"] == sp.REASON_PROBE_UNAVAILABLE
+    assert payload["sovereign"]["env_present"] is None
+    assert "private-endpoint.invalid" not in json.dumps(payload)
+    assert payload["receipt_status"]["receipt_minted"] is False
 
 
 def test_sovereign_route_serves_honest_label_via_testclient(monkeypatch):
-    """The served route agrees with the panel: UNAVAILABLE + a named reason off-Tower."""
+    """The served route agrees with a pinned unreachable probe, even on a live host."""
     pytest.importorskip("starlette.testclient")
     from fastapi.testclient import TestClient
     monkeypatch.delenv("SZL_LOCAL_LLM_URL", raising=False)
+    monkeypatch.setattr(sp, "_probe_reachability", lambda: {
+        "reachable": False, "models": [], "env_present": False,
+        "unavailable_reason": sp.REASON_ENV_UNSET,
+    })
     serve = importlib.import_module("serve")
     with TestClient(serve.app) as client:
         r = client.get("/api/a11oy/v1/frontier/sovereign",
@@ -130,6 +167,41 @@ def test_sovereign_route_serves_honest_label_via_testclient(monkeypatch):
     assert body["unavailable_reason"] in (sp.REASON_ENV_UNSET, sp.REASON_NODE_UNREACHABLE)
     assert body["doctrine_selftest"]["answer"] is None
     assert body["sovereign"]["reachable"] is False
+
+
+def test_sovereign_public_route_reachable_reads_do_not_infer_or_sign(monkeypatch):
+    """The registered anonymous GET handler is inert even with a reachable node."""
+    pytest.importorskip("starlette.testclient")
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    app = FastAPI()
+    sp.register(app)
+    registry = importlib.import_module("szl_llm_registry")
+    dsse = importlib.import_module("szl_dsse")
+    monkeypatch.setattr(sp, "_probe_reachability", lambda: {
+        "reachable": True, "models": ["llama3-szl-finetuned-q4-private-inventory"],
+        "base_url": "http://private-endpoint.invalid:11434/v1", "env_present": True,
+        "note": "private diagnostic sentinel", "unavailable_reason": None,
+    })
+    def forbidden(*_args, **_kwargs):
+        raise AssertionError("public GET attempted inference or receipt signing")
+    monkeypatch.setattr(registry, "sovereign_generate", forbidden)
+    monkeypatch.setattr(dsse, "sign_payload", forbidden)
+    with TestClient(app) as client:
+        for _ in range(2):
+            response = client.get("/api/a11oy/v1/frontier/sovereign")
+            assert response.status_code == 200
+            body = response.json()
+            assert body["label"] == sp.UNKNOWN
+            assert body["endpoint_reachable"] is True
+            assert body["gpu_verified"] is False
+            assert body["ownership_proof"] == sp.UNAVAILABLE
+            assert body["doctrine_selftest"]["label"] == sp.UNAVAILABLE
+            assert body["receipt_status"]["receipt_minted"] is False
+            assert "signed_receipt" not in body
+            assert "private-endpoint.invalid" not in response.text
+            assert "private-inventory" not in response.text
+            assert "private diagnostic sentinel" not in response.text
 
 
 # ---------------------------------------------------------------------------
