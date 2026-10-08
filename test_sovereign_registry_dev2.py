@@ -38,6 +38,21 @@ def _restore_runtime_environment():
             os.environ[name] = value
 
 
+@pytest.fixture(autouse=True)
+def _restore_runtime_environment():
+    """The module's direct env mutations must not change later route tests."""
+    names = {name for name, _ in reg._PROVIDER_ENV_VARS}
+    names.update({"SZL_LOCAL_LLM_URL", "SZL_LOCAL_LLM_MODEL",
+                  "SZL_GOVERN_INFER_LOG", "A11OY_CODE_LLM_KEY"})
+    before = {name: os.environ.get(name) for name in names}
+    yield
+    for name, value in before.items():
+        if value is None:
+            os.environ.pop(name, None)
+        else:
+            os.environ[name] = value
+
+
 def _fresh_client():
     app = FastAPI()
     reg.register(app)
