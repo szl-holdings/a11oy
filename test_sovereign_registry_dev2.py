@@ -103,10 +103,13 @@ def test_sovereign_wired_with_mock_node():
         # sovereign health: env present + node live + model list real
         h = c.get("/api/a11oy/v1/llm/sovereign/health").json()
         assert h["env_present"] is True, h
-        assert h["live"] is True, h
-        assert reg._SOVEREIGN_MODEL_TAG in h["served_models"], h
+        assert h["endpoint_reachable"] is True, h
+        assert h["live"] is False, h  # metadata GET did not execute a model
+        assert h["model_ready"] is True, h
+        assert h["served_models"] == [], h  # public projection, internal probe stays exact
         assert h["honest_stub"] is True, h
-        assert h["state"] == "REACHABLE_UNRECEIPTED", h
+        assert h["state"] == "UNKNOWN", h
+        assert h["operational"] is False, h
         # Reachability alone does not clear the registry's honest stub.
         d = c.get("/api/a11oy/v1/llm/registry?probe=1").json()
         sov = next(b for b in d["badges"] if b["model_id"] == "sovereign_local")
@@ -126,9 +129,13 @@ def test_sovereign_wired_with_mock_node():
         assert "[HONEST STUB]" not in rt["response"], rt["response"]
         # router status probe: local node live
         rs = c.get("/api/a11oy/v1/llm/router/status?probe=1").json()
-        assert rs["local_nodes"][0]["live"] is True, rs["local_nodes"]
-        assert reg._SOVEREIGN_MODEL_TAG in rs["local_nodes"][0]["served_models"], rs["local_nodes"]
-        assert rs["local_nodes"][0]["operational"] is True
+        assert rs["local_nodes"][0]["endpoint_reachable"] is True, rs["local_nodes"]
+        assert rs["local_nodes"][0]["live"] is False, rs["local_nodes"]
+        assert rs["local_nodes"][0]["model_ready"] is True, rs["local_nodes"]
+        assert rs["local_nodes"][0]["served_models"] == [], rs["local_nodes"]
+        assert rs["local_nodes"][0]["operational"] is False
+        assert rs["local_nodes"][0]["inference_receipted"] is True
+        assert rs["local_nodes"][0]["receipt_binding"] == "UNKNOWN"
         print("PASS test_sovereign_wired_with_mock_node: sovereign wired+live, REAL text")
     finally:
         reg._http_json = orig
