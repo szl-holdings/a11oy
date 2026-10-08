@@ -165,7 +165,21 @@ def test_existing_publisher_requires_functional_success_for_finance(monkeypatch)
     arguments = {"source_revision": REVISION, "workflow_run_id": "1"}
     assert not publisher.observation_passes({"slug": "finance"}, **arguments)
     assert not publisher.observation_passes({"slug": "finance", "finance_functional": {"complete": False}}, **arguments)
-    assert publisher.observation_passes({"slug": "finance", "finance_functional": {"complete": True}}, **arguments)
+    assert not publisher.observation_passes({"slug": "finance", "finance_functional": {"complete": True}}, **arguments)
+    files = publisher.render_finance_payloads(REVISION, 1)
+    publisher._finance_payloads.update(files)
+    gate = publisher._projection_module
+    expected = {gate.MANIFEST_PATH: gate.manifest_bytes(files, REVISION, 1), **files}
+    projection_witness = gate.observe_projection(files, REVISION, 1, "2" * 40,
+        request=lambda revision, path, limit: (200, expected[path]))
+    row = {"slug": "finance", "finance_functional": {"complete": True},
+           "build_info": {"hf_revision": "2" * 40}, "finance_projection": projection_witness}
+    assert publisher.observation_passes(row, **arguments)
+    row["finance_functional"]["complete"] = False
+    assert not publisher.observation_passes(row, **arguments)
+    row["finance_functional"]["complete"] = True
+    row["finance_projection"]["files"].pop()
+    assert not publisher.observation_passes(row, **arguments)
     assert publisher.observation_passes({"slug": "terra"}, **arguments)
 
 

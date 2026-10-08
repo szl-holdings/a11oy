@@ -28,9 +28,9 @@ NEW ENDPOINTS (ADDITIVE — registered before Node proxy + SPA catch-all):
   GET  /api/a11oy/v1/llm/registry              — full model roster (all tiers, all providers)
   GET  /api/a11oy/v1/llm/registry/{model_id}   — single model detail + routing config
   POST /api/a11oy/v1/llm/route                 — Λ-gated tier selection + receipt
-  GET  /api/a11oy/v1/llm/forum                 — shared receipt forum (last-N routing events)
+  GET  /api/a11oy/v1/llm/forum                 — bounded public forum projection (no raw receipts)
   POST /api/a11oy/v1/llm/forum/ingest          — ingest a receipt from Operator / organ mirror
-  GET  /api/a11oy/v1/llm/ecosystem-mirror      — manifest for Policy/Reasoning/killinchu to mirror
+  GET  /api/a11oy/v1/llm/ecosystem-mirror      — declared catalog projection for organ mirrors
   GET  /api/a11oy/v1/llm/sovereign/health      — per-node sovereign-mesh reachability matrix (Wave N)
 
 SOVEREIGN MESH (Wave N, Dev 3): SZL_LOCAL_LLM_URL is the PRIMARY own-metal node;
@@ -48,15 +48,17 @@ import hashlib
 import json
 import math
 import os
+import re
 import threading
 import time
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Query, Request
 from fastapi.responses import JSONResponse
 
 from szl_provider_http import http_json as _bounded_http_json
+from szl_operator_auth import operator_refusal
 
 DOCTRINE = "v11"
 _KERNEL = "c7c0ba17"
@@ -941,7 +943,29 @@ def sovereign_mesh_matrix(timeout: float | None = None) -> dict[str, Any]:
     }
 
 
-def sovereign_mesh_generate(prompt: str, timeout: float | None = None) -> dict[str, Any]:
+def _public_sovereign_mesh(matrix: dict[str, Any]) -> dict[str, Any]:
+    """Expose mesh status without local origins, model inventory, or probe errors.
+
+    This is a public-response projection only. Internal routing continues to use
+    the full matrix, including exact model tags and operator-configured URLs.
+    """
+    selected = matrix.get("selected") or None
+    return {
+        "node_count": matrix.get("node_count", 0),
+        "reachable_count": matrix.get("reachable_count", 0),
+        "any_reachable": bool(matrix.get("any_reachable")),
+        "selected": ({"index": selected.get("index"), "role": selected.get("role")}
+                     if selected else None),
+        "nodes": [
+            {"index": node.get("index"), "role": node.get("role"),
+             "reachable": bool(node.get("reachable"))}
+            for node in matrix.get("nodes", [])
+        ],
+    }
+
+
+def sovereign_mesh_generate(prompt: str, timeout: float | None = None,
+                            *, matrix: dict[str, Any] | None = None) -> dict[str, Any]:
     """Own-metal-first generation across the mesh. Probe nodes in order; run a REAL
     guarded generate against the FIRST reachable node; else HONEST UNAVAILABLE.
 
@@ -949,7 +973,10 @@ def sovereign_mesh_generate(prompt: str, timeout: float | None = None) -> dict[s
              matrix, note}. wired/live are True ONLY when a node answered live
     THIS request. NEVER fabricates text or reachability.
     """
-    matrix = sovereign_mesh_matrix()
+    # The POST router may already have probed to decide own-metal-first. Reuse
+    # that same bounded observation so an opt-out cannot generate speculatively.
+    if matrix is None:
+        matrix = sovereign_mesh_matrix()
     sel = matrix.get("selected")
     res: dict[str, Any] = {
         "wired": False, "live": False, "text": None,
@@ -1225,6 +1252,65 @@ def _enrich_model(m: dict, *, probe_local: bool = False) -> dict:
     out["label"] = out["state"]
     return out
 
+
+_PUBLIC_REGISTRY_CATALOG_FIELDS = (
+    "model_id", "display_name", "provider_slug", "tier", "tier_name",
+    "context_window", "modalities", "streaming", "open_weight", "tier_band",
+)
+
+
+def _public_registry_model(enriched: dict) -> dict:
+    """Project an internal routing row into a bounded anonymous catalog row.
+
+    Internal rows retain endpoint, selected/served-model, and receipt-ledger
+    details for POST routing. A public GET has no current source/revision-bound
+    inference proof: a historical receipt and a metadata probe cannot promote
+    this row to operational or assert sovereign ownership.
+    """
+    out = {key: enriched[key] for key in _PUBLIC_REGISTRY_CATALOG_FIELDS
+           if key in enriched}
+    is_sovereign = enriched.get("model_id") in (
+        _SOVEREIGN_LEGACY_ID, _SOVEREIGN_BACKEND_ID)
+    configured = bool(enriched.get("configured"))
+    reachable = bool(enriched.get("reachable"))
+    model_ready = bool(enriched.get("model_ready"))
+    historical_receipt = bool(enriched.get("inference_receipted"))
+    is_local = bool(enriched.get("is_local"))
+    if is_sovereign:
+        # These are declared catalog identities, not proof of owned GPU,
+        # served weights, or the Doctrine wrapper.
+        out["display_name"] = "SZL sovereign route (declared)"
+        out["provider_slug"] = "szl-sovereign"
+        if "local_live" in enriched:
+            public_state = "UNKNOWN" if reachable else "UNAVAILABLE"
+        else:
+            public_state = "UNKNOWN" if configured else "UNAVAILABLE"
+    elif is_local:
+        public_state = "UNKNOWN" if enriched.get("runtime_available") else "UNAVAILABLE"
+    else:
+        public_state = (_STATE_CONFIGURED_UNVERIFIED if configured
+                        else _STATE_OFFLINE_UNTIL_KEYED)
+    out.update({
+        "catalog_evidence": "DECLARED",
+        # A configured sovereign endpoint is not an API key or authenticated
+        # inference; the legacy key bit must not paint it green on public UI.
+        "api_key_wired": bool(enriched.get("api_key_wired")) and not is_sovereign,
+        "configured": configured,
+        "reachable": reachable,
+        "model_ready": model_ready,
+        "is_local": is_local,
+        "historical_inference_receipted": historical_receipt,
+        "receipt_binding": "UNKNOWN" if historical_receipt else "UNAVAILABLE",
+        "inference_receipted": False,
+        "operational": False,
+        "wired": False,
+        "honest_stub": True,
+        "state": public_state,
+        "label": ("UNKNOWN" if (public_state == "UNKNOWN" or
+                                (not is_local and configured)) else "UNAVAILABLE"),
+    })
+    return out
+
 def _seed_forum() -> None:
     """Seed forum with honest boot events."""
     _forum_append({
@@ -1242,6 +1328,51 @@ def _seed_forum() -> None:
 
 _seed_forum()
 
+
+_PUBLIC_MODEL_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,79}\Z")
+_PUBLIC_FORUM_SOURCES = frozenset({
+    "a11oy", "operator", "policy", "reasoning", "killinchu",
+    "agent_loop_governed", "eval_arena", "governed_rag", "model_harness",
+})
+
+
+def _public_mirror_model(model: dict) -> dict:
+    """Expose declared catalog identity, never runtime/provider internals."""
+    if type(model) is not dict:
+        raise ValueError("invalid public model record")
+    model_id = model.get("model_id")
+    tier = model.get("tier")
+    mirrors = model.get("ecosystem_mirror", [])
+    if (type(model_id) is not str or not _PUBLIC_MODEL_ID.fullmatch(model_id)
+            or type(tier) is not int or tier < 0 or type(mirrors) is not list
+            or any(type(organ) is not str or organ not in
+                   {"policy", "reasoning", "killinchu", "operator"} for organ in mirrors)
+            or type(model.get("operator_mirrored", False)) is not bool):
+        raise ValueError("invalid public model identity")
+    return {"model_id": model_id, "tier": tier, "evidence_class": "DECLARED"}
+
+
+def _public_forum_source(entry: dict) -> str:
+    """A server-ingested receipt is external even if its author claims a local source."""
+    if entry.get("ingested_by") == "a11oy":
+        return "external"
+    source = entry.get("source")
+    return source if type(source) is str and source in _PUBLIC_FORUM_SOURCES else "other"
+
+
+def _public_forum_event(entry: dict) -> dict:
+    """No raw receipt, prompt, model, hash, URL, or attacker-supplied free text."""
+    if type(entry) is not dict:
+        return {"source": "other", "kind": "forum_record", "verification": "UNAVAILABLE"}
+    source = _public_forum_source(entry)
+    if source == "a11oy" and entry.get("event") == "registry_boot":
+        kind = "registry_boot"
+    elif source == "operator" and entry.get("event") == "forum_join":
+        kind = "forum_join"
+    else:
+        kind = "forum_record"
+    return {"source": source, "kind": kind, "verification": "UNAVAILABLE"}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Route registration
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1253,61 +1384,55 @@ def register(app: FastAPI) -> dict:
 
     @app.get("/api/a11oy/v1/llm/registry")
     async def llm_registry(probe: int = 0) -> JSONResponse:
-        """Canonical LLM model roster — a11oy is the hub for ALL models.
-
-        Every model carries an honest badge block {wired, provider, env_used,
-        base_url, honest_stub, is_local} computed from _api_key_wired(env_var) at
-        REQUEST time (never hardcoded). `?probe=1` additionally pings the sovereign
-        local node so its badge reports live+served models THIS request.
-        """
+        """Anonymous declared catalog; optional probe returns bounded metadata."""
         do_probe = bool(probe)
-        models = [_enrich_model(m, probe_local=do_probe) for m in MODEL_REGISTRY]
+        models = [_public_registry_model(_enrich_model(m, probe_local=do_probe))
+                  for m in MODEL_REGISTRY]
         wired = [m for m in models if m.get("wired")]
         configured = [m for m in models if m.get("configured")]
         reachable = [m for m in models if m.get("reachable")]
         receipted = [m for m in models if m.get("inference_receipted")]
+        historical_receipts = [m for m in models if m.get("historical_inference_receipted")]
         badges = [{
             "model_id": m["model_id"],
             "wired": bool(m.get("wired")),
             "configured": bool(m.get("configured")),
             "reachable": bool(m.get("reachable")),
             "inference_receipted": bool(m.get("inference_receipted")),
+            "historical_inference_receipted": bool(m.get("historical_inference_receipted")),
+            "receipt_binding": m.get("receipt_binding"),
             "operational": bool(m.get("operational")),
             "state": m.get("state"),
-            "provider": m.get("provider"),
-            "env_used": m.get("env_used"),
-            "base_url": m.get("base_url"),
             "honest_stub": bool(m.get("honest_stub", True)),
             "is_local": bool(m.get("is_local")),
-            **({"label": m.get("label"),
-                "own_metal": bool(m.get("own_metal"))} if m.get("own_metal") else {}),
+            "label": m.get("label"),
         } for m in models]
-        all_stub = (len(wired) == 0)
-        # Wave-M sovereign availability snapshot: honest reachability of the
-        # own-metal backend. `reachable`/`label` come from a real probe only when
-        # ?probe=1; otherwise we honestly report unknown (probe not run).
+        # The probe observes only endpoint/model metadata, not owned GPU,
+        # weights, Doctrine wrapper, or current inference provenance.
         _sov_badge = next((m for m in models if m.get("model_id") == _SOVEREIGN_BACKEND_ID), None)
         sovereign_snapshot = {
             "backend_id": _SOVEREIGN_BACKEND_ID,
             "canonical_model": _SOVEREIGN_MODEL_TAG,
-            "requested_model": (_sov_badge.get("requested_model")
-                                if _sov_badge else _sovereign_model_slug() or None),
-            "selected_model": (_sov_badge.get("selected_model")
-                               if _sov_badge else None),
-            "provider": _SOVEREIGN_PROVENANCE,
-            "url": _sovereign_base(),
+            "catalog_evidence": "DECLARED",
             "env_present": _sovereign_env_present(),
             "probed": do_probe,
             "reachable": (bool(_sov_badge.get("reachable")) if (do_probe and _sov_badge) else None),
-            "label": (_sov_badge.get("label") if (do_probe and _sov_badge)
-                      else "UNPROBED (pass ?probe=1 for THIS-request reachability)"),
-            "state": (_sov_badge.get("state") if (do_probe and _sov_badge)
-                      else "UNPROBED"),
+            "endpoint_reachable": (bool(_sov_badge.get("reachable")) if (do_probe and _sov_badge) else None),
+            "model_ready": (bool(_sov_badge.get("model_ready")) if (do_probe and _sov_badge) else None),
+            "gpu_verified": False,
+            "weights_verified": False,
+            "ownership_proof": "UNAVAILABLE",
+            "label": (_sov_badge.get("label") if _sov_badge else "UNAVAILABLE"),
+            "state": (_sov_badge.get("state") if _sov_badge else "UNAVAILABLE"),
             "inference_receipted": (bool(_sov_badge.get("inference_receipted"))
                                      if (do_probe and _sov_badge) else False),
+            "historical_inference_receipted": (bool(_sov_badge.get("historical_inference_receipted"))
+                                               if (do_probe and _sov_badge) else False),
+            "receipt_binding": (_sov_badge.get("receipt_binding")
+                                if (do_probe and _sov_badge) else "UNAVAILABLE"),
             "operational": (bool(_sov_badge.get("operational"))
                             if (do_probe and _sov_badge) else False),
-            "route_order": "own-metal/sovereign FIRST (when reachable) → free → paid",
+            "route_order": "declared own-metal-first routing preference (not ownership proof)",
             "health_endpoint": "/api/a11oy/v1/llm/sovereign/health",
         }
         return JSONResponse({
@@ -1320,6 +1445,7 @@ def register(app: FastAPI) -> dict:
             "configured_count": len(configured),
             "reachable_count": len(reachable),
             "inference_receipted_count": len(receipted),
+            "historical_inference_receipted_count": len(historical_receipts),
             "operational_count": len(wired),
             "registry_record_count": len(models),
             "unique_backend_count": len(models) - 1,
@@ -1343,25 +1469,22 @@ def register(app: FastAPI) -> dict:
             "doctrine": DOCTRINE,
             "kernel_commit": _KERNEL,
             "honest_note": (
-                ("operational_count=0 — configuration and reachability are not "
-                 "inference proof. Providers remain offline or unreceipted until "
-                 "a successful durable inference receipt verifies.")
-                if all_stub else
-                ("operational_count=%d — every operational provider has an exact "
-                 "served model and a verified durable inference receipt."
-                 % len(wired))),
+                "Public registry is a declared catalog and bounded metadata view. "
+                "Configuration, endpoint reachability, and historical inference "
+                "receipts do not prove a current source-bound operational model."),
         })
 
     # ── GET /api/a11oy/v1/llm/registry/{model_id} ────────────────────────────
 
     @app.get("/api/a11oy/v1/llm/registry/{model_id}")
     async def llm_model_detail(model_id: str) -> JSONResponse:
-        """Single model detail + routing configuration."""
+        """Single public catalog row, without private routing configuration."""
         m = _MODEL_BY_ID.get(model_id)
         if not m:
-            return JSONResponse({"error": f"model_id '{model_id}' not found", "known": list(_MODEL_BY_ID.keys())}, status_code=404)
+            return JSONResponse({"error": "model_id not found",
+                                 "known": list(_MODEL_BY_ID.keys())}, status_code=404)
         return JSONResponse({
-            **_enrich_model(m),
+            **_public_registry_model(_enrich_model(m)),
             "timestamp": _now(),
             "doctrine": DOCTRINE,
         })
@@ -1381,9 +1504,13 @@ def register(app: FastAPI) -> dict:
         runs behind the profile system layer + the SAME Λ-gate, and the response
         carries a SIGNED harness receipt naming the profile (id+version+sha256,
         model_id, Λ axes, provenance). This is the governed analogue of how the
-        leaders attach/switch a persona on a step. Falls back to plain routing if
-        the harness module is unavailable (honest note; never crashes).
+        leaders attach/switch a persona on a step. A missing harness fails closed.
         """
+        # The app-level operator middleware is installed in serve.py. Enforce
+        # the same boundary locally for any alternate app that calls register().
+        refusal = operator_refusal(request, "LLM routing and inference")
+        if refusal is not None:
+            return refusal
         try:
             body = await request.json()
         except Exception:
@@ -1419,14 +1546,13 @@ def register(app: FastAPI) -> dict:
                     "conjecture_note": "Λ = Conjecture 1 — advisory, never 'green'.",
                 })
             except Exception as _he:
-                # honest fallback: harness unavailable — proceed with plain routing
-                _harness_fallback_note = ("harness_profile_id '%s' requested but harness "
-                                          "unavailable (%s); fell back to plain routing."
-                                          % (harness_profile_id, type(_he).__name__))
-            else:
-                _harness_fallback_note = None
-        else:
-            _harness_fallback_note = None
+                # A requested profile is a policy boundary, not an optional
+                # decoration. Never run plain inference after its failure.
+                return JSONResponse({
+                    "ok": False, "status": "UNAVAILABLE",
+                    "error": "requested harness unavailable",
+                    "reason_class": type(_he).__name__,
+                }, status_code=503)
 
         prompt = str(body.get("prompt", ""))
         axis_scores: list[float] = body.get("axis_scores") or [
@@ -1464,6 +1590,11 @@ def register(app: FastAPI) -> dict:
             _sovereign_env_present() and not _any_cloud_wired
             and str(body.get("offline_mode", "")).lower() in ("1", "true", "yes")
         )
+        if _opted_out and (_explicit_sovereign or _offline_pref):
+            return JSONResponse({
+                "ok": False, "status": "BLOCKED",
+                "error": "conflicting sovereign request and local opt-out",
+            }, status_code=400)
         # OWN-METAL-FIRST over the MESH (Wave N, Dev 3): probe the PRIMARY node
         # (SZL_LOCAL_LLM_URL) plus every SZL_SOVEREIGN_NODES tailnet node, short
         # timeout, in own-metal-first order. If ANY node is reachable this request
@@ -1471,13 +1602,18 @@ def register(app: FastAPI) -> dict:
         # caller explicitly requested sovereign we ALSO select it (even when NO node
         # is reachable) so we can return an honest UNAVAILABLE. We fall THROUGH to
         # free/paid ONLY when NO sovereign node is reachable and no explicit intent.
-        _mesh_gen = sovereign_mesh_generate(prompt or _DEFAULT_SOVEREIGN_PROMPT)
-        matrix = _mesh_gen.get("matrix", {})
+        # A caller who selected a non-sovereign route and opted out must not
+        # even probe the private mesh. Otherwise probe metadata first; a probe
+        # alone never runs generation or emits an inference receipt.
+        matrix = (sovereign_mesh_matrix()
+                  if (_explicit_sovereign or _offline_pref or not _opted_out)
+                  else {})
         _mesh_reachable = bool(matrix.get("any_reachable"))
         _own_metal_first = _mesh_reachable and not _opted_out
         _want_sovereign = _explicit_sovereign or _offline_pref or _own_metal_first
         if _want_sovereign:
-            gen = _mesh_gen
+            gen = sovereign_mesh_generate(
+                prompt or _DEFAULT_SOVEREIGN_PROMPT, matrix=matrix)
             _generated = bool(gen.get("live") and gen.get("text"))
             _generation_receipt = {"ok": False, "inference_receipted": False,
                                    "reason": "no successful generation to receipt"}
@@ -1500,8 +1636,10 @@ def register(app: FastAPI) -> dict:
                 configured=_sovereign_env_present(),
                 reachable=_mesh_reachable,
                 model_ready=bool(gen.get("model_ready")),
-                inference_receipted=bool(
-                    _generation_receipt.get("inference_receipted")))
+                inference_receipted=(
+                    _generation_receipt.get("ok") is True
+                    and _generation_receipt.get("inference_receipted") is True
+                    and bool(_generation_receipt.get("receipt_hash"))))
             # Prefer the first-class Wave-M backend id; fall back to legacy alias.
             sov_model = (_MODEL_BY_ID.get(_SOVEREIGN_BACKEND_ID)
                          or _MODEL_BY_ID.get(_SOVEREIGN_LEGACY_ID)
@@ -1530,8 +1668,10 @@ def register(app: FastAPI) -> dict:
                 response_text = gen.get("text") or ""
             elif _generated:
                 sov_reason += ("node generated real text, but durable inference receipt "
-                               "did not verify; provider remains unreceipted.")
-                response_text = gen.get("text") or ""
+                               "did not verify; output withheld and provider remains unreceipted.")
+                response_text = ("[UNAVAILABLE] Provider generated text, but its "
+                                 "durable inference receipt did not verify. "
+                                 "Output withheld; no operational claim.")
             elif _mesh_reachable:
                 sov_reason += ("node %s reachable but did not generate live — honest "
                                "UNAVAILABLE (never fabricate)." % gen.get("base_url"))
@@ -1586,8 +1726,52 @@ def register(app: FastAPI) -> dict:
                 "doctrine": DOCTRINE, "kernel_commit": _KERNEL,
                 "conjecture_note": "Λ = Conjecture 1 — NOT a theorem. CAUCHY_ND sorry open.",
             }
+            _receipt_failed_after_generation = _generated and not _state["operational"]
+            if _receipt_failed_after_generation:
+                # A failed replay may carry arbitrary backend/ledger diagnostics.
+                # Keep the fact that compute happened, but never release its text,
+                # raw provider body, private endpoint, or unverified receipt data.
+                _generation_receipt = {
+                    "ok": False, "inference_receipted": False,
+                    "reason": "durable inference receipt unavailable",
+                }
+                sov_receipt = {k: sov_receipt[k] for k in (
+                    "schema", "ts", "hub", "lambda", "lambda_floor",
+                    "tier_selected", "model_id", "reason", "task_hint",
+                    "own_metal_first", "configured", "reachable", "model_ready",
+                    "generated", "inference_receipted", "operational", "state",
+                    "label", "mesh_node_count", "mesh_reachable_count",
+                    "doctrine", "kernel_commit", "conjecture_note")}
+                sov_enriched = {
+                    "model_id": sov_model.get("model_id"),
+                    "configured": _state["configured"],
+                    "reachable": _state["reachable"],
+                    "model_ready": _state["model_ready"],
+                    "generated": True,
+                    "inference_receipted": False,
+                    "operational": False,
+                    "wired": False,
+                    "honest_stub": True,
+                    "state": _state["state"],
+                    "label": _state["state"],
+                }
+                _local_response = {
+                    "live": bool(gen.get("live")),
+                    "generated": True,
+                    "model_ready": bool(gen.get("model_ready")),
+                }
+                _mesh_response = {k: matrix.get(k) for k in (
+                    "node_count", "reachable_count", "any_reachable")}
+            else:
+                _local_response = {k: gen.get(k) for k in
+                                   ("wired", "live", "generated", "api_style",
+                                    "base_url", "role", "node_index", "model",
+                                    "model_ready", "model_resolution", "note")
+                                   if k in gen}
+                _mesh_response = matrix
             _forum_append(
-                {**sov_receipt, "prompt_preview": prompt[:80] if prompt else "",
+                {**sov_receipt, "prompt_preview": ("" if _receipt_failed_after_generation
+                                                 else prompt[:80] if prompt else ""),
                  "source": "a11oy"},
                 routing_decision=True,
             )
@@ -1605,18 +1789,14 @@ def register(app: FastAPI) -> dict:
                 "routed_via": "%s via sovereign_mesh (%s)" % (
                     sov_model.get("model_id"),
                     gen.get("api_style") if _generated else "honest UNAVAILABLE"),
-                "local": {k: gen.get(k) for k in
-                          ("wired", "live", "generated", "api_style", "base_url", "role",
-                           "node_index", "model", "model_ready", "model_resolution",
-                           "note", "raw")
-                          if k in gen},
-                "sovereign_mesh": matrix,
+                "local": _local_response,
+                "sovereign_mesh": _mesh_response,
                 "doctrine": DOCTRINE,
                 "conjecture_note": "Λ = Conjecture 1 — advisory, never 'green'/theorem.",
             }
-            if _harness_fallback_note:
-                _sov_resp["harness_note"] = _harness_fallback_note
-            return JSONResponse(_sov_resp)
+            return JSONResponse(
+                _sov_resp,
+                status_code=503 if _receipt_failed_after_generation else 200)
         # else: NO sovereign node reachable AND no explicit/offline intent — fall
         # THROUGH to the free/paid tier selection below (honest, no fabrication).
 
@@ -1714,32 +1894,37 @@ def register(app: FastAPI) -> dict:
             "lambda_receipt": receipt,
             "doctrine": DOCTRINE,
         }
-        if _harness_fallback_note:
-            _resp["harness_note"] = _harness_fallback_note
         return JSONResponse(_resp)
 
     # ── GET /api/a11oy/v1/llm/forum ──────────────────────────────────────────
 
     @app.get("/api/a11oy/v1/llm/forum")
-    async def llm_forum(limit: int = 30, source: str = "") -> JSONResponse:
-        """Shared routing receipt forum — a11oy + Operator + all organs write here."""
+    async def llm_forum(limit: int = Query(default=30, ge=1, le=100),
+                        source: str = "") -> JSONResponse:
+        """Bounded public projection of the in-process forum, not receipt proof."""
+        if source and source not in _PUBLIC_FORUM_SOURCES | {"external", "other"}:
+            return JSONResponse({"state": "UNAVAILABLE", "reason": "invalid_source"},
+                                status_code=400)
         with _FORUM_LOCK:
-            entries = list(_FORUM_LOG)
+            entries = [_public_forum_event(e) for e in _FORUM_LOG]
+            total_events = len(_FORUM_LOG)
         if source:
-            entries = [e for e in entries if e.get("source") == source]
+            entries = [e for e in entries if e["source"] == source]
         entries = list(reversed(entries))[:limit]
 
-        sources_seen = list({e.get("source", "unknown") for e in _FORUM_LOG})
+        sources_seen = sorted({e["source"] for e in entries})
         return JSONResponse({
             "timestamp": _now(),
-            "forum": "a11oy LLM routing receipt forum",
-            "total_events": len(_FORUM_LOG),
+            "forum": "a11oy LLM forum public projection",
+            "total_events": total_events,
             "returned": len(entries),
             "sources": sources_seen,
             "events": entries,
-            "ingest_endpoint": "/api/a11oy/v1/llm/forum/ingest",
+            "receipt_verification": "UNAVAILABLE",
+            "public_projection": True,
+            "ingest_path": "/api/a11oy/v1/llm/forum/ingest",
             "doctrine": DOCTRINE,
-            "honest_note": "Forum is in-process ring (max 500). Resets on rebuild — honest disclosure.",
+            "honest_note": "In-process ring (max 500), reset on rebuild; no authorized raw-receipt read contract is established here.",
         })
 
     # ── POST /api/a11oy/v1/llm/forum/ingest ──────────────────────────────────
@@ -1775,36 +1960,43 @@ def register(app: FastAPI) -> dict:
 
     @app.get("/api/a11oy/v1/llm/ecosystem-mirror")
     async def llm_ecosystem_mirror() -> JSONResponse:
-        """Manifest for Policy/Reasoning/killinchu to mirror a11oy's model access.
+        """Declared catalog projection; no GET probes, receipt reads, or GGUF loads."""
+        try:
+            catalog = [(m, _public_mirror_model(m)) for m in MODEL_REGISTRY]
+        except ValueError:
+            return JSONResponse({"state": "UNAVAILABLE", "reason": "invalid_catalog"},
+                                status_code=503)
 
-        Each organ calls this endpoint to discover which models to register locally,
-        which tier to use for a given Λ-score, and where to emit receipts.
-        """
+        def organ_models(organ: str) -> list[dict]:
+            return [public for model, public in catalog
+                    if organ in model.get("ecosystem_mirror", [])]
+
+        ingest_path = "/api/a11oy/v1/llm/forum/ingest"
+        route_path = "/api/a11oy/v1/llm/route"
         mirror_manifest = {
             "policy": {
-                "models": [_enrich_model(m) for m in MODEL_REGISTRY if "policy" in m.get("ecosystem_mirror", [])],
-                "receipt_ingest_url": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/llm/forum/ingest",
-                "routing_endpoint": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/llm/route",
+                "models": organ_models("policy"),
+                "receipt_ingest_path": ingest_path,
+                "routing_path": route_path,
                 "mirror_policy": "delegate_to_a11oy",
             },
             "reasoning": {
-                "models": [_enrich_model(m) for m in MODEL_REGISTRY if "reasoning" in m.get("ecosystem_mirror", [])],
-                "receipt_ingest_url": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/llm/forum/ingest",
-                "routing_endpoint": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/llm/route",
+                "models": organ_models("reasoning"),
+                "receipt_ingest_path": ingest_path,
+                "routing_path": route_path,
                 "mirror_policy": "delegate_to_a11oy",
             },
             "killinchu": {
-                "models": [_enrich_model(m) for m in MODEL_REGISTRY if "killinchu" in m.get("ecosystem_mirror", [])],
-                "receipt_ingest_url": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/llm/forum/ingest",
-                "routing_endpoint": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/llm/route",
+                "models": organ_models("killinchu"),
+                "receipt_ingest_path": ingest_path,
+                "routing_path": route_path,
                 "mirror_policy": "delegate_to_a11oy",
             },
             "operator": {
-                "models": [_enrich_model(m) for m in MODEL_REGISTRY if m.get("operator_mirrored")],
-                "receipt_ingest_url": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/llm/forum/ingest",
+                "models": [public for model, public in catalog if model.get("operator_mirrored")],
+                "receipt_ingest_path": ingest_path,
                 "wire": "I (operator-companion brain-jack)",
                 "mirror_policy": "shared_forum",
-                "note": "Operator and a11oy share the forum (receipt/decision substrate). Operator ingests via Wire I.",
             },
         }
 
@@ -1812,15 +2004,12 @@ def register(app: FastAPI) -> dict:
             "timestamp": _now(),
             "hub": "a11oy",
             "role": "a11oy is the LLM hub — all organs mirror model-access from here",
-            "total_models": len(MODEL_REGISTRY),
+            "total_models": len(catalog),
             "ecosystem": mirror_manifest,
-            "roadmap": {
-                "cross_space_broker": "OTLP/Grafana/Tempo for span stitching — roadmap (Wire D cross-Space)",
-                "key_injection": "API keys injected per-Space via HF Secrets when Warhacker demo deploys",
-                "uds_sovereign": "sovereign_local ships in szl-mesh v0.4.0 as GGUF zarf artifact",
-            },
+            "catalog_evidence_class": "DECLARED",
+            "runtime_state": "UNKNOWN",
+            "public_projection": True,
             "doctrine": DOCTRINE,
-            "kernel_commit": _KERNEL,
         })
 
     # ── GET /api/a11oy/v1/llm/sovereign/health ────────────────────────────────
@@ -1835,13 +2024,12 @@ def register(app: FastAPI) -> dict:
         True ONLY on a real 2xx JSON response THIS request — never fabricated.
         When NO sovereign node is reachable the response is an honest UNAVAILABLE
         posture (sovereign_status='UNAVAILABLE', label='UNAVAILABLE') and the
-        router falls through to free/paid. Preserves the Wave-M compact contract
-        {reachable, model, url, provider, label} for the PRIMARY node and the
-        backward-compatible single-node fields.
+        router falls through to free/paid. The public response preserves the
+        Wave-M compact status keys but withholds the private model and origin.
 
-        gpu.a-11-oy.com serves llama3.1:8b; gpu2 serves glm-4.7-flash +
-        qwen2.5:3b (per fleet ground truth). See SOVEREIGN_REMOTE.md for the
-        Tower/laptop Tailscale setup.
+        Declared mesh hosts and tags are operator configuration, not evidence
+        of GPU ownership or weights. Exact internal routing data is withheld
+        from this anonymous response.
         """
         matrix = sovereign_mesh_matrix()
         base = _sovereign_base()
@@ -1865,20 +2053,25 @@ def register(app: FastAPI) -> dict:
             reachable=reachable,
             model_ready=bool(resolution.get("model_ready")),
             inference_receipted=bool(receipt_state.get("inference_receipted")))
-        label = state["state"]
-        sovereign_status = (_STATE_LIVE_RECEIPTED
-                            if state["operational"] else
-                            (_STATE_REACHABLE_UNRECEIPTED
-                             if any_reachable else _STATE_UNAVAILABLE))
+        # A durable receipt can be historical. A model-list GET cannot bind it
+        # to the responding endpoint's current weights, host, or GPU.
+        label = "UNKNOWN" if reachable else "UNAVAILABLE"
+        sovereign_status = "UNKNOWN" if any_reachable else "UNAVAILABLE"
+        public_mesh = _public_sovereign_mesh(matrix)
         return JSONResponse({
             # ── Wave-M required compact contract ──
-            # `model` = canonical sovereign model tag; `configured_model` (below)
-            # is the runtime-overridable ollama tag the node is asked to serve.
+            # Preserve compact keys, but never publish an operator-selected tag
+            # or a local/tunnel origin from this anonymous endpoint.
             "reachable": reachable,
-            "model": selected_model,
-            "url": base,
+            "endpoint_reachable": reachable,
+            "model": None,
+            "url": None,
             "provider": _SOVEREIGN_PROVENANCE,
             "label": label,
+            "label_basis": "Metadata reachability only; sovereign provenance not verified.",
+            "gpu_verified": False,
+            "weights_verified": False,
+            "ownership_proof": "UNAVAILABLE",
             # ── rich diagnostics (additive, honest) ──
             "timestamp": _now(),
             "hub": "a11oy",
@@ -1887,22 +2080,26 @@ def register(app: FastAPI) -> dict:
             "legacy_alias": _SOVEREIGN_LEGACY_ID,
             "model_slug": _SOVEREIGN_MODEL_TAG,
             "canonical_model": _SOVEREIGN_MODEL_TAG,
-            "requested_model": resolution.get("requested_model"),
-            "selected_model": selected_model,
+            "requested_model": None,
+            "selected_model": None,
             "model_ready": state["model_ready"],
-            "model_resolution": resolution,
+            "model_ready_basis": "Exact served metadata tag only; weights unverified.",
+            "model_resolution": {"model_ready": state["model_ready"],
+                                 "selection_basis": resolution.get("selection_basis")},
             "configured": state["configured"],
             "inference_receipted": state["inference_receipted"],
-            "operational": state["operational"],
-            "state": state["state"],
+            "inference_receipt_scope": "Historical durable receipt; not current-run proof.",
+            "receipt_binding": "UNKNOWN",
+            "operational": False,
+            "state": label,
             "receipt_state": receipt_state,
             # ── Mesh (multi-node) reachability matrix (Wave N, Dev 3) ──
-            "sovereign_status": sovereign_status,   # honest label: LIVE | UNAVAILABLE (mesh-wide)
-            "mesh": matrix,
+            "sovereign_status": sovereign_status,   # mesh reachability is not ownership proof
+            "mesh": public_mesh,
             "node_count": matrix.get("node_count", 0),
             "reachable_count": matrix.get("reachable_count", 0),
             "any_reachable": any_reachable,
-            "selected_node": matrix.get("selected"),
+            "selected_node": public_mesh.get("selected"),
             "own_metal_first": True,
             "fallthrough_to_cloud": (not any_reachable),
             "env_vars": {
@@ -1915,16 +2112,16 @@ def register(app: FastAPI) -> dict:
             # ── Backward-compatible single-node (primary) fields ──
             "env_var": _SOVEREIGN_ENV,
             "env_present": env_present,
-            "wired": state["operational"],
-            "live": reachable,                # primary-node THIS-request liveness (== reachable)
-            "honest_stub": not state["operational"],
-            "base_url": base,
+            "wired": False,
+            "live": False,  # model execution not observed by this GET
+            "honest_stub": True,
+            "base_url": None,
             "api_style": primary_probe.get("api_style"),
-            "served_models": primary_probe.get("models", []),
-            "configured_model": _sovereign_model_slug() or None,
-            "probed": primary_probe.get("probed", []),
+            "served_models": [],
+            "configured_model": None,
+            "probed": [],
             "probe_ua": "browser-UA (Cloudflare-front safe)",
-            "note": matrix.get("note", ""),
+            "note": "Public status projection; private probe diagnostics withheld.",
             "doctrine": DOCTRINE,
             "kernel_commit": _KERNEL,
             "conjecture_note": "Λ = Conjecture 1 — advisory, never 'green'/theorem.",
@@ -1962,17 +2159,20 @@ def register(app: FastAPI) -> dict:
 
         # a11oy Code agent canonical credential (provider-agnostic resolver).
         code_key = resolve_code_llm_key()
+        code_provider = code_key.get("provider")
         code_key_public = {
             "wired": bool(code_key.get("wired")),
-            "provider": code_key.get("provider"),
-            "env_used": code_key.get("env_used"),   # NAME ONLY
-            "base_url": code_key.get("base_url"),
-            "honest_note": code_key.get("honest_note"),
+            "provider": (code_provider if code_provider in _PROVIDER_BASE else "UNKNOWN"),
+            "env_used": (code_key.get("env_used") if code_key.get("env_used") in
+                         {A11OY_CODE_LLM_KEY_ENV, *(name for name, _ in _PROVIDER_ENV_VARS)}
+                         else None),
+            "base_url": None,  # public response never publishes an origin
+            "honest_note": ("Credential configured; authentication not proven."
+                            if code_key.get("wired") else "Credential unavailable."),
         }
 
         # Local sovereign node(s) — mesh-aware (primary + SZL_SOVEREIGN_NODES).
         do_probe = bool(probe)
-        base = _sovereign_base()
         _mesh_summary = None
         if do_probe:
             # Mesh-aware probe (Wave N): PRIMARY + SZL_SOVEREIGN_NODES, own-metal-first.
@@ -1994,46 +2194,49 @@ def register(app: FastAPI) -> dict:
                 reachable=_any,
                 model_ready=bool(_resolution.get("model_ready")),
                 inference_receipted=bool(_receipt.get("inference_receipted")))
-            _mesh_summary = {
-                "node_count": _matrix.get("node_count", 0),
-                "reachable_count": _matrix.get("reachable_count", 0),
-                "any_reachable": _any,
-                "selected": _matrix.get("selected"),
-                "nodes": [{"index": n["index"], "base_url": n["base_url"],
-                           "role": n["role"], "reachable": n["reachable"],
-                           "served_models": n.get("served_models", [])}
-                          for n in _matrix.get("nodes", [])],
-            }
+            _mesh_summary = _public_sovereign_mesh(_matrix)
             local_node = {
                 "backend_id": _SOVEREIGN_BACKEND_ID,
-                "env_var": _SOVEREIGN_ENV, "base_url": base or None,
+                "env_var": _SOVEREIGN_ENV, "base_url": None,
                 "nodes_env": _SOVEREIGN_NODES_ENV,
                 "env_present": _sovereign_env_present(),
-                "live": _any, "reachable": _any,
+                "live": False, "reachable": _any,
+                "endpoint_reachable": _any,
                 "configured": _local_state["configured"],
                 "model_ready": _local_state["model_ready"],
-                "requested_model": _resolution.get("requested_model"),
-                "selected_model": _selected_model,
-                "model_resolution": _resolution,
+                "model_ready_basis": "Exact served metadata tag only; weights unverified.",
+                "requested_model": None,
+                "selected_model": None,
+                "model_resolution": {"model_ready": _local_state["model_ready"],
+                                     "selection_basis": _resolution.get("selection_basis")},
                 "inference_receipted": _local_state["inference_receipted"],
-                "operational": _local_state["operational"],
-                "wired": _local_state["operational"],
-                "state": _local_state["state"],
-                "label": _local_state["state"],
+                "inference_receipt_scope": "Historical durable receipt; not current-run proof.",
+                "receipt_binding": "UNKNOWN",
+                "operational": False,
+                "wired": False,
+                "state": "UNKNOWN" if _any else "UNAVAILABLE",
+                "label": "UNKNOWN" if _any else "UNAVAILABLE",
+                "label_basis": "Metadata reachability only; sovereign provenance not verified.",
+                "gpu_verified": False,
+                "weights_verified": False,
+                "ownership_proof": "UNAVAILABLE",
                 "receipt_state": _receipt,
-                "served_models": _sel.get("served_models", []),
-                "note": _matrix.get("note", ""),
+                "served_models": [],
+                "note": "Public status projection; private probe diagnostics withheld.",
             }
         else:
             local_node = {
                 "backend_id": _SOVEREIGN_BACKEND_ID,
-                "env_var": _SOVEREIGN_ENV, "base_url": base or None,
+                "env_var": _SOVEREIGN_ENV, "base_url": None,
                 "nodes_env": _SOVEREIGN_NODES_ENV,
                 "env_present": _sovereign_env_present(), "live": None,
-                "reachable": None, "configured": _sovereign_env_present(),
+                "reachable": None, "endpoint_reachable": None,
+                "configured": _sovereign_env_present(),
                 "model_ready": False, "inference_receipted": False,
                 "operational": False, "wired": False,
-                "state": "UNPROBED", "label": "UNPROBED",
+                "state": "UNPROBED", "label": "UNKNOWN",
+                "gpu_verified": False, "weights_verified": False,
+                "ownership_proof": "UNAVAILABLE",
                 "note": "pass ?probe=1 to ping the mesh for THIS-request liveness",
             }
 
