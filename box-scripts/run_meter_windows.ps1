@@ -21,8 +21,18 @@ try {
     $env:OMEN_ENGINE_NAME = 'betterwithage'
     $env:PEER_EXPORTERS = ''
     $env:PYTHONUTF8 = '1'
-    & $receipt.python -u (Join-Path $PSScriptRoot 'omen_joule_exporter.py')
-    if ($LASTEXITCODE -ne 0) { throw 'Meter process exited unsuccessfully' }
+    # Windows PowerShell 5 turns redirected native stderr into error records.
+    # A Python warning must not terminate a healthy exporter; its exit code decides.
+    $nativePreference = $ErrorActionPreference
+    $LASTEXITCODE = $null
+    try {
+        $ErrorActionPreference = 'Continue'
+        & $receipt.python -u (Join-Path $PSScriptRoot 'omen_joule_exporter.py')
+        $meterExitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $nativePreference
+    }
+    if ($null -eq $meterExitCode -or $meterExitCode -ne 0) { throw 'Meter process exited unsuccessfully' }
 } catch {
     Write-Output 'Authenticated meter stopped: installation, configuration, or runtime check failed.'
     exit 1
