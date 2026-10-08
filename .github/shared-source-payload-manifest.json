@@ -1,12 +1,10 @@
 {
   "files": {
-    "a11oy_org_rag.py": "3137efc95f529d74a9f25a037af5e45211d70bdce83c5147e896b2f53328beec",
-    "szl_hf_bucket.py": "61d68be3de5ac474e03b902df1ef27462d462a2037abf8d16b08d701498d5acc",
-    "szl_operator_auth.py": "86ed8b445c05f26c66c8d41dba09fe889970aad0e091090efe795299b9336539",
-    "szl_readiness.py": "e2ac7dc8ea842ab060095f89af7ec113a72afe0001c53f994e8e11d922a5c568",
-    "test_szl_hf_bucket.py": "324a0be61b52dc68a0abd708f4c2ed0c5d9fe779a182411fee30df86aa5f6d06",
-    "tests/test_readiness_application_contract.py": "420dd9a815d03a4adf4494f844ab9f7aa8b9e4c286d1af6f9003414d8087b53f"
+    ".github/workflows/readiness-contract.yml": "775af5a595edc3dad58526041e489b88383fdc19aa2c3a7928a3d66ee92d672b",
+    "szl_readiness.py": "007d3dbb849c69bf1469dc81afa35173390ac03768550e50b499b3df36a9a43d",
+    "tests/test_readiness_application_contract.py": "dab11017d45d934965adc1ffa670a41456a57d128e7d47e9043af54a3b3f8706",
+    "tests/test_readiness_sweep_contract.py": "09070b0bfd63610fbdaaa14ce6b51353f50a7658cf5d1189c9de018caf1cdaa5"
   },
-  "payload_id": "estate-readiness-renewal-20261007-v1",
+  "payload_id": "readiness-scheduled-contract-regression-20261007-v2",
   "schema": "szl-shared-source-payload/v1"
 }

@@ -44,6 +44,7 @@ Endpoints (per namespace ns):
 from __future__ import annotations
 
 import json
+from functools import wraps
 import math
 import os
 import tempfile
@@ -59,7 +60,12 @@ _GH_API = "https://api.github.com/"
 _HF_API = "https://huggingface.co/api/"
 
 # Optional, env-supplied tokens — NEVER hard-coded. Public GitHub/HF reads work
-# unauthenticated (rate-limited); a token, when present, lifts the limit only.
+# unauthenticated (rate-limited). Reliable five-minute whole-source monitoring
+# needs an authenticated read token with available quota: each scheduled sweep
+# uses 4 GitHub reads, plus up to 2 for comparison/anchor resolution, per organ
+# per worker. Token presence is not quota evidence; failed reads keep their real
+# last-good clocks and may fail the unchanged freshness gate. Observed rate
+# limits pause further reads in this process until GitHub's indicated deadline.
 _GH_TOKEN = (os.environ.get("SZL_READINESS_GH_TOKEN")
              or os.environ.get("GITHUB_TOKEN")
              or os.environ.get("GH_TOKEN") or "").strip()
@@ -167,6 +173,8 @@ _DISK = os.environ.get(
 _DISK_LOADED = False
 _WARM_STARTED = False
 _WARM_NS: set = set()
+_GH_RATE_LOCK = threading.Lock()
+_GH_COOLDOWN_UNTIL = 0.0
 
 
 def _now_iso() -> str:
@@ -185,6 +193,40 @@ def _gh_headers() -> Dict[str, str]:
     if _GH_TOKEN:
         h["Authorization"] = "Bearer " + _GH_TOKEN
     return h
+
+
+def _gh_read(url: str, timeout: int = 10) -> bytes:
+    """Avoid repeated GitHub reads during an observed rate-limit window."""
+    global _GH_COOLDOWN_UNTIL
+    with _GH_RATE_LOCK:
+        now = time.time()
+        if now < _GH_COOLDOWN_UNTIL:
+            raise RuntimeError("GitHub API rate-limit cooldown active")
+        try:
+            return _get(url, timeout=timeout, headers=_gh_headers())
+        except urllib.error.HTTPError as ex:
+            headers = ex.headers or {}
+            retry_after = headers.get("Retry-After")
+            remaining = headers.get("X-RateLimit-Remaining")
+            rate_limited = ex.code == 429 or retry_after is not None or remaining == "0"
+            if ex.code in (403, 429) and rate_limited:
+                deadline = None
+                if retry_after is not None:
+                    try:
+                        delay = float(retry_after)
+                        if math.isfinite(delay) and delay >= 0:
+                            deadline = now + max(delay, 1.0)
+                    except (TypeError, ValueError):
+                        pass
+                if deadline is None and remaining == "0":
+                    try:
+                        reset = float(headers.get("X-RateLimit-Reset", ""))
+                        if math.isfinite(reset) and reset > now:
+                            deadline = reset + 1.0
+                    except (TypeError, ValueError):
+                        pass
+                _GH_COOLDOWN_UNTIL = max(_GH_COOLDOWN_UNTIL, deadline or now + 60.0)
+            raise
 
 
 def _hf_headers() -> Dict[str, str]:
@@ -236,11 +278,29 @@ def _hit(key: str) -> Optional[Dict[str, Any]]:
     return _CACHE.get(key)
 
 
+_SWEEP = threading.local()
+
+
+def _once_per_sweep(reader):
+    """Reuse the exact observation (including failure fallback) within a sweep."""
+    @wraps(reader)
+    def read(*args, **kwargs):
+        observations = getattr(_SWEEP, "observations", None)
+        if observations is None:
+            return reader(*args, **kwargs)
+        key = (reader.__name__, args, tuple(sorted(kwargs.items())))
+        if key not in observations:
+            observations[key] = reader(*args, **kwargs)
+        return observations[key]
+    return read
+
+
 # ---------------------------------------------------------------------------
 # Deployed-app reader: GET the running process's own JSON endpoint, cached,
 # honest. mode: live | cached | unreachable. Never invents a body.
 # ---------------------------------------------------------------------------
 
+@_once_per_sweep
 def _deployed(url: str, fresh: bool = False) -> Dict[str, Any]:
     key = "dep:" + url
     now = time.time()
@@ -270,6 +330,7 @@ def _deployed(url: str, fresh: bool = False) -> Dict[str, Any]:
 # commit existence, branch compare). All cached + honest.
 # ---------------------------------------------------------------------------
 
+@_once_per_sweep
 def _gh_repo(repo: str, branch: str, fresh: bool = False) -> Dict[str, Any]:
     key = "ghrepo:" + repo + "@" + branch
     now = time.time()
@@ -277,11 +338,10 @@ def _gh_repo(repo: str, branch: str, fresh: bool = False) -> Dict[str, Any]:
     if not fresh and hit and now - hit.get("_t", 0) < _GH_TTL:
         return {**hit["v"], "mode": "cached", "fetched_at": hit["at"]}
     try:
-        d = json.loads(_get(_GH_API + "repos/" + repo, timeout=10, headers=_gh_headers()))
+        d = json.loads(_gh_read(_GH_API + "repos/" + repo))
         head_sha = head_date = None
         try:
-            cd = json.loads(_get(_GH_API + "repos/" + repo + "/commits/" + branch,
-                                 timeout=10, headers=_gh_headers()))
+            cd = json.loads(_gh_read(_GH_API + "repos/" + repo + "/commits/" + branch))
             head_sha = cd.get("sha")
             head_date = ((cd.get("commit") or {}).get("committer") or {}).get("date")
         except Exception:  # noqa: BLE001 - HEAD commit is best-effort
@@ -316,8 +376,7 @@ def _gh_runs(repo: str, branch: str, fresh: bool = False) -> Dict[str, Any]:
         return {**hit["v"], "mode": "cached", "fetched_at": hit["at"]}
     try:
         q = urllib.parse.urlencode({"branch": branch, "per_page": 1})
-        d = json.loads(_get(_GH_API + "repos/" + repo + "/actions/runs?" + q,
-                            timeout=10, headers=_gh_headers()))
+        d = json.loads(_gh_read(_GH_API + "repos/" + repo + "/actions/runs?" + q))
         runs = d.get("workflow_runs") or []
         r = runs[0] if runs else {}
         val = {
@@ -339,6 +398,7 @@ def _gh_runs(repo: str, branch: str, fresh: bool = False) -> Dict[str, Any]:
         return {"conclusion": None, "mode": "unreachable", "error": str(ex)[:140]}
 
 
+@_once_per_sweep
 def _gh_release(repo: str, fresh: bool = False) -> Dict[str, Any]:
     key = "ghrel:" + repo
     now = time.time()
@@ -346,8 +406,7 @@ def _gh_release(repo: str, fresh: bool = False) -> Dict[str, Any]:
     if not fresh and hit and now - hit.get("_t", 0) < _GH_TTL:
         return {**hit["v"], "mode": "cached", "fetched_at": hit["at"]}
     try:
-        d = json.loads(_get(_GH_API + "repos/" + repo + "/releases/latest",
-                            timeout=10, headers=_gh_headers()))
+        d = json.loads(_gh_read(_GH_API + "repos/" + repo + "/releases/latest"))
         val = {"tag": d.get("tag_name"), "name": d.get("name"),
                "published_at": d.get("published_at"), "url": d.get("html_url"),
                "prerelease": bool(d.get("prerelease"))}
@@ -378,8 +437,7 @@ def _gh_commit_exists(repo: str, sha: str, fresh: bool = False) -> Dict[str, Any
     if not fresh and hit and now - hit.get("_t", 0) < _GH_TTL:
         return {**hit["v"], "mode": "cached", "fetched_at": hit["at"]}
     try:
-        _get(_GH_API + "repos/" + repo + "/commits/" + sha, timeout=10,
-             headers=_gh_headers())
+        _gh_read(_GH_API + "repos/" + repo + "/commits/" + sha)
         val = {"exists": True}
         at = _now_iso()
         _store(key, val, at, live=True)
@@ -411,8 +469,8 @@ def _gh_compare(repo: str, base: str, head: str, fresh: bool = False) -> Dict[st
     if not fresh and hit and now - hit.get("_t", 0) < _GH_TTL:
         return {**hit["v"], "mode": "cached", "fetched_at": hit["at"]}
     try:
-        d = json.loads(_get(_GH_API + "repos/" + repo + "/compare/" + base + "..." + head,
-                            timeout=12, headers=_gh_headers()))
+        d = json.loads(_gh_read(_GH_API + "repos/" + repo + "/compare/" + base + "..." + head,
+                                timeout=12))
         val = {"status": d.get("status"), "ahead_by": d.get("ahead_by"),
                "behind_by": d.get("behind_by"), "total_commits": d.get("total_commits")}
         at = _now_iso()
@@ -428,6 +486,7 @@ def _gh_compare(repo: str, base: str, head: str, fresh: bool = False) -> Dict[st
 # Hugging Face Space reader.
 # ---------------------------------------------------------------------------
 
+@_once_per_sweep
 def _hf_space(org: str, name: str, fresh: bool = False) -> Dict[str, Any]:
     key = "hf:" + org + "/" + name
     now = time.time()
@@ -924,20 +983,37 @@ _HONEST = (
 _SNAPSHOT: Dict[str, Dict[str, Any]] = {}
 _SNAPSHOT_LOCK = threading.Lock()
 _BUILDING: set = set()
+_BUILD_LOCKS: Dict[str, Any] = {}
 # A snapshot older than this is honestly flagged stale (the warmer fell behind);
 # generous vs the warm interval so one slow sweep is not mislabelled stale.
 _SNAPSHOT_STALE = max(_WARM_INTERVAL * 2, _DEPLOY_TTL * 2)
 
 
-def _assemble_index(ns: str) -> Dict[str, Any]:
+def _runtime_source_revision() -> Optional[str]:
+    """Return only the exact protected source identity supplied to this runtime."""
+    revision = (os.environ.get("SZL_GIT_SHA") or "").strip()
+    if len(revision) != 40 or revision == "0" * 40:
+        return None
+    if any(char not in "0123456789abcdef" for char in revision):
+        return None
+    return revision
+
+
+def _assemble_index(ns: str, fresh: bool = False) -> Dict[str, Any]:
     """Build the full readiness index payload for ns. This performs the live
     section reads, so it must only ever run off the request path (warmer /
     background build thread)."""
     cfg = _cfg_for(ns)
-    # A background sweep must renew observations, not assemble a new snapshot
-    # from caches that can expire before the next sweep. Failed reads do not
-    # renew prior clocks; request handlers still serve snapshots without probing.
-    sections = [_SECTIONS[sid](cfg, fresh=True) for sid in _SECTION_ORDER]
+    # Scheduled sweeps reobserve inputs beneath the five-minute contract;
+    # request-triggered builds retain the ordinary provider caches. Reuse each
+    # shared reader's result exactly once, including failed refreshes and their
+    # last-good clocks, rather than refetching it for the parity section.
+    previous = getattr(_SWEEP, "observations", None)
+    _SWEEP.observations = {}
+    try:
+        sections = [_SECTIONS[sid](cfg, fresh=fresh) for sid in _SECTION_ORDER]
+    finally:
+        _SWEEP.observations = previous
     return {
         "layer": "%s operational readiness" % ns,
         "honest": _HONEST,
@@ -952,11 +1028,23 @@ def _assemble_index(ns: str) -> Dict[str, Any]:
     }
 
 
-def _build_snapshot(ns: str) -> Dict[str, Any]:
+def _build_snapshot(ns: str, fresh: bool = False) -> Dict[str, Any]:
     """Assemble and store the index snapshot for ns (background only)."""
-    payload = _assemble_index(ns)
     with _SNAPSHOT_LOCK:
-        _SNAPSHOT[ns] = {"payload": payload, "_t": time.time(), "at": _now_iso()}
+        build_lock = _BUILD_LOCKS.setdefault(ns, threading.Lock())
+    # Serialize scheduled and request-triggered builds before observing inputs.
+    # A scheduled sweep waits for an in-flight public build; it is never dropped
+    # until the next interval, and an older assembly cannot overwrite a new one.
+    with build_lock:
+        source_revision = _runtime_source_revision()
+        payload = _assemble_index(ns, fresh=fresh)
+        with _SNAPSHOT_LOCK:
+            _SNAPSHOT[ns] = {
+                "payload": payload,
+                "_t": time.time(),
+                "at": _now_iso(),
+                "source_revision": source_revision,
+            }
     return payload
 
 
@@ -1021,6 +1109,7 @@ def _snapshot_payload(snap: Dict[str, Any]) -> Dict[str, Any]:
         sections.append(section)
     payload.update(sections=sections, summary=_summary(sections), served_from="background-snapshot",
                    snapshot_fetched_at=snap.get("at"),
+                   snapshot_source_revision=snap.get("source_revision"),
                    snapshot_age_seconds=round(age, 1) if age is not None else None, stale=stale)
     return payload
 
@@ -1058,7 +1147,7 @@ def _warm_loop() -> None:
         try:
             for ns in list(_WARM_NS):
                 try:
-                    _build_snapshot(ns)
+                    _build_snapshot(ns, fresh=True)
                 except Exception:  # noqa: BLE001
                     pass
                 time.sleep(2)  # polite spacing between organs
@@ -1156,6 +1245,7 @@ def register(app, ns: str = "a11oy") -> None:
                 "summary": payload["summary"],
                 "served_from": "background-snapshot",
                 "snapshot_fetched_at": snap.get("at"),
+                "snapshot_source_revision": payload["snapshot_source_revision"],
                 "snapshot_age_seconds": payload["snapshot_age_seconds"],
                 "stale": payload["stale"],
                 "refresh_triggered": True,

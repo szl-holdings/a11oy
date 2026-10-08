@@ -1960,6 +1960,25 @@ def _readiness_public_clocked_source(entry: Any) -> Any:
     return _readiness_public_source(entry)
 
 
+def _defense_required_source_usable(entry: Any, now_s: float) -> bool:
+    """Admit HTTP 200 only for the two observed, fresh defense sources."""
+    if not isinstance(entry, dict):
+        return False
+    value = entry.get("value")
+    freshness = entry.get("freshness")
+    if (not isinstance(value, dict) or not isinstance(value.get("items"), list)
+            or not isinstance(freshness, dict)
+            or freshness.get("status") not in _READINESS_PUBLIC_FRESHNESS):
+        return False
+    observed_at = freshness.get("fetched_at")
+    if (isinstance(observed_at, bool) or not isinstance(observed_at, (int, float))
+            or not math.isfinite(observed_at) or observed_at <= 0):
+        return False
+    age_s = now_s - observed_at
+    # Match the protected defense feed's one-hour SLA and five-minute skew.
+    return -300 <= age_s <= 3600
+
+
 # Post-deploy readiness warming. The hf-sync gate probes the canonical space
 # seconds after a cold restart; a single bounded upstream attempt inside one
 # request cannot absorb cold-egress transients, so an env-enabled daemon keeps
@@ -2073,10 +2092,15 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
             (feed_cisa_kev, (limit,), {}),
             (feed_nvd, (min(limit, 20),), {}),
         ])
+        kev = _readiness_public_clocked_source(kev)
+        nvd = _readiness_public_clocked_source(nvd)
+        observed_at = time.time()
+        status_code = (200 if all(_defense_required_source_usable(source, observed_at)
+                                  for source in (kev, nvd)) else 503)
         return JSONResponse({"vertical": "defense",
-                             "kev": _readiness_public_clocked_source(kev),
-                             "nvd": _readiness_public_clocked_source(nvd),
-                             "sources_cited": cited_leaders("defense"), "doctrine": DOCTRINE})
+                             "kev": kev, "nvd": nvd,
+                             "sources_cited": cited_leaders("defense"), "doctrine": DOCTRINE},
+                            status_code=status_code)
 
     @app.get(base + "/defense/kpi", include_in_schema=False)
     async def _def_kpi():

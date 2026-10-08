@@ -7,6 +7,7 @@ import copy
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import sys
 from types import ModuleType
@@ -54,6 +55,67 @@ class ReadinessContractTests(unittest.TestCase):
         self.evidence = {"layer": "killinchu evidence & research", "honest": "Source disclosure",
                          "count": 1, "claims": [{"id": "claim", "claim": "Research claim", "sources": []}]}
 
+    def test_background_assembly_requests_new_observations_for_every_section(self):
+        calls = []
+
+        def section(section_id):
+            def observe(_cfg, fresh=False):
+                calls.append((section_id, fresh))
+                return {"id": section_id}
+            return observe
+
+        sections = {sid: section(sid) for sid in readiness._SECTION_ORDER}
+        with patch.object(readiness, "_SECTIONS", sections):
+            readiness._assemble_index("a11oy", fresh=True)
+        self.assertEqual(calls, [(sid, True) for sid in readiness._SECTION_ORDER])
+
+    def test_background_sweep_reobserves_provider_even_after_interleaved_read(self):
+        with patch.object(readiness, "_SECTION_ORDER", ["space"]), \
+                patch.object(readiness, "_now_iso", side_effect=lambda: str(self.clock)):
+            self.network.return_value = Response(json.dumps({
+                "id": "SZLHOLDINGS/a11oy", "sha": "a" * 40,
+                "runtime": {"stage": "RUNNING"},
+            }).encode())
+            first = readiness._assemble_index("a11oy", fresh=True)
+            self.assertEqual(first["sections"][0]["fetched_at"], "1000.0")
+
+            # A real section read shortly before the next sweep must not make
+            # that sweep reuse an observation for another entire warm interval.
+            self.clock += 121
+            self.network.return_value = Response(json.dumps({
+                "id": "SZLHOLDINGS/a11oy", "sha": "b" * 40,
+                "runtime": {"stage": "RUNNING"},
+            }).encode())
+            readiness._hf_space("SZLHOLDINGS", "a11oy", fresh=True)
+            self.clock = 1240.0
+            self.network.reset_mock()
+            self.network.return_value = Response(json.dumps({
+                "id": "SZLHOLDINGS/a11oy", "sha": "c" * 40,
+                "runtime": {"stage": "RUNNING"},
+            }).encode())
+            second = readiness._assemble_index("a11oy", fresh=True)
+            self.network.assert_called_once()
+            self.assertEqual(second["sections"][0]["fetched_at"], "1240.0")
+            self.assertEqual(second["sections"][0]["mode"], "live")
+
+    def test_failed_background_refresh_preserves_original_provider_clock(self):
+        with patch.object(readiness, "_SECTION_ORDER", ["space"]), \
+                patch.object(readiness, "_now_iso", side_effect=lambda: str(self.clock)):
+            self.network.return_value = Response(json.dumps({
+                "id": "SZLHOLDINGS/a11oy", "runtime": {"stage": "RUNNING"},
+            }).encode())
+            readiness._assemble_index("a11oy", fresh=True)
+            old_cache = copy.deepcopy(readiness._CACHE["hf:SZLHOLDINGS/a11oy"])
+            self.clock += 392
+            self.network.reset_mock()
+            self.network.side_effect = OSError("provider unavailable")
+            refreshed = readiness._assemble_index("a11oy", fresh=True)
+            self.network.assert_called_once()
+            self.assertEqual(refreshed["checked_at"], "1392.0")
+            self.assertEqual(refreshed["sections"][0]["fetched_at"], "1000.0")
+            self.assertEqual(refreshed["sections"][0]["mode"], "cached")
+            self.assertEqual(readiness._CACHE["hf:SZLHOLDINGS/a11oy"], old_cache)
+
     def observe(self, value, endpoint=None, *, status=200, content_type="application/json", fresh=True):
         body = value if isinstance(value, bytes) else json.dumps(value).encode()
         self.network.side_effect = None
@@ -84,6 +146,7 @@ class ReadinessContractTests(unittest.TestCase):
         cfg["deployment"]["endpoints"] = [self.health, self.endpoint]
         patch.object(readiness, "_cfg_for", return_value=cfg).start()
         patch.object(readiness, "_SNAPSHOT", {}).start()
+        patch.object(readiness, "_BUILD_LOCKS", {}).start()
         sections = {sid: Mock(return_value={"id": sid})
                     for sid in readiness._SECTION_ORDER}
         sections["deployment"] = readiness._sec_deployment
@@ -99,10 +162,10 @@ class ReadinessContractTests(unittest.TestCase):
 
     def test_background_rebuild_renews_contracts_before_cache_expiry(self):
         self.background_sections()
-        readiness._build_snapshot("killinchu")
+        readiness._build_snapshot("killinchu", fresh=True)
         self.assertEqual(self.network.call_count, 2)
         self.clock += readiness._WARM_INTERVAL
-        readiness._build_snapshot("killinchu")
+        readiness._build_snapshot("killinchu", fresh=True)
         self.assertEqual(self.network.call_count, 4)
         # The original observations have expired, but the second sweep actually
         # reobserved both contracts; no timestamp is fabricated on a GET.
@@ -116,10 +179,10 @@ class ReadinessContractTests(unittest.TestCase):
 
     def test_failed_background_refresh_cannot_reuse_a_cached_pass(self):
         self.background_sections()
-        readiness._build_snapshot("killinchu")
+        readiness._build_snapshot("killinchu", fresh=True)
         self.clock += readiness._WARM_INTERVAL
         self.network.side_effect = TimeoutError("unavailable")
-        readiness._build_snapshot("killinchu")
+        readiness._build_snapshot("killinchu", fresh=True)
         payload = readiness._snapshot_payload(readiness._snapshot("killinchu"))
         self.assertFalse(payload["summary"]["application_ready"])
         self.assertEqual(self.network.call_count, 4)
@@ -127,17 +190,6 @@ class ReadinessContractTests(unittest.TestCase):
             lv = row["liveness"]
             self.assertEqual(lv["checked_at_unix"], 1000.0)
             self.assertEqual(lv["contract"]["reason"], "live_check_failed")
-
-    def test_background_sweep_refreshes_each_source_section(self):
-        sections = {sid: Mock(return_value={"id": sid})
-                    for sid in readiness._SECTION_ORDER}
-        cfg = readiness._killinchu_cfg()
-        with patch.object(readiness, "_cfg_for", return_value=cfg), \
-                patch.object(readiness, "_SECTIONS", sections):
-            readiness._assemble_index("killinchu")
-        for section in sections.values():
-            section.assert_called_once_with(cfg, fresh=True)
-        self.network.assert_not_called()
 
     def test_both_namespace_descriptors_are_bound(self):
         for ns in ("a11oy", "killinchu"):
@@ -285,11 +337,28 @@ class ReadinessContractTests(unittest.TestCase):
         self.assertFalse(summary["application_ready"])
         self.assertFalse(readiness._summary([])["application_ready"])
 
+    def test_snapshot_is_bound_to_the_exact_runtime_source_revision(self):
+        revision = "a" * 40
+        with patch.dict(os.environ, {"SZL_GIT_SHA": revision}, clear=False), \
+                patch.object(readiness, "_SNAPSHOT", {}), \
+                patch.object(readiness, "_BUILD_LOCKS", {}), \
+                patch.object(readiness, "_assemble_index", return_value={"sections": []}):
+            readiness._build_snapshot("a11oy")
+            payload = readiness._snapshot_payload(readiness._snapshot("a11oy"))
+
+        self.assertEqual(payload["snapshot_source_revision"], revision)
+
+    def test_snapshot_source_revision_fails_closed_when_runtime_is_unbound(self):
+        for revision in ("", "unknown", "0" * 40, "A" * 40):
+            with self.subTest(revision=revision), \
+                    patch.dict(os.environ, {"SZL_GIT_SHA": revision}, clear=False):
+                self.assertIsNone(readiness._runtime_source_revision())
+
     def snapshot(self):
         lv = self.observe(self.evidence)
         health = self.observe({"status": "ok", "organ": "killinchu"}, self.health)
         rows = [{"role": "api", "liveness": lv}, {"role": "health", "liveness": health}]
-        return {"_t": self.clock, "at": "snapshot-time",
+        return {"_t": self.clock, "at": "snapshot-time", "source_revision": "a" * 40,
                 "payload": {"organ": "killinchu",
                             "sections": [{"id": "deployment", "endpoints": rows}]}}
 
@@ -457,6 +526,7 @@ class ReadinessContractTests(unittest.TestCase):
                     self.assertFalse(result["summary"]["application_ready"])
                     self.assertEqual(result["summary"]["json_endpoints_ready"], 0)
                     self.assertEqual(result["served_from"], "background-snapshot")
+                    self.assertEqual(result["snapshot_source_revision"], "a" * 40)
             self.network.assert_not_called()
 
 
