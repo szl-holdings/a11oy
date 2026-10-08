@@ -17,9 +17,8 @@ ENDPOINTS (registered BEFORE the SPA catch-all + the Node proxy):
   GET /api/<ns>/v1/brain/pulse
       -> the current ecosystem pulse:
          {knowledge: summary from a11oy_brain_graph (+ harvest_vault provenance),
-          energy:    summary from szl_energy_ledger (MEASURED joules/tokens if the
-                     ledger holds billable measured jobs, else honest MODELED for a
-                     dry-run projection, else UNAVAILABLE when the source is down),
+          energy:    summary from szl_energy_ledger (MEASURED joules only with an
+                     explicit verified attribution label, else UNAVAILABLE),
           lit:       organ/surface count the Brain is lighting,
           lambda:    Λ = Conjecture 1 advisory (NEVER "green"/theorem),
           labels:    honest per-section labels,
@@ -31,9 +30,8 @@ ENDPOINTS (registered BEFORE the SPA catch-all + the Node proxy):
 HONESTY (Doctrine v11 LOCKED):
   * Knowledge counts are REUSED verbatim from a11oy_brain_graph — never restated,
     never fabricated. Label MODELED (a derived view over the real estate).
-  * Energy joules are NEVER fabricated. Measured joules only when the ledger holds
-    MEASURED-billable jobs; a dry-run projection is labeled MODELED; when the
-    ledger source raises/absent the energy section is honestly UNAVAILABLE.
+  * Energy joules are NEVER fabricated. A legacy positive ledger total is not
+    proof of exclusive job attribution; missing/unverified status is UNAVAILABLE.
   * Λ (F23) = Conjecture 1 — NEVER a theorem, never "green". Nothing here touches
     the locked-8 numbers; the hub adds a derived VIEW, it changes no gate.
   * Signing: REAL DSSE in-Space (when the cosign secret is present) via szl_dsse;
@@ -56,6 +54,7 @@ from __future__ import annotations
 import datetime
 import hashlib
 import json
+import math
 import sys
 from typing import Any, Optional
 
@@ -151,11 +150,9 @@ def knowledge_summary(ns: str = "a11oy") -> dict:
 def energy_summary() -> dict:
     """Honest ENERGY half of the pulse, reused from szl_energy_ledger.
 
-    joules_label semantics (Doctrine v11: NO free-energy, never fabricate joules):
-      * MEASURED    — the ledger holds MEASURED-billable joules (real NVML meter).
-      * MODELED     — the ledger has jobs but only a dry-run projection (would_charge);
-                      joules shown are a projection, not billed measured energy.
-      * UNAVAILABLE — the ledger source raised or holds nothing measurable.
+    MEASURED requires the ledger's explicit verified attribution status, method,
+    and version. Legacy positive totals or a hash chain alone cannot establish
+    measured billable energy; they remain UNAVAILABLE in this view.
     """
     try:
         import szl_energy_ledger as _el
@@ -164,33 +161,46 @@ def energy_summary() -> dict:
         persistence = led.persistence_info()
         storage = led.storage_health()
 
-        joules_billable = float(totals.get("joules_measured_billable", 0.0) or 0.0)
+        joules_label = totals.get("joules_measured_label")
+        raw_billable = totals.get("joules_measured_billable")
+        try:
+            joules_billable = float(raw_billable)
+        except (TypeError, ValueError):
+            joules_billable = 0.0
+        verified = (joules_label == LBL_MEASURED
+                    and totals.get("attribution_verified") is True
+                    and isinstance(totals.get("attribution_method"), str)
+                    and bool(totals.get("attribution_method").strip())
+                    and isinstance(totals.get("attribution_version"), int)
+                    and not isinstance(totals.get("attribution_version"), bool)
+                    and totals.get("attribution_version") >= 1
+                    and math.isfinite(joules_billable)
+                    and joules_billable > 0.0)
         jobs = int(totals.get("jobs", 0) or 0)
-        would_cents = int(totals.get("would_charge_cents", 0) or 0)
 
-        if joules_billable > 0.0:
+        if verified:
             label = LBL_MEASURED
-            note = ("MEASURED joules from the hash-chained ledger (NVML-metered, "
-                    "billable). No free energy; every joule re-hashable offline.")
-        elif jobs > 0 and would_cents > 0:
-            label = LBL_MODELED
-            note = ("ledger holds jobs but only a dry-run projection (would_charge); "
-                    "joules_total is a MODELED projection, NOT billed measured energy.")
+            note = ("Ledger explicitly reports verified job attribution with a "
+                    "method/version; chain integrity alone is not measurement proof.")
         else:
             label = LBL_UNAVAILABLE
-            note = ("no MEASURED-billable joules and no dry-run projection in the "
-                    "ledger — energy honestly UNAVAILABLE; no joules fabricated.")
+            note = ("No verified exclusive job attribution in the ledger; legacy "
+                    "totals remain historical reports, not current measured energy.")
 
         return {
             "label": label,
             "available": label != LBL_UNAVAILABLE,
             "jobs": jobs,
-            "joules_measured_billable": round(joules_billable, 6),
-            "joules_total": totals.get("joules_total"),
+            "joules_measured_billable": round(joules_billable, 6) if verified else None,
+            "joules_measured_label": label,
+            "joules_measured_reason": totals.get("joules_measured_reason"),
+            "attribution_method": totals.get("attribution_method") if verified else None,
+            "attribution_version": totals.get("attribution_version") if verified else None,
+            "joules_total": totals.get("joules_total") if verified else None,
             "tokens_total": totals.get("tokens_total"),
-            "kwh_total": totals.get("kwh_total"),
-            "would_charge_cents": would_cents,   # MODELED (dry-run projection)
-            "charged_cents": totals.get("charged_cents"),  # MEASURED (real cleared charges)
+            "kwh_total": totals.get("kwh_total") if verified else None,
+            "would_charge_cents": totals.get("would_charge_cents") if verified else None,
+            "charged_cents": totals.get("charged_cents") if verified else None,
             "storage_status": storage.get("status"),
             "persistence_label": persistence.get("label"),
             "survives_redeploy": persistence.get("survives_redeploy"),
@@ -364,8 +374,8 @@ def allocate_budget(pulse: dict, surface_id: str) -> dict:
 
     The Brain feeds each surface an EQUAL share of the harnessed knowledge/energy
     across the surfaces it is lighting (1/N). Labels flow straight through from the
-    pulse: a MODELED/UNAVAILABLE energy pulse yields a MODELED/UNAVAILABLE budget —
-    we never upgrade an honest label, and we never fabricate a joule or a node."""
+    pulse: only a verified MEASURED pool can yield a MODELED equal-share budget;
+    it is never a per-surface measurement. No joule or node is fabricated."""
     knowledge = pulse.get("knowledge", {})
     energy = pulse.get("energy", {})
     lit = pulse.get("lit", {})
@@ -398,15 +408,15 @@ def allocate_budget(pulse: dict, surface_id: str) -> dict:
                  "no lit surfaces to divide across — allocation honestly UNAVAILABLE."),
     }
     energy_budget = {
-        "label": e_label if (share is not None and e_label != LBL_UNAVAILABLE) else LBL_UNAVAILABLE,
+        "label": LBL_MODELED if (share is not None and e_label == LBL_MEASURED) else LBL_UNAVAILABLE,
         "share_of_estate": share,
         "joules_allocated": _per(energy.get("joules_measured_billable")) if e_label == LBL_MEASURED else None,
         "tokens_allocated": _per(energy.get("tokens_total")),
         "would_charge_cents_allocated": _per(energy.get("would_charge_cents")),
-        "basis": "equal 1/N share of the Brain's harnessed energy across lit surfaces",
+        "basis": "MODELED equal 1/N share of the measured pool; not per-surface metering",
         "note": ({
-            LBL_MEASURED: "MEASURED joules allocated (real metered, billable); label flows through the pulse.",
-            LBL_MODELED: "MODELED dry-run projection allocated; NOT billed measured energy.",
+            LBL_MEASURED: "MODELED equal-share allocation from a measured pool; per-surface joules are not measured.",
+            LBL_MODELED: "MODELED allocation; NOT billed measured energy.",
             LBL_UNAVAILABLE: "energy pulse UNAVAILABLE — no joules allocated, nothing fabricated.",
         }.get(e_label, "energy label flows through the pulse honestly.")),
     }

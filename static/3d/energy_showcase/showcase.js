@@ -49,7 +49,11 @@ const COL = Object.freeze({
 // ---------------------------------------------------------------------------
 // Tiny helpers — honest number parsing (never coerce missing -> 0 silently).
 // ---------------------------------------------------------------------------
-function num(v) { const n = Number(v); return Number.isFinite(n) ? n : null; }
+function num(v) {
+  if (v == null || typeof v === "boolean" || (typeof v === "string" && !v.trim())) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
 // Unwrap Dev3's _labeled() shape {value,label} or a bare scalar.
 function lv(x) { return (x && typeof x === "object" && "value" in x) ? num(x.value) : num(x); }
 function llabel(x) { return (x && typeof x === "object" && "label" in x) ? x.label : null; }
@@ -143,11 +147,16 @@ function gMeasuredJoulesOrbital() {
     },
     update(json, meta) {
       joules = num(json && json.joules_measured_total);
-      const lab = (json && json.joules_measured_label) || meta.label || "MEASURED";
-      if (joules == null) { host.setValue("NO-LIVE-DATA"); host.setLabel("STRUCTURAL-ONLY"); return; }
+      const qualified = json && json.joules_measured_label === "MEASURED" &&
+        json.attribution_verified === true &&
+        typeof json.attribution_method === "string" && !!json.attribution_method.trim() &&
+        Number.isInteger(json.attribution_version) && json.attribution_version >= 1;
+      if (!qualified || joules == null) {
+        host.setValue("NO-LIVE-DATA"); host.setLabel("UNAVAILABLE"); return;
+      }
       host.setValue(joules.toLocaleString(undefined, { maximumFractionDigits: 1 }) + " J");
       host.setSub("tokens " + (num(json.tokens_total) ?? "—") + " · jobs " + (num(json.jobs_done) ?? "—"));
-      host.setLabel(lab);
+      host.setLabel("MEASURED");
       const s = 0.7 + clamp01(joules / 100000) * 0.9;
       core.scale.setScalar(s);
     },
@@ -289,8 +298,15 @@ function gReceiptChain() {
       const len = num(chain.length) ?? 0;
       host.setValue(len + " receipts · " + (ok ? "CHAIN INTACT" : (len ? "BROKEN" : "EMPTY")));
       const totals = (json && json.totals) || {};
-      host.setSub("billable joules " + (num(totals.joules_measured_billable) ?? "—") + " · " + ((json && json.stripe_mode) || "dry-run"));
-      host.setLabel(ok && len > 0 ? "MEASURED" : "STRUCTURAL-ONLY");
+      const qualified = totals.attribution_verified === true &&
+        typeof totals.attribution_method === "string" && totals.attribution_method.length > 0 &&
+        Number.isInteger(totals.attribution_version) && totals.attribution_version >= 1 &&
+        totals.joules_measured_label === "MEASURED";
+      const billedJoules = qualified ? num(totals.joules_measured_billable) : null;
+      host.setSub("qualified billable joules " + (billedJoules ?? "UNAVAILABLE") +
+        " · " + ((json && json.stripe_mode) || "UNAVAILABLE"));
+      // Chain integrity proves structure, not the source or attribution of joules.
+      host.setLabel(ok && len > 0 ? "REPORTED" : (len ? "BLOCKED" : "UNAVAILABLE"));
       const lit = Math.min(joints.length, len);
       joints.forEach((s, i) => {
         const on = i < lit;
@@ -320,7 +336,11 @@ function gReservoir() {
       const oneDay = (json && json.projection_1day_single_node) || {};
       measured = lv(mi.joules_measured);
       proj = lv(oneDay.compute_done && oneDay.compute_done.joules);
-      if (measured == null || proj == null || proj <= 0) { host.setValue("NO-LIVE-DATA"); host.setLabel("STRUCTURAL-ONLY"); return; }
+      if (llabel(mi.joules_measured) !== "MEASURED" ||
+          llabel(oneDay.compute_done && oneDay.compute_done.joules) !== "MODELED" ||
+          measured == null || proj == null || proj <= 0) {
+        host.setValue("NO-LIVE-DATA"); host.setLabel("UNAVAILABLE"); return;
+      }
       const frac = clamp01(measured / proj);
       host.setValue((frac * 100).toFixed(2) + "% of 1-day ceiling");
       host.setSub("MEASURED " + measured.toFixed(0) + " J → MODELED " + proj.toFixed(0) + " J/day");
@@ -612,8 +632,12 @@ function gReceiptMintBurst() {
       lastLen = len;
       host.setValue(len + " minted");
       const totals = (json && json.totals) || {};
-      host.setSub("would-charge " + (num(totals.would_charge_cents) ?? "—") + "¢ (MODELED dry-run)");
-      host.setLabel(len > 0 ? "MEASURED" : "STRUCTURAL-ONLY");
+      const mode = (json && json.stripe_mode) || "UNAVAILABLE";
+      const wouldCharge = num(totals.would_charge_cents);
+      host.setSub(mode === "dry-run" && wouldCharge != null
+        ? "would-charge " + wouldCharge + "¢ (MODELED dry-run)"
+        : "charge UNAVAILABLE (" + mode + ")");
+      host.setLabel(len > 0 ? "REPORTED" : "STRUCTURAL-ONLY");
     },
     frame(t) {
       if (!geo) return;

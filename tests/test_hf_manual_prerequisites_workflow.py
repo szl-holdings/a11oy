@@ -79,25 +79,36 @@ CLASSIFY_RUN = '''python -B .github/scripts/resume_hf_space.py
 --repo-id "$CANONICAL_SPACE"
 --output "$PREFLIGHT_REPORT"
 --github-output "$GITHUB_OUTPUT"'''
-CONVERGE_RUN = r'''set -uo pipefail
+CONVERGE_RUN = r'''set -euo pipefail
 if [ "${CONVERGE:-false}" != 'true' ]; then
   echo '::notice::The canonical runtime is not serving; configuration converges against the deployed revision.'
   echo 'converged=false' >> "$GITHUB_OUTPUT"
   exit 0
 fi
+python3 -B scripts/hf_exact_main_ownership.py \
+  --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+  --receipt "$RUNNER_TEMP/preflight-series-config-admission.json" \
+  --github-output "$RUNNER_TEMP/preflight-series-config-admission.out"
+if ! grep -Fqx 'publish=true' "$RUNNER_TEMP/preflight-series-config-admission.out"; then
+  echo '::error::Protected main changed before Series-A configuration.'
+  exit 1
+fi
 python -B scripts/configure_hf_series_a_runtime.py \
   --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \
+  --expected-source-sha "$GITHUB_SHA" \
   --output "$RUNTIME_CONFIG_REPORT"
-series_code=$?
+python3 -B scripts/hf_exact_main_ownership.py \
+  --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+  --receipt "$RUNNER_TEMP/preflight-gdw-config-admission.json" \
+  --github-output "$RUNNER_TEMP/preflight-gdw-config-admission.out"
+if ! grep -Fqx 'publish=true' "$RUNNER_TEMP/preflight-gdw-config-admission.out"; then
+  echo '::error::Protected main changed before GDW configuration.'
+  exit 1
+fi
 python -B scripts/configure_hf_gdw_runtime.py \
-  --repo-id "$CANONICAL_SPACE" --output "$GDW_CONFIG_REPORT"
-gdw_code=$?
-if [ "$series_code" -eq 0 ] && [ "$gdw_code" -eq 0 ]; then
-  echo 'converged=true' >> "$GITHUB_OUTPUT"
-else
-  echo "::warning::Pre-deploy configuration did not converge (series-a=${series_code}, gdw=${gdw_code}); runtime-config converges against the deployed revision."
-  echo 'converged=false' >> "$GITHUB_OUTPUT"
-fi'''
+  --repo-id "$CANONICAL_SPACE" --expected-source-sha "$GITHUB_SHA" \
+  --output "$GDW_CONFIG_REPORT"
+echo 'converged=true' >> "$GITHUB_OUTPUT"'''
 ADMIT_RUN = r'''set -euo pipefail
 python3 -B scripts/hf_exact_main_ownership.py \
   --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
@@ -131,12 +142,32 @@ if [ "${PREDEPLOY_CONVERGED:-false}" = 'true' ]; then
   mode=(--check-only)
 else
   echo '::notice::Configuration was not converged before deploy; converging against the deployed revision.'
+  python3 -B scripts/hf_exact_main_ownership.py \
+    --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+    --receipt "$RUNNER_TEMP/runtime-series-config-admission.json" \
+    --github-output "$RUNNER_TEMP/runtime-series-config-admission.out"
+  if ! grep -Fqx 'publish=true' "$RUNNER_TEMP/runtime-series-config-admission.out"; then
+    echo '::error::Protected main changed before post-deploy Series-A configuration.'
+    exit 1
+  fi
 fi
 python -B scripts/configure_hf_series_a_runtime.py \
   --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \
+  --expected-source-sha "$GITHUB_SHA" \
   "${mode[@]}" --output "$RUNTIME_CONFIG_REPORT"
+if [ "${PREDEPLOY_CONVERGED:-false}" != 'true' ]; then
+  python3 -B scripts/hf_exact_main_ownership.py \
+    --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+    --receipt "$RUNNER_TEMP/runtime-gdw-config-admission.json" \
+    --github-output "$RUNNER_TEMP/runtime-gdw-config-admission.out"
+  if ! grep -Fqx 'publish=true' "$RUNNER_TEMP/runtime-gdw-config-admission.out"; then
+    echo '::error::Protected main changed before post-deploy GDW configuration.'
+    exit 1
+  fi
+fi
 python -B scripts/configure_hf_gdw_runtime.py \
   --repo-id "$CANONICAL_SPACE" \
+  --expected-source-sha "$GITHUB_SHA" \
   "${mode[@]}" --output "$GDW_CONFIG_REPORT"'''
 # Post-deploy jobs may read and verify, never restart, pause or write variables.
 POST_DEPLOY_JOBS = ("runtime-config", "readiness-verdict", "relock",
@@ -212,7 +243,8 @@ def assert_deploy_path_contract(source):
     exact_step(preflight["steps"][5], {"name": names[5], "id": "window", "if": ADMITTED, "shell": "bash",
                                        "env": WINDOW_ENV, "run": WINDOW_RUN}, "deploy window")
     exact_step(preflight["steps"][6], {"name": names[6], "id": "converge", "if": WINDOW_OPEN, "shell": "bash",
-                                       "env": {"CONVERGE": "${{ steps.runtime.outputs.converge }}"},
+                                       "env": {"CONVERGE": "${{ steps.runtime.outputs.converge }}",
+                                               "GITHUB_TOKEN": "${{ github.token }}"},
                                        "run": CONVERGE_RUN}, "preflight convergence")
     exact_step(preflight["steps"][7], {"name": names[7], "id": "owner", "if": WINDOW_OPEN, "shell": "bash",
                                        "env": {"GITHUB_TOKEN": "${{ github.token }}"}, "run": OWNER_RUN},
@@ -240,13 +272,16 @@ def assert_deploy_path_contract(source):
         raise WorkflowContractError("runtime-config step order")
     exact_step(runtime["steps"][3], {
         "name": "Verify or converge runtime configuration against the deployed revision",
-        "shell": "bash", "env": {"PREDEPLOY_CONVERGED": "${{ needs.preflight.outputs.converged }}"},
+        "shell": "bash", "env": {"PREDEPLOY_CONVERGED": "${{ needs.preflight.outputs.converged }}",
+                                "GITHUB_TOKEN": "${{ github.token }}"},
         "run": VERIFY_RUN}, "runtime-config must verify, fail closed")
     exact_step(runtime["steps"][4], {
         "name": "Await the deployed revision serving again after any convergence write",
         "run": AWAIT_RUN}, "runtime-config must await the restarted revision")
     paths = tuple(runtime["steps"][5].get("with", {}).get("path", "").splitlines())
-    if paths != ("${{ env.RUNTIME_CONFIG_REPORT }}", "${{ env.GDW_CONFIG_REPORT }}"):
+    if paths != ("${{ env.RUNTIME_CONFIG_REPORT }}", "${{ env.GDW_CONFIG_REPORT }}",
+                 "${{ runner.temp }}/runtime-series-config-admission.json",
+                 "${{ runner.temp }}/runtime-gdw-config-admission.json"):
         raise WorkflowContractError("runtime-config artifact allowlist")
 
     for name in POST_DEPLOY_JOBS:
@@ -589,8 +624,12 @@ class DeployPathWorkflowTests(unittest.TestCase):
     def test_preflight_classification_and_convergence_cannot_be_weakened(self):
         cases = (
             ("python -B .github/scripts/resume_hf_space.py", "python -B .github/scripts/resume_hf_space.py --restart", "preflight classification"),
-            ('          python -B scripts/configure_hf_series_a_runtime.py \\\n            --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \\\n            --output "$RUNTIME_CONFIG_REPORT"\n          series_code=$?',
-             '          series_code=0', "preflight convergence"),
+            ('          python -B scripts/configure_hf_series_a_runtime.py \\\n            --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \\\n            --expected-source-sha "$GITHUB_SHA" \\\n            --output "$RUNTIME_CONFIG_REPORT"\n',
+             '          true\n', "preflight convergence"),
+            ('--receipt "$RUNNER_TEMP/preflight-series-config-admission.json"',
+             '--receipt /tmp/forged.json', "preflight convergence"),
+            ('--receipt "$RUNNER_TEMP/preflight-gdw-config-admission.json"',
+             '--receipt /tmp/forged.json', "preflight convergence"),
             ("echo 'converged=true' >> \"$GITHUB_OUTPUT\"", "echo 'converged=true' >> \"$GITHUB_OUTPUT\" || true", "preflight convergence"),
             ('--receipt "$RUNNER_TEMP/preflight-source-admission.json"', '--receipt /tmp/forged.json', "re-admit current main"),
             ("      publish: ${{ steps.window.outputs.open == 'true' && steps.owner.outputs.publish == 'true' }}\n", "      publish: ${{ steps.owner.outputs.publish == 'true' }}\n", "output scope"),

@@ -7,16 +7,15 @@ szl_energy_operator.py — PRESS PLAY. The operational loop.
 On START this daemon dispatches a CONTINUOUS stream of REAL inference jobs to the
 reachable Ollama GPU nodes (rtx-betterwithage, chaski) — small honest workloads
 (short token-generation prompts and/or embeddings) so the rig genuinely computes
-and burns measurable energy. Per job it records start/end wall-time, pulls an NVML
-power/energy sample from the EXISTING exporter path (the betterwithage joule-meter
-that already feeds szl_energy_sovereign's metrics panel / harvest posture
-joules_evidence), and computes joules_measured for that job.
+and burns energy. Per job it records start/end wall-time and reads direct NVML
+counter samples from the existing exporter before and after the job. This yields
+a MEASURED bounded GPU-host window, not exclusive energy attributable to that job.
 
 Honesty (Doctrine v11 — NEVER violate):
-  - Joules are MEASURED only from a REAL, FRESH (<30s) NVML exporter delta. The
-    label is decided SOLELY by szl_joules_truth — never off a flag.
-  - If the exporter sample is stale (>30s) or unavailable, the job's energy is
-    labeled SAMPLE and EXCLUDED from billable totals. We never fabricate a joule.
+  - A bounded-window joule is MEASURED only from fresh direct NVML counter deltas
+    on the same GPU UUID and continuity epoch, bracketing the actual job interval.
+  - The job's energy is SAMPLE and nonbillable without separately proven exclusive
+    process/job attribution, even when the enclosing physical window was measured.
   - If a GPU node is unreachable, we SKIP it and mark it DEGRADED in status —
     we NEVER fabricate a job or a joule for a node that didn't compute.
   - Sandbox / no-GPU: a faithful local STUB of the Ollama API does REAL CPU work
@@ -35,12 +34,14 @@ Dev4 dashboard consume this):
       "joules_measured": float|None,  # MEASURED joules iff joules_label=="MEASURED", else None
       "joules_label":    str,    # "MEASURED" | "SAMPLE"  (billing.py-compatible upper-case)
       "joules_evidence": dict,   # self-verifying exporter evidence (empty unless MEASURED)
+      "window_joules_measured": float|None,  # physical bounded host window only
+      "joules_scope": "BOUNDED_METER_WINDOW"|None,
       "ts":              str,    # ISO-8601 UTC completion time
       "seq":             int,    # monotonic job sequence number (ledger order)
   }
 
   on_job(JobRecord) callback — register via OperatorDaemon.subscribe(cb) so Dev2
-  can mint a JouleCharge receipt per completed job in real time.
+  can record a nonbillable receipt per completed job in real time.
 
 Endpoints (dual-registered under /api/{ns}/v1/energy/operator/* AND /v1/energy/operator/*):
   POST /energy/operator/start    — press play (idempotent; returns running state)
@@ -57,11 +58,12 @@ Pure stdlib + httpx (already a repo dep) + FastAPI. No Node, no CDN.
 from __future__ import annotations
 
 import json
+import hashlib
+import math
 import os
 import signal
 import threading
 import time
-import urllib.request
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional
@@ -99,10 +101,11 @@ except Exception:  # pragma: no cover — packaged import fallback
 # Doctrine constants.
 # ---------------------------------------------------------------------------
 DOCTRINE = "v11"
-# joule_billing.py refuses to bill unless the label is MEASURED with an NVML sample
-# fresher than this. We mirror it EXACTLY so the operator's MEASURED↔SAMPLE split
-# is the same gate the billing core uses (no divergence).
+# Legacy freshness window used by the shared joules-truth helper. This operator
+# applies a stricter per-GPU gate and never promotes host-window energy to billable
+# job energy without separately proven attribution.
 MAX_NVML_AGE_S = 30.0
+MAX_EXPORTER_SAMPLE_AGE_S = 12.0
 # billing.py uses upper-case labels; szl_joules_truth uses lower-case. We map at the
 # boundary so JobRecord.joules_label is billing-compatible and self-consistent.
 LABEL_MEASURED = "MEASURED"
@@ -112,8 +115,7 @@ LABEL_SAMPLE = "SAMPLE"
 # Useful-work + energy-harness env knobs (all honest, all gentle defaults).
 # Useful work changes WHAT the embed job computes (a REAL un-embedded corpus
 # chunk that gets written into the live RAG dense index) — it NEVER changes HOW
-# joules are measured. The MEASURED<->SAMPLE split stays decided solely by
-# szl_joules_truth via _label_upper.
+# bounded host-window joules are measured; job-level energy stays SAMPLE.
 # ---------------------------------------------------------------------------
 # Master switch for useful-work embedding (default ON). Off => the old canned
 # _EMBED_TEXTS behavior (still real inference, just throwaway content).
@@ -599,34 +601,101 @@ def _exporter_sample_for_node(meter: Optional[dict], exporter_node: str,
                               now: Optional[float] = None) -> Optional[dict]:
     """Build a szl_joules_truth exporter_sample for one node from the meter JSON.
 
-    The meter shape (mirrors szl_energy_sovereign._metrics_panel): engines[].{engine,
-    joules, gpus[].{power_w, joules, live}}, totals.{joules}. We pick the engine whose
-    name matches exporter_node; its cumulative joules + a fresh wall-clock ts give a
-    real reading. Returns None when the node isn't present / has no numeric joules.
+    Only fresh per-GPU NVML counter deltas qualify. Engine/top-level totals and
+    HTTP scrape time are not measurement evidence. A partial or changing GPU set
+    cannot become a cumulative node counter, so the whole engine fails closed.
     """
     if not isinstance(meter, dict):
         return None
     now = time.time() if now is None else now
+    if isinstance(now, bool) or not isinstance(now, (int, float)) or not math.isfinite(now):
+        return None
     engines = meter.get("engines") or []
     for e in engines:
+        if not isinstance(e, dict):
+            continue
         if str(e.get("engine") or "").lower() != exporter_node.lower():
             continue
-        joules = e.get("joules")
-        if not isinstance(joules, (int, float)):
-            continue
-        power_w = None
-        for g in (e.get("gpus") or []):
-            if g.get("live") and isinstance(g.get("power_w"), (int, float)):
-                power_w = float(g["power_w"])
-                break
+        gpus = e.get("gpus")
+        if not isinstance(gpus, list) or not gpus:
+            return None
+        readings = []
+        seen_uuids = set()
+        power_vals = []
+        for g in gpus:
+            if not isinstance(g, dict):
+                return None
+            uuid = g.get("gpu_uuid")
+            epoch = g.get("counter_epoch")
+            ts = g.get("sample_ts")
+            joules = g.get("joules")
+            if (g.get("live") is not True or
+                    g.get("joules_method") != "NVML_COUNTER_DELTA" or
+                    not isinstance(uuid, str) or not uuid.strip() or
+                    uuid in seen_uuids or
+                    not isinstance(epoch, str) or not epoch.strip() or
+                    isinstance(ts, bool) or not isinstance(ts, (int, float)) or
+                    not math.isfinite(ts) or
+                    not 0 <= now - ts <= MAX_EXPORTER_SAMPLE_AGE_S or
+                    isinstance(joules, bool) or
+                    not isinstance(joules, (int, float)) or
+                    not math.isfinite(joules) or joules < 0):
+                return None
+            seen_uuids.add(uuid)
+            readings.append((uuid, epoch, float(ts), float(joules)))
+            power = g.get("power_w")
+            if (not isinstance(power, bool) and isinstance(power, (int, float))
+                    and math.isfinite(power) and power >= 0):
+                power_vals.append(float(power))
+        readings.sort()
         return {
-            "joules_measured_total": float(joules),
+            "joules_measured_total": sum(g[3] for g in readings),
             "exporter_node": exporter_node,
-            # The meter scraped just now → fresh by construction (same convention as
-            # szl_energy_sovereign._exporter_sample_from_metrics).
-            "exporter_last_seen_ts": now,
-            "power_w_sample": power_w,
+            "exporter_last_seen_ts": min(g[2] for g in readings),
+            "power_w_sample": sum(power_vals) if len(power_vals) == len(readings) else None,
+            "gpu_uuids": tuple(g[0] for g in readings),
+            "gpu_segments": tuple((g[0], g[1]) for g in readings),
+            "gpu_readings": tuple(readings),
         }
+    return None
+
+
+def _counter_window_joules(before: Optional[dict], after: Optional[dict], *,
+                           job_start_ts: Optional[float] = None,
+                           job_end_ts: Optional[float] = None) -> Optional[float]:
+    """Measure the enclosing GPU window, not energy exclusive to the job."""
+    if not isinstance(before, dict) or not isinstance(after, dict):
+        return None
+    if (any(isinstance(t, bool) or not isinstance(t, (int, float)) or
+            not math.isfinite(t) for t in (job_start_ts, job_end_ts)) or
+            job_end_ts <= job_start_ts):
+        return None
+    first = before.get("gpu_readings")
+    last = after.get("gpu_readings")
+    if not first or not last or len(first) != len(last):
+        return None
+    total = 0.0
+    for b, a in zip(first, last):
+        if (b[0:2] != a[0:2] or b[2] > job_start_ts or
+                a[2] < job_end_ts or a[2] <= b[2] or a[3] < b[3]):
+            return None
+        total += a[3] - b[3]
+    return total if math.isfinite(total) and total > 0 else None
+
+
+def _post_job_sample(exporter_node: str, job_end_ts: float,
+                     max_wait_s: float = 6.0) -> Optional[dict]:
+    """Wait boundedly for an actual counter poll after job completion."""
+    deadline = time.monotonic() + max_wait_s
+    while time.monotonic() < deadline:
+        remaining = deadline - time.monotonic()
+        meter = _fetch_joule_meter(timeout=min(4.0, max(0.1, remaining)))
+        sample = _exporter_sample_for_node(meter, exporter_node)
+        if sample and all(g[2] >= job_end_ts for g in sample["gpu_readings"]):
+            return sample
+        remaining = deadline - time.monotonic()
+        if remaining > 0:
+            time.sleep(min(0.25, remaining))
     return None
 
 
@@ -639,10 +708,9 @@ def _label_by_node(node_name: str, entry: dict) -> dict:
     """Honest per-node energy label for the status by_node view (ADDITIVE).
 
     Preserves the existing per-node fields (jobs, tokens, joules_measured) and ADDS:
-      - joules_label: MEASURED iff this node's NVML exporter engine yielded billable
-        joules (>0); else PENDING_EXPORTER when the node DID real jobs but no per-node
-        meter reading attributes to it yet (e.g. chaski runs but the betterwithage
-        joule-meter exposes no 'chaski' engine), else NONE for a node with no jobs.
+      - joules_label: MEASURED only for attributable billable jobs; otherwise
+        PENDING_EXPORTER when real jobs lack verified per-job attribution, or NONE
+        for a node with no jobs.
       - joules_note: the one-line reason, so a judge reading the API alone can tell
         "measured" from "pending — no per-node reading yet" — NEVER a fabricated joule.
     Doctrine: 0.0 joules on a node that computed is PENDING, not zero-energy; the only
@@ -656,8 +724,8 @@ def _label_by_node(node_name: str, entry: dict) -> dict:
         out["joules_note"] = "per-node NVML exporter delta (fresh <30s)"
     elif jobs > 0:
         out["joules_label"] = "PENDING_EXPORTER"
-        out["joules_note"] = ("node computed real jobs but no per-node NVML meter "
-                              "reading attributes to it yet — pending, never faked")
+        out["joules_note"] = ("node computed real jobs but no exclusive per-job "
+                              "joule attribution is verified — pending, never faked")
     else:
         out["joules_label"] = "NONE"
         out["joules_note"] = "no jobs recorded for this node"
@@ -694,6 +762,10 @@ class JobRecord:
     # measurement is unaffected; this is metadata only. Dev2/3/4 contract is unchanged
     # (extra optional field, safe default).
     governance: Optional[dict] = None
+    joules_reason: Optional[str] = None
+    window_joules_measured: Optional[float] = None
+    joules_scope: Optional[str] = None
+    window_evidence: Optional[dict] = None
 
     def to_dict(self) -> dict:
         return {
@@ -702,6 +774,11 @@ class JobRecord:
             "joules_measured": (round(self.joules_measured, 6)
                                 if self.joules_measured is not None else None),
             "joules_label": self.joules_label, "joules_evidence": self.joules_evidence,
+            "joules_reason": self.joules_reason,
+            "window_joules_measured": (round(self.window_joules_measured, 6)
+                                       if self.window_joules_measured is not None else None),
+            "joules_scope": self.joules_scope,
+            "window_evidence": self.window_evidence,
             "ts": self.ts, "seq": self.seq,
             "useful_work": self.useful_work, "rag_chunk_id": self.rag_chunk_id,
             "governance": self.governance,
@@ -837,6 +914,7 @@ def _ollama_embed(base_url: str, model: str, text: str,
 # ---------------------------------------------------------------------------
 @dataclass
 class _State:
+    schema_version: int = 2
     jobs_done: int = 0
     seq: int = 0
     joules_measured_total: float = 0.0    # billable only — MEASURED jobs
@@ -849,9 +927,11 @@ class _State:
     corpus_embeds: int = 0          # embed jobs that computed a REAL corpus chunk
     rag_vectors_written: int = 0    # dense vectors written into the live RAG index
     by_node: dict = field(default_factory=dict)  # node -> {jobs, tokens, joules_measured}
+    legacy_unverified_snapshot: Optional[dict] = None
 
     def to_dict(self) -> dict:
         return {
+            "schema_version": self.schema_version,
             "jobs_done": self.jobs_done, "seq": self.seq,
             "joules_measured_total": self.joules_measured_total,
             "joules_sample_total": self.joules_sample_total,
@@ -862,23 +942,44 @@ class _State:
             "corpus_embeds": self.corpus_embeds,
             "rag_vectors_written": self.rag_vectors_written,
             "by_node": self.by_node,
+            "legacy_unverified_snapshot": self.legacy_unverified_snapshot,
         }
 
     @classmethod
     def from_dict(cls, d: dict) -> "_State":
+        if not isinstance(d, dict):
+            raise ValueError("operator state must be an object")
+        version = d.get("schema_version", 1)
+        if version not in (1, 2):
+            raise ValueError("unsupported operator state schema")
         s = cls()
         s.jobs_done = int(d.get("jobs_done", 0))
         s.seq = int(d.get("seq", 0))
-        s.joules_measured_total = float(d.get("joules_measured_total", 0.0))
+        # The v1 gate accepted power integrals and unverified job attribution.
+        # Preserve its bytes/snapshot, but never import those counters as current
+        # billable MEASURED energy.
+        if version == 1:
+            s.legacy_unverified_snapshot = d
+        else:
+            s.legacy_unverified_snapshot = d.get("legacy_unverified_snapshot")
+            if (float(d.get("joules_measured_total", 0.0)) != 0 or
+                    int(d.get("measured_jobs", 0)) != 0 or
+                    int(d.get("measured_tokens", 0)) != 0 or
+                    float(d.get("measured_token_joules", 0.0)) != 0 or
+                    any(float(v.get("joules_measured", 0.0)) != 0
+                        for v in (d.get("by_node", {}) or {}).values())):
+                raise ValueError("v2 state has unsupported billable attribution")
+        s.joules_measured_total = 0.0
         s.joules_sample_total = float(d.get("joules_sample_total", 0.0))
         s.tokens_total = int(d.get("tokens_total", 0))
-        s.measured_tokens = int(d.get("measured_tokens", 0))
-        s.measured_token_joules = float(d.get("measured_token_joules", 0.0))
-        s.measured_jobs = int(d.get("measured_jobs", 0))
+        s.measured_tokens = 0
+        s.measured_token_joules = 0.0
+        s.measured_jobs = 0
         s.sample_jobs = int(d.get("sample_jobs", 0))
         s.corpus_embeds = int(d.get("corpus_embeds", 0))
         s.rag_vectors_written = int(d.get("rag_vectors_written", 0))
-        s.by_node = {k: v for k, v in (d.get("by_node", {}) or {}).items()
+        s.by_node = {k: dict(v, joules_measured=0.0)
+                     for k, v in (d.get("by_node", {}) or {}).items()
                      if not (k == "local-stub" or k.endswith("-stub"))}
         return s
 
@@ -888,7 +989,7 @@ class _State:
 # ---------------------------------------------------------------------------
 class OperatorDaemon:
     """Press-play operator: a background worker thread dispatching real inference
-    jobs to reachable nodes, metering MEASURED joules per job, persisting state.
+    jobs to reachable nodes, observing bounded GPU windows and persisting state.
 
     Thread-safe. Idempotent start/stop. Graceful: the loop checks a stop flag between
     jobs and joins on stop(). Restart resumes cumulative counts from the ledger.
@@ -909,6 +1010,10 @@ class OperatorDaemon:
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
         self._started_at: Optional[float] = None
+        self._state_load_error: Optional[str] = None
+        self._persistence_error: Optional[str] = None
+        self._loaded_state_sha256: Optional[str] = None
+        self._legacy_backup_required = False
         self._state = self._load_state()
         self._node_status: dict[str, str] = {n.name: "idle" for n in self.nodes}
         self._stub_mode = False
@@ -956,20 +1061,66 @@ class OperatorDaemon:
     # -- state persistence ------------------------------------------------
     def _load_state(self) -> _State:
         try:
-            with open(self.state_path, "r", encoding="utf-8") as f:
-                return _State.from_dict(json.load(f))
-        except Exception:  # noqa: BLE001 — missing/corrupt ledger => fresh state
+            with open(self.state_path, "rb") as f:
+                raw = f.read()
+            parsed = json.loads(raw.decode("utf-8"))
+            state = _State.from_dict(parsed)
+            self._loaded_state_sha256 = hashlib.sha256(raw).hexdigest()
+            self._legacy_backup_required = parsed.get("schema_version", 1) == 1
+            return state
+        except FileNotFoundError:
+            return _State()
+        except Exception as exc:  # noqa: BLE001 — do not overwrite corrupt/unknown state
+            self._state_load_error = "CORRUPT_OR_UNSUPPORTED_%s" % type(exc).__name__
             return _State()
 
     def _persist(self) -> None:
+        if self._state_load_error:
+            self._persistence_error = "STATE_LOAD_BLOCKED"
+            return
         try:
-            os.makedirs(os.path.dirname(self.state_path), exist_ok=True)
-            tmp = self.state_path + ".tmp"
-            with open(tmp, "w", encoding="utf-8") as f:
-                json.dump(self._state.to_dict(), f, sort_keys=True, separators=(",", ":"))
-            os.replace(tmp, self.state_path)  # atomic
-        except Exception:  # noqa: BLE001 — persistence failure never crashes the loop
-            pass
+            os.makedirs(os.path.dirname(self.state_path) or ".", exist_ok=True)
+            if self._loaded_state_sha256 is not None:
+                with open(self.state_path, "rb") as f:
+                    prior = f.read()
+                if hashlib.sha256(prior).hexdigest() != self._loaded_state_sha256:
+                    raise RuntimeError("state changed after load")
+            elif os.path.exists(self.state_path):
+                raise RuntimeError("state appeared after load")
+            if self._legacy_backup_required:
+                if self._loaded_state_sha256 is None:
+                    raise RuntimeError("legacy source unavailable for backup")
+                backup = self.state_path + ".pre-v2-legacy.json"
+                if os.path.exists(backup):
+                    with open(backup, "rb") as f:
+                        saved = f.read()
+                    if hashlib.sha256(saved).hexdigest() != self._loaded_state_sha256:
+                        raise RuntimeError("legacy backup differs from source")
+                else:
+                    with open(backup, "xb") as f:
+                        f.write(prior)
+                        f.flush()
+                        os.fsync(f.fileno())
+                    with open(backup, "rb") as f:
+                        if hashlib.sha256(f.read()).hexdigest() != self._loaded_state_sha256:
+                            raise RuntimeError("legacy backup verification failed")
+            serialized = json.dumps(self._state.to_dict(), sort_keys=True,
+                                    separators=(",", ":")).encode("utf-8")
+            tmp = "%s.tmp.%d.%d" % (self.state_path, os.getpid(), time.time_ns())
+            with open(tmp, "xb") as f:
+                f.write(serialized)
+                f.flush()
+                os.fsync(f.fileno())
+            if self._loaded_state_sha256 is not None:
+                with open(self.state_path, "rb") as f:
+                    if hashlib.sha256(f.read()).hexdigest() != self._loaded_state_sha256:
+                        raise RuntimeError("state changed before replace")
+            os.replace(tmp, self.state_path)  # atomic; legacy source has verified backup
+            self._loaded_state_sha256 = hashlib.sha256(serialized).hexdigest()
+            self._legacy_backup_required = False
+            self._persistence_error = None
+        except Exception as exc:  # noqa: BLE001 — preserve state on any failure
+            self._persistence_error = "PERSIST_BLOCKED_%s" % type(exc).__name__
 
     # -- lifecycle --------------------------------------------------------
     def is_running(self) -> bool:
@@ -1033,13 +1184,13 @@ class OperatorDaemon:
             for kind in ("generate", "embed"):
                 if self._stop.is_set():
                     break
-                rec = self._run_real_job(node, kind, meter)
+                rec = self._run_real_job(node, kind)
                 if rec is not None:
                     produced.append(rec)
             # SOAK modulation: drain extra corpus backlog on this node (gentle, capped,
             # honest no-op when the backlog is empty). THROTTLE/BASELINE add no batch.
             if soak_batch and not self._stop.is_set():
-                produced.extend(self._run_corpus_embed_batch(node, meter, soak_batch))
+                produced.extend(self._run_corpus_embed_batch(node, soak_batch))
         # No reachable node at all → faithful stub (clearly marked), if allowed.
         if not any_reachable and self.allow_stub and not self._stop.is_set():
             self._stub_mode = True
@@ -1237,15 +1388,38 @@ class OperatorDaemon:
     def _commit(self, node_name: str, model: str, kind: str, tokens: int,
                 wall_s: float, exporter_sample: Optional[dict],
                 joules_measured: Optional[float], *,
+                exporter_before_sample: Optional[dict] = None,
+                job_start_ts: Optional[float] = None,
+                job_end_ts: Optional[float] = None,
                 useful_work: bool = False,
                 rag_chunk_id: Optional[str] = None,
                 governance: Optional[dict] = None) -> JobRecord:
-        now = time.time()
-        label = _label_upper(exporter_sample, now=now)
-        evidence = _J.joules_evidence(exporter_sample, now=now) if label == LABEL_MEASURED else {}
-        billable_j = joules_measured if (label == LABEL_MEASURED and
-                                         joules_measured is not None and
-                                         joules_measured > 0) else None
+        verified_window = _counter_window_joules(
+            exporter_before_sample, exporter_sample,
+            job_start_ts=job_start_ts, job_end_ts=job_end_ts)
+        # A direct NVML delta measures the *host window*, not exclusive energy
+        # attributable to this job. No process isolation/exclusivity witness is
+        # available here, so job billing must remain SAMPLE and nonbillable.
+        label = LABEL_SAMPLE
+        joules_reason = ("ATTRIBUTION_UNVERIFIED" if verified_window is not None else
+                         "NO_VERIFIED_NVML_COUNTER_WINDOW")
+        evidence = {}
+        billable_j = None
+        window_evidence = None
+        if verified_window is not None:
+            window_evidence = {
+                "method": "NVML_COUNTER_DELTA",
+                "job_start_ts": job_start_ts,
+                "job_end_ts": job_end_ts,
+                "gpu_windows": [
+                    {"gpu_uuid": b[0], "counter_epoch": b[1],
+                     "before_sample_ts": b[2], "after_sample_ts": a[2],
+                     "before_cumulative_joules": b[3],
+                     "after_cumulative_joules": a[3]}
+                    for b, a in zip(exporter_before_sample["gpu_readings"],
+                                    exporter_sample["gpu_readings"])
+                ],
+            }
         with self._lock:
             self._state.seq += 1
             seq = self._state.seq
@@ -1265,12 +1439,14 @@ class OperatorDaemon:
                 bn["joules_measured"] += billable_j
             else:
                 self._state.sample_jobs += 1
-                if joules_measured is not None and joules_measured > 0:
-                    self._state.joules_sample_total += joules_measured
         rec = JobRecord(
             node=node_name, model=model, kind=kind, tokens=int(tokens), wall_s=wall_s,
             joules_measured=billable_j,
             joules_label=label, joules_evidence=evidence, ts=_now_iso(), seq=seq,
+            joules_reason=joules_reason,
+            window_joules_measured=verified_window,
+            joules_scope=("BOUNDED_METER_WINDOW" if verified_window is not None else None),
+            window_evidence=window_evidence,
             useful_work=useful_work, rag_chunk_id=rag_chunk_id, governance=governance)
         self._emit(rec)
         return rec
@@ -1279,25 +1455,23 @@ class OperatorDaemon:
                             wall_s: float, exporter_sample: Optional[dict] = None,
                             joules_measured: Optional[float] = None) -> JobRecord:
         """Submit ONE externally-run job (e.g. a governed code-as-action cell) into the
-        SAME ledger wire as the operator's own inference jobs. Thin pass-through to
-        _commit — all MEASURED/SAMPLE labeling + billing discipline is reused unchanged:
-        joules read MEASURED only with a fresh real NVML exporter delta, else SAMPLE and
-        excluded from billable (Doctrine v11: never fabricate a joule). The operator->
+        SAME ledger wire as the operator's own inference jobs. A caller's single
+        exporter sample and claimed joules lack a verified before/after counter window,
+        so energy remains SAMPLE and nonbillable. The operator->
         ledger subscribe() wire (wire_operator_to_ledger) then append_job()s it into the
         shared chain — one wire, one ledger, no parallel ledger."""
         return self._commit(node, model, kind, int(tokens), float(wall_s),
                             exporter_sample, joules_measured)
 
-    def _run_real_job(self, node: NodeCfg, kind: str,
-                      meter_before: Optional[dict]) -> Optional[dict]:
-        """Dispatch one real inference job; meter NVML energy across its wall window.
+    def _run_real_job(self, node: NodeCfg, kind: str) -> Optional[dict]:
+        """Dispatch a job with fresh enclosing NVML samples, never bill its window.
 
-        joules_measured for the job = (cumulative joules AFTER) − (cumulative joules
-        BEFORE) from the node's exporter engine, but ONLY when both samples are real &
-        fresh (<30s). Otherwise the job's energy is SAMPLE and excluded from billable.
+        Each job gets its OWN before sample; a bounded after poll must follow job
+        completion. The resulting delta includes host work outside this job, so it
+        is exposed only as a measured bounded window, not attributed job energy.
         A node error → DEGRADED + None (never a fabricated job)."""
-        sample_before = _exporter_sample_for_node(meter_before, node.exporter_node)
-        j_before = (sample_before or {}).get("joules_measured_total")
+        sample_before = _exporter_sample_for_node(
+            _fetch_joule_meter(), node.exporter_node)
         rag_chunk_id: Optional[str] = None
         embed_vec: list[float] = []
         governed_text = ""  # the turn text handed to the governed turn (post-meter)
@@ -1322,17 +1496,16 @@ class OperatorDaemon:
             with self._lock:
                 self._node_status[node.name] = "DEGRADED"
             return None
-        wall_s = time.time() - t0
-        meter_after = _fetch_joule_meter()
-        sample_after = _exporter_sample_for_node(meter_after, node.exporter_node)
+        job_end_ts = time.time()
+        wall_s = job_end_ts - t0
+        sample_after = (_post_job_sample(node.exporter_node, job_end_ts)
+                        if sample_before is not None else None)
         if sample_after is not None and sample_after.get("power_w_sample") is not None:
             with self._lock:
                 self._last_power_w = float(sample_after["power_w_sample"])
-        j_after = (sample_after or {}).get("joules_measured_total")
-        joules_measured = None
-        if (isinstance(j_before, (int, float)) and isinstance(j_after, (int, float))
-                and j_after >= j_before):
-            joules_measured = float(j_after) - float(j_before)
+        window_joules = _counter_window_joules(
+            sample_before, sample_after,
+            job_start_ts=t0, job_end_ts=job_end_ts)
         # Write the REAL embedding into the live RAG dense index (useful work). A
         # store failure NEVER affects the joule label/billable energy below — it only
         # means the index did not grow this job. useful_work reflects what actually
@@ -1348,13 +1521,15 @@ class OperatorDaemon:
         governance = _govern_turn(kind, governed_text, model, node.name)
         # The label is decided off the AFTER sample (the fresh reading at job end).
         rec = self._commit(node.name, model, kind, tokens, wall_s,
-                            sample_after, joules_measured,
+                            sample_after, window_joules,
+                            exporter_before_sample=sample_before,
+                            job_start_ts=t0, job_end_ts=job_end_ts,
                             useful_work=stored,
                             rag_chunk_id=(rag_chunk_id if stored else None),
                             governance=governance)
         return rec.to_dict()
 
-    def _run_corpus_embed_batch(self, node: NodeCfg, meter_before: Optional[dict],
+    def _run_corpus_embed_batch(self, node: NodeCfg,
                                 count: int) -> list[dict]:
         """SOAK: run up to ``count`` EXTRA corpus-embed jobs on a reachable node to
         drain the un-embedded backlog. Honest: stops early when the backlog is empty
@@ -1373,7 +1548,7 @@ class OperatorDaemon:
                     break
             except Exception:  # noqa: BLE001
                 break
-            rec = self._run_real_job(node, "embed", meter_before)
+            rec = self._run_real_job(node, "embed")
             if rec is None:
                 break
             produced.append(rec)
@@ -1417,6 +1592,7 @@ class OperatorDaemon:
             degraded = [_public_node(n) for n, s in self._node_status.items() if s == "DEGRADED"]
             standby = [_public_node(n) for n, s in self._node_status.items() if s == "standby"]
             st = self._state
+            legacy = st.legacy_unverified_snapshot
             return {
                 "service": "energy-operator",
                 "doctrine": DOCTRINE,
@@ -1424,7 +1600,20 @@ class OperatorDaemon:
                 "stub_mode": self._stub_mode,
                 "jobs_done": st.jobs_done,
                 "joules_measured_total": round(st.joules_measured_total, 6),
-                "joules_measured_label": LABEL_MEASURED,
+                "joules_measured_label": (LABEL_MEASURED if st.measured_jobs > 0
+                                           else "UNAVAILABLE"),
+                "joules_measured_reason": (None if st.measured_jobs > 0 else
+                                            "NO_VERIFIED_NVML_COUNTER_WINDOW"),
+                "legacy_unverified_state_present": legacy is not None,
+                "legacy_unverified_joules_claimed": (
+                    legacy.get("joules_measured_total") if isinstance(legacy, dict)
+                    else None),
+                "legacy_unverified_label": ("UNKNOWN" if legacy is not None else None),
+                "state_persistence_status": (
+                    "BLOCKED" if self._state_load_error or self._persistence_error
+                    else "AVAILABLE"),
+                "state_persistence_reason": (self._state_load_error or
+                                              self._persistence_error),
                 "joules_sample_total": round(st.joules_sample_total, 6),
                 "joules_sample_label": LABEL_SAMPLE,
                 "tokens_total": st.tokens_total,
@@ -1460,15 +1649,17 @@ class OperatorDaemon:
                     "unless it was run. corpus_embeds/rag_vectors_written are the "
                     "honest counters proving useful-work embed jobs advanced the "
                     "live RAG dense index. Useful work changes WHAT is computed, "
-                    "never HOW joules are measured — the MEASURED gate is unchanged."
+                    "never HOW physical windows are measured; per-job attribution "
+                    "remains fail-closed."
                 ),
                 "governed_compute": _governed_compute_summary(self._last_records),
                 "recent_jobs": [_public_job(j) for j in self._last_records[-10:]],
                 "exporter": _JOULE_METER_PUBLIC,
                 "honesty": (
-                    "joules_measured_total is the SUM of per-job MEASURED NVML deltas "
-                    "(fresh <30s) ONLY — the billable figure. SAMPLE energy (stale meter "
-                    "or stub mode) is tracked separately and NEVER billable. A node "
+                    "joules_measured_total is billable per-job energy and remains "
+                    "unavailable without exclusive attribution. A direct NVML delta "
+                    "over an enclosing host window is exposed separately as "
+                    "window_joules_measured, never billed as exact job energy. A node "
                     "configured as standby (intentionally not started) reads 'standby', "
                     "not DEGRADED; a node that fails when expected up is DEGRADED; neither "
                     "is ever faked as computing. STUB MODE means no GPU node was "
@@ -1644,9 +1835,14 @@ def _selftest() -> dict:
     out: dict = {}
     now = 1_000_000.0
 
-    # (a) Fresh real meter sample for 'betterwithage' => MEASURED label.
+    # (a) Fresh source-bound counter sample for 'betterwithage'.
     meter = {"engines": [{"engine": "betterwithage", "joules": 78369.586,
-                          "gpus": [{"power_w": 9.74, "live": True}]}],
+                          "gpus": [{"power_w": 9.74, "live": True,
+                                    "gpu_uuid": "GPU-selftest",
+                                    "counter_epoch": "selftest-segment",
+                                    "sample_ts": now - 1,
+                                    "joules_method": "NVML_COUNTER_DELTA",
+                                    "joules": 78369.586}]}],
              "totals": {"joules": 78369.586, "eur_per_mwh": 62.08}}
     s = _exporter_sample_for_node(meter, "betterwithage", now=now)
     assert s is not None and _label_upper(s, now=now) == LABEL_MEASURED, s
@@ -1679,15 +1875,25 @@ def _selftest() -> dict:
         assert op2.status()["jobs_done"] == st["jobs_done"], "restart must resume counts"
         out["restart_resumes_state"] = True
 
-    # (e) MEASURED billable accounting via the commit path (synthetic fresh sample).
+    # (e) Synthetic counter window remains nonbillable without job attribution.
     with tempfile.TemporaryDirectory() as d:
         op = OperatorDaemon(nodes=[], state_path=os.path.join(d, "l.json"))
-        sample = {"joules_measured_total": 100.0, "exporter_node": "betterwithage",
-                  "exporter_last_seen_ts": time.time(), "power_w_sample": 200.0}
-        rec = op._commit("betterwithage", "llama3.1:8b", "generate", 42, 1.5, sample, 12.5)
-        assert rec.joules_label == LABEL_MEASURED and rec.joules_measured == 12.5, rec
-        assert op.status()["joules_measured_total"] == 12.5
-        out["measured_commit_billable"] = True
+        t = time.time() - 2
+        before = _exporter_sample_for_node({"engines": [{"engine": "betterwithage",
+            "gpus": [{"gpu_uuid": "GPU-selftest", "counter_epoch": "selftest-segment",
+                      "sample_ts": t, "joules_method": "NVML_COUNTER_DELTA",
+                      "live": True, "joules": 100.0}]}]}, "betterwithage")
+        after = _exporter_sample_for_node({"engines": [{"engine": "betterwithage",
+            "gpus": [{"gpu_uuid": "GPU-selftest", "counter_epoch": "selftest-segment",
+                      "sample_ts": t + 1, "joules_method": "NVML_COUNTER_DELTA",
+                      "live": True, "joules": 112.5}]}]}, "betterwithage")
+        rec = op._commit("betterwithage", "llama3.1:8b", "generate", 42, 1.5,
+                         after, 12.5, exporter_before_sample=before,
+                         job_start_ts=t + 0.25, job_end_ts=t + 0.75)
+        assert rec.joules_label == LABEL_SAMPLE and rec.joules_measured is None, rec
+        assert rec.window_joules_measured == 12.5, rec
+        assert op.status()["joules_measured_total"] == 0.0
+        out["bounded_window_nonbillable"] = True
 
     return out
 

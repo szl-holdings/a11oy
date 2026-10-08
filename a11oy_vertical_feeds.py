@@ -40,7 +40,7 @@ import threading
 import time
 from datetime import datetime, timezone, timedelta
 from typing import Annotated, Any, Callable, Optional
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 import anyio
 import httpx
@@ -87,6 +87,11 @@ DOCTRINE = {
     "lambda_floor": 0.90,
 }
 UA = {"User-Agent": "a11oy-mesh/2.0 (+https://huggingface.co/spaces/SZLHOLDINGS/a11oy) governed-feed"}
+_GITHUB_PUBLIC_READ_ENV = "A11OY_GITHUB_PUBLIC_READ_TOKEN"
+_GITHUB_PUBLIC_REPO_PATH = re.compile(
+    r"/repos/(?P<owner>[A-Za-z0-9_-]{1,39})/"
+    r"(?P<repo>[A-Za-z0-9._-]{1,100})(?P<events>/events)?"
+)
 
 _SOURCE_HTTP_TIMEOUT_ENV = "A11OY_SOURCE_HTTP_TIMEOUT_S"
 _SOURCE_HTTP_TIMEOUT_DEFAULT_S = 4.0
@@ -100,10 +105,11 @@ _COURTLISTENER_MIN_INTERVAL_ENV = "A11OY_COURTLISTENER_MIN_INTERVAL_S"
 _COURTLISTENER_MIN_INTERVAL_DEFAULT_S = 1.0
 _COURTLISTENER_MIN_INTERVAL_MIN_S = 0.25
 _COURTLISTENER_MIN_INTERVAL_MAX_S = 10.0
-_COURTLISTENER_RETRY_MAX_DELAY_S = 10.0
-_COURTLISTENER_MAX_ATTEMPTS = 3
+_COURTLISTENER_COOLDOWN_DEFAULT_S = 60.0
+_COURTLISTENER_COOLDOWN_MAX_S = 86400.0
 _COURTLISTENER_RATE_LOCK = threading.Lock()
 _COURTLISTENER_NEXT_REQUEST_AT = 0.0
+_COURTLISTENER_COOLDOWN_UNTIL = 0.0
 
 
 def _source_http_timeout_s() -> float:
@@ -128,6 +134,44 @@ def _source_url_allowed(url: str) -> bool:
     if parsed.scheme == "https":
         return True
     return parsed.scheme == "http" and host in {"127.0.0.1", "localhost", "::1"}
+
+
+def _github_public_headers(url: str) -> Optional[dict[str, str]]:
+    """Use the dedicated reader only for exact GitHub repository GETs over TLS.
+
+    A configured but malformed credential fails closed; an absent credential
+    retains the existing anonymous public read. The shared client never follows
+    redirects, so the header cannot be forwarded to another origin.
+    """
+    try:
+        parsed = urlsplit(url)
+        # Reject traversal and encoded separators before httpx can normalize
+        # the request path away from /repos/{owner}/{repo}.
+        path = _GITHUB_PUBLIC_REPO_PATH.fullmatch(parsed.path)
+        query_ok = (parsed.query == "" if path and not path.group("events")
+                    else bool(path and re.fullmatch(
+                        r"per_page=(?:[1-9]|[1-9][0-9]|100)", parsed.query,
+                    )))
+        client_url = httpx.URL(url)
+        allowed = (parsed.scheme == "https" and parsed.hostname == "api.github.com"
+                   and parsed.port in (None, 443) and parsed.username is None
+                   and parsed.password is None and not parsed.fragment and path is not None
+                   and path.group("repo") not in {".", ".."} and query_ok
+                   and client_url.scheme == "https" and client_url.host == "api.github.com"
+                   and client_url.path == parsed.path)
+    except (TypeError, ValueError):
+        allowed = False
+    if not allowed:
+        raise ValueError("GitHub public reader URL outside exact API origin")
+
+    token = os.environ.get(_GITHUB_PUBLIC_READ_ENV)
+    if token is None:
+        return None
+    if not token or token != token.strip() or not token.isascii() or any(
+        ord(char) < 33 or ord(char) > 126 for char in token
+    ):
+        raise ValueError("GitHub public reader credential malformed")
+    return {"Authorization": f"Bearer {token}"}
 
 
 def _courtlistener_min_interval_s() -> float:
@@ -160,30 +204,32 @@ def _is_courtlistener_source(url: str) -> bool:
     )
 
 
-def _courtlistener_retry_after_s(response: Any, attempt: int) -> float:
-    """Honor a numeric Retry-After value, otherwise use bounded backoff."""
+def _courtlistener_retry_after_s(response: Any) -> float:
+    """Honor a numeric provider cooldown, bounded to one day."""
     headers = getattr(response, "headers", None) or {}
     raw = headers.get("retry-after") or headers.get("Retry-After")
     try:
         delay = float(raw)
     except (TypeError, ValueError, OverflowError):
-        delay = _COURTLISTENER_MIN_INTERVAL_DEFAULT_S * (2 ** max(0, attempt))
+        delay = _COURTLISTENER_COOLDOWN_DEFAULT_S
     if not math.isfinite(delay):
-        delay = _COURTLISTENER_MIN_INTERVAL_DEFAULT_S
+        delay = _COURTLISTENER_COOLDOWN_DEFAULT_S
     return max(
         _courtlistener_min_interval_s(),
-        min(_COURTLISTENER_RETRY_MAX_DELAY_S, delay),
+        min(_COURTLISTENER_COOLDOWN_MAX_S, delay),
     )
 
 
 def _courtlistener_wait_locked() -> None:
-    """Reserve the next process-wide CourtListener request slot.
+    """Reserve a request slot unless the provider's 429 cooldown is active.
 
-    Callers must hold ``_COURTLISTENER_RATE_LOCK``. Sleeping happens while the
-    lock is held deliberately: no other request may leapfrog the reserved slot.
+    Callers must hold ``_COURTLISTENER_RATE_LOCK``. The short configured spacing
+    remains serialized so no other request can leapfrog a reserved slot.
     """
     global _COURTLISTENER_NEXT_REQUEST_AT
     now = time.monotonic()
+    if now < _COURTLISTENER_COOLDOWN_UNTIL:
+        raise RuntimeError("CourtListener rate limited; provider cooldown active")
     delay = max(0.0, _COURTLISTENER_NEXT_REQUEST_AT - now)
     if delay:
         time.sleep(delay)
@@ -193,19 +239,19 @@ def _courtlistener_wait_locked() -> None:
 
 
 def _courtlistener_defer_locked(delay_s: float) -> None:
-    global _COURTLISTENER_NEXT_REQUEST_AT
-    _COURTLISTENER_NEXT_REQUEST_AT = max(
-        _COURTLISTENER_NEXT_REQUEST_AT,
+    global _COURTLISTENER_COOLDOWN_UNTIL
+    _COURTLISTENER_COOLDOWN_UNTIL = max(
+        _COURTLISTENER_COOLDOWN_UNTIL,
         time.monotonic() + max(0.0, delay_s),
     )
 
 
-def _source_json_with_bounded_retry(
+def _source_json_with_cooldown(
     client: httpx.Client,
     url: str,
     headers: Optional[dict[str, str]] = None,
 ) -> Any:
-    """Fetch JSON once, except for bounded CourtListener HTTP 429 recovery."""
+    """Fetch JSON once; one CourtListener 429 holds later reads until its reset."""
     def request() -> Any:
         return client.get(url, headers=headers) if headers else client.get(url)
 
@@ -215,21 +261,13 @@ def _source_json_with_bounded_retry(
         return response.json()
 
     with _COURTLISTENER_RATE_LOCK:
-        for attempt in range(_COURTLISTENER_MAX_ATTEMPTS):
-            _courtlistener_wait_locked()
-            response = request()
-            if (
-                getattr(response, "status_code", None) == 429
-                and attempt + 1 < _COURTLISTENER_MAX_ATTEMPTS
-            ):
-                _courtlistener_defer_locked(
-                    _courtlistener_retry_after_s(response, attempt)
-                )
-                continue
-            response.raise_for_status()
-            return response.json()
-
-    raise RuntimeError("CourtListener request exhausted bounded retry contract")
+        _courtlistener_wait_locked()
+        response = request()
+        if getattr(response, "status_code", None) == 429:
+            _courtlistener_defer_locked(_courtlistener_retry_after_s(response))
+            raise RuntimeError("CourtListener rate limited; provider cooldown active")
+        response.raise_for_status()
+        return response.json()
 
 
 def _courtlistener_public_url(value: Any) -> str:
@@ -734,7 +772,8 @@ def _refresh_failure(rec: Optional[dict[str, Any]], exc: BaseException) -> dict[
 
 
 def _cached_fetch(key: str, url: str, ttl: float, parser=None, label="live", headers=None,
-                  timeout_s: Optional[float] = None) -> dict[str, Any]:
+                  timeout_s: Optional[float] = None,
+                  private_error: bool = False) -> dict[str, Any]:
     """Return {value, freshness}. Serve warm cache if within TTL; else refetch.
     On error keep last-good and mark 'stale' — never fabricate. Concurrent
     refreshes for one key are coalesced into exactly one upstream operation."""
@@ -771,14 +810,25 @@ def _cached_fetch(key: str, url: str, ttl: float, parser=None, label="live", hea
     result: Optional[dict[str, Any]] = None
     try:
         with _client(timeout_s) if timeout_s is not None else _client() as cl:
-            data = _source_json_with_bounded_retry(cl, url, headers=headers)
+            data = _source_json_with_cooldown(cl, url, headers=headers)
         val = parser(data) if parser else data
         _CACHE.put(key, val, ttl, status="live")
         result = {"value": val, "freshness": _CACHE.freshness(key)}
     except BaseException as exc:
         if rec:
             _CACHE.mark_stale_if_same(key, rec["fetched_at"])
-        result = _refresh_failure(rec, exc)
+        # An authenticated read must never publish a transport exception that
+        # might contain its Authorization header in a public freshness error.
+        if private_error:
+            code = (exc.response.status_code
+                    if isinstance(exc, httpx.HTTPStatusError) else None)
+            safe_exc = RuntimeError(
+                f"GitHub public reader HTTP {code}" if code is not None
+                else f"GitHub public reader {type(exc).__name__}"
+            )
+            result = _refresh_failure(rec, safe_exc)
+        else:
+            result = _refresh_failure(rec, exc)
         if not isinstance(exc, Exception):
             raise
     finally:
@@ -786,6 +836,19 @@ def _cached_fetch(key: str, url: str, ttl: float, parser=None, label="live", hea
             result = _refresh_failure(rec, RuntimeError("refresh aborted before publication"))
         _CACHE.finish_refresh(key, flight, result)
     return result
+
+
+def _github_public_fetch(key: str, url: str, ttl: float, parser) -> dict[str, Any]:
+    """Fetch a GitHub public source without an unauthorized retry or leaked key."""
+    try:
+        headers = _github_public_headers(url)
+    except ValueError as exc:
+        rec = _CACHE.get(key)
+        if rec:
+            _CACHE.mark_stale_if_same(key, rec["fetched_at"])
+        return _refresh_failure(rec, exc)
+    return _cached_fetch(key, url, ttl, parser=parser, headers=headers,
+                         private_error=bool(headers))
 
 
 # Bare vertical summaries report only child source state that this process has
@@ -1645,8 +1708,8 @@ def feed_gh_events(repo: str = "huggingface/transformers", limit: int = 12) -> d
             "ref": (e.get("payload") or {}).get("ref") or (e.get("payload") or {}).get("action"),
         } for e in (d if isinstance(d, list) else [])[:limit]]}
     source = "ghev_" + re.sub(r"\W+", "_", repo).strip("_")[:48]
-    return _cached_fetch(_variant_cache_key(source, repo=repo, limit=limit),
-                         url, ttl=180, parser=parse)
+    return _github_public_fetch(_variant_cache_key(source, repo=repo, limit=limit),
+                                url, ttl=180, parser=parse)
 
 
 def feed_treasury(limit: int = 6) -> dict[str, Any]:
@@ -1669,8 +1732,8 @@ def feed_github(repo: str) -> dict[str, Any]:
                 "issues": d.get("open_issues_count"), "pushed_at": d.get("pushed_at"),
                 "lang": d.get("language")}
     source = "gh_" + re.sub(r"\W+", "_", repo).strip("_")[:48]
-    return _cached_fetch(_variant_cache_key(source, repo=repo),
-                         url, ttl=300, parser=parse)
+    return _github_public_fetch(_variant_cache_key(source, repo=repo),
+                                url, ttl=300, parser=parse)
 
 
 def feed_hf(limit: int = 8) -> dict[str, Any]:

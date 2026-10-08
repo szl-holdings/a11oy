@@ -10,6 +10,8 @@ from pathlib import Path
 
 COMPONENT = json.loads((Path(__file__).resolve().parents[1] /
     "verticals/puriq-markets/runtime/components/finance_v2/source.json").read_text(encoding="utf-8"))
+SIGNED_COMPONENT = json.loads((Path(__file__).resolve().parents[1] /
+    "verticals/puriq-markets/runtime/components/puriq_verity/source.json").read_text(encoding="utf-8"))
 
 FINANCE_PROXY = r'''
 # Public finance projection. Core normalization remains in szl-holdings/a11oy.
@@ -22,6 +24,7 @@ if CFG.get("slug") == "finance":
     _FINANCE_ORIGIN = "https://szlholdings-a11oy.hf.space"
     _FINANCE_PREFIX = "/api/a11oy/v1/finance/"
     _FINANCE_COMPONENT = __COMPONENT_BINDING__
+    _FINANCE_SIGNED_COMPONENT = __SIGNED_COMPONENT_BINDING__
     _FINANCE_OVERVIEW_SOURCES = frozenset((
         "polymarket-markets", "kalshi-markets", "coinbase-ticker", "treasury-rates"))
 
@@ -276,11 +279,74 @@ if CFG.get("slug") == "finance":
                 or receipt.get("persistence") != "CALLER_HELD" or receipt.get("authority") != "NONE"):
             raise _FinanceBoundaryError("CANONICAL_RECEIPT_INVALID")
 
+    def _finance_check_signed(body, kind):
+        _finance_check_identity(body, "szl.finance.signed-price/v1")
+        def require(condition):
+            if not condition:
+                raise _FinanceBoundaryError("CANONICAL_SIGNED_PRICE_INVALID")
+        require(body.get("component") == _FINANCE_SIGNED_COMPONENT
+            and body.get("ok") is True and body.get("advisory_only") is True)
+        receipt, result = body.get("receipt"), body.get("result")
+        require(isinstance(receipt, dict) and isinstance(result, dict))
+        require(receipt.get("schema") == "szl.finance.signed-price-receipt/v1"
+            and receipt.get("signed") is False and receipt.get("signing") == "UNSIGNED_HONEST"
+            and receipt.get("authority") == "NONE" and receipt.get("persistence") == "CALLER_HELD"
+            and receipt.get("source_revision") == body["source_revision"]
+            and receipt.get("payload_sha256") == _finance_digest({k:v for k,v in body.items() if k != "receipt"})
+            and receipt.get("receipt_sha256") == _finance_digest({k:v for k,v in receipt.items() if k != "receipt_sha256"}))
+        if kind == "signed-prices/model":
+            require(body.get("state") == "MODELED" and body.get("truth_label") == "MODELED"
+                and result.get("truth_label") == "MODELED" and result.get("data_kind") == "SYNTHETIC"
+                and set(result.get("cases", {})) == {"single_outlier", "correlated_venue_cluster"})
+            for case in result["cases"].values():
+                require(case.get("truth_label") == "MODELED" and case.get("trading_enabled") is False
+                    and case.get("group_independence_verified") is False
+                    and case.get("digest_is_signature") is False)
+            return
+        require(result.get("symbol") == kind.rsplit("/", 1)[1]
+            and body.get("truth_label") == result.get("truth_label") == "REPORTED"
+            and body.get("state") == result.get("status") and result.get("status") in ("REVIEW", "ABSTAIN")
+            and all(result.get(k) is False for k in ("trading_enabled", "capital_transferred", "can_authorize")))
+        proof, record, local = result.get("verification"), result.get("provider_print"), result.get("receipt")
+        reasons = result.get("decision_reasons")
+        require(isinstance(proof, dict) and isinstance(record, dict) and isinstance(local, dict)
+            and isinstance(reasons, list) and len(reasons) <= 32
+            and all(isinstance(r, str) and len(r) <= 128 for r in reasons)
+            and proof.get("can_authorize") is False)
+        unsigned = {k:v for k,v in local.items() if k not in ("receipt_id", "receipt_algorithm")}
+        require(local.get("receipt_id") == _finance_digest(unsigned)
+            and local.get("receipt_algorithm") == "SHA-256" and local.get("local_signature_claimed") is False
+            and local.get("verification") == proof and local.get("decision") == result["status"]
+            and local.get("decision_reasons") == reasons
+            and local.get("key_trust") == "HTTPS_PROVIDER_KEYRING_NOT_INDEPENDENTLY_PINNED")
+        policy = local.get("policy", {})
+        require(policy.get("id") == "puriq.signed-price-review/v1"
+            and policy.get("require_full_record") is True and policy.get("max_age_seconds") == 30
+            and policy.get("allowed_grades") == ["consensus", "blended"]
+            and policy.get("min_reported_sources") == 3
+            and policy.get("market_accuracy_verified") is False and policy.get("source_independence_verified") is False)
+        if result["status"] == "REVIEW":
+            freshness = proof.get("freshness", {})
+            age = freshness.get("age_seconds")
+            require(not reasons and proof.get("reasons") == []
+                and all(proof.get(k) is True for k in ("core_valid", "record_valid", "fresh"))
+                and proof.get("verification_scope") == "full-record"
+                and freshness.get("status") == "FRESH" and freshness.get("max_age_seconds") == 30
+                and type(age) in (int, float) and _finance_math.isfinite(age) and -2 <= age <= 30
+                and result.get("price_text") == record.get("priceText")
+                and isinstance(result.get("price_text"), str)
+                and record.get("symbol") == result["symbol"]
+                and record.get("grade") in ("consensus", "blended")
+                and type(record.get("sources")) is int and record["sources"] >= 3)
+        else:
+            require(result.get("price_text") is None and bool(reasons))
+
     def _finance_get(kind, query=None, method="GET", content=None):
-        if not _finance_re.fullmatch(r"providers|overview|research/audit|observations/[a-z][a-z-]{0,79}|analytics/v2/(?:(?:signals|quote)/[A-Z0-9][A-Z0-9.-]{0,23}|portfolio|receipts(?:/verify)?)", kind):
+        if not _finance_re.fullmatch(r"providers|overview|research/audit|signed-prices/(?:BTC|ETH|SOL|model)|observations/[a-z][a-z-]{0,79}|analytics/v2/(?:(?:signals|quote)/[A-Z0-9][A-Z0-9.-]{0,23}|portfolio|receipts(?:/verify)?)", kind):
             return _finance_unavailable("ROUTE_DENIED",404)
         analytics=kind.startswith("analytics/v2/")
         research=kind=="research/audit"
+        signed=kind.startswith("signed-prices/")
         if method not in ("GET","POST") or method=="POST" and kind not in ("analytics/v2/portfolio","analytics/v2/receipts/verify","research/audit") or research and method!="POST":
             return _finance_unavailable("ROUTE_DENIED",404)
         if kind.startswith(("observations/alpaca-", "observations/fred-")):
@@ -288,7 +354,7 @@ if CFG.get("slug") == "finance":
         target = _FINANCE_ORIGIN + _FINANCE_PREFIX + kind
         pairs = list(query or [])
         allowed_parameters={"limit","offset","token_id","interval","fidelity","cursor","series_ticker","ticker","depth","product","granularity","end","count","cik","series_id"}
-        if research:
+        if research or signed:
             allowed_parameters=set()
         elif analytics:
             allowed_parameters={"origin","benchmark"} if method=="GET" else set()
@@ -335,6 +401,14 @@ if CFG.get("slug") == "finance":
                         allowed_errors={"UNKNOWN_SOURCE","INVALID_PARAMETERS","DUPLICATE_QUERY_PARAMETER","PRIVATE_SOURCE_ACCESS_REQUIRED"}
                         error=body.get("error")
                         return _finance_unavailable(error if error in allowed_errors else "CANONICAL_REQUEST_DENIED",response.status_code)
+                    if signed:
+                        if response.status_code != 200:
+                            return _finance_unavailable("SIGNED_PRICE_SOURCE_UNAVAILABLE")
+                        try:
+                            _finance_check_signed(body, kind)
+                        except (_FinanceBoundaryError, TypeError, AttributeError, ValueError):
+                            return _finance_unavailable("CANONICAL_SIGNED_PRICE_INVALID")
+                        return body, 200
                     if research:
                         if response.status_code!=200:
                             return _finance_unavailable("CANONICAL_RESEARCH_BLOCKED",response.status_code)
@@ -384,6 +458,15 @@ if CFG.get("slug") == "finance":
 
     from fastapi import Request as _FinanceRequest
     from httpx import TimeoutException as _FinanceTimeoutException, TransportError as _FinanceTransportError
+
+    @app.get("/signed-prices", response_class=HTMLResponse)
+    def finance_signed_workspace():
+        return HTMLResponse(INDEX, headers={"Cache-Control":"private, no-store", "X-Content-Type-Options":"nosniff"})
+
+    @app.get("/api/finance/signed-prices/{symbol}")
+    def finance_signed_projection(symbol:str,request:_FinanceRequest):
+        body,code=_finance_get("signed-prices/"+symbol,request.query_params.multi_items())
+        return JSONResponse(body,status_code=code,headers={"Cache-Control":"private, no-store","X-Content-Type-Options":"nosniff"})
 
     @app.get("/research", response_class=HTMLResponse)
     def finance_research_workspace():
@@ -481,14 +564,14 @@ if CFG.get("slug") == "finance":
 def augment(app_source: str) -> str:
     if "# Public finance projection." in app_source:
         raise ValueError("finance projection already installed")
-    projection=FINANCE_PROXY.replace("__COMPONENT_BINDING__", repr(COMPONENT))
+    projection=FINANCE_PROXY.replace("__COMPONENT_BINDING__", repr(COMPONENT)).replace("__SIGNED_COMPONENT_BINDING__", repr(SIGNED_COMPONENT))
     compile(app_source + projection, "finance-flagship-app.py", "exec")
     return app_source + projection
 
 
 def validation_namespace(revision: str) -> dict:
     """Run the emitted app's exact validators without ASGI, network or credentials."""
-    source = FINANCE_PROXY.replace("__COMPONENT_BINDING__", repr(COMPONENT))
+    source = FINANCE_PROXY.replace("__COMPONENT_BINDING__", repr(COMPONENT)).replace("__SIGNED_COMPONENT_BINDING__", repr(SIGNED_COMPONENT))
     validators = source.split("    def _finance_get(", 1)[0]
     namespace = {"CFG": {"slug": "finance", "source_revision": revision}, "json": json}
     exec(compile(validators, "finance-emitted-validators.py", "exec"), namespace)

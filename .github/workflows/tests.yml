@@ -55,7 +55,10 @@ jobs:
       - name: Install exact core test dependencies
         run: pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Reject missing, invalid, and offline measurements through real routes
-        run: python -m pytest tests/test_energy_live_measurement_contract.py -q
+        run: >-
+          python -m pytest tests/test_energy_live_measurement_contract.py
+          tests/test_szl_meter_access.py tests/test_meter_request_auth.py
+          tests/test_omen_joule_exporter_access.py -q
 
   test:
     name: Run tests
@@ -182,6 +185,7 @@ jobs:
           tests/test_gdw_runtime.py
           tests/test_gdw_runtime_degraded_boot.py
           tests/test_sqlite_orphan_repair.py
+          tests/test_sqlite_logical_fingerprint.py
           tests/test_gdw_durable_runtime.py
           tests/test_gdw_durable_artifacts.py
           tests/test_gdw_durable_storage.py
