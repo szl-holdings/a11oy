@@ -157,11 +157,47 @@ def test_redirect_and_transport_error_never_disclose_dedicated_reader(monkeypatc
     "https://api.github.com:444/repos/pytorch/pytorch",
     "https://api.github.com/user",
     "https://api.github.com/repos/pytorch/pytorch#fragment",
+    "https://api.github.com/repos/../user",
+    "https://api.github.com/repos/pytorch/..",
+    "https://api.github.com/repos/pytorch/%2e%2e",
+    "https://api.github.com/repos/pytorch/repo%2fevents",
+    "https://api.github.com/repos/pytorch/repo?redirect=/user",
+    "https://api.github.com/repos/pytorch/repo/events?per_page=12&redirect=/user",
 ])
 def test_dedicated_reader_rejects_other_origins_and_paths(monkeypatch, url):
     monkeypatch.setenv("A11OY_GITHUB_PUBLIC_READ_TOKEN", "synthetic-dedicated-reader")
     with pytest.raises(ValueError, match="outside exact API origin"):
         vertical._github_public_headers(url)
+
+
+@pytest.mark.parametrize("repo", [
+    "../user",
+    "pytorch/..",
+    "pytorch/%2e%2e",
+    "pytorch/repo%2f..",
+    "pytorch/repo/../user",
+    "pytorch/repo?redirect=/user",
+])
+@pytest.mark.parametrize("read", [
+    vertical.feed_github,
+    lambda repo: vertical.feed_gh_events(repo, 12),
+])
+def test_untrusted_repo_never_sends_reader_to_normalized_path(monkeypatch, repo, read):
+    token = "synthetic-dedicated-reader"
+    monkeypatch.setenv("A11OY_GITHUB_PUBLIC_READ_TOKEN", token)
+    requests = install_transport(
+        monkeypatch, lambda _request: httpx.Response(200, json={}),
+    )
+
+    observed = read(repo)
+
+    assert requests == []
+    assert observed["value"] is None
+    assert observed["freshness"]["status"] == "unavailable"
+    assert observed["freshness"]["error"] == (
+        "ValueError: GitHub public reader URL outside exact API origin"
+    )
+    assert token not in json.dumps(observed)
 
 
 @pytest.mark.parametrize("token", ["", "bad\nreader"])

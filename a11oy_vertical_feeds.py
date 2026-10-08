@@ -88,6 +88,10 @@ DOCTRINE = {
 }
 UA = {"User-Agent": "a11oy-mesh/2.0 (+https://huggingface.co/spaces/SZLHOLDINGS/a11oy) governed-feed"}
 _GITHUB_PUBLIC_READ_ENV = "A11OY_GITHUB_PUBLIC_READ_TOKEN"
+_GITHUB_PUBLIC_REPO_PATH = re.compile(
+    r"/repos/(?P<owner>[A-Za-z0-9_-]{1,39})/"
+    r"(?P<repo>[A-Za-z0-9._-]{1,100})(?P<events>/events)?"
+)
 
 _SOURCE_HTTP_TIMEOUT_ENV = "A11OY_SOURCE_HTTP_TIMEOUT_S"
 _SOURCE_HTTP_TIMEOUT_DEFAULT_S = 4.0
@@ -132,7 +136,7 @@ def _source_url_allowed(url: str) -> bool:
 
 
 def _github_public_headers(url: str) -> Optional[dict[str, str]]:
-    """Use the dedicated reader only for the exact GitHub API over TLS.
+    """Use the dedicated reader only for exact GitHub repository GETs over TLS.
 
     A configured but malformed credential fails closed; an absent credential
     retains the existing anonymous public read. The shared client never follows
@@ -140,10 +144,20 @@ def _github_public_headers(url: str) -> Optional[dict[str, str]]:
     """
     try:
         parsed = urlsplit(url)
+        # Reject traversal and encoded separators before httpx can normalize
+        # the request path away from /repos/{owner}/{repo}.
+        path = _GITHUB_PUBLIC_REPO_PATH.fullmatch(parsed.path)
+        query_ok = (parsed.query == "" if path and not path.group("events")
+                    else bool(path and re.fullmatch(
+                        r"per_page=(?:[1-9]|[1-9][0-9]|100)", parsed.query,
+                    )))
+        client_url = httpx.URL(url)
         allowed = (parsed.scheme == "https" and parsed.hostname == "api.github.com"
                    and parsed.port in (None, 443) and parsed.username is None
-                   and parsed.password is None and not parsed.fragment
-                   and parsed.path.startswith("/repos/"))
+                   and parsed.password is None and not parsed.fragment and path is not None
+                   and path.group("repo") not in {".", ".."} and query_ok
+                   and client_url.scheme == "https" and client_url.host == "api.github.com"
+                   and client_url.path == parsed.path)
     except (TypeError, ValueError):
         allowed = False
     if not allowed:
