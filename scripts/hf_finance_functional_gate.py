@@ -88,7 +88,11 @@ def observe_finance(revision, *, request=read):
                         row["upstream_media_type"] = media
                     if isinstance(host, str) and len(host) <= 253 and re.fullmatch(r"[a-z0-9.-]+", host):
                         row["upstream_redirect_host"] = host
-            if operation:
+            if kind.startswith("signed-prices/"):
+                if status != 200:
+                    raise ValueError("SIGNED_PRICE_UNAVAILABLE")
+                validators["_finance_check_signed"](body, kind)
+            elif operation:
                 if status != 200:
                     raise ValueError("ANALYTICS_UNAVAILABLE")
                 validators["_finance_check_analytics"](body, kind, list(query), row["method"])
@@ -140,9 +144,14 @@ def observe_finance(revision, *, request=read):
           check=lambda status, body: status == 403 and body.get("error") == "USE_PRIVATE_CANONICAL_SOURCE_ENDPOINT"
               and body.get("execution_enabled") is False and "data" not in body)
     live = probe("coinbase-signals", "analytics/v2/signals/BTC-USD", operation="signals")
+    signed = probe("signed-price-btc", "signed-prices/BTC",
+        check=lambda status, body: body.get("state") == "REVIEW")
+    probe("signed-price-model", "signed-prices/model",
+        check=lambda status, body: body["result"]["cases"]["correlated_venue_cluster"]["reference_price_usd"] == "100.5")
     return {"schema": "szl.finance.public-functional-witness/v1",
             "observed_at": datetime.now(timezone.utc).isoformat(), "source_revision": revision,
             "complete": all(row["accepted"] for row in rows), "probes": rows,
             "synthetic_fixture_verified": fixture is not None, "live_coinbase_verified": live is not None,
+            "signed_price_review_verified": signed is not None,
             "execution_enabled": False, "receipt_authenticity_established": False,
             "credentials_sent": False, "provider_mutations": 0}

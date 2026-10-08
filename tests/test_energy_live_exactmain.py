@@ -1,6 +1,7 @@
 """Focused exact-main semantic merge checks; no external requests or billing writes."""
 
 import json
+import secrets
 import sys
 from types import SimpleNamespace
 
@@ -97,6 +98,10 @@ def test_prometheus_duplicate_uuid_cannot_double_count_one_gpu():
 
 
 def test_meter_access_scoped_and_no_redirect(monkeypatch):
+    monkeypatch.setenv("SZL_METER_HMAC_TARGETS", json.dumps({
+        origin: {"client_id": "synthetic-test", "key_hex": secrets.token_hex(32)}
+        for origin in ("https://meter2.a-11-oy.com", "https://meter.a-11-oy.com")
+    }))
     monkeypatch.setenv("A11OY_METER2_CF_ACCESS_CLIENT_ID", "test-id")
     monkeypatch.setenv("A11OY_METER2_CF_ACCESS_CLIENT_SECRET", "test-secret")
     monkeypatch.setattr(energy, "METER_URL", "https://meter2.a-11-oy.com")
@@ -123,9 +128,10 @@ def test_meter_access_scoped_and_no_redirect(monkeypatch):
     assert calls[0]["headers"]["CF-Access-Client-Id"] == "test-id"
     assert calls[0]["headers"]["CF-Access-Client-Secret"] == "test-secret"
     assert calls[0]["url"] == "https://meter2.a-11-oy.com/metrics"
+    assert calls[0]["headers"]["X-SZL-Meter-Client"] == "synthetic-test"
     monkeypatch.setattr(energy, "METER_URL", "https://meter.a-11-oy.com")
     energy._fetch_meter()
-    assert calls[1]["options"]["follow_redirects"] is True
+    assert calls[1]["options"]["follow_redirects"] is False
     assert "CF-Access-Client-Id" not in calls[1]["headers"]
     assert "CF-Access-Client-Secret" not in calls[1]["headers"]
 

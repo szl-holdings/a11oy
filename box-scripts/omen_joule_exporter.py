@@ -30,11 +30,14 @@ HONESTY (doctrine — never fabricate a joule):
   * The engine name defaults to "omen" to match A11OY_OMEN_GPU_LABEL. Override
     with OMEN_ENGINE_NAME if you change that label.
 
-RUN (on OMEN):  python omen_joule_exporter.py     # serves on 0.0.0.0:9471
-Then tunnel port 9471 and point A11OY_JOULE_METER_URL at the tunnel /.
-Only loopback and Tailscale-range peers may read this listener. This source-IP
-filter does not authenticate Tailscale peers or public tunnel clients; a public
-tunnel needs its own access policy.
+RUN (after separately provisioning request keys): python box-scripts/omen_joule_exporter.py
+The default bind is 127.0.0.1:9471. Every telemetry read, including loopback and
+reverse-proxy traffic, needs the per-client HMAC protocol in szl_meter_access.py.
+An allowed source IP is an additional restriction, never client authentication.
+Missing/invalid authentication configuration prevents startup, before GPU reads.
+Install szl_meter_access.py beside a standalone copy of this exporter, or use the
+canonical repository layout. No tunnel, key provisioning, or service activation is
+performed here. See box-scripts/METER_REQUEST_AUTH.md for the installation contract.
 
 MULTI-NODE AGGREGATION (real fix, not a bandaid):
   Set PEER_EXPORTERS to a comma-separated list of OTHER nodes' exporter URLs
@@ -43,7 +46,8 @@ MULTI-NODE AGGREGATION (real fix, not a bandaid):
   scrape of THIS exporter (the one behind meter.a-11-oy.com) returns every GPU in the
   mesh. Honest by design: an unreachable peer simply does not appear (never faked);
   a peer engine whose name duplicates a local engine is dropped (local wins).
-    export PEER_EXPORTERS=http://100.x.y.z:9471/     # laptop 'betterwithage' over tailnet
+    PEER_EXPORTERS must have exact-origin client keys in SZL_METER_HMAC_TARGETS;
+    non-loopback peer URLs require HTTPS. Redirects never carry a meter capability.
 
 Requires nvidia-smi on PATH for observed power. Optional nvidia-ml-py (`pynvml`)
 and hardware total-energy-counter support are required for MEASURED joules.
@@ -52,14 +56,24 @@ import ipaddress
 import json
 import math
 import os
+from pathlib import Path
 import subprocess
+import sys
 import threading
 import time
-import urllib.request
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+try:
+    from szl_meter_access import MeterAuthConfigurationError, MeterRequestVerifier, open_meter_get
+except ModuleNotFoundError as error:
+    if error.name != "szl_meter_access":
+        raise
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from szl_meter_access import MeterAuthConfigurationError, MeterRequestVerifier, open_meter_get
+
 PORT = int(os.environ.get("OMEN_EXPORTER_PORT", "9471"))
+BIND = os.environ.get("OMEN_EXPORTER_BIND", "127.0.0.1")
 ENGINE_NAME = os.environ.get("OMEN_ENGINE_NAME", "omen")
 SAMPLE_EVERY_S = float(os.environ.get("OMEN_SAMPLE_EVERY_S", "2.0"))
 # Two normal intervals plus the nvidia-smi 8s deadline; cap configured cadences
@@ -308,9 +322,13 @@ def _fetch_peer_engines():
     complete = True
     for url in PEER_EXPORTERS:
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "omen-joule-exporter/peer"})
-            with urllib.request.urlopen(req, timeout=PEER_TIMEOUT_S) as r:  # noqa: S310
-                data = json.loads(r.read().decode("utf-8", "replace"))
+            with open_meter_get(url, timeout=PEER_TIMEOUT_S,
+                                headers={"User-Agent": "omen-joule-exporter/peer"}) as r:
+                body = r.read(65537)
+                if len(body) > 65536:
+                    complete = False
+                    continue
+                data = json.loads(body.decode("utf-8", "strict"))
             peer_engines = data.get("engines")
             if not isinstance(peer_engines, list) or not peer_engines:
                 complete = False
@@ -479,17 +497,41 @@ def _client_allowed(remote):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "omen-joule-exporter/1.0"
+    server_version = "omen-joule-exporter/1.1"
+
+    def setup(self):
+        super().setup()
+        self.connection.settimeout(3.0)
+
+    def _deny(self):
+        self.close_connection = True
+        self.send_response(403)
+        self.send_header("Content-Length", "0")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Connection", "close")
+        self.end_headers()
 
     def do_GET(self):
-        if not _client_allowed(self.client_address[0]):
-            self.send_error(403)
+        verifier = getattr(self.server, "meter_verifier", None)
+        # No forwarded headers or reverse-proxy source IP can authorize a read.
+        singleton = ("Host", "Content-Length", "Content-Type", "Content-Encoding",
+                     "Transfer-Encoding", "Connection", "Expect", "Origin")
+        if (not _client_allowed(self.client_address[0]) or verifier is None
+                or any(len(self.headers.get_all(name, [])) > 1 for name in singleton)
+                or len(self.headers.get_all("Host", [])) != 1
+                or self.headers.get("Transfer-Encoding") is not None
+                or self.headers.get("Expect") is not None
+                or self.headers.get("Content-Length") not in (None, "0")
+                or len(self.headers) > 32
+                or sum(len(k) + len(v) for k, v in self.headers.items()) > 8192
+                or not verifier.accepts("GET", self.path, self.headers)):
+            self._deny()
             return
-        payload = json.dumps(_meter_json()).encode("utf-8")
+        payload = json.dumps(_meter_json(), allow_nan=False).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(payload)))
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Cache-Control", "no-store")
         self.end_headers()
         try:
             self.wfile.write(payload)
@@ -501,16 +543,24 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    threading.Thread(target=_sampler, daemon=True).start()
+    # Configuration validation precedes every listener, sampler and GPU read.
+    try:
+        verifier = MeterRequestVerifier.from_environment()
+        if not _client_allowed(BIND):
+            raise MeterAuthConfigurationError("invalid exporter bind address")
+    except MeterAuthConfigurationError:
+        print("omen-joule-exporter BLOCKED: request authentication or bind configuration invalid")
+        return 1
     # Warm one immediate sample so the first scrape isn't empty.
     rows = _read_gpu_power()
     counters_mj = _read_gpu_energy_counters()
     _record_sample(rows, now=time.time(), dt=0.0, counters_mj=counters_mj)
-    httpd = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
-    peers = (" + peers: %s" % ", ".join(PEER_EXPORTERS)) if PEER_EXPORTERS else ""
-    print("omen-joule-exporter serving on 0.0.0.0:%d (engine=%s)%s" % (PORT, ENGINE_NAME, peers))
+    httpd = ThreadingHTTPServer((BIND, PORT), Handler)
+    httpd.meter_verifier = verifier
+    threading.Thread(target=_sampler, daemon=True).start()
+    print("omen-joule-exporter serving authenticated reads on %s:%d" % (BIND, PORT))
     httpd.serve_forever()
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
