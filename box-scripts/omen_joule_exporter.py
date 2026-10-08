@@ -25,6 +25,9 @@ HONESTY (doctrine — never fabricate a joule):
 
 RUN (on OMEN):  python omen_joule_exporter.py     # serves on 0.0.0.0:9471
 Then tunnel port 9471 and point A11OY_JOULE_METER_URL at the tunnel /.
+Only loopback and Tailscale-range peers may read this listener. This source-IP
+filter does not authenticate Tailscale peers or public tunnel clients; a public
+tunnel needs its own access policy.
 
 MULTI-NODE AGGREGATION (real fix, not a bandaid):
   Set PEER_EXPORTERS to a comma-separated list of OTHER nodes' exporter URLs
@@ -37,6 +40,7 @@ MULTI-NODE AGGREGATION (real fix, not a bandaid):
 
 Pure stdlib — no pip installs. Requires nvidia-smi on PATH (ships with the driver).
 """
+import ipaddress
 import json
 import os
 import subprocess
@@ -51,6 +55,10 @@ SAMPLE_EVERY_S = float(os.environ.get("OMEN_SAMPLE_EVERY_S", "2.0"))
 # Comma-separated peer exporter URLs to merge (empty = single-node behaviour, unchanged).
 PEER_EXPORTERS = [u.strip() for u in os.environ.get("PEER_EXPORTERS", "").split(",") if u.strip()]
 PEER_TIMEOUT_S = float(os.environ.get("PEER_TIMEOUT_S", "3.0"))
+# The local tunnel uses loopback; an intended tower peer may scrape over Tailscale.
+_ALLOWED_CLIENT_NETWORKS = tuple(ipaddress.ip_network(value) for value in (
+    "127.0.0.0/8", "::1/128", "100.64.0.0/10", "fd7a:115c:a1e0::/48"
+))
 
 # Per-inference model energy reading written by ollama_energy_probe.py. Merged into the
 # meter payload as a top-level models[] entry so the a11oy energy surface can show the
@@ -250,10 +258,21 @@ def _meter_json():
     return payload
 
 
+def _client_allowed(remote):
+    try:
+        address = ipaddress.ip_address(remote)
+    except ValueError:
+        return False
+    return any(address in network for network in _ALLOWED_CLIENT_NETWORKS)
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "omen-joule-exporter/1.0"
 
     def do_GET(self):
+        if not _client_allowed(self.client_address[0]):
+            self.send_error(403)
+            return
         payload = json.dumps(_meter_json()).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "application/json")

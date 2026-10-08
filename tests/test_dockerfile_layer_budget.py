@@ -27,6 +27,7 @@ RUNTIME_LAYER_BUDGET = 117
 # below excludes those two named additions so its historical digest is retained.
 # The GDW orphan-page repair adds exactly its one module next to gdw_runtime.py;
 # every baseline below also excludes it, so no historical count/digest moves.
+# Meter2 Access adds exactly one runtime helper; historical baselines exclude it.
 # Preserve every prior source and the unchanged layer budget, not a broad COPY.
 COPY_SOURCE_ALLOWLIST_COUNT = 588
 COPY_SOURCE_ALLOWLIST_SHA256 = (
@@ -64,6 +65,7 @@ GDW_ACQUISITION_COPY_ADDITIONS = {
 }
 # Exact orphan-page repair addition (imported by gdw_runtime.py).
 GDW_ORPHAN_REPAIR_COPY_ADDITIONS = {"gdw_sqlite_repair.py"}
+METER_ACCESS_COPY_ADDITIONS = {"szl_meter_access.py"}
 
 
 def _logical_instructions() -> list[tuple[int, str]]:
@@ -123,10 +125,12 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
     assert MODEL_SUPPORT_COPY_ADDITIONS <= copy_sources
     assert GDW_ACQUISITION_COPY_ADDITIONS <= copy_sources
     assert GDW_ORPHAN_REPAIR_COPY_ADDITIONS <= copy_sources
+    assert METER_ACCESS_COPY_ADDITIONS <= copy_sources
     copy_sources -= (
         MODEL_SUPPORT_COPY_ADDITIONS
         | GDW_ACQUISITION_COPY_ADDITIONS
         | GDW_ORPHAN_REPAIR_COPY_ADDITIONS
+        | METER_ACCESS_COPY_ADDITIONS
     )
     encoded_allowlist = ("\n".join(sorted(copy_sources)) + "\n").encode("utf-8")
     assert len(copy_sources) == COPY_SOURCE_ALLOWLIST_COUNT
@@ -146,9 +150,11 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
     assert MODEL_SUPPORT_COPY_ADDITIONS <= sources
     assert GDW_ACQUISITION_COPY_ADDITIONS <= sources
     assert GDW_ORPHAN_REPAIR_COPY_ADDITIONS <= sources
+    assert METER_ACCESS_COPY_ADDITIONS <= sources
     previous = (
         sources - CIVILIAN_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
         - GDW_ACQUISITION_COPY_ADDITIONS - GDW_ORPHAN_REPAIR_COPY_ADDITIONS
+        - METER_ACCESS_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
     assert len(previous) == PRE_CIVILIAN_ALLOWLIST_COUNT
@@ -166,9 +172,11 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
     assert MODEL_SUPPORT_COPY_ADDITIONS <= sources
     assert GDW_ACQUISITION_COPY_ADDITIONS <= sources
     assert GDW_ORPHAN_REPAIR_COPY_ADDITIONS <= sources
+    assert METER_ACCESS_COPY_ADDITIONS <= sources
     previous = (
         sources - HF_DOCS_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
         - GDW_ACQUISITION_COPY_ADDITIONS - GDW_ORPHAN_REPAIR_COPY_ADDITIONS
+        - METER_ACCESS_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
     assert len(previous) == PRE_HF_DOCS_ALLOWLIST_COUNT
