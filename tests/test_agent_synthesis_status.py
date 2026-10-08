@@ -5,6 +5,10 @@
 import importlib
 import hashlib
 import json
+import ast
+import builtins
+from pathlib import Path
+from types import ModuleType
 
 import pytest
 
@@ -102,3 +106,42 @@ def test_actual_streamed_loop_halt_never_claims_a_served_model(monkeypatch, tmp_
         for event in (events["route"], done):
             assert event["served_locally"] is False and event["sovereign"] is False
             assert event["model"] is None and event["base_url"] is None
+
+
+@pytest.mark.parametrize("local_error", [None, ImportError("local module missing"), RuntimeError("local initialization failed")])
+def test_agent_entrypoint_keeps_reviewed_source_when_older_package_is_installed(local_error):
+    """Execute the real import boundary without booting unrelated app services."""
+    path = Path(__file__).resolve().parents[1] / "a11oy_code_orchestrator.py"
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    boundaries = [
+        node for node in tree.body if isinstance(node, ast.Try)
+        and any(isinstance(child, (ast.Import, ast.ImportFrom))
+                and any(alias.asname == "_agent" for alias in child.names)
+                for child in ast.walk(node))
+    ]
+    assert len(boundaries) == 1
+    reviewed = ModuleType("a11oy_agent_loop")
+    old_package = ModuleType("szl_substrate")
+    old_package.a11oy_agent_loop = ModuleType("szl_substrate.a11oy_agent_loop")
+    imports = []
+
+    def source_import(name, globals=None, locals=None, fromlist=(), level=0):
+        imports.append(name)
+        if name == "a11oy_agent_loop":
+            if local_error is not None:
+                raise local_error
+            return reviewed
+        if name == "szl_substrate":
+            return old_package
+        raise AssertionError(f"Unexpected import in the agent selection boundary: {name}")
+
+    namespace = {"__builtins__": dict(vars(builtins), __import__=source_import)}
+    boundary = ast.Module(body=boundaries, type_ignores=[])
+    exec(compile(boundary, str(path), "exec"), namespace)
+    assert imports == ["a11oy_agent_loop"]
+    if local_error is None:
+        assert namespace["_agent"] is reviewed
+        assert namespace["_AGENT_IMPORT_ERROR"] == ""
+    else:
+        assert namespace["_agent"] is None
+        assert namespace["_AGENT_IMPORT_ERROR"] == str(local_error)
