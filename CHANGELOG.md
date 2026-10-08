@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - civilian UI Tailwind compatibility
+
+- Restore forced-colors focus outlines and tooltip transform origins using
+  Tailwind 4-compatible utilities. Keep the existing UI behavior and evidence
+  labels, and align class merging with the installed framework while preserving
+  the current selector-parser security override.
+- Rebuild the served civilian assets with exact dependency-only doctrine
+  exceptions and payload hashes. Add generated-CSS negative guards and isolated
+  browser contracts; hosted and production qualification remain separate checks.
+
 ### Fixed - PAC-Bayes certification inputs validated before any receipt
 
 - Validate every `/materials/certify` input before a Khipu receipt can be

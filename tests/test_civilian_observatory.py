@@ -295,3 +295,29 @@ def test_health_and_plan_do_not_refresh_sources(client, prepared):
     assert prepared[2].calls == 0
     assert client.get(API_PREFIX + "/plan?scenario=weather&simulatedApproval=false&mode=dry-run").status_code == 200
     assert prepared[2].calls == 0
+
+
+def test_dependency_doctrine_exception_is_one_exact_shipped_file():
+    import re
+    from scripts.check_banned_tokens import Allowlist
+
+    root = Path(__file__).resolve().parents[1]
+    static = root / "civilian_observatory/static"
+    html = (static / "index.html").read_text(encoding="utf-8")
+    dependency = re.search(r'href="\./assets/(dependencies-[^"]+\.js)"', html)
+    authored = re.search(r'src="\./assets/(index-[^"]+\.js)"', html)
+    assert dependency and authored
+    allowed_file = "civilian_observatory/static/assets/" + dependency[1]
+    authored_file = "civilian_observatory/static/assets/" + authored[1]
+    allowlist_file = root / ".doctrine-allowlist"
+    entries = [line.strip() for line in allowlist_file.read_text(encoding="utf-8").splitlines()
+               if line.strip() and not line.lstrip().startswith("#")]
+    civilian_entries = [line for line in entries if line.startswith("civilian_observatory/")]
+    assert civilian_entries == [allowed_file]
+    allowlist = Allowlist.load(str(allowlist_file))
+    assert allowlist.is_allowed(allowed_file)
+    for path in (authored_file, allowed_file + ".other", "civilian_observatory/static/assets/dependencies-other.js",
+                 "civilian_observatory/static/index.html", "web/civilian-observatory/client/src/App.tsx"):
+        assert not allowlist.is_allowed(path)
+    manifest = json.loads((root / "civilian_observatory/PAYLOAD_MANIFEST.json").read_text(encoding="utf-8"))
+    assert manifest["files"]["static/assets/" + dependency[1]] == hashlib.sha256((static / "assets" / dependency[1]).read_bytes()).hexdigest()

@@ -8,6 +8,7 @@ on:
       - "a11oy_civilian_observatory.py"
       - "web/civilian-observatory/**"
       - "tests/test_civilian_observatory.py"
+      - "tests/browser_civilian_styles.py"
       - "scripts/build_civilian_manifest.py"
       - ".github/workflows/civilian-observatory-contract.yml"
       - "serve.py"
@@ -19,6 +20,7 @@ on:
       - "a11oy_civilian_observatory.py"
       - "web/civilian-observatory/**"
       - "tests/test_civilian_observatory.py"
+      - "tests/browser_civilian_styles.py"
       - "scripts/build_civilian_manifest.py"
       - ".github/workflows/civilian-observatory-contract.yml"
       - "serve.py"
@@ -64,6 +66,7 @@ jobs:
         working-directory: web/civilian-observatory
         run: |
           npm run check
+          npm exec --offline -- tsc --noEmit --skipLibCheck --esModuleInterop --target es2022 --module nodenext --moduleResolution nodenext tests/tailwind.test.ts
           npm test
       - name: Rebuild the same-origin interface
         working-directory: web/civilian-observatory
@@ -72,3 +75,38 @@ jobs:
         run: npm run build
       - name: Require the checked-in UI to match its source build
         run: diff -qr web/civilian-observatory/dist/public civilian_observatory/static
+      - name: Prepare the isolated Chromium regression environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          EVIDENCE_DIR="$RUNNER_TEMP/civilian-browser-evidence"
+          BROWSER_PYTHON="$RUNNER_TEMP/civilian-browser-venv/bin/python"
+          mkdir -p "$EVIDENCE_DIR"
+          python -m venv "$RUNNER_TEMP/civilian-browser-venv"
+          "$BROWSER_PYTHON" -m pip install --disable-pip-version-check "playwright==1.57.0" \
+            2>&1 | tee "$EVIDENCE_DIR/setup.log"
+          "$BROWSER_PYTHON" -m playwright --version 2>&1 | tee -a "$EVIDENCE_DIR/setup.log"
+          "$BROWSER_PYTHON" -m playwright install --with-deps chromium \
+            2>&1 | tee -a "$EVIDENCE_DIR/setup.log"
+      - name: Exercise exact shipped styles with offline browser fixtures
+        shell: bash
+        env:
+          CIVILIAN_BROWSER_EVIDENCE: ${{ runner.temp }}/civilian-browser-evidence
+          CIVILIAN_BROWSER_STATIC: ${{ github.workspace }}/civilian_observatory/static
+          CIVILIAN_BROWSER_SOURCE_ROOT: ${{ github.workspace }}
+          CIVILIAN_BROWSER_EXECUTABLE: ""
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/civilian-browser-venv/bin/python" -B tests/browser_civilian_styles.py \
+            2>&1 | tee "$CIVILIAN_BROWSER_EVIDENCE/browser-tests.log"
+          test -s "$CIVILIAN_BROWSER_EVIDENCE/browser-tests.log"
+          test -s "$CIVILIAN_BROWSER_EVIDENCE/desktop-light.png"
+      - name: Retain local-fixture browser evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: civilian-browser-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/civilian-browser-evidence/
+          if-no-files-found: warn
+          retention-days: 7

@@ -1,5 +1,7 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
 @config "../../tailwind.config.ts";
+@source "../index.html";
+@source "./";
 
 :root {
   --background: 45 17% 97%; --foreground: 0 0% 12%; --border: 40 6% 85%;
