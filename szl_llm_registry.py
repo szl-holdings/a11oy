@@ -941,6 +941,27 @@ def sovereign_mesh_matrix(timeout: float | None = None) -> dict[str, Any]:
     }
 
 
+def _public_sovereign_mesh(matrix: dict[str, Any]) -> dict[str, Any]:
+    """Expose mesh status without local origins, model inventory, or probe errors.
+
+    This is a public-response projection only. Internal routing continues to use
+    the full matrix, including exact model tags and operator-configured URLs.
+    """
+    selected = matrix.get("selected") or None
+    return {
+        "node_count": matrix.get("node_count", 0),
+        "reachable_count": matrix.get("reachable_count", 0),
+        "any_reachable": bool(matrix.get("any_reachable")),
+        "selected": ({"index": selected.get("index"), "role": selected.get("role")}
+                     if selected else None),
+        "nodes": [
+            {"index": node.get("index"), "role": node.get("role"),
+             "reachable": bool(node.get("reachable"))}
+            for node in matrix.get("nodes", [])
+        ],
+    }
+
+
 def sovereign_mesh_generate(prompt: str, timeout: float | None = None) -> dict[str, Any]:
     """Own-metal-first generation across the mesh. Probe nodes in order; run a REAL
     guarded generate against the FIRST reachable node; else HONEST UNAVAILABLE.
@@ -1835,13 +1856,12 @@ def register(app: FastAPI) -> dict:
         True ONLY on a real 2xx JSON response THIS request — never fabricated.
         When NO sovereign node is reachable the response is an honest UNAVAILABLE
         posture (sovereign_status='UNAVAILABLE', label='UNAVAILABLE') and the
-        router falls through to free/paid. Preserves the Wave-M compact contract
-        {reachable, model, url, provider, label} for the PRIMARY node and the
-        backward-compatible single-node fields.
+        router falls through to free/paid. The public response preserves the
+        Wave-M compact status keys but withholds the private model and origin.
 
-        gpu.a-11-oy.com serves llama3.1:8b; gpu2 serves glm-4.7-flash +
-        qwen2.5:3b (per fleet ground truth). See SOVEREIGN_REMOTE.md for the
-        Tower/laptop Tailscale setup.
+        Declared mesh hosts and tags are operator configuration, not evidence
+        of GPU ownership or weights. Exact internal routing data is withheld
+        from this anonymous response.
         """
         matrix = sovereign_mesh_matrix()
         base = _sovereign_base()
@@ -1865,20 +1885,25 @@ def register(app: FastAPI) -> dict:
             reachable=reachable,
             model_ready=bool(resolution.get("model_ready")),
             inference_receipted=bool(receipt_state.get("inference_receipted")))
-        label = state["state"]
-        sovereign_status = (_STATE_LIVE_RECEIPTED
-                            if state["operational"] else
-                            (_STATE_REACHABLE_UNRECEIPTED
-                             if any_reachable else _STATE_UNAVAILABLE))
+        # A durable receipt can be historical. A model-list GET cannot bind it
+        # to the responding endpoint's current weights, host, or GPU.
+        label = "UNKNOWN" if reachable else "UNAVAILABLE"
+        sovereign_status = "UNKNOWN" if any_reachable else "UNAVAILABLE"
+        public_mesh = _public_sovereign_mesh(matrix)
         return JSONResponse({
             # ── Wave-M required compact contract ──
-            # `model` = canonical sovereign model tag; `configured_model` (below)
-            # is the runtime-overridable ollama tag the node is asked to serve.
+            # Preserve compact keys, but never publish an operator-selected tag
+            # or a local/tunnel origin from this anonymous endpoint.
             "reachable": reachable,
-            "model": selected_model,
-            "url": base,
+            "endpoint_reachable": reachable,
+            "model": None,
+            "url": None,
             "provider": _SOVEREIGN_PROVENANCE,
             "label": label,
+            "label_basis": "Metadata reachability only; sovereign provenance not verified.",
+            "gpu_verified": False,
+            "weights_verified": False,
+            "ownership_proof": "UNAVAILABLE",
             # ── rich diagnostics (additive, honest) ──
             "timestamp": _now(),
             "hub": "a11oy",
@@ -1887,22 +1912,26 @@ def register(app: FastAPI) -> dict:
             "legacy_alias": _SOVEREIGN_LEGACY_ID,
             "model_slug": _SOVEREIGN_MODEL_TAG,
             "canonical_model": _SOVEREIGN_MODEL_TAG,
-            "requested_model": resolution.get("requested_model"),
-            "selected_model": selected_model,
+            "requested_model": None,
+            "selected_model": None,
             "model_ready": state["model_ready"],
-            "model_resolution": resolution,
+            "model_ready_basis": "Exact served metadata tag only; weights unverified.",
+            "model_resolution": {"model_ready": state["model_ready"],
+                                 "selection_basis": resolution.get("selection_basis")},
             "configured": state["configured"],
             "inference_receipted": state["inference_receipted"],
-            "operational": state["operational"],
-            "state": state["state"],
+            "inference_receipt_scope": "Historical durable receipt; not current-run proof.",
+            "receipt_binding": "UNKNOWN",
+            "operational": False,
+            "state": label,
             "receipt_state": receipt_state,
             # ── Mesh (multi-node) reachability matrix (Wave N, Dev 3) ──
-            "sovereign_status": sovereign_status,   # honest label: LIVE | UNAVAILABLE (mesh-wide)
-            "mesh": matrix,
+            "sovereign_status": sovereign_status,   # mesh reachability is not ownership proof
+            "mesh": public_mesh,
             "node_count": matrix.get("node_count", 0),
             "reachable_count": matrix.get("reachable_count", 0),
             "any_reachable": any_reachable,
-            "selected_node": matrix.get("selected"),
+            "selected_node": public_mesh.get("selected"),
             "own_metal_first": True,
             "fallthrough_to_cloud": (not any_reachable),
             "env_vars": {
@@ -1915,16 +1944,16 @@ def register(app: FastAPI) -> dict:
             # ── Backward-compatible single-node (primary) fields ──
             "env_var": _SOVEREIGN_ENV,
             "env_present": env_present,
-            "wired": state["operational"],
-            "live": reachable,                # primary-node THIS-request liveness (== reachable)
-            "honest_stub": not state["operational"],
-            "base_url": base,
+            "wired": False,
+            "live": False,  # model execution not observed by this GET
+            "honest_stub": True,
+            "base_url": None,
             "api_style": primary_probe.get("api_style"),
-            "served_models": primary_probe.get("models", []),
-            "configured_model": _sovereign_model_slug() or None,
-            "probed": primary_probe.get("probed", []),
+            "served_models": [],
+            "configured_model": None,
+            "probed": [],
             "probe_ua": "browser-UA (Cloudflare-front safe)",
-            "note": matrix.get("note", ""),
+            "note": "Public status projection; private probe diagnostics withheld.",
             "doctrine": DOCTRINE,
             "kernel_commit": _KERNEL,
             "conjecture_note": "Λ = Conjecture 1 — advisory, never 'green'/theorem.",
@@ -1962,17 +1991,20 @@ def register(app: FastAPI) -> dict:
 
         # a11oy Code agent canonical credential (provider-agnostic resolver).
         code_key = resolve_code_llm_key()
+        code_provider = code_key.get("provider")
         code_key_public = {
             "wired": bool(code_key.get("wired")),
-            "provider": code_key.get("provider"),
-            "env_used": code_key.get("env_used"),   # NAME ONLY
-            "base_url": code_key.get("base_url"),
-            "honest_note": code_key.get("honest_note"),
+            "provider": (code_provider if code_provider in _PROVIDER_BASE else "UNKNOWN"),
+            "env_used": (code_key.get("env_used") if code_key.get("env_used") in
+                         {A11OY_CODE_LLM_KEY_ENV, *(name for name, _ in _PROVIDER_ENV_VARS)}
+                         else None),
+            "base_url": None,  # public response never publishes an origin
+            "honest_note": ("Credential configured; authentication not proven."
+                            if code_key.get("wired") else "Credential unavailable."),
         }
 
         # Local sovereign node(s) — mesh-aware (primary + SZL_SOVEREIGN_NODES).
         do_probe = bool(probe)
-        base = _sovereign_base()
         _mesh_summary = None
         if do_probe:
             # Mesh-aware probe (Wave N): PRIMARY + SZL_SOVEREIGN_NODES, own-metal-first.
@@ -1994,46 +2026,49 @@ def register(app: FastAPI) -> dict:
                 reachable=_any,
                 model_ready=bool(_resolution.get("model_ready")),
                 inference_receipted=bool(_receipt.get("inference_receipted")))
-            _mesh_summary = {
-                "node_count": _matrix.get("node_count", 0),
-                "reachable_count": _matrix.get("reachable_count", 0),
-                "any_reachable": _any,
-                "selected": _matrix.get("selected"),
-                "nodes": [{"index": n["index"], "base_url": n["base_url"],
-                           "role": n["role"], "reachable": n["reachable"],
-                           "served_models": n.get("served_models", [])}
-                          for n in _matrix.get("nodes", [])],
-            }
+            _mesh_summary = _public_sovereign_mesh(_matrix)
             local_node = {
                 "backend_id": _SOVEREIGN_BACKEND_ID,
-                "env_var": _SOVEREIGN_ENV, "base_url": base or None,
+                "env_var": _SOVEREIGN_ENV, "base_url": None,
                 "nodes_env": _SOVEREIGN_NODES_ENV,
                 "env_present": _sovereign_env_present(),
-                "live": _any, "reachable": _any,
+                "live": False, "reachable": _any,
+                "endpoint_reachable": _any,
                 "configured": _local_state["configured"],
                 "model_ready": _local_state["model_ready"],
-                "requested_model": _resolution.get("requested_model"),
-                "selected_model": _selected_model,
-                "model_resolution": _resolution,
+                "model_ready_basis": "Exact served metadata tag only; weights unverified.",
+                "requested_model": None,
+                "selected_model": None,
+                "model_resolution": {"model_ready": _local_state["model_ready"],
+                                     "selection_basis": _resolution.get("selection_basis")},
                 "inference_receipted": _local_state["inference_receipted"],
-                "operational": _local_state["operational"],
-                "wired": _local_state["operational"],
-                "state": _local_state["state"],
-                "label": _local_state["state"],
+                "inference_receipt_scope": "Historical durable receipt; not current-run proof.",
+                "receipt_binding": "UNKNOWN",
+                "operational": False,
+                "wired": False,
+                "state": "UNKNOWN" if _any else "UNAVAILABLE",
+                "label": "UNKNOWN" if _any else "UNAVAILABLE",
+                "label_basis": "Metadata reachability only; sovereign provenance not verified.",
+                "gpu_verified": False,
+                "weights_verified": False,
+                "ownership_proof": "UNAVAILABLE",
                 "receipt_state": _receipt,
-                "served_models": _sel.get("served_models", []),
-                "note": _matrix.get("note", ""),
+                "served_models": [],
+                "note": "Public status projection; private probe diagnostics withheld.",
             }
         else:
             local_node = {
                 "backend_id": _SOVEREIGN_BACKEND_ID,
-                "env_var": _SOVEREIGN_ENV, "base_url": base or None,
+                "env_var": _SOVEREIGN_ENV, "base_url": None,
                 "nodes_env": _SOVEREIGN_NODES_ENV,
                 "env_present": _sovereign_env_present(), "live": None,
-                "reachable": None, "configured": _sovereign_env_present(),
+                "reachable": None, "endpoint_reachable": None,
+                "configured": _sovereign_env_present(),
                 "model_ready": False, "inference_receipted": False,
                 "operational": False, "wired": False,
-                "state": "UNPROBED", "label": "UNPROBED",
+                "state": "UNPROBED", "label": "UNKNOWN",
+                "gpu_verified": False, "weights_verified": False,
+                "ownership_proof": "UNAVAILABLE",
                 "note": "pass ?probe=1 to ping the mesh for THIS-request liveness",
             }
 
