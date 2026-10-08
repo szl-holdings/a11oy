@@ -83,11 +83,11 @@ def test_every_projected_dollar_labeled_modeled_or_estimate():
     earn = p["projection_1day_single_node"]["earnings"]
     assert earn["compute_resale_usd"]["label"] == P.ESTIMATE
     assert earn["grid_arbitrage_credit_usd"]["label"] == P.MODELED
-    assert earn["total_usd"]["label"] == P.MODELED
+    assert earn["total_usd"]["label"] == P.ESTIMATE
     for line in p["scale_projection"]["lines"]:
         assert line["compute_resale_usd_yr"]["label"] == P.ESTIMATE
         assert line["grid_arbitrage_usd_yr"]["label"] == P.MODELED
-        assert line["total_usd_yr"]["label"] == P.MODELED
+        assert line["total_usd_yr"]["label"] == P.ESTIMATE
 
 
 def test_grep_no_measured_label_in_any_projected_block():
@@ -175,13 +175,21 @@ def test_handler_degrades_without_500():
 
 
 def test_fallback_marks_source_when_no_siblings():
-    """With no operator/ledger modules importable, fallback ground-truth is labeled."""
-    # _extract_window with both None → documented fallback, clearly sourced.
+    """Historical context cannot become a current rate or day projection."""
     m = P._extract_window(None, None)
-    assert "fallback" in m["measured_source"]
-    assert m["joules_measured"] == P._GROUND_TRUTH_JOULES
-    # tokens unknown in fallback — must be None, NOT fabricated
+    assert m["qualified_window"] is False
+    assert m["joules_measured"] is None
+    assert m["window_seconds"] is None
+    assert m["historical_reference"]["joules"] == P._GROUND_TRUTH_JOULES
+    assert m["historical_reference"]["label"] == P.SAMPLE
+    assert m["historical_reference"]["rate_denominator_s"] is None
     assert m["tokens_measured"] is None
+    p = P.build_projection(_measured=m)
+    assert p["ok"] is False
+    assert p["measured_inputs"]["joules_measured"]["value"] is None
+    assert p["projection_1day_single_node"]["compute_done"]["joules"]["value"] is None
+    assert p["projection_1day_single_node"]["earnings"]["total_usd"]["value"] is None
+    assert p["scale_projection"]["lines"] == []
 
 
 def test_honesty_block_invariants():
@@ -189,7 +197,7 @@ def test_honesty_block_invariants():
     h = p["honesty"]
     assert h["sovereign"] is False
     assert h["free_energy"] is False
-    assert h["projected_revenue_label"] == P.MODELED
+    assert h["projected_revenue_label"] == P.ESTIMATE
     assert h["resale_input_label"] == P.ESTIMATE
 
 

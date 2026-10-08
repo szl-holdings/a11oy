@@ -1,4 +1,4 @@
-# Exporter request authentication — installation contract
+# Exporter request authentication â€” installation contract
 
 This source change belongs to the energy service layer. It protects telemetry reads;
 it does not authorize a tunnel, configure a running service, install keys, or qualify
@@ -55,12 +55,11 @@ rollback denies. Restart rejects prior-process requests even though the replay c
 is in memory. Sustained valid-client traffic can exhaust the cache until expiry and is
 denied; it cannot convert capacity pressure into a telemetry authorization bypass.
 
-The existing sampler integrates board-power samples from `nvidia-smi` over time.
-That source is **integrated GPU board power**, not an NVML total-energy-counter delta
-or an inference/job-specific joule measurement. This authentication repair changes
-neither the sampler nor the measurement payload and does not consume the separate
-energy-evidence candidate's counter/attribution changes. Measurement admission remains
-a separate gate.
+The integrated exporter now uses the measurement checks merged in PR #2665.
+Observed power and UUID come from nvidia-smi; MEASURED joules require fresh,
+monotone NVML total-energy-counter deltas for the same device and continuity
+interval. Power integration is separately labeled MODELED. Authentication does
+not establish per-job attribution or qualify energy for billing.
 
 Synthetic tests use ephemeral in-memory keys and controlled telemetry. Their results
 qualify source authentication behavior; live key provisioning, tunnel policy, runtime

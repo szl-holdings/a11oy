@@ -157,7 +157,7 @@ class RequestSourceGuardTests(unittest.TestCase):
         with mock.patch.object(_EXPORTER, "PEER_EXPORTERS", ["https://peer.test/metrics"]), \
              mock.patch.dict(auth.os.environ, {"SZL_METER_HMAC_TARGETS": ""}), \
              mock.patch.object(auth.urllib.request, "build_opener", side_effect=AssertionError("unauthenticated egress")):
-            self.assertEqual(_EXPORTER._fetch_peer_engines(), ([], 0.0))
+            self.assertEqual(_EXPORTER._fetch_peer_engines(), ([], False))
 
     def test_native_client_and_actual_http_parser_enforce_auth_on_loopback(self):
         # A disposable loopback listener and synthetic payload, never the installed
