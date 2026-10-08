@@ -3432,6 +3432,13 @@ async def chat_stream(request: Request):
     body, _err = await _safe_body(request)
     if _err is not None:
         return _err
+    agentic = bool(body.get("agentic", False))
+    if agentic and _agent is None:
+        return JSONResponse({
+            "ok": False, "error": "AGENT_LOOP_UNAVAILABLE", "mode": "agentic",
+            "agentic": True, "served_by": "NOT_INVOKED", "model": None,
+            "synthesis_admission": {"state": "UNAVAILABLE", "reason": "AGENT_LOOP_UNAVAILABLE"},
+        }, status_code=503)
     who = _opauth.principal(request)
     # Conversation memory is operator state: an anonymous turn gets a fresh id, never
     # reads a stored conversation by a guessed id, and is never written to memory.
@@ -3456,7 +3463,6 @@ async def chat_stream(request: Request):
     # Agentic mode: run the governed FSM (plan/retrieve/act/observe/verify/
     # reflect/finalize) instead of the single-shot tool loop. Default OFF so the
     # existing chat behavior is byte-for-byte unchanged unless explicitly asked.
-    agentic = bool(body.get("agentic", False)) and _agent is not None
 
     # ------------------------------------------------------------------
     # Message contract: the browser tab POSTs an OpenAI-style `messages`

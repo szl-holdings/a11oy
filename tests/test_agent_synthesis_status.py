@@ -145,3 +145,39 @@ def test_agent_entrypoint_keeps_reviewed_source_when_older_package_is_installed(
     else:
         assert namespace["_agent"] is None
         assert namespace["_AGENT_IMPORT_ERROR"] == str(local_error)
+
+
+@pytest.mark.parametrize("operator", [False, True])
+@pytest.mark.parametrize("message", [
+    {"message": "governed request", "conversation_id": "unread-conversation"},
+    {"messages": [{"role": "user", "content": "governed request"}]},
+])
+def test_requested_agentic_chat_never_falls_back_when_local_loop_is_unavailable(monkeypatch, operator, message):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    orchestrator = importlib.import_module("a11oy_code_orchestrator")
+    app = FastAPI()
+    orchestrator.attach(app)
+    monkeypatch.setattr(orchestrator, "_agent", None)
+    monkeypatch.setattr(orchestrator._opauth, "principal", lambda request: {
+        "operator": operator, "two_person_attested": False})
+    calls = []
+
+    def forbidden(name):
+        def record(*args, **kwargs):
+            calls.append(name)
+            pytest.fail(f"Unavailable agentic mode reached {name}")
+        return record
+
+    for name in ("mem_get_conversation", "mem_upsert_conversation", "mem_add_message",
+                 "route", "_get_client", "_serving_base", "_call_model_resilient",
+                 "agent_model_complete", "execute_tool", "khipu_emit"):
+        monkeypatch.setattr(orchestrator, name, forbidden(name))
+    response = TestClient(app).post("/api/a11oy/code/chat/stream", json={**message, "agentic": True})
+    assert response.status_code == 503
+    assert response.json() == {
+        "ok": False, "error": "AGENT_LOOP_UNAVAILABLE", "mode": "agentic",
+        "agentic": True, "served_by": "NOT_INVOKED", "model": None,
+        "synthesis_admission": {"state": "UNAVAILABLE", "reason": "AGENT_LOOP_UNAVAILABLE"},
+    }
+    assert calls == []
