@@ -2539,14 +2539,18 @@ html[data-szl-shell-owner="homepage"] footer .lk a:hover {color:#91E9FF}
     const v = d.verdict_summary;
     const fields = ["endpoints","ok","skippedStateChanging","lies","unreachable","throttled","degraded"];
     const origin = new URL(d.verdict_base);
-    if(d.available !== true || !v || !fields.every(k => count(v[k])) || v.endpoints <= v.skippedStateChanging ||
+    const blockingDegraded = count(v?.blockingDegraded) ? v.blockingDegraded : v?.degraded;
+    if(d.available !== true || !v || !fields.every(k => count(v[k])) || !count(blockingDegraded) ||
+       blockingDegraded > v.degraded || v.endpoints <= v.skippedStateChanging ||
        fields.slice(1).reduce((total,k) => total+v[k], 0) !== v.endpoints ||
        !/^[0-9a-f]{40}$/.test(d.verdict_source_revision || "") ||
        !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(d.verdict_checked_at || "") ||
        !Number.isFinite(Date.parse(d.verdict_checked_at)) || origin.origin !== d.verdict_expected_base ||
        origin.pathname !== "/" || origin.search || origin.hash || origin.username || origin.password) throw new Error("probe evidence incomplete");
-    const failed = v.lies+v.unreachable+v.throttled+v.degraded;
-    return [failed ? "DEGRADED" : "OBSERVED", prefix+v.ok+" probe passes · "+failed+" failed/throttled/degraded · "+v.skippedStateChanging+" state-changing checks skipped · checked "+d.verdict_checked_at+"."];
+    const releaseBlockers = v.lies+v.unreachable+v.throttled+blockingDegraded;
+    const optionalDegraded = v.degraded-blockingDegraded;
+    const displayDegraded = releaseBlockers+optionalDegraded;
+    return [displayDegraded ? "DEGRADED" : "OBSERVED", prefix+v.ok+" probe passes · "+releaseBlockers+" release blockers · "+optionalDegraded+" optional degraded · "+v.skippedStateChanging+" state-changing checks skipped · checked "+d.verdict_checked_at+"."];
   }
   function meshPulse(d){
     if(!Array.isArray(d.mesh_organs) || !Array.isArray(d.khipu_nodes)) throw new Error("mesh contract unavailable");

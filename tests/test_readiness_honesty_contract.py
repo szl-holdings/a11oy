@@ -36,7 +36,12 @@ def test_hf_sync_awaits_the_source_bound_readiness_contract_before_probe() -> No
     ("outcomes", "summary", "expected"),
     [
         ([{"path": "/required", "degraded": True, "unavailableSources": ["hpd"]}],
-         {"degraded": 1}, "DEGRADED: unavailable sources hpd"),
+         {"degraded": 1, "blockingDegraded": 1},
+         "DEGRADED: unavailable sources hpd"),
+        ([{"path": "/optional", "degraded": True,
+           "degradedBlocksReadiness": False, "unavailableSources": ["meter"]}],
+         {"degraded": 1, "blockingDegraded": 0},
+         "DEGRADED: unavailable sources meter"),
         ([{"path": "/limited", "throttled": True, "status": 429}],
          {"throttled": 1}, "throttled (429)"),
         ([{"path": "/source", "unreachable": True, "error": "timeout"}],
@@ -61,7 +66,8 @@ def test_workflow_summary_preserves_negative_probe_outcomes(
     harness = tmp_path / "harness"
     harness.mkdir()
     counts = dict(ok=0, lies=0, unreachable=0, throttled=0, degraded=0,
-                  skippedStateChanging=0, endpoints=len(outcomes))
+                  blockingDegraded=0, skippedStateChanging=0,
+                  endpoints=len(outcomes))
     counts.update(summary)
     (harness / "readiness-verdict.json").write_text(json.dumps({
         "base": "https://example.invalid", "checkedAt": "2026-10-04T00:00:00Z",
@@ -75,7 +81,7 @@ def test_workflow_summary_preserves_negative_probe_outcomes(
     )
     rendered = report.read_text(encoding="utf-8")
     assert expected in rendered
-    assert "| degraded | skipped |" in rendered
+    assert "| blocking degraded | total degraded | skipped |" in rendered
     assert "All probed endpoints real" not in rendered
     assert "source revision: UNAVAILABLE" in rendered
 
@@ -109,8 +115,10 @@ def test_landing_reads_matrix_and_probe_availability_separately() -> None:
     assert "d.probe_verdict_available === false" in landing
     assert "d.probe_verdict_available !== true" in landing
     assert '"unreachable","throttled","degraded"' in landing
-    assert "v.lies+v.unreachable+v.throttled+v.degraded" in landing
-    assert 'failed ? "DEGRADED" : "OBSERVED"' in landing
+    assert "blockingDegraded" in landing
+    assert "releaseBlockers" in landing
+    assert "optionalDegraded" in landing
+    assert 'displayDegraded ? "DEGRADED" : "OBSERVED"' in landing
     assert "static contract; deployment probe pending" in landing
     assert ".data-state.amber" in landing
     for state in ("CACHED", "STALE_CACHE", "SNAPSHOT", "MODELED", "OBSERVED", "AVAILABLE", "DEGRADED"):
@@ -140,6 +148,7 @@ def test_runtime_variable_requires_exact_source_and_canonical_origin(
             "unreachable": 0,
             "throttled": 0,
             "degraded": 0,
+            "blockingDegraded": 0,
             "p95_worst": 1806,
         },
     }
@@ -160,7 +169,7 @@ def test_runtime_variable_requires_exact_source_and_canonical_origin(
     assert accepted["verdict_source_revision"] == source_sha
     assert accepted["verdict_base"] == origin
 
-    for failure in ("lies", "unreachable", "throttled", "degraded"):
+    for failure in ("lies", "unreachable", "throttled"):
         verdict["summary"].update(ok=4, **{failure: 1})
         monkeypatch.setenv(
             "SZL_PROBE_VERDICT_JSON",
@@ -173,6 +182,30 @@ def test_runtime_variable_requires_exact_source_and_canonical_origin(
         assert rejected["verdict_summary"] is None
         verdict["summary"].update(ok=5, **{failure: 0})
 
+    verdict["summary"].update(ok=4, degraded=1, blockingDegraded=1)
+    monkeypatch.setenv(
+        "SZL_PROBE_VERDICT_JSON",
+        json.dumps(verdict, separators=(",", ":")),
+    )
+    rejected = client.get(
+        "/api/a11oy/v1/readiness/tab-matrix?view=summary"
+    ).json()
+    assert rejected["probe_verdict_available"] is False
+    assert rejected["verdict_summary"] is None
+
+    verdict["summary"].update(ok=4, degraded=1, blockingDegraded=0)
+    monkeypatch.setenv(
+        "SZL_PROBE_VERDICT_JSON",
+        json.dumps(verdict, separators=(",", ":")),
+    )
+    optional = client.get(
+        "/api/a11oy/v1/readiness/tab-matrix?view=summary"
+    ).json()
+    assert optional["probe_verdict_available"] is True
+    assert optional["verdict_summary"]["degraded"] == 1
+    assert optional["verdict_summary"]["blockingDegraded"] == 0
+
+    verdict["summary"].update(ok=5, degraded=0, blockingDegraded=0)
     verdict["base"] = "https://unrelated.example"
     monkeypatch.setenv(
         "SZL_PROBE_VERDICT_JSON",

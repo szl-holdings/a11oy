@@ -131,8 +131,8 @@ jobs:
               let o="## Readiness probe — endpoint observations\n\n";
               o+=`base \`${v.base}\` · ${v.checkedAt}\n\n`;
               o+=`source revision: ${v.sourceRevisionStatus||"UNAVAILABLE"}${v.sourceRevision?" `"+v.sourceRevision+"`":""}\n\n`;
-              o+=`| probe passes | lies | unreachable | throttled | degraded | skipped | endpoints |\n|--:|--:|--:|--:|--:|--:|--:|\n`;
-              o+=`| ${s.ok??"UNAVAILABLE"} | ${s.lies??"UNAVAILABLE"} | ${s.unreachable??"UNAVAILABLE"} | ${s.throttled??"UNAVAILABLE"} | ${s.degraded??"UNAVAILABLE"} | ${s.skippedStateChanging??"UNAVAILABLE"} | ${s.endpoints??"UNAVAILABLE"} |\n\n`;
+              o+=`| probe passes | lies | unreachable | throttled | blocking degraded | total degraded | skipped | endpoints |\n|--:|--:|--:|--:|--:|--:|--:|--:|\n`;
+              o+=`| ${s.ok??"UNAVAILABLE"} | ${s.lies??"UNAVAILABLE"} | ${s.unreachable??"UNAVAILABLE"} | ${s.throttled??"UNAVAILABLE"} | ${s.blockingDegraded??s.degraded??"UNAVAILABLE"} | ${s.degraded??"UNAVAILABLE"} | ${s.skippedStateChanging??"UNAVAILABLE"} | ${s.endpoints??"UNAVAILABLE"} |\n\n`;
               const results=Array.isArray(v.results)?v.results:[];
               const flagged=results.filter(r=>r.lie||r.unreachable||r.throttled||r.degraded);
               if(flagged.length){
