@@ -10,9 +10,13 @@ The vertical slice added here owns only route A’s plan and run-step admission.
 
 `web/code.html` posts to `/api/a11oy/v1/code/plan` and `/api/a11oy/v1/code/runstep`.
 
-`a11oy_code_runloop.py` registers those routes. A run step calls `a11oy_code_engine.governed_turn`. The engine’s retrieve hook is `szl_agentic_loop._retrieve` (`szl_agentic_loop.py` around lines 644–685): it tries `a11oy_org_rag.query`, and on failure or abstain uses the in-image governance corpus.
+`a11oy_code_runloop.py` registers those routes. A run step calls `a11oy_code_engine.governed_turn`. The engine’s retrieve hook is `szl_agentic_loop._retrieve_with_identity`. It tries `a11oy_org_rag.query`, and on failure or abstain uses the in-image governance corpus. `_retrieve` returns those same chunks.
 
-This slice checks the operator principal, the `A11OY_CODE_TENANT` header `x-a11oy-tenant` compared as equal-length SHA-256 digests, the closed purpose set `chat|code|research`, and the query limits before `plan()` or `governed_turn`. The fixed frontend query is the rights-cleared string `synthetic fixture: deny-by-default gate`. An unsigned engine receipt is stored as `SIMULATED`. The append-only file exists only when `A11OY_CODE_RUNLOOP_RECEIPT_LOG` is set. The open requests mode `0o600`. That bit is not a Windows ACL proof. Unset means `persisted` false and `restart_verifiable` false. The record field for the query is `query_sha256`. The engine receipt chain is stored unchanged so `verify_run` can recompute it, and that chain still contains the step prompt. The tenant identifier and the operator token are not written. `verify_receipt_log` re-reads that file and calls `a11oy_code_engine.verify_run`. `chain_intact` true with `signature_valid` false is an unsigned chain check, not a host signature and not a deployment claim. A fsynced append sets `restart_verifiable` true; the check itself is a later process.
+This slice checks the operator principal, the `A11OY_CODE_TENANT` header `x-a11oy-tenant` compared as equal-length SHA-256 digests, the closed purpose set `chat|code|research`, and the query limits before `plan()` or `governed_turn`. `web/code.html` attaches `Authorization: Bearer` only when the operator token field is non-empty. The page does not embed that token. Inspected inbound code routes do not inject a server credential. Outbound clients that set `Authorization` for Hugging Face or a GPU are not a proxy in front of this page. That inspection is source reading, not a live reproduced authentication failure.
+
+The fixed frontend query is the rights-cleared string `synthetic fixture: deny-by-default gate`. An unsigned engine receipt is stored as `SIMULATED`. When `A11OY_CODE_RUNLOOP_RECEIPT_LOG` is set, it is the directory root for one `szl_lake_store.ReceiptLedger` organ, `code-runloop`. The run-loop reader fail-closes on a corrupt line. The ledger's own rebuild for other organs is unchanged and still skips corrupt JSON. Unset means `persisted` false and `restart_verifiable` false. The record stores `query_sha256` and `tenant_sha256`. The engine receipt chain is stored so `verify_run` can recompute it, and that chain still contains the step prompt. The tenant identifier and the operator token are not written. `verify_receipt_log` re-reads that directory. `chain_intact` true with `signature_valid` false is an unsigned chain check, not a host signature and not a deployment claim. A fsynced append sets `restart_verifiable` true; the check itself is a later process. Platform KhipuOS was not selected. Its constructor can open a store and still starts with empty graph indexes.
+
+Retrieval identity is recorded from the same `_retrieve_with_identity` call the engine uses. Authorized handles are passed to `analyse_graph`. The source anchor covers the retrieve node and the plan terminal. A decision other than `READY_TO_ORCHESTRATE`, or a gate that is not a pass, does not commit. Execution stays `PLAN_ONLY` with zero effectors and `authorized` false. This route does not supply the host signature verifier, so `signature_valid` stays false. F4, F7, and F22 are recorded `NOT_APPLICABLE`. The inlined `szl_formulas.py` hash is not attributed to the standalone `szl-formulas` package. The new module is `a11oy_code_runloop_journey.py`, and the image `COPY` includes it.
 
 ## B. Completion aliases
 
@@ -30,7 +34,7 @@ The completion receipt is emitted through `szl_provenance.py`. That module state
 
 Estate RAG is `POST /api/a11oy/v1/rag/estate/query` (`serve.py` around line 9436), operator-gated in `szl_operator_auth.py`.
 
-`routers/governed_graph_operations.py` sets `EXECUTION_MODE` to `PLAN_ONLY` and `EVIDENCE_LABEL` to `MODELED`. Its status truth boundary is zero effectors, zero writes, zero provider calls, and zero emitted receipts (lines 837–841). Analyse does not run the code engine and does not write the run-loop receipt log.
+`routers/governed_graph_operations.py` sets `EXECUTION_MODE` to `PLAN_ONLY` and `EVIDENCE_LABEL` to `MODELED`. Its status truth boundary is zero effectors, zero writes, zero provider calls, and zero emitted receipts (lines 837–841). Analyse does not run the code engine and does not write a receipt. The run-loop calls that function with the handles it retrieved, then writes its own ledger line.
 
 ## D. Public Second Brain runtime
 
@@ -44,4 +48,4 @@ Anatomy is a separate repository. At pin `4f7ab4b4589cb839e4e45025ffaef3085c79f4
 
 ## What this change does not join
 
-No test here sends one query through A, B, C, D, and E. The run-loop receipt log is not the Khipu DAG, not the public Second Brain retrieve API, not the Hatun local adapter, and not the Anatomy projection.
+No test here sends one query through A, B, C, D, and E. The run-loop ledger is `ReceiptLedger` for organ `code-runloop`. It is not the in-memory Khipu DAG, not the public Second Brain retrieve API, not the Hatun local adapter, and not the Anatomy projection.

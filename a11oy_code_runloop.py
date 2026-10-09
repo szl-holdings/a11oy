@@ -18,6 +18,11 @@ API SHAPE (modeled on the platform orchestrator for familiarity; served locally)
                                                                -> engine run + restart receipt
 Operator Bearer and the configured tenant are checked before the body is parsed.
 Purpose is chat, code, or research. The admitted purpose is the engine mode.
+When A11OY_CODE_RUNLOOP_RECEIPT_LOG is set, it is a directory root for
+ReceiptLedger organ code-runloop. The witness is acknowledged after fsync.
+Unsigned witnesses stay SIMULATED. The in-memory Khipu DAG is not this store.
+An omitted request id is not stored as a shared client id. The same client
+request id with a different query is refused before the engine.
   POST /api/a11oy/v1/code/approve       {checkpoint_id, approver, approved}
                                                                -> approval-interrupt grant echo
   GET  /api/a11oy/v1/code/runloop/health                       -> honest liveness of the surface
@@ -41,12 +46,13 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import json
 import os
 import re
 import time
 from datetime import datetime, timezone
 from typing import Any, Optional
+
+import a11oy_code_runloop_journey as _journey
 
 
 # ---- reuse the REAL engine (single source of truth for the governed run) -----
@@ -96,11 +102,6 @@ _PURPOSES = frozenset({"chat", "code", "research"})
 _MAX_QUERY_CHARS = 2000
 _MAX_QUERY_BYTES = 8192
 FIXED_SYNTHETIC_QUERY = "synthetic fixture: deny-by-default gate"
-_RECEIPT_SCHEMA = "szl.a11oy.code-runloop-receipt/v1"
-_RECEIPT_BODY_KEYS = (
-    "schema", "evidence_class", "signer", "query_sha256", "purpose",
-    "chain_final_hash", "receipt_chain", "signed_receipt",
-)
 
 
 def _blocked(error: str, status_code: int, **extra):
@@ -155,111 +156,24 @@ def _admit_query(body: Any, primary: str):
     return query, purpose, None
 
 
-def _canonical_receipt_body(record: dict) -> bytes:
-    payload = {key: record[key] for key in _RECEIPT_BODY_KEYS}
-    return json.dumps(payload, sort_keys=True, separators=(",", ":"),
-                      ensure_ascii=True).encode("utf-8")
-
-
-def _persist_run_receipt(query: str, purpose: str, run: dict) -> dict:
-    """Append one SIMULATED or host receipt. Unsigned output stays SIMULATED."""
-    path = (os.environ.get(RECEIPT_LOG_ENV) or "").strip()
-    signed_receipt = run.get("signed_receipt") if isinstance(run, dict) else None
-    signed = bool(isinstance(signed_receipt, dict) and signed_receipt.get("signed") is True)
-    record = {
-        "schema": _RECEIPT_SCHEMA,
-        "evidence_class": "DECLARED" if signed else "SIMULATED",
-        "signer": "HOST" if signed else "SIMULATED",
-        "query_sha256": hashlib.sha256(query.encode("utf-8")).hexdigest(),
-        "purpose": purpose,
-        "chain_final_hash": (run or {}).get("chain_final_hash"),
-        "receipt_chain": (run or {}).get("receipt_chain") or [],
-        "signed_receipt": signed_receipt or {"signed": False, "signatures": []},
-    }
-    digest = hashlib.sha256(_canonical_receipt_body(record)).hexdigest()
-    record["record_sha256"] = digest
-    if not path:
-        return {"persisted": False, "restart_verifiable": False,
-                "evidence_class": record["evidence_class"], "reason": "receipt log is not configured"}
-    try:
-        line = json.dumps(record, sort_keys=True, separators=(",", ":"),
-                          ensure_ascii=True).encode("utf-8") + b"\n"
-        flags = os.O_CREAT | os.O_APPEND | os.O_WRONLY
-        fd = os.open(path, flags, 0o600)
-        try:
-            os.write(fd, line)
-            os.fsync(fd)
-        finally:
-            os.close(fd)
-    except (OSError, TypeError, ValueError) as exc:
-        return {"persisted": False, "restart_verifiable": False,
-                "evidence_class": record["evidence_class"],
-                "reason": type(exc).__name__}
-    return {"persisted": True, "restart_verifiable": True,
-            "evidence_class": record["evidence_class"], "signer": record["signer"],
-            "record_sha256": digest, "chain_final_hash": record["chain_final_hash"]}
-
-
 def verify_receipt_log(path: str) -> dict:
-    """Re-read a receipt file and recompute its chain. A new process can call this."""
-    try:
-        import a11oy_code_engine as engine
-    except Exception as exc:
-        return {"ok": False, "status": "UNAVAILABLE", "reason": type(exc).__name__}
-    try:
-        with open(path, "rb") as handle:
-            raw = handle.read()
-    except OSError as exc:
-        return {"ok": False, "status": "UNAVAILABLE", "reason": type(exc).__name__}
-    lines = [line for line in raw.splitlines() if line.strip()]
-    if not lines:
-        return {"ok": False, "status": "UNAVAILABLE", "reason": "empty receipt log"}
-    checked = []
-    for line in lines:
-        try:
-            record = json.loads(line.decode("utf-8"))
-        except (UnicodeError, json.JSONDecodeError):
-            return {"ok": False, "status": "BLOCKED", "reason": "malformed receipt line"}
-        if not isinstance(record, dict) or set(record) != set(_RECEIPT_BODY_KEYS) | {"record_sha256"}:
-            return {"ok": False, "status": "BLOCKED", "reason": "unexpected receipt fields"}
-        if record.get("schema") != _RECEIPT_SCHEMA:
-            return {"ok": False, "status": "BLOCKED", "reason": "unexpected receipt schema"}
-        if record.get("purpose") not in _PURPOSES:
-            return {"ok": False, "status": "BLOCKED", "reason": "purpose is not admitted"}
-        signed_receipt = record.get("signed_receipt")
-        signed_flag = (isinstance(signed_receipt, dict)
-                       and signed_receipt.get("signed") is True)
-        expect_class = "DECLARED" if signed_flag else "SIMULATED"
-        expect_signer = "HOST" if signed_flag else "SIMULATED"
-        if (record.get("evidence_class") != expect_class
-                or record.get("signer") != expect_signer):
-            return {"ok": False, "status": "BLOCKED",
-                    "reason": "evidence class does not match the signature flag"}
-        query_sha = record.get("query_sha256")
-        if not isinstance(query_sha, str) or len(query_sha) != 64:
-            return {"ok": False, "status": "BLOCKED", "reason": "query digest is absent"}
-        expect = hashlib.sha256(_canonical_receipt_body(record)).hexdigest()
-        if not hmac.compare_digest(str(record.get("record_sha256") or ""), expect):
-            return {"ok": False, "status": "BLOCKED", "reason": "record digest mismatch"}
-        verdict = engine.verify_run({
-            "receipt_chain": record["receipt_chain"],
-            "signed_receipt": record["signed_receipt"],
-        })
-        if verdict.get("chain_intact") is not True:
-            return {"ok": False, "status": "BLOCKED", "reason": "chain mismatch",
-                    "chain_break_at_seq": verdict.get("chain_break_at_seq")}
-        if verdict.get("final_hash") != record.get("chain_final_hash"):
-            return {"ok": False, "status": "BLOCKED", "reason": "final hash mismatch"}
-        checked.append({
-            "record_sha256": expect,
-            "evidence_class": record["evidence_class"],
-            "signer": record["signer"],
-            "query_sha256": record["query_sha256"],
-            "purpose": record["purpose"],
-            "chain_intact": True,
-            "signature_valid": verdict.get("signature_valid"),
-        })
-    return {"ok": True, "status": "CHECKED", "count": len(checked), "receipts": checked}
+    """Re-read the ledger in this process. A new process can call this too."""
+    return _journey.verify_ledger(path)
+
+
+def _journey_refusal(body: dict):
+    """Reject a client lease or a numeric measure before any engine call."""
+    if "lease" in body:
+        return _blocked("lease is not used", 400)
+    if "measure" in body and _journey.admit_measure(body.get("measure")).get("result") == "REJECTED":
+        return _blocked("measure is outside the domain", 400)
+    if "request_id" in body and not _journey.valid_request_id(body.get("request_id")):
+        return _blocked("request_id is not admitted", 400)
+    return None
+
+
+def _presented_tenant(request) -> str:
+    return (request.headers.get(TENANT_HEADER) or "").strip()
 
 
 def _now() -> str:
@@ -377,6 +291,9 @@ def register(app, ns: str, sign_fn, verify_fn=None):
         query, purpose, refusal = _admit_query(b, "task")
         if refusal is not None:
             return refusal
+        extra = _journey_refusal(b)
+        if extra is not None:
+            return extra
         body = plan(query, purpose)
         body["purpose"] = purpose
         body["admission"] = "principal, tenant, limits, and purpose checked before plan"
@@ -401,6 +318,32 @@ def register(app, ns: str, sign_fn, verify_fn=None):
         query, purpose, refusal = _admit_query(b, "prompt")
         if refusal is not None:
             return refusal
+        extra = _journey_refusal(b)
+        if extra is not None:
+            return extra
+        root = (os.environ.get(RECEIPT_LOG_ENV) or "").strip()
+        request_id = b.get("request_id") if isinstance(b.get("request_id"), str) else None
+        if root and os.path.isdir(root):
+            pre = _journey.verify_ledger(root)
+            if pre.get("status") == "BLOCKED":
+                return _blocked(pre.get("reason") or "receipt log is blocked", 409)
+        replay = _journey.replay_if_committed(
+            root, query, purpose, _presented_tenant(request), request_id)
+        if replay is not None:
+            if replay.get("conflict"):
+                return _blocked("request_id conflict", 409)
+            return JSONResponse({
+                "ok": True,
+                "duplicate": True,
+                "step": b.get("step"),
+                "run": None,
+                "restart_receipt": replay["restart_receipt"],
+                "journey": replay["journey"],
+                "label": "DUPLICATE committed record. Retrieval, the planner, and "
+                         "the provider were not called again.",
+            })
+        if _journey.commit_lock_held(root):
+            return _blocked("commit lock held", 409)
         if not _ENGINE_OK:
             return JSONResponse({
                 "ok": False,
@@ -479,12 +422,15 @@ def register(app, ns: str, sign_fn, verify_fn=None):
                           "swap is recorded in /llm/forum."),
             }
 
-        restart_receipt = _persist_run_receipt(query, purpose, run)
+        witnessed = _journey.finish(
+            root, query, purpose, _presented_tenant(request), request_id, run,
+            b.get("measure") if "measure" in b else None)
         return JSONResponse({
             "ok": True,
             "step": b.get("step"),
             "run": run,
-            "restart_receipt": restart_receipt,
+            "restart_receipt": witnessed["restart_receipt"],
+            "journey": witnessed["journey"],
             "approval": approval,
             "harness_profile": harness_summary,
             "signature_live": signed_live,
