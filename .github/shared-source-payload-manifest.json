@@ -1,10 +1,12 @@
 {
   "files": {
-    ".github/workflows/readiness-contract.yml": "775af5a595edc3dad58526041e489b88383fdc19aa2c3a7928a3d66ee92d672b",
-    "szl_readiness.py": "007d3dbb849c69bf1469dc81afa35173390ac03768550e50b499b3df36a9a43d",
-    "tests/test_readiness_application_contract.py": "67f5c56c72028556c79214ee2d34ddec4f1a04a3ceddeaced256dfbd2d14dbc3",
-    "tests/test_readiness_sweep_contract.py": "09070b0bfd63610fbdaaa14ce6b51353f50a7658cf5d1189c9de018caf1cdaa5"
+    ".github/shared-source-payloads/agent-loop-execution-guards-20261008-v1.json": "bb60cb1ee4ec606edb79f381ca2235349fbc298f14713bd6a0104958b6eaa8ac",
+    "a11oy_agent_loop.py": "73b7b4663eeecf45abde7ee1d26a57d476f450a56712e6a4b0b38ed41925e743",
+    "a11oy_org_rag.py": "d3b6975c40397aa5135652e5d9a45b31e8de931ef1bbff59047d0c5b127f7aa4",
+    "docs/authorized-rag-synthesis.md": "b2b12e05ccece27b27119ac282da904eee54c5fe95fe18f9e9c34ac7069431dc",
+    "tests/test_agent_loop_execution_guards.py": "79354da68a89a4e16344216e1761ed7597c91ac9590fe2d9f0cb52e5cdf45370",
+    "tests/test_authorized_rag_synthesis.py": "1d299c8d44f2cfcc33a21fa1d2517c58778bbf825eaefcb75485c481ce2e5216"
   },
-  "payload_id": "readiness-exact-source-witness-20261007-v1",
+  "payload_id": "authorized-rag-answer-handoff-20261008-v1",
   "schema": "szl-shared-source-payload/v1"
 }

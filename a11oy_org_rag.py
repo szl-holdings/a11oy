@@ -1979,6 +1979,72 @@ def query(q: str, k: int = 6, repo: str | None = None,
     return out
 
 
+def hydrate_answer_evidence(subject: Any, handles: tuple, *, authorizer: Callable) -> list[dict]:
+    """Controller-only exact-generation hydration after explicit access checks.
+
+    This does not register an HTTP surface or infer tenant/visibility from repo
+    names. The caller supplies its authenticated identity and policy resolver.
+    Full bytes stay in memory and are never added to query/status receipts.
+    """
+    from a11oy_agent_loop import SynthesisSubject, SynthesisHandle, SynthesisAdmissionError
+
+    def require(condition: bool, reason: str) -> None:
+        if not condition:
+            raise SynthesisAdmissionError(reason)
+
+    require(type(subject) is SynthesisSubject and subject.authenticated is True
+            and all(isinstance(value, str) and value.strip() and len(value) <= 512
+                    for value in (subject.principal_id, subject.tenant_id))
+            and isinstance(subject.policy_revision, str)
+            and re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", subject.policy_revision) is not None,
+            "HYDRATION_SUBJECT_UNAVAILABLE")
+    require(isinstance(handles, tuple) and 1 <= len(handles) <= 6
+            and all(type(handle) is SynthesisHandle for handle in handles),
+            "HYDRATION_HANDLES_INVALID")
+    require(callable(authorizer), "HYDRATION_AUTHORIZATION_UNAVAILABLE")
+    for handle in handles:
+        try:
+            allowed = authorizer(subject, handle)
+        except Exception as exc:
+            raise SynthesisAdmissionError("HYDRATION_AUTHORIZATION_UNAVAILABLE") from exc
+        require(allowed is True, "HYDRATION_ACCESS_DENIED")
+    require(len({(h.generation_id, h.chunk_id) for h in handles}) == len(handles),
+            "HYDRATION_DUPLICATE_SOURCE")
+    conn = _db_readonly()
+    try:
+        conn.execute("BEGIN")
+        active = _active_generation(conn)
+        require(active is not None and all(h.generation_id == active for h in handles),
+                "HYDRATION_GENERATION_CHANGED")
+        generation = conn.execute(
+            "SELECT status,digest_sha256 FROM org_generations WHERE generation_id=?",
+            (active,),
+        ).fetchone()
+        require(generation is not None and generation["status"] == "ACTIVE"
+                and all(h.generation_digest_sha256 == generation["digest_sha256"] for h in handles),
+                "HYDRATION_GENERATION_INVALID")
+        output = []
+        for handle in handles:
+            rows = conn.execute(
+                "SELECT chunk_id,node_id,repo,path,source,sha256,body "
+                "FROM org_chunks_gen WHERE generation_id=? AND chunk_id=? LIMIT 2",
+                (active, handle.chunk_id),
+            ).fetchall()
+            require(len(rows) == 1, "HYDRATION_SOURCE_UNAVAILABLE")
+            row = rows[0]
+            require(all(row[key] == getattr(handle, key) for key in (
+                "chunk_id", "node_id", "repo", "path", "source", "sha256")),
+                "HYDRATION_SOURCE_MISMATCH")
+            body = row["body"]
+            require(isinstance(body, str) and 0 < len(body.encode("utf-8")) <= 32_768
+                    and hashlib.sha256(body.encode("utf-8")).hexdigest() == handle.sha256,
+                    "HYDRATION_CONTENT_DIGEST_INVALID")
+            output.append({"handle": handle, "content": body})
+        return output
+    finally:
+        conn.close()
+
+
 def repo_map(repo: str) -> dict[str, Any]:
     """Aider-style repo map: files → symbols, ranked by Λ-weighted graph centrality."""
     _rehydrate_runtime_state()
