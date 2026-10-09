@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-10-07T16:44:12Z",
+  "observedAt": "2026-10-09T15:26:15Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -26,9 +26,9 @@
   "machineGeneratedCounts": {
     "githubReadinessEntries": 19,
     "huggingFacePublic": {
-      "models": 47,
+      "models": 48,
       "datasets": 37,
-      "spaces": 36,
+      "spaces": 37,
       "kernels": 14
     },
     "huggingFaceScope": {
@@ -980,6 +980,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/oac-ops-health-v2",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/oac-ops-health-v2"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/oac-system-health-v1",
       "repoType": "model",
       "stage": "inventory",
@@ -1761,6 +1771,16 @@
       ],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/lyte"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/nexus",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/nexus"
       ]
     },
     {
