@@ -71,6 +71,7 @@ class PublicEstateAlignmentTests(unittest.TestCase):
                 "SZLHOLDINGS/immune",
                 "SZLHOLDINGS/immune-lattice",
                 "SZLHOLDINGS/llm-router-live",
+                "SZLHOLDINGS/nexus",
                 "SZLHOLDINGS/oac-system-health-lab",
                 "SZLHOLDINGS/prove-it",
                 "SZLHOLDINGS/README",
@@ -93,7 +94,7 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         )
 
     def test_new_public_inventory_is_not_a_keeper_or_runtime_promotion(self) -> None:
-        for name in ('holographic-unify', 'llm-router-live', 'oac-system-health-lab', 'szl-atelier', 'szl-bench-suite', 'szl-forge-lab', 'szl-khipu', 'szl-router-control', 'szl-seismic-review', 'szl-typesafe-triage', 'the-grid'):
+        for name in ('holographic-unify', 'llm-router-live', 'nexus', 'oac-system-health-lab', 'szl-atelier', 'szl-bench-suite', 'szl-forge-lab', 'szl-khipu', 'szl-router-control', 'szl-seismic-review', 'szl-typesafe-triage', 'the-grid'):
             repo_id = 'SZLHOLDINGS/' + name
             with self.subTest(repo_id=repo_id):
                 row = next(r for r in self.contract['inventoryOnlyHuggingFaceRepositories'] if r['id'] == repo_id)
@@ -379,6 +380,7 @@ class PublicEstateAlignmentTests(unittest.TestCase):
             self.assertIn("`SZLHOLDINGS/immune-lattice`", content)
             self.assertIn("`SZLHOLDINGS/szl-forge-lab`", content)
             self.assertIn("`SZLHOLDINGS/the-grid`", content)
+            self.assertIn("`SZLHOLDINGS/nexus`", content)
             self.assertNotIn("SZLHOLDINGS/szl-constellation-staging", content)
             self.assertIn("`SZLHOLDINGS/yarqa`", content)
 
