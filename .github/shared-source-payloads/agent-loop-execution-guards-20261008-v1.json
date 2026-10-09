@@ -1,0 +1,8 @@
+{
+  "files": {
+    "a11oy_agent_loop.py": "289df7c62ea1d6d0edbb2fb1b5dcc2dfc34b87a12199f21fd3d16feef9adccfb",
+    "tests/test_agent_loop_execution_guards.py": "0e00f7d00d2e5fa698dee4f7e97cecaa9e9c38d0f693c043c1aa0aa804bc5ac9"
+  },
+  "payload_id": "agent-loop-execution-guards-20261008-v1",
+  "schema": "szl-shared-source-payload/v1"
+}

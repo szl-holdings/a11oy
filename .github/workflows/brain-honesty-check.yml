@@ -72,7 +72,7 @@ jobs:
           python3 fleet_ops/brain_honesty_check.py \
             --base "https://szlholdings-a11oy.hf.space" \
             --summary-file /tmp/brain-honesty.json | tee /tmp/probe.log
-          code=$?
+          code=${PIPESTATUS[0]}
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           {
             echo "### a11oy brain-honesty liveness"

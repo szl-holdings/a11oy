@@ -26,6 +26,8 @@ All live sources verified in team/LIVE_SOURCES_VERIFIED.md (all HTTP 200).
 
 from __future__ import annotations
 
+from collections import deque
+
 import base64
 import copy
 import functools
@@ -40,7 +42,7 @@ import threading
 import time
 from datetime import datetime, timezone, timedelta
 from typing import Annotated, Any, Callable, Optional
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 import anyio
 import httpx
@@ -87,23 +89,53 @@ DOCTRINE = {
     "lambda_floor": 0.90,
 }
 UA = {"User-Agent": "a11oy-mesh/2.0 (+https://huggingface.co/spaces/SZLHOLDINGS/a11oy) governed-feed"}
+_GITHUB_PUBLIC_READ_ENV = "A11OY_GITHUB_PUBLIC_READ_TOKEN"
+_GITHUB_PUBLIC_REPO_PATH = re.compile(
+    r"/repos/(?P<owner>[A-Za-z0-9_-]{1,39})/"
+    r"(?P<repo>[A-Za-z0-9._-]{1,100})(?P<events>/events)?"
+)
 
 _SOURCE_HTTP_TIMEOUT_ENV = "A11OY_SOURCE_HTTP_TIMEOUT_S"
 _SOURCE_HTTP_TIMEOUT_DEFAULT_S = 4.0
 _SOURCE_HTTP_TIMEOUT_MIN_S = 0.25
 _SOURCE_HTTP_TIMEOUT_MAX_S = 15.0
 
-# CourtListener v4 permits anonymous read traffic but rate-limits cold bursts.
-# Every CourtListener transport in this process crosses one serialized scheduler
-# so vertical, Dev-B, warm-loop, and readiness calls cannot fan out upstream.
+# CourtListener's documented default quota is 5/minute, 50/hour, and
+# 125/day. Every transport in this process crosses one serialized scheduler.
+# The local budgets retain 20% headroom so vertical, Dev-B, warm-loop, and
+# readiness calls cannot consume the provider ceiling through distinct keys.
 _COURTLISTENER_MIN_INTERVAL_ENV = "A11OY_COURTLISTENER_MIN_INTERVAL_S"
-_COURTLISTENER_MIN_INTERVAL_DEFAULT_S = 1.0
-_COURTLISTENER_MIN_INTERVAL_MIN_S = 0.25
-_COURTLISTENER_MIN_INTERVAL_MAX_S = 10.0
-_COURTLISTENER_RETRY_MAX_DELAY_S = 10.0
-_COURTLISTENER_MAX_ATTEMPTS = 3
+_COURTLISTENER_MIN_INTERVAL_DEFAULT_S = 13.0
+_COURTLISTENER_MIN_INTERVAL_MIN_S = 12.0
+_COURTLISTENER_MIN_INTERVAL_MAX_S = 3600.0
+_COURTLISTENER_CACHE_TTL_S = 86400.0
+_COURTLISTENER_RATE_WINDOWS: tuple[tuple[float, int], ...] = (
+    (60.0, 4),
+    (3600.0, 40),
+    (86400.0, 100),
+)
+_COURTLISTENER_COOLDOWN_DEFAULT_S = 60.0
+_COURTLISTENER_COOLDOWN_MAX_S = 86400.0
 _COURTLISTENER_RATE_LOCK = threading.Lock()
 _COURTLISTENER_NEXT_REQUEST_AT = 0.0
+_COURTLISTENER_COOLDOWN_UNTIL = 0.0
+_COURTLISTENER_REQUEST_TIMES: deque[float] = deque()
+
+# NVD API 2.0 allows five anonymous requests per rolling 30-second window and
+# fifty with an API key. Every NVD transport in this process crosses one
+# provider-wide scheduler so defense, finance, cyber, warm-loop, and readiness
+# calls cannot fan out under distinct cache keys. The keyed default still sleeps
+# for several seconds, following NVD guidance rather than consuming the limit.
+_NVD_MIN_INTERVAL_ENV = "A11OY_NVD_MIN_INTERVAL_S"
+_NVD_ANONYMOUS_MIN_INTERVAL_DEFAULT_S = 6.0
+_NVD_KEYED_MIN_INTERVAL_DEFAULT_S = 2.0
+_NVD_MIN_INTERVAL_MIN_S = 0.6
+_NVD_MIN_INTERVAL_MAX_S = 30.0
+_NVD_COOLDOWN_DEFAULT_S = 30.0
+_NVD_COOLDOWN_MAX_S = 86400.0
+_NVD_RATE_LOCK = threading.Lock()
+_NVD_NEXT_REQUEST_AT = 0.0
+_NVD_COOLDOWN_UNTIL = 0.0
 
 
 def _source_http_timeout_s() -> float:
@@ -128,6 +160,44 @@ def _source_url_allowed(url: str) -> bool:
     if parsed.scheme == "https":
         return True
     return parsed.scheme == "http" and host in {"127.0.0.1", "localhost", "::1"}
+
+
+def _github_public_headers(url: str) -> Optional[dict[str, str]]:
+    """Use the dedicated reader only for exact GitHub repository GETs over TLS.
+
+    A configured but malformed credential fails closed; an absent credential
+    retains the existing anonymous public read. The shared client never follows
+    redirects, so the header cannot be forwarded to another origin.
+    """
+    try:
+        parsed = urlsplit(url)
+        # Reject traversal and encoded separators before httpx can normalize
+        # the request path away from /repos/{owner}/{repo}.
+        path = _GITHUB_PUBLIC_REPO_PATH.fullmatch(parsed.path)
+        query_ok = (parsed.query == "" if path and not path.group("events")
+                    else bool(path and re.fullmatch(
+                        r"per_page=(?:[1-9]|[1-9][0-9]|100)", parsed.query,
+                    )))
+        client_url = httpx.URL(url)
+        allowed = (parsed.scheme == "https" and parsed.hostname == "api.github.com"
+                   and parsed.port in (None, 443) and parsed.username is None
+                   and parsed.password is None and not parsed.fragment and path is not None
+                   and path.group("repo") not in {".", ".."} and query_ok
+                   and client_url.scheme == "https" and client_url.host == "api.github.com"
+                   and client_url.path == parsed.path)
+    except (TypeError, ValueError):
+        allowed = False
+    if not allowed:
+        raise ValueError("GitHub public reader URL outside exact API origin")
+
+    token = os.environ.get(_GITHUB_PUBLIC_READ_ENV)
+    if token is None:
+        return None
+    if not token or token != token.strip() or not token.isascii() or any(
+        ord(char) < 33 or ord(char) > 126 for char in token
+    ):
+        raise ValueError("GitHub public reader credential malformed")
+    return {"Authorization": f"Bearer {token}"}
 
 
 def _courtlistener_min_interval_s() -> float:
@@ -160,76 +230,182 @@ def _is_courtlistener_source(url: str) -> bool:
     )
 
 
-def _courtlistener_retry_after_s(response: Any, attempt: int) -> float:
-    """Honor a numeric Retry-After value, otherwise use bounded backoff."""
+def _courtlistener_retry_after_s(response: Any) -> float:
+    """Honor a numeric provider cooldown, bounded to one day."""
     headers = getattr(response, "headers", None) or {}
     raw = headers.get("retry-after") or headers.get("Retry-After")
     try:
         delay = float(raw)
     except (TypeError, ValueError, OverflowError):
-        delay = _COURTLISTENER_MIN_INTERVAL_DEFAULT_S * (2 ** max(0, attempt))
+        delay = _COURTLISTENER_COOLDOWN_DEFAULT_S
     if not math.isfinite(delay):
-        delay = _COURTLISTENER_MIN_INTERVAL_DEFAULT_S
+        delay = _COURTLISTENER_COOLDOWN_DEFAULT_S
     return max(
         _courtlistener_min_interval_s(),
-        min(_COURTLISTENER_RETRY_MAX_DELAY_S, delay),
+        min(_COURTLISTENER_COOLDOWN_MAX_S, delay),
     )
+
+
+def _courtlistener_budget_delay_s(now_s: float) -> float:
+    """Return the rolling-window delay, pruning observations older than a day."""
+    longest_window = max(window_s for window_s, _limit in _COURTLISTENER_RATE_WINDOWS)
+    while (_COURTLISTENER_REQUEST_TIMES
+           and now_s - _COURTLISTENER_REQUEST_TIMES[0] >= longest_window):
+        _COURTLISTENER_REQUEST_TIMES.popleft()
+
+    delay_s = 0.0
+    for window_s, limit in _COURTLISTENER_RATE_WINDOWS:
+        recent = [
+            observed_at for observed_at in _COURTLISTENER_REQUEST_TIMES
+            if now_s - observed_at < window_s
+        ]
+        if len(recent) >= limit:
+            delay_s = max(delay_s, recent[-limit] + window_s - now_s)
+    return max(0.0, delay_s)
 
 
 def _courtlistener_wait_locked() -> None:
-    """Reserve the next process-wide CourtListener request slot.
+    """Reserve one provider-wide slot or fail closed at a rolling quota.
 
-    Callers must hold ``_COURTLISTENER_RATE_LOCK``. Sleeping happens while the
-    lock is held deliberately: no other request may leapfrog the reserved slot.
+    Callers hold ``_COURTLISTENER_RATE_LOCK``. Short inter-request spacing may
+    wait in-process. Minute/hour/day exhaustion returns immediately so a web
+    request never sleeps for an unbounded provider window; the cache layer then
+    serves a real last-good value or an honest UNAVAILABLE result.
     """
     global _COURTLISTENER_NEXT_REQUEST_AT
-    now = time.monotonic()
-    delay = max(0.0, _COURTLISTENER_NEXT_REQUEST_AT - now)
-    if delay:
-        time.sleep(delay)
+    monotonic_now = time.monotonic()
+    if monotonic_now < _COURTLISTENER_COOLDOWN_UNTIL:
+        raise RuntimeError("CourtListener rate limited; provider cooldown active")
+
+    wall_now = time.time()
+    budget_delay_s = _courtlistener_budget_delay_s(wall_now)
+    if budget_delay_s > 0:
+        raise RuntimeError(
+            "CourtListener provider budget exhausted; "
+            f"retry after {math.ceil(budget_delay_s)}s"
+        )
+
+    spacing_delay_s = max(0.0, _COURTLISTENER_NEXT_REQUEST_AT - monotonic_now)
+    if spacing_delay_s:
+        time.sleep(spacing_delay_s)
     _COURTLISTENER_NEXT_REQUEST_AT = (
         time.monotonic() + _courtlistener_min_interval_s()
     )
+    _COURTLISTENER_REQUEST_TIMES.append(time.time())
 
 
 def _courtlistener_defer_locked(delay_s: float) -> None:
-    global _COURTLISTENER_NEXT_REQUEST_AT
-    _COURTLISTENER_NEXT_REQUEST_AT = max(
-        _COURTLISTENER_NEXT_REQUEST_AT,
+    global _COURTLISTENER_COOLDOWN_UNTIL
+    _COURTLISTENER_COOLDOWN_UNTIL = max(
+        _COURTLISTENER_COOLDOWN_UNTIL,
         time.monotonic() + max(0.0, delay_s),
     )
 
 
-def _source_json_with_bounded_retry(
+def _is_nvd_source(url: str) -> bool:
+    try:
+        parsed = httpx.URL(url)
+    except Exception:
+        return False
+    return (
+        parsed.scheme == "https"
+        and (parsed.host or "").lower().rstrip(".") == "services.nvd.nist.gov"
+        and parsed.path.rstrip("/") == "/rest/json/cves/2.0"
+    )
+
+
+def _nvd_has_api_key(headers: Optional[dict[str, str]]) -> bool:
+    return bool(headers and isinstance(headers.get("apiKey"), str)
+                and headers["apiKey"].strip())
+
+
+def _nvd_min_interval_s(headers: Optional[dict[str, str]] = None) -> float:
+    """Return bounded NVD request spacing for keyed or anonymous access."""
+    default = (
+        _NVD_KEYED_MIN_INTERVAL_DEFAULT_S
+        if _nvd_has_api_key(headers)
+        else _NVD_ANONYMOUS_MIN_INTERVAL_DEFAULT_S
+    )
+    raw = os.environ.get(_NVD_MIN_INTERVAL_ENV, str(default))
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        value = default
+    if not math.isfinite(value):
+        value = default
+    return max(_NVD_MIN_INTERVAL_MIN_S, min(_NVD_MIN_INTERVAL_MAX_S, value))
+
+
+def _nvd_retry_after_s(
+    response: Any, headers: Optional[dict[str, str]] = None,
+) -> float:
+    """Honor a numeric NVD Retry-After value, bounded to one day."""
+    response_headers = getattr(response, "headers", None) or {}
+    raw = response_headers.get("retry-after") or response_headers.get("Retry-After")
+    try:
+        delay = float(raw)
+    except (TypeError, ValueError, OverflowError):
+        delay = _NVD_COOLDOWN_DEFAULT_S
+    if not math.isfinite(delay):
+        delay = _NVD_COOLDOWN_DEFAULT_S
+    return max(
+        _nvd_min_interval_s(headers),
+        min(_NVD_COOLDOWN_MAX_S, delay),
+    )
+
+
+def _nvd_wait_locked(headers: Optional[dict[str, str]] = None) -> None:
+    """Reserve one provider-wide NVD slot or fail during an active cooldown."""
+    global _NVD_NEXT_REQUEST_AT
+    now = time.monotonic()
+    if now < _NVD_COOLDOWN_UNTIL:
+        raise RuntimeError("NVD rate limited; provider cooldown active")
+    delay = max(0.0, _NVD_NEXT_REQUEST_AT - now)
+    if delay:
+        time.sleep(delay)
+    _NVD_NEXT_REQUEST_AT = time.monotonic() + _nvd_min_interval_s(headers)
+
+
+def _nvd_defer_locked(delay_s: float) -> None:
+    global _NVD_COOLDOWN_UNTIL
+    _NVD_COOLDOWN_UNTIL = max(
+        _NVD_COOLDOWN_UNTIL,
+        time.monotonic() + max(0.0, delay_s),
+    )
+
+
+def _source_json_with_cooldown(
     client: httpx.Client,
     url: str,
     headers: Optional[dict[str, str]] = None,
 ) -> Any:
-    """Fetch JSON once, except for bounded CourtListener HTTP 429 recovery."""
+    """Fetch once; provider-wide CourtListener/NVD 429s hold later reads."""
     def request() -> Any:
         return client.get(url, headers=headers) if headers else client.get(url)
 
-    if not _is_courtlistener_source(url):
-        response = request()
-        response.raise_for_status()
-        return response.json()
-
-    with _COURTLISTENER_RATE_LOCK:
-        for attempt in range(_COURTLISTENER_MAX_ATTEMPTS):
+    if _is_courtlistener_source(url):
+        with _COURTLISTENER_RATE_LOCK:
             _courtlistener_wait_locked()
             response = request()
-            if (
-                getattr(response, "status_code", None) == 429
-                and attempt + 1 < _COURTLISTENER_MAX_ATTEMPTS
-            ):
-                _courtlistener_defer_locked(
-                    _courtlistener_retry_after_s(response, attempt)
-                )
-                continue
+            if getattr(response, "status_code", None) == 429:
+                _courtlistener_defer_locked(_courtlistener_retry_after_s(response))
+                raise RuntimeError("CourtListener rate limited; provider cooldown active")
             response.raise_for_status()
             return response.json()
 
-    raise RuntimeError("CourtListener request exhausted bounded retry contract")
+    if _is_nvd_source(url):
+        with _NVD_RATE_LOCK:
+            _nvd_wait_locked(headers)
+            response = request()
+            if getattr(response, "status_code", None) == 429:
+                _nvd_defer_locked(_nvd_retry_after_s(response, headers))
+                raise RuntimeError("NVD rate limited; provider cooldown active")
+            response.raise_for_status()
+            return response.json()
+
+    response = request()
+    response.raise_for_status()
+    return response.json()
 
 
 def _courtlistener_public_url(value: Any) -> str:
@@ -244,6 +420,14 @@ def _variant_cache_key(source: str, **parameters: Any) -> str:
     canonical = json.dumps(parameters, sort_keys=True, separators=(",", ":"),
                            ensure_ascii=True, default=str).encode("utf-8")
     return f"{source}|{hashlib.sha256(canonical).hexdigest()[:20]}"
+
+
+def _courtlistener_cache_key(term: str, limit: int, kind: str = "o") -> str:
+    """Return one shared cache identity for equivalent CourtListener reads."""
+    normalized_term = re.sub(r"\s+", " ", str(term).strip()).casefold()
+    return _variant_cache_key(
+        "courtlistener", term=normalized_term, limit=limit, kind=kind,
+    )
 
 
 def _bounded_limit(value: Any, default: int, maximum: int) -> int:
@@ -734,7 +918,8 @@ def _refresh_failure(rec: Optional[dict[str, Any]], exc: BaseException) -> dict[
 
 
 def _cached_fetch(key: str, url: str, ttl: float, parser=None, label="live", headers=None,
-                  timeout_s: Optional[float] = None) -> dict[str, Any]:
+                  timeout_s: Optional[float] = None,
+                  private_error: bool = False) -> dict[str, Any]:
     """Return {value, freshness}. Serve warm cache if within TTL; else refetch.
     On error keep last-good and mark 'stale' — never fabricate. Concurrent
     refreshes for one key are coalesced into exactly one upstream operation."""
@@ -771,14 +956,25 @@ def _cached_fetch(key: str, url: str, ttl: float, parser=None, label="live", hea
     result: Optional[dict[str, Any]] = None
     try:
         with _client(timeout_s) if timeout_s is not None else _client() as cl:
-            data = _source_json_with_bounded_retry(cl, url, headers=headers)
+            data = _source_json_with_cooldown(cl, url, headers=headers)
         val = parser(data) if parser else data
         _CACHE.put(key, val, ttl, status="live")
         result = {"value": val, "freshness": _CACHE.freshness(key)}
     except BaseException as exc:
         if rec:
             _CACHE.mark_stale_if_same(key, rec["fetched_at"])
-        result = _refresh_failure(rec, exc)
+        # An authenticated read must never publish a transport exception that
+        # might contain its Authorization header in a public freshness error.
+        if private_error:
+            code = (exc.response.status_code
+                    if isinstance(exc, httpx.HTTPStatusError) else None)
+            safe_exc = RuntimeError(
+                f"GitHub public reader HTTP {code}" if code is not None
+                else f"GitHub public reader {type(exc).__name__}"
+            )
+            result = _refresh_failure(rec, safe_exc)
+        else:
+            result = _refresh_failure(rec, exc)
         if not isinstance(exc, Exception):
             raise
     finally:
@@ -786,6 +982,19 @@ def _cached_fetch(key: str, url: str, ttl: float, parser=None, label="live", hea
             result = _refresh_failure(rec, RuntimeError("refresh aborted before publication"))
         _CACHE.finish_refresh(key, flight, result)
     return result
+
+
+def _github_public_fetch(key: str, url: str, ttl: float, parser) -> dict[str, Any]:
+    """Fetch a GitHub public source without an unauthorized retry or leaked key."""
+    try:
+        headers = _github_public_headers(url)
+    except ValueError as exc:
+        rec = _CACHE.get(key)
+        if rec:
+            _CACHE.mark_stale_if_same(key, rec["fetched_at"])
+        return _refresh_failure(rec, exc)
+    return _cached_fetch(key, url, ttl, parser=parser, headers=headers,
+                         private_error=bool(headers))
 
 
 # Bare vertical summaries report only child source state that this process has
@@ -797,7 +1006,7 @@ _VERTICAL_FEED_CACHE_KEYS: dict[str, tuple[str, ...]] = {
         "poly_SPY", "poly_AAPL", "poly_MSFT", "poly_NVDA",
         "cb_BTC-USD", "cb_ETH-USD", "cb_SOL-USD", "nvd_financial", "fx_USD",
     ),
-    "legal": ("fedreg", "courtlistener_artificial_intelligence"),
+    "legal": ("fedreg", "courtlistener"),
     "cyber": (
         "cisa_kev", "nvd", "gh_huggingface_transformers", "gh_openai_gpt-2",
         "gh_pytorch_pytorch", "ghev_huggingface_transformers", "hf_models",
@@ -1403,11 +1612,10 @@ def feed_fedregister(limit: int = 20, term: str | None = None) -> dict[str, Any]
 def feed_courtlistener(term: str = "artificial intelligence", limit: int = 20) -> dict[str, Any]:
     term = _bounded_text(term, "artificial intelligence", 160)
     limit = _bounded_limit(limit, 20, 100)
-    source = "courtlistener_" + re.sub(r"\W+", "_", term).strip("_")[:40]
     url = "https://www.courtlistener.com/api/rest/v4/search/?" + str(httpx.QueryParams({
         "q": term, "type": "o", "order_by": "dateFiled desc", "page_size": limit,
     }))
-    key = _variant_cache_key(source, term=term, limit=limit, kind="o")
+    key = _courtlistener_cache_key(term, limit, "o")
     def parse(d):
         res = d.get("results", [])[:limit]
         return {"count": d.get("count"), "items": [{
@@ -1415,7 +1623,7 @@ def feed_courtlistener(term: str = "artificial intelligence", limit: int = 20) -
             "url": _courtlistener_public_url(r.get("absolute_url")),
             "citeCount": r.get("citeCount", 0), "status": r.get("status"),
         } for r in res]}
-    return _cached_fetch(key, url, ttl=900, parser=parse)
+    return _cached_fetch(key, url, ttl=_COURTLISTENER_CACHE_TTL_S, parser=parse)
 
 
 def feed_yahoo(symbol: str) -> dict[str, Any]:
@@ -1645,8 +1853,8 @@ def feed_gh_events(repo: str = "huggingface/transformers", limit: int = 12) -> d
             "ref": (e.get("payload") or {}).get("ref") or (e.get("payload") or {}).get("action"),
         } for e in (d if isinstance(d, list) else [])[:limit]]}
     source = "ghev_" + re.sub(r"\W+", "_", repo).strip("_")[:48]
-    return _cached_fetch(_variant_cache_key(source, repo=repo, limit=limit),
-                         url, ttl=180, parser=parse)
+    return _github_public_fetch(_variant_cache_key(source, repo=repo, limit=limit),
+                                url, ttl=180, parser=parse)
 
 
 def feed_treasury(limit: int = 6) -> dict[str, Any]:
@@ -1669,8 +1877,8 @@ def feed_github(repo: str) -> dict[str, Any]:
                 "issues": d.get("open_issues_count"), "pushed_at": d.get("pushed_at"),
                 "lang": d.get("language")}
     source = "gh_" + re.sub(r"\W+", "_", repo).strip("_")[:48]
-    return _cached_fetch(_variant_cache_key(source, repo=repo),
-                         url, ttl=300, parser=parse)
+    return _github_public_fetch(_variant_cache_key(source, repo=repo),
+                                url, ttl=300, parser=parse)
 
 
 def feed_hf(limit: int = 8) -> dict[str, Any]:
@@ -1960,6 +2168,25 @@ def _readiness_public_clocked_source(entry: Any) -> Any:
     return _readiness_public_source(entry)
 
 
+def _defense_required_source_usable(entry: Any, now_s: float) -> bool:
+    """Admit HTTP 200 only for the two observed, fresh defense sources."""
+    if not isinstance(entry, dict):
+        return False
+    value = entry.get("value")
+    freshness = entry.get("freshness")
+    if (not isinstance(value, dict) or not isinstance(value.get("items"), list)
+            or not isinstance(freshness, dict)
+            or freshness.get("status") not in _READINESS_PUBLIC_FRESHNESS):
+        return False
+    observed_at = freshness.get("fetched_at")
+    if (isinstance(observed_at, bool) or not isinstance(observed_at, (int, float))
+            or not math.isfinite(observed_at) or observed_at <= 0):
+        return False
+    age_s = now_s - observed_at
+    # Match the protected defense feed's one-hour SLA and five-minute skew.
+    return -300 <= age_s <= 3600
+
+
 # Post-deploy readiness warming. The hf-sync gate probes the canonical space
 # seconds after a cold restart; a single bounded upstream attempt inside one
 # request cannot absorb cold-egress transients, so an env-enabled daemon keeps
@@ -2073,10 +2300,15 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
             (feed_cisa_kev, (limit,), {}),
             (feed_nvd, (min(limit, 20),), {}),
         ])
+        kev = _readiness_public_clocked_source(kev)
+        nvd = _readiness_public_clocked_source(nvd)
+        observed_at = time.time()
+        status_code = (200 if all(_defense_required_source_usable(source, observed_at)
+                                  for source in (kev, nvd)) else 503)
         return JSONResponse({"vertical": "defense",
-                             "kev": _readiness_public_clocked_source(kev),
-                             "nvd": _readiness_public_clocked_source(nvd),
-                             "sources_cited": cited_leaders("defense"), "doctrine": DOCTRINE})
+                             "kev": kev, "nvd": nvd,
+                             "sources_cited": cited_leaders("defense"), "doctrine": DOCTRINE},
+                            status_code=status_code)
 
     @app.get(base + "/defense/kpi", include_in_schema=False)
     async def _def_kpi():

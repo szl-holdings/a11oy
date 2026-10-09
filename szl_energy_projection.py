@@ -4,9 +4,9 @@
 # Doctrine v11 LOCKED · Λ = Conjecture 1 · sovereign=false on this path
 """szl_energy_projection.py — SZL Energy: honest 1-day + scale projection engine.
 
-Dev 3 (backend). Takes the REAL MEASURED rate observed over the operator's running
-window (joules/hr, tokens/hr, jobs/hr — read from Dev1's operator status + Dev2's
-ledger totals) and extrapolates a 1-DAY figure plus the CSV's node-scaling lines.
+Dev 3 (backend). Projects only from an explicitly verified, current, aligned
+operator energy window. Ledger lifetime totals and historical samples are not
+substitutes for a live rate.
 
 DOCTRINE v11 (this module is the one most at risk of dishonest numbers — be ruthless):
   - The MEASURED inputs are the live joules/tokens/jobs and the window seconds. Those
@@ -25,9 +25,9 @@ DOCTRINE v11 (this module is the one most at risk of dishonest numbers — be ru
   - The scale lines (3 / 10 / 100 / 1000 nodes) are DERIVED from the live single-node
     measured rate (× nodes × time), all MODELED. They re-derive the founder's
     energy_revenue_model.csv lines from live data instead of restating the CSV.
-  - NO fabricated joules / FLOPs / tokens / dollars. If the operator+ledger are not
-    reachable, we fall back to the documented live single-node ground-truth sample
-    (78,369.586 J off exporter `betterwithage`) and SAY SO via measured_source.
+  - NO fabricated joules / FLOPs / tokens / dollars. If the qualified operator
+    window is unavailable, projections and current measured fields are null.
+    A documented historical sample is exposed separately as SAMPLE context.
 
 Endpoint (existing pattern, dual-register — handler functions + FastAPI register()):
   GET /api/a11oy/v1/energy/projection?window=running
@@ -45,8 +45,8 @@ from __future__ import annotations
 
 import datetime
 import importlib
-import math
 import os
+import time
 from typing import Any, Mapping, Optional
 
 # ---------------------------------------------------------------------------
@@ -57,6 +57,10 @@ MEASURED = "MEASURED"           # a real, currently-observable reading
 MODELED = "MODELED"             # extrapolated/projected from a measured rate
 ESTIMATE = "ESTIMATE"           # depends on an assumed (non-measured) input, e.g. resale price
 STRUCTURAL_ONLY = "STRUCTURAL-ONLY"
+UNAVAILABLE = "UNAVAILABLE"
+SAMPLE = "SAMPLE"
+REPORTED = "REPORTED"
+UNKNOWN = "UNKNOWN"
 
 # Physical / model constants.
 JOULES_PER_KWH = 3_600_000.0
@@ -89,17 +93,15 @@ DEFAULT_MODEL_NAME = os.environ.get("MODEL_NAME", "qwen2.5-coder:7b")
 # from the live measured single-node rate rather than restate the CSV numbers.
 SCALE_NODES = (1, 3, 10, 100, 1000)
 
-# Documented live single-node ground truth (BUILD_SPEC §GROUND TRUTH, 2026-06-14
-# 13:26 EDT): 78,369.586 J MEASURED off exporter `betterwithage`, ~9.74 W,
-# grid 62.08 EUR/MWh. Used ONLY as a labeled fallback when the operator+ledger are
-# not reachable in-process. Never presented as a live reading when it is a fallback.
+# Documented historical single-node sample (BUILD_SPEC §GROUND TRUTH, 2026-06-14
+# 13:26 EDT). Its owner record is not a fresh reading or a current rate and is
+# not independently replayed here. Expose it only as SAMPLE reference context.
 _GROUND_TRUTH_JOULES = 78_369.586
 _GROUND_TRUTH_POWER_W = 9.74
 _GROUND_TRUTH_GRID_EUR_MWH = 62.08
 _GROUND_TRUTH_NODE = "betterwithage"
-# A window long enough to make the rate sane for a demo extrapolation; the joules
-# above were the cumulative exporter total at the cited sample. We treat the rate
-# as joules / window. If no live window is available we use this documented window.
+# Historical display reference only. This arbitrary duration is NEVER a
+# denominator for a current rate or 1-day/scale projection.
 _GROUND_TRUTH_WINDOW_S = float(os.environ.get("GROUND_TRUTH_WINDOW_S", "3600.0"))
 # Tokens/jobs are NOT in the ground-truth joules sample; without Dev2's ledger we
 # cannot know them, so the fallback reports them as None (honest unknown) and the
@@ -174,85 +176,90 @@ def _try_ledger_totals() -> Optional[Mapping[str, Any]]:
 
 def _extract_window(op: Optional[Mapping[str, Any]],
                     led: Optional[Mapping[str, Any]]) -> dict:
-    """Assemble the MEASURED window from operator status + ledger totals.
+    """Accept only an attributed, verified operator window for projection.
 
-    Returns a dict of MEASURED inputs (or the documented fallback) plus the
-    ``measured_source`` so the projection is honest about provenance. All numbers
-    here are MEASURED (live exporter / ledger) or the documented ground-truth
-    sample — never fabricated.
+    `led` remains an API-compatibility parameter but lifetime ledger totals are
+    deliberately not mixed with the operator's running-window denominator.
+    Current operator status lacks the required attribution/window proof fields,
+    so it returns the unavailable branch rather than asserting a live rate.
     """
-    # --- joules + window + power + TOKENS + jobs straight from the operator status ---
-    # The operator IS the source of truth for the live running window: it exposes
-    # joules_measured_total, window_seconds, tokens_total and jobs_done/jobs_completed
-    # for its own run. We read tokens from the operator FIRST (the ledger is a fallback
-    # for tokens) so the live running window reflects the operator, not the sample.
-    joules = window_s = power_w = node = grid = None
-    jobs = tokens = None
-    op_running = False
-
-    if op is not None:
-        op_running = bool(op.get("running"))
+    if isinstance(op, Mapping):
         joules = _coerce_float(op.get("joules_measured_total"))
         window_s = _coerce_float(op.get("window_seconds"))
-        power_w = _coerce_float(op.get("power_w_sample"))
-        node = op.get("exporter_node") or op.get("node")
-        jobs = _coerce_float(op.get("jobs_completed"))
-        if jobs is None:
-            jobs = _coerce_float(op.get("jobs_done"))
-        tokens = _coerce_float(op.get("tokens_total"))
-        grid = _coerce_float(op.get("grid_price_eur_mwh"))
-
-    # --- ledger totals: corroborate tokens/jobs/joules when the operator omits them ---
-    if led is not None:
-        totals = led.get("totals") if isinstance(led.get("totals"), Mapping) else led
-        if isinstance(totals, Mapping):
-            if tokens is None:
-                tokens = _coerce_float(totals.get("tokens_total"))
+        version = op.get("attribution_version")
+        method = op.get("attribution_method")
+        window_id = op.get("measurement_window_id")
+        window_start = _coerce_float(op.get("measurement_window_start_ts"))
+        window_end = _coerce_float(op.get("measurement_window_end_ts"))
+        now = time.time()
+        qualified = (
+            op.get("running") is True
+            and op.get("joules_measured_label") == MEASURED
+            and op.get("attribution_verified") is True
+            and isinstance(method, str) and bool(method.strip())
+            and isinstance(version, int) and not isinstance(version, bool)
+            and version >= 1
+            and op.get("measurement_window_verified") is True
+            and isinstance(window_id, str) and bool(window_id.strip())
+            and joules is not None and joules > 0
+            and window_s is not None and window_s > 0
+            and window_start is not None and window_end is not None
+            and window_start < window_end
+            and abs((window_end - window_start) - window_s) <= 1.0
+            and 0 <= now - window_end <= 12.0
+        )
+        if qualified:
+            tokens = _coerce_float(op.get("tokens_total"))
+            jobs = _coerce_float(op.get("jobs_completed"))
             if jobs is None:
-                jobs = _coerce_float(totals.get("jobs_total"))
-            if joules is None:
-                joules = _coerce_float(totals.get("joules_total"))
-        if grid is None:
-            grid = _coerce_float(led.get("grid_price_eur_mwh"))
+                jobs = _coerce_float(op.get("jobs_done"))
+            grid = _coerce_float(op.get("grid_price_eur_mwh"))
+            grid_label = (MEASURED if grid is not None
+                          and op.get("grid_price_label") == MEASURED else SAMPLE)
+            return {
+                "measured_source": "live:operator:verified-window",
+                "operator_running": True,
+                "qualified_window": True,
+                "joules_measured": joules,
+                "window_seconds": window_s,
+                "tokens_measured": tokens if tokens is not None and tokens >= 0 else None,
+                "jobs_measured": jobs if jobs is not None and jobs >= 0 else None,
+                "tokens_label": (MEASURED if op.get("tokens_measured_label") == MEASURED
+                                 else REPORTED),
+                "jobs_label": (MEASURED if op.get("jobs_measured_label") == MEASURED
+                               else REPORTED),
+                "power_w_sample": _coerce_float(op.get("power_w_sample")),
+                "grid_price_eur_mwh": grid if grid is not None else _GROUND_TRUTH_GRID_EUR_MWH,
+                "grid_price_label": grid_label,
+                "node": op.get("exporter_node") or op.get("node"),
+                "attribution_method": method,
+                "attribution_version": version,
+                "measurement_window_id": window_id,
+                "measurement_window_start_ts": window_start,
+                "measurement_window_end_ts": window_end,
+            }
 
-    # LIVE when the operator reports running with a real positive joules window. We key
-    # off running first so a running operator that has just started (joules climbing) is
-    # still treated as live and reflects its OWN tokens/jobs — never the ground-truth
-    # sample. Fall back to the documented sample ONLY when the operator is idle/absent.
-    live = (
-        joules is not None and joules > 0
-        and window_s is not None and window_s > 0
-        and (op_running or op is None)
-    )
-    if live:
-        return {
-            "measured_source": ("live:operator (running)" if op_running
-                                else "live:operator+ledger"),
-            "operator_running": op_running,
-            "joules_measured": joules,
-            "window_seconds": window_s,
-            "tokens_measured": tokens,            # from the operator (ledger fallback)
-            "jobs_measured": jobs,
-            "power_w_sample": power_w,
-            "grid_price_eur_mwh": grid if grid is not None else _GROUND_TRUTH_GRID_EUR_MWH,
-            "node": node or _GROUND_TRUTH_NODE,
-            "all_measured": True,
-        }
-
-    # --- documented ground-truth fallback (labeled, never silent) ---
-    # Reached ONLY when the operator is idle/absent (no live running window). The joules
-    # sample itself is MEASURED; tokens are unknown and reported None, never fabricated.
     return {
-        "measured_source": "fallback:ground-truth-sample (BUILD_SPEC 2026-06-14 13:26 EDT)",
-        "operator_running": False,
-        "joules_measured": _GROUND_TRUTH_JOULES,
-        "window_seconds": _GROUND_TRUTH_WINDOW_S,
-        "tokens_measured": None,   # unknown without Dev2 ledger — NOT fabricated
+        "measured_source": "unavailable:no-verified-current-window",
+        "operator_running": bool(op.get("running")) if isinstance(op, Mapping) else False,
+        "qualified_window": False,
+        "joules_measured": None,
+        "window_seconds": None,
+        "tokens_measured": None,
         "jobs_measured": None,
-        "power_w_sample": _GROUND_TRUTH_POWER_W,
-        "grid_price_eur_mwh": _GROUND_TRUTH_GRID_EUR_MWH,
-        "node": _GROUND_TRUTH_NODE,
-        "all_measured": True,   # the joules sample itself is MEASURED; tokens unknown
+        "power_w_sample": None,
+        "grid_price_eur_mwh": None,
+        "grid_price_label": UNAVAILABLE,
+        "node": None,
+        "historical_reference": {
+            "label": SAMPLE,
+            "source": "BUILD_SPEC 2026-06-14 13:26 EDT; not independently replayed",
+            "joules": _GROUND_TRUTH_JOULES,
+            "power_w": _GROUND_TRUTH_POWER_W,
+            "grid_price_eur_mwh": _GROUND_TRUTH_GRID_EUR_MWH,
+            "node": _GROUND_TRUTH_NODE,
+            "rate_denominator_s": None,
+        },
     }
 
 
@@ -306,6 +313,54 @@ def _labeled(value, label, formula=None, **extra):
     return d
 
 
+def _unavailable_projection(window: str, m: Mapping[str, Any]) -> dict:
+    """Retain response shape while withholding every unsupported current rate."""
+    missing = _labeled(None, UNAVAILABLE)
+    return {
+        "ok": False,
+        "status": UNAVAILABLE,
+        "endpoint": "energy/projection",
+        "window": window,
+        "reason": "NO_VERIFIED_CURRENT_ATTRIBUTED_WINDOW",
+        "measured_inputs": {
+            "label": UNAVAILABLE,
+            "measured_source": m.get("measured_source"),
+            "joules_measured": dict(missing),
+            "window_seconds": dict(missing),
+            "tokens_measured": dict(missing),
+            "jobs_measured": dict(missing),
+            "grid_price_eur_mwh": dict(missing),
+            "measured_rates_per_hour": {
+                "joules_per_hr": dict(missing),
+                "tokens_per_hr": dict(missing),
+                "jobs_per_hr": dict(missing),
+            },
+            "historical_reference": m.get("historical_reference"),
+        },
+        "projection_1day_single_node": {
+            "label": UNAVAILABLE,
+            "basis": "requires a verified current attributed window",
+            "compute_done": {"joules": dict(missing), "tokens": dict(missing),
+                             "jobs": dict(missing), "flops": dict(missing)},
+            "earnings": {"grid_arbitrage_credit_usd": dict(missing),
+                         "compute_resale_usd": dict(missing),
+                         "total_usd": dict(missing)},
+        },
+        "flop_estimate": {"label": MODELED, "formula": FLOP_FORMULA,
+                          "citation": FLOP_FORMULA_CITATION, "value": None},
+        "scale_projection": {"label": UNAVAILABLE, "lines": []},
+        "honesty": {
+            "sovereign": False,
+            "lambda": "Conjecture 1",
+            "free_energy": False,
+            "projected_revenue_label": UNAVAILABLE,
+            "resale_input_label": ESTIMATE,
+            "note": "Historical SAMPLE is not a current rate; no energy, carbon, or revenue projection issued.",
+        },
+        "timestamp_utc": _now_iso(),
+    }
+
+
 def build_projection(window: str = "running",
                      model_params: float = DEFAULT_MODEL_PARAMS,
                      model_name: str = DEFAULT_MODEL_NAME,
@@ -313,20 +368,40 @@ def build_projection(window: str = "running",
                      _measured: Optional[Mapping[str, Any]] = None) -> dict:
     """Build the honest 1-day + scale projection from the live MEASURED rate.
 
-    ``_measured`` lets tests inject an exact measured window; otherwise we read it
-    live from the operator+ledger handlers (or the documented fallback).
+    ``_measured`` lets local tests inject a synthetic qualified window; otherwise
+    read the operator only. Historical and unqualified windows produce nulls.
     """
     m = dict(_measured) if _measured is not None else _extract_window(
-        _try_operator_status(), _try_ledger_totals()
+        _try_operator_status(), None
     )
 
-    joules = float(m["joules_measured"])
-    window_s = float(m["window_seconds"])
+    qualified = (m.get("qualified_window") is True or
+                 (_measured is not None and m.get("all_measured") is True))
+    joules_input = _coerce_float(m.get("joules_measured"))
+    window_input = _coerce_float(m.get("window_seconds"))
+    if (not qualified or joules_input is None or joules_input <= 0 or
+            window_input is None or window_input <= 0):
+        return _unavailable_projection(window, m)
+
+    joules = joules_input
+    window_s = window_input
     tokens = _coerce_float(m.get("tokens_measured"))
     jobs = _coerce_float(m.get("jobs_measured"))
     grid = _coerce_float(m.get("grid_price_eur_mwh"))
     if grid is None:
         grid = _GROUND_TRUTH_GRID_EUR_MWH
+    grid_label = m.get("grid_price_label")
+    if grid_label not in (MEASURED, REPORTED, SAMPLE):
+        grid_label = MEASURED if _measured is not None and m.get("all_measured") is True else SAMPLE
+    tokens_label = (m.get("tokens_label") if m.get("tokens_label") in
+                    (MEASURED, REPORTED) else
+                    (MEASURED if _measured is not None and m.get("all_measured") is True else REPORTED))
+    jobs_label = (m.get("jobs_label") if m.get("jobs_label") in
+                  (MEASURED, REPORTED) else
+                  (MEASURED if _measured is not None and m.get("all_measured") is True else REPORTED))
+    all_inputs_measured = (grid_label == MEASURED
+                           and (tokens is None or tokens_label == MEASURED)
+                           and (jobs is None or jobs_label == MEASURED))
 
     # --- MEASURED rates (per hour) — these are observations, not projections ---
     joules_per_hr = _rate_per_hour(joules, window_s)
@@ -348,10 +423,10 @@ def build_projection(window: str = "running",
 
     earnings_day = {
         "grid_arbitrage_credit_usd": _labeled(
-            round(arb_day_usd, 9), MODELED,
+            round(arb_day_usd, 9), MODELED if grid_label == MEASURED else ESTIMATE,
             formula="(-1) × (joules/day ÷ 3.6e6 kWh) × (grid_EUR_per_MWh ÷ 1000) × EUR→USD",
-            derived_from="measured joules-rate × live grid price (tiny by design)",
-            note="projection of a measured rate — MODELED, not an observation",
+            derived_from="qualified current joules-rate × source-labeled grid price",
+            note="forward estimate; a SAMPLE grid input is not a live price",
         ),
         "compute_resale_usd": _labeled(
             round(resale_day_usd, 6), ESTIMATE,
@@ -360,9 +435,9 @@ def build_projection(window: str = "running",
             note="the headline line. ESTIMATE input → ESTIMATE dollar (an assumption, not an observation).",
         ),
         "total_usd": _labeled(
-            round(total_day_usd, 6), MODELED,
+            round(total_day_usd, 6), ESTIMATE,
             formula="grid_arbitrage_credit_usd + compute_resale_usd",
-            note="MODELED projection; dominated by the ESTIMATE resale line",
+            note="ESTIMATE projection; contains an assumed resale price",
         ),
     }
 
@@ -370,8 +445,8 @@ def build_projection(window: str = "running",
         "tokens": _labeled(
             round(tokens_day, 3) if tokens_day is not None else None,
             MODELED if tokens_day is not None else STRUCTURAL_ONLY,
-            formula="tokens/hr (measured rate) × 24 h",
-            note=("measured-rate-extrapolated → MODELED" if tokens_day is not None
+            formula="tokens/hr (source-labeled rate) × 24 h",
+            note=("source-labeled count-rate extrapolated → MODELED" if tokens_day is not None
                   else "tokens unknown without Dev2 ledger — not fabricated"),
         ),
         "flops": _labeled(
@@ -420,9 +495,9 @@ def build_projection(window: str = "running",
                 formula=f"kwh_yr × {resale_cents_per_kwh}¢/kWh",
                 estimate_input=f"{resale_cents_per_kwh}¢/kWh resale (ASSUMED)"),
             "grid_arbitrage_usd_yr": _labeled(
-                round(arb_yr, 9), MODELED,
-                formula="(-1) × kwh_yr × grid_price (live measured grid)"),
-            "total_usd_yr": _labeled(round(resale_yr + arb_yr, 6), MODELED,
+                round(arb_yr, 9), MODELED if grid_label == MEASURED else ESTIMATE,
+                formula="(-1) × kwh_yr × grid_price"),
+            "total_usd_yr": _labeled(round(resale_yr + arb_yr, 6), ESTIMATE,
                                      formula="compute_resale_usd_yr + grid_arbitrage_usd_yr"),
         })
 
@@ -437,14 +512,21 @@ def build_projection(window: str = "running",
             "Grid arbitrage is the tiny pennies line. Λ = Conjecture 1; sovereign=false."
         ),
         "measured_inputs": {
-            "label": MEASURED,
+            "label": MEASURED if all_inputs_measured else UNKNOWN,
             "measured_source": m.get("measured_source"),
-            "joules_measured": _labeled(joules, MEASURED, note="real exporter reading"),
+            "joules_measured": _labeled(joules, MEASURED, note="verified current attributed window"),
             "window_seconds": _labeled(window_s, MEASURED),
-            "tokens_measured": _labeled(tokens, MEASURED if tokens is not None else STRUCTURAL_ONLY),
-            "jobs_measured": _labeled(jobs, MEASURED if jobs is not None else STRUCTURAL_ONLY),
-            "grid_price_eur_mwh": _labeled(grid, MEASURED, note="live grid price at sample"),
+            "tokens_measured": _labeled(tokens, tokens_label if tokens is not None else UNAVAILABLE),
+            "jobs_measured": _labeled(jobs, jobs_label if jobs is not None else UNAVAILABLE),
+            "grid_price_eur_mwh": _labeled(grid, grid_label,
+                                            note="historical default" if grid_label == SAMPLE
+                                            else "source-labeled live price"),
             "node": m.get("node"),
+            "attribution_method": m.get("attribution_method"),
+            "attribution_version": m.get("attribution_version"),
+            "measurement_window_id": m.get("measurement_window_id"),
+            "measurement_window_start_ts": m.get("measurement_window_start_ts"),
+            "measurement_window_end_ts": m.get("measurement_window_end_ts"),
             "measured_rates_per_hour": {
                 "joules_per_hr": _labeled(round(joules_per_hr, 6) if joules_per_hr is not None else None, MEASURED),
                 "tokens_per_hr": _labeled(round(tokens_per_hr, 6) if tokens_per_hr is not None else None,
@@ -478,7 +560,7 @@ def build_projection(window: str = "running",
             "sovereign": False,
             "lambda": "Conjecture 1",
             "free_energy": False,
-            "projected_revenue_label": MODELED,
+            "projected_revenue_label": ESTIMATE,
             "resale_input_label": ESTIMATE,
             "note": ("A projection is MODELED with its formula shown. A projected "
                      "dollar is NEVER MEASURED. Revenue is MEASURED only when a real "
@@ -564,7 +646,7 @@ if __name__ == "__main__":
     earn = proj["projection_1day_single_node"]["earnings"]
     assert earn["compute_resale_usd"]["label"] == ESTIMATE
     assert earn["grid_arbitrage_credit_usd"]["label"] == MODELED
-    assert earn["total_usd"]["label"] == MODELED
+    assert earn["total_usd"]["label"] == ESTIMATE
     print(f"[3] resale={earn['compute_resale_usd']['label']} "
           f"arb={earn['grid_arbitrage_credit_usd']['label']} "
           f"total={earn['total_usd']['label']}  OK")

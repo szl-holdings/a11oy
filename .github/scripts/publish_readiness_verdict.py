@@ -30,6 +30,7 @@ COUNT_FIELDS = (
     "throttled",
     "degraded",
 )
+BLOCKING_DEGRADED_FIELD = "blockingDegraded"
 
 
 class VerdictError(RuntimeError):
@@ -101,13 +102,21 @@ def compact_verdict(
     endpoints, _, skipped, *_ = counts
     if endpoints <= 0 or endpoints - skipped <= 0 or sum(counts[1:]) != endpoints:
         raise VerdictError("probe summary outcomes are inconsistent")
+    blocking_degraded = summary.get(BLOCKING_DEGRADED_FIELD, summary["degraded"])
+    if (
+        not isinstance(blocking_degraded, int)
+        or isinstance(blocking_degraded, bool)
+        or blocking_degraded < 0
+        or blocking_degraded > summary["degraded"]
+    ):
+        raise VerdictError("probe summary blocking degradation is invalid")
     if summary["lies"] != 0:
         raise VerdictError("probe summary contains doctrine lies")
     if summary["unreachable"] != 0:
         raise VerdictError("probe summary contains unreachable required endpoints")
     if summary["throttled"] != 0:
         raise VerdictError("probe summary contains throttled required endpoints")
-    if summary["degraded"] != 0:
+    if blocking_degraded != 0:
         raise VerdictError("probe summary contains unavailable required sources")
     p95_worst = summary.get("p95_worst")
     if (
@@ -127,6 +136,7 @@ def compact_verdict(
         "sourceRevision": source_sha,
         "summary": {
             **dict(zip(COUNT_FIELDS, counts, strict=True)),
+            BLOCKING_DEGRADED_FIELD: blocking_degraded,
             "p95_worst": p95_worst,
         },
     }

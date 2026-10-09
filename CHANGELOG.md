@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - exact-source Finance projection witness
+
+- Build the seven Finance runtime files and their separate projection manifest
+  from the canonical source before provider mutation. Require exact bytes at one
+  immutable Hub revision, including configuration, before existing publication
+  qualification can pass; retain the existing functional and runtime gates.
+- Reject redirects, late results and malformed evidence. Keep authorization
+  denials terminal, preserve the legacy artifact manifest without treating it as
+  current attestation, and add isolated negative contracts to native Finance CI.
+  This source contract does not establish signatures, deployment or live readiness.
+
 ### Fixed - PAC-Bayes certification inputs validated before any receipt
 
 - Validate every `/materials/certify` input before a Khipu receipt can be

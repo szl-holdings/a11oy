@@ -295,7 +295,8 @@ def test_configure_refuses_unknown_authority_before_any_mutation(monkeypatch, ch
     monkeypatch.setitem(sys.modules, "huggingface_hub",
                         SimpleNamespace(HfApi=lambda **_kwargs: api))
     kwargs = {"repo_id": config.CANONICAL_SPACE, "hf_token": "synthetic-hf-control",
-              "check_only": check_only}
+              "check_only": check_only, "expected_source_sha": "a" * 40,
+              "main_reader": lambda: "a" * 40}
     if check_only:
         assert_setup_required(config.configure(**kwargs), api, "AUTHORITY_ORIGIN_UNAVAILABLE")
     else:
