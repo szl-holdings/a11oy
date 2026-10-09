@@ -591,6 +591,129 @@ def test_courtlistener_interval_is_bounded(monkeypatch) -> None:
         assert vertical._courtlistener_min_interval_s() == 1.0
 
 
+def test_nvd_interval_is_bounded_by_access_mode(monkeypatch) -> None:
+    monkeypatch.delenv("A11OY_NVD_MIN_INTERVAL_S", raising=False)
+    assert vertical._nvd_min_interval_s() == 6.0
+    assert vertical._nvd_min_interval_s({"apiKey": "configured"}) == 2.0
+    monkeypatch.setenv("A11OY_NVD_MIN_INTERVAL_S", "0")
+    assert vertical._nvd_min_interval_s() == 0.6
+    monkeypatch.setenv("A11OY_NVD_MIN_INTERVAL_S", "999")
+    assert vertical._nvd_min_interval_s() == 30.0
+    for invalid in ("invalid", "nan", "inf"):
+        monkeypatch.setenv("A11OY_NVD_MIN_INTERVAL_S", invalid)
+        assert vertical._nvd_min_interval_s() == 6.0
+        assert vertical._nvd_min_interval_s({"apiKey": "configured"}) == 2.0
+
+
+def test_nvd_variants_share_one_provider_scheduler(monkeypatch) -> None:
+    monkeypatch.delenv("A11OY_NVD_MIN_INTERVAL_S", raising=False)
+    monkeypatch.setattr(vertical, "_NVD_NEXT_REQUEST_AT", 0.0)
+    monkeypatch.setattr(vertical, "_NVD_COOLDOWN_UNTIL", 0.0)
+    clock = {"now": 100.0}
+    sleeps: list[float] = []
+    monkeypatch.setattr(vertical.time, "monotonic", lambda: clock["now"])
+
+    def sleep(delay: float) -> None:
+        sleeps.append(delay)
+        clock["now"] += delay
+
+    monkeypatch.setattr(vertical.time, "sleep", sleep)
+
+    class _Response:
+        status_code = 200
+        headers: dict[str, str] = {}
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, Any]:
+            return {"vulnerabilities": []}
+
+    class _Client:
+        calls = 0
+
+        def get(self, _url: str, **_kwargs: Any) -> _Response:
+            self.calls += 1
+            return _Response()
+
+    client = _Client()
+    base = "https://services.nvd.nist.gov/rest/json/cves/2.0"
+    vertical._source_json_with_cooldown(client, f"{base}?resultsPerPage=12")
+    vertical._source_json_with_cooldown(
+        client, f"{base}?resultsPerPage=12&keywordSearch=financial"
+    )
+
+    assert client.calls == 2
+    assert sleeps == [6.0]
+    assert vertical._NVD_NEXT_REQUEST_AT == 112.0
+
+
+def test_nvd_429_honors_cooldown_without_repeat_transport(monkeypatch) -> None:
+    monkeypatch.setattr(vertical, "_CACHE", vertical._Cache())
+    monkeypatch.setattr(vertical, "_NVD_NEXT_REQUEST_AT", 0.0)
+    monkeypatch.setattr(vertical, "_NVD_COOLDOWN_UNTIL", 0.0)
+
+    class _Response:
+        def __init__(self, status: int, payload: dict[str, Any], headers=None) -> None:
+            self.status_code = status
+            self._payload = payload
+            self.headers = headers or {}
+
+        def raise_for_status(self) -> None:
+            if self.status_code >= 400:
+                request = httpx.Request(
+                    "GET", "https://services.nvd.nist.gov/rest/json/cves/2.0"
+                )
+                response = httpx.Response(self.status_code, request=request)
+                raise httpx.HTTPStatusError(
+                    "controlled NVD response", request=request, response=response
+                )
+
+        def json(self) -> dict[str, Any]:
+            return self._payload
+
+    class _Client:
+        calls = 0
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args: Any) -> None:
+            return None
+
+        def get(self, _url: str, **_kwargs: Any) -> _Response:
+            self.calls += 1
+            if self.calls == 1:
+                return _Response(429, {}, {"Retry-After": "30"})
+            return _Response(200, {"vulnerabilities": [], "totalResults": 0})
+
+    client = _Client()
+    monkeypatch.setattr(vertical, "_client", lambda *_args, **_kwargs: client)
+    base = "https://services.nvd.nist.gov/rest/json/cves/2.0"
+    first = vertical._cached_fetch(
+        "nvd-test-1", f"{base}?resultsPerPage=12", 3600.0
+    )
+    second = vertical._cached_fetch(
+        "nvd-test-2", f"{base}?resultsPerPage=12&keywordSearch=financial", 3600.0
+    )
+
+    assert client.calls == 1
+    assert first["value"] is None and second["value"] is None
+    assert first["freshness"]["status"] == "unavailable"
+    assert second["freshness"]["status"] == "unavailable"
+    assert "cooldown active" in second["freshness"]["error"]
+    assert vertical._NVD_COOLDOWN_UNTIL - time.monotonic() > 20
+
+    monkeypatch.setattr(vertical, "_NVD_COOLDOWN_UNTIL", 0.0)
+    monkeypatch.setattr(vertical, "_NVD_NEXT_REQUEST_AT", 0.0)
+    recovered = vertical._cached_fetch(
+        "nvd-test-2", f"{base}?resultsPerPage=12&keywordSearch=financial", 3600.0
+    )
+    assert client.calls == 2
+    assert recovered["value"]["totalResults"] == 0
+    assert recovered["freshness"]["status"] == "live"
+
+
 def test_courtlistener_429_honors_cooldown_without_repeat_transport(monkeypatch) -> None:
     monkeypatch.setattr(vertical, "_CACHE", vertical._Cache())
     monkeypatch.setattr(vertical, "_COURTLISTENER_NEXT_REQUEST_AT", 0.0)
