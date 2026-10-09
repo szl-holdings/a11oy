@@ -1,10 +1,12 @@
 {
   "files": {
-    "a11oy_org_rag.py": "3137efc95f529d74a9f25a037af5e45211d70bdce83c5147e896b2f53328beec",
-    "szl_hf_bucket.py": "61d68be3de5ac474e03b902df1ef27462d462a2037abf8d16b08d701498d5acc",
-    "szl_operator_auth.py": "86ed8b445c05f26c66c8d41dba09fe889970aad0e091090efe795299b9336539",
-    "test_szl_hf_bucket.py": "324a0be61b52dc68a0abd708f4c2ed0c5d9fe779a182411fee30df86aa5f6d06"
+    ".github/shared-source-payloads/agent-loop-execution-guards-20261008-v1.json": "bb60cb1ee4ec606edb79f381ca2235349fbc298f14713bd6a0104958b6eaa8ac",
+    "a11oy_agent_loop.py": "73b7b4663eeecf45abde7ee1d26a57d476f450a56712e6a4b0b38ed41925e743",
+    "a11oy_org_rag.py": "d3b6975c40397aa5135652e5d9a45b31e8de931ef1bbff59047d0c5b127f7aa4",
+    "docs/authorized-rag-synthesis.md": "b2b12e05ccece27b27119ac282da904eee54c5fe95fe18f9e9c34ac7069431dc",
+    "tests/test_agent_loop_execution_guards.py": "79354da68a89a4e16344216e1761ed7597c91ac9590fe2d9f0cb52e5cdf45370",
+    "tests/test_authorized_rag_synthesis.py": "1d299c8d44f2cfcc33a21fa1d2517c58778bbf825eaefcb75485c481ce2e5216"
   },
-  "payload_id": "estate-rag-operator-auth-20261004-v2",
+  "payload_id": "authorized-rag-answer-handoff-20261008-v1",
   "schema": "szl-shared-source-payload/v1"
 }

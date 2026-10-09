@@ -22,9 +22,11 @@ from __future__ import annotations
 import http.server
 import json
 import os
+import secrets
 import tempfile
 import threading
 import time
+from unittest import mock
 
 import szl_energy_operator as OP
 import szl_joules_truth as J
@@ -54,6 +56,10 @@ class _FakeNode:
         return {"engines": [{"engine": "betterwithage", "power_source": "nvml",
                              "joules": j,
                              "gpus": [{"gpu": 0, "name": "RTX", "power_w": 210.0,
+                                       "gpu_uuid": "GPU-fixture",
+                                       "counter_epoch": "fixture-segment",
+                                       "sample_ts": time.time(),
+                                       "joules_method": "NVML_COUNTER_DELTA",
                                        "live": True, "joules": j}]}],
                 "totals": {"joules": j, "kwh": j / 3_600_000.0, "eur_per_mwh": 62.08},
                 "generated_at": "now"}
@@ -102,6 +108,12 @@ class _FakeNode:
 
         self._server = http.server.HTTPServer(("127.0.0.1", 0), H)
         self.port = self._server.server_port
+        # Ephemeral fixture capability: native meter transport denies unconfigured
+        # clients. This fake reading remains synthetic, never a hardware receipt.
+        self._auth_env = mock.patch.dict(os.environ, {"SZL_METER_HMAC_TARGETS": json.dumps({
+            f"http://127.0.0.1:{self.port}": {
+                "client_id": "synthetic-operator-test", "key_hex": secrets.token_hex(32)}})})
+        self._auth_env.start()
         self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
         self._thread.start()
         return f"http://127.0.0.1:{self.port}/v1"
@@ -110,12 +122,18 @@ class _FakeNode:
         if self._server:
             self._server.shutdown()
             self._server.server_close()
+            self._auth_env.stop()
 
 
 def _node_cfg(base_url: str) -> OP.NodeCfg:
     return OP.NodeCfg(name="rtx-betterwithage", base_url=base_url,
                       gen_model="llama3.1:8b", embed_model="bge-large",
                       exporter_node="betterwithage")
+
+
+def _window_sum(status: dict) -> float:
+    return sum(r.get("window_joules_measured") or 0.0
+               for r in status["recent_jobs"])
 
 
 # ---------------------------------------------------------------------------
@@ -138,9 +156,10 @@ def test_real_jobs_measure_joules(monkeypatch):
             assert st["jobs_done"] >= 3, st
             assert st["tokens_total"] > 0, st
             assert st["stub_mode"] is False, st
-            # Real NVML delta => MEASURED billable joules > 0.
-            assert st["joules_measured_total"] > 0, st
-            assert st["measured_jobs"] >= 3, st
+            # A real NVML host-window delta is not exclusive job attribution.
+            assert st["joules_measured_total"] == 0, st
+            assert st["measured_jobs"] == 0, st
+            assert _window_sum(st) > 0, st
             # status() scrubs raw tailnet hostnames at egress -> public display name.
             assert "Sovereign GPU 1" in st["nodes_computing"], st
             assert st["nodes_degraded"] == [], st
@@ -171,7 +190,8 @@ def test_start_stop_clean(monkeypatch):
             st = op.status()
             assert st["running"] is False
             assert st["jobs_done"] >= 3, st
-            assert st["joules_measured_total"] > 0, st
+            assert st["joules_measured_total"] == 0, st
+            assert _window_sum(st) > 0, st
     finally:
         node.stop()
 
@@ -264,7 +284,8 @@ def test_standby_node_reachable_still_computes(monkeypatch):
             assert pub not in st["nodes_standby"], st         # not parked when up
             assert pub not in st["nodes_degraded"], st
             assert st["jobs_done"] >= 2, st
-            assert st["joules_measured_total"] > 0, st        # real MEASURED joules
+            assert st["joules_measured_total"] == 0, st  # no attributed job joules
+            assert _window_sum(st) > 0, st               # real bounded GPU window
     finally:
         node.stop()
 
@@ -405,17 +426,31 @@ def test_jobrecord_interface_contract():
         op = OP.OperatorDaemon(nodes=[], state_path=os.path.join(d, "l.json"))
         captured = []
         op.subscribe(lambda r: captured.append(r))
-        sample = {"joules_measured_total": 500.0, "exporter_node": "betterwithage",
-                  "exporter_last_seen_ts": time.time(), "power_w_sample": 210.0}
-        rec = op._commit("betterwithage", "llama3.1:8b", "generate", 7, 0.9, sample, 15.0)
+        sampled_at = time.time() - 2.0
+        def meter(joules, ts):
+            return {"engines": [{"engine": "betterwithage", "gpus": [{
+                "gpu_uuid": "GPU-fixture", "counter_epoch": "fixture-segment",
+                "sample_ts": ts, "joules_method": "NVML_COUNTER_DELTA",
+                "live": True, "joules": joules, "power_w": 210.0,
+            }]}]}
+        before = OP._exporter_sample_for_node(meter(500.0, sampled_at),
+                                               "betterwithage")
+        sample = OP._exporter_sample_for_node(meter(515.0, sampled_at + 1.0),
+                                               "betterwithage")
+        rec = op._commit("betterwithage", "llama3.1:8b", "generate", 7, 0.9,
+                         sample, 15.0, exporter_before_sample=before,
+                         job_start_ts=sampled_at + 0.25,
+                         job_end_ts=sampled_at + 0.75)
         d_rec = rec.to_dict()
         for key in ("node", "model", "kind", "tokens", "wall_s", "joules_measured",
                     "joules_label", "joules_evidence", "ts", "seq"):
             assert key in d_rec, (key, d_rec)
-        assert d_rec["joules_label"] == OP.LABEL_MEASURED
-        assert d_rec["joules_measured"] == 15.0
-        # Evidence present iff MEASURED, and self-verifying off szl_joules_truth.
-        assert d_rec["joules_evidence"]["joules_measured_total"] == 500.0
+        assert d_rec["joules_label"] == OP.LABEL_SAMPLE
+        assert d_rec["joules_measured"] is None
+        assert d_rec["joules_reason"] == "ATTRIBUTION_UNVERIFIED"
+        assert d_rec["window_joules_measured"] == 15.0
+        assert d_rec["joules_scope"] == "BOUNDED_METER_WINDOW"
+        assert d_rec["joules_evidence"] == {}
         # The subscribe() callback (Dev2 receipts hook) fired with the same record.
         assert captured and captured[-1]["seq"] == d_rec["seq"]
 
@@ -709,11 +744,12 @@ def test_useful_work_embed_advances_rag_index(monkeypatch):
                 assert useful, st["recent_jobs"]
                 cid = useful[0]["rag_chunk_id"]
                 assert cid in ids, useful[0]
-                # Joule gate UNCHANGED: a fresh real NVML delta still yields MEASURED.
-                assert st["joules_measured_total"] > 0, st
-                assert st["measured_jobs"] >= 1, st
+                # A fresh NVML delta proves only a bounded host window.
+                assert st["joules_measured_total"] == 0, st
+                assert st["measured_jobs"] == 0, st
+                assert _window_sum(st) > 0, st
                 for r in useful:
-                    assert r["joules_label"] in (OP.LABEL_MEASURED, OP.LABEL_SAMPLE)
+                    assert r["joules_label"] == OP.LABEL_SAMPLE
             finally:
                 RAG.RAG_DB_PATH = prev_db
                 RAG._BUILD_META = prev_meta
@@ -914,7 +950,8 @@ def test_governed_job_emits_real_lambda_and_receipt(monkeypatch):
             assert gc["recent_governed"] >= 1, gc
             assert gc["last"] and gc["last"]["governed"] is True, gc
             # The job records still carry the unchanged energy contract alongside governance.
-            assert st["joules_measured_total"] > 0, st
+            assert st["joules_measured_total"] == 0, st
+            assert _window_sum(st) > 0, st
     finally:
         node.stop()
 
@@ -942,19 +979,20 @@ def test_governance_unavailable_is_honest_ungoverned(monkeypatch):
                 assert g["lambda_score"] is None, g       # NO fabricated Λ
                 assert g["receipt_id"] is None, g         # NO fabricated receipt
                 assert "reason" in g and g["reason"], g    # says WHY it could not be governed
-            # Energy path is untouched — jobs done, joules MEASURED as before.
+            # Energy stays nonbillable without job-attribution proof.
             st = op.status()
             assert st["jobs_done"] >= 2, st
-            assert st["joules_measured_total"] > 0, st
+            assert st["joules_measured_total"] == 0, st
+            assert _window_sum(st) > 0, st
             assert st["governed_compute"]["recent_governed"] == 0, st
     finally:
         node.stop()
 
 
 def test_governance_is_additive_energy_unchanged(monkeypatch):
-    """Governance is ADDITIVE: turning it on must NOT change how joules are MEASURED.
+    """Governance is ADDITIVE: turning it on must NOT change the meter window.
     Two identical sweeps (governance OFF vs ON) against the same deterministic node/meter
-    yield byte-identical jobs_done, tokens_total and joules_measured_total."""
+    yield byte-identical jobs_done, tokens_total and bounded-window deltas."""
     def _run(govern: str) -> dict:
         node = _FakeNode()
         base = node.start()
@@ -979,6 +1017,7 @@ def test_governance_is_additive_energy_unchanged(monkeypatch):
     assert off["joules_measured_total"] == on["joules_measured_total"], (
         off["joules_measured_total"], on["joules_measured_total"])
     assert off["measured_jobs"] == on["measured_jobs"]
+    assert _window_sum(off) == _window_sum(on)
     # But only the ON run records governance metadata.
     assert off["governed_compute"]["enabled"] is False, off["governed_compute"]
     assert on["governed_compute"]["enabled"] is True, on["governed_compute"]

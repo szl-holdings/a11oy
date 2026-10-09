@@ -98,8 +98,6 @@ def build_manifest(quant: dict, parent: dict, converter: str, levels: list) -> d
 
 def main() -> int:
     import requests
-    import urllib3
-    urllib3.disable_warnings()
     ap = argparse.ArgumentParser()
     ap.add_argument("--repo", required=True, help="quant repo id")
     ap.add_argument("--parent", required=True, help="parent (unquantized) repo id")
@@ -109,8 +107,8 @@ def main() -> int:
     ap.add_argument("--write-pr", action="store_true")
     args = ap.parse_args()
 
+    # These metadata reads bind manifest provenance; retain verified HTTPS.
     S = requests.Session()
-    S.verify = False
     S.headers.update({"user-agent": "Mozilla/5.0"})
 
     quant = fetch_repo_state(S, args.repo)

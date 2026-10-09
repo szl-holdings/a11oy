@@ -5,11 +5,14 @@ name: Sync and Relock Canonical Hugging Face Space
 # the immutable runtime, binds the exact checked-out Git SHA, and verifies the live
 # build-info contract. This caller retains only A11oy-specific terminal evidence.
 # The main-push trigger intentionally has no path filter: every Dockerfile source
-# change enters this canonical workflow. This one signed successor consumes the
-# accepted read-only diagnostic and performs a fresh, non-retriable continuation
-# from the already verified private capture. It never replays preservation or the
-# ambiguous 62ca acquisition. It preserves the diagnostic's exact partial object
-# set and rechecks it before its first provider write.
+# change enters this canonical workflow. Every gate is an invariant, never an
+# exact identity: the source must be protected main, the newest main wins and a
+# superseded run ends neutral with a notice, the deploy path starts the Space
+# once, and the live Space must report this exact source afterwards. Until
+# durable storage lands, a deploy needs an open maintenance window (a PAUSED
+# Space or an operator dispatch with open_deploy_window); otherwise the run
+# writes and deploys nothing and ends with a warning. Pause and
+# restart durability proofs run only in the manual restart-drill.yml.
 # The permanent target remains Space SZLHOLDINGS/a11oy (szlholdings-a11oy.hf.space).
 # Staging Space ≠ prod DNS. GitHub main SHA and Space runtime SHA can drift;
 # do not claim they match. This workflow does not change DNS. Apex a-11-oy.com
@@ -35,6 +38,11 @@ on:
         required: false
         type: string
         default: ""
+
+      open_deploy_window:
+        description: Operator-attested maintenance window. Until durable storage lands, a deploy onto a running or crashed Space proceeds only when true (a PAUSED Space is itself the window).
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -89,177 +97,23 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-  recovery-reconciliation:
-    name: Reconcile the accepted diagnostic before fresh continuation
+  preflight:
+    name: Classify the canonical runtime and converge configuration before deploy
     needs: source-admission
-    if: ${{ github.event_name == 'push' && github.run_attempt == 1 && needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' }}
+    if: ${{ needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 15
     permissions:
       contents: read
-      actions: read
     outputs:
-      admitted: ${{ steps.reconciliation.outputs.admitted }}
-      artifact_id: ${{ steps.reconciliation_artifact.outputs.artifact-id }}
-      artifact_sha256: ${{ steps.reconciliation_artifact.outputs.artifact-digest }}
+      publish: ${{ steps.window.outputs.open == 'true' && steps.owner.outputs.publish == 'true' }}
+      restart_required: ${{ steps.runtime.outputs.restart_required }}
+      converged: ${{ steps.converge.outputs.converged }}
     env:
       HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
-      PYTHONDONTWRITEBYTECODE: "1"
-    steps:
-      - name: Checkout the exact protected source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-          fetch-depth: 1
-      - name: Set up the isolated diagnostic reconciliation interpreter
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.12"
-      - name: Install the exact read-only diagnostic ABI
-        run: >-
-          python -m pip install --disable-pip-version-check --no-cache-dir
-          "huggingface_hub==1.31.0" "requests==2.32.5" "cryptography==50.0.1"
-      - name: Requalify the fixed capture and exact partial provider namespace
-        id: reconciliation
-        run: >-
-          python -B scripts/reconcile_gdw_diagnostic_continuation.py --reconcile
-          --github-output "$GITHUB_OUTPUT"
-          --output "$RUNNER_TEMP/gdw-diagnostic-continuation.json"
-          --qualification-output "$RUNNER_TEMP/gdw-continuation-qualification.json"
-      - name: Retain only the bounded continuation prerequisite
-        id: reconciliation_artifact
-        if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: canonical-diagnostic-continuation-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            ${{ runner.temp }}/gdw-diagnostic-continuation.json
-            ${{ runner.temp }}/gdw-continuation-qualification.json
-          if-no-files-found: error
-          retention-days: 90
-
-  manual-prerequisites:
-    name: Classify the diagnostic-bound continuation without provider writes
-    needs: [source-admission, recovery-reconciliation]
-    if: ${{ github.event_name == 'push' && github.run_attempt == 1 && needs.source-admission.outputs.publish == 'true' && needs.recovery-reconciliation.result == 'success' && needs.recovery-reconciliation.outputs.admitted == 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      actions: read
-    outputs:
-      mode: ${{ steps.recovery_mode.outputs.mode }}
-    steps:
-      - name: Checkout the immutable admitted source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-          fetch-depth: 1
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.12"
-      - name: Read the same-run closed continuation prerequisite
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          artifact-ids: ${{ needs.recovery-reconciliation.outputs.artifact_id }}
-          path: ${{ runner.temp }}/diagnostic-continuation
-      - name: Classify the exact diagnostic-bound candidate without admitting replay
-        id: recovery_mode
-        run: >-
-          python -B scripts/reconcile_gdw_diagnostic_continuation.py --classify
-          --reconciliation "${{ runner.temp }}/diagnostic-continuation/gdw-diagnostic-continuation.json"
-          --qualification "${{ runner.temp }}/diagnostic-continuation/gdw-continuation-qualification.json"
-          --github-output "$GITHUB_OUTPUT"
-          --output "${{ runner.temp }}/manual-prerequisites.json"
-      - name: Retain the closed classification decision
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: canonical-manual-prerequisites-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/manual-prerequisites.json
-          if-no-files-found: error
-          retention-days: 90
-
-  durable-acquisition:
-    name: Acquire qualified private storage through the canonical publisher
-    needs: [source-admission, recovery-reconciliation, manual-prerequisites]
-    # One first push may continue only after the same-run read-only prerequisite.
-    # Any uncertain provider outcome fails closed and is never automatically rerun.
-    if: ${{ github.event_name == 'push' && github.run_attempt == 1 && always() && needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' && needs.recovery-reconciliation.result == 'success' && needs.recovery-reconciliation.outputs.admitted == 'true' && needs.manual-prerequisites.result == 'success' && needs.manual-prerequisites.outputs.mode == 'managed-recovery' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: read
-      actions: read
-    outputs:
-      artifact_id: ${{ steps.acquisition_artifact.outputs.artifact-id }}
-      artifact_sha256: ${{ steps.acquisition_artifact.outputs.artifact-digest }}
-    env:
-      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
-      PYTHONDONTWRITEBYTECODE: "1"
-    steps:
-      - name: Checkout the exact protected source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-          fetch-depth: 1
-      - name: Read the existing immutable COPY publisher
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: szl-holdings/.github
-          ref: fc71ae973a0f31b8e9ee793fc8545a354448d451
-          path: .gdw-source-publisher
-          persist-credentials: false
-          fetch-depth: 1
-      - name: Set up the isolated acquisition interpreter
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.12"
-      - name: Install the exact managed acquisition ABI
-        # This is the same ABI used by the accepted read-only diagnostic and
-        # the immediately preceding reconciliation job.
-        run: >-
-          python -m pip install --disable-pip-version-check --no-cache-dir
-          "huggingface_hub==1.31.0" "requests==2.32.5" "cryptography==50.0.1"
-      - name: Continue once from the accepted diagnostic and verified capture
-        run: >-
-          python -B scripts/acquire_gdw_durable_storage.py --continue-diagnostic-recovery
-          --source-artifact-id "${{ needs.source-admission.outputs.artifact_id }}"
-          --source-artifact-sha256 "${{ needs.source-admission.outputs.artifact_sha256 }}"
-          --reconciliation-artifact-id "${{ needs.recovery-reconciliation.outputs.artifact_id }}"
-          --reconciliation-artifact-sha256 "${{ needs.recovery-reconciliation.outputs.artifact_sha256 }}"
-          --publisher-script "${{ github.workspace }}/.gdw-source-publisher/.github/scripts/hf_deploy_from_dockerfile.py"
-          --output "$RUNNER_TEMP/gdw-durable-acquisition.json"
-      - name: Install the persistent old-source guard and both managed configurations once
-        run: >-
-          python -B scripts/configure_hf_gdw_runtime.py
-          --managed-acquisition "$RUNNER_TEMP/gdw-durable-acquisition.json"
-          --source-sha "$GITHUB_SHA" --managed-deadline-seconds 120
-          --output "$RUNNER_TEMP/gdw-managed-configuration.json"
-      - name: Retain only the immutable selector and guarded configuration result
-        id: acquisition_artifact
-        if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: canonical-durable-acquisition-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            ${{ runner.temp }}/gdw-durable-acquisition.json
-            ${{ runner.temp }}/gdw-managed-configuration.json
-          if-no-files-found: error
-          retention-days: 90
-
-  resume-paused-space:
-    name: Resume the canonical Space without changing its allocation
-    needs: [source-admission, manual-prerequisites]
-    if: ${{ github.event_name == 'push' && github.run_attempt == 1 && needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && needs.manual-prerequisites.outputs.mode != 'managed-recovery' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    env:
-      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
-      RESUME_REPORT: /tmp/canonical-a11oy-resume.json
+      PREFLIGHT_REPORT: /tmp/canonical-a11oy-preflight.json
+      RUNTIME_CONFIG_REPORT: /tmp/series-a-runtime-config.json
+      GDW_CONFIG_REPORT: /tmp/gdw-runtime-config.json
     steps:
       - name: Checkout exact protected source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -268,47 +122,173 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
 
+      # Before any provider effect: a re-run of a superseded source must never
+      # write its older configuration contract over a newer live revision.
+      - name: Require current protected main before any provider effect
+        id: admit
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B scripts/hf_exact_main_ownership.py \
+            --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+            --receipt "$RUNNER_TEMP/preflight-admission.json" \
+            --github-output "$GITHUB_OUTPUT"
+
       - name: Set up Python
+        if: ${{ steps.admit.outputs.publish == 'true' }}
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
 
       - name: Install exact Hugging Face control client
+        if: ${{ steps.admit.outputs.publish == 'true' }}
         run: >-
           python -m pip install --disable-pip-version-check
-          "huggingface_hub==1.23.0"
+          "huggingface_hub==1.31.0"
+          "requests==2.32.5"
+          "cryptography==50.0.1"
 
-      - name: Resume only an explicitly paused canonical runtime
+      # Never restarts. A serving Space is rebuilt by the deploy commit; a
+      # paused, crashed or failed-build Space is started once by the publisher
+      # after the commit. Either way the deploy starts the new revision once.
+      - name: Classify the runtime stage without restarting it
+        id: runtime
+        if: ${{ steps.admit.outputs.publish == 'true' }}
         run: >-
-          python .github/scripts/resume_hf_space.py
+          python -B .github/scripts/resume_hf_space.py
           --repo-id "$CANONICAL_SPACE"
-          --output "$RESUME_REPORT"
+          --output "$PREFLIGHT_REPORT"
+          --github-output "$GITHUB_OUTPUT"
 
-      - name: Upload immutable resume evidence
+      # Until durable storage replaces SQLite on the bucket mount, a deploy
+      # must not overlap a serving writer outside an agreed maintenance window:
+      # the operator pauses the Space, or dispatches with open_deploy_window.
+      - name: Require an open deploy window while SQLite lives on the bucket mount
+        id: window
+        if: ${{ steps.admit.outputs.publish == 'true' }}
+        shell: bash
+        env:
+          STAGE: ${{ steps.runtime.outputs.stage }}
+          DISPATCH_WINDOW: ${{ github.event_name == 'workflow_dispatch' && inputs.open_deploy_window == true }}
+        run: |
+          set -euo pipefail
+          if [ "${STAGE:-}" = 'PAUSED' ] || [ "${DISPATCH_WINDOW:-false}" = 'true' ]; then
+            echo 'open=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "::warning::Deploy window closed (stage=${STAGE:-UNKNOWN}); nothing was written or deployed. Pause the Space, or dispatch hf-sync.yml on main with open_deploy_window=true, inside an agreed maintenance window."
+          echo 'open=false' >> "$GITHUB_OUTPUT"
+
+      # Idempotent: a converged Space receives no write. Convergence needs the
+      # serving runtime to prove installed authority, so a paused or crashed
+      # Space defers it to runtime-config against the deployed revision.
+      - name: Converge runtime configuration before the single deploy start
+        id: converge
+        if: ${{ steps.window.outputs.open == 'true' }}
+        shell: bash
+        env:
+          CONVERGE: ${{ steps.runtime.outputs.converge }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ "${CONVERGE:-false}" != 'true' ]; then
+            echo '::notice::The canonical runtime is not serving; configuration converges against the deployed revision.'
+            echo 'converged=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          python3 -B scripts/hf_exact_main_ownership.py \
+            --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+            --receipt "$RUNNER_TEMP/preflight-series-config-admission.json" \
+            --github-output "$RUNNER_TEMP/preflight-series-config-admission.out"
+          if ! grep -Fqx 'publish=true' "$RUNNER_TEMP/preflight-series-config-admission.out"; then
+            echo '::error::Protected main changed before Series-A configuration.'
+            exit 1
+          fi
+          python -B scripts/configure_hf_series_a_runtime.py \
+            --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \
+            --expected-source-sha "$GITHUB_SHA" \
+            --output "$RUNTIME_CONFIG_REPORT"
+          python3 -B scripts/hf_exact_main_ownership.py \
+            --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+            --receipt "$RUNNER_TEMP/preflight-gdw-config-admission.json" \
+            --github-output "$RUNNER_TEMP/preflight-gdw-config-admission.out"
+          if ! grep -Fqx 'publish=true' "$RUNNER_TEMP/preflight-gdw-config-admission.out"; then
+            echo '::error::Protected main changed before GDW configuration.'
+            exit 1
+          fi
+          python -B scripts/configure_hf_gdw_runtime.py \
+            --repo-id "$CANONICAL_SPACE" --expected-source-sha "$GITHUB_SHA" \
+            --output "$GDW_CONFIG_REPORT"
+          echo 'converged=true' >> "$GITHUB_OUTPUT"
+
+      - name: Re-admit current protected main immediately before deploy
+        id: owner
+        if: ${{ steps.window.outputs.open == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B scripts/hf_exact_main_ownership.py \
+            --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+            --receipt "$RUNNER_TEMP/preflight-source-admission.json" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Skip a superseded source with a notice
+        if: ${{ steps.admit.outputs.publish != 'true' || (steps.window.outputs.open == 'true' && steps.owner.outputs.publish != 'true') }}
+        run: echo '::notice::A newer protected main superseded this source before deploy; that run deploys it.'
+
+      - name: Retain secret-free preflight evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: canonical-a11oy-resume-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ env.RESUME_REPORT }}
+          name: canonical-a11oy-preflight-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ env.PREFLIGHT_REPORT }}
+            ${{ env.RUNTIME_CONFIG_REPORT }}
+            ${{ env.GDW_CONFIG_REPORT }}
+            ${{ runner.temp }}/preflight-admission.json
+            ${{ runner.temp }}/preflight-series-config-admission.json
+            ${{ runner.temp }}/preflight-gdw-config-admission.json
+            ${{ runner.temp }}/preflight-source-admission.json
           if-no-files-found: error
           retention-days: 90
+  deploy:
+    name: Deploy, source-bind, and attest exact surface
+    needs: [source-admission, preflight]
+    if: ${{ needs.source-admission.outputs.publish == 'true' && needs.preflight.result == 'success' && needs.preflight.outputs.publish == 'true' }}
+    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
+    with:
+      hf-repo: SZLHOLDINGS/a11oy
+      ref: ${{ github.sha }}
+      # Recheck next to the provider commit if main advances after admission.
+      require-default-branch-tip: true
+      dockerfile-path: Dockerfile
+      include-readme: true
+      prune: true
+      wait-running: 1200
+      # Single start: the commit rebuilds a serving or crashed Space; only a
+      # PAUSED Space is started explicitly, after the commit has landed.
+      restart-space: ${{ needs.preflight.outputs.restart_required == 'true' }}
+      source-revision-variable: SZL_GIT_SHA
+      source-revision-probe-path: /api/build-info
+      smoke-paths: '["/","/api/livez","/api/build-info","/api/a11oy/v1/honest","/api/a11oy/healthz","/api/a11oy/v1/brain/capabilities","/api/a11oy/v1/readiness/tab-matrix?view=summary","/api/a11oy/v1/series-a/status","/holographic","/holographic/","/static/3d/holographic.html","/assets/brain-frontier-v7.css","/assets/brain-frontier-v7.js","/assets/brain-frontier-v7.json","/static/landing-honest-bind.js","/atelier/frontier","/api/a11oy/v1/atelier/frontier/registry","/api/a11oy/v1/atelier/frontier/evaluate?evidence=90&repeatability=90&coverage=90&governance=90&safety=1&energy_state=UNAVAILABLE","/api/a11oy/v1/atelier/frontier/evaluate?safety=0"]'
+    secrets:
+      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
 
   runtime-config:
-    name: Verify post-deploy configuration and bounded live proofs
-    needs: [manual-prerequisites, durable-acquisition, deploy]
-    if: ${{ github.event_name == 'push' && github.run_attempt == 1 && always() && needs.manual-prerequisites.result == 'success' && needs.durable-acquisition.result == 'success' && needs.deploy.result == 'success' }}
+    name: Verify the deployed runtime configuration without restarting it
+    needs: [preflight, deploy]
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 20
     permissions:
       contents: read
-      actions: read
     env:
       HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
       RUNTIME_CONFIG_REPORT: /tmp/series-a-runtime-config.json
-      SERIES_A_LIVE_REPORT: /tmp/series-a-restart-proof.json
       GDW_CONFIG_REPORT: /tmp/gdw-runtime-config.json
-      GDW_LIVE_REPORT: /tmp/gdw-live-proof.json
-      LIVE_PROOF_ADMISSION_REPORT: /tmp/live-proof-admission.json
     steps:
       - name: Checkout exact protected source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -329,78 +309,58 @@ jobs:
           "requests==2.32.5"
           "cryptography==50.0.1"
 
-      - name: Read the exact same-run managed selector without granting local-file authority
-        run: >-
-          python -B scripts/acquire_gdw_durable_storage.py --fetch-locator
-          --acquisition-artifact-id "${{ needs.durable-acquisition.outputs.artifact_id }}"
-          --acquisition-artifact-sha256 "${{ needs.durable-acquisition.outputs.artifact_sha256 }}"
-          --output "$RUNNER_TEMP/gdw-durable-acquisition.json"
-
-      - name: Converge fail-closed runtime configuration
-        if: ${{ needs.manual-prerequisites.outputs.mode != 'managed-recovery' }}
-        run: >-
-          python scripts/configure_hf_series_a_runtime.py
-          --repo-id "$CANONICAL_SPACE"
-          --bucket "SZLHOLDINGS/szl-evidence"
-          --output "$RUNTIME_CONFIG_REPORT"
-
-      - name: Converge isolated GDW successor configuration
-        if: ${{ needs.manual-prerequisites.outputs.mode != 'managed-recovery' }}
-        run: >-
-          python scripts/configure_hf_gdw_runtime.py
-          --repo-id "$CANONICAL_SPACE"
-          --output "$GDW_CONFIG_REPORT"
-
-      # Bounded (scripts/hf_live_proof_bounds.py): exact destinations only, no
-      # redirects, fixed diagnostic codes, 8 attempts / 10 minutes for
-      # transient admission, effects limited to SZLHOLDINGS/a11oy.
-      - name: Prove live Series-A restart persistence (bounded)
-        id: series_a_proof
-        shell: bash
-        run: |
-          set +e
-          python -B scripts/prove_hf_series_a_restart.py \
-            --repo-id "$CANONICAL_SPACE" --origin "$CANONICAL_ORIGIN" \
-            --managed-acquisition "$RUNNER_TEMP/gdw-durable-acquisition.json" \
-            --run-context "${{ github.run_id }}:${{ github.run_attempt }}" \
-            --source-sha "${{ github.sha }}" --output "$SERIES_A_LIVE_REPORT"
-          code=$?
-          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
-          exit "$code"
-
-      # Writes only in the a11oy GDW namespace; the proof-tagged receipt must
-      # verify against ayllu/keys/council-runtime-2026-07-21.pub.
-      - name: Prove live GDW write, drain, and receipt integrity (bounded)
-        id: gdw_proof
-        if: ${{ always() && needs.manual-prerequisites.result == 'success' && needs.deploy.result == 'success' && (steps.series_a_proof.outcome == 'success' || steps.series_a_proof.outcome == 'failure') }}
+      # Converged before deploy: verify the deployed revision's installed
+      # authority with no provider write. Otherwise converge now, fail closed.
+      - name: Verify or converge runtime configuration against the deployed revision
         shell: bash
         env:
-          GDW_OPERATOR_TOKEN: ${{ secrets.GDW_OPERATOR_TOKEN }}
-        run: |
-          set +e
-          python -B scripts/prove_hf_gdw_runtime.py \
-            --series-a-proof "$SERIES_A_LIVE_REPORT" \
-            --run-context "${{ github.run_id }}:${{ github.run_attempt }}" \
-            --origin "$CANONICAL_ORIGIN" \
-            --managed-acquisition "$RUNNER_TEMP/gdw-durable-acquisition.json" \
-            --source-sha "${{ github.sha }}" --output "$GDW_LIVE_REPORT"
-          code=$?
-          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
-          exit "$code"
-
-      - name: Admit bounded live proof reports and fail closed
-        if: ${{ always() && needs.manual-prerequisites.result == 'success' && needs.deploy.result == 'success' }}
-        shell: bash
-        env:
-          SERIES_A_PROOF_EXIT: ${{ steps.series_a_proof.outputs.exit_code }}
-          GDW_PROOF_EXIT: ${{ steps.gdw_proof.outputs.exit_code }}
+          PREDEPLOY_CONVERGED: ${{ needs.preflight.outputs.converged }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          python -B scripts/check_hf_manual_prerequisites.py --admit-live-proofs \
-            --managed-acquisition "$RUNNER_TEMP/gdw-durable-acquisition.json" \
-            --series-a-proof "$SERIES_A_LIVE_REPORT" --series-a-proof-exit "${SERIES_A_PROOF_EXIT:-2}" \
-            --gdw-proof "$GDW_LIVE_REPORT" --gdw-proof-exit "${GDW_PROOF_EXIT:-2}" \
-            --source-sha "${{ github.sha }}" --output "$LIVE_PROOF_ADMISSION_REPORT"
+          mode=()
+          if [ "${PREDEPLOY_CONVERGED:-false}" = 'true' ]; then
+            mode=(--check-only)
+          else
+            echo '::notice::Configuration was not converged before deploy; converging against the deployed revision.'
+            python3 -B scripts/hf_exact_main_ownership.py \
+              --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+              --receipt "$RUNNER_TEMP/runtime-series-config-admission.json" \
+              --github-output "$RUNNER_TEMP/runtime-series-config-admission.out"
+            if ! grep -Fqx 'publish=true' "$RUNNER_TEMP/runtime-series-config-admission.out"; then
+              echo '::error::Protected main changed before post-deploy Series-A configuration.'
+              exit 1
+            fi
+          fi
+          python -B scripts/configure_hf_series_a_runtime.py \
+            --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \
+            --expected-source-sha "$GITHUB_SHA" \
+            "${mode[@]}" --output "$RUNTIME_CONFIG_REPORT"
+          if [ "${PREDEPLOY_CONVERGED:-false}" != 'true' ]; then
+            python3 -B scripts/hf_exact_main_ownership.py \
+              --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+              --receipt "$RUNNER_TEMP/runtime-gdw-config-admission.json" \
+              --github-output "$RUNNER_TEMP/runtime-gdw-config-admission.out"
+            if ! grep -Fqx 'publish=true' "$RUNNER_TEMP/runtime-gdw-config-admission.out"; then
+              echo '::error::Protected main changed before post-deploy GDW configuration.'
+              exit 1
+            fi
+          fi
+          python -B scripts/configure_hf_gdw_runtime.py \
+            --repo-id "$CANONICAL_SPACE" \
+            --expected-source-sha "$GITHUB_SHA" \
+            "${mode[@]}" --output "$GDW_CONFIG_REPORT"
+
+      # A convergence write restarts the deployed revision. Read-only: wait
+      # until it is RUNNING and serves this exact source again before probing.
+      - name: Await the deployed revision serving again after any convergence write
+        run: >-
+          python -B .github/scripts/await_hf_runtime_serving.py
+          --repo-id "$CANONICAL_SPACE"
+          --origin "$CANONICAL_ORIGIN"
+          --source-sha "$GITHUB_SHA"
+          --report "$RUNTIME_CONFIG_REPORT"
+          --report "$GDW_CONFIG_REPORT"
 
       - name: Upload secret-free runtime configuration evidence
         if: ${{ always() }}
@@ -409,41 +369,19 @@ jobs:
           name: series-a-runtime-config-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             ${{ env.RUNTIME_CONFIG_REPORT }}
-            ${{ env.SERIES_A_LIVE_REPORT }}
             ${{ env.GDW_CONFIG_REPORT }}
-            ${{ env.GDW_LIVE_REPORT }}
-            ${{ env.LIVE_PROOF_ADMISSION_REPORT }}
+            ${{ runner.temp }}/runtime-series-config-admission.json
+            ${{ runner.temp }}/runtime-gdw-config-admission.json
           if-no-files-found: error
           retention-days: 90
-
-  deploy:
-    name: Deploy, source-bind, and attest exact surface
-    needs: [source-admission, manual-prerequisites, durable-acquisition, resume-paused-space]
-    if: ${{ github.event_name == 'push' && github.run_attempt == 1 && always() && needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && ((needs.manual-prerequisites.outputs.mode == 'managed-recovery' && needs.durable-acquisition.result == 'success') || (needs.manual-prerequisites.outputs.mode != 'managed-recovery' && needs.resume-paused-space.result == 'success')) }}
-    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
-    with:
-      hf-repo: SZLHOLDINGS/a11oy
-      ref: ${{ github.sha }}
-      # Recheck next to the provider commit if main advances after admission.
-      require-default-branch-tip: true
-      dockerfile-path: Dockerfile
-      include-readme: true
-      prune: true
-      wait-running: 1200
-      restart-space: true
-      source-revision-variable: SZL_GIT_SHA
-      source-revision-probe-path: /api/build-info
-      smoke-paths: '["/","/api/livez","/api/build-info","/api/a11oy/v1/honest","/api/a11oy/healthz","/api/a11oy/v1/brain/capabilities","/api/a11oy/v1/readiness/tab-matrix?view=summary","/api/a11oy/v1/series-a/status","/holographic","/holographic/","/static/3d/holographic.html","/assets/brain-frontier-v7.css","/assets/brain-frontier-v7.js","/assets/brain-frontier-v7.json","/static/landing-honest-bind.js","/atelier/frontier","/api/a11oy/v1/atelier/frontier/registry","/api/a11oy/v1/atelier/frontier/evaluate?evidence=90&repeatability=90&coverage=90&governance=90&safety=1&energy_state=UNAVAILABLE","/api/a11oy/v1/atelier/frontier/evaluate?safety=0"]'
-    secrets:
-      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
 
   publish-vertical-flagships:
     name: Publish and live-verify six domain-native flagship Spaces
     # Other-Space execute is not product promote. Skip on push until plan complete=true.
     # Explicit opt-in includes this publisher in the requested run completion.
     # Product-only pushes still skip it; canonical product evidence stays separate.
-    if: ${{ github.run_attempt == 1 && needs.manual-prerequisites.result == 'success' && github.event_name == 'workflow_dispatch' && inputs.publish_vertical_flagships }}
-    needs: [manual-prerequisites, deploy]
+    if: ${{ needs.source-admission.outputs.publish == 'true' && needs.deploy.result == 'success' && github.event_name == 'workflow_dispatch' && inputs.publish_vertical_flagships }}
+    needs: [source-admission, deploy]
     runs-on: ubuntu-latest
     timeout-minutes: 50
     concurrency:
@@ -562,73 +500,14 @@ jobs:
           if-no-files-found: error
           retention-days: 180
 
-  publish-finance-projection:
-    name: Rebind and functionally verify the existing Finance projection
-    # This one-shot source transition is authorized only for canonical A11oy
-    # recovery. Finance remains structurally present but unreachable here.
-    if: ${{ github.event_name == 'push' && github.run_attempt == 1 && needs.manual-prerequisites.result == 'success' && false }}
-    needs: [manual-prerequisites, relock]
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    concurrency:
-      group: hf-vertical-estate
-      cancel-in-progress: false
-    env:
-      GITHUB_TOKEN: ${{ github.token }}
-      HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
-      HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
-      HF_TOKEN: ${{ secrets.HF_TOKEN }}
-      HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
-      HUGGING_FACE_HUB_TOKEN: ${{ secrets.HUGGING_FACE_HUB_TOKEN }}
-      SZL_FLAGSHIP_SCOPE: finance
-    steps:
-      - name: Harden runner
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
-        with:
-          egress-policy: audit
-      - name: Checkout the exact relocked source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.sha }}
-          fetch-depth: 1
-          persist-credentials: false
-      - name: Admit only the current protected main owner
-        id: owner
-        run: >-
-          python3 -B scripts/hf_exact_main_ownership.py
-          --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA"
-          --receipt "$RUNNER_TEMP/finance-main-ownership.json"
-          --github-output "$GITHUB_OUTPUT"
-      - name: Set up Python
-        if: ${{ steps.owner.outputs.publish == 'true' }}
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.12'
-      - name: Install the established pinned publisher
-        if: ${{ steps.owner.outputs.publish == 'true' }}
-        run: python -m pip install --disable-pip-version-check --no-cache-dir 'huggingface_hub==1.31.0'
-      - name: Publish exactly Finance and require public functional evidence
-        if: ${{ steps.owner.outputs.publish == 'true' }}
-        run: python scripts/hf_publish_vertical_flagships_v4.py
-      - name: Retain ownership and functional publication receipts
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: finance-projection-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            ${{ runner.temp }}/finance-main-ownership.json
-            hf-vertical-flagships-receipt.json
-          if-no-files-found: error
-          retention-days: 180
-
   readiness-verdict:
     name: Probe and ingest exact post-deploy readiness verdict
-    needs: [manual-prerequisites, runtime-config]
-    if: ${{ github.event_name == 'push' && github.run_attempt == 1 }}
+    needs: runtime-config
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    outputs:
+      verdict: ${{ steps.gate.outputs.verdict }}
     env:
-      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
       SOURCE_SHA: ${{ github.sha }}
       VERDICT_PATH: /tmp/readiness-verdict.json
     steps:
@@ -649,11 +528,6 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install exact verdict publisher
-        run: >-
-          python -m pip install --disable-pip-version-check
-          "huggingface_hub==1.23.0"
-
       - name: Probe the exact canonical deployment
         run: >-
           node tools/readiness-harness/probe_runner.mjs
@@ -661,6 +535,7 @@ jobs:
           --samples 1
           --concurrency 2
           --retries 2
+          --await-readiness
           --soft
           --out "$VERDICT_PATH"
 
@@ -672,19 +547,27 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-      - name: Publish compact source-bound verdict to the runtime
+      # The same fail-closed verdict gate (lies, unreachable, throttled,
+      # degraded, stale or foreign source), but no Space variable write: that
+      # write would restart the revision this run just started once. The
+      # compact verdict is handed to relock as a job output and re-validated.
+      - name: Validate the source-bound verdict without a Space write
+        id: gate
         run: >-
           python .github/scripts/publish_readiness_verdict.py
+          --validate-only
           --input "$VERDICT_PATH"
-          --repo-id "$CANONICAL_SPACE"
           --expected-origin "$CANONICAL_ORIGIN"
           --expected-source-sha "$SOURCE_SHA"
+          --github-output "$GITHUB_OUTPUT"
 
   relock:
     name: Prove exact live source, runtime, routes, and singleton state
-    needs: [manual-prerequisites, runtime-config, readiness-verdict]
+    needs: [runtime-config, readiness-verdict]
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    outputs:
+      current_main: ${{ steps.post_deploy_owner.outputs.publish }}
     env:
       HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
       SOURCE_SHA: ${{ github.sha }}
@@ -707,16 +590,22 @@ jobs:
           "huggingface_hub==1.23.0"
           "requests==2.32.5"
 
+      # The live route honestly serves no verdict (the deploy path never writes
+      # one into the Space); relock re-validates this run's verdict instead.
       - name: Evaluate the canonical application contract
         id: verify
         shell: bash
+        env:
+          RUN_READINESS_VERDICT: ${{ needs.readiness-verdict.outputs.verdict }}
         run: |
           set +e
+          printf '%s' "$RUN_READINESS_VERDICT" > "$RUNNER_TEMP/run-readiness-verdict.json"
           python .github/scripts/verify_canonical_a11oy.py \
             --repo-id "$CANONICAL_SPACE" \
             --origin "$CANONICAL_ORIGIN" \
             --source-sha "$SOURCE_SHA" \
             --source-variable SZL_GIT_SHA \
+            --readiness-verdict-file "$RUNNER_TEMP/run-readiness-verdict.json" \
             --output "$REPORT_PATH" \
             --attempts 60 \
             --retry-seconds 10
@@ -772,22 +661,25 @@ jobs:
             exit "$code"
           fi
           if [ "${CURRENT_MAIN:-false}" != 'true' ]; then
-            echo '::error::Canonical A11oy relock source is no longer current protected main.'
-            exit 3
+            echo '::notice::A newer protected main superseded this verified source; that run deploys and relocks it.'
+            exit 0
           fi
           echo 'Canonical A11oy is source-bound, singleton, and route-operational.'
 
   post-deployment-parity:
     name: Await strict live and repository parity
     needs: relock
+    # A superseded source is not current main, so repository parity belongs
+    # to the newer run that deploys it.
+    if: ${{ needs.relock.outputs.current_main == 'true' }}
     permissions:
       contents: read
     uses: ./.github/workflows/hf-module-drift.yml
 
   terminal-source-authorization:
     name: Re-authorize exact protected main after all publication proofs
-    needs: [post-deployment-parity, publish-vertical-flagships, publish-finance-projection]
-    if: ${{ always() && needs.post-deployment-parity.result == 'success' && (needs.publish-vertical-flagships.result == 'success' || needs.publish-vertical-flagships.result == 'skipped') && (needs.publish-finance-projection.result == 'success' || needs.publish-finance-projection.result == 'skipped') }}
+    needs: [relock, post-deployment-parity, publish-vertical-flagships]
+    if: ${{ always() && needs.relock.result == 'success' && (needs.post-deployment-parity.result == 'success' || (needs.post-deployment-parity.result == 'skipped' && needs.relock.outputs.current_main != 'true')) && (needs.publish-vertical-flagships.result == 'success' || needs.publish-vertical-flagships.result == 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -833,7 +725,7 @@ jobs:
             --receipt "$RUNNER_TEMP/terminal-source-authorization-final.json" \
             --github-output "$RUNNER_TEMP/terminal-source-authorization-final.out"
           if ! grep -Fqx 'publish=true' "$RUNNER_TEMP/terminal-source-authorization-final.out"; then
-            echo '::error::Completed A11oy publication is no longer exact protected main.'
-            exit 3
+            echo '::notice::A newer protected main superseded this completed publication; that run owns the next one.'
+            exit 0
           fi
           echo 'Completed A11oy publication remains exact protected main.'

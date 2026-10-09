@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 import pytest
 from .test_finance_release_boundaries import projection
+from .test_finance_signed_verifier import signed
+from .test_finance_signed_prices import signed_envelope, prices, ENV
 
 ROOT = Path(__file__).resolve().parents[1]
 REVISION = "1" * 40
@@ -22,7 +24,7 @@ def load(name):
 
 
 @pytest.fixture
-def witness():
+def witness(signed):
     gate = load("hf_finance_functional_gate")
     client = transport.FinanceClient(environ={"SZL_SOURCE_REVISION": REVISION},
         fetch=lambda plan: json.dumps([[plan.parameters["start"] + i * 86400, 50, 200, 100,
@@ -42,6 +44,10 @@ def witness():
                     "execution_enabled": False}
         elif path == "/api/finance/providers":
             body = client.registry()
+        elif path == "/api/finance/signed-prices/BTC":
+            body = signed_envelope(signed)
+        elif path == "/api/finance/signed-prices/model":
+            body = prices.envelope(ENV, prices.reference.synthetic_demo(), modeled=True)
         elif path.endswith("signals/AAPL?origin=fixture"):
             body = fixture
         elif path.endswith("quote/AAPL?origin=fixture"):
@@ -68,7 +74,8 @@ def test_all_public_functional_contracts_accept_only_exact_source(witness):
     result = gate.observe_finance(REVISION, request=request)
     assert result["complete"] is True
     assert result["live_coinbase_verified"] is True
-    assert len(result["probes"]) == 10
+    assert len(result["probes"]) == 12
+    assert result["signed_price_review_verified"] is True
     assert result["receipt_authenticity_established"] is False
     assert all(row["accepted"] for row in result["probes"])
 
@@ -148,18 +155,15 @@ def test_functional_gate_preserves_sanitized_upstream_boundary_and_rejects_raw_f
     assert "secret" not in json.dumps(second)
 
 
-def test_recovery_transition_holds_unrelated_finance_projection():
+def test_canonical_deploy_never_publishes_the_unrelated_finance_projection():
+    # The dead "&& false" Finance projection job left hf-sync with the
+    # livelocked recovery graph; Finance publishes only through its own lane.
     import yaml
     workflow = yaml.safe_load((ROOT / ".github/workflows/hf-sync.yml").read_text())
-    job = workflow["jobs"]["publish-finance-projection"]
-    assert job["needs"] == ["manual-prerequisites", "relock"]
-    assert job["if"] == "${{ github.event_name == 'push' && github.run_attempt == 1 && needs.manual-prerequisites.result == 'success' && false }}"
-    assert job["env"]["SZL_FLAGSHIP_SCOPE"] == "finance"
-    assert job["concurrency"] == {"group": "hf-vertical-estate", "cancel-in-progress": False}
-    text = json.dumps(job)
-    assert "hf_exact_main_ownership.py" in text
-    assert "hf_publish_vertical_flagships_v4.py" in text
-    assert "create_repo" not in text
+    assert "publish-finance-projection" not in workflow["jobs"]
+    text = json.dumps(workflow["jobs"])
+    assert "SZL_FLAGSHIP_SCOPE" not in text
+    assert "finance" not in text.lower()
 
 
 def test_existing_publisher_requires_functional_success_for_finance(monkeypatch):
@@ -168,7 +172,21 @@ def test_existing_publisher_requires_functional_success_for_finance(monkeypatch)
     arguments = {"source_revision": REVISION, "workflow_run_id": "1"}
     assert not publisher.observation_passes({"slug": "finance"}, **arguments)
     assert not publisher.observation_passes({"slug": "finance", "finance_functional": {"complete": False}}, **arguments)
-    assert publisher.observation_passes({"slug": "finance", "finance_functional": {"complete": True}}, **arguments)
+    assert not publisher.observation_passes({"slug": "finance", "finance_functional": {"complete": True}}, **arguments)
+    files = publisher.render_finance_payloads(REVISION, 1)
+    publisher._finance_payloads.update(files)
+    gate = publisher._projection_module
+    expected = {gate.MANIFEST_PATH: gate.manifest_bytes(files, REVISION, 1), **files}
+    projection_witness = gate.observe_projection(files, REVISION, 1, "2" * 40,
+        request=lambda revision, path, limit: (200, expected[path]))
+    row = {"slug": "finance", "finance_functional": {"complete": True},
+           "build_info": {"hf_revision": "2" * 40}, "finance_projection": projection_witness}
+    assert publisher.observation_passes(row, **arguments)
+    row["finance_functional"]["complete"] = False
+    assert not publisher.observation_passes(row, **arguments)
+    row["finance_functional"]["complete"] = True
+    row["finance_projection"]["files"].pop()
+    assert not publisher.observation_passes(row, **arguments)
     assert publisher.observation_passes({"slug": "terra"}, **arguments)
 
 

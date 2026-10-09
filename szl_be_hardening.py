@@ -65,6 +65,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 import os
 import sqlite3
 import sys
@@ -561,6 +562,29 @@ def _make_logger(organ: str) -> logging.Logger:
 
 
 # ===========================================================================
+# /readyz storage block (GDW runtime BLOCKED state)
+# ===========================================================================
+
+
+def gdw_storage_block() -> Optional[Dict[str, Any]]:
+    """BLOCKED storage reason from the GDW runtime, if that runtime is loaded.
+
+    gdw_runtime registers itself in sys.modules when it is the entrypoint, so
+    this never imports it (standalone hardened apps have no GDW runtime).
+    """
+    module = sys.modules.get("gdw_runtime")
+    probe = getattr(module, "storage_block", None)
+    if not callable(probe):
+        return None
+    try:
+        block = probe()
+    except Exception as exc:  # noqa: BLE001 - unreadable state is not ready
+        return {"startup_state": "UNKNOWN", "reason": "GDW_STORAGE_STATE_UNREADABLE",
+                "error_class": type(exc).__name__}
+    return dict(block) if isinstance(block, dict) else None
+
+
+# ===========================================================================
 # main entrypoint
 # ===========================================================================
 def harden(app: Any, organ: str, ns: Optional[str] = None,
@@ -643,7 +667,12 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
     @app.exception_handler(StarletteHTTPException)
     async def _http_exc_handler(request: "Request", exc: "StarletteHTTPException"):
         tid = getattr(request.state, "trace_id", uuid.uuid4().hex)
-        return _envelope("http_error", str(exc.detail), tid, exc.status_code)
+        response = _envelope("http_error", str(exc.detail), tid, exc.status_code)
+        # Keep protocol headers the route attached (Retry-After on 503/429,
+        # WWW-Authenticate on 401); the envelope replaces only the body.
+        for name, value in (getattr(exc, "headers", None) or {}).items():
+            response.headers[name] = value
+        return response
 
     @app.exception_handler(RequestValidationError)
     async def _validation_handler(request: "Request", exc: "RequestValidationError"):
@@ -720,20 +749,22 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
     # QHAPAQ 2026-08-28: GET 200 / HEAD 405. Include HEAD on the methods set
     # (Starlette Route GET-only is the usual cause). This liveness body does
     # NOT share the /api/a11oy/healthz rollup signer — fail closed ABSENT,
-    # never copy DSSE-LIVE.
+    # never copy DSSE-LIVE. Liveness stays 200 even when GDW storage is
+    # BLOCKED; readiness (/readyz) carries that fault.
     _SIGNER_ABSENT = {
         "status": "ABSENT",
         "signing_available": False,
         "scheme": "UNAVAILABLE",
+        "scope": "NOT_EVALUATED_BY_THIS_ROUTE",
+        "availability_evaluated": False,
+        "runtime_status_endpoint": "/api/a11oy/healthz",
     }
 
     @app.get(f"{base}/healthz", tags=["health"])
     @app.get("/healthz", tags=["health"])
     async def _healthz():
         live = {
-            "status": "ABSENT",
-            "signing_available": False,
-            "scheme": "UNAVAILABLE",
+            **_SIGNER_ABSENT,
             "mint": "POST /api/a11oy/khipu/sign",
             "rollup": "/api/a11oy/healthz",
             "pubkey": "/cosign.pub",
@@ -747,6 +778,9 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
             live["error"] = type(exc).__name__
         return {
             "status": "ok",
+            "scope": "PROCESS_LIVENESS",
+            "capability_readiness_asserted": False,
+            "operational_readiness_endpoint": "/api/a11oy/healthz",
             "organ": organ,
             "doctrine": DOCTRINE,
             "lock": "749/14/163",
@@ -759,11 +793,18 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
     @app.get("/readyz", tags=["health"])
     async def _readyz():
         ok, depth, brk = store.verify()
-        body = {"status": "ready" if ok else "degraded", "organ": organ,
+        storage_block = gdw_storage_block()
+        ready = ok and storage_block is None
+        body = {"status": "ready" if ready else "degraded", "organ": organ,
                 "khipu_backend": store.backend, "khipu_durable": store.backend in ("sqlite", "json"),
                 "khipu_depth": depth, "khipu_chain_ok": ok,
                 "khipu_first_break_seq": brk, "doctrine": DOCTRINE}
-        return JSONResponse(body, status_code=200 if ok else 503)
+        headers = None
+        if storage_block is not None:
+            body["storage"] = storage_block
+            body["blocked_reason"] = storage_block.get("reason")
+            headers = {"Retry-After": str(int(storage_block.get("retry_after_seconds") or 60))}
+        return JSONResponse(body, status_code=200 if ready else 503, headers=headers)
 
     _health_head_paths = {
         "/healthz", f"{base}/healthz", "/readyz", f"{base}/readyz",
@@ -1116,13 +1157,31 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
         led, src = _energy_ledger()
         ok, depth, brk = store.verify()
         energy: Optional[Dict[str, Any]] = None
+        energy_measured = False
         if led is not None:
+            raw_joules = led.get("joules_measured_total")
+            energy_measured = (
+                src == "live-operator"
+                and led.get("joules_measured_label") == "MEASURED"
+                and led.get("attribution_verified") is True
+                and isinstance(led.get("attribution_method"), str)
+                and bool(led.get("attribution_method").strip())
+                and isinstance(led.get("attribution_version"), int)
+                and not isinstance(led.get("attribution_version"), bool)
+                and led.get("attribution_version") >= 1
+                and isinstance(raw_joules, (int, float))
+                and not isinstance(raw_joules, bool)
+                and math.isfinite(raw_joules)
+                and raw_joules > 0.0
+            )
             energy = {
-                "joules_measured_total": led.get("joules_measured_total"),
-                "joules_measured_label": led.get("joules_measured_label", "MEASURED"),
-                "measured_jobs": led.get("measured_jobs"),
+                "joules_measured_total": raw_joules if energy_measured else None,
+                "joules_measured_label": "MEASURED" if energy_measured else "UNAVAILABLE",
+                "measured_jobs": led.get("measured_jobs") if energy_measured else None,
+                "attribution_method": led.get("attribution_method") if energy_measured else None,
+                "attribution_version": led.get("attribution_version") if energy_measured else None,
                 "tokens_total": led.get("tokens_total"),
-                "by_node": led.get("by_node"),
+                "by_node": led.get("by_node") if energy_measured else None,
                 "running": led.get("running"),
                 "stub_mode": led.get("stub_mode"),
                 "exporter": led.get("exporter"),
@@ -1141,15 +1200,16 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
                 "head": store.head(),
                 "count": store.count(),
             },
-            "data_kind": "live" if (energy is not None or store.count() > 0)
+            "data_kind": "live" if (energy_measured or store.count() > 0)
                          else "structural",
             "doctrine": DOCTRINE,
-            "honesty": ("energy figures are MEASURED NVML joule deltas from the live "
-                        "operator (or the durable persisted ledger when the operator is "
-                        "not in this process) — SAMPLE/stub energy is excluded and never "
-                        "billable; receipt_chain is a SHA3-256 hash-chain that verify() "
-                        "re-walks. Counters are NEVER reset and NEVER fabricated; "
-                        "energy_ledger is null when no ledger is reachable."),
+            "honesty": ("Current MEASURED joules require a live operator with explicit "
+                        "verified exclusive job attribution and a method/version; "
+                        "persisted counters alone remain UNAVAILABLE, not billable. "
+                        "SAMPLE/stub energy is excluded. receipt_chain is a SHA3-256 "
+                        "hash-chain that verify() re-walks; chain integrity alone "
+                        "does not prove measurement. energy_ledger is null when no "
+                        "ledger is reachable."),
         }
 
     # ---- 11: cheapest-watt placement (carbon/cost-aware routing) ----------

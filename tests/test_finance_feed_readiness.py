@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import copy
 import json
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import shutil
@@ -56,7 +57,8 @@ def _probe(path: str, body: dict, now_s: int = 1786449600) -> dict:
     return json.loads(result.stdout)
 
 
-def _live(symbol: str, official: bool = False) -> dict:
+def _live(symbol: str, official: bool = False,
+          fetched_at: float = 1786449600) -> dict:
     kind = "live" if official else "unofficial-fallback"
     return {
         "value": {
@@ -65,7 +67,7 @@ def _live(symbol: str, official: bool = False) -> dict:
             "data_kind": kind,
             "official": official,
         },
-        "freshness": {"status": "live", "fetched_at": 1786449600},
+        "freshness": {"status": "live", "fetched_at": fetched_at},
     }
 
 
@@ -85,13 +87,13 @@ def _stale_last_good(symbol: str) -> dict:
     }
 
 
-def _stale_source(value: dict) -> dict:
+def _stale_source(value: dict, fetched_at: float = 1786449500) -> dict:
     return {
         "value": value,
         "freshness": {
             "status": "stale",
             "age_s": 90.0,
-            "fetched_at": 1786449500,
+            "fetched_at": fetched_at,
             "error": "HTTPStatusError: 503",
         },
     }
@@ -461,22 +463,28 @@ def test_finance_fx_rejects_invalid_ecb_fallback_without_inventing_rates(
 
 
 def test_defense_and_finance_routes_preserve_last_good_source_evidence(monkeypatch) -> None:
+    now_s = int(time.time())
+    observed_at = now_s - 100
+    live = lambda symbol, official=False: _live(symbol, official, fetched_at=now_s)
+    stale = lambda value: _stale_source(value, fetched_at=observed_at)
     monkeypatch.setattr(vertical, "feed_cisa_kev", lambda *a: {
         "value": {"items": []},
-        "freshness": {"status": "live", "fetched_at": 1786449600},
+        "freshness": {"status": "live", "fetched_at": now_s},
     })
-    monkeypatch.setattr(vertical, "feed_nvd", lambda *a, **k: _stale_source({"items": []}))
-    monkeypatch.setattr(vertical, "feed_yahoo", lambda symbol: _live(symbol))
+    monkeypatch.setattr(vertical, "feed_nvd", lambda *a, **k: stale({"items": []}))
+    monkeypatch.setattr(vertical, "feed_yahoo", lambda symbol: live(symbol))
     monkeypatch.setattr(vertical, "feed_polygon", lambda symbol: (
-        _live(symbol, official=True) if symbol == "SPY"
-        else _stale_source({"symbol": symbol, "price": 1.0})
+        live(symbol, official=True) if symbol == "SPY"
+        else stale({"symbol": symbol, "price": 1.0})
     ))
-    monkeypatch.setattr(vertical, "feed_coinbase", lambda pair: _live(pair, official=True))
-    monkeypatch.setattr(vertical, "feed_fx", lambda *a: _stale_source({"rates": {"EUR": 0.8}}))
+    monkeypatch.setattr(vertical, "feed_coinbase", lambda pair: live(pair, official=True))
+    monkeypatch.setattr(vertical, "feed_fx", lambda *a: stale({"rates": {"EUR": 0.8}}))
 
     app = FastAPI()
     vertical.register(app)
-    defense = _payload(asyncio.run(_endpoint(app, "/api/a11oy/v1/vert/defense/feed")()))
+    defense_response = asyncio.run(_endpoint(app, "/api/a11oy/v1/vert/defense/feed")())
+    assert defense_response.status_code == 200
+    defense = _payload(defense_response)
     finance = _payload(asyncio.run(_endpoint(app, "/api/a11oy/v1/vert/finance/feed")()))
 
     for source in (
@@ -487,24 +495,24 @@ def test_defense_and_finance_routes_preserve_last_good_source_evidence(monkeypat
     ):
         assert source["value"] is not None
         assert source["freshness"]["status"] == "cached"
-        assert source["freshness"]["fetched_at"] == 1786449500
+        assert source["freshness"]["fetched_at"] == observed_at
         assert source["freshness"]["error"] == "HTTPStatusError: 503"
 
     defense_path = "/api/a11oy/v1/vert/defense/feed"
     finance_path = "/api/a11oy/v1/vert/finance/feed"
-    assert _probe(defense_path, defense) == {
+    assert _probe(defense_path, defense, now_s=now_s) == {
         "schemaOk": True, "labelsOk": True, "freshOk": True,
     }
-    assert _probe(finance_path, finance) == {
+    assert _probe(finance_path, finance, now_s=now_s) == {
         "schemaOk": True, "labelsOk": True, "freshOk": True,
     }
     old = copy.deepcopy(finance)
-    old["fx"]["freshness"]["fetched_at"] = 1786440000
-    assert _probe(finance_path, old)["freshOk"] is False
+    old["fx"]["freshness"]["fetched_at"] = now_s - 9600
+    assert _probe(finance_path, old, now_s=now_s)["freshOk"] is False
     for section, symbol in (("equities_official", "AAPL"), ("crypto", "ETH-USD")):
         aged = copy.deepcopy(finance)
-        aged[section][symbol]["freshness"]["fetched_at"] = 1786440000
-        assert _probe(finance_path, aged)["freshOk"] is False
+        aged[section][symbol]["freshness"]["fetched_at"] = now_s - 9600
+        assert _probe(finance_path, aged, now_s=now_s)["freshOk"] is False
 
 
 def test_finance_route_marks_missing_fx_as_canonical_unavailable(monkeypatch) -> None:
@@ -559,11 +567,88 @@ def test_defense_route_blocks_missing_required_source(monkeypatch) -> None:
     app = FastAPI()
     vertical.register(app)
     path = "/api/a11oy/v1/vert/defense/feed"
-    defense = _payload(asyncio.run(_endpoint(app, path)()))
+    response = asyncio.run(_endpoint(app, path)())
+    assert response.status_code == 503
+    defense = _payload(response)
     assert defense["kev"]["freshness"]["status"] == "UNAVAILABLE"
     assert _probe(path, defense) == {
         "schemaOk": True, "labelsOk": True, "freshOk": False,
     }
+
+
+def test_defense_route_fails_closed_on_cold_nvd_failure(monkeypatch) -> None:
+    now_s = int(time.time())
+    kev = {"value": {"items": []},
+           "freshness": {"status": "live", "fetched_at": now_s}}
+    monkeypatch.setattr(vertical, "feed_cisa_kev", lambda *a: kev)
+    monkeypatch.setattr(vertical, "feed_nvd", lambda *a, **k: {
+        "value": None,
+        "freshness": {"status": "unavailable", "fetched_at": now_s,
+                      "error": "TimeoutError: NVD unavailable"},
+    })
+
+    app = FastAPI()
+    vertical.register(app)
+    path = "/api/a11oy/v1/vert/defense/feed"
+    response = asyncio.run(_endpoint(app, path)())
+    body = _payload(response)
+    assert response.status_code == 503
+    assert body["kev"] == kev
+    assert body["nvd"] == {
+        "value": None,
+        "freshness": {"status": "UNAVAILABLE", "fetched_at": now_s,
+                      "error": "TimeoutError: NVD unavailable"},
+    }
+    assert body["vertical"] == "defense"
+    assert body["sources_cited"] == vertical.cited_leaders("defense")
+    assert body["doctrine"] == vertical.DOCTRINE
+    assert _probe(path, body, now_s=now_s) == {
+        "schemaOk": True, "labelsOk": True, "freshOk": False,
+    }
+
+
+def test_defense_route_returns_200_for_two_live_required_sources(monkeypatch) -> None:
+    now_s = int(time.time())
+    monkeypatch.setattr(vertical, "feed_cisa_kev", lambda *a: {
+        "value": {"items": []},
+        "freshness": {"status": "live", "fetched_at": now_s},
+    })
+    monkeypatch.setattr(vertical, "feed_nvd", lambda *a, **k: {
+        "value": {"items": []},
+        "freshness": {"status": "live", "fetched_at": now_s},
+    })
+
+    app = FastAPI()
+    vertical.register(app)
+    path = "/api/a11oy/v1/vert/defense/feed"
+    response = asyncio.run(_endpoint(app, path)())
+    assert response.status_code == 200
+    assert _probe(path, _payload(response), now_s=now_s) == {
+        "schemaOk": True, "labelsOk": True, "freshOk": True,
+    }
+
+
+@pytest.mark.parametrize("observation_offset", [-3601, 305])
+def test_defense_route_does_not_claim_success_for_invalid_nvd_clock(
+    monkeypatch, observation_offset,
+) -> None:
+    now_s = int(time.time())
+    monkeypatch.setattr(vertical, "feed_cisa_kev", lambda *a: {
+        "value": {"items": []},
+        "freshness": {"status": "live", "fetched_at": now_s},
+    })
+    monkeypatch.setattr(vertical, "feed_nvd", lambda *a, **k: {
+        "value": {"items": []},
+        "freshness": {"status": "cached",
+                      "fetched_at": now_s + observation_offset},
+    })
+
+    app = FastAPI()
+    vertical.register(app)
+    path = "/api/a11oy/v1/vert/defense/feed"
+    response = asyncio.run(_endpoint(app, path)())
+    assert response.status_code == 503
+    assert _probe(path, _payload(response), now_s=now_s)["freshOk"] is False
 
 
 def test_finance_route_does_not_launder_clockless_stale_equity(monkeypatch) -> None:
