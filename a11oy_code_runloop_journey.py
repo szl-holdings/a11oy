@@ -24,6 +24,7 @@ from routers.governed_graph_operations import (
     GraphContractError,
     analyse_graph,
 )
+import szl_action_identity as action_identity
 from szl_lake_store import (
     CHAIN_HASH,
     SCHEMA as LAKE_SCHEMA,
@@ -162,6 +163,350 @@ def idempotency_key(tenant_sha256: str, purpose: str, query_sha256: str,
         "request_id": request_id,
         "tenant_sha256": tenant_sha256,
     })
+
+
+PLAN_SCHEMA = "szl.code-plan-binding/v1"
+_PLANS: dict[tuple[str, str], dict] = {}
+_EXECUTION_OPTION_KEYS = (
+    "destination_contract",
+    "model",
+    "profile",
+    "sandbox",
+    "state_changing",
+    "state_changing_class",
+)
+
+
+def _bounded_text(value: Any, limit: int) -> str:
+    if not isinstance(value, str):
+        return ""
+    return value[:limit]
+
+
+def _execution_options(step: dict) -> dict:
+    return {
+        "sandbox": step.get("sandbox") is True,
+        "state_changing": step.get("state_changing") is True,
+        "profile": "",
+        "model": "",
+        "state_changing_class": "state-changing" if step.get("state_changing") else "read",
+        "destination_contract": "governed-turn/v1",
+    }
+
+
+def _operation_for(step: dict) -> str:
+    if step.get("n") == 1:
+        return "ground"
+    if step.get("sandbox") is True:
+        return "execute"
+    if step.get("mode") == "code":
+        return "synthesize"
+    if step.get("mode") == "research":
+        return "cite"
+    return "answer"
+
+
+def bind_plan(body: dict) -> dict:
+    """Stamp server step identity onto a modeled plan. This does not execute it."""
+    steps = body.get("plan")
+    if not isinstance(steps, list):
+        return body
+    material = []
+    for step in steps:
+        if not isinstance(step, dict):
+            continue
+        number = step.get("n")
+        step["step_id"] = "step-%s" % number
+        step["operation"] = _operation_for(step)
+        step["destination"] = "governed-engine"
+        step["execution_options"] = _execution_options(step)
+        prompt = step.get("prompt") if isinstance(step.get("prompt"), str) else ""
+        material.append({
+            "step_id": step["step_id"],
+            "operation": step["operation"],
+            "destination": step["destination"],
+            "prompt_sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
+            "execution_options": step["execution_options"],
+        })
+    revision = "rev-" + action_identity.digest({
+        "mode": body.get("mode") if isinstance(body.get("mode"), str) else "",
+        "steps": material,
+    })
+    body["plan_revision"] = revision
+    for step in steps:
+        if isinstance(step, dict):
+            step["plan_revision"] = revision
+    return body
+
+
+def _plan_document(tenant: str, body: dict) -> dict:
+    steps = []
+    for step in body.get("plan") or []:
+        if not isinstance(step, dict):
+            continue
+        steps.append({
+            "n": step.get("n"),
+            "step_id": step.get("step_id"),
+            "mode": step.get("mode"),
+            "prompt": step.get("prompt") if isinstance(step.get("prompt"), str) else "",
+            "operation": step.get("operation"),
+            "destination": step.get("destination"),
+            "sandbox": step.get("sandbox") is True,
+            "state_changing": step.get("state_changing") is True,
+            "execution_options": step.get("execution_options"),
+        })
+    return {
+        "schema": PLAN_SCHEMA,
+        "tenant_sha256": tenant_scope(tenant),
+        "run_id": body.get("run_id"),
+        "plan_revision": body.get("plan_revision"),
+        "purpose": body.get("purpose") or body.get("mode"),
+        "steps": steps,
+    }
+
+
+def _plan_path(root: str, tenant_sha: str, run_id: str) -> str:
+    return os.path.join(root, ORGAN, "plans", tenant_sha, run_id + ".json")
+
+
+def save_plan(root: str, tenant: str, body: dict) -> str:
+    """Remember a server-issued plan. An existing run id is not rewritten."""
+    document = _plan_document(tenant, body)
+    run_id = document.get("run_id")
+    scope = document.get("tenant_sha256")
+    if not isinstance(run_id, str) or not isinstance(scope, str):
+        return "unavailable"
+    key = (scope, run_id)
+    if key not in _PLANS:
+        _PLANS[key] = document
+    if not root:
+        return "memory"
+    path = _plan_path(root, scope, run_id)
+    if os.path.exists(path):
+        return "persisted"
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        temporary = path + ".tmp"
+        with open(temporary, "w", encoding="utf-8") as handle:
+            json.dump(document, handle, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    except OSError:
+        return "memory"
+    return "persisted"
+
+
+def load_plan(root: str, tenant: str, run_id: str) -> Optional[dict]:
+    scope = tenant_scope(tenant)
+    key = (scope, run_id)
+    cached = _PLANS.get(key)
+    if isinstance(cached, dict):
+        return cached
+    if not root:
+        return None
+    path = _plan_path(root, scope, run_id)
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            document = json.loads(handle.read())
+    except (OSError, json.JSONDecodeError):
+        return None
+    if (not isinstance(document, dict) or document.get("schema") != PLAN_SCHEMA
+            or document.get("tenant_sha256") != scope or document.get("run_id") != run_id):
+        return None
+    _PLANS[key] = document
+    return document
+
+
+def admit_planned_step(root: str, tenant: str, body: dict, query: str, purpose: str) -> dict:
+    """Admit a planned step from the server binding. A client id alone is not enough."""
+    if not isinstance(body, dict) or "run_id" not in body:
+        return {"ok": True, "legacy": True}
+    try:
+        run_id = action_identity.require_id(body.get("run_id"))
+        step_id = action_identity.require_id(body.get("step_id"))
+        plan_revision = action_identity.require_id(body.get("plan_revision"))
+    except ValueError:
+        return {"ok": False, "status": 400, "error": "run identity is not admitted"}
+    plan = load_plan(root, tenant, run_id)
+    if plan is None:
+        return {"ok": False, "status": 409, "error": "run is not admitted"}
+    step = None
+    for item in plan.get("steps") or []:
+        if isinstance(item, dict) and item.get("step_id") == step_id:
+            step = item
+            break
+    if step is None:
+        return {"ok": False, "status": 409, "error": "step is not admitted"}
+    options = step.get("execution_options")
+    if (purpose != step.get("mode") or query != step.get("prompt")
+            or plan_revision != plan.get("plan_revision")
+            or not isinstance(options, dict)
+            or set(options) != set(_EXECUTION_OPTION_KEYS)):
+        return {"ok": False, "status": 409, "error": "semantics conflict"}
+    if "sandbox" in body and body.get("sandbox") is not options.get("sandbox"):
+        return {"ok": False, "status": 409, "error": "semantics conflict"}
+    if "state_changing" in body and body.get("state_changing") is not options.get("state_changing"):
+        return {"ok": False, "status": 409, "error": "semantics conflict"}
+    profile = body.get("harness_profile_id") if "harness_profile_id" in body else body.get("profile_id", "")
+    model = body.get("model") if "model" in body else body.get("want_model", "")
+    if profile is None:
+        profile = ""
+    if model is None:
+        model = ""
+    if not isinstance(profile, str) or not isinstance(model, str):
+        return {"ok": False, "status": 409, "error": "semantics conflict"}
+    if profile != options.get("profile") or model != options.get("model"):
+        return {"ok": False, "status": 409, "error": "semantics conflict"}
+    operation = step.get("operation")
+    destination = step.get("destination")
+    try:
+        bound = action_identity.identity(
+            tenant_id=str(plan.get("tenant_sha256") or ""),
+            run_id=run_id,
+            step_id=step_id,
+            plan_revision=plan_revision,
+            operation=str(operation or ""),
+            destination=str(destination or ""),
+            arguments={"prompt": step.get("prompt")},
+            execution_options=options,
+        )
+    except ValueError:
+        return {"ok": False, "status": 400, "error": "run identity is not admitted"}
+    return {
+        "ok": True,
+        "legacy": False,
+        "logical_id": bound.logical_id,
+        "semantics_digest": bound.semantics_digest,
+        "run_id": run_id,
+        "step_id": step_id,
+        "plan_revision": plan_revision,
+        "operation": operation,
+        "destination": destination,
+        "query": step.get("prompt"),
+        "purpose": step.get("mode"),
+        "sandbox": options.get("sandbox") is True,
+        "state_changing": options.get("state_changing") is True,
+        "profile": options.get("profile") or "",
+        "model": options.get("model") or "",
+        "execution_options": options,
+    }
+
+
+def _result_record(run: dict) -> dict:
+    if not isinstance(run, dict):
+        run = {}
+    code = run.get("code") if isinstance(run.get("code"), dict) else None
+    code_out = None
+    if code is not None:
+        code_out = {
+            "language": _bounded_text(code.get("language"), 40),
+            "description": _bounded_text(code.get("description"), 500),
+            "code": _bounded_text(code.get("code"), 8000),
+        }
+    sandbox = run.get("sandbox") if isinstance(run.get("sandbox"), dict) else None
+    sandbox_out = None
+    if sandbox is not None:
+        sandbox_out = {
+            "stdout": _bounded_text(sandbox.get("stdout"), 4000),
+            "stderr": _bounded_text(sandbox.get("stderr"), 4000),
+            "executed": sandbox.get("executed") is True,
+            "blocked": sandbox.get("blocked") is True,
+            "isolation": _bounded_text(sandbox.get("isolation"), 240),
+        }
+    historical = _bounded_text(run.get("execution_status"), 160) or "UNKNOWN"
+    body = {
+        "schema": "szl.runstep-result/v1",
+        "availability": "AVAILABLE",
+        "historical_execution": historical,
+        "decision": _bounded_text(run.get("decision"), 80),
+        "execution_status": historical,
+        "summary": _bounded_text(run.get("summary"), 2000),
+        "answer": _bounded_text(run.get("answer"), 8000),
+        "code": code_out,
+        "sandbox": sandbox_out,
+    }
+    try:
+        body["digest"] = action_identity.digest(
+            {key: value for key, value in body.items() if key != "digest"}
+        )
+    except ValueError:
+        return {
+            "schema": "szl.runstep-result/v1",
+            "availability": "RESULT_UNAVAILABLE",
+            "historical_execution": historical,
+            "reason": "result could not be canonically stored",
+        }
+    return body
+
+
+def restore_result(receipt: dict) -> dict:
+    """Separate a stored execution status from whether its output can be shown."""
+    config = receipt.get("configuration") if isinstance(receipt, dict) else None
+    record = config.get("result_record") if isinstance(config, dict) else None
+    historical = "UNKNOWN"
+    if isinstance(record, dict) and isinstance(record.get("historical_execution"), str):
+        historical = record["historical_execution"]
+    unavailable = {
+        "run": None,
+        "result_availability": "RESULT_UNAVAILABLE",
+        "historical_execution": historical,
+    }
+    if not isinstance(record, dict) or record.get("availability") != "AVAILABLE":
+        return unavailable
+    try:
+        expect = action_identity.digest(
+            {key: value for key, value in record.items() if key != "digest"}
+        )
+    except ValueError:
+        return unavailable
+    if record.get("digest") != expect:
+        return unavailable
+    return {
+        "run": {
+            "decision": record.get("decision") or "",
+            "answer": record.get("answer") or "",
+            "code": record.get("code"),
+            "sandbox": record.get("sandbox"),
+            "execution_status": record.get("execution_status") or "",
+            "summary": record.get("summary") or "",
+            "restored": True,
+            "result_schema": record.get("schema"),
+            "result_digest": record.get("digest"),
+        },
+        "result_availability": "AVAILABLE",
+        "historical_execution": historical,
+    }
+
+
+def note_attempt(root: str, logical_id: str, attempt_id: str, kind: str) -> bool:
+    """Record a delivery attempt outside the effect ledger."""
+    if not root or not isinstance(logical_id, str) or not logical_id:
+        return False
+    try:
+        action_identity.require_id(attempt_id)
+    except ValueError:
+        return False
+    if kind not in {"execute", "replay"}:
+        return False
+    directory = os.path.join(root, ORGAN + "-attempts")
+    path = os.path.join(directory, "attempts.jsonl")
+    try:
+        os.makedirs(directory, exist_ok=True)
+        line = json.dumps({
+            "schema": "szl.action-attempt/v1",
+            "logical_id": logical_id,
+            "attempt_id": attempt_id,
+            "kind": kind,
+        }, sort_keys=True, separators=(",", ":"))
+        with open(path, "a", encoding="utf-8") as handle:
+            handle.write(line + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+    except OSError:
+        return False
+    return True
 
 
 def admit_measure(measure: Any) -> dict:
@@ -476,7 +821,7 @@ def _execution(run: dict) -> dict:
 
 
 def build_record(query: str, purpose: str, tenant: str, request_id: Optional[str],
-                 run: dict, measure: Any = None) -> dict:
+                 run: dict, measure: Any = None, action: Optional[dict] = None) -> dict:
     retrieval = _retrieval_from_run(run)
     planning = _planning(list(retrieval.get("source_handles") or []))
     guards = _guard_rows(query, purpose, planning, measure)
@@ -493,6 +838,18 @@ def build_record(query: str, purpose: str, tenant: str, request_id: Optional[str
         "source_handles": retrieval.get("source_handles"),
     })
     passed = _enforcement_ok(guards) and verification.get("chain_intact") is True
+    configuration = _configuration(run)
+    configuration["result_record"] = _result_record(run)
+    if isinstance(action, dict):
+        configuration["action_identity"] = {
+            "schema": "szl.logical-action/v1",
+            "logical_id": action.get("logical_id"),
+            "semantics_digest": action.get("semantics_digest"),
+            "run_id": action.get("run_id"),
+            "step_id": action.get("step_id"),
+            "plan_revision": action.get("plan_revision"),
+            "operation": action.get("operation"),
+        }
     return {
         "schema": SCHEMA,
         "id": idempotency_key(scope, purpose, query_sha, request_component(stored_request_id)),
@@ -514,7 +871,7 @@ def build_record(query: str, purpose: str, tenant: str, request_id: Optional[str
             "provider_calls": 0,
             "writes": 0,
         },
-        "configuration": _configuration(run),
+        "configuration": configuration,
         "guard_results": guards,
         "test_result": {
             "enforcement": "PASS" if passed else "FAIL",
@@ -909,7 +1266,8 @@ def commit_record(root: str, record: dict) -> dict:
 
 
 def replay_if_committed(root: str, query: str, purpose: str, tenant: str,
-                        request_id: Optional[str]) -> Optional[dict]:
+                        request_id: Optional[str],
+                        expected_semantics: Optional[str] = None) -> Optional[dict]:
     """Return the committed witness without running retrieval again."""
     if not root or not os.path.isdir(root):
         return None
@@ -944,6 +1302,12 @@ def replay_if_committed(root: str, query: str, purpose: str, tenant: str,
             break
     if stored is None:
         return None
+    action = (stored.get("configuration") or {}).get("action_identity") or {}
+    if not isinstance(action, dict):
+        action = {}
+    if expected_semantics is not None and action.get("semantics_digest") != expected_semantics:
+        return {"conflict": True, "reason": "semantics conflict"}
+    restored = restore_result(stored)
     retrieval = stored.get("retrieval") or _unknown_retrieval()
     journey = {
         "retrieval": retrieval,
@@ -978,13 +1342,23 @@ def replay_if_committed(root: str, query: str, purpose: str, tenant: str,
         "chain_index": match["chain_index"],
         "chain_head": match["chain_hash"],
     }
-    return {"duplicate": True, "restart_receipt": restart, "journey": journey, "run": None}
+    return {
+        "duplicate": True,
+        "restart_receipt": restart,
+        "journey": journey,
+        "run": restored["run"],
+        "result_availability": restored["result_availability"],
+        "historical_execution": restored["historical_execution"],
+        "logical_id": action.get("logical_id") or key,
+        "step_id": action.get("step_id"),
+        "run_id": action.get("run_id"),
+    }
 
 
 def finish(root: str, query: str, purpose: str, tenant: str, request_id: Optional[str],
-           run: dict, measure: Any = None) -> dict:
+           run: dict, measure: Any = None, action: Optional[dict] = None) -> dict:
     """Build the witness and, when a root is configured, commit it."""
-    record = build_record(query, purpose, tenant, request_id, run, measure)
+    record = build_record(query, purpose, tenant, request_id, run, measure, action)
     planning_ok = record.pop("_planning_ok")
     record_for_commit = dict(record)
     record_for_commit["_planning_ok"] = planning_ok
@@ -1027,4 +1401,10 @@ def finish(root: str, query: str, purpose: str, tenant: str, request_id: Optiona
     }
     if ack.get("reason"):
         restart["reason"] = ack["reason"]
-    return {"restart_receipt": restart, "journey": journey}
+    result_record = record["configuration"].get("result_record") or {}
+    return {
+        "restart_receipt": restart,
+        "journey": journey,
+        "result_availability": result_record.get("availability") or "RESULT_UNAVAILABLE",
+        "historical_execution": result_record.get("historical_execution") or "UNKNOWN",
+    }

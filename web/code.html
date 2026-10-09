@@ -410,7 +410,9 @@ async function submitFixedQuery(){
     box.textContent = "restart_receipt evidence_class=" + (rr.evidence_class || "absent")
       + " signer=" + (rr.signer || "")
       + " persisted=" + String(!!rr.persisted)
-      + " restart_verifiable=" + String(!!rr.restart_verifiable);
+      + " restart_verifiable=" + String(!!rr.restart_verifiable)
+      + " historical_execution=" + (res.historical_execution || "UNKNOWN")
+      + " result_availability=" + (res.result_availability || "UNKNOWN");
   }catch(e){
     box.textContent = "request failed: " + (e && e.message ? e.message : e);
   }
@@ -420,6 +422,7 @@ function renderPlan(p){
   document.getElementById("planPanel").style.display = "block";
   document.getElementById("planMeta").innerHTML =
     `<span>run_id <b class="mono">${esc(p.run_id)}</b></span>`+
+    `<span>plan_revision <b class="mono">${esc(p.plan_revision||"")}</b></span>`+
     `<span>mode <b>${esc(p.mode)}</b></span>`+
     `<span>steps <b>${(p.plan||[]).length}</b></span>`+
     `<span>engine <b>${p.engine_available?"LIVE":"DOWN"}</b></span>`+
@@ -450,6 +453,9 @@ async function runStep(n, grant){
   try{
     const harness_profile_id = (document.getElementById("harnessProfile")||{}).value || "";
     const res = await jpost("/runstep", {
+      run_id: CURRENT.run_id,
+      step_id: step.step_id,
+      plan_revision: CURRENT.plan_revision,
       step:n, purpose:step.mode, mode:step.mode, prompt:step.prompt, sandbox:step.sandbox,
       state_changing:step.state_changing, untrusted_input:untrusted,
       harness_profile_id: harness_profile_id || undefined,
@@ -462,10 +468,15 @@ async function runStep(n, grant){
 function renderStepResult(n, res){
   const body = document.getElementById("step"+n+"-body");
   if(res && res.journey) paintJourney(res);
-  if(res && res.duplicate){
+  if(res && res.duplicate && (res.result_availability !== "AVAILABLE" || !res.run)){
     body.innerHTML = `<span class="badge warn">duplicate committed record</span>`
-      + `<div class="note">The engine was not called again.</div>`;
+      + `<div class="note">The engine was not called again. historical_execution ${esc(res.historical_execution||"UNKNOWN")}. result_availability ${esc(res.result_availability||"RESULT_UNAVAILABLE")}.</div>`;
     return;
+  }
+  let restored = "";
+  if(res && res.duplicate){
+    restored = `<span class="badge warn">restored committed result</span>`
+      + `<div class="note">The engine was not called again. historical_execution ${esc(res.historical_execution||"UNKNOWN")}. result_availability ${esc(res.result_availability||"UNKNOWN")}.</div>`;
   }
   if(!res.ok){
     body.innerHTML = `<span class="badge err">${esc(res.label||res.error||"unavailable")}</span>`
@@ -479,9 +490,14 @@ function renderStepResult(n, res){
   const chain = run.receipt_chain||[];
   const sig = run.signed_receipt||{};
   const approval = res.approval||{};
-  let html = "";
+  let html = restored;
 
   // verdict + Lambda gate (advisory)
+  html += `<div class="kv">`+
+    `<span>result <b>${esc((res && res.result_availability) || "UNKNOWN")}</b></span>`+
+    `<span>historical_execution <b>${esc((res && res.historical_execution) || "UNKNOWN")}</b></span>`+
+    `<span>step_id <b class="mono">${esc((res && res.step_id) || "")}</b></span>`+
+    `</div>`;
   html += `<div class="kv">`+
     `<span>decision <span class="verdict ${allow?"allow":"deny"}">${esc(decision)}</span></span>`+
     `<span>severity <b>${esc(gate.severity)}</b></span>`+

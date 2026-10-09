@@ -23,6 +23,10 @@ ReceiptLedger organ code-runloop. The witness is acknowledged after fsync.
 Unsigned witnesses stay SIMULATED. The in-memory Khipu DAG is not this store.
 An omitted request id is not stored as a shared client id. The same client
 request id with a different query is refused before the engine.
+A planned step is admitted only for a server-issued run. The logical id is
+the tenant scope, run, and step. Sandbox, plan revision, and the other
+execution options are a separate semantics digest. A changed digest conflicts.
+A retry restores the stored result and does not call the engine again.
   POST /api/a11oy/v1/code/approve       {checkpoint_id, approver, approved}
                                                                -> approval-interrupt grant echo
   GET  /api/a11oy/v1/code/runloop/health                       -> honest liveness of the surface
@@ -48,7 +52,7 @@ import hashlib
 import hmac
 import os
 import re
-import time
+import secrets
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -180,9 +184,9 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _mk_run_id(task: str) -> str:
-    h = hashlib.sha256(("%s|%s" % (task, time.time())).encode()).hexdigest()[:12]
-    return "run-%s" % h
+def _mk_run_id(_task: str) -> str:
+    """Server-issued run id. Identical text is a new run, not a retry."""
+    return "run-" + secrets.token_hex(8)
 
 
 # ===========================================================================
@@ -269,6 +273,10 @@ def plan(task: str, mode: str = "") -> dict:
     }
 
 
+def _attempt_id() -> str:
+    return "attempt-" + secrets.token_hex(8)
+
+
 # ===========================================================================
 # ROUTE REGISTRATION — Starlette routes inserted BEFORE the SPA catch-all.
 # sign_fn / verify_fn = the HOST app's REAL signer/verifier (same as the engine).
@@ -294,8 +302,10 @@ def register(app, ns: str, sign_fn, verify_fn=None):
         extra = _journey_refusal(b)
         if extra is not None:
             return extra
-        body = plan(query, purpose)
+        body = _journey.bind_plan(plan(query, purpose))
         body["purpose"] = purpose
+        root = (os.environ.get(RECEIPT_LOG_ENV) or "").strip()
+        body["plan_binding"] = _journey.save_plan(root, _presented_tenant(request), body)
         body["admission"] = "principal, tenant, limits, and purpose checked before plan"
         return JSONResponse(body)
 
@@ -322,25 +332,51 @@ def register(app, ns: str, sign_fn, verify_fn=None):
         if extra is not None:
             return extra
         root = (os.environ.get(RECEIPT_LOG_ENV) or "").strip()
-        request_id = b.get("request_id") if isinstance(b.get("request_id"), str) else None
+        binding = _journey.admit_planned_step(
+            root, _presented_tenant(request), b, query, purpose)
+        if binding.get("ok") is not True:
+            return _blocked(binding.get("error") or "run is not admitted",
+                            int(binding.get("status") or 409))
+        if binding.get("legacy"):
+            request_id = b.get("request_id") if isinstance(b.get("request_id"), str) else None
+            expected_semantics = None
+        else:
+            query = binding["query"]
+            purpose = binding["purpose"]
+            request_id = binding["logical_id"]
+            expected_semantics = binding["semantics_digest"]
         if root and os.path.isdir(root):
             pre = _journey.verify_ledger(root)
             if pre.get("status") == "BLOCKED":
                 return _blocked(pre.get("reason") or "receipt log is blocked", 409)
         replay = _journey.replay_if_committed(
-            root, query, purpose, _presented_tenant(request), request_id)
+            root, query, purpose, _presented_tenant(request), request_id,
+            expected_semantics)
         if replay is not None:
             if replay.get("conflict"):
-                return _blocked("request_id conflict", 409)
+                return _blocked(replay.get("reason") or "request_id conflict", 409)
+            attempt_id = _attempt_id()
+            _journey.note_attempt(
+                root, replay.get("logical_id") or request_id or "", attempt_id, "replay")
             return JSONResponse({
                 "ok": True,
                 "duplicate": True,
                 "step": b.get("step"),
-                "run": None,
+                "step_id": replay.get("step_id"),
+                "run_id": replay.get("run_id"),
+                "logical_id": replay.get("logical_id"),
+                "attempt_id": attempt_id,
+                "run": replay.get("run"),
+                "result_availability": replay.get("result_availability"),
+                "historical_execution": replay.get("historical_execution"),
                 "restart_receipt": replay["restart_receipt"],
                 "journey": replay["journey"],
-                "label": "DUPLICATE committed record. Retrieval, the planner, and "
-                         "the provider were not called again.",
+                "approval": {
+                    "required": None, "granted": None, "checkpoint_id": None,
+                    "note": "not re-evaluated on replay",
+                },
+                "label": "DUPLICATE committed record. The stored result is restored "
+                         "when it is still available. The provider was not called again.",
             })
         if _journey.commit_lock_held(root):
             return _blocked("commit lock held", 409)
@@ -351,10 +387,17 @@ def register(app, ns: str, sign_fn, verify_fn=None):
                 "label": "MODELED-UNAVAILABLE — the real governed engine could not be "
                          "imported in this runtime; no run fabricated.",
             }, status_code=200)
-        sandbox = bool(b.get("sandbox", purpose == "code"))
+        if binding.get("legacy"):
+            sandbox = bool(b.get("sandbox", purpose == "code"))
+            want_model = b.get("model") or b.get("want_model") or ""
+            state_changing = bool(b.get("state_changing", sandbox))
+            harness_profile_id = str(b.get("harness_profile_id") or b.get("profile_id") or "").strip()
+        else:
+            sandbox = binding["sandbox"] is True
+            want_model = binding.get("model") or ""
+            state_changing = binding["state_changing"] is True
+            harness_profile_id = str(binding.get("profile") or "")
         untrusted = b.get("untrusted_input") or b.get("untrusted") or ""
-        want_model = b.get("model") or b.get("want_model") or ""
-        state_changing = bool(b.get("state_changing", sandbox))
         grant = b.get("approval") if isinstance(b.get("approval"), dict) else None
         # Wave G: OPTIONAL behavior profile for THIS step. When set, the engine
         # runs the model through szl_model_harness.apply (profile system layer +
@@ -362,8 +405,6 @@ def register(app, ns: str, sign_fn, verify_fn=None):
         # This is the governed version of how the leaders switch a persona on a
         # step mid-run (LangGraph runtime context / Swarm handoff / CrewAI role /
         # AutoGen system_message / Claude Code subagent / MCP prompts/get).
-        harness_profile_id = str(b.get("harness_profile_id") or b.get("profile_id") or "").strip()
-
         # REAL governed run (P1-P6, signed DSSE receipt) via the engine.
         # The body may ask for the sandbox; only the verified header principal
         # (two distinct server-held secrets) lets the engine actually run it.
@@ -422,12 +463,32 @@ def register(app, ns: str, sign_fn, verify_fn=None):
                           "swap is recorded in /llm/forum."),
             }
 
+        action = None
+        if not binding.get("legacy"):
+            action = {
+                "logical_id": binding["logical_id"],
+                "semantics_digest": binding["semantics_digest"],
+                "run_id": binding["run_id"],
+                "step_id": binding["step_id"],
+                "plan_revision": binding["plan_revision"],
+                "operation": binding["operation"],
+            }
+        attempt_id = _attempt_id()
+        _journey.note_attempt(
+            root, (action or {}).get("logical_id") or request_id or "", attempt_id, "execute")
         witnessed = _journey.finish(
             root, query, purpose, _presented_tenant(request), request_id, run,
-            b.get("measure") if "measure" in b else None)
+            b.get("measure") if "measure" in b else None, action)
         return JSONResponse({
             "ok": True,
+            "duplicate": False,
             "step": b.get("step"),
+            "step_id": None if binding.get("legacy") else binding["step_id"],
+            "run_id": None if binding.get("legacy") else binding["run_id"],
+            "logical_id": None if binding.get("legacy") else binding["logical_id"],
+            "attempt_id": attempt_id,
+            "result_availability": witnessed.get("result_availability"),
+            "historical_execution": witnessed.get("historical_execution"),
             "run": run,
             "restart_receipt": witnessed["restart_receipt"],
             "journey": witnessed["journey"],
