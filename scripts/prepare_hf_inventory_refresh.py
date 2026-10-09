@@ -170,6 +170,19 @@ def validate_public_estate_candidate(observed: dict, report: dict) -> None:
     report['publicSpaceClassification']['state']='VALIDATED'
 
 
+def validate_model_support_candidate(observed: dict, report: dict) -> None:
+    """Hold model-ID changes for source review without fabricating observations."""
+    import a11oy_model_support as support
+    report['preparationStep']='INFERENCE_SUPPORT_PREFLIGHT'
+    report['modelInferenceSupport']={'state':'SOURCE_REVIEW_REQUIRED'}
+    try:
+        document=support.read_json(ROOT/'docs/model-inference-support.json')
+        support.validate_document(document,observed)
+    except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
+        raise PreparationError('model inference support source or inventory coverage requires source review') from exc
+    report['modelInferenceSupport']['state']='VALIDATED'
+
+
 def prepare(source: str, run_id: int, artifact_id: int, archive_digest: str, report: dict) -> None:
     require(SHA.fullmatch(source) is not None and run_id>0 and artifact_id>0, 'invalid selected source/run')
     require(command(['git','rev-parse','HEAD']).decode().strip()==source, 'checkout mismatch')
@@ -180,6 +193,7 @@ def prepare(source: str, run_id: int, artifact_id: int, archive_digest: str, rep
     archive=command(['gh','api',f'repos/{REPOSITORY}/actions/artifacts/{artifact_id}/zip'])
     candidate=validate_artifact(meta,archive,source=source,run_id=run_id,expected_digest=archive_digest)
     observed=validate_candidate(candidate,now=datetime.now(timezone.utc))
+    sys.path.insert(0,str(ROOT))
     sys.path.insert(0,str(ROOT/'scripts'))
     import audit_huggingface_ecosystem as collector
     collector.validate_generated_revision_evidence(observed, observed_at=collector.validate_observed_at(observed['observedAt']))
@@ -191,6 +205,7 @@ def prepare(source: str, run_id: int, artifact_id: int, archive_digest: str, rep
         report.update(state='NO_SEMANTIC_REFRESH_REQUIRED',branchCreated=False); return
     report.update(candidateSha256=digest(candidate),inventoryObservedAt=observed['observedAt'],counts=observed['counts'])
     validate_public_estate_candidate(observed,report)
+    validate_model_support_candidate(observed,report)
     (ROOT/CANONICAL).write_bytes(candidate)
     # Existing owner generators only; no speculative reconstruction of their outputs.
     for script,args in (

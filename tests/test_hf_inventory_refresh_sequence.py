@@ -49,6 +49,9 @@ class SequenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
             root=Path(directory); (root/'docs').mkdir()
             (root/M.CANONICAL).write_text(json.dumps(old))
+            support_path=root/'docs/model-inference-support.json'
+            support_path.write_bytes((ROOT/'docs/model-inference-support.json').read_bytes())
+            support_before=support_path.read_bytes()
             def github(path, *, body=None):
                 nonlocal mains
                 self.calls.append((path,body))
@@ -71,6 +74,9 @@ class SequenceTests(unittest.TestCase):
                 report['preparationStep']='PUBLIC_ESTATE_PREFLIGHT'
                 if controls.get('classification_fail'):
                     raise M.PreparationError('public estate classification or policy contract requires source review')
+            def model_support_preflight(observed,report):
+                report['preparationStep']='INFERENCE_SUPPORT_PREFLIGHT'
+                report['modelInferenceSupport']={'state':'VALIDATED'}
             def command(args, **kwargs):
                 if args[:2]==['gh','api']: return archive
                 if args[:2]==['git','rev-parse']: return SHA.encode()
@@ -88,6 +94,8 @@ class SequenceTests(unittest.TestCase):
             stack.enter_context(patch.object(M,'github',github))
             stack.enter_context(patch.object(M,'command',command))
             stack.enter_context(patch.object(M,'validate_public_estate_candidate',preflight))
+            if not controls.get('model_support_mismatch'):
+                stack.enter_context(patch.object(M,'validate_model_support_candidate',model_support_preflight))
             stack.enter_context(patch.dict(sys.modules,{'audit_huggingface_ecosystem':collector}))
             # The source helper prepends an owner path; restore the interpreter
             # search list after this isolated test, including failure paths.
@@ -96,6 +104,8 @@ class SequenceTests(unittest.TestCase):
             finally:
                 self.manifest_after=(root/M.CANONICAL).read_bytes()
                 self.manifest_before=json.dumps(old).encode()
+                self.support_after=support_path.read_bytes()
+                self.support_before=support_before
                 sys.path[:]=original
 
     def ref_writes(self): return [(p,b) for p,b in self.calls if p.endswith('/git/refs') and b is not None]
@@ -147,6 +157,15 @@ class SequenceTests(unittest.TestCase):
         self.assertEqual(self.report['preparationStep'],'GENERATE_PROJECTIONS')
         self.assertEqual(self.report['generator'],'scripts/render_public_estate_alignment.py')
         self.assertEqual(self.report['generatorMode'],'WRITE')
+        self.assertFalse(any(body is not None for _,body in self.calls))
+
+    def test_model_support_mismatch_keeps_original_files_and_creates_no_objects(self):
+        with self.assertRaisesRegex(M.PreparationError,'model inference support source or inventory coverage requires source review'):
+            self.run_case(model_support_mismatch=True)
+        self.assertEqual(self.manifest_after,self.manifest_before)
+        self.assertEqual(self.support_after,self.support_before)
+        self.assertEqual(self.report['preparationStep'],'INFERENCE_SUPPORT_PREFLIGHT')
+        self.assertEqual(self.report['modelInferenceSupport'],{'state':'SOURCE_REVIEW_REQUIRED'})
         self.assertFalse(any(body is not None for _,body in self.calls))
 
     def test_out_of_scope_diff_never_creates_objects(self):
