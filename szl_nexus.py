@@ -25,16 +25,16 @@ Honesty (Doctrine v11 LOCKED):
 
 Endpoints (dual-registered under /api/{ns}/v1/nexus/* and /v1/nexus/*):
   GET /healthz  — process liveness + bind identity.
-  GET /status   — deterministic honest roll-up. No network. No fabricated LIVE.
+  GET /status   — read-only roll-up and unsigned digest; no receipt emission.
 
-Stdlib + optional szl_khipu. Additive; try/except-guarded by the caller.
+Stdlib only. Additive; try/except-guarded by the caller.
 """
 from __future__ import annotations
 
 import hashlib
 import json
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 _ORGAN_NAME = "NEXUS analog workstation"
 _KHIPU_ORGAN = "nexus"
@@ -76,7 +76,7 @@ _FRONTIERS: List[Dict[str, str]] = [
 
 
 def _unsigned_receipt(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """UNSIGNED-honest hash. Not Cosign. proven_trust stays false."""
+    """Stateless status digest; the legacy response field does not mint an event."""
     blob = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     digest = hashlib.sha3_256(blob).hexdigest()
     return {
@@ -87,36 +87,12 @@ def _unsigned_receipt(payload: Dict[str, Any]) -> Dict[str, Any]:
         "signature": None,
         "signed": False,
         "kind": "UNSIGNED-honest",
+        "emitted": False,
+        "chain_verified": False,
         "proven_trust": False,
-        "note": "Hash-linked only. Not Cosign. Not DSSE. proven_trust stays false.",
+        "note": ("Deterministic status digest only. No receipt was emitted; "
+                 "no signature or receipt-chain verification is claimed."),
     }
-
-
-def _khipu_receipt(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    try:
-        import szl_khipu  # type: ignore
-
-        dag = szl_khipu.get_dag(_KHIPU_ORGAN, ns="a11oy")
-        r = dag.emit("nexus.status", payload)
-        signed = bool(r.get("signature"))
-        return {
-            "receipt_type": _RECEIPT_TYPE,
-            "organ": _KHIPU_ORGAN,
-            "ns": "a11oy",
-            "seq": r.get("seq"),
-            "digest": r.get("digest"),
-            "prev": r.get("prev"),
-            "payload_digest": r.get("payload_digest"),
-            "signature": r.get("signature"),
-            "signed": signed,
-            "kind": "UNSIGNED-honest" if not signed else "HASH-LINKED",
-            "proven_trust": False,
-            "chain_verified": r.get("chain_verified"),
-            "chain_depth": dag.depth(),
-            "head_digest": dag.head(),
-        }
-    except Exception:
-        return None
 
 
 def healthz() -> Dict[str, Any]:
@@ -219,7 +195,7 @@ def status() -> Dict[str, Any]:
         "modules": 6,
         "organs": 5,
     }
-    payload["khipu_receipt"] = _khipu_receipt(receipt_body) or _unsigned_receipt(receipt_body)
+    payload["khipu_receipt"] = _unsigned_receipt(receipt_body)
     return payload
 
 
