@@ -5425,6 +5425,8 @@ def _signer_availability_signal(ttl: float = 30.0) -> dict:
         val = {"status": "UNAVAILABLE", "signing_available": False,
                "scheme": "UNAVAILABLE",
                "error": f"{type(exc).__name__}: {exc}"}
+    val = {**val, "scope": "RUNTIME_KEY_AVAILABILITY",
+           "receipt_verification_asserted": False}
     _SIGNER_HEALTH_CACHE.update({"checked_at": now, "value": val})
     return val
 
@@ -5536,6 +5538,8 @@ async def healthz() -> JSONResponse:
     # Space / when sub-sources are idle) — an UNAVAILABLE probe on either, or a
     # storage failure, does degrade so an orchestrator catches a real fault.
     _degraded_reasons = []
+    if dep.get("status") != "ok" or dep.get("backend_alive") is not True:
+        _degraded_reasons.append("node-backend-unavailable")
     if str(_storage.get("status")) == "unavailable":
         _degraded_reasons.append("storage-unavailable")
     if str(_signer.get("status") or "").upper() == "UNAVAILABLE":
@@ -5564,8 +5568,25 @@ async def healthz() -> JSONResponse:
         _degraded_reasons.append("gdw-storage-blocked")
     _overall = "degraded" if _degraded_reasons else "ok"
     _rollup_extra = {"gdw_storage": _gdw_storage_block} if _gdw_storage_block is not None else {}
+    _capability_evidence = _frontier.get("operational_readiness")
+    _capabilities_known = isinstance(_capability_evidence, dict)
+    _operational_ready = bool(
+        _capabilities_known and _capability_evidence.get("ready") is True
+        and not _degraded_reasons
+    )
     return JSONResponse(status_code=503 if _gdw_storage_block is not None else 200, content={
         "status": _overall,
+        "scope": "SERVICE_HEALTH",
+        "status_policy": ("status describes service faults; individual capabilities "
+                          "are evaluated separately in operational_readiness"),
+        "operational_readiness": {
+            "scope": "FRONTIER_CAPABILITIES_AND_SERVICE_HEALTH",
+            "ready": _operational_ready,
+            "status": ("READY" if _operational_ready else
+                       "NOT_READY" if _capabilities_known else "UNAVAILABLE"),
+            "service_blockers": _degraded_reasons,
+            "frontier": _capability_evidence,
+        },
         "degraded_reasons": _degraded_reasons,
         "service": "a11oy",
         "version": "2.0.0",

@@ -265,36 +265,109 @@ def locked8_kernel_commit() -> dict[str, Any]:
     }
 
 
-def build_commit() -> dict[str, Any]:
-    """Best-effort build commit, read from .git without shelling out.
+def _runtime_build_commit(identity: Any) -> dict[str, Any]:
+    """Apply the source-revision boundary used by GET /api/build-info."""
+    if isinstance(identity, dict):
+        sha = identity.get("revision")
+        source = identity.get("revision_source")
+        if (identity.get("state") == "OBSERVED" and isinstance(sha, str)
+                and re.fullmatch(r"[0-9a-f]{40}", sha)
+                and source in ("env:A11OY_GIT_SHA", "env:SZL_GIT_SHA")):
+            return {
+                "commit": sha, "source": source,
+                "note": "runtime source metadata; not an independently verified build attestation",
+            }
+    return {"commit": None, "source": None,
+            "note": "runtime build identity unavailable or invalid — honest null"}
 
-    Reported honestly as ``null`` when the checkout metadata is unreadable (an
-    image build strips .git). Never confused with the locked-8 kernel pin.
-    """
-    git = ROOT / ".git"
+
+def _read_git_metadata(git: Path, relative: str, limit: int = 4096) -> str | None:
+    """Bound local metadata reads and refuse symlinks outside the Git directory."""
     try:
-        head = (git / "HEAD").read_text(encoding="utf-8").strip()
-    except Exception:
+        path = (git / relative).resolve()
+        path.relative_to(git)
+        with path.open("rb") as stream:
+            data = stream.read(limit + 1)
+        return data.decode("utf-8").strip() if len(data) <= limit else None
+    except (OSError, ValueError, RuntimeError):
+        return None
+
+
+def build_commit() -> dict[str, Any]:
+    """Read canonical source metadata, then bounded local Git metadata if absent.
+
+    Deployment source variables follow /api/build-info validation and precedence;
+    generic CI/Space variables are not source identity. The Git fallback describes
+    a local checkout only. Neither source verifies an image or uses the kernel pin.
+    Registered routes prefer the runtime service's frozen observation instead.
+    """
+    try:
+        from szl_runtime_contracts import _safe_env_sha
+
+        sha, source = _safe_env_sha()
+        observed = _runtime_build_commit({
+            "state": "OBSERVED", "revision": sha, "revision_source": source,
+        })
+        if observed["commit"] is not None:
+            return observed
+    except (ImportError, OSError, TypeError, ValueError):
+        pass
+
+    try:
+        git = (ROOT / ".git").resolve()
+        git.relative_to(ROOT.resolve())
+    except (OSError, ValueError, RuntimeError):
         return {"commit": None, "source": None,
-                "note": "no readable .git/HEAD in this image — honest null"}
+                "note": "Git metadata escapes the checkout — honest null"}
+    head = _read_git_metadata(git, "HEAD")
+    if head is None:
+        return {"commit": None, "source": None,
+                "note": "no source revision or readable .git/HEAD in this image — honest null"}
     if head.startswith("ref:"):
         ref = head.split(":", 1)[1].strip()
+        parts = ref.split("/")
+        if (not re.fullmatch(r"refs/[A-Za-z0-9._/-]+", ref)
+                or ".." in ref or any(not p or p.startswith(".")
+                                     or p.endswith((".", ".lock")) for p in parts)):
+            return {"commit": None, "source": ".git/HEAD",
+                    "note": "invalid or unsafe Git ref — honest null"}
         try:
-            sha = (git / ref).read_text(encoding="utf-8").strip()
-            return {"commit": sha, "source": f".git/{ref}", "note": None}
-        except Exception:
-            pass
+            (git / ref).resolve().relative_to(git)
+        except (OSError, ValueError, RuntimeError):
+            return {"commit": None, "source": ".git/HEAD",
+                    "note": "Git ref escapes the metadata directory — honest null"}
+        sha = _read_git_metadata(git, ref)
+        if sha is not None:
+            if re.fullmatch(r"[0-9a-fA-F]{40}", sha):
+                return {"commit": sha.lower(), "source": f".git/{ref}",
+                        "note": "local checkout metadata; not a build attestation"}
+            return {"commit": None, "source": f".git/{ref}",
+                    "note": "invalid Git commit identifier — honest null"}
         try:
-            for line in (git / "packed-refs").read_text(encoding="utf-8").splitlines():
-                if line.endswith(" " + ref):
-                    return {"commit": line.split(" ", 1)[0].strip(),
-                            "source": ".git/packed-refs", "note": None}
-        except Exception:
+            (git / ref).lstat()
+        except FileNotFoundError:
             pass
+        except OSError:
+            return {"commit": None, "source": f".git/{ref}",
+                    "note": "unreadable Git ref — honest null"}
+        else:
+            # A corrupt loose ref takes precedence over a potentially stale pack.
+            return {"commit": None, "source": f".git/{ref}",
+                    "note": "unreadable or oversized Git ref — honest null"}
+        packed = _read_git_metadata(git, "packed-refs", limit=1 << 20)
+        for line in (packed or "").splitlines():
+            fields = line.split()
+            if len(fields) == 2 and fields[1] == ref:
+                if re.fullmatch(r"[0-9a-fA-F]{40}", fields[0]):
+                    return {"commit": fields[0].lower(), "source": ".git/packed-refs",
+                            "note": "local checkout metadata; not a build attestation"}
+                return {"commit": None, "source": ".git/packed-refs",
+                        "note": "invalid packed Git commit identifier — honest null"}
         return {"commit": None, "source": f".git/{ref}",
                 "note": "ref present but unresolvable — honest null"}
-    if re.fullmatch(r"[0-9a-f]{40}", head):
-        return {"commit": head, "source": ".git/HEAD (detached)", "note": None}
+    if re.fullmatch(r"[0-9a-fA-F]{40}", head):
+        return {"commit": head.lower(), "source": ".git/HEAD (detached)",
+                "note": "local checkout metadata; not a build attestation"}
     return {"commit": None, "source": ".git/HEAD",
             "note": "unrecognised HEAD form — honest null"}
 
@@ -676,14 +749,15 @@ def energy_measured(*, opener: Any = None) -> tuple[list[dict[str, Any]], dict[s
 # --------------------------------------------------------------------------- #
 # The in-toto v1 Statement.
 # --------------------------------------------------------------------------- #
-def build_statement(*, ns: str = "a11oy", opener: Any = None) -> dict[str, Any]:
+def build_statement(*, ns: str = "a11oy", opener: Any = None,
+                    build_commit_reader: Any = None) -> dict[str, Any]:
     """Assemble the in-toto v1 Statement for the L6 chain-of-title claim."""
     weights = sovereign_weights_digest()
     kernel = locked8_kernel_commit()
     kern_v = kernel_verification()
     corpus = corpus_sha()
     training = training_config()
-    build = build_commit()
+    build = (build_commit_reader or build_commit)()
     readings, energy_disclosure = energy_measured(opener=opener)
 
     # in-toto requires each subject to carry at least one digest. The kernel
@@ -1170,9 +1244,10 @@ def verify(statement: Any, *, envelope: dict[str, Any] | None = None,
 # --------------------------------------------------------------------------- #
 def build_manifest(*, ns: str = "a11oy", require_transparency: bool | None = None,
                    submitter: Any = None, opener: Any = None,
-                   read_only: bool = True) -> dict[str, Any]:
+                   read_only: bool = True, build_commit_reader: Any = None) -> dict[str, Any]:
     """Inspect by default; signing/submission requires an explicit write caller."""
-    statement = build_statement(ns=ns, opener=opener)
+    statement = build_statement(ns=ns, opener=opener,
+                                build_commit_reader=build_commit_reader)
     if read_only:
         envelope = {
             "payloadType": PAYLOAD_TYPE,
@@ -1276,6 +1351,17 @@ def register(app, ns: str = "a11oy") -> str:
     from fastapi.responses import JSONResponse
 
     base = f"/api/{ns}/v1/attest"
+    standalone_build = build_commit()
+
+    def _read_build_commit() -> dict[str, Any]:
+        # Runtime contracts register later in serve.py. Prefer their exact frozen
+        # observation once present; an unavailable provider never falls back.
+        if not hasattr(app.state, "szl_build_identity_reader"):
+            return dict(standalone_build)
+        try:
+            return _runtime_build_commit(app.state.szl_build_identity_reader())
+        except Exception:
+            return _runtime_build_commit(None)
 
     def _truthy(v: Any) -> bool:
         return str(v or "").strip().lower() in ("1", "true", "yes", "on")
@@ -1293,7 +1379,7 @@ def register(app, ns: str = "a11oy") -> str:
         """GET manifest: inspect without signing, submission, or ledger writes."""
         try:
             man = build_manifest(ns=ns, require_transparency=_require_flag(request),
-                                 read_only=True)
+                                 read_only=True, build_commit_reader=_read_build_commit)
             man["lake"] = {"appended": False, "status": "READ_ONLY"}
             return JSONResponse(man)
         except Exception as exc:  # never 500 into the console
@@ -1315,7 +1401,7 @@ def register(app, ns: str = "a11oy") -> str:
                     body = None
             require = _require_flag(request)
             if body is None:
-                statement = build_statement(ns=ns)
+                statement = build_statement(ns=ns, build_commit_reader=_read_build_commit)
                 out = verify(statement, require_transparency=require)
                 out["source"] = "freshly built statement (no body supplied)"
                 return JSONResponse(out)
