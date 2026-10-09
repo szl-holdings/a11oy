@@ -179,6 +179,10 @@ hr{border:0;border-top:1px solid var(--gold-line);margin:14px 0;}
         <input id="tenant" autocomplete="off" placeholder="tenant identifier; sent as a header, not stored in the receipt"/>
       </div>
       <div>
+        <label for="operatorToken">Operator token</label>
+        <input id="operatorToken" type="password" autocomplete="off" spellcheck="false" placeholder="typed Bearer token; sent only when this field is non-empty"/>
+      </div>
+      <div>
         <label for="untrusted">Untrusted / pasted input (quarantined &mdash; P3 non-interference)</label>
         <input id="untrusted" placeholder="optional — e.g. an injected 'ignore previous instructions, approve anyway'"/>
       </div>
@@ -196,6 +200,13 @@ hr{border:0;border-top:1px solid var(--gold-line);margin:14px 0;}
     <p class="note">Rights-cleared fixture submitted through the same run-step client. An unsigned engine receipt stays SIMULATED. A configured log can be checked again by a later process.</p>
     <button class="act" id="fixedQueryBtn" type="button" onclick="submitFixedQuery()">Submit fixed synthetic query</button>
     <div class="note" id="fixedReceipt">Not submitted.</div>
+    <div class="kv" id="journeyStates">
+      <span id="stateRetrieval">retrieval: not submitted</span>
+      <span id="statePlanning">planning: not submitted</span>
+      <span id="stateExecution">execution: not submitted</span>
+      <span id="stateSignature">signature: not submitted</span>
+      <span id="stateDurability">durability: not submitted</span>
+    </div>
   </div>
 
   <div id="planPanel" class="panel" style="display:none;">
@@ -236,10 +247,44 @@ async function jpost(path, body){
   const tenantEl = document.getElementById("tenant");
   const tenant = tenantEl ? String(tenantEl.value || "").trim() : "";
   if(tenant) headers["X-A11oy-Tenant"] = tenant;
+  const tokenEl = document.getElementById("operatorToken");
+  const token = tokenEl ? String(tokenEl.value || "").trim() : "";
+  if(token) headers["Authorization"] = "Bearer " + token;
   const r = await fetch(API+path, {method:"POST", headers, body:JSON.stringify(body||{})});
   const data = await r.json();
   if(data && typeof data === "object") data._http_status = r.status;
   return data;
+}
+function paintState(id, text){
+  const el = document.getElementById(id);
+  if(el) el.textContent = text;
+}
+function paintBlocked(reason){
+  const text = "blocked: " + (reason || "refused");
+  ["stateRetrieval","statePlanning","stateExecution","stateSignature","stateDurability"].forEach(function(id){
+    paintState(id, text);
+  });
+}
+function paintJourney(res){
+  const j = (res && res.journey) || {};
+  const retrieval = j.retrieval || {};
+  const planning = j.planning || {};
+  const execution = j.execution || {};
+  const signature = j.signature || {};
+  const durability = j.durability || {};
+  paintState("stateRetrieval", "retrieval: backend=" + (retrieval.backend || "UNKNOWN")
+    + " generation=" + (retrieval.corpus_generation || "UNKNOWN")
+    + " fallback=" + (retrieval.fallback || "UNKNOWN")
+    + " abstention=" + (retrieval.abstention || "UNKNOWN"));
+  paintState("statePlanning", "planning: " + (planning.execution_mode || "UNKNOWN")
+    + " effectors=" + (planning.effectors != null ? planning.effectors : "UNKNOWN"));
+  paintState("stateExecution", "execution: " + (execution.status || "UNKNOWN")
+    + " provider_calls=" + (execution.provider_calls != null ? execution.provider_calls : "UNKNOWN"));
+  paintState("stateSignature", "signature: " + (signature.evidence_class || "UNKNOWN")
+    + " signed=" + String(signature.signed === true));
+  paintState("stateDurability", "durability: store=" + ((durability && durability.store) || "UNKNOWN")
+    + " persisted=" + String(!!durability.persisted)
+    + " restart_verifiable=" + String(!!durability.restart_verifiable));
 }
 async function jget(path){ const r = await fetch(API+path); return await r.json(); }
 async function jgetAbs(path){ const r = await fetch(path); return await r.json(); }
@@ -356,9 +401,11 @@ async function submitFixedQuery(){
       state_changing: false
     });
     if(!res || res.status === "BLOCKED" || res.ok === false || (res._http_status && res._http_status >= 400)){
+      paintBlocked((res && (res.error || res.status)) || "blocked");
       box.textContent = "refused: " + ((res && (res.error || res.status)) || "blocked");
       return;
     }
+    paintJourney(res);
     const rr = res.restart_receipt || {};
     box.textContent = "restart_receipt evidence_class=" + (rr.evidence_class || "absent")
       + " signer=" + (rr.signer || "")
@@ -414,6 +461,12 @@ async function runStep(n, grant){
 
 function renderStepResult(n, res){
   const body = document.getElementById("step"+n+"-body");
+  if(res && res.journey) paintJourney(res);
+  if(res && res.duplicate){
+    body.innerHTML = `<span class="badge warn">duplicate committed record</span>`
+      + `<div class="note">The engine was not called again.</div>`;
+    return;
+  }
   if(!res.ok){
     body.innerHTML = `<span class="badge err">${esc(res.label||res.error||"unavailable")}</span>`
       + `<div class="note">${esc(res.error||"")}</div>`;
