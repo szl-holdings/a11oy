@@ -755,15 +755,16 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
         "status": "ABSENT",
         "signing_available": False,
         "scheme": "UNAVAILABLE",
+        "scope": "NOT_EVALUATED_BY_THIS_ROUTE",
+        "availability_evaluated": False,
+        "runtime_status_endpoint": "/api/a11oy/healthz",
     }
 
     @app.get(f"{base}/healthz", tags=["health"])
     @app.get("/healthz", tags=["health"])
     async def _healthz():
         live = {
-            "status": "ABSENT",
-            "signing_available": False,
-            "scheme": "UNAVAILABLE",
+            **_SIGNER_ABSENT,
             "mint": "POST /api/a11oy/khipu/sign",
             "rollup": "/api/a11oy/healthz",
             "pubkey": "/cosign.pub",
@@ -777,6 +778,9 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
             live["error"] = type(exc).__name__
         return {
             "status": "ok",
+            "scope": "PROCESS_LIVENESS",
+            "capability_readiness_asserted": False,
+            "operational_readiness_endpoint": "/api/a11oy/healthz",
             "organ": organ,
             "doctrine": DOCTRINE,
             "lock": "749/14/163",
