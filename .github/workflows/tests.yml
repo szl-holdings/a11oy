@@ -42,6 +42,11 @@ jobs:
           tests/test_operator_auth_code_routes.py
           tests/test_second_brain_bridge.py
           tests/test_code_completion_boundaries.py
+          tests/test_agent_loop_execution_guards.py
+          tests/test_authorized_rag_synthesis.py
+          tests/test_agent_synthesis_status.py
+          tests/test_nexus_bind.py
+          tests/test_nexus_readonly_evidence.py
 
   python-energy-measurement:
     name: Energy exporter measurement and null-evidence contract
@@ -566,6 +571,8 @@ jobs:
           # workflows use. No signing, so no id-token: write — this only VERIFIES an
           # already-signed receipt against the public Sigstore trust root.
           python -m pip install --require-hashes -r .github/requirements/ci-sigstore.txt
+      - name: Verify quant manifest HTTPS and failure propagation offline
+        run: python -m pytest tests/test_quant_manifest_transport.py -q
       - name: Genuine receipt verifies AND a tampered copy is rejected (no monkeypatch)
         # Integration negative-proof (issue #408): runs scripts/tamper_release_receipt.py
         # on a committed GENUINE receipt fixture and asserts scripts/verify_release_receipts.py
