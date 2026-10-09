@@ -47,6 +47,8 @@ def file_fingerprint(path: Path) -> tuple[int, str]:
 
 
 def collect_files(root: Path, output: Path) -> list[dict[str, object]]:
+    if not root.is_dir():
+        raise ValueError(f"Payload directory must exist and be a directory: {root}")
     files: list[dict[str, object]] = []
     output = output.resolve()
     paths = sorted(
@@ -98,24 +100,28 @@ def main() -> int:
 
     root = args.payload_dir.resolve()
     output = args.output.resolve()
-    manifest = build_manifest(root, output)
+    try:
+        manifest = build_manifest(root, output)
+    except ValueError as exc:
+        parser.error(str(exc))
     serialized = json.dumps(manifest, indent=2, sort_keys=False) + "\n"
+    cwd = Path.cwd()
+    rel_output = output.relative_to(cwd) if output.is_relative_to(cwd) else output
 
     if args.verify:
         existing = output.read_text(encoding="utf-8")
         if existing != serialized:
-            rel_output = output.relative_to(Path.cwd()) if output.is_relative_to(Path.cwd()) else output
             print(f"Payload manifest is stale: {rel_output}")
             print(
                 "Run: python3 scripts/payload_manifest.py "
                 f"{args.payload_dir} --output {args.output}"
             )
             return 1
-        print(f"Verified payload manifest: {output.relative_to(Path.cwd())}")
+        print(f"Verified payload manifest: {rel_output}")
         return 0
 
     output.write_text(serialized, encoding="utf-8")
-    print(f"Wrote payload manifest: {output.relative_to(Path.cwd())}")
+    print(f"Wrote payload manifest: {rel_output}")
     return 0
 
 

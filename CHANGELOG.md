@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - payload manifest input validation
+
+- Reject missing or non-directory payload roots before creating or verifying a
+  manifest, preserving any existing output. An existing empty directory remains
+  valid. Manifest write and verification commands now report output paths outside
+  the working directory without raising an error after successful work.
+
 ### Added - exact-source Finance projection witness
 
 - Build the seven Finance runtime files and their separate projection manifest
