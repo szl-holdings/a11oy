@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections import deque
+
 import threading
 import time
 from pathlib import Path
@@ -581,14 +583,69 @@ def test_full_catalog_sources_cache_once_then_slice_per_requested_limit(
 
 def test_courtlistener_interval_is_bounded(monkeypatch) -> None:
     monkeypatch.delenv("A11OY_COURTLISTENER_MIN_INTERVAL_S", raising=False)
-    assert vertical._courtlistener_min_interval_s() == 1.0
+    assert vertical._courtlistener_min_interval_s() == 13.0
     monkeypatch.setenv("A11OY_COURTLISTENER_MIN_INTERVAL_S", "0")
-    assert vertical._courtlistener_min_interval_s() == 0.25
-    monkeypatch.setenv("A11OY_COURTLISTENER_MIN_INTERVAL_S", "999")
-    assert vertical._courtlistener_min_interval_s() == 10.0
+    assert vertical._courtlistener_min_interval_s() == 12.0
+    monkeypatch.setenv("A11OY_COURTLISTENER_MIN_INTERVAL_S", "9999")
+    assert vertical._courtlistener_min_interval_s() == 3600.0
     for invalid in ("invalid", "nan", "inf"):
         monkeypatch.setenv("A11OY_COURTLISTENER_MIN_INTERVAL_S", invalid)
-        assert vertical._courtlistener_min_interval_s() == 1.0
+        assert vertical._courtlistener_min_interval_s() == 13.0
+
+
+@pytest.mark.parametrize("observations", [
+    [10_000.0 - 50.0 + index * 12.0 for index in range(4)],
+    [10_000.0 - 3500.0 + index * 85.0 for index in range(40)],
+    [10_000.0 - 85_000.0 + index * 850.0 for index in range(100)],
+])
+def test_courtlistener_rolling_budgets_fail_closed(monkeypatch, observations) -> None:
+    now = 10_000.0
+    monkeypatch.setattr(vertical, "_COURTLISTENER_REQUEST_TIMES", deque(observations))
+    monkeypatch.setattr(vertical, "_COURTLISTENER_NEXT_REQUEST_AT", 0.0)
+    monkeypatch.setattr(vertical, "_COURTLISTENER_COOLDOWN_UNTIL", 0.0)
+    monkeypatch.setattr(vertical.time, "time", lambda: now)
+    monkeypatch.setattr(vertical.time, "monotonic", lambda: now)
+
+    with pytest.raises(RuntimeError, match="provider budget exhausted"):
+        vertical._courtlistener_wait_locked()
+
+    assert list(vertical._COURTLISTENER_REQUEST_TIMES) == observations
+
+
+def test_courtlistener_budget_prunes_old_observations(monkeypatch) -> None:
+    now = 20_000.0
+    monkeypatch.setattr(
+        vertical, "_COURTLISTENER_REQUEST_TIMES", deque([now - 86_401.0]),
+    )
+    monkeypatch.setattr(vertical, "_COURTLISTENER_NEXT_REQUEST_AT", 0.0)
+    monkeypatch.setattr(vertical, "_COURTLISTENER_COOLDOWN_UNTIL", 0.0)
+    monkeypatch.setattr(vertical.time, "time", lambda: now)
+    monkeypatch.setattr(vertical.time, "monotonic", lambda: now)
+
+    vertical._courtlistener_wait_locked()
+
+    assert list(vertical._COURTLISTENER_REQUEST_TIMES) == [now]
+
+
+def test_courtlistener_identical_reads_share_day_cache(monkeypatch) -> None:
+    vertical_calls: list[tuple[str, float]] = []
+    devb_calls: list[tuple[str, float]] = []
+
+    def vertical_spy(key: str, _url: str, ttl: float, **_kwargs: Any) -> dict[str, Any]:
+        vertical_calls.append((key, ttl))
+        return {"value": {"items": []}, "freshness": {"status": "live"}}
+
+    def devb_spy(key: str, _url: str, ttl: float, **_kwargs: Any) -> dict[str, Any]:
+        devb_calls.append((key, ttl))
+        return {"value": {"items": []}, "freshness": {"status": "live"}}
+
+    monkeypatch.setattr(vertical, "_cached_fetch", vertical_spy)
+    monkeypatch.setattr(devb, "_cached", devb_spy)
+    vertical.feed_courtlistener("  INSURANCE ", 18)
+    devb.feed_courtlistener("insurance", 18, kind="o")
+
+    assert vertical_calls == devb_calls
+    assert vertical_calls[0][1] == 86400.0
 
 
 def test_nvd_interval_is_bounded_by_access_mode(monkeypatch) -> None:
@@ -833,7 +890,7 @@ def test_non_courtlistener_429_is_not_retried(monkeypatch) -> None:
     assert result["freshness"]["status"] == "unavailable"
 
 
-def test_devb_courtlistener_reuses_shared_cache_for_fifteen_minutes(monkeypatch) -> None:
+def test_devb_courtlistener_reuses_shared_cache_for_one_day(monkeypatch) -> None:
     observed: dict[str, Any] = {}
 
     def shared_fetch(key: str, url: str, ttl: float, parser=None, **_kwargs: Any):
@@ -845,6 +902,6 @@ def test_devb_courtlistener_reuses_shared_cache_for_fifteen_minutes(monkeypatch)
     monkeypatch.setattr(devb._vf, "_cached_fetch", shared_fetch)
     result = devb.feed_courtlistener("defense", 1)
 
-    assert observed["ttl"] == 900
+    assert observed["ttl"] == 86400.0
     assert "/api/rest/v4/search/" in observed["url"]
     assert result["freshness"]["status"] == "live"
