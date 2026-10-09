@@ -111,6 +111,22 @@ _COURTLISTENER_RATE_LOCK = threading.Lock()
 _COURTLISTENER_NEXT_REQUEST_AT = 0.0
 _COURTLISTENER_COOLDOWN_UNTIL = 0.0
 
+# NVD API 2.0 allows five anonymous requests per rolling 30-second window and
+# fifty with an API key. Every NVD transport in this process crosses one
+# provider-wide scheduler so defense, finance, cyber, warm-loop, and readiness
+# calls cannot fan out under distinct cache keys. The keyed default still sleeps
+# for several seconds, following NVD guidance rather than consuming the limit.
+_NVD_MIN_INTERVAL_ENV = "A11OY_NVD_MIN_INTERVAL_S"
+_NVD_ANONYMOUS_MIN_INTERVAL_DEFAULT_S = 6.0
+_NVD_KEYED_MIN_INTERVAL_DEFAULT_S = 2.0
+_NVD_MIN_INTERVAL_MIN_S = 0.6
+_NVD_MIN_INTERVAL_MAX_S = 30.0
+_NVD_COOLDOWN_DEFAULT_S = 30.0
+_NVD_COOLDOWN_MAX_S = 86400.0
+_NVD_RATE_LOCK = threading.Lock()
+_NVD_NEXT_REQUEST_AT = 0.0
+_NVD_COOLDOWN_UNTIL = 0.0
+
 
 def _source_http_timeout_s() -> float:
     """Return the one bounded transport budget used by every live source."""
@@ -246,28 +262,110 @@ def _courtlistener_defer_locked(delay_s: float) -> None:
     )
 
 
+def _is_nvd_source(url: str) -> bool:
+    try:
+        parsed = httpx.URL(url)
+    except Exception:
+        return False
+    return (
+        parsed.scheme == "https"
+        and (parsed.host or "").lower().rstrip(".") == "services.nvd.nist.gov"
+        and parsed.path.rstrip("/") == "/rest/json/cves/2.0"
+    )
+
+
+def _nvd_has_api_key(headers: Optional[dict[str, str]]) -> bool:
+    return bool(headers and isinstance(headers.get("apiKey"), str)
+                and headers["apiKey"].strip())
+
+
+def _nvd_min_interval_s(headers: Optional[dict[str, str]] = None) -> float:
+    """Return bounded NVD request spacing for keyed or anonymous access."""
+    default = (
+        _NVD_KEYED_MIN_INTERVAL_DEFAULT_S
+        if _nvd_has_api_key(headers)
+        else _NVD_ANONYMOUS_MIN_INTERVAL_DEFAULT_S
+    )
+    raw = os.environ.get(_NVD_MIN_INTERVAL_ENV, str(default))
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        value = default
+    if not math.isfinite(value):
+        value = default
+    return max(_NVD_MIN_INTERVAL_MIN_S, min(_NVD_MIN_INTERVAL_MAX_S, value))
+
+
+def _nvd_retry_after_s(
+    response: Any, headers: Optional[dict[str, str]] = None,
+) -> float:
+    """Honor a numeric NVD Retry-After value, bounded to one day."""
+    response_headers = getattr(response, "headers", None) or {}
+    raw = response_headers.get("retry-after") or response_headers.get("Retry-After")
+    try:
+        delay = float(raw)
+    except (TypeError, ValueError, OverflowError):
+        delay = _NVD_COOLDOWN_DEFAULT_S
+    if not math.isfinite(delay):
+        delay = _NVD_COOLDOWN_DEFAULT_S
+    return max(
+        _nvd_min_interval_s(headers),
+        min(_NVD_COOLDOWN_MAX_S, delay),
+    )
+
+
+def _nvd_wait_locked(headers: Optional[dict[str, str]] = None) -> None:
+    """Reserve one provider-wide NVD slot or fail during an active cooldown."""
+    global _NVD_NEXT_REQUEST_AT
+    now = time.monotonic()
+    if now < _NVD_COOLDOWN_UNTIL:
+        raise RuntimeError("NVD rate limited; provider cooldown active")
+    delay = max(0.0, _NVD_NEXT_REQUEST_AT - now)
+    if delay:
+        time.sleep(delay)
+    _NVD_NEXT_REQUEST_AT = time.monotonic() + _nvd_min_interval_s(headers)
+
+
+def _nvd_defer_locked(delay_s: float) -> None:
+    global _NVD_COOLDOWN_UNTIL
+    _NVD_COOLDOWN_UNTIL = max(
+        _NVD_COOLDOWN_UNTIL,
+        time.monotonic() + max(0.0, delay_s),
+    )
+
+
 def _source_json_with_cooldown(
     client: httpx.Client,
     url: str,
     headers: Optional[dict[str, str]] = None,
 ) -> Any:
-    """Fetch JSON once; one CourtListener 429 holds later reads until its reset."""
+    """Fetch once; provider-wide CourtListener/NVD 429s hold later reads."""
     def request() -> Any:
         return client.get(url, headers=headers) if headers else client.get(url)
 
-    if not _is_courtlistener_source(url):
-        response = request()
-        response.raise_for_status()
-        return response.json()
+    if _is_courtlistener_source(url):
+        with _COURTLISTENER_RATE_LOCK:
+            _courtlistener_wait_locked()
+            response = request()
+            if getattr(response, "status_code", None) == 429:
+                _courtlistener_defer_locked(_courtlistener_retry_after_s(response))
+                raise RuntimeError("CourtListener rate limited; provider cooldown active")
+            response.raise_for_status()
+            return response.json()
 
-    with _COURTLISTENER_RATE_LOCK:
-        _courtlistener_wait_locked()
-        response = request()
-        if getattr(response, "status_code", None) == 429:
-            _courtlistener_defer_locked(_courtlistener_retry_after_s(response))
-            raise RuntimeError("CourtListener rate limited; provider cooldown active")
-        response.raise_for_status()
-        return response.json()
+    if _is_nvd_source(url):
+        with _NVD_RATE_LOCK:
+            _nvd_wait_locked(headers)
+            response = request()
+            if getattr(response, "status_code", None) == 429:
+                _nvd_defer_locked(_nvd_retry_after_s(response, headers))
+                raise RuntimeError("NVD rate limited; provider cooldown active")
+            response.raise_for_status()
+            return response.json()
+
+    response = request()
+    response.raise_for_status()
+    return response.json()
 
 
 def _courtlistener_public_url(value: Any) -> str:

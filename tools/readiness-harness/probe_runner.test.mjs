@@ -91,6 +91,23 @@ test("freshness recognizes explicit snake- and camel-case observation clocks", (
   }
 });
 
+test("freshness ignores counters whose names merely end in ts", () => {
+  const observedAt = "2026-10-09T01:08:18.985Z";
+  const body = {
+    historical_billable_receipts: 0,
+    historical_reported_charged_cents: 0,
+    ts: observedAt,
+  };
+
+  assert.equal(findTimestamp(body)?.toISOString(), observedAt);
+  assert.equal(evaluateFreshness(
+    "/api/a11oy/v1/energy/harvest",
+    { freshnessSLA: 3600 },
+    body,
+    Date.parse("2026-10-09T01:09:00Z"),
+  ).freshOk, true);
+});
+
 test("freshness prefers nested source fetch time over a market event timestamp", () => {
   const body = {
     equities: {
