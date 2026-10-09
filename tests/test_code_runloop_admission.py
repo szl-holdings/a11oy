@@ -59,6 +59,7 @@ class CodeRunloopAdmission(unittest.TestCase):
         self.log = Path(self.tmp.name) / "receipts.jsonl"
         self.saved_rag = os.environ.pop("SZL_SECOND_BRAIN_RAG", None)
         self.saved_log = os.environ.pop(runloop.RECEIPT_LOG_ENV, None)
+        os.environ[runloop.RECEIPT_LOG_ENV] = str(self.log)
         self.env = patch.dict(os.environ, {
             opauth.OPERATOR_KEY_ENV: OPERATOR,
             opauth.SECOND_APPROVER_KEY_ENV: APPROVER,
@@ -175,7 +176,15 @@ class CodeRunloopAdmission(unittest.TestCase):
         self.assertNotIn("restart_receipt", response.json())
         self.assertFalse(self.log.exists())
 
+    def test_invalid_json_is_refused_before_the_engine(self):
+        with patch.object(runloop._engine, "governed_turn", _forbid_turn):
+            response = self.client.post(RUNSTEP, headers=self._admitted(), content=b"{")
+        self.assertEqual(response.status_code, 400, response.text[:400])
+        self.assertEqual(response.json()["error"], "JSON object required")
+        self.assertFalse(self.log.exists())
+
     def test_unset_log_does_not_claim_restart_verification(self):
+        os.environ.pop(runloop.RECEIPT_LOG_ENV, None)
         response = self.client.post(RUNSTEP, headers=self._admitted(), json={
             "purpose": "research",
             "mode": "research",

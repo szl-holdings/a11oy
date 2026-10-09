@@ -373,7 +373,7 @@ def register(app, ns: str, sign_fn, verify_fn=None):
         try:
             b = await request.json()
         except Exception:
-            b = {}
+            return _blocked("JSON object required", 400)
         query, purpose, refusal = _admit_query(b, "task")
         if refusal is not None:
             return refusal
@@ -397,7 +397,7 @@ def register(app, ns: str, sign_fn, verify_fn=None):
         try:
             b = await request.json()
         except Exception:
-            b = {}
+            return _blocked("JSON object required", 400)
         query, purpose, refusal = _admit_query(b, "prompt")
         if refusal is not None:
             return refusal
