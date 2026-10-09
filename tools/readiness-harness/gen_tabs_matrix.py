@@ -63,13 +63,14 @@ STATE_VOCABULARY = {
 def ep(method="GET", schema=None, sla=None, citations=False,
        allow_statuses=(200,), allow_labels=("live", "cached"),
        lies_if=("mock", "fabricated", "placeholder"), note="",
-       unavailable_blocks_readiness=False):
+       unavailable_blocks_readiness=False, degraded_blocks_readiness=True):
     return {
         "method": method,
         "schema": schema,
         "freshnessSLA": sla,
         "citationsRequired": citations,
         **({"unavailableBlocksReadiness": True} if unavailable_blocks_readiness else {}),
+        "degradedBlocksReadiness": bool(degraded_blocks_readiness),
         "degradedRules": {
             "allowStatuses": list(allow_statuses),
             "allowLabels": list(allow_labels),
@@ -202,6 +203,7 @@ ENDPOINTS = {
     # ── Energy / GSF SCI ──
     "/api/a11oy/v1/energy/live": ep(schema="generic_obj", sla=30,
         allow_labels=("MEASURED", "UNAVAILABLE", "live", "cached"),
+        degraded_blocks_readiness=False,
         note="Live NVML power+energy snapshot. UNAVAILABLE when meter offline — honest null, never fabricated."),
     "/api/a11oy/v1/energy/mesh": ep(schema="generic_obj", sla=30,
         allow_labels=("MEASURED", "UNAVAILABLE", "live", "cached"),
@@ -211,6 +213,7 @@ ENDPOINTS = {
         note="Bekenstein budget series + heuristic tariff window. Tariff = client-side heuristic, NOT live feed."),
     "/api/a11oy/v1/energy/sci": ep(schema="generic_obj", sla=60,
         allow_labels=("MEASURED", "UNAVAILABLE", "MODELED", "live", "cached"),
+        degraded_blocks_readiness=False,
         note="GSF SCI ISO 21031:2024 energy+carbon. sci_score=null when meter offline. Grid intensity MODELED (436 gCO2eq/kWh EPA eGRID 2023) or MEASURED via Electricity Maps."),
 
     # ── Observability ──
@@ -274,6 +277,7 @@ ENDPOINTS = {
     "/api/a11oy/v1/vert/legal/feed": ep(
         schema="vert_legal_feed", sla=HOUR, citations=True,
         allow_labels=("live", "cached", "reference", "UNAVAILABLE"),
+        degraded_blocks_readiness=False,
         note="Canonical Legal renderer feed: Federal Register + CourtListener."),
     "/api/a11oy/v1/vert/cyber/feed": ep(
         schema="vert_cyber_feed", sla=HOUR, citations=True,
@@ -293,6 +297,7 @@ ENDPOINTS = {
     "/api/a11oy/v1/deva/re/distress?limit=1": ep(schema="deva_re_distress", sla=HOUR,
         note="Bounded NYC HPD operational probe for the distress radar."),
     "/api/a11oy/v1/deva/re/ownership": ep(schema="deva_re_ownership", sla=HOUR,
+        unavailable_blocks_readiness=True,
         note="SEC real-estate search and fixed public-REIT ownership panel."),
     "/api/a11oy/v1/deva/re/deal?violations=0&class_c=0": ep(
         schema="deva_re_deal", sla=HOUR,
@@ -306,14 +311,17 @@ ENDPOINTS = {
     "/api/a11oy/v1/devb/legal/matter?limit=1": ep(
         schema="devb_legal_matter", sla=HOUR, citations=True,
         allow_labels=("live", "cached", "UNAVAILABLE"),
+        degraded_blocks_readiness=False,
         note="Bounded CourtListener matter probe; returned opinions carry authority URLs."),
     "/api/a11oy/v1/devb/legal/matter?term=defense&limit=1": ep(
         schema="devb_legal_matter", sla=HOUR, citations=True,
         allow_labels=("live", "cached", "UNAVAILABLE"),
+        degraded_blocks_readiness=False,
         note="Bounded CourtListener authority probe for the defense-builder alias."),
     "/api/a11oy/v1/devb/legal/matter?term=insurance&limit=1": ep(
         schema="devb_legal_matter", sla=HOUR, citations=True,
         allow_labels=("live", "cached", "UNAVAILABLE"),
+        degraded_blocks_readiness=False,
         note="Bounded CourtListener authority probe for the insurance-review alias."),
     "/api/a11oy/v1/devb/legal/regulatory?limit=1": ep(
         schema="devb_legal_regulatory", sla=HOUR, citations=True,
@@ -699,10 +707,31 @@ SCHEMAS = {
         "requiredPaths": [
             "sec_fts.value.items", "sec_fts.freshness.status",
             "sec_fts.freshness.fetched_at",
+            "reits.Vornado.value.filings", "reits.Vornado.freshness.status",
+            "reits.Vornado.freshness.fetched_at",
+            "reits.Boston Properties.value.filings", "reits.Boston Properties.freshness.status",
+            "reits.Boston Properties.freshness.fetched_at",
+            "reits.SL Green.value.filings", "reits.SL Green.freshness.status",
+            "reits.SL Green.freshness.fetched_at",
+            "reits.Realty Income.value.filings", "reits.Realty Income.freshness.status",
+            "reits.Realty Income.freshness.fetched_at",
         ],
         "requiredPathTypes": {
             "sec_fts.value.items": "array", "sec_fts.freshness.status": "string",
-            "sec_fts.freshness.fetched_at": "timestamp", "reits": "object",
+            "sec_fts.freshness.fetched_at": "timestamp",
+            "reits.Vornado.value.filings": "array",
+            "reits.Vornado.freshness.status": "string",
+            "reits.Vornado.freshness.fetched_at": "timestamp",
+            "reits.Boston Properties.value.filings": "array",
+            "reits.Boston Properties.freshness.status": "string",
+            "reits.Boston Properties.freshness.fetched_at": "timestamp",
+            "reits.SL Green.value.filings": "array",
+            "reits.SL Green.freshness.status": "string",
+            "reits.SL Green.freshness.fetched_at": "timestamp",
+            "reits.Realty Income.value.filings": "array",
+            "reits.Realty Income.freshness.status": "string",
+            "reits.Realty Income.freshness.fetched_at": "timestamp",
+            "reits": "object",
             "doctrine": "object",
         },
     },

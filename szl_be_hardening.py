@@ -65,6 +65,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 import os
 import sqlite3
 import sys
@@ -754,15 +755,16 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
         "status": "ABSENT",
         "signing_available": False,
         "scheme": "UNAVAILABLE",
+        "scope": "NOT_EVALUATED_BY_THIS_ROUTE",
+        "availability_evaluated": False,
+        "runtime_status_endpoint": "/api/a11oy/healthz",
     }
 
     @app.get(f"{base}/healthz", tags=["health"])
     @app.get("/healthz", tags=["health"])
     async def _healthz():
         live = {
-            "status": "ABSENT",
-            "signing_available": False,
-            "scheme": "UNAVAILABLE",
+            **_SIGNER_ABSENT,
             "mint": "POST /api/a11oy/khipu/sign",
             "rollup": "/api/a11oy/healthz",
             "pubkey": "/cosign.pub",
@@ -776,6 +778,9 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
             live["error"] = type(exc).__name__
         return {
             "status": "ok",
+            "scope": "PROCESS_LIVENESS",
+            "capability_readiness_asserted": False,
+            "operational_readiness_endpoint": "/api/a11oy/healthz",
             "organ": organ,
             "doctrine": DOCTRINE,
             "lock": "749/14/163",
@@ -1152,13 +1157,31 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
         led, src = _energy_ledger()
         ok, depth, brk = store.verify()
         energy: Optional[Dict[str, Any]] = None
+        energy_measured = False
         if led is not None:
+            raw_joules = led.get("joules_measured_total")
+            energy_measured = (
+                src == "live-operator"
+                and led.get("joules_measured_label") == "MEASURED"
+                and led.get("attribution_verified") is True
+                and isinstance(led.get("attribution_method"), str)
+                and bool(led.get("attribution_method").strip())
+                and isinstance(led.get("attribution_version"), int)
+                and not isinstance(led.get("attribution_version"), bool)
+                and led.get("attribution_version") >= 1
+                and isinstance(raw_joules, (int, float))
+                and not isinstance(raw_joules, bool)
+                and math.isfinite(raw_joules)
+                and raw_joules > 0.0
+            )
             energy = {
-                "joules_measured_total": led.get("joules_measured_total"),
-                "joules_measured_label": led.get("joules_measured_label", "MEASURED"),
-                "measured_jobs": led.get("measured_jobs"),
+                "joules_measured_total": raw_joules if energy_measured else None,
+                "joules_measured_label": "MEASURED" if energy_measured else "UNAVAILABLE",
+                "measured_jobs": led.get("measured_jobs") if energy_measured else None,
+                "attribution_method": led.get("attribution_method") if energy_measured else None,
+                "attribution_version": led.get("attribution_version") if energy_measured else None,
                 "tokens_total": led.get("tokens_total"),
-                "by_node": led.get("by_node"),
+                "by_node": led.get("by_node") if energy_measured else None,
                 "running": led.get("running"),
                 "stub_mode": led.get("stub_mode"),
                 "exporter": led.get("exporter"),
@@ -1177,15 +1200,16 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
                 "head": store.head(),
                 "count": store.count(),
             },
-            "data_kind": "live" if (energy is not None or store.count() > 0)
+            "data_kind": "live" if (energy_measured or store.count() > 0)
                          else "structural",
             "doctrine": DOCTRINE,
-            "honesty": ("energy figures are MEASURED NVML joule deltas from the live "
-                        "operator (or the durable persisted ledger when the operator is "
-                        "not in this process) — SAMPLE/stub energy is excluded and never "
-                        "billable; receipt_chain is a SHA3-256 hash-chain that verify() "
-                        "re-walks. Counters are NEVER reset and NEVER fabricated; "
-                        "energy_ledger is null when no ledger is reachable."),
+            "honesty": ("Current MEASURED joules require a live operator with explicit "
+                        "verified exclusive job attribution and a method/version; "
+                        "persisted counters alone remain UNAVAILABLE, not billable. "
+                        "SAMPLE/stub energy is excluded. receipt_chain is a SHA3-256 "
+                        "hash-chain that verify() re-walks; chain integrity alone "
+                        "does not prove measurement. energy_ledger is null when no "
+                        "ledger is reachable."),
         }
 
     # ---- 11: cheapest-watt placement (carbon/cost-aware routing) ----------

@@ -22,6 +22,7 @@ import re
 import subprocess
 import sys
 import time
+from copy import deepcopy
 from pathlib import Path
 from typing import Any, Optional
 
@@ -431,6 +432,12 @@ def register(app: Any, ns: str = "a11oy") -> dict[str, Any]:
 
     previous_ids = {id(route) for route in app.router.routes}
     build_identity = _build_identity()
+
+    def _read_build_identity() -> dict[str, Any]:
+        """Share the startup observation without exposing its mutable capture."""
+        return deepcopy(build_identity)
+
+    app.state.szl_build_identity_reader = _read_build_identity
 
     @app.get("/api/livez", tags=["runtime"], include_in_schema=True)
     async def _livez():

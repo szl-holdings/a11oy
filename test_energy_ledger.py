@@ -2,10 +2,9 @@
 # © 2026 Lutar, Stephen P. — SZL Holdings · Doctrine v11
 """test_energy_ledger.py — guards the metering + signed-receipt hash-chained ledger.
 
-Doctrine v11 (the whole point): a JouleCharge receipt is billable ONLY when joules_label
-== MEASURED and the NVML sample is fresh (<30s); SAMPLE/ESTIMATE/stale are REFUSED.
-Every receipt re-hashes to its digest; the chain is hash-linked (prev_digest) and tamper
-breaks it; DRY-RUN bills with no STRIPE key; the same job never double-appends a charge.
+Doctrine v11: source joules and receipt history cannot substitute for exclusive per-job
+attribution. New receipts are nonbillable even if the caller claims MEASURED/fresh;
+every receipt re-hashes and the chain remains append-only and idempotent.
 
 Run: python test_energy_ledger.py   (also collectable by pytest)
 """
@@ -76,7 +75,7 @@ def test_tamper_one_entry_breaks_chain():
         led.append_job(_fresh_measured_job(), now=NOW)
         led.append_job(_fresh_measured_job(joules=12345.0, model="bge-large"), now=NOW)
         assert led.verify()["ok"] is True
-        # mutate a billed field on entry 0 -> receipt no longer re-hashes -> chain breaks
+        # mutate a receipt field on entry 0 -> receipt no longer re-hashes -> chain breaks
         led._entries[0]["receipt"]["decision"]["amount_cents"] = 999999
         v = led.verify()
         assert v["ok"] is False
@@ -132,26 +131,25 @@ def test_stale_measured_joules_blocked_from_billing():
             node="betterwithage", joules_measured=9000.0, joules_label="measured",
             tokens=256, wall_s=4.0, ts=STALE_TS, model="llama3.1:8b", nvml_age_s=None), now=NOW)
         assert r["entry"]["billable"] is False
-        assert "stale" in r["entry"]["reason"].lower()
+        assert r["entry"]["reason"] == "ATTRIBUTION_UNVERIFIED"
         assert r["entry"]["charge"]["status"] == "blocked"
     finally:
         _cleanup(tmp)
 
 
-def test_dry_run_path_clean():
-    # No STRIPE_API_KEY -> billable job dry-runs with would_charge_cents, no money moves.
-    old = os.environ.pop("STRIPE_API_KEY", None)
+def test_unqualified_measured_job_never_reaches_billing():
+    # A self-declared MEASURED/fresh job cannot become a charge or dry-run quote.
     led, tmp = _ledger()
     try:
         r = led.append_job(_fresh_measured_job(), now=NOW)
         charge = r["entry"]["charge"]
-        assert charge["status"] == "dry-run"
-        assert charge["would_charge_cents"] >= 1
+        assert charge["status"] == "blocked"
+        assert r["entry"]["reason"] == "ATTRIBUTION_UNVERIFIED"
+        assert r["entry"]["receipt"]["decision"]["amount_cents"] == 0
+        assert r["entry"]["receipt"]["decision"]["honesty"]["revenue"] == "ZERO"
         assert "payment_intent" not in charge
-        assert led.summary()["stripe_mode"] == "dry-run"
+        assert led.summary()["stripe_mode"] == "blocked-pending-attribution"
     finally:
-        if old is not None:
-            os.environ["STRIPE_API_KEY"] = old
         _cleanup(tmp)
 
 
@@ -186,7 +184,7 @@ def test_idempotency_survives_restart():
 def test_totals_correct():
     led, tmp = _ledger()
     try:
-        led.append_job(_fresh_measured_job(), now=NOW)                       # billable dry-run
+        led.append_job(_fresh_measured_job(), now=NOW)                       # unqualified
         led.append_job(JobRecord(node="chaski", joules_measured=5000.0,
                                  joules_label="sample", tokens=128, wall_s=2.0,
                                  ts=FRESH_TS, model="mistral", nvml_age_s=3.0), now=NOW)  # blocked
@@ -195,13 +193,14 @@ def test_totals_correct():
                                  ts=STALE_TS, model="llama3.1:8b"), now=NOW)              # stale->blocked
         t = led.totals()
         assert t["jobs"] == 3
-        assert t["dry_run_count"] == 1
-        assert t["blocked_count"] == 2
-        assert t["would_charge_cents"] >= 1
-        assert t["charged_cents"] == 0
+        assert t["dry_run_count"] == 0
+        assert t["blocked_count"] == 3
+        assert t["would_charge_cents"] is None
+        assert t["charged_cents"] is None
+        assert t["historical_reported_charged_cents"] == 0
         assert t["tokens_total"] == 512 + 128 + 256
-        # only the billable MEASURED joules count toward billable joules
-        assert abs(t["joules_measured_billable"] - 78369.586) < 1e-6
+        assert t["joules_measured_billable"] is None
+        assert t["joules_measured_label"] == "UNAVAILABLE"
     finally:
         _cleanup(tmp)
 

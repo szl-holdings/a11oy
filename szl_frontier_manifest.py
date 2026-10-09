@@ -38,9 +38,9 @@ DOCTRINE v11 (this surface is a roll-up — be ruthless about honesty):
     action has minted an artifact. A read never creates one and an unminted capability is
     never presented as operational merely because its source module is reachable.
 
-The composition is the whole point: SZL already holds the parts (tamper-evident
-energy receipts MEASURED, signed UDS bundle MEASURED, governance doctrine MEASURED, MODELED
-orbital roadmap). This manifest shows them as one frontier surface, honestly labeled.
+The manifest keeps source availability, transport observations, and verified runtime
+artifacts distinct. A signing workflow or a reachable socket does not establish a
+verified bundle or successful model inference.
 """
 from __future__ import annotations
 
@@ -338,27 +338,29 @@ def _tile_energy_provenance() -> dict:
 
 
 def _tile_uds_bundle() -> dict:
-    # The signed-UDS-bundle capability: cosign keyless + Rekor transparency log +
-    # SBOM. The provenance pointer is the PUBLIC verify path (cosign/gh attestation
-    # verify against the Rekor tlog) — the moat is the signed, offline-verifiable
-    # bundle. We surface it as MEASURED (the signing pipeline is real and shipped);
-    # the live UDS-fleet narrative module backs the tile and is referenced honestly.
-    backing = "szl_uds_fleet narrative (cosign+SLSA attestation pattern, AGPL UDS attribution honest)"
-    try:
-        import szl_uds_fleet  # noqa: F401  — confirm the backing module is in-image
-    except Exception as exc:  # noqa: BLE001
-        backing = f"szl_uds_fleet not importable: {exc}"
+    # The backing feed observes public source metadata, not our release artifact.
+    # Importability cannot substitute for verifying the exact deployed bundle.
+    import szl_uds_fleet  # noqa: F401
     return _tile(
-        "Signed UDS bundle", "supply-chain", status="OK (cosign keyless + Rekor tlog + SBOM)",
-        label=MEASURED,
+        "Signed UDS bundle", "supply-chain",
+        status="UNAVAILABLE (bundle attestation verification not observed)",
+        label=UNAVAILABLE,
         provenance={
             "endpoint": f"{_API}/uds",
-            "kind": "cosign-signed bundle; verify against the public Rekor transparency log",
-            "verify": "cosign verify-attestation / gh attestation verify (Sigstore keyless)",
-            "transparency_log": "Sigstore Rekor (public tlog)",
-            "sbom": "CycloneDX / SPDX in-toto attestation",
-            "backing_module": backing,
+            "kind": "documented supply-chain pattern; no release artifact verified by this feed",
+            "source": ".github/workflows/uds-sign-release.yml",
+            "bundle_definition": "artifacts/a11oy-uds/uds-bundle.yaml",
+            "artifact_digest": None,
+            "signature_status": "NOT_OBSERVED",
+            "verification_required": [
+                "identify the exact bundle digest and its attached attestation",
+                "verify the attestation against the expected signer and artifact digest",
+                "record the verifier result and observation time for that artifact",
+            ],
         },
+        signature_required=True,
+        signature_verified=False,
+        artifact_observed=False,
         operational_evidence={
             "predicate": "a concrete UDS attestation is independently verified at runtime",
             "satisfied": False,
@@ -397,36 +399,72 @@ def _tile_orbital() -> dict:
 
 
 def _tile_compute_fabric() -> dict:
-    # REAL reachability probe of the ground GPU fabric. reachable counts are
-    # REAL-PROBE-ONLY — read straight from the live probe, never fabricated.
+    # This producer tests process/TCP reachability only. It cannot supply proof
+    # of GPU ownership, a loaded model, or completed inference.
     import szl_backend_hardening as bh
     pool = bh.probe_fabric_pool()
     nodes = pool.get("nodes", []) or []
-    reachable_n = sum(1 for n in nodes if n.get("reachable"))
+    reachable_n = sum(1 for n in nodes if n.get("reachable") is True)
     gpu_reachable = sum(1 for n in nodes
-                        if n.get("reachable") and "gpu" in str(n.get("kind", "")))
+                        if n.get("reachable") is True and "gpu" in str(n.get("kind", "")))
+    sovereign_gpu_reachable = sum(
+        1 for n in nodes if n.get("reachable") is True and n.get("sovereign") is True
+        and "gpu" in str(n.get("kind", ""))
+    )
     total = len(nodes)
+    expected_counts = {
+        "nodes_total": total,
+        "nodes_reachable": reachable_n,
+        "gpu_nodes_reachable": gpu_reachable,
+        "sovereign_gpu_nodes_reachable": sovereign_gpu_reachable,
+    }
+    reported_counts = pool.get("counts") or {}
+    counts_consistent = isinstance(reported_counts, dict) and all(
+        type(reported_counts.get(key)) is int and reported_counts[key] == value
+        for key, value in expected_counts.items()
+    )
     if reachable_n:
-        status = f"OK ({reachable_n}/{total} nodes reachable, {gpu_reachable} sovereign GPU)"
+        status = (f"DEGRADED ({reachable_n}/{total} nodes transport reachable, "
+                  f"{sovereign_gpu_reachable} configured sovereign GPU; inference unverified)")
     else:
         # Empty fabric is UNAVAILABLE, not a live IDLE of 0. The probe count is
         # real; do not invent node numbers or stamp LIVE on an empty pool.
         status = f"UNAVAILABLE (0/{total} nodes reachable right now)"
     return _tile(
-        "Sovereign compute fabric", "compute", status=status, label=MEASURED,
+        "Sovereign compute fabric", "compute", status=status,
+        label=MEASURED if reachable_n else UNAVAILABLE,
         provenance={
             "endpoint": f"{_API}/compute-pool-hardened",
-            "kind": "live concurrent reachability probe (REAL probe only; cached TTL)",
+            "kind": "process/TCP reachability probe only; no inference or ownership verification",
             "cached_at": pool.get("cached_at"),
         },
+        measurement_scope="TRANSPORT_REACHABILITY_ONLY",
         nodes_total=total,
         # reachable / gpu_reachable are REAL-PROBE-ONLY facts.
         nodes_reachable=reachable_n,
         gpu_reachable=gpu_reachable,
+        sovereign_gpu_reachable=sovereign_gpu_reachable,
+        counts_consistent=counts_consistent,
+        sovereignty_scope="configured node property; ownership not verified by this probe",
+        inference_verified=False,
+        inference_verified_nodes=0,
+        ownership_verified=False,
         operational_evidence={
-            "predicate": "at least one sovereign GPU node passes the live reachability probe",
-            "satisfied": gpu_reachable > 0,
-            "reasons": [] if gpu_reachable > 0 else ["no_sovereign_gpu_reachable"],
+            "predicate": "owned sovereign GPU and deployed-model inference independently verified",
+            "satisfied": False,
+            "reasons": [
+                reason for failed, reason in (
+                    (sovereign_gpu_reachable < 1, "no_sovereign_gpu_reachable"),
+                    (not counts_consistent, "fabric_probe_counts_missing_or_inconsistent"),
+                    (True, "sovereign_ownership_not_verified"),
+                    (True, "model_inference_not_verified_by_transport_probe"),
+                ) if failed
+            ],
+            "verification_required": [
+                "confirm the configured node is an owned sovereign GPU worker",
+                "execute a governed request against the exact deployed model",
+                "verify the resulting execution receipt and model identity",
+            ],
         },
     )
 
@@ -716,8 +754,8 @@ def _build_manifest(app=None) -> dict:
                            "Conjecture 2"),
         },
         "labels_legend": {
-            "MEASURED": ("real measured/shipped capability (e.g. tamper-evident joule "
-                         "receipts, REAL probes); MEASURED never implies signed"),
+            "MEASURED": ("observed data within the tile's stated scope; a transport probe "
+                         "does not verify inference, ownership, or a signature"),
             "MODELED": "design artifact derived from a real measurement (e.g. orbital joules from ground coeff)",
             "ROADMAP": "named forward work; no fabricated artifact",
             "SAMPLE": "illustrative sample value, never billable/live",

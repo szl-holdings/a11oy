@@ -197,6 +197,25 @@ def test_build_info_uses_hf_deployment_sha(monkeypatch):
     assert body["build"]["field_evidence"]["revision"] == "OBSERVED"
 
 
+def test_build_identity_reader_returns_defensive_copy_of_frozen_observation(monkeypatch):
+    for name in contracts._ENV_SHA_NAMES:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("SZL_GIT_SHA", "a" * 40)
+    monkeypatch.setattr(contracts, "_safe_git", lambda _args: None)
+    app = _app_with_catchall()
+    client = TestClient(app)
+    before = client.get("/api/build-info").json()["build"]
+
+    readback = app.state.szl_build_identity_reader()
+    assert readback == before
+    readback["revision"] = "b" * 40
+    readback["field_evidence"]["revision"] = "UNAVAILABLE"
+    monkeypatch.setenv("SZL_GIT_SHA", "c" * 40)
+
+    assert app.state.szl_build_identity_reader() == before
+    assert client.get("/api/build-info").json()["build"] == before
+
+
 def test_build_info_is_captured_once_and_get_never_spawns_git(monkeypatch):
     calls = []
 

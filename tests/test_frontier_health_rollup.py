@@ -1,9 +1,12 @@
 """Health rollup consumes the manifest's operational evidence, not source access."""
 import ast
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+from fastapi.testclient import TestClient
 
 import szl_frontier_manifest as manifest
 
@@ -92,6 +95,102 @@ def test_missing_or_inconsistent_readiness_is_unavailable(signal, monkeypatch, m
     result = signal()
     assert result["status"] == "unavailable"
     assert result["endpoints_live"] is None
+
+
+@pytest.fixture
+def health_route(runtime_app, signal):
+    """Run the actual health handler with bounded, explicitly simulated dependencies."""
+    path = Path(__file__).resolve().parents[1] / "serve.py"
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    node = next(row for row in tree.body if isinstance(row, ast.AsyncFunctionDef)
+                and row.name == "healthz")
+
+    async def dependency():
+        return {"status": "ok", "backend_alive": True, "checked_at": 999.0}
+
+    scope = {
+        "app": runtime_app, "JSONResponse": JSONResponse,
+        "_healthz_dep_ping": dependency,
+        "_ledger_storage_signal": lambda: {"status": "available"},
+        "_signer_availability_signal": lambda: {"status": "ABSENT"},
+        "_frontier_liveness_signal": signal,
+        "_sovereign_health_signal": lambda: {},
+        "_brain_health_signal": lambda: {},
+        "_preflight_signal": lambda: {"overall": "DEGRADED"},
+        "sys": SimpleNamespace(modules={}),
+        "_hz_time": SimpleNamespace(time=lambda: 1000.0),
+        "_A11OY_START_TIME": 900.0, "_gates_list": [],
+    }
+    exec(compile(ast.Module(body=[node], type_ignores=[]), str(path), "exec"), scope)
+    return TestClient(runtime_app), scope
+
+
+def test_healthy_service_discloses_blocked_capabilities(health_route, monkeypatch):
+    producer(monkeypatch, tile("operator", ready=False, running=False))
+    client, _ = health_route
+    response = client.get("/api/a11oy/healthz")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["scope"] == "SERVICE_HEALTH"
+    readiness = body["operational_readiness"]
+    assert readiness["ready"] is False
+    assert readiness["status"] == "NOT_READY"
+    assert readiness["service_blockers"] == []
+    assert readiness["frontier"] == body["rollup"]["frontier"]["operational_readiness"]
+    assert readiness["frontier"]["blocked_tiles"][0]["name"] == "operator"
+
+
+def test_service_fault_blocks_otherwise_ready_capabilities(health_route, monkeypatch):
+    producer(monkeypatch, tile("running"))
+    client, scope = health_route
+    scope["_ledger_storage_signal"] = lambda: {"status": "unavailable"}
+    body = client.get("/api/a11oy/healthz").json()
+    assert body["rollup"]["frontier"]["operational_readiness"]["ready"] is True
+    assert body["status"] == "degraded"
+    assert body["operational_readiness"]["ready"] is False
+    assert body["operational_readiness"]["service_blockers"] == ["storage-unavailable"]
+
+
+def test_unknown_capability_evidence_never_becomes_ready(health_route):
+    client, scope = health_route
+    scope["_frontier_liveness_signal"] = lambda: {"status": "unavailable"}
+    body = client.get("/api/a11oy/healthz").json()
+    assert body["operational_readiness"]["ready"] is False
+    assert body["operational_readiness"]["status"] == "UNAVAILABLE"
+    assert body["operational_readiness"]["frontier"] is None
+
+
+@pytest.mark.parametrize("dependency", [
+    {"status": "unreachable", "backend_alive": False},
+    {"status": "degraded", "backend_alive": False},
+    {"status": "unknown", "backend_alive": None},
+    {"status": "ok", "backend_alive": "true"},
+])
+def test_missing_backend_evidence_blocks_operational_readiness(
+    health_route, monkeypatch, dependency,
+):
+    producer(monkeypatch, tile("running"))
+    client, scope = health_route
+
+    async def unavailable_dependency():
+        return dependency
+
+    scope["_healthz_dep_ping"] = unavailable_dependency
+    response = client.get("/api/a11oy/healthz")
+    assert response.status_code == 200  # Preserve service diagnostics during a fault.
+    body = response.json()
+    assert body["status"] == "degraded"
+    assert body["operational_readiness"]["ready"] is False
+    assert body["operational_readiness"]["service_blockers"] == ["node-backend-unavailable"]
+
+
+def test_known_ready_capabilities_and_service_can_report_ready(health_route, monkeypatch):
+    producer(monkeypatch, tile("running"))
+    client, _ = health_route
+    body = client.get("/api/a11oy/healthz").json()
+    assert body["operational_readiness"]["ready"] is True
+    assert body["operational_readiness"]["status"] == "READY"
 
 
 class DeterministicCache:

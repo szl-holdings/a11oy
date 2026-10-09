@@ -277,7 +277,11 @@ def test_workflow_separates_reader_from_writer_and_always_enforces_receipt():
     assert workflow["concurrency"]["cancel-in-progress"] is False
     reader = workflow["jobs"]["materialize"]
     writer = workflow["jobs"]["proposal"]
-    assert "permissions" not in reader
+    assert reader["permissions"] == {"contents": "read", "actions": "read"}
+    materialize = next(step for step in reader["steps"] if step.get("id") == "materialize")
+    assert materialize["env"] == {
+        "GITHUB_TOKEN": "${{ github.token }}", "GH_READ_TOKEN": "${{ secrets.GH_READ_TOKEN }}",
+    }
     assert writer["permissions"] == {"contents": "write", "pull-requests": "write"}
     assert writer["needs"] == "materialize" and "always()" in writer["if"]
     assert reader["outputs"]["artifact_id"] == "${{ steps.snapshot_artifact.outputs.artifact-id }}"

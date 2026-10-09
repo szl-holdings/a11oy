@@ -58,6 +58,26 @@ class ReadinessHonestyRelockTests(unittest.TestCase):
   endpoints["/api/a11oy/v1/rag/status"]["degradedRules"]["allowLabels"],
         )
 
+    def test_optional_degradation_policy_is_narrow_and_fail_closed_by_default(self) -> None:
+        endpoints = MATRIX.ENDPOINTS
+        optional = {
+            "/api/a11oy/v1/energy/live",
+            "/api/a11oy/v1/energy/sci",
+            "/api/a11oy/v1/vert/legal/feed",
+            "/api/a11oy/v1/devb/legal/matter?limit=1",
+            "/api/a11oy/v1/devb/legal/matter?term=defense&limit=1",
+            "/api/a11oy/v1/devb/legal/matter?term=insurance&limit=1",
+        }
+        for route in optional:
+            self.assertFalse(endpoints[route]["degradedBlocksReadiness"], route)
+        for route in (
+            "/api/a11oy/v1/rag/status",
+            "/api/a11oy/v1/vert/defense/feed",
+            "/api/a11oy/v1/vert/finance/feed",
+            "/api/a11oy/v1/vert/realestate/feed",
+        ):
+            self.assertTrue(endpoints[route]["degradedBlocksReadiness"], route)
+
     def test_router_stats_admits_only_live_counter_evidence(self) -> None:
         # #1526 (landed via #1538) removed the wall-clock-derived MODELED
         # tier display from /v1/router/stats; the endpoint now serves exact
