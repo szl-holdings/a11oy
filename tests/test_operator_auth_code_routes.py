@@ -397,7 +397,7 @@ class GovernedTurnChokepoint(unittest.TestCase):
     """Every path into a11oy_code_engine._sandbox_exec needs allow_exec."""
 
     def setUp(self):
-        self.env = patch.dict(os.environ, SECRETS)
+        self.env = patch.dict(os.environ, {**SECRETS, "A11OY_CODE_TENANT": "synthetic-tenant"})
         self.env.start()
         self.calls = []
         self.patches = [patch.object(engine, "_sandbox_exec", _fake_sandbox(self.calls)),
@@ -440,9 +440,11 @@ class GovernedTurnChokepoint(unittest.TestCase):
         # Anonymous is refused (401 BLOCKED) before any model call, gate or receipt;
         # the operator alone reaches the route but never the sandbox; only the
         # two-person principal executes.
-        for label, headers, want_status, want_exec in (("anonymous", {}, 401, False),
-                                                       ("operator only", OPERATOR_ONLY, 200, False),
-                                                       ("both", BOTH, 200, True)):
+        tenant = {"X-A11oy-Tenant": "synthetic-tenant"}
+        for label, headers, want_status, want_exec in (
+                ("anonymous", {}, 401, False),
+                ("operator only", {**OPERATOR_ONLY, **tenant}, 200, False),
+                ("both", {**BOTH, **tenant}, 200, True)):
             with self.subTest(path=path, caller=label):
                 self.calls.clear()
                 r = client.request(method, path, headers=headers, json=body)
@@ -462,7 +464,8 @@ class GovernedTurnChokepoint(unittest.TestCase):
         import a11oy_code_runloop as runloop
         client = self._app(lambda app: runloop.register(app, "a11oy", _unsigned))
         body = {"prompt": "write a python function that returns 5 primes",
-                "mode": "code", "sandbox": True, "two_person_attested": True}
+                "purpose": "code", "mode": "code", "sandbox": True,
+                "two_person_attested": True}
         self._assert_route(client, "POST", "/api/a11oy/v1/code/runstep", body)
 
     def test_agentloop_run_route(self):
@@ -494,13 +497,17 @@ class GovernedTurnChokepoint(unittest.TestCase):
     def test_runloop_plan_and_approve_refuse_anonymous(self):
         import a11oy_code_runloop as runloop
         client = self._app(lambda app: runloop.register(app, "a11oy", _unsigned))
-        for path, body in (("/api/a11oy/v1/code/plan", {"task": "t"}),
-                           ("/api/a11oy/v1/code/approve",
-                            {"checkpoint_id": "c", "approver": "a"})):
-            with self.subTest(path=path):
-                self.assertEqual(client.post(path, json=body).status_code, 401)
-                self.assertEqual(client.post(path, json=body, headers=OPERATOR_ONLY).status_code,
-                                 200)
+        approve = {"checkpoint_id": "c", "approver": "a"}
+        self.assertEqual(client.post("/api/a11oy/v1/code/plan", json={"task": "t"}).status_code, 401)
+        self.assertEqual(client.post("/api/a11oy/v1/code/approve", json=approve).status_code, 401)
+        self.assertEqual(client.post("/api/a11oy/v1/code/approve", json=approve,
+                                     headers=OPERATOR_ONLY).status_code, 200)
+        admitted = {**OPERATOR_ONLY, "X-A11oy-Tenant": "synthetic-tenant"}
+        planned = client.post("/api/a11oy/v1/code/plan",
+                              json={"task": "t", "purpose": "chat"}, headers=admitted)
+        self.assertEqual(planned.status_code, 200, planned.text[:400])
+        self.assertEqual(planned.json()["purpose"], "chat")
+        self.assertEqual(planned.json()["mode"], "chat")
 
     def test_consensus_refuses_anonymous(self):
         client = self._app(lambda app: engine.register(app, "a11oy", _unsigned))
@@ -887,6 +894,21 @@ class ServeAppGate(unittest.TestCase):
                              json={})
         self.assertEqual(r.status_code, 401)
         self.assertEqual(r.headers.get("access-control-allow-origin"), "https://a-11-oy.com")
+
+
+# The RAG workflow lists this module by path. tests.yml is owned by a11oy#2583,
+# so the admission cases stay in their own module and are subclassed here.
+import importlib.util  # noqa: E402
+
+_admission_path = Path(__file__).resolve().parent / "test_code_runloop_admission.py"
+_admission_spec = importlib.util.spec_from_file_location(
+    "test_code_runloop_admission_listed", _admission_path)
+_runloop_admission = importlib.util.module_from_spec(_admission_spec)
+_admission_spec.loader.exec_module(_runloop_admission)
+
+
+class CodeRunloopAdmissionListed(_runloop_admission.CodeRunloopAdmission):
+    """Same admission cases, collected by the workflow that already names this file."""
 
 
 if __name__ == "__main__":
