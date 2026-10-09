@@ -206,6 +206,8 @@ hr{border:0;border-top:1px solid var(--gold-line);margin:14px 0;}
       <span id="stateExecution">execution: not submitted</span>
       <span id="stateSignature">signature: not submitted</span>
       <span id="stateDurability">durability: not submitted</span>
+      <span id="stateIdentity">identity: not submitted</span>
+      <span id="stateResult">result: not submitted</span>
     </div>
   </div>
 
@@ -261,7 +263,7 @@ function paintState(id, text){
 }
 function paintBlocked(reason){
   const text = "blocked: " + (reason || "refused");
-  ["stateRetrieval","statePlanning","stateExecution","stateSignature","stateDurability"].forEach(function(id){
+  ["stateRetrieval","statePlanning","stateExecution","stateSignature","stateDurability","stateIdentity","stateResult"].forEach(function(id){
     paintState(id, text);
   });
 }
@@ -285,6 +287,15 @@ function paintJourney(res){
   paintState("stateDurability", "durability: store=" + ((durability && durability.store) || "UNKNOWN")
     + " persisted=" + String(!!durability.persisted)
     + " restart_verifiable=" + String(!!durability.restart_verifiable));
+  const identity = (res && res.identity) || {};
+  const result = (res && res.result) || {};
+  const receiptState = (res && res.restart_receipt && res.restart_receipt.state) || "absent";
+  paintState("stateIdentity", "identity: run=" + (identity.run_id || "absent")
+    + " step=" + (identity.step_id || "absent")
+    + " attempt=" + (identity.attempt_id || "absent"));
+  paintState("stateResult", "result: " + (result.state || "absent")
+    + " receipt=" + receiptState
+    + " historical_execution=" + (result.historical_execution_status || "absent"));
 }
 async function jget(path){ const r = await fetch(API+path); return await r.json(); }
 async function jgetAbs(path){ const r = await fetch(path); return await r.json(); }
@@ -420,6 +431,7 @@ function renderPlan(p){
   document.getElementById("planPanel").style.display = "block";
   document.getElementById("planMeta").innerHTML =
     `<span>run_id <b class="mono">${esc(p.run_id)}</b></span>`+
+    `<span>plan_revision <b class="mono">${esc(p.plan_revision||"absent")}</b></span>`+
     `<span>mode <b>${esc(p.mode)}</b></span>`+
     `<span>steps <b>${(p.plan||[]).length}</b></span>`+
     `<span>engine <b>${p.engine_available?"LIVE":"DOWN"}</b></span>`+
@@ -431,7 +443,7 @@ function renderPlan(p){
     div.innerHTML =
       `<div class="head"><span class="num">${step.n}</span>`+
       `<div><div class="title">${esc(step.title)} `+
-      `<span class="badge ${step.state_changing?"warn":""}" style="margin-left:4px;">${step.mode}${step.sandbox?" · sandbox exec":""}${step.state_changing?" · state-changing":""}</span></div>`+
+      `<span class="badge ${step.state_changing?"warn":""}" style="margin-left:4px;">${esc(step.step_id||"")} ${step.mode}${step.sandbox?" · sandbox exec":""}${step.state_changing?" · state-changing":""}</span></div>`+
       `<div class="why">${esc(step.why)}</div></div>`+
       `<span class="spacer" style="flex:1"></span>`+
       `<button class="act" onclick="runStep(${step.n})">Run step</button></div>`+
@@ -450,7 +462,11 @@ async function runStep(n, grant){
   try{
     const harness_profile_id = (document.getElementById("harnessProfile")||{}).value || "";
     const res = await jpost("/runstep", {
-      step:n, purpose:step.mode, mode:step.mode, prompt:step.prompt, sandbox:step.sandbox,
+      step:n,
+      step_id: step.step_id,
+      run_id: CURRENT.run_id,
+      plan_revision: CURRENT.plan_revision,
+      purpose:step.mode, mode:step.mode, prompt:step.prompt, sandbox:step.sandbox,
       state_changing:step.state_changing, untrusted_input:untrusted,
       harness_profile_id: harness_profile_id || undefined,
       approval: grant || undefined
@@ -462,9 +478,12 @@ async function runStep(n, grant){
 function renderStepResult(n, res){
   const body = document.getElementById("step"+n+"-body");
   if(res && res.journey) paintJourney(res);
-  if(res && res.duplicate){
+  const resultState = res && res.result ? res.result.state : "";
+  if(res && res.duplicate && resultState !== "AVAILABLE"){
     body.innerHTML = `<span class="badge warn">duplicate committed record</span>`
-      + `<div class="note">The engine was not called again.</div>`;
+      + `<div class="note">The engine was not called again. Result: RESULT_UNAVAILABLE. `
+      + `Historical execution (${esc((res.result && res.result.historical_execution_status) || "UNKNOWN")}) `
+      + `is separate from result availability.</div>`;
     return;
   }
   if(!res.ok){
@@ -480,6 +499,12 @@ function renderStepResult(n, res){
   const sig = run.signed_receipt||{};
   const approval = res.approval||{};
   let html = "";
+  if(res && res.duplicate){
+    const historical = (res.result && res.result.historical_execution_status) || "UNKNOWN";
+    html += `<span class="badge warn">restored committed result</span>`
+      + `<div class="note">The engine was not called again. result ${esc(resultState)}; `
+      + `historical execution ${esc(historical)}. A restored projection is not a new effect.</div>`;
+  }
 
   // verdict + Lambda gate (advisory)
   html += `<div class="kv">`+

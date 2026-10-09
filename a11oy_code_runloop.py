@@ -23,6 +23,12 @@ ReceiptLedger organ code-runloop. The witness is acknowledged after fsync.
 Unsigned witnesses stay SIMULATED. The in-memory Khipu DAG is not this store.
 An omitted request id is not stored as a shared client id. The same client
 request id with a different query is refused before the engine.
+A planned step also sends the server-issued run_id, step_id, and plan_revision.
+That logical action stays stable across retries. Changed sandbox, prompt, or
+revision is a conflict and does not call the engine. A new plan() call is a
+new run even when the task text matches. Requests that omit those three fields
+keep the legacy query key. A duplicate planned step restores the durable
+projection or reports RESULT_UNAVAILABLE. It does not execute again.
   POST /api/a11oy/v1/code/approve       {checkpoint_id, approver, approved}
                                                                -> approval-interrupt grant echo
   GET  /api/a11oy/v1/code/runloop/health                       -> honest liveness of the surface
@@ -48,6 +54,7 @@ import hashlib
 import hmac
 import os
 import re
+import secrets
 import time
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -181,7 +188,8 @@ def _now() -> str:
 
 
 def _mk_run_id(task: str) -> str:
-    h = hashlib.sha256(("%s|%s" % (task, time.time())).encode()).hexdigest()[:12]
+    material = "%s|%s|%s" % (task, time.time(), secrets.token_hex(8))
+    h = hashlib.sha256(material.encode()).hexdigest()[:12]
     return "run-%s" % h
 
 
@@ -219,7 +227,7 @@ def plan(task: str, mode: str = "") -> dict:
 
     # Step 1 — always: understand + retrieve (chat/research grounding of the task).
     steps.append({
-        "n": 1, "title": "Understand & ground the task",
+        "n": 1, "step_id": "step-1", "title": "Understand & ground the task",
         "mode": "research" if mode == "research" else "chat",
         "prompt": task or "Describe the task.",
         "sandbox": False, "state_changing": False,
@@ -229,32 +237,33 @@ def plan(task: str, mode: str = "") -> dict:
     if mode == "code":
         # Step 2 — synthesize code. Step 3 — governed sandbox EXECUTION (state-changing).
         steps.append({
-            "n": 2, "title": "Synthesize candidate code",
+            "n": 2, "step_id": "step-2", "title": "Synthesize candidate code",
             "mode": "code", "prompt": task, "sandbox": False, "state_changing": False,
             "why": "Route to an open-weight coder (or the honest local scaffold) and "
                    "produce runnable code — still behind the Λ-gate + policy gate.",
         })
         steps.append({
-            "n": 3, "title": "Execute code in the governed sandbox",
+            "n": 3, "step_id": "step-3", "title": "Execute code in the governed sandbox",
             "mode": "code", "prompt": task, "sandbox": True, "state_changing": True,
             "why": "Run the code in the REAL restricted-subprocess sandbox. This is a "
                    "state-changing action, so it also passes the HumanApprovalGate when enabled.",
         })
     elif mode == "research":
         steps.append({
-            "n": 2, "title": "Answer with cited sources",
+            "n": 2, "step_id": "step-2", "title": "Answer with cited sources",
             "mode": "research", "prompt": task, "sandbox": False, "state_changing": False,
             "why": "Emit a grounded, cited answer over the in-image corpus / live feeds.",
         })
     else:  # chat
         steps.append({
-            "n": 2, "title": "Compose the governed answer",
+            "n": 2, "step_id": "step-2", "title": "Compose the governed answer",
             "mode": "chat", "prompt": task, "sandbox": False, "state_changing": False,
             "why": "Emit the answer through the full P1-P6 loop with a signed receipt.",
         })
 
     return {
         "run_id": run_id,
+        "plan_revision": _journey.plan_revision(mode, steps),
         "task": task,
         "mode": mode,
         "created_at": _now(),
@@ -294,9 +303,24 @@ def register(app, ns: str, sign_fn, verify_fn=None):
         extra = _journey_refusal(b)
         if extra is not None:
             return extra
-        body = plan(query, purpose)
+        try:
+            body = plan(query, purpose)
+        except ValueError:
+            return _blocked("plan identity is not admitted", 400)
         body["purpose"] = purpose
         body["admission"] = "principal, tenant, limits, and purpose checked before plan"
+        root = (os.environ.get(RECEIPT_LOG_ENV) or "").strip()
+        if root:
+            try:
+                persisted = _journey.persist_plan_admission(
+                    root, _presented_tenant(request), body)
+            except ValueError:
+                return _blocked("plan identity is not admitted", 400)
+            if not persisted:
+                return _blocked("run was not admitted", 409)
+            body["admission_persisted"] = True
+        else:
+            body["admission_persisted"] = False
         return JSONResponse(body)
 
     async def _runstep(request):
@@ -323,25 +347,65 @@ def register(app, ns: str, sign_fn, verify_fn=None):
             return extra
         root = (os.environ.get(RECEIPT_LOG_ENV) or "").strip()
         request_id = b.get("request_id") if isinstance(b.get("request_id"), str) else None
+        presented = _presented_tenant(request)
+        sandbox = bool(b.get("sandbox", purpose == "code"))
+        state_changing = bool(b.get("state_changing", sandbox))
+        want_model = b.get("model") or b.get("want_model") or ""
+        harness_profile_id = str(b.get("harness_profile_id") or b.get("profile_id") or "").strip()
+        try:
+            action, identity_refusal = _journey.admit_planned_step(
+                root,
+                presented,
+                run_id=b.get("run_id"),
+                step_id=b.get("step_id"),
+                plan_revision_value=b.get("plan_revision"),
+                query=query,
+                purpose=purpose,
+                sandbox=sandbox,
+                state_changing=state_changing,
+                profile=harness_profile_id or None,
+                model=want_model or None,
+            )
+        except ValueError:
+            return _blocked("run identity is not admitted", 400)
+        if identity_refusal is not None:
+            return _blocked(identity_refusal["error"], identity_refusal["status"])
         if root and os.path.isdir(root):
             pre = _journey.verify_ledger(root)
             if pre.get("status") == "BLOCKED":
                 return _blocked(pre.get("reason") or "receipt log is blocked", 409)
-        replay = _journey.replay_if_committed(
-            root, query, purpose, _presented_tenant(request), request_id)
+        if action is None:
+            replay = _journey.replay_if_committed(
+                root, query, purpose, presented, request_id)
+        else:
+            replay = _journey.replay_planned(root, presented, action)
         if replay is not None:
             if replay.get("conflict"):
-                return _blocked("request_id conflict", 409)
-            return JSONResponse({
+                return _blocked(replay.get("reason") or "request_id conflict", 409)
+            if replay.get("blocked"):
+                return _blocked(replay.get("reason") or "receipt log is blocked", 409)
+            duplicate_body = {
                 "ok": True,
                 "duplicate": True,
                 "step": b.get("step"),
-                "run": None,
+                "step_id": b.get("step_id"),
+                "run": replay.get("run"),
                 "restart_receipt": replay["restart_receipt"],
                 "journey": replay["journey"],
                 "label": "DUPLICATE committed record. Retrieval, the planner, and "
                          "the provider were not called again.",
-            })
+            }
+            if replay.get("result") is not None:
+                duplicate_body["result"] = replay["result"]
+            if replay.get("identity") is not None:
+                attempt_id = _journey.new_attempt_id()
+                _journey.note_attempt(
+                    root, action["logical_id"], action["semantics_digest"],
+                    attempt_id, "REPLAY")
+                identity = dict(replay["identity"])
+                identity["attempt_id"] = attempt_id
+                duplicate_body["identity"] = identity
+            return JSONResponse(duplicate_body)
         if _journey.commit_lock_held(root):
             return _blocked("commit lock held", 409)
         if not _ENGINE_OK:
@@ -351,10 +415,7 @@ def register(app, ns: str, sign_fn, verify_fn=None):
                 "label": "MODELED-UNAVAILABLE — the real governed engine could not be "
                          "imported in this runtime; no run fabricated.",
             }, status_code=200)
-        sandbox = bool(b.get("sandbox", purpose == "code"))
         untrusted = b.get("untrusted_input") or b.get("untrusted") or ""
-        want_model = b.get("model") or b.get("want_model") or ""
-        state_changing = bool(b.get("state_changing", sandbox))
         grant = b.get("approval") if isinstance(b.get("approval"), dict) else None
         # Wave G: OPTIONAL behavior profile for THIS step. When set, the engine
         # runs the model through szl_model_harness.apply (profile system layer +
@@ -424,10 +485,12 @@ def register(app, ns: str, sign_fn, verify_fn=None):
 
         witnessed = _journey.finish(
             root, query, purpose, _presented_tenant(request), request_id, run,
-            b.get("measure") if "measure" in b else None)
-        return JSONResponse({
+            b.get("measure") if "measure" in b else None,
+            action=action)
+        response = {
             "ok": True,
             "step": b.get("step"),
+            "step_id": None if action is None else action["step_id"],
             "run": run,
             "restart_receipt": witnessed["restart_receipt"],
             "journey": witnessed["journey"],
@@ -441,7 +504,24 @@ def register(app, ns: str, sign_fn, verify_fn=None):
                      "engine's REAL output. Λ is advisory (Conjecture 1)."
                      + (" Behavior profile '%s' was applied to this step." % harness_summary["profile_id"]
                         if harness_summary and harness_summary.get("profile_id") else ""),
-        })
+        }
+        if action is not None:
+            attempt_id = _journey.new_attempt_id()
+            _journey.note_attempt(
+                root, action["logical_id"], action["semantics_digest"], attempt_id,
+                witnessed["restart_receipt"].get("state") or "UNKNOWN")
+            response["identity"] = {
+                "run_id": action["run_id"],
+                "step_id": action["step_id"],
+                "plan_revision": action["plan_revision"],
+                "logical_action_id": action["logical_id"],
+                "semantics_digest": action["semantics_digest"],
+                "attempt_id": attempt_id,
+                "comparison": "ADMITTED_REQUIRES_ENGINE_AND_RIGHTS",
+            }
+        if witnessed.get("result") is not None:
+            response["result"] = witnessed["result"]
+        return JSONResponse(response)
 
     async def _approve(request):
         """Echo a HumanApprovalGate grant back so the UI can re-run the step carrying
