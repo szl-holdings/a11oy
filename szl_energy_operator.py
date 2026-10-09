@@ -838,25 +838,38 @@ _PROBE_UA = os.environ.get(
 
 
 def _http_reachable(base_url: str, timeout: Optional[float] = None) -> bool:
-    """Liveness probe mirroring orchestrator._local_endpoint_reachable: a node is
-    reachable iff its OpenAI-compatible /models (or root) answers <500. Never raises.
+    """Read-only liveness on the configured inference base, using its GPU bearer.
+
+    Only a successful response qualifies. Auth refusals and redirects fail closed;
+    a public root must not hide a protected /models refusal. Never raises.
     Timeout defaults to SZL_GPU_PROBE_TIMEOUT (_PROBE_TIMEOUT_S) so tunneled nodes
     are not falsely DEGRADED; pass an explicit value to override."""
+    import urllib.error as _e
     import urllib.request as _u
+
+    class _NoRedirect(_u.HTTPRedirectHandler):
+        def redirect_request(self, request, fp, code, msg, headers, newurl):
+            return None
+
     if timeout is None:
         timeout = _PROBE_TIMEOUT_S
+    headers = {"User-Agent": _PROBE_UA}
+    gpu_token = (os.environ.get("A11OY_GPU_TOKEN") or "").strip()
+    if gpu_token:
+        headers["Authorization"] = f"Bearer {gpu_token}"
     for path in ("/models", ""):
         try:
-            # Send a browser-like User-Agent: a sovereign node may sit behind a
-            # Cloudflare-fronted tunnel (e.g. gpu.a-11-oy.com) whose default bot
-            # protection 403s the bare "Python-urllib/x" UA — which would falsely
-            # mark a perfectly-reachable node DEGRADED. A real UA is honest: we are
-            # a legitimate client probing our own endpoint, not evading anything.
+            # Only the configured base receives the existing inference credential;
+            # no redirect may carry it to a different endpoint.
             req = _u.Request(base_url.rstrip("/") + path, method="GET",
-                             headers={"User-Agent": _PROBE_UA})
-            with _u.urlopen(req, timeout=timeout) as r:  # noqa: S310
-                if 200 <= getattr(r, "status", r.getcode()) < 500:
+                             headers=headers)
+            with _u.build_opener(_NoRedirect()).open(req, timeout=timeout) as r:  # noqa: S310
+                if 200 <= getattr(r, "status", r.getcode()) < 300:
                     return True
+        except _e.HTTPError as exc:
+            exc.close()
+            if exc.code in (401, 403) or 300 <= exc.code < 400:
+                return False
         except Exception:  # noqa: BLE001
             continue
     return False
@@ -1671,9 +1684,9 @@ class OperatorDaemon:
     def any_lung_reachable(self) -> bool:
         """REAL probe: True iff at least one configured GPU node answers its
         OpenAI-compatible liveness check right now. No fabrication — a node only
-        counts when its endpoint actually responds <500. Standby posture does NOT
-        change reachability (a standby-but-up node is still a reachable lung); it
-        only changes how an UNREACHABLE node is labeled in status."""
+        counts when its endpoint actually responds successfully. Standby posture
+        does NOT change reachability (a standby-but-up node is still a reachable
+        lung); it only changes how an UNREACHABLE node is labeled in status."""
         for node in self.nodes:
             if _http_reachable(node.base_url):
                 return True
