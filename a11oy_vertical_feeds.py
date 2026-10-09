@@ -42,6 +42,7 @@ import re
 import sys
 import threading
 import time
+import xml.etree.ElementTree as ET
 from datetime import datetime, timezone, timedelta
 from typing import Annotated, Any, Callable, Optional
 from urllib.parse import urljoin, urlsplit
@@ -147,6 +148,20 @@ _NVD_RECENT_FEED_KEY = "nvd_recent_json_2_0"
 _NVD_RECENT_FEED_TTL_S = 240.0
 _NVD_RECENT_FEED_GZ_MAX = 2_500_000
 _NVD_RECENT_FEED_JSON_MAX = 24_000_000
+# GitHub's public commits Atom feed. It is not the Events API. Anonymous
+# api.github.com reads from a shared egress return 403 once that quota is
+# spent, and a cold process has no last-good events row. This feed is used
+# only in that anonymous gap. A configured reader that is rejected stays
+# unavailable and is not retried here.
+_GITHUB_COMMITS_ATOM_TTL_S = 180.0
+_GITHUB_COMMITS_ATOM_MAX = 256_000
+_ATOM_NS = "{http://www.w3.org/2005/Atom}"
+_GITHUB_ATOM_OWNER = re.compile(r"[A-Za-z0-9_-]{1,39}")
+_GITHUB_ATOM_REPO = re.compile(r"[A-Za-z0-9._-]{1,100}")
+_GITHUB_COMMIT_SHA = re.compile(r"[0-9a-f]{40}")
+_GITHUB_ATOM_UPDATED = re.compile(
+    r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z"
+)
 
 
 def _source_http_timeout_s() -> float:
@@ -2036,6 +2051,151 @@ def feed_polygon(symbol: str) -> dict[str, Any]:
                          headers={"Authorization": f"Bearer {key}"})
 
 
+def _github_commits_atom_url(repo: str) -> str:
+    """Return the exact public commits feed for one owner/name pair."""
+    owner, separator, name = repo.partition("/")
+    if (not separator or "/" in name
+            or _GITHUB_ATOM_OWNER.fullmatch(owner) is None
+            or _GITHUB_ATOM_REPO.fullmatch(name) is None
+            or owner in {".", ".."} or name in {".", ".."} or ".." in name):
+        raise ValueError("GitHub commits atom repo is outside the public pattern")
+    return f"https://github.com/{owner}/{name}/commits.atom"
+
+
+def _parse_github_commits_atom(raw: bytes, repo: str) -> dict[str, Any]:
+    """Keep commit entries whose id, link, time, and author all agree."""
+    if not isinstance(raw, (bytes, bytearray)):
+        raise ValueError("GitHub commits atom body is not bytes")
+    if len(raw) > _GITHUB_COMMITS_ATOM_MAX:
+        raise ValueError("GitHub commits atom is over the size limit")
+    folded = raw[:64].lstrip().lower()
+    if b"<!doctype" in raw.lower() or b"<!entity" in raw.lower() or folded.startswith(b"<!doctype"):
+        raise ValueError("GitHub commits atom document type is not accepted")
+    owner, _, name = repo.partition("/")
+    try:
+        root = ET.fromstring(raw)
+    except ET.ParseError as exc:
+        raise ValueError("GitHub commits atom is not well-formed XML") from exc
+    if root.tag != f"{_ATOM_NS}feed":
+        raise ValueError("GitHub commits atom root is not a feed")
+    feed_id = (root.findtext(f"{_ATOM_NS}id") or "").strip()
+    if f"/{owner}/{name}/" not in feed_id or "github.com" not in feed_id:
+        raise ValueError("GitHub commits atom feed id does not match the requested repo")
+    commit_prefix = "tag:github.com,2008:Grit::Commit/"
+    items: list[dict[str, str]] = []
+    for entry in root.findall(f"{_ATOM_NS}entry"):
+        entry_id = (entry.findtext(f"{_ATOM_NS}id") or "").strip()
+        if not entry_id.startswith(commit_prefix):
+            continue
+        sha = entry_id[len(commit_prefix):]
+        if _GITHUB_COMMIT_SHA.fullmatch(sha) is None:
+            continue
+        commit_url = f"https://github.com/{owner}/{name}/commit/{sha}"
+        linked = False
+        for link in entry.findall(f"{_ATOM_NS}link"):
+            if (link.get("href") or "").strip() == commit_url:
+                linked = True
+                break
+        if not linked:
+            continue
+        updated = (entry.findtext(f"{_ATOM_NS}updated") or "").strip()
+        if _GITHUB_ATOM_UPDATED.fullmatch(updated) is None:
+            continue
+        author = entry.find(f"{_ATOM_NS}author")
+        actor = ""
+        if author is not None:
+            actor = (author.findtext(f"{_ATOM_NS}name") or "").strip()
+        if (not actor or len(actor) > 100
+                or any(ord(char) < 32 or char in "<>" for char in actor)):
+            continue
+        items.append({
+            "type": "Commit",
+            "actor": actor,
+            "created": updated,
+            "ref": commit_url,
+        })
+    if not items:
+        raise ValueError("GitHub commits atom has no observable commits")
+    return {"items": items}
+
+
+def _github_commits_atom_snapshot(repo: str) -> dict[str, Any]:
+    """Fetch one repo's public commits feed once per TTL."""
+    try:
+        url = _github_commits_atom_url(repo)
+    except ValueError as exc:
+        return _refresh_failure(None, exc)
+    key = _variant_cache_key("gh_commits_atom", repo=repo)
+    ttl = _GITHUB_COMMITS_ATOM_TTL_S
+    rec = _CACHE.get(key)
+    now = time.time()
+    if rec and (now - rec["fetched_at"]) < rec["ttl"] and rec.get("status") == "live":
+        return {"value": rec["value"], "freshness": _CACHE.freshness(key)}
+
+    flight, is_leader = _CACHE.claim_refresh(key)
+    if not is_leader:
+        budget = _source_http_timeout_s()
+        if not flight.event.wait(budget + 1.0):
+            return _flight_wait_failure(rec, budget)
+        return (flight.result if flight.result is not None
+                else _flight_wait_failure(rec, budget))
+
+    current = _CACHE.get(key)
+    current_now = time.time()
+    if (current and current.get("status") == "live"
+            and (current_now - current["fetched_at"]) < current["ttl"]):
+        result = {"value": current["value"], "freshness": _CACHE.freshness(key)}
+        _CACHE.finish_refresh(key, flight, result)
+        return result
+
+    result: Optional[dict[str, Any]] = None
+    try:
+        with _client() as client:
+            response = client.get(url)
+            if response.status_code != 200:
+                raise ValueError(f"GitHub commits atom HTTP {response.status_code}")
+            page = _parse_github_commits_atom(response.content, repo)
+        _CACHE.put(key, page, ttl, status="live")
+        result = {"value": page, "freshness": _CACHE.freshness(key)}
+    except BaseException as exc:
+        if rec:
+            _CACHE.mark_stale_if_same(key, rec["fetched_at"])
+        safe = exc if isinstance(exc, Exception) else RuntimeError(
+            "GitHub commits atom refresh aborted")
+        result = _refresh_failure(rec, safe)
+        if not isinstance(exc, Exception):
+            raise
+    finally:
+        if result is None:
+            result = _refresh_failure(
+                rec, RuntimeError("GitHub commits atom refresh aborted before publication"))
+        _CACHE.finish_refresh(key, flight, result)
+    return result
+
+
+def _github_commits_atom_observation(repo: str, limit: int) -> dict[str, Any]:
+    """Project a bounded page of observed commits. This is not the Events API."""
+    snapshot = _github_commits_atom_snapshot(repo)
+    value = snapshot.get("value") if isinstance(snapshot, dict) else None
+    items = value.get("items") if isinstance(value, dict) else None
+    if not isinstance(items, list) or not items:
+        return snapshot
+    try:
+        url = _github_commits_atom_url(repo)
+    except ValueError as exc:
+        return _refresh_failure(None, exc)
+    return {
+        "value": {
+            "repo": repo,
+            "items": [dict(item) for item in items[:limit] if isinstance(item, dict)],
+            "source": "GitHub public commits Atom feed",
+            "source_url": url,
+            "retrieval": "github-commits-atom",
+        },
+        "freshness": snapshot.get("freshness"),
+    }
+
+
 def feed_gh_events(repo: str = "huggingface/transformers", limit: int = 12) -> dict[str, Any]:
     repo = _bounded_text(repo, "huggingface/transformers", 160)
     limit = _bounded_limit(limit, 12, 100)
@@ -2047,8 +2207,21 @@ def feed_gh_events(repo: str = "huggingface/transformers", limit: int = 12) -> d
             "ref": (e.get("payload") or {}).get("ref") or (e.get("payload") or {}).get("action"),
         } for e in (d if isinstance(d, list) else [])[:limit]]}
     source = "ghev_" + re.sub(r"\W+", "_", repo).strip("_")[:48]
-    return _github_public_fetch(_variant_cache_key(source, repo=repo, limit=limit),
-                                url, ttl=180, parser=parse)
+    observed = _github_public_fetch(_variant_cache_key(source, repo=repo, limit=limit),
+                                    url, ttl=180, parser=parse)
+    if isinstance(observed.get("value"), dict):
+        return observed
+    # A present credential, including a malformed one, must not fall through to
+    # another origin. Only an allowed anonymous read with no events row does.
+    if os.environ.get(_GITHUB_PUBLIC_READ_ENV) is not None:
+        return observed
+    error = str((observed.get("freshness") or {}).get("error") or "")
+    if ("outside exact API origin" in error or "credential malformed" in error):
+        return observed
+    atom = _github_commits_atom_observation(repo, limit)
+    if isinstance(atom.get("value"), dict) and atom["value"].get("items"):
+        return atom
+    return observed
 
 
 def feed_treasury(limit: int = 6) -> dict[str, Any]:
