@@ -19,7 +19,9 @@ Run: python test_szl_energy_operator.py   (also collectable by pytest)
 """
 from __future__ import annotations
 
+import contextlib
 import http.server
+import io
 import json
 import os
 import secrets
@@ -134,6 +136,124 @@ def _node_cfg(base_url: str) -> OP.NodeCfg:
 def _window_sum(status: dict) -> float:
     return sum(r.get("window_joules_measured") or 0.0
                for r in status["recent_jobs"])
+
+
+@contextlib.contextmanager
+def _probe_server(respond):
+    """A bounded loopback read endpoint; no operator, inference, or meter work."""
+    requests = []
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def do_GET(self):
+            requests.append((self.command, self.path,
+                             self.headers.get("Authorization")))
+            status, headers = respond(self)
+            self.send_response(status)
+            for name, value in headers.items():
+                self.send_header(name, value)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever,
+                              kwargs={"poll_interval": 0.01}, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}/v1", requests
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=1.0)
+        assert not thread.is_alive()
+
+
+def test_http_probe_uses_configured_gpu_auth_without_dispatch(monkeypatch):
+    token = secrets.token_hex(24)
+    monkeypatch.setenv("A11OY_GPU_TOKEN", token)
+
+    def respond(request):
+        accepted = request.headers.get("Authorization") == f"Bearer {token}"
+        return (200 if accepted else 401), {}
+
+    with _probe_server(respond) as (base, requests):
+        with mock.patch.object(OP, "get_operator", side_effect=AssertionError("operator access")), \
+             mock.patch.object(OP, "_ollama_generate", side_effect=AssertionError("inference")), \
+             mock.patch.object(OP, "_ollama_embed", side_effect=AssertionError("embedding")), \
+             mock.patch.object(OP, "_fetch_joule_meter", side_effect=AssertionError("meter access")):
+            assert OP._http_reachable(base, timeout=0.5) is True
+        assert requests == [("GET", "/v1/models", f"Bearer {token}")]
+
+
+def test_http_probe_auth_denial_cannot_fall_back_to_public_root(monkeypatch):
+    token = secrets.token_hex(24)
+    denied_status = 401
+
+    def respond(request):
+        if request.path == "/v1":
+            return 200, {}
+        return denied_status, {}
+
+    with _probe_server(respond) as (base, requests):
+        for denied_status in (401, 403):
+            for presented in (None, "wrong-" + token):
+                if presented is None:
+                    monkeypatch.delenv("A11OY_GPU_TOKEN", raising=False)
+                else:
+                    monkeypatch.setenv("A11OY_GPU_TOKEN", presented)
+                requests.clear()
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output), contextlib.redirect_stderr(output):
+                    assert OP._http_reachable(base, timeout=0.5) is False
+                assert output.getvalue() == ""
+                expected = f"Bearer {presented}" if presented else None
+                assert requests == [("GET", "/v1/models", expected)]
+
+
+def test_http_probe_redirects_never_forward_credentials_or_use_public_root(monkeypatch):
+    token = secrets.token_hex(24)
+    monkeypatch.setenv("A11OY_GPU_TOKEN", token)
+    redirect_status = 302
+    destination = ""
+
+    def redirect(request):
+        if request.path == "/v1/models":
+            return redirect_status, {"Location": destination}
+        return 200, {}
+
+    with _probe_server(lambda request: (200, {})) as (other_base, other_requests), \
+         _probe_server(redirect) as (base, requests):
+        for redirect_status in (301, 302, 303, 307, 308):
+            for destination in (base + "/redirected", other_base + "/redirected"):
+                requests.clear()
+                other_requests.clear()
+                assert OP._http_reachable(base, timeout=0.5) is False
+                assert requests == [("GET", "/v1/models", f"Bearer {token}")]
+                assert other_requests == []
+
+
+def test_http_probe_public_endpoint_needs_no_token(monkeypatch):
+    monkeypatch.delenv("A11OY_GPU_TOKEN", raising=False)
+    with _probe_server(lambda request: (200, {})) as (base, requests):
+        assert OP._http_reachable(base, timeout=0.5) is True
+        assert requests == [("GET", "/v1/models", None)]
+
+
+def test_http_probe_missing_models_falls_back_with_same_gpu_auth(monkeypatch):
+    token = secrets.token_hex(24)
+    monkeypatch.setenv("A11OY_GPU_TOKEN", token)
+
+    def respond(request):
+        if request.headers.get("Authorization") != f"Bearer {token}":
+            return 401, {}
+        return (404 if request.path == "/v1/models" else 200), {}
+
+    with _probe_server(respond) as (base, requests):
+        assert OP._http_reachable(base, timeout=0.5) is True
+        assert requests == [("GET", "/v1/models", f"Bearer {token}"),
+                            ("GET", "/v1", f"Bearer {token}")]
 
 
 # ---------------------------------------------------------------------------
