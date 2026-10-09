@@ -91,6 +91,7 @@ except ImportError:  # pragma: no cover - exercised on Windows
 try:
     import szl_agentic_loop as _loop
     _retrieve = _loop._retrieve
+    _retrieve_with_identity = _loop._retrieve_with_identity
     _trust_score = _loop._trust_score
     _sha = _loop._sha
     _LOOP_OK = True
@@ -119,6 +120,18 @@ except Exception:  # additive: never break the Space if the loop module moves
         scored.sort(key=lambda x: -x[0])
         return [{"chunk_id": d["id"], "title": d["title"], "text": d["text"], "score": s}
                 for s, d in scored[:top_k]]
+
+    def _retrieve_with_identity(query: str, top_k: int = 3):
+        chunks = _retrieve(query, top_k=top_k)
+        return chunks, {
+            "backend": "engine-mini-corpus",
+            "corpus_generation": "UNKNOWN",
+            "source_handles": [c.get("chunk_id") for c in chunks],
+            "fallback": "loop-import-failed",
+            "abstention": "UNKNOWN",
+            "plane": "in-image",
+            "outcome": "fallback-grounded",
+        }
 
     def _trust_score(axes: dict) -> float:
         vals = [max(1e-6, min(1.0, float(v))) for v in (axes or {}).values()] or [0.5]
@@ -905,9 +918,15 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
     chosen, scored, envelope, route_reason = _route(mode, prompt, roster)
 
     # ---- HOP 1: retrieve (RAG over in-image corpus) ---------------------------
-    chunks = _retrieve(prompt, top_k=3)
+    chunks, retrieval = _retrieve_with_identity(prompt, top_k=3)
     _chain_receipt("retrieve", {"query": prompt[:240], "mode": mode,
-                                "cited_chunk_ids": [c["chunk_id"] for c in chunks]})
+                                "cited_chunk_ids": [c["chunk_id"] for c in chunks],
+                                "backend": retrieval.get("backend"),
+                                "corpus_generation": retrieval.get("corpus_generation"),
+                                "source_handles": list(retrieval.get("source_handles") or [])[:8],
+                                "fallback": retrieval.get("fallback"),
+                                "abstention": retrieval.get("abstention"),
+                                "outcome": retrieval.get("outcome")})
 
     # ---- HOP 2: quarantine untrusted (P3 non-interference) --------------------
     ui_low = (untrusted_input or "").lower()
@@ -1178,6 +1197,7 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
         "confidence": conf,
         "backend": backend,
         "inference": inference,
+        "retrieval": retrieval,
         "retrieved": chunks,
         "untrusted": {"present": bool(untrusted_input), "excerpt": (untrusted_input or "")[:240],
                       "injection_markers_detected": injection_detected,
