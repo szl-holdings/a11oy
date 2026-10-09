@@ -13,9 +13,11 @@ durable HumanApprovalGate (`szl_agentic_loop.approval_interrupt`) on state-chang
 steps. NO orchestration theater — every step's receipt is the engine's real one.
 
 API SHAPE (modeled on the platform orchestrator for familiarity; served locally):
-  POST /api/a11oy/v1/code/plan          {task[,mode]}          -> {run_id, plan[], honest}
-  POST /api/a11oy/v1/code/runstep       {run_id, step, prompt, mode[, sandbox, approval]}
-                                                               -> engine run + gate + approval
+  POST /api/a11oy/v1/code/plan          {task, purpose[, mode]} -> {run_id, plan[], honest}
+  POST /api/a11oy/v1/code/runstep       {prompt, purpose[, mode, sandbox, approval]}
+                                                               -> engine run + restart receipt
+Operator Bearer and the configured tenant are checked before the body is parsed.
+Purpose is chat, code, or research. The admitted purpose is the engine mode.
   POST /api/a11oy/v1/code/approve       {checkpoint_id, approver, approved}
                                                                -> approval-interrupt grant echo
   GET  /api/a11oy/v1/code/runloop/health                       -> honest liveness of the surface
@@ -38,7 +40,9 @@ signer/verifier passed in from serve.py (same ones a11oy_code_engine uses).
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
+import os
 import re
 import time
 from datetime import datetime, timezone
@@ -81,6 +85,181 @@ def _refused(request, action: str):
                              "error": "%s requires the operator credential." % action},
                             status_code=401, headers={"WWW-Authenticate": "Bearer"})
     return _opauth.operator_refusal(request, action)
+
+
+# Admission for this surface only. It does not configure SZL_SECOND_BRAIN_RAG,
+# the completion aliases, holographic RAG, graph analysis, or Hatun.
+TENANT_ENV = "A11OY_CODE_TENANT"
+TENANT_HEADER = "x-a11oy-tenant"
+RECEIPT_LOG_ENV = "A11OY_CODE_RUNLOOP_RECEIPT_LOG"
+_PURPOSES = frozenset({"chat", "code", "research"})
+_MAX_QUERY_CHARS = 2000
+_MAX_QUERY_BYTES = 8192
+FIXED_SYNTHETIC_QUERY = "synthetic fixture: deny-by-default gate"
+_RECEIPT_SCHEMA = "szl.a11oy.code-runloop-receipt/v1"
+_RECEIPT_BODY_KEYS = (
+    "schema", "evidence_class", "signer", "query_sha256", "purpose",
+    "chain_final_hash", "receipt_chain", "signed_receipt",
+)
+
+
+def _blocked(error: str, status_code: int, **extra):
+    from starlette.responses import JSONResponse
+    body = {"ok": False, "status": "BLOCKED", "error": error}
+    body.update(extra)
+    return JSONResponse(body, status_code=status_code)
+
+
+def _tenant_refusal(request):
+    """Match the configured tenant before the body is parsed. Unset is fail-closed."""
+    try:
+        expected = (os.environ.get(TENANT_ENV) or "").strip()
+        presented = (request.headers.get(TENANT_HEADER) or "").strip()
+    except Exception:
+        return _blocked("tenant admission unavailable", 503, tenant_configured=False)
+    if not expected:
+        return _blocked("tenant is not configured", 503, tenant_configured=False)
+    presented_digest = hashlib.sha256(presented.encode("utf-8")).digest()
+    expected_digest = hashlib.sha256(expected.encode("utf-8")).digest()
+    if not hmac.compare_digest(presented_digest, expected_digest):
+        return _blocked("tenant is not admitted", 403, tenant_configured=True)
+    return None
+
+
+def _admit_query(body: Any, primary: str):
+    """Return (query, purpose, refusal). Refusal is set before any engine call."""
+    if not isinstance(body, dict):
+        return None, None, _blocked("JSON object required", 400)
+    purpose = body.get("purpose")
+    if purpose not in _PURPOSES:
+        return None, None, _blocked("purpose is not admitted", 400)
+    mode = body.get("mode") or ""
+    if not isinstance(mode, str) or (mode and mode != purpose):
+        return None, None, _blocked("mode conflicts with purpose", 400)
+    raw = body.get(primary)
+    if raw is None:
+        raw = body.get("query") or body.get("prompt") or body.get("task") or ""
+    if not isinstance(raw, str):
+        return None, None, _blocked("query must be a string", 400)
+    if len(raw) > _MAX_QUERY_CHARS:
+        return None, None, _blocked("query exceeds the character limit", 400)
+    try:
+        encoded = raw.encode("utf-8")
+    except UnicodeError:
+        return None, None, _blocked("query must be valid UTF-8", 400)
+    if len(encoded) > _MAX_QUERY_BYTES:
+        return None, None, _blocked("query exceeds 8192 UTF-8 bytes", 400)
+    query = raw.strip()
+    if not query:
+        return None, None, _blocked("query is empty", 400)
+    return query, purpose, None
+
+
+def _canonical_receipt_body(record: dict) -> bytes:
+    payload = {key: record[key] for key in _RECEIPT_BODY_KEYS}
+    return json.dumps(payload, sort_keys=True, separators=(",", ":"),
+                      ensure_ascii=True).encode("utf-8")
+
+
+def _persist_run_receipt(query: str, purpose: str, run: dict) -> dict:
+    """Append one SIMULATED or host receipt. Unsigned output stays SIMULATED."""
+    path = (os.environ.get(RECEIPT_LOG_ENV) or "").strip()
+    signed_receipt = run.get("signed_receipt") if isinstance(run, dict) else None
+    signed = bool(isinstance(signed_receipt, dict) and signed_receipt.get("signed") is True)
+    record = {
+        "schema": _RECEIPT_SCHEMA,
+        "evidence_class": "DECLARED" if signed else "SIMULATED",
+        "signer": "HOST" if signed else "SIMULATED",
+        "query_sha256": hashlib.sha256(query.encode("utf-8")).hexdigest(),
+        "purpose": purpose,
+        "chain_final_hash": (run or {}).get("chain_final_hash"),
+        "receipt_chain": (run or {}).get("receipt_chain") or [],
+        "signed_receipt": signed_receipt or {"signed": False, "signatures": []},
+    }
+    digest = hashlib.sha256(_canonical_receipt_body(record)).hexdigest()
+    record["record_sha256"] = digest
+    if not path:
+        return {"persisted": False, "restart_verifiable": False,
+                "evidence_class": record["evidence_class"], "reason": "receipt log is not configured"}
+    try:
+        line = json.dumps(record, sort_keys=True, separators=(",", ":"),
+                          ensure_ascii=True).encode("utf-8") + b"\n"
+        flags = os.O_CREAT | os.O_APPEND | os.O_WRONLY
+        fd = os.open(path, flags, 0o600)
+        try:
+            os.write(fd, line)
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+    except (OSError, TypeError, ValueError) as exc:
+        return {"persisted": False, "restart_verifiable": False,
+                "evidence_class": record["evidence_class"],
+                "reason": type(exc).__name__}
+    return {"persisted": True, "restart_verifiable": True,
+            "evidence_class": record["evidence_class"], "signer": record["signer"],
+            "record_sha256": digest, "chain_final_hash": record["chain_final_hash"]}
+
+
+def verify_receipt_log(path: str) -> dict:
+    """Re-read a receipt file and recompute its chain. A new process can call this."""
+    try:
+        import a11oy_code_engine as engine
+    except Exception as exc:
+        return {"ok": False, "status": "UNAVAILABLE", "reason": type(exc).__name__}
+    try:
+        with open(path, "rb") as handle:
+            raw = handle.read()
+    except OSError as exc:
+        return {"ok": False, "status": "UNAVAILABLE", "reason": type(exc).__name__}
+    lines = [line for line in raw.splitlines() if line.strip()]
+    if not lines:
+        return {"ok": False, "status": "UNAVAILABLE", "reason": "empty receipt log"}
+    checked = []
+    for line in lines:
+        try:
+            record = json.loads(line.decode("utf-8"))
+        except (UnicodeError, json.JSONDecodeError):
+            return {"ok": False, "status": "BLOCKED", "reason": "malformed receipt line"}
+        if not isinstance(record, dict) or set(record) != set(_RECEIPT_BODY_KEYS) | {"record_sha256"}:
+            return {"ok": False, "status": "BLOCKED", "reason": "unexpected receipt fields"}
+        if record.get("schema") != _RECEIPT_SCHEMA:
+            return {"ok": False, "status": "BLOCKED", "reason": "unexpected receipt schema"}
+        if record.get("purpose") not in _PURPOSES:
+            return {"ok": False, "status": "BLOCKED", "reason": "purpose is not admitted"}
+        signed_receipt = record.get("signed_receipt")
+        signed_flag = (isinstance(signed_receipt, dict)
+                       and signed_receipt.get("signed") is True)
+        expect_class = "DECLARED" if signed_flag else "SIMULATED"
+        expect_signer = "HOST" if signed_flag else "SIMULATED"
+        if (record.get("evidence_class") != expect_class
+                or record.get("signer") != expect_signer):
+            return {"ok": False, "status": "BLOCKED",
+                    "reason": "evidence class does not match the signature flag"}
+        query_sha = record.get("query_sha256")
+        if not isinstance(query_sha, str) or len(query_sha) != 64:
+            return {"ok": False, "status": "BLOCKED", "reason": "query digest is absent"}
+        expect = hashlib.sha256(_canonical_receipt_body(record)).hexdigest()
+        if not hmac.compare_digest(str(record.get("record_sha256") or ""), expect):
+            return {"ok": False, "status": "BLOCKED", "reason": "record digest mismatch"}
+        verdict = engine.verify_run({
+            "receipt_chain": record["receipt_chain"],
+            "signed_receipt": record["signed_receipt"],
+        })
+        if verdict.get("chain_intact") is not True:
+            return {"ok": False, "status": "BLOCKED", "reason": "chain mismatch",
+                    "chain_break_at_seq": verdict.get("chain_break_at_seq")}
+        if verdict.get("final_hash") != record.get("chain_final_hash"):
+            return {"ok": False, "status": "BLOCKED", "reason": "final hash mismatch"}
+        checked.append({
+            "record_sha256": expect,
+            "evidence_class": record["evidence_class"],
+            "signer": record["signer"],
+            "query_sha256": record["query_sha256"],
+            "purpose": record["purpose"],
+            "chain_intact": True,
+            "signature_valid": verdict.get("signature_valid"),
+        })
+    return {"ok": True, "status": "CHECKED", "count": len(checked), "receipts": checked}
 
 
 def _now() -> str:
@@ -188,25 +367,40 @@ def register(app, ns: str, sign_fn, verify_fn=None):
         refused = _refused(request, "Run-loop plan")
         if refused is not None:
             return refused
+        tenant = _tenant_refusal(request)
+        if tenant is not None:
+            return tenant
         try:
             b = await request.json()
         except Exception:
-            b = {}
-        task = b.get("task") or b.get("prompt") or b.get("query") or ""
-        mode = (b.get("mode") or "").lower()
-        return JSONResponse(plan(task, mode))
+            return _blocked("JSON object required", 400)
+        query, purpose, refusal = _admit_query(b, "task")
+        if refusal is not None:
+            return refusal
+        body = plan(query, purpose)
+        body["purpose"] = purpose
+        body["admission"] = "principal, tenant, limits, and purpose checked before plan"
+        return JSONResponse(body)
 
     async def _runstep(request):
         """Execute ONE planned step through the REAL governed engine. Returns the
         engine's full governed run (chain + signed receipt + Λ-gate) PLUS the
-        HumanApprovalGate verdict for state-changing steps. NEVER fabricates."""
+        HumanApprovalGate verdict for state-changing steps. NEVER fabricates.
+        Admission finishes before the engine import check and before governed_turn.
+        A missing engine writes no receipt."""
         refused = _refused(request, "Run-loop step")
         if refused is not None:
             return refused
+        tenant = _tenant_refusal(request)
+        if tenant is not None:
+            return tenant
         try:
             b = await request.json()
         except Exception:
-            b = {}
+            return _blocked("JSON object required", 400)
+        query, purpose, refusal = _admit_query(b, "prompt")
+        if refusal is not None:
+            return refusal
         if not _ENGINE_OK:
             return JSONResponse({
                 "ok": False,
@@ -214,11 +408,7 @@ def register(app, ns: str, sign_fn, verify_fn=None):
                 "label": "MODELED-UNAVAILABLE — the real governed engine could not be "
                          "imported in this runtime; no run fabricated.",
             }, status_code=200)
-        mode = (b.get("mode") or "chat").lower()
-        if mode not in ("chat", "code", "research"):
-            mode = "chat"
-        prompt = b.get("prompt") or b.get("task") or ""
-        sandbox = bool(b.get("sandbox", mode == "code"))
+        sandbox = bool(b.get("sandbox", purpose == "code"))
         untrusted = b.get("untrusted_input") or b.get("untrusted") or ""
         want_model = b.get("model") or b.get("want_model") or ""
         state_changing = bool(b.get("state_changing", sandbox))
@@ -234,7 +424,7 @@ def register(app, ns: str, sign_fn, verify_fn=None):
         # REAL governed run (P1-P6, signed DSSE receipt) via the engine.
         # The body may ask for the sandbox; only the verified header principal
         # (two distinct server-held secrets) lets the engine actually run it.
-        run = _engine.governed_turn(mode, prompt, sign_fn, ns,
+        run = _engine.governed_turn(purpose, query, sign_fn, ns,
                                     untrusted_input=untrusted, run_chain=[],
                                     sandbox=sandbox, want_model=want_model,
                                     harness_profile_id=harness_profile_id,
@@ -245,7 +435,7 @@ def register(app, ns: str, sign_fn, verify_fn=None):
         if _APPROVAL_OK:
             try:
                 approval = _approval_interrupt(
-                    action=run.get("gate", {}).get("severity", "") + ":" + (prompt or "")[:60],
+                    action=run.get("gate", {}).get("severity", "") + ":" + (query or "")[:60],
                     severity=run.get("gate", {}).get("severity", "low"),
                     reversible=not state_changing,
                     decision=run.get("decision", "DENY"),
@@ -289,10 +479,12 @@ def register(app, ns: str, sign_fn, verify_fn=None):
                           "swap is recorded in /llm/forum."),
             }
 
+        restart_receipt = _persist_run_receipt(query, purpose, run)
         return JSONResponse({
             "ok": True,
             "step": b.get("step"),
             "run": run,
+            "restart_receipt": restart_receipt,
             "approval": approval,
             "harness_profile": harness_summary,
             "signature_live": signed_live,
