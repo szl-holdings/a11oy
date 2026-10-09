@@ -94,9 +94,15 @@ def test_labels_stay_honest():
     fm._manifest_cache().invalidate()
     m = fm.build_manifest()
     counts = m["summary"]["label_counts"]
-    # Existing capability labels remain visible; the concept tile is
-    # UNAVAILABLE until its DSSE signature is cryptographically verified.
-    assert counts.get("MEASURED", 0) >= 6
+    # Label totals must reflect actual evidence; importing the signing workflow
+    # or observing transport must not enforce a minimum count of ready tiles.
+    assert sum(counts.values()) == len(m["capabilities"])
+    bundle = next(t for t in m["capabilities"] if t["category"] == "supply-chain")
+    assert bundle["label"] == fm.UNAVAILABLE
+    assert bundle["signature_verified"] is False
+    fabric = next(t for t in m["capabilities"] if t["category"] == "compute")
+    assert fabric["measurement_scope"] == "TRANSPORT_REACHABILITY_ONLY"
+    assert fabric["inference_verified"] is False
     assert counts.get("MODELED", 0) == 1
     allowed = {fm.MEASURED, fm.MODELED, fm.ROADMAP, fm.SAMPLE, fm.UNAVAILABLE}
     for t in m["capabilities"]:
