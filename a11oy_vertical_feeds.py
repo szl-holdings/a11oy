@@ -31,7 +31,9 @@ from collections import deque
 import base64
 import copy
 import functools
+import gzip
 import hashlib
+import io
 import json
 import math
 import os
@@ -136,6 +138,15 @@ _NVD_COOLDOWN_MAX_S = 86400.0
 _NVD_RATE_LOCK = threading.Lock()
 _NVD_NEXT_REQUEST_AT = 0.0
 _NVD_COOLDOWN_UNTIL = 0.0
+# Official NIST CVE 2.0 recent feed. It is the same corpus as the REST API and
+# is outside that API's request quota. Used only when the API has no row.
+_NVD_RECENT_FEED_URL = (
+    "https://nvd.nist.gov/feeds/json/cve/2.0/nvdcve-2.0-recent.json.gz"
+)
+_NVD_RECENT_FEED_KEY = "nvd_recent_json_2_0"
+_NVD_RECENT_FEED_TTL_S = 240.0
+_NVD_RECENT_FEED_GZ_MAX = 2_500_000
+_NVD_RECENT_FEED_JSON_MAX = 24_000_000
 
 
 def _source_http_timeout_s() -> float:
@@ -1551,6 +1562,180 @@ def feed_cisa_kev(limit: int = 40) -> dict[str, Any]:
     return result
 
 
+def _gunzip_bounded(raw: bytes, limit: int) -> bytes:
+    """Inflate one gzip body and stop once the declared byte cap is crossed."""
+    if not isinstance(raw, (bytes, bytearray)):
+        raise ValueError("NVD recent feed body is not bytes")
+    if len(raw) < 2 or bytes(raw[:2]) != b"\x1f\x8b":
+        raise ValueError("NVD recent feed is not gzip")
+    if len(raw) > _NVD_RECENT_FEED_GZ_MAX:
+        raise ValueError("NVD recent feed gzip is over the size limit")
+    chunks: list[bytes] = []
+    total = 0
+    with gzip.GzipFile(fileobj=io.BytesIO(bytes(raw))) as handle:
+        while True:
+            block = handle.read(65536)
+            if not block:
+                break
+            total += len(block)
+            if total > limit:
+                raise ValueError("NVD recent feed JSON is over the size limit")
+            chunks.append(block)
+    return b"".join(chunks)
+
+
+def _parse_nvd_recent_document(raw: bytes) -> dict[str, Any]:
+    """Parse NIST's CVE 2.0 recent feed into the same item shape as the API."""
+    data = json.loads(_gunzip_bounded(raw, _NVD_RECENT_FEED_JSON_MAX))
+    if not isinstance(data, dict):
+        raise ValueError("NVD recent feed JSON is not an object")
+    vulnerabilities = data.get("vulnerabilities")
+    if not isinstance(vulnerabilities, list):
+        raise ValueError("NVD recent feed vulnerabilities list is missing")
+    items: list[dict[str, Any]] = []
+    for entry in vulnerabilities:
+        if not isinstance(entry, dict):
+            continue
+        cve = entry.get("cve")
+        if not isinstance(cve, dict):
+            continue
+        metrics = cve.get("metrics") or {}
+        if not isinstance(metrics, dict):
+            metrics = {}
+        series = (
+            metrics.get("cvssMetricV31")
+            or metrics.get("cvssMetricV30")
+            or metrics.get("cvssMetricV2")
+            or []
+        )
+        severity, score = "NONE", 0.0
+        if isinstance(series, list) and series and isinstance(series[0], dict):
+            cvss = series[0].get("cvssData") or {}
+            if not isinstance(cvss, dict):
+                cvss = {}
+            severity = str(
+                cvss.get("baseSeverity") or series[0].get("baseSeverity") or "NONE"
+            ).upper()
+            raw_score = cvss.get("baseScore", 0.0)
+            if (isinstance(raw_score, bool) or not isinstance(raw_score, (int, float))
+                    or not math.isfinite(float(raw_score))):
+                score = 0.0
+            else:
+                score = float(raw_score)
+        descriptions = cve.get("descriptions") or []
+        desc = ""
+        if isinstance(descriptions, list):
+            for item in descriptions:
+                if (isinstance(item, dict) and item.get("lang") == "en"
+                        and isinstance(item.get("value"), str)):
+                    desc = item["value"]
+                    break
+        items.append({
+            "id": cve.get("id"),
+            "severity": severity,
+            "score": score,
+            "published": str(cve.get("published") or "")[:10],
+            "desc": desc[:200],
+            "_search": desc.casefold(),
+        })
+    items.sort(key=lambda row: row["published"], reverse=True)
+    total = data.get("totalResults", len(items))
+    if isinstance(total, bool) or not isinstance(total, int):
+        total = len(items)
+    return {"totalResults": total, "items": items}
+
+
+def _nvd_recent_feed_snapshot() -> dict[str, Any]:
+    """Fetch the recent feed once per TTL and share it across NVD readers."""
+    key = _NVD_RECENT_FEED_KEY
+    ttl = _NVD_RECENT_FEED_TTL_S
+    rec = _CACHE.get(key)
+    now = time.time()
+    if rec and (now - rec["fetched_at"]) < rec["ttl"] and rec.get("status") == "live":
+        return {"value": rec["value"], "freshness": _CACHE.freshness(key)}
+
+    flight, is_leader = _CACHE.claim_refresh(key)
+    if not is_leader:
+        budget = _source_http_timeout_s()
+        if not flight.event.wait(budget + 1.0):
+            return _flight_wait_failure(rec, budget)
+        return (flight.result if flight.result is not None
+                else _flight_wait_failure(rec, budget))
+
+    current = _CACHE.get(key)
+    current_now = time.time()
+    if (current and current.get("status") == "live"
+            and (current_now - current["fetched_at"]) < current["ttl"]):
+        result = {"value": current["value"], "freshness": _CACHE.freshness(key)}
+        _CACHE.finish_refresh(key, flight, result)
+        return result
+
+    result: Optional[dict[str, Any]] = None
+    try:
+        with _client() as client:
+            response = client.get(_NVD_RECENT_FEED_URL)
+            response.raise_for_status()
+            raw = response.content
+        page = _parse_nvd_recent_document(raw)
+        _CACHE.put(key, page, ttl, status="live")
+        result = {"value": page, "freshness": _CACHE.freshness(key)}
+    except BaseException as exc:
+        if rec:
+            _CACHE.mark_stale_if_same(key, rec["fetched_at"])
+        safe = exc if isinstance(exc, Exception) else RuntimeError(
+            "NVD recent feed refresh aborted")
+        result = _refresh_failure(rec, safe)
+        if not isinstance(exc, Exception):
+            raise
+    finally:
+        if result is None:
+            result = _refresh_failure(
+                rec, RuntimeError("NVD recent feed refresh aborted before publication"))
+        _CACHE.finish_refresh(key, flight, result)
+    return result
+
+
+def _nvd_recent_feed_observation(limit: int, keyword: str | None) -> dict[str, Any]:
+    """Project one bounded page from the shared recent-feed snapshot."""
+    snapshot = _nvd_recent_feed_snapshot()
+    value = snapshot.get("value") if isinstance(snapshot, dict) else None
+    if not isinstance(value, dict) or not isinstance(value.get("items"), list):
+        return snapshot
+    selected = value["items"]
+    if keyword:
+        needle = keyword.casefold()
+        selected = [
+            item for item in selected
+            if isinstance(item, dict) and needle in str(item.get("_search") or "")
+        ]
+    public: list[dict[str, Any]] = []
+    sevcount = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0, "NONE": 0}
+    for item in selected[:limit]:
+        if not isinstance(item, dict):
+            continue
+        severity = str(item.get("severity") or "NONE").upper()
+        sevcount[severity] = sevcount.get(severity, 0) + 1
+        public.append({
+            "id": item.get("id"),
+            "severity": severity,
+            "score": item.get("score", 0.0),
+            "published": item.get("published"),
+            "desc": item.get("desc"),
+        })
+    total = len(selected) if keyword else value.get("totalResults", len(value["items"]))
+    return {
+        "value": {
+            "totalResults": total,
+            "items": public,
+            "sevcount": sevcount,
+            "source": "NVD CVE JSON 2.0 recent feed",
+            "source_url": _NVD_RECENT_FEED_URL,
+            "retrieval": "nvd-cve-2.0-recent-json-feed",
+        },
+        "freshness": snapshot.get("freshness"),
+    }
+
+
 def feed_nvd(limit: int = 25, keyword: str | None = None) -> dict[str, Any]:
     limit = _bounded_limit(limit, 25, 100)
     keyword = _bounded_text(keyword, "", 120) or None
@@ -1588,7 +1773,16 @@ def feed_nvd(limit: int = 25, keyword: str | None = None) -> dict[str, Any]:
     # URL and cache key so it cannot leak through public freshness errors.
     api_key = (os.environ.get("NVD_API_KEY") or "").strip()
     headers = {"apiKey": api_key} if api_key else None
-    return _cached_fetch(key, url, ttl=240, parser=parse, headers=headers)
+    # A cold process has no last-good REST row, and the provider cooldown then
+    # rejects every later API call before transport. Read NIST's recent feed
+    # instead of presenting that cooldown as an observed CVE page.
+    observed = _cached_fetch(key, url, ttl=240, parser=parse, headers=headers)
+    if isinstance(observed.get("value"), dict):
+        return observed
+    fallback = _nvd_recent_feed_observation(limit, keyword)
+    if isinstance(fallback.get("value"), dict):
+        return fallback
+    return observed
 
 
 def feed_fedregister(limit: int = 20, term: str | None = None) -> dict[str, Any]:
