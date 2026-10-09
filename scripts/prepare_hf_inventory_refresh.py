@@ -145,6 +145,31 @@ def current_main() -> str:
     return value.get('object',{}).get('sha','')
 
 
+def validate_public_estate_candidate(observed: dict, report: dict) -> None:
+    """Require source classifications before changing any generated file.
+
+    The collector can discover new public Spaces, but discovery does not amend
+    the topology or keep policy. Record only validated public IDs and fixed
+    diagnostics; subprocess output and the token-bearing environment stay out
+    of the preparation receipt.
+    """
+    import render_public_estate_alignment as alignment
+    report['preparationStep']='PUBLIC_ESTATE_PREFLIGHT'
+    try:
+        contract=alignment.load_json(ROOT/'static/shared/public-estate-contract.v1.json')
+        declared=set(alignment.topology_spaces(contract)) | set(alignment.inventory_only_spaces(contract))
+        public={row['id'] for row in observed['inventory']['spaces']}
+        report['publicSpaceClassification']={
+            'unclassified':sorted(public-declared),
+            'unobserved':sorted(declared-public),
+            'state':'SOURCE_REVIEW_REQUIRED',
+        }
+        alignment.validate(contract,observed)
+    except alignment.ContractError as exc:
+        raise PreparationError('public estate classification or policy contract requires source review') from exc
+    report['publicSpaceClassification']['state']='VALIDATED'
+
+
 def prepare(source: str, run_id: int, artifact_id: int, archive_digest: str, report: dict) -> None:
     require(SHA.fullmatch(source) is not None and run_id>0 and artifact_id>0, 'invalid selected source/run')
     require(command(['git','rev-parse','HEAD']).decode().strip()==source, 'checkout mismatch')
@@ -165,6 +190,7 @@ def prepare(source: str, run_id: int, artifact_id: int, archive_digest: str, rep
     if collector.semantic_manifest(old)==collector.semantic_manifest(observed):
         report.update(state='NO_SEMANTIC_REFRESH_REQUIRED',branchCreated=False); return
     report.update(candidateSha256=digest(candidate),inventoryObservedAt=observed['observedAt'],counts=observed['counts'])
+    validate_public_estate_candidate(observed,report)
     (ROOT/CANONICAL).write_bytes(candidate)
     # Existing owner generators only; no speculative reconstruction of their outputs.
     for script,args in (
@@ -174,7 +200,10 @@ def prepare(source: str, run_id: int, artifact_id: int, archive_digest: str, rep
         ('scripts/build_ecosystem_stage_matrix.py',['--check']),
         ('scripts/render_public_estate_alignment.py',['--check']),
         ('scripts/build_model_pretraining_projection.py',['--check'])):
+        report.update(preparationStep='GENERATE_PROJECTIONS',generator=script,
+                      generatorMode='CHECK' if '--check' in args else 'WRITE')
         command([sys.executable,'-B',script,*args],timeout=120)
+    report.update(preparationStep='VERIFY_GENERATED_SCOPE')
     changed=command(['git','diff','--name-only','-z']).decode().split('\0')
     paths=sorted(p for p in changed if p)
     require(paths and set(paths)<=ALLOWED and CANONICAL in paths, 'generated diff outside allowed files')

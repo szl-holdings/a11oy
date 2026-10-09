@@ -1,13 +1,19 @@
 # SPDX-License-Identifier: Apache-2.0
 """Offline artifact/scope validation; no GitHub or Hugging Face mutations."""
 from datetime import datetime, timezone
+import ast
 import copy
 import hashlib
 import importlib.util
 import io
 import json
 from pathlib import Path
+import re
+import shlex
+import subprocess
+import sys
 import unittest
+from unittest.mock import patch
 import zipfile
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -120,6 +126,68 @@ class ArtifactTests(unittest.TestCase):
         self.assertEqual(len(M.ALLOWED),6)
         self.assertNotIn('.github/workflows/hf-sync.yml',M.ALLOWED)
         self.assertNotIn('docs/series-a/hf-space-keep-list.yaml',M.ALLOWED)
+
+
+class PublicEstatePreflightTests(unittest.TestCase):
+    def setUp(self):
+        from scripts import render_public_estate_alignment as alignment
+        self.alignment=alignment
+        self.manifest=json.loads((ROOT/M.CANONICAL).read_bytes())
+        self.report={}
+        self.imports=patch.dict(sys.modules,{'render_public_estate_alignment':alignment})
+        self.imports.start()
+        self.addCleanup(self.imports.stop)
+
+    def test_current_source_contract_validates_without_writes(self):
+        before=(ROOT/M.CANONICAL).read_bytes()
+        M.validate_public_estate_candidate(self.manifest,self.report)
+        self.assertEqual(self.report['publicSpaceClassification'],
+                         {'state':'VALIDATED','unclassified':[],'unobserved':[]})
+        self.assertEqual((ROOT/M.CANONICAL).read_bytes(),before)
+
+    def test_new_space_reports_source_review_without_auto_classification(self):
+        self.manifest['inventory']['spaces'].append({'id':'SZLHOLDINGS/undeclared','repoType':'space'})
+        self.manifest['counts']['spaces']+=1
+        with self.assertRaisesRegex(M.PreparationError,'requires source review'):
+            M.validate_public_estate_candidate(self.manifest,self.report)
+        self.assertEqual(self.report['publicSpaceClassification'],
+                         {'state':'SOURCE_REVIEW_REQUIRED','unclassified':['SZLHOLDINGS/undeclared'],'unobserved':[]})
+
+    def test_disappeared_public_space_is_not_silently_removed_from_contract(self):
+        removed=self.manifest['inventory']['spaces'].pop()
+        self.manifest['counts']['spaces']-=1
+        with self.assertRaises(M.PreparationError):
+            M.validate_public_estate_candidate(self.manifest,self.report)
+        self.assertEqual(self.report['publicSpaceClassification']['unobserved'],[removed['id']])
+        self.assertEqual(self.report['publicSpaceClassification']['state'],'SOURCE_REVIEW_REQUIRED')
+
+    def test_policy_mismatch_never_becomes_validated_or_discloses_raw_exception(self):
+        with patch.object(self.alignment,'validate',side_effect=self.alignment.ContractError('private diagnostic value')):
+            with self.assertRaises(M.PreparationError) as raised:
+                M.validate_public_estate_candidate(self.manifest,self.report)
+        self.assertNotIn('private diagnostic value',str(raised.exception))
+        self.assertEqual(self.report['publicSpaceClassification']['state'],'SOURCE_REVIEW_REQUIRED')
+
+    def test_subprocess_stdout_and_stderr_remain_out_of_failure_receipt(self):
+        result=subprocess.CompletedProcess([],1,stdout=b'private stdout',stderr=b'private stderr')
+        with patch.object(M.subprocess,'run',return_value=result):
+            with self.assertRaises(M.PreparationError) as raised:
+                M.command([sys.executable,'-B','scripts/render_public_estate_alignment.py'])
+        self.assertNotIn('private',str(raised.exception))
+        self.assertIn('failed with exit 1',str(raised.exception))
+
+
+class MaintenanceProjectionClosureTests(unittest.TestCase):
+    def test_native_refresh_retains_and_commits_the_complete_existing_projection_set(self):
+        workflow=(ROOT/'.github/workflows/public-inventory-refresh.yml').read_text()
+        outputs=re.search(r'(?m)^          outputs = (\[\n(?:.*\n)*?          \])',workflow)
+        self.assertIsNotNone(outputs)
+        self.assertEqual(set(ast.literal_eval(outputs.group(1))),M.ALLOWED)
+        add_line=next(line.strip() for line in workflow.splitlines() if line.strip().startswith('git add -- '))
+        self.assertEqual(set(shlex.split(add_line)[3:]),M.ALLOWED)
+        self.assertIn('python scripts/build_model_pretraining_projection.py --write',workflow)
+        self.assertIn('python scripts/build_model_pretraining_projection.py --check',workflow)
+        self.assertIn('sha256sum --check /tmp/public-inventory-refresh/policy.sha256',workflow)
 
 
 if __name__=='__main__': unittest.main()

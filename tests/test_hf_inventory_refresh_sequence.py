@@ -67,6 +67,10 @@ class SequenceTests(unittest.TestCase):
                     return {'object':{'sha':COMMIT}}
                 if '/git/ref/heads/szl/' in path: return {'object':{'sha':COMMIT}}
                 raise AssertionError(path)
+            def preflight(observed,report):
+                report['preparationStep']='PUBLIC_ESTATE_PREFLIGHT'
+                if controls.get('classification_fail'):
+                    raise M.PreparationError('public estate classification or policy contract requires source review')
             def command(args, **kwargs):
                 if args[:2]==['gh','api']: return archive
                 if args[:2]==['git','rev-parse']: return SHA.encode()
@@ -76,18 +80,23 @@ class SequenceTests(unittest.TestCase):
                 if args[:2]==['git','ls-files']: return b'rogue.py' if controls.get('untracked') else b''
                 if args[:2]==['git','show']: return ('b'*40).encode()
                 if args[0]==sys.executable:
-                    if controls.get('generator_fail'): raise M.PreparationError('controlled generator failure')
+                    if controls.get('generator_fail') in (True,args[2]):
+                        raise M.PreparationError('controlled generator failure')
                     return b''
                 raise AssertionError(args)
             stack.enter_context(patch.object(M,'ROOT',root))
             stack.enter_context(patch.object(M,'github',github))
             stack.enter_context(patch.object(M,'command',command))
+            stack.enter_context(patch.object(M,'validate_public_estate_candidate',preflight))
             stack.enter_context(patch.dict(sys.modules,{'audit_huggingface_ecosystem':collector}))
             # The source helper prepends an owner path; restore the interpreter
             # search list after this isolated test, including failure paths.
             original=list(sys.path)
             try: M.prepare(SHA,123,456,h,self.report)
-            finally: sys.path[:]=original
+            finally:
+                self.manifest_after=(root/M.CANONICAL).read_bytes()
+                self.manifest_before=json.dumps(old).encode()
+                sys.path[:]=original
 
     def ref_writes(self): return [(p,b) for p,b in self.calls if p.endswith('/git/refs') and b is not None]
 
@@ -124,6 +133,20 @@ class SequenceTests(unittest.TestCase):
 
     def test_generator_failure_never_creates_ref(self):
         with self.assertRaises(M.PreparationError): self.run_case(generator_fail=True)
+        self.assertFalse(any(body is not None for _,body in self.calls))
+
+    def test_classification_failure_keeps_snapshot_unchanged_and_creates_no_objects(self):
+        with self.assertRaises(M.PreparationError): self.run_case(classification_fail=True)
+        self.assertEqual(self.manifest_after,self.manifest_before)
+        self.assertEqual(self.report['preparationStep'],'PUBLIC_ESTATE_PREFLIGHT')
+        self.assertFalse(any(body is not None for _,body in self.calls))
+
+    def test_failed_generator_is_identified_without_exposing_its_output(self):
+        with self.assertRaises(M.PreparationError):
+            self.run_case(generator_fail='scripts/render_public_estate_alignment.py')
+        self.assertEqual(self.report['preparationStep'],'GENERATE_PROJECTIONS')
+        self.assertEqual(self.report['generator'],'scripts/render_public_estate_alignment.py')
+        self.assertEqual(self.report['generatorMode'],'WRITE')
         self.assertFalse(any(body is not None for _,body in self.calls))
 
     def test_out_of_scope_diff_never_creates_objects(self):
