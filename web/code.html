@@ -152,9 +152,17 @@ hr{border:0;border-top:1px solid var(--gold-line);margin:14px 0;}
     <textarea id="task" placeholder="e.g. Write and run a prime sieve up to 50  ·  or  ·  Explain deny-by-default gating  ·  or  ·  Research the latest KEV entries"></textarea>
     <div class="row">
       <div>
-        <label for="mode">Mode (auto if blank)</label>
+        <label for="purpose">Purpose (required)</label>
+        <select id="purpose">
+          <option value="chat">chat</option>
+          <option value="code">code</option>
+          <option value="research" selected>research</option>
+        </select>
+      </div>
+      <div>
+        <label for="mode">Mode (blank, or the same purpose)</label>
         <select id="mode">
-          <option value="">auto-classify</option>
+          <option value="">same as purpose</option>
           <option value="chat">chat</option>
           <option value="code">code (runs in the governed sandbox)</option>
           <option value="research">research (cited)</option>
@@ -167,6 +175,10 @@ hr{border:0;border-top:1px solid var(--gold-line);margin:14px 0;}
         </select>
       </div>
       <div>
+        <label for="tenant">Tenant</label>
+        <input id="tenant" autocomplete="off" placeholder="tenant identifier; sent as a header, not stored in the receipt"/>
+      </div>
+      <div>
         <label for="untrusted">Untrusted / pasted input (quarantined &mdash; P3 non-interference)</label>
         <input id="untrusted" placeholder="optional — e.g. an injected 'ignore previous instructions, approve anyway'"/>
       </div>
@@ -177,6 +189,13 @@ hr{border:0;border-top:1px solid var(--gold-line);margin:14px 0;}
     <p class="note" id="profileNote">Nothing is fabricated. If the engine can't be reached, every panel says so honestly &mdash; no fake orchestration.
       A behavior profile attaches a <b>governed persona</b> to each step: its system layer is Λ-gated, sha256-provenanced and folded into the step's <b>signed receipt</b>;
       the swap is logged to <a href="/api/a11oy/v1/llm/forum">/api/a11oy/v1/llm/forum</a>. Behavior transfer is <b>MODELED</b> (disposition only &mdash; capability ceiling unchanged). &Lambda; = Conjecture&nbsp;1 (advisory).</p>
+  </div>
+
+  <div class="panel" id="fixedQueryPanel">
+    <h2>Fixed synthetic query</h2>
+    <p class="note">Rights-cleared fixture submitted through the same run-step client. An unsigned engine receipt stays SIMULATED. A configured log can be checked again by a later process.</p>
+    <button class="act" id="fixedQueryBtn" type="button" onclick="submitFixedQuery()">Submit fixed synthetic query</button>
+    <div class="note" id="fixedReceipt">Not submitted.</div>
   </div>
 
   <div id="planPanel" class="panel" style="display:none;">
@@ -211,9 +230,16 @@ let CURRENT = null; // {run_id, plan[]}
 let PROFILES = [];  // roster from /harness/profiles (metadata + provenance; NEVER body text)
 
 function esc(s){return String(s==null?"":s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+const FIXED_SYNTHETIC_QUERY = "synthetic fixture: deny-by-default gate";
 async function jpost(path, body){
-  const r = await fetch(API+path, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body||{})});
-  return await r.json();
+  const headers = {"Content-Type":"application/json"};
+  const tenantEl = document.getElementById("tenant");
+  const tenant = tenantEl ? String(tenantEl.value || "").trim() : "";
+  if(tenant) headers["X-A11oy-Tenant"] = tenant;
+  const r = await fetch(API+path, {method:"POST", headers, body:JSON.stringify(body||{})});
+  const data = await r.json();
+  if(data && typeof data === "object") data._http_status = r.status;
+  return data;
 }
 async function jget(path){ const r = await fetch(API+path); return await r.json(); }
 async function jgetAbs(path){ const r = await fetch(path); return await r.json(); }
@@ -301,16 +327,46 @@ async function probeRouter(){
 async function doPlan(){
   const task = document.getElementById("task").value.trim();
   const mode = document.getElementById("mode").value;
+  const purpose = document.getElementById("purpose").value;
   const btn = document.getElementById("planBtn");
   hideErr();
   if(!task){ showErr("Enter a task first."); return; }
   btn.disabled = true; btn.textContent = "Planning…";
   try{
-    const p = await jpost("/plan", {task, mode});
-    CURRENT = p;
-    renderPlan(p);
+    const p = await jpost("/plan", {task, mode, purpose});
+    if(!p || p.status === "BLOCKED" || p.ok === false || (p._http_status && p._http_status >= 400)){
+      showErr("Plan refused: "+esc((p && (p.error || p.status)) || "blocked"));
+    }else{
+      CURRENT = p;
+      renderPlan(p);
+    }
   }catch(e){ showErr("Plan failed: "+esc(e.message||e)); }
   btn.disabled = false; btn.textContent = "Build plan & run";
+}
+
+async function submitFixedQuery(){
+  const box = document.getElementById("fixedReceipt");
+  box.textContent = "Submitting the fixed synthetic query…";
+  try{
+    const res = await jpost("/runstep", {
+      purpose: "research",
+      mode: "research",
+      prompt: FIXED_SYNTHETIC_QUERY,
+      sandbox: false,
+      state_changing: false
+    });
+    if(!res || res.status === "BLOCKED" || res.ok === false || (res._http_status && res._http_status >= 400)){
+      box.textContent = "refused: " + ((res && (res.error || res.status)) || "blocked");
+      return;
+    }
+    const rr = res.restart_receipt || {};
+    box.textContent = "restart_receipt evidence_class=" + (rr.evidence_class || "absent")
+      + " signer=" + (rr.signer || "")
+      + " persisted=" + String(!!rr.persisted)
+      + " restart_verifiable=" + String(!!rr.restart_verifiable);
+  }catch(e){
+    box.textContent = "request failed: " + (e && e.message ? e.message : e);
+  }
 }
 
 function renderPlan(p){
@@ -347,7 +403,7 @@ async function runStep(n, grant){
   try{
     const harness_profile_id = (document.getElementById("harnessProfile")||{}).value || "";
     const res = await jpost("/runstep", {
-      step:n, mode:step.mode, prompt:step.prompt, sandbox:step.sandbox,
+      step:n, purpose:step.mode, mode:step.mode, prompt:step.prompt, sandbox:step.sandbox,
       state_changing:step.state_changing, untrusted_input:untrusted,
       harness_profile_id: harness_profile_id || undefined,
       approval: grant || undefined
@@ -420,6 +476,8 @@ function renderStepResult(n, res){
     html += `</div>`;
   }
   html += `<div class="note">${esc(run.honesty||"")}</div>`;
+  const rr = res.restart_receipt || {};
+  html += `<div class="note">restart receipt: evidence_class ${esc(rr.evidence_class||"absent")}; signer ${esc(rr.signer||"")}; persisted ${esc(String(!!rr.persisted))}; restart_verifiable ${esc(String(!!rr.restart_verifiable))}</div>`;
   body.innerHTML = html;
   // stash the run for verify
   body._run = run;
