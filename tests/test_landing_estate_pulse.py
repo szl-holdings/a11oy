@@ -29,7 +29,8 @@ def probe_case(data, **changes):
     # Synthetic probe outcomes exercise the rendering boundary; never live evidence.
     data[READINESS].update(available=True, probe_verdict_available=True,
         verdict_summary={"endpoints": 100, "ok": 98, "skippedStateChanging": 2,
-                         "lies": 0, "unreachable": 0, "throttled": 0, "degraded": 0},
+                         "lies": 0, "unreachable": 0, "throttled": 0,
+                         "degraded": 0, "blockingDegraded": 0},
         verdict_source_revision="a" * 40, verdict_checked_at="2026-09-08T02:37:17Z",
         verdict_base="https://szlholdings-a11oy.hf.space/",
         verdict_expected_base="https://szlholdings-a11oy.hf.space")
@@ -93,15 +94,28 @@ scope.loadEstatePulse().then(() => process.stdout.write(JSON.stringify({elements
         data[READINESS]["verdict_summary"].update(ok=95, lies=1, unreachable=1, throttled=1)
         nodes = self.render(data)["elements"]
         self.assertEqual(nodes["pulse-contract-state"]["textContent"], "DEGRADED")
-        self.assertIn("3 failed/throttled/degraded", nodes["pulse-contract-detail"]["textContent"])
+        self.assertIn("3 release blockers", nodes["pulse-contract-detail"]["textContent"])
 
     def test_required_source_degraded_is_not_observed(self):
         data = responses()
         probe_case(data)
-        data[READINESS]["verdict_summary"].update(ok=97, degraded=1)
+        data[READINESS]["verdict_summary"].update(
+            ok=97, degraded=1, blockingDegraded=1
+        )
         nodes = self.render(data)["elements"]
         self.assertEqual(nodes["pulse-contract-state"]["textContent"], "DEGRADED")
-        self.assertIn("1 failed/throttled/degraded", nodes["pulse-contract-detail"]["textContent"])
+        self.assertIn("1 release blockers", nodes["pulse-contract-detail"]["textContent"])
+
+    def test_optional_source_degraded_stays_visible_without_release_blocker(self):
+        data = responses()
+        probe_case(data)
+        data[READINESS]["verdict_summary"].update(
+            ok=97, degraded=1, blockingDegraded=0
+        )
+        nodes = self.render(data)["elements"]
+        self.assertEqual(nodes["pulse-contract-state"]["textContent"], "DEGRADED")
+        self.assertIn("0 release blockers", nodes["pulse-contract-detail"]["textContent"])
+        self.assertIn("1 optional degraded", nodes["pulse-contract-detail"]["textContent"])
 
     def test_accepted_probe_is_observed_with_skips_and_timestamp(self):
         data = responses()
@@ -109,6 +123,7 @@ scope.loadEstatePulse().then(() => process.stdout.write(JSON.stringify({elements
         nodes = self.render(data)["elements"]
         self.assertEqual(nodes["pulse-contract-state"]["textContent"], "OBSERVED")
         self.assertIn("98 probe passes", nodes["pulse-contract-detail"]["textContent"])
+        self.assertIn("0 release blockers", nodes["pulse-contract-detail"]["textContent"])
         self.assertIn("2 state-changing checks skipped", nodes["pulse-contract-detail"]["textContent"])
 
     def test_incomplete_or_wrong_origin_probe_is_unavailable(self):
