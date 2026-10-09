@@ -4,7 +4,17 @@
 """The public Brain GET is a read; only an explicit POST can mint an answer receipt."""
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from fastapi.testclient import TestClient
+
+
+def _readiness_status_labels() -> set[str]:
+    matrix = json.loads((Path(__file__).resolve().parents[1] /
+                         "tools/readiness-harness/tabs.json").read_text(encoding="utf-8"))
+    return {label.lower() for label in matrix["endpoints"]
+            ["/api/a11oy/v1/rag/status"]["degradedRules"]["allowLabels"]}
 
 
 def _grounded_result() -> dict:
@@ -52,6 +62,9 @@ def test_rag_get_never_builds_loads_or_mints_and_post_mints_once(monkeypatch):
 
     status = client.get("/api/a11oy/v1/rag/status")
     assert status.status_code == 200
+    assert status.json()["data_kind"] == "live"
+    assert status.json()["data_kind"] in _readiness_status_labels()
+    assert status.json()["status"] == "REAL"
     assert status.json()["query_endpoint"] == "/api/a11oy/v1/rag/query"
     assert status.json()["query_method"] == "GET"
     assert status.json()["receipt_endpoint"] == "/api/a11oy/v1/rag/estate/query"
@@ -133,6 +146,12 @@ def test_rag_missing_index_returns_503_without_a_lazy_write(monkeypatch):
     assert response.headers["retry-after"] == "5"
     assert response.json()["index"]["built"] is False
     assert response.json()["receipt_state"] == "NOT_MINTED_INDEX_UNAVAILABLE"
+    status = client.get("/api/a11oy/v1/rag/status")
+    assert status.status_code == 200
+    assert status.json()["data_kind"] == "unavailable"
+    assert status.json()["data_kind"] in _readiness_status_labels()
+    assert status.json()["status"] == "DEGRADED"
+    assert status.json()["index_built"] is False
 
 
 def test_rag_legacy_wal_reports_typed_unavailable_without_query_or_receipt(monkeypatch):

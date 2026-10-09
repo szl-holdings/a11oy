@@ -221,19 +221,73 @@ _gate_module = importlib.util.module_from_spec(_gate_spec)
 _gate_spec.loader.exec_module(_gate_module)
 
 
+_projection_spec = importlib.util.spec_from_file_location(
+    "szl_finance_projection_manifest", Path(__file__).with_name("hf_finance_projection_manifest.py"))
+if _projection_spec is None or _projection_spec.loader is None:
+    raise RuntimeError("finance projection manifest contract is unavailable")
+_projection_module = importlib.util.module_from_spec(_projection_spec)
+_projection_spec.loader.exec_module(_projection_module)
+FINANCE_PROJECTION_MANIFEST_PATH = _projection_module.MANIFEST_PATH
+_finance_upload_active = False
+_finance_payloads: dict[str, bytes] = {}
+_finance_expected_payloads: dict[str, bytes] = {}
+_finance_source_identity: tuple[str, int] | None = None
+_finance_witnesses: dict[str, dict[str, Any]] = {}
+_finance_terminal_witness: dict[str, Any] | None = None
+
+
+def finance_projection_manifest_bytes(files: dict[str, bytes], revision: str, run_id: int) -> bytes:
+    return _projection_module.manifest_bytes(files, revision, run_id)
+
+
+def _observe_finance_projection(row: dict[str, Any]) -> dict[str, Any]:
+    global _finance_terminal_witness
+    if _finance_terminal_witness is not None:
+        # A denied public read is terminal for this invocation, even if the
+        # runtime later reports another Hub head. Do not change endpoints.
+        return _finance_terminal_witness
+    revision = row.get("build_info", {}).get("hf_revision")
+    if not isinstance(revision, str):
+        return {"complete": False, "evidence_class": "UNAVAILABLE", "failure_code": "INVALID_HUB_REVISION"}
+    if revision in _finance_witnesses:
+        cached = _finance_witnesses[revision]
+        if _projection_module.witness_matches(cached, dict(_finance_payloads),
+                row["source_revision"], row["workflow_run_id"], revision):
+            return cached
+    witness = _projection_module.observe_projection(
+        dict(_finance_payloads), row["source_revision"], row["workflow_run_id"], revision)
+    if witness.get("complete") is True:
+        _finance_witnesses[revision] = witness
+    elif witness.get("terminal_authority_failure") is True:
+        _finance_terminal_witness = witness
+    # Ordinary transient failures stay negative but may recover in the existing
+    # publisher observation loop. A denial never retries or changes endpoints.
+    return witness
+
+
+
 def observe_flagship(row: dict[str, Any]) -> None:
     _base_observe_flagship(row)
     if row.get("slug") == "finance" and _base_observation_passes(
             row, source_revision=row["source_revision"], workflow_run_id=str(row["workflow_run_id"])):
         row["finance_functional"] = _gate_module.observe_finance(row["source_revision"])
+        row["finance_projection"] = _observe_finance_projection(row)
     elif row.get("slug") == "finance":
         row["finance_functional"] = {"complete": False, "state": "WAITING_FOR_EXACT_RUNTIME"}
+        row["finance_projection"] = {"complete": False, "evidence_class": "UNAVAILABLE",
+                                     "failure_code": "WAITING_FOR_EXACT_RUNTIME"}
 
 
 def observation_passes(row: dict[str, Any], *, source_revision: str, workflow_run_id: str) -> bool:
     shell_passes = _base_observation_passes(row, source_revision=source_revision, workflow_run_id=workflow_run_id)
-    return shell_passes and (row.get("slug") != "finance"
-        or row.get("finance_functional", {}).get("complete") is True)
+    if not shell_passes or row.get("slug") != "finance":
+        return shell_passes
+    if (not isinstance(workflow_run_id, str) or not workflow_run_id.isascii()
+            or not workflow_run_id.isdigit() or int(workflow_run_id) <= 0):
+        return False
+    return bool(row.get("finance_functional", {}).get("complete") is True
+        and _projection_module.witness_matches(row.get("finance_projection"), dict(_finance_payloads),
+            source_revision, int(workflow_run_id), row.get("build_info", {}).get("hf_revision")))
 
 
 _BASE.observe_flagship = observe_flagship
@@ -243,18 +297,39 @@ _BASE.observation_passes = observation_passes
 def upload_text(api: Any, repo_id: str, path: str, content: str) -> Any:
     """Bind every generated Hub commit title to the tested GitHub source."""
     source_revision = os.getenv("GITHUB_SHA", "").strip().lower()
-    if len(source_revision) != 40 or any(ch not in "0123456789abcdef" for ch in source_revision):
+    if not _projection_module._revision(source_revision):
         raise RuntimeError("flagship upload requires an exact 40-hex GITHUB_SHA")
-    return api.upload_file(
-        path_or_fileobj=content.encode("utf-8"),
+    finance = repo_id == _projection_module.REPOSITORY
+    if finance and path not in _projection_module.OWNED_PATHS:
+        raise RuntimeError("finance upload path is outside the owned projection")
+    if finance and _finance_upload_active and path in _finance_payloads:
+        raise RuntimeError("finance projection contains a duplicate upload path")
+    raw = content.encode("utf-8")
+    if finance:
+        identity = _finance_identity()
+        expected = _finance_expected_payloads if _finance_upload_active else render_finance_payloads(*identity)
+        if (_finance_upload_active and identity != _finance_source_identity) or raw != expected[path]:
+            raise RuntimeError("finance upload differs from the preflight projection")
+    result = api.upload_file(
+        path_or_fileobj=raw,
         path_in_repo=path,
         repo_id=repo_id,
         repo_type="space",
         commit_message=f"feat(domain-v4): publish {path} from szl-holdings/a11oy@{source_revision}",
     )
+    if finance and _finance_upload_active:
+        _finance_payloads[path] = raw
+        if set(_finance_payloads) == set(_projection_module.OWNED_PATHS):
+            manifest = finance_projection_manifest_bytes(dict(_finance_payloads), *identity)
+            api.upload_file(path_or_fileobj=manifest, path_in_repo=FINANCE_PROJECTION_MANIFEST_PATH,
+                repo_id=repo_id, repo_type="space",
+                commit_message=f"feat(domain-v4): publish {FINANCE_PROJECTION_MANIFEST_PATH} from szl-holdings/a11oy@{source_revision}")
+    return result
 
 
 _BASE.upload_text = upload_text
+
+
 _base_readme = _BASE.readme
 
 
@@ -296,13 +371,65 @@ def readme(item: dict[str, Any]) -> str:
 
 <!-- szl:preserved-source-body:start -->
 '''
-    return (front_matter + lead + body
+    card = (front_matter + lead + body
             + "\n<!-- szl:preserved-source-body:end -->\n\n</details>\n")
+    if item.get("slug") == "finance":
+        card += ("\n## Current projection evidence\n\n"
+            "[finance-projection-manifest.json](finance-projection-manifest.json) is a DECLARED "
+            "file table for the seven current A11oy-owned upload payloads, including config.json. "
+            "The publisher's separate immutable-revision byte witness must pass together with the existing "
+            "Finance functionality checks. This is source-projection coverage, not a signature, runtime-image "
+            "inclusion proof, model qualification, authorization, or release approval.\n\n"
+            "The retained szl-artifact-manifest.json is a legacy Hub-only record; its qualification is UNKNOWN "
+            "and it is not the current A11oy projection's attestation. It and unrelated Hub-only files are "
+            "not written or deleted by this publisher. Their retained bytes are not verified by "
+            "this witness and are outside this projection's evidence scope.\n")
+    return card
 
 
 # The existing base publisher calls its own module globals. Bind the reviewed
 # presentation there too, so every generated card follows the same source path.
 _BASE.readme = readme
+
+
+def _finance_identity() -> tuple[str, int]:
+    revision = os.getenv("GITHUB_SHA", "").strip().lower()
+    run_id = os.getenv("GITHUB_RUN_ID", "").strip()
+    if (not _projection_module._revision(revision) or not run_id.isascii()
+            or not run_id.isdigit() or int(run_id) <= 0):
+        raise RuntimeError("finance projection requires exact source and positive workflow identity")
+    return revision, int(run_id)
+
+
+def render_finance_payloads(source_revision: str, workflow_run_id: int) -> dict[str, bytes]:
+    """Pure Finance preflight; the recording test binds it to all existing uploads."""
+    _sync_contract()
+    if (not _projection_module._revision(source_revision)
+            or type(workflow_run_id) is not int or workflow_run_id <= 0):
+        raise ValueError("exact nonzero source revision and positive run identity required")
+    rows = [row for row in FLAGSHIPS if row.get("slug") == "finance"]
+    if len(rows) != 1:
+        raise ValueError("canonical finance entry must be unique")
+    item = rows[0]
+    page = html(item)
+    card = readme(item)
+    page_sha = hashlib.sha256(page.encode("utf-8")).hexdigest()
+    config = {
+        "slug": "finance", "title": item["title"], "vertical": item["vertical"],
+        "product_source": item["source"], "source_repository": DEPLOYMENT_SOURCE_REPOSITORY,
+        "source_revision": source_revision, "workflow_run_id": workflow_run_id,
+        "hf_repository": ORG + "/finance",
+        "artifact_set_sha256": artifact_digest(APP, DOCKER, REQ, page, page, card, "null"),
+        "landing_sha256": page_sha, "panels_sha256": page_sha, "forge": None,
+        "upstream": item["upstream"], "public_experience": PUBLIC_EXPERIENCE_VERSION,
+    }
+    files = {path: content.encode("utf-8") for path, content in (
+        ("app.py", APP), ("Dockerfile", DOCKER), ("requirements.txt", REQ),
+        ("config.json", json.dumps(config, indent=2, sort_keys=True) + "\n"),
+        ("index.html", page), ("panels.html", page), ("README.md", card),
+    )}
+    finance_projection_manifest_bytes(files, source_revision, workflow_run_id)
+    return files
 
 
 def render_sentra_payload(
@@ -344,8 +471,21 @@ def render_sentra_payload(
 
 
 def main() -> int:
+    global _finance_upload_active, _finance_terminal_witness, _finance_source_identity
     _sync_contract()
-    return int(_BASE.main())
+    _finance_payloads.clear()
+    _finance_expected_payloads.clear()
+    _finance_witnesses.clear()
+    _finance_terminal_witness = None
+    _finance_source_identity = None
+    if any(row.get("slug") == "finance" for row in FLAGSHIPS):
+        _finance_source_identity = _finance_identity()
+        _finance_expected_payloads.update(render_finance_payloads(*_finance_source_identity))
+    _finance_upload_active = True
+    try:
+        return int(_BASE.main())
+    finally:
+        _finance_upload_active = False
 
 
 __all__ = tuple(

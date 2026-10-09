@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+"""Research audit presentation for the existing finance workspace."""
+
+CSS = r'''
+.fin-research textarea{width:100%;min-height:290px;padding:14px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:6px;font:inherit;font-size:14px;line-height:1.6;resize:vertical}.fin-research .fin-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.fin-research .fin-metric{padding:16px;border:1px solid var(--line)}.fin-research .fin-metric strong{display:block;font-size:28px;margin-top:8px}.fin-research .fin-metric span{font-size:14px;color:var(--muted)}.fin-research .fin-references{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px}.fin-research .fin-reference{border:1px solid var(--line);padding:16px}.fin-research .fin-reference a{font-size:16px;color:var(--accent);text-decoration:underline;text-underline-offset:4px}.fin-research .fin-reference p{font-size:14px;line-height:1.65;color:var(--muted)}.fin-research table{font-size:14px}.fin-research .fin-empty{padding:18px;color:var(--muted);font-size:14px;line-height:1.6}@media(max-width:640px){.fin-research .fin-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+'''
+
+REFERENCES = (
+    ("OpenBB", "https://docs.openbb.co/odp/v4/python/developer/standardization", "Normalize schemas while preserving the difference between missing values and real zeros."),
+    ("QuantConnect / LEAN", "https://www.quantconnect.com/docs/v2/writing-algorithms/importing-data/streaming-data/custom-securities/key-concepts", "Use the date information became available to guard against look-ahead bias."),
+    ("Microsoft Qlib", "https://github.com/microsoft/qlib", "Make data preparation, evaluation, and data health checks explicit parts of research."),
+    ("FRED / ALFRED", "https://fred.stlouisfed.org/docs/api/fred/realtime_period.html", "Historical vintages describe what was known at the time. This audit checks supplied release dates; it does not fetch vintages."),
+    ("BLS QCEW", "https://www.bls.gov/cew/questions-and-answers.htm", "Suppressed employment and wage fields can be zero-filled. Interpret disclosure flags before classifying a value."),
+    ("IRS migration data", "https://www.irs.gov/statistics/soi-tax-stats-migration-data", "Retain period-specific documentation when comparing tax-return migration across years."),
+    ("SEC EDGAR", "https://www.sec.gov/search-filings/edgar-application-programming-interfaces", "Keep filing dates, units, and reporting periods with financial observations."),
+    ("Susan Athey", "https://economics.stanford.edu/people/susan-athey", "Stanford economist whose work connects economics and machine learning. Reading focus: identification and research design."),
+    ("Andrew Patton", "https://scholars.duke.edu/person/andrew.patton", "Duke financial econometrician. Reading focus: forecast evaluation and volatility."),
+    ("Athey & Imbens", "https://arxiv.org/abs/1607.00699", "Applied econometrics: causality, policy evaluation, sensitivity, and robustness."),
+)
+
+HTML = r'''
+<section class="finance-desk fin-research" id="fin-research" aria-labelledby="fin-research-title">
+ <section class="panel"><div class="mono">PURIQ / RESEARCH AUDIT</div><h2 id="fin-research-title">What survives the data checks?</h2><p class="fin-note">Audit an annual panel before using it in a financial thesis. Inspect exclusions, release timing, coverage, and supplied robustness estimates. No model is fitted here.</p>
+ <div class="fin-grid"><form id="fin-research-form"><div class="fin-fields"><label for="fin-research-date">As known on<input id="fin-research-date" type="date" value="2024-12-31" required></label></div><label for="fin-research-input">Research packet (JSON)</label><textarea id="fin-research-input" spellcheck="false" maxlength="160000" aria-describedby="fin-research-help"></textarea><p id="fin-research-help" class="fin-note">Up to 160 KB. Each record needs entity, period (year), value, and state: observed, suppressed, missing, or invalid. Add available_at to establish eligibility as of the selected date. Send only data you are authorized to submit.</p><div class="fin-actions"><button type="submit" id="fin-research-run">Audit research packet</button><button type="button" id="fin-research-demo">Load synthetic example</button></div></form>
+ <div><p id="fin-research-state" class="fin-state" role="status">SYNTHETIC EXAMPLE / NOT AUDITED</p><p class="fin-note">The example uses fictional entities and estimates. Suppression is never converted into an observed zero. Unknown release dates are excluded from the as-of sample.</p><div id="fin-research-metrics" class="fin-metrics"></div><div id="fin-research-issues" class="fin-empty">Run the audit to inspect the sample.</div><button type="button" id="fin-research-export" disabled>Export evidence packet</button><p class="fin-note">The result is a stateless calculation over caller-supplied records. Export includes your inputs and an unsigned integrity receipt. It does not establish source authenticity or causal validity.</p></div></div>
+ </section>
+ <div class="fin-grid"><section class="panel"><h3>Sample attrition</h3><div id="fin-research-attrition" class="fin-scroll" tabindex="0" role="region" aria-label="Sample attrition table"><p class="fin-empty">No audit yet.</p></div></section><section class="panel"><h3>Robustness comparison</h3><p class="fin-note">Reported estimates only. A sign change or fewer than 30 declared clusters prompts review; the threshold is a screening heuristic, not a validity test.</p><div id="fin-research-robustness" class="fin-scroll" tabindex="0" role="region" aria-label="Reported robustness table"><p class="fin-empty">No specifications evaluated.</p></div></section></div>
+ <section class="panel"><h3>Entity-year coverage</h3><p id="fin-research-coverage-note" class="fin-note">Supply expected_entities, start_year, and end_year to define the intended sample. A sample inferred only from submitted records can hide absent entities.</p><div id="fin-research-coverage" class="fin-scroll" tabindex="0" role="region" aria-label="Entity year coverage table"></div><details><summary>Full audit and integrity receipt</summary><pre id="fin-research-evidence" class="fin-provenance">No audit yet.</pre></details></section>
+ <section class="panel"><h3>Research references</h3><p class="fin-note">Selected public primary sources reviewed on 7 October 2026. These inform the design; the authors and projects do not endorse this product.</p><div class="fin-references">
+'''
+from html import escape
+HTML += "".join('<article class="fin-reference"><a href="' + escape(url, quote=True) + '" target="_blank" rel="noopener noreferrer">' + escape(title) + '</a><p>' + escape(note) + '</p></article>' for title, url, note in REFERENCES)
+HTML += r'''</div></section></section>
+<script>
+(()=>{'use strict';
+const $=id=>document.getElementById(id);let accepted=null,epoch=0,controller=null;
+const example={expected_entities:['County A','County B','County C'],start_year:2022,end_year:2023,records:[
+ {entity:'County A',period:2022,value:0,state:'observed',available_at:'2023-06-01',group:'Large'},
+ {entity:'County A',period:2023,value:12,state:'observed',available_at:'2024-06-01',group:'Large'},
+ {entity:'County B',period:2022,value:0,state:'suppressed',available_at:'2023-06-01',group:'Small'},
+ {entity:'County B',period:2023,value:null,state:'missing',group:'Small'},
+ {entity:'County C',period:2022,value:8,state:'observed',group:'Small'},
+ {entity:'County C',period:2023,value:9,state:'observed',available_at:'2025-02-01',group:'Small'}],
+ specifications:[{label:'Synthetic baseline',estimate:0.2,standard_error:0.1,n:60,clusters:4},{label:'Synthetic alternate trend',estimate:-0.1,standard_error:0.15,n:48,clusters:4}]};
+function text(tag,value){const e=document.createElement(tag);e.textContent=String(value);return e;}
+function empty(id,message){$(id).replaceChildren(text('p',message));}
+function clear(){accepted=null;$('fin-research-export').disabled=true;$('fin-research-metrics').replaceChildren();empty('fin-research-attrition','No current audit.');empty('fin-research-robustness','No current comparison.');$('fin-research-coverage').replaceChildren();$('fin-research-evidence').textContent='No current evidence.';$('fin-research-issues').textContent='Run the audit to inspect the sample.';$('fin-research-coverage-note').textContent='Coverage is calculated after you submit the research packet.';}
+function invalidate(){epoch++;if(controller)controller.abort();clear();$('fin-research-state').textContent='INPUTS CHANGED / NOT AUDITED';}
+function demo(){invalidate();$('fin-research-input').value=JSON.stringify(example,null,2);$('fin-research-date').value='2024-12-31';$('fin-research-state').textContent='SYNTHETIC EXAMPLE / NOT AUDITED';}
+function table(id,heads,rows){const t=document.createElement('table'),head=document.createElement('thead'),tr=document.createElement('tr');heads.forEach(h=>{const th=text('th',h);th.scope='col';tr.append(th);});head.append(tr);t.append(head);const body=document.createElement('tbody');for(const row of rows){const tr=document.createElement('tr');for(const item of row)tr.append(text('td',item===null||item===undefined?'Unknown':item));body.append(tr);}t.append(body);$(id).replaceChildren(t);}
+function show(body,raw){const r=body.result,s=r.summary;
+for(const [label,value] of [['Submitted',s.total_records],['Eligible as of date',s.kept_records],['Excluded',s.excluded_records],['Observed zeros kept',s.kept_zero_records]]){const card=document.createElement('div');card.className='fin-metric';card.append(text('span',label),text('strong',value));$('fin-research-metrics').append(card);}
+$('fin-research-state').textContent=(r.audit_accepted?'AUDITED':'REVIEW REQUIRED')+' / CALLER-SUPPLIED DATA / '+r.as_of;
+const issues=r.issues.map(i=>i.code.replaceAll('_',' ')+(i.count===undefined?'':' ('+i.count+')'));$('fin-research-issues').textContent=issues.length?issues.join(' · '):'No configured audit flags. This does not establish source validity.';
+table('fin-research-attrition',['Group','Submitted','Kept','Excluded'],r.attrition.groups.map(g=>[g.group,g.total_records,g.kept_records,g.excluded_records]));
+if(r.robustness.specifications.length){table('fin-research-robustness',['Reported specification','Estimate','Std. error','N / clusters'],r.robustness.specifications.map(x=>[x.label,x.estimate,x.standard_error,(x.n??'?')+' / '+(x.clusters??'?')]));const p=text('p',r.robustness.flags.length?r.robustness.flags.map(f=>f.code.replaceAll('_',' ')+(f.label?' — '+f.label:'')).join(' · '):'No configured robustness flags. Estimates have not been recomputed.');p.className='fin-note';$('fin-research-robustness').append(p);}else{empty('fin-research-robustness','No estimates supplied. No regression has been run.');}
+const c=r.coverage;$('fin-research-coverage-note').textContent=c.recorded_cells+' recorded / '+c.expected_cells+' expected cells; '+c.absent_cells+' absent; '+c.eligible_cells+' eligible as of date. Grid: '+c.grid_origin+'. Showing '+Math.min(c.cells.length,150)+' cells. Export contains the full audit within documented bounds.';
+table('fin-research-coverage',['Entity','Year','Data state','As-of eligible'],c.cells.slice(0,150).map(x=>[x.entity,x.period,x.state,x.eligible?'Yes':'No']));
+$('fin-research-evidence').textContent=raw;$('fin-research-export').disabled=false;accepted=raw;
+}
+async function read(response){if(!(response.headers.get('content-type')||'').startsWith('application/json'))throw Error('INVALID RESPONSE');const reader=response.body.getReader(),chunks=[];let total=0;for(;;){const part=await reader.read();if(part.done)break;total+=part.value.length;if(total>4000000){await reader.cancel();throw Error('RESPONSE TOO LARGE');}chunks.push(part.value);}const all=new Uint8Array(total);let pos=0;for(const chunk of chunks){all.set(chunk,pos);pos+=chunk.length;}const raw=new TextDecoder('utf-8',{fatal:true}).decode(all);return {body:JSON.parse(raw),raw};}
+$('fin-research-form').addEventListener('submit',async event=>{event.preventDefault();invalidate();const serial=epoch;let payload,raw;try{const input=$('fin-research-input').value;for(const match of input.matchAll(/"(?:\\.|[^"\\])*"|(-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)/g)){if(match[1]!==undefined){const n=Number(match[1]);if(!Number.isFinite(n)||(n===0&&/[1-9]/.test(match[1].split(/[eE]/)[0])))throw Error();}}payload=JSON.parse(input);if(!payload||Array.isArray(payload)||typeof payload!=='object')throw Error();payload.as_of=$('fin-research-date').value;raw=JSON.stringify(payload);if(new TextEncoder().encode(raw).length>160000)throw Error();}catch(e){$('fin-research-state').textContent='INVALID JSON PACKET / LIMIT 160 KB';return;}
+controller=new AbortController();const timer=setTimeout(()=>controller.abort(),20000);$('fin-research-state').textContent='AUDITING';
+try{const response=await fetch('/api/finance/research/audit',{method:'POST',credentials:'omit',cache:'no-store',redirect:'error',signal:controller.signal,headers:{Accept:'application/json','Content-Type':'application/json'},body:raw}),packet=await read(response),body=packet.body;if(serial!==epoch)return;if(!response.ok||body.ok!==true)throw Error(typeof body.error==='string'&&/^[A-Z_]+$/.test(body.error)?body.error:'UNAVAILABLE');
+if(body.schema!=='szl.finance.research/v1'||body.execution_enabled!==false||body.operation!=='research-audit'||body.truth_label!=='MODELED'||body.receipt?.signing!=='UNSIGNED_HONEST'||body.receipt?.signed!==false||!body.result||body.result.schema!=='szl.finance.research-audit/v1'||body.result.as_of!==payload.as_of)throw Error('INVALID CONTRACT');show(body,packet.raw);
+}catch(e){if(serial===epoch){clear();$('fin-research-state').textContent='BLOCKED / '+(e.name==='AbortError'?'DEADLINE':e.message);}}finally{clearTimeout(timer);}});
+$('fin-research-form').addEventListener('input',invalidate);$('fin-research-demo').addEventListener('click',demo);$('fin-research-export').addEventListener('click',()=>{if(!accepted)return;const url=URL.createObjectURL(new Blob([accepted],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='puriq-research-audit.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});window.addEventListener('pagehide',invalidate);demo();
+})();
+</script>
+'''

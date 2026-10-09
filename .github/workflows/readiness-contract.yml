@@ -29,4 +29,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Run offline response and cache regressions
-        run: python -B tests/test_readiness_application_contract.py
+        run: |
+          python -B tests/test_readiness_application_contract.py
+          python -B tests/test_readiness_sweep_contract.py

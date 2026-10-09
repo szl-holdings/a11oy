@@ -42,6 +42,11 @@ jobs:
           tests/test_operator_auth_code_routes.py
           tests/test_second_brain_bridge.py
           tests/test_code_completion_boundaries.py
+          tests/test_agent_loop_execution_guards.py
+          tests/test_authorized_rag_synthesis.py
+          tests/test_agent_synthesis_status.py
+          tests/test_nexus_bind.py
+          tests/test_nexus_readonly_evidence.py
 
   python-energy-measurement:
     name: Energy exporter measurement and null-evidence contract
@@ -55,7 +60,10 @@ jobs:
       - name: Install exact core test dependencies
         run: pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Reject missing, invalid, and offline measurements through real routes
-        run: python -m pytest tests/test_energy_live_measurement_contract.py -q
+        run: >-
+          python -m pytest tests/test_energy_live_measurement_contract.py
+          tests/test_szl_meter_access.py tests/test_meter_request_auth.py
+          tests/test_omen_joule_exporter_access.py -q
 
   test:
     name: Run tests
@@ -182,6 +190,7 @@ jobs:
           tests/test_gdw_runtime.py
           tests/test_gdw_runtime_degraded_boot.py
           tests/test_sqlite_orphan_repair.py
+          tests/test_sqlite_logical_fingerprint.py
           tests/test_gdw_durable_runtime.py
           tests/test_gdw_durable_artifacts.py
           tests/test_gdw_durable_storage.py
@@ -343,6 +352,9 @@ jobs:
           tests/test_oac_page_surface.py
           tests/test_fleet_event_loop.py
           tests/test_attest.py
+          tests/test_attest_build_commit.py
+          tests/test_attest_meter_evidence.py
+          tests/test_runtime_contracts.py
           tests/test_frontier_now_control_plane.py
           tests/test_holographic_static_route_runtime.py
           tests/test_khipu_gguf_voter.py
@@ -408,7 +420,7 @@ jobs:
         # data surface (POST /api/<organ>/v1/be/echo) keyed off RATE_LIMIT_PER_MIN and
         # asserts /healthz stays exempt — so a regression that throttles a health probe,
         # drops the limiter, or breaks an envelope becomes a red gate.
-        run: pytest tests/test_be_hardening.py tests/test_experimental_software_labs.py tests/test_szl_spaces_inventory.py -q
+        run: pytest tests/test_be_hardening.py test_backend_hardening.py tests/test_experimental_software_labs.py tests/test_szl_spaces_inventory.py -q
 
   python-energy-egress-scrub:
     name: Energy /metrics private-address egress guard (pytest, offline)
@@ -562,6 +574,8 @@ jobs:
           # workflows use. No signing, so no id-token: write — this only VERIFIES an
           # already-signed receipt against the public Sigstore trust root.
           python -m pip install --require-hashes -r .github/requirements/ci-sigstore.txt
+      - name: Verify quant manifest HTTPS and failure propagation offline
+        run: python -m pytest tests/test_quant_manifest_transport.py -q
       - name: Genuine receipt verifies AND a tampered copy is rejected (no monkeypatch)
         # Integration negative-proof (issue #408): runs scripts/tamper_release_receipt.py
         # on a committed GENUINE receipt fixture and asserts scripts/verify_release_receipts.py
@@ -808,7 +822,7 @@ jobs:
         # /frontier renders its surface list FROM this endpoint. A future regression that
         # drifts, pads, or hardcodes labels becomes a red gate. Fully offline. Λ = Conjecture 1.
         run: >-
-          pytest test_frontier_surfaces.py
+          pytest test_frontier_surfaces.py test_frontier_manifest.py
           tests/test_frontier_manifest_readiness.py
           tests/test_frontier_health_rollup.py -q
 

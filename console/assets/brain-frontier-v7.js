@@ -41,6 +41,8 @@
     "SOURCE_RECEIPT_REQUIRED_FOR_CURRENT_CLAIM",
   ]);
   const LOOP = ["OBSERVE", "ORIENT", "PROPOSE", "VERIFY", "HOLD"];
+  const REVIEW_WORKFLOW = ".github/workflows/codex-continuous-frontier.yml";
+  const OBSERVATION_STATES = new Set(["OBSERVED", "UNAVAILABLE", "PENDING", "FAILED", "STALE", "REJECTED"]);
   const MAX_SNAPSHOT_BYTES = 256 * 1024;
   const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)");
   const state = {
@@ -51,6 +53,7 @@
     frame: 0,
     observer: null,
     previousFocus: null,
+    expiryTimer: 0,
   };
 
   const escapeHtml = (value) =>
@@ -82,6 +85,137 @@
   const safePath = (value) => typeof value === "string" && value.length <= 512
     && value.split("/").every((part) => /^[A-Za-z0-9_.-]+$/.test(part) && part !== "." && part !== "..");
   const safeDomain = (value) => matches(value, /^[a-z0-9][a-z0-9_-]{0,79}$/);
+  const positiveInteger = (value) => Number.isSafeInteger(value) && value > 0;
+  const sameList = (value, expected) => Array.isArray(value) && value.length === expected.length
+    && value.every((item, index) => item === expected[index]);
+
+  function validateObservation(value, sources) {
+    if (!exactKeys(value, ["schema", "state", "reason", "source", "run", "artifact", "observation",
+      "freshness", "authority", "claims", "observation_sha256"])) return false;
+    if (value.schema !== "szl.ouroboros.frontier-observation/v1" || !OBSERVATION_STATES.has(value.state)
+      || !matches(value.reason, /^[A-Z][A-Z0-9_]{0,95}$/) || !matches(value.observation_sha256, DIGEST)) return false;
+    const source = value.source;
+    if (!exactKeys(source, ["controller_repository", "controller_revision", "workflow",
+      "second_brain_repository", "second_brain_revision", "state_file_sha256", "candidate_file_sha256",
+      "candidate_set_sha256", "candidate_count"])) return false;
+    if (source.controller_repository !== sources.ouroboros.repository
+      || source.controller_revision !== sources.ouroboros.revision || source.workflow !== REVIEW_WORKFLOW
+      || source.second_brain_repository !== sources.second_brain.repository
+      || source.second_brain_revision !== sources.second_brain.revision
+      || source.state_file_sha256 !== sources.second_brain.state_sha256
+      || source.candidate_file_sha256 !== sources.second_brain.candidate_file_sha256
+      || source.candidate_set_sha256 !== sources.second_brain.candidate_set_sha256
+      || source.candidate_count !== sources.second_brain.candidate_count) return false;
+    if (!exactKeys(value.authority, ["training", "promotion", "execution", "merge", "provider_mutation"])
+      || !Object.values(value.authority).every((item) => item === "NONE")) return false;
+    if (!exactKeys(value.claims, ["signature_verified", "review_is_accepted_truth", "production_verified",
+      "private_graph_loaded", "measurement_scope"]) || value.claims.signature_verified !== false
+      || value.claims.review_is_accepted_truth !== false || value.claims.production_verified !== false
+      || value.claims.private_graph_loaded !== false
+      || value.claims.measurement_scope !== "RECORDED_REVIEW_ATTEMPT") return false;
+    const run = value.run;
+    if (run !== null && (!exactKeys(run, ["id", "attempt", "head_sha", "status", "conclusion", "url", "updated_at"])
+      || !positiveInteger(run.id) || !positiveInteger(run.attempt) || !matches(run.head_sha, REVISION)
+      || !["queued", "in_progress", "completed", "waiting", "pending", "requested"].includes(run.status)
+      || (run.conclusion !== null && !["success", "failure", "cancelled", "skipped", "timed_out",
+        "action_required", "neutral", "stale", "startup_failure"].includes(run.conclusion))
+      || run.url !== `https://github.com/szl-holdings/szl-ouroboros/actions/runs/${run.id}`
+      || typeof run.updated_at !== "string" || !Number.isFinite(Date.parse(run.updated_at)))) return false;
+    const freshness = value.freshness;
+    if (!exactKeys(freshness, ["observed_at", "expires_at", "max_age_seconds"])
+      || freshness.max_age_seconds !== 21600) return false;
+    if (freshness.observed_at !== null || freshness.expires_at !== null) {
+      if (!run || freshness.observed_at !== run.updated_at
+        || typeof freshness.expires_at !== "string"
+        || Date.parse(freshness.expires_at) - Date.parse(freshness.observed_at) !== 21600000) return false;
+    }
+    const measured = value.observation;
+    if (!exactKeys(measured, ["bounded", "terminated", "receipt_closed", "steps", "max_budget", "wall_ms",
+      "exit", "review_state", "review_sha256", "recommendation_count"])) return false;
+    if (value.state !== "OBSERVED") {
+      return value.artifact === null && Object.values(measured).every((item) => item === null);
+    }
+    const artifact = value.artifact;
+    return run !== null && run.status === "completed" && run.conclusion === "success"
+      && run.head_sha === source.controller_revision && freshness.observed_at !== null
+      && exactKeys(artifact, ["id", "name", "archive_sha256", "receipt_sha256"])
+      && positiveInteger(artifact.id) && artifact.name === `ouroboros-frontier-${run.id}-${run.attempt}`
+      && matches(artifact.archive_sha256, DIGEST) && matches(artifact.receipt_sha256, DIGEST)
+      && measured.bounded === true && measured.terminated === true && measured.receipt_closed === true
+      && measured.steps === 1 && measured.max_budget === 1
+      && typeof measured.wall_ms === "number" && Number.isFinite(measured.wall_ms) && measured.wall_ms >= 0
+      && measured.exit === "converged" && ["REVIEW_PROPOSED", "NO_ACTION_RECOMMENDED"].includes(measured.review_state)
+      && matches(measured.review_sha256, DIGEST)
+      && Number.isSafeInteger(measured.recommendation_count) && measured.recommendation_count >= 0
+      && measured.recommendation_count <= 12;
+  }
+
+  function validateAdvisoryDag(value, sources) {
+    if (!exactKeys(value, ["ok", "schema", "graph_id", "contract_digest", "plan_id", "implementation_status",
+      "evidence_label", "decision", "execution", "topology", "contracts", "gates", "normalized_contract"])) return false;
+    if (value.ok !== true || value.schema !== "szl.governed-graph.analysis/v1"
+      || !matches(value.contract_digest, DIGEST) || value.implementation_status !== "REAL"
+      || value.evidence_label !== "MODELED" || value.decision !== "READY_TO_ORCHESTRATE"
+      || value.plan_id !== `ggp-${value.contract_digest.slice(0, 20)}`) return false;
+    const execution = value.execution;
+    if (!exactKeys(execution, ["mode", "authorized", "effectors", "provider_calls", "writes", "note"])
+      || execution.mode !== "PLAN_ONLY" || execution.authorized !== false || execution.effectors !== 0
+      || execution.provider_calls !== 0 || execution.writes !== 0 || typeof execution.note !== "string") return false;
+    const graph = value.normalized_contract;
+    if (!exactKeys(graph, ["schema", "graph_id", "goal", "external_inputs", "nodes", "anchors", "budget"])
+      || graph.schema !== "szl.governed-graph/v1" || graph.graph_id !== value.graph_id
+      || graph.graph_id !== `brain-frontier-review-${sources.second_brain.candidate_set_sha256.slice(0, 20)}`
+      || typeof graph.goal !== "string" || graph.goal.length > 2048
+      || !sameList(graph.external_inputs, [`brain-candidates:sha256:${sources.second_brain.candidate_set_sha256}`,
+        `ouroboros-controller:git:${sources.ouroboros.revision}`])
+      || !Array.isArray(graph.nodes) || !sameList(graph.nodes.map((node) => node?.id), LOOP)) return false;
+    const dependencies = [[], ["OBSERVE"], ["ORIENT"], ["OBSERVE", "PROPOSE"], ["VERIFY"]];
+    const roles = ["scope", "reducer", "loop", "verifier", "governance"];
+    const inputs = [graph.external_inputs, ["source.packet"], ["review.input"],
+      ["source.packet", "untrusted.review"], ["advisory.observation"]];
+    const outputs = ["source.packet", "review.input", "untrusted.review", "advisory.observation", "public.aggregate"];
+    if (!graph.nodes.every((node, index) => exactKeys(node, ["id", "label", "role", "depends_on", "control_after",
+      "consumes", "produces", "reads", "writes", "resources", "fresh_context", "verifier_for", "side_effecting",
+      "authority", "max_iterations", "exit_conditions"]) && node.role === roles[index]
+      && typeof node.label === "string" && node.label.length <= 128 && sameList(node.depends_on, dependencies[index])
+      && ["control_after", "reads", "writes", "resources"].every((key) => sameList(node[key], []))
+      && ["consumes", "produces", "exit_conditions", "verifier_for"].every((key) => Array.isArray(node[key])
+        && node[key].length <= 8 && node[key].every((item) => typeof item === "string" && item.length <= 128))
+      && node.side_effecting === false && node.authority === (index === 2 ? "PROPOSE" : "READ_ONLY")
+      && sameList(node.consumes, inputs[index]) && sameList(node.produces, [outputs[index]])
+      && node.fresh_context === (index === 3) && sameList(node.verifier_for, index === 3 ? ["PROPOSE"] : [])
+      && node.max_iterations === (index === 2 ? 1 : null)
+      && sameList(node.exit_conditions, index === 2 ? ["review_returned", "review_failed", "budget_exhausted"] : []))) return false;
+    if (!exactKeys(graph.budget, ["max_nodes", "max_parallel", "max_depth", "max_total_iterations"])
+      || graph.budget.max_nodes !== 5 || graph.budget.max_parallel !== 1 || graph.budget.max_depth !== 5
+      || graph.budget.max_total_iterations !== 1 || !Array.isArray(graph.anchors) || graph.anchors.length !== 1) return false;
+    const anchor = graph.anchors[0];
+    const expectedTopology = {
+      node_count: 5, data_edge_count: 5, control_edge_count: 0, layer_count: 5,
+      max_declared_parallel: 1, scheduled_parallel_cap: 1, layers: LOOP.map((id) => [id]),
+      schedule: LOOP.map((id, index) => ({batch: index, topology_layer: index, nodes: [id]})),
+      critical_path: LOOP, critical_path_nodes: 5, terminals: ["HOLD"],
+      edges: dependencies.flatMap((parents, index) => parents.map((id) =>
+        ({source: id, target: LOOP[index], kind: "data"}))),
+    };
+    const expectedContracts = {fake_edges: [], input_gaps: [], hidden_resource_edges: [], fan_in: [],
+      anchor_types: ["source"], anchored_nodes: ["HOLD", "OBSERVE", "VERIFY"], bounded_loop_iterations: 1};
+    const expectedGates = {pass: true, blocker_count: 0, advisory_count: 0, blockers: [], advisories: []};
+    return exactKeys(anchor, ["id", "type", "nodes", "required", "description"])
+      && anchor.id === "exact-source-and-advisory-boundary" && anchor.type === "source" && anchor.required === true
+      && sameList(anchor.nodes, ["OBSERVE", "VERIFY", "HOLD"]) && typeof anchor.description === "string"
+      && canonicalJson(value.topology) === canonicalJson(expectedTopology)
+      && canonicalJson(value.contracts) === canonicalJson(expectedContracts)
+      && canonicalJson(value.gates) === canonicalJson(expectedGates);
+  }
+
+  function effectiveObservationState(payload, now = Date.now()) {
+    const value = payload?.ouroboros_observation;
+    if (!value) return "UNAVAILABLE";
+    if (value.state !== "OBSERVED") return value.state;
+    if (Date.parse(value.freshness.observed_at) > now + 300000) return "REJECTED";
+    return Date.parse(value.freshness.expires_at) <= now ? "STALE" : "OBSERVED";
+  }
 
   function validateHandle(handle) {
     if (!exactKeys(handle, ["nodeId", "title", "sha256", "repository", "revision", "path",
@@ -117,7 +251,10 @@
 
   function validatePayload(payload) {
     if (!exactKeys(payload, ["schema", "state", "surface", "snapshot_sha256", "handles",
-      "selected_handle_count", "sources", "formula_atlas", "authority", "loop"])) return false;
+      "selected_handle_count", "sources", "formula_atlas", "authority", "loop"],
+    ["ouroboros_observation", "advisory_dag"])) return false;
+    const hasObservation = Object.hasOwn(payload, "ouroboros_observation");
+    if (hasObservation !== Object.hasOwn(payload, "advisory_dag")) return false;
     if (payload.schema !== "szl.a11oy.brain-frontier-holographic-v7/v1") return false;
     if (payload.state !== "SOURCE_BOUND_REVIEW_MEMORY") return false;
     if (payload.surface !== "A11OY_HOLOGRAPHIC_V7_BRAIN_FRONTIER") return false;
@@ -159,7 +296,9 @@
       || !matches(formulas.revision, REVISION)) return false;
     if (!exactKeys(ouroboros, ["repository", "revision", "review_workflow"])
       || ouroboros.repository !== "szl-holdings/szl-ouroboros" || !matches(ouroboros.revision, REVISION)
-      || ouroboros.review_workflow !== ".github/workflows/codex-frontier-review.yml") return false;
+      || ouroboros.review_workflow !== (hasObservation ? REVIEW_WORKFLOW : ".github/workflows/codex-frontier-review.yml")) return false;
+    if (hasObservation && (!validateObservation(payload.ouroboros_observation, payload.sources)
+      || !validateAdvisoryDag(payload.advisory_dag, payload.sources))) return false;
     if (!exactKeys(formula, ["attributed_formula_count", "executable_formula_count", "quant_domain_count",
       "locked_proven_formula_count", "f_number_to_executable_mapping", "lambda"])) return false;
     if (formula.attributed_formula_count !== 30) return false;
@@ -197,7 +336,16 @@
       if (bytes.byteLength > MAX_SNAPSHOT_BYTES) return false;
       const digest = await window.crypto.subtle.digest("SHA-256", bytes);
       const measured = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-      return measured === expected;
+      if (measured !== expected) return false;
+      if (payload.ouroboros_observation) {
+        const { observation_sha256, ...observation } = payload.ouroboros_observation;
+        for (const [value, hash] of [[observation, observation_sha256],
+          [payload.advisory_dag.normalized_contract, payload.advisory_dag.contract_digest]]) {
+          const inner = await window.crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonicalJson(value)));
+          if ([...new Uint8Array(inner)].map((byte) => byte.toString(16).padStart(2, "0")).join("") !== hash) return false;
+        }
+      }
+      return true;
     } catch (_error) {
       return false;
     }
@@ -238,6 +386,7 @@
     if (state.loading) return;
     state.loading = true;
     state.payload = null;
+    window.clearTimeout(state.expiryTimer);
     renderAll();
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), 9000);
@@ -256,6 +405,10 @@
       const payload = await readSnapshot(response);
       if (!await verifySnapshot(payload)) throw new Error("SNAPSHOT_CONTRACT_REJECTED");
       state.payload = payload;
+      if (payload.ouroboros_observation?.state === "OBSERVED") {
+        const delay = Date.parse(payload.ouroboros_observation.freshness.expires_at) - Date.now() + 1;
+        if (delay > 0) state.expiryTimer = window.setTimeout(renderMetrics, Math.min(delay, 21600001));
+      }
     } catch (_error) {
       state.payload = null;
     } finally {
@@ -289,7 +442,7 @@
             <div>
               <p class="bf7__eyebrow">A11oy Holographic v7 · source-bound review memory</p>
               <h2 class="bf7__title" id="bf7-title">The governed brain, visible without exposing its thoughts.</h2>
-              <p class="bf7__subtitle" id="bf7-subtitle">Second Brain handles, formula authority, quant domains and Ouroboros HOLD receipts. Metadata only; no candidate content or execution authority.</p>
+              <p class="bf7__subtitle" id="bf7-subtitle">Second Brain handles, formula authority, quant domains and recorded Ouroboros review observations. Public metadata and advisory topology; human admission is required.</p>
             </div>
             <button class="bf7__close" type="button" aria-label="Close Brain Frontier">×</button>
           </header>
@@ -297,11 +450,11 @@
             <div class="bf7__metric"><span class="bf7__metric-label">Review handles</span><strong class="bf7__metric-value" data-bf7-metric="handles">Loading</strong></div>
             <div class="bf7__metric"><span class="bf7__metric-label">Formula tissue</span><strong class="bf7__metric-value" data-bf7-metric="formulas">—</strong></div>
             <div class="bf7__metric"><span class="bf7__metric-label">Quant domains</span><strong class="bf7__metric-value" data-bf7-metric="domains">—</strong></div>
-            <div class="bf7__metric"><span class="bf7__metric-label">Loop state</span><strong class="bf7__metric-value" data-bf7-metric="loop">HOLD</strong></div>
+            <div class="bf7__metric"><span class="bf7__metric-label">Review attempt</span><strong class="bf7__metric-value" data-bf7-metric="loop">UNAVAILABLE</strong></div>
           </div>
           <div class="bf7__graph-shell">
             <canvas id="${CANVAS_ID}" role="img" aria-label="Graph of source handles around the A11oy review hold"></canvas>
-            <span class="bf7__graph-label">Observe → orient → propose → verify → hold</span>
+            <span class="bf7__graph-label">Advisory plan only · observe → orient → propose → verify → hold</span>
           </div>
           <div class="bf7__tools">
             <input class="bf7__search" type="search" maxlength="160" autocomplete="off" spellcheck="false" aria-label="Filter Brain Frontier handles" placeholder="Filter by formula, quant domain, source or handle…" />
@@ -393,13 +546,16 @@
     metric("handles", ready ? payload.selected_handle_count : "Unavailable", ready ? "live" : "warn");
     metric("formulas", ready ? `${payload.formula_atlas.attributed_formula_count} + ${payload.formula_atlas.executable_formula_count}` : "—", ready ? "live" : "warn");
     metric("domains", ready ? payload.formula_atlas.quant_domain_count : "—", ready ? "live" : "warn");
-    metric("loop", ready ? payload.loop.at(-1) : "Held", ready ? "live" : "warn");
+    const reviewState = effectiveObservationState(payload);
+    metric("loop", reviewState, reviewState === "OBSERVED" ? "live" : "warn");
 
     const dot = document.querySelector("[data-bf7-dot]");
     const stateLabel = document.querySelector("[data-bf7-state]");
     const digest = document.querySelector("[data-bf7-digest]");
     if (dot) dot.dataset.state = ready ? "live" : "offline";
-    if (stateLabel) stateLabel.textContent = ready ? "Exact source snapshot · human review required" : "Unavailable · no green synthesized";
+    if (stateLabel) stateLabel.textContent = ready
+      ? `Exact source snapshot · review ${reviewState} · human admission required`
+      : "Unavailable · no green synthesized";
     if (digest) digest.textContent = `Candidate set: ${short(payload?.sources?.second_brain?.candidate_set_sha256)}`;
   }
 

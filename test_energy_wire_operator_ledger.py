@@ -8,19 +8,19 @@ the signed JouleCharge receipt mint actually happens (the star of the founder de
 
   (a) a simulated RUNNING operator with N completed jobs produces N receipts on the
       ledger with an INTACT hash chain (chain.ok, length == N);
-  (b) GET projection?window=running reflects the LIVE operator joules/tokens (not the
-      documented ground-truth fallback) when the operator reports running;
+  (b) GET projection?window=running reflects only a fresh, verified, attributed
+      operator window; an ordinary running status has no current projection;
   (c) revenue is NEVER labeled MEASURED in any projected block (resale = ESTIMATE,
-      total = MODELED) — a projected dollar is an assumption, not an observation;
+      total = ESTIMATE) — a projected dollar is an assumption, not an observation;
   (d) the wiring is IDEMPOTENT: re-wiring does not double-subscribe and the ledger
-      never double-appends the same job (same receipt digest => same idem key);
+      never double-appends the same source job even when ingest age changes;
   (e) a SAMPLE job whose joules_measured is None does NOT crash the subscriber and is
       recorded as non-billable (the bug that left the live ledger at 0 receipts);
-  (f) MEASURED jobs against a reachable node mint BILLABLE dry-run receipts (no Stripe
-      key) with would_charge_cents > 0 — honest DRY-RUN billing.
+  (f) Even a caller-declared MEASURED job mints a nonbillable receipt until
+      exclusive per-job attribution is independently verified; no Stripe call.
 
 Reuses the faithful local Ollama+NVML stub from test_szl_energy_operator so the
-"running operator" computes REAL (stubbed) jobs and meters REAL positive joule deltas.
+"running operator" computes stubbed jobs and cannot assert exclusive job energy.
 
 Run: python -m pytest test_energy_wire_operator_ledger.py
 """
@@ -29,6 +29,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import time
 
 import szl_energy_operator as OP
 import szl_energy_ledger as LED
@@ -37,7 +38,7 @@ from test_szl_energy_operator import _FakeNode, _node_cfg
 
 
 def _running_operator_with_jobs(monkeypatch, d, sweeps=2):
-    """A reachable-node operator that has completed real (stubbed) MEASURED jobs.
+    """A reachable-node operator with completed jobs and measured host windows.
 
     Returns (operator, n_jobs). Each sweep = generate+embed = 2 jobs; the fake NVML
     meter advances cumulative joules per call so the operator measures joules > 0.
@@ -97,20 +98,32 @@ def test_new_jobs_after_wiring_mint_via_subscription(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# (b) projection reflects LIVE operator joules/tokens when running (not fallback).
+# (b) projection requires a fresh verified attributed window, not running alone.
 # ---------------------------------------------------------------------------
-def test_projection_uses_live_operator_when_running():
-    op_status = {
+def _verified_projection_operator():
+    end = time.time()
+    return {
         "running": True,
         "joules_measured_total": 14716.0,
+        "joules_measured_label": PROJ.MEASURED,
         "window_seconds": 3600.0,
         "tokens_total": 92539,
         "jobs_completed": 173,
         "power_w_sample": 9.74,
         "exporter_node": "betterwithage",
         "grid_price_eur_mwh": 62.08,
+        "attribution_verified": True,
+        "attribution_method": "exclusive-process-counter",
+        "attribution_version": 1,
+        "measurement_window_verified": True,
+        "measurement_window_id": "wire-test-window",
+        "measurement_window_start_ts": end - 3600.0,
+        "measurement_window_end_ts": end,
     }
-    m = PROJ._extract_window(op_status, None)
+
+
+def test_projection_uses_only_verified_live_operator_window():
+    m = PROJ._extract_window(_verified_projection_operator(), None)
     assert m["measured_source"].startswith("live:operator"), m
     assert m["operator_running"] is True, m
     assert m["joules_measured"] == 14716.0, m
@@ -126,34 +139,37 @@ def test_projection_uses_live_operator_when_running():
     assert abs(t_day - 92539.0 * 24.0) < 1e-3, t_day
 
 
-def test_projection_falls_back_only_when_operator_idle():
+def test_projection_is_unavailable_when_operator_idle():
     idle = {"running": False, "joules_measured_total": 0.0, "window_seconds": 0.0,
             "tokens_total": 0}
     m = PROJ._extract_window(idle, None)
-    assert m["measured_source"].startswith("fallback"), m
+    assert m["measured_source"].startswith("unavailable:"), m
     assert m["operator_running"] is False, m
-    assert m["joules_measured"] == PROJ._GROUND_TRUTH_JOULES, m
+    assert m["joules_measured"] is None, m
     assert m["tokens_measured"] is None, m  # unknown — never fabricated
+    assert m["historical_reference"]["label"] == PROJ.SAMPLE
+    assert m["historical_reference"]["rate_denominator_s"] is None
+    assert PROJ.build_projection(_measured=m)["ok"] is False
 
 
 def test_running_operator_with_zero_joules_does_not_falsely_go_live():
     # A running operator that has not yet measured any joules must NOT present 0 J as a
-    # live window; it falls back to the documented sample (honest), never fabricates.
+    # live window; historical SAMPLE context never becomes a current rate.
     starting = {"running": True, "joules_measured_total": 0.0, "window_seconds": 5.0,
                 "tokens_total": 0}
     m = PROJ._extract_window(starting, None)
-    assert m["measured_source"].startswith("fallback"), m
+    assert m["measured_source"].startswith("unavailable:"), m
+    assert m["joules_measured"] is None
+    assert PROJ.build_projection(_measured=m)["ok"] is False
 
 
 # ---------------------------------------------------------------------------
 # (c) revenue is NEVER labeled MEASURED in any projected block.
 # ---------------------------------------------------------------------------
 def test_revenue_never_measured_in_projection():
-    m = {"measured_source": "live:operator (running)", "operator_running": True,
-         "joules_measured": 14716.0, "window_seconds": 3600.0,
-         "tokens_measured": 92539.0, "jobs_measured": 173.0, "power_w_sample": 9.74,
-         "grid_price_eur_mwh": 62.08, "node": "betterwithage", "all_measured": True}
+    m = PROJ._extract_window(_verified_projection_operator(), None)
     proj = PROJ.build_projection(window="running", _measured=m)
+    assert proj["ok"] is True
 
     for path in ("projection_1day_single_node", "scale_projection"):
         assert PROJ.MEASURED not in json.dumps(proj[path]), \
@@ -161,9 +177,9 @@ def test_revenue_never_measured_in_projection():
 
     earn = proj["projection_1day_single_node"]["earnings"]
     assert earn["compute_resale_usd"]["label"] == PROJ.ESTIMATE
-    assert earn["total_usd"]["label"] == PROJ.MODELED
-    assert earn["grid_arbitrage_credit_usd"]["label"] == PROJ.MODELED
-    assert proj["honesty"]["projected_revenue_label"] == PROJ.MODELED
+    assert earn["total_usd"]["label"] == PROJ.ESTIMATE
+    assert earn["grid_arbitrage_credit_usd"]["label"] == PROJ.ESTIMATE
+    assert proj["honesty"]["projected_revenue_label"] == PROJ.ESTIMATE
     assert proj["honesty"]["resale_input_label"] == PROJ.ESTIMATE
 
 
@@ -261,16 +277,14 @@ def test_record_job_none_joules_does_not_crash():
 
 
 # ---------------------------------------------------------------------------
-# (f) MEASURED jobs mint BILLABLE dry-run receipts (no Stripe key => honest dry-run).
-# A receipt's amount rounds to whole cents, so we feed the ledger a MEASURED job with
-# enough joules to clear 1¢ at 45¢/kWh (joules >= ~40k) — exactly the box's regime.
+# (f) A caller's MEASURED label and fresh age cannot authorize billing.
 # ---------------------------------------------------------------------------
-def test_measured_jobs_mint_billable_dry_run(monkeypatch):
+def test_measured_claim_without_attribution_is_blocked(monkeypatch):
     monkeypatch.delenv("STRIPE_API_KEY", raising=False)
     with tempfile.TemporaryDirectory() as d:
         led = LED.EnergyLedger(path=os.path.join(d, "led.jsonl"),
                                price_per_kwh_cents=45)
-        # A MEASURED, fresh job carrying the box's cumulative joules sample.
+        # A MEASURED, fresh claim carrying a cumulative joules sample.
         out = led.append_job(LED.JobRecord.from_dict({
             "node": "rtx-betterwithage", "model": "llama3.1:8b", "kind": "generate",
             "tokens": 512, "wall_s": 8.0, "joules_measured": 78369.586,
@@ -278,33 +292,33 @@ def test_measured_jobs_mint_billable_dry_run(monkeypatch):
             "ts": "2026-06-14T13:00:00Z", "seq": 1,
             "nvml_age_s": 12.0, "grid_price_eur_mwh": 62.08}))
         assert out["appended"] is True, out
-        assert out["entry"]["billable"] is True, out
-        assert out["entry"]["charge"]["status"] == "dry-run", out["entry"]["charge"]
+        assert out["entry"]["billable"] is False, out
+        assert out["entry"]["charge"]["status"] == "blocked", out["entry"]["charge"]
+        assert out["entry"]["reason"] == "ATTRIBUTION_UNVERIFIED"
 
         totals = led.totals()
-        assert totals["dry_run_count"] >= 1, totals
-        assert totals["would_charge_cents"] >= 1, totals    # MODELED dry-run projection
-        assert totals["charged_cents"] == 0, totals         # no real money moves (no key)
-        assert led.summary()["stripe_mode"] == "dry-run"
-        # Revenue carries MEASURED only because a real positive charge was computed in
-        # DRY-RUN; it is NOT a fabricated dollar — the joules are MEASURED + fresh.
-        assert out["entry"]["receipt"]["decision"]["honesty"]["revenue"] == "MEASURED"
+        assert totals["dry_run_count"] == 0, totals
+        assert totals["would_charge_cents"] is None, totals
+        assert totals["charged_cents"] is None, totals
+        assert totals["historical_reported_charged_cents"] == 0, totals
+        assert led.summary()["stripe_mode"] == "blocked-pending-attribution"
+        assert out["entry"]["receipt"]["decision"]["honesty"]["revenue"] == "ZERO"
 
 
-def test_measured_but_subcent_job_is_billable_not_fabricated(monkeypatch):
-    # Honest edge: a MEASURED job too small to clear 1¢ is billable yet its charge is
-    # SKIPPED (amount=0) — we never round a sub-cent up into a fabricated charge.
+def test_operator_jobs_are_receipted_but_not_billable(monkeypatch):
+    # A stubbed host window cannot be assigned exclusively to each completed job.
     monkeypatch.delenv("STRIPE_API_KEY", raising=False)
     with tempfile.TemporaryDirectory() as d:
         op, n = _running_operator_with_jobs(monkeypatch, d, sweeps=3)
-        assert op.status()["joules_measured_total"] > 0, op.status()
+        assert op.status()["jobs_done"] > 0, op.status()
         led = LED.EnergyLedger(path=os.path.join(d, "led.jsonl"))
         LED.wire_operator_to_ledger(op, ledger=led)
         # Every minted receipt is recorded with an intact chain regardless of amount.
         assert led.verify()["ok"] is True
         assert led.verify()["length"] == n
-        # No money moves and nothing fabricated.
-        assert led.totals()["charged_cents"] == 0
+        assert all(e["billable"] is False for e in led.entries())
+        assert all(e["charge"]["status"] == "blocked" for e in led.entries())
+        assert led.totals()["historical_reported_charged_cents"] == 0
 
 
 if __name__ == "__main__":
