@@ -3673,6 +3673,13 @@ try:
                     "degraded",
                 )
             ]
+            _blocking_degraded = (
+                _candidate_summary.get(
+                    "blockingDegraded", _candidate_summary.get("degraded")
+                )
+                if isinstance(_candidate_summary, dict)
+                else None
+            )
             try:
                 _checked_dt = _rd_dt.fromisoformat(
                     str(_candidate_checked_at).replace("Z", "+00:00")
@@ -3689,7 +3696,11 @@ try:
                 and _counts[0] > 0
                 and _counts[0] - _counts[2] > 0
                 and sum(_counts[1:]) == _counts[0]
-                and all(value == 0 for value in _counts[3:])
+                and all(value == 0 for value in _counts[3:6])
+                and isinstance(_blocking_degraded, int)
+                and not isinstance(_blocking_degraded, bool)
+                and 0 <= _blocking_degraded <= _counts[6]
+                and _blocking_degraded == 0
             )
             _p95 = (
                 _candidate_summary.get("p95_worst")
@@ -3730,6 +3741,7 @@ try:
             )
             if _verdict_available:
                 _verdict_summary = dict(_candidate_summary)
+                _verdict_summary.setdefault("blockingDegraded", _blocking_degraded)
                 _verdict_source_revision = _candidate_revision
                 _verdict_checked_at = _candidate_checked_at
                 _verdict_base = _candidate_base

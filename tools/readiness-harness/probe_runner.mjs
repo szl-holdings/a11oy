@@ -902,7 +902,8 @@ async function probeEndpoint(path, spec, {
       required: spec.required !== false,
       skipReason: "state-changing contract skipped; require --allow-state-changing and A11OY_READINESS_MUTATION_AUTHORIZED=1",
       throttled: false, unreachable: false, p50: null, p95: null, samples: 0,
-      degraded: false, unavailableSources: [], runtimeState: "NOT_PROBED",
+      degraded: false, degradedBlocksReadiness: spec?.degradedBlocksReadiness !== false,
+      unavailableSources: [], runtimeState: "NOT_PROBED",
       schemaOk: null, citationOk: null, labelPolicyOk: null,
       evidenceLabels: [], freshOk: null, ageSec: null,
       citationsRequired: !!spec.citationsRequired,
@@ -1014,6 +1015,7 @@ async function probeEndpoint(path, spec, {
     required: spec.required !== false,
     throttled, unreachable,
     degraded: !inconclusive && unavailableSources.length > 0,
+    degradedBlocksReadiness: spec?.degradedBlocksReadiness !== false,
     unavailableSources,
     runtimeState: lies.length ? "ERROR" : inconclusive ? "UNAVAILABLE"
       : unavailableSources.length ? "DEGRADED" : "RUNNING",
@@ -1066,7 +1068,8 @@ function summarizeReleaseGate(results, expectedCount) {
     ? results.filter((r) => !r?.skipped && r?.required !== false && r?.throttled).length
     : 0;
   const requiredDegraded = Array.isArray(results)
-    ? results.filter((r) => !r?.skipped && r?.required !== false && r?.degraded).length
+    ? results.filter((r) => !r?.skipped && r?.required !== false && r?.degraded
+      && r?.degradedBlocksReadiness !== false).length
     : 0;
   return {
     complete,
@@ -1163,6 +1166,7 @@ async function main() {
       unreachable: unreachable.length,
       throttled: throttled.length,
       degraded: degraded.length,
+      blockingDegraded: releaseGate.requiredDegraded,
       p95_worst: Math.max(0, ...results.map((r) => r.p95 || 0)),
     },
     results,

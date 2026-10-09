@@ -3,7 +3,7 @@
   "doctrine": "v11",
   "organ": "a11oy",
   "consoleRoute": "/console",
-  "generatedAt": "2026-10-02T00:00:00Z",
+  "generatedAt": "2026-10-09T00:00:00Z",
   "generator": "tools/readiness-harness/gen_tabs_matrix.py",
   "stateVocabulary": {
     "LIVE": "Fetched from a running source during this session; reachability is not proof of correctness.",
@@ -29,6 +29,7 @@
       "schema": "lambda",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -50,6 +51,7 @@
       "schema": "gates",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -71,6 +73,7 @@
       "schema": "selftest",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -92,6 +95,7 @@
       "schema": "mcp_tools",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -113,6 +117,7 @@
       "schema": "llm_registry",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -134,6 +139,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -156,6 +162,7 @@
       "schema": "generic_obj",
       "freshnessSLA": 900,
       "citationsRequired": true,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -182,6 +189,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -203,6 +211,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -224,6 +233,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200,
@@ -247,6 +257,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200,
@@ -270,6 +281,7 @@
       "schema": "provenance",
       "freshnessSLA": 86400,
       "citationsRequired": true,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -291,6 +303,7 @@
       "schema": "ledger",
       "freshnessSLA": 86400,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -313,6 +326,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -335,6 +349,7 @@
       "schema": "text",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -356,6 +371,7 @@
       "schema": "arena_history",
       "freshnessSLA": 86400,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -377,6 +393,7 @@
       "schema": "generic_obj",
       "freshnessSLA": 3600,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -398,6 +415,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200,
@@ -421,6 +439,7 @@
       "schema": "generic_obj",
       "freshnessSLA": 3600,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -442,6 +461,7 @@
       "schema": "generic_obj",
       "freshnessSLA": 3600,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -463,6 +483,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200,
@@ -486,6 +507,7 @@
       "schema": "generic_obj",
       "freshnessSLA": 3600,
       "citationsRequired": true,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -507,6 +529,7 @@
       "schema": "generic_obj",
       "freshnessSLA": 3600,
       "citationsRequired": true,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -530,6 +553,7 @@
       "schema": "generic_obj",
       "freshnessSLA": 30,
       "citationsRequired": false,
+      "degradedBlocksReadiness": false,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -553,6 +577,7 @@
       "schema": "generic_obj",
       "freshnessSLA": 30,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -576,6 +601,7 @@
       "schema": "generic_obj",
       "freshnessSLA": 3600,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -601,6 +627,7 @@
       "schema": "generic_obj",
       "freshnessSLA": 60,
       "citationsRequired": false,
+      "degradedBlocksReadiness": false,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -625,6 +652,7 @@
       "schema": "generic_obj",
       "freshnessSLA": 3600,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -646,6 +674,7 @@
       "schema": "generic_obj",
       "freshnessSLA": 3600,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -667,6 +696,7 @@
       "schema": "mosaic_governed",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -690,6 +720,7 @@
       "schema": "mesh",
       "freshnessSLA": 300,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -711,6 +742,7 @@
       "schema": "mesh",
       "freshnessSLA": 300,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -732,6 +764,7 @@
       "schema": "generic_obj",
       "freshnessSLA": 3600,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -753,6 +786,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -774,6 +808,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -795,6 +830,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200,
@@ -818,6 +854,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -839,6 +876,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": true,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -860,6 +898,7 @@
       "schema": "generic_obj",
       "freshnessSLA": 3600,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -881,6 +920,7 @@
       "schema": "generic_list",
       "freshnessSLA": 86400,
       "citationsRequired": true,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -902,6 +942,7 @@
       "schema": "generic_list",
       "freshnessSLA": 86400,
       "citationsRequired": true,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -923,6 +964,7 @@
       "schema": "generic_obj",
       "freshnessSLA": 86400,
       "citationsRequired": true,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -944,6 +986,7 @@
       "schema": "generic_obj",
       "freshnessSLA": 3600,
       "citationsRequired": true,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -965,6 +1008,7 @@
       "schema": "generic_obj",
       "freshnessSLA": 3600,
       "citationsRequired": true,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -986,6 +1030,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1008,6 +1053,7 @@
       "freshnessSLA": 3600,
       "citationsRequired": true,
       "unavailableBlocksReadiness": true,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1031,6 +1077,7 @@
       "freshnessSLA": 3600,
       "citationsRequired": true,
       "unavailableBlocksReadiness": true,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1054,6 +1101,7 @@
       "schema": "vert_legal_feed",
       "freshnessSLA": 3600,
       "citationsRequired": true,
+      "degradedBlocksReadiness": false,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1077,6 +1125,7 @@
       "schema": "vert_cyber_feed",
       "freshnessSLA": 3600,
       "citationsRequired": true,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1099,6 +1148,7 @@
       "schema": "vert_realestate_feed",
       "freshnessSLA": 3600,
       "citationsRequired": true,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1121,6 +1171,7 @@
       "schema": "deva_health",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1142,6 +1193,7 @@
       "schema": "deva_re_pulse",
       "freshnessSLA": 3600,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1163,6 +1215,7 @@
       "schema": "deva_re_distress",
       "freshnessSLA": 3600,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1185,6 +1238,7 @@
       "freshnessSLA": 3600,
       "citationsRequired": false,
       "unavailableBlocksReadiness": true,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1206,6 +1260,7 @@
       "schema": "deva_re_deal",
       "freshnessSLA": 3600,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1227,6 +1282,7 @@
       "schema": "deva_re_brokeredge",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1248,6 +1304,7 @@
       "schema": "devb_health",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1269,6 +1326,7 @@
       "schema": "devb_legal_matter",
       "freshnessSLA": 3600,
       "citationsRequired": true,
+      "degradedBlocksReadiness": false,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1291,6 +1349,7 @@
       "schema": "devb_legal_matter",
       "freshnessSLA": 3600,
       "citationsRequired": true,
+      "degradedBlocksReadiness": false,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1313,6 +1372,7 @@
       "schema": "devb_legal_matter",
       "freshnessSLA": 3600,
       "citationsRequired": true,
+      "degradedBlocksReadiness": false,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1335,6 +1395,7 @@
       "schema": "devb_legal_regulatory",
       "freshnessSLA": 3600,
       "citationsRequired": true,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1357,6 +1418,7 @@
       "schema": "devb_legal_exposure",
       "freshnessSLA": 3600,
       "citationsRequired": true,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1379,6 +1441,7 @@
       "schema": "generic_obj",
       "freshnessSLA": 3600,
       "citationsRequired": true,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1400,6 +1463,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1421,6 +1485,7 @@
       "schema": "feeds_pulse",
       "freshnessSLA": 300,
       "citationsRequired": true,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1442,6 +1507,7 @@
       "schema": "kevgate",
       "freshnessSLA": 86400,
       "citationsRequired": true,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1463,6 +1529,7 @@
       "schema": "router_stats",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1484,6 +1551,7 @@
       "schema": "scaling",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1505,6 +1573,7 @@
       "schema": "scaling",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1526,6 +1595,7 @@
       "schema": "scaling",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1547,6 +1617,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200,
@@ -1570,6 +1641,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200,
@@ -1593,6 +1665,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200,
@@ -1616,6 +1689,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200,
@@ -1639,6 +1713,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1660,6 +1735,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200,
@@ -1683,6 +1759,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200,
@@ -1706,6 +1783,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200,
@@ -1729,6 +1807,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1750,6 +1829,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200,
@@ -1773,6 +1853,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200,
@@ -1796,6 +1877,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200,
@@ -1819,6 +1901,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200,
@@ -1842,6 +1925,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200,
@@ -1865,6 +1949,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200,
@@ -1888,6 +1973,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -1909,6 +1995,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200,
@@ -1932,6 +2019,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200,
@@ -1955,6 +2043,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200,
@@ -1978,6 +2067,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200,
@@ -2001,6 +2091,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200,
@@ -2024,6 +2115,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200,
@@ -2047,6 +2139,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -2068,6 +2161,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -2089,6 +2183,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200,
@@ -2112,6 +2207,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200,
@@ -2135,6 +2231,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -2156,6 +2253,7 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -2177,6 +2275,7 @@
       "schema": "readiness",
       "freshnessSLA": 300,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200
@@ -2198,6 +2297,7 @@
       "schema": "tab_matrix",
       "freshnessSLA": null,
       "citationsRequired": false,
+      "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
           200

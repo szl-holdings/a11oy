@@ -666,13 +666,21 @@ def validate_verdict_evidence(
         or sum(counts[1:]) != endpoints
     ):
         raise RelockError("readiness verdict outcomes are incomplete")
+    blocking_degraded = summary.get("blockingDegraded", summary["degraded"])
+    if (
+        not isinstance(blocking_degraded, int)
+        or isinstance(blocking_degraded, bool)
+        or blocking_degraded < 0
+        or blocking_degraded > summary["degraded"]
+    ):
+        raise RelockError("readiness verdict blocking degradation is invalid")
     if summary["lies"] != 0:
         raise RelockError("readiness verdict contains doctrine lies")
     if summary["unreachable"] != 0:
         raise RelockError("readiness verdict contains unreachable required endpoints")
     if summary["throttled"] != 0:
         raise RelockError("readiness verdict contains throttled required endpoints")
-    if summary["degraded"] != 0:
+    if blocking_degraded != 0:
         raise RelockError("readiness verdict contains unavailable required sources")
     p95_worst = summary.get("p95_worst")
     if (

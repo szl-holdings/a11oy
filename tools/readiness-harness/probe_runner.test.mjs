@@ -678,6 +678,36 @@ test("SYNTHETIC HTTP probe blocks a fresh cited but unbuilt RAG index", async ()
   }
 });
 
+test("explicit optional degradation remains visible without blocking release", () => {
+  const optionalPaths = [
+    "/api/a11oy/v1/energy/live",
+    "/api/a11oy/v1/energy/sci",
+    "/api/a11oy/v1/vert/legal/feed",
+    "/api/a11oy/v1/devb/legal/matter?limit=1",
+    "/api/a11oy/v1/devb/legal/matter?term=defense&limit=1",
+    "/api/a11oy/v1/devb/legal/matter?term=insurance&limit=1",
+  ];
+  for (const path of optionalPaths) {
+    assert.equal(readinessMatrix.endpoints[path].degradedBlocksReadiness, false, path);
+  }
+  for (const path of [
+    "/api/a11oy/v1/rag/status",
+    "/api/a11oy/v1/vert/defense/feed",
+    "/api/a11oy/v1/vert/finance/feed",
+    "/api/a11oy/v1/vert/realestate/feed",
+  ]) {
+    assert.equal(readinessMatrix.endpoints[path].degradedBlocksReadiness, true, path);
+  }
+  const result = {
+    path: optionalPaths[0], required: true, lie: false, unreachable: false,
+    throttled: false, degraded: true, degradedBlocksReadiness: false,
+  };
+  const gate = summarizeReleaseGate([result], 1);
+  assert.equal(gate.requiredDegraded, 0);
+  assert.equal(gate.blocked, false);
+  assert.equal(releaseExitCode(gate), 0);
+});
+
 test("admitted negative root scalar labels retain endpoint-level absence", () => {
   const spec = readinessMatrix.endpoints["/api/a11oy/v1/rag/status"];
   for (const key of [
