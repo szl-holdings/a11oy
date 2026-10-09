@@ -15,12 +15,22 @@
 #   wrapped in the FULL a11oy governance layer. It is NOT a SOTA DFT/MACE/CHGNet
 #   prediction. The frontier contribution here is the GOVERNANCE + CALIBRATION,
 #   not the potential:
-#     * a 5-member BOOTSTRAP deep-ensemble for epistemic uncertainty,
-#     * an ISOTONIC-REGRESSION recalibration (Kuleshov et al. 2018) verified to
-#       achieve ~95% empirical coverage on a HELD-OUT split (the MEASURED coverage
-#       number is reported on every response and in the receipt),
-#     * a hard convex-hull-distance plausibility GATE (Delta_hull > 0.1 eV/atom
-#       => RED/refuse) — a CHECK, not a guarantee,
+#     * a 5-member bootstrap ridge (linear) ensemble over ten composition
+#       descriptors; its member spread is the "epistemic" sigma. The deep ensemble
+#       UQ pattern (Lakshminarayanan et al. 2017) is cited as prior art, NOT
+#       claimed: these are closed-form ridge regressors, not neural networks,
+#     * a symmetric split-conformal |z| radius (z = standardized residual) from an
+#       IN-SAMPLE calibrator — that radius is what the served interval uses. The
+#       coverage numbers on the wire are MEASURED in memory at build time under two
+#       LABELLED protocols (split models; the serving recipe on random holdouts),
+#       each with its n, trial count and unique-material count,
+#     * a convex-hull-distance plausibility GATE (Delta_hull > 0.1 eV/atom =>
+#       RED/refuse) — a CHECK, not a guarantee. An unknown or unverifiable hull is
+#       NEVER favorable: GREEN requires an applicable hull with >= 1 embedded
+#       competing phase, otherwise the verdict is YELLOW,
+#     * a CALIBRATION ARTIFACT binding the calibrator to the served predictor
+#       (sha256 over fitted coefficients + config, data hash, alpha, n, rank k,
+#       unbounded flag, evaluation provenance); a stale predictor hash fails closed,
 #     * a Bekenstein/F19 information-cost check (F19 APPLIED, not re-claimed),
 #     * a SELF-DOUBT / out-of-distribution gate: a descriptor far from the embedded
 #       training descriptors => RED/refuse, never a confident extrapolation.
@@ -30,9 +40,14 @@
 #     dataset, NOT a SOTA DFT/MACE prediction. We say exactly this in the honesty
 #     block and the surface copy. NO "discovered/validated a new material". NO
 #     "MACE-accurate".
-#   - The calibration coverage is MEASURED on the held-out split (real number, with
-#     n) — never a number we did not measure.
-#   - The convex-hull gate is a PLAUSIBILITY CHECK, not a guarantee.
+#   - Coverage numbers are MEASURED in memory at build time (deterministic seeds,
+#     ephemeral, never persisted) — never a number we did not measure — and each
+#     carries its protocol label and n. The CV number evaluates SPLIT models, not
+#     the served pair, and says so; the serving-protocol number is reported beside it.
+#   - The split-conformal radius is UNBOUNDED when ceil((n+1)(1-alpha)) > n; the
+#     predictor then ABSTAINS (RED, interval None) instead of serving max|z|.
+#   - The convex-hull gate is a PLAUSIBILITY CHECK, not a guarantee, and a missing
+#     or inapplicable hull can never earn GREEN.
 #   - 8 locked-proven only; this module NEVER adds to the locked set.
 #   - Lambda = Conjecture 1 (advisory, capped <= 0.99).
 #   - F19/Bekenstein is a PROVEN inequality APPLIED here (MODELED application).
@@ -60,8 +75,10 @@
 # Registered BEFORE the /api/a11oy/{path:path} Node-proxy + SPA catch-all (serve.py
 # front-moves these routes to the router head, same proven pattern as the PINN block).
 
+import hashlib
 import json
 import math
+import struct
 import time
 import threading
 
@@ -70,8 +87,11 @@ import numpy as np
 RECEIPT_SCHEMA = "szl.lake.receipt/v1"
 RECEIPT_ORGAN = "a11oy-materials"
 RECEIPT_PAYLOAD_TYPE = "application/vnd.szl.materials-predict+json"
+CALIBRATION_ARTIFACT_SCHEMA = "szl.materials.calibration_artifact/v1"
 LOCKED_PROVEN = ("F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22")
 LOCKED_PROVEN_AT = "c7c0ba17"
+ABSTAIN_UNBOUNDED = "calibration set too small for a finite split-conformal interval"
+HULL_NOT_APPLICABLE = "hull gate not applicable - plausibility unverified"
 
 # Governance thresholds (eV/atom unless noted). These are documented on the wire.
 HULL_GREEN = 0.05      # Delta_hull <= this AND in-distribution => GREEN-eligible
@@ -84,12 +104,18 @@ ALPHA = 0.05           # 95% target central interval
 RIDGE_LAMBDA = 0.5
 
 CITATIONS = (
+    "Vovk, Gammerman & Shafer 2005, 'Algorithmic Learning in a Random World' / "
+    "Lei et al. 2018 JASA (arXiv:1604.04173) — split-conformal prediction; the "
+    "served interval is the symmetric ceil((n+1)(1-alpha)) order statistic of |z|",
     "Kuleshov, Fenner & Ermon 2018, 'Accurate Uncertainties for Deep Learning "
-    "Using Calibrated Regression', ICML (arXiv:1807.00263) — isotonic recalibration",
+    "Using Calibrated Regression', ICML (arXiv:1807.00263) — isotonic CDF "
+    "recalibration; fitted here as a DIAGNOSTIC only, NOT on the served interval path",
     "Lakshminarayanan, Pritzel & Blundell 2017, 'Simple and Scalable Predictive "
-    "Uncertainty Estimation using Deep Ensembles', NeurIPS (arXiv:1612.01474)",
+    "Uncertainty Estimation using Deep Ensembles', NeurIPS (arXiv:1612.01474) — "
+    "prior art for ensemble-spread UQ; this module's 5 members are closed-form ridge "
+    "regressors, NOT a deep ensemble",
     "Tan, Heenen et al. 2023, npj Comput. Mater., DOI:10.1038/s41524-023-01180-8 "
-    "— deep ensembles are the best general-purpose UQ for MLIPs",
+    "— ensemble UQ for MLIPs (prior art; says nothing about this surrogate)",
     "MACE (ACEsuit/mace, MIT) and CHGNet (CederGroupHub/chgnet, BSD-3-Clause) — "
     "the wrappable patterns; reimplement-not-copy, NO proprietary weights bundled",
 )
@@ -281,7 +307,8 @@ def featurize(comp):
 
 # ---------------------------------------------------------------------------
 # Ridge regression (closed form, standardized features, centered target) and a
-# 5-member BOOTSTRAP deep-ensemble for epistemic UQ.
+# 5-member bootstrap ridge (linear) ensemble whose member spread is the
+# "epistemic" sigma (ensemble-spread UQ; deep ensembles are the cited prior art).
 # ---------------------------------------------------------------------------
 def _fit_ridge(Xz, y, lam):
     n, d = Xz.shape
@@ -303,6 +330,8 @@ class _Surrogate:
         self.X = X
         self.Xz = Xz
         self.y = y
+        self.lam = float(lam)
+        self.seed = int(seed)
         rng = np.random.default_rng(seed)
         self.members = []
         n = Xz.shape[0]
@@ -343,7 +372,9 @@ class _Surrogate:
 
 
 # ---------------------------------------------------------------------------
-# Isotonic regression (PAV) + Kuleshov-2018 calibrated regression.
+# Split-conformal calibrator over standardized residuals. An isotonic (PAV) CDF
+# fit (Kuleshov 2018) is kept as a DIAGNOSTIC (quantile()); the served interval
+# uses only the symmetric split-conformal |z| radius.
 # ---------------------------------------------------------------------------
 def _isotonic_pav(x, y):
     """Pool-Adjacent-Violators: monotone non-decreasing fit of y on sorted x.
@@ -400,14 +431,31 @@ def _norm_ppf(p):
            (((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1)
 
 
+def _check_alpha(alpha):
+    """alpha must be a real NUMBER strictly inside (0, 1) — not a bool, not a
+    string; anything else is a caller error, never a silently clamped level."""
+    if isinstance(alpha, (bool, np.bool_)) or \
+            not isinstance(alpha, (int, float, np.integer, np.floating)):
+        raise ValueError("alpha must be a number in (0, 1), got %r" % (alpha,))
+    a = float(alpha)
+    if not (math.isfinite(a) and 0.0 < a < 1.0):
+        raise ValueError("alpha must be a finite number in (0, 1), got %r" % (alpha,))
+    return a
+
+
 class _Calibrator:
-    """Calibrated regression (Kuleshov et al. 2018) via ISOTONIC recalibration of
-    the predictive CDF. We recalibrate on the STANDARDIZED residual z=(y-mu)/sigma:
-    fit a monotone (isotonic, PAV) empirical CDF G(z) on the held-out calibration
-    set. A bootstrap ensemble is typically UNDERdispersed, so the empirical z
-    quantiles are wider than the nominal Gaussian ones — recalibrating the CDF on z
-    absorbs that and restores coverage. The calibrated central (1-alpha) interval is
-    [mu + G^{-1}(alpha/2)*sigma, mu + G^{-1}(1-alpha/2)*sigma]."""
+    """Split-conformal calibrator over the STANDARDIZED residual z=(y-mu)/sigma of a
+    calibration set. The served central (1-alpha) interval is
+
+        [mu - q*sigma, mu + q*sigma],  q = the ceil((n+1)(1-alpha))-th smallest |z|
+
+    (symmetric split-conformal radius; Vovk et al. 2005, Lei et al. 2018). When
+    ceil((n+1)(1-alpha)) > n no finite order statistic carries the guarantee and
+    the radius is UNBOUNDED (math.inf); the caller must abstain, never serve max|z|.
+
+    An isotonic (PAV) empirical CDF of z (Kuleshov et al. 2018) is also fitted and
+    exposed through quantile() as a DIAGNOSTIC of the residual distribution. It is
+    NOT on the served interval path and no coverage claim is made for it."""
 
     def __init__(self, z_cal):
         z = np.sort(np.asarray(z_cal, float))
@@ -417,27 +465,39 @@ class _Calibrator:
         self.z_grid = zg
         self.cdf_grid = np.clip(cg, 0.0, 1.0)
         self.n = n
-        self.abs_z = np.sort(np.abs(z))          # for the symmetric conformal radius
+        self.abs_z = np.sort(np.abs(z))          # the conformity scores, sorted
 
     def quantile(self, q):
+        """DIAGNOSTIC isotonic-CDF quantile of z. Not used by interval()."""
         q = min(max(float(q), 0.0), 1.0)
         return float(np.interp(q, self.cdf_grid, self.z_grid))
 
-    def conformal_radius(self, alpha=ALPHA):
-        """Finite-sample symmetric conformal quantile of |z| at level 1-alpha. Uses
-        the ceil((n+1)(1-alpha)) order statistic (the split-conformal correction);
-        when that index exceeds n it falls back to max|z| (coverage ~ n/(n+1))."""
+    def conformal_rank(self, alpha=ALPHA):
+        """Split-conformal order statistic k = ceil((n+1)(1-alpha)) and whether it
+        is unbounded (k > n, including n == 0). Pure."""
+        a = _check_alpha(alpha)
         n = self.n
-        if n == 0:
-            return float("inf")
-        k = int(math.ceil((n + 1) * (1.0 - alpha)))
-        if k > n:
-            return float(self.abs_z[-1])
-        return float(self.abs_z[k - 1])
+        k = int(math.ceil((n + 1) * (1.0 - a)))
+        return {"n_calibration": n, "rank_k": k, "unbounded": k > n}
+
+    def conformal_radius(self, alpha=ALPHA):
+        """Finite-sample symmetric split-conformal quantile of |z| at level 1-alpha:
+        the ceil((n+1)(1-alpha))-th smallest |z|. Returns math.inf when that rank
+        exceeds n (the guarantee then needs an unbounded interval); it never
+        substitutes max|z| for it."""
+        rk = self.conformal_rank(alpha)
+        if rk["unbounded"]:
+            return math.inf
+        return float(self.abs_z[rk["rank_k"] - 1])
 
     def interval(self, mu, sigma, alpha=ALPHA):
+        """(lo, hi) = mu -/+ radius*sigma. An unbounded radius yields (-inf, inf);
+        predict_property abstains before serving that."""
         sigma = max(float(sigma), 1e-6)
-        r = self.conformal_radius(alpha) * sigma
+        r = self.conformal_radius(alpha)
+        if not math.isfinite(r):
+            return -math.inf, math.inf
+        r *= sigma
         return float(mu - r), float(mu + r)
 
 
@@ -483,39 +543,72 @@ def _hull_energy_at(hull, x):
     return 0.0
 
 
+_HULL_NOTE = ("PLAUSIBILITY check vs. embedded SAMPLE phases — NOT a guarantee; "
+              "applicable:false is UNKNOWN evidence, never favorable")
+
+
 def convex_hull_distance(comp, e_pred):
     """For a binary composition, Delta_hull = E_pred - E_hull(x) where the hull is
     the lower convex envelope of the embedded SAMPLE compounds in the SAME binary
-    system plus the elemental endpoints at E=0. Returns a dict; None hull if the
-    system is not binary or has no embedded competing phases."""
+    system plus the elemental endpoints at E=0.
+
+    The dict always carries `applicable`, `delta_hull_eV_atom` (None unless
+    applicable) and `competing_phases` (embedded phases in the same system at a
+    composition OTHER than the query). The gate is applicable only for a binary
+    query with >= 1 competing phase: with the elemental endpoints alone there is
+    nothing to compete against, so the number E_pred - 0 is reported separately as
+    `delta_vs_elements_eV_atom` (informational) and the gate says so. Embedded
+    phases at the query composition are excluded (counted in
+    `same_composition_phases_excluded`) so the gate measures plausibility against
+    competitors, not the surrogate's own fit error; polymorph competition at the
+    query composition is therefore NOT assessed."""
     frac = _normalize_comp(comp)
     els = sorted(frac)
+    thresholds = {"green_max": HULL_GREEN, "red_max": HULL_RED}
     if len(els) != 2:
         return {"applicable": False,
-                "reason": "convex-hull gate implemented for BINARY systems only",
-                "delta_hull": None}
+                "reason": ("convex-hull gate implemented for BINARY systems only "
+                           "(%d-element query)" % len(els)),
+                "system": "-".join(els), "competing_phases": 0,
+                "delta_hull_eV_atom": None,
+                "e_pred_eV_atom": round(float(e_pred), 5),
+                "thresholds": thresholds, "note": _HULL_NOTE}
     a, b = els
     xq = frac[b]  # fraction of the second (alphabetical) element
-    # Hull of COMPETING phases (elemental endpoints + embedded compounds at OTHER
-    # compositions). We exclude any embedded phase at the SAME composition as the
-    # query so the gate measures plausibility against competitors, NOT the
-    # surrogate's own fit error at this composition.
     points = [(0.0, 0.0), (1.0, 0.0)]
+    competing, same_comp = 0, 0
     for c, e in _DATASET:
         cf = _normalize_comp(c)
-        if set(cf) == {a, b} and abs(cf[b] - xq) > 1e-3:
+        if set(cf) != {a, b}:
+            continue
+        if abs(cf[b] - xq) > 1e-3:
             points.append((cf[b], float(e)))
+            competing += 1
+        else:
+            same_comp += 1
     hull = _lower_hull_points(points)
     e_hull = _hull_energy_at(hull, xq)
     delta = float(e_pred - e_hull)
-    return {"applicable": True, "system": "%s-%s" % (a, b),
-            "x_%s" % b: round(xq, 4),
-            "e_pred_eV_atom": round(float(e_pred), 5),
-            "e_hull_eV_atom": round(float(e_hull), 5),
-            "delta_hull_eV_atom": round(delta, 5),
-            "hull_vertices": [[round(x, 4), round(y, 5)] for x, y in hull],
-            "thresholds": {"green_max": HULL_GREEN, "red_max": HULL_RED},
-            "note": "PLAUSIBILITY check vs. embedded SAMPLE phases — NOT a guarantee"}
+    out = {"system": "%s-%s" % (a, b), "x_%s" % b: round(xq, 4),
+           "competing_phases": competing,
+           "same_composition_phases_excluded": same_comp,
+           "e_pred_eV_atom": round(float(e_pred), 5),
+           "hull_vertices": [[round(x, 4), round(y, 5)] for x, y in hull],
+           "thresholds": thresholds, "note": _HULL_NOTE}
+    if competing == 0:
+        out.update({
+            "applicable": False,
+            "reason": ("no embedded competing phase in the %s-%s system: only the "
+                       "elemental endpoints are known, so plausibility is unverified"
+                       % (a, b)),
+            "delta_hull_eV_atom": None,
+            "delta_vs_elements_eV_atom": round(delta, 5),
+        })
+        return out
+    out.update({"applicable": True,
+                "e_hull_eV_atom": round(float(e_hull), 5),
+                "delta_hull_eV_atom": round(delta, 5)})
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -567,14 +660,22 @@ def _build_matrices():
     return X, y
 
 
-def _measure_coverage_cv(X, y, repeats=60, seed=1234):
-    """Honest held-out coverage: repeated random train/calib/test splits. For each
-    split, fit ensemble on TRAIN, fit isotonic calibrator on CALIB, then count how
-    many TEST targets fall inside the calibrated 95% interval. Aggregate over all
-    held-out TEST points (large effective n). Returns (coverage, n, raw_coverage)."""
+CV_REPEATS, CV_SEED = 60, 1234
+SERVING_REPEATS, SERVING_SEED = 60, 4321
+
+
+def _measure_coverage_cv(X, y, repeats=CV_REPEATS, seed=CV_SEED):
+    """Held-out coverage of SPLIT models: repeated random train/calib/test splits.
+    For each split, fit the ensemble on TRAIN, the conformal calibrator on CALIB,
+    then count how many TEST targets fall inside the (1-alpha) interval.
+    Aggregated over all held-out TEST predictions: n counts predictions (the same
+    material recurs across trials), NOT independent materials. This evaluates the
+    split protocol, not the served full-sample pair (see
+    _measure_coverage_serving). Returns (coverage, n, raw_coverage, trials);
+    coverage is None when no trial could run."""
     rng = np.random.default_rng(seed)
     n = X.shape[0]
-    hit, raw_hit, total = 0, 0, 0
+    hit, raw_hit, total, trials = 0, 0, 0, 0
     for _ in range(repeats):
         idx = rng.permutation(n)
         n_test = max(6, n // 7)
@@ -587,6 +688,7 @@ def _measure_coverage_cv(X, y, repeats=60, seed=1234):
             continue
         surr = _Surrogate(X[tr_idx], y[tr_idx], seed=int(rng.integers(0, 1 << 30)))
         cal = _Calibrator(_residuals(surr, X[cal_idx], y[cal_idx]))
+        trials += 1
         for j in test_idx:
             mu, sigma = surr.predict(X[j])
             lo, hi = cal.interval(mu, sigma, ALPHA)
@@ -597,9 +699,162 @@ def _measure_coverage_cv(X, y, repeats=60, seed=1234):
             if rlo <= y[j] <= rhi:
                 raw_hit += 1
             total += 1
-    cov = hit / total if total else float("nan")
-    raw = raw_hit / total if total else float("nan")
-    return cov, total, raw
+    cov = hit / total if total else None
+    raw = raw_hit / total if total else None
+    return cov, total, raw, trials
+
+
+def _measure_coverage_serving(X, y, repeats=SERVING_REPEATS, seed=SERVING_SEED):
+    """Held-out coverage of the SERVING recipe: on each trial hold out a random
+    block, fit the ensemble on the kept records AND calibrate on the kept records'
+    own (in-sample) residuals — exactly how the served pair is built — then count
+    held-out targets inside the interval. Trials whose calibrator is unbounded are
+    counted in `unbounded_trials` and excluded (an infinite interval always covers
+    and would inflate the number). Deterministic (seeded), in-memory, ephemeral.
+    Returns a dict; coverage is None when no bounded trial could run."""
+    rng = np.random.default_rng(seed)
+    n = X.shape[0]
+    hit, total, trials, unbounded = 0, 0, 0, 0
+    n_hold = max(6, n // 7)
+    for _ in range(repeats):
+        idx = rng.permutation(n)
+        hold, keep = idx[:n_hold], idx[n_hold:]
+        if len(keep) < 12:
+            continue
+        surr = _Surrogate(X[keep], y[keep], seed=int(rng.integers(0, 1 << 30)))
+        cal = _Calibrator(_residuals(surr, X[keep], y[keep]))
+        if not math.isfinite(cal.conformal_radius(ALPHA)):
+            unbounded += 1
+            continue
+        trials += 1
+        for j in hold:
+            mu, sigma = surr.predict(X[j])
+            lo, hi = cal.interval(mu, sigma, ALPHA)
+            if lo <= y[j] <= hi:
+                hit += 1
+            total += 1
+    return {"coverage": (hit / total if total else None), "n": total,
+            "trials": trials, "unbounded_trials": unbounded, "holdout_per_trial": n_hold,
+            "seed": seed}
+
+
+def _r4(v, nd=4):
+    """round() that passes None / non-finite through as None (strict-JSON safe)."""
+    if v is None:
+        return None
+    v = float(v)
+    return round(v, nd) if math.isfinite(v) else None
+
+
+def _predictor_hash(surr):
+    """sha256 over the fitted coefficients (standardizer + every member's (w, b))
+    and the fitting config. Any refit, reseed or config change yields a new hash,
+    so a calibration artifact carrying the old hash is detectably stale."""
+    h = hashlib.sha256()
+    cfg = {"ensemble_n": len(surr.members), "ridge_lambda": surr.lam, "seed": surr.seed,
+           "features": list(_FEATURE_NAMES), "n_train": int(surr.Xz.shape[0])}
+    h.update(json.dumps(cfg, sort_keys=True, separators=(",", ":")).encode("utf-8"))
+    h.update(np.ascontiguousarray(surr.mu, dtype=np.float64).tobytes())
+    h.update(np.ascontiguousarray(surr.sd, dtype=np.float64).tobytes())
+    for w, b in surr.members:
+        h.update(np.ascontiguousarray(w, dtype=np.float64).tobytes())
+        h.update(struct.pack("<d", float(b)))
+    return h.hexdigest()
+
+
+def _data_hash(dataset=None):
+    """sha256 over the canonical JSON of the embedded SAMPLE dataset."""
+    rows = [[dict(sorted(c.items())), float(e)] for c, e in (dataset or _DATASET)]
+    return hashlib.sha256(json.dumps(rows, sort_keys=True, separators=(",", ":"))
+                           .encode("utf-8")).hexdigest()
+
+
+def _calibration_state(cal, alpha):
+    """Validate and fingerprint the actual scores and diagnostic CDF in memory."""
+    a = _check_alpha(alpha)
+    if not isinstance(cal, _Calibrator) or type(cal.n) is not int or cal.n < 0:
+        raise ValueError("invalid calibrator or calibration count")
+    h = hashlib.sha256(b"szl.materials.calibrator/v1")
+    h.update(struct.pack("<Qd", cal.n, a))
+    arrays = {}
+    for name in ("abs_z", "z_grid", "cdf_grid"):
+        values = np.asarray(getattr(cal, name))
+        if (values.ndim != 1 or values.size != cal.n or values.dtype.kind != "f"
+                or not np.all(np.isfinite(values))
+                or np.any(values[1:] < values[:-1])):
+            raise ValueError("invalid calibrator %s" % name)
+        arrays[name] = values
+        h.update(name.encode("ascii"))
+        h.update(np.ascontiguousarray(values, dtype="<f8").tobytes())
+    if np.any(arrays["abs_z"] < 0):
+        raise ValueError("negative calibration score")
+    if np.any((arrays["cdf_grid"] < 0) | (arrays["cdf_grid"] > 1)):
+        raise ValueError("calibrator CDF is outside [0,1]")
+    k = int(math.ceil((cal.n + 1) * (1.0 - a)))
+    unbounded = k > cal.n
+    return {"calibration_state_hash": h.hexdigest(), "alpha": a,
+            "n_calibration": cal.n, "rank_k": k, "unbounded": unbounded,
+            "radius_abs_z": (None if unbounded else round(float(arrays["abs_z"][k - 1]), 5))}
+
+
+def build_calibration_artifact(surr, cal, alpha, data_hash, evaluation):
+    """PURE: the artifact binding `cal` to `surr`. Nothing here fits or signs."""
+    state = _calibration_state(cal, alpha)
+    n_train = int(surr.Xz.shape[0])
+    return {
+        "schema": CALIBRATION_ARTIFACT_SCHEMA,
+        "predictor_hash": _predictor_hash(surr),
+        "data_hash": data_hash,
+        "protocol": "serving",
+        "protocol_description": ("full-sample fit (n_train=%d) + IN-SAMPLE calibrator on the "
+                                 "same records (n_calibration=%d); no disjoint calibration "
+                                  "split is held back for the served pair" % (n_train, state["n_calibration"])),
+        "split_ids": {"train": "embedded:all", "calibration": "embedded:all (in-sample)",
+                      "test": None},
+        "score_definition": ("|z| with z = (y - mu) / max(sigma, 1e-6); symmetric split-conformal "
+                             "radius = the ceil((n+1)(1-alpha))-th smallest |z|"),
+        **state,
+        "evaluation_provenance": evaluation,
+    }
+
+
+def validate_calibration_artifact(artifact, predictor_hash, data_hash=None,
+                                  *, calibrator=None, alpha=ALPHA):
+    """PURE: check predictor/data binding and the actual calibration state.
+
+    Hash equality alone cannot prove this binding: the served calibrator and
+    level are required, and its count/rank/radius metadata must agree as well.
+    This checks internal consistency, not statistical validity or authenticity.
+    """
+    if not isinstance(artifact, dict):
+        return {"valid": False, "reason": "calibration artifact missing"}
+    try:
+        json.dumps(artifact, allow_nan=False)
+    except (TypeError, ValueError, OverflowError):
+        return {"valid": False, "reason": "calibration artifact is not strict JSON"}
+    if artifact.get("schema") != CALIBRATION_ARTIFACT_SCHEMA:
+        return {"valid": False, "reason": "unknown calibration artifact schema %r"
+                % (artifact.get("schema"),)}
+    if artifact.get("predictor_hash") != predictor_hash:
+        return {"valid": False,
+                "reason": "stale predictor_hash: the calibration was fitted for a different "
+                          "predictor (artifact %s..., served %s...)"
+                          % (str(artifact.get("predictor_hash"))[:12], str(predictor_hash)[:12])}
+    if data_hash is not None and artifact.get("data_hash") != data_hash:
+        return {"valid": False, "reason": "stale data_hash: the embedded dataset changed"}
+    try:
+        state = _calibration_state(calibrator, alpha)
+    except (AttributeError, TypeError, ValueError, OverflowError, struct.error) as exc:
+        return {"valid": False, "reason": "invalid calibration state: %s" % type(exc).__name__}
+    if artifact.get("protocol") != "serving":
+        return {"valid": False, "reason": "invalid calibration protocol"}
+    for key, expected in state.items():
+        value = artifact.get(key)
+        # bool == 1 in Python; the count, rank and boundedness types are part of
+        # the contract. Missing radius must also fail for an unbounded artifact.
+        if (key not in artifact or type(value) is not type(expected) or value != expected):
+            return {"valid": False, "reason": "calibration %s does not match served state" % key}
+    return {"valid": True, "reason": "predictor, data and calibration state match"}
 
 
 def _build():
@@ -607,35 +862,87 @@ def _build():
         if _STATE.get("built"):
             return _STATE
         X, y = _build_matrices()
-        # production model: ensemble on the full set; isotonic on the full set
-        # (the REPORTED coverage below is the held-out CV number, never in-sample).
+        # Served pair: ensemble on the full sample; conformal calibrator on that same
+        # sample's residuals (IN-SAMPLE). Both coverage numbers below are measured on
+        # held-out records at build time and labelled by protocol; neither is the
+        # served pair's own guarantee.
         surr = _Surrogate(X, y, seed=7)
         cal = _Calibrator(_residuals(surr, X, y))
-        cov, n_cov, raw_cov = _measure_coverage_cv(X, y)
+        cov, n_cov, raw_cov, cv_trials = _measure_coverage_cv(X, y)
+        serving = _measure_coverage_serving(X, y)
+        data_hash = _data_hash()
+        evaluation = {
+            "measured_at": "build time, in-memory, deterministic seeds, ephemeral (not persisted)",
+            "unique_materials": int(X.shape[0]),
+            "cv_split_models": {"coverage": _r4(cov), "n_predictions": int(n_cov),
+                                "trials": int(cv_trials), "seed": CV_SEED,
+                                "label": "MEASURED on held-out TEST records of SPLIT models; "
+                                         "not the served pair"},
+            "serving_protocol_holdout": {"coverage": _r4(serving["coverage"]),
+                                         "n_predictions": int(serving["n"]),
+                                         "trials": int(serving["trials"]),
+                                         "unbounded_trials": int(serving["unbounded_trials"]),
+                                         "seed": serving["seed"],
+                                         "label": "MEASURED on held-out records with the serving "
+                                                  "recipe (fit + in-sample calibrate on the kept "
+                                                  "records)"},
+        }
+        artifact = build_calibration_artifact(surr, cal, ALPHA, data_hash, evaluation)
         _STATE.update({
             "built": True, "X": X, "y": y, "surr": surr, "cal": cal,
             "coverage": cov, "coverage_n": n_cov, "raw_coverage": raw_cov,
-            "alpha": ALPHA,
+            "cv_trials": cv_trials, "serving": serving, "alpha": ALPHA,
+            "data_hash": data_hash, "artifact": artifact,
         })
         return _STATE
 
 
 def calibration_report():
     st = _build()
+    n_unique = int(st["X"].shape[0])
+    serving = st["serving"]
+    art = st["artifact"]
     return {
-        "method": ("5-member bootstrap deep-ensemble (numpy ridge over composition "
-                   "descriptors) + ISOTONIC recalibration of the standardized-residual "
-                   "CDF (Kuleshov 2018) with a finite-sample split-conformal interval "
-                   "correction"),
+        "method": ("5-member bootstrap ridge (linear) ensemble over composition descriptors "
+                   "(member spread = sigma) + symmetric split-conformal |z| radius from an "
+                   "IN-SAMPLE calibrator (n=%d, rank k=%d of ceil((n+1)(1-alpha))); the "
+                   "isotonic CDF fit is a diagnostic only"
+                   % (art["n_calibration"], art["rank_k"])),
+        "interval_method": ("served interval = mu -/+ radius*sigma with radius = the %d-th "
+                            "smallest |z| of the in-sample calibration residuals%s"
+                            % (art["rank_k"], "" if not art["unbounded"]
+                               else " — UNBOUNDED at this n/alpha, predictor abstains")),
         "target_coverage": 1.0 - ALPHA,
-        "measured_coverage": round(float(st["coverage"]), 4),
+        # CV number (kept, now labelled): split models, 60 trials, 420 predictions.
+        "measured_coverage": _r4(st["coverage"]),
         "measured_coverage_n": int(st["coverage_n"]),
-        "uncalibrated_coverage": round(float(st["raw_coverage"]), 4),
-        "protocol": ("repeated random train/calibration/test splits; coverage counted "
-                     "ONLY on held-out TEST points never seen by the ensemble or the "
-                     "isotonic calibrator; aggregated over all held-out points"),
+        "measured_coverage_protocol": (
+            "cv_split_models: %d repeated random train/calibration/test splits of the %d "
+            "embedded materials; n counts %d held-out TEST predictions, not independent "
+            "materials (each material recurs across trials); evaluates SPLIT models, NOT "
+            "the served full-sample pair" % (st["cv_trials"], n_unique, st["coverage_n"])),
+        "uncalibrated_coverage": _r4(st["raw_coverage"]),
+        "uncalibrated_coverage_protocol": ("same cv_split_models protocol; raw mu -/+ 1.96*sigma "
+                                           "Gaussian interval, no conformal radius"),
+        # Serving-protocol number (new): the recipe that is actually served.
+        "serving_protocol_coverage": _r4(serving["coverage"]),
+        "serving_protocol_coverage_n": int(serving["n"]),
+        "serving_protocol_coverage_protocol": (
+            "serving_protocol_holdout: %d trials holding out %d of %d materials; fit on the "
+            "kept records and calibrate on their IN-SAMPLE residuals (the served recipe), "
+            "count held-out hits; %d unbounded trial(s) excluded; n counts held-out "
+            "predictions" % (serving["trials"], serving["holdout_per_trial"], n_unique,
+                             serving["unbounded_trials"])),
+        "coverage_measurement": ("MEASURED in memory at build time with deterministic seeds "
+                                 "(cv %d, serving %d); ephemeral, not persisted; a SAMPLE "
+                                 "dataset of %d unique materials"
+                                 % (CV_SEED, serving["seed"], n_unique)),
+        "coverage_note": (None if st["coverage"] is not None else
+                          "NOT_RUN: too few records for the split protocol (coverage None)"),
+        "unique_materials": n_unique,
         "dataset_n": len(_DATASET),
-        "label": "MEASURED coverage on held-out split (MODELED+SAMPLE surrogate)",
+        "label": ("MEASURED held-out coverage, protocol-labelled (MODELED+SAMPLE surrogate); "
+                  "the served pair itself is full-sample + in-sample calibrated"),
     }
 
 
@@ -647,8 +954,14 @@ def _honesty(coverage=None, coverage_n=None):
         "what_this_is": ("a calibrated SURROGATE for formation energy over a SAMPLE "
                          "dataset — NOT a SOTA DFT/MACE/CHGNet prediction"),
         "labels": "MODELED + SAMPLE (numpy surrogate; values are MODELED, data are SAMPLE)",
-        "calibration": "coverage is MEASURED on a held-out split (see calibration block)",
-        "convex_hull_gate": "PLAUSIBILITY check, not a guarantee",
+        "calibration": ("served interval = symmetric split-conformal |z| radius from an "
+                        "IN-SAMPLE calibrator; coverage numbers are MEASURED in memory at "
+                        "build time and each carries its protocol label and n (the CV number "
+                        "evaluates split models, not the served pair; see calibration block); "
+                        "an unbounded radius => abstain"),
+        "convex_hull_gate": ("PLAUSIBILITY check, not a guarantee; GREEN requires an "
+                             "applicable hull with >= 1 embedded competing phase — unknown "
+                             "hull evidence is never favorable"),
         "self_doubt": ("out-of-distribution descriptor (far from embedded training) => "
                        "RED/refuse — never a confident extrapolation"),
         "locked_proven_count": 8,
@@ -661,8 +974,9 @@ def _honesty(coverage=None, coverage_n=None):
                              "NO proprietary weights bundled"),
     }
     if coverage is not None:
-        h["measured_coverage"] = round(float(coverage), 4)
+        h["measured_coverage"] = _r4(coverage)
         h["measured_coverage_n"] = int(coverage_n) if coverage_n else None
+        h["measured_coverage_protocol"] = "cv_split_models (see calibration block)"
     return h
 
 
@@ -707,8 +1021,12 @@ def _build_receipt(payload_core, sign=True):
 # ---------------------------------------------------------------------------
 # The governed prediction entry point.
 # ---------------------------------------------------------------------------
+# "green" is Fe2O3: in-distribution AND its Fe-O hull has embedded competing phases
+# (FeO, Fe3O4), so the hull gate is applicable and the verdict is honestly GREEN.
+# MgO (the previous preset) is the only embedded Mg-O phase: with no competitor the
+# hull is unverifiable, so MgO now answers YELLOW and stays reachable explicitly.
 _DEMOS = {
-    "green": {"property": "formation_energy", "composition": {"Mg": 1, "O": 1}},
+    "green": {"property": "formation_energy", "composition": {"Fe": 2, "O": 3}},
     "ood":   {"property": "formation_energy", "composition": {"Cu": 1, "Au": 1}},
 }
 
@@ -820,8 +1138,22 @@ def predict_property(spec):
     sign = opts["sign"]
 
     st = _build()
-    surr, cal = st["surr"], st["cal"]
+    surr, cal, artifact = st["surr"], st.get("cal"), st.get("artifact")
     coverage, coverage_n = st["coverage"], st["coverage_n"]
+
+    # The calibrator must be the one fitted for THIS predictor. A stale binding is a
+    # server-side integrity fault: fail closed (HTTP 500), sign and ledger nothing.
+    binding = validate_calibration_artifact(artifact, _predictor_hash(surr), _data_hash(),
+                                            calibrator=cal, alpha=ALPHA)
+    if not binding["valid"]:
+        return {"ok": False, "fail_closed": True,
+                "error": "calibration artifact does not bind to the served predictor: %s"
+                         % binding["reason"],
+                "property": prop, "composition": counts,
+                "honesty": _honesty(coverage, coverage_n)}
+    art_compact = {k: artifact[k] for k in ("schema", "predictor_hash", "data_hash", "protocol",
+                                            "calibration_state_hash", "alpha", "n_calibration",
+                                            "rank_k", "unbounded", "radius_abs_z")}
 
     # featurize: the numeric contract already held in _validate_spec, so the only
     # ValueError left is the element-table refusal (hard OOD, honest RED + receipt)
@@ -836,20 +1168,44 @@ def predict_property(spec):
             "refusal": "OUT-OF-DISTRIBUTION: %s" % ve,
             "value": None, "interval95": None,
             "calibration": calibration_report(),
+            "calibration_artifact": artifact,
             "honesty": _honesty(coverage, coverage_n),
         }
         return _seal(result, {"property": prop, "composition": counts,
-                              "verdict": "RED", "refusal": result["refusal"]}, sign)
+                              "verdict": "RED", "refusal": result["refusal"],
+                              "calibration_artifact": art_compact}, sign)
 
     mu, sigma = surr.predict(x)
+    radius = cal.conformal_radius(ALPHA)
+    if not math.isfinite(radius):
+        # ceil((n+1)(1-alpha)) > n: no finite order statistic carries the guarantee.
+        # Abstain honestly instead of serving max|z| as if it were the quantile.
+        result = {
+            "ok": True, "property": prop, "composition": counts,
+            "verdict": "RED",
+            "refusal": "%s (n_calibration=%d, rank_k=%d, alpha=%g)"
+                       % (ABSTAIN_UNBOUNDED, artifact["n_calibration"], artifact["rank_k"], ALPHA),
+            "value": None, "interval95": None,
+            "value_eV_atom": None, "interval95_eV_atom": None,
+            "interval_is_calibrated": False,
+            "ensemble_sigma_eV_atom": round(sigma, 5),
+            "calibration": calibration_report(),
+            "calibration_artifact": artifact,
+            "honesty": _honesty(coverage, coverage_n),
+        }
+        return _seal(result, {"property": prop, "composition": counts,
+                              "verdict": "RED", "refusal": result["refusal"],
+                              "calibration_artifact": art_compact}, sign)
     lo, hi = cal.interval(mu, sigma, ALPHA)
     ood = surr.ood_score(x)
     hull = convex_hull_distance(counts, mu)
 
-    # gates
+    # gates. The hull is CHECKED only when applicable with a finite delta; an
+    # unchecked hull is unknown evidence and can never be favorable (no GREEN).
     delta = hull.get("delta_hull_eV_atom")
-    hull_red = (delta is not None and delta > HULL_RED)
-    hull_yellow = (delta is not None and delta > HULL_GREEN)
+    hull_checked = bool(hull.get("applicable")) and delta is not None and math.isfinite(delta)
+    hull_red = hull_checked and delta > HULL_RED
+    hull_yellow = hull_checked and delta > HULL_GREEN
     ood_red = ood > OOD_Z_RED
     ood_yellow = ood > OOD_Z_YELLOW
     sigma_yellow = sigma > SIGMA_YELLOW
@@ -875,20 +1231,23 @@ def predict_property(spec):
         verdict = "RED"
         reasons.append("F19/Bekenstein information-cost check failed (ratio=%.2e)"
                        % bek["ratio"])
-    if verdict != "RED" and (ood_yellow or hull_yellow or sigma_yellow):
+    if verdict != "RED" and (ood_yellow or hull_yellow or sigma_yellow or not hull_checked):
         verdict = "YELLOW"
         if ood_yellow:
             reasons.append("near distribution edge (ood_score=%.3f)" % ood)
         if hull_yellow:
             reasons.append("metastable: Delta_hull=%.3f eV/atom in (%.2f, %.2f]"
                            % (delta, HULL_GREEN, HULL_RED))
+        if not hull_checked:
+            reasons.append("%s (%s)" % (HULL_NOT_APPLICABLE, hull.get("reason", "no hull evidence")))
         if sigma_yellow:
             reasons.append("elevated epistemic uncertainty (sigma=%.3f eV/atom)" % sigma)
     if verdict == "GREEN":
-        reasons.append("in-distribution, on/near hull, calibrated interval — plausible")
+        reasons.append("in-distribution, on/near hull vs %d embedded competing phase(s), "
+                       "calibrated interval — plausible" % hull.get("competing_phases", 0))
 
     refuse = verdict == "RED"
-    lam = compute_lambda(verdict, ood, sigma, hull_ok=not hull_red)
+    lam = compute_lambda(verdict, ood, sigma, hull_ok=hull_checked and not hull_red)
 
     result = {
         "ok": True,
@@ -899,11 +1258,16 @@ def predict_property(spec):
         "ensemble_sigma_eV_atom": round(sigma, 5),
         "interval95_eV_atom": (None if refuse else [round(lo, 5), round(hi, 5)]),
         "interval_is_calibrated": True,
+        "interval_method": ("symmetric split-conformal |z| radius (rank %d of n=%d, in-sample "
+                            "calibrator) times ensemble sigma"
+                            % (artifact["rank_k"], artifact["n_calibration"])),
         "ood_score": round(ood, 4),
         "convex_hull_gate": hull,
+        "hull_checked": hull_checked,
         "bekenstein_f19": bek,
         "lambda_advisory": lam,
         "calibration": calibration_report(),
+        "calibration_artifact": artifact,
         "gate_reasons": reasons,
         "honesty": _honesty(coverage, coverage_n),
         "would_wrap": ("when a real MACE(MIT)/CHGNet(BSD-3) inference endpoint is "
@@ -922,11 +1286,16 @@ def predict_property(spec):
         "ensemble_sigma_eV_atom": result["ensemble_sigma_eV_atom"],
         "ood_score": result["ood_score"],
         "convex_hull_gate": hull,
+        "hull_checked": hull_checked,
         "bekenstein_f19": bek,
         "lambda_advisory": lam,
-        "calibration": {"measured_coverage": round(float(coverage), 4),
+        "calibration": {"measured_coverage": _r4(coverage),
                         "measured_coverage_n": int(coverage_n),
+                        "measured_coverage_protocol": "cv_split_models",
+                        "serving_protocol_coverage": _r4(st["serving"]["coverage"]),
+                        "serving_protocol_coverage_n": int(st["serving"]["n"]),
                         "target_coverage": 1.0 - ALPHA},
+        "calibration_artifact": art_compact,
     }, sign)
 
 
@@ -947,9 +1316,12 @@ def register(app, ns="a11oy"):
                  "belongs on writes, never on reads. Use POST.",
         "usage": {
             "method": "POST",
-            "body": {"composition": {"Mg": 1, "O": 1}, "property": "formation_energy",
+            "body": {"composition": {"Fe": 2, "O": 3}, "property": "formation_energy",
                      "options": {"sign": True, "radius_m": 1.0, "energy_j": 1.0}},
             "or": {"demo": "green | ood"},
+            "verdicts": ("GREEN needs an applicable hull with >= 1 embedded competing "
+                         "phase; a binary with elemental endpoints only (e.g. MgO) or a "
+                         "non-binary query is YELLOW: %s" % HULL_NOT_APPLICABLE),
         },
         "read_only": "GET /api/%s/v1/materials/health (never fits, never signs)" % ns,
         "honesty": _honesty(),
@@ -986,9 +1358,11 @@ def register(app, ns="a11oy"):
     async def _health():
         # Health is a READ: it never fits. Until the first POST /predict builds the
         # surrogate it says so, keeping ok:true/200 so szl_engine_status stays reachable.
+        artifact = None
         if _STATE.get("built"):
             try:
                 rep = calibration_report()
+                artifact = _STATE.get("artifact")
             except Exception as e:  # noqa: BLE001
                 rep = {"error": "calibration unavailable (%r)" % e}
         else:
@@ -999,16 +1373,27 @@ def register(app, ns="a11oy"):
             "endpoint": "POST /api/%s/v1/materials/predict" % ns,
             "vertical": "materials-property-prediction (governed, calibrated surrogate)",
             "property": "formation_energy (eV/atom)",
-            "model": ("numpy-only 5-member bootstrap deep-ensemble over composition "
-                      "descriptors; MODELED + SAMPLE surrogate — NOT MACE/CHGNet/DFT"),
+            "model": ("numpy-only 5-member bootstrap ridge (linear) ensemble over "
+                      "composition descriptors with a symmetric split-conformal |z| interval "
+                      "from an in-sample calibrator; MODELED + SAMPLE surrogate — NOT "
+                      "MACE/CHGNet/DFT and NOT a deep ensemble (that pattern is cited prior art)"),
             "gates": {
                 "self_doubt_ood": "ood_score > %.2f => RED/refuse" % OOD_Z_RED,
-                "convex_hull": "Delta_hull > %.2f eV/atom => RED" % HULL_RED,
+                "convex_hull": ("Delta_hull > %.2f eV/atom => RED; hull not applicable "
+                                "(non-binary, or no embedded competing phase) => YELLOW, "
+                                "never GREEN" % HULL_RED),
                 "f19_bekenstein": "information-cost ratio <= 1 required",
+                "calibration": ("unbounded split-conformal radius (ceil((n+1)(1-alpha)) > n) "
+                                "=> RED abstain; stale calibration artifact => fail closed"),
             },
             "calibration": rep,
-            "demos": {"green": "POST {\"demo\":\"green\"} -> GREEN MgO in-distribution",
-                      "ood": "POST {\"demo\":\"ood\"} -> RED Cu-Au out-of-distribution refusal"},
+            "calibration_artifact": artifact,
+            "demos": {"green": ("POST {\"demo\":\"green\"} -> GREEN Fe2O3: in-distribution, "
+                                "hull applicable vs embedded Fe-O competing phases"),
+                      "ood": "POST {\"demo\":\"ood\"} -> RED Cu-Au out-of-distribution refusal",
+                      "note": ("MgO is reachable as an explicit composition and answers "
+                               "YELLOW: it is the only embedded Mg-O phase, so its hull is "
+                               "unverifiable")},
             "elements": sorted(_ELEM),
             "honesty": _honesty(rep.get("measured_coverage"), rep.get("measured_coverage_n")),
             "citations": list(CITATIONS),

@@ -214,9 +214,11 @@ def test_health_after_a_real_post_reports_the_calibration(h, prefix):
 def test_valid_post_signs_once_ledgers_once_and_carries_sanitized_counts(h, prefix):
     resp = h.client.post(prefix + "/predict", json={"composition": {"Mg": 1, "O": 1, "Fe": 0}})
     assert resp.status_code == 200
-    assert resp.headers.get("x-szl-materials-verdict") == "GREEN"
+    # MgO is the only embedded Mg-O phase, so its hull gate is not applicable and an
+    # unverified hull can never earn GREEN (see test_materials_calibration_hull.py).
+    assert resp.headers.get("x-szl-materials-verdict") == "YELLOW"
     body = resp.json()
-    assert body["ok"] is True and body["verdict"] == "GREEN"
+    assert body["ok"] is True and body["verdict"] == "YELLOW"
     # exact-zero count = absent species; response and receipt carry the sanitized counts
     assert body["composition"] == {"Mg": 1.0, "O": 1.0}
     assert body["receipt"]["payload"]["composition"] == {"Mg": 1.0, "O": 1.0}
@@ -282,18 +284,22 @@ def test_non_finite_internal_value_fails_closed_without_signing(h, monkeypatch, 
 # (MODELED + SAMPLE surrogate values; pinned so the governance work changes none).
 # ---------------------------------------------------------------------------
 def test_demo_green_regression_vector(h):
+    # The green demo is Fe2O3: in-distribution AND its Fe-O hull has embedded
+    # competing phases (FeO, Fe3O4), so the hull gate is applicable. MgO, the former
+    # preset, is pinned as YELLOW in test_materials_calibration_hull.py.
     body = h.client.post(PREFIXES[0] + "/predict", json={"demo": "green"}).json()
     assert body["verdict"] == "GREEN"
-    assert body["composition"] == {"Mg": 1.0, "O": 1.0}
-    assert body["value_eV_atom"] == pytest.approx(-2.39825, abs=2e-4)
+    assert body["composition"] == {"Fe": 2.0, "O": 3.0}
+    assert body["value_eV_atom"] == pytest.approx(-1.76008, abs=2e-4)
     lo, hi = body["interval95_eV_atom"]
-    assert lo == pytest.approx(-3.79417, abs=2e-4)
-    assert hi == pytest.approx(-1.00232, abs=2e-4)
-    assert body["ensemble_sigma_eV_atom"] == pytest.approx(0.11165, abs=2e-4)
+    assert lo == pytest.approx(-3.65398, abs=2e-4)
+    assert hi == pytest.approx(0.13382, abs=2e-4)
+    assert body["ensemble_sigma_eV_atom"] == pytest.approx(0.15147, abs=2e-4)
     assert body["ood_score"] == pytest.approx(0.0, abs=1e-6)
-    assert body["lambda_advisory"]["value"] == pytest.approx(0.8972, abs=2e-4)
+    assert body["lambda_advisory"]["value"] == pytest.approx(0.8795, abs=2e-4)
     assert body["lambda_advisory"]["status"] == "ADVISORY"
-    assert body["convex_hull_gate"]["delta_hull_eV_atom"] == pytest.approx(-2.39825, abs=2e-4)
+    assert body["convex_hull_gate"]["delta_hull_eV_atom"] == pytest.approx(-0.21075, abs=2e-4)
+    assert body["convex_hull_gate"]["competing_phases"] == 2
     cal = body["calibration"]
     assert cal["measured_coverage_n"] == 420 and cal["dataset_n"] == 52
     assert cal["target_coverage"] == pytest.approx(0.95)
@@ -359,7 +365,7 @@ def test_validate_spec_is_pure_and_normalizes(h):
     validate = getattr(h.mp, "_validate_spec", None)
     assert validate is not None
     out = validate({"demo": "green"})
-    assert out == {"property": "formation_energy", "composition": {"Mg": 1.0, "O": 1.0},
+    assert out == {"property": "formation_energy", "composition": {"Fe": 2.0, "O": 3.0},
                    "options": {"sign": True, "radius_m": 1.0, "energy_j": 1.0}}
     out = validate({"composition": {"Xx": 2, "O": 0}, "options": {"sign": False, "radius_m": 2}})
     assert out["composition"] == {"Xx": 2.0}  # unknown element passes through to the RED path
