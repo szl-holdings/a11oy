@@ -76,9 +76,13 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import math
 import os
 import re
+import socket
 import sys
+import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -691,12 +695,157 @@ def kernel_verification() -> dict[str, Any]:
 # --------------------------------------------------------------------------- #
 # Energy strand — empty unless a meter answered THIS request.
 # --------------------------------------------------------------------------- #
+class _MeterEvidenceError(ValueError):
+    """A redacted validation reason generated locally, never a transport body."""
+
+
+def _unique_meter_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """An ambiguous JSON object is not evidence worth signing."""
+    out: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in out:
+            raise _MeterEvidenceError("duplicate meter JSON field")
+        out[key] = value
+    return out
+
+
+def _read_meter_document(response: Any, *, timeout: float) -> dict[str, Any]:
+    """Bound the body after headers; connection/header inactivity timeout is separate."""
+    deadline = time.monotonic() + timeout
+    limit = 1 << 20
+    read_chunk = getattr(response, "read1", None)
+    # urllib's HTTPResponse uses BufferedReader -> SocketIO -> socket (including
+    # SSLSocket). Do not pretend an opaque reader supports deadline enforcement.
+    stream_socket = getattr(getattr(getattr(response, "fp", None), "raw", None), "_sock", None)
+    if not callable(read_chunk) or not isinstance(stream_socket, socket.socket):
+        raise _MeterEvidenceError("bounded meter response socket required")
+    expired = threading.Event()
+
+    def expire_socket():
+        expired.set()
+        try:
+            stream_socket.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
+
+    # A response can trickle chunk framing inside a single HTTPResponse read.
+    # Interrupt this one owned connection at the absolute deadline as well.
+    timer = threading.Timer(max(0.0, deadline - time.monotonic()), expire_socket)
+    timer.daemon = True
+    timer.start()
+    chunks, total = [], 0
+    try:
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0 or expired.is_set():
+                raise _MeterEvidenceError("meter response read budget exceeded")
+            stream_socket.settimeout(remaining)
+            chunk = read_chunk(min(65536, limit + 1 - total))
+            if not chunk:
+                if (getattr(response, "length", None) or 0) > 0:
+                    raise _MeterEvidenceError("truncated meter response body")
+                break
+            total += len(chunk)
+            if total > limit:
+                raise _MeterEvidenceError("meter response exceeds 1 MiB limit")
+            chunks.append(chunk)
+            if getattr(response, "length", None) == 0:
+                break
+        if time.monotonic() >= deadline or expired.is_set():
+            raise _MeterEvidenceError("meter response read budget exceeded")
+    finally:
+        timer.cancel()
+    return json.loads(b"".join(chunks).decode("utf-8"), object_pairs_hook=_unique_meter_object)
+
+
+def _meter_counter_evidence(payload: Any, *, observed_at: float) -> dict[str, Any]:
+    """Validate a cumulative counter snapshot, never a job-attributed energy window.
+
+    Reuse the energy surface's per-GPU freshness, identity, and counter-method
+    contract. Aggregate fields are never added to device counters. Separate
+    modeled estimates and external model-file claims do not enter this strand.
+    """
+    from szl_energy_live import parse_meter_metrics
+
+    if not isinstance(payload, dict):
+        raise _MeterEvidenceError("meter JSON object required")
+    engines = payload.get("engines")
+    if not isinstance(engines, list) or not engines:
+        raise _MeterEvidenceError("per-GPU counter evidence required")
+    scopes = [payload]
+    if "totals" in payload:
+        if not isinstance(payload["totals"], dict):
+            raise _MeterEvidenceError("invalid meter totals")
+        scopes.append(payload["totals"])
+    names: set[str] = set()
+    uuids: set[str] = set()
+    gpu_evidence: list[dict[str, Any]] = []
+    parsed_engines = []
+    for engine in engines:
+        if not isinstance(engine, dict):
+            raise _MeterEvidenceError("invalid meter engine")
+        name = engine.get("engine")
+        if not isinstance(name, str) or not name.strip() or name.strip().casefold() in names:
+            raise _MeterEvidenceError("missing or duplicate meter engine identity")
+        names.add(name.strip().casefold())
+        scopes.append(engine)
+        gpus = engine.get("gpus")
+        if not isinstance(gpus, list) or not gpus:
+            raise _MeterEvidenceError("complete per-GPU counter evidence required")
+        parsed_gpus = []
+        for gpu in gpus:
+            if not isinstance(gpu, dict):
+                raise _MeterEvidenceError("invalid GPU evidence")
+            scopes.append(gpu)
+            uuid, epoch = gpu.get("gpu_uuid"), gpu.get("counter_epoch")
+            if (not isinstance(uuid, str) or not uuid.strip() or uuid != uuid.strip()
+                    or uuid.casefold() in uuids or not isinstance(epoch, str)
+                    or not epoch.strip() or epoch != epoch.strip()):
+                raise _MeterEvidenceError("missing or duplicate GPU counter identity")
+            uuids.add(uuid.casefold())
+            for field in ("joules", "power_w", "sample_ts"):
+                value = gpu.get(field)
+                if (type(value) not in (int, float) or not math.isfinite(value) or value < 0):
+                    raise _MeterEvidenceError("invalid GPU counter value")
+            evidence = {field: gpu.get(field) for field in (
+                "gpu_uuid", "counter_epoch", "sample_ts", "joules_method", "joules", "power_w")}
+            gpu_evidence.append({"engine": name.strip(), **evidence})
+            parsed_gpus.append({**evidence, "live": gpu.get("live"),
+                                "index": gpu.get("index"), "name": gpu.get("name")})
+        parsed_engines.append({"engine": name.strip(), "gpus": parsed_gpus})
+    for scope in scopes:
+        for key in ("joules_method", "measurement_method", "method"):
+            if key in scope and scope[key] != "NVML_COUNTER_DELTA":
+                raise _MeterEvidenceError("contradictory meter measurement method")
+        for key in ("joules_label", "energy_label", "label"):
+            if key in scope and str(scope[key]).upper() != LABEL_MEASURED:
+                raise _MeterEvidenceError("unmeasured meter evidence")
+        if (scope.get("modeled", False) is not False
+                or scope.get("synthetic", False) is not False
+                or scope.get("measured", True) is not True
+                or scope.get("live", True) is not True):
+            raise _MeterEvidenceError("contradictory meter measurement flags")
+        if "joules" in scope:
+            value = scope["joules"]
+            if type(value) not in (int, float) or not math.isfinite(value) or value < 0:
+                raise _MeterEvidenceError("invalid or incomplete meter joules")
+    parsed = parse_meter_metrics(json.dumps({"engines": parsed_engines}, allow_nan=False),
+                                 now=observed_at)
+    joules = parsed.get("total_joules")
+    if (type(joules) not in (int, float) or not math.isfinite(joules) or joules < 0
+            or len(parsed.get("gpus", [])) != len(gpu_evidence)):
+        raise _MeterEvidenceError("fresh complete NVML counter evidence required")
+    return {"joules": float(joules), "gpu_evidence": gpu_evidence,
+            "engines": [engine["engine"] for engine in parsed_engines],
+            "sample_ts": min(gpu["sample_ts"] for gpu in gpu_evidence)}
+
+
 def energy_measured(*, opener: Any = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Return (readings, disclosure). Readings are [] with no live meter.
 
-    A joule is only ever recorded when a configured meter answered in this
-    request. No meter configured, or an unreachable one, yields an EMPTY list —
-    never a modelled or remembered joule dressed as MEASURED.
+    A fresh, complete per-GPU NVML counter snapshot must arrive this request.
+    HTTP success, raw aggregate joules, and modeled estimates cannot qualify.
+    These values are meter-wide counters, not energy attributed to this action.
     """
     raw = (os.environ.get(JOULE_METER_ENV) or "").strip()
     urls = [u.strip() for u in raw.split(",") if u.strip()]
@@ -712,32 +861,76 @@ def energy_measured(*, opener: Any = None) -> tuple[list[dict[str, Any]], dict[s
 
     readings: list[dict[str, Any]] = []
     errors: list[str] = []
+    seen_targets: set[tuple[str, str]] = set()
+    seen_uuids: set[str] = set()
     timeout = 1.5
-    for url in urls[:8]:
+    for position, url in enumerate(urls[:8], start=1):
+        source_label = f"meter[{position}]"
         try:
+            from szl_meter_access import _origin_and_target, open_meter_get
+            target = _origin_and_target(url)
+            if target in seen_targets:
+                errors.append(f"{source_label}: duplicate configured meter target")
+                continue
+            seen_targets.add(target)
             if opener is not None:
                 payload = opener(url, timeout)
             else:
-                from szl_meter_access import open_meter_get
-                with open_meter_get(url, timeout=timeout) as resp:
-                    payload = json.loads(resp.read().decode("utf-8", "replace"))
-            joules = payload.get("joules") if isinstance(payload, dict) else None
-            if isinstance(joules, (int, float)):
-                readings.append({
-                    "meter": url,
-                    "joules": float(joules),
-                    "label": LABEL_MEASURED,
-                    "read_at": _now_iso(),
-                })
-            else:
-                errors.append(f"{url}: no numeric joules field")
+                from szl_energy_measured import _METER_PROBE_UA
+                with open_meter_get(url, timeout=timeout,
+                                    headers={"User-Agent": _METER_PROBE_UA}) as resp:
+                    if getattr(resp, "status", None) != 200:
+                        raise _MeterEvidenceError("meter HTTP 200 required")
+                    payload = _read_meter_document(resp, timeout=timeout)
+            evidence = _meter_counter_evidence(payload, observed_at=datetime.now(timezone.utc).timestamp())
+            gpu_uuids = {gpu["gpu_uuid"].casefold() for gpu in evidence["gpu_evidence"]}
+            if seen_uuids.intersection(gpu_uuids):
+                raise _MeterEvidenceError("duplicate counter source across configured meters")
+            seen_uuids.update(gpu_uuids)
+            public_gpus = [{
+                "source_sha256": digest_hex({"scope": "meter-gpu/v1",
+                                              "gpu_uuid": gpu["gpu_uuid"].casefold()}),
+                "counter_segment_sha256": digest_hex({"scope": "meter-counter-segment/v1",
+                                                       "gpu_uuid": gpu["gpu_uuid"].casefold(),
+                                                       "epoch": gpu["counter_epoch"]}),
+                **{key: gpu[key] for key in ("sample_ts", "joules_method", "joules", "power_w")},
+            } for gpu in evidence["gpu_evidence"]]
+            readings.append({
+                "meter": source_label,
+                "joules": evidence["joules"],
+                "sample_ts": evidence["sample_ts"],
+                "gpu_evidence": public_gpus,
+                "source_reference_scope": "device and counter-segment fingerprints; no ownership claim",
+                "label": LABEL_MEASURED,
+                "read_at": _now_iso(),
+                "measurement_scope": "METER_CUMULATIVE_COUNTER_SNAPSHOT",
+                "action_attribution": "UNATTRIBUTED",
+            })
         except Exception as exc:
-            errors.append(f"{url}: {type(exc).__name__}")
+            # Parser reasons are local constants. Transport exceptions may carry
+            # credential-bearing URLs or headers, so expose only their class.
+            detail = str(exc) if isinstance(exc, _MeterEvidenceError) else type(exc).__name__
+            errors.append(f"{source_label}: {detail}")
+    if len(urls) > 8:
+        errors.append("configured meter limit exceeded; remaining sources not read")
+    final_now = datetime.now(timezone.utc).timestamp()
+    fresh_readings = []
+    for reading in readings:
+        from szl_energy_live import _fresh_sample
+        if all(_fresh_sample(gpu["sample_ts"], final_now) for gpu in reading["gpu_evidence"]):
+            fresh_readings.append(reading)
+        else:
+            errors.append(f"{reading['meter']}: counter snapshot expired during meter reads")
+    readings = fresh_readings
     disclosure["errors"] = errors
+    disclosure["all_sources_qualified"] = not errors and len(readings) == len(urls)
+    disclosure["measurement_scope"] = "METER_CUMULATIVE_COUNTER_SNAPSHOT"
+    disclosure["action_attribution"] = "UNATTRIBUTED"
     if readings:
         disclosure["label"] = LABEL_MEASURED
-        disclosure["note"] = (f"{len(readings)} live joule reading(s) taken this "
-                              "request from the configured meter(s)")
+        disclosure["note"] = (f"{len(readings)} fresh NVML counter snapshot(s) read this "
+                              "request; per-GPU counters counted once, exporter aggregates "
+                              "excluded; no energy attributed to this attestation or inference")
     else:
         disclosure["label"] = "STRUCTURAL-ONLY"
         disclosure["note"] = ("meter(s) configured but none answered with a joule "
@@ -1349,6 +1542,7 @@ def lake_receipt(manifest: dict[str, Any]) -> dict[str, Any]:
 # --------------------------------------------------------------------------- #
 def register(app, ns: str = "a11oy") -> str:
     from fastapi.responses import JSONResponse
+    from starlette.concurrency import run_in_threadpool
 
     base = f"/api/{ns}/v1/attest"
     standalone_build = build_commit()
@@ -1375,7 +1569,7 @@ def register(app, ns: str = "a11oy") -> str:
             return None
         return _truthy(raw)
 
-    async def _h_manifest(request):
+    def _h_manifest(request):
         """GET manifest: inspect without signing, submission, or ledger writes."""
         try:
             man = build_manifest(ns=ns, require_transparency=_require_flag(request),
@@ -1401,8 +1595,9 @@ def register(app, ns: str = "a11oy") -> str:
                     body = None
             require = _require_flag(request)
             if body is None:
-                statement = build_statement(ns=ns, build_commit_reader=_read_build_commit)
-                out = verify(statement, require_transparency=require)
+                statement = await run_in_threadpool(
+                    build_statement, ns=ns, build_commit_reader=_read_build_commit)
+                out = await run_in_threadpool(verify, statement, require_transparency=require)
                 out["source"] = "freshly built statement (no body supplied)"
                 return JSONResponse(out)
             statement, envelope, err = _statement_from(body)
@@ -1412,7 +1607,8 @@ def register(app, ns: str = "a11oy") -> str:
                     "verdict_scope": err or "unparseable submission",
                     "label": LABEL_MODELED,
                 }, status_code=200)
-            out = verify(statement, envelope=envelope, require_transparency=require)
+            out = await run_in_threadpool(verify, statement, envelope=envelope,
+                                         require_transparency=require)
             out["source"] = "caller-supplied " + ("envelope" if envelope else "statement")
             return JSONResponse(out)
         except Exception as exc:
