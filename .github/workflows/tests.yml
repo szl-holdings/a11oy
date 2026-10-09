@@ -48,6 +48,20 @@ jobs:
           tests/test_nexus_bind.py
           tests/test_nexus_readonly_evidence.py
 
+  liu-hui-float64:
+    name: Liu Hui float64 recurrence
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Check the rationalized recurrence in normal and optimized execution
+        run: |
+          python -B tests/test_liu_hui_pi_stability.py
+          python -O -B tests/test_liu_hui_pi_stability.py
+
   python-energy-measurement:
     name: Energy exporter measurement and null-evidence contract
     runs-on: ubuntu-latest

@@ -149,9 +149,15 @@ def eval_liu_hui_pi(opts: Dict[str, Any], config: Optional[Dict[str, Any]] = Non
     k = opts.get("k")
     if not isinstance(k, int) or isinstance(k, bool) or k < 0 or k > 50:
         raise GateError(f"LiuHuiPiGate: k must be in [0,50]; got {k}")
+    # Rationalized Liu Hui step. On the reals, for sq in (0, 4]:
+    # 2 - sqrt(4 - sq) = sq / (2 + sqrt(4 - sq)).
+    # The subtracted form cancels in float64 and is 0 by k=27.
     sq = 1.0
-    for _ in range(k):
-        sq = 2 - math.sqrt(4 - sq)
+    for step in range(k):
+        radicand = 4.0 - sq
+        if not math.isfinite(radicand) or radicand < 0.0:
+            raise GateError(f"LiuHuiPiGate: sideSquared radicand {radicand} at step {step}")
+        sq = sq / (2.0 + math.sqrt(radicand))
     side_count = 6 * (2 ** k)
     pi_estimate = (side_count * math.sqrt(sq)) / 2
     abs_error = abs(pi_estimate - math.pi)
@@ -159,17 +165,21 @@ def eval_liu_hui_pi(opts: Dict[str, Any], config: Optional[Dict[str, Any]] = Non
     allow = abs_error <= threshold
     rationale = (
         f"LiuHuiPi (k={k}, {6 * (2 ** k)}-gon) |est−π| = {abs_error:.4e} <= threshold {threshold}: "
-        f"π approximation sufficiently accurate. Lean: sideSquared_bounds @{LEAN_COMMIT[:12]}"
+        "configured residual met. Floating-point residual against math.pi only. "
+        "Lean sideSquared_bounds is well-definedness on [0,4]. "
+        f"Axiom liu_hui_pi_converges asserts some limit exists and does not identify it with pi. Lean: sideSquared_bounds @{LEAN_COMMIT[:12]}"
         if allow else
         f"LiuHuiPi (k={k}, {6 * (2 ** k)}-gon) |est−π| = {abs_error:.4e} > threshold {threshold}: "
-        f"π approximation not yet converged. Lean: sideSquared_bounds @{LEAN_COMMIT[:12]}"
+        "configured residual exceeded. Floating-point residual against math.pi only. "
+        "Lean sideSquared_bounds is well-definedness on [0,4]. "
+        f"Axiom liu_hui_pi_converges asserts some limit exists and does not identify it with pi. Lean: sideSquared_bounds @{LEAN_COMMIT[:12]}"
     )
     return {
         "allow": allow, "rationale": rationale, "formula": "LiuHuiPi",
         "leanTheorem": "sideSquared_bounds", "leanFile": "Lutar/Banach/LiuHuiPi.lean",
         "leanCommitSha": LEAN_COMMIT, "piEstimate": pi_estimate, "absError": abs_error,
         "threshold": threshold, "lambdaScore": lambda_score,
-        "advisory": True, "advisoryReason": "Lean is an AXIOM, not a discharged theorem; gate is advisory by design.",
+        "advisory": True, "advisoryReason": "sideSquared_bounds is a proved well-definedness theorem. liu_hui_pi_converges is an existence axiom and does not identify the limit with pi. This residual gate is advisory.",
     }
 
 
