@@ -431,6 +431,39 @@ def _wire_d_http_hop(target: dict[str, Any], headers: dict[str, str]) -> dict[st
     }
 
 
+_DIGEST_HEX = frozenset("0123456789abcdef")
+
+
+def derive_receipt_conservation(submitted: dict, node: object) -> dict[str, Any]:
+    """Derive receipt conservation from one submitted decision and one emitted node.
+
+    A constant, a counter, or an HTTP status is not conservation. The flag is
+    true only when the stored receipt carries every submitted field and the
+    node digest is a lowercase SHA-256 hex string. Extra stamp fields on the
+    stored receipt are allowed. This does not sign, authorize, or prove the
+    content true.
+    """
+    stored = node.get("receipt") if isinstance(node, dict) else None
+    digest = node.get("digest") if isinstance(node, dict) else None
+    digest_ok = (
+        isinstance(digest, str)
+        and len(digest) == 64
+        and all(char in _DIGEST_HEX for char in digest)
+    )
+    fields_ok = isinstance(submitted, dict) and isinstance(stored, dict) and all(
+        stored.get(key) == value for key, value in submitted.items()
+    )
+    receipts_in = 1 if isinstance(submitted, dict) else 0
+    receipts_out = 1 if digest_ok and fields_ok else 0
+    return {
+        "receipts_in": receipts_in,
+        "receipts_out": receipts_out,
+        "receipts_in_eq_out": receipts_in == receipts_out and receipts_out == 1,
+        "receipts_in_eq_out_basis": "derived_from_submitted_decision_and_emitted_node",
+        "measurement": "derived",
+    }
+
+
 # ---------------------------------------------------------------------------
 # Khipu DAG (DSSE-signed)
 # ---------------------------------------------------------------------------
