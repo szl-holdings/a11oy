@@ -15,7 +15,9 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import gzip
 import json
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import shutil
@@ -56,7 +58,8 @@ def _probe(path: str, body: dict, now_s: int = 1786449600) -> dict:
     return json.loads(result.stdout)
 
 
-def _live(symbol: str, official: bool = False) -> dict:
+def _live(symbol: str, official: bool = False,
+          fetched_at: float = 1786449600) -> dict:
     kind = "live" if official else "unofficial-fallback"
     return {
         "value": {
@@ -65,7 +68,7 @@ def _live(symbol: str, official: bool = False) -> dict:
             "data_kind": kind,
             "official": official,
         },
-        "freshness": {"status": "live", "fetched_at": 1786449600},
+        "freshness": {"status": "live", "fetched_at": fetched_at},
     }
 
 
@@ -85,13 +88,13 @@ def _stale_last_good(symbol: str) -> dict:
     }
 
 
-def _stale_source(value: dict) -> dict:
+def _stale_source(value: dict, fetched_at: float = 1786449500) -> dict:
     return {
         "value": value,
         "freshness": {
             "status": "stale",
             "age_s": 90.0,
-            "fetched_at": 1786449500,
+            "fetched_at": fetched_at,
             "error": "HTTPStatusError: 503",
         },
     }
@@ -461,22 +464,28 @@ def test_finance_fx_rejects_invalid_ecb_fallback_without_inventing_rates(
 
 
 def test_defense_and_finance_routes_preserve_last_good_source_evidence(monkeypatch) -> None:
+    now_s = int(time.time())
+    observed_at = now_s - 100
+    live = lambda symbol, official=False: _live(symbol, official, fetched_at=now_s)
+    stale = lambda value: _stale_source(value, fetched_at=observed_at)
     monkeypatch.setattr(vertical, "feed_cisa_kev", lambda *a: {
         "value": {"items": []},
-        "freshness": {"status": "live", "fetched_at": 1786449600},
+        "freshness": {"status": "live", "fetched_at": now_s},
     })
-    monkeypatch.setattr(vertical, "feed_nvd", lambda *a, **k: _stale_source({"items": []}))
-    monkeypatch.setattr(vertical, "feed_yahoo", lambda symbol: _live(symbol))
+    monkeypatch.setattr(vertical, "feed_nvd", lambda *a, **k: stale({"items": []}))
+    monkeypatch.setattr(vertical, "feed_yahoo", lambda symbol: live(symbol))
     monkeypatch.setattr(vertical, "feed_polygon", lambda symbol: (
-        _live(symbol, official=True) if symbol == "SPY"
-        else _stale_source({"symbol": symbol, "price": 1.0})
+        live(symbol, official=True) if symbol == "SPY"
+        else stale({"symbol": symbol, "price": 1.0})
     ))
-    monkeypatch.setattr(vertical, "feed_coinbase", lambda pair: _live(pair, official=True))
-    monkeypatch.setattr(vertical, "feed_fx", lambda *a: _stale_source({"rates": {"EUR": 0.8}}))
+    monkeypatch.setattr(vertical, "feed_coinbase", lambda pair: live(pair, official=True))
+    monkeypatch.setattr(vertical, "feed_fx", lambda *a: stale({"rates": {"EUR": 0.8}}))
 
     app = FastAPI()
     vertical.register(app)
-    defense = _payload(asyncio.run(_endpoint(app, "/api/a11oy/v1/vert/defense/feed")()))
+    defense_response = asyncio.run(_endpoint(app, "/api/a11oy/v1/vert/defense/feed")())
+    assert defense_response.status_code == 200
+    defense = _payload(defense_response)
     finance = _payload(asyncio.run(_endpoint(app, "/api/a11oy/v1/vert/finance/feed")()))
 
     for source in (
@@ -487,24 +496,24 @@ def test_defense_and_finance_routes_preserve_last_good_source_evidence(monkeypat
     ):
         assert source["value"] is not None
         assert source["freshness"]["status"] == "cached"
-        assert source["freshness"]["fetched_at"] == 1786449500
+        assert source["freshness"]["fetched_at"] == observed_at
         assert source["freshness"]["error"] == "HTTPStatusError: 503"
 
     defense_path = "/api/a11oy/v1/vert/defense/feed"
     finance_path = "/api/a11oy/v1/vert/finance/feed"
-    assert _probe(defense_path, defense) == {
+    assert _probe(defense_path, defense, now_s=now_s) == {
         "schemaOk": True, "labelsOk": True, "freshOk": True,
     }
-    assert _probe(finance_path, finance) == {
+    assert _probe(finance_path, finance, now_s=now_s) == {
         "schemaOk": True, "labelsOk": True, "freshOk": True,
     }
     old = copy.deepcopy(finance)
-    old["fx"]["freshness"]["fetched_at"] = 1786440000
-    assert _probe(finance_path, old)["freshOk"] is False
+    old["fx"]["freshness"]["fetched_at"] = now_s - 9600
+    assert _probe(finance_path, old, now_s=now_s)["freshOk"] is False
     for section, symbol in (("equities_official", "AAPL"), ("crypto", "ETH-USD")):
         aged = copy.deepcopy(finance)
-        aged[section][symbol]["freshness"]["fetched_at"] = 1786440000
-        assert _probe(finance_path, aged)["freshOk"] is False
+        aged[section][symbol]["freshness"]["fetched_at"] = now_s - 9600
+        assert _probe(finance_path, aged, now_s=now_s)["freshOk"] is False
 
 
 def test_finance_route_marks_missing_fx_as_canonical_unavailable(monkeypatch) -> None:
@@ -559,11 +568,88 @@ def test_defense_route_blocks_missing_required_source(monkeypatch) -> None:
     app = FastAPI()
     vertical.register(app)
     path = "/api/a11oy/v1/vert/defense/feed"
-    defense = _payload(asyncio.run(_endpoint(app, path)()))
+    response = asyncio.run(_endpoint(app, path)())
+    assert response.status_code == 503
+    defense = _payload(response)
     assert defense["kev"]["freshness"]["status"] == "UNAVAILABLE"
     assert _probe(path, defense) == {
         "schemaOk": True, "labelsOk": True, "freshOk": False,
     }
+
+
+def test_defense_route_fails_closed_on_cold_nvd_failure(monkeypatch) -> None:
+    now_s = int(time.time())
+    kev = {"value": {"items": []},
+           "freshness": {"status": "live", "fetched_at": now_s}}
+    monkeypatch.setattr(vertical, "feed_cisa_kev", lambda *a: kev)
+    monkeypatch.setattr(vertical, "feed_nvd", lambda *a, **k: {
+        "value": None,
+        "freshness": {"status": "unavailable", "fetched_at": now_s,
+                      "error": "TimeoutError: NVD unavailable"},
+    })
+
+    app = FastAPI()
+    vertical.register(app)
+    path = "/api/a11oy/v1/vert/defense/feed"
+    response = asyncio.run(_endpoint(app, path)())
+    body = _payload(response)
+    assert response.status_code == 503
+    assert body["kev"] == kev
+    assert body["nvd"] == {
+        "value": None,
+        "freshness": {"status": "UNAVAILABLE", "fetched_at": now_s,
+                      "error": "TimeoutError: NVD unavailable"},
+    }
+    assert body["vertical"] == "defense"
+    assert body["sources_cited"] == vertical.cited_leaders("defense")
+    assert body["doctrine"] == vertical.DOCTRINE
+    assert _probe(path, body, now_s=now_s) == {
+        "schemaOk": True, "labelsOk": True, "freshOk": False,
+    }
+
+
+def test_defense_route_returns_200_for_two_live_required_sources(monkeypatch) -> None:
+    now_s = int(time.time())
+    monkeypatch.setattr(vertical, "feed_cisa_kev", lambda *a: {
+        "value": {"items": []},
+        "freshness": {"status": "live", "fetched_at": now_s},
+    })
+    monkeypatch.setattr(vertical, "feed_nvd", lambda *a, **k: {
+        "value": {"items": []},
+        "freshness": {"status": "live", "fetched_at": now_s},
+    })
+
+    app = FastAPI()
+    vertical.register(app)
+    path = "/api/a11oy/v1/vert/defense/feed"
+    response = asyncio.run(_endpoint(app, path)())
+    assert response.status_code == 200
+    assert _probe(path, _payload(response), now_s=now_s) == {
+        "schemaOk": True, "labelsOk": True, "freshOk": True,
+    }
+
+
+@pytest.mark.parametrize("observation_offset", [-3601, 305])
+def test_defense_route_does_not_claim_success_for_invalid_nvd_clock(
+    monkeypatch, observation_offset,
+) -> None:
+    now_s = int(time.time())
+    monkeypatch.setattr(vertical, "feed_cisa_kev", lambda *a: {
+        "value": {"items": []},
+        "freshness": {"status": "live", "fetched_at": now_s},
+    })
+    monkeypatch.setattr(vertical, "feed_nvd", lambda *a, **k: {
+        "value": {"items": []},
+        "freshness": {"status": "cached",
+                      "fetched_at": now_s + observation_offset},
+    })
+
+    app = FastAPI()
+    vertical.register(app)
+    path = "/api/a11oy/v1/vert/defense/feed"
+    response = asyncio.run(_endpoint(app, path)())
+    assert response.status_code == 503
+    assert _probe(path, _payload(response), now_s=now_s)["freshOk"] is False
 
 
 def test_finance_route_does_not_launder_clockless_stale_equity(monkeypatch) -> None:
@@ -587,3 +673,172 @@ def test_finance_route_does_not_launder_clockless_stale_equity(monkeypatch) -> N
     finance = _payload(asyncio.run(_endpoint(app, finance_path)()))
     assert finance["equities_official"]["AAPL"]["freshness"]["status"] == "stale"
     assert _probe(finance_path, finance)["labelsOk"] is False
+
+
+def _recent_feed_gzip() -> bytes:
+    """One real-shaped NIST document. The match word sits past the public excerpt."""
+    description = ("x" * 220) + " financial controls failed closed"
+    payload = {
+        "totalResults": 2,
+        "vulnerabilities": [
+            {"cve": {
+                "id": "CVE-2026-1001",
+                "published": "2026-10-08T00:00:00.000",
+                "descriptions": [{"lang": "en", "value": description}],
+                "metrics": {"cvssMetricV31": [{
+                    "cvssData": {"baseSeverity": "HIGH", "baseScore": 7.5},
+                }]},
+            }},
+            {"cve": {
+                "id": "CVE-2026-1002",
+                "published": "2026-10-09T00:00:00.000",
+                "descriptions": [{"lang": "en", "value": "unrelated parser defect"}],
+                "metrics": {},
+            }},
+        ],
+    }
+    return gzip.compress(json.dumps(payload).encode("utf-8"))
+
+
+class _NvdCooldownClient:
+    """REST answers 429. The recent feed answers with the fixture bytes."""
+
+    def __init__(self, feed: bytes) -> None:
+        self.feed = feed
+        self.urls: list[str] = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args) -> None:
+        return None
+
+    def get(self, url: str, headers=None):
+        self.urls.append(str(url))
+        if "services.nvd.nist.gov" in str(url):
+            return _NvdResponse(429, headers={"Retry-After": "30"})
+        if str(url) == vertical._NVD_RECENT_FEED_URL:
+            return _NvdResponse(200, content=self.feed)
+        raise AssertionError(url)
+
+
+class _NvdResponse:
+    def __init__(self, status: int, content: bytes = b"", headers=None) -> None:
+        self.status_code = status
+        self.content = content
+        self.headers = headers or {}
+
+    def raise_for_status(self) -> None:
+        if self.status_code >= 400:
+            raise RuntimeError(f"HTTP {self.status_code}")
+
+
+def test_nvd_recent_feed_is_observed_when_the_api_is_in_cooldown(monkeypatch) -> None:
+    monkeypatch.setattr(vertical, "_CACHE", vertical._Cache())
+    monkeypatch.setattr(vertical, "_NVD_NEXT_REQUEST_AT", 0.0)
+    monkeypatch.setattr(vertical, "_NVD_COOLDOWN_UNTIL", 0.0)
+    client = _NvdCooldownClient(_recent_feed_gzip())
+    monkeypatch.setattr(vertical, "_client", lambda *_args, **_kwargs: client)
+    now_s = time.time()
+
+    broad = vertical.feed_nvd(20)
+    narrow = vertical.feed_nvd(12, keyword="financial")
+
+    assert sum(url == vertical._NVD_RECENT_FEED_URL for url in client.urls) == 1
+    assert broad["freshness"]["status"] == "live"
+    assert [item["id"] for item in broad["value"]["items"]] == [
+        "CVE-2026-1002", "CVE-2026-1001",
+    ]
+    assert "_search" not in broad["value"]["items"][0]
+    assert narrow["value"]["items"] == [{
+        "id": "CVE-2026-1001",
+        "severity": "HIGH",
+        "score": 7.5,
+        "published": "2026-10-08",
+        "desc": (("x" * 220) + " financial controls failed closed")[:200],
+    }]
+    assert narrow["value"]["totalResults"] == 1
+    assert narrow["value"]["source_url"] == vertical._NVD_RECENT_FEED_URL
+    assert narrow["value"]["retrieval"] == "nvd-cve-2.0-recent-json-feed"
+    assert "rate limited" not in json.dumps(narrow)
+
+    monkeypatch.setattr(vertical, "feed_cisa_kev", lambda *_args: {
+        "value": {"items": [{"cveID": "CVE-2015-5477"}]},
+        "freshness": {"status": "live", "fetched_at": now_s},
+    })
+    app = FastAPI()
+    vertical.register(app)
+    defense_path = "/api/a11oy/v1/vert/defense/feed"
+    defense_response = asyncio.run(_endpoint(app, defense_path)())
+    assert defense_response.status_code == 200
+    defense = _payload(defense_response)
+    assert defense["nvd"]["value"]["items"][0]["id"] == "CVE-2026-1002"
+    assert defense["nvd"]["freshness"]["status"] == "live"
+    probed_at = int(time.time())
+    assert _probe(defense_path, defense, now_s=probed_at) == {
+        "schemaOk": True, "labelsOk": True, "freshOk": True,
+    }
+
+
+def test_finance_feed_uses_recent_feed_instead_of_an_unavailable_cve(monkeypatch) -> None:
+    now_s = time.time()
+    monkeypatch.setattr(vertical, "_CACHE", vertical._Cache())
+    monkeypatch.setattr(vertical, "_NVD_NEXT_REQUEST_AT", 0.0)
+    monkeypatch.setattr(vertical, "_NVD_COOLDOWN_UNTIL", 0.0)
+    monkeypatch.setattr(
+        vertical, "_client",
+        lambda *_args, **_kwargs: _NvdCooldownClient(_recent_feed_gzip()),
+    )
+    monkeypatch.setattr(vertical, "feed_yahoo", lambda symbol: _live(symbol, fetched_at=now_s))
+    monkeypatch.setattr(
+        vertical, "feed_polygon",
+        lambda symbol: _live(symbol, official=True, fetched_at=now_s),
+    )
+    monkeypatch.setattr(
+        vertical, "feed_coinbase",
+        lambda pair: _live(pair, official=True, fetched_at=now_s),
+    )
+    monkeypatch.setattr(vertical, "feed_fx", lambda *_args: _live("USD", official=True, fetched_at=now_s))
+
+    app = FastAPI()
+    vertical.register(app)
+    path = "/api/a11oy/v1/vert/finance/feed"
+    finance = _payload(asyncio.run(_endpoint(app, path)()))
+    assert finance["fintech_cve"]["value"]["items"][0]["id"] == "CVE-2026-1001"
+    assert finance["fintech_cve"]["freshness"]["status"] == "live"
+    assert finance["fintech_cve"]["value"]["source_url"] == vertical._NVD_RECENT_FEED_URL
+    assert _probe(path, finance, now_s=int(time.time())) == {
+        "schemaOk": True, "labelsOk": True, "freshOk": True,
+    }
+
+
+def test_nvd_cooldown_without_a_feed_stays_unavailable(monkeypatch) -> None:
+    monkeypatch.setattr(vertical, "_CACHE", vertical._Cache())
+    monkeypatch.setattr(vertical, "_NVD_NEXT_REQUEST_AT", 0.0)
+    monkeypatch.setattr(vertical, "_NVD_COOLDOWN_UNTIL", 0.0)
+
+    class _Broken(_NvdCooldownClient):
+        def get(self, url: str, headers=None):
+            if str(url) == vertical._NVD_RECENT_FEED_URL:
+                raise TimeoutError("recent feed unreachable")
+            return super().get(url, headers=headers)
+
+    monkeypatch.setattr(vertical, "_client", lambda *_args, **_kwargs: _Broken(b""))
+    observed = vertical.feed_nvd(12, keyword="financial")
+    assert observed["value"] is None
+    assert observed["freshness"]["status"] == "unavailable"
+    assert "cooldown active" in observed["freshness"]["error"]
+
+
+def test_nvd_rest_observation_is_not_replaced_by_the_recent_feed(monkeypatch) -> None:
+    def rest_only(*_args, **_kwargs):
+        return {"value": {"items": [{"id": "CVE-FROM-REST"}]},
+                "freshness": {"status": "live", "fetched_at": 1786449600}}
+
+    def forbid_transport(*_args, **_kwargs):
+        raise AssertionError("recent feed fetched despite a REST observation")
+
+    monkeypatch.setattr(vertical, "_cached_fetch", rest_only)
+    monkeypatch.setattr(vertical, "_client", forbid_transport)
+    observed = vertical.feed_nvd(12, keyword="financial")
+    assert observed["value"]["items"][0]["id"] == "CVE-FROM-REST"

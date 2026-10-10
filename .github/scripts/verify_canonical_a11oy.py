@@ -526,28 +526,100 @@ def validate_exact_source_asset(
     return evidence
 
 
+def load_run_verdict(path: str) -> Mapping[str, Any]:
+    """Read this run's validated compact readiness verdict (the job output).
+
+    The deploy path no longer writes the verdict into the Space, because a
+    Space-variable write restarts the revision it just started. The verdict
+    produced by this run's readiness-verdict job is handed to relock instead,
+    and is re-validated here against the exact source and canonical origin.
+    """
+    try:
+        raw = Path(path).read_bytes()
+    except OSError as exc:
+        raise RelockError("run-local readiness verdict is unreadable") from exc
+    if not raw.strip() or len(raw) > 4096:
+        raise RelockError("run-local readiness verdict is absent or oversized")
+    return parse_json_object(raw, label="run-local readiness verdict")
+
+
 def validate_readiness_summary(
     payload: Mapping[str, Any],
     source_sha: str,
     *,
     expected_origin: str,
     now: datetime | None = None,
+    run_verdict: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     if (
         payload.get("honest") is not True
         or payload.get("view") != "summary"
-        or payload.get("available") is not True
         or payload.get("matrix_available") is not True
-        or payload.get("probe_verdict_available") is not True
-        or payload.get("verdict_source_revision") != source_sha
     ):
         raise RelockError("readiness summary is unavailable or source-unbound")
-    if normalize_origin(payload.get("verdict_base")) != normalize_origin(
-        expected_origin
+    served = (
+        payload.get("available") is True
+        and payload.get("probe_verdict_available") is True
+        and payload.get("verdict_source_revision") == source_sha
+    )
+    if served:
+        evidence = validate_verdict_evidence(
+            base=payload.get("verdict_base"),
+            checked_at=payload.get("verdict_checked_at"),
+            summary=payload.get("verdict_summary"),
+            source_sha=source_sha,
+            expected_origin=expected_origin,
+            now=now,
+        )
+        evidence["channel"] = "served"
+        return evidence
+    if run_verdict is None:
+        raise RelockError("readiness summary is unavailable or source-unbound")
+    # The live route must honestly report that it serves no verdict; a served
+    # verdict for any other source is never papered over by the run verdict.
+    if (
+        payload.get("available") is not False
+        or payload.get("probe_verdict_available") is not False
+        or payload.get("verdict_source_revision") is not None
+        or payload.get("verdict_summary") is not None
     ):
+        raise RelockError("readiness summary serves a verdict for another source")
+    if (
+        not isinstance(run_verdict, Mapping)
+        or run_verdict.get("schema") != "szl.readiness-verdict/v1"
+        or run_verdict.get("harness") != "a11oy-readiness probe"
+        or run_verdict.get("doctrine") != "v11"
+        or run_verdict.get("sourceRevision") != source_sha
+    ):
+        raise RelockError("run-local readiness verdict is not bound to this source")
+    evidence = validate_verdict_evidence(
+        base=run_verdict.get("base"),
+        checked_at=run_verdict.get("checkedAt"),
+        summary=run_verdict.get("summary"),
+        source_sha=source_sha,
+        expected_origin=expected_origin,
+        now=now,
+    )
+    evidence["channel"] = "run-local"
+    return evidence
+
+
+def validate_verdict_evidence(
+    *,
+    base: Any,
+    checked_at: Any,
+    summary: Any,
+    source_sha: str,
+    expected_origin: str,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    try:
+        observed_base = normalize_origin(base)
+    except (RelockError, ValueError):
+        observed_base = None
+    if observed_base != normalize_origin(expected_origin):
         raise RelockError("readiness verdict was not probed at the canonical origin")
 
-    checked_at = payload.get("verdict_checked_at")
     if (
         not isinstance(checked_at, str)
         or re.fullmatch(
@@ -568,7 +640,6 @@ def validate_readiness_summary(
     if age_seconds < 0 or age_seconds > 86400:
         raise RelockError("readiness verdict is future-dated or stale")
 
-    summary = payload.get("verdict_summary")
     if not isinstance(summary, Mapping):
         raise RelockError("readiness verdict summary is unavailable")
     fields = (
@@ -595,13 +666,21 @@ def validate_readiness_summary(
         or sum(counts[1:]) != endpoints
     ):
         raise RelockError("readiness verdict outcomes are incomplete")
+    blocking_degraded = summary.get("blockingDegraded", summary["degraded"])
+    if (
+        not isinstance(blocking_degraded, int)
+        or isinstance(blocking_degraded, bool)
+        or blocking_degraded < 0
+        or blocking_degraded > summary["degraded"]
+    ):
+        raise RelockError("readiness verdict blocking degradation is invalid")
     if summary["lies"] != 0:
         raise RelockError("readiness verdict contains doctrine lies")
     if summary["unreachable"] != 0:
         raise RelockError("readiness verdict contains unreachable required endpoints")
     if summary["throttled"] != 0:
         raise RelockError("readiness verdict contains throttled required endpoints")
-    if summary["degraded"] != 0:
+    if blocking_degraded != 0:
         raise RelockError("readiness verdict contains unavailable required sources")
     p95_worst = summary.get("p95_worst")
     if (
@@ -626,6 +705,7 @@ def validate_route(
     source_sha: str,
     source_variable: str,
     origin: str,
+    run_verdict: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     evidence: dict[str, Any] = {
         "url": response.url,
@@ -729,6 +809,7 @@ def validate_route(
             payload,
             source_sha,
             expected_origin=origin,
+            run_verdict=run_verdict,
         )
     elif name == "series_a_status":
         storage = payload.get("storage")
@@ -786,6 +867,7 @@ def probe_routes(
     origin: str,
     source_sha: str,
     source_variable: str,
+    run_verdict: Mapping[str, Any] | None = None,
 ) -> dict[str, dict[str, Any]]:
     output: dict[str, dict[str, Any]] = {}
     for name, path in ROUTES.items():
@@ -802,6 +884,7 @@ def probe_routes(
             source_sha,
             source_variable,
             origin,
+            run_verdict,
         )
         evidence["head_http_status"] = head.status_code
         output[name] = evidence
@@ -812,6 +895,7 @@ def evaluate_once(
     api: HfApi,
     session: requests.Session,
     contract: Mapping[str, str],
+    run_verdict: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     info = api.space_info(contract["repo_id"])
     repository_sha = str(getattr(info, "sha", "") or "").lower()
@@ -889,6 +973,7 @@ def evaluate_once(
         contract["origin"],
         contract["source_sha"],
         contract["variable"],
+        run_verdict,
     )
     clones = {f"SZLHOLDINGS/a11oy-clone-{index}": False for index in range(1, 5)}
     for clone_id in tuple(clones):
@@ -941,11 +1026,12 @@ def evaluate(
     contract: Mapping[str, str],
     attempts: int,
     retry_seconds: int,
+    run_verdict: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     last: Exception | None = None
     for attempt in range(1, max(1, attempts) + 1):
         try:
-            report = evaluate_once(api, session, contract)
+            report = evaluate_once(api, session, contract, run_verdict)
             report["attempts"] = attempt
             return report
         except Exception as exc:  # noqa: BLE001
@@ -971,6 +1057,14 @@ def main() -> int:
     parser.add_argument("--output", required=True)
     parser.add_argument("--attempts", type=int, default=12)
     parser.add_argument("--retry-seconds", type=int, default=10)
+    parser.add_argument(
+        "--readiness-verdict-file",
+        help=(
+            "This run's validated compact readiness verdict. Accepted only when "
+            "the live route honestly serves no verdict; it is re-validated "
+            "against the exact source and canonical origin."
+        ),
+    )
     args = parser.parse_args()
     contract = normalize(args.repo_id, args.origin, args.source_sha, args.source_variable)
     token = os.environ.get("HF_TOKEN")
@@ -997,7 +1091,14 @@ def main() -> int:
         }
     )
     try:
-        report = evaluate(api, session, contract, args.attempts, args.retry_seconds)
+        run_verdict = (
+            load_run_verdict(args.readiness_verdict_file)
+            if args.readiness_verdict_file
+            else None
+        )
+        report = evaluate(
+            api, session, contract, args.attempts, args.retry_seconds, run_verdict
+        )
         code = 0
     except Exception as exc:  # noqa: BLE001
         report = {

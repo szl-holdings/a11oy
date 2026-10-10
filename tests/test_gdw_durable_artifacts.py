@@ -281,6 +281,34 @@ def test_artifact_bad_readback_reports_fixed_code_without_retry(stores, monkeypa
     assert calls == [1]
 
 
+def test_artifact_bad_first_readback_blocks_second_fallback_publication(stores, monkeypatch):
+    exported(stores)
+    _queued_proof(stores.gdw, "malformed-first-readback")
+    assert gdw_runtime.drain_once(
+        limit=1, lease_seconds=30, worker_id="malformed-first-worker",
+        workspace=stores.gdw,
+    )["exported"] == 1
+    cache = stores.gate.artifacts
+    calls = []
+
+    def malformed(_path, object_path, digest, _deadline):
+        calls.append(object_path)
+        return {
+            "path": object_path,
+            "sha256": digest,
+            "size": -1,
+            "xet_hash": "c" * 64,
+        }
+
+    monkeypatch.setattr(cache, "publish", malformed)
+    with pytest.raises(
+        durable.DurableStorageUnavailable,
+        match="^ARTIFACT_PUBLICATION_UNVERIFIED$",
+    ):
+        cache.prepare(stores.paths["gdw"], time.monotonic() + 10)
+    assert len(calls) == 1
+
+
 def test_artifact_partial_publication_remains_failure_not_zero_effect_claim(stores, monkeypatch):
     exported(stores)
     _queued_proof(stores.gdw, "diagnostic-second-request")

@@ -1,0 +1,3 @@
+# Materials governance tests: numpy only. Pin == requirements-runtime.txt so CI tests the
+# same numpy the image ships. ci-core.txt supplies fastapi/starlette/httpx/pytest.
+numpy==2.5.3

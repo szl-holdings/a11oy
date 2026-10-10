@@ -158,6 +158,23 @@ $('fin-analysis-export').addEventListener('click',()=>{if(!accepted)return;const
 '''
 HTML += ANALYTICS_HTML
 
+# Compose the finance-only audit without changing any sibling presentation.
+import importlib.util
+from pathlib import Path
+_research_spec = importlib.util.spec_from_file_location(
+    "szl_finance_research_workspace", Path(__file__).with_name("hf_finance_research_workspace.py"))
+_research_workspace = importlib.util.module_from_spec(_research_spec)
+_research_spec.loader.exec_module(_research_workspace)
+HTML = _research_workspace.HTML + HTML
+CSS += _research_workspace.CSS
+
+_signed_spec = importlib.util.spec_from_file_location(
+    "szl_finance_signed_workspace", Path(__file__).with_name("hf_finance_signed_workspace.py"))
+_signed_workspace = importlib.util.module_from_spec(_signed_spec)
+_signed_spec.loader.exec_module(_signed_workspace)
+HTML = _signed_workspace.HTML + HTML
+
+
 
 def apply_workspace(renderer) -> None:
     """Change only the declared finance presentation, preserving all siblings."""

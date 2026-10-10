@@ -5,7 +5,7 @@
 //
 // Runs the REAL surface module under a minimal DOM + THREE + szl3d stub so we can
 // prove, without a browser, that:
-//   * the module mounts and starts a poll against the REAL /api/a11oy/v1/compute-pool
+//   * the module mounts and starts a poll against the hardened compute-pool route
 //   * a live compute-pool payload builds a node mesh (one group per node)
 //   * sovereign nodes render gold, unreachable nodes get a red ring, GPU nodes pulse
 //   * the fabric-health ring + HUD reflect counts read from the JSON (never fabricated)
@@ -16,7 +16,7 @@
 // 0 runtime CDN; pure node stdlib + the authored module.
 
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 
 const __dir = path.dirname(fileURLToPath(import.meta.url));
@@ -78,6 +78,11 @@ function mkEl(tag) {
   const el = {
     tagName: tag, children: [], style: {}, dataset: {}, attrs: {},
     _text: "", className: "", id: "", title: "", onclick: null, parentNode: null,
+    classList: {
+      add(name) { if (!el.className.split(/\s+/).includes(name)) el.className = `${el.className} ${name}`.trim(); },
+      remove(name) { el.className = el.className.split(/\s+/).filter((value) => value !== name).join(" "); },
+      contains(name) { return el.className.split(/\s+/).includes(name); },
+    },
     set textContent(v) { this._text = String(v); }, get textContent() { return this._text; },
     set innerHTML(v) { this._html = v; this.children = []; }, get innerHTML() { return this._html || ""; },
     appendChild(c) { this.children.push(c); c.parentNode = this; return c; },
@@ -98,9 +103,20 @@ function mkEl(tag) {
   };
   return el;
 }
+const head = mkEl("head");
+const body = mkEl("body");
+function findId(root, id) {
+  if (root.id === id) return root;
+  for (const child of root.children) {
+    const match = findId(child, id);
+    if (match) return match;
+  }
+  return null;
+}
 global.document = {
   createElement: (t) => mkEl(t),
-  body: mkEl("body"),
+  head, body,
+  getElementById: (id) => findId(head, id) || findId(body, id),
 };
 global.window = { devicePixelRatio: 1, addEventListener() {} };
 global.THREE = THREE;
@@ -127,8 +143,8 @@ global.fetch = async (url) => {
 };
 
 // ---- load the real toolkit live + label modules (they are pure DOM) --------
-const liveMod = await import(path.resolve(__dir, "../szl3d/szl3d_live.js"));
-const labelMod = await import(path.resolve(__dir, "../szl3d/szl3d_label.js"));
+const liveMod = await import(pathToFileURL(path.resolve(__dir, "../szl3d/szl3d_live.js")));
+const labelMod = await import(pathToFileURL(path.resolve(__dir, "../szl3d/szl3d_label.js")));
 
 // ---- minimal Stage stub ----------------------------------------------------
 const scene = new THREE.Group();
@@ -143,9 +159,9 @@ const container = mkEl("div");
 const ctx = { stage, container, live: liveMod, label: labelMod, THREE, szl3d: {} };
 
 // ---- exercise the module ---------------------------------------------------
-const mod = (await import(SURFACE)).default;
+const mod = (await import(pathToFileURL(SURFACE))).default;
 check("default export shape", mod && mod.id === "fabric" && Array.isArray(mod.endpoints));
-check("endpoint is the real compute-pool route", mod.endpoints[0] === "/api/a11oy/v1/compute-pool");
+check("endpoint is the hardened compute-pool route", mod.endpoints[0] === "/api/a11oy/v1/compute-pool-hardened");
 
 const ret = mod.mount(ctx);
 check("mount returns started", ret && ret.started === true);

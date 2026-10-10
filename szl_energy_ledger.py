@@ -4,10 +4,12 @@
 """szl_energy_ledger.py — SZL Energy: metering + signed-receipt hash-chained ledger.
 
 Dev 2 (backend). Doctrine v11 (NEVER violate):
-  - NO free-energy. Joules billable ONLY when joules_label == MEASURED and the NVML
-    sample is fresh (<30s). SAMPLE / ESTIMATE / stale joules are REFUSED at the gate.
-  - PROVE-OR-DOWNGRADE: revenue is MEASURED only when a real Stripe charge clears;
-    with no STRIPE_API_KEY we run honest DRY-RUN (status:"dry-run" + would_charge_cents).
+  - NO free-energy. A fresh NVML counter delta is a host-window observation, not
+    proof that one completed job exclusively consumed those joules. No current
+    operator path has independently verified exclusive-job attribution, so all new
+    job receipts are nonbillable and no payment API is called.
+  - Historical receipts and charge responses remain append-only, but their labels
+    are REPORTED history, not current MEASURED billable energy or settled revenue.
   - A signature is NOT proof of safety. sovereign=false on this path. Λ = Conjecture 1.
   - NEVER fabricate joules / dollars. Every receipt is re-hashable offline.
 
@@ -18,7 +20,8 @@ What this module does, per completed job:
      (the VENDORED billing core — we do not reinvent the math).
   3. Append the receipt to a HASH-CHAINED, offline-verifiable ledger: each entry carries
      prev_digest (genesis prev = 64 zeros) and an entry_digest binding (seq, prev, receipt).
-  4. DRY-RUN bill when no STRIPE_API_KEY: status "dry-run" + would_charge_cents.
+  4. Block new billing pending verified exclusive-job attribution, regardless of
+     whether STRIPE_API_KEY is configured.
   5. Idempotency: the same job (same receipt digest) NEVER double-appends a charge.
   6. Persist the ledger to disk (JSONL) so it survives a restart.
 
@@ -56,7 +59,6 @@ except Exception:  # pragma: no cover
 from joule_billing import (
     JouleReading,
     build_receipt,
-    charge_stripe,
     d_idem,
     sha256_canon,
     MAX_NVML_AGE_S,
@@ -192,11 +194,11 @@ else:
     print("[szl_energy_ledger] ledger persists to %r (survives redeploy)" % DEFAULT_LEDGER_PATH)
 
 DOCTRINE_NOTE = (
-    "Doctrine v11: NO free-energy. Billable ONLY when joules_label==MEASURED and NVML "
-    "sample fresh (<30s); SAMPLE/ESTIMATE/stale REFUSED. DRY-RUN billing with no STRIPE "
-    "key (would_charge_cents, no money moves). sovereign=false. Λ=Conjecture 1. Revenue "
-    "is MEASURED only when a real charge clears, else ESTIMATE/ZERO. Every receipt "
-    "re-hashable offline; chain is hash-linked (prev_digest), tamper breaks the chain."
+    "Doctrine v11: NO free-energy. A direct fresh NVML counter delta does not prove "
+    "exclusive per-job attribution. New job receipts are nonbillable and no Stripe "
+    "call is made. Legacy charge responses are REPORTED history, not settlement proof; "
+    "legacy joules are not current MEASURED billable energy. sovereign=false. "
+    "Λ=Conjecture 1. Every receipt remains re-hashable and hash-linked."
 )
 
 
@@ -216,6 +218,7 @@ class JobRecord:
     model: str
     nvml_age_s: Optional[float] = None  # explicit NVML sample age; if None, derived from ts
     grid_price_eur_mwh: float = 0.0     # grid price at the sample (negative = grid paid us)
+    source_seq: Optional[int] = None   # operator sequence, when supplied by the source
 
     @staticmethod
     def from_dict(d: dict) -> "JobRecord":
@@ -236,6 +239,7 @@ class JobRecord:
             model=str(d.get("model", "unknown")),
             nvml_age_s=(None if d.get("nvml_age_s") is None else float(d["nvml_age_s"])),
             grid_price_eur_mwh=float(d.get("grid_price_eur_mwh", 0.0)),
+            source_seq=(None if d.get("seq") is None else int(d["seq"])),
         )
 
 
@@ -285,6 +289,7 @@ class EnergyLedger:
         self.writer_lock_timeout_s = max(0.01, float(writer_lock_timeout_s))
         self._entries: list[dict] = []
         self._idem_seen: set[str] = set()
+        self._source_seen: dict[str, dict] = {}
         self._lock = threading.Lock()
         self._load_error: Optional[dict[str, Any]] = None
         self._recovery_info: Optional[dict[str, Any]] = None
@@ -312,9 +317,13 @@ class EnergyLedger:
             for entry in self._entries
             if entry.get("idempotency_key")
         }
+        self._source_seen = {}
         self._recovery_info = None
         for entry in self._entries:
             decision = entry.get("receipt", {}).get("decision", {})
+            source_digest = decision.get("source_job_digest")
+            if isinstance(source_digest, str) and source_digest:
+                self._source_seen.setdefault(source_digest, entry)
             if decision.get("schema") == "SZL.Energy.LedgerReset.v1":
                 self._recovery_info = {
                     "state": "RECOVERED_GENERATION",
@@ -546,26 +555,50 @@ class EnergyLedger:
     def _append_job_after_refresh(self, job: JobRecord, now: Optional[float] = None) -> dict:
         """Build a JouleCharge receipt for one job and append it to the chain.
 
-        Refuses to BILL non-MEASURED / stale joules (the receipt is still recorded with
-        billable=false + charge.status="blocked", so the refusal is itself auditable).
-        DRY-RUN bills when no STRIPE_API_KEY. Idempotent on the receipt digest: a repeat
-        job that produces the same receipt digest is NOT appended a second time."""
-        # Normalize the operator's label to the billing core's vocabulary. The
-        # billing gate only ever treats the literal "MEASURED" as billable; any
-        # other label (sample/estimate/...) is refused — which is the doctrine.
-        label = (job.joules_label or "").strip().upper()
+        A meter can observe a GPU window without proving exclusive energy for this
+        job. There is no qualified attribution provider or receipt schema yet; even
+        a caller-supplied MEASURED label must not authorize a charge. The input is
+        retained in the job metadata and bound by the receipt's source_job_digest,
+        while the billing decision stays UNKNOWN/zero and no Stripe call is made.
+        Identical source jobs dedupe by stable source identity even if the age
+        derived at receipt ingestion differs on a later replay."""
+        input_label = (job.joules_label or "").strip().upper()
+        source_digest = sha256_canon({
+            "node": job.node,
+            "joules_input": job.joules_measured,
+            "joules_input_label": input_label,
+            "tokens": job.tokens,
+            "wall_s": job.wall_s,
+            "ts": job.ts,
+            "model": job.model,
+            "source_seq": job.source_seq,
+            "nvml_age_s_input": job.nvml_age_s,
+            "grid_price_eur_mwh": job.grid_price_eur_mwh,
+        })
+        # The receipt's observed age is intentionally time-dependent, but a
+        # backfilled source event is not a new job. Return the original entry
+        # before rebuilding a different receipt or touching durable history.
+        existing = self._source_seen.get(source_digest)
+        if existing is not None:
+            return {
+                "appended": False,
+                "duplicate": True,
+                "idempotency_key": existing["idempotency_key"],
+                "entry": existing,
+            }
         nvml_age_s = _derive_nvml_age_s(job, now=now)
 
         reading = JouleReading(
             node=job.node,
-            joules=job.joules_measured,
-            label=label,
+            joules=0.0,
+            label="UNKNOWN",
             nvml_age_s=nvml_age_s,
             grid_price_eur_mwh=job.grid_price_eur_mwh,
             ts=job.ts,
         )
-        billable, reason = reading.is_billable()
         receipt = build_receipt(reading, self.price_per_kwh_cents)
+        receipt["decision"]["source_job_digest"] = source_digest
+        receipt["payload_digest"] = sha256_canon(receipt["decision"])
         idem = d_idem(receipt)
 
         # Idempotency: same receipt digest -> same idem key -> never double-append.
@@ -580,11 +613,9 @@ class EnergyLedger:
                 "entry": existing,
             }
 
-        if billable:
-            charge = charge_stripe(receipt, customer=os.getenv("STRIPE_CUSTOMER", "cus_demo"),
-                                   api_key=os.getenv("STRIPE_API_KEY", ""))
-        else:
-            charge = {"status": "blocked", "reason": reason}
+        billable = False
+        reason = "ATTRIBUTION_UNVERIFIED"
+        charge = {"status": "blocked", "reason": reason}
 
         seq = (int(self._entries[-1].get("seq", -1)) + 1) if self._entries else 0
         prev = self.prev_digest()
@@ -599,6 +630,10 @@ class EnergyLedger:
                 "model": job.model,
                 "ts": job.ts,
                 "nvml_age_s": nvml_age_s,
+                "source_seq": job.source_seq,
+                "joules_input": job.joules_measured,
+                "joules_input_label": input_label,
+                "joules_input_label_class": "REPORTED",
             },
             "billable": billable,
             "reason": reason,
@@ -618,6 +653,7 @@ class EnergyLedger:
             }
         self._entries.append(entry)
         self._idem_seen.add(idem)
+        self._source_seen[source_digest] = entry
         return {"appended": True, "duplicate": False,
                 "idempotency_key": idem, "entry": entry, "storage": persisted}
 
@@ -696,13 +732,19 @@ class EnergyLedger:
         return None
 
     def totals(self) -> dict:
-        """Aggregate totals across the chain. would_charge_cents sums dry-run +
-        charged amounts for BILLABLE entries only (blocked entries contribute 0).
-        joules_measured_total sums only MEASURED-billable joules (honest)."""
+        """Preserve historical receipt accounting without promoting its provenance.
+
+        Legacy entries can have billable=true based on a fresh power reading alone.
+        They lack direct-counter method/version and independently verified exclusive
+        job attribution, so their raw amounts remain REPORTED history, never a
+        current MEASURED billable total. This is a read-only projection: no entry,
+        charge response, or persisted byte is rewritten.
+        """
         jobs = 0
         reset_records = 0
-        joules_total = 0.0
-        joules_measured_billable = 0.0
+        historical_joules_input = 0.0
+        historical_reported_billable_joules = 0.0
+        historical_billable_receipts = 0
         tokens_total = 0
         would_charge_cents = 0
         charged_cents = 0
@@ -714,12 +756,21 @@ class EnergyLedger:
                 reset_records += 1
                 continue
             jobs += 1
-            joules_total += float(d.get("joules_measured", 0.0) or 0.0)
-            tokens_total += int(e.get("job", {}).get("tokens", 0) or 0)
+            job_meta = e.get("job", {})
+            # New blocked receipts carry zero decision joules but preserve the
+            # caller's unverified input in job metadata. Legacy entries have no
+            # such field, so their original decision remains the history source.
+            historical_joules_input += float(
+                job_meta.get("joules_input", d.get("joules_measured", 0.0)) or 0.0
+            )
+            tokens_total += int(job_meta.get("tokens", 0) or 0)
             charge = e.get("charge", {})
             status = charge.get("status")
             if e.get("billable"):
-                joules_measured_billable += float(d.get("joules_measured", 0.0) or 0.0)
+                historical_billable_receipts += 1
+                historical_reported_billable_joules += float(
+                    d.get("joules_measured", 0.0) or 0.0
+                )
             if status == "dry-run":
                 would_charge_cents += int(charge.get("would_charge_cents", 0) or 0)
                 dry_run += 1
@@ -731,14 +782,28 @@ class EnergyLedger:
             "jobs": jobs,
             "ledger_records": len(self._entries),
             "reset_records": reset_records,
-            "joules_total": round(joules_total, 6),
-            "joules_measured_billable": round(joules_measured_billable, 6),
+            "joules_total": None,
+            "joules_measured_billable": None,
+            "joules_measured_label": "UNAVAILABLE",
+            "joules_measured_reason": "NO_VERIFIED_EXCLUSIVE_JOB_ATTRIBUTION",
+            "historical_reported_joules_input": round(historical_joules_input, 6),
+            "historical_reported_billable_joules": round(
+                historical_reported_billable_joules, 6
+            ),
+            "historical_billable_receipts": historical_billable_receipts,
+            "historical_receipt_label": "REPORTED",
             "tokens_total": tokens_total,
-            "would_charge_cents": would_charge_cents,     # MODELED (dry-run projection)
-            "charged_cents": charged_cents,               # MEASURED (real cleared charges)
+            "would_charge_cents": None,
+            "charged_cents": None,
+            "historical_would_charge_cents": would_charge_cents,
+            "historical_reported_charged_cents": charged_cents,
+            "historical_charge_label": "REPORTED",
             "blocked_count": blocked,
             "dry_run_count": dry_run,
-            "kwh_total": round(joules_measured_billable / JOULES_PER_KWH, 9),
+            "kwh_total": None,
+            "historical_reported_billable_kwh": round(
+                historical_reported_billable_joules / JOULES_PER_KWH, 9
+            ),
         }
 
     def persistence_info(self) -> dict:
@@ -830,7 +895,7 @@ class EnergyLedger:
             "recovery": self._recovery_info,
             "load_error": self._load_error,
             "price_per_kwh_cents": self.price_per_kwh_cents,
-            "stripe_mode": "live" if os.getenv("STRIPE_API_KEY") else "dry-run",
+            "stripe_mode": "blocked-pending-attribution",
             "doctrine": DOCTRINE_NOTE,
             "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         }
@@ -1046,15 +1111,15 @@ def _selftest() -> dict:
     tmp = tempfile.mktemp(suffix=".jsonl")
     led = EnergyLedger(path=tmp, price_per_kwh_cents=45)
 
-    # (1) a MEASURED, fresh job -> billable, dry-run (no STRIPE key in test).
+    # (1) A fresh MEASURED claim still lacks exclusive-job attribution.
     r1 = led.append_job(JobRecord(
         node="betterwithage", joules_measured=78369.586, joules_label="measured",
         tokens=512, wall_s=8.0, ts=fresh_ts, model="qwen2.5-coder:7b",
         nvml_age_s=12.0, grid_price_eur_mwh=-2.90), now=now)
-    assert r1["appended"] and r1["entry"]["billable"], r1
-    assert r1["entry"]["charge"]["status"] == "dry-run", r1["entry"]["charge"]
-    assert r1["entry"]["charge"]["would_charge_cents"] >= 1, r1["entry"]["charge"]
-    out["measured_fresh_dry_run"] = True
+    assert r1["appended"] and not r1["entry"]["billable"], r1
+    assert r1["entry"]["charge"]["status"] == "blocked", r1["entry"]["charge"]
+    assert r1["entry"]["reason"] == "ATTRIBUTION_UNVERIFIED"
+    out["unattributed_measured_claim_blocked"] = True
 
     # (2) receipt re-hashes to its digest.
     rec = r1["entry"]["receipt"]
@@ -1084,7 +1149,7 @@ def _selftest() -> dict:
         tokens=256, wall_s=4.0, ts=stale_ts, model="llama3.1:8b",
         nvml_age_s=None), now=now)  # derived age ~120s -> stale
     assert not r4["entry"]["billable"], r4
-    assert "stale" in r4["entry"]["reason"].lower(), r4["entry"]["reason"]
+    assert r4["entry"]["reason"] == "ATTRIBUTION_UNVERIFIED"
     out["stale_blocked"] = True
 
     # (6) chain verifies end-to-end.
@@ -1103,17 +1168,19 @@ def _selftest() -> dict:
     out["idempotent_no_double_append"] = True
 
     # (8) TAMPER one entry -> chain breaks (receipt mutated).
+    original_amount = led._entries[0]["receipt"]["decision"]["amount_cents"]
     led._entries[0]["receipt"]["decision"]["amount_cents"] = 999999
     vt = led.verify()
     assert vt["ok"] is False and vt["first_break"]["index"] == 0, vt
     out["tamper_breaks_chain"] = True
     # restore so totals check below is clean
-    led._entries[0]["receipt"]["decision"]["amount_cents"] = rec["decision"]["amount_cents"]
+    led._entries[0]["receipt"]["decision"]["amount_cents"] = original_amount
 
-    # (9) totals correct: 1 billable dry-run, 3 blocked, would_charge>=1.
+    # (9) All current receipts are blocked; legacy history is separate.
     t = led.totals()
-    assert t["jobs"] == 4 and t["dry_run_count"] == 1 and t["blocked_count"] == 3, t
-    assert t["would_charge_cents"] >= 1 and t["charged_cents"] == 0, t
+    assert t["jobs"] == 4 and t["dry_run_count"] == 0 and t["blocked_count"] == 4, t
+    assert t["joules_measured_billable"] is None and t["kwh_total"] is None, t
+    assert t["historical_reported_charged_cents"] == 0, t
     out["totals_correct"] = True
 
     # (10) persistence: a fresh ledger reading the same file reloads the chain + idem set.

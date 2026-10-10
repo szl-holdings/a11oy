@@ -473,16 +473,24 @@ def test_canonical_entrypoint_orders_coordinator_before_all_runtime_work(monkeyp
 
 
 def test_canonical_entrypoint_does_not_prepare_or_start_after_failed_admission(monkeypatch):
+    # Failed admission still never prepares storage or starts the outbox. It no
+    # longer exits the process (that crash-looped the Space for ~41h on
+    # 2026-10-04..06): the runtime records BLOCKED, serves degraded (GDW writes
+    # 503, /readyz 503) and closes the coordinator on shutdown.
+    import json
     import gdw_runtime
     events = []
+    monkeypatch.setattr(gdw_runtime, "_STATE", json.loads(json.dumps(gdw_runtime._STATE)))
     monkeypatch.setattr(gdw_runtime.durable_storage, "enabled", lambda: True)
     monkeypatch.setattr(startup, "activate", lambda: (_ for _ in ()).throw(startup.AdmissionBlocked("UNAVAILABLE")))
     monkeypatch.setattr(startup, "close", lambda: events.append("closed"))
     monkeypatch.setattr(gdw_runtime, "prepare_runtime", lambda: pytest.fail("prepared before admission"))
     monkeypatch.setattr(gdw_runtime.OutboxSupervisor, "from_environment", lambda: pytest.fail("supervisor before admission"))
-    with pytest.raises(startup.AdmissionBlocked): gdw_runtime.main()
-    assert events == ["closed"]
+    monkeypatch.setattr(gdw_runtime, "_serve", lambda: events.append("served-degraded"))
+    assert gdw_runtime.main() == 0
+    assert events == ["served-degraded", "closed"]
     assert gdw_runtime.runtime_health()["startup_state"] == "BLOCKED"
+    assert gdw_runtime.storage_block()["error_class"] == "AdmissionBlocked"
 
 
 def test_fresh_restore_keeps_the_initial_series_anchor_even_for_a_longer_chain(native_startup):
@@ -560,6 +568,38 @@ def test_missing_native_installed_key_is_rejected_without_key_generation(tmp_pat
     with pytest.raises(startup.AdmissionBlocked, match="INSTALLED_SIGNING_AUTHORITY_UNAVAILABLE"):
         startup.verify_installed_credentials(tmp_path)
     assert observed == ["1"]
+
+
+def test_canonical_publisher_keeps_hub_token_out_of_public_smoke(monkeypatch):
+    """Bind the adopted publisher's management/app credential boundary."""
+    import importlib.util
+    import os
+
+    configured = os.environ.get("GDW_COPY_PUBLISHER_SCRIPT")
+    assert configured, "GDW_COPY_PUBLISHER_SCRIPT must identify the exact pinned canonical publisher"
+    specification = importlib.util.spec_from_file_location(
+        "_gdw_credential_bound_publisher", configured)
+    publisher = importlib.util.module_from_spec(specification)
+    specification.loader.exec_module(publisher)
+    monkeypatch.setenv("HF_TOKEN", "offline-boundary-token")
+
+    with pytest.raises(publisher._ReadContractError,
+                       match="Hub authentication cannot enter another origin"):
+        publisher._http(
+            "https://szlholdings-a11oy.hf.space/health",
+            headers=publisher._auth_headers(), retries=1, follow_redirects=False)
+
+    calls = []
+
+    def public_read(url, *, headers, retries, follow_redirects):
+        calls.append((url, headers, retries, follow_redirects))
+        return 200, b"healthy"
+
+    monkeypatch.setattr(publisher, "_http", public_read)
+    assert publisher.probe_smoke_routes(
+        "SZLHOLDINGS/a11oy", ["/health"], retries=1, delay=0) == []
+    assert calls == [("https://szlholdings-a11oy.hf.space/health",
+                      {"Cache-Control": "no-cache"}, 1, False)]
 
 
 def test_canonical_publisher_full_image_and_all_source_python_paths_are_bound():

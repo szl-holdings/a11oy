@@ -116,7 +116,7 @@ class RepositoryBoundDriftWorkflowTests(unittest.TestCase):
             self.sync[awaited:],
         )
         self.assertIn(
-            "needs: [post-deployment-parity, publish-vertical-flagships, publish-finance-projection]",
+            "needs: [relock, post-deployment-parity, publish-vertical-flagships]",
             self.sync[terminal:],
         )
         self.assertIn("scripts/hf_exact_main_ownership.py", self.sync[terminal:])

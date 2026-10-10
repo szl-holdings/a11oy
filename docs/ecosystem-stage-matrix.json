@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-10-05T04:17:48Z",
+  "observedAt": "2026-10-09T15:47:57Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -26,9 +26,9 @@
   "machineGeneratedCounts": {
     "githubReadinessEntries": 19,
     "huggingFacePublic": {
-      "models": 47,
+      "models": 48,
       "datasets": 37,
-      "spaces": 34,
+      "spaces": 37,
       "kernels": 14
     },
     "huggingFaceScope": {
@@ -980,6 +980,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/oac-ops-health-v2",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/oac-ops-health-v2"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/oac-system-health-v1",
       "repoType": "model",
       "stage": "inventory",
@@ -1764,6 +1774,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/nexus",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/nexus"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/oac-system-health-lab",
       "repoType": "space",
       "stage": "inventory",
@@ -1901,6 +1921,26 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/szl-model-inference-lab"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-router-control",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-router-control"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-seismic-review",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-seismic-review"
       ]
     },
     {

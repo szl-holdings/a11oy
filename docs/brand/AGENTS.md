@@ -1,5 +1,9 @@
 # AGENTS.md
 
+> Historical copy, consolidated into a11oy on 2026-06-05. The canonical SZL Brand SDK and its
+> current agent guidance live in [szl-holdings/szl-brand](https://github.com/szl-holdings/szl-brand)
+> (`AGENTS.md`). Follow that file where the two differ.
+
 ## Cursor Cloud specific instructions
 
 This is the **SZL Brand SDK** — a proper Python package for deterministic brand asset generation, validation, and governance.
@@ -56,12 +60,13 @@ ruff format --check src/ tests/   # format check
 
 ### Non-obvious caveats
 
-1. **Anatomy scripts write to hard-coded absolute paths** outside the repo. Create these before running `rebuild_all.sh`:
-   ```bash
-   sudo mkdir -p /home/user/workspace/field_meditation
-   sudo mkdir -p /home/user/workspace/evolution_pod/finish/anatomy/figures
-   sudo chmod -R 777 /home/user/workspace
-   ```
-2. **`build_explainer_pdfs.py`** requires markdown source files from external paths — expected to fail in isolation.
+1. **Anatomy scripts write to hard-coded absolute paths** outside the repo (`/home/user/workspace/...`).
+   Do not create, chmod, mount or otherwise mutate those external paths, and do not run those
+   legacy scripts in automation as if they were portable build steps. Treat their checked-in
+   outputs as historical artifacts unless a reviewed portability repair removes the external-path
+   dependency.
+2. **`build_explainer_pdfs.py`** requires markdown source files from external paths. Missing
+   inputs are an explicit unavailable condition, not permission to synthesize replacements or
+   broaden filesystem access.
 3. **The `social-previews/gen.py` script is the legacy generator.** The new SDK (`python3 -m szl_brand generate`) is the canonical way to generate previews.
 4. **Procedural generation is deterministic** — same repo name always produces identical output (seeded by SHA-256 of repo name).

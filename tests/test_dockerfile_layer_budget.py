@@ -25,6 +25,13 @@ RUNTIME_LAYER_BUDGET = 117
 # prior 585-source allowlist remains pinned separately below.
 # Model support adds only its runtime reader and source catalog. Each baseline
 # below excludes those two named additions so its historical digest is retained.
+# The GDW orphan-page repair adds exactly its one module next to gdw_runtime.py;
+# every baseline below also excludes it, so no historical count/digest moves.
+# Meter2 Access adds exactly one runtime helper; historical baselines exclude it.
+# The run-loop journey witness is one module copied beside a11oy_code_runloop.py.
+# Historical baselines exclude it, so their counts and digests stay put.
+# Action identity is one module copied beside that journey witness.
+# Historical baselines exclude it, so their counts and digests stay put.
 # Preserve every prior source and the unchanged layer budget, not a broad COPY.
 COPY_SOURCE_ALLOWLIST_COUNT = 588
 COPY_SOURCE_ALLOWLIST_SHA256 = (
@@ -60,6 +67,11 @@ GDW_ACQUISITION_COPY_ADDITIONS = {
     "gdw_durable_source.py", "gdw_durable_guard.py", "gdw_durable_image.py",
     "Dockerfile", "scripts/verify_installed_authority.py",
 }
+# Exact orphan-page repair addition (imported by gdw_runtime.py).
+GDW_ORPHAN_REPAIR_COPY_ADDITIONS = {"gdw_sqlite_repair.py"}
+METER_ACCESS_COPY_ADDITIONS = {"szl_meter_access.py"}
+RUNLOOP_JOURNEY_COPY_ADDITIONS = {"a11oy_code_runloop_journey.py"}
+ACTION_IDENTITY_COPY_ADDITIONS = {"szl_action_identity.py"}
 
 
 def _logical_instructions() -> list[tuple[int, str]]:
@@ -118,7 +130,18 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
     assert "./" not in copy_sources
     assert MODEL_SUPPORT_COPY_ADDITIONS <= copy_sources
     assert GDW_ACQUISITION_COPY_ADDITIONS <= copy_sources
-    copy_sources -= MODEL_SUPPORT_COPY_ADDITIONS | GDW_ACQUISITION_COPY_ADDITIONS
+    assert GDW_ORPHAN_REPAIR_COPY_ADDITIONS <= copy_sources
+    assert METER_ACCESS_COPY_ADDITIONS <= copy_sources
+    assert RUNLOOP_JOURNEY_COPY_ADDITIONS <= copy_sources
+    assert ACTION_IDENTITY_COPY_ADDITIONS <= copy_sources
+    copy_sources -= (
+        MODEL_SUPPORT_COPY_ADDITIONS
+        | GDW_ACQUISITION_COPY_ADDITIONS
+        | GDW_ORPHAN_REPAIR_COPY_ADDITIONS
+        | METER_ACCESS_COPY_ADDITIONS
+        | RUNLOOP_JOURNEY_COPY_ADDITIONS
+        | ACTION_IDENTITY_COPY_ADDITIONS
+    )
     encoded_allowlist = ("\n".join(sorted(copy_sources)) + "\n").encode("utf-8")
     assert len(copy_sources) == COPY_SOURCE_ALLOWLIST_COUNT
     assert hashlib.sha256(encoded_allowlist).hexdigest() == COPY_SOURCE_ALLOWLIST_SHA256
@@ -136,7 +159,16 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
     assert CIVILIAN_COPY_ADDITIONS <= sources
     assert MODEL_SUPPORT_COPY_ADDITIONS <= sources
     assert GDW_ACQUISITION_COPY_ADDITIONS <= sources
-    previous = sources - CIVILIAN_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS - GDW_ACQUISITION_COPY_ADDITIONS
+    assert GDW_ORPHAN_REPAIR_COPY_ADDITIONS <= sources
+    assert METER_ACCESS_COPY_ADDITIONS <= sources
+    assert RUNLOOP_JOURNEY_COPY_ADDITIONS <= sources
+    assert ACTION_IDENTITY_COPY_ADDITIONS <= sources
+    previous = (
+        sources - CIVILIAN_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
+        - GDW_ACQUISITION_COPY_ADDITIONS - GDW_ORPHAN_REPAIR_COPY_ADDITIONS
+        - METER_ACCESS_COPY_ADDITIONS - RUNLOOP_JOURNEY_COPY_ADDITIONS
+        - ACTION_IDENTITY_COPY_ADDITIONS
+    )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
     assert len(previous) == PRE_CIVILIAN_ALLOWLIST_COUNT
     assert hashlib.sha256(encoded).hexdigest() == PRE_CIVILIAN_ALLOWLIST_SHA256
@@ -152,7 +184,16 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
     assert HF_DOCS_COPY_ADDITIONS <= sources
     assert MODEL_SUPPORT_COPY_ADDITIONS <= sources
     assert GDW_ACQUISITION_COPY_ADDITIONS <= sources
-    previous = sources - HF_DOCS_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS - GDW_ACQUISITION_COPY_ADDITIONS
+    assert GDW_ORPHAN_REPAIR_COPY_ADDITIONS <= sources
+    assert METER_ACCESS_COPY_ADDITIONS <= sources
+    assert RUNLOOP_JOURNEY_COPY_ADDITIONS <= sources
+    assert ACTION_IDENTITY_COPY_ADDITIONS <= sources
+    previous = (
+        sources - HF_DOCS_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
+        - GDW_ACQUISITION_COPY_ADDITIONS - GDW_ORPHAN_REPAIR_COPY_ADDITIONS
+        - METER_ACCESS_COPY_ADDITIONS - RUNLOOP_JOURNEY_COPY_ADDITIONS
+        - ACTION_IDENTITY_COPY_ADDITIONS
+    )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
     assert len(previous) == PRE_HF_DOCS_ALLOWLIST_COUNT
     assert hashlib.sha256(encoded).hexdigest() == PRE_HF_DOCS_ALLOWLIST_SHA256

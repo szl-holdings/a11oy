@@ -174,7 +174,7 @@ jobs:
       # locally-loaded PR image on PRs and the pushed SHA tag on push-to-main.
       - name: Generate image SBOM (CycloneDX) via Syft — push to main
         if: github.event_name == 'push'
-        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
         with:
           image: ${{ env.IMAGE }}:sha-${{ steps.ver.outputs.sha7 }}
           format: cyclonedx-json
@@ -183,7 +183,7 @@ jobs:
 
       - name: Generate image SBOM (CycloneDX) via Syft — PR (local image)
         if: github.event_name == 'pull_request'
-        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
         with:
           image: ${{ env.IMAGE }}:pr-${{ steps.ver.outputs.sha7 }}
           format: cyclonedx-json
@@ -205,7 +205,7 @@ jobs:
 
       - name: Generate + attach image SBOM on release (signed)
         if: github.event_name == 'release'
-        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
         with:
           image: ${{ env.IMAGE }}:${{ steps.ver.outputs.version }}
           format: cyclonedx-json

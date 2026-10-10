@@ -1459,20 +1459,16 @@ except Exception as _szl_fmv_e:  # pragma: no cover
     print(f"[a11oy] Frontier fmverif NOT registered: {_szl_fmv_e!r}", file=__import__("sys").stderr)
 
 # Sovereign Local Model panel (Wave M / Dev 4) — GET /api/a11oy/v1/frontier/sovereign returns
-# the operator status of the founder's LOCAL sovereign model (Ollama on the Tower, Doctrine-v11
-# system prompt over base llama3.1:8b; model tag llama3-szl-finetuned-q4): reachability (prefers
-# Dev-1's szl_llm_registry.sovereign_probe, which backs GET /api/a11oy/v1/llm/sovereign/health;
-# else a direct SZL_LOCAL_LLM_URL probe + honest dependency note), the doctrine self-test
-# ("State your doctrine in one line" → the model's REAL answer when reachable, else honest
-# UNAVAILABLE), Stage A-vs-B status, and a signed receipt of the check (REAL DSSE in-Space,
-# UNSIGNED-LOCAL otherwise). The Tower is NOT reachable from CI/cloud, so off-Tower this
-# degrades to honest UNAVAILABLE — NEVER a fabricated status/answer/signature. Adds NOTHING to
+# read-only status of the configured model endpoint: reachability via the guarded
+# szl_llm_registry.sovereign_probe, Stage A-vs-B declarations, and an explicit
+# no-inference/no-receipt-on-GET status. Private backend URLs and served-model inventory
+# are withheld. Probe failure degrades to UNAVAILABLE without a direct fallback. Adds NOTHING to
 # the locked-8; Λ stays Conjecture 1; trust ceiling 0.97. Additive, try/except-guarded, same
 # register() pattern, registered EARLY (before the SPA catch-all).
 try:
     import szl_sovereign_panel as _szl_sovereign_panel
     _szl_sovereign_panel.register(app, ns="a11oy")
-    print("[a11oy] Frontier sovereign registered: /api/a11oy/v1/frontier/sovereign (LIVE-SOVEREIGN when reachable, else honest UNAVAILABLE)", file=__import__("sys").stderr)
+    print("[a11oy] Frontier sovereign registered: /api/a11oy/v1/frontier/sovereign (metadata-only UNKNOWN when reachable, else UNAVAILABLE)", file=__import__("sys").stderr)
 except Exception as _szl_sov_e:  # pragma: no cover
     print(f"[a11oy] Frontier sovereign NOT registered: {_szl_sov_e!r}", file=__import__("sys").stderr)
 
@@ -3677,6 +3673,13 @@ try:
                     "degraded",
                 )
             ]
+            _blocking_degraded = (
+                _candidate_summary.get(
+                    "blockingDegraded", _candidate_summary.get("degraded")
+                )
+                if isinstance(_candidate_summary, dict)
+                else None
+            )
             try:
                 _checked_dt = _rd_dt.fromisoformat(
                     str(_candidate_checked_at).replace("Z", "+00:00")
@@ -3693,7 +3696,11 @@ try:
                 and _counts[0] > 0
                 and _counts[0] - _counts[2] > 0
                 and sum(_counts[1:]) == _counts[0]
-                and all(value == 0 for value in _counts[3:])
+                and all(value == 0 for value in _counts[3:6])
+                and isinstance(_blocking_degraded, int)
+                and not isinstance(_blocking_degraded, bool)
+                and 0 <= _blocking_degraded <= _counts[6]
+                and _blocking_degraded == 0
             )
             _p95 = (
                 _candidate_summary.get("p95_worst")
@@ -3734,6 +3741,7 @@ try:
             )
             if _verdict_available:
                 _verdict_summary = dict(_candidate_summary)
+                _verdict_summary.setdefault("blockingDegraded", _blocking_degraded)
                 _verdict_source_revision = _candidate_revision
                 _verdict_checked_at = _candidate_checked_at
                 _verdict_base = _candidate_base
@@ -5417,6 +5425,8 @@ def _signer_availability_signal(ttl: float = 30.0) -> dict:
         val = {"status": "UNAVAILABLE", "signing_available": False,
                "scheme": "UNAVAILABLE",
                "error": f"{type(exc).__name__}: {exc}"}
+    val = {**val, "scope": "RUNTIME_KEY_AVAILABILITY",
+           "receipt_verification_asserted": False}
     _SIGNER_HEALTH_CACHE.update({"checked_at": now, "value": val})
     return val
 
@@ -5462,10 +5472,10 @@ def _frontier_liveness_signal() -> dict:
 
 # Sovereign local-model rollup signal (Wave M / Dev 4). Compact {reachable, model,
 # label} for the /healthz rollup — a cheap, cached, guarded probe (via
-# szl_sovereign_panel.rollup_signal, which prefers Dev-1's registry probe / falls back
-# to a direct SZL_LOCAL_LLM_URL probe). NEVER blocks or crashes the health path, and
-# NEVER fakes a reachable node: the Tower is unreachable from CI/cloud, so off-Tower
-# this is honestly {reachable:false, label:"UNAVAILABLE"}.
+# szl_sovereign_panel.rollup_signal, which uses the guarded registry probe and
+# fails closed when that helper is unavailable). NEVER blocks or crashes the health path, and
+# NEVER fakes a reachable node. A tunnel may answer from cloud, but reachability
+# does not verify an owned GPU, weights, or the doctrine wrapper.
 _SOVEREIGN_HZ_CACHE: dict = {}
 
 
@@ -5478,8 +5488,8 @@ def _sovereign_health_signal(ttl: float = 30.0) -> dict:
         import szl_sovereign_panel as _szl_sov_hz
         val = _szl_sov_hz.rollup_signal()
     except Exception as exc:  # pragma: no cover — never block healthz; honest UNAVAILABLE
-        val = {"reachable": False, "model": "llama3-szl-finetuned-q4",
-               "label": "UNAVAILABLE", "error": f"{type(exc).__name__}: {exc}"}
+        val = {"reachable": False, "model": "szl-sovereign-local",
+               "label": "UNAVAILABLE", "error": type(exc).__name__}
     _SOVEREIGN_HZ_CACHE.update({"checked_at": now, "value": val})
     return val
 
@@ -5528,6 +5538,8 @@ async def healthz() -> JSONResponse:
     # Space / when sub-sources are idle) — an UNAVAILABLE probe on either, or a
     # storage failure, does degrade so an orchestrator catches a real fault.
     _degraded_reasons = []
+    if dep.get("status") != "ok" or dep.get("backend_alive") is not True:
+        _degraded_reasons.append("node-backend-unavailable")
     if str(_storage.get("status")) == "unavailable":
         _degraded_reasons.append("storage-unavailable")
     if str(_signer.get("status") or "").upper() == "UNAVAILABLE":
@@ -5540,9 +5552,41 @@ async def healthz() -> JSONResponse:
     # itself failing — is a real fault an orchestrator should catch.
     if str(_preflight.get("overall")) == "UNAVAILABLE":
         _degraded_reasons.append("preflight-unavailable")
+    # A boot-time GDW storage fault keeps the process alive (liveness /healthz
+    # 200) instead of crash-looping, so this rollup must carry it: degraded AND
+    # HTTP 503, so the hf-sync deploy smoke (exact-200 per path) fails a deploy
+    # that boots BLOCKED instead of attesting it green.
+    _gdw_storage_block = None
+    _gdw_rt_hz = sys.modules.get("gdw_runtime")
+    if callable(getattr(_gdw_rt_hz, "storage_block", None)):
+        try:
+            _gdw_storage_block = _gdw_rt_hz.storage_block()
+        except Exception as _gsb_e:  # unreadable state is a fault, not ok
+            _gdw_storage_block = {"reason": "GDW_STORAGE_STATE_UNREADABLE",
+                                  "error_class": type(_gsb_e).__name__}
+    if _gdw_storage_block is not None:
+        _degraded_reasons.append("gdw-storage-blocked")
     _overall = "degraded" if _degraded_reasons else "ok"
-    return JSONResponse({
+    _rollup_extra = {"gdw_storage": _gdw_storage_block} if _gdw_storage_block is not None else {}
+    _capability_evidence = _frontier.get("operational_readiness")
+    _capabilities_known = isinstance(_capability_evidence, dict)
+    _operational_ready = bool(
+        _capabilities_known and _capability_evidence.get("ready") is True
+        and not _degraded_reasons
+    )
+    return JSONResponse(status_code=503 if _gdw_storage_block is not None else 200, content={
         "status": _overall,
+        "scope": "SERVICE_HEALTH",
+        "status_policy": ("status describes service faults; individual capabilities "
+                          "are evaluated separately in operational_readiness"),
+        "operational_readiness": {
+            "scope": "FRONTIER_CAPABILITIES_AND_SERVICE_HEALTH",
+            "ready": _operational_ready,
+            "status": ("READY" if _operational_ready else
+                       "NOT_READY" if _capabilities_known else "UNAVAILABLE"),
+            "service_blockers": _degraded_reasons,
+            "frontier": _capability_evidence,
+        },
         "degraded_reasons": _degraded_reasons,
         "service": "a11oy",
         "version": "2.0.0",
@@ -5557,6 +5601,7 @@ async def healthz() -> JSONResponse:
             "sovereign": _sovereign,
             "brain": _brain,
             "preflight": _preflight,
+            **_rollup_extra,
         },
         "storage": _storage,
         "dependency": {"node_backend": {"status": dep.get("status"), "backend_alive": dep.get("backend_alive"), "last_checked_age_s": round(_hz_time.time() - _ca, 1) if _ca else None}},
@@ -5570,8 +5615,8 @@ async def healthz() -> JSONResponse:
         "anchor_formula_gates": 44,
         "hatun_willay": True,
         # Wave M / Dev 4: sovereign local-model rollup signal (honest — never fakes a
-        # reachable node; the Tower is unreachable from CI/cloud so off-Tower this is
-        # {reachable:false, label:"UNAVAILABLE"}). Also mirrored into rollup.sovereign
+        # reachable endpoint; metadata reachability is not sovereign provenance.
+        # Also mirrored into rollup.sovereign
         # so a Wave-L-style rollup consumer finds it in the expected place.
         "sovereign": _sovereign,
         # Wave O / Dev 5: compact Brain rollup — the founder's "Brain powering the
@@ -5641,18 +5686,37 @@ async def readyz() -> JSONResponse:
         operator["reason"] = f"operator_check_error:{type(_eo_ready_e).__name__}"
     service_ready = bool(operator.get("service_ready", False))
     capability_ready = bool(operator.get("ready", False))
+    # A boot-time GDW storage fault keeps the process serving (liveness 200)
+    # but the service is not ready: say so here with the recorded reason.
+    _storage_block = None
+    _gdw_rt_ready = sys.modules.get("gdw_runtime")
+    if callable(getattr(_gdw_rt_ready, "storage_block", None)):
+        try:
+            _storage_block = _gdw_rt_ready.storage_block()
+        except Exception as _sb_e:  # unreadable state is not ready
+            _storage_block = {"reason": "GDW_STORAGE_STATE_UNREADABLE",
+                              "error_class": type(_sb_e).__name__}
+    if _storage_block is not None:
+        service_ready = False
     status = (
         "ready" if service_ready and capability_ready
         else "ready_degraded" if service_ready
         else "not_ready"
     )
+    body = {
+        "status": status,
+        "backend": "local+proxy",
+        "operator": operator,
+    }
+    headers = None
+    if _storage_block is not None:
+        body["storage"] = _storage_block
+        body["blocked_reason"] = _storage_block.get("reason")
+        headers = {"Retry-After": str(int(_storage_block.get("retry_after_seconds") or 60))}
     return JSONResponse(
-        {
-            "status": status,
-            "backend": "local+proxy",
-            "operator": operator,
-        },
+        body,
         status_code=200 if service_ready else 503,
+        headers=headers,
     )
 
 
@@ -6265,7 +6329,7 @@ async def policy_evaluate(request: Request) -> JSONResponse:
     emit = getattr(app.state, "szl_emit_signed_receipt", None)
     if callable(emit) and isinstance(decision, dict):
         try:
-            node = emit({
+            submitted = {
                 "schema": "szl.a11oy.policy_decision/v1",
                 "op": "policy/evaluate",
                 "action_id": action.get("actionId"),
@@ -6273,12 +6337,18 @@ async def policy_evaluate(request: Request) -> JSONResponse:
                 "decision": decision.get("decision"),
                 "gate": decision.get("gate"),
                 "lambda_score": decision.get("lambda_score"),
-            }, request)
+            }
+            node = emit(submitted, request)
+            from szl_provenance import derive_receipt_conservation
+
+            conservation = derive_receipt_conservation(submitted, node)
+            if not conservation["receipts_in_eq_out"]:
+                raise ValueError("emitted receipt does not conserve the submitted decision")
             decision["receipt_hash"] = node["digest"]
             decision["receipt_signed"] = bool(node.get("signed"))
             decision["receipt_index"] = node.get("index")
             decision["receipt_verify_at"] = "/api/a11oy/khipu/verify"
-            decision["receipts_in_eq_out"] = True
+            decision.update(conservation)
         except Exception as _emit_e:  # pragma: no cover - never break the decision
             decision["receipt_hash"] = ""
             decision["receipt_error"] = f"emit failed: {_emit_e!r}"
@@ -6771,6 +6841,16 @@ try:
     print(f"[a11oy] /about + /security registered: {_abt_status}", file=sys.stderr)
 except Exception as _abt_e:
     print(f"[a11oy] /about + /security NOT registered: {_abt_e}", file=sys.stderr)
+
+# a11oy_about_security is not in the image, so /about had no page and every retired path
+# below redirected to a JSON 404. Without that module, /about goes to the company page.
+if not any(getattr(_r, "path", None) == "/about" for _r in app.router.routes):
+    from starlette.responses import RedirectResponse as _AboutRedir
+
+    async def _about_to_company():
+        return _AboutRedir(url="/company", status_code=307)
+
+    app.add_api_route("/about", _about_to_company, methods=["GET", "HEAD"], include_in_schema=False)
 
 try:
     import a11oy_code_v4 as _code_v4
@@ -9397,7 +9477,7 @@ try:
         built = bool(st.get("built"))
         return _RAGJSON(gov_envelope(
             {"index": st, "corpus": _rag_engine.corpus_manifest(),
-             "data_kind": "runtime_observation", "index_built": built,
+             "data_kind": "live" if built else "unavailable", "index_built": built,
              "query_endpoint": "/api/a11oy/v1/rag/query",
              "query_method": "GET",
              "receipt_endpoint": "/api/a11oy/v1/rag/estate/query",
@@ -11524,7 +11604,15 @@ except Exception as _b2_e:
 # ============================================================================
 try:
     import sys as _ac_sys
-    import a11oy_code as _a11oy_code_router
+    import importlib.util as _ac_import_util
+    # Bind the same admitted flat router in source and Docker. The flagship
+    # a11oy_code/ package otherwise shadows a11oy_code.py in a full checkout.
+    _ac_router_spec = _ac_import_util.spec_from_file_location(
+        "_szl_a11oy_code_router", Path(__file__).with_name("a11oy_code.py"))
+    if _ac_router_spec is None or _ac_router_spec.loader is None:
+        raise ImportError("admitted a11oy.code router unavailable")
+    _a11oy_code_router = _ac_import_util.module_from_spec(_ac_router_spec)
+    _ac_router_spec.loader.exec_module(_a11oy_code_router)
 
     # Open-weight roster (real HF repo ids + licenses). Primary first; the rest
     # are graceful fallbacks tried in order on error/timeout. Server-side only.
@@ -11609,7 +11697,7 @@ try:
     # SZLHOLDINGS/second-brain HF Space (/api/v1/retrieve) and, ONLY on a LIVE
     # well-formed response, that API's citation HANDLES (nodeId + short note +
     # sha256, verbatim) plus the API's OWN honesty string are prepended to the
-    # outbound messages as one extra system message. The upstream API is a
+    # outbound messages as untrusted user/data context, never system policy. The upstream API is a
     # lexical-overlap ranker over a PUBLIC 575-chunk projection
     # (content_access=HANDLES_ONLY) — it is NOT semantic retrieval and it is NOT
     # the private 9464-node brain graph, and neither this code nor its labels
@@ -11634,11 +11722,11 @@ try:
         return (os.environ.get("SZL_SECOND_BRAIN_RAG") or "").strip().lower() in ("1", "true", "yes")
 
     def _ac_second_brain_augment(query, messages):
-        """The ONE gated seam: optionally prepend second-brain citation handles.
+        """The ONE gated seam: optionally attach untrusted citation-handle data.
 
         Returns (messages, meta). Flag OFF -> (messages UNCHANGED, None): the
         caller's behavior is byte-identical to before this seam existed. Flag
-        ON + LIVE -> (one citation system message prepended, meta status=LIVE
+        ON + LIVE -> (one untrusted data message before the user's query, meta status=LIVE
         with the API fields verbatim). Flag ON + any failure -> (messages
         UNCHANGED, meta status=UNAVAILABLE used=False). Never raises, never
         fabricates a handle, never claims retrieval that did not happen."""
@@ -11655,29 +11743,37 @@ try:
                               "error": "bridge module not importable in this image"}
         try:
             _sb_res = _ac_sb_retrieve(query)
+            if (getattr(_sb_res, "status", None) == "LIVE"
+                    and getattr(_sb_res, "query", None) == query.strip()
+                    and getattr(_sb_res, "handles", None)
+                    and callable(_ac_sb_format)):
+                _cite = _ac_sb_format(_sb_res)
+                if _cite:
+                    # Upstream text is NEVER elevated into the system policy role.
+                    if (not isinstance(_cite, str) or len(_cite.encode("utf-8")) > 65536
+                            or not isinstance(messages, list) or not messages
+                            or messages[-1].get("role") != "user"):
+                        raise ValueError("invalid citation context or message seam")
+                    _corpus = getattr(_sb_res, "corpus_n", None)
+                    _label = ("citation handles from a public %s-chunk lexical index, "
+                              "not semantic retrieval, not the full brain graph"
+                              % (_corpus if isinstance(_corpus, int) else "public"))
+                    _meta = {**base_meta, "status": "LIVE", "used": True, "label": _label,
+                             "schema": getattr(_sb_res, "schema", None),
+                             "handles": _sb_res.handles,
+                             "scores": getattr(_sb_res, "scores", []),
+                             "honesty": getattr(_sb_res, "honesty", ""),
+                             "corpus_n": _corpus,
+                             "content_access": getattr(_sb_res, "content_access", None),
+                             "content_hash_verification": "UNKNOWN"}
+                    return (messages[:-1] + [{"role": "user", "content": _cite}]
+                            + messages[-1:]), _meta
+            return messages, {**base_meta, "status": "UNAVAILABLE", "used": False,
+                              "error": (getattr(_sb_res, "error", None)
+                                        or "no validated handles returned")}
         except Exception as _sb_exc:  # fail-closed: a bridge bug never breaks inference
             return messages, {**base_meta, "status": "UNAVAILABLE", "used": False,
                               "error": "bridge raised: %s" % type(_sb_exc).__name__}
-        if (getattr(_sb_res, "status", None) == "LIVE"
-                and getattr(_sb_res, "handles", None)
-                and callable(_ac_sb_format)):
-            _cite = _ac_sb_format(_sb_res)
-            if _cite:
-                _corpus = getattr(_sb_res, "corpus_n", None)
-                _label = ("citation handles from a public %s-chunk lexical index, "
-                          "not semantic retrieval, not the full brain graph"
-                          % (_corpus if isinstance(_corpus, int) else "public"))
-                _meta = {**base_meta, "status": "LIVE", "used": True, "label": _label,
-                         "schema": getattr(_sb_res, "schema", None),
-                         "handles": _sb_res.handles,          # VERBATIM from the API
-                         "scores": getattr(_sb_res, "scores", []),   # VERBATIM
-                         "honesty": getattr(_sb_res, "honesty", ""),  # VERBATIM
-                         "corpus_n": _corpus,
-                         "content_access": getattr(_sb_res, "content_access", None)}
-                return ([{"role": "system", "content": _cite}] + messages), _meta
-        return messages, {**base_meta, "status": "UNAVAILABLE", "used": False,
-                          "error": (getattr(_sb_res, "error", None)
-                                    or "no LIVE handles returned")}
 
     def _ac_hf_chat(messages, max_tokens=640, want_model=None):
         """Call the OpenAI-compatible HF Router server-side, 2x retry + roster
@@ -11782,8 +11878,8 @@ try:
                 "runnable code when relevant.")},
             {"role": "user", "content": query},
         ]
-        # SECOND-BRAIN seam (SZL_SECOND_BRAIN_RAG=1): may prepend ONE citation
-        # system message; with the flag unset this returns (messages, None)
+        # SECOND-BRAIN seam (SZL_SECOND_BRAIN_RAG=1): may attach ONE untrusted
+        # user/data message; with the flag unset this returns (messages, None)
         # untouched — zero behavior change.
         messages, _sb_meta = _ac_second_brain_augment(query, messages)
         res = _ac_hf_chat(messages)
@@ -11808,12 +11904,30 @@ try:
         return fail, "generative_error", _fail_meta
 
     async def _ac_route_impl(request: "Request", auto: bool):
+        # Reuse the byte-pinned shared principal; no body can confer authority.
+        # This gate precedes body parsing, inference, retrieval and receipt emission.
+        try:
+            from szl_operator_auth import operator_refusal
+            refusal = operator_refusal(request, "a11oy.code.completion")
+        except Exception:
+            return JSONResponse({"status": "BLOCKED", "error": "operator authorization unavailable"},
+                                status_code=503)
+        if refusal is not None:
+            return refusal
         body, _err = await _safe_json_body(request)
         if _err is not None:
             return _err
         if not isinstance(body, dict):
             body = {}
-        query = (body.get("query") or body.get("prompt") or body.get("message") or "").strip()
+        query = body.get("query") or body.get("prompt") or body.get("message") or ""
+        if not isinstance(query, str):
+            return JSONResponse({"error": "query must be a string"}, status_code=400)
+        try:
+            if len(query.encode("utf-8")) > 8192:
+                return JSONResponse({"error": "query exceeds 8192 UTF-8 bytes"}, status_code=400)
+        except UnicodeError:
+            return JSONResponse({"error": "query must be valid UTF-8"}, status_code=400)
+        query = query.strip()
         if not query:
             return JSONResponse({"error": "missing 'query'"}, status_code=400)
         axis_scores = body.get("axis_scores")
@@ -11866,9 +11980,13 @@ try:
             "roster": _ac_open_weight_roster(),
             "tiers": [t["tier"] for t in _a11oy_code_router.TIERS],
             "doctrine": "v11",
-            "honesty": ("Tier selection, organ routing, Λ-signal and the signed receipt are "
-                        "real deterministic math. Text completion is LIVE when HF_TOKEN is "
-                        "present, else an honest deterministic stub — never a fake answer."),
+            "evidence_class": "DECLARED",
+            "runtime_verification": "UNKNOWN",
+            "signature_verification": "UNKNOWN",
+            "honesty": ("This GET reports configured routing and inference mode only. "
+                        "A present credential is not successful inference or signer readiness. "
+                        "It performs no model probe and emits no receipt. Routing is deterministic; "
+                        "runtime and signature verification require separate evidence."),
         })
 
     @app.get("/api/a11oy/v1/code/index")
@@ -14067,6 +14185,23 @@ async def assurance_page() -> Response:
     if f.is_file():
         return FileResponse(f, media_type="text/html")
     return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+# Source-level Article 12 mapping. The page is a read-only document, not a
+# compliance decision or a receipt-writing path. A missing page asset must not
+# be disguised as the SPA shell.
+@app.api_route("/eu-ai-act", methods=["GET", "HEAD"], include_in_schema=False)
+async def eu_ai_act_page() -> Response:
+    page = PAGES_DIR / "eu-ai-act.html"
+    if page.is_file():
+        return FileResponse(
+            page, media_type="text/html", headers={"Cache-Control": "no-store"}
+        )
+    return JSONResponse(
+        {"status": "UNAVAILABLE", "reason": "Article 12 page asset is not present"},
+        status_code=404,
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 # /company — SZL Holdings story folded into a-11-oy.com (the holding-company front

@@ -65,6 +65,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 import os
 import sqlite3
 import sys
@@ -72,6 +73,8 @@ import threading
 import time
 import uuid
 from collections import defaultdict, deque
+from contextlib import closing
+from pathlib import Path
 from typing import Any, Deque, Dict, List, Optional, Tuple
 
 # ---------------------------------------------------------------------------
@@ -419,9 +422,18 @@ class DurableKhipu:
         raw = json.dumps(obj, sort_keys=True, separators=(",", ":")).encode("utf-8")
         return hashlib.sha3_256(raw).hexdigest()
 
-    def _all(self) -> List[Dict[str, Any]]:
+    def _all(self, *, read_only: bool = False) -> List[Dict[str, Any]]:
         if self.backend == "sqlite":
-            with sqlite3.connect(self._path, timeout=30.0) as db:
+            if read_only:
+                # WAL reads may create/write sidecars even with mode=ro. Do not
+                # use immutable=1 on this mutable store: it skips change detection.
+                with open(self._path, "rb") as source_file:
+                    header = source_file.read(20)
+                if 2 in header[18:20]:
+                    raise sqlite3.OperationalError("passive WAL observation unavailable")
+            source = (Path(self._path).resolve().as_uri() + "?mode=ro"
+                      if read_only else self._path)
+            with closing(sqlite3.connect(source, timeout=30.0, uri=read_only)) as db:
                 rows = db.execute(
                     "SELECT seq, action, payload, prev, digest, ts "
                     "FROM khipu ORDER BY seq"
@@ -440,9 +452,9 @@ class DurableKhipu:
                     return int(db.execute("SELECT COUNT(*) FROM khipu").fetchone()[0])
             return len(self._mem)
 
-    def head(self) -> str:
+    def head(self, *, read_only: bool = False) -> str:
         with self._lock:
-            rows = self._all()
+            rows = self._all(read_only=read_only)
             return rows[-1]["digest"] if rows else _GENESIS
 
     def emit(self, action: str, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -484,10 +496,19 @@ class DurableKhipu:
                         json.dump(self._mem, fh)
             return rec
 
-    def verify(self) -> Tuple[bool, int, int]:
+    def verify(self, *, read_only: bool = False) -> Tuple[bool, int, int]:
         """Re-walk the chain. Returns (ok, depth, first_break_seq | -1)."""
+        ok, depth, brk, _head = self.verify_with_head(read_only=read_only)
+        return ok, depth, brk
+
+    def verify_with_head(self, *, read_only: bool = False) -> Tuple[bool, int, int, str]:
+        """Verify and derive the head from one fetched snapshot of the chain."""
         with self._lock:
-            rows = self._all()
+            # The process lock cannot block an independently opened writer.
+            # One SELECT supplies both verification and head, even if another
+            # connection commits after this snapshot has been fetched.
+            rows = self._all(read_only=read_only)
+            head = rows[-1]["digest"] if rows else _GENESIS
             prev = _GENESIS
             for i, rec in enumerate(rows):
                 # organ/ns are store-level constants (not persisted per row in the
@@ -496,9 +517,9 @@ class DurableKhipu:
                         "action": rec["action"], "payload": rec["payload"],
                         "prev": rec["prev"]}
                 if rec["prev"] != prev or rec["digest"] != self._digest(body):
-                    return (False, len(rows), i)
+                    return (False, len(rows), i, head)
                 prev = rec["digest"]
-            return (True, len(rows), -1)
+            return (True, len(rows), -1, head)
 
     def tail(self, n: int = 10) -> List[Dict[str, Any]]:
         with self._lock:
@@ -538,6 +559,29 @@ def _make_logger(organ: str) -> logging.Logger:
         h.setFormatter(_JsonLogFormatter(organ))
         logger.addHandler(h)
     return logger
+
+
+# ===========================================================================
+# /readyz storage block (GDW runtime BLOCKED state)
+# ===========================================================================
+
+
+def gdw_storage_block() -> Optional[Dict[str, Any]]:
+    """BLOCKED storage reason from the GDW runtime, if that runtime is loaded.
+
+    gdw_runtime registers itself in sys.modules when it is the entrypoint, so
+    this never imports it (standalone hardened apps have no GDW runtime).
+    """
+    module = sys.modules.get("gdw_runtime")
+    probe = getattr(module, "storage_block", None)
+    if not callable(probe):
+        return None
+    try:
+        block = probe()
+    except Exception as exc:  # noqa: BLE001 - unreadable state is not ready
+        return {"startup_state": "UNKNOWN", "reason": "GDW_STORAGE_STATE_UNREADABLE",
+                "error_class": type(exc).__name__}
+    return dict(block) if isinstance(block, dict) else None
 
 
 # ===========================================================================
@@ -623,7 +667,12 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
     @app.exception_handler(StarletteHTTPException)
     async def _http_exc_handler(request: "Request", exc: "StarletteHTTPException"):
         tid = getattr(request.state, "trace_id", uuid.uuid4().hex)
-        return _envelope("http_error", str(exc.detail), tid, exc.status_code)
+        response = _envelope("http_error", str(exc.detail), tid, exc.status_code)
+        # Keep protocol headers the route attached (Retry-After on 503/429,
+        # WWW-Authenticate on 401); the envelope replaces only the body.
+        for name, value in (getattr(exc, "headers", None) or {}).items():
+            response.headers[name] = value
+        return response
 
     @app.exception_handler(RequestValidationError)
     async def _validation_handler(request: "Request", exc: "RequestValidationError"):
@@ -700,20 +749,22 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
     # QHAPAQ 2026-08-28: GET 200 / HEAD 405. Include HEAD on the methods set
     # (Starlette Route GET-only is the usual cause). This liveness body does
     # NOT share the /api/a11oy/healthz rollup signer — fail closed ABSENT,
-    # never copy DSSE-LIVE.
+    # never copy DSSE-LIVE. Liveness stays 200 even when GDW storage is
+    # BLOCKED; readiness (/readyz) carries that fault.
     _SIGNER_ABSENT = {
         "status": "ABSENT",
         "signing_available": False,
         "scheme": "UNAVAILABLE",
+        "scope": "NOT_EVALUATED_BY_THIS_ROUTE",
+        "availability_evaluated": False,
+        "runtime_status_endpoint": "/api/a11oy/healthz",
     }
 
     @app.get(f"{base}/healthz", tags=["health"])
     @app.get("/healthz", tags=["health"])
     async def _healthz():
         live = {
-            "status": "ABSENT",
-            "signing_available": False,
-            "scheme": "UNAVAILABLE",
+            **_SIGNER_ABSENT,
             "mint": "POST /api/a11oy/khipu/sign",
             "rollup": "/api/a11oy/healthz",
             "pubkey": "/cosign.pub",
@@ -727,6 +778,9 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
             live["error"] = type(exc).__name__
         return {
             "status": "ok",
+            "scope": "PROCESS_LIVENESS",
+            "capability_readiness_asserted": False,
+            "operational_readiness_endpoint": "/api/a11oy/healthz",
             "organ": organ,
             "doctrine": DOCTRINE,
             "lock": "749/14/163",
@@ -739,11 +793,18 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
     @app.get("/readyz", tags=["health"])
     async def _readyz():
         ok, depth, brk = store.verify()
-        body = {"status": "ready" if ok else "degraded", "organ": organ,
+        storage_block = gdw_storage_block()
+        ready = ok and storage_block is None
+        body = {"status": "ready" if ready else "degraded", "organ": organ,
                 "khipu_backend": store.backend, "khipu_durable": store.backend in ("sqlite", "json"),
                 "khipu_depth": depth, "khipu_chain_ok": ok,
                 "khipu_first_break_seq": brk, "doctrine": DOCTRINE}
-        return JSONResponse(body, status_code=200 if ok else 503)
+        headers = None
+        if storage_block is not None:
+            body["storage"] = storage_block
+            body["blocked_reason"] = storage_block.get("reason")
+            headers = {"Retry-After": str(int(storage_block.get("retry_after_seconds") or 60))}
+        return JSONResponse(body, status_code=200 if ready else 503, headers=headers)
 
     _health_head_paths = {
         "/healthz", f"{base}/healthz", "/readyz", f"{base}/readyz",
@@ -1007,10 +1068,10 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
     def _attestation_status_payload() -> Dict[str, Any]:
         """Read-only current-state attestation material.
 
-        This helper never mints a signature. Polling clients use /attest/status;
-        /attest remains the explicit signature-minting endpoint.
+        Neither /attest nor /attest/status mints a signature. This is an
+        unsigned observation, not a retrieved or newly signed attestation.
         """
-        ok, depth, brk = store.verify()
+        ok, depth, brk, head = store.verify_with_head(read_only=True)
         git_sha = os.getenv("SZL_GIT_SHA", "unknown")
         build_time = os.getenv("SZL_BUILD_TIME", "unknown")
         statement = {
@@ -1018,55 +1079,54 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
             "build_time": build_time,
             "khipu_chain": {"backend": store.backend, "depth": depth,
                             "chain_ok": ok, "first_break_seq": brk,
-                            "head": store.head()},
+                            "head": head},
             "doctrine_lock": DOCTRINE_LOCK,
         }
-        signing_available = False
-        try:
-            import szl_dsse as _dsse
-            signing_available = bool(_dsse.signing_available())
-        except Exception:
-            pass
         return {
             "organ": organ,
             "statement": statement,
             "axes_present": {
                 "build": (git_sha != "unknown" and build_time != "unknown"),
                 "model": False,
-                "runtime": isinstance(ok, bool) and bool(store.backend),
+                "runtime": ok is True and bool(store.backend),
             },
-            "signing_available": signing_available,
+            "signing_available": None,
+            "signing_state": "UNKNOWN",
             "data_kind": "live",
             "honesty": ("read-only current runtime state; model=false because this "
-                        "endpoint carries no model manifest. No signature is minted "
-                        "by /attest/status."),
+                        "endpoint carries no model manifest. Signing capability is "
+                        "not inspected and no signature is minted on this read."),
         }
 
+    def _unsigned_read_response(body: Dict[str, Any], status_code: int = 200):
+        return JSONResponse(
+            {**body, "dsse": None, "signed": False, "receipt_minted": False,
+             "export_read_only": True, "retained_signature_verified": False,
+             "retained_attestation_state": "UNKNOWN"},
+            status_code=status_code,
+            headers={"Cache-Control": "no-store"},
+        )
+
+    def _attestation_read_response():
+        try:
+            return _unsigned_read_response(_attestation_status_payload())
+        except Exception:
+            return _unsigned_read_response(
+                {"organ": organ, "statement": None, "data_kind": "structural",
+                 "observation_state": "UNAVAILABLE",
+                 "honesty": "current receipt state unavailable; no attestation minted"},
+                status_code=503,
+            )
+
     @app.get(f"{abase}/attest/status", tags=["assurance"])
+    @app.head(f"{abase}/attest/status", include_in_schema=False)
     async def _assurance_attest_status():
-        return _attestation_status_payload()
+        return _attestation_read_response()
 
     @app.get(f"{abase}/attest", tags=["assurance"])
+    @app.head(f"{abase}/attest", include_in_schema=False)
     async def _assurance_attest():
-        # Explicitly mint a DSSE in-toto-style statement over CURRENT verifiable
-        # state. Polling clients must use /attest/status to avoid signing on reads.
-        status = _attestation_status_payload()
-        statement = status["statement"]
-        try:
-            import szl_dsse as _dsse
-            env = _dsse.sign_payload(
-                statement,
-                payload_type="https://szl-holdings.dev/attestations/governance-receipt/v1",
-            )
-            return {**status, "dsse": env,
-                    "verify_hint": ("verify with the /assurance/credential "
-                                    "public_key_pem; dsse.honesty declares REAL vs "
-                                    "UNSIGNED.")}
-        except Exception as exc:
-            return {**status, "dsse": None, "data_kind": "structural",
-                    "honesty": (f"szl_dsse unavailable ({type(exc).__name__}); the "
-                                "statement is REAL state but UNSIGNED/STRUCTURAL — "
-                                "never fabricated.")}
+        return _attestation_read_response()
 
     @app.get(f"{abase}/artifact", tags=["assurance"])
     async def _assurance_artifact():
@@ -1097,13 +1157,31 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
         led, src = _energy_ledger()
         ok, depth, brk = store.verify()
         energy: Optional[Dict[str, Any]] = None
+        energy_measured = False
         if led is not None:
+            raw_joules = led.get("joules_measured_total")
+            energy_measured = (
+                src == "live-operator"
+                and led.get("joules_measured_label") == "MEASURED"
+                and led.get("attribution_verified") is True
+                and isinstance(led.get("attribution_method"), str)
+                and bool(led.get("attribution_method").strip())
+                and isinstance(led.get("attribution_version"), int)
+                and not isinstance(led.get("attribution_version"), bool)
+                and led.get("attribution_version") >= 1
+                and isinstance(raw_joules, (int, float))
+                and not isinstance(raw_joules, bool)
+                and math.isfinite(raw_joules)
+                and raw_joules > 0.0
+            )
             energy = {
-                "joules_measured_total": led.get("joules_measured_total"),
-                "joules_measured_label": led.get("joules_measured_label", "MEASURED"),
-                "measured_jobs": led.get("measured_jobs"),
+                "joules_measured_total": raw_joules if energy_measured else None,
+                "joules_measured_label": "MEASURED" if energy_measured else "UNAVAILABLE",
+                "measured_jobs": led.get("measured_jobs") if energy_measured else None,
+                "attribution_method": led.get("attribution_method") if energy_measured else None,
+                "attribution_version": led.get("attribution_version") if energy_measured else None,
                 "tokens_total": led.get("tokens_total"),
-                "by_node": led.get("by_node"),
+                "by_node": led.get("by_node") if energy_measured else None,
                 "running": led.get("running"),
                 "stub_mode": led.get("stub_mode"),
                 "exporter": led.get("exporter"),
@@ -1122,78 +1200,65 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
                 "head": store.head(),
                 "count": store.count(),
             },
-            "data_kind": "live" if (energy is not None or store.count() > 0)
+            "data_kind": "live" if (energy_measured or store.count() > 0)
                          else "structural",
             "doctrine": DOCTRINE,
-            "honesty": ("energy figures are MEASURED NVML joule deltas from the live "
-                        "operator (or the durable persisted ledger when the operator is "
-                        "not in this process) — SAMPLE/stub energy is excluded and never "
-                        "billable; receipt_chain is a SHA3-256 hash-chain that verify() "
-                        "re-walks. Counters are NEVER reset and NEVER fabricated; "
-                        "energy_ledger is null when no ledger is reachable."),
+            "honesty": ("Current MEASURED joules require a live operator with explicit "
+                        "verified exclusive job attribution and a method/version; "
+                        "persisted counters alone remain UNAVAILABLE, not billable. "
+                        "SAMPLE/stub energy is excluded. receipt_chain is a SHA3-256 "
+                        "hash-chain that verify() re-walks; chain integrity alone "
+                        "does not prove measurement. energy_ledger is null when no "
+                        "ledger is reachable."),
         }
 
     # ---- 11: cheapest-watt placement (carbon/cost-aware routing) ----------
-    # Reads the LIVE energy-operator status (per-node MEASURED joules + tokens +
-    # power_w + live grid €/MWh) and runs the cheapest-watt placement policy:
-    # pick the sovereign node minimizing energy-cost-per-token, record the decision
-    # (chosen node, €/MWh at decision time, MEASURED J/token, cheaper-than-alternative
-    # delta) into a re-hashable, hash-chained receipt, optionally DSSE-signed. Honest:
-    # with <2 comparable MEASURED nodes -> "no placement choice this tick"; a saving is
-    # MEASURED only when both legs are MEASURED; never fabricates a price or a saving.
-    def _operator_status_for_cw() -> Tuple[Optional[Dict[str, Any]], str]:
-        """Live in-process operator status (MEASURED), else persisted ledger, else
-        (None, unavailable). Read-only; reuses the same source as /forge/ledger."""
-        return _energy_ledger()
+    # Observe only an already initialized placement tally. Decision creation,
+    # operator activation and signing belong to explicit writers. Existing raw
+    # decisions retain their original measurement labels; this read measures none.
 
     @app.get(f"{base}/energy/cheapest-watt", tags=["energy"])
+    @app.head(f"{base}/energy/cheapest-watt", include_in_schema=False)
     async def _cheapest_watt():
+        module = sys.modules.get("szl_cheapest_watt")
+        led = getattr(module, "_LEDGER", None) if module is not None else None
+        if led is None:
+            return _unsigned_read_response({
+                "organ": organ, "data_kind": "structural",
+                "ledger_state": "UNAVAILABLE", "latest_decision": None,
+                "honesty": "no existing placement ledger; this read does not activate one",
+            })
         try:
-            import szl_cheapest_watt as _cw
-        except Exception as exc:  # module not in image: STRUCTURAL-ONLY, never faked
-            return {"organ": organ, "data_kind": "structural",
-                    "honesty": (f"szl_cheapest_watt unavailable ({type(exc).__name__}); "
-                                "cheapest-watt is STRUCTURAL-ONLY — never fabricated.")}
-        status, src = _operator_status_for_cw()
-        led = _cw.get_ledger()
-        decision_receipt: Optional[Dict[str, Any]] = None
-        if status is not None:
-            # Record ONE fresh placement decision against the live status this read.
-            decision_receipt = led.record(status)
-            # Layer a REAL DSSE signature over the placement receipt when a cosign key
-            # is present; absent a key the receipt is honest-but-UNSIGNED (never faked).
-            try:
-                import szl_dsse as _dsse
-                env = _dsse.sign_payload(
-                    decision_receipt,
-                    payload_type="https://szl-holdings.dev/attestations/cheapest-watt-placement/v1",
-                )
-                decision_receipt = {**decision_receipt, "dsse": env,
-                                    "signed": True}
-            except Exception:
-                decision_receipt = {**decision_receipt, "dsse": None,
-                                    "signed": False,
-                                    "sign_note": ("no cosign private key in this runtime; "
-                                                  "receipt is REAL + re-hashable but UNSIGNED "
-                                                  "— never faked")}
-        body = led.status()
+            body = led.status()
+            if not isinstance(body, dict):
+                raise ValueError("placement status must be an object")
+            recent = body.get("recent_decisions")
+            if not isinstance(recent, list) or any(not isinstance(d, dict) for d in recent):
+                raise ValueError("placement decisions must be objects")
+            json.dumps(body, allow_nan=False)
+        except Exception:
+            return _unsigned_read_response(
+                {"organ": organ, "data_kind": "structural",
+                 "ledger_state": "UNAVAILABLE", "latest_decision": None,
+                 "honesty": "existing placement state unavailable; no decision recorded"},
+                status_code=503,
+            )
+        body = dict(body)
         body.update({
             "organ": organ,
             "git_sha": os.getenv("SZL_GIT_SHA", "unknown"),
-            "operator_source": src,
-            "data_kind": "live" if status is not None else "structural",
-            "latest_decision": decision_receipt,
-            "reads": "GET re-evaluates against the live operator status and appends one decision",
+            "operator_source": "not-read",
+            "data_kind": "live",
+            "ledger_state": "AVAILABLE" if recent else "EMPTY",
+            "latest_decision": dict(recent[-1]) if recent else None,
+            "reads": "GET and HEAD observe existing placement state; no decision recorded or signed",
+            "honesty_retained_attestation": "historical decision payload only; no retained DSSE attestation retrieved or verified",
         })
-        if status is None:
-            body["honesty_no_operator"] = (
-                f"no live operator status reachable ({src}); no placement decision this "
-                "read — never fabricated.")
-        return body
+        return _unsigned_read_response(body)
 
     # canonical path /api/<organ>/v1/energy/cheapest-watt registered above (same
     # /api/<organ>/v1/energy prefix the operator's status/ledger/projection use).
-    report["registered"].append("energy/cheapest-watt(placement+signed-receipt)")
+    report["registered"].append("energy/cheapest-watt(read-only-placement)")
 
     report["registered"].append(
         "assurance(artifact,credential,compliance,attest)+forge/ledger")

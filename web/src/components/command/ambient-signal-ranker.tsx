@@ -14,6 +14,7 @@ interface AmbientSignal {
   correlatedDomains?: string[];
   signalChainActive?: boolean;
   live?: boolean;
+  measured?: boolean;
 }
 
 const DOMAIN_COLORS: Record<string, string> = {
@@ -123,10 +124,11 @@ const STATIC_SIGNALS: AmbientSignal[] = [
   {
     id: "sig-info-1",
     domain: "lyte",
-    title: "Self-Healing: 94% Autonomous Resolve",
-    summary: "Highest self-healing rate on record. Intelligence autonomously resolved all P1 incidents without human intervention.",
+    title: "Platform demo card",
+    summary: "Illustrative card only. No measured recovery rate is shown.",
     severity: "info",
     score: 0.38,
+    measured: false,
     timestamp: Date.now() - 86400000,
     actionLabel: "View Platform",
   },
@@ -220,7 +222,7 @@ export function AmbientSignalRanker({ apiBase = "" }: AmbientSignalRankerProps) 
         <div className="flex items-center gap-3">
           <span className="text-[10px] font-mono flex items-center gap-1" style={{ color: "var(--color-fg-muted)" }}>
             <Clock className="w-3 h-3" />
-            {timeAgo(lastRefreshed)}
+            UI refresh {timeAgo(lastRefreshed)}
           </span>
           <button
             onClick={fetchSignals}
@@ -258,8 +260,12 @@ export function AmbientSignalRanker({ apiBase = "" }: AmbientSignalRankerProps) 
                 >
                   {idx + 1}
                 </span>
-                <div className="text-[9px] font-bold" style={{ color: severityColor }}>
-                  {Math.round(sig.score * 100)}
+                <div
+                  className="text-[9px] font-bold"
+                  style={{ color: severityColor }}
+                  title={isDemo && sig.measured === false ? "Illustrative card. No measured recovery rate." : undefined}
+                >
+                  {isDemo && sig.measured === false ? "demo" : Math.round(sig.score * 100)}
                 </div>
               </div>
 
@@ -324,7 +330,9 @@ export function AmbientSignalRanker({ apiBase = "" }: AmbientSignalRankerProps) 
                     ))}
                   </div>
                   <span className="text-[10px] font-mono" style={{ color: "var(--color-fg-muted)" }}>
-                    {timeAgo(sig.timestamp)}
+                    {isDemo
+                      ? `Demo clock ${timeAgo(sig.timestamp)} — not an evidence observation`
+                      : `Reported clock ${timeAgo(sig.timestamp)}`}
                   </span>
                 </div>
               </div>

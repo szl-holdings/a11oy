@@ -45,7 +45,8 @@ HONESTY (doctrine v11)
     UNKNOWN — never a fabricated green.
   * nodes_reachable / sovereign_count / joules are PASSED THROUGH from the real
     sources, never re-probed, never invented here.
-  * MEASURED joules only (the billable figure from the on-box NVML exporter);
+  * MEASURED joules only with an explicit operator attribution contract; this
+    summary does not independently verify job attribution or billing.
     SAMPLE energy is reported separately and labelled, never billable.
   * Khipu receipt OPTIONAL — the underlying sources already sign (energy
     provenance chain + per-source receipts); this summary cites the signed
@@ -63,6 +64,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import math
 import os
 import time
 import urllib.request
@@ -200,10 +202,25 @@ def _fabric_summary() -> dict:
         node_brief = []
         pool_cached_at = None
 
-    # --- MEASURED joules: PASS THROUGH from the energy operator only ---
+    # --- Joules: pass through only an explicitly attributed operator value ---
     if energy_ok:
-        joules_measured_total = energy.get("joules_measured_total")
-        joules_measured_label = energy.get("joules_measured_label", "MEASURED")
+        raw_joules = energy.get("joules_measured_total")
+        explicitly_measured = (
+            energy.get("joules_measured_label") == "MEASURED"
+            and energy.get("attribution_verified") is True
+            and isinstance(energy.get("attribution_method"), str)
+            and bool(energy.get("attribution_method").strip())
+            and isinstance(energy.get("attribution_version"), int)
+            and not isinstance(energy.get("attribution_version"), bool)
+            and energy.get("attribution_version") >= 1
+            and isinstance(raw_joules, (int, float))
+            and not isinstance(raw_joules, bool)
+            and math.isfinite(raw_joules)
+            and raw_joules >= 0.0
+        )
+        joules_measured_total = (energy.get("joules_measured_total")
+                                 if explicitly_measured else None)
+        joules_measured_label = "MEASURED" if explicitly_measured else "UNAVAILABLE"
         joules_sample_total = energy.get("joules_sample_total")
         joules_sample_label = energy.get("joules_sample_label", "SAMPLE")
         nodes_computing = energy.get("nodes_computing", [])
@@ -240,7 +257,8 @@ def _fabric_summary() -> dict:
         }
 
     sources_reachable = bool(pool_ok and energy_ok)
-    status = "REAL" if sources_reachable else "DEGRADED"
+    status = ("REAL" if sources_reachable and joules_measured_label == "MEASURED"
+              else "DEGRADED")
 
     payload = {
         "ok": True,
@@ -271,7 +289,8 @@ def _fabric_summary() -> dict:
                              "cached_at": pool_cached_at,
                              "note": "node identity / reachability / sovereignty (LIVE)"},
             "energy_operator": {"path": _ENERGY_OP_PATH, "reachable": energy_ok,
-                                "note": "MEASURED joules via on-box NVML exporter (LIVE)"},
+                                "note": ("operator reports verified attributed joules" if joules_measured_label == "MEASURED"
+                                         else "operator measurement UNAVAILABLE")},
             "energy_provenance": {"path": _ENERGY_PROV_PATH, "reachable": prov_ok,
                                   "note": "signed hash-linked provenance chain head (LIVE)"},
         },
@@ -283,9 +302,12 @@ def _fabric_summary() -> dict:
                             "source, or UNKNOWN when that source is unreachable.",
             "scale": "HORIZONTAL scale only — independent nodes. There is NO fused/"
                      "pooled VRAM claim anywhere in this fabric.",
-            "joules": "joules_measured_total is the SUM of fresh (<30s) per-job "
-                      "MEASURED NVML deltas — the only billable figure. SAMPLE "
-                      "energy is tracked separately and is never billable.",
+            "joules": ("joules_measured_total passes through an explicitly attributed "
+                       "operator value; this summary does not independently verify "
+                       "job attribution. SAMPLE energy is separate and never billable."
+                       if joules_measured_label == "MEASURED" else
+                       "No verified attributed operator value; current joules are "
+                       "UNAVAILABLE and SAMPLE energy is never billable."),
             "khipu_receipt": "OPTIONAL here — the underlying energy-provenance + "
                              "per-source receipts already sign. This summary CITES "
                              "the signed provenance head rather than minting a "

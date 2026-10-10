@@ -18,7 +18,7 @@ LANDING = (ROOT / "a11oy_landing.html").read_text(encoding="utf-8")
 def test_first_paint_is_connecting_never_live_or_running() -> None:
     assert 'id="liveTag" aria-live="polite">NEXUS · CONNECTING<' in PAGE
     assert 'id="organBadge">BIND · connecting<' in PAGE
-    assert "first paint is <b>CONNECTING</b>" in PAGE
+    assert "First paint is <b>CONNECTING</b>" in PAGE
     assert "never fabricates <b>LIVE</b>, <b>RUNNING</b>, or <b>PASS</b>" in PAGE
     assert "NEXUS · LIVE" not in PAGE
     assert "Hub Space is <b>private</b>" in PAGE

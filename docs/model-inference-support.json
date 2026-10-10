@@ -6,9 +6,9 @@
     "qualification": false,
     "routing": false
   },
-  "generated_at": "2026-10-04T16:23:10.390796+00:00",
+  "generated_at": "2026-10-09T15:43:25.693184+00:00",
   "inventory_source": {
-    "model_ids_sha256": "07586b13420c30216620f527d3617af9fa957ac656ffc4775f09865d4998843e",
+    "model_ids_sha256": "771880ea44e30e044fb27969a392ba29051f1d4cf34c2513aa07520f44b2242e",
     "path": "docs/huggingface-ecosystem-manifest.json"
   },
   "max_observation_age_seconds": 86400,
@@ -722,6 +722,33 @@
         "observed_at": "2026-10-04T16:22:47.082932+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/oac-clinical-transport-health-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "non_provider_artifact",
+        "hub_revision": "a824a32d91a383d33a1e1e595f11b8362d1b4efa",
+        "observed_at": "2026-10-09T15:37:49.483008+00:00",
+        "qualification_note": "The exact model card describes a deterministic Python standard-library scorer and fitted JSON coefficients, with reported evaluation on synthetic generated data only. No hosted neural-model, real-transport, or clinical qualification is inferred from that card; the receipt is unsigned and its declared research origin is not independently authenticated.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/oac-ops-health-v2/blob/a824a32d91a383d33a1e1e595f11b8362d1b4efa/README.md",
+        "suggested_route": "Use the repository-specific local advisory route with authored synthetic inputs for inspection; this source grants no provider routing, device control, result release, or deployment authority."
+      },
+      "id": "SZLHOLDINGS/oac-ops-health-v2",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "a141dbf2c8b6ffa02f29801b285feeafe2feefc95852374e9bc4a0cd20071a1a",
+        "error": null,
+        "hub_revision": "a824a32d91a383d33a1e1e595f11b8362d1b4efa",
+        "observed_at": "2026-10-09T15:37:52.828658+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/oac-ops-health-v2?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",

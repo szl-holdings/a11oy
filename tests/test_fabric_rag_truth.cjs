@@ -92,3 +92,128 @@ test('ready ask uses only read-only GET with URLSearchParams, never POST', async
   assert.equal(element('rag-ask').disabled, true);
   assert.doesNotMatch(element('rag-state').innerHTML, /INDEX BUILT|LIVE/);
 });
+
+
+function wattFixture() {
+  const start = html.indexOf('function renderWatt(');
+  const end = html.indexOf('function escapeHTML(', start);
+  assert.ok(start > 0 && end > start, 'Fabric decision renderer must be testable');
+  const element = { innerHTML: '' };
+  const labels = [];
+  const context = {
+    $: () => element,
+    L: (kind, label) => { labels.push({ kind, label }); return `<label>${label || kind}</label>`; },
+    fmt: value => String(value),
+    fmt1: value => Number(value).toFixed(1),
+    shortHash: value => String(value).slice(0, 12),
+    escapeHTML: value => String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]),
+    pendingHTML: reason => `<span>PENDING ${reason}</span>`,
+  };
+  vm.runInNewContext(html.slice(start, end) + '\n;globalThis.render=renderWatt;', context);
+  return { element, render: context.render, labels };
+}
+
+const samplePlacement = {
+  decision: 'placed', chosen_node: '<sample-node>', grid_price_eur_mwh: 42.5,
+  grid_price_label: 'SAMPLE', savings_pct: 0.125, saving_label: 'MODELED',
+  reason: 'synthetic fixture',
+};
+
+for (const [name, data] of [
+  ['raw latest decision', { latest_decision: samplePlacement }],
+  ['legacy receipt wrapper', { latest_decision: { decision: samplePlacement } }],
+  ['recent decision fallback', { recent_decisions: [samplePlacement] }],
+  ['flat decision fallback', samplePlacement],
+  ['non-object latest fallback', { latest_decision: 'placed', recent_decisions: [samplePlacement] }],
+  ['array latest fallback', { latest_decision: [], recent_decisions: [samplePlacement] }],
+  ['null latest fallback', { latest_decision: null, recent_decisions: [samplePlacement] }],
+  ['malformed wrapped decision', { latest_decision: { ...samplePlacement, decision: [] } }],
+]) {
+  test(`placement renderer preserves fields for ${name}`, () => {
+    const { element, render } = wattFixture();
+    assert.equal(render({ data }), true);
+    assert.match(element.innerHTML, /42\.5/);
+    assert.match(element.innerHTML, /&lt;sample-node&gt;/);
+    assert.match(element.innerHTML, /12\.5%/);
+    assert.doesNotMatch(element.innerHTML, /<sample-node>|no chosen node in the retained record/);
+  });
+}
+
+test('raw no-choice decision preserves and escapes its reason', () => {
+  const { element, render } = wattFixture();
+  assert.equal(render({ data: { latest_decision: {
+    decision: 'no-choice', chosen_node: null, reason: '<no eligible sample node>',
+  } } }), true);
+  assert.match(element.innerHTML, /no chosen node in the retained record/);
+  assert.match(element.innerHTML, /&lt;no eligible sample node&gt;/);
+  assert.doesNotMatch(element.innerHTML, /<no eligible sample node>/);
+});
+
+
+test('missing placement response preserves the pending state', () => {
+  const { element, render } = wattFixture();
+  assert.equal(render(null), false);
+  assert.match(element.innerHTML, /PENDING/);
+  assert.doesNotMatch(element.innerHTML, /chosen node:/);
+});
+
+
+const sourceEvidenceLabels = [
+  'MEASURED', 'REPORTED', 'DECLARED', 'SIMULATED', 'SAMPLE',
+  'MODELED', 'ROADMAP', 'UNKNOWN', 'UNAVAILABLE', 'BLOCKED',
+];
+
+for (const label of sourceEvidenceLabels) {
+  test(`retained price and savings preserve source-declared ${label}`, () => {
+    const { element, render, labels } = wattFixture();
+    const data = { latest_decision: {
+      ...samplePlacement, grid_price_label: label, saving_label: label,
+    } };
+    const before = JSON.stringify(data);
+    assert.equal(render({ data }), true);
+    assert.equal(JSON.stringify(data), before, 'rendering must not change the retained payload');
+    assert.deepEqual(labels.map(item => item.kind), [label, label]);
+    assert.match(element.innerHTML, /recorded grid price \u00b7 source-declared label/);
+    assert.match(element.innerHTML, /recorded chosen node:/);
+    assert.match(element.innerHTML, /recorded savings:/);
+    assert.match(element.innerHTML, /labels are not independently verified/);
+    assert.match(element.innerHTML, /Current reachability and execution: UNKNOWN/);
+    assert.doesNotMatch(element.innerHTML, /LIVE|live grid|LOWEST|REACHABLE|ROUTING LAW|most-expensive/);
+    if (label !== 'MEASURED') assert.doesNotMatch(element.innerHTML, /MEASURED/);
+  });
+}
+
+for (const [name, value] of [
+  ['missing', undefined], ['null', null], ['empty', ''], ['unrecognized', 'ESTIMATE'],
+  ['live', 'LIVE'], ['lowercase', 'measured'], ['boolean', true],
+  ['array', ['MEASURED']], ['object', { label: 'MEASURED' }],
+  ['markup', '<img src=x onerror=alert(1)>'],
+]) {
+  test(`retained evidence labels stay UNKNOWN when ${name}`, () => {
+    const { element, render, labels } = wattFixture();
+    assert.equal(render({ data: { latest_decision: {
+      ...samplePlacement, grid_price_label: value, saving_label: value,
+    } } }), true);
+    assert.deepEqual(labels.map(item => item.kind), ['UNKNOWN', 'UNKNOWN']);
+    assert.doesNotMatch(element.innerHTML, /MEASURED|LIVE|MODELED|ESTIMATE|onerror|<img/);
+  });
+}
+
+test('retained references and all free text are escaped without signature claims', () => {
+  const { element, render, labels } = wattFixture();
+  const data = {
+    latest_decision: {
+      ...samplePlacement, chosen_node: '<b>node</b>', saving: '<img src=x>',
+      reason: '<script>reason</script>', signed: true, dsse: { signatures: [{}] },
+    },
+    chain: { head: '<img src=x>', length: '<b>length</b>' },
+  };
+  assert.equal(render({ data }), true);
+  assert.match(element.innerHTML, /&lt;b&gt;node&lt;\/b&gt;/);
+  assert.match(element.innerHTML, /recorded savings: <b>&lt;img src=x&gt;<\/b>/);
+  assert.match(element.innerHTML, /recorded reason: &lt;script&gt;reason&lt;\/script&gt;/);
+  assert.match(element.innerHTML, /unverified receipt reference &lt;img src=x&gt;/);
+  assert.match(element.innerHTML, /recorded chain length &lt;b&gt;length&lt;\/b&gt;/);
+  assert.doesNotMatch(element.innerHTML, /<img|<script|LIVE|VERIFIED|SIGNED|signature verified/);
+  assert.ok(labels.every(item => sourceEvidenceLabels.includes(item.kind)));
+});

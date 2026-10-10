@@ -482,6 +482,54 @@ def _readiness_public_source(entry: Any) -> Any:
     return out
 
 
+def _ownership_public_source(entry: Any) -> Any:
+    """Keep unsupported ownership evidence visible under a negative label."""
+    if isinstance(entry, dict) and entry.get("value") is not None:
+        freshness = entry.get("freshness")
+        if isinstance(freshness, dict):
+            status = freshness.get("status")
+            if not isinstance(status, str) or status not in _READINESS_PUBLIC_FRESHNESS | {"stale"}:
+                out = dict(entry)
+                public = dict(freshness)
+                public["status"] = "UNAVAILABLE"
+                if not str(public.get("error") or "").strip():
+                    public["error"] = "source returned unsupported freshness status"
+                out["freshness"] = public
+                return out
+    return _readiness_public_source(entry)
+
+
+def _ownership_source_ready(raw: Any, source: Any, list_key: str, checked_at: datetime) -> bool:
+    """Require observed, fresh SEC data before the ownership route answers 200."""
+    if not isinstance(raw, dict) or not isinstance(raw.get("freshness"), dict):
+        return False
+    raw_status = raw["freshness"].get("status")
+    if not isinstance(raw_status, str) or raw_status not in _READINESS_PUBLIC_FRESHNESS | {"stale"}:
+        return False
+    if not isinstance(source, dict) or not isinstance(source.get("value"), dict):
+        return False
+    if not isinstance(source["value"].get(list_key), list):
+        return False
+    freshness = source.get("freshness")
+    if not isinstance(freshness, dict):
+        return False
+    status = freshness.get("status")
+    if not isinstance(status, str) or status not in _READINESS_PUBLIC_FRESHNESS:
+        return False
+    fetched_at = freshness.get("fetched_at")
+    raw_fetched_at = raw["freshness"].get("fetched_at")
+    if not isinstance(fetched_at, str) or raw_fetched_at != fetched_at:
+        return False
+    try:
+        observed_at = datetime.fromisoformat(fetched_at.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if observed_at.tzinfo is None:
+        return False
+    age_s = (checked_at - observed_at).total_seconds()
+    return -300 <= age_s <= 3600
+
+
 # ===========================================================================
 # GOVERNED TURN — delegate to the proven machinery in a11oy_vertical_feeds.
 # ===========================================================================
@@ -1098,8 +1146,26 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
             + [(feed_sec_submissions, (cik,), {}) for cik in reits.values()]
         )
         sec = values[0]
-        subs = dict(zip(reits.keys(), values[1:]))
-        return JSONResponse({"tab": "ownership", "sec_fts": _readiness_public_source(sec), "reits": subs, "doctrine": DOCTRINE})
+        raw_subs = dict(zip(reits.keys(), values[1:]))
+        subs = {
+            name: _ownership_public_source(value)
+            for name, value in raw_subs.items()
+        }
+        sec_public = _ownership_public_source(sec)
+        checked_at = datetime.now(timezone.utc)
+        sources_ready = (
+            len(subs) == len(reits)
+            and _ownership_source_ready(sec, sec_public, "items", checked_at)
+            and all(
+                _ownership_source_ready(raw_subs[name], child, "filings", checked_at)
+                for name, child in subs.items()
+            )
+        )
+        return JSONResponse(
+            {"tab": "ownership", "sec_fts": sec_public,
+             "reits": subs, "doctrine": DOCTRINE},
+            status_code=200 if sources_ready else 503,
+        )
 
     @app.get(base + "/re/deal", include_in_schema=False)
     async def _re_deal(

@@ -293,14 +293,14 @@
   </section>
 
   <section class="card span5">
-    <h2>Big number · measured joules</h2>
+    <h2>Attributed job joules</h2>
     <div class="bigrow">
       <div class="bignum"><span class="val" id="big-joules">—</span><span class="unit">J</span></div>
-      <span class="chip chip-measured" id="big-joules-chip">MEASURED</span>
+      <span class="chip chip-unavailable" id="big-joules-chip">UNAVAILABLE</span>
     </div>
     <div class="proj" style="margin-top:12px">
       1-day projection: <span class="pv" id="proj-joules">—</span> J
-      <span class="chip chip-modeled">MODELED</span>
+      <span class="chip chip-unavailable" id="proj-joules-chip">UNAVAILABLE</span>
     </div>
   </section>
 
@@ -310,35 +310,35 @@
       <div class="metric">
         <div class="k">Tokens generated</div>
         <div class="v" id="m-tokens">—</div>
-        <div class="lbl"><span class="chip chip-measured">MEASURED</span></div>
+        <div class="lbl"><span class="chip chip-unavailable" id="m-tokens-chip">UNAVAILABLE</span></div>
       </div>
       <div class="metric">
         <div class="k">Jobs completed</div>
         <div class="v" id="m-jobs">—</div>
-        <div class="lbl"><span class="chip chip-measured">MEASURED</span></div>
+        <div class="lbl"><span class="chip chip-unavailable" id="m-jobs-chip">UNAVAILABLE</span></div>
       </div>
       <div class="metric">
         <div class="k">Joules</div>
         <div class="v" id="m-joules">—</div>
-        <div class="lbl"><span class="chip chip-measured">MEASURED</span></div>
+        <div class="lbl"><span class="chip chip-unavailable" id="m-joules-chip">UNAVAILABLE</span></div>
       </div>
       <div class="metric">
-        <div class="k">Earnings so-far (dry-run)</div>
+        <div class="k">Current earnings</div>
         <div class="v" id="m-earn" style="color:var(--amber)">—</div>
-        <div class="lbl"><span class="chip chip-modeled" id="m-earn-chip">MODELED</span></div>
+        <div class="lbl"><span class="chip chip-unavailable" id="m-earn-chip">UNAVAILABLE</span></div>
       </div>
       <div class="metric">
         <div class="k">Projected · 1 day (resale)</div>
         <div class="v" id="m-proj-earn" style="color:var(--amber)">—</div>
-        <div class="lbl"><span class="chip chip-estimate">ESTIMATE</span></div>
+        <div class="lbl"><span class="chip chip-unavailable" id="m-proj-earn-chip">UNAVAILABLE</span></div>
       </div>
       <div class="metric">
-        <div class="k">Real cleared revenue</div>
-        <div class="v" id="m-real" style="color:var(--dim)">$0.00</div>
-        <div class="lbl"><span class="chip chip-zero" id="m-real-chip">ZERO</span></div>
+        <div class="k">Cleared revenue</div>
+        <div class="v" id="m-real" style="color:var(--dim)">UNAVAILABLE</div>
+        <div class="lbl"><span class="chip chip-unavailable" id="m-real-chip">UNAVAILABLE</span></div>
       </div>
     </div>
-    <div style="margin-top:10px;color:var(--dim);font-size:11px;font-family:var(--mono)" id="earn-formula">earnings = MODELED dry-run ledger total + projection — never MEASURED until a real charge clears</div>
+    <div style="margin-top:10px;color:var(--dim);font-size:11px;font-family:var(--mono)" id="earn-formula">Historical charge responses are REPORTED, not payment-settlement proof. Current billable energy and cleared revenue are UNAVAILABLE pending exclusive-job attribution and provider readback.</div>
   </section>
 
   <section class="card span5">
@@ -360,7 +360,7 @@
   </section>
 
   <section class="card span12">
-    <h2>Live receipt feed · SZL.Energy.JouleCharge.v1 <span class="chip chip-modeled" id="feed-mode">DRY-RUN</span></h2>
+    <h2>Live receipt feed · SZL.Energy.JouleCharge.v1 <span class="chip chip-unavailable" id="feed-mode">UNAVAILABLE</span></h2>
     <div class="feed">
       <table class="feed-t">
         <thead><tr><th>time</th><th>node</th><th>joules</th><th>would-charge</th><th>digest</th></tr></thead>
@@ -373,7 +373,7 @@
 
 <div class="foot">
   <div><b>Honesty (Doctrine v11):</b> watts &amp; joules are <span class="chip chip-measured">MEASURED</span> from the on-box NVML exporter only when it is reachable; when the meter is offline the stream goes dashed and labels flip to <span class="chip chip-unavailable">UNAVAILABLE</span> — joules are NOT fabricated. The Bekenstein budget series is <span class="chip chip-estimate">ESTIMATE</span> / <span class="chip chip-sample">SAMPLE</span> (no on-box meter behind the budget layer); F19 Bekenstein is a proven inequality (locked-8), Λ is Conjecture 1.</div>
-  <div>Dollars are <span class="chip chip-modeled">MODELED</span> / <span class="chip chip-estimate">ESTIMATE</span> — revenue is <span class="chip chip-zero">ZERO</span> until a real charge clears, and only then <span class="chip chip-measured">MEASURED</span>. No live data → panels show <span class="chip chip-degraded">DEGRADED</span> / NO-LIVE-DATA. 0 runtime CDN · system fonts · uPlot v1.6.32 (MIT) vendored locally.</div>
+  <div>Historical receipt amounts are <span class="chip chip-unavailable">REPORTED</span>, not settled revenue or qualified per-job energy. No live data → panels show <span class="chip chip-degraded">DEGRADED</span> / NO-LIVE-DATA. 0 runtime CDN · system fonts · uPlot v1.6.32 (MIT) vendored locally.</div>
 </div>
 
 <script src="/vendor/uPlot.iife.min.js"></script>
@@ -386,6 +386,7 @@ var API = "/api/a11oy/v1";
 var REDUCED = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 var CHIP = { LIVE:"chip-live", MEASURED:"chip-measured", MODELED:"chip-modeled",
+             DECLARED:"chip-sample",
              SAMPLE:"chip-sample", ESTIMATE:"chip-estimate", ZERO:"chip-zero",
              DEGRADED:"chip-degraded", UNAVAILABLE:"chip-unavailable" };
 function setChip(el, label) {
@@ -682,6 +683,10 @@ function markLive(ok) {
     this.target = v;
     if (!this.started || REDUCED) { this.cur = v; this.started = true; this.render(); }
   };
+  Counter.prototype.clear = function () {
+    this.cur = 0; this.target = 0; this.started = false;
+    this.el.textContent = "—";
+  };
   Counter.prototype.tick = function () {
     if (!this.started) return;
     var d = this.target - this.cur;
@@ -793,7 +798,11 @@ function markLive(ok) {
                : '<span class="chip chip-sample">IDLE</span>';
       var bn = byNode[name] || {};
       var detail = "";
-      if (bn.joules_measured != null) detail += " · " + fmt(num(bn.joules_measured), 1) + " J";
+      if (bn.joules_measured_label === "MEASURED" && bn.attribution_verified === true &&
+          typeof bn.attribution_method === "string" && bn.attribution_method.trim() &&
+          Number.isInteger(bn.attribution_version) && bn.attribution_version > 0 &&
+          num(bn.joules_measured) > 0)
+        detail += " · " + fmt(num(bn.joules_measured), 1) + " J";
       if (bn.tokens != null) detail += " · " + fmt(num(bn.tokens), 0) + " tok";
       div.innerHTML = '<div class="nm">' + esc(name) + "</div>" +
         '<div class="st">' + chip + detail + "</div>";
@@ -813,11 +822,11 @@ function markLive(ok) {
         return;
       }
       var receipts = d.receipts || d.entries || d.ledger || [];
-      var dryRunTotal = 0, anyCharged = false;
-      var mode = (String(d.stripe_mode || d.mode || "").toLowerCase() === "live") ? "LIVE" : "DRY-RUN";
+      var mode = String(d.stripe_mode || d.mode || "").toLowerCase() === "blocked-pending-attribution"
+        ? "BLOCKED" : "UNAVAILABLE";
       var feedMode = document.getElementById("feed-mode");
       feedMode.textContent = mode;
-      feedMode.className = "chip " + (mode === "LIVE" ? "chip-measured" : "chip-modeled");
+      feedMode.className = "chip " + (mode === "BLOCKED" ? "chip-degraded" : "chip-unavailable");
 
       var rows = receipts.slice().reverse();
       if (rows.length && body.querySelector(".empty")) body.innerHTML = "";
@@ -826,8 +835,8 @@ function markLive(ok) {
         var digest = (r.receipt && r.receipt.payload_digest) || r.entry_digest || r.payload_digest || r.digest || "";
         var cents = pickCents(r, dec);
         var charge = r.charge || {};
-        if (String(charge.status) === "charged") anyCharged = true;
-        else dryRunTotal += (typeof cents === "number" ? cents : 0);
+        var chargeLabel = String(charge.status) === "charged" ? "REPORTED" :
+          (String(charge.status) === "dry-run" ? "MODELED" : "BLOCKED");
         if (digest && seen[digest]) return;
         if (digest) seen[digest] = true;
         var tr = document.createElement("tr");
@@ -838,19 +847,18 @@ function markLive(ok) {
           "<td>" + esc(dec.node || r.node || "—") + "</td>" +
           "<td>" + fmt(num(dec.joules_measured || dec.joules), 3) + "</td>" +
           '<td class="cents">' + (typeof cents === "number" ? (cents + "¢") : "—") +
-            ' <span class="chip chip-modeled">' + (mode === "LIVE" && anyCharged ? "MODELED" : "DRY-RUN") + "</span></td>" +
+            ' <span class="chip chip-degraded">' + chargeLabel + "</span></td>" +
           '<td class="digest">' + esc(shortDigest(digest)) + "</td>";
         body.insertBefore(tr, body.firstChild);
       });
 
-      // today earnings = MODELED dry-run total
-      document.getElementById("m-earn").textContent = "$" + (dryRunTotal / 100).toFixed(2);
-      // real cleared revenue: only MEASURED if a real charge cleared
-      var realCents = num(d.cleared_revenue_cents || d.charged_cents || 0);
+      // A page of historical receipts is neither today's earnings nor a settlement readback.
+      document.getElementById("m-earn").textContent = "UNAVAILABLE";
+      setChip(document.getElementById("m-earn-chip"), "UNAVAILABLE");
       var mReal = document.getElementById("m-real");
-      mReal.textContent = "$" + (realCents / 100).toFixed(2);
-      setChip(document.getElementById("m-real-chip"), realCents > 0 ? "MEASURED" : "ZERO");
-      mReal.style.color = realCents > 0 ? "var(--green)" : "var(--dim)";
+      mReal.textContent = "UNAVAILABLE";
+      setChip(document.getElementById("m-real-chip"), "UNAVAILABLE");
+      mReal.style.color = "var(--dim)";
     });
   }
 
@@ -862,42 +870,67 @@ function markLive(ok) {
     return null;
   }
 
-  // ===== TODAY totals from operator status (MEASURED compute) ============
+  // ===== Operator cumulative counts and exclusively attributed job energy ==
+  function renderTodayStatus(t) {
+    var tokenChip = document.getElementById("m-tokens-chip");
+    var jobChip = document.getElementById("m-jobs-chip");
+    var jouleChip = document.getElementById("m-joules-chip");
+    var bigChip = document.getElementById("big-joules-chip");
+    if (isErr(t) || t.ok === false) {
+      mTokens.clear(); mJobs.clear(); mJoules.clear(); bigJoules.clear();
+      setChip(tokenChip, "UNAVAILABLE"); setChip(jobChip, "UNAVAILABLE");
+      setChip(jouleChip, "UNAVAILABLE"); setChip(bigChip, "UNAVAILABLE");
+      return;
+    }
+    var tokens = num(t.tokens_total != null ? t.tokens_total : t.tokens_measured);
+    var jobs = num(t.jobs_done != null ? t.jobs_done : t.jobs_completed);
+    if (tokens != null && tokens >= 0) { mTokens.set(tokens); setChip(tokenChip, "DECLARED"); }
+    else { mTokens.clear(); setChip(tokenChip, "UNAVAILABLE"); }
+    if (jobs != null && jobs >= 0) { mJobs.set(jobs); setChip(jobChip, "DECLARED"); }
+    else { mJobs.clear(); setChip(jobChip, "UNAVAILABLE"); }
+    var joules = num(t.joules_measured_total);
+    var attributed = t.joules_measured_label === "MEASURED" &&
+      t.attribution_verified === true &&
+      typeof t.attribution_method === "string" && !!t.attribution_method.trim() &&
+      Number.isInteger(t.attribution_version) && t.attribution_version > 0 &&
+      joules != null && joules > 0;
+    if (attributed) {
+      mJoules.set(joules); bigJoules.set(joules);
+      setChip(jouleChip, "MEASURED"); setChip(bigChip, "MEASURED");
+    } else {
+      mJoules.clear(); bigJoules.clear();
+      setChip(jouleChip, "UNAVAILABLE"); setChip(bigChip, "UNAVAILABLE");
+    }
+  }
+
   function refreshToday() {
-    return poll(API + "/energy/operator/status").then(function (d) {
-      if (isErr(d)) return;
-      var t = d;
-      var tokens = num(t.tokens_total != null ? t.tokens_total : (t.tokens_measured != null ? t.tokens_measured : t.tokens));
-      var jobs = num(t.jobs_done != null ? t.jobs_done : (t.jobs_completed != null ? t.jobs_completed : t.jobs));
-      var joules = num(t.joules_measured_total != null ? t.joules_measured_total : (t.joules_measured != null ? t.joules_measured : t.joules));
-      if (tokens != null) mTokens.set(tokens);
-      if (jobs != null) mJobs.set(jobs);
-      if (joules != null) { mJoules.set(joules); bigJoules.set(joules); }
-    });
+    return poll(API + "/energy/operator/status").then(renderTodayStatus);
   }
 
   // ===== PROJECTION: 1-day MODELED headline ==============================
   function refreshProjection() {
     return poll(API + "/energy/projection?window=running").then(function (d) {
-      markLive(!isErr(d));
+      markLive(!isErr(d) && d.ok === true);
       var pj = document.getElementById("proj-joules");
       var pe = document.getElementById("m-proj-earn");
-      if (isErr(d)) { pj.textContent = "—"; pe.textContent = "—"; return; }
-      var p = d.projection_1day_single_node || d.one_day || d.projection || d;
+      var pjChip = document.getElementById("proj-joules-chip");
+      var peChip = document.getElementById("m-proj-earn-chip");
+      if (isErr(d) || d.ok !== true) {
+        pj.textContent = "—"; pe.textContent = "—";
+        setChip(pjChip, "UNAVAILABLE"); setChip(peChip, "UNAVAILABLE");
+        return;
+      }
+      var p = d.projection_1day_single_node || {};
       var cd = p.compute_done || {};
-      var joules = num((cd.joules && cd.joules.value != null) ? cd.joules.value
-                     : (p.joules && p.joules.value != null ? p.joules.value
-                     : (p.joules != null ? p.joules : (p.joules_projected != null ? p.joules_projected : p.joules_1d))));
+      var joulesField = cd.joules || {};
+      var joules = joulesField.label === "MODELED" ? num(joulesField.value) : null;
       var earn = p.earnings || {};
       var resale = earn.compute_resale_usd || {};
-      var earnDollars = num(resale.value != null ? resale.value
-                         : (earn.usd != null ? earn.usd : (earn.value != null ? earn.value : null)));
-      if (earnDollars == null) {
-        var ec = num(earn.amount_cents != null ? earn.amount_cents : (earn.earnings_cents != null ? earn.earnings_cents : earn.cents));
-        if (ec != null) earnDollars = ec / 100;
-      }
+      var earnDollars = resale.label === "ESTIMATE" ? num(resale.value) : null;
       pj.textContent = joules != null ? fmt(joules, 0) : "—";
       pe.textContent = earnDollars != null ? ("$" + earnDollars.toFixed(2)) : "—";
+      setChip(pjChip, joules != null ? "MODELED" : "UNAVAILABLE");
+      setChip(peChip, earnDollars != null ? "ESTIMATE" : "UNAVAILABLE");
       var formula = (resale.formula) || (cd.joules && cd.joules.formula) || p.basis;
       if (formula) {
         document.getElementById("earn-formula").textContent =

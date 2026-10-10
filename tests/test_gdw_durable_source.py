@@ -12,6 +12,7 @@ import time
 import pytest
 
 import gdw_durable_source as source
+from scripts import build_gdw_installed_source_manifest as builder
 
 
 def manifest(*, contents=None, absent=None):
@@ -63,6 +64,10 @@ def install_image(directory, *, contents=None, absent=None):
 
 def verify(value, app, inputs, **kwargs):
     return source.verify_installed_source(value, app, "b" * 40, runtime_install_root=inputs, **kwargs)
+
+
+def test_builder_and_runtime_share_exact_publisher_identity():
+    assert source.PUBLISHER == builder.PUBLISHER
 
 
 def test_exact_source_inventory_and_absences_have_no_payload_or_environment_claim(tmp_path):

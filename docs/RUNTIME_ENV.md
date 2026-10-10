@@ -103,6 +103,8 @@ whether the *subsystem* is unavailable without it (never means "crash").
 | `A11OY_GPU_TOKEN` | secret | optional | Bearer token for the sovereign GPU node(s). Absent => joules are honest SAMPLE, never MEASURED. | (unset → subsystem DEGRADED) |
 | `A11OY_ENERGY_OMEN_ENABLED` | variable | optional | Runbook alias: 1 flips OMEN live when STANDBY unset. | 0 |
 | `A11OY_JOULE_METER_URL` | variable | optional | URL of a joule meter (energy MEASURED path). | (none / feature off) |
+| `A11OY_METER2_CF_ACCESS_CLIENT_ID` | secret | optional | Cloudflare Access service-token Client ID, sent only to HTTPS `meter2.a-11-oy.com` when paired with the Client Secret. | (unset) |
+| `A11OY_METER2_CF_ACCESS_CLIENT_SECRET` | secret | optional | Cloudflare Access service-token Client Secret for the exact meter2 host; never set in source or a URL. | (unset) |
 | `A11OY_OMEN_BASE_URL` | variable | optional | OMEN GPU-lung base URL (energy MEASURED path). | (none / feature off) |
 | `A11OY_OMEN_STANDBY` | variable | optional | 1 => OMEN standby (default); 0 => live lung. | 1 |
 | `SZL_ENERGY_LEDGER_PATH` | variable | optional | Persistent path for the energy/receipt ledger; ephemeral if unset. | (none / feature off) |

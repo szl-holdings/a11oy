@@ -437,6 +437,7 @@ class ObjectAPI:
         self.objects = {}
         self.bytes_by_xet = {}
         self.additions = []
+        self.batches = []
         self.downloads = []
         self.after_add = None
         self.on_download = None
@@ -459,23 +460,30 @@ class ObjectAPI:
             if path in self.objects:
                 yield self.objects[path]
 
-    def batch_bucket_files(self, *, bucket_id, add):
-        assert bucket_id == s.BUCKET and len(add) == 1
-        source, path = add[0]
-        assert path.startswith(s.OBJECT_PREFIX + "/") or path.startswith(s.ARTIFACT_PREFIX + "/")
-        self.additions.append((path, source.read_bytes()))
-        self.seed(path, source.read_bytes())
-        if self.after_add:
-            self.after_add(source, path)
+    def list_bucket_tree(self, *, bucket_id, prefix, recursive):
+        assert bucket_id == s.BUCKET and recursive is True
+        return (self.objects[path] for path in sorted(self.objects)
+                if path.startswith(prefix + "/"))
 
-    def download_bucket_files(self, *, bucket_id, files):
-        assert bucket_id == s.BUCKET and len(files) == 1
-        observed, target = files[0]
-        assert not isinstance(observed, str)
-        self.downloads.append(observed)
-        target.write_bytes(self.bytes_by_xet[observed.xet_hash])
-        if self.on_download:
-            self.on_download(observed, target)
+    def batch_bucket_files(self, *, bucket_id, add):
+        assert bucket_id == s.BUCKET and add
+        self.batches.append(tuple(path for _source, path in add))
+        for source, path in add:
+            assert path.startswith(s.OBJECT_PREFIX + "/") or path.startswith(s.ARTIFACT_PREFIX + "/")
+            self.additions.append((path, source.read_bytes()))
+            self.seed(path, source.read_bytes())
+            if self.after_add:
+                self.after_add(source, path)
+
+    def download_bucket_files(self, *, bucket_id, files, raise_on_missing_files=False):
+        assert bucket_id == s.BUCKET and files
+        for observed, target in files:
+            assert not isinstance(observed, str)
+            self.downloads.append(observed)
+            target.write_bytes(self.bytes_by_xet[observed.xet_hash])
+            target.chmod(0o600)
+            if self.on_download:
+                self.on_download(observed, target)
 
 
 @pytest.fixture
@@ -573,6 +581,83 @@ def artifact_input(state):
     digest = hashlib.sha256(body).hexdigest()
     key = f"{s.ARTIFACT_PREFIX}/{'b' * 64}/{digest}.json"
     return path, key, digest
+
+
+def artifact_set(state, count=3):
+    result = {}
+    for index in range(count):
+        path = state.root / f"retained-artifact-{index}.json"
+        body = json.dumps({"payload": f"{PRIVATE}-{index}"}, sort_keys=True).encode() + b"\n"
+        path.write_bytes(body)
+        path.chmod(0o600)
+        digest = hashlib.sha256(body).hexdigest()
+        key = f"{s.ARTIFACT_PREFIX}/{index:064x}/{digest}.json"
+        result[key] = (path, digest, len(body))
+    return result
+
+
+def test_artifact_set_preserves_existing_and_adds_missing_once(object_store):
+    state = object_store
+    artifacts = artifact_set(state)
+    existing = next(iter(artifacts))
+    state.api.seed(existing, artifacts[existing][0].read_bytes())
+
+    records = state.store.publish_artifacts(artifacts, deadline())
+
+    assert set(records) == set(artifacts)
+    assert set(path for path, _data in state.api.additions) == set(artifacts) - {existing}
+    assert state.api.batches[-1] == tuple(sorted(set(artifacts) - {existing}))
+    assert len(state.api.downloads) == len(artifacts)
+
+
+def test_artifact_set_rejects_unplanned_prefix_entry_before_add(object_store):
+    state = object_store
+    artifacts = artifact_set(state)
+    unexpected = f"{s.ARTIFACT_PREFIX}/{'f' * 64}/{'e' * 64}.json"
+    state.api.seed(unexpected, b"unplanned")
+
+    with pytest.raises(s.StorageBlocked, match="PRIVATE_OBJECT_IDENTITY_MALFORMED"):
+        state.store.publish_artifacts(artifacts, deadline())
+
+    assert state.api.additions == []
+
+
+def test_artifact_set_uncertain_batch_is_never_retried(object_store):
+    state = object_store
+    artifacts = artifact_set(state)
+    calls = []
+    def lost_reply(_source, _path):
+        calls.append(1)
+        raise TimeoutError(PRIVATE)
+    state.api.after_add = lost_reply
+
+    with pytest.raises(s.StorageBlocked, match="STORAGE_OUTCOME_UNCERTAIN"):
+        state.store.publish_artifacts(artifacts, deadline())
+
+    assert calls == [1]
+    assert len(state.api.batches) == 1
+    assert len(state.api.additions) == 1
+    assert state.api.downloads == []
+
+
+def test_artifact_set_readback_mismatch_never_returns_acknowledgements(object_store):
+    state = object_store
+    artifacts = artifact_set(state)
+    corrupted = False
+    def corrupt_first(_observed, target):
+        nonlocal corrupted
+        if not corrupted:
+            target.write_bytes(b"x" * target.stat().st_size)
+            target.chmod(0o600)
+            corrupted = True
+    state.api.on_download = corrupt_first
+
+    with pytest.raises(s.StorageBlocked, match="PRIVATE_OBJECT_READBACK_MISMATCH"):
+        state.store.publish_artifacts(artifacts, deadline())
+
+    assert corrupted is True
+    assert len(state.api.batches) == 1
+    assert len(state.api.downloads) == len(artifacts)
 
 
 def test_artifact_readback_is_exact_and_identical_rerun_performs_no_add(object_store):
