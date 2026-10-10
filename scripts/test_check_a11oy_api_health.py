@@ -2,10 +2,11 @@
 """Self-test for evaluate() in check_a11oy_api_health.py.
 
 Proves the checker actually catches the regressions it claims to catch:
-SPA-HTML-instead-of-JSON (200 but text/html), non-200, unparseable body, a
+SPA-HTML-instead-of-JSON (200 but text/html), 5xx, unparseable body, a
 non-object payload, and a missing contract key — and that it accepts a valid
-governed envelope, a valid /healthz body, and the recommend/ledger contract
-shapes (which intentionally do NOT carry the governed envelope). Stdlib
+governed envelope, a valid /healthz body, the recommend/ledger contract
+shapes (which intentionally do NOT carry the governed envelope), and a
+governed HTTP 401 BLOCKED refusal only when the probe allows it. Stdlib
 unittest, no network. Guards the validator so a future edit can't silently
 neuter the health check.
 """
@@ -28,6 +29,17 @@ GOVERNED = json.dumps(
     }
 ).encode("utf-8")
 SPA_HTML = b"<!doctype html><html><head><title>a11oy</title></head><body></body></html>"
+ANON_REFUSAL = json.dumps(
+    {
+        "ok": False,
+        "status": "BLOCKED",
+        "error": (
+            "MCP tool call requires the operator credential. "
+            "Anonymous callers are denied by default."
+        ),
+        "credential_configured": True,
+    }
+).encode("utf-8")
 
 
 class EvaluateTests(unittest.TestCase):
@@ -312,6 +324,57 @@ class EvaluateTests(unittest.TestCase):
                               ["tool", "status", "formulas"])
         self.assertFalse(ok)
         self.assertIn("503", reason)
+
+    def test_anonymous_refusal_401_passes(self):
+        ok, reason = evaluate(
+            401, "application/json", ANON_REFUSAL, ["tool", "status", "formulas"],
+            anonymous_refusal_ok=True,
+        )
+        self.assertTrue(ok, reason)
+
+    def test_anonymous_refusal_requires_blocked_status(self):
+        body = json.dumps({"ok": False, "status": "DENIED"}).encode("utf-8")
+        ok, reason = evaluate(
+            401, "application/json", body, ["status"], anonymous_refusal_ok=True,
+        )
+        self.assertFalse(ok)
+        self.assertIn("not a governed anonymous refusal", reason)
+
+    def test_anonymous_refusal_ok_true_fails(self):
+        body = json.dumps({"ok": True, "status": "BLOCKED"}).encode("utf-8")
+        ok, reason = evaluate(
+            401, "application/json", body, ["status"], anonymous_refusal_ok=True,
+        )
+        self.assertFalse(ok)
+        self.assertIn("not a governed anonymous refusal", reason)
+
+    def test_anonymous_refusal_html_fails(self):
+        ok, reason = evaluate(
+            401, "text/html", SPA_HTML, ENVELOPE, anonymous_refusal_ok=True,
+        )
+        self.assertFalse(ok)
+        self.assertIn("application/json", reason)
+
+    def test_anonymous_refusal_flag_off_still_fails_401(self):
+        ok, reason = evaluate(401, "application/json", ANON_REFUSAL, ENVELOPE)
+        self.assertFalse(ok)
+        self.assertIn("401", reason)
+
+    def test_anonymous_refusal_200_still_requires_contract(self):
+        ok, reason = evaluate(
+            200, "application/json", b'{"ok": false}', ["tool", "status", "formulas"],
+            anonymous_refusal_ok=True,
+        )
+        self.assertFalse(ok)
+        self.assertIn("tool", reason)
+
+    def test_anonymous_refusal_500_fails(self):
+        ok, reason = evaluate(
+            500, "application/json", ANON_REFUSAL, ["tool"],
+            anonymous_refusal_ok=True,
+        )
+        self.assertFalse(ok)
+        self.assertIn("500", reason)
 
 
 if __name__ == "__main__":
