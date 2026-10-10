@@ -572,10 +572,10 @@ def _is_provider_injected_script(
     Cloudflare also injects its WebMCP bridge when the zone's webmcp_enabled
     setting is on; see its zone-setting contract:
     https://developers.cloudflare.com/api/resources/zones/subresources/settings/
-    Only the exact canonical-apex module tag observed
-    with the mcp-server-client pack is recognized. Its URL and metadata remain
-    bounded: altered attributes, duplicate attributes, URLs, or tool packs stay
-    in the product semantic contract and continue to fail parity.
+    Only the exact canonical-apex module tag observed on 2026-10-10 is
+    recognized: data-packs="c2pa,mcp-server-client". Its URL and metadata
+    remain bounded: altered attributes, duplicate attributes, URLs, or tool
+    packs stay in the product semantic contract and continue to fail parity.
     """
     parsed = urllib.parse.urlsplit(src)
     if (
@@ -595,7 +595,11 @@ def _is_provider_injected_script(
         and src == "https://a-11-oy.com/.webmcp/bridge.js"
         and len(attrs) == 3
         and dict(attrs)
-        == {"src": src, "type": "module", "data-packs": "mcp-server-client"}
+        == {
+            "src": src,
+            "type": "module",
+            "data-packs": "c2pa,mcp-server-client",
+        }
     )
 
 
