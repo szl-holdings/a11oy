@@ -535,6 +535,18 @@ def test_workflow_separates_pr_contract_from_trusted_live_authority() -> None:
 
     assert "needs: trusted-contract" in live_canary
     assert "needs.trusted-contract.result == 'success'" in live_canary
+    preflight = live_canary.split(
+        "- name: Require exact current protected main\n", 1
+    )[1].split("- name: Set up Python\n", 1)[0]
+    stale_gate = preflight.index(
+        'if [ "$current_main" != "$EXPECTED_SOURCE_SHA" ]'
+    )
+    checkout_gate = preflight.index(
+        'test "$checked_out" = "$EXPECTED_SOURCE_SHA"'
+    )
+    assert stale_gate < checkout_gate
+    assert 'echo "stale=true" >> "$GITHUB_OUTPUT"' in preflight
+    assert preflight.index('echo "stale=true" >> "$GITHUB_OUTPUT"') < checkout_gate
     assert (
         "EXPECTED_SOURCE_SHA: ${{ needs.trusted-contract.outputs.source_sha }}"
         in live_canary
