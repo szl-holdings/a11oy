@@ -36,6 +36,7 @@ class EstateWorkflowPermissionTests(unittest.TestCase):
                           "github.ref == 'refs/heads/main'",
                           "github.event.workflow_run.conclusion == 'success'",
                           "github.event.workflow_run.head_branch == 'main'",
+                          "github.event.workflow_run.head_sha == github.sha",
                           "github.event.workflow_run.head_repository.full_name == github.repository"):
             self.assertIn(predicate, condition)
 
