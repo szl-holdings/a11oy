@@ -123,7 +123,7 @@ class EstateReleaseTrainTests(unittest.TestCase):
         apex.feed(
             '<title>A11oy</title><script src="/app.js"></script>'
             f'<script type="module" src="{bridge}" '
-            'data-packs="mcp-server-client"></script>'
+            'data-packs="c2pa,mcp-server-client"></script>'
         )
         self.assertEqual(
             baseline.result()["semantic_sha256"], apex.result()["semantic_sha256"]
@@ -167,7 +167,12 @@ class EstateReleaseTrainTests(unittest.TestCase):
                 f'<script type="module" src="{bridge}"></script>',
                 f'<script type="module" src="{bridge}" data-packs="dom"></script>',
                 f'<script type="module" src="{bridge}" '
+                'data-packs="mcp-server-client"></script>',
+                f'<script type="module" src="{bridge}" data-packs="c2pa"></script>',
+                f'<script type="module" src="{bridge}" '
                 'data-packs="mcp-server-client,dom"></script>',
+                f'<script type="module" src="{bridge}" '
+                'data-packs="c2pa,mcp-server-client,dom"></script>',
                 f'<script type="module" src="{bridge}" '
                 'data-packs="mcp-server-client" onload="changed()"></script>',
                 f'<script type="module" src="{bridge}" '
