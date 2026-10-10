@@ -174,34 +174,82 @@ def eval_liu_hui_pi(opts: Dict[str, Any], config: Optional[Dict[str, Any]] = Non
 
 
 # --- 4. MadhavaBound (Mādhava) --------------------------------------------
-# TS: madhavaBound_gate.ts  Lean: madhavaRemainderBound_nonneg
+# TS: madhavaBound_gate.ts
+# Lean madhavaRemainderBound_nonneg is nonnegativity only.
+# The classical first-omitted-term comparison is not a kernel-checked arctan
+# specialization and is not a float64 error bound.
+_MADHAVA_MAX_TERMS = 10_000
+_FLOAT_MIN_NORMAL_LOG = math.log(2.2250738585072014e-308)
+
+
+def _madhava_log_bound(abs_x: float, n: int) -> float:
+    if abs_x == 0.0:
+        return float("-inf")
+    if abs_x == 1.0:
+        return -math.log(2 * n + 1)
+    return (2 * n + 1) * math.log(abs_x) - math.log(2 * n + 1)
+
+
+def _madhava_remainder(abs_x: float, n: int) -> tuple[float, str]:
+    log_bound = _madhava_log_bound(abs_x, n)
+    if abs_x == 0.0:
+        return 0.0, "FINITE"
+    if abs_x == 1.0:
+        return 1.0 / (2 * n + 1), "FINITE"
+    if log_bound < _FLOAT_MIN_NORMAL_LOG:
+        return 0.0, "SUBNORMAL_OR_UNDERFLOW"
+    value = math.exp(log_bound)
+    if value == 0.0 or not math.isfinite(value):
+        return 0.0, "SUBNORMAL_OR_UNDERFLOW"
+    return value, "FINITE"
+
+
+def _madhava_within_threshold(abs_x: float, n: int, threshold: float) -> bool:
+    log_threshold = math.log(threshold)
+    if not math.isfinite(log_threshold):
+        return False
+    return _madhava_log_bound(abs_x, n) <= log_threshold
+
+
 def eval_madhava_bound(opts: Dict[str, Any], config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     config = config or {}
     threshold = config.get("threshold", 0.01)
-    if not math.isfinite(threshold) or threshold <= 0:
+    if isinstance(threshold, bool) or not isinstance(threshold, (int, float)) or not math.isfinite(threshold) or threshold <= 0:
         raise GateError(f"MadhavaBoundGate: threshold must be > 0; got {threshold}")
     x = opts.get("x")
     N = opts.get("N")
     eps = 2.220446049250313e-16
-    if x is None or not isinstance(x, (int, float)) or not math.isfinite(x) or abs(x) > 1 + eps:
+    if isinstance(x, bool) or x is None or not isinstance(x, (int, float)) or not math.isfinite(x) or abs(x) > 1 + eps:
         raise GateError(f"MadhavaBoundGate: |x| must be <= 1; got {x}")
-    if not isinstance(N, int) or isinstance(N, bool) or N < 1:
-        raise GateError(f"MadhavaBoundGate: N must be >= 1; got {N}")
-    remainder_bound = (abs(x) ** (2 * N + 1)) / (2 * N + 1)
-    lambda_score = max(0.0, min(1.0, 1.0 - remainder_bound))
-    allow = remainder_bound <= threshold
-    rationale = (
-        f"Mādhava bound {remainder_bound:.4e} <= threshold {threshold}: series sufficiently converged. "
-        f"Lean: madhavaRemainderBound_nonneg @{LEAN_COMMIT[:12]}"
-        if allow else
-        f"Mādhava bound {remainder_bound:.4e} > threshold {threshold}: series not converged — governance "
-        f"signal unreliable. Lean: madhavaRemainderBound_nonneg @{LEAN_COMMIT[:12]}"
-    )
+    if isinstance(N, bool) or not isinstance(N, int) or N < 1 or N > _MADHAVA_MAX_TERMS:
+        raise GateError(f"MadhavaBoundGate: N must be an integer in 1..{_MADHAVA_MAX_TERMS}; got {N}")
+    abs_x = abs(float(x))
+    remainder_bound, remainder_state = _madhava_remainder(abs_x, N)
+    within = _madhava_within_threshold(abs_x, N, float(threshold))
+    lambda_score = None if remainder_state != "FINITE" else max(0.0, min(1.0, 1.0 - remainder_bound))
+    lean_pin = LEAN_COMMIT[:12]
+    if within:
+        rationale = (
+            f"Madhava first-omitted-term bound state={remainder_state} is within absolute threshold {threshold}. "
+            "This is not a kernel-checked arctan error and not a float64 error bound. "
+            f"Lean: madhavaRemainderBound_nonneg is nonnegativity only @{lean_pin}"
+        )
+    else:
+        rationale = (
+            f"Madhava first-omitted-term bound state={remainder_state} exceeds absolute threshold {threshold}, "
+            "or the threshold is outside log-space comparison. "
+            f"Lean: madhavaRemainderBound_nonneg is nonnegativity only @{lean_pin}"
+        )
     return {
-        "allow": allow, "rationale": rationale, "formula": "MadhavaBound",
+        "allow": within, "rationale": rationale, "formula": "MadhavaBound",
         "leanTheorem": "madhavaRemainderBound_nonneg", "leanFile": "Lutar/PACBayes/MadhavaBound.lean",
         "leanCommitSha": LEAN_COMMIT, "remainderBound": remainder_bound,
+        "remainderBoundState": remainder_state,
         "threshold": threshold, "lambdaScore": lambda_score,
+        "accuracyClaim": "NOT_ASSERTED",
+        "leanScope": "nonnegativity_only",
+        "floatTruncationError": "NOT_BOUNDED",
+        "comparison": "log_space_first_omitted_term",
     }
 
 
@@ -639,7 +687,7 @@ _REGISTRY: List[Dict[str, Any]] = [
      "sample": {"k": 8}, "config": {"threshold": 1e-4}},
     {"name": "MadhavaBound", "id": "Mādhava", "leanTheorem": "madhavaRemainderBound_nonneg",
      "leanFile": "Lutar/PACBayes/MadhavaBound.lean", "leanStatus": "theorem", "axis": "SUMAQ",
-     "severity": "enforced", "gates": "Allows governance signal only when Mādhava arctan remainder |x|^(2N+1)/(2N+1) ≤ threshold.",
+     "severity": "enforced", "gates": "Compares the classical first-omitted-term expression |x|^(2N+1)/(2N+1) with an absolute threshold in log space. Lean madhavaRemainderBound_nonneg is nonnegativity only. accuracyClaim is NOT_ASSERTED.",
      "status": "live", "ts": "packages/policy/src/gates/madhavaBound_gate.ts",
      "sample": {"x": 0.5, "N": 5}, "config": {"threshold": 0.01}},
     {"name": "SummationInvariant", "id": "Khipu", "leanTheorem": "khipuReceipt_checksum_invariant",

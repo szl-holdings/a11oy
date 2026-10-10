@@ -316,7 +316,7 @@
     "lean_file": "Lutar/Banach/LiuHuiPi.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "LiuHuiPi",
-    "rationale": "A geometric computation is allowed only when the Liu Hui polygon approximation of \u03c0 at step k achieves an absolute error \u2264 threshold. The Lean theorem proves sideSquared \u2208 [0,4] (well-definedness), and the monotone convergence guarantees piEstimate < \u03c0. The gate enforces that sufficient polygon sides have been computed before the approximation is trusted in a governance computation.",
+    "rationale": "A geometric computation is allowed only when the float64 Liu Hui polygon estimate at step k has absolute residual at most the configured threshold against Math.PI. Lean theorem sideSquared_bounds proves the real recurrence stays in [0, 4]. Axiom liu_hui_pi_converges asserts only that some real limit exists; it does not prove that the limit is pi and it does not prove this floating-point implementation. Meeting the residual threshold is a numerical check, not a proof.",
     "lean_status": "real"
   },
   {

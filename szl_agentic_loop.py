@@ -641,15 +641,50 @@ def governance_standards_note() -> dict:
     }
 
 
-def _retrieve(query: str, top_k: int = 3):
-    """Prefer the org second-brain index when it is built. Else in-image corpus."""
+def _identity(backend, generation, handles, fallback, abstention, plane, outcome):
+    safe_handles = []
+    for handle in handles:
+        text = str(handle).strip()
+        if text:
+            safe_handles.append(text[:128])
+    return {
+        "backend": backend,
+        "corpus_generation": generation if isinstance(generation, str) and generation.strip() else "UNKNOWN",
+        "source_handles": safe_handles[:8],
+        "fallback": fallback,
+        "abstention": abstention,
+        "plane": plane,
+        "outcome": outcome,
+    }
+
+
+def _retrieve_with_identity(query: str, top_k: int = 3):
+    """Return retrieve chunks and the backend that actually produced them.
+
+    Corpus generation stays UNKNOWN unless the org index returns one. A local
+    fallthrough is not labeled as a Second Brain answer.
+    """
+    try:
+        limit = max(1, min(int(top_k or 3), 8))
+    except (TypeError, ValueError):
+        limit = 3
+    fallback = "none"
+    abstention = "UNKNOWN"
+    generation = "UNKNOWN"
     try:
         import a11oy_org_rag as _org_rag
-        hit = _org_rag.query(query or "", k=max(1, min(int(top_k or 3), 8)))
+        hit = _org_rag.query(query or "", k=limit)
+        if not isinstance(hit, dict):
+            hit = {}
         chunks = hit.get("chunks") or []
+        raw_generation = hit.get("generation_id")
+        if isinstance(raw_generation, str) and raw_generation.strip():
+            generation = raw_generation.strip()
         if hit.get("ok") and chunks and not hit.get("i_dont_know"):
             out = []
-            for c in chunks[:top_k]:
+            for c in chunks[:limit]:
+                if not isinstance(c, dict):
+                    continue
                 out.append({
                     "chunk_id": c.get("id") or c.get("chunk_id") or "org",
                     "title": c.get("title") or c.get("path") or "org-rag",
@@ -659,9 +694,21 @@ def _retrieve(query: str, top_k: int = 3):
                     "plane": "second-brain",
                 })
             if out:
-                return out
+                return out, _identity(
+                    "a11oy_org_rag.query", generation,
+                    [item["chunk_id"] for item in out],
+                    "none", "none", "second-brain", "grounded")
+        if hit.get("i_dont_know") is True:
+            abstention = "i_dont_know"
+            fallback = "org-rag-abstain" if hit.get("ok") else "org-rag-unavailable"
+        elif hit.get("ok") is False:
+            fallback = "org-rag-unavailable"
+        else:
+            fallback = "org-rag-empty"
     except Exception:
-        pass
+        fallback = "org-rag-exception"
+        abstention = "UNKNOWN"
+        generation = "UNKNOWN"
     q = (query or "").lower()
     q_tokens = set(t for t in ''.join(c if c.isalnum() else ' ' for c in q).split() if len(t) > 2)
     scored = []
@@ -674,15 +721,37 @@ def _retrieve(query: str, top_k: int = 3):
         if score > 0:
             scored.append((score, c))
     scored.sort(key=lambda x: -x[0])
+    used_doctrine = False
     if not scored:  # honest fallback: always ground on the core doctrine
+        used_doctrine = True
         scored = [(1, _CORPUS[0]), (1, _CORPUS[1]), (1, _CORPUS[2])]
     out = []
     maxs = scored[0][0] or 1
-    for s, c in scored[:top_k]:
+    for s, c in scored[:limit]:
         out.append({"chunk_id": c["id"], "title": c["title"],
                     "source": "in-image governance corpus",
                     "relevance": round(s / (maxs + 0.0), 4), "text": c["text"]})
-    return out
+    if used_doctrine:
+        fallback = fallback if fallback != "none" else "in-image-zero-overlap"
+        if not fallback.endswith("in-image-zero-overlap"):
+            fallback = fallback + "+in-image-zero-overlap"
+        if abstention in {"UNKNOWN", "none"}:
+            abstention = "avoided-by-doctrine-fallback"
+        outcome = "doctrine-fallback"
+    else:
+        if abstention == "UNKNOWN":
+            abstention = "none"
+        outcome = "fallback-grounded"
+    return out, _identity(
+        "in-image-governance-corpus", "UNKNOWN",
+        [item["chunk_id"] for item in out],
+        fallback, abstention, "in-image", outcome)
+
+
+def _retrieve(query: str, top_k: int = 3):
+    """Prefer the org second-brain index when it is built. Else in-image corpus."""
+    chunks, _ignored = _retrieve_with_identity(query, top_k=top_k)
+    return chunks
 
 
 # ----------------------------------------------------------------------------
