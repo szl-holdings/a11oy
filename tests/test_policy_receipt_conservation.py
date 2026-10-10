@@ -59,6 +59,26 @@ def test_changed_decision_field_does_not_conserve() -> None:
     assert result["receipts_out"] == 0
 
 
+def test_field_membership_rejects_a_missing_null_and_keeps_python_equality() -> None:
+    """Missing keys are not stored nulls. True == 1 stays Python equality."""
+    cases = (
+        ({}, {"digest": None}, False),
+        ({"digest": None}, {"digest": None}, True),
+        ({"digest": "abc"}, {"digest": "abc"}, True),
+        ({"digest": "abc"}, {"digest": "def"}, False),
+        ({"digest": "abc"}, {"digest": "abc", "revision": None}, False),
+        ({"digest": "abc", "revision": "r1"}, {"digest": "abc"}, True),
+        ({"enabled": False, "count": 0}, {"enabled": False, "count": 0}, True),
+        ({}, {}, True),
+        ({"value": True}, {"value": 1}, True),
+    )
+    for stored, expected, want in cases:
+        result = derive_receipt_conservation(expected, _node(stored))
+        assert result["receipts_in"] == 1
+        assert result["receipts_in_eq_out"] is want
+        assert result["receipts_out"] == (1 if want else 0)
+
+
 def test_policy_and_frontier_sources_do_not_assign_the_flag() -> None:
     serve = (ROOT / "serve.py").read_text(encoding="utf-8")
     frontier = (ROOT / "routers" / "gdw_frontier.py").read_text(encoding="utf-8")
