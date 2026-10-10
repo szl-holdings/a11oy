@@ -9,8 +9,10 @@
 # /api/a11oy/* path quietly served the SPA HTML shell with a 200. This monitor
 # probes the governed operator/reason capability surface (marker
 # a11oy-operator-reason-envelope-task516 in serve.py) and FAILS if any endpoint
-# regresses to non-200, non-JSON (SPA HTML), an unparseable body, or a missing
-# contract key. It mirrors killinchu-api-health.yml.
+# regresses to a 5xx, non-JSON (SPA HTML), an unparseable body, or a missing
+# contract key. Unauthenticated POSTs to the operator gate may return 401
+# application/json with status BLOCKED. That refusal is the closed result and
+# is not rewritten to 200. It mirrors killinchu-api-health.yml.
 #
 # Org policy compliance: github-owned actions only, SHA-pinned; checker is
 # stdlib-only Python (no pip install, no third-party action); alert posts a

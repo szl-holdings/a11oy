@@ -13,7 +13,8 @@ export interface FormulaGateDecisionLike {
   readonly leanTheorem: string;
   readonly leanFile: string;
   readonly leanCommitSha: string;
-  readonly lambdaScore: number;
+  /** Null when the gate refuses to treat an underflowed remainder as a score. */
+  readonly lambdaScore: number | null;
 }
 
 export interface FormulaGateReceiptOptions extends Omit<EmitReceiptOptions, "eventType"> {

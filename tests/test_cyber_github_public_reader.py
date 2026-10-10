@@ -1,15 +1,28 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
-"""The cyber feed uses only its dedicated GitHub public reader."""
+"""The cyber feed uses its dedicated GitHub public reader.
 
+An absent reader may observe the public commits Atom feed when the events
+API returns no row. A configured reader is never retried on another origin.
+"""
+
+import asyncio
 import json
+import shutil
+import subprocess
 import time
+from pathlib import Path
 
 import httpx
 import pytest
+from fastapi import FastAPI
 
 import a11oy_vertical_feeds as vertical
+
+
+_ROOT = Path(__file__).resolve().parents[1]
+_CYBER_ROUTE = "/api/a11oy/v1/vert/cyber/feed"
 
 
 @pytest.fixture(autouse=True)
@@ -214,3 +227,185 @@ def test_malformed_dedicated_reader_blocks_upstream_request(monkeypatch, token):
     assert observed["freshness"]["status"] == "unavailable"
     assert observed["freshness"]["error"] == "ValueError: GitHub public reader credential malformed"
     assert "bad" not in json.dumps(observed)
+
+
+def _commits_atom(owner, repo, entries):
+    body = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<feed xmlns="http://www.w3.org/2005/Atom">',
+        f"<id>tag:github.com,2008:/{owner}/{repo}/commits/main</id>",
+    ]
+    for sha, actor, updated, linked in entries:
+        href = (f"https://github.com/{owner}/{repo}/commit/{sha}" if linked
+                else "https://example.invalid/commit")
+        body.append(
+            "<entry>"
+            f"<id>tag:github.com,2008:Grit::Commit/{sha}</id>"
+            f'<link href="{href}"/>'
+            f"<updated>{updated}</updated>"
+            f"<author><name>{actor}</name></author>"
+            "</entry>"
+        )
+    body.append("</feed>")
+    return "".join(body).encode()
+
+
+def _cyber_probe(body, now_s):
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js is required for the shipped readiness evaluator")
+    probe = _ROOT / "tools/readiness-harness/probe_runner.mjs"
+    tabs = _ROOT / "tools/readiness-harness/tabs.json"
+    program = (
+        'import { readFileSync } from "node:fs";\n'
+        f'import * as probe from {json.dumps(probe.as_uri())};\n'
+        f'const matrix = JSON.parse(readFileSync({json.dumps(str(tabs))}, "utf8"));\n'
+        'const input = JSON.parse(readFileSync(0, "utf8"));\n'
+        f'const path = {json.dumps(_CYBER_ROUTE)};\n'
+        'const spec = matrix.endpoints[path];\n'
+        'console.log(JSON.stringify({\n'
+        ' schema: probe.validateSchema(spec.schema, input.body),\n'
+        ' labels: probe.evaluateEndpointLabels(200, spec, input.body),\n'
+        ' freshness: probe.evaluateFreshness(path, spec, input.body, input.now)\n'
+        '}));\n'
+    )
+    result = subprocess.run(
+        [node, "--input-type=module", "--eval", program],
+        input=json.dumps({"body": body, "now": now_s * 1000}),
+        cwd=_ROOT, capture_output=True, text=True, timeout=20, check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    return json.loads(result.stdout)
+
+
+def _live_source(now):
+    return {"value": {"items": [{"id": "observed"}]},
+            "freshness": {"status": "live", "fetched_at": now}}
+
+
+def test_anonymous_events_rate_limit_observes_public_commits(monkeypatch):
+    monkeypatch.delenv("A11OY_GITHUB_PUBLIC_READ_TOKEN", raising=False)
+    monkeypatch.setenv("GITHUB_TOKEN", "generic-token-must-not-be-used")
+    monkeypatch.setenv("A11OY_FEED_WARM_ENABLED", "0")
+    sha = "536ecc007387a50e77603bb5d92100e9b07514cc"
+    older = "4f2db3309eb2b95b86090f8199482f522ccd6323"
+    xml = _commits_atom("huggingface", "transformers", [
+        (sha, "Rocketknight1", "2026-10-09T17:01:40Z", True),
+        (older, "skipped", "2026-10-09T17:00:00Z", False),
+        ("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "Other", "2026-10-09T16:00:00Z", True),
+    ])
+
+    def handler(request):
+        if request.url.host == "api.github.com":
+            return httpx.Response(403, json={"message": "rate limit exceeded"})
+        if (request.url.host == "github.com"
+                and request.url.path == "/huggingface/transformers/commits.atom"):
+            return httpx.Response(200, content=xml)
+        raise AssertionError(f"unexpected {request.url}")
+
+    requests = install_transport(monkeypatch, handler)
+    now = time.time()
+    for name in ("feed_cisa_kev", "feed_nvd", "feed_github", "feed_hf"):
+        monkeypatch.setattr(vertical, name, lambda *_a, **_k: _live_source(now))
+    app = FastAPI()
+    vertical.register(app)
+
+    async def request():
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test.invalid",
+        ) as client:
+            response = await client.get(_CYBER_ROUTE)
+            assert response.status_code == 200
+            return response.json()
+
+    body = asyncio.run(request())
+    events = body["gh_events"]
+    assert events["freshness"]["status"] == "live"
+    assert events["value"]["source"] == "GitHub public commits Atom feed"
+    assert events["value"]["source_url"] == (
+        "https://github.com/huggingface/transformers/commits.atom"
+    )
+    assert events["value"]["retrieval"] == "github-commits-atom"
+    assert events["value"]["items"] == [
+        {"type": "Commit", "actor": "Rocketknight1",
+         "created": "2026-10-09T17:01:40Z",
+         "ref": f"https://github.com/huggingface/transformers/commit/{sha}"},
+        {"type": "Commit", "actor": "Other",
+         "created": "2026-10-09T16:00:00Z",
+         "ref": "https://github.com/huggingface/transformers/commit/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+    ]
+    assert "authorization" not in requests[0].headers
+    assert "authorization" not in requests[1].headers
+    assert [item.url.host for item in requests] == ["api.github.com", "github.com"]
+    verdict = _cyber_probe(body, time.time())
+    assert verdict["schema"]["ok"] is True
+    assert verdict["labels"]["ok"] is True
+    assert "gh_events" not in verdict["labels"]["unavailableSources"]
+    assert verdict["freshness"]["freshOk"] is True
+
+    limited = vertical.feed_gh_events("huggingface/transformers", 1)
+    assert limited["value"]["items"] == events["value"]["items"][:1]
+    assert [item.url.host for item in requests] == [
+        "api.github.com", "github.com", "api.github.com",
+    ]
+
+
+def test_events_api_observation_is_not_replaced_by_the_commits_feed(monkeypatch):
+    monkeypatch.delenv("A11OY_GITHUB_PUBLIC_READ_TOKEN", raising=False)
+
+    def handler(request):
+        if request.url.host == "github.com":
+            raise AssertionError("commits feed must not run when the events API has a row")
+        return httpx.Response(200, json=[{
+            "type": "PushEvent",
+            "actor": {"login": "octocat"},
+            "created_at": "2026-10-09T00:00:00Z",
+            "payload": {"ref": "refs/heads/main"},
+        }])
+
+    requests = install_transport(monkeypatch, handler)
+    observed = vertical.feed_gh_events("pytorch/pytorch", 12)
+    assert len(requests) == 1
+    assert observed["value"]["items"] == [{
+        "type": "PushEvent", "actor": "octocat",
+        "created": "2026-10-09T00:00:00Z", "ref": "refs/heads/main",
+    }]
+    assert "source" not in observed["value"]
+
+
+def test_anonymous_events_failure_without_commits_stays_unavailable(monkeypatch):
+    monkeypatch.delenv("A11OY_GITHUB_PUBLIC_READ_TOKEN", raising=False)
+
+    def handler(request):
+        if request.url.host == "api.github.com":
+            return httpx.Response(403, json={"message": "rate limit exceeded"})
+        return httpx.Response(404, text="missing")
+
+    requests = install_transport(monkeypatch, handler)
+    observed = vertical.feed_gh_events("pytorch/pytorch", 12)
+    assert [item.url.host for item in requests] == ["api.github.com", "github.com"]
+    assert observed["value"] is None
+    assert observed["freshness"]["status"] == "unavailable"
+    assert observed["freshness"]["error"].startswith("HTTPStatusError:")
+    assert "403" in observed["freshness"]["error"]
+    assert "GitHub commits atom" not in observed["freshness"]["error"]
+
+
+@pytest.mark.parametrize("xml", [
+    b"<?xml version='1.0'?><!DOCTYPE feed [<!ENTITY x 'y'>]><feed></feed>",
+    b"<?xml version='1.0'?><feed xmlns='http://www.w3.org/2005/Atom'><id>tag:github.com,2008:/pytorch/pytorch/commits/main</id></feed>",
+    b"not xml",
+])
+def test_unobservable_commits_atom_does_not_invent_events(monkeypatch, xml):
+    monkeypatch.delenv("A11OY_GITHUB_PUBLIC_READ_TOKEN", raising=False)
+
+    def handler(request):
+        if request.url.host == "api.github.com":
+            return httpx.Response(403, json={"message": "rate limit exceeded"})
+        return httpx.Response(200, content=xml)
+
+    install_transport(monkeypatch, handler)
+    observed = vertical.feed_gh_events("pytorch/pytorch", 12)
+    assert observed["value"] is None
+    assert observed["freshness"]["status"] == "unavailable"
+    assert observed["freshness"]["error"].startswith("HTTPStatusError:")
