@@ -24,14 +24,38 @@ function assertLeanAnchor(decision: { leanCommitSha: string; rationale: string; 
   const allow = gate({ x: 0.5, N: 5 });
   assert.equal(allow.allow, true);
   assert.equal(allow.formula, "MadhavaBound");
+  assert.equal(allow.remainderBoundState, "FINITE");
   assert.ok(allow.remainderBound <= allow.threshold);
+  assert.equal(allow.accuracyClaim, "NOT_ASSERTED");
+  assert.equal(allow.leanScope, "nonnegativity_only");
+  assert.equal(allow.floatTruncationError, "NOT_BOUNDED");
+  assert.equal(allow.comparison, "log_space_first_omitted_term");
+  assert.match(allow.rationale, /nonnegativity only/);
+  assert.doesNotMatch(allow.rationale, /sufficiently converged/);
   assertLeanAnchor(allow);
 
   const deny = gate({ x: 1, N: 1 });
   assert.equal(deny.allow, false);
+  assert.equal(deny.remainderBoundState, "FINITE");
   assert.ok(deny.remainderBound > deny.threshold);
+  assert.doesNotMatch(deny.rationale, /sufficiently converged/);
   assert.throws(() => gate({ x: 1.2, N: 2 }), /must be ≤ 1/);
   assert.throws(() => gate({ x: 0.5, N: 0 }), /N must be ≥ 1/);
+  assert.throws(() => gate({ x: 0.5, N: 10001 }), /N must be ≥ 1/);
+  // 1e-400 flushes to 0 in IEEE-754 binary64. A positive subnormal stays comparable.
+  assert.throws(() => madhavaBoundGate({ threshold: 1e-400 }), /threshold must be > 0/);
+  const subnormalThreshold = madhavaBoundGate({ threshold: 1e-320 });
+  const aboveSubnormal = subnormalThreshold({ x: 0.5, N: 1 });
+  assert.equal(aboveSubnormal.allow, false);
+  assert.equal(aboveSubnormal.remainderBoundState, "FINITE");
+
+  const underflow = gate({ x: 0.5, N: 600 });
+  assert.equal(underflow.allow, true);
+  assert.equal(underflow.remainderBoundState, "SUBNORMAL_OR_UNDERFLOW");
+  assert.equal(underflow.remainderBound, 0);
+  assert.equal(underflow.lambdaScore, null);
+  assert.equal(underflow.accuracyClaim, "NOT_ASSERTED");
+  assert.doesNotMatch(underflow.rationale, /sufficiently converged/);
 
   const receipt = emitFormulaGateReceipt(allow, {
     actorId: "did:szl:policy-test",
