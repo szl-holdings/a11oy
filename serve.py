@@ -6329,7 +6329,7 @@ async def policy_evaluate(request: Request) -> JSONResponse:
     emit = getattr(app.state, "szl_emit_signed_receipt", None)
     if callable(emit) and isinstance(decision, dict):
         try:
-            node = emit({
+            submitted = {
                 "schema": "szl.a11oy.policy_decision/v1",
                 "op": "policy/evaluate",
                 "action_id": action.get("actionId"),
@@ -6337,12 +6337,18 @@ async def policy_evaluate(request: Request) -> JSONResponse:
                 "decision": decision.get("decision"),
                 "gate": decision.get("gate"),
                 "lambda_score": decision.get("lambda_score"),
-            }, request)
+            }
+            node = emit(submitted, request)
+            from szl_provenance import derive_receipt_conservation
+
+            conservation = derive_receipt_conservation(submitted, node)
+            if not conservation["receipts_in_eq_out"]:
+                raise ValueError("emitted receipt does not conserve the submitted decision")
             decision["receipt_hash"] = node["digest"]
             decision["receipt_signed"] = bool(node.get("signed"))
             decision["receipt_index"] = node.get("index")
             decision["receipt_verify_at"] = "/api/a11oy/khipu/verify"
-            decision["receipts_in_eq_out"] = True
+            decision.update(conservation)
         except Exception as _emit_e:  # pragma: no cover - never break the decision
             decision["receipt_hash"] = ""
             decision["receipt_error"] = f"emit failed: {_emit_e!r}"
