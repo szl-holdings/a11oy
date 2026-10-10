@@ -302,9 +302,21 @@ def test_start_stop_clean(monkeypatch):
             assert op.is_running() is False
             op.start()
             assert op.is_running() is True
+            worker = op._thread
+            assert worker is not None and worker.is_alive()
             op.start()  # idempotent: second start does not spawn a second thread
-            time.sleep(0.4)
+            assert op._thread is worker
+            # One sweep records two jobs. Wait until a later sweep records the
+            # third, and fail at the deadline instead of assuming a fixed sleep.
+            deadline = time.monotonic() + 10.0
+            st = op.status()
+            while st["jobs_done"] < 3 and time.monotonic() < deadline:
+                time.sleep(0.02)
+                st = op.status()
+            assert st["jobs_done"] >= 3, st
             op.stop()
+            worker.join(timeout=2.0)
+            assert worker.is_alive() is False
             assert op.is_running() is False
             op.stop()  # idempotent stop
             st = op.status()
