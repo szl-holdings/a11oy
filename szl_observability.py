@@ -52,6 +52,7 @@ ROUTES REGISTERED (ADDITIVE — never replaces an existing route):
   GET /api/<ns>/v1/observability/traces           recent traces, slowest-first
   GET /api/<ns>/v1/observability/trace/{trace_id} one trace's full span tree
   GET /api/<ns>/v1/observability/health-summary   per-surface p50/p95 + error rate
+  GET /api/<ns>/v1/observability/workers-compute  declared Workers Compute tag contract
 
 HONESTY / DOCTRINE v11 (binding, enforced by construction):
   • durations are REAL MEASURED wall time (time.perf_counter); NEVER fabricated,
@@ -617,6 +618,80 @@ def health_summary() -> Dict[str, Any]:
     }
 
 
+# Cloudflare Workers Observability columns for the Compute page. These are
+# platform field names. They are not SZL receipts and this process does not
+# read the Cloudflare dataset.
+WORKERS_COMPUTE_TAGS: tuple[tuple[str, str, str], ...] = (
+    ("$metadata.service", "string", "Worker service name"),
+    ("$metadata.account", "string", "Cloudflare account id"),
+    ("$metadata.trigger", "string", "Request route that invoked the Worker"),
+    ("$metadata.origin", "string", "Trigger class, such as fetch"),
+    ("$metadata.type", "string", "Log or span event type"),
+    ("$metadata.requestId", "string", "One Cloudflare request"),
+    ("$metadata.traceId", "string", "Trace that groups the request"),
+    ("$metadata.spanId", "string", "One span inside the trace"),
+    ("$metadata.spanName", "string", "Operation name"),
+    ("$metadata.transactionName", "string", "Top-level request name"),
+    ("$metadata.level", "string", "Log level"),
+    ("$metadata.message", "string", "Rendered log line"),
+    ("$metadata.messageTemplate", "string", "Log line before values are filled"),
+    ("$metadata.error", "string", "Error text when a call fails"),
+    ("$metadata.errorTemplate", "string", "Error template"),
+    ("$metadata.fingerprint", "string", "Issue grouping key"),
+    ("$metadata.duration", "number", "Span time"),
+    ("$metadata.latency", "number", "Request latency"),
+    ("$metadata.traceDuration", "number", "Time across the whole trace"),
+    ("$metadata.startTime", "number", "Span start"),
+    ("$metadata.endTime", "number", "Span end"),
+    ("$metadata.id", "string", "Stored event id"),
+)
+
+# Kept identical to ops/alert-relay-worker/wrangler.jsonc. A test locks them.
+WORKERS_COMPUTE_SETTINGS: Dict[str, Any] = {
+    "enabled": True,
+    "head_sampling_rate": 1,
+    "redact_query_string": True,
+    "logs": {
+        "enabled": True,
+        "invocation_logs": True,
+        "head_sampling_rate": 1,
+        "persist": True,
+    },
+    "traces": {
+        "enabled": True,
+        "head_sampling_rate": 1,
+        "persist": True,
+    },
+    "issues": {"enabled": True},
+}
+
+
+def workers_compute_contract() -> Dict[str, Any]:
+    """Declare the Workers Compute tag contract. No network and no live values."""
+    return {
+        "schema": "szl.workers-compute-observability/v1",
+        "measurement": "DECLARED_SOURCE",
+        "live_values": "UNAVAILABLE",
+        "receipt_minted": False,
+        "production_authorization": False,
+        "signer": "ABSENT",
+        "worker": {
+            "name": "szl-alert-relay",
+            "host": "ntfy.a11oy.net",
+            "source": "ops/alert-relay-worker/wrangler.jsonc",
+        },
+        "settings": dict(WORKERS_COMPUTE_SETTINGS),
+        "tags": [
+            {"key": key, "type": kind, "meaning": meaning}
+            for key, kind, meaning in WORKERS_COMPUTE_TAGS
+        ],
+        "note": (
+            "This process does not read the Cloudflare telemetry dataset. "
+            "An empty value list is not a measured zero."
+        ),
+    }
+
+
 def recent_traces(limit: int = 50, slowest_first: bool = True) -> List[Dict[str, Any]]:
     """Summaries of recent traces, slowest-first by default (real durations)."""
     try:
@@ -658,6 +733,7 @@ def register(app: Any, ns: str = "a11oy") -> List[str]:
       GET /api/<ns>/v1/observability/traces           recent traces, slowest-first
       GET /api/<ns>/v1/observability/trace/{trace_id} one trace's full span tree
       GET /api/<ns>/v1/observability/health-summary   per-surface p50/p95 + errors
+      GET /api/<ns>/v1/observability/workers-compute  declared Workers Compute tags
     """
     paths: List[str] = []
     try:
@@ -712,9 +788,16 @@ def register(app: Any, ns: str = "a11oy") -> List[str]:
     async def _health_summary():  # noqa: ANN202
         return JSONResponse({"ns": ns, **health_summary()}, status_code=200)
 
+    async def _workers_compute():  # noqa: ANN202
+        return JSONResponse(
+            {"ns": ns, **workers_compute_contract(), "doctrine": dict(DOCTRINE), "ts": _now_iso()},
+            status_code=200,
+        )
+
     _add(f"/api/{ns}/v1/observability/traces", _traces)
     _add(f"/api/{ns}/v1/observability/trace/{{trace_id}}", _trace)
     _add(f"/api/{ns}/v1/observability/health-summary", _health_summary)
+    _add(f"/api/{ns}/v1/observability/workers-compute", _workers_compute)
 
     _stderr(f"[a11oy:observability] tracing routes registered: {paths}")
     return paths
@@ -771,6 +854,15 @@ def _selftest() -> Dict[str, Any]:
     except Exception:
         raised = True
     chk("fail_open_no_trace", raised is False)
+
+    contract = workers_compute_contract()
+    tag_keys = {tag["key"] for tag in contract["tags"]}
+    chk("compute_declared_source", contract["measurement"] == "DECLARED_SOURCE")
+    chk("compute_values_unavailable", contract["live_values"] == "UNAVAILABLE")
+    chk("compute_not_a_receipt", contract["receipt_minted"] is False)
+    chk("compute_redacts_query", contract["settings"]["redact_query_string"] is True)
+    chk("compute_trace_tag", "$metadata.traceId" in tag_keys)
+    chk("compute_service_tag", "$metadata.service" in tag_keys)
 
     ok = all(p for _, p in checks)
     return {"ok": ok, "checks": len(checks),
