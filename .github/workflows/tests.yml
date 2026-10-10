@@ -48,6 +48,26 @@ jobs:
           tests/test_nexus_bind.py
           tests/test_nexus_readonly_evidence.py
 
+  code-runloop-admission:
+    name: Code run-loop step identity and result restore
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install exact runtime test dependencies
+        run: pip install --require-hashes -r .github/requirements/ci-rag.txt
+      - name: Run the action-identity reference and the run-loop admission journey
+        env:
+          A11OY_CODE_DB: ${{ runner.temp }}/a11oy-runloop-admission/code.db
+          A11OY_CODE_SANDBOX: ${{ runner.temp }}/a11oy-runloop-admission/sandbox
+          A11OY_REACT_DB: ${{ runner.temp }}/a11oy-runloop-admission/react.sqlite3
+          A11OY_AGENT_REFLECT_DB: ${{ runner.temp }}/a11oy-runloop-admission/reflect.db
+        run: |
+          python -m unittest tests.test_szl_action_identity_reference tests.test_code_runloop_admission -v
+
   python-energy-measurement:
     name: Energy exporter measurement and null-evidence contract
     runs-on: ubuntu-latest
