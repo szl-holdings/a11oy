@@ -4,21 +4,18 @@
 //
 // Layer 6 — a11oy policy gate for MadhavaBound
 //
-// Policy rationale:
-//   A request is allowed only when the Mādhava arctan remainder bound
-//   (madhavaRemainderBound) is below a configured precision threshold.
-//   A high remainder bound means the truncated series is far from arctan(x),
-//   indicating insufficient convergence — the governance signal is unreliable.
+// The allow decision compares the classical first-omitted-term expression
+// |x|^(2N+1)/(2N+1) with an absolute threshold in log space.
+// That comparison is not a kernel-checked arctan specialization and is not a
+// float64 truncation-error bound.
 //
-//   Lean theorem cited: `madhavaRemainderBound_nonneg`
+//   Lean theorem cited: `madhavaRemainderBound_nonneg` (nonnegativity only)
 //   Lean file: Lutar/PACBayes/MadhavaBound.lean
 //   Lean commit SHA: 1dca00032dfc9aa8559cc6c2e4b63192fcf52371
 //
-//   Policy: if madhavaBound(opts) ≤ threshold → policy.allow; else → policy.deny
-//
 // References:
 //   Lean: szl-holdings/lutar-lean Lutar/PACBayes/MadhavaBound.lean
-//   Runtime: szl-holdings/ouroboros agentic/formulas/madhavaBound.ts
+//   Runtime: runtime/ouroboros/agentic/formulas/src/madhavaBound.ts
 
 /** Policy decision record. */
 export interface PolicyDecision {
@@ -29,62 +26,68 @@ export interface PolicyDecision {
   leanFile:  string;
   leanCommitSha: string;
   remainderBound: number;
+  remainderBoundState: "FINITE" | "SUBNORMAL_OR_UNDERFLOW";
   threshold: number;
-  lambdaScore: number;
+  /** Null when the reported remainder flushed below the normal float range. */
+  lambdaScore: number | null;
+  accuracyClaim: "NOT_ASSERTED";
+  leanScope: "nonnegativity_only";
+  floatTruncationError: "NOT_BOUNDED";
+  comparison: "log_space_first_omitted_term";
 }
 
 /** Configuration for the MadhavaBound policy gate. */
 export interface MadhavaBoundGateConfig {
   /**
-   * Maximum allowed remainder bound.
-   * Default: 0.01 (1% precision — arctan partial sum within 1% of true value).
+   * Absolute threshold for the classical first-omitted-term expression.
+   * Default: 0.01. This is not a relative-accuracy or arctan-error claim.
    */
   threshold?: number;
 }
 
 /** Inputs for the gate (mirror of MadhavaBoundOpts). */
 export interface MadhavaBoundGateOpts {
-  /** |x| ≤ 1 — input to the arctan series. */
+  /** |x| ≤ 1 — input to the classical series expression. */
   x: number;
-  /** N ≥ 1 — number of terms summed. */
+  /** Integer N in 1..10000 — truncation index. */
   N: number;
 }
 
-// ── Inline formula (mirrors ouroboros/agentic/formulas/madhavaBound.ts) ──────
-// Cited: Lean `madhavaRemainderBound_nonneg` (Lutar/PACBayes/MadhavaBound.lean)
-// Theorem: ∀ x N, 0 ≤ |x|^(2N+1)/(2N+1)
-
-function _remainderBound(x: number, N: number): number {
-  return Math.pow(Math.abs(x), 2 * N + 1) / (2 * N + 1);
-}
-
-function _partial(x: number, N: number): number {
-  let s = 0;
-  for (let n = 0; n < N; n++) s += (n % 2 === 0 ? 1 : -1) * Math.pow(x, 2*n+1) / (2*n+1);
-  return s;
-}
-
-// ── Gate function ─────────────────────────────────────────────────────────────
-
+const MADHAVA_MAX_TERMS = 10_000;
+const FLOAT_MIN_NORMAL_LOG = Math.log(2.2250738585072014e-308);
 const LEAN_THEOREM   = "madhavaRemainderBound_nonneg";
 const LEAN_FILE      = "Lutar/PACBayes/MadhavaBound.lean";
 const LEAN_COMMIT    = "1dca00032dfc9aa8559cc6c2e4b63192fcf52371";
 const DEFAULT_THRESHOLD = 0.01;
 
+function logBound(absX: number, n: number): number {
+  if (absX === 0) return Number.NEGATIVE_INFINITY;
+  if (absX === 1) return -Math.log(2 * n + 1);
+  return (2 * n + 1) * Math.log(absX) - Math.log(2 * n + 1);
+}
+
+function remainderOf(absX: number, n: number): { value: number; state: PolicyDecision["remainderBoundState"] } {
+  const logValue = logBound(absX, n);
+  if (absX === 0) return { value: 0, state: "FINITE" };
+  if (absX === 1) return { value: 1 / (2 * n + 1), state: "FINITE" };
+  if (logValue < FLOAT_MIN_NORMAL_LOG) return { value: 0, state: "SUBNORMAL_OR_UNDERFLOW" };
+  const value = Math.exp(logValue);
+  if (value === 0 || !Number.isFinite(value)) return { value: 0, state: "SUBNORMAL_OR_UNDERFLOW" };
+  return { value, state: "FINITE" };
+}
+
+function withinThreshold(absX: number, n: number, threshold: number): boolean {
+  const logThreshold = Math.log(threshold);
+  if (!Number.isFinite(logThreshold)) return false;
+  return logBound(absX, n) <= logThreshold;
+}
+
 /**
  * MadhavaBound policy gate.
  *
- * Allows a governance action only when the Mādhava remainder bound
- * for the given (x, N) is at or below the configured threshold.
- *
- * Lean theorem: `madhavaRemainderBound_nonneg`
- * Lean file: Lutar/PACBayes/MadhavaBound.lean (commit 1dca00032dfc9aa8559cc6c2e4b63192fcf52371)
- *
- * @example
- *   const gate = madhavaBoundGate({ threshold: 0.001 });
- *   const decision = gate({ x: 1, N: 100 });
- *   if (decision.allow) policy.allow("series-converged");
- *   else policy.deny("series-not-converged", decision.rationale);
+ * Allows only when the classical first-omitted-term expression is at or below
+ * the configured absolute threshold. Lean `madhavaRemainderBound_nonneg` is
+ * nonnegativity only and is not cited as an arctan or float64 error proof.
  */
 export function madhavaBoundGate(
   config: MadhavaBoundGateConfig = {}
@@ -97,22 +100,27 @@ export function madhavaBoundGate(
   return function gate(opts: MadhavaBoundGateOpts): PolicyDecision {
     const { x, N } = opts;
 
-    if (!Number.isFinite(x) || Math.abs(x) > 1 + Number.EPSILON) {
+    if (typeof x !== "number" || !Number.isFinite(x) || Math.abs(x) > 1 + Number.EPSILON) {
       throw new Error(`MadhavaBoundGate: |x| must be ≤ 1; got ${x}`);
     }
-    if (!Number.isInteger(N) || N < 1) {
-      throw new Error(`MadhavaBoundGate: N must be ≥ 1; got ${N}`);
+    if (!Number.isInteger(N) || N < 1 || N > MADHAVA_MAX_TERMS) {
+      throw new Error(`MadhavaBoundGate: N must be ≥ 1 and ≤ ${MADHAVA_MAX_TERMS}; got ${N}`);
     }
 
-    const remainderBound = _remainderBound(x, N);
-    const lambdaScore    = Math.max(0, Math.min(1, 1 - remainderBound));
-    const allow          = remainderBound <= threshold;
-
+    const absX = Math.abs(x);
+    const remainder = remainderOf(absX, N);
+    const allow = withinThreshold(absX, N, threshold);
+    const lambdaScore = remainder.state === "FINITE"
+      ? Math.max(0, Math.min(1, 1 - remainder.value))
+      : null;
+    const leanPin = LEAN_COMMIT.slice(0, 12);
     const rationale = allow
-      ? `Mādhava bound ${remainderBound.toExponential(4)} ≤ threshold ${threshold}: ` +
-        `series sufficiently converged. Lean: ${LEAN_THEOREM} @${LEAN_COMMIT.slice(0, 12)}`
-      : `Mādhava bound ${remainderBound.toExponential(4)} > threshold ${threshold}: ` +
-        `series not converged — governance signal unreliable. Lean: ${LEAN_THEOREM} @${LEAN_COMMIT.slice(0, 12)}`;
+      ? `Madhava first-omitted-term bound state=${remainder.state} is within absolute threshold ${threshold}. ` +
+        `This is not a kernel-checked arctan error and not a float64 error bound. ` +
+        `Lean: ${LEAN_THEOREM} is nonnegativity only @${leanPin}`
+      : `Madhava first-omitted-term bound state=${remainder.state} exceeds absolute threshold ${threshold}, ` +
+        `or the threshold is outside log-space comparison. ` +
+        `Lean: ${LEAN_THEOREM} is nonnegativity only @${leanPin}`;
 
     return {
       allow,
@@ -121,9 +129,14 @@ export function madhavaBoundGate(
       leanTheorem:   LEAN_THEOREM,
       leanFile:      LEAN_FILE,
       leanCommitSha: LEAN_COMMIT,
-      remainderBound,
+      remainderBound: remainder.value,
+      remainderBoundState: remainder.state,
       threshold,
       lambdaScore,
+      accuracyClaim: "NOT_ASSERTED",
+      leanScope: "nonnegativity_only",
+      floatTruncationError: "NOT_BOUNDED",
+      comparison: "log_space_first_omitted_term",
     };
   };
 }

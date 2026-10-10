@@ -67,3 +67,10 @@ szl_llm_registry.py        # Wave M DEV-1 a11oy-only sovereign backend (szl-sove
 szl_connectors/governance.py  # TEMP: coordinated nested-secret scrub rollout
 szl_connectors/oauth.py       # TEMP: coordinated public OAuth-scope separation
 szl_dsse.py                   # TEMP: coordinated content-address separation
+
+# --- TEMPORARY coordinated corpus rollout (a11oy #2710 + killinchu #518).
+# Remove these two entries as soon as both PRs are on main. The PR branches
+# carry byte-identical corpus copies; the exception only breaks the circular
+# cross-repo CI dependency while the first half lands.
+corpus/formulas/a11oy__a11oy_v4_formulas.py  # TEMP: Madhava bound contract, not an arctan proof
+corpus/INDEX.json  # TEMP: Madhava formula blob citation 3fbf08ca
