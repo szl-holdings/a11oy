@@ -4,6 +4,7 @@
     "a11oy_agent_loop.py": "73b7b4663eeecf45abde7ee1d26a57d476f450a56712e6a4b0b38ed41925e743",
     "a11oy_org_rag.py": "d3b6975c40397aa5135652e5d9a45b31e8de931ef1bbff59047d0c5b127f7aa4",
     "docs/authorized-rag-synthesis.md": "b2b12e05ccece27b27119ac282da904eee54c5fe95fe18f9e9c34ac7069431dc",
+    "szl_provenance.py": "0500d164bed8e16a5339cf513ff0e832aac79bfacb80296448dac348919dd2c4",
     "tests/test_agent_loop_execution_guards.py": "79354da68a89a4e16344216e1761ed7597c91ac9590fe2d9f0cb52e5cdf45370",
     "tests/test_authorized_rag_synthesis.py": "1d299c8d44f2cfcc33a21fa1d2517c58778bbf825eaefcb75485c481ce2e5216"
   },
