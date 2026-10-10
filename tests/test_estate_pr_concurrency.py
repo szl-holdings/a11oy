@@ -25,7 +25,7 @@ class EstateReadOnlyConcurrencyTests(unittest.TestCase):
         self.assertIn("if: github.event_name != 'pull_request'", block)
 
     def test_pr_observes_exact_candidate_and_tests_are_run(self):
-        self.assertIn("ref: ${{ github.event_name == 'pull_request' && github.sha || 'main' }}", self.text)
+        self.assertIn("ref: ${{ github.sha }}", self.text)
         self.assertIn('python tests/test_estate_pr_concurrency.py', self.text)
         self.assertIn('      - tests/test_estate_pr_concurrency.py', self.text)
         self.assertIn('test "$state" = ALIGNED', self.text)
