@@ -105,6 +105,22 @@ async function refreshLedger() {
     setText("ledger-age", `Snapshot: ${dateLabel(value.generatedAt)}`);
     setText("loaded-at", new Date().toLocaleString());
     setText("ledger-disclosure", typeof value.disclosure === "string" ? value.disclosure : "No disclosure is recorded in this ledger.");
+    const recoveryNode = document.getElementById("recovery-records");
+    if (recoveryNode) {
+      const recovery = value.recoveryRecords;
+      if (!recovery || recovery.state === "NOT_RUN") {
+        recoveryNode.textContent = "No stale-index recovery record is loaded.";
+      } else if (recovery.state === "DISPLAYED" && Array.isArray(recovery.records) && recovery.records.length) {
+        recoveryNode.textContent = recovery.records.map((row) => {
+          const state = typeof row.state === "string" ? row.state : "UNBOUND";
+          const path = typeof row.source_path === "string" ? row.source_path : "";
+          const digest = typeof row.source_digest === "string" ? row.source_digest : "";
+          return `${state} ${path} ${digest}`.trim();
+        }).join("\n");
+      } else {
+        recoveryNode.textContent = "Recovery records are unavailable.";
+      }
+    }
     const errors = Array.isArray(integrity?.errors) ? integrity.errors : [];
     byId("integrity-errors").hidden = valid;
     setText("integrity-errors", errors.length ? errors.join("; ") : "Chain validation was not established.");
@@ -121,6 +137,8 @@ async function refreshLedger() {
     for (const id of ["chain-root", "generated-at", "loaded-at"]) setText(id, "—");
     setText("ledger-age", "No snapshot loaded");
     setText("ledger-disclosure", "");
+    const recoveryNode = document.getElementById("recovery-records");
+    if (recoveryNode) recoveryNode.textContent = "No stale-index recovery record is loaded.";
     byId("integrity-errors").hidden = true;
   }
   renderRecords();
