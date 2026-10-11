@@ -428,6 +428,32 @@ def _init_schema(conn: sqlite3.Connection) -> bool:
         "generation_id TEXT NOT NULL, chunk_id TEXT NOT NULL, dim INTEGER, vec TEXT, "
         "PRIMARY KEY(generation_id,chunk_id))"
     )
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS org_recovery_operations("
+        "operation_id TEXT PRIMARY KEY, incident_id TEXT NOT NULL, status TEXT NOT NULL, "
+        "actor TEXT NOT NULL, tenant TEXT NOT NULL, auth_scope TEXT NOT NULL, "
+        "source_path TEXT NOT NULL, source_revision TEXT NOT NULL, source_digest TEXT NOT NULL, "
+        "indexed_sha256 TEXT, artifact_id TEXT NOT NULL, candidate_id TEXT, regression_id TEXT, "
+        "active_generation_id TEXT, attempt_count INTEGER NOT NULL DEFAULT 0, "
+        "max_attempts INTEGER NOT NULL, deadline_at REAL NOT NULL, lease_owner TEXT, "
+        "lease_until REAL, kill_switch INTEGER NOT NULL DEFAULT 0, "
+        "production_authority INTEGER NOT NULL DEFAULT 0, spec_json TEXT NOT NULL, "
+        "created_at REAL NOT NULL, updated_at REAL NOT NULL, result_json TEXT)"
+    )
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS org_recovery_transitions("
+        "transition_id TEXT PRIMARY KEY, operation_id TEXT NOT NULL, incident_id TEXT NOT NULL, "
+        "state TEXT NOT NULL, parent_transition_id TEXT, actor TEXT NOT NULL, tenant TEXT NOT NULL, "
+        "auth_scope TEXT NOT NULL, source_path TEXT NOT NULL, source_revision TEXT NOT NULL, "
+        "source_digest TEXT NOT NULL, artifact_id TEXT NOT NULL, candidate_id TEXT, "
+        "indexed_sha256 TEXT, preconditions_json TEXT NOT NULL, outcomes_json TEXT NOT NULL, "
+        "unresolved_json TEXT NOT NULL, evidence_ref TEXT NOT NULL, created_at REAL NOT NULL)"
+    )
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS org_source_revocations("
+        "revocation_id TEXT PRIMARY KEY, source_path TEXT NOT NULL, source_digest TEXT NOT NULL, "
+        "actor TEXT NOT NULL, tenant TEXT NOT NULL, created_at REAL NOT NULL, reason TEXT NOT NULL)"
+    )
     conn.commit()
     return has_fts5
 
@@ -626,6 +652,27 @@ def _persist_runtime_state(conn: sqlite3.Connection, graph: OrgGraph,
         # Seal the exact rows protected by this writer transaction. No writer can
         # change staging data between this digest and the active-pointer swap.
         digest, counts = _generation_digest(conn, generation_id, graph_data)
+        revoked = _revoked_source_digests(conn)
+        if revoked:
+            placeholders = ",".join("?" for _ in revoked)
+            hit = conn.execute(
+                "SELECT sha256 FROM org_chunks_gen WHERE generation_id=? "
+                f"AND sha256 IN ({placeholders}) LIMIT 1",
+                (generation_id, *sorted(revoked)),
+            ).fetchone()
+            if hit is not None:
+                conn.execute(
+                    "UPDATE org_generations SET status='FAILED',failure_reason=? "
+                    "WHERE generation_id=? AND status='BUILDING'",
+                    ("revoked source digest refused before active-generation swap", generation_id),
+                )
+                conn.commit()
+                meta.update({
+                    "generation_id": generation_id,
+                    "integrity_state": "NOT_PUBLISHED_REVOKED_SOURCE",
+                    "production_authority": False,
+                })
+                return
         meta.update({
             "generation_id": generation_id,
             "generation_digest_sha256": digest,
@@ -1740,10 +1787,678 @@ def _lambda(axis: list[float]) -> float:
     return math.exp(sum(math.log(x) for x in clamped) / len(clamped))
 
 
+_RECOVERY_FORWARD = (
+    "OBSERVED",
+    "TRIAGED",
+    "PROPOSED",
+    "ISOLATED",
+    "EVALUATED",
+    "APPROVAL_PENDING",
+    "APPLIED",
+    "VERIFIED",
+)
+_RECOVERY_TERMINAL = {"VERIFIED", "HELD", "CANCELLED", "RECOVERY_FAILED", "ROLLED_BACK"}
+_RECOVERY_ID = re.compile(r"^[a-z0-9][a-z0-9_.:-]{0,80}$")
+_SOURCE_HEX = set("0123456789abcdef")
+
+
+class RecoveryBoundaryInterrupt(RuntimeError):
+    """Stop after a committed recovery boundary.
+
+    The interrupt is ignored unless ``A11OY_RECOVERY_TEST_SEAM`` is ``1``.
+    It does not grant production authority.
+    """
+
+
+def retrieval_source_state(indexed_sha256: object, current_sha256: object) -> str:
+    """Compare one sealed chunk digest with one current source digest.
+
+    ``CURRENT`` means both values are lowercase SHA-256 hex and equal.
+    ``STALE`` means both are valid and different. Anything else is ``UNBOUND``.
+    A missing value is not a match. This does not publish an index.
+    """
+    def valid(value: object) -> bool:
+        return (
+            isinstance(value, str)
+            and len(value) == 64
+            and all(char in _SOURCE_HEX for char in value)
+        )
+    if not valid(indexed_sha256) or not valid(current_sha256):
+        return "UNBOUND"
+    if indexed_sha256 == current_sha256:
+        return "CURRENT"
+    return "STALE"
+
+
+def _revoked_source_digests(conn: sqlite3.Connection) -> set[str]:
+    try:
+        rows = conn.execute("SELECT source_digest FROM org_source_revocations").fetchall()
+    except sqlite3.Error:
+        return set()
+    return {str(row["source_digest"]) for row in rows if row["source_digest"]}
+
+
+def _witness_digest(value: object) -> object:
+    if not isinstance(value, str):
+        return None
+    if len(value) == 64 and all(char in _SOURCE_HEX for char in value):
+        return value
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def evaluate_recovery_candidate(*, candidate_body: str, holdout_body: str,
+                                required_tokens: tuple[str, ...]) -> dict[str, Any]:
+    """Apply fixed fixture criteria. This does not edit tests or promote an index."""
+    if (not required_tokens or not isinstance(candidate_body, str)
+            or not isinstance(holdout_body, str)):
+        return {"accepted": False, "reason": "UNBOUND", "production_authority": False,
+                "missing": [], "holdout_missing": []}
+    missing = [token for token in required_tokens if token not in candidate_body]
+    holdout_missing = [token for token in required_tokens if token not in holdout_body]
+    accepted = not missing and not holdout_missing
+    return {
+        "accepted": accepted,
+        "missing": missing,
+        "holdout_missing": holdout_missing,
+        "production_authority": False,
+        "reason": "FIXED_CRITERIA" if accepted else "CRITERIA_MISSED",
+    }
+
+
+def _recovery_unbound(reason: str) -> dict[str, Any]:
+    return {"ok": False, "status": "UNBOUND", "reason": reason,
+            "production_authority": False, "estate_operational": False}
+
+
+def _recovery_check_identity(operation_id: str, incident_id: str, actor: str,
+                             tenant: str, auth_scope: str, source_path: str,
+                             source_revision: str) -> str | None:
+    if not _RECOVERY_ID.fullmatch(operation_id or ""):
+        return "operation_id"
+    if not _RECOVERY_ID.fullmatch(incident_id or ""):
+        return "incident_id"
+    for label, value in (
+        ("actor", actor), ("tenant", tenant), ("auth_scope", auth_scope),
+        ("source_path", source_path), ("source_revision", source_revision),
+    ):
+        if not isinstance(value, str) or not value.strip() or len(value) > 512:
+            return label
+    return None
+
+
+def _recovery_transition(conn: sqlite3.Connection, *, operation_id: str, incident_id: str,
+                         state: str, parent: str | None, actor: str, tenant: str,
+                         auth_scope: str, source_path: str, source_revision: str,
+                         source_digest: str, artifact_id: str, candidate_id: str | None,
+                         indexed_sha256: str | None, preconditions: dict[str, Any],
+                         outcomes: dict[str, Any], unresolved: list[str],
+                         evidence_ref: str, now: float) -> str:
+    existing = None
+    if state not in {"REJECTED", "HELD"}:
+        existing = conn.execute(
+            "SELECT transition_id FROM org_recovery_transitions "
+            "WHERE operation_id=? AND state=? ORDER BY created_at LIMIT 1",
+            (operation_id, state),
+        ).fetchone()
+    if existing is not None:
+        return str(existing["transition_id"])
+    transition_id = f"{operation_id}:{state.lower()}:{uuid.uuid4().hex[:8]}"
+    conn.execute(
+        "INSERT INTO org_recovery_transitions("
+        "transition_id,operation_id,incident_id,state,parent_transition_id,actor,tenant,"
+        "auth_scope,source_path,source_revision,source_digest,artifact_id,candidate_id,"
+        "indexed_sha256,preconditions_json,outcomes_json,unresolved_json,evidence_ref,created_at) "
+        "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        (transition_id, operation_id, incident_id, state, parent, actor, tenant, auth_scope,
+         source_path, source_revision, source_digest, artifact_id, candidate_id, indexed_sha256,
+         _canonical_json(preconditions), _canonical_json(outcomes), _canonical_json(unresolved),
+         evidence_ref, now),
+    )
+    conn.commit()
+    return transition_id
+
+
+def _recovery_rows(conn: sqlite3.Connection, operation_id: str) -> list[dict[str, Any]]:
+    rows = conn.execute(
+        "SELECT transition_id,state,parent_transition_id,actor,tenant,auth_scope,source_path,"
+        "source_revision,source_digest,artifact_id,candidate_id,indexed_sha256,preconditions_json,"
+        "outcomes_json,unresolved_json,evidence_ref,created_at "
+        "FROM org_recovery_transitions WHERE operation_id=? ORDER BY created_at,transition_id",
+        (operation_id,),
+    ).fetchall()
+    out = []
+    for row in rows:
+        item = {key: row[key] for key in row.keys()}
+        item["production_authority"] = False
+        out.append(item)
+    return out
+
+
+def _write_anatomy_records(path: str, records: list[dict[str, Any]]) -> None:
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shown = []
+    for item in records[:32]:
+        shown.append({
+            "state": item.get("state"),
+            "operation_id": item.get("operation_id") or item.get("transition_id", "").split(":", 1)[0],
+            "source_path": item.get("source_path"),
+            "source_revision": item.get("source_revision"),
+            "source_digest": item.get("source_digest"),
+            "parent_transition_id": item.get("parent_transition_id"),
+            "evidence_ref": item.get("evidence_ref"),
+            "created_at": item.get("created_at"),
+            "production_authority": False,
+        })
+    payload = {"records": shown, "production_authority": False}
+    blob = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    temporary = target.with_suffix(target.suffix + ".tmp")
+    temporary.write_bytes(blob)
+    os.replace(temporary, target)
+
+
+def _recovery_finish(conn: sqlite3.Connection, operation_id: str, status: str,
+                     result: dict[str, Any], now: float,
+                     anatomy_path: str | None) -> dict[str, Any]:
+    records = _recovery_rows(conn, operation_id)
+    for record in records:
+        record["operation_id"] = operation_id
+    result = {
+        **result,
+        "ok": status == "VERIFIED",
+        "status": status,
+        "operation_id": operation_id,
+        "records": records,
+        "states": [record["state"] for record in records],
+        "production_authority": False,
+        "estate_operational": False,
+        "self_improvement": False,
+        "not_demonstrated": [
+            "general self-improvement",
+            "production authority",
+            "estate operational readiness",
+            "LIVE deployment",
+            "signer presence",
+            "clinical or biological effect",
+        ],
+    }
+    if anatomy_path:
+        _write_anatomy_records(anatomy_path, records)
+        result["anatomy_display"] = "WRITTEN"
+    else:
+        result["anatomy_display"] = "NOT_RUN"
+    conn.execute(
+        "UPDATE org_recovery_operations SET status=?,updated_at=?,result_json=?,lease_until=? "
+        "WHERE operation_id=?",
+        (status, now, _canonical_json(result), None, operation_id),
+    )
+    conn.commit()
+    return result
+
+
+def _stage_recovery_body(conn: sqlite3.Connection, *, mode: str, body: str,
+                         source_path: str) -> tuple[str, str]:
+    generation_id = _begin_generation(conn, mode)
+    graph = OrgGraph()
+    _ingest_text(
+        graph, conn, repo="fixture", path=source_path, raw=body, source="fixture:owned",
+        category="app_code", embed_fn=None, generation_id=generation_id,
+    )
+    conn.commit()
+    digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
+    return generation_id, digest
+
+
+def _active_chunk(conn: sqlite3.Connection) -> sqlite3.Row | None:
+    active = _active_generation(conn)
+    if not active:
+        return None
+    return conn.execute(
+        "SELECT generation_id,body,sha256,path FROM org_chunks_gen WHERE generation_id=? LIMIT 1",
+        (active,),
+    ).fetchone()
+
+
+def run_stale_index_recovery(*, source_path: str, source_revision: str, original_body: str,
+                             changed_body: str, actor: str, tenant: str, auth_scope: str,
+                             operation_id: str, incident_id: str,
+                             required_tokens: tuple[str, ...] = ("owned-token",),
+                             holdout_body: str, regression_body: str,
+                             now: float | None = None, deadline_s: float = 30.0,
+                             max_attempts: int = 3, regression_repeats: int = 1,
+                             crash_after: str | None = None, kill_switch: bool = False,
+                             anatomy_path: str | None = None) -> dict[str, Any]:
+    """Run one synthetic stale-index recovery against the existing generation store.
+
+    The active generation stays the pinned original. A regression is rejected.
+    A valid candidate is isolated and is not given production authority.
+    Revocation of the candidate digest survives rollback. This fixture does not
+    establish self-improvement or estate readiness.
+    """
+    if os.environ.get("A11OY_RECOVERY_TEST_SEAM") != "1":
+        crash_after = None
+    problem = _recovery_check_identity(
+        operation_id, incident_id, actor, tenant, auth_scope, source_path, source_revision,
+    )
+    if problem:
+        return _recovery_unbound(problem)
+    if (not isinstance(original_body, str) or not isinstance(changed_body, str)
+            or not isinstance(holdout_body, str) or not isinstance(regression_body, str)):
+        return _recovery_unbound("body")
+    if max(len(original_body), len(changed_body), len(holdout_body), len(regression_body)) > 8000:
+        return _recovery_unbound("body_bound")
+    if not isinstance(required_tokens, tuple) or not 1 <= len(required_tokens) <= 8:
+        return _recovery_unbound("required_tokens")
+    clock = time.time() if now is None else float(now)
+    conn = _db()
+    try:
+        _init_schema(conn)
+        existing = conn.execute(
+            "SELECT status,result_json FROM org_recovery_operations WHERE operation_id=?",
+            (operation_id,),
+        ).fetchone()
+        if existing is not None and existing["status"] in _RECOVERY_TERMINAL and existing["result_json"]:
+            return json.loads(existing["result_json"])
+        if existing is not None:
+            return _recovery_unbound("operation_exists")
+        source_digest = hashlib.sha256(changed_body.encode("utf-8")).hexdigest()
+        spec = {
+            "original_body": original_body,
+            "changed_body": changed_body,
+            "holdout_body": holdout_body,
+            "regression_body": regression_body,
+            "required_tokens": list(required_tokens),
+            "regression_repeats": int(regression_repeats),
+            "query_text": required_tokens[0],
+        }
+        conn.execute(
+            "INSERT INTO org_recovery_operations("
+            "operation_id,incident_id,status,actor,tenant,auth_scope,source_path,source_revision,"
+            "source_digest,artifact_id,attempt_count,max_attempts,deadline_at,lease_owner,"
+            "lease_until,kill_switch,production_authority,spec_json,created_at,updated_at) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (operation_id, incident_id, "OPEN", actor, tenant, auth_scope, source_path,
+             source_revision, source_digest, "pending", 0, int(max_attempts),
+             clock + float(deadline_s), actor, clock + 30.0, 1 if kill_switch else 0, 0,
+             _canonical_json(spec), clock, clock),
+        )
+        conn.commit()
+        return _continue_stale_index_recovery(
+            conn, operation_id=operation_id, now=clock, crash_after=crash_after,
+            anatomy_path=anatomy_path, actor=actor,
+        )
+    finally:
+        conn.close()
+
+
+def resume_stale_index_recovery(operation_id: str, *, actor: str, tenant: str,
+                                now: float | None = None,
+                                anatomy_path: str | None = None) -> dict[str, Any]:
+    """Continue one committed recovery operation after a process boundary."""
+    if not _RECOVERY_ID.fullmatch(operation_id or ""):
+        return _recovery_unbound("operation_id")
+    if not isinstance(actor, str) or not actor.strip() or not isinstance(tenant, str):
+        return _recovery_unbound("actor")
+    clock = time.time() if now is None else float(now)
+    conn = _db()
+    try:
+        _init_schema(conn)
+        return _continue_stale_index_recovery(
+            conn, operation_id=operation_id, now=clock, crash_after=None,
+            anatomy_path=anatomy_path, actor=actor,
+        )
+    finally:
+        conn.close()
+
+
+def _continue_stale_index_recovery(conn: sqlite3.Connection, *, operation_id: str,
+                                   now: float, crash_after: str | None,
+                                   anatomy_path: str | None, actor: str) -> dict[str, Any]:
+    row = conn.execute(
+        "SELECT * FROM org_recovery_operations WHERE operation_id=?",
+        (operation_id,),
+    ).fetchone()
+    if row is None:
+        return _recovery_unbound("operation_missing")
+    if row["status"] in _RECOVERY_TERMINAL and row["result_json"]:
+        return json.loads(row["result_json"])
+    if row["lease_until"] is not None and float(row["lease_until"]) > now and row["lease_owner"] not in {None, actor}:
+        return {"ok": False, "status": "HELD", "reason": "lease",
+                "production_authority": False, "estate_operational": False}
+    if float(row["deadline_at"]) < now:
+        parent = _recovery_transition(
+            conn, operation_id=operation_id, incident_id=row["incident_id"], state="CANCELLED",
+            parent=None, actor=row["actor"], tenant=row["tenant"], auth_scope=row["auth_scope"],
+            source_path=row["source_path"], source_revision=row["source_revision"],
+            source_digest=row["source_digest"], artifact_id=row["artifact_id"] or "pending",
+            candidate_id=row["candidate_id"], indexed_sha256=row["indexed_sha256"],
+            preconditions={"deadline_at": row["deadline_at"]},
+            outcomes={"cancelled": True}, unresolved=["deadline passed"],
+            evidence_ref="recovery-deadline", now=now,
+        )
+        return _recovery_finish(
+            conn, operation_id, "CANCELLED",
+            {"reason": "deadline", "parent_transition_id": parent, "demonstrated": ["cancellation"]},
+            now, anatomy_path,
+        )
+    spec = json.loads(row["spec_json"])
+    required_tokens = tuple(spec["required_tokens"])
+    source_path = str(row["source_path"])
+    active = _active_chunk(conn)
+    if active is None:
+        active_id, _indexed = _stage_recovery_body(
+            conn, mode="recovery-active", body=spec["original_body"], source_path=source_path,
+        )
+        graph = OrgGraph()
+        graph.add_node("szl-holdings/fixture", "repo", repo="fixture")
+        _persist_runtime_state(
+            conn, graph,
+            {"built": True, "mode": "recovery-active", "ts": now, "repos": 1, "chunks": 1},
+            active_id,
+        )
+        active = _active_chunk(conn)
+        if active is None or str(active["generation_id"]) != active_id:
+            return _recovery_finish(
+                conn, operation_id, "RECOVERY_FAILED",
+                {"reason": "active generation was not pinned", "demonstrated": []},
+                now, anatomy_path,
+            )
+    pinned_id = str(active["generation_id"])
+    indexed_sha = str(active["sha256"])
+    current_sha = hashlib.sha256(spec["changed_body"].encode("utf-8")).hexdigest()
+    source_state = retrieval_source_state(indexed_sha, current_sha)
+    conn.execute(
+        "UPDATE org_recovery_operations SET active_generation_id=?,indexed_sha256=?,"
+        "artifact_id=?,lease_owner=?,lease_until=?,updated_at=? WHERE operation_id=?",
+        (pinned_id, indexed_sha, f"chunk:{indexed_sha}", actor, now + 30.0, now, operation_id),
+    )
+    conn.commit()
+    parent = None
+    observed_outcomes = {
+        "source_state": source_state,
+        "active_generation_id": pinned_id,
+        "indexed_body_sha256": indexed_sha,
+        "current_body_sha256": current_sha,
+    }
+    parent = _recovery_transition(
+        conn, operation_id=operation_id, incident_id=row["incident_id"], state="OBSERVED",
+        parent=parent, actor=row["actor"], tenant=row["tenant"], auth_scope=row["auth_scope"],
+        source_path=source_path, source_revision=row["source_revision"],
+        source_digest=current_sha, artifact_id=f"chunk:{indexed_sha}", candidate_id=None,
+        indexed_sha256=indexed_sha, preconditions={"active_generation_id": pinned_id},
+        outcomes=observed_outcomes, unresolved=[], evidence_ref="retrieval_source_state", now=now,
+    )
+    if source_state != "STALE":
+        return _recovery_finish(
+            conn, operation_id, "HELD",
+            {"reason": "source is not a stale valid digest", "demonstrated": ["source_state"]},
+            now, anatomy_path,
+        )
+    if int(row["kill_switch"]):
+        parent = _recovery_transition(
+            conn, operation_id=operation_id, incident_id=row["incident_id"], state="HELD",
+            parent=parent, actor=row["actor"], tenant=row["tenant"], auth_scope=row["auth_scope"],
+            source_path=source_path, source_revision=row["source_revision"],
+            source_digest=current_sha, artifact_id=f"chunk:{indexed_sha}", candidate_id=None,
+            indexed_sha256=indexed_sha, preconditions={"kill_switch": True},
+            outcomes={"held": True}, unresolved=["kill switch is set"],
+            evidence_ref="kill-switch", now=now,
+        )
+        return _recovery_finish(
+            conn, operation_id, "HELD",
+            {"reason": "kill switch", "demonstrated": ["kill_switch"]},
+            now, anatomy_path,
+        )
+    parent = _recovery_transition(
+        conn, operation_id=operation_id, incident_id=row["incident_id"], state="TRIAGED",
+        parent=parent, actor=row["actor"], tenant=row["tenant"], auth_scope=row["auth_scope"],
+        source_path=source_path, source_revision=row["source_revision"], source_digest=current_sha,
+        artifact_id=f"chunk:{indexed_sha}", candidate_id=None, indexed_sha256=indexed_sha,
+        preconditions={"max_attempts": int(row["max_attempts"]), "deadline_at": row["deadline_at"]},
+        outcomes={"bounded": True}, unresolved=[], evidence_ref="triage-bounds", now=now,
+    )
+    parent = _recovery_transition(
+        conn, operation_id=operation_id, incident_id=row["incident_id"], state="PROPOSED",
+        parent=parent, actor=row["actor"], tenant=row["tenant"], auth_scope=row["auth_scope"],
+        source_path=source_path, source_revision=row["source_revision"], source_digest=current_sha,
+        artifact_id=f"chunk:{indexed_sha}", candidate_id=None, indexed_sha256=indexed_sha,
+        preconditions={"production_authority": False},
+        outcomes={"proposal": "isolated rebuild", "production_authority": False},
+        unresolved=["no production promotion"], evidence_ref="proposal", now=now,
+    )
+    verdict = {"accepted": False, "reason": "UNBOUND", "production_authority": False}
+    if row["candidate_id"] is not None or row["status"] == "ISOLATED":
+        candidate_id = str(row["candidate_id"])
+        candidate_digest = current_sha
+        parent_row = conn.execute(
+            "SELECT transition_id FROM org_recovery_transitions "
+            "WHERE operation_id=? AND state='ISOLATED' LIMIT 1",
+            (operation_id,),
+        ).fetchone()
+        parent = str(parent_row["transition_id"]) if parent_row is not None else parent
+        verdict = evaluate_recovery_candidate(
+            candidate_body=spec["regression_body"], holdout_body=spec["holdout_body"],
+            required_tokens=required_tokens,
+        )
+    else:
+        repeats = max(1, int(spec.get("regression_repeats") or 1))
+        regression_id = row["regression_id"]
+        for _ in range(repeats):
+            if regression_id is None:
+                regression_id, _regression_digest = _stage_recovery_body(
+                    conn, mode="recovery-regression", body=spec["regression_body"],
+                    source_path=source_path,
+                )
+                conn.execute(
+                    "UPDATE org_generations SET status='REJECTED',failure_reason=? "
+                    "WHERE generation_id=? AND status='BUILDING'",
+                    ("fixed criteria missed; active generation unchanged", regression_id),
+                )
+            conn.execute(
+                "UPDATE org_recovery_operations SET regression_id=?,attempt_count=attempt_count+1,"
+                "updated_at=? WHERE operation_id=?",
+                (regression_id, now, operation_id),
+            )
+            conn.commit()
+            verdict = evaluate_recovery_candidate(
+                candidate_body=spec["regression_body"], holdout_body=spec["holdout_body"],
+                required_tokens=required_tokens,
+            )
+            parent = _recovery_transition(
+                conn, operation_id=operation_id, incident_id=row["incident_id"], state="REJECTED",
+                parent=parent, actor=row["actor"], tenant=row["tenant"], auth_scope=row["auth_scope"],
+                source_path=source_path, source_revision=row["source_revision"],
+                source_digest=current_sha, artifact_id=f"chunk:{indexed_sha}",
+                candidate_id=regression_id, indexed_sha256=indexed_sha,
+                preconditions={"active_generation_id": pinned_id},
+                outcomes=verdict, unresolved=["regression is not published"],
+                evidence_ref="evaluate_recovery_candidate", now=now,
+            )
+            attempt_count = int(conn.execute(
+                "SELECT attempt_count FROM org_recovery_operations WHERE operation_id=?",
+                (operation_id,),
+            ).fetchone()["attempt_count"])
+            if attempt_count >= int(row["max_attempts"]):
+                parent = _recovery_transition(
+                    conn, operation_id=operation_id, incident_id=row["incident_id"], state="HELD",
+                    parent=parent, actor=row["actor"], tenant=row["tenant"],
+                    auth_scope=row["auth_scope"], source_path=source_path,
+                    source_revision=row["source_revision"], source_digest=current_sha,
+                    artifact_id=f"chunk:{indexed_sha}", candidate_id=regression_id,
+                    indexed_sha256=indexed_sha, preconditions={"attempt_count": attempt_count},
+                    outcomes={"held": True}, unresolved=["equivalent failure limit"],
+                    evidence_ref="equivalent-failure-hold", now=now,
+                )
+                return _recovery_finish(
+                    conn, operation_id, "HELD",
+                    {"reason": "equivalent failures", "demonstrated": ["regression_rejected", "hold"]},
+                    now, anatomy_path,
+                )
+        candidate_id, candidate_digest = _stage_recovery_body(
+            conn, mode="recovery-isolated", body=spec["changed_body"], source_path=source_path,
+        )
+        conn.execute(
+            "UPDATE org_recovery_operations SET candidate_id=?,status='ISOLATED',updated_at=? "
+            "WHERE operation_id=?",
+            (candidate_id, now, operation_id),
+        )
+        conn.commit()
+        parent = _recovery_transition(
+        conn, operation_id=operation_id, incident_id=row["incident_id"], state="ISOLATED",
+        parent=parent, actor=row["actor"], tenant=row["tenant"], auth_scope=row["auth_scope"],
+        source_path=source_path, source_revision=row["source_revision"], source_digest=current_sha,
+        artifact_id=f"chunk:{indexed_sha}", candidate_id=candidate_id, indexed_sha256=indexed_sha,
+        preconditions={"active_generation_id": pinned_id},
+        outcomes={"candidate_status": "BUILDING", "production_authority": False},
+        unresolved=["candidate is not active"], evidence_ref="isolated-generation", now=now,
+    )
+    if crash_after == "isolated":
+        raise RecoveryBoundaryInterrupt("committed isolated generation; active generation unchanged")
+    valid = evaluate_recovery_candidate(
+        candidate_body=spec["changed_body"], holdout_body=spec["holdout_body"],
+        required_tokens=required_tokens,
+    )
+    parent = _recovery_transition(
+        conn, operation_id=operation_id, incident_id=row["incident_id"], state="EVALUATED",
+        parent=parent, actor=row["actor"], tenant=row["tenant"], auth_scope=row["auth_scope"],
+        source_path=source_path, source_revision=row["source_revision"], source_digest=current_sha,
+        artifact_id=f"chunk:{indexed_sha}", candidate_id=candidate_id, indexed_sha256=indexed_sha,
+        preconditions={"evaluator": "evaluate_recovery_candidate"},
+        outcomes=valid, unresolved=["approval does not promote the index"],
+        evidence_ref="evaluate_recovery_candidate", now=now,
+    )
+    if not valid["accepted"]:
+        return _recovery_finish(
+            conn, operation_id, "RECOVERY_FAILED",
+            {"reason": "valid candidate missed fixed criteria", "demonstrated": ["evaluation"]},
+            now, anatomy_path,
+        )
+    parent = _recovery_transition(
+        conn, operation_id=operation_id, incident_id=row["incident_id"], state="APPROVAL_PENDING",
+        parent=parent, actor=row["actor"], tenant=row["tenant"], auth_scope=row["auth_scope"],
+        source_path=source_path, source_revision=row["source_revision"], source_digest=current_sha,
+        artifact_id=f"chunk:{indexed_sha}", candidate_id=candidate_id, indexed_sha256=indexed_sha,
+        preconditions={"production_authority": False},
+        outcomes={"promotion": False}, unresolved=["no human production approval"],
+        evidence_ref="approval-pending", now=now,
+    )
+    conn.execute(
+        "INSERT INTO org_source_revocations("
+        "revocation_id,source_path,source_digest,actor,tenant,created_at,reason) "
+        "VALUES(?,?,?,?,?,?,?)",
+        (f"{operation_id}:revoke", source_path, candidate_digest, row["actor"], row["tenant"],
+         now, "candidate digest revoked before any promotion"),
+    )
+    conn.commit()
+    graph = OrgGraph()
+    publish_meta = {"built": True, "mode": "recovery-isolated", "ts": now, "repos": 1, "chunks": 1}
+    _persist_runtime_state(conn, graph, publish_meta, candidate_id)
+    if publish_meta.get("integrity_state") != "NOT_PUBLISHED_REVOKED_SOURCE":
+        return _recovery_finish(
+            conn, operation_id, "RECOVERY_FAILED",
+            {"reason": "revoked candidate was not refused", "demonstrated": ["revocation_check"]},
+            now, anatomy_path,
+        )
+    if _active_generation(conn) != pinned_id:
+        return _recovery_finish(
+            conn, operation_id, "RECOVERY_FAILED",
+            {"reason": "active generation changed", "demonstrated": []},
+            now, anatomy_path,
+        )
+    conn.execute(
+        "UPDATE org_generations SET status='ROLLED_BACK' WHERE generation_id=? AND status='FAILED'",
+        (candidate_id,),
+    )
+    conn.commit()
+    parent = _recovery_transition(
+        conn, operation_id=operation_id, incident_id=row["incident_id"], state="ROLLBACK_REQUIRED",
+        parent=parent, actor=row["actor"], tenant=row["tenant"], auth_scope=row["auth_scope"],
+        source_path=source_path, source_revision=row["source_revision"], source_digest=current_sha,
+        artifact_id=f"chunk:{indexed_sha}", candidate_id=candidate_id, indexed_sha256=indexed_sha,
+        preconditions={"integrity_state": "NOT_PUBLISHED_REVOKED_SOURCE"},
+        outcomes={"active_generation_id": pinned_id}, unresolved=[],
+        evidence_ref="publication-refusal", now=now,
+    )
+    parent = _recovery_transition(
+        conn, operation_id=operation_id, incident_id=row["incident_id"], state="ROLLED_BACK",
+        parent=parent, actor=row["actor"], tenant=row["tenant"], auth_scope=row["auth_scope"],
+        source_path=source_path, source_revision=row["source_revision"], source_digest=current_sha,
+        artifact_id=f"chunk:{indexed_sha}", candidate_id=candidate_id, indexed_sha256=indexed_sha,
+        preconditions={"rows_retained": True},
+        outcomes={"candidate_status": "ROLLED_BACK", "revocation_retained": True},
+        unresolved=[], evidence_ref="rollback", now=now,
+    )
+    served_body = conn.execute(
+        "SELECT body FROM org_chunks_gen WHERE generation_id=?",
+        (pinned_id,),
+    ).fetchone()
+    parent = _recovery_transition(
+        conn, operation_id=operation_id, incident_id=row["incident_id"], state="APPLIED",
+        parent=parent, actor=row["actor"], tenant=row["tenant"], auth_scope=row["auth_scope"],
+        source_path=source_path, source_revision=row["source_revision"], source_digest=current_sha,
+        artifact_id=f"chunk:{indexed_sha}", candidate_id=candidate_id, indexed_sha256=indexed_sha,
+        preconditions={"decision": "do_not_promote"},
+        outcomes={"active_body_sha256": indexed_sha, "production_authority": False},
+        unresolved=[], evidence_ref="decision-stored", now=now,
+    )
+    still_revoked = conn.execute(
+        "SELECT revocation_id FROM org_source_revocations WHERE source_digest=?",
+        (candidate_digest,),
+    ).fetchone()
+    parent = _recovery_transition(
+        conn, operation_id=operation_id, incident_id=row["incident_id"], state="VERIFIED",
+        parent=parent, actor=row["actor"], tenant=row["tenant"], auth_scope=row["auth_scope"],
+        source_path=source_path, source_revision=row["source_revision"], source_digest=current_sha,
+        artifact_id=f"chunk:{indexed_sha}", candidate_id=candidate_id, indexed_sha256=indexed_sha,
+        preconditions={"active_generation_id": pinned_id},
+        outcomes={
+            "active_unchanged": _active_generation(conn) == pinned_id,
+            "served_original": bool(served_body and served_body["body"] == spec["original_body"]),
+            "revocation_present": still_revoked is not None,
+            "production_authority": False,
+        },
+        unresolved=["fixture is not general recovery"],
+        evidence_ref="re-read", now=now,
+    )
+    return _recovery_finish(
+        conn, operation_id, "VERIFIED",
+        {
+            "reason": "refusal re-read; active index unchanged",
+            "parent_transition_id": parent,
+            "active_generation_id": pinned_id,
+            "candidate_id": candidate_id,
+            "regression_verdict": verdict,
+            "candidate_verdict": valid,
+            "demonstrated": [
+                "stale_source",
+                "regression_rejected",
+                "isolated_candidate",
+                "revocation",
+                "rollback",
+                "active_index_unchanged",
+            ] + (["restart_reconciliation"] if row["status"] == "ISOLATED" else []),
+        },
+        now, anatomy_path,
+    )
+
+
+def recovery_anatomy_view(conn: sqlite3.Connection, operation_id: str) -> dict[str, Any]:
+    """Return stored recovery rows for an Anatomy display. This does not stamp LIVE."""
+    _init_schema(conn)
+    records = _recovery_rows(conn, operation_id)
+    return {
+        "state": "DISPLAYED" if records else "NOT_RUN",
+        "records": records,
+        "production_authority": False,
+        "estate_operational": False,
+    }
+
+
 def query(q: str, k: int = 6, repo: str | None = None,
           hyde_text: str | None = None,
           emit_receipt: Callable[[str, dict], dict] | None = None,
-          load_embedder: bool = False) -> dict[str, Any]:
+          load_embedder: bool = False,
+          source_witness: dict[str, str] | None = None) -> dict[str, Any]:
     """Two-stage Λ-weighted agentic-RAG query.
 
     Returns grounded chunks (above the Λ relevance floor) each with M2M
@@ -1864,6 +2579,17 @@ def query(q: str, k: int = 6, repo: str | None = None,
                 "source_training_eligible": item["source_training_eligible"],
             })
 
+    revoked_suppressed = 0
+    revoked = _revoked_source_digests(conn)
+    if revoked:
+        kept_rows = []
+        for row in rows:
+            if str(row.get("sha256") or "") in revoked:
+                revoked_suppressed += 1
+                continue
+            kept_rows.append(row)
+        rows = kept_rows
+
     # dense vector for query (HyDE-aware)
     qvec = None
     if embed_fn is not None:
@@ -1914,6 +2640,11 @@ def query(q: str, k: int = 6, repo: str | None = None,
                          "sha256": r["sha256"], "corpus": corpus, "source": source,
                          "citation": f"{source}/{r['path']}"},
         }
+        if source_witness is not None:
+            scored_item["source_state"] = retrieval_source_state(
+                r.get("sha256"), _witness_digest(source_witness.get(str(r.get("path") or ""))),
+            )
+            scored_item["production_authority"] = False
         if r["retrieval_plane"] == "brain_handle":
             scored_item["evidence"] = {
                 "kind": "brain_handle", "node_id": r["node_id"],
@@ -1976,6 +2707,13 @@ def query(q: str, k: int = 6, repo: str | None = None,
             "dense": qvec is not None,
             "evidence_set_sha256": evidence_set_sha256})
         out["khipu_hash"] = rec.get("hash")
+    if source_witness is not None:
+        observed_states = sorted({item.get("source_state", "UNBOUND") for item in grounded})
+        out["source_states"] = observed_states
+        out["index_stale"] = "STALE" in observed_states
+        out["production_authority"] = False
+    if revoked_suppressed:
+        out["revoked_suppressed"] = revoked_suppressed
     return out
 
 
