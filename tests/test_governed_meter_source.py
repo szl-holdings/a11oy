@@ -36,6 +36,12 @@ def _snapshot(omen_joules, laptop_joules, *, omen_reachable=True, omen_counter="
     }
 
 
+def _window_delta(served_by, before, after, *, call_start_ts=101.0, call_end_ts=104.0):
+    return api._served_meter_delta(
+        served_by, before, after,
+        call_start_ts=call_start_ts, call_end_ts=call_end_ts)
+
+
 def test_meter_rejects_aggregate_without_direct_counter_evidence(monkeypatch):
     now = time.time()
     monkeypatch.setattr(api, "_http_json", lambda *a, **kw: {
@@ -90,9 +96,9 @@ def test_served_energy_uses_only_serving_gpu_not_fleet_delta(monkeypatch):
         _engine("anchor", OMEN, "omen"),
         _engine("laptop", LAPTOP, "betterwithage"),
     ])
-    delta, _ = api._served_meter_delta(
+    delta, _ = _window_delta(
         "anchor", _snapshot(100.0, 20.0), _snapshot(105.0, 90.0))
-    assert delta == 5.0  # The unrelated laptop's 70-J delta cannot leak into this turn.
+    assert delta == 5.0  # Device window excludes the unrelated laptop's 70 J.
 
 
 def test_shared_or_missing_serving_source_fails_closed(monkeypatch):
@@ -100,7 +106,7 @@ def test_shared_or_missing_serving_source_fails_closed(monkeypatch):
         _engine("anchor", OMEN, "omen"),
         _engine("glm", OMEN, None),
     ])
-    delta, reason = api._served_meter_delta(
+    delta, reason = _window_delta(
         "anchor", _snapshot(100.0, 20.0), _snapshot(105.0, 90.0))
     assert delta is None and "shared" in reason
     monkeypatch.setattr(api, "MESH", [
@@ -111,19 +117,63 @@ def test_shared_or_missing_serving_source_fails_closed(monkeypatch):
         (_snapshot(100.0, 20.0, omen_reachable=False), _snapshot(105.0, 90.0)),
         (_snapshot(100.0, 20.0), _snapshot(105.0, 90.0, omen_counter="new-epoch")),
     ]:
-        delta, _ = api._served_meter_delta("anchor", before, after)
+        delta, _ = _window_delta("anchor", before, after)
         assert delta is None
     stale_after = _snapshot(105.0, 90.0)
     stale_after["engines"][0]["counter_samples"]["omen"]["sample_ts_min"] = 100.0
-    delta, _ = api._served_meter_delta("anchor", _snapshot(100.0, 20.0), stale_after)
+    delta, _ = _window_delta("anchor", _snapshot(100.0, 20.0), stale_after)
     assert delta is None
     mixed_before, mixed_after = _snapshot(100.0, 20.0), _snapshot(110.0, 90.0)
     mixed_before["engines"][0]["counter_samples"]["omen"]["gpu_counters"] = {
         "GPU-one": 50.0, "GPU-two": 50.0}
     mixed_after["engines"][0]["counter_samples"]["omen"]["gpu_counters"] = {
         "GPU-one": 49.0, "GPU-two": 61.0}
-    delta, _ = api._served_meter_delta("anchor", mixed_before, mixed_after)
+    delta, _ = _window_delta("anchor", mixed_before, mixed_after)
     assert delta is None  # One counter reset cannot be hidden by another GPU rising.
+
+
+def test_gpu_samples_must_enclose_the_model_call(monkeypatch):
+    monkeypatch.setattr(api, "MESH", [
+        _engine("anchor", OMEN, "omen"),
+        _engine("laptop", LAPTOP, "betterwithage"),
+    ])
+    before, after = _snapshot(100.0, 20.0), _snapshot(105.0, 90.0)
+    for start, end in [(99.0, 104.0), (101.0, 106.0), (104.0, 101.0)]:
+        delta, reason = _window_delta(
+            "anchor", before, after, call_start_ts=start, call_end_ts=end)
+        assert delta is None
+        assert "enclose" in reason
+
+
+def test_overlapping_turns_do_not_claim_exclusive_joules(monkeypatch):
+    monkeypatch.setattr(api, "MESH", [
+        _engine("anchor", OMEN, "omen"),
+        _engine("laptop", LAPTOP, "betterwithage"),
+    ])
+    monkeypatch.setattr(api, "_avf", SimpleNamespace(
+        governed_turn=lambda *a, **kw: {"decision": "allow", "receipt": None}))
+    monkeypatch.setattr(api, "_pick_engine", lambda effort: api.MESH[0])
+    monkeypatch.setattr(api, "_ollama_generate", lambda *a: ("fixture answer", {}))
+    monkeypatch.setattr(api, "_with_pb_reference", lambda energy: energy)
+    monkeypatch.setattr(api, "_conformal_blocks", lambda *a: None)
+    # Two turns observe the same physical window. Its 5 J may include both
+    # inferences or unrelated GPU work; neither turn owns that device delta.
+    monkeypatch.setattr(api, "_meter_snapshot", iter([
+        (None, _snapshot(100.0, 20.0)),
+        (None, _snapshot(105.0, 90.0)),
+        (None, _snapshot(100.0, 20.0)),
+        (None, _snapshot(105.0, 90.0)),
+    ]).__next__)
+    monkeypatch.setattr(api, "time", SimpleNamespace(
+        time=iter([101.0, 104.0, 101.0, 104.0]).__next__))
+    for _ in range(2):
+        energy = api.govern_infer("A public fixture prompt.")["energy"]
+        assert energy["joules"] is None
+        assert energy["label"] == "UNAVAILABLE"
+        assert energy["evidence"]["device_window"] == {
+            "joules": 5.0, "label": "MEASURED", "method": "NVML_COUNTER_DELTA",
+            "scope": "SHARED_GPU_DEVICE_WINDOW", "billable": False,
+        }
 
 
 def test_governed_turn_keeps_ambiguous_energy_unavailable(monkeypatch):

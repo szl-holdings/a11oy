@@ -18,10 +18,10 @@ What they get back (the product):
       },
       "receipt": {...},                    # SIGNED, hash-chained Khipu receipt (P5/P6)
       "dsse":    {...},                    # DSSE envelope over the receipt
-      "energy": {                          # MEASURED joules for THIS turn, honestly labeled
-          "joules": float | None,
-          "label": "MEASURED" | "UNAVAILABLE",
-          "evidence": {...}
+      "energy": {                          # per-turn attribution, honestly labeled
+          "joules": None,                  # no exclusive-workload witness
+          "label": "UNAVAILABLE",
+          "evidence": {"device_window": {...} | None, ...}
       },
       "honesty": "..."                     # plain-English statement of what is/!is proven
     }
@@ -31,9 +31,9 @@ DOCTRINE (non-negotiable, enforced here):
   - The answer is returned ONLY if governed_turn decision == "allow".
     On "review"/"deny" we return the governance verdict + receipt and NO answer.
     (Never claim more than is real — the half-state is the only unacceptable outcome.)
-  - joules are MEASURED only from the real NVML exporter (meter.a-11-oy.com, live:true,
-    sample < METER_FRESH_S old). Otherwise label is UNAVAILABLE and joules is null.
-    We NEVER fabricate a joule.
+  - A fresh direct NVML delta can MEASURE a GPU device window, not exclusive
+    energy for one inference. Per-turn joules remain UNAVAILABLE without measured
+    exclusive-workload bounds; no joule is fabricated or billed as exact.
   - The receipt is whatever szl_khipu/szl_dsse actually produced — if signing was
     unavailable, the receipt says so (chain_verified / honesty fields preserved).
 """
@@ -230,8 +230,9 @@ def _meter_snapshot() -> tuple[float | None, dict]:
     }
 
 
-def _served_meter_delta(served_by: str | None, before: dict, after: dict) -> tuple[float | None, str]:
-    """Attribute a turn only to one unshared serving engine and stable GPU counters."""
+def _served_meter_delta(served_by: str | None, before: dict, after: dict, *,
+                        call_start_ts: float, call_end_ts: float) -> tuple[float | None, str]:
+    """Measure an enclosing GPU device window, not energy exclusive to a turn."""
     name = (served_by or "").removesuffix(" (failover)")
     matches = [e for e in MESH if e.get("name") == name]
     if len(matches) != 1:
@@ -269,12 +270,18 @@ def _served_meter_delta(served_by: str | None, before: dict, after: dict) -> tup
     if (not isinstance(start_counters, dict) or not start_counters
             or not isinstance(end_counters, dict)
             or start_counters.keys() != end_counters.keys()
+            or isinstance(call_start_ts, bool) or isinstance(call_end_ts, bool)
+            or not isinstance(call_start_ts, (int, float))
+            or not isinstance(call_end_ts, (int, float))
+            or not math.isfinite(call_start_ts) or not math.isfinite(call_end_ts)
+            or call_end_ts <= call_start_ts
             or isinstance(start_ts, bool) or isinstance(end_ts, bool)
             or not isinstance(start_ts, (int, float))
             or not isinstance(end_ts, (int, float))
             or not math.isfinite(start_ts) or not math.isfinite(end_ts)
-            or end_ts <= start_ts):
-        return None, "no positive source-bound joule delta this turn"
+            or end_ts <= start_ts or start_ts > call_start_ts
+            or end_ts < call_end_ts):
+        return None, "GPU counter samples do not enclose the model call"
     deltas = []
     for gpu_id, start in start_counters.items():
         end = end_counters[gpu_id]
@@ -285,8 +292,8 @@ def _served_meter_delta(served_by: str | None, before: dict, after: dict) -> tup
         deltas.append(end - start)
     delta = sum(deltas)
     if delta <= 0.5:
-        return None, "no positive source-bound joule delta this turn"
-    return round(delta, 3), "serving GPU NVML counter delta"
+        return None, "no positive source-bound GPU window delta"
+    return round(delta, 3), "serving GPU device-window NVML counter delta"
 
 
 def _engine_live(eng: dict) -> bool:
@@ -462,9 +469,10 @@ def govern_infer(prompt: str, *, vertical: str = "general",
     #     failure this is None and Λ falls back to MODELED — never breaks the turn.
     cb = _conformal_blocks(g, prompt)
 
-    # 2) MEASURE the turn — joules MEASURED only, outside the model call window edges.
+    # 2) Read GPU counters around the model call; they cannot prove exclusivity.
     gateway_requested = effort == "szl-router"
     _, ev_before = (None, {}) if gateway_requested else _meter_snapshot()
+    call_start_ts = time.time()
 
     answer = None
     gen_meta: dict = {}
@@ -527,20 +535,28 @@ def govern_infer(prompt: str, *, vertical: str = "general",
             finally:
                 _inflight_dec(eng["name"])
 
+    call_end_ts = time.time()
     _, ev_after = (None, {}) if gateway_requested else _meter_snapshot()
 
-    # 3) Attribute only the serving engine's own stable direct NVML counter.
-    # A fleet-total delta or a second logical engine sharing one meter is not
-    # per-turn proof, even when a remote meter happens to tick in the window.
-    delta, why = _served_meter_delta(served_by, ev_before, ev_after)
+    # 3) A source-bound delta measures the GPU device window. It can include
+    # concurrent work and cannot be billed or claimed as this turn's energy.
+    delta, why = _served_meter_delta(
+        served_by, ev_before, ev_after,
+        call_start_ts=call_start_ts, call_end_ts=call_end_ts)
     if delta is not None:
-        energy = {"joules": delta, "label": "MEASURED",
-                  "evidence": {"served_by": served_by, "before": ev_before, "after": ev_after}}
+        energy = {"joules": None, "label": "UNAVAILABLE",
+                  "evidence": {"served_by": served_by,
+                               "reason": "exclusive per-inference attribution unavailable",
+                               "device_window": {"joules": delta, "label": "MEASURED",
+                                                 "method": "NVML_COUNTER_DELTA",
+                                                 "scope": "SHARED_GPU_DEVICE_WINDOW",
+                                                 "billable": False},
+                               "before": ev_before, "after": ev_after}}
     else:
         energy = {"joules": None, "label": "UNAVAILABLE",
                   "evidence": {"served_by": served_by, "reason": why,
                                "before": ev_before, "after": ev_after,
-                               "note": "joule NOT fabricated; not attributed across nodes"}}
+                               "note": "joule NOT fabricated; no source-bound device window"}}
 
     # Cite the founder-captured MEASURED physical-bounds reference (honest label;
     # NOT this request's live joules). Absent when the cert is unreadable — never
@@ -550,8 +566,8 @@ def govern_infer(prompt: str, *, vertical: str = "general",
     honesty = {
         "allow":  "Governance allowed the turn; answer returned with a signed receipt. "
                   "Λ is Conjecture 1 (advisory), not a theorem. "
-                  + ("Joules MEASURED from real NVML." if energy["label"] == "MEASURED"
-                     else "Joules UNAVAILABLE this turn — not fabricated."),
+                  "Joules UNAVAILABLE for this turn; any measured GPU device "
+                  "window is shared and nonbillable.",
         "review": "Λ below advisory floor — flagged for HUMAN REVIEW. No answer returned. "
                   "Receipt records the verdict.",
         "deny":   "A deny-by-default safety gate fired. No answer returned. Receipt records the denial.",
