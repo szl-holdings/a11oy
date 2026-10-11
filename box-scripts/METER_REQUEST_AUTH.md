@@ -45,8 +45,11 @@ command are supplied in this source change. These variables describe the format:
   Once a version is selected, a missing or wrong-audience value fails closed,
   even if the legacy secret remains present. `SZL_GLM_METER` is a separate URL
   override and must also identify the exact meter2 origin for this enrollment.
-  The nonsecret `meter_auth_client_id` on a successful energy/live readback
-  identifies which client signed that backend fetch; it is null when offline.
+  The nonsecret `meter_request_client_id` on a successful energy/live readback
+  names the client the backend selected for its outbound request; it is null
+  when offline. It is not a server-side assertion that a particular verifier
+  accepted the key. Local and public signed-read, anonymous denial, replay
+  denial, and old-key rejection probes remain independently required.
 - Optional server `OMEN_EXPORTER_BIND`: an explicit address already inside the
   existing loopback/tailnet restriction. Wildcard and ordinary LAN binds deny.
   This variable does not start a listener or change a firewall by itself.

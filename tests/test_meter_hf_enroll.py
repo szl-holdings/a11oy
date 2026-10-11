@@ -247,7 +247,7 @@ def test_wrong_meter_live_readback_cannot_retire_old_key(monkeypatch):
                                 "joules_label": "UNAVAILABLE", "total_joules": None}).encode()
 
     monkeypatch.setattr(probe, "_get", fake_get)
-    with pytest.raises(enroll.EnrollmentError, match="exact meter2 reader"):
+    with pytest.raises(enroll.EnrollmentError, match="select the exact meter2 reader"):
         probe.live("1" * 40, "canonical-a11oy-v2-test")
 
 
@@ -258,11 +258,11 @@ def test_old_backend_reader_cannot_qualify_new_key_retirement(monkeypatch):
         if url.endswith("/api/build-info"):
             return 200, json.dumps({"build": {"revision": "1" * 40}}).encode()
         return 200, json.dumps({"meter_status": "ok", "meter_url": enroll.AUDIENCE,
-                                "meter_auth_client_id": "canonical-a11oy",
+                                "meter_request_client_id": "canonical-a11oy",
                                 "joules_label": "UNAVAILABLE", "total_joules": None}).encode()
 
     monkeypatch.setattr(probe, "_get", fake_get)
-    with pytest.raises(enroll.EnrollmentError, match="exact meter2 reader"):
+    with pytest.raises(enroll.EnrollmentError, match="select the exact meter2 reader"):
         probe.live("1" * 40, "canonical-a11oy-v2-test")
 
 

@@ -270,10 +270,10 @@ def _fetch_meter() -> dict:
         if code >= 400 or (auth and code >= 300):
             return {"reachable": False, "status": f"http-{code}"}
         parsed = parse_meter_metrics(resp.text)
-        # Nonsecret client identity binds runtime readback to the credential
-        # actually used for this successful meter fetch. Never expose the key.
+        # Nonsecret outbound request identity, not a server-side attestation:
+        # a 200 alone cannot prove which meter verifier accepted the key.
         parsed.update({"reachable": True, "status": "ok",
-                       "meter_auth_client_id": auth["X-SZL-Meter-Client"]})
+                       "meter_request_client_id": auth["X-SZL-Meter-Client"]})
         return parsed
     except Exception as e:  # noqa: BLE001 — unreachable/timeout meter => honest offline
         return {"reachable": False, "status": f"offline:{type(e).__name__}"}
@@ -442,7 +442,7 @@ def build_live() -> dict:
         "joules_label": joules_label,
         "meter_url": METER_URL,
         "meter_status": snap.get("status"),
-        "meter_auth_client_id": snap.get("meter_auth_client_id") if reachable else None,
+        "meter_request_client_id": snap.get("meter_request_client_id") if reachable else None,
         "exporter": "NVML" if reachable else None,
         "mesh": posture,
         "note": note,

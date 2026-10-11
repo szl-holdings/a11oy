@@ -286,8 +286,8 @@ class MeterProbe:
                 raise EnrollmentError("energy/live readback invalid") from None
             if (live_status != 200 or live.get("meter_status") != "ok"
                     or live.get("meter_url") != AUDIENCE
-                    or live.get("meter_auth_client_id") != client_id):
-                raise EnrollmentError("energy/live does not confirm the exact meter2 reader")
+                    or live.get("meter_request_client_id") != client_id):
+                raise EnrollmentError("energy/live does not select the exact meter2 reader")
             # Authenticated connectivity alone does not qualify joules.
             if live.get("total_joules") is None and live.get("joules_label") == "MEASURED":
                 raise EnrollmentError("energy/live mislabeled unavailable joules")
