@@ -1,92 +1,105 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8">
+<!doctype html><html lang="en" class="hatun-frontdoor" data-surface="dark"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>a11oy · Hatun-MCP — agentic MCP server</title>
+<meta name="description" content="Inspect Hatun's declared MCP tools, same-origin gateway mesh, and observed receipt evidence. Missing evidence stays UNKNOWN or UNAVAILABLE.">
+<link rel="icon" href="/assets/szl/logos/szl_favicon_square.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/szl/szl-design-system.css">
+<link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
+<link rel="stylesheet" href="/assets/szl-holo-v2.css" data-szl-holo-asset="style-v2">
 <!-- SPDX-License-Identifier: Apache-2.0 · © 2026 SZL Holdings · Doctrine v12 additive · Signed: Yachay · Co-author: Perplexity Computer Agent -->
 <style>
-:root{--bg:#0a0b10;--panel:#12141d;--panel2:#171a25;--ink:#e8eaf0;--mut:#9aa0b4;--gold:#d9b35c;--line:#252938;--grn:#3fb950;--amb:#d29922;--red:#f85149;}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-a{color:var(--gold);text-decoration:none}a:hover{text-decoration:underline}
-header{border-bottom:1px solid var(--line);padding:14px 22px;display:flex;align-items:center;gap:14px;background:linear-gradient(180deg,#10121b,#0a0b10)}
-header .brand{font-weight:700;letter-spacing:.5px;color:var(--gold);font-size:18px}
-header .tag{color:var(--mut);font-size:12px}
-nav{display:flex;flex-wrap:nowrap;gap:8px;padding:10px 22px;border-bottom:1px solid var(--line);background:var(--panel);overflow-x:auto;overscroll-behavior-inline:contain;scrollbar-width:thin}
-nav a{font-size:12.5px;padding:4px 10px;border:1px solid var(--line);border-radius:999px;color:var(--mut)}
-nav a:hover{border-color:var(--gold);color:var(--gold);text-decoration:none}
-nav a.active{background:var(--gold);color:#0a0b10;border-color:var(--gold);font-weight:600}
-main{max-width:1040px;margin:0 auto;padding:28px 22px 60px}
-h1{font-size:26px;margin:0 0 4px;color:#fff}h2{font-size:18px;margin:28px 0 10px;color:var(--gold)}
-.sub{color:var(--mut);margin:0 0 18px;font-size:13.5px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:14px 0}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;margin:16px 0}
-.grid a.tile{display:block;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px;color:var(--ink)}
-.grid a.tile:hover{border-color:var(--gold);text-decoration:none}
-.grid a.tile .t{color:var(--gold);font-weight:600;margin-bottom:4px}.grid a.tile .d{color:var(--mut);font-size:12.5px}
-table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px}
-.table-wrap{width:100%;overflow-x:auto;overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch}
-.table-wrap table{min-width:620px}
-th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
-th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
-code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
-pre{background:#0d0f17;border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto;color:#cdd3e3}
-.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600}
-.g{background:rgba(63,185,80,.15);color:var(--grn)}.a{background:rgba(210,153,34,.15);color:var(--amb)}.r{background:rgba(248,81,73,.15);color:var(--red)}.n{background:#1c2030;color:var(--mut)}
-.note{border-left:3px solid var(--gold);padding:8px 14px;background:rgba(217,179,92,.06);color:#d8dbe6;font-size:13.5px;margin:14px 0;border-radius:0 8px 8px 0}
-footer{border-top:1px solid var(--line);color:var(--mut);font-size:11.5px;padding:18px 22px;line-height:1.7}
-.kbd{background:#1c2030;border:1px solid var(--line);border-radius:6px;padding:1px 7px;font-family:ui-monospace,monospace;font-size:12px}
-.statline{display:flex;flex-wrap:wrap;gap:18px;align-items:center;font-size:13.5px}
-.statline b{color:var(--ink)}
-.tag2{display:inline-block;background:#1c2030;color:var(--mut);border:1px solid var(--line);border-radius:6px;padding:1px 7px;font-size:11px;margin-left:6px}
-.st{color:var(--amb);font-weight:600}
-@media(max-width:700px){
- header{padding:12px 14px;align-items:flex-start;flex-direction:column;gap:2px}
- nav{padding:9px 14px}
- main{padding:20px 14px 44px}
- h1{font-size:23px;line-height:1.25}
- .card{padding:15px}
- .statline{display:grid;grid-template-columns:1fr;gap:8px}
- pre{white-space:pre-wrap;overflow-wrap:anywhere}
- footer{padding:16px 14px}
+body.szl-hatun-mcp{
+ --szl-holo-bg:var(--bg);--szl-holo-bg-deep:var(--bg-deep);--szl-holo-surface:var(--surface);--szl-holo-surface-2:var(--surface-alt);
+ --szl-holo-ink:var(--text);--szl-holo-muted:var(--text-sub);--szl-holo-accent:var(--link);--szl-holo-accent-2:var(--text-ghost);
+ --szl-holo-font:var(--font-body);--szl-holo-mono:var(--font-mono);--szl-flow-ink:var(--text);--szl-flow-sub:var(--text-sub);
 }
-</style>  <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
-  <link rel="stylesheet" href="/assets/szl-holo-v2.css" data-szl-holo-asset="style-v2" />
-</head><body>
-<header><span class="brand">a11oy</span><span class="tag">Brand Orchestration Layer · the one place to see everything</span></header>
-<nav><a href="/hub">Hub</a><a href="/api/a11oy/code/ide">a11oy.code</a><a href="/docs">Docs</a><a href="/pricing">Pricing</a><a href="/api-keys">API Keys</a><a href="/sdk">SDK</a><a href="/status">Status</a><a href="/hatun-mcp" class="active">Hatun-MCP</a><a href="/observability">Observability</a><a href="/security">Security</a><a href="/compliance">Compliance</a><a href="/cued-engagement">Cued Engagement</a><a href="/uds">UDS</a><a href="/counter-uas">Counter-UAS</a><a href="/evidence">Evidence</a><a href="/audit">Audit</a><a href="/gap-report">Gap Report</a></nav>
-<main>
-<h1>Hatun-MCP — agentic MCP server</h1>
+html.hatun-frontdoor body.szl-hatun-mcp{margin:0;background:var(--bg)!important;color:var(--text)!important;font:var(--text-base)/var(--leading-normal) var(--font-body)}
+html.hatun-frontdoor body.szl-hatun-mcp::before,html.hatun-frontdoor body.szl-hatun-mcp::after{display:none}
+.szl-hatun-mcp a{color:var(--link);text-decoration-thickness:1px;text-underline-offset:.2em}
+.hatun-header{border-bottom:1px solid var(--border);padding:16px max(22px,calc((100vw - 1120px)/2));display:flex;align-items:center;gap:22px;background:var(--surface)}
+.hatun-header .brand{display:inline-flex;align-items:center;gap:12px;min-height:44px;font-weight:700;letter-spacing:-.02em;color:var(--text);font-size:20px;text-decoration:none}
+.hatun-header .brand img{width:34px;height:34px;flex:none}.hatun-header .tag{color:var(--text-sub);font-size:13px}
+.hatun-nav{display:flex;flex-wrap:nowrap;gap:8px;padding:10px 22px;border-bottom:1px solid var(--border);background:var(--bg);overflow-x:auto;overscroll-behavior-inline:contain;scrollbar-width:thin}
+.hatun-nav a{display:inline-flex;flex:0 0 auto;align-items:center;min-height:44px;font-size:13px;padding:10px 14px;border:1px solid transparent;border-radius:var(--radius-md);color:var(--text-sub);white-space:nowrap;text-decoration:none}
+.hatun-nav a:hover{border-color:var(--control-edge);color:var(--text);background:var(--surface)}
+.hatun-nav a.active{background:var(--surface-raised);color:var(--text);border-color:var(--control-edge);font-weight:650}
+.szl-hatun-mcp main{max-width:1120px;margin:0 auto;padding:clamp(38px,6vw,76px) 22px 72px}
+.hatun-eyebrow{margin:0 0 16px;color:var(--text-ghost);font:600 var(--text-xs)/1.5 var(--font-mono);letter-spacing:var(--tracking-caps);text-transform:uppercase}
+.szl-hatun-mcp h1{font:600 clamp(40px,7vw,76px)/1.04 var(--font-display);letter-spacing:-.055em;margin:0 0 12px;color:var(--text)}
+.hatun-dek{font-size:var(--text-lg);color:var(--text-sub);margin:0 0 24px}
+.szl-hatun-mcp h2{font:600 clamp(21px,3vw,28px)/1.3 var(--font-display);margin:40px 0 12px;color:var(--text)}
+.szl-hatun-mcp .sub{color:var(--text-sub);margin:0 0 18px;font-size:14px;max-width:85ch}
+.szl-hatun-mcp .hatun-surface{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl);padding:24px;margin:28px 0}
+.hatun-surface h2{margin:0 0 20px;font-size:20px}
+.szl-hatun-mcp .hatun-surface.hatun-runtime{border-color:transparent;background:radial-gradient(120% 100% at 100% 0,var(--hero-atmosphere),transparent 65%) padding-box,linear-gradient(var(--surface),var(--surface)) padding-box,var(--holo-edge) border-box;background-color:var(--surface)}
+.szl-hatun-mcp table{width:100%;border-collapse:collapse;margin:0;font-size:14px;table-layout:fixed}
+.table-wrap{width:100%;overflow-x:auto;overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--surface)}
+.table-wrap table{min-width:620px}.table-wrap:focus-visible{outline:3px solid var(--focus);outline-offset:4px}
+.szl-hatun-mcp th,.szl-hatun-mcp td{text-align:left;padding:14px 16px;border-bottom:1px solid var(--border-subtle);vertical-align:top;overflow-wrap:anywhere}
+.szl-hatun-mcp tr:last-child td{border-bottom:0}.szl-hatun-mcp th{color:var(--text-ghost);font:600 12px/1.5 var(--font-mono);text-transform:uppercase;letter-spacing:.06em;background:var(--surface-alt)}
+.szl-hatun-mcp code,.szl-hatun-mcp pre{font-family:var(--font-mono);font-size:13px}
+.szl-hatun-mcp pre{background:var(--code-bg,var(--bg-deep));border:1px solid var(--code-border,var(--border));border-radius:var(--radius-lg);padding:20px;overflow:auto;color:var(--code-ink,var(--text));line-height:1.7}
+.szl-hatun-mcp .pill{display:inline-flex;align-items:center;min-height:28px;padding:4px 9px;border:1px solid var(--border);border-radius:var(--radius-full);background:var(--surface-alt);font:600 11px/1.4 var(--font-mono);letter-spacing:.025em;overflow-wrap:anywhere}
+.szl-hatun-mcp .pill.g{color:var(--chip-ok)}.szl-hatun-mcp .pill.a{color:var(--chip-warn)}.szl-hatun-mcp .pill.r{color:var(--chip-bad)}.szl-hatun-mcp .pill.n{color:var(--text-sub)}
+.note{border-left:3px solid var(--control-edge);padding:16px 20px;background:var(--surface-alt);color:var(--text-sub);font-size:14px;margin:30px 0 18px;border-radius:0 var(--radius-md) var(--radius-md) 0}
+.szl-hatun-mcp footer{border-top:1px solid var(--border);color:var(--text-ghost);font-size:12px;padding:24px max(22px,calc((100vw - 1120px)/2));line-height:1.7}
+.statline{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:20px;font-size:13px;color:var(--text-sub)}
+.statline>span{min-width:0;display:grid;align-content:start;gap:8px;overflow-wrap:anywhere}.statline b{color:var(--text);font-family:var(--font-mono)}
+.szl-hatun-mcp :focus-visible{outline:3px solid var(--focus);outline-offset:4px}
+.szl-hatun-mcp .skip-link{position:fixed;min-height:44px;text-decoration:none}.scroll-hint{margin:12px 0 0;color:var(--text-ghost);font-size:12px}
+@media(max-width:700px){
+ .hatun-header{padding:12px 16px;align-items:flex-start;flex-direction:column;gap:2px}
+ .hatun-nav{padding:8px 16px}.szl-hatun-mcp main{padding:36px 16px 52px}
+ .szl-hatun-mcp .hatun-surface{padding:20px 16px}.statline{grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 16px}
+ .szl-hatun-mcp pre{padding:16px;white-space:pre-wrap;overflow-wrap:anywhere}.szl-hatun-mcp footer{padding:20px 16px}
+}
+@media(prefers-reduced-motion:reduce){html.hatun-frontdoor{scroll-behavior:auto}}
+@media(forced-colors:active){.szl-hatun-mcp .hatun-surface,.szl-hatun-mcp .hatun-surface.hatun-runtime,.table-wrap,.note,.szl-hatun-mcp pre{border:1px solid CanvasText;background:Canvas;color:CanvasText}.hatun-nav a.active{border-color:Highlight}}
+</style>
+</head><body class="szl-hatun-mcp">
+<a class="skip-link" href="#main" data-szl-holo-skip="true">Skip to main content</a>
+<header class="hatun-header"><a class="brand" href="/console"><img src="/assets/szl/logos/szl_favicon_square.svg" alt="" width="34" height="34">Hatun / A11oy</a><span class="tag">Context gateway · interfaces and evidence</span></header>
+<nav class="hatun-nav" aria-label="A11oy product areas"><a href="/hub">Hub</a><a href="/api/a11oy/code/ide">a11oy.code</a><a href="/docs">Docs</a><a href="/pricing">Pricing</a><a href="/api-keys">API Keys</a><a href="/sdk">SDK</a><a href="/status">Status</a><a href="/hatun-mcp" class="active" aria-current="page">Hatun-MCP</a><a href="/observability">Observability</a><a href="/security">Security</a><a href="/compliance">Compliance</a><a href="/cued-engagement">Cued Engagement</a><a href="/uds">UDS</a><a href="/counter-uas">Counter-UAS</a><a href="/evidence">Evidence</a><a href="/audit">Audit</a><a href="/gap-report">Gap Report</a></nav>
+<main id="main" tabindex="-1">
+<p class="hatun-eyebrow">Governed context · read-only observations</p>
+<h1>Hatun-MCP</h1>
+<p class="hatun-dek">Agentic MCP server</p>
+<noscript><p class="note">Live reads require JavaScript. The interface and source links remain available; no current runtime evidence has been loaded.</p></noscript>
 <p class="sub"><b>Hatun</b> (Quechua: <i>great / sovereign</i>) is the Model Context Protocol gateway for SZL capabilities. This page separates a reachable runtime declaration from execution and receipt evidence. A listed tool is not proof that it has run. Receipt and signer fields remain <b>UNKNOWN</b> or <b>UNAVAILABLE</b> until the read-only evidence endpoint observes an actual governed-run receipt.</p>
 
-<div class="card">
-  <div class="statline">
-    <span>Live status: <span id="health"><span class="pill n">probing…</span></span></span>
-    <span>Signer: <b id="signer">—</b></span>
-    <span>Khipu chain: <b id="chain">—</b></span>
-    <span>Protocol: <b id="proto">—</b></span>
-    <span>Probe latency: <b id="lat">—</b></span>
+<section class="hatun-surface hatun-runtime surface-holo" aria-labelledby="runtime-title">
+  <h2 id="runtime-title">Runtime and evidence</h2>
+  <div class="statline" id="runtime-status" role="status" aria-live="polite" aria-atomic="true" aria-busy="false">
+    <span>Live status <span id="health"><span class="pill n">UNAVAILABLE</span></span></span>
+    <span>Signer <b id="signer">UNKNOWN</b></span>
+    <span>Khipu chain <b id="chain">UNKNOWN</b></span>
+    <span>Protocol <b id="proto">UNKNOWN</b></span>
+    <span>Probe latency <b id="lat">UNAVAILABLE</b></span>
   </div>
   <p class="sub" style="margin:12px 0 0">Runtime path: <code>/mcp/</code> (same origin) · Transport: JSON-RPC over HTTP (<code>POST /mcp/</code>). Availability, protocol revision, signer evidence, and receipt-chain evidence are populated only from successful reads below.</p>
-</div>
+</section>
 
-<h2>Tools declared (<span id="toolcount">—</span>) <span id="toolsource" class="pill a">STATIC FALLBACK</span></h2>
+<h2 id="tools-title">Tools declared (<span id="toolcount">—</span>) <span id="toolsource" class="pill a">STATIC FALLBACK</span></h2>
 <p class="sub">The initial rows are an explicitly labelled static fallback. A successful <code>GET /mcp/</code> replaces them with the runtime-declared catalog. Neither state is execution proof.</p>
-<div class="table-wrap"><table><thead><tr><th>Tool</th><th>Description</th><th>Evidence class</th></tr></thead><tbody id="tools"></tbody></table></div>
+<div class="table-wrap" role="region" aria-labelledby="tools-title" tabindex="0"><table><thead><tr><th scope="col">Tool</th><th scope="col">Description</th><th scope="col">Evidence class</th></tr></thead><tbody id="tools"></tbody></table></div>
+<p class="scroll-hint">On narrow screens, scroll tables horizontally. Keyboard: focus a table and use the arrow keys.</p>
 
-<h2>Organ mesh</h2>
+<h2 id="mesh-title">Organ mesh</h2>
 <p class="sub">Same-origin map of Hatun to second brain, anatomy, ouroboros, and the formula codex. Labels are route presence. Second-brain readiness is whatever that endpoint reports this request.</p>
-<div class="table-wrap"><table><thead><tr><th>Organ</th><th>Job</th><th>Surface</th><th>Label</th></tr></thead><tbody id="mesh"><tr><td colspan="4" class="sub">loading…</td></tr></tbody></table></div>
+<div class="table-wrap" role="region" aria-labelledby="mesh-title" tabindex="0"><table><thead><tr><th scope="col">Organ</th><th scope="col">Job</th><th scope="col">Surface</th><th scope="col">Label</th></tr></thead><tbody id="mesh"><tr><td colspan="4" class="sub">READING — mesh contract</td></tr></tbody></table></div>
 
-<h2>Recent invocations</h2>
+<h2 id="invocations-title">Recent invocations</h2>
 <p class="sub">This bounded, ephemeral feed contains only summaries of governed agent runs for which this process actually created a receipt. It does not claim that every MCP discovery or tool call is signed, and reading it never mints a receipt.</p>
-<div class="table-wrap"><table><thead><tr><th>Time (UTC)</th><th>Observed tool</th><th>Outcome</th><th>Receipt evidence</th></tr></thead><tbody id="inv"><tr><td colspan="4" class="sub">loading…</td></tr></tbody></table></div>
+<div class="table-wrap" role="region" aria-labelledby="invocations-title" tabindex="0"><table><thead><tr><th scope="col">Time (UTC)</th><th scope="col">Observed tool</th><th scope="col">Outcome</th><th scope="col">Receipt evidence</th></tr></thead><tbody id="inv"><tr><td colspan="4" class="sub">READING — invocation feed</td></tr></tbody></table></div>
 
 <h2>Connect a client</h2>
-<div class="card">
-<p style="margin:0 0 8px">Claude Desktop — deployment example using the <code>mcp-remote</code> bridge. Verify the target URL and authentication requirements in your environment before use:</p>
-<pre>{
+<div class="hatun-surface">
+<p style="margin:0 0 8px"><span class="pill n">SAMPLE CONFIGURATION</span> Claude Desktop with the <code>mcp-remote</code> bridge. Use an absolute HTTPS endpoint; verify the target URL and authentication requirements for your deployment before use:</p>
+<pre tabindex="0" role="region" aria-label="Sample Claude Desktop configuration">{
   "mcpServers": {
     "szl-a11oy": {
       "command": "npx",
-      "args": ["-y", "mcp-remote", "/mcp/"]
+      "args": ["-y", "mcp-remote", "https://a-11-oy.com/mcp/"]
     }
   }
 }</pre>
@@ -98,6 +111,7 @@ footer{border-top:1px solid var(--line);color:var(--mut);font-size:11.5px;paddin
 
 <script>
 const BASE="";
+document.addEventListener('szl:holo-ready',()=>document.body.prepend(document.querySelector('.skip-link')),{once:true});
 const FALLBACK_TOOLS=[
  {name:"retrieve_context",description:"Governance-corpus retrieval declaration"},
  {name:"policy_check",description:"Deny-by-default policy declaration"},
@@ -109,6 +123,11 @@ const FALLBACK_TOOLS=[
 function cell(text,tag){const el=document.createElement(tag||'td');el.textContent=text==null?'—':String(text);return el;}
 function pill(text,cls){const el=document.createElement('span');el.className='pill '+cls;el.textContent=text;return el;}
 function setStatus(id,text,cls){const host=document.getElementById(id);host.textContent='';host.appendChild(pill(text,cls));}
+async function readJSON(path){
+ const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),6500);
+ try{const r=await fetch(BASE+path,{cache:'no-store',headers:{accept:'application/json'},signal:controller.signal});const j=await r.json();return {r,j};}
+ finally{clearTimeout(timeout);}
+}
 function paintTools(list,evidenceClass){const tb=document.getElementById('tools');tb.textContent='';
  list.forEach(tool=>{const tr=document.createElement('tr');const name=cell(tool.name,'td');
   const code=document.createElement('code');code.textContent=tool.name||'—';name.textContent='';name.appendChild(code);
@@ -118,25 +137,28 @@ function paintTools(list,evidenceClass){const tb=document.getElementById('tools'
 paintTools(FALLBACK_TOOLS,'STATIC FALLBACK');
 
 const t0=performance.now();
-fetch(BASE+"/mcp/",{cache:'no-store'}).then(r=>r.json().then(j=>({r,j}))).then(({r,j})=>{
+document.getElementById('runtime-status').setAttribute('aria-busy','true');
+setStatus('health','READING','n');
+const runtimeRead=readJSON("/mcp/").then(({r,j})=>{
  document.getElementById('lat').textContent=Math.round(performance.now()-t0)+' ms';
  setStatus('health',r.ok?'REACHABLE':'HTTP '+r.status,r.ok?'g':'a');
- document.getElementById('proto').textContent=j.protocolVersion||'UNKNOWN';
+ document.getElementById('proto').textContent=(j&&j.protocolVersion)||'UNKNOWN';
  if(r.ok&&j&&Array.isArray(j.tools)){
    paintTools(j.tools,'RUNTIME DECLARED');
    const source=document.getElementById('toolsource');source.className='pill n';source.textContent='RUNTIME DECLARED';
  }
-}).catch(()=>{setStatus('health','UNAVAILABLE','r');document.getElementById('lat').textContent='UNAVAILABLE';});
+}).catch(()=>{setStatus('health','UNAVAILABLE','r');document.getElementById('lat').textContent='UNAVAILABLE';document.getElementById('proto').textContent='UNAVAILABLE';});
 
-fetch(BASE+"/api/hatun/evidence",{cache:'no-store'}).then(r=>r.ok?r.json():Promise.reject()).then(e=>{
+const evidenceRead=readJSON("/api/hatun/evidence").then(({r,j})=>r.ok?j:Promise.reject()).then(e=>{
  const signer=e&&e.signer||{};const chain=e&&e.receipt_chain||{};
  document.getElementById('signer').textContent=signer.status==='OBSERVED_VERIFIED'?(signer.label||'OBSERVED_VERIFIED'):(signer.status||'UNKNOWN');
  document.getElementById('chain').textContent=chain.status||'UNKNOWN';
 }).catch(()=>{document.getElementById('signer').textContent='UNAVAILABLE';document.getElementById('chain').textContent='UNAVAILABLE';});
+Promise.allSettled([runtimeRead,evidenceRead]).then(()=>document.getElementById('runtime-status').setAttribute('aria-busy','false'));
 
 function paintEmptyInvocation(message){const tb=document.getElementById('inv');tb.textContent='';const tr=document.createElement('tr');
  const td=cell(message,'td');td.colSpan=4;td.className='sub';tr.appendChild(td);tb.appendChild(tr);}
-fetch(BASE+"/api/hatun/mesh",{cache:'no-store'}).then(r=>r.ok?r.json():Promise.reject()).then(m=>{
+readJSON("/api/hatun/mesh").then(({r,j})=>r.ok?j:Promise.reject()).then(m=>{
  const tb=document.getElementById('mesh'); if(!tb) return; tb.textContent='';
  const organs=(m&&m.organs)||[];
  if(!organs.length){const tr=document.createElement('tr'); const td=cell('UNAVAILABLE — mesh contract empty','td'); td.colSpan=4; td.className='sub'; tr.appendChild(td); tb.appendChild(tr); return;}
@@ -147,7 +169,7 @@ fetch(BASE+"/api/hatun/mesh",{cache:'no-store'}).then(r=>r.ok?r.json():Promise.r
   const lab=cell('','td'); lab.appendChild(pill(o.label||'UNAVAILABLE','n')); tr.appendChild(lab); tb.appendChild(tr);});
 }).catch(()=>{const tb=document.getElementById('mesh'); if(!tb) return; tb.textContent=''; const tr=document.createElement('tr'); const td=cell('UNAVAILABLE — mesh contract could not be read','td'); td.colSpan=4; td.className='sub'; tr.appendChild(td); tb.appendChild(tr);});
 
-fetch(BASE+"/api/hatun/invocations",{cache:'no-store'}).then(r=>r.ok?r.json():Promise.reject()).then(feed=>{
+readJSON("/api/hatun/invocations").then(({r,j})=>r.ok?j:Promise.reject()).then(feed=>{
  const items=feed&&Array.isArray(feed.items)?feed.items:[];const tb=document.getElementById('inv');tb.textContent='';
  if(!items.length){paintEmptyInvocation('UNKNOWN — no governed-run receipt has been observed in this process.');return;}
  items.slice(0,12).forEach(x=>{const tr=document.createElement('tr');tr.appendChild(cell(x.ts));
