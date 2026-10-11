@@ -31,6 +31,7 @@ def valid_verdict(now: datetime) -> dict:
             "unreachable": 0,
             "throttled": 0,
             "degraded": 0,
+            "blockingDegraded": 0,
             "p95_worst": 1806,
         },
         "results": [{"path": "/not-published"}],
@@ -54,6 +55,7 @@ def test_compact_verdict_is_source_origin_and_freshness_bound() -> None:
     assert result["sourceRevision"] == "a" * 40
     assert result["base"] == "https://szlholdings-a11oy.hf.space"
     assert result["summary"]["endpoints"] == 5
+    assert result["summary"]["blockingDegraded"] == 0
     assert "results" not in result
 
 
@@ -116,11 +118,22 @@ def test_compact_verdict_rejects_invalid_degraded_counts(value: object) -> None:
 def test_unavailable_required_source_cannot_be_published_as_ready() -> None:
     now = datetime(2026, 7, 26, 6, 0, tzinfo=timezone.utc)
     payload = valid_verdict(now)
-    payload["summary"].update(ok=4, degraded=1)
+    payload["summary"].update(ok=4, degraded=1, blockingDegraded=1)
     with pytest.raises(publisher.VerdictError, match="unavailable required sources"):
         compact(payload, now)
-    payload["summary"].update(ok=5, degraded=0)
-    assert compact(payload, now)["summary"]["degraded"] == 0
+    payload["summary"].update(ok=4, degraded=1, blockingDegraded=0)
+    result = compact(payload, now)
+    assert result["summary"]["degraded"] == 1
+    assert result["summary"]["blockingDegraded"] == 0
+
+
+def test_compact_verdict_rejects_invalid_blocking_degraded_count() -> None:
+    now = datetime(2026, 7, 26, 6, 0, tzinfo=timezone.utc)
+    for value in (True, -1, 2, 1.5, "1", None):
+        payload = valid_verdict(now)
+        payload["summary"].update(ok=4, degraded=1, blockingDegraded=value)
+        with pytest.raises(publisher.VerdictError, match="blocking degradation"):
+            compact(payload, now)
 
 
 def test_compact_verdict_rejects_all_unreachable_release_evidence() -> None:

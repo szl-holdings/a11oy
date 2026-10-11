@@ -215,6 +215,7 @@ def success_session(origin: str, source_sha: str) -> FakeSession:
                 "unreachable": 0,
                 "throttled": 0,
                 "degraded": 0,
+                "blockingDegraded": 0,
                 "p95_worst": 1806,
             },
         },
@@ -344,10 +345,28 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
         session = success_session(self.origin, self.source)
         readiness_url = self.origin + relock.ROUTES["readiness"]
         readiness = session.responses[("GET", readiness_url)]._payload
-        readiness["verdict_summary"].update(ok=4, degraded=1)
+        readiness["verdict_summary"].update(
+            ok=4, degraded=1, blockingDegraded=1
+        )
 
         with self.assertRaisesRegex(relock.RelockError, "unavailable required sources"):
             relock.evaluate_once(FakeApi(self.source), session, self.contract)
+
+    def test_relock_allows_optional_degradation_with_zero_blocking_degradation(self) -> None:
+        session = success_session(self.origin, self.source)
+        readiness_url = self.origin + relock.ROUTES["readiness"]
+        readiness = session.responses[("GET", readiness_url)]._payload
+        readiness["verdict_summary"].update(
+            ok=4, degraded=1, blockingDegraded=0
+        )
+
+        report = relock.evaluate_once(FakeApi(self.source), session, self.contract)
+
+        self.assertTrue(report["ok"])
+        self.assertEqual(
+            report["routes"]["readiness"]["verdict"]["summary"]["degraded"],
+            1,
+        )
 
     def test_relock_allows_explicitly_skipped_state_changes_with_passing_reads(self) -> None:
         session = success_session(self.origin, self.source)
@@ -548,6 +567,7 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
                 "unreachable": 0,
                 "throttled": 0,
                 "degraded": 0,
+                "blockingDegraded": 0,
                 "p95_worst": 1806,
             },
         }

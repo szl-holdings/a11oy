@@ -53,7 +53,7 @@ from typing import Any, Mapping, Optional, Sequence
 from urllib.parse import quote
 
 RECEIPT_SCHEMA = "szl.gdw-orphan-page-restore/v1"
-FINGERPRINT_SCHEMA = "szl.sqlite-logical-fingerprint/v1"
+FINGERPRINT_SCHEMA = "szl.sqlite-logical-fingerprint/v2"
 AUTO_REPAIR_ENV = "GDW_AUTO_REPAIR_ORPHAN_PAGES"
 INTEGRITY_HEADER = "*** in database main ***"
 _ORPHAN_LINE = re.compile(r"Page ([1-9][0-9]{0,9}): never used")
@@ -182,9 +182,10 @@ def logical_fingerprint(connection: sqlite3.Connection) -> dict[str, Any]:
     """Hash schema SQL plus every row of every table in a stable order.
 
     Root page numbers are excluded because ``VACUUM`` renumbers them. Rowid
-    tables are read in rowid order; WITHOUT ROWID tables in primary-key order
-    (all columns as the tiebreak). Virtual-table content is covered through
-    its shadow tables, which are ordinary tables.
+    tables include the row identity, not just its ordering: VACUUM may change
+    implicit rowids (https://www.sqlite.org/lang_vacuum.html). WITHOUT ROWID
+    tables are ordered by all visible columns. Virtual-table content is
+    covered through its shadow tables, which are ordinary tables.
     """
 
     digest = hashlib.sha256()
@@ -196,6 +197,11 @@ def logical_fingerprint(connection: sqlite3.Connection) -> dict[str, Any]:
         "SELECT type, name, tbl_name, sql FROM sqlite_master "
         "ORDER BY type, name, tbl_name"
     ).fetchall()
+    without_rowid = {
+        row[1]: bool(row[4])
+        for row in connection.execute("PRAGMA main.table_list")
+        if row[0] == "main"
+    }
     tables: list[str] = []
     for kind, name, table_name, sql in schema:
         for item in (kind, name, table_name, sql):
@@ -209,12 +215,23 @@ def logical_fingerprint(connection: sqlite3.Connection) -> dict[str, Any]:
         quoted = _quote_identifier(table)
         _frame(digest, b"table:" + table.encode("utf-8", "surrogatepass"))
         columns = connection.execute(f"PRAGMA table_xinfo({quoted})").fetchall()
-        width = max(1, len(columns))
-        try:
-            cursor = connection.execute(f"SELECT * FROM {quoted} ORDER BY rowid")
-        except sqlite3.OperationalError:
-            order = ", ".join(str(index) for index in range(1, width + 1))
+        if table not in without_rowid:
+            raise OrphanRepairError("ROW_IDENTITY_UNAVAILABLE", table)
+        if without_rowid[table]:
+            order = ", ".join(
+                _quote_identifier(column[1]) for column in columns if column[6] != 1
+            )
             cursor = connection.execute(f"SELECT * FROM {quoted} ORDER BY {order}")
+        else:
+            names = {column[1].casefold() for column in columns}
+            alias = next(
+                (name for name in ("rowid", "_rowid_", "oid") if name not in names), None
+            )
+            if alias is None:
+                # A declared column shadows that special name, case-insensitively.
+                # Do not attest identity if none of its aliases is addressable.
+                raise OrphanRepairError("ROW_IDENTITY_UNAVAILABLE", table)
+            cursor = connection.execute(f"SELECT {alias}, * FROM {quoted} ORDER BY {alias}")
         for row in cursor:
             row_count += 1
             digest.update(b"r")

@@ -55,7 +55,6 @@
         "/defend",
         "/resilience",
         "/api/defend/status",
-        "/api/defend/readyz",
         "/api/defend/source"
       ],
       "source_repository_policy": "manifest-fixed-runtime-revision",

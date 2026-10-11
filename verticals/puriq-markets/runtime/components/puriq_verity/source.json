@@ -1,0 +1,10 @@
+{
+  "repository": "szl-holdings/puriq-live",
+  "revision": "2ea8ea4bb9de2ca432f40c0c55ea5a5ed02786bf",
+  "files": {
+    "puriq_verity.py": "9d3898b10d6a45858f235d1ea5510492cde063db4141aa0fe1242c6557cf14ce",
+    "puriq_reference.py": "5c2625f80517e52c89f9d9cce1b4363db1e9e98cdd65e6d49f62548bad97b488",
+    "LICENSE": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+  },
+  "integration": "offline verifier and modeled estimator; canonical A11oy owns public transport"
+}

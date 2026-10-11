@@ -168,6 +168,12 @@ _research_spec.loader.exec_module(_research_workspace)
 HTML = _research_workspace.HTML + HTML
 CSS += _research_workspace.CSS
 
+_signed_spec = importlib.util.spec_from_file_location(
+    "szl_finance_signed_workspace", Path(__file__).with_name("hf_finance_signed_workspace.py"))
+_signed_workspace = importlib.util.module_from_spec(_signed_spec)
+_signed_spec.loader.exec_module(_signed_workspace)
+HTML = _signed_workspace.HTML + HTML
+
 
 
 def apply_workspace(renderer) -> None:

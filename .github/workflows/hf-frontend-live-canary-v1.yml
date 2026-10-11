@@ -172,12 +172,17 @@ jobs:
           set -euo pipefail
           checked_out="$(git rev-parse HEAD)"
           current_main="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-          test "$checked_out" = "$EXPECTED_SOURCE_SHA"
+          # Main can move after the trusted contract records EXPECTED_SOURCE_SHA.
+          # Checkout then follows the new main, so the equality test fails under
+          # set -e before the stale skip. Decide staleness first. A matching
+          # main with a different checkout remains a hard failure.
           if [ "$current_main" != "$EXPECTED_SOURCE_SHA" ]; then
             echo "stale=true" >> "$GITHUB_OUTPUT"
             echo "::notice::Canary source ${EXPECTED_SOURCE_SHA} was superseded by main ${current_main}; skipping instead of auditing a stale checkout."
             exit 0
           fi
+          test "$checked_out" = "$EXPECTED_SOURCE_SHA"
+          echo "stale=false" >> "$GITHUB_OUTPUT"
 
       - name: Set up Python
         if: ${{ steps.preflight.outputs.stale != 'true' }}

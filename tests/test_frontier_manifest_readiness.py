@@ -2,6 +2,7 @@
 
 import szl_energy_ledger
 import szl_khipu
+import szl_uds_fleet as uds
 
 import a11oy_frontier_page as page
 import szl_frontier_manifest as manifest
@@ -271,6 +272,127 @@ def test_empty_compute_fabric_is_unavailable_not_idle_zero(monkeypatch):
     assert "UNAVAILABLE" in tile["status"]
     assert "IDLE" not in tile["status"]
     assert tile["nodes_reachable"] == 0
+
+
+def test_non_sovereign_gpu_transport_does_not_establish_sovereign_readiness(monkeypatch):
+    import szl_backend_hardening as bh
+
+    monkeypatch.setattr(bh, "probe_fabric_pool", lambda: {
+        "scope": "TRANSPORT_REACHABILITY",
+        "nodes": [{"name": "chaski", "kind": "hf-gpu", "reachable": True,
+                   "sovereign": False, "probe_kind": "TCP_CONNECT"}],
+        "counts": {"nodes_total": 1, "nodes_reachable": 1,
+                   "gpu_nodes_reachable": 1, "sovereign_gpu_nodes_reachable": 0},
+    })
+
+    tile = manifest._tile_compute_fabric()
+    ready, reasons = manifest._tile_operational_readiness(tile)
+
+    assert tile["gpu_reachable"] == 1
+    assert tile["sovereign_gpu_reachable"] == 0
+    assert tile["counts_consistent"] is True
+    assert "0 configured sovereign GPU" in tile["status"]
+    assert ready is False
+    assert "no_sovereign_gpu_reachable" in reasons
+    assert "model_inference_not_verified_by_transport_probe" in reasons
+
+
+def test_sovereign_socket_is_transport_evidence_only(monkeypatch):
+    import szl_backend_hardening as bh
+
+    monkeypatch.setattr(bh, "probe_fabric_pool", lambda: {
+        "scope": "TRANSPORT_REACHABILITY",
+        "nodes": [{"name": "worker", "kind": "gpu", "reachable": True,
+                   "sovereign": True, "probe_kind": "TCP_CONNECT",
+                   "inference_verified": False, "ownership_verified": False}],
+        "counts": {"nodes_total": 1, "nodes_reachable": 1,
+                   "gpu_nodes_reachable": 1, "sovereign_gpu_nodes_reachable": 1,
+                   "inference_verified_nodes": 0},
+    })
+
+    tile = manifest._tile_compute_fabric()
+    ready, reasons = manifest._tile_operational_readiness(tile)
+
+    assert tile["sovereign_gpu_reachable"] == 1
+    assert tile["counts_consistent"] is True
+    assert tile["measurement_scope"] == "TRANSPORT_REACHABILITY_ONLY"
+    assert tile["inference_verified"] is False
+    assert tile["ownership_verified"] is False
+    assert ready is False
+    assert "no_sovereign_gpu_reachable" not in reasons
+    assert "sovereign_ownership_not_verified" in reasons
+    assert "model_inference_not_verified_by_transport_probe" in reasons
+
+
+def test_fabric_summary_flags_cannot_substitute_for_node_or_inference_evidence(monkeypatch):
+    import szl_backend_hardening as bh
+
+    monkeypatch.setattr(bh, "probe_fabric_pool", lambda: {
+        "scope": "TRANSPORT_REACHABILITY",
+        "nodes": [{"name": "service-host", "kind": "cpu-host", "reachable": True,
+                   "sovereign": False, "probe_kind": "PROCESS_SELF"}],
+        "counts": {"nodes_total": 1, "nodes_reachable": 1,
+                   "gpu_nodes_reachable": 1, "sovereign_gpu_nodes_reachable": 1,
+                   "inference_verified_nodes": 1},
+        "inference_readiness": {"ready": True},
+    })
+
+    tile = manifest._tile_compute_fabric()
+    ready, reasons = manifest._tile_operational_readiness(tile)
+
+    assert tile["gpu_reachable"] == 0
+    assert tile["sovereign_gpu_reachable"] == 0
+    assert tile["inference_verified_nodes"] == 0
+    assert tile["counts_consistent"] is False
+    assert ready is False
+    assert "fabric_probe_counts_missing_or_inconsistent" in reasons
+
+
+def test_importable_uds_source_does_not_establish_signed_bundle(monkeypatch):
+    def unexpected_network(*_args, **_kwargs):
+        raise AssertionError("a UDS capability read must not fetch or mint an artifact")
+
+    monkeypatch.setattr(uds.urllib.request, "urlopen", unexpected_network)
+    tile = manifest._tile_uds_bundle()
+    ready, reasons = manifest._tile_operational_readiness(tile)
+
+    assert tile["ok"] is True  # The narrative source is available.
+    assert tile["label"] == manifest.UNAVAILABLE
+    assert tile["signature_verified"] is False
+    assert tile["artifact_observed"] is False
+    assert tile["provenance"]["artifact_digest"] is None
+    assert tile["provenance"]["signature_status"] == "NOT_OBSERVED"
+    assert tile["provenance"]["verification_required"]
+    assert ready is False
+    assert "runtime_attestation_receipt_not_observed" in reasons
+
+
+def test_reachable_uds_references_do_not_upgrade_runtime_evidence(monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setattr(uds, "_start_warmer", lambda: None)
+    monkeypatch.setattr(uds, "_sources_live", lambda sources: [
+        {"reachable": True, "mode": "live"} for _source in sources
+    ])
+    app = FastAPI()
+    uds.register(app)
+    client = TestClient(app)
+
+    index = client.get("/api/a11oy/v1/uds")
+    sources = client.get("/api/a11oy/v1/uds/sources/live")
+
+    assert index.status_code == sources.status_code == 200
+    assert "Ed25519" not in index.text
+    assert "Every a11oy deploy emits" not in index.text
+    for response in (index, sources):
+        for gap in response.json()["gaps"]:
+            assert gap["capability_status"] == "UNAVAILABLE"
+            assert gap["runtime_evidence"]["state"] == "UNOBSERVED"
+            assert gap["runtime_evidence"]["observed_this_process"] is False
+            assert gap["runtime_evidence"]["verification_required"]
+    for gap in sources.json()["gaps"]:
+        assert gap["sources_reachable"] == gap["sources_total"] > 0
 
 
 def test_frontier_page_renders_both_contracts_without_legacy_live_inference():

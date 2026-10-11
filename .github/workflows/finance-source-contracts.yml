@@ -36,14 +36,14 @@ jobs:
       - name: Install the emitted runtime contract and isolated test dependencies
         run: |
           python scripts/hf_flagship_runtime_contract.py > finance-runtime.txt
-          python -m pip install --disable-pip-version-check --no-cache-dir --only-binary=:all: -r finance-runtime.txt -c finance-runtime.txt huggingface_hub==1.31.0 pytest==9.0.2
+          python -m pip install --disable-pip-version-check --no-cache-dir --only-binary=:all: -r finance-runtime.txt -c finance-runtime.txt huggingface_hub==1.31.0 pytest==9.0.2 cryptography==50.0.2 cffi==2.1.1 pycparser==3.0
       - name: Run network-free source, route, cache, security and generated-Space contracts
         env:
           SZL_SOURCE_REVISION: ${{ github.sha }}
         run: |
           python -m pip check
-          python -m compileall -q verticals/puriq-markets/runtime scripts/hf_finance_read_proxy.py scripts/hf_flagship_runtime_contract.py scripts/materialize_finance_runtime.py tests/smoke_generated_finance_runtime.py
-          python -m pytest tests/test_finance_source_contracts.py tests/test_finance_route_registration.py tests/test_finance_bls_missing.py tests/test_finance_release_boundaries.py tests/test_finance_legacy_access.py tests/test_finance_emitted_runtime.py tests/test_hf_publish_vertical_flagships_v4.py tests/test_finance_workspace.py tests/test_finance_analytics_v2.py tests/test_finance_research_audit.py tests/test_finance_research_routes.py tests/test_finance_publication_scope.py tests/test_hf_own_repo_auth.py tests/test_finance_functional_gate.py -q --junitxml=finance-contracts.xml
+          python -m compileall -q verticals/puriq-markets/runtime scripts/hf_finance_read_proxy.py scripts/hf_flagship_runtime_contract.py scripts/hf_finance_projection_manifest.py scripts/materialize_finance_runtime.py tests/smoke_generated_finance_runtime.py
+          python -m pytest tests/test_finance_signed_verifier.py tests/test_finance_signed_prices.py tests/test_finance_source_contracts.py tests/test_finance_route_registration.py tests/test_finance_bls_missing.py tests/test_finance_release_boundaries.py tests/test_finance_legacy_access.py tests/test_finance_emitted_runtime.py tests/test_hf_publish_vertical_flagships_v4.py tests/test_finance_workspace.py tests/test_finance_analytics_v2.py tests/test_finance_research_audit.py tests/test_finance_research_routes.py tests/test_finance_publication_scope.py tests/test_hf_own_repo_auth.py tests/test_finance_functional_gate.py tests/test_finance_projection_manifest.py -q --junitxml=finance-contracts.xml
       - name: Materialize and build the actual generated Finance application
         if: matrix.python == '3.12'
         shell: bash
@@ -88,7 +88,7 @@ jobs:
           set -euo pipefail
           browser_env="$(mktemp -d)"
           python -m venv "$browser_env"
-          "$browser_env/bin/python" -m pip install --disable-pip-version-check --no-cache-dir -r finance-runtime.txt -c finance-runtime.txt 'playwright==1.57.0' 'huggingface_hub==1.31.0'
+          "$browser_env/bin/python" -m pip install --disable-pip-version-check --no-cache-dir -r finance-runtime.txt -c finance-runtime.txt 'playwright==1.57.0' 'huggingface_hub==1.31.0' 'cryptography==50.0.2' 'cffi==2.1.1' 'pycparser==3.0' 'pytest==9.0.2'
           "$browser_env/bin/python" -m playwright install --with-deps chromium
           # Chromium talks to the published loopback port. An --internal network
           # does not publish that port to the host on this runner. Browser
@@ -105,6 +105,7 @@ jobs:
             sleep 1
           done
           "$browser_env/bin/python" tests/browser_finance_workspace.py --url http://127.0.0.1:17860 --output finance-workspace-browser
+          "$browser_env/bin/python" tests/browser_finance_signed_prices.py --url http://127.0.0.1:17860 --output finance-workspace-browser
       - name: Retain exact checked-in source and test evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -122,6 +123,8 @@ jobs:
             tests/test_hf_own_repo_auth.py
             tests/test_finance_functional_gate.py
             scripts/hf_finance_functional_gate.py
+            scripts/hf_finance_projection_manifest.py
+            tests/test_finance_projection_manifest.py
             tests/browser_finance_workspace.py
             finance-generated/
             finance-generated-image.json

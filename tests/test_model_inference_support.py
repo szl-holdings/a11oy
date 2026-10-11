@@ -41,9 +41,9 @@ def test_committed_source_matches_schema_inventory_and_actual_request_evidence(d
     schema = support.read_json(ROOT / "docs/model-inference-support.schema.json")
     Draft202012Validator.check_schema(schema)
     Draft202012Validator(schema, format_checker=FormatChecker()).validate(document)
-    support.validate_document(document, support.read_json(support.INVENTORY_PATH))
-    assert len(document["models"]) == 47
-    assert len({r["id"] for r in document["models"]}) == 47
+    inventory = support.read_json(support.INVENTORY_PATH)
+    support.validate_document(document, inventory)
+    assert [r["id"] for r in document["models"]] == sorted(r["id"] for r in inventory["inventory"]["models"])
     assert all(r["inference"]["state"] == "NO_PROVIDER_MAPPING" for r in document["models"])
     requests = [request for row in document["models"] for request in row["support"]["requests"]]
     submitted = [r for r in requests if r["evidence_kind"] == "VERIFIED_SUBMISSION"]
@@ -93,6 +93,30 @@ def test_inventory_other_namespaces_cannot_substitute_for_models(document):
     inventory["inventory"]["kernels"] = [document["models"][-1]]
     with pytest.raises(support.SupportDataError, match="coverage"):
         support.validate_document(document, inventory)
+
+
+@pytest.mark.parametrize("change", ["addition", "removal", "replacement"])
+def test_inventory_membership_changes_require_review_before_any_metadata_read(document, change):
+    original = copy.deepcopy(document)
+    inventory = support.read_json(support.INVENTORY_PATH)
+    rows = inventory["inventory"]["models"]
+    if change == "removal":
+        rows.pop()
+    elif change == "replacement":
+        rows[0]["id"] = "SZLHOLDINGS/unreviewed-model"
+    else:
+        rows.append({**rows[0], "id": "SZLHOLDINGS/unreviewed-model"})
+    inventory["counts"]["models"] = len(rows)
+    calls = []
+
+    def no_metadata_read(model_id):
+        calls.append(model_id)
+        raise AssertionError("unreviewed model inventory triggered a metadata read")
+
+    with pytest.raises(support.SupportDataError, match="inventory coverage differs; source review required"):
+        collector.refresh(document, support.canonical_bytes(inventory), no_metadata_read)
+    assert calls == []
+    assert document == original
 
 
 @pytest.mark.parametrize("key,value", [
@@ -147,7 +171,7 @@ def test_provider_report_and_requests_never_grant_model_authority(document, tmp_
         "inferenceProviderMapping": {"example-provider": {
             "status": status, "task": "conversational", "providerId": "example/model",
         }},
-    }, row["inference"]["observed_at"])
+    }, document["generated_at"])
     path = _published(tmp_path, document)
     fresh = support.public_status(path, now=_now(document))
     assert fresh["models"][0]["inference"]["state"] == "PROVIDER_MAPPING_REPORTED"
@@ -161,6 +185,25 @@ def test_provider_report_and_requests_never_grant_model_authority(document, tmp_
     assert observed["last_observed_providers"][0]["status"] == status
     assert observed["freshness"] == "STALE_OBSERVATION"
     assert stale["summary"]["verified_submissions"] == 10
+
+
+def test_new_document_generation_does_not_renew_older_provider_observations(document, tmp_path):
+    original = copy.deepcopy(document)
+    document["generated_at"] = _now(document, 25)
+    fresh_row = document["models"][0]
+    fresh_row["inference"] = support.observation_from_mapping(fresh_row["id"], {
+        "id": fresh_row["id"], "sha": fresh_row["assessment"]["hub_revision"],
+        "inferenceProviderMapping": {},
+    }, document["generated_at"])
+    result = support.public_status(_published(tmp_path, document), now=_now(document))
+    assert result["models"][0]["inference"]["state"] == "NO_PROVIDER_MAPPING"
+    for before, after in zip(original["models"][1:], result["models"][1:]):
+        assert after["inference"]["state"] == "UNAVAILABLE"
+        assert after["inference"]["freshness"] == "STALE_OBSERVATION"
+        assert after["inference"]["observed_at"] == before["inference"]["observed_at"]
+        assert after["assessment"] == before["assessment"]
+        assert after["support"] == before["support"]
+    assert result["authority"] == support.AUTHORITY
 
 
 def test_clock_mismatch_and_missing_file_are_unavailable(document, tmp_path):
@@ -226,7 +269,7 @@ def test_read_only_dual_route_and_catalog_join(document, monkeypatch):
         response = client.get(path)
         assert response.status_code == 200
         assert response.headers["cache-control"] == "no-store"
-        assert len(response.json()["models"]) == 47
+        assert len(response.json()["models"]) == len(document["models"])
         assert response.json()["authority"] == support.AUTHORITY
     monkeypatch.setattr(intel, "_cached_fetch", lambda *args, **kwargs: {
         "value": None, "freshness": {"status": "unavailable"},

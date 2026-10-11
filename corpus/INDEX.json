@@ -75,8 +75,8 @@
       "category": "formulas",
       "repo": "a11oy",
       "orig_path": "a11oy_v4_formulas.py",
-      "blob_sha": "5095278ec5cac3787609904e53492bc282e2bd54",
-      "commit_sha": "187fe0a0504a751d2cf2c17d4863f43149714122"
+      "blob_sha": "3fbf08ca932d482b290972916cb43ac811fd621b",
+      "commit_sha": "468c7a27aea87bf191b607a7c4e08cb1a9fed140"
     },
     "corpus/formulas/a11oy__szl_formula_wiring.py": {
       "category": "formulas",
@@ -261,4 +261,4 @@
       "commit_sha": "ea7326497b312e2ffa4a4d8b90b176dc534b265e"
     }
   }
-}
+}

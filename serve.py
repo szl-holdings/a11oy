@@ -1459,20 +1459,16 @@ except Exception as _szl_fmv_e:  # pragma: no cover
     print(f"[a11oy] Frontier fmverif NOT registered: {_szl_fmv_e!r}", file=__import__("sys").stderr)
 
 # Sovereign Local Model panel (Wave M / Dev 4) — GET /api/a11oy/v1/frontier/sovereign returns
-# the operator status of the founder's LOCAL sovereign model (Ollama on the Tower, Doctrine-v11
-# system prompt over base llama3.1:8b; model tag llama3-szl-finetuned-q4): reachability (prefers
-# Dev-1's szl_llm_registry.sovereign_probe, which backs GET /api/a11oy/v1/llm/sovereign/health;
-# else a direct SZL_LOCAL_LLM_URL probe + honest dependency note), the doctrine self-test
-# ("State your doctrine in one line" → the model's REAL answer when reachable, else honest
-# UNAVAILABLE), Stage A-vs-B status, and a signed receipt of the check (REAL DSSE in-Space,
-# UNSIGNED-LOCAL otherwise). The Tower is NOT reachable from CI/cloud, so off-Tower this
-# degrades to honest UNAVAILABLE — NEVER a fabricated status/answer/signature. Adds NOTHING to
+# read-only status of the configured model endpoint: reachability via the guarded
+# szl_llm_registry.sovereign_probe, Stage A-vs-B declarations, and an explicit
+# no-inference/no-receipt-on-GET status. Private backend URLs and served-model inventory
+# are withheld. Probe failure degrades to UNAVAILABLE without a direct fallback. Adds NOTHING to
 # the locked-8; Λ stays Conjecture 1; trust ceiling 0.97. Additive, try/except-guarded, same
 # register() pattern, registered EARLY (before the SPA catch-all).
 try:
     import szl_sovereign_panel as _szl_sovereign_panel
     _szl_sovereign_panel.register(app, ns="a11oy")
-    print("[a11oy] Frontier sovereign registered: /api/a11oy/v1/frontier/sovereign (LIVE-SOVEREIGN when reachable, else honest UNAVAILABLE)", file=__import__("sys").stderr)
+    print("[a11oy] Frontier sovereign registered: /api/a11oy/v1/frontier/sovereign (metadata-only UNKNOWN when reachable, else UNAVAILABLE)", file=__import__("sys").stderr)
 except Exception as _szl_sov_e:  # pragma: no cover
     print(f"[a11oy] Frontier sovereign NOT registered: {_szl_sov_e!r}", file=__import__("sys").stderr)
 
@@ -3677,6 +3673,13 @@ try:
                     "degraded",
                 )
             ]
+            _blocking_degraded = (
+                _candidate_summary.get(
+                    "blockingDegraded", _candidate_summary.get("degraded")
+                )
+                if isinstance(_candidate_summary, dict)
+                else None
+            )
             try:
                 _checked_dt = _rd_dt.fromisoformat(
                     str(_candidate_checked_at).replace("Z", "+00:00")
@@ -3693,7 +3696,11 @@ try:
                 and _counts[0] > 0
                 and _counts[0] - _counts[2] > 0
                 and sum(_counts[1:]) == _counts[0]
-                and all(value == 0 for value in _counts[3:])
+                and all(value == 0 for value in _counts[3:6])
+                and isinstance(_blocking_degraded, int)
+                and not isinstance(_blocking_degraded, bool)
+                and 0 <= _blocking_degraded <= _counts[6]
+                and _blocking_degraded == 0
             )
             _p95 = (
                 _candidate_summary.get("p95_worst")
@@ -3734,6 +3741,7 @@ try:
             )
             if _verdict_available:
                 _verdict_summary = dict(_candidate_summary)
+                _verdict_summary.setdefault("blockingDegraded", _blocking_degraded)
                 _verdict_source_revision = _candidate_revision
                 _verdict_checked_at = _candidate_checked_at
                 _verdict_base = _candidate_base
@@ -5417,6 +5425,8 @@ def _signer_availability_signal(ttl: float = 30.0) -> dict:
         val = {"status": "UNAVAILABLE", "signing_available": False,
                "scheme": "UNAVAILABLE",
                "error": f"{type(exc).__name__}: {exc}"}
+    val = {**val, "scope": "RUNTIME_KEY_AVAILABILITY",
+           "receipt_verification_asserted": False}
     _SIGNER_HEALTH_CACHE.update({"checked_at": now, "value": val})
     return val
 
@@ -5462,10 +5472,10 @@ def _frontier_liveness_signal() -> dict:
 
 # Sovereign local-model rollup signal (Wave M / Dev 4). Compact {reachable, model,
 # label} for the /healthz rollup — a cheap, cached, guarded probe (via
-# szl_sovereign_panel.rollup_signal, which prefers Dev-1's registry probe / falls back
-# to a direct SZL_LOCAL_LLM_URL probe). NEVER blocks or crashes the health path, and
-# NEVER fakes a reachable node: the Tower is unreachable from CI/cloud, so off-Tower
-# this is honestly {reachable:false, label:"UNAVAILABLE"}.
+# szl_sovereign_panel.rollup_signal, which uses the guarded registry probe and
+# fails closed when that helper is unavailable). NEVER blocks or crashes the health path, and
+# NEVER fakes a reachable node. A tunnel may answer from cloud, but reachability
+# does not verify an owned GPU, weights, or the doctrine wrapper.
 _SOVEREIGN_HZ_CACHE: dict = {}
 
 
@@ -5478,8 +5488,8 @@ def _sovereign_health_signal(ttl: float = 30.0) -> dict:
         import szl_sovereign_panel as _szl_sov_hz
         val = _szl_sov_hz.rollup_signal()
     except Exception as exc:  # pragma: no cover — never block healthz; honest UNAVAILABLE
-        val = {"reachable": False, "model": "llama3-szl-finetuned-q4",
-               "label": "UNAVAILABLE", "error": f"{type(exc).__name__}: {exc}"}
+        val = {"reachable": False, "model": "szl-sovereign-local",
+               "label": "UNAVAILABLE", "error": type(exc).__name__}
     _SOVEREIGN_HZ_CACHE.update({"checked_at": now, "value": val})
     return val
 
@@ -5528,6 +5538,8 @@ async def healthz() -> JSONResponse:
     # Space / when sub-sources are idle) — an UNAVAILABLE probe on either, or a
     # storage failure, does degrade so an orchestrator catches a real fault.
     _degraded_reasons = []
+    if dep.get("status") != "ok" or dep.get("backend_alive") is not True:
+        _degraded_reasons.append("node-backend-unavailable")
     if str(_storage.get("status")) == "unavailable":
         _degraded_reasons.append("storage-unavailable")
     if str(_signer.get("status") or "").upper() == "UNAVAILABLE":
@@ -5556,8 +5568,25 @@ async def healthz() -> JSONResponse:
         _degraded_reasons.append("gdw-storage-blocked")
     _overall = "degraded" if _degraded_reasons else "ok"
     _rollup_extra = {"gdw_storage": _gdw_storage_block} if _gdw_storage_block is not None else {}
+    _capability_evidence = _frontier.get("operational_readiness")
+    _capabilities_known = isinstance(_capability_evidence, dict)
+    _operational_ready = bool(
+        _capabilities_known and _capability_evidence.get("ready") is True
+        and not _degraded_reasons
+    )
     return JSONResponse(status_code=503 if _gdw_storage_block is not None else 200, content={
         "status": _overall,
+        "scope": "SERVICE_HEALTH",
+        "status_policy": ("status describes service faults; individual capabilities "
+                          "are evaluated separately in operational_readiness"),
+        "operational_readiness": {
+            "scope": "FRONTIER_CAPABILITIES_AND_SERVICE_HEALTH",
+            "ready": _operational_ready,
+            "status": ("READY" if _operational_ready else
+                       "NOT_READY" if _capabilities_known else "UNAVAILABLE"),
+            "service_blockers": _degraded_reasons,
+            "frontier": _capability_evidence,
+        },
         "degraded_reasons": _degraded_reasons,
         "service": "a11oy",
         "version": "2.0.0",
@@ -5586,8 +5615,8 @@ async def healthz() -> JSONResponse:
         "anchor_formula_gates": 44,
         "hatun_willay": True,
         # Wave M / Dev 4: sovereign local-model rollup signal (honest — never fakes a
-        # reachable node; the Tower is unreachable from CI/cloud so off-Tower this is
-        # {reachable:false, label:"UNAVAILABLE"}). Also mirrored into rollup.sovereign
+        # reachable endpoint; metadata reachability is not sovereign provenance.
+        # Also mirrored into rollup.sovereign
         # so a Wave-L-style rollup consumer finds it in the expected place.
         "sovereign": _sovereign,
         # Wave O / Dev 5: compact Brain rollup — the founder's "Brain powering the
@@ -6300,7 +6329,7 @@ async def policy_evaluate(request: Request) -> JSONResponse:
     emit = getattr(app.state, "szl_emit_signed_receipt", None)
     if callable(emit) and isinstance(decision, dict):
         try:
-            node = emit({
+            submitted = {
                 "schema": "szl.a11oy.policy_decision/v1",
                 "op": "policy/evaluate",
                 "action_id": action.get("actionId"),
@@ -6308,12 +6337,18 @@ async def policy_evaluate(request: Request) -> JSONResponse:
                 "decision": decision.get("decision"),
                 "gate": decision.get("gate"),
                 "lambda_score": decision.get("lambda_score"),
-            }, request)
+            }
+            node = emit(submitted, request)
+            from szl_provenance import derive_receipt_conservation
+
+            conservation = derive_receipt_conservation(submitted, node)
+            if not conservation["receipts_in_eq_out"]:
+                raise ValueError("emitted receipt does not conserve the submitted decision")
             decision["receipt_hash"] = node["digest"]
             decision["receipt_signed"] = bool(node.get("signed"))
             decision["receipt_index"] = node.get("index")
             decision["receipt_verify_at"] = "/api/a11oy/khipu/verify"
-            decision["receipts_in_eq_out"] = True
+            decision.update(conservation)
         except Exception as _emit_e:  # pragma: no cover - never break the decision
             decision["receipt_hash"] = ""
             decision["receipt_error"] = f"emit failed: {_emit_e!r}"
@@ -6806,6 +6841,16 @@ try:
     print(f"[a11oy] /about + /security registered: {_abt_status}", file=sys.stderr)
 except Exception as _abt_e:
     print(f"[a11oy] /about + /security NOT registered: {_abt_e}", file=sys.stderr)
+
+# a11oy_about_security is not in the image, so /about had no page and every retired path
+# below redirected to a JSON 404. Without that module, /about goes to the company page.
+if not any(getattr(_r, "path", None) == "/about" for _r in app.router.routes):
+    from starlette.responses import RedirectResponse as _AboutRedir
+
+    async def _about_to_company():
+        return _AboutRedir(url="/company", status_code=307)
+
+    app.add_api_route("/about", _about_to_company, methods=["GET", "HEAD"], include_in_schema=False)
 
 try:
     import a11oy_code_v4 as _code_v4

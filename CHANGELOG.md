@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - payload manifest input validation
+
+- Reject missing or non-directory payload roots before creating or verifying a
+  manifest, preserving any existing output. An existing empty directory remains
+  valid. Manifest write and verification commands now report output paths outside
+  the working directory without raising an error after successful work.
+
+### Added - exact-source Finance projection witness
+
+- Build the seven Finance runtime files and their separate projection manifest
+  from the canonical source before provider mutation. Require exact bytes at one
+  immutable Hub revision, including configuration, before existing publication
+  qualification can pass; retain the existing functional and runtime gates.
+- Reject redirects, late results and malformed evidence. Keep authorization
+  denials terminal, preserve the legacy artifact manifest without treating it as
+  current attestation, and add isolated negative contracts to native Finance CI.
+  This source contract does not establish signatures, deployment or live readiness.
+
 ### Fixed - PAC-Bayes certification inputs validated before any receipt
 
 - Validate every `/materials/certify` input before a Khipu receipt can be
