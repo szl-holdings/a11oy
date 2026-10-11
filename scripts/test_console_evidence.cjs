@@ -31,7 +31,7 @@ const context = vm.createContext({
     observations.fetches.push({url, headers:{...options.headers}, body:options.body,
       method:options.method, cache:options.cache, credentials:options.credentials,
       redirect:options.redirect, inputValue:node('credential').value});
-    return fetchBehavior(url, options);
+    return fetchBehavior();
   },
   gj:async url => { observations.reads.push(url); return structuredClone(envelope); },
 });
