@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - RAG status evidence scope
+
+- The passive RAG status route labels a stored index `cached`, not `live`, and
+  explicitly separates configured corpus entries from source freshness and
+  complete corpus coverage. Missing indexes remain `unavailable`; reads do not
+  build an index, refresh sources, or mint receipts. Existing generation and
+  build timestamps remain unchanged.
+
 ### Added - source-bound Platform candidate preview
 
 - Serve the reviewed Platform A11oy static candidate beneath the isolated
