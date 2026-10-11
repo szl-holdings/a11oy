@@ -37,6 +37,16 @@ command are supplied in this source change. These variables describe the format:
   value containing exactly `client_id` and `key_hex`. Unknown targets deny locally.
   HTTP is permitted only for an exact loopback IP; remote meters and peers require
   HTTPS with normal certificate validation. There is no plain-HTTP tailnet fallback.
+- Versioned meter2 client secrets use a fresh
+  `SZL_METER_HMAC_TARGETS_V1_<32 uppercase hex>` name. The backend selects exactly
+  one version through the source-owned `ACTIVE_METER2_TARGETS_SECRET` constant;
+  it never scans names or chooses a latest value. Until an exact-head protected
+  activation changes that constant, the legacy fixed name remains selected.
+  Once a version is selected, a missing or wrong-audience value fails closed,
+  even if the legacy secret remains present. `SZL_GLM_METER` is a separate URL
+  override and must also identify the exact meter2 origin for this enrollment.
+  The nonsecret `meter_auth_client_id` on a successful energy/live readback
+  identifies which client signed that backend fetch; it is null when offline.
 - Optional server `OMEN_EXPORTER_BIND`: an explicit address already inside the
   existing loopback/tailnet restriction. Wildcard and ordinary LAN binds deny.
   This variable does not start a listener or change a firewall by itself.
@@ -64,6 +74,16 @@ not establish per-job attribution or qualify energy for billing.
 Synthetic tests use ephemeral in-memory keys and controlled telemetry. Their results
 qualify source authentication behavior; live key provisioning, tunnel policy, runtime
 activation, real meter measurements, and independent replay remain NOT RUN/UNKNOWN.
+
+`box-scripts/enroll_meter_hf.py` is an owner-only proposal. Its real `--apply`
+remains BLOCKED: the Hugging Face `add_space_secret` API adds **or updates** and
+does not provide a create-only/CAS condition. A fresh versioned name and absence
+check reduce collision risk but do not close the concurrent-writer race. Do not
+remove that guard, overwrite a fixed secret, or retire the old local key from
+synthetic results. A later approved provider operation needs an exclusive writer
+window or a provider with an atomic create-only primitive, exact-source and
+Space revision checks, a working Cloudflare meter2 route, the selected version
+deployed on both runtimes, and exact-client live readback before retirement.
 
 ## Windows owner installation
 

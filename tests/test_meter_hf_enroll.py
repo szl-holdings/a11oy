@@ -66,9 +66,10 @@ class FakeProbe:
         if self.fail_at == "local":
             raise enroll.EnrollmentError("local proof failed")
 
-    def wait_live(self, revision):
+    def wait_live(self, revision, client_id):
         self.live_checks += 1
         assert revision == "1" * 40
+        assert client_id.startswith("canonical-a11oy-v2-")
         if self.fail_at == "live":
             raise enroll.EnrollmentError("runtime unavailable")
 
@@ -88,24 +89,29 @@ class FakeHub:
         self.fail_add_after_commit = fail_add_after_commit
         self.lag_reads_after_add = lag_reads_after_add
         self.value = None
+        self.name = None
         self.adds = 0
         self.deletes = 0
 
-    def preflight(self, revision):
+    def preflight(self, revision, secret_name):
         assert revision == "2" * 40
+        assert secret_name.startswith(enroll.SECRET_PREFIX)
+        assert len(secret_name) == len(enroll.SECRET_PREFIX) + 32
         if self.existing:
             raise enroll.EnrollmentError("secret exists")
 
-    def add(self, client_id, key_hex):
+    def add(self, client_id, key_hex, secret_name):
         self.adds += 1
         if self.fail_add:
             raise enroll.EnrollmentError("add failed")
+        self.name = secret_name
         self.value = {enroll.AUDIENCE: {"client_id": client_id, "key_hex": key_hex}}
         self.existing = True
         if self.fail_add_after_commit:
             raise enroll.EnrollmentError("provider response lost after commit")
 
-    def secret_exists(self):
+    def secret_exists(self, secret_name):
+        assert secret_name == self.name
         if self.lag_reads_after_add:
             self.lag_reads_after_add -= 1
             return False
@@ -167,6 +173,7 @@ def test_success_enrolls_only_new_reader_then_retires_prior_key(private_meter):
     assert clients[result["new_client_id"]] == NEW_KEY
     assert hub.value == {enroll.AUDIENCE: {"client_id": result["new_client_id"],
                                             "key_hex": NEW_KEY}}
+    assert hub.name == result["secret_name"]
     assert probe.proofs == 2 and probe.rejections == 1 and probe.live_checks == 2
     assert supervisor.restarts == 2
     assert Path(result["encrypted_rollback_copy"]).read_bytes() == original
@@ -240,11 +247,26 @@ def test_wrong_meter_live_readback_cannot_retire_old_key(monkeypatch):
                                 "joules_label": "UNAVAILABLE", "total_joules": None}).encode()
 
     monkeypatch.setattr(probe, "_get", fake_get)
-    with pytest.raises(enroll.EnrollmentError, match="exact meter2 audience"):
-        probe.live("1" * 40)
+    with pytest.raises(enroll.EnrollmentError, match="exact meter2 reader"):
+        probe.live("1" * 40, "canonical-a11oy-v2-test")
 
 
-def test_real_hf_fixed_name_apply_is_blocked_without_atomic_create():
+def test_old_backend_reader_cannot_qualify_new_key_retirement(monkeypatch):
+    probe = enroll.MeterProbe()
+
+    def fake_get(url, headers=None):
+        if url.endswith("/api/build-info"):
+            return 200, json.dumps({"build": {"revision": "1" * 40}}).encode()
+        return 200, json.dumps({"meter_status": "ok", "meter_url": enroll.AUDIENCE,
+                                "meter_auth_client_id": "canonical-a11oy",
+                                "joules_label": "UNAVAILABLE", "total_joules": None}).encode()
+
+    monkeypatch.setattr(probe, "_get", fake_get)
+    with pytest.raises(enroll.EnrollmentError, match="exact meter2 reader"):
+        probe.live("1" * 40, "canonical-a11oy-v2-test")
+
+
+def test_real_hf_versioned_apply_is_blocked_without_atomic_create():
     class ReadOnlyApi:
         def whoami(self):
             return {"orgs": [{"name": "SZLHOLDINGS"}]}
@@ -256,12 +278,14 @@ def test_real_hf_fixed_name_apply_is_blocked_without_atomic_create():
             return {}
 
         def add_space_secret(self, **kwargs):
-            pytest.fail("fixed-name provider write must not be attempted")
+            pytest.fail("versioned provider write must not be attempted")
 
     hub = object.__new__(enroll.HfSpace)
     hub.api = ReadOnlyApi()
     with pytest.raises(enroll.EnrollmentError, match="no atomic create-only guard"):
-        hub.preflight("2" * 40)
+        hub.preflight("2" * 40, enroll.SECRET_PREFIX + "A" * 32)
+    with pytest.raises(enroll.EnrollmentError, match="no guarded create-only"):
+        hub.add("canonical-a11oy-v2-test", NEW_KEY, enroll.SECRET_PREFIX + "A" * 32)
 
 
 def test_receipt_write_failure_after_retirement_restores_overlap(private_meter, monkeypatch):

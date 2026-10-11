@@ -136,6 +136,40 @@ def test_meter_access_scoped_and_no_redirect(monkeypatch):
     assert "CF-Access-Client-Secret" not in calls[1]["headers"]
 
 
+def test_live_readback_names_only_the_successful_meter_reader(monkeypatch):
+    origin = "https://meter2.a-11-oy.com"
+    monkeypatch.setenv("SZL_METER_HMAC_TARGETS", json.dumps({
+        origin: {"client_id": "new-reader", "key_hex": secrets.token_hex(32)}}))
+    monkeypatch.setattr(energy, "METER_URL", origin)
+    monkeypatch.setattr(energy, "parse_meter_metrics", lambda _text: {
+        "gpus": [], "total_watts": None, "total_joules": None})
+
+    class Client:
+        def __init__(self, **_kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def get(self, _url, *, headers):
+            assert headers["X-SZL-Meter-Client"] == "new-reader"
+            return SimpleNamespace(status_code=200, text="")
+
+    monkeypatch.setattr(httpx, "Client", Client)
+    snapshot = energy._fetch_meter()
+    assert snapshot["meter_auth_client_id"] == "new-reader"
+    monkeypatch.setattr(energy, "meter_snapshot", lambda: snapshot)
+    monkeypatch.setattr(energy, "govern_posture", lambda: {"nodes": []})
+    live = energy.build_live()
+    assert live["meter_auth_client_id"] == "new-reader"
+    assert live["joules_label"] == "UNAVAILABLE"
+    monkeypatch.setattr(energy, "meter_snapshot", lambda: {"reachable": False})
+    assert energy.build_live()["meter_auth_client_id"] is None
+
+
 def test_structural_gate_nulls_fleet_totals(monkeypatch):
     monkeypatch.setattr(energy, "meter_snapshot", lambda: {"reachable": False})
     monkeypatch.setattr(energy, "govern_posture", lambda: {"nodes": [

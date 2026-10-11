@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Owner-only, fail-closed meter2 reader enrollment. No effect without --apply.
 
-This is an operational credential handoff, not a source or measurement attestation.
-It never exports an existing DPAPI key. A fresh key is generated in this process,
-added to the local verifier, and sent only to the exact HF Space secret API.
-The current fixed-name HF secret write has no provider-enforced create-only
+This is a proposed credential handoff, not a source or measurement attestation.
+It never exports an existing DPAPI key. Synthetic tests model a fresh key being
+added to the local verifier and sent only to the exact HF Space secret API.
+The versioned HF secret write still has no provider-enforced create-only
 condition, so real --apply remains blocked until a reviewed non-overwriting
 activation protocol replaces it. Injectable synthetic tests exercise recovery.
 """
@@ -28,7 +28,7 @@ import urllib.request
 
 AUDIENCE = "https://meter2.a-11-oy.com"
 SPACE = "SZLHOLDINGS/a11oy"
-SECRET = "SZL_METER_HMAC_TARGETS"
+SECRET_PREFIX = "SZL_METER_HMAC_TARGETS_V1_"
 HF_HOST = "szlholdings-a11oy.hf.space"
 PRODUCT_HOST = "a-11-oy.com"
 LOCAL_PORT = 9471
@@ -78,7 +78,7 @@ def _installation(root: Path):
             if actual != receipt["files"][name]:
                 raise ValueError
         return receipt
-    except (OSError, ValueError, KeyError, TypeError) as exc:
+    except (OSError, ValueError, KeyError, TypeError):
         raise EnrollmentError("installed meter identity/source verification failed") from None
 
 
@@ -276,7 +276,7 @@ class MeterProbe:
             if build_status != 200 or observed != source_revision:
                 raise EnrollmentError("product/HF source revision did not match")
 
-    def live(self, source_revision: str):
+    def live(self, source_revision: str, client_id: str):
         self.source_preflight(source_revision)
         for host in (HF_HOST, PRODUCT_HOST):
             live_status, live_body = self._get(f"https://{host}/api/a11oy/v1/energy/live")
@@ -285,17 +285,18 @@ class MeterProbe:
             except ValueError:
                 raise EnrollmentError("energy/live readback invalid") from None
             if (live_status != 200 or live.get("meter_status") != "ok"
-                    or live.get("meter_url") != AUDIENCE):
-                raise EnrollmentError("energy/live does not confirm the exact meter2 audience")
+                    or live.get("meter_url") != AUDIENCE
+                    or live.get("meter_auth_client_id") != client_id):
+                raise EnrollmentError("energy/live does not confirm the exact meter2 reader")
             # Authenticated connectivity alone does not qualify joules.
             if live.get("total_joules") is None and live.get("joules_label") == "MEASURED":
                 raise EnrollmentError("energy/live mislabeled unavailable joules")
 
-    def wait_live(self, source_revision: str):
+    def wait_live(self, source_revision: str, client_id: str):
         deadline = time.monotonic() + 180
         while time.monotonic() < deadline:
             try:
-                self.live(source_revision)
+                self.live(source_revision, client_id)
                 return
             except EnrollmentError:
                 time.sleep(3)
@@ -310,7 +311,9 @@ class HfSpace:
             raise EnrollmentError("huggingface_hub is required") from None
         self.api = HfApi()
 
-    def preflight(self, expected_revision: str):
+    def preflight(self, expected_revision: str, secret_name: str):
+        if not re.fullmatch(r"SZL_METER_HMAC_TARGETS_V1_[0-9A-F]{32}", secret_name):
+            raise EnrollmentError("invalid versioned HF secret name")
         who = self.api.whoami()
         orgs = who.get("orgs") or []
         names = {o.get("name") for o in orgs if isinstance(o, dict)}
@@ -319,24 +322,22 @@ class HfSpace:
         info = self.api.repo_info(repo_id=SPACE, repo_type="space")
         if info.sha != expected_revision:
             raise EnrollmentError("HF Space revision changed")
-        if SECRET in self.api.get_space_secrets(repo_id=SPACE):
+        if secret_name in self.api.get_space_secrets(repo_id=SPACE):
             raise EnrollmentError("HF meter secret already exists; write-only value cannot be rolled back")
-        # The supported Hub operation is add-or-update. Checking absence here
-        # cannot stop another writer from creating the fixed name before add().
+        # The supported Hub operation is add-or-update. A fresh random name
+        # sharply reduces accidental collision, but an absence check still
+        # cannot stop another writer from creating this name before add().
         # Never risk clobbering or deleting another writer's write-only value.
-        raise EnrollmentError("fixed-name HF secret add-or-update has no atomic create-only guard; apply blocked")
+        raise EnrollmentError("versioned HF secret add-or-update has no atomic create-only guard; apply blocked")
 
-    def secret_exists(self):
-        return SECRET in self.api.get_space_secrets(repo_id=SPACE)
+    def secret_exists(self, secret_name: str):
+        return secret_name in self.api.get_space_secrets(repo_id=SPACE)
 
-    def add(self, client_id: str, key_hex: str):
-        value = json.dumps({AUDIENCE: {"client_id": client_id, "key_hex": key_hex}},
-                           separators=(",", ":"))
-        self.api.add_space_secret(repo_id=SPACE, key=SECRET, value=value,
-                                  description="meter2 canonical read-only HMAC client")
-
-    def delete(self):
-        self.api.delete_space_secret(repo_id=SPACE, key=SECRET)
+    def add(self, client_id: str, key_hex: str, secret_name: str):
+        # This adapter intentionally has no write implementation until a
+        # provider-enforced create-only operation (or equivalent fence) exists.
+        # Synthetic FakeHub exercises the recoverable transaction separately.
+        raise EnrollmentError("HF provider has no guarded create-only secret operation")
 
     def wait_running(self):
         deadline = time.monotonic() + 180
@@ -381,12 +382,13 @@ def enroll(root: Path, *, dpapi, supervisor, probe, hub,
            key_factory=secrets.token_hex):
     """Injectable transaction for synthetic tests. Never called by the dry-run path."""
     receipt = _installation(root)
-    hub.preflight(space_revision)
     probe.route_preflight()
     probe.source_preflight(source_revision)
+    run_id = secrets.token_hex(16)
+    secret_name = SECRET_PREFIX + run_id.upper()
+    hub.preflight(space_revision, secret_name)
     supervisor._identity()
     original, config = _read_config(root, dpapi)
-    run_id = secrets.token_hex(8)
     client_id = "canonical-a11oy-v2-" + run_id
     key_hex = key_factory(32)
     if (not isinstance(key_hex, str) or len(key_hex) != 64
@@ -399,7 +401,7 @@ def enroll(root: Path, *, dpapi, supervisor, probe, hub,
     config_path = root / "settings.dpapi"
     receipt_path = root / f"meter-enrollment-{run_id}.json"
     result = {"status": "PREPARED", "evidence_class": "DECLARED",
-              "audience": AUDIENCE, "space": SPACE, "secret_name": SECRET,
+              "audience": AUDIENCE, "space": SPACE, "secret_name": secret_name,
               "new_client_id": client_id,
               "installed_source_revision": receipt["source_revision"],
               "product_source_revision": source_revision, "hf_space_revision": space_revision,
@@ -444,11 +446,11 @@ def enroll(root: Path, *, dpapi, supervisor, probe, hub,
         raise EnrollmentError("HF write was not started; local configuration restored") from None
 
     try:
-        hub.add(client_id, key_hex)
-        if not hub.secret_exists():
+        hub.add(client_id, key_hex, secret_name)
+        if not hub.secret_exists(secret_name):
             raise EnrollmentError("HF secret name readback absent after add attempt")
         hub.wait_running()
-        probe.wait_live(source_revision)
+        probe.wait_live(source_revision, client_id)
         record("HF_METER2_LIVE")
     except Exception:
         # HF add is an add-or-update write, and an error or lagging name readback
@@ -470,7 +472,7 @@ def enroll(root: Path, *, dpapi, supervisor, probe, hub,
         supervisor.restart()
         probe.prove(client_id, key_hex)
         probe.reject("canonical-a11oy", config["clients"]["canonical-a11oy"])
-        probe.wait_live(source_revision)
+        probe.wait_live(source_revision, client_id)
         record("ENROLLED_AND_OLD_KEY_RETIRED")
     except Exception:
         try:
@@ -511,7 +513,8 @@ def main(argv=None):
         if not args.apply:
             print(json.dumps({"status": "DRY_RUN", "audience": receipt["audience"],
                               "installed_source_revision": receipt["source_revision"],
-                              "space": SPACE, "secret_name": SECRET,
+                              "space": SPACE,
+                              "secret_name_template": SECRET_PREFIX + "<fresh-128-bit-random>",
                               "effects": "NONE", "secret_values_recorded": False}))
             return 0
         if (not args.expected_source_revision or not args.expected_space_revision
