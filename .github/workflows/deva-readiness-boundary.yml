@@ -6,7 +6,10 @@ on:
     - main
     paths:
     - a11oy_deva_feeds.py
+    - a11oy_devb_endpoints.py
     - a11oy_vertical_feeds.py
+    - tests/test_courtlistener_freshness_contract.py
+    - tests/test_feed_cache_singleflight.py
     - tests/test_deva_realestate_readiness_route_boundary.py
     - tests/test_deva_realestate_http_boundary.py
     - tests/test_cyber_readiness_truth_contract.py
@@ -19,7 +22,10 @@ on:
     - main
     paths:
     - a11oy_deva_feeds.py
+    - a11oy_devb_endpoints.py
     - a11oy_vertical_feeds.py
+    - tests/test_courtlistener_freshness_contract.py
+    - tests/test_feed_cache_singleflight.py
     - tests/test_deva_realestate_readiness_route_boundary.py
     - tests/test_deva_realestate_http_boundary.py
     - tests/test_cyber_readiness_truth_contract.py
@@ -61,3 +67,5 @@ jobs:
           tests/test_cyber_readiness_truth_contract.py
           tests/test_legal_readiness_unavailable_contract.py
           tests/test_realestate_readiness_truth_contract.py
+          tests/test_courtlistener_freshness_contract.py
+          tests/test_feed_cache_singleflight.py
