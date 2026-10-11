@@ -382,8 +382,13 @@ def run_comparator(
     report_out: Path,
     capture: bool = False,
 ) -> subprocess.CompletedProcess[str]:
+    # The downloaded comparator is immutable and stdlib-only.  Isolated mode
+    # prevents the checkout or ambient Python path from shadowing its imports;
+    # bytecode suppression keeps the tools checkout unchanged for later proof.
     command = [
         sys.executable,
+        "-I",
+        "-B",
         str(tools_script),
         "--github-remote",
         "--github-repo",

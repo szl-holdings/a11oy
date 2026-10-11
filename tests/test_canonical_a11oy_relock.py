@@ -1155,7 +1155,7 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
         self.assertNotIn("add_space_variable", self.workflow)
         self.assertNotIn("python - <<'PY'", self.workflow)
         self.assertNotIn("def probe(", self.workflow)
-        self.assertIn("python .github/scripts/verify_canonical_a11oy.py", self.workflow)
+        self.assertIn("python -I -B .github/scripts/verify_canonical_a11oy.py", self.workflow)
 
     def test_post_deploy_probe_is_gated_before_relock_without_a_space_write(self) -> None:
         self.assertIn("readiness-verdict:", self.workflow)
@@ -1166,7 +1166,7 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
         # The verdict gate still fails closed, but a Space-variable write would
         # restart the revision this run just started, so it only validates.
         self.assertIn(
-            "python .github/scripts/publish_readiness_verdict.py\n          --validate-only\n",
+            "python -I -B .github/scripts/publish_readiness_verdict.py\n          --validate-only\n",
             self.workflow,
         )
         self.assertEqual(self.workflow.count("publish_readiness_verdict.py"), 1)
@@ -1201,7 +1201,7 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
         self.assertLess(
             self.workflow.index("Upload immutable full probe evidence"),
             self.workflow.index(
-                "python .github/scripts/publish_readiness_verdict.py"
+                "python -I -B .github/scripts/publish_readiness_verdict.py"
             ),
         )
         publisher = (
@@ -1228,7 +1228,7 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
                 step = drill.split(f"      - name: {name}\n", 1)[1].split(
                     "\n      - name:", 1
                 )[0]
-                self.assertIn(f"python -B scripts/{script}", step)
+                self.assertIn(f"python -I -B scripts/{script}", step)
                 self.assertIn('--origin "$CANONICAL_ORIGIN"', step)
                 self.assertIn('--source-sha "${{ github.sha }}"', step)
                 self.assertIn(f'--output "${output}"', step)
