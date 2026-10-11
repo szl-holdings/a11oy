@@ -7500,6 +7500,21 @@ async def _a11oy_pr_honest_v2():
         },
     })
 
+
+# Origin-owned fallback for the product edge's holographic page alias. This
+# route also works when a request reaches the HF app without the Worker.
+@app.api_route("/spectral", methods=["GET", "HEAD"])
+async def spectral_alias() -> Response:
+    page = _szl_doc("static/3d/holographic.html")
+    if not page.is_file():
+        return JSONResponse(
+            {"status": "UNAVAILABLE", "reason": "holographic page missing"},
+            status_code=503,
+            headers={"Cache-Control": "no-store"},
+        )
+    return FileResponse(page, media_type="text/html")
+
+
 @app.get("/api/a11oy/v1/audit-log")
 async def _a11oy_pr_audit_log_v2(limit: int = 50):
     """In-memory audit log ring buffer — parity with the sibling flagships. Doctrine v11."""
