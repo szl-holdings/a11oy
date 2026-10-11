@@ -70,6 +70,23 @@ CSP = (
     "frame-ancestors 'self' https://huggingface.co https://*.hf.space "
     "https://*.huggingface.co"
 )
+PRODUCT_ORIGIN = "https://a-11-oy.com"
+CLOUDFLARE_WEBMCP_BRIDGE = PRODUCT_ORIGIN + "/.webmcp/bridge.js"
+_CSP_SCRIPT_END = (
+    "https://szlholdings-a11oy.hf.space/preview/platform-a11oy/; script-src-attr"
+)
+# The apex zone's WebMCP setting appends this one script source to HTML CSP.
+# Keep the Space origin, JSON, assets, and every other directive byte-exact.
+# https://developers.cloudflare.com/api/resources/zones/subresources/settings/
+PRODUCT_HTML_CSP = CSP.replace(
+    _CSP_SCRIPT_END,
+    _CSP_SCRIPT_END.replace("; script-src-attr", f" {CLOUDFLARE_WEBMCP_BRIDGE}; script-src-attr"),
+    1,
+)
+PRODUCT_HTML_URLS = frozenset(
+    PRODUCT_ORIGIN + path
+    for path in (*INDEX_PATHS, *(PREFIX + route for route in REVIEWED_ROUTES if route != "/"))
+)
 STATIC_HEADERS = {
     "cache-control": "no-store, no-transform",
     "content-security-policy": CSP,
@@ -296,6 +313,8 @@ def _media_type(observation: Observation) -> str:
 
 def _require_static_headers(observation: Observation) -> None:
     for name, expected in STATIC_HEADERS.items():
+        if name == "content-security-policy" and observation.url in PRODUCT_HTML_URLS:
+            expected = PRODUCT_HTML_CSP
         if observation.header(name) != expected:
             raise VerificationError(
                 f"{observation.method} {observation.url} returned an invalid {name} header"
