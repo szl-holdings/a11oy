@@ -239,11 +239,11 @@
 </div>
 <div class="grid">
   <section class="card span12">
-    <h2>Watts over time <span class="chip chip-measured" id="stream-chip">MEASURED</span></h2>
+    <h2>Watts over time <span class="chip chip-unavailable" id="stream-chip">UNAVAILABLE</span></h2>
     <div id="watts-chart"></div>
     <div class="chart-empty" id="watts-empty">awaiting first live sample…</div>
     <div class="chart-note">
-      <span id="stream-note">cumulative on-box NVML power, live</span>
+      <span id="stream-note">awaiting a fresh on-box NVML power reading</span>
       <span class="offline-tag" id="offline-tag">⚠ meter offline — joules NOT fabricated</span>
     </div>
   </section>
@@ -533,14 +533,16 @@ function markLive(ok) {
   // ---- ROW 1 + ROW 2: /energy/live -------------------------------------
   function renderLive(d) {
     markLive(!isErr(d));
-    var offline = isErr(d) || d.label === "UNAVAILABLE" ||
-                  (d.meter_status && d.meter_status !== 200) || d.total_watts == null;
+    // The API uses meter_status="ok" for a successful scrape. Power has its own
+    // label: a valid watts reading must remain visible when joules are unavailable.
+    var offline = isErr(d) || d.meter_status !== "ok" ||
+                  d.watts_label !== "MEASURED" || num(d.total_watts) == null;
 
     // global + per-section chips
     setChip(document.getElementById("global-chip"), offline ? "UNAVAILABLE" : "LIVE");
     setChip(document.getElementById("total-chip"), offline ? "UNAVAILABLE" : "LIVE");
     setChip(document.getElementById("nodes-chip"), offline ? "UNAVAILABLE" : "LIVE");
-    setChip(document.getElementById("stream-chip"), offline ? "UNAVAILABLE" : (d.joules_label || "MEASURED"));
+    setChip(document.getElementById("stream-chip"), offline ? "UNAVAILABLE" : d.watts_label);
 
     // total power gauge
     var read = document.getElementById("gauge-total-read");
@@ -562,7 +564,7 @@ function markLive(ok) {
     document.getElementById("offline-tag").classList.toggle("show", offline);
     document.getElementById("stream-note").textContent = offline
       ? "stream paused — gaps, not fabricated values"
-      : "cumulative on-box NVML power, live";
+      : "on-box NVML power, live";
     pushSample(tw, offline);
 
     // per-node cards
