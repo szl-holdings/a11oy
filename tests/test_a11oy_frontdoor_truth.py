@@ -77,6 +77,54 @@ class ContractTests(unittest.TestCase):
         self.addCleanup(td.cleanup)
         self.assertEqual(mod.check(path)["status"], "FAIL")
 
+    def write_owned(self, html: str | None = None, css: str | None = None):
+        td, path = self.write(html if html is not None else (ROOT / "a11oy_landing.html").read_text())
+        self.addCleanup(td.cleanup)
+        sheet = path.parent / "console/assets/a11oy-homepage.css"
+        sheet.parent.mkdir(parents=True)
+        sheet.write_text(css if css is not None else (ROOT / "console/assets/a11oy-homepage.css").read_text())
+        return path, sheet
+
+    def test_accepts_exact_local_canonical_owner(self):
+        path, _ = self.write_owned()
+        self.assertEqual(mod.check(path)["status"], "PASS")
+
+    def test_rejects_missing_remote_or_ambiguous_visual_owner(self):
+        html = (ROOT / "a11oy_landing.html").read_text()
+        owner = '<link rel="stylesheet" href="/assets/a11oy-homepage.css" id="szl-homepage-shell" />'
+        for replacement in ("", owner + owner, owner.replace("/assets/a11oy-homepage.css", "https://example.invalid/page.css"), owner.replace("/assets/a11oy-homepage.css", "../../outside.css")):
+            with self.subTest(replacement=replacement):
+                path, _ = self.write_owned(html.replace(owner, replacement))
+                self.assertEqual(mod.check(path)["status"], "FAIL")
+
+    def test_rejects_unavailable_or_symlinked_owned_sheet(self):
+        path, sheet = self.write_owned()
+        sheet.unlink()
+        self.assertEqual(mod.check(path)["status"], "FAIL")
+        sheet.symlink_to(ROOT / "console/assets/a11oy-homepage.css")
+        self.assertEqual(mod.check(path)["status"], "FAIL")
+
+    def test_rejects_canonical_sheet_after_page_owner(self):
+        html = (ROOT / "a11oy_landing.html").read_text()
+        canonical = '<link rel="stylesheet" href="/assets/szl/szl-design-system.css" data-szl-design="kanchay" />'
+        path, _ = self.write_owned(html.replace(canonical, "").replace("</head>", canonical + "</head>"))
+        self.assertEqual(mod.check(path)["status"], "FAIL")
+
+    def test_rejects_shrunken_targets_clipping_palette_forks_and_lost_fallbacks(self):
+        css = (ROOT / "console/assets/a11oy-homepage.css").read_text()
+        mutations = (
+            css.replace("min-height:52px", "min-height:20px"),
+            css.replace("overflow:visible !important", "overflow:hidden !important"),
+            css.replace("@media(prefers-reduced-motion:reduce)", "@media print"),
+            css.replace("@media(forced-colors:active)", "@media print"),
+            css.replace("var(--action-press-bg)", "var(--accent)"),
+            css + "\nbody{color:#ffff00}",
+        )
+        for changed in mutations:
+            with self.subTest(change=mutations.index(changed)):
+                path, _ = self.write_owned(css=changed)
+                self.assertEqual(mod.check(path)["status"], "FAIL")
+
 
 if __name__ == "__main__":
     unittest.main()

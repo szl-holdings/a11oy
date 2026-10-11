@@ -22,7 +22,12 @@ datasets: [SZLHOLDINGS/a11oy-verifiable-corpus, SZLHOLDINGS/szl-lake]
 ---
 
 <!-- szl:card-presentation:v1 -->
-<p><a href="https://huggingface.co/spaces/SZLHOLDINGS/szl-command-lab"><img src="https://raw.githubusercontent.com/szl-holdings/.github/main/profile/assets/szl/logos/szl_mark_holographic.svg" alt="SZL Holdings" width="112" /></a></p>
+<!-- Native identity: szl-brand@4309f6fce89179331b0b3ed8c99494e76c5be256; Orbit v2 icon. -->
+<p>
+  <a href="https://github.com/szl-holdings">
+    <img src="https://raw.githubusercontent.com/szl-holdings/szl-brand/4309f6fce89179331b0b3ed8c99494e76c5be256/kit/logos/orbit-v2/suite/szl-icon-32.svg" alt="SZL Holdings — Orbit v2" width="32" height="32" />
+  </a>
+</p>
 
 # A11oy
 
@@ -34,7 +39,7 @@ Inspect governed AI workflows, the policy that admits an action, and the evidenc
 
 [**Explore Command Lab →**](https://huggingface.co/spaces/SZLHOLDINGS/szl-command-lab) · [**Build with the source →**](https://github.com/szl-holdings/a11oy) · [**Inspect exact source →**](https://github.com/szl-holdings/a11oy/blob/5e014855a274825f4d46ce91cb3396cabd20f99a/README.md)
 
-[Open the application](https://a-11-oy.com) · [Current capability evidence](https://a-11-oy.com/api/a11oy/v1/honest)
+[Open the application](https://a-11-oy.com) · [Current capability evidence](https://a-11-oy.com/api/a11oy/v1/honest) · [Proof registry](https://a11oy.net)
 
 ## Use limits
 

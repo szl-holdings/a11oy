@@ -24,13 +24,20 @@ NAV = ROOT / "a11oy_nav_wireup.py"
 
 def test_front_door_hamburger_is_44px_and_opens_hidden_links() -> None:
     html = FRONT_DOOR.read_text(encoding="utf-8")
+    assert '<link rel="stylesheet" href="/assets/a11oy-homepage.css" id="szl-homepage-shell" />' in html
+    css = (ROOT / "console/assets/a11oy-homepage.css").read_text(encoding="utf-8")
+    compact = "".join(css.split())
+    owner = 'html[data-szl-shell-owner="homepage"]'
     assert 'id="menu-toggle"' in html
     assert 'class="menu-toggle"' in html
-    assert "min-width:44px" in html and "min-height:44px" in html
-    assert "header.nav.nav-open nav" in html
+    toggle = compact.split(f"{owner}.menu-toggle{{", 1)[1].split("}", 1)[0]
+    assert "width:48px" in toggle and "min-height:48px" in toggle
     assert 'aria-controls="site-nav"' in html
-    assert ".nav nav a.hide-sm,.nav nav a:not(.btn){display:none}" in html
-    assert "header.nav.nav-open nav a.hide-sm" in html
+    # The links remain available without JavaScript; only a ready controller
+    # may collapse the mobile navigation and its existing toggle opens it.
+    assert f'{owner}[data-szl-menu-ready="true"].navnav{{display:none;}}' in compact
+    assert f'{owner}[data-szl-menu-ready="true"]header.nav.nav-opennav{{display:grid;}}' in compact
+    assert 'document.documentElement.dataset.szlMenuReady="true"' in html
     assert "setOpen(!header.classList.contains" in html
 
 

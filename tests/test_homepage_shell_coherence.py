@@ -25,7 +25,22 @@ class HomepageShellCoherence(unittest.TestCase):
     def setUpClass(cls):
         cls.html = (ROOT / "a11oy_landing.html").read_text(encoding="utf-8")
         cls.elements = Elements(cls.html).elements
-        cls.css = cls.html.split('<style id="szl-homepage-shell">', 1)[1].split('</style>', 1)[0]
+        cls.css = (ROOT / "console/assets/a11oy-homepage.css").read_text(encoding="utf-8")
+
+    def test_one_local_visual_owner_uses_the_canonical_surface_roles(self):
+        links = [attrs for tag, attrs in self.elements if tag == "link"]
+        owner = [a for a in links if a.get("id") == "szl-homepage-shell"]
+        self.assertEqual(owner, [{"rel": "stylesheet", "href": "/assets/a11oy-homepage.css", "id": "szl-homepage-shell"}])
+        hrefs = [a.get("href") for a in links]
+        self.assertLess(hrefs.index("/assets/szl/szl-design-system.css"), hrefs.index("/assets/a11oy-homepage.css"))
+        self.assertNotIn("/assets/apex-v2.css", hrefs)
+        self.assertNotIn("<style", self.html)
+        self.assertNotIn("@font-face", self.css)
+        self.assertIn('data-surface="light"', self.html)
+        for role in ("--action-bg", "--action-hover-bg", "--action-press-bg", "--holo-edge", "--text-sub", "--font-display"):
+            self.assertIn("var(" + role + ")", self.css)
+        self.assertIn('class="specimen-wrap" data-surface="dark"', self.html)
+        self.assertIn('class="deep-record" data-surface="dark"', self.html)
 
     def test_one_explicit_shell_owner_and_accessible_navigation(self):
         roots = [attrs for tag, attrs in self.elements if tag == "html"]
@@ -56,10 +71,10 @@ class HomepageShellCoherence(unittest.TestCase):
         for selector in re.findall(r'([^{}]+)\{', css_without_comments):
             if not selector.strip().startswith("@"):
                 self.assertIn('html[data-szl-shell-owner="homepage"]', selector)
-        for contract in ("font-size:clamp(56px,6.5vw,96px)", "@media(max-width:760px)",
+        for contract in ("font-size:clamp(2.7rem,5.15vw,4.75rem)", "@media(max-width:760px)",
                          "@media(max-width:1100px)", "prefers-reduced-motion", "forced-colors",
-                         "--szl-paper:#F2F0E9", "--szl-graphite:#111419", "--szl-blue:#8CAFE3",
-                         ".hero::after {content:none!important}"):
+                         "--ink:var(--text)", "--sub:var(--text-sub)",
+                         "overflow:visible !important"):
             self.assertIn(contract, self.css)
 
     def test_disclosure_closes_on_escape_outside_focus_and_resize(self):

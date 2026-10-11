@@ -1,10 +1,17 @@
 # SPDX-License-Identifier: Apache-2.0
 from pathlib import Path
+import re
+
+
+def owned_css() -> str:
+    html = Path("a11oy_landing.html").read_text(encoding="utf-8")
+    assert 'href="/assets/a11oy-homepage.css" id="szl-homepage-shell"' in html
+    return Path("console/assets/a11oy-homepage.css").read_text(encoding="utf-8")
 
 
 def test_landing_nav_uses_real_touch_target_height() -> None:
-    html = Path("a11oy_landing.html").read_text(encoding="utf-8")
-    rule = html.split(".nav nav a{", 1)[1].split("}", 1)[0]
+    css = re.sub(r"\s+", "", owned_css())
+    rule = css.split(".navnava{", 1)[1].split("}", 1)[0]
     assert "display:inline-flex" in rule
     assert "align-items:center" in rule
     assert "justify-content:center" in rule
@@ -12,12 +19,12 @@ def test_landing_nav_uses_real_touch_target_height() -> None:
 
 
 def test_compact_navigation_covers_tablet_and_small_desktop() -> None:
-    html = Path("a11oy_landing.html").read_text(encoding="utf-8")
-    assert "@media(max-width:1100px)" in html
-    assert "@media(min-width:1101px){.nav-cta-short{display:none}}" in html
-    nav_styles = html.split("/* ---- nav ---- */", 1)[1].split("/* ---- origin", 1)[0]
-    assert "@media(max-width:680px)" not in nav_styles
-    assert "@media(min-width:681px){.nav-cta-short{display:none}}" not in html
+    css = owned_css()
+    assert "@media(max-width:1100px)" in css
+    assert '@media(min-width:1101px){html[data-szl-shell-owner="homepage"] .nav-cta-short{display:none}}' in css
+    assert '[data-szl-menu-ready="true"] .nav nav { display:none; }' in css
+    assert 'header.nav.nav-open nav { display:grid; }' in css
+    assert ':not([data-szl-menu-ready]) header.nav { position:static; }' in css
 
 
 def test_phone_hero_ctas_preserve_full_mobile_target_contract() -> None:
@@ -33,7 +40,7 @@ def test_phone_hero_ctas_preserve_full_mobile_target_contract() -> None:
         '}'
     )
     assert 'href="/assets/szl-flow.css"' in html
-    assert inline_contract in html
+    assert inline_contract in owned_css()
     assert size_rule in flow
     assert "52px" in flow and "inside the viewport" in flow
     assert 'html[data-szl-shell-owner="homepage"] .cta-row .btn{min-height:45px}' not in flow

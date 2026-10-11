@@ -26,6 +26,7 @@ html[data-console-style="restrained"] :is([data-surface="dark"],[data-surface="l
   --f7:var(--text-4xl); --f8:var(--text-5xl); --f9:var(--text-6xl);
   --health-ok:var(--color-success-light); --health-warning:var(--color-warning-light);
   --health-error:var(--color-error-light);
+  --live:var(--health-ok); --warn:var(--health-warning); --err:var(--health-error);
   --szl-holo-bg:var(--bg) !important; --szl-holo-bg-deep:var(--bg-deep) !important;
   --szl-holo-surface:var(--surface) !important; --szl-holo-surface-2:var(--surface-alt) !important;
   --szl-holo-ink:var(--text) !important; --szl-holo-muted:var(--text-sub) !important;
@@ -106,6 +107,143 @@ html[data-console-style] :is(a,button,input,[tabindex]):focus-visible {
   box-shadow:none !important;
 }
 html[data-console-style] .skip-link { min-height:44px; padding:var(--space-3); background:var(--surface); color:var(--text); }
+
+/* Analytical views retain the light palettes built into their charts. Their explicit
+   graphite workspace is independent of the surrounding paper or graphite shell.
+   Opaque panels replace the older competing Flow/Holo gradients; source states and
+   the chart data are unaffected. */
+html[data-console-style] .content {
+  padding:var(--space-8) !important; background:var(--bg) !important; color:var(--text);
+}
+html[data-console-style] .app {
+  min-height:0 !important; height:calc(100dvh - var(--szl-console-header-height,68px)) !important;
+  flex:0 0 auto; overflow:hidden;
+}
+html[data-console-style] .content {
+  min-height:0; height:100% !important; overflow-y:auto !important; overflow-x:hidden !important;
+}
+html[data-console-style] .content::before,
+html[data-console-style] .content::after { display:none !important; }
+html[data-console-style] .view-head { gap:var(--space-4); align-items:baseline; }
+html[data-console-style] .view-title {
+  font:var(--weight-semibold) clamp(var(--text-2xl),2.5vw,var(--text-3xl))/var(--leading-snug) var(--font-display);
+  color:var(--text); margin:0; overflow-wrap:anywhere;
+}
+html[data-console-style] .view-sub {
+  font:var(--text-base)/var(--leading-normal) var(--font-body); color:var(--text-sub);
+  max-width:90ch; margin:var(--space-4) 0 var(--space-6);
+}
+html[data-console-style] .view-badge {
+  color:var(--text-sub); background:var(--surface); border-color:var(--border);
+  font-size:var(--text-xs); line-height:var(--leading-normal); white-space:normal;
+  max-width:100%; overflow-wrap:anywhere; box-shadow:none;
+}
+html[data-console-style] #vbody[data-console-workspace="analytical"] {
+  background:var(--bg); color:var(--text); padding:var(--space-6);
+  border:1px solid var(--border); border-radius:var(--radius-xl); min-width:0;
+  font-size:var(--text-sm); line-height:var(--leading-normal);
+}
+html[data-console-style] [data-console-workspace="analytical"] :is(.card,.kpi,.panel,.atlas-card,.atlas-detail) {
+  background:var(--surface) !important; background-image:none !important; color:var(--text);
+  border:1px solid var(--border) !important; border-radius:var(--radius-lg) !important;
+  box-shadow:none !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
+  min-width:0; max-width:100%;
+}
+html[data-console-style] [data-console-workspace="analytical"] :is(.card,.kpi)::before,
+html[data-console-style] [data-console-workspace="analytical"] :is(.card,.kpi)::after { display:none !important; }
+html[data-console-style] [data-console-workspace="analytical"] :is(.card,.kpi) { padding:var(--space-5); }
+html[data-console-style] [data-console-workspace="analytical"] .card { margin-bottom:var(--space-5); }
+html[data-console-style] [data-console-workspace="analytical"] .card-h {
+  gap:var(--space-3); align-items:baseline; margin-bottom:var(--space-4); flex-wrap:wrap;
+}
+html[data-console-style] [data-console-workspace="analytical"] .card-t {
+  color:var(--text); font-size:var(--text-lg); line-height:var(--leading-snug); overflow-wrap:anywhere;
+}
+html[data-console-style] [data-console-workspace="analytical"] :is(.card-ep,.kpi .k,.kpi .d,.brain-note,.honesty) {
+  color:var(--text-sub); font-size:var(--text-sm); line-height:var(--leading-normal); overflow-wrap:anywhere;
+}
+html[data-console-style] [data-console-workspace="analytical"] .kpis {
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr)); gap:var(--space-4);
+  margin-bottom:var(--space-5);
+}
+html[data-console-style] [data-console-workspace="analytical"] .kpi .v {
+  font-size:var(--text-2xl); line-height:var(--leading-snug); font-variant-numeric:tabular-nums;
+}
+html[data-console-style] [data-console-workspace="analytical"] :is(button,summary,.btn,.vchip,.atlas-route) {
+  min-width:44px !important; min-height:44px !important; max-width:100%;
+  font-size:var(--text-sm) !important; white-space:normal; overflow-wrap:anywhere;
+}
+html[data-console-style] [data-console-workspace="analytical"] :is(.btn,.vchip,.atlas-route) {
+  padding:var(--space-2) var(--space-3); color:var(--text) !important;
+  background:var(--surface) !important; border-color:var(--control-edge) !important;
+  border-radius:var(--radius-md); box-shadow:none; transform:none;
+}
+html[data-console-style] [data-console-workspace="analytical"] :is(.btn,.vchip,.atlas-route):hover {
+  color:var(--text) !important; background:var(--surface-raised) !important;
+}
+html[data-console-style] [data-console-workspace="analytical"] :is(input,textarea,select) {
+  color:var(--text); background:var(--surface); border-color:var(--control-edge);
+  max-width:100%; min-width:0; min-height:44px; font-size:var(--text-base);
+}
+html[data-console-style] [data-console-workspace="analytical"] :is(pre,code) { overflow-wrap:anywhere; }
+html[data-console-style] [data-console-workspace="analytical"] .atlas-grid {
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,24rem),1fr));
+}
+html[data-console-style] [data-console-workspace="analytical"] :is(.atlas-badge,.atlas-routes) {
+  max-width:100%; white-space:normal; overflow-wrap:anywhere;
+}
+html[data-console-style] [data-console-workspace="analytical"] .atlas-badge {
+  color:var(--text) !important; background:var(--surface-alt) !important; font-size:var(--text-xs);
+}
+html[data-console-style] [data-console-workspace="analytical"] .atlas-routes { flex-wrap:wrap; }
+html[data-console-style] [data-console-workspace="analytical"] :is(.atlas-meta-row,.atlas-meta-row>*,.atlas-cites,.atlas-cites>*) {
+  min-width:0; max-width:100%; overflow-wrap:anywhere;
+}
+html[data-console-style] [data-console-workspace="analytical"] .atlas-meta-row { flex-wrap:wrap; }
+html[data-console-style] [data-console-workspace="analytical"] .atlas-cite {
+  display:inline-flex; align-items:center; min-height:44px; white-space:normal; font-size:var(--text-sm);
+}
+html[data-console-style] .content .mb-measured { color:var(--text-sub); border-color:var(--control-edge); }
+html[data-console-style] .content .formula-maturity {
+  color:var(--text) !important; border-color:var(--control-edge) !important;
+  background:var(--surface-alt) !important; font-size:var(--text-xs);
+}
+html[data-console-style] .content .formula-reference :is(.dim,code) {
+  color:var(--text-sub) !important; font-size:var(--text-sm) !important;
+}
+html[data-console-style] #tk-panel-host {
+  background:var(--surface) !important; color:var(--text); border-color:var(--border) !important;
+  padding:var(--space-5) !important; border-radius:var(--radius-lg) !important;
+}
+html[data-console-style] #tk-panel-host :is(.tk-note,.tk-k) { color:var(--text-sub); font-size:var(--text-xs); }
+html[data-console-style] #tk-panel-host :is(.tk-sub,.tk-v,textarea,button) { font-size:var(--text-sm); }
+html[data-console-style] #tk-panel-host button { min-width:44px; min-height:44px; }
+html[data-console-style] #wt-ung .row,
+html[data-console-style] #cpq-tamper { color:var(--health-error) !important; }
+html[data-console-style] [data-console-workspace="analytical"] .console-table-region {
+  max-width:100%; overflow:auto; padding:var(--space-1); border:1px solid var(--border);
+  border-radius:var(--radius-md); scrollbar-color:var(--control-edge) var(--surface);
+}
+html[data-console-style] [data-console-workspace="analytical"] .console-table-region table {
+  min-width:40rem; width:100%; border-collapse:collapse;
+}
+html[data-console-style] [data-console-workspace="analytical"] .console-table-region :is(th,td) { padding:var(--space-3); }
+html[data-console-style] [data-console-workspace="analytical"] .console-table-region a {
+  display:inline-flex; align-items:center; min-height:44px; min-width:44px;
+}
+@media(max-width:820px) {
+  html[data-console-style] .content { padding:var(--space-6) var(--space-4) !important; }
+  html[data-console-style] #vbody[data-console-workspace="analytical"] { padding:var(--space-4); }
+  html[data-console-style] [data-console-workspace="analytical"] :is(.card,.kpi) { padding:var(--space-4); }
+  html[data-console-style] [data-console-workspace="analytical"] .view-sub { font-size:var(--text-sm); }
+}
+@media(forced-colors:active) {
+  html[data-console-style] #vbody[data-console-workspace="analytical"],
+  html[data-console-style] [data-console-workspace="analytical"] :is(.card,.kpi,.panel,.atlas-card,.atlas-detail) {
+    background:Canvas !important; color:CanvasText; border-color:CanvasText !important;
+    background-image:none !important;
+  }
+}
 html[data-console-style]:is([data-view="fleet"],[data-view="readiness"],[data-view="estate"]) .content {
   padding:var(--space-8) !important; background:var(--bg) !important; color:var(--text);
 }
@@ -403,6 +541,14 @@ html[data-console-style][data-view="command"] #source-runtime-evidence .btn {
 @media(max-width:540px) {
   html[data-console-style][data-view="command"] .hero-cards { grid-template-columns:minmax(0,1fr); }
 }
+
+/* Research notes and estate navigation inherit their local reading surface. */
+html[data-console-style] .content .gnd { border:1px solid var(--border); border-radius:var(--radius-lg); padding:var(--space-4); background:var(--surface); color:var(--text); }
+html[data-console-style] .content .gnd>summary { min-height:44px; flex-wrap:wrap; color:var(--text); font-size:var(--text-sm); line-height:var(--leading-normal); }
+html[data-console-style] .content :is(.gnd-say,.gnd-cites li,.gnd-kernel,.gnd-chev,.gnd-tw) { color:var(--text-sub); font-size:var(--text-sm); line-height:var(--leading-relaxed); }
+html[data-console-style] .content :is(.gnd a,.szl-estate-foot a) { color:var(--link); text-decoration:underline; text-underline-offset:3px; }
+html[data-console-style] .content .gnd-cites a { min-height:44px; display:inline-flex; align-items:center; }
+html[data-console-style] .content .gnd-cites { border-color:var(--border); }
 
 /* Local draft editors share the canonical reading and interaction roles. */
 .gdw-draft-panel{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:var(--space-5);align-items:start}

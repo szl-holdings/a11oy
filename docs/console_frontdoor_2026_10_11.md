@@ -18,6 +18,14 @@ stream. On narrow screens, the existing investor, operator and theme controls mo
 into the keyboard-operated More menu; their nodes, state and handlers are preserved.
 The sidebar uses the approved 24–48 CSS pixel Orbit v2 projection at 40 pixels.
 
+The full registered view system uses one reading hierarchy for headings, source
+notes, cards and controls. Analytical views declare an opaque local graphite
+surface even when the surrounding navigation uses the paper theme; existing chart
+palettes keep their intended ground. Formula and research notes inherit readable
+local color roles. The formula atlas wraps long metadata and citations. The Putnam
+sampler table has a named, keyboard-focusable horizontal region and explicit column
+headers, so the table can scroll without widening the page.
+
 Query deep links and hash subviews survive additive registry loading. Overrides do
 not render incomplete registries while the document is still parsing. Ask & Act and
 Governed Decision present a local draft editor: a user can prepare, inspect and
@@ -49,6 +57,33 @@ what the GDW service states; no authenticated execution UI is implied.
   the legacy illustrative signing endpoint or the old operator-act route. SLSA copy
   identifies the canonical source declaration as L1; historical evidence does not
   establish current L2/L3 coverage.
+- Opening a view no longer submits the model-router or evaluation request, the
+  governance comparison, or the three legacy scenario demonstrations. Their
+  existing explicit action handlers remain in place. The PQ presentation no
+  longer appends a genesis record on navigation. Generic passive-read polling
+  catches rejected promises and displays UNAVAILABLE instead of an unhandled error.
+  These presentation changes do not modify operational mathematics or payloads.
+- Research notes for Decision and Energy now respect the current local-draft and
+  paired-meter boundaries. Global metadata no longer asserts that every view is
+  live. Related reading is not presented as proof of the current runtime.
+
+## Apex landing
+
+The actual `a11oy_landing.html` now binds one page-owned
+`console/assets/a11oy-homepage.css` after the accepted canonical design system.
+Four conflicting inline style blocks are removed. The paper landing, graphite
+specimen, domain cards, catalog, disclosure archive and footer share the same
+typography, spacing, focus and responsive rules. The approved native icon appears
+in the header and footer. All 103 anchor targets and 113 body IDs remain in their
+original order. The existing Flow, Holo, Spectral and honest-state controllers
+retain their source bytes.
+
+The specimen remains illustrative. An API-provided spectrum label is rendered as
+literal text. Signed state still requires both explicit signature and verification
+booleans. No-JavaScript navigation, enlarged text, unavailable reads and the local
+hash control have dedicated browser coverage. The existing truth/mobile workflow
+now includes the owned CSS path in both normal trigger filters; its steps and
+permissions are unchanged.
 
 ## Asset ownership
 
@@ -81,6 +116,7 @@ python -m pytest -q tests/test_command_centre.py
 SZL_TEST_GITLEAKS_BINARY=/path/to/verified/gitleaks python -I -B tests/test_gitleaks_public_source_digest.py -v
 CHROME_PATH=/path/to/chromium python scripts/test_console_frontdoor.py --output /tmp/console-frontdoor
 CONSOLE_QA_BROWSER=/path/to/chromium python scripts/test_console_focused_theme.py --output /tmp/console-focused
+CONSOLE_QA_BROWSER=/path/to/chromium python scripts/test_console_view_workspaces.py --output /tmp/console-all-views
 ```
 
 The front-door browser suite covers 320, 390, 768, 1280, 1920 and 2560 pixel widths,
@@ -90,6 +126,15 @@ across atmospheric bounds, an opaque reading ground, local draft transitions, ed
 contrast, deep links, reduced motion and absence of state-changing requests. It
 writes screenshots and file hashes with the observed assertions. The focused shell
 suite additionally covers source-labelled empty, malformed and failed responses.
+
+The registered-view suite enumerates the shipped registry (171 views in this
+candidate) and opens every view at 1280px and 390px in both shell themes. It checks
+containment, local analytical polarity, opaque card surfaces, sampled visible text
+contrast, selected-view completion and rejected-read handling. It blocks provider
+traffic and checks for state-changing HTTP methods and known write-like GETs.
+Its top/bottom text sample is not a claim to measure all canvas pixels or every
+possible interaction. `--quick` targets the concrete regressions; the default
+always covers the complete discovered registry.
 
 The offline helper tests execute the actual shipped JavaScript, including local
 ECDSA signing fixtures and tamper rejection. The test key exists only inside that
