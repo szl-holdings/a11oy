@@ -120,6 +120,8 @@ def test_permanent_sync_uses_the_reusable_source_bound_authority() -> None:
             "&safety=1&energy_state=UNAVAILABLE"
         ),
         "/api/a11oy/v1/atelier/frontier/evaluate?safety=0",
+        "/preview/platform-a11oy/",
+        "/preview/platform-a11oy/source.json",
     ]
     match = re.search(r"^\s+smoke-paths:\s+'([^']+)'\s*$", workflow, re.MULTILINE)
     assert match is not None

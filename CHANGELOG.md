@@ -9,6 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - source-bound Platform candidate preview
+
+- Serve the reviewed Platform A11oy static candidate beneath the isolated
+  `/preview/platform-a11oy/` prefix. The Python router owns the complete HTTP
+  and WebSocket namespace before prior dynamic routes: GET and HEAD serve only
+  the exact build, assets and reviewed deep links, other HTTP methods return 405,
+  and WebSocket handshakes close before acceptance. Missing assets and path
+  traversal fail closed.
+- Bind the candidate to an exact Platform revision and per-file digest manifest.
+  Path-scoped content security policy sources confine scripts and styles to the
+  candidate prefix on the product and Space origins; other browser fetch classes
+  cannot reach the live homepage or `/api/*` routes. Response headers label every
+  page `CANDIDATE_DEMO` and prevent search indexing.
+  The preview does not establish production operation, authentication, durable
+  execution, deployment qualification or customer evidence.
+- Verify the deployed POST rejection at the application boundary. Live probes
+  show Hugging Face Envoy terminating OPTIONS before the Space application on
+  candidate, API and nonexistent paths, so live verification does not mislabel
+  that provider response as candidate ownership; the local assembled-app suite
+  still verifies the router's OPTIONS 405.
+- Run both live candidate probes inside the existing read-only readiness job,
+  without a Hugging Face provider token. The deploy guard byte-binds that job,
+  its helper closure, the canonical target/origin, the exact deploy and relock
+  authority scopes, and inherited workflow context. Repository Python entrypoints
+  in token-bearing deployment jobs run in isolated mode.
+- Preserve digest-bound GET and HEAD responses through the existing navigation
+  middleware, reject cyclic roots and FIFO files without blocking startup, and
+  verify the bare prefix, trailing-slash route, explicit index, reviewed deep
+  link, exact unknown-route body, and every manifest asset at both live origins.
+- Extend the bundle-integrity guard to recognize Vite's static backtick dynamic
+  imports, so omitting the reviewed `/security-agents` lazy chunk fails CI.
+
 ### Fixed - payload manifest input validation
 
 - Reject missing or non-directory payload roots before creating or verifying a

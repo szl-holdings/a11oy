@@ -15007,21 +15007,80 @@ async def sitemap_xml() -> Response:
     )
 
 
+from routers import platform_candidate_preview as _platform_candidate_preview  # noqa: E402
+
+# The additive preview is byte-bound to the reviewed Platform source and its
+# generated static manifest.  These values establish provenance, not production
+# readiness or a runtime API binding.
+_PLATFORM_CANDIDATE_SOURCE_REVISION = "cc9fc2bd658241354c381e4fe78a11ba1d09dd3b"
+_PLATFORM_CANDIDATE_MANIFEST_SHA256 = (
+    "940ebc0919d078a30c56f74efadbfd317974a53b6980eb8f83b9c367122629d2"
+)
+_PLATFORM_CANDIDATE_ROOT = STATIC_DIR / "preview" / "platform-a11oy"
+_platform_candidate_preview.register(
+    app,
+    _PLATFORM_CANDIDATE_ROOT,
+    expected_source_revision=_PLATFORM_CANDIDATE_SOURCE_REVISION,
+    expected_manifest_sha256=_PLATFORM_CANDIDATE_MANIFEST_SHA256,
+)
+
 @app.get("/{full_path:path}")
 async def spa_fallback(full_path: str) -> Response:
     # Never hijack API routes (handled above, but guard defensively).
     if full_path.startswith("api/"):
         return JSONResponse({"error": "not found"}, status_code=404)
     # Serve a real static file if it exists (e.g. /favicon.svg, /robots.txt).
-    candidate = (STATIC_DIR / full_path).resolve()
+    # Block the preview subtree lexically before dereferencing anything.  The
+    # preview router owns this namespace even when its candidate directory is a
+    # broken or cyclic symlink.
+    requested = STATIC_DIR / full_path
+    lexical_candidate = Path(os.path.abspath(os.fspath(requested)))
+    lexical_preview_root = Path(os.path.abspath(os.fspath(_PLATFORM_CANDIDATE_ROOT)))
     try:
-        candidate.relative_to(STATIC_DIR.resolve())
+        lexical_candidate.relative_to(lexical_preview_root)
+    except ValueError:
+        pass
+    else:
+        return JSONResponse(
+            {"status": "NOT_FOUND", "path": "/" + full_path},
+            status_code=404,
+            headers={"Cache-Control": "no-store"},
+        )
+    try:
+        candidate = requested.resolve()
+        static_root = STATIC_DIR.resolve()
+    except (OSError, RuntimeError, ValueError):
+        return JSONResponse(
+            {"status": "NOT_FOUND", "path": "/" + full_path},
+            status_code=404,
+            headers={"Cache-Control": "no-store"},
+        )
+    try:
+        candidate.relative_to(static_root)
     except ValueError:
         return JSONResponse(
             {"status": "NOT_FOUND", "path": "/" + full_path},
             status_code=404,
             headers={"Cache-Control": "no-store"},
         )
+    try:
+        resolved_preview_root = _PLATFORM_CANDIDATE_ROOT.resolve()
+    except (OSError, RuntimeError, ValueError):
+        resolved_preview_root = None
+    if resolved_preview_root is not None:
+        try:
+            candidate.relative_to(resolved_preview_root)
+        except ValueError:
+            pass
+        else:
+            # The source-bound preview has one owning router.  Alternative URL
+            # spellings must never fall through to raw FileResponse delivery or
+            # receive the operator-widget mutation applied by the generic shell.
+            return JSONResponse(
+                {"status": "NOT_FOUND", "path": "/" + full_path},
+                status_code=404,
+                headers={"Cache-Control": "no-store"},
+            )
     if candidate.is_file():
         return FileResponse(candidate)
     # ADDITIVE: serve a vendored static sub-app's index.html for directory paths

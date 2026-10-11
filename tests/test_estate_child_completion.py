@@ -273,7 +273,7 @@ class CompletionTests(unittest.TestCase):
         self.assertNotIn("continue-on-error: true",vertical)
         self.assertIn("id: vertical_publish",vertical)
         self.assertIn("name: "+gate.VERTICAL_GATE,vertical)
-        self.assertIn("run: python scripts/estate_child_completion.py",vertical)
+        self.assertIn("run: python -I -B scripts/estate_child_completion.py",vertical)
         self.assertIn("inputs.publish_vertical_flagships }}",vertical)
         parent=(ROOT/".github/workflows/estate-release-train.yml").read_text()
         self.assertIn("dispatch_hf_then_edge(command, revision",parent)
