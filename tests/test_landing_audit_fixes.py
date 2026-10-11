@@ -3,7 +3,7 @@
 """Regression guards for the 2026-08-28 live-audit + ATELIER honesty fixes.
 
   1. Landing hamburger at mobile breakpoints (44px targets).
-  2. Console ENERGY slot is LIVE ledger (empty) / ROADMAP — never MEASURED, never joules.
+  2. Console ENERGY uses paired operator aggregates with explicit source labels.
   3. Hero receipts cite the same SAMPLE ledger source as the runtime card.
   4. /warhacker 307 Location keeps the #arena fragment.
   5. Public aliases /mesh /evidence /arena /router remain registered.
@@ -46,23 +46,23 @@ def test_marketing_landing_ds_nav_has_hamburger_under_760px() -> None:
     assert "@media (max-width:760px){.ds-nav{display:none;}}" not in html
 
 
-def test_console_energy_never_claims_measured_joules() -> None:
+def test_console_energy_requires_source_labels_and_a_paired_token_window() -> None:
+    # The current operator has a verified NVML-window attribution contract. The
+    # former permanent-ROADMAP assertion predates that API. Browser execution of
+    # these branches (including zero, missing, and sample data) is covered by
+    # scripts/test_console_evidence.cjs without contacting an operator.
     html = CONSOLE.read_text(encoding="utf-8")
-    assert "measured pending" not in html
-    assert "LIVE ledger (empty)" in html
-    assert "_energyEmpty" in html
-    assert "_energyPending" in html
-    assert "_tagEl.textContent='ROADMAP'" in html
-    assert "setTxt('hero-joules','pending')" in html
-    assert "API+'/v1/energy/ledger'" in html
-    # ENERGY hero fill never paints a MEASURED chip or J/tok.
-    fill = html.split("ENERGY slot = LIVE ledger", 1)[1].split("hero-gate", 1)[0]
-    assert "_tagEl.textContent='MEASURED'" not in fill
-    assert "J/tok" not in fill
-    assert "_tagEl.textContent='MEASURED'" not in html
-    # Default ENERGY slot copy is ledger, not joules.
-    assert 'id="hero-joules" data-maturity="live">LIVE ledger (empty)</span>' in html
-    assert "not joules" in html
+    helper = html.split("window._a11oyEnergyReading=function(reading)", 1)[1].split(
+        "// ===== VISUAL HELPERS", 1
+    )[0]
+    assert "d.joules_measured_label==='MEASURED'" in helper
+    assert "d.stub_mode===false" in helper
+    assert "d.measured_token_joules/d.measured_tokens" in helper
+    assert "d.joules_sample_label==='SAMPLE'" in helper
+    assert "{label:'UNAVAILABLE',value:null}" in helper
+    assert "window._a11oyEnergyReading(_eh)" in html
+    assert "API+'/v1/energy/operator/status'" in html
+    assert "_eh.measured_token_joules.toFixed" not in html
     assert "JOULES SAMPLE" in html
 
 

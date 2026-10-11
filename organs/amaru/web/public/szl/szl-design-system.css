@@ -11,7 +11,7 @@
  *
  * Aesthetic: Anthropic calm restraint + Ollama dev-clean + defense-tech
  * gravitas + our own orbital/khipu motif. Generous whitespace. Serious, human,
- * honest. WCAG AA throughout. ADDITIVE only — no v11 LOCKED number changed.
+ * honest. Measured contrast roles. ADDITIVE only — no v11 LOCKED number changed.
  *
  * Brand assets (c) 2026 SZL Holdings · CC BY 4.0 · code Apache-2.0
  * Attribution: ORCID 0009-0001-0110-4173
@@ -91,6 +91,13 @@
   --text-ghost:var(--color-graphite-300);
   --accent:var(--color-coral-400); --accent-hover:var(--color-coral-300);
   --accent-press:var(--color-coral-500); --accent-ink:var(--color-space-900);
+  /* Action fills are distinct from decorative coral: every small-text state must
+     meet 4.5:1. Press keeps the legible fill and adds the button's tactile offset. */
+  --action-bg:var(--color-coral-400); --action-hover-bg:var(--color-coral-300);
+  --action-press-bg:var(--color-coral-400); --action-ink:var(--color-space-900);
+  --hero-atmosphere:color-mix(in srgb, var(--color-space-700) 60%, transparent);
+  --holo-silver:var(--color-silver-100); --holo-teal:var(--color-yuyay-300);
+  --shadow-card:var(--shadow-sm); --shadow-card-hover:var(--shadow-md);
   --premium:var(--color-hatun-300);
   --link:var(--color-yuyay-200); --link-hover:var(--color-yuyay-100);
   --focus:var(--color-yuyay-400);
@@ -109,6 +116,16 @@
   --text-ghost:var(--color-ink-500);
   --accent:var(--color-coral-500); --accent-hover:var(--color-coral-400);
   --accent-press:#a8442f; --accent-ink:var(--color-white);
+  /* White on unmodified coral-500 is 4.48:1. This local navy mix preserves the
+     palette primitive while making the small primary label legible. */
+  --action-bg:color-mix(in srgb, var(--color-coral-500) 94%, var(--color-space-900));
+  --action-hover-bg:var(--accent-press);
+  --action-press-bg:color-mix(in srgb, var(--accent-press) 90%, var(--color-space-900));
+  --action-ink:var(--color-white);
+  --hero-atmosphere:color-mix(in srgb, var(--color-silver-300) 16%, transparent);
+  --holo-silver:var(--color-silver-500); --holo-teal:var(--color-yuyay-700);
+  --shadow-card:0 1px 2px rgba(3,15,41,.08);
+  --shadow-card-hover:0 4px 16px rgba(3,15,41,.10);
   --premium:var(--color-hatun-700);
   --link:var(--color-yuyay-700); --link-hover:var(--color-yuyay-800);
   --focus:var(--color-yuyay-600);
@@ -120,8 +137,20 @@
    the two polarity values count; data-surface used as a label is left alone. */
 :root, [data-surface="dark"], [data-surface="light"] {
   --shadow-focus:0 0 0 3px color-mix(in srgb, var(--focus) 55%, transparent);
+  --holo-edge:linear-gradient(128deg, var(--holo-silver), var(--border) 24%,
+    var(--holo-teal) 48%, var(--border) 72%, var(--holo-silver));
 }
 :where([data-surface="dark"], [data-surface="light"]) { color:var(--text); }
+
+/* A terminal is always graphite, including on an editorial page. These roles are
+   palette-bound rather than page-bound, and are included in the tokens-only export. */
+:root {
+  --code-bg:var(--color-graphite-950); --code-ink:var(--color-graphite-50);
+  --code-muted:var(--color-graphite-300); --code-border:var(--color-graphite-600);
+  --code-edge:var(--color-graphite-400); --code-focus:var(--color-yuyay-400);
+  --code-link:var(--color-yuyay-200); --code-link-hover:var(--color-yuyay-100);
+  --code-string:var(--color-success-light); --code-number:var(--color-hatun-300);
+}
 
 /* --- 3 · TYPE SCALE — Major Third (1.25), base 16px (KANCHAY scale) -------- */
 :root {
@@ -181,7 +210,8 @@ body {
   text-rendering:optimizeLegibility;
 }
 h1,h2,h3,h4 { font-family:var(--font-display); color:var(--text);
-  letter-spacing:var(--tracking-tight); margin:0 0 var(--space-4); }
+  letter-spacing:var(--tracking-tight); margin:0 0 var(--space-4);
+  text-wrap:balance; overflow-wrap:anywhere; }
 h1 { font-size:var(--text-4xl); line-height:var(--leading-tight); font-weight:var(--weight-bold); }
 h2 { font-size:var(--text-3xl); line-height:var(--leading-snug); font-weight:var(--weight-semibold); }
 h3 { font-size:var(--text-2xl); line-height:var(--leading-snug); font-weight:var(--weight-semibold); }
@@ -203,7 +233,7 @@ hr { border:0; border-top:var(--border-hairline) solid var(--border); margin:var
 /* --- 6 · TYPE UTILITIES ---------------------------------------------------- */
 .display  { font-family:var(--font-display); font-size:var(--text-5xl);
             line-height:var(--leading-tight); letter-spacing:var(--tracking-tight);
-            font-weight:var(--weight-bold); }
+            font-weight:var(--weight-bold); text-wrap:balance; overflow-wrap:anywhere; }
 .eyebrow  { font-size:var(--text-sm); font-weight:var(--weight-semibold);
             letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--text-ghost); }
 .lead     { font-size:var(--text-lg); color:var(--text); max-width:var(--measure); }
@@ -215,7 +245,9 @@ hr { border:0; border-top:var(--border-hairline) solid var(--border); margin:var
 .container { width:100%; max-width:var(--container); margin-inline:auto; padding-inline:var(--space-6); }
 .stack > * + * { margin-top:var(--space-4); }
 .cluster { display:flex; flex-wrap:wrap; gap:var(--space-3); align-items:center; }
-.grid-auto { display:grid; gap:var(--space-6); grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); }
+.grid-auto { display:grid; gap:var(--space-6);
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,16.25rem),1fr)); }
+.grid-auto > * { min-inline-size:0; }
 .safe-area-inline {
   padding-inline-start:calc(var(--space-6) + var(--safe-area-left));
   padding-inline-end:calc(var(--space-6) + var(--safe-area-right));
@@ -250,9 +282,11 @@ hr { border:0; border-top:var(--border-hairline) solid var(--border); margin:var
   --_pad-y:.625rem; --_pad-x:1.125rem;
   display:inline-flex; align-items:center; justify-content:center; gap:var(--space-2);
   min-inline-size:var(--target-size-min); min-block-size:var(--target-size-min);
+  max-inline-size:100%;
   padding:var(--_pad-y) var(--_pad-x);
   font-family:var(--font-body); font-size:var(--text-sm); font-weight:var(--weight-semibold);
-  line-height:1; letter-spacing:.005em; white-space:nowrap;
+  line-height:1.3; letter-spacing:.005em; white-space:normal;
+  text-align:center; overflow-wrap:anywhere;
   border:var(--border-hairline) solid transparent; border-radius:var(--radius-md);
   cursor:pointer; user-select:none; text-decoration:none;
   transition:background var(--duration-fast) var(--ease-standard),
@@ -262,16 +296,17 @@ hr { border:0; border-top:var(--border-hairline) solid var(--border); margin:var
 }
 .btn:active { transform:translateY(1px); }
 .btn:disabled,.btn[aria-disabled="true"] { opacity:.5; cursor:not-allowed; transform:none; }
-.btn-primary { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
-.btn-primary:hover { background:var(--accent-hover); border-color:var(--accent-hover); }
-.btn-primary:active { background:var(--accent-press); }
+.btn:hover { text-decoration:none; }
+.btn-primary { background:var(--action-bg); color:var(--action-ink); border-color:var(--action-bg); }
+.btn-primary:hover { background:var(--action-hover-bg); color:var(--action-ink); border-color:var(--action-hover-bg); }
+.btn-primary:active { background:var(--action-press-bg); color:var(--action-ink); border-color:var(--action-press-bg); }
 .btn-secondary { background:transparent; color:var(--text); border-color:var(--control-edge); }
-.btn-secondary:hover { border-color:var(--text-ghost); background:color-mix(in srgb, var(--text) 6%, transparent); }
+.btn-secondary:hover { color:var(--text); border-color:var(--text-ghost); background:color-mix(in srgb, var(--text) 6%, transparent); }
 .btn-ghost { background:transparent; color:var(--text-sub); border-color:transparent; }
 .btn-ghost:hover { color:var(--text); background:color-mix(in srgb, var(--text) 7%, transparent); }
 .btn-premium { background:transparent; color:var(--premium);
   border-color:color-mix(in srgb, var(--premium) 55%, transparent); }
-.btn-premium:hover { box-shadow:var(--shadow-glow-hatun);
+.btn-premium:hover { color:var(--premium); box-shadow:var(--shadow-glow-hatun);
   background:color-mix(in srgb, var(--premium) 10%, transparent); }
 .btn-lg { --_pad-y:.85rem; --_pad-x:1.5rem; font-size:var(--text-base); }
 .btn-sm { --_pad-y:.4rem;  --_pad-x:.8rem;  font-size:var(--text-xs); }
@@ -284,12 +319,12 @@ hr { border:0; border-top:var(--border-hairline) solid var(--border); margin:var
 /* --- 9 · CARDS (dark-first, optional orbital arc accent) ------------------- */
 .card {
   background:var(--surface); border:var(--border-hairline) solid var(--border);
-  border-radius:var(--radius-lg); padding:var(--space-6); box-shadow:var(--shadow-sm);
+  border-radius:var(--radius-lg); padding:var(--space-6); box-shadow:var(--shadow-card);
   transition:border-color var(--duration-base) var(--ease-standard),
              box-shadow var(--duration-base) var(--ease-standard);
 }
-.card:hover { box-shadow:var(--shadow-md); border-color:var(--border-subtle); }
-.card-raised { background:var(--surface-raised); box-shadow:var(--shadow-md); }
+.card:hover { box-shadow:var(--shadow-card-hover); border-color:var(--border-subtle); }
+.card-raised { background:var(--surface-raised); box-shadow:var(--shadow-card-hover); }
 .card-title { font-family:var(--font-display); font-size:var(--text-lg);
   font-weight:var(--weight-semibold); margin:0 0 var(--space-2); color:var(--text); }
 .card-orbit { position:relative; overflow:hidden; }
@@ -297,6 +332,15 @@ hr { border:0; border-top:var(--border-hairline) solid var(--border); margin:var
   width:140%; aspect-ratio:1; border-radius:var(--radius-full);
   border:1px solid color-mix(in srgb, var(--color-silver-300) 22%, transparent);
   transform:rotate(-22deg); pointer-events:none; }
+
+/* Opt-in foil edge: one silver/teal reflection, an opaque reading ground, no
+   overlay, animation, extra coral node or interaction implied by decoration.
+   Compatible with .card / .evidence-card and native forced-color boundaries. */
+.surface-holo,.surface-holo:hover {
+  border:var(--border-hairline) solid transparent;
+  background:linear-gradient(var(--surface),var(--surface)) padding-box,
+    var(--holo-edge) border-box;
+}
 
 /* --- 10 · BADGES + PROOF-STATUS CHIPS (honest vocabulary; never color-only) - */
 .badge { display:inline-flex; align-items:center; gap:var(--space-1);
@@ -326,56 +370,80 @@ hr { border:0; border-top:var(--border-hairline) solid var(--border); margin:var
 
 /* --- 11 · RECEIPT / PROOF chip (signature component) ----------------------- */
 .receipt { display:inline-flex; align-items:center; gap:var(--space-3);
+  flex-wrap:wrap; max-inline-size:100%;
   padding:var(--space-2) var(--space-3); font-family:var(--font-mono); font-size:var(--text-xs);
   background:var(--surface-alt); color:var(--text-sub);
   border:var(--border-hairline) solid var(--border); border-radius:var(--radius-sm);
   font-variant-numeric:tabular-nums lining-nums; }
 .receipt__dot { width:.55rem; height:.55rem; border-radius:var(--radius-full);
-  background:var(--color-success-light); flex:0 0 auto;
-  box-shadow:0 0 0 3px color-mix(in srgb, var(--color-success-light) 22%, transparent); }
-.receipt__root { color:var(--text); letter-spacing:.02em; }
+  background:var(--chip-ok); flex:0 0 auto;
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--chip-ok) 22%, transparent); }
+.receipt__root { color:var(--text); letter-spacing:.02em; min-inline-size:0;
+  overflow-wrap:anywhere; }
 .receipt__label { color:var(--text-ghost); text-transform:uppercase;
   letter-spacing:var(--tracking-caps); font-size:10px; }
-.receipt[data-state="unverified"] .receipt__dot { background:var(--color-warning-light);
-  box-shadow:0 0 0 3px color-mix(in srgb, var(--color-warning-light) 22%, transparent); }
-.receipt[data-state="failed"] .receipt__dot { background:var(--color-error-light);
-  box-shadow:0 0 0 3px color-mix(in srgb, var(--color-error-light) 22%, transparent); }
+.receipt[data-state="unverified"] .receipt__dot { background:var(--chip-warn);
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--chip-warn) 22%, transparent); }
+.receipt[data-state="failed"] .receipt__dot { background:var(--chip-bad);
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--chip-bad) 22%, transparent); }
 
 /* --- 12 · CODE BLOCK (Ollama-clean, copy-paste-first) ---------------------- */
-.code { position:relative; display:block; font-family:var(--font-mono);
+.code {
+  --text:var(--code-ink); --text-sub:var(--code-muted); --text-ghost:var(--code-muted);
+  --link:var(--code-link); --link-hover:var(--code-link-hover);
+  --border:var(--code-border); --control-edge:var(--code-edge); --focus:var(--code-focus);
+  --shadow-focus:0 0 0 3px color-mix(in srgb, var(--focus) 55%, transparent);
+  position:relative; display:block; min-inline-size:0; max-inline-size:100%;
+  font-family:var(--font-mono); color-scheme:dark;
   font-size:var(--text-sm); line-height:var(--leading-mono);
-  background:var(--bg-deep); color:var(--text);
+  background:var(--code-bg); color:var(--code-ink);
   border:var(--border-hairline) solid var(--border); border-radius:var(--radius-md);
   padding:var(--space-4) var(--space-5); overflow-x:auto; white-space:pre; tab-size:2; }
+.code[data-lang] { padding-block-start:var(--space-8); }
+.code--copyable,.code:has(.code__copy) { padding-block-end:var(--space-12); }
 .code::before { content:attr(data-lang); position:absolute; top:var(--space-2); right:var(--space-3);
   font-size:10px; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--text-ghost); }
 .code .tok-comment { color:var(--text-ghost); }
 .code .tok-key     { color:var(--link); }
-.code .tok-str     { color:var(--color-success-light); }
-.code .tok-num     { color:var(--premium); }
+.code .tok-str     { color:var(--code-string); }
+.code .tok-num     { color:var(--code-number); }
 .code__copy { position:absolute; bottom:var(--space-2); right:var(--space-2); }
 
 /* --- 13 · NAV (sticky, hairline, calm) ------------------------------------- */
 .nav { position:sticky; top:0; z-index:var(--z-sticky);
-  display:flex; align-items:center; gap:var(--space-6); height:64px; padding-inline:var(--space-6);
+  display:flex; flex-wrap:wrap; align-items:center; gap:var(--space-2) var(--space-6);
+  min-block-size:64px; padding:var(--space-2) var(--space-6);
   background:color-mix(in srgb, var(--bg) 82%, transparent);
   backdrop-filter:saturate(140%) blur(10px);
   border-bottom:var(--border-hairline) solid var(--border); }
 .nav__brand { display:flex; align-items:center; gap:var(--space-3);
+  min-inline-size:0; max-inline-size:100%; overflow-wrap:anywhere;
   font-family:var(--font-display); font-weight:var(--weight-bold);
   letter-spacing:var(--tracking-tight); color:var(--text); text-decoration:none; }
 .nav__brand img,.nav__brand svg { height:28px; width:auto; display:block; }
-.nav__links { display:flex; align-items:center; gap:var(--space-5); margin-left:auto; }
-.nav__link { font-size:var(--text-sm); font-weight:var(--weight-medium); color:var(--text-sub); }
+.nav__links { display:flex; flex-wrap:wrap; align-items:center; gap:var(--space-2) var(--space-5);
+  min-inline-size:0; margin-inline-start:auto; }
+.nav__link { display:inline-flex; align-items:center;
+  min-block-size:var(--target-size-min); padding-block:var(--space-1);
+  max-inline-size:100%; overflow-wrap:anywhere;
+  font-size:var(--text-sm); font-weight:var(--weight-medium); color:var(--text-sub); }
 .nav__link:hover,.nav__link[aria-current="page"] { color:var(--text); text-decoration:none; }
 .nav__link[aria-current="page"] { position:relative; }
-.nav__link[aria-current="page"]::after { content:""; position:absolute; left:0; right:0; bottom:-21px;
+.nav__link[aria-current="page"]::after { content:""; position:absolute; left:0; right:0; bottom:0;
   height:2px; background:var(--accent); border-radius:var(--radius-full); }
+@media (max-width:640px) {
+  /* A wrapped header stays in flow at narrow/zoomed widths so it cannot cover focus. */
+  .nav { position:relative; }
+  .nav__links { margin-inline-start:0; }
+}
+@media (pointer:coarse) {
+  .nav__brand,.nav__link { min-block-size:var(--target-size-coarse); }
+}
 
 /* --- 14 · HERO (deep-space; one orbital arc + one coral node) -------------- */
 .hero { position:relative; overflow:hidden; isolation:isolate; padding:clamp(4rem,10vw,8rem) 0;
   background:radial-gradient(120% 80% at 70% -10%,
-      color-mix(in srgb, var(--color-space-700) 60%, transparent), transparent 60%), var(--bg); }
+      var(--hero-atmosphere), transparent 60%), var(--bg); }
 .hero__inner { max-width:var(--container); margin-inline:auto; padding-inline:var(--space-6);
   position:relative; z-index:1; }
 .hero__title { font-family:var(--font-display); font-weight:var(--weight-bold);
@@ -424,6 +492,7 @@ hr { border:0; border-top:var(--border-hairline) solid var(--border); margin:var
 
 @media (forced-colors:active) {
   .chip::before,.receipt__dot,.hero__node { border:1px solid currentColor; }
+  .surface-holo,.surface-holo:hover { background:Canvas; border-color:CanvasText; }
 }
 .orbit-rule__node { width:7px; height:7px; border-radius:var(--radius-full);
   background:var(--accent); flex:0 0 auto; }

@@ -3,17 +3,25 @@
 
 # SLSA Build Level — SZL Holdings · a11oy
 
-**Current honest status: SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap** — images are cosign-signed and independently verifiable via `cosign verify` (L1), and a signed SLSA provenance attestation verifies via `cosign verify-attestation --type slsaprovenance` with strict per-organ identity (L2). L3 not claimed.
+**Current source-declared posture: SLSA L1. L2/L3 are not established.**
+The canonical implementation is `szl_provenance.SLSA_LEVEL = "L1"`; the public
+`/api/a11oy/provenance` and `/api/a11oy/v1/honest` responses expose that posture.
+This source declaration does not verify the current running image, every build,
+or any particular artifact signature.
 
-The published `ghcr.io/szl-holdings/a11oy` container image is cosign-signed on a GitHub Actions runner and carries a keyless (Fulcio+Rekor) SLSA provenance attestation. SLSA L2: the signed provenance from the hosted build platform verifies downstream via `cosign verify-attestation --type slsaprovenance` — independently re-verified across all 5 organ images. The workflow run that produced the signed image: [26896040944](https://github.com/szl-holdings/a11oy/actions/runs/26896040944).
+The evidence below records a historical image and a historical workflow run
+([26896040944](https://github.com/szl-holdings/a11oy/actions/runs/26896040944)).
+Re-verify the exact digest, expected signer identity, issuer and provenance before
+relying on it. An image signature or a historical attestation does not by itself
+establish complete current L2 coverage.
 
 | SLSA Build level | Requirement | SZL status (a11oy) |
 |---|---|---|
-| L1 | Provenance exists (may be unsigned) | ✅ Met |
-| L2 | Signed provenance from a hosted build platform, verifiable downstream | 🛣️ Build-attestation with Rekor evidence present (honest posture); full verified L2 = roadmap
-| L3 | Hardened, isolated builder; signing keys inaccessible to build steps | ⬜ Not claimed (requires a hardened, isolated build environment) |
+| L1 | Provenance exists (may be unsigned) | Source-declared by the canonical provenance service |
+| L2 | Signed provenance from a hosted build platform, verifiable downstream | Not established; review historical evidence per artifact |
+| L3 | Hardened, isolated builder; signing keys inaccessible to build steps | Not established |
 
-## Evidence
+## Historical evidence
 
 - Build + attest workflow: `.github/workflows/ghcr-build-push.yml`
   (`actions/attest-build-provenance@v2`, `attestations: write`, `id-token: write`,
@@ -34,13 +42,13 @@ cosign verify ghcr.io/szl-holdings/a11oy:uds-v0.2.0 \
 gh attestation verify oci://ghcr.io/szl-holdings/a11oy:uds-v0.2.0 --owner szl-holdings
 ```
 
-Verified image digest: `sha256:7473f3d9eb156b2911170d86d8834d1e8bd8deb06a2aff91c6904fef64ceed71`.
+Historically recorded image digest: `sha256:7473f3d9eb156b2911170d86d8834d1e8bd8deb06a2aff91c6904fef64ceed71`.
 Public Sigstore transparency-log entry (Rekor): log index **1710578865**
-(`https://search.sigstore.dev/?logIndex=1710578865`). Offline cryptographic
+(`https://search.sigstore.dev/?logIndex=1710578865`). The historical record reports that offline cryptographic
 verification of the DSSE bundle returned **VALID**; predicate
 `https://slsa.dev/provenance/v1`; subject digest matches the published image.
 
-SLSA L1 = cosign-signed images, verifiable via `cosign verify`. SLSA L2 = signed provenance attestation, verifiable via `cosign verify-attestation --type slsaprovenance` (strict identity) — verified on all 5 organ images. **L3 is not claimed.**
+A successful `cosign verify` authenticates an image signature under its verification policy. It is separate from validating provenance and assessing a SLSA level. **The current canonical posture remains L1; L2/L3 are not established.**
 
 ---
 

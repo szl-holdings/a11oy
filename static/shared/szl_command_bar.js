@@ -255,7 +255,7 @@
       moreMenu.style.right = 'auto';
       moreMenu.style.left = (left - overflow.getBoundingClientRect().left) + 'px';
       moreMenu.style.maxHeight = Math.max(44, viewportHeight - menuRect.top - 8) + 'px';
-      var items = moreMenu.querySelectorAll('a');
+      var items = moreMenu.querySelectorAll('a,button');
       if (items.length && focusLast != null) items[focusLast ? items.length - 1 : 0].focus();
     }
     moreBtn.addEventListener('click', function (ev) {
@@ -270,7 +270,7 @@
       } else if (ev.key === 'Escape') closeMore(false);
     });
     moreMenu.addEventListener('keydown', function (ev) {
-      var items = Array.prototype.slice.call(moreMenu.querySelectorAll('a'));
+      var items = Array.prototype.slice.call(moreMenu.querySelectorAll('a,button'));
       var index = items.indexOf(document.activeElement);
       if (ev.key === 'Escape') {
         ev.preventDefault();
@@ -306,6 +306,32 @@
       });
     }
     collectOverflow();
+
+    // Move the same controls into More on narrow consoles. State and keyboard
+    // behavior stay on their original elements; nothing is duplicated or lost.
+    if (consoleTheme) {
+      var compactMedia = global.matchMedia('(max-width: 820px)');
+      var compactControls = [
+        { node: investor, before: cmdkBtn },
+        { node: opBtn, before: estate },
+        { node: themeButton, before: overflow }
+      ];
+      function arrangeConsoleControls() {
+        closeMore(false);
+        compactControls.forEach(function (control) {
+          if (!control.node) return;
+          if (compactMedia.matches) {
+            control.node.setAttribute('role', 'menuitem');
+            moreMenu.appendChild(control.node);
+          } else {
+            control.node.removeAttribute('role');
+            sw.insertBefore(control.node, control.before);
+          }
+        });
+      }
+      compactMedia.addEventListener('change', arrangeConsoleControls);
+      arrangeConsoleControls();
+    }
 
     var lastHead = null;
     function probe() {
