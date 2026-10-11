@@ -9,6 +9,7 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import os
 import pathlib
 import socket
 import stat
@@ -277,6 +278,43 @@ def _is_link(path: pathlib.Path) -> bool:
         return False
 
 
+def recovery_display_records() -> dict[str, Any]:
+    """Read one stale-index journal for display. Absence is NOT_RUN, not success."""
+    path_raw = os.environ.get("A11OY_STALE_INDEX_RECOVERY_JSON", "").strip()
+    empty = {"state": "NOT_RUN", "records": [], "production_authority": False}
+    if not path_raw:
+        return empty
+    path = pathlib.Path(path_raw)
+    try:
+        if _is_link(path):
+            return {"state": "UNAVAILABLE", "records": [], "production_authority": False}
+        raw = path.read_bytes()
+        if len(raw) > MAX_REQUEST_BYTES:
+            return {"state": "UNAVAILABLE", "records": [], "production_authority": False}
+        payload = decode_json(raw)
+    except (OSError, ValueError, UnicodeError, RecursionError):
+        return {"state": "UNAVAILABLE", "records": [], "production_authority": False}
+    records = payload.get("records")
+    if not isinstance(records, list):
+        return {"state": "UNAVAILABLE", "records": [], "production_authority": False}
+    shown = []
+    for item in records[:32]:
+        if not isinstance(item, dict):
+            continue
+        shown.append({
+            "state": item.get("state"),
+            "operation_id": item.get("operation_id"),
+            "source_path": item.get("source_path"),
+            "source_revision": item.get("source_revision"),
+            "source_digest": item.get("source_digest"),
+            "parent_transition_id": item.get("parent_transition_id"),
+            "evidence_ref": item.get("evidence_ref"),
+            "created_at": item.get("created_at"),
+            "production_authority": False,
+        })
+    return {"state": "DISPLAYED", "records": shown, "production_authority": False}
+
+
 def ledger_snapshot() -> tuple[int, dict[str, Any]]:
     try:
         if _is_link(LEDGER) or any(_is_link(parent) for parent in LEDGER.parents):
@@ -298,6 +336,7 @@ def ledger_snapshot() -> tuple[int, dict[str, Any]]:
             "chainIntegrity": integrity,
             "evaluationOnly": True,
             "executable": False,
+            "recoveryRecords": recovery_display_records(),
         }
     except FileNotFoundError:
         return 404, {"error": "ledger has not been built", "evaluationOnly": True}

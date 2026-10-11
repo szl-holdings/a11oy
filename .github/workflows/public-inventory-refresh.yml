@@ -32,10 +32,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
+      - name: Install the existing model projection import closure
+        run: python -m pip install 'fastapi==0.141.1' 'starlette==1.6.0'
       - name: Bind exact source and preserve previous observation
         env:
           EXPECTED_SHA: ${{ inputs.expected_sha || github.sha }}
@@ -56,9 +59,13 @@ jobs:
           python scripts/audit_huggingface_ecosystem.py
           python scripts/build_ecosystem_stage_matrix.py
           python scripts/render_public_estate_alignment.py
+          python scripts/build_model_pretraining_projection.py --write
           python scripts/build_ecosystem_stage_matrix.py --check
           python scripts/render_public_estate_alignment.py --check
+          python scripts/build_model_pretraining_projection.py --check
+          python -B scripts/collect_model_inference_support.py --check
           python -m unittest tests.test_public_estate_alignment -v
+          python -B -m unittest discover -s tests -p 'test_hf_inventory_refresh*.py' -v
           python tests/test_hf_public_inventory.py
           sha256sum --check /tmp/public-inventory-refresh/policy.sha256
       - name: Independently verify complete membership and record exact output bytes
@@ -74,6 +81,7 @@ jobs:
               'docs/generated/github-org-public-estate.md',
               'docs/generated/huggingface-org-card.md',
               'docs/generated/a11oy-net-public-estate.md',
+              'routers/data/model-pretraining-snapshot.json',
           ]
           root = Path('/tmp/public-inventory-refresh')
           previous = json.loads((root/'previous-manifest.json').read_text())
@@ -122,7 +130,7 @@ jobs:
           case "$branch" in maintenance/public-inventory/*) ;; *) exit 2;; esac
           test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/$branch" --jq .object.sha)" = "$GITHUB_SHA"
           if git diff --quiet; then exit 0; fi
-          git add -- docs/huggingface-ecosystem-manifest.json docs/ecosystem-stage-matrix.json docs/generated/github-org-public-estate.md docs/generated/huggingface-org-card.md docs/generated/a11oy-net-public-estate.md
+          git add -- docs/huggingface-ecosystem-manifest.json docs/ecosystem-stage-matrix.json docs/generated/github-org-public-estate.md docs/generated/huggingface-org-card.md docs/generated/a11oy-net-public-estate.md routers/data/model-pretraining-snapshot.json
           git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit --signoff -m 'docs(estate): regenerate source-bound public inventory and projections'
           gh auth setup-git
           git push origin "HEAD:refs/heads/$branch"

@@ -23,12 +23,19 @@ import sys
 
 # Reference forms emitted by Vite, all resolving to a sibling asset file:
 #   from"./index-XXXX.js"      import"./chunk.js"      import("./chunk.js")
+#   import(`./chunk.js`)        (static template literal; no ${...} expression)
 #   export{...}from"./layout-XXXX.js"
 #   __vite__mapDeps table entries: "assets/HomePage-XXXX.js", "assets/ui-XXXX.css"
 # We capture the trailing basename and check it exists in the assets dir. Both .js
 # and .css are checked: a dangling preloaded stylesheet is a real 404 too.
 _REL_REF = re.compile(r"""["'](?:\.{1,2}/)+([A-Za-z0-9_.\-]+\.(?:js|css))["']""")
 _ASSETS_REF = re.compile(r"""["'](?:\.{0,2}/)?assets/([A-Za-z0-9_.\-]+\.(?:js|css))["']""")
+_REL_TEMPLATE_REF = re.compile(
+    r"""`(?:\.{1,2}/)+([A-Za-z0-9_.\-]+\.(?:js|css))`"""
+)
+_ASSETS_TEMPLATE_REF = re.compile(
+    r"""`(?:\.{0,2}/)?assets/([A-Za-z0-9_.\-]+\.(?:js|css))`"""
+)
 
 
 def scan_dir(assets_dir):
@@ -47,7 +54,12 @@ def scan_dir(assets_dir):
         path = os.path.join(assets_dir, fname)
         with open(path, "r", encoding="utf-8", errors="replace") as fh:
             text = fh.read()
-        refs = set(_REL_REF.findall(text)) | set(_ASSETS_REF.findall(text))
+        refs = (
+            set(_REL_REF.findall(text))
+            | set(_ASSETS_REF.findall(text))
+            | set(_REL_TEMPLATE_REF.findall(text))
+            | set(_ASSETS_TEMPLATE_REF.findall(text))
+        )
         for ref in refs:
             if ref == fname:
                 continue  # a chunk may reference its own name in a string

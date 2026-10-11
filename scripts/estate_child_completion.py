@@ -25,6 +25,12 @@ VERTICAL_JOB = "Publish and live-verify six domain-native flagship Spaces"
 VERTICAL_GATE = "Enforce complete explicitly requested vertical publication"
 EDGE_JOB = "Deploy, cut over exact DNS proxy state, and prove the public edge"
 EDGE_GATE = "Enforce proved live edge"
+# Exact hf-sync.yml job names that must succeed for canonical completion.
+# tests/test_hf_sync_no_exact_pins.py fails if hf-sync.yml renames either.
+HF_SYNC_COMPLETION_JOBS = (
+    "Prove exact live source, runtime, routes, and singleton state",
+    "Probe and ingest exact post-deploy readiness verdict",
+)
 MAX_BYTES = 8 * 1024 * 1024
 
 
@@ -192,8 +198,7 @@ def validate_jobs(jobs: list[dict], child: dict) -> None:
                 "child job pending/failed or origin mismatch")
     require(any(job["conclusion"] == "success" for job in jobs), "no executed child job")
     if child["workflow"] == "hf-sync.yml":
-        for name in ("Prove exact live source, runtime, routes, and singleton state",
-                     "Probe and ingest exact post-deploy readiness verdict"):
+        for name in HF_SYNC_COMPLETION_JOBS:
             matched = [job for job in jobs if job.get("name") == name]
             require(len(matched) == 1 and matched[0]["conclusion"] == "success",
                     "canonical product completion job missing/skipped")

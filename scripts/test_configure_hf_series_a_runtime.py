@@ -516,7 +516,8 @@ def test_configure_proceeds_only_when_installed_authority_is_verified(monkeypatc
     api = ConvergedApi()
     monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(HfApi=lambda **_kwargs: api))
     kwargs = {"repo_id": config.CANONICAL_SPACE, "bucket": config.CANONICAL_BUCKET,
-              "token": "synthetic-hf-control", "check_only": False}
+              "token": "synthetic-hf-control", "check_only": False,
+              "expected_source_sha": "a" * 40, "main_reader": lambda: "a" * 40}
     report = config.configure(**kwargs, authority_get=pinned_get)
     assert report["converged"] is True
     assert report["credential_authority_state"] == "VERIFIED"
@@ -614,7 +615,8 @@ def test_configure_cannot_mutate_even_when_all_secret_names_are_present(monkeypa
     monkeypatch.setitem(sys.modules, "huggingface_hub",
                         SimpleNamespace(HfApi=lambda **_kwargs: api))
     kwargs = {"repo_id": config.CANONICAL_SPACE, "bucket": config.CANONICAL_BUCKET,
-              "token": "synthetic-hf-control", "check_only": check_only}
+              "token": "synthetic-hf-control", "check_only": check_only,
+              "expected_source_sha": "a" * 40, "main_reader": lambda: "a" * 40}
     if check_only:
         assert_setup_required(config.configure(**kwargs), api, "AUTHORITY_ORIGIN_UNAVAILABLE")
     else:

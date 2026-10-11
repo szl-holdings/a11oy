@@ -5,54 +5,45 @@
 # Sign-off: Stephen P. Lutar <stephenlutar2@gmail.com>
 """szl_sovereign_panel.py — Sovereign Local Model panel (Wave M, Dev 4).
 
-GET /api/a11oy/v1/frontier/sovereign returns the operator-facing status of the
-founder's LOCAL sovereign model — the llama3-based, Doctrine-v11-wrapped model the
-founder is standing up on the Tower (OMEN, RTX 4060 Ti) via Ollama, served
-OpenAI-compatible at ``SZL_LOCAL_LLM_URL`` (default http://localhost:11434/v1).
+GET /api/a11oy/v1/frontier/sovereign returns a public read-only status for the
+configured sovereign model endpoint. The declared design uses a local Ollama
+model, but this GET cannot verify who operates the responding endpoint or what
+hardware, weights, or prompt wrapper it uses.
 
-The panel surfaces FOUR honest signals, and NEVER fabricates a live one:
+The public panel surfaces three honest read-only signals:
 
-  1. reachability — is the local sovereign endpoint reachable RIGHT NOW? The Tower is
-     NOT reachable from CI/cloud, so from a Space/CI run this MUST degrade to an
-     honest UNAVAILABLE (never a fabricated "reachable"). We prefer Dev-1's routed
-     health helper (`szl_llm_registry.sovereign_probe`, which also backs Dev-1's
-     GET /api/a11oy/v1/llm/sovereign/health); if that module is not present yet we
-     probe SZL_LOCAL_LLM_URL directly and record the dependency honestly.
+  1. reachability — did the configured metadata endpoint answer THIS request?
+     This does not identify the host, GPU, weights, or doctrine wrapper. We use the
+     guarded helper (`szl_llm_registry.sovereign_probe`, which also backs
+     GET /api/a11oy/v1/llm/sovereign/health). If unavailable, we fail closed
+     instead of making a direct URL request.
 
-  2. doctrine self-test — asks the local model "State your doctrine in one line" and
-     shows the model's REAL answer WHEN the node is reachable; otherwise an honest
-     UNAVAILABLE (the intended prompt + backend id are still recorded — no answer is
-     invented). Backed by `szl_llm_registry.sovereign_generate`.
+  2. doctrine self-test — UNAVAILABLE on this GET. Inference is a governed write,
+     never an implicit side effect of a public status read. Historical answers and
+     receipts, if any, must be obtained through their separately governed paths.
 
-  3. Stage A-vs-B — Stage A is the system-prompt derivative running NOW (a
-     Doctrine-v11 SYSTEM prompt wrapped around base llama3.1:8b); Stage B is the real
-     LoRA fine-tune on the founder's corpus (later — Dev 3's `feat/stage-b-lora`
-     pipeline). We report which stage the LIVE node's served model tag indicates,
-     honestly UNKNOWN when the node is unreachable.
+  3. Stage A-vs-B — declared system-prompt derivative versus roadmap LoRA.
+     Served tags provide only a hint, not evidence of a prompt wrapper or weights.
 
-  4. a signed receipt of the check — a DSSE envelope over the assembled panel
-     snapshot (REAL ECDSA-P256 in-Space when the cosign key is present, honest
-     UNSIGNED-LOCAL otherwise — never a fabricated signature). This is the "receipt
-     of the check" — the check ran and its result is attested, even when the answer
-     is UNAVAILABLE.
+The GET does not mint or reclassify any receipt. It also withholds the private
+backend URL, probe diagnostics, and served-model inventory from its public JSON.
 
 DOCTRINE v11:
   - Adds NOTHING to the locked-8 {F1,F4,F7,F11,F12,F18,F19,F22} @ kernel c7c0ba17;
     touches no locked formula and no kernel.
   - Λ stays Conjecture 1 (advisory, never "green"/theorem). Trust ceiling 0.97.
-  - Honest labels ONLY: LIVE-SOVEREIGN when the node answered live THIS request;
-    UNAVAILABLE when it did not (Tower down / SZL_LOCAL_LLM_URL unset). No label is
-    ever upgraded and no answer is fabricated (Zero-Bandaid Law).
+  - Public sovereign provenance is UNKNOWN when a metadata endpoint answers and
+    UNAVAILABLE when it does not. A 2xx model list cannot prove owned hardware,
+    weights, or a doctrine wrapper.
   - Additive route, registered BEFORE the SPA catch-all; 0 runtime CDN.
 """
 from __future__ import annotations
 
 import datetime
-import hashlib
 from typing import Any
 
-# Honesty-label vocabulary (doctrine v11) — tests grep these exact strings.
-LIVE_SOVEREIGN = "LIVE-SOVEREIGN"
+# Honesty-label vocabulary (doctrine v11).
+UNKNOWN = "UNKNOWN"
 UNAVAILABLE = "UNAVAILABLE"
 MODELED = "MODELED"
 
@@ -66,16 +57,14 @@ SOVEREIGN_BACKEND_ID = "szl-sovereign-local"
 SOVEREIGN_MODEL_TAG = "llama3-szl-finetuned-q4"
 DOCTRINE_SELFTEST_PROMPT = "State your doctrine in one line"
 
-# Dev-1's routed health endpoint (this panel is a READER of it; if Dev-1's PR is not
-# merged yet we fall back to the registry helper / a direct probe and say so).
+# Related routed health endpoint; the panel uses the same guarded registry helper.
 DEV1_HEALTH_ROUTE = "/api/a11oy/v1/llm/sovereign/health"
 
-# Machine-readable reasons for an UNAVAILABLE sovereign. These distinguish the two
-# honestly-different causes so an operator (and the surface HUD) can tell an
-# UNCONFIGURED estate apart from a CONFIGURED-but-down node. Neither is a code bug
-# and neither is ever upgraded to a live label.
+# Machine-readable reasons distinguish an unset endpoint, an unreachable node,
+# and a failed guarded helper without guessing which configuration exists.
 REASON_ENV_UNSET = "SZL_LOCAL_LLM_URL_UNSET"          # no Tower targeted at all
 REASON_NODE_UNREACHABLE = "NODE_UNREACHABLE_THIS_REQUEST"  # env set, node silent
+REASON_PROBE_UNAVAILABLE = "GUARDED_PROBE_UNAVAILABLE"  # helper failed; no direct fallback
 REASON_NONE = None                                     # reachable — no reason needed
 
 # How the probed base URL was chosen (env vs the localhost fallback default).
@@ -100,17 +89,9 @@ def _now_iso() -> str:
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
 
 
-def _sha256_hex(*parts: bytes) -> str:
-    h = hashlib.sha256()
-    for p in parts:
-        h.update(p)
-    return h.hexdigest()
-
-
 # ---------------------------------------------------------------------------
 # 1. Reachability + served-model probe — REAL, never fabricated.
-#    Prefer Dev-1's registry helper (`sovereign_probe`, which also backs the routed
-#    GET /llm/sovereign/health); else probe SZL_LOCAL_LLM_URL directly + note the dep.
+#    Use the guarded registry helper. Do not fall back to an unguarded URL fetch.
 # ---------------------------------------------------------------------------
 
 def _probe_reachability() -> dict[str, Any]:
@@ -148,116 +129,39 @@ def _probe_reachability() -> dict[str, Any]:
         out["base_url_source"] = BASE_FROM_ENV if out["env_present"] else BASE_FROM_DEFAULT
         out["unavailable_reason"] = unavailable_reason(out["reachable"], out["env_present"])
         return out
-    except Exception as exc:  # noqa: BLE001 — Dev-1 module absent → honest direct fallback
-        out["dependency"] = (
-            "PENDING: szl_llm_registry.sovereign_probe unavailable (%s). Dev-1's "
-            "%s not merged in this runtime — falling back to a DIRECT probe of "
-            "SZL_LOCAL_LLM_URL and reporting honestly." % (type(exc).__name__, DEV1_HEALTH_ROUTE)
-        )
-    # Direct fallback: probe SZL_LOCAL_LLM_URL ourselves (pure stdlib, short timeout,
-    # never raises, never fabricates reachable=True).
-    import json as _json
-    import os as _os
-    import urllib.request as _rq
-
-    base = (_os.environ.get("SZL_LOCAL_LLM_URL", "") or "").strip().rstrip("/")
-    out["base_url"] = base or None
-    out["env_present"] = bool(base)
-    out["via"] = "direct SZL_LOCAL_LLM_URL probe (Dev-1 helper absent)"
-    out["base_url_source"] = BASE_FROM_ENV if base else BASE_FROM_DEFAULT
-    out["unavailable_reason"] = unavailable_reason(False, bool(base))
-    if not base:
-        out["note"] = ("SZL_LOCAL_LLM_URL not set — sovereign node is an HONEST STUB; "
-                       "reachability UNAVAILABLE (never fabricated).")
+    except Exception:  # noqa: BLE001 — no unguarded fallback or diagnostic disclosure
+        out["env_present"] = None  # cannot distinguish unset from configured here
+        out["unavailable_reason"] = REASON_PROBE_UNAVAILABLE
+        out["note"] = "guarded sovereign probe unavailable; status UNAVAILABLE."
         return out
-    # The env default is …/v1 (OpenAI-compatible); ollama's native /api/tags lives at
-    # the host root, so strip a trailing /v1 for the native probe.
-    root = base[:-3].rstrip("/") if base.endswith("/v1") else base
-    for url, kind, key, itemkey in (
-        (root + "/api/tags", "ollama /api", "models", "name"),
-        (base + "/models", "openai /v1", "data", "id"),
-        (root + "/v1/models", "openai /v1", "data", "id"),
-    ):
-        try:
-            req = _rq.Request(url, method="GET", headers={"Accept": "application/json"})
-            with _rq.urlopen(req, timeout=4.0) as r:  # noqa: S310
-                if not (200 <= int(getattr(r, "status", 200) or 200) < 300):
-                    continue
-                doc = _json.loads(r.read().decode("utf-8", "replace"))
-        except Exception:  # noqa: BLE001 — unreachable/timeout → try next / honest UNAVAILABLE
-            continue
-        if isinstance(doc, dict) and isinstance(doc.get(key), list):
-            names = [str(m.get(itemkey)) for m in doc[key]
-                     if isinstance(m, dict) and m.get(itemkey)]
-            out["reachable"] = True
-            out["models"] = names
-            out["api_style"] = kind
-            out["unavailable_reason"] = REASON_NONE
-            out["note"] = "node live (%s) — model list real THIS request (direct probe)." % kind
-            return out
-    out["note"] = ("SZL_LOCAL_LLM_URL set but node did not respond live this request "
-                   "(direct probe) — honest UNAVAILABLE, never fabricated.")
-    return out
 
 
 # ---------------------------------------------------------------------------
-# 2. Doctrine self-test — REAL local answer when reachable, else honest UNAVAILABLE.
+# 2. Doctrine self-test — not run by a public GET.
 # ---------------------------------------------------------------------------
 
-def _doctrine_selftest(reachable: bool) -> dict[str, Any]:
-    """Ask the local model to state its doctrine in one line. Shows the REAL answer
-    only when the node answered live THIS request; otherwise honest UNAVAILABLE with
-    the intended prompt + backend id recorded (no invented answer)."""
-    st: dict[str, Any] = {
+def _doctrine_selftest() -> dict[str, Any]:
+    """Describe the self-test without generating or changing inference state."""
+    return {
         "prompt": DOCTRINE_SELFTEST_PROMPT,
         "backend_id": SOVEREIGN_BACKEND_ID,
         "model_tag": SOVEREIGN_MODEL_TAG,
         "label": UNAVAILABLE,
         "answer": None,
         "live": False,
-        "note": "",
+        "note": "NOT RUN on public GET; no generation or answer claimed.",
     }
-    if not reachable:
-        st["note"] = ("local sovereign node not reachable this request — doctrine "
-                      "self-test UNAVAILABLE (Tower down / CI cannot reach the Tower). "
-                      "No answer fabricated.")
-        return st
-    try:
-        import szl_llm_registry as _reg  # local import (in Dockerfile COPY set)
-        gen = _reg.sovereign_generate(DOCTRINE_SELFTEST_PROMPT)
-    except Exception as exc:  # noqa: BLE001 — helper absent → honest UNAVAILABLE
-        st["note"] = ("doctrine self-test could not run (szl_llm_registry absent: %s) — "
-                      "honest UNAVAILABLE." % type(exc).__name__)
-        return st
-    if gen.get("live") and isinstance(gen.get("text"), str) and gen["text"].strip():
-        answer = gen["text"].strip()
-        st.update({
-            "label": LIVE_SOVEREIGN,
-            "answer": answer,
-            "live": True,
-            "model_served": gen.get("model"),
-            "api_style": gen.get("api_style"),
-            "answer_sha256": _sha256_hex(answer.encode("utf-8")),
-            "note": "REAL local generation THIS request (%s)." % (gen.get("api_style") or "local"),
-        })
-        return st
-    st["note"] = ("node did not generate live this request — honest UNAVAILABLE "
-                  "(no fabricated doctrine line). %s" % (gen.get("note") or ""))
-    return st
 
 
 # ---------------------------------------------------------------------------
-# 3. Stage A-vs-B — structural + a LIVE-derived stage hint (honest UNKNOWN when down).
+# 3. Stage A-vs-B — structural declarations plus an unverified tag hint.
 # ---------------------------------------------------------------------------
 
 def _stage_status(reach: dict[str, Any]) -> dict[str, Any]:
-    """Stage A = system-prompt derivative (now); Stage B = real LoRA fine-tune (later,
-    Dev 3). We derive a stage HINT from the live node's served tags, honestly UNKNOWN
-    when the node is unreachable. Definitional fields never claim a live measurement."""
+    """Return Stage A/B declarations plus an unverified served-tag hint."""
     models = [str(m).lower() for m in (reach.get("models") or [])]
     reachable = bool(reach.get("reachable"))
-    # If the finetuned tag is being served live, the node is at least presenting Stage B's
-    # tag; a plain base tag indicates Stage A (system-prompt wrapper). Honest, tag-based hint.
+    # A served tag never attests the underlying prompt wrapper or weights.
     if not reachable:
         active = "UNKNOWN"
         active_note = "node unreachable — cannot observe the served tag; stage UNKNOWN (honest)."
@@ -266,9 +170,9 @@ def _stage_status(reach: dict[str, Any]) -> dict[str, Any]:
         active_note = ("the finetuned tag (%s) is served live — the node presents Stage B's "
                        "tag; whether real LoRA weights back it is a Dev-3 deliverable." % SOVEREIGN_MODEL_TAG)
     elif any("llama3" in m for m in models):
-        active = "STAGE_A"
-        active_note = ("a base llama3 tag is served live and the finetuned tag is NOT — Stage A "
-                       "(Doctrine-v11 system-prompt derivative over base llama3.1:8b).")
+        active = "STAGE_A_TAG_PRESENT"
+        active_note = ("a base llama3 tag is served; this is only a Stage A hint. "
+                       "The prompt wrapper and weights are not verified by a model-list GET.")
     else:
         active = "UNKNOWN"
         active_note = ("node live but served tags do not match the expected sovereign tags; "
@@ -277,72 +181,26 @@ def _stage_status(reach: dict[str, Any]) -> dict[str, Any]:
         "label": MODELED,
         "active_stage": active,
         "active_note": active_note,
-        "served_models_live": reach.get("models") or [],
+        "served_models_live": [],  # public status never exports private inventory
         "stage_a": {
             "id": "A",
-            "name": "system-prompt derivative (NOW)",
-            "what": ("base llama3.1:8b wrapped with a Doctrine-v11 SYSTEM prompt via Ollama; "
-                     "no weight change — behavior comes from the system prompt."),
-            "status": "LIVE-WHEN-REACHABLE",
+            "name": "system-prompt derivative (DECLARED)",
+            "what": ("Declared design: base llama3.1:8b wrapped with a Doctrine-v11 "
+                     "SYSTEM prompt via Ollama; this GET does not verify that wrapper."),
+            "status": "DECLARED (not verified by this metadata probe)",
         },
         "stage_b": {
             "id": "B",
             "name": "real LoRA fine-tune (LATER)",
             "what": ("4-bit QLoRA fine-tune of llama3.1:8b on the founder's corpus, exported to "
                      "GGUF + an Ollama ADAPTER so Stage B replaces Stage A under the SAME tag "
-                     "(%s). Delivered by Dev 3's feat/stage-b-lora pipeline." % SOVEREIGN_MODEL_TAG),
+                     "(%s). Planned in Dev 3's feat/stage-b-lora pipeline." % SOVEREIGN_MODEL_TAG),
             "status": "ROADMAP (Dev 3 — feat/stage-b-lora)",
         },
         "same_tag_swap": ("Stage B replaces Stage A under the SAME ollama tag (%s), so this panel "
                           "and the router need no change when the founder swaps in real weights."
                           % SOVEREIGN_MODEL_TAG),
     }
-
-
-# ---------------------------------------------------------------------------
-# 4. Signed receipt of the check — REAL DSSE in-Space, honest UNSIGNED-LOCAL else.
-# ---------------------------------------------------------------------------
-
-def _sign_receipt(snapshot: dict[str, Any]) -> dict[str, Any]:
-    """DSSE envelope over the panel snapshot (the "receipt of the check"). REAL
-    ECDSA-P256 when the cosign key is present in the runtime, honest UNSIGNED-LOCAL
-    otherwise — never a fabricated signature."""
-    receipt_body = {
-        "kind": "sovereign_panel_check",
-        "backend_id": SOVEREIGN_BACKEND_ID,
-        "model_tag": SOVEREIGN_MODEL_TAG,
-        "reachable": snapshot.get("sovereign", {}).get("reachable"),
-        "label": snapshot.get("label"),
-        "doctrine_selftest_label": snapshot.get("doctrine_selftest", {}).get("label"),
-        "active_stage": snapshot.get("stage", {}).get("active_stage"),
-        "checked_at": snapshot.get("timestamp_utc"),
-    }
-    try:
-        import szl_dsse as _dsse  # local import (in Dockerfile COPY set)
-        env = _dsse.sign_payload(receipt_body, payload_type="application/vnd.szl.sovereign-check+json")
-        signed = bool(env.get("signed"))
-        return {
-            "receipt": receipt_body,
-            "dsse": env,
-            "signed": signed,
-            "sign_mode": "DSSE-LIVE" if signed else "UNSIGNED-LOCAL",
-            "signer_fingerprint": (_dsse.public_key_fingerprint()
-                                   if hasattr(_dsse, "public_key_fingerprint") else None),
-            "note": ("REAL ECDSA-P256 DSSE over the check snapshot."
-                     if signed else
-                     "UNSIGNED-LOCAL — no cosign private key in this runtime; receipt "
-                     "explicitly unsigned (never fabricated)."),
-        }
-    except Exception as exc:  # noqa: BLE001 — signer absent → honest self-hash, never faked sig
-        return {
-            "receipt": receipt_body,
-            "dsse": None,
-            "signed": False,
-            "sign_mode": "UNSIGNED-LOCAL",
-            "content_sha256": _sha256_hex(repr(sorted(receipt_body.items())).encode("utf-8")),
-            "note": ("DSSE signer unavailable (%s) — receipt is UNSIGNED-LOCAL with a plain "
-                     "content hash; no signature fabricated." % type(exc).__name__),
-        }
 
 
 # ---------------------------------------------------------------------------
@@ -362,80 +220,79 @@ def _doctrine_block() -> dict[str, Any]:
         "runtime_cdn": 0,
         "note": ("additive sovereign-status surface; touches no locked formula and no "
                  "kernel; introduces no theorem, no green/1.0, no proof of Λ. Degrades "
-                 "to honest UNAVAILABLE when the Tower is unreachable — never fabricated."),
+                 "to honest UNAVAILABLE when the guarded endpoint is unreachable."),
     }
 
 
 def build_payload() -> dict[str, Any]:
-    """Compose the sovereign panel snapshot + sign a receipt of the check.
-
-    ORDER MATTERS: probe first, self-test gated on reachability, stage derived from the
-    probe, THEN sign the assembled snapshot so the receipt attests exactly what was seen.
-    """
+    """Compose a public status-only snapshot without inference or a new receipt."""
     reach = _probe_reachability()
     reachable = bool(reach.get("reachable"))
-    selftest = _doctrine_selftest(reachable)
+    selftest = _doctrine_selftest()
     stage = _stage_status(reach)
 
-    top_label = LIVE_SOVEREIGN if reachable else UNAVAILABLE
-    # A served-model label for the healthz rollup + the panel header (honest).
-    live_models = reach.get("models") or []
-    model_label = (live_models[0] if (reachable and live_models) else SOVEREIGN_MODEL_TAG)
+    top_label = UNKNOWN if reachable else UNAVAILABLE
     reason = reach.get("unavailable_reason") if not reachable else REASON_NONE
     reason_text = {
         REASON_ENV_UNSET: ("SZL_LOCAL_LLM_URL is not set in this runtime, so no Tower was "
                            "named; the probe fell back to the localhost default and was "
                            "refused. This is an ENVIRONMENT GAP, not a failed node and not "
-                           "a code fault — set SZL_LOCAL_LLM_URL to a reachable sovereign "
-                           "node and this surface goes live on the next request."),
+                           "a code fault. Configuring a reachable endpoint can establish "
+                           "metadata reachability, not sovereign ownership or GPU proof."),
         REASON_NODE_UNREACHABLE: ("SZL_LOCAL_LLM_URL is set but the node did not answer this "
                                   "request (Tower down, or not routable from this runtime). "
                                   "Honest UNAVAILABLE — no status or answer is fabricated."),
+        REASON_PROBE_UNAVAILABLE: ("The guarded metadata probe is unavailable in this runtime. "
+                                    "No direct fallback or inference was attempted."),
     }.get(reason)
 
     snapshot: dict[str, Any] = {
         "ok": True,
         "endpoint": "frontier/sovereign",
         "service": "a11oy.frontier.sovereign",
-        "title": "Sovereign Local Model — status, doctrine self-test, Stage A/B, signed receipt",
+        "title": "Sovereign Local Model — read-only status and Stage A/B context",
         "label": top_label,
         "claim": top_label,
-        "what": ("operator status of the founder's LOCAL sovereign model (Ollama on the Tower, "
-                 "Doctrine-v11 system prompt over base llama3.1:8b; model tag %s). The Tower is "
-                 "NOT reachable from CI/cloud, so this degrades to honest UNAVAILABLE off-Tower — "
-                 "never a fabricated 'reachable' or a fabricated doctrine line." % SOVEREIGN_MODEL_TAG),
+        "what": ("Read-only status of the configured model metadata endpoint. A response "
+                 "does not prove an owned GPU, model weights, or the declared doctrine "
+                 "wrapper; no inference or receipt is produced by this GET."),
         "backend_id": SOVEREIGN_BACKEND_ID,
         "model_tag": SOVEREIGN_MODEL_TAG,
+        "endpoint_reachable": reachable,
+        "label_basis": "Metadata reachability only; sovereign provenance remains unverified.",
+        "gpu_verified": False,
+        "weights_verified": False,
+        "doctrine_wrapper_verified": False,
+        "ownership_proof": UNAVAILABLE,
         "sovereign": {
             "reachable": reachable,
-            "model": model_label,
+            "model": SOVEREIGN_BACKEND_ID,
             "label": top_label,
-            "base_url": reach.get("base_url"),
+            "gpu_verified": False,
+            "ownership_proof": UNAVAILABLE,
             "env_present": reach.get("env_present"),
-            "api_style": reach.get("api_style"),
-            "base_url_source": reach.get("base_url_source"),
             "unavailable_reason": reason,
             "unavailable_reason_text": reason_text,
-            "models_live": live_models,
-            "via": reach.get("via"),
-            "dependency": reach.get("dependency"),
-            "note": reach.get("note"),
         },
         "unavailable_reason": reason,
         "unavailable_reason_text": reason_text,
         "doctrine_selftest": selftest,
+        "receipt_status": {
+            "label": UNAVAILABLE,
+            "receipt_minted": False,
+            "note": ("Public GET does not mint a receipt. Existing receipts, if any, "
+                     "are neither read nor reclassified here."),
+        },
         "stage": stage,
         "dev1_health_route": DEV1_HEALTH_ROUTE,
         "doctrine": _doctrine_block(),
         "labels_legend": {
-            LIVE_SOVEREIGN: "the local sovereign node answered live THIS request — real, not fabricated",
-            UNAVAILABLE: "the local node was not reachable this request (Tower down / off-Tower / unset) — honest, never faked",
+            UNKNOWN: "metadata endpoint reachable; owner, GPU, and weights not verified",
+            UNAVAILABLE: "metadata endpoint was not reachable or guarded probe unavailable",
             MODELED: "structural/definitional description — not a live measurement",
         },
         "timestamp_utc": _now_iso(),
     }
-    # Sign a receipt of the check (over the assembled snapshot). Attaches to the payload.
-    snapshot["signed_receipt"] = _sign_receipt(snapshot)
     return snapshot
 
 
@@ -443,23 +300,25 @@ def rollup_signal() -> dict[str, Any]:
     """Compact {reachable, model, label} for the GET /api/a11oy/healthz rollup (Wave L).
 
     Guarded + honest: on any failure returns reachable=False + UNAVAILABLE (never fakes
-    a reachable node). Cheap — one short probe, no generation.
+    a reachable node). It exposes no served-model tag or private URL.
     """
     try:
         reach = _probe_reachability()
         reachable = bool(reach.get("reachable"))
-        live_models = reach.get("models") or []
         return {
             "reachable": reachable,
-            "model": (live_models[0] if (reachable and live_models) else SOVEREIGN_MODEL_TAG),
-            "label": LIVE_SOVEREIGN if reachable else UNAVAILABLE,
+            "model": SOVEREIGN_BACKEND_ID,
+            "label": UNKNOWN if reachable else UNAVAILABLE,
+            "gpu_verified": False,
+            "ownership_proof": UNAVAILABLE,
             "unavailable_reason": (reach.get("unavailable_reason")
                                    if not reachable else REASON_NONE),
         }
     except Exception as exc:  # noqa: BLE001 — never crash the health path; honest UNAVAILABLE
-        return {"reachable": False, "model": SOVEREIGN_MODEL_TAG, "label": UNAVAILABLE,
+        return {"reachable": False, "model": SOVEREIGN_BACKEND_ID, "label": UNAVAILABLE,
+                "gpu_verified": False, "ownership_proof": UNAVAILABLE,
                 "unavailable_reason": REASON_NODE_UNREACHABLE,
-                "error": f"{type(exc).__name__}: {exc}"}
+                "error": type(exc).__name__}
 
 
 def handle() -> dict[str, Any]:
@@ -471,8 +330,11 @@ def handle() -> dict[str, Any]:
             "ok": False,
             "endpoint": "frontier/sovereign",
             "label": UNAVAILABLE,
+            "endpoint_reachable": False,
+            "gpu_verified": False,
+            "ownership_proof": UNAVAILABLE,
             "unavailable_reason": REASON_NODE_UNREACHABLE,
-            "error": str(exc),
+            "error": type(exc).__name__,
             "doctrine": "v11: sovereign surface unavailable; no fabricated status/answer emitted.",
             "timestamp_utc": _now_iso(),
         }
@@ -490,7 +352,7 @@ def register(app, ns: str = "a11oy") -> str:
 
     @app.get(f"{base}/sovereign")
     async def _frontier_sovereign():
-        """Sovereign local model status + doctrine self-test + Stage A/B + signed receipt."""
+        """Sovereign local model status, with no inference or receipt on GET."""
         return JSONResponse(handle())
 
     return "frontier-sovereign-wired:1"
@@ -511,28 +373,24 @@ if __name__ == "__main__":
     p = build_payload()
     blob = _json.dumps(p)
 
-    # 1) shape + honest top label. Off-Tower (CI) MUST be UNAVAILABLE, never fabricated live.
+    # 1) status never promotes metadata reachability to sovereign provenance.
     assert p["ok"] is True
-    assert p["label"] in (LIVE_SOVEREIGN, UNAVAILABLE)
+    assert p["label"] in (UNKNOWN, UNAVAILABLE)
     assert p["label"] == p["claim"]
     assert p["backend_id"] == SOVEREIGN_BACKEND_ID
     assert p["model_tag"] == SOVEREIGN_MODEL_TAG
     sov = p["sovereign"]
     assert set(("reachable", "model", "label")) <= set(sov)
     assert isinstance(sov["reachable"], bool)
-    # label MUST be consistent with reachability (no faked reachable=True).
-    assert (sov["label"] == LIVE_SOVEREIGN) == (sov["reachable"] is True)
+    assert (sov["label"] == UNKNOWN) == (sov["reachable"] is True)
+    assert p["gpu_verified"] is False and p["ownership_proof"] == UNAVAILABLE
     print(f"[1] top label={p['label']}, reachable={sov['reachable']} (consistent, not fabricated)  OK")
 
-    # 2) doctrine self-test: real answer ONLY when reachable; else honest UNAVAILABLE + no answer.
+    # 2) doctrine self-test is never run from a status GET.
     st = p["doctrine_selftest"]
     assert st["prompt"] == DOCTRINE_SELFTEST_PROMPT
-    if sov["reachable"]:
-        assert st["label"] == LIVE_SOVEREIGN and isinstance(st["answer"], str) and st["answer"].strip()
-    else:
-        assert st["label"] == UNAVAILABLE and st["answer"] is None
-    print(f"[2] doctrine self-test label={st['label']}, answer_present={st['answer'] is not None} "
-          "(no fabrication when down)  OK")
+    assert st["label"] == UNAVAILABLE and st["answer"] is None and st["live"] is False
+    print("[2] doctrine self-test not run on GET; no answer fabricated  OK")
 
     # 3) Stage A/B present + honest active stage; UNKNOWN when unreachable.
     stg = p["stage"]
@@ -551,20 +409,15 @@ if __name__ == "__main__":
     assert d["runtime_cdn"] == 0
     print("[4] doctrine: locked-8 exact, +0, Λ=Conjecture 1, trust 0.97 (not 100%)  OK")
 
-    # 5) signed receipt of the check present + honest sign mode (never a faked signature).
-    sr = p["signed_receipt"]
-    assert sr["sign_mode"] in ("DSSE-LIVE", "UNSIGNED-LOCAL")
-    assert isinstance(sr["receipt"], dict) and sr["receipt"]["backend_id"] == SOVEREIGN_BACKEND_ID
-    if sr["sign_mode"] == "UNSIGNED-LOCAL":
-        # unsigned envelope must NOT carry a fabricated signature
-        env = sr.get("dsse") or {}
-        assert not env.get("signatures")
-    print(f"[5] signed receipt present; sign_mode={sr['sign_mode']} (no fabricated signature)  OK")
+    # 5) no new receipt on a read; this does not alter any historical receipt.
+    assert "signed_receipt" not in p
+    assert p["receipt_status"]["receipt_minted"] is False
+    print("[5] no receipt minted by GET; historical receipts unassessed  OK")
 
     # 6) rollup signal shape {reachable, model, label}, honest + consistent.
     r = rollup_signal()
     assert set(("reachable", "model", "label")) <= set(r)
-    assert (r["label"] == LIVE_SOVEREIGN) == (r["reachable"] is True)
+    assert (r["label"] == UNKNOWN) == (r["reachable"] is True)
     print(f"[6] healthz rollup signal {{'reachable':{r['reachable']}, 'label':'{r['label']}'}}  OK")
 
     # 7) no VERIFIED/green-1.0 top state; trust never 100%.

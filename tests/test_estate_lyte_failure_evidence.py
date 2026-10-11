@@ -135,7 +135,7 @@ class LyteFailureEvidenceTests(unittest.TestCase):
         gate = step(self.hf, "Enforce complete explicitly requested vertical publication")
         self.assertIn("if: always()", gate)
         self.assertIn("VERTICAL_PUBLISH_OUTCOME: ${{ steps.vertical_publish.outcome }}", gate)
-        self.assertIn("run: python scripts/estate_child_completion.py", gate)
+        self.assertIn("run: python -I -B scripts/estate_child_completion.py", gate)
         self.assertLess(self.hf.index("name: Enforce complete explicitly"), self.hf.index("name: " + TITLE))
 
     def test_native_offline_step_executes_new_contract(self):

@@ -4,15 +4,18 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
+  awaitReadiness,
   evaluateEndpointLabels,
   evaluateFreshness,
   findEvidenceLabels,
   findTimestamp,
   probeEndpoint,
   releaseExitCode,
+  retainAwaitFailure,
   summarizeReleaseGate,
   validateRouterStatsSemantic,
   validateSchema,
+  withSourceRevisionBracket,
 } from "./probe_runner.mjs";
 
 const readinessMatrix = JSON.parse(readFileSync(
@@ -88,6 +91,23 @@ test("freshness recognizes explicit snake- and camel-case observation clocks", (
   }
 });
 
+test("freshness ignores counters whose names merely end in ts", () => {
+  const observedAt = "2026-10-09T01:08:18.985Z";
+  const body = {
+    historical_billable_receipts: 0,
+    historical_reported_charged_cents: 0,
+    ts: observedAt,
+  };
+
+  assert.equal(findTimestamp(body)?.toISOString(), observedAt);
+  assert.equal(evaluateFreshness(
+    "/api/a11oy/v1/energy/harvest",
+    { freshnessSLA: 3600 },
+    body,
+    Date.parse("2026-10-09T01:09:00Z"),
+  ).freshOk, true);
+});
+
 test("freshness prefers nested source fetch time over a market event timestamp", () => {
   const body = {
     equities: {
@@ -99,6 +119,217 @@ test("freshness prefers nested source fetch time over a market event timestamp",
   };
 
   assert.equal(findTimestamp(body)?.getTime(), 1785027907833);
+});
+
+const SOURCE_A = "a".repeat(40);
+const SOURCE_B = "b".repeat(40);
+
+function readinessSnapshot(
+  fetchedAt,
+  { source = SOURCE_A, applicationReady = true, stale = false } = {},
+) {
+  return {
+    sections: [],
+    summary: { application_ready: applicationReady },
+    checked_at: fetchedAt,
+    snapshot_fetched_at: fetchedAt,
+    snapshot_source_revision: source,
+    stale,
+  };
+}
+
+test("readiness retains the canonical 300-second freshness boundary", () => {
+  const path = "/api/a11oy/v1/readiness";
+  const spec = readinessMatrix.endpoints[path];
+  const result = evaluateFreshness(
+    path,
+    spec,
+    readinessSnapshot("2026-10-07T16:42:44Z"),
+    Date.parse("2026-10-07T16:50:50Z"),
+  );
+
+  assert.equal(spec.freshnessSLA, 300);
+  assert.equal(result.ageSec, 486);
+  assert.equal(result.freshOk, false);
+});
+
+test("passive readiness waiting never calls refresh and requires the witnessed source", async () => {
+  const path = "/api/a11oy/v1/readiness";
+  const calls = [];
+  let reads = 0;
+  let now = Date.parse("2026-10-07T16:50:50Z");
+  const awaited = await awaitReadiness({
+    request: async (requestedPath) => {
+      calls.push(requestedPath);
+      reads += 1;
+      const fetchedAt = reads === 1
+        ? "2026-10-07T16:42:44Z"
+        : "2026-10-07T16:50:50Z";
+      return { status: 200, body: readinessSnapshot(fetchedAt) };
+    },
+    clock: () => now,
+    sleepFn: async (ms) => { now += ms; },
+    timeoutMs: 5000,
+    pollMs: 1000,
+    expectedSourceRevision: SOURCE_A,
+  });
+
+  assert.equal(awaited.snapshotSourceRevision, SOURCE_A);
+  assert.deepEqual(calls, [path, path]);
+  assert.equal(calls.some((requestedPath) => requestedPath.endsWith("/refresh")), false);
+});
+
+test("waiting and the final probe reject foreign, unready, or stale snapshots", async () => {
+  const path = "/api/a11oy/v1/readiness";
+  const spec = readinessMatrix.endpoints[path];
+  const cases = [
+    [readinessSnapshot("2026-10-07T16:50:50Z", { source: SOURCE_B }), /source revision/],
+    [readinessSnapshot("2026-10-07T16:50:50Z", { applicationReady: false }), /not ready/],
+    [readinessSnapshot("2026-10-07T16:50:50Z", { stale: true }), /stale=false/],
+  ];
+
+  for (const [body, expected] of cases) {
+    let now = Date.parse("2026-10-07T16:50:50Z");
+    await assert.rejects(
+      awaitReadiness({
+        request: async () => ({ status: 200, body }),
+        clock: () => now,
+        sleepFn: async (ms) => { now += ms; },
+        timeoutMs: 1000,
+        pollMs: 1000,
+        expectedSourceRevision: SOURCE_A,
+      }),
+      expected,
+    );
+    const result = await probeEndpoint(path, spec, {
+      expectedSourceRevision: SOURCE_A,
+      request: async () => ({ status: 200, ms: 1, body, ct: "application/json" }),
+      sleepFn: async () => {},
+    });
+    assert.equal(result.lie, true);
+    assert.match(result.lies.join("; "), expected);
+    assert.equal(summarizeReleaseGate([result], 1).blocked, true);
+  }
+});
+
+test("source observations bracket waiting and the full probe across an A-to-B transition", async () => {
+  const events = [];
+  const revisions = [SOURCE_A, SOURCE_B];
+  const bracket = await withSourceRevisionBracket(async (sourceBefore) => {
+    events.push(`wait:${sourceBefore.revision}`);
+    await awaitReadiness({
+      request: async (path) => {
+        events.push(`readiness:${path}`);
+        return {
+          status: 200,
+          body: readinessSnapshot("2026-10-07T16:50:50Z"),
+        };
+      },
+      clock: () => Date.parse("2026-10-07T16:50:50Z"),
+      expectedSourceRevision: sourceBefore.revision,
+    });
+    events.push("full-probe");
+    return "complete";
+  }, {
+    observeSource: async () => {
+      const revision = revisions.shift();
+      events.push(`source:${revision}`);
+      return { status: "OBSERVED", revision, error: null };
+    },
+    soft: true,
+  });
+
+  assert.deepEqual(events, [
+    `source:${SOURCE_A}`,
+    `wait:${SOURCE_A}`,
+    "readiness:/api/a11oy/v1/readiness",
+    "full-probe",
+    `source:${SOURCE_B}`,
+  ]);
+  assert.equal(bracket.sourceRevisionStatus, "DIVERGENT");
+  assert.equal(bracket.sourceRevision, null);
+});
+
+test("a report-only readiness wait failure remains a blocking result", () => {
+  const results = [{
+    path: "/api/a11oy/v1/readiness",
+    lie: false,
+    lies: [],
+    freshOk: true,
+    runtimeState: "RUNNING",
+  }];
+
+  retainAwaitFailure(results, new Error("readiness wait did not converge"));
+
+  assert.equal(results[0].lie, true);
+  assert.equal(results[0].freshOk, false);
+  assert.equal(results[0].runtimeState, "ERROR");
+  assert.equal(summarizeReleaseGate(results, 1).blocked, true);
+});
+
+test("an unavailable source witness blocks as unreachable without becoming a lie", async () => {
+  const path = "/api/a11oy/v1/readiness";
+  const body = readinessSnapshot(new Date().toISOString());
+  const result = await probeEndpoint(path, readinessMatrix.endpoints[path], {
+    expectedSourceRevision: null,
+    request: async () => ({ status: 200, ms: 1, body, ct: "application/json" }),
+    sleepFn: async () => {},
+  });
+  const error = new Error("cannot await readiness without an observed deployment revision");
+  error.awaitFailureClass = "unreachable";
+  retainAwaitFailure([result], error);
+  const gate = summarizeReleaseGate([result], 1);
+
+  assert.equal(result.sourceRevisionOk, null);
+  assert.equal(result.lie, false);
+  assert.equal(result.unreachable, true);
+  assert.equal(gate.lies, 0);
+  assert.equal(gate.requiredUnreachable, 1);
+  assert.equal(gate.blocked, true);
+});
+
+test("ownership readiness requires all four REIT source clocks", () => {
+  const path = "/api/a11oy/v1/deva/re/ownership";
+  const spec = readinessMatrix.endpoints[path];
+  const observedAt = "2026-10-07T19:00:00Z";
+  const observed = {
+    value: { filings: [] },
+    freshness: { status: "live", fetched_at: observedAt },
+  };
+  const body = {
+    tab: "ownership",
+    sec_fts: {
+      value: { items: [] },
+      freshness: { status: "live", fetched_at: observedAt },
+    },
+    reits: Object.fromEntries(
+      ["Vornado", "Boston Properties", "SL Green", "Realty Income"]
+        .map((name) => [name, structuredClone(observed)]),
+    ),
+    doctrine: {},
+  };
+  const nowMs = Date.parse("2026-10-07T19:00:30Z");
+  assert.equal(spec.unavailableBlocksReadiness, true);
+  assert.equal(validateSchema(spec.schema, body).ok, true);
+  assert.equal(evaluateFreshness(path, spec, body, nowMs).freshOk, true);
+
+  delete body.reits.Vornado.freshness.fetched_at;
+  assert.equal(validateSchema(spec.schema, body).ok, false);
+  body.reits.Vornado = structuredClone(observed);
+
+  body.reits["SL Green"] = {
+    value: null,
+    freshness: {
+      status: "UNAVAILABLE",
+      fetched_at: observedAt,
+      error: "ReadTimeout: SEC source did not answer",
+    },
+  };
+  assert.equal(validateSchema(spec.schema, body).ok, false);
+  assert.equal(evaluateEndpointLabels(200, spec, body).ok, true);
+  const freshness = evaluateFreshness(path, spec, body, nowMs);
+  assert.equal(freshness.freshOk, false);
+  assert.match(freshness.freshnessReason, /required source unavailable: reits\.SL Green/);
 });
 
 test("tab-matrix schema validates available and truthful unavailable wrappers", () => {
@@ -411,4 +642,196 @@ test("Python feed unavailable envelope is honest only with null evidence and a f
   assert.equal(evaluateEndpointLabels(200, spec, { fx: { ...fx, freshness: { ...fx.freshness, error: "" } } }).ok, false);
   assert.equal(evaluateEndpointLabels(200, spec, { fx: { ...fx, freshness: { ...fx.freshness, fetched_at: "bad" } } }).ok, false);
   assert.equal(evaluateEndpointLabels(200, spec, { fx: { ...fx, freshness: { ...fx.freshness, status: "stale" } } }).ok, false);
+});
+
+test("SYNTHETIC HTTP probe blocks a fresh cited but unbuilt RAG index", async () => {
+  const path = "/api/a11oy/v1/rag/status";
+  const body = {
+    status: "DEGRADED",
+    data_kind: "unavailable",
+    index: { built: false, chunks: 0 },
+    index_built: false,
+    corpus: {},
+    fetchedAt: new Date().toISOString(),
+    citations: [{ source: "SYNTHETIC unbuilt RAG status fixture; no deployed API contacted" }],
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify(body), {
+    status: 200, headers: { "Content-Type": "application/json" },
+  });
+  try {
+    const result = await probeEndpoint(path, readinessMatrix.endpoints[path]);
+    assert.equal(result.lie, false);
+    assert.equal(result.schemaOk, true);
+    assert.equal(result.citationOk, true);
+    assert.equal(result.freshOk, true);
+    assert.equal(result.labelPolicyOk, true);
+    assert.equal(result.degraded, true);
+    assert.equal(result.runtimeState, "DEGRADED");
+    assert.deepEqual(result.unavailableSources, ["$"]);
+    const gate = summarizeReleaseGate([result], 1);
+    assert.equal(gate.requiredDegraded, 1);
+    assert.equal(gate.blocked, true);
+    assert.equal(releaseExitCode(gate), 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("explicit optional degradation remains visible without blocking release", () => {
+  const optionalPaths = [
+    "/api/a11oy/v1/energy/live",
+    "/api/a11oy/v1/energy/sci",
+    "/api/a11oy/v1/vert/legal/feed",
+    "/api/a11oy/v1/devb/legal/matter?limit=1",
+    "/api/a11oy/v1/devb/legal/matter?term=defense&limit=1",
+    "/api/a11oy/v1/devb/legal/matter?term=insurance&limit=1",
+  ];
+  for (const path of optionalPaths) {
+    assert.equal(readinessMatrix.endpoints[path].degradedBlocksReadiness, false, path);
+  }
+  for (const path of [
+    "/api/a11oy/v1/rag/status",
+    "/api/a11oy/v1/vert/defense/feed",
+    "/api/a11oy/v1/vert/finance/feed",
+    "/api/a11oy/v1/vert/realestate/feed",
+  ]) {
+    assert.equal(readinessMatrix.endpoints[path].degradedBlocksReadiness, true, path);
+  }
+  const result = {
+    path: optionalPaths[0], required: true, lie: false, unreachable: false,
+    throttled: false, degraded: true, degradedBlocksReadiness: false,
+  };
+  const gate = summarizeReleaseGate([result], 1);
+  assert.equal(gate.requiredDegraded, 0);
+  assert.equal(gate.blocked, false);
+  assert.equal(releaseExitCode(gate), 0);
+});
+
+test("admitted negative root scalar labels retain endpoint-level absence", () => {
+  const spec = readinessMatrix.endpoints["/api/a11oy/v1/rag/status"];
+  for (const key of [
+    "status", "state", "label", "mode", "freshness",
+    "data_kind", "datakind", "source_kind", "sourcekind",
+    "evidence_state", "evidencestate",
+  ]) {
+    for (const value of ["degraded", "UNAVAILABLE", " DeGrAdEd "]) {
+      const result = evaluateEndpointLabels(200, spec, { [key]: value });
+      assert.equal(result.ok, true, `${key}=${value}`);
+      assert.equal(result.lie, null, `${key}=${value}`);
+      assert.deepEqual(result.unavailableSources, ["$"], `${key}=${value}`);
+    }
+  }
+});
+
+test("default and unknown root labels remain rejected without a new allowlist", () => {
+  for (const spec of [
+    {},
+    { degradedRules: { allowStatuses: [200], allowLabels: ["live", "cached"] } },
+  ]) {
+    for (const value of ["degraded", "unavailable", "unknown", "vendor-pending"]) {
+      const result = evaluateEndpointLabels(200, spec, { data_kind: value });
+      assert.equal(result.ok, false, value);
+      assert.deepEqual(result.unavailableSources, [], value);
+    }
+  }
+  const ragSpec = readinessMatrix.endpoints["/api/a11oy/v1/rag/status"];
+  for (const value of ["unknown", "vendor-pending"]) {
+    assert.equal(evaluateEndpointLabels(200, ragSpec, { data_kind: value }).ok, false);
+  }
+});
+
+test("nested optional and domain negatives do not speak for root availability", () => {
+  const spec = readinessMatrix.endpoints["/api/a11oy/v1/rag/status"];
+  const body = {
+    status: "LIVE",
+    data_kind: "live",
+    incidents: [{ status: "UNAVAILABLE", state: "degraded", label: "unavailable" }],
+    optional: {
+      data_kind: "unavailable",
+      mode: "degraded",
+      freshness: { status: "DEGRADED" },
+      source: {
+        value: null,
+        freshness: {
+          status: "UNAVAILABLE",
+          fetched_at: new Date().toISOString(),
+          error: "SYNTHETIC optional-source absence",
+        },
+      },
+    },
+  };
+  const result = evaluateEndpointLabels(200, spec, body);
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.unavailableSources, []);
+  assert.deepEqual(evaluateEndpointLabels(200, spec, [{ status: "DEGRADED" }])
+    .unavailableSources, []);
+});
+
+test("SYNTHETIC HTTP probe keeps built live RAG operational evidence unchanged", async () => {
+  const path = "/api/a11oy/v1/rag/status";
+  const body = {
+    status: "REAL", data_kind: "live",
+    index: { built: true, chunks: 1 }, index_built: true, corpus: {},
+    fetchedAt: new Date().toISOString(),
+    citations: [{ source: "SYNTHETIC built RAG status fixture; no deployed API contacted" }],
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify(body), {
+    status: 200, headers: { "Content-Type": "application/json" },
+  });
+  try {
+    const result = await probeEndpoint(path, readinessMatrix.endpoints[path]);
+    assert.equal(result.lie, false);
+    assert.equal(result.schemaOk, true);
+    assert.equal(result.citationOk, true);
+    assert.equal(result.freshOk, true);
+    assert.equal(result.labelPolicyOk, true);
+    assert.equal(result.degraded, false);
+    assert.equal(result.runtimeState, "RUNNING");
+    assert.deepEqual(result.unavailableSources, []);
+    assert.equal(releaseExitCode(summarizeReleaseGate([result], 1)), 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("SYNTHETIC HTTP root-negative evidence does not mask independent failures", async () => {
+  const path = "/api/a11oy/v1/rag/status";
+  const base = {
+    status: "DEGRADED", data_kind: "unavailable",
+    index: { built: false, chunks: 0 }, index_built: false, corpus: {},
+    fetchedAt: new Date().toISOString(),
+    citations: [{ source: "SYNTHETIC negative-evidence fixture; no deployed API contacted" }],
+  };
+  const noCitation = { ...base };
+  delete noCitation.citations;
+  delete noCitation.corpus;
+  const stale = { ...base, fetchedAt: "2000-01-01T00:00:00Z" };
+  const noClock = { ...base };
+  delete noClock.fetchedAt;
+  const originalFetch = globalThis.fetch;
+  try {
+    for (const [body, spec, failedGate, expectedReason] of [
+      [noCitation, readinessMatrix.endpoints[path], "citationOk", /citationsRequired/],
+      [stale, readinessMatrix.endpoints[path], "freshOk", /stale/],
+      [noClock, readinessMatrix.endpoints[path], "freshOk", /freshness timestamp missing/],
+      [base, { ...readinessMatrix.endpoints[path], schema: "text" },
+        "schemaOk", /schema invalid/],
+    ]) {
+      globalThis.fetch = async () => new Response(JSON.stringify(body), {
+        status: 200, headers: { "Content-Type": "application/json" },
+      });
+      const result = await probeEndpoint(path, spec);
+      assert.equal(result[failedGate], false, failedGate);
+      assert.equal(result.lie, true);
+      assert.equal(result.degraded, true);
+      assert.equal(result.runtimeState, "ERROR");
+      assert.deepEqual(result.unavailableSources, ["$"]);
+      assert.ok(result.lies.some((reason) => expectedReason.test(reason)));
+      assert.equal(releaseExitCode(summarizeReleaseGate([result], 1)), 1);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

@@ -114,6 +114,18 @@ identity are not available through this API, so every result retains
 `prior_provider_effects: NOT_ESTABLISHED`. None is retry, restore, publication,
 or deployment authority.
 
+The artifact-object observation executes in an isolated, source-owned Python
+child under the existing bounded process-group supervisor. Its maximum budget
+is 210 seconds and cannot exceed the parent's remaining observation budget
+minus 15 seconds. The existing 240-second outer diagnostic and six-minute job
+caps remain. A Python alarm alone is not a hard native Xet cancellation
+guarantee. The parent accepts a closed, bounded canonical result only after
+the owned group has stopped and the worker has been reaped; it then rechecks
+the source and candidate identity. Timeout, late output, malformed or oversized
+output, unknown cleanup, and source/candidate movement all withhold completion.
+No provider writer is exposed by the child. Native containment tests run in the
+existing Linux contract job; portable protocol checks alone do not qualify it.
+
 The preservation report last explicitly observed `RUNTIME_ERROR` at
 `2026-10-05T04:32:14.881806+00:00`. The acquisition source requires a PAUSED
 readback before entering artifact publication; that is sequencing evidence.

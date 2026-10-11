@@ -52,14 +52,15 @@ def test_last_good_failure_stays_cached_with_original_source_clock() -> None:
 def test_all_readiness_evaluated_realestate_sources_cross_public_boundary() -> None:
     source = Path("a11oy_deva_feeds.py").read_text(encoding="utf-8")
 
-    # HPD/DOB already cross this boundary. Rates and SEC evidence must do the
-    # same so cold source failures cannot leak raw lowercase `unavailable`
-    # without an observation timestamp into the readiness contract.
+    # HPD/DOB already cross this boundary. Rates, SEC search, and each REIT
+    # submission must do the same before the ownership route checks readiness.
     required = (
         '"hpd": _readiness_public_source(hpd)',
         '"dob": _readiness_public_source(dob)',
         '"rates": _readiness_public_source(rates)',
-        '"sec_fts": _readiness_public_source(sec)',
+        'sec_public = _ownership_public_source(sec)',
+        'name: _ownership_public_source(value)',
+        '"sec_fts": sec_public',
     )
     for expression in required:
         assert expression in source, expression

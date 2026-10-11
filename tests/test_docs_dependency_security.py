@@ -43,3 +43,20 @@ def test_docs_mermaid_remains_in_the_plugins_supported_major():
     assert packages["node_modules/mermaid"]["version"].startswith("11.")
     plugin = packages["node_modules/vitepress-plugin-mermaid"]
     assert plugin["peerDependencies"]["mermaid"] == "10 || 11"
+
+
+def test_docs_katex_override_covers_every_locked_copy():
+    # GHSA-238p-pmpm-9mq7 is fixed in 0.18.2; reuse the existing direct 0.18.10.
+    manifest = read_json("docs/site/package.json")
+    packages = read_json("docs/site/package-lock.json")["packages"]
+    assert manifest["overrides"]["katex"] == "$katex"
+    assert manifest["dependencies"]["katex"] == "^0.18.10"
+    copies = [entry for path, entry in packages.items()
+              if path.endswith("node_modules/katex")]
+    assert copies, "the test must inspect an actual resolved KaTeX package"
+    assert all(entry["version"] == "0.18.10" for entry in copies)
+    assert all(entry["resolved"] == "https://registry.npmjs.org/katex/-/katex-0.18.10.tgz"
+               for entry in copies)
+    assert all(entry["integrity"] ==
+               "sha512-/B6p9eY9DX7aHBfpkHdpirDTZ5QH9xTwL9y837PWuzuv41O5jFdqNQwVQEQsimY0/iVNkwBY4+4hMfhQ7d4Dbw=="
+               for entry in copies)

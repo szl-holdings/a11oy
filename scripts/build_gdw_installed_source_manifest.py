@@ -34,10 +34,11 @@ REPOSITORY = "szl-holdings/a11oy"
 RUNTIME_ROOT = "/app"
 PUBLISHER = {
     "repository": "szl-holdings/.github",
-    "revision": "e3ec47ad2e99a535839afe0f30fefbd8973d52da",
+    "revision": "fc71ae973a0f31b8e9ee793fc8545a354448d451",
     "script_path": ".github/scripts/hf_deploy_from_dockerfile.py",
-    "script_sha256": "eecf0ad2095ff345e009a24ba22a574efc974925fc88dd492377628c13b8e663",
+    "script_sha256": "f2f7a6c1296493d034eebed596f4176c2928470a4ed7e23620da6cacf19b16e7",
 }
+MAX_PUBLISHER_BYTES = 80 * 1024
 MAX_MANIFEST_BYTES = 384 * 1024
 MAX_FILES = 2048
 MAX_PYTHON_PATHS = 4096
@@ -192,7 +193,8 @@ def _read_file(root: Path, relative: str, limit: int, deadline: float) -> bytes:
 
 
 def _publisher_contract(data: bytes):
-    if type(data) is not bytes or len(data) > 64 * 1024 or _sha(data) != PUBLISHER["script_sha256"]:
+    if (type(data) is not bytes or len(data) > MAX_PUBLISHER_BYTES
+            or _sha(data) != PUBLISHER["script_sha256"]):
         raise InstalledSourceError("PUBLISHER_SOURCE_IDENTITY_MISMATCH")
     # Compile only the three exact definitions: no deployment/API functions,
     # module imports, main(), filesystem reader or source materializer is loaded.
@@ -508,7 +510,8 @@ def build_manifest(repo_root: Path, source_revision: str, publisher_script: Path
     except (ValueError, UnicodeError):
         raise InstalledSourceError("SOURCE_TREE_UNQUALIFIED") from None
     publisher_path = Path(publisher_script)
-    publisher = _publisher_contract(_read_file(publisher_path.parent, publisher_path.name, 64 * 1024, deadline))
+    publisher = _publisher_contract(_read_file(
+        publisher_path.parent, publisher_path.name, MAX_PUBLISHER_BYTES, deadline))
 
     def read_source(path):
         info = tree.get(path)

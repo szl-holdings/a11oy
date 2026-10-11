@@ -4,7 +4,87 @@
 """The public Brain GET is a read; only an explicit POST can mint an answer receipt."""
 from __future__ import annotations
 
+import ast
+from copy import deepcopy
+import json
+from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
+
+
+def _readiness_status_labels() -> set[str]:
+    matrix = json.loads((Path(__file__).resolve().parents[1] /
+                         "tools/readiness-harness/tabs.json").read_text(encoding="utf-8"))
+    return {label.lower() for label in matrix["endpoints"]
+            ["/api/a11oy/v1/rag/status"]["degradedRules"]["allowLabels"]}
+
+
+@pytest.mark.parametrize("index_state", ["built", "absent", "failed"])
+def test_rag_status_scopes_persisted_metadata_without_refresh_or_receipt(index_state):
+    # Exercise the actual handler without booting the whole application or its
+    # background workers. The existing full-app cases below cover registration.
+    source = (Path(__file__).resolve().parents[1] / "serve.py").read_text(encoding="utf-8")
+    handlers = [node for node in ast.walk(ast.parse(source))
+                if isinstance(node, ast.AsyncFunctionDef) and node.name == "_rag_status_get"]
+    assert len(handlers) == 1
+    calls = []
+    metadata = {"built": index_state == "built", "mode": "seed",
+                "build_state": {"finished": 123.0, "generation_id": "stored-generation"}}
+    configured = {"repositories": ["example/configured-only"]}
+    original_metadata = deepcopy(metadata)
+    original_configured = deepcopy(configured)
+
+    def status():
+        calls.append("status")
+        if index_state == "failed":
+            raise OSError("synthetic unavailable index")
+        return metadata
+
+    def manifest():
+        calls.append("manifest")
+        return configured
+
+    def forbidden(*_args, **_kwargs):
+        raise AssertionError("status read attempted work or minted a receipt")
+
+    def envelope(payload, *, status, citations):
+        return {**payload, "status": status, "citations": citations}
+
+    app = FastAPI()
+    namespace = {
+        "app": app, "_RAGJSON": JSONResponse, "gov_envelope": envelope,
+        "_rag_emit_receipt": forbidden,
+        "_rag_engine": SimpleNamespace(
+            status=status, corpus_manifest=manifest, query=forbidden,
+            build_index=forbidden, build_seed_index=forbidden,
+            build_full_corpus=forbidden, start_background_build=forbidden,
+        ),
+    }
+    exec(compile(ast.Module(body=handlers, type_ignores=[]), "<rag-status-handler>", "exec"), namespace)
+    response = TestClient(app).get("/api/a11oy/v1/rag/status")
+    assert response.status_code == 200
+    body = response.json()
+    assert calls == ["status", "manifest"]
+    assert body["data_kind"] == ("cached" if index_state == "built" else "unavailable")
+    assert body["data_kind"] in _readiness_status_labels()
+    assert body["observation_scope"] == "stored_index_metadata_and_configured_corpus"
+    assert "does not establish source freshness or complete corpus coverage" in body["honesty"]
+    assert body["corpus"] == original_configured
+    assert configured == original_configured
+    assert metadata == original_metadata
+    assert body["index_built"] is (index_state == "built")
+    assert body["status"] == ("REAL" if index_state == "built" else "DEGRADED")
+    if index_state == "failed":
+        assert body["index"] == {"built": False, "honest_error": "status unavailable: OSError"}
+    else:
+        assert body["index"] == original_metadata
+    assert body["receipt_method"] == "POST"
+    assert body["receipt_authority"] == "operator"
+    assert "receipt" not in body
 
 
 def _grounded_result() -> dict:
@@ -52,6 +132,9 @@ def test_rag_get_never_builds_loads_or_mints_and_post_mints_once(monkeypatch):
 
     status = client.get("/api/a11oy/v1/rag/status")
     assert status.status_code == 200
+    assert status.json()["data_kind"] == "cached"
+    assert status.json()["data_kind"] in _readiness_status_labels()
+    assert status.json()["status"] == "REAL"
     assert status.json()["query_endpoint"] == "/api/a11oy/v1/rag/query"
     assert status.json()["query_method"] == "GET"
     assert status.json()["receipt_endpoint"] == "/api/a11oy/v1/rag/estate/query"
@@ -133,6 +216,12 @@ def test_rag_missing_index_returns_503_without_a_lazy_write(monkeypatch):
     assert response.headers["retry-after"] == "5"
     assert response.json()["index"]["built"] is False
     assert response.json()["receipt_state"] == "NOT_MINTED_INDEX_UNAVAILABLE"
+    status = client.get("/api/a11oy/v1/rag/status")
+    assert status.status_code == 200
+    assert status.json()["data_kind"] == "unavailable"
+    assert status.json()["data_kind"] in _readiness_status_labels()
+    assert status.json()["status"] == "DEGRADED"
+    assert status.json()["index_built"] is False
 
 
 def test_rag_legacy_wal_reports_typed_unavailable_without_query_or_receipt(monkeypatch):

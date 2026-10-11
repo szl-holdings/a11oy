@@ -2,11 +2,11 @@ name: Living Anatomy cross-surface drift guard
 
 # szl-holdings/a11oy ships the product-side Anatomy map in the /console
 # marker block. GitHub szl-holdings/anatomy is authoritative; the public
-# SZLHOLDINGS/anatomy Space is its source-bound deployment mirror; and
+# betterwithage/anatomy Space is its active deployment mirror; and
 # a-11-oy.com is the product entry point.
 #
 # Pin both the reusable workflow and checker registry to the same reviewed
-# szl-holdings/.github#624 squash commit. No provider credentials or inherited
+# szl-holdings/.github origin repair at 1bda800. No provider credentials or inherited
 # secrets cross the reusable-workflow boundary.
 
 on:
@@ -24,6 +24,6 @@ permissions:
 
 jobs:
   anatomy-map-drift:
-    uses: szl-holdings/.github/.github/workflows/reusable-anatomy-map-drift.yml@c3a838ce240a157c70bd5d6e0e700c30a0cd494d
+    uses: szl-holdings/.github/.github/workflows/reusable-anatomy-map-drift.yml@1bda800b8326aa1a8456987250d75137f9379f47
     with:
-      checker-ref: c3a838ce240a157c70bd5d6e0e700c30a0cd494d
+      checker-ref: 1bda800b8326aa1a8456987250d75137f9379f47

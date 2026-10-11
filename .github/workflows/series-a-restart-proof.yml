@@ -32,7 +32,7 @@ jobs:
 
       - name: Fail explicitly while live restart effects remain unreviewed
         run: >-
-          python -B scripts/check_hf_manual_prerequisites.py
+          python -I -B scripts/check_hf_manual_prerequisites.py
           --blocked-proof series-a
           --source-sha "$GITHUB_SHA"
           --output "$PROOF_PATH"

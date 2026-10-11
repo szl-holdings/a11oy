@@ -31,6 +31,7 @@ def valid_verdict(now: datetime) -> dict:
             "unreachable": 0,
             "throttled": 0,
             "degraded": 0,
+            "blockingDegraded": 0,
             "p95_worst": 1806,
         },
         "results": [{"path": "/not-published"}],
@@ -54,6 +55,7 @@ def test_compact_verdict_is_source_origin_and_freshness_bound() -> None:
     assert result["sourceRevision"] == "a" * 40
     assert result["base"] == "https://szlholdings-a11oy.hf.space"
     assert result["summary"]["endpoints"] == 5
+    assert result["summary"]["blockingDegraded"] == 0
     assert "results" not in result
 
 
@@ -116,11 +118,22 @@ def test_compact_verdict_rejects_invalid_degraded_counts(value: object) -> None:
 def test_unavailable_required_source_cannot_be_published_as_ready() -> None:
     now = datetime(2026, 7, 26, 6, 0, tzinfo=timezone.utc)
     payload = valid_verdict(now)
-    payload["summary"].update(ok=4, degraded=1)
+    payload["summary"].update(ok=4, degraded=1, blockingDegraded=1)
     with pytest.raises(publisher.VerdictError, match="unavailable required sources"):
         compact(payload, now)
-    payload["summary"].update(ok=5, degraded=0)
-    assert compact(payload, now)["summary"]["degraded"] == 0
+    payload["summary"].update(ok=4, degraded=1, blockingDegraded=0)
+    result = compact(payload, now)
+    assert result["summary"]["degraded"] == 1
+    assert result["summary"]["blockingDegraded"] == 0
+
+
+def test_compact_verdict_rejects_invalid_blocking_degraded_count() -> None:
+    now = datetime(2026, 7, 26, 6, 0, tzinfo=timezone.utc)
+    for value in (True, -1, 2, 1.5, "1", None):
+        payload = valid_verdict(now)
+        payload["summary"].update(ok=4, degraded=1, blockingDegraded=value)
+        with pytest.raises(publisher.VerdictError, match="blocking degradation"):
+            compact(payload, now)
 
 
 def test_compact_verdict_rejects_all_unreachable_release_evidence() -> None:
@@ -149,3 +162,71 @@ def test_compact_verdict_rejects_all_throttled_release_evidence() -> None:
 
     with pytest.raises(publisher.VerdictError, match="throttled required endpoints"):
         compact(payload, now)
+
+
+def test_validate_only_gates_the_verdict_without_any_space_write(tmp_path, monkeypatch, capsys) -> None:
+    # The deploy path validates the fresh verdict but never writes it to a
+    # Space variable, because a variable write restarts the deployed Space.
+    import json
+    import sys
+
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    probe = tmp_path / "verdict.json"
+    probe.write_text(json.dumps(valid_verdict(now)), encoding="utf-8")
+    monkeypatch.delenv("HF_TOKEN", raising=False)
+    monkeypatch.setitem(sys.modules, "huggingface_hub", None)  # any import fails
+    arguments = ["--validate-only", "--input", str(probe),
+                 "--expected-origin", "https://szlholdings-a11oy.hf.space",
+                 "--expected-source-sha", "a" * 40]
+    assert publisher.main(arguments) == 0
+    printed = json.loads(capsys.readouterr().out)
+    assert printed["validated"] is True
+    assert printed["space_variable_written"] is False
+    assert printed["verdict"]["sourceRevision"] == "a" * 40
+
+    payload = valid_verdict(now)
+    payload["summary"].update(ok=4, lies=1)
+    probe.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(publisher.VerdictError, match="doctrine lies"):
+        publisher.main(arguments)
+
+
+def test_publishing_still_requires_an_explicit_target(tmp_path) -> None:
+    with pytest.raises(SystemExit):
+        publisher.main(["--input", str(tmp_path / "missing.json"),
+                        "--expected-origin", "https://szlholdings-a11oy.hf.space",
+                        "--expected-source-sha", "a" * 40])
+
+def test_validate_only_hands_the_compact_verdict_to_relock(tmp_path, monkeypatch, capsys) -> None:
+    # relock re-validates this run's verdict from the job output, so the
+    # output must be the exact compact verdict on one line, and a rejected
+    # verdict must never produce one.
+    import json
+    import sys
+
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    probe = tmp_path / "verdict.json"
+    github_output = tmp_path / "github-output"
+    probe.write_text(json.dumps(valid_verdict(now)), encoding="utf-8")
+    monkeypatch.setitem(sys.modules, "huggingface_hub", None)
+    arguments = ["--validate-only", "--input", str(probe),
+                 "--expected-origin", "https://szlholdings-a11oy.hf.space",
+                 "--expected-source-sha", "a" * 40, "--github-output", str(github_output)]
+    assert publisher.main(arguments) == 0
+    capsys.readouterr()
+    lines = github_output.read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 1 and lines[0].startswith("verdict=")
+    handed = json.loads(lines[0][len("verdict="):])
+    assert handed == compact(valid_verdict(now), now)
+
+    github_output.unlink()
+    payload = valid_verdict(now)
+    payload["summary"].update(ok=4, unreachable=1)
+    probe.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(publisher.VerdictError):
+        publisher.main(arguments)
+    assert not github_output.exists()
+
+    with pytest.raises(SystemExit):
+        publisher.main([argument for argument in arguments if argument != "--validate-only"]
+                       + ["--repo-id", "SZLHOLDINGS/a11oy"])

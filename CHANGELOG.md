@@ -9,6 +9,109 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - RAG status evidence scope
+
+- The passive RAG status route labels a stored index `cached`, not `live`, and
+  explicitly separates configured corpus entries from source freshness and
+  complete corpus coverage. Missing indexes remain `unavailable`; reads do not
+  build an index, refresh sources, or mint receipts. Existing generation and
+  build timestamps remain unchanged.
+
+### Added - source-bound Platform candidate preview
+
+- Serve the reviewed Platform A11oy static candidate beneath the isolated
+  `/preview/platform-a11oy/` prefix. The Python router owns the complete HTTP
+  and WebSocket namespace before prior dynamic routes: GET and HEAD serve only
+  the exact build, assets and reviewed deep links, other HTTP methods return 405,
+  and WebSocket handshakes close before acceptance. Missing assets and path
+  traversal fail closed.
+- Bind the candidate to an exact Platform revision and per-file digest manifest.
+  Path-scoped content security policy sources confine scripts and styles to the
+  candidate prefix on the product and Space origins; other browser fetch classes
+  cannot reach the live homepage or `/api/*` routes. Response headers label every
+  page `CANDIDATE_DEMO` and prevent search indexing.
+  The preview does not establish production operation, authentication, durable
+  execution, deployment qualification or customer evidence.
+- Verify the deployed POST rejection at the application boundary. Live probes
+  show Hugging Face Envoy terminating OPTIONS before the Space application on
+  candidate, API and nonexistent paths, so live verification does not mislabel
+  that provider response as candidate ownership; the local assembled-app suite
+  still verifies the router's OPTIONS 405.
+- Run both live candidate probes inside the existing read-only readiness job,
+  without a Hugging Face provider token. The deploy guard byte-binds that job,
+  its helper closure, the canonical target/origin, the exact deploy and relock
+  authority scopes, and inherited workflow context. Repository Python entrypoints
+  in token-bearing deployment jobs run in isolated mode.
+- Preserve digest-bound GET and HEAD responses through the existing navigation
+  middleware, reject cyclic roots and FIFO files without blocking startup, and
+  verify the bare prefix, trailing-slash route, explicit index, reviewed deep
+  link, exact unknown-route body, and every manifest asset at both live origins.
+- Extend the bundle-integrity guard to recognize Vite's static backtick dynamic
+  imports, so omitting the reviewed `/security-agents` lazy chunk fails CI.
+
+### Fixed - payload manifest input validation
+
+- Reject missing or non-directory payload roots before creating or verifying a
+  manifest, preserving any existing output. An existing empty directory remains
+  valid. Manifest write and verification commands now report output paths outside
+  the working directory without raising an error after successful work.
+
+### Added - exact-source Finance projection witness
+
+- Build the seven Finance runtime files and their separate projection manifest
+  from the canonical source before provider mutation. Require exact bytes at one
+  immutable Hub revision, including configuration, before existing publication
+  qualification can pass; retain the existing functional and runtime gates.
+- Reject redirects, late results and malformed evidence. Keep authorization
+  denials terminal, preserve the legacy artifact manifest without treating it as
+  current attestation, and add isolated negative contracts to native Finance CI.
+  This source contract does not establish signatures, deployment or live readiness.
+
+### Fixed - PAC-Bayes certification inputs validated before any receipt
+
+- Validate every `/materials/certify` input before a Khipu receipt can be
+  minted: `n` must be a JSON integer (no truncation of `1000.9`, no coercion of
+  `true` or `"1000"`) with `8 <= n <= 2**53`, `empirical_risk` in `[0,1]`, `kl`
+  finite and `>= 0`, `delta` in `(0,1)`, and every value finite. A rejected
+  request answers HTTP 400 with the reason and emits nothing; previously a
+  `kl = NaN` request minted a receipt and then failed to serialize.
+- Accept only the normalized dimensionless-loss label
+  `"normalized risk (dimensionless, [0,1])"` as `risk_units`; a caller label such
+  as `eV/atom` no longer flows into the signed `certificate_text`. The bound is a
+  statement about a loss in `[0,1]`.
+- Reject a `delta` so small that the complexity term `2*sqrt(n)/delta` overflows
+  IEEE-754 double precision (below about `3.1e-308` for `n = 8`, `3.5e-307` for
+  `n = 1000`, `1.1e-300` for `n = 2**53`): HTTP 400 naming the smallest
+  admissible `delta` for that `n`, no receipt. With that check every input the
+  validator accepts yields a finite bound from the shared formula; the
+  non-finite-bound and `json.dumps(allow_nan=False)` guards stay as defence in
+  depth (500, no receipt) against a formula module that changes under this caller.
+- Validate the caller labels that are copied into the signed receipt: `model`
+  must be a non-blank printable string of at most 128 characters (objects,
+  arrays, booleans, numbers and control characters are rejected rather than
+  receipted) and `family`/`preset` must name a preset. A body carries either the
+  four explicit inputs or a preset, never both: stray or invalid explicit keys
+  beside a preset are a 400 instead of being silently ignored, and explicit
+  values are no longer receipted under a preset's name. Unknown keys are ignored
+  and never receipted. Rejection errors echo at most 60 characters of a caller
+  value.
+- Describe the bound as the Maurer (2004) form of the McAllester PAC-Bayes bound
+  evaluated in closed form in IEEE-754 double precision; the wire and the source
+  no longer call the computation exact, and the certificate's probability
+  statement is tied to repeated i.i.d. samples from a fixed data-generating
+  distribution. Preset vectors and their bound values are unchanged bit for bit.
+  `szl_formulas.pac_bayes_mcallester` is untouched.
+- Migration note (public API change): `GET /api/a11oy/v1/materials/certify` and
+  `GET /v1/materials/certify`, with or without query parameters, now answer
+  HTTP 405 with a JSON usage body and `Allow: POST`; they used to resolve query
+  inputs and mint a receipt on a read path. Use `POST` with a JSON body, or the
+  read-only `GET .../materials/certify/presets`. The stricter `POST` contract
+  also rejects bodies that mix a preset with explicit keys and non-string
+  `model`/`family`/`preset` values, and the `inputs.family` field of an
+  explicit-input response is now always `null`. The CI wiring for
+  `tests/test_materials_certify_inputs.py` is a follow-up on the materials
+  governance job.
+
 ### Fixed - additive, parent-bound A11oy model payload publication
 
 - Replace the existing publisher's separate prune/upload operations with one

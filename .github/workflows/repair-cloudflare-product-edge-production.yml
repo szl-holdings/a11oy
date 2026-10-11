@@ -2,6 +2,13 @@
 name: Repair Cloudflare Product Edge — production authority
 
 on:
+  pull_request:
+    paths:
+      - ".github/workflows/repair-cloudflare-product-edge-production.yml"
+      - "scripts/repair_cloudflare_product_edge.py"
+      - "cloudflare/a11oy-product-root-worker.mjs"
+      - "tests/test_cloudflare_product_edge.py"
+      - "tests/test_cloudflare_product_edge_worker.mjs"
   push:
     branches: [main]
     paths:
@@ -20,7 +27,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
 
 concurrency:
   group: cloudflare-product-edge-v4
@@ -61,11 +67,14 @@ jobs:
 
   repair:
     name: Use production authority and prove the canonical public edge
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'workflow_dispatch'
     needs: contract
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     environment: production
+    permissions:
+      contents: read
+      issues: write
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
@@ -109,7 +118,7 @@ jobs:
           retention-days: 90
 
       - name: Reconcile INC-05 from independent public proof
-        if: always()
+        if: always() && inputs.dry_run != true
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -134,6 +143,8 @@ jobs:
           root = probe.get("root") or {}
           honest = probe.get("honest") or {}
           www = probe.get("www") or {}
+          spectral = probe.get("spectral") or {}
+          controller = probe.get("controller") or {}
           if root:
               print(f"- Apex root: HTTP `{root.get('status')}`, edge `{root.get('edge')}`, verified `{probe.get('root_verified')}`")
           if honest:
@@ -141,6 +152,10 @@ jobs:
               print(f"- Honesty API: HTTP `{honest.get('status')}`, organ `{contract.get('organ')}`, locked `{contract.get('locked_formula_count')}`, verified `{probe.get('honest_verified')}`")
           if www:
               print(f"- www: HTTP `{www.get('status')}`, location `{www.get('location')}`, verified `{probe.get('www_verified')}`")
+          if spectral:
+              print(f"- Spectral alias: HTTP `{spectral.get('status')}`, verified `{probe.get('spectral_verified')}`")
+          if controller:
+              print(f"- Controller alias: HTTP `{controller.get('status')}`, verified `{probe.get('controller_verified')}`")
           if report.get("error"):
               print(f"- Blocker: `{report['error']}`")
           PY
@@ -160,6 +175,11 @@ jobs:
           set -euo pipefail
           code="${{ steps.edge.outputs.exit_code }}"
           test -n "$code"
+          if [ "${{ inputs.dry_run || false }}" = "true" ]; then
+            test "$code" -eq 0
+            python -c 'import json,os; assert json.load(open(os.environ["EDGE_REPORT"]))["status"] == "VALIDATED"'
+            exit 0
+          fi
           if [ "$code" -ne 0 ]; then
             echo "::error::The production-authority edge controller did not reach LIVE; inspect the secret-free receipt."
             exit "$code"

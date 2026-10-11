@@ -22,3 +22,4 @@ overrides:
   brace-expansion: 5.0.12
   fast-uri@<3.1.8: 3.1.8
   browserslist: 4.28.8
+  source-map-js: 1.2.2

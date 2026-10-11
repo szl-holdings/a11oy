@@ -88,7 +88,9 @@ def test_bundle_matches_every_byte_submitted_by_existing_publisher(tmp_path, mon
     monkeypatch.chdir(tmp_path)
     assert r.main() == 0
     assert observed == expected
-    assert set(observed)=={"app.py","Dockerfile","requirements.txt","config.json","index.html","panels.html","README.md"}
+    assert set(observed)=={"app.py","Dockerfile","requirements.txt","config.json","index.html","panels.html","README.md",
+                           "finance-projection-manifest.json"}
+    assert "szl-artifact-manifest.json" not in observed
 
 
 def test_build_harness_does_not_instantiate_provider_or_use_network(tmp_path):

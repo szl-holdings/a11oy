@@ -90,7 +90,7 @@ jobs:
             --branch main \
             --pr-sample 20 \
             --summary-file /tmp/phantom.json | tee /tmp/scan.log
-          code=$?
+          code=${PIPESTATUS[0]}
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           if [ -f /tmp/phantom.json ]; then
             phantoms=$(python3 -c "import json;print(','.join(json.load(open('/tmp/phantom.json'))['phantoms']) or '(none)')")

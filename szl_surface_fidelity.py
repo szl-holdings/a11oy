@@ -13,11 +13,10 @@ records the provenance of that decision so the label can be audited rather than 
 
 Label rules (Doctrine v11 — never relaxed)
 ------------------------------------------
-  MEASURED         only from a real live reading taken THIS request. For joules the gate
-                   is A11OY_JOULE_METER_URLS being set AND at least one of those meters
-                   answering THIS request with a numeric, live=true GPU reading. A joule
-                   is NEVER fabricated, NEVER carried over from a previous request, and
-                   NEVER inferred from a default meter URL that the operator did not set.
+  MEASURED         only from a configured meter answering THIS request with a
+                   complete GPU set whose actual sample timestamps are fresh and
+                   whose joules derive from NVML counter deltas in stable segments.
+                   HTTP scrape time and modeled power integrals do not qualify.
   MODELED          a real in-request computation/read whose inputs are real (request
                    parameters, the real brain graph, a real eval run, a real node probe).
   STRUCTURAL-ONLY  no real signal exists for this surface — kept honestly, with the
@@ -28,14 +27,14 @@ the locked-8 {F1,F4,F7,F11,F12,F18,F19,F22}. Provenance coverage is 1.0: every e
 value names where it came from. Pure stdlib. RECEIPT-ON-WRITE, NOT ON-READ.
 
 Meter JSON shape consumed (omen-joule-exporter):
-  {"engines":[{"engine":"omen","joules":N,
-               "gpus":[{"power_w":N,"joules":N,"live":true}]}],
-   "totals":{"joules":N}}
+  {"engines":[{"engine":"omen","gpus":[{"gpu_uuid":"...",
+    "counter_epoch":"...","sample_ts":UNIX_SECONDS,"live":true,
+    "joules":N,"joules_method":"NVML_COUNTER_DELTA"}]}]}
 """
 import json as _json
+import math
 import os
 import time as _time
-import urllib.request
 from datetime import datetime, timezone
 
 from starlette.requests import Request
@@ -58,6 +57,7 @@ TRUST_CEILING = 0.97
 # operator who has not set the fleet meter env has no live meter, and inventing a
 # default would let an unset deployment drift into a MEASURED claim.
 METER_URLS_ENV = "A11OY_JOULE_METER_URLS"
+METER_SAMPLE_MAX_AGE_S = 12.0
 # A sovereign meter sits behind a Cloudflare-fronted tunnel that answers 403/1010 to
 # the default "Python-urllib/x" UA. A plain UA would therefore read as "meter down"
 # on a meter that is actually up — the probe would be honest but wrong. Browser UA.
@@ -96,9 +96,9 @@ def _read_one_meter(url: str, timeout: float) -> dict:
     Never raises, never caches, never substitutes a previous reading.
     """
     t0 = _time.monotonic()
-    req = urllib.request.Request(url, headers={"User-Agent": METER_UA})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310
+        from szl_meter_access import open_meter_get
+        with open_meter_get(url, timeout=timeout, headers={"User-Agent": METER_UA}) as r:
             body = r.read().decode("utf-8", "replace")
             status = int(getattr(r, "status", 0) or 0)
         doc = _json.loads(body)
@@ -117,9 +117,9 @@ def meter_gate(timeout: float = None) -> dict:
     """Read every configured joule meter LIVE, THIS request, and decide the label.
 
     Returns a fully self-describing gate block:
-      label            MEASURED iff env set AND a live numeric reading landed now.
+      label            MEASURED iff env set AND a fresh NVML delta landed now.
       env_set          whether A11OY_JOULE_METER_URLS is set at all.
-      live_this_request whether any meter answered with a live numeric reading now.
+      live_this_request whether any meter answered with a qualified GPU set.
       joules_total     the summed live reading, or None. NEVER a fabricated number.
       engines[]        per-engine live watts/joules actually read (empty when none).
       reads[]          per-URL provenance (ok, http_status, latency_ms, error).
@@ -131,22 +131,76 @@ def meter_gate(timeout: float = None) -> dict:
     reads = [_read_one_meter(u, timeout) for u in urls]
 
     engines, joule_vals, watt_vals = [], [], []
+    sample_now = _time.time()
+    incomplete_sources = []
+    seen_engines = set()
+    seen_global_gpu_uuids = set()
     for r in reads:
         doc = r.get("doc") or {}
-        for e in (doc.get("engines") or []):
+        source_engines = doc.get("engines") if isinstance(doc, dict) else None
+        if not r.get("ok") or not isinstance(source_engines, list) or not source_engines:
+            incomplete_sources.append(r.get("url"))
+            continue
+        source_valid = True
+        for e in source_engines:
             if not isinstance(e, dict):
+                source_valid = False
                 continue
             name = str(e.get("engine") or "").strip().lower()
-            live_w, live_j = None, None
-            for g in (e.get("gpus") or []):
-                if not isinstance(g, dict) or not g.get("live"):
-                    continue
-                if live_w is None and isinstance(g.get("power_w"), (int, float)):
-                    live_w = float(g["power_w"])
-                if live_j is None and isinstance(g.get("joules"), (int, float)):
-                    live_j = float(g["joules"])
-            eng_j = e.get("joules")
-            eng_j = float(eng_j) if isinstance(eng_j, (int, float)) else live_j
+            if not name or name in seen_engines:
+                source_valid = False
+                continue
+            seen_engines.add(name)
+            gpus = e.get("gpus")
+            valid = isinstance(gpus, list) and bool(gpus)
+            gpu_evidence = []
+            seen_uuids = set()
+            if valid:
+                for g in gpus:
+                    if not isinstance(g, dict):
+                        valid = False
+                        break
+                    uuid = g.get("gpu_uuid")
+                    epoch = g.get("counter_epoch")
+                    ts = g.get("sample_ts")
+                    joules = g.get("joules")
+                    if (g.get("live") is not True or
+                            g.get("joules_method") != "NVML_COUNTER_DELTA" or
+                            not isinstance(uuid, str) or not uuid.strip() or
+                            uuid in seen_uuids or
+                            not isinstance(epoch, str) or not epoch.strip() or
+                            isinstance(ts, bool) or not isinstance(ts, (int, float)) or
+                            not math.isfinite(ts) or
+                            not 0 <= sample_now - ts <= METER_SAMPLE_MAX_AGE_S or
+                            isinstance(joules, bool) or
+                            not isinstance(joules, (int, float)) or
+                            not math.isfinite(joules) or joules < 0):
+                        valid = False
+                        break
+                    seen_uuids.add(uuid)
+                    gpu_evidence.append({
+                        "gpu_uuid": uuid, "counter_epoch": epoch,
+                        "sample_ts": float(ts), "joules": float(joules),
+                        "joules_method": "NVML_COUNTER_DELTA",
+                        "power_w": g.get("power_w"),
+                    })
+            # A partial GPU set is not an engine total. Never trust the exporter
+            # aggregate or substitute the time of this HTTP scrape for sample time.
+            if valid and any(g["gpu_uuid"] in seen_global_gpu_uuids
+                             for g in gpu_evidence):
+                valid = False
+            if not valid:
+                source_valid = False
+                gpu_evidence = []
+            else:
+                seen_global_gpu_uuids.update(g["gpu_uuid"] for g in gpu_evidence)
+            eng_j = sum(g["joules"] for g in gpu_evidence) if gpu_evidence else None
+            powers = [g["power_w"] for g in gpu_evidence]
+            live_w = (sum(float(w) for w in powers)
+                      if powers and all(not isinstance(w, bool) and
+                                        isinstance(w, (int, float)) and
+                                        math.isfinite(w) and w >= 0 for w in powers)
+                      else None)
             if live_w is not None:
                 watt_vals.append(live_w)
             if eng_j is not None:
@@ -156,19 +210,25 @@ def meter_gate(timeout: float = None) -> dict:
                 "watts_live": live_w,
                 "joules": eng_j,
                 "meter_url": r.get("url"),
-                # a GPU that did not report live=true contributes NOTHING; we do not
-                # downgrade it into a guess, we simply carry null.
-                "reading_taken_at": _now_iso() if (live_w is not None or eng_j is not None) else None,
+                "reading_taken_at": (datetime.fromtimestamp(
+                    min(g["sample_ts"] for g in gpu_evidence), timezone.utc).isoformat()
+                    if gpu_evidence else None),
+                "gpu_evidence": gpu_evidence,
             })
+        if not source_valid:
+            incomplete_sources.append(r.get("url"))
 
-    live_now = bool(watt_vals or joule_vals)
-    measured = bool(env_set and live_now)
+    live_now = bool(joule_vals)
+    all_sources_qualified = bool(env_set and not incomplete_sources)
+    measured = bool(all_sources_qualified and live_now)
     gate = {
         "label": MEASURED if measured else STRUCTURAL_ONLY,
         "env_var": METER_URLS_ENV,
         "env_set": env_set,
         "urls_configured": urls,
         "urls_answered": [r["url"] for r in reads if r["ok"]],
+        "all_sources_qualified": all_sources_qualified,
+        "incomplete_sources": incomplete_sources,
         "live_this_request": live_now,
         "engines": engines,
         "engine_count": len(engines),
@@ -178,9 +238,9 @@ def meter_gate(timeout: float = None) -> dict:
         "probe_user_agent": METER_UA,
         "read_at": _now_iso(),
         "doctrine": (
-            "MEASURED requires BOTH %s set AND a live=true numeric GPU reading returned "
-            "by a configured meter in THIS request. No joule is ever fabricated, carried "
-            "over from an earlier request, or inferred from an unset default." % METER_URLS_ENV
+            "MEASURED joules require %s, every GPU live with a fresh actual sample_ts, "
+            "stable gpu_uuid and counter_epoch, and an NVML_COUNTER_DELTA value. "
+            "Engine aggregates and scrape timestamps are not energy evidence." % METER_URLS_ENV
         ),
     }
     if not measured:
@@ -190,13 +250,15 @@ def meter_gate(timeout: float = None) -> dict:
             "%s is not set — this deployment has no fleet joule meter, so no joule "
             "exists to report." % METER_URLS_ENV
             if not env_set else
-            "%s is set (%d meter URL(s)) but no meter returned a live=true numeric GPU "
-            "reading in this request, so there is no joule to report."
+            "%s is set (%d meter URL(s)) but not every configured source returned "
+            "a complete fresh NVML counter-delta GPU set; an incomplete fleet "
+            "cannot report an aggregate measured joule total."
             % (METER_URLS_ENV, len(urls))
         )
         gate["upgrade_condition"] = (
-            "set %s to the fleet meter URL(s) and have at least one meter answer this "
-            "request with {engines:[{gpus:[{power_w,joules,live:true}]}]}" % METER_URLS_ENV
+            "set %s to the fleet meter URL(s) and have at least one engine return "
+            "fresh live GPUs with gpu_uuid, counter_epoch, sample_ts, joules, and "
+            "joules_method=NVML_COUNTER_DELTA" % METER_URLS_ENV
         )
     return gate
 

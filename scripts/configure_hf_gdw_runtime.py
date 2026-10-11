@@ -134,9 +134,32 @@ class RuntimeConfigError(RuntimeError):
             "SPACE_CLIENT_UNAVAILABLE", "INSTALLED_AUTHORITY_UNKNOWN",
             "HF_CONTROL_CREDENTIAL_MISSING", "CHECK_MODE_MALFORMED",
             "MANAGED_STORAGE_UNAVAILABLE", "MANAGED_OUTCOME_UNCERTAIN",
+            "SOURCE_OWNERSHIP_UNAVAILABLE", "SOURCE_NOT_CURRENT_MAIN",
             *INSTALLED_AUTHORITY_DIAGNOSTICS,
         }
         self.diagnostic_code = diagnostic_code if diagnostic_code in allowed else "PREREQUISITES_UNAVAILABLE"
+
+
+def require_current_main(expected_source_sha: str | None,
+                         main_reader: Callable[[], str] | None = None) -> None:
+    """Re-read protected main next to each default-path provider mutation."""
+    try:
+        path = Path(__file__).resolve().with_name("hf_exact_main_ownership.py")
+        spec = importlib.util.spec_from_file_location("_gdw_main_ownership", path)
+        if spec is None or spec.loader is None:
+            raise RuntimeError("main ownership reader unavailable")
+        ownership = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(ownership)
+        expected = ownership.validate_sha(expected_source_sha, label="expected source SHA")
+        observed = (main_reader() if main_reader is not None else
+                    ownership.fetch_main_sha("szl-holdings/a11oy", os.environ.get("GITHUB_TOKEN", "")))
+        observed = ownership.validate_sha(observed, label="observed main SHA")
+    except Exception:
+        raise RuntimeConfigError("SETUP_REQUIRED: protected main ownership is unavailable",
+                                 diagnostic_code="SOURCE_OWNERSHIP_UNAVAILABLE") from None
+    if observed != expected:
+        raise RuntimeConfigError("SETUP_REQUIRED: source is no longer protected main",
+                                 diagnostic_code="SOURCE_NOT_CURRENT_MAIN")
 
 
 def _managed_error(code: str = "MANAGED_STORAGE_UNAVAILABLE") -> RuntimeConfigError:
@@ -821,13 +844,19 @@ def await_readback(
 
 
 def configure(*, repo_id: str, hf_token: str, check_only: bool = False,
-              origin: str | None = None, authority_get: Callable | None = None) -> dict[str, Any]:
+              origin: str | None = None, authority_get: Callable | None = None,
+              expected_source_sha: str | None = None,
+              main_reader: Callable[[], str] | None = None) -> dict[str, Any]:
     if not hf_token:
         raise RuntimeConfigError("HF_TOKEN is required", diagnostic_code="HF_CONTROL_CREDENTIAL_MISSING")
     if repo_id != CANONICAL_SPACE:
         raise RuntimeConfigError("SETUP_REQUIRED: only the canonical A11oy Space is admitted", diagnostic_code="CANONICAL_DESTINATION_REQUIRED")
     if type(check_only) is not bool:
         raise RuntimeConfigError("SETUP_REQUIRED: check_only must be a boolean", diagnostic_code="CHECK_MODE_MALFORMED")
+    if not check_only:
+        # Refuse an unbound writer before creating a provider client. Each
+        # actual mutation below still performs a fresh protected-main read.
+        require_current_main(expected_source_sha, main_reader)
     try:
         from huggingface_hub import HfApi
 
@@ -852,6 +881,7 @@ def configure(*, repo_id: str, hf_token: str, check_only: bool = False,
     )
     secret_names = current_secret_names
     for name, value in sorted(changes.items()):
+        require_current_main(expected_source_sha, main_reader)
         api.add_space_variable(
             repo_id=repo_id,
             key=name,
@@ -1144,6 +1174,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--check-only", action="store_true")
     parser.add_argument("--managed-acquisition", type=Path)
     parser.add_argument("--source-sha")
+    parser.add_argument("--expected-source-sha")
     parser.add_argument("--managed-deadline-seconds", type=float, default=MANAGED_MAX_SECONDS)
     args = parser.parse_args(argv)
     try:
@@ -1155,7 +1186,8 @@ def main(argv: list[str] | None = None) -> int:
                 check_only=args.check_only, repo_id=args.repo_id)
         else:
             report = configure(repo_id=args.repo_id, hf_token=os.environ.get("HF_TOKEN", ""),
-                               check_only=args.check_only)
+                               check_only=args.check_only,
+                               expected_source_sha=args.expected_source_sha)
     except RuntimeConfigError as error:
         report = {"schema": "szl.hf-gdw-runtime-config/v1", "repo_id": CANONICAL_SPACE,
                   "state": "SETUP_REQUIRED", "credential_authority_state": "UNKNOWN",
