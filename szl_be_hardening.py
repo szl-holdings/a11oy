@@ -907,6 +907,14 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
             },
         }
 
+    # Product-edge fallback must use this exact handler, which owns the public
+    # /api/a11oy/v1/honest route, rather than serve.py's older shadowed route.
+    if organ == "a11oy":
+        app.add_api_route(
+            "/controller", _honest, methods=["GET", "HEAD"],
+            include_in_schema=False,
+        )
+
     report["registered"].append("honest_footer")
 
     # ---- 10: governance / assurance facade (TASK_2) -----------------------
