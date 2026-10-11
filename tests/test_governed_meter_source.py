@@ -78,6 +78,49 @@ def test_meter_uses_fresh_nvml_gpu_counter_not_exporter_total(monkeypatch):
     assert evidence["fresh"] is True
 
 
+def test_finite_gpu_counters_cannot_overflow_a_meter_or_device_window(monkeypatch):
+    assert api._finite_number(10 ** 1000) is False
+    now = time.time()
+    meter_doc = {"engines": [{"engine": "omen", "gpus": [
+        {"live": True, "gpu_uuid": gpu_id, "counter_epoch": "epoch-1",
+         "sample_ts": now, "joules_method": "NVML_COUNTER_DELTA", "joules": 1e308}
+        for gpu_id in ("GPU-one", "GPU-two")]}]}
+    assert api._counter_samples(meter_doc, now) is None
+    monkeypatch.setattr(api, "_meter_json", lambda *a, **kw: meter_doc)
+    joules, evidence = api._meter_one(OMEN)
+    assert joules is None and evidence["fresh"] is False
+    split_doc = {"engines": [
+        {"engine": engine, "gpus": [gpu]}
+        for engine, gpu in zip(("omen", "other"), meter_doc["engines"][0]["gpus"])]}
+    assert api._counter_samples(split_doc, now) is not None
+    monkeypatch.setattr(api, "_meter_json", lambda *a, **kw: split_doc)
+    joules, evidence = api._meter_one(OMEN)
+    assert joules is None and evidence["fresh"] is False
+
+    monkeypatch.setattr(api, "MESH", [_engine("anchor", OMEN, "omen")])
+    before, after = _snapshot(100.0, 20.0), _snapshot(105.0, 90.0)
+    before["engines"][0]["counter_samples"]["omen"]["gpu_counters"] = {
+        "GPU-one": 0.0, "GPU-two": 0.0}
+    after["engines"][0]["counter_samples"]["omen"]["gpu_counters"] = {
+        "GPU-one": 1e308, "GPU-two": 1e308}
+    delta, reason = _window_delta("anchor", before, after)
+    assert delta is None and "invalid" in reason
+
+
+def test_fleet_meter_aggregate_overflow_is_unavailable(monkeypatch):
+    monkeypatch.setattr(api, "MESH", [
+        _engine("anchor", OMEN, "omen"),
+        _engine("laptop", LAPTOP, "betterwithage"),
+    ])
+    monkeypatch.setattr(api, "_meter_one", lambda meter: (
+        1e308, {"meter": meter, "reachable": True, "fresh": True,
+                "live": True, "gpu_ids": [meter]}))
+    joules, evidence = api._meter_snapshot()
+    assert joules is None
+    assert evidence["aggregated"] is False
+    assert evidence["aggregate_overflow"] is True
+
+
 def test_canonical_exporter_root_json_matches_consumer_contract(monkeypatch):
     source = Path(api.__file__).resolve().parent / "box-scripts" / "omen_joule_exporter.py"
     spec = importlib.util.spec_from_file_location("a11oy_exporter_contract", source)

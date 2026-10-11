@@ -154,6 +154,15 @@ def _meter_json(url: str, *, timeout: float) -> dict:
         return json.loads(response.read().decode())
 
 
+def _finite_number(value: object) -> bool:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    try:
+        return math.isfinite(value)
+    except OverflowError:
+        return False
+
+
 def _counter_samples(doc: dict, now: float) -> dict | None:
     """Accept only complete, fresh, direct NVML counters, not exporter aggregates."""
     engines = doc.get("engines") if isinstance(doc, dict) else None
@@ -176,18 +185,18 @@ def _counter_samples(doc: dict, now: float) -> dict | None:
             sample_ts, value = gpu.get("sample_ts"), gpu.get("joules")
             if (not isinstance(gpu_id, str) or not gpu_id.strip()
                     or gpu_id in seen_gpu_ids or not isinstance(epoch, str)
-                    or not epoch.strip() or isinstance(sample_ts, bool)
-                    or not isinstance(sample_ts, (int, float))
-                    or not math.isfinite(sample_ts)
+                    or not epoch.strip() or not _finite_number(sample_ts)
                     or not 0 <= now - sample_ts <= METER_SAMPLE_MAX_AGE_S
-                    or isinstance(value, bool) or not isinstance(value, (int, float))
-                    or not math.isfinite(value) or value < 0):
+                    or not _finite_number(value) or value < 0):
                 return None
             seen_gpu_ids.add(gpu_id)
             counters.append((gpu_id, epoch))
             joules.append(float(value))
+        total_joules = sum(joules)
+        if not _finite_number(total_joules):
+            return None
         samples[name] = {
-            "joules": sum(joules),
+            "joules": total_joules,
             "sample_ts_min": min(gpu["sample_ts"] for gpu in gpus),
             "sample_ts_max": max(gpu["sample_ts"] for gpu in gpus),
             "counter_id": hashlib.sha256(json.dumps(sorted(counters)).encode()).hexdigest(),
@@ -207,8 +216,9 @@ def _meter_one(meter_base: str) -> tuple[float | None, dict]:
     except Exception as e:
         return None, {"meter": meter_base, "reachable": False, "note": str(e)[:80]}
     samples = _counter_samples(m, time.time())
-    qualified = samples is not None
-    return (sum(s["joules"] for s in samples.values()) if qualified else None), {
+    total = sum(s["joules"] for s in samples.values()) if samples is not None else None
+    qualified = samples is not None and _finite_number(total)
+    return (total if qualified else None), {
         "meter": meter_base, "reachable": True, "fresh": qualified, "live": qualified,
         "exporter": m.get("exporter") if isinstance(m, dict) else None,
         "ts": m.get("ts") if isinstance(m, dict) else None,
@@ -244,10 +254,12 @@ def _meter_snapshot() -> tuple[float | None, dict]:
         if j is not None:
             ev["source_qualified"] = True
         per.append(ev)
-    return (total if any_ok and not duplicate_gpu_source else None), {
-        "engines": per, "aggregated": any_ok and not duplicate_gpu_source,
+    aggregate_ok = any_ok and not duplicate_gpu_source and _finite_number(total)
+    return (total if aggregate_ok else None), {
+        "engines": per, "aggregated": aggregate_ok,
         "unique_meter_count": len(sources),
         "duplicate_gpu_source": duplicate_gpu_source,
+        "aggregate_overflow": any_ok and not _finite_number(total),
     }
 
 
@@ -306,12 +318,13 @@ def _served_meter_delta(served_by: str | None, before: dict, after: dict, *,
     deltas = []
     for gpu_id, start in start_counters.items():
         end = end_counters[gpu_id]
-        if (isinstance(start, bool) or isinstance(end, bool)
-                or not isinstance(start, (int, float)) or not isinstance(end, (int, float))
-                or not math.isfinite(start) or not math.isfinite(end) or end < start):
+        if (not _finite_number(start) or not _finite_number(end)
+                or start < 0 or end < start):
             return None, "serving GPU counter is invalid or reset"
         deltas.append(end - start)
     delta = sum(deltas)
+    if not _finite_number(delta):
+        return None, "serving GPU counter aggregate is invalid"
     if delta <= 0.5:
         return None, "no positive source-bound GPU window delta"
     return round(delta, 3), "serving GPU device-window NVML counter delta"
