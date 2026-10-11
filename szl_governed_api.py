@@ -172,6 +172,8 @@ def _counter_samples(doc: dict, now: float) -> dict | None:
             "counter_id": hashlib.sha256(json.dumps(sorted(counters)).encode()).hexdigest(),
             "gpu_ids": [hashlib.sha256(gpu_id.encode()).hexdigest()
                         for gpu_id, _ in sorted(counters)],
+            "gpu_counters": {hashlib.sha256(gpu["gpu_uuid"].encode()).hexdigest():
+                             float(gpu["joules"]) for gpu in gpus},
         }
     return samples
 
@@ -261,20 +263,30 @@ def _served_meter_delta(served_by: str | None, before: dict, after: dict) -> tup
         values.append(sample)
     if values[0].get("counter_id") != values[1].get("counter_id"):
         return None, "serving GPU identity or counter epoch changed"
-    start, end = values[0].get("joules"), values[1].get("joules")
+    start_counters, end_counters = (value.get("gpu_counters") for value in values)
     start_ts = values[0].get("sample_ts_max")
     end_ts = values[1].get("sample_ts_min")
-    if (isinstance(start, bool) or isinstance(end, bool)
-            or not isinstance(start, (int, float)) or not isinstance(end, (int, float))
-            or not math.isfinite(start) or not math.isfinite(end)
+    if (not isinstance(start_counters, dict) or not start_counters
+            or not isinstance(end_counters, dict)
+            or start_counters.keys() != end_counters.keys()
             or isinstance(start_ts, bool) or isinstance(end_ts, bool)
             or not isinstance(start_ts, (int, float))
             or not isinstance(end_ts, (int, float))
             or not math.isfinite(start_ts) or not math.isfinite(end_ts)
-            or end_ts <= start_ts
-            or end - start <= 0.5):
+            or end_ts <= start_ts):
         return None, "no positive source-bound joule delta this turn"
-    return round(end - start, 3), "serving GPU NVML counter delta"
+    deltas = []
+    for gpu_id, start in start_counters.items():
+        end = end_counters[gpu_id]
+        if (isinstance(start, bool) or isinstance(end, bool)
+                or not isinstance(start, (int, float)) or not isinstance(end, (int, float))
+                or not math.isfinite(start) or not math.isfinite(end) or end < start):
+            return None, "serving GPU counter is invalid or reset"
+        deltas.append(end - start)
+    delta = sum(deltas)
+    if delta <= 0.5:
+        return None, "no positive source-bound joule delta this turn"
+    return round(delta, 3), "serving GPU NVML counter delta"
 
 
 def _engine_live(eng: dict) -> bool:

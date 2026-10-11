@@ -23,12 +23,14 @@ def _snapshot(omen_joules, laptop_joules, *, omen_reachable=True, omen_counter="
              "counter_samples": {"omen": {"joules": omen_joules,
                                           "sample_ts_min": omen_joules,
                                           "sample_ts_max": omen_joules,
+                                          "gpu_counters": {"GPU-omen": omen_joules},
                                           "counter_id": omen_counter}}},
             {"engine": "laptop", "meter": LAPTOP, "reachable": True,
              "fresh": True, "live": True,
              "counter_samples": {"betterwithage": {"joules": laptop_joules,
                                                     "sample_ts_min": laptop_joules,
                                                     "sample_ts_max": laptop_joules,
+                                                    "gpu_counters": {"GPU-laptop": laptop_joules},
                                                     "counter_id": "epoch-2"}}},
         ],
     }
@@ -115,6 +117,13 @@ def test_shared_or_missing_serving_source_fails_closed(monkeypatch):
     stale_after["engines"][0]["counter_samples"]["omen"]["sample_ts_min"] = 100.0
     delta, _ = api._served_meter_delta("anchor", _snapshot(100.0, 20.0), stale_after)
     assert delta is None
+    mixed_before, mixed_after = _snapshot(100.0, 20.0), _snapshot(110.0, 90.0)
+    mixed_before["engines"][0]["counter_samples"]["omen"]["gpu_counters"] = {
+        "GPU-one": 50.0, "GPU-two": 50.0}
+    mixed_after["engines"][0]["counter_samples"]["omen"]["gpu_counters"] = {
+        "GPU-one": 49.0, "GPU-two": 61.0}
+    delta, _ = api._served_meter_delta("anchor", mixed_before, mixed_after)
+    assert delta is None  # One counter reset cannot be hidden by another GPU rising.
 
 
 def test_governed_turn_keeps_ambiguous_energy_unavailable(monkeypatch):
