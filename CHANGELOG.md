@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - native identity on the substrate card
+
+- Render the approved SZL Orbit artwork at 40 px with attribution on the
+  substrate payload card. Its original source/evidence, no-weight status,
+  license metadata and publication checks remain intact. This source change
+  does not establish a new Hub publication or model capability.
+
 ### Added - source-bound Platform candidate preview
 
 - Serve the reviewed Platform A11oy static candidate beneath the isolated
