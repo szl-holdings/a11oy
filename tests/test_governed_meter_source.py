@@ -1,10 +1,17 @@
 """Source-bound governed inference energy; all readings here are synthetic fixtures."""
 
 import importlib.util
+import io
+import json
+import threading
 import time
+import urllib.error
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+import szl_meter_access as meter_auth
 import szl_governed_api as api
 
 
@@ -46,7 +53,7 @@ def _window_delta(served_by, before, after, *, call_start_ts=101.0, call_end_ts=
 
 def test_meter_rejects_aggregate_without_direct_counter_evidence(monkeypatch):
     now = time.time()
-    monkeypatch.setattr(api, "_http_json", lambda *a, **kw: {
+    monkeypatch.setattr(api, "_meter_json", lambda *a, **kw: {
         "ts": now, "engines": [{"engine": "omen", "gpus": [
             {"live": True, "joules": 999.0, "power_w": 10.0}]}],
         "totals": {"joules": 999.0},
@@ -59,7 +66,7 @@ def test_meter_rejects_aggregate_without_direct_counter_evidence(monkeypatch):
 
 def test_meter_uses_fresh_nvml_gpu_counter_not_exporter_total(monkeypatch):
     now = time.time()
-    monkeypatch.setattr(api, "_http_json", lambda *a, **kw: {
+    monkeypatch.setattr(api, "_meter_json", lambda *a, **kw: {
         "ts": now, "engines": [{"engine": "omen", "gpus": [
             {"live": True, "gpu_uuid": "GPU-one", "counter_epoch": "epoch-1",
              "sample_ts": now, "joules_method": "NVML_COUNTER_DELTA",
@@ -100,9 +107,93 @@ def test_canonical_exporter_root_json_matches_consumer_contract(monkeypatch):
 
 def test_meter_without_hmac_target_fails_before_read(monkeypatch):
     monkeypatch.delenv("SZL_METER_HMAC_TARGETS", raising=False)
+    def no_network(*_args, **_kwargs):
+        raise AssertionError("meter network attempted without exact HMAC target")
+    monkeypatch.setattr(meter_auth.urllib.request, "build_opener", no_network)
     joules, evidence = api._meter_one(LAPTOP)
     assert joules is None
     assert evidence["reachable"] is False
+
+
+def test_ollama_tags_get_needs_no_meter_hmac_target(monkeypatch):
+    monkeypatch.delenv("SZL_METER_HMAC_TARGETS", raising=False)
+    def no_meter_get(*_args, **_kwargs):
+        raise AssertionError("Ollama liveness must not use meter authentication")
+    monkeypatch.setattr(meter_auth, "open_meter_get", no_meter_get)
+    captured = []
+    class Opener:
+        def open(self, request, *, timeout):
+            captured.append((request, timeout))
+            return io.BytesIO(b'{"models":[{"name":"local:latest"}]}')
+    def build_opener(*handlers):
+        assert any(isinstance(handler, api._NoRedirect) for handler in handlers)
+        return Opener()
+    monkeypatch.setattr(api.urllib.request, "build_opener", build_opener)
+    assert api._engine_live({"ollama": "http://127.0.0.1:11434",
+                             "model": "local:latest"}) is True
+    request, timeout = captured[0]
+    assert request.full_url == "http://127.0.0.1:11434/api/tags"
+    assert request.get_method() == "GET" and timeout == 6
+    assert not any("meter" in name.lower() or "cf-access" in name.lower()
+                   for name, _ in request.header_items())
+
+
+def test_generic_get_neither_redirects_nor_forwards_meter_headers(monkeypatch):
+    seen = []
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            seen.append((self.path, dict(self.headers)))
+            self.send_response(302 if self.path == "/redirect" else 200)
+            self.send_header("Location", "/followed")
+            self.end_headers()
+
+        def log_message(self, _format, *_args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    worker = threading.Thread(target=server.serve_forever, daemon=True)
+    worker.start()
+    base = f"http://127.0.0.1:{server.server_port}"
+    monkeypatch.setenv("SZL_METER_HMAC_TARGETS", json.dumps({
+        base: {"client_id": "fixture", "key_hex": "ab" * 32}}))
+    try:
+        with pytest.raises(urllib.error.HTTPError) as error:
+            api._http_json(base + "/redirect", timeout=2)
+        assert error.value.code == 302
+        assert [path for path, _ in seen] == ["/redirect"]
+        headers = {name.lower() for name in seen[0][1]}
+        assert not any("meter" in name or "cf-access" in name for name in headers)
+    finally:
+        server.shutdown()
+        server.server_close()
+        worker.join(timeout=2)
+
+
+@pytest.mark.parametrize("url", ["file:///tmp/tags", "http://user:pass@host/api/tags",
+                                 "http://host/api/tags#fragment", "http://host/api/tags\nInjected"])
+def test_generic_get_rejects_invalid_targets_before_network(monkeypatch, url):
+    def no_network(*_args, **_kwargs):
+        raise AssertionError("invalid target reached network")
+    monkeypatch.setattr(api.urllib.request, "build_opener", no_network)
+    with pytest.raises(ValueError):
+        api._http_json(url)
+
+
+def test_ollama_generate_post_transport_is_unchanged(monkeypatch):
+    captured = []
+    def no_get_opener(*_args, **_kwargs):
+        raise AssertionError("generation POST used GET opener")
+    def open_post(request, *, timeout):
+        captured.append((request, timeout))
+        return io.BytesIO(b'{"response":"fixture answer"}')
+    monkeypatch.setattr(api.urllib.request, "build_opener", no_get_opener)
+    monkeypatch.setattr(api.urllib.request, "urlopen", open_post)
+    result = api._http_json("http://127.0.0.1:11434/api/generate",
+                            {"model": "local", "prompt": "fixture"}, timeout=7)
+    assert result == {"response": "fixture answer"}
+    request, timeout = captured[0]
+    assert request.get_method() == "POST" and timeout == 7
+    assert json.loads(request.data) == {"model": "local", "prompt": "fixture"}
 
 
 def test_mesh_snapshot_reads_shared_meter_once(monkeypatch):

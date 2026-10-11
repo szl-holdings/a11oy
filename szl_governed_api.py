@@ -47,6 +47,7 @@ import math
 import threading as _threading
 import urllib.request
 import urllib.error
+from urllib.parse import urlsplit
 
 # --- the governance IP (merged on main) ---------------------------------------
 try:
@@ -117,12 +118,24 @@ HTTP_TIMEOUT  = float(os.environ.get("SZL_HTTP_TIMEOUT", "60"))
 _UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)"
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """An engine probe must not follow a redirect to a different endpoint."""
+
+    def redirect_request(self, request, fp, code, msg, headers, newurl):
+        return None
+
+
 def _http_json(url: str, payload: dict | None = None, timeout: float = HTTP_TIMEOUT) -> dict:
     data = json.dumps(payload).encode() if payload is not None else None
     if data is None:
-        from szl_meter_access import open_meter_get
-        with open_meter_get(url, timeout=timeout, headers={
-                "User-Agent": _UA, "Content-Type": "application/json"}) as r:
+        parsed = urlsplit(url)
+        if (parsed.scheme not in ("http", "https") or not parsed.hostname
+                or parsed.username is not None or parsed.password is not None
+                or parsed.fragment or any(ord(char) < 32 or ord(char) == 127 for char in url)):
+            raise ValueError("invalid engine JSON target")
+        req = urllib.request.Request(url, headers={
+            "User-Agent": _UA, "Accept": "application/json"}, method="GET")
+        with urllib.request.build_opener(_NoRedirect()).open(req, timeout=timeout) as r:
             return json.loads(r.read().decode())
     req = urllib.request.Request(
         url, data=data,
@@ -131,6 +144,14 @@ def _http_json(url: str, payload: dict | None = None, timeout: float = HTTP_TIME
     )
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.loads(r.read().decode())
+
+
+def _meter_json(url: str, *, timeout: float) -> dict:
+    """Only meter reads receive exact-target HMAC and Access headers."""
+    from szl_meter_access import open_meter_get
+    with open_meter_get(url, timeout=timeout, headers={
+            "User-Agent": _UA, "Accept": "application/json"}) as response:
+        return json.loads(response.read().decode())
 
 
 def _counter_samples(doc: dict, now: float) -> dict | None:
@@ -182,7 +203,7 @@ def _meter_one(meter_base: str) -> tuple[float | None, dict]:
     """Read one meter; accept only its complete per-GPU counter evidence."""
     meter_base = meter_base.rstrip("/")
     try:
-        m = _http_json(meter_base + "/", timeout=10)
+        m = _meter_json(meter_base + "/", timeout=10)
     except Exception as e:
         return None, {"meter": meter_base, "reachable": False, "note": str(e)[:80]}
     samples = _counter_samples(m, time.time())
