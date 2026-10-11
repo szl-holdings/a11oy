@@ -43,6 +43,8 @@ import os
 import time
 import json
 import hashlib
+import math
+import threading as _threading
 import urllib.request
 import urllib.error
 
@@ -109,6 +111,7 @@ _EFFORT_TO_TIER = {
 }
 
 METER_FRESH_S = float(os.environ.get("SZL_METER_FRESH_S", "30"))
+METER_SAMPLE_MAX_AGE_S = min(METER_FRESH_S, 12.0)
 HTTP_TIMEOUT  = float(os.environ.get("SZL_HTTP_TIMEOUT", "60"))
 # Browser-like UA: Cloudflare 403s the default python-urllib UA.
 _UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)"
@@ -130,37 +133,148 @@ def _http_json(url: str, payload: dict | None = None, timeout: float = HTTP_TIME
         return json.loads(r.read().decode())
 
 
+def _counter_samples(doc: dict, now: float) -> dict | None:
+    """Accept only complete, fresh, direct NVML counters, not exporter aggregates."""
+    engines = doc.get("engines") if isinstance(doc, dict) else None
+    if not isinstance(engines, list) or not engines:
+        return None
+    samples, seen_gpu_ids = {}, set()
+    for engine in engines:
+        if not isinstance(engine, dict):
+            return None
+        name = str(engine.get("engine") or "").strip().lower()
+        gpus = engine.get("gpus")
+        if not name or name in samples or not isinstance(gpus, list) or not gpus:
+            return None
+        counters, joules = [], []
+        for gpu in gpus:
+            if not isinstance(gpu, dict) or gpu.get("live") is not True \
+                    or gpu.get("joules_method") != "NVML_COUNTER_DELTA":
+                return None
+            gpu_id, epoch = gpu.get("gpu_uuid"), gpu.get("counter_epoch")
+            sample_ts, value = gpu.get("sample_ts"), gpu.get("joules")
+            if (not isinstance(gpu_id, str) or not gpu_id.strip()
+                    or gpu_id in seen_gpu_ids or not isinstance(epoch, str)
+                    or not epoch.strip() or isinstance(sample_ts, bool)
+                    or not isinstance(sample_ts, (int, float))
+                    or not math.isfinite(sample_ts)
+                    or not 0 <= now - sample_ts <= METER_SAMPLE_MAX_AGE_S
+                    or isinstance(value, bool) or not isinstance(value, (int, float))
+                    or not math.isfinite(value) or value < 0):
+                return None
+            seen_gpu_ids.add(gpu_id)
+            counters.append((gpu_id, epoch))
+            joules.append(float(value))
+        samples[name] = {
+            "joules": sum(joules),
+            "sample_ts_min": min(gpu["sample_ts"] for gpu in gpus),
+            "sample_ts_max": max(gpu["sample_ts"] for gpu in gpus),
+            "counter_id": hashlib.sha256(json.dumps(sorted(counters)).encode()).hexdigest(),
+            "gpu_ids": [hashlib.sha256(gpu_id.encode()).hexdigest()
+                        for gpu_id, _ in sorted(counters)],
+        }
+    return samples
+
+
 def _meter_one(meter_base: str) -> tuple[float | None, dict]:
-    """Read ONE engine's NVML meter. Returns (cumulative_joules|None, evidence)."""
+    """Read one meter; accept only its complete per-GPU counter evidence."""
+    meter_base = meter_base.rstrip("/")
     try:
         m = _http_json(meter_base + "/", timeout=10)
     except Exception as e:
         return None, {"meter": meter_base, "reachable": False, "note": str(e)[:80]}
-    ts = m.get("ts")
-    fresh = (ts is not None) and (abs(time.time() - float(ts)) <= METER_FRESH_S)
-    live = any(g.get("live") is True for eng in m.get("engines", []) for g in eng.get("gpus", []))
-    total = (m.get("totals") or {}).get("joules")
-    ok = fresh and live and isinstance(total, (int, float))
-    return (float(total) if ok else None), {
-        "meter": meter_base, "reachable": True, "fresh": fresh, "live": live,
-        "exporter": m.get("exporter"), "ts": ts}
+    samples = _counter_samples(m, time.time())
+    qualified = samples is not None
+    return (sum(s["joules"] for s in samples.values()) if qualified else None), {
+        "meter": meter_base, "reachable": True, "fresh": qualified, "live": qualified,
+        "exporter": m.get("exporter") if isinstance(m, dict) else None,
+        "ts": m.get("ts") if isinstance(m, dict) else None,
+        "counter_samples": samples or {},
+        "gpu_ids": [gpu_id for sample in (samples or {}).values()
+                    for gpu_id in sample["gpu_ids"]],
+        "note": None if qualified else "complete fresh NVML counter evidence unavailable",
+    }
 
 
 def _meter_snapshot() -> tuple[float | None, dict]:
-    """Aggregate cumulative joules across EVERY mesh meter that is fresh+live.
-    Returns (summed_joules|None, evidence with per-engine breakdown). Honest: an
-    engine whose meter is down contributes nothing and is labeled unreachable."""
+    """Read each physical meter once; never count a shared GLM/anchor URL twice."""
     per = []
     total = 0.0
     any_ok = False
+    sources = {}
+    gpu_ids = set()
+    duplicate_gpu_source = False
     for eng in MESH:
-        j, ev = _meter_one(eng.get("meter", ""))
-        ev["engine"] = eng.get("name")
+        meter = str(eng.get("meter") or "").rstrip("/")
+        if meter not in sources:
+            sources[meter] = _meter_one(meter)
+            for gpu_id in sources[meter][1].get("gpu_ids", []) or []:
+                if gpu_id in gpu_ids:
+                    duplicate_gpu_source = True
+                gpu_ids.add(gpu_id)
+            source_joules = sources[meter][0]
+            if source_joules is not None:
+                total += source_joules
+                any_ok = True
+        j, source_ev = sources[meter]
+        ev = {**source_ev, "engine": eng.get("name")}
         if j is not None:
-            total += j
-            any_ok = True
+            ev["source_qualified"] = True
         per.append(ev)
-    return (total if any_ok else None), {"engines": per, "aggregated": any_ok}
+    return (total if any_ok and not duplicate_gpu_source else None), {
+        "engines": per, "aggregated": any_ok and not duplicate_gpu_source,
+        "unique_meter_count": len(sources),
+        "duplicate_gpu_source": duplicate_gpu_source,
+    }
+
+
+def _served_meter_delta(served_by: str | None, before: dict, after: dict) -> tuple[float | None, str]:
+    """Attribute a turn only to one unshared serving engine and stable GPU counters."""
+    name = (served_by or "").removesuffix(" (failover)")
+    matches = [e for e in MESH if e.get("name") == name]
+    if len(matches) != 1:
+        return None, "serving engine is not uniquely identified in the mesh"
+    engine = matches[0]
+    meter = str(engine.get("meter") or "").rstrip("/")
+    exporter = str(engine.get("exporter") or "").strip().lower()
+    if not meter or not exporter or sum(
+            str(e.get("meter") or "").rstrip("/") == meter for e in MESH) != 1:
+        return None, "serving GPU meter source is ambiguous or shared"
+    values = []
+    for snapshot in (before, after):
+        if not isinstance(snapshot, dict) or snapshot.get("duplicate_gpu_source"):
+            return None, "meter source duplicated across snapshots"
+        entries = snapshot.get("engines")
+        if not isinstance(entries, list):
+            return None, "serving meter source changed or is missing"
+        rows = [e for e in entries if isinstance(e, dict) and e.get("engine") == name]
+        if len(rows) != 1 or rows[0].get("meter") != meter:
+            return None, "serving meter source changed or is missing"
+        row = rows[0]
+        counter_samples = row.get("counter_samples")
+        sample = counter_samples.get(exporter) if isinstance(counter_samples, dict) else None
+        if not all(row.get(k) is True for k in ("reachable", "fresh", "live")) \
+                or not isinstance(sample, dict) \
+                or not isinstance(sample.get("counter_id"), str) \
+                or not sample["counter_id"]:
+            return None, "serving engine has no fresh direct NVML counter"
+        values.append(sample)
+    if values[0].get("counter_id") != values[1].get("counter_id"):
+        return None, "serving GPU identity or counter epoch changed"
+    start, end = values[0].get("joules"), values[1].get("joules")
+    start_ts = values[0].get("sample_ts_max")
+    end_ts = values[1].get("sample_ts_min")
+    if (isinstance(start, bool) or isinstance(end, bool)
+            or not isinstance(start, (int, float)) or not isinstance(end, (int, float))
+            or not math.isfinite(start) or not math.isfinite(end)
+            or isinstance(start_ts, bool) or isinstance(end_ts, bool)
+            or not isinstance(start_ts, (int, float))
+            or not isinstance(end_ts, (int, float))
+            or not math.isfinite(start_ts) or not math.isfinite(end_ts)
+            or end_ts <= start_ts
+            or end - start <= 0.5):
+        return None, "no positive source-bound joule delta this turn"
+    return round(end - start, 3), "serving GPU NVML counter delta"
 
 
 def _engine_live(eng: dict) -> bool:
@@ -187,7 +301,6 @@ def _engine_live(eng: dict) -> bool:
 # our reimplementation). Spreads concurrent turns across live nodes instead of
 # pinning the anchor under load. Single-request behavior is UNCHANGED: with all
 # inflight == 0, MESH order wins (anchor first), exactly as before.
-import threading as _threading
 _INFLIGHT: dict = {}
 _INFLIGHT_LOCK = _threading.Lock()
 
@@ -339,7 +452,7 @@ def govern_infer(prompt: str, *, vertical: str = "general",
 
     # 2) MEASURE the turn — joules MEASURED only, outside the model call window edges.
     gateway_requested = effort == "szl-router"
-    j_before, ev_before = (None, {}) if gateway_requested else _meter_snapshot()
+    _, ev_before = (None, {}) if gateway_requested else _meter_snapshot()
 
     answer = None
     gen_meta: dict = {}
@@ -402,29 +515,16 @@ def govern_infer(prompt: str, *, vertical: str = "general",
             finally:
                 _inflight_dec(eng["name"])
 
-    j_after, ev_after = (None, {}) if gateway_requested else _meter_snapshot()
+    _, ev_after = (None, {}) if gateway_requested else _meter_snapshot()
 
-    # 3) Honest joule join. MEASURED requires:
-    #    (a) the engine that SERVED has a fresh+live meter, AND
-    #    (b) a REAL positive delta (> _JOULE_FLOOR) was observed.
-    # If the serving engine's meter is down (e.g. laptop meter2=404) we label
-    # UNAVAILABLE even if some OTHER node's meter ticked — never attribute another
-    # node's joules to this turn, never call a 0.0 delta "MEASURED".
-    _JOULE_FLOOR = 0.5  # joules; below this the delta is noise, not a measured turn
-    served_meter_live = False
-    if served_by:
-        base = served_by.replace(" (failover)", "")
-        for ev in (ev_after or {}).get("engines", []):
-            if ev.get("engine") == base and ev.get("reachable") and ev.get("live"):
-                served_meter_live = True
-                break
-    delta = (j_after - j_before) if (j_before is not None and j_after is not None) else None
-    if served_meter_live and delta is not None and delta > _JOULE_FLOOR:
-        energy = {"joules": round(delta, 3), "label": "MEASURED",
+    # 3) Attribute only the serving engine's own stable direct NVML counter.
+    # A fleet-total delta or a second logical engine sharing one meter is not
+    # per-turn proof, even when a remote meter happens to tick in the window.
+    delta, why = _served_meter_delta(served_by, ev_before, ev_after)
+    if delta is not None:
+        energy = {"joules": delta, "label": "MEASURED",
                   "evidence": {"served_by": served_by, "before": ev_before, "after": ev_after}}
     else:
-        why = ("serving engine has no live NVML meter" if not served_meter_live
-               else "no real positive joule delta this turn")
         energy = {"joules": None, "label": "UNAVAILABLE",
                   "evidence": {"served_by": served_by, "reason": why,
                                "before": ev_before, "after": ev_after,
