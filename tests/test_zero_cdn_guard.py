@@ -1,11 +1,11 @@
 """
 test_zero_cdn_guard.py — DEV-WIRE-A (2026-06-09)
 
-Doctrine guard: the operator console + every vendored JS asset MUST be 0 runtime CDN.
+Doctrine guard: the operator console + every served browser asset MUST be 0 runtime CDN.
 All third-party libraries are vendored in-image under static-vendor/ and referenced with
 relative `<script src="/vendor/...">` tags only. This test FAILS the build if any banned
-CDN host string appears in a served HTML or JS file, or if any <script>/<link> references
-an absolute http(s) origin.
+CDN host string appears in a served HTML, JS, or CSS file, or if any <script>/<link>
+references an absolute http(s) origin.
 
 ADDITIVE + SAFE: this only ADDS a gate; it never weakens an existing one.
 """
@@ -15,7 +15,7 @@ import pathlib
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 # Banned runtime-CDN host fragments (case-insensitive). A real vendored 0-CDN build
-# must not contain any of these inside a served HTML/JS file.
+# must not contain any of these inside a served HTML/JS/CSS file.
 BANNED = [
     "cdn.jsdelivr.net", "unpkg.com", "cdnjs.cloudflare.com", "cdn.skypack.dev",
     "esm.sh", "ajax.googleapis.com", "fonts.googleapis.com", "fonts.gstatic.com",
@@ -34,6 +34,9 @@ SERVED_GLOBS = [
     "pages/chaski.html",
     "pages/atelier.html",
     "console/*.html",
+    "console/preview/platform-a11oy/**/*.html",
+    "console/preview/platform-a11oy/**/*.js",
+    "console/preview/platform-a11oy/**/*.css",
     "web/nemo.html",
     "web/immune.html",
     "web/lyte.html",
@@ -50,6 +53,10 @@ SERVED_GLOBS = [
 # own HF Space / canonical origin are NOT asset loads and are allowed.
 EXT_SCRIPT = re.compile(r'<script\b[^>]*\bsrc\s*=\s*["\']https?://', re.IGNORECASE)
 EXT_STYLESHEET = re.compile(r'<link\b[^>]*\bhref\s*=\s*["\']https?://[^>]*>', re.IGNORECASE)
+EXT_CSS_ASSET = re.compile(
+    r'(?:url\(\s*["\']?|@import\s+(?:url\(\s*)?["\']?)https?://',
+    re.IGNORECASE,
+)
 
 
 def _served_files():
@@ -93,6 +100,25 @@ def test_no_absolute_external_asset_load_in_html():
                 snippet = txt[max(0, m.start() - 10):m.start() + 70].replace("\n", " ")
                 offenders.append(f"{f.relative_to(ROOT)} :: [{kind}] …{snippet}…")
     assert not offenders, "Absolute external asset load in served HTML (must be relative, 0-CDN):\n" + "\n".join(offenders)
+
+
+def test_no_absolute_external_asset_load_in_css():
+    """Served CSS may use local/data URLs, but cannot fetch an external origin."""
+    offenders = []
+    for f in _served_files():
+        if f.suffix.lower() != ".css":
+            continue
+        try:
+            txt = f.read_text(errors="ignore")
+        except Exception:
+            continue
+        for match in EXT_CSS_ASSET.finditer(txt):
+            snippet = txt[max(0, match.start() - 10):match.start() + 70].replace("\n", " ")
+            offenders.append(f"{f.relative_to(ROOT)} :: …{snippet}…")
+    assert not offenders, (
+        "Absolute external asset load in served CSS (must be relative/data, 0-CDN):\n"
+        + "\n".join(offenders)
+    )
 
 
 def test_anvaka_vendor_files_present_and_real():

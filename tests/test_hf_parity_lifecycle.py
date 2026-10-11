@@ -121,7 +121,7 @@ class HFParityLifecycleTests(unittest.TestCase):
         )
 
         final_read = (
-            "          python3 -B scripts/hf_exact_main_ownership.py \\\n"
+            "          python3 -I -B scripts/hf_exact_main_ownership.py \\\n"
             '            --repository "$GITHUB_REPOSITORY" '
             '--expected-sha "$GITHUB_SHA" \\\n'
             '            --receipt "$RUNNER_TEMP/'
