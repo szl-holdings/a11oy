@@ -1,6 +1,8 @@
 """Source-bound governed inference energy; all readings here are synthetic fixtures."""
 
+import importlib.util
 import time
+from pathlib import Path
 from types import SimpleNamespace
 
 import szl_governed_api as api
@@ -67,6 +69,40 @@ def test_meter_uses_fresh_nvml_gpu_counter_not_exporter_total(monkeypatch):
     assert joules == 12.5
     assert evidence["counter_samples"]["omen"]["joules"] == 12.5
     assert evidence["fresh"] is True
+
+
+def test_canonical_exporter_root_json_matches_consumer_contract(monkeypatch):
+    source = Path(api.__file__).resolve().parent / "box-scripts" / "omen_joule_exporter.py"
+    spec = importlib.util.spec_from_file_location("a11oy_exporter_contract", source)
+    assert spec is not None and spec.loader is not None
+    exporter = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(exporter)
+    now = time.time()
+    monkeypatch.setattr(exporter, "ENGINE_NAME", "betterwithage")
+    monkeypatch.setattr(exporter, "PEER_EXPORTERS", [])
+    monkeypatch.setattr(exporter, "_read_models", lambda: [])
+    monkeypatch.setattr(exporter, "_last_sample", {0: {
+        "name": "fixture GPU", "power_w": 10.0, "live": True,
+        "ts": now - 1, "counter_uuid": "GPU-source-contract",
+        "counter_epoch": "epoch-1", "counter_delta_valid": True,
+    }})
+    monkeypatch.setattr(exporter, "_cum_counter_joules", {0: 12.5})
+    monkeypatch.setattr(exporter, "_cum_joules", {0: 999.0})
+    payload = exporter._meter_json(now=now)
+    gpu = payload["engines"][0]["gpus"][0]
+    assert {"gpu_uuid", "counter_epoch", "sample_ts", "joules_method", "joules"} <= gpu.keys()
+    assert payload["engines"][0]["engine"] == "betterwithage"
+    assert payload["totals"]["joules"] == 12.5
+    samples = api._counter_samples(payload, now)
+    assert samples is not None
+    assert samples["betterwithage"]["joules"] == 12.5
+
+
+def test_meter_without_hmac_target_fails_before_read(monkeypatch):
+    monkeypatch.delenv("SZL_METER_HMAC_TARGETS", raising=False)
+    joules, evidence = api._meter_one(LAPTOP)
+    assert joules is None
+    assert evidence["reachable"] is False
 
 
 def test_mesh_snapshot_reads_shared_meter_once(monkeypatch):
@@ -156,22 +192,22 @@ def test_overlapping_turns_do_not_claim_exclusive_joules(monkeypatch):
     monkeypatch.setattr(api, "_ollama_generate", lambda *a: ("fixture answer", {}))
     monkeypatch.setattr(api, "_with_pb_reference", lambda energy: energy)
     monkeypatch.setattr(api, "_conformal_blocks", lambda *a: None)
-    # Two turns observe the same physical window. Its 5 J may include both
+    # Two turns observe the same physical window. Its 10 J may include both
     # inferences or unrelated GPU work; neither turn owns that device delta.
     monkeypatch.setattr(api, "_meter_snapshot", iter([
         (None, _snapshot(100.0, 20.0)),
-        (None, _snapshot(105.0, 90.0)),
+        (None, _snapshot(110.0, 90.0)),
         (None, _snapshot(100.0, 20.0)),
-        (None, _snapshot(105.0, 90.0)),
+        (None, _snapshot(110.0, 90.0)),
     ]).__next__)
     monkeypatch.setattr(api, "time", SimpleNamespace(
-        time=iter([101.0, 104.0, 101.0, 104.0]).__next__))
+        time=iter([101.0, 104.0, 105.0, 108.0]).__next__))
     for _ in range(2):
         energy = api.govern_infer("A public fixture prompt.")["energy"]
         assert energy["joules"] is None
         assert energy["label"] == "UNAVAILABLE"
         assert energy["evidence"]["device_window"] == {
-            "joules": 5.0, "label": "MEASURED", "method": "NVML_COUNTER_DELTA",
+            "joules": 10.0, "label": "MEASURED", "method": "NVML_COUNTER_DELTA",
             "scope": "SHARED_GPU_DEVICE_WINDOW", "billable": False,
         }
 
