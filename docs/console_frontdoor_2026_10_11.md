@@ -76,6 +76,9 @@ python -m pytest -q \
   tests/test_console_evidence_runtime.py \
   tests/test_demo_critical_routes.py
 node scripts/test_console_evidence.cjs
+node --test tests/test_console_source_runtime_evidence.mjs
+python -m pytest -q tests/test_command_centre.py
+SZL_TEST_GITLEAKS_BINARY=/path/to/verified/gitleaks python -I -B tests/test_gitleaks_public_source_digest.py -v
 CHROME_PATH=/path/to/chromium python scripts/test_console_frontdoor.py --output /tmp/console-frontdoor
 CONSOLE_QA_BROWSER=/path/to/chromium python scripts/test_console_focused_theme.py --output /tmp/console-focused
 ```
@@ -91,6 +94,14 @@ suite additionally covers source-labelled empty, malformed and failed responses.
 The offline helper tests execute the actual shipped JavaScript, including local
 ECDSA signing fixtures and tamper rejection. The test key exists only inside that
 process and is never a production identity or a committed key.
+
+The asset integrity contract verifies the accepted full upstream manifest and
+the exact installed subset separately. The public `szl-tokens.css` checksum in
+that immutable manifest triggers the scanner's generic API-key heuristic. Its
+exception requires both one of the five exact manifest paths and the complete
+reviewed checksum row. Actual-scanner regressions confirm that another path,
+a changed value, and adjacent or same-line synthetic credentials remain detected.
+No manifest, directory or general 64-hex credential exclusion is introduced.
 
 ## Delivery boundary
 
