@@ -292,20 +292,22 @@ def workflow_job_blocks(workflow_text):
         if stripped and not stripped.startswith("#") and indent <= jobs_indent:
             break
         entry = yaml_mapping_entry(stripped) if stripped else None
-        if entry and indent > jobs_indent:
-            if job_indent is None:
-                job_indent = indent
-            if indent == job_indent:
-                job_id, value = entry
-                if job_id == "<<" or value:
-                    # Inline jobs and merges are deliberately unsupported:
-                    # accepting a partial parse could prove an inert snippet.
-                    return []
-                if current_id is not None:
-                    blocks.append((current_id, current_lines, job_indent))
-                current_id = job_id
-                current_lines = [raw]
-                continue
+        substantive = bool(stripped and not stripped.startswith("#"))
+        if substantive and indent > jobs_indent and job_indent is None:
+            job_indent = indent
+        if substantive and indent == job_indent:
+            if not entry:
+                return []
+            job_id, value = entry
+            if job_id == "<<" or value:
+                # Inline jobs and merges are deliberately unsupported:
+                # accepting a partial parse could prove an inert snippet.
+                return []
+            if current_id is not None:
+                blocks.append((current_id, current_lines, job_indent))
+            current_id = job_id
+            current_lines = [raw]
+            continue
         if current_id is not None:
             current_lines.append(raw)
     if current_id is not None:
@@ -341,16 +343,63 @@ def strip_yaml_comment(value):
     return value.strip()
 
 
+def _yaml_double_quoted_key(value):
+    """Decode YAML double-quoted key escapes without a YAML dependency."""
+    simple = {
+        "0": "\0", "a": "\a", "b": "\b", "t": "\t", "n": "\n",
+        "v": "\v", "f": "\f", "r": "\r", "e": "\x1b", " ": " ",
+        '"': '"', "/": "/", "\\": "\\", "N": "\x85", "_": "\xa0",
+        "L": "\u2028", "P": "\u2029",
+    }
+    decoded = []
+    index = 0
+    while index < len(value):
+        char = value[index]
+        if char != "\\":
+            decoded.append(char)
+            index += 1
+            continue
+        index += 1
+        if index >= len(value):
+            return None
+        escape = value[index]
+        if escape in simple:
+            decoded.append(simple[escape])
+            index += 1
+            continue
+        widths = {"x": 2, "u": 4, "U": 8}
+        width = widths.get(escape)
+        if width is None:
+            return None
+        digits = value[index + 1:index + 1 + width]
+        if len(digits) != width or not re.fullmatch(r"[0-9A-Fa-f]+", digits):
+            return None
+        try:
+            decoded.append(chr(int(digits, 16)))
+        except (ValueError, OverflowError):
+            return None
+        index += 1 + width
+    return "".join(decoded)
+
+
 def yaml_mapping_entry(stripped):
-    """Return a simple YAML mapping key/value pair, including quoted keys."""
+    """Return a simple YAML mapping key/value pair, decoding quoted keys."""
     match = re.match(
-        r"^(?:\"(?P<double>[^\"]+)\"|'(?P<single>[^']+)'|"
+        r'^(?:"(?P<double>(?:\\.|[^"\\])*)"|'
+        r"'(?P<single>(?:''|[^'])*)'|"
         r"(?P<bare><<|[A-Za-z_][A-Za-z0-9_-]*))\s*:\s*(?P<value>.*)$",
         stripped,
     )
     if not match:
         return None
-    key = match.group("double") or match.group("single") or match.group("bare")
+    if match.group("double") is not None:
+        key = _yaml_double_quoted_key(match.group("double"))
+        if key is None:
+            return None
+    elif match.group("single") is not None:
+        key = match.group("single").replace("''", "'")
+    else:
+        key = match.group("bare")
     value = strip_yaml_comment(match.group("value"))
     return key, value
 
@@ -376,6 +425,96 @@ def yaml_scalar_matches(value, expected):
     """Compare a plain or quoted scalar, failing closed on invalid quoting."""
     valid, parsed = yaml_scalar_value(value)
     return valid and parsed == expected
+
+
+def _exact_yaml_child_mapping(lines, parent_index, parent_indent, expected):
+    """Match a flat YAML mapping exactly, rejecting aliases and nested values."""
+    children = []
+    for raw in lines[parent_index + 1:]:
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        indent = len(raw) - len(raw.lstrip())
+        if indent <= parent_indent:
+            break
+        children.append((indent, stripped))
+    if not children:
+        return False
+    child_indent = min(indent for indent, _stripped in children)
+    if any(indent != child_indent for indent, _stripped in children):
+        return False
+
+    observed = {}
+    for _indent, stripped in children:
+        entry = yaml_mapping_entry(stripped)
+        if not entry or entry[0] == "<<" or entry[0] in observed:
+            return False
+        observed[entry[0]] = entry[1]
+    return (
+        set(observed) == set(expected)
+        and all(yaml_scalar_matches(observed[key], value)
+                for key, value in expected.items())
+    )
+
+
+REVIEWED_TOP_LEVEL_ENV = {
+    "GH_TOKEN": "${{ github.token }}",
+    "CANONICAL_SPACE": "SZLHOLDINGS/a11oy",
+    "CANONICAL_ORIGIN": "https://szlholdings-a11oy.hf.space",
+    "REPORT_PATH": "reports/canonical-a11oy-relock-v4.json",
+}
+REVIEWED_TOP_LEVEL_PERMISSIONS = {"contents": "read"}
+REVIEWED_TOP_LEVEL_CONCURRENCY = {
+    "group": "sync-relock-canonical-a11oy",
+    "cancel-in-progress": "false",
+}
+
+
+def workflow_has_reviewed_inherited_context(workflow_text):
+    """Bind inherited deploy context and reject workflow-level run defaults."""
+    lines = workflow_text.splitlines()
+    substantive = [
+        (index, raw, raw.strip(), len(raw) - len(raw.lstrip()))
+        for index, raw in enumerate(lines)
+        if raw.strip() and not raw.strip().startswith("#")
+    ]
+    if not substantive:
+        return False
+    top_indent = min(indent for _index, _raw, _stripped, indent in substantive)
+    top_entries = []
+    for index, _raw, stripped, indent in substantive:
+        if indent != top_indent:
+            continue
+        entry = yaml_mapping_entry(stripped)
+        if not entry:
+            return False
+        top_entries.append((index, entry))
+
+    allowed = {"name", "run-name", "on", "permissions", "concurrency", "env", "jobs"}
+    keys = [entry[0] for _index, entry in top_entries]
+    if len(keys) != len(set(keys)) or not set(keys).issubset(allowed):
+        return False
+    required = {"on", "permissions", "concurrency", "env", "jobs"}
+    if not required.issubset(keys):
+        return False
+
+    by_key = {entry[0]: (index, entry[1]) for index, entry in top_entries}
+    for key in ("on", "permissions", "concurrency", "env", "jobs"):
+        if by_key[key][1]:
+            return False
+    return (
+        _exact_yaml_child_mapping(
+            lines, by_key["permissions"][0], top_indent,
+            REVIEWED_TOP_LEVEL_PERMISSIONS,
+        )
+        and _exact_yaml_child_mapping(
+            lines, by_key["concurrency"][0], top_indent,
+            REVIEWED_TOP_LEVEL_CONCURRENCY,
+        )
+        and _exact_yaml_child_mapping(
+            lines, by_key["env"][0], top_indent, REVIEWED_TOP_LEVEL_ENV,
+        )
+    )
 
 
 def yaml_sequence_items(lines, entry_index, property_indent, value):
@@ -537,11 +676,13 @@ def workflow_has_unfiltered_main_push(workflow_text):
         if indent <= on_indent:
             break
         entry = yaml_mapping_entry(stripped)
-        if entry:
-            on_block.append((index, indent, entry))
+        on_block.append((index, indent, entry))
     if not on_block:
         return False
     event_indent = min(indent for _index, indent, _entry in on_block)
+    if any(entry is None for _index, indent, entry in on_block
+           if indent == event_indent):
+        return False
     push_entries = [
         item
         for item in on_block
@@ -560,12 +701,14 @@ def workflow_has_unfiltered_main_push(workflow_text):
         if indent <= push_indent:
             break
         entry = yaml_mapping_entry(stripped)
-        if entry:
-            push_block.append((index, indent, entry))
+        push_block.append((index, indent, entry))
     if not push_block:
         return True
 
     property_indent = min(indent for _index, indent, _entry in push_block)
+    if any(entry is None for _index, indent, entry in push_block
+           if indent == property_indent):
+        return False
     properties = [
         item for item in push_block if item[1] == property_indent
     ]
@@ -591,6 +734,70 @@ def workflow_has_unfiltered_main_push(workflow_text):
     )
 
 
+REVIEWED_WORKFLOW_DISPATCH_SHA256 = (
+    "9d7b950df6099c2c1d3284ab98a6e91dbff6d38ad32a18e2c1ea8011665852bf"
+)
+
+
+def workflow_has_reviewed_event_scope(workflow_text):
+    """Reject any unreviewed event that could activate provider credentials."""
+    lines = workflow_text.splitlines()
+    parsed = []
+    for index, raw in enumerate(lines):
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        entry = yaml_mapping_entry(stripped)
+        if entry:
+            parsed.append((index, len(raw) - len(raw.lstrip()), entry))
+    if not parsed:
+        return False
+    top_indent = min(indent for _index, indent, _entry in parsed)
+    on_entries = [
+        item for item in parsed
+        if item[1] == top_indent and item[2][0] == "on"
+    ]
+    if len(on_entries) != 1 or on_entries[0][2][1]:
+        return False
+    on_index, on_indent, _entry = on_entries[0]
+    children = []
+    for index, raw in enumerate(lines[on_index + 1:], start=on_index + 1):
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        indent = len(raw) - len(raw.lstrip())
+        if indent <= on_indent:
+            break
+        children.append((index, indent, yaml_mapping_entry(stripped)))
+    if not children:
+        return False
+    event_indent = min(indent for _index, indent, _entry in children)
+    events = [item for item in children if item[1] == event_indent]
+    if any(entry is None for _index, _indent, entry in events):
+        return False
+    keys = [entry[0] for _index, _indent, entry in events]
+    if len(keys) != len(set(keys)) or set(keys) not in (
+        {"push"},
+        {"push", "workflow_dispatch"},
+    ):
+        return False
+    dispatch = [item for item in events if item[2][0] == "workflow_dispatch"]
+    if not dispatch:
+        return True
+    dispatch_index, _indent, (_key, dispatch_value) = dispatch[0]
+    if dispatch_value:
+        return False
+    block = []
+    for raw in lines[dispatch_index:]:
+        if block and raw.strip() and not raw.lstrip().startswith("#"):
+            indent = len(raw) - len(raw.lstrip())
+            if indent <= event_indent:
+                break
+        block.append(raw)
+    digest = hashlib.sha256("\n".join(block).strip().encode("utf-8")).hexdigest()
+    return digest == REVIEWED_WORKFLOW_DISPATCH_SHA256
+
+
 SOURCE_DERIVED_CONTROLLER_REVISIONS = frozenset({
     # Reviewed reusable-hf-deploy controller that expands Dockerfile COPY
     # sources into the HF payload. A generic 40-hex pin proves immutability,
@@ -599,7 +806,7 @@ SOURCE_DERIVED_CONTROLLER_REVISIONS = frozenset({
 })
 
 
-REVIEWED_SOURCE_ADMISSION_JOB_SHA256 = "13304ef0f4d96cae7d534f42a5068b373b2fda1c0200d01a2a83f1e1bab581e6"
+REVIEWED_SOURCE_ADMISSION_JOB_SHA256 = "d76141f0fee870ce9f0eff6a32d5c08c603faebb7faf6f6905d4242e10786a7e"
 REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee8395e042853ded04deb7d170189"
 # The deploy path is source-admission -> preflight -> deploy -> runtime-config.
 # Preflight admits current main before any provider effect, reads the runtime
@@ -612,8 +819,15 @@ REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee
 # wins, live source binding), never an exact run, artifact or parent identity.
 # These exact job bodies and their complete local helper closure establish
 # reviewed source coverage only; they never establish provider success.
-REVIEWED_PREFLIGHT_JOB_SHA256 = "60ac7f0ca7ca201da5390285f5873984fb9c22d81cf13f375c4f82483f4c8bfb"
-REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "911d75d4aa98eb6e0e2e7a732709ff447c064fd3b6cd886b64a4dc7d966a47e6"
+REVIEWED_PREFLIGHT_JOB_SHA256 = "946dea224d0eabc1a827835a1c6e996cdf4b0e205078c82bd14e04044ffc34fe"
+REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "ffb6c15492bfe79393ae5bbb7f2fa99b6f33e325edc6329c753f954534318692"
+# This exact post-deploy readiness job has no provider credential, verifies the
+# candidate at both literal reviewed origins, and gates relock on success.
+REVIEWED_READINESS_VERDICT_JOB_SHA256 = "42325c1b54541f2dfb12ee5af91e30dbbbb07fc323e53dae22cedb3c2c9c22d5"
+# The relock job holds the provider read credential and consumes the readiness
+# verdict.  Bind its complete job body so an extra step, secret, permission, or
+# failure bypass cannot inherit that authority unnoticed.
+REVIEWED_RELOCK_JOB_SHA256 = "d9cfd6e3594ebd2fb46867fc0d028cded6b2ddb8eee85dad37cc50fa14a13eb4"
 REVIEWED_DEPLOY_HELPERS_SHA256 = {
     # Read-only runtime-stage classifier; it has no provider write path.
     ".github/scripts/resume_hf_space.py": "26cb21d2f0be37ebe6aa7e3be28f456489560f740f29215edd4b1d957ec53d49",
@@ -628,10 +842,34 @@ REVIEWED_DEPLOY_HELPERS_SHA256 = {
     "szl_dsse.py": "e095670051088929365f3eb4c76716122148d8f6b898db52f0e27867c221608c",
     # The runtime signer whose served public key the verifier checks.
     "a11oy_signing_key.py": "3315e58f39e0727590ecd6545f4f125d40b2ff0eea9f5fced15539da5d764d5c",
+    # Read-only exact-byte verifier used only by the least-privilege readiness job.
+    ".github/scripts/verify_platform_candidate_preview.py": "232ec9bf57239e5a0107c1e4e554383b917ea01f2f573a3c2c60ba2026901a2b",
+    ".github/scripts/publish_readiness_verdict.py": "d745e6abbaf9247ddd254f2476363b7906a8c382e4100a0e8e3b614cad8d91a6",
+    "tools/readiness-harness/probe_runner.mjs": "faae5beacf0bb13c9b6ba2b21407e56cdd8bc7aaf916f3458c4256807cd55755",
+    "tools/readiness-harness/canonical_unavailable.mjs": "ca50ca28195281bccdc3cfae09831eabdacff2028946ebaf0c403776cb905e24",
+    "tools/readiness-harness/tabs.json": "99545ca863dfe3174e9b1074319dc7a09c6e65566d4323b0eb92e83c8155f2d3",
+    # Read-only terminal verifier used by the exact relock job.
+    ".github/scripts/verify_canonical_a11oy.py": "d2a0081aed30f51760d4d56499606399666deb9fe93ca7d31943bf295c05d316",
 }
 REVIEWED_DEPLOY_GATES = {
     "needs": "[source-admission, preflight]",
     "if": "${{ needs.source-admission.outputs.publish == 'true' && needs.preflight.result == 'success' && needs.preflight.outputs.publish == 'true' }}",
+}
+REVIEWED_DEPLOY_INPUTS = {
+    "hf-repo": "SZLHOLDINGS/a11oy",
+    "ref": "${{ github.sha }}",
+    "require-default-branch-tip": "true",
+    "dockerfile-path": "Dockerfile",
+    "include-readme": "true",
+    "prune": "true",
+    "wait-running": "1200",
+    "restart-space": "${{ needs.preflight.outputs.restart_required == 'true' }}",
+    "source-revision-variable": "SZL_GIT_SHA",
+    "source-revision-probe-path": "/api/build-info",
+    "smoke-paths": '["/","/api/livez","/api/build-info","/api/a11oy/v1/honest","/api/a11oy/healthz","/api/a11oy/v1/brain/capabilities","/api/a11oy/v1/readiness/tab-matrix?view=summary","/api/a11oy/v1/series-a/status","/holographic","/holographic/","/static/3d/holographic.html","/assets/brain-frontier-v7.css","/assets/brain-frontier-v7.js","/assets/brain-frontier-v7.json","/static/landing-honest-bind.js","/atelier/frontier","/api/a11oy/v1/atelier/frontier/registry","/api/a11oy/v1/atelier/frontier/evaluate?evidence=90&repeatability=90&coverage=90&governance=90&safety=1&energy_state=UNAVAILABLE","/api/a11oy/v1/atelier/frontier/evaluate?safety=0","/preview/platform-a11oy/","/preview/platform-a11oy/source.json"]',
+}
+REVIEWED_DEPLOY_SECRETS = {
+    "HF_TOKEN": "${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}",
 }
 # Incident-only jobs retired with the durable v1 acquisition. Their exact
 # parent, run, artifact and namespace pins livelocked every later main.
@@ -660,53 +898,45 @@ def job_has_source_derived_deploy_contract(block_lines, job_indent, *,
         return False
     property_indent = min(property_indents)
 
-    pinned_controller = False
-    controller_seen = False
+    direct = {}
     with_index = None
-    gates = {}
+    secrets_index = None
     for index, raw in enumerate(block_lines[1:], start=1):
         stripped = raw.strip()
         indent = len(raw) - len(raw.lstrip())
         if indent != property_indent:
             continue
         entry = yaml_mapping_entry(stripped)
-        if entry and entry[0] in {"<<", "continue-on-error"}:
+        if not entry or entry[0] == "<<" or entry[0] in direct:
             return False
-        if entry and entry[0] in {"if", "needs"}:
-            if entry[0] in gates:
-                return False
-            gates[entry[0]] = entry[1]
-        if entry and entry[0] == "uses":
-            if controller_seen:
-                return False
-            controller_seen = True
-            controller = re.fullmatch(
-                r"szl-holdings/\.github/\.github/workflows/"
-                r"reusable-hf-deploy\.yml@(?P<revision>[0-9a-fA-F]{40})",
-                entry[1],
-            )
-            pinned_controller = bool(
-                controller
-                and controller.group("revision").lower()
-                in SOURCE_DERIVED_CONTROLLER_REVISIONS
-            )
-        if entry and entry[0] == "with":
-            if entry[1] or with_index is not None:
+        direct[entry[0]] = entry[1]
+        if entry[0] == "with":
+            if entry[1]:
                 return False
             with_index = index
-    if not controller_seen or not pinned_controller or with_index is None:
+        elif entry[0] == "secrets":
+            if entry[1]:
+                return False
+            secrets_index = index
+
+    expected_direct = {
+        "name": "Deploy, source-bind, and attest exact surface",
+        "needs": REVIEWED_DEPLOY_GATES["needs"],
+        "if": REVIEWED_DEPLOY_GATES["if"],
+        "uses": (
+            "szl-holdings/.github/.github/workflows/"
+            "reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451"
+        ),
+        "with": "",
+        "secrets": "",
+    }
+    if direct != expected_direct or with_index is None or secrets_index is None:
         return False
     if not (admission_verified and preflight_verified and runtime_verified
-            and gates == REVIEWED_DEPLOY_GATES):
+            ):
         # Empty gates and a source-only gate cannot bypass the preflight.
         return False
 
-    expected_inputs = {
-        "hf-repo": "SZLHOLDINGS/a11oy",
-        "ref": "${{ github.sha }}",
-        "dockerfile-path": "Dockerfile",
-        "require-default-branch-tip": "true",
-    }
     matched_inputs = {}
     contract_only_seen = False
     with_indent = None
@@ -729,18 +959,54 @@ def job_has_source_derived_deploy_contract(block_lines, job_indent, *,
             if contract_only_seen or not yaml_scalar_matches(value, "false"):
                 return False
             contract_only_seen = True
-        if key in expected_inputs:
-            if key in matched_inputs:
-                return False
-            matched_inputs[key] = yaml_scalar_matches(value, expected_inputs[key])
-    return (
-        set(matched_inputs) == set(expected_inputs)
-        and all(matched_inputs.values())
+            continue
+        if key in matched_inputs or key not in REVIEWED_DEPLOY_INPUTS:
+            return False
+        expected = REVIEWED_DEPLOY_INPUTS[key]
+        if key == "restart-space":
+            matched_inputs[key] = value == expected
+        else:
+            matched_inputs[key] = yaml_scalar_matches(value, expected)
+    if (set(matched_inputs) != set(REVIEWED_DEPLOY_INPUTS)
+            or not all(matched_inputs.values())):
+        return False
+    return _exact_yaml_child_mapping(
+        block_lines, secrets_index, property_indent, REVIEWED_DEPLOY_SECRETS
     )
 
 
 def _job_body_sha256(lines):
     return hashlib.sha256("\n".join(lines).strip().encode("utf-8")).hexdigest()
+
+
+def job_requires_successful_needs(block_lines, job_indent, expected_needs):
+    """Require an exact needs list and the default success-only job condition."""
+    property_indents = []
+    for raw in block_lines[1:]:
+        stripped = raw.strip()
+        if stripped and not stripped.startswith("#"):
+            indent = len(raw) - len(raw.lstrip())
+            if indent > job_indent:
+                property_indents.append(indent)
+    if not property_indents:
+        return False
+    property_indent = min(property_indents)
+
+    properties = {}
+    for raw in block_lines[1:]:
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        indent = len(raw) - len(raw.lstrip())
+        if indent != property_indent:
+            continue
+        entry = yaml_mapping_entry(stripped)
+        if not entry or entry[0] in properties:
+            return False
+        properties[entry[0]] = entry[1]
+    if set(properties) & {"<<", "if", "continue-on-error"}:
+        return False
+    return yaml_scalar_matches(properties.get("needs", ""), expected_needs)
 
 
 def has_source_derived_deploy_contract(hf_sync_text, *, ownership_helper=None,
@@ -788,8 +1054,34 @@ def has_source_derived_deploy_contract(hf_sync_text, *, ownership_helper=None,
         and len(runtimes) == 1
         and _job_body_sha256(runtimes[0]) == REVIEWED_RUNTIME_CONFIG_JOB_SHA256
     )
+    readiness_jobs = [
+        lines for job_id, lines, _indent in jobs
+        if job_id == "readiness-verdict"
+    ]
+    readiness_verified = (
+        helpers_verified
+        and len(readiness_jobs) == 1
+        and _job_body_sha256(readiness_jobs[0])
+        == REVIEWED_READINESS_VERDICT_JOB_SHA256
+    )
+    relock_jobs = [
+        (lines, indent) for job_id, lines, indent in jobs
+        if job_id == "relock"
+    ]
+    readiness_gates_relock = (
+        len(relock_jobs) == 1
+        and helpers_verified
+        and _job_body_sha256(relock_jobs[0][0]) == REVIEWED_RELOCK_JOB_SHA256
+        and job_requires_successful_needs(
+            *relock_jobs[0], "[runtime-config, readiness-verdict]"
+        )
+    )
     deploys = [(lines, indent) for job_id, lines, indent in jobs if job_id == "deploy"]
-    return (workflow_has_unfiltered_main_push(hf_sync_text)
+    return (workflow_has_reviewed_inherited_context(hf_sync_text)
+            and workflow_has_unfiltered_main_push(hf_sync_text)
+            and workflow_has_reviewed_event_scope(hf_sync_text)
+            and readiness_verified
+            and readiness_gates_relock
             and len(deploys) == 1
             and job_has_source_derived_deploy_contract(
                 *deploys[0], admission_verified=admission_verified,

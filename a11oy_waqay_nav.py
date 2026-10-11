@@ -74,6 +74,13 @@ def _make_injector():
     class _WaqayNavInjector(BaseHTTPMiddleware):
         async def dispatch(self, request, call_next):
             resp = await call_next(request)
+            # The response owner can require byte-exact delivery (for example,
+            # digest-bound static candidates and their HEAD responses).
+            from urllib.request import parse_http_list
+            if any(directive.strip().lower() == "no-transform"
+                   for field in resp.headers.getlist("cache-control")
+                   for directive in parse_http_list(field)):
+                return resp
             try:
                 ct = (resp.headers.get("content-type") or "").lower()
                 if "text/html" not in ct:
