@@ -158,7 +158,8 @@ def test_meter_without_hmac_target_fails_before_read(monkeypatch):
     assert evidence["reachable"] is False
 
 
-def test_ollama_tags_get_needs_no_meter_hmac_target(monkeypatch):
+@pytest.mark.parametrize("base", ["http://127.0.0.1:11434", "https://ollama.example"])
+def test_ollama_tags_get_needs_no_meter_hmac_target(monkeypatch, base):
     monkeypatch.delenv("SZL_METER_HMAC_TARGETS", raising=False)
     def no_meter_get(*_args, **_kwargs):
         raise AssertionError("Ollama liveness must not use meter authentication")
@@ -172,10 +173,9 @@ def test_ollama_tags_get_needs_no_meter_hmac_target(monkeypatch):
         assert any(isinstance(handler, api._NoRedirect) for handler in handlers)
         return Opener()
     monkeypatch.setattr(api.urllib.request, "build_opener", build_opener)
-    assert api._engine_live({"ollama": "http://127.0.0.1:11434",
-                             "model": "local:latest"}) is True
+    assert api._engine_live({"ollama": base, "model": "local:latest"}) is True
     request, timeout = captured[0]
-    assert request.full_url == "http://127.0.0.1:11434/api/tags"
+    assert request.full_url == base + "/api/tags"
     assert request.get_method() == "GET" and timeout == 6
     assert not any("meter" in name.lower() or "cf-access" in name.lower()
                    for name, _ in request.header_items())
@@ -213,7 +213,9 @@ def test_generic_get_neither_redirects_nor_forwards_meter_headers(monkeypatch):
 
 
 @pytest.mark.parametrize("url", ["file:///tmp/tags", "http://user:pass@host/api/tags",
-                                 "http://host/api/tags#fragment", "http://host/api/tags\nInjected"])
+                                 "http://host/api/tags#fragment", "http://host/api/tags\nInjected",
+                                 "http://192.0.2.10/api/tags", "http://remote.example/api/tags",
+                                 "http://localhost/api/tags", "http://127.0.0.1:invalid/api/tags"])
 def test_generic_get_rejects_invalid_targets_before_network(monkeypatch, url):
     def no_network(*_args, **_kwargs):
         raise AssertionError("invalid target reached network")

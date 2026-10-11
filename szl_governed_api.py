@@ -43,6 +43,7 @@ import os
 import time
 import json
 import hashlib
+import ipaddress
 import math
 import threading as _threading
 import urllib.request
@@ -128,11 +129,20 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 def _http_json(url: str, payload: dict | None = None, timeout: float = HTTP_TIMEOUT) -> dict:
     data = json.dumps(payload).encode() if payload is not None else None
     if data is None:
-        parsed = urlsplit(url)
-        if (parsed.scheme not in ("http", "https") or not parsed.hostname
-                or parsed.username is not None or parsed.password is not None
-                or parsed.fragment or any(ord(char) < 32 or ord(char) == 127 for char in url)):
-            raise ValueError("invalid engine JSON target")
+        try:
+            if (not isinstance(url, str) or not url or not url.isascii()
+                    or any(ord(char) <= 32 or ord(char) == 127 for char in url)):
+                raise ValueError
+            parsed = urlsplit(url)
+            if (parsed.scheme not in ("http", "https") or not parsed.hostname
+                    or parsed.username is not None or parsed.password is not None
+                    or parsed.fragment):
+                raise ValueError
+            _ = parsed.port
+            if parsed.scheme == "http" and not ipaddress.ip_address(parsed.hostname).is_loopback:
+                raise ValueError
+        except (TypeError, ValueError):
+            raise ValueError("invalid engine JSON target") from None
         req = urllib.request.Request(url, headers={
             "User-Agent": _UA, "Accept": "application/json"}, method="GET")
         with urllib.request.build_opener(_NoRedirect()).open(req, timeout=timeout) as r:
