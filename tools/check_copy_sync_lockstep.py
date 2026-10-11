@@ -843,7 +843,7 @@ REVIEWED_DEPLOY_HELPERS_SHA256 = {
     # The runtime signer whose served public key the verifier checks.
     "a11oy_signing_key.py": "3315e58f39e0727590ecd6545f4f125d40b2ff0eea9f5fced15539da5d764d5c",
     # Read-only exact-byte verifier used only by the least-privilege readiness job.
-    ".github/scripts/verify_platform_candidate_preview.py": "dcc2b94c2f1f26ebb6550974b1af3e548dedd2afd41f100c852a6f647ac1550e",
+    ".github/scripts/verify_platform_candidate_preview.py": "232ec9bf57239e5a0107c1e4e554383b917ea01f2f573a3c2c60ba2026901a2b",
     ".github/scripts/publish_readiness_verdict.py": "d745e6abbaf9247ddd254f2476363b7906a8c382e4100a0e8e3b614cad8d91a6",
     "tools/readiness-harness/probe_runner.mjs": "faae5beacf0bb13c9b6ba2b21407e56cdd8bc7aaf916f3458c4256807cd55755",
     "tools/readiness-harness/canonical_unavailable.mjs": "ca50ca28195281bccdc3cfae09831eabdacff2028946ebaf0c403776cb905e24",
