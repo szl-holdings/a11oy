@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0
  * (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 */
 html, body, .gradio-container { margin: 0; padding: 0 !important; }
+.gradio-container .app { padding: 0 !important; margin: 0 !important; }
 .gradio-container { max-width: none !important; background: var(--bg); }
 #bench-native { padding: 0; margin: 0; border: 0; }
 .gb-page { --gb-gutter: clamp(20px, 5vw, 72px); color: var(--text); background: var(--bg); font: 400 var(--text-base)/1.6 var(--font-body); }
