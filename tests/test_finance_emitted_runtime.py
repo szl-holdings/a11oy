@@ -136,9 +136,20 @@ def test_generated_application_serves_same_routes_and_denies_private_feeds(tmp_p
     monkeypatch.chdir(output)
     ns={"__name__":"generated_finance_test"}
     exec(compile((output/"app.py").read_text(),"generated-app.py","exec"),ns)
+    import httpx
+    from types import SimpleNamespace
+    class Offline:
+        def __init__(self,**kwargs): pass
+        def __enter__(self): return self
+        def __exit__(self,*args): pass
+        def stream(self,*args,**kwargs): raise httpx.ConnectError("no canonical upstream in this test")
+    ns["httpx"]=SimpleNamespace(Client=Offline)
     with TestClient(ns["app"]) as client:
-        for path in ("/","/panels","/healthz","/readyz"):
+        for path in ("/","/panels","/healthz"):
             assert client.get(path).status_code==200
+        ready=client.get("/readyz")
+        assert ready.status_code==503 and ready.json()["ready"] is False
+        assert ready.json()["checks"]=={"landing_sha256":True,"panels_sha256":True,"canonical_contract":False}
         assert client.get("/").content==(output/"index.html").read_bytes()
         assert client.get("/api/finance/observations/alpaca-quotes").status_code==403
         assert client.get("/api/finance/observations/fred-series").status_code==403

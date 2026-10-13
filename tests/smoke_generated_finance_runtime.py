@@ -32,7 +32,7 @@ def main():
     if not locked:
         raise RuntimeError("empty emitted version lock")
     routes = {}
-    expected = {"/": 200, "/panels": 200, "/research": 200, "/api/live": 503, "/healthz": 200, "/readyz": 200,
+    expected = {"/": 200, "/panels": 200, "/research": 200, "/api/live": 503, "/healthz": 200, "/readyz": 503,
                 "/api/finance/observations/alpaca-quotes": 403,
                 "/api/finance/observations/fred-series": 403,
                 "/api/finance/overview": 503,
@@ -50,8 +50,15 @@ def main():
             raw = response.read(2_000_001)
             if response.code != code or len(raw) > 2_000_000:
                 raise RuntimeError("unexpected generated runtime response: " + path)
-            if path == "/readyz" and json.loads(raw).get("ready") is not True:
-                raise RuntimeError("generated file-integrity readiness failed")
+            if path == "/readyz":
+                # Files must verify, yet with no canonical upstream the data path
+                # is unavailable, so readiness must say so rather than ready:true.
+                body = json.loads(raw)
+                checks = body.get("checks", {})
+                if (checks.get("landing_sha256") is not True or checks.get("panels_sha256") is not True
+                        or checks.get("canonical_contract") is not False or body.get("ready") is not False
+                        or body.get("state") != "UNAVAILABLE"):
+                    raise RuntimeError("generated readiness is not file-verified and upstream-truthful")
             if path == "/api/finance/overview":
                 body = json.loads(raw)
                 if body.get("ok") is not False or body.get("execution_enabled") is not False:

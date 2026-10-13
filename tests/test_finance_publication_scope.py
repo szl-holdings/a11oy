@@ -10,6 +10,7 @@ import pytest
 
 analytics = importlib.import_module("verticals.puriq-markets.runtime.analytics")
 transport = importlib.import_module("verticals.puriq-markets.runtime.transport")
+contract = importlib.import_module("verticals.puriq-markets.runtime.contract")
 REVISION = "1" * 40
 
 
@@ -21,10 +22,12 @@ def publisher(monkeypatch, tmp_path):
     monkeypatch.setenv("GITHUB_SHA", REVISION)
     monkeypatch.setattr(module, "_github_json", lambda *a, **k: {"sha":REVISION})
     client = transport.FinanceClient(environ={"SZL_SOURCE_REVISION":REVISION})
-    state = {"body":analytics.compute(client, "signals", "AAPL", "fixture"), "writes":[]}
+    state = {"body":analytics.compute(client, "signals", "AAPL", "fixture"), "writes":[],
+             "headers":{"Content-Type":"application/json", contract.HEADER:contract.header_value()}}
     class Response:
         status = 200
-        headers = {"Content-Type":"application/json"}
+        @property
+        def headers(self): return state["headers"]
         def __enter__(self): return self
         def __exit__(self,*a): pass
         def geturl(self): return state["url"]
@@ -61,6 +64,39 @@ def test_preflight_rejects_tampered_or_misbound_backend(publisher, change):
     elif change == "origin": body["inputs"]["asset"]["origin"] = "coinbase"
     else: body["operation"] = "quote"
     with pytest.raises(RuntimeError): module.finance_preflight()
+
+
+def test_preflight_accepts_compatible_backend_at_another_revision_and_records_it(publisher):
+    module, state = publisher
+    other = transport.FinanceClient(environ={"SZL_GIT_SHA": "2" * 40})
+    state["body"] = analytics.compute(other, "signals", "AAPL", "fixture")
+    result = module.finance_preflight()
+    assert result["source_revision"] == REVISION
+    assert result["canonical_runtime_revision"] == "2" * 40
+    assert result["canonical_runtime_revision_role"] == "EVIDENCE_NOT_COMPATIBILITY_KEY"
+    assert result["canonical_contract"]["declared"] == contract.header_value()
+
+
+@pytest.mark.parametrize("declared,reason", [(None, "CANONICAL_CONTRACT_UNDECLARED"),
+    ("szl.finance.read-api/2", "CANONICAL_CONTRACT_INCOMPATIBLE"), ("garbage", "CANONICAL_CONTRACT_INVALID")])
+def test_preflight_refuses_incompatible_backend_contract(publisher, declared, reason):
+    module, state = publisher
+    state["headers"] = {"Content-Type": "application/json"}
+    if declared is not None:
+        state["headers"][contract.HEADER] = declared
+    with pytest.raises(RuntimeError, match=reason):
+        module.finance_preflight()
+
+
+def test_preflight_refuses_unreported_backend_revision(publisher):
+    module, state = publisher
+    # Self-consistent but unreported identity: a revision is required evidence.
+    body = state["body"]
+    body["source_revision"] = body["receipt"]["source_revision"] = "UNBOUND"
+    body["receipt"]["payload_sha256"] = transport.digest({k: v for k, v in body.items() if k != "receipt"})
+    body["receipt"]["receipt_sha256"] = transport.digest({k: v for k, v in body["receipt"].items() if k != "receipt_sha256"})
+    with pytest.raises(RuntimeError, match="not bound"):
+        module.finance_preflight()
 
 
 def test_preflight_refuses_moved_main_before_backend_request(publisher, monkeypatch):
