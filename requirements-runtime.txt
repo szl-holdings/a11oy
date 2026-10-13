@@ -13,7 +13,7 @@
 # Rationale for each dependency: docs/DOCKERFILE_NOTES.md §2.
 # huggingface_hub 1.31.0 is the admitted client (docs/CODEX_HF_HUB_131_RUNTIME_ALIGNMENT.md,
 # enforced by tests/test_hf_hub_131_source_contract.py). openai 3.x is not admitted.
-fastapi==0.141.1
+fastapi==0.142.2
 uvicorn[standard]==0.54.0
 httpx==0.28.1
 starlette==1.7.0
