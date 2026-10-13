@@ -123,11 +123,13 @@ try {
         const large = parseFloat(style.fontSize) >= 24 || (parseFloat(style.fontSize) >= 18.66 && Number(style.fontWeight) >= 700);
         contrasts.push({text: el.textContent.slice(0,70), ratio, minimum: large ? 3 : 4.5});
       }
-      return {width: innerWidth, contentWidth: root.getBoundingClientRect().width, scrollWidth: document.documentElement.scrollWidth, violations, targets, contrasts,
+      const ancestors = []; let node = root;
+      while (node) { const cs = getComputedStyle(node), box = node.getBoundingClientRect(); ancestors.push({tag:node.tagName,id:node.id,class:String(node.className),width:box.width,left:box.left,padding:cs.padding,margin:cs.margin,maxWidth:cs.maxWidth,display:cs.display,shadowRoot:!!node.shadowRoot}); node=node.parentElement; }
+      return {ancestors, width: innerWidth, contentWidth: root.getBoundingClientRect().width, scrollWidth: document.documentElement.scrollWidth, violations, targets, contrasts,
         forcedColors: matchMedia('(forced-colors: active)').matches, specimenBorder: getComputedStyle(document.querySelector('.gb-specimen')).borderTopStyle, font: getComputedStyle(root).fontFamily, mainBackground: getComputedStyle(root).backgroundColor,
         specimenBackground: getComputedStyle(document.querySelector('.gb-specimen')).backgroundColor};
     });
-    check(`${name}: full available content width`, metrics.contentWidth >= width - 2);
+    check(`${name}: full available content width`, metrics.contentWidth >= width - 2, metrics.ancestors);
     check(`${name}: reflow`, metrics.scrollWidth <= width + 1 && metrics.violations.length === 0, metrics.violations);
     check(`${name}: 44px primary and navigation targets`, metrics.targets.every(t => t.height >= 44 && t.width >= 24), metrics.targets);
     check(`${name}: native roles resolve`, metrics.font.includes('system-ui') && (variant.forcedColors === 'active' ? metrics.forcedColors && metrics.specimenBorder === 'solid' : metrics.mainBackground !== metrics.specimenBackground));
