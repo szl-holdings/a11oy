@@ -51,6 +51,8 @@ html[data-szl-shell-owner="homepage"] a { color:var(--link); min-height:44px; ma
 html[data-szl-shell-owner="homepage"] a:hover { color:var(--link-hover); }
 html[data-szl-shell-owner="homepage"] .wrap {
   width:100%; max-width:80rem; margin-inline:auto; padding-inline:var(--homepage-gutter);
+  padding-left:max(var(--homepage-gutter),env(safe-area-inset-left,0px));
+  padding-right:max(var(--homepage-gutter),env(safe-area-inset-right,0px));
 }
 html[data-szl-shell-owner="homepage"] .skip-link {
   position:fixed; z-index:var(--z-max); top:1rem; left:1rem;
@@ -93,7 +95,7 @@ html[data-szl-shell-owner="homepage"] .nav nav a:hover { background:var(--surfac
 html[data-szl-shell-owner="homepage"] .nav nav .nav-console { border:1px solid var(--control-edge); color:var(--text); gap:.6rem; margin-left:.5rem; }
 html[data-szl-shell-owner="homepage"] .menu-toggle {
   display:none; flex:0 0 48px; align-items:center; justify-content:center;
-  width:48px; min-height:48px; border:1px solid var(--control-edge);
+  width:48px; min-width:48px; min-height:48px; border:1px solid var(--control-edge); border-radius:6px;
   background:var(--surface); color:var(--text); font:inherit; font-size:.75rem; padding:0; cursor:pointer;
 }
 @media(min-width:1101px){html[data-szl-shell-owner="homepage"] .nav-cta-short{display:none}}
@@ -147,7 +149,7 @@ html[data-szl-shell-owner="homepage"] .specimen-wrap {
   background:var(--bg); overflow:hidden; isolation:isolate;
 }
 html[data-szl-shell-owner="homepage"] .holo-field {
-  position:absolute; inset:-14% -13% 0; pointer-events:none; z-index:-1; overflow:hidden;
+  position:absolute; inset:-14% -13% 0; pointer-events:none; z-index:-1; overflow-x:hidden; overflow-y:hidden;
 }
 html[data-szl-shell-owner="homepage"] .holo-aperture { display:block; width:100%; height:100%; opacity:.72; }
 html[data-szl-shell-owner="homepage"] .specimen-card {
@@ -233,6 +235,8 @@ html[data-szl-shell-owner="homepage"] :is(.chip,.lt,.data-state) {
   color:var(--text-sub) !important; font:.67rem/1.55 var(--font-mono); letter-spacing:.025em; white-space:normal;
 }
 html[data-szl-shell-owner="homepage"] .chip::before { content:none; }
+/* Degraded observations retain a shape distinction as well as their literal state label. */
+html[data-szl-shell-owner="homepage"] .data-state.amber { border-inline-start:3px solid var(--control-edge) !important; font-weight:var(--weight-semibold); }
 html[data-szl-shell-owner="homepage"] .dot { display:inline-block; flex-shrink:0; width:.35rem; height:.35rem; background:currentColor; border-radius:50%; }
 html[data-szl-shell-owner="homepage"] :is(.lambda-line,.free-energy,.fabric-note,.fabric-rule) { margin:1.25rem 0 0; font-size:.82rem; color:var(--text-sub); }
 html[data-szl-shell-owner="homepage"] .free-energy { padding:1rem; border-left:2px solid var(--control-edge); }
