@@ -981,13 +981,35 @@ def _honesty(coverage=None, coverage_n=None):
 
 
 def _ledger(receipt):
+    """Write once and report the canonical ledger outcome without overclaiming.
+
+    record_receipt is deliberately non-raising and can return accepted: false.
+    A duplicate is already durably represented, but a rejection is not. The raw
+    backend result is echoed only when it is strict JSON so it cannot break the
+    governed response after the write.
+    """
     try:
         import szl_lake_ingest  # type: ignore
         res = szl_lake_ingest.record_receipt(receipt, organ=RECEIPT_ORGAN)
-        return {"recorded": True, "backend": "szl_lake_ingest.record_receipt",
-                "result": res if isinstance(res, dict) else str(res)}
+        if not isinstance(res, dict):
+            return {"recorded": False, "accepted": False, "duplicate": False,
+                    "backend": "szl_lake_ingest.record_receipt",
+                    "reason": "ledger hook returned a non-object status"}
+        accepted = res.get("accepted") is True
+        duplicate = res.get("duplicate") is True
+        try:
+            json.dumps(res, allow_nan=False)
+            safe_result = res
+        except (ValueError, TypeError, OverflowError):
+            safe_result = {"serialization": "UNAVAILABLE",
+                           "reason": "ledger status was not strict JSON"}
+        return {"recorded": accepted or duplicate,
+                "accepted": accepted, "duplicate": duplicate,
+                "backend": "szl_lake_ingest.record_receipt",
+                "result": safe_result}
     except Exception as e:  # noqa: BLE001 — honest degrade
-        return {"recorded": False, "reason": "ledger hook not wired (%r)" % e,
+        return {"recorded": False, "accepted": False, "duplicate": False,
+                "reason": "ledger hook not wired (%r)" % e,
                 "organ": RECEIPT_ORGAN}
 
 
@@ -1115,6 +1137,14 @@ def _seal(result, payload_core, sign):
                 "composition": result.get("composition"),
                 "honesty": _honesty_from_state()}
     receipt = _build_receipt(payload_core, sign=sign)
+    try:
+        json.dumps(receipt, allow_nan=False)
+    except (ValueError, TypeError, OverflowError) as e:
+        return {"ok": False, "fail_closed": True,
+                "error": "signer output is not strict JSON; refusing ledger write (%s)" % e,
+                "property": result.get("property"),
+                "composition": result.get("composition"),
+                "honesty": _honesty_from_state()}
     result["receipt"] = receipt
     result["ledger"] = _ledger(receipt)
     return result
