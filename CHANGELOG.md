@@ -9,6 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - materials retrospective/OOD and discovery evaluator (R09, not wired)
+
+- Add `szl_materials_eval.py`, a stdlib-only, read-only evaluator for sealed
+  materials prediction records. It rejects NaN, infinity, bool, integers
+  beyond 2**53, unit mismatches and identifiers padded with whitespace. It
+  reports id, group, material_id and reduced-composition leakage across
+  splits (groups and material ids compare case-insensitively, in the
+  per-group table too). The leakage report names the splits it was given:
+  without both train and test records it reads UNKNOWN, never
+  NO_LEAKAGE_DETECTED. Missing predictions stay in coverage and are never
+  dropped. Regression error comes with per-group support. Discovery
+  metrics need an `e_above_hull` target, follow the task's declared
+  threshold and missing-prediction policy, and every ratio with a zero
+  denominator reads UNDEFINED. Acceleration is `random_budget /
+  model_budget`. A competitor comparison is admissible only with equal
+  conditions and no known or unknown training overlap; relaxed inputs are
+  noted in the output.
+- `evaluate()` returns SAMPLE, UNKNOWN or BLOCKED, and never PASS
+  or MEASURED: provenance digests are format-checked, not recomputed. A
+  missing or malformed hash or license gives UNKNOWN, and so does a
+  placeholder from a fixed screen: license words such as `unknown`, `TODO`
+  or `NOASSERTION`, a license with no letter or digit, a digest that repeats
+  with a period of 32 characters or fewer, the digest of empty input, or
+  one digest reused across artifacts. Other stubs can pass the screen and
+  still reach SAMPLE, which never claims verified provenance. A bundle
+  without both train and test records is UNKNOWN, with metrics still
+  reported. The module fits no model, runs no benchmark, makes no discovery
+  claim, and is not imported by `serve.py` or any route. Tests:
+  `tests/test_materials_eval_r09.py`, synthetic fixtures only. Reject unknown
+  element symbols and non-exact competitor budgets; scale MAE/RMSE arithmetic
+  so representable large metrics do not overflow intermediate sums or squares.
+
 ### Fixed - private backup qualification
 
 - Recognize verified fallback backup copies using their exact capture-local
