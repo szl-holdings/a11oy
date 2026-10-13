@@ -810,7 +810,7 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
           <div class="row"><span class="badge b-teal">ROUTE</span><span>Open-weight pick is order-stable (C20) and bracketed best\u2013worst (W7-5).</span></div>
           <div class="row"><span class="badge b-teal">QUARANTINE</span><span>Untrusted input is recorded but excluded from the gate \u2014 non-interference (P3, Goguen\u2013Meseguer 1982).</span></div>
           <div class="row"><span class="badge b-teal">GATE</span><span>Deny-by-default safety + advisory trust floor before anything runs (P2/P4).</span></div>
-          <div class="row"><span class="badge b-teal">SANDBOX</span><span id="cd-iso">Real restricted-subprocess isolation: no network, CPU/mem/time limits.</span></div>
+          <div class="row"><span class="badge b-teal">SANDBOX</span><span id="cd-iso">Restricted subprocess: mandatory CPU, memory, file-size and process limits plus a network namespace; code is refused if any cannot be applied. Not a seccomp or container sandbox.</span></div>
           <div class="row"><span class="badge b-teal">RECEIPT</span><span>Every hop is hash-chained and the run is ECDSA-P256 signed; flip a byte \u2192 verify fails (P5/P6).</span></div>
           <div class="row"><span class="badge b-teal">HALTS</span><span>The run provably finishes in bounded steps (F-G5 bounded-frontier).</span></div></div></div>
       <details class="raw"><summary>raw governed-turn run + signed receipt</summary><pre class="out" id="cd-raw">\u2014</pre></details>${HONEST}`;window.codetab_load();}},

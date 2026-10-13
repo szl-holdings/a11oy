@@ -1,8 +1,9 @@
 {
   "files": {
-    ".github/shared-source-payloads/authorized-rag-answer-handoff-20261008-v1.json": "6e4138d0c4901ad60cfb93fed81d7f3737c02d78c4fd13befe137d02c84c7c13",
-    "a11oy_org_rag.py": "0c98b17b37f5013a0a77aaccd71405d5be57dd37a0af4dceeff4f46f0982f227"
+    ".github/shared-source-payloads/org-rag-lexical-reference-20261013-v1.json": "65f404ffe7c235d6a549ccd608761e1f4ed0101d074590d1e50e6fb12e115b7a",
+    "a11oy_code_engine.py": "e515e66d812ed8f9be4cbd2cb042c9a99919d29f7e746df37b1532912a868493",
+    "tests/test_code_engine_mandatory_limits.py": "a9075737f895f9ee215f4c1fb7f74bfdb42a27e23a97b1b704a65876fea930e2"
   },
-  "payload_id": "org-rag-lexical-reference-20261013-v1",
+  "payload_id": "code-engine-mandatory-rlimits-20261013-v1",
   "schema": "szl-shared-source-payload/v1"
 }
