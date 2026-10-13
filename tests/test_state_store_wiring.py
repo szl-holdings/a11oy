@@ -7,7 +7,9 @@ With A11OY_STATE_STORE unset nothing changes (env overrides keep working); with
 A11OY_STATE_STORE=v2 the legacy /data values only name the bootstrap source.
 """
 
+import ast
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -97,10 +99,21 @@ def test_series_a_store_resolves_the_local_root_despite_the_mount_contract(v2):
     assert (v2 / "series-a" / "control-plane-v2.sqlite3").is_file()
 
 
+def _unay_pick_data_dir():
+    """The real szl_unay_routes._pick_data_dir source, without importing lmdb."""
+    source = Path(__file__).resolve().parents[1] / "szl_unay_routes.py"
+    tree = ast.parse(source.read_text(encoding="utf-8"))
+    node = next(item for item in tree.body
+                if isinstance(item, ast.FunctionDef) and item.name == "_pick_data_dir")
+    namespace = {"os": os, "_HERE": str(source.parent)}
+    exec(compile(ast.Module(body=[node], type_ignores=[]), str(source), "exec"), namespace)
+    return namespace["_pick_data_dir"]
+
+
 def test_unay_khipu_and_council_use_the_local_root(v2, monkeypatch, tmp_path):
     import a11oy_ayllu
     import szl_be_hardening
-    import szl_unay_routes
+    pick_data_dir = _unay_pick_data_dir()
     store = ss.StateStore(settings=ss.Settings(root=v2, bucket="b", dataset="d",
                                                legacy_root=tmp_path / "legacy"),
                           objects=None)
@@ -108,7 +121,7 @@ def test_unay_khipu_and_council_use_the_local_root(v2, monkeypatch, tmp_path):
     # UNAY_DATA_DIR, its first-priority setting, after capturing the legacy value.
     assert store.environ["UNAY_DATA_DIR"] == "/data"
     ss.export_environment(store)
-    assert Path(szl_unay_routes._pick_data_dir()) == v2 / "unay"
+    assert Path(pick_data_dir()) == v2 / "unay"
     assert ss.legacy_path(ss.STORES[4], store.environ, tmp_path) == Path("/data/unay_a11oy.sqlite")
     khipu = szl_be_hardening.DurableKhipu("a11oy")
     assert Path(khipu._path) == v2 / "khipu" / "khipu_a11oy.sqlite3"
