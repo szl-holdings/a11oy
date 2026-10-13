@@ -118,7 +118,7 @@ jobs:
       - name: Upload candidate evidence
         id: candidate_artifact
         if: steps.check.outputs.state != 'CURRENT'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: huggingface-ecosystem-manifest-candidate-${{ github.run_id }}
           path: evidence/huggingface-ecosystem-manifest.candidate.json
@@ -168,7 +168,7 @@ jobs:
           --output "$RUNNER_TEMP/hf-inventory-source-review.json"
       - name: Retain source proposal or stopping evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: hf-inventory-source-review-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/hf-inventory-source-review.json
