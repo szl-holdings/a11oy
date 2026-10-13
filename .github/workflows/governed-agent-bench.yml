@@ -128,7 +128,7 @@ jobs:
 
       - name: Retain unsigned local browser observations
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1; org-approved immutable revision
         with:
           name: governed-agent-bench-frontend-${{ github.event.pull_request.head.sha || github.sha }}
           path: ${{ runner.temp }}/bench-observations/bench-native-*/*
@@ -137,7 +137,7 @@ jobs:
 
       - name: Upload prerelease publication evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1; org-approved immutable revision
         with:
           name: governed-agent-bench-prerelease-${{ github.run_id }}
           path: reports/governed-agent-bench-publication
@@ -220,7 +220,7 @@ jobs:
 
       - name: Upload complete or partial publication receipt
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1; org-approved immutable revision
         with:
           name: governed-agent-bench-publication-${{ github.run_id }}
           path: reports/governed-agent-bench-publication
