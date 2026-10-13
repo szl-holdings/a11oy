@@ -5699,6 +5699,17 @@ async def readyz() -> JSONResponse:
                               "error_class": type(_sb_e).__name__}
     if _storage_block is not None:
         service_ready = False
+    # A11OY_STATE_STORE=v2: a container that is handing over, released, fenced
+    # or blocked refuses writes, so it is not ready either.
+    _state_fence = None
+    try:
+        import a11oy_state_store as _state_store_ready
+        if _state_store_ready.enabled() and not _state_store_ready.writable():
+            _state_fence = _state_store_ready.status()
+    except Exception as _ss_ready_e:  # unreadable state is not ready
+        _state_fence = {"role": "STATE_STORE_UNREADABLE", "error_class": type(_ss_ready_e).__name__}
+    if _state_fence is not None:
+        service_ready = False
     status = (
         "ready" if service_ready and capability_ready
         else "ready_degraded" if service_ready
@@ -5714,11 +5725,26 @@ async def readyz() -> JSONResponse:
         body["storage"] = _storage_block
         body["blocked_reason"] = _storage_block.get("reason")
         headers = {"Retry-After": str(int(_storage_block.get("retry_after_seconds") or 60))}
+    if _state_fence is not None:
+        body["state_store"] = {key: _state_fence.get(key) for key in ("mode", "role", "writable")}
+        headers = headers or {"Retry-After": "30"}
     return JSONResponse(
         body,
         status_code=200 if service_ready else 503,
         headers=headers,
     )
+
+
+# ---------------------------------------------------------------------------
+# a11oy state store (ADR-0001): GET /api/a11oy/v1/storage/status plus the write
+# fence (mutating requests answer 503 + Retry-After while this container does
+# not hold the storage lease). Inert unless A11OY_STATE_STORE=v2.
+# ---------------------------------------------------------------------------
+try:
+    import a11oy_state_store as _a11oy_state_store
+    _a11oy_state_store.register(app)
+except Exception as _a11oy_state_store_e:  # pragma: no cover - never take the app down
+    print(f"[a11oy] state store routes NOT registered: {_a11oy_state_store_e!r}", file=sys.stderr)
 
 
 # ---------------------------------------------------------------------------

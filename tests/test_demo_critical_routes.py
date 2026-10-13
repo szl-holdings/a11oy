@@ -105,6 +105,7 @@ DEMO_CRITICAL_ROUTES = [
     "/nexus",                                  # NEXUS analog vanity path (not a flagship, not a landing door)
     "/api/a11oy/v1/nexus/status",              # honest BIND status — never fabricated LIVE
     "/.well-known/source.json",                # product source declaration (UNSIGNED-honest)
+    "/api/a11oy/v1/storage/status",            # ADR-0001 state store mode/lease/snapshot ages (no paths)
 ]
 
 

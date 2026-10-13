@@ -30,6 +30,7 @@ from typing import Any, AsyncIterator, Callable, Mapping
 from urllib.parse import urlsplit
 
 import httpx
+import a11oy_state_store
 import gdw_durable_runtime as durable_storage
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
@@ -243,6 +244,16 @@ class Store:
         self._init()
 
     def _resolve_path(self, requested: str | None) -> str:
+        # With A11OY_STATE_STORE=v2 the live file is the state store's local
+        # copy (persistence is its snapshots, not the mount); A11OY_SERIES_A_DB
+        # then names only the legacy file it bootstraps from once.
+        state_path = (
+            None if requested or durable_storage.enabled()
+            else a11oy_state_store.local_path("series_a")
+        )
+        if state_path is not None:
+            state_path.parent.mkdir(parents=True, exist_ok=True)
+            return str(state_path)
         primary = (
             requested
             or os.environ.get("A11OY_SERIES_A_DB")

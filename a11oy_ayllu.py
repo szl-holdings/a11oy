@@ -224,6 +224,11 @@ def _council_store_path(ns: str) -> tuple[str, str]:
     survives process restarts but is *not* claimed to survive a container or
     Space rebuild.
     """
+    import a11oy_state_store
+
+    state_dir = a11oy_state_store.local_dir("khipu")
+    if state_dir is not None:
+        return str(state_dir / f"khipu_{ns}_council.sqlite3"), "A11OY_STATE_STORE_V2"
     exact = os.environ.get("A11OY_AYLLU_KHIPU_PATH")
     if exact:
         return exact, "A11OY_AYLLU_KHIPU_PATH"
