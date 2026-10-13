@@ -120,7 +120,9 @@ def test_landing_reads_matrix_and_probe_availability_separately() -> None:
     assert "optionalDegraded" in landing
     assert 'displayDegraded ? "DEGRADED" : "OBSERVED"' in landing
     assert "static contract; deployment probe pending" in landing
-    assert ".data-state.amber" in landing
+    assert 'href="/assets/a11oy-homepage.css" id="szl-homepage-shell"' in landing
+    css = (ROOT / "console/assets/a11oy-homepage.css").read_text(encoding="utf-8")
+    assert ".data-state.amber { border-inline-start:3px solid var(--control-edge) !important" in css
     for state in ("CACHED", "STALE_CACHE", "SNAPSHOT", "MODELED", "OBSERVED", "AVAILABLE", "DEGRADED"):
         assert state in landing
 

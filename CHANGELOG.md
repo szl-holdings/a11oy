@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - native identity on the substrate card
+
+- Render the approved SZL Orbit artwork at 40 px with attribution on the
+  substrate payload card. Its original source/evidence, no-weight status,
+  license metadata and publication checks remain intact. This source change
+  does not establish a new Hub publication or model capability.
+
+### Fixed - civilian UI Tailwind compatibility
+
+- Restore forced-colors focus outlines and tooltip transform origins using
+  Tailwind 4-compatible utilities. Keep the existing UI behavior and evidence
+  labels, and align class merging with the installed framework while preserving
+  the current selector-parser security override.
+- Rebuild the served civilian assets with exact dependency-only doctrine
+  exceptions and payload hashes. Add generated-CSS negative guards and isolated
+  browser contracts; hosted and production qualification remain separate checks.
+
 ### Added - materials retrospective/OOD and discovery evaluator (R09, not wired)
 
 - Add `szl_materials_eval.py`, a stdlib-only, read-only evaluator for sealed

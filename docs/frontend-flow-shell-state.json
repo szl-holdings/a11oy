@@ -1,5 +1,5 @@
 {
-  "examined_documents": 114,
+  "examined_documents": 115,
   "injected_documents": [
     "a11oy_landing.html",
     "cathedral_genius.html",
@@ -10,6 +10,7 @@
     "console/static/viz/router/index.html",
     "govern_showcase.html",
     "pages/anatomy-v5.html",
+    "pages/anatomy-v6.html",
     "pages/api-keys.html",
     "pages/assurance.html",
     "pages/atelier.html",

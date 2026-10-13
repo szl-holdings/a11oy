@@ -5,6 +5,7 @@
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 import threading
 from pathlib import Path
@@ -92,7 +93,10 @@ def run(output):
         route.fulfill(status=200 if data is not None else 503,content_type='application/json',body=json.dumps(data if data is not None else {'state':'UNAVAILABLE','source':'TEST: blocked request'}))
     try:
         with sync_playwright() as p:
-            browser=p.chromium.launch(executable_path=r'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe',headless=True,args=['--disable-gpu'])
+            executable=os.environ.get('CONSOLE_QA_BROWSER') or os.environ.get('CHROME_PATH')
+            edge=Path(r'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe')
+            if not executable and edge.is_file(): executable=str(edge)
+            browser=p.chromium.launch(executable_path=executable,headless=True,args=['--disable-gpu'])
             context=browser.new_context(viewport={'width':390,'height':1000},reduced_motion='reduce',color_scheme='dark',service_workers='block')
             context.route('**/*',intercept)
             page=context.new_page(); page.on('pageerror',lambda e:errors.append(str(e)))
@@ -101,7 +105,9 @@ def run(output):
             check('System Health URL retained',page.url.endswith('/console?view=fleet'))
             initial_links=page.locator('.szl-hbar a').evaluate_all('(es)=>es.map(e=>e.getAttribute("href"))')
             for theme in ('dark','light'):
-                if page.locator('html').get_attribute('data-surface')!=theme: page.locator('.szl-theme-toggle').click()
+                if page.locator('html').get_attribute('data-surface')!=theme:
+                    if not page.locator('.szl-theme-toggle').is_visible(): page.locator('.szl-more').click()
+                    page.locator('.szl-theme-toggle').click()
                 for width in WIDTHS:
                     page.set_viewport_size({'width':width,'height':1000}); page.wait_for_timeout(150)
                     name=f'{theme}/{width}'
@@ -145,14 +151,18 @@ def run(output):
                 check(theme+' More keyboard menu',more.get_attribute('aria-expanded')=='true' and page.evaluate('document.activeElement.closest(".szl-overflow-menu")!==null'))
                 page.keyboard.press('Escape');check(theme+' More restores focus',more.evaluate('(e)=>e===document.activeElement'))
                 check(theme+' reduced motion',page.evaluate('!document.getAnimations().some(a=>a.playState==="running"&&a.effect&&a.effect.target.closest(".szl-hbar,.side,.content"))'))
-                theme_btn=page.locator('.szl-theme-toggle'); theme_btn.focus(); page.keyboard.press('Enter'); page.keyboard.press('Enter')
+                theme_btn=page.locator('.szl-theme-toggle')
+                for _ in range(2):
+                    if not theme_btn.is_visible(): more.click()
+                    theme_btn.focus(); page.keyboard.press('Enter')
                 check(theme+' theme keyboard toggle',page.locator('html').get_attribute('data-surface')==theme)
             page.reload(wait_until='load'); page.wait_for_selector('.health-list')
             check('explicit light preference survives reload',page.locator('html').get_attribute('data-surface')=='light')
             page.evaluate('localStorage.removeItem("szl.console.theme")');page.emulate_media(color_scheme='dark')
             page.reload(wait_until='load');page.wait_for_selector('.health-list')
             check('system dark theme without saved preference',page.locator('html').get_attribute('data-surface')=='dark')
-            page.emulate_media(color_scheme='light');page.wait_for_timeout(100)
+            page.emulate_media(color_scheme='light')
+            page.wait_for_function("document.documentElement.dataset.surface==='light'", timeout=3000)
             check('system light theme change followed',page.locator('html').get_attribute('data-surface')=='light')
             for mode in ('empty','malformed','error'):
                 state['mode']=mode; page.evaluate('go("fleet")'); page.wait_for_timeout(300)

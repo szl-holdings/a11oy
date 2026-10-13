@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import re
 import sys
+from html.parser import HTMLParser
 from pathlib import Path
 
 
@@ -37,6 +38,59 @@ def _function_body(text: str, signature: str) -> str | None:
             if depth == 0:
                 return text[open_brace + 1 : index]
     return None
+
+
+class _Links(HTMLParser):
+    def __init__(self, text: str):
+        super().__init__()
+        self.links: list[dict[str, str | None]] = []
+        self.feed(text)
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag == "link":
+            self.links.append(dict(attrs))
+
+
+def _owned_css(path: Path, text: str, errors: list[dict]) -> str:
+    """Only the reviewed local projection is eligible; never fetch an arbitrary href."""
+    links = _Links(text).links
+    owners = [row for row in links if row.get("id") == "szl-homepage-shell"]
+    expected = "/assets/a11oy-homepage.css"
+    if len(owners) != 1 or owners[0].get("href") != expected or owners[0].get("rel") != "stylesheet":
+        errors.append({"check": "visual-owner", "detail": "one exact local stylesheet binding required"})
+        return ""
+    canonical = [i for i, row in enumerate(links) if row.get("href") == "/assets/szl/szl-design-system.css" and row.get("rel") == "stylesheet"]
+    if len(canonical) != 1 or canonical[0] >= links.index(owners[0]):
+        errors.append({"check": "visual-owner", "detail": "canonical design system must precede owned sheet"})
+    css_path = path.parent / "console/assets/a11oy-homepage.css"
+    inside_checkout = css_path.resolve().is_relative_to(path.parent.resolve())
+    if not inside_checkout or css_path.is_symlink() or not css_path.is_file() or css_path.stat().st_size > 100_000:
+        errors.append({"check": "visual-owner", "detail": "owned stylesheet unavailable or outside size contract"})
+        return ""
+    css = css_path.read_text(encoding="utf-8")
+    required = (
+        'html[data-szl-shell-owner="homepage"]',
+        "var(--text)", "var(--text-sub)", "var(--font-display)",
+        "var(--action-bg)", "var(--action-hover-bg)", "var(--action-press-bg)",
+        "overflow:visible !important", "@media(prefers-reduced-motion:reduce)",
+        "@media(forced-colors:active)",
+        ".cta-row .btn{width:100%;min-height:52px;border-radius:6px;white-space:normal;text-align:center}",
+    )
+    for token in required:
+        if token not in css:
+            errors.append({"check": "owned-style-contract", "detail": token})
+    mobile = css.find("@media(max-width:480px)")
+    for token in (".hero-grid {", ".cta-row {", ".band,.honesty"):
+        base = css.find(token)
+        if base < 0 or mobile < base:
+            errors.append({"check": "mobile-cascade-order", "detail": f"mobile reflow must follow {token}"})
+    if re.search(r"#[0-9a-fA-F]{3,8}\b|@font-face|https?://", re.sub(r"/\*.*?\*/", "", css, flags=re.S)):
+        # A literal proof URL in print-only content is permitted, but imported
+        # styles, downloaded fonts and palette forks are never admitted here.
+        stripped = css.replace('content:"The full source record is available at https://a-11-oy.com/#full-record"', "")
+        if re.search(r"#[0-9a-fA-F]{3,8}\b|@font-face|https?://", re.sub(r"/\*.*?\*/", "", stripped, flags=re.S)):
+            errors.append({"check": "owned-style-contract", "detail": "palette fork, font download or remote style reference"})
+    return css
 
 
 def check(path: Path) -> dict:
@@ -82,22 +136,28 @@ def check(path: Path) -> dict:
         if "CONJECTURE" not in block or "grayChip" not in block:
             errors.append({"check": "lambda-chip", "detail": "advisory/conjecture gray rendering missing"})
 
-    mobile_marker = "/* Mobile overrides intentionally follow all equal-specificity base rules. */"
-    mobile_index = text.find(mobile_marker)
-    if mobile_index < 0:
-        errors.append({"check": "mobile-cascade-order", "detail": "late mobile override marker missing"})
-    else:
-        for token in (
-            ".hero{position:relative;min-height:92vh",
-            ".hero .wrap{position:relative;z-index:2;padding-top:54px",
-            ".cta-row{display:flex;gap:12px",
-            "section.band{padding:88px 0;position:relative}",
-        ):
-            base_index = text.find(token)
-            if base_index < 0:
-                errors.append({"check": "mobile-cascade-order", "detail": f"base rule missing: {token}"})
-            elif mobile_index <= base_index:
-                errors.append({"check": "mobile-cascade-order", "detail": f"mobile override precedes base rule: {token}"})
+    canonical_owner = 'id="szl-homepage-shell"' in text or (
+        'data-surface="light"' in text and 'data-szl-shell-owner="homepage"' in text
+    )
+    css = _owned_css(path, text, errors) if canonical_owner else ""
+    if not canonical_owner:
+        # Historical repair fixtures still retain their original admission path.
+        mobile_marker = "/* Mobile overrides intentionally follow all equal-specificity base rules. */"
+        mobile_index = text.find(mobile_marker)
+        if mobile_index < 0:
+            errors.append({"check": "mobile-cascade-order", "detail": "late mobile override marker missing"})
+        else:
+            for token in (
+                ".hero{position:relative;min-height:92vh",
+                ".hero .wrap{position:relative;z-index:2;padding-top:54px",
+                ".cta-row{display:flex;gap:12px",
+                "section.band{padding:88px 0;position:relative}",
+            ):
+                base_index = text.find(token)
+                if base_index < 0:
+                    errors.append({"check": "mobile-cascade-order", "detail": f"base rule missing: {token}"})
+                elif mobile_index <= base_index:
+                    errors.append({"check": "mobile-cascade-order", "detail": f"mobile override precedes base rule: {token}"})
 
     required = [
         "min-height:44px",
@@ -106,7 +166,7 @@ def check(path: Path) -> dict:
         "Signer state is disclosed separately only where an actual signer-status read is present.",
     ]
     for token in required:
-        if token not in text:
+        if token not in text + css:
             errors.append({"check": "required-contract", "detail": token})
 
     return {

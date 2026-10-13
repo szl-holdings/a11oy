@@ -97,8 +97,11 @@ def test_no_threejs_cdn_on_front_door() -> None:
 
 
 def test_hit_targets_remain_44px() -> None:
-    assert "min-height:44px" in FRONT
-    assert "min-width:44px" in FRONT
-    rule = FRONT.split(".nav nav a{", 1)[1].split("}", 1)[0]
+    assert '<link rel="stylesheet" href="/assets/a11oy-homepage.css" id="szl-homepage-shell" />' in FRONT
+    css = (ROOT / "console/assets/a11oy-homepage.css").read_text(encoding="utf-8")
+    compact = "".join(css.split())
+    assert "min-height:44px" in compact
+    assert "min-width:44px" in compact
+    rule = compact.split('.navnava{', 1)[1].split("}", 1)[0]
     assert int(re.search(r"min-height:(\d+)px", rule).group(1)) >= 44
     assert "min-width:44px" in rule

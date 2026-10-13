@@ -30,7 +30,7 @@ def _meter(*, name="device-one", uuid="GPU-private-one", epoch="private-epoch-on
                 "index": 0, "name": "test GPU", "joules": joules, "power_w": 10.25,
                 "joules_method": "NVML_COUNTER_DELTA", "gpu_uuid": uuid,
                 "counter_epoch": epoch, "live": True,
-                "sample_ts": time.time() if sample_ts is None else sample_ts,
+                "sample_ts": datetime.now(timezone.utc).timestamp() if sample_ts is None else sample_ts,
                 "estimated_joules": 9876.0, "estimated_joules_label": "MODELED",
             }],
         }],

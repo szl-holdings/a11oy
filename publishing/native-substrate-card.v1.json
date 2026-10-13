@@ -1,0 +1,40 @@
+{
+  "schema": "szl.native-card-projection/v1",
+  "spdx_license_identifier": "Apache-2.0",
+  "copyright": "2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "evidence_class": "UNSIGNED_SOURCE_PRESENTATION",
+  "source_repository": "szl-holdings/a11oy",
+  "base_revision": "e6cf9d06c92827225054550533e1a091b59f1031",
+  "source_path": "huggingface/README.md",
+  "repo_id": "SZLHOLDINGS/a11oy-v19-substrate",
+  "before_sha256": "a0130da7f79e667300f1da01c160d36d8fc56b3dfaa47ca5e5890d3c62ae5bfb",
+  "after_sha256": "cadb0facfc27d21501546b07801a2646462befcdda240eb52e62e90acf80b62b",
+  "frontmatter_sha256": "e8bcd0bf063e540b7dfacdd111ebdc3130d6faddfd02e2b4fda3ff038d705748",
+  "preserved_technical_body_sha256": "8cfa656624bfcdc5c65633dfb94f9ac6560bac6e9518d75947166729778e8866",
+  "original_bytes_reconstructable": true,
+  "native_art": {
+    "repository": "szl-holdings/szl-brand",
+    "revision": "27d12e77fc0f9f1a0e5fae8b34adf2380d51d070",
+    "path": "kit/logos/orbit-v2/suite/szl-icon-32.svg",
+    "sha256": "6e2b7d72a3af3d9602b79de41df0194ede6496a9661f057108ec224c0efc92e6",
+    "render_width": 40,
+    "render_height": 40,
+    "license": "CC-BY-4.0",
+    "license_scope": "SZL artwork"
+  },
+  "publisher_changed": false,
+  "technical_body_changed": false,
+  "metadata_changed": false,
+  "technical_artifact_files_changed": false,
+  "model_loaded_or_evaluated": false,
+  "runtime_qualification": "UNCHANGED_NOT_EVALUATED",
+  "provider_publication": "NOT_ESTABLISHED_BY_THIS_SOURCE_RECORD",
+  "prior_public_readback": {
+    "revision": "af49867fe6b657fa1480822b590c43a061484204",
+    "readme_sha256": "a0130da7f79e667300f1da01c160d36d8fc56b3dfaa47ca5e5890d3c62ae5bfb",
+    "observed_at": "2026-10-11T13:18:50.880930+00:00",
+    "matches_base_source_card": true
+  },
+  "canonical_publisher": ".github/workflows/huggingface.yml \u2192 scripts/prepare_huggingface_payload.py \u2192 scripts/publish_huggingface_payload.py; existing fixed model target and complete additive payload",
+  "publication_hold": "Existing manual canonical-main payload/evidence gates, current-source signature validation, exact expected Hub parent, unmanaged-file refusal, preserved remote files and immutable full payload readback remain unchanged. The separate benchmark dataset/Space writer is not changed or triggered by these source paths."
+}
