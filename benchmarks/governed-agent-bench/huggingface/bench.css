@@ -31,7 +31,7 @@ html, body, .gradio-container { margin: 0; padding: 0 !important; }
 .gb-primary:hover { background: var(--action-hover-bg); }
 .gb-primary:active { background: var(--action-press-bg); }
 .gb-note { font-size: 14px; color: var(--text-sub); max-width: 60ch; }
-.gb-specimen { position: relative; isolation: isolate; overflow: hidden; border-radius: 24px; border: 1px solid var(--border); padding: 36px; color: var(--text); background: radial-gradient(ellipse at 0 0, var(--hero-atmosphere), transparent 70%), var(--bg); box-shadow: var(--shadow-xl); }
+.gb-specimen { position: relative; isolation: isolate; overflow: hidden; border-radius: 24px; border: 1px solid var(--border); padding: 36px; color: var(--text); background: radial-gradient(ellipse at 0 0, var(--hero-atmosphere), transparent 70%), var(--bg); box-shadow: var(--shadow-md); }
 .gb-specimen::before { content: ""; position: absolute; inset: 0 0 auto; height: 2px; background: var(--holo-edge); }
 .gb-specimen > :not(img) { position: relative; z-index: 1; }
 .gb-orbit { position: absolute; right: -24px; top: -8px; width: 220px; height: 220px; opacity: .24; pointer-events: none; }
