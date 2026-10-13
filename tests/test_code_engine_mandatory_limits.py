@@ -1,34 +1,43 @@
 # SPDX-License-Identifier: Apache-2.0
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
-"""Fail-closed tests for the code engine's MANDATORY sandbox rlimits.
+"""Fail-closed tests for the code engine's MANDATORY sandbox rlimits and its
+attested, unprivileged child.
 
 Invariant: if any mandatory child rlimit (CPU, AS, CORE, FSIZE, NPROC) cannot be
-applied, the code never runs and the sandbox returns its DENY shape with
-``execution_attempted=False``. There is no silent "run without limits" path.
+applied, if the server runs as root, or if a child cannot attest new user and
+network namespaces, the server's own non-root uid, zero capabilities and a
+refused fork(), the code never runs and the sandbox returns its DENY shape with
+``execution_attempted=False``. A run is reported as executed only when the code
+child attested, i.e. reached the user code. There is no silent "run without
+limits" path and no "executed" verdict for a child that never started.
 
 Ported from szl-holdings/szl-substrate ``tests/test_code_engine_mandatory_limits.py``
-(merged as 85445fde, PR #31). Every one of its 35 cases is kept under the same
-name and invariant. This engine copy differs from substrate's in three places, so
-some fixtures and assertions are adapted beyond the import:
+(merged as 85445fde, PR #31). All 35 of its cases are kept by name. Their
+invariant is kept too, with one stated change: the two ``governed_turn``
+``..._is_a_signed_deny`` cases assert a signed NOT_EXECUTED refusal (the gate
+still says ALLOW), not substrate's gate DENY. This engine copy differs from
+substrate's in these places, so some fixtures and assertions are adapted beyond
+the import:
   * the module global is ``resource`` (substrate: ``_resource``), and execution
-    also needs the fixed ``unshare`` prerequisite, so ``_install`` patches
-    ``resource``, ``_IS_POSIX`` and ``_UNSHARE``;
-  * every run first launches an ``unshare --net`` probe under the SAME mandatory
-    limit hook, then the code. ``FakeLauncher`` answers the probe, so a passing run
-    makes two launches (each applying all five limits) and ``code_execs`` counts
-    only the user-code launch;
+    also needs the fixed ``unshare`` prerequisite and a non-root server, so
+    ``_install`` patches ``resource``, ``_IS_POSIX``, ``_UNSHARE`` and
+    ``_parent_identity``;
+  * every run first launches an ``unshare --user --map-current-user --net`` probe
+    under the SAME mandatory limit hook, then the code. ``FakeLauncher`` answers
+    the probe and writes each child's attestation line, so a passing run makes
+    two launches (each applying all five limits) and ``code_execs`` counts only
+    the user-code launch;
   * missing POSIX/resource is refused by the existing ``sandbox_capability`` gate,
     whose DENY shape is unchanged; ``governed_turn`` needs ``allow_exec=True`` (the
-    two-person chokepoint) to reach the sandbox, and a sandbox refusal is a signed
-    NOT_EXECUTED receipt rather than a gate DENY.
+    two-person chokepoint) to reach the sandbox.
 
 Safety of this test module itself:
-  * no real process is ever started: ``subprocess.run`` is replaced by
+  * no real process is ever started: ``subprocess.Popen`` is replaced by
     ``FakeLauncher``, which models CPython's POSIX contract (fork -> preexec_fn in
-    the child -> exec) without creating a process, and ``subprocess.Popen`` is
+    the child -> exec) without creating a process, and ``subprocess.run`` is
     replaced by a recorder that fails the test if it is ever reached;
   * no real rlimit is ever changed: the ``resource`` module is replaced by the inert
-    ``FakeResource``; the one POSIX-only test against the real module only reads;
+    ``FakeResource``; the POSIX-only tests against the real host only read;
   * no model endpoint is reachable: ``_model_configured`` is forced False and
     ``_hf_chat`` fails the test if called;
   * the only code strings are inert, hand-written fixtures (``INERT_FIXTURE`` and
@@ -37,7 +46,12 @@ Safety of this test module itself:
 
 from __future__ import annotations
 
+import errno
+import json
+import os
 import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 
@@ -51,6 +65,9 @@ MIB = 1024 * 1024
 FAKE_UNSHARE = "/usr/bin/unshare"
 PROBE_TOKEN = "SZL_NETNS_READY"
 NOT_EXECUTED_UNAVAILABLE = "NOT_EXECUTED — sandbox UNAVAILABLE on this host"
+PARENT = {"uid": 1000, "net": "net:[4026531833]", "user": "user:[4026531837]"}
+WANT = [PARENT["net"], PARENT["user"], str(PARENT["uid"])]
+UNSHARE_PREFIX = [FAKE_UNSHARE, "--user", "--map-current-user", "--net", "--"]
 
 
 class FakeResource:
@@ -103,24 +120,87 @@ def _is_probe(args) -> bool:
     return "-c" in args and any(PROBE_TOKEN in str(a) for a in args)
 
 
+def good_attestation(want):
+    """What a correctly isolated child writes as its first stdout line."""
+    return {"net": "net:[4026533469]", "user": "user:[4026533468]",
+            "uid": int(want[2]), "euid": int(want[2]), "uid_map": [want[2], want[2], "1"],
+            "cap_eff": "0000000000000000", "cap_prm": "0000000000000000",
+            "fork": "refused:11", "ok": True}
+
+
+class FakeProcess:
+    def __init__(self, launcher, args, kind):
+        self.launcher, self.args, self.kind = launcher, args, kind
+        self.returncode = None
+        self._timed_out_once = False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def kill(self):
+        self.launcher.kills.append(self.kind)
+
+    def communicate(self, timeout=None):
+        launcher = self.launcher
+        raises = launcher.communicate_raises.get(self.kind)
+        if raises is not None:
+            raise raises
+        if self.kind in launcher.times_out and not self._timed_out_once:
+            self._timed_out_once = True
+            raise subprocess.TimeoutExpired(self.args, timeout)
+        if self.kind in launcher.no_attestation:
+            # unshare(1) failed before it exec'd python: no attestation line at all.
+            self.returncode = 1
+            return b"", b"unshare: unshare failed: No space left on device\n"
+        marker = good_attestation(self.args[-3:])
+        marker.update(launcher.attestation_overrides.get(self.kind, {}))
+        line = (PROBE_TOKEN + " " + json.dumps(marker, sort_keys=True) + "\n").encode()
+        if self.kind == "probe" or marker.get("ok") is not True:
+            # The child's own self-check exits before user code when it fails.
+            self.returncode = 0 if marker.get("ok") is True else 97
+            return line, b""
+        launcher.code_execs.append(list(self.args))
+        self.returncode = 0
+        return line + b"inert fixture output\n", b""
+
+
 class FakeLauncher:
-    """Models CPython's POSIX ``subprocess.run`` contract without creating a process.
+    """Models CPython's POSIX ``subprocess.Popen`` contract without creating a process.
 
     ``calls`` records each fork; ``preexec_fn`` then runs "in the child". If it
     raises, CPython reports ``SubprocessError('Exception occurred in preexec_fn.')``
-    and the program is never exec'd. ``execs`` records only the programs that would
-    actually have started running; ``code_execs`` is the subset that would have run
-    the generated code (not the ``unshare --net`` probe)."""
+    and the program is never exec'd. ``launch_raises`` models a fork or exec
+    failure, which CPython raises from ``Popen`` before any program runs.
+    ``execs`` records only the programs that would actually have started;
+    ``code_execs`` is the subset that would have reached the generated code (the
+    code child, after its attestation passed)."""
 
     def __init__(self):
         self.calls = []
         self.execs = []
         self.code_execs = []
-        self.popen_calls = []
+        self.run_calls = []
+        self.kills = []
         self.probe_ready = True
-        self.probe_times_out = False
+        self.launch_raises = {}
+        self.communicate_raises = {}
+        self.times_out = set()
+        self.no_attestation = set()
+        self.attestation_overrides = {}
 
-    def run(self, args, **kwargs):
+    @property
+    def probe_times_out(self):
+        return "probe" in self.times_out
+
+    @probe_times_out.setter
+    def probe_times_out(self, value):
+        (self.times_out.add if value else self.times_out.discard)("probe")
+
+    def popen(self, args, **kwargs):
+        kind = "probe" if _is_probe(args) else "code"
         self.calls.append({"args": list(args), **kwargs})
         hook = kwargs.get("preexec_fn")
         if hook is not None:
@@ -128,19 +208,16 @@ class FakeLauncher:
                 hook()
             except Exception as exc:
                 raise subprocess.SubprocessError("Exception occurred in preexec_fn.") from exc
+        if kind in self.launch_raises:
+            raise self.launch_raises[kind]
         self.execs.append(list(args))
-        if _is_probe(args):
-            if self.probe_times_out:
-                raise subprocess.TimeoutExpired(list(args), kwargs.get("timeout"))
-            out = PROBE_TOKEN + "\n" if self.probe_ready else ""
-            return subprocess.CompletedProcess(args, 0 if self.probe_ready else 1,
-                                               stdout=out, stderr="")
-        self.code_execs.append(list(args))
-        return subprocess.CompletedProcess(args, 0, stdout="inert fixture output\n", stderr="")
+        if kind == "probe" and not self.probe_ready:
+            self.no_attestation.add("probe")
+        return FakeProcess(self, list(args), kind)
 
-    def popen(self, *args, **kwargs):
-        self.popen_calls.append((args, kwargs))
-        raise AssertionError("subprocess.Popen must never be reached in these tests")
+    def run(self, *args, **kwargs):
+        self.run_calls.append((args, kwargs))
+        raise AssertionError("subprocess.run must never be reached in these tests")
 
 
 @pytest.fixture(autouse=True)
@@ -158,16 +235,18 @@ def offline(monkeypatch):
 def launcher(monkeypatch):
     """No test in this module may start a real process."""
     fake = FakeLauncher()
-    monkeypatch.setattr(code_engine.subprocess, "run", fake.run)
     monkeypatch.setattr(code_engine.subprocess, "Popen", fake.popen)
+    monkeypatch.setattr(code_engine.subprocess, "run", fake.run)
     yield fake
-    assert fake.popen_calls == []
+    assert fake.run_calls == []
 
 
-def _install(monkeypatch, res, *, posix=True):
+def _install(monkeypatch, res, *, posix=True, identity=None):
     monkeypatch.setattr(code_engine, "_IS_POSIX", posix)
     monkeypatch.setattr(code_engine, "resource", res)
     monkeypatch.setattr(code_engine, "_UNSHARE", FAKE_UNSHARE if posix else None)
+    found = (dict(PARENT), None) if identity is None else identity
+    monkeypatch.setattr(code_engine, "_parent_identity", lambda: found)
     return res
 
 
@@ -194,6 +273,23 @@ def _signing_sink():
         return {"signed": True, "signatures": ["test-signature"]}
 
     return signed, sign
+
+
+def _governed(sign):
+    return code_engine.governed_turn("code", "calculate fibonacci numbers", sign,
+                                     "test-issuer", sandbox=True, allow_exec=True)
+
+
+def _assert_signed_not_executed(run, signed, *, status=NOT_EXECUTED_UNAVAILABLE):
+    assert run["decision"] == "ALLOW"  # the gate allowed it; the sandbox refused it
+    assert run["executed"] is False
+    assert run["execution_status"] == status
+    assert run["sandbox"]["executed"] is False
+    assert "ran in the governed sandbox" not in run["summary"]
+    assert signed["executed"] is False
+    assert signed["execution_status"] == status
+    assert run["receipt_chain"][-1]["body"]["executed"] is False
+    assert code_engine.verify_run(run)["chain_intact"] is True
 
 
 # --------------------------------------------------------------------------
@@ -368,12 +464,18 @@ def test_all_mandatory_limits_applied_then_launches(monkeypatch, launcher):
     assert len(launcher.calls) == 2 and len(launcher.execs) == 2
     assert len(launcher.code_execs) == 1
     assert all(c["preexec_fn"] is not None for c in launcher.calls)
-    assert _is_probe(launcher.calls[0]["args"])
+    probe = launcher.calls[0]["args"]
+    assert _is_probe(probe)
+    assert probe == UNSHARE_PREFIX + [sys.executable, "-I", "-S", "-c",
+                                      code_engine._ATTEST_SRC] + WANT
     call = launcher.calls[1]
-    assert call["args"][:3] == [FAKE_UNSHARE, "--net", "--"]
-    assert call["args"][4:6] == ["-I", "-S"]
+    main = Path(call["args"][8])
+    assert call["args"] == UNSHARE_PREFIX + [sys.executable, "-I", "-S", str(main)] + WANT
+    assert main.name == "main.py" and str(main.parent) == call["cwd"]
     assert set(call["env"]) == {"PATH", "PYTHONDONTWRITEBYTECODE", "HOME", "no_proxy",
                                 "PYTHONUNBUFFERED"}
+    # The attestation line is the child's, not the user's: it is stripped.
+    assert PROBE_TOKEN not in result["stdout"]
 
 
 def test_inherited_limits_are_never_loosened(monkeypatch, launcher):
@@ -552,3 +654,303 @@ def test_isolation_labels_claim_no_seccomp_or_container_isolation(monkeypatch, l
         assert "tower/uds pod" not in low
         assert "no seccomp" in low or "not a seccomp" in low
         assert "rlimit" in low
+        # The process limit is claimed only together with what makes it bind.
+        assert "non-root uid" in low
+        assert "user + network namespace" in low
+        assert "attest" in low
+        assert "filesystem" in low
+
+
+# --------------------------------------------------------------------------
+# Launch-stage truth: a run is "executed" only when the code child attested.
+# A child that never started, or never reached its attestation, is a refusal
+# with execution_attempted=False, and governed_turn signs NOT_EXECUTED.
+# --------------------------------------------------------------------------
+@pytest.mark.parametrize("kind", ["probe", "code"])
+def test_launch_oserror_is_a_signed_refusal_not_an_execution(monkeypatch, launcher, kind):
+    """fork() EAGAIN while starting either child: nothing was exec'd, so nothing ran."""
+    _install(monkeypatch, FakeResource())
+    launcher.launch_raises[kind] = BlockingIOError(errno.EAGAIN, "Resource temporarily unavailable")
+
+    result = code_engine._sandbox_exec(INERT_FIXTURE)
+
+    _assert_denied(result)
+    assert "could not be started (BlockingIOError" in result["error"]
+    assert launcher.code_execs == []
+
+    signed, sign = _signing_sink()
+    run = _governed(sign)
+    _assert_signed_not_executed(run, signed)
+    assert signed["sandbox_execution_attempted"] is False
+    assert "could not be started" in signed["sandbox_error"]
+    assert launcher.code_execs == []
+
+
+def test_code_child_without_attestation_is_not_executed(monkeypatch, launcher):
+    """unshare(1) exits before exec'ing python (e.g. netns creation refused under
+    load after the probe passed): the child wrote no attestation, so no user code
+    ran and the run is not reported as executed."""
+    _install(monkeypatch, FakeResource())
+    launcher.no_attestation.add("code")
+
+    result = code_engine._sandbox_exec(INERT_FIXTURE)
+
+    assert result["ok"] is False
+    assert result["execution_attempted"] is False
+    assert result["execution_state"] == "UNAVAILABLE"
+    assert "did not attest" in result["error"]
+    assert "No space left on device" in result["stderr"]
+    assert result["exit"] == 1
+    assert launcher.code_execs == []
+
+    signed, sign = _signing_sink()
+    run = _governed(sign)
+    _assert_signed_not_executed(run, signed)
+    assert signed["sandbox_execution_attempted"] is False
+
+
+def test_code_child_self_check_failure_never_reaches_user_code(monkeypatch, launcher):
+    _install(monkeypatch, FakeResource())
+    launcher.attestation_overrides["code"] = {"fork": "allowed", "ok": False}
+
+    result = code_engine._sandbox_exec(INERT_FIXTURE)
+
+    assert result["execution_attempted"] is False
+    assert result["execution_state"] == "UNAVAILABLE"
+    assert "fork() was not refused" in result["stderr"]
+    assert result["exit"] == 97
+    assert launcher.code_execs == []
+
+
+@pytest.mark.parametrize("override, problem", [
+    ({"net": PARENT["net"]}, "no new network namespace"),
+    ({"user": PARENT["user"]}, "no new user namespace"),
+    ({"uid": 0, "euid": 0, "uid_map": ["0", "0", "1"]}, "the child runs as root"),
+    ({"uid": 1001}, "the child does not run as the server's own uid"),
+    ({"uid_map": ["0", "1000", "1"]}, "the child does not run as the server's own uid"),
+    ({"cap_eff": "000001ffffffffff"}, "the child holds capabilities (cap_eff)"),
+    ({"cap_prm": "0000000000200000"}, "the child holds capabilities (cap_prm)"),
+    ({"cap_eff": "unreadable"}, "the child's cap_eff is unreadable"),
+    ({"fork": "allowed"}, "fork() was not refused with EAGAIN"),
+    ({"fork": "refused:12"}, "fork() was not refused with EAGAIN"),
+    ({"ok": False}, "the child's own isolation self-check failed"),
+])
+def test_probe_attestation_must_prove_the_boundary(monkeypatch, launcher, override, problem):
+    """The parent re-checks every attested property itself; any gap is a refusal
+    before the code child is ever started."""
+    _install(monkeypatch, FakeResource())
+    launcher.attestation_overrides["probe"] = override
+
+    result = code_engine._sandbox_exec(INERT_FIXTURE)
+
+    assert result["execution_attempted"] is False
+    assert result["execution_state"] == "UNAVAILABLE"
+    assert result["error"] == "network namespace probe failed"
+    assert problem in result["stderr"]
+    assert len(launcher.calls) == 1
+    assert launcher.code_execs == []
+
+
+def test_attestation_mismatch_after_self_check_is_executed_but_unverified(monkeypatch, launcher):
+    """If the child's self-check passed (so the code ran) but the parent cannot
+    confirm the attestation, the run is reported as executed WITHOUT the isolation
+    claim, never as an isolated success."""
+    _install(monkeypatch, FakeResource())
+    launcher.attestation_overrides["code"] = {"net": PARENT["net"]}
+
+    result = code_engine._sandbox_exec(INERT_FIXTURE)
+
+    assert result["ok"] is False
+    assert result["execution_attempted"] is True
+    assert result["execution_state"] == "UNVERIFIED"
+    assert result["isolation"].startswith("UNVERIFIED")
+    assert "no new network namespace" in result["error"]
+
+    signed, sign = _signing_sink()
+    run = _governed(sign)
+    assert run["executed"] is True
+    assert run["execution_status"] == "EXECUTED — sandbox isolation NOT verified"
+    assert "ran in the governed sandbox" not in run["summary"]
+    assert "unisolated" in run["summary"]
+    assert signed["executed"] is True
+    assert signed["execution_status"] == "EXECUTED — sandbox isolation NOT verified"
+    assert signed["sandbox_execution_attempted"] is True
+
+
+def test_failure_after_the_code_child_started_is_unknown_not_executed(monkeypatch, launcher):
+    _install(monkeypatch, FakeResource())
+    launcher.communicate_raises["code"] = OSError(errno.EIO, "simulated pipe failure")
+
+    result = code_engine._sandbox_exec(INERT_FIXTURE)
+
+    assert result["ok"] is False
+    assert result["execution_attempted"] is None
+    assert result["execution_state"] == "UNVERIFIED"
+    assert launcher.kills == ["code"]
+
+    signed, sign = _signing_sink()
+    run = _governed(sign)
+    status = "UNVERIFIED — sandbox error after launch; whether the code ran is unknown"
+    assert run["executed"] is False
+    assert run["execution_status"] == status
+    assert "Nothing ran" not in run["summary"]
+    assert "ran in the governed sandbox" not in run["summary"]
+    assert signed["executed"] is False
+    assert signed["execution_status"] == status
+    assert signed["sandbox_execution_attempted"] is None
+
+
+def test_code_timeout_after_attestation_is_an_executed_timeout(monkeypatch, launcher):
+    _install(monkeypatch, FakeResource())
+    launcher.times_out.add("code")
+
+    result = code_engine._sandbox_exec(INERT_FIXTURE, timeout_s=6)
+
+    assert result["ok"] is False
+    assert result["execution_attempted"] is True
+    assert result["exit"] == -9
+    assert result["stderr"].startswith("timeout after 6s (killed)")
+    assert launcher.kills == ["code"]
+
+
+def test_code_timeout_without_attestation_is_a_refusal(monkeypatch, launcher):
+    _install(monkeypatch, FakeResource())
+    launcher.times_out.add("code")
+    launcher.no_attestation.add("code")
+
+    result = code_engine._sandbox_exec(INERT_FIXTURE)
+
+    assert result["execution_attempted"] is False
+    assert result["execution_state"] == "UNAVAILABLE"
+    assert launcher.code_execs == []
+
+
+def test_governed_turn_never_reports_execution_without_an_explicit_attempt(monkeypatch):
+    """A sandbox result that omits execution_attempted is not an execution."""
+    monkeypatch.setattr(code_engine, "_sandbox_exec", lambda *a, **k: {
+        "ok": False, "stdout": "", "stderr": "sandbox error: legacy shape", "exit": -1,
+        "isolation": "sandboxed (restricted subprocess)"})
+    signed, sign = _signing_sink()
+
+    run = _governed(sign)
+
+    _assert_signed_not_executed(run, signed)
+    assert signed["sandbox_execution_attempted"] is None
+
+
+# --------------------------------------------------------------------------
+# Privilege: RLIMIT_NPROC does not bind a root-owned child, so a root server is
+# refused before any process starts, and the uid is checked through uid_map.
+# --------------------------------------------------------------------------
+def test_root_server_is_refused_before_launch(monkeypatch, launcher):
+    reason = ("sandbox unavailable: the server runs as root; Linux does not apply "
+              "RLIMIT_NPROC to a root-owned child, so code is refused")
+    res = _install(monkeypatch, FakeResource(), identity=(None, reason))
+
+    result = code_engine._sandbox_exec(INERT_FIXTURE)
+
+    _assert_denied(result)
+    assert result["error"] == reason
+    assert launcher.calls == []
+    assert res.set_calls == []
+
+    signed, sign = _signing_sink()
+    run = _governed(sign)
+    _assert_signed_not_executed(run, signed)
+    assert signed["sandbox_error"] == reason
+
+
+class _UidMap:
+    def __init__(self, text):
+        self.text = text
+
+    def __call__(self, path, *a, **k):
+        assert path == "/proc/self/uid_map"
+        if self.text is None:
+            raise PermissionError(13, "simulated")
+        import io
+        return io.StringIO(self.text)
+
+
+@pytest.mark.parametrize("uid, uid_map, refused", [
+    (0, "0 0 4294967295\n", "the server runs as root"),
+    (1000, "0 0 4294967295\n", None),
+    (1000, "0 100000 65536\n", None),
+    (1000, "1000 0 1\n", "maps to root"),
+    (1000, "0 0 10\n", "maps to root (or to nothing)"),
+    (1000, None, "cannot be read (PermissionError)"),
+    (1000, "garbage\n", "cannot be read (ValueError)"),
+])
+def test_parent_identity_refuses_root_and_unmapped_uids(monkeypatch, uid, uid_map, refused):
+    monkeypatch.setattr(code_engine.os, "getuid", lambda: uid, raising=False)
+    monkeypatch.setattr(code_engine.os, "geteuid", lambda: uid, raising=False)
+    monkeypatch.setattr(code_engine.os, "readlink",
+                        lambda p: {"/proc/self/ns/net": PARENT["net"],
+                                   "/proc/self/ns/user": PARENT["user"]}[p])
+    monkeypatch.setattr(code_engine, "open", _UidMap(uid_map), raising=False)
+
+    identity, refusal = code_engine._parent_identity()
+
+    if refused is None:
+        assert refusal is None
+        assert identity == {"uid": uid, "net": PARENT["net"], "user": PARENT["user"]}
+    else:
+        assert identity is None
+        assert refusal.startswith("sandbox unavailable:") and refused in refusal
+
+
+@pytest.mark.parametrize("timeout_s, mem_mb", [
+    (-1, 256), (0, 256), (6, -1), (6, 0), (True, 256), (6.5, 256), ("6", 256),
+])
+def test_non_positive_or_non_integer_mandates_are_refused(monkeypatch, launcher, timeout_s, mem_mb):
+    """-1 equals RLIM_INFINITY on Linux CPython and would plan an unlimited CPU limit."""
+    res = _install(monkeypatch, FakeResource())
+
+    plan = code_engine._plan_mandatory_rlimits(timeout_s, mem_mb)
+    result = code_engine._sandbox_exec(INERT_FIXTURE, timeout_s=timeout_s, mem_mb=mem_mb)
+
+    assert plan[0] is None and plan[1] is None and "positive integers" in plan[2]
+    _assert_denied(result)
+    assert launcher.calls == []
+    assert res.set_calls == []
+
+
+def test_unshare_comes_only_from_fixed_root_owned_system_paths(monkeypatch, tmp_path):
+    """A writable `unshare` shim, whether first on PATH or at a candidate path, is
+    never accepted as the namespace boundary."""
+    assert code_engine._UNSHARE_CANDIDATES == ("/usr/bin/unshare", "/bin/unshare")
+    shim = tmp_path / "unshare"
+    shim.write_text("#!/bin/sh\nexec \"$@\"\n")
+    os.chmod(shim, 0o777)
+    monkeypatch.setenv("PATH", str(tmp_path) + os.pathsep + os.environ.get("PATH", ""))
+    monkeypatch.setattr(code_engine, "_IS_POSIX", True)
+    found = code_engine._fixed_unshare()
+    assert found in (None, "/usr/bin/unshare", "/bin/unshare")
+    monkeypatch.setattr(code_engine, "_UNSHARE_CANDIDATES", (str(shim),))
+    assert code_engine._fixed_unshare() is None
+    monkeypatch.setattr(code_engine, "_IS_POSIX", False)
+    assert code_engine._fixed_unshare() is None
+
+
+def test_attestation_source_checks_what_the_parent_checks():
+    """The child's self-check (which gates the user code) covers every property the
+    parent re-checks, so a passing child and a refusing parent cannot disagree on
+    a well-formed attestation."""
+    src = code_engine._ATTEST_SRC
+    compile(src, "<attest>", "exec")
+    for needle in ("/proc/self/ns/net", "/proc/self/ns/user", "/proc/self/uid_map",
+                   "CapEff", "CapPrm", "os.fork()", "refused:11", "want[2] != '0'",
+                   "os._exit(97)", "sys.stdout.flush()", PROBE_TOKEN):
+        assert needle in src
+
+
+def test_real_host_identity_is_read_only_and_refuses_root():
+    """On a POSIX host the real identity check only reads, and refuses uid 0."""
+    if not code_engine._IS_POSIX or not os.path.exists("/proc/self/uid_map"):
+        pytest.skip("Linux /proc only")
+    identity, refusal = code_engine._parent_identity()
+    if os.geteuid() == 0:
+        assert identity is None and "runs as root" in refusal
+    elif refusal is None:
+        assert identity["uid"] == os.geteuid()
+        assert identity["net"].startswith("net:[") and identity["user"].startswith("user:[")
