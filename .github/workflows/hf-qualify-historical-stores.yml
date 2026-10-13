@@ -1,0 +1,92 @@
+# SPDX-License-Identifier: Apache-2.0
+# Read-only rehearsal against an already preserved historical capture.
+# This never stops writers, changes provider state, or admits restore/deploy.
+name: Rehearse historical A11oy store recovery
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_source_sha:
+        description: Exact current protected main SHA; historical capture only
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-relock-canonical-a11oy
+  cancel-in-progress: false
+
+jobs:
+  rehearse:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && github.sha == inputs.expected_source_sha && github.run_attempt == 1 }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact requested main source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Use pinned Python runtime
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v6.2.0
+        with:
+          python-version: '3.12'
+      - name: Require exact protected current main before private credentials
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REPOSITORY" = szl-holdings/a11oy
+          test "$GITHUB_REF" = refs/heads/main
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$GITHUB_SHA" = "$EXPECTED_SOURCE_SHA"
+          gh api "repos/$GITHUB_REPOSITORY/branches/main" |
+            python3 -c 'import json, os, sys; b=json.load(sys.stdin); sys.exit(0 if b.get("name")=="main" and b.get("protected") is True and b.get("commit",{}).get("sha")==os.environ["GITHUB_SHA"] else 1)'
+      - name: Install exact reviewed private bucket SDK
+        run: python3 -m pip install --disable-pip-version-check --no-cache-dir 'huggingface_hub==1.23.0' 'cryptography==50.0.0'
+      - name: Rehearse source-pinned historical capture without provider writes
+        id: qualification
+        env:
+          HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          PYTHONDONTWRITEBYTECODE: '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          result=0
+          python3 -B scripts/qualify_gdw_store_recovery.py \
+            --capture-report docs/operations/evidence/gdw-capture-37223162231.json \
+            --historical-anchors docs/operations/evidence/gdw-recovery-historical-anchors.json \
+            --output "$RUNNER_TEMP/private-historical-qualification.json" || result=$?
+          printf 'exit_code=%s\n' "$result" >> "$GITHUB_OUTPUT"
+      - name: Classify rehearsal into public-safe historical-only status
+        env:
+          GH_TOKEN: ${{ github.token }}
+          QUALIFICATION_EXIT_CODE: ${{ steps.qualification.outputs.exit_code }}
+          EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha }}
+          PYTHONDONTWRITEBYTECODE: '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_SHA" = "$EXPECTED_SOURCE_SHA"
+          gh api "repos/$GITHUB_REPOSITORY/branches/main" |
+            python3 -c 'import json, os, sys; b=json.load(sys.stdin); sys.exit(0 if b.get("name")=="main" and b.get("protected") is True and b.get("commit",{}).get("sha")==os.environ["GITHUB_SHA"] else 1)'
+          python3 -I -B scripts/classify_gdw_historical_qualification.py \
+            --report "$RUNNER_TEMP/private-historical-qualification.json" \
+            --output "$RUNNER_TEMP/public-historical-qualification.json" \
+            --expected-source-sha "$EXPECTED_SOURCE_SHA" \
+            --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --qualification-exit-code "$QUALIFICATION_EXIT_CODE"
+      - name: Retain only the public-safe historical rehearsal status
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: historical-store-rehearsal-status-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/public-historical-qualification.json
+          if-no-files-found: warn
+          retention-days: 90

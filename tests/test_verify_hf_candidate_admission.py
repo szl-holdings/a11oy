@@ -354,8 +354,10 @@ class CandidateAdmissionTests(unittest.TestCase):
         self.assertEqual(report["copy_sources"], list(MODULE.PINNED_COPY_SOURCES))
         self.assertEqual(report["head_blob"], oid(head))
 
-    def test_live_dockerfile_carries_1396_shared_copy_line(self) -> None:
+    def test_live_dockerfile_preserves_command_bar_and_puriq_copy_contract(self) -> None:
         live = (ROOT / "Dockerfile").read_bytes()
+        self.assertIn(MODULE.REQUIRED_SHARED_COPY_TAIL, MODULE.BASE_SHARED_COPY_LINE)
+        self.assertIn(MODULE.REQUIRED_SHARED_COPY_TAIL, MODULE.HEAD_SHARED_COPY_LINE)
         self.assertEqual(live.count(MODULE.HEAD_SHARED_COPY_LINE), 1)
         self.assertEqual(live.count(MODULE.BASE_SHARED_COPY_LINE), 0)
         predecessor = live.replace(
@@ -368,6 +370,10 @@ class CandidateAdmissionTests(unittest.TestCase):
         self.assertEqual(report["head_blob"], oid(live))
         self.assertFalse(MODULE.dockerfile_copy_pin_applicable(live))
         self.assertTrue(MODULE.dockerfile_copy_pin_applicable(predecessor))
+
+        without_puriq = live.replace(MODULE.REQUIRED_SHARED_COPY_TAIL, b"", 1)
+        with self.assertRaisesRegex(MODULE.AdmissionError, "must contain exactly one"):
+            MODULE.validate_dockerfile_copy_transition(predecessor, without_puriq)
 
     def test_dockerfile_copy_transition_rejects_any_extra_change(self) -> None:
         base, head = sample_dockerfiles()

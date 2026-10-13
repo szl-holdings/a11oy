@@ -103,6 +103,21 @@ def _variant_cache_key(source: str, **parameters: Any) -> str:
     return f"{source}|{hashlib.sha256(canonical).hexdigest()[:20]}"
 
 
+def _courtlistener_cache_key(term: str, limit: int, kind: str) -> str:
+    if _HAS_VF and hasattr(_vf, "_courtlistener_cache_key"):
+        return _vf._courtlistener_cache_key(term, limit, kind)
+    normalized_term = re.sub(r"\s+", " ", str(term).strip()).casefold()
+    return _variant_cache_key(
+        "courtlistener", term=normalized_term, limit=limit, kind=kind,
+    )
+
+
+def _courtlistener_cache_ttl_s() -> float:
+    if _HAS_VF and hasattr(_vf, "_COURTLISTENER_CACHE_TTL_S"):
+        return float(_vf._COURTLISTENER_CACHE_TTL_S)
+    return 86400.0
+
+
 def _bounded_limit(value: Any, default: int, maximum: int) -> int:
     try:
         parsed = int(value)
@@ -521,12 +536,11 @@ def _readiness_warm_interval_s() -> float:
 
 
 def _readiness_warm_targets() -> list:
-    """Default legal views the post-deploy probe (and console) reads."""
+    """Probe-shaped legal views; avoid an extra cold CourtListener request."""
     targets = [
         (feed_courtlistener, ("securities", 1), {}),
         (feed_courtlistener, ("defense", 1), {}),
         (feed_courtlistener, ("insurance", 1), {}),
-        (feed_courtlistener, ("securities", 18), {}),  # exposure graph default seed
         (feed_fedregister, (1, None), {}),
         (feed_fr_agencies, (14, None), {}),
     ]
@@ -662,8 +676,8 @@ def feed_courtlistener(term: str, limit: int = 20, kind: str = "o") -> dict[str,
             })
         return {"count": d.get("count"), "term": term, "items": items}
 
-    return _cached(_variant_cache_key("cl", kind=kind, term=term, limit=limit),
-                   url, ttl=900, parser=parse)
+    return _cached(_courtlistener_cache_key(term, limit, kind),
+                   url, ttl=_courtlistener_cache_ttl_s(), parser=parse)
 
 
 def feed_fedregister(limit: int = 20, term: str | None = None) -> dict[str, Any]:

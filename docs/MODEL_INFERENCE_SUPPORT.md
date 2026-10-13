@@ -5,7 +5,7 @@
 
 `docs/model-inference-support.json` is the source for the A11oy model catalog and
 downstream card presentation. It records public Hub provider observations and
-support discussions. The initial source covers the **47 public model-namespace
+support discussions. The reviewed source covers the **48 public model-namespace
 repositories** in `docs/huggingface-ecosystem-manifest.json`. That namespace also
 contains kernels, software, adapters, GGUF bundles, and NumPy artifacts; its count
 is not an LLM count. Entries from the separate native-kernel namespace are not
@@ -95,6 +95,16 @@ Failed reads replace availability with an explicit unavailable observation; no
 last-good provider is carried forward as current. Existing request evidence and
 assessment notes are preserved byte-for-byte as JSON values. Changes to the
 inventory's model-ID set require source review before refresh can continue.
+
+The public-inventory maintenance workflow runs the same offline check against its
+generated candidate before committing its six allowlisted inventory projections.
+The drift review-branch preparer validates the existing support source against the
+candidate before writing the inventory or creating Git objects. Model-ID membership
+changes require source review. Adding an entry requires a dated assessment and a
+real provider observation or failed lookup; neither path generates assessments or
+submits support requests.
+Advancing the document's generation time leaves each older observation's timestamp
+and 24-hour expiry intact.
 
 Review the candidate, update the canonical JSON through a normal PR, and run the
 offline check. The canonical Space publisher remains the only automatic Space

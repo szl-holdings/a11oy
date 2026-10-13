@@ -9,6 +9,7 @@ import copy
 import http.client
 import importlib.util
 import json
+import os
 import pathlib
 import socket
 import tempfile
@@ -119,6 +120,35 @@ class ServerApiTests(unittest.TestCase):
         self.assertTrue(value["chainIntegrity"]["valid"])
         self.assertFalse(value["chainIntegrity"]["anchored"])
         self.assertFalse(value["executable"])
+
+    def test_ledger_displays_stale_index_records_outside_the_chain(self):
+        recovery = pathlib.Path(self.tmp.name) / "recovery.json"
+        digest = "ab" * 32
+        recovery.write_text(json.dumps({
+            "records": [{
+                "state": "OBSERVED",
+                "operation_id": "op-stale-1",
+                "source_path": "fixture/owned-source.txt",
+                "source_revision": "rev-1",
+                "source_digest": digest,
+                "production_authority": True,
+            }]
+        }), encoding="utf-8")
+        with patch.dict(os.environ, {"A11OY_STALE_INDEX_RECOVERY_JSON": str(recovery)}):
+            status, value = self.json_request("GET", "/api/ledger")
+        self.assertEqual(status, 200)
+        self.assertTrue(value["chainIntegrity"]["valid"])
+        self.assertEqual(value["recordCount"], 0)
+        shown = value["recoveryRecords"]
+        self.assertEqual(shown["state"], "DISPLAYED")
+        self.assertFalse(shown["production_authority"])
+        self.assertEqual(shown["records"][0]["state"], "OBSERVED")
+        self.assertEqual(shown["records"][0]["source_digest"], digest)
+        self.assertFalse(shown["records"][0]["production_authority"])
+        with patch.dict(os.environ, {"A11OY_STALE_INDEX_RECOVERY_JSON": ""}):
+            _status, bare = self.json_request("GET", "/api/ledger")
+        self.assertEqual(bare["recoveryRecords"]["state"], "NOT_RUN")
+        self.assertEqual(bare["recoveryRecords"]["records"], [])
 
     def test_read_detects_tampered_summary(self):
         value = empty_ledger()

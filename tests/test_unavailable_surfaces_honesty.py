@@ -149,10 +149,14 @@ def test_sovereign_guarded_probe_failure_has_no_direct_network_fallback(monkeypa
 
 
 def test_sovereign_route_serves_honest_label_via_testclient(monkeypatch):
-    """The served route agrees with the panel: UNAVAILABLE + a named reason off-Tower."""
+    """The served route agrees with a pinned unreachable probe, even on a live host."""
     pytest.importorskip("starlette.testclient")
     from fastapi.testclient import TestClient
     monkeypatch.delenv("SZL_LOCAL_LLM_URL", raising=False)
+    monkeypatch.setattr(sp, "_probe_reachability", lambda: {
+        "reachable": False, "models": [], "env_present": False,
+        "unavailable_reason": sp.REASON_ENV_UNSET,
+    })
     serve = importlib.import_module("serve")
     with TestClient(serve.app) as client:
         r = client.get("/api/a11oy/v1/frontier/sovereign",

@@ -215,6 +215,7 @@ def success_session(origin: str, source_sha: str) -> FakeSession:
                 "unreachable": 0,
                 "throttled": 0,
                 "degraded": 0,
+                "blockingDegraded": 0,
                 "p95_worst": 1806,
             },
         },
@@ -344,10 +345,28 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
         session = success_session(self.origin, self.source)
         readiness_url = self.origin + relock.ROUTES["readiness"]
         readiness = session.responses[("GET", readiness_url)]._payload
-        readiness["verdict_summary"].update(ok=4, degraded=1)
+        readiness["verdict_summary"].update(
+            ok=4, degraded=1, blockingDegraded=1
+        )
 
         with self.assertRaisesRegex(relock.RelockError, "unavailable required sources"):
             relock.evaluate_once(FakeApi(self.source), session, self.contract)
+
+    def test_relock_allows_optional_degradation_with_zero_blocking_degradation(self) -> None:
+        session = success_session(self.origin, self.source)
+        readiness_url = self.origin + relock.ROUTES["readiness"]
+        readiness = session.responses[("GET", readiness_url)]._payload
+        readiness["verdict_summary"].update(
+            ok=4, degraded=1, blockingDegraded=0
+        )
+
+        report = relock.evaluate_once(FakeApi(self.source), session, self.contract)
+
+        self.assertTrue(report["ok"])
+        self.assertEqual(
+            report["routes"]["readiness"]["verdict"]["summary"]["degraded"],
+            1,
+        )
 
     def test_relock_allows_explicitly_skipped_state_changes_with_passing_reads(self) -> None:
         session = success_session(self.origin, self.source)
@@ -548,6 +567,7 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
                 "unreachable": 0,
                 "throttled": 0,
                 "degraded": 0,
+                "blockingDegraded": 0,
                 "p95_worst": 1806,
             },
         }
@@ -1135,7 +1155,7 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
         self.assertNotIn("add_space_variable", self.workflow)
         self.assertNotIn("python - <<'PY'", self.workflow)
         self.assertNotIn("def probe(", self.workflow)
-        self.assertIn("python .github/scripts/verify_canonical_a11oy.py", self.workflow)
+        self.assertIn("python -I -B .github/scripts/verify_canonical_a11oy.py", self.workflow)
 
     def test_post_deploy_probe_is_gated_before_relock_without_a_space_write(self) -> None:
         self.assertIn("readiness-verdict:", self.workflow)
@@ -1146,7 +1166,7 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
         # The verdict gate still fails closed, but a Space-variable write would
         # restart the revision this run just started, so it only validates.
         self.assertIn(
-            "python .github/scripts/publish_readiness_verdict.py\n          --validate-only\n",
+            "python -I -B .github/scripts/publish_readiness_verdict.py\n          --validate-only\n",
             self.workflow,
         )
         self.assertEqual(self.workflow.count("publish_readiness_verdict.py"), 1)
@@ -1181,7 +1201,7 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
         self.assertLess(
             self.workflow.index("Upload immutable full probe evidence"),
             self.workflow.index(
-                "python .github/scripts/publish_readiness_verdict.py"
+                "python -I -B .github/scripts/publish_readiness_verdict.py"
             ),
         )
         publisher = (
@@ -1208,7 +1228,7 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
                 step = drill.split(f"      - name: {name}\n", 1)[1].split(
                     "\n      - name:", 1
                 )[0]
-                self.assertIn(f"python -B scripts/{script}", step)
+                self.assertIn(f"python -I -B scripts/{script}", step)
                 self.assertIn('--origin "$CANONICAL_ORIGIN"', step)
                 self.assertIn('--source-sha "${{ github.sha }}"', step)
                 self.assertIn(f'--output "${output}"', step)

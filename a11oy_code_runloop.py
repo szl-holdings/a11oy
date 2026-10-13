@@ -13,9 +13,22 @@ durable HumanApprovalGate (`szl_agentic_loop.approval_interrupt`) on state-chang
 steps. NO orchestration theater — every step's receipt is the engine's real one.
 
 API SHAPE (modeled on the platform orchestrator for familiarity; served locally):
-  POST /api/a11oy/v1/code/plan          {task[,mode]}          -> {run_id, plan[], honest}
-  POST /api/a11oy/v1/code/runstep       {run_id, step, prompt, mode[, sandbox, approval]}
-                                                               -> engine run + gate + approval
+  POST /api/a11oy/v1/code/plan          {task, purpose[, mode]} -> {run_id, plan[], honest}
+  POST /api/a11oy/v1/code/runstep       {prompt, purpose[, mode, sandbox, approval]}
+                                                               -> engine run + restart receipt
+Operator Bearer and the configured tenant are checked before the body is parsed.
+Purpose is chat, code, or research. The admitted purpose is the engine mode.
+When A11OY_CODE_RUNLOOP_RECEIPT_LOG is set, it is a directory root for
+ReceiptLedger organ code-runloop. The witness is acknowledged after fsync.
+Unsigned witnesses stay SIMULATED. The in-memory Khipu DAG is not this store.
+An omitted request id is not stored as a shared client id. The same client
+request id with a different query is refused before the engine.
+A planned step also sends the server-issued run_id, step_id, and plan_revision.
+That logical action stays stable across retries. Changed sandbox, prompt, or
+revision is a conflict and does not call the engine. A new plan() call is a
+new run even when the task text matches. Requests that omit those three fields
+keep the legacy query key. A duplicate planned step restores the durable
+projection or reports RESULT_UNAVAILABLE. It does not execute again.
   POST /api/a11oy/v1/code/approve       {checkpoint_id, approver, approved}
                                                                -> approval-interrupt grant echo
   GET  /api/a11oy/v1/code/runloop/health                       -> honest liveness of the surface
@@ -38,11 +51,15 @@ signer/verifier passed in from serve.py (same ones a11oy_code_engine uses).
 from __future__ import annotations
 
 import hashlib
-import json
+import hmac
+import os
 import re
+import secrets
 import time
 from datetime import datetime, timezone
 from typing import Any, Optional
+
+import a11oy_code_runloop_journey as _journey
 
 
 # ---- reuse the REAL engine (single source of truth for the governed run) -----
@@ -83,12 +100,96 @@ def _refused(request, action: str):
     return _opauth.operator_refusal(request, action)
 
 
+# Admission for this surface only. It does not configure SZL_SECOND_BRAIN_RAG,
+# the completion aliases, holographic RAG, graph analysis, or Hatun.
+TENANT_ENV = "A11OY_CODE_TENANT"
+TENANT_HEADER = "x-a11oy-tenant"
+RECEIPT_LOG_ENV = "A11OY_CODE_RUNLOOP_RECEIPT_LOG"
+_PURPOSES = frozenset({"chat", "code", "research"})
+_MAX_QUERY_CHARS = 2000
+_MAX_QUERY_BYTES = 8192
+FIXED_SYNTHETIC_QUERY = "synthetic fixture: deny-by-default gate"
+
+
+def _blocked(error: str, status_code: int, **extra):
+    from starlette.responses import JSONResponse
+    body = {"ok": False, "status": "BLOCKED", "error": error}
+    body.update(extra)
+    return JSONResponse(body, status_code=status_code)
+
+
+def _tenant_refusal(request):
+    """Match the configured tenant before the body is parsed. Unset is fail-closed."""
+    try:
+        expected = (os.environ.get(TENANT_ENV) or "").strip()
+        presented = (request.headers.get(TENANT_HEADER) or "").strip()
+    except Exception:
+        return _blocked("tenant admission unavailable", 503, tenant_configured=False)
+    if not expected:
+        return _blocked("tenant is not configured", 503, tenant_configured=False)
+    presented_digest = hashlib.sha256(presented.encode("utf-8")).digest()
+    expected_digest = hashlib.sha256(expected.encode("utf-8")).digest()
+    if not hmac.compare_digest(presented_digest, expected_digest):
+        return _blocked("tenant is not admitted", 403, tenant_configured=True)
+    return None
+
+
+def _admit_query(body: Any, primary: str):
+    """Return (query, purpose, refusal). Refusal is set before any engine call."""
+    if not isinstance(body, dict):
+        return None, None, _blocked("JSON object required", 400)
+    purpose = body.get("purpose")
+    if purpose not in _PURPOSES:
+        return None, None, _blocked("purpose is not admitted", 400)
+    mode = body.get("mode") or ""
+    if not isinstance(mode, str) or (mode and mode != purpose):
+        return None, None, _blocked("mode conflicts with purpose", 400)
+    raw = body.get(primary)
+    if raw is None:
+        raw = body.get("query") or body.get("prompt") or body.get("task") or ""
+    if not isinstance(raw, str):
+        return None, None, _blocked("query must be a string", 400)
+    if len(raw) > _MAX_QUERY_CHARS:
+        return None, None, _blocked("query exceeds the character limit", 400)
+    try:
+        encoded = raw.encode("utf-8")
+    except UnicodeError:
+        return None, None, _blocked("query must be valid UTF-8", 400)
+    if len(encoded) > _MAX_QUERY_BYTES:
+        return None, None, _blocked("query exceeds 8192 UTF-8 bytes", 400)
+    query = raw.strip()
+    if not query:
+        return None, None, _blocked("query is empty", 400)
+    return query, purpose, None
+
+
+def verify_receipt_log(path: str) -> dict:
+    """Re-read the ledger in this process. A new process can call this too."""
+    return _journey.verify_ledger(path)
+
+
+def _journey_refusal(body: dict):
+    """Reject a client lease or a numeric measure before any engine call."""
+    if "lease" in body:
+        return _blocked("lease is not used", 400)
+    if "measure" in body and _journey.admit_measure(body.get("measure")).get("result") == "REJECTED":
+        return _blocked("measure is outside the domain", 400)
+    if "request_id" in body and not _journey.valid_request_id(body.get("request_id")):
+        return _blocked("request_id is not admitted", 400)
+    return None
+
+
+def _presented_tenant(request) -> str:
+    return (request.headers.get(TENANT_HEADER) or "").strip()
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
 def _mk_run_id(task: str) -> str:
-    h = hashlib.sha256(("%s|%s" % (task, time.time())).encode()).hexdigest()[:12]
+    material = "%s|%s|%s" % (task, time.time(), secrets.token_hex(8))
+    h = hashlib.sha256(material.encode()).hexdigest()[:12]
     return "run-%s" % h
 
 
@@ -126,7 +227,7 @@ def plan(task: str, mode: str = "") -> dict:
 
     # Step 1 — always: understand + retrieve (chat/research grounding of the task).
     steps.append({
-        "n": 1, "title": "Understand & ground the task",
+        "n": 1, "step_id": "step-1", "title": "Understand & ground the task",
         "mode": "research" if mode == "research" else "chat",
         "prompt": task or "Describe the task.",
         "sandbox": False, "state_changing": False,
@@ -136,32 +237,33 @@ def plan(task: str, mode: str = "") -> dict:
     if mode == "code":
         # Step 2 — synthesize code. Step 3 — governed sandbox EXECUTION (state-changing).
         steps.append({
-            "n": 2, "title": "Synthesize candidate code",
+            "n": 2, "step_id": "step-2", "title": "Synthesize candidate code",
             "mode": "code", "prompt": task, "sandbox": False, "state_changing": False,
             "why": "Route to an open-weight coder (or the honest local scaffold) and "
                    "produce runnable code — still behind the Λ-gate + policy gate.",
         })
         steps.append({
-            "n": 3, "title": "Execute code in the governed sandbox",
+            "n": 3, "step_id": "step-3", "title": "Execute code in the governed sandbox",
             "mode": "code", "prompt": task, "sandbox": True, "state_changing": True,
             "why": "Run the code in the REAL restricted-subprocess sandbox. This is a "
                    "state-changing action, so it also passes the HumanApprovalGate when enabled.",
         })
     elif mode == "research":
         steps.append({
-            "n": 2, "title": "Answer with cited sources",
+            "n": 2, "step_id": "step-2", "title": "Answer with cited sources",
             "mode": "research", "prompt": task, "sandbox": False, "state_changing": False,
             "why": "Emit a grounded, cited answer over the in-image corpus / live feeds.",
         })
     else:  # chat
         steps.append({
-            "n": 2, "title": "Compose the governed answer",
+            "n": 2, "step_id": "step-2", "title": "Compose the governed answer",
             "mode": "chat", "prompt": task, "sandbox": False, "state_changing": False,
             "why": "Emit the answer through the full P1-P6 loop with a signed receipt.",
         })
 
     return {
         "run_id": run_id,
+        "plan_revision": _journey.plan_revision(mode, steps),
         "task": task,
         "mode": mode,
         "created_at": _now(),
@@ -188,25 +290,124 @@ def register(app, ns: str, sign_fn, verify_fn=None):
         refused = _refused(request, "Run-loop plan")
         if refused is not None:
             return refused
+        tenant = _tenant_refusal(request)
+        if tenant is not None:
+            return tenant
         try:
             b = await request.json()
         except Exception:
-            b = {}
-        task = b.get("task") or b.get("prompt") or b.get("query") or ""
-        mode = (b.get("mode") or "").lower()
-        return JSONResponse(plan(task, mode))
+            return _blocked("JSON object required", 400)
+        query, purpose, refusal = _admit_query(b, "task")
+        if refusal is not None:
+            return refusal
+        extra = _journey_refusal(b)
+        if extra is not None:
+            return extra
+        try:
+            body = plan(query, purpose)
+        except ValueError:
+            return _blocked("plan identity is not admitted", 400)
+        body["purpose"] = purpose
+        body["admission"] = "principal, tenant, limits, and purpose checked before plan"
+        root = (os.environ.get(RECEIPT_LOG_ENV) or "").strip()
+        if root:
+            try:
+                persisted = _journey.persist_plan_admission(
+                    root, _presented_tenant(request), body)
+            except ValueError:
+                return _blocked("plan identity is not admitted", 400)
+            if not persisted:
+                return _blocked("run was not admitted", 409)
+            body["admission_persisted"] = True
+        else:
+            body["admission_persisted"] = False
+        return JSONResponse(body)
 
     async def _runstep(request):
         """Execute ONE planned step through the REAL governed engine. Returns the
         engine's full governed run (chain + signed receipt + Λ-gate) PLUS the
-        HumanApprovalGate verdict for state-changing steps. NEVER fabricates."""
+        HumanApprovalGate verdict for state-changing steps. NEVER fabricates.
+        Admission finishes before the engine import check and before governed_turn.
+        A missing engine writes no receipt."""
         refused = _refused(request, "Run-loop step")
         if refused is not None:
             return refused
+        tenant = _tenant_refusal(request)
+        if tenant is not None:
+            return tenant
         try:
             b = await request.json()
         except Exception:
-            b = {}
+            return _blocked("JSON object required", 400)
+        query, purpose, refusal = _admit_query(b, "prompt")
+        if refusal is not None:
+            return refusal
+        extra = _journey_refusal(b)
+        if extra is not None:
+            return extra
+        root = (os.environ.get(RECEIPT_LOG_ENV) or "").strip()
+        request_id = b.get("request_id") if isinstance(b.get("request_id"), str) else None
+        presented = _presented_tenant(request)
+        sandbox = bool(b.get("sandbox", purpose == "code"))
+        state_changing = bool(b.get("state_changing", sandbox))
+        want_model = b.get("model") or b.get("want_model") or ""
+        harness_profile_id = str(b.get("harness_profile_id") or b.get("profile_id") or "").strip()
+        try:
+            action, identity_refusal = _journey.admit_planned_step(
+                root,
+                presented,
+                run_id=b.get("run_id"),
+                step_id=b.get("step_id"),
+                plan_revision_value=b.get("plan_revision"),
+                query=query,
+                purpose=purpose,
+                sandbox=sandbox,
+                state_changing=state_changing,
+                profile=harness_profile_id or None,
+                model=want_model or None,
+            )
+        except ValueError:
+            return _blocked("run identity is not admitted", 400)
+        if identity_refusal is not None:
+            return _blocked(identity_refusal["error"], identity_refusal["status"])
+        if root and os.path.isdir(root):
+            pre = _journey.verify_ledger(root)
+            if pre.get("status") == "BLOCKED":
+                return _blocked(pre.get("reason") or "receipt log is blocked", 409)
+        if action is None:
+            replay = _journey.replay_if_committed(
+                root, query, purpose, presented, request_id)
+        else:
+            replay = _journey.replay_planned(root, presented, action)
+        if replay is not None:
+            if replay.get("conflict"):
+                return _blocked(replay.get("reason") or "request_id conflict", 409)
+            if replay.get("blocked"):
+                return _blocked(replay.get("reason") or "receipt log is blocked", 409)
+            duplicate_body = {
+                "ok": True,
+                "duplicate": True,
+                "step": b.get("step"),
+                "step_id": b.get("step_id"),
+                "run": replay.get("run"),
+                "restart_receipt": replay["restart_receipt"],
+                "journey": replay["journey"],
+                "label": "DUPLICATE committed record. Retrieval, the planner, and "
+                         "the provider were not called again.",
+            }
+            if replay.get("result") is not None:
+                duplicate_body["result"] = replay["result"]
+            if replay.get("identity") is not None:
+                attempt_id = _journey.new_attempt_id()
+                _journey.note_attempt(
+                    root, action["logical_id"], action["semantics_digest"],
+                    attempt_id, "REPLAY")
+                identity = dict(replay["identity"])
+                identity["attempt_id"] = attempt_id
+                duplicate_body["identity"] = identity
+            return JSONResponse(duplicate_body)
+        if _journey.commit_lock_held(root):
+            return _blocked("commit lock held", 409)
         if not _ENGINE_OK:
             return JSONResponse({
                 "ok": False,
@@ -214,14 +415,7 @@ def register(app, ns: str, sign_fn, verify_fn=None):
                 "label": "MODELED-UNAVAILABLE — the real governed engine could not be "
                          "imported in this runtime; no run fabricated.",
             }, status_code=200)
-        mode = (b.get("mode") or "chat").lower()
-        if mode not in ("chat", "code", "research"):
-            mode = "chat"
-        prompt = b.get("prompt") or b.get("task") or ""
-        sandbox = bool(b.get("sandbox", mode == "code"))
         untrusted = b.get("untrusted_input") or b.get("untrusted") or ""
-        want_model = b.get("model") or b.get("want_model") or ""
-        state_changing = bool(b.get("state_changing", sandbox))
         grant = b.get("approval") if isinstance(b.get("approval"), dict) else None
         # Wave G: OPTIONAL behavior profile for THIS step. When set, the engine
         # runs the model through szl_model_harness.apply (profile system layer +
@@ -234,7 +428,7 @@ def register(app, ns: str, sign_fn, verify_fn=None):
         # REAL governed run (P1-P6, signed DSSE receipt) via the engine.
         # The body may ask for the sandbox; only the verified header principal
         # (two distinct server-held secrets) lets the engine actually run it.
-        run = _engine.governed_turn(mode, prompt, sign_fn, ns,
+        run = _engine.governed_turn(purpose, query, sign_fn, ns,
                                     untrusted_input=untrusted, run_chain=[],
                                     sandbox=sandbox, want_model=want_model,
                                     harness_profile_id=harness_profile_id,
@@ -245,7 +439,7 @@ def register(app, ns: str, sign_fn, verify_fn=None):
         if _APPROVAL_OK:
             try:
                 approval = _approval_interrupt(
-                    action=run.get("gate", {}).get("severity", "") + ":" + (prompt or "")[:60],
+                    action=run.get("gate", {}).get("severity", "") + ":" + (query or "")[:60],
                     severity=run.get("gate", {}).get("severity", "low"),
                     reversible=not state_changing,
                     decision=run.get("decision", "DENY"),
@@ -289,10 +483,17 @@ def register(app, ns: str, sign_fn, verify_fn=None):
                           "swap is recorded in /llm/forum."),
             }
 
-        return JSONResponse({
+        witnessed = _journey.finish(
+            root, query, purpose, _presented_tenant(request), request_id, run,
+            b.get("measure") if "measure" in b else None,
+            action=action)
+        response = {
             "ok": True,
             "step": b.get("step"),
+            "step_id": None if action is None else action["step_id"],
             "run": run,
+            "restart_receipt": witnessed["restart_receipt"],
+            "journey": witnessed["journey"],
             "approval": approval,
             "harness_profile": harness_summary,
             "signature_live": signed_live,
@@ -303,7 +504,24 @@ def register(app, ns: str, sign_fn, verify_fn=None):
                      "engine's REAL output. Λ is advisory (Conjecture 1)."
                      + (" Behavior profile '%s' was applied to this step." % harness_summary["profile_id"]
                         if harness_summary and harness_summary.get("profile_id") else ""),
-        })
+        }
+        if action is not None:
+            attempt_id = _journey.new_attempt_id()
+            _journey.note_attempt(
+                root, action["logical_id"], action["semantics_digest"], attempt_id,
+                witnessed["restart_receipt"].get("state") or "UNKNOWN")
+            response["identity"] = {
+                "run_id": action["run_id"],
+                "step_id": action["step_id"],
+                "plan_revision": action["plan_revision"],
+                "logical_action_id": action["logical_id"],
+                "semantics_digest": action["semantics_digest"],
+                "attempt_id": attempt_id,
+                "comparison": "ADMITTED_REQUIRES_ENGINE_AND_RIGHTS",
+            }
+        if witnessed.get("result") is not None:
+            response["result"] = witnessed["result"]
+        return JSONResponse(response)
 
     async def _approve(request):
         """Echo a HumanApprovalGate grant back so the UI can re-run the step carrying

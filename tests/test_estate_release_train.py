@@ -123,7 +123,7 @@ class EstateReleaseTrainTests(unittest.TestCase):
         apex.feed(
             '<title>A11oy</title><script src="/app.js"></script>'
             f'<script type="module" src="{bridge}" '
-            'data-packs="mcp-server-client"></script>'
+            'data-packs="c2pa,mcp-server-client"></script>'
         )
         self.assertEqual(
             baseline.result()["semantic_sha256"], apex.result()["semantic_sha256"]
@@ -167,7 +167,12 @@ class EstateReleaseTrainTests(unittest.TestCase):
                 f'<script type="module" src="{bridge}"></script>',
                 f'<script type="module" src="{bridge}" data-packs="dom"></script>',
                 f'<script type="module" src="{bridge}" '
+                'data-packs="mcp-server-client"></script>',
+                f'<script type="module" src="{bridge}" data-packs="c2pa"></script>',
+                f'<script type="module" src="{bridge}" '
                 'data-packs="mcp-server-client,dom"></script>',
+                f'<script type="module" src="{bridge}" '
+                'data-packs="c2pa,mcp-server-client,dom"></script>',
                 f'<script type="module" src="{bridge}" '
                 'data-packs="mcp-server-client" onload="changed()"></script>',
                 f'<script type="module" src="{bridge}" '
@@ -492,6 +497,7 @@ class InventoryAndIdentityContractTests(unittest.TestCase):
         )
         self.assertFalse(result["observed"])
         self.assertIsNone(result["counts"]["models"])
+        self.assertIsNone(result["items"]["models"])
         self.assertEqual(result["enumeration_state"]["models"], "UNAVAILABLE")
         self.assertEqual(result["errors"]["models"], "INVALID_LIST_RESPONSE")
 
@@ -502,6 +508,7 @@ class InventoryAndIdentityContractTests(unittest.TestCase):
         )
         self.assertTrue(result["observed"])
         self.assertEqual(result["counts"]["models"], 0)
+        self.assertEqual(result["items"]["models"], [])
         self.assertEqual(result["enumeration_state"]["spaces"], "COMPLETE")
 
     def test_pagination_completes_two_pages(self) -> None:
@@ -547,6 +554,7 @@ class InventoryAndIdentityContractTests(unittest.TestCase):
             lambda url, **kw: {"status": 401, "json": [], "link": None},
         )
         self.assertIsNone(result["counts"]["spaces"])
+        self.assertIsNone(result["items"]["spaces"])
         self.assertEqual(result["errors"]["spaces"], "HTTP_UNAVAILABLE")
 
     def test_page_budget_is_partial_not_complete(self) -> None:
@@ -578,6 +586,7 @@ class InventoryAndIdentityContractTests(unittest.TestCase):
         self.assertFalse(result["observed"])
         self.assertEqual(result["enumeration_state"]["models"], "PARTIAL")
         self.assertIsNone(result["counts"]["models"])
+        self.assertIsNone(result["items"]["models"])
 
     def test_conflicting_aliases_fail_closed(self) -> None:
         value, state = release.extract_source_revision(

@@ -91,6 +91,23 @@ test("freshness recognizes explicit snake- and camel-case observation clocks", (
   }
 });
 
+test("freshness ignores counters whose names merely end in ts", () => {
+  const observedAt = "2026-10-09T01:08:18.985Z";
+  const body = {
+    historical_billable_receipts: 0,
+    historical_reported_charged_cents: 0,
+    ts: observedAt,
+  };
+
+  assert.equal(findTimestamp(body)?.toISOString(), observedAt);
+  assert.equal(evaluateFreshness(
+    "/api/a11oy/v1/energy/harvest",
+    { freshnessSLA: 3600 },
+    body,
+    Date.parse("2026-10-09T01:09:00Z"),
+  ).freshOk, true);
+});
+
 test("freshness prefers nested source fetch time over a market event timestamp", () => {
   const body = {
     equities: {
@@ -659,6 +676,36 @@ test("SYNTHETIC HTTP probe blocks a fresh cited but unbuilt RAG index", async ()
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("explicit optional degradation remains visible without blocking release", () => {
+  const optionalPaths = [
+    "/api/a11oy/v1/energy/live",
+    "/api/a11oy/v1/energy/sci",
+    "/api/a11oy/v1/vert/legal/feed",
+    "/api/a11oy/v1/devb/legal/matter?limit=1",
+    "/api/a11oy/v1/devb/legal/matter?term=defense&limit=1",
+    "/api/a11oy/v1/devb/legal/matter?term=insurance&limit=1",
+  ];
+  for (const path of optionalPaths) {
+    assert.equal(readinessMatrix.endpoints[path].degradedBlocksReadiness, false, path);
+  }
+  for (const path of [
+    "/api/a11oy/v1/rag/status",
+    "/api/a11oy/v1/vert/defense/feed",
+    "/api/a11oy/v1/vert/finance/feed",
+    "/api/a11oy/v1/vert/realestate/feed",
+  ]) {
+    assert.equal(readinessMatrix.endpoints[path].degradedBlocksReadiness, true, path);
+  }
+  const result = {
+    path: optionalPaths[0], required: true, lie: false, unreachable: false,
+    throttled: false, degraded: true, degradedBlocksReadiness: false,
+  };
+  const gate = summarizeReleaseGate([result], 1);
+  assert.equal(gate.requiredDegraded, 0);
+  assert.equal(gate.blocked, false);
+  assert.equal(releaseExitCode(gate), 0);
 });
 
 test("admitted negative root scalar labels retain endpoint-level absence", () => {

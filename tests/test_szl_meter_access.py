@@ -1,6 +1,8 @@
 """Access credential scoping and redirect containment for the meter2 reader."""
 
 import threading
+import json
+import secrets
 import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -17,6 +19,12 @@ _SECRET = "test-meter-client-secret"
 def _set_test_credentials(monkeypatch):
     monkeypatch.setenv("A11OY_METER2_CF_ACCESS_CLIENT_ID", _ID)
     monkeypatch.setenv("A11OY_METER2_CF_ACCESS_CLIENT_SECRET", _SECRET)
+    _set_test_hmac(monkeypatch, "https://meter2.a-11-oy.com")
+
+
+def _set_test_hmac(monkeypatch, origin):
+    monkeypatch.setenv("SZL_METER_HMAC_TARGETS", json.dumps({
+        origin: {"client_id": "test-reader", "key_hex": secrets.token_hex(32)}}))
 
 
 def test_headers_require_pair_and_exact_https_host(monkeypatch):
@@ -40,22 +48,18 @@ def test_headers_require_pair_and_exact_https_host(monkeypatch):
         assert szl_meter_access.meter_access_headers(url) == {}, url
 
 
-def test_unrelated_get_does_not_add_or_route_access_headers(monkeypatch):
+def test_unconfigured_get_denies_before_network_and_never_adds_access_headers(monkeypatch):
     _set_test_credentials(monkeypatch)
     captured = []
 
-    def fake_urlopen(request, *, timeout):
-        captured.append(request)
-        return object()
-
-    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *args, **kwargs: captured.append(args))
     monkeypatch.setattr(urllib.request, "build_opener", lambda *args: pytest.fail(
-        "unrelated GET must use ordinary transport"))
-    szl_meter_access.open_meter_get("https://gpu2.a-11-oy.com/api/tags", timeout=1,
-                                   headers={"User-Agent": "test",
-                                            "CF-Access-Client-Secret": "accidental"})
-    names = {name.lower() for name, _ in captured[0].header_items()}
-    assert names == {"user-agent"}
+        "unconfigured meter must not use transport"))
+    with pytest.raises(szl_meter_access.MeterAuthConfigurationError):
+        szl_meter_access.open_meter_get("https://gpu2.a-11-oy.com/api/tags", timeout=1,
+                                       headers={"User-Agent": "test",
+                                                "CF-Access-Client-Secret": "accidental"})
+    assert captured == []
 
 
 def test_authenticated_get_never_follows_redirect_or_leaks_headers(monkeypatch):
@@ -89,6 +93,7 @@ def test_authenticated_get_never_follows_redirect_or_leaks_headers(monkeypatch):
             origin_thread = threading.Thread(target=origin.serve_forever, daemon=True)
             origin_thread.start()
             source = f"http://127.0.0.1:{origin.server_port}/metrics"
+            _set_test_hmac(monkeypatch, f"http://127.0.0.1:{origin.server_port}")
             # The production host matcher is tested separately. Override it only so a
             # local HTTP server can exercise urllib's real redirect behavior.
             monkeypatch.setattr(szl_meter_access, "meter_access_headers",

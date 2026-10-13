@@ -19,6 +19,7 @@ def test_registration_is_idempotent_and_openapi_exposes_only_declared_operations
                 "/analytics/v2/quote/{symbol_name}": {"get"},
                 "/analytics/v2/portfolio": {"post"}, "/analytics/v2/receipts": {"get"},
                 "/analytics/v2/receipts/verify": {"get", "post"},
-                "/research/audit": {"post"}}
+                "/research/audit": {"post"}, "/signed-prices/model": {"get"},
+                "/signed-prices/{symbol_name}": {"get"}}
     assert {path.removeprefix(routes.PREFIX): set(methods) for path, methods in paths.items()} == expected
     assert TestClient(app).get(routes.PREFIX + "/providers").status_code == 200

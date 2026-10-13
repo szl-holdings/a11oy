@@ -69,37 +69,48 @@ def exact_step(actual, expected, diagnostic):
 
 CHECKOUT = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
 SETUP_PYTHON = "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97"
-UPLOAD = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+UPLOAD = "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
 HF_CREDENTIAL = "${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}"
-CONTROL_CLIENT = 'python -m pip install --disable-pip-version-check "huggingface_hub==1.31.0" "requests==2.32.5" "cryptography==50.0.1"'
+CONTROL_CLIENT = 'python -I -m pip install --disable-pip-version-check "huggingface_hub==1.31.0" "requests==2.32.5" "cryptography==50.0.1"'
 EXACT_CHECKOUT = {"name": "Checkout exact protected source", "uses": CHECKOUT,
                   "with": {"ref": "${{ github.sha }}", "persist-credentials": False, "fetch-depth": "1"}}
 PYTHON_312 = {"name": "Set up Python", "uses": SETUP_PYTHON, "with": {"python-version": "3.12"}}
-CLASSIFY_RUN = '''python -B .github/scripts/resume_hf_space.py
+CLASSIFY_RUN = '''python -I -B .github/scripts/resume_hf_space.py
 --repo-id "$CANONICAL_SPACE"
 --output "$PREFLIGHT_REPORT"
 --github-output "$GITHUB_OUTPUT"'''
-CONVERGE_RUN = r'''set -uo pipefail
+CONVERGE_RUN = r'''set -euo pipefail
 if [ "${CONVERGE:-false}" != 'true' ]; then
   echo '::notice::The canonical runtime is not serving; configuration converges against the deployed revision.'
   echo 'converged=false' >> "$GITHUB_OUTPUT"
   exit 0
 fi
-python -B scripts/configure_hf_series_a_runtime.py \
+python3 -I -B scripts/hf_exact_main_ownership.py \
+  --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+  --receipt "$RUNNER_TEMP/preflight-series-config-admission.json" \
+  --github-output "$RUNNER_TEMP/preflight-series-config-admission.out"
+if ! grep -Fqx 'publish=true' "$RUNNER_TEMP/preflight-series-config-admission.out"; then
+  echo '::error::Protected main changed before Series-A configuration.'
+  exit 1
+fi
+python -I -B scripts/configure_hf_series_a_runtime.py \
   --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \
+  --expected-source-sha "$GITHUB_SHA" \
   --output "$RUNTIME_CONFIG_REPORT"
-series_code=$?
-python -B scripts/configure_hf_gdw_runtime.py \
-  --repo-id "$CANONICAL_SPACE" --output "$GDW_CONFIG_REPORT"
-gdw_code=$?
-if [ "$series_code" -eq 0 ] && [ "$gdw_code" -eq 0 ]; then
-  echo 'converged=true' >> "$GITHUB_OUTPUT"
-else
-  echo "::warning::Pre-deploy configuration did not converge (series-a=${series_code}, gdw=${gdw_code}); runtime-config converges against the deployed revision."
-  echo 'converged=false' >> "$GITHUB_OUTPUT"
-fi'''
+python3 -I -B scripts/hf_exact_main_ownership.py \
+  --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+  --receipt "$RUNNER_TEMP/preflight-gdw-config-admission.json" \
+  --github-output "$RUNNER_TEMP/preflight-gdw-config-admission.out"
+if ! grep -Fqx 'publish=true' "$RUNNER_TEMP/preflight-gdw-config-admission.out"; then
+  echo '::error::Protected main changed before GDW configuration.'
+  exit 1
+fi
+python -I -B scripts/configure_hf_gdw_runtime.py \
+  --repo-id "$CANONICAL_SPACE" --expected-source-sha "$GITHUB_SHA" \
+  --output "$GDW_CONFIG_REPORT"
+echo 'converged=true' >> "$GITHUB_OUTPUT"'''
 ADMIT_RUN = r'''set -euo pipefail
-python3 -B scripts/hf_exact_main_ownership.py \
+python3 -I -B scripts/hf_exact_main_ownership.py \
   --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
   --receipt "$RUNNER_TEMP/preflight-admission.json" \
   --github-output "$GITHUB_OUTPUT"'''
@@ -114,14 +125,14 @@ WINDOW_ENV = {"STAGE": "${{ steps.runtime.outputs.stage }}",
               "DISPATCH_WINDOW": "${{ github.event_name == 'workflow_dispatch' && inputs.open_deploy_window == true }}"}
 ADMITTED = "${{ steps.admit.outputs.publish == 'true' }}"
 WINDOW_OPEN = "${{ steps.window.outputs.open == 'true' }}"
-AWAIT_RUN = '''python -B .github/scripts/await_hf_runtime_serving.py
+AWAIT_RUN = '''python -I -B .github/scripts/await_hf_runtime_serving.py
 --repo-id "$CANONICAL_SPACE"
 --origin "$CANONICAL_ORIGIN"
 --source-sha "$GITHUB_SHA"
 --report "$RUNTIME_CONFIG_REPORT"
 --report "$GDW_CONFIG_REPORT"'''
 OWNER_RUN = r'''set -euo pipefail
-python3 -B scripts/hf_exact_main_ownership.py \
+python3 -I -B scripts/hf_exact_main_ownership.py \
   --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
   --receipt "$RUNNER_TEMP/preflight-source-admission.json" \
   --github-output "$GITHUB_OUTPUT"'''
@@ -131,12 +142,32 @@ if [ "${PREDEPLOY_CONVERGED:-false}" = 'true' ]; then
   mode=(--check-only)
 else
   echo '::notice::Configuration was not converged before deploy; converging against the deployed revision.'
+  python3 -I -B scripts/hf_exact_main_ownership.py \
+    --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+    --receipt "$RUNNER_TEMP/runtime-series-config-admission.json" \
+    --github-output "$RUNNER_TEMP/runtime-series-config-admission.out"
+  if ! grep -Fqx 'publish=true' "$RUNNER_TEMP/runtime-series-config-admission.out"; then
+    echo '::error::Protected main changed before post-deploy Series-A configuration.'
+    exit 1
+  fi
 fi
-python -B scripts/configure_hf_series_a_runtime.py \
+python -I -B scripts/configure_hf_series_a_runtime.py \
   --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \
+  --expected-source-sha "$GITHUB_SHA" \
   "${mode[@]}" --output "$RUNTIME_CONFIG_REPORT"
-python -B scripts/configure_hf_gdw_runtime.py \
+if [ "${PREDEPLOY_CONVERGED:-false}" != 'true' ]; then
+  python3 -I -B scripts/hf_exact_main_ownership.py \
+    --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+    --receipt "$RUNNER_TEMP/runtime-gdw-config-admission.json" \
+    --github-output "$RUNNER_TEMP/runtime-gdw-config-admission.out"
+  if ! grep -Fqx 'publish=true' "$RUNNER_TEMP/runtime-gdw-config-admission.out"; then
+    echo '::error::Protected main changed before post-deploy GDW configuration.'
+    exit 1
+  fi
+fi
+python -I -B scripts/configure_hf_gdw_runtime.py \
   --repo-id "$CANONICAL_SPACE" \
+  --expected-source-sha "$GITHUB_SHA" \
   "${mode[@]}" --output "$GDW_CONFIG_REPORT"'''
 # Post-deploy jobs may read and verify, never restart, pause or write variables.
 POST_DEPLOY_JOBS = ("runtime-config", "readiness-verdict", "relock",
@@ -151,13 +182,35 @@ REMOVED_CREDENTIAL_TOKENS = ("DOCS_READ_TOKEN", "--github-read-token", "--operat
 
 
 VERDICT_PUBLISH = re.compile(r"publish_readiness_verdict\.py(?!\s+--validate-only\b)")
-VERDICT_VALIDATE_RUN = '''python .github/scripts/publish_readiness_verdict.py
+VERDICT_VALIDATE_RUN = '''python -I -B .github/scripts/publish_readiness_verdict.py
 --validate-only
 --input "$VERDICT_PATH"
 --expected-origin "$CANONICAL_ORIGIN"
 --expected-source-sha "$SOURCE_SHA"
 --github-output "$GITHUB_OUTPUT"'''
+PLATFORM_CANDIDATE_ORIGIN_RUN = r'''set -euo pipefail
+python -I -B .github/scripts/verify_platform_candidate_preview.py \
+  --base-url "https://szlholdings-a11oy.hf.space" \
+  --expected-contract-file serve.py \
+  > "$PLATFORM_CANDIDATE_ORIGIN_REPORT"'''
+PLATFORM_CANDIDATE_PRODUCT_RUN = r'''set -euo pipefail
+python -I -B .github/scripts/verify_platform_candidate_preview.py \
+  --base-url "https://a-11-oy.com" \
+  --expected-contract-file serve.py \
+  > "$PLATFORM_CANDIDATE_PRODUCT_REPORT"'''
 RUN_VERDICT = "${{ needs.readiness-verdict.outputs.verdict }}"
+REVIEWED_DEPLOY_JOB_SHA256 = "a30a6a0ed116101c998635538465ef55c0b97d134f0a4381a5ea4b4fb97a19fb"
+REVIEWED_RELOCK_JOB_SHA256 = "e6b4931eb5d19638f98043fdbed9ad4b8a620d532e9d5d29b27e261273438f78"
+
+
+def exact_job_digest(source: str, name: str) -> str:
+    match = re.search(
+        rf"(?ms)^  {re.escape(name)}:\n.*?(?=^  [A-Za-z0-9_-]+:\n|\Z)",
+        source,
+    )
+    if match is None:
+        raise WorkflowContractError("missing exact job: " + name)
+    return hashlib.sha256(match.group(0).strip().encode("utf-8")).hexdigest()
 
 
 def job_strings(value):
@@ -175,6 +228,27 @@ def job_strings(value):
 def assert_deploy_path_contract(source):
     """The deploy path converges first, starts once, then only verifies."""
     jobs = assert_deploy_dependency_graph(source)
+    document = workflow_document(source)
+    events = document.get("on", {})
+    dispatch = events.get("workflow_dispatch", {}) if isinstance(events, dict) else {}
+    dispatch_inputs = dispatch.get("inputs", {}) if isinstance(dispatch, dict) else {}
+    if (
+        not isinstance(events, dict)
+        or set(events) != {"push", "workflow_dispatch"}
+        or events.get("push") != {"branches": ["main"]}
+        or set(dispatch_inputs) != {
+            "publish_vertical_flagships", "vertical_plan_json", "open_deploy_window"
+        }
+        or not all(isinstance(value, dict) for value in dispatch_inputs.values())
+        or dispatch_inputs["publish_vertical_flagships"].get("type") != "boolean"
+        or dispatch_inputs["publish_vertical_flagships"].get("default") is not False
+        or dispatch_inputs["vertical_plan_json"].get("type") != "string"
+        or dispatch_inputs["vertical_plan_json"].get("required") is not False
+        or dispatch_inputs["vertical_plan_json"].get("default") != ""
+        or dispatch_inputs["open_deploy_window"].get("type") != "boolean"
+        or dispatch_inputs["open_deploy_window"].get("default") is not False
+    ):
+        raise WorkflowContractError("provider workflow event scope changed")
     admission = jobs["source-admission"]
     if [step.get("name") for step in admission["steps"]] != [
             "Checkout the immutable queued source", "Require main and classify current source ownership",
@@ -212,7 +286,8 @@ def assert_deploy_path_contract(source):
     exact_step(preflight["steps"][5], {"name": names[5], "id": "window", "if": ADMITTED, "shell": "bash",
                                        "env": WINDOW_ENV, "run": WINDOW_RUN}, "deploy window")
     exact_step(preflight["steps"][6], {"name": names[6], "id": "converge", "if": WINDOW_OPEN, "shell": "bash",
-                                       "env": {"CONVERGE": "${{ steps.runtime.outputs.converge }}"},
+                                       "env": {"CONVERGE": "${{ steps.runtime.outputs.converge }}",
+                                               "GITHUB_TOKEN": "${{ github.token }}"},
                                        "run": CONVERGE_RUN}, "preflight convergence")
     exact_step(preflight["steps"][7], {"name": names[7], "id": "owner", "if": WINDOW_OPEN, "shell": "bash",
                                        "env": {"GITHUB_TOKEN": "${{ github.token }}"}, "run": OWNER_RUN},
@@ -229,6 +304,8 @@ def assert_deploy_path_contract(source):
             or inputs.get("source-revision-variable") != "SZL_GIT_SHA"
             or inputs.get("source-revision-probe-path") != "/api/build-info"):
         raise WorkflowContractError("deploy must start the Space once and bind exact source")
+    if exact_job_digest(source, "deploy") != REVIEWED_DEPLOY_JOB_SHA256:
+        raise WorkflowContractError("deploy authority contract changed")
 
     runtime = jobs["runtime-config"]
     if (runtime.get("permissions") != {"contents": "read"}
@@ -240,13 +317,16 @@ def assert_deploy_path_contract(source):
         raise WorkflowContractError("runtime-config step order")
     exact_step(runtime["steps"][3], {
         "name": "Verify or converge runtime configuration against the deployed revision",
-        "shell": "bash", "env": {"PREDEPLOY_CONVERGED": "${{ needs.preflight.outputs.converged }}"},
+        "shell": "bash", "env": {"PREDEPLOY_CONVERGED": "${{ needs.preflight.outputs.converged }}",
+                                "GITHUB_TOKEN": "${{ github.token }}"},
         "run": VERIFY_RUN}, "runtime-config must verify, fail closed")
     exact_step(runtime["steps"][4], {
         "name": "Await the deployed revision serving again after any convergence write",
         "run": AWAIT_RUN}, "runtime-config must await the restarted revision")
     paths = tuple(runtime["steps"][5].get("with", {}).get("path", "").splitlines())
-    if paths != ("${{ env.RUNTIME_CONFIG_REPORT }}", "${{ env.GDW_CONFIG_REPORT }}"):
+    if paths != ("${{ env.RUNTIME_CONFIG_REPORT }}", "${{ env.GDW_CONFIG_REPORT }}",
+                 "${{ runner.temp }}/runtime-series-config-admission.json",
+                 "${{ runner.temp }}/runtime-gdw-config-admission.json"):
         raise WorkflowContractError("runtime-config artifact allowlist")
 
     for name in POST_DEPLOY_JOBS:
@@ -257,11 +337,41 @@ def assert_deploy_path_contract(source):
             if VERDICT_PUBLISH.search(text):
                 raise WorkflowContractError("post-deploy restart or variable effect: " + name + ": verdict publish")
     readiness = jobs["readiness-verdict"]
-    if "HF_TOKEN" in json.dumps(readiness) or [step.get("name") for step in readiness["steps"]] != [
-            "Checkout exact protected source", "Set up Node.js", "Set up Python",
-            "Probe the exact canonical deployment", "Upload immutable full probe evidence",
-            "Validate the source-bound verdict without a Space write"]:
+    readiness_text = json.dumps(readiness)
+    if (readiness.get("permissions") != {"contents": "read"}
+            or readiness.get("env") != {
+                "SOURCE_SHA": "${{ github.sha }}",
+                "VERDICT_PATH": "/tmp/readiness-verdict.json",
+                "PLATFORM_CANDIDATE_ORIGIN_REPORT": "/tmp/platform-candidate-origin.json",
+                "PLATFORM_CANDIDATE_PRODUCT_REPORT": "/tmp/platform-candidate-product.json",
+            }
+            or "HF_TOKEN" in readiness_text or "secrets." in readiness_text
+            or [step.get("name") for step in readiness["steps"]] != [
+                "Checkout exact protected source", "Set up Node.js", "Set up Python",
+                "Verify the candidate on the canonical Space origin",
+                "Verify the candidate on the product domain",
+                "Upload secret-free Platform candidate evidence",
+                "Probe the exact canonical deployment", "Upload immutable full probe evidence",
+                "Validate the source-bound verdict without a Space write"]):
         raise WorkflowContractError("readiness verdict must stay evidence-only")
+    exact_step(readiness["steps"][3], {
+        "name": "Verify the candidate on the canonical Space origin",
+        "shell": "bash", "run": PLATFORM_CANDIDATE_ORIGIN_RUN,
+    }, "canonical Platform candidate verifier")
+    exact_step(readiness["steps"][4], {
+        "name": "Verify the candidate on the product domain",
+        "if": "${{ always() }}", "shell": "bash",
+        "run": PLATFORM_CANDIDATE_PRODUCT_RUN,
+    }, "product Platform candidate verifier")
+    exact_step(readiness["steps"][5], {
+        "name": "Upload secret-free Platform candidate evidence",
+        "if": "${{ always() }}", "uses": UPLOAD,
+        "with": {
+            "name": "platform-candidate-${{ github.run_id }}-${{ github.run_attempt }}",
+            "path": "${{ env.PLATFORM_CANDIDATE_ORIGIN_REPORT }}\n${{ env.PLATFORM_CANDIDATE_PRODUCT_REPORT }}",
+            "if-no-files-found": "error", "retention-days": "90",
+        },
+    }, "Platform candidate artifact allowlist")
     exact_step(readiness["steps"][-1], {"name": "Validate the source-bound verdict without a Space write",
                                         "id": "gate", "run": VERDICT_VALIDATE_RUN},
                "readiness verdict gate must fail closed without a Space write")
@@ -295,6 +405,8 @@ echo 'Canonical A11oy is source-bound, singleton, and route-operational.' '''
                                       "CURRENT_MAIN": "${{ steps.post_deploy_owner.outputs.publish }}"}
             or relock.get("outputs") != {"current_main": "${{ steps.post_deploy_owner.outputs.publish }}"}):
         raise WorkflowContractError("actual verification exit must be enforced")
+    if exact_job_digest(source, "relock") != REVIEWED_RELOCK_JOB_SHA256:
+        raise WorkflowContractError("relock credential contract changed")
     parity = jobs["post-deployment-parity"]
     if (parity.get("needs") != "relock" or parity.get("uses") != "./.github/workflows/hf-module-drift.yml"
             or parity.get("permissions") != {"contents": "read"}):
@@ -307,7 +419,6 @@ echo 'Canonical A11oy is source-bound, singleton, and route-operational.' '''
     for token in REMOVED_CREDENTIAL_TOKENS:
         if token in source:
             raise WorkflowContractError("removed credential or donor effect: " + token)
-    document = workflow_document(source)
     if document["on"]["workflow_dispatch"]["inputs"]["publish_vertical_flagships"]["default"] is not False:
         raise WorkflowContractError("vertical publication requires explicit opt in")
     vertical = jobs["publish-vertical-flagships"]
@@ -325,7 +436,7 @@ PROOF_ATTEMPTED = "(steps.series_a_proof.outcome == 'success' || steps.series_a_
 DRILL_PROOF_CONDITION = "${{ always() && " + PROOF_ATTEMPTED + " }}"
 BOUNDED_RUNS = {
     "series_a": r'''set +e
-python -B scripts/prove_hf_series_a_restart.py \
+python -I -B scripts/prove_hf_series_a_restart.py \
   --repo-id "$CANONICAL_SPACE" --origin "$CANONICAL_ORIGIN" \
   --run-context "${{ github.run_id }}:${{ github.run_attempt }}" \
   --source-sha "${{ github.sha }}" --output "$SERIES_A_LIVE_REPORT"
@@ -333,7 +444,7 @@ code=$?
 echo "exit_code=$code" >> "$GITHUB_OUTPUT"
 exit "$code"''',
     "gdw": r'''set +e
-python -B scripts/prove_hf_gdw_runtime.py \
+python -I -B scripts/prove_hf_gdw_runtime.py \
   --series-a-proof "$SERIES_A_LIVE_REPORT" \
   --run-context "${{ github.run_id }}:${{ github.run_attempt }}" \
   --origin "$CANONICAL_ORIGIN" \
@@ -342,13 +453,13 @@ code=$?
 echo "exit_code=$code" >> "$GITHUB_OUTPUT"
 exit "$code"''',
     "admission": r'''set -euo pipefail
-python -B scripts/check_hf_manual_prerequisites.py --admit-live-proofs \
+python -I -B scripts/check_hf_manual_prerequisites.py --admit-live-proofs \
   --series-a-proof "$SERIES_A_LIVE_REPORT" --series-a-proof-exit "${SERIES_A_PROOF_EXIT:-2}" \
   --gdw-proof "$GDW_LIVE_REPORT" --gdw-proof-exit "${GDW_PROOF_EXIT:-2}" \
   --source-sha "${{ github.sha }}" --output "$LIVE_PROOF_ADMISSION_REPORT"''',
 }
 DRILL_LIVE_RUN = '''set -euo pipefail
-python3 -B - "$CANONICAL_ORIGIN/api/build-info" "$GITHUB_SHA" <<'PY'
+python3 -I -B - "$CANONICAL_ORIGIN/api/build-info" "$GITHUB_SHA" <<'PY'
 import json, sys, urllib.request
 url, sha = sys.argv[1], sys.argv[2]
 request = urllib.request.Request(url, headers={"Cache-Control": "no-cache"})
@@ -359,7 +470,7 @@ if str(build.get("revision") or "").lower() != sha:
     sys.exit(1)
 PY'''
 DRILL_GDW_OWNER_RUN = r'''set -euo pipefail
-python3 -B scripts/hf_exact_main_ownership.py \
+python3 -I -B scripts/hf_exact_main_ownership.py \
   --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
   --receipt "$RUNNER_TEMP/restart-drill-gdw-admission.json" \
   --github-output "$RUNNER_TEMP/restart-drill-gdw-admission.out"
@@ -370,7 +481,7 @@ fi'''
 GDW_AFTER_OWNER = "${{ always() && steps.gdw_owner.outcome == 'success' }}"
 DRILL_OWNER_RUN = r'''set -euo pipefail
 test "$GITHUB_REF" = refs/heads/main
-python3 -B scripts/hf_exact_main_ownership.py \
+python3 -I -B scripts/hf_exact_main_ownership.py \
   --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
   --receipt "$RUNNER_TEMP/restart-drill-source-admission.json" \
   --github-output "$RUNNER_TEMP/restart-drill-source-admission.out"
@@ -455,7 +566,7 @@ def assert_blocked_restart_workflow(source):
         raise WorkflowContractError("restart job set requires review")
     job = jobs["restart-proof"]
     blocked = named_step(job, "Fail explicitly while live restart effects remain unreviewed")
-    expected = 'python -B scripts/check_hf_manual_prerequisites.py --blocked-proof series-a --source-sha "$GITHUB_SHA" --output "$PROOF_PATH"'
+    expected = 'python -I -B scripts/check_hf_manual_prerequisites.py --blocked-proof series-a --source-sha "$GITHUB_SHA" --output "$PROOF_PATH"'
     if compact(blocked.get("run", "")) != expected or "if" in blocked or "continue-on-error" in blocked:
         raise WorkflowContractError("restart workflow must fail explicitly")
     if "continue-on-error" in job:
@@ -555,14 +666,28 @@ class DeployPathWorkflowTests(unittest.TestCase):
         jobs = assert_deploy_path_contract(self.source)
         self.assertNotIn("secrets.", json.dumps(jobs["source-admission"]))
 
+    def test_token_bearing_workflows_isolate_every_python_entrypoint(self):
+        for workflow in (WORKFLOW, DRILL_WORKFLOW):
+            launches = []
+            for raw in workflow.read_text(encoding="utf-8").splitlines():
+                command = raw.strip()
+                if command.startswith("run: "):
+                    command = command.removeprefix("run: ")
+                if re.match(r"python3?(?:\s|$)", command):
+                    launches.append(command)
+            self.assertTrue(launches, workflow)
+            for command in launches:
+                with self.subTest(workflow=workflow.name, command=command):
+                    self.assertRegex(command, r"^python3? -I (?:-B|-m pip\b)")
+
     def test_post_deploy_jobs_cannot_restart_pause_or_write_variables(self):
         for job_name, marker in (
             ("runtime-config", '            "${mode[@]}" --output "$GDW_CONFIG_REPORT"\n'),
             ("relock", "            --retry-seconds 10\n"),
         ):
             for injected in (
-                "          python -B scripts/prove_hf_series_a_restart.py --source-sha \"$GITHUB_SHA\" --output /tmp/p.json\n",
-                "          python -B scripts/prove_hf_gdw_runtime.py --source-sha \"$GITHUB_SHA\" --output /tmp/p.json\n",
+                "          python -I -B scripts/prove_hf_series_a_restart.py --source-sha \"$GITHUB_SHA\" --output /tmp/p.json\n",
+                "          python -I -B scripts/prove_hf_gdw_runtime.py --source-sha \"$GITHUB_SHA\" --output /tmp/p.json\n",
                 "          python -c 'import huggingface_hub; huggingface_hub.HfApi().restart_space(\"SZLHOLDINGS/a11oy\")'\n",
                 "          python .github/scripts/publish_readiness_verdict.py --input x --repo-id y\n",
                 "          python .github/scripts/publish_readiness_verdict.py\n",
@@ -586,11 +711,47 @@ class DeployPathWorkflowTests(unittest.TestCase):
                 with self.assertRaisesRegex(WorkflowContractError, re.escape(diagnostic)):
                     assert_deploy_path_contract(self.source.replace(original, replacement, 1))
 
+    def test_platform_candidate_verifiers_are_literal_credential_free_and_retained(self):
+        cases = (
+            ("python -I -B .github/scripts/verify_platform_candidate_preview.py",
+             "python -I -B .github/scripts/unreviewed_candidate_verifier.py",
+             "canonical Platform candidate verifier"),
+            ("python -I -B .github/scripts/verify_platform_candidate_preview.py",
+             "python -B .github/scripts/verify_platform_candidate_preview.py",
+             "canonical Platform candidate verifier"),
+            ('--base-url "https://szlholdings-a11oy.hf.space"',
+             '--base-url "$CANONICAL_ORIGIN"',
+             "canonical Platform candidate verifier"),
+            ('--base-url "https://a-11-oy.com"',
+             '--base-url "https://example.invalid"',
+             "product Platform candidate verifier"),
+            ("--expected-contract-file serve.py", "--expected-contract-file unreviewed.py",
+             "canonical Platform candidate verifier"),
+            ("            ${{ env.PLATFORM_CANDIDATE_PRODUCT_REPORT }}\n",
+             "            ${{ env.VERDICT_PATH }}\n",
+             "Platform candidate artifact allowlist"),
+            ("      PLATFORM_CANDIDATE_PRODUCT_REPORT: /tmp/platform-candidate-product.json\n",
+             "      PLATFORM_CANDIDATE_PRODUCT_REPORT: /tmp/platform-candidate-product.json\n"
+             "      HF_TOKEN: ${{ secrets.HF_TOKEN }}\n",
+             "readiness verdict must stay evidence-only"),
+        )
+        for original, replacement, diagnostic in cases:
+            with self.subTest(diagnostic=diagnostic, replacement=replacement):
+                self.assertIn(original, self.source)
+                changed = self.source.replace(original, replacement, 1)
+                self.assertNotEqual(changed, self.source)
+                with self.assertRaisesRegex(WorkflowContractError, re.escape(diagnostic)):
+                    assert_deploy_path_contract(changed)
+
     def test_preflight_classification_and_convergence_cannot_be_weakened(self):
         cases = (
-            ("python -B .github/scripts/resume_hf_space.py", "python -B .github/scripts/resume_hf_space.py --restart", "preflight classification"),
-            ('          python -B scripts/configure_hf_series_a_runtime.py \\\n            --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \\\n            --output "$RUNTIME_CONFIG_REPORT"\n          series_code=$?',
-             '          series_code=0', "preflight convergence"),
+            ("python -I -B .github/scripts/resume_hf_space.py", "python -B .github/scripts/resume_hf_space.py", "preflight classification"),
+            ('          python -I -B scripts/configure_hf_series_a_runtime.py \\\n            --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \\\n            --expected-source-sha "$GITHUB_SHA" \\\n            --output "$RUNTIME_CONFIG_REPORT"\n',
+             '          true\n', "preflight convergence"),
+            ('--receipt "$RUNNER_TEMP/preflight-series-config-admission.json"',
+             '--receipt /tmp/forged.json', "preflight convergence"),
+            ('--receipt "$RUNNER_TEMP/preflight-gdw-config-admission.json"',
+             '--receipt /tmp/forged.json', "preflight convergence"),
             ("echo 'converged=true' >> \"$GITHUB_OUTPUT\"", "echo 'converged=true' >> \"$GITHUB_OUTPUT\" || true", "preflight convergence"),
             ('--receipt "$RUNNER_TEMP/preflight-source-admission.json"', '--receipt /tmp/forged.json', "re-admit current main"),
             ("      publish: ${{ steps.window.outputs.open == 'true' && steps.owner.outputs.publish == 'true' }}\n", "      publish: ${{ steps.owner.outputs.publish == 'true' }}\n", "output scope"),
@@ -599,8 +760,11 @@ class DeployPathWorkflowTests(unittest.TestCase):
             ("        id: converge\n        if: ${{ steps.window.outputs.open == 'true' }}\n", "        id: converge\n", "preflight convergence"),
             ("        id: runtime\n        if: ${{ steps.admit.outputs.publish == 'true' }}\n", "        id: runtime\n", "preflight classification"),
             ('--receipt "$RUNNER_TEMP/preflight-admission.json"', '--receipt /tmp/forged.json', "admit current main before any provider effect"),
-            ("        type: boolean\n        default: false\n\npermissions:", "        type: boolean\n        default: true\n\npermissions:", "deploy window must default closed"),
-            ("python -B .github/scripts/await_hf_runtime_serving.py", "true", "runtime-config must await"),
+            ("        type: boolean\n        default: false\n\npermissions:", "        type: boolean\n        default: true\n\npermissions:", "provider workflow event scope changed"),
+            ("python -I -B .github/scripts/await_hf_runtime_serving.py", "true", "runtime-config must await"),
+            ("python -I -m pip install --disable-pip-version-check",
+             "python -m pip install --disable-pip-version-check",
+             "preflight control client"),
             ('restart-space: ${{ needs.preflight.outputs.restart_required == \'true\' }}', "restart-space: true", "start the Space once"),
             ("require-default-branch-tip: true", "require-default-branch-tip: false", "start the Space once"),
             ("mode=(--check-only)", "mode=(--check-only --unverified)", "runtime-config must verify"),
@@ -646,9 +810,9 @@ class DeployPathWorkflowTests(unittest.TestCase):
                 assert_deploy_path_contract(self.source + "\n# " + token + "\n")
 
     def test_vertical_publication_keeps_owned_source_and_plan_gates(self):
-        before = "        if: ${{ steps.exact_main_owner.outputs.publish == 'true' && steps.vertical_plan.outputs.vertical_flagships == 'true' }}\n        run: python scripts/hf_publish_vertical_flagships_v4.py\n"
+        before = "        if: ${{ steps.exact_main_owner.outputs.publish == 'true' && steps.vertical_plan.outputs.vertical_flagships == 'true' }}\n        run: python -I -B scripts/hf_publish_vertical_flagships_v4.py\n"
         self.assertIn(before, self.source)
-        changed = self.source.replace(before, "        run: python scripts/hf_publish_vertical_flagships_v4.py\n", 1)
+        changed = self.source.replace(before, "        run: python -I -B scripts/hf_publish_vertical_flagships_v4.py\n", 1)
         with self.assertRaisesRegex(WorkflowContractError, "vertical source and plan gate"):
             assert_deploy_path_contract(changed)
 
@@ -697,7 +861,7 @@ class RestartDrillWorkflowTests(unittest.TestCase):
 
     def test_blocked_proof_fallback_or_managed_selector_is_rejected(self):
         for before, after in (
-            ("python -B scripts/prove_hf_gdw_runtime.py \\", "python -B scripts/check_hf_manual_prerequisites.py --blocked-proof gdw \\"),
+            ("python -I -B scripts/prove_hf_gdw_runtime.py \\", "python -I -B scripts/check_hf_manual_prerequisites.py --blocked-proof gdw \\"),
             ('--origin "$CANONICAL_ORIGIN" \\\n            --source-sha',
              '--origin "$CANONICAL_ORIGIN" \\\n            --managed-acquisition "$RUNNER_TEMP/gdw-durable-acquisition.json" \\\n            --source-sha'),
         ):
