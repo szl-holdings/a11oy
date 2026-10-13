@@ -37,6 +37,9 @@ import serve  # noqa: E402
 # /api/a11oy/v1/compute-pool — see szl_backend_hardening.register(); either satisfies
 # the substring match.)
 DEMO_CRITICAL_ROUTES = [
+    "/anatomy-v6",                              # read-only A11oy evidence view, not Anatomy v7 replacement
+    "/api/a11oy/v1/anatomy/evidence",          # summary-only overlay replay, no mint on GET
+    "/api/a11oy/v1/anatomy/self-audit",        # demotion preview, never an overlay write
     "/civilian",                               # independent civilian evidence view
     "/api/a11oy/v1/civilian/health",            # GET-only, model-free runtime contract
     "/api/a11oy/v1/civilian/overview",          # public observations, no effectors
