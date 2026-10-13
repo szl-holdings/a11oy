@@ -84,7 +84,9 @@ configs:
     path: "submissions/reference-conformance.jsonl"
 ---
 
-<p><a href="https://huggingface.co/spaces/SZLHOLDINGS/szl-command-lab"><img src="https://raw.githubusercontent.com/szl-holdings/.github/main/profile/assets/szl/logos/szl_mark_holographic.svg" alt="SZL Holdings" width="112" /></a></p>
+<p><a href="https://huggingface.co/spaces/SZLHOLDINGS/szl-command-lab"><img src="https://raw.githubusercontent.com/szl-holdings/szl-brand/fd62fe5856ed8e5f660eaae5a9c52957cd71b0a7/kit/logos/orbit-v2/suite/szl-icon-32.svg" alt="SZL Holdings" width="40" height="40" /></a></p>
+
+Orbit artwork: Stephen P. Lutar / SZL Holdings · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) · [Native source](https://github.com/szl-holdings/szl-brand/tree/fd62fe5856ed8e5f660eaae5a9c52957cd71b0a7/kit/logos/orbit-v2). Code: Apache-2.0.
 
 # Governed Agent Bench
 
@@ -164,6 +166,10 @@ app_file: app.py
 pinned: false
 license: apache-2.0
 ---
+
+<p><img src="https://raw.githubusercontent.com/szl-holdings/szl-brand/fd62fe5856ed8e5f660eaae5a9c52957cd71b0a7/kit/logos/orbit-v2/suite/szl-icon-32.svg" width="40" height="40" alt="SZL Holdings" /></p>
+
+Orbit artwork: Stephen P. Lutar / SZL Holdings · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) · [Native source](https://github.com/szl-holdings/szl-brand/tree/fd62fe5856ed8e5f660eaae5a9c52957cd71b0a7/kit/logos/orbit-v2). Code: Apache-2.0.
 
 # Governed Agent Bench
 
@@ -273,7 +279,13 @@ def build(output: Path, source_revision: str, observed_at: str) -> dict[str, obj
         _dataset_readme(source_revision), encoding="utf-8", newline="\n"
     )
 
-    _copy(HERE / "huggingface" / "app.py", space / "app.py")
+    # The existing fixed Space package owns these local presentation files.
+    for relative in (
+        "app.py", "native_presentation.py", "bench.css",
+        "szl/szl-tokens.css", "szl/SOURCE.json", "szl/szl-icon-32.svg",
+        "szl/szl-orbit-holo.svg", "szl/PROJECTION.json",
+    ):
+        _copy(HERE / "huggingface" / relative, space / relative)
     _copy(HERE / "huggingface" / "requirements.txt", space / "requirements.txt")
     _copy(ROOT / "LICENSE", space / "LICENSE")
     _copy(result_path, space / "results" / "reference-conformance.json")
