@@ -142,7 +142,7 @@ class ReservedReadmeTests(unittest.TestCase):
                     result = collect(ORG, getter(response))
                     self.assertFalse(result['observed'])
                     self.assertIsNone(result['counts']['spaces'])
-                    self.assertEqual(result['items']['spaces'], [])
+                    self.assertIsNone(result['items']['spaces'])
 
     def test_provider_transport_exception_is_unavailable_without_url_leak(self):
         def get(url):

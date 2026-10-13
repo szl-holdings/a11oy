@@ -43,7 +43,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25
         with:
           egress-policy: audit
       - name: Checkout exact protected base verifier
@@ -76,7 +76,7 @@ jobs:
           SOURCE_REF: ${{ github.event.pull_request.base.sha }}
       - name: Upload immutable deployed-base proof
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: hf-current-base-parity
           path: hf-current-base-parity.out.json
@@ -102,7 +102,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25
         with:
           egress-policy: audit
       - name: Checkout exact protected-base verifier
@@ -137,7 +137,7 @@ jobs:
           SOURCE_REF: ${{ github.event.pull_request.head.sha }}
       - name: Upload immutable candidate repository parity report
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: hf-repository-parity
           path: hf-repository-parity.out.json
@@ -554,7 +554,7 @@ class IntegrityGuardSelfTest(unittest.TestCase):
             VALID_WORKFLOW.replace(
                 "    steps:\n",
                 "    steps:\n      - uses: &action "
-                "step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1\n",
+                "step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25\n",
                 1,
             ),
             VALID_WORKFLOW.replace(
@@ -728,7 +728,7 @@ class IntegrityGuardSelfTest(unittest.TestCase):
         self.assertEqual(validator._validate_parity_jobs(workflow), [])
 
     def test_both_current_jobs_keep_the_exact_reviewed_hardener(self) -> None:
-        expected = "step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1"
+        expected = "step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25"
         self.assertEqual(validator.HARDEN_RUNNER_ACTION, expected)
         workflow = (HERE.parent / validator.WORKFLOW_PATH).read_text(encoding="utf-8")
         for job_name in (validator.BASELINE_JOB, validator.CANDIDATE_JOB):
@@ -741,14 +741,15 @@ class IntegrityGuardSelfTest(unittest.TestCase):
                 self.assertEqual(validator._nested_mapping(steps[0], "with"), {"egress-policy": "audit"})
 
     def test_unreviewed_or_mutable_runner_identity_is_rejected(self) -> None:
-        approved = "step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1"
+        approved = "step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25"
         replacements = (
+            "step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1",
             "step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920",
             "step-security/harden-runner@v2",
             "step-security/harden-runner@v2.21.1",
             "step-security/harden-runner@main",
             "step-security/harden-runner@" + "0" * 40,
-            "attacker/harden-runner@e14015d583714f6e62063499dc959a02595150a1",
+            "attacker/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25",
         )
         self.assertEqual(VALID_WORKFLOW.count(approved), 2)
         for replacement in replacements:
@@ -771,7 +772,7 @@ class IntegrityGuardSelfTest(unittest.TestCase):
     def test_missing_hardener_cannot_be_replaced_by_a_comment(self) -> None:
         step = (
             "      - name: Harden runner\n"
-            "        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1\n"
+            "        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25\n"
             "        with:\n"
             "          egress-policy: audit\n"
         )
@@ -788,7 +789,7 @@ class IntegrityGuardSelfTest(unittest.TestCase):
             workflow = VALID_WORKFLOW.replace(
                 "    steps:\n",
                 "    steps:\n      - name: Extra hardener\n"
-                "        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1\n",
+                "        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25\n",
                 1,
             )
             (root / validator.WORKFLOW_PATH).write_text(workflow, encoding="utf-8")
