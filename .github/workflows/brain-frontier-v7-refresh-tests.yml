@@ -6,8 +6,15 @@ on:
   pull_request:
     paths:
       - scripts/brain_frontier_v7_refresh.py
+      - scripts/materialize_brain_frontier_v7.py
+      - scripts/observe_ouroboros_frontier.py
+      - routers/governed_graph_operations.py
+      - console/assets/brain-frontier-v7.js
+      - tests/test_brain_frontier_v7.py
       - tests/test_brain_frontier_v7_refresh.py
       - tests/test_brain_frontier_v7_surface.py
+      - tests/test_brain_frontier_loop_wiring.py
+      - tests/test_ouroboros_frontier_observation.py
       - .github/workflows/brain-frontier-v7-refresh.yml
       - .github/workflows/brain-frontier-v7-refresh-tests.yml
   merge_group:
@@ -32,5 +39,5 @@ jobs:
       - name: Test failure, retry and source-binding boundaries offline
         run: |
           python -m pip install --disable-pip-version-check "pytest==8.3.5" "PyYAML==6.0.2"
-          python -m pytest -q tests/test_brain_frontier_v7_refresh.py tests/test_brain_frontier_v7.py tests/test_brain_frontier_v7_surface.py
+          python -m pytest -q tests/test_brain_frontier_v7_refresh.py tests/test_brain_frontier_v7.py tests/test_brain_frontier_v7_surface.py tests/test_brain_frontier_loop_wiring.py tests/test_ouroboros_frontier_observation.py
           git diff --check

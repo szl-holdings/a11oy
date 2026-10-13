@@ -37,7 +37,10 @@ def test_pull_request_executes_only_the_protected_base_verifier() -> None:
     source = _source()
     pr_job = source.split("\n  hf-runtime-live:", 1)[0]
 
-    assert "baseline/.github/scripts/verify_hf_repository_parity.py" in pr_job
+    assert (
+        '"$pythonLocation/bin/python3" -I -B '
+        "baseline/.github/scripts/verify_hf_repository_parity.py"
+    ) in pr_job
     assert (
         "path: baseline\n"
         "          ref: ${{ github.event.pull_request.base.sha }}\n"
@@ -53,6 +56,7 @@ def test_post_deployment_parity_binds_exact_protected_main() -> None:
         "path: source",
         "ref: ${{ github.sha }}",
         "SOURCE_REF: ${{ github.sha }}",
+        '"$pythonLocation/bin/python3" -I -B '
         "source/.github/scripts/verify_hf_repository_parity.py",
         '--tools-script tools/.github/scripts/hf_module_drift_check.py',
         '--github-repo "$GITHUB_REPOSITORY"',

@@ -292,20 +292,22 @@ def workflow_job_blocks(workflow_text):
         if stripped and not stripped.startswith("#") and indent <= jobs_indent:
             break
         entry = yaml_mapping_entry(stripped) if stripped else None
-        if entry and indent > jobs_indent:
-            if job_indent is None:
-                job_indent = indent
-            if indent == job_indent:
-                job_id, value = entry
-                if job_id == "<<" or value:
-                    # Inline jobs and merges are deliberately unsupported:
-                    # accepting a partial parse could prove an inert snippet.
-                    return []
-                if current_id is not None:
-                    blocks.append((current_id, current_lines, job_indent))
-                current_id = job_id
-                current_lines = [raw]
-                continue
+        substantive = bool(stripped and not stripped.startswith("#"))
+        if substantive and indent > jobs_indent and job_indent is None:
+            job_indent = indent
+        if substantive and indent == job_indent:
+            if not entry:
+                return []
+            job_id, value = entry
+            if job_id == "<<" or value:
+                # Inline jobs and merges are deliberately unsupported:
+                # accepting a partial parse could prove an inert snippet.
+                return []
+            if current_id is not None:
+                blocks.append((current_id, current_lines, job_indent))
+            current_id = job_id
+            current_lines = [raw]
+            continue
         if current_id is not None:
             current_lines.append(raw)
     if current_id is not None:
@@ -341,16 +343,63 @@ def strip_yaml_comment(value):
     return value.strip()
 
 
+def _yaml_double_quoted_key(value):
+    """Decode YAML double-quoted key escapes without a YAML dependency."""
+    simple = {
+        "0": "\0", "a": "\a", "b": "\b", "t": "\t", "n": "\n",
+        "v": "\v", "f": "\f", "r": "\r", "e": "\x1b", " ": " ",
+        '"': '"', "/": "/", "\\": "\\", "N": "\x85", "_": "\xa0",
+        "L": "\u2028", "P": "\u2029",
+    }
+    decoded = []
+    index = 0
+    while index < len(value):
+        char = value[index]
+        if char != "\\":
+            decoded.append(char)
+            index += 1
+            continue
+        index += 1
+        if index >= len(value):
+            return None
+        escape = value[index]
+        if escape in simple:
+            decoded.append(simple[escape])
+            index += 1
+            continue
+        widths = {"x": 2, "u": 4, "U": 8}
+        width = widths.get(escape)
+        if width is None:
+            return None
+        digits = value[index + 1:index + 1 + width]
+        if len(digits) != width or not re.fullmatch(r"[0-9A-Fa-f]+", digits):
+            return None
+        try:
+            decoded.append(chr(int(digits, 16)))
+        except (ValueError, OverflowError):
+            return None
+        index += 1 + width
+    return "".join(decoded)
+
+
 def yaml_mapping_entry(stripped):
-    """Return a simple YAML mapping key/value pair, including quoted keys."""
+    """Return a simple YAML mapping key/value pair, decoding quoted keys."""
     match = re.match(
-        r"^(?:\"(?P<double>[^\"]+)\"|'(?P<single>[^']+)'|"
+        r'^(?:"(?P<double>(?:\\.|[^"\\])*)"|'
+        r"'(?P<single>(?:''|[^'])*)'|"
         r"(?P<bare><<|[A-Za-z_][A-Za-z0-9_-]*))\s*:\s*(?P<value>.*)$",
         stripped,
     )
     if not match:
         return None
-    key = match.group("double") or match.group("single") or match.group("bare")
+    if match.group("double") is not None:
+        key = _yaml_double_quoted_key(match.group("double"))
+        if key is None:
+            return None
+    elif match.group("single") is not None:
+        key = match.group("single").replace("''", "'")
+    else:
+        key = match.group("bare")
     value = strip_yaml_comment(match.group("value"))
     return key, value
 
@@ -376,6 +425,96 @@ def yaml_scalar_matches(value, expected):
     """Compare a plain or quoted scalar, failing closed on invalid quoting."""
     valid, parsed = yaml_scalar_value(value)
     return valid and parsed == expected
+
+
+def _exact_yaml_child_mapping(lines, parent_index, parent_indent, expected):
+    """Match a flat YAML mapping exactly, rejecting aliases and nested values."""
+    children = []
+    for raw in lines[parent_index + 1:]:
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        indent = len(raw) - len(raw.lstrip())
+        if indent <= parent_indent:
+            break
+        children.append((indent, stripped))
+    if not children:
+        return False
+    child_indent = min(indent for indent, _stripped in children)
+    if any(indent != child_indent for indent, _stripped in children):
+        return False
+
+    observed = {}
+    for _indent, stripped in children:
+        entry = yaml_mapping_entry(stripped)
+        if not entry or entry[0] == "<<" or entry[0] in observed:
+            return False
+        observed[entry[0]] = entry[1]
+    return (
+        set(observed) == set(expected)
+        and all(yaml_scalar_matches(observed[key], value)
+                for key, value in expected.items())
+    )
+
+
+REVIEWED_TOP_LEVEL_ENV = {
+    "GH_TOKEN": "${{ github.token }}",
+    "CANONICAL_SPACE": "SZLHOLDINGS/a11oy",
+    "CANONICAL_ORIGIN": "https://szlholdings-a11oy.hf.space",
+    "REPORT_PATH": "reports/canonical-a11oy-relock-v4.json",
+}
+REVIEWED_TOP_LEVEL_PERMISSIONS = {"contents": "read"}
+REVIEWED_TOP_LEVEL_CONCURRENCY = {
+    "group": "sync-relock-canonical-a11oy",
+    "cancel-in-progress": "false",
+}
+
+
+def workflow_has_reviewed_inherited_context(workflow_text):
+    """Bind inherited deploy context and reject workflow-level run defaults."""
+    lines = workflow_text.splitlines()
+    substantive = [
+        (index, raw, raw.strip(), len(raw) - len(raw.lstrip()))
+        for index, raw in enumerate(lines)
+        if raw.strip() and not raw.strip().startswith("#")
+    ]
+    if not substantive:
+        return False
+    top_indent = min(indent for _index, _raw, _stripped, indent in substantive)
+    top_entries = []
+    for index, _raw, stripped, indent in substantive:
+        if indent != top_indent:
+            continue
+        entry = yaml_mapping_entry(stripped)
+        if not entry:
+            return False
+        top_entries.append((index, entry))
+
+    allowed = {"name", "run-name", "on", "permissions", "concurrency", "env", "jobs"}
+    keys = [entry[0] for _index, entry in top_entries]
+    if len(keys) != len(set(keys)) or not set(keys).issubset(allowed):
+        return False
+    required = {"on", "permissions", "concurrency", "env", "jobs"}
+    if not required.issubset(keys):
+        return False
+
+    by_key = {entry[0]: (index, entry[1]) for index, entry in top_entries}
+    for key in ("on", "permissions", "concurrency", "env", "jobs"):
+        if by_key[key][1]:
+            return False
+    return (
+        _exact_yaml_child_mapping(
+            lines, by_key["permissions"][0], top_indent,
+            REVIEWED_TOP_LEVEL_PERMISSIONS,
+        )
+        and _exact_yaml_child_mapping(
+            lines, by_key["concurrency"][0], top_indent,
+            REVIEWED_TOP_LEVEL_CONCURRENCY,
+        )
+        and _exact_yaml_child_mapping(
+            lines, by_key["env"][0], top_indent, REVIEWED_TOP_LEVEL_ENV,
+        )
+    )
 
 
 def yaml_sequence_items(lines, entry_index, property_indent, value):
@@ -537,11 +676,13 @@ def workflow_has_unfiltered_main_push(workflow_text):
         if indent <= on_indent:
             break
         entry = yaml_mapping_entry(stripped)
-        if entry:
-            on_block.append((index, indent, entry))
+        on_block.append((index, indent, entry))
     if not on_block:
         return False
     event_indent = min(indent for _index, indent, _entry in on_block)
+    if any(entry is None for _index, indent, entry in on_block
+           if indent == event_indent):
+        return False
     push_entries = [
         item
         for item in on_block
@@ -560,12 +701,14 @@ def workflow_has_unfiltered_main_push(workflow_text):
         if indent <= push_indent:
             break
         entry = yaml_mapping_entry(stripped)
-        if entry:
-            push_block.append((index, indent, entry))
+        push_block.append((index, indent, entry))
     if not push_block:
         return True
 
     property_indent = min(indent for _index, indent, _entry in push_block)
+    if any(entry is None for _index, indent, entry in push_block
+           if indent == property_indent):
+        return False
     properties = [
         item for item in push_block if item[1] == property_indent
     ]
@@ -591,118 +734,159 @@ def workflow_has_unfiltered_main_push(workflow_text):
     )
 
 
+REVIEWED_WORKFLOW_DISPATCH_SHA256 = (
+    "9d7b950df6099c2c1d3284ab98a6e91dbff6d38ad32a18e2c1ea8011665852bf"
+)
+
+
+def workflow_has_reviewed_event_scope(workflow_text):
+    """Reject any unreviewed event that could activate provider credentials."""
+    lines = workflow_text.splitlines()
+    parsed = []
+    for index, raw in enumerate(lines):
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        entry = yaml_mapping_entry(stripped)
+        if entry:
+            parsed.append((index, len(raw) - len(raw.lstrip()), entry))
+    if not parsed:
+        return False
+    top_indent = min(indent for _index, indent, _entry in parsed)
+    on_entries = [
+        item for item in parsed
+        if item[1] == top_indent and item[2][0] == "on"
+    ]
+    if len(on_entries) != 1 or on_entries[0][2][1]:
+        return False
+    on_index, on_indent, _entry = on_entries[0]
+    children = []
+    for index, raw in enumerate(lines[on_index + 1:], start=on_index + 1):
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        indent = len(raw) - len(raw.lstrip())
+        if indent <= on_indent:
+            break
+        children.append((index, indent, yaml_mapping_entry(stripped)))
+    if not children:
+        return False
+    event_indent = min(indent for _index, indent, _entry in children)
+    events = [item for item in children if item[1] == event_indent]
+    if any(entry is None for _index, _indent, entry in events):
+        return False
+    keys = [entry[0] for _index, _indent, entry in events]
+    if len(keys) != len(set(keys)) or set(keys) not in (
+        {"push"},
+        {"push", "workflow_dispatch"},
+    ):
+        return False
+    dispatch = [item for item in events if item[2][0] == "workflow_dispatch"]
+    if not dispatch:
+        return True
+    dispatch_index, _indent, (_key, dispatch_value) = dispatch[0]
+    if dispatch_value:
+        return False
+    block = []
+    for raw in lines[dispatch_index:]:
+        if block and raw.strip() and not raw.lstrip().startswith("#"):
+            indent = len(raw) - len(raw.lstrip())
+            if indent <= event_indent:
+                break
+        block.append(raw)
+    digest = hashlib.sha256("\n".join(block).strip().encode("utf-8")).hexdigest()
+    return digest == REVIEWED_WORKFLOW_DISPATCH_SHA256
+
+
 SOURCE_DERIVED_CONTROLLER_REVISIONS = frozenset({
     # Reviewed reusable-hf-deploy controller that expands Dockerfile COPY
     # sources into the HF payload. A generic 40-hex pin proves immutability,
     # not this capability; additions require an explicit guard review.
-    "e3ec47ad2e99a535839afe0f30fefbd8973d52da",
+    "fc71ae973a0f31b8e9ee793fc8545a354448d451",
 })
 
 
-REVIEWED_SOURCE_ADMISSION_JOB_SHA256 = "13304ef0f4d96cae7d534f42a5068b373b2fda1c0200d01a2a83f1e1bab581e6"
+REVIEWED_SOURCE_ADMISSION_JOB_SHA256 = "4fdb91169b94ccf548612edcf5e58748532ffe32962cba51fde20a08838a22f9"
 REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee8395e042853ded04deb7d170189"
-# These exact jobs and their complete local helper/reference closure recognize
-# the fixed 62ca inspection checkpoint. Reconciliation and preservation retain
-# their authority predicates under literal false gates. The canonical job uses
-# only the fixed native failure/artifact and private metadata reader, exiting 2;
-# pair configuration is independently disabled. Downstream success predicates
-# remain intact, so even an unexpected inspection success cannot publish.
-# The original d61 reader, a601 retry pins, diagnostics and logical-root fix are
-# preserved. These hashes establish source coverage and an explicit publication
-# hold, never provider-object verification, retry, restore or deployment authority.
-REVIEWED_MANUAL_PREREQUISITES_JOB_SHA256 = "3c56b18264b0d81c91607b37d571069a2b80ba640b760f563f8a0861c30103a7"
-REVIEWED_RECOVERY_RECONCILIATION_JOB_SHA256 = "9e1671f8e63388f188271a6ccc80980cd2df3f0e082bcb0c799e064b074b5265"
-REVIEWED_DURABLE_ACQUISITION_JOB_SHA256 = "ca96d877aa7e4bea1c9c7ebdd704a24e67d18bd1808603e99d8d94c46a8e3720"
-REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "bc38f18b2837be0ae4058d66cb9a5cbac911cd6622c1d352d8c773edc2a37944"
-REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256 = {
-    "scripts/check_hf_manual_prerequisites.py": "3390924bd039b8377d1c54824e85f77bb06953bf4165c78e85bc9ddfbc7382ec",
-    "scripts/configure_hf_series_a_runtime.py": "a5b6bd2968fe16d762eb241744bd4897ae05e72c85bc79d38ad33aaea90feb0d",
-    "scripts/configure_hf_gdw_runtime.py": "3d56f13dccc09089fda4b4edc6b3e232c383ffd9b8416efe0f943e9cd87672e0",
-    # Installed-authority verifier imported by both configure helpers.
+# The deploy path is source-admission -> preflight -> deploy -> runtime-config.
+# Preflight admits current main before any provider effect, reads the runtime
+# stage without restarting it, requires an open deploy window while SQLite lives
+# on the bucket mount, re-admits current main before each configuration command,
+# and each helper re-reads exact main before each provider mutation. Any
+# configuration error fails; current main is re-admitted before deploy;
+# runtime-config re-admits current main before any deferred configuration write
+# against the deployed revision. Every gate is an invariant (protected main, newest main
+# wins, live source binding), never an exact run, artifact or parent identity.
+# These exact job bodies and their complete local helper closure establish
+# reviewed source coverage only; they never establish provider success.
+REVIEWED_PREFLIGHT_JOB_SHA256 = "1d47071a0e9e50356e34d55528e7887fef145bf37c439cec5775068648f06e5f"
+REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "3bd53226e383f4637f928d4706492d4d7f0823ea0b36b33ec389830afc6fc450"
+# This exact post-deploy readiness job has no provider credential, verifies the
+# candidate at both literal reviewed origins, and gates relock on success.
+REVIEWED_READINESS_VERDICT_JOB_SHA256 = "93ed2a8bc867b474d01ac982fc120cc24d0425c4a0d0464906fe922fb2f1110c"
+# The relock job holds the provider read credential and consumes the readiness
+# verdict.  Bind its complete job body so an extra step, secret, permission, or
+# failure bypass cannot inherit that authority unnoticed.
+REVIEWED_RELOCK_JOB_SHA256 = "e6b4931eb5d19638f98043fdbed9ad4b8a620d532e9d5d29b27e261273438f78"
+REVIEWED_DEPLOY_HELPERS_SHA256 = {
+    # Read-only runtime-stage classifier; it has no provider write path.
+    ".github/scripts/resume_hf_space.py": "26cb21d2f0be37ebe6aa7e3be28f456489560f740f29215edd4b1d957ec53d49",
+    # Read-only wait for the deployed revision after a convergence write.
+    ".github/scripts/await_hf_runtime_serving.py": "2fb80ffe94124f359e55166f51e2c24105033348adc624421619a4311d42b98e",
+    "scripts/configure_hf_series_a_runtime.py": "1495ac166237c48e84eadf6b4200ccbcf03dd7d545cc7758ef70db5175c03687",
+    "scripts/configure_hf_gdw_runtime.py": "289c0a3d0896c3b10321e2aa3f4543188e238cf22b1b79d632c98cbf23ba0462",
+    # Installed-authority verifier imported by both configure helpers, with
+    # its pinned verification key and static fallback source.
     "scripts/verify_installed_authority.py": "2d9465f393dbaa08754b02d6295abade1134a7dbc843cdab48a6ad70867fb68e",
-    # Its local ownership import is independently bound above by
-    # REVIEWED_SOURCE_ADMISSION_HELPER_SHA256, in the same admission decision.
-    "scripts/preserve_hf_gdw_store.py": "bf6af4a0105492eee618e2ffae00e9072966469f66028d9ceaff575a55332773",
-    # The qualifier's local preservation and descriptive forensic imports are
-    # separately pinned. Its capture, continuity anchors and verification key
-    # are bound too; a data-only substitution cannot retain source admission.
-    "scripts/gdw_orphan_forensics.py": "6b68913196304b4dce26e0d9685ae93e146a401c9e2720f1401153c4a177e28e",
-    "scripts/qualify_gdw_store_recovery.py": "f3c0541213a22fbd5ef60a3421e971a803fdf880f3ef25542d734ad4f976ea47",
-    "docs/operations/evidence/gdw-capture-37223162231.json": "5ff7b2be5d07850b560c1909be128521217ea70b959d238ff9d3f0f68a98b5c3",
-    "docs/operations/evidence/gdw-recovery-historical-anchors.json": "5850da876784da5d2a08532f1c70246e5be38ef623ff6c7378009049da4a273b",
     "ayllu/keys/council-runtime-2026-07-21.pub": "f8ee566d8f1e8ee8a9bb7eba37c24c18ae73605542fc29f7d3e5366ef75562fe",
-    # The exact acquisition, managed configuration and live-proof entrypoints
-    # include these local imports and fixed dynamic loaders. Runtime-installed
-    # application bytes and the remote publisher have their own source-bound
-    # manifest contract; this map binds the code that verifies that contract.
-    "scripts/acquire_gdw_durable_storage.py": "76aec0e12028ed1b3e9a09ef8e09531b816531440bf51427c97324bec64dd823",
-    "scripts/reconcile_gdw_supervised_acquisition.py": "23dd0478cc06d1881ff7c1469833d0192549807a06d5cf822cf8f6d12fdaa994",
-    "scripts/inspect_gdw_held_acquisition.py": "61e0b7d6e8236074ebcbbcc424b34d92f257f0c85608f7adbd640136de9e5dc6",
-    "scripts/inspect_gdw_62ca_acquisition.py": "d444b298495fc253205287f873f3e0a2b2eeb15eab686ea404983ea61fef97eb",
-    "scripts/gdw_acquisition_evidence.py": "7c15e3c774f7bbbee71c9da2255ea92a9d13c5320398c8a8134f1542d1795525",
-    "scripts/build_gdw_installed_source_manifest.py": "a4f58e0a6d59af881a5b03609e5f796e5026e4f3e6a206d194e340cc7dfb3b14",
-    "scripts/probe_gdw_runtime_base.py": "231f911d4df34e3e2c5eba25400b605872e6bbfd30183d075fac9f3c6d058a91",
-    "scripts/probe_gdw_legacy_startup.py": "c0384d47e5d22a856eba2e5fbe284f866e43affd9deb0f1d97148c44389649c0",
-    "scripts/prove_hf_series_a_restart.py": "9091569edb44d6e9d5dcc578ab2c53054aa2fc61de9c962da256dfd186dbd398",
-    "scripts/prove_hf_gdw_runtime.py": "317b4c2629241f312a9e497a0ad8fe7f06cc86426093a6593165c844acefd866",
-    "scripts/hf_live_proof_bounds.py": "74a53d7e90bf03f3ad896fd5fe21c3eaefa2ddb6452029332353f08f41693f3b",
-    "gdw_durable_storage.py": "f22e97c2801b8115b455a150398076132dd8adf83ad3dbf44da04d350567ce72",
-    "gdw_durable_startup.py": "54965688ea52866431aa7995dff221966e89cb460bda75894e1d70d791cd2e1c",
-    "gdw_durable_runtime.py": "2a01da4857dd411aaace8cabb74df27252fe8316aebbb4fef39b56bc778a724f",
-    "gdw_durable_source.py": "37e24e1badeff28d00bbed9d80619acc9080a09bf295061b4dc8130b4cb58321",
-    "gdw_durable_guard.py": "33062e1fc067f037d1df3d8f6038d6b8eab72356923f8fb18c22b2697f1b9ae3",
-    "gdw_durable_image.py": "bbe71d8aa53494d5e22eac029cf4ecb378cbcb7ac3017b349d373c1d6c27142d",
-    "gdw_durable_artifacts.py": "90123c5844de80b647b9f5d017338e4af0d559c6cff33c2c6944f7ffbf69eae3",
-    "gdw_auth.py": "c692593e02873f7b71b9a108fa42a9c2ae7f29d455596d9dd0a4236145297e89",
-    "gdw_workspace.py": "967652dadaf814afd0caabcc05a037f2f6a941e90b891b4edca25cee748655c8",
-    "gdw_proofs.py": "445c9cc5cd38a1660ef815b81ad0f65f68b996b30a479f2c606a12dd8679cc8c",
     "szl_dsse.py": "e095670051088929365f3eb4c76716122148d8f6b898db52f0e27867c221608c",
+    # The runtime signer whose served public key the verifier checks.
     "a11oy_signing_key.py": "3315e58f39e0727590ecd6545f4f125d40b2ff0eea9f5fced15539da5d764d5c",
-    "szl_content_address.py": "211b69d47fbbddf496fcfdedb0311e6fe6b67b67428100dd27ce7ce1f7247b10",
-    "szl_corpus_publish.py": "8be4bc2fd5c4365345fef932c75f6b07a7dcfe5c4de09aed4d3a28e2b62609dc",
-    "szl_formulas.py": "5208ac277e1e9da37c0a07a55c8b4153d1ecc7082bd3d5ccfd11b962b9db08ed",
-    "szl_hf_bucket.py": "61d68be3de5ac474e03b902df1ef27462d462a2037abf8d16b08d701498d5acc",
-}
-REVIEWED_RESUME_GATES = {
-    "needs": "[source-admission, manual-prerequisites]",
-    "if": "${{ github.event_name == 'push' && github.run_attempt == 1 && needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && needs.manual-prerequisites.outputs.mode != 'managed-recovery' }}",
+    # Read-only exact-byte verifier used only by the least-privilege readiness job.
+    ".github/scripts/verify_platform_candidate_preview.py": "dcc2b94c2f1f26ebb6550974b1af3e548dedd2afd41f100c852a6f647ac1550e",
+    ".github/scripts/publish_readiness_verdict.py": "d745e6abbaf9247ddd254f2476363b7906a8c382e4100a0e8e3b614cad8d91a6",
+    "tools/readiness-harness/probe_runner.mjs": "faae5beacf0bb13c9b6ba2b21407e56cdd8bc7aaf916f3458c4256807cd55755",
+    "tools/readiness-harness/canonical_unavailable.mjs": "ca50ca28195281bccdc3cfae09831eabdacff2028946ebaf0c403776cb905e24",
+    "tools/readiness-harness/tabs.json": "99545ca863dfe3174e9b1074319dc7a09c6e65566d4323b0eb92e83c8155f2d3",
+    # Read-only terminal verifier used by the exact relock job.
+    ".github/scripts/verify_canonical_a11oy.py": "d2a0081aed30f51760d4d56499606399666deb9fe93ca7d31943bf295c05d316",
 }
 REVIEWED_DEPLOY_GATES = {
-    "needs": "[source-admission, manual-prerequisites, durable-acquisition, resume-paused-space]",
-    "if": "${{ github.event_name == 'push' && github.run_attempt == 1 && always() && needs.source-admission.outputs.publish == 'true' && needs.manual-prerequisites.result == 'success' && ((needs.manual-prerequisites.outputs.mode == 'managed-recovery' && needs.durable-acquisition.result == 'success') || (needs.manual-prerequisites.outputs.mode != 'managed-recovery' && needs.resume-paused-space.result == 'success')) }}",
+    "needs": "[source-admission, preflight]",
+    "if": "${{ needs.source-admission.outputs.publish == 'true' && needs.preflight.result == 'success' && needs.preflight.outputs.publish == 'true' }}",
 }
-
-
-def direct_job_gates(block_lines, job_indent):
-    """Read direct gate properties without accepting merges or masked failures."""
-    indents = [len(raw) - len(raw.lstrip()) for raw in block_lines[1:]
-               if raw.strip() and not raw.strip().startswith("#")
-               and len(raw) - len(raw.lstrip()) > job_indent]
-    if not indents:
-        return None
-    property_indent = min(indents)
-    gates = {}
-    for raw in block_lines[1:]:
-        if len(raw) - len(raw.lstrip()) != property_indent:
-            continue
-        entry = yaml_mapping_entry(raw.strip())
-        if entry and entry[0] in {"<<", "continue-on-error"}:
-            return None
-        if entry and entry[0] in {"if", "needs"}:
-            if entry[0] in gates:
-                return None
-            gates[entry[0]] = entry[1]
-    return gates
+REVIEWED_DEPLOY_INPUTS = {
+    "hf-repo": "SZLHOLDINGS/a11oy",
+    "ref": "${{ github.sha }}",
+    "require-default-branch-tip": "true",
+    "dockerfile-path": "Dockerfile",
+    "include-readme": "true",
+    "prune": "true",
+    "wait-running": "1200",
+    "restart-space": "${{ needs.preflight.outputs.restart_required == 'true' }}",
+    "source-revision-variable": "SZL_GIT_SHA",
+    "source-revision-probe-path": "/api/build-info",
+    "smoke-paths": '["/","/api/livez","/api/build-info","/api/a11oy/v1/honest","/api/a11oy/healthz","/api/a11oy/v1/brain/capabilities","/api/a11oy/v1/readiness/tab-matrix?view=summary","/api/a11oy/v1/series-a/status","/holographic","/holographic/","/static/3d/holographic.html","/assets/brain-frontier-v7.css","/assets/brain-frontier-v7.js","/assets/brain-frontier-v7.json","/static/landing-honest-bind.js","/atelier/frontier","/api/a11oy/v1/atelier/frontier/registry","/api/a11oy/v1/atelier/frontier/evaluate?evidence=90&repeatability=90&coverage=90&governance=90&safety=1&energy_state=UNAVAILABLE","/api/a11oy/v1/atelier/frontier/evaluate?safety=0","/preview/platform-a11oy/","/preview/platform-a11oy/source.json"]',
+}
+REVIEWED_DEPLOY_SECRETS = {
+    "HF_TOKEN": "${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}",
+}
+# Incident-only jobs retired with the durable v1 acquisition. Their exact
+# parent, run, artifact and namespace pins livelocked every later main.
+RETIRED_DEPLOY_JOBS = frozenset({
+    "recovery-reconciliation",
+    "manual-prerequisites",
+    "durable-acquisition",
+    "resume-paused-space",
+    "publish-finance-projection",
+})
 
 
 def job_has_source_derived_deploy_contract(block_lines, job_indent, *,
                                          admission_verified=False,
-                                         reconciliation_verified=False,
-                                         prerequisites_verified=False,
-                                         resume_verified=False,
-                                         acquisition_verified=False,
+                                         preflight_verified=False,
                                          runtime_verified=False):
-    """Recognize only the exact reviewed prerequisite and conditional deploy graph."""
+    """Recognize only the exact reviewed admission/preflight deploy graph."""
     property_indents = []
     for raw in block_lines[1:]:
         stripped = raw.strip()
@@ -714,54 +898,45 @@ def job_has_source_derived_deploy_contract(block_lines, job_indent, *,
         return False
     property_indent = min(property_indents)
 
-    pinned_controller = False
-    controller_seen = False
+    direct = {}
     with_index = None
-    gates = {}
+    secrets_index = None
     for index, raw in enumerate(block_lines[1:], start=1):
         stripped = raw.strip()
         indent = len(raw) - len(raw.lstrip())
         if indent != property_indent:
             continue
         entry = yaml_mapping_entry(stripped)
-        if entry and entry[0] in {"<<", "continue-on-error"}:
+        if not entry or entry[0] == "<<" or entry[0] in direct:
             return False
-        if entry and entry[0] in {"if", "needs"}:
-            if entry[0] in gates:
-                return False
-            gates[entry[0]] = entry[1]
-        if entry and entry[0] == "uses":
-            if controller_seen:
-                return False
-            controller_seen = True
-            controller = re.fullmatch(
-                r"szl-holdings/\.github/\.github/workflows/"
-                r"reusable-hf-deploy\.yml@(?P<revision>[0-9a-fA-F]{40})",
-                entry[1],
-            )
-            pinned_controller = bool(
-                controller
-                and controller.group("revision").lower()
-                in SOURCE_DERIVED_CONTROLLER_REVISIONS
-            )
-        if entry and entry[0] == "with":
-            if entry[1] or with_index is not None:
+        direct[entry[0]] = entry[1]
+        if entry[0] == "with":
+            if entry[1]:
                 return False
             with_index = index
-    if not controller_seen or not pinned_controller or with_index is None:
+        elif entry[0] == "secrets":
+            if entry[1]:
+                return False
+            secrets_index = index
+
+    expected_direct = {
+        "name": "Deploy, source-bind, and attest exact surface",
+        "needs": REVIEWED_DEPLOY_GATES["needs"],
+        "if": REVIEWED_DEPLOY_GATES["if"],
+        "uses": (
+            "szl-holdings/.github/.github/workflows/"
+            "reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451"
+        ),
+        "with": "",
+        "secrets": "",
+    }
+    if direct != expected_direct or with_index is None or secrets_index is None:
         return False
-    if not (admission_verified and reconciliation_verified and prerequisites_verified and resume_verified
-            and acquisition_verified and runtime_verified
-            and gates == REVIEWED_DEPLOY_GATES):
-        # Empty gates and the former source-only gate cannot bypass prerequisites.
+    if not (admission_verified and preflight_verified and runtime_verified
+            ):
+        # Empty gates and a source-only gate cannot bypass the preflight.
         return False
 
-    expected_inputs = {
-        "hf-repo": "SZLHOLDINGS/a11oy",
-        "ref": "${{ github.sha }}",
-        "dockerfile-path": "Dockerfile",
-        "require-default-branch-tip": "true",
-    }
     matched_inputs = {}
     contract_only_seen = False
     with_indent = None
@@ -784,34 +959,73 @@ def job_has_source_derived_deploy_contract(block_lines, job_indent, *,
             if contract_only_seen or not yaml_scalar_matches(value, "false"):
                 return False
             contract_only_seen = True
-        if key in expected_inputs:
-            if key in matched_inputs:
-                return False
-            matched_inputs[key] = yaml_scalar_matches(value, expected_inputs[key])
-    return (
-        set(matched_inputs) == set(expected_inputs)
-        and all(matched_inputs.values())
+            continue
+        if key in matched_inputs or key not in REVIEWED_DEPLOY_INPUTS:
+            return False
+        expected = REVIEWED_DEPLOY_INPUTS[key]
+        if key == "restart-space":
+            matched_inputs[key] = value == expected
+        else:
+            matched_inputs[key] = yaml_scalar_matches(value, expected)
+    if (set(matched_inputs) != set(REVIEWED_DEPLOY_INPUTS)
+            or not all(matched_inputs.values())):
+        return False
+    return _exact_yaml_child_mapping(
+        block_lines, secrets_index, property_indent, REVIEWED_DEPLOY_SECRETS
     )
 
 
+def _job_body_sha256(lines):
+    return hashlib.sha256("\n".join(lines).strip().encode("utf-8")).hexdigest()
+
+
+def job_requires_successful_needs(block_lines, job_indent, expected_needs):
+    """Require an exact needs list and the default success-only job condition."""
+    property_indents = []
+    for raw in block_lines[1:]:
+        stripped = raw.strip()
+        if stripped and not stripped.startswith("#"):
+            indent = len(raw) - len(raw.lstrip())
+            if indent > job_indent:
+                property_indents.append(indent)
+    if not property_indents:
+        return False
+    property_indent = min(property_indents)
+
+    properties = {}
+    for raw in block_lines[1:]:
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        indent = len(raw) - len(raw.lstrip())
+        if indent != property_indent:
+            continue
+        entry = yaml_mapping_entry(stripped)
+        if not entry or entry[0] in properties:
+            return False
+        properties[entry[0]] = entry[1]
+    if set(properties) & {"<<", "if", "continue-on-error"}:
+        return False
+    return yaml_scalar_matches(properties.get("needs", ""), expected_needs)
+
+
 def has_source_derived_deploy_contract(hf_sync_text, *, ownership_helper=None,
-                                     manual_helpers=None):
+                                     deploy_helpers=None):
     """Return True only for the pinned reusable Dockerfile-derived deploy lane.
 
     The shared controller expands Dockerfile COPY sources and publishes that
     exact set. Requiring a reviewed capability-bearing controller revision,
     canonical destination, exact source SHA, and Dockerfile input in the same
-    reviewed source and manual-prerequisite graph prevents a generic
-    pin, stale ref, wrong destination, comment, step, unrelated workflow, or
-    arbitrary skipped deploy job from satisfying CHECK 3. Ownership admission
-    requires reviewed workflow and helper bytes plus the adjacent provider guard.
-    Recognition proves the COPY source contract, never a provider result or live
-    publication. This exact checkpoint retains that complete source coverage
-    while its provider writers are unreachable. Only the fixed 62ca inspection
-    can run; its metadata report never establishes object effects or retry safety.
+    reviewed admission and preflight graph prevents a generic pin, stale ref,
+    wrong destination, comment, step, unrelated workflow, or arbitrary skipped
+    deploy job from satisfying CHECK 3. Ownership admission requires reviewed
+    workflow and helper bytes plus the adjacent provider guard. Recognition
+    proves the COPY source contract, never a provider result or live
+    publication. A retired incident job anywhere in the graph is rejected.
     """
     jobs = workflow_job_blocks(hf_sync_text)
-    if len({job_id for job_id, _lines, _indent in jobs}) != len(jobs):
+    job_ids = [job_id for job_id, _lines, _indent in jobs]
+    if len(set(job_ids)) != len(job_ids) or RETIRED_DEPLOY_JOBS.intersection(job_ids):
         return False
     admissions = [lines for job_id, lines, _indent in jobs if job_id == "source-admission"]
     admission_verified = (
@@ -819,53 +1033,59 @@ def has_source_derived_deploy_contract(hf_sync_text, *, ownership_helper=None,
         and isinstance(ownership_helper, bytes)
         and hashlib.sha256(ownership_helper.replace(b"\r\n", b"\n")).hexdigest()
         == REVIEWED_SOURCE_ADMISSION_HELPER_SHA256
-        and hashlib.sha256("\n".join(admissions[0]).strip().encode("utf-8")).hexdigest()
-        == REVIEWED_SOURCE_ADMISSION_JOB_SHA256
+        and _job_body_sha256(admissions[0]) == REVIEWED_SOURCE_ADMISSION_JOB_SHA256
     )
-    prerequisites = [lines for job_id, lines, _indent in jobs
-                     if job_id == "manual-prerequisites"]
-    prerequisites_verified = (
-        len(prerequisites) == 1
-        and type(manual_helpers) is dict
-        and set(manual_helpers) == set(REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256)
-        and all(isinstance(manual_helpers[path], bytes)
-                and hashlib.sha256(manual_helpers[path].replace(b"\r\n", b"\n")).hexdigest() == expected
-                for path, expected in REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256.items())
-        and hashlib.sha256("\n".join(prerequisites[0]).strip().encode("utf-8")).hexdigest()
-        == REVIEWED_MANUAL_PREREQUISITES_JOB_SHA256
+    helpers_verified = (
+        type(deploy_helpers) is dict
+        and set(deploy_helpers) == set(REVIEWED_DEPLOY_HELPERS_SHA256)
+        and all(isinstance(deploy_helpers[path], bytes)
+                and hashlib.sha256(deploy_helpers[path].replace(b"\r\n", b"\n")).hexdigest() == expected
+                for path, expected in REVIEWED_DEPLOY_HELPERS_SHA256.items())
     )
-    reconciliations = [lines for job_id, lines, _indent in jobs if job_id == "recovery-reconciliation"]
-    reconciliation_verified = (
-        len(reconciliations) == 1
-        and hashlib.sha256("\n".join(reconciliations[0]).strip().encode("utf-8")).hexdigest()
-        == REVIEWED_RECOVERY_RECONCILIATION_JOB_SHA256
-    )
-    resumes = [(lines, indent) for job_id, lines, indent in jobs
-               if job_id == "resume-paused-space"]
-    resume_verified = (len(resumes) == 1
-                       and direct_job_gates(*resumes[0]) == REVIEWED_RESUME_GATES)
-    acquisitions = [lines for job_id, lines, _indent in jobs
-                    if job_id == "durable-acquisition"]
-    acquisition_verified = (
-        len(acquisitions) == 1
-        and hashlib.sha256("\n".join(acquisitions[0]).strip().encode("utf-8")).hexdigest()
-        == REVIEWED_DURABLE_ACQUISITION_JOB_SHA256
+    preflights = [lines for job_id, lines, _indent in jobs if job_id == "preflight"]
+    preflight_verified = (
+        helpers_verified
+        and len(preflights) == 1
+        and _job_body_sha256(preflights[0]) == REVIEWED_PREFLIGHT_JOB_SHA256
     )
     runtimes = [lines for job_id, lines, _indent in jobs if job_id == "runtime-config"]
     runtime_verified = (
-        len(runtimes) == 1
-        and hashlib.sha256("\n".join(runtimes[0]).strip().encode("utf-8")).hexdigest()
-        == REVIEWED_RUNTIME_CONFIG_JOB_SHA256
+        helpers_verified
+        and len(runtimes) == 1
+        and _job_body_sha256(runtimes[0]) == REVIEWED_RUNTIME_CONFIG_JOB_SHA256
+    )
+    readiness_jobs = [
+        lines for job_id, lines, _indent in jobs
+        if job_id == "readiness-verdict"
+    ]
+    readiness_verified = (
+        helpers_verified
+        and len(readiness_jobs) == 1
+        and _job_body_sha256(readiness_jobs[0])
+        == REVIEWED_READINESS_VERDICT_JOB_SHA256
+    )
+    relock_jobs = [
+        (lines, indent) for job_id, lines, indent in jobs
+        if job_id == "relock"
+    ]
+    readiness_gates_relock = (
+        len(relock_jobs) == 1
+        and helpers_verified
+        and _job_body_sha256(relock_jobs[0][0]) == REVIEWED_RELOCK_JOB_SHA256
+        and job_requires_successful_needs(
+            *relock_jobs[0], "[runtime-config, readiness-verdict]"
+        )
     )
     deploys = [(lines, indent) for job_id, lines, indent in jobs if job_id == "deploy"]
-    return (workflow_has_unfiltered_main_push(hf_sync_text)
+    return (workflow_has_reviewed_inherited_context(hf_sync_text)
+            and workflow_has_unfiltered_main_push(hf_sync_text)
+            and workflow_has_reviewed_event_scope(hf_sync_text)
+            and readiness_verified
+            and readiness_gates_relock
             and len(deploys) == 1
             and job_has_source_derived_deploy_contract(
                 *deploys[0], admission_verified=admission_verified,
-                reconciliation_verified=reconciliation_verified,
-                prerequisites_verified=prerequisites_verified,
-                resume_verified=resume_verified,
-                acquisition_verified=acquisition_verified,
+                preflight_verified=preflight_verified,
                 runtime_verified=runtime_verified)
     )
 
@@ -1050,14 +1270,14 @@ def main():
         if os.path.isfile(ownership_path):
             with open(ownership_path, "rb") as fh:
                 ownership_helper = fh.read()
-        manual_helpers = {}
-        for helper_path in REVIEWED_MANUAL_PREREQUISITES_HELPERS_SHA256:
+        deploy_helpers = {}
+        for helper_path in REVIEWED_DEPLOY_HELPERS_SHA256:
             absolute_path = os.path.join(root, helper_path)
             if os.path.isfile(absolute_path):
                 with open(absolute_path, "rb") as fh:
-                    manual_helpers[helper_path] = fh.read()
+                    deploy_helpers[helper_path] = fh.read()
         source_derived_deploy = has_source_derived_deploy_contract(
-            hf_text, ownership_helper=ownership_helper, manual_helpers=manual_helpers)
+            hf_text, ownership_helper=ownership_helper, deploy_helpers=deploy_helpers)
         mirror_explicit, mirror_globs = parse_hf_sync_mirror(hf_text)
         # a11oy mirrors front-door pages/console globs inside the heredoc step.
         if "pages/*.html" in hf_text or "console/*.html" in hf_text:
@@ -1070,7 +1290,7 @@ def main():
         if not base.endswith(mirror_exts):
             continue  # only the served text asset types hf-sync owns
         if source_derived_deploy:
-            continue  # exact source coverage is preserved while publication is explicitly held
+            continue  # the pinned controller publishes the exact Dockerfile COPY set
         if f in image_only:
             continue  # explicitly declared image-only (baked, not mirrored)
         if hf_sync_present and gha_path_matches(f, mirror_explicit, mirror_globs):
@@ -1098,7 +1318,7 @@ def main():
     print(f"local modules reachable from serve.py imports: {len(reached_with_serve)}")
     if hf_sync_present:
         if source_derived_deploy:
-            print("hf-sync source coverage: pinned Dockerfile-derived controller; reviewed INSPECT_ONLY publication hold")
+            print("hf-sync source coverage: pinned Dockerfile-derived controller; reviewed admission -> preflight -> deploy graph")
         else:
             print(f"hf-sync legacy mirror set: {len(mirror_explicit)} explicit + "
                   f"{len(mirror_globs)} glob(s)")
@@ -1118,7 +1338,7 @@ def main():
         return 1
 
     print("\nOK: COPY <-> serve.py imports <-> hf-sync source coverage are in lockstep. "
-          "Provider publication remains HELD; live parity is not established by this guard.")
+          "This guard establishes source coverage only; provider effects and live parity remain unverified.")
     return 0
 
 

@@ -43,3 +43,21 @@ def test_docs_mermaid_remains_in_the_plugins_supported_major():
     assert packages["node_modules/mermaid"]["version"].startswith("11.")
     plugin = packages["node_modules/vitepress-plugin-mermaid"]
     assert plugin["peerDependencies"]["mermaid"] == "10 || 11"
+
+
+def test_docs_katex_override_covers_every_locked_copy():
+    # Keep every resolved copy bound to the reviewed direct KaTeX version.
+    manifest = read_json("docs/site/package.json")
+    packages = read_json("docs/site/package-lock.json")["packages"]
+    assert manifest["overrides"]["katex"] == "$katex"
+    assert manifest["dependencies"]["katex"] == "^0.19.0"
+    assert packages[""]["dependencies"]["katex"] == "^0.19.0"
+    copies = [entry for path, entry in packages.items()
+              if path.endswith("node_modules/katex")]
+    assert copies, "the test must inspect an actual resolved KaTeX package"
+    assert all(entry["version"] == "0.19.0" for entry in copies)
+    assert all(entry["resolved"] == "https://registry.npmjs.org/katex/-/katex-0.19.0.tgz"
+               for entry in copies)
+    assert all(entry["integrity"] ==
+               "sha512-v6Tznz3zJ7u3niRCoDTsumM2+HA2XXcCu+WAacCeHD2z3p9A9Ks987o5FzfTGBN0e8A0vjEgIDvLbICrXpdw/Q=="
+               for entry in copies)

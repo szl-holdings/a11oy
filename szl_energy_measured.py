@@ -109,8 +109,9 @@ def _read_meter_raw(url: str, timeout: float) -> Optional[Dict[str, Any]]:
     szl_kc_onebit.read_live_meter transport."""
     target = (url or _METER_URL_DEFAULT).strip()
     try:
-        req = _urllib_request.Request(target, headers={"User-Agent": _METER_PROBE_UA})
-        with _urllib_request.urlopen(req, timeout=timeout) as r:  # noqa: S310
+        from szl_meter_access import open_meter_get
+        with open_meter_get(target, timeout=timeout,
+                            headers={"User-Agent": _METER_PROBE_UA}) as r:
             status = getattr(r, "status", None) or 200
             if not (200 <= int(status) < 300):
                 return None

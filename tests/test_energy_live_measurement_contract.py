@@ -4,6 +4,7 @@
 """Exporter reachability alone cannot establish an energy measurement."""
 
 import json
+import time
 
 import pytest
 from starlette.applications import Starlette
@@ -38,11 +39,16 @@ def test_empty_or_invalid_exporter_does_not_fabricate_zero(body):
     assert parsed["total_joules"] is None
 
 
-def test_valid_zero_and_per_gpu_fallback_remain_real_readings():
+def test_valid_zero_and_per_gpu_fallback_require_counter_provenance():
+    sample_ts = time.time()
     parsed = energy.parse_meter_metrics(json.dumps({
         "engines": [{"engine": "test", "gpus": [{
-            "index": 0, "power_w": 0, "joules": 0,
-        }, {"index": 1, "power_w": 12.5, "joules": 40.25}]}],
+            "index": 0, "power_w": 0, "joules": 0, "live": True,
+            "sample_ts": sample_ts, "gpu_uuid": "GPU-zero",
+            "counter_epoch": "epoch-zero", "joules_method": "NVML_COUNTER_DELTA",
+        }, {"index": 1, "power_w": 12.5, "joules": 40.25, "live": True,
+            "sample_ts": sample_ts, "gpu_uuid": "GPU-one",
+            "counter_epoch": "epoch-one", "joules_method": "NVML_COUNTER_DELTA"}]}],
         "totals": {"joules": float("nan")},
     }))
     assert parsed["gpus"][0]["watts"] == 0.0
@@ -134,7 +140,7 @@ def test_live_route_preserves_valid_numeric_measurements(client, monkeypatch, jo
     assert body["nodes"][0]["joules_label"] == "MEASURED"
 
 
-def test_sci_zero_is_measured_energy_with_modeled_carbon(client, monkeypatch):
+def test_sci_zero_is_measured_cumulative_energy_not_per_call_carbon(client, monkeypatch):
     monkeypatch.setattr(energy, "meter_snapshot", lambda: {
         "reachable": True, "total_joules": 0.0,
     })
@@ -143,8 +149,10 @@ def test_sci_zero_is_measured_energy_with_modeled_carbon(client, monkeypatch):
     assert body["energy_joules"] == 0.0
     assert body["energy_kwh"] == 0.0
     assert body["energy_label"] == "MEASURED"
-    assert body["carbon_gco2eq"] == 0.0
-    assert body["label"] == "MODELED"
+    assert body["carbon_gco2eq"] is None
+    assert body["cumulative_operational_carbon_gco2eq_est"] == 0.0
+    assert body["cumulative_operational_carbon_label"] == "MODELED"
+    assert body["label"] == "UNAVAILABLE"
     assert body["per_inference_attribution"] == "UNAVAILABLE"
     receipt = energy.build_sci_receipt_fields()
     assert receipt["energy_scope"] == "cumulative_exporter_reading"

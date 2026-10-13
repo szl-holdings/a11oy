@@ -111,9 +111,9 @@ def _http_get_json(url: str, timeout: float) -> Tuple[Optional[int], Optional[Di
     None status on a transport-level failure (DNS/connreset/timeout). Guarded; never raises.
     """
     try:
-        req = _urllib_request.Request(url, headers={
-            "User-Agent": _PROBE_UA, "Accept": "application/json"})
-        with _urllib_request.urlopen(req, timeout=timeout) as r:  # noqa: S310
+        from szl_meter_access import open_meter_get
+        with open_meter_get(url, timeout=timeout, headers={
+                "User-Agent": _PROBE_UA, "Accept": "application/json"}) as r:
             status = int(getattr(r, "status", None) or 200)
             body = r.read().decode("utf-8", "replace")
         if not (200 <= status < 300):

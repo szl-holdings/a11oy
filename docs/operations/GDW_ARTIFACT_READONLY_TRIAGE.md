@@ -41,9 +41,13 @@ A four-minute native deadline and six-minute job cap bound execution.
 - Top-level HELD: native authority, capture qualification or metadata stability
   could not be established; never infer a private-state resolution.
 
-HEAD absence is not absence of orphan/partial bucket objects. This diagnostic
-is not an exhaustive bucket audit and cannot establish no historical effects.
-No pause/resume, bootstrap, database reset, snapshot publication, bucket copy,
+HEAD absence is not absence of orphan/partial bucket objects. The accepted
+diagnostic at run `37406817882` found 72 exact objects and 152 missing objects
+from the 224-object candidate set after downloading and hashing every present
+object. Its current whole-prefix observation is exhaustive only for the owned
+retained-artifact prefix and still cannot establish historical writer
+attribution or absence of effects. No pause/resume, bootstrap, database reset,
+snapshot publication, bucket copy,
 upload, dataset commit, deletion, credential change or restored runtime is part
 of its scope. A separately qualified recovery decision remains necessary.
 

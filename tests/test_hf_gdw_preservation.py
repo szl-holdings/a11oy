@@ -693,6 +693,27 @@ def test_workflow_rejects_widened_or_duplicate_recovery_artifacts(replacement):
         assert_preflight_order(source.replace(original, replacement, 1))
 
 
+# These checks document the retired 62ca-era preservation/qualification DAG.
+# The accepted read-only diagnostic proved that replaying that DAG would be the
+# wrong recovery action, so keep its mutation tests as incident history without
+# allowing them to require the obsolete provider-writing steps in hf-sync.yml.
+# The source-bound continuation and its negative workflow mutations are guarded
+# by test_hf_sync_supersession_contract.py,
+# test_hf_manual_prerequisites_workflow.py, and
+# test_gdw_diagnostic_continuation.py.
+for _retired_workflow_test in (
+    test_existing_native_dependency_gate_and_private_artifact_boundary,
+    test_workflow_rejects_preflight_after_live_runtime_qualification,
+    test_workflow_rejects_each_reversed_prerequisite_boundary,
+    test_workflow_rejects_classifier_effects_substitution_and_skip,
+    test_workflow_requires_successful_nonmanaged_classification_before_metadata_checks,
+    test_workflow_requires_both_reviewed_blocked_steps_to_reach_the_classifier,
+    test_workflow_rejects_wildcard_private_artifact_upload,
+    test_workflow_rejects_widened_or_duplicate_recovery_artifacts,
+):
+    _retired_workflow_test.__test__ = False
+
+
 @pytest.mark.parametrize("mode", ["script", "module"])
 @pytest.mark.parametrize("reject_at", [None, 1, 2])
 def test_preservation_native_import_context_and_per_batch_fence(tmp_path, mode, reject_at):
@@ -763,3 +784,319 @@ except Exception as error:
     assert value["provider_calls"] == (2 if reject_at is None else reject_at - 1)
     assert value["errors"] == ([] if reject_at is None else [{"type":"PreservationError", "code":"SUPERVISED_RECONCILIATION_REQUIRED"}])
     assert "SYNTHETIC_PRIVATE_ERROR_MUST_NOT_ESCAPE" not in result.stdout
+
+
+def _manual_preservation_classifier():
+    spec = importlib.util.spec_from_file_location(
+        "classify_hf_private_store_preservation",
+        ROOT / "scripts/classify_hf_private_store_preservation.py",
+    )
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_manual_preservation_classifier_retains_only_public_blocked_status(hub, tmp_path):
+    report = run(hub, tmp_path)
+    classifier = _manual_preservation_classifier()
+    status, verified = classifier.classify(
+        report, exit_code=2, expected_sha=SOURCE,
+        run_id="37216937874", run_attempt="1",
+    )
+    assert verified is True
+    assert status == {
+        "schema": "szl.hf-private-store-preservation-public/v1",
+        "source_revision": SOURCE,
+        "run_id": "37216937874",
+        "run_attempt": "1",
+        "state": "BLOCKED",
+        "preservation_state": "VERIFIED",
+        "diagnostic_code": "STORAGE_RECOVERY_REQUIRED",
+        "deployment_admitted": False,
+        "restore_admitted": False,
+        "private_manifest_sha256": report["private_manifest"]["sha256"],
+    }
+    assert report["private_capture_prefix"] not in json.dumps(status)
+    assert PRIVATE_ROW not in json.dumps(status)
+
+
+@pytest.mark.parametrize("exit_code,expected_return,expected_state", [
+    (2, 0, "VERIFIED"), (0, 1, "NOT_VERIFIED"),
+])
+def test_manual_preservation_classifier_cli_never_exposes_private_report(
+    hub, tmp_path, exit_code, expected_return, expected_state,
+):
+    import subprocess
+
+    report = run(hub, tmp_path)
+    report["private_probe"] = PRIVATE_ROW
+    private_path = tmp_path / "runner-private.json"
+    public_path = tmp_path / "public-status.json"
+    private_path.write_text(json.dumps(report), encoding="utf-8")
+    result = subprocess.run([
+        sys.executable, "-I", "-B",
+        str(ROOT / "scripts/classify_hf_private_store_preservation.py"),
+        "--report", str(private_path), "--output", str(public_path),
+        "--expected-source-sha", SOURCE, "--run-id", "37216937874",
+        "--run-attempt", "1", "--preservation-exit-code", str(exit_code),
+    ], cwd=ROOT, capture_output=True, text=True, timeout=15)
+    assert result.returncode == expected_return and not result.stderr
+    assert json.loads(public_path.read_text())["preservation_state"] == expected_state
+    assert PRIVATE_ROW not in public_path.read_text() + result.stdout
+    assert report["private_capture_prefix"] not in public_path.read_text() + result.stdout
+
+
+@pytest.mark.parametrize("field,value", [
+    ("exit_code", 0),
+    ("source_revision", "f" * 40),
+    ("state", "READY"),
+    ("preservation_state", "COPY_REQUESTED"),
+    ("diagnostic_code", "CAPTURE_INCOMPLETE"),
+    ("deployment_admitted", True),
+    ("restore_admitted", True),
+    ("originals_mutated", True),
+    ("space_mutated", True),
+    ("secret_values_recorded", True),
+    ("private_bytes_in_public_artifacts", True),
+    ("initial_identities_stable", False),
+    ("captured_originals_unchanged_after_inspection", False),
+    ("private_manifest.path", "a11oy/incident-preservation/v1/other/manifest.json"),
+    ("private_manifest.sha256", "bad"),
+    ("observations.0.stage", "RUNNING"),
+])
+def test_manual_preservation_classifier_rejects_unsafe_or_incomplete_receipts(
+    hub, tmp_path, field, value,
+):
+    report = run(hub, tmp_path)
+    if field == "exit_code":
+        exit_code = value
+    else:
+        exit_code = 2
+        target = report
+        parts = field.split(".")
+        for part in parts[:-1]:
+            target = target[int(part)] if part.isdigit() else target[part]
+        target[parts[-1]] = value
+    status, verified = _manual_preservation_classifier().classify(
+        report, exit_code=exit_code, expected_sha=SOURCE,
+        run_id="37216937874", run_attempt="1",
+    )
+    assert verified is False
+    assert status["state"] == "BLOCKED"
+    assert status["preservation_state"] == "NOT_VERIFIED"
+    assert status["diagnostic_code"] == "PRESERVATION_REPORT_INVALID"
+    assert status["deployment_admitted"] is False
+    assert status["restore_admitted"] is False
+    assert "private_manifest_sha256" not in status
+
+
+def _assert_manual_preservation_workflow(source):
+    import yaml
+
+    workflow = yaml.load(source, Loader=yaml.BaseLoader)
+    assert set(workflow["on"]) == {"workflow_dispatch"}
+    dispatch = workflow["on"]["workflow_dispatch"]
+    assert set(dispatch["inputs"]) == {"expected_source_sha"}
+    assert dispatch["inputs"]["expected_source_sha"]["required"] == "true"
+    assert dispatch["inputs"]["expected_source_sha"]["type"] == "string"
+    assert workflow["permissions"] == {"contents": "read"}
+    assert workflow["concurrency"] == {
+        "group": "sync-relock-canonical-a11oy", "cancel-in-progress": "false",
+    }
+    assert set(workflow["jobs"]) == {"preserve"}
+    job = workflow["jobs"]["preserve"]
+    assert job["if"] == (
+        "${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' "
+        "&& github.sha == inputs.expected_source_sha && github.run_attempt == 1 }}"
+    )
+    steps = job["steps"]
+    assert [step["name"] for step in steps] == [
+        "Checkout exact requested main source", "Use pinned Python runtime",
+        "Require exact protected current main before private credentials",
+        "Install exact reviewed private bucket SDK",
+        "Capture stopped originals into private bucket only",
+        "Classify private readback into a public-safe blocked receipt",
+        "Install exact historical signature verifier",
+        "Qualify this run's private capture without provider mutation",
+        "Retain only the public-safe capture status",
+        "Retain only the public-safe current qualification status",
+    ]
+    assert steps[0]["with"] == {"ref": "${{ github.sha }}", "persist-credentials": "false"}
+    assert [step["uses"].split("@")[0] for step in steps if "uses" in step] == [
+        "actions/checkout", "actions/setup-python", "actions/upload-artifact", "actions/upload-artifact",
+    ]
+    preflight = steps[2]["run"]
+    for boundary in (
+        'test "$GITHUB_EVENT_NAME" = workflow_dispatch',
+        'test "$GITHUB_REPOSITORY" = szl-holdings/a11oy',
+        'test "$GITHUB_REF" = refs/heads/main',
+        'test "$GITHUB_RUN_ATTEMPT" = 1',
+        'test "$GITHUB_SHA" = "$EXPECTED_SOURCE_SHA"',
+        'b.get("protected") is True',
+        'b.get("commit",{}).get("sha")==os.environ["GITHUB_SHA"]',
+    ):
+        assert boundary in preflight
+    assert "HF_TOKEN" not in steps[2].get("env", {})
+    assert steps[3]["run"] == (
+        "python3 -m pip install --disable-pip-version-check --no-cache-dir 'huggingface_hub==1.23.0'"
+    )
+    capture = steps[4]
+    assert capture["env"]["HF_TOKEN"] == "${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}"
+    assert "python3 -B scripts/preserve_hf_gdw_store.py" in capture["run"]
+    assert '--output "$RUNNER_TEMP/private-preservation-report.json"' in capture["run"]
+    assert '|| result=$?' in capture["run"]
+    assert "--supervised-acquisition" not in capture["run"]
+    assert "exit_code=%s" in capture["run"]
+    assert "scripts/classify_hf_private_store_preservation.py" in steps[5]["run"]
+    assert '--preservation-exit-code "$PRESERVATION_EXIT_CODE"' in steps[5]["run"]
+    assert steps[6]["run"] == (
+        "python3 -m pip install --disable-pip-version-check --no-cache-dir 'cryptography==50.0.1'"
+    )
+    assert steps[7]["env"]["EXPECTED_SOURCE_SHA"] == "${{ inputs.expected_source_sha }}"
+    assert "scripts/qualify_gdw_current_capture.py" in steps[7]["run"]
+    assert '--capture-report "$RUNNER_TEMP/private-preservation-report.json"' in steps[7]["run"]
+    assert '--output "$RUNNER_TEMP/public-current-qualification.json"' in steps[7]["run"]
+    assert "if" not in steps[7] and "continue-on-error" not in steps[7]
+    assert steps[8]["with"]["path"] == "${{ runner.temp }}/public-preservation-status.json"
+    assert steps[9]["with"]["path"] == "${{ runner.temp }}/public-current-qualification.json"
+    for step in steps[8:]:
+        assert "private-preservation-report.json" not in step["with"]["path"]
+        assert "**" not in step["with"]["path"]
+
+
+def test_manual_preservation_workflow_is_dispatch_only_and_source_fenced():
+    source = (ROOT / ".github/workflows/hf-preserve-current-stores.yml").read_text()
+    _assert_manual_preservation_workflow(source)
+
+
+@pytest.mark.parametrize("old,new", [
+    ("on:\n  workflow_dispatch:", "on:\n  push:\n    branches: [main]\n  workflow_dispatch:"),
+    ("group: sync-relock-canonical-a11oy", "group: private-store-capture"),
+    ("github.sha == inputs.expected_source_sha", "true"),
+    ('b.get("protected") is True', 'b.get("protected") is not None'),
+    ('test "$GITHUB_SHA" = "$EXPECTED_SOURCE_SHA"', 'test -n "$GITHUB_SHA"'),
+    ('--output "$RUNNER_TEMP/private-preservation-report.json"',
+     '--output "$RUNNER_TEMP/private-preservation-report.json" --supervised-acquisition'),
+    ("${{ runner.temp }}/public-preservation-status.json",
+     "${{ runner.temp }}/private-preservation-report.json"),
+])
+def test_manual_preservation_workflow_mutations_fail_closed(old, new):
+    source = (ROOT / ".github/workflows/hf-preserve-current-stores.yml").read_text()
+    assert old in source
+    with pytest.raises(AssertionError):
+        _assert_manual_preservation_workflow(source.replace(old, new, 1))
+
+
+def _assert_historical_rehearsal_workflow(source):
+    import yaml
+
+    workflow = yaml.load(source, Loader=yaml.BaseLoader)
+    assert set(workflow["on"]) == {"workflow_dispatch"}
+    inputs = workflow["on"]["workflow_dispatch"]["inputs"]
+    assert set(inputs) == {"expected_source_sha"}
+    assert inputs["expected_source_sha"]["required"] == "true"
+    assert inputs["expected_source_sha"]["type"] == "string"
+    assert workflow["permissions"] == {"contents": "read"}
+    assert workflow["concurrency"] == {
+        "group": "sync-relock-canonical-a11oy", "cancel-in-progress": "false",
+    }
+    assert set(workflow["jobs"]) == {"rehearse"}
+    job = workflow["jobs"]["rehearse"]
+    assert "needs" not in job
+    assert job["runs-on"] == "ubuntu-latest" and job["timeout-minutes"] == "10"
+    assert job["if"] == (
+        "${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' "
+        "&& github.sha == inputs.expected_source_sha && github.run_attempt == 1 }}"
+    )
+    steps = job["steps"]
+    assert len(steps) == 7
+    assert [s["uses"] for s in steps if "uses" in s] == [
+        "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+    ]
+    assert steps[0]["with"] == {"ref": "${{ github.sha }}", "persist-credentials": "false"}
+    assert steps[1]["with"]["python-version"] == "3.12"
+    for boundary in (
+        'test "$GITHUB_EVENT_NAME" = workflow_dispatch',
+        'test "$GITHUB_REPOSITORY" = szl-holdings/a11oy',
+        'test "$GITHUB_REF" = refs/heads/main',
+        'test "$GITHUB_RUN_ATTEMPT" = 1',
+        'test "$GITHUB_SHA" = "$EXPECTED_SOURCE_SHA"',
+        'b.get("protected") is True',
+        'b.get("commit",{}).get("sha")==os.environ["GITHUB_SHA"]',
+    ):
+        assert boundary in steps[2]["run"]
+    assert "HF_TOKEN" not in steps[2].get("env", {})
+    assert steps[3]["run"] == (
+        "python3 -m pip install --disable-pip-version-check --no-cache-dir "
+        "'huggingface_hub==1.23.0' 'cryptography==50.0.0'"
+    )
+    assert steps[4]["env"]["HF_TOKEN"] == "${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}"
+    assert steps[4]["run"] == (
+        'set -euo pipefail\nresult=0\n'
+        'python3 -B scripts/qualify_gdw_store_recovery.py \\\n'
+        '  --capture-report docs/operations/evidence/gdw-capture-37223162231.json \\\n'
+        '  --historical-anchors docs/operations/evidence/gdw-recovery-historical-anchors.json \\\n'
+        '  --output "$RUNNER_TEMP/private-historical-qualification.json" || result=$?\n'
+        'printf \'exit_code=%s\\n\' "$result" >> "$GITHUB_OUTPUT"\n'
+    )
+    assert steps[5]["env"]["QUALIFICATION_EXIT_CODE"] == "${{ steps.qualification.outputs.exit_code }}"
+    assert steps[5]["env"]["GH_TOKEN"] == "${{ github.token }}"
+    assert "HF_TOKEN" not in steps[5]["env"]
+    assert steps[5]["shell"] == "bash"
+    assert steps[5]["run"] == (
+        'set -euo pipefail\n'
+        'test "$GITHUB_SHA" = "$EXPECTED_SOURCE_SHA"\n'
+        'gh api "repos/$GITHUB_REPOSITORY/branches/main" |\n'
+        '  python3 -c \'import json, os, sys; b=json.load(sys.stdin); '
+        'sys.exit(0 if b.get("name")=="main" and b.get("protected") is True '
+        'and b.get("commit",{}).get("sha")==os.environ["GITHUB_SHA"] else 1)\'\n'
+        'python3 -I -B scripts/classify_gdw_historical_qualification.py \\\n'
+        '  --report "$RUNNER_TEMP/private-historical-qualification.json" \\\n'
+        '  --output "$RUNNER_TEMP/public-historical-qualification.json" \\\n'
+        '  --expected-source-sha "$EXPECTED_SOURCE_SHA" \\\n'
+        '  --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT" \\\n'
+        '  --qualification-exit-code "$QUALIFICATION_EXIT_CODE"\n'
+    )
+    assert steps[6]["with"]["path"] == "${{ runner.temp }}/public-historical-qualification.json"
+    assert steps[6]["with"]["retention-days"] == "90"
+    assert steps[6]["if"] == "${{ always() }}"
+
+
+def test_historical_rehearsal_is_read_only_source_fenced_and_private():
+    source = (ROOT / ".github/workflows/hf-qualify-historical-stores.yml").read_text()
+    _assert_historical_rehearsal_workflow(source)
+
+
+@pytest.mark.parametrize("old,new", [
+    ("on:\n  workflow_dispatch:", "on:\n  push:\n    branches: [main]\n  workflow_dispatch:"),
+    ("group: sync-relock-canonical-a11oy", "group: historical-unlocked"),
+    ("github.sha == inputs.expected_source_sha", "true"),
+    ('b.get("protected") is True', 'b.get("protected") is not None'),
+    ("gdw-capture-37223162231.json", "current-capture.json"),
+    ("qualify_gdw_store_recovery.py", "preserve_hf_gdw_store.py"),
+    ("'cryptography==50.0.0'", "'cryptography'"),
+    ("${{ runner.temp }}/public-historical-qualification.json", "${{ runner.temp }}/**"),
+])
+def test_historical_rehearsal_workflow_mutations_fail_closed(old, new):
+    source = (ROOT / ".github/workflows/hf-qualify-historical-stores.yml").read_text()
+    assert old in source
+    with pytest.raises(AssertionError):
+        _assert_historical_rehearsal_workflow(source.replace(old, new, 1))
+
+
+def test_historical_rehearsal_rechecks_main_immediately_before_public_status():
+    source = (ROOT / ".github/workflows/hf-qualify-historical-stores.yml").read_text()
+    before, classification = source.split("      - name: Classify rehearsal", 1)
+    assert 'b.get("protected") is True' in classification
+    for old, new in (
+        ('b.get("protected") is True', 'b.get("protected") is not None'),
+        ('b.get("commit",{}).get("sha")==os.environ["GITHUB_SHA"]', 'True'),
+        ('test "$GITHUB_SHA" = "$EXPECTED_SOURCE_SHA"', 'true'),
+    ):
+        with pytest.raises(AssertionError):
+            _assert_historical_rehearsal_workflow(
+                before + "      - name: Classify rehearsal" + classification.replace(old, new, 1)
+            )

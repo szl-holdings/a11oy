@@ -1,10 +1,8 @@
 {
   "files": {
-    "a11oy_org_rag.py": "3137efc95f529d74a9f25a037af5e45211d70bdce83c5147e896b2f53328beec",
-    "szl_hf_bucket.py": "61d68be3de5ac474e03b902df1ef27462d462a2037abf8d16b08d701498d5acc",
-    "szl_operator_auth.py": "86ed8b445c05f26c66c8d41dba09fe889970aad0e091090efe795299b9336539",
-    "test_szl_hf_bucket.py": "324a0be61b52dc68a0abd708f4c2ed0c5d9fe779a182411fee30df86aa5f6d06"
+    ".github/shared-source-payloads/authorized-rag-answer-handoff-20261008-v1.json": "6e4138d0c4901ad60cfb93fed81d7f3737c02d78c4fd13befe137d02c84c7c13",
+    "a11oy_org_rag.py": "0c98b17b37f5013a0a77aaccd71405d5be57dd37a0af4dceeff4f46f0982f227"
   },
-  "payload_id": "estate-rag-operator-auth-20261004-v2",
+  "payload_id": "org-rag-lexical-reference-20261013-v1",
   "schema": "szl-shared-source-payload/v1"
 }

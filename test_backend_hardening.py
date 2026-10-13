@@ -199,7 +199,19 @@ def test_fabric_pool_subsecond_with_dead_chaski_and_honest():
         assert by["chaski"]["detail"] in ("timeout", "simulated chaski hang"), by["chaski"]
         # The reachable nodes really connected.
         assert by["rtx-betterwithage"]["reachable"] is True
-        assert by["hetzner-box-cpu"]["reachable"] is True
+        assert by["service-host"]["reachable"] is True
+        assert by["service-host"]["sovereign"] is False
+        assert by["service-host"]["probe_kind"] == "PROCESS_SELF"
+        assert by["service-host"]["ownership_verified"] is False
+        assert payload["scope"] == "TRANSPORT_REACHABILITY"
+        assert payload["inference_readiness"]["ready"] is False
+        assert payload["counts"]["inference_verified_nodes"] == 0
+        assert all(node["inference_verified"] is False for node in payload["nodes"])
+        assert by["rtx-betterwithage"]["probe_kind"] == "TCP_CONNECT"
+        assert payload["counts"]["sovereign_gpu_nodes_reachable"] == sum(
+            node["reachable"] and node["sovereign"] and "gpu" in node["kind"]
+            for node in payload["nodes"]
+        )
         # Counts are consistent with the per-node truth (not invented).
         assert payload["counts"]["nodes_reachable"] == sum(
             1 for n in payload["nodes"] if n["reachable"]
@@ -230,7 +242,7 @@ def test_fabric_pool_never_leaks_private_addressing():
 
         by = {n["name"]: n for n in payload["nodes"]}
         # Honest fields survive the scrub.
-        for name in ("rtx-betterwithage", "chaski", "hetzner-box-cpu"):
+        for name in ("rtx-betterwithage", "chaski", "service-host"):
             n = by[name]
             assert isinstance(n["reachable"], bool)
             assert isinstance(n["sovereign"], bool)
@@ -239,7 +251,7 @@ def test_fabric_pool_never_leaks_private_addressing():
         # Safe labels are the expected non-sensitive strings.
         assert by["rtx-betterwithage"]["endpoint"] == "sovereign node · private tailnet"
         assert by["chaski"]["endpoint"] == "tailnet (private)"
-        assert by["hetzner-box-cpu"]["endpoint"] == "host running this service"
+        assert by["service-host"]["endpoint"] == "host running this service"
         # chaski is honestly DOWN with its real reason preserved (scrub keeps the reason).
         assert by["chaski"]["reachable"] is False
         assert by["chaski"]["detail"] in ("timeout", "simulated chaski hang")

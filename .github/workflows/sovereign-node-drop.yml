@@ -111,7 +111,7 @@ jobs:
             --prev-snapshot /tmp/prev.json \
             --write-snapshot /tmp/next.json \
             --summary-file /tmp/node-drop.json | tee /tmp/drop.log
-          code=$?
+          code=${PIPESTATUS[0]}
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           if [ -f /tmp/node-drop.json ]; then
             ndrop=$(python3 -c "import json;print(len(json.load(open('/tmp/node-drop.json')).get('dropped',[])))" 2>/dev/null || echo '?')

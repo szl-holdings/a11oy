@@ -7,8 +7,8 @@
 // endpoints (never hardcoded, never fabricated). Three concentric rings + a HUD:
 //
 //   • MODEL ROSTER  — every model in the LLM hub, each with a per-model WIRED/STUB
-//                     chip read straight from /llm/registry  (api_key_wired flag).
-//                     A model is WIRED only if its api_env_var is present at runtime;
+//                     chip read straight from /llm/registry  (bounded wired flag).
+//                     A model is WIRED only if public current-bound proof exists;
 //                     otherwise it is an honest STUB. The count is whatever the registry
 //                     returns THIS request (10 today, 20 once Dev 2's roster lands) —
 //                     the surface never assumes a number.
@@ -22,13 +22,13 @@
 //
 // DOCTRINE (v11, non-negotiable, all honesty read straight from the JSON):
 //   * MEASURED only when the meter reported live this request; else UNAVAILABLE/OFFLINE.
-//   * WIRED (green) only when api_key_wired is true; else STUB (gray/structural).
+//   * WIRED (green) only when the public registry has current-bound proof; else STUB.
 //   * Λ is Conjecture 1 — advisory, gray, NEVER green. This surface emits no Λ verdict.
 //   * The only purple used is the approved violet-blue accent 0x8a6bff (data-viz only).
 //   * No fabricated joule, no fabricated wired=true. Degrades gracefully; never crashes.
 //
 // EVERY value on screen traces to a REAL a11oy endpoint:
-//   GET /api/a11oy/v1/llm/registry        — model roster + per-model api_key_wired + wired_count
+//   GET /api/a11oy/v1/llm/registry        — declared roster + bounded wired_count
 //   GET /api/a11oy/v1/energy/mesh          — per-node LIVE/OFFLINE + MEASURED watts/joules + GPU name
 //   GET /api/a11oy/v1/allodial/summary     — SEAL 0-4 assurance scale + sovereignty dimensions
 //   GET /api/a11oy/v1/allodial/score       — Allodial 𝒜 sovereignty score (0..100) + posture
@@ -145,7 +145,7 @@ function _renderModelRing() {
   ms.forEach((m, i) => {
     const ang = (i / Math.max(ms.length, 1)) * Math.PI * 2;
     const x = Math.cos(ang) * R_MODELS, z = Math.sin(ang) * R_MODELS;
-    const wired = !!m.api_key_wired;
+    const wired = !!m.wired;
     const col = wired ? C_WIRED : C_STUB;
     const mesh = new THREE.Mesh(
       new THREE.OctahedronGeometry(0.5, 0),
@@ -156,8 +156,8 @@ function _renderModelRing() {
     _group.add(mesh);
     let label = null;
     try {
-      // A model's WIRED/STUB status is a STRUCTURAL config fact (is the api_env_var
-      // present at runtime?) — NOT a physical measurement. Per doctrine the honesty
+      // A model's WIRED/STUB status is a bounded public proof fact, not merely a
+      // configured credential or historical receipt. Per doctrine the honesty
       // token must therefore stay STRUCTURAL-ONLY (gray chip) for every model; we never
       // emit MEASURED here since no NVML/exporter reading backs a model row. The
       // WIRED-vs-STUB distinction is carried honestly by the node color (green/gray)
@@ -214,7 +214,7 @@ function _onRegistry(json, meta) {
   S.models = json.models;
   S.modelCount = (typeof json.model_count === "number") ? json.model_count : json.models.length;
   S.wiredCount = (typeof json.wired_count === "number") ? json.wired_count
-    : json.models.filter((m) => m.api_key_wired).length;
+    : json.models.filter((m) => m.wired).length;
   _renderModelRing();
   _paintOverlay();
 }
@@ -341,8 +341,8 @@ function _buildOverlay() {
 
   const src = document.createElement("div");
   src.style.cssText = "font-size:9.5px;color:#5b6c78;line-height:1.6;margin-top:2px";
-  src.textContent = "Provenance: model roster + per-model api_key_wired from GET /api/a11oy/v1/llm/registry " +
-    "(WIRED only if the model's api_env_var is present at runtime). Fleet LIVE/OFFLINE + MEASURED watts/joules " +
+  src.textContent = "Provenance: declared model roster + bounded per-model wired from GET /api/a11oy/v1/llm/registry " +
+    "(configured credentials and historical receipts alone stay STUB). Fleet LIVE/OFFLINE + MEASURED watts/joules " +
     "+ GPU name from GET /api/a11oy/v1/energy/mesh (NVML meter; UNAVAILABLE when unreachable, never fabricated). " +
     "Sovereignty SEAL score 𝒜 from GET /api/a11oy/v1/allodial/{summary,score} (EU Cloud Sovereignty Framework " +
     "SEAL 0-4 + HHI lock-in penalty). Λ = Conjecture 1 (advisory, never green). trust < 100%.";
@@ -405,13 +405,12 @@ function _paintModels() {
     "</b> stub · <b>" + S.modelCount + "</b> total models";
   b.appendChild(head);
   S.models.forEach((m) => {
-    const wired = !!m.api_key_wired;
+    const wired = !!m.wired;
     const chipTxt = wired ? "WIRED" : "STUB";
     const col = wired ? C_hex(C_WIRED) : C_hex(C_STUB);
     const fg = wired ? "#04130b" : "#0a0e12";
     const provider = m.provider_slug ? " (" + m.provider_slug + ")" : "";
-    const env = m.api_env_var ? " · " + m.api_env_var : "";
-    b.appendChild(_statusRow(chipTxt, col, fg, (m.model_id || m.display_name || "?") + provider + env));
+    b.appendChild(_statusRow(chipTxt, col, fg, (m.model_id || m.display_name || "?") + provider));
   });
 }
 

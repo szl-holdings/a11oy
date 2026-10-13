@@ -45,6 +45,7 @@ DEMO_CRITICAL_ROUTES = [
     "/api/a11oy/v1/civilian/overview",          # public observations, no effectors
     "/oac",                                    # read-only synthetic lab handoff
     "/oac/",                                   # explicit trailing-slash path
+    "/eu-ai-act",                              # cited Article 12 technical map, exact page
     "/api/a11oy/v1/steward/status",           # pinned public evidence, honestly 503 when stale
     "/api/a11oy/v1/steward/proposals",        # current deterministic proposals only; no execution
     "/api/a11oy/v1/energy/operator/status",   # #460 — already restored once
@@ -90,6 +91,8 @@ DEMO_CRITICAL_ROUTES = [
     "/api/a11oy/v1/atelier/turn",                # authenticated single-turn provider route
     "/api/a11oy/v1/frontier-now/summary",      # read-only estate proof projection
     "/frontier-now",                           # responsive Frontier Now PAGE
+    "/spectral",                               # product edge alias to the real holographic page
+    "/controller",                             # product edge alias to the honest doctrine JSON
     "/api/a11oy/v1/khipu/status",              # live CPU-lab pin + READY/FAILED (no sign on GET)
     "/api/a11oy/v1/khipu/chat",                # same-origin Try Khipu proxy (max_tokens<=32)
     "/immune",                                 # first-class IMMUNE product tab
@@ -264,6 +267,42 @@ def test_public_steward_routes_are_read_only_json_before_catchalls():
     unknown = client.get("/api/a11oy/v1/steward/unknown")
     assert unknown.status_code == 404
     assert unknown.json()["state"] == "NOT_FOUND"
+
+
+def test_product_origin_aliases_serve_canonical_targets(tmp_path, monkeypatch):
+    """Source fallbacks must resolve before the SPA and retain honest targets."""
+    from starlette.testclient import TestClient
+
+    paths = [getattr(route, "path", None) for route in serve.app.router.routes]
+    spa_index = paths.index("/{full_path:path}")
+    assert paths.index("/spectral") < spa_index
+    assert paths.index("/controller") < spa_index
+
+    client = TestClient(serve.app)
+    spectral = client.get("/spectral")
+    canonical_page = client.get("/static/3d/holographic.html")
+    assert spectral.status_code == canonical_page.status_code == 200
+    assert "text/html" in spectral.headers["content-type"]
+    # The HTML middleware adds route-specific tails; the underlying asset is
+    # the same document and must not turn into the SPA shell.
+    assert spectral.content.startswith(canonical_page.content[:8192])
+    assert b'data-szl-brain-frontier-v7="script"' in spectral.content
+    assert "x-szl-route-state" not in spectral.headers
+    assert client.head("/spectral").status_code == 200
+
+    controller = client.get("/controller")
+    honest = client.get("/api/a11oy/v1/honest")
+    assert controller.status_code == honest.status_code == 200
+    assert controller.json() == honest.json()
+    assert controller.json()["organ"] == "a11oy"
+    assert controller.json()["locked_formula_count"] == 8
+    assert client.head("/controller").status_code == 200
+
+    monkeypatch.setattr(serve, "_szl_doc", lambda _rel: tmp_path / "missing.html")
+    missing = client.get("/spectral")
+    assert missing.status_code == 503
+    assert missing.json()["status"] == "UNAVAILABLE"
+    assert missing.headers["cache-control"] == "no-store"
 
 
 def test_investor_alias_is_307_onto_console_view_not_404():
