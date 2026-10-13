@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections import deque
+
 import threading
 import time
 from pathlib import Path
@@ -581,14 +583,192 @@ def test_full_catalog_sources_cache_once_then_slice_per_requested_limit(
 
 def test_courtlistener_interval_is_bounded(monkeypatch) -> None:
     monkeypatch.delenv("A11OY_COURTLISTENER_MIN_INTERVAL_S", raising=False)
-    assert vertical._courtlistener_min_interval_s() == 1.0
+    assert vertical._courtlistener_min_interval_s() == 13.0
     monkeypatch.setenv("A11OY_COURTLISTENER_MIN_INTERVAL_S", "0")
-    assert vertical._courtlistener_min_interval_s() == 0.25
-    monkeypatch.setenv("A11OY_COURTLISTENER_MIN_INTERVAL_S", "999")
-    assert vertical._courtlistener_min_interval_s() == 10.0
+    assert vertical._courtlistener_min_interval_s() == 12.0
+    monkeypatch.setenv("A11OY_COURTLISTENER_MIN_INTERVAL_S", "9999")
+    assert vertical._courtlistener_min_interval_s() == 3600.0
     for invalid in ("invalid", "nan", "inf"):
         monkeypatch.setenv("A11OY_COURTLISTENER_MIN_INTERVAL_S", invalid)
-        assert vertical._courtlistener_min_interval_s() == 1.0
+        assert vertical._courtlistener_min_interval_s() == 13.0
+
+
+@pytest.mark.parametrize("observations", [
+    [10_000.0 - 50.0 + index * 12.0 for index in range(4)],
+    [10_000.0 - 3500.0 + index * 85.0 for index in range(40)],
+    [10_000.0 - 85_000.0 + index * 850.0 for index in range(100)],
+])
+def test_courtlistener_rolling_budgets_fail_closed(monkeypatch, observations) -> None:
+    now = 10_000.0
+    monkeypatch.setattr(vertical, "_COURTLISTENER_REQUEST_TIMES", deque(observations))
+    monkeypatch.setattr(vertical, "_COURTLISTENER_NEXT_REQUEST_AT", 0.0)
+    monkeypatch.setattr(vertical, "_COURTLISTENER_COOLDOWN_UNTIL", 0.0)
+    monkeypatch.setattr(vertical.time, "time", lambda: now)
+    monkeypatch.setattr(vertical.time, "monotonic", lambda: now)
+
+    with pytest.raises(RuntimeError, match="provider budget exhausted"):
+        vertical._courtlistener_wait_locked()
+
+    assert list(vertical._COURTLISTENER_REQUEST_TIMES) == observations
+
+
+def test_courtlistener_budget_prunes_old_observations(monkeypatch) -> None:
+    now = 20_000.0
+    monkeypatch.setattr(
+        vertical, "_COURTLISTENER_REQUEST_TIMES", deque([now - 86_401.0]),
+    )
+    monkeypatch.setattr(vertical, "_COURTLISTENER_NEXT_REQUEST_AT", 0.0)
+    monkeypatch.setattr(vertical, "_COURTLISTENER_COOLDOWN_UNTIL", 0.0)
+    monkeypatch.setattr(vertical.time, "time", lambda: now)
+    monkeypatch.setattr(vertical.time, "monotonic", lambda: now)
+
+    vertical._courtlistener_wait_locked()
+
+    assert list(vertical._COURTLISTENER_REQUEST_TIMES) == [now]
+
+
+def test_courtlistener_identical_reads_share_day_cache(monkeypatch) -> None:
+    vertical_calls: list[tuple[str, float]] = []
+    devb_calls: list[tuple[str, float]] = []
+
+    def vertical_spy(key: str, _url: str, ttl: float, **_kwargs: Any) -> dict[str, Any]:
+        vertical_calls.append((key, ttl))
+        return {"value": {"items": []}, "freshness": {"status": "live"}}
+
+    def devb_spy(key: str, _url: str, ttl: float, **_kwargs: Any) -> dict[str, Any]:
+        devb_calls.append((key, ttl))
+        return {"value": {"items": []}, "freshness": {"status": "live"}}
+
+    monkeypatch.setattr(vertical, "_cached_fetch", vertical_spy)
+    monkeypatch.setattr(devb, "_cached", devb_spy)
+    vertical.feed_courtlistener("  INSURANCE ", 18)
+    devb.feed_courtlistener("insurance", 18, kind="o")
+
+    assert vertical_calls == devb_calls
+    assert vertical_calls[0][1] == 86400.0
+
+
+def test_nvd_interval_is_bounded_by_access_mode(monkeypatch) -> None:
+    monkeypatch.delenv("A11OY_NVD_MIN_INTERVAL_S", raising=False)
+    assert vertical._nvd_min_interval_s() == 6.0
+    assert vertical._nvd_min_interval_s({"apiKey": "configured"}) == 2.0
+    monkeypatch.setenv("A11OY_NVD_MIN_INTERVAL_S", "0")
+    assert vertical._nvd_min_interval_s() == 0.6
+    monkeypatch.setenv("A11OY_NVD_MIN_INTERVAL_S", "999")
+    assert vertical._nvd_min_interval_s() == 30.0
+    for invalid in ("invalid", "nan", "inf"):
+        monkeypatch.setenv("A11OY_NVD_MIN_INTERVAL_S", invalid)
+        assert vertical._nvd_min_interval_s() == 6.0
+        assert vertical._nvd_min_interval_s({"apiKey": "configured"}) == 2.0
+
+
+def test_nvd_variants_share_one_provider_scheduler(monkeypatch) -> None:
+    monkeypatch.delenv("A11OY_NVD_MIN_INTERVAL_S", raising=False)
+    monkeypatch.setattr(vertical, "_NVD_NEXT_REQUEST_AT", 0.0)
+    monkeypatch.setattr(vertical, "_NVD_COOLDOWN_UNTIL", 0.0)
+    clock = {"now": 100.0}
+    sleeps: list[float] = []
+    monkeypatch.setattr(vertical.time, "monotonic", lambda: clock["now"])
+
+    def sleep(delay: float) -> None:
+        sleeps.append(delay)
+        clock["now"] += delay
+
+    monkeypatch.setattr(vertical.time, "sleep", sleep)
+
+    class _Response:
+        status_code = 200
+        headers: dict[str, str] = {}
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, Any]:
+            return {"vulnerabilities": []}
+
+    class _Client:
+        calls = 0
+
+        def get(self, _url: str, **_kwargs: Any) -> _Response:
+            self.calls += 1
+            return _Response()
+
+    client = _Client()
+    base = "https://services.nvd.nist.gov/rest/json/cves/2.0"
+    vertical._source_json_with_cooldown(client, f"{base}?resultsPerPage=12")
+    vertical._source_json_with_cooldown(
+        client, f"{base}?resultsPerPage=12&keywordSearch=financial"
+    )
+
+    assert client.calls == 2
+    assert sleeps == [6.0]
+    assert vertical._NVD_NEXT_REQUEST_AT == 112.0
+
+
+def test_nvd_429_honors_cooldown_without_repeat_transport(monkeypatch) -> None:
+    monkeypatch.setattr(vertical, "_CACHE", vertical._Cache())
+    monkeypatch.setattr(vertical, "_NVD_NEXT_REQUEST_AT", 0.0)
+    monkeypatch.setattr(vertical, "_NVD_COOLDOWN_UNTIL", 0.0)
+
+    class _Response:
+        def __init__(self, status: int, payload: dict[str, Any], headers=None) -> None:
+            self.status_code = status
+            self._payload = payload
+            self.headers = headers or {}
+
+        def raise_for_status(self) -> None:
+            if self.status_code >= 400:
+                request = httpx.Request(
+                    "GET", "https://services.nvd.nist.gov/rest/json/cves/2.0"
+                )
+                response = httpx.Response(self.status_code, request=request)
+                raise httpx.HTTPStatusError(
+                    "controlled NVD response", request=request, response=response
+                )
+
+        def json(self) -> dict[str, Any]:
+            return self._payload
+
+    class _Client:
+        calls = 0
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args: Any) -> None:
+            return None
+
+        def get(self, _url: str, **_kwargs: Any) -> _Response:
+            self.calls += 1
+            if self.calls == 1:
+                return _Response(429, {}, {"Retry-After": "30"})
+            return _Response(200, {"vulnerabilities": [], "totalResults": 0})
+
+    client = _Client()
+    monkeypatch.setattr(vertical, "_client", lambda *_args, **_kwargs: client)
+    base = "https://services.nvd.nist.gov/rest/json/cves/2.0"
+    first = vertical._cached_fetch(
+        "nvd-test-1", f"{base}?resultsPerPage=12", 3600.0
+    )
+    second = vertical._cached_fetch(
+        "nvd-test-2", f"{base}?resultsPerPage=12&keywordSearch=financial", 3600.0
+    )
+
+    assert client.calls == 1
+    assert first["value"] is None and second["value"] is None
+    assert first["freshness"]["status"] == "unavailable"
+    assert second["freshness"]["status"] == "unavailable"
+    assert "cooldown active" in second["freshness"]["error"]
+    assert vertical._NVD_COOLDOWN_UNTIL - time.monotonic() > 20
+
+    monkeypatch.setattr(vertical, "_NVD_COOLDOWN_UNTIL", 0.0)
+    monkeypatch.setattr(vertical, "_NVD_NEXT_REQUEST_AT", 0.0)
+    recovered = vertical._cached_fetch(
+        "nvd-test-2", f"{base}?resultsPerPage=12&keywordSearch=financial", 3600.0
+    )
+    assert client.calls == 2
+    assert recovered["value"]["totalResults"] == 0
+    assert recovered["freshness"]["status"] == "live"
 
 
 def test_courtlistener_429_honors_cooldown_without_repeat_transport(monkeypatch) -> None:
@@ -710,7 +890,7 @@ def test_non_courtlistener_429_is_not_retried(monkeypatch) -> None:
     assert result["freshness"]["status"] == "unavailable"
 
 
-def test_devb_courtlistener_reuses_shared_cache_for_fifteen_minutes(monkeypatch) -> None:
+def test_devb_courtlistener_reuses_shared_cache_for_one_day(monkeypatch) -> None:
     observed: dict[str, Any] = {}
 
     def shared_fetch(key: str, url: str, ttl: float, parser=None, **_kwargs: Any):
@@ -722,6 +902,6 @@ def test_devb_courtlistener_reuses_shared_cache_for_fifteen_minutes(monkeypatch)
     monkeypatch.setattr(devb._vf, "_cached_fetch", shared_fetch)
     result = devb.feed_courtlistener("defense", 1)
 
-    assert observed["ttl"] == 900
+    assert observed["ttl"] == 86400.0
     assert "/api/rest/v4/search/" in observed["url"]
     assert result["freshness"]["status"] == "live"

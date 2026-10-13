@@ -274,6 +274,24 @@
     </div>
   </section>
 
+  <section class="section" id="workers-compute">
+    <div class="section-head"><h2>Workers Compute tags</h2><span class="tag">declared source</span></div>
+    <p class="section-sub">The Python route names the Cloudflare Workers Observability columns for
+      <code class="mono">szl-alert-relay</code> on <code class="mono">ntfy.a11oy.net</code>.
+      This page does not read the Cloudflare dataset. An empty value list is not a measured zero,
+      and these tags are not signed receipts.</p>
+    <div class="panel">
+      <div class="controls">
+        <button class="r-btn r-btn-primary" id="b-compute" onclick="loadWorkersCompute()">&#9654; Read Compute contract</button>
+      </div>
+      <span class="verdict" id="v-compute"></span>
+      <div class="spans" id="compute-tags"></div>
+      <div class="out"><div class="out-label"><span>OBSERVABILITY / WORKERS COMPUTE (raw)</span>
+        <span class="out-status"><span class="status-dot" id="d-compute"></span><span id="s-compute">idle</span></span></div>
+        <pre class="out-pre" id="o-compute"></pre></div>
+    </div>
+  </section>
+
   <div class="honest">
     <div class="honest-box">
       <b>Honesty.</b> Every metric, span, and trace on this page is read from the <b>in-process Khipu DAG</b>
@@ -450,10 +468,29 @@ async function scoreDrift(){
   finally{ if(btn)btn.disabled=false; }
 }
 
+async function loadWorkersCompute(){
+  const btn=document.getElementById('b-compute'); if(btn)btn.disabled=true;
+  setS('compute','loading','reading declared Workers Compute contract…'); setO('compute','');
+  try{
+    const res=await fetch(API+'/observability/workers-compute');
+    const j=await res.json();
+    const tags=j.tags||[];
+    document.getElementById('compute-tags').innerHTML=tags.map(t=>
+      `<div class="span"><span class="sig unsigned">${t.type||'field'}</span><span class="sname">${t.key||''}</span><span class="sts">${t.meaning||''}</span></div>`
+    ).join('');
+    const state=j.live_values||'UNAVAILABLE';
+    setV('compute','warn',(j.measurement||'DECLARED_SOURCE')+' · live values '+state+' · receipt_minted '+(j.receipt_minted===false?'false':'unknown'));
+    setS('compute','warn',state);
+    setO('compute',fmt(j));
+  }catch(e){ setS('compute','err','error'); setV('compute','err','ERROR'); setO('compute',String(e)); }
+  finally{ if(btn)btn.disabled=false; }
+}
+
 async function refreshAll(){
   const b=document.getElementById('b-refresh'); b.disabled=true;
   await loadSummary();
   await loadSpans();
+  await loadWorkersCompute();
   b.disabled=false;
 }
 
@@ -461,6 +498,7 @@ async function refreshAll(){
 (function init(){
   buildAxes();
   loadSummary();
+  loadWorkersCompute();
 })();
 </script>
 

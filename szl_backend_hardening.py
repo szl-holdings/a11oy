@@ -501,10 +501,11 @@ OMEN_FABRIC_PORT = 11434
 OMEN_FABRIC_ENDPOINT = f"http://{OMEN_FABRIC_IP}:{OMEN_FABRIC_PORT}"
 
 DEFAULT_FABRIC_NODES: List[Dict[str, Any]] = [
-    {"name": "hetzner-box-cpu", "kind": "cpu", "sovereign": True,
+    {"name": "service-host", "kind": "cpu", "sovereign": False,
      "probe": None, "static_reachable": True,
      "endpoint": "127.0.0.1 (self)",
-     "detail": "host running this service; reachable by definition"},
+     "detail": ("current service process is running; this probe does not verify "
+                "hosting provider or hardware ownership")},
     {"name": "rtx-betterwithage", "kind": "sovereign-gpu", "sovereign": True,
      "probe": ("100.125.77.31", 11434), "endpoint": "http://100.125.77.31:11434",
      "detail": "Blackwell RTX 5050 laptop (traveling) — Ollama on founder tailnet"},
@@ -667,29 +668,49 @@ def _probe_fabric_uncached(
             "status_label": status_label,            # render-ready, space-clean
             "detail": _scrub_detail(detail),         # honest reason, private address stripped
             "probe_elapsed_s": env.get("elapsed_s"),
+            "probe_kind": ("TCP_CONNECT" if n.get("probe") else
+                           "PROCESS_SELF" if n["name"] == "service-host" else
+                           "STATIC_CONFIGURATION"),
+            "inference_verified": False,
+            "ownership_verified": False,
         })
 
     reachable_n = sum(1 for x in out_nodes if x["reachable"])
     gpu_reachable = sum(1 for x in out_nodes
                         if x["reachable"] and "gpu" in str(x.get("kind", "")))
+    sovereign_gpu_reachable = sum(
+        1 for x in out_nodes
+        if x["reachable"] and x["sovereign"] and "gpu" in str(x.get("kind", ""))
+    )
     return {
         "status": "live",
+        "scope": "TRANSPORT_REACHABILITY",
         "ns": "a11oy",
         "kind": "multi-node-compute-fabric",
         "counts": {
             "nodes_total": len(out_nodes),
             "nodes_reachable": reachable_n,
             "gpu_nodes_reachable": gpu_reachable,
+            "sovereign_gpu_nodes_reachable": sovereign_gpu_reachable,
+            "inference_verified_nodes": 0,
+        },
+        "inference_readiness": {
+            "status": "UNVERIFIED",
+            "ready": False,
+            "reason": "transport_probe_does_not_verify_model_inference",
         },
         "nodes": out_nodes,
         "probe_timeout_s": timeout,
         "probe_retries": int(retries),
         "honesty": (
-            "reachable=True only on a real TCP probe THIS sweep; a timeout/refusal "
+            "Network reachable=True only on a real TCP probe THIS sweep; PROCESS_SELF "
+            "reports only that the current service process is running. A timeout/refusal "
             "(after any retries) is reachable=False with the reason. retries are extra "
             "REAL connect attempts (a cold node may answer the 2nd) — never fabricated "
-            "green. sovereign is a property of owned hardware, passed through, never "
-            "inferred from reachability. No node fabricated. No energy/joule claim "
+            "green. sovereign is configured inventory, not ownership verification; "
+            "the service host defaults to unverified ownership. TCP reachability does "
+            "not verify credentials, a model, GPU execution, or inference. No node "
+            "fabricated. No energy/joule claim "
             "(joules MEASURED only via on-box exporter). Λ = Conjecture 1; locked = 8; no key."
         ),
         "doctrine": dict(DOCTRINE),
@@ -1056,7 +1077,7 @@ def _selftest() -> Dict[str, Any]:
         chk("fabric_chaski_unreachable", by["chaski"]["reachable"] is False)
         chk("fabric_chaski_not_fabricated", by["chaski"]["detail"] in ("timeout", "simulated chaski hang"))
         chk("fabric_rtx_reachable", by["rtx-betterwithage"]["reachable"] is True)
-        chk("fabric_self_reachable", by["hetzner-box-cpu"]["reachable"] is True)
+        chk("fabric_self_reachable", by["service-host"]["reachable"] is True)
         chk("fabric_counts_consistent",
             payload["counts"]["nodes_reachable"] == sum(1 for n in payload["nodes"] if n["reachable"]))
         chk("fabric_doctrine_lambda", payload["doctrine"]["lambda"] == "Conjecture 1")

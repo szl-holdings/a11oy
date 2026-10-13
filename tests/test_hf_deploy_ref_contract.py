@@ -10,9 +10,10 @@ WORKFLOW = ROOT / ".github" / "workflows" / "hf-sync.yml"
 def test_manual_dispatch_deploys_the_selected_commit() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
 
-    assert "workflow_dispatch: {}" in text
-    assert (
-        "ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || 'main' }}"
-        in text
-    )
+    triggers = text.split("\non:\n", 1)[1].split("\npermissions:\n", 1)[0]
+    assert "  workflow_dispatch:\n    inputs:\n" in triggers
+
+    deploy = text.split("\n  deploy:\n", 1)[1].split("\n  runtime-config:\n", 1)[0]
+    assert "      ref: ${{ github.sha }}\n" in deploy
+    assert "|| 'main'" not in deploy
 

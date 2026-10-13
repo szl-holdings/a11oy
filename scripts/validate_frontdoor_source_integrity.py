@@ -102,11 +102,11 @@ CANONICAL_GITHUB_REPO = "$GITHUB_REPOSITORY"
 CANONICAL_HF_REPO = "SZLHOLDINGS/a11oy"
 CHECKOUT_ACTION = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
 HARDEN_RUNNER_ACTION = (
-    "step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1"
+    "step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25"
 )
 SETUP_PYTHON_ACTION = "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97"
 UPLOAD_ARTIFACT_ACTION = (
-    "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+    "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
 )
 TOOLS_REPOSITORY = "szl-holdings/.github"
 TOOLS_REVISION = "0816263f1e83734658d6e5a8a7cd3834f36a2054"

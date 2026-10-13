@@ -43,11 +43,17 @@ def test_healthz_liveness(client):
     assert r.status_code == 200
     body = r.json()
     assert body["status"] == "ok"
+    assert body["scope"] == "PROCESS_LIVENESS"
+    assert body["capability_readiness_asserted"] is False
+    assert body["operational_readiness_endpoint"] == "/api/a11oy/healthz"
     assert body["doctrine"] == "v11"
     assert body["lock"] == "749/14/163"
     assert body["signer"]["status"] in ("ABSENT", "UNAVAILABLE")
     assert body["signer"]["status"] != "DSSE-LIVE"
     assert body["signer"]["signing_available"] is False
+    assert body["signer"]["scope"] == "NOT_EVALUATED_BY_THIS_ROUTE"
+    assert body["signer"]["availability_evaluated"] is False
+    assert body["signer"]["runtime_status_endpoint"] == "/api/a11oy/healthz"
     dsse = body.get("dsse_live") or {}
     assert dsse.get("status") in ("ABSENT", "UNAVAILABLE")
     assert dsse.get("status") != "DSSE-LIVE"

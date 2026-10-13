@@ -13,7 +13,6 @@ import hashlib
 import importlib.util
 import json
 from pathlib import Path
-import re
 
 HERE = Path(__file__).resolve().parent
 
@@ -29,33 +28,10 @@ def load_renderer():
 
 
 def payloads(renderer, revision: str, run_id: int) -> dict[str, bytes]:
-    if (not isinstance(revision, str) or not re.fullmatch(r"[0-9a-f]{40}", revision)
-            or revision == "0" * 40 or type(run_id) is not int or run_id <= 0):
-        raise ValueError("exact nonzero source revision and positive run identity required")
-    rows = [row for row in renderer.FLAGSHIPS if row.get("slug") == "finance"]
-    if len(rows) != 1:
-        raise ValueError("canonical finance entry must be unique")
-    item = rows[0]
-    panels = renderer.html(item)
-    card = renderer.readme(item)
-    digest = hashlib.sha256(panels.encode()).hexdigest()
-    config = {
-        "slug": "finance", "title": item["title"], "vertical": item["vertical"],
-        "product_source": item["source"],
-        "source_repository": renderer.DEPLOYMENT_SOURCE_REPOSITORY,
-        "source_revision": revision, "workflow_run_id": run_id,
-        "hf_repository": renderer.ORG + "/finance",
-        "artifact_set_sha256": renderer.artifact_digest(
-            renderer.APP, renderer.DOCKER, renderer.REQ, panels, panels, card, "null"),
-        "landing_sha256": digest, "panels_sha256": digest, "forge": None,
-        "upstream": item["upstream"], "public_experience": renderer.PUBLIC_EXPERIENCE_VERSION,
-    }
-    return {name: value.encode("utf-8") for name, value in {
-        "app.py": renderer.APP, "Dockerfile": renderer.DOCKER,
-        "requirements.txt": renderer.REQ,
-        "config.json": json.dumps(config, indent=2, sort_keys=True) + "\n",
-        "index.html": panels, "panels.html": panels, "README.md": card,
-    }.items()}
+    files = renderer.render_finance_payloads(revision, run_id)
+    files[renderer.FINANCE_PROJECTION_MANIFEST_PATH] = renderer.finance_projection_manifest_bytes(
+        files, revision, run_id)
+    return files
 
 
 def materialize(output: Path, revision: str, run_id: int) -> dict:

@@ -1,4 +1,301 @@
 {
+  "advisory_dag": {
+    "contract_digest": "c0fce11b2e23f5975de1fb6b82f0f0d19920c0181735c88ee8100bfe61e17c6f",
+    "contracts": {
+      "anchor_types": [
+        "source"
+      ],
+      "anchored_nodes": [
+        "HOLD",
+        "OBSERVE",
+        "VERIFY"
+      ],
+      "bounded_loop_iterations": 1,
+      "fake_edges": [],
+      "fan_in": [],
+      "hidden_resource_edges": [],
+      "input_gaps": []
+    },
+    "decision": "READY_TO_ORCHESTRATE",
+    "evidence_label": "MODELED",
+    "execution": {
+      "authorized": false,
+      "effectors": 0,
+      "mode": "PLAN_ONLY",
+      "note": "This endpoint computes a plan only. An executor must re-validate the exact digest, pass policy, obtain human approval where declared, and emit receipts for every write.",
+      "provider_calls": 0,
+      "writes": 0
+    },
+    "gates": {
+      "advisories": [],
+      "advisory_count": 0,
+      "blocker_count": 0,
+      "blockers": [],
+      "pass": true
+    },
+    "graph_id": "brain-frontier-review-efa7bddf8526aaabada7",
+    "implementation_status": "REAL",
+    "normalized_contract": {
+      "anchors": [
+        {
+          "description": "Require exact input, controller and receipt binding. Recorded review is untrusted; a matching digest does not establish truth, signature or production readiness.",
+          "id": "exact-source-and-advisory-boundary",
+          "nodes": [
+            "OBSERVE",
+            "VERIFY",
+            "HOLD"
+          ],
+          "required": true,
+          "type": "source"
+        }
+      ],
+      "budget": {
+        "max_depth": 5,
+        "max_nodes": 5,
+        "max_parallel": 1,
+        "max_total_iterations": 1
+      },
+      "external_inputs": [
+        "brain-candidates:sha256:efa7bddf8526aaabada77e27257dc0f0128f151a7e97ebe51d5eafede8f04f7c",
+        "ouroboros-controller:git:9ae23a9d46bc526b7e665aade505c2eaedb66c75"
+      ],
+      "goal": "Inspect the source-bound Second Brain and existing Ouroboros advisory review composition. This MODELED topology grants no execution authority and makes no claim that its nodes ran.",
+      "graph_id": "brain-frontier-review-efa7bddf8526aaabada7",
+      "nodes": [
+        {
+          "authority": "READ_ONLY",
+          "consumes": [
+            "brain-candidates:sha256:efa7bddf8526aaabada77e27257dc0f0128f151a7e97ebe51d5eafede8f04f7c",
+            "ouroboros-controller:git:9ae23a9d46bc526b7e665aade505c2eaedb66c75"
+          ],
+          "control_after": [],
+          "depends_on": [],
+          "exit_conditions": [],
+          "fresh_context": false,
+          "id": "OBSERVE",
+          "label": "Bind fixed public source packet",
+          "max_iterations": null,
+          "produces": [
+            "source.packet"
+          ],
+          "reads": [],
+          "resources": [],
+          "role": "scope",
+          "side_effecting": false,
+          "verifier_for": [],
+          "writes": []
+        },
+        {
+          "authority": "READ_ONLY",
+          "consumes": [
+            "source.packet"
+          ],
+          "control_after": [],
+          "depends_on": [
+            "OBSERVE"
+          ],
+          "exit_conditions": [],
+          "fresh_context": false,
+          "id": "ORIENT",
+          "label": "Prepare review input from source handles",
+          "max_iterations": null,
+          "produces": [
+            "review.input"
+          ],
+          "reads": [],
+          "resources": [],
+          "role": "reducer",
+          "side_effecting": false,
+          "verifier_for": [],
+          "writes": []
+        },
+        {
+          "authority": "PROPOSE",
+          "consumes": [
+            "review.input"
+          ],
+          "control_after": [],
+          "depends_on": [
+            "ORIENT"
+          ],
+          "exit_conditions": [
+            "review_returned",
+            "review_failed",
+            "budget_exhausted"
+          ],
+          "fresh_context": false,
+          "id": "PROPOSE",
+          "label": "One bounded advisory reviewer attempt",
+          "max_iterations": 1,
+          "produces": [
+            "untrusted.review"
+          ],
+          "reads": [],
+          "resources": [],
+          "role": "loop",
+          "side_effecting": false,
+          "verifier_for": [],
+          "writes": []
+        },
+        {
+          "authority": "READ_ONLY",
+          "consumes": [
+            "source.packet",
+            "untrusted.review"
+          ],
+          "control_after": [],
+          "depends_on": [
+            "OBSERVE",
+            "PROPOSE"
+          ],
+          "exit_conditions": [],
+          "fresh_context": true,
+          "id": "VERIFY",
+          "label": "Validate source-bound review receipt",
+          "max_iterations": null,
+          "produces": [
+            "advisory.observation"
+          ],
+          "reads": [],
+          "resources": [],
+          "role": "verifier",
+          "side_effecting": false,
+          "verifier_for": [
+            "PROPOSE"
+          ],
+          "writes": []
+        },
+        {
+          "authority": "READ_ONLY",
+          "consumes": [
+            "advisory.observation"
+          ],
+          "control_after": [],
+          "depends_on": [
+            "VERIFY"
+          ],
+          "exit_conditions": [],
+          "fresh_context": false,
+          "id": "HOLD",
+          "label": "Hold recommendations for human admission",
+          "max_iterations": null,
+          "produces": [
+            "public.aggregate"
+          ],
+          "reads": [],
+          "resources": [],
+          "role": "governance",
+          "side_effecting": false,
+          "verifier_for": [],
+          "writes": []
+        }
+      ],
+      "schema": "szl.governed-graph/v1"
+    },
+    "ok": true,
+    "plan_id": "ggp-c0fce11b2e23f5975de1",
+    "schema": "szl.governed-graph.analysis/v1",
+    "topology": {
+      "control_edge_count": 0,
+      "critical_path": [
+        "OBSERVE",
+        "ORIENT",
+        "PROPOSE",
+        "VERIFY",
+        "HOLD"
+      ],
+      "critical_path_nodes": 5,
+      "data_edge_count": 5,
+      "edges": [
+        {
+          "kind": "data",
+          "source": "OBSERVE",
+          "target": "ORIENT"
+        },
+        {
+          "kind": "data",
+          "source": "ORIENT",
+          "target": "PROPOSE"
+        },
+        {
+          "kind": "data",
+          "source": "OBSERVE",
+          "target": "VERIFY"
+        },
+        {
+          "kind": "data",
+          "source": "PROPOSE",
+          "target": "VERIFY"
+        },
+        {
+          "kind": "data",
+          "source": "VERIFY",
+          "target": "HOLD"
+        }
+      ],
+      "layer_count": 5,
+      "layers": [
+        [
+          "OBSERVE"
+        ],
+        [
+          "ORIENT"
+        ],
+        [
+          "PROPOSE"
+        ],
+        [
+          "VERIFY"
+        ],
+        [
+          "HOLD"
+        ]
+      ],
+      "max_declared_parallel": 1,
+      "node_count": 5,
+      "schedule": [
+        {
+          "batch": 0,
+          "nodes": [
+            "OBSERVE"
+          ],
+          "topology_layer": 0
+        },
+        {
+          "batch": 1,
+          "nodes": [
+            "ORIENT"
+          ],
+          "topology_layer": 1
+        },
+        {
+          "batch": 2,
+          "nodes": [
+            "PROPOSE"
+          ],
+          "topology_layer": 2
+        },
+        {
+          "batch": 3,
+          "nodes": [
+            "VERIFY"
+          ],
+          "topology_layer": 3
+        },
+        {
+          "batch": 4,
+          "nodes": [
+            "HOLD"
+          ],
+          "topology_layer": 4
+        }
+      ],
+      "scheduled_parallel_cap": 1,
+      "terminals": [
+        "HOLD"
+      ]
+    }
+  },
   "authority": {
     "controller_content_access": "NOT_EXPOSED_BY_A11OY_HOLOGRAPHIC",
     "execution": "NONE",
@@ -29,8 +326,8 @@
       "nodeId": "frontier:f3bb4c862c5304550222e3092034a3a1",
       "path": "atlas/formula-atlas.v1.json",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
-      "sha256": "b455e110b29df654f73a5ce4d19bb9bbf737807c7cb60e0dc2f1cdc13532bac4",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
+      "sha256": "cd0b14a1f51f5cd1343bb1acfdb1ea5a67caaf74ae7336871f72ca91adea3e98",
       "title": "SZL formula authority and proof boundary"
     },
     {
@@ -43,7 +340,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "algebra_number_theory",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "a4914529cbb0a2897db4db76556449b5903dfc537a7b6dfe2e2ae5a11275337c",
       "title": "Quant domain · algebra_number_theory"
     },
@@ -57,7 +354,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "coding_error_control",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "2b6cfe81059e5c999666ff70df097b8f5e8963e0ad5b5d9e6044dac1a1baf9d8",
       "title": "Quant domain · coding_error_control"
     },
@@ -71,7 +368,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "dynamics_consensus",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "425063b28233534a11b377eaa31774533d989efb47f817a52db4fa9e0243d773",
       "title": "Quant domain · dynamics_consensus"
     },
@@ -85,7 +382,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "energy_entropy_physics",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "b031d48407a2014c2408628cee00df79fe93944ae808a6441869dd86ad94a1c1",
       "title": "Quant domain · energy_entropy_physics"
     },
@@ -99,7 +396,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "governance_receipts",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "433930401f936e9dbbf13ededa8af587649a8eeffc8ccaf3d316e6631d61d11e",
       "title": "Quant domain · governance_receipts"
     },
@@ -113,7 +410,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "information_geometry",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "6bc170f056d59934b07c9750dd6c8a06e4c6c8e4d5ae28adfb7a9addadff7df6",
       "title": "Quant domain · information_geometry"
     },
@@ -127,7 +424,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "narrative_lineage",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "513061182bd0a4004b881b73c671cd5f2753740c54565439a8d525f52043102e",
       "title": "Quant domain · narrative_lineage"
     },
@@ -141,7 +438,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "topology_geometry",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "9dd4155f72133f2258b00fffef10dd2205c775d5afbdb9dd681975fa4764d441",
       "title": "Quant domain · topology_geometry"
     },
@@ -155,7 +452,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "trust_aggregation",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "7beceacb3f2c461bd61c83800b9b81699706ddbba58fd200aff973a1621fe096",
       "title": "Quant domain · trust_aggregation"
     },
@@ -169,7 +466,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "algebra_number_theory",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "42632635db201d20789f211008c02479d7eb3afb51af21b4b83df19d99de8359",
       "title": "Attributed formula · TH_V18_04-egyptian-horus"
     },
@@ -183,7 +480,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "algebra_number_theory",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "d103ce1dbad7fc697c5df4566a722638c6f31097e4a73b79bd5a3cfd91fb33aa",
       "title": "Attributed formula · madhava-leibniz-atan"
     },
@@ -197,7 +494,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "algebra_number_theory",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "f868692dfba193e3e4a5c3f1316a357bc3456ef81aea032ee1de9ce694ad92c9",
       "title": "Attributed formula · quadratic-completion"
     },
@@ -211,7 +508,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "algebra_number_theory",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "e51c893dbc543ad1f3793d85a64109001023f6b9fd38dbd91eaad67774125c82",
       "title": "Attributed formula · cauchy-schwarz-2d"
     },
@@ -225,7 +522,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "coding_error_control",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "a8f8a1edcdb52d577f8aa1e7051f52822fb9a6e83bc3a8c255dc39f432a87bbd",
       "title": "Attributed formula · F18-reed-solomon-singleton"
     },
@@ -239,7 +536,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "coding_error_control",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "888023b0e61909fae9bfc18f704c31a54a121ee38c8b65c3bad7474f8fbd45ec",
       "title": "Attributed formula · TH_V18_03-kraft"
     },
@@ -253,7 +550,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "coding_error_control",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "dc68470e65ce8d9406c3c5b334996065e59845dd81444fcfc27bfb0c52a2e7ef",
       "title": "Attributed formula · shor-913-distance"
     },
@@ -267,7 +564,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "dynamics_consensus",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "0dec98551c0f184a010cf057a015b3f9d583f53c8ed09f7b6170a9611244705b",
       "title": "Attributed formula · K06-rho-closure"
     },
@@ -281,7 +578,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "dynamics_consensus",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "76fe8437cc6f13ff8f7eb89e273054215ff1792a057f17f28cd32424de6f9091",
       "title": "Attributed formula · conjecture-2-khipu-safety"
     },
@@ -295,7 +592,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "dynamics_consensus",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "f8f5f7bda8a06fb41cf2cd3bd144bf8634b233ed846e104abddcd73139f526ef",
       "title": "Attributed formula · conjecture-3-khipu-liveness"
     },
@@ -309,7 +606,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "dynamics_consensus",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "8e6d26e93601da68676c9da484e5fe0fd1b2e82478e12f840f835771eabd32fd",
       "title": "Attributed formula · F12-kuramoto-additive"
     },
@@ -323,7 +620,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "dynamics_consensus",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "a1935f1da958093060f2a06c7238d181c618c59e07c8bb4527afc4f497a84c1f",
       "title": "Attributed formula · byzantine-n3f1"
     },
@@ -337,7 +634,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "energy_entropy_physics",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "915bbe22c615c17fba8bef4e771e2834a556b4b48a27d6351960294cad9af94c",
       "title": "Attributed formula · bekenstein-dimensional"
     },
@@ -351,7 +648,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "energy_entropy_physics",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "2e5c035d7ad693b3a62457ab4b1ae16095ed2829a90b0063642b1321f9c0f2c2",
       "title": "Attributed formula · K13-bekenstein-fire"
     },
@@ -365,7 +662,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "energy_entropy_physics",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "8863cedef07c9d4d17ad6a0a50fe021efc9183b2cb0046d6f54f72569a17bc87",
       "title": "Attributed formula · landauer-energy"
     },
@@ -379,7 +676,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "energy_entropy_physics",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "ca574c44f2813713834f0cfc961c845f84b48f439974ff44e7f6f9b596854673",
       "title": "Attributed formula · F19-bekenstein-additive"
     },
@@ -393,7 +690,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "governance_receipts",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "71f39d24edafef0c080539ffbb96f0f110802c413e3d1293ca0fc03976a9d393",
       "title": "Attributed formula · K01-receipt-build-latency"
     },
@@ -407,7 +704,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "governance_receipts",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "0c62c87de45402b16397d3e527b8602c37bc8551872fa3f9415dfc2f9d233d6d",
       "title": "Attributed formula · k-verify-accuracy"
     },
@@ -421,7 +718,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "governance_receipts",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "6dfe3d76718ca4b3a09fdb0cdc89be992825e6c97f22b988cea118df970e445b",
       "title": "Attributed formula · F0003-receipt-edge"
     },
@@ -435,7 +732,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "governance_receipts",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "126d0d7943b7355cfb08f5f36dd1bdc336eb0d6573bb4b5172b21fcc76e86543",
       "title": "Attributed formula · F0001-system-tuple"
     },
@@ -449,7 +746,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "governance_receipts",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "d4ca5d16e3bca8d265bfab98ffa2eda389bbfa0178cff151ba19406e17e0d673",
       "title": "Attributed formula · dsse-envelope-struct"
     },
@@ -463,7 +760,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "information_geometry",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "f6d3adba6eb554432e3b82ca2cdd41bb50c68a4654d4c1f7738552a650f53055",
       "title": "Attributed formula · fisher-rao-identity"
     },
@@ -477,7 +774,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "information_geometry",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "5a69a168deac0aa4165ae2d1ea2e120d5bbbb80655810849ccce76e2f0b44654",
       "title": "Attributed formula · pinsker-2pt"
     },
@@ -491,7 +788,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "narrative_lineage",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "8fd41de002b074ca033214d55ec5915e42a886006f3bf0160118fcafcd8bcfab",
       "title": "Attributed formula · code-of-reality-lineage"
     },
@@ -505,7 +802,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "topology_geometry",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "86d3ebb143da9cbd1a4c39e9792d6c7559fe558648c7ccaf8db8620fcc1ac896",
       "title": "Attributed formula · F1-euler-khipu-chi"
     },
@@ -519,7 +816,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "trust_aggregation",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "b11a875965d99144d1ca82806bb1f7892bf780bd018845e33a7a003beb2fc5bb",
       "title": "Attributed formula · A2-homogeneity"
     },
@@ -533,7 +830,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "trust_aggregation",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "74f4f0f0ab1d6dd8eecab8c330541dd21790c550c47a58050f0bb9bb4431323a",
       "title": "Attributed formula · axis-schema-13"
     },
@@ -547,7 +844,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "trust_aggregation",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "becc67c75fbd22af5b25a0c577b73ad8a3575d26d03a9a8ab984ffd744c71df9",
       "title": "Attributed formula · lambda-score-dimensionless"
     },
@@ -561,7 +858,7 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "trust_aggregation",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "9083b6fac01a3c721361f33a2882b0581ae198bdb2942c0c8218933ca06dbcd7",
       "title": "Attributed formula · TH_L1-lambda-uniqueness"
     },
@@ -575,8 +872,8 @@
       "path": "atlas/formula-atlas.v1.json",
       "quantDomain": "trust_aggregation",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
-      "sha256": "437f4edc67fb6c6c72fcebd3245e8d47b7e4e224da84156aa6004a15792591be",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
+      "sha256": "dad8bc06cd8b20519a2c897af7765640974b151a102c0d470767c14d56b5c92d",
       "title": "Attributed formula · A4-bounded-amgm"
     },
     {
@@ -588,7 +885,7 @@
       "nodeId": "frontier:05f5c5ee08e1ce7a7cce68bf06918892",
       "path": "atlas/formula-atlas.v1.json",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "b8ce3c695ad48e0e60b31e14796a27231f0d3cc95ee3b3571f823b59974a985e",
       "title": "Executable formula · reidemeister_invariant"
     },
@@ -601,7 +898,7 @@
       "nodeId": "frontier:082ebbf877cb0a3bfe66b1cba0de5f69",
       "path": "atlas/formula-atlas.v1.json",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "d116c3f7a7381e1170a3823ffdf659086ced7973ebfbb050b9be740d8f0e58a4",
       "title": "Executable formula · fisher_rao_distance"
     },
@@ -614,7 +911,7 @@
       "nodeId": "frontier:0928dd24eb9b8e0be5317a8e14543995",
       "path": "atlas/formula-atlas.v1.json",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "ce525144b3fb1ae855a1b71ebc1e04efea48af5f35c5cceca07bc077253614d0",
       "title": "Executable formula · lambda_bounded"
     },
@@ -627,7 +924,7 @@
       "nodeId": "frontier:2a1293a0d7f9405b4773fa35fcd06445",
       "path": "atlas/formula-atlas.v1.json",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "61f26aabf2755e1435f75c66cd8de5fc488d55f9d55a3e573ceceebde69e8450",
       "title": "Executable formula · pac_bayes_mcallester"
     },
@@ -640,7 +937,7 @@
       "nodeId": "frontier:3d47a9f04d560f1d07bca8fb6561c943",
       "path": "atlas/formula-atlas.v1.json",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "ab5a596c7c240623eb03a70cb80d7d02504fb3a55bf884e9574bb2077674189f",
       "title": "Executable formula · khipu_merkle_root"
     },
@@ -653,7 +950,7 @@
       "nodeId": "frontier:3d72e7bb18adae0329277195f6179e59",
       "path": "atlas/formula-atlas.v1.json",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "5eb51498e3750107e708ac892275d84941d3d1da41ffd9c8496494a92ab8faae",
       "title": "Executable formula · two_witness_ks18_soundness"
     },
@@ -666,7 +963,7 @@
       "nodeId": "frontier:4d0b392125937dc85363e19a24330e08",
       "path": "atlas/formula-atlas.v1.json",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "30332b2ebbc704ff43e95d8eaa1894347c89ae4c66c5b0408aeb38e6f9491c07",
       "title": "Executable formula · shor_codeword_distance"
     },
@@ -679,7 +976,7 @@
       "nodeId": "frontier:5819e7cbf8226fd3d0f316d808be2cfb",
       "path": "atlas/formula-atlas.v1.json",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "1d5044ee5f6c1114e397fb25fe087789c0e5b53b53a459830bf0269164d1625c",
       "title": "Executable formula · gleason_quantum_lambda"
     },
@@ -692,7 +989,7 @@
       "nodeId": "frontier:5e139d748870f8d2b46938abe761cc47",
       "path": "atlas/formula-atlas.v1.json",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "18ea9722c891b05fce2048aa8d28df73fb3c537ada35f803a0afe634481cabde",
       "title": "Executable formula · bohr_complementarity_floor"
     },
@@ -705,7 +1002,7 @@
       "nodeId": "frontier:6cb2bdfe3186341d03fe86676dcedb61",
       "path": "atlas/formula-atlas.v1.json",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "d157a9ceca02405c095cb38e2321e40383e89d4348f3aa5261af24d1d5504006",
       "title": "Executable formula · kitaev_surface_correct"
     },
@@ -718,7 +1015,7 @@
       "nodeId": "frontier:759f01be190dee792fabe51d309c3977",
       "path": "atlas/formula-atlas.v1.json",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "b743028aa9135122d43a716c3f520073ce6a40cddeb13b9966db1ff5503a8700",
       "title": "Executable formula · css_ingress_verify"
     },
@@ -731,7 +1028,7 @@
       "nodeId": "frontier:76d83bf2809eec9cb342e9e8dd5bdc15",
       "path": "atlas/formula-atlas.v1.json",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "1d72110cc1ceca8bc4babac2bf9a5c781aedbb0376c63d784af326c359736e57",
       "title": "Executable formula · pinsker_kl_bound"
     },
@@ -744,7 +1041,7 @@
       "nodeId": "frontier:79f594694f9401877774c9fc9533df6c",
       "path": "atlas/formula-atlas.v1.json",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "9517bf54edb3165359eb11bba428aebf4fd8100dff60d31bcde20018f2743e00",
       "title": "Executable formula · reed_solomon_singleton"
     },
@@ -757,7 +1054,7 @@
       "nodeId": "frontier:9876ba09c3d4eb54332de976babb9272",
       "path": "atlas/formula-atlas.v1.json",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "24709b560c7f0be62ecdce49e90c724932427c9890dad8117799c22da632f0e7",
       "title": "Executable formula · madhava_series"
     },
@@ -770,7 +1067,7 @@
       "nodeId": "frontier:9c0d0fc9f0cbe2fe3c00f8962c103d5d",
       "path": "atlas/formula-atlas.v1.json",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "f602cd88a352fa43a74636719a528e0e506285206dcb4ef29c3f709848f88005",
       "title": "Executable formula · dsse_envelope"
     },
@@ -783,7 +1080,7 @@
       "nodeId": "frontier:a992ed4c918d5b36a7aeb78bac116b02",
       "path": "atlas/formula-atlas.v1.json",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "f3a417cb88109721572aaafcaddb5939a6826a7f20b7dfdc21e59bc949ebce49",
       "title": "Executable formula · hoeffding_tail"
     },
@@ -796,7 +1093,7 @@
       "nodeId": "frontier:ac4959c05d459217d5615551f59601b4",
       "path": "atlas/formula-atlas.v1.json",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "7ee72f0e1cf77f7af55dba0606e6e1a7349ea3739357ea654defc446640833bf",
       "title": "Executable formula · schur_concave_lambda_two_axis"
     },
@@ -809,7 +1106,7 @@
       "nodeId": "frontier:c0e5f9c8e2fa32afab296a4e6ee780d5",
       "path": "atlas/formula-atlas.v1.json",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "bef450f2e20ee7cb6c9c3c47444491acae24557c661b26e69871b0fe4704fb3c",
       "title": "Executable formula · lambda_homogeneous"
     },
@@ -822,7 +1119,7 @@
       "nodeId": "frontier:c26677ba79c717afab9d100f9bc17cb6",
       "path": "atlas/formula-atlas.v1.json",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "0aca53b7c0091885e19be0fc5d6bb2302db85330c76216cf2f0cde6cb955251d",
       "title": "Executable formula · lambda_aggregate"
     },
@@ -835,7 +1132,7 @@
       "nodeId": "frontier:e0c4164fb8c3a2ba32211d35dab6362b",
       "path": "atlas/formula-atlas.v1.json",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "a0155a1dacd29fdc1d9409455c6f7de3e2a26d04a3b49328dca1d621218e5200",
       "title": "Executable formula · bekenstein_cascade"
     },
@@ -848,7 +1145,7 @@
       "nodeId": "frontier:f9dc2c77a814843bef966e60bcd11cda",
       "path": "atlas/formula-atlas.v1.json",
       "repository": "szl-holdings/szl-formulas",
-      "revision": "174c5e2f468158f89d5e2ebf656ad596b2c9a9bb",
+      "revision": "a3f9dcab6e3564ce384bd3c095f64cc2121059f9",
       "sha256": "9c6872d066924ac195f0739a88b819f626d832131c3468d27d00b608181bae36",
       "title": "Executable formula · kochen_specker_18vector_witness"
     },
@@ -861,7 +1158,7 @@
       "nodeId": "frontier:0496b555a1c6096f645c095a54a520e4",
       "path": "README.md",
       "repository": "szl-holdings/anatomy",
-      "revision": "6422274e284c443f640c3899fc4dbb7947bd5b30",
+      "revision": "f143ff67d34b0cfc1c8e1a171bf9d0f08897762b",
       "sha256": "140dfc00d2963fc95aa63751ea082ebbd6dca804bb2bb73fb2cd9f48ebeccf6b",
       "title": "Living Anatomy · What's new in v4 — dissection tools"
     },
@@ -871,12 +1168,12 @@
       "candidateState": "DISCOVERED_REVIEW_REQUIRED",
       "contentAccess": "HANDLES_ONLY",
       "kind": "source-document",
-      "nodeId": "frontier:045f25cf150ad87033dfb108dfa82a0d",
+      "nodeId": "frontier:345c1133534cb71cdb92b62cf14f333d",
       "path": "README.md",
       "repository": "szl-holdings/szl-ouroboros",
-      "revision": "cd8a451ca2be19f71653dcb4ef50e15e6836e697",
-      "sha256": "5cc957baf65a8ca1a800824c68de6f683c3868d9cbbe511c4d39d9647a1bd74d",
-      "title": "Ouroboros Runtime · Continuous Codex frontier loop"
+      "revision": "9ae23a9d46bc526b7e665aade505c2eaedb66c75",
+      "sha256": "6fcdbade992908bbd2f4cdf488d80c4d5245ea09179dd21c86170299d35233c4",
+      "title": "Ouroboros Runtime · szl-ouroboros"
     },
     {
       "admission": "REFERENCE_ONLY_NO_PROVIDER_MUTATION",
@@ -887,8 +1184,8 @@
       "nodeId": "frontier:33575056a85748dc25c1d401b9cac087",
       "path": "governance/public-estate.v1.json",
       "repository": "szl-holdings/a11oy",
-      "revision": "b37fa90cc48921f15883c23932cc6ded9152f9f1",
-      "sha256": "27280426f8342835b576bf7d098f1ba04d1e3d791b20beb4f8c4c7d5e3931f28",
+      "revision": "dddf649beb7f189c4c05dc062875cf6d4c4d215d",
+      "sha256": "693791f3c93a9fee673004670ab34de99f6be7c04a8467e579f1ea49d6c1d99c",
       "title": "A11oy public estate authority"
     },
     {
@@ -910,10 +1207,10 @@
       "candidateState": "DISCOVERED_REVIEW_REQUIRED",
       "contentAccess": "HANDLES_ONLY",
       "kind": "source-document",
-      "nodeId": "frontier:02d9f7fce129b5519c348b049c3847e4",
+      "nodeId": "frontier:16652a71fc5ae508fad3b952cb2a3491",
       "path": "README.md",
       "repository": "szl-holdings/szl-nemo",
-      "revision": "810231a531188bb569e3faa17396386eb0a5e260",
+      "revision": "7c0bc1599e8a000ad5fe9736339789e1ba18d7e5",
       "sha256": "e4a5db4dd4999f9fff034f6206503e9193177ce93a5ed16c22b2f7809f343d59",
       "title": "Nemo Witness · R1–R5 prompt/answer contract"
     },
@@ -923,11 +1220,11 @@
       "candidateState": "DISCOVERED_REVIEW_REQUIRED",
       "contentAccess": "HANDLES_ONLY",
       "kind": "source-document",
-      "nodeId": "frontier:01e71648eb1b513c4c8cede0232e2a9f",
+      "nodeId": "frontier:0b37278ff9a9c64597dd0fc51275c972",
       "path": "README.md",
       "repository": "szl-holdings/szl-kernels",
-      "revision": "45a56d0b132945e06a2d88a104f26c4840abebe2",
-      "sha256": "116e0b8e0097aed00e3c88c775bb1cebc73e047842ecfd38350dba36182e8483",
+      "revision": "a7cbbdff6aa28ba68541e99f11087f299a7b2464",
+      "sha256": "23583c82f34c02aefee064e34ce3fe1e72c8920da33eb4714d790f39a2ff3650",
       "title": "Governed Kernel Suite · Cookbook"
     },
     {
@@ -988,12 +1285,12 @@
       "candidateState": "DISCOVERED_REVIEW_REQUIRED",
       "contentAccess": "HANDLES_ONLY",
       "kind": "estate-surface",
-      "nodeId": "frontier:280c1da96b5cfe927ffc841b23fcbeec",
+      "nodeId": "frontier:0e6285a456e79a41bdf115dfa64962a1",
       "path": "governance/public-estate.v1.json",
       "repository": "szl-holdings/a11oy",
-      "revision": "b37fa90cc48921f15883c23932cc6ded9152f9f1",
-      "sha256": "f95df366bed6374733cb3f30ed9fff7d8a8912bc251039ee9a892bc82d2d4445",
-      "title": "Public estate · PURIQ Finance"
+      "revision": "dddf649beb7f189c4c05dc062875cf6d4c4d215d",
+      "sha256": "c5566f260c80021b98aa2b3c1f9b6b37aaab5bbd41c9cdeb1977f5c37dc8171b",
+      "title": "Public estate · Sentra"
     }
   ],
   "loop": [
@@ -1003,32 +1300,95 @@
     "VERIFY",
     "HOLD"
   ],
+  "ouroboros_observation": {
+    "artifact": {
+      "archive_sha256": "dbb6de581b992bccae91d96e9e7cb76d541cdab00e1281c018121fb3e44d050e",
+      "id": 11583907210,
+      "name": "ouroboros-frontier-37856032788-1",
+      "receipt_sha256": "9e2ecfa5dd5ad58b21f63850842fb3700be380ecc844342c48990c1d24bcb8c9"
+    },
+    "authority": {
+      "execution": "NONE",
+      "merge": "NONE",
+      "promotion": "NONE",
+      "provider_mutation": "NONE",
+      "training": "NONE"
+    },
+    "claims": {
+      "measurement_scope": "RECORDED_REVIEW_ATTEMPT",
+      "private_graph_loaded": false,
+      "production_verified": false,
+      "review_is_accepted_truth": false,
+      "signature_verified": false
+    },
+    "freshness": {
+      "expires_at": "2026-10-09T04:53:34Z",
+      "max_age_seconds": 21600,
+      "observed_at": "2026-10-08T22:53:34Z"
+    },
+    "observation": {
+      "bounded": true,
+      "exit": "converged",
+      "max_budget": 1,
+      "receipt_closed": true,
+      "recommendation_count": 1,
+      "review_sha256": "b5f0c73b3a5a863e4a257a8b01915bb44aa58fa0f411bf51a2fd1ff18df15587",
+      "review_state": "REVIEW_PROPOSED",
+      "steps": 1,
+      "terminated": true,
+      "wall_ms": 100589
+    },
+    "observation_sha256": "b9381e18a8b421432f1673fec2a86dddd265e68d7e04739d1e453ec3dbf49979",
+    "reason": "CURRENT_REVIEW_RECEIPT_VALIDATED",
+    "run": {
+      "attempt": 1,
+      "conclusion": "success",
+      "head_sha": "9ae23a9d46bc526b7e665aade505c2eaedb66c75",
+      "id": 37856032788,
+      "status": "completed",
+      "updated_at": "2026-10-08T22:53:34Z",
+      "url": "https://github.com/szl-holdings/szl-ouroboros/actions/runs/37856032788"
+    },
+    "schema": "szl.ouroboros.frontier-observation/v1",
+    "source": {
+      "candidate_count": 141,
+      "candidate_file_sha256": "efa7bddf8526aaabada77e27257dc0f0128f151a7e97ebe51d5eafede8f04f7c",
+      "candidate_set_sha256": "efa7bddf8526aaabada77e27257dc0f0128f151a7e97ebe51d5eafede8f04f7c",
+      "controller_repository": "szl-holdings/szl-ouroboros",
+      "controller_revision": "9ae23a9d46bc526b7e665aade505c2eaedb66c75",
+      "second_brain_repository": "szl-holdings/szl-second-brain",
+      "second_brain_revision": "c96fd1f309a0a7298b89e8469f58fecaeada8fb3",
+      "state_file_sha256": "54cb1a5b7bb2275ce96611afa00910f4026825e42641bec02f70663fb585258b",
+      "workflow": ".github/workflows/codex-continuous-frontier.yml"
+    },
+    "state": "OBSERVED"
+  },
   "schema": "szl.a11oy.brain-frontier-holographic-v7/v1",
   "selected_handle_count": 72,
-  "snapshot_sha256": "6286ccd4bdf2595e1c2ec35c6a5b716d812de318761e590c534b6b5cc7ede81c",
+  "snapshot_sha256": "8d9d6a91ae2de5de1f08ab00b4d5329d14d3bfcc36ed7eda84ae40d4b911f688",
   "sources": {
     "anatomy": {
       "holographic_v7_path": "/api/anatomy/v1/holographic-v7",
       "live_origin": "https://betterwithage-anatomy.hf.space",
       "repository": "szl-holdings/anatomy",
-      "revision": "075a2484c1e520d4e5767c1a2780de9bd8827e6c"
+      "revision": "4f7ab4b4589cb839e4e45025ffaef3085c79f448"
     },
     "formulas": {
       "repository": "szl-holdings/szl-formulas",
-      "revision": "d03536144d2f23ee2da35c356e2558abe5183779"
+      "revision": "0784a8c1b4ac408edb95e45e6c6d08d4edb5b07d"
     },
     "ouroboros": {
       "repository": "szl-holdings/szl-ouroboros",
-      "review_workflow": ".github/workflows/codex-frontier-review.yml",
-      "revision": "b6f70624057b7b8554ca1e7b77a27431ecabbbda"
+      "review_workflow": ".github/workflows/codex-continuous-frontier.yml",
+      "revision": "9ae23a9d46bc526b7e665aade505c2eaedb66c75"
     },
     "second_brain": {
-      "candidate_count": 129,
-      "candidate_file_sha256": "fb15e2d2822a9afb445c3eae7e077a7c250a59565fdd395a9e11f2247b12a884",
-      "candidate_set_sha256": "fb15e2d2822a9afb445c3eae7e077a7c250a59565fdd395a9e11f2247b12a884",
+      "candidate_count": 141,
+      "candidate_file_sha256": "efa7bddf8526aaabada77e27257dc0f0128f151a7e97ebe51d5eafede8f04f7c",
+      "candidate_set_sha256": "efa7bddf8526aaabada77e27257dc0f0128f151a7e97ebe51d5eafede8f04f7c",
       "repository": "szl-holdings/szl-second-brain",
-      "revision": "1d3960c69235f117b7ec2b5ea97472f81fb588f5",
-      "state_sha256": "ffafd9d7259aa3281fb00f40f13ff3fc4443cded40b026276414d09a6be61a39"
+      "revision": "c96fd1f309a0a7298b89e8469f58fecaeada8fb3",
+      "state_sha256": "54cb1a5b7bb2275ce96611afa00910f4026825e42641bec02f70663fb585258b"
     }
   },
   "state": "SOURCE_BOUND_REVIEW_MEMORY",

@@ -28,6 +28,28 @@ the dataset contains bounded manifest, history, and admission metadata only.
 
 ## Single canonical sequence
 
+### Current stopped-capture qualification prerequisite
+
+The dispatch-only `hf-preserve-current-stores.yml` now qualifies its own private
+capture in the same job. The full report and downloaded bytes remain in private
+runner temporary directories. The read-only helper requires exact protected
+current main, the original run attempt, a fresh capture, unchanged stopped Space
+revision and original object identities, and a stable private dataset HEAD
+observation. It verifies the source-reviewed historical capture separately from
+the new capture, then checks the historical signed receipt in both disposable
+database candidates. Both server copies and explicitly declared, byte-verified
+upload fallback captures use their exact paths; no path fallback is attempted.
+
+Only an allowlisted status artifact leaves the runner. A successful logical
+continuity result still has `state=BLOCKED`, `restore_admitted=false` and
+`deployment_admitted=false`. This manual prerequisite does not pause, resume,
+restart, publish snapshots, acquire a fence, configure storage, or deploy. The
+retired automatic prerequisite/acquisition push graph and its historical pins
+are unchanged. The effectful sequence below requires a separately reviewed
+current-source maintenance plan and cannot consume this status as admission.
+
+### Effectful cutover requirements
+
 1. The exact protected-main run verifies native source ownership and performs the
    existing preservation and qualification steps. The pure classifier admits
    only a qualified captured pair. This first-cutover workflow deliberately holds

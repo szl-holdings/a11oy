@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import gzip
 import json
 import time
 from datetime import datetime, timedelta, timezone
@@ -672,3 +673,172 @@ def test_finance_route_does_not_launder_clockless_stale_equity(monkeypatch) -> N
     finance = _payload(asyncio.run(_endpoint(app, finance_path)()))
     assert finance["equities_official"]["AAPL"]["freshness"]["status"] == "stale"
     assert _probe(finance_path, finance)["labelsOk"] is False
+
+
+def _recent_feed_gzip() -> bytes:
+    """One real-shaped NIST document. The match word sits past the public excerpt."""
+    description = ("x" * 220) + " financial controls failed closed"
+    payload = {
+        "totalResults": 2,
+        "vulnerabilities": [
+            {"cve": {
+                "id": "CVE-2026-1001",
+                "published": "2026-10-08T00:00:00.000",
+                "descriptions": [{"lang": "en", "value": description}],
+                "metrics": {"cvssMetricV31": [{
+                    "cvssData": {"baseSeverity": "HIGH", "baseScore": 7.5},
+                }]},
+            }},
+            {"cve": {
+                "id": "CVE-2026-1002",
+                "published": "2026-10-09T00:00:00.000",
+                "descriptions": [{"lang": "en", "value": "unrelated parser defect"}],
+                "metrics": {},
+            }},
+        ],
+    }
+    return gzip.compress(json.dumps(payload).encode("utf-8"))
+
+
+class _NvdCooldownClient:
+    """REST answers 429. The recent feed answers with the fixture bytes."""
+
+    def __init__(self, feed: bytes) -> None:
+        self.feed = feed
+        self.urls: list[str] = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args) -> None:
+        return None
+
+    def get(self, url: str, headers=None):
+        self.urls.append(str(url))
+        if "services.nvd.nist.gov" in str(url):
+            return _NvdResponse(429, headers={"Retry-After": "30"})
+        if str(url) == vertical._NVD_RECENT_FEED_URL:
+            return _NvdResponse(200, content=self.feed)
+        raise AssertionError(url)
+
+
+class _NvdResponse:
+    def __init__(self, status: int, content: bytes = b"", headers=None) -> None:
+        self.status_code = status
+        self.content = content
+        self.headers = headers or {}
+
+    def raise_for_status(self) -> None:
+        if self.status_code >= 400:
+            raise RuntimeError(f"HTTP {self.status_code}")
+
+
+def test_nvd_recent_feed_is_observed_when_the_api_is_in_cooldown(monkeypatch) -> None:
+    monkeypatch.setattr(vertical, "_CACHE", vertical._Cache())
+    monkeypatch.setattr(vertical, "_NVD_NEXT_REQUEST_AT", 0.0)
+    monkeypatch.setattr(vertical, "_NVD_COOLDOWN_UNTIL", 0.0)
+    client = _NvdCooldownClient(_recent_feed_gzip())
+    monkeypatch.setattr(vertical, "_client", lambda *_args, **_kwargs: client)
+    now_s = time.time()
+
+    broad = vertical.feed_nvd(20)
+    narrow = vertical.feed_nvd(12, keyword="financial")
+
+    assert sum(url == vertical._NVD_RECENT_FEED_URL for url in client.urls) == 1
+    assert broad["freshness"]["status"] == "live"
+    assert [item["id"] for item in broad["value"]["items"]] == [
+        "CVE-2026-1002", "CVE-2026-1001",
+    ]
+    assert "_search" not in broad["value"]["items"][0]
+    assert narrow["value"]["items"] == [{
+        "id": "CVE-2026-1001",
+        "severity": "HIGH",
+        "score": 7.5,
+        "published": "2026-10-08",
+        "desc": (("x" * 220) + " financial controls failed closed")[:200],
+    }]
+    assert narrow["value"]["totalResults"] == 1
+    assert narrow["value"]["source_url"] == vertical._NVD_RECENT_FEED_URL
+    assert narrow["value"]["retrieval"] == "nvd-cve-2.0-recent-json-feed"
+    assert "rate limited" not in json.dumps(narrow)
+
+    monkeypatch.setattr(vertical, "feed_cisa_kev", lambda *_args: {
+        "value": {"items": [{"cveID": "CVE-2015-5477"}]},
+        "freshness": {"status": "live", "fetched_at": now_s},
+    })
+    app = FastAPI()
+    vertical.register(app)
+    defense_path = "/api/a11oy/v1/vert/defense/feed"
+    defense_response = asyncio.run(_endpoint(app, defense_path)())
+    assert defense_response.status_code == 200
+    defense = _payload(defense_response)
+    assert defense["nvd"]["value"]["items"][0]["id"] == "CVE-2026-1002"
+    assert defense["nvd"]["freshness"]["status"] == "live"
+    probed_at = int(time.time())
+    assert _probe(defense_path, defense, now_s=probed_at) == {
+        "schemaOk": True, "labelsOk": True, "freshOk": True,
+    }
+
+
+def test_finance_feed_uses_recent_feed_instead_of_an_unavailable_cve(monkeypatch) -> None:
+    now_s = time.time()
+    monkeypatch.setattr(vertical, "_CACHE", vertical._Cache())
+    monkeypatch.setattr(vertical, "_NVD_NEXT_REQUEST_AT", 0.0)
+    monkeypatch.setattr(vertical, "_NVD_COOLDOWN_UNTIL", 0.0)
+    monkeypatch.setattr(
+        vertical, "_client",
+        lambda *_args, **_kwargs: _NvdCooldownClient(_recent_feed_gzip()),
+    )
+    monkeypatch.setattr(vertical, "feed_yahoo", lambda symbol: _live(symbol, fetched_at=now_s))
+    monkeypatch.setattr(
+        vertical, "feed_polygon",
+        lambda symbol: _live(symbol, official=True, fetched_at=now_s),
+    )
+    monkeypatch.setattr(
+        vertical, "feed_coinbase",
+        lambda pair: _live(pair, official=True, fetched_at=now_s),
+    )
+    monkeypatch.setattr(vertical, "feed_fx", lambda *_args: _live("USD", official=True, fetched_at=now_s))
+
+    app = FastAPI()
+    vertical.register(app)
+    path = "/api/a11oy/v1/vert/finance/feed"
+    finance = _payload(asyncio.run(_endpoint(app, path)()))
+    assert finance["fintech_cve"]["value"]["items"][0]["id"] == "CVE-2026-1001"
+    assert finance["fintech_cve"]["freshness"]["status"] == "live"
+    assert finance["fintech_cve"]["value"]["source_url"] == vertical._NVD_RECENT_FEED_URL
+    assert _probe(path, finance, now_s=int(time.time())) == {
+        "schemaOk": True, "labelsOk": True, "freshOk": True,
+    }
+
+
+def test_nvd_cooldown_without_a_feed_stays_unavailable(monkeypatch) -> None:
+    monkeypatch.setattr(vertical, "_CACHE", vertical._Cache())
+    monkeypatch.setattr(vertical, "_NVD_NEXT_REQUEST_AT", 0.0)
+    monkeypatch.setattr(vertical, "_NVD_COOLDOWN_UNTIL", 0.0)
+
+    class _Broken(_NvdCooldownClient):
+        def get(self, url: str, headers=None):
+            if str(url) == vertical._NVD_RECENT_FEED_URL:
+                raise TimeoutError("recent feed unreachable")
+            return super().get(url, headers=headers)
+
+    monkeypatch.setattr(vertical, "_client", lambda *_args, **_kwargs: _Broken(b""))
+    observed = vertical.feed_nvd(12, keyword="financial")
+    assert observed["value"] is None
+    assert observed["freshness"]["status"] == "unavailable"
+    assert "cooldown active" in observed["freshness"]["error"]
+
+
+def test_nvd_rest_observation_is_not_replaced_by_the_recent_feed(monkeypatch) -> None:
+    def rest_only(*_args, **_kwargs):
+        return {"value": {"items": [{"id": "CVE-FROM-REST"}]},
+                "freshness": {"status": "live", "fetched_at": 1786449600}}
+
+    def forbid_transport(*_args, **_kwargs):
+        raise AssertionError("recent feed fetched despite a REST observation")
+
+    monkeypatch.setattr(vertical, "_cached_fetch", rest_only)
+    monkeypatch.setattr(vertical, "_client", forbid_transport)
+    observed = vertical.feed_nvd(12, keyword="financial")
+    assert observed["value"]["items"][0]["id"] == "CVE-FROM-REST"

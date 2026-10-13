@@ -5,9 +5,10 @@ Two honest halves, both additive and self-contained (pure stdlib):
   1. NARRATIVE — the Defense Unicorns / Unicorn Delivery Service (UDS) fleet
      story told with direct attribution and links to the public UDS repos and
      the Air & Space Forces Magazine coverage. Each fleet trust / provenance /
-     drift gap is mapped to a REAL, already-shipped a11oy capability (cosign +
-     SLSA attestation, offline-verifiable bundle, DSSE receipt chain, drift
-     guards). Defense Unicorns / UDS is a separate company and open-source
+     drift gap is mapped to a11oy source capabilities (cosign + SLSA signing,
+     bundle definitions, DSSE receipt components, drift guards). This feed
+     does not verify their deployed artifacts or current CI results.
+     Defense Unicorns / UDS is a separate company and open-source
      project; a11oy references their PUBLIC work and reimplements PATTERNS
      only — no code is copied or re-badged (uds-core / uds-cli / uds-common are
      AGPL-3.0).
@@ -43,8 +44,9 @@ _ATTRIB = (
     "company and open-source project. a11oy references their PUBLIC work and "
     "reimplements PATTERNS only — no UDS source is copied or re-badged "
     "(uds-core / uds-cli / uds-common are AGPL-3.0; Zarf and Pepr are "
-    "Apache-2.0). Every fleet-trust gap below is mapped to a capability a11oy "
-    "has already shipped, with an honest LIVE / CI-GREEN / ROADMAP status. The "
+    "Apache-2.0). Every fleet-trust gap below is mapped to an a11oy source "
+    "capability. Runtime verification is UNAVAILABLE in this feed until "
+    "a concrete artifact and its verifier result are observed. The "
     "live signal feed pulls REAL public data from the Defense Unicorns / UDS "
     "GitHub org via the public GitHub REST API; each figure is labelled "
     "live / cached / unreachable, never fabricated."
@@ -97,10 +99,9 @@ def _repo_src(repo: str) -> Dict[str, str]:
             "url": "https://github.com/" + repo, "note": "public source"}
 
 
-# --- fleet trust/provenance/drift gaps -> real a11oy capabilities ------------
-# capability_status is a11oy's HONEST shipped state (see PROVEN_FORMULAS / the
-# Deploy Posture + receipts tabs): LIVE = shipped & verifiable now; CI-GREEN =
-# enforced in CI; ROADMAP = stated next step (e.g. SLSA L3).
+# Source descriptions and upstream URL liveness cannot establish our runtime
+# verification state. These rows remain unobserved until an artifact-specific
+# verification reader exists; a GET never signs or creates such an artifact.
 
 _GAPS: List[Dict[str, Any]] = [
     {
@@ -111,12 +112,13 @@ _GAPS: List[Dict[str, Any]] = [
             "must trust the artifact is EXACTLY what was built upstream \u2014 "
             "no tampering in the supply chain or at the edge.",
         "a11oy_capability":
-            "a11oy publishes every organ image cosign-signed with an in-toto "
-            "SLSA build-provenance attestation (.att), verifiable with "
-            "`cosign verify-attestation` / `gh attestation verify` (Sigstore "
-            "keyless: Fulcio cert + Rekor transparency log).",
-        "capability_status": "LIVE",
-        "status_note": "SLSA Level 1+2 attested today; Level 3 is roadmap.",
+            "a11oy includes signing and build-provenance workflows. A release "
+            "claim requires an exact artifact digest, its attestation, and "
+            "verification against the expected signer and build identity.",
+        "capability_status": "UNAVAILABLE",
+        "status_note": "No artifact-specific attestation verification observed by this feed; "
+                       "SLSA Level 3 remains ROADMAP.",
+        "evidence_required": "Exact release artifact digest and independently verified attestation.",
         "github": ["zarf-dev/zarf", "defenseunicorns/uds-cli"],
         "sources": [_SRC_ARTICLE, _SRC_DU,
                     _repo_src("zarf-dev/zarf"), _repo_src("defenseunicorns/uds-cli")],
@@ -128,13 +130,12 @@ _GAPS: List[Dict[str, Any]] = [
             "Edge and air-gapped fleets cannot phone home to a central "
             "registry or transparency log to verify artifacts at deploy time.",
         "a11oy_capability":
-            "a11oy ships a cosign-signed Zarf/UDS bundle whose signatures "
-            "(.sig) and attestations travel WITH the bundle, so verification "
-            "is fully offline \u2014 the verify-it-yourself commands are "
-            "documented on the Deploy Posture tab.",
-        "capability_status": "LIVE",
-        "status_note": "Offline bundle verify proven; same air-gap pattern UDS "
-                       "pioneered with Zarf.",
+            "a11oy includes Zarf/UDS bundle definitions. Offline verification "
+            "requires the actual bundle, attached signatures and attestations, "
+            "trusted verification material, and a recorded disconnected verification run.",
+        "capability_status": "UNAVAILABLE",
+        "status_note": "No disconnected verification of a concrete bundle observed by this feed.",
+        "evidence_required": "Bundle digest and a successful offline verifier result for that bundle.",
         "github": ["zarf-dev/zarf", "defenseunicorns/uds-core"],
         "sources": [_SRC_UDS_DOCS, _SRC_DU,
                     _repo_src("zarf-dev/zarf"), _repo_src("defenseunicorns/uds-core")],
@@ -147,14 +148,14 @@ _GAPS: List[Dict[str, Any]] = [
             "disconnected sites, there is no append-only, tamper-evident "
             "record of what actually ran, where and when.",
         "a11oy_capability":
-            "Every a11oy deploy emits a DSSE receipt (Ed25519) appended to a "
-            "hash-linked chain via a Pepr admission webhook; a duplicate "
-            "receipt is a hash collision and any payload mutation makes "
-            "re-verify reject. Chain durability is proven across cold "
-            "restarts (verifiable at /receipts/ and /pubkey).",
-        "capability_status": "LIVE",
-        "status_note": "Live receipt chain; rides the same Pepr webhook "
-                       "pattern UDS uses for policy.",
+            "a11oy includes DSSE receipt and hash-chain verification components. "
+            "Hash-chain integrity and signature verification are separate checks. "
+            "A deploy claim needs its actual receipt, verified signer and algorithm, "
+            "and separately observed persistence across a restart.",
+        "capability_status": "UNAVAILABLE",
+        "status_note": "No deploy signature, admission-webhook execution, or restart "
+                       "persistence verification observed by this feed.",
+        "evidence_required": "Deploy receipt, cryptographic verifier result, and restart persistence evidence.",
         "github": ["defenseunicorns/pepr"],
         "sources": [_SRC_DU, _repo_src("defenseunicorns/pepr")],
     },
@@ -166,13 +167,12 @@ _GAPS: List[Dict[str, Any]] = [
             "from the signed baseline; without a continuous integrity scan "
             "that drift stays invisible until something breaks.",
         "a11oy_capability":
-            "a11oy runs continuous drift guards \u2014 image-pin guards (reject "
-            "a multi-arch index pin in place of the amd64 child), GitHub\u2194HF "
-            "module-drift checks, and a server-side integrity scan exposed on "
-            "/metrics \u2014 that fail loud when a deployed artifact diverges "
-            "from its signed pin.",
-        "capability_status": "CI-GREEN",
-        "status_note": "Enforced in CI + on-box watchers; alerts on divergence.",
+            "a11oy source includes image-pin and GitHub\u2194HF drift checks. "
+            "Current enforcement requires the latest completed check for the "
+            "exact source revision and a comparison with the deployed artifact digest.",
+        "capability_status": "UNAVAILABLE",
+        "status_note": "No current CI run or deployed-artifact comparison observed by this feed.",
+        "evidence_required": "Completed check on the exact revision and matching runtime artifact evidence.",
         "github": ["defenseunicorns/uds-common", "defenseunicorns/uds-core"],
         "sources": [_SRC_UDS_DOCS,
                     _repo_src("defenseunicorns/uds-common"),
@@ -524,6 +524,12 @@ def register(app, ns: str = "a11oy") -> None:
                 "a11oy_capability": g["a11oy_capability"],
                 "capability_status": g["capability_status"],
                 "status_note": g.get("status_note", ""),
+                "runtime_evidence": {
+                    "state": "UNOBSERVED",
+                    "observed_this_process": False,
+                    "verification_required": g["evidence_required"],
+                    "scope": "upstream source reachability does not verify a11oy runtime artifacts",
+                },
                 "github": g.get("github", []),
                 "sources": srcs_out,
                 "sources_reachable": n_ok, "sources_total": len(srcs_out),
