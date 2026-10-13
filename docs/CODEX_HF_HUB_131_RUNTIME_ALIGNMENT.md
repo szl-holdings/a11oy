@@ -28,3 +28,7 @@ The runtime pins now live only in `requirements-runtime.txt`. The Dockerfile ins
 - proof pointer update only after those subjects exist
 
 Do not claim GitHub -> Hugging Face -> a-11-oy.com convergence from a dependency change. Do not update a11oy.net proof until that downstream evidence is immutable and source-bound. Issue `a11oy#2087` stays open until the runtime actually consumes 1.31.0.
+
+## Historical contract retained after the 1.33 successor
+
+The 1.31 source and Forge evidence above remain historical. The current image successor is described in `CODEX_HF_HUB_133_RUNTIME_ALIGNMENT.md`; its separate exact-version contract does not relabel these measurements or grant managed-storage admission. The shared-interpreter managed control/worker path is migrated together; the independent canonical publisher retains its own version and authority checks.

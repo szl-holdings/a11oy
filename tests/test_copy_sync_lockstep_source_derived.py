@@ -295,7 +295,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             ("        id: runtime\n        if: ${{ steps.admit.outputs.publish == 'true' }}\n",
              "        id: runtime\n"),
             ("      restart_required: ${{ steps.runtime.outputs.restart_required }}", "      restart_required: 'true'"),
-            ('"huggingface_hub==1.31.0"', '"huggingface_hub"'),
+            ('"huggingface_hub==1.33.0"', '"huggingface_hub"'),
             ("          persist-credentials: false\n", "          persist-credentials: true\n"),
         )
         for before, after in mutations:

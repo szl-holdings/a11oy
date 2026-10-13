@@ -528,7 +528,7 @@ def _artifact_object_worker_observation(raw):
             HF_HOME=str(directory / "object-worker-cache"), **trusted_artifact_environment())
         import requests
         import huggingface_hub
-        require(huggingface_hub.__version__ == "1.31.0")
+        require(huggingface_hub.__version__ == "1.33.0")
         with requests.Session() as session:
             session.headers.update(Authorization="Bearer " + os.environ["GH_TOKEN"], Accept="application/vnd.github+json")
             verify_native(session, context)
@@ -781,7 +781,7 @@ def main():
                 mark_boundary(result, "SDK_IMPORT")
                 import huggingface_hub
                 from huggingface_hub import HfApi
-                require(huggingface_hub.__version__ == "1.31.0")
+                require(huggingface_hub.__version__ == "1.33.0")
                 api = HfApi(endpoint="https://huggingface.co", token=os.environ["HF_TOKEN"])
                 # Match the admitted worker roots; never inherit a caller override.
                 mark_boundary(result, "TRUSTED_ROOTS")

@@ -11,13 +11,13 @@
 # image build and the runtime tests, not only the audit.
 #
 # Rationale for each dependency: docs/DOCKERFILE_NOTES.md §2.
-# huggingface_hub 1.31.0 is the admitted client (docs/CODEX_HF_HUB_131_RUNTIME_ALIGNMENT.md,
-# enforced by tests/test_hf_hub_131_source_contract.py). openai 3.x is not admitted.
+# huggingface_hub 1.33.0 is the successor client (docs/CODEX_HF_HUB_133_RUNTIME_ALIGNMENT.md,
+# enforced by tests/test_hf_hub_133_source_contract.py). openai 3.x is not admitted.
 fastapi==0.143.0
 uvicorn[standard]==0.54.0
 httpx==0.28.1
 starlette==1.7.0
-huggingface_hub==1.31.0
+huggingface_hub==1.33.0
 openai==2.43.0
 python-multipart==0.0.32
 cryptography==50.0.2

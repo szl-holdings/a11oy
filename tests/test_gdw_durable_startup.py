@@ -86,7 +86,7 @@ def admission():
         "legacy_guard": legacy,
         "provider": {"endpoint": "https://huggingface.co", "dataset_private": True, "bucket_private": True,
                      "resource_group_observation_sha256": "d" * 64, "audience_equivalence": "NOT_ESTABLISHED"},
-        "runtime": {"sdk_version": "1.31.0", "sqlite_version": sqlite3.sqlite_version,
+        "runtime": {"sdk_version": "1.33.0", "sqlite_version": sqlite3.sqlite_version,
                     "source_manifest": source_manifest(),
                     "source_manifest_sha256": hashlib.sha256(source.canonical(source_manifest())).hexdigest()},
         "snapshots": {label: snapshot(label) for label in startup._LABELS},
@@ -135,7 +135,7 @@ def test_sqlite_expected_value_cannot_be_detached_from_base_or_learned_from_host
     bind_base_observation(record)
     startup.parse_admission(startup.canonical(record))
     monkeypatch.setattr(source, "verify_installed_source", lambda *_a, **_k: pytest.fail("read source after version mismatch"))
-    with pytest.raises(startup.AdmissionBlocked): startup.verify_runtime(record, tmp_path, "b" * 40, "1.31.0")
+    with pytest.raises(startup.AdmissionBlocked): startup.verify_runtime(record, tmp_path, "b" * 40, "1.33.0")
 
 
 @pytest.mark.parametrize("path,value", [
@@ -154,6 +154,7 @@ def test_sqlite_expected_value_cannot_be_detached_from_base_or_learned_from_host
     (("provider", "dataset_private"), False),
     (("provider", "resource_group_observation_sha256"), "0" * 64),
     (("runtime", "sdk_version"), "1.23.0"),
+    (("runtime", "sdk_version"), "1.31.0"),
     (("retained_artifacts", "state"), "NOT_CAPTURED"),
     (("retained_artifacts", "identities_sha256"), "a" * 64),
     (("latency", "sample_count"), 0),
@@ -214,12 +215,12 @@ def test_actual_source_bytes_and_exact_first_cutover_revision_are_required(tmp_p
     record["runtime"]["source_manifest_sha256"] = hashlib.sha256(source.canonical(record["runtime"]["source_manifest"])).hexdigest()
     bind_base_observation(record)
     monkeypatch.setattr(source, "RUNTIME_INSTALL_ROOT", inputs)
-    startup.verify_runtime(record, app, "b" * 40, "1.31.0")
+    startup.verify_runtime(record, app, "b" * 40, "1.33.0")
     with pytest.raises(startup.AdmissionBlocked):
-        startup.verify_runtime(record, app, "e" * 40, "1.31.0")
+        startup.verify_runtime(record, app, "e" * 40, "1.33.0")
     (app / "serve.py").write_bytes(b"changed deployed source")
     with pytest.raises(startup.AdmissionBlocked, match="RUNTIME_INSTALLED_SOURCE_UNQUALIFIED"):
-        startup.verify_runtime(record, app, "b" * 40, "1.31.0")
+        startup.verify_runtime(record, app, "b" * 40, "1.33.0")
 
 
 @pytest.fixture
@@ -313,7 +314,7 @@ def native_startup(tmp_path, monkeypatch):
     monkeypatch.setattr(storage, "load_admitted_head", loaded)
     monkeypatch.setattr(storage, "WorkerFenceBackend", lambda *_a: backend)
     monkeypatch.setattr(storage, "_worker_call", worker)
-    monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(__version__="1.31.0"))
+    monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(__version__="1.33.0"))
     monkeypatch.setattr(startup, "verify_installed_credentials", lambda _root: events.append("installed_authority"))
     original_claim = storage.Writer.claim
 
@@ -710,5 +711,5 @@ def test_first_source_read_may_update_access_time_without_changing_identity(tmp_
         path = app / entry["path"]
         metadata = path.stat()
         os.utime(path, ns=(1, metadata.st_mtime_ns))
-    startup.verify_runtime(record, app, "b" * 40, "1.31.0")
+    startup.verify_runtime(record, app, "b" * 40, "1.33.0")
     assert (app / "serve.py").stat().st_atime_ns > 1

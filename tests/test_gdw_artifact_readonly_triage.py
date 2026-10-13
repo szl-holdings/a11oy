@@ -565,8 +565,8 @@ def test_workflow_only_manual_triage_with_fixed_artifact_and_no_publish_path():
         triggers["pull_request"]["paths"])
     contract_steps = jobs["contract"]["steps"]
     install = next(i for i, step in enumerate(contract_steps)
-                   if "huggingface_hub==1.31.0" in step.get("run", ""))
-    pause_cases = "tests/test_gdw_durable_acquisition.py::test_official_hf_131_pause_response_never_retries_and_requires_readback"
+                   if "huggingface_hub==1.33.0" in step.get("run", ""))
+    pause_cases = "tests/test_gdw_durable_acquisition.py::test_official_hf_133_pause_response_never_retries_and_requires_readback"
     cancellation = "tests/test_gdw_diagnostic_continuation.py::test_pause_process_control_stops_diagnostic_continuation"
     assert any(pause_cases in step.get("run", "") and cancellation in step["run"]
                for step in contract_steps[install + 1:])
@@ -633,7 +633,7 @@ def test_native_main_reaches_readonly_observation_with_real_private_output_conte
             raise RuntimeError("private-capture-test-marker")
         return {"capture_qualification": "SYNTHETIC_TEST_ONLY"}
     monkeypatch.setitem(sys.modules, "requests", SimpleNamespace(Session=Session))
-    monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(__version__="1.31.0", HfApi=api_factory))
+    monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(__version__="1.33.0", HfApi=api_factory))
     monkeypatch.setattr(triage, "verify_native", verified)
     monkeypatch.setattr(triage, "verify_prior_attempt", prior)
     monkeypatch.setattr(triage, "observe_capture", observation)
@@ -981,7 +981,7 @@ def test_worker_keeps_native_identity_prior_attempt_and_private_output_controls(
         return {"object": {"sha": "d" * 40 if defect == "source_changed" else source}}
     monkeypatch.setitem(sys.modules, "requests", SimpleNamespace(Session=Session))
     monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(
-        __version__="1.33.0" if defect == "sdk" else "1.31.0", HfApi=factory))
+        __version__="1.31.0" if defect == "sdk" else "1.33.0", HfApi=factory))
     monkeypatch.setattr(triage, "verify_native", verified)
     monkeypatch.setattr(triage, "verify_prior_attempt", prior)
     monkeypatch.setattr(triage, "github_json", current)

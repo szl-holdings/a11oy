@@ -40,6 +40,7 @@ jobs:
           tests/test_atelier_curated_snapshot.py
           tests/test_site_route_aliases.py
           tests/test_operator_auth_code_routes.py
+          tests/test_eval_operator_gate.py
           tests/test_second_brain_bridge.py
           tests/test_code_completion_boundaries.py
           tests/test_agent_loop_execution_guards.py
@@ -170,7 +171,7 @@ jobs:
       - name: Install exact core test dependencies
         run: pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Prove payload closure, canonical bytes, and path containment
-        run: pytest tests/test_prepare_huggingface_payload.py tests/test_publish_huggingface_payload.py tests/test_huggingface_payload_license_truth.py tests/test_payload_manifest_cross_platform.py tests/test_hf_hub_131_source_contract.py -q
+        run: pytest tests/test_prepare_huggingface_payload.py tests/test_publish_huggingface_payload.py tests/test_huggingface_payload_license_truth.py tests/test_payload_manifest_cross_platform.py tests/test_hf_hub_131_source_contract.py tests/test_hf_hub_133_source_contract.py -q
 
   frontdoor-source-integrity:
     name: HF workflow shape and public UTF-8 integrity
@@ -229,6 +230,8 @@ jobs:
           python-version: "3.12"
       - name: Install exact core test dependencies
         run: pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Install exact successor SDK for native transport qualification
+        run: python -m pip install --disable-pip-version-check --no-cache-dir "huggingface_hub==1.33.0" "hf-xet==1.7.0"
       - name: Prove GDW state, policy, drain, journal, and promotion contracts
         run: >-
           pytest

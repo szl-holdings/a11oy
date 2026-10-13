@@ -104,11 +104,12 @@ def test_historic_129_130_mismatch_remains_synthetic_hold() -> None:
     assert result["sandboxJobCreationAuthorized"] is False
 
 
-def test_current_repository_canonical_pins_match_admitted_131() -> None:
-    result = MODULE.evaluate_repository(ROOT)
-    assert result["auditPin"] == "1.31.0"
-    assert result["runtimePin"] == "1.31.0"
-    assert result["requiredVersion"] == "1.31.0"
+def test_current_repository_canonical_pins_match_successor_133() -> None:
+    from scripts import hf_hub_133_source_contract as successor
+    result = successor.evaluate_repository(ROOT)
+    assert result["auditPin"] == "1.33.0"
+    assert result["runtimePin"] == "1.33.0"
+    assert result["requiredVersion"] == "1.33.0"
     assert result["aligned"] is True
     assert result["disposition"] == "EVALUATION"
     assert result["productionAuthorized"] is False
@@ -151,7 +152,8 @@ def test_managed_storage_sdk_matches_the_admitted_runtime_contract() -> None:
         and any(isinstance(target, ast.Name) and target.id == "SDK_VERSION"
                 for target in node.targets)
     ]
-    assert values == [MODULE.HF_HUB_VERSION]
+    from scripts import hf_hub_133_source_contract as successor
+    assert values == [successor.HF_HUB_VERSION]
 
 
 def _runtime_equality_pins(text: str) -> dict[str, str]:
@@ -259,7 +261,8 @@ def test_historic_openai_audit_380_versus_runtime_243_is_synthetic_hold() -> Non
     assert historic["openai"] == ("3.8.0", "2.43.0")
     runtime = _runtime_equality_pins(MODULE.runtime_install_text(ROOT))
     assert runtime["openai"] == "2.43.0"
-    assert runtime["huggingface_hub"] == MODULE.HF_HUB_VERSION
+    from scripts import hf_hub_133_source_contract as successor
+    assert runtime["huggingface_hub"] == successor.HF_HUB_VERSION
 
 
 def test_audited_report_must_contain_every_runtime_pin(tmp_path: Path) -> None:

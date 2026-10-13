@@ -819,8 +819,8 @@ REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee
 # wins, live source binding), never an exact run, artifact or parent identity.
 # These exact job bodies and their complete local helper closure establish
 # reviewed source coverage only; they never establish provider success.
-REVIEWED_PREFLIGHT_JOB_SHA256 = "1d47071a0e9e50356e34d55528e7887fef145bf37c439cec5775068648f06e5f"
-REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "3bd53226e383f4637f928d4706492d4d7f0823ea0b36b33ec389830afc6fc450"
+REVIEWED_PREFLIGHT_JOB_SHA256 = "cc95e2fa768160704151d4ad230c5833136dd80b70b95fa5c3d34a1b3978b17e"
+REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "e207f4f820f5914a0c9b847360dd0bd92fc25a147600fa556a7012d46821f31e"
 # This exact post-deploy readiness job has no provider credential, verifies the
 # candidate at both literal reviewed origins, and gates relock on success.
 REVIEWED_READINESS_VERDICT_JOB_SHA256 = "93ed2a8bc867b474d01ac982fc120cc24d0425c4a0d0464906fe922fb2f1110c"
@@ -834,7 +834,7 @@ REVIEWED_DEPLOY_HELPERS_SHA256 = {
     # Read-only wait for the deployed revision after a convergence write.
     ".github/scripts/await_hf_runtime_serving.py": "2fb80ffe94124f359e55166f51e2c24105033348adc624421619a4311d42b98e",
     "scripts/configure_hf_series_a_runtime.py": "1495ac166237c48e84eadf6b4200ccbcf03dd7d545cc7758ef70db5175c03687",
-    "scripts/configure_hf_gdw_runtime.py": "289c0a3d0896c3b10321e2aa3f4543188e238cf22b1b79d632c98cbf23ba0462",
+    "scripts/configure_hf_gdw_runtime.py": "fb38e48af62c2ac4fd0d8eb2b5965e2e3953fc96814b32ac81047df60d167739",
     # Installed-authority verifier imported by both configure helpers, with
     # its pinned verification key and static fallback source.
     "scripts/verify_installed_authority.py": "2d9465f393dbaa08754b02d6295abade1134a7dbc843cdab48a6ad70867fb68e",

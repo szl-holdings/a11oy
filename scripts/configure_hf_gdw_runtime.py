@@ -35,7 +35,9 @@ CREDENTIAL_REGISTRY_SECRET = "GDW_CREDENTIALS_JSON"
 CREDENTIAL_KEY_ID = "gdw-operator-v1"
 MANAGED_MODE = "private-dataset-v1"
 MANAGED_EXPORT_GUARD = "durable-private-dataset-v1"
-MANAGED_SDK_VERSION = "1.31.0"
+# Managed admission reads spawn gdw_durable_storage workers using this same
+# interpreter. The control and storage clients must share one exact SDK.
+MANAGED_SDK_VERSION = "1.33.0"
 MANAGED_PROTOCOL_LIMIT = 128 * 1024
 MANAGED_RESPONSE_LIMIT = 512 * 1024
 MANAGED_MAX_SECONDS = 120

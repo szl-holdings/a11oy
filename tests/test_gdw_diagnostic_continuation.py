@@ -282,11 +282,11 @@ def test_fence_artifact_reader_accepts_sdk_shaped_empty_and_present_generators(t
 
 
 @pytest.mark.parametrize("present", [False, True])
-def test_fence_artifact_reader_uses_official_hf_131_mock_transport(
+def test_fence_artifact_reader_uses_official_hf_133_mock_transport(
         tmp_path, monkeypatch, present):
     huggingface_hub = pytest.importorskip("huggingface_hub")
     httpx = pytest.importorskip("httpx")
-    assert huggingface_hub.__version__ == "1.31.0"
+    assert huggingface_hub.__version__ == "1.33.0"
     from huggingface_hub.utils import _detect_agent
     from huggingface_hub.utils._http import default_client_factory
 
@@ -342,9 +342,9 @@ def test_fence_artifact_reader_uses_official_hf_131_mock_transport(
         assert storage._value(observed, "xet_hash") == "c" * 64
 
 
-def test_official_hf_131_sends_all_152_missing_additions_in_one_sdk_batch(monkeypatch):
+def test_official_hf_133_sends_all_152_missing_additions_in_one_sdk_batch(monkeypatch):
     huggingface_hub = pytest.importorskip("huggingface_hub")
-    assert huggingface_hub.__version__ == "1.31.0"
+    assert huggingface_hub.__version__ == "1.33.0"
     api = huggingface_hub.HfApi(endpoint=storage.ENDPOINT, token=False)
     calls = []
     monkeypatch.setattr(api, "_batch_bucket_files",
@@ -361,12 +361,12 @@ def test_official_hf_131_sends_all_152_missing_additions_in_one_sdk_batch(monkey
     assert calls[0][1]["copy"] == calls[0][1]["delete"] == []
 
 
-def test_official_hf_131_batch_uses_one_exact_add_only_http_request(
+def test_official_hf_133_batch_uses_one_exact_add_only_http_request(
         tmp_path, monkeypatch):
     huggingface_hub = pytest.importorskip("huggingface_hub")
     httpx = pytest.importorskip("httpx")
-    assert huggingface_hub.__version__ == "1.31.0"
-    from huggingface_hub.hf_api import _BucketAddFile
+    assert huggingface_hub.__version__ == "1.33.0"
+    from huggingface_hub._buckets import _BucketAddFile
     from huggingface_hub.utils import _detect_agent
     from huggingface_hub.utils._http import default_client_factory
 
@@ -428,12 +428,12 @@ def test_official_hf_131_batch_uses_one_exact_add_only_http_request(
 @pytest.mark.parametrize("failure", [
     "retryable_status", "redirect", "timeout", "malformed_response",
 ])
-def test_official_hf_131_batch_ambiguous_failure_is_never_resubmitted(
+def test_official_hf_133_batch_ambiguous_failure_is_never_resubmitted(
         tmp_path, monkeypatch, failure):
     huggingface_hub = pytest.importorskip("huggingface_hub")
     httpx = pytest.importorskip("httpx")
-    assert huggingface_hub.__version__ == "1.31.0"
-    from huggingface_hub.hf_api import _BucketAddFile
+    assert huggingface_hub.__version__ == "1.33.0"
+    from huggingface_hub._buckets import _BucketAddFile
     from huggingface_hub.utils import _detect_agent
     from huggingface_hub.utils._http import default_client_factory
 
@@ -1112,3 +1112,73 @@ def test_pause_rechecks_the_complete_namespace_immediately_before_mutation(monke
     assert result["pause_submitted"] is True
     assert result["pause_acknowledgement"] == "ACKNOWLEDGED"
     assert events == ["complete-namespace", "pause"]
+
+
+@pytest.mark.parametrize("status", [200, 422])
+def test_successor_failed_bucket_operations_remain_nonacknowledged(tmp_path, monkeypatch, status):
+    import json
+    import httpx
+    huggingface_hub = pytest.importorskip("huggingface_hub")
+    from huggingface_hub._buckets import _BucketAddFile
+    from huggingface_hub.utils import _detect_agent
+    from huggingface_hub.utils._http import default_client_factory
+    import gdw_durable_storage as storage
+
+    assert huggingface_hub.__version__ == "1.33.0"
+    monkeypatch.setattr(_detect_agent, "_registry", None)
+    monkeypatch.setattr(_detect_agent.constants, "AGENT_HARNESSES_PATH", str(tmp_path / "agents.json"))
+    requests = []
+    path = f"{storage.ARTIFACT_PREFIX}/{'a' * 64}/{'b' * 64}.json"
+    def response(request):
+        assert "authorization" not in request.headers
+        if request.url.path == "/api/agent-harnesses":
+            return httpx.Response(200, json={"standardEnvVars": [], "harnesses": {}}, request=request)
+        requests.append(request)
+        assert request.method == "POST"
+        assert request.url.path == "/api/buckets/SZLHOLDINGS/szl-evidence/batch"
+        return httpx.Response(status, json={"failed": [{"path": path, "error": "fixture refusal"}]}, request=request)
+    huggingface_hub.set_client_factory(lambda: storage.bounded_hub_client(transport=httpx.MockTransport(response)))
+    try:
+        api = huggingface_hub.HfApi(endpoint=storage.ENDPOINT, token=False)
+        op = _BucketAddFile(source=b"x", destination=path, xet_hash="c" * 64, size=1)
+        with pytest.raises(storage.StorageBlocked, match="^STORAGE_OUTCOME_UNCERTAIN$"):
+            storage._safe_call(lambda: api._batch_bucket_files(storage.BUCKET, add=[op], token=False))
+    finally:
+        huggingface_hub.set_client_factory(default_client_factory)
+    assert len(requests) == 1
+
+
+def test_official_hf_133_storage_constructor_requires_exact_installed_identity(monkeypatch):
+    huggingface_hub = pytest.importorskip("huggingface_hub")
+    from huggingface_hub.utils._http import default_client_factory
+    import gdw_durable_storage as storage
+
+    assert huggingface_hub.__version__ == storage.SDK_VERSION == "1.33.0"
+    try:
+        api = storage._hub_api("synthetic-test-token")
+        assert isinstance(api, huggingface_hub.HfApi)
+        assert api.endpoint == storage.ENDPOINT
+        monkeypatch.setattr(huggingface_hub, "__version__", "1.31.0")
+        with pytest.raises(storage.StorageBlocked, match="^QUALIFIED_SDK_AND_TOKEN_REQUIRED$"):
+            storage._hub_api("synthetic-test-token")
+    finally:
+        huggingface_hub.set_client_factory(default_client_factory)
+
+
+def test_official_hf_133_control_and_worker_require_same_installed_identity(monkeypatch):
+    huggingface_hub = pytest.importorskip("huggingface_hub")
+    from huggingface_hub.utils._http import default_client_factory
+    from scripts import configure_hf_gdw_runtime as config
+    import gdw_durable_storage as storage
+
+    assert huggingface_hub.__version__ == config.MANAGED_SDK_VERSION == storage.SDK_VERSION == "1.33.0"
+    monkeypatch.setenv("HF_TOKEN", "synthetic-test-token")
+    try:
+        api = config._managed_api()
+        assert isinstance(api, huggingface_hub.HfApi)
+        assert api.endpoint == storage.ENDPOINT
+        monkeypatch.setattr(huggingface_hub, "__version__", "1.31.0")
+        with pytest.raises(config.RuntimeConfigError):
+            config._managed_api()
+    finally:
+        huggingface_hub.set_client_factory(default_client_factory)

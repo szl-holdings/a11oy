@@ -305,17 +305,18 @@ def test_pause_transport_requires_2xx_and_never_retries(outcome):
 
 @pytest.mark.parametrize("outcome,readback_stage,expected", [
     ("valid", "PAUSED", "ACKNOWLEDGED"),
+    ("null_hardware", "PAUSED", "ACKNOWLEDGED"),
     ("malformed", "PAUSED", "NOT_ESTABLISHED"),
     ("non_paused", "RUNTIME_ERROR", "BLOCKED"),
     ("lost_reply", "PAUSED", "NOT_ESTABLISHED"),
     ("keyboard_interrupt", "PAUSED", KeyboardInterrupt),
     ("system_exit", "PAUSED", SystemExit),
 ])
-def test_official_hf_131_pause_response_never_retries_and_requires_readback(
+def test_official_hf_133_pause_response_never_retries_and_requires_readback(
         tmp_path, monkeypatch, outcome, readback_stage, expected):
     huggingface_hub = pytest.importorskip("huggingface_hub")
     httpx = pytest.importorskip("httpx")
-    assert huggingface_hub.__version__ == "1.31.0"
+    assert huggingface_hub.__version__ == "1.33.0"
     from huggingface_hub.utils import _detect_agent
     from huggingface_hub.utils._http import default_client_factory
 
@@ -339,8 +340,11 @@ def test_official_hf_131_pause_response_never_retries_and_requires_readback(
             raise expected()
         if outcome == "lost_reply":
             raise httpx.ReadTimeout("synthetic lost reply", request=request)
-        if outcome == "malformed":
+        if outcome == "null_hardware":
+            # Official SDK1.32 fixed the provider's valid null hardware response.
             return httpx.Response(200, json={"stage": "PAUSED", "hardware": None}, request=request)
+        if outcome == "malformed":
+            return httpx.Response(200, json={"stage": "PAUSED", "hardware": ["invalid"]}, request=request)
         stage = "PAUSED" if outcome == "valid" else "RUNTIME_ERROR"
         return httpx.Response(200, json={"stage": stage,
             "hardware": {"current": None, "requested": "cpu-basic"}}, request=request)

@@ -221,7 +221,7 @@ def parse_admission(data: bytes) -> dict:
     _hex(provider["resource_group_observation_sha256"])
     runtime = _shape(value["runtime"], {"sdk_version", "sqlite_version", "source_manifest", "source_manifest_sha256",
                                         "base_observation"})
-    _fixed(runtime["sdk_version"], "1.31.0")
+    _fixed(runtime["sdk_version"], "1.33.0")
     if type(runtime["sqlite_version"]) is not str or re.fullmatch(r"3\.\d{1,3}\.\d{1,3}", runtime["sqlite_version"]) is None:
         raise AdmissionBlocked("ADMISSION_SQLITE_VERSION_INVALID")
     _hex(runtime["source_manifest_sha256"])
