@@ -13,7 +13,6 @@ const args = Object.fromEntries(process.argv.slice(2).reduce((rows, item, index,
   return rows;
 }, []));
 assert(args['--module'] && args['--out'] && args['--package'], 'module, out and package required');
-const root = process.cwd();
 const sha = execFileSync('git', ['rev-parse', 'HEAD'], {encoding: 'utf8'}).trim();
 assert.equal(sha, process.env.SOURCE_SHA, 'checkout must be exact candidate');
 const pkg = path.resolve(args['--package']);
@@ -46,7 +45,7 @@ for (const name of expectedFiles) {
 const env = Object.fromEntries(['PATH', 'HOME', 'TMPDIR', 'LANG', 'SYSTEMROOT'].filter(k => process.env[k]).map(k => [k, process.env[k]]));
 Object.assign(env, {GRADIO_ANALYTICS_ENABLED: 'False', HF_HUB_OFFLINE: '1',
   HF_HUB_DISABLE_IMPLICIT_TOKEN: '1', GRADIO_SERVER_NAME: '127.0.0.1', GRADIO_SERVER_PORT: '7874',
-  PYTHONUNBUFFERED: '1'});
+  PYTHONUNBUFFERED: '1', PYTHONDONTWRITEBYTECODE: '1'});
 const origin = 'http://127.0.0.1:7874';
 const child = spawn('python', ['app.py'], {cwd: pkg, env, stdio: ['ignore', 'pipe', 'pipe']});
 let log = '';
@@ -125,15 +124,16 @@ try {
         contrasts.push({text: el.textContent.slice(0,70), ratio, minimum: large ? 3 : 4.5});
       }
       return {width: innerWidth, scrollWidth: document.documentElement.scrollWidth, violations, targets, contrasts,
-        font: getComputedStyle(root).fontFamily, mainBackground: getComputedStyle(root).backgroundColor,
+        forcedColors: matchMedia('(forced-colors: active)').matches, specimenBorder: getComputedStyle(document.querySelector('.gb-specimen')).borderTopStyle, font: getComputedStyle(root).fontFamily, mainBackground: getComputedStyle(root).backgroundColor,
         specimenBackground: getComputedStyle(document.querySelector('.gb-specimen')).backgroundColor};
     });
     check(`${name}: reflow`, metrics.scrollWidth <= width + 1 && metrics.violations.length === 0, metrics.violations);
     check(`${name}: 44px primary and navigation targets`, metrics.targets.every(t => t.height >= 44 && t.width >= 24), metrics.targets);
-    check(`${name}: native roles resolve`, metrics.font.includes('system-ui') && metrics.mainBackground !== metrics.specimenBackground);
+    check(`${name}: native roles resolve`, metrics.font.includes('system-ui') && (variant.forcedColors === 'active' ? metrics.forcedColors && metrics.specimenBorder === 'solid' : metrics.mainBackground !== metrics.specimenBackground));
     if (variant.forcedColors !== 'active') check(`${name}: opaque-ground text contrast`, metrics.contrasts.every(c => !c.unsupported && c.ratio >= c.minimum), metrics.contrasts.filter(c => c.unsupported || c.ratio < c.minimum));
     await page.keyboard.press('Tab');
     check(`${name}: first keyboard target is skip link`, await page.locator('.gb-skip').evaluate(el => el === document.activeElement));
+    check(`${name}: keyboard focus visibly outlined`, await page.locator('.gb-skip').evaluate(el => { const s = getComputedStyle(el); return s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) >= 2 && el.getBoundingClientRect().top >= 0; }));
     await page.keyboard.press('Enter');
     check(`${name}: skip link focuses main`, await page.locator('#bench-main').evaluate(el => el === document.activeElement));
     const disclosure = page.locator('details').first();
@@ -149,6 +149,7 @@ try {
     check(`${name}: no page errors`, errors.length === 0, errors);
     await page.evaluate(() => scrollTo(0,0));
     await page.screenshot({path: path.join(out, name + '.png'), fullPage: true});
+    await page.screenshot({path: path.join(out, name + '-viewport.png')});
     observations.cases.push({variant, metrics, page_errors: errors});
     await context.close();
   }
