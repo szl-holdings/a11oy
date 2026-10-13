@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 import gradio as gr
-from native_presentation import css, head, render
+from native_presentation import head, render
 
 ROOT = Path(__file__).resolve().parent
 LEADERBOARD = json.loads((ROOT / "leaderboard.json").read_text(encoding="utf-8"))
@@ -18,5 +18,5 @@ with gr.Blocks(title="Governed Agent Bench", analytics_enabled=False, fill_width
             apply_default_css=False, js_on_load=None)
 
 if __name__ == "__main__":
-    demo.launch(css=css(), head=head(), footer_links=[],
+    demo.launch(head=head(), footer_links=[],
                 theme=gr.themes.Base(font=["system-ui"], font_mono=["ui-monospace"]))

@@ -52,6 +52,7 @@ class NativePresentationTests(unittest.TestCase):
             self.assertEqual(indexed[row["installed_path"]]["sha256"], row["sha256"])
         self.assertIn("--action-press-bg", self.native.css())
         self.assertIn("data:image/svg+xml;base64,", self.native.head())
+        self.assertIn('<style id="bench-native-style">' + self.native.css() + "</style>", self.native.head())
 
     def test_presentation_preserves_exact_original_evidence_and_inputs(self):
         before = copy.deepcopy((self.leaderboard, self.publication, self.result))

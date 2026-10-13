@@ -73,7 +73,8 @@ def css() -> str:
 def head() -> str:
     return ('<meta name="description" content="Committed governability benchmark output, '
             'with explicit evidence limits and immutable source identity.">'
-            f'<link rel="icon" type="image/svg+xml" href="{_image("szl-icon-32.svg")}">')
+            f'<link rel="icon" type="image/svg+xml" href="{_image("szl-icon-32.svg")}">'
+            '<style id="bench-native-style">' + css() + '</style>')
 
 
 def _text(value: object) -> str:
