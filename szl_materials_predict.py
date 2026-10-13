@@ -989,16 +989,17 @@ def _ledger(receipt):
     backend = "szl_lake_ingest.record_receipt"
     try:
         import szl_lake_ingest  # type: ignore
-        from szl_lake_store import receipt_identity
+        from szl_lake_store import normalize_organ, receipt_identity
         identity_input = dict(receipt)
         identity_input.setdefault("organ", RECEIPT_ORGAN)
+        expected_organ = normalize_organ(identity_input["organ"])
         rid = receipt_identity(identity_input)
     except Exception as exc:
         return {"recorded": False, "accepted": False, "duplicate": False,
                 "state": "REJECTED", "write_attempted": False,
                 "backend": backend, "reason": type(exc).__name__,
                 "organ": RECEIPT_ORGAN}
-    common = {"backend": backend, "organ": RECEIPT_ORGAN, "receipt_id": rid,
+    common = {"backend": backend, "organ": expected_organ, "receipt_id": rid,
               "remote_publication": "NOT_ACKNOWLEDGED"}
     try:
         res = szl_lake_ingest.record_receipt(receipt, organ=RECEIPT_ORGAN)
@@ -1010,11 +1011,20 @@ def _ledger(receipt):
         return dict(common, recorded=None, accepted=False, duplicate=False,
                     state="UNKNOWN", retry_admitted=False,
                     reason="ledger hook returned a non-object status")
+    try:
+        # A malformed status is not an acknowledgement, even after a write.
+        res = json.loads(json.dumps(res, allow_nan=False))
+    except (ValueError, TypeError, OverflowError, RecursionError):
+        return dict(common, recorded=None, accepted=False, duplicate=False,
+                    state="UNKNOWN", retry_admitted=False,
+                    result={"serialization": "UNAVAILABLE",
+                            "reason": "ledger status was not strict JSON"})
     accepted = res.get("accepted") is True
     duplicate = res.get("duplicate") is True
     rejected = (res.get("state") == "REJECTED"
                 and res.get("write_attempted") is False)
-    identity_matches = ("receipt_id" not in res or res["receipt_id"] == rid)
+    identity_matches = (res.get("receipt_id") == rid
+                        and res.get("organ") == expected_organ)
     if (accepted and not duplicate and not rejected and identity_matches
             and res.get("state") in (None, "LOCAL_ACKNOWLEDGED")):
         state, recorded = "LOCAL_ACKNOWLEDGED", True
@@ -1025,12 +1035,7 @@ def _ledger(receipt):
         state, recorded = "REJECTED", False
     else:
         state, recorded = "UNKNOWN", None
-    try:
-        json.dumps(res, allow_nan=False)
-        safe_result = res
-    except (ValueError, TypeError, OverflowError):
-        safe_result = {"serialization": "UNAVAILABLE",
-                       "reason": "ledger status was not strict JSON"}
+    safe_result = res
     return dict(common, recorded=recorded, accepted=accepted if recorded else False,
                 duplicate=duplicate if recorded else False,
                 state=state, retry_admitted=False, result=safe_result)

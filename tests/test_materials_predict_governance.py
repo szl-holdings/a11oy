@@ -92,7 +92,12 @@ class Harness:
 
         def record_receipt(receipt, organ="a11oy"):
             counts["ledger"] += 1
-            return {"accepted": True, "test_double": True}
+            from szl_lake_store import normalize_organ, receipt_identity
+            identity_input = dict(receipt)
+            identity_input.setdefault("organ", organ)
+            return {"accepted": True, "duplicate": False, "test_double": True,
+                    "receipt_id": receipt_identity(identity_input),
+                    "organ": normalize_organ(identity_input["organ"])}
 
         lake.record_receipt = record_receipt
         khipu = types.ModuleType("szl_khipu")
@@ -270,7 +275,7 @@ def test_duplicate_ledger_receipt_is_truthfully_reported_as_already_recorded(h, 
         identity_input = dict(receipt)
         identity_input.setdefault("organ", organ)
         return {"accepted": False, "duplicate": True,
-                "receipt_id": receipt_identity(identity_input)}
+                "receipt_id": receipt_identity(identity_input), "organ": organ}
 
     monkeypatch.setattr(sys.modules["szl_lake_ingest"], "record_receipt", duplicate)
     resp = h.client.post(PREFIXES[0] + "/predict", json={"demo": "green"})
@@ -285,13 +290,19 @@ def test_duplicate_ledger_receipt_is_truthfully_reported_as_already_recorded(h, 
 def test_non_json_ledger_status_cannot_break_response_after_write(h, monkeypatch):
     def non_json_status(receipt, organ="a11oy"):
         h.counts["ledger"] += 1
-        return {"accepted": True, "duplicate": False, "energy": float("nan")}
+        from szl_lake_store import receipt_identity
+        identity_input = dict(receipt)
+        identity_input.setdefault("organ", organ)
+        return {"accepted": True, "duplicate": False, "energy": float("nan"),
+                "receipt_id": receipt_identity(identity_input), "organ": organ}
 
     monkeypatch.setattr(sys.modules["szl_lake_ingest"], "record_receipt", non_json_status)
     resp = h.client.post(PREFIXES[0] + "/predict", json={"demo": "green"})
     assert resp.status_code == 200
     body = resp.json()
-    assert body["ledger"]["recorded"] is True
+    assert body["ledger"]["recorded"] is None
+    assert body["ledger"]["state"] == "UNKNOWN"
+    assert body["ledger"]["accepted"] is False
     assert body["ledger"]["result"]["serialization"] == "UNAVAILABLE"
     json.dumps(body, allow_nan=False)
     assert h.counts["ledger"] == 1
