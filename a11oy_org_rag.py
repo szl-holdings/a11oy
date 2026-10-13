@@ -1787,6 +1787,69 @@ def _lambda(axis: list[float]) -> float:
     return math.exp(sum(math.log(x) for x in clamped) / len(clamped))
 
 
+# Explicit model-free reference retrieval. A caller detects support through this
+# constant plus the ``lexical_only`` query parameter, never through version text.
+LEXICAL_REFERENCE_CONTRACT = "szl.a11oy.org_rag.lexical_reference/v1"
+_LEXICAL_EXCERPT_MAX_BYTES = 2048
+_LEXICAL_SUPPORT_STATEMENT = (
+    "Lexical scores rank token overlap between the question and indexed text. "
+    "They are not verified factual support, entailment, or calibrated correctness."
+)
+_BUNDLED_REVISION = re.compile(r"^bundled:[^@\s]+@([0-9a-f]{7,40}):")
+
+
+def _utf8_prefix_end(data: bytes, limit: int) -> int:
+    """Largest end <= limit that falls on a code-point boundary of valid UTF-8."""
+    end = min(len(data), limit)
+    while 0 < end < len(data) and (data[end] & 0xC0) == 0x80:
+        end -= 1
+    return end
+
+
+def _source_revision(source: object) -> tuple[str | None, str]:
+    match = _BUNDLED_REVISION.match(source) if isinstance(source, str) else None
+    if match is None:
+        return None, "NOT_RECORDED_IN_GENERATION"
+    revision = match.group(1)
+    return revision, "FULL_COMMIT" if len(revision) == 40 else "ABBREVIATED_COMMIT"
+
+
+def _lexical_reference_binding(body: object, stored_sha256: object) -> dict[str, Any] | None:
+    """Recompute the full-chunk digest and bind a bounded UTF-8 byte excerpt.
+
+    Returns ``None`` when the stored digest does not match the stored bytes. The
+    excerpt is a byte-exact prefix of the chunk and is never the digest preimage.
+    """
+    if not isinstance(body, str) or not isinstance(stored_sha256, str):
+        return None
+    try:
+        raw = body.encode("utf-8")
+    except UnicodeEncodeError:
+        return None
+    if not raw or hashlib.sha256(raw).hexdigest() != stored_sha256:
+        return None
+    end = _utf8_prefix_end(raw, _LEXICAL_EXCERPT_MAX_BYTES)
+    excerpt = raw[:end]
+    return {
+        "chunk_sha256": stored_sha256,
+        "chunk_utf8_bytes": len(raw),
+        "excerpt": excerpt.decode("utf-8"),
+        "excerpt_utf8_span": [0, end],
+        "excerpt_sha256": hashlib.sha256(excerpt).hexdigest(),
+        "excerpt_truncated": end < len(raw),
+    }
+
+
+def _lexical_unavailable(q: str, reason_code: str, integrity_state: str,
+                         honest_error: str, **extra: Any) -> dict[str, Any]:
+    return {"ok": False, "i_dont_know": True, "query": q, "chunks": [],
+            "lexical_contract": LEXICAL_REFERENCE_CONTRACT,
+            "retrieval_method": "lexical", "inference": "NOT_INVOKED",
+            "embedder_invoked": False, "router_dispatch_count": 0,
+            "receipt_emitted": False, "reason_code": reason_code,
+            "integrity_state": integrity_state, "honest_error": honest_error, **extra}
+
+
 _RECOVERY_FORWARD = (
     "OBSERVED",
     "TRIAGED",
@@ -2458,7 +2521,8 @@ def query(q: str, k: int = 6, repo: str | None = None,
           hyde_text: str | None = None,
           emit_receipt: Callable[[str, dict], dict] | None = None,
           load_embedder: bool = False,
-          source_witness: dict[str, str] | None = None) -> dict[str, Any]:
+          source_witness: dict[str, str] | None = None,
+          lexical_only: bool = False) -> dict[str, Any]:
     """Two-stage Λ-weighted agentic-RAG query.
 
     Returns grounded chunks (above the Λ relevance floor) each with M2M
@@ -2467,42 +2531,96 @@ def query(q: str, k: int = 6, repo: str | None = None,
     recall (HyDE) instead of the bare query.  By default this uses only the
     published index and an already loaded embedder, with no model load or write.
     An explicit command path may opt into model loading and receipt emission.
+
+    ``lexical_only=True`` selects the model-free reference mode. It never looks
+    up an embedder (even one already loaded), refuses HyDE, model loading and
+    receipts, searches only corpus chunks of the active generation, and binds the
+    sealed generation digest plus every recalled chunk's recomputed full-content
+    SHA-256. Any mismatch or unreadable suppression state fails closed.
     """
+    if lexical_only is not False:
+        if lexical_only is not True:
+            return _lexical_unavailable(q, "LEXICAL_ONLY_FLAG_INVALID", "REFUSED",
+                                        "lexical_only must be exactly True or False")
+        if hyde_text is not None or emit_receipt is not None or load_embedder is not False:
+            return _lexical_unavailable(
+                q, "LEXICAL_ONLY_ARGUMENT_CONFLICT", "REFUSED",
+                "lexical-only retrieval refuses HyDE, model loading and receipts")
     _rehydrate_runtime_state()
     if not _BUILD_META.get("built"):
-        return {"ok": False, "i_dont_know": True,
-                "honest_error": _BUILD_META.get("honest_error") or
-                "org index not built — call /api/a11oy/code/rag/index first",
-                "integrity_state": _BUILD_META.get("integrity_state", "UNAVAILABLE"),
-                "storage_state": _BUILD_META.get("storage_state"),
-                "query": q, "chunks": []}
+        unbuilt = {"ok": False, "i_dont_know": True,
+                   "honest_error": _BUILD_META.get("honest_error") or
+                   "org index not built — call /api/a11oy/code/rag/index first",
+                   "integrity_state": _BUILD_META.get("integrity_state", "UNAVAILABLE"),
+                   "storage_state": _BUILD_META.get("storage_state"),
+                   "query": q, "chunks": []}
+        if lexical_only:
+            unbuilt = _lexical_unavailable(
+                q, "LEXICAL_REFERENCE_INDEX_UNAVAILABLE", unbuilt["integrity_state"],
+                unbuilt["honest_error"], storage_state=unbuilt["storage_state"])
+        return unbuilt
+    generation_row = None
     with _SNAPSHOT_LOCK:
         conn = None
         try:
             conn = _db_readonly()
             conn.execute("BEGIN")
             generation_id = _active_generation(conn)
+            if lexical_only and generation_id:
+                generation_row = conn.execute(
+                    "SELECT status,digest_sha256 FROM org_generations WHERE generation_id=?",
+                    (generation_id,),
+                ).fetchone()
             graph_snapshot = _GRAPH
             meta_snapshot = dict(_BUILD_META)
         except Exception as exc:
             if conn is not None:
                 conn.close()
             if isinstance(exc, _ReadIndexUnavailable):
+                if lexical_only:
+                    return _lexical_unavailable(
+                        q, "LEXICAL_REFERENCE_INDEX_UNAVAILABLE", "UNAVAILABLE", str(exc),
+                        storage_state=exc.storage_state)
                 return {"ok": False, "i_dont_know": True, "query": q,
                         "chunks": [], "integrity_state": "UNAVAILABLE",
                         "storage_state": exc.storage_state,
                         "honest_error": str(exc)}
+            failed = ("published Brain index unavailable for read: "
+                      f"{type(exc).__name__}")
+            if lexical_only:
+                return _lexical_unavailable(
+                    q, "LEXICAL_REFERENCE_INDEX_UNAVAILABLE", "FAILED_CLOSED", failed)
             return {"ok": False, "i_dont_know": True, "query": q,
                     "chunks": [], "integrity_state": "FAILED_CLOSED",
-                    "honest_error": ("published Brain index unavailable for read: "
-                                     f"{type(exc).__name__}")}
+                    "honest_error": failed}
     if generation_id and generation_id != meta_snapshot.get("generation_id"):
         conn.close()
+        mismatch = "Brain generation/graph snapshot mismatch; retry after rebuild"
+        if lexical_only:
+            return _lexical_unavailable(
+                q, "LEXICAL_REFERENCE_GENERATION_CHANGED", "FAILED_CLOSED", mismatch)
         return {"ok": False, "i_dont_know": True, "query": q, "chunks": [],
-                "honest_error": "Brain generation/graph snapshot mismatch; retry after rebuild",
+                "honest_error": mismatch,
                 "integrity_state": "FAILED_CLOSED"}
-    embed_fn = _maybe_embedder(load=load_embedder)
+    if lexical_only:
+        sealed_digest = meta_snapshot.get("generation_digest_sha256")
+        if not generation_id:
+            conn.close()
+            return _lexical_unavailable(
+                q, "LEXICAL_REFERENCE_REQUIRES_ACTIVE_GENERATION", "UNAVAILABLE",
+                "an unversioned index has no generation identity to bind")
+        if (generation_row is None or generation_row["status"] != "ACTIVE"
+                or not isinstance(sealed_digest, str) or not sealed_digest
+                or generation_row["digest_sha256"] != sealed_digest):
+            conn.close()
+            return _lexical_unavailable(
+                q, "LEXICAL_REFERENCE_GENERATION_DIGEST_MISMATCH", "FAILED_CLOSED",
+                "active generation row does not match the verified generation digest",
+                generation_id=generation_id)
+    # The lexical reference mode never reaches the embedder lookup.
+    embed_fn = None if lexical_only else _maybe_embedder(load=load_embedder)
     recall_text = hyde_text or q
+    lexical_backend = "fts5"
     # Stage 1: lexical recall (FTS5 or LIKE fallback).
     rows: list[dict[str, Any]] = []
     try:
@@ -2523,6 +2641,7 @@ def query(q: str, k: int = 6, repo: str | None = None,
                 for row in conn.execute(sql, args)]
     except Exception:
         # LIKE fallback (non-FTS5 runtime) — labeled weaker.
+        lexical_backend = "like_fallback"
         like = f"%{re.sub(r'[^A-Za-z0-9_ ]', ' ', q)[:60]}%"
         if generation_id:
             sql = ("SELECT chunk_id,node_id,repo,path,corpus,source,title,body,sha256 "
@@ -2546,7 +2665,8 @@ def query(q: str, k: int = 6, repo: str | None = None,
     # Search the M1 decision ledger as a distinct retrieval-only plane.  These
     # rows are metadata handles (title/kind/source/URL/receipt/safety), not copied
     # external documents, and never grant gradient or training authority.
-    if generation_id and (repo is None or repo == "m1-brain-ledger"):
+    # Handles have no full-content digest, so the lexical reference excludes them.
+    if generation_id and not lexical_only and (repo is None or repo == "m1-brain-ledger"):
         handle_rows: list[sqlite3.Row] = []
         try:
             handle_rows = list(conn.execute(
@@ -2580,7 +2700,19 @@ def query(q: str, k: int = 6, repo: str | None = None,
             })
 
     revoked_suppressed = 0
-    revoked = _revoked_source_digests(conn)
+    if lexical_only:
+        # An unreadable suppression table is not an empty one in this mode.
+        try:
+            revoked = {str(row["source_digest"]) for row in conn.execute(
+                "SELECT source_digest FROM org_source_revocations").fetchall()
+                if row["source_digest"]}
+        except sqlite3.Error:
+            conn.close()
+            return _lexical_unavailable(
+                q, "LEXICAL_REFERENCE_SUPPRESSION_STATE_UNAVAILABLE", "FAILED_CLOSED",
+                "digest suppression state could not be read", generation_id=generation_id)
+    else:
+        revoked = _revoked_source_digests(conn)
     if revoked:
         kept_rows = []
         for row in rows:
@@ -2589,6 +2721,16 @@ def query(q: str, k: int = 6, repo: str | None = None,
                 continue
             kept_rows.append(row)
         rows = kept_rows
+    if lexical_only:
+        for row in rows:
+            binding = _lexical_reference_binding(row.get("body"), row.get("sha256"))
+            if binding is None:
+                conn.close()
+                return _lexical_unavailable(
+                    q, "LEXICAL_REFERENCE_CHUNK_DIGEST_MISMATCH", "FAILED_CLOSED",
+                    "a recalled chunk does not match its sealed content digest",
+                    generation_id=generation_id, chunk_id=row.get("chunk_id"))
+            row["_reference"] = binding
 
     # dense vector for query (HyDE-aware)
     qvec = None
@@ -2640,6 +2782,11 @@ def query(q: str, k: int = 6, repo: str | None = None,
                          "sha256": r["sha256"], "corpus": corpus, "source": source,
                          "citation": f"{source}/{r['path']}"},
         }
+        if lexical_only:
+            source_revision, source_revision_state = _source_revision(source)
+            scored_item.update(r["_reference"])
+            scored_item["source_revision"] = source_revision
+            scored_item["source_revision_state"] = source_revision_state
         if source_witness is not None:
             scored_item["source_state"] = retrieval_source_state(
                 r.get("sha256"), _witness_digest(source_witness.get(str(r.get("path") or ""))),
@@ -2675,6 +2822,16 @@ def query(q: str, k: int = 6, repo: str | None = None,
         }
         for rank, item in enumerate(grounded, start=1)
     ]
+    if lexical_only:
+        # Bind each released excerpt and the sealed generation into the digest.
+        for entry, item in zip(evidence_set, grounded):
+            entry.update({
+                "generation_id": generation_id,
+                "generation_digest_sha256": meta_snapshot.get("generation_digest_sha256"),
+                "excerpt_sha256": item["excerpt_sha256"],
+                "excerpt_utf8_span": item["excerpt_utf8_span"],
+                "source_revision": item["source_revision"],
+            })
     evidence_set_sha256 = hashlib.sha256(json.dumps(
         evidence_set, sort_keys=True, separators=(",", ":"),
         ensure_ascii=False).encode("utf-8")).hexdigest()
@@ -2714,6 +2871,20 @@ def query(q: str, k: int = 6, repo: str | None = None,
         out["production_authority"] = False
     if revoked_suppressed:
         out["revoked_suppressed"] = revoked_suppressed
+    if lexical_only:
+        out.update({
+            "lexical_contract": LEXICAL_REFERENCE_CONTRACT,
+            "retrieval_method": "lexical",
+            "lexical_backend": lexical_backend,
+            "retrieval_planes": ["corpus"],
+            "inference": "NOT_INVOKED",
+            "embedder_invoked": False,
+            "router_dispatch_count": 0,
+            "receipt_emitted": False,
+            "generation_status": "ACTIVE",
+            "excerpt_max_utf8_bytes": _LEXICAL_EXCERPT_MAX_BYTES,
+            "support_statement": _LEXICAL_SUPPORT_STATEMENT,
+        })
     return out
 
 
