@@ -4,7 +4,7 @@
   "copyright": "2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
   "evidence_class": "UNSIGNED_SOURCE_PRESENTATION",
   "source_repository": "szl-holdings/a11oy",
-  "base_revision": "8bb4831f8c883464103b4c1ff5de76501fa60670",
+  "base_revision": "52af7ae9380fbe58c94bb0f6d12e1dbab6a3a414",
   "source_path": "huggingface/README.md",
   "repo_id": "SZLHOLDINGS/a11oy-v19-substrate",
   "before_sha256": "a0130da7f79e667300f1da01c160d36d8fc56b3dfaa47ca5e5890d3c62ae5bfb",
