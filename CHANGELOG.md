@@ -131,6 +131,112 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `tests/test_materials_certify_inputs.py` is a follow-up on the materials
   governance job.
 
+### Fixed - materials calibration bound to the served predictor; unknown hull evidence never favorable
+
+- `_Calibrator.conformal_radius` in `szl_materials_predict` returns `math.inf`
+  when the split-conformal rank `ceil((n+1)(1-alpha))` exceeds `n` instead of
+  substituting `max|z|` for the quantile. `predict_property` then abstains:
+  verdict `RED`, `value_eV_atom` and `interval95_eV_atom` `null`, refusal
+  `calibration set too small for a finite split-conformal interval`. The served
+  calibrator is `n=52`, rank `k=51`, so no current output changes; `alpha`
+  outside `(0, 1)` (or a bool or string) now raises `ValueError`.
+- `convex_hull_distance` reports `competing_phases` (embedded phases in the same
+  binary system at a composition other than the query) and
+  `same_composition_phases_excluded`. With zero competing phases it returns
+  `applicable: false` with a reason, `delta_hull_eV_atom: null`, and the
+  energy relative to the elemental endpoints under the informational key
+  `delta_vs_elements_eV_atom`. A non-binary query also carries
+  `delta_hull_eV_atom: null` (the old mismatched `delta_hull` key is gone).
+- `GREEN` now requires a checked hull (`applicable` and a finite delta). An
+  inapplicable or missing hull yields `YELLOW` with the gate reason
+  `hull gate not applicable - plausibility unverified (...)` and a Lambda hull
+  factor of `0.2`; responses and receipts carry `hull_checked`.
+- A `calibration_artifact` (`szl.materials.calibration_artifact/v1`) is built
+  at fit time and returned on `POST /materials/predict`, on
+  `GET /materials/health` once built, and (compact) inside the receipt:
+  `predictor_hash` (sha256 over the fitted standardizer, every member's
+  coefficients and the fit config), `data_hash` (embedded sample),
+  `calibration_state_hash` (actual scores, diagnostic CDF, count and alpha), protocol
+  and split ids, `score_definition`, `alpha`, `n_calibration`, `rank_k`,
+  `unbounded`, `radius_abs_z`, `evaluation_provenance`. The pure helper
+  `validate_calibration_artifact` checks the actual calibrator and current data,
+  including exact metadata types and count/rank/radius/boundedness consistency.
+  Changed scores (even below the displayed radius precision), a changed alpha,
+  malformed or missing metadata, and stale predictor/data bindings fail closed
+  before artifact indexing or receipt construction (HTTP 500, nothing signed
+  or ledgered). Unvalidated artifacts are not echoed in that error response.
+  These hashes establish internal consistency, not authenticity or statistical
+  validity; in-sample calibration does not confer a split-conformal guarantee.
+- Honest wording (option A, no served number changes): the model is a
+  "5-member bootstrap ridge (linear) ensemble"; the deep ensemble UQ pattern
+  (Lakshminarayanan et al. 2017) is cited as prior art, not claimed. Served
+  intervals are described as the symmetric split-conformal |z| radius from an
+  in-sample calibrator; the isotonic CDF fit is labelled a diagnostic and the
+  unused "~95% isotonic" claim is removed. The existing CV coverage (0.9619 on
+  420 held-out predictions, 60 split trials, 52 unique materials) keeps its
+  value and gains a protocol label stating it evaluates split models, not the
+  served pair. A serving-protocol held-out coverage (fit plus in-sample
+  calibration on the kept records, 60 trials holding out 7 of 52, seed 4321;
+  0.9333 on 420 predictions when measured locally) is computed in memory at
+  build time and reported beside it as `serving_protocol_coverage` with its
+  own protocol label. Both are labelled MEASURED in-memory at build time,
+  deterministic and ephemeral.
+
+#### Migration - materials demo preset and verdict semantics (public API change)
+
+- `POST {"demo": "green"}` now predicts Fe2O3 (`{"Fe": 2, "O": 3}`; GREEN,
+  two embedded competing Fe-O phases, `delta_hull_eV_atom` about -0.211)
+  instead of MgO. MgO stays reachable as an explicit composition and answers
+  `YELLOW` with the hull-not-applicable reason: it is the only embedded Mg-O
+  phase, so its hull cannot be checked. Its value and interval are unchanged.
+- Every binary whose system has no other embedded phase (for example Al2O3,
+  CaO, NaCl) and every non-binary composition now answers `YELLOW` at best,
+  never `GREEN`. Verdict headers (`x-szl-materials-verdict`) follow.
+- `convex_hull_gate` always carries `applicable`, `competing_phases` and
+  `delta_hull_eV_atom` (`null` unless applicable); consumers reading the old
+  non-binary key `delta_hull` must switch to `delta_hull_eV_atom`.
+- `calibration` blocks gain `interval_method`, `measured_coverage_protocol`,
+  `uncalibrated_coverage_protocol`, `serving_protocol_coverage`,
+  `serving_protocol_coverage_n`, `serving_protocol_coverage_protocol`,
+  `coverage_measurement`, `coverage_note` and `unique_materials`; existing keys
+  keep their names and values. `measured_coverage` is `null` with a `NOT_RUN`
+  `coverage_note` only when the split protocol cannot run (too few records).
+
+### Fixed - governed materials predictor inputs and inert read paths
+
+- Reject malformed `composition` counts in `szl_materials_predict` (NaN,
+  infinities, booleans, negative counts, integer overflow, an empty or
+  non-object composition, a non-positive total) before any model fit. Such
+  requests answer HTTP 400 `{ok:false, error, honesty}` with no fit, no
+  signature, no receipt and no ledger write. An exact zero count is dropped as
+  an absent species. Responses and receipts now carry the sanitized counts,
+  never the raw request object. The unknown-element out-of-distribution
+  refusal keeps its RED verdict and its receipt.
+- Validate `property` and `options` before the first-use fit (`sign` must be a
+  boolean; `radius_m` and `energy_j` must be finite and positive), and fail
+  closed, signing and ledgering nothing, if a response or receipt payload would
+  not serialize as strict JSON.
+- `GET /materials/health` no longer fits the surrogate on first use. Until the
+  first `POST /materials/predict` it reports
+  `calibration: {state: "NOT_BUILT", note: "health never fits; built on first POST /predict"}`
+  and stays `ok: true` / HTTP 200, so the engine-status skeleton probe is
+  unchanged.
+- The materials page summary poll (`loadCards`, every 12 s per open tab) probes
+  `GET /materials/certify/presets`, which emits nothing, instead of posting a
+  PAC-Bayes certificate that minted one Khipu receipt per tick. The explicit
+  Certify button still posts `/materials/certify`.
+
+#### Migration - `/materials/predict` is POST-only (public API change)
+
+- `GET /api/a11oy/v1/materials/predict` and `GET /v1/materials/predict` now
+  answer HTTP 405 with `Allow: POST` and a JSON usage body. They used to run the
+  `green` demo and sign a receipt on a read path. Send `POST {"demo": "green"}`
+  (or a `composition`) instead; `GET /materials/health` remains the read-only
+  status route.
+- An empty, non-JSON or non-object POST body now answers HTTP 400
+  `supply {composition} or {demo}` instead of silently running the `green` demo.
+- Negative element counts are rejected (HTTP 400) instead of being dropped.
+
 ### Fixed - additive, parent-bound A11oy model payload publication
 
 - Replace the existing publisher's separate prune/upload operations with one
@@ -229,7 +335,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   so consolidation does not privatize the advertised workbench. Other inventory-only
   and unknown Spaces keep their existing pause/private policy.
 
-
 ### Fixed - evaluation results require governed selected-model execution
 - Live evaluation now uses the existing canonical router after governance and
   binds the selected registry model, eligible plan, provider and completion.
@@ -265,7 +370,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Include the existing inventory regressions in the required backend check,
   alongside its previous targets. HTTP metadata does not diagnose an upstream
   cause or qualify every application feature.
-
 
 ### Added - experimental software lab discovery
 - TypeSafe Triage is linked from the product landing and listed separately under
@@ -411,7 +515,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Hunt / isolate / deceive — never strike people. Λ = Conjecture 1.
   This tab cites the lattice; it is not a second COP.
 
-
 ### Fixed - readiness honesty relock
 - The readiness harness now admits truthful `SAMPLE`, `DEGRADED`, and
   `MODELED` endpoint classes only where their source contracts explicitly
@@ -507,7 +610,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   energy-attested-runs is `8/8 SIMULATED` (not MEASURED joules); szl-forge-lab
   is `SNAPSHOT — not a trainer, not Serve Studio`. Shared-file drift stays
   fail-closed (no allowlist).
-
 
 ### Changed - public ecosystem map
 - `/ecosystem` is now an in-app map of command-center surfaces on a-11-oy.com.
