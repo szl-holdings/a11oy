@@ -1,89 +1,93 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en" class="hatun-frontdoor" data-theme="dark" data-surface="dark">
 <head>
+  <!-- SPDX-License-Identifier: Apache-2.0
+  (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="color-scheme" content="dark">
+  <meta name="color-scheme" content="dark light">
   <title>Hatun Gateway · governed context mesh · A11oy</title>
   <meta name="description" content="Hatun is the governed context gateway inside A11oy: inspect the live mesh, understand its contracts, build against its interfaces, and verify its evidence.">
+  <link rel="icon" href="/assets/szl/logos/szl_favicon_square.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/szl/szl-design-system.css">
+  <link rel="stylesheet" href="/assets/szl-holo-v2.css" data-szl-holo-asset="style-v2">
   <style>
-    @font-face{font-family:"Space Grotesk";font-style:normal;font-weight:300 700;font-display:swap;src:url("/vendor/fonts/SpaceGrotesk.woff2") format("woff2")}
-    @font-face{font-family:"JetBrains Mono";font-style:normal;font-weight:400 700;font-display:swap;src:url("/vendor/fonts/JetBrainsMono.woff2") format("woff2")}
-    :root{
-      --page:#03040a;--panel:#0c0f1c;--panel2:#11162a;--ink:#f1f3f6;--muted:#9aa5b7;
-      --faint:#667186;--line:rgba(232,238,255,.12);--violet:#9e9bff;--ice:#70dbff;
-      --signal:#e3b76e;--danger:#ef746f;--success:#65d9ae;
-      --display:"Space Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
-      --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    body.szl-hatun-gateway{
+      --page:var(--bg);--panel:var(--surface);--panel2:var(--surface-alt);--ink:var(--text);--muted:var(--text-sub);
+      --faint:var(--text-ghost);--line:var(--border);--silver:var(--text-ghost);
+      --signal:var(--chip-warn);--danger:var(--chip-bad);--success:var(--chip-ok);
+      --display:var(--font-display);--mono:var(--font-mono);
+      --szl-holo-bg:var(--bg);--szl-holo-bg-deep:var(--bg-deep);--szl-holo-surface:var(--surface);--szl-holo-surface-2:var(--surface-alt);
+      --szl-holo-ink:var(--text);--szl-holo-muted:var(--text-sub);--szl-holo-accent:var(--link);--szl-holo-accent-2:var(--text-ghost);
+      --szl-holo-font:var(--font-body);--szl-holo-mono:var(--font-mono);
     }
     *{box-sizing:border-box}
-    html{background:var(--page);scroll-behavior:smooth}
-    body{margin:0;min-width:0;color:var(--ink);background:
-      radial-gradient(circle at 78% 12%,rgba(158,155,255,.13),transparent 28rem),
-      radial-gradient(circle at 16% 48%,rgba(112,219,255,.07),transparent 26rem),
-      var(--page);font-family:var(--display);line-height:1.55;overflow-x:clip}
+    html.hatun-frontdoor{background:var(--bg);scroll-behavior:smooth}
+    html.hatun-frontdoor body.szl-hatun-gateway{margin:0;min-width:0;color:var(--ink);background:radial-gradient(120% 800px at 80% 0,var(--hero-atmosphere),transparent 65%),var(--page);font-family:var(--display);line-height:1.55;overflow-x:clip}
     a{color:inherit}.page{position:relative;z-index:1}.shell{width:min(1180px,calc(100% - 32px));margin-inline:auto}
     .local-nav{display:flex;align-items:center;gap:14px;min-height:64px;border-bottom:1px solid var(--line)}
-    .brand{display:flex;align-items:center;gap:11px;min-width:0;text-decoration:none}
-    .brand-mark{width:28px;height:28px;display:grid;place-items:center;border:1px solid rgba(158,155,255,.35);border-radius:50%;box-shadow:0 0 22px rgba(158,155,255,.18)}
-    .brand-mark::before{width:8px;height:8px;border-radius:50%;background:var(--ice);box-shadow:0 0 14px var(--ice);content:""}
-    .brand-copy{display:grid;line-height:1.15}.brand-copy small{font:700 9px/1.2 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--faint)}
+    .brand{display:flex;align-items:center;gap:11px;min-width:0;min-height:44px;text-decoration:none}
+    .brand-mark{width:34px;height:34px;flex:none}
+    .brand-copy{display:grid;line-height:1.3}.brand-copy small{font:600 11px/1.4 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
     .brand-copy strong{font-size:14px;letter-spacing:-.01em}
-    .family{margin-left:auto;display:flex;align-items:center;gap:4px;overflow-x:auto;overscroll-behavior-inline:contain;scrollbar-width:none;-webkit-overflow-scrolling:touch}
-    .family::-webkit-scrollbar{display:none}.family a{min-height:44px;display:inline-flex;align-items:center;padding:8px 11px;border:1px solid transparent;border-radius:9px;color:var(--muted);font:700 10px/1.2 var(--mono);letter-spacing:.09em;text-decoration:none;text-transform:uppercase;white-space:nowrap}
-    .family a[aria-current="page"]{border-color:rgba(158,155,255,.32);color:var(--ink);background:rgba(158,155,255,.07)}
+    .family{margin-left:auto;display:flex;align-items:center;gap:4px;overflow-x:auto;overscroll-behavior-inline:contain;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
+    .family a{min-height:44px;flex:none;display:inline-flex;align-items:center;padding:8px 11px;border:1px solid transparent;border-radius:9px;color:var(--muted);font:600 11px/1.4 var(--mono);letter-spacing:.04em;text-decoration:none;text-transform:uppercase;white-space:nowrap}
+    .family a[aria-current="page"]{border-color:var(--control-edge);color:var(--ink);background:var(--surface-raised)}
     .hero{position:relative;min-height:min(760px,82vh);display:grid;align-items:center;padding:clamp(74px,11vw,150px) 0 clamp(64px,9vw,120px);border-bottom:1px solid var(--line);overflow:hidden}
-    .weave{position:absolute;inset:0;pointer-events:none;opacity:.66;mask-image:linear-gradient(to bottom,#000,transparent 94%)}
-    .weave::before,.weave::after{position:absolute;inset:-20%;content:"";background:repeating-linear-gradient(28deg,transparent 0 54px,rgba(158,155,255,.11) 55px 56px),repeating-linear-gradient(152deg,transparent 0 88px,rgba(112,219,255,.07) 89px 90px);transform:perspective(950px) rotateX(58deg) rotateZ(-8deg) scale(1.15)}
-    .weave::after{inset:15% 8%;filter:blur(28px);background:radial-gradient(circle,rgba(158,155,255,.15),transparent 66%);transform:none}
+    .weave{position:absolute;inset:0;pointer-events:none;opacity:.66;mask-image:linear-gradient(to bottom,var(--text),transparent 94%)}
+    .weave::before,.weave::after{position:absolute;inset:-20%;content:"";background:repeating-linear-gradient(28deg,transparent 0 54px,color-mix(in srgb,var(--color-silver-300) 15%,transparent) 55px 56px),repeating-linear-gradient(152deg,transparent 0 88px,color-mix(in srgb,var(--color-silver-100) 8%,transparent) 89px 90px);transform:perspective(950px) rotateX(58deg) rotateZ(-8deg) scale(1.15)}
+    .weave::after{inset:15% 8%;filter:blur(28px);background:radial-gradient(circle,color-mix(in srgb,var(--color-silver-300) 12%,transparent),transparent 66%);transform:none}
     .hero-grid{position:relative;display:grid;grid-template-columns:minmax(0,1.12fr) minmax(320px,.88fr);gap:clamp(34px,7vw,92px);align-items:center}
-    .eyebrow{margin:0;color:var(--violet);font:700 10px/1.4 var(--mono);letter-spacing:.2em;text-transform:uppercase}
-    h1{max-width:780px;margin:16px 0 0;font-size:clamp(44px,7.7vw,104px);font-weight:520;line-height:.91;letter-spacing:-.065em;text-wrap:balance}h1 span{color:var(--ice)}
+    .eyebrow{margin:0;color:var(--silver);font:700 10px/1.4 var(--mono);letter-spacing:.2em;text-transform:uppercase}
+    h1{max-width:780px;margin:16px 0 0;font-size:clamp(44px,7.7vw,104px);font-weight:520;line-height:.91;letter-spacing:-.065em;text-wrap:balance}h1 span{color:var(--text-ghost)}
     .lede{max-width:66ch;margin:26px 0 0;color:var(--muted);font-size:clamp(16px,1.6vw,20px);line-height:1.65;text-wrap:pretty}
-    .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:30px}.action{min-height:48px;display:inline-flex;align-items:center;justify-content:center;padding:11px 16px;border:1px solid var(--line);border-radius:10px;color:var(--ink);background:rgba(12,15,28,.72);font:700 11px/1.2 var(--mono);letter-spacing:.07em;text-decoration:none}
-    .action.primary{border-color:rgba(158,155,255,.45);background:linear-gradient(135deg,rgba(158,155,255,.18),rgba(112,219,255,.08))}.action:hover{border-color:rgba(112,219,255,.52);transform:translateY(-1px)}
-    .instrument{position:relative;min-height:420px;border:1px solid var(--line);border-radius:24px;background:rgba(8,10,20,.78);box-shadow:0 34px 100px rgba(0,0,0,.46);overflow:hidden;backdrop-filter:blur(18px)}
-    .instrument-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);font:700 10px/1.2 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+    .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:30px}.action{min-height:48px;display:inline-flex;align-items:center;justify-content:center;padding:11px 16px;border:1px solid var(--line);border-radius:10px;color:var(--ink);background:var(--surface);font:700 11px/1.2 var(--mono);letter-spacing:.07em;text-decoration:none}
+    .action.primary{border-color:var(--action-bg,var(--accent));background:var(--action-bg,var(--accent));color:var(--action-ink,var(--accent-ink))}.action.primary:hover{background:var(--action-hover-bg,var(--accent-hover))}.action.primary:active{background:var(--action-press-bg,var(--accent-press))}.action:hover{border-color:var(--control-edge);transform:translateY(-1px)}
+    /* Container states must not inherit the legacy global [data-state] chip layout. */
+    body.szl-hatun-gateway .instrument{position:relative;display:block;min-width:0;min-height:420px;padding:0;border:1px solid var(--line);border-radius:24px;background:var(--surface);color:var(--ink);font:inherit;letter-spacing:normal;box-shadow:var(--shadow-xl);overflow:hidden}
+    .instrument-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);font:600 11px/1.4 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
     .instrument-head .pulse{width:7px;height:7px;border-radius:50%;background:var(--faint)}.instrument[data-state="LIVE"] .pulse{background:var(--success);box-shadow:0 0 14px var(--success)}
     .instrument[data-state="DEGRADED"] .pulse{background:var(--signal);box-shadow:0 0 14px var(--signal)}.instrument[data-state="UNAVAILABLE"] .pulse{background:var(--danger)}
-    .mesh-field{position:relative;height:300px;overflow:hidden}.mesh-field::before{position:absolute;inset:0;background:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);background-size:38px 38px;content:""}
-    .mesh-nodes{position:absolute;inset:0}.mesh-node{position:absolute;width:10px;height:10px;border:1px solid currentColor;border-radius:50%;color:var(--violet);box-shadow:0 0 20px currentColor;transform:translate(-50%,-50%)}
-    .mesh-node::after{position:absolute;inset:3px;border-radius:50%;background:currentColor;content:""}.mesh-node:nth-child(1){left:17%;top:24%}.mesh-node:nth-child(2){left:48%;top:14%;color:var(--ice)}
-    .mesh-node:nth-child(3){left:78%;top:31%;color:var(--signal)}.mesh-node:nth-child(4){left:30%;top:68%;color:var(--ice)}.mesh-node:nth-child(5){left:68%;top:75%}
-    .mesh-lines{position:absolute;inset:0;width:100%;height:100%}.mesh-lines line{stroke:rgba(158,155,255,.3);stroke-width:.65}.mesh-lines line:nth-child(even){stroke:rgba(112,219,255,.23)}
+    .mesh-field{position:relative;height:300px;overflow:hidden}.mesh-field::before{position:absolute;inset:0;background:linear-gradient(var(--border-subtle) 1px,transparent 1px),linear-gradient(90deg,var(--border-subtle) 1px,transparent 1px);background-size:38px 38px;content:""}
+    .mesh-nodes{position:absolute;inset:0}.mesh-node{position:absolute;width:10px;height:10px;border:1px solid currentColor;border-radius:50%;color:var(--silver);box-shadow:0 0 20px currentColor;transform:translate(-50%,-50%)}
+    .mesh-node::after{position:absolute;inset:3px;border-radius:50%;background:currentColor;content:""}.mesh-node:nth-child(1){left:17%;top:24%}.mesh-node:nth-child(2){left:48%;top:14%;color:var(--silver)}
+    .mesh-node:nth-child(3){left:78%;top:31%}.mesh-node:nth-child(4){left:30%;top:68%;color:var(--silver)}.mesh-node:nth-child(5){left:68%;top:75%}
+    .mesh-lines{position:absolute;inset:0;width:100%;height:100%}.mesh-lines line{stroke:color-mix(in srgb,var(--color-silver-300) 35%,transparent);stroke-width:.65}.mesh-lines line:nth-child(even){stroke:color-mix(in srgb,var(--color-silver-100) 25%,transparent)}
     .instrument-foot{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line)}.reading{min-width:0;padding:14px;border-right:1px solid var(--line)}.reading:last-child{border-right:0}
-    .reading small{display:block;color:var(--faint);font:700 9px/1.2 var(--mono);letter-spacing:.12em;text-transform:uppercase}.reading strong{display:block;margin-top:6px;color:var(--ink);font:650 13px/1.3 var(--mono);overflow-wrap:anywhere}
+    .reading small{display:block;color:var(--faint);font:600 11px/1.4 var(--mono);letter-spacing:.12em;text-transform:uppercase}.reading strong{display:block;margin-top:6px;color:var(--ink);font:650 13px/1.3 var(--mono);overflow-wrap:anywhere}
     .pathways{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border-bottom:1px solid var(--line)}
-    .pathway{min-height:180px;padding:clamp(24px,4vw,42px);background:var(--page);text-decoration:none}.pathway small{color:var(--faint);font:700 10px/1.2 var(--mono);letter-spacing:.15em;text-transform:uppercase}
-    .pathway h2{margin:14px 0 0;font-size:clamp(24px,3vw,38px);letter-spacing:-.04em}.pathway p{margin:10px 0 0;color:var(--muted);max-width:36ch}.pathway:hover h2{color:var(--ice)}
+    .pathway{min-height:180px;padding:clamp(24px,4vw,42px);background:var(--page);text-decoration:none}.pathway small{color:var(--faint);font:600 11px/1.4 var(--mono);letter-spacing:.15em;text-transform:uppercase}
+    .pathway h2{margin:14px 0 0;font-size:clamp(24px,3vw,38px);letter-spacing:-.04em}.pathway p{margin:10px 0 0;color:var(--muted);max-width:36ch}.pathway:hover h2{color:var(--link)}
     .section{padding:clamp(62px,8vw,112px) 0;border-bottom:1px solid var(--line)}.section-head{display:grid;grid-template-columns:.45fr 1fr;gap:28px;align-items:end;margin-bottom:32px}
     .section-head h2{margin:0;font-size:clamp(34px,5vw,66px);font-weight:520;line-height:.98;letter-spacing:-.055em}.section-head p{margin:0;color:var(--muted);max-width:60ch}
-    .mesh-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.wire{position:relative;min-width:0;padding:22px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(145deg,rgba(17,22,42,.82),rgba(7,9,17,.9))}
-    .wire-top{display:flex;align-items:flex-start;gap:12px}.wire-id{min-width:44px;color:var(--violet);font:700 11px/1.2 var(--mono);letter-spacing:.08em}.wire-title{margin:0;font-size:18px;letter-spacing:-.025em}
-    .wire-state{margin-left:auto;padding:4px 8px;border:1px solid currentColor;border-radius:999px;color:var(--muted);font:700 9px/1.2 var(--mono);letter-spacing:.08em}.wire[data-state="LIVE"] .wire-state,.wire[data-state="MEASURED"] .wire-state{color:var(--success)}
+    .mesh-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+    body.szl-hatun-gateway .wire{position:relative;display:block;min-width:0;padding:24px;border:1px solid var(--line);border-radius:16px;background:var(--surface);color:var(--ink);font:inherit;letter-spacing:normal}
+    .wire-top{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:12px}.wire-id{grid-column:1/-1;min-width:0;color:var(--faint);font:600 11px/1.5 var(--mono);letter-spacing:.04em;overflow-wrap:anywhere}.wire-title{min-width:0;margin:0;font-size:20px;line-height:1.4;letter-spacing:-.025em;overflow-wrap:anywhere}
+    .wire-state{padding:5px 9px;border:1px solid currentColor;border-radius:999px;color:var(--muted);font:600 11px/1.4 var(--mono);white-space:nowrap}.wire[data-state="LIVE"] .wire-state,.wire[data-state="MEASURED"] .wire-state{color:var(--success)}
     .wire[data-state="DEGRADED"] .wire-state,.wire[data-state="REPORTED"] .wire-state,.wire[data-state="DECLARED"] .wire-state{color:var(--signal)}.wire[data-state="UNAVAILABLE"] .wire-state{color:var(--danger)}
-    .wire-detail{margin:14px 0 0;color:var(--muted);font:500 12px/1.65 var(--mono)}.wire-evidence{margin:14px 0 0;padding-top:14px;border-top:1px solid var(--line);color:var(--faint);font:500 10px/1.55 var(--mono)}
+    .wire-detail{margin:18px 0 0;color:var(--muted);font:400 14px/1.7 var(--display);overflow-wrap:anywhere}.wire-evidence{margin:18px 0 0;padding-top:18px;border-top:1px solid var(--line);color:var(--faint);font:400 12px/1.7 var(--mono);overflow-wrap:anywhere}
     .empty{grid-column:1/-1;padding:28px;border:1px dashed var(--line);border-radius:16px;color:var(--muted);font:600 12px/1.6 var(--mono)}
-    .disclosure{margin-top:22px;padding:18px 20px;border-left:2px solid var(--signal);background:rgba(227,183,110,.045);color:var(--muted);font:500 12px/1.7 var(--mono)}
-    .footer{padding:34px 0 calc(34px + env(safe-area-inset-bottom));color:var(--faint);font:600 10px/1.6 var(--mono);letter-spacing:.07em}.footer-row{display:flex;flex-wrap:wrap;gap:12px 22px;align-items:center}.footer a{text-decoration:none;color:var(--muted)}
-    :focus-visible{outline:2px solid var(--ice);outline-offset:3px}
-    @media(max-width:900px){.hero-grid{grid-template-columns:1fr}.instrument{min-height:360px}.pathways{grid-template-columns:1fr}.pathway{min-height:0}.section-head{grid-template-columns:1fr}.mesh-list{grid-template-columns:1fr}}
+    .disclosure{margin-top:22px;padding:18px 20px;border-left:2px solid var(--signal);background:var(--surface-alt);color:var(--muted);font:500 12px/1.7 var(--mono)}
+    .footer{padding:34px 0 calc(34px + env(safe-area-inset-bottom));color:var(--faint);font:500 12px/1.6 var(--mono)}.footer-row{display:flex;flex-wrap:wrap;gap:8px 22px;align-items:center}.footer a{display:inline-flex;align-items:center;min-height:44px;text-decoration:none;color:var(--link)}
+    .szl-hatun-gateway :focus-visible{outline:3px solid var(--focus);outline-offset:3px}.szl-hatun-gateway .skip-link{position:fixed;min-height:44px;text-decoration:none}
+    @media(max-width:900px){.hero-grid{grid-template-columns:1fr}body.szl-hatun-gateway .instrument{min-height:360px}.pathways{grid-template-columns:1fr}.pathway{min-height:0}.section-head{grid-template-columns:1fr}.mesh-list{grid-template-columns:1fr}}
     @media(max-width:620px){.shell{width:min(100% - 22px,1180px)}.local-nav{align-items:flex-start;flex-direction:column;padding-block:10px}.family{width:100%;margin-left:0}.hero{min-height:0}.instrument-foot{grid-template-columns:1fr}.reading{border-right:0;border-bottom:1px solid var(--line)}.reading:last-child{border-bottom:0}h1{font-size:clamp(42px,15vw,68px)}}
     @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.action{transition:none}.action:hover{transform:none}}
-    @media(forced-colors:active){.instrument,.wire,.pathway,.action{border:1px solid CanvasText;background:Canvas}.weave{display:none}}
+    @media(forced-colors:active){html.hatun-frontdoor body.szl-hatun-gateway{background:Canvas;color:CanvasText}body.szl-hatun-gateway .instrument,body.szl-hatun-gateway .wire,.pathway,.action{border:1px solid CanvasText;background:Canvas;color:CanvasText}.weave{display:none}}
   </style>
-  <link rel="stylesheet" href="/assets/szl-holo-v2.css" data-szl-holo-asset="style-v2">
 </head>
 <body class="szl-hatun-gateway">
+<a class="skip-link" href="#main" data-szl-holo-skip="true">Skip to main content</a>
 <div class="page">
   <div class="shell">
     <nav class="local-nav" aria-label="SZL product family">
-      <a class="brand" href="/console" aria-label="Open A11oy command"><span class="brand-mark" aria-hidden="true"></span><span class="brand-copy"><small>SZL / Product family</small><strong>Hatun Gateway</strong></span></a>
+      <a class="brand" href="/console" aria-label="Open A11oy command"><img class="brand-mark" src="/assets/szl/logos/szl_favicon_square.svg" alt="" width="34" height="34"><span class="brand-copy"><small>SZL / Product family</small><strong>Hatun Gateway</strong></span></a>
       <div class="family"><a href="/console">A11oy</a><a href="/killinchu">Killinchu</a><a href="/wires" aria-current="page">Hatun</a><a href="/living-anatomy">Living Anatomy</a></div>
     </nav>
   </div>
 
-  <main id="main">
+  <main id="main" tabindex="-1">
+    <noscript><p class="disclosure shell">Live reads require JavaScript. The interface and source links remain available; current mesh evidence remains UNAVAILABLE.</p></noscript>
     <section class="hero">
       <div class="weave" aria-hidden="true"></div>
       <div class="shell hero-grid">
@@ -94,7 +98,7 @@
           <div class="actions"><a class="action primary" href="#mesh">Inspect the live mesh</a><a class="action" href="/api/a11oy/v1/mesh/state">Open the JSON contract</a><a class="action" href="https://github.com/szl-holdings/hatun-mcp" rel="noopener">Read the Hatun source</a></div>
         </div>
         <aside class="instrument" id="gateway-instrument" data-state="UNAVAILABLE" aria-label="Hatun gateway status">
-          <div class="instrument-head"><span class="pulse" aria-hidden="true"></span><span id="instrument-state">Reading mesh contract</span></div>
+          <div class="instrument-head"><span class="pulse" aria-hidden="true"></span><span id="instrument-state" role="status" aria-live="polite">Reading mesh contract</span></div>
           <div class="mesh-field" aria-hidden="true">
             <svg class="mesh-lines" viewBox="0 0 100 100" preserveAspectRatio="none"><line x1="17" y1="24" x2="48" y2="14"></line><line x1="48" y1="14" x2="78" y2="31"></line><line x1="17" y1="24" x2="30" y2="68"></line><line x1="30" y1="68" x2="68" y2="75"></line><line x1="78" y1="31" x2="68" y2="75"></line><line x1="48" y1="14" x2="68" y2="75"></line></svg>
             <div class="mesh-nodes"><i class="mesh-node"></i><i class="mesh-node"></i><i class="mesh-node"></i><i class="mesh-node"></i><i class="mesh-node"></i></div>
@@ -106,13 +110,13 @@
 
     <nav class="pathways" aria-label="Hatun pathways">
       <a class="pathway" href="#understand"><small>01 · Understand</small><h2>Read the contract</h2><p>See the mesh, its authority boundary, and exactly what each wire reports.</p></a>
-      <a class="pathway" href="/code"><small>02 · Build</small><h2>Use the interfaces</h2><p>Move from product surface to source, schemas, and integration paths without changing visual grammar.</p></a>
-      <a class="pathway" href="/api/a11oy/v1/verify/receipt"><small>03 · Verify</small><h2>Follow the evidence</h2><p>Inspect receipt and verification surfaces rather than trusting a decorative status.</p></a>
+      <a class="pathway" href="/code"><small>02 · Build</small><h2>Use the interfaces</h2><p>Explore tools, schemas, and integration paths for a governed client.</p></a>
+      <a class="pathway" href="/verify"><small>03 · Verify</small><h2>Follow the evidence</h2><p>Open the receipt verifier to inspect the evidence and its verification result.</p></a>
     </nav>
 
     <section class="section" id="mesh"><div class="shell">
-      <div class="section-head"><div><p class="eyebrow">Live interface map</p><h2>One mesh.<br>Explicit states.</h2></div><p id="mesh-summary">Reading <span style="font-family:var(--mono)">/api/a11oy/v1/mesh/state</span>. Until that request succeeds, the gateway remains UNAVAILABLE.</p></div>
-      <div class="mesh-list" id="wire-list" aria-live="polite"><div class="empty">UNAVAILABLE — the mesh contract has not been read yet.</div></div>
+      <div class="section-head"><div><p class="eyebrow">Live interface map</p><h2>One mesh.<br>Explicit states.</h2></div><p id="mesh-summary" role="status" aria-live="polite">Reading <span style="font-family:var(--mono)">/api/a11oy/v1/mesh/state</span>. Until that request succeeds, the gateway remains UNAVAILABLE.</p></div>
+      <div class="mesh-list" id="wire-list"><div class="empty">UNAVAILABLE — the mesh contract has not been read yet.</div></div>
       <div class="disclosure" id="understand"><strong>Authority boundary.</strong> Hatun presents context and governed interfaces. A transport response is not correctness, a declared wire is not measured health, and Λ remains Conjecture 1—not a theorem. Missing evidence remains UNAVAILABLE.</div>
     </div></section>
   </main>
@@ -135,7 +139,7 @@
   function render(payload){var observed=rows(payload);list.textContent="";if(!observed.length){var empty=document.createElement("div");empty.className="empty";empty.textContent="UNAVAILABLE — the response contained no readable wire collection. Nothing was fabricated.";list.append(empty)}else observed.forEach(function(row,index){list.append(wireCard(row,index))});var topState=state(pick(payload,["state","status","evidence_state"],observed.length?"REPORTED":"UNAVAILABLE"));instrument.dataset.state=topState;document.getElementById("instrument-state").textContent=topState+" · mesh contract read";setReading("read-transport",text(pick(payload,["transport_state","transport","protocol"],"REACHABLE")));setReading("read-wires",observed.length);setReading("read-evidence",text(pick(payload,["evidence_state","verification_state","state"],topState)));document.getElementById("mesh-summary").textContent=observed.length?observed.length+" wire record"+(observed.length===1?" was":"s were")+" read from the live mesh contract. Each card preserves the state and evidence fields the service returned.":"The mesh endpoint answered, but no readable wire collection was returned. The interface remains explicitly unavailable."}
   function fail(error){instrument.dataset.state="UNAVAILABLE";document.getElementById("instrument-state").textContent="UNAVAILABLE · mesh contract not read";setReading("read-transport","UNAVAILABLE");setReading("read-wires","UNAVAILABLE");setReading("read-evidence","UNAVAILABLE");list.textContent="";var empty=document.createElement("div");empty.className="empty";empty.textContent="UNAVAILABLE — "+text(error&&error.message,"mesh request failed")+". No wire state was fabricated.";list.append(empty);document.getElementById("mesh-summary").textContent="The mesh contract could not be read in this request. This page does not promote cached decoration to live evidence."}
   function load(){var controller=new AbortController();var timeout=setTimeout(function(){controller.abort()},6500);fetch(ENDPOINT,{cache:"no-store",headers:{accept:"application/json"},signal:controller.signal}).then(function(response){return response.json().then(function(body){if(!response.ok)throw new Error("HTTP "+response.status);return body})}).then(render).catch(fail).finally(function(){clearTimeout(timeout)})}
-  window.addEventListener("szl:holo-ready",function(){var label=document.querySelector(".szl-holo-label");if(label)label.textContent="Hatun Gateway";var identity=document.querySelector(".szl-holo-identity");if(identity)identity.setAttribute("aria-label","Open A11oy command — Hatun Gateway");document.documentElement.dataset.szlHoloMotif="gateway-weave"},{once:true});
+  document.addEventListener("szl:holo-ready",function(){document.body.prepend(document.querySelector('.skip-link'));var label=document.querySelector(".szl-holo-label");if(label)label.textContent="Hatun Gateway";var identity=document.querySelector(".szl-holo-identity");if(identity)identity.setAttribute("aria-label","Open A11oy command — Hatun Gateway");document.documentElement.dataset.szlHoloMotif="gateway-weave"},{once:true});
   load();
 })();
 </script>

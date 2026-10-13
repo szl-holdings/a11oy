@@ -81,6 +81,13 @@ GET_HEAD_PATHS = HTML_DOCUMENT_HEAD_PATHS + HEALTH_JSON_HEAD_PATHS + (
 
 _OPTIONS_ALLOW = "GET, HEAD, OPTIONS"
 _OPTIONS_ACAM = "GET, HEAD, POST, OPTIONS"
+_PLATFORM_CANDIDATE_PREFIX = "/preview/platform-a11oy"
+
+
+def _is_platform_candidate_path(path: str) -> bool:
+    return path == _PLATFORM_CANDIDATE_PREFIX or path.startswith(
+        _PLATFORM_CANDIDATE_PREFIX + "/"
+    )
 
 
 def _host_without_port(host: str) -> str:
@@ -273,6 +280,14 @@ def register(app):
 
         if request.method == "OPTIONS":
             response = await call_next(request)
+            # The static candidate owns all HTTP methods under its prefix and
+            # rejects every method except GET/HEAD.  Preserve that fail-closed
+            # app-layer contract instead of converting its 405 into a generic
+            # product OPTIONS response.  Public ingress may still terminate
+            # OPTIONS before the application; live deployment verification uses
+            # POST, which reaches the app, for the method-rejection contract.
+            if _is_platform_candidate_path(path):
+                return response
             if _is_registry_host(host):
                 return response
             if "access-control-allow-methods" in response.headers:

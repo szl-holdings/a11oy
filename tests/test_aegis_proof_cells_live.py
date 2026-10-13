@@ -1,18 +1,68 @@
 # SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
+import ast
 import importlib.util
 import json
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "verify_aegis_proof_cells_live.py"
+WORKFLOW = ROOT / ".github" / "workflows" / "aegis-proof-cells.yml"
 
 spec = importlib.util.spec_from_file_location("verify_aegis_proof_cells_live", SCRIPT)
 assert spec and spec.loader
 verifier = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(verifier)
+
+
+def _live_proof_enabled(
+    event_name: str, conclusion: str, publisher_event: str, head_branch: str
+) -> bool:
+    """Evaluate the workflow guard for bounded event fixtures without executing code."""
+    condition = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"][
+        "live-proof"
+    ]["if"]
+    for field, value in {
+        "github.event_name": event_name,
+        "github.event.workflow_run.conclusion": conclusion,
+        "github.event.workflow_run.event": publisher_event,
+        "github.event.workflow_run.head_branch": head_branch,
+    }.items():
+        condition = condition.replace(field, repr(value))
+    condition = " ".join(condition.replace("&&", " and ").replace("||", " or ").split())
+    tree = ast.parse(condition, mode="eval")
+
+    def interpret(node: ast.AST) -> str | bool:
+        if isinstance(node, ast.Expression):
+            return interpret(node.body)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return node.value
+        if isinstance(node, ast.Compare) and len(node.ops) == 1 and isinstance(node.ops[0], ast.Eq):
+            return interpret(node.left) == interpret(node.comparators[0])
+        if isinstance(node, ast.BoolOp) and isinstance(node.op, ast.And):
+            return all(bool(interpret(value)) for value in node.values)
+        if isinstance(node, ast.BoolOp) and isinstance(node.op, ast.Or):
+            return any(bool(interpret(value)) for value in node.values)
+        raise AssertionError(f"unexpected live-proof guard syntax: {type(node).__name__}")
+
+    return bool(interpret(tree))
+
+
+def test_manual_canonical_sync_completion_runs_strict_live_proof() -> None:
+    cases = [
+        ("workflow_run", "success", "push", "main", True),
+        ("workflow_run", "success", "workflow_dispatch", "main", True),
+        ("workflow_run", "failure", "workflow_dispatch", "main", False),
+        ("workflow_run", "success", "schedule", "main", False),
+        ("workflow_run", "success", "workflow_dispatch", "feature", False),
+        ("pull_request", "success", "workflow_dispatch", "main", False),
+    ]
+    for event_name, conclusion, publisher_event, head_branch, expected in cases:
+        assert _live_proof_enabled(event_name, conclusion, publisher_event, head_branch) is expected
 
 
 def _asset(path: str) -> bytes:

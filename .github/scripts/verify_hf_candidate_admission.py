@@ -51,16 +51,24 @@ PINNED_COPY_SOURCES = (
 PINNED_COPY_INSERTION = (
     b" static/shared/szl_command_bar.js static/shared/szl_command_bar.css"
 )
+# PurIQ is an independently reviewed runtime asset added after the original
+# command-bar transition.  Keep it in both sides of the synthetic predecessor
+# so this narrow admission can never authorize removing or relocating it.
+REQUIRED_SHARED_COPY_TAIL = b" static/shared/puriq_receipt_v1.js"
 SHARED_COPY_DESTINATION = b" ./static/shared/\n"
-BASE_SHARED_COPY_LINE = (
+SHARED_COPY_PREFIX = (
     b"COPY static/shared/szl_label_engine.js "
     b"static/shared/szl_receipt_cosign.js "
     b"static/shared/szl_codename_sanitizer.js "
-    b"static/shared/szl_holo3d.js" + SHARED_COPY_DESTINATION
+    b"static/shared/szl_holo3d.js"
+)
+BASE_SHARED_COPY_LINE = (
+    SHARED_COPY_PREFIX + REQUIRED_SHARED_COPY_TAIL + SHARED_COPY_DESTINATION
 )
 HEAD_SHARED_COPY_LINE = (
-    BASE_SHARED_COPY_LINE[: -len(SHARED_COPY_DESTINATION)]
+    SHARED_COPY_PREFIX
     + PINNED_COPY_INSERTION
+    + REQUIRED_SHARED_COPY_TAIL
     + SHARED_COPY_DESTINATION
 )
 N25_COPY_SOURCE = "a11oy_n25_organs.py"

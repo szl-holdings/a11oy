@@ -534,6 +534,177 @@ class CodeRunloopAdmission(unittest.TestCase):
             lines.extend(line for line in path.read_bytes().splitlines() if line.strip())
         self.assertEqual(len(lines), 1)
 
+    def test_distinct_code_steps_execute_once_and_retries_restore(self):
+        """Synthesis and its sandbox successor are different logical actions.
+
+        A recording double stands in for the engine. Retries must not call it
+        again, and a new plan of the same text must. No production execution.
+        """
+        calls = []
+
+        def recording(_purpose, _query, _sign_fn, _ns, **kwargs):
+            calls.append({"sandbox": kwargs.get("sandbox") is True})
+            sandbox = kwargs.get("sandbox") is True
+            return {
+                "decision": "ALLOW",
+                "executed": sandbox,
+                "execution_status": "SUCCEEDED" if sandbox else "SYNTHESIZED",
+                "answer": None if sandbox else "synthetic synthesis",
+                "code": None if sandbox else {
+                    "code": "print(2)\n",
+                    "description": "recording double",
+                },
+                "sandbox": (
+                    {"isolation": "recording-double", "stdout": "2\n"}
+                    if sandbox else None
+                ),
+                "receipt_chain": [],
+                "signed_receipt": {"signed": False, "signatures": []},
+                "inference": {"mode": "recording-double", "attempts": 0},
+                "retrieval": {
+                    "backend": "recording-double",
+                    "corpus_generation": "fixture",
+                    "source_handles": [],
+                    "fallback": "not-used",
+                    "abstention": "not-used",
+                    "plane": "test",
+                    "outcome": "fixture",
+                },
+                "gate": {"severity": "low", "reasons": []},
+                "trust": {},
+                "confidence": {},
+                "honesty": "recording double; no production execution",
+                "summary": "recording double",
+            }
+
+        task = "synthetic fixture: compute a tiny print"
+        with patch.object(runloop._engine, "governed_turn", recording):
+            planned = self.client.post(PLAN, headers=self._admitted(), json={
+                "purpose": "code",
+                "mode": "code",
+                "task": task,
+            })
+            self.assertEqual(planned.status_code, 200, planned.text[:500])
+            body = planned.json()
+            self.assertTrue(body.get("admission_persisted"))
+            steps = {step["n"]: step for step in body["plan"]}
+            self.assertIn(2, steps)
+            self.assertIn(3, steps)
+            self.assertNotEqual(steps[2]["step_id"], steps[3]["step_id"])
+            self.assertFalse(steps[2]["sandbox"])
+            self.assertTrue(steps[3]["sandbox"])
+            self.assertNotEqual(steps[2]["mode"], "chat")
+
+            def post_step(plan_body, step, **changes):
+                payload = {
+                    "purpose": step["mode"],
+                    "mode": step["mode"],
+                    "prompt": step["prompt"],
+                    "sandbox": step["sandbox"],
+                    "state_changing": step["state_changing"],
+                    "run_id": plan_body["run_id"],
+                    "step_id": step["step_id"],
+                    "plan_revision": plan_body["plan_revision"],
+                }
+                payload.update(changes)
+                return self.client.post(RUNSTEP, headers=self._admitted(), json=payload)
+
+            synthesis = post_step(body, steps[2])
+            execution = post_step(body, steps[3])
+            self.assertEqual(synthesis.status_code, 200, synthesis.text[:500])
+            self.assertEqual(execution.status_code, 200, execution.text[:500])
+            self.assertFalse(synthesis.json().get("duplicate"))
+            self.assertFalse(execution.json().get("duplicate"))
+            self.assertEqual(len(calls), 2)
+            self.assertEqual([item["sandbox"] for item in calls], [False, True])
+
+            retry_synthesis = post_step(body, steps[2])
+            retry_execution = post_step(body, steps[3])
+            self.assertEqual(len(calls), 2)
+            for response, sandbox in ((retry_synthesis, False), (retry_execution, True)):
+                self.assertEqual(response.status_code, 200, response.text[:500])
+                payload = response.json()
+                self.assertTrue(payload["duplicate"])
+                self.assertEqual(payload["result"]["state"], "AVAILABLE")
+                self.assertNotEqual(
+                    payload["result"]["historical_execution_status"],
+                    payload["result"]["state"],
+                )
+                self.assertIsInstance(payload["run"], dict)
+                self.assertEqual(
+                    bool((payload["run"].get("sandbox") or {}).get("stdout")),
+                    sandbox,
+                )
+                self.assertEqual(
+                    payload["identity"]["logical_action_id"],
+                    payload["restart_receipt"]["receipt_id"],
+                )
+                self.assertNotEqual(
+                    payload["identity"]["attempt_id"],
+                    (synthesis.json() if not sandbox else execution.json())["identity"]["attempt_id"],
+                )
+
+            conflict = post_step(body, steps[2], sandbox=True, state_changing=True)
+            self.assertEqual(conflict.status_code, 409, conflict.text[:500])
+            self.assertEqual(conflict.json()["error"], "semantics conflict")
+            self.assertEqual(len(calls), 2)
+
+            again = self.client.post(PLAN, headers=self._admitted(), json={
+                "purpose": "code",
+                "mode": "code",
+                "task": task,
+            })
+            self.assertEqual(again.status_code, 200, again.text[:500])
+            second_plan = again.json()
+            self.assertNotEqual(second_plan["run_id"], body["run_id"])
+            second_steps = {step["n"]: step for step in second_plan["plan"]}
+            fresh = post_step(second_plan, second_steps[2])
+            self.assertEqual(fresh.status_code, 200, fresh.text[:500])
+            self.assertFalse(fresh.json().get("duplicate"))
+            self.assertEqual(len(calls), 3)
+
+        script = Path(self.tmp.name) / "restore_result.py"
+        script.write_text(
+            "import json, os, sys\n"
+            "sys.path.insert(0, sys.argv[1])\n"
+            "import a11oy_code_runloop_journey as journey\n"
+            "print(json.dumps(journey.restore_committed_result(\n"
+            "    sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5])))\n",
+            encoding="utf-8",
+        )
+        proc = subprocess.run(
+            [
+                sys.executable,
+                str(script),
+                str(ROOT),
+                str(self.log),
+                TENANT,
+                body["run_id"],
+                steps[2]["step_id"],
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr[-400:])
+        restored = json.loads(proc.stdout)
+        self.assertEqual(restored["result"]["state"], "AVAILABLE")
+        self.assertEqual(restored["run"]["answer"], "synthetic synthesis")
+        self.assertNotEqual(
+            restored["result"]["historical_execution_succeeded"],
+            True,
+        )
+
+    def test_frontend_sends_plan_step_identity_and_restores_results(self):
+        html = (ROOT / "web" / "code.html").read_text(encoding="utf-8")
+        self.assertIn("run_id: CURRENT.run_id", html)
+        self.assertIn("step_id: step.step_id", html)
+        self.assertIn("plan_revision: CURRENT.plan_revision", html)
+        self.assertIn("restored committed result", html)
+        self.assertIn('id="stateIdentity"', html)
+        self.assertIn('id="stateResult"', html)
+        self.assertIn("RESULT_UNAVAILABLE", html)
+
     def test_frontend_posts_the_fixed_query_through_runstep(self):
         html = (ROOT / "web" / "code.html").read_text(encoding="utf-8")
         self.assertIn(runloop.FIXED_SYNTHETIC_QUERY, html)

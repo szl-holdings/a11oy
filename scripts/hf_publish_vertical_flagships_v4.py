@@ -25,6 +25,7 @@ import hashlib
 import json
 import os
 import re
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -38,6 +39,7 @@ LYTE_IMPL = HERE / "hf_publish_lyte_enterprise.py"
 BASE_COMBINED_IMPL = HERE / "hf_publish_vertical_services.py"
 COMBINED_IMPL = HERE / "hf_publish_vertical_services_intelligence_v4.py"
 SPACE_GUARD_IMPL = HERE / "hf_existing_space_guard.py"
+RELEASE_GUARD_IMPL = HERE / "szl_release_guard.py"
 FLAGSHIP_RECEIPT = Path("hf-vertical-flagships-receipt.json")
 LYTE_RECEIPT = Path("hf-lyte-enterprise-receipt.json")
 COMBINED_RECEIPT = Path("hf-vertical-services-receipt.json")
@@ -66,13 +68,34 @@ LEGACY_PUBLIC_FLAGSHIP_CONTRACT = (
 LEGACY_FOLDED_CONTRACT = 'FOLDED_INTO_KILLINCHU = ("sentra", "vessels")'
 
 
-def load_module(name: str, path: Path) -> ModuleType:
+def _load_module_from_path(name: str, path: Path) -> ModuleType:
     spec = importlib.util.spec_from_file_location(name, path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"cannot load publisher module: {path}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def load_module(name: str, path: Path) -> ModuleType:
+    """Load a publisher and its intentional sibling dependencies by exact path."""
+    if path != LYTE_IMPL:
+        return _load_module_from_path(name, path)
+
+    # Isolated Python deliberately omits ``scripts/`` from sys.path.  Lyte's
+    # reviewed release primitive is the one intentional sibling import, so
+    # make only that exact file available while the publisher is imported.
+    missing = object()
+    previous = sys.modules.get("szl_release_guard", missing)
+    release_guard = _load_module_from_path("szl_release_guard", RELEASE_GUARD_IMPL)
+    sys.modules["szl_release_guard"] = release_guard
+    try:
+        return _load_module_from_path(name, path)
+    finally:
+        if previous is missing:
+            sys.modules.pop("szl_release_guard", None)
+        else:
+            sys.modules["szl_release_guard"] = previous
 
 
 def constrain_public_flagships(module: ModuleType) -> tuple[str, ...]:

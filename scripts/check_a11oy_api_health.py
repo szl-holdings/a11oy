@@ -11,10 +11,13 @@ the SPA HTML with a 200.
 
 This script probes the governed operator/reason capability surface (marker
 ``a11oy-operator-reason-envelope-task516`` in serve.py) on one or more live
-targets and FAILS (non-zero exit) if any endpoint regresses: non-200, a
+targets and FAILS (non-zero exit) if any endpoint regresses: a 5xx, a
 content-type that is not application/json (the SPA-HTML fallback), an
-unparseable / non-object body, or a missing contract key. Transient
-rebuild/restart states are tolerated via bounded retries.
+unparseable / non-object body, or a missing contract key on HTTP 200.
+Unauthenticated POSTs that the operator gate refuses with HTTP 401
+application/json, ok false, and status BLOCKED are the closed result, not
+a dropped envelope. Transient rebuild/restart states are tolerated via
+bounded retries.
 
 The governed reasoning/operator endpoints carry the full Doctrine envelope
 {status, citations, fetchedAt, doctrine}. operator/recommend and operator/ledger
@@ -59,6 +62,10 @@ CHECKS = [
         # approved:false -> the governed loop WITHHOLDS execution (safe to probe).
         "body": {"command": "acknowledge alert", "target": "demo", "approved": False},
         "required": ENVELOPE + ["outcome"],
+        # No Actions secret carries the operator Bearer. Anonymous callers are
+        # refused by szl_operator_auth before the handler. A 200 must still
+        # carry this contract; a governed 401 BLOCKED is the closed result.
+        "anonymous_refusal_ok": True,
     },
     # --- console DATA tabs ------------------------------------------------------
     # These back the live /console tabs. They do NOT carry the governed reasoning
@@ -81,6 +88,7 @@ CHECKS = [
         "path": "/api/a11oy/v1/operator/act",
         "body": {"action": "acknowledge", "target": "health-probe", "note": "scheduled health check"},
         "required": ENVELOPE + ["ok", "entry", "audit_depth"],
+        "anonymous_refusal_ok": True,
     },
     # --- MCP tools surface ------------------------------------------------------
     # /v1/mcp/tools is the MCP manifest. It does NOT carry the governed envelope —
@@ -96,23 +104,45 @@ CHECKS = [
     # formula registry ever stops importing in-process the call 503s -> red, which
     # is the regression we want surfaced.
     {"method": "POST", "path": "/api/a11oy/v1/mcp/call", "label": "list_formulas",
-     "body": {"name": "list_formulas"}, "required": ["tool", "status", "formulas"]},
+     "body": {"name": "list_formulas"}, "required": ["tool", "status", "formulas"],
+     "anonymous_refusal_ok": True},
     {"method": "POST", "path": "/api/a11oy/v1/mcp/call", "label": "run_formula",
      "body": {"name": "run_formula", "arguments": {"name": "lambda_aggregate", "args": [[0.9, 0.92, 0.95]]}},
-     "required": ["tool", "status", "result"]},
+     "required": ["tool", "status", "result"],
+     "anonymous_refusal_ok": True},
     {"method": "POST", "path": "/api/a11oy/v1/mcp/call", "label": "formula_proof_status",
      "body": {"name": "formula_proof_status", "arguments": {"name": "lambda_aggregate"}},
-     "required": ["tool", "status", "proof_status"]},
+     "required": ["tool", "status", "proof_status"],
+     "anonymous_refusal_ok": True},
 ]
 
 
-def evaluate(status_code, content_type, body_bytes, required):
+def evaluate(status_code, content_type, body_bytes, required, anonymous_refusal_ok=False):
     """Pure check of one HTTP response. Returns (ok: bool, reason: str).
 
-    A regression is: not 200, content-type not application/json (the SPA-HTML
-    fallback returning 200), an unparseable / non-object body, or a missing
-    contract key.
+    A regression is: not 200, unless this probe allows the operator-gate
+    refusal; content-type not application/json (the SPA-HTML fallback
+    returning 200); an unparseable / non-object body; or a missing contract
+    key. anonymous_refusal_ok accepts only HTTP 401 application/json whose
+    object has ok false and status BLOCKED. That is the gate refusing before
+    any handler. It does not accept 401 HTML, a 200 that dropped its keys,
+    or any 5xx.
     """
+    if anonymous_refusal_ok and status_code == 401:
+        ct = (content_type or "").lower()
+        if "application/json" not in ct:
+            return False, (
+                f"401 content-type '{content_type or 'none'}' is not application/json"
+            )
+        try:
+            data = json.loads(body_bytes.decode("utf-8"))
+        except Exception as exc:  # noqa: BLE001 - any decode/parse error is a regression
+            return False, f"401 body is not valid JSON: {exc}"
+        if not isinstance(data, dict):
+            return False, "401 JSON payload is not an object"
+        if data.get("ok") is not False or data.get("status") != "BLOCKED":
+            return False, "401 is not a governed anonymous refusal"
+        return True, "401 application/json, anonymous refusal before execution"
     if status_code != 200:
         return False, f"HTTP {status_code} (want 200)"
     ct = (content_type or "").lower()
@@ -171,8 +201,16 @@ def check_endpoint(base, chk, attempts, sleep_s, timeout):
         if err is not None:
             last = f"request error: {err}"
         else:
-            ok, reason = evaluate(code, ct, rbody, required)
+            ok, reason = evaluate(
+                code, ct, rbody, required,
+                anonymous_refusal_ok=bool(chk.get("anonymous_refusal_ok")),
+            )
             if ok:
+                if code == 401:
+                    return True, (
+                        "401 application/json, anonymous refusal before execution "
+                        f"(attempt {attempt})"
+                    ), url
                 return True, f"200 application/json, contract OK (attempt {attempt})", url
             last = reason
         if attempt < attempts:
