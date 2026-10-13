@@ -431,17 +431,35 @@ def canonical_compatibility(revision: str) -> dict[str, Any]:
     return gate.observe_canonical(revision)
 
 
+def _source_still_current(revision: str, receipt: dict[str, Any]) -> bool:
+    """Re-read main after a publication; a read error is recorded, never supersession."""
+    try:
+        head = _github_json("/repos/szl-holdings/a11oy/commits/main", token=_github_workflow_token())
+    except Exception as exc:
+        receipt["postflight_error"] = type(exc).__name__
+        return False
+    return head.get("sha") == revision
+
+
 def publish_finance_only(space_guard_module) -> int:
     """Existing writer, one explicit target; no sibling publisher or combined sync."""
     try:
         preflight = finance_preflight()
         code, error, admitted = run_publisher("szl_flagship_v4", FLAGSHIP_IMPL, finance_only=True)
         receipt = read_receipt(FLAGSHIP_RECEIPT) or {}
+        # The writer and its live verification can run for many minutes; the
+        # bound source must still be main tip afterwards, as for every target.
+        source_still_current = _source_still_current(os.environ.get("GITHUB_SHA", ""), receipt)
         receipt.update(publication_scope="finance", canonical_preflight=preflight,
             existing_space_guard=space_guard_module.guard_report(), generated_flagship_slugs=list(admitted or ()),
-            sibling_publications=0, secret_values_recorded=False, delete_operations=0)
-        receipt["complete"] = (receipt.get("complete") is True and code == 0 and admitted == ("finance",)
-            and len(receipt.get("rows", [])) == 1 and receipt["rows"][0].get("id") == "SZLHOLDINGS/finance")
+            sibling_publications=0, secret_values_recorded=False, delete_operations=0,
+            source_still_current=source_still_current)
+        published_and_verified = bool(receipt.get("complete") is True and code == 0 and error is None
+            and admitted == ("finance",) and len(receipt.get("rows", [])) == 1
+            and receipt["rows"][0].get("id") == "SZLHOLDINGS/finance")
+        receipt["complete"] = bool(published_and_verified and source_still_current)
+        if published_and_verified and source_still_current is False and "postflight_error" not in receipt:
+            receipt.update(state="SUPERSEDED", superseded=True)
         if error:
             receipt["entrypoint_error"] = error
     except Exception as exc:
@@ -782,6 +800,30 @@ def lyte_receipt_is_complete(receipt: dict[str, Any]) -> bool:
     )
 
 
+LYTE_FIRST_WRITE_PHASE = "publish-files"
+LYTE_VERIFIED_PHASE = "verify-existing"
+
+
+def lyte_supersession_boundary(lyte: dict[str, Any]) -> str:
+    """Where a superseded Lyte release stopped, from its own release journal."""
+    journal = lyte.get("release_journal")
+    if not isinstance(journal, dict):
+        # The journal is created before any provider phase; without one no
+        # phase, and so no write, ran.
+        return "BEFORE_PROVIDER_WRITE"
+    phases, completed = journal.get("required_phases"), journal.get("completed_phases")
+    if (not isinstance(phases, list) or not isinstance(completed, list)
+            or LYTE_FIRST_WRITE_PHASE not in phases or LYTE_VERIFIED_PHASE not in phases
+            or completed != phases[:len(completed)]):
+        return "UNKNOWN"
+    if LYTE_VERIFIED_PHASE in completed:
+        return "AFTER_LIVE_VERIFICATION"
+    # The failing phase is the first one not completed.
+    if len(completed) < phases.index(LYTE_FIRST_WRITE_PHASE):
+        return "BEFORE_PROVIDER_WRITE"
+    return "AFTER_PROVIDER_WRITE"
+
+
 def publish_lyte_only(space_guard_module) -> int:
     """Repair the source-owned product through the existing writer alone."""
     code, error, _ = run_publisher("szl_lyte_enterprise", LYTE_IMPL)
@@ -797,10 +839,19 @@ def publish_lyte_only(space_guard_module) -> int:
     }
     if error:
         receipt["entrypoint_error"] = error
-    # The Lyte release transaction already classifies a moved producer or
-    # publisher main as SUPERSEDED (never complete); surface that distinctly.
+    # The Lyte release transaction classifies a moved producer or publisher
+    # main as SUPERSEDED (never complete). That is neutral only when the
+    # release journal proves no provider write began, or that the published
+    # release was live-verified before main moved. Supersession between the
+    # file publication and live verification leaves a Space that is written
+    # but not bound, restarted or verified: that is a failed release.
     if not receipt["complete"] and lyte.get("state") == "SUPERSEDED" and error is None:
-        receipt.update(state="SUPERSEDED", superseded=True)
+        boundary = lyte_supersession_boundary(lyte)
+        receipt["supersession_boundary"] = boundary
+        if boundary in ("BEFORE_PROVIDER_WRITE", "AFTER_LIVE_VERIFICATION"):
+            receipt.update(state="SUPERSEDED", superseded=True)
+        else:
+            receipt["state"] = "SUPERSEDED_AFTER_UNVERIFIED_WRITE"
     FLAGSHIP_RECEIPT.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(receipt, indent=2, sort_keys=True))
     if receipt.get("superseded") is True:

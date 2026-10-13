@@ -111,15 +111,41 @@ def test_healthz_reports_not_ok_when_integrity_fails_but_stays_200(tmp_path, mon
 class _Upstream:
     """Minimal httpx response double for the emitted shell's probe()."""
 
-    def __init__(self, status_code, body):
+    def __init__(self, status_code, body, content_type="application/json"):
         self.status_code = status_code
         self.is_success = 200 <= status_code < 300
-        self.headers = {"content-type": "application/json"}
+        self.headers = {"content-type": content_type}
         self._body = body
-        self.text = json.dumps(body)
+        self.text = body if isinstance(body, str) else json.dumps(body)
 
     def json(self):
         return self._body
+
+
+def _source(status, *, value=True, age=60.0):
+    import time
+
+    return {"value": {"items": [{"id": 1}]} if value else None,
+            "freshness": {"status": status, "age_s": age,
+                          "fetched_at": (time.time() - age) if value else None}}
+
+
+def _feed(slug, statuses):
+    """The canonical feed shapes (a11oy_vertical_feeds.py): per-source freshness."""
+    if slug == "terra":
+        keys, vertical = ("hpd_litigations", "dob_violations", "rates"), "realestate"
+    elif slug == "counsel":
+        keys, vertical = ("federal_register", "court_filings"), "legal"
+    else:
+        return {"valid": None, "detail": "POST a receipt to verify it"}
+    body = {"vertical": vertical, "sources_cited": [], "doctrine": None}
+    for key, status in zip(keys, statuses):
+        body[key] = _source(status, value=status != "unavailable")
+    return body
+
+
+def _all_live(slug):
+    return _feed(slug, ("live", "live", "live"))
 
 
 @pytest.mark.parametrize("slug", ["terra", "counsel", "sentra"])
@@ -162,24 +188,97 @@ def test_live_and_readyz_are_200_only_for_an_accepted_upstream_payload(tmp_path,
     from fastapi.testclient import TestClient
     import httpx
 
-    monkeypatch.setattr(httpx, "get", lambda url, **kwargs: _Upstream(200, {"status": "LIVE", "ok": True}))
+    monkeypatch.setattr(httpx, "get", lambda url, **kwargs: _Upstream(200, _all_live(slug)))
     with TestClient(_serve(tmp_path, monkeypatch, slug)) as client:
         live = client.get("/api/live")
         ready = client.get("/readyz")
     assert live.status_code == 200
     assert live.json()["status"] == "REACHABLE"
+    assert live.json()["evidence_state"] == "REACHABLE"
     assert live.json()["honesty"] == "HTTP success is reachability, not MEASURED"
     assert ready.status_code == 200
     body = ready.json()
     assert body["ready"] is True and body["state"] == "MEASURED"
     assert body["checks"] == {"landing_sha256": True, "panels_sha256": True, "upstream": True}
+    assert body["upstream"]["state"] == "REACHABLE"
+
+
+@pytest.mark.parametrize("slug", ["terra", "counsel"])
+def test_feed_with_every_source_unavailable_is_not_ready(tmp_path, monkeypatch, slug):
+    """The canonical feeds answer HTTP 200 and keep availability per source."""
+    from fastapi.testclient import TestClient
+    import httpx
+
+    feed = _feed(slug, ("unavailable", "unavailable", "unavailable"))
+    assert "status" not in feed and "state" not in feed and "ok" not in feed
+    monkeypatch.setattr(httpx, "get", lambda url, **kwargs: _Upstream(200, feed))
+    with TestClient(_serve(tmp_path, monkeypatch, slug)) as client:
+        live = client.get("/api/live")
+        ready = client.get("/readyz")
+    assert live.status_code == 503 and live.json()["status"] == "UNAVAILABLE"
+    assert live.json()["reason"] == "UPSTREAM_SOURCES_UNAVAILABLE"
+    assert ready.status_code == 503
+    body = ready.json()
+    assert body["ready"] is False and body["state"] == "UPSTREAM_UNAVAILABLE"
+    assert body["upstream"]["state"] == "UNAVAILABLE"
+
+
+@pytest.mark.parametrize("slug", ["terra", "counsel"])
+@pytest.mark.parametrize("statuses", [("live", "unavailable", "live"), ("cached", "live", "stale")])
+def test_partial_or_cached_feed_is_ready_and_labelled_partial(tmp_path, monkeypatch, slug, statuses):
+    from fastapi.testclient import TestClient
+    import httpx
+
+    monkeypatch.setattr(httpx, "get", lambda url, **kwargs: _Upstream(200, _feed(slug, statuses)))
+    with TestClient(_serve(tmp_path, monkeypatch, slug)) as client:
+        live = client.get("/api/live")
+        ready = client.get("/readyz")
+    assert live.status_code == 200 and live.json()["evidence_state"] == "PARTIAL"
+    assert ready.status_code == 200 and ready.json()["upstream"]["state"] == "PARTIAL"
+
+
+@pytest.mark.parametrize("slug, mutate, reason", [
+    ("terra", lambda feed: feed.update(vertical="legal"), "UPSTREAM_VERTICAL_MISMATCH"),
+    ("counsel", lambda feed: feed.pop("court_filings"), "UPSTREAM_SOURCE_EVIDENCE_MISSING"),
+    ("counsel", lambda feed: feed["federal_register"]["freshness"].update(status="fresh"),
+     "UPSTREAM_SOURCE_FRESHNESS_UNKNOWN"),
+    ("terra", lambda feed: feed["rates"]["freshness"].update(fetched_at=None), "UPSTREAM_SOURCE_CLOCK_INVALID"),
+    ("terra", lambda feed: feed["rates"]["freshness"].update(fetched_at=4e12), "UPSTREAM_SOURCE_CLOCK_INVALID"),
+])
+def test_feed_without_valid_source_evidence_is_not_accepted(tmp_path, monkeypatch, slug, mutate, reason):
+    from fastapi.testclient import TestClient
+    import httpx
+
+    feed = _all_live(slug)
+    mutate(feed)
+    monkeypatch.setattr(httpx, "get", lambda url, **kwargs: _Upstream(200, feed))
+    with TestClient(_serve(tmp_path, monkeypatch, slug)) as client:
+        live = client.get("/api/live")
+        ready = client.get("/readyz")
+    assert live.status_code == 503 and live.json()["reason"] == reason
+    assert ready.status_code == 503 and ready.json()["ready"] is False
+
+
+@pytest.mark.parametrize("slug", ["terra", "counsel", "sentra"])
+def test_html_200_upstream_is_never_ready(tmp_path, monkeypatch, slug):
+    """An unregistered route falls through to the SPA shell with HTML 200."""
+    from fastapi.testclient import TestClient
+    import httpx
+
+    page = "<!doctype html><html><body>console</body></html>"
+    monkeypatch.setattr(httpx, "get", lambda url, **kwargs: _Upstream(200, page, "text/html; charset=utf-8"))
+    with TestClient(_serve(tmp_path, monkeypatch, slug)) as client:
+        live = client.get("/api/live")
+        ready = client.get("/readyz")
+    assert live.status_code == 503 and live.json()["reason"] == "UPSTREAM_NOT_JSON"
+    assert ready.status_code == 503 and ready.json()["state"] == "UPSTREAM_UNAVAILABLE"
 
 
 def test_readyz_reports_invalid_not_upstream_when_local_integrity_fails(tmp_path, monkeypatch):
     from fastapi.testclient import TestClient
     import httpx
 
-    monkeypatch.setattr(httpx, "get", lambda url, **kwargs: _Upstream(200, {"status": "LIVE"}))
+    monkeypatch.setattr(httpx, "get", lambda url, **kwargs: _Upstream(200, _all_live("terra")))
     with TestClient(_serve(tmp_path, monkeypatch, "terra", tamper_landing=True)) as client:
         ready = client.get("/readyz")
     assert ready.status_code == 503
@@ -209,7 +308,10 @@ def test_panel_livebar_requires_http_success_before_reachable():
     r = load("hf_publish_vertical_flagships_v4_impl")
     for row in r.FLAGSHIPS:
         page = r.html(row)
-        assert "const reachable=r.ok&&(j.status==='REACHABLE'||j.status==='LIVE');" in page
+        assert ("const reachable=r.ok&&(j.status==='REACHABLE'||j.status==='LIVE'"
+                "||j.status==='SNAPSHOT');") in page
+        # An accepted Finance snapshot keeps its non-live label.
+        assert "(j.status==='SNAPSHOT'?'SNAPSHOT':'REACHABLE')" in page
         assert "s.className='status '+(j.status==='LIVE'?'is-live':'')" not in page
 
 
@@ -247,3 +349,24 @@ def test_publication_admission_separates_upstream_outage_from_artifact_integrity
     row["readyz"]["checks"]["panels_sha256"] = True
     row["readyz"]["state"] = "INVALID"
     assert not r.observation_passes(row, source_revision=revision, workflow_run_id=run_id)
+
+
+def test_publication_admission_accepts_the_emitted_finance_readiness_shape(tmp_path, monkeypatch):
+    """Finance owns its /readyz (contract-versioned projection); an unreachable
+    canonical A11oy is still an upstream outage, not a failed publication."""
+    from fastapi.testclient import TestClient
+
+    r = load("hf_publish_vertical_flagships_v4_impl")
+    with TestClient(_serve(tmp_path, monkeypatch, "finance")) as client:
+        with patch("socket.socket.connect", side_effect=OSError("network forbidden")):
+            ready = client.get("/readyz")
+    assert ready.status_code == 503
+    row = {"slug": "finance", "readyz_http": ready.status_code, "readyz": ready.json()}
+    view = r._publication_view(row)
+    assert view["readyz_http"] == 200 and view["readyz"]["ready"] is True
+    assert row["upstream_readiness"]["accepted"] is False
+    assert row["upstream_readiness"]["http_status"] == 503
+    # An incompatible canonical contract is not an outage and is never admitted.
+    incompatible = {"slug": "finance", "readyz_http": 503,
+                    "readyz": {**ready.json(), "state": "INCOMPATIBLE"}}
+    assert r._publication_view(incompatible)["readyz_http"] == 503

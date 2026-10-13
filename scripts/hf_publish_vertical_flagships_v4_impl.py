@@ -118,18 +118,63 @@ _HEALTHZ_PROCESS_SCOPED = (
 # did not reach an accepted upstream payload is HTTP 503 on /api/live and makes
 # /readyz not ready. /healthz stays process-scoped liveness.
 _LIVE_UNCONDITIONAL = '@app.get("/api/live")\ndef live(): return probe()\n'
+# The verdict uses the evidence the forge 0.2.3 landing's stateFor() uses, not
+# HTTP success: the canonical Terra and Counsel feeds always answer HTTP 200
+# and carry availability per source, and the base probe wraps any non-JSON
+# body (for example an SPA fallthrough page) as {"text": ...}. A feed is
+# accepted only with at least one source observed with a valid clock; the
+# upstream state is REACHABLE when every source is live and PARTIAL otherwise.
 _LIVE_UPSTREAM_BOUND = (
     'UPSTREAM_ACCEPTED_STATES=("REACHABLE","SNAPSHOT")\n'
+    'UPSTREAM_SOURCE_EVIDENCE={"terra":("realestate",("hpd_litigations","dob_violations","rates")),'
+    '"counsel":("legal",("federal_register","court_filings"))}\n'
+    '\n'
+    'def upstream_source_state(data):\n'
+    '    spec=UPSTREAM_SOURCE_EVIDENCE.get(CFG["slug"])\n'
+    '    if spec is None:\n'
+    '        return "REACHABLE",None\n'
+    '    vertical,keys=spec\n'
+    '    if data.get("vertical")!=vertical:\n'
+    '        return "UNAVAILABLE","UPSTREAM_VERTICAL_MISMATCH"\n'
+    '    available=0\n'
+    '    degraded=False\n'
+    '    for key in keys:\n'
+    '        source=data.get(key)\n'
+    '        freshness=source.get("freshness") if isinstance(source,dict) else None\n'
+    '        if not isinstance(freshness,dict):\n'
+    '            return "UNAVAILABLE","UPSTREAM_SOURCE_EVIDENCE_MISSING"\n'
+    '        status=str(freshness.get("status") or "").lower()\n'
+    '        if status not in ("live","cached","stale","unavailable"):\n'
+    '            return "UNAVAILABLE","UPSTREAM_SOURCE_FRESHNESS_UNKNOWN"\n'
+    '        if status=="unavailable":\n'
+    '            if source.get("value") is not None:\n'
+    '                return "UNAVAILABLE","UPSTREAM_SOURCE_EVIDENCE_CONTRADICTORY"\n'
+    '            degraded=True\n'
+    '            continue\n'
+    '        fetched=freshness.get("fetched_at")\n'
+    '        if (not isinstance(source.get("value"),dict) or isinstance(fetched,bool)\n'
+    '                or not isinstance(fetched,(int,float)) or not 0<fetched<=time.time()+60):\n'
+    '            return "UNAVAILABLE","UPSTREAM_SOURCE_CLOCK_INVALID"\n'
+    '        available+=1\n'
+    '        degraded=degraded or status!="live"\n'
+    '    if not available:\n'
+    '        return "UNAVAILABLE","UPSTREAM_SOURCES_UNAVAILABLE"\n'
+    '    return ("PARTIAL" if degraded else "REACHABLE"),None\n'
     '\n'
     'def upstream_verdict(result):\n'
     '    if not isinstance(result,dict) or result.get("status") not in UPSTREAM_ACCEPTED_STATES:\n'
-    '        return False,"UPSTREAM_UNAVAILABLE"\n'
+    '        return False,"UPSTREAM_UNAVAILABLE","UNAVAILABLE"\n'
     '    data=result.get("data")\n'
     '    if not isinstance(data,dict):\n'
-    '        return False,"UPSTREAM_PAYLOAD_INVALID"\n'
+    '        return False,"UPSTREAM_PAYLOAD_INVALID","UNAVAILABLE"\n'
+    '    if set(data)=={"text"}:\n'
+    '        return False,"UPSTREAM_NOT_JSON","UNAVAILABLE"\n'
     '    if data.get("status")=="UNAVAILABLE" or data.get("state")=="UNAVAILABLE" or data.get("ok") is False:\n'
-    '        return False,"UPSTREAM_DATA_UNAVAILABLE"\n'
-    '    return True,None\n'
+    '        return False,"UPSTREAM_DATA_UNAVAILABLE","UNAVAILABLE"\n'
+    '    if result.get("status")=="SNAPSHOT":\n'
+    '        return True,None,"SNAPSHOT"\n'
+    '    state,reason=upstream_source_state(data)\n'
+    '    return state!="UNAVAILABLE",reason,state\n'
     '\n'
     'def upstream_observation():\n'
     '    result=probe()\n'
@@ -138,17 +183,19 @@ _LIVE_UPSTREAM_BOUND = (
     '            body=json.loads(bytes(result.body).decode("utf-8"))\n'
     '        except (UnicodeDecodeError,ValueError):\n'
     '            body=None\n'
-    '        accepted,reason=upstream_verdict(body)\n'
+    '        accepted,reason,state=upstream_verdict(body)\n'
     '        accepted=accepted and result.status_code==200\n'
-    '        return result,accepted,(reason or (None if accepted else "UPSTREAM_UNAVAILABLE")),body\n'
-    '    accepted,reason=upstream_verdict(result)\n'
-    '    if not accepted and isinstance(result,dict):\n'
-    '        result={**result,"status":"UNAVAILABLE","reason":reason}\n'
-    '    return result,accepted,reason,result\n'
+    '        return (result,accepted,(reason or (None if accepted else "UPSTREAM_UNAVAILABLE")),body,\n'
+    '                state if accepted else "UNAVAILABLE")\n'
+    '    accepted,reason,state=upstream_verdict(result)\n'
+    '    if isinstance(result,dict):\n'
+    '        result=({**result,"evidence_state":state} if accepted\n'
+    '                else {**result,"status":"UNAVAILABLE","reason":reason,"evidence_state":state})\n'
+    '    return result,accepted,reason,result,state\n'
     '\n'
     '@app.get("/api/live")\n'
     'def live():\n'
-    '    result,accepted,reason,body=upstream_observation()\n'
+    '    result,accepted,reason,body,state=upstream_observation()\n'
     '    if isinstance(result,JSONResponse):\n'
     '        return result\n'
     '    return JSONResponse(result,status_code=200 if accepted else 503,headers={"Cache-Control":"no-store"})\n'
@@ -162,11 +209,11 @@ _READYZ_UPSTREAM_BOUND = (
     '@app.get("/readyz")\ndef readyz():\n'
     '    status=local_integrity()\n'
     '    local_ready=status["ready"]\n'
-    '    _,accepted,reason,body=upstream_observation()\n'
+    '    _,accepted,reason,body,state=upstream_observation()\n'
     '    upstream=body if isinstance(body,dict) else {}\n'
     '    status["checks"]=dict(status["checks"],upstream=accepted)\n'
     '    status["upstream"]={"route":"/api/live","source":CFG.get("upstream"),"accepted":accepted,'
-    '"status":upstream.get("status"),"http_status":upstream.get("http_status"),"reason":reason}\n'
+    '"state":state,"status":upstream.get("status"),"http_status":upstream.get("http_status"),"reason":reason}\n'
     '    status["ready"]=bool(local_ready and accepted)\n'
     '    status["state"]="MEASURED" if status["ready"] else ("UPSTREAM_UNAVAILABLE" if local_ready else "INVALID")\n'
     '    return JSONResponse(status,status_code=200 if status["ready"] else 503,headers={"Cache-Control":"no-store"})\n'
@@ -178,10 +225,10 @@ _LIVEBAR_OPEN = (
 )
 _LIVEBAR_CLOSED = (
     "const verified=r.ok&&j.status==='MEASURED'&&j.receipt_verified===true;"
-    "const reachable=r.ok&&(j.status==='REACHABLE'||j.status==='LIVE');"
+    "const reachable=r.ok&&(j.status==='REACHABLE'||j.status==='LIVE'||j.status==='SNAPSHOT');"
     "s.className='status';"
     "s.dataset.reachability=reachable?'REACHABLE':'UNAVAILABLE';"
-    "s.children[1].textContent=(verified?'MEASURED':(reachable?'REACHABLE':'UNAVAILABLE'))"
+    "s.children[1].textContent=(verified?'MEASURED':(reachable?(j.status==='SNAPSHOT'?'SNAPSHOT':'REACHABLE'):'UNAVAILABLE'))"
     "+' / '+(j.latency_ms??'-')+' ms';"
     "const root=document.documentElement;"
     "if(root.dataset.domain==='sentra'){root.dataset.iris='closed';}"

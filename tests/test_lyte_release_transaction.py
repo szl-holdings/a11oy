@@ -291,12 +291,17 @@ def test_both_actual_vertical_jobs_share_one_non_cancelling_writer_lifecycle():
     canonical = (ROOT / ".github/workflows/hf-sync.yml").read_text()
     group = "    concurrency:\n      group: hf-vertical-estate\n      cancel-in-progress: false"
     # The canonical Finance projection job was retired with the livelocked
-    # recovery graph; only the canonical vertical job shares the group now.
-    assert manual.count(group) == 1 and canonical.count(group) == 1
-    # Automatic per-target jobs serialize per Space; the full estate keeps the
-    # shared estate group above.
-    assert "      group: hf-vertical-target-${{ matrix.target }}\n" in manual
-    assert "\nconcurrency:" not in manual  # planning is read-only; writers hold groups
+    # recovery graph; only the canonical vertical job shares the group there.
+    # Here both writer jobs (planned targets and the full estate) hold it, so
+    # every writer of every vertical Space shares one lock.
+    assert canonical.count(group) == 1
+    assert manual.count(group) == 2
+    assert manual.count("python scripts/hf_publish_vertical_flagships_v4.py") == 2
+    for job in ("\n  publish-targets:\n", "\n  publish:\n"):
+        block = manual.split(job, 1)[1].split("\n  publish", 1)[0]
+        assert group in block, job
+    assert "hf-vertical-target-" not in manual
+    assert "\nconcurrency:" not in manual  # planning is read-only; writers hold the group
     assert "  group: sync-relock-canonical-a11oy\n" in canonical
     assert "github.event_name == 'workflow_dispatch' && inputs.publish_vertical_flagships" in canonical
     assert "options: [finance, lyte, terra, sentra, counsel, estate]" in manual

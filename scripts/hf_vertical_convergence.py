@@ -15,8 +15,16 @@ main would publish:
   so an unrelated main commit is never drift while any changed byte is.
   Finance additionally proxies the canonical A11oy Space, which must report
   the same source revision as the Finance config.
+  Finance's projection manifest is rendered from the served identity and
+  compared too, and served identity fields that are not an exact revision and
+  a positive run id are drift, never their own expected value.
 * Lyte is source-owned: its Space must serve the qualified
-  ``szl-holdings/lyte-services`` main revision.
+  ``szl-holdings/lyte-services`` main revision. Its automatic republish is
+  withheld (BLOCKED) while its runtime reports non-durable persistence, since
+  the release restarts the Space and a restart drops process-scoped data.
+* A target is CONVERGED only while its running build is observed serving the
+  expected bytes: an unreachable build-info or a Space stage other than RUNNING
+  is RUNTIME_UNAVAILABLE, which alerts and keeps the tracker open.
 
 Converged targets are no-ops. The tool never writes to Hugging Face; the
 existing publisher performs and live-verifies every write. ``report`` also
@@ -53,10 +61,19 @@ USER_AGENT = "SZLHOLDINGS-Vertical-Convergence/1.0"
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
 PLACEHOLDER_REVISION = "1" * 40
 
-TARGETS = ("terra", "counsel", "sentra", "finance", "lyte")
-GENERATED_TARGETS = ("terra", "counsel", "sentra", "finance")
+# Sentra is last: its admission may wait for the required checks of main, and
+# the targets ahead of it should not wait behind that under the writer lock.
+TARGETS = ("terra", "counsel", "finance", "lyte", "sentra")
+GENERATED_TARGETS = ("terra", "counsel", "finance", "sentra")
 IDENTITY_FIELDS = ("source_revision", "workflow_run_id")
 PUBLISHED_FILES = ("app.py", "Dockerfile", "requirements.txt", "index.html", "panels.html", "README.md")
+FINANCE_MANIFEST = "finance-projection-manifest.json"
+# Space stages that serve a build, and stages in which a new build is expected
+# to come up on its own (the RUNNING_* stages still serve the previous build).
+RUNNING_STAGES = ("RUNNING", "RUNNING_BUILDING", "RUNNING_APP_STARTING")
+STARTING_STAGES = ("BUILDING", "APP_STARTING", "RUNNING_BUILDING", "RUNNING_APP_STARTING")
+# Lyte persistence that a release restart would lose (or that is not reported).
+NON_DURABLE_PERSISTENCE = ("FILE_OR_PROCESS_SCOPED", "PROCESS_SCOPED", "EPHEMERAL")
 DEFAULT_ALERT_HOURS = 6.0
 TRACKER_MARKER = "<!-- szl:vertical-drift-tracker:v1 -->"
 
@@ -267,6 +284,20 @@ def expected_config_bytes(core: dict[str, Any], served: dict[str, Any]) -> bytes
     return (json.dumps(merged, indent=2, sort_keys=True) + "\n").encode("utf-8")
 
 
+def valid_identity(served: dict[str, Any]) -> bool:
+    """The identity a publisher writes: an exact nonzero revision and a positive run id."""
+    revision, run_id = served.get("source_revision"), served.get("workflow_run_id")
+    return (isinstance(revision, str) and SHA40.fullmatch(revision) is not None
+            and revision != "0" * 40 and type(run_id) is int and run_id > 0)
+
+
+def expected_finance_manifest_blob(renderer: ModuleType, served: dict[str, Any]) -> str:
+    """The projection manifest Finance's writer uploads for the served identity."""
+    revision, run_id = served["source_revision"], served["workflow_run_id"]
+    files = renderer.render_finance_payloads(revision, run_id)
+    return git_blob_id(renderer.finance_projection_manifest_bytes(files, revision, run_id))
+
+
 # --------------------------------------------------------------- observations
 
 
@@ -300,7 +331,7 @@ def space_info(slug: str) -> dict[str, Any]:
 
 
 def live_build_info(slug: str) -> dict[str, Any]:
-    value = get_json(f"https://szlholdings-{slug}.hf.space/api/build-info", attempts=2)
+    value = get_json(f"https://szlholdings-{slug}.hf.space/api/build-info", attempts=3)
     if not isinstance(value, dict):
         raise Unavailable(f"live build-info is not an object for {slug}")
     return value
@@ -370,17 +401,25 @@ def assess_generated(slug: str, renderer: ModuleType, *, head: str,
         return _row(slug, state="UNOBSERVABLE", reason=str(exc))
     served_revision = served.get("source_revision")
     differing = [path for path in PUBLISHED_FILES if tree.get(path) != expected["files"][path]]
-    if served_raw != expected_config_bytes(expected["config"], served):
+    # The identity fields are taken from the served file only when they are an
+    # identity a publisher can have written; anything else is drift itself.
+    identity_valid = valid_identity(served)
+    if not identity_valid or served_raw != expected_config_bytes(expected["config"], served):
         differing.append("config.json")
+    if slug == "finance" and (not identity_valid or tree.get(FINANCE_MANIFEST)
+                              != expected_finance_manifest_blob(renderer, served)):
+        differing.append(FINANCE_MANIFEST)
     row = _row(slug, served_revision=served_revision, differing_files=differing,
                served_workflow_run_id=served.get("workflow_run_id"),
+               served_identity_valid=identity_valid,
                expected_artifact_set_sha256=expected["artifact_set_sha256"],
                served_artifact_set_sha256=served.get("artifact_set_sha256"))
     try:
         info = space_info(slug)
         row.update(space_stage=info["stage"], space_last_modified=info["last_modified"])
-    except Unavailable:
-        info = {"last_modified": None}
+    except Unavailable as exc:
+        info = {"last_modified": None, "stage": None}
+        row["space_info_error"] = str(exc)
 
     canonical = None
     coupled = slug == "finance" and finance_binds_canonical_revision(renderer)
@@ -394,7 +433,8 @@ def assess_generated(slug: str, renderer: ModuleType, *, head: str,
         row["canonical_a11oy_revision"] = canonical
 
     if differing:
-        since = first_input_change_after(str(served_revision or ""), TARGET_RENDER_INPUTS[slug])
+        since = first_input_change_after(str(served_revision if identity_valid else ""),
+                                         TARGET_RENDER_INPUTS[slug])
         basis = "first input change after the served revision"
         if since is None:
             # Bytes differ but no listed input changed: the input table is
@@ -402,8 +442,10 @@ def assess_generated(slug: str, renderer: ModuleType, *, head: str,
             since = commit_time(served_revision) or parse_time(info.get("last_modified"))
             basis = "served revision (no listed input changed; unexplained drift)"
             row["unexplained_drift"] = True
-        row.update(state="DRIFT", reason="published bytes differ from main: " + ", ".join(differing),
-                   drift_since=iso(since), drift_since_basis=basis)
+        reason = "published bytes differ from main: " + ", ".join(differing)
+        if not identity_valid:
+            reason += "; the served source identity is not an exact revision and positive run id"
+        row.update(state="DRIFT", reason=reason, drift_since=iso(since), drift_since_basis=basis)
     elif coupled and served_revision != canonical:
         times = [value for value in (commit_time(canonical), commit_time(served_revision)) if value]
         row.update(state="DRIFT",
@@ -412,7 +454,7 @@ def assess_generated(slug: str, renderer: ModuleType, *, head: str,
                    drift_since_basis="later commit of the two mismatched revisions (deploys follow commits)")
     else:
         row.update(state="CONVERGED")
-        return _with_runtime(row, slug)
+        return _with_runtime(row, slug, stage=info.get("stage"))
 
     if coupled and canonical != head:
         row.update(state="BLOCKED", reason=row["reason"] + (
@@ -423,18 +465,41 @@ def assess_generated(slug: str, renderer: ModuleType, *, head: str,
     return row
 
 
-def _with_runtime(row: dict[str, Any], slug: str) -> dict[str, Any]:
-    """A converged Hub tree whose running build still serves older bytes."""
+def _runtime_unavailable(row: dict[str, Any], *, stage: Any, reason: str) -> dict[str, Any]:
+    """The Hub tree may be current, but no running build is observed serving it.
+
+    A Space that is still building or starting is dated from its last commit,
+    so only a build that stays down past the threshold alerts. A crashed,
+    errored or unreachable runtime has no datable start and alerts at once. A
+    sleeping Space wakes on request; it is not converged but does not alert.
+    """
+    if stage == "SLEEPING":
+        row.update(state="RUNTIME_SLEEPING", publish=False, reason=reason)
+        return row
+    starting = stage in STARTING_STAGES
+    row.update(state="RUNTIME_UNAVAILABLE", publish=False, reason=reason,
+               drift_since=row.get("space_last_modified") if starting else None,
+               drift_since_basis=("Space last modified (build or start in progress)" if starting
+                                  else "undatable: no running build is observed"))
+    return row
+
+
+def _with_runtime(row: dict[str, Any], slug: str, *, stage: Any = None) -> dict[str, Any]:
+    """A converged Hub tree is CONVERGED only while its running build serves it."""
     try:
         live = live_build_info(slug)
     except Unavailable as exc:
-        row["runtime"] = {"state": "UNOBSERVABLE", "reason": str(exc)}
-        return row
+        row["runtime"] = {"state": "UNOBSERVABLE", "stage": stage, "reason": str(exc)}
+        return _runtime_unavailable(row, stage=stage, reason=(
+            f"the Hub files are current but the running build is not observable (stage {stage}): {exc}"))
     current = (live.get("source_revision") == row["served_revision"]
                and live.get("artifact_set_sha256") == row["expected_artifact_set_sha256"])
-    row["runtime"] = {"state": "CURRENT" if current else "LAGGING",
+    row["runtime"] = {"state": "CURRENT" if current else "LAGGING", "stage": stage,
                       "source_revision": live.get("source_revision"),
                       "artifact_set_sha256": live.get("artifact_set_sha256")}
+    if stage is not None and stage not in RUNNING_STAGES:
+        return _runtime_unavailable(row, stage=stage, reason=(
+            f"the Space stage is {stage}, not RUNNING"))
     if not current:
         row.update(state="RUNTIME_DRIFT",
                    reason="the Hub files are current but the running build serves older bytes",
@@ -456,19 +521,44 @@ def _lyte_drift_since(served: Any, tip: str) -> dt.datetime | None:
     return parse_time(commits[0].get("commit", {}).get("committer", {}).get("date"))
 
 
+def lyte_persistence_durability(live: dict[str, Any]) -> Any:
+    persistence = live.get("persistence")
+    return persistence.get("durability") if isinstance(persistence, dict) else None
+
+
 def assess_lyte(*, resolve: Callable[[], tuple[str, dict[str, Any]]] = lyte_expected_revision,
                 source_tip: Callable[[], Any] | None = None) -> dict[str, Any]:
     try:
-        live = live_build_info("lyte")
         head = (source_tip or (lambda: github_json(f"/repos/{LYTE_REPOSITORY}/commits/main")))()
     except Unavailable as exc:
-        return _row("lyte", state="UNOBSERVABLE", reason=str(exc))
+        return _row("lyte", state="UNOBSERVABLE", reason=f"lyte-services main: {exc}")
     tip = head.get("sha") if isinstance(head, dict) else None
     if not isinstance(tip, str) or SHA40.fullmatch(tip) is None:
         return _row("lyte", state="UNOBSERVABLE", reason="lyte-services main has no exact revision")
+    try:
+        info = space_info("lyte")
+    except Unavailable as exc:
+        info = {"stage": None, "last_modified": None, "error": str(exc)}
+    try:
+        live = live_build_info("lyte")
+    except Unavailable as exc:
+        # A Lyte Space that is down is not converged and alerts. It is not
+        # republished automatically: a failed build would only be restarted
+        # into the same failure every hour.
+        row = _row("lyte", source_repository=LYTE_REPOSITORY, source_tip=tip,
+                   space_stage=info.get("stage"), space_last_modified=info.get("last_modified"),
+                   runtime={"state": "UNOBSERVABLE", "stage": info.get("stage"), "reason": str(exc)})
+        return _runtime_unavailable(row, stage=info.get("stage"), reason=(
+            f"the Lyte runtime is not observable (stage {info.get('stage')}): {exc}"))
     served = live.get("source_revision")
+    durability = lyte_persistence_durability(live)
     row = _row("lyte", served_revision=served, source_repository=LYTE_REPOSITORY,
-               source_tip=tip, runtime_source_revision=live.get("runtime_source_revision"))
+               source_tip=tip, runtime_source_revision=live.get("runtime_source_revision"),
+               space_stage=info.get("stage"), space_last_modified=info.get("last_modified"),
+               persistence_durability=durability)
+    if info.get("stage") is not None and info.get("stage") not in RUNNING_STAGES:
+        return _runtime_unavailable(row, stage=info.get("stage"),
+                                    reason=f"the Lyte Space stage is {info.get('stage')}, not RUNNING")
     if served == tip and live.get("runtime_source_revision") == tip:
         row["state"] = "CONVERGED"
         return row
@@ -481,7 +571,19 @@ def assess_lyte(*, resolve: Callable[[], tuple[str, dict[str, Any]]] = lyte_expe
             f"Lyte serves {served}; lyte-services main {tip} is not qualified: "
             f"{type(exc).__name__}: {exc}"))
         return row
-    row.update(state="DRIFT", publish=True, expected_revision=expected,
+    row["expected_revision"] = expected
+    if not isinstance(durability, str) or durability in NON_DURABLE_PERSISTENCE:
+        # The Lyte release restarts the Space. With process- or file-scoped
+        # persistence that restart drops every acknowledged ingest, so an
+        # automatic republish is withheld; an operator dispatch (scope lyte)
+        # stays the explicit path that accepts that loss.
+        row.update(state="BLOCKED", reason=(
+            f"Lyte serves {served}; qualified lyte-services main is {expected}, but the runtime "
+            f"reports persistence durability {durability!r}: the release restarts the Space and "
+            "would drop its stored data, so automatic republish is withheld until persistence is "
+            "durable (dispatch scope lyte to accept the restart)"))
+        return row
+    row.update(state="DRIFT", publish=True,
                reason=f"Lyte serves {served}; qualified lyte-services main is {expected}")
     return row
 
@@ -508,9 +610,33 @@ def current_main() -> str:
 # ----------------------------------------------------------------------- plan
 
 
+# Every workflow whose dispatch can write a vertical Space. They all hold the
+# one vertical writer group, where a newly queued job cancels the pending one,
+# so an automatic run must not queue behind (and displace) a dispatched writer.
+DISPATCHED_WRITER_WORKFLOWS = ("hf-publish-vertical-flagships.yml", "hf-sync.yml")
+
+
+def active_dispatched_writers(*, own_run_id: str | None = None,
+                              read: Callable[[str], Any] = github_json) -> list[dict[str, Any]]:
+    active = []
+    for workflow in DISPATCHED_WRITER_WORKFLOWS:
+        payload = read(f"/repos/{REPOSITORY}/actions/workflows/{workflow}/runs"
+                       "?event=workflow_dispatch&per_page=30")
+        runs = payload.get("workflow_runs") if isinstance(payload, dict) else None
+        if not isinstance(runs, list):
+            raise Unavailable(f"workflow run listing for {workflow} is not a list")
+        for run in runs:
+            if (isinstance(run, dict) and run.get("status") != "completed"
+                    and str(run.get("id")) != str(own_run_id)):
+                active.append({"workflow": workflow, "run_id": run.get("id"),
+                               "status": run.get("status")})
+    return active
+
+
 def plan(*, event: str, scope: str, head: str, main_tip: str,
-         assess_fn: Callable[..., list[dict[str, Any]]] = assess) -> dict[str, Any]:
-    result: dict[str, Any] = {"schema": "szl.vertical-convergence-plan/v1", "event": event,
+         assess_fn: Callable[..., list[dict[str, Any]]] = assess,
+         dispatched_writers: Callable[[], list[dict[str, Any]]] | None = None) -> dict[str, Any]:
+    result: dict[str, Any] = {"schema": "szl.vertical-convergence-plan/v2", "event": event,
                               "scope": scope, "head": head, "main": main_tip,
                               "observed_at": iso(utc_now()), "targets": [], "matrix": []}
     if event == "workflow_dispatch":
@@ -527,12 +653,30 @@ def plan(*, event: str, scope: str, head: str, main_tip: str,
     if head != main_tip:
         result["superseded_by"] = main_tip
         return result
+    if dispatched_writers is not None:
+        active = dispatched_writers()
+        if active:
+            # The dispatched writer owns the vertical writer group; the next
+            # hourly plan re-checks every target after it finishes.
+            result["deferred_to"] = active
+            return result
     # A completed canonical A11oy deploy changes only what Finance must bind.
     targets = ("finance",) if event == "workflow_run" else TARGETS
     rows = assess_fn(targets, head=head)
     result["targets"] = rows
     result["matrix"] = [{"target": row["target"], "forced": False} for row in rows if row["publish"]]
     return result
+
+
+def plan_target_lines(result: dict[str, Any]) -> list[str]:
+    """The writer job's work list: one ``target forced`` line per planned entry."""
+    lines = []
+    for entry in result.get("matrix", []):
+        target, forced = entry.get("target"), entry.get("forced")
+        if target not in TARGETS or type(forced) is not bool:
+            raise ValueError(f"invalid plan entry: {entry!r}")
+        lines.append(f"{target} {'true' if forced else 'false'}")
+    return lines
 
 
 # -------------------------------------------------------------------- sentra
@@ -559,7 +703,19 @@ def wait_for_sentra_admission(timeout_s: float, *, interval_s: float = 60.0,
             if clock() >= deadline:
                 return {"state": "BLOCKED", "reason": f"{exc} after waiting {int(timeout_s)} s"}
         except entrypoint.SentraPublicationError as exc:
-            return {"state": "BLOCKED", "reason": str(exc)}
+            # A failed check, a bad signature or a policy defect is a block. A
+            # transient GitHub read (5xx, 429, rate-limited 403) is retried.
+            status = getattr(exc, "http_status", None)
+            if not (isinstance(status, int) and (status >= 500 or status in (403, 429))):
+                return {"state": "BLOCKED", "reason": str(exc)}
+            if clock() >= deadline:
+                return {"state": "BLOCKED", "reason": (
+                    f"GitHub source evidence stayed unavailable (HTTP {status}) for {int(timeout_s)} s")}
+        except (OSError, ValueError) as exc:  # URLError, timeouts, truncated JSON
+            if clock() >= deadline:
+                return {"state": "BLOCKED", "reason": (
+                    f"GitHub source evidence stayed unreadable ({type(exc).__name__}) "
+                    f"for {int(timeout_s)} s")}
         sleep(interval_s)
 
 
@@ -573,7 +729,11 @@ def drift_age_hours(row: dict[str, Any], now: dt.datetime) -> float | None:
     return max(0.0, (now - since).total_seconds() / 3600.0)
 
 
-DRIFT_STATES = ("DRIFT", "BLOCKED", "RUNTIME_DRIFT")
+# States that alert once they persist past the threshold (or at once when
+# undatable). UNOBSERVABLE (a Hub or GitHub read failed) and RUNTIME_SLEEPING
+# never count as converged, so they keep an open tracker open, but a provider
+# read failure alone does not open one.
+DRIFT_STATES = ("DRIFT", "BLOCKED", "RUNTIME_DRIFT", "RUNTIME_UNAVAILABLE")
 
 
 def report(rows: list[dict[str, Any]], *, head: str, threshold_hours: float,
@@ -592,7 +752,8 @@ def report(rows: list[dict[str, Any]], *, head: str, threshold_hours: float,
         "schema": "szl.vertical-drift-report/v1", "observed_at": iso(now), "main": head,
         "threshold_hours": threshold_hours, "targets": rows, "alerting": alerting,
         "converged": all(row["state"] == "CONVERGED" for row in rows),
-        "unobservable": [row["target"] for row in rows if row["state"] == "UNOBSERVABLE"],
+        "unobservable": [row["target"] for row in rows
+                         if row["state"] in ("UNOBSERVABLE", "RUNTIME_SLEEPING")],
     }
 
 
@@ -619,8 +780,8 @@ def render_issue(result: dict[str, Any], *, run_url: str | None) -> tuple[str, s
                      f"{served} | {row.get('drift_since') or '-'} | {'-' if age is None else age} | {reason} |")
     lines += ["", "Convergence runs hourly and on every main push that changes a publisher "
               "input (`.github/workflows/hf-publish-vertical-flagships.yml`). A target "
-              "marked BLOCKED cannot be converged by publishing alone; its reason names "
-              "the precondition."]
+              "marked BLOCKED or RUNTIME_UNAVAILABLE is not repaired by an automatic "
+              "publish; its reason names the precondition or the observed runtime state."]
     return title, "\n".join(lines) + "\n"
 
 
@@ -711,6 +872,10 @@ def main(argv: list[str] | None = None) -> int:
     p_plan.add_argument("--event", default=os.getenv("GITHUB_EVENT_NAME", "schedule"))
     p_plan.add_argument("--scope", default=os.getenv("SZL_FLAGSHIP_SCOPE", ""))
     p_plan.add_argument("--output", default="hf-vertical-convergence-plan.json")
+    p_plan.add_argument("--defer-to-dispatched-writers", action="store_true",
+                        help="publish nothing while a dispatched vertical writer run is active")
+    p_targets = sub.add_parser("targets", help="print a plan's targets as 'target forced' lines")
+    p_targets.add_argument("--plan", required=True)
     p_check = sub.add_parser("check")
     p_check.add_argument("--target", required=True, choices=TARGETS)
     p_wait = sub.add_parser("wait-sentra")
@@ -726,18 +891,30 @@ def main(argv: list[str] | None = None) -> int:
           ROOT / "scripts/hf_existing_space_guard.py").refuse_canonical_space_writes()
 
     if args.command == "plan":
+        own_run = os.getenv("GITHUB_RUN_ID")
         result = plan(event=args.event, scope=args.scope, head=_head(),
-                      main_tip=current_main() if args.event != "workflow_dispatch" else _head())
+                      main_tip=current_main() if args.event != "workflow_dispatch" else _head(),
+                      dispatched_writers=(lambda: active_dispatched_writers(own_run_id=own_run))
+                      if args.defer_to_dispatched_writers else None)
         Path(args.output).write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         print(json.dumps(result, indent=2, sort_keys=True))
         if result.get("superseded_by"):
             print(f"::notice::main moved to {result['superseded_by']}; that revision's run "
                   "or the hourly convergence owns publication")
+        if result.get("deferred_to"):
+            print("::notice::a dispatched vertical writer run is active ("
+                  + ", ".join(f"{row['workflow']} {row['run_id']}" for row in result["deferred_to"])
+                  + "); it owns the vertical writer group and the next hourly plan re-checks")
         for row in result["targets"]:
             _summary(f"- {row['target']}: {row['state']} - {row.get('reason') or 'converged'}")
-        _github_output({"matrix": json.dumps({"include": result["matrix"]}, separators=(",", ":")),
+        estate = result.get("mode") == "ESTATE_DISPATCH"
+        _github_output({"mode": result["mode"],
                         "publish": "true" if result["matrix"] else "false",
-                        "estate": "true" if result.get("mode") == "ESTATE_DISPATCH" else "false"})
+                        "estate": "true" if estate else "false"})
+        return 0
+    if args.command == "targets":
+        for line in plan_target_lines(json.loads(Path(args.plan).read_text(encoding="utf-8"))):
+            print(line)
         return 0
     if args.command == "check":
         head = _head()

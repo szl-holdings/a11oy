@@ -1440,30 +1440,170 @@ class NonCanonicalAutomaticWriterTests(unittest.TestCase):
         self.assertLess(guard.index("refuse_canonical_space_writes(api_class)"),
                         guard.index("with _INSTALL_LOCK:"))
 
-    def test_refusal_blocks_every_canonical_mutation_and_admits_other_spaces(self) -> None:
+    def test_refusal_is_deny_by_default_and_admits_other_spaces(self) -> None:
         guard = _load_space_guard()
         calls = []
+        # Known mutators, a mutator the SDK might add later, and reviewed reads.
+        methods = (*guard.CANONICAL_WRITE_METHODS, "future_space_mutator",
+                   "space_info", "repo_info", "list_repo_files")
 
         class Api:
             pass
 
-        for method in guard.CANONICAL_WRITE_METHODS:
+        for method in methods:
             setattr(Api, method, lambda self, *args, _m=method, **kwargs: calls.append(_m) or "ok")
         refused = guard.refuse_canonical_space_writes(Api)
-        self.assertEqual(set(refused), set(guard.CANONICAL_WRITE_METHODS))
+        self.assertEqual(set(refused), set(methods) - guard.CANONICAL_READ_METHODS)
+        self.assertIn("future_space_mutator", refused)
         self.assertEqual(guard.refuse_canonical_space_writes(Api), refused)  # idempotent
         api = Api()
-        for method in guard.CANONICAL_WRITE_METHODS:
-            for call in ((("SZLHOLDINGS/a11oy",), {}), ((), {"repo_id": "szlholdings/A11OY"}),
-                         ((), {"from_id": "SZLHOLDINGS/a11oy", "to_id": "x/y"}),
-                         ((), {"to_id": " SZLHOLDINGS/a11oy"})):
-                with self.subTest(method=method, call=call), self.assertRaises(
+        canonical_calls = (
+            (("SZLHOLDINGS/a11oy",), {}), ((), {"repo_id": "szlholdings/A11OY"}),
+            ((), {"from_id": "SZLHOLDINGS/a11oy", "to_id": "x/y"}),
+            ((), {"to_id": " SZLHOLDINGS/a11oy"}),
+            (("SZLHOLDINGS/other", "SZLHOLDINGS/a11oy"), {}),  # positional to_id
+            ((), {"repo_id": "spaces/SZLHOLDINGS/a11oy"}),
+            ((), {"repo_id": "https://huggingface.co/spaces/SZLHOLDINGS/a11oy"}),
+        )
+        for method in refused:
+            for args, kwargs in canonical_calls:
+                with self.subTest(method=method, args=args, kwargs=kwargs), self.assertRaises(
                         guard.CanonicalSpaceWriteRefused):
-                    getattr(api, method)(*call[0], **call[1])
+                    getattr(api, method)(*args, **kwargs)
             self.assertEqual(getattr(api, method)(repo_id="SZLHOLDINGS/terra"), "ok")
-        self.assertEqual(calls, list(guard.CANONICAL_WRITE_METHODS))
+            self.assertEqual(getattr(api, method)(repo_id="SZLHOLDINGS/a11oy-staging"), "ok")
+        for method in ("space_info", "repo_info", "list_repo_files"):
+            self.assertEqual(getattr(api, method)(repo_id="SZLHOLDINGS/a11oy"), "ok")
         # The SDK methods the writer heuristic recognises are all refused.
-        self.assertLessEqual(MUTATION_METHODS, set(guard.CANONICAL_WRITE_METHODS))
+        self.assertLessEqual(MUTATION_METHODS, set(refused))
+        self.assertTrue(guard.CANONICAL_READ_METHODS.isdisjoint(guard.CANONICAL_WRITE_METHODS))
+
+    def test_import_time_module_aliases_are_rebound_to_the_refusal(self) -> None:
+        import sys
+        import types
+
+        guard = _load_space_guard()
+
+        class Api:
+            def upload_file(self, **kwargs):
+                return "uploaded"
+
+            def space_info(self, repo_id):
+                return "info"
+
+        instance = Api()
+        module = types.ModuleType("huggingface_hub.hf_api")
+        module.upload_file = instance.upload_file  # bound before the guard, as in the SDK
+        module.space_info = instance.space_info
+        previous = sys.modules.get("huggingface_hub.hf_api")
+        sys.modules["huggingface_hub.hf_api"] = module
+        try:
+            guard.refuse_canonical_space_writes(Api)
+            # Looked up by name: this file is itself scanned by the writer
+            # heuristic, which treats a literal mutator call as a write.
+            alias = getattr(module, "upload_file")
+            with self.assertRaises(guard.CanonicalSpaceWriteRefused):
+                alias(repo_id="SZLHOLDINGS/a11oy")
+            self.assertEqual(alias(repo_id="SZLHOLDINGS/terra"), "uploaded")
+            self.assertEqual(module.space_info("SZLHOLDINGS/a11oy"), "info")
+        finally:
+            if previous is None:
+                sys.modules.pop("huggingface_hub.hf_api", None)
+            else:
+                sys.modules["huggingface_hub.hf_api"] = previous
+
+    def test_transport_refuses_every_non_read_request_naming_the_canonical_space(self) -> None:
+        guard = _load_space_guard()
+        names = guard._request_names_canonical
+        hub = "https://huggingface.co"
+        body = lambda value: (lambda: json.dumps(value).encode())  # noqa: E731
+        empty = lambda: b""  # noqa: E731
+        for method, path in (
+            ("POST", "/api/spaces/SZLHOLDINGS/a11oy/commit/main"),
+            ("POST", "/api/spaces/szlholdings/A11OY/restart"),
+            ("POST", "/api/spaces/SZLHOLDINGS/a11oy/variables"),
+            ("DELETE", "/api/spaces/SZLHOLDINGS/a11oy/secrets"),
+            ("PUT", "/api/spaces/SZLHOLDINGS/a11oy/settings"),
+            ("POST", "/spaces/SZLHOLDINGS/a11oy.git/info/lfs/objects/batch"),
+            ("POST", "/api/spaces/SZLHOLDINGS%2Fa11oy/preupload/main"),
+        ):
+            with self.subTest(method=method, path=path):
+                self.assertTrue(names(method, hub + path, empty))
+        for method, payload in (
+            ("DELETE", {"name": "a11oy", "organization": "SZLHOLDINGS", "type": "space"}),
+            ("POST", {"fromRepo": "SZLHOLDINGS/other", "toRepo": "SZLHOLDINGS/a11oy", "type": "space"}),
+            ("POST", {"name": "a11oy", "organization": "szlholdings", "type": "space"}),
+        ):
+            with self.subTest(payload=payload):
+                self.assertTrue(names(method, hub + "/api/repos/delete", body(payload)))
+        for method, path in (
+            ("GET", "/api/spaces/SZLHOLDINGS/a11oy"),
+            ("HEAD", "/spaces/SZLHOLDINGS/a11oy/resolve/main/config.json"),
+            ("POST", "/api/spaces/SZLHOLDINGS/a11oy-staging/restart"),
+            ("POST", "/api/spaces/SZLHOLDINGS/terra/commit/main"),
+        ):
+            with self.subTest(method=method, path=path):
+                self.assertFalse(names(method, hub + path, empty))
+        self.assertFalse(names("POST", hub + "/api/repos/create",
+                               body({"name": "terra", "organization": "SZLHOLDINGS"})))
+
+    @unittest.skipUnless(
+        __import__("importlib.util").util.find_spec("huggingface_hub") is not None,
+        "huggingface_hub is not installed in this test closure",
+    )
+    def test_installed_sdk_mutators_are_all_refused(self) -> None:
+        """Enumerate the real SDK: anything taking a repository identity that is
+        not a reviewed read is refused, so a new SDK mutator needs review."""
+        import importlib.util
+        import inspect
+
+        from huggingface_hub import HfApi as RealApi
+
+        spec = importlib.util.spec_from_file_location(
+            "single_writer_space_guard_real", ROOT / "scripts" / "hf_existing_space_guard.py")
+        guard = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(guard)
+
+        class Api(RealApi):  # a subclass keeps the process-wide SDK class untouched
+            pass
+
+        refused = set(guard.refuse_canonical_space_writes(Api))
+        for name, function in inspect.getmembers(RealApi, predicate=inspect.isfunction):
+            parameters = inspect.signature(function).parameters
+            if name.startswith("_") or not {"repo_id", "from_id", "to_id"} & set(parameters):
+                continue
+            with self.subTest(method=name):
+                self.assertTrue(name in refused or name in guard.CANONICAL_READ_METHODS, name)
+        present = {name for name in guard.CANONICAL_WRITE_METHODS if hasattr(RealApi, name)}
+        self.assertLessEqual(present, refused)
+
+    def test_admitted_entrypoints_never_name_the_canonical_space(self) -> None:
+        """The admitted workflows' reachable publisher sources name the
+        canonical Space only in the guard that refuses it."""
+        guard_path = "scripts/hf_existing_space_guard.py"
+        pending = sorted({path for entrypoints in NON_CANONICAL_AUTOMATIC_WRITERS.values()
+                          for path in entrypoints})
+        seen: set[str] = set()
+        while pending:
+            path = pending.pop()
+            if path in seen:
+                continue
+            seen.add(path)
+            text = (ROOT / path).read_text(encoding="utf-8")
+            for name in re.findall(r"[\"'](?:scripts/)?([A-Za-z0-9_]+\.py)[\"']", text):
+                candidate = f"scripts/{name}"
+                if (ROOT / candidate).is_file() and candidate not in seen:
+                    pending.append(candidate)
+            if path == guard_path:
+                continue
+            for node in ast.walk(ast.parse(text)):
+                if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                    value = node.value.strip().casefold()
+                    with self.subTest(source=path, value=node.value[:60]):
+                        self.assertNotIn(value, {"szlholdings/a11oy", "/a11oy", "a11oy",
+                                                 "spaces/szlholdings/a11oy"})
+        self.assertIn(guard_path, seen)
+        self.assertIn("scripts/hf_publish_vertical_flagships_v4_impl.py", seen)
 
     def test_out_of_process_lyte_controller_is_bound_to_lyte(self) -> None:
         source = (ROOT / "scripts" / "hf_publish_lyte_enterprise.py").read_text(encoding="utf-8")

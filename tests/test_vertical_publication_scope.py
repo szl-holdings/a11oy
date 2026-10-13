@@ -4,14 +4,41 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import sys
 from pathlib import Path
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 
 import pytest
 
-from scripts.hf_existing_space_guard import (
-    SpaceGuardError, require_existing_public_space,
-)
+def _hub_stand_in() -> ModuleType | None:
+    """The hash-locked CI test closure omits the SDK. These tests drive the
+    publisher through fixtures and only need the guard's HfApi name; the stand-in
+    is installed per test, never left in sys.modules for other suites."""
+    try:
+        import huggingface_hub  # noqa: F401
+    except ImportError:
+        stand_in = ModuleType("huggingface_hub")
+        stand_in.HfApi = type("HfApi", (), {})
+        return stand_in
+    return None
+
+
+_HUB_STAND_IN = _hub_stand_in()
+if _HUB_STAND_IN is not None:
+    sys.modules["huggingface_hub"] = _HUB_STAND_IN
+try:
+    from scripts.hf_existing_space_guard import (
+        SpaceGuardError, require_existing_public_space,
+    )
+finally:
+    if _HUB_STAND_IN is not None:
+        sys.modules.pop("huggingface_hub", None)
+
+
+@pytest.fixture(autouse=True)
+def _hub_client(monkeypatch: pytest.MonkeyPatch):
+    if _HUB_STAND_IN is not None:
+        monkeypatch.setitem(sys.modules, "huggingface_hub", _HUB_STAND_IN)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -418,9 +445,106 @@ def test_finance_moved_main_is_superseded_before_any_write(publisher, monkeypatc
 
 @pytest.mark.parametrize("state, expected", [("SUPERSEDED", 75), ("FAILED", 1), ("OUTCOME_UNCERTAIN", 1)])
 def test_lyte_superseded_transaction_is_reported_distinctly(publisher, monkeypatch, state, expected):
+    # No release journal: the transaction stopped before any provider phase.
     monkeypatch.setattr(publisher, "run_publisher", lambda *args, **kwargs: (1, None, None))
     monkeypatch.setattr(publisher, "read_receipt", lambda path: {"state": state, "complete": False})
     assert publisher.publish_lyte_only(SimpleNamespace(guard_report=lambda: {})) == expected
     receipt = json.loads(publisher.FLAGSHIP_RECEIPT.read_text())
     assert receipt["complete"] is False
     assert receipt.get("superseded", False) is (state == "SUPERSEDED")
+
+
+def _lyte_release_phases():
+    """The Lyte transaction's actual phase order, read from its source."""
+    import ast
+
+    tree = ast.parse((ROOT / "scripts/hf_publish_lyte_enterprise.py").read_text(encoding="utf-8"))
+    for node in tree.body:
+        if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and getattr(node.targets[0], "id", None) == "RELEASE_PHASES"):
+            return list(ast.literal_eval(node.value))
+    raise AssertionError("RELEASE_PHASES is not declared")
+
+
+@pytest.mark.parametrize("failed_phase, expected, boundary", [
+    ("recheck-source", 75, "BEFORE_PROVIDER_WRITE"),
+    ("publish-files", 1, "AFTER_PROVIDER_WRITE"),
+    ("bind-source", 1, "AFTER_PROVIDER_WRITE"),
+    ("restart", 1, "AFTER_PROVIDER_WRITE"),
+    ("attest-runtime", 1, "AFTER_PROVIDER_WRITE"),
+    ("verify-source-again", 75, "AFTER_LIVE_VERIFICATION"),
+])
+def test_lyte_supersession_is_neutral_only_before_a_write_or_after_verification(
+        publisher, monkeypatch, failed_phase, expected, boundary):
+    """bind-source and restart re-check A11oy main, so any unrelated A11oy
+    commit supersedes a Lyte release whose files are already committed. That
+    Space is written but not bound, restarted or verified: a failure."""
+    phases = _lyte_release_phases()
+    completed = phases[:phases.index(failed_phase)]
+    lyte = {"state": "SUPERSEDED", "complete": False, "error": "SourceSuperseded",
+            "release_journal": {"required_phases": phases, "completed_phases": completed,
+                                "failed": True, "complete": False}}
+    monkeypatch.setattr(publisher, "run_publisher", lambda *args, **kwargs: (1, None, None))
+    monkeypatch.setattr(publisher, "read_receipt", lambda path: lyte)
+    assert publisher.publish_lyte_only(SimpleNamespace(guard_report=lambda: {})) == expected
+    receipt = json.loads(publisher.FLAGSHIP_RECEIPT.read_text())
+    assert receipt["complete"] is False and receipt["supersession_boundary"] == boundary
+    assert receipt.get("superseded", False) is (expected == 75)
+    if expected == 1:
+        assert receipt["state"] == "SUPERSEDED_AFTER_UNVERIFIED_WRITE"
+
+
+def test_lyte_supersession_with_an_inconsistent_journal_is_a_failure(publisher, monkeypatch):
+    phases = _lyte_release_phases()
+    lyte = {"state": "SUPERSEDED", "complete": False,
+            "release_journal": {"required_phases": phases, "completed_phases": ["publish-files"]}}
+    monkeypatch.setattr(publisher, "run_publisher", lambda *args, **kwargs: (1, None, None))
+    monkeypatch.setattr(publisher, "read_receipt", lambda path: lyte)
+    assert publisher.publish_lyte_only(SimpleNamespace(guard_report=lambda: {})) == 1
+    assert json.loads(publisher.FLAGSHIP_RECEIPT.read_text())["supersession_boundary"] == "UNKNOWN"
+
+
+def _finance_run(publisher, *, complete=True):
+    def run(*args, **kwargs):
+        publisher.FLAGSHIP_RECEIPT.write_text(json.dumps({
+            "complete": complete, "rows": [{"id": "SZLHOLDINGS/finance", "operational": complete}]}))
+        return (0 if complete else 1), None, ("finance",)
+    return run
+
+
+def test_finance_main_moving_during_publication_is_superseded_not_complete(publisher, monkeypatch):
+    # finance_preflight (stubbed) saw REVISION as main; after the publication
+    # and its live verification, main is another commit.
+    monkeypatch.setattr(publisher, "finance_preflight", lambda: {"source_revision": REVISION})
+    monkeypatch.setattr(publisher, "_github_json", lambda *args, **kwargs: {"sha": "b" * 40})
+    monkeypatch.setattr(publisher, "run_publisher", _finance_run(publisher))
+    guard = SimpleNamespace(guard_report=lambda: {})
+    assert publisher.publish_finance_only(guard) == publisher.SUPERSEDED_EXIT_CODE
+    receipt = json.loads(publisher.FLAGSHIP_RECEIPT.read_text())
+    assert receipt["complete"] is False and receipt["superseded"] is True
+    assert receipt["source_still_current"] is False
+
+
+def test_finance_postflight_read_error_and_unverified_publication_are_failures(publisher, monkeypatch):
+    guard = SimpleNamespace(guard_report=lambda: {})
+    monkeypatch.setattr(publisher, "finance_preflight", lambda: {"source_revision": REVISION})
+
+    def unavailable(*args, **kwargs):
+        raise RuntimeError("GitHub unavailable")
+
+    monkeypatch.setattr(publisher, "_github_json", unavailable)
+    monkeypatch.setattr(publisher, "run_publisher", _finance_run(publisher))
+    assert publisher.publish_finance_only(guard) == 1
+    receipt = json.loads(publisher.FLAGSHIP_RECEIPT.read_text())
+    assert receipt["complete"] is False and "superseded" not in receipt
+    assert receipt["postflight_error"] == "RuntimeError"
+
+    monkeypatch.setattr(publisher, "_github_json", lambda *args, **kwargs: {"sha": "b" * 40})
+    monkeypatch.setattr(publisher, "run_publisher", _finance_run(publisher, complete=False))
+    assert publisher.publish_finance_only(guard) == 1
+    assert "superseded" not in json.loads(publisher.FLAGSHIP_RECEIPT.read_text())
+
+    monkeypatch.setattr(publisher, "_github_json", lambda *args, **kwargs: {"sha": REVISION})
+    monkeypatch.setattr(publisher, "run_publisher", _finance_run(publisher))
+    assert publisher.publish_finance_only(guard) == 0
+    assert json.loads(publisher.FLAGSHIP_RECEIPT.read_text())["complete"] is True
