@@ -237,6 +237,94 @@ def test_live_candidate_contract_passes_with_exact_bytes_and_headers():
     assert {method for method, _, _ in opener.calls} == {"GET", "HEAD", "POST"}
 
 
+PRODUCT_ORIGIN = "https://a-11-oy.com"
+WEBMCP_BRIDGE = PRODUCT_ORIGIN + "/.webmcp/bridge.js"
+BRIDGE_CSP = verifier.CSP.replace(
+    "; script-src-attr", f" {WEBMCP_BRIDGE}; script-src-attr", 1
+)
+PRODUCT_HTML_PATHS = (
+    *verifier.INDEX_PATHS,
+    *(verifier.PREFIX + route for route in verifier.REVIEWED_ROUTES if route != "/"),
+)
+
+
+def _product_site(monkeypatch):
+    monkeypatch.setattr(sys.modules[__name__], "ORIGIN", PRODUCT_ORIGIN)
+    return _site()
+
+
+def test_product_html_requires_the_origin_csp(monkeypatch):
+    opener, manifest, _, digest = _product_site(monkeypatch)
+    report = verifier.verify(
+        PRODUCT_ORIGIN,
+        opener=opener,
+        expected_source_revision=REVISION,
+        expected_manifest_sha256=digest,
+    )
+    assert report["status"] == "PASS"
+    assert report["manifest_sha256"] == hashlib.sha256(manifest).hexdigest()
+
+
+@pytest.mark.parametrize(
+    "wrong_csp",
+    [
+        BRIDGE_CSP,
+        BRIDGE_CSP.replace(
+            WEBMCP_BRIDGE,
+            "https://example.com/.webmcp/bridge.js",
+        ),
+        BRIDGE_CSP.replace(
+            WEBMCP_BRIDGE,
+            WEBMCP_BRIDGE + " " + WEBMCP_BRIDGE,
+        ),
+        verifier.CSP + "; connect-src https://example.com",
+    ],
+    ids=["bridge", "foreign-bridge", "duplicate-bridge", "extra-directive"],
+)
+@pytest.mark.parametrize("path", PRODUCT_HTML_PATHS)
+@pytest.mark.parametrize("method", ["GET", "HEAD"])
+def test_product_html_rejects_bridge_source_and_other_csp_mutations(
+    monkeypatch, wrong_csp, path, method
+):
+    opener, _, _, _ = _product_site(monkeypatch)
+    opener.responses[(method, ORIGIN + path)].headers[
+        "content-security-policy"
+    ] = wrong_csp
+    with pytest.raises(verifier.VerificationError, match="invalid content-security-policy") as error:
+        verifier.verify(PRODUCT_ORIGIN, opener=opener)
+    assert str(error.value).startswith(f"{method} {ORIGIN + path} ")
+
+
+@pytest.mark.parametrize("path", [verifier.PREFIX + "/source.json", verifier.PREFIX + "/" + ASSET_PATH])
+def test_product_non_html_keeps_origin_csp(monkeypatch, path):
+    opener, _, _, _ = _product_site(monkeypatch)
+    opener.responses[("GET", ORIGIN + path)].headers[
+        "content-security-policy"
+    ] = BRIDGE_CSP
+    with pytest.raises(verifier.VerificationError, match="invalid content-security-policy"):
+        verifier.verify(PRODUCT_ORIGIN, opener=opener)
+
+
+def test_non_product_origin_rejects_cloudflare_bridge_csp():
+    opener, _, _, _ = _site()
+    opener.responses[("GET", ORIGIN + verifier.BASE_PATH)].headers[
+        "content-security-policy"
+    ] = BRIDGE_CSP
+    with pytest.raises(verifier.VerificationError, match="invalid content-security-policy"):
+        verifier.verify(ORIGIN, opener=opener)
+
+
+def test_product_html_still_requires_manifest_bytes(monkeypatch):
+    opener, _, _, _ = _product_site(monkeypatch)
+    opener.responses[("GET", ORIGIN + verifier.BASE_PATH)].body = (
+        opener.responses[("GET", ORIGIN + verifier.BASE_PATH)].body.replace(
+            b"Candidate", b"Candidxte"
+        )
+    )
+    with pytest.raises(verifier.VerificationError, match="digest disagrees with source.json"):
+        verifier.verify(PRODUCT_ORIGIN, opener=opener)
+
+
 def test_default_opener_never_issues_a_redirect_target_request():
     target_hits: list[str] = []
 
