@@ -69,3 +69,18 @@ def test_status_separates_propagation_from_export_and_redacts_endpoint():
     assert len(app.middlewares) == 1
     otel.install(app, service_name="test", endpoint=None)
     assert len(app.middlewares) == 1
+
+def test_fastapi_environment_exporter_setup_requires_opt_in(monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.telemetry import _runtime
+    from fastapi.testclient import TestClient
+
+    monkeypatch.delenv("FASTAPI_OTEL_AUTO_CONFIGURE", raising=False)
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "https://collector.invalid:4318")
+
+    def refuse_export_endpoint(*args, **kwargs):
+        raise AssertionError("default FastAPI startup must not configure exporters")
+
+    monkeypatch.setattr(_runtime, "_export_endpoint", refuse_export_endpoint)
+    with TestClient(FastAPI()) as client:
+        assert client.get("/openapi.json").status_code == 200

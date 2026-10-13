@@ -39,6 +39,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   claim, and is not imported by `serve.py` or any route. Tests:
   `tests/test_materials_eval_r09.py`, synthetic fixtures only.
 
+### Fixed - private backup qualification
+
+- Recognize verified fallback backup copies using their exact capture-local
+  paths and manifest-bound copy mode; malformed or mixed references still fail
+  closed. Add a manual, read-only historical recovery rehearsal that leaves the
+  running Space untouched and publishes only a bounded status. Historical
+  success does not admit a current restore or deployment and does not qualify
+  continuity of later acknowledged writes.
+
 ### Fixed - RAG status evidence scope
 
 - The passive RAG status route labels a stored index `cached`, not `live`, and

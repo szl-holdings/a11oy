@@ -85,7 +85,7 @@ jobs:
         run: python -B scripts/triage_gdw_artifacts_readonly.py --source-sha "$TRIAGE_SOURCE_SHA" --output "$RUNNER_TEMP/gdw-artifact-triage.json"
       - name: Retain only the closed diagnostic record
         if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: gdw-artifact-readonly-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/gdw-artifact-triage.json
