@@ -248,7 +248,8 @@ def test_sign_false_skips_the_signer_but_the_ledger_write_stays(h, prefix):
 def test_rejected_ledger_write_is_not_reported_as_recorded(h, monkeypatch):
     def reject(receipt, organ="a11oy"):
         h.counts["ledger"] += 1
-        return {"accepted": False, "error": "test rejection"}
+        return {"accepted": False, "state": "REJECTED", "write_attempted": False,
+                "error": "test rejection"}
 
     monkeypatch.setattr(sys.modules["szl_lake_ingest"], "record_receipt", reject)
     resp = h.client.post(PREFIXES[0] + "/predict", json={"demo": "green"})
@@ -256,14 +257,20 @@ def test_rejected_ledger_write_is_not_reported_as_recorded(h, monkeypatch):
     ledger = resp.json()["ledger"]
     assert ledger["recorded"] is False
     assert ledger["accepted"] is False and ledger["duplicate"] is False
-    assert ledger["result"] == {"accepted": False, "error": "test rejection"}
+    assert ledger["state"] == "REJECTED"
+    assert ledger["result"] == {"accepted": False, "state": "REJECTED",
+                                "write_attempted": False, "error": "test rejection"}
     assert h.counts["ledger"] == 1
 
 
 def test_duplicate_ledger_receipt_is_truthfully_reported_as_already_recorded(h, monkeypatch):
     def duplicate(receipt, organ="a11oy"):
         h.counts["ledger"] += 1
-        return {"accepted": False, "duplicate": True, "receipt_id": "existing"}
+        from szl_lake_store import receipt_identity
+        identity_input = dict(receipt)
+        identity_input.setdefault("organ", organ)
+        return {"accepted": False, "duplicate": True,
+                "receipt_id": receipt_identity(identity_input)}
 
     monkeypatch.setattr(sys.modules["szl_lake_ingest"], "record_receipt", duplicate)
     resp = h.client.post(PREFIXES[0] + "/predict", json={"demo": "green"})
@@ -271,6 +278,8 @@ def test_duplicate_ledger_receipt_is_truthfully_reported_as_already_recorded(h, 
     ledger = resp.json()["ledger"]
     assert ledger["recorded"] is True
     assert ledger["accepted"] is False and ledger["duplicate"] is True
+    assert ledger["state"] == "LOCAL_DUPLICATE"
+    assert ledger["remote_publication"] == "NOT_ACKNOWLEDGED"
 
 
 def test_non_json_ledger_status_cannot_break_response_after_write(h, monkeypatch):
