@@ -203,7 +203,12 @@ def test_sibling_generated_apps_retain_readiness_and_no_finance_routes(tmp_path,
     with TestClient(ns["app"]) as client:
         with patch("socket.socket.connect", side_effect=AssertionError("network forbidden")):
             assert client.get("/").content == panels
-            assert client.get("/readyz").json()["ready"] is True
+            # Local artifact readiness is retained; without a reachable upstream
+            # the shell reports UPSTREAM_UNAVAILABLE instead of ready.
+            ready = client.get("/readyz")
+            assert ready.status_code == 503
+            assert ready.json()["state"] == "UPSTREAM_UNAVAILABLE"
+            assert ready.json()["checks"] == {"landing_sha256": True, "panels_sha256": True, "upstream": False}
             assert client.get("/healthz").json()["domain"] == slug
             assert client.get("/api/finance/providers").status_code == 404
 

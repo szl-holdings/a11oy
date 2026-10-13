@@ -293,7 +293,10 @@ def test_both_actual_vertical_jobs_share_one_non_cancelling_writer_lifecycle():
     # The canonical Finance projection job was retired with the livelocked
     # recovery graph; only the canonical vertical job shares the group now.
     assert manual.count(group) == 1 and canonical.count(group) == 1
-    assert "  group: hf-publish-vertical-flagships\n" in manual
+    # Automatic per-target jobs serialize per Space; the full estate keeps the
+    # shared estate group above.
+    assert "      group: hf-vertical-target-${{ matrix.target }}\n" in manual
+    assert "\nconcurrency:" not in manual  # planning is read-only; writers hold groups
     assert "  group: sync-relock-canonical-a11oy\n" in canonical
     assert "github.event_name == 'workflow_dispatch' && inputs.publish_vertical_flagships" in canonical
     assert "options: [finance, lyte, terra, sentra, counsel, estate]" in manual

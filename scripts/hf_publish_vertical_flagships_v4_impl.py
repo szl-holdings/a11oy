@@ -3,9 +3,12 @@
 """Policy overlay for the immutable Domain Experience v4 renderer.
 
 The generated renderer stays byte-identical in the adjacent base module. This
-module applies the reviewed Sentra receipt-verifier semantics while preserving
-Terra forge 0.2.2, the current Lyte source pin, every non-Sentra vertical, and
-the canonical single-writer publisher contract.
+module applies the reviewed Sentra receipt-verifier semantics, binds the Terra
+landing to the szl-vertical-forge 0.2.3 output (receipt v4, probe state derived
+from upstream evidence rather than HTTP status), makes the emitted shell's
+/api/live and /readyz report upstream unavailability as HTTP 503, and preserves
+the current Lyte source pin, every other vertical, and the canonical
+single-writer publisher contract.
 
 Importing this module performs no network or provider mutation.
 """
@@ -109,13 +112,73 @@ _HEALTHZ_PROCESS_SCOPED = (
     '"product":CFG["title"],"source":CFG["product_source"],'
     '"public_experience":CFG["public_experience"],"domain":CFG["slug"]}\n'
 )
+# The base shell returned the probe dict from /api/live, so FastAPI answered
+# HTTP 200 even when the body said UNAVAILABLE, and /readyz covered only the
+# local landing/panels hashes. Both now carry the upstream verdict: a probe that
+# did not reach an accepted upstream payload is HTTP 503 on /api/live and makes
+# /readyz not ready. /healthz stays process-scoped liveness.
+_LIVE_UNCONDITIONAL = '@app.get("/api/live")\ndef live(): return probe()\n'
+_LIVE_UPSTREAM_BOUND = (
+    'UPSTREAM_ACCEPTED_STATES=("REACHABLE","SNAPSHOT")\n'
+    '\n'
+    'def upstream_verdict(result):\n'
+    '    if not isinstance(result,dict) or result.get("status") not in UPSTREAM_ACCEPTED_STATES:\n'
+    '        return False,"UPSTREAM_UNAVAILABLE"\n'
+    '    data=result.get("data")\n'
+    '    if not isinstance(data,dict):\n'
+    '        return False,"UPSTREAM_PAYLOAD_INVALID"\n'
+    '    if data.get("status")=="UNAVAILABLE" or data.get("state")=="UNAVAILABLE" or data.get("ok") is False:\n'
+    '        return False,"UPSTREAM_DATA_UNAVAILABLE"\n'
+    '    return True,None\n'
+    '\n'
+    'def upstream_observation():\n'
+    '    result=probe()\n'
+    '    if isinstance(result,JSONResponse):\n'
+    '        try:\n'
+    '            body=json.loads(bytes(result.body).decode("utf-8"))\n'
+    '        except (UnicodeDecodeError,ValueError):\n'
+    '            body=None\n'
+    '        accepted,reason=upstream_verdict(body)\n'
+    '        accepted=accepted and result.status_code==200\n'
+    '        return result,accepted,(reason or (None if accepted else "UPSTREAM_UNAVAILABLE")),body\n'
+    '    accepted,reason=upstream_verdict(result)\n'
+    '    if not accepted and isinstance(result,dict):\n'
+    '        result={**result,"status":"UNAVAILABLE","reason":reason}\n'
+    '    return result,accepted,reason,result\n'
+    '\n'
+    '@app.get("/api/live")\n'
+    'def live():\n'
+    '    result,accepted,reason,body=upstream_observation()\n'
+    '    if isinstance(result,JSONResponse):\n'
+    '        return result\n'
+    '    return JSONResponse(result,status_code=200 if accepted else 503,headers={"Cache-Control":"no-store"})\n'
+)
+_READYZ_LOCAL_ONLY = (
+    '@app.get("/readyz")\ndef readyz():\n'
+    '    status=local_integrity()\n'
+    '    return JSONResponse(status,status_code=200 if status["ready"] else 503)\n'
+)
+_READYZ_UPSTREAM_BOUND = (
+    '@app.get("/readyz")\ndef readyz():\n'
+    '    status=local_integrity()\n'
+    '    local_ready=status["ready"]\n'
+    '    _,accepted,reason,body=upstream_observation()\n'
+    '    upstream=body if isinstance(body,dict) else {}\n'
+    '    status["checks"]=dict(status["checks"],upstream=accepted)\n'
+    '    status["upstream"]={"route":"/api/live","source":CFG.get("upstream"),"accepted":accepted,'
+    '"status":upstream.get("status"),"http_status":upstream.get("http_status"),"reason":reason}\n'
+    '    status["ready"]=bool(local_ready and accepted)\n'
+    '    status["state"]="MEASURED" if status["ready"] else ("UPSTREAM_UNAVAILABLE" if local_ready else "INVALID")\n'
+    '    return JSONResponse(status,status_code=200 if status["ready"] else 503,headers={"Cache-Control":"no-store"})\n'
+)
+
 _LIVEBAR_OPEN = (
     "s.className='status '+(j.status==='LIVE'?'is-live':'');"
     "s.children[1].textContent=j.status+' / '+(j.latency_ms??'-')+' ms';"
 )
 _LIVEBAR_CLOSED = (
-    "const verified=j.status==='MEASURED'&&j.receipt_verified===true;"
-    "const reachable=j.status==='REACHABLE'||j.status==='LIVE';"
+    "const verified=r.ok&&j.status==='MEASURED'&&j.receipt_verified===true;"
+    "const reachable=r.ok&&(j.status==='REACHABLE'||j.status==='LIVE');"
     "s.className='status';"
     "s.dataset.reachability=reachable?'REACHABLE':'UNAVAILABLE';"
     "s.children[1].textContent=(verified?'MEASURED':(reachable?'REACHABLE':'UNAVAILABLE'))"
@@ -176,7 +239,25 @@ APP = APP.replace(_PROBE_LIVE, _PROBE_REACHABLE, 1)
 if APP.count(_HEALTHZ_CONSTANT) != 1:
     raise RuntimeError("flagship APP healthz is not the expected unconditional ok:True handler")
 APP = APP.replace(_HEALTHZ_CONSTANT, _HEALTHZ_PROCESS_SCOPED, 1)
+if APP.count(_LIVE_UNCONDITIONAL) != 1:
+    raise RuntimeError("flagship APP /api/live is not the expected unconditional probe passthrough")
+APP = APP.replace(_LIVE_UNCONDITIONAL, _LIVE_UPSTREAM_BOUND, 1)
+if APP.count(_READYZ_LOCAL_ONLY) != 1:
+    raise RuntimeError("flagship APP /readyz is not the expected local-integrity-only handler")
+APP = APP.replace(_READYZ_LOCAL_ONLY, _READYZ_UPSTREAM_BOUND, 1)
 _BASE.APP = APP
+
+# Terra's landing is the szl-vertical-forge 0.2.3 artifact (szl-vertical-forge#14):
+# its probe labels the upstream evidence state instead of painting OBSERVED on
+# any HTTP 200. The 0.2.3 fleet receipt is schema v4, whose master hash binds
+# the receipt header and the event-chain tip. The landing template still carries
+# the historical 0.2.2 marker attribute, so the marker check is unchanged.
+TERRA_FORGE_GENERATOR = "szl-vertical-forge/0.2.3"
+TERRA_FORGE_RECEIPT_SCHEMA = "szl.vertical-forge.receipt/v4"
+TERRA_FORGE_RECEIPT_ALGORITHM = "sha256-canonical-json-chain"
+TERRA_FORGE_RECEIPT_HEADER_FIELDS = (
+    "schema", "generator", "algorithm", "genesis", "config_sha256", "vertical_count",
+)
 
 
 def _sync_contract() -> None:
@@ -190,9 +271,102 @@ def _sync_contract() -> None:
     _BASE.TERRA_FORGE_SOURCE_REPOSITORY = TERRA_FORGE_SOURCE_REPOSITORY
 
 
+def _forge_sha256(value: Any) -> str:
+    return hashlib.sha256(canonical_json(value)).hexdigest()
+
+
 def load_terra_forge_bundle() -> tuple[str, dict[str, Any]]:
+    """Load and independently verify the vendored forge 0.2.3 Terra artifact."""
     _sync_contract()
-    return _BASE.load_terra_forge_bundle()
+    bundle = Path(TERRA_FORGE_BUNDLE)
+    page_path = bundle / "index.html"
+    try:
+        page = page_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise RuntimeError(f"missing Terra forge artifact: {page_path}") from exc
+    artifact = read_json_object(bundle / "build-receipt.json")
+    fleet = read_json_object(bundle / "fleet-receipt.json")
+    source_lock = read_json_object(bundle / "source-lock.json")
+
+    if TERRA_FORGE_MARKER not in page:
+        raise RuntimeError("Terra landing lacks the pinned forge marker")
+    for route in ('href="/panels"', 'href="/build-receipt.json"', 'const EP="/api/live"'):
+        if route not in page:
+            raise RuntimeError(f"Terra landing lacks required runtime wiring: {route}")
+    if fleet.get("schema") != TERRA_FORGE_RECEIPT_SCHEMA:
+        raise RuntimeError("Terra fleet receipt schema mismatch")
+    if artifact.get("schema") != "szl.vertical-forge.artifact/v1":
+        raise RuntimeError("Terra artifact receipt schema mismatch")
+    if source_lock.get("schema") != "szl.vertical-shell.source-lock/v1":
+        raise RuntimeError("Terra source lock schema mismatch")
+    for name, document in (("fleet", fleet), ("artifact", artifact), ("source lock", source_lock)):
+        if document.get("generator") != TERRA_FORGE_GENERATOR:
+            raise RuntimeError(f"Terra {name} generator mismatch")
+    if source_lock.get("source_repository") != TERRA_FORGE_SOURCE_REPOSITORY:
+        raise RuntimeError("Terra source repository mismatch")
+    source_revision = str(source_lock.get("source_revision") or "")
+    if len(source_revision) != 40 or any(ch not in "0123456789abcdef" for ch in source_revision):
+        raise RuntimeError("Terra forge source revision is not an exact Git SHA")
+
+    genesis = "0" * 64
+    if fleet.get("genesis") != genesis or fleet.get("algorithm") != TERRA_FORGE_RECEIPT_ALGORITHM:
+        raise RuntimeError("Terra fleet receipt header mismatch")
+    events = fleet.get("events")
+    if not isinstance(events, list) or not events or len(events) != fleet.get("vertical_count"):
+        raise RuntimeError("Terra fleet receipt event count mismatch")
+    previous = genesis
+    terra_event: dict[str, Any] | None = None
+    for position, event in enumerate(events):
+        if not isinstance(event, dict) or event.get("prev_hash") != previous:
+            raise RuntimeError(f"Terra fleet receipt link mismatch at event {position}")
+        calculated = _forge_sha256({key: value for key, value in event.items() if key != "chain_hash"})
+        if event.get("chain_hash") != calculated:
+            raise RuntimeError(f"Terra fleet receipt hash mismatch at event {position}")
+        previous = calculated
+        if event.get("path") == "terra/index.html":
+            terra_event = event
+    if fleet.get("chain_tip") != previous:
+        raise RuntimeError("Terra fleet receipt chain tip mismatch")
+    header = {field: fleet.get(field) for field in TERRA_FORGE_RECEIPT_HEADER_FIELDS}
+    if fleet.get("master_hash") != _forge_sha256({"chain_tip": previous, "header": header}):
+        raise RuntimeError("Terra fleet master hash mismatch")
+    if terra_event is None or artifact.get("chain_event") != terra_event:
+        raise RuntimeError("Terra artifact receipt is not bound into the fleet chain")
+
+    page_hash = hashlib.sha256(page.encode("utf-8")).hexdigest()
+    expected_values = {
+        "artifact_sha256": page_hash,
+        "fleet_master_hash": fleet.get("master_hash"),
+        "generator": fleet.get("generator"),
+    }
+    for field, expected in expected_values.items():
+        if source_lock.get(field) != expected:
+            raise RuntimeError(f"Terra source lock {field} mismatch")
+    if terra_event.get("artifact_sha256") != page_hash:
+        raise RuntimeError("Terra landing bytes do not match the chained artifact hash")
+    if artifact.get("fleet_master_hash") != fleet.get("master_hash"):
+        raise RuntimeError("Terra artifact receipt master hash mismatch")
+    if artifact.get("fleet_config_sha256") != fleet.get("config_sha256"):
+        raise RuntimeError("Terra artifact receipt fleet config mismatch")
+    if artifact.get("vertical") != "terra":
+        raise RuntimeError("Terra artifact receipt vertical mismatch")
+
+    forge = {
+        "schema": "szl.vertical-forge.deployment-source/v1",
+        "generator": TERRA_FORGE_GENERATOR,
+        "source_repository": TERRA_FORGE_SOURCE_REPOSITORY,
+        "source_revision": source_revision,
+        "source_pull_request": source_lock.get("source_pull_request"),
+        "fleet_master_hash": fleet["master_hash"],
+        "fleet_config_sha256": artifact.get("fleet_config_sha256"),
+        "vertical_config_sha256": artifact.get("config_sha256"),
+        "artifact_sha256": page_hash,
+        "chain_hash": terra_event["chain_hash"],
+    }
+    return page, forge
+
+
+_BASE.load_terra_forge_bundle = load_terra_forge_bundle
 
 
 _base_html = _BASE.html
@@ -269,7 +443,8 @@ def _observe_finance_projection(row: dict[str, Any]) -> dict[str, Any]:
 def observe_flagship(row: dict[str, Any]) -> None:
     _base_observe_flagship(row)
     if row.get("slug") == "finance" and _base_observation_passes(
-            row, source_revision=row["source_revision"], workflow_run_id=str(row["workflow_run_id"])):
+            _publication_view(row), source_revision=row["source_revision"],
+            workflow_run_id=str(row["workflow_run_id"])):
         row["finance_functional"] = _gate_module.observe_finance(row["source_revision"])
         row["finance_projection"] = _observe_finance_projection(row)
     elif row.get("slug") == "finance":
@@ -278,8 +453,37 @@ def observe_flagship(row: dict[str, Any]) -> None:
                                      "failure_code": "WAITING_FOR_EXACT_RUNTIME"}
 
 
+def _publication_view(row: dict[str, Any]) -> dict[str, Any]:
+    """Separate the published artifacts' integrity from upstream availability.
+
+    /readyz is 503 while the shell's upstream is unavailable. That is a truthful
+    runtime state of the upstream, not evidence that this publication failed, so
+    publication admission still requires every local integrity check and every
+    exact-source binding, and records the upstream state on the row instead.
+    """
+    ready = row.get("readyz")
+    if not isinstance(ready, dict):
+        return row
+    upstream = ready.get("upstream") if isinstance(ready.get("upstream"), dict) else {}
+    row["upstream_readiness"] = {
+        "accepted": upstream.get("accepted") is True,
+        "status": upstream.get("status"),
+        "reason": upstream.get("reason"),
+        "http_status": row.get("readyz_http"),
+    }
+    checks = ready.get("checks")
+    if (row.get("readyz_http") == 503 and ready.get("state") == "UPSTREAM_UNAVAILABLE"
+            and ready.get("ready") is False and isinstance(checks, dict)
+            and checks.get("landing_sha256") is True and checks.get("panels_sha256") is True
+            and checks.get("upstream") is False):
+        return {**row, "readyz_http": 200,
+                "readyz": {**ready, "ready": True, "state": "MEASURED"}}
+    return row
+
+
 def observation_passes(row: dict[str, Any], *, source_revision: str, workflow_run_id: str) -> bool:
-    shell_passes = _base_observation_passes(row, source_revision=source_revision, workflow_run_id=workflow_run_id)
+    shell_passes = _base_observation_passes(
+        _publication_view(row), source_revision=source_revision, workflow_run_id=workflow_run_id)
     if not shell_passes or row.get("slug") != "finance":
         return shell_passes
     if (not isinstance(workflow_run_id, str) or not workflow_run_id.isascii()

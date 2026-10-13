@@ -1,10 +1,59 @@
 # SPDX-License-Identifier: Apache-2.0
 name: HF Publish Vertical Flagships
 
-# This publisher is an explicit operator action. hf-sync.yml is the sole
-# automatic main-push writer for the canonical A11oy Space and owns deployment,
-# source binding, live verification, and relock evidence.
+# Convergent publisher for the vertical flagship Spaces (Terra, Counsel,
+# Sentra, Finance, Lyte). It used to run only on operator dispatch, so the
+# Spaces drifted from main for weeks without any signal.
+#
+# - push to main runs when a publisher input changes. The path list is
+#   scripts/hf_vertical_convergence.py:workflow_push_paths(); the renderer's
+#   actual file reads are checked against it by tests/test_hf_vertical_convergence.py.
+# - the hourly schedule is the convergence backstop for commits that never
+#   triggered a push run (superseded, or lyte-services changes).
+# - a completed canonical A11oy deploy re-plans Finance, which proxies that
+#   Space and must bind the same source revision.
+# - workflow_dispatch keeps the explicit targeted repairs and the full estate.
+#
+# The plan renders every generated target offline and compares it, file by
+# file, with the Space's Hub tree; Lyte must serve the qualified lyte-services
+# main. Only differing targets publish, each in its own concurrency group, and
+# a converged estate is a no-op. Every write still goes through the existing
+# publisher, which requires the exact current protected main and live-verifies
+# the Space. A run whose source stopped being main tip is superseded (exit 75)
+# and ends neutral; the newer main's run or the next hourly plan owns the
+# target. hf-sync.yml stays the sole writer of the canonical A11oy Space.
 on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/hf-publish-vertical-flagships.yml
+      - deployments/vertical-forge/terra/build-receipt.json
+      - deployments/vertical-forge/terra/fleet-receipt.json
+      - deployments/vertical-forge/terra/index.html
+      - deployments/vertical-forge/terra/source-lock.json
+      - scripts/_hf_publish_vertical_flagships_v4_impl_base.py
+      - scripts/hf_existing_space_guard.py
+      - scripts/hf_finance_functional_gate.py
+      - scripts/hf_finance_projection_manifest.py
+      - scripts/hf_finance_read_proxy.py
+      - scripts/hf_finance_research_workspace.py
+      - scripts/hf_finance_signed_workspace.py
+      - scripts/hf_finance_workspace.py
+      - scripts/hf_flagship_runtime_contract.py
+      - scripts/hf_publish_lyte_enterprise.py
+      - scripts/hf_publish_vertical_flagships_v4.py
+      - scripts/hf_publish_vertical_flagships_v4_impl.py
+      - scripts/hf_vertical_convergence.py
+      - scripts/lyte_enterprise_live_contract.py
+      - scripts/szl_release_guard.py
+      - verticals/puriq-markets/runtime/components/finance_v2/source.json
+      - verticals/puriq-markets/runtime/components/puriq_verity/source.json
+  schedule:
+    - cron: "41 * * * *"
+  workflow_run:
+    workflows: ["Sync and Relock Canonical Hugging Face Space"]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       scope:
@@ -16,12 +65,169 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: hf-publish-vertical-flagships
-  cancel-in-progress: false
+# No workflow-level group: planning is read-only, and every writer job holds
+# its Space's group (one running, only the newest waiting), so a newer main
+# displaces an older queued publication of the same target and nothing else.
 
 jobs:
+  plan:
+    name: Plan convergence against the served Spaces
+    if: ${{ github.repository == 'szl-holdings/a11oy' && github.ref == 'refs/heads/main' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      publish: ${{ steps.plan.outputs.publish }}
+      estate: ${{ steps.plan.outputs.estate }}
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ github.token }}
+      SZL_FLAGSHIP_SCOPE: ${{ inputs.scope || '' }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact source with history for drift dating
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Install pinned publisher
+        run: python -m pip install --disable-pip-version-check --no-cache-dir 'huggingface_hub==1.31.0'
+
+      - name: Plan only the targets whose served bytes differ from main
+        id: plan
+        run: python -I -B scripts/hf_vertical_convergence.py plan
+
+      - name: Upload convergence plan
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: hf-vertical-convergence-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: hf-vertical-convergence-plan.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  publish-target:
+    name: Publish ${{ matrix.target }}
+    needs: plan
+    if: ${{ needs.plan.result == 'success' && needs.plan.outputs.publish == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    concurrency:
+      group: hf-vertical-target-${{ matrix.target }}
+      cancel-in-progress: false
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ github.token }}
+      HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
+      HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
+      HUGGING_FACE_HUB_TOKEN: ${{ secrets.HUGGING_FACE_HUB_TOKEN }}
+      SZL_FLAGSHIP_SCOPE: ${{ matrix.target }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Require protected main and detect supersession
+        id: current
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/main
+          git fetch --no-tags --depth=1 origin main
+          if [ "$(git rev-parse HEAD)" = "$(git rev-parse FETCH_HEAD)" ]; then
+            echo "superseded=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "superseded=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::main moved to $(git rev-parse FETCH_HEAD); that revision's run or the hourly convergence owns ${SZL_FLAGSHIP_SCOPE}"
+          fi
+
+      - name: Set up Python
+        if: ${{ steps.current.outputs.superseded == 'false' }}
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Install pinned publisher
+        if: ${{ steps.current.outputs.superseded == 'false' }}
+        run: python -m pip install --disable-pip-version-check --no-cache-dir 'huggingface_hub==1.31.0'
+
+      # The plan ran before this job acquired the target's group; another run
+      # may have converged the target while it waited.
+      - name: Re-check convergence after acquiring the target group
+        id: check
+        if: ${{ steps.current.outputs.superseded == 'false' && !matrix.forced }}
+        run: python -I -B scripts/hf_vertical_convergence.py check --target "$SZL_FLAGSHIP_SCOPE"
+
+      - name: Wait for Sentra exact-source admission
+        id: sentra
+        if: ${{ steps.current.outputs.superseded == 'false' && matrix.target == 'sentra' && (matrix.forced || steps.check.outputs.publish == 'true') }}
+        run: python -I -B scripts/hf_vertical_convergence.py wait-sentra --timeout 2400
+
+      - name: Publish and live-verify the target
+        id: publish
+        if: ${{ steps.current.outputs.superseded == 'false' && (matrix.forced || steps.check.outputs.publish == 'true') && (matrix.target != 'sentra' || steps.sentra.outputs.state == 'ADMISSIBLE') }}
+        shell: bash
+        run: |
+          set +e
+          python scripts/hf_publish_vertical_flagships_v4.py
+          code=$?
+          set -e
+          if [ "$code" -eq 75 ]; then
+            echo "::notice::${SZL_FLAGSHIP_SCOPE} publication superseded by a newer main; the receipt is not complete"
+            exit 0
+          fi
+          exit "$code"
+
+      - name: Fail on a blocked Sentra admission
+        if: ${{ steps.sentra.outputs.state == 'BLOCKED' }}
+        run: |
+          echo "::error::Sentra exact-source admission is blocked; see the wait step output"
+          exit 1
+
+      - name: Upload immutable receipt
+        if: ${{ always() && steps.publish.conclusion != 'skipped' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: hf-vertical-flagships-${{ matrix.target }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            hf-vertical-flagships-receipt.json
+            hf-lyte-enterprise-receipt.json
+            hf-lyte-enterprise-manifest.failed.json
+            hf-lyte-release-evidence/
+          if-no-files-found: error
+          retention-days: 180
+
+  # The full estate (generated shells, Lyte, and the combined vertical-services
+  # runtime) stays an explicit operator action on the shared estate writer group.
   publish:
+    name: Publish and live-verify the full estate
+    needs: plan
+    if: ${{ needs.plan.result == 'success' && needs.plan.outputs.estate == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 50
     concurrency:
@@ -35,7 +241,7 @@ jobs:
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
       HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
       HUGGING_FACE_HUB_TOKEN: ${{ secrets.HUGGING_FACE_HUB_TOKEN }}
-      SZL_FLAGSHIP_SCOPE: ${{ inputs.scope || 'estate' }}
+      SZL_FLAGSHIP_SCOPE: estate
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1

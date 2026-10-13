@@ -13,6 +13,10 @@ on:
     - deployments/vertical-forge/terra/**
     - tests/test_hf_publish_vertical_flagships_v4.py
     - tests/test_vertical_shell_healthz_process_scoped.py
+    - scripts/hf_vertical_convergence.py
+    - tests/test_hf_vertical_convergence.py
+    - .github/workflows/hf-publish-vertical-flagships.yml
+    - .github/workflows/hf-vertical-drift.yml
     - .github/workflows/hf-vertical-services-v2-contract.yml
   push:
     branches:
@@ -24,6 +28,10 @@ on:
     - deployments/vertical-forge/terra/**
     - tests/test_hf_publish_vertical_flagships_v4.py
     - tests/test_vertical_shell_healthz_process_scoped.py
+    - scripts/hf_vertical_convergence.py
+    - tests/test_hf_vertical_convergence.py
+    - .github/workflows/hf-publish-vertical-flagships.yml
+    - .github/workflows/hf-vertical-drift.yml
     - .github/workflows/hf-vertical-services-v2-contract.yml
   workflow_dispatch: null
   merge_group:
@@ -62,9 +70,11 @@ jobs:
           scripts/hf_publish_vertical_flagships_v4.py
           scripts/hf_publish_vertical_flagships_v4_impl.py
           scripts/hf_publish_vertical_services.py
+          scripts/hf_vertical_convergence.py
 
       - name: Prove exact source and operational-v2 contracts
         run: >-
           python -m pytest
           tests/test_hf_publish_vertical_flagships_v4.py
-          tests/test_vertical_shell_healthz_process_scoped.py -q
+          tests/test_vertical_shell_healthz_process_scoped.py
+          tests/test_hf_vertical_convergence.py -q

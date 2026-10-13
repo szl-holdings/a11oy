@@ -238,14 +238,18 @@ def test_dedicated_sentra_admission_rejects_bad_wire_evidence_before_renderer(
     monkeypatch.setattr(publisher, "load_module", load)
     monkeypatch.setattr(publisher, "normalize_github_token_alias", lambda: "NONE")
     monkeypatch.setenv("SZL_FLAGSHIP_SCOPE", "sentra")
-    assert publisher.main() == 1
+    # A moved main is supersession (a newer run owns Sentra), never completion.
+    expected_code = publisher.SUPERSEDED_EXIT_CODE if defect == "moved-main" else 1
+    assert publisher.main() == expected_code
     receipt = json.loads(publisher.FLAGSHIP_RECEIPT.read_text())
     assert installs == [{"require_existing": True}]
     assert renderer_calls == []
     assert transport.requests == transport.paths[:{
         "moved-main": 1, "unverified-signature": 2, "wrong-check-app": 3, "failed-check": 3,
     }[defect]]
-    assert receipt["state"] == "BLOCKED" and receipt["complete"] is False
+    assert receipt["state"] == ("SUPERSEDED" if defect == "moved-main" else "BLOCKED")
+    assert receipt["complete"] is False
+    assert receipt.get("superseded", False) is (defect == "moved-main")
     assert receipt["provider_write_attempted"] is False
     assert receipt["provider_write_confirmed"] is False
     assert "fixture-only-github-token" not in json.dumps(receipt)
@@ -256,9 +260,11 @@ def test_moved_main_blocks_before_any_publication(publisher, monkeypatch, slug):
     monkeypatch.setattr(publisher, "_github_json", lambda *args, **kwargs: {"sha": "b" * 40})
     monkeypatch.setattr(publisher, "run_publisher", lambda *args, **kwargs: pytest.fail("write attempted"))
     guard = SimpleNamespace(guard_report=lambda: {})
-    assert publisher.publish_selected_generated(slug, guard) == 1
+    assert publisher.publish_selected_generated(slug, guard) == publisher.SUPERSEDED_EXIT_CODE
     receipt = json.loads(publisher.FLAGSHIP_RECEIPT.read_text())
     assert receipt["complete"] is False
+    assert receipt["superseded"] is True and receipt["state"] == "SUPERSEDED"
+    assert receipt["provider_write_attempted"] is False
     assert receipt["publication_scope"] == slug
 
 
@@ -288,8 +294,10 @@ def test_main_moving_during_publication_cannot_produce_complete_receipt(publishe
     monkeypatch.setattr(publisher, "run_publisher", run)
     assert publisher.publish_selected_generated(
         "terra", SimpleNamespace(guard_report=lambda: {})
-    ) == 1
-    assert json.loads(publisher.FLAGSHIP_RECEIPT.read_text())["complete"] is False
+    ) == publisher.SUPERSEDED_EXIT_CODE
+    receipt = json.loads(publisher.FLAGSHIP_RECEIPT.read_text())
+    assert receipt["complete"] is False
+    assert receipt["superseded"] is True and receipt["source_still_current"] is False
 
 
 @pytest.mark.parametrize("slug", ["terra", "sentra", "counsel"])
@@ -332,3 +340,87 @@ def test_dispatch_exposes_explicit_narrow_scopes():
         "      group: hf-vertical-estate\n"
         "      cancel-in-progress: false"
     ) in vertical_job
+
+
+def test_postflight_read_error_is_failure_not_supersession(publisher, monkeypatch):
+    seen = iter([{"sha": REVISION}, RuntimeError("GitHub unavailable")])
+
+    def head(*args, **kwargs):
+        value = next(seen)
+        if isinstance(value, Exception):
+            raise value
+        return value
+
+    monkeypatch.setattr(publisher, "_github_json", head)
+    monkeypatch.setattr(publisher, "selected_generated_space_preflight", lambda *args: None)
+
+    def run(*args, **kwargs):
+        publisher.FLAGSHIP_RECEIPT.write_text(json.dumps({
+            "complete": True,
+            "rows": [{"id": "SZLHOLDINGS/terra", "source_revision": REVISION,
+                      "workflow_run_id": int(RUN_ID), "operational": True}],
+        }))
+        return 0, None, ("terra",)
+
+    monkeypatch.setattr(publisher, "run_publisher", run)
+    assert publisher.publish_selected_generated("terra", SimpleNamespace(guard_report=lambda: {})) == 1
+    receipt = json.loads(publisher.FLAGSHIP_RECEIPT.read_text())
+    assert receipt["complete"] is False and "superseded" not in receipt
+
+
+def test_unverified_publication_on_moved_main_stays_a_failure(publisher, monkeypatch):
+    seen = iter([REVISION, "b" * 40])
+    monkeypatch.setattr(publisher, "_github_json", lambda *args, **kwargs: {"sha": next(seen)})
+    monkeypatch.setattr(publisher, "selected_generated_space_preflight", lambda *args: None)
+
+    def run(*args, **kwargs):
+        publisher.FLAGSHIP_RECEIPT.write_text(json.dumps({
+            "complete": False,
+            "rows": [{"id": "SZLHOLDINGS/terra", "source_revision": REVISION,
+                      "workflow_run_id": int(RUN_ID), "operational": False}],
+        }))
+        return 1, None, ("terra",)
+
+    monkeypatch.setattr(publisher, "run_publisher", run)
+    assert publisher.publish_selected_generated("terra", SimpleNamespace(guard_report=lambda: {})) == 1
+    assert "superseded" not in json.loads(publisher.FLAGSHIP_RECEIPT.read_text())
+
+
+@pytest.mark.parametrize("status, conclusion, pending", [
+    ("in_progress", None, True), ("queued", None, True), ("completed", "failure", False),
+])
+def test_sentra_admission_separates_pending_checks_from_failed_checks(
+    publisher, sentra_admission_transport, status, conclusion, pending,
+):
+    sentra_admission_transport.rows[0].update(status=status, conclusion=conclusion)
+    with pytest.raises(publisher.SentraPublicationError, match="unresolved") as caught:
+        publisher._sentra_source_admission()
+    assert isinstance(caught.value, publisher.SentraChecksPending) is pending
+    assert not isinstance(caught.value, publisher.SentraSourceSuperseded)
+
+
+def test_sentra_missing_required_check_is_pending(publisher, sentra_admission_transport):
+    sentra_admission_transport.rows.pop(0)
+    payload = sentra_admission_transport.payloads[sentra_admission_transport.paths[2]]
+    payload["total_count"] = len(sentra_admission_transport.rows)
+    with pytest.raises(publisher.SentraChecksPending):
+        publisher._sentra_source_admission()
+
+
+def test_finance_moved_main_is_superseded_before_any_write(publisher, monkeypatch):
+    monkeypatch.setattr(publisher, "_github_json", lambda *args, **kwargs: {"sha": "b" * 40})
+    monkeypatch.setattr(publisher, "run_publisher", lambda *args, **kwargs: pytest.fail("write attempted"))
+    assert publisher.publish_finance_only(SimpleNamespace(guard_report=lambda: {})) == publisher.SUPERSEDED_EXIT_CODE
+    receipt = json.loads(publisher.FLAGSHIP_RECEIPT.read_text())
+    assert receipt["complete"] is False and receipt["state"] == "SUPERSEDED"
+    assert receipt["provider_write_attempted"] is False
+
+
+@pytest.mark.parametrize("state, expected", [("SUPERSEDED", 75), ("FAILED", 1), ("OUTCOME_UNCERTAIN", 1)])
+def test_lyte_superseded_transaction_is_reported_distinctly(publisher, monkeypatch, state, expected):
+    monkeypatch.setattr(publisher, "run_publisher", lambda *args, **kwargs: (1, None, None))
+    monkeypatch.setattr(publisher, "read_receipt", lambda path: {"state": state, "complete": False})
+    assert publisher.publish_lyte_only(SimpleNamespace(guard_report=lambda: {})) == expected
+    receipt = json.loads(publisher.FLAGSHIP_RECEIPT.read_text())
+    assert receipt["complete"] is False
+    assert receipt.get("superseded", False) is (state == "SUPERSEDED")
