@@ -720,6 +720,10 @@ def main(argv: list[str] | None = None) -> int:
     p_report.add_argument("--threshold-hours", type=float, default=DEFAULT_ALERT_HOURS)
     p_report.add_argument("--sync-issue", action="store_true")
     args = parser.parse_args(argv)
+    # This tool never writes. It loads the publishers' renderers, so it runs
+    # under the same in-process refusal of canonical-Space writes as they do.
+    _load("szl_vertical_convergence_space_guard",
+          ROOT / "scripts/hf_existing_space_guard.py").refuse_canonical_space_writes()
 
     if args.command == "plan":
         result = plan(event=args.event, scope=args.scope, head=_head(),

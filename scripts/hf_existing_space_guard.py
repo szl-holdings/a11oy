@@ -119,6 +119,68 @@ def require_existing_public_space(
         raise SpaceGuardError(f"public visibility is unconfirmed for Space {repo_id}")
 
 
+# hf-sync.yml is the only writer of the canonical A11oy Space. Publishers that
+# install this guard write other Spaces, so every repository-mutating SDK call
+# that names the canonical Space is refused in-process before any request.
+CANONICAL_SPACE = "SZLHOLDINGS/a11oy"
+CANONICAL_WRITE_METHODS = (
+    "add_space_secret", "add_space_variable", "create_branch", "create_commit",
+    "create_repo", "create_tag", "delete_branch", "delete_file", "delete_files",
+    "delete_folder", "delete_repo", "delete_space_secret", "delete_space_storage",
+    "delete_space_variable", "delete_tag", "duplicate_space", "move_repo",
+    "pause_space", "request_space_hardware", "request_space_storage",
+    "restart_space", "set_space_secret", "set_space_sleep_time", "set_space_variable",
+    "super_squash_history",
+    "update_repo_settings", "update_repo_visibility", "upload_file",
+    "upload_folder", "upload_large_folder",
+)
+_CANONICAL_MARKER = "__szl_canonical_space_refusal_v1__"
+
+
+class CanonicalSpaceWriteRefused(SpaceGuardError):
+    """A non-canonical publisher attempted to mutate the canonical Space."""
+
+
+def _names_canonical(value: Any) -> bool:
+    return isinstance(value, str) and value.strip().casefold() == CANONICAL_SPACE.casefold()
+
+
+def _refusing(name: str, original: Callable[..., Any]) -> Callable[..., Any]:
+    @wraps(original)
+    def refusing(self: Any, *args: Any, **kwargs: Any) -> Any:
+        targets = [kwargs.get(key) for key in ("repo_id", "from_id", "to_id")]
+        if args:
+            targets.append(args[0])
+        if any(_names_canonical(target) for target in targets):
+            raise CanonicalSpaceWriteRefused(
+                f"{name} refused: only hf-sync.yml writes {CANONICAL_SPACE}"
+            )
+        return original(self, *args, **kwargs)
+
+    setattr(refusing, _CANONICAL_MARKER, True)
+    return refusing
+
+
+def refuse_canonical_space_writes(api_class: type[Any] = HfApi) -> tuple[str, ...]:
+    """Make every mutating method of ``api_class`` refuse the canonical Space.
+
+    The first positional argument and the ``repo_id``, ``from_id`` and ``to_id``
+    keywords are the repository identities these SDK methods mutate. Returns the
+    method names that now refuse; installation is idempotent.
+    """
+
+    refused: list[str] = []
+    with _INSTALL_LOCK:
+        for name in CANONICAL_WRITE_METHODS:
+            current = getattr(api_class, name, None)
+            if not callable(current):
+                continue
+            if not getattr(current, _CANONICAL_MARKER, False):
+                setattr(api_class, name, _refusing(name, current))
+            refused.append(name)
+    return tuple(refused)
+
+
 def install_existing_space_guard(
     api_class: type[Any] = HfApi, *, require_existing: bool = False
 ) -> dict[str, Any]:
@@ -127,8 +189,10 @@ def install_existing_space_guard(
     By default, only calls that explicitly request ``repo_type='space'`` and
     ``exist_ok=True`` are intercepted; other SDK calls remain untouched.
     ``require_existing=True`` blocks missing Spaces and unexpected create calls.
+    Installation also refuses every mutation of the canonical A11oy Space.
     """
 
+    refuse_canonical_space_writes(api_class)
     with _INSTALL_LOCK:
         current = api_class.create_repo
         if getattr(current, _MARKER, False):
@@ -205,9 +269,12 @@ def guard_report(api_class: type[Any] = HfApi) -> dict[str, Any]:
 
 
 __all__ = [
+    "CANONICAL_SPACE",
+    "CanonicalSpaceWriteRefused",
     "SpaceGuardError",
     "guard_report",
     "http_status",
     "install_existing_space_guard",
+    "refuse_canonical_space_writes",
     "require_existing_public_space",
 ]

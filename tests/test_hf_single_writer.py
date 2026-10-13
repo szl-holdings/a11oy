@@ -16,6 +16,19 @@ from pathlib import Path, PurePosixPath
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOWS = ROOT / ".github" / "workflows"
 CANONICAL_WORKFLOW = "hf-sync.yml"
+# Automatic workflows that write other SZLHOLDINGS Spaces (or nothing) while
+# reading the canonical Space's public endpoints, which is why the writer
+# heuristic matches them. Each is admitted only with the entrypoints listed
+# here, and NonCanonicalAutomaticWriterTests proves every one of those runs
+# under the in-process refusal of canonical-Space writes before it can write.
+# Any other automatic workflow matching the heuristic still fails this guard.
+NON_CANONICAL_AUTOMATIC_WRITERS = {
+    "hf-publish-vertical-flagships.yml": (
+        "scripts/hf_publish_vertical_flagships_v4.py",
+        "scripts/hf_vertical_convergence.py",
+    ),
+    "hf-vertical-drift.yml": ("scripts/hf_vertical_convergence.py",),
+}
 RETIRED_WORKFLOWS = {
     "hf-sync-backend.yml",
     "hf-git-sha-sync.yml",
@@ -823,7 +836,10 @@ def load_workflows(directory: Path = WORKFLOWS) -> dict[str, str]:
 class HuggingFaceSingleWriterTests(unittest.TestCase):
     def test_only_canonical_automatic_writer_exists(self) -> None:
         workflows = load_workflows()
-        self.assertEqual(find_automatic_writers(workflows), [CANONICAL_WORKFLOW])
+        self.assertEqual(
+            find_automatic_writers(workflows),
+            sorted([CANONICAL_WORKFLOW, *NON_CANONICAL_AUTOMATIC_WRITERS]),
+        )
         self.assertTrue(RETIRED_WORKFLOWS.isdisjoint(workflows))
 
         general_suite = workflows["tests.yml"]
@@ -1358,6 +1374,101 @@ jobs:
             ),
             set(),
         )
+
+
+def _load_space_guard():
+    """Load the real guard module with a stdlib stand-in for the Hub client."""
+
+    import importlib.util
+    import sys
+    import types
+
+    fake = types.ModuleType("huggingface_hub")
+    fake.HfApi = type("HfApi", (), {})
+    previous = sys.modules.get("huggingface_hub")
+    sys.modules["huggingface_hub"] = fake
+    try:
+        spec = importlib.util.spec_from_file_location(
+            "single_writer_space_guard", ROOT / "scripts" / "hf_existing_space_guard.py"
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+    finally:
+        if previous is None:
+            sys.modules.pop("huggingface_hub", None)
+        else:
+            sys.modules["huggingface_hub"] = previous
+    return module
+
+
+def _function_source(path: str, name: str) -> str:
+    text = (ROOT / path).read_text(encoding="utf-8")
+    for node in ast.walk(ast.parse(text)):
+        if isinstance(node, ast.FunctionDef) and node.name == name:
+            return ast.get_source_segment(text, node) or ""
+    raise AssertionError(f"{path} has no {name}()")
+
+
+class NonCanonicalAutomaticWriterTests(unittest.TestCase):
+    def test_each_admitted_workflow_runs_only_its_declared_entrypoints(self) -> None:
+        workflows = load_workflows()
+        for name, entrypoints in NON_CANONICAL_AUTOMATIC_WRITERS.items():
+            with self.subTest(workflow=name):
+                executable = _executable_text(workflows[name])
+                invoked = {match.group("path") for match in LOCAL_SCRIPT_CALL.finditer(executable)}
+                invoked |= {match.group("path") for match in DIRECT_SCRIPT_CALL.finditer(executable)}
+                invoked |= {match.group("module") for match in LOCAL_MODULE_CALL.finditer(executable)
+                            if match.group("module") != "pip"}
+                self.assertEqual(invoked, set(entrypoints))
+                self.assertIsNone(LOCAL_ACTION_CALL.search(executable))
+                self.assertFalse(any(pattern.search(executable) for pattern in MUTATION_PATTERNS))
+                self.assertNotIn(CANONICAL_WORKFLOW, executable.replace(
+                    'workflows: ["Sync and Relock Canonical Hugging Face Space"]', ""))
+
+    def test_entrypoints_install_the_canonical_refusal_before_any_work(self) -> None:
+        publisher = _function_source("scripts/hf_publish_vertical_flagships_v4.py", "main")
+        install = publisher.index("install_existing_space_guard(")
+        for later in ("normalize_github_token_alias(", "publish_sentra_existing(",
+                      "publish_finance_only(", "publish_lyte_only(",
+                      "publish_selected_generated(", "run_publisher("):
+            self.assertLess(install, publisher.index(later), later)
+        planner = _function_source("scripts/hf_vertical_convergence.py", "main")
+        refuse = planner.index("refuse_canonical_space_writes()")
+        for later in ("plan(", "assess(", "wait_for_sentra_admission(", "sync_issue("):
+            self.assertLess(refuse, planner.index(later), later)
+        guard = _function_source("scripts/hf_existing_space_guard.py", "install_existing_space_guard")
+        self.assertLess(guard.index("refuse_canonical_space_writes(api_class)"),
+                        guard.index("with _INSTALL_LOCK:"))
+
+    def test_refusal_blocks_every_canonical_mutation_and_admits_other_spaces(self) -> None:
+        guard = _load_space_guard()
+        calls = []
+
+        class Api:
+            pass
+
+        for method in guard.CANONICAL_WRITE_METHODS:
+            setattr(Api, method, lambda self, *args, _m=method, **kwargs: calls.append(_m) or "ok")
+        refused = guard.refuse_canonical_space_writes(Api)
+        self.assertEqual(set(refused), set(guard.CANONICAL_WRITE_METHODS))
+        self.assertEqual(guard.refuse_canonical_space_writes(Api), refused)  # idempotent
+        api = Api()
+        for method in guard.CANONICAL_WRITE_METHODS:
+            for call in ((("SZLHOLDINGS/a11oy",), {}), ((), {"repo_id": "szlholdings/A11OY"}),
+                         ((), {"from_id": "SZLHOLDINGS/a11oy", "to_id": "x/y"}),
+                         ((), {"to_id": " SZLHOLDINGS/a11oy"})):
+                with self.subTest(method=method, call=call), self.assertRaises(
+                        guard.CanonicalSpaceWriteRefused):
+                    getattr(api, method)(*call[0], **call[1])
+            self.assertEqual(getattr(api, method)(repo_id="SZLHOLDINGS/terra"), "ok")
+        self.assertEqual(calls, list(guard.CANONICAL_WRITE_METHODS))
+        # The SDK methods the writer heuristic recognises are all refused.
+        self.assertLessEqual(MUTATION_METHODS, set(guard.CANONICAL_WRITE_METHODS))
+
+    def test_out_of_process_lyte_controller_is_bound_to_lyte(self) -> None:
+        source = (ROOT / "scripts" / "hf_publish_lyte_enterprise.py").read_text(encoding="utf-8")
+        self.assertIn('HF_REPOSITORY = "SZLHOLDINGS/lyte"', source)
+        self.assertIn('"--hf-repo", HF_REPOSITORY', source)
 
 
 if __name__ == "__main__":
