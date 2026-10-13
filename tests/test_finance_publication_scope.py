@@ -38,6 +38,10 @@ def publisher(monkeypatch, tmp_path):
             state["url"] = request.full_url
             return Response()
     monkeypatch.setattr(module.urllib.request, "build_opener", lambda *a: Opener())
+    # The full pre-write sweep runs against a real canonical runtime in
+    # tests/test_finance_functional_gate.py; here only its verdict matters.
+    state["sweep"] = {"complete": True, "probes": []}
+    monkeypatch.setattr(module, "canonical_compatibility", lambda revision: state["sweep"])
     monkeypatch.chdir(tmp_path)
     return module, state
 
@@ -136,3 +140,21 @@ def test_finance_filter_cannot_leak_sibling_targets(publisher,monkeypatch):
     renderer.main = run
     monkeypatch.setattr(module,"load_module",lambda *a:renderer)
     assert module.run_publisher("szl_flagship_v4",module.FLAGSHIP_IMPL,finance_only=True) == (0,None,("finance",))
+
+
+def test_incomplete_canonical_sweep_refuses_before_any_write(publisher, monkeypatch):
+    module, state = publisher
+    state["sweep"] = {"complete": False, "probes": [
+        {"label": "providers", "accepted": True},
+        {"label": "research-audit", "accepted": False, "response_error": "CANONICAL_CONTRACT_UNDECLARED"}]}
+    with pytest.raises(RuntimeError, match="research-audit:CANONICAL_CONTRACT_UNDECLARED"):
+        module.finance_preflight()
+    monkeypatch.setattr(module, "run_publisher", lambda *a, **k: pytest.fail("write attempted after failed sweep"))
+    assert module.publish_finance_only(SimpleNamespace(guard_report=lambda: {})) == 1
+    receipt = json.loads(module.FLAGSHIP_RECEIPT.read_text())
+    assert receipt["complete"] is False and "compatibility sweep failed" in receipt["detail"]
+
+
+def test_preflight_records_the_sweep_it_relied_on(publisher):
+    module, state = publisher
+    assert module.finance_preflight()["canonical_compatibility"] is state["sweep"]

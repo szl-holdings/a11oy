@@ -25,6 +25,7 @@ if CFG.get("slug") == "finance":
     import hashlib as _finance_hashlib
     import math as _finance_math
     import re as _finance_re
+    import threading as _finance_threading
     import time as _finance_time
     from urllib.parse import urlencode as _finance_urlencode, urlsplit as _finance_urlsplit
     _FINANCE_ORIGIN = "https://szlholdings-a11oy.hf.space"
@@ -207,6 +208,10 @@ if CFG.get("slug") == "finance":
                 or any(type(v) is not int or not 1 <= v <= 9999 for v in versions)
                 or frozenset(versions) != served):
             raise _FinanceBoundaryError("CANONICAL_CONTRACT_INVALID")
+        components = body.get("components")
+        if (not isinstance(components, dict) or set(components) != {"analytics", "signed_price"}
+                or not all(isinstance(value, dict) for value in components.values())):
+            raise _FinanceBoundaryError("CANONICAL_CONTRACT_INVALID")
 
     def _finance_check_analytics(body, kind, query, method):
         _finance_check_identity(body, "szl.finance.analytics/v2")
@@ -241,7 +246,11 @@ if CFG.get("slug") == "finance":
             raise _FinanceBoundaryError("CANONICAL_RECEIPT_INVALID")
         for proof in (body.get("inputs",{}).get("asset"),body.get("inputs",{}).get("benchmark")):
             if proof is not None and proof.get("origin")=="coinbase":
-                _finance_check_observation(proof.get("observation"), "coinbase-candles", 200)
+                observation=proof.get("observation")
+                # One response is one runtime's answer: nested revisions must agree.
+                if not isinstance(observation,dict) or observation.get("source_revision")!=body["source_revision"]:
+                    raise _FinanceBoundaryError("CANONICAL_REVISION_INCONSISTENT")
+                _finance_check_observation(observation, "coinbase-candles", 200)
 
     def _finance_check_research(body, submitted):
         _finance_check_identity(body, "szl.finance.research/v1")
@@ -607,34 +616,57 @@ if CFG.get("slug") == "finance":
         body,code=_finance_get("observations/"+source,request.query_params.multi_items())
         return JSONResponse(body,status_code=code,headers={"Cache-Control":"private, no-store","X-Content-Type-Options":"nosniff"})
 
-    # Readiness covers the data path, not only local file integrity: Finance is
-    # not ready while A11oy is unreachable or serves no supported contract.
+    # Readiness covers the canonical contract and the exact component pins the
+    # data routes enforce: Finance is not ready while A11oy is unreachable,
+    # declares no supported contract, or serves other analytics/signed-price
+    # components. It does not exercise each data route; the publish preflight does.
     _FINANCE_READINESS_TTL = 10.0
     _finance_readiness_cache = {}
+    _finance_readiness_lock = _finance_threading.Lock()
+    _FINANCE_READINESS_STATES = {
+        "CANONICAL_CONTRACT_INCOMPATIBLE": "INCOMPATIBLE",
+        "CANONICAL_CONTRACT_UNDECLARED": "CONTRACT_UNDECLARED",
+        "CANONICAL_CONTRACT_INVALID": "CONTRACT_INVALID",
+        "CANONICAL_SCHEMA_INVALID": "CONTRACT_INVALID",
+        "CANONICAL_REVISION_UNREPORTED": "CONTRACT_INVALID",
+        "CANONICAL_COMPONENT_MISMATCH": "COMPONENT_MISMATCH",
+    }
 
-    def _finance_upstream_readiness():
-        now = _finance_time.monotonic()
-        cached = _finance_readiness_cache.get("value")
-        if cached is not None and now - _finance_readiness_cache["at"] < _FINANCE_READINESS_TTL:
-            return cached
+    def _finance_readiness_probe():
         body, status = _finance_get("contract")
         compatible = status == 200 and body.get("schema") == "szl.finance.read-contract/v1"
-        error = None if compatible else body.get("error", "CANONICAL_SOURCE_UNAVAILABLE")
+        served = body.get("components") if compatible else None
+        components_match = None if served is None else (
+            served.get("analytics") == _FINANCE_COMPONENT and served.get("signed_price") == _FINANCE_SIGNED_COMPONENT)
+        accepted = compatible and components_match is True
+        error = (None if accepted else "CANONICAL_COMPONENT_MISMATCH" if compatible
+                 else body.get("error", "CANONICAL_SOURCE_UNAVAILABLE"))
         contract = body.get("contract") if isinstance(body.get("contract"), dict) else {}
-        value = {
-            "state": "COMPATIBLE" if compatible else
-                "INCOMPATIBLE" if isinstance(error, str) and error.startswith("CANONICAL_CONTRACT_") else "UNAVAILABLE",
-            "compatible": compatible, "error": error,
+        return {
+            "route": _FINANCE_PREFIX + "contract",
+            "source": _FINANCE_ORIGIN + _FINANCE_PREFIX + "contract",
+            "accepted": accepted,
+            "status": "COMPATIBLE" if accepted else _FINANCE_READINESS_STATES.get(error, "UPSTREAM_UNAVAILABLE"),
+            "reason": error, "http_status": status,
             "contract": _FINANCE_CONTRACT["name"],
             "supported_versions": list(_FINANCE_CONTRACT["supported_versions"]),
             "served_versions": body["versions"] if compatible else contract.get("served_versions"),
+            "components_match": components_match,
             "observed_source_revision": body["source_revision"] if compatible else None,
             "revision_role": "EVIDENCE_NOT_COMPATIBILITY_KEY",
-            "source": _FINANCE_ORIGIN + _FINANCE_PREFIX + "contract",
             "checked_at": _finance_time.strftime("%Y-%m-%dT%H:%M:%SZ", _finance_time.gmtime()),
         }
-        _finance_readiness_cache.update(at=now, value=value)
-        return value
+
+    def _finance_upstream_readiness():
+        # Single flight: concurrent probes share one upstream read, and the TTL
+        # starts when that read completes, so a slow answer is still cached.
+        with _finance_readiness_lock:
+            cached = _finance_readiness_cache.get("value")
+            if cached is not None and _finance_time.monotonic() - _finance_readiness_cache["at"] < _FINANCE_READINESS_TTL:
+                return cached
+            value = _finance_readiness_probe()
+            _finance_readiness_cache.update(at=_finance_time.monotonic(), value=value)
+            return value
 
     _finance_shell_readiness = [route for route in app.router.routes if getattr(route, "path", None) == "/readyz"]
     if len(_finance_shell_readiness) != 1:
@@ -645,11 +677,11 @@ if CFG.get("slug") == "finance":
     def finance_readyz():
         status = local_integrity()
         upstream = _finance_upstream_readiness()
-        ready = status["ready"] is True and upstream["compatible"] is True
+        ready = status["ready"] is True and upstream["accepted"] is True
         status.update(ready=ready,
-            state="MEASURED" if ready else "INVALID" if status["ready"] is not True else upstream["state"],
-            checks={**status["checks"], "canonical_contract": upstream["compatible"]},
-            canonical_upstream=upstream)
+            state="MEASURED" if ready else "INVALID" if status["ready"] is not True else upstream["status"],
+            checks={**status["checks"], "upstream": upstream["accepted"]},
+            upstream=upstream)
         return JSONResponse(status, status_code=200 if ready else 503,
             headers={"Cache-Control":"no-store", "X-Content-Type-Options":"nosniff"})
 

@@ -174,8 +174,9 @@ async def finance_verify_receipt(request: Request):
 
 
 def reply(body, status=200):
-    # Every finance response, including failures, declares the read-API contract
-    # it was produced under so consumers never need this runtime's revision.
+    # Every response these handlers produce, failures included, declares the
+    # read-API contract so consumers never need this runtime's revision.
+    # Framework 404/405 replies for undeclared paths or methods carry no header.
     return JSONResponse(body, status_code=status,
                         headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff",
                                  contract.HEADER: contract.header_value()})

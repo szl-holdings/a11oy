@@ -7,11 +7,16 @@ model weight, or independent authority.
 ## Failure is not an identity exception
 
 Every observation, including UNAVAILABLE, carries its runtime source revision.
-The public projection validates schema, source identity, disabled execution and
-exact canonical source revision for HTTP 503 STALE/UNAVAILABLE responses as well
-as successful responses. Nested overview observations must bind to the same
-revision. A stale observation from another revision is withheld, not repainted
-as current data. Missing provider provenance remains null.
+The public projection validates schema, source identity, disabled execution, a
+reported canonical source revision and the served read-API contract version for
+HTTP 503 STALE/UNAVAILABLE responses as well as successful responses. The
+revision is evidence of what answered, not a compatibility key: Finance accepts
+a compatible A11oy at another revision
+([READ_API_CONTRACT.md](../verticals/puriq-markets/READ_API_CONTRACT.md)).
+Nested overview observations and the Coinbase observations inside an analytics
+answer must carry that answer's revision. A response that mixes runtime
+revisions is withheld, not repainted as current data. Missing provider
+provenance remains null.
 
 The projection rejects duplicate JSON keys, non-finite numbers, unexpected MIME
 types, content encodings, excessive declared or actual bytes, and read-deadline

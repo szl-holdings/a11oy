@@ -400,12 +400,25 @@ def finance_preflight() -> dict[str, Any]:
             or receipt.get("component_revision") != projection.COMPONENT["revision"]
             or receipt.get("component_sha256") != projection.COMPONENT["engine_sha256"]):
         raise RuntimeError("canonical Finance computation receipt is invalid")
+    # One fixture route is not the projection. Before any write, every route the
+    # projection forwards must answer the running A11oy under a supported
+    # contract and pass this build's emitted validators, or nothing is written.
+    sweep = canonical_compatibility(revision)
+    if sweep.get("complete") is not True:
+        failed = [f'{row.get("label")}:{row.get("response_error") or row.get("failure_code") or row.get("failure_type")}'
+                  for row in sweep.get("probes", []) if row.get("accepted") is not True]
+        raise RuntimeError("canonical Finance compatibility sweep failed: " + ", ".join(failed))
     return {"source_revision": revision, "canonical_runtime_revision": observed,
             "canonical_runtime_revision_role": "EVIDENCE_NOT_COMPATIBILITY_KEY",
             "canonical_contract": {"name": projection.CONTRACT["name"], "declared": declared_contract,
                                    "supported_versions": list(projection.CONTRACT["supported_versions"])},
-            "component": body["component"],
+            "component": body["component"], "canonical_compatibility": sweep,
             "fixture_preflight": True, "live_provider_verified": False}
+
+
+def canonical_compatibility(revision: str) -> dict[str, Any]:
+    gate = load_module("finance_canonical_compatibility", HERE / "hf_finance_functional_gate.py")
+    return gate.observe_canonical(revision)
 
 
 def publish_finance_only(space_guard_module) -> int:

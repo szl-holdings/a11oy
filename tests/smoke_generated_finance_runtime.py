@@ -51,14 +51,13 @@ def main():
             if response.code != code or len(raw) > 2_000_000:
                 raise RuntimeError("unexpected generated runtime response: " + path)
             if path == "/readyz":
-                # Files must verify, yet with no canonical upstream the data path
-                # is unavailable, so readiness must say so rather than ready:true.
-                body = json.loads(raw)
-                checks = body.get("checks", {})
-                if (checks.get("landing_sha256") is not True or checks.get("panels_sha256") is not True
-                        or checks.get("canonical_contract") is not False or body.get("ready") is not False
-                        or body.get("state") != "UNAVAILABLE"):
-                    raise RuntimeError("generated readiness is not file-verified and upstream-truthful")
+                # No external network: local artifacts must verify while the
+                # canonical upstream is truthfully reported unavailable.
+                ready = json.loads(raw)
+                if (ready.get("ready") is not False or ready.get("state") != "UPSTREAM_UNAVAILABLE"
+                        or ready.get("checks") != {"landing_sha256": True, "panels_sha256": True,
+                                                   "upstream": False}):
+                    raise RuntimeError("generated readiness did not separate integrity from upstream")
             if path == "/api/finance/overview":
                 body = json.loads(raw)
                 if body.get("ok") is not False or body.get("execution_enabled") is not False:

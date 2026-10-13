@@ -790,6 +790,7 @@ def test_contract_endpoint_reports_versions_from_code_and_revision_as_evidence(m
     assert body == {"schema": "szl.finance.read-contract/v1", "contract": "szl.finance.read-api",
         "versions": [1], "response_schemas": {"1": list(finance_contract.RESPONSE_SCHEMAS[1])},
         "header": "X-SZL-Finance-Contract", "source_revision": "1" * 40,
+        "components": {"analytics": routes.analytics.COMPONENT, "signed_price": routes.signed_prices.COMPONENT},
         "revision_role": "EVIDENCE_NOT_COMPATIBILITY_KEY", "read_only": True, "execution_enabled": False}
     # The contract does not depend on which revision is running.
     unbound = transport.FinanceClient(environ={})
@@ -798,9 +799,33 @@ def test_contract_endpoint_reports_versions_from_code_and_revision_as_evidence(m
     assert other["versions"] == body["versions"] and other["source_revision"] == "UNBOUND"
 
 
-def test_contract_response_schemas_are_the_ones_the_runtime_emits():
+def test_contract_response_schema_strings_appear_in_runtime_source():
+    # A cheap lint only. Behavioural coverage (the real router's responses, of
+    # every declared schema, accepted by the emitted validators) lives in
+    # tests/test_finance_functional_gate.py::test_canonical_sweep_accepts_*.
     runtime = Path(__file__).resolve().parents[1] / "verticals/puriq-markets/runtime"
     text = "".join(path.read_text(encoding="utf-8") for path in sorted(runtime.glob("*.py"))
                    if path.name != "contract.py")
     for schema in finance_contract.RESPONSE_SCHEMAS[max(finance_contract.VERSIONS)]:
         assert f'"{schema}"' in text, schema
+
+
+def test_released_contract_version_one_is_frozen():
+    # Version 1 is served. Adding a route or response schema, or changing one,
+    # defines version 2 (READ_API_CONTRACT.md); never edit this snapshot.
+    assert finance_contract.RESPONSE_SCHEMAS[1] == (
+        "szl.finance.providers/v1", "szl.finance.overview/v1", "szl.finance.observation/v1",
+        "szl.finance.analytics/v2", "szl.finance.research/v1", "szl.finance.signed-price/v1")
+    assert finance_contract.ROUTES[1] == (
+        ("GET", "/contract"), ("GET", "/providers"), ("GET", "/overview"), ("GET", "/observations/{source}"),
+        ("GET", "/analytics/v2/signals/{symbol_name}"), ("GET", "/analytics/v2/quote/{symbol_name}"),
+        ("POST", "/analytics/v2/portfolio"), ("GET", "/analytics/v2/receipts"),
+        ("GET", "/analytics/v2/receipts/verify"), ("POST", "/analytics/v2/receipts/verify"),
+        ("POST", "/research/audit"), ("GET", "/signed-prices/model"), ("GET", "/signed-prices/{symbol_name}"))
+
+
+def test_runtime_serves_exactly_the_routes_its_contract_declares():
+    served = {(method, route.path[len(routes.PREFIX):]) for route in routes.router.routes
+              for method in route.methods if route.path.startswith(routes.PREFIX + "/")}
+    declared = set().union(*(finance_contract.ROUTES[v] for v in finance_contract.VERSIONS))
+    assert served == declared

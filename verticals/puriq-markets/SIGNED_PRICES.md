@@ -7,8 +7,9 @@ The canonical A11oy runtime imports the offline verifier and modeled estimator
 byte-for-byte from [PURIQ 2ea8ea4](https://github.com/szl-holdings/puriq-live/commit/2ea8ea4bb9de2ca432f40c0c55ea5a5ed02786bf).
 `runtime/components/puriq_verity/source.json` binds the files, source revision and
 license. A11oy owns the fixed, bounded public HTTP reads. The Finance Space is a
-read projection of these canonical results, with exact source-revision and
-component checks. The existing publisher remains the only release path.
+read projection of these canonical results, with read-API contract and exact
+component checks ([READ_API_CONTRACT.md](READ_API_CONTRACT.md)). The existing
+publisher remains the only release path.
 
 | Surface | Route |
 |---|---|
