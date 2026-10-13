@@ -23,6 +23,7 @@ from gdw_proofs import (
     sha256_json,
 )
 from gdw_workspace import GDWWorkspace
+import a11oy_state_store as state_store
 import gdw_durable_runtime as durable_storage
 import gdw_sqlite_repair
 
@@ -39,6 +40,10 @@ ALLOWED_SYNCHRONOUS_MODES = {"FULL", "NORMAL"}
 # preparation is BLOCKED. Recovery needs an operator or a redeploy, so this is a
 # polite back-off hint, not a promise that the next attempt will succeed.
 STORAGE_BLOCKED_RETRY_AFTER_SECONDS = 60
+# Durable v1 (gdw_durable_*.py, GDW_DURABLE_STORAGE=private-dataset-v1) is
+# retired in favour of a11oy_state_store; see
+# docs/adr/ADR-0001-a11oy-state-store.md. It stays inert and is not extended.
+DURABLE_V1_STATUS = "RETIRED"
 _STATE_LOCK = threading.RLock()
 _STATE: dict[str, Any] = {
     "startup_state": "NOT_RUN",
@@ -164,6 +169,12 @@ def storage_contract(
             "durability_authority": "verified-private-dataset-head",
         }
 
+    # The a11oy state store owns the live GDW file on local disk. GDW_DB_PATH
+    # then names only the legacy file it bootstraps from once.
+    state_path = state_store.local_path("gdw")
+    if state_path is not None:
+        database = Path(state_path).resolve()
+
     if journal_mode not in ALLOWED_JOURNAL_MODES:
         raise GDWRuntimeError(
             "GDW_SQLITE_JOURNAL must be one of "
@@ -188,7 +199,8 @@ def storage_contract(
     mount_verified = False
     if required_mount_text:
         mount = Path(required_mount_text).resolve()
-        database = _path_within(database, mount, name="GDW_DB_PATH")
+        if state_path is None:
+            database = _path_within(database, mount, name="GDW_DB_PATH")
         proof_dir = _path_within(proof_dir, mount, name="GDW_PROOF_DIR")
         receipt_dir = _path_within(
             receipt_dir,
@@ -205,7 +217,7 @@ def storage_contract(
             "persistent GDW storage requires GDW_SQLITE_JOURNAL=DELETE"
         )
 
-    return {
+    contract = {
         "persistence_required": persistent_required,
         "required_mount": str(mount) if mount else None,
         "mount_verified": mount_verified,
@@ -216,6 +228,9 @@ def storage_contract(
         "synchronous_requested": synchronous,
         "proof_export_mode": proof_export_mode,
     }
+    if state_path is not None:
+        contract["durability_authority"] = "a11oy-state-store-v2"
+    return contract
 
 
 def _gate_existing_store(
@@ -760,6 +775,8 @@ def runtime_health() -> dict[str, Any]:
         result = json.loads(json.dumps(_STATE))
     if durable_storage.enabled() and result.get("startup_state") == "READY":
         result.setdefault("storage", {})["managed_admission"] = durable_storage.require_gate().managed_status()
+    result["state_store"] = state_store.status()
+    result["durable_v1"] = DURABLE_V1_STATUS
     return result
 
 
@@ -865,22 +882,43 @@ def main() -> int:
 
     coordinator = None
     supervisor = None
+    store = None
+    print(
+        "[gdw-runtime] durable v1 (GDW_DURABLE_STORAGE) is RETIRED; storage "
+        "authority is a11oy_state_store when A11OY_STATE_STORE=v2 "
+        "(docs/adr/ADR-0001-a11oy-state-store.md)",
+        file=sys.stderr,
+    )
     try:
         storage_ready = False
+        state_blocked = False
         try:
-            if durable_storage.enabled():
-                import gdw_durable_startup as coordinator
-
-                coordinator.activate()
-            prepare_runtime()
-            storage_ready = True
+            # Restores and claims every live store before serve.py is imported,
+            # so this container never serves before it owns the stores.
+            store = state_store.activate()
+            if store is not None and "gdw" in store.blocked_labels():
+                raise state_store.StorageBlocked("STATE_STORE_GDW_UNRESTORABLE")
         except Exception as exc:
-            _record_blocked(exc, phase="storage_preparation")
+            state_blocked = True
+            _record_blocked(exc, phase="state_store")
+
+        if not state_blocked:
+            try:
+                if store is None and durable_storage.enabled():
+                    import gdw_durable_startup as coordinator
+
+                    coordinator.activate()
+                prepare_runtime()
+                storage_ready = True
+            except Exception as exc:
+                _record_blocked(exc, phase="storage_preparation")
 
         if storage_ready:
             try:
                 supervisor = OutboxSupervisor.from_environment()
                 supervisor.start()
+                if store is not None:
+                    store.add_quiesce_hook(supervisor.stop)
             except Exception as exc:
                 supervisor = None
                 _record_blocked(exc, phase="outbox_supervisor")
@@ -890,11 +928,16 @@ def main() -> int:
         _serve()
     finally:
         try:
-            if supervisor is not None:
-                supervisor.stop()
+            # Final snapshots and lease release run before the drain stops,
+            # so the successor container claims cleanly.
+            state_store.shutdown()
         finally:
-            if coordinator is not None:
-                coordinator.close()
+            try:
+                if supervisor is not None:
+                    supervisor.stop()
+            finally:
+                if coordinator is not None:
+                    coordinator.close()
     return 0
 
 

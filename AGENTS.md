@@ -93,6 +93,20 @@ API routes **before** the SPA catch-all, or they fall through to an HTML 200.
 
 ---
 
+## Storage: target `a11oy_state_store` only (ADR-0001)
+
+This applies to every agent lane: Claude Code, Codex, Cursor and Forge.
+
+- **All storage work targets `a11oy_state_store.py`.** It owns the live SQLite and LMDB stores (GDW, Series-A, Khipu, Khipu council, UNAY, Khipu LMDB/replication). They live on local disk and are made durable by immutable bucket snapshots plus a CAS lease in the private dataset `SZLHOLDINGS/a11oy-state`. Decision, design and rollout: [`docs/adr/ADR-0001-a11oy-state-store.md`](docs/adr/ADR-0001-a11oy-state-store.md).
+- **Durable v1 is RETIRED.** That covers `GDW_DURABLE_STORAGE=private-dataset-v1`, `gdw_durable_*.py`, and the GDW acquisition, qualification and capture scripts. Do not extend it, re-pin it or add gates to it. It stays inert until a cleanup PR deletes it.
+- **Never open a database under the `/data` bucket mount for writing.**
+  - A new live store gets a `StoreSpec` in `a11oy_state_store.STORES`, and its module resolves its path with `a11oy_state_store.local_path()` / `local_dir()`.
+  - Env overrides still work when `A11OY_STATE_STORE` is unset (tests, local development).
+- **No exact-SHA, run-id, artifact, SDK-version or SQLite-version pins as storage gates.** Storage gates are storage invariants: integrity, foreign keys, logical fingerprint, lease epoch.
+- **Health is `GET /api/a11oy/v1/storage/status`.** Never claim storage is durable without it.
+
+---
+
 ## Known gotchas (read before debugging — full list in `KNOWN_GOTCHAS.md`)
 
 - **GitHub ↔ HF Space drift:** `hf-sync.yml` is the only automatic writer for the canonical

@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 REVISION = "1" * 40
 analytics = importlib.import_module("verticals.puriq-markets.runtime.analytics")
 transport = importlib.import_module("verticals.puriq-markets.runtime.transport")
+prices = importlib.import_module("verticals.puriq-markets.runtime.signed_prices")
 
 
 def load(name):
@@ -211,3 +212,154 @@ def test_exact_generated_runtime_distinguishes_safe_fault_layers(projection, fai
     reply = http.get("/api/finance/providers")
     assert reply.status_code == 503 and reply.json()["error"] == code
     assert "secret" not in reply.text
+
+
+# Pre-write compatibility sweep against a real canonical runtime: the actual
+# A11oy finance router, at another revision, with synthetic provider fixtures.
+OTHER = "2" * 40
+contract = importlib.import_module("verticals.puriq-markets.runtime.contract")
+routes = importlib.import_module("verticals.puriq-markets.runtime.routes")
+
+
+@pytest.fixture
+def canonical_runtime(signed, monkeypatch):
+    import itertools
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from starlette.routing import Match
+    from .test_finance_signed_prices import sample
+
+    def fetch(plan):
+        if plan.source == "coinbase-candles":
+            return json.dumps([[plan.parameters["start"] + i * 86400, 50, 200, 100,
+                                100 + i * .1 + i % 5, 1] for i in range(260)][::-1]).encode()
+        if plan.source == "coinbase-ticker":
+            return b'{"price":"100","bid":"99","ask":"101"}'
+        raise transport.FinanceError("UPSTREAM_HTTP_503")
+    ticks = itertools.count(0, 10)
+    monkeypatch.setattr(routes, "CLIENT", transport.FinanceClient(
+        environ={"SZL_SOURCE_REVISION": OTHER}, fetch=fetch, monotonic=lambda: next(ticks)))
+    monkeypatch.setattr(prices, "CLIENT", sample(signed)[0])
+    app = FastAPI()
+    routes.register(app)
+    http = TestClient(app)
+    seen, mutations = [], {}
+
+    def request(path, content):
+        method = "GET" if content is None else "POST"
+        reply = http.request(method, path, content=None if content is None else json.dumps(content).encode(),
+                             headers={"content-type": "application/json"})
+        bare = path.split("?", 1)[0]
+        template = next(route.path for route in routes.router.routes
+                        if route.matches({"type": "http", "path": bare, "method": method})[0] == Match.FULL)
+        seen.append((method, template[len(routes.PREFIX):], reply))
+        result = reply.status_code, reply.content, {k.lower(): v for k, v in reply.headers.items()}
+        change = mutations.get(bare[len(routes.PREFIX):])
+        return change(*result) if change else result
+    return request, seen, mutations
+
+
+def test_canonical_sweep_accepts_a_compatible_runtime_on_every_contract_route(canonical_runtime):
+    gate = load("hf_finance_functional_gate")
+    request, seen, _ = canonical_runtime
+    witness = gate.observe_canonical(REVISION, request=request)
+    assert witness["complete"] is True, [row for row in witness["probes"] if not row["accepted"]]
+    assert witness["served_versions"] == [1]
+    assert witness["canonical_runtime_revisions"] == [OTHER]
+    assert witness["credentials_sent"] is False and witness["provider_mutations"] == 0
+    # Behavioural coverage: every route version 1 declares was exercised, and
+    # every response schema it declares came back from the real runtime and was
+    # accepted by the projection's emitted validators.
+    assert {(method, path) for method, path, _ in seen} == set(contract.ROUTES[1])
+    schemas = {reply.json().get("schema") for _, _, reply in seen if reply.status_code == 200}
+    assert set(contract.RESPONSE_SCHEMAS[1]) <= schemas
+
+
+def _without_header(status, raw, headers):
+    return 404, b'{"detail":"Not Found"}', {"content-type": "application/json"}
+
+
+def _changed_schema(status, raw, headers):
+    body = json.loads(raw)
+    body["schema"] = "szl.finance.analytics/v3"
+    return status, json.dumps(body).encode(), headers
+
+
+@pytest.mark.parametrize("route,change,label,reason", [
+    # A route the projection forwards but the running A11oy does not serve yet.
+    ("/research/audit", _without_header, "research-audit", "CANONICAL_CONTRACT_UNDECLARED"),
+    ("/analytics/v2/receipts", _changed_schema, "receipt-capability", "CANONICAL_SCHEMA_INVALID"),
+])
+def test_canonical_sweep_refuses_a_runtime_lagging_on_one_route(canonical_runtime, route, change, label, reason):
+    gate = load("hf_finance_functional_gate")
+    request, _, mutations = canonical_runtime
+    mutations[route] = change
+    witness = gate.observe_canonical(REVISION, request=request)
+    assert witness["complete"] is False
+    failed = [row for row in witness["probes"] if not row["accepted"]]
+    assert [row["label"] for row in failed] == [label]
+    assert reason in (failed[0].get("response_error"), failed[0].get("failure_code"))
+
+
+def test_canonical_sweep_refuses_an_unsupported_contract_version(canonical_runtime, monkeypatch):
+    gate = load("hf_finance_functional_gate")
+    request, _, _ = canonical_runtime
+    monkeypatch.setattr(contract, "header_value", lambda: "szl.finance.read-api/2")
+    witness = gate.observe_canonical(REVISION, request=request)
+    assert witness["complete"] is False
+    assert {row.get("response_error") for row in witness["probes"] if "path" in row} == {"CANONICAL_CONTRACT_INCOMPATIBLE"}
+
+
+@pytest.mark.parametrize("where", ["contract", "analytics"])
+def test_canonical_sweep_refuses_other_pinned_components(canonical_runtime, monkeypatch, where):
+    gate = load("hf_finance_functional_gate")
+    request, _, _ = canonical_runtime
+    if where == "contract":
+        served = contract.components()
+        served["signed_price"] = {**served["signed_price"], "revision": "f" * 40}
+        monkeypatch.setattr(contract, "components", lambda: served)
+        expected = {"contract"}
+    else:
+        monkeypatch.setattr(analytics, "COMPONENT", {**analytics.COMPONENT, "revision": "f" * 40})
+        expected = {"synthetic-signals", "synthetic-quote", "caller-portfolio", "valid-receipt", "tampered-receipt",
+                    "coinbase-signals", "receipt-capability", "receipt-verification-contract"}
+    witness = gate.observe_canonical(REVISION, request=request)
+    assert witness["complete"] is False
+    assert {row["label"] for row in witness["probes"] if not row["accepted"]} == expected
+
+
+def test_publisher_preflight_runs_the_real_sweep_before_writing(canonical_runtime, monkeypatch, tmp_path):
+    from types import SimpleNamespace
+    import httpx
+    gate = load("hf_finance_functional_gate")
+    request, _, mutations = canonical_runtime
+    publisher = load("hf_publish_vertical_flagships_v4")
+    monkeypatch.setenv("GITHUB_SHA", REVISION)
+    monkeypatch.setattr(publisher, "_github_json", lambda *a, **k: {"sha": REVISION})
+    monkeypatch.setattr(publisher, "canonical_compatibility",
+                        lambda revision: gate.observe_canonical(revision, request=request))
+    fixture = request(routes.PREFIX + "/analytics/v2/signals/AAPL?origin=fixture", None)
+
+    class Response:
+        status = 200
+        headers = httpx.Headers(fixture[2])  # case-insensitive, like urllib
+        def __enter__(self): return self
+        def __exit__(self, *a): pass
+        def geturl(self): return self.url
+        def read(self, limit): return fixture[1][:limit]
+
+    class Opener:
+        def open(self, request, timeout):
+            response = Response()
+            response.url = request.full_url
+            return response
+    monkeypatch.setattr(publisher.urllib.request, "build_opener", lambda *a: Opener())
+    monkeypatch.chdir(tmp_path)
+    result = publisher.finance_preflight()
+    assert result["canonical_compatibility"]["complete"] is True
+    assert result["canonical_runtime_revision"] == OTHER
+    mutations["/signed-prices/model"] = _without_header
+    monkeypatch.setattr(publisher, "run_publisher", lambda *a, **k: pytest.fail("write attempted"))
+    assert publisher.publish_finance_only(SimpleNamespace(guard_report=lambda: {})) == 1
+    detail = json.loads(publisher.FLAGSHIP_RECEIPT.read_text())["detail"]
+    assert "signed-price-model:CANONICAL_CONTRACT_UNDECLARED" in detail
