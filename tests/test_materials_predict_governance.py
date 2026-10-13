@@ -245,6 +245,72 @@ def test_sign_false_skips_the_signer_but_the_ledger_write_stays(h, prefix):
     assert h.counts == {"sign": 0, "ledger": 1, "emit": 0, "fit": 1}
 
 
+def test_rejected_ledger_write_is_not_reported_as_recorded(h, monkeypatch):
+    def reject(receipt, organ="a11oy"):
+        h.counts["ledger"] += 1
+        return {"accepted": False, "state": "REJECTED", "write_attempted": False,
+                "error": "test rejection"}
+
+    monkeypatch.setattr(sys.modules["szl_lake_ingest"], "record_receipt", reject)
+    resp = h.client.post(PREFIXES[0] + "/predict", json={"demo": "green"})
+    assert resp.status_code == 200
+    ledger = resp.json()["ledger"]
+    assert ledger["recorded"] is False
+    assert ledger["accepted"] is False and ledger["duplicate"] is False
+    assert ledger["state"] == "REJECTED"
+    assert ledger["result"] == {"accepted": False, "state": "REJECTED",
+                                "write_attempted": False, "error": "test rejection"}
+    assert h.counts["ledger"] == 1
+
+
+def test_duplicate_ledger_receipt_is_truthfully_reported_as_already_recorded(h, monkeypatch):
+    def duplicate(receipt, organ="a11oy"):
+        h.counts["ledger"] += 1
+        from szl_lake_store import receipt_identity
+        identity_input = dict(receipt)
+        identity_input.setdefault("organ", organ)
+        return {"accepted": False, "duplicate": True,
+                "receipt_id": receipt_identity(identity_input)}
+
+    monkeypatch.setattr(sys.modules["szl_lake_ingest"], "record_receipt", duplicate)
+    resp = h.client.post(PREFIXES[0] + "/predict", json={"demo": "green"})
+    assert resp.status_code == 200
+    ledger = resp.json()["ledger"]
+    assert ledger["recorded"] is True
+    assert ledger["accepted"] is False and ledger["duplicate"] is True
+    assert ledger["state"] == "LOCAL_DUPLICATE"
+    assert ledger["remote_publication"] == "NOT_ACKNOWLEDGED"
+
+
+def test_non_json_ledger_status_cannot_break_response_after_write(h, monkeypatch):
+    def non_json_status(receipt, organ="a11oy"):
+        h.counts["ledger"] += 1
+        return {"accepted": True, "duplicate": False, "energy": float("nan")}
+
+    monkeypatch.setattr(sys.modules["szl_lake_ingest"], "record_receipt", non_json_status)
+    resp = h.client.post(PREFIXES[0] + "/predict", json={"demo": "green"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["ledger"]["recorded"] is True
+    assert body["ledger"]["result"]["serialization"] == "UNAVAILABLE"
+    json.dumps(body, allow_nan=False)
+    assert h.counts["ledger"] == 1
+
+
+def test_non_json_signer_output_fails_closed_before_ledger(h, monkeypatch):
+    def non_json_signer(payload, payload_type=None):
+        h.counts["sign"] += 1
+        return {"payloadType": payload_type, "signatures": [], "bad": float("nan")}
+
+    monkeypatch.setattr(sys.modules["szl_dsse"], "sign_payload", non_json_signer)
+    resp = h.client.post(PREFIXES[0] + "/predict", json={"demo": "green"})
+    assert resp.status_code == 500
+    body = resp.json()
+    assert body["ok"] is False and body["fail_closed"] is True
+    assert "signer output is not strict JSON; refusing ledger write" in body["error"]
+    assert h.counts["sign"] == 1 and h.counts["ledger"] == 0
+
+
 @pytest.mark.parametrize("prefix", PREFIXES)
 def test_unknown_element_refusal_is_still_red_with_a_receipt(h, prefix):
     resp = h.client.post(prefix + "/predict", json={"composition": {"Xx": 1, "O": 1}})

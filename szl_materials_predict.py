@@ -981,14 +981,59 @@ def _honesty(coverage=None, coverage_n=None):
 
 
 def _ledger(receipt):
+    """Append once; report local outcomes and preserve unknown write state.
+
+    A duplicate proves local representation only. Neither local acknowledgement
+    nor mirror queueing proves remote publication or cross-rebuild recovery.
+    """
+    backend = "szl_lake_ingest.record_receipt"
     try:
         import szl_lake_ingest  # type: ignore
-        res = szl_lake_ingest.record_receipt(receipt, organ=RECEIPT_ORGAN)
-        return {"recorded": True, "backend": "szl_lake_ingest.record_receipt",
-                "result": res if isinstance(res, dict) else str(res)}
-    except Exception as e:  # noqa: BLE001 — honest degrade
-        return {"recorded": False, "reason": "ledger hook not wired (%r)" % e,
+        from szl_lake_store import receipt_identity
+        identity_input = dict(receipt)
+        identity_input.setdefault("organ", RECEIPT_ORGAN)
+        rid = receipt_identity(identity_input)
+    except Exception as exc:
+        return {"recorded": False, "accepted": False, "duplicate": False,
+                "state": "REJECTED", "write_attempted": False,
+                "backend": backend, "reason": type(exc).__name__,
                 "organ": RECEIPT_ORGAN}
+    common = {"backend": backend, "organ": RECEIPT_ORGAN, "receipt_id": rid,
+              "remote_publication": "NOT_ACKNOWLEDGED"}
+    try:
+        res = szl_lake_ingest.record_receipt(receipt, organ=RECEIPT_ORGAN)
+    except Exception as exc:
+        return dict(common, recorded=None, accepted=False, duplicate=False,
+                    state="UNKNOWN", retry_admitted=False,
+                    reason="ledger hook raised: " + type(exc).__name__)
+    if not isinstance(res, dict):
+        return dict(common, recorded=None, accepted=False, duplicate=False,
+                    state="UNKNOWN", retry_admitted=False,
+                    reason="ledger hook returned a non-object status")
+    accepted = res.get("accepted") is True
+    duplicate = res.get("duplicate") is True
+    rejected = (res.get("state") == "REJECTED"
+                and res.get("write_attempted") is False)
+    identity_matches = ("receipt_id" not in res or res["receipt_id"] == rid)
+    if (accepted and not duplicate and not rejected and identity_matches
+            and res.get("state") in (None, "LOCAL_ACKNOWLEDGED")):
+        state, recorded = "LOCAL_ACKNOWLEDGED", True
+    elif (duplicate and not accepted and not rejected and identity_matches
+            and res.get("state") in (None, "LOCAL_DUPLICATE")):
+        state, recorded = "LOCAL_DUPLICATE", True
+    elif rejected and not accepted and not duplicate:
+        state, recorded = "REJECTED", False
+    else:
+        state, recorded = "UNKNOWN", None
+    try:
+        json.dumps(res, allow_nan=False)
+        safe_result = res
+    except (ValueError, TypeError, OverflowError):
+        safe_result = {"serialization": "UNAVAILABLE",
+                       "reason": "ledger status was not strict JSON"}
+    return dict(common, recorded=recorded, accepted=accepted if recorded else False,
+                duplicate=duplicate if recorded else False,
+                state=state, retry_admitted=False, result=safe_result)
 
 
 def _build_receipt(payload_core, sign=True):
@@ -1115,6 +1160,14 @@ def _seal(result, payload_core, sign):
                 "composition": result.get("composition"),
                 "honesty": _honesty_from_state()}
     receipt = _build_receipt(payload_core, sign=sign)
+    try:
+        json.dumps(receipt, allow_nan=False)
+    except (ValueError, TypeError, OverflowError) as e:
+        return {"ok": False, "fail_closed": True,
+                "error": "signer output is not strict JSON; refusing ledger write (%s)" % e,
+                "property": result.get("property"),
+                "composition": result.get("composition"),
+                "honesty": _honesty_from_state()}
     result["receipt"] = receipt
     result["ledger"] = _ledger(receipt)
     return result
