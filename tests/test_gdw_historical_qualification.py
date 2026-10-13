@@ -73,6 +73,7 @@ def classify(report, **kwargs):
 
 def assert_blocked(public):
     assert set(public) == PUBLIC_KEYS
+    assert public["evidence_class"] == "SAMPLE"
     assert public["scope"] == "HISTORICAL_CAPTURE_ONLY"
     assert public["state"] == "BLOCKED"
     assert public["restore_admitted"] is False
@@ -86,7 +87,7 @@ def test_verified_rehearsal_is_not_release_admission(valid_report):
     assert verified
     assert public["historical_rehearsal_state"] == "VERIFIED"
     assert public["diagnostic_code"] == "RESTORE_CONTRACT_REQUIRED"
-    assert public["evidence_class"] == "MEASURED"
+    assert public["evidence_class"] == "SAMPLE"
     assert_blocked(public)
 
 

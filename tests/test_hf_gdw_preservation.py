@@ -1030,13 +1030,22 @@ def _assert_historical_rehearsal_workflow(source):
         'printf \'exit_code=%s\\n\' "$result" >> "$GITHUB_OUTPUT"\n'
     )
     assert steps[5]["env"]["QUALIFICATION_EXIT_CODE"] == "${{ steps.qualification.outputs.exit_code }}"
+    assert steps[5]["env"]["GH_TOKEN"] == "${{ github.token }}"
+    assert "HF_TOKEN" not in steps[5]["env"]
+    assert steps[5]["shell"] == "bash"
     assert steps[5]["run"] == (
-        'python3 -I -B scripts/classify_gdw_historical_qualification.py '
-        '--report "$RUNNER_TEMP/private-historical-qualification.json" '
-        '--output "$RUNNER_TEMP/public-historical-qualification.json" '
-        '--expected-source-sha "$EXPECTED_SOURCE_SHA" '
-        '--run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT" '
-        '--qualification-exit-code "$QUALIFICATION_EXIT_CODE"'
+        'set -euo pipefail\n'
+        'test "$GITHUB_SHA" = "$EXPECTED_SOURCE_SHA"\n'
+        'gh api "repos/$GITHUB_REPOSITORY/branches/main" |\n'
+        '  python3 -c \'import json, os, sys; b=json.load(sys.stdin); '
+        'sys.exit(0 if b.get("name")=="main" and b.get("protected") is True '
+        'and b.get("commit",{}).get("sha")==os.environ["GITHUB_SHA"] else 1)\'\n'
+        'python3 -I -B scripts/classify_gdw_historical_qualification.py \\\n'
+        '  --report "$RUNNER_TEMP/private-historical-qualification.json" \\\n'
+        '  --output "$RUNNER_TEMP/public-historical-qualification.json" \\\n'
+        '  --expected-source-sha "$EXPECTED_SOURCE_SHA" \\\n'
+        '  --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT" \\\n'
+        '  --qualification-exit-code "$QUALIFICATION_EXIT_CODE"\n'
     )
     assert steps[6]["with"]["path"] == "${{ runner.temp }}/public-historical-qualification.json"
     assert steps[6]["with"]["retention-days"] == "90"
@@ -1063,3 +1072,18 @@ def test_historical_rehearsal_workflow_mutations_fail_closed(old, new):
     assert old in source
     with pytest.raises(AssertionError):
         _assert_historical_rehearsal_workflow(source.replace(old, new, 1))
+
+
+def test_historical_rehearsal_rechecks_main_immediately_before_public_status():
+    source = (ROOT / ".github/workflows/hf-qualify-historical-stores.yml").read_text()
+    before, classification = source.split("      - name: Classify rehearsal", 1)
+    assert 'b.get("protected") is True' in classification
+    for old, new in (
+        ('b.get("protected") is True', 'b.get("protected") is not None'),
+        ('b.get("commit",{}).get("sha")==os.environ["GITHUB_SHA"]', 'True'),
+        ('test "$GITHUB_SHA" = "$EXPECTED_SOURCE_SHA"', 'true'),
+    ):
+        with pytest.raises(AssertionError):
+            _assert_historical_rehearsal_workflow(
+                before + "      - name: Classify rehearsal" + classification.replace(old, new, 1)
+            )

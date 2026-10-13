@@ -12,7 +12,8 @@ The exact capture-byte hash and anchors remain pinned; do not rewrite either to
 make a newer capture appear qualified.
 
 The workflow checks exact protected current main before exposing the existing HF
-credential. The inspector checks source ownership again before and after its work,
+credential and again immediately before publishing the public status. The
+inspector checks source ownership again before and after its work,
 uses its read-only provider wrapper, verifies remote identities and local hashes,
 and inspects separate disposable local copies. It never stops the running Space,
 uploads a database, changes a mount, or opens the original database for writing.
@@ -40,6 +41,12 @@ with `originals/`; malformed, unknown, mixed, or mismatched modes fail closed.
    pinned-anchor checks in that run. `restore_admitted`, `deployment_admitted`,
    and `later_acknowledged_writes_verified` remain false. A failed or missing run
    is **BLOCKED**, never a successful recovery.
+
+The public classifier artifact uses the conservative evidence class **SAMPLE**:
+it supplies no fresh exporter delta or metered-energy evidence. Its historical
+inspection result and exact source/run identity do not establish a current
+restore, durable-storage qualification, or continuing ownership of `main` after
+the final source check.
 
 ## What is still required for a current deployment
 

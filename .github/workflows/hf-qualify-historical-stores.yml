@@ -66,16 +66,22 @@ jobs:
           printf 'exit_code=%s\n' "$result" >> "$GITHUB_OUTPUT"
       - name: Classify rehearsal into public-safe historical-only status
         env:
+          GH_TOKEN: ${{ github.token }}
           QUALIFICATION_EXIT_CODE: ${{ steps.qualification.outputs.exit_code }}
           EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha }}
           PYTHONDONTWRITEBYTECODE: '1'
-        run: >-
-          python3 -I -B scripts/classify_gdw_historical_qualification.py
-          --report "$RUNNER_TEMP/private-historical-qualification.json"
-          --output "$RUNNER_TEMP/public-historical-qualification.json"
-          --expected-source-sha "$EXPECTED_SOURCE_SHA"
-          --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT"
-          --qualification-exit-code "$QUALIFICATION_EXIT_CODE"
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_SHA" = "$EXPECTED_SOURCE_SHA"
+          gh api "repos/$GITHUB_REPOSITORY/branches/main" |
+            python3 -c 'import json, os, sys; b=json.load(sys.stdin); sys.exit(0 if b.get("name")=="main" and b.get("protected") is True and b.get("commit",{}).get("sha")==os.environ["GITHUB_SHA"] else 1)'
+          python3 -I -B scripts/classify_gdw_historical_qualification.py \
+            --report "$RUNNER_TEMP/private-historical-qualification.json" \
+            --output "$RUNNER_TEMP/public-historical-qualification.json" \
+            --expected-source-sha "$EXPECTED_SOURCE_SHA" \
+            --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --qualification-exit-code "$QUALIFICATION_EXIT_CODE"
       - name: Retain only the public-safe historical rehearsal status
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

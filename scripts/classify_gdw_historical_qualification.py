@@ -6,6 +6,8 @@
 The full qualification report stays private. Only the source-owned historical
 capture is eligible; a successful rehearsal says nothing about later writes.
 This helper classifies a completed inspection and does not inspect databases.
+The public artifact is SAMPLE: it contains no energy measurement or fresh
+exporter delta and grants no authority to restore the current stores.
 """
 from __future__ import annotations
 
@@ -142,7 +144,7 @@ def classify(report: Any, *, exit_code: int, expected_sha: str,
         "source_revision": expected_sha if source_valid else "UNVERIFIED",
         "run_id": run_id if run_valid else "UNVERIFIED",
         "run_attempt": run_attempt if run_valid else "UNVERIFIED",
-        "evidence_class": "MEASURED",
+        "evidence_class": "SAMPLE",
         "scope": "HISTORICAL_CAPTURE_ONLY",
         "state": "BLOCKED",
         "historical_rehearsal_state": "NOT_VERIFIED",
