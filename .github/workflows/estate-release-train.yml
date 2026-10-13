@@ -67,7 +67,7 @@ jobs:
     timeout-minutes: 55
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           egress-policy: audit
 
@@ -134,7 +134,7 @@ jobs:
 
       - name: Upload immutable release-vector evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: estate-release-train-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
@@ -165,7 +165,7 @@ jobs:
     timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && inputs.repair && 110 || 55 }}
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           egress-policy: audit
 
@@ -325,7 +325,8 @@ jobs:
           public = json.loads(Path('reports/hf-public-inventory-preflight.json').read_text())
           lines += ['', '### Explicit public inventory predicate',
               f'- State: `{public["state"]}`',
-              f'- Scope: `{public["scope"]["id"]}`; anonymous public-only; kernels counted once as model repositories.',
+              f'- Scope: `{public["scope"]["id"]}`; anonymous public-only; native kernels are a separate repository namespace.',
+              '- Membership identity is `(kind, id)`; cross-namespace totals are not unique-project or trained-model totals.',
               f'- Scope digest: `{public["scope_sha256"]}`',
               f'- Profile counts: `{json.dumps(public.get("declared_counts"), sort_keys=True)}`',
               f'- Manifest counts: `{json.dumps(public.get("manifest_counts"), sort_keys=True)}`',
@@ -355,7 +356,7 @@ jobs:
 
       - name: Upload immutable release-vector evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: estate-release-train-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
