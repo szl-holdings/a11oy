@@ -12,20 +12,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added - materials retrospective/OOD and discovery evaluator (R09, not wired)
 
 - Add `szl_materials_eval.py`, a stdlib-only, read-only evaluator for sealed
-  materials prediction records. It rejects NaN, infinity, bool, unit
-  mismatches and identifiers padded with whitespace. It reports id, group,
-  material_id and reduced-composition leakage across splits (groups and
-  material ids compare case-insensitively) and keeps missing predictions in
-  coverage, never dropping them. Regression error comes with per-group
-  support. Discovery metrics need an `e_above_hull` target, follow the task's
-  declared threshold and missing-prediction policy, and every ratio with a
-  zero denominator reads UNDEFINED. Acceleration is `random_budget /
+  materials prediction records. It rejects NaN, infinity, bool, integers
+  beyond 2**53, unit mismatches and identifiers padded with whitespace. It
+  reports id, group, material_id and reduced-composition leakage across
+  splits (groups and material ids compare case-insensitively, in the
+  per-group table too) and keeps missing predictions in coverage, never
+  dropping them. Regression error comes with per-group support. Discovery
+  metrics need an `e_above_hull` target, follow the task's declared
+  threshold and missing-prediction policy, and every ratio with a zero
+  denominator reads UNDEFINED. Acceleration is `random_budget /
   model_budget`. A competitor comparison is admissible only with equal
-  conditions and no known or unknown training overlap.
+  conditions and no known or unknown training overlap; relaxed inputs are
+  noted in the output.
 - `evaluate()` returns UNVERIFIED, SAMPLE, UNKNOWN or BLOCKED, and never PASS
   or MEASURED: provenance digests are format-checked, not recomputed. A
   missing, malformed or placeholder hash or license (including an all-one-
-  character digest or the digest of empty input) gives UNKNOWN. The module
+  character digest, the digest of empty input, one digest reused across
+  artifacts, or the license `NOASSERTION`) gives UNKNOWN. The module
   fits no model, runs no benchmark, makes no discovery claim, and is not
   imported by `serve.py` or any route. Tests:
   `tests/test_materials_eval_r09.py`, synthetic fixtures only.

@@ -106,9 +106,11 @@ NEVER_EMITTED = ("PASS", "MEASURED")
 
 _SHA256 = re.compile(r"[0-9a-f]{64}")
 _EMPTY_SHA256 = hashlib.sha256(b"").hexdigest()
+_EXACT_INT = 2**53
 _FORMULA_TOKEN = re.compile(r"([A-Z][a-z]?)(\d+(?:\.\d+)?)?")
+# NOASSERTION is the SPDX token for "no licence information".
 _LICENSE_PLACEHOLDERS = frozenset(
-    {"unknown", "unverified", "n/a", "na", "tbd", "none", "null"}
+    {"unknown", "unverified", "n/a", "na", "tbd", "none", "null", "noassertion"}
 )
 _DIGEST_FIELDS = (
     "id",
@@ -157,13 +159,14 @@ def _identity(value):
 
 
 def _finite_real(value):
-    # bool is an int subclass; True must never pass as 1.0.
+    # bool is an int subclass; True must never pass as 1.0.  An int beyond
+    # 2**53 has no exact float, so records_sha256 (built from floats) and the
+    # metrics (computed on the int) would bind different values.
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return False
-    try:
-        return math.isfinite(float(value))
-    except OverflowError:
-        return False
+    if isinstance(value, int):
+        return abs(value) <= _EXACT_INT
+    return math.isfinite(value)
 
 
 def _defined(value):
@@ -250,7 +253,8 @@ def validate_records(records, task=None):
     Returns {"ok", "errors", "n_records"}; it never raises for bad input.
     Each record needs: id, group (group, prototype or chemical-system id),
     split in {train, calibration, test}, finite real y_true, y_pred (finite
-    real, or null for a missing prediction), unit (equal to the task unit when
+    real, or null for a missing prediction; an integer beyond 2**53 is
+    rejected because it has no exact float), unit (equal to the task unit when
     a task is given), data_origin in {experimental, dft, sample} and
     functional (null allowed unless the label is DFT).  Optional: composition
     (simple formula) and material_id (repeated trials of one material).
@@ -286,14 +290,14 @@ def validate_records(records, task=None):
         if not _finite_real(rec.get("y_true")):
             errors.append(
                 f"{where}.y_true must be a finite real number "
-                "(bool, NaN and infinity are rejected)"
+                "(bool, NaN, infinity and integers beyond 2**53 are rejected)"
             )
         if "y_pred" not in rec:
             errors.append(f"{where}.y_pred must be present (null marks a missing prediction)")
         elif rec["y_pred"] is not None and not _finite_real(rec["y_pred"]):
             errors.append(
                 f"{where}.y_pred must be null or a finite real number "
-                "(bool, NaN and infinity are rejected)"
+                "(bool, NaN, infinity and integers beyond 2**53 are rejected)"
             )
         unit = rec.get("unit")
         if not _nonempty_str(unit):
@@ -446,7 +450,9 @@ def regression_metrics(records, task=None, split="test"):
     Missing predictions are never dropped silently: they stay in n_total, are
     counted in n_missing and listed in missing_ids, and lower coverage.  MAE
     and RMSE are over predicted records only and are UNDEFINED when nothing
-    was predicted.  per_group gives error and support for every group.
+    was predicted.  per_group gives error and support for every group; groups
+    compare case-insensitively, as in check_leakage, and an entry that merges
+    several spellings lists them.
     """
     _require_valid(records, task)
     rows = _select(records, split)
@@ -454,20 +460,24 @@ def regression_metrics(records, task=None, split="test"):
     missing_ids = sorted(r["id"] for r in rows if r["y_pred"] is None)
     by_group = {}
     for rec in rows:
-        by_group.setdefault(rec["group"], []).append(rec)
+        by_group.setdefault(_identity(rec["group"]), []).append(rec)
     per_group = []
-    for group in sorted(by_group):
-        members = by_group[group]
+    for key in sorted(by_group):
+        members = by_group[key]
+        spellings = sorted({r["group"] for r in members})
         group_predicted = [r for r in members if r["y_pred"] is not None]
-        per_group.append(
+        entry = {"group": spellings[0]}
+        if len(spellings) > 1:
+            entry["spellings"] = spellings
+        entry.update(
             {
-                "group": group,
                 "support": len(members),
                 "n_predicted": len(group_predicted),
                 "n_missing": len(members) - len(group_predicted),
                 "mae": _mae(group_predicted),
             }
         )
+        per_group.append(entry)
     materials = {
         ("material", _identity(r["material_id"]))
         if r.get("material_id") is not None
@@ -608,7 +618,10 @@ def discovery_metrics(
 
 def _positive_budget(name, value):
     if not _finite_real(value) or value <= 0:
-        raise ValueError(f"{name} must be a positive finite number (bool is rejected)")
+        raise ValueError(
+            f"{name} must be a positive finite number "
+            "(bool and integers beyond 2**53 are rejected)"
+        )
     return float(value)
 
 
@@ -646,7 +659,11 @@ def budget_parity(entries):
     EQUAL.  Only training_overlap "none" earns the "held-out" label; "unknown"
     yields "overlap-unknown".  comparison_admissible needs both equal
     conditions and every competitor held out, because a competitor that saw
-    (or may have seen) the test set is not comparable.
+    (or may have seen) the test set is not comparable.  Relaxed inputs used by
+    every competitor keep parity EQUAL, since the conditions match; they are
+    flagged "relaxed-inputs-used" and evaluate() adds a note, because relaxed
+    structures carry information from the label calculation (Riebesell et al.
+    2023).
     """
     if not isinstance(entries, (list, tuple)) or not entries:
         raise RecordValidationError(["competitors must be a non-empty list"])
@@ -726,6 +743,10 @@ def _placeholder_digest(value):
     return len(set(value)) == 1 or value == _EMPTY_SHA256
 
 
+def _well_formed_digest(value):
+    return isinstance(value, str) and _SHA256.fullmatch(value) is not None
+
+
 def _provenance_report(provenance):
     if not isinstance(provenance, dict):
         provenance = {}
@@ -733,13 +754,21 @@ def _provenance_report(provenance):
     invalid = []
     placeholder = []
     fields = {}
+    # The five hashes name five distinct artifacts, so one digest under two
+    # of them is a stub, not a hash of real bytes.
+    holders = {}
+    for key in REQUIRED_HASHES:
+        value = provenance.get(key)
+        if _well_formed_digest(value):
+            holders.setdefault(value, []).append(key)
+    reused = {key for keys in holders.values() if len(keys) > 1 for key in keys}
     for key in REQUIRED_HASHES:
         value = provenance.get(key)
         if value is None or value == "":
             missing.append(key)
-        elif not isinstance(value, str) or _SHA256.fullmatch(value) is None:
+        elif not _well_formed_digest(value):
             invalid.append(key)
-        elif _placeholder_digest(value):
+        elif _placeholder_digest(value) or key in reused:
             placeholder.append(key)
         else:
             fields[key] = value
@@ -788,6 +817,9 @@ def evaluate(bundle):
     precedence: BLOCKED (invalid input, or split leakage; metrics withheld) >
     UNKNOWN (provenance missing, malformed or placeholder, or no test
     predictions) > SAMPLE (any record has data_origin "sample") > UNVERIFIED.
+    A placeholder is a licence word such as "unknown" or "NOASSERTION", a
+    digest of one repeated hex character, the digest of empty input, or one
+    digest under two or more of the five required hash fields.
     UNVERIFIED means computed from the supplied records with well-formed
     provenance whose digests were not recomputed; it is not a measurement, a
     benchmark or a discovery claim.  Training overlap "none" earns
@@ -885,6 +917,13 @@ def evaluate(bundle):
             out["notes"].append(
                 "competitor comparison not admissible: training overlap is not "
                 f"'none' for {overlapping}"
+            )
+        if "relaxed-inputs-used" in parity["flags"]:
+            relaxed = [e["name"] for e in parity["entries"] if e["relaxed_inputs"] == "relaxed"]
+            out["notes"].append(
+                f"relaxed inputs used by {relaxed}: relaxed structures carry information "
+                "from the label calculation, so the comparison describes a relaxed-input "
+                "setting, not discovery from unrelaxed candidates"
             )
 
     status = "UNVERIFIED"

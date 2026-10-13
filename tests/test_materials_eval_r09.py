@@ -114,9 +114,11 @@ def test_clean_fixture_validates():
         ("y_true", 10**400),
         ("y_true", "0.5"),
         ("y_true", None),
+        ("y_true", 2**53 + 1),
         ("y_pred", float("nan")),
         ("y_pred", float("inf")),
         ("y_pred", False),
+        ("y_pred", -(2**53) - 1),
     ],
 )
 def test_nan_inf_and_bool_are_rejected(field, value):
@@ -130,6 +132,19 @@ def test_nan_inf_and_bool_are_rejected(field, value):
     result = ev.evaluate(_bundle(records))
     assert result["status"] == "BLOCKED"
     assert result["regression"] is None and result["discovery"] is None
+
+
+def test_integers_up_to_two_to_the_53_are_accepted_and_bound_exactly():
+    # The digest is built from float(value); beyond 2**53 an int has no exact
+    # float, so digest and metrics could bind different values.
+    records = _as_dft(_records())
+    records[4].update(y_true=2**53, y_pred=-(2**53))
+    assert ev.validate_records(records, _task())["ok"] is True
+    result = ev.evaluate(_bundle(records=records))
+    assert result["status"] == "UNVERIFIED"
+    moved = _as_dft(_records())
+    moved[4].update(y_true=2**53, y_pred=-(2**53) + 2)
+    assert ev.evaluate(_bundle(records=moved))["records_sha256"] != result["records_sha256"]
 
 
 def test_unit_mismatch_against_task_contract_is_rejected():
@@ -320,6 +335,17 @@ def test_repeats_inside_one_split_are_trials_not_leakage():
     assert metrics["n_repeated_trials"] == 1
 
 
+def test_case_variants_of_one_material_id_count_as_one_material():
+    records = _records()
+    records.append(_rec("te-5", "Ga-N", "test", 0.0, 0.25, "GaN", material_id="MAT-GaN"))
+    records[6]["material_id"] = "mat-GaN"
+    assert ev.check_leakage(records)["status"] == "NO_LEAKAGE_DETECTED"
+    metrics = ev.regression_metrics(records)
+    assert metrics["n_total"] == 5
+    assert metrics["n_unique_materials"] == 4
+    assert metrics["n_repeated_trials"] == 1
+
+
 def test_missing_composition_is_reported_not_assumed_clean():
     records = _records()
     del records[0]["composition"]
@@ -356,6 +382,28 @@ def test_regression_metrics_exact_values_and_per_group_support():
         {"group": "Al-N", "support": 2, "n_predicted": 2, "n_missing": 0, "mae": 0.4375},
         {"group": "Ga-N", "support": 2, "n_predicted": 2, "n_missing": 0, "mae": 0.25},
     ]
+
+
+def test_per_group_support_merges_case_variants_like_the_leakage_check():
+    records = _as_dft(_records())
+    records[6]["group"] = "al-n"  # te-3, was Ga-N
+    records[7]["group"] = "al-n"  # te-4, was Ga-N
+    assert ev.check_leakage(records)["status"] == "NO_LEAKAGE_DETECTED"
+    m = ev.regression_metrics(records, _task())
+    assert m["n_groups"] == 1
+    assert m["per_group"] == [
+        {
+            "group": "Al-N",
+            "spellings": ["Al-N", "al-n"],
+            "support": 4,
+            "n_predicted": 4,
+            "n_missing": 0,
+            "mae": 0.34375,
+        }
+    ]
+    result = ev.evaluate(_bundle(records=records))
+    assert result["status"] == "UNVERIFIED"
+    assert result["regression"]["n_groups"] == 1
 
 
 def test_missing_predictions_are_counted_not_dropped():
@@ -597,6 +645,26 @@ def test_relaxation_status_must_match_and_be_known():
     assert p["comparison_admissible"] is False
 
 
+def test_relaxed_inputs_keep_parity_but_evaluate_adds_a_note():
+    # Equal conditions stay admissible (owner decision), but relaxed inputs
+    # leak label information (Riebesell et al. 2023), so the output says so.
+    entries = [_competitor("szl", relaxed="relaxed"), _competitor("base", relaxed="relaxed")]
+    p = ev.budget_parity(entries)
+    assert p["parity"] == "EQUAL" and p["comparison_admissible"] is True
+    assert p["flags"] == ["relaxed-inputs-used"]
+    result = ev.evaluate(_bundle(records=_as_dft(_records()), competitors=entries))
+    assert result["status"] == "UNVERIFIED"
+    assert (
+        "relaxed inputs used by ['szl', 'base']: relaxed structures carry information "
+        "from the label calculation, so the comparison describes a relaxed-input "
+        "setting, not discovery from unrelaxed candidates"
+    ) in result["notes"]
+    plain = ev.evaluate(
+        _bundle(records=_as_dft(_records()), competitors=[_competitor("a"), _competitor("b")])
+    )
+    assert not any(n.startswith("relaxed inputs used") for n in plain["notes"])
+
+
 def test_overlap_unknown_blocks_held_out_label():
     p = ev.budget_parity([_competitor("szl"), _competitor("pretrained", overlap="unknown")])
     labels = {e["name"]: e["held_out_label"] for e in p["entries"]}
@@ -721,9 +789,12 @@ def test_missing_provenance_is_unknown_never_pass(key):
         ({"data_license": "UNKNOWN"}, "placeholder"),
         ({"checkpoint_license": "n/a"}, "placeholder"),
         ({"data_license": "Unverified"}, "placeholder"),
+        ({"data_license": "NOASSERTION"}, "placeholder"),
         ({"task_sha256": "0" * 64}, "placeholder"),
         ({"hull_sha256": "f" * 64}, "placeholder"),
         ({"checkpoint_sha256": hashlib.sha256(b"").hexdigest()}, "placeholder"),
+        ({key: hashlib.sha256(b"x").hexdigest() for key in ev.REQUIRED_HASHES}, "placeholder"),
+        ({"model_sha256": _digest("synthetic checkpoint")}, "placeholder"),
     ],
 )
 def test_malformed_or_placeholder_provenance_is_unknown(overrides, field):
@@ -733,6 +804,24 @@ def test_malformed_or_placeholder_provenance_is_unknown(overrides, field):
     assert result["status"] == "UNKNOWN"
     assert result["provenance"][field]
     assert result["provenance"]["complete"] is False
+
+
+def test_one_digest_reused_across_artifacts_names_every_field_that_shares_it():
+    shared = _digest("synthetic checkpoint")
+    result = ev.evaluate(
+        _bundle(
+            records=_as_dft(_records()),
+            provenance=_provenance(model_sha256=shared, task_sha256="0" * 64),
+        )
+    )
+    assert result["status"] == "UNKNOWN"
+    assert result["provenance"]["placeholder"] == [
+        "task_sha256",
+        "model_sha256",
+        "checkpoint_sha256",
+    ]
+    assert "model_sha256" not in result["provenance"]["fields"]
+    assert result["provenance"]["fields"]["hull_sha256"] == _digest("synthetic convex hull")
 
 
 def test_absent_provenance_object_is_unknown():
