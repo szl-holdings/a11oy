@@ -70,6 +70,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Refuse Hub repos owned by a kernel repo's own publisher
+        run: python3 a11oy-src/tests/test_atelier_hub_publish_contract.py
+
       - name: Install Hub client
         run: python -m pip install --disable-pip-version-check "huggingface_hub==1.23.0" "numpy==2.2.6"
 
@@ -198,13 +201,14 @@ jobs:
                   api.upload_file(path_or_fileobj=str(pth), path_in_repo=f"kernels/{pth.name}", repo_id="SZLHOLDINGS/szl-khipu-kernels", repo_type="model", commit_message=f"code(atelier): {pth.name} fail-closed organ")
               print("published SZLHOLDINGS/szl-khipu-kernels pack")
 
+              # Converged kernels (YARQA-ATTN, szl-maskmod, szl-receipt-attn,
+              # szl-ouroboros, szl-block-kv, szl-lambda-gate, ...) are written
+              # only by their own repo's hf-kernel-publish.yml, which owns both
+              # kernels/SZLHOLDINGS/<n> and the pointer README on the model
+              # twin and prunes code files from it. Copying organ sources there
+              # from here would re-add what that publisher removed. Their code
+              # still ships in the szl-khipu-kernels pack above.
               per = [
-                  ("SZLHOLDINGS/YARQA-ATTN", "yarqa.py"),
-                  ("SZLHOLDINGS/szl-maskmod", "maskmod.py"),
-                  ("SZLHOLDINGS/szl-receipt-attn", "receipt_attn.py"),
-                  ("SZLHOLDINGS/szl-ouroboros", "ouroboros.py"),
-                  ("SZLHOLDINGS/szl-block-kv", "block_kv.py"),
-                  ("SZLHOLDINGS/szl-lambda-gate", "lambda_gate.py"),
                   ("SZLHOLDINGS/szl-governed-norm", "governed_norm.py"),
               ]
               for repo, name in per:
@@ -215,9 +219,7 @@ jobs:
 
               # One-hop deps so per-organ imports resolve. Do not rewrite GitHub-canonical READMEs.
               for repo, name in (
-                  ("SZLHOLDINGS/szl-block-kv", "chain.py"),
                   ("SZLHOLDINGS/szl-governed-norm", "chain.py"),
-                  ("SZLHOLDINGS/szl-lambda-gate", "doctrine.py"),
               ):
                   srcp = kdir / name
                   if srcp.exists():
