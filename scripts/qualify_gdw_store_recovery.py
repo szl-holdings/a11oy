@@ -1082,24 +1082,29 @@ def qualify_capture(api: ReadOnlyCaptureHub, reference: dict, workspace: Path,
                 or preservation.HEX64.fullmatch(manifest.get("sha256", "")) is None \
                 or preservation.HEX64.fullmatch(manifest.get("xet_hash", "")) is None:
             raise RecoveryError("CAPTURE_REFERENCE_INVALID")
+        # Historical captures predate copy_mode and used only originals/.
+        # A verified fallback has its own exact prefix, never an arbitrary path.
+        copy_mode = reference.get("copy_mode", "SERVER_SIDE_XET_COPY")
+        copy_directories = {"SERVER_SIDE_XET_COPY": "originals", "LOCAL_UPLOAD_FALLBACK": "uploaded-originals"}
+        if type(copy_mode) is not str or copy_mode not in copy_directories:
+            raise RecoveryError("CAPTURE_REFERENCE_INVALID")
+        copy_prefix = prefix + "/" + copy_directories[copy_mode] + "/"
         rows = reference.get("files")
         if not isinstance(rows, list) or len(rows) != len(preservation.SOURCE_PATHS):
             raise RecoveryError("CAPTURE_REFERENCE_INVALID")
         files = {}
         seen = set()
-        copy_directory = "originals"
-        if historical_reference is not None:
-            copy_directory = {"SERVER_SIDE_XET_COPY": "originals",
-                              "LOCAL_UPLOAD_FALLBACK": "uploaded-originals"}.get(reference.get("copy_mode"))
-            if copy_directory is None:
-                raise RecoveryError("CAPTURE_REFERENCE_INVALID")
+        # A fresh stopped capture must explicitly bind the copy mode. Historical
+        # captures alone retain the reviewed pre-copy_mode originals convention.
+        if historical_reference is not None and "copy_mode" not in reference:
+            raise RecoveryError("CAPTURE_REFERENCE_INVALID")
         for row in rows:
             path = row.get("source_path")
             if path not in preservation.SOURCE_PATHS or path in seen or type(row.get("present")) is not bool:
                 raise RecoveryError("CAPTURE_REFERENCE_INVALID")
             seen.add(path)
             if row["present"]:
-                if (row.get("private_copy_path") != prefix + "/" + copy_directory + "/" + path
+                if (row.get("private_copy_path") != copy_prefix + path
                         or type(row.get("size")) is not int or not 0 <= row["size"] <= preservation.MAX_FILE_BYTES
                         or preservation.HEX64.fullmatch(row.get("sha256", "")) is None
                         or preservation.HEX64.fullmatch(row.get("xet_hash", "")) is None):
@@ -1142,7 +1147,8 @@ def qualify_capture(api: ReadOnlyCaptureHub, reference: dict, workspace: Path,
             raise RecoveryError("PRESERVED_OBJECT_DIGEST_MISMATCH")
         saved = _json(local_paths[manifest["path"]].read_bytes())
         if not isinstance(saved, dict) or any(saved.get(key) != reference.get(key) for key in
-                ("schema", "space", "bucket", "capture_id", "source_revision", "files", "databases")) \
+                ("schema", "space", "bucket", "capture_id", "source_revision", "files", "databases", "copy_mode")) \
+                or ("copy_mode" in saved) != ("copy_mode" in reference) \
                 or saved.get("preservation_state") != "PRIVATE_OBJECTS_VERIFIED" \
                 or saved.get("deployment_admitted") is not False or saved.get("restore_admitted") is not False:
             raise RecoveryError("PRESERVED_MANIFEST_BINDING_INVALID")
