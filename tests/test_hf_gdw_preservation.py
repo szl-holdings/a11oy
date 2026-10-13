@@ -917,11 +917,14 @@ def _assert_manual_preservation_workflow(source):
         "Install exact reviewed private bucket SDK",
         "Capture stopped originals into private bucket only",
         "Classify private readback into a public-safe blocked receipt",
+        "Install exact historical signature verifier",
+        "Qualify this run's private capture without provider mutation",
         "Retain only the public-safe capture status",
+        "Retain only the public-safe current qualification status",
     ]
     assert steps[0]["with"] == {"ref": "${{ github.sha }}", "persist-credentials": "false"}
     assert [step["uses"].split("@")[0] for step in steps if "uses" in step] == [
-        "actions/checkout", "actions/setup-python", "actions/upload-artifact",
+        "actions/checkout", "actions/setup-python", "actions/upload-artifact", "actions/upload-artifact",
     ]
     preflight = steps[2]["run"]
     for boundary in (
@@ -947,9 +950,19 @@ def _assert_manual_preservation_workflow(source):
     assert "exit_code=%s" in capture["run"]
     assert "scripts/classify_hf_private_store_preservation.py" in steps[5]["run"]
     assert '--preservation-exit-code "$PRESERVATION_EXIT_CODE"' in steps[5]["run"]
-    assert steps[6]["with"]["path"] == "${{ runner.temp }}/public-preservation-status.json"
-    assert "private-preservation-report.json" not in steps[6]["with"]["path"]
-    assert "**" not in steps[6]["with"]["path"]
+    assert steps[6]["run"] == (
+        "python3 -m pip install --disable-pip-version-check --no-cache-dir 'cryptography==50.0.1'"
+    )
+    assert steps[7]["env"]["EXPECTED_SOURCE_SHA"] == "${{ inputs.expected_source_sha }}"
+    assert "scripts/qualify_gdw_current_capture.py" in steps[7]["run"]
+    assert '--capture-report "$RUNNER_TEMP/private-preservation-report.json"' in steps[7]["run"]
+    assert '--output "$RUNNER_TEMP/public-current-qualification.json"' in steps[7]["run"]
+    assert "if" not in steps[7] and "continue-on-error" not in steps[7]
+    assert steps[8]["with"]["path"] == "${{ runner.temp }}/public-preservation-status.json"
+    assert steps[9]["with"]["path"] == "${{ runner.temp }}/public-current-qualification.json"
+    for step in steps[8:]:
+        assert "private-preservation-report.json" not in step["with"]["path"]
+        assert "**" not in step["with"]["path"]
 
 
 def test_manual_preservation_workflow_is_dispatch_only_and_source_fenced():
