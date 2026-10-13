@@ -111,7 +111,10 @@ _COURTLISTENER_MIN_INTERVAL_ENV = "A11OY_COURTLISTENER_MIN_INTERVAL_S"
 _COURTLISTENER_MIN_INTERVAL_DEFAULT_S = 13.0
 _COURTLISTENER_MIN_INTERVAL_MIN_S = 12.0
 _COURTLISTENER_MIN_INTERVAL_MAX_S = 3600.0
-_COURTLISTENER_CACHE_TTL_S = 86400.0
+# Legal routes promise a one-hour observation age. Refresh at that boundary;
+# provider-wide budgets/cooldowns below still decide whether a read is allowed.
+# A denied refresh retains last-good data and its original timestamp as stale.
+_COURTLISTENER_CACHE_TTL_S = 3600.0
 _COURTLISTENER_RATE_WINDOWS: tuple[tuple[float, int], ...] = (
     (60.0, 4),
     (3600.0, 40),
@@ -957,7 +960,8 @@ def _cached_fetch(key: str, url: str, ttl: float, parser=None, label="live", hea
         }}
     rec = _CACHE.get(key)
     now = time.time()
-    if rec and (now - rec["fetched_at"]) < rec["ttl"] and rec.get("status") == "live":
+    if (rec and rec.get("status") == "live"
+            and (now - rec["fetched_at"]) < min(rec["ttl"], ttl)):
         return {"value": rec["value"], "freshness": _CACHE.freshness(key)}
 
     flight, is_leader = _CACHE.claim_refresh(key)
@@ -974,7 +978,7 @@ def _cached_fetch(key: str, url: str, ttl: float, parser=None, label="live", hea
     current = _CACHE.get(key)
     current_now = time.time()
     if (current and current.get("status") == "live"
-            and (current_now - current["fetched_at"]) < current["ttl"]):
+            and (current_now - current["fetched_at"]) < min(current["ttl"], ttl)):
         result = {"value": current["value"], "freshness": _CACHE.freshness(key)}
         _CACHE.finish_refresh(key, flight, result)
         return result

@@ -627,7 +627,7 @@ def test_courtlistener_budget_prunes_old_observations(monkeypatch) -> None:
     assert list(vertical._COURTLISTENER_REQUEST_TIMES) == [now]
 
 
-def test_courtlistener_identical_reads_share_day_cache(monkeypatch) -> None:
+def test_courtlistener_identical_reads_share_one_hour_cache(monkeypatch) -> None:
     vertical_calls: list[tuple[str, float]] = []
     devb_calls: list[tuple[str, float]] = []
 
@@ -645,7 +645,7 @@ def test_courtlistener_identical_reads_share_day_cache(monkeypatch) -> None:
     devb.feed_courtlistener("insurance", 18, kind="o")
 
     assert vertical_calls == devb_calls
-    assert vertical_calls[0][1] == 86400.0
+    assert vertical_calls[0][1] == 3600.0
 
 
 def test_nvd_interval_is_bounded_by_access_mode(monkeypatch) -> None:
@@ -890,7 +890,7 @@ def test_non_courtlistener_429_is_not_retried(monkeypatch) -> None:
     assert result["freshness"]["status"] == "unavailable"
 
 
-def test_devb_courtlistener_reuses_shared_cache_for_one_day(monkeypatch) -> None:
+def test_devb_courtlistener_reuses_shared_cache_for_one_hour(monkeypatch) -> None:
     observed: dict[str, Any] = {}
 
     def shared_fetch(key: str, url: str, ttl: float, parser=None, **_kwargs: Any):
@@ -902,6 +902,6 @@ def test_devb_courtlistener_reuses_shared_cache_for_one_day(monkeypatch) -> None
     monkeypatch.setattr(devb._vf, "_cached_fetch", shared_fetch)
     result = devb.feed_courtlistener("defense", 1)
 
-    assert observed["ttl"] == 86400.0
+    assert observed["ttl"] == 3600.0
     assert "/api/rest/v4/search/" in observed["url"]
     assert result["freshness"]["status"] == "live"
