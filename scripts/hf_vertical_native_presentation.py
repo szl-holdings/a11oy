@@ -103,7 +103,9 @@ def present(page: str, slug: str, *, forge: bool = False) -> str:
     if forge:
         page = _once(page, 'id="livepill"', 'id="livepill" role="status" aria-live="polite" aria-atomic="true"')
         page = _once(page, 'id="demodata"', 'id="demodata" tabindex="0" aria-label="Runtime observation JSON"')
-        nav = '<nav class="native-nav" aria-label="Workspace sections"><a href="/panels">Governed workbench</a><a href="/build-receipt.json">Build receipt</a></nav>'
+        page = _once(page, '<div class="panel"><h2>Runtime observation</h2>', '<div class="panel" id="native-observation"><h2>Runtime observation</h2>')
+        page = _once(page, '<div class="panel"><h2>Estate wiring</h2>', '<div class="panel" id="native-wiring"><h2>Estate wiring</h2>')
+        nav = '<nav class="native-nav" aria-label="Workspace sections"><a href="#native-observation">Runtime observation</a><a href="#native-wiring">Source wiring</a></nav>'
     else:
         page = _once(page, '<div id="st"', '<div id="st" role="status" aria-live="polite" aria-atomic="true"')
         page = _once(page, '<pre id="out"', '<pre id="out" tabindex="0" aria-label="Governed evidence JSON"')
@@ -126,6 +128,8 @@ def present(page: str, slug: str, *, forge: bool = False) -> str:
               '<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a> · '
               f'<a href="https://github.com/szl-holdings/szl-brand/blob/{ART_REVISION}/NOTICE">Trademark notice</a>'
               '<span>Presentation does not change source, evidence, or authorization state.</span></div>')
+    if forge:
+        credit = credit.replace('</div>', '<span>Terra retains the sealed Forge 0.2.2 base; this page is a presentation derived from it. The build receipt distinguishes both artifact hashes.</span></div>')
     page = _once(page, "</main>", credit + "</main>")
     if original_scripts != re.findall(r"<script\b[^>]*>.*?</script>", page, re.S | re.I):
         raise ValueError("native presentation changed an operational script")

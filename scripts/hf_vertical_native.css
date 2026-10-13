@@ -92,3 +92,5 @@ html[data-native-domain="sentra"],html[data-native-domain="terra"] { --accent:va
 [data-szl-native-vertical] .native-nav a:hover { border-color:var(--focus); }
 .native-noscript { padding:16px; border:1px solid var(--control-edge); background:var(--surface); color:var(--text); }
 [data-szl-native-vertical] [id] { scroll-margin-top:24px; }
+
+[data-native-domain="terra"] .grid > .asset:last-child { grid-column:1/-1; }

@@ -68,6 +68,8 @@ def test_terra_derivation_retains_exact_original_chain_and_binds_output():
     assert re.findall(r'<script\b[^>]*>.*?</script>', original, re.S) == re.findall(r'<script\b[^>]*>.*?</script>', derived, re.S)
     assert module._BASE.load_terra_forge_bundle() == (derived, record)
     assert 'role="status"' in derived and '<noscript>' in derived
+    tags = Tags(derived).tags; ids = {a.get('id') for t,a in tags}
+    assert all(a['href'][1:] in ids for t,a in tags if t == 'a' and a.get('href','').startswith('#'))
 
 
 def test_native_source_fails_closed_on_tamper_and_symlink(tmp_path, monkeypatch):

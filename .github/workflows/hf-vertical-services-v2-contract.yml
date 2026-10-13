@@ -80,7 +80,8 @@ jobs:
           python -m pytest
           tests/test_hf_publish_vertical_flagships_v4.py
           tests/test_vertical_shell_healthz_process_scoped.py
-          tests/test_hf_vertical_native.py -q
+          tests/test_hf_vertical_native.py
+          tests/test_hf_vertical_card_presentation.py -q
 
   native-presentation:
     name: Native vertical generated-page browser qualification
