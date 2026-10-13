@@ -1019,8 +1019,13 @@ def _ledger(receipt):
                     state="UNKNOWN", retry_admitted=False,
                     result={"serialization": "UNAVAILABLE",
                             "reason": "ledger status was not strict JSON"})
-    accepted = res.get("accepted") is True
-    duplicate = res.get("duplicate") is True
+    if type(res.get("accepted")) is not bool or type(res.get("duplicate")) is not bool:
+        return dict(common, recorded=None, accepted=False, duplicate=False,
+                    state="UNKNOWN", retry_admitted=False,
+                    result={"acknowledgement": "UNAVAILABLE",
+                            "reason": "ledger acknowledgement flags must be booleans"})
+    accepted = res["accepted"]
+    duplicate = res["duplicate"]
     rejected = (res.get("state") == "REJECTED"
                 and res.get("write_attempted") is False)
     identity_matches = (res.get("receipt_id") == rid

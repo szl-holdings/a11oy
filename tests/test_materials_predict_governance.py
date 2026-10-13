@@ -253,7 +253,7 @@ def test_sign_false_skips_the_signer_but_the_ledger_write_stays(h, prefix):
 def test_rejected_ledger_write_is_not_reported_as_recorded(h, monkeypatch):
     def reject(receipt, organ="a11oy"):
         h.counts["ledger"] += 1
-        return {"accepted": False, "state": "REJECTED", "write_attempted": False,
+        return {"accepted": False, "duplicate": False, "state": "REJECTED", "write_attempted": False,
                 "error": "test rejection"}
 
     monkeypatch.setattr(sys.modules["szl_lake_ingest"], "record_receipt", reject)
@@ -263,7 +263,7 @@ def test_rejected_ledger_write_is_not_reported_as_recorded(h, monkeypatch):
     assert ledger["recorded"] is False
     assert ledger["accepted"] is False and ledger["duplicate"] is False
     assert ledger["state"] == "REJECTED"
-    assert ledger["result"] == {"accepted": False, "state": "REJECTED",
+    assert ledger["result"] == {"accepted": False, "duplicate": False, "state": "REJECTED",
                                 "write_attempted": False, "error": "test rejection"}
     assert h.counts["ledger"] == 1
 
