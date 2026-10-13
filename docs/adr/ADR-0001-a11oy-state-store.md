@@ -5,7 +5,7 @@
 
 - **Status:** Accepted 2026-10-13. Decided by the owner's delegate. The code is implemented and still **inert**: it switches on only when the Space variable `A11OY_STATE_STORE=v2` is set during the rollout below.
 - **Supersedes:** durable v1 (`GDW_DURABLE_STORAGE=private-dataset-v1`, `gdw_durable_*.py`). Durable v1 is **retired**. It stays inert in the tree until a cleanup PR deletes it. Do not extend it.
-- **Code:** `a11oy_state_store.py`. Wiring: `gdw_runtime.py`, `gdw_workspace.py`, `routers/series_a_control_plane.py`, `szl_be_hardening.py`, `a11oy_ayllu.py`, `szl_unay_routes.py`, `szl_boot_preflight.py`, `serve.py`.
+- **Code:** `a11oy_state_store.py`. Wiring: `gdw_runtime.py`, `gdw_workspace.py`, `routers/series_a_control_plane.py`, `szl_be_hardening.py`, `a11oy_ayllu.py`, `szl_boot_preflight.py`, `serve.py`. `szl_unay_routes.py` is shared byte-for-byte with killinchu, so activation sets its first-priority `UNAY_DATA_DIR` to the local root instead of editing it.
 - **Tests:** `tests/test_state_store_handover.py`, `tests/test_state_store_restore.py`, `tests/test_state_store_wiring.py`. All offline.
 
 ## Context

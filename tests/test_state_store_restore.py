@@ -354,6 +354,7 @@ def test_disabled_store_is_inert(monkeypatch):
 
 def test_activation_failure_installs_a_blocked_read_only_store(monkeypatch, tmp_path):
     monkeypatch.setenv(ss.ENABLE_ENV, ss.ENABLED_VALUE)
+    monkeypatch.setenv("UNAY_DATA_DIR", "/data")
     monkeypatch.setenv("A11OY_STATE_ROOT", str(tmp_path / "state"))
     monkeypatch.setenv(ss.DURABLE_V1_ENV, "private-dataset-v1")
 
@@ -368,6 +369,7 @@ def test_activation_failure_installs_a_blocked_read_only_store(monkeypatch, tmp_
     assert status["durable_v1"] == {"status": "RETIRED", "env_ignored": True}
     assert ss.DURABLE_V1_ENV not in os.environ
     assert ss.local_path("gdw") == tmp_path / "state" / "gdw" / "gdw.sqlite3"
+    assert os.environ["UNAY_DATA_DIR"] == str(tmp_path / "state" / "unay")
 
 
 def test_unpublished_snapshot_keeps_the_change_pending_until_published(world):

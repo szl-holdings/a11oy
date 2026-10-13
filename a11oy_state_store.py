@@ -1748,6 +1748,17 @@ def status() -> dict[str, Any]:
             "durable_v1": {"status": "RETIRED", "env_ignored": False}}
 
 
+def export_environment(store: StateStore, environ: Any = None) -> None:
+    """Point modules that only read an env directory at the local root.
+
+    szl_unay_routes.py is shared byte-for-byte with killinchu, so it is wired
+    through its existing first-priority setting instead of an edit. The
+    store's legacy paths were captured from the environment before this runs.
+    """
+    values = os.environ if environ is None else environ
+    values["UNAY_DATA_DIR"] = str(store.local_dir("unay"))
+
+
 def _production_store(environ: Mapping[str, str]) -> StateStore:
     settings = Settings.from_environ(environ)
     token = (environ.get("HF_TOKEN") or "").strip()
@@ -1793,9 +1804,13 @@ def activate(environ: Optional[Mapping[str, str]] = None,
             store._error(error, "activate")
             store.durable_v1_env_ignored = ignored
             _ACTIVE = store
+            if values is os.environ:
+                export_environment(store)
             raise
         store.durable_v1_env_ignored = ignored
         _ACTIVE = store
+        if values is os.environ:
+            export_environment(store)
         store.boot()
         store.start()
         return store

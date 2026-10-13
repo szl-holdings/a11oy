@@ -97,11 +97,19 @@ def test_series_a_store_resolves_the_local_root_despite_the_mount_contract(v2):
     assert (v2 / "series-a" / "control-plane-v2.sqlite3").is_file()
 
 
-def test_unay_khipu_and_council_use_the_local_root(v2):
+def test_unay_khipu_and_council_use_the_local_root(v2, monkeypatch, tmp_path):
     import a11oy_ayllu
     import szl_be_hardening
     import szl_unay_routes
+    store = ss.StateStore(settings=ss.Settings(root=v2, bucket="b", dataset="d",
+                                               legacy_root=tmp_path / "legacy"),
+                          objects=None)
+    # szl_unay_routes.py is shared with killinchu; activation wires it through
+    # UNAY_DATA_DIR, its first-priority setting, after capturing the legacy value.
+    assert store.environ["UNAY_DATA_DIR"] == "/data"
+    ss.export_environment(store)
     assert Path(szl_unay_routes._pick_data_dir()) == v2 / "unay"
+    assert ss.legacy_path(ss.STORES[4], store.environ, tmp_path) == Path("/data/unay_a11oy.sqlite")
     khipu = szl_be_hardening.DurableKhipu("a11oy")
     assert Path(khipu._path) == v2 / "khipu" / "khipu_a11oy.sqlite3"
     path, source = a11oy_ayllu._council_store_path("a11oy")
