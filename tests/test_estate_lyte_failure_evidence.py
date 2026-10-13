@@ -39,7 +39,7 @@ def validate_retention(document):
     observed = step(document, TITLE)
     expected = (
         "        if: " + CONDITION + "\n"
-        "        uses: " + UPLOAD + " # v7.0.1\n"
+        "        uses: " + UPLOAD + " # v7.0.2\n"
         "        with:\n"
         "          name: hf-lyte-failure-${{ github.run_id }}-${{ github.run_attempt }}\n"
         "          path: |\n"
@@ -59,7 +59,7 @@ def validate_aggregate_retention(document):
     expected = (
         "        if: ${{ always() && steps.exact_main_owner.outputs.publish == 'true' && "
         "steps.vertical_plan.outputs.vertical_flagships == 'true' }}\n"
-        "        uses: " + UPLOAD + " # v7.0.1\n"
+        "        uses: " + UPLOAD + " # v7.0.2\n"
         "        with:\n"
         "          name: hf-vertical-flagships-${{ github.run_id }}-${{ github.run_attempt }}\n"
         "          path: |\n"
