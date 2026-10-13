@@ -69,7 +69,7 @@ def exact_step(actual, expected, diagnostic):
 
 CHECKOUT = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
 SETUP_PYTHON = "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97"
-UPLOAD = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+UPLOAD = "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
 HF_CREDENTIAL = "${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}"
 CONTROL_CLIENT = 'python -I -m pip install --disable-pip-version-check "huggingface_hub==1.31.0" "requests==2.32.5" "cryptography==50.0.1"'
 EXACT_CHECKOUT = {"name": "Checkout exact protected source", "uses": CHECKOUT,
@@ -200,7 +200,7 @@ python -I -B .github/scripts/verify_platform_candidate_preview.py \
   > "$PLATFORM_CANDIDATE_PRODUCT_REPORT"'''
 RUN_VERDICT = "${{ needs.readiness-verdict.outputs.verdict }}"
 REVIEWED_DEPLOY_JOB_SHA256 = "a30a6a0ed116101c998635538465ef55c0b97d134f0a4381a5ea4b4fb97a19fb"
-REVIEWED_RELOCK_JOB_SHA256 = "d9cfd6e3594ebd2fb46867fc0d028cded6b2ddb8eee85dad37cc50fa14a13eb4"
+REVIEWED_RELOCK_JOB_SHA256 = "e6b4931eb5d19638f98043fdbed9ad4b8a620d532e9d5d29b27e261273438f78"
 
 
 def exact_job_digest(source: str, name: str) -> str:
