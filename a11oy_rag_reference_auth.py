@@ -14,6 +14,12 @@ engine's own SQL filter before any row is read) and a closed set of exact
 ``source`` identifiers that every released citation must match. This is an access
 contract on one read mode over a shared store, not tenant storage isolation.
 
+Only the version-1 credential registry, whose entries carry explicit scopes, is
+accepted. The legacy principal format derives scopes from fixed user/admin roles
+that never include the read scope, so a principal-only configuration is reported
+as unconfigured (``LEGACY_PRINCIPALS_CANNOT_GRANT_SCOPE``) instead of advertising
+an authentication path that can never succeed.
+
 ``gdw_auth`` credentials carry no expiry, so session lifecycle is reported as
 ``NOT_IMPLEMENTED`` rather than inferred.
 """
@@ -28,10 +34,12 @@ from typing import Any, Mapping, Optional, Tuple
 
 REFERENCE_READ_SCOPE = "rag-reference:read"
 CREDENTIALS_ENV = "A11OY_RAG_REFERENCE_CREDENTIALS_JSON"
-PRINCIPALS_ENV = "A11OY_RAG_REFERENCE_PRINCIPALS_JSON"
 SCOPE_ENV = "A11OY_RAG_REFERENCE_SCOPE_JSON"
 # Shared GDW registry, used only when neither dedicated variable is set.
 GDW_CREDENTIALS_ENV = "GDW_CREDENTIALS_JSON"
+# Legacy principal-format variables are never loaded here; their presence is
+# only detected so the refusal can name its reason.
+PRINCIPALS_ENV = "A11OY_RAG_REFERENCE_PRINCIPALS_JSON"
 GDW_PRINCIPALS_ENV = "GDW_PRINCIPALS_JSON"
 
 SESSION_EXPIRY = "NOT_IMPLEMENTED"
@@ -148,18 +156,24 @@ def _configured(environ: Mapping[str, str]) -> tuple:
 
     global _CACHE
     scope_json = environ.get(SCOPE_ENV)
+    # The dedicated pair wins as a unit; the GDW pair is the fallback.
     registry_json = environ.get(CREDENTIALS_ENV)
-    principals_json = environ.get(PRINCIPALS_ENV)
-    if registry_json is None and principals_json is None:
+    principals_present = environ.get(PRINCIPALS_ENV) is not None
+    if registry_json is None and not principals_present:
         registry_json = environ.get(GDW_CREDENTIALS_ENV)
-        principals_json = environ.get(GDW_PRINCIPALS_ENV)
+        principals_present = environ.get(GDW_PRINCIPALS_ENV) is not None
     if scope_json is None:
         raise LookupError("REFERENCE_SCOPE_UNCONFIGURED")
-    if registry_json is None and principals_json is None:
-        raise LookupError("REFERENCE_CREDENTIALS_UNCONFIGURED")
+    if registry_json is None:
+        # Legacy user/admin roles never carry the read scope, so a principal
+        # registry could only ever deny; refuse it rather than advertise it.
+        raise LookupError("LEGACY_PRINCIPALS_CANNOT_GRANT_SCOPE" if principals_present
+                          else "REFERENCE_CREDENTIALS_UNCONFIGURED")
+    if principals_present:
+        # Same rule as gdw_auth: two registry formats together are ambiguous.
+        raise LookupError("REFERENCE_CREDENTIALS_INVALID")
     fingerprint = hashlib.sha256(json.dumps(
-        [scope_json, registry_json, principals_json],
-        separators=(",", ":")).encode("utf-8")).hexdigest()
+        [scope_json, registry_json], separators=(",", ":")).encode("utf-8")).hexdigest()
     with _CACHE_LOCK:
         if _CACHE is not None and _CACHE[0] == fingerprint:
             return _CACHE[1], _CACHE[2]
@@ -168,11 +182,7 @@ def _configured(environ: Mapping[str, str]) -> tuple:
     except ReferenceScopeError:
         raise LookupError("REFERENCE_SCOPE_INVALID") from None
     try:
-        registry = load_credential_registry(
-            registry_json,
-            principal_registry_json=principals_json,
-            principal_registry_namespace=scope.namespace,
-        )
+        registry = load_credential_registry(registry_json)
     except AuthConfigurationError:
         raise LookupError("REFERENCE_CREDENTIALS_INVALID") from None
     with _CACHE_LOCK:

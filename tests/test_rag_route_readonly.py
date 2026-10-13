@@ -1219,6 +1219,11 @@ def test_a09_authenticated_and_denied_repeat_reads_have_no_side_effects(monkeypa
     ("scope_empty_sources", "REFERENCE_SCOPE_INVALID"),
     ("registry_malformed", "REFERENCE_CREDENTIALS_INVALID"),
     ("registry_and_principals", "REFERENCE_CREDENTIALS_INVALID"),
+    # Legacy principal registries derive scopes from user/admin roles that never
+    # include the read scope, so they are refused rather than advertised.
+    ("dedicated_principals_only", "LEGACY_PRINCIPALS_CANNOT_GRANT_SCOPE"),
+    ("gdw_principals_only", "LEGACY_PRINCIPALS_CANNOT_GRANT_SCOPE"),
+    ("dedicated_principals_beside_gdw_registry", "LEGACY_PRINCIPALS_CANNOT_GRANT_SCOPE"),
 ])
 def test_unconfigured_reference_is_503_without_any_fallback(monkeypatch, tmp_path, config, reason):
     import serve
@@ -1227,6 +1232,9 @@ def test_unconfigured_reference_is_503_without_any_fallback(monkeypatch, tmp_pat
     token, entry = _credential(_FIXTURE_NAMESPACE, owner="fixture-reviewer", key="reader-1")
     scope = _scope_json(_FIXTURE_NAMESPACE, "a11oy", _FIXTURE_SOURCES)
     tenant = {"repo": "a11oy", "sources": list(_FIXTURE_SOURCES)}
+    # The same token as a legacy principal holding every legacy role.
+    principals = json.dumps({"fixture-reviewer": {"token_sha256": entry["token_sha256"],
+                                                  "roles": ["user", "admin"]}})
     _configure_reference(monkeypatch, scope=None)
     env = {
         "nothing": {},
@@ -1244,8 +1252,15 @@ def test_unconfigured_reference_is_503_without_any_fallback(monkeypatch, tmp_pat
         "registry_and_principals": {
             "A11OY_RAG_REFERENCE_SCOPE_JSON": scope,
             "A11OY_RAG_REFERENCE_CREDENTIALS_JSON": _registry_json([entry]),
-            "A11OY_RAG_REFERENCE_PRINCIPALS_JSON": json.dumps({"fixture-reviewer": {
-                "token_sha256": entry["token_sha256"], "roles": ["user"]}})},
+            "A11OY_RAG_REFERENCE_PRINCIPALS_JSON": principals},
+        "dedicated_principals_only": {"A11OY_RAG_REFERENCE_SCOPE_JSON": scope,
+                                      "A11OY_RAG_REFERENCE_PRINCIPALS_JSON": principals},
+        "gdw_principals_only": {"A11OY_RAG_REFERENCE_SCOPE_JSON": scope,
+                                "GDW_PRINCIPALS_JSON": principals},
+        "dedicated_principals_beside_gdw_registry": {
+            "A11OY_RAG_REFERENCE_SCOPE_JSON": scope,
+            "A11OY_RAG_REFERENCE_PRINCIPALS_JSON": principals,
+            "GDW_CREDENTIALS_JSON": _registry_json([entry])},
     }[config]
     if config in {"scope_two_tenants", "scope_extra_field", "scope_duplicate_key",
                   "scope_empty_sources"}:
@@ -1273,6 +1288,47 @@ def test_unconfigured_reference_is_503_without_any_fallback(monkeypatch, tmp_pat
     default = client.get(_QUERY, params={"q": "anchor evidence"})
     assert default.status_code == 200, default.text
     assert default.json()["grounded"] is True
+
+
+def test_legacy_principal_registry_is_unconfigured_not_a_dead_auth_path(monkeypatch, tmp_path):
+    """Regression for the review finding: a principal-format registry used to be
+    loaded and advertised as REQUIRED, yet could only ever answer missing_scopes."""
+    import gdw_auth
+    import serve
+
+    _published_engine(monkeypatch, tmp_path, serve._rag_engine)
+    token, entry = _credential(_FIXTURE_NAMESPACE, owner="fixture-reviewer", key="reader-1")
+    principals = json.dumps({"fixture-reviewer": {"token_sha256": entry["token_sha256"],
+                                                  "roles": ["user", "admin"]}})
+    # Root cause, stated against gdw_auth itself (unchanged): no legacy role
+    # carries the reference read scope.
+    legacy = gdw_auth.load_credential_registry(
+        None, principal_registry_json=principals,
+        principal_registry_namespace=_FIXTURE_NAMESPACE)
+    with pytest.raises(gdw_auth.AuthenticationError) as denied:
+        gdw_auth.authenticate_bearer("Bearer " + token, legacy, namespace=_FIXTURE_NAMESPACE,
+                                     required_scopes=(_READ_SCOPE,))
+    assert denied.value.code == "missing_scopes"
+
+    client = _isolated_client(serve)
+    for variable in ("A11OY_RAG_REFERENCE_PRINCIPALS_JSON", "GDW_PRINCIPALS_JSON"):
+        _configure_reference(monkeypatch, scope=_scope_json(
+            _FIXTURE_NAMESPACE, "a11oy", _FIXTURE_SOURCES))
+        monkeypatch.setenv(variable, principals)
+        status = client.get("/api/a11oy/v1/rag/status").json()["lexical_reference_auth"]
+        assert status["authentication"] == "UNCONFIGURED", variable
+        assert status["reason_code"] == "LEGACY_PRINCIPALS_CANNOT_GRANT_SCOPE"
+        for route in (_QUERY, "/org/rag"):
+            response = client.get(route, params=_LEXICAL, headers=_bearer(token))
+            assert response.status_code == 503, response.text
+            assert response.json()["reason_code"] == "LEGACY_PRINCIPALS_CANNOT_GRANT_SCOPE"
+            assert response.json()["authentication"] == "UNCONFIGURED"
+        # A scoped credential registry beside it restores the path for the scoped key.
+        monkeypatch.delenv(variable)
+        monkeypatch.setenv("GDW_CREDENTIALS_JSON", _registry_json([entry]))
+        assert client.get("/api/a11oy/v1/rag/status").json()[
+            "lexical_reference_auth"]["authentication"] == "REQUIRED"
+        assert client.get(_QUERY, params=_LEXICAL, headers=_bearer(token)).status_code == 200
 
 
 def test_reference_reuses_the_gdw_registry_only_without_a_dedicated_one(monkeypatch, tmp_path):
