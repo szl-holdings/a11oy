@@ -191,6 +191,20 @@ def validate_historical_anchors(anchors: dict, reference: dict, capture_report_s
         raise RecoveryError("HISTORICAL_ANCHORS_INVALID")
 
 
+def validate_current_historical_anchors(anchors: dict, reference: dict,
+                                        historical_reference: dict, historical_report_sha256: str) -> None:
+    """Retain the exact old capture binding, then require its generations now.
+
+    A fresh capture cannot substitute its digest for the source-reviewed old
+    report. Actual signed-row continuity is still checked in both SQLite copies.
+    """
+    validate_historical_anchors(anchors, historical_reference, historical_report_sha256)
+    for label in preservation.DATABASES:
+        if reference.get("databases", {}).get(label, {}).get("database_generation_id") != \
+                anchors[label]["database_generation_id"]:
+            raise RecoveryError("HISTORICAL_CAPTURE_GENERATION_MISMATCH")
+
+
 def _framed(value: Any) -> bytes:
     # Type and length framing distinguish NULL, TEXT, BLOB, integers and IEEE
     # floating-point values. No text normalization or JSON reserialization of
@@ -1032,7 +1046,8 @@ def fence_metadata(api: ReadOnlyCaptureHub, deadline: float) -> dict:
 def qualify_capture(api: ReadOnlyCaptureHub, reference: dict, workspace: Path,
                     require_owned_source: Callable[[], None], deadline: float, *,
                     historical_anchors: dict | None = None,
-                    capture_report_sha256: str | None = None) -> dict:
+                    capture_report_sha256: str | None = None,
+                    historical_reference: dict | None = None) -> dict:
     report: dict[str, Any] = {"schema": SCHEMA, "state": "BLOCKED", "deployment_admitted": False,
         "restore_admitted": False, "diagnostic_code": "CAPTURE_REFERENCE_UNAVAILABLE",
         "provider_writes_performed": False, "originals_mutated": False,
@@ -1041,8 +1056,14 @@ def qualify_capture(api: ReadOnlyCaptureHub, reference: dict, workspace: Path,
         "later_acknowledged_writes_verified": False}
     try:
         check_budget(deadline)
+        if historical_reference is not None and historical_anchors is None:
+            raise RecoveryError("HISTORICAL_ANCHORS_INVALID")
         if historical_anchors is not None:
-            validate_historical_anchors(historical_anchors, reference, capture_report_sha256)
+            if historical_reference is None:
+                validate_historical_anchors(historical_anchors, reference, capture_report_sha256)
+            else:
+                validate_current_historical_anchors(historical_anchors, reference,
+                                                    historical_reference, capture_report_sha256)
             report["historical_anchor_reference"] = {
                 key: historical_anchors[key] for key in ("source_revision", "workflow_run_id", "workflow_attempt",
                     "artifact_id", "artifact_archive_sha256", "capture_report_sha256")}
@@ -1073,6 +1094,10 @@ def qualify_capture(api: ReadOnlyCaptureHub, reference: dict, workspace: Path,
             raise RecoveryError("CAPTURE_REFERENCE_INVALID")
         files = {}
         seen = set()
+        # A fresh stopped capture must explicitly bind the copy mode. Historical
+        # captures alone retain the reviewed pre-copy_mode originals convention.
+        if historical_reference is not None and "copy_mode" not in reference:
+            raise RecoveryError("CAPTURE_REFERENCE_INVALID")
         for row in rows:
             path = row.get("source_path")
             if path not in preservation.SOURCE_PATHS or path in seen or type(row.get("present")) is not bool:
@@ -1127,6 +1152,14 @@ def qualify_capture(api: ReadOnlyCaptureHub, reference: dict, workspace: Path,
                 or saved.get("preservation_state") != "PRIVATE_OBJECTS_VERIFIED" \
                 or saved.get("deployment_admitted") is not False or saved.get("restore_admitted") is not False:
             raise RecoveryError("PRESERVED_MANIFEST_BINDING_INVALID")
+        if historical_reference is not None:
+            observations = saved.get("observations")
+            if (any(saved.get(key) != reference.get(key) for key in (
+                    "copy_mode", "generated_at", "state", "initial_identities_stable",
+                    "captured_originals_unchanged_after_inspection"))
+                    or not isinstance(observations, list) or len(observations) < 2
+                    or observations != reference.get("observations", [])[:len(observations)]):
+                raise RecoveryError("PRESERVED_MANIFEST_BINDING_INVALID")
         report.update(capture_id=capture_id, capture_source_revision=reference["source_revision"],
                       preservation_manifest_sha256=manifest["sha256"])
         report["databases"] = {}
