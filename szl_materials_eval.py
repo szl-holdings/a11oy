@@ -34,7 +34,9 @@ Limits
     Provenance hashes are checked for presence and format only; the evaluator
     does not read or re-hash the referenced artifacts.  That is why the best
     status it can give is UNVERIFIED: doctrine reserves MEASURED for a real,
-    fresh measurement, and an unchecked digest is not one.  Preprocessing-fold
+    fresh measurement, and an unchecked digest is not one.  Split leakage can
+    only be seen between the splits supplied, so a bundle without both train
+    and test records is UNKNOWN, never reported as leak-free.  Preprocessing-fold
     and hyperparameter isolation cannot be observed from sealed records, so
     they are reported as NOT_RUN.  A ratio with a zero denominator is
     "UNDEFINED", never 0.
@@ -108,9 +110,26 @@ _SHA256 = re.compile(r"[0-9a-f]{64}")
 _EMPTY_SHA256 = hashlib.sha256(b"").hexdigest()
 _EXACT_INT = 2**53
 _FORMULA_TOKEN = re.compile(r"([A-Z][a-z]?)(\d+(?:\.\d+)?)?")
-# NOASSERTION is the SPDX token for "no licence information".
+# NOASSERTION is the SPDX token for "no licence information".  A licence with
+# no letter or digit ("?", "-") is also a placeholder; see _placeholder_license.
 _LICENSE_PLACEHOLDERS = frozenset(
-    {"unknown", "unverified", "n/a", "na", "tbd", "none", "null", "noassertion"}
+    {
+        "unknown",
+        "unverified",
+        "unspecified",
+        "not specified",
+        "not applicable",
+        "not available",
+        "n/a",
+        "na",
+        "tbd",
+        "tba",
+        "tbc",
+        "todo",
+        "none",
+        "null",
+        "noassertion",
+    }
 )
 _DIGEST_FIELDS = (
     "id",
@@ -369,16 +388,33 @@ def _coverage(n_records, n_without):
     return "PARTIAL" if n_without else "RUN"
 
 
+def _cross_split_check(splits_present):
+    if len(splits_present) < 2:
+        return "NOT_RUN"
+    if "train" in splits_present and "test" in splits_present:
+        return "RUN"
+    return "PARTIAL"
+
+
 def check_leakage(records, task=None):
     """Report duplicate ids and group, material or composition overlap.
 
     A group, material_id or reduced composition present in more than one split
     is leakage.  Groups and material ids compare case-insensitively.  Repeats
-    inside one split are repeated trials, not leakage.  The status is
-    "LEAKAGE" or "NO_LEAKAGE_DETECTED"; the second only covers the checks that
-    ran (see composition_check and material_check).
+    inside one split are repeated trials, not leakage.
+
+    The status is "LEAKAGE", "NO_LEAKAGE_DETECTED" or "UNKNOWN".  A cross-split
+    check can only see the splits supplied: cross_split_check is NOT_RUN with
+    fewer than two splits (the material and composition checks are then
+    NOT_RUN too), PARTIAL with two splits but no train or no test records,
+    and RUN with both train and test records.  NO_LEAKAGE_DETECTED needs
+    cross_split_check RUN and only covers the checks that ran (see
+    composition_check and material_check); otherwise a bundle with no
+    detected leakage is UNKNOWN, never reported as clean.
     """
     _require_valid(records, task)
+    splits_present = _ordered_splits({rec["split"] for rec in records})
+    cross_split = _cross_split_check(splits_present)
     id_counts = {}
     group_splits, group_spellings = {}, {}
     material_splits, material_spellings = {}, {}
@@ -410,15 +446,28 @@ def check_leakage(records, task=None):
         if len(s) > 1
     ]
     leaked = bool(duplicate_ids or group_overlap or material_overlap or composition_overlap)
+    if leaked:
+        status = "LEAKAGE"
+    elif cross_split == "RUN":
+        status = "NO_LEAKAGE_DETECTED"
+    else:
+        status = "UNKNOWN"
+    comparable = cross_split != "NOT_RUN"
     return {
-        "status": "LEAKAGE" if leaked else "NO_LEAKAGE_DETECTED",
+        "status": status,
+        "splits_present": splits_present,
+        "cross_split_check": cross_split,
         "duplicate_ids": duplicate_ids,
         "group_overlap": group_overlap,
         "material_overlap": material_overlap,
         "composition_overlap": composition_overlap,
-        "material_check": _coverage(len(records), without_material),
+        "material_check": (
+            _coverage(len(records), without_material) if comparable else "NOT_RUN"
+        ),
         "records_without_material_id": without_material,
-        "composition_check": _coverage(len(records), without_composition),
+        "composition_check": (
+            _coverage(len(records), without_composition) if comparable else "NOT_RUN"
+        ),
         "records_without_composition": without_composition,
     }
 
@@ -738,9 +787,16 @@ def budget_parity(entries):
 
 
 def _placeholder_digest(value):
-    # One repeated hex character ("0" * 64) or the digest of empty input is
-    # what a stub writes, not what hashing a real artifact yields.
-    return len(set(value)) == 1 or value == _EMPTY_SHA256
+    # A digest that repeats with a short period ("0" * 64, "deadbeef" * 8, two
+    # copies of one 32-character string) or the digest of empty input is what
+    # a stub writes.  A real SHA-256 output repeats with a period of 32 or
+    # fewer characters with a chance of about 16**-32.
+    return value == _EMPTY_SHA256 or any(value[p:] == value[:-p] for p in range(1, 33))
+
+
+def _placeholder_license(value):
+    text = " ".join(value.split()).lower()
+    return text in _LICENSE_PLACEHOLDERS or not any(ch.isalnum() for ch in text)
 
 
 def _well_formed_digest(value):
@@ -776,7 +832,7 @@ def _provenance_report(provenance):
         value = provenance.get(key)
         if not _nonempty_str(value):
             missing.append(key)
-        elif value.strip().lower() in _LICENSE_PLACEHOLDERS:
+        elif _placeholder_license(value):
             placeholder.append(key)
         else:
             fields[key] = value
@@ -815,11 +871,18 @@ def evaluate(bundle):
 
     Never raises for bad input and never returns PASS or MEASURED.  Status
     precedence: BLOCKED (invalid input, or split leakage; metrics withheld) >
-    UNKNOWN (provenance missing, malformed or placeholder, or no test
-    predictions) > SAMPLE (any record has data_origin "sample") > UNVERIFIED.
-    A placeholder is a licence word such as "unknown" or "NOASSERTION", a
-    digest of one repeated hex character, the digest of empty input, or one
-    digest under two or more of the five required hash fields.
+    UNKNOWN (provenance missing, malformed or placeholder; no train or no test
+    records, so split leakage cannot be observed; or no test predictions) >
+    SAMPLE (any record has data_origin "sample") > UNVERIFIED.  UNKNOWN still
+    reports the metrics it could compute.
+
+    Placeholders are screened from a fixed list: a licence word such as
+    "unknown", "TODO" or "NOASSERTION", or a licence with no letter or digit;
+    a digest that repeats with a period of 32 characters or fewer, the digest
+    of empty input, or one digest under two or more of the five required hash
+    fields.  Other stubs can pass the screen; they still reach UNVERIFIED at
+    most, which never claims the provenance was verified.
+
     UNVERIFIED means computed from the supplied records with well-formed
     provenance whose digests were not recomputed; it is not a measurement, a
     benchmark or a discovery claim.  Training overlap "none" earns
@@ -875,16 +938,23 @@ def evaluate(bundle):
     out["leakage"] = leakage
     if leakage["status"] == "LEAKAGE":
         return blocked("split leakage detected; metrics withheld")
-    if leakage["material_check"] != "RUN":
+    if leakage["cross_split_check"] != "RUN":
         out["notes"].append(
-            f"material_id overlap check {leakage['material_check']}: "
-            f"{leakage['records_without_material_id']} record(s) carry no material_id"
+            f"cross-split leakage check {leakage['cross_split_check']}: splits supplied "
+            f"{leakage['splits_present']}, so group, material_id and composition overlap "
+            "between train and test is not observable"
         )
-    if leakage["composition_check"] != "RUN":
-        out["notes"].append(
-            f"composition overlap check {leakage['composition_check']}: "
-            f"{leakage['records_without_composition']} record(s) carry no composition"
-        )
+    if leakage["cross_split_check"] != "NOT_RUN":
+        if leakage["material_check"] != "RUN":
+            out["notes"].append(
+                f"material_id overlap check {leakage['material_check']}: "
+                f"{leakage['records_without_material_id']} record(s) carry no material_id"
+            )
+        if leakage["composition_check"] != "RUN":
+            out["notes"].append(
+                f"composition overlap check {leakage['composition_check']}: "
+                f"{leakage['records_without_composition']} record(s) carry no composition"
+            )
 
     provenance = _provenance_report(bundle.get("provenance"))
     out["provenance"] = provenance
@@ -933,6 +1003,13 @@ def evaluate(bundle):
             "provenance incomplete: missing "
             f"{provenance['missing']}, invalid {provenance['invalid']}, "
             f"placeholder {provenance['placeholder']}"
+        )
+    if leakage["status"] == "UNKNOWN":
+        status = "UNKNOWN"
+        absent = [s for s in ("train", "test") if s not in leakage["splits_present"]]
+        out["reasons"].append(
+            f"split leakage not observable: no {absent} records, so train and test "
+            "were not compared"
         )
     if out["regression"]["n_predicted"] == 0:
         status = "UNKNOWN"

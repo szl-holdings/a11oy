@@ -16,8 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   beyond 2**53, unit mismatches and identifiers padded with whitespace. It
   reports id, group, material_id and reduced-composition leakage across
   splits (groups and material ids compare case-insensitively, in the
-  per-group table too) and keeps missing predictions in coverage, never
-  dropping them. Regression error comes with per-group support. Discovery
+  per-group table too). The leakage report names the splits it was given:
+  without both train and test records it reads UNKNOWN, never
+  NO_LEAKAGE_DETECTED. Missing predictions stay in coverage and are never
+  dropped. Regression error comes with per-group support. Discovery
   metrics need an `e_above_hull` target, follow the task's declared
   threshold and missing-prediction policy, and every ratio with a zero
   denominator reads UNDEFINED. Acceleration is `random_budget /
@@ -26,11 +28,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   noted in the output.
 - `evaluate()` returns UNVERIFIED, SAMPLE, UNKNOWN or BLOCKED, and never PASS
   or MEASURED: provenance digests are format-checked, not recomputed. A
-  missing, malformed or placeholder hash or license (including an all-one-
-  character digest, the digest of empty input, one digest reused across
-  artifacts, or the license `NOASSERTION`) gives UNKNOWN. The module
-  fits no model, runs no benchmark, makes no discovery claim, and is not
-  imported by `serve.py` or any route. Tests:
+  missing or malformed hash or license gives UNKNOWN, and so does a
+  placeholder from a fixed screen: license words such as `unknown`, `TODO`
+  or `NOASSERTION`, a license with no letter or digit, a digest that repeats
+  with a period of 32 characters or fewer, the digest of empty input, or
+  one digest reused across artifacts. Other stubs can pass the screen and
+  still reach UNVERIFIED, which never claims verified provenance. A bundle
+  without both train and test records is UNKNOWN, with metrics still
+  reported. The module fits no model, runs no benchmark, makes no discovery
+  claim, and is not imported by `serve.py` or any route. Tests:
   `tests/test_materials_eval_r09.py`, synthetic fixtures only.
 
 ### Fixed - RAG status evidence scope

@@ -205,9 +205,16 @@ def test_task_contract_violations_block_evaluation():
     bad = _bundle()
     bad["task"]["discovery"]["missing_policy"] = "drop"
     assert ev.evaluate(bad)["status"] == "BLOCKED"
-    bad = _bundle()
-    bad["task"]["discovery"]["threshold"] = True
-    assert ev.evaluate(bad)["status"] == "BLOCKED"
+    for threshold in (True, 2**53 + 1, -(2**53) - 1):
+        bad = _bundle()
+        bad["task"]["discovery"]["threshold"] = threshold
+        result = ev.evaluate(bad)
+        assert result["status"] == "BLOCKED"
+        # Refused by the task contract, not only later by discovery_metrics.
+        assert any(
+            "task.discovery.threshold must be a finite real number" in e
+            for e in result["validation"]["errors"]
+        ), threshold
 
 
 def test_discovery_on_a_non_hull_target_is_blocked():
@@ -233,6 +240,8 @@ def test_evaluate_never_raises_on_garbage(bundle):
 def test_clean_fixture_has_no_detected_leakage():
     report = ev.check_leakage(_records())
     assert report["status"] == "NO_LEAKAGE_DETECTED"
+    assert report["splits_present"] == ["train", "calibration", "test"]
+    assert report["cross_split_check"] == "RUN"
     assert report["composition_check"] == "RUN"
     assert report["material_check"] == "NOT_RUN"
     assert report["records_without_material_id"] == 8
@@ -242,6 +251,89 @@ def test_clean_fixture_has_no_detected_leakage():
     assert report["composition_overlap"] == []
     notes = ev.evaluate(_bundle())["notes"]
     assert "material_id overlap check NOT_RUN: 8 record(s) carry no material_id" in notes
+
+
+def _dft_records_in(*splits):
+    return [r for r in _as_dft(_records()) if r["split"] in splits]
+
+
+_NO_TRAIN_REASON = (
+    "split leakage not observable: no ['train'] records, so train and test were not compared"
+)
+
+
+def test_test_only_bundle_cannot_observe_leakage_and_is_unknown():
+    records = _dft_records_in("test")
+    report = ev.check_leakage(records)
+    assert report["status"] == "UNKNOWN"
+    assert report["splits_present"] == ["test"]
+    assert report["cross_split_check"] == "NOT_RUN"
+    assert report["group_overlap"] == [] and report["composition_overlap"] == []
+    # Nothing to compare against, so the field checks did not run either.
+    assert report["composition_check"] == "NOT_RUN"
+    assert report["material_check"] == "NOT_RUN"
+    result = ev.evaluate(_bundle(records=records))
+    assert result["status"] == "UNKNOWN"
+    assert result["leakage"]["status"] == "UNKNOWN"
+    assert result["reasons"] == [_NO_TRAIN_REASON]
+    assert result["notes"] == [
+        "cross-split leakage check NOT_RUN: splits supplied ['test'], so group, "
+        "material_id and composition overlap between train and test is not observable"
+    ]
+    # The metrics are still reported; the status says what could not be seen.
+    assert result["regression"]["mae"] == 0.34375
+    assert result["held_out_label"] == "held-out"
+
+
+def test_calibration_and_test_without_train_is_partial_and_unknown():
+    records = _dft_records_in("calibration", "test")
+    report = ev.check_leakage(records)
+    assert report["status"] == "UNKNOWN"
+    assert report["splits_present"] == ["calibration", "test"]
+    assert report["cross_split_check"] == "PARTIAL"
+    assert report["composition_check"] == "RUN"
+    result = ev.evaluate(_bundle(records=records))
+    assert result["status"] == "UNKNOWN"
+    assert result["reasons"] == [_NO_TRAIN_REASON]
+    assert any(n.startswith("cross-split leakage check PARTIAL") for n in result["notes"])
+    # The splits that are present are still compared against each other.
+    records.append(_rec("te-5", "Ti-O", "test", 0.0, 0.0, "TiO2"))
+    leaked = ev.check_leakage(records)
+    assert leaked["status"] == "LEAKAGE"
+    assert leaked["group_overlap"] == [{"group": "Ti-O", "splits": ["calibration", "test"]}]
+    assert ev.evaluate(_bundle(records=records))["status"] == "BLOCKED"
+
+
+def test_train_and_test_without_calibration_is_a_full_cross_split_check():
+    records = _dft_records_in("train", "test")
+    report = ev.check_leakage(records)
+    assert report["cross_split_check"] == "RUN"
+    assert report["status"] == "NO_LEAKAGE_DETECTED"
+    result = ev.evaluate(_bundle(records=records))
+    assert result["status"] == "UNVERIFIED"
+    assert not any(n.startswith("cross-split leakage check") for n in result["notes"])
+
+
+def test_train_only_and_empty_bundles_are_unknown_not_clean():
+    records = _dft_records_in("train")
+    assert ev.check_leakage(records)["status"] == "UNKNOWN"
+    result = ev.evaluate(_bundle(records=records))
+    assert result["status"] == "UNKNOWN"
+    assert (
+        "split leakage not observable: no ['test'] records, so train and test were not compared"
+        in result["reasons"]
+    )
+    empty = ev.check_leakage([])
+    assert empty["status"] == "UNKNOWN" and empty["cross_split_check"] == "NOT_RUN"
+
+
+def test_single_split_still_reports_duplicate_ids_as_leakage():
+    records = _dft_records_in("test")
+    records.append(dict(records[0]))
+    report = ev.check_leakage(records)
+    assert report["cross_split_check"] == "NOT_RUN"
+    assert report["status"] == "LEAKAGE" and report["duplicate_ids"] == ["te-1"]
+    assert ev.evaluate(_bundle(records=records))["status"] == "BLOCKED"
 
 
 def test_group_leakage_across_splits_blocks_and_withholds_metrics():
@@ -599,9 +691,21 @@ def test_discovery_requires_energy_above_hull_unit_and_finite_threshold():
 def test_acceleration_factor_fixture_ten_versus_five_is_two():
     assert ev.acceleration_factor(10, 5) == 2.0
     assert ev.budget_fraction(10, 5) == 0.5
-    for random_budget, model_budget in ((0, 5), (10, 0), (-10, 5), (True, 5), (10, float("nan"))):
+    rejected = (
+        (0, 5),
+        (10, 0),
+        (-10, 5),
+        (True, 5),
+        (10, float("nan")),
+        (2**53 + 1, 5),  # no exact float beyond 2**53
+        (10, 2**53 + 1),
+    )
+    for random_budget, model_budget in rejected:
         with pytest.raises(ValueError):
             ev.acceleration_factor(random_budget, model_budget)
+        with pytest.raises(ValueError):
+            ev.budget_fraction(random_budget, model_budget)
+    assert ev.acceleration_factor(2**53, 2**52) == 2.0
     with pytest.raises(ValueError):
         ev.acceleration_factor(1e308, 1e-308)
 
@@ -790,8 +894,19 @@ def test_missing_provenance_is_unknown_never_pass(key):
         ({"checkpoint_license": "n/a"}, "placeholder"),
         ({"data_license": "Unverified"}, "placeholder"),
         ({"data_license": "NOASSERTION"}, "placeholder"),
+        ({"data_license": "TODO"}, "placeholder"),
+        ({"code_license": "TBA"}, "placeholder"),
+        ({"checkpoint_license": "unspecified"}, "placeholder"),
+        ({"data_license": "Not  Specified"}, "placeholder"),
+        ({"data_license": "?"}, "placeholder"),
+        ({"code_license": " - "}, "placeholder"),
         ({"task_sha256": "0" * 64}, "placeholder"),
         ({"hull_sha256": "f" * 64}, "placeholder"),
+        ({"task_sha256": "0123456789abcdef" * 4}, "placeholder"),
+        ({"split_sha256": "deadbeef" * 8}, "placeholder"),
+        ({"hull_sha256": "ab" * 32}, "placeholder"),
+        ({"model_sha256": ("abc" * 22)[:64]}, "placeholder"),
+        ({"checkpoint_sha256": _digest("half")[:32] * 2}, "placeholder"),
         ({"checkpoint_sha256": hashlib.sha256(b"").hexdigest()}, "placeholder"),
         ({key: hashlib.sha256(b"x").hexdigest() for key in ev.REQUIRED_HASHES}, "placeholder"),
         ({"model_sha256": _digest("synthetic checkpoint")}, "placeholder"),
@@ -804,6 +919,23 @@ def test_malformed_or_placeholder_provenance_is_unknown(overrides, field):
     assert result["status"] == "UNKNOWN"
     assert result["provenance"][field]
     assert result["provenance"]["complete"] is False
+
+
+@pytest.mark.parametrize("license_id", ["MIT", "CC0-1.0", "Unlicense", "LicenseRef-internal"])
+def test_real_license_identifiers_are_not_placeholders(license_id):
+    result = ev.evaluate(
+        _bundle(records=_as_dft(_records()), provenance=_provenance(data_license=license_id))
+    )
+    assert result["status"] == "UNVERIFIED"
+    assert result["provenance"]["placeholder"] == []
+
+
+def test_real_digests_are_not_screened_as_placeholders():
+    records = _as_dft(_records())
+    for index in range(200):
+        prov = _provenance(model_sha256=_digest(f"synthetic model {index}"))
+        result = ev.evaluate(_bundle(records=records, provenance=prov))
+        assert result["provenance"]["placeholder"] == [], index
 
 
 def test_one_digest_reused_across_artifacts_names_every_field_that_shares_it():
@@ -884,6 +1016,14 @@ def test_records_digest_binds_values_not_their_spelling():
     respelled[0]["y_true"] = 0  # int instead of 0.0
     respelled[6]["y_true"] = -0.0  # negative zero instead of 0.0
     assert ev.evaluate(_bundle(records=respelled))["records_sha256"] == first
+    # Non-zero values too: 1 and 1.0 are the same number.
+    as_float = _records()
+    as_float[7]["y_true"], as_float[5]["y_pred"] = 1.0, -1.0
+    as_int = _records()
+    as_int[7]["y_true"], as_int[5]["y_pred"] = 1, -1
+    digest = ev.evaluate(_bundle(records=as_float))["records_sha256"]
+    assert digest == ev.evaluate(_bundle(records=as_int))["records_sha256"]
+    assert digest != first
 
 
 # --- module boundary -------------------------------------------------------
