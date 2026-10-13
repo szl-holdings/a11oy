@@ -105,7 +105,7 @@ jobs:
           python tests/browser_command_observations.py 2>&1 | tee command-evidence/tests.log
       - name: Preserve browser evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: command-observations-${{ github.run_id }}-${{ github.run_attempt }}
           path: command-evidence/
@@ -135,7 +135,7 @@ jobs:
         run: python scripts/witness_command_release.py --expected-source "$EXPECTED_SOURCE"
       - name: Preserve successful or failed public browser evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: command-live-${{ github.run_id }}-${{ github.run_attempt }}
           path: command-live-evidence/

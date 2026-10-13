@@ -83,7 +83,7 @@ jobs:
       - name: Retain validated inputs for this run only
         id: snapshot_artifact
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: brain-frontier-v7-input-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
@@ -167,7 +167,7 @@ jobs:
             --snapshot-digest "$SNAPSHOT_DIGEST" --candidate-set "$CANDIDATE_SET"
       - name: Retain the refresh outcome before enforcing success
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: brain-frontier-v7-refresh-${{ github.run_id }}-${{ github.run_attempt }}
           path: |

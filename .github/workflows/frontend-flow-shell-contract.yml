@@ -106,7 +106,7 @@ jobs:
           python tools/check_shared_shell_source_browser.py --chromium "$browser_bin" --output "$RUNNER_TEMP/shared-shell-evidence/source" "${baseline[@]}"
       - name: Retain source observations and screenshots
         if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: shared-shell-${{ github.sha }}
           path: ${{ runner.temp }}/shared-shell-evidence/
@@ -151,7 +151,7 @@ jobs:
             node tests/browser_landing_reflow.cjs
       - name: Retain source measurements and screenshots
         if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: landing-reflow-${{ github.sha }}
           path: ${{ runner.temp }}/landing-browser-evidence/
