@@ -106,7 +106,7 @@ jobs:
           python tools/check_shared_shell_source_browser.py --chromium "$browser_bin" --output "$RUNNER_TEMP/shared-shell-evidence/source" "${baseline[@]}"
       - name: Retain source observations and screenshots
         if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: shared-shell-${{ github.sha }}
           path: ${{ runner.temp }}/shared-shell-evidence/
@@ -132,7 +132,7 @@ jobs:
           [[ "$LANDING_BASE_SHA" =~ ^[0-9a-f]{40}$ ]]
           git fetch --no-tags --depth=1 origin "$LANDING_BASE_SHA"
           git cat-file -e "${LANDING_BASE_SHA}:a11oy_landing.html"
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "24"
       - name: Install isolated browser test dependency
@@ -151,7 +151,7 @@ jobs:
             node tests/browser_landing_reflow.cjs
       - name: Retain source measurements and screenshots
         if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: landing-reflow-${{ github.sha }}
           path: ${{ runner.temp }}/landing-browser-evidence/

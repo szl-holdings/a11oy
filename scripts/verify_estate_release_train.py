@@ -436,7 +436,7 @@ def hf_inventory(
             else:
                 state = "UNAVAILABLE"
             result["counts"][kind] = None
-            result["items"][kind] = []
+            result["items"][kind] = None
             result["errors"][kind] = message
         result["page_evidence"][kind] = pages
         result["enumeration_state"][kind] = state
