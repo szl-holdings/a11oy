@@ -282,6 +282,136 @@ def test_exact_capture_readback_qualifies_without_provider_mutation(capture, tmp
         assert not isinstance(info, str)
 
 
+@pytest.fixture
+def fallback_capture(originals, tmp_path):
+    hub = fixtures.FakeHub({path: originals[label].read_bytes() for label, path in p.DATABASES.items()})
+    def unavailable_copy(api, copies, additions):
+        if copies:
+            raise RuntimeError(PRIVATE)
+        api.apply_batch(copies, additions)
+    hub.batch_behavior = unavailable_copy
+    reference = p.preserve(hub, source_sha="a" * 40, run_id="37216937874", run_attempt="1",
+                           nonce="b" * 32, workspace=tmp_path / "preservation",
+                           require_owned_source=lambda: None, sleep=lambda _: None)
+    assert reference["preservation_state"] == "VERIFIED", reference
+    assert reference["copy_mode"] == "LOCAL_UPLOAD_FALLBACK"
+    return hub, reference
+
+
+def test_verified_upload_fallback_qualifies_without_provider_mutation(fallback_capture, tmp_path):
+    hub, reference = fallback_capture
+    batches, original_remote = len(hub.batch_calls), dict(hub.files)
+    report = captured_run(fallback_capture, tmp_path)
+    assert report["state"] == "LOGICAL_CONTINUITY_VERIFIED", report
+    assert report["provider_writes_performed"] is False
+    assert report["restore_admitted"] is report["deployment_admitted"] is False
+    assert report["later_acknowledged_writes_verified"] is False
+    assert len(hub.batch_calls) == batches and hub.files == original_remote
+    assert PRIVATE not in json.dumps(report)
+    assert all("/uploaded-originals/" in row["private_copy_path"]
+               for row in reference["files"] if row["present"])
+
+
+def replace_capture_manifest(hub, reference, saved):
+    manifest = reference["private_manifest"]
+    body = p._json_bytes(saved)
+    hub.files[manifest["path"]] = body
+    manifest["sha256"] = manifest["xet_hash"] = hashlib.sha256(body).hexdigest()
+
+
+def test_legacy_server_copy_without_mode_remains_qualified(capture, tmp_path):
+    hub, reference = capture
+    saved = json.loads(hub.files[reference["private_manifest"]["path"]])
+    reference.pop("copy_mode")
+    saved.pop("copy_mode")
+    replace_capture_manifest(hub, reference, saved)
+    report = captured_run(capture, tmp_path)
+    assert report["state"] == "LOGICAL_CONTINUITY_VERIFIED", report
+    assert report["restore_admitted"] is report["deployment_admitted"] is False
+
+
+@pytest.mark.parametrize("mode", [None, True, False, 1, "", "UNKNOWN", [], {}])
+def test_invalid_copy_mode_rejected_before_provider_reads(capture, tmp_path, mode):
+    hub, reference = capture
+    reference["copy_mode"] = mode
+    before = (len(hub.calls), len(hub.download_calls), len(hub.batch_calls))
+    report = captured_run(capture, tmp_path)
+    assert report["state"] == "BLOCKED"
+    assert report["diagnostic_code"] == "CAPTURE_REFERENCE_INVALID"
+    assert (len(hub.calls), len(hub.download_calls), len(hub.batch_calls)) == before
+    assert report["provider_writes_performed"] is False
+    assert report["restore_admitted"] is report["deployment_admitted"] is False
+
+
+@pytest.mark.parametrize("fixture_name", ["capture", "fallback_capture"])
+@pytest.mark.parametrize("defect", ["wrong_mode", "mixed_prefix", "traversal", "other_capture"])
+def test_copy_mode_requires_exact_uniform_capture_paths(request, tmp_path, fixture_name, defect):
+    pair = request.getfixturevalue(fixture_name)
+    hub, reference = pair
+    row = next(item for item in reference["files"] if item["present"])
+    if defect == "wrong_mode":
+        reference["copy_mode"] = ("LOCAL_UPLOAD_FALLBACK" if fixture_name == "capture"
+                                  else "SERVER_SIDE_XET_COPY")
+    elif defect == "mixed_prefix":
+        current = "/originals/" if fixture_name == "capture" else "/uploaded-originals/"
+        alternate = "/uploaded-originals/" if fixture_name == "capture" else "/originals/"
+        row["private_copy_path"] = row["private_copy_path"].replace(current, alternate)
+    elif defect == "traversal":
+        row["private_copy_path"] = row["private_copy_path"].replace("/a11oy/gdw/", "/a11oy/../a11oy/gdw/")
+    else:
+        row["private_copy_path"] = row["private_copy_path"].replace(reference["capture_id"], "other-capture")
+    before = (len(hub.calls), len(hub.download_calls), len(hub.batch_calls))
+    report = captured_run(pair, tmp_path)
+    assert report["state"] == "BLOCKED"
+    assert report["diagnostic_code"] == "CAPTURE_REFERENCE_INVALID"
+    assert (len(hub.calls), len(hub.download_calls), len(hub.batch_calls)) == before
+
+
+def test_fallback_without_explicit_mode_rejected_before_provider_reads(fallback_capture, tmp_path):
+    hub, reference = fallback_capture
+    reference.pop("copy_mode")
+    before = (len(hub.calls), len(hub.download_calls), len(hub.batch_calls))
+    report = captured_run(fallback_capture, tmp_path)
+    assert report["diagnostic_code"] == "CAPTURE_REFERENCE_INVALID"
+    assert (len(hub.calls), len(hub.download_calls), len(hub.batch_calls)) == before
+
+
+@pytest.mark.parametrize("fixture_name", ["capture", "fallback_capture"])
+@pytest.mark.parametrize("mode", ["missing", None, True, 1, "OTHER", "opposite"])
+def test_manifest_copy_mode_must_bind_reference_before_sqlite(request, tmp_path, monkeypatch, fixture_name, mode):
+    pair = request.getfixturevalue(fixture_name)
+    hub, reference = pair
+    saved = json.loads(hub.files[reference["private_manifest"]["path"]])
+    if mode == "missing":
+        saved.pop("copy_mode")
+    else:
+        saved["copy_mode"] = (("LOCAL_UPLOAD_FALLBACK" if fixture_name == "capture"
+                               else "SERVER_SIDE_XET_COPY") if mode == "opposite" else mode)
+    replace_capture_manifest(hub, reference, saved)
+    opened = []
+    def forbidden(*_args, **_kwargs):
+        opened.append(True)
+        raise AssertionError("a mismatched manifest must not open SQLite")
+    monkeypatch.setattr(q.sqlite3, "connect", forbidden)
+    batches, original_remote = len(hub.batch_calls), dict(hub.files)
+    report = captured_run(pair, tmp_path)
+    assert report["diagnostic_code"] == "PRESERVED_MANIFEST_BINDING_INVALID"
+    assert not opened
+    assert len(hub.batch_calls) == batches and hub.files == original_remote
+    assert report["provider_writes_performed"] is False
+    assert report["restore_admitted"] is report["deployment_admitted"] is False
+
+
+def test_legacy_reference_cannot_accept_explicit_null_manifest_mode(capture, tmp_path):
+    hub, reference = capture
+    reference.pop("copy_mode")
+    saved = json.loads(hub.files[reference["private_manifest"]["path"]])
+    saved["copy_mode"] = None
+    replace_capture_manifest(hub, reference, saved)
+    report = captured_run(capture, tmp_path)
+    assert report["diagnostic_code"] == "PRESERVED_MANIFEST_BINDING_INVALID"
+
+
 @pytest.mark.parametrize("change", ["unverified", "path", "xet_hash", "sha256", "manifest"])
 def test_invalid_or_changed_capture_never_reaches_sqlite(capture, tmp_path, monkeypatch, change):
     hub, reference = capture

@@ -7500,6 +7500,21 @@ async def _a11oy_pr_honest_v2():
         },
     })
 
+
+# Origin-owned fallback for the product edge's holographic page alias. This
+# route also works when a request reaches the HF app without the Worker.
+@app.api_route("/spectral", methods=["GET", "HEAD"])
+async def spectral_alias() -> Response:
+    page = _szl_doc("static/3d/holographic.html")
+    if not page.is_file():
+        return JSONResponse(
+            {"status": "UNAVAILABLE", "reason": "holographic page missing"},
+            status_code=503,
+            headers={"Cache-Control": "no-store"},
+        )
+    return FileResponse(page, media_type="text/html")
+
+
 @app.get("/api/a11oy/v1/audit-log")
 async def _a11oy_pr_audit_log_v2(limit: int = 50):
     """In-memory audit log ring buffer — parity with the sibling flagships. Doctrine v11."""
@@ -9209,6 +9224,9 @@ except Exception as _sc_e:  # pragma: no cover - additive, defensive
 #     beats fake green) — so it passes the operator-reason envelope guard.
 # Routes (registered BEFORE the SPA catch-all so they resolve LOCALLY):
 #   GET  /api/a11oy/v1/rag/query?q=...   — governed RAG answer (also descriptor on bare GET)
+#        &mode=lexical                   — model-free cited reference (no embedder,
+#                                          HyDE, receipt or Router dispatch; fails
+#                                          closed if the engine lacks the switch)
 #   POST /api/a11oy/v1/rag/estate/query {q|question, k?, repo?} — estate answer
 #   POST /api/a11oy/v1/rag/query remains owned by szl_governed_rag.
 #   GET  /api/a11oy/v1/rag/status        — index build state + corpus manifest (governed)
@@ -9222,6 +9240,65 @@ try:
         import a11oy_org_rag as _rag_engine
     from fastapi import Request as _RAGRequest, Query as _RAGQuery
     from fastapi.responses import JSONResponse as _RAGJSON
+
+    _RAG_LEXICAL_CONTRACT = "szl.a11oy.org_rag.lexical_reference/v1"
+    _RAG_LEXICAL_K_MAX = 6
+
+    def _rag_engine_file_identity(engine):
+        """Name the imported engine and digest its module file once at mount.
+        The digest covers the file on disk when this process mounted the routes;
+        it does not prove the bytecode that is executing."""
+        import hashlib as _eh
+        import os as _eo
+        name = getattr(engine, "__name__", None)
+        if isinstance(name, str) and name.startswith("szl_substrate."):
+            origin = "installed_package"
+        elif name == "a11oy_org_rag":
+            origin = "vendored"
+        else:
+            origin = "unknown"
+        identity = {"module": name if isinstance(name, str) else None, "origin": origin,
+                    "file_name": None, "file_sha256": None,
+                    "distribution": None, "distribution_version": None}
+        path = getattr(engine, "__file__", None)
+        if isinstance(path, str):
+            identity["file_name"] = _eo.path.basename(path)
+            try:
+                with open(path, "rb") as _fh:
+                    identity["file_sha256"] = _eh.sha256(_fh.read()).hexdigest()
+            except OSError:
+                identity["file_sha256"] = None
+        if origin == "installed_package":
+            identity["distribution"] = "szl-substrate"
+            try:
+                from importlib import metadata as _em
+                identity["distribution_version"] = _em.version("szl-substrate")
+            except Exception:
+                identity["distribution_version"] = None
+        return identity
+
+    _RAG_ENGINE_FILE_IDENTITY = _rag_engine_file_identity(_rag_engine)
+
+    def _rag_lexical_capability():
+        """Probe the live engine for the explicit lexical switch. An engine that
+        lacks either the contract constant or the parameter cannot serve it."""
+        import inspect as _ci
+        if getattr(_rag_engine, "LEXICAL_REFERENCE_CONTRACT", None) != _RAG_LEXICAL_CONTRACT:
+            return False, "LEXICAL_REFERENCE_CONTRACT_ABSENT"
+        try:
+            param = _ci.signature(_rag_engine.query).parameters.get("lexical_only")
+        except (TypeError, ValueError, AttributeError):
+            param = None
+        if param is None or param.kind not in (param.POSITIONAL_OR_KEYWORD, param.KEYWORD_ONLY):
+            return False, "LEXICAL_ONLY_PARAMETER_ABSENT"
+        return True, None
+
+    def _rag_engine_identity():
+        supported, reason = _rag_lexical_capability()
+        return {**_RAG_ENGINE_FILE_IDENTITY,
+                "lexical_reference": "SUPPORTED" if supported else "UNSUPPORTED",
+                "lexical_reference_reason": reason,
+                "lexical_contract": _RAG_LEXICAL_CONTRACT}
 
     def _rag_emit_receipt(kind, body):
         """Emit a governed provenance receipt over a RAG event. Uses the in-image
@@ -9290,6 +9367,12 @@ try:
                 "grounding": ("two-stage Λ-weighted agentic RAG (FTS5 lexical ∪ dense, "
                               "graph-centrality re-rank, conformal floor); below the Λ "
                               "relevance floor => i_dont_know (Self-RAG; never fabricates)."),
+                "modes": {
+                    "default": "existing hybrid read; may reuse an already-loaded embedder",
+                    "lexical": ("mode=lexical, 1<=k<=6: model-free cited reference with "
+                                "generation, chunk and excerpt digests; UNAVAILABLE "
+                                "rather than a hybrid fallback"),
+                },
                 "corpus": _rag_engine.corpus_manifest(),
             }
             return desc, "REAL", [{"endpoint": "GET /api/a11oy/v1/rag/query and POST /api/a11oy/v1/rag/estate/query — estate index",
@@ -9421,6 +9504,157 @@ try:
                                   "dsse": rcpt.get("dsse")}
         return payload, "REAL", citations
 
+    _RAG_LEXICAL_NOT_CLAIMED = [
+        "authenticated principal or tenant scope",
+        "source rights, admission or withdrawal enforcement",
+        "factual support, entailment or calibrated confidence",
+        "deployment parity with reviewed source",
+    ]
+
+    def _rag_lexical_base(q):
+        return {
+            "query": q, "mode": "lexical", "lexical_contract": _RAG_LEXICAL_CONTRACT,
+            "retrieval_method": "lexical", "inference": "NOT_INVOKED",
+            "router_dispatch_count": 0, "embedder_invoked": False,
+            "answer": None, "receipt_hash": None, "receipt_state": "NOT_MINTED_ON_READ",
+            "confidence_state": "NOT_REPORTED_UNCALIBRATED",
+            "engine": _rag_engine_identity(),
+            "not_claimed": list(_RAG_LEXICAL_NOT_CLAIMED),
+        }
+
+    def _rag_lexical_unavailable(q, reason_code, honest_error, **extra):
+        payload = _rag_lexical_base(q)
+        payload.update({"result_state": "UNAVAILABLE", "i_dont_know": True,
+                        "citations": [], "reason_code": reason_code,
+                        "honest_error": honest_error,
+                        "receipt_state": "NOT_MINTED_INDEX_UNAVAILABLE", **extra})
+        return payload, "UNAVAILABLE", []
+
+    def _rag_sha256_hex(value):
+        return isinstance(value, str) and len(value) == 64 and all(
+            ch in "0123456789abcdef" for ch in value)
+
+    def _rag_lexical_citation(rank, chunk):
+        """Copy only engine-bound identity, re-deriving the excerpt digest."""
+        import hashlib as _lh
+        excerpt = chunk.get("excerpt")
+        span = chunk.get("excerpt_utf8_span")
+        if not (isinstance(excerpt, str) and isinstance(span, list) and len(span) == 2
+                and all(type(x) is int for x in span) and span[0] == 0
+                and _rag_sha256_hex(chunk.get("chunk_sha256"))
+                and chunk.get("chunk_sha256") == chunk.get("sha256")
+                and chunk.get("retrieval_plane") == "corpus"):
+            return None
+        encoded = excerpt.encode("utf-8")
+        if (len(encoded) != span[1]
+                or _lh.sha256(encoded).hexdigest() != chunk.get("excerpt_sha256")):
+            return None
+        return {
+            "rank": rank, "chunk_id": chunk.get("chunk_id"), "node_id": chunk.get("node_id"),
+            "corpus": chunk.get("corpus"), "source": chunk.get("source"),
+            "repo": chunk.get("repo"), "path": chunk.get("path"),
+            "source_revision": chunk.get("source_revision"),
+            "source_revision_state": chunk.get("source_revision_state"),
+            "chunk_sha256": chunk.get("chunk_sha256"),
+            "chunk_utf8_bytes": chunk.get("chunk_utf8_bytes"),
+            "excerpt": excerpt, "excerpt_utf8_span": span,
+            "excerpt_sha256": chunk.get("excerpt_sha256"),
+            "excerpt_truncated": chunk.get("excerpt_truncated"),
+            "lexical_score": (chunk.get("scores") or {}).get("lexical"),
+            "lambda": chunk.get("lambda"),
+        }
+
+    def _rag_lexical_reference(q, k, repo):
+        """Model-free cited reference over the active generation (GET mode=lexical).
+        Never falls back to hybrid retrieval: an engine without the explicit
+        switch, an unbuilt index or any binding mismatch returns UNAVAILABLE."""
+        supported, reason = _rag_lexical_capability()
+        if not supported:
+            return _rag_lexical_unavailable(
+                q, "LEXICAL_REFERENCE_UNSUPPORTED_BY_ENGINE",
+                "the imported RAG engine does not implement the explicit lexical-only "
+                "switch (%s); hybrid retrieval is not substituted" % reason)
+        idx = _rag_index_status()
+        if not idx.get("built"):
+            return _rag_lexical_unavailable(
+                q, "LEXICAL_REFERENCE_INDEX_UNAVAILABLE",
+                str(idx.get("honest_error") or "the governed RAG index is not built"),
+                index={"built": False, "mode": idx.get("mode"),
+                       "honest_error": idx.get("honest_error"),
+                       "storage_state": idx.get("storage_state"),
+                       "build_state": idx.get("build_state")})
+        try:
+            res = _rag_engine.query(q, k=int(k), repo=repo, emit_receipt=None,
+                                    load_embedder=False, lexical_only=True)
+        except Exception as exc:
+            return _rag_lexical_unavailable(
+                q, "LEXICAL_REFERENCE_ENGINE_FAILED",
+                "lexical reference query failed: %s" % type(exc).__name__)
+        if not isinstance(res, dict):
+            return _rag_lexical_unavailable(
+                q, "LEXICAL_REFERENCE_ENGINE_CONTRACT_VIOLATION",
+                "engine returned a non-object result")
+        echoed = (res.get("lexical_contract") == _RAG_LEXICAL_CONTRACT
+                  and res.get("retrieval_method") == "lexical"
+                  and res.get("inference") == "NOT_INVOKED"
+                  and res.get("embedder_invoked") is False
+                  and res.get("router_dispatch_count") == 0
+                  and res.get("receipt_emitted") is False)
+        if not echoed:
+            return _rag_lexical_unavailable(
+                q, "LEXICAL_REFERENCE_ENGINE_CONTRACT_VIOLATION",
+                "engine result does not attest the lexical-only contract")
+        if not res.get("ok"):
+            return _rag_lexical_unavailable(
+                q, str(res.get("reason_code") or "LEXICAL_REFERENCE_INDEX_UNAVAILABLE"),
+                str(res.get("honest_error") or "published index read failed"),
+                integrity_state=res.get("integrity_state") or "FAILED_CLOSED",
+                storage_state=res.get("storage_state"))
+        if (res.get("dense_used") is not False or res.get("hyde_used") is not False
+                or res.get("generation_status") != "ACTIVE"
+                or not res.get("generation_id")
+                or not _rag_sha256_hex(res.get("generation_digest_sha256"))
+                or not _rag_sha256_hex(res.get("evidence_set_sha256"))):
+            return _rag_lexical_unavailable(
+                q, "LEXICAL_REFERENCE_ENGINE_CONTRACT_VIOLATION",
+                "engine result lacks a model-free, generation-bound evidence set")
+        chunks = res.get("chunks") or []
+        citations = []
+        for rank, chunk in enumerate(chunks, start=1):
+            citation = _rag_lexical_citation(rank, chunk) if isinstance(chunk, dict) else None
+            if citation is None:
+                return _rag_lexical_unavailable(
+                    q, "LEXICAL_REFERENCE_BINDING_INVALID",
+                    "a cited chunk lacks a verifiable chunk/excerpt binding")
+            citations.append(citation)
+        abstained = bool(res.get("i_dont_know")) or not citations
+        payload = _rag_lexical_base(q)
+        payload.update({
+            "result_state": "ABSTAINED" if abstained else "REFERENCE_RETURNED",
+            "i_dont_know": abstained,
+            "generation": {"generation_id": res.get("generation_id"),
+                           "generation_digest_sha256": res.get("generation_digest_sha256"),
+                           "status": "ACTIVE"},
+            "evidence_set": res.get("evidence_set") or [],
+            "evidence_set_sha256": res.get("evidence_set_sha256"),
+            "evidence_set_digest": ("SHA-256 of evidence_set as JSON with sorted keys, "
+                                    "compact separators and UTF-8 text"),
+            "citations": [] if abstained else citations,
+            "retrieval": {"recall_count": res.get("recall_count"),
+                          "grounded_count": res.get("grounded_count"),
+                          "lambda_floor": res.get("lambda_floor"),
+                          "lexical_backend": res.get("lexical_backend"),
+                          "retrieval_planes": res.get("retrieval_planes"),
+                          "revoked_suppressed": res.get("revoked_suppressed", 0),
+                          "dense_used": False, "hyde_used": False},
+            "excerpt_max_utf8_bytes": res.get("excerpt_max_utf8_bytes"),
+            "support_statement": res.get("support_statement"),
+        })
+        if abstained:
+            payload["honesty"] = ("No indexed chunk cleared the relevance floor, so no "
+                                  "passage is cited.")
+        return payload, "REAL", ([] if abstained else citations)
+
     def _rag_response(payload, status, citations):
         unavailable = (status == "UNAVAILABLE" or
                        (isinstance(payload.get("index"), dict) and
@@ -9430,14 +9664,32 @@ try:
         return _RAGJSON(gov_envelope(payload, status=status, citations=citations),
                         status_code=503 if unavailable else 200, headers=headers)
 
+    def _rag_get(q, k, repo, mode):
+        """Shared GET body. The default mode is unchanged; ``mode=lexical`` is the
+        explicit model-free reference and never falls back to the default."""
+        if mode not in ("", "lexical"):
+            return _RAGJSON({"error": "unsupported estate RAG read mode",
+                             "reason_code": "RAG_MODE_UNSUPPORTED",
+                             "supported_modes": ["lexical"]}, status_code=400)
+        if mode == "lexical" and (q or "").strip():
+            if k > _RAG_LEXICAL_K_MAX:
+                return _RAGJSON({"error": "lexical reference k out of bounds",
+                                 "reason_code": "LEXICAL_REFERENCE_K_OUT_OF_BOUNDS",
+                                 "limits": {"k_min": 1, "k_max": _RAG_LEXICAL_K_MAX}},
+                                status_code=400)
+            payload, st, cites = _rag_lexical_reference(q.strip(), k, repo or None)
+        else:
+            payload, st, cites = _rag_answer(q, k=k, repo=(repo or None))
+        return _rag_response(payload, st, cites)
+
     @app.get("/api/a11oy/v1/rag/query")
     async def _rag_query_get(
         q: str = _RAGQuery(default="", max_length=1024),
         k: int = _RAGQuery(default=6, ge=1, le=20),
         repo: str = _RAGQuery(default="", max_length=256),
+        mode: str = _RAGQuery(default="", max_length=16),
     ):
-        payload, st, cites = _rag_answer(q, k=k, repo=(repo or None))
-        return _rag_response(payload, st, cites)
+        return _rag_get(q, k, repo, mode)
 
     @app.post("/api/a11oy/v1/rag/estate/query")
     async def _rag_query_post(request: _RAGRequest):
@@ -9464,9 +9716,9 @@ try:
         q: str = _RAGQuery(default="", max_length=1024),
         k: int = _RAGQuery(default=6, ge=1, le=20),
         repo: str = _RAGQuery(default="", max_length=256),
+        mode: str = _RAGQuery(default="", max_length=16),
     ):
-        payload, st, cites = _rag_answer(q, k=k, repo=(repo or None))
-        return _rag_response(payload, st, cites)
+        return _rag_get(q, k, repo, mode)
 
     @app.get("/api/a11oy/v1/rag/status")
     async def _rag_status_get():
@@ -9477,9 +9729,14 @@ try:
         built = bool(st.get("built"))
         return _RAGJSON(gov_envelope(
             {"index": st, "corpus": _rag_engine.corpus_manifest(),
-             "data_kind": "live" if built else "unavailable", "index_built": built,
+             "data_kind": "cached" if built else "unavailable", "index_built": built,
+             "observation_scope": "stored_index_metadata_and_configured_corpus",
+             "honesty": ("Corpus entries describe configured sources. Index availability "
+                         "does not establish source freshness or complete corpus coverage."),
              "query_endpoint": "/api/a11oy/v1/rag/query",
              "query_method": "GET",
+             "lexical_reference_query": "/api/a11oy/v1/rag/query?mode=lexical",
+             "engine": _rag_engine_identity(),
              "receipt_endpoint": "/api/a11oy/v1/rag/estate/query",
              "receipt_method": "POST",
              "receipt_authority": "operator"},
@@ -14992,21 +15249,80 @@ async def sitemap_xml() -> Response:
     )
 
 
+from routers import platform_candidate_preview as _platform_candidate_preview  # noqa: E402
+
+# The additive preview is byte-bound to the reviewed Platform source and its
+# generated static manifest.  These values establish provenance, not production
+# readiness or a runtime API binding.
+_PLATFORM_CANDIDATE_SOURCE_REVISION = "cc9fc2bd658241354c381e4fe78a11ba1d09dd3b"
+_PLATFORM_CANDIDATE_MANIFEST_SHA256 = (
+    "940ebc0919d078a30c56f74efadbfd317974a53b6980eb8f83b9c367122629d2"
+)
+_PLATFORM_CANDIDATE_ROOT = STATIC_DIR / "preview" / "platform-a11oy"
+_platform_candidate_preview.register(
+    app,
+    _PLATFORM_CANDIDATE_ROOT,
+    expected_source_revision=_PLATFORM_CANDIDATE_SOURCE_REVISION,
+    expected_manifest_sha256=_PLATFORM_CANDIDATE_MANIFEST_SHA256,
+)
+
 @app.get("/{full_path:path}")
 async def spa_fallback(full_path: str) -> Response:
     # Never hijack API routes (handled above, but guard defensively).
     if full_path.startswith("api/"):
         return JSONResponse({"error": "not found"}, status_code=404)
     # Serve a real static file if it exists (e.g. /favicon.svg, /robots.txt).
-    candidate = (STATIC_DIR / full_path).resolve()
+    # Block the preview subtree lexically before dereferencing anything.  The
+    # preview router owns this namespace even when its candidate directory is a
+    # broken or cyclic symlink.
+    requested = STATIC_DIR / full_path
+    lexical_candidate = Path(os.path.abspath(os.fspath(requested)))
+    lexical_preview_root = Path(os.path.abspath(os.fspath(_PLATFORM_CANDIDATE_ROOT)))
     try:
-        candidate.relative_to(STATIC_DIR.resolve())
+        lexical_candidate.relative_to(lexical_preview_root)
+    except ValueError:
+        pass
+    else:
+        return JSONResponse(
+            {"status": "NOT_FOUND", "path": "/" + full_path},
+            status_code=404,
+            headers={"Cache-Control": "no-store"},
+        )
+    try:
+        candidate = requested.resolve()
+        static_root = STATIC_DIR.resolve()
+    except (OSError, RuntimeError, ValueError):
+        return JSONResponse(
+            {"status": "NOT_FOUND", "path": "/" + full_path},
+            status_code=404,
+            headers={"Cache-Control": "no-store"},
+        )
+    try:
+        candidate.relative_to(static_root)
     except ValueError:
         return JSONResponse(
             {"status": "NOT_FOUND", "path": "/" + full_path},
             status_code=404,
             headers={"Cache-Control": "no-store"},
         )
+    try:
+        resolved_preview_root = _PLATFORM_CANDIDATE_ROOT.resolve()
+    except (OSError, RuntimeError, ValueError):
+        resolved_preview_root = None
+    if resolved_preview_root is not None:
+        try:
+            candidate.relative_to(resolved_preview_root)
+        except ValueError:
+            pass
+        else:
+            # The source-bound preview has one owning router.  Alternative URL
+            # spellings must never fall through to raw FileResponse delivery or
+            # receive the operator-widget mutation applied by the generic shell.
+            return JSONResponse(
+                {"status": "NOT_FOUND", "path": "/" + full_path},
+                status_code=404,
+                headers={"Cache-Control": "no-store"},
+            )
     if candidate.is_file():
         return FileResponse(candidate)
     # ADDITIVE: serve a vendored static sub-app's index.html for directory paths
