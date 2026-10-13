@@ -338,7 +338,23 @@ def _subsystem_label(env, subsystem):
             name for name in required_configuration
             if not _present(env, name)
         ]
-        if not configuration_incomplete:
+        # With A11OY_STATE_STORE=v2 the live Series-A file is on local disk and
+        # its durability is the state store's snapshots, not the mount. Read the
+        # already-loaded module only; preflight itself imports nothing.
+        state_store = sys.modules.get("a11oy_state_store")
+        state_path = None
+        if state_store is not None:
+            try:
+                state_path = state_store.local_path("series_a")
+            except Exception:
+                state_path = None
+        if state_path is not None:
+            configuration_incomplete = []
+            try:
+                storage_unavailable = not state_store.writable()
+            except Exception:
+                storage_unavailable = True
+        elif not configuration_incomplete:
             try:
                 from pathlib import Path
 

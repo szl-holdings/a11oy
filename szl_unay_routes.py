@@ -61,6 +61,7 @@ for _p in _IMPORT_PATHS:
 import szl_unay  # noqa: E402
 import szl_khipu_lmdb  # noqa: E402
 import szl_khipu_replicate  # noqa: E402
+import a11oy_state_store  # noqa: E402
 
 
 def _pick_data_dir() -> str:
@@ -73,6 +74,12 @@ def _pick_data_dir() -> str:
     LMDB from a snapshot committed in the repo at /_unay_snapshot (honest: the repo
     is the durable store when no persistent disk is attached).
     """
+    # A11OY_STATE_STORE=v2 owns these files on local disk and snapshots them;
+    # never fall through to the /data FUSE mount in that mode.
+    state_dir = a11oy_state_store.local_dir("unay")
+    if state_dir is not None:
+        os.makedirs(state_dir, exist_ok=True)
+        return str(state_dir)
     cands = [
         os.environ.get("UNAY_DATA_DIR"),
         os.environ.get("ROSIE_DATA_DIR"),
