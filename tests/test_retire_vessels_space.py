@@ -79,7 +79,7 @@ class VesselsRetirementContract(unittest.TestCase):
         self.assertIn("HF_WRITE_TOKEN", self.workflow)
         self.assertIn("HF_TOKEN", self.workflow)
         self.assertIn("retire_vessels_space.py", self.workflow)
-        self.assertIn("actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a", self.workflow)
+        self.assertIn("actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9", self.workflow)
         self.assertIn("actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", self.workflow)
         self.assertIn("actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97", self.workflow)
         uses = re.findall(r"^\s*uses:\s*(\S+)", self.workflow, re.MULTILINE)

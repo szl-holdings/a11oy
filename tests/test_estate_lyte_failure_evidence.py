@@ -10,7 +10,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 HF_PATH = ROOT / ".github/workflows/hf-sync.yml"
 ESTATE_PATH = ROOT / ".github/workflows/estate-release-train.yml"
-UPLOAD = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+UPLOAD = "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
 TITLE = "Preserve source-bound Lyte failure diagnostics"
 CONDITION = "${{ always() && hashFiles('hf-lyte-enterprise-manifest.failed.json') != '' }}"
 FILES = ("hf-lyte-enterprise-manifest.failed.json", "hf-lyte-enterprise-receipt.json")
