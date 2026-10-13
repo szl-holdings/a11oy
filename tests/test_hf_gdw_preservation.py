@@ -973,3 +973,117 @@ def test_manual_preservation_workflow_mutations_fail_closed(old, new):
     assert old in source
     with pytest.raises(AssertionError):
         _assert_manual_preservation_workflow(source.replace(old, new, 1))
+
+
+def _assert_historical_rehearsal_workflow(source):
+    import yaml
+
+    workflow = yaml.load(source, Loader=yaml.BaseLoader)
+    assert set(workflow["on"]) == {"workflow_dispatch"}
+    inputs = workflow["on"]["workflow_dispatch"]["inputs"]
+    assert set(inputs) == {"expected_source_sha"}
+    assert inputs["expected_source_sha"]["required"] == "true"
+    assert inputs["expected_source_sha"]["type"] == "string"
+    assert workflow["permissions"] == {"contents": "read"}
+    assert workflow["concurrency"] == {
+        "group": "sync-relock-canonical-a11oy", "cancel-in-progress": "false",
+    }
+    assert set(workflow["jobs"]) == {"rehearse"}
+    job = workflow["jobs"]["rehearse"]
+    assert "needs" not in job
+    assert job["runs-on"] == "ubuntu-latest" and job["timeout-minutes"] == "10"
+    assert job["if"] == (
+        "${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' "
+        "&& github.sha == inputs.expected_source_sha && github.run_attempt == 1 }}"
+    )
+    steps = job["steps"]
+    assert len(steps) == 7
+    assert [s["uses"] for s in steps if "uses" in s] == [
+        "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+    ]
+    assert steps[0]["with"] == {"ref": "${{ github.sha }}", "persist-credentials": "false"}
+    assert steps[1]["with"]["python-version"] == "3.12"
+    for boundary in (
+        'test "$GITHUB_EVENT_NAME" = workflow_dispatch',
+        'test "$GITHUB_REPOSITORY" = szl-holdings/a11oy',
+        'test "$GITHUB_REF" = refs/heads/main',
+        'test "$GITHUB_RUN_ATTEMPT" = 1',
+        'test "$GITHUB_SHA" = "$EXPECTED_SOURCE_SHA"',
+        'b.get("protected") is True',
+        'b.get("commit",{}).get("sha")==os.environ["GITHUB_SHA"]',
+    ):
+        assert boundary in steps[2]["run"]
+    assert "HF_TOKEN" not in steps[2].get("env", {})
+    assert steps[3]["run"] == (
+        "python3 -m pip install --disable-pip-version-check --no-cache-dir "
+        "'huggingface_hub==1.23.0' 'cryptography==50.0.0'"
+    )
+    assert steps[4]["env"]["HF_TOKEN"] == "${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}"
+    assert steps[4]["run"] == (
+        'set -euo pipefail\nresult=0\n'
+        'python3 -B scripts/qualify_gdw_store_recovery.py \\\n'
+        '  --capture-report docs/operations/evidence/gdw-capture-37223162231.json \\\n'
+        '  --historical-anchors docs/operations/evidence/gdw-recovery-historical-anchors.json \\\n'
+        '  --output "$RUNNER_TEMP/private-historical-qualification.json" || result=$?\n'
+        'printf \'exit_code=%s\\n\' "$result" >> "$GITHUB_OUTPUT"\n'
+    )
+    assert steps[5]["env"]["QUALIFICATION_EXIT_CODE"] == "${{ steps.qualification.outputs.exit_code }}"
+    assert steps[5]["env"]["GH_TOKEN"] == "${{ github.token }}"
+    assert "HF_TOKEN" not in steps[5]["env"]
+    assert steps[5]["shell"] == "bash"
+    assert steps[5]["run"] == (
+        'set -euo pipefail\n'
+        'test "$GITHUB_SHA" = "$EXPECTED_SOURCE_SHA"\n'
+        'gh api "repos/$GITHUB_REPOSITORY/branches/main" |\n'
+        '  python3 -c \'import json, os, sys; b=json.load(sys.stdin); '
+        'sys.exit(0 if b.get("name")=="main" and b.get("protected") is True '
+        'and b.get("commit",{}).get("sha")==os.environ["GITHUB_SHA"] else 1)\'\n'
+        'python3 -I -B scripts/classify_gdw_historical_qualification.py \\\n'
+        '  --report "$RUNNER_TEMP/private-historical-qualification.json" \\\n'
+        '  --output "$RUNNER_TEMP/public-historical-qualification.json" \\\n'
+        '  --expected-source-sha "$EXPECTED_SOURCE_SHA" \\\n'
+        '  --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT" \\\n'
+        '  --qualification-exit-code "$QUALIFICATION_EXIT_CODE"\n'
+    )
+    assert steps[6]["with"]["path"] == "${{ runner.temp }}/public-historical-qualification.json"
+    assert steps[6]["with"]["retention-days"] == "90"
+    assert steps[6]["if"] == "${{ always() }}"
+
+
+def test_historical_rehearsal_is_read_only_source_fenced_and_private():
+    source = (ROOT / ".github/workflows/hf-qualify-historical-stores.yml").read_text()
+    _assert_historical_rehearsal_workflow(source)
+
+
+@pytest.mark.parametrize("old,new", [
+    ("on:\n  workflow_dispatch:", "on:\n  push:\n    branches: [main]\n  workflow_dispatch:"),
+    ("group: sync-relock-canonical-a11oy", "group: historical-unlocked"),
+    ("github.sha == inputs.expected_source_sha", "true"),
+    ('b.get("protected") is True', 'b.get("protected") is not None'),
+    ("gdw-capture-37223162231.json", "current-capture.json"),
+    ("qualify_gdw_store_recovery.py", "preserve_hf_gdw_store.py"),
+    ("'cryptography==50.0.0'", "'cryptography'"),
+    ("${{ runner.temp }}/public-historical-qualification.json", "${{ runner.temp }}/**"),
+])
+def test_historical_rehearsal_workflow_mutations_fail_closed(old, new):
+    source = (ROOT / ".github/workflows/hf-qualify-historical-stores.yml").read_text()
+    assert old in source
+    with pytest.raises(AssertionError):
+        _assert_historical_rehearsal_workflow(source.replace(old, new, 1))
+
+
+def test_historical_rehearsal_rechecks_main_immediately_before_public_status():
+    source = (ROOT / ".github/workflows/hf-qualify-historical-stores.yml").read_text()
+    before, classification = source.split("      - name: Classify rehearsal", 1)
+    assert 'b.get("protected") is True' in classification
+    for old, new in (
+        ('b.get("protected") is True', 'b.get("protected") is not None'),
+        ('b.get("commit",{}).get("sha")==os.environ["GITHUB_SHA"]', 'True'),
+        ('test "$GITHUB_SHA" = "$EXPECTED_SOURCE_SHA"', 'true'),
+    ):
+        with pytest.raises(AssertionError):
+            _assert_historical_rehearsal_workflow(
+                before + "      - name: Classify rehearsal" + classification.replace(old, new, 1)
+            )
