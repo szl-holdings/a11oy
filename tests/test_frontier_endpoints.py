@@ -163,28 +163,33 @@ def _request(entry, override_query=None, override_body=None):
 
 IDS = [f"{e['method']} {e['path']}" for e in MANIFEST]
 RESTRAINT_EVALUATE = "/api/a11oy/v1/restraint/evaluate"
+EVAL_RUN = "/api/a11oy/v1/eval/run"
 
 
-def test_restraint_operator_route_is_mounted_and_rejects_authenticated_list(monkeypatch):
+@pytest.mark.parametrize(("path", "module_name"), [
+    (RESTRAINT_EVALUATE, "szl_restraint"),
+    (EVAL_RUN, "szl_eval_arena"),
+])
+def test_operator_route_is_mounted_and_rejects_authenticated_list(monkeypatch, path, module_name):
     """An auth-middleware 401 alone cannot prove the handler is mounted or safe."""
     assert any(
-        getattr(route, "path", None) == RESTRAINT_EVALUATE
+        getattr(route, "path", None) == path
         and "POST" in (getattr(route, "methods", None) or ())
         for route in serve.app.routes
-    ), "restraint evaluate POST route must be mounted on the real app"
+    ), f"{path} POST route must be mounted on the real app"
     mounted = next(route for route in serve.app.routes
-                   if getattr(route, "path", None) == RESTRAINT_EVALUATE
+                   if getattr(route, "path", None) == path
                    and "POST" in (getattr(route, "methods", None) or ()))
-    assert mounted.endpoint.__module__ == "szl_restraint"
+    assert mounted.endpoint.__module__ == module_name
     token = secrets.token_urlsafe(32)
     monkeypatch.setenv("A11OY_CODE_ADMIN_KEY", token)
     response = client.post(
-        RESTRAINT_EVALUATE,
+        path,
         json=[1, 2, 3],
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 400, (
-        "authenticated non-object restraint input must be rejected before "
+        f"authenticated non-object input at {path} must be rejected before "
         f"evaluation, never crash or sign: {response.status_code} {response.text[:200]}"
     )
 
@@ -241,7 +246,7 @@ def test_frontier_endpoint_good_request_never_crashes(entry):
         f"{entry['path']} returned 422 on KNOWN-GOOD input — schema/silent-degrade "
         f"regression: {r.text[:300]}"
     )
-    if entry["method"] == "POST" and entry["path"].endswith("/restraint/evaluate"):
+    if entry["method"] == "POST" and entry["path"] in (RESTRAINT_EVALUATE, EVAL_RUN):
         assert r.status_code == 401, (
             f"{entry['path']} must refuse an anonymous evaluation before signing: "
             f"{r.status_code} {r.text[:200]}"
