@@ -8,12 +8,14 @@ on:
     paths:
       - pages/console.html
       - tests/test_console_source_runtime_evidence.mjs
+      - scripts/test_console_evidence.cjs
       - .github/workflows/console-source-evidence.yml
   push:
     branches: [main]
     paths:
       - pages/console.html
       - tests/test_console_source_runtime_evidence.mjs
+      - scripts/test_console_evidence.cjs
       - .github/workflows/console-source-evidence.yml
 
 permissions:
@@ -40,3 +42,5 @@ jobs:
           node-version: '24'
       - name: Run console source and runtime evidence tests
         run: node --test tests/test_console_source_runtime_evidence.mjs
+      - name: Verify shipped ledger, energy and sample-signature helpers offline
+        run: node scripts/test_console_evidence.cjs

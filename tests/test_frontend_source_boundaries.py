@@ -83,10 +83,12 @@ class FrontendSourceBoundaryContract(unittest.TestCase):
         self.assertLessEqual(2 * (6 - inset) ** 2, 6 ** 2)
 
         landing = (ROOT / "a11oy_landing.html").read_text(encoding="utf-8")
+        self.assertIn('href="/assets/a11oy-homepage.css" id="szl-homepage-shell"', landing)
+        landing_css = (ROOT / "console/assets/a11oy-homepage.css").read_text(encoding="utf-8")
         self.assertIn(
             ".cta-row .btn{width:100%;min-height:52px;border-radius:6px;"
             "white-space:normal;text-align:center}",
-            landing,
+            landing_css,
         )
 
 

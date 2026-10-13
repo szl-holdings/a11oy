@@ -296,13 +296,13 @@ def run_case(browser, output, name, source_path, route_path, width, height, css,
           return box.top >= menu.top && box.bottom <= Math.min(menu.bottom, innerHeight) + 1 &&
             uncovered;
         }"""
-        first_visible = menu.locator("a").first.evaluate(visible_menu_item)
+        first_visible = menu.locator("a,button").first.evaluate(visible_menu_item)
         if not first_visible:
             failures.append("More menu first keyboard destination is clipped or covered")
         if width == 320:
             page.screenshot(path=str(output / (slug + "-more.png")), full_page=False)
         page.keyboard.press("End")
-        last_visible = menu.locator("a").last.evaluate(visible_menu_item)
+        last_visible = menu.locator("a,button").last.evaluate(visible_menu_item)
         result["more_menu_keyboard"] = {"first_visible": first_visible, "last_visible": last_visible}
         if not last_visible:
             failures.append("More menu last keyboard destination is clipped or covered")
@@ -314,7 +314,16 @@ def run_case(browser, output, name, source_path, route_path, width, height, css,
 
         for theme in (("dark", "light") if name == "console" else ("dark",)):
             if theme == "light":
-                page.locator(".szl-theme-toggle").click()
+                theme_control = page.locator(".szl-theme-toggle")
+                if not theme_control.is_visible():
+                    more.focus()
+                    page.keyboard.press("ArrowDown")
+                    if more.get_attribute("aria-expanded") != "true":
+                        failures.append("More menu did not expose the mobile theme control")
+                theme_control.focus()
+                page.keyboard.press("Enter")
+                if more.get_attribute("aria-expanded") == "true":
+                    failures.append("mobile theme selection did not dismiss its menu")
                 if page.locator("html").get_attribute("data-surface") != "light":
                     failures.append("console light theme did not activate")
             trigger = page.locator(".szl-cmdk").first

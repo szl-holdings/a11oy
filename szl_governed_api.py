@@ -870,6 +870,14 @@ def register(app, ns: str = "a11oy", *, public_pem: str | None = None):  # pragm
         _DIR = _os.path.dirname(_os.path.abspath(__file__))
         _PAGE = _os.path.join(_DIR, "govern_showcase.html")          # /govern showcase
         _FRONT = _os.path.join(_DIR, "a11oy_landing.html")            # "/" investor front door
+        _HOME_CSS = _os.path.join(_DIR, "console", "assets", "a11oy-homepage.css")
+        async def _homepage_css(request=None):
+            # Standalone register() owns this exact landing dependency too.
+            # No directory mount or caller-selected filesystem path is exposed.
+            if _os.path.isfile(_HOME_CSS):
+                return FileResponse(_HOME_CSS, media_type="text/css",
+                                    headers={"x-content-type-options": "nosniff"})
+            return HTMLResponse("homepage stylesheet unavailable", status_code=404)
         async def _landing(request=None):
             if _os.path.exists(_PAGE):
                 return FileResponse(_PAGE, media_type="text/html")
@@ -883,6 +891,7 @@ def register(app, ns: str = "a11oy", *, public_pem: str | None = None):  # pragm
             return HTMLResponse("<h1>a11oy Governed Agent Change Management</h1><p>front-door asset missing</p>")
     except Exception:
         _landing = None
+        _homepage_css = None
 
     # Serve the shared runtime key at /cosign.pub + /.well-known/cosign.pub.
     # serve.py injects the same PEM exposed by /api/a11oy/cosign.pub and
@@ -935,6 +944,8 @@ def register(app, ns: str = "a11oy", *, public_pem: str | None = None):  # pragm
     if _pubkey is not None:
         paths += [("/cosign.pub", _pubkey, ["GET"]),
                   ("/.well-known/cosign.pub", _pubkey, ["GET"])]
+    if _homepage_css is not None:
+        paths.append(("/assets/a11oy-homepage.css", _homepage_css, ["GET"]))
     registered = []
     for path, fn, methods in paths:
         app.router.routes.insert(0, Route(path, fn, methods=methods))

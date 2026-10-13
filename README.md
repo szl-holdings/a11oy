@@ -22,7 +22,12 @@ datasets: [SZLHOLDINGS/a11oy-verifiable-corpus, SZLHOLDINGS/szl-lake]
 ---
 
 <!-- szl:card-presentation:v1 -->
-<p><a href="https://huggingface.co/spaces/SZLHOLDINGS/szl-command-lab"><img src="https://raw.githubusercontent.com/szl-holdings/.github/main/profile/assets/szl/logos/szl_mark_holographic.svg" alt="SZL Holdings" width="112" /></a></p>
+<!-- Native identity: szl-brand@4309f6fce89179331b0b3ed8c99494e76c5be256; Orbit v2 icon. -->
+<p>
+  <a href="https://github.com/szl-holdings">
+    <img src="https://raw.githubusercontent.com/szl-holdings/szl-brand/4309f6fce89179331b0b3ed8c99494e76c5be256/kit/logos/orbit-v2/suite/szl-icon-32.svg" alt="SZL Holdings — Orbit v2" width="32" height="32" />
+  </a>
+</p>
 
 # A11oy
 
@@ -34,7 +39,7 @@ Inspect governed AI workflows, the policy that admits an action, and the evidenc
 
 [**Explore Command Lab →**](https://huggingface.co/spaces/SZLHOLDINGS/szl-command-lab) · [**Build with the source →**](https://github.com/szl-holdings/a11oy) · [**Inspect exact source →**](https://github.com/szl-holdings/a11oy/blob/5e014855a274825f4d46ce91cb3396cabd20f99a/README.md)
 
-[Open the application](https://a-11-oy.com) · [Current capability evidence](https://a-11-oy.com/api/a11oy/v1/honest)
+[Open the application](https://a-11-oy.com) · [Current capability evidence](https://a-11-oy.com/api/a11oy/v1/honest) · [Proof registry](https://a11oy.net)
 
 ## Use limits
 
@@ -89,7 +94,7 @@ is a failed verification, not a display error.
 | Kernel | `c7c0ba17` (Doctrine v11 count 749/14/163) |
 | Formulas | locked-8 (lutar-lean `ProvedFormulas.lean` @ `3a886349`, not present at `c7c0ba17`) · never authority |
 | Trust ceiling | 0.97 |
-| SLSA | L1 honest · L2 build-attested · L3 roadmap |
+| SLSA | L1 source-declared · L2/L3 not established |
 | License | Apache-2.0 |
 
 ## Civilian evidence surface
@@ -131,7 +136,7 @@ The trust math behind a11oy is pinned in **Lean 4** and checked by a proof machi
 
 - **8 formulas locked-proven** in lutar-lean [`Lutar/Puriq/Formulas/ProvedFormulas.lean` @ `3a886349`](https://github.com/szl-holdings/lutar-lean/blob/3a8863491f688956f2fae7796e31404d6b21c8a6/Lutar/Puriq/Formulas/ProvedFormulas.lean) (file added 2026-06-04, last changed 2026-06-10; not present at `c7c0ba17`). What they state: pure-function replay determinism (F1, `f x = f x`), acyclicity kept when backward-pointing edges are appended to a Khipu DAG (F4), FIFO drain order on a list-modelled queue (F7), integer add-then-subtract cancellation (F11), `Nat` distributivity (F12), RS(10,6) parity-count arithmetic (F18, `10 − 6 = 4`), `Nat` additive monotonicity (F19), and strictly increasing indices in a `List.range` sequence log (F22). They do not prove receipt-replay integrity or Reed–Solomon recovery. The Doctrine v11 figure 749/14/163 @ `c7c0ba17` is a separate count: its 163 counts `sorry` text including comments, and the 149 variant drops only lines that start with `--`, so neither is a count of open proof holes.
 - **Λ unconditional uniqueness = Conjecture 1** — machine-checked false (we found a counterexample). Conditional uniqueness is proven axiom-free (Theorem U). We say both out loud.
-- **SLSA L1 honest · L2 build-attested · L3 roadmap**. No government authorization or accreditation is claimed.
+- **SLSA L1 source-declared · L2/L3 not established**. No government authorization or accreditation is claimed.
 
 Full proof library: **[szl-holdings/lutar-lean](https://github.com/szl-holdings/lutar-lean)**
 
@@ -206,7 +211,7 @@ deployment still requires the canonical publisher and live readback.
 | Signed receipts on every governed action | **PARTIAL — healthz signer ABSENT; HMAC placeholder; non_repudiation false** |
 | 8 formulas locked-proven (Lean 4) | **LOCKED · lutar-lean `ProvedFormulas.lean` @ `3a886349` (not present at c7c0ba17)** |
 | Λ uniqueness | **Conjecture 1** (conditional Theorem U proven axiom-free) |
-| SLSA supply chain | **L1 honest · L2 build-attested · L3 roadmap** |
+| SLSA supply chain | **L1 source-declared · L2/L3 not established** |
 | Apex `/console` on a-11-oy.com | **MEASURED reachable 2026-09-04 · Space front** |
 | HF custom domain `a-11-oy.com` | **READY** (provider row; not DSSE-LIVE) |
 | `www.a-11-oy.com` | **UNAVAILABLE** (TLS alert) |
@@ -295,7 +300,7 @@ to its captured run.
 ---
 
 <div align="center">
-<sub>SZL Holdings · a11oy · Doctrine v11 LOCKED · Λ = Conjecture 1 · SLSA L1 honest · L2 build-attested · L3 roadmap · Not affiliated with Defense Unicorns · No production authorization claimed · trust never 100%</sub>
+<sub>SZL Holdings · a11oy · Doctrine v11 LOCKED · Λ = Conjecture 1 · SLSA L1 source-declared · L2/L3 not established · Not affiliated with Defense Unicorns · No production authorization claimed · trust never 100%</sub>
 </div>
 
 ---

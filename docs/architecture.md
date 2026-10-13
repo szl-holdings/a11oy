@@ -140,7 +140,7 @@ graph TD
   PR --> SC
 
   subgraph SC_["supply-chain/ — signed deploy"]
-    SC["cosign keyless · SLSA L1/L2 · UDS bundle · Rekor · SBOM (ROADMAP)"]
+    SC["cosign keyless · SLSA L1 · L2/L3 not established · UDS bundle · Rekor · SBOM (ROADMAP)"]
   end
 
   LIVE["Live surfaces"]
@@ -237,7 +237,7 @@ stopped loop, or readiness-check error then returns HTTP 503.
 `sign_cert_dsse.py`; configs `.gitleaks.toml`, `.doctrine-allowlist`,
 `physical_bounds_certificate.dsse.json`. **HAVE:** selected release-scoped
 signatures and provenance assets exist. **ROADMAP:** SBOM coverage and complete
-current-image and per-build coverage. **ROADMAP (not achieved):** SLSA L3, FedRAMP, CMMC, Iron Bank, and ATO.
+current-image and per-build coverage. **Canonical SLSA posture:** `szl_provenance.SLSA_LEVEL` and `/api/a11oy/provenance` declare L1; L2/L3 are not established. **ROADMAP (not achieved):** FedRAMP, CMMC, Iron Bank, and ATO.
 
 ### agents/ — the governed agentic loop `[EXISTS, single-shot]`
 `a11oy_agent_loop.py` · `a11oy_react_core.py` · `szl_agentic_loop.py` ·
