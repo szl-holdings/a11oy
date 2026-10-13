@@ -4,6 +4,7 @@ html, body, .gradio-container { margin: 0; padding: 0 !important; }
 .app:has(#bench-native) { padding: 0 !important; margin: 0 !important; }
 .gradio-container { max-width: none !important; background: var(--bg); }
 #bench-native { padding: 0; margin: 0; border: 0; }
+#bench-native .html-container { padding: 0; }
 .gb-page { --gb-gutter: clamp(20px, 5vw, 72px); color: var(--text); background: var(--bg); font: 400 var(--text-base)/1.6 var(--font-body); }
 .gb-page *, .gb-page *::before, .gb-page *::after { box-sizing: border-box; }
 .gb-page h1, .gb-page h2, .gb-page h3, .gb-page p, .gb-page dl, .gb-page dd { margin: 0; }
