@@ -6,9 +6,12 @@ from __future__ import annotations
 
 import ast
 from copy import deepcopy
+import hashlib
 import json
 from pathlib import Path
-from types import SimpleNamespace
+import sqlite3
+import sys
+from types import ModuleType, SimpleNamespace
 
 import pytest
 from fastapi import FastAPI
@@ -54,9 +57,12 @@ def test_rag_status_scopes_persisted_metadata_without_refresh_or_receipt(index_s
     def envelope(payload, *, status, citations):
         return {**payload, "status": status, "citations": citations}
 
+    identity = {"module": "a11oy_org_rag", "origin": "vendored",
+                "file_sha256": "e" * 64, "lexical_reference": "SUPPORTED"}
     app = FastAPI()
     namespace = {
         "app": app, "_RAGJSON": JSONResponse, "gov_envelope": envelope,
+        "_rag_engine_identity": lambda: dict(identity),
         "_rag_emit_receipt": forbidden,
         "_rag_engine": SimpleNamespace(
             status=status, corpus_manifest=manifest, query=forbidden,
@@ -85,6 +91,8 @@ def test_rag_status_scopes_persisted_metadata_without_refresh_or_receipt(index_s
     assert body["receipt_method"] == "POST"
     assert body["receipt_authority"] == "operator"
     assert "receipt" not in body
+    assert body["engine"] == identity
+    assert body["lexical_reference_query"] == "/api/a11oy/v1/rag/query?mode=lexical"
 
 
 def _grounded_result() -> dict:
@@ -107,11 +115,13 @@ def test_rag_get_never_builds_loads_or_mints_and_post_mints_once(monkeypatch):
     import szl_operator_auth
 
     calls: list[tuple[object, object]] = []
+    lexical_flags: list[object] = []
     receipts: list[tuple[str, dict]] = []
     monkeypatch.setattr(serve._rag_engine, "status", lambda: {"built": True})
 
     def query(_q, **kwargs):
         calls.append((kwargs.get("emit_receipt"), kwargs.get("load_embedder")))
+        lexical_flags.append(kwargs.get("lexical_only", "absent"))
         return _grounded_result()
 
     def emit(kind, body):
@@ -152,6 +162,8 @@ def test_rag_get_never_builds_loads_or_mints_and_post_mints_once(monkeypatch):
     assert write.json()["receipt_state"] == "UNSIGNED"
     assert write.json()["receipt_hash"] == "c" * 64
     assert calls == [(None, False), (None, True)]
+    # The default read and the receipted POST keep their behaviour unchanged.
+    assert lexical_flags == ["absent", "absent"]
     assert len(receipts) == 1
     assert receipts[0][0] == "org_rag.answer"
     assert receipts[0][1]["evidence_set_sha256"] == "b" * 64
@@ -240,3 +252,575 @@ def test_rag_legacy_wal_reports_typed_unavailable_without_query_or_receipt(monke
     assert response.status_code == 503
     assert response.json()["index"]["storage_state"] == "LEGACY_WAL_REQUIRES_LIFECYCLE_WRITE"
     assert response.json()["receipt_state"] == "NOT_MINTED_INDEX_UNAVAILABLE"
+
+
+# --------------------------------------------------------------------------- #
+# Explicit model-free reference mode (GET mode=lexical). Case IDs refer to the
+# first A11oy journey contract; these are source-level tests, not that journey.
+# --------------------------------------------------------------------------- #
+_QUERY = "/api/a11oy/v1/rag/query"
+_LEXICAL = {"q": "anchor evidence", "mode": "lexical"}
+# 25 ASCII bytes, then 4-byte code points: byte 2048 lands inside one of them.
+_UNICODE_BODY = "unicode anchor evidence: " + "\U0001d518" * 600
+_MIXED_BODY = "mixed anchor evidence café € 漢字 " * 3
+_ASCII_BODY = "plain anchor evidence for the lexical reference"
+_CHUNKS = (
+    ("docs/unicode.md", "bundled:szl-holdings/szl-papers@0123456789ab:docs/unicode.md",
+     _UNICODE_BODY),
+    ("docs/mixed.md", "bundled:szl-holdings/lutar-lean@" + "a" * 40 + ":docs/mixed.md",
+     _MIXED_BODY),
+    ("docs/plain.md", "gh:szl-holdings/a11oy", _ASCII_BODY),
+)
+
+
+def _reset_engine(monkeypatch, rag, db_path: Path) -> None:
+    monkeypatch.setattr(rag, "RAG_DB_PATH", str(db_path))
+    monkeypatch.setattr(rag, "_GRAPH", rag.OrgGraph())
+    monkeypatch.setattr(rag, "_BUILD_META", {"built": False})
+    monkeypatch.setattr(rag, "_REHYDRATE_ATTEMPTED", False)
+
+
+def _publish(rag, chunks=_CHUNKS, mode: str = "lexical-test") -> str:
+    conn = rag._db()
+    try:
+        rag._init_schema(conn)
+        generation_id = rag._begin_generation(conn, mode)
+        graph = rag.OrgGraph()
+        for path, source, body in chunks:
+            rag._ingest_text(graph, conn, repo="a11oy", path=path, raw=body, source=source,
+                             category="doctrine", embed_fn=None, generation_id=generation_id)
+        rag._persist_runtime_state(
+            conn, graph, {"built": True, "mode": mode, "ts": 1.0, "repos": 1,
+                          "chunks": len(chunks)}, generation_id)
+    finally:
+        conn.close()
+    return generation_id
+
+
+def _published_engine(monkeypatch, tmp_path, rag=None):
+    """Publish one generation, then forget it so the read rehydrates from disk."""
+    if rag is None:
+        import a11oy_org_rag as rag
+    db_path = tmp_path / "lexical.sqlite3"
+    _reset_engine(monkeypatch, rag, db_path)
+    generation_id = _publish(rag)
+    _reset_engine(monkeypatch, rag, db_path)
+    return rag, db_path, generation_id
+
+
+def _storage_fingerprint(directory: Path) -> dict:
+    return {path.name: (hashlib.sha256(path.read_bytes()).hexdigest(), path.stat().st_mtime_ns)
+            for path in directory.iterdir() if path.is_file()}
+
+
+def _forbid(label):
+    def forbidden(*_args, **_kwargs):
+        raise AssertionError(label)
+    return forbidden
+
+
+def _forbid_engine_work(monkeypatch, rag, *, embedder: bool = True) -> None:
+    for name in ("_db", "_init_schema", "_begin_generation", "_persist_runtime_state",
+                 "build_index", "build_seed_index", "build_full_corpus",
+                 "start_background_build", "start_seed_bootstrap", "refresh_tick",
+                 "embed_and_store_chunk", "_gh_get", "_gh_raw", "_hf_raw",
+                 "_hf_space_files"):
+        monkeypatch.setattr(rag, name, _forbid(f"lexical read reached {name}"))
+    if embedder:
+        monkeypatch.setattr(rag, "_maybe_embedder", _forbid("lexical read looked up an embedder"))
+
+
+def _canonical_sha256(value) -> str:
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":"),
+                                     ensure_ascii=False).encode("utf-8")).hexdigest()
+
+
+def _active_generation_row(db_path: Path) -> tuple[str, str]:
+    conn = sqlite3.connect(db_path.as_uri() + "?mode=ro", uri=True)
+    try:
+        return conn.execute(
+            "SELECT g.generation_id, g.digest_sha256 FROM org_active_generation a "
+            "JOIN org_generations g ON g.generation_id=a.generation_id").fetchone()
+    finally:
+        conn.close()
+
+
+def _stored_bodies(db_path: Path, generation_id: str) -> dict[str, str]:
+    conn = sqlite3.connect(db_path.as_uri() + "?mode=ro", uri=True)
+    try:
+        return dict(conn.execute(
+            "SELECT chunk_id, body FROM org_chunks_gen WHERE generation_id=?",
+            (generation_id,)).fetchall())
+    finally:
+        conn.close()
+
+
+def test_utf8_prefix_end_never_splits_a_code_point():
+    import a11oy_org_rag as rag
+
+    for text in ("abc", "é" * 9, "€" * 9, "\U0001d518" * 9, "a€\U0001d518é" * 5):
+        raw = text.encode("utf-8")
+        for limit in range(len(raw) + 2):
+            end = rag._utf8_prefix_end(raw, limit)
+            assert end <= min(limit, len(raw))
+            raw[:end].decode("utf-8")
+            assert end == len(raw) or (raw[end] & 0xC0) != 0x80
+            assert min(limit, len(raw)) - end < 4
+
+
+def test_engine_lexical_switch_refuses_hyde_receipts_and_model_load_before_reading(monkeypatch):
+    import a11oy_org_rag as rag
+
+    monkeypatch.setattr(rag, "_rehydrate_runtime_state", _forbid("refused call read state"))
+    monkeypatch.setattr(rag, "_maybe_embedder", _forbid("refused call looked up an embedder"))
+    receipts = []
+    for kwargs in ({"hyde_text": "hypothetical"},
+                   {"emit_receipt": lambda *a: receipts.append(a) or {}},
+                   {"load_embedder": True}):
+        refused = rag.query("anchor", lexical_only=True, **kwargs)
+        assert refused["ok"] is False
+        assert refused["reason_code"] == "LEXICAL_ONLY_ARGUMENT_CONFLICT"
+        assert refused["inference"] == "NOT_INVOKED"
+        assert refused["router_dispatch_count"] == 0
+    assert rag.query("anchor", lexical_only="yes")["reason_code"] == "LEXICAL_ONLY_FLAG_INVALID"
+    assert receipts == []
+
+
+def test_a05_a07_a08_lexical_reference_binds_generation_chunk_and_excerpt(monkeypatch, tmp_path):
+    import serve
+
+    rag, db_path, generation_id = _published_engine(monkeypatch, tmp_path, serve._rag_engine)
+    # A part-built successor must stay invisible (A05).
+    writer = sqlite3.connect(db_path)
+    writer.row_factory = sqlite3.Row
+    staging = rag._begin_generation(writer, "interrupted")
+    rag._ingest_text(rag.OrgGraph(), writer, repo="a11oy", path="docs/partial.md",
+                     raw="partial staging evidence", source="test:partial",
+                     category="doctrine", embed_fn=None, generation_id=staging)
+    writer.commit()
+    writer.close()
+    active_id, active_digest = _active_generation_row(db_path)
+    assert active_id == generation_id
+    bodies = _stored_bodies(db_path, generation_id)
+    _forbid_engine_work(monkeypatch, rag)
+    monkeypatch.setattr(serve, "_rag_emit_receipt", _forbid("lexical GET minted a receipt"))
+    client = TestClient(serve.app, raise_server_exceptions=False)
+
+    response = client.get(_QUERY, params={**_LEXICAL, "k": 6})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["mode"] == "lexical"
+    assert body["result_state"] == "REFERENCE_RETURNED"
+    assert body["retrieval_method"] == "lexical"
+    assert body["inference"] == "NOT_INVOKED"
+    assert body["router_dispatch_count"] == 0
+    assert body["embedder_invoked"] is False
+    assert body["receipt_state"] == "NOT_MINTED_ON_READ"
+    assert body["receipt_hash"] is None
+    assert body["answer"] is None
+    assert "confidence" not in body
+    assert body["confidence_state"] == "NOT_REPORTED_UNCALIBRATED"
+    assert "not verified factual support" in body["support_statement"]
+    assert body["retrieval"]["dense_used"] is False
+    assert body["retrieval"]["hyde_used"] is False
+    assert body["retrieval"]["retrieval_planes"] == ["corpus"]
+    assert body["generation"] == {"generation_id": active_id,
+                                  "generation_digest_sha256": active_digest,
+                                  "status": "ACTIVE"}
+
+    engine_file = Path(rag.__file__).read_bytes()
+    assert body["engine"]["module"] == rag.__name__
+    assert body["engine"]["file_sha256"] == hashlib.sha256(engine_file).hexdigest()
+    assert body["engine"]["lexical_reference"] == "SUPPORTED"
+    assert body["engine"]["origin"] == (
+        "vendored" if rag.__name__ == "a11oy_org_rag" else "installed_package")
+
+    citations = body["citations"]
+    assert {c["path"] for c in citations} == {path for path, _s, _b in _CHUNKS}
+    assert "docs/partial.md" not in {c["path"] for c in citations}
+    assert [c["rank"] for c in citations] == list(range(1, len(citations) + 1))
+    for citation in citations:
+        raw = bodies[citation["chunk_id"]].encode("utf-8")
+        start, end = citation["excerpt_utf8_span"]
+        assert citation["chunk_sha256"] == hashlib.sha256(raw).hexdigest()
+        assert citation["chunk_utf8_bytes"] == len(raw)
+        assert start == 0 and end <= 2048
+        assert citation["excerpt"].encode("utf-8") == raw[start:end]
+        assert citation["excerpt_sha256"] == hashlib.sha256(raw[start:end]).hexdigest()
+        assert citation["excerpt_truncated"] is (end < len(raw))
+        assert isinstance(citation["lexical_score"], float)
+    by_path = {c["path"]: c for c in citations}
+    unicode_cite = by_path["docs/unicode.md"]
+    unicode_raw = _UNICODE_BODY.encode("utf-8")
+    with pytest.raises(UnicodeDecodeError):
+        unicode_raw[:2048].decode("utf-8")
+    assert unicode_cite["excerpt_utf8_span"] == [0, 2045]
+    assert unicode_cite["excerpt_truncated"] is True
+    assert unicode_cite["excerpt_sha256"] != unicode_cite["chunk_sha256"]
+    assert (unicode_cite["source_revision"], unicode_cite["source_revision_state"]) == (
+        "0123456789ab", "ABBREVIATED_COMMIT")
+    assert (by_path["docs/mixed.md"]["source_revision"],
+            by_path["docs/mixed.md"]["source_revision_state"]) == ("a" * 40, "FULL_COMMIT")
+    assert by_path["docs/mixed.md"]["excerpt_truncated"] is False
+    assert (by_path["docs/plain.md"]["source_revision"],
+            by_path["docs/plain.md"]["source_revision_state"]) == (
+        None, "NOT_RECORDED_IN_GENERATION")
+
+    evidence = body["evidence_set"]
+    assert body["evidence_set_sha256"] == _canonical_sha256(evidence)
+    assert [e["chunk_id"] for e in evidence] == [c["chunk_id"] for c in citations]
+    for entry, citation in zip(evidence, citations):
+        assert entry["generation_id"] == active_id
+        assert entry["generation_digest_sha256"] == active_digest
+        assert entry["sha256"] == citation["chunk_sha256"]
+        assert entry["excerpt_sha256"] == citation["excerpt_sha256"]
+        assert entry["excerpt_utf8_span"] == citation["excerpt_utf8_span"]
+
+    alias = client.get("/org/rag", params=_LEXICAL)
+    assert alias.status_code == 200
+    assert alias.json()["evidence_set_sha256"] == body["evidence_set_sha256"]
+    partial = client.get(_QUERY, params={"q": "partial staging", "mode": "lexical"})
+    assert partial.status_code == 200
+    assert partial.json()["result_state"] == "ABSTAINED"
+    assert partial.json()["generation"]["generation_id"] == active_id
+
+
+def test_a07_lexical_citation_identity_hydrates_the_exact_chunk(monkeypatch, tmp_path):
+    import serve
+    from a11oy_agent_loop import SynthesisHandle, SynthesisSubject
+
+    rag, _db_path, _generation_id = _published_engine(monkeypatch, tmp_path, serve._rag_engine)
+    body = TestClient(serve.app, raise_server_exceptions=False).get(_QUERY, params=_LEXICAL).json()
+    generation = body["generation"]
+    handles = tuple(SynthesisHandle(
+        generation_id=generation["generation_id"],
+        generation_digest_sha256=generation["generation_digest_sha256"],
+        chunk_id=c["chunk_id"], node_id=c["node_id"], repo=c["repo"], path=c["path"],
+        source=c["source"], sha256=c["chunk_sha256"]) for c in body["citations"])
+    # Synthetic controller identity for this fixture only; it grants nothing.
+    subject = SynthesisSubject(principal_id="fixture-reviewer", tenant_id="fixture-tenant",
+                               policy_revision="0" * 40, authenticated=True)
+    hydrated = rag.hydrate_answer_evidence(subject, handles, authorizer=lambda *_a: True)
+    assert len(hydrated) == len(body["citations"]) == 3
+    for item, citation in zip(hydrated, body["citations"]):
+        raw = item["content"].encode("utf-8")
+        start, end = citation["excerpt_utf8_span"]
+        assert hashlib.sha256(raw).hexdigest() == citation["chunk_sha256"]
+        assert raw[start:end] == citation["excerpt"].encode("utf-8")
+
+
+def test_a06_lexical_mode_never_executes_an_already_loaded_embedder(monkeypatch, tmp_path):
+    import serve
+
+    rag, _db_path, _generation_id = _published_engine(monkeypatch, tmp_path, serve._rag_engine)
+
+    class _Vector(list):
+        def astype(self, _dtype):
+            return self
+
+        def tolist(self):
+            return list(self)
+
+    class _LoadedModel:
+        def __init__(self):
+            self.calls = []
+
+        def encode(self, texts, **_kwargs):
+            self.calls.append(list(texts))
+            return [_Vector([1.0, 0.0])]
+
+    model = _LoadedModel()
+    monkeypatch.setitem(sys.modules, "szl_rag", SimpleNamespace(
+        _state={"ready": True, "model": model},
+        _ensure_loaded=_forbid("read attempted a model load")))
+    lookups = []
+    original = rag._maybe_embedder
+    monkeypatch.setattr(rag, "_maybe_embedder",
+                        lambda load=True: lookups.append(load) or original(load=load))
+    client = TestClient(serve.app, raise_server_exceptions=False)
+
+    # Positive control: the unchanged default read reuses the loaded embedder.
+    default = client.get(_QUERY, params={"q": "anchor evidence"})
+    assert default.status_code == 200, default.text
+    assert default.json()["retrieval"]["dense_used"] is True
+    assert lookups == [False]
+    assert model.calls == [["anchor evidence"]]
+
+    for route in (_QUERY, "/org/rag"):
+        lexical = client.get(route, params=_LEXICAL)
+        assert lexical.status_code == 200, lexical.text
+        assert lexical.json()["embedder_invoked"] is False
+        assert lexical.json()["retrieval"]["dense_used"] is False
+    assert lookups == [False]
+    assert model.calls == [["anchor evidence"]]
+
+
+@pytest.mark.parametrize("state", ["missing", "legacy_wal", "unversioned"])
+def test_a05_unavailable_index_fails_honestly_without_write_or_fallback(
+    monkeypatch, tmp_path, state,
+):
+    import serve
+
+    rag = serve._rag_engine
+    db_path = tmp_path / "lexical.sqlite3"
+    _reset_engine(monkeypatch, rag, db_path)
+    if state == "legacy_wal":
+        _publish(rag)
+        legacy = sqlite3.connect(db_path)
+        assert legacy.execute("PRAGMA journal_mode=WAL").fetchone()[0] == "wal"
+        legacy.close()
+    elif state == "unversioned":
+        legacy = sqlite3.connect(db_path)
+        legacy.execute("CREATE TABLE org_chunks(chunk_id TEXT, body TEXT)")
+        legacy.execute("CREATE TABLE org_active_generation(singleton INTEGER, generation_id TEXT)")
+        legacy.execute("INSERT INTO org_chunks VALUES('c', 'anchor evidence')")
+        legacy.commit()
+        legacy.close()
+    _reset_engine(monkeypatch, rag, db_path)
+    before = _storage_fingerprint(tmp_path)
+    _forbid_engine_work(monkeypatch, rag)
+    monkeypatch.setattr(serve, "_rag_emit_receipt", _forbid("unavailable read minted a receipt"))
+    client = TestClient(serve.app, raise_server_exceptions=False)
+
+    for route in (_QUERY, "/org/rag"):
+        response = client.get(route, params=_LEXICAL)
+        assert response.status_code == 503, response.text
+        body = response.json()
+        assert body["result_state"] == "UNAVAILABLE"
+        assert body["reason_code"] == "LEXICAL_REFERENCE_INDEX_UNAVAILABLE"
+        assert body["retrieval_method"] == "lexical"
+        assert body["inference"] == "NOT_INVOKED"
+        assert body["router_dispatch_count"] == 0
+        assert body["receipt_state"] == "NOT_MINTED_INDEX_UNAVAILABLE"
+        assert body["answer"] is None
+        assert body["citations"] == []
+        if state == "legacy_wal":
+            assert body["index"]["storage_state"] == "LEGACY_WAL_REQUIRES_LIFECYCLE_WRITE"
+    assert _storage_fingerprint(tmp_path) == before
+    assert db_path.exists() is (state != "missing")
+
+
+@pytest.mark.parametrize("fault", ["chunk_tampered", "generation_digest_changed",
+                                   "successor_published", "suppression_unreadable"])
+def test_a07_changed_generation_or_tampered_chunk_denies_before_release(
+    monkeypatch, tmp_path, fault,
+):
+    import serve
+
+    rag, db_path, generation_id = _published_engine(monkeypatch, tmp_path, serve._rag_engine)
+    assert rag.status()["generation_id"] == generation_id  # verified rehydration
+    snapshot = (rag._GRAPH, dict(rag._BUILD_META))
+    if fault == "successor_published":
+        _publish(rag, chunks=(("docs/next.md", "test:next", "successor anchor evidence"),))
+        monkeypatch.setattr(rag, "_GRAPH", snapshot[0])
+        monkeypatch.setattr(rag, "_BUILD_META", snapshot[1])
+    else:
+        writer = sqlite3.connect(db_path)
+        if fault == "chunk_tampered":
+            writer.execute("UPDATE org_chunks_gen SET body=body || ' tampered' "
+                           "WHERE generation_id=? AND path='docs/plain.md'", (generation_id,))
+        elif fault == "generation_digest_changed":
+            writer.execute("UPDATE org_generations SET digest_sha256=? WHERE generation_id=?",
+                           ("f" * 64, generation_id))
+        else:
+            writer.execute("DROP TABLE org_source_revocations")
+        writer.commit()
+        writer.close()
+    expected = {
+        "chunk_tampered": "LEXICAL_REFERENCE_CHUNK_DIGEST_MISMATCH",
+        "generation_digest_changed": "LEXICAL_REFERENCE_GENERATION_DIGEST_MISMATCH",
+        "successor_published": "LEXICAL_REFERENCE_GENERATION_CHANGED",
+        "suppression_unreadable": "LEXICAL_REFERENCE_SUPPRESSION_STATE_UNAVAILABLE",
+    }[fault]
+    _forbid_engine_work(monkeypatch, rag)
+    response = TestClient(serve.app, raise_server_exceptions=False).get(_QUERY, params=_LEXICAL)
+    assert response.status_code == 503, response.text
+    body = response.json()
+    assert body["reason_code"] == expected
+    assert body["integrity_state"] == "FAILED_CLOSED"
+    assert body["citations"] == []
+    assert "anchor evidence for the lexical" not in response.text
+
+
+def test_lexical_reference_keeps_digest_suppression_without_a_rights_claim(monkeypatch, tmp_path):
+    import serve
+
+    rag, db_path, generation_id = _published_engine(monkeypatch, tmp_path, serve._rag_engine)
+    plain_sha = hashlib.sha256(_ASCII_BODY.encode("utf-8")).hexdigest()
+    writer = sqlite3.connect(db_path)
+    writer.execute(
+        "INSERT INTO org_source_revocations VALUES(?,?,?,?,?,?,?)",
+        ("fixture-revocation", "docs/plain.md", plain_sha, "fixture", "fixture", 1.0, "fixture"))
+    writer.commit()
+    writer.close()
+    body = TestClient(serve.app, raise_server_exceptions=False).get(_QUERY, params=_LEXICAL).json()
+    assert body["generation"]["generation_id"] == generation_id
+    assert plain_sha not in {c["chunk_sha256"] for c in body["citations"]}
+    assert body["retrieval"]["revoked_suppressed"] == 1
+    assert "source rights, admission or withdrawal enforcement" in body["not_claimed"]
+
+
+def test_a08_empty_evidence_abstains_without_prose_or_citation(monkeypatch, tmp_path):
+    import serve
+
+    rag, _db_path, generation_id = _published_engine(monkeypatch, tmp_path, serve._rag_engine)
+    _forbid_engine_work(monkeypatch, rag)
+    response = TestClient(serve.app, raise_server_exceptions=False).get(
+        _QUERY, params={"q": "zebra quasar", "mode": "lexical"})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["result_state"] == "ABSTAINED"
+    assert body["i_dont_know"] is True
+    assert body["answer"] is None
+    assert body["citations"] == []
+    assert body["evidence_set"] == []
+    assert body["evidence_set_sha256"] == hashlib.sha256(b"[]").hexdigest()
+    assert body["generation"]["generation_id"] == generation_id
+    assert "not verified factual support" in body["support_statement"]
+
+
+def test_a09_repeated_lexical_reads_have_no_receipt_signing_or_state_write(monkeypatch, tmp_path):
+    import serve
+
+    rag, _db_path, _generation_id = _published_engine(monkeypatch, tmp_path, serve._rag_engine)
+    before = _storage_fingerprint(tmp_path)
+    _forbid_engine_work(monkeypatch, rag)
+    monkeypatch.setattr(serve, "_rag_emit_receipt", _forbid("lexical GET minted a receipt"))
+    monkeypatch.setattr(serve, "_a11oy_sign_receipt", _forbid("lexical GET signed"),
+                        raising=False)
+    client = TestClient(serve.app, raise_server_exceptions=False)
+    seen = []
+    for route in (_QUERY, "/org/rag", _QUERY, "/org/rag"):
+        response = client.get(route, params=_LEXICAL)
+        assert response.status_code == 200, response.text
+        body = response.json()
+        body.pop("fetchedAt", None)
+        seen.append(body)
+        status = client.get("/api/a11oy/v1/rag/status")
+        assert status.status_code == 200
+        assert status.json()["engine"]["lexical_reference"] == "SUPPORTED"
+    assert all(body == seen[0] for body in seen)
+    assert seen[0]["receipt_hash"] is None
+    assert _storage_fingerprint(tmp_path) == before
+
+
+def test_a15_lexical_reference_records_zero_dispatch_without_network(monkeypatch, tmp_path):
+    import http.client
+    import socket
+    import urllib.request
+    import serve
+
+    rag, _db_path, _generation_id = _published_engine(monkeypatch, tmp_path, serve._rag_engine)
+    _forbid_engine_work(monkeypatch, rag)
+    monkeypatch.setattr(socket, "create_connection", _forbid("network connection"))
+    monkeypatch.setattr(http.client.HTTPConnection, "connect", _forbid("HTTP dispatch"))
+    monkeypatch.setattr(urllib.request, "urlopen", _forbid("URL dispatch"))
+    try:
+        import a11oy_code_orchestrator
+    except Exception:  # pragma: no cover - optional module in a stripped runtime
+        a11oy_code_orchestrator = None
+    if a11oy_code_orchestrator is not None:
+        monkeypatch.setattr(a11oy_code_orchestrator, "agent_model_complete",
+                            _forbid("model completion dispatched"))
+    response = TestClient(serve.app, raise_server_exceptions=False).get(_QUERY, params=_LEXICAL)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["router_dispatch_count"] == 0
+    assert body["inference"] == "NOT_INVOKED"
+    assert body["embedder_invoked"] is False
+    assert "provider" not in body and "model" not in body
+    assert "factual support, entailment or calibrated confidence" in body["not_claimed"]
+
+
+def _legacy_engine(name: str, calls: list, *, contract=None, query=None) -> ModuleType:
+    engine = ModuleType(name)
+
+    def legacy_query(q, k=6, repo=None, hyde_text=None, emit_receipt=None,
+                     load_embedder=False, source_witness=None):
+        calls.append(q)
+        return _grounded_result()
+
+    engine.query = query or legacy_query
+    engine.status = lambda: {"built": True}
+    engine.corpus_manifest = lambda: {"repositories": []}
+    if contract is not None:
+        engine.LEXICAL_REFERENCE_CONTRACT = contract
+    return engine
+
+
+def test_lexical_mode_fails_closed_when_the_imported_engine_lacks_the_switch(monkeypatch):
+    import serve
+
+    calls: list = []
+    monkeypatch.setattr(serve, "_rag_engine",
+                        _legacy_engine("szl_substrate.a11oy_org_rag", calls))
+    monkeypatch.setattr(serve, "_rag_emit_receipt", _forbid("fail-closed read minted"))
+    client = TestClient(serve.app, raise_server_exceptions=False)
+
+    for route in (_QUERY, "/org/rag"):
+        response = client.get(route, params=_LEXICAL)
+        assert response.status_code == 503, response.text
+        body = response.json()
+        assert body["reason_code"] == "LEXICAL_REFERENCE_UNSUPPORTED_BY_ENGINE"
+        assert body["result_state"] == "UNAVAILABLE"
+        assert body["citations"] == [] and body["answer"] is None
+        assert body["engine"]["lexical_reference"] == "UNSUPPORTED"
+        assert body["engine"]["lexical_reference_reason"] == "LEXICAL_REFERENCE_CONTRACT_ABSENT"
+    assert calls == []
+    status = client.get("/api/a11oy/v1/rag/status").json()
+    assert status["engine"]["lexical_reference"] == "UNSUPPORTED"
+    # The default read of the same engine is unchanged; lexical never borrowed it.
+    default = client.get(_QUERY, params={"q": "published evidence"})
+    assert default.status_code == 200
+    assert calls == ["published evidence"]
+
+
+def test_lexical_mode_rejects_an_engine_that_ignores_the_switch(monkeypatch):
+    import serve
+
+    calls: list = []
+
+    def ignoring(q, k=6, repo=None, lexical_only=False, **_kwargs):
+        calls.append(lexical_only)
+        return _grounded_result()
+
+    monkeypatch.setattr(serve, "_rag_engine", _legacy_engine(
+        "a11oy_org_rag", calls, contract=serve._RAG_LEXICAL_CONTRACT, query=ignoring))
+    response = TestClient(serve.app, raise_server_exceptions=False).get(_QUERY, params=_LEXICAL)
+    assert response.status_code == 503, response.text
+    body = response.json()
+    assert body["reason_code"] == "LEXICAL_REFERENCE_ENGINE_CONTRACT_VIOLATION"
+    assert body["citations"] == []
+    assert "Evidence from a published generation" not in response.text
+    assert calls == [True]
+
+
+def test_engine_identity_names_an_installed_package_by_file_digest(tmp_path):
+    import serve
+
+    module_file = tmp_path / "a11oy_org_rag.py"
+    module_file.write_bytes(b"# older installed copy\n")
+    stub = SimpleNamespace(__name__="szl_substrate.a11oy_org_rag", __file__=str(module_file))
+    identity = serve._rag_engine_file_identity(stub)
+    assert identity["origin"] == "installed_package"
+    assert identity["distribution"] == "szl-substrate"
+    assert identity["file_name"] == "a11oy_org_rag.py"
+    assert identity["file_sha256"] == hashlib.sha256(b"# older installed copy\n").hexdigest()
+    vendored = serve._rag_engine_file_identity(SimpleNamespace(__name__="a11oy_org_rag"))
+    assert vendored["origin"] == "vendored" and vendored["file_sha256"] is None
+
+
+def test_lexical_mode_bounds_and_unknown_modes_reject_before_query(monkeypatch):
+    import serve
+
+    monkeypatch.setattr(serve._rag_engine, "query", _forbid("rejected mode ran a query"))
+    monkeypatch.setattr(serve._rag_engine, "status", _forbid("rejected mode read status"))
+    client = TestClient(serve.app, raise_server_exceptions=False)
+    for route in (_QUERY, "/org/rag"):
+        unknown = client.get(route, params={"q": "anchor", "mode": "hybrid"})
+        assert unknown.status_code == 400
+        assert unknown.json()["reason_code"] == "RAG_MODE_UNSUPPORTED"
+        wide = client.get(route, params={**_LEXICAL, "k": 7})
+        assert wide.status_code == 400
+        assert wide.json()["reason_code"] == "LEXICAL_REFERENCE_K_OUT_OF_BOUNDS"
+        assert client.get(route, params={**_LEXICAL, "mode": "x" * 17}).status_code == 422
