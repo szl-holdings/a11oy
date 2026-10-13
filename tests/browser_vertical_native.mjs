@@ -19,18 +19,19 @@ for(const name of names){const raw=await readFile(path.join(fixture,name+'.html'
 const {chromium}=await import(pathToFileURL(path.resolve(args['--module'])).href);
 const report={schema:'szl.vertical-native-browser/v1',source,scope:'unsigned browser-context observations over actual generated HTML; all API responses are explicit unavailable fixtures; no provider or publisher',checks:[],failures:[],cases:[],denied:[]};
 const check=(name,ok,detail=null)=>{const row={name,passed:!!ok,detail};report.checks.push(row);if(!ok)report.failures.push(row);};
+const fixtureRoute=name=>async route=>{const r=route.request(),u=new URL(r.url());
+   if(u.origin!=='https://native.invalid'||r.method()!=='GET'){report.denied.push({url:r.url(),method:r.method()});await route.abort();return;}
+   if(u.pathname==='/'+name){await route.fulfill({status:200,contentType:'text/html',body:pages[name]});return;}
+   if(u.pathname.startsWith('/api/')){await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({status:'UNAVAILABLE',error:'BROWSER_FIXTURE_UNAVAILABLE',ok:false,receipt_verified:false})});return;}
+   report.denied.push({url:r.url(),method:r.method()});await route.abort();
+  };
 const browser=await chromium.launch({headless:true});
 try{
 for(const name of names){
  for(const variant of [{name:'wide',width:1440},{name:'tablet',width:768},{name:'phone',width:375},{name:'narrow',width:320},{name:'motion',width:375,reducedMotion:'reduce'},{name:'contrast',width:375,forcedColors:'active'}]){
   const label=name+'/'+variant.name;
   const context=await browser.newContext({viewport:{width:variant.width,height:960},reducedMotion:variant.reducedMotion||'no-preference',forcedColors:variant.forcedColors||'none',serviceWorkers:'block'});
-  await context.route('**/*',async route=>{const r=route.request(),u=new URL(r.url());
-   if(u.origin!=='https://native.invalid'||r.method()!=='GET'){report.denied.push({url:r.url(),method:r.method()});await route.abort();return;}
-   if(u.pathname==='/'+name){await route.fulfill({status:200,contentType:'text/html',body:pages[name]});return;}
-   if(u.pathname.startsWith('/api/')){await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({status:'UNAVAILABLE',error:'BROWSER_FIXTURE_UNAVAILABLE',ok:false,receipt_verified:false})});return;}
-   report.denied.push({url:r.url(),method:r.method()});await route.abort();
-  });
+  await context.route('**/*',fixtureRoute(name));
   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(String(e)));
   await page.goto('https://native.invalid/'+name,{waitUntil:'networkidle'});
   const metric=await page.evaluate(()=>{
@@ -70,7 +71,7 @@ for(const name of names){
   report.cases.push({name,variant,metric,errors});await context.close();
  }
  const context=await browser.newContext({javaScriptEnabled:false,viewport:{width:375,height:960}});
- await context.route('**/*',r=>r.fulfill({status:200,contentType:'text/html',body:pages[name]}));
+ await context.route('**/*',fixtureRoute(name));
  const page=await context.newPage();await page.goto('https://native.invalid/'+name);check(name+' no JavaScript explanation',await page.locator('.native-noscript').isVisible());await context.close();
 }
 check('no remote or write browser attempts',report.denied.length===0,report.denied);
