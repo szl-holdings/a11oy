@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Throttled API probe runner for the a11oy readiness harness.
 //
-// Reads tabs.json's endpoint contract registry and, for every endpoint, measures:
+// Reads tabs.json's endpoint contracts and, for GET/HEAD endpoints, measures:
 //   • HTTP status (vs degradedRules.allowStatuses)
 //   • latency p50 / p95 over N polite samples
 //   • response schema validity (schemas[] from tabs.json)
@@ -10,8 +10,8 @@
 //
 // It then assigns each endpoint a "Lies?" verdict (doctrine v11: stale/mock/uncited
 // = a lie = fail) and writes readiness-verdict.json. Exit code is non-zero if any
-// lie, required endpoint outage, or required throttling is found, unless explicit report-only mode is
-// selected (--report-only; legacy --soft is retained as an alias).
+// lie, required unprobed contract, endpoint outage, or throttling is found,
+// unless report-only mode is selected (--report-only; legacy --soft is an alias).
 //
 // No external deps — Node >= 18 global fetch only.
 //   node probe_runner.mjs --base https://a-11-oy.com [--samples 5] [--concurrency 3]
@@ -63,9 +63,6 @@ const AWAIT_POLL_MS = boundedIntegerArg("await-poll", 2000, {
   min: 100, max: 30000,
 });
 const SAFE_METHODS = new Set(["GET", "HEAD"]);
-const STATE_CHANGE_AUTHORIZED =
-  arg("allow-state-changing", false) === true &&
-  process.env.A11OY_READINESS_MUTATION_AUTHORIZED === "1";
 
 const matrix = JSON.parse(readFileSync(join(HERE, "tabs.json"), "utf8"));
 const ENDPOINTS = matrix.endpoints || {};
@@ -712,6 +709,9 @@ function validateSchema(schemaName, body) {
 }
 
 async function probeOnce(path, method) {
+  if (!SAFE_METHODS.has(method)) {
+    throw new Error("readiness probes only support GET and HEAD");
+  }
   const ctrl = new AbortController();
   const to = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   const t0 = performance.now();
@@ -720,7 +720,6 @@ async function probeOnce(path, method) {
       method,
       signal: ctrl.signal,
       headers: { accept: "application/json,text/plain,*/*" },
-      ...(method === "POST" ? { body: "{}", headers: { "content-type": "application/json", accept: "*/*" } } : {}),
     });
     const ms = performance.now() - t0;
     const ct = res.headers.get("content-type") || "";
@@ -896,11 +895,11 @@ async function probeEndpoint(path, spec, {
 } = {}) {
   const method = String(spec.method || "GET").toUpperCase();
   const allow = (spec.degradedRules?.allowStatuses) || [200];
-  if (!SAFE_METHODS.has(method) && !STATE_CHANGE_AUTHORIZED) {
+  if (!SAFE_METHODS.has(method)) {
     return {
       path, method, status: null, error: null, skipped: true,
       required: spec.required !== false,
-      skipReason: "state-changing contract skipped; require --allow-state-changing and A11OY_READINESS_MUTATION_AUTHORIZED=1",
+      skipReason: "readiness is read-only; state-changing contracts require separate governed acceptance evidence",
       throttled: false, unreachable: false, p50: null, p95: null, samples: 0,
       degraded: false, degradedBlocksReadiness: spec?.degradedBlocksReadiness !== false,
       unavailableSources: [], runtimeState: "NOT_PROBED",
@@ -1061,6 +1060,9 @@ function summarizeReleaseGate(results, expectedCount) {
   const complete = Number.isSafeInteger(expectedCount) && expectedCount > 0
     && Array.isArray(results) && results.length === expectedCount;
   const lies = Array.isArray(results) ? results.filter((r) => r?.lie).length : 0;
+  const requiredNotProbed = Array.isArray(results)
+    ? results.filter((r) => r?.skipped && r?.required !== false).length
+    : 0;
   const requiredUnreachable = Array.isArray(results)
     ? results.filter((r) => !r?.skipped && r?.required !== false && r?.unreachable).length
     : 0;
@@ -1074,10 +1076,11 @@ function summarizeReleaseGate(results, expectedCount) {
   return {
     complete,
     lies,
+    requiredNotProbed,
     requiredUnreachable,
     requiredThrottled,
     requiredDegraded,
-    blocked: !complete || lies > 0 || requiredUnreachable > 0
+    blocked: !complete || lies > 0 || requiredNotProbed > 0 || requiredUnreachable > 0
       || requiredThrottled > 0 || requiredDegraded > 0,
   };
 }
@@ -1162,6 +1165,7 @@ async function main() {
       ok: results.filter((r) => !r.skipped && !r.lie && !r.unreachable
         && !r.throttled && !r.degraded).length,
       skippedStateChanging: results.filter((r) => r.skipped).length,
+      requiredNotProbed: releaseGate.requiredNotProbed,
       lies: lies.length,
       unreachable: unreachable.length,
       throttled: throttled.length,
@@ -1181,9 +1185,9 @@ async function main() {
     else if (r.degraded) why = `  -> unavailable sources: ${r.unavailableSources.join(", ")}`;
     console.error(`  ${tag} ${r.status ?? "-"} p50=${r.p50 ?? "-"}ms p95=${r.p95 ?? "-"}ms ${r.path}${why}`);
   }
-  console.error(`[probe] ${verdict.summary.ok}/${verdict.summary.endpoints} clean, ${verdict.summary.skippedStateChanging} state-changing skipped, ${lies.length} lies, ${unreachable.length} unreachable, ${throttled.length} throttled, ${degraded.length} degraded. wrote ${OUT}`);
-  // Release mode fails on doctrine lies and required sources that are unreachable,
-  // throttled, or unavailable. HTTP 429 is an inconclusive probe, not a pass.
+  console.error(`[probe] ${verdict.summary.ok}/${verdict.summary.endpoints} clean, ${verdict.summary.skippedStateChanging} state-changing skipped (${releaseGate.requiredNotProbed} required not probed), ${lies.length} lies, ${unreachable.length} unreachable, ${throttled.length} throttled, ${degraded.length} degraded. wrote ${OUT}`);
+  // Release mode fails on unprobed required contracts, doctrine lies, and required
+  // sources that are unreachable, throttled, or unavailable. HTTP 429 is inconclusive.
   // --report-only (and its legacy --soft alias) exists only to preserve the full
   // evidence artifact for a later fail-closed publisher; it never makes the
   // verdict publishable.

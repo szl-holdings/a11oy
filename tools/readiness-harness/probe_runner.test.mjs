@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
 
 import {
   awaitReadiness,
@@ -24,6 +25,197 @@ const readinessMatrix = JSON.parse(readFileSync(
 ));
 const routerSemanticContract =
   readinessMatrix.schemas.router_stats.semanticContract;
+
+test("public Eval Runner stays read-only even when its handler is invoked directly", async () => {
+  const consoleSource = readFileSync(new URL("../../pages/console.html", import.meta.url), "utf8");
+  const section = consoleSource.match(/\/\* =+ EVAL =+ \*\/([\s\S]*?)\/\* =+ RAG =+ \*\//)?.[1];
+  assert.ok(section, "Eval Runner section must remain present");
+  const button = section.match(/<button\b[^>]*\bid="fe-run"[^>]*>/)?.[0];
+  assert.ok(button, "Eval Runner control must remain visible");
+  assert.match(button, /\sdisabled(?:\s|=|>)/);
+  assert.match(button, /aria-disabled="true"/);
+  assert.doesNotMatch(button, /\bonclick=/);
+  const handler = section.match(/window\.flyeval_run\s*=\s*async function\(\)\s*\{[\s\S]*?\n\s*\};/)?.[0];
+  assert.ok(handler, "legacy direct handler must remain explicitly blocked");
+  const rendered = [];
+  let requests = 0;
+  const rejectMutation = () => {
+    requests += 1;
+    throw new Error("public Eval Runner attempted a request");
+  };
+  const context = {
+    window: {}, fetch: rejectMutation, pj: rejectMutation,
+    H: (id, html) => { rendered.push({ id, html }); },
+  };
+  runInNewContext(handler, context, { timeout: 1000 });
+  await context.window.flyeval_run();
+  assert.equal(requests, 0);
+  assert.equal(rendered.length, 1);
+  assert.equal(rendered[0].id, "fe-cases");
+  assert.match(rendered[0].html, /BLOCKED/);
+  assert.match(rendered[0].html, /operator-authenticated client/);
+  assert.match(rendered[0].html, /explicit suite, model and execution mode/);
+});
+
+test("3D Eval Arena mounts passive observations without promoting metadata into results", () => {
+  const source = readFileSync(new URL("../../static/3d/surfaces/evalarena.js", import.meta.url), "utf8");
+  const fields = new Map();
+  const polls = [];
+  const labels = [];
+  let stopped = 0;
+  let overlay;
+  class Node {
+    constructor(geometry, material) {
+      this.geometry = geometry;
+      this.material = material;
+      this.children = [];
+      this.rotation = {};
+      this.position = { set() {} };
+      this.scale = { setScalar() {} };
+    }
+    add(child) { this.children.push(child); }
+    remove() {}
+    traverse(visit) { visit(this); this.children.forEach((child) => child.traverse(visit)); }
+  }
+  class Material { constructor(properties) { Object.assign(this, properties); } dispose() {} }
+  class Geometry { dispose() {} }
+  const context = {
+    createShowcase: () => ({
+      body: { appendChild(element) { overlay = element; } },
+      setChip: (_, label) => labels.push(label), destroy() {},
+    }),
+    document: {
+      createElement: () => ({
+        style: {}, innerHTML: "",
+        querySelector(id) {
+          if (!fields.has(id)) fields.set(id, { textContent: "", style: {}, addEventListener() {} });
+          return fields.get(id);
+        },
+      }),
+    },
+    fetch: () => { assert.fail("3D surface attempted a direct network request"); },
+  };
+  const script = source.replace(/^import .*;\s*$/m, "")
+    .replace(/^export default /m, "globalThis.surface = ");
+  runInNewContext(script, context, { timeout: 1000 });
+  context.surface.mount({
+    THREE: {
+      Group: Node, Mesh: Node, TorusGeometry: Geometry, SphereGeometry: Geometry,
+      MeshStandardMaterial: Material, MeshBasicMaterial: Material,
+    },
+    stage: { scene: new Node(), camera: new Node(), onFrame() {} },
+    live: {
+      createBadge: () => ({ set() {} }),
+      poll(endpoint, interval, onData, options) {
+        assert.equal(options.fetchInit.method, "GET");
+        assert.equal(options.fetchInit.body, undefined);
+        polls.push({ endpoint, interval, onData, options });
+        return { stop() { stopped += 1; } };
+      },
+    },
+  });
+  assert.equal(polls.length, 2);
+  assert.deepEqual(polls.map((poll) => poll.endpoint).sort(), [
+    "/api/a11oy/v1/eval/health", "/api/a11oy/v1/eval/suites",
+  ]);
+  assert.deepEqual(Array.from(context.surface.endpoints).sort(), polls.map((poll) => poll.endpoint).sort());
+  assert.match(overlay.innerHTML, /never runs a model or publishes a receipt/);
+  for (const poll of polls) {
+    poll.onData({
+      ok: true, suites: [{ id: "declared", n_cases: 100 }],
+      results: [{ passed: true }], aggregate: { accuracy: 1, n_passed: 100 },
+      receipt: { dsse: { signed: true } }, signing_available: true,
+    });
+  }
+  assert.equal(fields.get("#ea-suite").textContent, "1 declared suites");
+  assert.equal(fields.get("#ea-health").textContent, "DECLARED: responding");
+  for (const id of ["ea-model", "ea-cases", "ea-acc", "ea-correct", "ea-refuse", "ea-honest", "ea-control", "ea-lambda", "ea-sign", "ea-forum"]) {
+    assert.equal(fields.get(`#${id}`).textContent, "UNAVAILABLE — no run observed");
+  }
+  assert.ok(labels.every((label) => label === "UNAVAILABLE"));
+  polls.forEach((poll) => poll.options.onState({ state: "error" }));
+  assert.equal(fields.get("#ea-suite").textContent, "UNAVAILABLE");
+  assert.equal(fields.get("#ea-health").textContent, "UNAVAILABLE");
+  context.surface.unmount();
+  assert.equal(stopped, 2);
+});
+
+test("readiness never sends state-changing requests, including legacy opt-in", async () => {
+  const originalArgv = process.argv;
+  const originalAuthorization = process.env.A11OY_READINESS_MUTATION_AUTHORIZED;
+  const originalFetch = globalThis.fetch;
+  let requests = 0;
+  globalThis.fetch = async () => {
+    requests += 1;
+    return new Response("{}", {
+      status: 200, headers: { "content-type": "application/json" },
+    });
+  };
+  try {
+    for (const [flag, authorization] of [[false, ""], [true, ""], [false, "1"], [true, "1"]]) {
+      process.argv = [...originalArgv, ...(flag ? ["--allow-state-changing"] : [])];
+      process.env.A11OY_READINESS_MUTATION_AUTHORIZED = authorization;
+      const runner = await import(`./probe_runner.mjs?readonly=${flag}-${authorization}`);
+      const results = [];
+      for (const method of ["POST", "put", "PATCH", "DELETE", "OPTIONS", "TRACE"]) {
+        const result = await runner.probeEndpoint("/synthetic-effect", { method });
+        assert.equal(result.skipped, true, method);
+        assert.equal(result.required, true);
+        assert.equal(result.runtimeState, "NOT_PROBED");
+        assert.equal(result.status, null);
+        assert.equal(result.schemaOk, null);
+        assert.equal(result.freshOk, null);
+        assert.equal(result.samples, 0);
+        assert.equal(result.lie, false);
+        assert.equal(result.unreachable, false);
+        assert.match(result.skipReason, /read-only/);
+        results.push(result);
+      }
+      const gate = runner.summarizeReleaseGate(results, 6);
+      assert.equal(gate.complete, true);
+      assert.equal(gate.requiredNotProbed, 6);
+      assert.equal(runner.releaseExitCode(gate), 1);
+      assert.equal(runner.releaseExitCode(gate, true), 0);
+    }
+    assert.equal(requests, 0);
+  } finally {
+    process.argv = originalArgv;
+    globalThis.fetch = originalFetch;
+    if (originalAuthorization === undefined) {
+      delete process.env.A11OY_READINESS_MUTATION_AUTHORIZED;
+    } else {
+      process.env.A11OY_READINESS_MUTATION_AUTHORIZED = originalAuthorization;
+    }
+  }
+});
+
+test("optional unprobed contracts remain visible without claiming a successful probe", async () => {
+  const result = await probeEndpoint("/optional-effect", { method: "POST", required: false });
+  const gate = summarizeReleaseGate([result], 1);
+  assert.equal(result.skipped, true);
+  assert.equal(result.status, null);
+  assert.equal(gate.requiredNotProbed, 0);
+  assert.equal(gate.blocked, false);
+});
+
+test("readiness GET and HEAD retain bounded retries and timing samples", async () => {
+  for (const method of ["GET", "HEAD"]) {
+    const requests = [];
+    const delays = [];
+    const result = await probeEndpoint("/synthetic-read", { method }, {
+      request: async (path, actualMethod) => {
+        requests.push({ path, method: actualMethod });
+        return { status: requests.length === 1 ? 503 : 200, ms: 5, body: {} };
+      },
+      sleepFn: async (delay) => { delays.push(delay); },
+    });
+    assert.equal(result.status, 200);
+    assert.equal(result.samples, 5);
+    assert.equal(requests.length, 6);
+    assert.ok(requests.every((request) => request.method === method));
+    assert.deepEqual(delays, [1200, 400, 400, 400, 400]);
+  }
+});
 
 function liveRouterStats(nowMs = Date.now()) {
   const organForTier = new Map([

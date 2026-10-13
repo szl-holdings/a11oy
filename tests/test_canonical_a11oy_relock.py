@@ -368,15 +368,31 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
             1,
         )
 
-    def test_relock_allows_explicitly_skipped_state_changes_with_passing_reads(self) -> None:
+    def test_relock_allows_explicitly_optional_skips_with_passing_reads(self) -> None:
         session = success_session(self.origin, self.source)
         readiness_url = self.origin + relock.ROUTES["readiness"]
         readiness = session.responses[("GET", readiness_url)]._payload
-        readiness["verdict_summary"].update(ok=4, skippedStateChanging=1)
+        readiness["verdict_summary"].update(
+            ok=4, skippedStateChanging=1, requiredNotProbed=0
+        )
 
         report = relock.evaluate_once(FakeApi(self.source), session, self.contract)
 
         self.assertTrue(report["ok"])
+
+    def test_relock_rejects_required_or_unclassified_skips(self) -> None:
+        for count in ("missing", 1, True, -1, 2, 1.5, "1", None):
+            with self.subTest(count=count):
+                session = success_session(self.origin, self.source)
+                readiness_url = self.origin + relock.ROUTES["readiness"]
+                summary = session.responses[("GET", readiness_url)]._payload["verdict_summary"]
+                summary.update(ok=4, skippedStateChanging=1)
+                if count != "missing":
+                    summary["requiredNotProbed"] = count
+                with self.assertRaisesRegex(
+                    relock.RelockError, "unprobed required endpoints|required-not-probed count"
+                ):
+                    relock.evaluate_once(FakeApi(self.source), session, self.contract)
 
     def test_reviewed_markers_are_bound_to_the_deployed_holographic_source(self) -> None:
         self.assertEqual(relock.ROUTES["holographic"], "/holographic")

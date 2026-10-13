@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - explicit evaluation admission and read-only readiness
+
+- `POST /api/a11oy/v1/eval/run` requires the existing operator Bearer even for
+  modeled runs, because both modes can sign and publish receipts. Clients must
+  supply `suite` (or `suite_id`), `model_id`, and `execution_mode` (`live` or
+  `modeled`). Invalid JSON returns 400; missing or malformed selections return
+  422 before any evaluation. Empty requests no longer select a paid model or
+  start live evaluation. Authentication is not a model qualification or an
+  effect-specific lease; the existing downstream governance still applies.
+- The public Eval Runner lists suites and shows operator access is required.
+  It no longer advertises or submits an anonymous live evaluation. The 3D
+  evaluation view polls only health and suite metadata; metadata cannot become
+  model scores or signed receipts. The local board checker no longer falls back
+  to POST requests, and a 503 is no longer credited as a live result.
+- The readiness observer never sends state-changing requests, including with
+  its legacy opt-in flags. Required unprobed contracts remain visible and block
+  complete readiness acceptance through the publisher, relock and served summary.
+  This source change does not establish deployment or live readiness.
+
 ### Fixed - RAG status evidence scope
 
 - The passive RAG status route labels a stored index `cached`, not `live`, and

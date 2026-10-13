@@ -2,16 +2,9 @@
 // © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v11
 //
 // surfaces/evalarena.js — GOVERNED EVAL / RED-TEAM ARENA (Wave H, Team 2).
-// A MODELED 3D rendering of a governed evaluation run: each eval CASE is a node in
-// an arc that flies toward a central Λ-GATE core; passing cases glow proof-teal,
-// failing cases dim grey, and RED-TEAM (should-refuse) cases that are correctly
-// refused glow gold. A HUD shows the HELM-style per-metric breakdown (correctness /
-// refusal / honesty-adherence), the Λ advisory (Conjecture 1 — gray, NEVER green,
-// capped 0.97), and the SIGNED-RECEIPT state (REAL ECDSA-P256 in-Space, honest
-// UNSIGNED-LOCAL locally) that is ingested to /llm/forum on each run.
-//
-// This is an SZL GOVERNED re-expression of the eval-framework "fashion" — none of
-// the leaders ship eval + Λ-gate + signed-receipt-per-run + forum-ingest together.
+// Read-only suite metadata and health observations over a MODELED 3D scaffold.
+// Mounting this surface never starts inference, runs an evaluation, or publishes
+// a receipt. No run-result source is connected: scores and receipts are UNAVAILABLE.
 //
 // LEADERS STUDIED & CITED (clean-room; we ADOPT the fashion, NOT the code):
 //   OpenAI Evals    — registry of evals; sample + graded template (match/includes/model-graded)
@@ -29,10 +22,9 @@
 //   promptfoo       — declarative prompts x providers x asserts + red-team plugins
 //                     https://github.com/promptfoo/promptfoo
 //
-// HONESTY: MODELED — with no provider key wired, model answers are honest reference-
-//   oracle stubs; the scoring / Λ-axis / signed-receipt / forum-ingest pipeline is
-//   REAL. Λ = Conjecture 1 (advisory, gray, never green), trust ceiling 0.97 (never
-//   1.0). Nothing here touches the locked-8. ZERO PURPLE. Vendored three via ctx.THREE.
+// HONESTY: suite metadata and health do not establish evaluation results, model
+// capability, signatures, or authorization. Λ = Conjecture 1, trust ceiling 0.97.
+// Nothing here touches the locked-8. Vendored three via ctx.THREE.
 // Surface export shape mirrors loopforge.js / harness.js exactly:
 //   export default { id, title, endpoints, mount, unmount }
 
@@ -41,7 +33,6 @@ import { createShowcase } from "./_showcase.js";
 const ID    = "evalarena";
 const TITLE = "Eval Arena";
 
-const EP_RUN    = "/api/a11oy/v1/eval/run";
 const EP_SUITES = "/api/a11oy/v1/eval/suites";
 const EP_HEALTH = "/api/a11oy/v1/eval/health";
 
@@ -61,9 +52,9 @@ let _frameReg=false,_polls=[],_badge=null,_plain=false,_t0=0,_show=null;
 let _ring=null,_ringGlow=null,_core=null,_caseGroup=null,_caseMeshes=[];
 
 const S = {
-  label:"MODELED", state:"init",
-  suiteId:"core_honest_v1", suiteTitle:null, suiteVersion:null,
-  modelId:"claude_sonnet_4_6",
+  label:"UNAVAILABLE", state:"init", healthAvailable:false, suitesAvailable:false,
+  suiteId:null, suiteTitle:null, suiteVersion:null,
+  modelId:null,
   cases:[],            // [{id, cat, passed, scorer}]
   nCases:null, nPassed:null, accuracy:null,
   correctness:null, refusal:null, honesty:null, control:null,
@@ -85,53 +76,30 @@ function mount(ctx){
   _buildOverlay(ctx);
   _buildScaffold();
 
-  // POST /eval/run — the CORE poll. Body carries {suite, model_id}.
-  _polls.push(ctx.live.poll(EP_RUN, 8000, _onRun, {
-    badge:_badge,
-    onState:(m)=>{ S.state=m.state; _paintOverlay(); },
-    fetchInit:{ method:"POST", headers:{"accept":"application/json","content-type":"application/json"},
-                body: JSON.stringify({ suite:S.suiteId, model_id:S.modelId }) },
+  _polls.push(ctx.live.poll(EP_HEALTH, 30000, _onHealth, {
+    onState:(m)=>{ S.state=m.state; if(m.state!=="live") S.healthAvailable=false; _paintOverlay(); },
+    fetchInit:{ method:"GET" },
   }));
-  // GET /eval/suites — populate the roster (metadata only).
-  _polls.push(ctx.live.poll(EP_SUITES, 30000, _onSuites, {}));
+  _polls.push(ctx.live.poll(EP_SUITES, 30000, _onSuites, {
+    onState:(m)=>{ if(m.state!=="live"){ S.suitesAvailable=false; S.suiteRoster=[]; _paintOverlay(); } },
+    fetchInit:{ method:"GET" },
+  }));
 
   if(!_frameReg&&_stage.onFrame){ _stage.onFrame(_animate); _frameReg=true; }
   _paintOverlay();
   return { id:ID, started:true };
 }
 
-function _readLabel(j){ const l=(j&&j.honesty_label!=null)?j.honesty_label:(j&&j.label!=null?j.label:"MODELED"); return String(l).toUpperCase(); }
-
 function _onSuites(j){
-  if(!j||!Array.isArray(j.suites)) return;
+  S.suitesAvailable=!!(j&&Array.isArray(j.suites));
+  if(!S.suitesAvailable){ S.suiteRoster=[]; _paintOverlay(); return; }
   S.suiteRoster=j.suites.map((s)=>({ id:String(s.id), title:String(s.title||s.id), n:Number(s.n_cases)||0,
     version:String(s.version||""), cats:Array.isArray(s.categories)?s.categories:[] }));
   _paintOverlay();
 }
 
-function _onRun(j){
-  if(!j){ S.state="error"; _paintOverlay(); return; }
-  S.label=_readLabel(j);
-  const su=j.suite||{}; S.suiteTitle=su.title||S.suiteId; S.suiteVersion=su.version||null;
-  S.modelId=String(j.model_id||S.modelId);
-  const results=Array.isArray(j.results)?j.results:[];
-  S.cases=results.map((r)=>({ id:String(r.id), cat:String(r.category||"correctness"),
-    passed:!!r.passed, scorer:String(r.scorer||"") }));
-  const agg=j.aggregate||{};
-  S.nCases=agg.n_cases!=null?agg.n_cases:S.cases.length;
-  S.nPassed=agg.n_passed!=null?agg.n_passed:S.cases.filter((c)=>c.passed).length;
-  S.accuracy=agg.accuracy!=null?Number(agg.accuracy):null;
-  S.correctness=agg.correctness_rate!=null?Number(agg.correctness_rate):null;
-  S.refusal=agg.refusal_rate!=null?Number(agg.refusal_rate):null;
-  S.honesty=agg.honesty_adherence_rate!=null?Number(agg.honesty_adherence_rate):null;
-  S.control=agg.over_refusal_control_rate!=null?Number(agg.over_refusal_control_rate):null;
-  S.lambda=agg.lambda!=null?Number(agg.lambda):null;
-  S.lambdaAxes=agg.lambda_axes||null;
-  const rec=j.receipt||{}; const dsse=rec.dsse||{}; const sign=rec.signing||{};
-  S.signed=(dsse.signed===true);
-  S.signMode=sign.mode||(S.signed?"REAL":"UNSIGNED-LOCAL");
-  const fi=j.forum_ingest||{}; S.forumIngested=(fi.ingested===true);
-  _rebuildCases();
+function _onHealth(j){
+  S.healthAvailable=!!(j&&j.ok===true);
   _paintOverlay();
 }
 
@@ -198,13 +166,13 @@ function _animate(){
 function _buildOverlay(ctx){
   _show=createShowcase(ctx,{
     id:ID, title:TITLE, accent:"#3af4c8", badge:_badge,
-    chips:[{label:"MODELED", name:"label"}],
+    chips:[{label:"UNAVAILABLE", name:"label"}],
   });
   _overlay=document.createElement("div");
   _overlay.style.cssText="font:12px/1.5 ui-monospace,Menlo,monospace;color:#cfe3ea;";
   _overlay.innerHTML=
-    '<div style="margin-top:2px;color:#8fb3bd;font-size:10.5px">Governed eval / red-team arena. Each eval CASE flies at the central <b>Λ-gate</b>: passing cases glow teal and cross the ring; red-team (should-refuse) cases correctly refused glow gold; failures dim and fall. Every run mints a <b>signed receipt</b> ingested to /llm/forum. Λ is advisory (Conjecture 1) — never green.</div>'+
-    _row("Suite","ea-suite")+_row("Model routed","ea-model")+
+    '<div style="margin-top:2px;color:#8fb3bd;font-size:10.5px">Read-only evaluation inventory over a MODELED scaffold. Opening this view never runs a model or publishes a receipt. Run results are UNAVAILABLE; an operator-authenticated client and explicit evaluation inputs are required to start a run. Λ remains Conjecture 1.</div>'+
+    _row("Suite inventory","ea-suite")+_row("Health observation","ea-health")+_row("Model evaluated","ea-model")+
     _row("Cases passed","ea-cases")+_row("Accuracy","ea-acc")+
     '<hr style="border:0;border-top:1px solid #1b3a44;margin:8px 0">'+
     '<div style="font-size:10.5px;color:#8fb3bd;margin-bottom:3px">HELM-style per-metric (holistic)</div>'+
@@ -238,35 +206,23 @@ function _pct(x){ return x==null?"—":(x<=1?(x*100).toFixed(1)+"%":String(x)); 
 
 function _paintOverlay(){
   if(!_overlay)return;
-  const missing=(S.state==="missing"||S.state==="error"); const deg=missing||(S.state==="degraded");
-  if(_show) _show.setChip("label",S.label||"MODELED");
-  if(missing&&!S.cases.length){
-    ["ea-suite","ea-model","ea-cases","ea-acc","ea-correct","ea-refuse","ea-honest","ea-control","ea-lambda","ea-sign","ea-forum"]
-      .forEach((id)=>_set(id,"NO-LIVE-DATA"));
-    if(_plain)_applyPlain(); return;
-  }
-  _set("ea-suite",(S.suiteTitle||S.suiteId)+(S.suiteVersion?(" v"+S.suiteVersion):""));
-  _set("ea-model",S.modelId||"—");
-  _set("ea-cases",(S.nPassed!=null?S.nPassed:"—")+" / "+(S.nCases!=null?S.nCases:"—"));
-  _set("ea-acc",_pct(S.accuracy));
-  _set("ea-correct",_pct(S.correctness));
-  _set("ea-refuse",_pct(S.refusal));
-  _set("ea-honest",_pct(S.honesty));
-  _set("ea-control",_pct(S.control));
-  _set("ea-lambda",(S.lambda!=null?S.lambda.toFixed(4):"—")+"  (gray · never green · ≤0.97)");
-  _set("ea-sign",(S.signMode||"—")+(S.signed?" ✓":""));
-  _set("ea-forum",(S.forumIngested===true?"ingested ✓":(S.forumIngested===false?"skipped":"—")));
+  if(_show) _show.setChip("label","UNAVAILABLE");
+  if(_badge) _badge.set("missing",{label:"no evaluation run observed"});
+  _set("ea-suite",S.suitesAvailable?String(S.suiteRoster.length)+" declared suites":"UNAVAILABLE");
+  _set("ea-health",S.healthAvailable?"DECLARED: responding":"UNAVAILABLE");
+  ["ea-model","ea-cases","ea-acc","ea-correct","ea-refuse","ea-honest","ea-control","ea-lambda","ea-sign","ea-forum"]
+    .forEach((id)=>_set(id,"UNAVAILABLE — no run observed"));
   if(_plain)_applyPlain();
 }
 
 function _applyPlain(){
   const box=_overlay&&_overlay.querySelector("#ea-plainbox"); if(!box)return;
   box.style.display=_plain?"block":"none";
-  if(_plain) box.innerHTML="This is an <b>exam room for AI models</b>, run the way the field's leaders (HELM, Inspect, OpenAI Evals, garak) run their exams — but <b>governed</b>. We give a model a fixed set of test questions (a <b>suite</b>): some check whether it gets facts right, some are <b>red-team traps</b> that a safe model should <b>refuse</b>, and some check whether it's <b>honest about its limits</b> instead of over-claiming. Each question flies at the central gate: <b>pass = teal and crosses in</b>, a <b>refused trap = gold</b>, a <b>failure = grey and falls</b>. We then report every metric side-by-side (HELM's idea), attach an advisory trust score <b>Λ</b> (our own gate — always grey, never a green stamp, capped at 0.97), and <b>sign a receipt</b> of the whole run that gets filed to the shared forum. Label <b>"+(S.label||"MODELED")+"</b>: with no model key wired here, the answers are honest <i>reference-oracle</i> stand-ins — but the scoring, the Λ math, the signature and the filing are all <b>real</b>. If the backend is offline it says <b>NO-LIVE-DATA</b>.";
+  if(_plain) box.innerHTML="This is a <b>read-only evaluation inventory</b>. It reads suite metadata and health status without starting an evaluation. The 3D scaffold is <b>MODELED</b>; it is not a score or proof. No evaluation run is loaded, so model results, metrics, signatures and forum receipts remain <b>UNAVAILABLE</b>. An operator-authenticated client must explicitly select the suite, model and execution mode before requesting an evaluation. Λ remains <b>Conjecture 1</b>.";
 }
 
 function _infoHTML(){
-  return "<b>What is MODELED vs real.</b> The eval PIPELINE — the suites, the deterministic scorers (exact / includes / regex / refusal-detector / honesty-adherence), the HELM-style per-metric aggregate, the Λ geometric-mean advisory, the DSSE receipt and the /llm/forum ingest — is <b>REAL</b> and runs end-to-end. What is <b>MODELED</b>: with no provider API key wired in this Space, the model's <i>answers</i> are honest <b>reference-oracle stubs</b> (never fabricated as if from a live provider; Zero-Bandaid Law). Wire a key and the same pipeline scores a live model. The signature is <b>REAL ECDSA-P256</b> in-Space (via the SZL cosign key) and an honest <b>UNSIGNED-LOCAL</b> envelope locally — never a fabricated signature. Λ stays <b>Conjecture 1</b>, rendered grey, never green; trust is capped at 0.97, never 100%.<br><br><b>We adopt the fashion; we do not claim it.</b><br>&bull; OpenAI Evals — <a href=\"https://github.com/openai/evals\" style=\"color:#3af4c8\">github.com/openai/evals</a><br>&bull; Anthropic evals (Discrim-Eval / model-written) — <a href=\"https://github.com/anthropics/evals\" style=\"color:#3af4c8\">github.com/anthropics/evals</a><br>&bull; HELM (Stanford CRFM) — <a href=\"https://crfm.stanford.edu/helm/\" style=\"color:#3af4c8\">crfm.stanford.edu/helm</a> · arXiv:2211.09110<br>&bull; EleutherAI lm-evaluation-harness — <a href=\"https://github.com/EleutherAI/lm-evaluation-harness\" style=\"color:#3af4c8\">github.com/EleutherAI/lm-evaluation-harness</a><br>&bull; UK AISI Inspect — <a href=\"https://inspect.aisi.org.uk/\" style=\"color:#3af4c8\">inspect.aisi.org.uk</a><br>&bull; NVIDIA garak — <a href=\"https://github.com/NVIDIA/garak\" style=\"color:#3af4c8\">github.com/NVIDIA/garak</a><br>&bull; promptfoo — <a href=\"https://github.com/promptfoo/promptfoo\" style=\"color:#3af4c8\">github.com/promptfoo/promptfoo</a><br>&bull; Λ trust gate = Conjecture 1 (lutar-lean; advisory, never green). Nothing here touches the locked-8.";
+  return "<b>Observation boundary.</b> This view reads only suite metadata and health. Those responses do not establish model performance, a completed evaluation, a signature or authorization. No result source is connected: evaluation evidence is <b>UNAVAILABLE</b>. The scene is a <b>MODELED</b> scaffold. Λ remains <b>Conjecture 1</b> and the trust ceiling is 0.97.<br><br><b>We adopt the fashion; we do not claim it.</b><br>&bull; OpenAI Evals — <a href=\"https://github.com/openai/evals\" style=\"color:#3af4c8\">github.com/openai/evals</a><br>&bull; Anthropic evals (Discrim-Eval / model-written) — <a href=\"https://github.com/anthropics/evals\" style=\"color:#3af4c8\">github.com/anthropics/evals</a><br>&bull; HELM (Stanford CRFM) — <a href=\"https://crfm.stanford.edu/helm/\" style=\"color:#3af4c8\">crfm.stanford.edu/helm</a> · arXiv:2211.09110<br>&bull; EleutherAI lm-evaluation-harness — <a href=\"https://github.com/EleutherAI/lm-evaluation-harness\" style=\"color:#3af4c8\">github.com/EleutherAI/lm-evaluation-harness</a><br>&bull; UK AISI Inspect — <a href=\"https://inspect.aisi.org.uk/\" style=\"color:#3af4c8\">inspect.aisi.org.uk</a><br>&bull; NVIDIA garak — <a href=\"https://github.com/NVIDIA/garak\" style=\"color:#3af4c8\">github.com/NVIDIA/garak</a><br>&bull; promptfoo — <a href=\"https://github.com/promptfoo/promptfoo\" style=\"color:#3af4c8\">github.com/promptfoo/promptfoo</a><br>&bull; Λ trust gate = Conjecture 1 (lutar-lean; advisory, never green). Nothing here touches the locked-8.";
 }
 
 function unmount(){
@@ -276,10 +232,10 @@ function unmount(){
     if(o.material){const ms=Array.isArray(o.material)?o.material:[o.material];ms.forEach((m)=>{if(m.dispose)m.dispose();});} }); _stage.scene.remove(_group); } }catch(_){}
   _group=_overlay=null; _ring=_ringGlow=_core=_caseGroup=null; _caseMeshes=[];
   _badge=null; _plain=false; _frameReg=false; _stage=_THREE=_ctx=null;
-  S.label="MODELED"; S.state="init"; S.cases=[]; S.suiteRoster=[];
+  S.label="UNAVAILABLE"; S.state="init"; S.healthAvailable=S.suitesAvailable=false; S.cases=[]; S.suiteRoster=[];
   S.nCases=S.nPassed=S.accuracy=S.correctness=S.refusal=S.honesty=S.control=null;
   S.lambda=S.lambdaAxes=S.signed=S.signMode=S.forumIngested=null;
   S.suiteTitle=S.suiteVersion=null;
 }
 
-export default { id: ID, title: TITLE, endpoints: [EP_RUN, EP_SUITES, EP_HEALTH], mount, unmount };
+export default { id: ID, title: TITLE, endpoints: [EP_SUITES, EP_HEALTH], mount, unmount };

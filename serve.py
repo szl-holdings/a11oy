@@ -3680,6 +3680,13 @@ try:
                 if isinstance(_candidate_summary, dict)
                 else None
             )
+            _required_not_probed = (
+                _candidate_summary.get(
+                    "requiredNotProbed", _candidate_summary.get("skippedStateChanging")
+                )
+                if isinstance(_candidate_summary, dict)
+                else None
+            )
             try:
                 _checked_dt = _rd_dt.fromisoformat(
                     str(_candidate_checked_at).replace("Z", "+00:00")
@@ -3696,6 +3703,10 @@ try:
                 and _counts[0] > 0
                 and _counts[0] - _counts[2] > 0
                 and sum(_counts[1:]) == _counts[0]
+                and isinstance(_required_not_probed, int)
+                and not isinstance(_required_not_probed, bool)
+                and 0 <= _required_not_probed <= _counts[2]
+                and _required_not_probed == 0
                 and all(value == 0 for value in _counts[3:6])
                 and isinstance(_blocking_degraded, int)
                 and not isinstance(_blocking_degraded, bool)
@@ -3742,6 +3753,7 @@ try:
             if _verdict_available:
                 _verdict_summary = dict(_candidate_summary)
                 _verdict_summary.setdefault("blockingDegraded", _blocking_degraded)
+                _verdict_summary.setdefault("requiredNotProbed", _required_not_probed)
                 _verdict_source_revision = _candidate_revision
                 _verdict_checked_at = _candidate_checked_at
                 _verdict_base = _candidate_base

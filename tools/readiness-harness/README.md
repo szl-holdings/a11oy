@@ -1,9 +1,9 @@
 # a11oy readiness harness
 
-An automated harness that proves **every tab in the a11oy (and killinchu) console
-is real** — backed by a live endpoint, returning the contracted schema, fresh
-within its SLA, and citing its sources. Doctrine v11: *no mock theater*. A tab
-that is stale, mocked, or uncited is a **lie** and fails the build.
+An automated harness that checks the a11oy (and killinchu) console contracts:
+read-only endpoints, contracted schemas, freshness within the declared SLA, and
+citations. Required contracts without probe evidence block readiness. Doctrine
+v11: a response that is stale, mocked, or uncited is a **lie** and fails the build.
 
 ## Pieces
 
@@ -11,7 +11,7 @@ that is stale, mocked, or uncited is a **lie** and fails the build.
 |------|--------------|
 | `gen_tabs_matrix.py` | Reads the console source and generates `tabs.json` — the contract matrix (tab → route → endpoints → schema → freshnessSLA → citationsRequired → degradedRules). Single source of truth. `--check` mode fails on drift. Also emits `stress/stress-targets.json`. |
 | `tabs.json` | The generated contract matrix (committed; regenerate, don't hand-edit). |
-| `probe_runner.mjs` | Throttled API probe. For every endpoint: status, p50/p95 latency, schema validity, citations, freshness → a per-endpoint **"Lies?"** verdict in `readiness-verdict.json`. Exit ≠ 0 on any lie (unless `--soft`). |
+| `probe_runner.mjs` | Throttled GET/HEAD probe: status, p50/p95 latency, schema validity, citations, freshness → a per-endpoint verdict in `readiness-verdict.json`. Required unprobed contracts, lies, outages, throttling, or blocking degradation fail release mode. `--report-only` (legacy `--soft`) retains evidence without making it publishable. |
 | `link_check.mjs` | Typo gate (catches a dropped trailing **s** on the GitHub/HF org names, a truncated `.net` on the domain, and a missing **b** in `github`) plus optional external link reachability (`--reach`). |
 | `tab_sweeper.spec.ts` + `playwright.config.ts` | Playwright sweep that opens every tab in the live console and asserts it renders honestly (no unlabelled placeholder, citations present when required). |
 | `stress/warhacker.js` | k6 stress/soak suite over the GET contract endpoints with a `lies` counter threshold of zero. |
@@ -38,6 +38,28 @@ A11OY_BASE=https://a-11-oy.com npx playwright test tab_sweeper.spec.ts
 k6 run -e A11OY_BASE=https://a-11-oy.com stress/warhacker.js
 k6 run -e A11OY_BASE=https://a-11-oy.com -e PROFILE=soak stress/warhacker.js
 ```
+
+## Read-only boundary and coverage
+
+The observer sends only GET and HEAD. The legacy `--allow-state-changing` flag
+and `A11OY_READINESS_MUTATION_AUTHORIZED=1` never enable POST or any other method.
+Retries and timing samples apply only to read requests. State-changing contracts
+remain in the endpoint denominator as `skipped: true`, `runtimeState: NOT_PROBED`,
+with no HTTP status, validation result, or latency. Skipping is neither a lie nor
+an outage, and it is never counted as a successful probe.
+
+`summary.requiredNotProbed` counts skipped required contracts separately from
+`summary.skippedStateChanging`, which includes optional skips. Required skips
+block strict execution, compact publication, runtime verdict ingestion, and
+canonical relock. An older verdict without the new count treats every skip as
+required; explicit optional skips remain visible without blocking required
+coverage. Endpoint requirements and the matrix are unchanged.
+
+The current matrix includes five required POST contracts: `policy/decide`,
+`operator/ask`, `eval/run`, `agentloop/run`, and `policy/compliance`. Their effect
+acceptance is **BLOCKED** in this observer. A separate governed acceptance path
+and source-bound evidence integration are needed before full readiness can
+qualify; this change does not create that authorization or evidence.
 
 ## "Lies?" verdict rules (probe)
 
@@ -80,13 +102,13 @@ The matrix is also served by the running console at:
 GET /api/a11oy/v1/readiness/tab-matrix
 ```
 
-(see `serve.py`). It returns `tabs.json` plus a compact post-deploy verdict only
-after `hf-sync.yml` probes the canonical deployment and publishes the verdict
-through `SZL_PROBE_VERDICT_JSON`. The server independently requires the exact
-source revision, canonical origin, complete outcomes, and a non-future
+(see `serve.py`). It returns `tabs.json` plus an accepted compact verdict when
+one is available through its configured evidence sources. The server independently
+requires the exact source revision, canonical origin, complete outcomes, and a non-future
 observation no older than 24 hours. Missing or rejected evidence remains
 `available: false`; the full probe stays an immutable GitHub Actions artifact.
 
-> **Note:** a Space variable update restarts the canonical runtime. The relock
-> waits for that restarted runtime to expose the ingested verdict before it can
-> pass.
+`hf-sync.yml` currently validates the post-deploy verdict and hands it to relock
+without writing a Space variable. Persistent runtime ingestion remains a
+separate gap: a Space variable update restarts the canonical runtime and is not
+part of the read-only observer.

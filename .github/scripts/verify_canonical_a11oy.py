@@ -666,6 +666,15 @@ def validate_verdict_evidence(
         or sum(counts[1:]) != endpoints
     ):
         raise RelockError("readiness verdict outcomes are incomplete")
+    required_not_probed = summary.get("requiredNotProbed", skipped)
+    if (
+        not isinstance(required_not_probed, int)
+        or isinstance(required_not_probed, bool)
+        or not 0 <= required_not_probed <= skipped
+    ):
+        raise RelockError("readiness verdict required-not-probed count is invalid")
+    if required_not_probed != 0:
+        raise RelockError("readiness verdict contains unprobed required endpoints")
     blocking_degraded = summary.get("blockingDegraded", summary["degraded"])
     if (
         not isinstance(blocking_degraded, int)
@@ -695,7 +704,7 @@ def validate_verdict_evidence(
         "checked_at": checked_at,
         "base": normalize_origin(expected_origin),
         "age_seconds": age_seconds,
-        "summary": dict(summary),
+        "summary": {**dict(summary), "requiredNotProbed": required_not_probed},
     }
 
 

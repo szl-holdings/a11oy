@@ -17232,57 +17232,31 @@ window.a11oyInvestor = (function(){
     };
 
     /* ============================ EVAL ============================ */
-    V.flyeval={title:'Eval Runner',badge:'LIVE \u00b7 /eval',sub:'The governed eval / red-team arena \u2014 \u039b-gated, signed receipt, honest labels. Pick a suite and run it live against a model id; see per-case pass/fail, category rates, the \u039b geometric mean (Conjecture 1) and its receipt. This is station 3 of the flywheel: the same self-eval the Governed Agent runs on every step. Reads live from GET /api/a11oy/v1/eval/suites + POST /api/a11oy/v1/eval/run. Studied OpenAI Evals, HELM, garak, Inspect, promptfoo.',
+    V.flyeval={title:'Eval Runner',badge:'Read-only \u00b7 /eval',sub:'Inspect the published evaluation suites. Running an evaluation requires an operator-authenticated client with an explicit suite, model and execution mode. This public view cannot run models or publish evaluation receipts.',
       render:async function(c){
         c.innerHTML=flywheelStrip('eval')
-          +'<div class="card"><div class="card-h"><span class="card-t">Run an eval suite</span><span class="card-ep" id="fe-ep">loading\u2026</span></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">Inspect evaluation suites</span><span class="card-ep" id="fe-ep">loading\u2026</span></div>'
           +'<div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">'
           +'<select id="fe-suite" class="fw-sel"><option value="">choose a suite\u2026</option></select>'
           +'<input id="fe-model" class="fw-sel" style="width:200px" placeholder="model id (e.g. sovereign_local)" value="sovereign_local">'
           +'<select id="fe-prof" class="fw-sel"><option value="">no harness profile</option></select>'
-          +'<button class="fw-btn" id="fe-run" onclick="window.flyeval_run()">\u25b6 Run eval</button>'
+          +'<button class="fw-btn" id="fe-run" disabled aria-disabled="true">Operator access required</button>'
           +'</div><div id="fe-suitedesc" class="mono dim" style="font-size:11px;margin-top:.4rem"></div></div>'
           +'<div class="kpis" id="fe-agg"></div>'
-          +'<div class="card"><div class="card-h"><span class="card-t">Per-case results</span><span class="card-ep">live scoring</span></div><div id="fe-cases"><div class="row mono dim">run a suite to see per-case pass/fail\u2026</div></div></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">Per-case results</span><span class="card-ep">Not run</span></div><div id="fe-cases"><div class="row mono dim">No evaluation has been run from this read-only view.</div></div></div>'
           +'<div class="card"><div class="card-h"><span class="card-t">Eval receipt + \u039b axes</span><span class="card-ep">Conjecture 1</span></div><div id="fe-receipt"><div class="row mono dim">\u2014</div><details class="raw"><summary>raw eval run JSON</summary><pre class="out" id="fe-raw">\u2014</pre></details></div></div>'
           +LAMBDA_NOTE;
         try{ var d=await gj(API+'/v1/eval/suites'); window._feSuites={}; var sel=E('fe-suite');
           (d.suites||[]).forEach(function(s){ window._feSuites[s.id]=s; var o=document.createElement('option'); o.value=s.id; o.textContent=s.id+' ('+s.n_cases+' cases)'; sel.appendChild(o); });
           sel.onchange=function(){ var s=window._feSuites[this.value]; H('fe-suitedesc', s?esc(s.title+' \u2014 '+s.description):''); };
-          E('fe-ep').innerHTML=chip('LIVE','b-live')+' '+esc(String((d.suites||[]).length))+' suites';
+          E('fe-ep').innerHTML=chip('DECLARED','b-teal')+' '+esc(String((d.suites||[]).length))+' suites';
         }catch(e){ E('fe-ep').innerHTML=chip('unavailable','b-gold'); }
         try{ var pd=await gj(API+'/v1/harness/profiles'); var ps=E('fe-prof');
           (pd.profiles||[]).forEach(function(p){ var o=document.createElement('option'); o.value=p.id; o.textContent=p.id; ps.appendChild(o); });
         }catch(e){}
       }};
     window.flyeval_run=async function(){
-      var btn=E('fe-run'); if(btn){btn.disabled=true;btn.textContent='running\u2026';}
-      var suite=(E('fe-suite')||{}).value||''; var model=(E('fe-model')||{}).value||'sovereign_local'; var prof=(E('fe-prof')||{}).value||'';
-      if(!suite){ H('fe-cases','<div class="row mono dim">choose a suite first.</div>'); if(btn){btn.disabled=false;btn.textContent='\u25b6 Run eval';} return; }
-      H('fe-cases','<div class="row mono dim">running '+esc(suite)+' live\u2026</div>');
-      try{ var body={suite:suite,model_id:model}; if(prof) body.harness_profile_id=prof;
-        var d=await pj(API+'/v1/eval/run',body); E('fe-raw').textContent=JSON.stringify(d,null,2);
-        var agg=d.aggregate||{};
-        H('fe-agg','<div class="kpi"><div class="k">Cases</div><div class="v">'+esc(String(agg.n_cases||0))+'</div></div>'
-          +'<div class="kpi"><div class="k">Passed</div><div class="v live">'+esc(String(agg.n_passed||0))+'</div></div>'
-          +'<div class="kpi"><div class="k">Accuracy</div><div class="v teal">'+esc(agg.accuracy!=null?agg.accuracy:'\u2014')+'</div></div>'
-          +'<div class="kpi"><div class="k">\u039b (advisory)</div><div class="v" style="color:'+GOLD+'">'+esc(agg.lambda!=null?agg.lambda:'\u2014')+'</div><div class="d">Conjecture 1 \u00b7 never green</div></div>');
-        var rows=(d.results||[]).map(function(r){ return '<div class="fw-step"><div class="sh"><span class="n">'+esc(r.category||'')+'</span>'+chip(r.passed?'PASS':'FAIL',r.passed?'b-live':'b-err')+chip(r.scorer||'','b-teal')+chip(r.honesty_label||'MODELED','b-gold')+'</div>'
-          +'<div class="cv" style="font-size:12px;color:var(--cream)">'+esc(r.input||'')+'</div>'
-          +'<div class="mono dim" style="font-size:10.5px;margin-top:.25rem">expected: '+esc(r.expected||'')+' \u2014 '+esc(r.detail||'')+'</div>'
-          +(r.note?'<div class="mono dim" style="font-size:10px;margin-top:.15rem">'+esc(r.note)+'</div>':'')+'</div>'; }).join('');
-        H('fe-cases', rows||'<div class="row mono dim">no cases.</div>');
-        var rc=d.receipt||{}; var rb=rc.body||{}; var dsse=rc.dsse||rc.envelope||{}; var sigs=(dsse.signatures||rc.signatures||[]);
-        var signed=(sigs.length>0)||rc.signed||dsse.signed;
-        var axes=agg.lambda_axes||{}; var axh=Object.keys(axes).map(function(k){ return '<div class="fw-cell"><div class="cl">'+esc(k)+'</div><div class="cv">'+esc(axes[k])+'</div></div>'; }).join('');
-        H('fe-receipt','<div class="fw-lane">'
-          +'<div class="fw-cell"><div class="cl">signature</div><div class="cv">'+(signed?chip('SIGNED','b-live'):chip('UNSIGNED-LOCAL','b-gold','honest \u2014 no in-image key in this runtime'))+'</div></div>'
-          +'<div class="fw-cell"><div class="cl">\u039b posture</div><div class="cv">'+esc(agg.lambda_posture||'advisory (Conjecture 1)')+'</div></div>'
-          +'<div class="fw-cell"><div class="cl">locked-8 touched</div><div class="cv">'+chip(agg.locked8_touched?'YES':'NO',agg.locked8_touched?'b-err':'b-live')+'</div></div>'
-          +axh+'</div><details class="raw" open><summary>raw eval run JSON</summary><pre class="out" id="fe-raw2"></pre></details>');
-        E('fe-raw2').textContent=JSON.stringify(d,null,2);
-      }catch(e){ H('fe-cases','<div class="row mono dim">eval did not resolve: '+esc(e.message)+' \u2014 shown honestly.</div>'); }
-      if(btn){btn.disabled=false;btn.textContent='\u25b6 Run eval';}
+      H('fe-cases','<div class="row mono dim">BLOCKED: use an operator-authenticated client with an explicit suite, model and execution mode. This public view does not submit evaluations.</div>');
     };
 
     /* ============================ RAG ============================ */

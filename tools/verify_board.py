@@ -5,11 +5,13 @@
 
 Boots serve.py in-process via TestClient and, for every holographic surface,
 resolves its exported endpoint(s) from the surface .js, hits the LOCAL a11oy
-endpoints, and asserts HTTP 200 + a non-empty JSON body (honest label present).
+GET endpoints, and records HTTP/JSON observations without issuing POST requests.
+This is a local route observation, not a deployment or effect-acceptance gate.
 Cross-repo killinchu mirror surfaces (endpoints on szlholdings-killinchu.hf.space)
 are reported as CROSS-REPO (out of this app's TestClient scope) but recorded.
 
-Produces a WIRED/LIVE matrix (JSON + markdown) to /tmp and stdout.
+Produces a local observation matrix (JSON + markdown) to /tmp and stdout.
+In-process application startup is outside this request-method boundary.
 Usage: python3 tools/verify_board.py
 """
 from __future__ import annotations
@@ -62,15 +64,6 @@ def surface_endpoints(fp: Path):
     return out
 
 
-# Endpoints whose 503 is an HONEST 'unavailable in the dev checkout, LIVE in the
-# built image' state (the file is COPY'd to an absolute /app path in the Dockerfile
-# but not present at the repo path a TestClient sees). Not a wiring defect.
-HONEST_IN_IMAGE = {
-    "/api/a11oy/v1/genome": "genome.json COPY'd to /app/data/genome.json in Dockerfile (line 169); "
-                            "503 UNAVAILABLE only in the dev TestClient checkout, LIVE in-image",
-}
-
-
 def expected_ok(body):
     if body is None:
         return False, "no-json"
@@ -85,28 +78,32 @@ def expected_ok(body):
     return True, str(type(body).__name__)
 
 
-# Per-surface request contract: method + a VALID body (mirrors exactly what the
-# surface .js sends via its fetchInit, using the real IDs the backend accepts).
-# Anything not listed defaults to GET (the vast majority of surfaces GET a snapshot).
-POST_CONTRACT = {
-    "/api/a11oy/v1/eval/run": {"suite": "core_honest_v1", "model_id": "szl-modeled-lm"},
-    "/api/a11oy/v1/rag/query": {"query": "what is the doctrine lock?"},
-    "/api/a11oy/v1/agentloop/run": {"task": "summarize the doctrine lock"},
-    "/api/a11oy/v1/harness/apply": {"profile_id": "szl-fable", "model_id": "sovereign_local",
-                                    "prompt": "Demonstrate the applied behavior profile."},
-    "/api/a11oy/v1/restraint/evaluate": {"task": "smoke"},
-    # POST-only governed-run surfaces that accept an empty body ({}) — the surface
-    # .js posts `body: "{}"` via fetchInit; mirror that so the matrix is honest.
-    "/api/a11oy/v1/pinn/residual/evaluate": {},
-    "/api/a11oy/v1/loopforge/run": {},
-    "/api/a11oy/v1/counter-uas/compute": None,  # GET alias (added this PR); sentinel handled below
-}
-# Drop any explicit None sentinels (documented GET-only entries kept for reference).
-POST_CONTRACT = {k: v for k, v in POST_CONTRACT.items() if v is not None}
+# These contracts require a separately authorized effect acceptance, never a
+# synthetic POST from an observer. Keep them visible as unprobed.
+STATE_CHANGING_ENDPOINTS = frozenset({
+    "/api/a11oy/v1/eval/run",
+    "/api/a11oy/v1/rag/query",
+    "/api/a11oy/v1/agentloop/run",
+    "/api/a11oy/v1/harness/apply",
+    "/api/a11oy/v1/restraint/evaluate",
+    "/api/a11oy/v1/pinn/residual/evaluate",
+    "/api/a11oy/v1/loopforge/run",
+})
 
 
-def post_contract(path):
-    return POST_CONTRACT.get(path.split("?")[0])
+def observe_endpoint(client, endpoint):
+    if endpoint.split("?")[0] in STATE_CHANGING_ENDPOINTS:
+        return {"ep": endpoint, "scope": "LOCAL", "code": None,
+                "live": False, "fields": "NOT_PROBED: effect acceptance required"}
+    response = client.get(endpoint)
+    try:
+        body = response.json()
+    except Exception:
+        body = None
+    observed, fields = (expected_ok(body) if response.status_code == 200
+                        else (False, f"http{response.status_code}"))
+    return {"ep": endpoint, "scope": "LOCAL", "code": response.status_code,
+            "live": observed, "fields": fields}
 
 
 def main():
@@ -131,32 +128,7 @@ def main():
                                    "live": None, "fields": "killinchu-mirror"})
                 continue
             try:
-                body_contract = post_contract(ep)
-                if body_contract is not None:
-                    r = client.post(ep, json=body_contract)
-                    if r.status_code == 405:
-                        r = client.get(ep)
-                else:
-                    r = client.get(ep)
-                    if r.status_code == 405:
-                        r = client.post(ep, json={})
-                code = r.status_code
-                try:
-                    body = r.json()
-                except Exception:
-                    body = None
-                base_path = ep.split("?")[0]
-                if code == 200:
-                    live, fields = expected_ok(body)
-                elif code == 503 and base_path in HONEST_IN_IMAGE:
-                    # Honest 'live in-image' degradation: the endpoint returns a
-                    # structured UNAVAILABLE envelope (status/error present), and
-                    # ships live in the built image. Count as LIVE-IN-IMAGE.
-                    live, fields = True, "LIVE-IN-IMAGE (503 dev-only: " + HONEST_IN_IMAGE[base_path][:32] + "…)"
-                else:
-                    live, fields = False, f"http{code}"
-                ep_results.append({"ep": ep, "scope": "LOCAL", "code": code,
-                                   "live": live, "fields": fields})
+                ep_results.append(observe_endpoint(client, ep))
             except Exception as e:
                 ep_results.append({"ep": ep, "scope": "LOCAL", "code": "EXC",
                                    "live": False, "fields": str(e)[:60]})
@@ -165,7 +137,7 @@ def main():
         if not ep_results:
             status = "NO_ENDPOINT"
         elif local and all(r["live"] for r in local):
-            status = "LIVE"
+            status = "OBSERVED"
         elif local and any(r["code"] == 404 for r in local):
             status = "404"
         elif local and any(r["live"] for r in local):
@@ -195,17 +167,17 @@ def main():
     print("=== SUMMARY ===")
     print(json.dumps(dict(counts), indent=2))
     print(f"total surfaces: {len(rows)}")
-    print("\n=== NON-LIVE / PROBLEM SURFACES ===")
+    print("\n=== UNOBSERVED / PROBLEM SURFACES ===")
     prob = 0
     for r in rows:
-        if r["status"] not in ("LIVE", "CROSS-REPO"):
+        if r["status"] not in ("OBSERVED", "CROSS-REPO"):
             prob += 1
             print(f"  {r['surface']}: {r['status']}")
             for e in r["endpoints"]:
                 if e["scope"] == "LOCAL" and not e["live"]:
                     print(f"      {e['ep']}  -> {e['code']} {e['fields']}")
     if prob == 0:
-        print("  (none — all local surfaces LIVE, cross-repo mirrors recorded)")
+        print("  (none — all local routes observed; runtime readiness unverified, cross-repo mirrors recorded)")
 
 
 if __name__ == "__main__":
