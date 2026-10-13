@@ -13,7 +13,8 @@ caller's in-memory records.
 
 Functions
     validate_records     reject malformed sealed prediction records
-    check_leakage        group, id and composition overlap across splits
+    check_leakage        id, group, material and composition overlap across
+                         splits
     regression_metrics   coverage, MAE, RMSE, per-group error and support
     discovery_metrics    stability classification under a declared
                          missing-prediction policy: precision, recall, F1,
@@ -23,17 +24,20 @@ Functions
     budget_parity        candidate budget, input relaxation status and
                          training-overlap label across competitors
     evaluate             one bundle -> one status in
-                         {MEASURED, SAMPLE, UNKNOWN, BLOCKED}; never PASS
+                         {UNVERIFIED, SAMPLE, UNKNOWN, BLOCKED}; never PASS
+                         and never MEASURED
 
 Limits
     Results describe the supplied records only.  They are not a benchmark run,
     not a reproduction of an official leaderboard, and not evidence of a
     prospective discovery, which retrospective replay cannot establish.
     Provenance hashes are checked for presence and format only; the evaluator
-    does not read or re-hash the referenced artifacts.  Preprocessing-fold and
-    hyperparameter isolation cannot be observed from sealed records, so they
-    are reported as NOT_RUN.  A ratio with a zero denominator is "UNDEFINED",
-    never 0.
+    does not read or re-hash the referenced artifacts.  That is why the best
+    status it can give is UNVERIFIED: doctrine reserves MEASURED for a real,
+    fresh measurement, and an unchecked digest is not one.  Preprocessing-fold
+    and hyperparameter isolation cannot be observed from sealed records, so
+    they are reported as NOT_RUN.  A ratio with a zero denominator is
+    "UNDEFINED", never 0.
 
 Prior art (ideas cited, no code copied; this is an original implementation)
     Dunn et al. 2020, Matbench, npj Comput. Mater. 6, 138 (code MIT):
@@ -79,6 +83,7 @@ MISSING_POLICIES = ("count_as_unstable", "exclude")
 RELAXATION_STATES = ("unrelaxed", "relaxed", "unknown")
 OVERLAP_STATES = ("none", "known", "unknown")
 HULL_UNIT = "eV/atom"
+HULL_TARGET = "e_above_hull"
 
 REQUIRED_HASHES = (
     "task_sha256",
@@ -94,11 +99,17 @@ NOT_RUN_CHECKS = (
     "provenance-hash-recomputation",
     "group-bootstrap-intervals",
 )
-STATUSES = ("MEASURED", "SAMPLE", "UNKNOWN", "BLOCKED")
+STATUSES = ("UNVERIFIED", "SAMPLE", "UNKNOWN", "BLOCKED")
+# Labels evaluate() must never emit: PASS is not an evaluation outcome, and
+# MEASURED needs artifacts that were re-hashed, which this module never does.
+NEVER_EMITTED = ("PASS", "MEASURED")
 
 _SHA256 = re.compile(r"[0-9a-f]{64}")
+_EMPTY_SHA256 = hashlib.sha256(b"").hexdigest()
 _FORMULA_TOKEN = re.compile(r"([A-Z][a-z]?)(\d+(?:\.\d+)?)?")
-_LICENSE_PLACEHOLDERS = frozenset({"unknown", "n/a", "na", "tbd", "none", "null"})
+_LICENSE_PLACEHOLDERS = frozenset(
+    {"unknown", "unverified", "n/a", "na", "tbd", "none", "null"}
+)
 _DIGEST_FIELDS = (
     "id",
     "group",
@@ -116,6 +127,7 @@ _NO_CLAIMS = {
     "benchmark_run": False,
     "discovery_claim": False,
     "prospective_evaluation": False,
+    "provenance_verified": False,
 }
 
 
@@ -131,6 +143,17 @@ class RecordValidationError(ValueError):
 
 def _nonempty_str(value):
     return isinstance(value, str) and value.strip() != ""
+
+
+def _padded(value):
+    return value != value.strip()
+
+
+def _identity(value):
+    # Group and material identities compare case-insensitively.  This can only
+    # merge spellings, so a case variant across splits is reported as leakage
+    # instead of slipping past the check.
+    return value.casefold()
 
 
 def _finite_real(value):
@@ -204,6 +227,13 @@ def _task_errors(task):
                     f"task.discovery requires task.unit == {HULL_UNIT!r} "
                     "(energy above hull)"
                 )
+            # Formation energy is also eV/atom; the unit alone cannot tell
+            # them apart, and stability is defined against the hull.
+            if task.get("target") != HULL_TARGET:
+                errors.append(
+                    f"task.discovery requires task.target == {HULL_TARGET!r} "
+                    "(stability is classified from energy above hull)"
+                )
             if not _finite_real(discovery.get("threshold", 0.0)):
                 errors.append("task.discovery.threshold must be a finite real number")
             policy = discovery.get("missing_policy", MISSING_POLICIES[0])
@@ -224,6 +254,8 @@ def validate_records(records, task=None):
     a task is given), data_origin in {experimental, dft, sample} and
     functional (null allowed unless the label is DFT).  Optional: composition
     (simple formula) and material_id (repeated trials of one material).
+    id, group and material_id must not start or end with whitespace,
+    so a padded copy cannot pass as a different identity.
     """
     errors = [] if task is None else _task_errors(task)
     if not isinstance(records, (list, tuple)):
@@ -238,6 +270,8 @@ def validate_records(records, task=None):
             continue
         if _nonempty_str(rec.get("id")):
             where = f"{where} (id={rec['id']!r})"
+            if _padded(rec["id"]):
+                errors.append(f"{where}.id must not start or end with whitespace")
         else:
             errors.append(f"{where}.id must be a non-empty string")
         if not _nonempty_str(rec.get("group")):
@@ -245,6 +279,8 @@ def validate_records(records, task=None):
                 f"{where}.group must be a non-empty string "
                 "(group, prototype or chemical-system id)"
             )
+        elif _padded(rec["group"]):
+            errors.append(f"{where}.group must not start or end with whitespace")
         if rec.get("split") not in SPLITS:
             errors.append(f"{where}.split must be one of {list(SPLITS)}")
         if not _finite_real(rec.get("y_true")):
@@ -288,6 +324,10 @@ def validate_records(records, task=None):
         material = rec.get("material_id")
         if material is not None and not _nonempty_str(material):
             errors.append(f"{where}.material_id must be null or a non-empty string")
+        elif material is not None and _padded(material):
+            errors.append(
+                f"{where}.material_id must not start or end with whitespace"
+            )
     if len(units) > 1:
         errors.append(f"records mix units {sorted(units)}; one task has one unit")
     return {"ok": not errors, "errors": errors, "n_records": len(records)}
@@ -305,51 +345,76 @@ def _select(records, split):
     return [r for r in records if split is None or r["split"] == split]
 
 
-def check_leakage(records, task=None):
-    """Report duplicate ids and group or composition overlap across splits.
+def _identity_overlap(field, splits_by_key, spellings_by_key):
+    overlap = []
+    for key in sorted(splits_by_key):
+        splits = splits_by_key[key]
+        if len(splits) < 2:
+            continue
+        spellings = sorted(spellings_by_key[key])
+        entry = {field: spellings[0], "splits": _ordered_splits(splits)}
+        if len(spellings) > 1:
+            entry["spellings"] = spellings
+        overlap.append(entry)
+    return overlap
 
-    A group (or reduced composition) present in more than one split is
-    leakage.  Repeats inside one split are repeated trials, not leakage.
-    The status is "LEAKAGE" or "NO_LEAKAGE_DETECTED"; the second only covers
-    the checks that ran (see composition_check).
+
+def _coverage(n_records, n_without):
+    if not n_records or n_without == n_records:
+        return "NOT_RUN"
+    return "PARTIAL" if n_without else "RUN"
+
+
+def check_leakage(records, task=None):
+    """Report duplicate ids and group, material or composition overlap.
+
+    A group, material_id or reduced composition present in more than one split
+    is leakage.  Groups and material ids compare case-insensitively.  Repeats
+    inside one split are repeated trials, not leakage.  The status is
+    "LEAKAGE" or "NO_LEAKAGE_DETECTED"; the second only covers the checks that
+    ran (see composition_check and material_check).
     """
     _require_valid(records, task)
     id_counts = {}
-    group_splits = {}
+    group_splits, group_spellings = {}, {}
+    material_splits, material_spellings = {}, {}
     composition_splits = {}
-    without_composition = 0
+    without_composition = without_material = 0
     for rec in records:
         id_counts[rec["id"]] = id_counts.get(rec["id"], 0) + 1
-        group_splits.setdefault(rec["group"], set()).add(rec["split"])
+        key = _identity(rec["group"])
+        group_splits.setdefault(key, set()).add(rec["split"])
+        group_spellings.setdefault(key, set()).add(rec["group"])
+        material = rec.get("material_id")
+        if material is None:
+            without_material += 1
+        else:
+            key = _identity(material)
+            material_splits.setdefault(key, set()).add(rec["split"])
+            material_spellings.setdefault(key, set()).add(material)
         if rec.get("composition") is None:
             without_composition += 1
         else:
             key = composition_key(rec["composition"])
             composition_splits.setdefault(key, set()).add(rec["split"])
     duplicate_ids = sorted(k for k, n in id_counts.items() if n > 1)
-    group_overlap = [
-        {"group": g, "splits": _ordered_splits(s)}
-        for g, s in sorted(group_splits.items())
-        if len(s) > 1
-    ]
+    group_overlap = _identity_overlap("group", group_splits, group_spellings)
+    material_overlap = _identity_overlap("material_id", material_splits, material_spellings)
     composition_overlap = [
         {"composition": c, "splits": _ordered_splits(s)}
         for c, s in sorted(composition_splits.items())
         if len(s) > 1
     ]
-    if not records or without_composition == len(records):
-        composition_check = "NOT_RUN"
-    elif without_composition:
-        composition_check = "PARTIAL"
-    else:
-        composition_check = "RUN"
-    leaked = bool(duplicate_ids or group_overlap or composition_overlap)
+    leaked = bool(duplicate_ids or group_overlap or material_overlap or composition_overlap)
     return {
         "status": "LEAKAGE" if leaked else "NO_LEAKAGE_DETECTED",
         "duplicate_ids": duplicate_ids,
         "group_overlap": group_overlap,
+        "material_overlap": material_overlap,
         "composition_overlap": composition_overlap,
-        "composition_check": composition_check,
+        "material_check": _coverage(len(records), without_material),
+        "records_without_material_id": without_material,
+        "composition_check": _coverage(len(records), without_composition),
         "records_without_composition": without_composition,
     }
 
@@ -404,7 +469,9 @@ def regression_metrics(records, task=None, split="test"):
             }
         )
     materials = {
-        ("material", r["material_id"]) if r.get("material_id") is not None else ("record", r["id"])
+        ("material", _identity(r["material_id"]))
+        if r.get("material_id") is not None
+        else ("record", r["id"])
         for r in rows
     }
     if rows:
@@ -430,10 +497,21 @@ def regression_metrics(records, task=None, split="test"):
     }
 
 
+def _discovery_setting(name, explicit, contract, default):
+    declared = contract.get(name)
+    if explicit is None:
+        return default if declared is None else declared
+    if declared is not None and explicit != declared:
+        raise ValueError(
+            f"{name} {explicit!r} conflicts with task.discovery.{name} {declared!r}"
+        )
+    return explicit
+
+
 def discovery_metrics(
     records,
-    threshold=0.0,
-    missing_policy="count_as_unstable",
+    threshold=None,
+    missing_policy=None,
     task=None,
     split="test",
 ):
@@ -446,8 +524,24 @@ def discovery_metrics(
     is the reference stable fraction over every record in the split,
     independent of predictions.  DAF = precision / prevalence.  Every ratio
     with a zero denominator is UNDEFINED.
+
+    With a task, the task must declare a discovery block; its threshold and
+    missing_policy apply, and an explicit argument that contradicts them
+    raises ValueError.  Without a task the defaults are 0.0 eV/atom and
+    "count_as_unstable", and only the unit can be checked.
     """
     _require_valid(records, task)
+    contract = {}
+    if task is not None:
+        contract = task.get("discovery")
+        if contract is None:
+            raise RecordValidationError(
+                ["task declares no discovery block; discovery metrics do not apply"]
+            )
+    threshold = _discovery_setting("threshold", threshold, contract, 0.0)
+    missing_policy = _discovery_setting(
+        "missing_policy", missing_policy, contract, MISSING_POLICIES[0]
+    )
     if not _finite_real(threshold):
         raise ValueError("threshold must be a finite real number (eV/atom)")
     if missing_policy not in MISSING_POLICIES:
@@ -548,8 +642,11 @@ def budget_parity(entries):
     Each entry: name, candidate_budget (positive int), relaxed_inputs in
     {unrelaxed, relaxed, unknown}, training_overlap in {none, known, unknown}.
     parity is EQUAL, UNEQUAL, UNKNOWN (a relaxation status is unknown) or
-    NOT_APPLICABLE (fewer than two entries).  Only training_overlap "none"
-    earns the "held-out" label; "unknown" yields "overlap-unknown".
+    NOT_APPLICABLE (fewer than two entries); conditions_equal is parity ==
+    EQUAL.  Only training_overlap "none" earns the "held-out" label; "unknown"
+    yields "overlap-unknown".  comparison_admissible needs both equal
+    conditions and every competitor held out, because a competitor that saw
+    (or may have seen) the test set is not comparable.
     """
     if not isinstance(entries, (list, tuple)) or not entries:
         raise RecordValidationError(["competitors must be a non-empty list"])
@@ -611,13 +708,22 @@ def budget_parity(entries):
     for row in rows:
         if row["held_out_label"] != "held-out":
             flags.append(f"{row['held_out_label']}:{row['name']}")
+    conditions_equal = parity == "EQUAL"
+    all_held_out = all(r["held_out_label"] == "held-out" for r in rows)
     return {
         "parity": parity,
-        "comparison_admissible": parity == "EQUAL",
-        "all_held_out": all(r["held_out_label"] == "held-out" for r in rows),
+        "conditions_equal": conditions_equal,
+        "all_held_out": all_held_out,
+        "comparison_admissible": conditions_equal and all_held_out,
         "flags": flags,
         "entries": rows,
     }
+
+
+def _placeholder_digest(value):
+    # One repeated hex character ("0" * 64) or the digest of empty input is
+    # what a stub writes, not what hashing a real artifact yields.
+    return len(set(value)) == 1 or value == _EMPTY_SHA256
 
 
 def _provenance_report(provenance):
@@ -625,6 +731,7 @@ def _provenance_report(provenance):
         provenance = {}
     missing = []
     invalid = []
+    placeholder = []
     fields = {}
     for key in REQUIRED_HASHES:
         value = provenance.get(key)
@@ -632,12 +739,16 @@ def _provenance_report(provenance):
             missing.append(key)
         elif not isinstance(value, str) or _SHA256.fullmatch(value) is None:
             invalid.append(key)
+        elif _placeholder_digest(value):
+            placeholder.append(key)
         else:
             fields[key] = value
     for key in REQUIRED_LICENSES:
         value = provenance.get(key)
-        if not _nonempty_str(value) or value.strip().lower() in _LICENSE_PLACEHOLDERS:
+        if not _nonempty_str(value):
             missing.append(key)
+        elif value.strip().lower() in _LICENSE_PLACEHOLDERS:
+            placeholder.append(key)
         else:
             fields[key] = value
     overlap = provenance.get("training_overlap")
@@ -647,16 +758,25 @@ def _provenance_report(provenance):
         invalid.append("training_overlap")
         overlap = "unknown"
     return {
-        "complete": not missing and not invalid,
+        "complete": not missing and not invalid and not placeholder,
         "missing": missing,
         "invalid": invalid,
+        "placeholder": placeholder,
         "training_overlap": overlap,
         "fields": fields,
     }
 
 
+def _digest_value(key, value):
+    # Bind numeric values, not their spelling: 0, 0.0 and -0.0 hash alike.
+    if key in ("y_true", "y_pred") and value is not None:
+        number = float(value)
+        return 0.0 if number == 0 else number
+    return value
+
+
 def _records_digest(records):
-    rows = [{key: rec.get(key) for key in _DIGEST_FIELDS} for rec in records]
+    rows = [{key: _digest_value(key, rec.get(key)) for key in _DIGEST_FIELDS} for rec in records]
     blob = json.dumps(rows, sort_keys=True, separators=(",", ":"), allow_nan=False)
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
@@ -664,13 +784,15 @@ def _records_digest(records):
 def evaluate(bundle):
     """Evaluate one sealed bundle {task, records, provenance, competitors?}.
 
-    Never raises for bad input and never returns PASS.  Status precedence:
-    BLOCKED (invalid input, or split leakage; metrics withheld) > UNKNOWN
-    (provenance incomplete, or no test predictions) > SAMPLE (any record has
-    data_origin "sample") > MEASURED.  MEASURED means computed from the
-    supplied records only; it is not a benchmark or discovery claim.
-    Training overlap "none" earns held_out_label "held-out"; a missing or
-    "unknown" overlap yields "overlap-unknown".
+    Never raises for bad input and never returns PASS or MEASURED.  Status
+    precedence: BLOCKED (invalid input, or split leakage; metrics withheld) >
+    UNKNOWN (provenance missing, malformed or placeholder, or no test
+    predictions) > SAMPLE (any record has data_origin "sample") > UNVERIFIED.
+    UNVERIFIED means computed from the supplied records with well-formed
+    provenance whose digests were not recomputed; it is not a measurement, a
+    benchmark or a discovery claim.  Training overlap "none" earns
+    held_out_label "held-out"; a missing or "unknown" overlap yields
+    "overlap-unknown".
     """
     out = {
         "schema": SCHEMA,
@@ -721,6 +843,11 @@ def evaluate(bundle):
     out["leakage"] = leakage
     if leakage["status"] == "LEAKAGE":
         return blocked("split leakage detected; metrics withheld")
+    if leakage["material_check"] != "RUN":
+        out["notes"].append(
+            f"material_id overlap check {leakage['material_check']}: "
+            f"{leakage['records_without_material_id']} record(s) carry no material_id"
+        )
     if leakage["composition_check"] != "RUN":
         out["notes"].append(
             f"composition overlap check {leakage['composition_check']}: "
@@ -730,18 +857,16 @@ def evaluate(bundle):
     provenance = _provenance_report(bundle.get("provenance"))
     out["provenance"] = provenance
     out["held_out_label"] = _held_out_label(provenance["training_overlap"])
+    if out["held_out_label"] != "held-out":
+        out["notes"].append(
+            f"training overlap label {out['held_out_label']!r}: "
+            "not a held-out evaluation"
+        )
 
     try:
         out["regression"] = regression_metrics(records, task, "test")
-        discovery = task.get("discovery")
-        if discovery is not None:
-            out["discovery"] = discovery_metrics(
-                records,
-                threshold=discovery.get("threshold", 0.0),
-                missing_policy=discovery.get("missing_policy", MISSING_POLICIES[0]),
-                task=task,
-                split="test",
-            )
+        if task.get("discovery") is not None:
+            out["discovery"] = discovery_metrics(records, task=task, split="test")
     except ValueError as exc:
         out["regression"] = None
         out["discovery"] = None
@@ -749,23 +874,37 @@ def evaluate(bundle):
 
     if parity is not None:
         out["budget_parity"] = parity
-        if not parity["comparison_admissible"]:
+        if not parity["conditions_equal"]:
             out["notes"].append(
                 f"competitor comparison not admissible: parity {parity['parity']}"
             )
+        if not parity["all_held_out"]:
+            overlapping = [
+                e["name"] for e in parity["entries"] if e["held_out_label"] != "held-out"
+            ]
+            out["notes"].append(
+                "competitor comparison not admissible: training overlap is not "
+                f"'none' for {overlapping}"
+            )
 
-    status = "MEASURED"
+    status = "UNVERIFIED"
     if not provenance["complete"]:
         status = "UNKNOWN"
         out["reasons"].append(
             "provenance incomplete: missing "
-            f"{provenance['missing']}, invalid {provenance['invalid']}"
+            f"{provenance['missing']}, invalid {provenance['invalid']}, "
+            f"placeholder {provenance['placeholder']}"
         )
     if out["regression"]["n_predicted"] == 0:
         status = "UNKNOWN"
         out["reasons"].append("no test-split predictions; error metrics UNDEFINED")
-    if status == "MEASURED" and any(r["data_origin"] == "sample" for r in records):
+    if status == "UNVERIFIED" and any(r["data_origin"] == "sample" for r in records):
         status = "SAMPLE"
         out["reasons"].append("records include data_origin 'sample'")
+    if status == "UNVERIFIED":
+        out["reasons"].append(
+            "provenance digests are format-checked only and no referenced artifact "
+            "was re-hashed, so the result is not MEASURED"
+        )
     out["status"] = status
     return out
