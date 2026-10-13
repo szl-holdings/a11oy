@@ -806,7 +806,7 @@ SOURCE_DERIVED_CONTROLLER_REVISIONS = frozenset({
 })
 
 
-REVIEWED_SOURCE_ADMISSION_JOB_SHA256 = "d76141f0fee870ce9f0eff6a32d5c08c603faebb7faf6f6905d4242e10786a7e"
+REVIEWED_SOURCE_ADMISSION_JOB_SHA256 = "4fdb91169b94ccf548612edcf5e58748532ffe32962cba51fde20a08838a22f9"
 REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee8395e042853ded04deb7d170189"
 # The deploy path is source-admission -> preflight -> deploy -> runtime-config.
 # Preflight admits current main before any provider effect, reads the runtime
@@ -819,15 +819,15 @@ REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee
 # wins, live source binding), never an exact run, artifact or parent identity.
 # These exact job bodies and their complete local helper closure establish
 # reviewed source coverage only; they never establish provider success.
-REVIEWED_PREFLIGHT_JOB_SHA256 = "946dea224d0eabc1a827835a1c6e996cdf4b0e205078c82bd14e04044ffc34fe"
-REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "ffb6c15492bfe79393ae5bbb7f2fa99b6f33e325edc6329c753f954534318692"
+REVIEWED_PREFLIGHT_JOB_SHA256 = "1d47071a0e9e50356e34d55528e7887fef145bf37c439cec5775068648f06e5f"
+REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "3bd53226e383f4637f928d4706492d4d7f0823ea0b36b33ec389830afc6fc450"
 # This exact post-deploy readiness job has no provider credential, verifies the
 # candidate at both literal reviewed origins, and gates relock on success.
-REVIEWED_READINESS_VERDICT_JOB_SHA256 = "42325c1b54541f2dfb12ee5af91e30dbbbb07fc323e53dae22cedb3c2c9c22d5"
+REVIEWED_READINESS_VERDICT_JOB_SHA256 = "93ed2a8bc867b474d01ac982fc120cc24d0425c4a0d0464906fe922fb2f1110c"
 # The relock job holds the provider read credential and consumes the readiness
 # verdict.  Bind its complete job body so an extra step, secret, permission, or
 # failure bypass cannot inherit that authority unnoticed.
-REVIEWED_RELOCK_JOB_SHA256 = "d9cfd6e3594ebd2fb46867fc0d028cded6b2ddb8eee85dad37cc50fa14a13eb4"
+REVIEWED_RELOCK_JOB_SHA256 = "e6b4931eb5d19638f98043fdbed9ad4b8a620d532e9d5d29b27e261273438f78"
 REVIEWED_DEPLOY_HELPERS_SHA256 = {
     # Read-only runtime-stage classifier; it has no provider write path.
     ".github/scripts/resume_hf_space.py": "26cb21d2f0be37ebe6aa7e3be28f456489560f740f29215edd4b1d957ec53d49",
