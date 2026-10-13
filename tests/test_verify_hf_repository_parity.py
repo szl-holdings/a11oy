@@ -709,6 +709,8 @@ class ImmutableRepositoryParityTests(unittest.TestCase):
             command,
             [
                 MODULE.sys.executable,
+                "-I",
+                "-B",
                 str(tools_script),
                 "--github-remote",
                 "--github-repo",

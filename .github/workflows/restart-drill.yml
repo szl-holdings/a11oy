@@ -49,7 +49,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_REF" = refs/heads/main
-          python3 -B scripts/hf_exact_main_ownership.py \
+          python3 -I -B scripts/hf_exact_main_ownership.py \
             --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
             --receipt "$RUNNER_TEMP/restart-drill-source-admission.json" \
             --github-output "$RUNNER_TEMP/restart-drill-source-admission.out"
@@ -62,7 +62,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -B - "$CANONICAL_ORIGIN/api/build-info" "$GITHUB_SHA" <<'PY'
+          python3 -I -B - "$CANONICAL_ORIGIN/api/build-info" "$GITHUB_SHA" <<'PY'
           import json, sys, urllib.request
           url, sha = sys.argv[1], sys.argv[2]
           request = urllib.request.Request(url, headers={"Cache-Control": "no-cache"})
@@ -80,7 +80,7 @@ jobs:
 
       - name: Install exact Hugging Face control client
         run: >-
-          python -m pip install --disable-pip-version-check
+          python -I -m pip install --disable-pip-version-check
           "huggingface_hub==1.31.0"
           "requests==2.32.5"
           "cryptography==50.0.1"
@@ -93,7 +93,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          python -B scripts/prove_hf_series_a_restart.py \
+          python -I -B scripts/prove_hf_series_a_restart.py \
             --repo-id "$CANONICAL_SPACE" --origin "$CANONICAL_ORIGIN" \
             --run-context "${{ github.run_id }}:${{ github.run_attempt }}" \
             --source-sha "${{ github.sha }}" --output "$SERIES_A_LIVE_REPORT"
@@ -111,7 +111,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -B scripts/hf_exact_main_ownership.py \
+          python3 -I -B scripts/hf_exact_main_ownership.py \
             --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
             --receipt "$RUNNER_TEMP/restart-drill-gdw-admission.json" \
             --github-output "$RUNNER_TEMP/restart-drill-gdw-admission.out"
@@ -128,7 +128,7 @@ jobs:
           GDW_OPERATOR_TOKEN: ${{ secrets.GDW_OPERATOR_TOKEN }}
         run: |
           set +e
-          python -B scripts/prove_hf_gdw_runtime.py \
+          python -I -B scripts/prove_hf_gdw_runtime.py \
             --series-a-proof "$SERIES_A_LIVE_REPORT" \
             --run-context "${{ github.run_id }}:${{ github.run_attempt }}" \
             --origin "$CANONICAL_ORIGIN" \
@@ -145,7 +145,7 @@ jobs:
           GDW_PROOF_EXIT: ${{ steps.gdw_proof.outputs.exit_code }}
         run: |
           set -euo pipefail
-          python -B scripts/check_hf_manual_prerequisites.py --admit-live-proofs \
+          python -I -B scripts/check_hf_manual_prerequisites.py --admit-live-proofs \
             --series-a-proof "$SERIES_A_LIVE_REPORT" --series-a-proof-exit "${SERIES_A_PROOF_EXIT:-2}" \
             --gdw-proof "$GDW_LIVE_REPORT" --gdw-proof-exit "${GDW_PROOF_EXIT:-2}" \
             --source-sha "${{ github.sha }}" --output "$LIVE_PROOF_ADMISSION_REPORT"
