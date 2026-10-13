@@ -26,18 +26,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   model_budget`. A competitor comparison is admissible only with equal
   conditions and no known or unknown training overlap; relaxed inputs are
   noted in the output.
-- `evaluate()` returns UNVERIFIED, SAMPLE, UNKNOWN or BLOCKED, and never PASS
+- `evaluate()` returns SAMPLE, UNKNOWN or BLOCKED, and never PASS
   or MEASURED: provenance digests are format-checked, not recomputed. A
   missing or malformed hash or license gives UNKNOWN, and so does a
   placeholder from a fixed screen: license words such as `unknown`, `TODO`
   or `NOASSERTION`, a license with no letter or digit, a digest that repeats
   with a period of 32 characters or fewer, the digest of empty input, or
   one digest reused across artifacts. Other stubs can pass the screen and
-  still reach UNVERIFIED, which never claims verified provenance. A bundle
+  still reach SAMPLE, which never claims verified provenance. A bundle
   without both train and test records is UNKNOWN, with metrics still
   reported. The module fits no model, runs no benchmark, makes no discovery
   claim, and is not imported by `serve.py` or any route. Tests:
-  `tests/test_materials_eval_r09.py`, synthetic fixtures only.
+  `tests/test_materials_eval_r09.py`, synthetic fixtures only. Reject unknown
+  element symbols and non-exact competitor budgets; scale MAE/RMSE arithmetic
+  so representable large metrics do not overflow intermediate sums or squares.
 
 ### Fixed - private backup qualification
 

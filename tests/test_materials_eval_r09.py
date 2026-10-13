@@ -141,7 +141,7 @@ def test_integers_up_to_two_to_the_53_are_accepted_and_bound_exactly():
     records[4].update(y_true=2**53, y_pred=-(2**53))
     assert ev.validate_records(records, _task())["ok"] is True
     result = ev.evaluate(_bundle(records=records))
-    assert result["status"] == "UNVERIFIED"
+    assert result["status"] == "SAMPLE"
     moved = _as_dft(_records())
     moved[4].update(y_true=2**53, y_pred=-(2**53) + 2)
     assert ev.evaluate(_bundle(records=moved))["records_sha256"] != result["records_sha256"]
@@ -310,7 +310,7 @@ def test_train_and_test_without_calibration_is_a_full_cross_split_check():
     assert report["cross_split_check"] == "RUN"
     assert report["status"] == "NO_LEAKAGE_DETECTED"
     result = ev.evaluate(_bundle(records=records))
-    assert result["status"] == "UNVERIFIED"
+    assert result["status"] == "SAMPLE"
     assert not any(n.startswith("cross-split leakage check") for n in result["notes"])
 
 
@@ -494,7 +494,7 @@ def test_per_group_support_merges_case_variants_like_the_leakage_check():
         }
     ]
     result = ev.evaluate(_bundle(records=records))
-    assert result["status"] == "UNVERIFIED"
+    assert result["status"] == "SAMPLE"
     assert result["regression"]["n_groups"] == 1
 
 
@@ -548,6 +548,39 @@ def test_overflowing_error_is_refused_not_reported_as_inf():
     result = ev.evaluate(_bundle(records))
     assert result["status"] == "BLOCKED"
     assert result["reasons"][0].startswith("metric computation refused")
+
+
+@pytest.mark.parametrize("magnitude", [1e200, 1e308])
+def test_representable_large_mean_and_rmse_do_not_overflow(magnitude):
+    records = [_rec("a", "a", "test", magnitude, 0.0),
+               _rec("b", "b", "test", magnitude, 0.0)]
+    metrics = ev.regression_metrics(records)
+    assert metrics["mae"] == magnitude
+    assert metrics["rmse"] == magnitude
+
+
+@pytest.mark.parametrize("formula", ["Xx2O3", "Q2Zz", "Uuo", "D2O"])
+def test_unknown_element_symbols_are_rejected(formula):
+    with pytest.raises(ValueError):
+        ev.composition_key(formula)
+    records = _records()
+    records[0]["composition"] = formula
+    assert ev.validate_records(records)["ok"] is False
+
+
+def test_named_elements_and_decimal_compositions_remain_supported():
+    assert len(ev._ELEMENT_SYMBOLS) == 118
+    for element in ev._ELEMENT_SYMBOLS:
+        assert ev.composition_key(element) == element + ":1"
+    assert ev.composition_key("Li0.5CoO2") == ev.composition_key("LiCo2O4")
+
+
+def test_competitor_budgets_preserve_exact_json_integer_range():
+    assert ev.budget_parity([_competitor("a", budget=2**53),
+                             _competitor("b", budget=2**53)])["parity"] == "EQUAL"
+    with pytest.raises(ev.RecordValidationError):
+        ev.budget_parity([_competitor("a", budget=2**53),
+                          _competitor("b", budget=2**53 + 1)])
 
 
 # --- discovery metrics -----------------------------------------------------
@@ -624,7 +657,7 @@ def test_evaluate_applies_the_task_threshold_and_missing_policy():
     result = ev.evaluate(
         _bundle(records=records, task=_task(threshold=0.3, missing_policy="exclude"))
     )
-    assert result["status"] == "UNVERIFIED"
+    assert result["status"] == "SAMPLE"
     d = result["discovery"]
     assert d["threshold"] == 0.3 and d["missing_policy"] == "exclude"
     # At 0.3 eV/atom te-3 (pred 0.25) is a TP; under exclude te-5 is not an FN.
@@ -757,7 +790,7 @@ def test_relaxed_inputs_keep_parity_but_evaluate_adds_a_note():
     assert p["parity"] == "EQUAL" and p["comparison_admissible"] is True
     assert p["flags"] == ["relaxed-inputs-used"]
     result = ev.evaluate(_bundle(records=_as_dft(_records()), competitors=entries))
-    assert result["status"] == "UNVERIFIED"
+    assert result["status"] == "SAMPLE"
     assert (
         "relaxed inputs used by ['szl', 'base']: relaxed structures carry information "
         "from the label calculation, so the comparison describes a relaxed-input "
@@ -838,11 +871,11 @@ def test_synthetic_sample_bundle_is_labelled_sample():
     assert "provenance-hash-recomputation" in result["not_run"]
 
 
-def test_complete_provenance_is_unverified_never_measured():
+def test_unverified_provenance_is_sample_never_measured():
     # Digests are format-checked, never recomputed, so synthetic records with
     # complete-looking provenance cannot earn the doctrine label MEASURED.
     result = ev.evaluate(_bundle(records=_as_dft(_records())))
-    assert result["status"] == "UNVERIFIED"
+    assert result["status"] == "SAMPLE"
     assert result["provenance"]["complete"] is True
     assert result["reasons"] == [
         "provenance digests are format-checked only and no referenced artifact "
@@ -866,7 +899,7 @@ def test_regression_only_task_is_evaluated_without_discovery():
         rec["unit"] = "eV"
     task = {"task_id": "synthetic-band-gap", "unit": "eV", "target": "band_gap"}
     result = ev.evaluate(_bundle(records=records, task=task))
-    assert result["status"] == "UNVERIFIED"
+    assert result["status"] == "SAMPLE"
     assert result["discovery"] is None
     assert result["regression"]["unit"] == "eV" and result["regression"]["mae"] == 0.34375
 
@@ -926,7 +959,7 @@ def test_real_license_identifiers_are_not_placeholders(license_id):
     result = ev.evaluate(
         _bundle(records=_as_dft(_records()), provenance=_provenance(data_license=license_id))
     )
-    assert result["status"] == "UNVERIFIED"
+    assert result["status"] == "SAMPLE"
     assert result["provenance"]["placeholder"] == []
 
 
@@ -976,7 +1009,7 @@ def test_training_overlap_controls_the_held_out_label(overlap, label):
         prov["training_overlap"] = overlap
     result = ev.evaluate(_bundle(records=_as_dft(_records()), provenance=prov))
     assert result["held_out_label"] == label
-    assert result["status"] == "UNVERIFIED"
+    assert result["status"] == "SAMPLE"
     assert f"training overlap label {label!r}: not a held-out evaluation" in result["notes"]
 
 

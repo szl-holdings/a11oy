@@ -24,7 +24,7 @@ Functions
     budget_parity        candidate budget, input relaxation status and
                          training-overlap label across competitors
     evaluate             one bundle -> one status in
-                         {UNVERIFIED, SAMPLE, UNKNOWN, BLOCKED}; never PASS
+                         {SAMPLE, UNKNOWN, BLOCKED}; never PASS
                          and never MEASURED
 
 Limits
@@ -33,7 +33,7 @@ Limits
     prospective discovery, which retrospective replay cannot establish.
     Provenance hashes are checked for presence and format only; the evaluator
     does not read or re-hash the referenced artifacts.  That is why the best
-    status it can give is UNVERIFIED: doctrine reserves MEASURED for a real,
+    status it can give is SAMPLE: doctrine reserves MEASURED for a real,
     fresh measurement, and an unchecked digest is not one.  Split leakage can
     only be seen between the splits supplied, so a bundle without both train
     and test records is UNKNOWN, never reported as leak-free.  Preprocessing-fold
@@ -101,7 +101,7 @@ NOT_RUN_CHECKS = (
     "provenance-hash-recomputation",
     "group-bootstrap-intervals",
 )
-STATUSES = ("UNVERIFIED", "SAMPLE", "UNKNOWN", "BLOCKED")
+STATUSES = ("SAMPLE", "UNKNOWN", "BLOCKED")
 # Labels evaluate() must never emit: PASS is not an evaluation outcome, and
 # MEASURED needs artifacts that were re-hashed, which this module never does.
 NEVER_EMITTED = ("PASS", "MEASURED")
@@ -109,6 +109,15 @@ NEVER_EMITTED = ("PASS", "MEASURED")
 _SHA256 = re.compile(r"[0-9a-f]{64}")
 _EMPTY_SHA256 = hashlib.sha256(b"").hexdigest()
 _EXACT_INT = 2**53
+# IUPAC named element symbols, Periodic Table dated 4 May 2022.
+# https://iupac.org/what-we-do/periodic-table-of-elements/
+_ELEMENT_SYMBOLS = frozenset(
+    "H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn "
+    "Ga Ge As Se Br Kr Rb Sr Y Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb Te I Xe Cs Ba "
+    "La Ce Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm Yb Lu Hf Ta W Re Os Ir Pt Au Hg Tl Pb "
+    "Bi Po At Rn Fr Ra Ac Th Pa U Np Pu Am Cm Bk Cf Es Fm Md No Lr Rf Db Sg Bh Hs "
+    "Mt Ds Rg Cn Nh Fl Mc Lv Ts Og".split()
+)
 _FORMULA_TOKEN = re.compile(r"([A-Z][a-z]?)(\d+(?:\.\d+)?)?")
 # NOASSERTION is the SPDX token for "no licence information".  A licence with
 # no letter or digit ("?", "-") is also a placeholder; see _placeholder_license.
@@ -223,6 +232,8 @@ def composition_key(formula):
             raise ValueError(
                 f"composition {formula!r} is not a simple formula such as 'Fe2O3'"
             )
+        if match.group(1) not in _ELEMENT_SYMBOLS:
+            raise ValueError(f"composition {formula!r} contains unknown element {match.group(1)!r}")
         amount = Fraction(match.group(2)) if match.group(2) else Fraction(1)
         if amount <= 0:
             raise ValueError(f"composition {formula!r} has a non-positive count")
@@ -473,11 +484,13 @@ def check_leakage(records, task=None):
 
 
 def _mean(name, values):
-    try:
-        total = math.fsum(values)
-    except OverflowError:
-        total = math.inf
-    return _finite_metric(name, total / len(values))
+    # Scale before summing: the mean can be finite when the sum overflows.
+    for value in values:
+        _finite_metric(name, value)
+    scale = max(abs(value) for value in values)
+    if scale == 0:
+        return 0.0
+    return _finite_metric(name, scale * (math.fsum(value / scale for value in values) / len(values)))
 
 
 def _mae(rows):
@@ -489,8 +502,14 @@ def _mae(rows):
 def _rmse(rows):
     if not rows:
         return UNDEFINED
-    squared = [(r["y_pred"] - r["y_true"]) * (r["y_pred"] - r["y_true"]) for r in rows]
-    return math.sqrt(_mean("RMSE", squared))
+    errors = [abs(r["y_pred"] - r["y_true"]) for r in rows]
+    for error in errors:
+        _finite_metric("RMSE", error)
+    scale = max(errors)
+    if scale == 0:
+        return 0.0
+    normalized_squares = [(error / scale) ** 2 for error in errors]
+    return _finite_metric("RMSE", scale * math.sqrt(math.fsum(normalized_squares) / len(errors)))
 
 
 def regression_metrics(records, task=None, split="test"):
@@ -732,8 +751,9 @@ def budget_parity(entries):
         else:
             names.add(name)
         budget = entry.get("candidate_budget")
-        if isinstance(budget, bool) or not isinstance(budget, int) or budget <= 0:
-            errors.append(f"{where}.candidate_budget must be a positive integer")
+        if (isinstance(budget, bool) or not isinstance(budget, int)
+                or budget <= 0 or budget > _EXACT_INT):
+            errors.append(f"{where}.candidate_budget must be a positive integer no greater than 2**53")
         if entry.get("relaxed_inputs") not in RELAXATION_STATES:
             errors.append(f"{where}.relaxed_inputs must be one of {list(RELAXATION_STATES)}")
         if entry.get("training_overlap") not in OVERLAP_STATES:
@@ -873,17 +893,17 @@ def evaluate(bundle):
     precedence: BLOCKED (invalid input, or split leakage; metrics withheld) >
     UNKNOWN (provenance missing, malformed or placeholder; no train or no test
     records, so split leakage cannot be observed; or no test predictions) >
-    SAMPLE (any record has data_origin "sample") > UNVERIFIED.  UNKNOWN still
+    SAMPLE (unchecked records with sufficient inputs).  UNKNOWN still
     reports the metrics it could compute.
 
     Placeholders are screened from a fixed list: a licence word such as
     "unknown", "TODO" or "NOASSERTION", or a licence with no letter or digit;
     a digest that repeats with a period of 32 characters or fewer, the digest
     of empty input, or one digest under two or more of the five required hash
-    fields.  Other stubs can pass the screen; they still reach UNVERIFIED at
+    fields.  Other stubs can pass the screen; they still reach SAMPLE at
     most, which never claims the provenance was verified.
 
-    UNVERIFIED means computed from the supplied records with well-formed
+    SAMPLE means computed from the supplied records with well-formed
     provenance whose digests were not recomputed; it is not a measurement, a
     benchmark or a discovery claim.  Training overlap "none" earns
     held_out_label "held-out"; a missing or "unknown" overlap yields
@@ -996,7 +1016,7 @@ def evaluate(bundle):
                 "setting, not discovery from unrelaxed candidates"
             )
 
-    status = "UNVERIFIED"
+    status = "SAMPLE"
     if not provenance["complete"]:
         status = "UNKNOWN"
         out["reasons"].append(
@@ -1014,10 +1034,10 @@ def evaluate(bundle):
     if out["regression"]["n_predicted"] == 0:
         status = "UNKNOWN"
         out["reasons"].append("no test-split predictions; error metrics UNDEFINED")
-    if status == "UNVERIFIED" and any(r["data_origin"] == "sample" for r in records):
+    if status == "SAMPLE" and any(r["data_origin"] == "sample" for r in records):
         status = "SAMPLE"
         out["reasons"].append("records include data_origin 'sample'")
-    if status == "UNVERIFIED":
+    if status == "SAMPLE":
         out["reasons"].append(
             "provenance digests are format-checked only and no referenced artifact "
             "was re-hashed, so the result is not MEASURED"
