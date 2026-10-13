@@ -351,6 +351,8 @@ def finance_preflight() -> dict[str, Any]:
             raise RuntimeError("canonical Finance analytics preflight failed")
         if response.headers.get("Content-Type", "").split(";", 1)[0].strip() != "application/json":
             raise RuntimeError("canonical Finance preflight is not JSON")
+        declared_contract = next((value for key, value in response.headers.items()
+                                  if key.lower() == "x-szl-finance-contract"), None)
         raw = response.read(160_001)
     if len(raw) > 160_000:
         raise RuntimeError("canonical Finance preflight response too large")
@@ -363,7 +365,15 @@ def finance_preflight() -> dict[str, Any]:
         return out
     body = json.loads(raw, object_pairs_hook=pairs)
     projection = load_module("finance_preflight_contract", HERE / "hf_finance_read_proxy.py")
-    if (not isinstance(body, dict) or body.get("source_revision") != revision or body.get("component") != projection.COMPONENT
+    # The running A11oy may be any revision that serves a contract this projection
+    # supports; its revision is recorded below as evidence, not compared with ours.
+    validators = projection.validation_namespace(revision)
+    contract_failure = validators["_finance_contract_error"]({projection.CONTRACT["header"]: declared_contract})
+    if contract_failure:
+        raise RuntimeError("canonical Finance contract check failed: " + contract_failure[0]["error"])
+    observed = body.get("source_revision") if isinstance(body, dict) else None
+    if (not isinstance(body, dict) or not isinstance(observed, str) or SHA40.fullmatch(observed) is None
+            or observed == "0" * 40 or body.get("component") != projection.COMPONENT
             or body.get("schema") != "szl.finance.analytics/v2" or body.get("ok") is not True
             or body.get("operation") != "signals" or body.get("state") != "COMPUTED"
             or body.get("truth_label") != "MODELED"
@@ -384,14 +394,31 @@ def finance_preflight() -> dict[str, Any]:
     receipt = dict(receipt)
     claimed = receipt.pop("receipt_sha256", None)
     if (claimed != digest(receipt) or receipt.get("payload_sha256") != digest({key:value for key,value in body.items() if key != "receipt"})
-            or receipt.get("source_revision") != revision or receipt.get("signed") is not False
+            or receipt.get("source_revision") != observed or receipt.get("signed") is not False
             or receipt.get("signing") != "UNSIGNED_HONEST" or receipt.get("authority") != "NONE"
             or receipt.get("persistence") != "CALLER_HELD"
             or receipt.get("component_revision") != projection.COMPONENT["revision"]
             or receipt.get("component_sha256") != projection.COMPONENT["engine_sha256"]):
         raise RuntimeError("canonical Finance computation receipt is invalid")
-    return {"source_revision": revision, "component": body["component"],
+    # One fixture route is not the projection. Before any write, every route the
+    # projection forwards must answer the running A11oy under a supported
+    # contract and pass this build's emitted validators, or nothing is written.
+    sweep = canonical_compatibility(revision)
+    if sweep.get("complete") is not True:
+        failed = [f'{row.get("label")}:{row.get("response_error") or row.get("failure_code") or row.get("failure_type")}'
+                  for row in sweep.get("probes", []) if row.get("accepted") is not True]
+        raise RuntimeError("canonical Finance compatibility sweep failed: " + ", ".join(failed))
+    return {"source_revision": revision, "canonical_runtime_revision": observed,
+            "canonical_runtime_revision_role": "EVIDENCE_NOT_COMPATIBILITY_KEY",
+            "canonical_contract": {"name": projection.CONTRACT["name"], "declared": declared_contract,
+                                   "supported_versions": list(projection.CONTRACT["supported_versions"])},
+            "component": body["component"], "canonical_compatibility": sweep,
             "fixture_preflight": True, "live_provider_verified": False}
+
+
+def canonical_compatibility(revision: str) -> dict[str, Any]:
+    gate = load_module("finance_canonical_compatibility", HERE / "hf_finance_functional_gate.py")
+    return gate.observe_canonical(revision)
 
 
 def publish_finance_only(space_guard_module) -> int:

@@ -130,7 +130,7 @@ def test_overlay_changes_only_declared_sentra_and_finance_contracts() -> None:
     # Finance has one exact reviewed presentation addition; every other
     # product remains byte-identical except the existing Sentra overlay.
     workspace = load_module("szl_finance_workspace_contract", Path("scripts/hf_finance_workspace.py"))
-    assert hashlib.sha256(workspace.HTML.encode()).hexdigest() == "fa107a526d6fe557d3916edc4dadde7d921af12667cafed54c8a89b02d8e3977"
+    assert hashlib.sha256(workspace.HTML.encode()).hexdigest() == "e72cdd38c9fad22c610dc1385053431c37ac54e42202c1d7cea0e08263048f98"
     assert hashlib.sha256(workspace.CSS.encode()).hexdigest() == "74f10839de99d1d40ebb793f76e5399645c130b8326731e6f2d13a86214b69fd"
     assert overlay.DOMAIN_HTML["finance"] == workspace.HTML
     assert overlay.DOMAIN_CSS["finance"] == base.DOMAIN_CSS["finance"] + workspace.CSS
@@ -160,7 +160,9 @@ def test_overlay_changes_only_declared_sentra_and_finance_contracts() -> None:
     assert restored_app.startswith(base.APP)
     addition = restored_app[len(base.APP):]
     assert 'if CFG.get("slug") == "finance":' in addition
-    assert 'CANONICAL_REVISION_MISMATCH' in addition
+    # Compatibility is the served contract, never equality with this build's revision.
+    assert 'CANONICAL_CONTRACT_INCOMPATIBLE' in addition
+    assert 'CANONICAL_REVISION_MISMATCH' not in addition
     assert 'USE_PRIVATE_CANONICAL_SOURCE_ENDPOINT' in addition
     # Only the independently pinned, reviewed runtime change is admitted.
     # The immutable base, metadata and visual isolation checks above remain.
