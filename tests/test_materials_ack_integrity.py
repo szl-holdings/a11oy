@@ -113,3 +113,28 @@ def test_direct_append_rejects_invalid_timestamp_without_files(tmp_path):
     with pytest.raises((OverflowError, ValueError, OSError)):
         led.append({"id": "invalid-time", "organ": "materials", "ts": 10**100})
     assert not list(tmp_path.rglob("*"))
+
+
+@pytest.mark.parametrize("duplicate", [False, True])
+@pytest.mark.parametrize("malformed", [None, 0, 1, "false", "true", [], {}])
+def test_hook_ack_requires_explicit_boolean_flags(duplicate, malformed):
+    receipt = {"id": "boolean-flags"}
+    status = acknowledgement(receipt, materials.RECEIPT_ORGAN, duplicate)
+    status["accepted" if duplicate else "duplicate"] = malformed
+    with patch.object(ingest, "record_receipt", return_value=status) as hook:
+        result = materials._ledger(receipt)
+    assert result["state"] == "UNKNOWN" and result["recorded"] is None
+    assert result["retry_admitted"] is False
+    hook.assert_called_once()
+
+
+@pytest.mark.parametrize("duplicate", [False, True])
+def test_hook_ack_requires_both_flags_to_be_present(duplicate):
+    receipt = {"id": "missing-flag"}
+    status = acknowledgement(receipt, materials.RECEIPT_ORGAN, duplicate)
+    status.pop("accepted" if duplicate else "duplicate")
+    with patch.object(ingest, "record_receipt", return_value=status) as hook:
+        result = materials._ledger(receipt)
+    assert result["state"] == "UNKNOWN" and result["recorded"] is None
+    assert result["retry_admitted"] is False
+    hook.assert_called_once()
