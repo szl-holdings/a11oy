@@ -147,6 +147,22 @@ def _partition_date(ts: str) -> str:
         return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 
+def receipt_write_metadata(receipt: dict) -> tuple[str, str, str, str]:
+    """Validate deterministic append inputs before opening storage.
+
+    The ingest boundary uses the same normalization as append. Invalid numeric
+    timestamps and unrepresentable partitions are provable pre-write rejection,
+    not evidence of a possibly persisted write. No filesystem access occurs.
+    """
+    if not isinstance(receipt, dict):
+        raise ValueError("receipt must be a JSON object")
+    organ = normalize_organ(receipt.get("organ", "unknown"))
+    json.dumps(receipt, allow_nan=False)
+    rid = receipt_identity(receipt)
+    ts = _receipt_ts(receipt)
+    return organ, rid, ts, _partition_date(ts)
+
+
 class _OrganState:
     """In-memory mirror of one organ's on-disk chain (rebuilt from disk)."""
 
@@ -237,11 +253,7 @@ class ReceiptLedger:
         Returns {accepted, duplicate, receipt_id, ledger_offset, chain_index,
         chain_head, organ}.
         """
-        if not isinstance(receipt, dict):
-            raise ValueError("receipt must be a JSON object")
-        organ = normalize_organ(receipt.get("organ", "unknown"))
-        rid = receipt_identity(receipt)
-        ts = _receipt_ts(receipt)
+        organ, rid, ts, date = receipt_write_metadata(receipt)
 
         with self._lock:
             st = self._state(organ)
@@ -281,7 +293,6 @@ class ReceiptLedger:
                 "receipt": receipt,
             }
 
-            date = _partition_date(ts)
             path = self._partition_path(organ, date)
             os.makedirs(os.path.dirname(path), exist_ok=True)
             serialized = json.dumps(envelope, sort_keys=True,

@@ -43,7 +43,7 @@ import os
 import sys
 import threading
 
-from szl_lake_store import get_default_ledger, normalize_organ, receipt_identity
+from szl_lake_store import get_default_ledger, receipt_write_metadata
 
 API_PREFIX = "/api/lake/v1"
 
@@ -115,9 +115,7 @@ def record_receipt(receipt, organ="a11oy"):
             raise ValueError("receipt must be a JSON object")
         rec = dict(receipt)
         rec.setdefault("organ", organ)
-        normalized_organ = normalize_organ(rec["organ"])
-        json.dumps(rec, allow_nan=False)
-        rid = receipt_identity(rec)
+        normalized_organ, rid, _, _ = receipt_write_metadata(rec)
     except Exception as exc:
         return {"accepted": False, "duplicate": False, "state": "REJECTED",
                 "write_attempted": False, "error": type(exc).__name__,
@@ -143,19 +141,28 @@ def record_receipt(receipt, organ="a11oy"):
                            "publication": "NOT_ACKNOWLEDGED"}}
     if not isinstance(result, dict):
         result = {"state": "UNKNOWN"}
+    else:
+        try:
+            # Validate and snapshot the entire acknowledgement before any mirror.
+            result = json.loads(json.dumps(result, allow_nan=False))
+        except (ValueError, TypeError, OverflowError, RecursionError):
+            result = {"state": "UNKNOWN", "reason": "append status was not strict JSON"}
     acknowledged = (result.get("accepted") is True
                     and result.get("duplicate") is False
                     and result.get("receipt_id") == rid
+                    and result.get("organ") == normalized_organ
                     and result.get("state") in (None, "LOCAL_ACKNOWLEDGED"))
     duplicate = (result.get("duplicate") is True
                  and result.get("accepted") is False
                  and result.get("receipt_id") == rid
+                 and result.get("organ") == normalized_organ
                  and result.get("state") in (None, "LOCAL_DUPLICATE"))
     result["state"] = ("LOCAL_ACKNOWLEDGED" if acknowledged else
                        "LOCAL_DUPLICATE" if duplicate else "UNKNOWN")
     if result["state"] == "UNKNOWN":
         # A contradictory or foreign append contract cannot authorize mirroring.
-        result.update(accepted=False, duplicate=False, receipt_id=rid)
+        result.update(accepted=False, duplicate=False, receipt_id=rid,
+                      organ=normalized_organ, write_attempted=True)
         result["mirror"] = {"state": "NOT_ATTEMPTED",
                             "publication": "NOT_ACKNOWLEDGED"}
     else:
