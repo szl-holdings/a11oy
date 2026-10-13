@@ -374,6 +374,14 @@ def readme(item: dict[str, Any]) -> str:
     card = (front_matter + lead + body
             + "\n<!-- szl:preserved-source-body:end -->\n\n</details>\n")
     if item.get("slug") == "finance":
+        card = card.replace(
+            '<img src="https://raw.githubusercontent.com/szl-holdings/.github/main/profile/assets/szl/logos/szl_mark_holographic.svg" alt="SZL Holdings" width="112" />',
+            '<img src="https://raw.githubusercontent.com/szl-holdings/szl-brand/27d12e77fc0f9f1a0e5fae8b34adf2380d51d070/kit/logos/orbit-v2/suite/szl-icon-32.svg" alt="SZL Holdings" width="40" height="40" />',
+            1,
+        )
+        card += ("\nArtwork: SZL Orbit · © 2026 SZL Holdings / Stephen Lutar · "
+                 "[CC BY 4.0](https://github.com/szl-holdings/szl-brand/blob/27d12e77fc0f9f1a0e5fae8b34adf2380d51d070/kit/LICENSE) · "
+                 "[Trademark notice](https://github.com/szl-holdings/szl-brand/blob/27d12e77fc0f9f1a0e5fae8b34adf2380d51d070/NOTICE).\n")
         card += ("\n## Current projection evidence\n\n"
             "[finance-projection-manifest.json](finance-projection-manifest.json) is a DECLARED "
             "file table for the seven current A11oy-owned upload payloads, including config.json. "
