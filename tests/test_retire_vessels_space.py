@@ -18,6 +18,10 @@ def secret_access_violations(source: str) -> list[str]:
     }
     violations = []
     for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.alias):
+            for name in (*node.name.split("."), node.asname or ""):
+                if name.lower() in forbidden:
+                    violations.append(name)
         identity = (node.id if isinstance(node, ast.Name) else
                     node.attr if isinstance(node, ast.Attribute) else
                     node.value if isinstance(node, ast.Constant) and isinstance(node.value, str)
@@ -83,6 +87,9 @@ class VesselsRetirementContract(unittest.TestCase):
             '{"secret_value": "fixture"}', '{"secret_values_read": True}',
             '{"secret_values_read": observed}', 'print(token)', 'repr(token)',
             'print(f"value={token}")',
+            'from provider import get_space_secrets as read',
+            'import provider.get_space_secrets as read',
+            'from provider import safe as secret_value',
         ):
             with self.subTest(source=source):
                 self.assertTrue(secret_access_violations(source))
