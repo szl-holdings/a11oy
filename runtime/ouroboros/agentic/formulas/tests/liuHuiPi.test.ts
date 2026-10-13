@@ -17,7 +17,7 @@
 
 import { describe, it, expect } from "vitest";
 import * as fc from "fast-check";
-import { liuHuiPi, liuHuiPiScalar } from "./liuHuiPi.js";
+import { liuHuiPi, liuHuiPiScalar } from "../src/liuHuiPi.js";
 
 const FC_RUNS = 1000;
 
@@ -127,6 +127,30 @@ describe("LiuHuiPi — Layer 3 parity test", () => {
     it("k=20: very close to π (< 1e-8 error)", () => {
       const r = liuHuiPi({ k: 20 });
       expect(r.absError).toBeLessThan(1e-8);
+    });
+
+    // 80-digit rationalized reference, truncated. Bound is float64 error,
+    // not a proof that the real limit equals π.
+    it("k=12,24,27,50 match the high-precision rationalized reference within 1e-15", () => {
+      const reference: Record<number, number> = {
+        12: 3.1415926450336908966721415089192384127226,
+        24: 3.141592653589792728479202222288057457376,
+        27: 3.1415926535897932304941521151390111674024,
+        50: 3.1415926535897932384626433832793896451255,
+      };
+      for (const [rawK, ref] of Object.entries(reference)) {
+        const k = Number(rawK);
+        const result = liuHuiPi({ k });
+        expect(result.piEstimate).not.toBe(0);
+        expect(result.sideSquared).toBeGreaterThan(0);
+        expect(result.sideSquared).toBeLessThanOrEqual(4);
+        expect(Math.abs(result.piEstimate - ref)).toBeLessThan(1e-15);
+      }
+    });
+
+    it("k=12 is still short of Math.PI by more than 1e-12", () => {
+      const result = liuHuiPi({ k: 12 });
+      expect(result.absError).toBeGreaterThan(1e-12);
     });
 
     it("throws for k < 0", () => {
