@@ -163,6 +163,13 @@ _workspace_module = importlib.util.module_from_spec(_workspace_spec)
 _workspace_spec.loader.exec_module(_workspace_module)
 _workspace_module.apply_workspace(_BASE)
 
+# Native presentation consumes the existing canonical source assets. It has no
+# runtime callbacks, provider access, or publication authority.
+_native_spec = importlib.util.spec_from_file_location(
+    "szl_vertical_native", Path(__file__).with_name("hf_vertical_native_presentation.py"))
+_native_module = importlib.util.module_from_spec(_native_spec)
+_native_spec.loader.exec_module(_native_module)
+
 # Export the complete base API after applying the overlay. Function objects keep
 # the base module globals, which are synchronized again before public calls that
 # depend on mutable module contracts.
@@ -190,9 +197,20 @@ def _sync_contract() -> None:
     _BASE.TERRA_FORGE_SOURCE_REPOSITORY = TERRA_FORGE_SOURCE_REPOSITORY
 
 
+_base_terra_forge_bundle = _BASE.load_terra_forge_bundle
+
+
 def load_terra_forge_bundle() -> tuple[str, dict[str, Any]]:
     _sync_contract()
-    return _BASE.load_terra_forge_bundle()
+    return _base_terra_forge_bundle()
+
+
+def load_terra_native_landing() -> tuple[str, dict[str, Any]]:
+    return _native_module.derive_forge(*load_terra_forge_bundle())
+
+
+# Existing publisher still computes and verifies the complete emitted payload.
+_BASE.load_terra_forge_bundle = load_terra_native_landing
 
 
 _base_html = _BASE.html
@@ -206,7 +224,7 @@ def html(item: dict[str, Any]) -> str:
     page = page.replace(_LIVEBAR_OPEN, _LIVEBAR_CLOSED, 1)
     if item.get("slug") == "sentra":
         page = page.replace('<html lang="en"', '<html lang="en" data-iris="closed"', 1)
-    return page
+    return _native_module.present(page, str(item.get("slug", "")))
 
 
 _BASE.html = html
