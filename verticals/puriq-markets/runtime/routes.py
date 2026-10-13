@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 
 from .sources import SOURCES
 from .transport import FinanceClient, FinanceError, source_revision
-from . import analytics, research, signed_prices
+from . import analytics, contract, research, signed_prices
 
 router = APIRouter()
 CLIENT = FinanceClient()
@@ -174,8 +174,19 @@ async def finance_verify_receipt(request: Request):
 
 
 def reply(body, status=200):
+    # Every response these handlers produce, failures included, declares the
+    # read-API contract so consumers never need this runtime's revision.
+    # Framework 404/405 replies for undeclared paths or methods carry no header.
     return JSONResponse(body, status_code=status,
-                        headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"})
+                        headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff",
+                                 contract.HEADER: contract.header_value()})
+
+
+@router.get(PREFIX + "/contract")
+def finance_contract(request: Request):
+    if request.query_params:
+        return analytics_failure("INVALID_PARAMETERS")
+    return reply(contract.descriptor(source_revision(CLIENT.environ)))
 
 
 @router.get(PREFIX + "/providers")

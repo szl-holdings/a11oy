@@ -64,7 +64,9 @@ def fixture_body(source, query, mode):
         if source == "coinbase-ticker":
             return b'{"price":"100","bid":null,"ask":"101","volume":"0"}'
         raise transport.FinanceError("UPSTREAM_HTTP_503")
-    client = transport.FinanceClient(fetch=fetch, environ={"SZL_GIT_SHA": REVISION},
+    # "other_runtime": a self-consistent answer from a compatible A11oy at another revision.
+    runtime = "2" * 40 if mode == "other_runtime" else REVISION
+    client = transport.FinanceClient(fetch=fetch, environ={"SZL_GIT_SHA": runtime},
                                      clock=lambda: NOW, monotonic=lambda: 100)
     body = client.observe(source, query)
     if mode == "failure":
@@ -227,6 +229,12 @@ def main():
                 expect(page.locator("#fin-export")).to_be_enabled()
                 check(page.locator("#fin-chart svg").count()==0,"gapped candle chart interpolated")
                 expect(page.locator("#fin-chart-note")).to_contain_text("withheld")
+                mode["name"]="other_runtime"
+                page.locator("#fin-source").select_option("coinbase-ticker")
+                page.locator("#fin-observe").click()
+                expect(page.locator("#fin-export")).to_be_enabled()
+                check(json.loads(page.locator("#fin-detail").text_content())["source_revision"]=="2"*40,"other runtime revision not kept as evidence")
+                report["cases"].append({"width":width,"name":"compatible-runtime-at-another-revision-accepted","pass":True})
                 mode["name"]="normal"
                 page.locator("#fin-source").select_option("polymarket-markets")
                 page.locator("#fin-observe").click()
