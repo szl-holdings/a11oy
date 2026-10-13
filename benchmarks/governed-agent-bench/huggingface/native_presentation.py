@@ -157,5 +157,5 @@ def render(leaderboard: dict, publication: dict, result: dict) -> str:
 <details><summary>Exact leaderboard JSON</summary><pre tabindex="0" aria-label="Leaderboard JSON">{_json(leaderboard)}</pre></details>
 <details><summary>Exact reference result JSON</summary><pre tabindex="0" aria-label="Reference result JSON">{_json(result)}</pre></details>
 </section></main>
-<footer class="gb-footer"><p>SZL Holdings / Governed Agent Bench</p><p>Code: Apache-2.0. Orbit artwork: Stephen P. Lutar / SZL Holdings, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. <a href="https://github.com/szl-holdings/szl-brand/tree/fd62fe5856ed8e5f660eaae5a9c52957cd71b0a7/kit/logos/orbit-v2">Artwork source</a>.</p></footer>
+<footer class="gb-footer"><p>SZL Holdings / Governed Agent Bench</p><p>Code: Apache-2.0. Orbit artwork: Stephen P. Lutar / SZL Holdings, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. <a href="https://github.com/szl-holdings/szl-brand/tree/fd62fe5856ed8e5f660eaae5a9c52957cd71b0a7/kit/logos/orbit-v2">Artwork source</a>. <a href="https://github.com/szl-holdings/szl-brand/blob/fd62fe5856ed8e5f660eaae5a9c52957cd71b0a7/NOTICE">Trademark notice</a>.</p></footer>
 </div>'''
