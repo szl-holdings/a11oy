@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img" aria-labelledby="szl-orbit-holo-title szl-orbit-holo-desc">
+  <title id="szl-orbit-holo-title">SZL Holdings</title>
+  <desc id="szl-orbit-holo-desc">The SZL orbit mark with a restrained silver material: a quiet light plane on the tile, silver edge light on the orbit and a warm glint at the coral node. For hero and feature placements only.</desc>
+  <defs><radialGradient id="holo-plane" cx="0.28" cy="0.2" r="0.9"><stop offset="0" stop-color="#E9EEF6" stop-opacity="0.16"/><stop offset="0.5" stop-color="#9AA7BD" stop-opacity="0.05"/><stop offset="1" stop-color="#030F29" stop-opacity="0"/></radialGradient><linearGradient id="holo-edge" x1="75" y1="440" x2="490" y2="145" gradientUnits="userSpaceOnUse"><stop stop-color="#FFFFFF"/><stop offset="0.35" stop-color="#E9EEF6"/><stop offset="0.7" stop-color="#5C6B86"/><stop offset="1" stop-color="#E9EEF6"/></linearGradient><radialGradient id="holo-glint" cx="484.263" cy="166.817" r="44" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#DF735F" stop-opacity="0.45"/><stop offset="1" stop-color="#DF735F" stop-opacity="0"/></radialGradient>
+    
+  </defs>
+  <rect id="navy-tile" width="600" height="600" rx="88" fill="#030F29"/>
+  <rect id="holo-plane-fill" width="600" height="600" rx="88" fill="url(#holo-plane)"/><g id="orbit-ring" transform="rotate(-22 300 300)" fill="none">
+    <ellipse cx="300" cy="300" rx="250" ry="116" stroke="#5C6B86" stroke-width="3"/>
+    <path d="M50 300 A250 116 0 0 0 550 300" stroke="url(#holo-edge)" stroke-width="9" stroke-linecap="round"/>
+    <path d="M50 300 A250 116 0 0 1 550 300" stroke="url(#holo-edge)" stroke-width="5" stroke-linecap="round"/>
+  </g>
+  <g id="matched-szl" fill="#FFFFFF" data-cap-height="156" data-baseline="376">
+    <path id="letter-S" d="M228.256 331.049Q228.256 353.967 211.26 366.091Q194.265 378.214 161.383 378.214Q131.378 378.214 114.328 367.586Q97.278 356.957 92.406 335.367L123.96 330.163Q127.171 342.564 136.471 348.155Q145.771 353.746 162.268 353.746Q196.48 353.746 196.48 332.931Q196.48 326.288 192.549 321.97Q188.619 317.652 181.478 314.774Q174.336 311.895 154.075 307.798Q136.582 303.702 129.718 301.211Q122.853 298.72 117.317 295.343Q111.781 291.966 107.906 287.205Q104.031 282.444 101.872 276.023Q99.713 269.601 99.713 261.297Q99.713 240.15 115.601 228.913Q131.489 217.675 161.825 217.675Q190.833 217.675 205.392 226.754Q219.952 235.833 224.159 256.758L192.494 261.076Q190.058 251.001 182.585 245.908Q175.111 240.815 161.161 240.815Q131.489 240.815 131.489 259.415Q131.489 265.505 134.644 269.38Q137.8 273.255 144 275.967Q150.2 278.68 169.133 282.776Q191.608 287.537 201.296 291.578Q210.984 295.62 216.63 300.989Q222.277 306.359 225.266 313.833Q228.256 321.306 228.256 331.049Z"/>
+    <path id="letter-Z" d="M369.087 376H243.867V352.86L328.233 245.576H252.281V220H364.548V242.697L280.182 350.424H369.087Z"/>
+    <path id="letter-L" d="M390.788 376V220H423.449V350.757H507.151V376Z"/>
+  </g>
+  <circle id="node-glint" cx="484.263" cy="166.817" r="44" fill="url(#holo-glint)"/><circle id="orbit-node" cx="484.263" cy="166.817" r="9" fill="#DF735F"/>
+  <path id="lambda-detail" d="M288 463 L300 435 L312 463H305L300 450L295 463Z" fill="#9AA7BD"/>
+</svg>
