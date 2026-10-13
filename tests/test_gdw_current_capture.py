@@ -11,8 +11,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-import test_gdw_store_recovery as fixtures
-from test_gdw_store_recovery import originals, historical_fixture  # noqa: F401
+from tests import test_gdw_store_recovery as fixtures
+from tests.test_gdw_store_recovery import originals, historical_fixture  # noqa: F401
 
 c = fixtures.load("qualify_gdw_current_capture", fixtures.ROOT / "scripts/qualify_gdw_current_capture.py")
 q, p = fixtures.q, fixtures.p
