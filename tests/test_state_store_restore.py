@@ -7,16 +7,22 @@ Everything is offline: a directory stands in for the bucket and an in-memory
 CAS stands in for the private fence dataset.
 """
 
+import copy
 import hashlib
 import json
 import os
 import sqlite3
+import unittest
+import warnings
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
+import a11oy_canonical_domain as canonical_domain
 import a11oy_state_store as ss
 import gdw_sqlite_repair
 from tests.state_store_support import (FakeClock, FakeHeadBackend, count, fingerprint,
@@ -421,3 +427,110 @@ def test_head_validation_rejects_unknown_labels_and_foreign_paths(world):
     bad["snapshots"]["other"] = head["snapshots"]["gdw"]
     with pytest.raises(ss.StorageBlocked):
         ss.validate_head(bad)
+
+
+class StorageStatusHttpTests(unittest.TestCase):
+    def _client(self):
+        app = FastAPI()
+        ss.register(app)
+        proxy_calls = []
+
+        # Match the production catch-all's method ownership. A GET-only status
+        # route lets HEAD fall through to this handler instead of its owner.
+        @app.api_route(
+            "/api/a11oy/{path:path}",
+            methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"],
+        )
+        async def proxy(path: str):
+            proxy_calls.append(path)
+            return JSONResponse({"error": "unexpected proxy dispatch"}, status_code=404)
+
+        canonical_domain.ensure_html_documents_accept_head(app)
+        return app, TestClient(app), proxy_calls
+
+    def test_get_and_head_keep_the_same_read_only_owner(self):
+        payload = {
+            "schema": ss.STATUS_SCHEMA,
+            "mode": ss.MODE_FENCED,
+            "role": ss.ROLE_WRITER,
+            "writable": True,
+            "epoch": 4,
+            "lease": {"state": ss.STATE_ACTIVE, "sequence": 11},
+            "stores": {},
+            "alert": False,
+        }
+
+        class ReadOnlyStatusStore:
+            def __init__(self):
+                self.status_calls = 0
+                self.mutation_calls = []
+
+            def status(self):
+                self.status_calls += 1
+                return copy.deepcopy(payload)
+
+            def begin_write(self):
+                self.mutation_calls.append("begin_write")
+                raise AssertionError("GET/HEAD entered write admission")
+
+            def end_write(self):
+                self.mutation_calls.append("end_write")
+                raise AssertionError("GET/HEAD ended write admission")
+
+        store = ReadOnlyStatusStore()
+        with patch.dict(os.environ, {"A11OY_STATE_STORE": "v2"}):
+            with patch.object(ss, "_ACTIVE", store):
+                app, client, proxy_calls = self._client()
+                path = "/api/a11oy/v1/storage/status"
+                owned = [route for route in app.routes if getattr(route, "path", None) == path]
+                self.assertEqual(len(owned), 2)
+                self.assertIs(owned[0].endpoint, owned[1].endpoint)
+                for _ in range(2):
+                    get = client.get(path)
+                    head = client.head(path)
+                    self.assertEqual(get.status_code, 200)
+                    self.assertEqual(head.status_code, 200)
+                    self.assertEqual(get.json(), payload)
+                    self.assertEqual(head.content, b"")
+                    for header in ("content-type", "content-length", "cache-control"):
+                        self.assertEqual(head.headers[header], get.headers[header])
+                    self.assertEqual(get.headers["cache-control"], "no-store")
+                self.assertEqual(store.status_calls, 4)
+                self.assertEqual(store.mutation_calls, [])
+                self.assertEqual(proxy_calls, [])
+                self.assertEqual({frozenset(route.methods) for route in owned},
+                                 {frozenset({"GET"}), frozenset({"HEAD"})})
+
+    def test_head_preserves_unavailable_storage_truth_without_activation(self):
+        with patch.dict(os.environ, {"A11OY_STATE_STORE": "v2"}):
+            with patch.object(ss, "_ACTIVE", None):
+                _, client, proxy_calls = self._client()
+                path = "/api/a11oy/v1/storage/status"
+                get = client.get(path)
+                head = client.head(path)
+                self.assertEqual(get.status_code, 200)
+                self.assertEqual(head.status_code, 200)
+                self.assertEqual(get.json()["role"], ss.ROLE_NOT_ACTIVATED)
+                self.assertFalse(get.json()["writable"])
+                self.assertTrue(get.json()["alert"])
+                self.assertEqual(head.content, b"")
+                self.assertEqual(head.headers["cache-control"], "no-store")
+                self.assertEqual(proxy_calls, [])
+                self.assertIsNone(ss._ACTIVE)
+
+    def test_head_preserves_the_get_schema_identity(self):
+        app = FastAPI()
+        ss.register(app)
+        path = "/api/a11oy/v1/storage/status"
+        get_route = next(route for route in app.routes
+                         if getattr(route, "path", None) == path and "GET" in route.methods)
+        baseline = FastAPI()
+        baseline.get(path)(get_route.endpoint)
+        expected_id = baseline.openapi()["paths"][path]["get"]["operationId"]
+        self.assertEqual(expected_id,
+                         "a11oy_storage_status_api_a11oy_v1_storage_status_get")
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            schema = app.openapi()
+        self.assertEqual(set(schema["paths"][path]), {"get"})
+        self.assertEqual(schema["paths"][path]["get"]["operationId"], expected_id)

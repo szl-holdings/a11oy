@@ -82,6 +82,10 @@ a11oy storage is a **local state store with immutable bucket snapshots and a CAS
    Restore then lists the bucket and verifies the newest objects. Once the dataset exists, the next boot adopts those objects into a fenced HEAD. The code never creates an HF repository.
 8. **Status is public.** `GET /api/a11oy/v1/storage/status` shows mode, role, epoch, lease state, and per store the origin, health, snapshot age, `sha16`, integrity and failures, plus the last error class and code. It shows store labels only: no paths and no secrets. It is in an alert state when a store's snapshot or unsnapshotted change is older than 15 min, or when the process is BLOCKED or FENCED.
 
+   **Error lifetime:** `last_error` is the latest unresolved failure, or null when none remain. `active_errors` records every unresolved operation/store separately. A successful capture, confirmed manifest publication, heartbeat upload, or current authoritative HEAD observation clears only its matching failure. A missing previously observed store is not a successful signature observation. Unexpected snapshot-loop recovery requires a complete forced capture/publication pass; heartbeat-loop recovery requires successful upload and authoritative observation in fenced mode. No-op/backoff passes and unrelated successes cannot clear these failures.
+
+   `last_error_history` retains the most recent diagnostic per operation/store for this process, including first/last failure times, occurrence count, and the latest recovery time. This bounded diagnostic summary is not a durable incident log or a claim of health. Terminal lease, boot, release/quiesce, close, and unretried repair-receipt failures remain visible. Restarted processes must independently restore, establish ownership, and produce fresh heartbeat/snapshot evidence. Before activation, `active_errors` is null (unobserved), not an empty health claim. The existing v2 fencing, exact store-set, integrity, freshness and error-counter admission requirements remain unchanged.
+
 ## Consequences
 
 - **What is lost at a handover depends on how it ends.**
