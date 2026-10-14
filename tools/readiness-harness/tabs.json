@@ -3,7 +3,7 @@
   "doctrine": "v11",
   "organ": "a11oy",
   "consoleRoute": "/console",
-  "generatedAt": "2026-10-09T00:00:00Z",
+  "generatedAt": "2026-10-14T00:00:00Z",
   "generator": "tools/readiness-harness/gen_tabs_matrix.py",
   "stateVocabulary": {
     "LIVE": "Fetched from a running source during this session; reachability is not proof of correctness.",
@@ -1612,17 +1612,15 @@
       },
       "note": "Compute-capability-as-allometry mapping (Kaplan et al. 2020 neural scaling); status=PROPOSED analogy, NOT formal Λ."
     },
-    "/api/a11oy/v1/scaling/kleiber": {
+    "/api/a11oy/v1/scaling/kleiber?M=70": {
       "method": "GET",
-      "schema": "generic_obj",
+      "schema": "scaling_kleiber_positive",
       "freshnessSLA": null,
       "citationsRequired": false,
       "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
-          200,
-          400,
-          422
+          200
         ],
         "allowLabels": [
           "live",
@@ -1634,19 +1632,17 @@
           "placeholder"
         ]
       },
-      "note": "Kleiber 1932 B=B0·M^(3/4) basal metabolic rate; requires ?M=<kg>. Empty M validates (400/422). VERIFIED deterministic (70kg -> 1694.03 kcal/day)."
+      "note": "Kleiber 1932 B=B0·M^(3/4) basal metabolic rate at M=70kg. Require a successful calculated response; missing-M validation is not release success."
     },
-    "/api/a11oy/v1/scaling/mte": {
+    "/api/a11oy/v1/scaling/mte?M=70": {
       "method": "GET",
-      "schema": "generic_obj",
+      "schema": "scaling_mte_positive",
       "freshnessSLA": null,
       "citationsRequired": false,
       "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
-          200,
-          400,
-          422
+          200
         ],
         "allowLabels": [
           "live",
@@ -1658,19 +1654,17 @@
           "placeholder"
         ]
       },
-      "note": "Brown et al. 2004 MTE Boltzmann-factor metabolic rate; requires ?M=<kg>. Empty M validates (400/422). VERIFIED deterministic."
+      "note": "Brown et al. 2004 MTE metabolic rate at M=70kg. Require a successful calculated response; missing-M validation is not release success."
     },
-    "/api/a11oy/v1/scaling/heart": {
+    "/api/a11oy/v1/scaling/heart?M=70": {
       "method": "GET",
-      "schema": "generic_obj",
+      "schema": "scaling_heart_positive",
       "freshnessSLA": null,
       "citationsRequired": false,
       "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
-          200,
-          400,
-          422
+          200
         ],
         "allowLabels": [
           "live",
@@ -1682,19 +1676,17 @@
           "placeholder"
         ]
       },
-      "note": "MTE-derived heart-rate/lifespan allometry; requires ?M=<kg>. Empty M validates (400/422). VERIFIED deterministic (70kg -> 83.32 bpm)."
+      "note": "MTE-derived heart-rate/lifespan allometry at M=70kg. Require a successful calculated response; missing-M validation is not release success."
     },
-    "/api/a11oy/v1/scaling/unified": {
+    "/api/a11oy/v1/scaling/unified?M=70": {
       "method": "GET",
-      "schema": "generic_obj",
+      "schema": "scaling_unified_positive",
       "freshnessSLA": null,
       "citationsRequired": false,
       "degradedBlocksReadiness": true,
       "degradedRules": {
         "allowStatuses": [
-          200,
-          400,
-          422
+          200
         ],
         "allowLabels": [
           "live",
@@ -1706,7 +1698,7 @@
           "placeholder"
         ]
       },
-      "note": "SZL unified Φ (WBE network × MTE/PMF activation × coherence); requires ?M=<kg>. status=PROPOSED, note carries 'Λ=Conjecture 1'. PROPOSED engineering construct, NOT the formal Λ, NOT in the locked 8."
+      "note": "SZL unified Φ at M=70kg. Require a successful calculated response; Φ stays PROPOSED, NOT formal Λ or one of the locked 8."
     },
     "/api/a11oy/v1/allodial/summary": {
       "method": "GET",
@@ -2321,6 +2313,114 @@
     },
     "generic_obj": {
       "type": "object"
+    },
+    "scaling_kleiber_positive": {
+      "type": "object",
+      "properties": {
+        "M_kg": {
+          "const": 70
+        }
+      },
+      "requiredPathTypes": {
+        "M_kg": "number",
+        "B_kcal_day": "number"
+      },
+      "semanticContract": {
+        "kind": "scaling_positive_v1",
+        "exact": {
+          "M_kg": 70
+        },
+        "ranges": {
+          "B_kcal_day": [
+            1694.02,
+            1694.04
+          ]
+        }
+      }
+    },
+    "scaling_mte_positive": {
+      "type": "object",
+      "properties": {
+        "M_kg": {
+          "const": 70
+        }
+      },
+      "requiredPathTypes": {
+        "M_kg": "number",
+        "T_K": "number",
+        "B": "number"
+      },
+      "semanticContract": {
+        "kind": "scaling_positive_v1",
+        "exact": {
+          "M_kg": 70,
+          "T_K": 310
+        },
+        "ranges": {
+          "B": [
+            4.58e-08,
+            4.6e-08
+          ]
+        }
+      }
+    },
+    "scaling_heart_positive": {
+      "type": "object",
+      "properties": {
+        "M_kg": {
+          "const": 70
+        }
+      },
+      "requiredPathTypes": {
+        "M_kg": "number",
+        "bpm": "number",
+        "lifespan_yr": "number"
+      },
+      "semanticContract": {
+        "kind": "scaling_positive_v1",
+        "exact": {
+          "M_kg": 70
+        },
+        "ranges": {
+          "bpm": [
+            83.31,
+            83.33
+          ],
+          "lifespan_yr": [
+            34.12,
+            34.14
+          ]
+        }
+      }
+    },
+    "scaling_unified_positive": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "PROPOSED"
+        }
+      },
+      "requiredPathTypes": {
+        "phi": "number",
+        "inputs.M_kg": "number",
+        "status": "string",
+        "note": "string"
+      },
+      "semanticContract": {
+        "kind": "scaling_positive_v1",
+        "exact": {
+          "inputs.M_kg": 70,
+          "inputs.T_K": 310,
+          "inputs.delta_p_mV": 121.5,
+          "inputs.tau_c": 6.05
+        },
+        "ranges": {
+          "phi": [
+            160025.5,
+            160025.7
+          ]
+        }
+      }
     },
     "generic_list": {
       "anyOf": [
@@ -5185,10 +5285,10 @@
         "/api/a11oy/v1/scaling/summary",
         "/api/a11oy/v1/scaling/exponents",
         "/api/a11oy/v1/scaling/compute",
-        "/api/a11oy/v1/scaling/kleiber",
-        "/api/a11oy/v1/scaling/mte",
-        "/api/a11oy/v1/scaling/heart",
-        "/api/a11oy/v1/scaling/unified"
+        "/api/a11oy/v1/scaling/kleiber?M=70",
+        "/api/a11oy/v1/scaling/mte?M=70",
+        "/api/a11oy/v1/scaling/heart?M=70",
+        "/api/a11oy/v1/scaling/unified?M=70"
       ],
       "citationsRequired": false,
       "sampleLabelAllowed": false,

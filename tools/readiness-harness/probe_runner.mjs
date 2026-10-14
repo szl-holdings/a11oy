@@ -655,6 +655,36 @@ function validateRouterStatsSemantic(body, contract, nowMs = Date.now()) {
   return { ok: true, why: "router_stats_v1" };
 }
 
+function validateScalingPositiveSemantic(body, contract) {
+  const fail = (why) => ({ ok: false, why });
+  const exact = contract?.exact;
+  const ranges = contract?.ranges;
+  if (
+    contract?.kind !== "scaling_positive_v1"
+    || exact === null || typeof exact !== "object" || Array.isArray(exact)
+    || ranges === null || typeof ranges !== "object" || Array.isArray(ranges)
+    || Object.keys(exact).length === 0 || Object.keys(ranges).length === 0
+  ) return fail("scaling semantic contract missing exact inputs or output bounds");
+  for (const [path, expected] of Object.entries(exact)) {
+    const observed = valueAtPath(body, path);
+    if (
+      !observed.found || !Number.isFinite(expected)
+      || observed.value !== expected
+    ) return fail(`scaling input ${path} does not match its contract`);
+  }
+  for (const [path, bounds] of Object.entries(ranges)) {
+    const observed = valueAtPath(body, path);
+    if (
+      !Array.isArray(bounds) || bounds.length !== 2
+      || !Number.isFinite(bounds[0]) || !Number.isFinite(bounds[1])
+      || bounds[0] <= 0 || bounds[1] <= bounds[0]
+      || !observed.found || !Number.isFinite(observed.value)
+      || observed.value <= bounds[0] || observed.value >= bounds[1]
+    ) return fail(`scaling result ${path} is outside its positive source-derived bounds`);
+  }
+  return { ok: true, why: "scaling_positive_v1" };
+}
+
 function validateSchema(schemaName, body) {
   const s = SCHEMAS[schemaName];
   if (!s) return { ok: true, why: "no-schema" };
@@ -705,8 +735,14 @@ function validateSchema(schemaName, body) {
     return { ok: s.anyOf.some(checkOne), why: "anyOf" };
   }
   if (!checkOne(s)) return { ok: false, why: s.type };
-  if (s.semanticContract?.kind === "router_stats_v1") {
-    return validateRouterStatsSemantic(body, s.semanticContract);
+  if (s.semanticContract) {
+    if (s.semanticContract.kind === "router_stats_v1") {
+      return validateRouterStatsSemantic(body, s.semanticContract);
+    }
+    if (s.semanticContract.kind === "scaling_positive_v1") {
+      return validateScalingPositiveSemantic(body, s.semanticContract);
+    }
+    return { ok: false, why: "unknown semantic contract" };
   }
   return { ok: true, why: s.type };
 }
