@@ -27,10 +27,13 @@ def test_archived_vertical_repositories_are_not_advertised_as_sources() -> None:
     assert "a11oy/tree/main/verticals/vessels" in source
 
 
-def test_publisher_is_owner_dispatched_and_current_main_bound() -> None:
+def test_publisher_is_convergent_owner_dispatchable_and_current_main_bound() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
+    # Owner dispatch remains for targeted repairs; push and schedule converge
+    # automatically (tests/test_hf_vertical_convergence.py binds the shape).
     assert "workflow_dispatch:" in workflow
-    assert "\n  push:" not in workflow
+    assert "\n  push:\n    branches: [main]\n    paths:" in workflow
+    assert "\n  schedule:" in workflow
     assert 'test "$GITHUB_REF" = refs/heads/main' in workflow
     assert 'test "$(git rev-parse HEAD)" = "$(git rev-parse FETCH_HEAD)"' in workflow
     assert "persist-credentials: false" in workflow

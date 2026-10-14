@@ -2,29 +2,77 @@
 name: HF Vertical Services v2 contract
 
 # Source-neutral trusted retrigger after the deterministic doctrine repair.
+# The path filter is a superset of the convergent publisher's inputs
+# (scripts/hf_vertical_convergence.py:workflow_push_paths(), asserted by
+# tests/test_hf_vertical_convergence.py), so a PR that changes what the
+# renderer reads runs the input-table test itself.
 on:
   pull_request:
     branches:
     - main
     paths:
+    - .github/workflows/hf-publish-vertical-flagships.yml
+    - .github/workflows/hf-sync.yml
+    - .github/workflows/hf-vertical-drift.yml
+    - .github/workflows/hf-vertical-services-v2-contract.yml
+    - deployments/vertical-forge/terra/**
+    - scripts/_hf_publish_vertical_flagships_v4_impl_base.py
+    - scripts/hf_existing_space_guard.py
+    - scripts/hf_finance_functional_gate.py
+    - scripts/hf_finance_projection_manifest.py
+    - scripts/hf_finance_read_proxy.py
+    - scripts/hf_finance_research_workspace.py
+    - scripts/hf_finance_signed_workspace.py
+    - scripts/hf_finance_workspace.py
+    - scripts/hf_flagship_runtime_contract.py
+    - scripts/hf_publish_lyte_enterprise.py
+    - scripts/hf_publish_vertical_flagships_v2.py
     - scripts/hf_publish_vertical_flagships_v4.py
     - scripts/hf_publish_vertical_flagships_v4_impl.py
     - scripts/hf_publish_vertical_services.py
-    - deployments/vertical-forge/terra/**
+    - scripts/hf_vertical_convergence.py
+    - scripts/lyte_enterprise_live_contract.py
+    - scripts/szl_release_guard.py
+    - verticals/puriq-markets/runtime/components/finance_v2/source.json
+    - verticals/puriq-markets/runtime/components/puriq_verity/source.json
+    - tests/test_hf_publish_vertical_flagships_v3.py
     - tests/test_hf_publish_vertical_flagships_v4.py
+    - tests/test_hf_vertical_convergence.py
+    - tests/test_vertical_publication_scope.py
     - tests/test_vertical_shell_healthz_process_scoped.py
-    - .github/workflows/hf-vertical-services-v2-contract.yml
   push:
     branches:
     - main
     paths:
+    - .github/workflows/hf-publish-vertical-flagships.yml
+    - .github/workflows/hf-sync.yml
+    - .github/workflows/hf-vertical-drift.yml
+    - .github/workflows/hf-vertical-services-v2-contract.yml
+    - deployments/vertical-forge/terra/**
+    - scripts/_hf_publish_vertical_flagships_v4_impl_base.py
+    - scripts/hf_existing_space_guard.py
+    - scripts/hf_finance_functional_gate.py
+    - scripts/hf_finance_projection_manifest.py
+    - scripts/hf_finance_read_proxy.py
+    - scripts/hf_finance_research_workspace.py
+    - scripts/hf_finance_signed_workspace.py
+    - scripts/hf_finance_workspace.py
+    - scripts/hf_flagship_runtime_contract.py
+    - scripts/hf_publish_lyte_enterprise.py
+    - scripts/hf_publish_vertical_flagships_v2.py
     - scripts/hf_publish_vertical_flagships_v4.py
     - scripts/hf_publish_vertical_flagships_v4_impl.py
     - scripts/hf_publish_vertical_services.py
-    - deployments/vertical-forge/terra/**
+    - scripts/hf_vertical_convergence.py
+    - scripts/lyte_enterprise_live_contract.py
+    - scripts/szl_release_guard.py
+    - verticals/puriq-markets/runtime/components/finance_v2/source.json
+    - verticals/puriq-markets/runtime/components/puriq_verity/source.json
+    - tests/test_hf_publish_vertical_flagships_v3.py
     - tests/test_hf_publish_vertical_flagships_v4.py
+    - tests/test_hf_vertical_convergence.py
+    - tests/test_vertical_publication_scope.py
     - tests/test_vertical_shell_healthz_process_scoped.py
-    - .github/workflows/hf-vertical-services-v2-contract.yml
   workflow_dispatch: null
   merge_group:
     types:
@@ -62,9 +110,13 @@ jobs:
           scripts/hf_publish_vertical_flagships_v4.py
           scripts/hf_publish_vertical_flagships_v4_impl.py
           scripts/hf_publish_vertical_services.py
+          scripts/hf_vertical_convergence.py
 
       - name: Prove exact source and operational-v2 contracts
         run: >-
           python -m pytest
           tests/test_hf_publish_vertical_flagships_v4.py
-          tests/test_vertical_shell_healthz_process_scoped.py -q
+          tests/test_vertical_shell_healthz_process_scoped.py
+          tests/test_hf_vertical_convergence.py
+          tests/test_vertical_publication_scope.py
+          tests/test_hf_publish_vertical_flagships_v3.py -q

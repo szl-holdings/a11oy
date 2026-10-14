@@ -1,10 +1,68 @@
 # SPDX-License-Identifier: Apache-2.0
 name: HF Publish Vertical Flagships
 
-# This publisher is an explicit operator action. hf-sync.yml is the sole
-# automatic main-push writer for the canonical A11oy Space and owns deployment,
-# source binding, live verification, and relock evidence.
+# Convergent publisher for the vertical flagship Spaces (Terra, Counsel,
+# Finance, Lyte, Sentra). It used to run only on operator dispatch, so the
+# Spaces drifted from main for weeks without any signal.
+#
+# - push to main runs when a publisher input changes. The path list is
+#   scripts/hf_vertical_convergence.py:workflow_push_paths(); the renderer's
+#   actual file reads are checked against it by tests/test_hf_vertical_convergence.py.
+# - the hourly schedule is the convergence backstop for commits that never
+#   triggered a push run (superseded, or lyte-services changes).
+# - a completed canonical A11oy deploy re-plans Finance, which proxies that Space.
+# - workflow_dispatch keeps the explicit targeted repairs and the full estate.
+#
+# The plan renders every generated target offline and compares it, file by
+# file, with the Space's Hub tree; Lyte must serve the qualified lyte-services
+# main. A converged estate is a no-op.
+#
+# One writer lock: every job that can write a vertical Space (both writer jobs
+# here and hf-sync.yml's vertical job) holds the hf-vertical-estate group, so
+# two writers never interleave uploads on the same Space. In that group a newly
+# queued job cancels the pending one, so the automatic plan queues nothing while
+# a dispatched writer run is active, and the writer job re-plans every target
+# after it acquires the lock.
+#
+# Every write still goes through the existing publisher, which requires the
+# exact current protected main and live-verifies the Space. An automatic run
+# whose source stopped being main tip before any unverified write is superseded
+# (publisher exit 75) and stops; the newer main's run or the next hourly plan
+# owns the remaining targets. A dispatched repair on a moved main, and any
+# supersession after an unverified write, fail. hf-sync.yml stays the sole
+# writer of the canonical A11oy Space.
 on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/hf-publish-vertical-flagships.yml
+      - deployments/vertical-forge/terra/build-receipt.json
+      - deployments/vertical-forge/terra/fleet-receipt.json
+      - deployments/vertical-forge/terra/index.html
+      - deployments/vertical-forge/terra/source-lock.json
+      - scripts/_hf_publish_vertical_flagships_v4_impl_base.py
+      - scripts/hf_existing_space_guard.py
+      - scripts/hf_finance_functional_gate.py
+      - scripts/hf_finance_projection_manifest.py
+      - scripts/hf_finance_read_proxy.py
+      - scripts/hf_finance_research_workspace.py
+      - scripts/hf_finance_signed_workspace.py
+      - scripts/hf_finance_workspace.py
+      - scripts/hf_flagship_runtime_contract.py
+      - scripts/hf_publish_lyte_enterprise.py
+      - scripts/hf_publish_vertical_flagships_v4.py
+      - scripts/hf_publish_vertical_flagships_v4_impl.py
+      - scripts/hf_vertical_convergence.py
+      - scripts/lyte_enterprise_live_contract.py
+      - scripts/szl_release_guard.py
+      - verticals/puriq-markets/runtime/components/finance_v2/source.json
+      - verticals/puriq-markets/runtime/components/puriq_verity/source.json
+  schedule:
+    - cron: "41 * * * *"
+  workflow_run:
+    workflows: ["Sync and Relock Canonical Hugging Face Space"]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       scope:
@@ -16,12 +74,232 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: hf-publish-vertical-flagships
-  cancel-in-progress: false
+# No workflow-level group: planning is read-only. Both writer jobs hold the
+# shared vertical writer group (see the header).
 
 jobs:
+  plan:
+    name: Plan convergence against the served Spaces
+    if: ${{ github.repository == 'szl-holdings/a11oy' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      mode: ${{ steps.plan.outputs.mode }}
+      publish: ${{ steps.plan.outputs.publish }}
+      estate: ${{ steps.plan.outputs.estate }}
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ github.token }}
+      SZL_FLAGSHIP_SCOPE: ${{ inputs.scope || '' }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+
+      # A dispatch from any other ref fails here instead of being skipped.
+      - name: Require protected main
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/main
+
+      - name: Checkout exact source with history for drift dating
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Install pinned publisher
+        run: python -m pip install --disable-pip-version-check --no-cache-dir 'huggingface_hub==1.31.0'
+
+      - name: Plan only the targets whose served bytes differ from main
+        id: plan
+        run: python -I -B scripts/hf_vertical_convergence.py plan --defer-to-dispatched-writers
+
+      - name: Upload convergence plan
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: hf-vertical-convergence-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: hf-vertical-convergence-plan.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  publish-targets:
+    name: Publish and live-verify the planned targets
+    needs: plan
+    if: ${{ needs.plan.result == 'success' && needs.plan.outputs.publish == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    concurrency:
+      group: hf-vertical-estate
+      cancel-in-progress: false
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ github.token }}
+      SZL_PUBLICATION_MODE: ${{ needs.plan.outputs.mode }}
+      SZL_FLAGSHIP_SCOPE: ${{ inputs.scope || '' }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      # Supersession is neutral only for automatic convergence. A dispatched
+      # repair names one exact source, so a moved main fails it.
+      - name: Require protected main and detect supersession
+        id: current
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/main
+          git fetch --no-tags --depth=1 origin main
+          if [ "$(git rev-parse HEAD)" = "$(git rev-parse FETCH_HEAD)" ]; then
+            echo "superseded=false" >> "$GITHUB_OUTPUT"
+          elif [ "$SZL_PUBLICATION_MODE" = CONVERGENCE ]; then
+            echo "superseded=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::main moved to $(git rev-parse FETCH_HEAD); that revision's run or the hourly convergence owns publication"
+          else
+            echo "::error::a dispatched publication requires the exact current main; main moved to $(git rev-parse FETCH_HEAD)"
+            exit 1
+          fi
+
+      - name: Set up Python
+        if: ${{ steps.current.outputs.superseded == 'false' }}
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Install pinned publisher
+        if: ${{ steps.current.outputs.superseded == 'false' }}
+        run: python -m pip install --disable-pip-version-check --no-cache-dir 'huggingface_hub==1.31.0'
+
+      # The plan ran before this job acquired the writer lock; another writer
+      # may have converged (or a cancelled run may have planned) other targets
+      # meanwhile, so every target is assessed again here.
+      - name: Re-plan every target under the writer lock
+        id: locked
+        if: ${{ steps.current.outputs.superseded == 'false' }}
+        run: python -I -B scripts/hf_vertical_convergence.py plan --output hf-vertical-convergence-locked-plan.json
+
+      - name: Publish each planned target and live-verify it
+        id: publish
+        if: ${{ steps.current.outputs.superseded == 'false' }}
+        shell: bash
+        env:
+          HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
+          HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
+          HUGGING_FACE_HUB_TOKEN: ${{ secrets.HUGGING_FACE_HUB_TOKEN }}
+        run: |
+          set -uo pipefail
+          # Only the publisher itself receives a Hugging Face credential.
+          readonly_run() {
+            env -u HF_ORG_TOKEN -u HF_WRITE_TOKEN -u HF_TOKEN -u HUGGINGFACE_TOKEN -u HUGGING_FACE_HUB_TOKEN "$@"
+          }
+          output_field() { sed -n "s/^$1=//p" "$2" | tail -n 1; }
+          receipts=(hf-vertical-flagships-receipt.json hf-lyte-enterprise-receipt.json hf-lyte-enterprise-manifest.failed.json)
+          mkdir -p hf-vertical-receipts
+          plan_lines=$(readonly_run python -I -B scripts/hf_vertical_convergence.py targets --plan hf-vertical-convergence-locked-plan.json) || exit 1
+          mapfile -t entries <<< "$plan_lines"
+          failed=""
+          for entry in "${entries[@]}"; do
+            [ -n "$entry" ] || continue
+            target=${entry%% *}
+            forced=${entry##* }
+            out="$RUNNER_TEMP/convergence-$target.out"
+            if [ "$forced" = false ]; then
+              : > "$out"
+              if ! GITHUB_OUTPUT="$out" readonly_run python -I -B scripts/hf_vertical_convergence.py check --target "$target" < /dev/null; then
+                echo "::error::$target could not be re-checked under the writer lock"
+                failed="$failed $target"
+                continue
+              fi
+              state=$(output_field state "$out")
+              if [ "$state" = SUPERSEDED ]; then
+                echo "::notice::main moved; that revision's run or the hourly convergence owns the remaining targets"
+                break
+              fi
+              if [ "$(output_field publish "$out")" != true ]; then
+                echo "::notice::$target is $state under the writer lock; nothing to publish"
+                continue
+              fi
+            fi
+            if [ "$target" = sentra ]; then
+              : > "$out"
+              if ! GITHUB_OUTPUT="$out" readonly_run python -I -B scripts/hf_vertical_convergence.py wait-sentra --timeout 2400 < /dev/null; then
+                failed="$failed sentra"
+                continue
+              fi
+              admission=$(output_field state "$out")
+              if [ "$admission" = SUPERSEDED ] && [ "$forced" = false ]; then
+                echo "::notice::Sentra admission was superseded by a newer main before any write"
+                break
+              fi
+              if [ "$admission" != ADMISSIBLE ]; then
+                echo "::error::Sentra exact-source admission is $admission; see the wait output"
+                failed="$failed sentra"
+                continue
+              fi
+            fi
+            rm -f "${receipts[@]}"
+            SZL_FLAGSHIP_SCOPE="$target" python scripts/hf_publish_vertical_flagships_v4.py < /dev/null
+            code=$?
+            mkdir -p "hf-vertical-receipts/$target"
+            for receipt in "${receipts[@]}"; do
+              if [ -f "$receipt" ]; then mv "$receipt" "hf-vertical-receipts/$target/"; fi
+            done
+            if [ "$code" -eq 75 ] && [ "$forced" = false ]; then
+              echo "::notice::$target was superseded by a newer main with no unverified write; its receipt is not complete"
+              break
+            fi
+            if [ "$code" -ne 0 ]; then
+              echo "::error::$target publication did not complete (exit $code); see its receipt"
+              failed="$failed $target"
+            fi
+          done
+          if [ -n "$failed" ]; then
+            echo "::error::vertical publication did not complete for:$failed"
+            exit 1
+          fi
+
+      - name: Upload immutable receipts
+        if: ${{ always() && steps.locked.conclusion != 'skipped' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: hf-vertical-flagships-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            hf-vertical-convergence-locked-plan.json
+            hf-vertical-receipts/
+            hf-lyte-release-evidence/
+          if-no-files-found: warn
+          retention-days: 180
+
+  # The full estate (generated shells, Lyte, and the combined vertical-services
+  # runtime) stays an explicit operator action under the same writer lock.
   publish:
+    name: Publish and live-verify the full estate
+    needs: plan
+    if: ${{ needs.plan.result == 'success' && needs.plan.outputs.estate == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 50
     concurrency:
@@ -30,12 +308,7 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ github.token }}
       GH_TOKEN: ${{ github.token }}
-      HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
-      HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
-      HF_TOKEN: ${{ secrets.HF_TOKEN }}
-      HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
-      HUGGING_FACE_HUB_TOKEN: ${{ secrets.HUGGING_FACE_HUB_TOKEN }}
-      SZL_FLAGSHIP_SCOPE: ${{ inputs.scope || 'estate' }}
+      SZL_FLAGSHIP_SCOPE: estate
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
@@ -66,6 +339,12 @@ jobs:
         run: python -m pip install --disable-pip-version-check --no-cache-dir 'huggingface_hub==1.31.0'
 
       - name: Publish and live-verify the explicitly selected scope
+        env:
+          HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
+          HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
+          HUGGING_FACE_HUB_TOKEN: ${{ secrets.HUGGING_FACE_HUB_TOKEN }}
         run: python scripts/hf_publish_vertical_flagships_v4.py
 
       - name: Upload immutable receipt

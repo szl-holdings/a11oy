@@ -542,7 +542,11 @@ def test_publisher_overlay_keeps_finance_on_existing_writer_and_base_unchanged()
     assert row["upstream"] == "https://szlholdings-a11oy.hf.space/api/a11oy/v1/finance/overview"
     assert row["source"].endswith("a11oy/tree/main/verticals/puriq-markets")
     assert "Public finance projection" in overlay.APP
-    assert overlay.TERRA_FORGE_GENERATOR == "szl-vertical-forge/0.2.2"
+    # Terra's landing moved to forge 0.2.3 (upstream-evidence probe state); the
+    # immutable base still declares 0.2.2 and is never edited.
+    assert overlay.TERRA_FORGE_GENERATOR == "szl-vertical-forge/0.2.3"
+    base_source = (root / "scripts/_hf_publish_vertical_flagships_v4_impl_base.py").read_text(encoding="utf-8")
+    assert 'TERRA_FORGE_GENERATOR = "szl-vertical-forge/0.2.2"' in base_source
 
 
 def test_version_route_is_finance_only(tmp_path, monkeypatch):

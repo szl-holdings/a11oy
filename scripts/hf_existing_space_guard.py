@@ -18,6 +18,10 @@ hardware, storage, variables, secrets, or repository contents.
 """
 from __future__ import annotations
 
+import inspect
+import json
+import sys
+import urllib.parse
 from functools import wraps
 from threading import Lock
 from typing import Any, Callable
@@ -119,6 +123,215 @@ def require_existing_public_space(
         raise SpaceGuardError(f"public visibility is unconfirmed for Space {repo_id}")
 
 
+# hf-sync.yml is the only writer of the canonical A11oy Space. Publishers that
+# install this guard write other Spaces, so the canonical Space is refused at
+# two layers before any request leaves the process:
+#
+# * deny by default on the SDK class: every public HfApi method except the
+#   reviewed read-only methods below refuses a call that names the canonical
+#   Space in any argument, so an SDK mutator added later is refused unless it
+#   is reviewed and listed here as a read. The module-level aliases
+#   (``huggingface_hub.upload_file`` and the like, bound at import time) are
+#   rebound to the refusing methods.
+# * at the transport: every non-read HTTP request the SDK client sends whose
+#   path names ``spaces/SZLHOLDINGS/a11oy``, or whose repository-management
+#   body names it, is refused, whichever SDK entrypoint built the request.
+CANONICAL_SPACE = "SZLHOLDINGS/a11oy"
+CANONICAL_READ_METHODS = frozenset({
+    "auth_check", "dataset_info", "fetch_space_logs", "file_exists", "get_dataset_leaderboard",
+    "get_discussion_details", "get_full_repo_name", "get_paths_info", "get_repo_discussions",
+    "get_safetensors_metadata", "get_space_runtime", "get_space_secrets", "get_space_variables",
+    "hf_hub_download", "kernel_info", "list_accepted_access_requests",
+    "list_dataset_parquet_files", "list_lfs_files", "list_pending_access_requests",
+    "list_rejected_access_requests", "list_repo_commits", "list_repo_files", "list_repo_likers",
+    "list_repo_refs", "list_repo_tree", "model_info", "parse_safetensors_file_metadata",
+    "repo_exists", "repo_info", "resolve_revision", "revision_exists", "snapshot_download",
+    "space_info", "verify_repo_checksums", "wait_for_space",
+})
+# Mutators known when the refusal was reviewed. Refusal does not depend on this
+# list (it is deny by default); tests prove each of these is refused.
+CANONICAL_WRITE_METHODS = (
+    "add_space_secret", "add_space_variable", "create_branch", "create_commit",
+    "create_pull_request", "create_repo", "create_tag", "delete_branch", "delete_file",
+    "delete_files", "delete_folder", "delete_repo", "delete_space_secret",
+    "delete_space_storage", "delete_space_variable", "delete_space_volumes", "delete_tag",
+    "disable_space_dev_mode", "duplicate_repo", "duplicate_space", "enable_space_dev_mode",
+    "merge_pull_request", "move_repo", "pause_space", "permanently_delete_lfs_files",
+    "preupload_lfs_files", "request_space_hardware", "request_space_storage", "restart_space",
+    "set_space_secret", "set_space_sleep_time", "set_space_variable", "set_space_volumes",
+    "super_squash_history", "update_repo_settings", "update_repo_visibility", "upload_file",
+    "upload_folder", "upload_large_folder",
+)
+_CANONICAL_MARKER = "__szl_canonical_space_refusal_v1__"
+_READ_HTTP_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+_CANONICAL_PATH = "/spaces/" + CANONICAL_SPACE.casefold()
+_TRANSPORT_STATE: dict[str, Any] = {"sync": "NOT_INSTALLED", "async": "NOT_INSTALLED",
+                                    "refused_requests": 0}
+
+
+class CanonicalSpaceWriteRefused(SpaceGuardError):
+    """A non-canonical publisher attempted to mutate the canonical Space."""
+
+
+def _names_canonical(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    text = value.strip().casefold()
+    for prefix in ("https://huggingface.co/", "http://huggingface.co/", "spaces/"):
+        if text.startswith(prefix):
+            text = text[len(prefix):]
+    return text.rstrip("/") == CANONICAL_SPACE.casefold()
+
+
+def _refusing(name: str, original: Callable[..., Any]) -> Callable[..., Any]:
+    @wraps(original)
+    def refusing(self: Any, *args: Any, **kwargs: Any) -> Any:
+        if any(_names_canonical(value) for value in (*args, *kwargs.values())):
+            raise CanonicalSpaceWriteRefused(
+                f"{name} refused: only hf-sync.yml writes {CANONICAL_SPACE}"
+            )
+        return original(self, *args, **kwargs)
+
+    setattr(refusing, _CANONICAL_MARKER, True)
+    return refusing
+
+
+def _refusable_methods(api_class: type[Any]) -> list[str]:
+    names = []
+    for name in dir(api_class):
+        if name.startswith("_") or name in CANONICAL_READ_METHODS:
+            continue
+        static = inspect.getattr_static(api_class, name, None)
+        if inspect.isfunction(static):
+            names.append(name)
+    return sorted(names)
+
+
+def _rebind_module_aliases(api_class: type[Any]) -> int:
+    """Point import-time aliases such as ``huggingface_hub.upload_file`` at the refusal."""
+    rebound = 0
+    for module_name in ("huggingface_hub.hf_api", "huggingface_hub"):
+        module = sys.modules.get(module_name)
+        if module is None:
+            continue
+        for alias, value in list(vars(module).items()):
+            owner = getattr(value, "__self__", None)
+            if not inspect.ismethod(value) or not isinstance(owner, api_class):
+                continue
+            current = getattr(owner, value.__func__.__name__, None)
+            if (getattr(getattr(current, "__func__", None), _CANONICAL_MARKER, False)
+                    and not getattr(value.__func__, _CANONICAL_MARKER, False)):
+                setattr(module, alias, current)
+                rebound += 1
+    return rebound
+
+
+def _request_names_canonical(method: str, url: Any, content: Callable[[], bytes]) -> bool:
+    if str(method).upper() in _READ_HTTP_METHODS:
+        return False
+    path = urllib.parse.unquote(urllib.parse.urlsplit(str(url)).path).casefold()
+    start = path.find(_CANONICAL_PATH)
+    while start != -1:
+        following = path[start + len(_CANONICAL_PATH):start + len(_CANONICAL_PATH) + 1]
+        if following in ("", "/", "."):
+            return True
+        start = path.find(_CANONICAL_PATH, start + 1)
+    if not path.startswith("/api/repos/"):
+        return False
+    # Repository create, delete, move and settings name the target in the body.
+    try:
+        body = json.loads(content() or b"null")
+    except Exception:
+        return False
+    if not isinstance(body, dict):
+        return False
+    if any(_names_canonical(value) for value in body.values()):
+        return True
+    organization, name = body.get("organization"), body.get("name")
+    return (isinstance(organization, str) and isinstance(name, str)
+            and _names_canonical(f"{organization}/{name}"))
+
+
+def _refuse_request(request: Any) -> None:
+    def content() -> bytes:
+        return bytes(request.content)
+
+    if _request_names_canonical(request.method, request.url, content):
+        with _COUNTER_LOCK:
+            _TRANSPORT_STATE["refused_requests"] += 1
+        raise CanonicalSpaceWriteRefused(
+            f"{request.method} request refused: only hf-sync.yml writes {CANONICAL_SPACE}"
+        )
+
+
+async def _refuse_request_async(request: Any) -> None:
+    _refuse_request(request)
+
+
+def install_canonical_transport_refusal() -> dict[str, Any]:
+    """Refuse canonical-Space mutations in every SDK HTTP client created from now on."""
+    try:
+        from huggingface_hub.utils import _http
+    except Exception:  # a stand-in or pre-httpx SDK: the class layer still refuses
+        return dict(_TRANSPORT_STATE)
+    for kind, factory_name, setter_name, hook in (
+        ("sync", "_GLOBAL_CLIENT_FACTORY", "set_client_factory", _refuse_request),
+        ("async", "_GLOBAL_ASYNC_CLIENT_FACTORY", "set_async_client_factory", _refuse_request_async),
+    ):
+        current = getattr(_http, factory_name, None)
+        setter = getattr(_http, setter_name, None)
+        if not callable(current) or not callable(setter):
+            _TRANSPORT_STATE[kind] = "UNAVAILABLE"
+            continue
+        if getattr(current, _CANONICAL_MARKER, False):
+            _TRANSPORT_STATE[kind] = "INSTALLED"
+            continue
+
+        def factory(_current: Callable[[], Any] = current, _hook: Callable[..., Any] = hook) -> Any:
+            client = _current()
+            hooks = dict(client.event_hooks)
+            hooks["request"] = [*hooks.get("request", []), _hook]
+            client.event_hooks = hooks
+            return client
+
+        setattr(factory, _CANONICAL_MARKER, True)
+        setter(factory)
+        _TRANSPORT_STATE[kind] = "INSTALLED"
+    return dict(_TRANSPORT_STATE)
+
+
+def refuse_canonical_space_writes(api_class: type[Any] = HfApi) -> tuple[str, ...]:
+    """Refuse every non-read use of the canonical Space, deny by default.
+
+    Wraps every public method of ``api_class`` except ``CANONICAL_READ_METHODS``
+    so that a call naming the canonical Space in any argument is refused,
+    rebinds the SDK's import-time module aliases, and installs the transport
+    refusal for the SDK HTTP clients. Returns the method names that now
+    refuse; installation is idempotent.
+    """
+
+    refused: list[str] = []
+    with _INSTALL_LOCK:
+        for name in _refusable_methods(api_class):
+            current = getattr(api_class, name)
+            if not getattr(current, _CANONICAL_MARKER, False):
+                setattr(api_class, name, _refusing(name, current))
+            refused.append(name)
+        _rebind_module_aliases(api_class)
+    install_canonical_transport_refusal()
+    return tuple(refused)
+
+
+def canonical_refusal_report(api_class: type[Any] = HfApi) -> dict[str, Any]:
+    with _COUNTER_LOCK:
+        transport = dict(_TRANSPORT_STATE)
+    return {"canonical_space": CANONICAL_SPACE, "policy": "DENY_BY_DEFAULT_EXCEPT_REVIEWED_READS",
+            "class_methods_refusing": sum(
+                1 for name in _refusable_methods(api_class)
+                if getattr(getattr(api_class, name), _CANONICAL_MARKER, False)),
+            "transport": transport}
+
+
 def install_existing_space_guard(
     api_class: type[Any] = HfApi, *, require_existing: bool = False
 ) -> dict[str, Any]:
@@ -127,8 +340,10 @@ def install_existing_space_guard(
     By default, only calls that explicitly request ``repo_type='space'`` and
     ``exist_ok=True`` are intercepted; other SDK calls remain untouched.
     ``require_existing=True`` blocks missing Spaces and unexpected create calls.
+    Installation also refuses every mutation of the canonical A11oy Space.
     """
 
+    refuse_canonical_space_writes(api_class)
     with _INSTALL_LOCK:
         current = api_class.create_repo
         if getattr(current, _MARKER, False):
@@ -205,9 +420,16 @@ def guard_report(api_class: type[Any] = HfApi) -> dict[str, Any]:
 
 
 __all__ = [
+    "CANONICAL_READ_METHODS",
+    "CANONICAL_SPACE",
+    "CANONICAL_WRITE_METHODS",
+    "CanonicalSpaceWriteRefused",
     "SpaceGuardError",
+    "canonical_refusal_report",
     "guard_report",
     "http_status",
+    "install_canonical_transport_refusal",
     "install_existing_space_guard",
+    "refuse_canonical_space_writes",
     "require_existing_public_space",
 ]
