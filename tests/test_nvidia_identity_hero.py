@@ -120,7 +120,7 @@ def test_fluid_type_and_canonical_font_roles_are_present(html: str) -> None:
         assert token in css
     canonical = (ROOT / "console/assets/szl/szl-design-system.css").read_text(encoding="utf-8")
     assert "--measure:68ch" in canonical
-    assert 'href="/assets/a11oy-homepage.css" id="szl-homepage-shell"' in html
+    assert 'href="/assets/a11oy-homepage.css?v=dab2353006c8" id="szl-homepage-shell"' in html
 
 
 def test_text_wrap_and_tabular_numbers() -> None:
