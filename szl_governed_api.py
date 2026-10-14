@@ -870,7 +870,9 @@ def register(app, ns: str = "a11oy", *, public_pem: str | None = None):  # pragm
         _DIR = _os.path.dirname(_os.path.abspath(__file__))
         _PAGE = _os.path.join(_DIR, "govern_showcase.html")          # /govern showcase
         _FRONT = _os.path.join(_DIR, "a11oy_landing.html")            # "/" investor front door
-        _HOME_CSS = _os.path.join(_DIR, "console", "assets", "a11oy-homepage.css")
+        _HOME_CSS = _os.path.join(_DIR, "static", "assets", "a11oy-homepage.css")
+        if not _os.path.isfile(_HOME_CSS):
+            _HOME_CSS = _os.path.join(_DIR, "console", "assets", "a11oy-homepage.css")
         async def _homepage_css(request=None):
             # Standalone register() owns this exact landing dependency too.
             # No directory mount or caller-selected filesystem path is exposed.
