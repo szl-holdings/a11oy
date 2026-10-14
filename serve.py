@@ -111,7 +111,11 @@ def _szl_doc(rel: str) -> Path:
     return local
 
 
-_IMAGE_STATIC_DIR = Path("/app/static")
+# The image installs console/ at static/ beside this module (Dockerfile
+# `COPY console/ ./static/`). Resolving it from the module's own location, not
+# an absolute /app, lets tests boot the projected image tree and see exactly
+# what the Space serves; inside the image both spellings are /app/static.
+_IMAGE_STATIC_DIR = Path(__file__).resolve().parent / "static"
 _LOCAL_STATIC_DIR = Path(__file__).resolve().parent / "console"
 STATIC_DIR = _IMAGE_STATIC_DIR if (_IMAGE_STATIC_DIR / "index.html").is_file() else _LOCAL_STATIC_DIR
 ASSETS_DIR = STATIC_DIR / "assets"
@@ -15897,7 +15901,9 @@ except Exception as _whd_e:
 # 6-receipt loop primitives (szl_agentic_loop) and emitting a signed, re-
 # verifiable receipt via a11oy's REAL in-image signer (_a11oy_sign_receipt) +
 # the loop's verifier (_a11oy_loop_verify). CODE mode actually RUNS code in a
-# REAL governed sandbox (restricted subprocess: rlimits, no network, timeout).
+# restricted subprocess (a11oy_code_engine._sandbox_exec): mandatory rlimits and an
+# attested per-run user + network namespace, fail closed, wall-clock timeout; no
+# seccomp, filesystem or container isolation.
 # Multi-model router = C20 softmax order-stability + W7-5 PAC-Bayes envelope;
 # confidence = W5-3/W7-4 conformal (never 100%); consensus = C10-C12. Roster is
 # OPEN-WEIGHT ONLY (closed API models are NEVER presented as baked-in) and DEFERS
@@ -15921,16 +15927,13 @@ try:
 except Exception:
     pass
 try:
-    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
-        from szl_substrate import a11oy_code_engine as _a11oy_code  # single source of truth
-        import inspect as _code_inspect
-        # SECURITY: only a copy that carries the deny-by-default allow_exec
-        # chokepoint may serve /v1/code/*; an older shared copy would run the
-        # sandbox for any caller. Otherwise use the vendored copy.
-        if "allow_exec" not in _code_inspect.signature(_a11oy_code.governed_turn).parameters:
-            raise ImportError("szl_substrate a11oy_code_engine lacks allow_exec")
-    except Exception:
-        import a11oy_code_engine as _a11oy_code
+    # SECURITY: /v1/code/* always runs the vendored, reviewed engine (byte-locked
+    # with killinchu by the shared-file drift guard) -- the same module the
+    # governed kernel and shell_exec import. An installed szl_substrate copy is
+    # never preferred: it can carry the allow_exec chokepoint yet lack the
+    # attested user + network namespace, so selecting it by signature would
+    # silently drop isolation.
+    import a11oy_code_engine as _a11oy_code
     import sys as _code_sys
     _code_verify = _a11oy_loop_verify if "_a11oy_loop_verify" in dir() else None
     _code_status = _a11oy_code.register(
