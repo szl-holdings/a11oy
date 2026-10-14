@@ -241,9 +241,14 @@ def test_frontier_endpoint_good_request_never_crashes(entry):
         f"{entry['path']} returned 422 on KNOWN-GOOD input — schema/silent-degrade "
         f"regression: {r.text[:300]}"
     )
-    if entry["method"] == "POST" and entry["path"].endswith("/restraint/evaluate"):
+    operator_only = (
+        entry["method"] == "POST"
+        and (entry["path"].endswith("/restraint/evaluate")
+             or entry["path"] == "/api/a11oy/v1/eval/run")
+    )
+    if operator_only:
         assert r.status_code == 401, (
-            f"{entry['path']} must refuse an anonymous evaluation before signing: "
+            f"{entry['path']} must refuse an anonymous effect before body or handler: "
             f"{r.status_code} {r.text[:200]}"
         )
         assert r.json().get("status") == "BLOCKED"
