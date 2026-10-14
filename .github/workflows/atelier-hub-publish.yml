@@ -202,29 +202,13 @@ jobs:
               print("published SZLHOLDINGS/szl-khipu-kernels pack")
 
               # Converged kernels (YARQA-ATTN, szl-maskmod, szl-receipt-attn,
-              # szl-ouroboros, szl-block-kv, szl-lambda-gate, ...) are written
-              # only by their own repo's hf-kernel-publish.yml, which owns both
-              # kernels/SZLHOLDINGS/<n> and the pointer README on the model
-              # twin and prunes code files from it. Copying organ sources there
-              # from here would re-add what that publisher removed. Their code
-              # still ships in the szl-khipu-kernels pack above.
-              per = [
-                  ("SZLHOLDINGS/szl-governed-norm", "governed_norm.py"),
-              ]
-              for repo, name in per:
-                  srcp = kdir / name
-                  if srcp.exists():
-                      api.upload_file(path_or_fileobj=str(srcp), path_in_repo=name, repo_id=repo, repo_type="model", commit_message=f"code(atelier): {name} from szl-khipu — not a 1.5B retrain")
-                      print("published", repo, name)
-
-              # One-hop deps so per-organ imports resolve. Do not rewrite GitHub-canonical READMEs.
-              for repo, name in (
-                  ("SZLHOLDINGS/szl-governed-norm", "chain.py"),
-              ):
-                  srcp = kdir / name
-                  if srcp.exists():
-                      api.upload_file(path_or_fileobj=str(srcp), path_in_repo=name, repo_id=repo, repo_type="model", commit_message=f"code(atelier): {name} one-hop dep so the organ imports")
-                      print("published", repo, name, "(dep)")
+              # szl-ouroboros, szl-block-kv, szl-lambda-gate, the governed-norm
+              # twin, ...) are written only by their owning repo's
+              # hf-kernel-publish.yml, which owns both kernels/SZLHOLDINGS/<n>
+              # and the pointer README on the model twin and prunes code files
+              # from it. Copying organ sources there from here would re-add what
+              # that publisher removed. Their code still ships in the
+              # szl-khipu-kernels pack above.
 
               api.upload_file(path_or_fileobj=str(kdir / "nemo_rules.py"), path_in_repo="szl_nemo/rules.py", repo_id="SZLHOLDINGS/szl-nemo", repo_type="model", commit_message="code(atelier): rule_check R1-R5 — joblib stays quarantined")
               print("published SZLHOLDINGS/szl-nemo szl_nemo/rules.py")

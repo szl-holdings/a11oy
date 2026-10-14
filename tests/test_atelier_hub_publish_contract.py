@@ -43,6 +43,11 @@ CONVERGED_KERNEL_REPOS = frozenset(
         "szl-block-kv",
         "YARQA-ATTN",
         "szl-lambda-gate",
+        # Owned by szl-holdings/szl-lambda-gate, not a same-named GitHub repo:
+        # its hf-kernel-publish.yml makes SZLHOLDINGS/szl-governed-norm a
+        # pointer twin and prunes governed_norm.py and chain.py from it
+        # (szl-forge publishing/kernel-hub-ownership.json).
+        "szl-governed-norm",
     }
 )
 
@@ -66,7 +71,6 @@ EXPECTED_ATELIER_TARGETS = frozenset(
         "chakana",
         "tinku",
         "szl-khipu-kernels",
-        "szl-governed-norm",
         "szl-nemo",
         "szl-training-scripts",
     )
