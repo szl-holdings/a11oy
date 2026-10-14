@@ -111,7 +111,11 @@ def _szl_doc(rel: str) -> Path:
     return local
 
 
-_IMAGE_STATIC_DIR = Path("/app/static")
+# The image installs console/ at static/ beside this module (Dockerfile
+# `COPY console/ ./static/`). Resolving it from the module's own location, not
+# an absolute /app, lets tests boot the projected image tree and see exactly
+# what the Space serves; inside the image both spellings are /app/static.
+_IMAGE_STATIC_DIR = Path(__file__).resolve().parent / "static"
 _LOCAL_STATIC_DIR = Path(__file__).resolve().parent / "console"
 STATIC_DIR = _IMAGE_STATIC_DIR if (_IMAGE_STATIC_DIR / "index.html").is_file() else _LOCAL_STATIC_DIR
 ASSETS_DIR = STATIC_DIR / "assets"
