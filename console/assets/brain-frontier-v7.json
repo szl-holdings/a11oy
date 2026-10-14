@@ -1,6 +1,6 @@
 {
   "advisory_dag": {
-    "contract_digest": "c0fce11b2e23f5975de1fb6b82f0f0d19920c0181735c88ee8100bfe61e17c6f",
+    "contract_digest": "898c98cc44c411037e76d578d58115d83c36663d47e1e4322cd62ec50ee24187",
     "contracts": {
       "anchor_types": [
         "source"
@@ -33,7 +33,7 @@
       "blockers": [],
       "pass": true
     },
-    "graph_id": "brain-frontier-review-efa7bddf8526aaabada7",
+    "graph_id": "brain-frontier-review-7b8766cbb5488be7c572",
     "implementation_status": "REAL",
     "normalized_contract": {
       "anchors": [
@@ -56,17 +56,17 @@
         "max_total_iterations": 1
       },
       "external_inputs": [
-        "brain-candidates:sha256:efa7bddf8526aaabada77e27257dc0f0128f151a7e97ebe51d5eafede8f04f7c",
-        "ouroboros-controller:git:9ae23a9d46bc526b7e665aade505c2eaedb66c75"
+        "brain-candidates:sha256:7b8766cbb5488be7c5720a7b01ba4b1871d24eb503f385aff8475db02cfe1a74",
+        "ouroboros-controller:git:389dbe62997aa790ba63ecd03395cb556c2cad68"
       ],
       "goal": "Inspect the source-bound Second Brain and existing Ouroboros advisory review composition. This MODELED topology grants no execution authority and makes no claim that its nodes ran.",
-      "graph_id": "brain-frontier-review-efa7bddf8526aaabada7",
+      "graph_id": "brain-frontier-review-7b8766cbb5488be7c572",
       "nodes": [
         {
           "authority": "READ_ONLY",
           "consumes": [
-            "brain-candidates:sha256:efa7bddf8526aaabada77e27257dc0f0128f151a7e97ebe51d5eafede8f04f7c",
-            "ouroboros-controller:git:9ae23a9d46bc526b7e665aade505c2eaedb66c75"
+            "brain-candidates:sha256:7b8766cbb5488be7c5720a7b01ba4b1871d24eb503f385aff8475db02cfe1a74",
+            "ouroboros-controller:git:389dbe62997aa790ba63ecd03395cb556c2cad68"
           ],
           "control_after": [],
           "depends_on": [],
@@ -193,7 +193,7 @@
       "schema": "szl.governed-graph/v1"
     },
     "ok": true,
-    "plan_id": "ggp-c0fce11b2e23f5975de1",
+    "plan_id": "ggp-898c98cc44c411037e76",
     "schema": "szl.governed-graph.analysis/v1",
     "topology": {
       "control_edge_count": 0,
@@ -1158,7 +1158,7 @@
       "nodeId": "frontier:0496b555a1c6096f645c095a54a520e4",
       "path": "README.md",
       "repository": "szl-holdings/anatomy",
-      "revision": "f143ff67d34b0cfc1c8e1a171bf9d0f08897762b",
+      "revision": "0f1ef65a034beb39df2c3e5ec586ca38dd9803fb",
       "sha256": "140dfc00d2963fc95aa63751ea082ebbd6dca804bb2bb73fb2cd9f48ebeccf6b",
       "title": "Living Anatomy · What's new in v4 — dissection tools"
     },
@@ -1171,8 +1171,8 @@
       "nodeId": "frontier:345c1133534cb71cdb92b62cf14f333d",
       "path": "README.md",
       "repository": "szl-holdings/szl-ouroboros",
-      "revision": "9ae23a9d46bc526b7e665aade505c2eaedb66c75",
-      "sha256": "6fcdbade992908bbd2f4cdf488d80c4d5245ea09179dd21c86170299d35233c4",
+      "revision": "a9a0aaa2cb548c23f7aa6f7c4996dccf0a61a262",
+      "sha256": "cb3ffeeb93e061188aa605078187088de47bb6e910bad3aee6d5722790a03222",
       "title": "Ouroboros Runtime · szl-ouroboros"
     },
     {
@@ -1184,7 +1184,7 @@
       "nodeId": "frontier:33575056a85748dc25c1d401b9cac087",
       "path": "governance/public-estate.v1.json",
       "repository": "szl-holdings/a11oy",
-      "revision": "dddf649beb7f189c4c05dc062875cf6d4c4d215d",
+      "revision": "0860babc5da069dd713e4a81ef77d66eb214a24c",
       "sha256": "693791f3c93a9fee673004670ab34de99f6be7c04a8467e579f1ea49d6c1d99c",
       "title": "A11oy public estate authority"
     },
@@ -1210,7 +1210,7 @@
       "nodeId": "frontier:16652a71fc5ae508fad3b952cb2a3491",
       "path": "README.md",
       "repository": "szl-holdings/szl-nemo",
-      "revision": "7c0bc1599e8a000ad5fe9736339789e1ba18d7e5",
+      "revision": "229503457d99a1514e7d9ca788fa3cf07b3c3ef4",
       "sha256": "e4a5db4dd4999f9fff034f6206503e9193177ce93a5ed16c22b2f7809f343d59",
       "title": "Nemo Witness · R1–R5 prompt/answer contract"
     },
@@ -1223,7 +1223,7 @@
       "nodeId": "frontier:0b37278ff9a9c64597dd0fc51275c972",
       "path": "README.md",
       "repository": "szl-holdings/szl-kernels",
-      "revision": "a7cbbdff6aa28ba68541e99f11087f299a7b2464",
+      "revision": "8ce5449e2d0a3ba196dc24108f34ab424001aa99",
       "sha256": "23583c82f34c02aefee064e34ce3fe1e72c8920da33eb4714d790f39a2ff3650",
       "title": "Governed Kernel Suite · Cookbook"
     },
@@ -1288,7 +1288,7 @@
       "nodeId": "frontier:0e6285a456e79a41bdf115dfa64962a1",
       "path": "governance/public-estate.v1.json",
       "repository": "szl-holdings/a11oy",
-      "revision": "dddf649beb7f189c4c05dc062875cf6d4c4d215d",
+      "revision": "0860babc5da069dd713e4a81ef77d66eb214a24c",
       "sha256": "c5566f260c80021b98aa2b3c1f9b6b37aaab5bbd41c9cdeb1977f5c37dc8171b",
       "title": "Public estate · Sentra"
     }
@@ -1302,10 +1302,10 @@
   ],
   "ouroboros_observation": {
     "artifact": {
-      "archive_sha256": "dbb6de581b992bccae91d96e9e7cb76d541cdab00e1281c018121fb3e44d050e",
-      "id": 11583907210,
-      "name": "ouroboros-frontier-37856032788-1",
-      "receipt_sha256": "9e2ecfa5dd5ad58b21f63850842fb3700be380ecc844342c48990c1d24bcb8c9"
+      "archive_sha256": "292241f2cf4e9bd477ce33da84d232c0a56664e1990652b1e6f2fb3b47ce8682",
+      "id": 11913692811,
+      "name": "ouroboros-frontier-38601718587-1",
+      "receipt_sha256": "8b25ef91b946486a19872197976f1440d65485c1912b4263af18031a7c7d2c1e"
     },
     "authority": {
       "execution": "NONE",
@@ -1322,9 +1322,9 @@
       "signature_verified": false
     },
     "freshness": {
-      "expires_at": "2026-10-09T04:53:34Z",
+      "expires_at": "2026-10-14T22:54:30Z",
       "max_age_seconds": 21600,
-      "observed_at": "2026-10-08T22:53:34Z"
+      "observed_at": "2026-10-14T16:54:30Z"
     },
     "observation": {
       "bounded": true,
@@ -1332,63 +1332,63 @@
       "max_budget": 1,
       "receipt_closed": true,
       "recommendation_count": 1,
-      "review_sha256": "b5f0c73b3a5a863e4a257a8b01915bb44aa58fa0f411bf51a2fd1ff18df15587",
+      "review_sha256": "8437159bfbc8a6056ed275b1a3dd6fb6f97fd423aa50030dceda3cfdb1954a07",
       "review_state": "REVIEW_PROPOSED",
       "steps": 1,
       "terminated": true,
-      "wall_ms": 100589
+      "wall_ms": 103898
     },
-    "observation_sha256": "b9381e18a8b421432f1673fec2a86dddd265e68d7e04739d1e453ec3dbf49979",
+    "observation_sha256": "31c2f882635ac1cc03404d48dc4b1bb90ef73489b55442d032634d5791cb8a40",
     "reason": "CURRENT_REVIEW_RECEIPT_VALIDATED",
     "run": {
       "attempt": 1,
       "conclusion": "success",
-      "head_sha": "9ae23a9d46bc526b7e665aade505c2eaedb66c75",
-      "id": 37856032788,
+      "head_sha": "389dbe62997aa790ba63ecd03395cb556c2cad68",
+      "id": 38601718587,
       "status": "completed",
-      "updated_at": "2026-10-08T22:53:34Z",
-      "url": "https://github.com/szl-holdings/szl-ouroboros/actions/runs/37856032788"
+      "updated_at": "2026-10-14T16:54:30Z",
+      "url": "https://github.com/szl-holdings/szl-ouroboros/actions/runs/38601718587"
     },
     "schema": "szl.ouroboros.frontier-observation/v1",
     "source": {
-      "candidate_count": 141,
-      "candidate_file_sha256": "efa7bddf8526aaabada77e27257dc0f0128f151a7e97ebe51d5eafede8f04f7c",
-      "candidate_set_sha256": "efa7bddf8526aaabada77e27257dc0f0128f151a7e97ebe51d5eafede8f04f7c",
+      "candidate_count": 144,
+      "candidate_file_sha256": "7b8766cbb5488be7c5720a7b01ba4b1871d24eb503f385aff8475db02cfe1a74",
+      "candidate_set_sha256": "7b8766cbb5488be7c5720a7b01ba4b1871d24eb503f385aff8475db02cfe1a74",
       "controller_repository": "szl-holdings/szl-ouroboros",
-      "controller_revision": "9ae23a9d46bc526b7e665aade505c2eaedb66c75",
+      "controller_revision": "389dbe62997aa790ba63ecd03395cb556c2cad68",
       "second_brain_repository": "szl-holdings/szl-second-brain",
-      "second_brain_revision": "c96fd1f309a0a7298b89e8469f58fecaeada8fb3",
-      "state_file_sha256": "54cb1a5b7bb2275ce96611afa00910f4026825e42641bec02f70663fb585258b",
+      "second_brain_revision": "3a7d935f159abc1b13915dddb6de72ac8eb395a2",
+      "state_file_sha256": "18b6624cb9c15d0a83848fc3dc3252c5100d0cbf043fb88a247bd89cc5432518",
       "workflow": ".github/workflows/codex-continuous-frontier.yml"
     },
     "state": "OBSERVED"
   },
   "schema": "szl.a11oy.brain-frontier-holographic-v7/v1",
   "selected_handle_count": 72,
-  "snapshot_sha256": "8d9d6a91ae2de5de1f08ab00b4d5329d14d3bfcc36ed7eda84ae40d4b911f688",
+  "snapshot_sha256": "2770acfa13b3d2556823d3b280a51b6e9e2fe797fc28ece25f92d1937ebc7511",
   "sources": {
     "anatomy": {
       "holographic_v7_path": "/api/anatomy/v1/holographic-v7",
       "live_origin": "https://betterwithage-anatomy.hf.space",
       "repository": "szl-holdings/anatomy",
-      "revision": "4f7ab4b4589cb839e4e45025ffaef3085c79f448"
+      "revision": "4e37e8f9c0d3a147a84674407d62ef85ba3eb73c"
     },
     "formulas": {
       "repository": "szl-holdings/szl-formulas",
-      "revision": "0784a8c1b4ac408edb95e45e6c6d08d4edb5b07d"
+      "revision": "2aaaf7d554a870e1e918960b04e915c5b0dc2c10"
     },
     "ouroboros": {
       "repository": "szl-holdings/szl-ouroboros",
       "review_workflow": ".github/workflows/codex-continuous-frontier.yml",
-      "revision": "9ae23a9d46bc526b7e665aade505c2eaedb66c75"
+      "revision": "389dbe62997aa790ba63ecd03395cb556c2cad68"
     },
     "second_brain": {
-      "candidate_count": 141,
-      "candidate_file_sha256": "efa7bddf8526aaabada77e27257dc0f0128f151a7e97ebe51d5eafede8f04f7c",
-      "candidate_set_sha256": "efa7bddf8526aaabada77e27257dc0f0128f151a7e97ebe51d5eafede8f04f7c",
+      "candidate_count": 144,
+      "candidate_file_sha256": "7b8766cbb5488be7c5720a7b01ba4b1871d24eb503f385aff8475db02cfe1a74",
+      "candidate_set_sha256": "7b8766cbb5488be7c5720a7b01ba4b1871d24eb503f385aff8475db02cfe1a74",
       "repository": "szl-holdings/szl-second-brain",
-      "revision": "c96fd1f309a0a7298b89e8469f58fecaeada8fb3",
-      "state_sha256": "54cb1a5b7bb2275ce96611afa00910f4026825e42641bec02f70663fb585258b"
+      "revision": "3a7d935f159abc1b13915dddb6de72ac8eb395a2",
+      "state_sha256": "18b6624cb9c15d0a83848fc3dc3252c5100d0cbf043fb88a247bd89cc5432518"
     }
   },
   "state": "SOURCE_BOUND_REVIEW_MEMORY",
