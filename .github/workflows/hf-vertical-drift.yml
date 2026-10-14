@@ -8,8 +8,9 @@ name: HF Vertical Space Drift
 # (scripts/hf_vertical_convergence.py). It never writes to Hugging Face.
 #
 # One tracking issue (marked szl:vertical-drift-tracker) is opened or updated
-# while any target has drifted longer than DRIFT_ALERT_HOURS, and closed when
-# every target has converged, so a multi-day drift cannot stay silent again.
+# while any target has drifted longer than DRIFT_ALERT_HOURS (at once for an
+# UNPLANNED target, which the automatic writer is excluded from), and closed
+# when every target has converged, so a multi-day drift cannot stay silent again.
 on:
   schedule:
     - cron: "17 */2 * * *"

@@ -43,6 +43,11 @@ CONVERGED_KERNEL_REPOS = frozenset(
         "szl-block-kv",
         "YARQA-ATTN",
         "szl-lambda-gate",
+        # Owned by szl-holdings/szl-lambda-gate, not a same-named GitHub repo:
+        # its hf-kernel-publish.yml makes SZLHOLDINGS/szl-governed-norm a
+        # pointer twin and prunes governed_norm.py and chain.py from it
+        # (szl-forge publishing/kernel-hub-ownership.json).
+        "szl-governed-norm",
     }
 )
 
@@ -52,10 +57,6 @@ EXPECTED_ATELIER_TARGETS = frozenset(
     f"{HUB_OWNER}/{name}"
     for name in (
         "szl-atelier",
-        "MiniEmbed-Nano",
-        "Moons-Nano",
-        "TinyKhipu-Nano",
-        "ReceiptAgent-Nano",
         "szl-khipu",
         "WILLAY",
         "chaski",
@@ -66,10 +67,18 @@ EXPECTED_ATELIER_TARGETS = frozenset(
         "chakana",
         "tinku",
         "szl-khipu-kernels",
-        "szl-governed-norm",
         "szl-nemo",
         "szl-training-scripts",
     )
+)
+
+# Hub model repos whose files are owned by another writer (per-file ownership:
+# .npz + TRAINING_RECEIPT.json from szl-holdings/szl-khipu, TinyKhipu/ReceiptAgent
+# README + banner from szl-forge, Moons/MiniEmbed README from szl-khipu).
+# atelier must not target them at all.
+OTHER_OWNER_REPOS = frozenset(
+    f"{HUB_OWNER}/{name}"
+    for name in ("MiniEmbed-Nano", "Moons-Nano", "TinyKhipu-Nano", "ReceiptAgent-Nano")
 )
 
 # Hub writers outside atelier that still name a converged twin. Each is pinned
@@ -266,6 +275,13 @@ class AtelierPublisherTargetTests(unittest.TestCase):
                 self.assertIsInstance(node.value, ast.Constant)
                 self.assertIn(node.value.value, {"model", "space"})
         self.assertNotRegex(self.source, r"huggingface\.co/kernels/")
+
+    def test_no_repo_owned_by_another_writer_is_a_target(self) -> None:
+        targets = publisher_targets(self.source)
+        self.assertFalse(targets & OTHER_OWNER_REPOS, sorted(targets & OTHER_OWNER_REPOS))
+        executed = _executable_lines(self.workflow)
+        for repo in sorted(OTHER_OWNER_REPOS):
+            self.assertNotIn(repo, executed, repo)
 
     def test_remaining_atelier_targets_are_intact(self) -> None:
         self.assertEqual(publisher_targets(self.source), set(EXPECTED_ATELIER_TARGETS))
