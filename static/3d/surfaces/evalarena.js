@@ -58,6 +58,7 @@ const RING_R = 3.0, ARC_R = 5.4, CORE_R = 0.62;
 
 let _stage=null,_THREE=null,_ctx=null,_group=null,_overlay=null;
 let _frameReg=false,_polls=[],_badge=null,_plain=false,_t0=0,_show=null;
+let _runPending=false,_runUnknown=false,_runAbort=null;
 let _ring=null,_ringGlow=null,_core=null,_caseGroup=null,_caseMeshes=[];
 
 const S = {
@@ -85,13 +86,9 @@ function mount(ctx){
   _buildOverlay(ctx);
   _buildScaffold();
 
-  // POST /eval/run — the CORE poll. Body carries {suite, model_id}.
-  _polls.push(ctx.live.poll(EP_RUN, 8000, _onRun, {
-    badge:_badge,
-    onState:(m)=>{ S.state=m.state; _paintOverlay(); },
-    fetchInit:{ method:"POST", headers:{"accept":"application/json","content-type":"application/json"},
-                body: JSON.stringify({ suite:S.suiteId, model_id:S.modelId }) },
-  }));
+  // Evaluation is an explicit one-shot operator action. Never POST on mount,
+  // poll, timeout, UNKNOWN transport, or surface remount.
+  _runPending=false; _runUnknown=false; _runAbort=null;
   // GET /eval/suites — populate the roster (metadata only).
   _polls.push(ctx.live.poll(EP_SUITES, 30000, _onSuites, {}));
 
@@ -106,6 +103,12 @@ function _onSuites(j){
   if(!j||!Array.isArray(j.suites)) return;
   S.suiteRoster=j.suites.map((s)=>({ id:String(s.id), title:String(s.title||s.id), n:Number(s.n_cases)||0,
     version:String(s.version||""), cats:Array.isArray(s.categories)?s.categories:[] }));
+  const select=_overlay&&_overlay.querySelector("#ea-suite-input");
+  if(select){
+    select.textContent="";
+    S.suiteRoster.forEach((suite)=>{ const option=document.createElement("option"); option.value=suite.id; option.textContent=suite.title; select.appendChild(option); });
+    if(S.suiteRoster.some((suite)=>suite.id===S.suiteId)) select.value=S.suiteId;
+  }
   _paintOverlay();
 }
 
@@ -133,6 +136,47 @@ function _onRun(j){
   const fi=j.forum_ingest||{}; S.forumIngested=(fi.ingested===true);
   _rebuildCases();
   _paintOverlay();
+}
+
+async function _runEvalOnce(){
+  if(_runPending) return;
+  const status=_overlay&&_overlay.querySelector("#ea-run-state");
+  if(_runUnknown){ if(status) status.textContent="UNKNOWN — remount before another attempt"; return; }
+  const tokenNode=_overlay&&_overlay.querySelector("#ea-token");
+  const suiteNode=_overlay&&_overlay.querySelector("#ea-suite-input");
+  const modelNode=_overlay&&_overlay.querySelector("#ea-model-input");
+  let token=String((tokenNode&&tokenNode.value)||"").trim();
+  const suite=String((suiteNode&&suiteNode.value)||S.suiteId).slice(0,160);
+  const model=String((modelNode&&modelNode.value)||S.modelId).slice(0,240);
+  const body=JSON.stringify({suite:suite,model_id:model});
+  if(token.length<16||token.length>4096){ if(status) status.textContent="bounded one-shot operator credential required"; if(tokenNode) tokenNode.value=""; return; }
+  if(body.length>16384){ if(status) status.textContent="request exceeds 16 KiB client boundary"; if(tokenNode) tokenNode.value=""; return; }
+  const button=_overlay&&_overlay.querySelector("#ea-run-once");
+  const controller=new AbortController(); _runAbort=controller; _runPending=true;
+  if(button) button.disabled=true; if(status) status.textContent="running once…";
+  const timer=setTimeout(()=>controller.abort(),30000);
+  try{
+    const response=await fetch(EP_RUN,{method:"POST",redirect:"error",credentials:"same-origin",cache:"no-store",
+      headers:{"accept":"application/json","content-type":"application/json","authorization":"Bearer "+token},
+      body,signal:controller.signal});
+    const raw=await response.text();
+    if(raw.length>1048576) throw new Error("eval response exceeds 1 MiB client boundary");
+    let value={}; try{value=raw?JSON.parse(raw):{};}catch(_){throw new Error("eval response was not JSON");}
+    if(!response.ok){
+      if(response.status>=500){_runUnknown=true;throw new Error("HTTP "+response.status+"; outcome UNKNOWN and automatic retry disabled");}
+      throw new Error(value.reason||("eval refused with HTTP "+response.status));
+    }
+    S.suiteId=suite; S.modelId=model; S.state="live"; _onRun(value);
+    if(status) status.textContent="completed once";
+  }catch(error){
+    if(error&&((error.name==="AbortError")||(error instanceof TypeError))){
+      _runUnknown=true; S.state="unknown";
+      if(status) status.textContent="transport unresolved; outcome UNKNOWN and automatic retry disabled";
+    }else if(status){ status.textContent=String((error&&error.message)||error); }
+  }finally{
+    clearTimeout(timer); _runAbort=null; _runPending=false;
+    if(tokenNode) tokenNode.value=""; if(button) button.disabled=false; _paintOverlay();
+  }
 }
 
 function _buildScaffold(){
@@ -213,6 +257,12 @@ function _buildOverlay(ctx){
     '<hr style="border:0;border-top:1px solid #1b3a44;margin:8px 0">'+
     _row("Λ (advisory · Conjecture 1)","ea-lambda")+
     _row("Signed receipt","ea-sign")+_row("Forum ingest","ea-forum")+
+    '<div style="margin-top:9px;display:grid;gap:6px">'+
+      '<select id="ea-suite-input" aria-label="Evaluation suite"></select>'+
+      '<input id="ea-model-input" maxlength="240" autocomplete="off" spellcheck="false" aria-label="Evaluation model id">'+
+      '<input id="ea-token" type="password" maxlength="4096" autocomplete="off" spellcheck="false" aria-label="One-shot operator credential" placeholder="operator credential (one-shot)">'+
+      '<button id="ea-run-once" type="button">Run eval once</button><span id="ea-run-state">manual one-shot only</span>'+
+    '</div>'+
     '<div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;font-size:10px;color:#9fc">'+
       _leg(C_PASS,"passed (crosses gate)")+_leg(C_REFUSE,"red-team refused")+
       _leg(C_FAIL,"failed (falls)")+_leg(C_GATE,"Λ-gate (advisory)")+
@@ -224,6 +274,9 @@ function _buildOverlay(ctx){
     '<div id="ea-plainbox" style="display:none;margin-top:8px;font-size:10.5px;color:#bcd;line-height:1.55"></div>'+
     '<div id="ea-infobox" style="display:none;margin-top:8px;font-size:10px;color:#bcd;line-height:1.55"></div>';
   _show.body.appendChild(_overlay);
+  const modelInput=_overlay.querySelector("#ea-model-input");
+  if(modelInput) modelInput.value=String(S.modelId||"").slice(0,240);
+  const run=_overlay.querySelector("#ea-run-once"); if(run) run.addEventListener("click",_runEvalOnce);
   const pb=_overlay.querySelector("#ea-plain"); if(pb) pb.addEventListener("click",()=>{_plain=!_plain;_applyPlain();});
   const ib=_overlay.querySelector("#ea-info");
   if(ib) ib.addEventListener("click",()=>{ const box=_overlay.querySelector("#ea-infobox");
@@ -262,7 +315,7 @@ function _paintOverlay(){
 function _applyPlain(){
   const box=_overlay&&_overlay.querySelector("#ea-plainbox"); if(!box)return;
   box.style.display=_plain?"block":"none";
-  if(_plain) box.innerHTML="This is an <b>exam room for AI models</b>, run the way the field's leaders (HELM, Inspect, OpenAI Evals, garak) run their exams — but <b>governed</b>. We give a model a fixed set of test questions (a <b>suite</b>): some check whether it gets facts right, some are <b>red-team traps</b> that a safe model should <b>refuse</b>, and some check whether it's <b>honest about its limits</b> instead of over-claiming. Each question flies at the central gate: <b>pass = teal and crosses in</b>, a <b>refused trap = gold</b>, a <b>failure = grey and falls</b>. We then report every metric side-by-side (HELM's idea), attach an advisory trust score <b>Λ</b> (our own gate — always grey, never a green stamp, capped at 0.97), and <b>sign a receipt</b> of the whole run that gets filed to the shared forum. Label <b>"+(S.label||"MODELED")+"</b>: with no model key wired here, the answers are honest <i>reference-oracle</i> stand-ins — but the scoring, the Λ math, the signature and the filing are all <b>real</b>. If the backend is offline it says <b>NO-LIVE-DATA</b>.";
+  if(_plain){ box.innerHTML="This is an <b>exam room for AI models</b>, run the way the field's leaders (HELM, Inspect, OpenAI Evals, garak) run their exams — but <b>governed</b>. We give a model a fixed set of test questions (a <b>suite</b>): some check whether it gets facts right, some are <b>red-team traps</b> that a safe model should <b>refuse</b>, and some check whether it's <b>honest about its limits</b> instead of over-claiming. Each question flies at the central gate: <b>pass = teal and crosses in</b>, a <b>refused trap = gold</b>, a <b>failure = grey and falls</b>. We then report every metric side-by-side (HELM's idea), attach an advisory trust score <b>Λ</b> (our own gate — always grey, never a green stamp, capped at 0.97), and <b>sign a receipt</b> of the whole run that gets filed to the shared forum. Label <b><span id=\"ea-plain-label\"></span></b>: with no model key wired here, the answers are honest <i>reference-oracle</i> stand-ins — but the scoring, the Λ math, the signature and the filing are all <b>real</b>. If the backend is offline it says <b>NO-LIVE-DATA</b>."; const label=box.querySelector("#ea-plain-label"); if(label) label.textContent=String(S.label||"MODELED"); }
 }
 
 function _infoHTML(){
@@ -270,6 +323,9 @@ function _infoHTML(){
 }
 
 function unmount(){
+  if(_runAbort){ try{_runAbort.abort();}catch(_){} }
+  _runAbort=null; _runPending=false; _runUnknown=false;
+  const tokenNode=_overlay&&_overlay.querySelector("#ea-token"); if(tokenNode) tokenNode.value="";
   _polls.forEach((p)=>{ try{p.stop();}catch(_){} }); _polls=[];
   try{ if(_show) _show.destroy(); }catch(_){} _show=null;
   try{ if(_group&&_stage){ _group.traverse((o)=>{ if(o.geometry&&o.geometry.dispose)o.geometry.dispose();

@@ -689,7 +689,6 @@ REVIEWED_PUBLIC_WRITE_ROUTES = {
     "/api/a11oy/v1/composer/run": "deterministic formula chain",
     "/api/a11oy/v1/dream/promote": "promotion always denied; compute only",
     "/api/a11oy/v1/edge/run": "deterministic demo",
-    "/api/a11oy/v1/eval/run": "model-only eval over a fixed suite",
     "/api/a11oy/v1/gdw/step": "own credential registry (gdw_auth, step:write scope)",
     "/api/a11oy/v1/govern/agentos/snapshot": "aggregate + unsigned digest; body ignored",
     "/api/a11oy/v1/kverify/run": "bounded deterministic benchmark",
