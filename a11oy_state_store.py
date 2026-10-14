@@ -840,9 +840,12 @@ class StateStore:
         return "STATE_STORE_BLOCKED_" + "_".join(
             label.upper() for label in self.blocked_labels() if label != "gdw")
 
-    def begin_write(self) -> None:
+    def begin_write(self) -> bool:
         with self._inflight_cond:
+            if not self.writable():
+                return False
             self._inflight += 1
+            return True
 
     def end_write(self) -> None:
         with self._inflight_cond:
@@ -852,16 +855,19 @@ class StateStore:
     def add_quiesce_hook(self, hook: Callable[[], Any]) -> None:
         self._quiesce_hooks.append(hook)
 
-    def _quiesce(self) -> None:
+    def _quiesce(self) -> bool:
+        stopped = True
         for hook in list(self._quiesce_hooks):
             try:
                 hook()
-            except Exception as error:  # a stuck background writer must not stop handover
+            except Exception as error:
+                stopped = False
                 self._error(error, "quiesce")
         deadline = self.monotonic() + self.settings.drain_s
         with self._inflight_cond:
             while self._inflight > 0 and self.monotonic() < deadline:
                 self._inflight_cond.wait(timeout=0.25)
+            return stopped and self._inflight == 0
 
     # -- boot --------------------------------------------------------------
     def boot(self) -> None:
@@ -1370,9 +1376,11 @@ class StateStore:
                 "epoch": epoch, "seq": self._seq}
 
     def _snapshot_labels(self, labels: Iterable[str], *, force: bool,
-                         epoch: Optional[int] = None) -> dict[str, dict[str, Any]]:
-        """Capture the named stores; failures are recorded, never raised."""
+                         epoch: Optional[int] = None,
+                         require_complete: bool = False) -> dict[str, dict[str, Any]]:
+        """Capture stores; a clean release additionally requires every capture."""
         entries: dict[str, dict[str, Any]] = {}
+        incomplete = False
         epoch = self.epoch if epoch is None else epoch
         for label in labels:
             state = self.stores[label]
@@ -1386,8 +1394,10 @@ class StateStore:
                 signature = self._signature(spec)
             except (OSError, sqlite3.Error) as error:
                 self._error(error, f"signature:{label}")
+                incomplete = True
                 continue
             if signature is None:
+                incomplete = incomplete or state.entry is not None or label in self._unpublished
                 continue
             work = self._work("snap-" + label)
             try:
@@ -1401,12 +1411,16 @@ class StateStore:
                     state.captured_at = now
                     state.dirty_since = None
             except (StorageBlocked, OSError, sqlite3.Error, ImportError) as error:
+                incomplete = True
                 state.failures += 1
                 state.last_error = _code(error)
                 state.next_attempt_at = now + min(self.settings.periodic_s, 5.0 * 2 ** min(state.failures, 6))
                 self._error(error, f"snapshot:{label}")
             finally:
                 shutil.rmtree(work, ignore_errors=True)
+        if require_complete and incomplete:
+            self._unpublished.update(entries)
+            raise StorageBlocked("STATE_FINAL_SNAPSHOT_INCOMPLETE")
         return entries
 
     def _commit_entries(self, entries: Mapping[str, dict[str, Any]]) -> None:
@@ -1561,17 +1575,30 @@ class StateStore:
     def _release(self, observed: Observation, *, pending: Optional[Mapping[str, Any]] = None) -> None:
         """Hand over: refuse writes, drain, take final snapshots, mark RELEASED."""
         with self._lock:
-            self.role = ROLE_HANDOVER
+            with self._inflight_cond:
+                self.role = ROLE_HANDOVER
             _log("handover requested; refusing writes and taking final snapshots")
-            self._quiesce()
+            if not self._quiesce():
+                self._fence("STATE_WRITERS_NOT_QUIESCED")
+                return
             entries = dict(self._unpublished)
             entries.update(pending or {})
             self._unpublished = {}
             # Already-uploaded objects count as captured, so identical bytes
             # are not uploaded twice under a new name.
             self._commit_entries(entries)
-            fresh = self._snapshot_labels([label for label in self.stores], force=True)
+            self._unpublished = dict(entries)
+            try:
+                fresh = self._snapshot_labels([label for label in self.stores], force=True,
+                                              require_complete=True)
+            except StorageBlocked as error:
+                # RELEASED promises a complete final snapshot. A failed capture
+                # may only be recovered through the existing unclean takeover.
+                self._error(error, "release")
+                self._fence(_code(error))
+                return
             entries.update(fresh)
+            self._unpublished = dict(entries)
             current = parse_head(observed.body)
             snapshots, history = self._merged(current, entries)
             proposal = self._next(current, observed.body, transition="RELEASE", state=STATE_RELEASED,
@@ -1583,6 +1610,7 @@ class StateStore:
                 self._fence(_code(error))
                 return
             self._commit_entries(entries)
+            self._unpublished = {}
             self.role = ROLE_RELEASED
             _log(f"RELEASED epoch {self.epoch}; read-only until this container stops")
 
@@ -1836,14 +1864,13 @@ def register(app: Any) -> dict[str, Any]:
         if request.method.upper() in SAFE_METHODS or not enabled():
             return await call_next(request)
         store = _ACTIVE
-        if store is None or not store.writable():
+        if store is None or not store.begin_write():
             reason = "STATE_STORE_NOT_ACTIVATED" if store is None else store.fence_reason()
             return JSONResponse(
                 status_code=503,
                 content={"error": {"code": reason, "message": "storage is read-only",
                                    "retry_after_seconds": RETRY_AFTER_SECONDS}},
                 headers={"Retry-After": str(RETRY_AFTER_SECONDS)})
-        store.begin_write()
         try:
             return await call_next(request)
         finally:

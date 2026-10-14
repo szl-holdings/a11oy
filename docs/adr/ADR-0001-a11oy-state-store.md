@@ -87,6 +87,8 @@ a11oy storage is a **local state store with immutable bucket snapshots and a CAS
 - **What is lost at a handover depends on how it ends.**
   - **Clean handover:** no acknowledged request write is lost. New mutating requests are refused before the final snapshot, and in-flight ones drain for up to 20 s. The GDW outbox drain is stopped first. The Series-A refresh scheduler is **not** quiesced. A refresh written after the final snapshot is redone by the successor; it is derived, re-fetchable data.
   - **Unclean takeover (crash):** acknowledged writes newer than the last snapshot are lost. That is up to about 30 s for a burst, or up to 300 s under continuous writes.
+- **Failed final capture:** the old process stays read-only and does not publish `RELEASED`. Successfully uploaded objects remain pending. A successor can take over only under the existing unclean takeover rule; it must not label a restore from older snapshots `CLEAN`.
+- **Incomplete drain:** a quiesce hook failure or a request still in flight after the drain deadline also refuses `RELEASED`. New request admission and the start of handover share one lock, so a request cannot enter after the drain begins.
 - **Writes are refused during a deploy.** From the handover request until the new container serves, mutating requests answer 503 with `Retry-After`. Reads keep working.
 - **Some costs remain:**
   - one dataset commit per published snapshot pass
