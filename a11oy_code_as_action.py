@@ -413,13 +413,15 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
 
     async def _status(request):
         import a11oy_governed_kernel as gk
+        prereq = gk.isolation_prerequisites()
         return JSONResponse({
             "service": "a11oy.code_as_action",
-            "novelty": ("persistent sandboxed kernel — variables live across "
+            "novelty": ("persistent fail-closed kernel — variables live across "
                         "compose->inspect->revise cells; every cell gated before exec; "
                         "each executed cell mints a signed Khipu receipt with "
                         "MEASURED-or-SAMPLE joules into the shared energy ledger."),
-            "isolation": gk.ISOLATION_LABEL,
+            "isolation": prereq["isolation"],
+            "isolation_prerequisites": prereq,
             "active_runs": _STORE.count(),
             "gate_order": ["hard_security_gate (deny authority)",
                            "restraint_ladder (advisory HEURISTIC)",
