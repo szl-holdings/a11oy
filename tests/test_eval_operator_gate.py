@@ -120,6 +120,9 @@ class EvalClientContractTests(unittest.TestCase):
         self.assertIn('tokenNode.value=""', source)
         self.assertNotIn("localStorage.setItem", source)
         self.assertNotIn("sessionStorage.setItem", source)
+        self.assertNotIn("value=\"'+S.modelId+'\"", source)
+        self.assertIn('modelInput.value=String(S.modelId||"").slice(0,240)', source)
+        self.assertIn('label.textContent=String(S.label||"MODELED")', source)
 
 
 

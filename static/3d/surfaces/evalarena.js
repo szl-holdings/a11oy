@@ -259,7 +259,7 @@ function _buildOverlay(ctx){
     _row("Signed receipt","ea-sign")+_row("Forum ingest","ea-forum")+
     '<div style="margin-top:9px;display:grid;gap:6px">'+
       '<select id="ea-suite-input" aria-label="Evaluation suite"></select>'+
-      '<input id="ea-model-input" maxlength="240" autocomplete="off" spellcheck="false" value="'+S.modelId+'" aria-label="Evaluation model id">'+
+      '<input id="ea-model-input" maxlength="240" autocomplete="off" spellcheck="false" aria-label="Evaluation model id">'+
       '<input id="ea-token" type="password" maxlength="4096" autocomplete="off" spellcheck="false" aria-label="One-shot operator credential" placeholder="operator credential (one-shot)">'+
       '<button id="ea-run-once" type="button">Run eval once</button><span id="ea-run-state">manual one-shot only</span>'+
     '</div>'+
@@ -274,6 +274,8 @@ function _buildOverlay(ctx){
     '<div id="ea-plainbox" style="display:none;margin-top:8px;font-size:10.5px;color:#bcd;line-height:1.55"></div>'+
     '<div id="ea-infobox" style="display:none;margin-top:8px;font-size:10px;color:#bcd;line-height:1.55"></div>';
   _show.body.appendChild(_overlay);
+  const modelInput=_overlay.querySelector("#ea-model-input");
+  if(modelInput) modelInput.value=String(S.modelId||"").slice(0,240);
   const run=_overlay.querySelector("#ea-run-once"); if(run) run.addEventListener("click",_runEvalOnce);
   const pb=_overlay.querySelector("#ea-plain"); if(pb) pb.addEventListener("click",()=>{_plain=!_plain;_applyPlain();});
   const ib=_overlay.querySelector("#ea-info");
@@ -313,7 +315,7 @@ function _paintOverlay(){
 function _applyPlain(){
   const box=_overlay&&_overlay.querySelector("#ea-plainbox"); if(!box)return;
   box.style.display=_plain?"block":"none";
-  if(_plain) box.innerHTML="This is an <b>exam room for AI models</b>, run the way the field's leaders (HELM, Inspect, OpenAI Evals, garak) run their exams — but <b>governed</b>. We give a model a fixed set of test questions (a <b>suite</b>): some check whether it gets facts right, some are <b>red-team traps</b> that a safe model should <b>refuse</b>, and some check whether it's <b>honest about its limits</b> instead of over-claiming. Each question flies at the central gate: <b>pass = teal and crosses in</b>, a <b>refused trap = gold</b>, a <b>failure = grey and falls</b>. We then report every metric side-by-side (HELM's idea), attach an advisory trust score <b>Λ</b> (our own gate — always grey, never a green stamp, capped at 0.97), and <b>sign a receipt</b> of the whole run that gets filed to the shared forum. Label <b>"+(S.label||"MODELED")+"</b>: with no model key wired here, the answers are honest <i>reference-oracle</i> stand-ins — but the scoring, the Λ math, the signature and the filing are all <b>real</b>. If the backend is offline it says <b>NO-LIVE-DATA</b>.";
+  if(_plain){ box.innerHTML="This is an <b>exam room for AI models</b>, run the way the field's leaders (HELM, Inspect, OpenAI Evals, garak) run their exams — but <b>governed</b>. We give a model a fixed set of test questions (a <b>suite</b>): some check whether it gets facts right, some are <b>red-team traps</b> that a safe model should <b>refuse</b>, and some check whether it's <b>honest about its limits</b> instead of over-claiming. Each question flies at the central gate: <b>pass = teal and crosses in</b>, a <b>refused trap = gold</b>, a <b>failure = grey and falls</b>. We then report every metric side-by-side (HELM's idea), attach an advisory trust score <b>Λ</b> (our own gate — always grey, never a green stamp, capped at 0.97), and <b>sign a receipt</b> of the whole run that gets filed to the shared forum. Label <b><span id=\"ea-plain-label\"></span></b>: with no model key wired here, the answers are honest <i>reference-oracle</i> stand-ins — but the scoring, the Λ math, the signature and the filing are all <b>real</b>. If the backend is offline it says <b>NO-LIVE-DATA</b>."; const label=box.querySelector("#ea-plain-label"); if(label) label.textContent=String(S.label||"MODELED"); }
 }
 
 function _infoHTML(){
