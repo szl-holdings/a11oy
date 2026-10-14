@@ -1856,6 +1856,7 @@ def register(app: Any) -> dict[str, Any]:
     from fastapi.responses import JSONResponse
 
     @app.get("/api/a11oy/v1/storage/status")
+    @app.head("/api/a11oy/v1/storage/status", include_in_schema=False)
     def a11oy_storage_status() -> JSONResponse:
         return JSONResponse(status(), headers={"Cache-Control": "no-store"})
 
