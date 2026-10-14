@@ -55,7 +55,7 @@ def _owned_css(path: Path, text: str, errors: list[dict]) -> str:
     """Only the reviewed local projection is eligible; never fetch an arbitrary href."""
     links = _Links(text).links
     owners = [row for row in links if row.get("id") == "szl-homepage-shell"]
-    expected = "/assets/a11oy-homepage.css"
+    expected = "/assets/a11oy-homepage.css?v=dab2353006c8"
     if len(owners) != 1 or owners[0].get("href") != expected or owners[0].get("rel") != "stylesheet":
         errors.append({"check": "visual-owner", "detail": "one exact local stylesheet binding required"})
         return ""
