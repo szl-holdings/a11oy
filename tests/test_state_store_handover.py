@@ -9,6 +9,7 @@ heartbeat, the handover wait and lease staleness deterministically.
 """
 
 import json
+from dataclasses import replace
 
 import pytest
 from fastapi import FastAPI
@@ -95,6 +96,75 @@ def test_stale_lease_is_taken_over_unclean_and_old_writer_is_fenced(world):
     assert a.role == ss.ROLE_FENCED and not a.writable()
     assert a.snapshot_once(force=True) == {}
     assert world["backend"].head()["writer_id"] == b.writer_id
+
+
+@pytest.mark.parametrize("failure", ["upload", "signature", "missing_file"])
+def test_failed_final_capture_never_claims_clean_handover(world, monkeypatch, failure):
+    a = boot_writer(world)
+    make_db(a.local_path("gdw"), 10)
+    a.snapshot_once(force=True)
+    make_db(a.local_path("gdw"), 5, start=10)
+    # Another store can upload successfully while GDW fails. Its immutable
+    # object must remain pending, rather than being forgotten at release.
+    make_db(a.local_path("series_a"), 2)
+    a.heartbeat_once()
+    if failure == "upload":
+        original = world["objects"].put_file
+
+        def put_file(local, remote):
+            if "/gdw/" in remote:
+                raise ss.StorageBlocked("OBJECT_UNAVAILABLE")
+            original(local, remote)
+
+        monkeypatch.setattr(world["objects"], "put_file", put_file)
+    elif failure == "signature":
+        original = a._signature
+
+        def signature(spec):
+            if spec.label == "gdw":
+                raise OSError("offline synthetic signature failure")
+            return original(spec)
+
+        monkeypatch.setattr(a, "_signature", signature)
+    else:
+        a._close_watchers()
+        a.local_path("gdw").unlink()
+
+    b = replica(world["tmp"], "b", world["objects"], world["backend"], world["clock"])
+    world["clock"].on_sleep.append(a.heartbeat_once)
+    b.boot()
+
+    transitions = [ss.parse_head(body)["transition"]
+                   for _, body in world["backend"].commits if body is not None]
+    assert "RELEASE" not in transitions
+    assert a.role == ss.ROLE_FENCED and not a.writable()
+    assert a.last_error["code"] == "STATE_FINAL_SNAPSHOT_INCOMPLETE"
+    assert "series_a" in a._unpublished
+    assert b.claim_kind == ss.CLAIM_UNCLEAN
+    assert count(b.local_path("gdw")) == 10
+
+
+@pytest.mark.parametrize("failure", ["inflight", "quiesce_hook"])
+def test_unquiesced_writer_never_releases_cleanly(world, failure):
+    a = boot_writer(world)
+    make_db(a.local_path("gdw"), 10)
+    a.snapshot_once(force=True)
+    if failure == "inflight":
+        a.begin_write()
+        a.settings = replace(a.settings, drain_s=0)
+    else:
+        def fail_hook():
+            raise RuntimeError("offline synthetic quiesce failure")
+
+        a.add_quiesce_hook(fail_hook)
+    a._release(a.head)
+    assert a.role == ss.ROLE_FENCED and not a.writable()
+    assert not a.begin_write()
+    assert a.last_error["code"] == "STATE_WRITERS_NOT_QUIESCED"
+    assert world["backend"].head()["state"] == ss.STATE_ACTIVE
+    assert world["backend"].head()["transition"] == "SNAPSHOT"
+    if failure == "inflight":
+        a.end_write()
 
 
 def test_unresponsive_live_writer_is_taken_over_after_the_wait(world):
