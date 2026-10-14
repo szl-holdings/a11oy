@@ -17333,6 +17333,41 @@ window.a11oyInvestor = (function(){
     };
 
     /* ============================ EVAL ============================ */
+    var FLYEVAL_RUN_PATH='/api/a11oy/v1/eval/run';
+    var _flyevalPending=false, _flyevalUnknown=false;
+    async function flyevalOperatorPost(body){
+      if(_flyevalPending) throw new Error('an eval is already in progress');
+      if(_flyevalUnknown) throw new Error('previous eval outcome UNKNOWN; leave and reopen this panel before another attempt');
+      var tokenNode=E('fe-token');
+      var token=String((tokenNode&&tokenNode.value)||'').trim();
+      if(token.length<16||token.length>4096) throw new Error('a bounded one-shot operator credential is required');
+      var payload=JSON.stringify(body||{});
+      if(payload.length>16384) throw new Error('eval request exceeds the 16 KiB client boundary');
+      var ctl=new AbortController(), timer=setTimeout(function(){ctl.abort();},30000);
+      _flyevalPending=true;
+      try{
+        var r=await fetch(FLYEVAL_RUN_PATH,{method:'POST',redirect:'error',credentials:'same-origin',cache:'no-store',
+          headers:{'accept':'application/json','content-type':'application/json','authorization':'Bearer '+token},
+          body:payload,signal:ctl.signal});
+        var raw=await r.text();
+        if(raw.length>1048576) throw new Error('eval response exceeds the 1 MiB client boundary');
+        var d={}; try{d=raw?JSON.parse(raw):{};}catch(_){throw new Error('eval response was not JSON');}
+        if(!r.ok){
+          if(r.status>=500){_flyevalUnknown=true;throw new Error('eval returned '+r.status+'; outcome UNKNOWN and automatic retry is disabled');}
+          throw new Error((d&&d.reason)||('eval refused with HTTP '+r.status));
+        }
+        return d;
+      }catch(e){
+        if(e&&((e.name==='AbortError')||(e instanceof TypeError))){
+          _flyevalUnknown=true;
+          throw new Error('eval transport did not resolve; outcome UNKNOWN and automatic retry is disabled');
+        }
+        throw e;
+      }finally{
+        clearTimeout(timer); _flyevalPending=false;
+        if(tokenNode) tokenNode.value='';
+      }
+    }
     V.flyeval={title:'Eval Runner',badge:'LIVE \u00b7 /eval',sub:'The governed eval / red-team arena \u2014 \u039b-gated, signed receipt, honest labels. Pick a suite and run it live against a model id; see per-case pass/fail, category rates, the \u039b geometric mean (Conjecture 1) and its receipt. This is station 3 of the flywheel: the same self-eval the Governed Agent runs on every step. Reads live from GET /api/a11oy/v1/eval/suites + POST /api/a11oy/v1/eval/run. Studied OpenAI Evals, HELM, garak, Inspect, promptfoo.',
       render:async function(c){
         c.innerHTML=flywheelStrip('eval')
@@ -17341,7 +17376,8 @@ window.a11oyInvestor = (function(){
           +'<select id="fe-suite" class="fw-sel"><option value="">choose a suite\u2026</option></select>'
           +'<input id="fe-model" class="fw-sel" style="width:200px" placeholder="model id (e.g. sovereign_local)" value="sovereign_local">'
           +'<select id="fe-prof" class="fw-sel"><option value="">no harness profile</option></select>'
-          +'<button class="fw-btn" id="fe-run" onclick="window.flyeval_run()">\u25b6 Run eval</button>'
+          +'<input id="fe-token" class="fw-sel" style="width:240px" type="password" maxlength="4096" autocomplete="off" spellcheck="false" aria-label="One-shot operator credential" placeholder="operator credential (one-shot)">'
+          +'<button class="fw-btn" id="fe-run" onclick="window.flyeval_run()">\u25b6 Run eval once</button>'
           +'</div><div id="fe-suitedesc" class="mono dim" style="font-size:11px;margin-top:.4rem"></div></div>'
           +'<div class="kpis" id="fe-agg"></div>'
           +'<div class="card"><div class="card-h"><span class="card-t">Per-case results</span><span class="card-ep">live scoring</span></div><div id="fe-cases"><div class="row mono dim">run a suite to see per-case pass/fail\u2026</div></div></div>'
@@ -17358,11 +17394,11 @@ window.a11oyInvestor = (function(){
       }};
     window.flyeval_run=async function(){
       var btn=E('fe-run'); if(btn){btn.disabled=true;btn.textContent='running\u2026';}
-      var suite=(E('fe-suite')||{}).value||''; var model=(E('fe-model')||{}).value||'sovereign_local'; var prof=(E('fe-prof')||{}).value||'';
-      if(!suite){ H('fe-cases','<div class="row mono dim">choose a suite first.</div>'); if(btn){btn.disabled=false;btn.textContent='\u25b6 Run eval';} return; }
+      var suite=String((E('fe-suite')||{}).value||'').slice(0,160); var model=String((E('fe-model')||{}).value||'sovereign_local').slice(0,240); var prof=String((E('fe-prof')||{}).value||'').slice(0,160);
+      if(!suite){ H('fe-cases','<div class="row mono dim">choose a suite first.</div>'); if(btn){btn.disabled=false;btn.textContent='\u25b6 Run eval once';} return; }
       H('fe-cases','<div class="row mono dim">running '+esc(suite)+' live\u2026</div>');
       try{ var body={suite:suite,model_id:model}; if(prof) body.harness_profile_id=prof;
-        var d=await pj(API+'/v1/eval/run',body); E('fe-raw').textContent=JSON.stringify(d,null,2);
+        var d=await flyevalOperatorPost(body); E('fe-raw').textContent=JSON.stringify(d,null,2);
         var agg=d.aggregate||{};
         H('fe-agg','<div class="kpi"><div class="k">Cases</div><div class="v">'+esc(String(agg.n_cases||0))+'</div></div>'
           +'<div class="kpi"><div class="k">Passed</div><div class="v live">'+esc(String(agg.n_passed||0))+'</div></div>'
@@ -17383,7 +17419,7 @@ window.a11oyInvestor = (function(){
           +axh+'</div><details class="raw" open><summary>raw eval run JSON</summary><pre class="out" id="fe-raw2"></pre></details>');
         E('fe-raw2').textContent=JSON.stringify(d,null,2);
       }catch(e){ H('fe-cases','<div class="row mono dim">eval did not resolve: '+esc(e.message)+' \u2014 shown honestly.</div>'); }
-      if(btn){btn.disabled=false;btn.textContent='\u25b6 Run eval';}
+      if(btn){btn.disabled=false;btn.textContent='\u25b6 Run eval once';}
     };
 
     /* ============================ RAG ============================ */
