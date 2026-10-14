@@ -42,6 +42,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import hashlib
+import http.client
 import importlib.util
 import json
 import os
@@ -159,7 +160,11 @@ def _request(url: str, *, headers: dict[str, str] | None = None, attempts: int =
             retryable = exc.code == 429 or exc.code >= 500
             if not retryable or attempt == attempts:
                 raise Unavailable(f"HTTP {exc.code}: {url}") from exc
-        except (OSError, TimeoutError) as exc:
+        except (OSError, TimeoutError, http.client.HTTPException) as exc:
+            # A truncated or malformed response (IncompleteRead, BadStatusLine,
+            # LineTooLong) is an HTTPException, not an OSError. It is a
+            # transient read like a reset socket, so it degrades this one
+            # target to UNOBSERVABLE instead of failing the whole estate plan.
             if attempt == attempts:
                 raise Unavailable(f"{type(exc).__name__}: {url}") from exc
         time.sleep(delay)
@@ -672,7 +677,9 @@ def plan(*, event: str, scope: str, head: str, main_tip: str,
     if event == "workflow_dispatch":
         if scope == "estate":
             result["mode"] = "ESTATE_DISPATCH"
-            result["targets"] = _unassessed("FORCED", "operator estate dispatch publishes every target")
+            result["targets"] = _unassessed(
+                "FORCED", "operator estate dispatch publishes every flagship target (and the combined "
+                "SZLHOLDINGS/vertical-services runtime, whose drift szl-holdings/vertical-services owns)")
             return result
         if scope not in TARGETS:
             raise ValueError(f"unknown dispatch scope: {scope}")

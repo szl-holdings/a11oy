@@ -13,6 +13,7 @@ from __future__ import annotations
 import datetime as dt
 import fnmatch
 import hashlib
+import http.client
 import importlib.util
 import json
 import re
@@ -915,6 +916,53 @@ def test_sentra_wait_blocks_on_policy_errors_and_on_persistent_transients(conv, 
     outcome = conv.wait_for_sentra_admission(600, sleep=lambda s: None, clock=lambda: next(timeline))
     assert outcome["state"] == "BLOCKED" and "HTTP 503" in outcome["reason"]
 
+
+@pytest.mark.parametrize("malformed", [
+    lambda: http.client.IncompleteRead(b"{\"partial\":"),
+    lambda: http.client.BadStatusLine("HTTP/1.1 ???"),
+    lambda: http.client.LineTooLong("header line"),
+])
+def test_a_malformed_response_is_a_retryable_unavailable_read(conv, monkeypatch, malformed):
+    # IncompleteRead, BadStatusLine and LineTooLong are HTTPExceptions, not
+    # OSErrors. They must degrade the one read to Unavailable (so its target
+    # is UNOBSERVABLE) instead of escaping and failing the whole estate plan.
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def read(self, limit):
+            return b'{"ok": true}'
+
+    calls = []
+
+    def urlopen(request, timeout):
+        calls.append(request.full_url)
+        if len(calls) < 3:
+            raise malformed()
+        return Response()
+
+    sleeps = []
+    monkeypatch.setattr(conv.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(conv.time, "sleep", sleeps.append)
+    assert conv.get_json("https://example.invalid/a") == {"ok": True}
+    assert len(calls) == 3 and len(sleeps) == 2
+
+    def always(request, timeout):
+        raise malformed()
+
+    monkeypatch.setattr(conv.urllib.request, "urlopen", always)
+    with pytest.raises(conv.Unavailable, match=type(malformed()).__name__):
+        conv.get_json("https://example.invalid/b", attempts=2)
+
+
+def test_estate_dispatch_receipt_names_the_combined_runtime_it_also_writes(conv):
+    result = conv.plan(event="workflow_dispatch", scope="estate", head=HEAD, main_tip=HEAD)
+    assert [row["target"] for row in result["targets"]] == list(conv.TARGETS)
+    assert all(row["state"] == "FORCED" for row in result["targets"])
+    assert all("SZLHOLDINGS/vertical-services" in row["reason"] for row in result["targets"])
 
 # -------------------------------------------------------------------- report
 
