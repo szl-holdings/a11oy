@@ -146,6 +146,7 @@ PROTECTED_ROUTES = (
     (r"/api/a11oy/v1/connectors/[^/]+/write", "Connector write", "tool"),
     (r"/api/a11oy/v4/bridge/(hermes|openclaw)", "External agent bridge", "tool"),
     (r"/api/a11oy/v1/factory/run", "Factory workflow run", "state"),
+    (r"/api/a11oy/v1/eval/run", "Evaluation and receipt publication", "tool"),
     # -- signing a caller-supplied payload with the server key ------------------
     (r"/khipu/sign", "Receipt signing", "sign"),
     (r"/api/a11oy/khipu/sign", "Receipt signing", "sign"),
