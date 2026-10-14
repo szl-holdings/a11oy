@@ -566,7 +566,7 @@ def test_workflow_separates_pr_contract_from_trusted_live_authority() -> None:
 
 def _owned_landing_css() -> str:
     landing = LANDING.read_text(encoding="utf-8")
-    binding = '<link rel="stylesheet" href="/assets/a11oy-homepage.css" id="szl-homepage-shell" />'
+    binding = '<link rel="stylesheet" href="/assets/a11oy-homepage.css?v=dab2353006c8" id="szl-homepage-shell" />'
     assert landing.count(binding) == 1
     assert landing.index('/assets/szl/szl-design-system.css') < landing.index(binding)
     # Inspect the fixed shipped path, never an arbitrary URL extracted from HTML.
@@ -618,7 +618,7 @@ def test_public_experience_gate_uses_the_stylesheets_actually_shipped() -> None:
     workflow = yaml.safe_load((LANDING.parent / ".github/workflows/public-experience-frontier-v4.yml").read_text(encoding="utf-8"))
     steps = workflow["jobs"]["public-experience-frontier"]["steps"]
     command = next(step["run"] for step in steps if step.get("name") == "Enforce root mobile/accessibility contract")
-    stylesheets = re.findall(r'href="(/assets/[^\"]+\.css)"', landing)
+    stylesheets = re.findall(r'href="(/assets/[^\"?]+\.css)(?:\?[^\"]+)?"', landing)
     assert len(stylesheets) == 5
     for href in stylesheets:
         assert "target/console" + href in command
