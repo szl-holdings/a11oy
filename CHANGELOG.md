@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - storage error recovery evidence
+
+- Track unresolved storage failures per operation and store. Clear only the
+  matching confirmed recovery, preserve a bounded per-component diagnostic
+  history, and retain failures through unrelated successes or missing source
+  data. Status reads remain available while provider I/O is stalled.
+- Keep the existing fenced-writer, snapshot-integrity, freshness and terminal
+  failure requirements. This runtime source repair does not establish a live
+  deployment or durability qualification.
+
 ### Changed - native identity on the substrate card
 
 - Render the approved SZL Orbit artwork at 40 px with attribution on the

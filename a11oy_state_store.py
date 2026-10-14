@@ -791,6 +791,9 @@ class StateStore:
         self.claim_kind: Optional[str] = None
         self.stores = {spec.label: StoreState(spec) for spec in self.specs}
         self.last_error: Optional[dict[str, Any]] = None
+        self._active_errors: dict[str, dict[str, Any]] = {}
+        self._error_history: dict[str, dict[str, Any]] = {}
+        self._error_lock = threading.RLock()
         self.heartbeat_at: Optional[float] = None
         self.durable_v1_env_ignored = False
         self._seq = 0
@@ -822,9 +825,25 @@ class StateStore:
 
     # -- error bookkeeping -------------------------------------------------
     def _error(self, error: BaseException, where: str) -> None:
-        self.last_error = {"class": type(error).__name__, "code": _code(error),
-                           "where": where, "at": _iso(self.clock())}
+        record = {"class": type(error).__name__, "code": _code(error),
+                  "where": where, "at": _iso(self.clock())}
+        with self._error_lock:
+            previous = self._error_history.get(where, {})
+            self._error_history[where] = dict(
+                record, first_at=previous.get("first_at", record["at"]),
+                occurrences=previous.get("occurrences", 0) + 1, recovered_at=None)
+            # Keep insertion order equal to failure order, including repeated failures.
+            self._active_errors.pop(where, None)
+            self._active_errors[where] = record
+            self.last_error = record
         _log(f"{where} failed: {type(error).__name__} {_code(error)}")
+
+    def _recovered(self, where: str) -> None:
+        """Clear only a component whose complete matching operation succeeded."""
+        with self._error_lock:
+            if self._active_errors.pop(where, None) is not None:
+                self._error_history[where]["recovered_at"] = _iso(self.clock())
+                self.last_error = next(reversed(self._active_errors.values()), None)
 
     # -- write fence -------------------------------------------------------
     def blocked_labels(self) -> list[str]:
@@ -893,6 +912,7 @@ class StateStore:
                     self._boot_fenced(deadline)
                 else:
                     self._boot_unfenced()
+                self._recovered("boot-retry")
                 break
             except HeadChanged:
                 continue
@@ -1128,6 +1148,7 @@ class StateStore:
                 state.entry = installed
                 state.captured_at = self.clock()
                 state.full_integrity_at = self.clock()
+                self._recovered(f"restore:{spec.label}")
                 if index:
                     # Republish the verified bytes so HEAD stops naming the bad object.
                     state.entry = None
@@ -1270,6 +1291,7 @@ class StateStore:
                 target.mkdir(parents=True, exist_ok=True)
                 os.replace(directory / "data.mdb", target / "data.mdb")
             state.origin, state.health = ORIGIN_LEGACY, "OK"
+            self._recovered(f"legacy:{spec.label}")
             _log(f"{spec.label}: legacy bootstrap copied read-only from the legacy mount")
         except (StorageBlocked, OSError, sqlite3.Error, gdw_sqlite_repair.OrphanRepairError,
                 ImportError) as error:
@@ -1295,6 +1317,7 @@ class StateStore:
         }
         try:
             self.objects.put_bytes(LEGACY_FROZEN_PATH, json.dumps(body, sort_keys=True, indent=2).encode())
+            self._recovered("legacy-frozen")
         except Exception as error:
             self._error(error, "legacy-frozen")
 
@@ -1397,15 +1420,20 @@ class StateStore:
                 incomplete = True
                 continue
             if signature is None:
-                incomplete = incomplete or state.entry is not None or label in self._unpublished
+                if state.entry is not None or state.seen is not None or label in self._unpublished:
+                    incomplete = True
+                    self._error(StorageBlocked("STATE_STORE_SOURCE_MISSING"), f"signature:{label}")
                 continue
-            work = self._work("snap-" + label)
+            self._recovered(f"signature:{label}")
+            work = None
             try:
+                work = self._work("snap-" + label)
                 entry = self._capture(spec, work, epoch or 0)
                 if entry is not None:
                     entries[label] = entry
                 state.signature = signature
                 state.failures, state.next_attempt_at, state.last_error = 0, 0.0, None
+                self._recovered(f"snapshot:{label}")
                 if entry is None and label not in self._unpublished:
                     # Bytes equal the published snapshot: nothing is at risk.
                     state.captured_at = now
@@ -1417,7 +1445,8 @@ class StateStore:
                 state.next_attempt_at = now + min(self.settings.periodic_s, 5.0 * 2 ** min(state.failures, 6))
                 self._error(error, f"snapshot:{label}")
             finally:
-                shutil.rmtree(work, ignore_errors=True)
+                if work is not None:
+                    shutil.rmtree(work, ignore_errors=True)
         if require_complete and incomplete:
             self._unpublished.update(entries)
             raise StorageBlocked("STATE_FINAL_SNAPSHOT_INCOMPLETE")
@@ -1436,18 +1465,33 @@ class StateStore:
         with self._lock:
             if self.role not in WRITABLE_ROLES:
                 return {}
+            with self._error_lock:
+                retry_loop = "snapshot-loop" in self._active_errors
+                retry_unfenced = "unfenced-head" in self._active_errors
+            # An unexpected loop failure needs a complete capture pass, not a
+            # debounce/backoff no-op, before its recovery can be established.
             now = self.clock()
+            loop_due = retry_loop and now >= max(
+                [self._publish_next_at] + [state.next_attempt_at for state in self.stores.values()])
+            force = force or loop_due
+            complete = True
             due = []
             for label, state in self.stores.items():
                 if state.health == "BLOCKED":
+                    complete = False
                     continue
                 try:
                     signature = self._signature(state.spec)
                 except (OSError, sqlite3.Error) as error:
                     self._error(error, f"signature:{label}")
+                    complete = False
                     continue
                 if signature is None:
+                    if state.entry is not None or state.seen is not None or label in self._unpublished:
+                        complete = False
+                        self._error(StorageBlocked("STATE_STORE_SOURCE_MISSING"), f"signature:{label}")
                     continue
+                self._recovered(f"signature:{label}")
                 if signature != state.seen:
                     state.seen, state.changed_at = signature, now
                 if signature != state.signature:
@@ -1464,11 +1508,19 @@ class StateStore:
                 if quiet or overdue:
                     due.append(label)
             entries = self._snapshot_labels(due, force=force) if due else {}
-            if not entries and (not self._unpublished or (not force and now < self._publish_next_at)):
-                return {}
-            merged = dict(self._unpublished)
-            merged.update(entries)
-            self._publish(merged)
+            if entries or (self._unpublished and (force or now >= self._publish_next_at)):
+                merged = dict(self._unpublished)
+                merged.update(entries)
+                self._publish(merged)
+            elif self.mode == MODE_UNFENCED and retry_unfenced and (force or now >= self._publish_next_at):
+                self._write_unfenced_head()
+            if retry_loop and force and complete and due and not self._unpublished and self.role in WRITABLE_ROLES:
+                with self._error_lock:
+                    failed = any(where.startswith(("snapshot:", "signature:"))
+                                 or where in ("publish", "unfenced-head")
+                                 for where in self._active_errors)
+                    if not failed:
+                        self._recovered("snapshot-loop")
             return entries
 
     def _publish(self, entries: Mapping[str, dict[str, Any]]) -> None:
@@ -1498,6 +1550,7 @@ class StateStore:
             return
         self._unpublished, self._publish_failures, self._publish_next_at = {}, 0, 0.0
         self._commit_entries(entries)
+        self._recovered("publish")
 
     @staticmethod
     def _merged(current: dict[str, Any], entries: Mapping[str, dict[str, Any]]):
@@ -1525,51 +1578,59 @@ class StateStore:
     # -- lease -------------------------------------------------------------
     def heartbeat_once(self) -> None:
         """Publish liveness, then react to a handover request or a successor."""
-        if self.role not in WRITABLE_ROLES:
-            return
-        now = self.clock()
-        beat = {"schema": HEARTBEAT_SCHEMA, "epoch": self.epoch, "writer_id": self.writer_id,
-                "boot_id": self.boot_id, "at": _iso(now), "at_unix": now}
-        try:
-            self.objects.put_bytes(HEARTBEAT_PATH, json.dumps(beat, sort_keys=True).encode())
-            self.heartbeat_at = now
-        except Exception as error:
-            self._error(error, "heartbeat")
-        if self.mode != MODE_FENCED:
-            return
         with self._lock:
+            if self.role not in WRITABLE_ROLES:
+                return
+            now = self.clock()
+            beat = {"schema": HEARTBEAT_SCHEMA, "epoch": self.epoch, "writer_id": self.writer_id,
+                    "boot_id": self.boot_id, "at": _iso(now), "at_unix": now}
+            try:
+                self.objects.put_bytes(HEARTBEAT_PATH, json.dumps(beat, sort_keys=True).encode())
+                self.heartbeat_at = now
+                self._recovered("heartbeat")
+            except Exception as error:
+                self._error(error, "heartbeat")
+            if self.mode != MODE_FENCED:
+                with self._error_lock:
+                    if "heartbeat" not in self._active_errors:
+                        self._recovered("heartbeat-loop")
+                return
             try:
                 observed = self._observe()
             except StorageBlocked as error:
                 self._error(error, "heartbeat-observe")
                 return
-            self._on_head_changed(observed)
+            if self._on_head_changed(observed):
+                self._recovered("heartbeat-observe")
+                with self._error_lock:
+                    if "heartbeat" not in self._active_errors:
+                        self._recovered("heartbeat-loop")
 
-    def _on_head_changed(self, observed: Observation, *, pending: Optional[Mapping[str, Any]] = None) -> None:
-        if self.head is not None and observed.body == self.head.body:
-            return
+    def _on_head_changed(self, observed: Observation, *, pending: Optional[Mapping[str, Any]] = None) -> bool:
+        if self.head is not None and self.head.body is not None and observed.body == self.head.body:
+            return self.role == ROLE_WRITER
         if observed.body is None:
             self._fence("STATE_HEAD_VANISHED")
-            return
+            return False
         try:
             value = parse_head(observed.body)
         except StorageBlocked as error:
             self._fence(error.code)
-            return
+            return False
         mine = parse_head(self.head.body) if self.head and self.head.body else None
         if mine is not None and value["epoch"] == mine["epoch"] and value["sequence"] < mine["sequence"]:
-            return  # a read that predates our own last advance
+            return False  # a read that predates our own last advance
         if (mine is not None and value["epoch"] == self.epoch and value["writer_id"] == self.writer_id
                 and value["state"] == STATE_HANDOVER):
             self._release(observed, pending=pending)
-            return
+            return False
         self._fence("WRITER_FENCED")
+        return False
 
     def _fence(self, code: str) -> None:
         if self.role != ROLE_FENCED:
             self.role = ROLE_FENCED
-            self.last_error = {"class": "StorageBlocked", "code": code, "where": "lease",
-                               "at": _iso(self.clock())}
+            self._error(StorageBlocked(code), "lease")
             _log(f"writer FENCED ({code}); this process is read-only from now on")
 
     def _release(self, observed: Observation, *, pending: Optional[Mapping[str, Any]] = None) -> None:
@@ -1611,6 +1672,7 @@ class StateStore:
                 return
             self._commit_entries(entries)
             self._unpublished = {}
+            self._recovered("publish")
             self.role = ROLE_RELEASED
             _log(f"RELEASED epoch {self.epoch}; read-only until this container stops")
 
@@ -1621,7 +1683,12 @@ class StateStore:
                               if state.entry is not None}}
         try:
             self.objects.put_bytes(UNFENCED_HEAD_PATH, json.dumps(body, sort_keys=True, indent=2).encode())
+            self._publish_failures, self._publish_next_at = 0, 0.0
+            self._recovered("unfenced-head")
         except Exception as error:
+            self._publish_failures += 1
+            self._publish_next_at = self.clock() + min(
+                self.settings.periodic_s, 5.0 * 2 ** min(self._publish_failures, 6))
             self._error(error, "unfenced-head")
 
     # -- lifecycle ---------------------------------------------------------
@@ -1642,7 +1709,7 @@ class StateStore:
                 try:
                     self.heartbeat_once()
                 except Exception as error:
-                    self._error(error, "heartbeat")
+                    self._error(error, "heartbeat-loop")
             try:
                 self.snapshot_once()
             except Exception as error:
@@ -1700,6 +1767,10 @@ class StateStore:
                 "snapshot_failures": state.failures,
                 "last_error_code": state.last_error,
             }
+        with self._error_lock:
+            active_errors = {where: dict(error) for where, error in self._active_errors.items()}
+            error_history = {where: dict(error) for where, error in self._error_history.items()}
+            last_error = None if self.last_error is None else dict(self.last_error)
         return {
             "schema": STATUS_SCHEMA,
             "mode": self.mode,
@@ -1718,7 +1789,9 @@ class StateStore:
             "alert": worst > self.settings.alert_s or self.role in (ROLE_BLOCKED, ROLE_FENCED),
             "alert_after_s": self.settings.alert_s,
             "pending_publish": sorted(self._unpublished),
-            "last_error": self.last_error,
+            "last_error": last_error,
+            "active_errors": active_errors,
+            "last_error_history": error_history,
             "durable_v1": {"status": "RETIRED", "env_ignored": self.durable_v1_env_ignored},
         }
 
@@ -1773,6 +1846,7 @@ def status() -> dict[str, Any]:
             "role": ROLE_NOT_ACTIVATED if enabled() else MODE_DISABLED,
             "writable": writable(), "unfenced": False, "epoch": None, "stores": {},
             "alert": enabled(), "last_error": None,
+            "active_errors": None, "last_error_history": {},
             "durable_v1": {"status": "RETIRED", "env_ignored": False}}
 
 
