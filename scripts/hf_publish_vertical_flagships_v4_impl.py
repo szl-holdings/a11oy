@@ -273,6 +273,13 @@ _workspace_module = importlib.util.module_from_spec(_workspace_spec)
 _workspace_spec.loader.exec_module(_workspace_module)
 _workspace_module.apply_workspace(_BASE)
 
+# Native presentation consumes the existing canonical source assets. It has no
+# runtime callbacks, provider access, or publication authority.
+_native_spec = importlib.util.spec_from_file_location(
+    "szl_vertical_native", Path(__file__).with_name("hf_vertical_native_presentation.py"))
+_native_module = importlib.util.module_from_spec(_native_spec)
+_native_spec.loader.exec_module(_native_module)
+
 # Export the complete base API after applying the overlay. Function objects keep
 # the base module globals, which are synchronized again before public calls that
 # depend on mutable module contracts.
@@ -413,6 +420,13 @@ def load_terra_forge_bundle() -> tuple[str, dict[str, Any]]:
     return page, forge
 
 
+def load_terra_native_landing() -> tuple[str, dict[str, Any]]:
+    return _native_module.derive_forge(*load_terra_forge_bundle())
+
+
+# Preserve the canonical forge loader as the stable verification contract.
+# The effectful publisher swaps in the derived native landing only for the
+# bounded duration of its call and restores this binding in ``finally``.
 _BASE.load_terra_forge_bundle = load_terra_forge_bundle
 
 
@@ -427,7 +441,7 @@ def html(item: dict[str, Any]) -> str:
     page = page.replace(_LIVEBAR_OPEN, _LIVEBAR_CLOSED, 1)
     if item.get("slug") == "sentra":
         page = page.replace('<html lang="en"', '<html lang="en" data-iris="closed"', 1)
-    return page
+    return _native_module.present(page, str(item.get("slug", "")))
 
 
 _BASE.html = html
@@ -624,6 +638,14 @@ def readme(item: dict[str, Any]) -> str:
 '''
     card = (front_matter + lead + body
             + "\n<!-- szl:preserved-source-body:end -->\n\n</details>\n")
+    card = card.replace(
+        '<img src="https://raw.githubusercontent.com/szl-holdings/.github/main/profile/assets/szl/logos/szl_mark_holographic.svg" alt="SZL Holdings" width="112" />',
+        '<img src="https://raw.githubusercontent.com/szl-holdings/szl-brand/27d12e77fc0f9f1a0e5fae8b34adf2380d51d070/kit/logos/orbit-v2/suite/szl-icon-32.svg" alt="SZL Holdings" width="40" height="40" />',
+        1,
+    )
+    card += ("\nArtwork: SZL Orbit · © 2026 SZL Holdings / Stephen Lutar · "
+             "[CC BY 4.0](https://github.com/szl-holdings/szl-brand/blob/27d12e77fc0f9f1a0e5fae8b34adf2380d51d070/kit/LICENSE) · "
+             "[Trademark notice](https://github.com/szl-holdings/szl-brand/blob/27d12e77fc0f9f1a0e5fae8b34adf2380d51d070/NOTICE).\n")
     if item.get("slug") == "finance":
         card += ("\n## Current projection evidence\n\n"
             "[finance-projection-manifest.json](finance-projection-manifest.json) is a DECLARED "
@@ -732,10 +754,16 @@ def main() -> int:
     if any(row.get("slug") == "finance" for row in FLAGSHIPS):
         _finance_source_identity = _finance_identity()
         _finance_expected_payloads.update(render_finance_payloads(*_finance_source_identity))
+    publish_terra = any(row.get("slug") == "terra" for row in FLAGSHIPS)
+    original_terra_loader = _BASE.load_terra_forge_bundle
     _finance_upload_active = True
+    if publish_terra:
+        _BASE.load_terra_forge_bundle = load_terra_native_landing
     try:
         return int(_BASE.main())
     finally:
+        if publish_terra:
+            _BASE.load_terra_forge_bundle = original_terra_loader
         _finance_upload_active = False
 
 
