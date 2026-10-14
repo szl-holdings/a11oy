@@ -19,9 +19,15 @@ main would publish:
   compared too, and served identity fields that are not an exact revision and
   a positive run id are drift, never their own expected value.
 * Lyte is source-owned: its Space must serve the qualified
-  ``szl-holdings/lyte-services`` main revision. Its automatic republish is
-  withheld (BLOCKED) while its runtime reports non-durable persistence, since
-  the release restarts the Space and a restart drops process-scoped data.
+  ``szl-holdings/lyte-services`` main revision, resolved (head and
+  qualification) at plan time. While its runtime reports non-durable
+  persistence the automatic writer excludes it: the release restarts the
+  Space and a restart drops process-scoped data. That exclusion is the
+  explicit UNPLANNED state, which names the qualified revision and alerts at
+  once, because no automatic run will ever converge it.
+* Every plan records every declared target, including the ones it does not
+  assess (a superseded or deferred automatic run, an operator dispatch), so a
+  target can never drop out of a plan receipt silently.
 * A target is CONVERGED only while its running build is observed serving the
   expected bytes: an unreachable build-info or a Space stage other than RUNNING
   is RUNTIME_UNAVAILABLE, which alerts and keeps the tracker open.
@@ -36,6 +42,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import hashlib
+import http.client
 import importlib.util
 import json
 import os
@@ -153,7 +160,11 @@ def _request(url: str, *, headers: dict[str, str] | None = None, attempts: int =
             retryable = exc.code == 429 or exc.code >= 500
             if not retryable or attempt == attempts:
                 raise Unavailable(f"HTTP {exc.code}: {url}") from exc
-        except (OSError, TimeoutError) as exc:
+        except (OSError, TimeoutError, http.client.HTTPException) as exc:
+            # A truncated or malformed response (IncompleteRead, BadStatusLine,
+            # LineTooLong) is an HTTPException, not an OSError. It is a
+            # transient read like a reset socket, so it degrades this one
+            # target to UNOBSERVABLE instead of failing the whole estate plan.
             if attempt == attempts:
                 raise Unavailable(f"{type(exc).__name__}: {url}") from exc
         time.sleep(delay)
@@ -526,8 +537,10 @@ def lyte_persistence_durability(live: dict[str, Any]) -> Any:
     return persistence.get("durability") if isinstance(persistence, dict) else None
 
 
-def assess_lyte(*, resolve: Callable[[], tuple[str, dict[str, Any]]] = lyte_expected_revision,
+def assess_lyte(*, resolve: Callable[[], tuple[str, dict[str, Any]]] | None = None,
                 source_tip: Callable[[], Any] | None = None) -> dict[str, Any]:
+    # Both the lyte-services head and its qualification are read now, on every
+    # plan: nothing here pins a revision.
     try:
         head = (source_tip or (lambda: github_json(f"/repos/{LYTE_REPOSITORY}/commits/main")))()
     except Unavailable as exc:
@@ -565,7 +578,7 @@ def assess_lyte(*, resolve: Callable[[], tuple[str, dict[str, Any]]] = lyte_expe
     row.update(drift_since=iso(_lyte_drift_since(served, tip)),
                drift_since_basis="first lyte-services commit after the served revision")
     try:
-        expected, _ = resolve()
+        expected, _ = (resolve or lyte_expected_revision)()
     except Exception as exc:  # the Lyte publisher's own source qualification refused
         row.update(state="BLOCKED", reason=(
             f"Lyte serves {served}; lyte-services main {tip} is not qualified: "
@@ -577,11 +590,14 @@ def assess_lyte(*, resolve: Callable[[], tuple[str, dict[str, Any]]] = lyte_expe
         # persistence that restart drops every acknowledged ingest, so an
         # automatic republish is withheld; an operator dispatch (scope lyte)
         # stays the explicit path that accepts that loss.
-        row.update(state="BLOCKED", reason=(
+        row.update(state="UNPLANNED", automatic_writer="EXCLUDED",
+                   unplanned_reason="NON_DURABLE_PERSISTENCE",
+                   operator_action="dispatch hf-publish-vertical-flagships.yml with scope lyte",
+                   reason=(
             f"Lyte serves {served}; qualified lyte-services main is {expected}, but the runtime "
             f"reports persistence durability {durability!r}: the release restarts the Space and "
-            "would drop its stored data, so automatic republish is withheld until persistence is "
-            "durable (dispatch scope lyte to accept the restart)"))
+            "would drop its stored data, so the automatic writer excludes Lyte until persistence "
+            "is durable (dispatch scope lyte to accept the restart)"))
         return row
     row.update(state="DRIFT", publish=True,
                reason=f"Lyte serves {served}; qualified lyte-services main is {expected}")
@@ -633,36 +649,72 @@ def active_dispatched_writers(*, own_run_id: str | None = None,
     return active
 
 
+def _unassessed(state: str, reason: str, targets: tuple[str, ...] = TARGETS) -> list[dict[str, Any]]:
+    """Rows for targets this plan records but deliberately does not assess."""
+    return [_row(slug, state=state, reason=reason, assessed=False) for slug in targets]
+
+
+def require_full_coverage(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """A plan row for every declared target, exactly once, in declaration order.
+
+    A target missing from a plan receipt is indistinguishable from a target
+    nobody evaluated, which is how Lyte's drift could look silent; an
+    incomplete assessment therefore fails the plan instead.
+    """
+    observed = [row.get("target") for row in rows]
+    if observed != list(TARGETS):
+        raise RuntimeError(f"plan does not cover the declared vertical estate {list(TARGETS)}: {observed}")
+    return rows
+
+
 def plan(*, event: str, scope: str, head: str, main_tip: str,
          assess_fn: Callable[..., list[dict[str, Any]]] = assess,
          dispatched_writers: Callable[[], list[dict[str, Any]]] | None = None) -> dict[str, Any]:
-    result: dict[str, Any] = {"schema": "szl.vertical-convergence-plan/v2", "event": event,
+    result: dict[str, Any] = {"schema": "szl.vertical-convergence-plan/v3", "event": event,
                               "scope": scope, "head": head, "main": main_tip,
+                              "declared_targets": list(TARGETS),
                               "observed_at": iso(utc_now()), "targets": [], "matrix": []}
     if event == "workflow_dispatch":
         if scope == "estate":
             result["mode"] = "ESTATE_DISPATCH"
+            result["targets"] = _unassessed(
+                "FORCED", "operator estate dispatch publishes every flagship target (and the combined "
+                "SZLHOLDINGS/vertical-services runtime, whose drift szl-holdings/vertical-services owns)")
             return result
         if scope not in TARGETS:
             raise ValueError(f"unknown dispatch scope: {scope}")
         # An explicit targeted repair publishes regardless of convergence.
         result["mode"] = "TARGETED_REPAIR"
         result["matrix"] = [{"target": scope, "forced": True}]
+        result["targets"] = [
+            _row(slug, assessed=False, **(
+                {"state": "FORCED", "reason": "operator targeted repair publishes regardless of convergence"}
+                if slug == scope else
+                {"state": "OUT_OF_SCOPE", "reason": f"operator dispatch scope is {scope}; this Space is preserved"}))
+            for slug in TARGETS]
         return result
     result["mode"] = "CONVERGENCE"
     if head != main_tip:
         result["superseded_by"] = main_tip
+        # Rendering a stale checkout would compare the Spaces with bytes main
+        # no longer publishes; the newer main's run assesses them.
+        result["targets"] = _unassessed("SUPERSEDED", (
+            f"main moved to {main_tip}; that revision's run or the next hourly plan assesses this target"))
         return result
     if dispatched_writers is not None:
         active = dispatched_writers()
         if active:
             # The dispatched writer owns the vertical writer group; the next
-            # hourly plan re-checks every target after it finishes.
+            # hourly plan re-checks every target after it finishes. A Space
+            # it is writing is not assessed mid-write.
             result["deferred_to"] = active
+            result["targets"] = _unassessed("DEFERRED", "a dispatched vertical writer run is active: " + ", ".join(
+                f"{row['workflow']} {row['run_id']}" for row in active))
             return result
-    # A completed canonical A11oy deploy changes only what Finance must bind.
-    targets = ("finance",) if event == "workflow_run" else TARGETS
-    rows = assess_fn(targets, head=head)
+    # Every automatic event assesses the full estate. A completed canonical
+    # deploy mainly changes what Finance must bind, but planning only Finance
+    # there left the other targets (Lyte among them) out of that receipt.
+    rows = require_full_coverage(assess_fn(TARGETS, head=head))
     result["targets"] = rows
     result["matrix"] = [{"target": row["target"], "forced": False} for row in rows if row["publish"]]
     return result
@@ -733,7 +785,10 @@ def drift_age_hours(row: dict[str, Any], now: dt.datetime) -> float | None:
 # undatable). UNOBSERVABLE (a Hub or GitHub read failed) and RUNTIME_SLEEPING
 # never count as converged, so they keep an open tracker open, but a provider
 # read failure alone does not open one.
-DRIFT_STATES = ("DRIFT", "BLOCKED", "RUNTIME_DRIFT", "RUNTIME_UNAVAILABLE")
+DRIFT_STATES = ("DRIFT", "BLOCKED", "RUNTIME_DRIFT", "RUNTIME_UNAVAILABLE", "UNPLANNED")
+# A drift the automatic writer is excluded from never converges on its own, so
+# waiting out the threshold would only delay the operator action it needs.
+IMMEDIATE_ALERT_STATES = ("UNPLANNED",)
 
 
 def report(rows: list[dict[str, Any]], *, head: str, threshold_hours: float,
@@ -745,7 +800,8 @@ def report(rows: list[dict[str, Any]], *, head: str, threshold_hours: float,
         row["drift_age_hours"] = None if age is None else round(age, 2)
         # A drift without a datable start is reported as persistent: an
         # undatable drift must not stay silent forever.
-        row["alert"] = row["state"] in DRIFT_STATES and (age is None or age >= threshold_hours)
+        row["alert"] = row["state"] in DRIFT_STATES and (
+            row["state"] in IMMEDIATE_ALERT_STATES or age is None or age >= threshold_hours)
         if row["alert"]:
             alerting.append(row["target"])
     return {
@@ -759,7 +815,12 @@ def report(rows: list[dict[str, Any]], *, head: str, threshold_hours: float,
 
 def render_issue(result: dict[str, Any], *, run_url: str | None) -> tuple[str, str]:
     alerting = result["alerting"]
-    title = (f"Vertical Space drift: {', '.join(alerting)} beyond {result['threshold_hours']:g} h"
+    states = {row["target"]: row["state"] for row in result["targets"]}
+    needs_operator = [t for t in alerting if states.get(t) in IMMEDIATE_ALERT_STATES]
+    persistent = [t for t in alerting if t not in needs_operator]
+    parts = ([f"{', '.join(needs_operator)} needs an operator publish"] if needs_operator else []) + (
+        [f"{', '.join(persistent)} beyond {result['threshold_hours']:g} h"] if persistent else [])
+    title = ("Vertical Space drift: " + "; ".join(parts)
              if alerting else "Vertical Space drift: below alert threshold")
     lines = [TRACKER_MARKER, "",
              "Automated by `.github/workflows/hf-vertical-drift.yml` "
@@ -781,7 +842,9 @@ def render_issue(result: dict[str, Any], *, run_url: str | None) -> tuple[str, s
     lines += ["", "Convergence runs hourly and on every main push that changes a publisher "
               "input (`.github/workflows/hf-publish-vertical-flagships.yml`). A target "
               "marked BLOCKED or RUNTIME_UNAVAILABLE is not repaired by an automatic "
-              "publish; its reason names the precondition or the observed runtime state."]
+              "publish; its reason names the precondition or the observed runtime state. "
+              "A target marked UNPLANNED is excluded from the automatic writer and alerts "
+              "at once; its reason names why and the operator dispatch that publishes it."]
     return title, "\n".join(lines) + "\n"
 
 
@@ -907,6 +970,8 @@ def main(argv: list[str] | None = None) -> int:
                   + "); it owns the vertical writer group and the next hourly plan re-checks")
         for row in result["targets"]:
             _summary(f"- {row['target']}: {row['state']} - {row.get('reason') or 'converged'}")
+            if row["state"] in ("BLOCKED", "UNPLANNED"):
+                print(f"::warning::{row['target']} is {row['state']}: {row['reason']}")
         estate = result.get("mode") == "ESTATE_DISPATCH"
         _github_output({"mode": result["mode"],
                         "publish": "true" if result["matrix"] else "false",
@@ -925,8 +990,8 @@ def main(argv: list[str] | None = None) -> int:
         row = assess((args.target,), head=head)[0]
         print(json.dumps(row, indent=2, sort_keys=True))
         _github_output({"publish": "true" if row["publish"] else "false", "state": row["state"]})
-        if row["state"] == "BLOCKED":
-            print(f"::warning::{args.target} is blocked: {row['reason']}")
+        if row["state"] in ("BLOCKED", "UNPLANNED"):
+            print(f"::warning::{args.target} is {row['state']}: {row['reason']}")
         return 0
     if args.command == "wait-sentra":
         outcome = wait_for_sentra_admission(args.timeout)
@@ -934,7 +999,8 @@ def main(argv: list[str] | None = None) -> int:
         _github_output({"state": outcome["state"]})
         return 0
     head = _head()
-    result = report(assess(TARGETS, head=head), head=head, threshold_hours=args.threshold_hours)
+    result = report(require_full_coverage(assess(TARGETS, head=head)), head=head,
+                    threshold_hours=args.threshold_hours)
     Path(args.output).write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(result, indent=2, sort_keys=True))
     run_url = None
