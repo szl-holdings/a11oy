@@ -32,9 +32,9 @@ class HomepageShellCoherence(unittest.TestCase):
     def test_one_local_visual_owner_uses_the_canonical_surface_roles(self):
         links = [attrs for tag, attrs in self.elements if tag == "link"]
         owner = [a for a in links if a.get("id") == "szl-homepage-shell"]
-        self.assertEqual(owner, [{"rel": "stylesheet", "href": "/assets/a11oy-homepage.css", "id": "szl-homepage-shell"}])
+        self.assertEqual(owner, [{"rel": "stylesheet", "href": "/assets/a11oy-homepage.css?v=dab2353006c8", "id": "szl-homepage-shell"}])
         hrefs = [a.get("href") for a in links]
-        self.assertLess(hrefs.index("/assets/szl/szl-design-system.css"), hrefs.index("/assets/a11oy-homepage.css"))
+        self.assertLess(hrefs.index("/assets/szl/szl-design-system.css"), hrefs.index("/assets/a11oy-homepage.css?v=dab2353006c8"))
         self.assertNotIn("/assets/apex-v2.css", hrefs)
         self.assertNotIn("<style", self.html)
         self.assertNotIn("@font-face", self.css)
@@ -92,6 +92,10 @@ class HomepageShellCoherence(unittest.TestCase):
             self.assertTrue(css.headers["content-type"].startswith("text/css"))
             self.assertEqual(css.headers["x-content-type-options"], "nosniff")
             self.assertEqual(css.content, expected)
+            versioned = client.get("/assets/a11oy-homepage.css?v=dab2353006c8")
+            self.assertEqual(versioned.status_code, 200)
+            self.assertTrue(versioned.headers["content-type"].startswith("text/css"))
+            self.assertEqual(versioned.content, expected)
             self.assertEqual(client.post("/assets/a11oy-homepage.css").status_code, 405)
             self.assertEqual(client.get("/assets/requirements-runtime.txt").status_code, 404)
 
