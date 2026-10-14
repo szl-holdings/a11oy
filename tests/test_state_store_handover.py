@@ -17,6 +17,8 @@ from fastapi.testclient import TestClient
 
 import a11oy_state_store as ss
 from tests.state_store_support import FakeClock, FakeHeadBackend, count, make_db, replica
+# The hosted GDW job enumerates this suite; collect its lifecycle companion too.
+from tests.state_store_error_lifecycle import TestStateStoreErrorLifecycle
 
 
 @pytest.fixture(autouse=True)
