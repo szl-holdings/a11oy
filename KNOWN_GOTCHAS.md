@@ -200,6 +200,20 @@ probe, deva/devb/vertical govern, agent cycle, API-key completions) are left to 
 
 The sandboxed child runs as the server UID, so it could read `/proc/<pid>/environ`; that is
 why execution is not public. Container/microVM isolation stays ROADMAP.
+
+**Which paths are isolated (fail closed):** `a11oy_code_engine._sandbox_exec`, the persistent
+`a11oy_governed_kernel` worker and the orchestrator's `shell_exec` tool all use the engine's
+controls: a non-root server, fixed root-owned `unshare --user --map-current-user --net`,
+mandatory CPU/AS/CORE/FSIZE/NPROC rlimits applied and read back in the child before exec, and
+the child's attestation (new namespaces, own uid, zero capabilities, refused `fork()`) before
+any user code. If any control is missing, nothing runs and the result carries
+`execution_attempted: false`; a host without unprivileged user namespaces refuses all three.
+The kernel and shell import these helpers from the byte-locked engine; they never copy them,
+and `serve.py` serves `/v1/code/*` from that same vendored engine (an installed
+`szl_substrate` copy is never preferred: it lacks the attested network namespace).
+`/kernel/{run_id}/exec` runs `hard_security_screen` on the cell first. `/api/a11oy/code/run`
+and the `run_tests` tool are **not sandboxed** (no rlimits, no network or filesystem isolation)
+and say so in `RUN_BOUNDARY`.
 Resolver: `szl_operator_auth.py` (governance/). Tests: `tests/test_operator_auth_code_routes.py`.
 
 ---

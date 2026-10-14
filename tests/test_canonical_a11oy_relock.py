@@ -262,6 +262,35 @@ def success_session(origin: str, source_sha: str) -> FakeSession:
     return FakeSession(responses)
 
 
+def v2_session(origin: str, source_sha: str):
+    api = FakeApi(source_sha)
+    api.variables["A11OY_STATE_STORE"] = SimpleNamespace(value="v2")
+    session = success_session(origin, source_sha)
+    series_a = session.responses[("GET", origin + relock.ROUTES["series_a_status"])]._payload
+    series_a["database"] = "/tmp/a11oy-state/series-a/control-plane-v2.sqlite3"
+    status = {
+        "schema": "szl.a11oy-storage-status/v2",
+        "mode": "FENCED", "role": "WRITER", "writable": True,
+        "unfenced": False, "epoch": 1, "alert": False,
+        "lease": {"state": "ACTIVE", "sequence": 52, "heartbeat_age_s": 3.6},
+        "pending_publish": [], "last_error": None,
+        "stores": {
+            label: {
+                "kind": kind, "health": "OK", "blocked_code": None,
+                "last_error_code": None, "snapshot_failures": 0,
+                "sha16": "a" * 16,
+                "integrity": "lmdb_read" if kind == "lmdb" else "quick_check",
+                "last_snapshot_age_s": 120.0, "unsnapshotted_change_age_s": 30.0,
+            }
+            for label, kind in relock.STATE_STORE_KINDS.items()
+        },
+    }
+    url = origin + relock.STATE_STORE_STATUS_ROUTE
+    session.responses[("HEAD", url)] = FakeResponse(url, text="")
+    session.responses[("GET", url)] = FakeResponse(url, payload=status)
+    return api, session, status
+
+
 class CanonicalA11oyRelockTests(unittest.TestCase):
     def setUp(self) -> None:
         self.source = "a" * 40
@@ -313,6 +342,63 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
             relock.SERIES_A_VARIABLES,
             runtime_config.SERIES_A_VARIABLES,
         )
+
+    def test_v2_local_database_requires_observed_fenced_storage(self) -> None:
+        api, session, _ = v2_session(self.origin, self.source)
+        report = relock.evaluate_once(api, session, self.contract)
+        self.assertTrue(report["ok"])
+        self.assertEqual(report["series_a_runtime"]["state_store_mode"], "v2")
+        self.assertEqual(report["routes"]["storage_status"]["storage_state"]["epoch"], 1)
+
+    def test_storage_mode_cannot_bypass_database_path_or_root(self) -> None:
+        for mode, database, root in (
+            (None, "/tmp/a11oy-state/series-a/control-plane-v2.sqlite3", None),
+            ("v2", "/data/a11oy/series-a/control-plane-v2.sqlite3", None),
+            ("v2", "/tmp/unrelated.sqlite3", None),
+            ("v2", "/tmp/a11oy-state/series-a/control-plane-v2.sqlite3", "/data/state"),
+            ("unknown", "/tmp/a11oy-state/series-a/control-plane-v2.sqlite3", None),
+        ):
+            with self.subTest(mode=mode, database=database, root=root):
+                api, session, _ = v2_session(self.origin, self.source)
+                api.variables["A11OY_STATE_STORE"] = SimpleNamespace(value=mode)
+                if root is not None:
+                    api.variables["A11OY_STATE_ROOT"] = SimpleNamespace(value=root)
+                session.responses[("GET", self.origin + relock.ROUTES["series_a_status"])]._payload["database"] = database
+                with self.assertRaises(relock.RelockError):
+                    relock.evaluate_once(api, session, self.contract)
+
+    def test_v2_rejects_missing_or_unavailable_status_route(self) -> None:
+        for http_status in (404, 503):
+            api, session, _ = v2_session(self.origin, self.source)
+            session.responses[("GET", self.origin + relock.STATE_STORE_STATUS_ROUTE)].status_code = http_status
+            with self.subTest(status=http_status), self.assertRaises(relock.RelockError):
+                relock.evaluate_once(api, session, self.contract)
+
+    def test_v2_rejects_unfenced_or_stale_lease_and_unhealthy_snapshots(self) -> None:
+        changes = (
+            (("schema",), "wrong"), (("mode",), "SNAPSHOT_ONLY_UNFENCED"),
+            (("role",), "FENCED"), (("writable",), False), (("unfenced",), True),
+            (("epoch",), 0), (("epoch",), True), (("alert",), True),
+            (("pending_publish",), ["series_a"]), (("last_error",), {"code": "FAILED"}),
+            (("lease", "state"), "RELEASED"), (("lease", "sequence"), 0),
+            (("lease", "heartbeat_age_s"), 121), (("lease", "heartbeat_age_s"), float("nan")),
+            (("stores", "series_a", "health"), "BLOCKED"),
+            (("stores", "gdw", "integrity"), None),
+            (("stores", "khipu_lmdb", "integrity"), "quick_check"),
+            (("stores", "series_a", "snapshot_failures"), 1),
+            (("stores", "series_a", "last_snapshot_age_s"), 901),
+            (("stores", "series_a", "unsnapshotted_change_age_s"), 901),
+            (("stores", "series_a", "sha16"), None), (("stores",), {}),
+        )
+        for path, value in changes:
+            with self.subTest(path=path, value=value):
+                api, session, status = v2_session(self.origin, self.source)
+                target = status
+                for key in path[:-1]:
+                    target = target[key]
+                target[path[-1]] = value
+                with self.assertRaises(relock.RelockError):
+                    relock.evaluate_once(api, session, self.contract)
 
     def test_relock_rejects_any_doctrine_lie(self) -> None:
         session = success_session(self.origin, self.source)
