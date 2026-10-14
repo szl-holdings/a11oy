@@ -97,7 +97,7 @@ def test_no_threejs_cdn_on_front_door() -> None:
 
 
 def test_hit_targets_remain_44px() -> None:
-    assert '<link rel="stylesheet" href="/assets/a11oy-homepage.css" id="szl-homepage-shell" />' in FRONT
+    assert '<link rel="stylesheet" href="/assets/a11oy-homepage.css?v=dab2353006c8" id="szl-homepage-shell" />' in FRONT
     css = (ROOT / "console/assets/a11oy-homepage.css").read_text(encoding="utf-8")
     compact = "".join(css.split())
     assert "min-height:44px" in compact
