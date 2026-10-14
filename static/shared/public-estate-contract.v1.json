@@ -146,6 +146,13 @@
       "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
+      "id": "SZLHOLDINGS/governed-agent-bench",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
       "id": "SZLHOLDINGS/governed-receipt-verifier",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
