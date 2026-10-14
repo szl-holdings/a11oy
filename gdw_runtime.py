@@ -765,6 +765,8 @@ class OutboxSupervisor:
         self._stop.set()
         if self._thread:
             self._thread.join(timeout=max(0.0, timeout_seconds))
+            if self._thread.is_alive():
+                raise state_store.StorageBlocked("GDW_DRAIN_NOT_QUIESCED")
         _set_drain_state(running=False)
 
 
