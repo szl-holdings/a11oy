@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-10-11T15:48:06Z",
+  "observedAt": "2026-10-14T10:44:59Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -28,7 +28,7 @@
     "huggingFacePublic": {
       "models": 48,
       "datasets": 37,
-      "spaces": 37,
+      "spaces": 38,
       "kernels": 14
     },
     "huggingFaceScope": {
@@ -1699,6 +1699,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/gdw-frontier"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/governed-agent-bench",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/governed-agent-bench"
       ]
     },
     {
