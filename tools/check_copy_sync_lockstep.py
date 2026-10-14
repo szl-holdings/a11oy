@@ -845,9 +845,9 @@ REVIEWED_DEPLOY_HELPERS_SHA256 = {
     # Read-only exact-byte verifier used only by the least-privilege readiness job.
     ".github/scripts/verify_platform_candidate_preview.py": "dcc2b94c2f1f26ebb6550974b1af3e548dedd2afd41f100c852a6f647ac1550e",
     ".github/scripts/publish_readiness_verdict.py": "d745e6abbaf9247ddd254f2476363b7906a8c382e4100a0e8e3b614cad8d91a6",
-    "tools/readiness-harness/probe_runner.mjs": "faae5beacf0bb13c9b6ba2b21407e56cdd8bc7aaf916f3458c4256807cd55755",
+    "tools/readiness-harness/probe_runner.mjs": "71a1357ad55b69fe3c23381068404f4fe6fb618173b23ecb82123ba2810a6163",
     "tools/readiness-harness/canonical_unavailable.mjs": "ca50ca28195281bccdc3cfae09831eabdacff2028946ebaf0c403776cb905e24",
-    "tools/readiness-harness/tabs.json": "99545ca863dfe3174e9b1074319dc7a09c6e65566d4323b0eb92e83c8155f2d3",
+    "tools/readiness-harness/tabs.json": "04c4fc6f6f9c38c580d1d10cb2ac418588cf47951fa275727eac296ef8ceeff1",
     # Read-only terminal verifier used by the exact relock job.
     ".github/scripts/verify_canonical_a11oy.py": "d2a0081aed30f51760d4d56499606399666deb9fe93ca7d31943bf295c05d316",
 }
