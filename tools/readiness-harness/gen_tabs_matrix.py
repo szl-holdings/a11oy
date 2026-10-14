@@ -393,26 +393,16 @@ ENDPOINTS = {
         note="Deterministic catalog of universal scaling exponents, each row attributed (cite=). VERIFIED documented values."),
     "/api/a11oy/v1/scaling/compute": ep(schema="scaling", sla=None,
         note="Compute-capability-as-allometry mapping (Kaplan et al. 2020 neural scaling); status=PROPOSED analogy, NOT formal Λ."),
-    # M-required family: kleiber/mte/heart/unified require ?M=<mass_kg>; calling without
-    # the required query param legitimately validates (400/422) — that is honest input
-    # validation (same pattern as the governed POST endpoints), NOT an undeclared break.
-    # schema=generic_obj (not the strict scaling schema) because the probe runner hits
-    # these bare (no ?M=) and validates the body of whatever status it allows; the
-    # 200 result AND the honest 400/422 validation body are both JSON objects (same
-    # pattern as the governed POST endpoints), so generic_obj passes both without
-    # branding legitimate input-validation a schema lie.
-    "/api/a11oy/v1/scaling/kleiber": ep(schema="generic_obj", sla=None,
-        allow_statuses=(200, 400, 422),
-        note="Kleiber 1932 B=B0·M^(3/4) basal metabolic rate; requires ?M=<kg>. Empty M validates (400/422). VERIFIED deterministic (70kg -> 1694.03 kcal/day)."),
-    "/api/a11oy/v1/scaling/mte": ep(schema="generic_obj", sla=None,
-        allow_statuses=(200, 400, 422),
-        note="Brown et al. 2004 MTE Boltzmann-factor metabolic rate; requires ?M=<kg>. Empty M validates (400/422). VERIFIED deterministic."),
-    "/api/a11oy/v1/scaling/heart": ep(schema="generic_obj", sla=None,
-        allow_statuses=(200, 400, 422),
-        note="MTE-derived heart-rate/lifespan allometry; requires ?M=<kg>. Empty M validates (400/422). VERIFIED deterministic (70kg -> 83.32 bpm)."),
-    "/api/a11oy/v1/scaling/unified": ep(schema="generic_obj", sla=None,
-        allow_statuses=(200, 400, 422),
-        note="SZL unified Φ (WBE network × MTE/PMF activation × coherence); requires ?M=<kg>. status=PROPOSED, note carries 'Λ=Conjecture 1'. PROPOSED engineering construct, NOT the formal Λ, NOT in the locked 8."),
+    # Exercise valid inputs as release evidence. Missing M correctly returns 422,
+    # but input validation is not evidence that these calculations work.
+    "/api/a11oy/v1/scaling/kleiber?M=70": ep(schema="scaling_kleiber_positive", sla=None,
+        note="Kleiber 1932 B=B0·M^(3/4) basal metabolic rate at M=70kg. Require a successful calculated response; missing-M validation is not release success."),
+    "/api/a11oy/v1/scaling/mte?M=70": ep(schema="scaling_mte_positive", sla=None,
+        note="Brown et al. 2004 MTE metabolic rate at M=70kg. Require a successful calculated response; missing-M validation is not release success."),
+    "/api/a11oy/v1/scaling/heart?M=70": ep(schema="scaling_heart_positive", sla=None,
+        note="MTE-derived heart-rate/lifespan allometry at M=70kg. Require a successful calculated response; missing-M validation is not release success."),
+    "/api/a11oy/v1/scaling/unified?M=70": ep(schema="scaling_unified_positive", sla=None,
+        note="SZL unified Φ at M=70kg. Require a successful calculated response; Φ stays PROPOSED, NOT formal Λ or one of the locked 8."),
 
     # ── Allodial AI sovereignty (szl_allodial.py — DETERMINISTIC; PROPOSED engineering
     # gate, NOT the formal Λ; Λ stays Conjecture 1; adds NOTHING to the locked 8). Every
@@ -524,6 +514,40 @@ ENDPOINTS = {
 SCHEMAS = {
     "text": {"type": "string"},
     "generic_obj": {"type": "object"},
+    "scaling_kleiber_positive": {
+        "type": "object", "properties": {"M_kg": {"const": 70}},
+        "requiredPathTypes": {"M_kg": "number", "B_kcal_day": "number"},
+        "semanticContract": {
+            "kind": "scaling_positive_v1", "exact": {"M_kg": 70},
+            "ranges": {"B_kcal_day": [1694.02, 1694.04]},
+        },
+    },
+    "scaling_mte_positive": {
+        "type": "object", "properties": {"M_kg": {"const": 70}},
+        "requiredPathTypes": {"M_kg": "number", "T_K": "number", "B": "number"},
+        "semanticContract": {
+            "kind": "scaling_positive_v1", "exact": {"M_kg": 70, "T_K": 310},
+            "ranges": {"B": [4.58e-8, 4.60e-8]},
+        },
+    },
+    "scaling_heart_positive": {
+        "type": "object", "properties": {"M_kg": {"const": 70}},
+        "requiredPathTypes": {"M_kg": "number", "bpm": "number", "lifespan_yr": "number"},
+        "semanticContract": {
+            "kind": "scaling_positive_v1", "exact": {"M_kg": 70},
+            "ranges": {"bpm": [83.31, 83.33], "lifespan_yr": [34.12, 34.14]},
+        },
+    },
+    "scaling_unified_positive": {
+        "type": "object", "properties": {"status": {"const": "PROPOSED"}},
+        "requiredPathTypes": {"phi": "number", "inputs.M_kg": "number", "status": "string", "note": "string"},
+        "semanticContract": {
+            "kind": "scaling_positive_v1",
+            "exact": {"inputs.M_kg": 70, "inputs.T_K": 310,
+                      "inputs.delta_p_mV": 121.5, "inputs.tau_c": 6.05},
+            "ranges": {"phi": [160025.5, 160025.7]},
+        },
+    },
     "generic_list": {"anyOf": [{"type": "array"}, {"type": "object"}]},
     "lambda": {"type": "object", "anyKey": ["lambda", "value", "score", "Λ", "conjecture", "floor"]},
     "gates": {"type": "object", "anyKey": ["gates", "manifest", "passed", "results"]},
@@ -1015,9 +1039,9 @@ TAB_ENDPOINTS = {
     # deterministic szl_scaling.py family so it is judged as a genuine declared tab
     # (NOT silently bucketed static). VERIFIED reproductions + PROPOSED SZL-Φ.
     "scaling": ["/api/a11oy/v1/scaling/summary", "/api/a11oy/v1/scaling/exponents",
-                "/api/a11oy/v1/scaling/compute", "/api/a11oy/v1/scaling/kleiber",
-                "/api/a11oy/v1/scaling/mte", "/api/a11oy/v1/scaling/heart",
-                "/api/a11oy/v1/scaling/unified"],
+                "/api/a11oy/v1/scaling/compute", "/api/a11oy/v1/scaling/kleiber?M=70",
+                "/api/a11oy/v1/scaling/mte?M=70", "/api/a11oy/v1/scaling/heart?M=70",
+                "/api/a11oy/v1/scaling/unified?M=70"],
     # Allodial AI doctrine + interactive sovereignty-score tab: contract it to the real
     # szl_allodial.py endpoints so it is judged as a genuine declared (non-static) tab.
     # PROPOSED engineering gate; Λ stays Conjecture 1; deterministic, prior-art-cited.
