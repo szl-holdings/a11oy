@@ -81,7 +81,7 @@ jobs:
       - name: Install exact Hugging Face control client
         run: >-
           python -I -m pip install --disable-pip-version-check
-          "huggingface_hub==1.33.0"
+          "huggingface_hub==1.33.0" "hf-xet==1.7.0"
           "requests==2.32.5"
           "cryptography==50.0.1"
 

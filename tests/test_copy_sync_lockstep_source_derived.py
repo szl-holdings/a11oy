@@ -161,6 +161,19 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
         inputs.setdefault("deploy_helpers", self.deploy_helpers)
         return CHECKER.has_source_derived_deploy_contract(workflow, **inputs)
 
+    def test_native_transport_pin_cannot_be_removed_ranged_or_changed(self) -> None:
+        self.assertTrue(self.strict_contract(self.reviewed_workflow))
+        pin = ' "hf-xet==1.7.0"'
+        positions = [m.start() for m in re.finditer(re.escape(pin), self.reviewed_workflow)]
+        self.assertEqual(len(positions), 2)
+        for position in positions:
+            for replacement in ('', ' "hf-xet>=1.6.0,<2.0.0"',
+                                ' "hf-xet==1.8.0"', pin + ' "unexpected-package==1.0.0"'):
+                with self.subTest(position=position, replacement=replacement):
+                    changed = (self.reviewed_workflow[:position] + replacement
+                               + self.reviewed_workflow[position + len(pin):])
+                    self.assertFalse(self.strict_contract(changed))
+
     def test_reviewed_workflow_is_recognized(self) -> None:
         self.assertTrue(self.strict_contract(self.reviewed_workflow))
 

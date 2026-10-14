@@ -1,6 +1,9 @@
+<!-- SPDX-License-Identifier: Apache-2.0
+(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->
+
 # A11oy Hub 1.33 runtime successor
 
-The image and audit include target exact `huggingface_hub==1.33.0`. Official upstream release commit is `9eeace5e467939b8f6af6ff280a134bc7c22802f`; annotated tag object `a93d85c0e6e0f35c29c33e60cb1e1ca9d60a1692` is **unsigned**. PyPI's universal wheel SHA-256 is `04e434b06e100eddbce9a6e817d72693a7884b10a79bd67ab48080d5c07eb899`. These identify source/package evidence, not a signed release or deployment.
+The image and audit include target exact `huggingface_hub==1.33.0` and `hf-xet==1.7.0`. The successor control-client installs pin the same native transport used by the offline qualification; a wider transitive range is not qualified. Official upstream release commit is `9eeace5e467939b8f6af6ff280a134bc7c22802f`; annotated tag object `a93d85c0e6e0f35c29c33e60cb1e1ca9d60a1692` is **unsigned**. PyPI's universal wheel SHA-256 is `04e434b06e100eddbce9a6e817d72693a7884b10a79bd67ab48080d5c07eb899`. These identify source/package evidence, not a signed release or deployment.
 
 The one-line #2588 proposal left the admitted managed-storage SDK, admission parser and source contract at 1.31. The successor aligns those runtime checks to **exactly 1.33**. It does not admit arbitrary versions. `scripts/hf_hub_133_source_contract.py` reports only EVALUATION with every production, publication, promotion and Sandbox authority flag false. Historical `hf_hub_131_source_contract.py`, its grouped-bump HOLD fixture, and archived Forge measurements remain unchanged and historical.
 
