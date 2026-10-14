@@ -18,7 +18,7 @@ import time
 from collections import Counter
 from datetime import datetime, timezone
 from html.parser import HTMLParser
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Mapping
 from urllib.parse import urlsplit
 
@@ -699,6 +699,82 @@ def validate_verdict_evidence(
     }
 
 
+def state_store_contract(
+    session: requests.Session, origin: str, variables: Mapping[str, Any]
+) -> tuple[str, dict[str, Any] | None]:
+    """Read ADR-0001 invariants; never activate, repair, or write a store.
+
+    The legacy database variable is a bootstrap source when v2 is active,
+    not the live database path. Source identity remains a separate gate.
+    This is runtime-reported snapshot/lease health, not a restart proof.
+    """
+    mode = variable_value(variables.get("A11OY_STATE_STORE"))
+    if mode in (None, "", "off"):
+        return SERIES_A_VARIABLES["A11OY_SERIES_A_DB"], None
+    if mode != "v2":
+        raise RelockError("unrecognized state-store activation mode")
+    raw_root = variable_value(variables.get("A11OY_STATE_ROOT")) or "/tmp/a11oy-state"
+    root = PurePosixPath(raw_root)
+    if (not root.is_absolute() or str(root) != raw_root or root == PurePosixPath("/")
+            or ".." in root.parts or "\\" in raw_root or raw_root.startswith("//")
+            or any(ord(char) <= 32 or ord(char) == 127 for char in raw_root)
+            or root == PurePosixPath("/data") or PurePosixPath("/data") in root.parents):
+        raise RelockError("state-store root must be local, absolute, and outside /data")
+    response = session.get(origin + "/api/a11oy/v1/storage/status",
+                           allow_redirects=False, timeout=60)
+    if response.status_code != 200:
+        raise RelockError("state-store status is unavailable")
+    status = require_json(response)
+
+    def age(value: Any, maximum: float) -> bool:
+        return (isinstance(value, (int, float)) and not isinstance(value, bool)
+                and math.isfinite(value) and 0 <= value <= maximum)
+
+    def integer(value: Any, minimum: int) -> bool:
+        return isinstance(value, int) and not isinstance(value, bool) and value >= minimum
+
+    lease = status.get("lease")
+    if (status.get("schema") != "szl.a11oy-storage-status/v2"
+            or status.get("mode") != "FENCED" or status.get("unfenced") is not False
+            or status.get("role") != "WRITER" or status.get("writable") is not True
+            or not integer(status.get("epoch"), 1) or status.get("alert") is not False
+            or status.get("pending_publish") != [] or status.get("last_error") is not None
+            or not isinstance(lease, Mapping) or lease.get("state") != "ACTIVE"
+            or not integer(lease.get("sequence"), 0) or not age(lease.get("heartbeat_age_s"), 120)):
+        raise RelockError("state-store lease is unavailable, stale, unfenced, or blocked")
+    stores = status.get("stores")
+    kinds = {"gdw": "sqlite", "series_a": "sqlite", "khipu": "sqlite",
+             "khipu_council": "sqlite", "unay": "sqlite", "khipu_lmdb": "lmdb",
+             "khipu_repl": "lmdb"}
+    if not isinstance(stores, Mapping) or not kinds.keys() <= stores.keys():
+        raise RelockError("state-store status lacks required stores")
+    # Enforce source-owned bounds even if a response claims alert=false.
+    # The server cannot raise its own acceptable age to pass this verifier.
+    for label, item in stores.items():
+        required_fields = {"kind", "health", "blocked_code", "last_snapshot_age_s",
+                           "unsnapshotted_change_age_s", "sha16", "integrity",
+                           "snapshot_failures", "last_error_code"}
+        if not isinstance(item, Mapping) or not required_fields <= item.keys():
+            raise RelockError("state-store snapshot evidence is not an object")
+        kind = item.get("kind")
+        integrity = ("quick_check", "integrity_check") if kind == "sqlite" else ("lmdb_read",)
+        pending = item.get("unsnapshotted_change_age_s")
+        if (kind not in ("sqlite", "lmdb") or kind != kinds.get(label, kind)
+                or item.get("health") != "OK" or item.get("blocked_code") is not None
+                or not age(item.get("last_snapshot_age_s"), 900)
+                or (pending is not None and not age(pending, 900))
+                or re.fullmatch(r"[0-9a-f]{16}", str(item.get("sha16") or "")) is None
+                or item.get("integrity") not in integrity
+                or not integer(item.get("snapshot_failures"), 0) or item["snapshot_failures"] != 0
+                or item.get("last_error_code") is not None):
+            raise RelockError("state-store snapshot evidence is incomplete or unhealthy")
+    return str(root / "series-a/control-plane-v2.sqlite3"), {
+        "schema": status["schema"], "mode": status["mode"], "role": status["role"],
+        "epoch": status["epoch"], "lease": dict(lease), "stores": dict(stores),
+        "alert": False, "evidence_class": "REPORTED", "restart_proof": False,
+    }
+
+
 def validate_route(
     name: str,
     response: requests.Response,
@@ -706,6 +782,7 @@ def validate_route(
     source_variable: str,
     origin: str,
     run_verdict: Mapping[str, Any] | None = None,
+    series_a_database: str = SERIES_A_VARIABLES["A11OY_SERIES_A_DB"],
 ) -> dict[str, Any]:
     evidence: dict[str, Any] = {
         "url": response.url,
@@ -824,7 +901,7 @@ def validate_route(
             or payload.get("signing_key_source")
             != "persistent:env:SZL_COSIGN_PRIVATE_PEM"
             or payload.get("database")
-            != SERIES_A_VARIABLES["A11OY_SERIES_A_DB"]
+            != series_a_database
             or not isinstance(storage, Mapping)
             or storage.get("persistence_required") is not True
             or storage.get("required_mount") != "/data"
@@ -868,6 +945,7 @@ def probe_routes(
     source_sha: str,
     source_variable: str,
     run_verdict: Mapping[str, Any] | None = None,
+    series_a_database: str = SERIES_A_VARIABLES["A11OY_SERIES_A_DB"],
 ) -> dict[str, dict[str, Any]]:
     output: dict[str, dict[str, Any]] = {}
     for name, path in ROUTES.items():
@@ -885,6 +963,7 @@ def probe_routes(
             source_variable,
             origin,
             run_verdict,
+            series_a_database,
         )
         evidence["head_http_status"] = head.status_code
         output[name] = evidence
@@ -968,12 +1047,14 @@ def evaluate_once(
             "canonical read-write Series-A bucket is not attached at /data"
         )
 
+    series_a_database, state_store = state_store_contract(session, contract["origin"], variables)
     routes = probe_routes(
         session,
         contract["origin"],
         contract["source_sha"],
         contract["variable"],
         run_verdict,
+        series_a_database,
     )
     clones = {f"SZLHOLDINGS/a11oy-clone-{index}": False for index in range(1, 5)}
     for clone_id in tuple(clones):
@@ -1003,6 +1084,7 @@ def evaluate_once(
             },
             "volumes": volumes,
             "persistent_contract_matched": True,
+            "state_store": state_store,
         },
         "hf_repository_sha": repository_sha,
         "hf_runtime_sha": runtime_sha,

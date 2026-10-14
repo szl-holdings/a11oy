@@ -1312,5 +1312,116 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
         self.assertIn("wait-running: 1200", self.workflow)
 
 
+class StateStoreRelockTests(unittest.TestCase):
+    """SIMULATED status contracts, not a restart or durability proof."""
+
+    def candidate(self, root="/tmp/a11oy-state"):
+        source = "a" * 40
+        origin = "https://szlholdings-a11oy.hf.space"
+        api = FakeApi(source)
+        api.variables["A11OY_STATE_STORE"] = SimpleNamespace(value="v2")
+        api.variables["A11OY_STATE_ROOT"] = SimpleNamespace(value=root)
+        session = success_session(origin, source)
+        session.responses[("GET", origin + relock.ROUTES["series_a_status"])]._payload[
+            "database"
+        ] = root + "/series-a/control-plane-v2.sqlite3"
+        status = {
+            "schema": "szl.a11oy-storage-status/v2", "mode": "FENCED",
+            "unfenced": False, "role": "WRITER", "writable": True,
+            "epoch": 2, "lease": {"state": "ACTIVE", "sequence": 4, "heartbeat_age_s": 15},
+            "alert": False, "alert_after_s": 900, "pending_publish": [], "last_error": None,
+            "stores": {},
+        }
+        for label in ("gdw", "series_a", "khipu", "khipu_council", "unay", "khipu_lmdb", "khipu_repl"):
+            lmdb = label in ("khipu_lmdb", "khipu_repl")
+            status["stores"][label] = {
+                "kind": "lmdb" if lmdb else "sqlite", "health": "OK", "blocked_code": None,
+                "last_snapshot_age_s": 300, "unsnapshotted_change_age_s": None,
+                "sha16": "1" * 16, "integrity": "lmdb_read" if lmdb else "quick_check",
+                "snapshot_failures": 0, "last_error_code": None,
+            }
+        session.responses[("GET", origin + "/api/a11oy/v1/storage/status")] = FakeResponse(
+            origin + "/api/a11oy/v1/storage/status", payload=status
+        )
+        return api, session, relock.normalize("SZLHOLDINGS/a11oy", origin, source, "SZL_GIT_SHA"), status
+
+    def test_v2_local_database_requires_current_fenced_storage_evidence(self):
+        for root in ("/tmp/a11oy-state", "/var/lib/a11oy-state"):
+            with self.subTest(root=root):
+                api, session, contract, _ = self.candidate(root)
+                report = relock.evaluate_once(api, session, contract)
+                self.assertTrue(report["ok"])
+                self.assertEqual(report["series_a_runtime"]["state_store"]["epoch"], 2)
+                self.assertTrue(all(method in ("GET", "HEAD") for method, _, _ in session.calls))
+
+    def test_v2_rejects_missing_stale_unfenced_or_blocked_status(self):
+        changes = (
+            {"schema": "wrong"}, {"mode": "SNAPSHOT_ONLY_UNFENCED"}, {"unfenced": True},
+            {"role": "FENCED"}, {"writable": False}, {"epoch": True}, {"epoch": 0},
+            {"alert": True}, {"pending_publish": ["series_a"]}, {"last_error": "UPLOAD_FAILED"},
+            {"lease": {"state": "RELEASED"}}, {"lease": {"heartbeat_age_s": 121}},
+            {"lease": {"heartbeat_age_s": -1}}, {"lease": {"heartbeat_age_s": float("nan")}},
+            {"lease": {"heartbeat_age_s": True}}, {"lease": {"sequence": False}},
+            {"stores": {}},
+        )
+        for change in changes:
+            with self.subTest(change=change):
+                api, session, contract, status = self.candidate()
+                if "lease" in change:
+                    status["lease"].update(change["lease"])
+                else:
+                    status.update(change)
+                with self.assertRaises(relock.RelockError):
+                    relock.evaluate_once(api, session, contract)
+
+    def test_v2_rejects_each_unqualified_store_and_bad_snapshot(self):
+        changes = (
+            {"health": "BLOCKED"}, {"blocked_code": "RESTORE_FAILED"}, {"kind": "unknown"},
+            {"last_snapshot_age_s": None}, {"last_snapshot_age_s": 901},
+            {"last_snapshot_age_s": -1}, {"last_snapshot_age_s": float("inf")},
+            {"unsnapshotted_change_age_s": 901}, {"sha16": None}, {"integrity": "unknown"},
+            {"snapshot_failures": 1}, {"snapshot_failures": False}, {"last_error_code": "FAILED"},
+        )
+        for label in ("gdw", "series_a", "khipu", "khipu_council", "unay", "khipu_lmdb", "khipu_repl"):
+            for change in changes:
+                with self.subTest(label=label, change=change):
+                    api, session, contract, status = self.candidate()
+                    status["stores"][label].update(change)
+                    with self.assertRaises(relock.RelockError):
+                        relock.evaluate_once(api, session, contract)
+
+    def test_v2_rejects_wrong_path_unsafe_root_and_missing_status(self):
+        for root in ("/data", "/data/a11oy", "/tmp/../data", "relative", "//host/path", "/tmp/a\n"):
+            with self.subTest(root=root):
+                api, session, contract, _ = self.candidate(root)
+                with self.assertRaises(relock.RelockError):
+                    relock.evaluate_once(api, session, contract)
+        api, session, contract, _ = self.candidate()
+        response = session.responses[("GET", contract["origin"] + "/api/a11oy/v1/storage/status")]
+        response.status_code = 503
+        with self.assertRaises(relock.RelockError):
+            relock.evaluate_once(api, session, contract)
+        api, session, contract, _ = self.candidate()
+        session.responses[("GET", contract["origin"] + relock.ROUTES["series_a_status"])]._payload[
+            "database"
+        ] = "/data/a11oy/series-a/control-plane-v2.sqlite3"
+        with self.assertRaises(relock.RelockError):
+            relock.evaluate_once(api, session, contract)
+
+    def test_v2_never_accepts_missing_snapshot_fields_or_missing_store(self):
+        api, session, contract, status = self.candidate()
+        fields = list(status["stores"]["series_a"])
+        for field in fields:
+            with self.subTest(field=field):
+                api, session, contract, status = self.candidate()
+                del status["stores"]["series_a"][field]
+                with self.assertRaises(relock.RelockError):
+                    relock.evaluate_once(api, session, contract)
+        api, session, contract, status = self.candidate()
+        del status["stores"]["series_a"]
+        with self.assertRaises(relock.RelockError):
+            relock.evaluate_once(api, session, contract)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

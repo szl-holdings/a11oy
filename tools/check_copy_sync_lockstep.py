@@ -849,7 +849,7 @@ REVIEWED_DEPLOY_HELPERS_SHA256 = {
     "tools/readiness-harness/canonical_unavailable.mjs": "ca50ca28195281bccdc3cfae09831eabdacff2028946ebaf0c403776cb905e24",
     "tools/readiness-harness/tabs.json": "99545ca863dfe3174e9b1074319dc7a09c6e65566d4323b0eb92e83c8155f2d3",
     # Read-only terminal verifier used by the exact relock job.
-    ".github/scripts/verify_canonical_a11oy.py": "d2a0081aed30f51760d4d56499606399666deb9fe93ca7d31943bf295c05d316",
+    ".github/scripts/verify_canonical_a11oy.py": "fedb0233424d3c00aab3924da9f45209fe39042a2c88a87d3bcd7602bccef8f7",
 }
 REVIEWED_DEPLOY_GATES = {
     "needs": "[source-admission, preflight]",
