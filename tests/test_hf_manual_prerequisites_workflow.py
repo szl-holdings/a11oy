@@ -71,7 +71,7 @@ CHECKOUT = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
 SETUP_PYTHON = "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97"
 UPLOAD = "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
 HF_CREDENTIAL = "${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}"
-CONTROL_CLIENT = 'python -I -m pip install --disable-pip-version-check "huggingface_hub==1.33.0" "requests==2.32.5" "cryptography==50.0.1"'
+CONTROL_CLIENT = 'python -I -m pip install --disable-pip-version-check "huggingface_hub==1.33.0" "hf-xet==1.7.0" "requests==2.32.5" "cryptography==50.0.1"'
 EXACT_CHECKOUT = {"name": "Checkout exact protected source", "uses": CHECKOUT,
                   "with": {"ref": "${{ github.sha }}", "persist-credentials": False, "fetch-depth": "1"}}
 PYTHON_312 = {"name": "Set up Python", "uses": SETUP_PYTHON, "with": {"python-version": "3.12"}}

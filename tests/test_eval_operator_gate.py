@@ -114,7 +114,7 @@ class EvalClientContractTests(unittest.TestCase):
         self.assertIn('redirect:"error"', source)
         self.assertIn('credentials:"same-origin"', source)
         self.assertIn('cache:"no-store"', source)
-        self.assertIn('authorization:"Bearer "+token', source)
+        self.assertIn('"authorization":"Bearer "+token', source)
         self.assertIn("body.length>16384", source)
         self.assertIn("outcome UNKNOWN and automatic retry disabled", source)
         self.assertIn('tokenNode.value=""', source)
