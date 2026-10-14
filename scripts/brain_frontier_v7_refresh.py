@@ -41,6 +41,9 @@ SUCCESSFUL_PROPOSAL_STATES = {
     "NEW_REVIEW_PR",
     "RECOVERED_REVIEW_PR",
 }
+BLOCKED_PROPOSAL_STATE = "BLOCKED_AUTHORIZATION"
+BLOCKED_RECEIPT_OUTCOME = "REVIEW_PR_BLOCKED"
+BLOCKED_FAILURE = "proposal_authorization_blocked"
 AUTOMATION_AUTHORS = {
     "41898282+github-actions[bot]@users.noreply.github.com",
     # Legacy branches were created by the previous workflow under this identity.
@@ -633,6 +636,9 @@ def reconcile(args: argparse.Namespace) -> int:
     evidence_path = Path(args.evidence)
     output_path = Path(args.github_output) if args.github_output else None
     branch = ""
+    source_sha = ""
+    snapshot_digest = ""
+    candidate_set = ""
     try:
         if args.repository != REPOSITORY or args.base != BASE_BRANCH:
             raise RefreshError("refresh controller is locked to szl-holdings/a11oy protected main")
@@ -689,19 +695,42 @@ def reconcile(args: argparse.Namespace) -> int:
         print(json.dumps(evidence, sort_keys=True))
         return 0
     except Exception as exc:  # noqa: BLE001
+        message = one_line(str(exc))
+        authorization_blocked = isinstance(exc, RefreshError) and (
+            message.startswith("GITHUB_TOKEN policy is UNAVAILABLE")
+            or message.startswith("repository policy disables GITHUB_TOKEN pull-request creation")
+        )
+        state = BLOCKED_PROPOSAL_STATE if authorization_blocked else "FAILED_CLOSED"
+        policy_observed = message.startswith(
+            "repository policy disables GITHUB_TOKEN pull-request creation"
+        )
         failure = {
             "schema": "szl.a11oy.brain-frontier-v7-proposal/v1",
-            "terminal": False,
-            "state": "FAILED_CLOSED",
+            "terminal": authorization_blocked,
+            "state": state,
             "url": None,
             "branch": branch or None,
             "head_sha": None,
-            "failure": f"{type(exc).__name__}: {one_line(str(exc))}",
+            "source_sha": source_sha or None,
+            "snapshot_sha256": snapshot_digest or None,
+            "candidate_set_sha256": candidate_set or None,
+            "failure": f"{type(exc).__name__}: {message}",
+            "authorization": {
+                "credential_kind": str(args.credential_kind),
+                "policy_observed": policy_observed if authorization_blocked else None,
+                "github_token_pr_creation_allowed": (
+                    False if authorization_blocked and policy_observed else None
+                ),
+                "required_action": (
+                    "configure BRAIN_FRONTIER_PR_TOKEN or explicitly authorize GitHub Actions PR creation"
+                    if authorization_blocked else None
+                ),
+            },
         }
         write_json(evidence_path, failure)
         append_outputs(
             output_path,
-            {"state": "FAILED_CLOSED", "url": "", "branch": branch, "head_sha": ""},
+            {"state": state, "url": "", "branch": branch, "head_sha": ""},
         )
         print(f"::error::{failure['failure']}", file=sys.stderr)
         return 1
@@ -753,37 +782,86 @@ def build_receipt(args: argparse.Namespace) -> dict[str, Any]:
     if proposal is not None:
         for name in proposal_record:
             proposal_record[name] = proposal.get(name)
+        if proposal.get("state") == BLOCKED_PROPOSAL_STATE:
+            proposal_record["source_sha"] = proposal.get("source_sha")
+            proposal_record["snapshot_sha256"] = proposal.get("snapshot_sha256")
+            proposal_record["candidate_set_sha256"] = proposal.get("candidate_set_sha256")
+            proposal_record["failure"] = proposal.get("failure")
+            proposal_record["authorization"] = proposal.get("authorization")
 
     if changed is True:
         expected = expected_branch(snapshot_digest) if HEX64.fullmatch(snapshot_digest) else None
-        if args.proposal_result != "success":
-            failures.append("proposal_job_not_successful")
-        if proposal is None or proposal.get("terminal") is not True:
-            failures.append("proposal_evidence_not_terminal")
-        if proposal_record["state"] not in SUCCESSFUL_PROPOSAL_STATES:
-            failures.append("proposal_state_not_reviewable")
-        if PR_URL.fullmatch(str(proposal_record["url"] or "")) is None:
-            failures.append("proposal_url_missing_or_invalid")
-        if proposal_record["branch"] != expected:
-            failures.append("proposal_branch_not_content_addressed")
-        if HEX40.fullmatch(str(proposal_record["head_sha"] or "")) is None:
-            failures.append("proposal_head_invalid")
-        if proposal is not None and any(
-            proposal.get(key) != expected_value
-            for key, expected_value in (
-                ("source_sha", source_sha),
-                ("snapshot_sha256", snapshot_digest),
-                ("candidate_set_sha256", candidate_set),
-            )
-        ):
-            failures.append("proposal_binding_mismatch")
+        blocked_authorization = (
+            proposal is not None
+            and proposal.get("terminal") is True
+            and proposal_record["state"] == BLOCKED_PROPOSAL_STATE
+        )
+        if blocked_authorization:
+            if args.proposal_result != "failure":
+                failures.append("blocked_proposal_job_result_invalid")
+            if proposal_record["url"] is not None or proposal_record["head_sha"] is not None:
+                failures.append("blocked_proposal_has_write_evidence")
+            if proposal_record["branch"] != expected:
+                failures.append("proposal_branch_not_content_addressed")
+            if any(
+                proposal.get(key) != expected_value
+                for key, expected_value in (
+                    ("source_sha", source_sha),
+                    ("snapshot_sha256", snapshot_digest),
+                    ("candidate_set_sha256", candidate_set),
+                )
+            ):
+                failures.append("proposal_binding_mismatch")
+            authorization = proposal.get("authorization")
+            if (
+                not isinstance(proposal_record.get("failure"), str)
+                or not proposal_record["failure"].strip()
+                or not isinstance(authorization, Mapping)
+                or authorization.get("credential_kind") != "github-token"
+                or type(authorization.get("policy_observed")) is not bool
+                or (
+                    authorization.get("policy_observed") is True
+                    and authorization.get("github_token_pr_creation_allowed") is not False
+                )
+                or not isinstance(authorization.get("required_action"), str)
+                or not authorization["required_action"].strip()
+            ):
+                failures.append("proposal_authorization_evidence_invalid")
+            if not failures:
+                failures.append(BLOCKED_FAILURE)
+        else:
+            if args.proposal_result != "success":
+                failures.append("proposal_job_not_successful")
+            if proposal is None or proposal.get("terminal") is not True:
+                failures.append("proposal_evidence_not_terminal")
+            if proposal_record["state"] not in SUCCESSFUL_PROPOSAL_STATES:
+                failures.append("proposal_state_not_reviewable")
+            if PR_URL.fullmatch(str(proposal_record["url"] or "")) is None:
+                failures.append("proposal_url_missing_or_invalid")
+            if proposal_record["branch"] != expected:
+                failures.append("proposal_branch_not_content_addressed")
+            if HEX40.fullmatch(str(proposal_record["head_sha"] or "")) is None:
+                failures.append("proposal_head_invalid")
+            if proposal is not None and any(
+                proposal.get(key) != expected_value
+                for key, expected_value in (
+                    ("source_sha", source_sha),
+                    ("snapshot_sha256", snapshot_digest),
+                    ("candidate_set_sha256", candidate_set),
+                )
+            ):
+                failures.append("proposal_binding_mismatch")
     elif changed is False:
         if args.proposal_result not in {"skipped", "success"}:
             failures.append("unexpected_proposal_job_result")
         if proposal is not None and proposal.get("state") != "NO_PROPOSAL":
             failures.append("unchanged_run_has_proposal")
 
-    if failures:
+    unique_failures = sorted(set(failures))
+    if unique_failures == [BLOCKED_FAILURE]:
+        outcome = BLOCKED_RECEIPT_OUTCOME
+        terminal = True
+    elif unique_failures:
         outcome = "FAILED_CLOSED"
         terminal = False
     elif changed:
@@ -800,13 +878,14 @@ def build_receipt(args: argparse.Namespace) -> dict[str, Any]:
         failures.append("run_attempt_invalid")
         outcome = "FAILED_CLOSED"
         terminal = False
+    unique_failures = sorted(set(failures))
     receipt: dict[str, Any] = {
         "schema": RECEIPT_SCHEMA,
         "signature_state": "UNSIGNED",
         "created_at": datetime.now(timezone.utc).isoformat(),
         "terminal": terminal,
         "outcome": outcome,
-        "failures": sorted(set(failures)),
+        "failures": unique_failures,
         "run": {
             "id": str(args.run_id),
             "attempt": run_attempt,
@@ -856,7 +935,7 @@ def verify_receipt(path: Path, require_terminal: bool = True) -> dict[str, Any]:
         raise RefreshError("refresh receipt digest is invalid")
     if require_terminal and (
         receipt.get("terminal") is not True
-        or receipt.get("outcome") not in {"NO_CHANGE", "REVIEW_PR_OPEN"}
+        or receipt.get("outcome") not in {"NO_CHANGE", "REVIEW_PR_OPEN", BLOCKED_RECEIPT_OUTCOME}
     ):
         failures = receipt.get("failures")
         raise RefreshError(f"refresh transaction failed closed: {failures}")
@@ -879,12 +958,17 @@ def verify_receipt(path: Path, require_terminal: bool = True) -> dict[str, Any]:
             or run.get("event") not in {"schedule", "workflow_dispatch"}
         ):
             raise RefreshError("refresh receipt run identity is invalid")
+        expected_failures = (
+            [BLOCKED_FAILURE]
+            if receipt.get("outcome") == BLOCKED_RECEIPT_OUTCOME
+            else []
+        )
         if (
             source.get("repository") != REPOSITORY
             or source.get("branch") != BASE_BRANCH
             or HEX40.fullmatch(str(source.get("revision") or "")) is None
             or run.get("ref") != "refs/heads/main"
-            or receipt.get("failures") != []
+            or receipt.get("failures") != expected_failures
             or materialization.get("job_result") != "success"
             or HEX64.fullmatch(str(materialization.get("snapshot_sha256") or "")) is None
             or HEX64.fullmatch(str(materialization.get("candidate_set_sha256") or "")) is None
@@ -897,7 +981,31 @@ def verify_receipt(path: Path, require_terminal: bool = True) -> dict[str, Any]:
             raise RefreshError("refresh receipt authority boundary is invalid")
         changed = materialization.get("changed")
         if changed is True:
-            if (
+            if receipt.get("outcome") == BLOCKED_RECEIPT_OUTCOME:
+                authorization = proposal.get("authorization")
+                if (
+                    receipt.get("proposal_job_result") != "failure"
+                    or proposal.get("state") != BLOCKED_PROPOSAL_STATE
+                    or proposal.get("url") is not None
+                    or proposal.get("head_sha") is not None
+                    or proposal.get("branch") != expected_branch(materialization["snapshot_sha256"])
+                    or proposal.get("source_sha") != source.get("revision")
+                    or proposal.get("snapshot_sha256") != materialization.get("snapshot_sha256")
+                    or proposal.get("candidate_set_sha256") != materialization.get("candidate_set_sha256")
+                    or not isinstance(proposal.get("failure"), str)
+                    or not proposal["failure"].strip()
+                    or not isinstance(authorization, dict)
+                    or authorization.get("credential_kind") != "github-token"
+                    or type(authorization.get("policy_observed")) is not bool
+                    or (
+                        authorization.get("policy_observed") is True
+                        and authorization.get("github_token_pr_creation_allowed") is not False
+                    )
+                    or not isinstance(authorization.get("required_action"), str)
+                    or not authorization["required_action"].strip()
+                ):
+                    raise RefreshError("refresh receipt authorization hold is invalid")
+            elif (
                 receipt.get("outcome") != "REVIEW_PR_OPEN"
                 or receipt.get("proposal_job_result") != "success"
                 or proposal.get("state") not in SUCCESSFUL_PROPOSAL_STATES
@@ -920,9 +1028,13 @@ def verify_receipt(path: Path, require_terminal: bool = True) -> dict[str, Any]:
 
 def verify_receipt_command(args: argparse.Namespace) -> int:
     try:
-        verify_receipt(Path(args.receipt), require_terminal=True)
+        receipt = verify_receipt(Path(args.receipt), require_terminal=True)
     except RefreshError as exc:
         print(f"::error::{one_line(str(exc))}", file=sys.stderr)
+        return 1
+    if receipt.get("outcome") == BLOCKED_RECEIPT_OUTCOME:
+        required = receipt["proposal"]["authorization"]["required_action"]
+        print(f"::error::Brain Frontier proposal is terminally blocked: {one_line(required)}", file=sys.stderr)
         return 1
     print("Brain Frontier refresh receipt is terminal and digest-valid.")
     return 0
