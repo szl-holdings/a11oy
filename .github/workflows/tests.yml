@@ -49,6 +49,7 @@ jobs:
           tests/test_nexus_readonly_evidence.py
           tests/test_code_engine_isolation.py
           tests/test_code_engine_mandatory_limits.py
+          tests/test_sandbox_fail_closed_followups.py
 
   code-runloop-admission:
     name: Code run-loop step identity and result restore
