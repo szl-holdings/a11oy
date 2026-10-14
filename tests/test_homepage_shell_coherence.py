@@ -3,9 +3,11 @@
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
 """Source contracts complement the browser-tested homepage shell behavior."""
 import re
+import tempfile
 import unittest
 from html.parser import HTMLParser
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -69,6 +71,29 @@ class HomepageShellCoherence(unittest.TestCase):
         self.assertEqual(css.content, (ROOT / "console/assets/a11oy-homepage.css").read_bytes())
         self.assertEqual(client.post("/assets/a11oy-homepage.css").status_code, 405)
         self.assertEqual(client.get("/assets/requirements-runtime.txt").status_code, 404)
+
+    def test_packaged_frontdoor_serves_exact_stylesheet_route(self):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        import szl_governed_api
+
+        with tempfile.TemporaryDirectory() as tmp:
+            package = Path(tmp)
+            assets = package / "static" / "assets"
+            assets.mkdir(parents=True)
+            expected = b"body { color: #123456; }\n"
+            (assets / "a11oy-homepage.css").write_bytes(expected)
+            app = FastAPI()
+            with patch.object(szl_governed_api, "__file__", str(package / "szl_governed_api.py")):
+                szl_governed_api.register(app, public_pem="")
+            client = TestClient(app)
+            css = client.get("/assets/a11oy-homepage.css")
+            self.assertEqual(css.status_code, 200)
+            self.assertTrue(css.headers["content-type"].startswith("text/css"))
+            self.assertEqual(css.headers["x-content-type-options"], "nosniff")
+            self.assertEqual(css.content, expected)
+            self.assertEqual(client.post("/assets/a11oy-homepage.css").status_code, 405)
+            self.assertEqual(client.get("/assets/requirements-runtime.txt").status_code, 404)
 
     def test_shared_enhancers_remain_bound_but_cannot_add_homepage_navigation(self):
         for script in ("szl-flow.js", "szl-holo-v2.js"):
