@@ -174,7 +174,7 @@ async function _runEvalOnce(){
       if(status) status.textContent="transport unresolved; outcome UNKNOWN and automatic retry disabled";
     }else if(status){ status.textContent=String((error&&error.message)||error); }
   }finally{
-    clearTimeout(timer); _runAbort=null; _runPending=false; token="";
+    clearTimeout(timer); _runAbort=null; _runPending=false;
     if(tokenNode) tokenNode.value=""; if(button) button.disabled=false; _paintOverlay();
   }
 }
