@@ -10,12 +10,16 @@ name: HF Publish Vertical Flagships
 #   actual file reads are checked against it by tests/test_hf_vertical_convergence.py.
 # - the hourly schedule is the convergence backstop for commits that never
 #   triggered a push run (superseded, or lyte-services changes).
-# - a completed canonical A11oy deploy re-plans Finance, which proxies that Space.
+# - a completed canonical A11oy deploy re-plans the estate (Finance proxies
+#   that Space).
 # - workflow_dispatch keeps the explicit targeted repairs and the full estate.
 #
 # The plan renders every generated target offline and compares it, file by
-# file, with the Space's Hub tree; Lyte must serve the qualified lyte-services
-# main. A converged estate is a no-op.
+# file, with the Space's Hub tree; Lyte must serve the lyte-services main
+# resolved and qualified at plan time. A converged estate is a no-op. Every
+# plan records every declared target: one the automatic writer is excluded
+# from (Lyte while its persistence is not durable) is UNPLANNED with its
+# reason, and hf-vertical-drift.yml alerts on it at once.
 #
 # One writer lock: every job that can write a vertical Space (both writer jobs
 # here and hf-sync.yml's vertical job) holds the hf-vertical-estate group, so

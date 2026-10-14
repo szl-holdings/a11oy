@@ -13,6 +13,7 @@ from __future__ import annotations
 import datetime as dt
 import fnmatch
 import hashlib
+import http.client
 import importlib.util
 import json
 import re
@@ -610,14 +611,38 @@ def test_lyte_drift_publishes_only_a_qualified_tip(conv, monkeypatch):
 
 
 @pytest.mark.parametrize("durability", ["FILE_OR_PROCESS_SCOPED", None])
-def test_lyte_automatic_republish_is_withheld_while_persistence_is_not_durable(conv, monkeypatch, durability):
-    """The release restarts the Space; a restart drops process-scoped ingest."""
+def test_lyte_is_explicitly_unplanned_while_persistence_is_not_durable(conv, monkeypatch, durability):
+    """The release restarts the Space; a restart drops process-scoped ingest.
+
+    The exclusion is an explicit state with its reason and the qualified
+    revision it was evaluated against, never an omission, and it alerts at
+    once: no automatic run will converge it."""
     tip = _lyte(conv, monkeypatch, SERVED, HEAD, durability=durability)
     row = conv.assess_lyte(resolve=lambda: (HEAD, {}), source_tip=tip)
-    assert row["state"] == "BLOCKED" and row["publish"] is False
-    assert "automatic republish is withheld" in row["reason"] and row["expected_revision"] == HEAD
-    # The drift stays visible to the tracker.
+    assert row["state"] == "UNPLANNED" and row["publish"] is False
+    assert row["automatic_writer"] == "EXCLUDED" and row["unplanned_reason"] == "NON_DURABLE_PERSISTENCE"
+    assert "automatic writer excludes Lyte" in row["reason"] and "scope lyte" in row["operator_action"]
+    assert row["expected_revision"] == HEAD and row["source_tip"] == HEAD
     assert conv.report([row], head=HEAD, threshold_hours=6, now=NOW)["alerting"] == ["lyte"]
+    # A drift that began minutes ago alerts too: waiting changes nothing.
+    monkeypatch.setattr(conv, "_lyte_drift_since", lambda served, tip: NOW - dt.timedelta(minutes=5))
+    fresh = conv.assess_lyte(resolve=lambda: (HEAD, {}), source_tip=tip)
+    result = conv.report([fresh], head=HEAD, threshold_hours=6, now=NOW)
+    assert result["alerting"] == ["lyte"] and result["targets"][0]["drift_age_hours"] < 1
+    title, body = conv.render_issue(result, run_url=None)
+    assert "lyte needs an operator publish" in title and "UNPLANNED" in body
+
+
+def test_lyte_is_evaluated_against_the_current_lyte_services_main(conv, monkeypatch):
+    """No pinned revision: every assessment reads the head and qualifies it."""
+    for current in (HEAD, "c" * 40):
+        tip = _lyte(conv, monkeypatch, SERVED, current)
+        qualified = []
+        row = conv.assess_lyte(resolve=lambda current=current: qualified.append(current) or (current, {}),
+                               source_tip=tip)
+        assert qualified == [current]
+        assert row["source_tip"] == row["expected_revision"] == current
+        assert row["state"] == "DRIFT" and row["publish"] is True
 
 
 @pytest.mark.parametrize("stage", ["RUNTIME_ERROR", "BUILD_ERROR", None])
@@ -669,13 +694,93 @@ def test_plan_superseded_head_publishes_nothing(conv):
     result = conv.plan(event="push", scope="", head=HEAD, main_tip=SERVED,
                        assess_fn=lambda *a, **k: pytest.fail("a superseded head is never assessed"))
     assert result["superseded_by"] == SERVED and result["matrix"] == []
+    assert {row["state"] for row in result["targets"]} == {"SUPERSEDED"}
+    assert all(row["assessed"] is False and SERVED in row["reason"] for row in result["targets"])
 
 
-def test_plan_after_canonical_deploy_assesses_finance_only(conv):
+def test_plan_after_canonical_deploy_assesses_the_full_estate(conv):
+    """A finance-only re-plan left Lyte and the others out of that receipt."""
     seen = []
-    conv.plan(event="workflow_run", scope="", head=HEAD, main_tip=HEAD,
-              assess_fn=lambda targets, head: seen.append(targets) or [])
-    assert seen == [("finance",)]
+
+    def assess(targets, *, head):
+        seen.append(targets)
+        return [{"target": t, "publish": False, "state": "CONVERGED"} for t in targets]
+    conv.plan(event="workflow_run", scope="", head=HEAD, main_tip=HEAD, assess_fn=assess)
+    assert seen == [conv.TARGETS]
+
+
+def _declared_vertical_estate() -> set[str]:
+    """The estate as the publishers and the dispatch input declare it."""
+    spec = importlib.util.spec_from_file_location(
+        "vertical_entrypoint_estate", ROOT / "scripts/hf_publish_vertical_flagships_v4.py")
+    entrypoint = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(entrypoint)
+    declared = set(entrypoint.PUBLIC_FLAGSHIP_SLUGS)
+    assert declared == set(entrypoint.GENERATED_FLAGSHIP_SLUGS) | set(entrypoint.SOURCE_OWNED_FLAGSHIP_SLUGS)
+    options = _on(_load_workflow(PUBLISH_WORKFLOW))["workflow_dispatch"]["inputs"]["scope"]["options"]
+    assert set(options) - {"estate"} == declared
+    return declared
+
+
+AUTOMATIC_EVENTS = ("push", "schedule", "workflow_run")
+
+
+@pytest.mark.parametrize("event", AUTOMATIC_EVENTS)
+def test_automatic_plan_target_set_is_the_full_declared_vertical_estate(conv, monkeypatch, renderer, event):
+    """Every automatic plan receipt carries every declared target, Lyte included,
+    with a state and, unless converged, a reason. This runs the real assess()
+    with only the network reads replaced."""
+    declared = _declared_vertical_estate()
+    assert set(conv.TARGETS) == declared and len(conv.TARGETS) == len(declared)
+    assert set(conv.GENERATED_TARGETS) | {"lyte"} == declared
+    monkeypatch.setattr(conv, "load_renderer", lambda: renderer)
+    monkeypatch.setattr(conv, "assess_generated", lambda slug, renderer, head: conv._row(
+        slug, state="CONVERGED"))
+    tip = _lyte(conv, monkeypatch, SERVED, HEAD, durability="FILE_OR_PROCESS_SCOPED")
+    monkeypatch.setattr(conv, "github_json", lambda path: tip())
+    monkeypatch.setattr(conv, "lyte_expected_revision", lambda: (HEAD, {}))
+    result = conv.plan(event=event, scope="", head=HEAD, main_tip=HEAD, dispatched_writers=lambda: [])
+    assert result["declared_targets"] == list(conv.TARGETS)
+    assert [row["target"] for row in result["targets"]] == list(conv.TARGETS)
+    lyte = next(row for row in result["targets"] if row["target"] == "lyte")
+    assert lyte["state"] == "UNPLANNED" and lyte["reason"] and lyte["expected_revision"] == HEAD
+    assert result["matrix"] == []
+
+
+def test_every_plan_receipt_records_every_declared_target(conv):
+    declared = list(conv.TARGETS)
+    full = lambda targets, head: [{"target": t, "publish": False, "state": "CONVERGED"} for t in targets]
+    plans = [
+        conv.plan(event="schedule", scope="", head=HEAD, main_tip=SERVED, assess_fn=full),
+        conv.plan(event="schedule", scope="", head=HEAD, main_tip=HEAD, assess_fn=full,
+                  dispatched_writers=lambda: [{"workflow": "hf-sync.yml", "run_id": 5, "status": "queued"}]),
+        conv.plan(event="workflow_dispatch", scope="lyte", head=HEAD, main_tip=HEAD),
+        conv.plan(event="workflow_dispatch", scope="estate", head=HEAD, main_tip=HEAD),
+        *(conv.plan(event=event, scope="", head=HEAD, main_tip=HEAD, assess_fn=full)
+          for event in AUTOMATIC_EVENTS),
+    ]
+    for result in plans:
+        assert [row["target"] for row in result["targets"]] == declared, result["mode"]
+        assert all(row["state"] for row in result["targets"])
+        unassessed = [row for row in result["targets"] if row.get("assessed") is False]
+        assert all(row["reason"] for row in unassessed)
+    deferred = plans[1]["targets"]
+    assert {row["state"] for row in deferred} == {"DEFERRED"} and "hf-sync.yml 5" in deferred[0]["reason"]
+    repair = {row["target"]: row["state"] for row in plans[2]["targets"]}
+    assert repair == {"terra": "OUT_OF_SCOPE", "counsel": "OUT_OF_SCOPE", "finance": "OUT_OF_SCOPE",
+                      "lyte": "FORCED", "sentra": "OUT_OF_SCOPE"}
+    assert {row["state"] for row in plans[3]["targets"]} == {"FORCED"}
+
+
+@pytest.mark.parametrize("rows", [
+    lambda targets: [{"target": t, "publish": False} for t in targets if t != "lyte"],
+    lambda targets: [{"target": t, "publish": False} for t in (*targets, "lyte")],
+    lambda targets: [{"target": t, "publish": False} for t in reversed(targets)],
+])
+def test_a_plan_that_does_not_cover_the_estate_fails(conv, rows):
+    with pytest.raises(RuntimeError, match="declared vertical estate"):
+        conv.plan(event="schedule", scope="", head=HEAD, main_tip=HEAD,
+                  assess_fn=lambda targets, head: rows(targets))
 
 
 def test_automatic_plan_defers_to_an_active_dispatched_writer(conv):
@@ -691,7 +796,8 @@ def test_automatic_plan_defers_to_an_active_dispatched_writer(conv):
                        dispatched_writers=lambda: pytest.fail("a dispatch is the writer"))
     assert forced["matrix"] == [{"target": "lyte", "forced": True}]
     idle = conv.plan(event="push", scope="", head=HEAD, main_tip=HEAD, dispatched_writers=lambda: [],
-                     assess_fn=lambda targets, head: [{"target": "terra", "publish": True}])
+                     assess_fn=lambda targets, head: [{"target": t, "publish": t == "terra"}
+                                                      for t in targets])
     assert idle["matrix"] == [{"target": "terra", "forced": False}]
 
 
@@ -810,6 +916,53 @@ def test_sentra_wait_blocks_on_policy_errors_and_on_persistent_transients(conv, 
     outcome = conv.wait_for_sentra_admission(600, sleep=lambda s: None, clock=lambda: next(timeline))
     assert outcome["state"] == "BLOCKED" and "HTTP 503" in outcome["reason"]
 
+
+@pytest.mark.parametrize("malformed", [
+    lambda: http.client.IncompleteRead(b"{\"partial\":"),
+    lambda: http.client.BadStatusLine("HTTP/1.1 ???"),
+    lambda: http.client.LineTooLong("header line"),
+])
+def test_a_malformed_response_is_a_retryable_unavailable_read(conv, monkeypatch, malformed):
+    # IncompleteRead, BadStatusLine and LineTooLong are HTTPExceptions, not
+    # OSErrors. They must degrade the one read to Unavailable (so its target
+    # is UNOBSERVABLE) instead of escaping and failing the whole estate plan.
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def read(self, limit):
+            return b'{"ok": true}'
+
+    calls = []
+
+    def urlopen(request, timeout):
+        calls.append(request.full_url)
+        if len(calls) < 3:
+            raise malformed()
+        return Response()
+
+    sleeps = []
+    monkeypatch.setattr(conv.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(conv.time, "sleep", sleeps.append)
+    assert conv.get_json("https://example.invalid/a") == {"ok": True}
+    assert len(calls) == 3 and len(sleeps) == 2
+
+    def always(request, timeout):
+        raise malformed()
+
+    monkeypatch.setattr(conv.urllib.request, "urlopen", always)
+    with pytest.raises(conv.Unavailable, match=type(malformed()).__name__):
+        conv.get_json("https://example.invalid/b", attempts=2)
+
+
+def test_estate_dispatch_receipt_names_the_combined_runtime_it_also_writes(conv):
+    result = conv.plan(event="workflow_dispatch", scope="estate", head=HEAD, main_tip=HEAD)
+    assert [row["target"] for row in result["targets"]] == list(conv.TARGETS)
+    assert all(row["state"] == "FORCED" for row in result["targets"])
+    assert all("SZLHOLDINGS/vertical-services" in row["reason"] for row in result["targets"])
 
 # -------------------------------------------------------------------- report
 
