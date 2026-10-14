@@ -198,6 +198,42 @@ class PublisherControls(unittest.TestCase):
                     self.run_plan(apply=True)
                 self.assertEqual(self.api.commits, [])
 
+    def test_hub_read_parent_is_the_current_head_and_stays_compare_and_swap(self):
+        parent = publish.current_parent(self.api)
+        self.assertEqual(parent, PARENT)
+        result = publish.reconcile(self.api, parent, self.payload, SOURCE, read_file=self.api.read,
+                                   operation_factory=Add, check_source=lambda: SOURCE, apply=True)
+        self.assertTrue(result["verified"])
+        self.assertEqual(self.api.commits[0]["parent_commit"], PARENT)
+
+    def test_hub_read_parent_refuses_when_the_target_advances_before_commit(self):
+        parent = publish.current_parent(self.api)
+        self.api.race_at_commit = True
+        with self.assertRaisesRegex(publish.PublishError, "Parent conflict"):
+            publish.reconcile(self.api, parent, self.payload, SOURCE, read_file=self.api.read,
+                              operation_factory=Add, check_source=lambda: SOURCE, apply=True)
+        self.assertEqual(self.api.commits, [])
+
+    def test_hub_read_parent_refuses_when_the_target_advances_during_source_recheck(self):
+        parent = publish.current_parent(self.api)
+
+        def advance():
+            self.api.head = "d" * 40
+            return SOURCE
+
+        with self.assertRaisesRegex(publish.PublishError, "advanced before the parent-bound commit"):
+            publish.reconcile(self.api, parent, self.payload, SOURCE, read_file=self.api.read,
+                              operation_factory=Add, check_source=advance, apply=True)
+        self.assertEqual(self.api.commits, [])
+
+    def test_workflow_reads_parent_from_hub_unless_an_operator_supplies_one(self):
+        workflow = (SCRIPTS.parent / ".github/workflows/huggingface.yml").read_text(encoding="utf-8")
+        block = workflow.split("      expected_revision:", 1)[1].split("      apply:", 1)[0]
+        self.assertIn("required: false", block)
+        self.assertNotIn("required: true", block)
+        self.assertIn("else args+=(--parent-from-hub)", workflow)
+        self.assertIn('args+=(--expected-revision "$EXPECTED_REVISION")', workflow)
+
     def test_invalid_revision_is_rejected_before_api_access(self):
         for value in ("main", "../x", "A" * 40, "a" * 39, ""):
             with self.subTest(value=value):
@@ -308,7 +344,8 @@ class SourceAndPayloadControls(unittest.TestCase):
                 publish.canonical_payload(folder, source)
 
     def test_cli_rejects_other_target_type_and_missing_parent(self):
-        for args in (["--repo-id", "another/model"], ["--repo-type", "space"], []):
+        for args in (["--repo-id", "another/model"], ["--repo-type", "space"], [],
+                     ["--parent-from-hub", "--expected-revision", PARENT]):
             with self.subTest(args=args):
                 with patch.object(sys, "argv", ["publisher", *args]):
                     with contextlib.redirect_stderr(io.StringIO()):

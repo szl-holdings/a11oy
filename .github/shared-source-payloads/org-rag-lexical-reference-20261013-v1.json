@@ -1,0 +1,8 @@
+{
+  "files": {
+    ".github/shared-source-payloads/authorized-rag-answer-handoff-20261008-v1.json": "6e4138d0c4901ad60cfb93fed81d7f3737c02d78c4fd13befe137d02c84c7c13",
+    "a11oy_org_rag.py": "0c98b17b37f5013a0a77aaccd71405d5be57dd37a0af4dceeff4f46f0982f227"
+  },
+  "payload_id": "org-rag-lexical-reference-20261013-v1",
+  "schema": "szl-shared-source-payload/v1"
+}

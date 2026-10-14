@@ -130,7 +130,7 @@ def test_overlay_changes_only_declared_sentra_and_finance_contracts() -> None:
     # Finance has one exact reviewed presentation addition; every other
     # product remains byte-identical except the existing Sentra overlay.
     workspace = load_module("szl_finance_workspace_contract", Path("scripts/hf_finance_workspace.py"))
-    assert hashlib.sha256(workspace.HTML.encode()).hexdigest() == "fa107a526d6fe557d3916edc4dadde7d921af12667cafed54c8a89b02d8e3977"
+    assert hashlib.sha256(workspace.HTML.encode()).hexdigest() == "e72cdd38c9fad22c610dc1385053431c37ac54e42202c1d7cea0e08263048f98"
     assert hashlib.sha256(workspace.CSS.encode()).hexdigest() == "74f10839de99d1d40ebb793f76e5399645c130b8326731e6f2d13a86214b69fd"
     assert overlay.DOMAIN_HTML["finance"] == workspace.HTML
     assert overlay.DOMAIN_CSS["finance"] == base.DOMAIN_CSS["finance"] + workspace.CSS
@@ -157,10 +157,19 @@ def test_overlay_changes_only_declared_sentra_and_finance_contracts() -> None:
     restored_app = restored_app.replace(
         overlay._HEALTHZ_PROCESS_SCOPED, overlay._HEALTHZ_CONSTANT, 1
     )
+    # /api/live and /readyz carry the upstream verdict; restore the historical
+    # unconditional handlers for the same byte-identity proof.
+    assert overlay.APP.count(overlay._LIVE_UPSTREAM_BOUND) == 1
+    assert overlay.APP.count(overlay._READYZ_UPSTREAM_BOUND) == 1
+    restored_app = restored_app.replace(
+        overlay._LIVE_UPSTREAM_BOUND, overlay._LIVE_UNCONDITIONAL, 1
+    ).replace(overlay._READYZ_UPSTREAM_BOUND, overlay._READYZ_LOCAL_ONLY, 1)
     assert restored_app.startswith(base.APP)
     addition = restored_app[len(base.APP):]
     assert 'if CFG.get("slug") == "finance":' in addition
-    assert 'CANONICAL_REVISION_MISMATCH' in addition
+    # Compatibility is the served contract, never equality with this build's revision.
+    assert 'CANONICAL_CONTRACT_INCOMPATIBLE' in addition
+    assert 'CANONICAL_REVISION_MISMATCH' not in addition
     assert 'USE_PRIVATE_CANONICAL_SOURCE_ENDPOINT' in addition
     # Only the independently pinned, reviewed runtime change is admitted.
     # The immutable base, metadata and visual isolation checks above remain.
@@ -246,26 +255,28 @@ def test_public_verifier_manifest_is_a_real_read_only_route() -> None:
     assert 'f"{p}/receipt"' in verifier
 
 
-def test_terra_forge_0_2_2_remains_exact_and_chained() -> None:
+def test_terra_forge_0_2_3_is_exact_and_chained() -> None:
     module = load_overlay()
     page, forge = module.load_terra_forge_bundle()
 
+    # The forge 0.2.3 landing template still carries the 0.2.2 marker attribute.
     assert module.TERRA_FORGE_MARKER == 'data-szl-vertical-forge="0.2.2"'
-    assert module.TERRA_FORGE_GENERATOR == "szl-vertical-forge/0.2.2"
+    assert module.TERRA_FORGE_GENERATOR == "szl-vertical-forge/0.2.3"
+    assert module._BASE.load_terra_forge_bundle is module.load_terra_forge_bundle
     assert 'data-szl-vertical-forge="0.2.2"' in page
     assert 'href="/panels"' in page
     assert 'href="/build-receipt.json"' in page
     assert 'const EP="/api/live"' in page
     assert forge == {
         "schema": "szl.vertical-forge.deployment-source/v1",
-        "generator": "szl-vertical-forge/0.2.2",
+        "generator": "szl-vertical-forge/0.2.3",
         "source_repository": "szl-holdings/szl-vertical-forge",
-        "source_revision": "6a05a17004d245f929176e01e29b20a0ab0e8bb3",
+        "source_revision": "67a3cf2d6281035af237a6f97486069a345d496b",
         "source_pull_request": (
-            "https://github.com/szl-holdings/szl-vertical-forge/pull/3"
+            "https://github.com/szl-holdings/szl-vertical-forge/pull/14"
         ),
         "fleet_master_hash": (
-            "26f1316c4c15886ebbb80cd625bc92d741dce83f4ccff02ce04eaefa4c03e34f"
+            "8aa52d124c5cf883ed2cfe9f0ecf476f010a5afd5d51a3f5d5ad7332038ea901"
         ),
         "fleet_config_sha256": (
             "4b85cb67e7003cee620119835c91a92e954f3c863fc2faa505b07aeb4a1c2a46"
@@ -274,12 +285,37 @@ def test_terra_forge_0_2_2_remains_exact_and_chained() -> None:
             "c6ba3bd447dafd2bb8dff96d1762718ad392fff121cf04fd64057db5ddac378c"
         ),
         "artifact_sha256": (
-            "3970b3ac1065db1c531d141d3d0aa7ae1903546d6b10197b6f03794d72bca5c4"
+            "628b3e722af6a007903641ed822457b08547d761d89bd994bbbd225249c027bd"
         ),
         "chain_hash": (
-            "26f1316c4c15886ebbb80cd625bc92d741dce83f4ccff02ce04eaefa4c03e34f"
+            "3a92d21e4389e3c77db9b6681ad568954a53fa0e191c138b764c3b1f5ec077b8"
         ),
     }
+
+
+def test_terra_landing_never_derives_its_badge_from_http_status_alone() -> None:
+    """szl-vertical-forge#14: an HTTP 200 carrying UNAVAILABLE is not OBSERVED."""
+    page, _ = load_overlay().load_terra_forge_bundle()
+    assert "OBSERVED - HTTP" not in page
+    assert "pill.textContent='OBSERVED" not in page
+    assert "if(!response.ok)return {label:'UNAVAILABLE'" in page
+    assert "body.status==='UNAVAILABLE'" in page
+    assert "body.data.status==='UNAVAILABLE'||body.data.state==='UNAVAILABLE'||body.data.ok===false" in page
+    assert 'EXPECTED_SOURCE="https://szlholdings-a11oy.hf.space/api/a11oy/v1/vert/realestate/feed"' in page
+
+
+@pytest.mark.parametrize("field", ["master_hash", "chain_tip", "generator", "config_sha256"])
+def test_terra_forge_v4_header_and_tip_are_bound(tmp_path: Path, field: str) -> None:
+    module = load_overlay()
+    target = tmp_path / "terra"
+    shutil.copytree(TERRA_BUNDLE, target)
+    fleet_path = target / "fleet-receipt.json"
+    fleet = json.loads(fleet_path.read_text(encoding="utf-8"))
+    fleet[field] = "0" * 64 if field != "generator" else "szl-vertical-forge/9.9.9"
+    fleet_path.write_text(json.dumps(fleet), encoding="utf-8")
+    module.TERRA_FORGE_BUNDLE = target
+    with pytest.raises(RuntimeError, match="Terra fleet"):
+        module.load_terra_forge_bundle()
 
 
 def test_terra_forge_fails_closed_after_byte_tampering(
@@ -436,7 +472,8 @@ def test_canonical_workflows_still_use_exact_tested_source() -> None:
     manual = WORKFLOW.read_text(encoding="utf-8")
     sync = SYNC_WORKFLOW.read_text(encoding="utf-8")
     assert "workflow_dispatch:" in manual
-    assert "\n  push:" not in manual
+    # Automatic convergence is path-filtered to publisher inputs on main.
+    assert "\n  push:\n    branches: [main]\n    paths:" in manual
     assert "scripts/hf_publish_vertical_flagships_v4.py" in manual
     assert 'test "$GITHUB_REF" = refs/heads/main' in manual
     assert 'test "$(git rev-parse HEAD)" = "$(git rev-parse FETCH_HEAD)"' in manual

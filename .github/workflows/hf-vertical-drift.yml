@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: Apache-2.0
+name: HF Vertical Space Drift
+
+# Read-only drift detector for the vertical flagship Spaces. It compares what
+# each Space serves (Hub tree and config.json, live /api/build-info, and for
+# Lyte the qualified lyte-services main) with what main would publish, using
+# the same renderer comparison as the convergent publisher
+# (scripts/hf_vertical_convergence.py). It never writes to Hugging Face.
+#
+# One tracking issue (marked szl:vertical-drift-tracker) is opened or updated
+# while any target has drifted longer than DRIFT_ALERT_HOURS, and closed when
+# every target has converged, so a multi-day drift cannot stay silent again.
+on:
+  schedule:
+    - cron: "17 */2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: hf-vertical-drift
+  cancel-in-progress: false
+
+jobs:
+  drift:
+    name: Compare served vertical Spaces with main
+    if: ${{ github.repository == 'szl-holdings/a11oy' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      DRIFT_ALERT_HOURS: "6"
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout main with history for drift dating
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Install pinned Hub client used by the renderer import
+        run: python -m pip install --disable-pip-version-check --no-cache-dir 'huggingface_hub==1.31.0'
+
+      - name: Report drift and maintain the tracking issue
+        run: >-
+          python -I -B scripts/hf_vertical_convergence.py report
+          --threshold-hours "$DRIFT_ALERT_HOURS" --sync-issue
+
+      - name: Upload drift report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: hf-vertical-drift-report-${{ github.run_id }}-${{ github.run_attempt }}
+          path: hf-vertical-drift-report.json
+          if-no-files-found: warn
+          retention-days: 30

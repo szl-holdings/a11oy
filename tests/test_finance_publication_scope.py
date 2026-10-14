@@ -10,6 +10,7 @@ import pytest
 
 analytics = importlib.import_module("verticals.puriq-markets.runtime.analytics")
 transport = importlib.import_module("verticals.puriq-markets.runtime.transport")
+contract = importlib.import_module("verticals.puriq-markets.runtime.contract")
 REVISION = "1" * 40
 
 
@@ -21,10 +22,12 @@ def publisher(monkeypatch, tmp_path):
     monkeypatch.setenv("GITHUB_SHA", REVISION)
     monkeypatch.setattr(module, "_github_json", lambda *a, **k: {"sha":REVISION})
     client = transport.FinanceClient(environ={"SZL_SOURCE_REVISION":REVISION})
-    state = {"body":analytics.compute(client, "signals", "AAPL", "fixture"), "writes":[]}
+    state = {"body":analytics.compute(client, "signals", "AAPL", "fixture"), "writes":[],
+             "headers":{"Content-Type":"application/json", contract.HEADER:contract.header_value()}}
     class Response:
         status = 200
-        headers = {"Content-Type":"application/json"}
+        @property
+        def headers(self): return state["headers"]
         def __enter__(self): return self
         def __exit__(self,*a): pass
         def geturl(self): return state["url"]
@@ -35,6 +38,10 @@ def publisher(monkeypatch, tmp_path):
             state["url"] = request.full_url
             return Response()
     monkeypatch.setattr(module.urllib.request, "build_opener", lambda *a: Opener())
+    # The full pre-write sweep runs against a real canonical runtime in
+    # tests/test_finance_functional_gate.py; here only its verdict matters.
+    state["sweep"] = {"complete": True, "probes": []}
+    monkeypatch.setattr(module, "canonical_compatibility", lambda revision: state["sweep"])
     monkeypatch.chdir(tmp_path)
     return module, state
 
@@ -61,6 +68,39 @@ def test_preflight_rejects_tampered_or_misbound_backend(publisher, change):
     elif change == "origin": body["inputs"]["asset"]["origin"] = "coinbase"
     else: body["operation"] = "quote"
     with pytest.raises(RuntimeError): module.finance_preflight()
+
+
+def test_preflight_accepts_compatible_backend_at_another_revision_and_records_it(publisher):
+    module, state = publisher
+    other = transport.FinanceClient(environ={"SZL_GIT_SHA": "2" * 40})
+    state["body"] = analytics.compute(other, "signals", "AAPL", "fixture")
+    result = module.finance_preflight()
+    assert result["source_revision"] == REVISION
+    assert result["canonical_runtime_revision"] == "2" * 40
+    assert result["canonical_runtime_revision_role"] == "EVIDENCE_NOT_COMPATIBILITY_KEY"
+    assert result["canonical_contract"]["declared"] == contract.header_value()
+
+
+@pytest.mark.parametrize("declared,reason", [(None, "CANONICAL_CONTRACT_UNDECLARED"),
+    ("szl.finance.read-api/2", "CANONICAL_CONTRACT_INCOMPATIBLE"), ("garbage", "CANONICAL_CONTRACT_INVALID")])
+def test_preflight_refuses_incompatible_backend_contract(publisher, declared, reason):
+    module, state = publisher
+    state["headers"] = {"Content-Type": "application/json"}
+    if declared is not None:
+        state["headers"][contract.HEADER] = declared
+    with pytest.raises(RuntimeError, match=reason):
+        module.finance_preflight()
+
+
+def test_preflight_refuses_unreported_backend_revision(publisher):
+    module, state = publisher
+    # Self-consistent but unreported identity: a revision is required evidence.
+    body = state["body"]
+    body["source_revision"] = body["receipt"]["source_revision"] = "UNBOUND"
+    body["receipt"]["payload_sha256"] = transport.digest({k: v for k, v in body.items() if k != "receipt"})
+    body["receipt"]["receipt_sha256"] = transport.digest({k: v for k, v in body["receipt"].items() if k != "receipt_sha256"})
+    with pytest.raises(RuntimeError, match="not bound"):
+        module.finance_preflight()
 
 
 def test_preflight_refuses_moved_main_before_backend_request(publisher, monkeypatch):
@@ -100,3 +140,21 @@ def test_finance_filter_cannot_leak_sibling_targets(publisher,monkeypatch):
     renderer.main = run
     monkeypatch.setattr(module,"load_module",lambda *a:renderer)
     assert module.run_publisher("szl_flagship_v4",module.FLAGSHIP_IMPL,finance_only=True) == (0,None,("finance",))
+
+
+def test_incomplete_canonical_sweep_refuses_before_any_write(publisher, monkeypatch):
+    module, state = publisher
+    state["sweep"] = {"complete": False, "probes": [
+        {"label": "providers", "accepted": True},
+        {"label": "research-audit", "accepted": False, "response_error": "CANONICAL_CONTRACT_UNDECLARED"}]}
+    with pytest.raises(RuntimeError, match="research-audit:CANONICAL_CONTRACT_UNDECLARED"):
+        module.finance_preflight()
+    monkeypatch.setattr(module, "run_publisher", lambda *a, **k: pytest.fail("write attempted after failed sweep"))
+    assert module.publish_finance_only(SimpleNamespace(guard_report=lambda: {})) == 1
+    receipt = json.loads(module.FLAGSHIP_RECEIPT.read_text())
+    assert receipt["complete"] is False and "compatibility sweep failed" in receipt["detail"]
+
+
+def test_preflight_records_the_sweep_it_relied_on(publisher):
+    module, state = publisher
+    assert module.finance_preflight()["canonical_compatibility"] is state["sweep"]

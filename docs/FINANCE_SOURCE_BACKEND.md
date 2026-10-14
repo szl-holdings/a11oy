@@ -17,9 +17,14 @@ namespace; no caller input is used in module loading. Existing legacy market rou
 The existing flagship publisher's policy overlay adds only a thin finance read
 projection to the generated app. The immutable base renderer is unchanged.
 `SZLHOLDINGS/finance` remains the target. No new workflow writes Hugging Face.
-A projection response fails closed when its canonical backend reports a different
-source revision. Deploy and verify the canonical backend before publishing the
-finance projection from the same admitted source revision.
+A projection response fails closed when its canonical backend declares no
+supported read-API contract version, serves other analytics or signed-price
+component pins, or mixes runtime revisions inside one answer. The backend's
+revision is kept as evidence and is not compared with the projection's
+([READ_API_CONTRACT.md](../verticals/puriq-markets/READ_API_CONTRACT.md)).
+Deploy the canonical backend first: the finance publish preflight refuses to
+write until the running backend passes the projection's validators on every
+contract route.
 
 ## API
 

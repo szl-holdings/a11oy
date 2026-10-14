@@ -67,6 +67,16 @@ LEGACY_PUBLIC_FLAGSHIP_CONTRACT = (
 )
 LEGACY_FOLDED_CONTRACT = 'FOLDED_INTO_KILLINCHU = ("sentra", "vessels")'
 
+# A single-target publication whose bound source stopped being current main is
+# superseded, not failed: a newer main exists and its own convergence run owns
+# the target. The exit code is distinct so the workflow can end such a run
+# neutral; the receipt is still never complete.
+SUPERSEDED_EXIT_CODE = 75
+
+
+class SourceSuperseded(RuntimeError):
+    """The bound A11oy source is no longer the current main tip."""
+
 
 def _load_module_from_path(name: str, path: Path) -> ModuleType:
     spec = importlib.util.spec_from_file_location(name, path)
@@ -338,7 +348,7 @@ def finance_preflight() -> dict[str, Any]:
         "/repos/szl-holdings/a11oy/commits/main", token=_github_workflow_token()
     )
     if head.get("sha") != revision:
-        raise RuntimeError("Finance publisher source is no longer current main")
+        raise SourceSuperseded("Finance publisher source is no longer current main")
     request = urllib.request.Request(
         "https://szlholdings-a11oy.hf.space/api/a11oy/v1/finance/analytics/v2/signals/AAPL?origin=fixture",
         headers={"Accept": "application/json", "Accept-Encoding": "identity"})
@@ -351,6 +361,8 @@ def finance_preflight() -> dict[str, Any]:
             raise RuntimeError("canonical Finance analytics preflight failed")
         if response.headers.get("Content-Type", "").split(";", 1)[0].strip() != "application/json":
             raise RuntimeError("canonical Finance preflight is not JSON")
+        declared_contract = next((value for key, value in response.headers.items()
+                                  if key.lower() == "x-szl-finance-contract"), None)
         raw = response.read(160_001)
     if len(raw) > 160_000:
         raise RuntimeError("canonical Finance preflight response too large")
@@ -363,7 +375,15 @@ def finance_preflight() -> dict[str, Any]:
         return out
     body = json.loads(raw, object_pairs_hook=pairs)
     projection = load_module("finance_preflight_contract", HERE / "hf_finance_read_proxy.py")
-    if (not isinstance(body, dict) or body.get("source_revision") != revision or body.get("component") != projection.COMPONENT
+    # The running A11oy may be any revision that serves a contract this projection
+    # supports; its revision is recorded below as evidence, not compared with ours.
+    validators = projection.validation_namespace(revision)
+    contract_failure = validators["_finance_contract_error"]({projection.CONTRACT["header"]: declared_contract})
+    if contract_failure:
+        raise RuntimeError("canonical Finance contract check failed: " + contract_failure[0]["error"])
+    observed = body.get("source_revision") if isinstance(body, dict) else None
+    if (not isinstance(body, dict) or not isinstance(observed, str) or SHA40.fullmatch(observed) is None
+            or observed == "0" * 40 or body.get("component") != projection.COMPONENT
             or body.get("schema") != "szl.finance.analytics/v2" or body.get("ok") is not True
             or body.get("operation") != "signals" or body.get("state") != "COMPUTED"
             or body.get("truth_label") != "MODELED"
@@ -384,14 +404,41 @@ def finance_preflight() -> dict[str, Any]:
     receipt = dict(receipt)
     claimed = receipt.pop("receipt_sha256", None)
     if (claimed != digest(receipt) or receipt.get("payload_sha256") != digest({key:value for key,value in body.items() if key != "receipt"})
-            or receipt.get("source_revision") != revision or receipt.get("signed") is not False
+            or receipt.get("source_revision") != observed or receipt.get("signed") is not False
             or receipt.get("signing") != "UNSIGNED_HONEST" or receipt.get("authority") != "NONE"
             or receipt.get("persistence") != "CALLER_HELD"
             or receipt.get("component_revision") != projection.COMPONENT["revision"]
             or receipt.get("component_sha256") != projection.COMPONENT["engine_sha256"]):
         raise RuntimeError("canonical Finance computation receipt is invalid")
-    return {"source_revision": revision, "component": body["component"],
+    # One fixture route is not the projection. Before any write, every route the
+    # projection forwards must answer the running A11oy under a supported
+    # contract and pass this build's emitted validators, or nothing is written.
+    sweep = canonical_compatibility(revision)
+    if sweep.get("complete") is not True:
+        failed = [f'{row.get("label")}:{row.get("response_error") or row.get("failure_code") or row.get("failure_type")}'
+                  for row in sweep.get("probes", []) if row.get("accepted") is not True]
+        raise RuntimeError("canonical Finance compatibility sweep failed: " + ", ".join(failed))
+    return {"source_revision": revision, "canonical_runtime_revision": observed,
+            "canonical_runtime_revision_role": "EVIDENCE_NOT_COMPATIBILITY_KEY",
+            "canonical_contract": {"name": projection.CONTRACT["name"], "declared": declared_contract,
+                                   "supported_versions": list(projection.CONTRACT["supported_versions"])},
+            "component": body["component"], "canonical_compatibility": sweep,
             "fixture_preflight": True, "live_provider_verified": False}
+
+
+def canonical_compatibility(revision: str) -> dict[str, Any]:
+    gate = load_module("finance_canonical_compatibility", HERE / "hf_finance_functional_gate.py")
+    return gate.observe_canonical(revision)
+
+
+def _source_still_current(revision: str, receipt: dict[str, Any]) -> bool:
+    """Re-read main after a publication; a read error is recorded, never supersession."""
+    try:
+        head = _github_json("/repos/szl-holdings/a11oy/commits/main", token=_github_workflow_token())
+    except Exception as exc:
+        receipt["postflight_error"] = type(exc).__name__
+        return False
+    return head.get("sha") == revision
 
 
 def publish_finance_only(space_guard_module) -> int:
@@ -400,19 +447,31 @@ def publish_finance_only(space_guard_module) -> int:
         preflight = finance_preflight()
         code, error, admitted = run_publisher("szl_flagship_v4", FLAGSHIP_IMPL, finance_only=True)
         receipt = read_receipt(FLAGSHIP_RECEIPT) or {}
+        # The writer and its live verification can run for many minutes; the
+        # bound source must still be main tip afterwards, as for every target.
+        source_still_current = _source_still_current(os.environ.get("GITHUB_SHA", ""), receipt)
         receipt.update(publication_scope="finance", canonical_preflight=preflight,
             existing_space_guard=space_guard_module.guard_report(), generated_flagship_slugs=list(admitted or ()),
-            sibling_publications=0, secret_values_recorded=False, delete_operations=0)
-        receipt["complete"] = (receipt.get("complete") is True and code == 0 and admitted == ("finance",)
-            and len(receipt.get("rows", [])) == 1 and receipt["rows"][0].get("id") == "SZLHOLDINGS/finance")
+            sibling_publications=0, secret_values_recorded=False, delete_operations=0,
+            source_still_current=source_still_current)
+        published_and_verified = bool(receipt.get("complete") is True and code == 0 and error is None
+            and admitted == ("finance",) and len(receipt.get("rows", [])) == 1
+            and receipt["rows"][0].get("id") == "SZLHOLDINGS/finance")
+        receipt["complete"] = bool(published_and_verified and source_still_current)
+        if published_and_verified and source_still_current is False and "postflight_error" not in receipt:
+            receipt.update(state="SUPERSEDED", superseded=True)
         if error:
             receipt["entrypoint_error"] = error
     except Exception as exc:
         receipt = {"schema": "szl.hf-finance-publication/v1", "publication_scope": "finance",
                    "complete": False, "error": type(exc).__name__, "detail": str(exc),
                    "secret_values_recorded": False}
+        if isinstance(exc, SourceSuperseded):
+            receipt.update(state="SUPERSEDED", superseded=True, provider_write_attempted=False)
     FLAGSHIP_RECEIPT.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(receipt, indent=2, sort_keys=True))
+    if receipt.get("superseded") is True:
+        return SUPERSEDED_EXIT_CODE
     return 0 if receipt["complete"] else 1
 
 
@@ -430,7 +489,7 @@ def selected_generated_preflight(scope: str) -> str:
         "/repos/szl-holdings/a11oy/commits/main", token=_github_workflow_token()
     )
     if head.get("sha") != revision:
-        raise RuntimeError("selected publisher source is no longer current main")
+        raise SourceSuperseded("selected publisher source is no longer current main")
     return revision
 
 
@@ -445,6 +504,14 @@ class SentraPublicationError(RuntimeError):
     def __init__(self, message: str, http_status: int | None = None):
         super().__init__(message)
         self.http_status = http_status
+
+
+class SentraSourceSuperseded(SentraPublicationError):
+    """The admitted revision is no longer the protected main tip."""
+
+
+class SentraChecksPending(SentraPublicationError):
+    """A required exact-source check is absent or has not completed yet."""
 
 
 class _SentraNoRedirect(urllib.request.HTTPRedirectHandler):
@@ -486,8 +553,9 @@ def _sentra_source_admission() -> str:
     branch = _sentra_github_json("/repos/szl-holdings/a11oy/branches/main")
     protection = branch.get("protection") or {}
     policy = protection.get("required_status_checks") or {}
-    if (branch.get("commit", {}).get("sha") != revision or branch.get("protected") is not True
-            or protection.get("enabled") is not True):
+    if branch.get("commit", {}).get("sha") != revision:
+        raise SentraSourceSuperseded("Sentra source is not current protected main")
+    if branch.get("protected") is not True or protection.get("enabled") is not True:
         raise SentraPublicationError("Sentra source is not current protected main")
     checks = policy.get("checks")
     if not isinstance(checks, list) or not checks:
@@ -525,6 +593,9 @@ def _sentra_source_admission() -> str:
     if any(not rows or any(row.get("head_sha") != revision or row.get("status") != "completed"
                            or row.get("conclusion") != "success" for row in rows)
            for rows in observed.values()):
+        if any(not rows or any(row.get("status") != "completed" for row in rows)
+               for rows in observed.values()):
+            raise SentraChecksPending("Required exact-source checks are unresolved")
         raise SentraPublicationError("Required exact-source checks are unresolved")
     return revision
 
@@ -626,8 +697,12 @@ def publish_sentra_existing() -> int:
         response = getattr(exc, "response", None)
         receipt["http_status"] = (getattr(exc, "http_status", None)
                                   or getattr(response, "status_code", None) or getattr(exc, "code", None))
+        if isinstance(exc, SentraSourceSuperseded):
+            receipt.update(state="SUPERSEDED", superseded=True)
     FLAGSHIP_RECEIPT.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(receipt, sort_keys=True))
+    if receipt.get("superseded") is True:
+        return SUPERSEDED_EXIT_CODE
     return 0 if receipt["complete"] else 1
 
 
@@ -671,14 +746,20 @@ def publish_selected_generated(scope: str, space_guard_module) -> int:
             secret_values_recorded=False,
             source_still_current=source_still_current,
         )
-        receipt["complete"] = bool(
+        published_and_verified = bool(
             receipt.get("complete") is True
             and code == 0
             and error is None
             and admitted == (scope,)
             and verified_row
-            and source_still_current
         )
+        receipt["complete"] = bool(published_and_verified and source_still_current)
+        # Main moved while this run published and live-verified its exact
+        # source. The newer main's own run owns the target; this one is neither
+        # complete nor a failure. A postflight read error is not supersession.
+        if (published_and_verified and source_still_current is False
+                and "postflight_error" not in receipt):
+            receipt.update(state="SUPERSEDED", superseded=True)
         if error:
             receipt["entrypoint_error"] = error
     except Exception as exc:
@@ -691,10 +772,14 @@ def publish_selected_generated(scope: str, space_guard_module) -> int:
             "secret_values_recorded": False,
             "delete_operations": 0,
         }
+        if isinstance(exc, SourceSuperseded):
+            receipt.update(state="SUPERSEDED", superseded=True, provider_write_attempted=False)
     FLAGSHIP_RECEIPT.write_text(
         json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
     print(json.dumps(receipt, indent=2, sort_keys=True))
+    if receipt.get("superseded") is True:
+        return SUPERSEDED_EXIT_CODE
     return 0 if receipt["complete"] else 1
 
 
@@ -715,6 +800,30 @@ def lyte_receipt_is_complete(receipt: dict[str, Any]) -> bool:
     )
 
 
+LYTE_FIRST_WRITE_PHASE = "publish-files"
+LYTE_VERIFIED_PHASE = "verify-existing"
+
+
+def lyte_supersession_boundary(lyte: dict[str, Any]) -> str:
+    """Where a superseded Lyte release stopped, from its own release journal."""
+    journal = lyte.get("release_journal")
+    if not isinstance(journal, dict):
+        # The journal is created before any provider phase; without one no
+        # phase, and so no write, ran.
+        return "BEFORE_PROVIDER_WRITE"
+    phases, completed = journal.get("required_phases"), journal.get("completed_phases")
+    if (not isinstance(phases, list) or not isinstance(completed, list)
+            or LYTE_FIRST_WRITE_PHASE not in phases or LYTE_VERIFIED_PHASE not in phases
+            or completed != phases[:len(completed)]):
+        return "UNKNOWN"
+    if LYTE_VERIFIED_PHASE in completed:
+        return "AFTER_LIVE_VERIFICATION"
+    # The failing phase is the first one not completed.
+    if len(completed) < phases.index(LYTE_FIRST_WRITE_PHASE):
+        return "BEFORE_PROVIDER_WRITE"
+    return "AFTER_PROVIDER_WRITE"
+
+
 def publish_lyte_only(space_guard_module) -> int:
     """Repair the source-owned product through the existing writer alone."""
     code, error, _ = run_publisher("szl_lyte_enterprise", LYTE_IMPL)
@@ -730,8 +839,23 @@ def publish_lyte_only(space_guard_module) -> int:
     }
     if error:
         receipt["entrypoint_error"] = error
+    # The Lyte release transaction classifies a moved producer or publisher
+    # main as SUPERSEDED (never complete). That is neutral only when the
+    # release journal proves no provider write began, or that the published
+    # release was live-verified before main moved. Supersession between the
+    # file publication and live verification leaves a Space that is written
+    # but not bound, restarted or verified: that is a failed release.
+    if not receipt["complete"] and lyte.get("state") == "SUPERSEDED" and error is None:
+        boundary = lyte_supersession_boundary(lyte)
+        receipt["supersession_boundary"] = boundary
+        if boundary in ("BEFORE_PROVIDER_WRITE", "AFTER_LIVE_VERIFICATION"):
+            receipt.update(state="SUPERSEDED", superseded=True)
+        else:
+            receipt["state"] = "SUPERSEDED_AFTER_UNVERIFIED_WRITE"
     FLAGSHIP_RECEIPT.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(receipt, indent=2, sort_keys=True))
+    if receipt.get("superseded") is True:
+        return SUPERSEDED_EXIT_CODE
     return 0 if receipt["complete"] else 1
 
 

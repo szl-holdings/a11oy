@@ -111,7 +111,11 @@ def _szl_doc(rel: str) -> Path:
     return local
 
 
-_IMAGE_STATIC_DIR = Path("/app/static")
+# The image installs console/ at static/ beside this module (Dockerfile
+# `COPY console/ ./static/`). Resolving it from the module's own location, not
+# an absolute /app, lets tests boot the projected image tree and see exactly
+# what the Space serves; inside the image both spellings are /app/static.
+_IMAGE_STATIC_DIR = Path(__file__).resolve().parent / "static"
 _LOCAL_STATIC_DIR = Path(__file__).resolve().parent / "console"
 STATIC_DIR = _IMAGE_STATIC_DIR if (_IMAGE_STATIC_DIR / "index.html").is_file() else _LOCAL_STATIC_DIR
 ASSETS_DIR = STATIC_DIR / "assets"
@@ -5699,6 +5703,17 @@ async def readyz() -> JSONResponse:
                               "error_class": type(_sb_e).__name__}
     if _storage_block is not None:
         service_ready = False
+    # A11OY_STATE_STORE=v2: a container that is handing over, released, fenced
+    # or blocked refuses writes, so it is not ready either.
+    _state_fence = None
+    try:
+        import a11oy_state_store as _state_store_ready
+        if _state_store_ready.enabled() and not _state_store_ready.writable():
+            _state_fence = _state_store_ready.status()
+    except Exception as _ss_ready_e:  # unreadable state is not ready
+        _state_fence = {"role": "STATE_STORE_UNREADABLE", "error_class": type(_ss_ready_e).__name__}
+    if _state_fence is not None:
+        service_ready = False
     status = (
         "ready" if service_ready and capability_ready
         else "ready_degraded" if service_ready
@@ -5714,11 +5729,26 @@ async def readyz() -> JSONResponse:
         body["storage"] = _storage_block
         body["blocked_reason"] = _storage_block.get("reason")
         headers = {"Retry-After": str(int(_storage_block.get("retry_after_seconds") or 60))}
+    if _state_fence is not None:
+        body["state_store"] = {key: _state_fence.get(key) for key in ("mode", "role", "writable")}
+        headers = headers or {"Retry-After": "30"}
     return JSONResponse(
         body,
         status_code=200 if service_ready else 503,
         headers=headers,
     )
+
+
+# ---------------------------------------------------------------------------
+# a11oy state store (ADR-0001): GET /api/a11oy/v1/storage/status plus the write
+# fence (mutating requests answer 503 + Retry-After while this container does
+# not hold the storage lease). Inert unless A11OY_STATE_STORE=v2.
+# ---------------------------------------------------------------------------
+try:
+    import a11oy_state_store as _a11oy_state_store
+    _a11oy_state_store.register(app)
+except Exception as _a11oy_state_store_e:  # pragma: no cover - never take the app down
+    print(f"[a11oy] state store routes NOT registered: {_a11oy_state_store_e!r}", file=sys.stderr)
 
 
 # ---------------------------------------------------------------------------
@@ -9227,7 +9257,11 @@ except Exception as _sc_e:  # pragma: no cover - additive, defensive
 #   GET  /api/a11oy/v1/rag/query?q=...   — governed RAG answer (also descriptor on bare GET)
 #        &mode=lexical                   — model-free cited reference (no embedder,
 #                                          HyDE, receipt or Router dispatch; fails
-#                                          closed if the engine lacks the switch)
+#                                          closed if the engine lacks the switch).
+#                                          Requires a gdw_auth bearer with scope
+#                                          rag-reference:read; one admitted tenant
+#                                          and corpus come from configuration
+#                                          (a11oy_rag_reference_auth), else 503.
 #   POST /api/a11oy/v1/rag/estate/query {q|question, k?, repo?} — estate answer
 #   POST /api/a11oy/v1/rag/query remains owned by szl_governed_rag.
 #   GET  /api/a11oy/v1/rag/status        — index build state + corpus manifest (governed)
@@ -9244,6 +9278,10 @@ try:
 
     _RAG_LEXICAL_CONTRACT = "szl.a11oy.org_rag.lexical_reference/v1"
     _RAG_LEXICAL_K_MAX = 6
+    try:  # gdw_auth bearer + controller corpus scope for mode=lexical
+        import a11oy_rag_reference_auth as _rag_reference_auth
+    except Exception:  # pragma: no cover - lexical mode then fails closed (503)
+        _rag_reference_auth = None
 
     def _rag_engine_file_identity(engine):
         """Name the imported engine and digest its module file once at mount.
@@ -9370,9 +9408,10 @@ try:
                               "relevance floor => i_dont_know (Self-RAG; never fabricates)."),
                 "modes": {
                     "default": "existing hybrid read; may reuse an already-loaded embedder",
-                    "lexical": ("mode=lexical, 1<=k<=6: model-free cited reference with "
-                                "generation, chunk and excerpt digests; UNAVAILABLE "
-                                "rather than a hybrid fallback"),
+                    "lexical": ("mode=lexical, 1<=k<=6, bearer credential with scope "
+                                "rag-reference:read: model-free cited reference over "
+                                "the admitted corpus with generation, chunk and excerpt "
+                                "digests; UNAVAILABLE rather than a hybrid fallback"),
                 },
                 "corpus": _rag_engine.corpus_manifest(),
             }
@@ -9506,7 +9545,8 @@ try:
         return payload, "REAL", citations
 
     _RAG_LEXICAL_NOT_CLAIMED = [
-        "authenticated principal or tenant scope",
+        "tenant storage isolation (one shared store; the default read is unauthenticated)",
+        "credential expiry or session lifecycle",
         "source rights, admission or withdrawal enforcement",
         "factual support, entailment or calibrated confidence",
         "deployment parity with reviewed source",
@@ -9665,32 +9705,73 @@ try:
         return _RAGJSON(gov_envelope(payload, status=status, citations=citations),
                         status_code=503 if unavailable else 200, headers=headers)
 
-    def _rag_get(q, k, repo, mode):
+    def _rag_reference_auth_state():
+        if _rag_reference_auth is None:
+            return {"authentication": "UNCONFIGURED", "scheme": "bearer",
+                    "reason_code": "REFERENCE_AUTH_MODULE_UNAVAILABLE"}
+        return _rag_reference_auth.authentication_state()
+
+    def _rag_reference_authorise(authorization, repo):
+        """Authenticate mode=lexical before any engine, index or store access.
+        Identity and corpus scope come from configuration, never the request."""
+        if _rag_reference_auth is None:
+            return None, _RAGJSON({"state": "unavailable", "mode": "lexical",
+                                   "reason_code": "REFERENCE_AUTH_MODULE_UNAVAILABLE",
+                                   "authentication": "UNCONFIGURED",
+                                   "result_state": "UNAVAILABLE",
+                                   "answer": None, "citations": []}, status_code=503)
+        auth, refusal = _rag_reference_auth.authorise(authorization, repo)
+        if refusal is not None:
+            return None, _RAGJSON(refusal.body, status_code=refusal.status_code,
+                                  headers=refusal.headers)
+        return auth, None
+
+    def _rag_get(q, k, repo, mode, authorization=None):
         """Shared GET body. The default mode is unchanged; ``mode=lexical`` is the
         explicit model-free reference and never falls back to the default."""
         if mode not in ("", "lexical"):
             return _RAGJSON({"error": "unsupported estate RAG read mode",
                              "reason_code": "RAG_MODE_UNSUPPORTED",
                              "supported_modes": ["lexical"]}, status_code=400)
-        if mode == "lexical" and (q or "").strip():
-            if k > _RAG_LEXICAL_K_MAX:
-                return _RAGJSON({"error": "lexical reference k out of bounds",
-                                 "reason_code": "LEXICAL_REFERENCE_K_OUT_OF_BOUNDS",
-                                 "limits": {"k_min": 1, "k_max": _RAG_LEXICAL_K_MAX}},
-                                status_code=400)
-            payload, st, cites = _rag_lexical_reference(q.strip(), k, repo or None)
-        else:
+        if mode == "lexical":
+            response = _rag_lexical_get(q, k, repo, authorization)
+            # Authenticated content: no shared or browser cache may replay it.
+            response.headers["Cache-Control"] = "no-store"
+            response.headers["Vary"] = "Authorization"
+            return response
+        payload, st, cites = _rag_answer(q, k=k, repo=(repo or None))
+        return _rag_response(payload, st, cites)
+
+    def _rag_lexical_get(q, k, repo, authorization):
+        auth, refused = _rag_reference_authorise(authorization, repo)
+        if refused is not None:
+            return refused
+        if not (q or "").strip():
             payload, st, cites = _rag_answer(q, k=k, repo=(repo or None))
+            return _rag_response(payload, st, cites)
+        if k > _RAG_LEXICAL_K_MAX:
+            return _RAGJSON({"error": "lexical reference k out of bounds",
+                             "reason_code": "LEXICAL_REFERENCE_K_OUT_OF_BOUNDS",
+                             "limits": {"k_min": 1, "k_max": _RAG_LEXICAL_K_MAX}},
+                            status_code=400)
+        payload, st, cites = _rag_lexical_reference(q.strip(), k, auth.repo)
+        if st == "REAL" and not _rag_reference_auth.release_within_scope(auth, payload):
+            payload, st, cites = _rag_lexical_unavailable(
+                q.strip(), "LEXICAL_REFERENCE_SCOPE_VIOLATION",
+                "recalled evidence lies outside the admitted corpus scope",
+                integrity_state="FAILED_CLOSED")
+        payload.update(_rag_reference_auth.reference_fields(auth))
         return _rag_response(payload, st, cites)
 
     @app.get("/api/a11oy/v1/rag/query")
     async def _rag_query_get(
+        request: _RAGRequest,
         q: str = _RAGQuery(default="", max_length=1024),
         k: int = _RAGQuery(default=6, ge=1, le=20),
         repo: str = _RAGQuery(default="", max_length=256),
         mode: str = _RAGQuery(default="", max_length=16),
     ):
-        return _rag_get(q, k, repo, mode)
+        return _rag_get(q, k, repo, mode, request.headers.get("authorization"))
 
     @app.post("/api/a11oy/v1/rag/estate/query")
     async def _rag_query_post(request: _RAGRequest):
@@ -9714,12 +9795,13 @@ try:
 
     @app.get("/org/rag")
     async def _rag_query_alias(
+        request: _RAGRequest,
         q: str = _RAGQuery(default="", max_length=1024),
         k: int = _RAGQuery(default=6, ge=1, le=20),
         repo: str = _RAGQuery(default="", max_length=256),
         mode: str = _RAGQuery(default="", max_length=16),
     ):
-        return _rag_get(q, k, repo, mode)
+        return _rag_get(q, k, repo, mode, request.headers.get("authorization"))
 
     @app.get("/api/a11oy/v1/rag/status")
     async def _rag_status_get():
@@ -9737,6 +9819,7 @@ try:
              "query_endpoint": "/api/a11oy/v1/rag/query",
              "query_method": "GET",
              "lexical_reference_query": "/api/a11oy/v1/rag/query?mode=lexical",
+             "lexical_reference_auth": _rag_reference_auth_state(),
              "engine": _rag_engine_identity(),
              "receipt_endpoint": "/api/a11oy/v1/rag/estate/query",
              "receipt_method": "POST",
@@ -15818,7 +15901,9 @@ except Exception as _whd_e:
 # 6-receipt loop primitives (szl_agentic_loop) and emitting a signed, re-
 # verifiable receipt via a11oy's REAL in-image signer (_a11oy_sign_receipt) +
 # the loop's verifier (_a11oy_loop_verify). CODE mode actually RUNS code in a
-# REAL governed sandbox (restricted subprocess: rlimits, no network, timeout).
+# restricted subprocess (a11oy_code_engine._sandbox_exec): mandatory rlimits and an
+# attested per-run user + network namespace, fail closed, wall-clock timeout; no
+# seccomp, filesystem or container isolation.
 # Multi-model router = C20 softmax order-stability + W7-5 PAC-Bayes envelope;
 # confidence = W5-3/W7-4 conformal (never 100%); consensus = C10-C12. Roster is
 # OPEN-WEIGHT ONLY (closed API models are NEVER presented as baked-in) and DEFERS
@@ -15842,16 +15927,13 @@ try:
 except Exception:
     pass
 try:
-    try:  # substrate-finish repoint: prefer shared pkg, fall back to vendored copy
-        from szl_substrate import a11oy_code_engine as _a11oy_code  # single source of truth
-        import inspect as _code_inspect
-        # SECURITY: only a copy that carries the deny-by-default allow_exec
-        # chokepoint may serve /v1/code/*; an older shared copy would run the
-        # sandbox for any caller. Otherwise use the vendored copy.
-        if "allow_exec" not in _code_inspect.signature(_a11oy_code.governed_turn).parameters:
-            raise ImportError("szl_substrate a11oy_code_engine lacks allow_exec")
-    except Exception:
-        import a11oy_code_engine as _a11oy_code
+    # SECURITY: /v1/code/* always runs the vendored, reviewed engine (byte-locked
+    # with killinchu by the shared-file drift guard) -- the same module the
+    # governed kernel and shell_exec import. An installed szl_substrate copy is
+    # never preferred: it can carry the allow_exec chokepoint yet lack the
+    # attested user + network namespace, so selecting it by signature would
+    # silently drop isolation.
+    import a11oy_code_engine as _a11oy_code
     import sys as _code_sys
     _code_verify = _a11oy_loop_verify if "_a11oy_loop_verify" in dir() else None
     _code_status = _a11oy_code.register(

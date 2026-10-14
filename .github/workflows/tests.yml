@@ -48,6 +48,9 @@ jobs:
           tests/test_agent_synthesis_status.py
           tests/test_nexus_bind.py
           tests/test_nexus_readonly_evidence.py
+          tests/test_code_engine_isolation.py
+          tests/test_code_engine_mandatory_limits.py
+          tests/test_sandbox_fail_closed_followups.py
 
   code-runloop-admission:
     name: Code run-loop step identity and result restore
@@ -242,6 +245,9 @@ jobs:
           tests/test_gdw_runtime_degraded_boot.py
           tests/test_sqlite_orphan_repair.py
           tests/test_sqlite_logical_fingerprint.py
+          tests/test_state_store_handover.py
+          tests/test_state_store_restore.py
+          tests/test_state_store_wiring.py
           tests/test_gdw_durable_runtime.py
           tests/test_gdw_durable_artifacts.py
           tests/test_gdw_durable_storage.py
@@ -399,9 +405,14 @@ jobs:
         # PEM that differs from its own fingerprint or from /cosign.pub, or if the
         # assurance matrix's /verify and signing claims drift from the served
         # /verify page and the /govern/infer receipt shape.
+        # The homepage image-closure suite boots serve.py inside the /app tree
+        # projected from the Dockerfile COPY set and requires every same-origin
+        # subresource of the rendered front door to be an installed file, so a
+        # source-only path (the a11oy-homepage.css 404) can no longer pass CI.
         run: >-
           pytest
           tests/test_demo_critical_routes.py
+          tests/test_homepage_image_asset_closure.py
           tests/test_anatomy_read_boundary.py
           tests/test_anatomy_seed_read_contract.py
           tests/test_anatomy_v6_page_contract.py

@@ -14,7 +14,7 @@ def test_registration_is_idempotent_and_openapi_exposes_only_declared_operations
     routes.register(app)
     assert len(app.router.routes) == count
     paths = {p: v for p, v in app.openapi()["paths"].items() if p.startswith(routes.PREFIX + "/")}
-    expected = {"/providers": {"get"}, "/overview": {"get"}, "/observations/{source}": {"get"},
+    expected = {"/contract": {"get"}, "/providers": {"get"}, "/overview": {"get"}, "/observations/{source}": {"get"},
                 "/analytics/v2/signals/{symbol_name}": {"get"},
                 "/analytics/v2/quote/{symbol_name}": {"get"},
                 "/analytics/v2/portfolio": {"post"}, "/analytics/v2/receipts": {"get"},

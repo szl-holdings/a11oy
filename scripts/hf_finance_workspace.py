@@ -44,7 +44,7 @@ async function readJson(path,signal){
  const raw=new Uint8Array(bytes);let at=0;for(const part of chunks){raw.set(part,at);at+=part.length;}
  return {status:response.status,body:JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(raw))};
 }
-function identity(body,schema){return body&&body.schema===schema&&body.source_revision===revision&&body.execution_enabled===false;}
+function identity(body,schema){return body&&body.schema===schema&&typeof body.source_revision==='string'&&sha.test(body.source_revision)&&body.source_revision!=='0'.repeat(40)&&body.execution_enabled===false;}
 function form(){
  invalidate();const source=$('fin-source').value,spec=specs.get(source);$('fin-fields').replaceChildren();
  $('fin-observe').disabled=!spec||privateIds.has(source)||spec.private!==false;
@@ -62,7 +62,7 @@ async function registry(){
   if(witness.status!==200||value.deployment_source!=='szl-holdings/a11oy'||!sha.test(value.source_revision)||value.source_revision==='0'.repeat(40))throw Error('INVALID_SOURCE_WITNESS');
   const result=await readJson('/api/finance/providers',controller.signal);
   if(generation!==registryEpoch)return;
-  revision=value.source_revision;const body=result.body;
+  const body=result.body;revision=body&&typeof body.source_revision==='string'?body.source_revision:null;
   if(result.status!==200||!identity(body,'szl.finance.providers/v1')||body.read_only!==true||body.canonical_repository!=='szl-holdings/a11oy'||!Array.isArray(body.sources)||body.sources.length!==Object.keys(defaults).length)throw Error('INVALID_PROVIDER_CONTRACT');
   const next=new Map();
   for(const row of body.sources){
@@ -103,7 +103,7 @@ async function observe(event){
   const result=await readJson('/api/finance/observations/'+source+(params.size?'?'+params:''),controller.signal);if(generation!==queryEpoch)return;const body=result.body;
   if(!identity(body,'szl.finance.observation/v1')||body.source!==source)throw Error('INVALID_OBSERVATION');
   if(result.status!==200||body.ok!==true||!['SNAPSHOT','CACHED'].includes(body.state)){showState('UNAVAILABLE / '+(code.test(body.error||'')?body.error:'NO_CURRENT_OBSERVATION'));return;}
-  if(!body.data||typeof body.data!=='object'||Array.isArray(body.data)||body.truth_label!=='REPORTED'||!body.provenance||body.provenance.signed!==false||!digest.test(body.provenance.observation_id||'')||body.provenance.retrieved_at!==body.retrieved_at||body.provenance.runtime_reported_source_revision!==revision)throw Error('INVALID_OBSERVATION');
+  if(!body.data||typeof body.data!=='object'||Array.isArray(body.data)||body.truth_label!=='REPORTED'||!body.provenance||body.provenance.signed!==false||!digest.test(body.provenance.observation_id||'')||body.provenance.retrieved_at!==body.retrieved_at||body.provenance.runtime_reported_source_revision!==body.source_revision)throw Error('INVALID_OBSERVATION');
   if(Array.isArray(body.data.items)&&body.data.items.some(row=>!row||typeof row!=='object'||Array.isArray(row)))throw Error('INVALID_RECORDS');
   table(body.data);chart(source,body.data);receipt=body;$('fin-export').disabled=false;$('fin-detail').textContent=JSON.stringify(body,null,2).slice(0,250000);showState(body.state+' / REPORTED / retrieved '+body.retrieved_at+' — not current-price assurance');
  }catch(error){if(generation===queryEpoch){clearResult();showState('UNAVAILABLE — request failed or response was rejected');}}
@@ -119,7 +119,7 @@ window.addEventListener('pagehide',invalidate);registry();
 HTML = r'''
 <section id="fin-desk" class="finance-desk" data-szl-finance-workspace="1" aria-labelledby="fin-title">
  <div class="panel fin-head"><div><div class="mono">PURIQ / SOURCE WORKBENCH</div><h2 id="fin-title">Inspect the evidence before the thesis.</h2></div><button id="fin-refresh" type="button">Refresh source status</button></div>
- <div class="panel"><p id="fin-registry-state" class="fin-state" role="status">NOT PROBED</p><p class="fin-note">Configuration is not connectivity. Status describes the last request for an adapter, not every market or instrument. Source revision: <span id="fin-revision">UNAVAILABLE</span>.</p><details><summary>Inspect the 16-source access register</summary><div class="fin-scroll" tabindex="0" role="region" aria-label="Provider status table"><table><caption>Canonical market-data adapters. Owner-only sources are not exposed by this public Space.</caption><thead><tr><th scope="col">Source</th><th scope="col">Last-request state</th><th scope="col">Access</th></tr></thead><tbody id="fin-provider-body"></tbody></table></div></details></div>
+ <div class="panel"><p id="fin-registry-state" class="fin-state" role="status">NOT PROBED</p><p class="fin-note">Configuration is not connectivity. Status describes the last request for an adapter, not every market or instrument. Canonical runtime revision (reported evidence, not a compatibility key): <span id="fin-revision">UNAVAILABLE</span>.</p><details><summary>Inspect the 16-source access register</summary><div class="fin-scroll" tabindex="0" role="region" aria-label="Provider status table"><table><caption>Canonical market-data adapters. Owner-only sources are not exposed by this public Space.</caption><thead><tr><th scope="col">Source</th><th scope="col">Last-request state</th><th scope="col">Access</th></tr></thead><tbody id="fin-provider-body"></tbody></table></div></details></div>
  <div class="fin-grid"><section class="panel"><h3>One bounded observation</h3><form id="fin-form"><label for="fin-source">Source</label><select id="fin-source" name="source" disabled></select><p id="fin-operation" class="fin-note">Waiting for the canonical source contract.</p><div id="fin-fields" class="fin-fields"></div><div class="fin-actions"><button id="fin-observe" type="submit" disabled>Read public source</button><button id="fin-export" type="button" disabled>Export observation</button></div></form><p class="fin-note">Public observations only. No account, wallet, order, credential entry, model inference, or trading authorization. Polymarket and Kalshi contract equivalence is not established. Filings retain period and filing-date context.</p></section>
  <section class="panel fin-instrument"><h3>Source instrument</h3><p id="fin-result-state" class="fin-state" role="status">UNAVAILABLE</p><div id="fin-chart"></div><p id="fin-chart-note" class="fin-note">No chart observation.</p></section></div>
  <section class="panel"><h3>Returned records</h3><div id="fin-result-table" class="fin-scroll" tabindex="0" role="region" aria-label="Returned source records"></div><details><summary>Source envelope and provenance</summary><p class="fin-note">Digests establish internal consistency, not signatures, investment performance, or source authenticity. Display is limited to 250,000 characters; export preserves the accepted public response.</p><pre id="fin-detail" class="fin-provenance">No accepted observation.</pre></details></section>

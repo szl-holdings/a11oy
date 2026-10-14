@@ -17,7 +17,13 @@ import urllib.request
 
 ORIGIN = "https://szlholdings-finance.hf.space"
 PREFIX = "/api/finance/"
+CANONICAL_ORIGIN = "https://szlholdings-a11oy.hf.space"
+CANONICAL_PREFIX = "/api/a11oy/v1/finance/"
 MAX_BYTES = 4_000_000
+# Caller-supplied SAMPLE records: deterministic and provider-free.
+RESEARCH_SAMPLE = {"as_of": "2024-12-31", "records": [
+    {"entity": "A", "period": 2023, "value": 0, "state": "observed", "available_at": "2024-01-01"},
+    {"entity": "B", "period": 2023, "value": 0, "state": "suppressed", "available_at": "2024-01-01"}]}
 
 
 def _projection():
@@ -33,9 +39,9 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def read(path, content=None):
+def _read(origin, path, content):
     """One size-bounded public request, no environment proxies or redirects."""
-    request = urllib.request.Request(ORIGIN + path,
+    request = urllib.request.Request(origin + path,
         data=None if content is None else json.dumps(content, allow_nan=False).encode(),
         headers={"Accept": "application/json", "Accept-Encoding": "identity",
                  "Content-Type": "application/json", "Cache-Control": "no-cache",
@@ -52,25 +58,40 @@ def read(path, content=None):
         raw = response.read(MAX_BYTES + 1)
         if len(raw) > MAX_BYTES:
             raise ValueError("RESPONSE_TOO_LARGE")
-        return response.status, raw
+        return response.status, raw, {key.lower(): value for key, value in response.headers.items()}
 
 
-def observe_finance(revision, *, request=read):
-    if not isinstance(revision, str) or re.fullmatch(r"[0-9a-f]{40}", revision) is None or revision == "0" * 40:
-        raise ValueError("Finance functional gate requires an exact source revision")
-    validators = _projection().validation_namespace(revision)
+def read(path, content=None):
+    status, raw, _ = _read(ORIGIN, path, content)
+    return status, raw
+
+
+def read_canonical(path, content=None):
+    """The same bounded request against canonical A11oy; headers carry the contract."""
+    return _read(CANONICAL_ORIGIN, path, content)
+
+
+def _prober(validators, request, prefix, *, canonical):
     rows = []
 
-    def probe(label, kind, *, content=None, query=(), operation=None, check=None, path=None):
-        target = path or PREFIX + kind.replace("analytics/v2/", "v2/", 1)
+    def probe(label, kind, *, content=None, query=(), operation=None, check=None, path=None, validate=None):
+        target = path or prefix + (kind if canonical else kind.replace("analytics/v2/", "v2/", 1))
         if query:
             from urllib.parse import urlencode
             target += "?" + urlencode(query)
         row = {"label": label, "path": target, "method": "GET" if content is None else "POST", "accepted": False}
         body = None
         try:
-            status, raw = request(target, content)
+            reply = request(target, content)
+            status, raw = reply[0], reply[1]
             row.update(http_status=status, response_sha256=hashlib.sha256(raw).hexdigest(), response_bytes=len(raw))
+            headers = reply[2] if canonical else {}
+            if canonical:
+                # The projection refuses any canonical answer without a supported contract.
+                failure = validators["_finance_contract_error"](headers)
+                if failure:
+                    row["response_error"] = failure[0]["error"]
+                    raise ValueError("CONTRACT_NOT_SUPPORTED")
             body = validators["_finance_json"](raw)
             if not isinstance(body, dict):
                 raise ValueError("NON_OBJECT_RESPONSE")
@@ -88,7 +109,9 @@ def observe_finance(revision, *, request=read):
                         row["upstream_media_type"] = media
                     if isinstance(host, str) and len(host) <= 253 and re.fullmatch(r"[a-z0-9.-]+", host):
                         row["upstream_redirect_host"] = host
-            if kind.startswith("signed-prices/"):
+            if validate is not None:
+                validate(status, body, headers)
+            elif kind.startswith("signed-prices/"):
                 if status != 200:
                     raise ValueError("SIGNED_PRICE_UNAVAILABLE")
                 validators["_finance_check_signed"](body, kind)
@@ -103,22 +126,20 @@ def observe_finance(revision, *, request=read):
             row["accepted"] = True
             row["source_revision"] = body.get("source_revision")
         except Exception as exc:
-            # No exception messages, URLs or arbitrary upstream response bodies.
+            # No exception messages, URLs or arbitrary upstream response bodies;
+            # only this module's and the validators' fixed reason codes.
             row["failure_type"] = type(exc).__name__
+            if re.fullmatch(r"[A-Z][A-Z0-9_]{0,95}", str(exc)):
+                row["failure_code"] = str(exc)
         rows.append(row)
         return body if row["accepted"] else None
 
-    probe("source-binding", "build", path="/api/build-info",
-          check=lambda status, body: status == 200 and body.get("schema") == "szl.build-info/v1"
-              and body.get("source_repository") == "szl-holdings/a11oy"
-              and body.get("source_revision") == revision and body.get("hf_repository") == "SZLHOLDINGS/finance")
-    probe("version", "version", path="/version",
-          check=lambda status, body: status == 200 and body.get("schema") == "szl.finance.version/v1"
-              and body.get("version") == revision and body.get("source_revision") == revision
-              and body.get("source_repository") == "szl-holdings/a11oy"
-              and body.get("hf_repository") == "SZLHOLDINGS/finance"
-              and "model_revision" in body and body["model_revision"] is None
-              and body.get("execution_enabled") is False)
+    return probe, rows
+
+
+def _data_probes(probe, rows):
+    """Routes both surfaces serve: one list, so the pre-write sweep and the
+    post-write gate exercise the same answers through the same validators."""
     probe("providers", "providers", check=lambda status, body: len(body.get("sources", [])) == 16)
     fixture = probe("synthetic-signals", "analytics/v2/signals/AAPL", operation="signals", query=(("origin", "fixture"),))
     probe("synthetic-quote", "analytics/v2/quote/AAPL", operation="quote", query=(("origin", "fixture"),))
@@ -140,14 +161,34 @@ def observe_finance(revision, *, request=read):
     else:
         rows.extend({"label": label, "accepted": False, "failure_type": "FixtureUnavailable"}
                     for label in ("valid-receipt", "tampered-receipt"))
-    probe("private-source-denied", "observations/fred-series", query=(("series_id", "GDP"),),
-          check=lambda status, body: status == 403 and body.get("error") == "USE_PRIVATE_CANONICAL_SOURCE_ENDPOINT"
-              and body.get("execution_enabled") is False and "data" not in body)
     live = probe("coinbase-signals", "analytics/v2/signals/BTC-USD", operation="signals")
     signed = probe("signed-price-btc", "signed-prices/BTC",
         check=lambda status, body: body.get("state") == "REVIEW")
     probe("signed-price-model", "signed-prices/model",
         check=lambda status, body: body["result"]["cases"]["correlated_venue_cluster"]["reference_price_usd"] == "100.5")
+    return fixture, live, signed
+
+
+def observe_finance(revision, *, request=read):
+    if not isinstance(revision, str) or re.fullmatch(r"[0-9a-f]{40}", revision) is None or revision == "0" * 40:
+        raise ValueError("Finance functional gate requires an exact source revision")
+    validators = _projection().validation_namespace(revision)
+    probe, rows = _prober(validators, request, PREFIX, canonical=False)
+    probe("source-binding", "build", path="/api/build-info",
+          check=lambda status, body: status == 200 and body.get("schema") == "szl.build-info/v1"
+              and body.get("source_repository") == "szl-holdings/a11oy"
+              and body.get("source_revision") == revision and body.get("hf_repository") == "SZLHOLDINGS/finance")
+    probe("version", "version", path="/version",
+          check=lambda status, body: status == 200 and body.get("schema") == "szl.finance.version/v1"
+              and body.get("version") == revision and body.get("source_revision") == revision
+              and body.get("source_repository") == "szl-holdings/a11oy"
+              and body.get("hf_repository") == "SZLHOLDINGS/finance"
+              and "model_revision" in body and body["model_revision"] is None
+              and body.get("execution_enabled") is False)
+    fixture, live, signed = _data_probes(probe, rows)
+    probe("private-source-denied", "observations/fred-series", query=(("series_id", "GDP"),),
+          check=lambda status, body: status == 403 and body.get("error") == "USE_PRIVATE_CANONICAL_SOURCE_ENDPOINT"
+              and body.get("execution_enabled") is False and "data" not in body)
     return {"schema": "szl.finance.public-functional-witness/v1",
             "observed_at": datetime.now(timezone.utc).isoformat(), "source_revision": revision,
             "complete": all(row["accepted"] for row in rows), "probes": rows,
@@ -155,3 +196,51 @@ def observe_finance(revision, *, request=read):
             "signed_price_review_verified": signed is not None,
             "execution_enabled": False, "receipt_authenticity_established": False,
             "credentials_sent": False, "provider_mutations": 0}
+
+
+def observe_canonical(revision, *, request=read_canonical):
+    """Pre-write witness: would a projection built from ``revision`` accept what
+    the running canonical A11oy serves, on every route the projection forwards?
+
+    Each answer must declare a supported contract and pass the emitted
+    validators; the contract must also declare the exact analytics and
+    signed-price components this build pins. Read-only, credential-free.
+    """
+    if not isinstance(revision, str) or re.fullmatch(r"[0-9a-f]{40}", revision) is None or revision == "0" * 40:
+        raise ValueError("canonical compatibility witness requires an exact projection revision")
+    validators = _projection().validation_namespace(revision)
+    probe, rows = _prober(validators, request, CANONICAL_PREFIX, canonical=True)
+    header = validators["_FINANCE_CONTRACT"]["header"]
+
+    def contract(status, body, headers):
+        if status != 200:
+            raise ValueError("CONTRACT_UNAVAILABLE")
+        validators["_finance_check_contract"](body, validators["_finance_served_versions"](headers.get(header)))
+        if body["components"] != {"analytics": validators["_FINANCE_COMPONENT"],
+                                  "signed_price": validators["_FINANCE_SIGNED_COMPONENT"]}:
+            raise ValueError("CANONICAL_COMPONENT_MISMATCH")
+
+    def source_view(kind):
+        return lambda status, body, headers: validators["_finance_validate"](body, kind, status)
+
+    def research(status, body, headers):
+        if status != 200:
+            raise ValueError("RESEARCH_UNAVAILABLE")
+        validators["_finance_check_research"](body, deepcopy(RESEARCH_SAMPLE))
+
+    declared = probe("contract", "contract", validate=contract)
+    _data_probes(probe, rows)
+    probe("overview", "overview", validate=source_view("overview"))
+    probe("public-observation", "observations/coinbase-ticker", query=(("product", "BTC-USD"),),
+          validate=source_view("observations/coinbase-ticker"))
+    probe("receipt-capability", "analytics/v2/receipts", operation="receipts")
+    probe("receipt-verification-contract", "analytics/v2/receipts/verify", operation="receipt-verification-contract")
+    probe("research-audit", "research/audit", content=RESEARCH_SAMPLE, validate=research)
+    return {"schema": "szl.finance.canonical-compatibility-witness/v1",
+            "observed_at": datetime.now(timezone.utc).isoformat(), "projection_source_revision": revision,
+            "canonical_origin": CANONICAL_ORIGIN, "complete": all(row["accepted"] for row in rows), "probes": rows,
+            "served_versions": declared["versions"] if declared else None,
+            "canonical_runtime_revisions": sorted({row["source_revision"] for row in rows
+                                                   if row["accepted"] and isinstance(row.get("source_revision"), str)}),
+            "canonical_runtime_revision_role": "EVIDENCE_NOT_COMPATIBILITY_KEY",
+            "execution_enabled": False, "credentials_sent": False, "provider_mutations": 0}

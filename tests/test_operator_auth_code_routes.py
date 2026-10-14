@@ -56,8 +56,10 @@ def _unsigned(payload):
 def _fake_sandbox(counter: list):
     def _run(code, lang="python", **_kw):
         counter.append(code)
+        # governed_turn reports a run as executed only on an explicit
+        # execution_attempted=True, so the double states that it reached the code.
         return {"ok": True, "stdout": "ran\n", "stderr": "", "exit": 0,
-                "elapsed_ms": 1.0, "isolation": "test double"}
+                "elapsed_ms": 1.0, "isolation": "test double", "execution_attempted": True}
     return _run
 
 

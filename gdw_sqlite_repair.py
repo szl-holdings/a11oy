@@ -32,10 +32,13 @@ orphan pages are positively proven to hold no live data, and nothing else:
 6. swap the candidate in through ``<db>.repair-tmp`` + fsync + ``os.replace``
    + directory fsync, then re-verify integrity and the fingerprint.
 
-The runtime does not invoke this helper, even when
-``GDW_AUTO_REPAIR_ORPHAN_PAGES`` is true: writer exclusion and rollback after
-post-replacement fsync failure remain unproven. The original is never deleted.
-This helper is not a qualified production repair procedure.
+The legacy-path runtime (``gdw_runtime._gate_existing_store``) does not invoke
+this helper on a live file, even when ``GDW_AUTO_REPAIR_ORPHAN_PAGES`` is true:
+writer exclusion and rollback after post-replacement fsync failure remain
+unproven there. ``a11oy_state_store`` (ADR-0001) invokes it only on a private
+local copy during restore or legacy bootstrap. That copy is not yet visible to
+any writer, and its source (an immutable snapshot object or the frozen legacy
+file) is left untouched. The original is never deleted.
 """
 
 from __future__ import annotations
