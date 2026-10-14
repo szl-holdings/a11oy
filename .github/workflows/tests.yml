@@ -402,9 +402,14 @@ jobs:
         # PEM that differs from its own fingerprint or from /cosign.pub, or if the
         # assurance matrix's /verify and signing claims drift from the served
         # /verify page and the /govern/infer receipt shape.
+        # The homepage image-closure suite boots serve.py inside the /app tree
+        # projected from the Dockerfile COPY set and requires every same-origin
+        # subresource of the rendered front door to be an installed file, so a
+        # source-only path (the a11oy-homepage.css 404) can no longer pass CI.
         run: >-
           pytest
           tests/test_demo_critical_routes.py
+          tests/test_homepage_image_asset_closure.py
           tests/test_anatomy_read_boundary.py
           tests/test_anatomy_seed_read_contract.py
           tests/test_anatomy_v6_page_contract.py
