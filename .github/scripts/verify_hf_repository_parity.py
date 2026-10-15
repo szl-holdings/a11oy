@@ -457,7 +457,7 @@ def require_blob_bytes(path: str, body: bytes, expected: str | None) -> None:
 def docker_dot_copy_paths(dockerfile: str, tree: dict[str, str]) -> tuple[str, ...]:
     """Derive literal hidden sources; unsupported hidden syntax fails closed.
 
-    The pinned comparator strips all leading dots/slashes. Never infer that its
+    The pinned comparator strips initial dots/slashes. Never infer that its
     resulting missing-both warning proves the real hidden source is present.
     Directory/glob/variable hidden sources need a separately reviewed expander.
     """
