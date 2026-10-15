@@ -5,8 +5,9 @@ The pinned organization comparator is retained for its Dockerfile COPY
 expansion. Strict mode proves exact protected-source parity. Candidate mode
 first proves that same exact baseline, then permits only comparator drift that
 is byte-bound to the reviewed GitHub base-to-head delta. Neither mode accepts a
-persisted allowlist, and the comparator's known dot-prefixed normalization gap
-is covered by an explicit byte comparison of ``.well-known/security.txt``.
+persisted allowlist. The comparator's dot-prefix normalization gap is covered
+by deriving literal hidden COPY sources from the immutable Dockerfile and
+checking each against its Git blob and immutable HF bytes.
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -106,6 +108,7 @@ def validate_report(
     github_ref: str,
     hf_repo: str,
     hf_ref: str,
+    guarded_dot_paths: tuple[str, ...] = (".well-known/security.txt",),
 ) -> None:
     if not isinstance(report, dict):
         raise ParityError("comparator report must be an object")
@@ -133,17 +136,17 @@ def validate_report(
     findings = report.get("findings")
     if not isinstance(findings, list):
         raise ParityError("comparator findings must be an array")
-    if len(findings) != 1 or not all(
+    if len(findings) != len(guarded_dot_paths) or not all(
         isinstance(finding, dict) for finding in findings
     ):
-        raise ParityError("comparator findings must contain exactly one object")
+        raise ParityError("comparator findings do not match the verified dot-prefixed sources")
     normalized = [
         {key: finding.get(key) for key in ("kind", "path", "severity")}
         for finding in findings
     ]
-    if normalized != [EXPECTED_COMPATIBILITY_WARNING]:
+    if sorted(normalized, key=lambda finding: str(finding["path"])) != dot_copy_warnings(guarded_dot_paths):
         raise ParityError(f"unexpected comparator findings: {normalized!r}")
-    if report.get("warn_count") != 1:
+    if report.get("warn_count") != len(guarded_dot_paths):
         raise ParityError(
             "comparator warning count does not match the guarded compatibility gap"
         )
@@ -160,6 +163,7 @@ def validate_candidate_report(
     base_tree: dict[str, str],
     head_tree: dict[str, str],
     expected_files_compared: int,
+    guarded_dot_paths: tuple[str, ...] = (".well-known/security.txt",),
 ) -> list[str]:
     """Return the exact review-bound drift paths or fail closed.
 
@@ -210,14 +214,13 @@ def validate_candidate_report(
 
     warnings = [finding for finding in findings if finding.get("severity") == "warn"]
     errors = [finding for finding in findings if finding.get("severity") == "error"]
-    if len(warnings) != 1:
-        raise ParityError("candidate comparator must contain one guarded compatibility warning")
-    normalized_warning = {
-        key: warnings[0].get(key) for key in ("kind", "path", "severity")
-    }
-    if normalized_warning != EXPECTED_COMPATIBILITY_WARNING:
-        raise ParityError(f"unexpected candidate comparator warning: {normalized_warning!r}")
-    if report["warn_count"] != 1 or report["error_count"] != len(errors):
+    normalized_warnings = [
+        {key: finding.get(key) for key in ("kind", "path", "severity")}
+        for finding in warnings
+    ]
+    if sorted(normalized_warnings, key=lambda finding: str(finding["path"])) != dot_copy_warnings(guarded_dot_paths):
+        raise ParityError(f"unexpected candidate comparator warnings: {normalized_warnings!r}")
+    if report["warn_count"] != len(guarded_dot_paths) or report["error_count"] != len(errors):
         raise ParityError("candidate comparator counters do not match its findings")
     if len(findings) != len(warnings) + len(errors):
         raise ParityError("candidate comparator contains an untyped finding")
@@ -419,9 +422,10 @@ def verify_leading_dot_copy(
     github_ref: str,
     hf_repo: str,
     hf_ref: str,
+    relative: str = ".well-known/security.txt",
+    expected_blob: str | None = None,
     opener: Callable[..., Any] = urllib.request.urlopen,
 ) -> str:
-    relative = ".well-known/security.txt"
     encoded_path = urllib.parse.quote(relative, safe="/")
     github_url = (
         f"https://raw.githubusercontent.com/{github_repo}/{github_ref}/{encoded_path}"
@@ -432,6 +436,8 @@ def verify_leading_dot_copy(
         hf_bytes = _read_url(hf_url, opener=opener)
     except Exception as exc:
         raise ParityError(f"cannot read immutable dot-prefixed sources: {exc}") from exc
+    if expected_blob is not None:
+        require_blob_bytes(relative, github_bytes, expected_blob)
     if github_bytes != hf_bytes:
         raise ParityError(
             "dot-prefixed COPY source drift: "
@@ -439,6 +445,83 @@ def verify_leading_dot_copy(
             f"hf={hashlib.sha256(hf_bytes).hexdigest()}"
         )
     return hashlib.sha256(github_bytes).hexdigest()
+
+
+def require_blob_bytes(path: str, body: bytes, expected: str | None) -> None:
+    framed = f"blob {len(body)}\0".encode("ascii") + body
+    actual = hashlib.sha1(framed, usedforsecurity=False).hexdigest()
+    if expected is None or actual != expected:
+        raise ParityError(f"immutable source bytes do not match Git tree: {path}")
+
+
+def docker_dot_copy_paths(dockerfile: str, tree: dict[str, str]) -> tuple[str, ...]:
+    """Derive literal hidden sources; unsupported hidden syntax fails closed.
+
+    The pinned comparator strips initial dots/slashes. Never infer that its
+    resulting missing-both warning proves the real hidden source is present.
+    Directory/glob/variable hidden sources need a separately reviewed expander.
+    """
+    paths = set()
+    logical = re.sub(r"\\\r?\n", " ", dockerfile)
+    for line in logical.splitlines():
+        match = re.match(r"^\s*(?:COPY|ADD)\s+(.*)$", line, re.IGNORECASE)
+        if not match:
+            continue
+        rest = match.group(1).strip()
+        if re.match(r"--from(?:=|\s)", rest, re.IGNORECASE):
+            continue
+        while rest.startswith("--"):
+            option, _, rest = rest.partition(" ")
+            if option.lower().startswith("--from"):
+                rest = ""
+                break
+            if "=" not in option:
+                raise ParityError("unsupported COPY option in immutable Dockerfile")
+            rest = rest.lstrip()
+        if not rest:
+            continue
+        try:
+            values = json.loads(rest) if rest.startswith("[") else shlex.split(rest)
+        except (ValueError, json.JSONDecodeError) as exc:
+            raise ParityError("cannot parse immutable Dockerfile COPY sources") from exc
+        if not isinstance(values, list) or len(values) < 2 or not all(isinstance(v, str) for v in values):
+            raise ParityError("invalid immutable Dockerfile COPY sources")
+        for source in values[:-1]:
+            while source.startswith("./"):
+                source = source[2:]
+            if not source.startswith("."):
+                continue
+            if (source in {".", ".."} or any(part in {"", ".", ".."} for part in source.split("/"))
+                    or any(character in source for character in "*?[$\\") or source not in tree):
+                raise ParityError(f"dot-prefixed COPY source is not one literal tracked file: {source!r}")
+            paths.add(source)
+    if ".well-known/security.txt" not in paths:
+        raise ParityError("immutable Dockerfile does not COPY the required security source")
+    return tuple(sorted(paths))
+
+
+def dot_copy_warnings(paths: tuple[str, ...]) -> list[dict[str, str]]:
+    normalized = [path.lstrip("./") for path in paths]
+    if not paths or len(set(normalized)) != len(paths):
+        raise ParityError("dot-prefixed COPY normalization is empty or ambiguous")
+    return [{"kind": "missing-both", "path": path, "severity": "warn"}
+            for path in sorted(normalized)]
+
+
+def verify_docker_dot_copies(
+    *, github_repo: str, github_ref: str, hf_repo: str, hf_ref: str,
+    tree: dict[str, str], opener: Callable[..., Any] = urllib.request.urlopen,
+) -> dict[str, str]:
+    if "Dockerfile" not in tree:
+        raise ParityError("immutable Git tree has no Dockerfile")
+    dockerfile = _read_url(
+        f"https://raw.githubusercontent.com/{github_repo}/{github_ref}/Dockerfile", opener=opener)
+    require_blob_bytes("Dockerfile", dockerfile, tree["Dockerfile"])
+    paths = docker_dot_copy_paths(dockerfile.decode("utf-8"), tree)
+    dot_copy_warnings(paths)  # Reject normalization collisions before HTTP reads.
+    return {path: verify_leading_dot_copy(
+        github_repo=github_repo, github_ref=github_ref, hf_repo=hf_repo, hf_ref=hf_ref,
+        relative=path, expected_blob=tree[path], opener=opener) for path in paths}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -521,6 +604,13 @@ def verify_parity(args: argparse.Namespace, evidence: dict) -> int:
         )
         base_tree = github_blob_tree(args.github_repo, github_ref=args.base_ref)
         validate_protected_candidate_inputs(base_tree, head_tree)
+        dot_copies = verify_docker_dot_copies(
+            github_repo=args.github_repo, github_ref=args.base_ref,
+            hf_repo=args.hf_repo, hf_ref=hf_ref, tree=base_tree,
+        )
+        for path in dot_copies:
+            if head_tree.get(path) != base_tree[path]:
+                raise ParityError(f"candidate changed a guarded dot-prefixed COPY source: {path}")
 
         with tempfile.TemporaryDirectory() as temporary:
             base_report_path = Path(temporary) / "base-parity.json"
@@ -541,6 +631,7 @@ def verify_parity(args: argparse.Namespace, evidence: dict) -> int:
                     github_ref=args.base_ref,
                     hf_repo=args.hf_repo,
                     hf_ref=hf_ref,
+                    guarded_dot_paths=tuple(dot_copies),
                 )
             except (OSError, json.JSONDecodeError, ParityError):
                 if base_run.stdout:
@@ -549,12 +640,6 @@ def verify_parity(args: argparse.Namespace, evidence: dict) -> int:
             if base_run.returncode != 0:
                 raise ParityError("protected-base comparator exited non-zero")
 
-        dot_sha256 = verify_leading_dot_copy(
-            github_repo=args.github_repo,
-            github_ref=args.base_ref,
-            hf_repo=args.hf_repo,
-            hf_ref=hf_ref,
-        )
         with tempfile.TemporaryDirectory() as temporary:
             candidate_report_path = Path(temporary) / "candidate-parity.json"
             candidate_run = run_comparator(
@@ -578,6 +663,7 @@ def verify_parity(args: argparse.Namespace, evidence: dict) -> int:
                     base_tree=base_tree,
                     head_tree=head_tree,
                     expected_files_compared=base_report["files_compared"],
+                    guarded_dot_paths=tuple(dot_copies),
                 )
             except (OSError, json.JSONDecodeError, ParityError):
                 if candidate_run.stdout:
@@ -609,27 +695,30 @@ def verify_parity(args: argparse.Namespace, evidence: dict) -> int:
                 if strict_run.stdout:
                     print(strict_run.stdout, file=sys.stderr)
                 raise ParityError("strict repository comparator exited non-zero")
+            dot_copies = verify_docker_dot_copies(
+                github_repo=args.github_repo, github_ref=args.github_ref,
+                hf_repo=args.hf_repo, hf_ref=hf_ref, tree=head_tree,
+            )
             validate_report(
                 report,
                 github_repo=args.github_repo,
                 github_ref=args.github_ref,
                 hf_repo=args.hf_repo,
                 hf_ref=hf_ref,
+                guarded_dot_paths=tuple(dot_copies),
             )
-        dot_sha256 = verify_leading_dot_copy(
-            github_repo=args.github_repo,
-            github_ref=args.github_ref,
-            hf_repo=args.hf_repo,
-            hf_ref=hf_ref,
-        )
         report["proof_status"] = "exact"
 
     report["immutable_hf_ref"] = hf_ref
     report["leading_dot_copy"] = {
         "path": ".well-known/security.txt",
-        "sha256": dot_sha256,
+        "sha256": dot_copies[".well-known/security.txt"],
         "status": "exact",
     }
+    report["leading_dot_copies"] = [
+        {"path": path, "sha256": digest, "status": "exact"}
+        for path, digest in sorted(dot_copies.items())
+    ]
     args.report_out.write_text(
         json.dumps(report, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
