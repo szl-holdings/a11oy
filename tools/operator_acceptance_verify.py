@@ -17,7 +17,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 ORIGIN = "https://szlholdings-a11oy.hf.space"
-SCHEMA = "szl.operator-http-observation/v1"
+SCHEMA = "szl.operator-http-observation/v2"
 MAX_BYTES = 2 * 1024 * 1024
 MAX_AGE = timedelta(minutes=15)
 SHA40 = re.compile(r"[0-9a-f]{40}\Z")
@@ -93,7 +93,8 @@ def planned_cases(nonce):
     bodies = {
         "policy-decide": {"agent": "operator-acceptance", "action": {"value": "noop"}, "axes": [0.97],
                           "request_id": nonce + ":policy-decide"},
-        "operator-ask": {"question": "Which eight formula identifiers are locked under Doctrine v11?"},
+        "operator-ask": {"question": "Which eight formula identifiers are locked under Doctrine v11? "
+                                     + "Acceptance run " + nonce + "."},
         "policy-compliance": {"framework": "NIST"},
     }
     return [{"id": name, "path": path, "request": bodies.get(name)}
@@ -189,7 +190,9 @@ def _ask_receipt(body):
             and canonical(receipt["body"]) == canonical({"question": body["question"],
                     "topic": "formulas", "grounded": True}), "ASK_RECEIPT_BINDING_MISMATCH")
     stamp = receipt["ts_utc"]
-    require(type(stamp) is str and (stamp.endswith("+00:00") or stamp.endswith("Z")), "ASK_RECEIPT_TIME_INVALID")
+    require(type(stamp) is str and re.fullmatch(
+        r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|\+00:00)", stamp),
+        "ASK_RECEIPT_TIME_INVALID")
     try:
         observed = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
         require(observed.utcoffset() == timedelta(0), "ASK_RECEIPT_TIME_INVALID")
@@ -290,20 +293,26 @@ def verify_bundle(bundle, *, expected_source_revision, expected_run_nonce, now=N
         seen.add(name)
         require(not stopped or case["state"] != "OBSERVED", "OBSERVATION_AFTER_STOP")
         result = verify_case(case, run_nonce=expected_run_nonce)
-        if name == "operator-ask" and result["semantic_checks_passed"]:
-            require(start <= _ask_receipt(case["response"]) <= end, "ASK_RECEIPT_OUTSIDE_CAPTURE")
+        if name == "operator-ask":
+            # Remote unsigned UTC and this host's UTC have no independently
+            # verified offset. The exact nonce-bearing question binds this case;
+            # local capture age remains checked above without any tolerance.
+            result.update(receipt_time_comparison="UNAVAILABLE",
+                          receipt_time_reason="NO_VERIFIED_CROSS_CLOCK_OFFSET")
         results.append(result)
         stopped = stopped or case["state"] != "OBSERVED" or (case["state"] == "OBSERVED"
                                                            and not result["semantic_checks_passed"])
     observed = sum(row["semantic_checks_passed"] for row in results)
-    return {"schema": "szl.operator-http-verification/v1", "status": "REPORTED",
+    return {"schema": "szl.operator-http-verification/v2", "status": "REPORTED",
             "source_revision": expected_source_revision, "run_nonce": expected_run_nonce,
             "origin": ORIGIN, "capture_binding_checks_passed": True,
             "reported_semantic_contracts": observed, "required_contracts": len(plans),
             "all_five_semantics_verified": observed == len(plans), "cases": results,
             "artifact_digest_verified": False, "publication_eligible": False,
+            "freshness_basis": "LOCAL_CAPTURE_CLOCK_REPORTED",
             "execution_authorized": False, "passive_probe_modified": False,
             "limitations": ["Captured JSON objects and reported build identity are not authenticated transport or image provenance.",
+                            "Remote receipt time cannot be compared to the local capture clock without an independently verified offset.",
                             "Policy receipt_hash is a correlation value, not a verified DSSE receipt.",
                             "Native receipt trust, live model execution and the separate DSSE observation bridge are not admitted.",
                             "Reverification never executes or authorizes a request; passive required NOT_PROBED rows remain unchanged."]}

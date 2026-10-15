@@ -25,7 +25,7 @@ admit evaluation, agent-loop execution, arbitrary payloads or another origin.
 | Case | Request and observable effect | Verification scope |
 | --- | --- | --- |
 | Policy decision | One `noop`, explicit test axes `[0.97]`, fresh nonce | An allow decision and one matching new in-memory feed entry, including its correlation hash. No action execution or DSSE signature is asserted. |
-| Operator answer | Fixed question about the locked eight formulas | Exact cited identifiers, grounded response and recomputed unsigned receipt payload digest. The answer is local platform data; no model inference occurs. |
+| Operator answer | Formula question plus this run's unique nonce | Exact cited identifiers, grounded response and recomputed unsigned receipt payload digest bound to this run. The answer is local platform data; no model inference occurs. |
 | Compliance lookup | `framework: NIST` | Bounded retrieval of the declared compliance response. Historical bundled data is not a fresh audit or certification. |
 | Evaluation | **NOT ATTEMPTED** | **BLOCKED** pending an admitted model, native receipt verification and bounded execution adapter. MODELED evaluation cannot substitute. |
 | Agent loop | **NOT ATTEMPTED** | **BLOCKED** pending native receipt admission and enforced internal model-call, retry and fallback budgets. `max_retries: 0` alone does not bound internal calls. |
@@ -80,6 +80,16 @@ reordered cases, repeated policy IDs, stale/future observations, unsupported
 model execution and observations after an ambiguous effect. The observation
 window is 15 minutes; older captures remain historical records and cannot be
 re-admitted as fresh evidence. Reverification never sends a request.
+
+Schema v2 binds the ask question, echoed response and unsigned receipt body to
+the independent run nonce. It reports `receipt_time_comparison: UNAVAILABLE`
+because no cross-machine clock offset has been independently verified, even
+when the server timestamp happens to fall inside the local interval. Timestamp
+syntax remains strict UTC. Local capture freshness is checked without a clock
+tolerance and is labeled `LOCAL_CAPTURE_CLOCK_REPORTED`. Old schema-v1 captures
+are rejected; previously failed artifacts must remain intact. A nonce and
+unkeyed digest detect substitution against retained expectations but do not
+authenticate the producer.
 
 Exit **2** means a structurally valid partial capture still has blocked required
 contracts. Exit **1** means verification failed. Neither result clears release

@@ -79,6 +79,47 @@ def test_three_scoped_observations_never_qualify_five_contracts(bundle):
     assert all(row["native_receipt_verified"] is False for row in result["cases"])
 
 
+@pytest.mark.parametrize("server_time", ["2026-10-15T14:00:04Z", "2026-10-15T13:58:55+00:00"])
+def test_remote_clock_is_not_assumed_synchronized(bundle, server_time):
+    record = bundle["cases"][1]["response"]["receipt"]["receipt"]
+    record["ts_utc"] = server_time
+    unsigned = {key: value for key, value in record.items() if key != "receipt_sha256"}
+    record["receipt_sha256"] = hashlib.sha256(json.dumps(unsigned, sort_keys=True,
+                                                       separators=(",", ":")).encode()).hexdigest()
+    result = verify(bundle)
+    assert result["reported_semantic_contracts"] == 3
+    assert result["freshness_basis"] == "LOCAL_CAPTURE_CLOCK_REPORTED"
+    assert result["cases"][1]["receipt_time_comparison"] == "UNAVAILABLE"
+    assert result["publication_eligible"] is False
+    assert result["cases"][1]["execution_qualified"] is False
+
+
+@pytest.mark.parametrize("question", ["Which eight formula identifiers are locked under Doctrine v11?",
+    "Which eight formula identifiers are locked under Doctrine v11? Acceptance run " + "c" * 32 + "."])
+def test_ask_response_from_a_different_run_is_rejected(bundle, question):
+    body = bundle["cases"][1]["response"]
+    body["question"] = question
+    body["receipt"]["receipt"]["body"]["question"] = question
+    with pytest.raises(v.VerificationError, match="OBSERVATION_AFTER_STOP"):
+        verify(bundle)
+
+
+@pytest.mark.parametrize("server_time", ["2026-10-15", "2026-10-15 13:59:15Z",
+    "2026-10-15T13:59:15", "2026-10-15T13:59:15+01:00", "2026-10-99T13:59:15Z"])
+def test_server_timestamp_requires_strict_utc_syntax(bundle, server_time):
+    body = bundle["cases"][1]["response"]
+    body["receipt"]["receipt"]["ts_utc"] = server_time
+    result = v.verify_case(bundle["cases"][1], run_nonce=NONCE)
+    assert result["semantic_checks_passed"] is False
+    assert result["reason"] == "ASK_RECEIPT_TIME_INVALID"
+
+
+def test_v1_capture_cannot_be_reinterpreted_under_v2_rules(bundle):
+    bundle["schema"] = "szl.operator-http-observation/v1"
+    with pytest.raises(v.VerificationError, match="SCHEMA_OR_CLASS_MISMATCH"):
+        verify(bundle)
+
+
 @pytest.mark.parametrize("field,value", [("origin", "https://attacker.invalid"),
     ("run_nonce", "c" * 32), ("expected_source_revision", "c" * 40),
     ("evidence_class", "MEASURED"), ("schema", "other"),
