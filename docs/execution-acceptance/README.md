@@ -109,8 +109,10 @@ matching HEAD and a valid fresh heartbeat for that epoch, writer and boot. Even
 a newly claimed writer must wait for its own heartbeat. It downloads the selected
 immutable snapshot, verifies size, hash, full SQLite integrity, foreign keys and
 logical fingerprint, and applies the owner's fixed expected-row predicate. It
-then advances HEAD through the existing compare-and-swap implementation and
-independently reads back the current HEAD and lease. An uncertain submission is
+advances HEAD for changed entries through the existing compare-and-swap
+implementation and independently reads back the current HEAD and lease. An
+already published entry is reverified without advancing HEAD or its restore
+history. An uncertain submission is
 accepted only if the exact proposal is found remotely. It preserves unrelated
 pending snapshots and fails on handover without synchronously draining its own
 request. Ordinary periodic snapshot behavior is unchanged.

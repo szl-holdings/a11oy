@@ -1515,7 +1515,7 @@ class StateStore:
         effect atomic with the storage commit.
         """
         with self._lock:
-            current = self.confirmed_writer()
+            self.confirmed_writer()
             state = self.stores.get(label)
             if state is None or state.spec.kind != "sqlite" or state.health == "BLOCKED":
                 raise StorageBlocked("STATE_CONFIRMED_SQLITE_REQUIRED")
@@ -1536,15 +1536,18 @@ class StateStore:
                 if (not report["ok"] or report["logical_sha256"] != entry["logical_sha256"]
                         or contains(readback) is not True):
                     raise StorageBlocked("STATE_CONFIRMED_CONTENT_MISMATCH")
-                self.confirmed_writer()
-                snapshots, history = self._merged(current, {label: entry})
-                proposal = self._next(current, self.head.body, transition="SNAPSHOT",
-                                      state=STATE_ACTIVE, snapshots=snapshots, history=history)
-                try:
-                    self.head = cas_advance(self.backend, self.head, proposal)
-                except HeadChanged:
-                    raise StorageBlocked("STATE_CONFIRMED_HEAD_CHANGED") from None
                 acknowledged = self.confirmed_writer()
+                if acknowledged["snapshots"].get(label) != entry:
+                    snapshots, history = self._merged(acknowledged, {label: entry})
+                    proposal = self._next(acknowledged, self.head.body, transition="SNAPSHOT",
+                                          state=STATE_ACTIVE, snapshots=snapshots, history=history)
+                    try:
+                        self.head = cas_advance(self.backend, self.head, proposal)
+                    except HeadChanged:
+                        raise StorageBlocked("STATE_CONFIRMED_HEAD_CHANGED") from None
+                    acknowledged = self.confirmed_writer()
+                # Reconfirming published bytes must not evict distinct restore
+                # candidates by inserting the same entry into history again.
                 if acknowledged["snapshots"].get(label) != entry:
                     raise StorageBlocked("STATE_CONFIRMED_ENTRY_MISMATCH")
                 self._commit_entries({label: entry})

@@ -495,6 +495,62 @@ def test_reused_unpublished_object_is_checked_and_acknowledged(observation_world
     assert writer._unpublished["gdw"] == {"fixture": "preserve unrelated"}
 
 
+def test_repeated_confirmation_preserves_distinct_restore_history(observation_world, monkeypatch):
+    writer, owner, backend, objects, *_ = observation_world
+    row = reserve_observation(writer, owner)
+    for generation in range(ss.HISTORY_DEPTH + 2):
+        owner.append_event("SYNTHETIC", {"generation": generation})
+        acknowledge_observation(writer, owner, row)
+    expected_head = backend.head()
+    history = expected_head["history"]["series_a"]
+    assert len(history) == ss.HISTORY_DEPTH
+    assert len({entry["sha256"] for entry in history}) == ss.HISTORY_DEPTH
+    expected = backend.observe()
+    submissions = backend.submits
+    writer._unpublished["series_a"] = dict(expected_head["snapshots"]["series_a"])
+    writer._unpublished["gdw"] = {"fixture": "preserve unrelated"}
+    monkeypatch.setattr(objects, "put_file", lambda *_: pytest.fail("unchanged upload"))
+    downloads = []
+    download = writer._download
+
+    def observed_download(remote, path):
+        downloads.append(remote)
+        download(remote, path)
+
+    monkeypatch.setattr(writer, "_download", observed_download)
+    for _ in range(ss.HISTORY_DEPTH + 3):
+        proof = acknowledge_observation(writer, owner, row)
+        assert proof["entry"] == expected_head["snapshots"]["series_a"]
+        assert proof["head_sha256"] == hashlib.sha256(expected.body).hexdigest()
+        assert backend.observe() == expected
+        assert backend.head() == expected_head
+        assert backend.submits == submissions
+    assert downloads == [proof["entry"]["path"]] * (ss.HISTORY_DEPTH + 3)
+    assert "series_a" not in writer._unpublished
+    assert writer._unpublished["gdw"] == {"fixture": "preserve unrelated"}
+
+
+def test_different_pending_confirmation_advances_published_head(observation_world):
+    writer, owner, backend, *_ = observation_world
+    row = reserve_observation(writer, owner)
+    first = acknowledge_observation(writer, owner, row)
+    completed = owner.complete_execution_observation(row["receipt_id"],
+                                                    {"fixture": "NOT_A_LIVE_RECEIPT"})
+    backend.unreachable = True
+    writer.snapshot_once(force=True)
+    backend.unreachable = False
+    pending = dict(writer._unpublished["series_a"])
+    assert pending != first["entry"]
+    before = backend.observe()
+    submissions = backend.submits
+    proof = acknowledge_observation(writer, owner, completed)
+    assert proof["entry"] == pending
+    assert backend.observe() != before
+    assert backend.submits == submissions + 1
+    assert backend.head()["history"]["series_a"] == [first["entry"]]
+    assert "series_a" not in writer._unpublished
+
+
 def test_pending_handover_does_not_drain_the_current_request(observation_world, monkeypatch):
     writer, owner, backend, *_ = observation_world
     row = reserve_observation(writer, owner)
