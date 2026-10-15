@@ -64,9 +64,14 @@ class FakeTransport:
     def archive(self, _id):
         output = io.BytesIO()
         with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-            archive.writestr("readiness-verdict.json", self.raw or json.dumps(self.payload))
+            def write_member(name, content):
+                info = zipfile.ZipInfo(name, date_time=(2026, 10, 13, 10, 0, 0))
+                info.compress_type = zipfile.ZIP_DEFLATED
+                archive.writestr(info, content)
+
+            write_member("readiness-verdict.json", self.raw or json.dumps(self.payload))
             if self.extra_member:
-                archive.writestr(self.extra_member, "{}")
+                write_member(self.extra_member, "{}")
         return output.getvalue()
 
     def meta(self):
@@ -361,3 +366,23 @@ def test_dockerfile_ships_the_dependency_closure():
     dockerfile = (subject.ROOT / "Dockerfile").read_text(encoding="utf-8")
     for name in ("szl_readiness_artifact.py", ".github/scripts/publish_readiness_verdict.py"):
         assert any(name in line.split()[1:-1] for line in dockerfile.splitlines() if line.startswith("COPY "))
+    assert "COPY .github/scripts/publish_readiness_verdict.py ./.github/scripts/" not in dockerfile
+
+
+def test_validator_loads_from_the_batched_image_path(tmp_path, monkeypatch):
+    source = subject.ROOT / ".github/scripts/publish_readiness_verdict.py"
+    image_path = tmp_path / "scripts/publish_readiness_verdict.py"
+    image_path.parent.mkdir()
+    image_path.write_bytes(source.read_bytes())
+    subject._validator.cache_clear()
+    try:
+        monkeypatch.setattr(subject, "ROOT", tmp_path)
+        validator = subject._validator()
+        payload, _job, _run = fixture()
+        compact = validator.compact_verdict(
+            payload, expected_origin=subject.ORIGIN,
+            expected_source_sha=SOURCE, now=NOW,
+        )
+        assert compact["sourceRevision"] == SOURCE
+    finally:
+        subject._validator.cache_clear()
