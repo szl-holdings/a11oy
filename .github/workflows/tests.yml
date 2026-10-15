@@ -44,6 +44,7 @@ jobs:
           tests/test_code_completion_boundaries.py
           tests/test_agent_loop_execution_guards.py
           tests/test_agentloop_completion_evidence.py
+          tests/test_agentloop_tenant_admission.py
           tests/test_authorized_rag_synthesis.py
           tests/test_agent_synthesis_status.py
           tests/test_nexus_bind.py
