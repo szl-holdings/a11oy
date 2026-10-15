@@ -309,4 +309,3 @@ for(const [search,hash] of [['?investor=1',''],['?view=investor',''],['','#inves
  c.window.a11oyInvestor.open();assert.deepEqual(calls,['investor','investor']);
 }
 """)
-
