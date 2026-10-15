@@ -27,6 +27,6 @@
   "schema": "szl.native-presentation-projection/v1",
   "scope": "Exact installed subset. SOURCE.json is the unchanged upstream full bundle manifest, not a claim that all upstream files are installed. This local record is not a signed runtime or publication receipt. Code is Apache-2.0; Orbit artwork is CC BY 4.0, Stephen P. Lutar / SZL Holdings.",
   "source_repository": "szl-holdings/szl-brand",
-  "token_bundle_revision": "4309f6fce89179331b0b3ed8c99494e76c5be256",
-  "token_source_revision": "27d12e77fc0f9f1a0e5fae8b34adf2380d51d070"
+  "design_bundle_revision": "4309f6fce89179331b0b3ed8c99494e76c5be256",
+  "design_source_revision": "27d12e77fc0f9f1a0e5fae8b34adf2380d51d070"
 }
