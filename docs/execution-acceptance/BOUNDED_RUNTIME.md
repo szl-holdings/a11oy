@@ -69,3 +69,19 @@ remain separate checks. The full acceptance producer, distinct approval-key
 admission, process-to-HF identity binding, durable observation export, and
 combined passive/execution release artifact remain outstanding. Preserve all
 five passive `NOT_PROBED` records until those actual observations are verified.
+
+## Shared engine rollout
+
+The shared engine change is reviewed with
+[A11oy #2855](https://github.com/szl-holdings/a11oy/pull/2855) and
+[Killinchu #538](https://github.com/szl-holdings/killinchu/pull/538).
+Both repositories bind the same engine bytes through the existing
+`.github/shared-source-payload-manifest.json` contract. Killinchu retains its
+existing callers; its absent strict-path companions cause an explicit refusal
+before inference. A paired source review does not establish deployed parity.
+
+Killinchu's existing main publisher restarts its live Space. A retained public
+receipt-chain export can preserve captured evidence, but cannot establish
+continuity for writes accepted after capture. Resolve that transition before
+merging the peer change; neither this interface nor the paired manifest changes
+the live ledger's durability.
