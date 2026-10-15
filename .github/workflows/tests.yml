@@ -916,6 +916,10 @@ jobs:
         run: pytest tests/test_shared_security_hardening.py -q
       - name: Verify offline execution observation bindings
         run: python -m pytest tests/test_execution_acceptance.py -q
+      - name: Verify bounded operator capture and offline semantic evidence
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+        run: python -B -m pytest tests/test_operator_acceptance_run.py tests/test_operator_acceptance_verify.py -q -p no:cacheprovider
 
   python-sign-cert-dsse-parity:
     name: DSSE PAE parity — sign_cert_dsse Ed25519 cosign-family, diverges from szl-receipt (offline)
