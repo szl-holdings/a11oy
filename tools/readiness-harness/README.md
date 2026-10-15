@@ -124,7 +124,14 @@ validated, occurrence and attempt counts remain **UNKNOWN**. Every invocation
 uses a unique name, nonce label, and temporary CID file; the host checks for
 that exact container and verifies it is absent after a bounded stop/remove
 sequence before accepting the child report. Failed cleanup remains explicit in
-the host receipt. The report hashes
+the host receipt. Before invoking Docker, the driver creates and fsyncs an
+exclusive `<out>.recovery.jsonl` sidecar outside the source checkout. It retains
+the generated container name, nonce label, declared source/image, a
+format-validated Docker CID-file value when available, and cleanup readback.
+The sidecar survives deletion of the temporary CID file and a failed main
+report write. Retain it for an orphan investigation; verify the container's
+name, nonce label, and image before touching that exact container. Do not
+remove other containers. The report hashes
 requests/responses; it never records the local operator key.
 
 An image revision label is a declared source binding, not independent image

@@ -332,6 +332,76 @@ def test_unverified_cleanup_rejects_valid_child_marker(monkeypatch):
     assert all(row["attempts"] == "UNKNOWN" for row in report["results"])
 
 
+def test_recovery_identity_survives_failed_report_write_and_temp_cid_removal(monkeypatch):
+    sha, image, cid = "a" * 40, "sha256:" + "b" * 64, "c" * 64
+    monkeypatch.setattr(effect, "_git", lambda *args: sha if args == ("rev-parse", "HEAD") else "")
+    docker_run = []
+
+    def local_docker(command, **kwargs):
+        if command[:3] == ["docker", "image", "inspect"]:
+            return 0, json.dumps([{"Id": image, "Config": {
+                "Labels": {"org.opencontainers.image.revision": sha}}}])
+        assert command[:2] == ["docker", "run"]
+        docker_run.append(command)
+        prepared = Path(directory) / "report.json.recovery.jsonl"
+        assert json.loads(prepared.read_text(encoding="utf-8").splitlines()[0])["phase"] == "prepared"
+        Path(command[command.index("--cidfile") + 1]).write_text(cid, encoding="ascii")
+        return 0, effect.MARKER + json.dumps(_sample_report(sha, image)) + "\n"
+
+    monkeypatch.setattr(effect, "_run_bounded", local_docker)
+    monkeypatch.setattr(effect, "_cleanup_own_container", lambda *args: False)
+    monkeypatch.setattr(effect, "_write_report", lambda *args: (_ for _ in ()).throw(
+        OSError("report write failed")))
+    with tempfile.TemporaryDirectory(dir=SCRIPT.parent) as directory:
+        output = Path(directory) / "report.json"
+        with pytest.raises(OSError, match="report write failed"):
+            effect.launch(output, image)
+        recovery = output.with_name(output.name + ".recovery.jsonl")
+        events = [json.loads(line) for line in recovery.read_text(encoding="utf-8").splitlines()]
+        command = docker_run[0]
+        assert not Path(command[command.index("--cidfile") + 1]).exists()
+        assert not output.exists()
+        assert [event["phase"] for event in events] == ["prepared", "cidfile", "cleanup"]
+        assert events[0]["containerName"] == command[command.index("--name") + 1]
+        assert command[command.index("--label") + 1] == (
+            "szl.effect.rehearsal.run=" + events[0]["nonce"])
+        assert events[0]["sourceRevision"] == sha and events[0]["imageId"] == image
+        assert events[1]["containerId"] == cid
+        assert events[1]["idEvidence"] == "FORMAT_VALIDATED_DOCKER_CIDFILE"
+        assert events[2]["containerCleanupVerified"] is False
+        assert set(events[0]) == {"schema", "phase", "checkedAt", "sourceRevision", "imageId",
+                                  "containerName", "nonce"}
+        assert set(events[1]) == {"schema", "phase", "checkedAt", "containerId", "idEvidence"}
+        assert set(events[2]) == {"schema", "phase", "checkedAt", "containerCleanupVerified"}
+        assert all(len(json.dumps(event).encode("utf-8")) <= effect.MAX_RECOVERY_EVENT_BYTES
+                   for event in events)
+
+
+def test_existing_recovery_sidecar_prevents_another_docker_run(monkeypatch):
+    with tempfile.TemporaryDirectory(dir=SCRIPT.parent) as directory:
+        output = Path(directory) / "report.json"
+        recovery = output.with_name(output.name + ".recovery.jsonl")
+        recovery.write_text("prior evidence\n", encoding="utf-8")
+        monkeypatch.setattr(effect, "_run_bounded", lambda *args, **kwargs: pytest.fail(
+            "Docker must not be invoked for an existing recovery receipt"))
+        with pytest.raises(FileExistsError):
+            effect.launch(output, "sha256:" + "b" * 64)
+        assert recovery.read_text(encoding="utf-8") == "prior evidence\n"
+
+
+def test_recovery_rejects_unbounded_or_untrusted_cidfile():
+    with tempfile.TemporaryDirectory(dir=SCRIPT.parent) as directory:
+        cidfile = Path(directory) / "container.cid"
+        cidfile.write_text("sensitive-marker" * 100, encoding="utf-8")
+        assert effect._valid_cidfile_id(cidfile) is None
+        with (Path(directory) / "recovery.jsonl").open("x", encoding="utf-8") as recovery:
+            with pytest.raises(ValueError, match="recovery_cid_invalid"):
+                effect._record_recovery(recovery, "cidfile", container_id="sensitive-marker")
+            effect._record_recovery(recovery, "cidfile",
+                                    container_id=effect._valid_cidfile_id(cidfile))
+        assert "sensitive-marker" not in (Path(directory) / "recovery.jsonl").read_text()
+
+
 def test_cleanup_only_targets_verified_nonce_container(monkeypatch):
     identifier = "c" * 64
     image = "sha256:" + "b" * 64

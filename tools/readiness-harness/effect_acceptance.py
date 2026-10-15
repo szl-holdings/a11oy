@@ -36,6 +36,7 @@ FEED = "/api/a11oy/v1/policy/decisions/feed?limit=1"
 FORUM = "/api/a11oy/v1/llm/forum?limit=1"
 MAX_STDIO_BYTES = 1 << 20
 MAX_REPORT_BYTES = 64 << 10
+MAX_RECOVERY_EVENT_BYTES = 512
 
 
 def _digest(value):
@@ -304,6 +305,50 @@ def _write_report(output, report):
         stream.write("\n")
 
 
+def _valid_cidfile_id(cidfile):
+    """Return only a bounded, syntactically valid Docker CID file value."""
+    try:
+        if not cidfile.exists() or cidfile.stat().st_size > 128:
+            return None
+        identifier = cidfile.read_text(encoding="ascii").strip()
+        return identifier if re.fullmatch(r"[0-9a-f]{64}", identifier) else None
+    except (OSError, UnicodeError):
+        return None
+
+
+def _record_recovery(stream, phase, *, source=None, image=None, name=None,
+                     nonce=None, container_id=None, cleanup_verified=None):
+    """Fsync an allowlisted local recovery event before accepting any run."""
+    event = {"schema": "szl.a11oy-effect-recovery/v1", "phase": phase,
+             "checkedAt": _stamp()}
+    if phase == "prepared":
+        if (not SHA40.fullmatch(source or "")
+                or not re.fullmatch(r"sha256:[0-9a-f]{64}", image or "")
+                or not re.fullmatch(r"[0-9a-f]{24}", nonce or "")
+                or name != "szl-effect-rehearsal-" + nonce):
+            raise ValueError("recovery_identity_invalid")
+        event.update({"sourceRevision": source, "imageId": image,
+                      "containerName": name, "nonce": nonce})
+    elif phase == "cidfile":
+        if container_id is not None and not re.fullmatch(r"[0-9a-f]{64}", container_id):
+            raise ValueError("recovery_cid_invalid")
+        event.update({"containerId": container_id or "UNKNOWN",
+                      "idEvidence": "FORMAT_VALIDATED_DOCKER_CIDFILE" if container_id
+                      else "UNAVAILABLE"})
+    elif phase == "cleanup":
+        if type(cleanup_verified) is not bool:
+            raise ValueError("recovery_cleanup_invalid")
+        event["containerCleanupVerified"] = cleanup_verified
+    else:
+        raise ValueError("recovery_phase_invalid")
+    encoded = json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n"
+    if len(encoded.encode("utf-8")) > MAX_RECOVERY_EVENT_BYTES:
+        raise ValueError("recovery_event_too_large")
+    stream.write(encoded)
+    stream.flush()
+    os.fsync(stream.fileno())
+
+
 def _run_bounded(command, *, timeout):
     """Capture bounded Docker output without risking unbounded host memory use."""
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -383,8 +428,7 @@ def _cleanup_own_container(name, nonce, image, cidfile):
                 or labels.get("szl.effect.rehearsal.run") != nonce):
             return False
         if cidfile.exists():
-            recorded = cidfile.read_text(encoding="utf-8").strip()
-            if recorded != full_id:
+            if _valid_cidfile_id(cidfile) != full_id:
                 return False
         try:
             _run_bounded(["docker", "container", "stop", "--time", "2", full_id], timeout=10)
@@ -558,6 +602,9 @@ def _validate_child_report(report, source, image):
 def launch(output, image):
     if output.exists():
         raise FileExistsError(output)
+    recovery_path = output.with_name(output.name + ".recovery.jsonl")
+    if recovery_path.exists():
+        raise FileExistsError(recovery_path)
     source = _git("rev-parse", "HEAD")
     if not SHA40.fullmatch(source):
         raise RuntimeError("head_not_exact_sha")
@@ -605,11 +652,30 @@ def launch(output, image):
                        "--env", "SZL_COSIGN_PRIVATE_PEM=", "--env", "SZL_COSIGN_PRIVATE_KEY_PEM=",
                        "--entrypoint", "python", image, "-I", "-B",
                        "/rehearsal/effect_acceptance.py", "--inside"]
-            container_attempted = True
-            try:
-                run_code, run_stdout = _run_bounded(command, timeout=180)
-            finally:
-                cleanup_verified = _cleanup_own_container(name, nonce, image, cidfile)
+            # Keep this outside TemporaryDirectory: the Docker CLI may time out
+            # while its daemon container survives. A fsynced name and nonce let
+            # an operator identify only this invocation even if report write fails.
+            with recovery_path.open("x", encoding="utf-8") as recovery:
+                _record_recovery(recovery, "prepared", source=source, image=image,
+                                 name=name, nonce=nonce)
+                container_attempted = True
+                try:
+                    run_code, run_stdout = _run_bounded(command, timeout=180)
+                finally:
+                    record_failed = False
+                    try:
+                        _record_recovery(recovery, "cidfile",
+                                         container_id=_valid_cidfile_id(cidfile))
+                    except (OSError, ValueError):
+                        record_failed = True
+                    cleanup_verified = _cleanup_own_container(name, nonce, image, cidfile)
+                    try:
+                        _record_recovery(recovery, "cleanup",
+                                         cleanup_verified=cleanup_verified)
+                    except (OSError, ValueError):
+                        record_failed = True
+                    if record_failed:
+                        raise RuntimeError("recovery_event_write_unavailable")
         if not cleanup_verified:
             raise RuntimeError("container_cleanup_unverified")
         lines = [line[len(MARKER):] for line in run_stdout.splitlines() if line.startswith(MARKER)]
