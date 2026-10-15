@@ -74,6 +74,18 @@ def test_dockerignore_patterns_are_root_anchored_like_docker():
         L.dockerignore_matcher("!keep.txt\n")
 
 
+def test_dockerignore_literal_exceptions_keep_only_the_validator():
+    ignored = L.dockerignore_matcher(
+        ".github/*\n!.github/scripts/\n.github/scripts/*\n"
+        "!.github/scripts/publish_readiness_verdict.py\n"
+    )
+    assert not ignored(".github/scripts/publish_readiness_verdict.py")
+    assert ignored(".github/scripts/other.py")
+    assert ignored(".github/workflows/tests.yml")
+    with pytest.raises(L.LayoutError):
+        L.dockerignore_matcher("*.md\n!README*.md\n")
+
+
 # -- what the browser fetches ----------------------------------------------
 
 def test_subresource_extraction_covers_fetches_and_skips_navigation():
