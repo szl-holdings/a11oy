@@ -1,5 +1,6 @@
 """Synthetic-only contract tests for paired source invalidation."""
 
+import hashlib
 from dataclasses import replace
 
 from scripts import paired_source_invalidation as experiment
@@ -77,6 +78,30 @@ def test_gate_denies_conflict_hidden_outside_selected_spans():
     assert experiment.source_bound_gate(hidden_conflict) == experiment.Decision(
         "ABSTAIN", "CONFLICTING_ASSERTIONS"
     )
+
+
+def test_gate_denies_duplicate_json_keys_even_with_matching_hashes():
+    supported, _ = experiment.fixture_pairs(1)[0]
+    proposal = supported.proposal
+    ambiguous_lines = (
+        f'{{"kind":"assertion","claim_id":"{proposal.claim_id}",'
+        f'"answer":"different","answer":"{proposal.answer}"}}',
+        f'{{"kind":"assertion","claim_id":"{proposal.claim_id}",'
+        f'"answer":"{proposal.answer}","meta":{{"x":1,"x":2}}}}',
+    )
+    for line in ambiguous_lines:
+        digest = hashlib.sha256(line.encode("utf-8")).hexdigest()
+        source = experiment.Source(proposal.source_id, line, (line,))
+        ambiguous = replace(
+            supported,
+            proposal=replace(proposal, source_sha256=digest),
+            sources=(source,),
+            expected_hashes={proposal.source_id: digest},
+        )
+        assert experiment.proposal_only(ambiguous.proposal).action == "ANSWER"
+        assert experiment.source_bound_gate(ambiguous) == experiment.Decision(
+            "ABSTAIN", "INVALID_SOURCE_CONTENT"
+        )
 
 
 def test_report_is_reproducible_with_explicit_denominators():

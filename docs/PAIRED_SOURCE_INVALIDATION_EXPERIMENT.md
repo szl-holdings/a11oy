@@ -25,7 +25,8 @@ The proposal-only baseline deliberately answers without inspecting evidence.
 The gate checks the supplied expected hashes, the proposal's cited hash,
 literal selected-line membership in the source, a structured claim/value
 match, and conflicting assertions anywhere in the anchored source content,
-including spans the selector omitted. It returns only `ANSWER` or
+including spans the selector omitted. Ambiguous JSON with duplicate keys is
+rejected at every object depth, even when its byte hashes match. It returns only `ANSWER` or
 `ABSTAIN`; neither value is a runtime authorization. The expected-hash map is
 an unauthenticated input in this experiment. A real deployment would need
 independently admitted sources, a protected source snapshot, authenticated
@@ -62,7 +63,8 @@ Focused test command: `python -X utf8 -B -m pytest -q
 tests/test_paired_source_invalidation.py -p no:cacheprovider` with
 `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` in the environment. The test suite checks
 pair identity, the four specific abstention reasons, retained supported cases,
-source tampering, fabricated spans, a hidden contradiction, duplicate sources, and explicit
+source tampering, fabricated spans, a hidden contradiction, duplicate JSON
+keys, duplicate sources, and explicit
 denominators. This harness is intentionally separate from the existing
 15-query `szl_brain_evidence_eval` pilot and from all Forge held-out model
 release gates.

@@ -34,6 +34,16 @@ def _line(**fields: str) -> str:
     return json.dumps(fields, sort_keys=True, separators=(",", ":"))
 
 
+def _unique_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    """Reject ambiguous keys in every JSON object, including nested objects."""
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate JSON key")
+        result[key] = value
+    return result
+
+
 @dataclass(frozen=True)
 class Proposal:
     claim_id: str
@@ -107,8 +117,8 @@ def source_bound_gate(case: Case) -> Decision:
         lines = {}
         for line in source.content.splitlines():
             try:
-                claim = json.loads(line)
-            except json.JSONDecodeError:
+                claim = json.loads(line, object_pairs_hook=_unique_object)
+            except ValueError:
                 return Decision("ABSTAIN", "INVALID_SOURCE_CONTENT")
             if not isinstance(claim, dict) or claim.get("kind") not in (
                 "assertion", "context", "revision"
