@@ -3564,12 +3564,14 @@ except Exception as _szl_putnam_e:  # pragma: no cover
 # that module stays byte-identical with killinchu (shared-source drift guard). Serves
 # the contract matrix tools/readiness-harness/tabs.json plus the optional probe
 # verdict; fails soft + honest when an artifact isn't bundled with the deploy.
+_rd_artifact = None
 try:
     import os as _rd_os, json as _rd_json, re as _rd_re, math as _rd_math
     from datetime import datetime as _rd_dt, timezone as _rd_tz
     from urllib.parse import urlsplit as _rd_urlsplit
     from fastapi import Request as _RDRequest
     from fastapi.responses import JSONResponse as _RDJSON
+    import szl_readiness_artifact as _rd_artifact
 
     _RD_HARNESS_DIR = _rd_os.path.join(
         _rd_os.path.dirname(_rd_os.path.abspath(__file__)),
@@ -3604,7 +3606,11 @@ try:
         except (TypeError, ValueError):
             return None
 
-    def _rd_load_verdict():
+    def _rd_load_verdict(_artifact_state=None):
+        # Canonical hosted evidence comes only from the lifecycle-owned reader.
+        # Missing credentials or a failed new observation cannot reuse old env data.
+        if _rd_artifact.hosted():
+            return (_artifact_state or _rd_artifact.reader.snapshot()).get("verdict")
         # hf-sync publishes the compact post-deploy verdict only after probing
         # the exact live source. A bounded variable avoids the impossible
         # self-referential checked-in-SHA pattern while keeping the full probe
@@ -3629,7 +3635,8 @@ try:
             _rd_os.environ.get("SZL_TAB_MATRIX_PATH", ""),
             _rd_os.path.join(_RD_HARNESS_DIR, "tabs.json"),
         ))
-        verdict = _rd_load_verdict()
+        _artifact_state = _rd_artifact.reader.snapshot() if _rd_artifact.hosted() else None
+        verdict = _rd_load_verdict(_artifact_state)
         _now_dt = _rd_dt.now(_rd_tz.utc)
         _now = _now_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
         if matrix is None:
@@ -3685,6 +3692,13 @@ try:
                 if isinstance(_candidate_summary, dict)
                 else None
             )
+            _required_not_probed = (
+                _candidate_summary.get(
+                    "requiredNotProbed", _candidate_summary.get("skippedStateChanging")
+                )
+                if isinstance(_candidate_summary, dict)
+                else None
+            )
             try:
                 _checked_dt = _rd_dt.fromisoformat(
                     str(_candidate_checked_at).replace("Z", "+00:00")
@@ -3701,6 +3715,10 @@ try:
                 and _counts[0] > 0
                 and _counts[0] - _counts[2] > 0
                 and sum(_counts[1:]) == _counts[0]
+                and isinstance(_required_not_probed, int)
+                and not isinstance(_required_not_probed, bool)
+                and 0 <= _required_not_probed <= _counts[2]
+                and _required_not_probed == 0
                 and all(value == 0 for value in _counts[3:6])
                 and isinstance(_blocking_degraded, int)
                 and not isinstance(_blocking_degraded, bool)
@@ -3747,6 +3765,7 @@ try:
             if _verdict_available:
                 _verdict_summary = dict(_candidate_summary)
                 _verdict_summary.setdefault("blockingDegraded", _blocking_degraded)
+                _verdict_summary.setdefault("requiredNotProbed", _required_not_probed)
                 _verdict_source_revision = _candidate_revision
                 _verdict_checked_at = _candidate_checked_at
                 _verdict_base = _candidate_base
@@ -3768,6 +3787,7 @@ try:
                 "verdict_checked_at": _verdict_checked_at,
                 "verdict_base": _verdict_base,
                 "verdict_expected_base": _canonical_origin,
+                "verdict_evidence": _artifact_state,
                 "checked_at": _now,
             }, status_code=200)
         return _RDJSON({
@@ -3780,6 +3800,7 @@ try:
             "matrix_available": True,
             "probe_verdict_available": _verdict_available,
             "matrix": matrix,
+            "verdict_evidence": _artifact_state,
             "verdict": verdict if _verdict_available else {
                 "available": False,
                 "note": (
@@ -5054,6 +5075,8 @@ _http_client: httpx.AsyncClient = None  # type: ignore[assignment]
 @app.on_event("startup")
 async def startup() -> None:
     global _node_proc, _http_client
+    if _rd_artifact is not None:
+        _rd_artifact.reader.start()
     load_gates()
     _http_client = httpx.AsyncClient(timeout=30.0)
     # The eval history worker is lifecycle-owned.  Starting it here (after the
@@ -5140,6 +5163,8 @@ async def startup() -> None:
 
 @app.on_event("shutdown")
 async def shutdown() -> None:
+    if _rd_artifact is not None:
+        await asyncio.to_thread(_rd_artifact.reader.stop)
     try:
         _a11oy_eval_autorun_stop()
     except Exception as _eval_stop_error:

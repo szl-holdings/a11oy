@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - Python command-centre presentation
+
+- Render the existing command-centre routes from escaped Python components
+  and the canonical public ownership contract. Keep existing guarded browser
+  actions; this is a Python-rendered core, not a conversion of every frontend.
+  Ayllu remains inventory-only with a planned logical fold, not a completed
+  migration or a promoted production service.
+- Add source-bound, local mobile/desktop browser verification and a free-first
+  production roadmap. Presentation checks do not qualify live model execution,
+  independent receipt verification or whole-product production readiness.
+
+### Fixed - governed-loop completion evidence
+
+- Report orchestration and model completion separately. Preserve generation
+  and evaluation evidence from every retry in the receipt chain, and reject
+  missing, modeled, denied, mismatched or malformed completion evidence.
+  Completion remains upstream-reported and unverified; no model qualification,
+  provider-budget enforcement or production acceptance is implied.
+
 ### Fixed - storage error recovery evidence
 
 - Track unresolved storage failures per operation and store. Clear only the

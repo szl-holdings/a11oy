@@ -57,6 +57,8 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             "szl_dsse.py",
             "a11oy_signing_key.py",
             ".github/scripts/verify_platform_candidate_preview.py",
+            "scripts/witness_platform_candidate_preview.py",
+            ".github/requirements/platform-candidate-browser.txt",
             ".github/scripts/publish_readiness_verdict.py",
             "tools/readiness-harness/probe_runner.mjs",
             "tools/readiness-harness/canonical_unavailable.mjs",
