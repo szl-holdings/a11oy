@@ -14,6 +14,9 @@ did not happen. The composite is REAL only because each part is real.
 
 ENDPOINTS (dual-registered under /api/{ns}/v1/provenance/* AND /v1/provenance/*):
   POST /provenance/receipt
+      Requires the server-held operator Bearer before reading the request body.
+      Malformed/non-finite JSON and missing/empty action input are refused before
+      composition. A non-empty action object or non-blank action string is required.
       Input {action:{...}, model?, family?, crystal?}. COMPOSES, by calling the
       live surfaces in-process:
         1. IMMUNE verdict   — szl_immune._build_verdict(action) (the REAL fail-closed
@@ -49,9 +52,14 @@ ENDPOINTS (dual-registered under /api/{ns}/v1/provenance/* AND /v1/provenance/*)
                               {digest, prev, chain_verified} + the full composed
                               envelope. The receipt SIGNATURE is the honest
                               DSSE_PLACEHOLDER (cosign founder-gated; never faked).
-  GET  /provenance/receipt/{digest}
+  GET/HEAD /provenance/receipt
+      Observe the highest-sequence composite already indexed in this process.
+      An empty index is UNAVAILABLE; a read NEVER composes or mints a receipt.
+      Public reads return metadata only; full action envelopes are operator-only.
+  GET/HEAD /provenance/receipt/{digest}
       Re-fetch the prior composite by digest from this process's composite index and
       RE-VERIFY the shared provenance Khipu chain -> chain_verified + the envelope.
+      Public callers receive metadata only; the envelope remains operator-only.
 
 DOCTRINE v11 (ruthless honesty — never weaken):
   locked-proven = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22} @ kernel c7c0ba17 (this
@@ -64,8 +72,6 @@ Stdlib + already-in-image modules (szl_khipu, szl_immune, szl_materials,
 szl_joules_truth, a11oy_nemo_core). No new pip dep, no CDN, no Node. Additive,
 try/except-guarded per sub-source; registered BEFORE the SPA catch-all.
 """
-from __future__ import annotations
-
 import datetime
 import hashlib
 import json
@@ -75,6 +81,8 @@ from typing import Any, Optional
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
+
+from szl_operator_auth import operator_refusal, principal
 
 # ---------------------------------------------------------------------------
 # Identity + doctrine constants (honest, never a codename).
@@ -465,24 +473,49 @@ def fetch_composite(digest: str) -> dict[str, Any]:
 
 # ---------------------------------------------------------------------------
 # Registration — dual-register under /api/{ns}/v1/provenance/* AND /v1/provenance/*.
-# Mirrors szl_immune / szl_materials. Registered BEFORE the SPA catch-all. NOTE:
-# Request/JSONResponse are imported at MODULE level (top of file) because this module
-# uses `from __future__ import annotations` — a function-local import would leave the
-# `request: Request` annotation unresolved and FastAPI would wrongly treat `request`
-# as a required query param (HTTP 422).
+# Mirrors szl_immune / szl_materials. Registered BEFORE the SPA catch-all.
 # ---------------------------------------------------------------------------
 def register(app, ns: str = "a11oy") -> dict:
     async def _h_receipt(request: Request):  # noqa: ANN202
+        if request.method in ("GET", "HEAD"):
+            with _INDEX_LOCK:
+                latest = max(_COMPOSITE_INDEX.values(),
+                             key=lambda item: item["khipu"]["seq"], default=None)
+            if latest is None:
+                return JSONResponse({
+                    "ok": False,
+                    "status": UNAVAILABLE,
+                    "service": "provenance.composite.fetch",
+                    "digest": None,
+                    "found_in_process_index": False,
+                    "reason": "no composite envelope in this process's index; "
+                              "reads do not compose or mint receipts",
+                    "honesty": _honesty(),
+                }, headers={"Cache-Control": "no-store"})
+            return await _h_fetch(request, latest["digest"])
+
+        refusal = operator_refusal(request, "Composite provenance receipt publication")
+        if refusal is not None:
+            return refusal
         try:
-            if request.method == "POST":
-                try:
-                    body = await request.json()
-                except Exception:  # noqa: BLE001 — malformed/empty body
-                    body = {}
-            else:
-                body = {}
-            if not isinstance(body, dict):
-                body = {"action": body}
+            try:
+                body = await request.json()
+                # Refuse serialization failures before any composer can append.
+                json.dumps(body, allow_nan=False, ensure_ascii=False).encode("utf-8")
+            except Exception:  # noqa: BLE001 — malformed, non-finite or invalid UTF-8 JSON
+                return JSONResponse({
+                    "ok": False, "status": "BLOCKED",
+                    "reason": "body must be valid finite JSON; no artifact minted",
+                }, status_code=400)
+            action = body.get("action") if isinstance(body, dict) else None
+            valid_action = ((isinstance(action, str) and bool(action.strip()))
+                            or (isinstance(action, dict) and bool(action)))
+            if not isinstance(body, dict) or not valid_action:
+                return JSONResponse({
+                    "ok": False, "status": "BLOCKED",
+                    "reason": "an object with an explicit non-empty action object or "
+                              "non-blank action string is required; no artifact minted",
+                }, status_code=422)
             envelope = build_composite(body)
             return JSONResponse(envelope, headers={
                 "x-szl-provenance-digest": envelope["digest"],
@@ -491,15 +524,26 @@ def register(app, ns: str = "a11oy") -> dict:
         except Exception as e:  # noqa: BLE001 — never 500 the SPA; honest error
             return JSONResponse(
                 {"ok": False, "error": f"{e!r}",
-                 "reason": "composite receipt failed to compose; no artifact minted",
+                 "reason": "composite receipt composition failed; mint outcome UNKNOWN",
                  "honesty": _honesty()},
                 status_code=500,
             )
 
-    async def _h_fetch(digest: str):  # noqa: ANN202
+    async def _h_fetch(request: Request, digest: str):  # noqa: ANN202
         try:
             result = fetch_composite(digest)
-            return JSONResponse(result, status_code=200 if result.get("ok") else 404)
+            try:
+                operator = principal(request).get("operator") is True
+            except Exception:  # noqa: BLE001 — metadata-only on identity failure
+                operator = False
+            if not operator:
+                result.pop("envelope", None)
+            headers = {"Cache-Control": "no-store"}
+            if result.get("ok"):
+                headers["x-szl-provenance-digest"] = result["digest"]
+                headers["x-szl-provenance-chain-verified"] = str(result["chain_verified"])
+            return JSONResponse(result, status_code=200 if result.get("ok") else 404,
+                                headers=headers)
         except Exception as e:  # noqa: BLE001
             return JSONResponse(
                 {"ok": False, "error": f"{e!r}", "honesty": _honesty()},
@@ -509,9 +553,9 @@ def register(app, ns: str = "a11oy") -> dict:
     prefixes = [f"/api/{ns}/v1/provenance", "/v1/provenance"]
     routes: list[str] = []
     for p in prefixes:
-        app.add_api_route(f"{p}/receipt", _h_receipt, methods=["POST", "GET"],
+        app.add_api_route(f"{p}/receipt", _h_receipt, methods=["POST", "GET", "HEAD"],
                           include_in_schema=True)
-        app.add_api_route(f"{p}/receipt/{{digest}}", _h_fetch, methods=["GET"],
+        app.add_api_route(f"{p}/receipt/{{digest}}", _h_fetch, methods=["GET", "HEAD"],
                           include_in_schema=True)
         routes.extend([f"{p}/receipt", f"{p}/receipt/{{digest}}"])
 
