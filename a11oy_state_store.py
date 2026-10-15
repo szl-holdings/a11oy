@@ -706,7 +706,7 @@ def validate_transition(before: Optional[dict[str, Any]], after: dict[str, Any])
 
 
 def cas_advance(backend: Any, expected: Observation, proposal: dict[str, Any],
-                *, attempts: int = 3) -> Observation:
+                *, attempts: int = 3, on_submit: Optional[Callable[[], None]] = None) -> Observation:
     """Replace exactly ``expected`` with ``proposal``; never a blind overwrite.
 
     ``expected.body`` None means "HEAD absent" (first bootstrap). A changed HEAD
@@ -726,6 +726,8 @@ def cas_advance(backend: Any, expected: Observation, proposal: dict[str, Any],
                 return observed
             raise HeadChanged(observed)
         try:
+            if on_submit is not None:
+                on_submit()
             revision = backend.submit(observed.revision, body, after["operation_id"])
         except ParentConflict:
             continue
@@ -799,6 +801,9 @@ class StateStore:
         self.durable_v1_env_ignored = False
         self._seq = 0
         self._unpublished: dict[str, dict[str, Any]] = {}
+        # An unresolved ACTIVE snapshot keeps its exact original operation and
+        # expected HEAD. Same-writer identity alone never authorizes adoption.
+        self._pending_snapshot: Optional[dict[str, Any]] = None
         self._publish_failures = 0
         self._publish_next_at = 0.0
         self._lock = threading.RLock()
@@ -1461,6 +1466,75 @@ class StateStore:
             state.captured_at = now
             state.dirty_since = None
 
+    def _accept_pending_snapshot(self, observed: Observation) -> bool:
+        """Adopt only a submitted, byte-exact local intent while still WRITER."""
+        pending = self._pending_snapshot
+        if (pending is None or pending["submitted"] is not True or self.role != ROLE_WRITER
+                or self.head is None or self.head.body != pending["expected"].body
+                or observed.body != pending["body"]):
+            return False
+        before, after = parse_head(self.head.body), parse_head(observed.body)
+        validate_transition(before, after)
+        if (after["transition"] != "SNAPSHOT" or after["state"] != STATE_ACTIVE
+                or after["epoch"] != self.epoch or after["writer_id"] != self.writer_id
+                or after["boot_id"] != self.boot_id
+                or after["previous_manifest_sha256"] != _sha256_bytes(self.head.body)):
+            return False
+        self.head = observed
+        self._commit_entries(pending["entries"])
+        for label, entry in pending["entries"].items():
+            if self._unpublished.get(label) == entry:
+                self._unpublished.pop(label)
+        self._pending_snapshot = None
+        self._publish_failures, self._publish_next_at = 0, 0.0
+        self._recovered("publish")
+        return True
+
+    def _finish_pending_snapshot(self) -> None:
+        """Retry one original proposal, including its operation_id, unchanged."""
+        pending = self._pending_snapshot
+        if pending is None:
+            return
+        if (self.role != ROLE_WRITER or self.head is None
+                or self.head.body != pending["expected"].body):
+            raise StorageBlocked("STATE_PENDING_SNAPSHOT_WRITER_CHANGED")
+        try:
+            observed = cas_advance(self.backend, pending["expected"], parse_head(pending["body"]),
+                on_submit=lambda: pending.__setitem__("submitted", True))
+        except StorageBlocked as error:
+            # A known mismatch/corrupt transition is not an uncertain commit.
+            # Only transient or ambiguous verification preserves this intent.
+            if error.code not in {"STATE_DATASET_UNREACHABLE", "STATE_HEAD_UNREADABLE",
+                                  "STATE_HEAD_OUTCOME_UNCERTAIN", "STATE_HEAD_CONTENTION"}:
+                self._pending_snapshot = None
+            raise
+        if not self._accept_pending_snapshot(observed):
+            self._pending_snapshot = None
+            raise StorageBlocked("STATE_PENDING_SNAPSHOT_BINDING_MISMATCH")
+
+    def _advance_snapshot(self, entries: Mapping[str, dict[str, Any]]) -> None:
+        """Resolve any earlier intent before proposing snapshots of newer bytes."""
+        self._unpublished.update(entries)
+        self._finish_pending_snapshot()
+        assert self.head is not None and self.head.body is not None
+        current = parse_head(self.head.body)
+        changed = {label: entry for label, entry in entries.items()
+                   if current["snapshots"].get(label) != entry}
+        if not changed:
+            self._commit_entries(entries)
+            for label, entry in entries.items():
+                if self._unpublished.get(label) == entry:
+                    self._unpublished.pop(label)
+            return
+        snapshots, history = self._merged(current, changed)
+        proposal = self._next(current, self.head.body, transition="SNAPSHOT", state=STATE_ACTIVE,
+                              snapshots=snapshots, history=history)
+        # Freeze before the first possible submit. A retry cannot replace this
+        # intent with a new operation_id while the original outcome is unknown.
+        self._pending_snapshot = {"expected": self.head, "body": canonical(proposal),
+                                  "entries": json.loads(json.dumps(changed)), "submitted": False}
+        self._finish_pending_snapshot()
+
     def confirmed_writer(self) -> dict[str, Any]:
         """Read the current fenced lease; never initiate a handover or a write.
 
@@ -1515,6 +1589,14 @@ class StateStore:
         effect atomic with the storage commit.
         """
         with self._lock:
+            if self._pending_snapshot is not None:
+                # This mutating snapshot path may reconcile an exact prior
+                # readback before its strict lease check. confirmed_writer()
+                # itself stays read-only and never retries a CAS from a GET.
+                observed = self._observe()
+                if observed.body != (self.head.body if self.head else None):
+                    if not self._accept_pending_snapshot(observed):
+                        raise StorageBlocked("STATE_CONFIRMED_HEAD_CHANGED")
             self.confirmed_writer()
             state = self.stores.get(label)
             if state is None or state.spec.kind != "sqlite" or state.health == "BLOCKED":
@@ -1538,11 +1620,8 @@ class StateStore:
                     raise StorageBlocked("STATE_CONFIRMED_CONTENT_MISMATCH")
                 acknowledged = self.confirmed_writer()
                 if acknowledged["snapshots"].get(label) != entry:
-                    snapshots, history = self._merged(acknowledged, {label: entry})
-                    proposal = self._next(acknowledged, self.head.body, transition="SNAPSHOT",
-                                          state=STATE_ACTIVE, snapshots=snapshots, history=history)
                     try:
-                        self.head = cas_advance(self.backend, self.head, proposal)
+                        self._advance_snapshot({label: entry})
                     except HeadChanged:
                         raise StorageBlocked("STATE_CONFIRMED_HEAD_CHANGED") from None
                     acknowledged = self.confirmed_writer()
@@ -1627,12 +1706,8 @@ class StateStore:
             self._write_unfenced_head()
             return
         assert self.head is not None and self.head.body is not None
-        current = parse_head(self.head.body)
-        snapshots, history = self._merged(current, entries)
-        proposal = self._next(current, self.head.body, transition="SNAPSHOT", state=STATE_ACTIVE,
-                              snapshots=snapshots, history=history)
         try:
-            self.head = cas_advance(self.backend, self.head, proposal)
+            self._advance_snapshot(entries)
         except HeadChanged as changed:
             self._unpublished = {}
             self._on_head_changed(changed.observed, pending=entries)
@@ -1640,13 +1715,13 @@ class StateStore:
         except StorageBlocked as error:
             # Uploaded objects stay pending and are published on the next pass;
             # the live databases are not touched.
-            self._unpublished = dict(entries)
+            self._unpublished.update(entries)
             self._publish_failures += 1
             self._publish_next_at = self.clock() + min(
                 self.settings.periodic_s, 5.0 * 2 ** min(self._publish_failures, 6))
             self._error(error, "publish")
             return
-        self._unpublished, self._publish_failures, self._publish_next_at = {}, 0, 0.0
+        self._publish_failures, self._publish_next_at = 0, 0.0
         self._commit_entries(entries)
         self._recovered("publish")
 
@@ -1715,6 +1790,8 @@ class StateStore:
         except StorageBlocked as error:
             self._fence(error.code)
             return False
+        if self._accept_pending_snapshot(observed):
+            return True
         mine = parse_head(self.head.body) if self.head and self.head.body else None
         if mine is not None and value["epoch"] == mine["epoch"] and value["sequence"] < mine["sequence"]:
             return False  # a read that predates our own last advance
@@ -1726,6 +1803,7 @@ class StateStore:
         return False
 
     def _fence(self, code: str) -> None:
+        self._pending_snapshot = None
         if self.role != ROLE_FENCED:
             self.role = ROLE_FENCED
             self._error(StorageBlocked(code), "lease")
@@ -1734,6 +1812,7 @@ class StateStore:
     def _release(self, observed: Observation, *, pending: Optional[Mapping[str, Any]] = None) -> None:
         """Hand over: refuse writes, drain, take final snapshots, mark RELEASED."""
         with self._lock:
+            self._pending_snapshot = None
             with self._inflight_cond:
                 self.role = ROLE_HANDOVER
             _log("handover requested; refusing writes and taking final snapshots")
