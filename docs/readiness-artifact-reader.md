@@ -51,6 +51,9 @@ The five required effect contracts (`policy/decide`, `operator/ask`, `eval/run`,
 does not execute them or weaken their acceptance requirements. A new qualifying
 artifact requires separately authorized effect acceptance through the canonical
 workflow. This change adds no schedule, dispatch, or restart to produce evidence.
+The read-only runner records skipped required contracts as `requiredNotProbed`;
+the publisher rejects a positive count, and this reader independently refuses
+that artifact. An ordinary GET-only run therefore cannot clear this gate.
 
 The canonical hosted route ignores the legacy Space-variable verdict. Local
 noncanonical operation retains its existing behavior. If the optional readiness
