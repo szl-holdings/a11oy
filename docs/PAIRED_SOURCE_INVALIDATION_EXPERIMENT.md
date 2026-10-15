@@ -62,7 +62,7 @@ answer; a hash proves byte identity only against the supplied anchor.
 Focused test command: `python -X utf8 -B -m pytest -q
 tests/test_paired_source_invalidation.py -p no:cacheprovider` with
 `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` in the environment. The test suite checks
-pair identity, the four specific abstention reasons, retained supported cases,
+pair identity, refusal outcomes for all four mutations, retained supported cases,
 source tampering, fabricated spans, a hidden contradiction, duplicate JSON
 keys, duplicate sources, and explicit
 denominators. This harness is intentionally separate from the existing
