@@ -33,7 +33,7 @@ independently admitted sources, a protected source snapshot, authenticated
 bindings, and semantic validation.
 
 The original construction here is the **paired evidence inversion**: hold a
-proposal fixed, vary its source support in four independently diagnosed ways,
+proposal fixed, vary its source support in four independently constructed ways,
 and report both invalidated denial and supported retention with the same
 denominator. That makes the safety/utility tradeoff visible without calling a
 blanket refusal a success. This is an implementation choice for this repo,
