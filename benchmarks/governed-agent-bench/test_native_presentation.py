@@ -7,7 +7,9 @@ import copy
 import hashlib
 import importlib.util
 import json
+import sys
 import tempfile
+import types
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -115,6 +117,53 @@ class NativePresentationTests(unittest.TestCase):
         self.assertIn("js_on_load=None", source)
         self.assertIn("analytics_enabled=False", source)
         self.assertNotIn("http", source)
+
+    def test_app_exposes_one_exact_hidden_immutable_identity(self):
+        json_calls = []
+
+        class FakeBlocks:
+            def __init__(self, **kwargs):
+                self.kwargs = kwargs
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def launch(self, **_kwargs):
+                raise AssertionError("test import must not launch the Space")
+
+        fake_gradio = types.SimpleNamespace(
+            Blocks=FakeBlocks,
+            HTML=lambda *_args, **_kwargs: None,
+            JSON=lambda **kwargs: json_calls.append(copy.deepcopy(kwargs)),
+        )
+        fake_native = types.SimpleNamespace(
+            head=lambda: "<meta charset='utf-8'>",
+            render=lambda *_args: "<main>read-only</main>",
+        )
+        with (
+            patch.dict(sys.modules, {
+                "gradio": fake_gradio,
+                "native_presentation": fake_native,
+            }),
+            patch.object(sys, "path", [str(self.space), *sys.path]),
+        ):
+            module = load(self.space / "app.py", "bench_runtime_identity_test")
+
+        expected = {
+            "source_revision": self.publication["source_revision"],
+            "dataset_repository": self.publication["dataset_repository"],
+            "dataset_revision": self.publication["dataset_revision"],
+            "evidence_labels": self.publication["evidence_labels"],
+        }
+        self.assertEqual(module.IMMUTABLE_PUBLICATION_IDENTITY, expected)
+        self.assertEqual(json_calls, [{
+            "value": expected,
+            "label": "Immutable publication identity",
+            "visible": False,
+        }])
 
 
 if __name__ == "__main__":
