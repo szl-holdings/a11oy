@@ -896,6 +896,7 @@ jobs:
         run: >-
           pytest test_frontier_surfaces.py test_frontier_manifest.py
           tests/test_frontier_manifest_readiness.py
+          tests/test_provenance_receipt_write_boundary.py
           tests/test_frontier_health_rollup.py -q
 
   python-v4-fleet-federation:
