@@ -53,12 +53,12 @@ def identity_document(**changes):
 
 @pytest.fixture
 def protected_release_identity():
-    # Forge 3b00912 release.json matches HF commit af4f3ce byte-for-byte.
+    # Forge 8e1e87e release.json matches HF commit 01ec2eb byte-for-byte.
     identity = identity_document()
     identity["space"]["release_id"] = (
         "brain13-1d3960c-controller-9f227f6-atlas-d7b08cde")
     identity["space"]["release_manifest_sha256"] = (
-        "e2abf20038d11843ae5fcf6803404d4db22a480cfbe2ccb866e8988d44b3486f")
+        "d431e003041020ff38c9de38d048b1495b037efbefcfc209a69504086c0d384b")
     identity["runtime"]["prompt_cache"] = {
         "status": "DISABLED", "advisory": "CVE-2025-69872"}
     return identity
@@ -86,6 +86,7 @@ def test_protected_cpu_release_binding_stays_exact(
 
 
 @pytest.mark.parametrize("manifest", [
+    "e2abf20038d11843ae5fcf6803404d4db22a480cfbe2ccb866e8988d44b3486f",
     "5d20c8bc17f93f0b8275fb18c07a3889477c9e91fe2d25c522ffb27ab8d16d78",
     "d1170d8265c523352f800d3c68dbb701b8220bca3db5403a8de94258f5a5613c",
     "0" * 64,
