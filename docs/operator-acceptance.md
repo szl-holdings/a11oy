@@ -106,7 +106,7 @@ Never delete the failed capture to make a rerun look like the first attempt.
 
 The passive readiness observer, its five required `NOT_PROBED` rows, compact
 publisher and canonical relock gates are unchanged. This capture is not the
-DSSE execution-observation bundle proposed in PR #2844. The missing bridge must
+DSSE execution-observation bundle added in PR #2844. The missing bridge must
 independently admit authority/runtime keys, bind source/HF revision/boot/nonce,
 consume authorization durably, enforce native execution budgets, validate the
 native receipts and retain request-specific readback. Only then may a separate
