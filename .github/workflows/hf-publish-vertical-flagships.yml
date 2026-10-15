@@ -60,6 +60,7 @@ on:
       - scripts/hf_publish_lyte_enterprise.py
       - scripts/hf_publish_vertical_flagships_v4.py
       - scripts/hf_publish_vertical_flagships_v4_impl.py
+      - scripts/hf_sentra_upstream.py
       - scripts/hf_vertical_convergence.py
       - scripts/hf_vertical_native.css
       - scripts/hf_vertical_native_presentation.py

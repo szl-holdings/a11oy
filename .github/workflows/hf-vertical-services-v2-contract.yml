@@ -30,6 +30,7 @@ on:
     - scripts/hf_publish_vertical_flagships_v4.py
     - scripts/hf_publish_vertical_flagships_v4_impl.py
     - scripts/hf_publish_vertical_services.py
+    - scripts/hf_sentra_upstream.py
     - scripts/hf_vertical_convergence.py
     - scripts/lyte_enterprise_live_contract.py
     - scripts/szl_release_guard.py
@@ -44,6 +45,7 @@ on:
     - console/assets/szl/**
     - tests/test_hf_publish_vertical_flagships_v4.py
     - tests/test_hf_vertical_convergence.py
+    - tests/test_sentra_upstream_backoff.py
     - tests/test_vertical_publication_scope.py
     - tests/test_vertical_shell_healthz_process_scoped.py
   push:
@@ -69,6 +71,7 @@ on:
     - scripts/hf_publish_vertical_flagships_v4.py
     - scripts/hf_publish_vertical_flagships_v4_impl.py
     - scripts/hf_publish_vertical_services.py
+    - scripts/hf_sentra_upstream.py
     - scripts/hf_vertical_convergence.py
     - scripts/lyte_enterprise_live_contract.py
     - scripts/szl_release_guard.py
@@ -83,6 +86,7 @@ on:
     - console/assets/szl/**
     - tests/test_hf_publish_vertical_flagships_v4.py
     - tests/test_hf_vertical_convergence.py
+    - tests/test_sentra_upstream_backoff.py
     - tests/test_vertical_publication_scope.py
     - tests/test_vertical_shell_healthz_process_scoped.py
   workflow_dispatch: null
@@ -130,6 +134,7 @@ jobs:
           tests/test_hf_publish_vertical_flagships_v4.py
           tests/test_vertical_shell_healthz_process_scoped.py
           tests/test_hf_vertical_convergence.py
+          tests/test_sentra_upstream_backoff.py
           tests/test_vertical_publication_scope.py
           tests/test_hf_publish_vertical_flagships_v3.py -q
           tests/test_hf_vertical_native.py

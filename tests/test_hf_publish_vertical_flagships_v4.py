@@ -144,7 +144,7 @@ def test_overlay_changes_only_declared_sentra_and_finance_contracts() -> None:
         "upstream": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/finance/overview",
     }
     # Shared livebar probe is REACHABLE on HTTP success. Restore the historical
-    # LIVE mapper only to prove the finance suffix is still the sole APP addition.
+    # LIVE mapper to prove only the declared finance and Sentra suffixes are added.
     restored_app = overlay.APP.replace(
         '{"status":"REACHABLE" if r.is_success else "UNAVAILABLE",'
         '"honesty":"HTTP success is reachability, not MEASURED","receipt_verified":False,',
@@ -164,6 +164,10 @@ def test_overlay_changes_only_declared_sentra_and_finance_contracts() -> None:
     restored_app = restored_app.replace(
         overlay._LIVE_UPSTREAM_BOUND, overlay._LIVE_UNCONDITIONAL, 1
     ).replace(overlay._READYZ_UPSTREAM_BOUND, overlay._READYZ_LOCAL_ONLY, 1)
+    sentra = load_module("szl_sentra_budget_contract", Path("scripts/hf_sentra_upstream.py"))
+    assert restored_app.count(sentra.APP_SUFFIX) == 1
+    assert restored_app.endswith(sentra.APP_SUFFIX)
+    restored_app = restored_app[:-len(sentra.APP_SUFFIX)]
     assert restored_app.startswith(base.APP)
     addition = restored_app[len(base.APP):]
     assert 'if CFG.get("slug") == "finance":' in addition
