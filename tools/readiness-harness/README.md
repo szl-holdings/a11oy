@@ -91,6 +91,36 @@ The existing required execution contracts need a separately governed producer
 and source-bound acceptance evidence. This repair does not supply that producer
 or qualify a release. Explicit operator execution clients remain separate.
 
+### Isolated POST acceptance rehearsal
+
+`effect_acceptance.py` is a separate, one-shot **SIMULATED** rehearsal for the
+five required POST paths. It never calls the public origin or changes the
+read-only readiness validator. Supply an **already local** immutable A11oy
+image ID whose `org.opencontainers.image.revision` label matches the clean Git
+HEAD; the driver does not pull or build images:
+
+```powershell
+python tools/readiness-harness/effect_acceptance.py --image sha256:<local-image-id> --out C:\path\outside\repo\effect-acceptance.json
+```
+
+The container runs with `--network none`, read-only root, a disposable `/app/data`
+tmpfs, no inherited host credentials, and a generated local operator key. The
+driver checks response semantics and before/after in-process decision-feed and
+forum counts. It can observe policy decision, cited formula answer,
+compliance lookup, and a **MODELED** eval with zero evaluated model responses.
+The agent-loop route is sent one anonymous request to observe its 401 refusal;
+its execution effect remains **UNAVAILABLE**. Missing/mismatched images,
+unavailable routes, or ambiguous state readback produce `UNAVAILABLE` rows and
+exit code 2. The report hashes requests/responses; it never records the local
+operator key.
+
+An image revision label is a declared source binding, not independent image
+provenance. The report is local simulated evidence only; it is neither live
+same-origin effect coverage nor a release/admission verdict. A governed live
+producer still needs an approved disposable tenant, effect-specific readback,
+exact deployed image proof, and independent review before the required POST
+coverage can close.
+
 `tools/verify_board.py` likewise reads only, records execution endpoints and
 HTTP 405 as `NOT_PROBED`, and never retries with POST. HTTP 503 is an unavailable
 observation and cannot establish a live image.
