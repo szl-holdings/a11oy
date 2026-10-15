@@ -434,6 +434,8 @@ jobs:
           tests/test_platform_candidate_no_transform_middleware.py
           tests/test_zero_cdn_guard.py
           tests/test_verify_platform_candidate_preview.py
+          tests/test_platform_candidate_browser_witness.py
+          tests/test_platform_candidate_browser_witness_cli.py
           test_canonical_domain.py
           -q
 

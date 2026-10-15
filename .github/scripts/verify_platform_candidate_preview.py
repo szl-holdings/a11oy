@@ -70,6 +70,10 @@ CSP = (
     "frame-ancestors 'self' https://huggingface.co https://*.hf.space "
     "https://*.huggingface.co"
 )
+PRODUCT_ORIGIN = "https://a-11-oy.com"
+PRODUCT_EDGE_SPECULATION_PATH = "/cdn-cgi/speculation"
+PRODUCT_EDGE_SPECULATION_HEADER = f'"{PRODUCT_EDGE_SPECULATION_PATH}"'
+PRODUCT_EDGE_SPECULATION_CLASSIFICATION = "cloudflare-speed-brain-exact"
 STATIC_HEADERS = {
     "cache-control": "no-store, no-transform",
     "content-security-policy": CSP,
@@ -83,6 +87,7 @@ WIDGET_MARKERS = (
     b"a11oy-operator-widget.js",
     b'data-surface="a11oy"',
 )
+EDGE_BRIDGE_MARKER = b".webmcp/bridge.js"
 MANIFEST_KEYS = {
     "schema",
     "state",
@@ -106,6 +111,18 @@ MEDIA_TYPES = {
     ".webp": "image/webp",
     ".woff": "font/woff",
     ".woff2": "font/woff2",
+}
+EXACT_CONTENT_TYPES = {
+    "application/json": "application/json",
+    "text/html": "text/html; charset=utf-8",
+    "text/css": "text/css; charset=utf-8",
+    "text/javascript": "text/javascript; charset=utf-8",
+    "image/png": "image/png",
+    "image/jpeg": "image/jpeg",
+    "image/svg+xml": "image/svg+xml",
+    "image/webp": "image/webp",
+    "font/woff": "font/woff",
+    "font/woff2": "font/woff2",
 }
 
 
@@ -294,12 +311,33 @@ def _media_type(observation: Observation) -> str:
     return observation.header("content-type").split(";", 1)[0].strip().lower()
 
 
+def _require_provider_edge_headers(observation: Observation) -> None:
+    parsed = urlsplit(observation.url)
+    origin = f"{parsed.scheme.lower()}://{parsed.netloc.lower()}"
+    values = observation.headers.get("speculation-rules", ())
+    # Cloudflare Speed Brain advertises exactly one provider-owned browser GET
+    # on the product edge.  The browser witness binds that GET and its response;
+    # this stdlib verifier binds the header which caused it.  Do not accept the
+    # provider header on the untransformed Space origin or in any other form.
+    expected = (
+        (PRODUCT_EDGE_SPECULATION_HEADER,)
+        if origin == PRODUCT_ORIGIN and observation.method in {"GET", "HEAD"}
+        else ()
+    )
+    if values != expected:
+        raise VerificationError(
+            f"{observation.method} {observation.url} returned an invalid "
+            "speculation-rules header"
+        )
+
+
 def _require_static_headers(observation: Observation) -> None:
     for name, expected in STATIC_HEADERS.items():
         if observation.header(name) != expected:
             raise VerificationError(
                 f"{observation.method} {observation.url} returned an invalid {name} header"
             )
+    _require_provider_edge_headers(observation)
     encodings = observation.headers.get("content-encoding", ())
     if encodings not in ((), ("identity",)):
         raise VerificationError(
@@ -334,7 +372,7 @@ def _require_pair(
                 f"{observation.status}, expected {status}"
             )
         _require_static_headers(observation)
-        if _media_type(observation) != media_type:
+        if observation.header("content-type") != EXACT_CONTENT_TYPES[media_type]:
             raise VerificationError(
                 f"{observation.method} {observation.url} returned an invalid content type"
             )
@@ -353,7 +391,7 @@ def _require_method_rejection(observation: Observation) -> None:
             f"{observation.status}, expected 405"
         )
     _require_static_headers(observation)
-    if _media_type(observation) != "application/json":
+    if observation.header("content-type") != EXACT_CONTENT_TYPES["application/json"]:
         raise VerificationError(
             f"{observation.method} {observation.url} returned an invalid content type"
         )
@@ -525,6 +563,8 @@ def verify(
         lowered = get.body.lower()
         if any(marker in lowered for marker in WIDGET_MARKERS):
             raise VerificationError(f"GET {path} contains operator-widget injection")
+        if EDGE_BRIDGE_MARKER in lowered:
+            raise VerificationError(f"GET {path} references the product edge bridge")
         observations.extend((get, head))
 
     verified_assets: list[str] = []
@@ -541,6 +581,8 @@ def verify(
         )
         _require_pair(asset_get, asset_head, status=200, media_type=MEDIA_TYPES[suffix])
         _require_record(asset_get.body, asset, f"GET {asset_path}")
+        if suffix in {".css", ".js"} and EDGE_BRIDGE_MARKER in asset_get.body.lower():
+            raise VerificationError(f"GET {asset_path} references the product edge bridge")
         observations.extend((asset_get, asset_head))
         verified_assets.append(asset.path)
 
@@ -566,7 +608,7 @@ def verify(
             manifest_sha256=manifest_sha256,
         )
 
-    return {
+    report = {
         "schema": REPORT_SCHEMA,
         "status": "PASS",
         "base_url": origin,
@@ -578,6 +620,14 @@ def verify(
         "unknown_route_status": 404,
         "rejected_methods": list(REJECTED_METHODS),
     }
+    if origin == PRODUCT_ORIGIN:
+        report.update(
+            {
+                "provider_edge_csp": "NOT_PRESENT",
+                "provider_edge_speculation": PRODUCT_EDGE_SPECULATION_CLASSIFICATION,
+            }
+        )
+    return report
 
 
 def _parser() -> argparse.ArgumentParser:
