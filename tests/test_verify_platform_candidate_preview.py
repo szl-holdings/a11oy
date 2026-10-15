@@ -64,6 +64,7 @@ def test_isolated_cli_ignores_sibling_stdlib_shadow(tmp_path: Path):
 
 def test_live_verifier_security_policy_matches_the_serving_router():
     assert verifier.CSP == preview._CSP
+    assert ".webmcp/bridge.js" not in verifier.CSP
     for directive in ("script-src", "style-src", "img-src", "font-src"):
         value = next(
             part for part in verifier.CSP.split("; ") if part.startswith(directive + " ")
@@ -74,7 +75,7 @@ def test_live_verifier_security_policy_matches_the_serving_router():
 @dataclass
 class ResponseSpec:
     status: int
-    headers: dict[str, str]
+    headers: dict[str, str | tuple[str, ...]]
     body: bytes
     final_url: str | None = None
 
@@ -87,7 +88,9 @@ class FakeResponse:
         self._offset = 0
         self.headers = Message()
         for name, value in spec.headers.items():
-            self.headers.add_header(name, value)
+            values = value if isinstance(value, tuple) else (value,)
+            for item in values:
+                self.headers.add_header(name, item)
 
     def geturl(self):
         return self._url
@@ -119,18 +122,29 @@ class FakeOpener:
         return FakeResponse(request.full_url, self.responses[key])
 
 
-def _headers(content_type: str, size: int, digest: str) -> dict[str, str]:
-    return {
+def _headers(
+    content_type: str,
+    size: int,
+    digest: str,
+    *,
+    origin: str = ORIGIN,
+    edge_read: bool = True,
+) -> dict[str, str | tuple[str, ...]]:
+    headers = {
         **{name: value for name, value in verifier.STATIC_HEADERS.items()},
         "Content-Type": content_type,
         "Content-Length": str(size),
         "X-SZL-Platform-Source-Revision": REVISION,
         "X-SZL-Candidate-Manifest-SHA256": digest,
     }
+    if origin == verifier.PRODUCT_ORIGIN and edge_read:
+        headers["speculation-rules"] = verifier.PRODUCT_EDGE_SPECULATION_HEADER
+    return headers
 
 
 def _site(
     *,
+    origin: str = ORIGIN,
     manifest_updates: dict[str, object] | None = None,
     index: bytes | None = None,
     additional_assets: dict[str, bytes] | None = None,
@@ -174,17 +188,23 @@ def _site(
     responses: dict[tuple[str, str], ResponseSpec] = {}
 
     def add_pair(path: str, body: bytes, content_type: str, status: int = 200) -> None:
-        url = ORIGIN + path
-        headers = _headers(content_type, len(body), manifest_digest)
+        url = origin + path
+        headers = _headers(content_type, len(body), manifest_digest, origin=origin)
         responses[("GET", url)] = ResponseSpec(status, dict(headers), body)
         responses[("HEAD", url)] = ResponseSpec(status, dict(headers), b"")
 
     add_pair(verifier.PREFIX + "/source.json", raw_manifest, "application/json")
     rejection = b'{"state":"METHOD_NOT_ALLOWED"}'
-    rejection_headers = _headers("application/json", len(rejection), manifest_digest)
+    rejection_headers = _headers(
+        "application/json",
+        len(rejection),
+        manifest_digest,
+        origin=origin,
+        edge_read=False,
+    )
     rejection_headers["Allow"] = "GET, HEAD"
     for method in verifier.REJECTED_METHODS:
-        responses[(method, ORIGIN + verifier.PREFIX + "/source.json")] = ResponseSpec(
+        responses[(method, origin + verifier.PREFIX + "/source.json")] = ResponseSpec(
             405, dict(rejection_headers), rejection
         )
     for path in verifier.INDEX_PATHS:
@@ -250,7 +270,7 @@ PRODUCT_HTML_PATHS = (
 
 def _product_site(monkeypatch):
     monkeypatch.setattr(sys.modules[__name__], "ORIGIN", PRODUCT_ORIGIN)
-    return _site()
+    return _site(origin=PRODUCT_ORIGIN)
 
 
 def test_product_html_requires_the_origin_csp(monkeypatch):
@@ -323,6 +343,84 @@ def test_product_html_still_requires_manifest_bytes(monkeypatch):
     )
     with pytest.raises(verifier.VerificationError, match="digest disagrees with source.json"):
         verifier.verify(PRODUCT_ORIGIN, opener=opener)
+
+
+def test_product_edge_reports_canonical_csp_and_exact_speculation():
+    opener, _, _, manifest_digest = _site(origin=verifier.PRODUCT_ORIGIN)
+    report = verifier.verify(
+        verifier.PRODUCT_ORIGIN,
+        opener=opener,
+        expected_source_revision=REVISION,
+        expected_manifest_sha256=manifest_digest,
+    )
+    assert report["base_url"] == verifier.PRODUCT_ORIGIN
+    assert report["provider_edge_csp"] == "NOT_PRESENT"
+    assert report["provider_edge_speculation"] == "cloudflare-speed-brain-exact"
+
+
+def test_speed_brain_header_is_exact_and_product_only():
+    product, _, _, _ = _site(origin=verifier.PRODUCT_ORIGIN)
+    key = ("GET", verifier.PRODUCT_ORIGIN + verifier.BASE_PATH)
+
+    missing, _, _, _ = _site(origin=verifier.PRODUCT_ORIGIN)
+    del missing.responses[key].headers["speculation-rules"]
+    with pytest.raises(verifier.VerificationError, match="speculation-rules"):
+        verifier.verify(verifier.PRODUCT_ORIGIN, opener=missing)
+
+    product.responses[key].headers["speculation-rules"] = '"/other"'
+    with pytest.raises(verifier.VerificationError, match="speculation-rules"):
+        verifier.verify(verifier.PRODUCT_ORIGIN, opener=product)
+
+    duplicate, _, _, _ = _site(origin=verifier.PRODUCT_ORIGIN)
+    duplicate.responses[key].headers["speculation-rules"] = (
+        verifier.PRODUCT_EDGE_SPECULATION_HEADER,
+        verifier.PRODUCT_EDGE_SPECULATION_HEADER,
+    )
+    with pytest.raises(verifier.VerificationError, match="speculation-rules"):
+        verifier.verify(verifier.PRODUCT_ORIGIN, opener=duplicate)
+
+    off_product, _, _, _ = _site()
+    off_product_key = ("GET", ORIGIN + verifier.BASE_PATH)
+    off_product.responses[off_product_key].headers["speculation-rules"] = (
+        verifier.PRODUCT_EDGE_SPECULATION_HEADER
+    )
+    with pytest.raises(verifier.VerificationError, match="speculation-rules"):
+        verifier.verify(ORIGIN, opener=off_product)
+
+    product_post, _, _, _ = _site(origin=verifier.PRODUCT_ORIGIN)
+    post_key = (
+        "POST",
+        verifier.PRODUCT_ORIGIN + verifier.PREFIX + "/source.json",
+    )
+    product_post.responses[post_key].headers["speculation-rules"] = (
+        verifier.PRODUCT_EDGE_SPECULATION_HEADER
+    )
+    with pytest.raises(verifier.VerificationError, match="speculation-rules"):
+        verifier.verify(verifier.PRODUCT_ORIGIN, opener=product_post)
+
+
+@pytest.mark.parametrize(
+    ("origin", "path", "content_type"),
+    [
+        (ORIGIN, verifier.BASE_PATH, "text/html; totally-unreviewed=value"),
+        (
+            verifier.PRODUCT_ORIGIN,
+            verifier.BASE_PATH,
+            "text/html; charset=totally-unreviewed",
+        ),
+        (
+            ORIGIN,
+            verifier.PREFIX + "/" + ASSET_PATH,
+            "text/javascript; totally-unreviewed=value",
+        ),
+        (ORIGIN, verifier.PREFIX + "/source.json", "application/json; charset=utf-8"),
+    ],
+)
+def test_content_type_parameters_are_exact(origin: str, path: str, content_type: str):
+    opener, _, _, _ = _site(origin=origin)
+    opener.responses[("GET", origin + path)].headers["Content-Type"] = content_type
+    with pytest.raises(verifier.VerificationError, match="content type"):
+        verifier.verify(origin, opener=opener)
 
 
 def test_default_opener_never_issues_a_redirect_target_request():
@@ -404,6 +502,25 @@ def test_hashed_widget_injection_is_still_rejected():
     )
     opener, _, _, _ = _site(index=injected)
     with pytest.raises(verifier.VerificationError, match="widget injection"):
+        verifier.verify(ORIGIN, opener=opener)
+
+
+def test_edge_bridge_reference_in_hashed_candidate_bytes_is_rejected():
+    injected = (
+        b"<!doctype html><body>Candidate"
+        b'<script src="/.webmcp/bridge.js"></script>'
+        b"</body>"
+    )
+    opener, _, _, _ = _site(index=injected)
+    with pytest.raises(verifier.VerificationError, match="edge bridge"):
+        verifier.verify(ORIGIN, opener=opener)
+
+    opener, _, _, _ = _site(
+        additional_assets={
+            "assets/z-lazy-ZYXwvu98.js": b'import "/.webmcp/bridge.js";'
+        }
+    )
+    with pytest.raises(verifier.VerificationError, match="edge bridge"):
         verifier.verify(ORIGIN, opener=opener)
 
 
