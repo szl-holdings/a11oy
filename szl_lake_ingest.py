@@ -151,11 +151,13 @@ def record_receipt(receipt, organ="a11oy"):
                     and result.get("duplicate") is False
                     and result.get("receipt_id") == rid
                     and result.get("organ") == normalized_organ
+                    and ("write_attempted" not in result or result["write_attempted"] is True)
                     and result.get("state") in (None, "LOCAL_ACKNOWLEDGED"))
     duplicate = (result.get("duplicate") is True
                  and result.get("accepted") is False
                  and result.get("receipt_id") == rid
                  and result.get("organ") == normalized_organ
+                 and ("write_attempted" not in result or type(result["write_attempted"]) is bool)
                  and result.get("state") in (None, "LOCAL_DUPLICATE"))
     result["state"] = ("LOCAL_ACKNOWLEDGED" if acknowledged else
                        "LOCAL_DUPLICATE" if duplicate else "UNKNOWN")
@@ -352,3 +354,4 @@ def register(app, ns="a11oy"):  # pragma: no cover
         print("[a11oy] lake hydrate thread NOT started: %r" % (e,), file=sys.stderr)
 
     return {"registered": registered, "status": "ok", "sink": RECEIPT_SINK_URL}
+
