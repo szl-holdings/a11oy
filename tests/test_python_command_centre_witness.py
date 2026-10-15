@@ -111,3 +111,23 @@ def test_clean_source_mode_refuses_dirty_checkout_before_launch(tmp_path, monkey
     with pytest.raises(witness.WitnessError, match="clean source is required"):
         witness.witness(REVISION, tmp_path, require_clean=True)
     assert not any(tmp_path.iterdir())
+
+
+@pytest.mark.parametrize("destination", ["work", "wrong"])
+def test_skip_link_waits_for_navigation_but_rejects_wrong_destination(destination):
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as playwright, playwright.chromium.launch(headless=True) as browser:
+        page = browser.new_page()
+        page.set_content("<a href='#work'>Skip to work</a><main id='work'>Work</main>")
+        page.evaluate("""destination => document.querySelector('a').addEventListener('click', event => {
+            event.preventDefault();
+            setTimeout(() => { location.hash = destination; }, 100);
+        })""", destination)
+        page.keyboard.press("Tab")
+        if destination == "work":
+            witness.follow_skip_link(page, "about:blank#work")
+            assert page.url == "about:blank#work"
+        else:
+            with pytest.raises(AssertionError):
+                witness.follow_skip_link(page, "about:blank#work", timeout=500)
+            assert page.url == "about:blank#wrong"

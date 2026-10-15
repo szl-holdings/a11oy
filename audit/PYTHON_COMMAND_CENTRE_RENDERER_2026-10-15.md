@@ -32,3 +32,14 @@ Python owns the HTML/component rendering after this slice. CSS and the existing 
 - Independent local integration run: 308 tests and 183 subtests passed (one existing TestClient warning), before the final two WebSocket refusal regressions. Final witness helper suite: 34 passed. Combined UI/backend/auth/evaluation run earlier passed 666 tests and 483 subtests, with one existing Windows-only skip and six existing deprecation warnings, using the CI-documented isolated database paths.
 - Hardened precommit browser witness: 12 combinations, eight screenshots, zero browser errors/traffic violations, Chromium 151.0.7922.34 with Playwright 1.62.0. All evidence is labelled dirty-source/local-presentation only. Final committed-source verification is required separately; no deployed production claim is made by this record.
 - Final combined local run on the current base and final implementation: 707 passed, one existing Windows-only skip, 483 subtests passed, six existing deprecation warnings. The retained JUnit report is local setup evidence; it contains no remote deployment or model-execution result.
+
+## Repeatability correction
+
+After the initial clean-source browser pass and 46 successful GitHub test jobs,
+another saved-startup run exposed a witness timing race: key dispatch returned
+before fragment navigation committed. The witness now waits up to five seconds
+for the exact origin, route and `#work` URL, preserving the first-focus/visibility
+checks. Controlled delayed-navigation and wrong-destination browser regressions
+pass; the 36-test witness suite and independent review passed. No product code,
+CSP or acceptance assertion was relaxed. The initial green run does not replace
+verification of the corrected committed witness.

@@ -172,6 +172,13 @@ def check_presentation(page, surfaces):
             "disabled_action_buttons": list(BUTTONS), "geometry": geometry}
 
 
+def follow_skip_link(page, target, timeout=5000):
+    from playwright.sync_api import expect
+    page.keyboard.press("Enter")
+    # Key dispatch can finish before the browser commits fragment navigation.
+    expect(page).to_have_url(target, timeout=timeout)
+
+
 def observe(browser, fixture, route, width, javascript, output):
     from playwright.sync_api import expect
     errors, requests, violations = [], [], []
@@ -230,8 +237,7 @@ def observe(browser, fixture, route, width, javascript, output):
         focused = page.evaluate("({tag:document.activeElement.tagName, href:document.activeElement.getAttribute('href'), top:document.activeElement.getBoundingClientRect().top})")
         require(focused["tag"] == "A" and focused["href"] == "#work" and focused["top"] >= 0,
                 "keyboard skip link is not first and visible on focus")
-        page.keyboard.press("Enter")
-        require(urlsplit(page.url).fragment == "work", "skip link did not reach work section")
+        follow_skip_link(page, fixture["origin"] + route + "#work")
         page.evaluate("document.activeElement.blur(); window.scrollTo({top:0,left:0,behavior:'instant'})")
         result.update({"route": route, "viewport": {"width": width, "height": 900},
                        "javascript": javascript, "observed_at": now(), "document_bytes": len(body),
