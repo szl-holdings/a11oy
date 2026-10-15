@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - governed-loop completion evidence
+
+- Report orchestration and model completion separately. Preserve generation
+  and evaluation evidence from every retry in the receipt chain, and reject
+  missing, modeled, denied, mismatched or malformed completion evidence.
+  Completion remains upstream-reported and unverified; no model qualification,
+  provider-budget enforcement or production acceptance is implied.
+
 ### Fixed - storage error recovery evidence
 
 - Track unresolved storage failures per operation and store. Clear only the
