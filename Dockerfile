@@ -178,7 +178,7 @@ COPY model_release/m1/ ./model_release/m1/
 # Keep root-level sources explicit while batching them into one filesystem layer.
 # PR builds load the image into the Docker daemon for smoke testing; an
 # instruction-per-file layout exceeded the daemon's maximum layer depth.
-COPY a11oy_ayllu.py szl_waqay_security_loop.py szl_claim_rupture_gate.py szl_involution_probe.py szl_runtime_contracts.py szl_html_injection.py szl_release_identity.py zenodo-readback.json szl_provider_http.py ./
+COPY a11oy_ayllu.py szl_waqay_security_loop.py szl_claim_rupture_gate.py szl_involution_probe.py szl_runtime_contracts.py szl_html_injection.py szl_release_identity.py zenodo-readback.json szl_provider_http.py szl_readiness_artifact.py ./
 # Primary official project registry (51 records across 10 fields).  Runtime
 # serves the deterministic, unranked registry; optional live metadata remains a
 # bounded adapter and is not executed on anonymous public requests.
@@ -512,6 +512,7 @@ COPY policy/colang/roe_core.co policy/colang/killinchu_threat.co policy/colang/g
 # GOVERNED AUTO-REVIEW (Integration I2) — keystone autonomy layer: governed +
 # … (full rationale: docs/DOCKERFILE_NOTES.md §68)
 COPY scripts/check_tau_eval.py scripts/verify_installed_authority.py ./scripts/
+COPY .github/scripts/publish_readiness_verdict.py ./.github/scripts/
 # Lean4Agent workflow-invariant scaffold (ROADMAP / EXPERIMENTAL — not a verified
 # proof yet; rendered as ROADMAP in the UI). Shipped so the .lean source is in
 # the image for audit; no Lean toolchain is invoked at runtime.
