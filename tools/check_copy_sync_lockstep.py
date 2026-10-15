@@ -822,8 +822,9 @@ REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee
 REVIEWED_PREFLIGHT_JOB_SHA256 = "1d47071a0e9e50356e34d55528e7887fef145bf37c439cec5775068648f06e5f"
 REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "3bd53226e383f4637f928d4706492d4d7f0823ea0b36b33ec389830afc6fc450"
 # This exact post-deploy readiness job has no provider credential, verifies the
-# candidate at both literal reviewed origins, and gates relock on success.
-REVIEWED_READINESS_VERDICT_JOB_SHA256 = "93ed2a8bc867b474d01ac982fc120cc24d0425c4a0d0464906fe922fb2f1110c"
+# candidate at both literal reviewed origins, witnesses both routes in the
+# package-bound Chromium revision, and gates relock on success.
+REVIEWED_READINESS_VERDICT_JOB_SHA256 = "51a11ceb7542d9c1dbb31be23df1e919ba227844d33dde119ee429f26bca23d0"
 # The relock job holds the provider read credential and consumes the readiness
 # verdict.  Bind its complete job body so an extra step, secret, permission, or
 # failure bypass cannot inherit that authority unnoticed.
@@ -843,7 +844,10 @@ REVIEWED_DEPLOY_HELPERS_SHA256 = {
     # The runtime signer whose served public key the verifier checks.
     "a11oy_signing_key.py": "3315e58f39e0727590ecd6545f4f125d40b2ff0eea9f5fced15539da5d764d5c",
     # Read-only exact-byte verifier used only by the least-privilege readiness job.
-    ".github/scripts/verify_platform_candidate_preview.py": "dcc2b94c2f1f26ebb6550974b1af3e548dedd2afd41f100c852a6f647ac1550e",
+    ".github/scripts/verify_platform_candidate_preview.py": "a302acdf0cef193cde4c9438b76c4cabbf37e8132a2a6c8b464f7f4970dfb6e0",
+    # Read-only browser witness with fixed public origins and exact GET closure.
+    "scripts/witness_platform_candidate_preview.py": "292cbddfc9b603c3a17ca301f07270e9cef309a382548c0ec88fa89f60bb9604",
+    ".github/requirements/platform-candidate-browser.txt": "a676dfbac807caaccbcebd65d7dbf43101d2f9a1f3583f956d0743ba3e1b44fa",
     ".github/scripts/publish_readiness_verdict.py": "fa090e802af847964ea9f66309c218f0b65bc8cbcbf84d9aa6c6976a56743e4c",
     "tools/readiness-harness/probe_runner.mjs": "85936fa56b87d7269e4085b4ca0592df1f03516d5db0a5d2b1a6d054f772ab50",
     "tools/readiness-harness/canonical_unavailable.mjs": "ca50ca28195281bccdc3cfae09831eabdacff2028946ebaf0c403776cb905e24",
