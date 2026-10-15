@@ -59,6 +59,9 @@ HONESTY (absolute):
   * Nothing here touches the locked-8 {F1,F4,F7,F11,F12,F18,F19,F22}. locked8_touched:false.
 
 Endpoint: POST /api/a11oy/v1/agentloop/run ; GET /api/a11oy/v1/agentloop/health.
+The POST requires the operator Bearer and the code run-loop's configured tenant
+before parsing a task. This admission check does not establish tenant-isolated
+storage or authorize a live acceptance probe.
 Routes inserted BEFORE the SPA catch-all, try/except guarded (never takes the Space down).
 Reuses the HOST app's REAL signer passed in from serve.py (same one the engine uses).
 """
@@ -174,6 +177,21 @@ def _refused(request, action: str):
                              "error": "%s requires the operator credential." % action},
                             status_code=401, headers={"WWW-Authenticate": "Bearer"})
     return _opauth.operator_refusal(request, action)
+
+
+def _tenant_refusal(request):
+    """Share the code run-loop's configured-tenant admission, or fail closed."""
+    from starlette.responses import JSONResponse
+
+    check = getattr(_runloop, "_tenant_refusal", None) if _RUNLOOP_OK else None
+    if not callable(check):
+        return JSONResponse({"ok": False, "status": "BLOCKED",
+                             "error": "tenant admission unavailable"}, status_code=503)
+    try:
+        return check(request)
+    except Exception:
+        return JSONResponse({"ok": False, "status": "BLOCKED",
+                             "error": "tenant admission unavailable"}, status_code=503)
 
 
 def _now() -> str:
@@ -834,7 +852,8 @@ def run_loop(task: str,
             "brain_energy_available": (bool(_brainfeed.brain_energy_available(ns))
                                        if _BRAINFEED_OK and _brainfeed else False),
         },
-        "leaders_cited": [{"name": l["name"], "url": l["url"]} for l in LEADERS],
+        "leaders_cited": [{"name": leader["name"], "url": leader["url"]}
+                          for leader in LEADERS],
         "doctrine": DOCTRINE,
         "kernel_commit": _KERNEL,
         "locked8": list(LOCKED8),
@@ -1004,6 +1023,9 @@ def register(app, ns: str = "a11oy", sign_fn: Optional[Callable[[dict], dict]] =
         refused = _refused(request, "Governed agent loop")
         if refused is not None:
             return refused
+        tenant = _tenant_refusal(request)
+        if tenant is not None:
+            return tenant
         try:
             b = await request.json()
         except Exception:
