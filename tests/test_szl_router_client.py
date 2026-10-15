@@ -436,6 +436,7 @@ def test_selected_model_rejects_rehashed_but_unbound_completion(wired, field, va
 @pytest.fixture
 def eval_arena(monkeypatch, governed):
     import szl_eval_arena as arena
+    monkeypatch.setenv("A11OY_CODE_ADMIN_KEY", "eval-router-test-only")
     monkeypatch.setattr(arena, "_registry_snapshot", lambda: {
         "available": True, "any_key_wired": True,
         "models": {"example": {"model_id": "example", "model_slug": "fixture-model"}}})
@@ -521,7 +522,8 @@ def test_eval_http_invalid_execution_mode_returns_422_without_transport(wired, e
     app = FastAPI()
     eval_arena.register(app)
     with TestClient(app) as client:
-        response = client.post("/api/a11oy/v1/eval/run", json={
+        response = client.post("/api/a11oy/v1/eval/run",
+            headers={"Authorization": "Bearer eval-router-test-only"}, json={
             "suite": "isolated", "model_id": "example", "execution_mode": mode})
     assert response.status_code == 422
     assert wired["requests"] == []
@@ -573,8 +575,9 @@ def test_eval_http_provider_work_does_not_block_serving_event_loop(wired, eval_a
     import asyncio
     async def scenario():
         async with _AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://eval.test") as client:
-            pending = asyncio.create_task(client.post("/api/a11oy/v1/eval/run", json={
-                "suite": "isolated", "model_id": "example"}))
+            pending = asyncio.create_task(client.post("/api/a11oy/v1/eval/run",
+                headers={"Authorization": "Bearer eval-router-test-only"}, json={
+                "suite": "isolated", "model_id": "example", "execution_mode": "live"}))
             for _ in range(100):
                 if entered.is_set():
                     break

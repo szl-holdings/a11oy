@@ -17397,7 +17397,7 @@ window.a11oyInvestor = (function(){
       var suite=String((E('fe-suite')||{}).value||'').slice(0,160); var model=String((E('fe-model')||{}).value||'sovereign_local').slice(0,240); var prof=String((E('fe-prof')||{}).value||'').slice(0,160);
       if(!suite){ H('fe-cases','<div class="row mono dim">choose a suite first.</div>'); if(btn){btn.disabled=false;btn.textContent='\u25b6 Run eval once';} return; }
       H('fe-cases','<div class="row mono dim">running '+esc(suite)+' live\u2026</div>');
-      try{ var body={suite:suite,model_id:model}; if(prof) body.harness_profile_id=prof;
+      try{ var body={suite:suite,model_id:model,execution_mode:'live'}; if(prof) body.harness_profile_id=prof;
         var d=await flyevalOperatorPost(body); E('fe-raw').textContent=JSON.stringify(d,null,2);
         var agg=d.aggregate||{};
         H('fe-agg','<div class="kpi"><div class="k">Cases</div><div class="v">'+esc(String(agg.n_cases||0))+'</div></div>'
