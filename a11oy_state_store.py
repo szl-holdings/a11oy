@@ -52,6 +52,7 @@ are the defects that retired v1. ``source_revision`` here is informational.
 import contextlib
 import hashlib
 import json
+import math
 import os
 import re
 import shutil
@@ -1459,6 +1460,100 @@ class StateStore:
             state.entry = entry
             state.captured_at = now
             state.dirty_since = None
+
+    def confirmed_writer(self) -> dict[str, Any]:
+        """Read the current fenced lease; never initiate a handover or a write.
+
+        Effect callers need stronger admission than writable(), which also
+        permits the explicitly unfenced snapshot-only mode.
+        """
+        with self._lock:
+            if (self.mode != MODE_FENCED or self.role != ROLE_WRITER
+                    or not self.writable() or self.head is None or self.head.body is None):
+                raise StorageBlocked("STATE_CONFIRMED_WRITER_REQUIRED")
+            observed = self._observe()
+            if observed.body != self.head.body:
+                # The normal heartbeat owns handover/draining. Doing that here
+                # could wait for the effect request which is itself in flight.
+                raise StorageBlocked("STATE_CONFIRMED_HEAD_CHANGED")
+            head = parse_head(observed.body)
+            if (head["state"] != STATE_ACTIVE or head["epoch"] != self.epoch
+                    or head["writer_id"] != self.writer_id or head["boot_id"] != self.boot_id
+                    or not self._confirmed_lease(head)):
+                raise StorageBlocked("STATE_CONFIRMED_LEASE_REQUIRED")
+            return head
+
+    def _confirmed_lease(self, head: dict[str, Any]) -> bool:
+        """Strict lease observation for an effect, without publishing a heartbeat."""
+        raw = self.objects.get_bytes(head["lease"]["heartbeat_path"])
+        if raw is None:
+            return False
+        try:
+            beat = json.loads(raw)
+            if not isinstance(beat, dict):
+                return False
+            if (beat.get("epoch") != head["epoch"]
+                    or beat.get("writer_id") != head["writer_id"]):
+                return False
+            stamp = beat.get("at_unix")
+            return (beat.get("schema") == HEARTBEAT_SCHEMA
+                    and beat.get("boot_id") == self.boot_id and type(beat.get("epoch")) is int
+                    and type(stamp) in (int, float) and math.isfinite(stamp)
+                    and 0 <= self.clock() - stamp <= self.settings.stale_s)
+        except (ValueError, TypeError, OverflowError):
+            return False
+
+    def snapshot_confirmed(self, label: str,
+                           contains: Callable[[Path], bool]) -> dict[str, Any]:
+        """Acknowledge an exact SQLite observation in immutable storage and HEAD.
+
+        ``contains`` is the owning module's fixed read-only predicate over the
+        downloaded snapshot, never caller SQL. Ordinary periodic snapshots keep
+        their existing retry behavior; this opt-in path raises on uncertainty.
+        It requires a matching fresh heartbeat even immediately after boot.
+        It does not admit a handler, prove runtime identity, or make an external
+        effect atomic with the storage commit.
+        """
+        with self._lock:
+            current = self.confirmed_writer()
+            state = self.stores.get(label)
+            if state is None or state.spec.kind != "sqlite" or state.health == "BLOCKED":
+                raise StorageBlocked("STATE_CONFIRMED_SQLITE_REQUIRED")
+            work = self._work("confirmed-" + label)
+            try:
+                entry = self._capture(state.spec, work, self.epoch)
+                entry = entry or self._unpublished.get(label) or state.entry
+                if entry is None:
+                    raise StorageBlocked("STATE_CONFIRMED_SNAPSHOT_MISSING")
+                # _capture may reuse previously uploaded but unpublished bytes.
+                # Always inspect the actual object selected for the HEAD entry.
+                readback = work / "confirmed.sqlite3"
+                self._download(entry["path"], readback)
+                if (readback.stat().st_size != entry["size"]
+                        or gdw_sqlite_repair.file_sha256(readback) != entry["sha256"]):
+                    raise StorageBlocked("STATE_CONFIRMED_READBACK_MISMATCH")
+                report = verify_sqlite(readback, full=True)
+                if (not report["ok"] or report["logical_sha256"] != entry["logical_sha256"]
+                        or contains(readback) is not True):
+                    raise StorageBlocked("STATE_CONFIRMED_CONTENT_MISMATCH")
+                self.confirmed_writer()
+                snapshots, history = self._merged(current, {label: entry})
+                proposal = self._next(current, self.head.body, transition="SNAPSHOT",
+                                      state=STATE_ACTIVE, snapshots=snapshots, history=history)
+                try:
+                    self.head = cas_advance(self.backend, self.head, proposal)
+                except HeadChanged:
+                    raise StorageBlocked("STATE_CONFIRMED_HEAD_CHANGED") from None
+                acknowledged = self.confirmed_writer()
+                if acknowledged["snapshots"].get(label) != entry:
+                    raise StorageBlocked("STATE_CONFIRMED_ENTRY_MISMATCH")
+                self._commit_entries({label: entry})
+                self._unpublished.pop(label, None)
+                return {"schema": "szl.state-confirmed-snapshot/v1", "label": label,
+                        "epoch": self.epoch, "writer_id": self.writer_id, "boot_id": self.boot_id,
+                        "head_sha256": _sha256_bytes(self.head.body), "entry": dict(entry)}
+            finally:
+                shutil.rmtree(work, ignore_errors=True)
 
     def snapshot_once(self, *, force: bool = False) -> dict[str, dict[str, Any]]:
         """One debounce/periodic pass. Safe to call from any thread."""

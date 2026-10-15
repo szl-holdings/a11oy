@@ -81,14 +81,63 @@ current endpoint receipts already have this payload. Current native DSSE receipt
 must be verified using their existing schema and trust model before a real adapter
 can attest the captured execution and readback. The five-route producer, adapters,
 semantic success verification, durable nonce consumption and live authority
-admission are absent. Re-validating the same offline bundle is permitted; it must
-never cause replay of an execution.
+admission are not wired into execution. Internal storage prerequisites are
+described below. Re-validating the same offline bundle is permitted; it must never
+cause replay of an execution.
+
+## Internal storage prerequisites
+
+`validate_plan` shares the complete signed-plan parser with the offline bundle
+validator. It returns verified plan fields against the supplied independent
+context; it does not authorize execution. The bundle validator still requires
+all five observations. Supplying only the three deterministic route observations
+cannot satisfy that requirement.
+
+The existing Series-A `Store` has internal reservation, completion and read-only
+SQL helpers for two isolated observation tables. They are created lazily by a
+reservation, not by ordinary startup or reads. SQLite transactions and uniqueness
+constraints bind each nonce to its source, boot and plan, and consume each case
+once across separate connections. A completed or interrupted reservation cannot
+be reserved again. Completion stores canonical JSON and its digest, but does not
+verify a runtime signature or make the row eligible for export. These helpers
+leave existing passports, receipts, events and storage identity unchanged. They
+reuse the registered Series-A database; no snapshot label or HEAD schema changes.
+
+`a11oy_state_store.StateStore.snapshot_confirmed` is an explicit acknowledgment
+primitive for a trusted owning module. It requires the fenced writer, an active
+matching HEAD and a valid fresh heartbeat for that epoch, writer and boot. Even
+a newly claimed writer must wait for its own heartbeat. It downloads the selected
+immutable snapshot, verifies size, hash, full SQLite integrity, foreign keys and
+logical fingerprint, and applies the owner's fixed expected-row predicate. It
+then advances HEAD through the existing compare-and-swap implementation and
+independently reads back the current HEAD and lease. An uncertain submission is
+accepted only if the exact proposal is found remotely. It preserves unrelated
+pending snapshots and fails on handover without synchronously draining its own
+request. Ordinary periodic snapshot behavior is unchanged.
+
+This primitive observes a storage acknowledgment at that instant. It does not
+prove source or HF runtime identity, validate operator custody, admit a request,
+or make storage atomic with a later external effect. There is no route, signing
+path, automatic call, configuration switch or publisher change in this increment.
+A future consumer must verify the actual active manager and Series-A path, admit
+the independently identified runtime and signed plan, reserve before dispatch,
+recheck identity/expiry/fence after acknowledgment, and refuse export until the
+completed record is acknowledged. It must burn attempts on cancellation or
+uncertainty and reject old-boot plans after restoration. The local row alone is
+never permission to execute or export.
+
+The read helpers use SQLite read-only connections without schema initialization,
+DML or journal-mode changes. A WAL database may still require SQLite coordination
+sidecars; these helpers alone do not establish a completely inert HTTP GET. The
+runtime producer, immutable runtime identity admission, export guard, cancellation
+handling and end-to-end crash/replay contract remain **ROADMAP**.
 
 ## Local commands
 
 ```powershell
 $env:PYTEST_DISABLE_PLUGIN_AUTOLOAD='1'
 python -B -m pytest tests/test_execution_acceptance.py -q -p no:cacheprovider
+python -B -m pytest tests/test_state_store_handover.py tests/test_series_a_control_plane.py -q -p no:cacheprovider
 python -I -B tools/execution_acceptance.py --help
 ```
 

@@ -167,8 +167,13 @@ class AdmissionContext:
     runtime_key_id: str
 
 
-def validate(bundle: Any, context: AdmissionContext, *, now: datetime | None = None) -> dict:
-    """Check signatures/bindings; return no execution or publication authorization."""
+def validate_plan(envelope: Any, context: AdmissionContext, *, now: datetime | None = None) -> dict:
+    """Verify the complete plan against independent context; grants no authority.
+
+    Runtime callers still need their own credential, scope, storage and effect
+    admission. Sharing this parser does not turn five planned requests into five
+    observed requests.
+    """
     now = datetime.now(timezone.utc) if now is None else now
     require(isinstance(now, datetime) and now.tzinfo is not None
             and now.utcoffset() == timedelta(0), "UTC_NOW_REQUIRED")
@@ -178,13 +183,11 @@ def validate(bundle: Any, context: AdmissionContext, *, now: datetime | None = N
     text(context.runtime_boot_id, "BOOT_ID_REQUIRED")
     require(type(context.run_nonce) is str and HEX64.fullmatch(context.run_nonce) is not None,
             "RUN_NONCE_REQUIRED")
-    require(len(canonical(bundle)) <= MAX_BYTES, "INPUT_TOO_LARGE")
+    require(len(canonical(envelope)) <= MAX_BYTES, "INPUT_TOO_LARGE")
     require(context.authority_key_id != context.runtime_key_id, "SEPARATE_AUTHORITY_REQUIRED")
     authority = public_key(context.authority_public_key, context.authority_key_id)
-    runtime = public_key(context.runtime_public_key, context.runtime_key_id)
-    fields(bundle, "schema plan observations", "INVALID_BUNDLE")
-    require(bundle["schema"] == "szl.execution-acceptance-bundle/v1", "BUNDLE_SCHEMA_MISMATCH")
-    plan = verify(bundle["plan"], PLAN_TYPE, authority, context.authority_key_id)
+    public_key(context.runtime_public_key, context.runtime_key_id)
+    plan = verify(envelope, PLAN_TYPE, authority, context.authority_key_id)
     fields(plan, "schema origin source_revision runtime_revision runtime_boot_id run_nonce issued_at expires_at operator_reference max_requests retries cases", "INVALID_PLAN")
     require(plan["schema"] == "szl.execution-acceptance-plan/v1", "PLAN_SCHEMA_MISMATCH")
     bindings = {"origin": ORIGIN, "source_revision": context.source_revision,
@@ -228,6 +231,22 @@ def validate(bundle: Any, context: AdmissionContext, *, now: datetime | None = N
                         "JSON_POINTER_REQUIRED")
                 require(re.search(r"~(?![01])", pointer) is None, "INVALID_POINTER_ESCAPE")
         planned[case_id] = case
+    return plan
+
+
+def validate(bundle: Any, context: AdmissionContext, *, now: datetime | None = None) -> dict:
+    """Check signatures/bindings; return no execution or publication authorization."""
+    now = datetime.now(timezone.utc) if now is None else now
+    require(len(canonical(bundle)) <= MAX_BYTES, "INPUT_TOO_LARGE")
+    fields(bundle, "schema plan observations", "INVALID_BUNDLE")
+    require(bundle["schema"] == "szl.execution-acceptance-bundle/v1", "BUNDLE_SCHEMA_MISMATCH")
+    plan = validate_plan(bundle["plan"], context, now=now)
+    runtime = public_key(context.runtime_public_key, context.runtime_key_id)
+    bindings = {"origin": ORIGIN, "source_revision": context.source_revision,
+                "runtime_revision": context.runtime_revision,
+                "runtime_boot_id": context.runtime_boot_id, "run_nonce": context.run_nonce}
+    start, end = moment(plan["issued_at"]), moment(plan["expires_at"])
+    planned = {case["id"]: case for case in plan["cases"]}
     rows = bundle["observations"]
     require(type(rows) is list and len(rows) == 5, "COMPLETE_EVIDENCE_REQUIRED")
     seen, receipt_ids = set(), set()

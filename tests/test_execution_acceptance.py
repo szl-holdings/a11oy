@@ -105,6 +105,44 @@ def test_valid_synthetic_signatures_do_not_authorize_execution_or_release(sample
     assert result["passive_probe_modified"] is False
 
 
+def test_shared_plan_parser_preserves_full_five_observation_requirement(sample):
+    context, plan, _, bundle = sample
+    evidence = bundle()
+    assert module.validate_plan(evidence["plan"], context, now=NOW) == plan
+    evidence["observations"] = evidence["observations"][:3]
+    with pytest.raises(module.EvidenceError, match="COMPLETE_EVIDENCE_REQUIRED"):
+        module.validate(evidence, context, now=NOW)
+
+
+@pytest.mark.parametrize("mutation", ["signature", "source", "runtime", "boot", "nonce",
+                                     "expired", "missing_case", "extra_field", "same_key"])
+def test_shared_plan_parser_and_bundle_reject_the_same_invalid_plan(sample, mutation):
+    context, plan, _, bundle = sample
+    changed = copy.deepcopy(plan)
+    if mutation in ("source", "runtime"):
+        changed[mutation + "_revision"] = "f" * 40
+    elif mutation == "boot":
+        changed["runtime_boot_id"] = "other-boot"
+    elif mutation == "nonce":
+        changed["run_nonce"] = "f" * 64
+    elif mutation == "expired":
+        changed["expires_at"] = stamp(NOW - timedelta(seconds=1))
+    elif mutation == "missing_case":
+        changed["cases"].pop()
+    elif mutation == "extra_field":
+        changed["authorized"] = True
+    elif mutation == "same_key":
+        context = replace(context, runtime_key_id=context.authority_key_id)
+    evidence = bundle(plan_override=changed)
+    if mutation == "signature":
+        evidence["plan"]["signatures"][0]["sig"] = base64.b64encode(b"forged").decode()
+    with pytest.raises(module.EvidenceError) as direct:
+        module.validate_plan(evidence["plan"], context, now=NOW)
+    with pytest.raises(module.EvidenceError) as full:
+        module.validate(evidence, context, now=NOW)
+    assert str(direct.value) == str(full.value)
+
+
 @pytest.mark.parametrize("field,value", [
     ("source_revision", "d" * 40), ("runtime_revision", "d" * 40),
     ("runtime_boot_id", "other-boot"), ("run_nonce", "d" * 64),
