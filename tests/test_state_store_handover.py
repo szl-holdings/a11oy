@@ -714,3 +714,241 @@ def test_read_only_accessor_retains_committed_wal_data(observation_world, monkey
         assert connection.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
     finally:
         connection.close()
+
+
+# Exact local SNAPSHOT intent after ambiguous CAS/readback failure.
+@pytest.fixture
+def readback_world(tmp_path):
+    clock, backend = FakeClock(), FakeHeadBackend()
+    objects = ss.LocalDirObjectStore(tmp_path / "objects")
+    writer = replica(tmp_path, "writer", objects, backend, clock)
+    writer.boot()
+    writer.heartbeat_once()
+    make_db(writer.local_path("series_a"), 2)
+    yield writer, backend, clock
+    writer._close_watchers()
+
+
+@pytest.mark.parametrize("point", ["successful_submit_readback", "uncertain_submit_resolution"])
+def test_own_landed_snapshot_readback_failure_does_not_fence_writer(readback_world, monkeypatch, point):
+    writer, backend, clock = readback_world
+    original_body = writer.head.body
+    if point == "successful_submit_readback":
+        read_at = backend.read_at
+        fail = [True]
+        def fail_first_readback(revision):
+            if fail[0]:
+                fail[0] = False
+                raise ss.StorageBlocked("STATE_HEAD_UNREADABLE")
+            return read_at(revision)
+        monkeypatch.setattr(backend, "read_at", fail_first_readback)
+    else:
+        submit, observe = backend.submit, backend.observe
+        fail = [False]
+        def landed_submit(*args):
+            submit(*args)
+            fail[0] = True
+            raise ss.StorageBlocked("STATE_HEAD_OUTCOME_UNCERTAIN")
+        def fail_resolution():
+            if fail[0]:
+                fail[0] = False
+                raise ss.StorageBlocked("STATE_HEAD_UNREADABLE")
+            return observe()
+        monkeypatch.setattr(backend, "submit", landed_submit)
+        monkeypatch.setattr(backend, "observe", fail_resolution)
+    writer.snapshot_once(force=True)
+    observed = backend.observe()
+    latest = ss.parse_head(observed.body)
+    before = ss.parse_head(original_body)
+    assert latest["writer_id"] == writer.writer_id and latest["epoch"] == writer.epoch
+    assert latest["boot_id"] == writer.boot_id and latest["state"] == ss.STATE_ACTIVE
+    assert latest["sequence"] == before["sequence"] + 1
+    assert writer.head.body == original_body and observed.body != original_body
+    assert writer._active_errors["publish"]["code"] == "STATE_HEAD_UNREADABLE"
+    assert writer.role == ss.ROLE_WRITER
+    clock.advance(3)
+    writer.heartbeat_once()
+    assert writer.role == ss.ROLE_WRITER, {
+        "failure": "Own successful immutable HEAD commit mistaken for another writer",
+        "active_errors": writer._active_errors,
+        "before_sequence": before["sequence"], "remote_sequence": latest["sequence"],
+        "same_writer": True, "same_epoch": True, "same_boot": True,
+    }
+    assert writer.head.body == observed.body
+
+
+def test_unrecognized_same_writer_active_manifest_still_fences(readback_world):
+    writer, backend, _ = readback_world
+    current = backend.head()
+    foreign = writer._next(current, writer.head.body, transition="SNAPSHOT", state=ss.STATE_ACTIVE)
+    # Same identity is not enough: this operation was never submitted by writer.
+    backend._append(ss.canonical(foreign))
+    writer.heartbeat_once()
+    assert writer.role == ss.ROLE_FENCED
+    assert writer._active_errors["lease"]["code"] == "WRITER_FENCED"
+
+
+def _lose_snapshot_readback(writer, backend, monkeypatch, *, mismatch=False):
+    read_at = backend.read_at
+    remaining = [True]
+    def read(revision):
+        if remaining[0]:
+            remaining[0] = False
+            if mismatch:
+                return b'known incorrect immutable revision bytes'
+            raise ss.StorageBlocked('STATE_HEAD_UNREADABLE')
+        return read_at(revision)
+    monkeypatch.setattr(backend, 'read_at', read)
+    writer.snapshot_once(force=True)
+    return backend.observe()
+
+
+def test_retry_before_heartbeat_resolves_exact_landed_body_without_resubmit(readback_world, monkeypatch):
+    writer, backend, _ = readback_world
+    landed = _lose_snapshot_readback(writer, backend, monkeypatch)
+    submits = backend.submits
+    writer.snapshot_once(force=True)
+    assert writer.role == ss.ROLE_WRITER and writer.head == landed
+    assert backend.submits == submits
+    assert writer._pending_snapshot is None and writer._unpublished == {}
+    assert 'publish' not in writer._active_errors
+
+
+def test_repeated_lost_submit_reuses_original_operation_and_then_captures_new_rows(readback_world, monkeypatch, tmp_path):
+    writer, backend, _ = readback_world
+    submit = backend.submit
+    old = writer.head
+    calls, lost = [], [True]
+    def fail_then_submit(parent, body, operation_id):
+        calls.append((body, operation_id))
+        if lost[0]:
+            raise ss.StorageBlocked('STATE_HEAD_OUTCOME_UNCERTAIN')
+        return submit(parent, body, operation_id)
+    monkeypatch.setattr(backend, 'submit', fail_then_submit)
+    writer.snapshot_once(force=True)
+    assert writer.head == old and writer._pending_snapshot['submitted'] is True
+    first = calls[0]
+    make_db(writer.local_path('series_a'), 3, start=2)
+    writer.snapshot_once(force=True)
+    assert calls and all(value == first for value in calls)
+    assert writer._pending_snapshot['body'] == first[0]
+    lost[0] = False
+    writer.snapshot_once(force=True)
+    assert calls[-2] == first and calls[-1] != first
+    head = backend.head()
+    old_entry = ss.parse_head(first[0])['snapshots']['series_a']
+    assert old_entry in head['history']['series_a']
+    downloaded = tmp_path / 'latest.sqlite'
+    writer.objects.get_file(head['snapshots']['series_a']['path'], downloaded)
+    assert count(downloaded) == 5
+    assert writer._pending_snapshot is None and writer._unpublished == {}
+
+
+def test_known_immutable_mismatch_does_not_authorize_later_adoption(readback_world, monkeypatch):
+    writer, backend, _ = readback_world
+    landed = _lose_snapshot_readback(writer, backend, monkeypatch, mismatch=True)
+    assert writer._active_errors['publish']['code'] == 'STATE_HEAD_READBACK_MISMATCH'
+    assert writer._pending_snapshot is None
+    assert landed.body != writer.head.body
+    writer.heartbeat_once()
+    assert writer.role == ss.ROLE_FENCED and writer.head.body != landed.body
+
+
+@pytest.mark.parametrize('terminal_code', ['STATE_HEAD_READBACK_MISMATCH', 'STATE_TRANSITION_INVALID',
+                                          'STATE_HEAD_SCHEMA_INVALID'])
+def test_known_verification_failure_discards_original_intent(readback_world, monkeypatch, terminal_code):
+    writer, backend, _ = readback_world
+    read_at = backend.read_at
+    def reject(_):
+        raise ss.StorageBlocked(terminal_code)
+    monkeypatch.setattr(backend, 'read_at', reject)
+    writer.snapshot_once(force=True)
+    assert writer._pending_snapshot is None
+    monkeypatch.setattr(backend, 'read_at', read_at)
+    writer.heartbeat_once()
+    assert writer.role == ss.ROLE_FENCED
+
+
+def test_never_submitted_proposal_does_not_authorize_adoption(readback_world, monkeypatch):
+    writer, backend, _ = readback_world
+    backend.unreachable = True
+    writer.snapshot_once(force=True)
+    assert writer._pending_snapshot['submitted'] is False
+    candidate = writer._pending_snapshot['body']
+    backend.unreachable = False
+    backend._append(candidate)
+    writer.heartbeat_once()
+    assert writer.role == ss.ROLE_FENCED
+
+
+def test_terminal_fence_cannot_recover_even_exact_old_pending_head(readback_world, monkeypatch):
+    writer, backend, _ = readback_world
+    landed = _lose_snapshot_readback(writer, backend, monkeypatch)
+    pending = copy.deepcopy(writer._pending_snapshot)
+    writer._fence('INDEPENDENT_TERMINAL_FAILURE')
+    assert writer._pending_snapshot is None
+    writer._pending_snapshot = pending  # Even corrupted retained state cannot revive role.
+    assert writer._accept_pending_snapshot(landed) is False
+    submits = backend.submits
+    writer.heartbeat_once()
+    assert writer.snapshot_once(force=True) == {}
+    assert writer.role == ss.ROLE_FENCED and backend.submits == submits
+
+
+def test_confirmed_writer_stays_read_only_until_mutating_snapshot_recovers(readback_world, monkeypatch):
+    writer, backend, _ = readback_world
+    landed = _lose_snapshot_readback(writer, backend, monkeypatch)
+    submits = backend.submits
+    with pytest.raises(ss.StorageBlocked, match='STATE_CONFIRMED_HEAD_CHANGED'):
+        writer.confirmed_writer()
+    assert writer.head != landed and backend.submits == submits
+    proof = writer.snapshot_confirmed('series_a', lambda path: count(path) == 2)
+    assert writer.head == landed and backend.submits == submits
+    assert proof['entry'] == backend.head()['snapshots']['series_a']
+
+
+def test_mutating_recovery_still_checks_snapshot_content_and_fresh_lease(readback_world, monkeypatch):
+    writer, backend, clock = readback_world
+    _lose_snapshot_readback(writer, backend, monkeypatch)
+    clock.advance(writer.settings.stale_s + 1)
+    submits = backend.submits
+    with pytest.raises(ss.StorageBlocked, match='STATE_CONFIRMED_LEASE_REQUIRED'):
+        writer.snapshot_confirmed('series_a', lambda path: count(path) == 2)
+    assert backend.submits == submits
+    writer.heartbeat_once()
+    with pytest.raises(ss.StorageBlocked, match='STATE_CONFIRMED_CONTENT_MISMATCH'):
+        writer.snapshot_confirmed('series_a', lambda path: False)
+    assert backend.submits == submits
+
+
+def test_retry_publishes_new_other_store_without_dropping_first_intent(readback_world, monkeypatch, tmp_path):
+    writer, backend, _ = readback_world
+    landed = _lose_snapshot_readback(writer, backend, monkeypatch)
+    make_db(writer.local_path('gdw'), 4)
+    writer.snapshot_once(force=True)
+    head = backend.head()
+    assert head['snapshots']['series_a'] == ss.parse_head(landed.body)['snapshots']['series_a']
+    assert set(head['snapshots']) == {'series_a', 'gdw'}
+    downloaded = tmp_path / 'gdw.sqlite'
+    writer.objects.get_file(head['snapshots']['gdw']['path'], downloaded)
+    assert count(downloaded) == 4
+    assert writer._unpublished == {} and writer._pending_snapshot is None
+
+
+def test_confirmed_snapshot_of_other_label_keeps_old_unsubmitted_intent_recoverable(readback_world, monkeypatch):
+    writer, backend, _ = readback_world
+    # Establish series_a, then lose an unrelated GDW submission entirely.
+    writer.snapshot_once(force=True)
+    make_db(writer.local_path('gdw'), 4)
+    submit = backend.submit
+    monkeypatch.setattr(backend, 'submit', lambda *_: (_ for _ in ()).throw(
+        ss.StorageBlocked('STATE_HEAD_OUTCOME_UNCERTAIN')))
+    writer.snapshot_once(force=True)
+    pending = writer._pending_snapshot['body']
+    monkeypatch.setattr(backend, 'submit', submit)
+    proof = writer.snapshot_confirmed('series_a', lambda path: count(path) == 2)
+    assert proof['entry'] == backend.head()['snapshots']['series_a']
+    assert writer._pending_snapshot['body'] == pending
+    writer.snapshot_once(force=True)
+    assert backend.observe().body == pending
+    assert writer._pending_snapshot is None
