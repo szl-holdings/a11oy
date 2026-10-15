@@ -3,7 +3,7 @@
 
 This organization is the generated model, kernel, dataset, and runtime estate for [A11oy](https://a-11-oy.com). Canonical source and release evidence live in [GitHub](https://github.com/szl-holdings); public proof lives at [a11oy.net](https://a11oy.net).
 
-**Current public inventory:** 38 Spaces · 48 model repositories · 14 native kernels · 37 datasets (`2026-10-14T10:44:59Z`).
+**Current public inventory:** 38 Spaces · 48 model repositories · 14 native kernels · 37 datasets (`2026-10-15T00:22:54Z`).
 Repository namespaces can share project names; these counts do not establish trained-model totals or readiness.
 Measured Hub inventory is observational and is not the governed keep-list. Inventory-only / FOLD (not governed keepers): `SZLHOLDINGS/ayllu`, `SZLHOLDINGS/foundation-confirmation-v2`, `SZLHOLDINGS/gdw-frontier`, `SZLHOLDINGS/governed-agent-bench`, `SZLHOLDINGS/governed-receipt-verifier`, `SZLHOLDINGS/holographic-unify`, `SZLHOLDINGS/immune`, `SZLHOLDINGS/immune-lattice`, `SZLHOLDINGS/llm-router-live`, `SZLHOLDINGS/nexus`, `SZLHOLDINGS/oac-system-health-lab`, `SZLHOLDINGS/prove-it`, `SZLHOLDINGS/szl-atelier`, `SZLHOLDINGS/szl-bench-suite`, `SZLHOLDINGS/szl-brand-campaign`, `SZLHOLDINGS/szl-forge-lab`, `SZLHOLDINGS/szl-khipu`, `SZLHOLDINGS/szl-marketing-1.1`, `SZLHOLDINGS/szl-router-control`, `SZLHOLDINGS/szl-seismic-review`, `SZLHOLDINGS/szl-typesafe-triage`, `SZLHOLDINGS/the-grid`, `SZLHOLDINGS/yarqa`. Canonical keep policy: `docs/series-a/hf-space-keep-list.yaml`. Reserved organization card (not a governed keeper): `SZLHOLDINGS/README`.
 
@@ -19,5 +19,5 @@ Measured Hub inventory is observational and is not the governed keep-list. Inven
 
 A repository card is not a production certificate. Runtime, source revision, evidence freshness, and receipt state are verified separately. Λ remains Conjecture 1 and advisory only. No public model or formula may authorize consequential action.
 
-Alignment receipt: `b6f3c87232c90b011a0298e55300534323ceef86d216a9f26700df67bd48a805`.
+Alignment receipt: `7aba9d274caa63b340c06c02c53f05ef83b71fbb647766997b7c6657128eed5b`.
 <!-- END SZL PUBLIC ESTATE — GENERATED -->
