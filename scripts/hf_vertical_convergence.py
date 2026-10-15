@@ -91,6 +91,7 @@ TRACKER_MARKER = "<!-- szl:vertical-drift-tracker:v1 -->"
 SHARED_RENDER_INPUTS = (
     "scripts/_hf_publish_vertical_flagships_v4_impl_base.py",
     "scripts/hf_publish_vertical_flagships_v4_impl.py",
+    "scripts/hf_vertical_native_presentation.py",
     "scripts/hf_finance_functional_gate.py",
     "scripts/hf_finance_projection_manifest.py",
     "scripts/hf_finance_read_proxy.py",
@@ -100,6 +101,13 @@ SHARED_RENDER_INPUTS = (
     "scripts/hf_flagship_runtime_contract.py",
     "verticals/puriq-markets/runtime/components/finance_v2/source.json",
     "verticals/puriq-markets/runtime/components/puriq_verity/source.json",
+)
+NATIVE_PRESENTATION_INPUTS = (
+    "console/assets/szl/SOURCE.json",
+    "console/assets/szl/orbit-v2/UPSTREAM.json",
+    "console/assets/szl/orbit-v2/szl-icon-32.svg",
+    "console/assets/szl/szl-design-system.css",
+    "scripts/hf_vertical_native.css",
 )
 TERRA_FORGE_INPUTS = (
     "deployments/vertical-forge/terra/build-receipt.json",
@@ -119,10 +127,10 @@ PUBLISHER_INPUTS = (
     "scripts/szl_release_guard.py",
 )
 TARGET_RENDER_INPUTS: dict[str, tuple[str, ...]] = {
-    "terra": SHARED_RENDER_INPUTS + TERRA_FORGE_INPUTS,
-    "counsel": SHARED_RENDER_INPUTS,
-    "sentra": SHARED_RENDER_INPUTS,
-    "finance": SHARED_RENDER_INPUTS,
+    "terra": SHARED_RENDER_INPUTS + NATIVE_PRESENTATION_INPUTS + TERRA_FORGE_INPUTS,
+    "counsel": SHARED_RENDER_INPUTS + NATIVE_PRESENTATION_INPUTS,
+    "sentra": SHARED_RENDER_INPUTS + NATIVE_PRESENTATION_INPUTS,
+    "finance": SHARED_RENDER_INPUTS + NATIVE_PRESENTATION_INPUTS,
     # Lyte's bytes come from lyte-services; nothing in this repository is rendered.
     "lyte": (),
 }
@@ -245,7 +253,7 @@ def expected_generated(renderer: ModuleType, slug: str) -> dict[str, Any]:
             raise RuntimeError(f"renderer inventory is ambiguous for {slug}")
         item = items[0]
         panels = renderer.html(item)
-        page, forge = renderer.load_terra_forge_bundle() if slug == "terra" else (panels, None)
+        page, forge = renderer.load_terra_native_landing() if slug == "terra" else (panels, None)
         card = renderer.readme(item)
         forge_payload = json.dumps(forge, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
         config = {

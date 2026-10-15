@@ -36,6 +36,12 @@ on:
     - verticals/puriq-markets/runtime/components/finance_v2/source.json
     - verticals/puriq-markets/runtime/components/puriq_verity/source.json
     - tests/test_hf_publish_vertical_flagships_v3.py
+    - scripts/hf_vertical_native_presentation.py
+    - scripts/hf_vertical_native.css
+    - tests/test_hf_vertical_native.py
+    - tests/materialize_vertical_native.py
+    - tests/browser_vertical_native.mjs
+    - console/assets/szl/**
     - tests/test_hf_publish_vertical_flagships_v4.py
     - tests/test_hf_vertical_convergence.py
     - tests/test_vertical_publication_scope.py
@@ -69,6 +75,12 @@ on:
     - verticals/puriq-markets/runtime/components/finance_v2/source.json
     - verticals/puriq-markets/runtime/components/puriq_verity/source.json
     - tests/test_hf_publish_vertical_flagships_v3.py
+    - scripts/hf_vertical_native_presentation.py
+    - scripts/hf_vertical_native.css
+    - tests/test_hf_vertical_native.py
+    - tests/materialize_vertical_native.py
+    - tests/browser_vertical_native.mjs
+    - console/assets/szl/**
     - tests/test_hf_publish_vertical_flagships_v4.py
     - tests/test_hf_vertical_convergence.py
     - tests/test_vertical_publication_scope.py
@@ -120,3 +132,44 @@ jobs:
           tests/test_hf_vertical_convergence.py
           tests/test_vertical_publication_scope.py
           tests/test_hf_publish_vertical_flagships_v3.py -q
+          tests/test_hf_vertical_native.py
+          tests/test_hf_vertical_card_presentation.py -q
+
+  native-presentation:
+    name: Native vertical generated-page browser qualification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: "24"
+      - name: Install isolated qualification tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/ci-core.txt
+          npm install --prefix "$RUNNER_TEMP/vertical-browser" --ignore-scripts --no-audit --no-fund playwright@1.62.0
+          "$RUNNER_TEMP/vertical-browser/node_modules/.bin/playwright" install --with-deps chromium
+          mkdir -p "$RUNNER_TEMP/vertical-observations"
+      - name: Qualify generated HTML with unavailable API fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/browser_vertical_native.mjs --out "$RUNNER_TEMP/vertical-observations" --module "$RUNNER_TEMP/vertical-browser/node_modules/playwright/index.mjs"
+      - name: Retain unsigned generated-page observations
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: native-vertical-pages-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/vertical-observations/vertical-native-*/
+          if-no-files-found: warn
+          retention-days: 30

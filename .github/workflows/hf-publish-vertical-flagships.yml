@@ -40,6 +40,10 @@ on:
     branches: [main]
     paths:
       - .github/workflows/hf-publish-vertical-flagships.yml
+      - console/assets/szl/SOURCE.json
+      - console/assets/szl/orbit-v2/UPSTREAM.json
+      - console/assets/szl/orbit-v2/szl-icon-32.svg
+      - console/assets/szl/szl-design-system.css
       - deployments/vertical-forge/terra/build-receipt.json
       - deployments/vertical-forge/terra/fleet-receipt.json
       - deployments/vertical-forge/terra/index.html
@@ -57,6 +61,8 @@ on:
       - scripts/hf_publish_vertical_flagships_v4.py
       - scripts/hf_publish_vertical_flagships_v4_impl.py
       - scripts/hf_vertical_convergence.py
+      - scripts/hf_vertical_native.css
+      - scripts/hf_vertical_native_presentation.py
       - scripts/lyte_enterprise_live_contract.py
       - scripts/szl_release_guard.py
       - verticals/puriq-markets/runtime/components/finance_v2/source.json

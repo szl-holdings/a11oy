@@ -71,9 +71,23 @@ AUDIT_SCRIPT = textwrap.dedent(r'''
     reads = set()
     pyc = re.compile(r"^(.*)/__pycache__/([^/.]+)\.[^/]+\.pyc(\.\d+)?$")
     def hook(event, args):
+        if event == "szl.vertical_native.read":
+            if len(args) != 1 or not isinstance(args[0], str):
+                raise RuntimeError("invalid native presentation audit event")
+            rel = args[0].replace("\\", "/")
+            if rel.startswith("/") or any(part in ("", ".", "..") for part in rel.split("/")):
+                raise RuntimeError("invalid native presentation source path")
+            reads.add(rel)
+            return
         if event != "open" or not args or not isinstance(args[0], (str, bytes, os.PathLike)):
             return
-        path = os.path.abspath(os.fsdecode(args[0]))
+        raw = os.fsdecode(args[0])
+        # Secure openat traversal reports relative directory components without
+        # dir-fd context. They are not content inputs; the exact logical file is
+        # reported by the custom event above after successful verification.
+        if not os.path.isabs(raw):
+            return
+        path = os.path.abspath(raw)
         if not path.startswith(root + os.sep):
             return
         rel = os.path.relpath(path, root).replace(os.sep, "/")
@@ -107,7 +121,7 @@ def test_render_inputs_are_exactly_the_files_the_renderer_reads(conv):
     assert shared == set(conv.SHARED_RENDER_INPUTS)
     for slug in conv.GENERATED_TARGETS:
         assert shared | set(observed[slug]) == set(conv.TARGET_RENDER_INPUTS[slug]), slug
-    assert set(observed["terra"]) == set(conv.TERRA_FORGE_INPUTS)
+    assert set(observed["terra"]) == set(conv.NATIVE_PRESENTATION_INPUTS + conv.TERRA_FORGE_INPUTS)
 
 
 def test_every_declared_input_exists(conv):
