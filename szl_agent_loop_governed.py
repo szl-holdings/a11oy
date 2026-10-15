@@ -67,7 +67,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
+from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional
 
@@ -199,6 +201,205 @@ def _default_eval_suite(mode: str) -> str:
     return "core_honest_v1"
 
 
+def _json_evidence(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {key: _json_evidence(item) for key, item in value.items() if isinstance(key, str)}
+    if isinstance(value, list):
+        return [_json_evidence(item) for item in value]
+    if type(value) is float and not math.isfinite(value):
+        return None
+    return deepcopy(value) if value is None or type(value) in (str, int, float, bool) else None
+
+
+def _fields(value: Any, names: tuple[str, ...]) -> dict:
+    return {key: _json_evidence(value[key]) for key in names if key in value} if isinstance(value, dict) else {}
+
+
+def _error_code(value: Any) -> Optional[str]:
+    if value is None or value == "":
+        return None
+    codes = {"MODEL_NOT_REGISTERED", "INVALID_EVAL_PROMPT", "EVAL_GOVERNANCE_NOT_ALLOWED",
+             "SOVEREIGN_MODEL_UNAVAILABLE", "MODEL_SLUG_REQUIRED", "MODEL_RESPONSE_UNAVAILABLE",
+             "EVAL_TRANSPORT_OR_GOVERNANCE_UNAVAILABLE", "HARNESS_TRANSPORT_UNAVAILABLE",
+             "ROUTER_CONFIGURATION_REQUIRED", "ROUTER_REQUEST_FAILED",
+             "ROUTER_TRANSPORT_OR_CONTRACT_ERROR", "ROUTER_SELECTED_MODEL_MISMATCH",
+             "ENGINE_CALL_FAILED", "SELF_EVAL_FAILED", "SELF_EVAL_UNAVAILABLE"}
+    return value if isinstance(value, str) and value in codes else "UPSTREAM_ERROR_REDACTED"
+
+
+def _finite_number(value: Any) -> bool:
+    return type(value) is int or (type(value) is float and math.isfinite(value))
+
+
+def _nonfinite_evidence(value: Any) -> bool:
+    if isinstance(value, dict):
+        return any(_nonfinite_evidence(item) for item in value.values())
+    if isinstance(value, list):
+        return any(_nonfinite_evidence(item) for item in value)
+    return type(value) is float and not math.isfinite(value)
+
+
+def _generation_evidence(value: Any) -> Optional[dict]:
+    if not isinstance(value, dict):
+        return None
+    # Only the transport's documented observation fields; never copy headers,
+    # arbitrary provider extensions, configured URLs, or free-form errors.
+    evidence = _fields(value, ("state", "answer", "refusal", "http_status", "source_revision",
+                               "request_id", "source_binding", "signature_state", "receipt_kind",
+                               "energy", "requested", "backend_id", "model_slug", "reachable",
+                               "live", "text_present", "api_style"))
+    if "error" in value:
+        evidence["error"] = _error_code(value["error"])
+    if _nonfinite_evidence(value):
+        evidence["error"] = "INVALID_NUMERIC_EVIDENCE"
+    if isinstance(value.get("receipt"), dict):
+        evidence["receipt"] = _fields(value["receipt"], (
+            "schema", "algorithm", "digest", "request_digest", "response_digest", "plan_digest",
+            "provider_id", "public_model", "upstream_model", "classification",
+            "secret_material_recorded", "elapsed_ms"))
+        if isinstance(value["receipt"].get("attempts"), list):
+            evidence["receipt"]["attempts"] = [
+                _fields(row, ("provider_id", "state", "status_code"))
+                for row in value["receipt"]["attempts"]]
+    if isinstance(value.get("completion"), dict):
+        completion = value["completion"]
+        evidence["completion"] = _fields(completion, ("id", "model", "object", "created"))
+        if isinstance(completion.get("choices"), list):
+            choices = []
+            for choice in completion["choices"]:
+                row = _fields(choice, ("index", "finish_reason"))
+                if isinstance(choice, dict) and isinstance(choice.get("message"), dict):
+                    row["message"] = _fields(choice["message"], ("role", "content", "refusal"))
+                choices.append(row)
+            evidence["completion"]["choices"] = choices
+    return evidence
+
+
+def _eval_evidence(value: Any) -> dict:
+    if not isinstance(value, dict):
+        return {"error": "SELF_EVAL_UNAVAILABLE"}
+    evidence = _fields(value, ("status_code", "suite", "model_id", "execution_mode",
+                               "honesty_label", "aggregate", "receipt"))
+    if "error" in value:
+        evidence["error"] = _error_code(value["error"])
+    if _nonfinite_evidence(value):
+        evidence["error"] = "INVALID_NUMERIC_EVIDENCE"
+    if isinstance(value.get("results"), list):
+        rows = []
+        for result in value["results"]:
+            row = _fields(result, ("id", "category", "scorer", "input", "expected", "answer",
+                                   "answer_sha256", "passed", "pipeline_passed", "evaluated",
+                                   "refused", "honesty_label", "governance"))
+            if isinstance(result, dict):
+                if "error" in result:
+                    row["error"] = _error_code(result["error"])
+                if "generation" in result:
+                    row["generation"] = _generation_evidence(result["generation"])
+                    # The projection above excludes provider extensions. Preserve
+                    # their existing content binding without publishing them.
+                    row["generation_source_sha256"] = _sha256(_canon(result["generation"]))
+            rows.append(row)
+        evidence["results"] = rows
+    return evidence
+
+
+def _reported_eval_complete(evidence: dict, model_id: str, suite_id: str) -> bool:
+    aggregate = evidence.get("aggregate")
+    results = evidence.get("results")
+    if (not isinstance(aggregate, dict) or not isinstance(results, list)
+            or evidence.get("error") is not None or evidence.get("status_code") != 200
+            or evidence.get("model_id") != model_id
+            or not isinstance(model_id, str) or not model_id.strip()
+            or not isinstance(evidence.get("suite"), dict)
+            or evidence["suite"].get("id") != suite_id
+            or evidence.get("execution_mode") != "live" or evidence.get("honesty_label") != "LIVE"):
+        return False
+    counts = [aggregate.get(name) for name in ("n_cases", "n_evaluated", "n_passed", "n_unavailable")]
+    if not all(type(count) is int and count >= 0 for count in counts):
+        return False
+    n, evaluated, passed, unavailable = counts
+    accuracy = aggregate.get("accuracy")
+    lam = aggregate.get("lambda")
+    if (n <= 0 or evaluated != n or len(results) != n or passed > n or unavailable != 0
+            or aggregate.get("execution_complete") is not True
+            or aggregate.get("score_basis") != "MODEL_RESPONSES_ONLY"
+            or not _finite_number(accuracy) or not 0 <= accuracy <= 1
+            or abs(accuracy - round(passed / evaluated, 4)) > 0.00001
+            or (lam is not None and (not _finite_number(lam) or not 0 <= lam <= 1))):
+        return False
+    ids = set()
+    for row in results:
+        if not isinstance(row, dict):
+            return False
+        case_id = row.get("id")
+        generation = row.get("generation")
+        governance = row.get("governance")
+        if (not isinstance(case_id, str) or not case_id or case_id in ids
+                or row.get("evaluated") is not True or type(row.get("passed")) is not bool
+                or row.get("honesty_label") != "LIVE" or row.get("error") is not None
+                or not isinstance(generation, dict) or generation.get("error") is not None
+                or not isinstance(governance, dict) or governance.get("decision") != "allow"):
+            return False
+        if isinstance(generation.get("state"), str) and generation["state"] in {"COMPLETED", "REFUSED"}:
+            receipt = generation.get("receipt")
+            if not isinstance(receipt, dict) or receipt.get("public_model") != model_id:
+                return False
+            if generation["state"] == "COMPLETED" and (
+                    not isinstance(row.get("answer"), str) or not row["answer"].strip()
+                    or row["answer"] != generation.get("answer")):
+                return False
+            if generation["state"] == "REFUSED" and (
+                    row.get("refused") is not True or row.get("answer") != generation.get("refusal")):
+                return False
+        elif not (generation.get("state") == "LIVE" and generation.get("requested") == model_id
+                  and generation.get("text_present") is True):
+            return False
+        ids.add(case_id)
+    return passed == sum(row["passed"] is True for row in results)
+
+
+def _completion(steps: list[dict], model_id: str) -> dict:
+    complete_steps = 0
+    reasons = set()
+    for step in steps:
+        final = step.get("final") or {}
+        engine = final.get("engine") or {}
+        approval = final.get("approval") or {}
+        inference = engine.get("inference") or {}
+        step_reasons = set()
+        if engine.get("decision") != "ALLOW":
+            step_reasons.add("GATE_NOT_ALLOWED")
+        if approval.get("required") is not False and not (
+                approval.get("required") is True and approval.get("granted") is True):
+            step_reasons.add("APPROVAL_NOT_GRANTED_OR_UNKNOWN")
+        if (engine.get("error") is not None or engine.get("ok") is False
+                or engine.get("emitted") is not True or engine.get("output_present") is not True):
+            step_reasons.add("ENGINE_OUTPUT_UNAVAILABLE")
+        if (not isinstance(model_id, str) or not model_id.strip() or inference.get("mode") != "generative"
+                or inference.get("model") != model_id or inference.get("error") is not None
+                or inference.get("rate_limited") is True
+                or type(inference.get("attempts")) is not int or inference["attempts"] <= 0):
+            step_reasons.add("SELECTED_MODEL_GENERATION_NOT_OBSERVED")
+        if step.get("sandbox") and (engine.get("executed") is not True
+                                     or engine.get("execution_status") != "EXECUTED"):
+            step_reasons.add("SANDBOX_EXECUTION_NOT_OBSERVED")
+        evidence = (final.get("eval") or {}).get("evidence") or {}
+        if not _reported_eval_complete(evidence, model_id, step.get("suite_id")):
+            step_reasons.add("SELF_EVAL_INCOMPLETE_OR_UNAVAILABLE")
+        complete_steps += not step_reasons
+        reasons.update(step_reasons)
+    if not steps:
+        reasons.add("NO_EXECUTED_STEPS")
+    blocked = {"GATE_NOT_ALLOWED", "APPROVAL_NOT_GRANTED_OR_UNKNOWN"}.intersection(reasons)
+    complete = bool(steps) and not reasons
+    return {"state": "OBSERVED_COMPLETE" if complete else "BLOCKED" if blocked else
+            "INCOMPLETE" if complete_steps else "UNAVAILABLE", "complete": complete,
+            "n_steps": len(steps), "n_complete_steps": complete_steps,
+            "requested_model_id": model_id or None, "reasons": sorted(reasons),
+            "evidence_basis": "UPSTREAM_REPORTED_UNVERIFIED",
+            "receipt_verification_asserted": False, "model_qualified": False}
+
+
 # ===========================================================================
 # THE GOVERNED LOOP — importable core (no FastAPI request). NEVER raises into
 # the caller; NEVER fabricates a run, an eval, a signature, or an approval.
@@ -278,7 +479,9 @@ def run_loop(task: str,
     if not _ENGINE_OK:
         return {
             "ok": False,
-            "error": "engine unavailable: %s" % _ENGINE_ERR,
+            "orchestration_complete": False,
+            "completion": _completion([], model_id),
+            "error": "ENGINE_UNAVAILABLE",
             "label": ("MODELED-UNAVAILABLE — the real governed engine could not be imported "
                       "in this runtime; no loop fabricated."),
             "conjecture_note": _CONJECTURE_NOTE,
@@ -393,16 +596,20 @@ def run_loop(task: str,
                         "receipt_pae_sha256": ev_dsse.get("_pae_sha256"),
                         "receipt_signed": bool(ev_dsse.get("signed")),
                         "forum_ingested": bool((ev.get("forum_ingest") or {}).get("ingested")),
-                        "label": ("LIVE eval-arena scoring — deterministic suite, HELM-style "
-                                  "axes, Λ geometric mean (Conjecture 1). Its own signed receipt "
-                                  "was ingested to /llm/forum."),
+                        "evidence": _eval_evidence(ev),
+                        "source_sha256": _sha256(_canon(ev)),
+                        "label": ("Eval-arena observations retained; completion and signature "
+                                  "verification are separate from receipt presence. "
+                                  "Λ remains advisory (Conjecture 1)."),
                     }
                 except Exception as e:
                     eval_summary = {"suite_id": suite_id, "accuracy": None,
                                     "note": "eval-arena error: %s" % type(e).__name__,
+                                    "evidence": {"error": "SELF_EVAL_FAILED"},
                                     "label": "MODELED-UNAVAILABLE — eval-arena raised; not fabricated."}
             else:
                 eval_summary = {"suite_id": suite_id, "accuracy": None,
+                                "evidence": {"error": "SELF_EVAL_UNAVAILABLE"},
                                 "note": "szl_eval_arena not importable in this runtime.",
                                 "label": "MODELED-OFF — eval-arena unavailable; no score fabricated."}
 
@@ -423,19 +630,32 @@ def run_loop(task: str,
                                 "note": ("HumanApprovalGate primitive unavailable in this runtime "
                                          "(MODELED-OFF).")}
 
+            inference = _fields(run.get("inference"), (
+                "mode", "model", "display", "license", "attempts", "rate_limited"))
+            if isinstance(run.get("inference"), dict) and "error" in run["inference"]:
+                inference["error"] = _error_code(run["inference"]["error"])
             attempt = {
                 "attempt": n_try,
                 "engine": {
                     "ok": run.get("ok"),
+                    "emitted": run.get("emitted"),
+                    "output_present": any(isinstance(value, str) and bool(value.strip()) for value in (
+                        run.get("answer"), run.get("output"),
+                        (run.get("code") or {}).get("code") if isinstance(run.get("code"), dict) else None)),
+                    "error": _error_code(run.get("error")),
+                    "inference": inference,
+                    "backend": _fields(run.get("backend"), (
+                        "backend", "mode", "primary_model", "configured", "offline", "sovereign")),
                     "decision": decision,
                     "gate_severity": gate.get("severity"),
                     "lambda": step_lambda,
                     "mode": step_mode,
                     "sandbox": step_sandbox,
-                    "executed": bool(run.get("executed")),
+                    "executed": run.get("executed") is True,
                     "execution_status": run.get("execution_status"),
                     "signed": step_signed,
                     "signed_pae_sha256": step_sig.get("_pae_sha256"),
+                    "signed_receipt": deepcopy(step_sig),
                     "answer_preview": (run.get("answer") or run.get("output") or "")[:200]
                         if isinstance(run.get("answer") or run.get("output"), str) else None,
                     "sandbox_run": (run.get("sandbox_run") or run.get("exec") or None),
@@ -444,6 +664,9 @@ def run_loop(task: str,
                 "eval": eval_summary,
                 "approval": approval_res,
             }
+            # Invalid numerical evidence remains unavailable rather than making
+            # the HTTP JSON encoder raise after the effects have already run.
+            attempt = _json_evidence(attempt)
             attempts.append(attempt)
             best = attempt
 
@@ -462,6 +685,7 @@ def run_loop(task: str,
             "n": n, "title": pstep.get("title"), "mode": step_mode,
             "sandbox": step_sandbox, "state_changing": state_changing,
             "suite_id": suite_id, "attempts": len(attempts), "final": best,
+            "attempt_evidence_sha256": _sha256(_canon(attempts)),
             "prev_digest": prev_digest,
         }
         step_digest = _sha256(_canon(step_body))
@@ -474,18 +698,29 @@ def run_loop(task: str,
             "retries": len(attempts) - 1,
             "attempts": attempts,
             "final": best,
+            "attempt_evidence_sha256": step_body["attempt_evidence_sha256"],
             "step_digest": step_digest,
         })
 
     # ── whole-run aggregate (honest; Λ is advisory Conjecture 1) ──
     n_steps = len(steps_out)
+    completion = _completion(steps_out, model_id)
+    retry_policy = {
+        "outer_max_retries": max_retries,
+        "engine_internal_retries_bounded": False,
+        "engine_model_fallback_disabled": False,
+        "budget_enforcement_asserted": False,
+        "note": "Outer retries do not bound the legacy engine's internal retries or model fallback.",
+    }
     step_accs = [s["final"]["eval"].get("accuracy") for s in steps_out
                  if s.get("final") and s["final"].get("eval")
-                 and isinstance(s["final"]["eval"].get("accuracy"), (int, float))]
+                 and _finite_number(s["final"]["eval"].get("accuracy"))
+                 and 0 <= s["final"]["eval"]["accuracy"] <= 1]
     mean_acc = round(sum(step_accs) / len(step_accs), 4) if step_accs else None
     step_lams = [s["final"]["eval"].get("lambda") for s in steps_out
                  if s.get("final") and s["final"].get("eval")
-                 and isinstance(s["final"]["eval"].get("lambda"), (int, float))]
+                 and _finite_number(s["final"]["eval"].get("lambda"))
+                 and 0 <= s["final"]["eval"]["lambda"] <= 1]
     mean_lambda = round(min(TRUST_CEILING, sum(step_lams) / len(step_lams)), 6) if step_lams else None
     any_denied = any(s["final"]["engine"].get("decision") == "DENY"
                      for s in steps_out if s.get("final") and s["final"].get("engine"))
@@ -540,6 +775,8 @@ def run_loop(task: str,
         "harness_profile_id": harness_profile_id or None,
         "eval_suite_default": eval_suite or "(per-step mode heuristic)",
         "max_retries": max_retries,
+        "completion": completion,
+        "retry_policy": retry_policy,
         "n_steps": n_steps,
         "step_chain": [{"n": s["n"], "digest": s["step_digest"],
                         "decision": (s["final"]["engine"].get("decision") if s.get("final") else None),
@@ -622,7 +859,10 @@ def run_loop(task: str,
     forum = _ingest_forum(receipt_body, dsse)
 
     return {
-        "ok": True,
+        "ok": completion["complete"],
+        "orchestration_complete": True,
+        "completion": completion,
+        "retry_policy": retry_policy,
         "status_code": 200,
         "surface": "szl_agent_loop_governed",
         "run_id": run_id,
@@ -652,11 +892,9 @@ def run_loop(task: str,
         "doctrine": DOCTRINE,
         "kernel_commit": _KERNEL,
         "conjecture_note": _CONJECTURE_NOTE,
-        "label": ("LIVE governed agent loop — Brain-vault context (corpus='brain', advisory) → "
-                  "plan (MODELED) → act (engine P1-P6, Λ-gate, sandbox) → self-eval (eval-arena) "
-                  "→ HumanApprovalGate → bounded retry → Brain-harnessed energy allocation "
-                  "(/brain/energy, advisory) → ONE composite signed receipt chaining "
-                  "brain-context + profile + steps + eval + energy, ingested to /llm/forum. "
+        "label": (completion["state"] + " — governed loop orchestration finished. "
+                  "Completion is UPSTREAM_REPORTED_UNVERIFIED, not model qualification, "
+                  "signature verification, or a bounded-cost claim. The plan is MODELED; "
                   "Λ is Conjecture 1 (advisory)."),
     }
 
@@ -907,7 +1145,8 @@ def _selftest() -> None:  # pragma: no cover
         return szl_dsse.sign_payload(obj, "application/vnd.szl.khipu+json")
     out = run_loop("write a python function that returns the first 5 primes",
                    _sign, ns="a11oy", mode="code", max_retries=1)
-    assert out["ok"] is True, out
+    assert out["orchestration_complete"] is True, out
+    assert out["ok"] is False and out["completion"]["complete"] is False, out
     assert out["composite_receipt"]["body"]["schema"] == SCHEMA
     assert out["composite_receipt"]["body"]["locked8_touched"] is False
     assert out["aggregate"]["lambda_status"] == "CONJECTURE"
@@ -919,7 +1158,8 @@ def _selftest() -> None:  # pragma: no cover
     outb = run_loop("explain the Euler Khipu DAG identity F1 and estimate its energy budget",
                     _sign, ns="a11oy", mode="research", max_retries=0,
                     consult_brain=True, allocate_energy=True)
-    assert outb["ok"] is True, outb
+    assert outb["orchestration_complete"] is True, outb
+    assert outb["ok"] is False and outb["completion"]["complete"] is False, outb
     body = outb["composite_receipt"]["body"]
     assert body["brain_consulted"] is True and body["energy_allocated"] is True
     bc = body["brain_context"]

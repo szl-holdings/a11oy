@@ -7,16 +7,21 @@ This entry point consolidates existing product/proof surfaces. It neither
 authorizes actions nor owns a signer, credential, publisher or scheduler.
 """
 
+import hashlib
+import json
 import os
 import re
+import stat
 from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi.responses import JSONResponse, Response
+from routers import command_centre_view
 from szl_provider_http import http_json
 
 ROOT = Path(__file__).resolve().parent / "command_centre_web"
 STUDY = Path(__file__).resolve().parent / "data" / "atelier-model-intake-2026-09-29.json"
+PUBLIC_ESTATE = Path(__file__).resolve().parents[1] / "static/shared/public-estate-contract.v1.json"
 PROOF_INVENTORY = "https://a11oy.net/estate/hf-current.json"
 HEADERS = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer"}
 PAGE_HEADERS = {**HEADERS, "Cache-Control": "no-store, no-transform", "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'", "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()"}
@@ -43,6 +48,115 @@ SURFACES = (
 )
 
 
+def _bounded_source(path, limit=65536):
+    """Read only a regular, bounded bundled input; never follow a file symlink."""
+    if not stat.S_ISREG(path.lstat().st_mode):
+        raise ValueError("bundled source is not a regular file")
+    with path.open("rb") as stream:
+        body = stream.read(limit + 1)
+    if len(body) > limit:
+        raise ValueError("bundled source exceeds bound")
+    return body
+
+
+def _unique_object(pairs):
+    value = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError("duplicate public binding field")
+        value[key] = item
+    return value
+
+
+def _invalid_constant(_value):
+    raise ValueError("non-finite public binding")
+
+
+def public_estate():
+    """Narrow local consumer, not an inventory scanner or keep-list authority.
+
+    Project only fixed public origins and Ayllu's existing inventory-only row.
+    Unrelated source rows are never serialized into the page or its manifest.
+    Full estate/keep-list consistency remains the release validator's job.
+    """
+    unavailable = {"state": "UNAVAILABLE", "code": "PUBLIC_BINDING_UNAVAILABLE",
+                   "source": "static/shared/public-estate-contract.v1.json",
+                   "sha256": None, "canonical": None, "ayllu": None}
+    try:
+        raw = _bounded_source(PUBLIC_ESTATE)
+        value = json.loads(raw.decode("utf-8"), object_pairs_hook=_unique_object,
+                           parse_constant=_invalid_constant)
+        if not isinstance(value, dict) or value.get("schema") != "szl.public-estate/v1" or value.get("version") != "1.0.2":
+            raise ValueError("unsupported public binding")
+        canonical = value.get("canonical")
+        if canonical != {
+            "product": "https://a-11-oy.com", "proof": "https://a11oy.net",
+            "source": "https://github.com/szl-holdings/a11oy",
+            "githubOrganization": "https://github.com/szl-holdings",
+            "huggingFaceOrganization": "https://huggingface.co/SZLHOLDINGS",
+        }:
+            raise ValueError("public origins drifted")
+        authority = value.get("authority")
+        if not isinstance(authority, dict) or set(authority) != {
+            "externalWrites", "publicEffectors", "automaticRemediation",
+            "productionAuthorization", "humanApprovalRequired",
+        } or authority.get("externalWrites") != "DISABLED_BY_DEFAULT" or authority.get("publicEffectors") != [] or authority.get("automaticRemediation") is not False or authority.get("productionAuthorization") is not False or authority.get("humanApprovalRequired") is not True:
+            raise ValueError("public authority drifted")
+        fabric = value.get("fabric")
+        if not isinstance(fabric, dict) or fabric.get("id") != "a11oy" or fabric.get("githubRepository") != "szl-holdings/a11oy" or fabric.get("huggingFaceRepository") != "SZLHOLDINGS/a11oy":
+            raise ValueError("product ownership drifted")
+        inventory = value.get("inventoryOnlyHuggingFaceRepositories")
+        if not isinstance(inventory, list) or not 1 <= len(inventory) <= 128:
+            raise ValueError("invalid public classifications")
+        seen = set()
+        ayllu = None
+        for row in inventory:
+            if not isinstance(row, dict) or not isinstance(row.get("id"), str) or not re.fullmatch(r"SZLHOLDINGS/[A-Za-z0-9_.-]+", row["id"]):
+                raise ValueError("invalid inventory identity")
+            if row["id"] in seen:
+                raise ValueError("duplicate inventory identity")
+            seen.add(row["id"])
+            if row.get("classification") != "INVENTORY_ONLY" or row.get("governedKeep") is not False or row.get("disposition") != ("ORG_CARD" if row["id"] == "SZLHOLDINGS/README" else "FOLD") or row.get("policySource") != "docs/series-a/hf-space-keep-list.yaml":
+                raise ValueError("inventory disposition drifted")
+            if row["id"] == "SZLHOLDINGS/ayllu":
+                ayllu = {key: row[key] for key in ("id", "classification", "governedKeep", "disposition", "policySource")}
+        if ayllu is None:
+            raise ValueError("Ayllu public classification unavailable")
+        topology = [fabric["huggingFaceRepository"]]
+        for group in ("publicDomainBodies", "supportingSystems"):
+            rows = value.get(group)
+            if not isinstance(rows, list) or len(rows) > 128:
+                raise ValueError("invalid public topology")
+            for row in rows:
+                if not isinstance(row, dict) or not isinstance(row.get("huggingFaceRepositories"), list):
+                    raise ValueError("invalid public topology row")
+                topology.extend(row["huggingFaceRepositories"])
+        laboratories = value.get("laboratorySurfaces")
+        if not isinstance(laboratories, list) or len(laboratories) > 128:
+            raise ValueError("invalid public laboratory list")
+        topology.extend(laboratories)
+        if any(not isinstance(item, str) for item in topology) or "SZLHOLDINGS/ayllu" in topology:
+            raise ValueError("inventory-only Ayllu cannot be promoted")
+        ayllu["href"] = "https://huggingface.co/spaces/" + ayllu["id"]
+        return {"state": "SOURCE_CONTRACT", "source": unavailable["source"],
+                "sha256": hashlib.sha256(raw).hexdigest(), "version": value["version"],
+                "canonical": dict(canonical), "ayllu": ayllu}
+    except (OSError, ValueError, TypeError, KeyError, RecursionError):
+        return unavailable
+
+
+def presentation_sources():
+    """Exact serving owners; the retained index.html is deliberately excluded."""
+    sources = {
+        "routers/command_centre.py": Path(__file__),
+        "routers/command_centre_view.py": Path(command_centre_view.__file__),
+    }
+    for suffix in ("app.js", "style.css", "szl/szl-design-system.css", "szl/szl-console.css"):
+        sources["routers/command_centre_web/" + suffix] = ROOT / suffix
+    return {name: hashlib.sha256(_bounded_source(path, 1048576)).hexdigest()
+            for name, path in sources.items()}
+
+
 def manifest():
     revision = os.getenv("SZL_GIT_SHA", "")
     return {
@@ -50,11 +164,24 @@ def manifest():
         "external_mutation_performed": False, "inference_verified": False,
         "runtime_scope": "LOCAL_PREVIEW_STARTUP_DISABLED" if os.getenv("A11OY_COMMAND_CENTRE_PREVIEW") == "1" else "DEPLOYED_PROCESS_REQUIRES_PROOF",
         "source_revision": revision if re.fullmatch(r"[0-9a-f]{40}", revision) else None,
+        "public_estate": public_estate(),
+        "presentation": {
+            "mode": "PYTHON_SERVER_RENDERED",
+            "renderer": "routers/command_centre_view.py",
+            "retained_browser_interactions": "routers/command_centre_web/app.js",
+            "legacy_non_serving_reference": "routers/command_centre_web/index.html",
+            "sources": presentation_sources(),
+        },
         "authorities": {"source": "szl-holdings/a11oy", "artifacts": "SZLHOLDINGS", "product": "https://a-11-oy.com", "proof": "https://a11oy.net", "publisher": "hf-sync.yml"},
         "release_order": ["protected_github_source", "canonical_hf_publication", "product_and_proof_verification"],
         "surfaces": [{"lane": lane, "title": title, "href": href, "boundary": boundary} for lane, title, href, boundary in SURFACES],
         "boundaries": ["Navigation does not authorize an action", "Grok is third-party inference, not SZL-owned weights", "Public CPU lab is a separate unsigned best-effort demonstration, not Grok or local Ollama", "Python chat is bounded single-turn; platform encrypted Turn Capsule is a separate source boundary", "Runtime metadata and HTTP 200 do not establish model inference"],
     }
+
+
+def page_bytes():
+    """Deterministic source-owner entry for route and browser byte witnesses."""
+    return command_centre_view.render_page(manifest())
 
 
 def proof_inventory():
@@ -103,7 +230,13 @@ def register(app):
         return Response(body, media_type=media_type, headers=headers)
 
     def page():
-        return asset(ROOT / "index.html", "text/html", PAGE_HEADERS)
+        try:
+            body = page_bytes()
+            if len(body) > 1048576:
+                raise ValueError("rendered page exceeds bound")
+        except (OSError, ValueError, TypeError, KeyError, RecursionError):
+            return JSONResponse({"state": "UNAVAILABLE", "code": "PAGE_SOURCE_UNAVAILABLE"}, status_code=503, headers=HEADERS)
+        return Response(body, media_type="text/html", headers=PAGE_HEADERS)
 
     def script():
         return asset(ROOT / "app.js", "text/javascript")
@@ -118,7 +251,11 @@ def register(app):
         return asset(ROOT / "szl" / "szl-console.css", "text/css")
 
     async def source_manifest():
-        return JSONResponse(manifest(), headers=HEADERS)
+        try:
+            body = manifest()
+        except (OSError, ValueError, TypeError, KeyError, RecursionError):
+            return JSONResponse({"state": "UNAVAILABLE", "code": "PAGE_SOURCE_UNAVAILABLE"}, status_code=503, headers=HEADERS)
+        return JSONResponse(body, headers=HEADERS)
 
     def inventory():
         return JSONResponse(proof_inventory(), headers=HEADERS)
